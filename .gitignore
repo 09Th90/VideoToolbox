@@ -1,91 +1,30 @@
-# Python
+# Python caches
 __pycache__/
 *.pyc
 *.pyo
 *.pyd
-*.so
-.Python
 *.egg-info/
-*.egg
-pip-wheel-metadata/
 
-# Virtual environments
-.env
-.venv
-venv/
-ENV/
-env/
+# Virtual environments (regenerable)
 .buildvenv/
+.venv/
+venv/
 
-# IDE
-.vscode/
-.idea/
-*.swp
-*.swo
+# Sensitive: API keys and browser profile with cookies
+data/ai_config.json
+data/uploader_profile/
+
+# Runtimes / large binaries (available via GitHub Releases)
+tools/asr_model/
+tools/python/
+tools/ms-playwright/
+tools/ffmpeg.exe
+tools/ffprobe.exe
+
+# Over-limit artifacts (>100MB, available via GitHub Releases)
+installer/*.exe
+build/archives/
 
 # OS
 .DS_Store
 Thumbs.db
-
-# Build artifacts
-build/
-dist/
-*.spec
-*.iss
-_installer_check/
-
-# Logs
-logs/
-*.log
-
-# Data
-data/
-*.json
-!data/ai_config.json.example
-
-# Playwright
-tools/ms-playwright/
-tools/python/
-
-# Large binaries (exceed GitHub 100MB limit / download separately)
-tools/asr_model/
-tools/ffmpeg.exe
-tools/ffprobe.exe
-tools/yt-dlp.exe
-
-# Installer
-installer/
-
-# Video files
-*.mp4
-*.mkv
-*.mov
-*.avi
-*.flv
-*.webm
-
-# Subtitle
-*.srt
-*.ass
-*.vtt
-
-# Audio
-*.m4a
-*.weba
-*.wav
-*.mp3
-
-# Images
-*.png
-*.jpg
-*.jpeg
-*.webp
-
-# Temporary files
-*.tmp
-*.temp
-~*
-# Re-include project files
-!视频工具箱.iss
-!视频工具箱.spec
-!docs/界面预览.png

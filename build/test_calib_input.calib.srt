@@ -1,0 +1,14 @@
+1
+00:00:01,000 --> 00:00:03,000
+漂泊者终于回到了今州。
+Rover finally returned to Jinzhou.
+
+2
+00:00:04,000 --> 00:00:06,500
+能天使，维里奈。
+Thank you, Verina.
+
+3
+00:00:07,000 --> 00:00:09,000
+这是一段完全不需要修改的普通台词。
+This line needs no change at all.

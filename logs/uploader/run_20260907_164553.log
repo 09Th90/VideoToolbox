@@ -1,0 +1,17 @@
+16:45:53 | INFO    | bili-uploader | 检测模式: areas，日志: G:\Kimi Work\视频工具箱\logs\uploader\run_20260907_164553.log
+16:45:54 | INFO    | modules.browser | 启动浏览器（通道: playwright-chromium，Profile: G:\Kimi Work\视频工具箱\data\uploader_profile）
+16:45:55 | INFO    | modules.browser | 浏览器通道就绪: playwright-chromium
+16:45:55 | INFO    | modules.browser | 浏览器启动完成，视口固定为 {'width': 1920, 'height': 1080}，缩放 1:1
+16:45:55 | INFO    | bili-uploader | AI 屏幕识别已启用（视觉模型: glm-4.5v）
+16:45:58 | WARNING | bili-uploader | ============================================================
+16:45:58 | WARNING | bili-uploader | 检测到未登录，请在弹出的浏览器窗口中手动扫码/验证登录。
+16:45:58 | WARNING | bili-uploader | 登录成功后程序会自动继续，无需关闭浏览器（最长等待 180 秒）。
+16:45:58 | WARNING | bili-uploader | ============================================================
+16:47:04 | INFO    | bili-uploader | 检测到登录成功，等待页面稳定...
+16:47:06 | INFO    | bili-uploader | 已重新进入投稿页
+16:47:06 | INFO    | modules.catalog | 分区检测：先上传视频 D:/原片/潮汐任務第四章第三幕「心剣響けば煙雲棚引く」をやる/潮汐任務第四章第三幕「心剣響けば煙雲棚引く」をやる.mp4
+16:47:06 | INFO    | modules.uploader | 待上传文件: D:\原片\潮汐任務第四章第三幕「心剣響けば煙雲棚引く」をやる\潮汐任務第四章第三幕「心剣響けば煙雲棚引く」をやる.mp4（10085.21 MB）
+16:47:07 | WARNING | modules.uploader | 页面未找到任何 input[type=file]，方案 A 不可用
+16:47:07 | INFO    | modules.uploader | 主通道不可用，回退系统对话框方案（方案 B）
+16:47:07 | ERROR   | modules.uploader | 方案 B 失败：找不到任何可点击的上传入口
+16:47:07 | INFO    | modules.browser | 浏览器已关闭
