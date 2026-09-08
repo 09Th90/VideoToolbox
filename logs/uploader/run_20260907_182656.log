@@ -1,0 +1,23 @@
+18:26:56 | INFO    | bili-uploader | 检测模式: areas，日志: G:\Kimi Work\视频工具箱\logs\uploader\run_20260907_182656.log
+18:26:56 | INFO    | modules.browser | 启动浏览器（通道: playwright-chromium，Profile: G:\Kimi Work\视频工具箱\data\uploader_profile）
+18:26:56 | WARNING | modules.browser | 通道 playwright-chromium 启动失败: BrowserType.launch_persistent_context: Executable doesn't exist at G:\Kimi Work\视频工具箱\tools\ms-playwright\chromium_headless_shell-1234\chrome-headless-shell-win64\chrome-headless-shell.exe
+╔════════════════════════════════════════════════════════════╗
+║ Looks like Playwright was just installed or updated.       ║
+║ Please run the following command to download new browsers: ║
+║                                                            ║
+║     playwright install                                     ║
+║                                                            ║
+║ <3 Playwright Team                                         ║
+╚════════════════════════════════════════════════════════════╝
+18:26:56 | INFO    | modules.browser | 自动回退到下一通道: chrome
+18:26:56 | INFO    | modules.browser | 启动浏览器（通道: chrome，Profile: G:\Kimi Work\视频工具箱\data\uploader_profile）
+18:26:57 | INFO    | modules.browser | 浏览器通道就绪: chrome
+18:26:57 | INFO    | modules.browser | 浏览器启动完成，视口固定为 {'width': 1920, 'height': 1080}，缩放 1:1
+18:26:57 | INFO    | bili-uploader | AI 屏幕识别已启用（视觉模型: glm-4.6v-flash）
+18:27:00 | INFO    | bili-uploader | 登录态有效，直接进入投稿流程
+18:27:00 | INFO    | modules.catalog | 分区检测：先上传视频 G:\Kimi Work\视频工具箱\dist\视频工具箱.exe
+18:27:00 | WARNING | modules.uploader | 文件后缀 .exe 不在常见视频格式列表内，仍尝试上传
+18:27:00 | INFO    | modules.uploader | 待上传文件: G:\Kimi Work\视频工具箱\dist\视频工具箱.exe（11.94 MB）
+18:27:00 | INFO    | modules.uploader | 命中视频文件输入框: input[type="file"]（共 3 个，取第一个）
+18:27:00 | INFO    | modules.uploader | CDP 已注入文件（DOM.setFileInputFiles）: 视频工具箱.exe
+18:27:00 | INFO    | modules.uploader | 等待视频上传与初始化完成（超时 1800 秒）...
