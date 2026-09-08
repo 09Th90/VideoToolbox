@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>视频工具箱 v1.7.1 开发报告</title>
+<style>
+  :root{
+    --text:#1A1B1C; --sub:#5B6472; --bg:#F7F6F2; --card:#FFFFFF;
+    --line:#E4E3DD; --accent:#9BBBF4; --accent-d:#3B5BDB; --ok:#2E9E5B;
+    --warn:#B26A00; --code:#F1F0EB;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{background:var(--bg);color:var(--text);font-family:'Roboto','PingFang SC','Segoe UI',Arial,sans-serif;line-height:1.7;padding:0 0 80px;}
+  .wrap{max-width:1080px;margin:0 auto;padding:0 20px;}
+  header{background:linear-gradient(135deg,#2C3E6B,#4A67B8);color:#fff;padding:44px 0 36px;}
+  header .wrap h1{font-size:26px;letter-spacing:1px;}
+  header .wrap p{margin-top:8px;font-size:14px;opacity:.92;}
+  .badges{margin-top:14px;display:flex;gap:8px;flex-wrap:wrap;}
+  .badge{background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.35);padding:3px 12px;border-radius:999px;font-size:12px;}
+  h2{font-size:20px;margin:44px 0 14px;padding-left:12px;border-left:4px solid var(--accent-d);}
+  h3{font-size:16px;margin:26px 0 10px;color:var(--accent-d);}
+  p,li{font-size:14px;}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px 20px;margin:12px 0;}
+  table{width:100%;border-collapse:collapse;font-size:13px;margin:10px 0;}
+  th{background:#EEF1F8;text-align:left;padding:8px 10px;border:1px solid var(--line);white-space:nowrap;}
+  td{padding:8px 10px;border:1px solid var(--line);vertical-align:top;}
+  code,pre{font-family:Consolas,'Courier New',monospace;}
+  code{background:var(--code);padding:1px 6px;border-radius:4px;font-size:12.5px;}
+  pre{background:#22262E;color:#E6E9EF;padding:14px 16px;border-radius:10px;font-size:12.5px;overflow-x:auto;line-height:1.55;}
+  pre .c{color:#7C8898;} pre .d{color:#A3D5E8;} pre .k{color:#E4D48F;}
+  ul,ol{padding-left:22px;}
+  li{margin:4px 0;}
+  .grid2{display:flex;gap:14px;flex-wrap:wrap;}
+  .grid2>div{flex:1 1 320px;min-width:0;}
+  .tag{display:inline-block;padding:1px 8px;border-radius:4px;font-size:11.5px;background:#EEF1F8;color:#3B5BDB;border:1px solid #D6DDF0;margin-right:6px;}
+  .flow{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:12px 0;}
+  .flow .node{background:#fff;border:1.5px solid var(--accent);border-radius:8px;padding:6px 12px;font-size:13px;}
+  .flow .arr{color:#94A3B8;font-weight:700;}
+  .muted{color:var(--sub);font-size:12.5px;}
+  .ok{color:var(--ok);} .warn{color:var(--warn);}
+  .toc{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px 24px;margin:18px 0;}
+  .toc a{color:var(--accent-d);text-decoration:none;font-size:14px;}
+  .toc li{margin:3px 0;}
+  footer{margin-top:60px;padding-top:16px;border-top:1px solid var(--line);color:var(--sub);font-size:12.5px;}
+  @media (max-width:600px){ h2{font-size:18px;} header .wrap h1{font-size:21px;} }
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <h1>视频工具箱 v1.7.1 开发报告</h1>
+    <p>并行下载 · 独立打包 · 自动视频库 · 音视频合并 · 本地字幕生成 · B站自动投稿 —— 一套完全自包含的本地视频工作台</p>
+    <div class="badges">
+      <span class="badge">Python + Tkinter</span>
+      <span class="badge">yt-dlp</span>
+      <span class="badge">FFmpeg</span>
+      <span class="badge">faster-whisper large-v3-turbo</span>
+      <span class="badge">Playwright + Chromium</span>
+      <span class="badge">PyInstaller + Inno Setup</span>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <div class="toc">
+    <b>目录</b>
+    <ol>
+      <li><a href="#s1">项目概览</a></li>
+      <li><a href="#s2">目录结构与组件位置</a></li>
+      <li><a href="#s3">程序结构图</a></li>
+      <li><a href="#s4">技术设计</a></li>
+      <li><a href="#s5">关键业务流程</a></li>
+      <li><a href="#s6">验证与质量保障</a></li>
+      <li><a href="#s7">附录：核心函数清单</a></li>
+    </ol>
+  </div>
+
+  <h2 id="s1">1. 项目概览</h2>
+  <div class="card">
+    <h3>1.1 项目定位</h3>
+    <p>「视频工具箱」是一款面向个人的本地视频工作台，覆盖从 <b>B站视频下载</b> → <b>本地字幕生成（ASR）</b> → <b>音视频/字幕合并</b> → <b>视频库管理</b> → <b>B站自动投稿</b> 的完整闭环。所有外部依赖（Python 运行时、Chromium 浏览器、Whisper 模型、ffmpeg/yt-dlp）均内嵌在工具目录内，<b>免安装、免联网初始化、可整目录拷贝迁移</b>。</p>
+    <h3>1.2 技术栈</h3>
+    <table>
+      <tr><th>层级</th><th>技术</th><th>用途</th></tr>
+      <tr><td>GUI</td><td>Python Tkinter（ttk.Notebook 五标签页）</td><td>下载 / 视频库 / 合并 / 字幕生成 / B站投稿</td></tr>
+      <tr><td>下载</td><td>yt-dlp（内嵌 exe）</td><td>抓取信息 JSON、清晰度解析、并行下载、字幕下载</td></tr>
+      <tr><td>媒体处理</td><td>FFmpeg / FFprobe（内嵌 exe）</td><td>抽帧封面、时长探测、抽音频、音视频/字幕合并、烧录字幕</td></tr>
+      <tr><td>ASR</td><td>faster-whisper（large-v3-turbo）</td><td>本地字幕生成，GPU float16 优先、CPU int8 回退</td></tr>
+      <tr><td>投稿自动化</td><td>Playwright + 内嵌 Chromium</td><td>B站投稿页自动填表、文件注入（CDP）、登录态复用</td></tr>
+      <tr><td>打包发布</td><td>PyInstaller + Inno Setup</td><td>单目录 exe + 安装包；模型/浏览器单独外置下载脚本</td></tr>
+    </table>
+    <h3>1.3 版本演进</h3>
+    <ul>
+      <li><b>v1.6.x</b>：安装包瘦身（ASR 模型改为外置下载）；视频库；音视频合并。</li>
+      <li><b>v1.7.0</b>：目录按功能分层（src/docs/data/logs/tools）；投稿分区自动检测为两级级联；视频信息.txt 与投稿表单字段全对齐；ASR 大模型。</li>
+      <li><b>v1.7.1</b>（本期）：① B站分区改为单级下拉（B站当前无一级/二级），分区/话题检测均改为<b>先上传视频再取列表</b>（修复 areas 检测退出码 1 问题）；② 新增「加入合集」自动检测与选择；③ 同步上传原始字幕（.srt），字幕语言默认英语；④ 简介按「源地址/来源/原简介」格式自动生成。</li>
+    </ul>
+  </div>
+
+  <h2 id="s2">2. 目录结构与组件位置</h2>
+  <div class="card">
+    <h3>2.1 目录树</h3>
+    <pre><span class="c"># 程序根目录（F:\Kimi Work\视频工具箱）</span>
+├─ 视频工具箱.spec / 视频工具箱.iss     <span class="c"># PyInstaller 打包配置 / Inno Setup 安装脚本</span>
+├─ src\                     <span class="c"># 源码层</span>
+│  ├─ video_toolbox.py      <span class="c"># 核心引擎（单文件：下载/解析/合并/打包/配置/投稿任务装配）</span>
+│  ├─ video_toolbox_gui.py  <span class="c"># GUI 主程序（5 个标签页 + 主窗口）</span>
+│  ├─ asr_subtitle_worker.py<span class="c"># ASR 字幕 worker（子进程，stdout 协议通信）</span>
+│  └─ _selftest_gui.py      <span class="c"># GUI 端到端自检脚本</span>
+├─ tools\                   <span class="c"># 工具链层（全部内嵌，免安装）</span>
+│  ├─ yt-dlp.exe / ffmpeg.exe / ffprobe.exe
+│  ├─ python\               <span class="c"># 内嵌 Python 运行时</span>
+│  ├─ ms-playwright\        <span class="c"># 内嵌 Chromium 内核</span>
+│  ├─ asr_model\            <span class="c"># Whisper large-v3-turbo 模型（含 model.bin）</span>
+│  └─ uploader_src\         <span class="c"># B站投稿引擎源码</span>
+│     ├─ config.py          <span class="c"># 投稿字段/选择器/任务 JSON 装配</span>
+│     ├─ uploader_runner.py <span class="c"># 投稿主流程 + 分区/话题/合集检测模式入口</span>
+│     └─ modules\
+│        ├─ browser.py      <span class="c"># 浏览器会话、登录扫码、JS 工具、人类化鼠标</span>
+│        ├─ catalog.py      <span class="c"># 分区（单级）/话题/合集自动检测</span>
+│        ├─ form_engine.py  <span class="c"># 表单填写引擎（文本扫描定位，含字幕上传）</span>
+│        ├─ uploader.py     <span class="c"># 视频上传（CDP 注入）、封面选择、等待就绪</span>
+│        ├─ tag_handler.py  <span class="c"># 标签/话题区填写</span>
+│        ├─ sidecar.py      <span class="c"># sidecar.txt 边车文件解析（标签/话题识别）</span>
+│        └─ system_dialog.py<span class="c"># 系统文件对话框备用通道（PyAutoGUI）</span>
+├─ data\                    <span class="c"># 用户数据层</span>
+│  ├─ config.json           <span class="c"># 界面配置（保存目录记忆等）</span>
+│  ├─ downloads\            <span class="c"># 下载视频目录（每视频独立文件夹）</span>
+│  ├─ catalog\              <span class="c"># 分区/合集/话题检测缓存 JSON</span>
+│  ├─ uploader_profile\     <span class="c"># 投稿浏览器持久化登录态（长期复用）</span>
+│  └─ uploader_tasks\       <span class="c"># 投稿任务 JSON（GUI 装配 → 引擎消费）</span>
+├─ logs\                    <span class="c"># 运行日志（含投稿 run_*.log 与失败截图）</span>
+├─ docs\使用说明.txt         <span class="c"># 用户使用说明</span>
+├─ build\                   <span class="c"># 构建产物与开发脚本（test_v17.py、截图脚本）</span>
+├─ installer\ / dist\       <span class="c"># 安装包产物</span></pre>
+  </div>
+
+  <div class="card">
+    <h3>2.2 组件功能一览</h3>
+    <table>
+      <tr><th>组件</th><th>位置</th><th>功能</th><th>说明</th></tr>
+      <tr><td>核心引擎 video_toolbox.py</td><td><code>src\</code></td><td>路径锚点与旧版目录迁移；配置读写；下载链路（取信息→解析清晰度→下载→封面→视频信息.txt）；智能配对合并；ASR 环境探测与 worker 启动；投稿任务装配与信息解析；首次运行自动补全 yt-dlp/ffmpeg</td><td>单文件自包含，GUI 与子进程共用</td></tr>
+      <tr><td>GUI 主程序 video_toolbox_gui.py</td><td><code>src\</code></td><td>5 个标签页：视频下载（并行任务表/画质选择/字幕勾选/独立文件夹打包）、视频库（扫描/清理/打开目录）、音视频合并（配对/烧录/封装）、字幕生成（ASR 进度/双语/段落）、B站投稿（选视频→预填→分区/合集/字幕→预览或提交）</td><td>LogBox 日志区、EntryUndo 撤销、配置持久化、队列回主线程</td></tr>
+      <tr><td>ASR worker</td><td><code>src\asr_subtitle_worker.py</code></td><td>分块转写：ffprobe 取时长 → 每 10 分钟抽 16kHz 单声道 wav → faster-whisper VAD 转写 → 重叠去重 → 写 SRT</td><td>stdout 协议 <code>@@PROGRESS/@@LOG/@@DONE/@@ERROR</code>；GPU→CPU 自动回退；长视频内存恒定</td></tr>
+      <tr><td>GUI 自检</td><td><code>src\_selftest_gui.py</code></td><td>端到端验证：目录记忆持久化、独立文件夹、界面改目录即时写配置</td><td>不联网、不下载</td></tr>
+      <tr><td>投稿配置</td><td><code>tools\uploader_src\config.py</code></td><td>投稿字段表（标题/声明/分区/合集/标签/话题/字幕/简介）、DOM 选择器字典、任务 JSON 加载/CLI 覆盖、字段顺序</td><td>v1.7.1 新增 collection/subtitle/subtitle_lang 字段</td></tr>
+      <tr><td>投稿主流程</td><td><code>tools\uploader_src\uploader_runner.py</code></td><td>参数解析 → 启动浏览器 → 登录 → 上传视频 → 封面 → 逐字段填表 → 预览/提交；<code>--catalog</code> 检测模式（areas/topics/collections）</td><td>检测结果写 <code>CATALOG_JSON=</code> 行与缓存文件</td></tr>
+      <tr><td>浏览器会话</td><td><code>modules\browser.py</code></td><td>持久化 profile 启动/停止；登录态检测与扫码；JS 工具（可点击元素扫描/下拉选项枚举）；人类化鼠标（移动/点击/滚动）；失败截图</td><td>登录态长期复用，跨进程免重复扫码</td></tr>
+      <tr><td>目录检测</td><td><code>modules\catalog.py</code></td><td>单级分区抓取（UI 枚举优先、接口兜底）；话题枚举；合集检测（seasons 接口优先、UI 兜底）</td><td>v1.7.1 起 areas/topics 先上传视频再检测；结果缓存到 <code>data\catalog\*.json</code></td></tr>
+      <tr><td>表单引擎</td><td><code>modules\form_engine.py</code></td><td>文本标签扫描定位输入框/下拉/多选；标题/简介/声明/分区/合集/标签/话题逐字段填写；字幕上传（选语言→注入 srt→等待完成）</td><td>单字段失败隔离不影响后续；全部按名称点击，抗页面改版</td></tr>
+      <tr><td>上传模块</td><td><code>modules\uploader.py</code></td><td>视频文件 CDP 注入、上传进度等待、封面列表选择（自动/手动）</td><td>备用通道走系统对话框</td></tr>
+      <tr><td>标签处理</td><td><code>modules\tag_handler.py</code></td><td>B站标签区智能填写（回车添加/删除默认标签）、话题 chip 点选</td><td>—</td></tr>
+      <tr><td>边车解析</td><td><code>modules\sidecar.py</code></td><td>解析 sidecar.txt 的 标签/话题 分节，写入任务</td><td>兼容旧格式</td></tr>
+      <tr><td>系统对话框</td><td><code>modules\system_dialog.py</code></td><td>网站非标准上传组件时：PyAutoGUI 操控系统“打开”对话框（Alt+N → 剪贴板粘贴路径 → 回车）</td><td>备用通道，仅 CDP 注入失败时启用</td></tr>
+      <tr><td>数据目录</td><td><code>data\</code></td><td>config.json 配置；downloads 视频库；catalog 检测缓存；uploader_profile 登录态；uploader_tasks 任务 JSON</td><td>用户数据与程序分离</td></tr>
+      <tr><td>日志</td><td><code>logs\</code></td><td>GUI 日志、投稿 run_*.log、检测失败截图</td><td>排障入口</td></tr>
+    </table>
+  </div>
+
+  <h2 id="s3">3. 程序结构图</h2>
+  <div class="card">
+    <p>总体为<b>三层 + 一数据带</b>架构：GUI 层（用户交互）→ 引擎层（业务逻辑，含投稿引擎子包）→ 工具链层（内嵌二进制/运行时）；右侧为数据与日志带。主程序与 ASR/投稿检测以子进程隔离，通过约定的行协议通信。</p>
+    <svg viewBox="0 0 1000 760" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:auto;background:#FBFBF8;border:1px solid #E4E3DD;border-radius:12px;">
+      <defs>
+        <marker id="arr" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="#6B7280"/></marker>
+        <marker id="arrA" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="#3B5BDB"/></marker>
+      </defs>
+
+      <text x="30" y="28" font-size="15" font-weight="700" fill="#2C3E6B">视频工具箱 v1.7.1 · 程序结构图（示意）</text>
+
+      <!-- ============ L1 GUI ============ -->
+      <rect x="30" y="48" width="560" height="120" rx="12" fill="#FFFFFF" stroke="#9BBBF4" stroke-width="1.5"/>
+      <text x="46" y="72" font-size="13.5" font-weight="700" fill="#3B5BDB">L1 交互层 · src/video_toolbox_gui.py（Tkinter，5 标签页）</text>
+      <g font-size="11.5" fill="#1A1B1C">
+        <rect x="46" y="84" width="100" height="34" rx="7" fill="#EEF1F8" stroke="#D6DDF0"/><text x="96" y="105" text-anchor="middle">视频下载</text>
+        <rect x="156" y="84" width="100" height="34" rx="7" fill="#EEF1F8" stroke="#D6DDF0"/><text x="206" y="105" text-anchor="middle">视频库</text>
+        <rect x="266" y="84" width="100" height="34" rx="7" fill="#EEF1F8" stroke="#D6DDF0"/><text x="316" y="105" text-anchor="middle">音视频合并</text>
+        <rect x="376" y="84" width="100" height="34" rx="7" fill="#EEF1F8" stroke="#D6DDF0"/><text x="426" y="105" text-anchor="middle">字幕生成</text>
+        <rect x="486" y="84" width="96" height="34" rx="7" fill="#E3EAFB" stroke="#9BBBF4"/><text x="534" y="105" text-anchor="middle">B站投稿</text>
+      </g>
+      <text x="46" y="138" font-size="11" fill="#5B6472">LogBox 日志区 · EntryUndo 撤销 · 配置持久化 · 队列回主线程</text>
+      <text x="46" y="156" font-size="11" fill="#5B6472">子进程协议：ASR @@行 / 投稿 CATALOG_JSON= 行</text>
+
+      <!-- L1 -> L2 arrows -->
+      <line x1="120" y1="168" x2="120" y2="200" stroke="#3B5BDB" stroke-width="1.4" marker-end="url(#arrA)"/>
+      <line x1="300" y1="168" x2="300" y2="200" stroke="#3B5BDB" stroke-width="1.4" marker-end="url(#arrA)"/>
+      <line x1="480" y1="168" x2="480" y2="200" stroke="#3B5BDB" stroke-width="1.4" marker-end="url(#arrA)"/>
+      <text x="132" y="192" font-size="10.5" fill="#6B7280">调用/子进程</text>
+
+      <!-- ============ L2 engine ============ -->
+      <rect x="30" y="208" width="560" height="270" rx="12" fill="#FFFFFF" stroke="#8BC8EA" stroke-width="1.5"/>
+      <text x="46" y="232" font-size="13.5" font-weight="700" fill="#2C6E8F">L2 引擎层 · 业务逻辑</text>
+
+      <!-- engine boxes -->
+      <rect x="46" y="244" width="250" height="58" rx="8" fill="#F2F9FC" stroke="#A3D5E8"/>
+      <text x="58" y="264" font-size="12.5" font-weight="700" fill="#1A1B1C">核心引擎 video_toolbox.py</text>
+      <text x="58" y="282" font-size="10.5" fill="#5B6472">下载/解析/合并/打包/配置/任务装配</text>
+      <text x="58" y="296" font-size="10.5" fill="#5B6472">路径锚点 · 工具引导 ensure_*</text>
+
+      <rect x="306" y="244" width="130" height="58" rx="8" fill="#F2F9FC" stroke="#A3D5E8"/>
+      <text x="318" y="264" font-size="12.5" font-weight="700" fill="#1A1B1C">ASR worker</text>
+      <text x="318" y="282" font-size="10.5" fill="#5B6472">asr_subtitle_worker.py</text>
+      <text x="318" y="296" font-size="10.5" fill="#5B6472">分块转写 · SRT</text>
+
+      <rect x="446" y="244" width="136" height="58" rx="8" fill="#F2F9FC" stroke="#A3D5E8"/>
+      <text x="458" y="264" font-size="12.5" font-weight="700" fill="#1A1B1C">GUI 自检</text>
+      <text x="458" y="282" font-size="10.5" fill="#5B6472">_selftest_gui.py</text>
+      <text x="458" y="296" font-size="10.5" fill="#5B6472">端到端验证</text>
+
+      <!-- uploader sub package -->
+      <rect x="46" y="316" width="536" height="150" rx="10" fill="#FBF6EC" stroke="#E1B98F" stroke-dasharray="5 4"/>
+      <text x="60" y="338" font-size="12.5" font-weight="700" fill="#8A5A1E">投稿引擎 tools/uploader_src（Playwright，独立子进程）</text>
+
+      <rect x="58" y="350" width="150" height="44" rx="7" fill="#FFFFFF" stroke="#E1B98F"/>
+      <text x="133" y="369" text-anchor="middle" font-size="11.5" font-weight="700">uploader_runner.py</text>
+      <text x="133" y="385" text-anchor="middle" font-size="10" fill="#5B6472">主流程/检测模式</text>
+
+      <rect x="220" y="350" width="104" height="44" rx="7" fill="#FFFFFF" stroke="#E1B98F"/>
+      <text x="272" y="369" text-anchor="middle" font-size="11.5" font-weight="700">config.py</text>
+      <text x="272" y="385" text-anchor="middle" font-size="10" fill="#5B6472">字段/选择器</text>
+
+      <rect x="336" y="350" width="120" height="44" rx="7" fill="#FFFFFF" stroke="#E1B98F"/>
+      <text x="396" y="369" text-anchor="middle" font-size="11.5" font-weight="700">modules/browser</text>
+      <text x="396" y="385" text-anchor="middle" font-size="10" fill="#5B6472">会话/扫码/JS</text>
+
+      <rect x="468" y="350" width="100" height="44" rx="7" fill="#FFFFFF" stroke="#E1B98F"/>
+      <text x="518" y="369" text-anchor="middle" font-size="11.5" font-weight="700">modules/…</text>
+      <text x="518" y="385" text-anchor="middle" font-size="10" fill="#5B6472">catalog/form/uploader</text>
+      <text x="518" y="398" text-anchor="middle" font-size="10" fill="#5B6472">tag/sidecar/dialog</text>
+
+      <text x="58" y="422" font-size="10.5" fill="#8A5A1E">登录态复用 data\uploader_profile · 失败截图 logs\uploader\screenshots</text>
+      <text x="58" y="438" font-size="10.5" fill="#8A5A1E">检测结果缓存 data\catalog\{areas,collections,topics_*}.json</text>
+      <text x="58" y="454" font-size="10.5" fill="#8A5A1E">任务 JSON data\uploader_tasks\*.json（GUI 装配 → 引擎消费）</text>
+
+      <!-- L2 -> L3 arrows -->
+      <line x1="160" y1="478" x2="160" y2="512" stroke="#6B7280" stroke-width="1.4" marker-end="url(#arr)"/>
+      <line x1="360" y1="478" x2="360" y2="512" stroke="#6B7280" stroke-width="1.4" marker-end="url(#arr)"/>
+      <line x1="520" y1="478" x2="520" y2="512" stroke="#6B7280" stroke-width="1.4" marker-end="url(#arr)"/>
+      <text x="172" y="502" font-size="10.5" fill="#6B7280">调用内嵌工具</text>
+
+      <!-- ============ L3 tools ============ -->
+      <rect x="30" y="520" width="560" height="104" rx="12" fill="#FFFFFF" stroke="#A2DDAA" stroke-width="1.5"/>
+      <text x="46" y="544" font-size="13.5" font-weight="700" fill="#2E6B45">L3 工具链层 tools\（内嵌，免安装）</text>
+      <g font-size="11.5" fill="#1A1B1C">
+        <rect x="46" y="556" width="98" height="36" rx="7" fill="#F0FAF1" stroke="#BFE6C4"/><text x="95" y="572" text-anchor="middle">yt-dlp.exe</text><text x="95" y="586" text-anchor="middle" font-size="10" fill="#5B6472">下载/信息</text>
+        <rect x="154" y="556" width="98" height="36" rx="7" fill="#F0FAF1" stroke="#BFE6C4"/><text x="203" y="572" text-anchor="middle">ffmpeg/ffprobe</text><text x="203" y="586" text-anchor="middle" font-size="10" fill="#5B6472">媒体处理</text>
+        <rect x="262" y="556" width="112" height="36" rx="7" fill="#F0FAF1" stroke="#BFE6C4"/><text x="318" y="572" text-anchor="middle">python\（内嵌运行时）</text><text x="318" y="586" text-anchor="middle" font-size="10" fill="#5B6472">ASR/Playwright</text>
+        <rect x="384" y="556" width="96" height="36" rx="7" fill="#F0FAF1" stroke="#BFE6C4"/><text x="432" y="572" text-anchor="middle">ms-playwright</text><text x="432" y="586" text-anchor="middle" font-size="10" fill="#5B6472">Chromium</text>
+        <rect x="490" y="556" width="92" height="36" rx="7" fill="#F0FAF1" stroke="#BFE6C4"/><text x="536" y="572" text-anchor="middle">asr_model\</text><text x="536" y="586" text-anchor="middle" font-size="10" fill="#5B6472">Whisper 模型</text>
+      </g>
+      <text x="46" y="612" font-size="10.5" fill="#5B6472">首次运行自动补全缺失组件（ensure_ytdlp/ensure_ffmpeg），安装包不含大模型，由下载脚本补齐</text>
+
+      <!-- ============ Data band ============ -->
+      <rect x="640" y="48" width="330" height="576" rx="12" fill="#FFFFFF" stroke="#C9A7E8" stroke-width="1.5"/>
+      <text x="656" y="72" font-size="13.5" font-weight="700" fill="#6B3FA0">数据与日志带</text>
+      <g font-size="11.5" fill="#1A1B1C">
+        <rect x="656" y="84" width="150" height="40" rx="7" fill="#F7F2FB" stroke="#E3D6F2"/><text x="731" y="101" text-anchor="middle">data\config.json</text><text x="731" y="116" text-anchor="middle" font-size="10" fill="#5B6472">界面配置记忆</text>
+        <rect x="656" y="134" width="150" height="40" rx="7" fill="#F7F2FB" stroke="#E3D6F2"/><text x="731" y="151" text-anchor="middle">data\downloads\</text><text x="731" y="166" text-anchor="middle" font-size="10" fill="#5B6472">下载视频库</text>
+        <rect x="656" y="184" width="150" height="40" rx="7" fill="#F7F2FB" stroke="#E3D6F2"/><text x="731" y="201" text-anchor="middle">data\catalog\</text><text x="731" y="216" text-anchor="middle" font-size="10" fill="#5B6472">分区/合集/话题缓存</text>
+        <rect x="656" y="234" width="150" height="40" rx="7" fill="#F7F2FB" stroke="#E3D6F2"/><text x="731" y="251" text-anchor="middle">data\uploader_profile\</text><text x="731" y="266" text-anchor="middle" font-size="10" fill="#5B6472">B站登录态（长期复用）</text>
+        <rect x="656" y="284" width="150" height="40" rx="7" fill="#F7F2FB" stroke="#E3D6F2"/><text x="731" y="301" text-anchor="middle">data\uploader_tasks\</text><text x="731" y="316" text-anchor="middle" font-size="10" fill="#5B6472">投稿任务 JSON</text>
+        <rect x="656" y="334" width="150" height="40" rx="7" fill="#F7F2FB" stroke="#E3D6F2"/><text x="731" y="351" text-anchor="middle">logs\</text><text x="731" y="366" text-anchor="middle" font-size="10" fill="#5B6472">运行日志</text>
+        <rect x="656" y="384" width="150" height="40" rx="7" fill="#F7F2FB" stroke="#E3D6F2"/><text x="731" y="401" text-anchor="middle">logs\uploader\screenshots</text><text x="731" y="416" text-anchor="middle" font-size="10" fill="#5B6472">投稿失败截图</text>
+        <rect x="656" y="434" width="150" height="40" rx="7" fill="#F7F2FB" stroke="#E3D6F2"/><text x="731" y="451" text-anchor="middle">docs\使用说明.txt</text><text x="731" y="466" text-anchor="middle" font-size="10" fill="#5B6472">用户文档</text>
+        <rect x="656" y="484" width="150" height="40" rx="7" fill="#F7F2FB" stroke="#E3D6F2"/><text x="731" y="501" text-anchor="middle">build\（构建/测试脚本）</text><text x="731" y="516" text-anchor="middle" font-size="10" fill="#5B6472">test_v17.py 等</text>
+        <rect x="656" y="534" width="150" height="40" rx="7" fill="#F7F2FB" stroke="#E3D6F2"/><text x="731" y="551" text-anchor="middle">installer\ + dist\</text><text x="731" y="566" text-anchor="middle" font-size="10" fill="#5B6472">安装包产物</text>
+      </g>
+      <text x="656" y="606" font-size="10.5" fill="#5B6472">用户数据与程序分离，整目录可迁移</text>
+
+      <!-- flow arrows: GUI->engine->tools and data -->
+      <line x1="590" y1="108" x2="640" y2="108" stroke="#6B7280" stroke-width="1.2" marker-end="url(#arr)"/>
+      <line x1="590" y1="340" x2="640" y2="340" stroke="#6B7280" stroke-width="1.2" marker-end="url(#arr)"/>
+      <line x1="590" y1="572" x2="640" y2="572" stroke="#6B7280" stroke-width="1.2" marker-end="url(#arr)"/>
+      <text x="594" y="98" font-size="10" fill="#6B7280">读写</text>
+      <text x="594" y="330" font-size="10" fill="#6B7280">读写</text>
+      <text x="594" y="562" font-size="10" fill="#6B7280">读写</text>
+    </svg>
+    <p class="muted">注：本图为自绘结构示意，节点与连线描述模块间调用/读写关系，不代表精确度量。</p>
+  </div>
+
+  <h2 id="s4">4. 技术设计</h2>
+
+  <div class="card">
+    <h3>4.1 总体架构设计</h3>
+    <ul>
+      <li><b>三层 + 数据带</b>：GUI 层（Tkinter）只负责交互与装配；引擎层（video_toolbox.py + 投稿引擎子包 + ASR worker）承载全部业务；工具链层为内嵌二进制/运行时。数据与日志独立成带，用户数据可整体迁移。</li>
+      <li><b>自包含免安装</b>：Python 运行时、Chromium、Whisper 模型、yt-dlp/ffmpeg 全部内嵌在 <code>tools\</code>，程序不依赖系统环境；模型与浏览器由安装/下载脚本补齐。</li>
+      <li><b>子进程隔离</b>：ASR 转写与 B站投稿均为独立子进程，崩溃不影响 GUI；GUI 通过行协议 + 队列回主线程更新界面。</li>
+      <li><b>路径锚点与迁移</b>：引擎启动时按「程序目录」计算各路径锚点，并对 v1.6 旧布局（根目录散落 data/logs）自动迁移，保证升级不丢用户数据。</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h3>4.2 进程模型与通信协议</h3>
+    <table>
+      <tr><th>通道</th><th>协议</th><th>说明</th></tr>
+      <tr><td>GUI → ASR worker</td><td>命令行参数（--video/--model/--out/--ffmpeg/--ffprobe/--language）</td><td>worker 由内嵌 python 以子进程运行</td></tr>
+      <tr><td>ASR worker → GUI</td><td>stdout 行协议 <code>@@PROGRESS {"pct":…}</code> / <code>@@LOG</code> / <code>@@DONE</code> / <code>@@ERROR</code></td><td>GUI 逐行解析，进度回填任务表</td></tr>
+      <tr><td>GUI → 投稿引擎</td><td>任务 JSON（data\uploader_tasks\*.json）+ 子进程参数</td><td>引擎启动时 load_task_file 装配字段</td></tr>
+      <tr><td>投稿检测 → GUI</td><td>stdout 标记行 <code>CATALOG_JSON=…</code> / <code>CATALOG_SAVED=…</code> + 结果文件</td><td>GUI 解析后回填分区/合集/话题下拉</td></tr>
+      <tr><td>GUI 内部</td><td>主线程 queue.Queue + after() 轮询</td><td>子进程/线程产物安全回到 Tk 主线程</td></tr>
+    </table>
+  </div>
+
+  <div class="card">
+    <h3>4.3 投稿引擎设计（v1.7.1）</h3>
+    <ul>
+      <li><b>登录态长期复用</b>：Playwright 以 <code>data\uploader_profile</code> 持久化上下文启动，首次扫码后 Cookie 长期有效，后续免登录。</li>
+      <li><b>先上传、再取分区</b>：B站上传视频后才进入可填写的投稿区。分区/话题/合集检测流程均先调用 <code>upload_video</code> 完成真实上传，再枚举表单，修复「areas 检测失败（退出码 1）」。检测会上传视频但不投稿。</li>
+      <li><b>单级分区</b>：B站当前分区为单级下拉，UI 通道展开下拉直接枚举全部选项（与页面所见一致），接口通道兜底并把两级树自动拍平为叶子；GUI 由两级级联改为单级下拉。</li>
+      <li><b>合集自动检测</b>：主通道调用创作中心 <code>member.bilibili.com/x2/creative/web/seasons</code>（页面内 fetch 带 Cookie）获取账号全部合集；失败且已上传视频时回退枚举页面「合集」下拉；GUI 新增「检测合集」按钮与下拉选择。</li>
+      <li><b>字幕同步上传</b>：选视频时自动从同目录查找原始 .srt（同名 → .en.srt → 同名前缀 → 任意）；上传流程定位字幕区 → 先选语言（默认英语）→ CDP 注入字幕文件 → 等待完成。</li>
+      <li><b>简介格式</b>：选视频时按「源地址（换行）/ 来源：博主主页（同行）/ 原简介（换行）」自动生成，字段取自 视频信息.txt 的视频链接/博主主页/简介。</li>
+      <li><b>文本扫描式定位</b>：表单定位不依赖固定 class，而是扫描页面可见文本标签（“标题/简介/分区/合集/字幕…”）与可点击元素，再按名称点击选项——对 B站改版有较强抗性。</li>
+      <li><b>文件注入双通道</b>：主通道 Playwright <code>set_input_files</code>（CDP）；非标准上传组件时回退 PyAutoGUI 操控系统文件对话框（剪贴板粘贴路径，支持中文路径）。</li>
+      <li><b>字段级容错</b>：逐字段填写独立 try/except，单字段失败记录结果不中断其余字段；预览/提交双模式，提交前 GUI 二次确认。</li>
+      <li><b>可观测性</b>：每次失败自动截图到 <code>logs\uploader\screenshots</code>，日志 <code>logs\uploader\run_*.log</code>，便于排障。</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h3>4.4 ASR 字幕生成设计</h3>
+    <ul>
+      <li><b>恒定内存</b>：ffprobe 取总时长后按 10 分钟/块（块间 2 秒重叠防切句）用 ffmpeg 抽取 16kHz 单声道 wav，任意时刻内存中只有一块音频。</li>
+      <li><b>重叠去重</b>：段时间戳加块偏移回到全局时间轴，丢弃起始落在上一块已覆盖区的段。</li>
+      <li><b>VAD 过滤</b>：faster-whisper VAD 过滤静音（min_silence 500ms），beam_size=5。</li>
+      <li><b>算力回退</b>：GPU float16 优先，加载失败自动回退 CPU int8，界面提示实际引擎。</li>
+      <li><b>进度协议</b>：块级/段级进度通过 <code>@@PROGRESS</code> 实时回传，GUI 显示百分比与当前块。</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h3>4.5 下载链路设计</h3>
+    <div class="flow">
+      <span class="node">URL 输入</span><span class="arr">→</span>
+      <span class="node">fetch_info_json（重试 4 次）</span><span class="arr">→</span>
+      <span class="node">parse_qualities 清晰度解析</span><span class="arr">→</span>
+      <span class="node">yt-dlp 并行下载</span><span class="arr">→</span>
+      <span class="node">make_cover 1280×720 封面</span><span class="arr">→</span>
+      <span class="node">write_info_txt 视频信息.txt</span>
+    </div>
+    <ul>
+      <li>每视频独立文件夹（sanitize_folder_name + unique_folder 防重名）；可选下载字幕。</li>
+      <li>视频信息.txt 字段与投稿表单完全对齐（标题/简介/标签/分区/创作声明/话题/视频链接/博主主页），GUI 选视频即全字段预填，简介按投稿格式自动生成。</li>
+      <li>多任务并行下载，任务表记录进度/状态，可中途取消。</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h3>4.6 合并链路设计</h3>
+    <div class="flow">
+      <span class="node">scan_media 扫描</span><span class="arr">→</span>
+      <span class="node">smart_pair 时长匹配配对</span><span class="arr">→</span>
+      <span class="node">merge_pair（ffmpeg）</span><span class="arr">→</span>
+      <span class="node">封装 / 字幕烧录</span>
+    </div>
+    <ul>
+      <li>smart_pair 以 ffprobe 时长差为准则智能配对 mp4/m4a/webm 与 srt/ass 字幕，自动识别音视频/字幕组合。</li>
+      <li>ass_mode=burn 时把字幕烧录进画面；否则仅封装音轨。</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h3>4.7 打包与发布</h3>
+    <ul>
+      <li><b>PyInstaller</b>（视频工具箱.spec）：把 GUI + 引擎 + 上传器源码打进单目录 exe，内嵌 python 运行时与上传器源码随包携带。</li>
+      <li><b>Inno Setup</b>（视频工具箱.iss）：生成安装包，写入开始菜单/桌面快捷方式。</li>
+      <li><b>大组件外置</b>：Whisper 模型（约 1.5GB）与 Chromium 不入安装包，首次运行或由下载脚本补齐到 tools\，避免安装包臃肿。</li>
+    </ul>
+  </div>
+
+  <h2 id="s5">5. 关键业务流程</h2>
+  <div class="card">
+    <h3>5.1 B站投稿流程（v1.7.1）</h3>
+    <pre><span class="k">1.</span> GUI：选视频 → 自动读取同目录 视频信息.txt 预填（标题/简介按格式/标签/分区/声明/话题）
+<span class="k">2.</span> GUI：点「检测/刷新分区列表」（需已选视频）→ 引擎先上传视频 → 枚举单级分区 → 回填下拉
+<span class="k">3.</span> GUI：点「检测合集」→ seasons 接口获取账号合集 → 回填下拉（可留空）
+<span class="k">4.</span> GUI：原始字幕自动查找（.srt）→ 语言默认「英语」
+<span class="k">5.</span> 启动投稿引擎（任务 JSON）：
+    goto 投稿页 → 登录态检测/扫码 → 上传视频 → 等待就绪 → 选封面
+    → 标题/创作声明 → 分区（单级）→ 加入合集（若有）→ 标签 → 话题
+    → 字幕上传（选语言→注入 srt）→ 简介
+<span class="k">6.</span> 预览模式（不提交）核对；正式提交前 GUI 二次确认 → 点击「立即投稿」</pre>
+    <p class="muted">任一步失败：单字段隔离记录 + 自动截图 + 日志，GUI 报告结果。</p>
+  </div>
+  <div class="card">
+    <h3>5.2 字幕生成流程（ASR）</h3>
+    <pre><span class="k">1.</span> GUI 选视频（可多选）→ 语言/是否双语 → 启动 worker 子进程
+<span class="k">2.</span> worker：ffprobe 总时长 → 分块抽 wav → VAD 转写 → 重叠去重 → 写 SRT
+<span class="k">3.</span> GUI：@@PROGRESS 实时进度 → @@DONE 后刷新任务表，输出到视频同目录</pre>
+  </div>
+
+  <h2 id="s6">6. 验证与质量保障</h2>
+  <div class="card">
+    <table>
+      <tr><th>验证项</th><th>手段</th><th>结果</th></tr>
+      <tr><td>离线功能回归</td><td>build\test_v17.py（路径锚点、信息 txt 往返、简介格式、字幕查找优先级、sidecar 识别、单级分区归一、合集缓存路径、引擎路径一致）</td><td class="ok">全部通过</td></tr>
+      <tr><td>GUI 构造</td><td>src\_selftest_gui.py（目录记忆、独立文件夹、配置持久化）</td><td class="ok">全部通过</td></tr>
+      <tr><td>投稿页 UI</td><td>截图脚本（build\shot_upload_tab.ps1 类）确认单级分区/合集/字幕控件渲染</td><td class="ok">已确认</td></tr>
+      <tr><td>编译检查</td><td>python -m py_compile 全部修改文件</td><td class="ok">通过</td></tr>
+      <tr><td>CLI 校验</td><td>--catalog 参数校验、areas 缺视频报错、任务 JSON 装配</td><td class="ok">通过</td></tr>
+      <tr><td>在线投稿</td><td>需 B站登录态（当前本地登录态已过期）</td><td class="warn">待用户扫码后实测</td></tr>
+    </table>
+    <p class="muted">已知待办：B站真实页面下的分区/合集下拉结构与字幕区交互需登录态在线验证一次；若选择器不匹配，按 logs\uploader\screenshots 截图针对性修正。</p>
+  </div>
+
+  <h2 id="s7">7. 附录：核心函数清单</h2>
+  <div class="card">
+    <h3>video_toolbox.py（核心引擎）</h3>
+    <table>
+      <tr><th>函数</th><th>功能</th></tr>
+      <tr><td>_migrate_legacy_layout / _fallback_config_path</td><td>旧版目录与配置迁移、配置路径兜底</td></tr>
+      <tr><td>load_config / save_config / get·set_saved_download_dir</td><td>配置持久化与保存目录记忆</td></tr>
+      <tr><td>ensure_ytdlp / ensure_ffmpeg</td><td>首次运行自动补全工具链</td></tr>
+      <tr><td>extract_url / fetch_info_json / parse_qualities / save_info_json</td><td>URL 提取、信息 JSON 抓取、清晰度解析</td></tr>
+      <tr><td>download_mode</td><td>下载主流程（并行/进度/字幕）</td></tr>
+      <tr><td>sanitize_folder_name / unique_folder / output_template</td><td>独立文件夹与命名</td></tr>
+      <tr><td>make_cover_1280x720</td><td>封面抽帧</td></tr>
+      <tr><td>write_info_txt / parse_info_txt / build_posting_description</td><td>视频信息.txt 写读 + 投稿简介格式生成（v1.7.1）</td></tr>
+      <tr><td>find_subtitle_for_video</td><td>原始字幕自动查找（v1.7.1）</td></tr>
+      <tr><td>scan_media / smart_pair / merge_pair / merge_mode</td><td>合并链路（扫描/配对/合并）</td></tr>
+      <tr><td>asr_env_ready / asr_worker_script / asr_subprocess_env</td><td>ASR 环境探测与 worker 启动参数</td></tr>
+      <tr><td>uploader_env_ready / write_uploader_task</td><td>投稿引擎就绪检查与任务装配</td></tr>
+    </table>
+    <h3>tools\uploader_src（投稿引擎）</h3>
+    <table>
+      <tr><th>模块/函数</th><th>功能</th></tr>
+      <tr><td>uploader_runner.run / run_catalog</td><td>投稿主流程 / 检测模式分发（areas/topics/collections）</td></tr>
+      <tr><td>catalog.fetch_areas / fetch_topics_for_zone / fetch_collections</td><td>单级分区 / 话题 / 合集检测（v1.7.1）</td></tr>
+      <tr><td>uploader.upload_video / select_cover / wait_ready</td><td>视频上传、封面选择、就绪等待</td></tr>
+      <tr><td>form_engine.fill_all_forms / fill_select_field / fill_subtitle_field</td><td>逐字段填写 / 下拉选择 / 字幕上传（v1.7.1）</td></tr>
+      <tr><td>tag_handler.fill_bilibili_tags</td><td>标签/话题填写</td></tr>
+      <tr><td>browser.BrowserSession / ensure_logged_in / human_click</td><td>浏览器会话、登录、人类化交互</td></tr>
+      <tr><td>system_dialog.handle_system_dialog</td><td>系统文件对话框备用通道</td></tr>
+    </table>
+  </div>
+
+  <footer>
+    视频工具箱 v1.7.1 开发报告 · 生成日期 2026-09-06 · 源码位置 F:\Kimi Work\视频工具箱<br>
+    本报告基于项目源码与离线/自检验证结果整理；在线投稿链路待登录态实测后补充。
+  </footer>
+</div>
+</body>
+</html>
