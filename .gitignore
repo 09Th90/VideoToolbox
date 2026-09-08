@@ -85,3 +85,7 @@ installer/
 *.tmp
 *.temp
 ~*
+# Re-include project files
+!视频工具箱.iss
+!视频工具箱.spec
+!docs/界面预览.png
