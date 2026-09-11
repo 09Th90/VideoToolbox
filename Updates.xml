@@ -6,14 +6,14 @@
   <Name>com.videotoolbox.base</Name>
   <DisplayName>视频工具箱 主程序</DisplayName>
   <Description>主程序、界面源码、文档与第三方组件声明（必装，约 88MB）</Description>
-  <Version>1.10.1</Version>
-  <ReleaseDate>2026-09-10</ReleaseDate>
+  <Version>1.10.3</Version>
+  <ReleaseDate>2026-09-11</ReleaseDate>
   <ForcedInstallation>true</ForcedInstallation>
   <SortingPriority>100</SortingPriority>
   <Script>installscript.qs</Script>
-  <UpdateFile CompressedSize="58463757" OS="Any" UncompressedSize="92741718"/>
+  <UpdateFile CompressedSize="109630545" OS="Any" UncompressedSize="143737192"/>
   <DownloadableArchives>docs.7z,src.7z,tools.7z,content.7z</DownloadableArchives>
  </PackageUpdate>
- <SHA1>e3bb1b4694e6bb0a32fb9db120309b0f3f5d4690</SHA1>
- <MetadataName>2026-09-11-0709_meta.7z</MetadataName>
+ <SHA1>7c7f3a2ebb11a24c565529301997ba10fd825228</SHA1>
+ <MetadataName>2026-09-11-1940_meta.7z</MetadataName>
 </Updates>
