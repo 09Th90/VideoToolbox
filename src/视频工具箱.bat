@@ -7,8 +7,8 @@ set "ROOT=%~dp0.."
 set "PY=%ROOT%\tools\python\python.exe"
 if not exist "%PY%" set "PY=%LOCALAPPDATA%\Programs\Python\Python312\python.exe"
 if exist "%PY%" (
-  "%PY%" "%~dp0video_toolbox_gui.py" %*
+  "%PY%" "%~dp0video_toolbox_qt.py" %*
 ) else (
-  py -3 "%~dp0video_toolbox_gui.py" %*
+  py -3 "%~dp0video_toolbox_qt.py" %*
 )
 if errorlevel 1 pause

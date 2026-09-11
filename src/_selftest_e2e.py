@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """端到端自检：模拟一次完整下载，验证任务文件夹的最终产出结构。
 
-直接调用 GUI 的 DownloadTab._pack_task（负责信息导出 + 封面转换的串联逻辑），
+直接调用 GUI 的 DownloadPage._pack_task（负责信息导出 + 封面转换的串联逻辑），
 输入用本地 ffmpeg 生成的素材替代真实下载结果，因此不联网、不下载视频。
 
 运行：python _selftest_e2e.py
@@ -83,7 +83,7 @@ def main():
             f.write("1\n00:00:00,000 --> 00:00:02,000\n测试字幕\n")
 
         # ---- 5. 调用 GUI 真实使用的打包方法 ----
-        import video_toolbox_gui as gui
+        import video_toolbox_qt as gui
 
         class FakeQueue:
             def put(self, msg):
@@ -92,9 +92,9 @@ def main():
         class FakeApp:
             q = FakeQueue()
 
-        tab = gui.DownloadTab.__new__(gui.DownloadTab)   # 不构建界面，只取方法
-        tab.app = FakeApp()
-        tab._pack_task("T1", ffmpeg, folder, meta, "1080p")
+        page = gui.DownloadPage.__new__(gui.DownloadPage)  # 不构建界面，只取方法
+        page.app = FakeApp()
+        page._pack_task("T1", ffmpeg, folder, meta, "1080p")
 
         # ---- 6. 验证最终产出结构 ----
         print("\n[产出] 文件夹内容：")

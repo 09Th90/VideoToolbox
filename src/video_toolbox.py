@@ -1,12 +1,24 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-视频工具箱 v1.9.0（单文件整合版）
+视频工具箱 v1.10.2（单文件整合版）
 ==================================================
+v1.10.2：字幕引擎改为内嵌——不再唤起独立窗口，「字幕处理」页直接呈现引擎
+  界面（品牌水印/捐助入口在嵌入层隐藏，engine_ui_brand_patch 中性化用户可见
+  文案；许可与来源声明保留在 docs\ 下）；界面布局重做：页面「标题区固定 +
+  内容滚动」，窗口尺寸按屏幕自适应，高分屏矢量渲染；随包 wheel 与独立进程
+  唤起链路（launch_vc_gui / vc_install_from_wheel）移除。
+v1.10.1：① 界面整体重写为 Fluent 风格（FluentWindow +
+  左侧导航 + 卡片分组，PyQt5 + PyQt-Fluent-Widgets），原 tkinter 界面退役；
+  ② 移除「B站投稿」板块及其 Playwright 引擎（tools/uploader_src、tools/ms-playwright
+  不再随包分发），AI 客户端独立为 tools/ai_client.py 供字幕语言识别继续使用；
+  ③ 修复：直接运行构建产物时找不到 tools/python 的问题（向上逐级查找）。
+v1.10.0：字幕链路整体替换为第三方开源字幕引擎（GPL-3.0 组件）——
+  语音转录 / 字幕优化 / 翻译 / 配音 / 合成全部交由引擎承担；
+  原自带 ASR 实现（src\asr_subtitle_worker.py + tools\asr_model 模型引导）已移除；
+  「字幕校准」页仍调用自建术语库脚本 subtitle_calib_merged.py 做终校。
 v1.9.0：接入全局 AI（智谱 GLM：glm-4.7-flash 文本 + glm-4.6v-flash 视觉，
-  配置 data\ai_config.json）；B站投稿的分区检测/分区选择/简介填写/话题参与
-  全部改为 AI 屏幕识别 + 模拟鼠标点击/滚动（不注入页面脚本）；
-  字幕语言由 AI 识别标题语言自动匹配（下载与投稿两侧）。
+  配置 data\ai_config.json）；字幕语言由 AI 识别标题语言自动匹配（下载侧）。
 目录结构（v1.7 按功能划分，程序目录顶层只留主程序）：
   视频工具箱.exe | tools/ 运行时 | src/ 源代码 | docs/ 文档
   data/ 用户数据（下载/配置/缓存/登录态/任务/分区缓存）| logs/ 日志
@@ -34,6 +46,7 @@ import urllib.request
 import zipfile
 import re
 import time
+import atexit
 import threading
 import tempfile
 from datetime import datetime
@@ -55,7 +68,28 @@ else:
     APP_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # SCRIPT_DIR 保留旧名（语义=程序根目录），避免全项目改动
 SCRIPT_DIR = APP_DIR
-TOOLS_DIR = os.path.join(APP_DIR, "tools")
+
+
+def _resolve_tools_dir():
+    """定位 tools 运行时目录。
+
+    正常安装形态：就在 exe 同级的 tools\\。但直接运行构建产物
+    （如 dist\\视频工具箱.exe，旁边只有 exe）时它不存在——此时向上逐级查找，
+    便于开发期调试；都找不到则返回默认位置（后续报错文案会指出实际查找位置）。
+    """
+    d = APP_DIR
+    for _ in range(5):
+        cand = os.path.join(d, "tools")
+        if os.path.isdir(cand):
+            return cand
+        parent = os.path.dirname(d)
+        if parent == d:
+            break
+        d = parent
+    return os.path.join(APP_DIR, "tools")
+
+
+TOOLS_DIR = _resolve_tools_dir()
 SRC_DIR = os.path.join(APP_DIR, "src")
 DOCS_DIR = os.path.join(APP_DIR, "docs")
 DATA_DIR = os.path.join(APP_DIR, "data")
@@ -65,10 +99,26 @@ THUMB_CACHE_DIR = os.path.join(DATA_DIR, "thumb_cache")
 
 YTDLP_URL = "https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp.exe"
 FFMPEG_ZIP_URL = "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-win64-gpl.zip"
+# yt-dlp 提取 YouTube 需要 JS 运行时（deno，官方默认启用）；缺失时部分视频
+# 的格式会缺失或提取失败（2026 版起已弃用无 JS 提取）。deno.exe 与 yt-dlp.exe
+# 放同目录即被自动发现。镜像：https://gh-proxy.com/ + 官方 URL
+DENO_URL = ("https://github.com/denoland/deno/releases/latest/download/"
+            "deno-x86_64-pc-windows-msvc.zip")
+DENO_MIRROR_URL = ("https://gh-proxy.com/" + DENO_URL)
 
 YTDLP_PATH = os.path.join(TOOLS_DIR, "yt-dlp.exe")
 FFMPEG_PATH = os.path.join(TOOLS_DIR, "ffmpeg.exe")
 FFPROBE_PATH = os.path.join(TOOLS_DIR, "ffprobe.exe")
+DENO_PATH = os.path.join(TOOLS_DIR, "deno.exe")
+
+# ===== 内置代理（mihomo/ClashMeta 核心，与 FlClash 同源，随安装包分发）=====
+# 用途：程序从 GitHub/HuggingFace 等开源库下载依赖时自动启用，其余流量直连。
+# 端口固定 7897，与本机其他代理（FlClash 等占用 7890）互不冲突。
+MIHOMO_DIR = os.path.join(TOOLS_DIR, "mihomo")
+MIHOMO_EXE = os.path.join(MIHOMO_DIR, "mihomo.exe")
+MIHOMO_CONFIG = os.path.join(MIHOMO_DIR, "config.yaml")
+MIHOMO_PROXY = "http://127.0.0.1:7897"
+MIHOMO_PORT = 7897
 
 CONFIG_PATH = os.path.join(DATA_DIR, "config.json")
 
@@ -80,12 +130,6 @@ def _migrate_legacy_layout():
         (os.path.join(APP_DIR, "config.json"), CONFIG_PATH),
         (os.path.join(APP_DIR, "downloads"), DEFAULT_DOWNLOAD_DIR),
         (os.path.join(APP_DIR, "thumb_cache"), THUMB_CACHE_DIR),
-        (os.path.join(TOOLS_DIR, "uploader_profile"),
-         os.path.join(DATA_DIR, "uploader_profile")),
-        (os.path.join(TOOLS_DIR, "uploader_tasks"),
-         os.path.join(DATA_DIR, "uploader_tasks")),
-        (os.path.join(TOOLS_DIR, "uploader_logs"),
-         os.path.join(LOGS_DIR, "uploader")),
     ]
     for old, new in moves:
         try:
@@ -115,36 +159,17 @@ URL_RE = re.compile(r'https?://[^\s"<>\)\]]+')
 # =============================
 
 
-# ========== ASR 本地字幕生成（运行时内置，模型从开源库自行下载） ==========
-# 运行时：tools\python 下内嵌的 faster-whisper + ctranslate2（不含 torch/gradio），
-# 随安装包分发。识别模型（large-v3-turbo，约 1.5GB）体积过大，不进入安装包，
-# 改由用户从开源模型库（Hugging Face）自行下载到 tools\asr_model 后即可使用。
-ASR_PYTHON_DIR = os.path.join(TOOLS_DIR, "python")
-ASR_MODEL_DIR = os.path.join(TOOLS_DIR, "asr_model")
-
-# 模型开源仓库（CTranslate2 版 Whisper large-v3-turbo，faster-whisper 官方默认源）。
-# 需下载其中的 model.bin / config.json / tokenizer.json / vocabulary.json /
-# preprocessor_config.json 等文件，放到 tools\asr_model 目录。
-ASR_MODEL_REPO = "mobiuslabsgmbh/faster-whisper-large-v3-turbo"
-ASR_MODEL_URL_HF = "https://huggingface.co/" + ASR_MODEL_REPO + "/tree/main"
-ASR_MODEL_URL_MIRROR = "https://hf-mirror.com/" + ASR_MODEL_REPO + "/tree/main"
-
-
-def asr_model_missing_hint():
-    """模型未下载时给用户的引导文案（含打开镜像直链的说明）。"""
-    return ("字幕识别模型（Whisper large-v3-turbo，约 1.5GB）未包含在安装包内，"
-            "需自行从开源模型库下载到：\n"
-            + ASR_MODEL_DIR + "\n\n"
-            "国内网络可访问镜像站下载：\n" + ASR_MODEL_URL_MIRROR + "\n"
-            "海外网络可访问：\n" + ASR_MODEL_URL_HF + "\n\n"
-            "把仓库里的 model.bin、config.json、tokenizer.json、vocabulary.json、"
-            "preprocessor_config.json 下载后放入上述文件夹即可，无需改目录名。")
+# ========== 内置运行时（字幕处理） ==========
+# tools\python 为随安装包分发的 CPython 3.12 运行时：faster-whisper、
+# VideoCaptioner 及其依赖全部装在其 site-packages 下。
+EMBEDDED_PYTHON_DIR = os.path.join(TOOLS_DIR, "python")
+EMBEDDED_SITE_PACKAGES = os.path.join(EMBEDDED_PYTHON_DIR, "Lib", "site-packages")
 
 
 def system_python():
-    """运行 ASR/投稿 worker 的 Python：优先用工具箱内 tools\\python\\python.exe；
+    """运行字幕处理 / 投稿 worker 的 Python：优先用工具箱内 tools\\python\\python.exe；
     否则源码模式用当前解释器，打包后用系统 PATH 中的 python。"""
-    embedded = os.path.join(ASR_PYTHON_DIR, "python.exe")
+    embedded = os.path.join(EMBEDDED_PYTHON_DIR, "python.exe")
     if os.path.isfile(embedded):
         return embedded
     if not getattr(sys, "frozen", False):
@@ -152,225 +177,151 @@ def system_python():
     return shutil.which("python") or ""
 
 
-def asr_env_ready():
-    """内置 ASR 环境是否可用（tools\\\\python 运行时 + 模型齐全）"""
-    return os.path.isdir(ASR_PYTHON_DIR) and os.path.isfile(
-        os.path.join(ASR_MODEL_DIR, "model.bin")) and bool(system_python())
-
-
-def asr_worker_script():
-    """转写 worker 脚本路径；打包后随 datas 解包到 _MEIPASS，源码模式在 src 目录"""
-    if getattr(sys, "frozen", False):
-        return os.path.join(getattr(sys, "_MEIPASS", SCRIPT_DIR),
-                            "asr_subtitle_worker.py")
-    return os.path.join(SRC_DIR, "asr_subtitle_worker.py")
-
-
-def asr_subprocess_env():
-    """ASR 子进程环境：内嵌解释器已完整自包含，无需注入 PYTHONPATH；
+def worker_subprocess_env():
+    """worker 子进程环境：内嵌解释器已完整自包含，无需注入 PYTHONPATH；
     仅当回退到系统 Python 时，把内嵌 site-packages 追加进去以免缺包。"""
     env = os.environ.copy()
-    if system_python() != os.path.join(ASR_PYTHON_DIR, "python.exe"):
-        sp = os.path.join(ASR_PYTHON_DIR, "Lib", "site-packages")
-        env["PYTHONPATH"] = (sp + os.pathsep +
+    if system_python() != os.path.join(EMBEDDED_PYTHON_DIR, "python.exe"):
+        env["PYTHONPATH"] = (EMBEDDED_SITE_PACKAGES + os.pathsep +
                              env.get("PYTHONPATH", "")).rstrip(os.pathsep)
     return env
 # =============================
 
 
-# ========== B 站自动投稿（工具箱内置 Playwright 引擎，完全自包含） ==========
-# 引擎源码内嵌在 tools\uploader_src（modules + 编排 runner），
-# 运行时/浏览器内核内嵌在 tools\python 与 tools\ms-playwright；
-# 登录态存 tools\uploader_profile（首次扫码）。
-UPLOADER_SRC_DIR = os.path.join(TOOLS_DIR, "uploader_src")
-UPLOADER_MODULES_DIR = os.path.join(UPLOADER_SRC_DIR, "modules")
-UPLOADER_RUNNER = os.path.join(UPLOADER_SRC_DIR, "uploader_runner.py")
-# 登录态/任务归 data，投稿日志与截图归 logs（v1.7 分目录）
-UPLOADER_PROFILE = os.path.join(DATA_DIR, "uploader_profile")
-UPLOADER_LOGS_DIR = os.path.join(LOGS_DIR, "uploader")
-UPLOADER_TASKS_DIR = os.path.join(DATA_DIR, "uploader_tasks")
-CATALOG_DIR = os.path.join(DATA_DIR, "catalog")
-for _d in (UPLOADER_PROFILE, UPLOADER_LOGS_DIR, UPLOADER_TASKS_DIR,
-           os.path.join(UPLOADER_LOGS_DIR, "screenshots"), CATALOG_DIR):
-    os.makedirs(_d, exist_ok=True)
+# ========== 字幕处理：内嵌第三方字幕引擎（GPL-3.0 组件，随包分发） ==========
+# v1.10.2 起，字幕引擎界面直接内嵌在主程序「字幕处理」页中（不再唤起独立
+# 窗口）。引擎以第三方开源组件形式随包分发：打包形态打进 exe（见
+# 视频工具箱.spec），源码形态装在 tools\python\Lib\site-packages 下。
+# 工具箱负责：环境探测 → 引擎界面内嵌 → 用户可见文案中性化（品牌水印、
+# 捐助入口等在嵌入层隐藏；许可与来源见 docs\ 下声明文件）。
+VC_NAME = "VideoCaptioner"
+VC_VERSION = "1.4.2"
+VC_LICENSE = "GPL-3.0"
+VC_HOMEPAGE = "https://github.com/WEIFENG2333/VideoCaptioner"
+VC_DOCS = "https://weifeng2333.github.io/VideoCaptioner/"
+VC_PKG_DIR = os.path.join(EMBEDDED_SITE_PACKAGES, "videocaptioner")
+VC_LICENSE_FILE = os.path.join(DOCS_DIR, "VideoCaptioner_GPL-3.0.txt")
+VC_SOURCE_FILE = os.path.join(DOCS_DIR, "VideoCaptioner_组件来源.txt")
 
 
-def uploader_env_ready():
-    """内置投稿引擎是否可用：modules + runner + playwright 依赖齐全"""
-    py = system_python()
-    if not py or not os.path.isfile(UPLOADER_RUNNER) \
-            or not os.path.isdir(UPLOADER_MODULES_DIR):
-        return False
-    if py == sys.executable:
-        try:
-            import importlib.util
-            return importlib.util.find_spec("playwright") is not None
-        except Exception:
-            return False
+def vc_importable():
+    """内嵌字幕引擎在当前进程是否可用（源码模式依赖 tools\\python 的包）。"""
     try:
-        r = run_process([py, "-c", "import playwright"],
-                        capture_output=True, timeout=60)
-        return r.returncode == 0
+        import importlib.util
+        return importlib.util.find_spec("videocaptioner") is not None
     except Exception:
         return False
 
 
-def write_uploader_task(job):
-    """把投稿任务写成 JSON 落到工具箱 uploader_tasks 目录，返回路径"""
-    os.makedirs(UPLOADER_TASKS_DIR, exist_ok=True)
-    path = os.path.join(UPLOADER_TASKS_DIR,
-                        f"vt_{datetime.now():%Y%m%d_%H%M%S}.json")
-    with open(path, "w", encoding="utf-8") as f:
-        json.dump(job, f, ensure_ascii=False, indent=2)
-    return path
+def vc_missing_deps():
+    """引擎界面运行所需依赖缺哪些（PyQt5 / qfluentwidgets）；齐全返回空列表。"""
+    import importlib.util
+    need = {"PyQt5": "PyQt5", "qfluentwidgets": "PyQt-Fluent-Widgets"}
+    return [pip_name for mod, pip_name in need.items()
+            if importlib.util.find_spec(mod) is None]
 
 
-_INFO_STOP_PREFIXES = ("视频链接", "博主", "标签", "分区", "创作声明", "话题",
-                       "下载画质", "下载时间", "======")
-# 投稿可回填字段（与 sidecar.py / 投稿 GUI 表单一一对应）
-_INFO_FIELD_KEYS = ("title", "description", "tags", "zone", "declaration", "topics")
+def vc_env_ready():
+    """字幕引擎是否可在当前进程内嵌：包与 Qt 依赖齐全。"""
+    return vc_importable() and not vc_missing_deps()
 
 
-def parse_info_txt(path):
-    """解析下载时生成的 视频信息.txt，取出投稿所需全部字段。
+def vc_state():
+    """环境状态文案，供 GUI 显示。返回 (是否就绪, 主文案, 细节文案)。"""
+    if vc_env_ready():
+        return True, "字幕引擎已就绪（内嵌运行）", ""
+    if not vc_importable():
+        return (False, "未安装字幕引擎组件",
+                "当前进程找不到字幕引擎组件。安装版自带（打进主程序）；"
+                "源码方式运行请用 src\\视频工具箱.bat（走 tools\\python 运行时）。")
+    return (False, "字幕引擎依赖不完整：缺少 " + "、".join(vc_missing_deps()),
+            "请使用完整版安装包重新安装（依赖随机带运行时分发）")
 
-    支持键（全/半角冒号均可）：标题 / 简介（多行块）/ 标签 / 分区 /
-    创作声明 / 话题 / 视频链接 / 博主主页。返回：
-    {"title","description","tags":[], "zone":"", "declaration":"", "topics":[],
-     "source_url":"", "uploader_url":""}
+
+def vc_data_dir():
+    """字幕引擎的配置/日志数据目录（platformdirs 的 user_data_dir 约定）。"""
+    base = os.environ.get("LOCALAPPDATA") or os.path.expanduser("~")
+    return os.path.join(base, VC_NAME)
+
+
+def engine_ui_brand_patch():
+    """对内嵌引擎的用户可见文案与布局做中性化补丁（幂等，仅改运行时行为）。
+
+    · 视频预览弹窗标题/图标跟随宿主，去除上游品牌；
+    · 任务创建页隐藏品牌 logo、收紧独立窗口时代的大留白。
+    各部分独立容错：某一模块导入失败（如缺 vlc）不影响其余补丁生效。
+    第三方组件的许可全文与来源声明见 docs\ 下两个声明文件（必须保留）。
     """
-    empty = {"title": "", "description": "", "tags": [], "zone": "",
-             "declaration": "", "topics": [],
-             "source_url": "", "uploader_url": ""}
+    # 视频预览弹窗补丁为 best-effort：缺可选依赖 vlc 时跳过，不算失败
     try:
-        text = Path(path).read_text(encoding="utf-8-sig", errors="ignore")
-    except OSError:
-        return empty
-    title, desc_lines, in_desc = "", [], False
-    tags, zone, declaration, topics = [], "", "", []
-    source_url, uploader_url = "", ""
-    for raw in text.splitlines():
-        s = raw.strip()
-        key = s.replace("：", ":", 1)
-        if key.startswith("标题:"):
-            title = key.split(":", 1)[1].strip()
-            in_desc = False
-            continue
-        if key.startswith("简介:"):
-            val = key.split(":", 1)[1].strip()
-            desc_lines = [val] if val else []
-            in_desc = True
-            continue
-        if in_desc:
-            if any(s.startswith(p) for p in _INFO_STOP_PREFIXES):
-                in_desc = False          # 简介块结束，落到下面的字段解析
-            else:
-                desc_lines.append(raw if s else "")
-                continue
-        if key.startswith("标签:"):
-            tags = [t.strip() for t in re.split(r"[,，、;；\s]+",
-                    key.split(":", 1)[1]) if t.strip()]
-        elif key.startswith("话题:"):
-            topics = [t.strip() for t in re.split(r"[,，、;；\s]+",
-                      key.split(":", 1)[1]) if t.strip()]
-        elif key.startswith("分区:"):
-            zone = key.split(":", 1)[1].strip()
-        elif key.startswith("创作声明:"):
-            declaration = key.split(":", 1)[1].strip()
-        elif key.startswith("视频链接:"):
-            source_url = key.split(":", 1)[1].strip()
-        elif key.startswith("博主主页:"):
-            uploader_url = key.split(":", 1)[1].strip()
-    while desc_lines and not desc_lines[-1].strip():
-        desc_lines.pop()
-    return {
-        "title": title,
-        "description": "\n".join(desc_lines).strip(),
-        "tags": tags, "zone": zone,
-        "declaration": "" if declaration in ("", "（无）", "无需标注") else declaration,
-        "topics": topics,
-        "source_url": source_url,
-        "uploader_url": uploader_url,
-    }
+        from videocaptioner.ui.components.MyVideoWidget import MyVideoWidget
+    except Exception:
+        MyVideoWidget = None
+    if MyVideoWidget is not None:
+        _patch_video_widget(MyVideoWidget)
+    # 任务创建页补丁是内嵌界面真正依赖的（隐藏 logo/水印、收紧留白）
+    try:
+        from videocaptioner.ui.view.task_creation_interface import (
+            TaskCreationInterface)
+    except Exception:
+        return False
+    _patch_task_creation(TaskCreationInterface)
+    return True
+
+
+def _patch_video_widget(MyVideoWidget):
+    """视频预览弹窗：标题与图标跟随宿主。"""
+    if getattr(MyVideoWidget, "_vt_patched", False):
+        return
+
+    orig_init = MyVideoWidget.__init__
+
+    def _init(self, parent=None):
+        orig_init(self, parent)
+        # 视频预览弹出窗口：标题与图标跟随宿主，去除上游品牌
+        self.setWindowTitle("视频预览")
+        try:
+            from PyQt5.QtWidgets import QApplication
+            icon = QApplication.windowIcon()
+            if not icon.isNull():
+                self.setWindowIcon(icon)
+        except Exception:
+            pass
+
+    MyVideoWidget.__init__ = _init
+    MyVideoWidget._vt_patched = True
+
+
+def _patch_task_creation(TaskCreationInterface):
+    """任务创建页：隐藏品牌 logo、收紧独立窗口时代的大留白。"""
+    if getattr(TaskCreationInterface, "_vt_layout_patched", False):
+        return
+
+    orig_setup = TaskCreationInterface.setup_ui
+
+    def _setup(self):
+        orig_setup(self)
+        logo = getattr(self, "logo_label", None)
+        if logo is not None:
+            logo.hide()
+        lay = getattr(self, "main_layout", None)
+        if lay is not None:
+            for i in reversed(range(lay.count())):
+                item = lay.itemAt(i)
+                spacer = item.spacerItem() if item is not None else None
+                if spacer is not None and spacer.sizeHint().height() >= 100:
+                    lay.removeItem(item)
+            lay.setSpacing(18)
+            lay.insertSpacing(0, 24)
+
+    TaskCreationInterface.setup_ui = _setup
+    TaskCreationInterface._vt_layout_patched = True
 # =============================
 
 
-def build_posting_description(info):
-    """按用户指定的投稿简介格式生成简介文本。
-
-    格式（源地址/来源同一行标签的地址换行填写，原简介换行填写）：
-      源地址：
-      {视频链接}
-      来源：{博主主页}
-      原简介：
-      {原简介}
-    未提供源地址时退回原简介原文。
-    """
-    desc = str(info.get("description") or "").strip()
-    src = str(info.get("source_url") or "").strip()
-    up = str(info.get("uploader_url") or "").strip()
-    if not src or src == "（无）":
-        return desc
-    lines = ["源地址：", src, f"来源：{up or '（无）'}"]
-    if desc:
-        lines.append("原简介：")
-        lines.append(desc)
-    else:
-        lines.append("原简介：")
-    return "\n".join(lines)
-
-
-def find_subtitle_for_video(video, lang_code=""):
-    """在视频同目录自动查找“原始字幕” .srt，用于投稿时同步上传。
-
-    优先级：1) 与视频同名（base.srt）  2) 标题语言字幕（base.en.srt 等，
-            语言由 AI 识别标题得出，未识别时默认英文）  3) 同名前缀
-            （含语言/清晰度后缀）  4) 目录下任意第一个 .srt
-    找不到返回空字符串。
-    """
-    video = clean_path(video or "")
-    if not video or not os.path.isfile(video):
-        return ""
-    d = os.path.dirname(video)
-    base = os.path.splitext(os.path.basename(video))[0].lower()
-    try:
-        names = os.listdir(d)
-    except OSError:
-        return ""
-    srts = [n for n in names if n.lower().endswith(".srt")]
-    if not srts:
-        return ""
-    for n in srts:
-        if n.lower() == base + ".srt":
-            return os.path.join(d, n)
-    # 标题语言优先（AI 识别）；未识别时保持旧行为：英文优先
-    suffixes = _subtitle_suffixes_for(lang_code or "en")
-    for suf in suffixes:
-        for n in srts:
-            if re.search(r"[._-]" + re.escape(suf) + r"\.srt$", n.lower()):
-                return os.path.join(d, n)
-    for n in srts:
-        if n.lower().startswith(base):
-            return os.path.join(d, n)
-    return os.path.join(d, srts[0])
-
-
-def _subtitle_suffixes_for(lang_code):
-    """语言代码 → 字幕文件名后缀列表（经 AI 模块映射，失败时用内置表）。"""
-    try:
-        return list(ai_mod().SUBTITLE_FILE_SUFFIXES.get(lang_code, ()) \
-                    or ai_mod().SUBTITLE_FILE_SUFFIXES["en"])
-    except Exception:
-        return {
-            "zh": ("zh-hans", "zh-cn", "zh-hant", "zh-tw", "zh"),
-            "en": ("en", "en-us", "en-gb"),
-            "ja": ("ja", "jp"), "ko": ("ko", "kr"),
-        }.get(lang_code, ("en", "en-us", "en-gb"))
-
-
-# ========== 全局 AI（智谱 GLM：屏幕识别 + 内容识别） ==========
-# AI 客户端实现内嵌在 tools\uploader_src\modules\ai_client.py（仅标准库依赖），
-# GUI 进程按路径直接加载，与投稿引擎子进程共用同一份配置 data\ai_config.json。
+# ========== 全局 AI（智谱 GLM：字幕/标题语言识别） ==========
+# AI 客户端实现在 tools\ai_client.py（仅标准库依赖，原投稿引擎内模块独立化），
+# 按路径直接加载；配置在 data\ai_config.json，首次调用自动生成默认配置。
 _AI_MOD = None
 
 
@@ -379,30 +330,12 @@ def ai_mod():
     global _AI_MOD
     if _AI_MOD is None:
         import importlib.util
-        path = os.path.join(UPLOADER_MODULES_DIR, "ai_client.py")
+        path = os.path.join(TOOLS_DIR, "ai_client.py")
         spec = importlib.util.spec_from_file_location("vt_ai_client", path)
         mod = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(mod)
         _AI_MOD = mod
     return _AI_MOD
-
-
-def ai_status():
-    """AI 配置概览：(是否启用, 文本模型, 视觉模型)；配置不可读时 enabled=False。"""
-    try:
-        cfg = ai_mod().load_config()
-        return bool(cfg.get("enabled", True)), \
-            str(cfg.get("model") or ""), str(cfg.get("vision_model") or "")
-    except Exception:
-        return False, "", ""
-
-
-def ai_quick_test():
-    """AI 连通性自检：(ok, 信息)。供 GUI「测试 AI」按钮调用（需在线程中跑）。"""
-    try:
-        return ai_mod().quick_test()
-    except Exception as e:
-        return False, str(e)
 
 
 def ai_detect_language(text):
@@ -413,14 +346,6 @@ def ai_detect_language(text):
         return ai_mod().detect_language(text)
     except Exception:
         return ""
-
-
-def bili_subtitle_lang(lang_code, default=""):
-    """语言代码 → B 站字幕语言显示名（投稿表单字幕语言用）。"""
-    try:
-        return ai_mod().bili_subtitle_lang(lang_code, default)
-    except Exception:
-        return default
 
 
 def ytdlp_sub_langs(lang_code, default=""):
@@ -515,16 +440,124 @@ def popen_process(*args, **kwargs):
 # ========== 工具引导 ==========
 # 并行下载任务会同时调用 ensure_*；加锁防止首次运行时多个线程重复下载同一文件
 _BOOTSTRAP_LOCK = threading.Lock()
+_MIHOMO_PROC = None
 
 
-def _download(url, dest, label):
+def _port_listening(port, timeout=0.5):
+    """探测本地端口是否已被监听（判断内置代理是否已在运行）"""
+    import socket
+    try:
+        with socket.create_connection(("127.0.0.1", port), timeout=timeout):
+            return True
+    except OSError:
+        return False
+
+
+def ensure_builtin_proxy():
+    """确保内置 mihomo 代理可用，返回代理地址或 None。
+
+    幂等设计：7897 已被监听（本程序或残留进程已启动 mihomo）时直接复用；
+    否则启动 tools/mihomo/mihomo.exe（隐藏窗口）并等待端口就绪。
+    依赖下载失败时才调用，直连成功不会触发。
+    """
+    global _MIHOMO_PROC
+    if _port_listening(MIHOMO_PORT):
+        return MIHOMO_PROXY
+    if not (os.path.isfile(MIHOMO_EXE) and os.path.isfile(MIHOMO_CONFIG)):
+        return None
+    try:
+        os.makedirs(MIHOMO_DIR, exist_ok=True)
+        _MIHOMO_PROC = subprocess.Popen(
+            [MIHOMO_EXE, "-d", MIHOMO_DIR, "-f", MIHOMO_CONFIG],
+            stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            creationflags=subprocess.CREATE_NO_WINDOW,
+        )
+    except Exception:
+        return None
+    # 等待端口就绪（AUTO 组节点首次测速约需数秒）
+    for _ in range(40):
+        if _port_listening(MIHOMO_PORT):
+            return MIHOMO_PROXY
+        if _MIHOMO_PROC.poll() is not None:
+            return None
+        time.sleep(0.5)
+    return None
+
+
+def _stop_builtin_proxy():
+    global _MIHOMO_PROC
+    if _MIHOMO_PROC is not None and _MIHOMO_PROC.poll() is None:
+        try:
+            _MIHOMO_PROC.terminate()
+        except OSError:
+            pass
+    _MIHOMO_PROC = None
+
+
+atexit.register(_stop_builtin_proxy)
+
+
+def _download(url, dest, label, use_proxy=True):
+    """下载文件；直连失败时自动启用内置代理重试（GitHub/HuggingFace 等开源库场景）。"""
     print(f"[setup] 正在下载 {label} ...")
-    urllib.request.urlretrieve(url, dest)
+    try:
+        urllib.request.urlretrieve(url, dest)
+        return
+    except Exception as e:
+        if not use_proxy:
+            raise
+        print(f"[setup] 直连失败（{e}），启用内置代理重试 ...")
+        proxy = ensure_builtin_proxy()
+        if not proxy:
+            print("[setup] 内置代理不可用，下载失败")
+            raise
+        opener = urllib.request.build_opener(
+            urllib.request.ProxyHandler({"http": proxy, "https": proxy}))
+        try:
+            with opener.open(url, timeout=180) as resp, open(dest, "wb") as f:
+                shutil.copyfileobj(resp, f)
+            print("[setup] 代理下载完成")
+        except Exception as e2:
+            raise RuntimeError(f"直连与代理下载均失败: {e2}") from e2
+
+
+def _ensure_deno():
+    """yt-dlp 提取 YouTube 需要 JS 运行时 deno；缺失时自动下载到 tools\\deno.exe。
+
+    官方源失败时尝试 gh-proxy 镜像（镜像直连通常可用，不需代理）；
+    仍失败仅提示，不阻断 yt-dlp 使用。
+    """
+    if os.path.isfile(DENO_PATH):
+        return True
+    os.makedirs(TOOLS_DIR, exist_ok=True)
+    zip_path = os.path.join(TOOLS_DIR, "deno.zip")
+    import zipfile
+    for tag, url in (("官方源", DENO_URL), ("镜像", DENO_MIRROR_URL)):
+        try:
+            print(f"[setup] 正在下载 deno（YouTube 提取所需 JS 运行时，约 43MB）{tag} ...")
+            _download(url, zip_path, "deno")
+            with zipfile.ZipFile(zip_path) as z:
+                with z.open("deno.exe") as src, open(DENO_PATH, "wb") as dst:
+                    dst.write(src.read())
+            try:
+                os.remove(zip_path)
+            except OSError:
+                pass
+            print(f"[setup] deno 就绪: {DENO_PATH}")
+            return True
+        except Exception as e:
+            print(f"[setup] deno 下载失败（{tag}: {e}）")
+    print("[setup] deno 下载失败；YouTube 提取可能不稳定。"
+          "可手动下载 deno-x86_64-pc-windows-msvc.zip 解压出 deno.exe 放到 "
+          f"{TOOLS_DIR} 目录")
+    return False
 
 
 def ensure_ytdlp():
     with _BOOTSTRAP_LOCK:
         if os.path.isfile(YTDLP_PATH):
+            _ensure_deno()
             return YTDLP_PATH
         os.makedirs(TOOLS_DIR, exist_ok=True)
         _download(YTDLP_URL, YTDLP_PATH, "yt-dlp")
@@ -617,9 +650,11 @@ def extract_url(arg):
 def fetch_info_json(ytdlp, url, attempts=4, log=None, wait_base=5):
     """运行 yt-dlp -J 获取视频信息原始 JSON。
 
-    部分站点（如 B 站）对无 cookie 的连续请求有风控，随机返回 HTTP 412，
-    这里自动等待后重试；attempts 次仍失败返回 None。
-    log 为可选回调，用于向 GUI / 命令行透出重试进度。
+    部分站点（如 B 站）对无 cookie 的连续请求有风控，随机返回 HTTP 412；
+    YouTube 等站点在无 JS 运行时 / 网络抖动 / 风控时也会间歇失败（403/429/
+    "Sign in to confirm" / 连接被重置等）。这里把网络类与风控类错误都纳入
+    自动重试，并把每一次的具体失败原因透出给 log，方便定位问题。
+    log 为可选回调，用于向 GUI / 命令行透出重试进度与错误详情。
     """
     def _log(msg):
         if log:
@@ -627,6 +662,23 @@ def fetch_info_json(ytdlp, url, attempts=4, log=None, wait_base=5):
                 log(msg)
             except Exception:
                 pass
+
+    # 命中任一关键词即视为可重试的临时性失败；不含这些词的错误（如参数错误）
+    # 直接放弃，避免无意义等待。
+    RETRY_HINTS = ("412", "429", "403", "502", "503", "timed out",
+                   "timeout", "Unable to download webpage", "Unable to extract",
+                   "Sign in to confirm", "bot check", "bot detection",
+                   "network", "Connection", "connection", "socket",
+                   "Temporary failure", "EOF", "reset", "Remote end closed",
+                   "Name or service not known", "SSL", "TLS")
+
+    def _detail(err_text):
+        """从输出里提取最后一行 ERROR 或非空行，作为给用户看的失败原因。"""
+        lines = [ln.strip() for ln in err_text.splitlines() if ln.strip()]
+        for ln in reversed(lines):
+            if "ERROR:" in ln or "Error" in ln or "error" in ln:
+                return ln[:200]
+        return lines[-1][:200] if lines else "未知错误"
 
     for i in range(attempts):
         result = run_process([ytdlp, "-J", "--no-playlist", url],
@@ -636,12 +688,15 @@ def fetch_info_json(ytdlp, url, attempts=4, log=None, wait_base=5):
         if result.returncode == 0 and out.strip().startswith("{"):
             return out
         err = (result.stderr or "") + out
-        retryable = ("412" in err or "Unable to download webpage" in err
-                     or "timed out" in err.lower())
+        detail = _detail(err)
+        if i < attempts - 1:
+            _log(f"[信息] 提取失败（{i + 1}/{attempts}）: {detail}")
+        retryable = any(k.lower() in err.lower() for k in RETRY_HINTS)
         if not retryable or i == attempts - 1:
+            _log(f"[错误] 画质提取失败: {detail}")
             return None
         wait = wait_base * (i + 1)
-        _log(f"[信息] 站点风控/网络拦截，{wait}s 后自动重试 ({i + 2}/{attempts}) ...")
+        _log(f"[信息] {wait}s 后自动重试 ...")
         time.sleep(wait)
     return None
 

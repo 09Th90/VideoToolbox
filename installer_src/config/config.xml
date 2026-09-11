@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  视频工具箱 在线安装器配置（Qt Installer Framework 4.7）
+  - Repository Url 指向 GitHub Pages 上的组件仓库（由 deploy_installer_ghpages.py
+    把 installer_repository/ 发布到 gh-pages 分支并启用 Pages）；
+  - 本机调试可临时改回 http://127.0.0.1:8123 并运行
+    python installer_src/repo_server.py；局域网部署用 build_online_installer.py
+    的 repo-url 参数重写后重新生成安装器。
+-->
+<Installer>
+    <Name>视频工具箱</Name>
+    <Version>1.10.3</Version>
+    <Title>视频工具箱 v1.10.3（在线安装）</Title>
+    <Publisher>VideoToolbox</Publisher>
+    <ProductUrl>https://github.com/09Th90/VideoToolbox</ProductUrl>
+    <StartMenuDir>视频工具箱</StartMenuDir>
+    <TargetDir>D:\VideoToolbox</TargetDir>
+    <AllowNonAsciiCharacters>true</AllowNonAsciiCharacters>
+    <!-- 关闭“安装前清空目标目录”：允许在旧版本目录上直接覆盖安装（升级），
+         保留 data\、logs\ 等用户数据。注意：旧版遗留文件（如已移除板块的目录）
+         不会被自动删除，需要彻底干净时可先卸载再装。 -->
+    <RemoveTargetDir>false</RemoveTargetDir>
+    <MaintenanceToolName>维护工具</MaintenanceToolName>
+    <MaintenanceToolIniFile>maintenancetool.ini</MaintenanceToolIniFile>
+    <WizardStyle>Modern</WizardStyle>
+    <RunProgram>@TargetDir@/视频工具箱.exe</RunProgram>
+    <RunProgramDescription>启动视频工具箱</RunProgramDescription>
+    <RemoteRepositories>
+        <Repository>
+            <Url>https://09th90.github.io/VideoToolbox/</Url>
+            <Enabled>1</Enabled>
+            <DisplayName>视频工具箱组件仓库</DisplayName>
+        </Repository>
+    </RemoteRepositories>
+</Installer>

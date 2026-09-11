@@ -1,0 +1,52 @@
+视频工具箱 —— 第三方组件来源与许可声明
+====================================================================
+本文件列出随「视频工具箱」安装包分发的第三方组件。凡标注 GPL 的组件，
+其完整许可全文随包提供于本目录同名文件；源码来源见下。
+
+--------------------------------------------------------------------
+1. VideoCaptioner（字幕处理工具）
+--------------------------------------------------------------------
+组件名称 ：VideoCaptioner
+版本     ：1.4.2
+作者     ：Weifeng（WEIFENG2333）
+许可     ：GNU General Public License v3.0（GPL-3.0）
+许可全文 ：本目录 VideoCaptioner_GPL-3.0.txt
+项目主页 ：https://github.com/WEIFENG2333/VideoCaptioner
+发布页   ：https://github.com/WEIFENG2333/VideoCaptioner/releases/tag/v1.4.2
+源码       ：https://github.com/WEIFENG2333/VideoCaptioner/tree/v1.4.2
+源码压缩包 ：https://github.com/WEIFENG2333/VideoCaptioner/archive/refs/tags/v1.4.2.tar.gz
+发行包     ：videocaptioner-1.4.2-py3-none-any.whl（sha256 见下）
+
+  sha256: 903befb39a0d1e2af78fa8ee130e5b37dd95dbe7b7286d503ebc62bc67862e85
+
+本工具箱的使用方式
+  · 未对本组件做任何修改：以官方发行版原样使用，未改动其源码。
+  · 以「内嵌界面」方式集成：v1.10.2 起，本组件（videocaptioner 包及其
+    资源）随主程序一起打包进单个可执行文件 dist\视频工具箱.exe，其桌面
+    界面（HomeInterface 等）作为子控件直接嵌入本工具箱「字幕处理」页，
+    在同一进程内呈现；不再以子进程唤起独立窗口。
+  · 用户可见文案中性化：在宿主嵌入层隐藏其品牌 logo、版权水印与捐助入口，
+    并将上游「设置」窗口中的关于组与推广卡片一并隐藏；这些仅为界面呈现
+    调整，不改动其源码逻辑。许可与来源以本文件与同目录 GPL 全文声明。
+  · 随包存放位置：打包形态位于主程序 exe 内；源码形态位于
+    tools\python\Lib\site-packages\videocaptioner\
+  · 该组件自身及其依赖（PyQt5、PyQt-Fluent-Widgets 等）均沿用各自原有许可。
+
+GPL-3.0 义务提示（分发前请自行确认）
+  GPL-3.0 要求分发者随二进制一并提供对应源代码与许可全文。本安装包已附许可
+  全文与源码获取途径（上表）。若本工具箱以整体形式对外分发且与 VideoCaptioner
+  构成结合作品，则本工具箱自身也需按 GPL-3.0 兼容方式授权；是否构成结合作品
+  取决于具体的链接/调用方式，请以 GPL-3.0 官方文本与法律意见为准。
+
+--------------------------------------------------------------------
+2. 其它开源依赖（运行时安装，不随安装包分发二进制源码）
+--------------------------------------------------------------------
+以下组件由工具箱在运行时按需下载，均来自其官方开源地址，许可随各自发行包提供：
+  · yt-dlp            Unlicense        https://github.com/yt-dlp/yt-dlp
+  · FFmpeg / ffprobe  GPL / LGPL       https://github.com/BtbN/FFmpeg-Builds
+  · Deno              MIT              https://github.com/denoland/deno
+  · Chromium（Playwright 内核）Apache-2.0  https://playwright.dev
+  · CPython 3.12      PSF License      https://www.python.org
+  · mihomo（内置代理） GPL-3.0          https://github.com/MetaCubeX/mihomo
+  · faster-whisper    MIT              https://github.com/SYSTRAN/faster-whisper
+  · Whisper 模型（large-v3-turbo / small） MIT  由用户自行从模型库下载

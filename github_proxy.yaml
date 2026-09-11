@@ -1,0 +1,67 @@
+# 视频工具箱 GitHub 专用代理配置
+# 用途: 仅 GitHub 相关域名走代理, 其余全部直连
+# 客户端: FlClash (基于 ClashMeta / mihomo)
+# 使用方法: FlClash -> 配置 -> 导入该文件 -> 在代理组 SELECT 中手动选择节点
+# 说明: 保留原订阅全部节点; 规则已精简为"只代理 GitHub"
+mixed-port: 7890
+allow-lan: true
+bind-address: '*'
+mode: rule
+log-level: info
+external-controller: '127.0.0.1:9099'
+secret: 'Dfsddf898902!./3dfasd0-0234-[]'
+dns:
+    enable: true
+    ipv6: false
+    default-nameserver: [114.114.114.114, 119.29.29.29]
+    enhanced-mode: fake-ip
+    fake-ip-range: 198.18.0.1/16
+    use-hosts: true
+    fake-ip-filter: ['*.lan', '*.local', localhost.ptlogin2.qq.com]
+    proxy-server-nameserver: [114.114.114.114, 223.5.5.5]
+    nameserver: ['https://doh.pub/dns-query', 'https://dns.alidns.com/dns-query']
+proxies:
+    - {name: "香港-网站 LSPJS.TOP-下面还有可选", type: vmess, server: cn2.mlinuu.top, port: 3503, uuid: 5d71ce06-1bdf-3e68-aa4f-e83b9e87f94b, alterId: 0, cipher: auto, udp: true}
+    - {name: "香港-IEPL-G1-2", type: vmess, server: ocean.t.51guangtaobao.com, port: 3504, uuid: 5d71ce06-1bdf-3e68-aa4f-e83b9e87f94b, alterId: 0, cipher: auto, udp: true}
+    - {name: "香港-IEPL-G1-1", type: vmess, server: ocean.t.51guangtaobao.com, port: 3503, uuid: 5d71ce06-1bdf-3e68-aa4f-e83b9e87f94b, alterId: 0, cipher: auto, udp: true}
+    - {name: "韩国-a2-推荐", type: anytls, server: obs.gateway.storagesvc.xyz, port: 8443, password: 5d71ce06-1bdf-3e68-aa4f-e83b9e87f94b, client-fingerprint: chrome, udp: false, idle-session-check-interval: 30, idle-session-timeout: 30, min-idle-session: 30, sni: ocean.obs.ap-kr.222220001.xyz, alpn: [h2, http/1.1], skip-cert-verify: false}
+    - {name: "韩国-a1", type: anytls, server: ocean-gateway.obs.ap-kr.222220001.xyz, port: 443, password: 5d71ce06-1bdf-3e68-aa4f-e83b9e87f94b, client-fingerprint: chrome, udp: false, idle-session-check-interval: 30, idle-session-timeout: 30, min-idle-session: 30, sni: ocean.obs.ap-kr.222220001.xyz, alpn: [h2, http/1.1], skip-cert-verify: false}
+    - {name: "韩国-V", type: vless, server: 82.117.226.232, port: 443, uuid: 5d71ce06-1bdf-3e68-aa4f-e83b9e87f94b, flow: xtls-rprx-vision, tls: true, skip-cert-verify: false, servername: ntevmg.perfectworld.com, reality-opts: {public-key: tBXW2TkwKIvpgdCYLtzqy6hGG_kQdyN8rhHLutSt6H8, short-id: "100875"}, client-fingerprint: edge, udp: true}
+    - {name: "韩国-IEPL-G1-1", type: vmess, server: ocean.t.51guangtaobao.com, port: 3508, uuid: 5d71ce06-1bdf-3e68-aa4f-e83b9e87f94b, alterId: 0, cipher: auto, udp: true}
+    - {name: "美国-智能-G1-1", type: vmess, server: ocean.t.51guangtaobao.com, port: 10006, uuid: 5d71ce06-1bdf-3e68-aa4f-e83b9e87f94b, alterId: 0, cipher: auto, udp: true}
+    - {name: "美国-V1", type: vless, server: 172.234.225.190, port: 443, uuid: 5d71ce06-1bdf-3e68-aa4f-e83b9e87f94b, flow: xtls-rprx-vision, tls: true, skip-cert-verify: false, servername: fastcdn.hoyoverse.com, reality-opts: {public-key: tBXW2TkwKIvpgdCYLtzqy6hGG_kQdyN8rhHLutSt6H8, short-id: "100875"}, client-fingerprint: safari, udp: true}
+    - {name: "美国-IEPL-G1-1", type: vmess, server: ocean.t.51guangtaobao.com, port: 3505, uuid: 5d71ce06-1bdf-3e68-aa4f-e83b9e87f94b, alterId: 0, cipher: auto, udp: true}
+    - {name: "直连日本1", type: vless, server: ocean.pj1.20230121.xyz, port: 80, uuid: 5d71ce06-1bdf-3e68-aa4f-e83b9e87f94b, flow: xtls-rprx-vision, tls: true, skip-cert-verify: false, servername: azure.microsoft.com, reality-opts: {public-key: tBXW2TkwKIvpgdCYLtzqy6hGG_kQdyN8rhHLutSt6H8, short-id: "100875"}, client-fingerprint: edge, udp: true}
+    - {name: "直连日本0", type: vless, server: ocean.pj0.20230121.xyz, port: 80, uuid: 5d71ce06-1bdf-3e68-aa4f-e83b9e87f94b, flow: xtls-rprx-vision, tls: true, skip-cert-verify: false, servername: azure.microsoft.com, reality-opts: {public-key: tBXW2TkwKIvpgdCYLtzqy6hGG_kQdyN8rhHLutSt6H8, short-id: "100875"}, client-fingerprint: edge, udp: true}
+    - {name: "澳大利亚", type: vmess, server: ocean.t.51guangtaobao.com, port: 7006, uuid: 5d71ce06-1bdf-3e68-aa4f-e83b9e87f94b, alterId: 0, cipher: auto, udp: true}
+    - {name: "日本1", type: vless, server: obs.gateway.storagesvc.xyz, port: 8443, uuid: 5d71ce06-1bdf-3e68-aa4f-e83b9e87f94b, flow: xtls-rprx-vision, tls: true, skip-cert-verify: false, servername: azure.microsoft.com, reality-opts: {public-key: tBXW2TkwKIvpgdCYLtzqy6hGG_kQdyN8rhHLutSt6H8, short-id: "100875"}, client-fingerprint: edge, udp: true}
+    - {name: "日本0", type: vless, server: ocean.t.51guangtaobao.com, port: 3510, uuid: 5d71ce06-1bdf-3e68-aa4f-e83b9e87f94b, flow: xtls-rprx-vision, tls: true, skip-cert-verify: false, servername: azure.microsoft.com, reality-opts: {public-key: tBXW2TkwKIvpgdCYLtzqy6hGG_kQdyN8rhHLutSt6H8, short-id: "100875"}, client-fingerprint: safari, udp: true}
+    - {name: "日本-V-T", type: vless, server: 172.233.75.41, port: 443, uuid: 5d71ce06-1bdf-3e68-aa4f-e83b9e87f94b, flow: xtls-rprx-vision, tls: true, skip-cert-verify: false, servername: fastcdn.hoyoverse.com, reality-opts: {public-key: tBXW2TkwKIvpgdCYLtzqy6hGG_kQdyN8rhHLutSt6H8, short-id: "100875"}, client-fingerprint: qq, udp: true}
+    - {name: "日本-IEPL-G1-3", type: vmess, server: ocean.t.51guangtaobao.com, port: 3502, uuid: 5d71ce06-1bdf-3e68-aa4f-e83b9e87f94b, alterId: 0, cipher: auto, udp: true}
+    - {name: "日本-IEPL-G1-1", type: vmess, server: ocean.t.51guangtaobao.com, port: 3500, uuid: 5d71ce06-1bdf-3e68-aa4f-e83b9e87f94b, alterId: 0, cipher: auto, udp: true}
+    - {name: "新疆专用-台湾", type: vmess, server: xj-tw-ocean.miaodaozhang.top, port: 777, uuid: 5d71ce06-1bdf-3e68-aa4f-e83b9e87f94b, alterId: 0, cipher: auto, udp: true}
+    - {name: "新家坡-IEPL-G1-1", type: vmess, server: ocean.t.51guangtaobao.com, port: 3506, uuid: 5d71ce06-1bdf-3e68-aa4f-e83b9e87f94b, alterId: 0, cipher: auto, udp: true}
+    - {name: "新加坡-智能-Netflix", type: vmess, server: ocean.t.51guangtaobao.com, port: 7002, uuid: 5d71ce06-1bdf-3e68-aa4f-e83b9e87f94b, alterId: 0, cipher: auto, udp: true}
+    - {name: "新加坡-V1", type: vless, server: 139.162.1.173, port: 443, uuid: 5d71ce06-1bdf-3e68-aa4f-e83b9e87f94b, flow: xtls-rprx-vision, tls: true, skip-cert-verify: false, servername: api-sea.swordofjustice.com, reality-opts: {public-key: tBXW2TkwKIvpgdCYLtzqy6hGG_kQdyN8rhHLutSt6H8, short-id: "100875"}, client-fingerprint: qq, udp: true}
+    - {name: "新加坡-IEPL-G1-2", type: vmess, server: ocean.t.51guangtaobao.com, port: 7003, uuid: 5d71ce06-1bdf-3e68-aa4f-e83b9e87f94b, alterId: 0, cipher: auto, udp: true}
+    - {name: "台湾-智能-G1-1", type: vmess, server: ocean.t.51guangtaobao.com, port: 10008, uuid: 5d71ce06-1bdf-3e68-aa4f-e83b9e87f94b, alterId: 0, cipher: auto, udp: true}
+    - {name: "台湾-IEPL-G1-1", type: vmess, server: ocean.t.51guangtaobao.com, port: 3507, uuid: 5d71ce06-1bdf-3e68-aa4f-e83b9e87f94b, alterId: 0, cipher: auto, udp: true}
+    - {name: "俄罗斯-智能-G1-1", type: vmess, server: ocean.t.51guangtaobao.com, port: 10010, uuid: 5d71ce06-1bdf-3e68-aa4f-e83b9e87f94b, alterId: 0, cipher: auto, udp: true}
+    - {name: "B-Turkey-土耳其", type: vmess, server: ocean.t.51guangtaobao.com, port: 3006, uuid: 5d71ce06-1bdf-3e68-aa4f-e83b9e87f94b, alterId: 0, cipher: auto, udp: true}
+proxy-groups:
+    - { name: AUTO, type: url-test, url: 'https://09th90.github.io/VideoToolbox/Updates.xml', interval: 300, tolerance: 50, proxies: ["香港-网站 LSPJS.TOP-下面还有可选", "香港-IEPL-G1-2", "香港-IEPL-G1-1", "韩国-a2-推荐", "韩国-a1", "韩国-V", "韩国-IEPL-G1-1", "美国-智能-G1-1", "美国-V1", "美国-IEPL-G1-1", "直连日本1", "直连日本0", "澳大利亚", "日本1", "日本0", "日本-V-T", "日本-IEPL-G1-3", "日本-IEPL-G1-1", "新疆专用-台湾", "新家坡-IEPL-G1-1", "新加坡-智能-Netflix", "新加坡-V1", "新加坡-IEPL-G1-2", "台湾-智能-G1-1", "台湾-IEPL-G1-1", "俄罗斯-智能-G1-1", "B-Turkey-土耳其"] }
+    - { name: SELECT, type: select, proxies: [AUTO, "香港-网站 LSPJS.TOP-下面还有可选", "香港-IEPL-G1-2", "香港-IEPL-G1-1", "韩国-a2-推荐", "韩国-a1", "韩国-V", "韩国-IEPL-G1-1", "美国-智能-G1-1", "美国-V1", "美国-IEPL-G1-1", "直连日本1", "直连日本0", "澳大利亚", "日本1", "日本0", "日本-V-T", "日本-IEPL-G1-3", "日本-IEPL-G1-1", "新疆专用-台湾", "新家坡-IEPL-G1-1", "新加坡-智能-Netflix", "新加坡-V1", "新加坡-IEPL-G1-2", "台湾-智能-G1-1", "台湾-IEPL-G1-1", "俄罗斯-智能-G1-1", "B-Turkey-土耳其"] }
+rules:
+    # 只代理 GitHub 相关域名（自动选择最快节点，可在 FlClash 界面切 SELECT 手动选择）
+    - 'DOMAIN-KEYWORD,github,SELECT'
+    - 'DOMAIN-SUFFIX,ghcr.io,SELECT'
+    - 'DOMAIN-SUFFIX,gh.io,SELECT'
+    # 本地与私有网段直连
+    - 'DOMAIN-SUFFIX,local,DIRECT'
+    - 'IP-CIDR,127.0.0.0/8,DIRECT'
+    - 'IP-CIDR,10.0.0.0/8,DIRECT'
+    - 'IP-CIDR,172.16.0.0/12,DIRECT'
+    - 'IP-CIDR,192.168.0.0/16,DIRECT'
+    - 'IP-CIDR,100.64.0.0/10,DIRECT'
+    # 其余全部直连（只连接 GitHub）
+    - 'MATCH,DIRECT'

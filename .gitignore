@@ -14,16 +14,41 @@ venv/
 data/ai_config.json
 data/uploader_profile/
 
+# 运行期日志（VideoCaptioner 唤起日志；配置与模型在 %LOCALAPPDATA%\VideoCaptioner）
+data/videocaptioner/
+
 # Runtimes / large binaries (available via GitHub Releases)
-tools/asr_model/
+# 注：v1.10.0 起字幕改用内置 VideoCaptioner，tools/asr_model 已废弃不再需要
 tools/python/
 tools/ms-playwright/
 tools/ffmpeg.exe
 tools/ffprobe.exe
+tools/yt-dlp.exe
+tools/deno.exe
+tools/mihomo/
 
 # Over-limit artifacts (>100MB, available via GitHub Releases)
 installer/*.exe
 build/archives/
+
+# 打包中间产物 / 超限二进制：走 GitHub Releases 或在线仓库分发，不进 git
+dist/
+build/视频工具箱/
+build/ifw_config/
+build/ifw_packages/
+installer_repository/
+
+# 临时诊断脚本 / 构建日志 / 截图（本地用，不入库）
+_probe_big.py
+aqtinstall.log
+build_*.log
+upgrade_test*.log
+src/_diag_embed*.py
+src/_diag_out.txt
+_installer_check/
+.workbuddy/
+tools/videocaptioner/
+tools/asr_model/
 
 # OS
 .DS_Store

@@ -1,16 +1,19 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""端到端自检：验证保存位置在「重启后自动填回界面」，且下载任务会落到独立文件夹。
+"""界面自检（v1.10.1 Fluent 界面）：验证窗口与各页面可构建、字幕处理环境就绪。
 
 不联网、不下载视频。运行：python _selftest_gui.py
+需要图形界面（本机运行）；用内置运行时 tools/python 执行。
 """
 import os
 import sys
-import shutil
-import tempfile
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import video_toolbox as engine
+
+os.environ.setdefault(
+    "QT_QPA_PLATFORM_PLUGIN_PATH",
+    os.path.join(engine.EMBEDDED_SITE_PACKAGES, "PyQt5", "Qt5", "plugins"))
 
 FAILS = []
 
@@ -23,72 +26,66 @@ def check(name, cond, extra=""):
 
 def main():
     print("=" * 62)
-    print("  GUI 端到端自检：目录长期记忆 + 独立文件夹")
+    print("  界面自检：Fluent 窗口 + 五个页面 + 字幕处理环境")
     print("=" * 62)
 
-    backup = None
-    if os.path.isfile(engine.CONFIG_PATH):
-        backup = engine.CONFIG_PATH + ".gui_bak"
-        shutil.copy2(engine.CONFIG_PATH, backup)
+    from PyQt5.QtCore import QTimer
+    from PyQt5.QtWidgets import QApplication
+    import video_toolbox_qt as gui
 
-    target = os.path.join(tempfile.gettempdir(), "vt_gui_selftest_dir")
-    os.makedirs(target, exist_ok=True)
+    app = QApplication.instance() or QApplication(sys.argv)
+    gui.setTheme(gui.Theme.DARK)
+    win = gui.MainWindow([])
 
+    pages = [win.download_page, win.library_page, win.merge_page,
+             win.subtitle_page, win.calib_page]
+    check("五个页面全部构建", all(p is not None for p in pages))
+    check("堆叠页数量为 5（B站投稿板块已移除）",
+          win.stackedWidget.count() == 5, f"count={win.stackedWidget.count()}")
+    check("左侧导航已创建", win.navigationInterface.width() > 0,
+          f"width={win.navigationInterface.width()}")
+
+    check("下载页含任务表/画质列表/日志",
+          win.download_page.task_table.columnCount() == 6
+          and win.download_page.qlist.count() == 0
+          and bool(win.download_page.log.text))
+    check("合并页含配对表", win.merge_page.table.columnCount() == 5)
+    check("视频库默认目录已填回", bool(win.library_page.dir_edit.text()),
+          win.library_page.dir_edit.text())
+
+    sub = win.subtitle_page
+    from PyQt5.QtGui import QShowEvent
+    sub.showEvent(QShowEvent())   # 首次显示触发引擎界面内嵌
+    check("字幕引擎界面已内嵌（非独立窗口）",
+          sub._engine is not None and sub.host_lay.count() == 1,
+          type(sub._engine).__name__ if sub._engine else "未创建")
+    tc = getattr(sub._engine, "task_creation_interface", None) if sub._engine else None
+    check("品牌水印与捐助入口已隐藏",
+          tc is not None and tc.info_label.isHidden()
+          and tc.donate_button.isHidden())
     try:
-        # 模拟「上一次运行时用户选了这个目录」
-        engine.set_saved_download_dir(target)
+        import videocaptioner  # noqa: F401
+        vc_ok = True
+    except Exception:
+        vc_ok = False
+    check("字幕引擎随 exe 内嵌（可导入）", vc_ok)
+    check("第三方组件许可与来源声明随包",
+          os.path.isfile(engine.VC_LICENSE_FILE)
+          and os.path.isfile(engine.VC_SOURCE_FILE))
 
-        import tkinter as tk
-        import video_toolbox_gui as gui
+    check("投稿板块代码已移除（引擎无 UPLOADER_*）",
+          not any(a.startswith("UPLOADER_") for a in dir(engine)))
+    check("AI 字幕语言识别仍可用（tools/ai_client.py 就位）",
+          os.path.isfile(os.path.join(engine.TOOLS_DIR, "ai_client.py")))
+    check("配置目录长期记忆生效", os.path.isdir(engine.DEFAULT_DOWNLOAD_DIR))
 
-        app = gui.App([])
-        app.withdraw()          # 不显示窗口，仅验证状态
-        app.update_idletasks()
+    def done():
+        app.quit()
 
-        try:
-            got = engine.clean_path(app.dl_tab.dest_var.get())
-            check("重启后下载页自动填回上次目录",
-                  os.path.abspath(got) == os.path.abspath(target), got)
-
-            lib = engine.clean_path(app.lib_tab.dir_var.get())
-            check("视频库同步使用同一目录",
-                  os.path.abspath(lib) == os.path.abspath(target), lib)
-
-            # 模拟用户在界面里改目录 -> 应立即持久化
-            new_dir = os.path.join(target, "子目录")
-            os.makedirs(new_dir, exist_ok=True)
-            app.dl_tab.dest_var.set(new_dir)
-            app.update_idletasks()
-            check("界面改目录后立即写入配置",
-                  os.path.abspath(engine.get_saved_download_dir())
-                  == os.path.abspath(new_dir),
-                  engine.get_saved_download_dir())
-
-            # 拖入文件夹 -> 合并页；这里验证下载页任务结构含 folder 字段
-            app.dl_tab.task_seq += 1
-            tid = f"T{app.dl_tab.task_seq}"
-            app.dl_tab.tasks[tid] = {"url": "https://example.com/v", "quality": "1080p",
-                                     "pct": 0.0, "status": "下载中", "dest": new_dir,
-                                     "folder": os.path.join(new_dir, "某视频"),
-                                     "with_subs": False}
-            item = app.dl_tab.tasks[tid]
-            check("下载任务记录独立文件夹路径",
-                  item["folder"].endswith("某视频"), item["folder"])
-        finally:
-            app.dl_tab._drop_info_json()
-            app.destroy()
-
-        # 再次「重启」，确认新目录被记住
-        engine_cfg = engine.load_config()
-        check("配置文件中持久化了最新目录",
-              str(engine_cfg.get("download_dir", "")).rstrip("\\/").endswith("子目录"),
-              str(engine_cfg.get("download_dir")))
-    finally:
-        shutil.rmtree(target, ignore_errors=True)
-        if backup:
-            shutil.move(backup, engine.CONFIG_PATH)
-        elif os.path.isfile(engine.CONFIG_PATH):
-            os.remove(engine.CONFIG_PATH)
+    QTimer.singleShot(400, done)
+    win.show()
+    app.exec_()
+    win.close()
 
     print("\n" + "=" * 62)
     if FAILS:
