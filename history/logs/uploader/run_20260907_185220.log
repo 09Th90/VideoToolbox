@@ -1,0 +1,12 @@
+18:52:20 | INFO    | bili-uploader | 检测模式: areas，日志: G:\Kimi Work\视频工具箱\logs\uploader\run_20260907_185220.log
+18:52:22 | INFO    | modules.browser | 启动浏览器（通道: playwright-chromium，Profile: G:\Kimi Work\视频工具箱\data\uploader_profile）
+18:52:23 | INFO    | modules.browser | 浏览器通道就绪: playwright-chromium
+18:52:23 | INFO    | modules.browser | 浏览器启动完成，视口固定为 {'width': 1920, 'height': 1080}，缩放 1:1
+18:52:23 | INFO    | bili-uploader | AI 屏幕识别已启用（视觉模型: glm-4.6v-flash）
+18:52:26 | INFO    | bili-uploader | 登录态有效，直接进入投稿流程
+18:52:26 | INFO    | modules.catalog | 分区检测：先上传视频 D:/原片/I'm sorry I doubted you Wuthering Waves/I'm sorry I doubted you Wuthering Waves.mp4
+18:52:26 | INFO    | modules.uploader | 待上传文件: D:\原片\I'm sorry I doubted you Wuthering Waves\I'm sorry I doubted you Wuthering Waves.mp4（1575.68 MB）
+18:52:26 | INFO    | modules.uploader | 命中视频文件输入框: input[type="file"]（共 3 个，取第一个）
+18:52:26 | INFO    | modules.uploader | CDP 已注入文件（DOM.setFileInputFiles）: I'm sorry I doubted you Wuthering Waves.mp4
+18:52:26 | INFO    | modules.uploader | 等待视频上传与初始化完成（超时 1800 秒）...
+19:22:27 | INFO    | modules.browser | 浏览器已关闭

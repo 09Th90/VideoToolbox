@@ -37,8 +37,19 @@ data/*.selftest_bak
 data/GUI_SELFTEST_REPORT.txt
 data/GUI_SELFTEST_OK
 
-# 运行期日志（校准脚本 GitHub 同步日志）
+# 运行期日志（校准脚本 GitHub 同步日志、投稿运行日志）
 logs/calib_sync.log
+logs/uploader/
+
+# 构建残留（编译日志、界面截图、版本备份、旧 exe）
+build/compile_*.log
+build/*.png
+build/backup_*/
+build/legacy/
+build/ai_test/
+
+# 历史文件归档（从仓库移出的运行无关文件留档）
+# 注：history/ 保留在仓库中作为留档，不忽略
 
 # 打包中间产物 / 超限二进制：走 GitHub Releases 或在线仓库分发，不进 git
 dist/
