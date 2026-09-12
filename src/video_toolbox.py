@@ -105,10 +105,47 @@ def _resolve_tools_dir():
 TOOLS_DIR = _resolve_tools_dir()
 SRC_DIR = os.path.join(APP_DIR, "src")
 DOCS_DIR = os.path.join(APP_DIR, "docs")
-DATA_DIR = os.path.join(APP_DIR, "data")
-LOGS_DIR = os.path.join(APP_DIR, "logs")
+
+# ===== 数据根目录（v1.10.6：运行期产物一律落此，不回写系统盘）=====
+# 设计目标：程序运行中产生的全部文件（配置/下载/缓存/日志/临时文件/字幕引擎
+# 数据）都集中到同一个根目录下，默认就在程序目录，**不写系统盘（C 盘）**。
+#
+# 优先级：
+#   1. 环境变量 VT_DATA_ROOT（便于便携部署 / 脚本指定）
+#   2. data_dir.txt 指针文件（用户在「设置 → 工具设置 → 数据目录」里改的位置）
+#   3. 默认 APP_DIR（程序目录，即"绿色便携"体验）
+#
+# 注意：指针文件本身必须放在固定位置才能被发现，故放程序目录下；它是唯一
+# 允许写在程序目录的引导文件，不含用户数据。
+DATA_ROOT_POINTER = os.path.join(APP_DIR, "data_dir.txt")
+
+
+def _resolve_data_root():
+    """解析数据根目录：环境变量 > 指针文件 > 程序目录默认值。"""
+    env = (os.environ.get("VT_DATA_ROOT") or "").strip().strip('"')
+    if env:
+        try:
+            return os.path.abspath(env)
+        except OSError:
+            pass
+    try:
+        if os.path.isfile(DATA_ROOT_POINTER):
+            with open(DATA_ROOT_POINTER, encoding="utf-8-sig") as f:
+                v = f.read().strip().strip('"')
+            if v:
+                return os.path.abspath(v)
+    except OSError:
+        pass
+    return APP_DIR
+
+
+DATA_ROOT = _resolve_data_root()
+DATA_DIR = os.path.join(DATA_ROOT, "data")
+LOGS_DIR = os.path.join(DATA_ROOT, "logs")
 DEFAULT_DOWNLOAD_DIR = os.path.join(DATA_DIR, "downloads")
 THUMB_CACHE_DIR = os.path.join(DATA_DIR, "thumb_cache")
+# 运行期临时文件（下载分片、转码中间件、字幕引擎工作目录）——不落系统 Temp
+TMP_DIR = os.path.join(DATA_DIR, "tmp")
 
 YTDLP_URL = "https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp.exe"
 FFMPEG_ZIP_URL = "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-win64-gpl.zip"
@@ -157,14 +194,33 @@ def _migrate_legacy_layout():
 _migrate_legacy_layout()
 
 # 运行时数据/日志目录统一预建（安装包也会预建空壳，这里兜底）
-for _d in (DATA_DIR, LOGS_DIR, DEFAULT_DOWNLOAD_DIR, THUMB_CACHE_DIR):
-    os.makedirs(_d, exist_ok=True)
+for _d in (DATA_DIR, LOGS_DIR, DEFAULT_DOWNLOAD_DIR, THUMB_CACHE_DIR, TMP_DIR):
+    try:
+        os.makedirs(_d, exist_ok=True)
+    except OSError:
+        pass
+
+# 把本进程及其所有子进程的临时目录指向 TMP_DIR：避免 tempfile / 第三方库
+# （VideoCaptioner、faster-whisper 等）把中间产物写进系统 Temp（通常在 C 盘）。
+# 子进程经 worker_subprocess_env() 继承同一设置。
+os.environ["TEMP"] = TMP_DIR
+os.environ["TMP"] = TMP_DIR
+tempfile.tempdir = TMP_DIR
 
 
 def _fallback_config_path():
-    """脚本目录只读时（如装在 Program Files）的配置回退位置"""
-    base = os.environ.get("LOCALAPPDATA") or tempfile.gettempdir()
-    return os.path.join(base, "VideoToolbox", "config.json")
+    """配置回退位置。
+
+    v1.10.6 起：配置一律写在数据根目录下（默认程序目录），**不再回退到
+    %LOCALAPPDATA%（C 盘）**。仅当数据根目录也写不进去时，才退到程序目录，
+    保证"配置永不落系统盘"这一约束优先于可用性。
+    """
+    cand = os.path.join(DATA_DIR, "config.json")
+    try:
+        os.makedirs(DATA_DIR, exist_ok=True)
+        return cand
+    except OSError:
+        return os.path.join(APP_DIR, "data", "config.json")
 
 DEFAULT_INPUT_DIR = r"D:\剪辑"
 DURATION_THRESHOLD = 1.0
@@ -192,11 +248,20 @@ def system_python():
 
 def worker_subprocess_env():
     """worker 子进程环境：内嵌解释器已完整自包含，无需注入 PYTHONPATH；
-    仅当回退到系统 Python 时，把内嵌 site-packages 追加进去以免缺包。"""
+    仅当回退到系统 Python 时，把内嵌 site-packages 追加进去以免缺包。
+    v1.10.6 起同时把 TEMP/TMP 指向数据根目录，避免子进程把中间产物
+    写进系统盘；并传递 VT_DATA_ROOT 供子进程内的引擎解析同一根目录。"""
     env = os.environ.copy()
     if system_python() != os.path.join(EMBEDDED_PYTHON_DIR, "python.exe"):
         env["PYTHONPATH"] = (EMBEDDED_SITE_PACKAGES + os.pathsep +
                              env.get("PYTHONPATH", "")).rstrip(os.pathsep)
+    try:
+        os.makedirs(TMP_DIR, exist_ok=True)
+        env["TEMP"] = TMP_DIR
+        env["TMP"] = TMP_DIR
+    except OSError:
+        pass
+    env["VT_DATA_ROOT"] = DATA_ROOT
     return env
 # =============================
 
@@ -252,9 +317,337 @@ def vc_state():
 
 
 def vc_data_dir():
-    """字幕引擎的配置/日志数据目录（platformdirs 的 user_data_dir 约定）。"""
-    base = os.environ.get("LOCALAPPDATA") or os.path.expanduser("~")
-    return os.path.join(base, VC_NAME)
+    """字幕引擎的配置/日志数据目录。
+
+    v1.10.6 起不再使用 platformdirs 的 %LOCALAPPDATA%（C 盘）约定，
+    改为数据根目录下的 data/VideoCaptioner，与工具箱其余运行期产物同处，
+    便于整体搬迁与清理。
+    """
+    return os.path.join(DATA_DIR, VC_NAME)
+
+
+# 字幕引擎在 C 盘的历史数据位置（用于一次性迁移与"残留检测"）
+_VC_LEGACY_DIRS = (
+    os.path.join(os.environ.get("LOCALAPPDATA", ""), VC_NAME),
+    os.path.join(os.environ.get("APPDATA", ""), VC_NAME),
+    os.path.join(os.path.expanduser("~"), VC_NAME),
+)
+
+
+def vc_redirect_paths():
+    """在导入 videocaptioner 之前，把它的数据/工作/日志目录重定向到数据根目录。
+
+    上游 config.py 在导入时即固化 ROOT_PATH / WORK_PATH 等常量：
+      · ROOT_PATH  = platformdirs.user_data_dir("VideoCaptioner")  → AppData\\Local
+      · WORK_PATH  = Path.home() / "VideoCaptioner"                → 用户目录
+      · LOG_PATH   = ROOT_PATH / "logs"
+      · CACHE/MODEL_PATH = ROOT_PATH 下
+    这些都在 C 盘。做法是在其模块首次导入时打补丁（不修改第三方源码文件，
+    保证许可合规与可升级），把它们全部指到 <DATA_ROOT>\\data\\VideoCaptioner。
+    """
+    import sys as _sys
+    if "videocaptioner.config" in _sys.modules:
+        return  # 已导入过，路径常量已固化；补丁只在首次导入时有效
+    target = Path(vc_data_dir())
+    try:
+        target.mkdir(parents=True, exist_ok=True)
+        for sub in ("logs", "cache", "models", "resource"):
+            (target / sub).mkdir(parents=True, exist_ok=True)
+    except OSError:
+        return
+
+    from videocaptioner import config as _vc_cfg
+    _vc_cfg.ROOT_PATH = target
+    _vc_cfg.APPDATA_PATH = target
+    _vc_cfg.RESOURCE_PATH = target / "resource"
+    _vc_cfg.WORK_PATH = target / "work-dir"
+    _vc_cfg.LOG_PATH = target / "logs"
+    _vc_cfg.LLM_LOG_FILE = _vc_cfg.LOG_PATH / "llm_requests.jsonl"
+    _vc_cfg.SETTINGS_PATH = target / "settings.json"
+    _vc_cfg.CACHE_PATH = target / "cache"
+    _vc_cfg.MODEL_PATH = target / "models"
+    for _p in (_vc_cfg.WORK_PATH, _vc_cfg.LOG_PATH, _vc_cfg.CACHE_PATH,
+               _vc_cfg.MODEL_PATH, _vc_cfg.RESOURCE_PATH):
+        try:
+            Path(_p).mkdir(parents=True, exist_ok=True)
+        except OSError:
+            pass
+
+    # CLI 子模块另有一套 user_config_dir 约定（默认 AppData\\Roaming），
+    # 它按需导入，故用 sys.modules 预置桩模块的方式覆盖其常量。
+    try:
+        from videocaptioner.cli import config as _vc_cli
+        _vc_cli.CONFIG_DIR = target / "cli"
+        _vc_cli.CONFIG_FILE = _vc_cli.CONFIG_DIR / "config.toml"
+        _vc_cli.CONFIG_DIR.mkdir(parents=True, exist_ok=True)
+    except Exception:
+        pass
+
+
+def vc_migrate_legacy_data():
+    """把字幕引擎在 C 盘的历史数据迁移到数据根目录（幂等，一次有效）。
+
+    上游在不同版本用过两种布局，都要处理：
+      · <legacy>/settings.json、<legacy>/logs/...    —— 直接以 legacy 为数据根
+      · <legacy>/VideoCaptioner/settings.json、...   —— 多套了一层同名子目录
+    做法：逐个把 legacy 下的「数据项」（settings.json / logs / cache / models /
+    resource / work-dir）搬到目标根；若发现 legacy 下还有嵌套的 VideoCaptioner
+    子目录，则把它的内容也视作数据项一并搬走，避免出现 VideoCaptioner\\VideoCaptioner。
+    目标已存在同名项时不覆盖（保留新位置的数据）。返回迁移的条目数。
+    """
+    dst_root = vc_data_dir()
+    # 需要搬运的数据项名（白名单，避免搬进无关文件）
+    DATA_ITEMS = ("settings.json", "logs", "cache", "models", "resource",
+                  "work-dir", "cli", "llm_requests.jsonl")
+    moved = 0
+
+    def _merge(src_dir, depth=0):
+        """把 src_dir 下的数据项合并到 dst_root；遇到嵌套同名目录则下钻。"""
+        nonlocal moved
+        if depth > 2:
+            return
+        try:
+            names = os.listdir(src_dir)
+        except OSError:
+            return
+        nested = []
+        for name in names:
+            src = os.path.join(src_dir, name)
+            # 兼容旧布局：<legacy>/VideoCaptioner/... 下钻一层（稍后处理，
+            # 先搬完本层的数据项，避免父目录自己的 settings.json 被漏掉）
+            if (name == VC_NAME and os.path.isdir(src)
+                    and os.path.abspath(src) != os.path.abspath(dst_root)):
+                nested.append(src)
+                continue
+            if name not in DATA_ITEMS:
+                continue
+            dst = os.path.join(dst_root, name)
+            if os.path.exists(dst):
+                # 目录已存在则合并内容（同名文件不覆盖）
+                if os.path.isdir(src) and os.path.isdir(dst):
+                    moved += _merge_into(src, dst)
+                continue
+            try:
+                os.makedirs(os.path.dirname(dst), exist_ok=True)
+                shutil.move(src, dst)
+                moved += 1
+            except OSError:
+                pass
+        for sub in nested:
+            _merge(sub, depth + 1)
+
+    def _merge_into(src_dir, dst_dir):
+        """递归合并目录，同名不覆盖；返回搬动的条目数。"""
+        n = 0
+        try:
+            names = os.listdir(src_dir)
+        except OSError:
+            return 0
+        for name in names:
+            s = os.path.join(src_dir, name)
+            d = os.path.join(dst_dir, name)
+            if os.path.isdir(s):
+                try:
+                    os.makedirs(d, exist_ok=True)
+                except OSError:
+                    continue
+                n += _merge_into(s, d)
+            elif not os.path.exists(d):
+                try:
+                    shutil.move(s, d)
+                    n += 1
+                except OSError:
+                    pass
+        return n
+
+    try:
+        os.makedirs(dst_root, exist_ok=True)
+    except OSError:
+        return 0
+
+    for legacy in _VC_LEGACY_DIRS:
+        if not legacy or not os.path.isdir(legacy):
+            continue
+        if os.path.abspath(legacy) == os.path.abspath(dst_root):
+            continue
+        _merge(legacy)
+        _prune_empty(legacy)
+    return moved
+
+
+def _prune_empty(root):
+    """自底向上删除 root 下的空目录（不含 root 自身）。best-effort。"""
+    for cur, dirs, files in os.walk(root, topdown=False):
+        if os.path.abspath(cur) == os.path.abspath(root):
+            continue
+        if files:
+            continue
+        try:
+            os.rmdir(cur)
+        except OSError:
+            pass
+
+
+def _dir_has_content(d):
+    """目录下是否存在任何文件（含被占用/无权访问的，保守判为有内容）。"""
+    try:
+        for _cur, _dirs, files in os.walk(d):
+            if files:
+                return True
+    except OSError:
+        return True
+    return False
+
+
+def vc_legacy_leftovers():
+    """列出仍在 C 盘、且真的含有效数据的历史字幕引擎目录。
+
+    判据是「有文件，且该文件在数据根下还不存在」——迁移后遗留的重复文件
+    （数据根已有同名同路径的副本）不算残留，避免误导用户去清理一个已经
+    迁空的路径。仅剩空目录树的一律不提示。
+    """
+    out = []
+    dst_root = vc_data_dir()
+
+    def _has_unique_file(d):
+        """d 下是否存在数据根里没有对应文件的文件。"""
+        try:
+            walker = os.walk(d)
+        except OSError:
+            return False
+        for cur, _dirs, files in walker:
+            if not files:
+                continue
+            rel_dir = os.path.relpath(cur, d)
+            # <legacy>/ 与 <legacy>/VideoCaptioner/ 两种布局都映射到数据根
+            base = os.path.basename(cur)
+            for f in files:
+                cands = []
+                if rel_dir in (".", ""):
+                    cands.append(os.path.join(dst_root, f))
+                else:
+                    cands.append(os.path.join(dst_root, rel_dir, f))
+                    # 多套一层同名目录的情况（.../VideoCaptioner/cache/x.db）
+                    if base != VC_NAME and VC_NAME in rel_dir.split(os.sep):
+                        tail = rel_dir.split(VC_NAME, 1)[1].lstrip(os.sep)
+                        cands.append(os.path.join(dst_root, tail, f))
+                if not any(os.path.exists(c) for c in cands):
+                    return True
+        return False
+
+    for d in _VC_LEGACY_DIRS:
+        if d and os.path.isdir(d) and _dir_has_content(d) and _has_unique_file(d):
+            out.append(d)
+    return out
+
+
+def prepare_runtime_env():
+    """统一准备运行期环境（幂等，可重复调用）。
+
+    1. 迁移字幕引擎在 C 盘的历史数据到数据根目录；
+    2. 重定向字幕引擎的路径常量为数据根目录；
+    3. 兜底确保临时目录指向数据根目录（不落系统 Temp）。
+    在导入 videocaptioner *之前* 调用；GUI 启动与自检都会走这里。
+    """
+    try:
+        vc_migrate_legacy_data()
+    except Exception:
+        pass
+    try:
+        vc_redirect_paths()
+    except Exception:
+        pass
+    try:
+        os.makedirs(TMP_DIR, exist_ok=True)
+        os.environ["TEMP"] = TMP_DIR
+        os.environ["TMP"] = TMP_DIR
+        tempfile.tempdir = TMP_DIR
+    except OSError:
+        pass
+
+
+def data_root_info():
+    """返回 (当前数据根目录, 是否为默认位置, 来源说明)，供界面展示。"""
+    root = _resolve_data_root()
+    if os.environ.get("VT_DATA_ROOT"):
+        src = "环境变量 VT_DATA_ROOT"
+    elif os.path.isfile(DATA_ROOT_POINTER):
+        src = "用户自定义（data_dir.txt）"
+    else:
+        src = "默认（程序目录）"
+    return root, os.path.abspath(root) == os.path.abspath(APP_DIR), src
+
+
+def set_data_root(new_root, migrate=True):
+    """切换数据根目录（写指针文件），返回 (是否成功, 说明文案)。
+
+    只改指针文件，不立刻搬数据；migrate=True 时把当前 data/logs/tmp 下的内容
+    尽量搬到新位置（同名不覆盖）。切换需重启程序后完全生效（路径常量在导入
+    时已固化）。
+    """
+    try:
+        new_root = os.path.abspath(str(new_root).strip().strip('"'))
+    except OSError as e:
+        return False, "路径无效：%s" % e
+    if not new_root:
+        return False, "路径为空"
+    try:
+        os.makedirs(new_root, exist_ok=True)
+        # 探针：确认真的可写（避免只读盘/权限问题）
+        probe = os.path.join(new_root, ".vt_write_test")
+        with open(probe, "w", encoding="utf-8") as f:
+            f.write("ok")
+        os.remove(probe)
+    except OSError as e:
+        return False, "该位置不可写：%s" % e
+
+    if os.path.abspath(new_root) == os.path.abspath(APP_DIR):
+        # 切回默认：删掉指针文件
+        try:
+            if os.path.isfile(DATA_ROOT_POINTER):
+                os.remove(DATA_ROOT_POINTER)
+        except OSError as e:
+            return False, "无法移除指针文件：%s" % e
+        return True, "已切回默认位置（程序目录），重启后生效"
+
+    try:
+        with open(DATA_ROOT_POINTER, "w", encoding="utf-8") as f:
+            f.write(new_root)
+    except OSError as e:
+        return False, "无法写入指针文件：%s" % e
+
+    if migrate:
+        moved, failed = _move_data_to(new_root)
+        return True, "已切换，并迁移 %d 项数据%s，重启后生效" % (
+            moved, ("（%d 项被占用未迁移）" % failed) if failed else "")
+
+    return True, "已切换，重启后生效"
+
+
+def _move_data_to(new_root):
+    """把当前数据根下的 data/logs/tmp 内容搬到新根（同名不覆盖）。"""
+    moved = failed = 0
+    for sub in ("data", "logs"):
+        src_dir = os.path.join(DATA_ROOT, sub)
+        dst_dir = os.path.join(new_root, sub)
+        if not os.path.isdir(src_dir):
+            continue
+        try:
+            os.makedirs(dst_dir, exist_ok=True)
+        except OSError:
+            failed += 1
+            continue
+        for name in os.listdir(src_dir):
+            s = os.path.join(src_dir, name)
+            d = os.path.join(dst_dir, name)
+            if os.path.exists(d):
+                continue
+            try:
+                shutil.move(s, d)
+                moved += 1
+            except OSError:
+                failed += 1
+    return moved, failed
 
 
 def engine_ui_brand_patch():

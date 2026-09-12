@@ -8,6 +8,7 @@
 """
 import os
 import sys
+import tempfile
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import video_toolbox as engine
@@ -25,7 +26,7 @@ def check(name, cond, extra=""):
     print(line)
     _LINES.append(line)
     if not cond:
-        FAILS.append(name)
+        FAILS.append(line)
 
 
 def _about_to_quit_hooked():
@@ -40,6 +41,133 @@ def _about_to_quit_hooked():
         return "aboutToQuit.connect(engine.sync_calib_on_exit)" in src
     except OSError:
         return False
+
+
+def _worker_env_ok():
+    """子进程环境是否带着数据根目录与改向后的 TEMP（避免中间产物落系统盘）。"""
+    try:
+        env = engine.worker_subprocess_env()
+    except Exception:
+        return False
+    return (env.get("VT_DATA_ROOT") == engine.DATA_ROOT
+            and os.path.abspath(env.get("TEMP", "")) == os.path.abspath(engine.TMP_DIR))
+
+
+def _prepare_called_before_vc():
+    """GUI 的 main() 是否在 Qt/引擎初始化之前调用了 prepare_runtime_env。
+
+    必须在任何 videocaptioner 导入之前执行，否则其路径常量已在导入时固化，
+    重定向就失效了。这里按源码位置判断调用早于 configure_qt_plugins。
+    """
+    try:
+        src = open(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                "video_toolbox_qt.py"), encoding="utf-8").read()
+        i = src.find("def main()")
+        if i < 0:
+            return False
+        seg = src[i:i + 500]
+        a = seg.find("engine.prepare_runtime_env()")
+        b = seg.find("configure_qt_plugins()")
+        return a != -1 and (b == -1 or a < b)
+    except OSError:
+        return False
+
+
+def _migrate_flattens_nested():
+    """迁移旧数据时，父层自己的 settings.json 不能被「下钻子目录」漏掉。
+
+    复现旧布局：<legacy>/settings.json + <legacy>/VideoCaptioner/logs/app.log
+    期望两者都落到同一个数据根下（不能只搬 logs 而丢掉 settings.json）。
+    """
+    import shutil
+    import tempfile as _tf
+    sandbox = _tf.mkdtemp(prefix="vt_mig_nested_", dir=engine.TMP_DIR)
+    legacy = os.path.join(sandbox, "legacy")
+    dst = os.path.join(sandbox, "dst")
+    try:
+        os.makedirs(os.path.join(legacy, engine.VC_NAME, "logs"))
+        with open(os.path.join(legacy, "settings.json"), "w", encoding="utf-8") as f:
+            f.write("{}")
+        with open(os.path.join(legacy, engine.VC_NAME, "logs", "app.log"),
+                  "w", encoding="utf-8") as f:
+            f.write("x")
+        os.makedirs(dst)
+
+        orig_dirs, orig_dst = engine._VC_LEGACY_DIRS, engine.vc_data_dir
+        engine._VC_LEGACY_DIRS = (legacy,)
+        engine.vc_data_dir = lambda: dst
+        try:
+            engine.vc_migrate_legacy_data()
+        finally:
+            engine._VC_LEGACY_DIRS, engine.vc_data_dir = orig_dirs, orig_dst
+
+        got_settings = os.path.isfile(os.path.join(dst, "settings.json"))
+        got_log = os.path.isfile(os.path.join(dst, "logs", "app.log"))
+        return got_settings and got_log and not os.path.isdir(
+            os.path.join(dst, engine.VC_NAME))
+    except OSError:
+        return False
+    finally:
+        shutil.rmtree(sandbox, ignore_errors=True)
+
+
+def _leftover_ignores_migrated():
+    """数据根已存在对应文件的旧目录，不应被报为「待清理残留」。"""
+    import shutil
+    import tempfile as _tf
+    sandbox = _tf.mkdtemp(prefix="vt_leftover_", dir=engine.TMP_DIR)
+    legacy = os.path.join(sandbox, "legacy")
+    dst = os.path.join(sandbox, "dst")
+    try:
+        os.makedirs(os.path.join(legacy, "logs"))
+        with open(os.path.join(legacy, "logs", "app.log"), "w", encoding="utf-8") as f:
+            f.write("x")
+        os.makedirs(os.path.join(dst, "logs"))
+        # 数据根已有同名同路径文件 => 属重复遗留，不该提示用户清理
+        with open(os.path.join(dst, "logs", "app.log"), "w", encoding="utf-8") as f:
+            f.write("x")
+
+        orig_dirs, orig_dst = engine._VC_LEGACY_DIRS, engine.vc_data_dir
+        engine._VC_LEGACY_DIRS = (legacy,)
+        engine.vc_data_dir = lambda: dst
+        try:
+            leftovers = engine.vc_legacy_leftovers()
+        finally:
+            engine._VC_LEGACY_DIRS, engine.vc_data_dir = orig_dirs, orig_dst
+        return leftovers == []
+    except OSError:
+        return False
+    finally:
+        shutil.rmtree(sandbox, ignore_errors=True)
+
+
+def _migrate_idempotent():
+    """迁移函数必须幂等：第二次调用不应再搬动任何条目。"""
+    import shutil
+    import tempfile as _tf
+    sandbox = _tf.mkdtemp(prefix="vt_mig_idem_", dir=engine.TMP_DIR)
+    legacy = os.path.join(sandbox, "legacy")
+    dst = os.path.join(sandbox, "dst")
+    try:
+        os.makedirs(legacy)
+        os.makedirs(dst)
+        with open(os.path.join(legacy, "settings.json"), "w", encoding="utf-8") as f:
+            f.write("{}")
+
+        orig_dirs, orig_dst = engine._VC_LEGACY_DIRS, engine.vc_data_dir
+        engine._VC_LEGACY_DIRS = (legacy,)
+        engine.vc_data_dir = lambda: dst
+        try:
+            first = engine.vc_migrate_legacy_data()
+            second = engine.vc_migrate_legacy_data()
+        finally:
+            engine._VC_LEGACY_DIRS, engine.vc_data_dir = orig_dirs, orig_dst
+        # 首次至少搬 1 项；第二次必须为 0（源已空）
+        return first >= 1 and second == 0
+    except OSError:
+        return False
+    finally:
+        shutil.rmtree(sandbox, ignore_errors=True)
 
 
 def _dump_report():
@@ -85,7 +213,10 @@ def main():
     # ---- 导航宽度：最长项文字 + 2 个字符 ----
     fm = QFontMetrics(win.font())
     longest = max(fm.horizontalAdvance(t) for t in win.NAV_TEXTS)
-    expect = gui.nav_width_for(win.NAV_TEXTS, win.font())
+    # 实现取「窗口字体 / 默认雅黑」两版计算结果中较宽者（引擎内嵌界面
+    # 用默认字体，需保证其下也够宽），断言须与该口径一致
+    expect = max(gui.nav_width_for(win.NAV_TEXTS, win.font()),
+                 gui.nav_width_for(win.NAV_TEXTS))
     actual = win.navigationInterface.panel.expandWidth
     check("导航展开宽度按最长项自适应", abs(actual - expect) <= 2,
           f"actual={actual} expect={expect}")
@@ -177,6 +308,44 @@ def main():
     check("已移除脚本不再支持的 --layout 选项",
           not hasattr(win.calib_page, "layout_switch"))
 
+    # ---- v1.10.6：运行期文件不落系统盘（数据目录可配置）----
+    check("引擎暴露数据根目录 API（data_root_info）",
+          callable(getattr(engine, "data_root_info", None)))
+    check("引擎暴露数据目录切换 API（set_data_root）",
+          callable(getattr(engine, "set_data_root", None)))
+    check("引擎暴露运行环境准备 API（prepare_runtime_env）",
+          callable(getattr(engine, "prepare_runtime_env", None)))
+    _root, _is_default, _src = engine.data_root_info()
+    check("默认数据根目录就是程序目录", _is_default, _src)
+    check("数据目录全部落在数据根之下",
+          all(os.path.abspath(p).startswith(os.path.abspath(_root))
+              for p in (engine.DATA_DIR, engine.LOGS_DIR, engine.TMP_DIR,
+                        engine.THUMB_CACHE_DIR, engine.vc_data_dir())))
+    check("配置不回落系统盘（AppData）",
+          "AppData" not in engine._fallback_config_path()
+          and "Local" not in engine._fallback_config_path())
+    check("临时目录已改向数据根（不落系统 Temp）",
+          os.path.abspath(os.environ.get("TEMP", "")) == os.path.abspath(engine.TMP_DIR)
+          and os.path.abspath(tempfile.gettempdir()) == os.path.abspath(engine.TMP_DIR),
+          os.environ.get("TEMP", ""))
+    check("字幕引擎路径可重定向（vc_redirect_paths）",
+          callable(getattr(engine, "vc_redirect_paths", None)))
+    check("字幕引擎数据目录不在系统盘",
+          "AppData" not in engine.vc_data_dir())
+    check("设置页含数据目录输入与提示",
+          hasattr(win.settings_page, "data_edit")
+          and hasattr(win.settings_page, "data_hint"))
+    check("数据目录默认值与引擎一致",
+          win.settings_page.data_edit.text() == _root,
+          win.settings_page.data_edit.text())
+    check("子进程环境传递 VT_DATA_ROOT 与 TEMP",
+          _worker_env_ok())
+    check("main() 在初始化前先准备运行环境（重定向早于引擎导入）",
+          _prepare_called_before_vc())
+    check("迁移不会漏掉嵌套布局父层的 settings.json", _migrate_flattens_nested())
+    check("残留检测不把已迁空的路径报为待清理", _leftover_ignores_migrated())
+    check("重复迁移是幂等的（第二次不搬任何东西）", _migrate_idempotent())
+
     def done():
         app.quit()
 
@@ -190,7 +359,7 @@ def main():
     if FAILS:
         print(f"  结果：{len(FAILS)} 项失败")
         for f in FAILS:
-            print(f"    - {f}")
+            print("    - " + f.strip().replace("[FAIL] ", "", 1))
         print("=" * 62)
         return 1
     print("  结果：全部通过")
