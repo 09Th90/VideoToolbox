@@ -31,6 +31,11 @@ tools/mihomo/
 installer/*.exe
 build/archives/
 
+# 运行期用户数据（缩略图缓存、自检产物、配置备份）
+data/thumb_cache/
+data/*.selftest_bak
+data/GUI_SELFTEST_REPORT.txt
+
 # 打包中间产物 / 超限二进制：走 GitHub Releases 或在线仓库分发，不进 git
 dist/
 build/视频工具箱/

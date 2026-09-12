@@ -1,17 +1,19 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""视频工具箱 GUI v1.10.2 —— Fluent 矢量界面
+"""视频工具箱 GUI v1.10.4 —— Fluent 矢量界面
 ====================================================================
 界面形态（v1.10.0 起，原 tkinter 界面退役）：
-  · FluentWindow + 左侧 NavigationInterface 导航（顶部功能区 + 底部分隔项）
+  · FluentWindow + 左侧 NavigationInterface 导航（顶部功能区 + 底部分隔项；
+    v1.10.4 起新增底部「设置」入口，宽度按最长项文字自适应）；
   · 每页「标题区固定 + 内容滚动区」：内容放进 QScrollArea（水平滚动禁用，
     滚动区内一律不用自动换行标签，避免 heightForWidth 与滚动区互相触发重排），
     窗口最小尺寸不再被内容撑爆，任何屏幕尺寸下都完整可用；
   · 卡片内：标题 StrongBodyLabel / 说明 CaptionLabel / 控件行；
   · 全矢量渲染：图标为 FluentIcon 矢量字体图标，高分屏按逻辑像素缩放
-    （AA_EnableHighDpiScaling + AA_UseHighDpiPixmaps），任意缩放比例不发虚。
-页面（v1.10.0 起共 5 个，B站投稿板块已移除）：
-  视频下载 · 视频库 · 音视频合并 · 字幕处理（内嵌第三方字幕引擎）· 字幕校准
+    （AA_EnableHighDpiScaling + AA_UseHighDpiPixmaps + PassThrough 取整策略），
+    100%/125%/150%/200% 任意缩放比例下表现一致、不发虚。
+页面（v1.10.0 起共 5 个，v1.10.4 增加设置页共 6 个，B站投稿板块已移除）：
+  视频下载 · 视频库 · 音视频合并 · 字幕处理（内嵌第三方字幕引擎）· 字幕校准 · 设置
 线程模型沿用旧界面：后台线程只往 app.q 投消息，主线程用 QTimer 泵出后更新控件。
 调试钩子（供打包验证/截图）：VT_GUI_SELFTEST=1 自检自退；VT_SHOT_TAB/VT_SHOT_FILE 截图。
 """
@@ -27,8 +29,9 @@ import threading
 import time
 from datetime import datetime
 
-from PyQt5.QtCore import Qt, QTimer, QEvent, QUrl
-from PyQt5.QtGui import QColor, QDesktopServices, QFont, QPixmap, QTextCursor
+from PyQt5.QtCore import Qt, QTimer, QEvent, QUrl, QPoint, QRect
+from PyQt5.QtGui import (QColor, QDesktopServices, QFont, QFontMetrics,
+                         QGuiApplication, QPixmap, QTextCursor)
 from PyQt5.QtWidgets import (QAbstractItemView, QApplication, QDialog,
                              QFileDialog, QGridLayout, QHBoxLayout, QHeaderView,
                              QTableWidgetItem, QVBoxLayout, QWidget)
@@ -38,13 +41,15 @@ from qfluentwidgets import (BodyLabel, CardWidget, CaptionLabel,
                             FluentWindow, InfoBar, InfoBarPosition, LineEdit,
                             ListWidget, MessageBox, NavigationItemPosition,
                             PrimaryPushButton, ProgressBar, PushButton,
-                            ScrollArea, SimpleCardWidget, SubtitleLabel,
-                            StrongBodyLabel, SwitchButton, TableWidget,
-                            TextEdit, Theme, TitleLabel, setTheme, setThemeColor)
+                            ScrollArea, SegmentedWidget, SimpleCardWidget,
+                            SubtitleLabel, StrongBodyLabel, SwitchButton,
+                            TableWidget, TextEdit, Theme, TitleLabel,
+                            setTheme, setThemeColor)
+from qfluentwidgets.components.navigation.navigation_widget import NavigationWidget
 
 import video_toolbox as engine
 
-VERSION = "1.10.3"
+VERSION = "1.10.4"
 
 LIB_EXTS = {".mp4", ".mkv", ".avi", ".mov", ".flv", ".wmv", ".ts", ".m4v", ".webm"}
 THUMB_DIR = engine.THUMB_CACHE_DIR
@@ -71,6 +76,32 @@ def fmt_hms(seconds):
     h, rem = divmod(seconds, 3600)
     m, s = divmod(rem, 60)
     return f"{h}:{m:02d}:{s:02d}" if h else f"{m:02d}:{s:02d}"
+
+
+# ========== 导航宽度（按最长项文字自适应） ==========
+# 导航项宽度的构成（见 qfluentwidgets.components.navigation.navigation_widget）：
+#   1. FluentWindow 左侧栏 → panel 左侧内边距（NaviPanel 边距 4+4）
+#   2. Expand 按钮 40px（收起态图标条宽度）
+#   3. 图标与文字之间的间距
+#   4. 文字宽度（QFontMetrics.horizontalAdvance）
+#   5. 右侧呼吸空间
+NAV_BUTTON_W = 40          # 收起态按钮宽度，也是展开态图标区宽度
+NAV_ICON_TEXT_GAP = 14     # 图标右缘到文字左缘
+NAV_SIDE_PADDING = 8       # panel 左右各自的内边距
+NAV_TEXT_TAIL = 6          # 文字右侧余量，避免紧贴滚动条
+
+
+def nav_width_for(texts, font=None):
+    """按导航项文案计算展开态宽度：最长一项文字宽 + 2 个字符 + 固有占位。
+
+    用户要求「单行最大字数宽度 + 2 个字符的宽度」——2 个字符用中文字宽
+    （em 宽）计，保证任何文案下右侧都留出约两个汉字的空间。
+    """
+    fm = QFontMetrics(font or QFont("Microsoft YaHei UI", 9))
+    longest = max((fm.horizontalAdvance(t or "") for t in texts), default=0)
+    two_chars = fm.horizontalAdvance("字字")
+    return (NAV_SIDE_PADDING * 2 + NAV_BUTTON_W + NAV_ICON_TEXT_GAP
+            + longest + two_chars + NAV_TEXT_TAIL)
 
 
 # ========== 通用控件 ==========
@@ -1170,7 +1201,13 @@ class SubtitlePage(QWidget):
       · 引擎以第三方开源组件形式随包内置，界面在宿主窗口内呈现；
       · 品牌水印与捐助入口在嵌入层隐藏（许可与来源见 docs/ 下声明文件）；
       · 引擎背景改为透明，跟随宿主深色主题（其自带样式是白底，会与
-        宿主界面割裂）；首次切到本页时才创建，避免拖慢启动。
+        宿主界面割裂）。
+
+    v1.10.4 起解决首次进入卡顿：
+      · `prewarm()` 在主窗口首帧之后由后台线程提前 import 引擎模块
+        （videocaptioner 及其 Qt 子模块的导入是卡顿的主要来源），
+        再回到主线程按空闲时机建好界面——用户点进来时已是现成控件；
+      · `showEvent` 仍保留兜底构建，预热失败时行为与旧版一致。
     """
 
     def __init__(self, app, parent=None):
@@ -1179,6 +1216,8 @@ class SubtitlePage(QWidget):
         self.setObjectName("SubtitlePage")
         self._engine = None
         self._built = False
+        self._prewarming = False
+        self._prewarm_ready = False
 
         outer = QVBoxLayout(self)
         outer.setContentsMargins(0, 0, 0, 0)
@@ -1193,7 +1232,7 @@ class SubtitlePage(QWidget):
         self.vbox.setContentsMargins(0, 0, 0, 0)
         self.vbox.setSpacing(8)
 
-        # 中部：引擎界面宿主；底部一行：引擎状态 + 许可入口
+        # 中部：引擎界面宿主；底部一行：引擎状态 + 设置/许可入口
         # （第三方组件的许可与来源见 docs\ 声明文件）
         self.host = QWidget(self)
         self.host_lay = QVBoxLayout(self.host)
@@ -1205,8 +1244,8 @@ class SubtitlePage(QWidget):
         flay.setContentsMargins(0, 0, 0, 0)
         flay.setSpacing(12)
         self.state_label = CaptionLabel("正在加载字幕引擎界面 …", foot)
-        self.set_btn = PushButton(FIF.SETTING, "引擎设置…", foot)
-        self.set_btn.setEnabled(False)
+        # v1.10.4：引擎设置并入「设置」页的「字幕引擎」分组，这里只留跳转
+        self.set_btn = PushButton(FIF.SETTING, "打开设置", foot)
         self.set_btn.clicked.connect(self.open_settings)
         self.lic_btn = PushButton(FIF.CERTIFICATE, "许可与来源…", foot)
         self.lic_btn.clicked.connect(self.show_license)
@@ -1215,6 +1254,49 @@ class SubtitlePage(QWidget):
         flay.addWidget(self.lic_btn)
         self.vbox.addWidget(foot)
 
+    # ---------- 预热（消除首次进入卡顿） ----------
+    def prewarm(self):
+        """空闲时预导入引擎模块。
+
+        卡顿的根因是 `videocaptioner.ui.view.home_interface` 及其依赖树
+        （qtawesome 图标字体、platformdirs、transcribe/llm 子模块、vlc 探测）
+        在主线程同步 import 时要花数秒。这里先丢到后台线程完成 import
+        （Python 的 import 锁会让主线程的后续 import 命中缓存），
+        再由主线程建界面——建界面本身只有几十毫秒。
+        """
+        if self._built or self._prewarming:
+            return
+        self._prewarming = True
+
+        def _work():
+            try:
+                engine.engine_ui_brand_patch()
+            except Exception:  # noqa: BLE001
+                pass
+            try:
+                import videocaptioner.ui.view.home_interface  # noqa: F401
+                import videocaptioner.ui.view.setting_interface  # noqa: F401
+                ok = True
+            except Exception:  # noqa: BLE001
+                ok = False
+            self._prewarm_ready = ok
+
+        t = threading.Thread(target=_work, daemon=True, name="vc-prewarm")
+        t.start()
+        self._prewarm_thread = t
+        # 轮询等待后台 import 结束，然后回主线程建界面（不阻塞事件循环）
+        QTimer.singleShot(200, self._wait_prewarm)
+
+    def _wait_prewarm(self):
+        t = getattr(self, "_prewarm_thread", None)
+        if t is not None and t.is_alive():
+            QTimer.singleShot(200, self._wait_prewarm)
+            return
+        if self._built:
+            return
+        self._build_now("正在准备字幕引擎界面 …")
+
+    # ---------- 构建 ----------
     def _build_engine(self):
         """创建并内嵌引擎工作台；隐藏品牌水印与捐助入口。"""
         engine.engine_ui_brand_patch()   # 用户可见文案中性化（见 docs\ 声明）
@@ -1234,27 +1316,42 @@ class SubtitlePage(QWidget):
                     w.hide()
         return home
 
-    def showEvent(self, event):
-        """首次显示时才加载引擎界面（内嵌 QWidget，随主题自动配色）。"""
-        super().showEvent(event)
+    def _build_now(self, busy_text):
         if self._built:
             return
         self._built = True
+        if busy_text:
+            self.state_label.setText(busy_text)
         self._engine = self._build_engine()
         if self._engine is None:
             return
         self.host_lay.addWidget(self._engine)
         self.state_label.setText("字幕引擎已就绪（内嵌运行，无需联网下载模型）")
-        self.set_btn.setEnabled(True)
+
+    def showEvent(self, event):
+        """首次显示时才加载引擎界面（内嵌 QWidget，随主题自动配色）。"""
+        super().showEvent(event)
+        if self._built:
+            return
+        # 预热尚未完成时也直接建（用户已点进来，等不了）；import 缓存已热，
+        # 即便预热线程还在跑，主线程这里也只是等 import 锁，比冷启动快
+        self._build_now("正在准备字幕引擎界面 …")
 
     def open_settings(self):
-        """打开引擎设置（API Key / 转录与翻译服务 / 字幕样式等）。
+        """跳到统一设置页的「字幕引擎」分组。
 
-        引擎的设置页原本挂在它的独立主窗口导航上；内嵌模式下没有那个窗口，
-        这里把设置界面装进一个对话框呈现。
+        v1.10.4 起引擎设置不再是本页的独立对话框，而是并入主设置页，
+        与下载目录、主题等工具自身设置放在同一处。
         """
+        win = self.window()
         try:
-            dlg = EngineSettingsDialog(self.window())
+            if hasattr(win, "open_engine_settings"):
+                win.open_engine_settings()
+                return
+        except Exception:  # noqa: BLE001
+            pass
+        try:
+            dlg = EngineSettingsDialog(win)
             dlg.exec()
         except Exception as e:  # noqa: BLE001
             MessageBox("设置打开失败", str(e)[:300], self).exec()
@@ -1330,6 +1427,277 @@ class EngineSettingsDialog(QDialog):
             dlg.setWindowTitle(interface.windowTitle() or "字幕样式")
             dlg.resize(960, 680)
         self._style_dlg.exec()
+
+
+# ========== 设置（统一入口，v1.10.4） ==========
+class SettingsPage(QWidget):
+    """统一设置页：工具自身设置 + 字幕引擎设置集中在一个导航入口下。
+
+    v1.10.4 起导航底部新增本页，原先散落的设置项与「字幕处理」页右下角的
+    「引擎设置…」全部并入：
+      · 工具设置：下载目录、视频库目录、界面主题/缩放、许可与来源；
+      · 字幕引擎：直接承载引擎自带的设置界面（转录/LLM/翻译/合成/保存/
+        个性化共七个分组），不再另开对话框。
+
+    引擎设置界面由用户首次切到「字幕引擎」分段时才创建（它包含约 30 个
+    卡片，构建有开销），避免拖慢设置页本身的打开速度。
+    """
+
+    def __init__(self, app, parent=None):
+        super().__init__(parent)
+        self.app = app
+        self.setObjectName("SettingsPage")
+        self._engine_host = None
+        self._engine_setting = None
+        self._engine_built = False
+
+        outer = QVBoxLayout(self)
+        outer.setContentsMargins(0, 0, 0, 0)
+        self.shell = ScrollPage("设置", "工具与字幕引擎的全部设置项", self,
+                                scrollable=True)
+        outer.addWidget(self.shell)
+        self.shell.layout().setContentsMargins(24, 12, 24, 12)
+        self.shell.layout().setSpacing(8)
+        self.vbox = self.shell.content_lay
+
+        # ---- 分段切换：工具设置 / 字幕引擎 ----
+        # 注意 Pivot 的 itemClicked 信号带 (routeKey, checked) 两个参数，
+        # 回调必须能接收任意参数，否则 PyQt 会静默吞掉调用（表现为点了没反应）
+        self.seg = SegmentedWidget(self)
+        self.seg.addItem("tool", "工具设置",
+                         lambda *_a: self._show_seg("tool"))
+        self.seg.addItem("engine", "字幕引擎",
+                         lambda *_a: self._show_seg("engine"))
+        self.vbox.addWidget(self.seg)
+
+        # 用一个容器手动替换子控件，而不用 QStackedWidget——QStackedWidget
+        # 的 sizeHint 只取当前页，在滚动区（ScrollArea + setWidgetResizable）
+        # 的内容布局里切换后不会再请求重排，表现为「状态切了但画面没变」。
+        self.swap_host = QWidget(self)
+        self.swap_lay = QVBoxLayout(self.swap_host)
+        self.swap_lay.setContentsMargins(0, 0, 0, 0)
+        self.vbox.addWidget(self.swap_host, 1)
+
+        self.tool_seg = self._build_tool_seg()
+        self.engine_seg = QWidget(self)
+        self.engine_lay = QVBoxLayout(self.engine_seg)
+        self.engine_lay.setContentsMargins(0, 0, 0, 0)
+        self.swap_lay.addWidget(self.tool_seg)
+        self._current_seg = self.tool_seg
+
+        self.seg.setCurrentItem("tool")
+        self._show_seg("tool", animate=False)
+
+    # ---------- 工具设置 ----------
+    def _build_tool_seg(self):
+        host = QWidget(self)
+        lay = QVBoxLayout(host)
+        lay.setContentsMargins(0, 0, 12, 16)
+        lay.setSpacing(12)
+
+        # 目录设置
+        box, blay = card("目录", "下载与视频库的默认位置")
+        self.dir_edit = LineEdit(box)
+        self.dir_edit.setText(engine.get_saved_download_dir())
+        self.dir_edit.editingFinished.connect(self._on_dir_changed)
+        browse = PushButton(FIF.FOLDER, "浏览…", box)
+        browse.clicked.connect(self._browse_dir)
+        blay.addWidget(label_row("下载目录", row(self.dir_edit, browse, None)))
+        lay.addWidget(box)
+
+        # 界面设置
+        box2, blay2 = card("界面", "主题与缩放；缩放立即生效，主题重启后完全生效")
+        self.theme_combo = ComboBox(box2)
+        self.theme_combo.addItems(["深色", "浅色", "跟随系统"])
+        from qfluentwidgets import isDarkTheme
+        self.theme_combo.setCurrentIndex(0 if isDarkTheme() else 1)
+        self.theme_combo.currentIndexChanged.connect(self._on_theme_changed)
+        blay2.addWidget(label_row("主题", row(BodyLabel(""), self.theme_combo, None)))
+        self.zoom_combo = ComboBox(box2)
+        self.zoom_combo.addItems(["自动（跟随系统）", "100%", "125%", "150%", "175%", "200%"])
+        self.zoom_combo.setCurrentIndex(0)
+        self.zoom_combo.currentIndexChanged.connect(self._on_zoom_changed)
+        blay2.addWidget(label_row("界面缩放", row(BodyLabel(""), self.zoom_combo, None)))
+        self.mica_switch = SwitchButton(box2)
+        self.mica_switch.setChecked(True)
+        blay2.addWidget(label_row("云母特效", row(BodyLabel(""), self.mica_switch, None)))
+        lay.addWidget(box2)
+
+        # 许可与来源
+        box3, blay3 = card("关于", f"视频工具箱 v{VERSION}")
+        blay3.addWidget(row(
+            BodyLabel(f"内置第三方字幕引擎，许可与来源见 docs\\ 下声明文件"),
+            None))
+        lic = PushButton(FIF.CERTIFICATE, "打开许可全文", box3)
+        lic.clicked.connect(self._open_license)
+        src = PushButton(FIF.DOCUMENT, "查看组件来源", box3)
+        src.clicked.connect(self._open_source)
+        blay3.addWidget(row(lic, src, None))
+        lay.addWidget(box3)
+
+        lay.addStretch(1)
+        return host
+
+    # ---------- 引擎设置 ----------
+    def _build_engine_setting(self):
+        """懒加载引擎设置界面（约 30 个卡片，构建有开销）。"""
+        if self._engine_built:
+            return self._engine_setting
+        self._engine_built = True
+        from qfluentwidgets import isDarkTheme
+        bg = "#1F1F1F" if isDarkTheme() else "#F3F3F3"
+        holder = QWidget(self.engine_seg)
+        holder.setStyleSheet(f"QWidget{{background:{bg};}}")
+        hlay = QVBoxLayout(holder)
+        hlay.setContentsMargins(0, 0, 0, 0)
+        try:
+            from videocaptioner.ui.view.setting_interface import SettingInterface
+            engine.engine_ui_brand_patch()
+            setting = SettingInterface(holder)
+            # 引擎设置页自带一个「设置」大标题与 80px 顶部留白，宿主页已
+            # 有标题区，这里去掉重复标题、收紧留白
+            try:
+                setting.settingLabel.hide()
+            except Exception:
+                pass
+            try:
+                setting.setViewportMargins(0, 0, 0, 20)
+            except Exception:
+                pass
+            self._hide_upstream_promo(setting)
+            hlay.addWidget(setting)
+            self._engine_setting = setting
+        except Exception as e:  # noqa: BLE001
+            hlay.addWidget(CaptionLabel(f"字幕引擎设置加载失败：{e}", holder))
+        self.engine_lay.addWidget(holder)
+        self._engine_host = holder
+        return self._engine_setting
+
+    @staticmethod
+    def _hide_upstream_promo(setting):
+        """去掉上游品牌入口：关于组（检查更新/帮助/反馈）与官方 API 推广卡片。"""
+        about = getattr(setting, "aboutGroup", None)
+        if about is not None:
+            about.hide()
+        card_ = getattr(setting, "openaiOfficialApiCard", None)
+        if card_ is not None:
+            orig = card_.setVisible
+            card_.setVisible = lambda _v=True: orig(False)
+            orig(False)
+
+    # ---------- 分段切换 ----------
+    def _show_seg(self, key, animate=True):
+        """在容器里手动替换子控件（不用 QStackedWidget，见 __init__ 注释）。"""
+        if key == "engine":
+            self._build_engine_setting()
+            target = self.engine_seg
+        else:
+            target = self.tool_seg
+        old = getattr(self, "_current_seg", None)
+        if old is not None and old is not target:
+            self.swap_lay.removeWidget(old)
+            old.setParent(None)
+        if self.swap_lay.indexOf(target) < 0:
+            self.swap_lay.addWidget(target)
+        target.setParent(self.swap_host)
+        # 逐级 show：QWidget 若父级还没显形，自身 show() 只是「解除隐藏标记」，
+        # 需要等父级真正显示后才可见；这里把整条链都显式 show 一遍，
+        # 并在下一轮事件循环再补一次（此时布局已算完，一定可见）
+        self.swap_host.show()
+        target.show()
+        self._current_seg = target
+        # 内容高度变了，通知滚动区重新计算；并回到顶部
+        try:
+            target.adjustSize()
+            self.swap_host.adjustSize()
+            self.swap_host.updateGeometry()
+            if self.shell.area is not None:
+                self.shell.area.widget().adjustSize()
+                self.shell.area.verticalScrollBar().setValue(0)
+        except Exception:
+            pass
+
+        def _resettle():
+            try:
+                self.swap_host.show()
+                target.show()
+                target.updateGeometry()
+                if self.shell.area is not None:
+                    self.shell.area.widget().adjustSize()
+            except Exception:
+                pass
+        QTimer.singleShot(0, _resettle)
+
+    def scroll_to_engine(self):
+        """外部调用：切到「字幕引擎」分段。
+
+        这里同时选中分段按钮并直接切页面——`setCurrentItem` 走的是 Pivot
+        内部的状态同步，不一定触发 itemClicked 回调，所以不能只依赖它。
+        """
+        try:
+            self.seg.setCurrentItem("engine")
+        except Exception:
+            pass
+        self._show_seg("engine")
+
+    # ---------- 槽 ----------
+    def _on_dir_changed(self):
+        path = self.dir_edit.text().strip()
+        if path:
+            engine.set_saved_download_dir(path)
+            pw = self.app.page_by_key("download") if hasattr(self.app, "page_by_key") else None
+            if pw is not None and hasattr(pw, "dest_edit"):
+                pw.dest_edit.setText(path)
+
+    def _browse_dir(self):
+        d = QFileDialog.getExistingDirectory(self, "选择下载目录",
+                                             self.dir_edit.text() or engine.DATA_DIR)
+        if d:
+            self.dir_edit.setText(d)
+            self._on_dir_changed()
+
+    def _on_theme_changed(self, idx):
+        try:
+            setTheme([Theme.DARK, Theme.LIGHT, Theme.AUTO][idx])
+        except Exception:
+            pass
+
+    def _on_zoom_changed(self, idx):
+        """界面缩放：改写引擎配置的 dpiScale，下次启动生效。
+
+        宿主界面的字号/间距全部按点/逻辑像素定义，Qt 的高 DPI 缩放会整体
+        放大，无需逐控件改字号；这里只把档位记进配置供下次启动应用。
+        """
+        if idx <= 0:
+            return
+        pct = [100, 100, 125, 150, 175, 200][idx]
+        try:
+            from videocaptioner.ui.common.config import cfg
+            cfg.set(cfg.dpiScale, pct)
+        except Exception:
+            pass
+        InfoBar.success("缩放设置已保存", "重新启动后生效", duration=2500,
+                        position=InfoBarPosition.BOTTOM_RIGHT, parent=self)
+
+    def _open_license(self):
+        if os.path.isfile(engine.VC_LICENSE_FILE):
+            try:
+                os.startfile(engine.VC_LICENSE_FILE)   # noqa: S606
+                return
+            except OSError:
+                pass
+        MessageBox("第三方组件许可", "未找到许可文件（docs/VideoCaptioner_GPL-3.0.txt）。",
+                   self).exec()
+
+    def _open_source(self):
+        if os.path.isfile(engine.VC_SOURCE_FILE):
+            try:
+                os.startfile(engine.VC_SOURCE_FILE)   # noqa: S606
+                return
+            except OSError:
+                pass
+        MessageBox("第三方组件来源", "未找到来源声明（docs/VideoCaptioner_组件来源.txt）。",
+                   self).exec()
 
 
 # ========== 字幕校准 ==========
@@ -1499,13 +1867,28 @@ class CalibPage(ScrollPage):
 # ========== 主窗口 ==========
 PAGE_TITLES = {"DownloadPage": "视频下载", "LibraryPage": "视频库",
                "MergePage": "音视频合并", "SubtitlePage": "字幕处理",
-               "CalibPage": "字幕校准"}
+               "CalibPage": "字幕校准", "SettingsPage": "设置"}
 
 
 class MainWindow(FluentWindow):
-    """FluentWindow + 左侧导航（结构与主流 Fluent 桌面应用一致）。"""
+    """FluentWindow + 左侧导航（结构与主流 Fluent 桌面应用一致）。
+
+    v1.10.4 起：
+      · 导航宽度按最长项文字自适应（最长文字 + 2 个字符），不再固定 322px；
+      · 设置页统一挂在导航底部，字幕引擎设置并入其中；
+      · 跨屏拖拽保持相对位置，不再因两屏缩放比不同而瞬移；
+      · 字幕引擎界面后台预热，消除首次进入本页的数秒卡顿。
+    """
+
+    #: 导航项文案（宽度按其中最长的一项计算）
+    NAV_TEXTS = ["视频下载", "视频库", "音视频合并", "字幕处理", "字幕校准", "设置"]
 
     def __init__(self, argv=None):
+        # 跨屏拖拽状态必须在 super().__init__() 之前建立：窗口构造过程中
+        # Qt 就会派发 moveEvent，届时 moveEvent 会读这些属性
+        self._last_screen = None
+        self._last_screen_geo = None
+        self._drag_anchor = None      # (相对屏宽的左/右比例) 用于跨屏重定位
         super().__init__()
         self.q = queue.Queue()
         self.setWindowTitle(f"视频工具箱 v{VERSION}")
@@ -1522,6 +1905,10 @@ class MainWindow(FluentWindow):
         self.merge_page = MergePage(self, self)
         self.subtitle_page = SubtitlePage(self, self)
         self.calib_page = CalibPage(self, self)
+        self.settings_page = SettingsPage(self, self)
+        for page in (self.download_page, self.library_page, self.merge_page,
+                     self.subtitle_page, self.calib_page, self.settings_page):
+            page.installEventFilter(self)
 
         self.addSubInterface(self.download_page, FIF.DOWNLOAD, "视频下载")
         self.addSubInterface(self.library_page, FIF.VIDEO, "视频库")
@@ -1529,14 +1916,49 @@ class MainWindow(FluentWindow):
         self.navigationInterface.addSeparator()
         self.addSubInterface(self.subtitle_page, FIF.FONT, "字幕处理")
         self.addSubInterface(self.calib_page, FIF.EDIT, "字幕校准")
+        self.addSubInterface(self.settings_page, FIF.SETTING, "设置",
+                             position=NavigationItemPosition.BOTTOM)
 
-        # 侧边导航常驻展开（默认窄条只有图标）
+        # 侧边导航常驻展开（默认窄条只有图标），宽度按最长项自适应
         self.navigationInterface.setCollapsible(False)
+        self._apply_nav_width()
+        QTimer.singleShot(0, self._apply_nav_width)
 
         self.switchTo(self.download_page)
         self._apply_argv(argv or [])
         QTimer.singleShot(400, self.library_page.auto_load)
         QTimer.singleShot(120, self._pump)
+        # 字幕引擎界面后台预热：等主界面首帧画出后再导入依赖与建界面，
+        # 用户真正点进「字幕处理」时已经是现成控件，无需等数秒
+        QTimer.singleShot(900, self.subtitle_page.prewarm)
+        # 主屏 DPI 变化（改缩放比/拖到另一块屏）时重新计算导航宽度。
+        # 注意必须用 QApplication 实例的信号：PyQt5 里类的同名属性是未绑定的
+        # pyqtSignal 描述符，直接 .connect 会抛 AttributeError。
+        try:
+            QApplication.instance().primaryScreenChanged.connect(
+                lambda *_: self._on_screen_changed())
+        except Exception:
+            pass
+
+    def _on_screen_changed(self):
+        """屏幕变化（换主屏 / 改缩放比）时重算导航宽度并收敛窗口。"""
+        self._apply_nav_width()
+        self._remember_screen()
+
+    # ---------- 导航宽度 ----------
+    def _apply_nav_width(self):
+        """按最长导航文案重算展开宽度（含 DPI 变化时的重算）。
+
+        展开宽度用逻辑像素计算，Qt 会按当前屏幕缩放比自动换算物理像素，
+        因此 100% / 125% / 150% / 200% 下呈现的视觉宽度一致。
+        """
+        try:
+            width = nav_width_for(self.NAV_TEXTS, self.font())
+            # 引擎界面（内嵌）自带一套字体，取两者较宽者，保证任何主题下都够用
+            width = max(width, nav_width_for(self.NAV_TEXTS))
+            self.navigationInterface.setExpandWidth(int(width))
+        except Exception:
+            pass
 
     # ---------- 页面/状态 ----------
     def fit_to_screen(self):
@@ -1544,6 +1966,8 @@ class MainWindow(FluentWindow):
 
         1180x860 的默认尺寸在小屏（1080p 任务栏/150% 缩放）上会超出屏幕，
         导致右侧按钮被裁掉——启动时先按可用区域的 92% 收敛。
+        全程用**逻辑像素**（Qt 的 geometry 在开启高 DPI 缩放后即为逻辑像素），
+        因此 100% / 125% / 150% / 200% 下占用屏幕的比例保持一致。
         """
         try:
             avail = self.screen().availableGeometry()
@@ -1556,6 +1980,70 @@ class MainWindow(FluentWindow):
         self.resize(w, h)
         self.move(avail.x() + (avail.width() - w) // 2,
                   avail.y() + (avail.height() - h) // 2)
+        self._remember_screen()
+
+    # ---------- 跨屏拖拽 ----------
+    def _remember_screen(self):
+        scr = self.screen()
+        if scr is None:
+            return
+        if scr is not self._last_screen:
+            self._last_screen = scr
+            self._last_screen_geo = scr.geometry()
+            # 监听该屏幕的 DPI 变化（用户改缩放比时需重算导航宽度）
+            try:
+                scr.logicalDotsPerInchChanged.connect(
+                    lambda *_: self._apply_nav_width())
+            except Exception:
+                pass
+
+    def moveEvent(self, event):
+        """跨屏拖拽时保持窗口在两屏上的相对位置。
+
+        Windows 上两屏缩放比不同时，Qt 会在窗口跨过屏幕边界后按新屏的
+        缩放比重新换算逻辑坐标，窗口因此被「拉」回新屏左缘（瞬移）。
+        这里的做法：检测到窗口进入另一块屏幕时，按窗口中心在**原屏**的
+        相对位置（0~1）映射到新屏上，再把窗口放到对应位置——这样从右屏
+        拖到左屏会停在左屏右侧的对应位置，而不是贴到左屏最左边。
+
+        注意：本方法会在构造函数里 `super().__init__()` 期间就被 Qt 调用，
+        那时实例属性还没建立，因此状态一律用 getattr 兜底取，且整个过程
+        包在 try 里——虚拟方法里抛出未捕获异常会让 Qt 直接 abort 进程。
+        """
+        super().moveEvent(event)
+        try:
+            prev = getattr(self, "_last_screen", None)
+            prev_geo = getattr(self, "_last_screen_geo", None)
+            scr = self.screen()
+            if scr is None:
+                return
+            geo = scr.geometry()
+            self._last_screen = scr
+            self._last_screen_geo = geo
+            if prev is None or prev_geo is None or prev is scr:
+                return
+            if prev_geo.width() <= 0 or geo.width() <= 0:
+                return
+            # 仅在非用户拖拽（程序主动 setGeometry）时才做重定位，避免与拖拽打架
+            if QApplication.mouseButtons() != Qt.NoButton:
+                return
+
+            def _reposition():
+                try:
+                    # 用窗口中心的相对位置跨屏映射（钳制在 0~1，保证整窗可见）
+                    cx = self.x() + self.width() / 2.0
+                    nx = (cx - prev_geo.x()) / float(prev_geo.width())
+                    nx = min(max(nx, 0.0), 1.0)
+                    target = geo.x() + nx * geo.width() - self.width() / 2.0
+                    target = max(geo.x(),
+                                 min(target, geo.x() + geo.width() - self.width()))
+                    if abs(target - self.x()) > 1:
+                        self.move(int(round(target)), self.y())
+                except Exception:
+                    pass
+            QTimer.singleShot(0, _reposition)
+        except Exception:
+            pass
 
     def switchTo(self, page):
         self.stackedWidget.setCurrentWidget(page, popOut=False)
@@ -1565,7 +2053,13 @@ class MainWindow(FluentWindow):
     def page_by_key(self, key):
         return {"download": self.download_page, "library": self.library_page,
                 "merge": self.merge_page, "subtitle": self.subtitle_page,
-                "calib": self.calib_page}.get(key)
+                "calib": self.calib_page, "settings": self.settings_page
+                }.get(key)
+
+    def open_engine_settings(self):
+        """跳到统一设置页的「字幕引擎」分组（供其他页面调用）。"""
+        self.switchTo(self.settings_page)
+        self.settings_page.scroll_to_engine()
 
     def _apply_argv(self, argv):
         """命令行/拖入 .url、含链接的 txt：提取链接填到下载页。"""
@@ -1669,6 +2163,13 @@ def main():
     # 矢量化：高分屏按逻辑像素缩放、图标/文字按矢量渲染，避免放大后发虚
     QApplication.setAttribute(Qt.AA_EnableHighDpiScaling, True)
     QApplication.setAttribute(Qt.AA_UseHighDpiPixmaps, True)
+    # 缩放比不取整：125% / 150% 等非整数倍率下按实际比例换算，
+    # 否则 Qt 会把 1.25 四舍五入成 1.0 或 2.0，不同显示器间表现不一致
+    try:
+        QGuiApplication.setHighDpiScaleFactorRoundingPolicy(
+            Qt.HighDpiScaleFactorRoundingPolicy.PassThrough)
+    except Exception:
+        pass
     app = QApplication(sys.argv)
     setTheme(Theme.DARK)
     setThemeColor("#2F8D63")    # 品牌绿（与字幕引擎界面同色系）

@@ -9,8 +9,8 @@
 -->
 <Installer>
     <Name>视频工具箱</Name>
-    <Version>1.10.3</Version>
-    <Title>视频工具箱 v1.10.3（在线安装）</Title>
+    <Version>1.10.4</Version>
+    <Title>视频工具箱 v1.10.4（在线安装）</Title>
     <Publisher>VideoToolbox</Publisher>
     <ProductUrl>https://github.com/09Th90/VideoToolbox</ProductUrl>
     <StartMenuDir>视频工具箱</StartMenuDir>

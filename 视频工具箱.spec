@@ -1,5 +1,9 @@
 # -*- mode: python ; coding: utf-8 -*-
-"""视频工具箱 v1.10.3 —— PyInstaller 打包配置
+"""视频工具箱 v1.10.4 —— PyInstaller 打包配置
+v1.10.4：界面与设置整合——导航宽度按最长项文字自适应、新增导航底部「设置」
+        页统一承载工具设置与字幕引擎设置、跨屏拖拽保持相对位置、DPI 取整
+        改为 PassThrough、字幕引擎界面后台预热（消除首次进入卡顿）。
+        本次改动全在 src\\video_toolbox_qt.py，打包配置无需变更。
 v1.10.3：打包环境固定为 tools\\python（内嵌 CPython 3.12，videocaptioner 及
         全部依赖就在其 site-packages 里）；此前用系统 Python312 打包时
         videocaptioner 不可见，exe 里其实没进引擎。

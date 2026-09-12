@@ -6,6 +6,8 @@
   2. repogen 打包 data 为 7z 组件仓库 installer_repository/（含 Updates.xml 校验和）
   3. binarycreator --online-only 生成只含向导、不含组件数据的在线安装器 exe
 
+v1.10.4 说明：界面与设置整合（导航宽度自适应、导航底部统一「设置」页、
+  跨屏拖拽修正、字幕引擎界面后台预热），改动均在主程序内，分发方式不变。
 v1.10.3 说明：字幕引擎已内嵌进主程序 exe（videocaptioner 及其资源打进
   dist/视频工具箱.exe），在线安装器只分发 exe + 校准脚本 + 源码/文档，
   「字幕处理」页开箱可用，不再依赖 tools/python 运行时。
@@ -30,7 +32,7 @@ REPO = ROOT / "installer_repository"
 CONFIG_OUT = ROOT / "build/ifw_config"
 INSTALLER_OUT = ROOT / "installer"
 
-APP_VERSION = "1.10.3"
+APP_VERSION = "1.10.4"
 EXCLUDES = {"__pycache__", "*.pyc", "*.pyo"}
 
 # 组件 -> 文件来源映射：(源路径, data 内相对位置)
