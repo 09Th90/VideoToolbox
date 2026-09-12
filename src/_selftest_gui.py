@@ -28,6 +28,20 @@ def check(name, cond, extra=""):
         FAILS.append(name)
 
 
+def _about_to_quit_hooked():
+    """检查 GUI 的 main() 是否已把退出同步挂到 aboutToQuit。
+
+    直接读源码而非实例化 QApplication：自检自身就在一个 QApplication 里，
+    main() 里的挂接发生在其执行流程中，源码断言最稳。
+    """
+    try:
+        src = open(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                "video_toolbox_qt.py"), encoding="utf-8").read()
+        return "aboutToQuit.connect(engine.sync_calib_on_exit)" in src
+    except OSError:
+        return False
+
+
 def _dump_report():
     """把结果另写一份纯 ASCII 报告，便于在无 stdout 的环境下核对。"""
     try:
@@ -134,6 +148,34 @@ def main():
     check("AI 字幕语言识别仍可用（tools/ai_client.py 就位）",
           os.path.isfile(os.path.join(engine.TOOLS_DIR, "ai_client.py")))
     check("配置目录长期记忆生效", os.path.isdir(engine.DEFAULT_DOWNLOAD_DIR))
+
+    # ---- v1.10.5：校准脚本 GitHub 退出同步 ----
+    check("引擎暴露退出同步入口（sync_calib_on_exit）",
+          callable(getattr(engine, "sync_calib_on_exit", None))
+          and callable(getattr(engine, "sync_calib_to_github", None)))
+    check("同步目标为 VideoToolbox 仓库 main 分支",
+          engine.SYNC_OWNER == "09Th90" and engine.SYNC_REPO == "VideoToolbox"
+          and engine.SYNC_BRANCH == "main")
+    check("同步走 Git Data API（api.github.com）",
+          engine.SYNC_API == "https://api.github.com")
+    check("代理回退仅用内置 mihomo（127.0.0.1:7897）",
+          engine.MIHOMO_PROXY == "http://127.0.0.1:7897")
+    check("校准脚本就位且仓库内路径正确",
+          os.path.isfile(os.path.join(engine.APP_DIR, engine.SYNC_REL_PATH)),
+          engine.SYNC_REL_PATH)
+    check("同步日志落在 logs/ 下", engine.SYNC_LOG.endswith("calib_sync.log"))
+    check("退出已挂接 aboutToQuit → 同步",
+          _about_to_quit_hooked())
+
+    # ---- v1.10.5：校准模式列表与脚本实际支持的开关一致 ----
+    calib_modes = {flag for _, flag in win.calib_page.MODES if flag}
+    expect_modes = {"--ja", "--jpe", "--ko", "--ak", "--akko", "--endo",
+                    "--zho", "--pgr", "--pgren", "--wwoc", "--react"}
+    check("校准模式覆盖脚本全部模式开关",
+          expect_modes <= calib_modes,
+          f"缺 {sorted(expect_modes - calib_modes)}")
+    check("已移除脚本不再支持的 --layout 选项",
+          not hasattr(win.calib_page, "layout_switch"))
 
     def done():
         app.quit()

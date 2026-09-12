@@ -35,6 +35,10 @@ build/archives/
 data/thumb_cache/
 data/*.selftest_bak
 data/GUI_SELFTEST_REPORT.txt
+data/GUI_SELFTEST_OK
+
+# 运行期日志（校准脚本 GitHub 同步日志）
+logs/calib_sync.log
 
 # 打包中间产物 / 超限二进制：走 GitHub Releases 或在线仓库分发，不进 git
 dist/

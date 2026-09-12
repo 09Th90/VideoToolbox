@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""视频工具箱 GUI v1.10.4 —— Fluent 矢量界面
+"""视频工具箱 GUI v1.10.5 —— Fluent 矢量界面
 ====================================================================
 界面形态（v1.10.0 起，原 tkinter 界面退役）：
   · FluentWindow + 左侧 NavigationInterface 导航（顶部功能区 + 底部分隔项；
@@ -14,6 +14,8 @@
     100%/125%/150%/200% 任意缩放比例下表现一致、不发虚。
 页面（v1.10.0 起共 5 个，v1.10.4 增加设置页共 6 个，B站投稿板块已移除）：
   视频下载 · 视频库 · 音视频合并 · 字幕处理（内嵌第三方字幕引擎）· 字幕校准 · 设置
+v1.10.5：字幕校准页模式列表与脚本实际支持的 12 种模式对齐（去掉脚本已删除的
+  --layout 开关）；退出时静默同步校准脚本到 GitHub（挂 aboutToQuit）。
 线程模型沿用旧界面：后台线程只往 app.q 投消息，主线程用 QTimer 泵出后更新控件。
 调试钩子（供打包验证/截图）：VT_GUI_SELFTEST=1 自检自退；VT_SHOT_TAB/VT_SHOT_FILE 截图。
 """
@@ -49,7 +51,7 @@ from qfluentwidgets.components.navigation.navigation_widget import NavigationWid
 
 import video_toolbox as engine
 
-VERSION = "1.10.4"
+VERSION = "1.10.5"
 
 LIB_EXTS = {".mp4", ".mkv", ".avi", ".mov", ".flv", ".wmv", ".ts", ".m4v", ".webm"}
 THUMB_DIR = engine.THUMB_CACHE_DIR
@@ -1704,13 +1706,17 @@ class SettingsPage(QWidget):
 class CalibPage(ScrollPage):
     MODES = [
         ("中英双语（默认，BILINGUAL_TERMS）", ""),
-        ("韩语原声（--ko）", "--ko"),
-        ("日语原声（--ja）", "--ja"),
+        ("日语原声·鸣潮（--ja）", "--ja"),
+        ("日语原声·终末地（--jpe）", "--jpe"),
+        ("韩语原声·鸣潮（--ko）", "--ko"),
         ("明日方舟（--ak）", "--ak"),
+        ("明日方舟·韩语（--akko）", "--akko"),
         ("终末地（--endo）", "--endo"),
         ("中文行专属（--zho）", "--zho"),
         ("战双帕弥什（--pgr）", "--pgr"),
+        ("战双英文原声（--pgren）", "--pgren"),
         ("综合手游OST（--wwoc）", "--wwoc"),
+        ("音乐点评（--react）", "--react"),
     ]
 
     def __init__(self, app, parent=None):
@@ -1745,7 +1751,6 @@ class CalibPage(ScrollPage):
         self.mode_combo = ComboBox(self)
         self.mode_combo.addItems([m[0] for m in self.MODES])
         self.mode_combo.setCurrentIndex(0)
-        self.layout_switch = SwitchButton(self)
         self.fix_switch = SwitchButton(self)
         self.report_switch = SwitchButton(self)
         self.report_switch.setChecked(True)
@@ -1756,8 +1761,6 @@ class CalibPage(ScrollPage):
 
         box, lay = card("片源模式与选项")
         lay.addWidget(label_row("片源模式", self.mode_combo))
-        lay.addWidget(row(BodyLabel("长句拆两行（--layout，≥14 字在标点处拆，不切官方专名）", self.view),
-                          self.layout_switch, None))
         lay.addWidget(row(BodyLabel("修正英文/参考行（--fix-en，仅双语模式生效）", self.view),
                           self.fix_switch, None))
         lay.addWidget(row(BodyLabel("生成改动对照报告（同名 .md）", self.view),
@@ -1820,8 +1823,6 @@ class CalibPage(ScrollPage):
                 args += ["--report", os.path.splitext(out)[0] + ".md"]
         if mode_flag:
             args.append(mode_flag)
-        if self.layout_switch.isChecked():
-            args.append("--layout")
         if self.fix_switch.isChecked():
             args.append("--fix-en")
 
@@ -2208,6 +2209,11 @@ def main():
                 pass
             QApplication.quit()
         QTimer.singleShot(2600, _ok)
+
+    # 退出时同步校准脚本到 GitHub（静默后台，不阻塞退出、不弹窗）
+    # 用 aboutToQuit 而非 closeEvent：覆盖菜单退出/自检退出等所有路径；
+    # 内部再派生独立子进程，主进程退出后子进程仍能跑完。
+    app.aboutToQuit.connect(engine.sync_calib_on_exit)
 
     window.show()
     window.raise_()

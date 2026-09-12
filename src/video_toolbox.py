@@ -1,8 +1,14 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-视频工具箱 v1.10.4（单文件整合版）
+视频工具箱 v1.10.5（单文件整合版）
 ==================================================
+v1.10.5：校准脚本升级为对象级知识库版本（ENTITIES 对象层 + learn 学习系统）；
+  校准界面模式列表与脚本实际支持的全部 12 种模式对齐，移除脚本已删除的
+  「长句拆两行（--layout）」开关；新增退出时自动同步校准脚本到 GitHub
+  （sync_calib_on_exit，挂接 QApplication.aboutToQuit）：静默后台、不阻塞退出、
+  不弹窗，直连失败回退内置 mihomo 代理（仅 api.github.com），日志见
+  logs 目录下的 calib_sync.log。
 v1.10.4：界面与设置整合——左侧导航宽度按「最长项文字 + 2 个字符」自适应
   （不再固定 322px）；新增导航底部「设置」页，工具设置与字幕引擎设置统一
   入口（原「字幕处理」页右下「引擎设置…」对话框并入）；跨屏拖拽按相对位置
@@ -47,6 +53,7 @@ import sys
 import json
 import glob
 import shutil
+import base64
 import subprocess
 import urllib.request
 import zipfile
@@ -502,6 +509,211 @@ def _stop_builtin_proxy():
 
 
 atexit.register(_stop_builtin_proxy)
+
+
+# ========== 校准脚本 GitHub 同步（v1.10.5，退出时静默执行） ==========
+# 需求：每次退出程序，把 subtitle_calib_merged.py 同步到 GitHub 仓库 main 分支。
+# 通道：GitHub Git Data API（api.github.com 可达，git 协议在本机网络不可达）；
+#       直连失败时回退内置 mihomo 代理（127.0.0.1:7897）。
+# 该代理只为 api.github.com 服务，不代理其它流量。
+# 策略：静默后台、不阻塞退出、不弹窗，结果只写 logs/calib_sync.log；
+#       内容是否变化都提交（用户明确要求每次都提交）。
+SYNC_OWNER = "09Th90"
+SYNC_REPO = "VideoToolbox"
+SYNC_BRANCH = "main"
+SYNC_API = "https://api.github.com"
+#: 仓库内目标路径（与本地 APP_DIR 下的相对路径一致）
+SYNC_REL_PATH = "subtitle_calib_merged.py"
+SYNC_LOG = os.path.join(LOGS_DIR, "calib_sync.log")
+
+
+def _sync_log(msg):
+    """追加一行同步日志（best-effort，绝不因日志失败影响主流程）。"""
+    try:
+        os.makedirs(LOGS_DIR, exist_ok=True)
+        with open(SYNC_LOG, "a", encoding="utf-8") as f:
+            f.write(f"[{datetime.now():%Y-%m-%d %H:%M:%S}] {msg}\n")
+    except OSError:
+        pass
+
+
+def _gh_token():
+    """取 GitHub token：环境变量优先，其次 gh keyring。取不到返回空串。"""
+    tok = os.environ.get("GH_TOKEN") or os.environ.get("GITHUB_TOKEN")
+    if tok:
+        return tok.strip()
+    for exe in ("gh", os.path.join(TOOLS_DIR, "gh.exe")):
+        try:
+            p = subprocess.run([exe, "auth", "token"], capture_output=True,
+                               text=True, timeout=15)
+            if p.returncode == 0 and p.stdout.strip():
+                return p.stdout.strip()
+        except (OSError, subprocess.SubprocessError):
+            continue
+    return ""
+
+
+def _gh_request(method, path, token, payload=None, proxy="", timeout=30):
+    """访问 GitHub API。返回 (ok, 数据或错误消息)。用 curl，避开 requests 的代理问题。"""
+    url = f"{SYNC_API}/{path}"
+    cmd = ["curl", "-sS", "--max-time", str(timeout), "-X", method]
+    if proxy:
+        cmd += ["-x", proxy]
+    cmd += ["-H", f"Authorization: Bearer {token}",
+            "-H", "Accept: application/vnd.github+json",
+            "-H", "X-GitHub-Api-Version: 2022-11-28",
+            "-H", "User-Agent: VideoToolbox-sync",
+            "-w", "\n%{http_code}"]
+    stdin = b""
+    if payload is not None:
+        cmd += ["-H", "Content-Type: application/json", "--data-binary", "@-"]
+        stdin = json.dumps(payload).encode("utf-8")
+    cmd.append(url)
+    try:
+        p = subprocess.run(cmd, input=stdin, capture_output=True, timeout=timeout + 10,
+                           creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+    except (OSError, subprocess.SubprocessError) as e:
+        return False, f"curl 调用失败: {e}"
+    if p.returncode != 0:
+        return False, f"curl 退出码 {p.returncode}: {p.stderr.decode(errors='replace')[:150]}"
+    body, _, code = p.stdout.decode(errors="replace").rpartition("\n")
+    try:
+        code = int(code.strip() or 0)
+    except ValueError:
+        code = 0
+    if code >= 400:
+        return False, f"HTTP {code}: {body[:200]}"
+    try:
+        return True, (json.loads(body) if body.strip() else {})
+    except ValueError:
+        return True, {}
+
+
+def _gh_request_any(method, path, token, payload=None):
+    """先直连，失败再走内置代理（仅 GitHub 流量）。返回 (ok, 数据或错误)。
+
+    仅当失败【疑似网络问题】时才启用代理：认证错误（401/403）与参数错误
+    （404/422）走代理也不会变好，直接返回，避免白白拉起 mihomo。
+    """
+    ok, data = _gh_request(method, path, token, payload)
+    if ok:
+        return True, data
+    msg = str(data)
+    # 认证/权限/资源类错误：非网络问题，回退无意义
+    if any(code in msg for code in ("HTTP 401", "HTTP 403", "HTTP 404", "HTTP 422")):
+        return False, data
+    _sync_log(f"直连 {method} {path} 失败（{msg[:80]}），改用内置代理")
+    proxy = ensure_builtin_proxy()
+    if not proxy:
+        return False, f"{data}；内置代理不可用"
+    ok2, data2 = _gh_request(method, path, token, payload, proxy=proxy)
+    return (ok2, data2)
+
+
+def sync_calib_to_github():
+    """把本地校准脚本推到 GitHub main 分支（静默，返回 (ok, 说明)）。
+
+    内容未变也提交（用户要求）。任何异常都被吞掉并记日志，绝不影响退出流程。
+    """
+    local = os.path.join(APP_DIR, SYNC_REL_PATH)
+    if not os.path.isfile(local):
+        _sync_log(f"跳过：本地脚本不存在 {local}")
+        return False, "本地校准脚本不存在"
+    try:
+        with open(local, "rb") as f:
+            raw = f.read()
+    except OSError as e:
+        _sync_log(f"跳过：读取失败 {e}")
+        return False, f"读取失败: {e}"
+
+    token = _gh_token()
+    if not token:
+        _sync_log("跳过：未取得 GitHub token（需 gh auth login 或设 GH_TOKEN）")
+        return False, "未取得 GitHub token"
+
+    base = f"repos/{SYNC_OWNER}/{SYNC_REPO}"
+    # 1. 取分支当前 head（同时拿到 base_tree）
+    ok, head = _gh_request_any("GET", f"{base}/git/ref/heads/{SYNC_BRANCH}", token)
+    if not ok:
+        _sync_log(f"失败：读取分支 head {head}")
+        return False, f"读取分支失败: {head}"
+    head_sha = head["object"]["sha"]
+
+    ok, commit = _gh_request_any("GET", f"{base}/git/commits/{head_sha}", token)
+    if not ok:
+        _sync_log(f"失败：读取 commit {commit}")
+        return False, f"读取 commit 失败: {commit}"
+    base_tree = commit["tree"]["sha"]
+
+    # 2. 上传 blob
+    blob_payload = {
+        "content": base64.b64encode(raw).decode("ascii"),
+        "encoding": "base64",
+    }
+    ok, blob = _gh_request_any("POST", f"{base}/git/blobs", token, blob_payload)
+    if not ok:
+        _sync_log(f"失败：创建 blob {blob}")
+        return False, f"创建 blob 失败: {blob}"
+
+    # 3. 建 tree（只动这一个文件，其余保留）
+    tree_payload = {
+        "base_tree": base_tree,
+        "tree": [{"path": SYNC_REL_PATH, "mode": "100644",
+                  "type": "blob", "sha": blob["sha"]}],
+    }
+    ok, tree = _gh_request_any("POST", f"{base}/git/trees", token, tree_payload)
+    if not ok:
+        _sync_log(f"失败：创建 tree {tree}")
+        return False, f"创建 tree 失败: {tree}"
+
+    # 4. 提交
+    commit_payload = {
+        "message": (f"chore(calib): 同步字幕校准脚本 "
+                    f"（{datetime.now():%Y-%m-%d %H:%M:%S}，来自视频工具箱）"),
+        "tree": tree["sha"],
+        "parents": [head_sha],
+    }
+    ok, new_commit = _gh_request_any("POST", f"{base}/git/commits", token, commit_payload)
+    if not ok:
+        _sync_log(f"失败：创建 commit {new_commit}")
+        return False, f"创建 commit 失败: {new_commit}"
+
+    # 5. 推进分支
+    ok, res = _gh_request_any("PATCH", f"{base}/git/refs/heads/{SYNC_BRANCH}",
+                              token, {"sha": new_commit["sha"], "force": False})
+    if not ok:
+        _sync_log(f"失败：更新分支 {res}")
+        return False, f"更新分支失败: {res}"
+
+    _sync_log(f"成功：已同步 {len(raw)} B -> {SYNC_OWNER}/{SYNC_REPO}@"
+              f"{SYNC_BRANCH} commit {new_commit['sha'][:12]}")
+    return True, f"已同步 commit {new_commit['sha'][:12]}"
+
+
+def sync_calib_on_exit():
+    """退出时后台触发同步：起独立子进程，不阻塞退出、不弹窗。
+
+    用子进程而非线程：主进程退出后线程会被强杀，子进程能自行跑完。
+    """
+    try:
+        if not os.environ.get("VT_NO_CALIB_SYNC"):
+            script = os.path.join(APP_DIR, SYNC_REL_PATH)
+            if not os.path.isfile(script):
+                return
+            # 以自身引擎模块为入口，子进程里跑同步逻辑
+            args = [sys.executable, "-c",
+                    "import sys; sys.path.insert(0, r'%s');"
+                    " import video_toolbox as e; e.sync_calib_to_github()"
+                    % os.path.join(APP_DIR, "src")]
+            subprocess.Popen(
+                args, stdin=subprocess.DEVNULL,
+                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+                close_fds=True,
+            )
+            _sync_log("已派生退出同步子进程")
+    except Exception as e:  # noqa: BLE001
+        _sync_log(f"派生同步子进程失败（忽略）: {e}")
 
 
 def _download(url, dest, label, use_proxy=True):
