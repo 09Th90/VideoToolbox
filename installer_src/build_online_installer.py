@@ -32,7 +32,7 @@ REPO = ROOT / "installer_repository"
 CONFIG_OUT = ROOT / "build/ifw_config"
 INSTALLER_OUT = ROOT / "installer"
 
-APP_VERSION = "1.10.5"
+APP_VERSION = "1.10.7"
 EXCLUDES = {"__pycache__", "*.pyc", "*.pyo"}
 
 # 组件 -> 文件来源映射：(源路径, data 内相对位置)

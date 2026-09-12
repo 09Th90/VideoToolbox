@@ -1,8 +1,8 @@
 ; ============================================================================
-; 视频工具箱 v1.10.4 —— Inno Setup 安装包脚本
+; 视频工具箱 v1.10.7 —— Inno Setup 安装包脚本
 ; 构建前提：已用 tools\python 执行 pyinstaller 视频工具箱.spec，
 ;           产物位于 dist\视频工具箱.exe
-; 编译：ISCC.exe 视频工具箱.iss  →  installer\视频工具箱_Setup_v1.10.5.exe
+; 编译：ISCC.exe 视频工具箱.iss  →  installer\视频工具箱_Setup_v1.10.7.exe
 ; v1.10.5：校准脚本升级为对象级知识库版本（新增 ENTITIES 对象层与
 ;         learn 学习系统，kb-lint/kb-export/kb-lookup 子命令）；
 ;         校准界面模式列表与脚本实际支持的全部 12 种模式对齐，移除
@@ -34,7 +34,7 @@
 ; ============================================================================ 
 
 #define MyAppName "视频工具箱"
-#define MyAppVersion "1.10.5"
+#define MyAppVersion "1.10.7"
 #define MyAppPublisher "VideoToolbox"
 #define MyAppExeName "视频工具箱.exe"
 

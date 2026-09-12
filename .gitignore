@@ -37,6 +37,14 @@ data/*.selftest_bak
 data/GUI_SELFTEST_REPORT.txt
 data/GUI_SELFTEST_OK
 
+# v1.10.6 数据根目录机制：运行期临时目录与数据目录指针文件
+# 注：data_dir.txt 记录用户自定义的数据根路径，属本机设置不入库
+data/tmp/
+data/videocaptioner/
+data/VideoCaptioner/
+data/downloads/
+data_dir.txt
+
 # 运行期日志（校准脚本 GitHub 同步日志、投稿运行日志）
 logs/calib_sync.log
 logs/uploader/

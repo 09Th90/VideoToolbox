@@ -51,7 +51,7 @@ from qfluentwidgets.components.navigation.navigation_widget import NavigationWid
 
 import video_toolbox as engine
 
-VERSION = "1.10.5"
+VERSION = "1.10.7"
 
 LIB_EXTS = {".mp4", ".mkv", ".avi", ".mov", ".flv", ".wmv", ".ts", ".m4v", ".webm"}
 THUMB_DIR = engine.THUMB_CACHE_DIR
@@ -1507,6 +1507,30 @@ class SettingsPage(QWidget):
         blay.addWidget(label_row("下载目录", row(self.dir_edit, browse, None)))
         lay.addWidget(box)
 
+        # 数据目录（v1.10.6）：运行期产物（配置/缓存/日志/临时文件/字幕引擎数据）
+        # 的存放根目录。默认就在程序目录，不写系统盘；可改到任意可写位置。
+        root, is_default, src = engine.data_root_info()
+        box_d, blay_d = card(
+            "数据目录",
+            "程序运行产生的全部文件（配置、缓存、日志、临时文件）都放这里，默认在程序目录")
+        self.data_edit = LineEdit(box_d)
+        self.data_edit.setText(root)
+        self.data_edit.setPlaceholderText("留空使用程序目录")
+        apply_btn = PushButton(FIF.SAVE, "应用", box_d)
+        apply_btn.clicked.connect(self._apply_data_root)
+        reset_btn = PushButton(FIF.SYNC, "还原默认", box_d)
+        reset_btn.clicked.connect(self._reset_data_root)
+        blay_d.addWidget(label_row("数据根目录", row(self.data_edit, apply_btn, reset_btn)))
+        self.data_hint = CaptionLabel(
+            f"当前：{src}" + ("" if is_default else f"　·　{root}"), box_d)
+        self.data_hint.setTextColor("#8a8a8a", "#9a9a9a")
+        blay_d.addWidget(self.data_hint)
+        self.data_leftover = CaptionLabel("", box_d)
+        self.data_leftover.setTextColor("#8a8a8a", "#9a9a9a")
+        blay_d.addWidget(self.data_leftover)
+        self._refresh_data_leftover()
+        lay.addWidget(box_d)
+
         # 界面设置
         box2, blay2 = card("界面", "主题与缩放；缩放立即生效，主题重启后完全生效")
         self.theme_combo = ComboBox(box2)
@@ -1657,6 +1681,51 @@ class SettingsPage(QWidget):
         if d:
             self.dir_edit.setText(d)
             self._on_dir_changed()
+
+    # ---------- 数据目录（v1.10.6） ----------
+    def _apply_data_root(self):
+        """把数据根目录切到用户填的位置（写指针文件 + 迁移现有数据）。"""
+        path = self.data_edit.text().strip().strip('"')
+        if not path:
+            self._reset_data_root()
+            return
+        ok, msg = engine.set_data_root(path, migrate=True)
+        if ok:
+            InfoBar.success("数据目录已切换", msg, duration=4000,
+                            position=InfoBarPosition.BOTTOM_RIGHT, parent=self)
+            root, is_default, src = engine.data_root_info()
+            self.data_edit.setText(root)
+            self.data_hint.setText(f"当前：{src}")
+            self._refresh_data_leftover()
+        else:
+            InfoBar.error("切换失败", msg, duration=5000,
+                          position=InfoBarPosition.BOTTOM_RIGHT, parent=self)
+
+    def _reset_data_root(self):
+        ok, msg = engine.set_data_root(engine.APP_DIR, migrate=False)
+        if ok:
+            InfoBar.success("已还原默认数据目录", msg, duration=4000,
+                            position=InfoBarPosition.BOTTOM_RIGHT, parent=self)
+            self.data_edit.setText(engine.APP_DIR)
+            self.data_hint.setText("当前：默认（程序目录）")
+            self._refresh_data_leftover()
+        else:
+            InfoBar.error("还原失败", msg, duration=5000,
+                          position=InfoBarPosition.BOTTOM_RIGHT, parent=self)
+
+    def _refresh_data_leftover(self):
+        """提示 C 盘（系统盘）是否还有历史字幕引擎数据残留。"""
+        try:
+            left = engine.vc_legacy_leftovers()
+        except Exception:
+            left = []
+        if left:
+            self.data_leftover.setText(
+                "检测到系统盘仍有旧版字幕引擎数据：" + "；".join(left) +
+                "　（下次启动会自动迁移到数据目录）")
+            self.data_leftover.show()
+        else:
+            self.data_leftover.hide()
 
     def _on_theme_changed(self, idx):
         try:
@@ -2160,6 +2229,14 @@ def configure_qt_plugins():
 
 
 def main():
+    # 运行期环境准备（v1.10.6）：必须在任何 videocaptioner 导入之前执行——
+    # 1) 把字幕引擎在系统盘的历史数据迁移到数据根目录；
+    # 2) 重定向引擎的路径常量（否则它会写 %LOCALAPPDATA%，即 C 盘）；
+    # 3) 把临时目录指向数据根目录，避免中间产物落系统 Temp。
+    engine.prepare_runtime_env()
+    # 启动即拉取最新校准知识并入本地（v1.10.7 多用户收敛的「拉」半程；
+    # 后台 daemon 线程，失败静默记 logs/calib_sync.log）
+    threading.Thread(target=engine.sync_calib_on_startup, daemon=True).start()
     configure_qt_plugins()
     # 矢量化：高分屏按逻辑像素缩放、图标/文字按矢量渲染，避免放大后发虚
     QApplication.setAttribute(Qt.AA_EnableHighDpiScaling, True)
