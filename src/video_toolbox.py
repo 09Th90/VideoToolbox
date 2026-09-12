@@ -917,6 +917,12 @@ SYNC_BRANCH = "main"
 SYNC_API = "https://api.github.com"
 #: 仓库内目标路径（与本地 APP_DIR 下的相对路径一致）
 SYNC_REL_PATH = "subtitle_calib_merged.py"
+#: 学习库（learn 候选）v1.10.7 起纳入同步：这是各用户日常差异的最大来源
+SYNC_KB_REL_PATH = "subtitle_learned_kb.json"
+#: 基线快照：上次同步成功后的本地内容，即三方合并的「公共祖先」。
+#: 放数据根目录（不入库不分发）；缺失时退化为保守的并集合并策略
+CALIB_BASE_SNAPSHOT = os.path.join(DATA_DIR, "calib_sync_base.py")
+CALIB_KB_BASE_SNAPSHOT = os.path.join(DATA_DIR, "calib_sync_kb_base.json")
 SYNC_LOG = os.path.join(LOGS_DIR, "calib_sync.log")
 
 
@@ -952,8 +958,9 @@ def _gh_request(method, path, token, payload=None, proxy="", timeout=30):
     cmd = ["curl", "-sS", "--max-time", str(timeout), "-X", method]
     if proxy:
         cmd += ["-x", proxy]
-    cmd += ["-H", f"Authorization: Bearer {token}",
-            "-H", "Accept: application/vnd.github+json",
+    if token:  # 匿名读公开库时不带认证头（启动拉取可无 token）
+        cmd += ["-H", f"Authorization: Bearer {token}"]
+    cmd += ["-H", "Accept: application/vnd.github+json",
             "-H", "X-GitHub-Api-Version: 2022-11-28",
             "-H", "User-Agent: VideoToolbox-sync",
             "-w", "\n%{http_code}"]
@@ -1004,25 +1011,38 @@ def _gh_request_any(method, path, token, payload=None):
 
 
 def sync_calib_to_github():
-    """把本地校准脚本推到 GitHub main 分支（静默，返回 (ok, 说明)）。
+    """把本地校准脚本与学习库推到 GitHub main 分支（静默，返回 (ok, 说明)）。
 
+    v1.10.7 起推送前先拉远程做条目级三方合并（pull-merge-then-push）：
+    把其他用户沉淀的新条目并入后再推，多用户不再互相覆盖。
     内容未变也提交（用户要求）。任何异常都被吞掉并记日志，绝不影响退出流程。
     """
     local = os.path.join(APP_DIR, SYNC_REL_PATH)
     if not os.path.isfile(local):
         _sync_log(f"跳过：本地脚本不存在 {local}")
         return False, "本地校准脚本不存在"
-    try:
-        with open(local, "rb") as f:
-            raw = f.read()
-    except OSError as e:
-        _sync_log(f"跳过：读取失败 {e}")
-        return False, f"读取失败: {e}"
 
     token = _gh_token()
     if not token:
         _sync_log("跳过：未取得 GitHub token（需 gh auth login 或设 GH_TOKEN）")
         return False, "未取得 GitHub token"
+
+    # 推送前先合并远程新沉淀（结果回写本地与基线），失败则按本地直推
+    _pull_and_merge(token, SYNC_REL_PATH, True)
+    _pull_and_merge(token, SYNC_KB_REL_PATH, False)
+
+    entries = []  # (rel_path, bytes, text)
+    for rel in (SYNC_REL_PATH, SYNC_KB_REL_PATH):
+        try:
+            with open(os.path.join(APP_DIR, rel), "rb") as f:
+                b = f.read()
+            entries.append((rel, b, b.decode("utf-8")))
+        except (OSError, UnicodeDecodeError) as e:
+            if rel == SYNC_REL_PATH:
+                _sync_log(f"跳过：读取失败 {e}")
+                return False, f"读取失败: {e}"
+            # 学习库尚不存在（从未 learn 过）则本轮不推
+            _sync_log(f"推送[{rel}]跳过：{e}")
 
     base = f"repos/{SYNC_OWNER}/{SYNC_REPO}"
     # 1. 取分支当前 head（同时拿到 base_tree）
@@ -1038,21 +1058,23 @@ def sync_calib_to_github():
         return False, f"读取 commit 失败: {commit}"
     base_tree = commit["tree"]["sha"]
 
-    # 2. 上传 blob
-    blob_payload = {
-        "content": base64.b64encode(raw).decode("ascii"),
-        "encoding": "base64",
-    }
-    ok, blob = _gh_request_any("POST", f"{base}/git/blobs", token, blob_payload)
-    if not ok:
-        _sync_log(f"失败：创建 blob {blob}")
-        return False, f"创建 blob 失败: {blob}"
+    # 2. 上传 blob（脚本 + 学习库）
+    tree_entries = []
+    for rel, b, _text in entries:
+        ok, blob = _gh_request_any("POST", f"{base}/git/blobs", token, {
+            "content": base64.b64encode(b).decode("ascii"),
+            "encoding": "base64",
+        })
+        if not ok:
+            _sync_log(f"失败：创建 blob[{rel}] {blob}")
+            return False, f"创建 blob 失败: {blob}"
+        tree_entries.append({"path": rel, "mode": "100644",
+                             "type": "blob", "sha": blob["sha"]})
 
-    # 3. 建 tree（只动这一个文件，其余保留）
+    # 3. 建 tree（只动这几个文件，其余保留）
     tree_payload = {
         "base_tree": base_tree,
-        "tree": [{"path": SYNC_REL_PATH, "mode": "100644",
-                  "type": "blob", "sha": blob["sha"]}],
+        "tree": tree_entries,
     }
     ok, tree = _gh_request_any("POST", f"{base}/git/trees", token, tree_payload)
     if not ok:
@@ -1078,8 +1100,15 @@ def sync_calib_to_github():
         _sync_log(f"失败：更新分支 {res}")
         return False, f"更新分支失败: {res}"
 
-    _sync_log(f"成功：已同步 {len(raw)} B -> {SYNC_OWNER}/{SYNC_REPO}@"
-              f"{SYNC_BRANCH} commit {new_commit['sha'][:12]}")
+    _sync_log(f"成功：已同步 {len(entries)} 个文件（{', '.join(r for r, _b, _t in entries)}）"
+              f" -> {SYNC_OWNER}/{SYNC_REPO}@{SYNC_BRANCH} commit {new_commit['sha'][:12]}")
+    # 推送成功：基线快照对齐本次推送内容（下次三方合并的公共祖先）
+    for rel, _b, text in entries:
+        try:
+            _atomic_write(CALIB_BASE_SNAPSHOT if rel == SYNC_REL_PATH
+                          else CALIB_KB_BASE_SNAPSHOT, text)
+        except OSError as e:
+            _sync_log(f"基线快照写入失败[{rel}]（忽略）: {e}")
     return True, f"已同步 commit {new_commit['sha'][:12]}"
 
 
@@ -1107,6 +1136,423 @@ def sync_calib_on_exit():
             _sync_log("已派生退出同步子进程")
     except Exception as e:  # noqa: BLE001
         _sync_log(f"派生同步子进程失败（忽略）: {e}")
+
+
+# ---------- 条目级三方合并（v1.10.7 多用户知识收敛） ----------
+# 需求：不同用户使用中会沉淀不一样的校准内容，启动时自动拿到全体最新版。
+# 做法是「启动拉取 + 条目级合并 + 退出推送」，合并单位从整个文件降到条目：
+#   · 纯字符串字面量 dict（各模式术语表等）：按 错形键 合并；
+#   · 常量二元组列表（CONTEXT_MAP 等上下文佐证规则）：按整元组合并；
+#   · ENTITIES（Entity(...) 调用列表）：按 canonical 合并；
+#   · 学习库 JSON：按 "模式|错形" 候选合并。
+# 只做并集、从不删除，任意多用户反复拉推最终收敛到全体条目的并集。
+# 用 ast 而非文本 diff：脚本是合法 Python，AST 能精确定位表与条目且免误伤。
+import ast as _ast_m
+_ast_Dict, _ast_List, _ast_Const, _ast_Constant = (
+    _ast_m.Dict, _ast_m.List, _ast_m.Constant, _ast_m.Constant)
+_MERGE_MISSING = object()
+
+
+def _read_sync_text(path):
+    try:
+        with open(path, encoding="utf-8-sig") as f:
+            return f.read()
+    except OSError:
+        return ""
+
+
+def _atomic_write(path, text):
+    """同目录临时文件 + os.replace 原子落盘；newline='' 不改写换行符。"""
+    tmp = path + ".sync_tmp"
+    with open(tmp, "w", encoding="utf-8", newline="") as f:
+        f.write(text)
+    os.replace(tmp, path)
+
+
+def _ast_module_tables(src):
+    """解析模块级「名称 = Dict/List 字面量」赋值，返回 {名称: value 节点}。
+    解析失败返回 None。"""
+    import ast as _ast
+    try:
+        tree = _ast.parse(src)
+    except SyntaxError:
+        return None
+    out = {}
+    for node in tree.body:
+        if (isinstance(node, _ast.Assign) and len(node.targets) == 1
+                and isinstance(node.targets[0], _ast.Name)
+                and isinstance(node.value, (_ast.Dict, _ast.List))):
+            out[node.targets[0].id] = node.value
+    return out
+
+
+def _dict_entries(dnode):
+    """Dict 节点中「字符串键 -> 字符串值」的条目 {key: (键节点, 值节点)}。
+    含任何非常量成员的表返回的映射会缺项——调用方以此跳过非纯字面量表。"""
+    out = {}
+    if not isinstance(dnode, _ast_Dict):
+        return out
+    for k, v in zip(dnode.keys, dnode.values):
+        if (isinstance(k, _ast_Const) and isinstance(v, _ast_Const)
+                and isinstance(k.value, str) and isinstance(v.value, str)):
+            out[k.value] = (k, v)
+    return out
+
+
+def _entity_fields(call):
+    """从 Entity(...) 调用节点提取 (canonical, modes, variants)。"""
+    import ast as _ast
+    canonical = None
+    if call.args and isinstance(call.args[0], _ast.Constant):
+        canonical = call.args[0].value
+    modes, variants = (), ()
+    for kw in call.keywords:
+        if kw.arg == "canonical" and isinstance(kw.value, _ast.Constant):
+            canonical = kw.value.value
+        elif kw.arg in ("modes", "variants") and isinstance(kw.value, (_ast.Tuple, _ast.List)):
+            try:
+                vals = tuple(_ast.literal_eval(kw.value))
+            except ValueError:
+                continue
+            if kw.arg == "modes":
+                modes = vals
+            else:
+                variants = vals
+    return canonical, modes, variants
+
+
+def _registry_conflicts(src):
+    """静态复算脚本 _register_entities 的注册冲突检查（同变体不同目标）。
+
+    合并器绝不制造这种冲突——它会 raise SystemExit 让整个校准脚本起不来。
+    返回冲突描述列表（空列表 = 通过）。"""
+    import ast as _ast
+    try:
+        tree = _ast.parse(src)
+    except SyntaxError:
+        return ["语法解析失败"]
+    tables, entities = {}, []
+    for node in tree.body:
+        if (isinstance(node, _ast.Assign) and len(node.targets) == 1
+                and isinstance(node.targets[0], _ast.Name)):
+            name = node.targets[0].id
+            if isinstance(node.value, _ast.Dict):
+                try:
+                    tables[name] = _ast.literal_eval(node.value)
+                except ValueError:
+                    pass
+            if name == "ENTITIES" and isinstance(node.value, _ast.List):
+                for elt in node.value.elts:
+                    if isinstance(elt, _ast.Call):
+                        c, modes, variants = _entity_fields(elt)
+                        if c is not None:
+                            entities.append((c, modes, variants))
+    mode_table = tables.get("_MODE_TERM_TABLE") or {}
+    bad = []
+    for canonical, modes, variants in entities:
+        for m in modes:
+            tname = mode_table.get(m)
+            tbl = tables.get(tname) if tname else None
+            if not isinstance(tbl, dict):
+                continue
+            for v in variants:
+                if v in tbl and tbl[v] != canonical:
+                    bad.append(f"{v!r}->{tbl[v]!r} 与实体 {canonical!r} 冲突")
+    return bad
+
+
+def merge_calib_script(local_src, remote_src, base_src=""):
+    """校准脚本条目级三方合并。返回 (merged, added, conflicts)。
+
+    三方 = 本地 / 远程 / 基线快照（上次同步后的内容，即公共祖先）：
+      · 远程新增条目 -> 并入本地（保留远程原文行，含行尾注释）；
+      · 基线有而本地已删 -> 本地有意删除，不复活；
+      · 本地未动、远程修改 -> 采用远程；
+      · 两边都改且不同 -> 冲突，保留本地并记录（退出推送交由人工裁决）；
+      · 本地新增/修改 -> 保留本地（推送时带给别人）。
+    合并结果必须同时通过 语法编译 与 实体注册冲突 两道门，任一不过整体
+    放弃、返回本地原文——宁可少并一次，绝不产出起不来的脚本。
+    """
+    import ast as _ast
+    crlf = "\r\n" in local_src
+    norm = lambda s: (s or "").replace("\r\n", "\n")
+    local_src, remote_src, base_src = norm(local_src), norm(remote_src), norm(base_src)
+    keep_local = (local_src, 0, ["nothing"])
+    if not remote_src.strip() or not local_src.strip():
+        return (local_src.replace("\n", "\r\n") if crlf else local_src), 0, []
+    L, R = _ast_module_tables(local_src), _ast_module_tables(remote_src)
+    B = _ast_module_tables(base_src) or {}
+    if L is None or R is None:
+        return (local_src.replace("\n", "\r\n") if crlf else local_src), 0, \
+            ["远程或本地脚本解析失败，放弃合并"]
+
+    lines = local_src.split("\n")
+    rlines = remote_src.split("\n")
+    edits = []          # (start0, end0_exclusive, 替换行列表)；start==end 表示插入
+    added, conflicts = 0, []
+
+    for name, rnode in R.items():
+        lnode = L.get(name)
+        if lnode is None or type(lnode) is not type(rnode):
+            continue
+
+        if isinstance(rnode, _ast.Dict):
+            # 只合并纯「字符串->字符串」表；结构复杂的表（INFO/映射表）不动
+            le, re_ = _dict_entries(lnode), _dict_entries(rnode)
+            be = _dict_entries(B.get(name)) if name in B else {}
+            if len(le) != len(lnode.keys) or len(re_) != len(rnode.keys):
+                continue
+            pos = lnode.end_lineno - 1          # 收尾 } 独占一行才可插入
+            if lines[pos].strip() != "}":
+                continue
+            new_rows = []
+            for key, (rk, rv) in re_.items():
+                rval = rv.value
+                if key not in le:
+                    if key in be:
+                        continue                 # 本地删除，尊重本地
+                    row = rlines[rk.lineno - 1:rv.end_lineno]
+                    new_rows.extend(row)
+                    added += 1
+                    continue
+                lk, lv = le[key]
+                if lv.value == rval:
+                    continue                     # 两边一致
+                bval = be[key][1].value if key in be else _MERGE_MISSING
+                if bval is _MERGE_MISSING:
+                    continue                     # 本地新增，保留
+                if lv.value == bval:
+                    # 本地未动、远程修改 -> 采用远程整行
+                    edits.append((lk.lineno - 1, lv.end_lineno,
+                                  rlines[rk.lineno - 1:rv.end_lineno]))
+                else:
+                    conflicts.append(f"{name}[{key!r}] 两边不同：保留本地 {lv.value!r}")
+            if new_rows:
+                edits.append((pos, pos, new_rows))
+
+        elif isinstance(rnode, _ast.List):
+            pos = lnode.end_lineno - 1
+            if lines[pos].strip() != "]":
+                continue
+            if name == "ENTITIES":
+                # Entity 调用列表：按 canonical 合并
+                def _canon_map(node, src):
+                    out = {}
+                    for e in node.elts:
+                        if isinstance(e, _ast.Call):
+                            c, _m, _v = _entity_fields(e)
+                            if c is not None:
+                                out[c] = (e, _ast.get_source_segment(src, e) or "")
+                    return out
+                lmap_e = _canon_map(lnode, local_src)
+                rmap_e = _canon_map(rnode, remote_src)
+                bmap_e = _canon_map(B[name], base_src) if isinstance(B.get(name), _ast.List) else {}
+                new_rows = []
+                for canon, (enode, rseg) in rmap_e.items():
+                    if canon not in lmap_e:
+                        if canon in bmap_e:
+                            continue             # 本地删除，尊重本地
+                        new_rows.extend(rlines[enode.lineno - 1:enode.end_lineno])
+                        added += 1
+                        continue
+                    lnode_e, lseg = lmap_e[canon]
+                    bnode_e = bmap_e.get(canon)
+                    if (bnode_e is not None and lseg == bmap_e[canon][1]
+                            and rseg != bmap_e[canon][1]):
+                        # 本地未动、远程更新 -> 整段替换
+                        edits.append((lnode_e.lineno - 1, lnode_e.end_lineno,
+                                      rlines[enode.lineno - 1:enode.end_lineno]))
+                if new_rows:
+                    edits.append((pos, pos, new_rows))
+            else:
+                # 常量列表（CONTEXT_MAP 等元组规则）：按整元素并集
+                def _elts(node):
+                    out = []
+                    for e in node.elts:
+                        try:
+                            out.append((_ast.literal_eval(e), e))
+                        except ValueError:
+                            return None
+                    return out
+                lels, rels = _elts(lnode), _elts(rnode)
+                bels = _elts(B[name]) if isinstance(B.get(name), _ast.List) else []
+                if lels is None or rels is None or bels is None:
+                    continue
+                lvals = {v for v, _ in lels}
+                bvals = {v for v, _ in bels}
+                new_rows = []
+                for val, enode in rels:
+                    if val in lvals or val in bvals:
+                        continue
+                    new_rows.extend(rlines[enode.lineno - 1:enode.end_lineno])
+                    lvals.add(val)
+                    added += 1
+                if new_rows:
+                    edits.append((pos, pos, new_rows))
+
+    if not edits:
+        merged = local_src
+    else:
+        for s0, e0, repl in sorted(edits, key=lambda t: (t[0], t[1]), reverse=True):
+            lines[s0:e0] = repl
+        merged = "\n".join(lines)
+        try:
+            compile(merged, "merged_calib", "exec")
+        except SyntaxError as e:
+            return (local_src.replace("\n", "\r\n") if crlf else local_src), 0, \
+                [f"合并结果语法不过（{e.msg}，行 {e.lineno}），已放弃并入"]
+        reg = _registry_conflicts(merged)
+        if reg:
+            return (local_src.replace("\n", "\r\n") if crlf else local_src), 0, \
+                ["合并会触发实体注册冲突：" + "；".join(reg[:3]) + "，已放弃并入"]
+    if conflicts:
+        _sync_log(f"脚本合并冲突 {len(conflicts)} 条（保留本地）：{conflicts[0]}")
+    merged = merged.replace("\n", "\r\n") if crlf else merged
+    return merged, added, conflicts
+
+
+def merge_learned_kb(local_text, remote_text):
+    """学习库（subtitle_learned_kb.json）候选级合并。返回 (合并文本, 新增数, 冲突数)。
+
+    键为 "模式|错形"，语义与脚本 learn 状态机对齐：
+      · 单边独有 -> 直接并入；
+      · 同键：count/uncorrected 取较大值，cues/samples 取并集（沿用脚本 20/10
+        封顶），ref_tokens/unc_ref_tokens 计数求和，first/last 取更早/更晚；
+      · 同键不同目标 -> 置 conflict（脚本会停止自动应用，留人工裁决），alts 并入；
+      · status 就高：rejected（人工否决）不被对方的 candidate/confirmed 抵消。
+    任一侧解析失败返回本地原文，绝不产出坏库。
+    """
+    import json as _json
+    empty = _json.dumps({"version": 1, "candidates": {}}, ensure_ascii=False)
+    try:
+        L = _json.loads(local_text) if local_text.strip() else {"candidates": {}}
+        R = _json.loads(remote_text) if remote_text.strip() else {"candidates": {}}
+        lc, rc = dict(L["candidates"]), R["candidates"]
+    except (ValueError, KeyError, TypeError):
+        return (local_text if local_text.strip() else empty), 0, 0
+    added = conflicts = 0
+    for k, r in rc.items():
+        l = lc.get(k)
+        if l is None:
+            lc[k] = r
+            added += 1
+            continue
+        if l == r:
+            continue
+        m = dict(l)
+        rejected = (l.get("status") == "rejected" or r.get("status") == "rejected")
+        if rejected:
+            m["status"] = "rejected"
+        elif r.get("right") != l.get("right"):
+            m["conflict"] = True
+            alts = dict(m.get("alts") or {})
+            alts[r.get("right", "")] = alts.get(r.get("right", ""), 0) + max(r.get("count", 1), 1)
+            m["alts"] = alts
+            conflicts += 1
+        m["count"] = max(l.get("count", 0), r.get("count", 0))
+        m["uncorrected"] = max(l.get("uncorrected", 0), r.get("uncorrected", 0))
+        m["cues"] = list(dict.fromkeys(
+            list(l.get("cues") or []) + list(r.get("cues") or [])))[:20]
+        ls = l.get("samples") or []
+        m["samples"] = (ls + [s for s in (r.get("samples") or []) if s not in ls])[:10]
+        for f in ("ref_tokens", "unc_ref_tokens"):
+            d = dict(l.get(f) or {})
+            for t, n in (r.get(f) or {}).items():
+                d[t] = d.get(t, 0) + n
+            m[f] = d
+        firsts = [x for x in (l.get("first"), r.get("first")) if x]
+        lasts = [x for x in (l.get("last"), r.get("last")) if x]
+        if firsts:
+            m["first"] = min(firsts)
+        if lasts:
+            m["last"] = max(lasts)
+        if l.get("demoted") or r.get("demoted"):
+            m["demoted"] = True
+        lc[k] = m
+    return _json.dumps({"version": 1, "candidates": lc},
+                       ensure_ascii=False, indent=1), added, conflicts
+
+
+def _gh_fetch_file(token, rel_path):
+    """拉取仓库单文件最新内容。返回 (ok, 文本或错误消息, blob_sha)。
+
+    公开库可匿名读（token 为空不带认证头）；>1MB 文件 contents API 不内联，
+    回退 git blobs 接口取全量 base64。"""
+    path = (f"repos/{SYNC_OWNER}/{SYNC_REPO}/contents/{rel_path}"
+            f"?ref={SYNC_BRANCH}")
+    ok, data = _gh_request_any("GET", path, token)
+    if not ok:
+        return False, str(data), ""
+    try:
+        content = data.get("content")
+        if not content and data.get("git_url"):
+            blob_path = str(data["git_url"]).replace(SYNC_API + "/", "")
+            ok2, blob = _gh_request_any("GET", blob_path, token)
+            if not ok2:
+                return False, str(blob), ""
+            data, content = blob, blob.get("content")
+        text = base64.b64decode(content or "").decode("utf-8")
+        return True, text, data.get("sha", "")
+    except (ValueError, KeyError, TypeError, OSError) as e:
+        return False, f"解码失败: {e}", ""
+
+
+def _pull_and_merge(token, rel_path, is_script):
+    """拉取远程单文件并与本地做条目级三方合并，结果回写本地与基线快照。
+
+    供「启动拉取」与「推送前防覆盖」共用。返回 True 表示本地文件有更新。
+    任何失败只记日志，绝不影响启动/退出主流程。"""
+    local_path = os.path.join(APP_DIR, rel_path)
+    base_path = CALIB_BASE_SNAPSHOT if is_script else CALIB_KB_BASE_SNAPSHOT
+    local_text = _read_sync_text(local_path)
+    base_text = _read_sync_text(base_path)
+    ok, remote_text, _sha = _gh_fetch_file(token, rel_path)
+    if not ok:
+        _sync_log(f"拉取[{rel_path}]跳过合并：{str(remote_text)[:100]}")
+        return False
+    if not local_text.strip():
+        # 本地缺失（新装机/误删）：直接采用远程最新版
+        _atomic_write(local_path, remote_text)
+        _atomic_write(base_path, remote_text)
+        _sync_log(f"拉取[{rel_path}]：本地缺失，已采用远程版（{len(remote_text)} 字符）")
+        return True
+    if remote_text == local_text:
+        if base_text != local_text:              # 修复基线缺失/漂移
+            _atomic_write(base_path, local_text)
+        return False
+    if is_script:
+        merged, added, conflicts = merge_calib_script(local_text, remote_text, base_text)
+    else:
+        merged, added, conflicts = merge_learned_kb(local_text, remote_text)
+    if merged == local_text:
+        if conflicts:
+            _sync_log(f"合并[{rel_path}]：无可并入"
+                      f"（{'; '.join(str(c) for c in conflicts)[:200]}）")
+        return False
+    _atomic_write(local_path, merged)
+    _atomic_write(base_path, merged)
+    _sync_log(f"合并[{rel_path}]：并入 {added} 条，"
+              f"冲突 {len(conflicts) if isinstance(conflicts, list) else conflicts} 条（保留本地）")
+    return True
+
+
+def sync_calib_on_startup():
+    """启动时后台同步：拉取仓库最新校准知识并入本地（多用户收敛的「拉」半程）。
+
+    与退出推送（sync_calib_on_exit）构成闭环：启动 拉取+合并，退出 合并+推送，
+    每个用户每次启动都拿到全体用户沉淀的并集。幂等、静默、best-effort；
+    VT_NO_CALIB_SYNC 同样禁用本入口。返回 (ok, 说明)。
+    """
+    try:
+        if os.environ.get("VT_NO_CALIB_SYNC"):
+            return False, "已禁用同步"
+        token = _gh_token()          # 可为空：公开库匿名读
+        changed_s = _pull_and_merge(token, SYNC_REL_PATH, True)
+        changed_k = _pull_and_merge(token, SYNC_KB_REL_PATH, False)
+        return (changed_s or changed_k), "ok"
+    except Exception as e:  # noqa: BLE001
+        _sync_log(f"启动同步异常（忽略）: {e}")
+        return False, str(e)
 
 
 def _download(url, dest, label, use_proxy=True):

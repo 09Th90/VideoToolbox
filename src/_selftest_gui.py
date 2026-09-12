@@ -170,6 +170,75 @@ def _migrate_idempotent():
         shutil.rmtree(sandbox, ignore_errors=True)
 
 
+def _engine_src():
+    """引擎模块源码文本（用于源码级结构断言）。"""
+    try:
+        return open(os.path.abspath(engine.__file__), encoding="utf-8").read()
+    except (OSError, AttributeError):
+        return ""
+
+
+def _qt_main_uses(fn_src_frag):
+    """video_toolbox_qt.py 的 main() 段里是否调用了给定入口。"""
+    try:
+        src = open(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                "video_toolbox_qt.py"), encoding="utf-8").read()
+        i = src.find("def main()")
+        return i >= 0 and fn_src_frag in src[i:i + 800]
+    except OSError:
+        return False
+
+
+def _merge_script_cases():
+    """脚本条目级三方合并：新增并入/远程更新采纳/冲突保留本地/幂等/注册守门。"""
+    hdr = '_MODE_TERM_TABLE = {"bi": "A_TERMS"}\n'
+    local = (hdr + 'A_TERMS = {\n    "旧错": "旧正",\n    "本地新": "本地正",\n}\n'
+             'ENTITIES = [\n    Entity("角色甲", modes=("bi",), variants=("甲错",)),\n]\n')
+    base = (hdr + 'A_TERMS = {\n    "旧错": "旧正",\n}\n'
+            'ENTITIES = [\n    Entity("角色甲", modes=("bi",), variants=("甲错",)),\n]\n')
+    remote = (hdr + 'A_TERMS = {\n    "旧错": "旧正改",\n    "远新": "远正",\n}\n'
+              'ENTITIES = [\n    Entity("角色甲", modes=("bi",), variants=("甲错",)),\n'
+              '    Entity("角色乙", modes=("bi",), variants=("乙错",)),\n]\n')
+    merged, added, _ = engine.merge_calib_script(local, remote, base)
+    ok1 = (added == 2 and '"远新"' in merged and 'Entity("角色乙"' in merged
+           and '"本地新"' in merged and '"旧错": "旧正改"' in merged)
+    local2 = local.replace('"旧错": "旧正"', '"旧错": "本地改"')
+    merged2, _a2, conf2 = engine.merge_calib_script(local2, remote, base)
+    ok2 = '"旧错": "本地改"' in merged2 and conf2
+    merged3, a3, _ = engine.merge_calib_script(merged, remote, merged)
+    ok3 = merged3 == merged and a3 == 0
+    remote_bad = (hdr + 'A_TERMS = {\n    "甲错": "别人家的正形",\n}\n'
+                  'ENTITIES = [\n    Entity("角色甲", modes=("bi",), variants=("甲错",)),\n]\n')
+    merged4, a4, conf4 = engine.merge_calib_script(local, remote_bad, base)
+    ok4 = merged4 == local and a4 == 0 and conf4
+    return ok1 and ok2 and ok3 and ok4
+
+
+def _merge_kb_cases():
+    """学习库合并：新增并入/人工否决就高/同键不同目标置冲突/count 取大。"""
+    import json as _json
+
+    def cand(w, r, st, cnt):
+        return {"wrong": w, "right": r, "mode": "bi", "count": cnt,
+                "uncorrected": 0, "status": st, "cues": [1], "samples": [],
+                "ref_tokens": {}, "unc_ref_tokens": {},
+                "first": "2026-09-01", "last": "2026-09-02", "alts": {}}
+    loc = {"version": 1, "candidates": {
+        "bi|错一": cand("错一", "正一", "confirmed", 3),
+        "bi|错二": cand("错二", "正二", "candidate", 1)}}
+    rem = {"version": 1, "candidates": {
+        "bi|错一": cand("错一", "正一改", "confirmed", 2),
+        "bi|错二": cand("错二", "正二", "rejected", 5),
+        "bi|错三": cand("错三", "正三", "candidate", 1)}}
+    text, added, conflicts = engine.merge_learned_kb(
+        _json.dumps(loc), _json.dumps(rem))
+    c = _json.loads(text)["candidates"]
+    return ("bi|错三" in c and added == 1
+            and c["bi|错二"]["status"] == "rejected"
+            and c["bi|错一"].get("conflict") is True and conflicts == 1
+            and c["bi|错一"]["count"] == 3)
+
+
 def _dump_report():
     """把结果另写一份纯 ASCII 报告，便于在无 stdout 的环境下核对。"""
     try:
@@ -345,6 +414,19 @@ def main():
     check("迁移不会漏掉嵌套布局父层的 settings.json", _migrate_flattens_nested())
     check("残留检测不把已迁空的路径报为待清理", _leftover_ignores_migrated())
     check("重复迁移是幂等的（第二次不搬任何东西）", _migrate_idempotent())
+
+    # ---- v1.10.7：多用户校准知识收敛（启动拉取 + 条目级合并）----
+    check("引擎暴露启动同步入口（sync_calib_on_startup）",
+          callable(getattr(engine, "sync_calib_on_startup", None)))
+    check("学习库纳入同步范围",
+          getattr(engine, "SYNC_KB_REL_PATH", "") == "subtitle_learned_kb.json")
+    check("推送前先做防覆盖合并（pull-merge-then-push）",
+          "_pull_and_merge(token, SYNC_REL_PATH, True)" in _engine_src()
+          and "SYNC_KB_REL_PATH" in _engine_src())
+    check("GUI 启动即后台拉取最新校准知识",
+          _qt_main_uses("sync_calib_on_startup"))
+    check("条目级三方合并：并入/采纳/冲突保留/幂等/注册守门", _merge_script_cases())
+    check("学习库合并：新增/否决就高/冲突标记/count 取大", _merge_kb_cases())
 
     def done():
         app.quit()

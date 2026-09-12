@@ -51,7 +51,7 @@ from qfluentwidgets.components.navigation.navigation_widget import NavigationWid
 
 import video_toolbox as engine
 
-VERSION = "1.10.6"
+VERSION = "1.10.7"
 
 LIB_EXTS = {".mp4", ".mkv", ".avi", ".mov", ".flv", ".wmv", ".ts", ".m4v", ".webm"}
 THUMB_DIR = engine.THUMB_CACHE_DIR
@@ -2234,6 +2234,9 @@ def main():
     # 2) 重定向引擎的路径常量（否则它会写 %LOCALAPPDATA%，即 C 盘）；
     # 3) 把临时目录指向数据根目录，避免中间产物落系统 Temp。
     engine.prepare_runtime_env()
+    # 启动即拉取最新校准知识并入本地（v1.10.7 多用户收敛的「拉」半程；
+    # 后台 daemon 线程，失败静默记 logs/calib_sync.log）
+    threading.Thread(target=engine.sync_calib_on_startup, daemon=True).start()
     configure_qt_plugins()
     # 矢量化：高分屏按逻辑像素缩放、图标/文字按矢量渲染，避免放大后发虚
     QApplication.setAttribute(Qt.AA_EnableHighDpiScaling, True)
