@@ -1,0 +1,45 @@
+{
+ "version": 1,
+ "candidates": {
+  "bi|鲁斯": {
+   "wrong": "鲁斯",
+   "right": "露丝",
+   "mode": "bi",
+   "count": 3,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    1,
+    2,
+    3
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-09-13",
+   "last": "2026-09-13",
+   "alts": {},
+   "sync": true
+  },
+  "bi|荷鲁斯说你好": {
+   "wrong": "荷鲁斯说你好",
+   "right": "荷露丝说你好",
+   "mode": "bi",
+   "count": 3,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    1,
+    2,
+    3
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-09-13",
+   "last": "2026-09-13",
+   "alts": {},
+   "sync": true
+  }
+ }
+}

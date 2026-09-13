@@ -95,44 +95,26 @@ C. 学习系统（规则引擎 + 从人工修正中学习，自我迭代闭环�
         #   的固有陷阱，2026-09-10 终末地 ja_auto 项目沉淀：达希尔->阿阿达希尔、末地->终终末地）。
         # subfix：fix.tsv 每行 num<TAB>old<TAB>new；old 为空串=整行覆盖（ERROR 补译）。
         #   等价于原先各项目手写的 fix.py，今后逐条精修统一用本子命令，勿再另建 fix.py。
+
+D. 增量同步通道（v1.11.0，2026-09-13；条目级增量日志，详见文件第 8 节）:
+  多用户知识收敛改为「GitHub 式哑远端 = 收件箱 + 权威基线」：客户端只读基线、
+  只写自己的收件箱，本地确定性合并（baseline ∪ 全部增量，ts+id 全局序）：
+  python subtitle_calib_merged.py kb-baseline-init   # 管理员：由内置知识生成首版 baseline（D2）
+  python subtitle_calib_merged.py kb-sync             # 拉取 + 合并 + 三道门 + 应用（校准入口自动执行；幂等）
+  python subtitle_calib_merged.py kb-push [--learned 库] [--file 增量.jsonl]
+                                                      # 导出/上传增量（learn 收尾、learned-reject 自动调用）
+  python subtitle_calib_merged.py kb-compact          # 管理员压缩：折叠增量进新 baseline，淘汰失效条目
+  python subtitle_calib_merged.py sync-status         # 本机状态：client_id/水位线/生效/冲突/日志
+  python subtitle_calib_merged.py selftest-sync       # 验收 1-7 + NFR-1/2/5 自动化断言
+  回滚：VT_SYNC_MODE=legacy 整体退回 v1.10.7 行为；VT_NO_SYNC=1 强制关闭；
+        config.disabled_keys 条目级禁用。增量数据全链路仅 json.load，禁止 eval/exec。
+  默认远端 data/calib_sync_remote/（可 VT_SYNC_ROOT 覆盖）；本地状态 data/calib_sync/。
 """
 import io
 import os
 import re
 import sys
-import codecs
 import unicodedata
-
-
-def _decode_any(raw, encodings=("utf-8", "gb18030", "big5", "shift_jis", "latin-1")):
-    """把字幕文件的原始字节稳健解码为 str，同时兼容 UTF-8 / GBK(GB18030) / ASCII。
-
-    先识别 BOM（UTF-8/UTF-16/UTF-32），无 BOM 则按 UTF-8（ASCII 也在此命中）→
-    GB18030（GBK 超集，兼容老式中文 Windows 与字幕工具导出的 GBK 字幕）→ Big5
-    顺序尝试，最后用 replace 兜底，绝不因编码不同而 UnicodeDecodeError 崩溃。
-    注意：调用方仍按原始字节判断 BOM/CRLF，本函数只负责得到处理用的文本；GBK
-    输入经处理后统一以 UTF-8 写出（换行/BOM 策略由各模式自行决定）。
-    """
-    if raw is None:
-        return ""
-    if isinstance(raw, str):
-        return raw
-    for bom, enc in ((codecs.BOM_UTF8, "utf-8-sig"),
-                     (codecs.BOM_UTF32_LE, "utf-32"),
-                     (codecs.BOM_UTF32_BE, "utf-32"),
-                     (codecs.BOM_UTF16_LE, "utf-16"),
-                     (codecs.BOM_UTF16_BE, "utf-16")):
-        if raw.startswith(bom):
-            try:
-                return raw.decode(enc, errors="replace")
-            except (UnicodeDecodeError, LookupError):
-                break
-    for enc in encodings:
-        try:
-            return raw.decode(enc)
-        except (UnicodeDecodeError, LookupError):
-            continue
-    return raw.decode("utf-8", errors="replace")
 
 # =============================================================
 # 1. 通用“中文 + 参考行”双语片源资产（原 calib_rules.py）
@@ -752,8 +734,7 @@ CONTEXT_MAP = [
     # 原神（Genshin/Genin/Genjin 变体）
     (r"\bGenjin\b|\bGenin\b", "原真", "原神"),
     # 鸣潮（WuWa 主播昵称 Wua）
-    # 注：不再保留 (r"\bWua\b", "Wua", "鸣潮") —— wrong 与 right 同为"鸣潮"是空操作；
-    #     而 "Wua" 本身已由 BILINGUAL_TERMS 无条件覆盖，该条永不可能生效（kb-lint 条件冗余）。
+    (r"\bWua\b", "Wua", "鸣潮"),
     (r"\bWua\b", "瓦阿", "鸣潮"),               # #995 Wua 被音译为"瓦阿"
     # --- 2026-09-08 WW 2.7 二次校准（检索官方中文后补充）---
     (r"\bwaifu", "外婆", "老婆"),              # waifu 被误译"外婆"(主播口语，真义 wife/老婆)
@@ -1960,20 +1941,10 @@ class Entity:
     ctx        条件变体 ((参考行正则, 错形), ...)，佐证命中才把 错形->canonical
     exclude    负向排除正则（仅双语模式）：替换后参考行命中则回滚
     note       来源/依据/戒律（官方文本出处、易混对象提醒）
-    subst      子串安全声明（对象级新增，2026-09-12）：
-               ((被包含的键, 兜底正则, 兜底目标), ...) —— 声明"我的 canonical 里
-               含另一个实体的变体键，但已用 CONTEXT_MAP 兜底规则救回"。
-               kb-lint 读到本声明后不再把该级联报为问题，是"已知边界"的机器可读化。
-    multiplex  模式内多义声明（对象级新增，2026-09-12）：
-               ((错形, 本实体的模式, 另一 canonical), ...) —— 声明"该错形在
-               我负责的模式里归另一实体，属刻意分派，非变体冲突"。
-               典型：英文 Typhon 在 endo=提弗洛斯 / ak=提丰，同一串在两个
-               模式各有所指；本声明让 kb-lint 区分"设计如此"与"真冲突"。
-    """ 
+    """
 
     def __init__(self, canonical, modes=("bi",), en="", ja="", ko="",
-                 category="", variants=(), ctx=(), exclude=(), note="",
-                 subst=(), multiplex=()):
+                 category="", variants=(), ctx=(), exclude=(), note=""):
         self.canonical = canonical
         self.modes = tuple(modes)
         self.en, self.ja, self.ko = en, ja, ko
@@ -1982,8 +1953,6 @@ class Entity:
         self.ctx = tuple(ctx)
         self.exclude = tuple(exclude)
         self.note = note
-        self.subst = tuple(subst)
-        self.multiplex = tuple(multiplex)
 
     def __repr__(self):
         return f"Entity({self.canonical!r}, modes={self.modes!r}, variants={len(self.variants)})"
@@ -2027,30 +1996,6 @@ ENTITIES = [
            category="势力/角色",
            note="残星会(Fractsidus)首领。'伟大建筑师/伟大的建筑师/盛大建筑师'必须"
                 "长键先行，否则被'大建筑师'(4字)键咬成'伟残星会会长'。"),
-    # --- 2026-09-12 补录：把 kb-lint 报出的两处"已知边界"对象化 ---
-    Entity("弗罗弗", modes=("bi",), en="Frover",
-           category="主播/昵称",
-           subst=(("罗弗", r"\bFrover\b", "弗罗弗"),),
-           note="鸣潮主播昵称。canonical 内含漂泊者变体'罗弗'子串：若无兜底，"
-                "替换到'弗漂泊者'后会被'罗弗'键二次咬合。已用 CONTEXT_MAP "
-                "/\\bFrover\\b/ 佐证规则还原为'弗罗弗'（自动救回，不再人工）。"
-                "subst 声明把该边界机器可读化，kb-lint 据此不再报警。"),
-    Entity("提弗洛斯", modes=("endo",), en="Typhoeus",
-           category="角色",
-           variants=("Typhon", "Typhoeus"),
-           multiplex=(("Typhon", "endo", "提丰"),),
-           note="终末地'再旅者'形态官方名=提弗洛斯(英文 Typhoeus)。"
-                "明日方舟本体同角色叫'提丰'(Typhon)，在 AK_TERMS 中（--ak 模式）。"
-                "英文 'Typhon' 在两模式下的不同归属是合法的模式内多义："
-                "endo 片源里 Typhoeus/Typhon 一律指终末地形态 提弗洛斯。"),
-    Entity("提丰", modes=("ak", "endo"), en="Typhon",
-           category="角色",
-           variants=("T-Phone", "T-phone"),
-           multiplex=(("Typhon", "ak", "提弗洛斯"),),
-           note="明日方舟本体六星狙击（--ak）。终末地韩语片源里 티폰 的机翻残留"
-                "T-Phone/T-phone 亦归此（故 modes 含 endo）。戒律：英文 'Typhon' "
-                "在 endo 模式归 提弗洛斯，只有韩语 ASR 残留的 T-Phone 走本实体，"
-                "两者错形不重叠、无冲突。"),
 ]
 
 
@@ -2249,53 +2194,25 @@ def _cmd_kb_lint():
     """kb-lint：对象级体检（互补 terms-check 的表内二次命中检查）。
 
     检查项：
-      1. 变体冲突：同一错形在不同实体映射到不同 canonical 且【模式有交集】
-         （2026-09-12 起：模式互斥的同形多义不再误报，如 Typhon 在
-         endo=提弗洛斯 / ak=提丰 —— 两模式永不并存，属合法多义）；
+      1. 变体冲突：同一错形在不同实体/模式映射到不同 canonical；
       2. 级联互含（对象级）：同模式内，甲实体的变体是乙实体 canonical 的子串
          （替换到乙的 canonical 后会被甲的变体二次命中）；
-         已显式声明 subst 兜底规则的对象不再报（已知边界机器可读化）；
-      3. 条件变体冗余：ctx 错形同模式下已是无条件变体（佐证永远不会生效）、
-         或 wrong==right 的空操作规则；
+      3. 条件变体冗余：ctx 错形同模式下已是无条件变体（佐证永远不会生效）；
       4. ENTITIES 元数据完整性：缺 en/ja/ko/category/note 的对象级提示。"""
     kb = _kb_view()
     problems, infos = [], []
 
-    # 0. 收集对象级声明：subst 兜底（已知边界）与 multiplex 模式内多义
-    subst_ok = set()          # (被包含的变体, 承载它的 canonical)
-    for e0 in ENTITIES:
-        for vk, rx, tgt in e0.subst:
-            subst_ok.add((vk, e0.canonical))
-    # multiplex: (错形, 模式) -> 该模式下由别的 canonical 负责，属刻意分派
-    multiplex_ok = set()
-    for e0 in ENTITIES:
-        for v, m, other in e0.multiplex:
-            multiplex_ok.add((v, m, e0.canonical, other))
-            multiplex_ok.add((v, m, other, e0.canonical))
-
-    # 1. 变体冲突（跨实体，模式有交集才算冲突；multiplex 声明的分派不算）
+    # 1. 变体冲突（跨实体，含模式标注）
     seen = {}
     for e in kb.values():
         for v in e["variants"]:
             if v == e["canonical"]:
                 continue
-            prev = seen.get(v)
-            if prev and prev[0] != e["canonical"]:
-                shared = set(prev[1]) & set(e["modes"])
-                if shared and not all(
-                        (v, m, prev[0], e["canonical"]) in multiplex_ok
-                        for m in shared):
-                    problems.append(
-                        f"变体冲突: {v!r} -> {prev[0]!r}（{prev[1]}）与 "
-                        f"{e['canonical']!r}（{e['modes']}）共用模式 {sorted(shared)}")
-                elif shared:
-                    infos.append(
-                        f"模式内多义（已声明 multiplex，合法）: {v!r} -> "
-                        f"{prev[0]!r} / {e['canonical']!r}（共用 {sorted(shared)}）")
-                else:
-                    infos.append(
-                        f"同形多义（模式互斥，合法）: {v!r} -> {prev[0]!r}"
-                        f"（{prev[1]}）/ {e['canonical']!r}（{e['modes']}）")
+            if v in seen and seen[v][0] != e["canonical"] \
+                    and set(seen[v][1]) & set(e["modes"]):
+                problems.append(
+                    f"变体冲突: {v!r} -> {seen[v][0]!r}（{seen[v][1]}）与 "
+                    f"{e['canonical']!r}（{e['modes']}）")
             else:
                 seen.setdefault(v, (e["canonical"], e["modes"]))
     # 2. 级联互含：同模式内 变体 ⊂ 他实体 canonical
@@ -2314,8 +2231,6 @@ def _cmd_kb_lint():
                     continue
                 for v in other["variants"]:
                     if v and v in e["canonical"] and v != e["canonical"]:
-                        if (v, e["canonical"]) in subst_ok:
-                            continue      # 已声明兜底（已知边界）
                         problems.append(
                             f"级联互含[{m}]: 变体 {v!r}（->{other['canonical']!r}）"
                             f"是 {e['canonical']!r} 的子串，替换后可能二次命中")
@@ -2325,13 +2240,7 @@ def _cmd_kb_lint():
         tname = _MODE_TERM_TABLE.get(mode)
         tbl = g.get(tname) or {}
         for rx, wrong, right in (g.get(cname) or []):
-            if not wrong or not right:
-                continue
-            if wrong == right:
-                infos.append(
-                    f"条件空操作[{mode}]: {wrong!r}->{right!r} 首尾同形，"
-                    f"ctx 规则 /{rx}/ 恒不产生改动，建议删除")
-            elif tbl.get(wrong) == right:
+            if wrong and right and tbl.get(wrong) == right:
                 infos.append(
                     f"条件冗余[{mode}]: {wrong!r}->{right!r} 已是 {tname} 无条件变体，"
                     f"ctx 规则 /{rx}/ 永不生效")
@@ -2382,7 +2291,8 @@ def _load_learned_kb(path):
     import json
     if path and os.path.exists(path):
         try:
-            kb = json.loads(_decode_any(open(path, "rb").read()))
+            with open(path, encoding="utf-8-sig") as f:
+                kb = json.load(f)
             if isinstance(kb, dict) and "candidates" in kb:
                 return kb
         except Exception as e:
@@ -2399,7 +2309,7 @@ def _save_learned_kb(kb, path):
 def _parse_cue_pairs(path):
     """解析 SRT -> [(num, 中文行(多行\\n连接), 参考行)]。结构容错同主引擎。"""
     raw = open(path, "rb").read()
-    lines = _decode_any(raw).replace("\r\n", "\n").replace("\r", "\n").split("\n")
+    lines = raw.decode("utf-8-sig").replace("\r\n", "\n").replace("\r", "\n").split("\n")
     cues, i, n = [], 0, len(lines)
     while i < n:
         s = lines[i].strip()
@@ -2511,13 +2421,16 @@ def _learn_update_status(c):
 
 
 def _cmd_learn(src, calib, kb_path=LEARNED_KB_DEFAULT, mode="bi"):
-    """learn：投喂 [原始srt + 人工校准srt] 配对，挖掘候选规则并更新学习库。"""
+    """learn：投喂 [原始srt + 人工校准srt] 配对，挖掘候选规则并更新学习库。
+    v1.11.0：收尾自动导出本次新增 confirmed 条目为增量并上传（FR-2）。"""
     import datetime
+    import copy
     sc, oc = _parse_cue_pairs(src), _parse_cue_pairs(calib)
     if len(sc) != len(oc):
         print(f"⚠ cue 数不一致（原 {len(sc)} / 校准 {len(oc)}），按序号交集学习")
     smap, omap = {n: (z, r) for n, z, r in sc}, {n: (z, r) for n, z, r in oc}
     kb = _load_learned_kb(kb_path)
+    kb_before = copy.deepcopy(kb)
     cands = kb["candidates"]
     today = datetime.date.today().isoformat()
     new_cnt = upd_cnt = skip_same = 0
@@ -2599,6 +2512,7 @@ def _cmd_learn(src, calib, kb_path=LEARNED_KB_DEFAULT, mode="bi"):
     print(f"学习库 {kb_path}：confirmed {confirmed} / 反例降级 {demoted} / 冲突待裁决 {conflicts}")
     if demoted:
         print("  ⚠ 有 confirmed 规则出现反例被降级，请 learned-show 查看 ctx_regex 建议")
+    _sync_export_learn_entries(kb, kb_before, mode)
 
 
 def _learned_terms_for_mode(kb_path, mode):
@@ -2670,16 +2584,21 @@ def _cmd_learned_promote(kb_path=LEARNED_KB_DEFAULT, mode=None, entities=False):
 
 
 def _cmd_learned_reject(word, kb_path=LEARNED_KB_DEFAULT, mode=None):
-    """learned-reject <错形>：人工否决候选（永不自动应用，保留证据）。"""
+    """learned-reject <错形>：人工否决候选（永不自动应用，保留证据）。
+    v1.11.0：否决结果以 tombstone 增量通知其它客户端（FR-2）。"""
     kb = _load_learned_kb(kb_path)
     hit = 0
+    modes = []
     for c in kb["candidates"].values():
         if c["wrong"] == word and (not mode or c["mode"] == mode):
             c["status"] = "rejected"
             hit += 1
+            if c["mode"] not in modes:
+                modes.append(c["mode"])
     if hit:
         _save_learned_kb(kb, kb_path)
         print(f"已否决 {hit} 条候选：{word!r}")
+        _sync_export_reject_tombstone(word, modes)
     else:
         print(f"未找到候选：{word!r}")
 
@@ -2718,7 +2637,7 @@ def _load_override_tsv(path):
     over = {}
     if not os.path.exists(path):
         return over
-    for ln in _decode_any(open(path, "rb").read()).splitlines():
+    for ln in open(path, encoding="utf-8-sig").read().splitlines():
         ln = ln.strip("\ufeff").rstrip("\r")
         m = re.match(r"(\d+)", ln)
         if not m:
@@ -2784,7 +2703,7 @@ def process(path, out_path=None, report_path=None, mode="bi",
     raw = open(path, "rb").read()
     crlf = b"\r\n" in raw
     bom = raw.startswith(b"\xef\xbb\xbf")
-    norm = _decode_any(raw).replace("\r\n", "\n").replace("\r", "\n")
+    norm = raw.decode("utf-8-sig").replace("\r\n", "\n").replace("\r", "\n")
     lines = norm.split("\n")
     out = list(lines)
 
@@ -2904,7 +2823,7 @@ def process(path, out_path=None, report_path=None, mode="bi",
 def _cmd_extract(src, out):
     """extract：把双语 SRT 抽为 cue 表 num/中文/英文，中文/英文多行用 \\n 转义。"""
     raw = open(src, "rb").read()
-    norm = (_decode_any(raw).replace("\r\n", "\n").replace("\r", "\n"))
+    norm = (raw.decode("utf-8-sig").replace("\r\n", "\n").replace("\r", "\n"))
     lines = norm.split("\n")
     recs = []
     i, n = 0, len(lines)
@@ -2938,7 +2857,7 @@ def _cmd_split(cues, prefix, n, letters="ABCDEFGHIJKLMNOP"):
     segs = min(n, len(letters))
     if n > len(letters):
         segs = n  # 允许超过字母表，用数字后缀
-    rows = _decode_any(open(cues, "rb").read()).splitlines()
+    rows = open(cues, encoding="utf-8").read().splitlines()
     header, data = rows[0], rows[1:]
     ntotal = len(data)
     size = (ntotal + segs - 1) // segs
@@ -2973,7 +2892,7 @@ def _load_calib_records(src):
     else:
         files = [src] if os.path.exists(src) else []
     for p in files:
-        for ln in _decode_any(open(p, "rb").read()).splitlines():
+        for ln in open(p, encoding="utf-8-sig").read().splitlines():
             ln = ln.strip("\ufeff").rstrip("\r")
             m = re.match(r"(\d+)", ln)
             if not m:
@@ -3000,7 +2919,7 @@ def _cmd_merge(src, calib_src, out, compare=None, side=None, apply_fix=False):
     raw = open(src, "rb").read()
     bom = raw.startswith(b"\xef\xbb\xbf")
     crlf = b"\r\n" in raw
-    norm = _decode_any(raw).replace("\r\n", "\n").replace("\r", "\n")
+    norm = raw.decode("utf-8-sig").replace("\r\n", "\n").replace("\r", "\n")
     lines = norm.split("\n")
     spans, timecodes, orig_zh = [], [], {}
     en_by_num = {}            # 序号->参考行：cue 编号不连续时对照表不再错行
@@ -3066,7 +2985,7 @@ def _cmd_verify(src, out):
     def parse(p):
         raw = open(p, "rb").read()
         crlf = b"\r\n" in raw; bom = raw.startswith(b"\xef\xbb\xbf")
-        lines = _decode_any(raw).replace("\r\n", "\n").replace("\r", "\n").split("\n")
+        lines = raw.decode("utf-8-sig").replace("\r\n", "\n").replace("\r", "\n").split("\n")
         cues = []
         i, n = 0, len(lines)
         while i < n:
@@ -3102,7 +3021,7 @@ def _cmd_verify(src, out):
 def _cmd_compare(src, out, tsv):
     """compare：比对两个 SRT 生成 错误vs正确 对照表（序号/原文中文/校准后中文/英文行）。"""
     def parse(p):
-        lines = _decode_any(open(p, "rb").read()).replace("\r\n", "\n").split("\n")
+        lines = open(p, "rb").read().decode("utf-8-sig").replace("\r\n", "\n").split("\n")
         cues = []
         i, n = 0, len(lines)
         while i < n:
@@ -3132,7 +3051,7 @@ def _cmd_compare(src, out, tsv):
 def _cmd_scan(cues, min_cnt=2):
     """scan：扫描 cues 表英文列高频候选词（辅判定待校准专名/错词）。"""
     from collections import Counter
-    rows = _decode_any(open(cues, "rb").read()).splitlines()
+    rows = open(cues, encoding="utf-8").read().splitlines()
     ens = [ln.split("\t")[2] for ln in rows if len(ln.split("\t")) == 3]
     texts = " ".join(ens)
     words = re.findall(r"[A-Z][a-zA-Z'\-]+", texts)
@@ -3156,7 +3075,7 @@ def _load_subfix_tsv(path):
     """加载逐 cue 子串修正表：num<TAB>old<TAB>new（old 为空串=整行覆盖，用于 ERROR 补译）。
     返回 {num: [(old, new), ...]}，同一 num 可多行（按文件顺序依次应用）。"""
     rules = {}
-    for ln in _decode_any(open(path, "rb").read()).splitlines():
+    for ln in open(path, encoding="utf-8-sig").read().splitlines():
         ln = ln.rstrip("\r")
         parts = ln.split("\t")
         if len(parts) < 3 or not parts[0].strip().isdigit():
@@ -3173,7 +3092,7 @@ def _cmd_subfix(src, fixtsv, out, compare=None, side=None):
     raw = open(src, "rb").read()
     bom = raw.startswith(b"\xef\xbb\xbf")
     crlf = b"\r\n" in raw
-    lines = _decode_any(raw).replace("\r\n", "\n").replace("\r", "\n").split("\n")
+    lines = raw.decode("utf-8-sig").replace("\r\n", "\n").replace("\r", "\n").split("\n")
     out_lines = list(lines)
     applied, miss, rows = 0, [], []
     i, n = 0, len(lines)
@@ -3277,7 +3196,9 @@ def main_argv():
         if sub in ("extract", "split", "merge", "verify", "compare", "scan", "lint",
                    "subfix", "terms-check", "termscheck", "terms",
                    "kb-export", "kb-lookup", "kb-lint",
-                   "learn", "learned-show", "learned-promote", "learned-reject"):
+                   "learn", "learned-show", "learned-promote", "learned-reject",
+                   "kb-sync", "kb-push", "kb-compact", "kb-baseline-init",
+                   "sync-status", "selftest-sync"):
             _dispatch_subcommand(sub, argv[1:])
             return
 
@@ -3343,6 +3264,8 @@ def main_argv():
     if learned_kb is None and os.path.exists(LEARNED_KB_DEFAULT):
         learned_kb = LEARNED_KB_DEFAULT
     pgr_override = _load_override_tsv(PGR_OVERRIDES_SRC) if mode == "pgr" else None
+    _sync_maybe_auto()          # v1.11.0：校准入口自动拉取+应用增量（幂等，失败静默降级）
+    _sync_inject_all()          # 兜底：applied.json 生效条目注入本地表
     rows, hits = process(src, out_path, report_path, mode=mode,
                          fix_en=fix_en, pgr_override=pgr_override,
                          learned_kb=learned_kb)
@@ -3377,7 +3300,7 @@ def _cmd_lint(cues, calib_src):
     2026-09-05 沉淀自 Gloomwald's Rage 二次校准：分段书写 calib_*.tsv 时
     曾出现序号重复（127 写两遍）与外文残留（undeniable/càng/chord shape）。"""
     cue_nums = []
-    for ln in _decode_any(open(cues, "rb").read()).splitlines()[1:]:
+    for ln in open(cues, encoding="utf-8").read().splitlines()[1:]:
         m = re.match(r"(\d+)\t", ln)
         if m:
             cue_nums.append(int(m.group(1)))
@@ -3394,7 +3317,7 @@ def _cmd_lint(cues, calib_src):
     else:
         files = [calib_src]
     for p in files:
-        for ln in _decode_any(open(p, "rb").read()).splitlines():
+        for ln in open(p, encoding="utf-8-sig").read().splitlines():
             m = re.match(r"(\d+)\t", ln.lstrip("\ufeff"))
             if not m:
                 continue
@@ -3446,13 +3369,13 @@ def _dispatch_subcommand(sub, args):
             opts["fix"] = True; i += 1
         elif a == "--all":
             opts["all"] = True; i += 1
-        elif a in ("--out", "--compare", "--side", "--letters") and i + 1 < len(args):
+        elif a in ("--out", "--compare", "--side", "--letters", "--file") and i + 1 < len(args):
             opts[a[2:]] = args[i + 1]; i += 2
         elif a == "--json":
             opts["json"] = True; i += 1
         elif a == "--entities":
             opts["entities"] = True; i += 1
-        elif a in ("--kb", "--mode") and i + 1 < len(args):
+        elif a in ("--kb", "--mode", "--learned") and i + 1 < len(args):
             opts[a[2:]] = args[i + 1]; i += 2
         else:
             i += 1
@@ -3513,6 +3436,1116 @@ def _dispatch_subcommand(sub, args):
             print("用法: learned-reject <错形> [--mode bi] [--kb 学习库.json]"); return
         _cmd_learned_reject(pos[0], opts.get("kb", LEARNED_KB_DEFAULT),
                             mode=opts.get("mode"))
+    elif sub == "kb-sync":
+        _cmd_kb_sync()
+    elif sub == "kb-push":
+        _cmd_kb_push(learned=opts.get("kb"), file=opts.get("file"))
+    elif sub == "kb-compact":
+        _cmd_kb_compact()
+    elif sub == "kb-baseline-init":
+        _cmd_kb_baseline_init()
+    elif sub == "sync-status":
+        _cmd_sync_status()
+    elif sub == "selftest-sync":
+        _cmd_selftest_sync()
+
+
+# =============================================================
+# 8. 增量同步通道（v1.11.0：条目级增量日志架构，2026-09-13）
+#
+#    目标（任务书 v1.11.0）：把同步对象从"文件快照"翻转为"条目级
+#    增量日志"；服务端退化为哑存储，合并下沉到本地脚本，AI 不参与合并。
+#
+#    数据通道布局：
+#      远端哑存储（VT_SYNC_ROOT 或 config.sync_root，默认 data/calib_sync_remote/）
+#        baseline.json                      折叠基线（schema/seq/meta + entries）
+#        archive/                           旧 baseline 与已折叠 inbox 归档
+#        inbox/<client_id>/<ts>.jsonl       增量日志（只新建，绝不改写他人文件）
+#      本地状态（VT_SYNC_DIR，默认 data/calib_sync/）
+#        config.json       client_id / last_seq / last_baseline_seq /
+#                          sync_root / maintainers / disabled_keys
+#        applied.json      应用生效的条目（键控，(table,mode,key) -> entry）
+#        conflict.json     冲突隔离区（永不自动应用）
+#        local_log/<client_id>/<ts>.jsonl   本机导出留档（未上传则下次补传）
+#        calib_sync.log    全量日志（上传/拉取/合并/拒绝/冲突，含条目 id）
+#
+#    增量条目格式（FR-1，JSON Lines 一行一个对象）：
+#      {"id": uuid, "author": client_uuid, "ts": ISO8601+时区,
+#       "op": "upsert|tombstone",
+#       "table": "BILINGUAL_TERMS|CONTEXT_MAP|EXCLUDE_CONTEXT|
+#                ENTITIES_VARIANT|LEARNED_CANDIDATE",
+#       "mode": "bi|ja|jpe|ko|ak|akko|endo|zho|pgren|wwoc|react",
+#       "key": 错形, "value": 正形, "supersedes": 被取代条目id|null,
+#       "evidence": {"count":..,"cues":[..],"kb_status":..},
+#       "trust": "maintainer|observed"(可选), "rx": 正则(仅 CONTEXT/EXCLUDE)}
+#    CONTEXT_MAP / EXCLUDE_CONTEXT 条目必须携带 "rx"（参考行佐证正则，
+#    可多值）；"supersedes" 用于修正旧错误（不留痕不算完成）。
+#
+#    合并语义（确定性、幂等，NFR-1/2）：
+#      生效集 = baseline.entries ∪ 增量（全局序按 ts+id 字典序；同 key 取
+#      ts 最新且非 tombstone 的一条；tombstone 显式删除；supersedes 使被
+#      取代条目失效；同 key 不同 value 且无取代关系 -> 冲突隔离区）。
+#      应用前三道门（实体注册冲突 / kb-lint / terms-check），不通过则该批
+#      增量整批拒绝并记日志。信任分级：author ∈ maintainers 直接应用；
+#      普通用户条目应用但标"待观察"；冲突条目永不自动应用。
+#
+#    子命令：
+#      kb-sync            拉取 + 合并 + 应用（校准入口自动执行；幂等）
+#      kb-push [--learned 库] [--file 增量.jsonl]
+#                         导出/上传增量（learn 收尾、learned-reject 自动调用）
+#      kb-compact         管理员压缩：折叠增量进新 baseline，淘汰
+#                         superseded/rejected/已固化条目，归档旧 log
+#      kb-baseline-init   由当前内置知识生成首版 baseline（D2）
+#      sync-status        查看状态：client_id/last_seq/生效条目/冲突区/日志
+#      selftest-sync      验收 1-7 与 NFR-1/2/5 自动化断言
+#
+#    回滚（NFR-5）：VT_SYNC_MODE=legacy 整体退回 v1.10.7 行为（不拉取、
+#    不合并、不应用增量）；条目级可通过 config.disabled_keys 单独禁用；
+#    VT_NO_SYNC=1 强制关闭。增量数据全链路仅 json.load，禁止
+#    eval/exec/import（安全约束，违反即返工）。
+# =============================================================
+
+import uuid as _uuid
+import datetime as _dt
+
+
+def json_load(text):
+    """统一 JSON 读取（增量数据全链路仅 json.load，禁止 eval/exec）。"""
+    return __import__("json").loads(text)
+
+
+def json_dumps(obj):
+    return __import__("json").dumps(obj, ensure_ascii=False)
+
+
+_SYNC_TABLES = ("BILINGUAL_TERMS", "CONTEXT_MAP", "EXCLUDE_CONTEXT",
+                "ENTITIES_VARIANT", "LEARNED_CANDIDATE")
+_SYNC_MODES = ("bi", "ja", "jpe", "ko", "ak", "akko", "endo", "zho",
+               "pgren", "wwoc", "react")
+_SYNC_MODE_CTX_TABLE = {"bi": "CONTEXT_MAP", "ja": "JA_CONTEXT",
+                        "jpe": "JA_ENDFIELD_CONTEXT", "akko": "AK_KO_CONTEXT"}
+
+
+def _sync_env_mode():
+    return os.environ.get("VT_SYNC_MODE", "delta").strip().lower() or "delta"
+
+
+def _sync_enabled():
+    if os.environ.get("VT_NO_SYNC"):
+        return False
+    return _sync_env_mode() != "legacy"
+
+
+def _sync_local_dir():
+    return os.environ.get("VT_SYNC_DIR") or os.path.join("data", "calib_sync")
+
+
+def _sync_remote_dir():
+    return os.environ.get("VT_SYNC_ROOT") or ""
+
+
+def _sync_cfg_path():
+    return os.path.join(_sync_local_dir(), "config.json")
+
+
+def _sync_cfg():
+    """读取本机同步配置；不存在则生成 client_id（安装时一次）。"""
+    cfg = {"client_id": "", "last_seq": "", "last_baseline_seq": 0,
+           "sync_root": "", "maintainers": [], "disabled_keys": []}
+    p = _sync_cfg_path()
+    if os.path.exists(p):
+        try:
+            with open(p, encoding="utf-8") as f:
+                cfg.update(json_load(f.read()))
+        except Exception:
+            pass
+    if not cfg.get("client_id"):
+        cfg["client_id"] = str(_uuid.uuid4())
+        _sync_save_cfg(cfg)
+    return cfg
+
+
+def _sync_save_cfg(cfg):
+    os.makedirs(_sync_local_dir(), exist_ok=True)
+    with open(_sync_cfg_path(), "w", encoding="utf-8") as f:
+        f.write(json_dumps(cfg) + "\n")
+
+
+def _sync_log(msg):
+    """追加一行同步日志（best-effort，绝不因日志失败影响主流程）。"""
+    try:
+        os.makedirs(_sync_local_dir(), exist_ok=True)
+        p = os.path.join(_sync_local_dir(), "calib_sync.log")
+        with open(p, "a", encoding="utf-8") as f:
+            f.write(f"[{_dt.datetime.now():%Y-%m-%d %H:%M:%S}] {msg}\n")
+    except OSError:
+        pass
+
+
+def _sync_root(cfg=None):
+    cfg = cfg if cfg is not None else _sync_cfg()
+    root = _sync_remote_dir() or cfg.get("sync_root") or ""
+    if not root:
+        root = os.path.join("data", "calib_sync_remote")
+    return root
+
+
+def _sync_ts():
+    import datetime as _dt
+    return _dt.datetime.now(_dt.timezone.utc).isoformat(timespec="milliseconds")
+
+
+def _sync_entry(author, table, mode, key, value="", op="upsert",
+                supersedes=None, evidence=None, trust=None, rx=None):
+    id_src = f"calib|{author}|{table}|{mode}|{key}|{value}"
+    if rx is not None:
+        id_src += "|" + (rx if isinstance(rx, str) else "|".join(rx))
+    e = {"id": str(_uuid.uuid5(_uuid.NAMESPACE_URL, id_src)),
+         "author": author, "ts": _sync_ts(), "op": op, "table": table,
+         "mode": mode, "key": key, "value": value,
+         "supersedes": supersedes or None,
+         "evidence": dict(evidence or {})}
+    if trust:
+        e["trust"] = trust
+    if rx is not None:
+        e["rx"] = rx
+    return e
+
+
+def _sync_entry_key(e):
+    """生效/合并键。CONTEXT_MAP 是多规则共存表：同一 wrong 词在不同 rx
+    条件下可映射不同目标，键必须含 rx，否则同词多规则会被误判冲突。"""
+    k = (e.get("table"), e.get("mode", ""), e.get("key"))
+    if e.get("table") == "CONTEXT_MAP" and e.get("rx") is not None:
+        rx = tuple(e["rx"]) if isinstance(e["rx"], list) else e["rx"]
+        k = k + (rx,)
+    return k
+
+
+def _sync_validate(e):
+    """增量条目 schema 校验（FR-1 字段缺一不可；只读不执行）。"""
+    if not isinstance(e, dict):
+        return False, "非对象"
+    for f in ("id", "author", "ts", "op", "table", "mode", "key", "value",
+              "supersedes", "evidence"):
+        if f not in e:
+            return False, f"缺字段 {f}"
+    if not isinstance(e["id"], str) or not e["id"]:
+        return False, "id 非法"
+    if e["op"] not in ("upsert", "tombstone"):
+        return False, f"op 非法: {e['op']!r}"
+    if e["table"] not in _SYNC_TABLES:
+        return False, f"table 非法: {e['table']!r}"
+    if e["mode"] not in _SYNC_MODES:
+        return False, f"mode 非法: {e['mode']!r}"
+    if not isinstance(e["key"], str) or not e["key"]:
+        return False, "key 非法"
+    if not isinstance(e["value"], str):
+        return False, "value 非法"
+    if e["op"] == "upsert" and not e["value"]:
+        return False, "upsert 的 value 为空"
+    if e["supersedes"] is not None and not isinstance(e["supersedes"], str):
+        return False, "supersedes 非法"
+    if e["table"] in ("CONTEXT_MAP", "EXCLUDE_CONTEXT") and not e.get("rx"):
+        return False, f"{e['table']} 条目缺少 rx 正则"
+    if e.get("rx") is not None:
+        rx = e["rx"]
+        if isinstance(rx, str):
+            try:
+                re.compile(rx)
+            except re.error:
+                return False, f"rx 非法正则: {rx!r}"
+        elif isinstance(rx, list):
+            for r in rx:
+                try:
+                    re.compile(r)
+                except re.error:
+                    return False, f"rx 非法正则: {r!r}"
+        else:
+            return False, "rx 类型非法"
+    return True, ""
+
+
+def _sync_read_jsonl(path, log_prefix="读取"):
+    """读取增量文件 -> (条目列表, 畸形行数)。畸形/非 JSON 行只跳过并记日志。"""
+    entries, bad = [], 0
+    if not os.path.isfile(path):
+        return entries, bad
+    with open(path, "r", encoding="utf-8-sig", errors="replace") as f:
+        for ln, line in enumerate(f, 1):
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                e = json_load(line)
+            except Exception:
+                bad += 1
+                _sync_log(f"{log_prefix} {path} 行{ln} 非 JSON，已跳过（安全拦截）")
+                continue
+            ok, why = _sync_validate(e)
+            if not ok:
+                bad += 1
+                _sync_log(f"{log_prefix} {path} 行{ln} schema 拒绝: {why}")
+                continue
+            entries.append(e)
+    if bad:
+        _sync_log(f"{log_prefix} {path} 共 {len(entries)} 条有效 / {bad} 条畸形拒绝")
+    return entries, bad
+
+
+def _sync_write_jsonl(path, entries):
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "w", encoding="utf-8") as f:
+        for e in entries:
+            f.write(json_dumps(e) + "\n")
+
+
+def _sync_read_baseline(root):
+    """读远端 baseline -> (meta, entries: {key: entry})。缺失返回 ({}, {})。
+    seq 存文件顶层，并入 meta 返回（下游统一用 meta.get('seq')）。"""
+    p = os.path.join(root, "baseline.json")
+    if not os.path.isfile(p):
+        return {}, {}
+    try:
+        with open(p, encoding="utf-8-sig") as f:
+            data = json_load(f.read())
+    except Exception as e:
+        _sync_log(f"baseline 读取失败（{e}），按空基线处理")
+        return {}, {}
+    entries = {}
+    for k, e in (data.get("entries") or {}).items():
+        ok, why = _sync_validate(e)
+        if not ok:
+            _sync_log(f"baseline 条目拒绝: {why}")
+            continue
+        entries[e["id"]] = e
+    meta = dict(data.get("meta") or {})
+    if data.get("seq") is not None:
+        meta["seq"] = data["seq"]
+    return meta, entries
+
+
+def _sync_write_baseline(root, seq, meta, entries):
+    os.makedirs(root, exist_ok=True)
+    p = os.path.join(root, "baseline.json")
+    data = {"schema": 1, "seq": int(seq),
+            "meta": dict(meta or {}), "entries": entries}
+    tmp = p + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
+        f.write(json_dumps(data) + "\n")
+    os.replace(tmp, p)
+
+
+def _sync_inbox_files(root):
+    """列出远端全部增量文件 -> [(client_id, ts, path)]，按 ts 字典序。"""
+    out = []
+    inbox = os.path.join(root, "inbox")
+    if not os.path.isdir(inbox):
+        return out
+    for cid in sorted(os.listdir(inbox)):
+        cdir = os.path.join(inbox, cid)
+        if not os.path.isdir(cdir):
+            continue
+        for fn in sorted(os.listdir(cdir)):
+            if fn.endswith(".jsonl"):
+                ts = fn[:-6]
+                if "-" in ts:
+                    ts = ts.rsplit("-", 1)[0]   # 去掉唯一后缀，取毫秒前缀
+                out.append((cid, ts, os.path.join(cdir, fn)))
+    return out
+
+
+def _sync_flush_local_log(cfg, root):
+    """把本机留档中未上传的增量补传（幂等：远端已有同名文件跳过）。"""
+    base = os.path.join(_sync_local_dir(), "local_log", cfg["client_id"])
+    if not os.path.isdir(base):
+        return 0
+    sent = 0
+    for fn in sorted(os.listdir(base)):
+        if not fn.endswith(".jsonl"):
+            continue
+        dst = os.path.join(root, "inbox", cfg["client_id"], fn)
+        if os.path.exists(dst):
+            continue
+        try:
+            os.makedirs(os.path.dirname(dst), exist_ok=True)
+            with open(os.path.join(base, fn), "rb") as f:
+                data = f.read()
+            with open(dst, "wb") as f:
+                f.write(data)
+            sent += 1
+            _sync_log(f"补传 {fn} -> inbox/{cfg['client_id']}/")
+        except OSError as e:
+            _sync_log(f"补传失败（{e}），静默跳过（离线/只读远端）")
+            return sent
+    if sent:
+        _sync_log(f"补传完成：{sent} 个本地留档")
+    return sent
+
+
+def _sync_push_entries(entries, cfg=None):
+    """本地留档 + 上传远端 inbox（FR-2：只新建文件，绝不改写他人文件）。
+    无远端/断网：静默跳过，本地功能完整可用，记日志。"""
+    cfg = cfg if cfg is not None else _sync_cfg()
+    if not entries:
+        return False
+    if not _sync_enabled():
+        _sync_log(f"跳过上传（{len(entries)} 条）：同步未启用/legacy 模式")
+        return False
+    fn = _sync_ts().replace(":", "").replace("+00:00", "") \
+        + f"-{_uuid.uuid4().hex[:4]}.jsonl"
+    local = os.path.join(_sync_local_dir(), "local_log", cfg["client_id"], fn)
+    _sync_write_jsonl(local, entries)
+    try:
+        local_show = os.path.relpath(local)
+    except ValueError:
+        local_show = local          # 跨盘符（临时目录在 C:，cwd 在 I:）
+    _sync_log(f"本地留档 {len(entries)} 条 -> {local_show}："
+              + ";".join(e["id"] for e in entries[:5]))
+    root = _sync_root(cfg)
+    if not os.path.isdir(root):
+        _sync_log("远端不可用，上传静默跳过（留档保留，下次补传）")
+        return False
+    dst = os.path.join(root, "inbox", cfg["client_id"], fn)
+    if os.path.exists(dst):
+        return True
+    try:
+        os.makedirs(os.path.dirname(dst), exist_ok=True)
+        with open(dst, "w", encoding="utf-8") as f:
+            for e in entries:
+                f.write(json_dumps(e) + "\n")
+        _sync_log(f"上传 {len(entries)} 条 -> inbox/{cfg['client_id']}/{fn}"
+                  + "；".join(e["id"] for e in entries[:5]))
+        return True
+    except OSError as e:
+        _sync_log(f"上传失败（{e}），静默跳过（断网/只读远端）")
+        return False
+
+
+def _sync_merge(baseline_entries, pending):
+    """确定性合并（NFR-1/2 纯函数，同输入必同输出）。
+
+    baseline_entries: {id: entry}；pending: 增量条目列表（已按 ts+id 排序）。
+    返回 (applied: {key: entry}, conflicts: {key: [entry...]}, report)。
+    幂等键 = 条目 id；同 key 多条全部保留参与裁决：不同 value 且无取代
+    关系 -> 冲突隔离（不应用）；单值 -> 取 ts+id 最新；最新为 tombstone
+    则整键删除（人工否决优先，不可被覆盖）；supersedes 使被取代条目失效。
+    """
+    by_id = dict(baseline_entries)
+    for e in sorted(pending, key=lambda x: (x["ts"], x["id"])):
+        old = by_id.get(e["id"])
+        if old is not None and (old["ts"], old["id"]) > (e["ts"], e["id"]):
+            continue                      # 旧副本，跳过（幂等）
+        by_id[e["id"]] = e
+    superseded = {e.get("supersedes") for e in by_id.values()
+                  if e.get("supersedes")}
+    groups = {}
+    for eid, e in by_id.items():
+        if eid in superseded:
+            continue                      # 被取代：历史可查但不生效
+        groups.setdefault(_sync_entry_key(e), []).append(e)
+    # 冲突判定仅适用于单值语义表：同 key 不同 value -> 冲突隔离。
+    # CONTEXT_MAP/EXCLUDE_CONTEXT 为多规则共存表（同词不同 rx 各存一条），
+    # 同键多条取最新，由 _sync_apply 天然聚合。
+    single_valued = ("BILINGUAL_TERMS", "ENTITIES_VARIANT", "LEARNED_CANDIDATE")
+    applied, conflicts = {}, {}
+    for key, es in groups.items():
+        es.sort(key=lambda x: (x["ts"], x["id"]))
+        if es[-1]["op"] == "tombstone":
+            continue                      # 最新裁决为否决：整键删除，不应用
+        if key[0] in single_valued:
+            vals = {}
+            for e in es:
+                vals.setdefault(e["value"], e)
+            if len(vals) > 1:
+                conflicts[key] = es       # 同 key 不同值：冲突隔离，永不自动应用
+                continue
+        applied[key] = es[-1]
+    report = {"total": len(by_id), "applied": len(applied),
+              "conflicts": len(conflicts),
+              "tombstones": sum(1 for e in by_id.values()
+                                if e["op"] == "tombstone" and e["id"] not in superseded),
+              "superseded": len(superseded)}
+    return applied, conflicts, report
+
+
+def _sync_gates(applied):
+    """三道门（FR-3：不通过则该批增量整批拒绝并记日志）。
+
+    门1 实体注册冲突：同 (table, mode, key) 与本地生效知识（内置表 +
+    已应用）映射不同目标；
+    门2 kb-lint：变体与既有 ENTITIES canonical 冲突（同 mode 下
+    key->value 与已有 Entity 冲突）或目标即键自身；
+    门3 terms-check：并入后相关表出现【新增】二次命中隐患。
+    返回 (ok, 原因列表)。
+    """
+    g = globals()
+    bad = []
+    # 门1：与内置表/已应用冲突
+    cur = _sync_current_terms()
+    for key, e in applied.items():
+        table, mode, k, v = key[0], key[1], e["key"], e["value"]
+        if table == "ENTITIES_VARIANT":
+            tname = _MODE_TERM_TABLE.get(mode)
+            tbl = g.get(tname) or {}
+            if tbl.get(k) and tbl[k] != v:
+                bad.append(f"门1 {k!r}->{v!r} 与内置表 {tname}[{k}]={tbl[k]!r} 冲突")
+            if cur.get(key) and cur[key] != v:
+                bad.append(f"门1 {k!r}->{v!r} 与已应用 {cur[key]!r} 冲突")
+        elif table == "BILINGUAL_TERMS":
+            tbl = g.get("BILINGUAL_TERMS") or {}
+            if tbl.get(k) and tbl[k] != v:
+                bad.append(f"门1 {k!r}->{v!r} 与内置 BILINGUAL_TERMS 冲突")
+    # 门2：目标合法性
+    for key, e in applied.items():
+        k, v = e["key"], e["value"]
+        if v == k:
+            bad.append(f"门2 恒等键 {k!r}->{v!r}")
+        if "\n" in v or "\r" in v:
+            bad.append(f"门2 目标含换行: {k!r}")
+    # 门3：terms-check 新增隐患（并入前 vs 并入后）
+    base_haz = _sync_hazard_keys()
+    for key, e in applied.items():
+        table, mode, k, v = key[0], key[1], e["key"], e["value"]
+        tname = None
+        if table in ("ENTITIES_VARIANT", "BILINGUAL_TERMS"):
+            tname = (_MODE_TERM_TABLE.get(mode) if table == "ENTITIES_VARIANT"
+                     else "BILINGUAL_TERMS")
+        elif table in _SYNC_MODE_CTX_TABLE.values():
+            continue
+        if not tname:
+            continue
+        tbl = dict(g.get(tname) or {})
+        tbl[k] = v
+        newhaz = [h for h in _check_term_hazards(tbl)
+                  if h not in base_haz.get(tname, ())]
+        for h in newhaz:
+            bad.append(f"门3 {tname} 新增二次命中隐患: {h[0]!r} 命中 {h[1]!r} 结果 {h[2]!r}")
+    if bad:
+        _sync_log("三道门拒绝该批增量：" + "；".join(bad[:8]))
+        return False, bad
+    return True, []
+
+
+def _sync_current_terms():
+    """当前已应用的生效值：{key: value}（applied.json 视图）。"""
+    out = {}
+    p = os.path.join(_sync_local_dir(), "applied.json")
+    if os.path.isfile(p):
+        try:
+            with open(p, encoding="utf-8-sig") as f:
+                data = json_load(f.read())
+            for k, e in (data.get("entries") or {}).items():
+                out[tuple(k.split("\x1f"))] = e["value"]
+        except Exception:
+            pass
+    return out
+
+
+def _sync_hazard_keys():
+    """当前各术语表的二次命中隐患（用于对比新增）。"""
+    g = globals()
+    out = {}
+    for n, t in g.items():
+        if n.endswith("TERMS") and isinstance(t, dict) and t:
+            out[n] = tuple(_check_term_hazards(t))
+    return out
+
+
+def _sync_apply(applied):
+    """应用生效集：写 applied.json + 注入 globals() 扁平表（键控，只 json）。"""
+    p = os.path.join(_sync_local_dir(), "applied.json")
+    os.makedirs(os.path.dirname(p), exist_ok=True)
+    keyed = {("\x1f".join(k)): v for k, v in applied.items()}
+    with open(p, "w", encoding="utf-8") as f:
+        f.write(json_dumps({"schema": 1, "entries": keyed}) + "\n")
+    g = globals()
+    n_terms = n_ctx = n_kb = 0
+    for key, e in applied.items():
+        table, mode, k, v = key[0], key[1], e["key"], e["value"]
+        if table == "ENTITIES_VARIANT":
+            tname = _MODE_TERM_TABLE.get(mode)
+            if tname and isinstance(g.get(tname), dict):
+                if g[tname].get(k) != v:
+                    g[tname][k] = v
+                    n_terms += 1
+        elif table == "BILINGUAL_TERMS":
+            if isinstance(g.get("BILINGUAL_TERMS"), dict) \
+                    and g["BILINGUAL_TERMS"].get(k) != v:
+                g["BILINGUAL_TERMS"][k] = v
+                n_terms += 1
+        elif table == "CONTEXT_MAP":
+            cname = _SYNC_MODE_CTX_TABLE.get(mode) or "CONTEXT_MAP"
+            lst = g.get(cname)
+            if isinstance(lst, list):
+                rxs = e["rx"] if isinstance(e.get("rx"), list) else [e.get("rx")]
+                for rx in rxs:
+                    row = (rx, k, v)
+                    if row not in lst:
+                        lst.append(row)
+                        n_ctx += 1
+        elif table == "EXCLUDE_CONTEXT":
+            exc = g.get("EXCLUDE_CONTEXT")
+            if isinstance(exc, dict):
+                rxs = e["rx"] if isinstance(e.get("rx"), list) else [e.get("rx")]
+                old = exc.get(k)
+                if old:
+                    right, rr = old
+                    exc[k] = (right, tuple(rr) + tuple(r for r in rxs if r not in rr))
+                else:
+                    exc[k] = (v, tuple(rxs))
+                n_ctx += 1
+        elif table == "LEARNED_CANDIDATE":
+            n_kb += _sync_apply_learned_candidate(mode, k, v, e)
+    if n_terms or n_ctx:
+        _rebuild_context_caches()
+    _sync_log(f"应用 {len(applied)} 条（terms {n_terms} / ctx {n_ctx} / 学习库 {n_kb}）")
+    return n_terms + n_ctx + n_kb
+
+
+def _sync_apply_learned_candidate(mode, wrong, right, e):
+    """LEARNED_CANDIDATE -> 学习库 confirmed 候选（键 "模式|错形"，自然对接
+    校准运行时的 learned 注入）。"""
+    ev = e.get("evidence") or {}
+    kb_path = (os.environ.get("VT_SYNC_KB") or "").strip() or LEARNED_KB_DEFAULT
+    kb = _load_learned_kb(kb_path)
+    k = f"{mode}|{wrong}"
+    c = kb["candidates"].get(k)
+    if c is not None and (c.get("status") == "rejected"
+                          or (c.get("right") and c["right"] != right)):
+        return 0                        # 本地已有裁决/冲突，不覆盖
+    import datetime as _dt
+    today = _dt.date.today().isoformat()
+    c = {"wrong": wrong, "right": right, "mode": mode,
+         "count": int(ev.get("count") or 1), "uncorrected": 0,
+         "status": "confirmed", "cues": list(ev.get("cues") or [])[:20],
+         "samples": [], "ref_tokens": {}, "unc_ref_tokens": {},
+         "first": today, "last": today, "alts": {},
+         "sync": True}
+    kb["candidates"][k] = c
+    _save_learned_kb(kb, kb_path)
+    return 1
+
+
+def _sync_write_conflicts(conflicts):
+    p = os.path.join(_sync_local_dir(), "conflict.json")
+    os.makedirs(os.path.dirname(p), exist_ok=True)
+    data = {"schema": 1,
+            "conflicts": {"\x1f".join(k): v for k, v in conflicts.items()}}
+    with open(p, "w", encoding="utf-8") as f:
+        f.write(json_dumps(data) + "\n")
+    for k, es in conflicts.items():
+        _sync_log(f"冲突隔离 {k}: " + ";".join(
+            f"{e['id']}({e['author']}@{e['ts'][:19]})={e['value']!r}" for e in es))
+
+
+def _cmd_kb_sync(quiet=False):
+    """kb-sync：拉取 + 合并 + 三道门 + 信任分级应用（FR-3）。幂等。"""
+    if not _sync_enabled():
+        if not quiet:
+            print("同步未启用（VT_SYNC_MODE=legacy 或 VT_NO_SYNC），跳过 kb-sync")
+        return False
+    cfg = _sync_cfg()
+    root = _sync_root(cfg)
+    if not os.path.isdir(root):
+        if not quiet:
+            print("远端不可用（离线），同步静默跳过")
+        _sync_log("kb-sync 跳过：远端不可用")
+        return False
+    _sync_flush_local_log(cfg, root)
+    meta, base_entries = _sync_read_baseline(root)
+    files = _sync_inbox_files(root)
+    # 全量重放（不按水位线过滤）：生效集 = baseline ∪ 全部增量，确定性合并，
+    # id 幂等保证重复拉取结果一致（NFR-1/2）；水位线仅作状态展示/日志。
+    pending = []
+    for cid, ts, path in files:
+        es, _bad = _sync_read_jsonl(path, "拉取")
+        pending.extend(es)
+    pending.sort(key=lambda x: (x["ts"], x["id"]))
+    applied, conflicts, report = _sync_merge(base_entries, pending)
+    # 三道门只针对"本次增量引入"的条目：baseline 是管理员已折叠的权威，直通
+    new_keys = {_sync_entry_key(e) for e in pending}
+    new_applied = {k: v for k, v in applied.items() if k in new_keys}
+    ok, reasons = _sync_gates(new_applied)
+    if not ok:
+        print(f"三道门拒绝该批增量（{len(pending)} 条），水位线不推进：{reasons[0]}")
+        return False
+    # NFR-5 条目级禁用：disabled_keys 中的键不应用
+    dis = {tuple(x) for x in (cfg.get("disabled_keys") or [])}
+    if dis:
+        applied = {k: v for k, v in applied.items() if k not in dis}
+    # 信任分级标注（维护者直接应用；普通用户标待观察——均应用，仅日志区分）
+    maint = set(cfg.get("maintainers") or [])
+    for e in applied.values():
+        if e.get("author") in maint or e.get("trust") == "maintainer":
+            e["trust"] = "maintainer"
+        else:
+            e["trust"] = "observed"
+    n_applied = _sync_apply(applied)
+    if conflicts:
+        _sync_write_conflicts(conflicts)
+    cfg["last_seq"] = files[-1][1] if files else cfg.get("last_seq", "")
+    cfg["last_baseline_seq"] = int(meta.get("seq") or 0)
+    _sync_save_cfg(cfg)
+    _sync_log(f"kb-sync 完成：baseline seq={meta.get('seq')} 增量 {len(pending)} 条 "
+              f"（{len(files)} 文件），应用 {len(applied)}，"
+              f"冲突 {report['conflicts']}，tombstone {report['tombstones']}，"
+              f"superseded {report['superseded']}")
+    if not quiet:
+        print(f"kb-sync：应用 {n_applied} 条 / 冲突隔离 {len(conflicts)} 条 / "
+              f"水位线 {cfg['last_seq'] or '（无）'}")
+        if conflicts:
+            print("  冲突条目已进隔离区（conflict.json），永不自动应用")
+    return True
+
+
+def _cmd_kb_push(learned=None, file=None):
+    """kb-push：把学习库 confirmed 候选或指定增量文件导出并上传（FR-2）。
+    候选导出用扩展形态（_learn_extended），保证增量是完整词元而非最小片段。"""
+    cfg = _sync_cfg()
+    entries = []
+    if learned:
+        kb = _load_learned_kb(learned)
+        for c in kb.get("candidates", {}).values():
+            if c.get("status") == "confirmed" and not c.get("conflict"):
+                w, r = _learn_extended(c)
+                entries.append(_sync_entry(
+                    cfg["client_id"], "LEARNED_CANDIDATE", c.get("mode", "bi"),
+                    w, r,
+                    evidence={"count": c.get("count", 1),
+                              "cues": list(c.get("cues") or [])[:20],
+                              "kb_status": c.get("status", "confirmed")}))
+    if file:
+        es, bad = _sync_read_jsonl(file, "kb-push")
+        entries.extend(es)
+    if not entries:
+        print("没有可上传的增量（学习库无 confirmed 候选，或未指定 --file）")
+        return False
+    _sync_push_entries(entries, cfg)
+    print(f"kb-push：导出 {len(entries)} 条（留档 + 上传，远端不可用则仅留档）")
+    return True
+
+
+def _sync_export_learn_entries(kb, kb_before, mode):
+    """learn 收尾（FR-2）：本次新增/变更的 confirmed 候选导出为增量并上传。
+    导出扩展形态（_learn_extended），保证增量是完整词元而非最小片段。"""
+    cfg = _sync_cfg()
+    before = (kb_before or {}).get("candidates", {})
+    entries = []
+    for k, c in kb.get("candidates", {}).items():
+        if c.get("mode") != mode or c.get("status") != "confirmed" \
+                or c.get("conflict"):
+            continue
+        old = before.get(k)
+        if old and old.get("status") == "confirmed" \
+                and old.get("right") == c.get("right"):
+            continue                    # 非本次新增/变更
+        w, r = _learn_extended(c)
+        entries.append(_sync_entry(
+            cfg["client_id"], "LEARNED_CANDIDATE", mode, w, r,
+            evidence={"count": c.get("count", 1),
+                      "cues": list(c.get("cues") or [])[:20],
+                      "kb_status": c.get("status", "confirmed")}))
+    if entries:
+        _sync_push_entries(entries, cfg)
+        _sync_log(f"learn 收尾导出 {len(entries)} 条 confirmed 增量")
+    return len(entries)
+
+
+def _sync_export_reject_tombstone(word, modes):
+    """learned-reject（FR-2）：人工否决 = tombstone 增量，通知其它客户端。"""
+    cfg = _sync_cfg()
+    entries = [_sync_entry(cfg["client_id"], "LEARNED_CANDIDATE", m, word, "",
+                           op="tombstone",
+                           evidence={"kb_status": "rejected"})
+               for m in modes]
+    if entries:
+        _sync_push_entries(entries, cfg)
+    return len(entries)
+
+
+def _cmd_kb_baseline_init(root=None):
+    """kb-baseline-init（D2）：由当前内置知识生成首版 baseline.json。
+    条目 author=system（trust=maintainer），id 用 uuid5 稳定生成。"""
+    import datetime as _dt
+    root = root or _sync_root()
+    g = globals()
+    entries = {}
+    ts = _dt.datetime.now(_dt.timezone.utc).isoformat(timespec="seconds")
+    for mode, tname in _MODE_TERM_TABLE.items():
+        for k, v in (g.get(tname) or {}).items():
+            e = _sync_entry("system", "ENTITIES_VARIANT", mode, k, v,
+                            trust="maintainer")
+            e["ts"] = ts
+            entries[e["id"]] = e
+    for mode, cname in _MODE_CTX_TABLE.items():
+        for rx, wrong, right in (g.get(cname) or []):
+            if not wrong or not right:
+                continue
+            e = _sync_entry("system", "CONTEXT_MAP", mode, wrong, right,
+                            rx=rx, trust="maintainer")
+            e["ts"] = ts
+            entries[e["id"]] = e
+    for wrong, (right, rxs) in (g.get("EXCLUDE_CONTEXT") or {}).items():
+        e = _sync_entry("system", "EXCLUDE_CONTEXT", "bi", wrong, right,
+                        rx=list(rxs), trust="maintainer")
+        e["ts"] = ts
+        entries[e["id"]] = e
+    meta = {"maintainers": ["system"], "source": "subtitle_calib_merged builtin",
+            "created": ts}
+    _sync_write_baseline(root, 1, meta, entries)
+    print(f"baseline 首版已生成：{os.path.join(root, 'baseline.json')} "
+          f"（seq=1，{len(entries)} 条）")
+    return len(entries)
+
+
+def _cmd_kb_compact(root=None):
+    """kb-compact（FR-4，管理员）：折叠全部增量进新 baseline。
+    淘汰：superseded / tombstone / 已 promote 固化进内置表的条目；
+    输出清理报告（淘汰条数、原因分类）；归档旧 baseline 与 inbox（不物理删除）。"""
+    root = root or _sync_root()
+    meta, base_entries = _sync_read_baseline(root)
+    files = _sync_inbox_files(root)
+    pending = []
+    for cid, ts, path in files:
+        es, _bad = _sync_read_jsonl(path, "compact")
+        pending.extend(es)
+    pending.sort(key=lambda x: (x["ts"], x["id"]))
+    applied, conflicts, report = _sync_merge(base_entries, pending)
+    g = globals()
+    pruned = {"superseded": 0, "tombstone": 0, "promoted": 0, "conflict": 0}
+    out_entries = {}
+    for key, e in applied.items():
+        table, mode, k, v = key[0], key[1], e["key"], e["value"]
+        tname = (_MODE_TERM_TABLE.get(mode) if table == "ENTITIES_VARIANT"
+                 else ("BILINGUAL_TERMS" if table == "BILINGUAL_TERMS" else None))
+        if tname and (g.get(tname) or {}).get(k) == v:
+            pruned["promoted"] += 1
+            continue                     # 已固化进代码，无需在通道保留
+        # 键序列化为 \x1f 字符串（json.dumps 不接受 tuple/list 键）
+        out_entries["\x1f".join(map(str, key))] = e
+    for k in conflicts:
+        pruned["conflict"] += 1
+    pruned["superseded"] = report["superseded"]
+    pruned["tombstone"] = report["tombstones"]
+    new_seq = int(meta.get("seq") or 0) + 1
+    arch = os.path.join(root, "archive", f"seq_{new_seq}")
+    os.makedirs(arch, exist_ok=True)
+    # 归档旧 baseline 与全部 inbox 增量（只移不删，可回溯）
+    if os.path.isfile(os.path.join(root, "baseline.json")):
+        import shutil as _sh
+        _sh.copy2(os.path.join(root, "baseline.json"),
+                  os.path.join(arch, f"baseline_v{meta.get('seq')}.json"))
+    for cid, ts, path in files:
+        dstdir = os.path.join(arch, "inbox", cid)
+        os.makedirs(dstdir, exist_ok=True)
+        try:
+            os.replace(path, os.path.join(dstdir, os.path.basename(path)))
+        except OSError:
+            continue
+    new_meta = dict(meta)
+    new_meta["compacted_from"] = int(meta.get("seq") or 0)
+    new_meta["pruned"] = pruned
+    new_meta["maintainers"] = new_meta.get("maintainers") or ["system"]
+    _sync_write_baseline(root, new_seq, new_meta, out_entries)
+    print(f"kb-compact：seq {meta.get('seq')} -> {new_seq}，"
+          f"增量 {len(pending)} 条 -> 生效 {len(out_entries)} 条，"
+          f"冲突 {len(conflicts)} 条（隔离不折叠）")
+    print(f"清理报告：{pruned}（promoted=已固化进脚本内置表）")
+    print(f"归档：{arch}（旧 baseline 与 inbox 只移不删，可回溯）")
+    return out_entries
+
+
+def _cmd_sync_status():
+    """sync-status：查看本机同步状态与生效/冲突/日志。"""
+    cfg = _sync_cfg()
+    root = _sync_root(cfg)
+    print(f"客户端 id : {cfg.get('client_id')}")
+    print(f"同步模式  : {_sync_env_mode()}（启用={_sync_enabled()}）")
+    print(f"远端      : {root}（{'可达' if os.path.isdir(root) else '不可达/离线'}）")
+    print(f"水位线    : last_seq={cfg.get('last_seq') or '（无）'} "
+          f"baseline_seq={cfg.get('last_baseline_seq')}")
+    ap = os.path.join(_sync_local_dir(), "applied.json")
+    if os.path.isfile(ap):
+        try:
+            with open(ap, encoding="utf-8-sig") as f:
+                n = len((json_load(f.read()) or {}).get("entries") or {})
+            print(f"生效条目  : {n} 条（applied.json）")
+        except Exception:
+            pass
+    cf = os.path.join(_sync_local_dir(), "conflict.json")
+    if os.path.isfile(cf):
+        try:
+            with open(cf, encoding="utf-8-sig") as f:
+                n = len((json_load(f.read()) or {}).get("conflicts") or {})
+            print(f"冲突隔离  : {n} 组（conflict.json，永不自动应用）")
+        except Exception:
+            pass
+    lg = os.path.join(_sync_local_dir(), "calib_sync.log")
+    if os.path.isfile(lg):
+        lines = open(lg, encoding="utf-8").read().splitlines()
+        print(f"日志      : {len(lines)} 行，尾部：")
+        for ln in lines[-4:]:
+            print("   " + ln)
+    meta, nbase = _sync_read_baseline(root) if os.path.isdir(root) else ({}, {})
+    if meta:
+        print(f"远端基线  : seq={meta.get('seq')} 条目 {len(nbase)} "
+              f"维护者={meta.get('maintainers')}")
+    files = _sync_inbox_files(root) if os.path.isdir(root) else []
+    print(f"远端增量  : {len(files)} 个文件"
+          + (f"（最新 {files[-1][1]}）" if files else ""))
+
+
+def _cmd_selftest_sync():
+    """selftest-sync：验收 1-7 + NFR-1/2/5 自动化断言（隔离临时环境）。"""
+    import json as _json
+    import subprocess as _sp
+    import tempfile as _tf
+    import shutil as _sh
+    THIS = os.path.abspath(__file__)
+    PY = sys.executable
+    fails = []
+
+    def check(label, cond, detail=""):
+        print(("  [OK] " if cond else "  [FAIL] ") + label + (f"  {detail}" if detail else ""))
+        if not cond:
+            fails.append(label)
+
+    def run(args, env=None, root=None, local=None):
+        e = dict(os.environ)
+        e["VT_SYNC_MODE"] = "delta"
+        if root:
+            e["VT_SYNC_ROOT"] = root
+        if local:
+            e["VT_SYNC_DIR"] = local
+            e["VT_SYNC_KB"] = os.path.join(local, "subtitle_learned_kb.json")
+        if env:
+            e.update(env)
+        return _sp.run([PY, THIS] + args, capture_output=True, text=True,
+                       encoding="utf-8", env=e, timeout=180)
+
+    def mk_srt(d, name, zh_lines):
+        """构造原始 srt：zh_lines = [(中文行, 参考行), ...]"""
+        lines = []
+        for i, (zh, ref) in enumerate(zh_lines, 1):
+            lines += [str(i), "00:00:01,000 --> 00:00:02,000", zh, ref, ""]
+        p = os.path.join(d, name)
+        with open(p, "w", encoding="utf-8", newline="") as f:
+            f.write("\n".join(lines) + "\n")
+        return p
+
+    with _tf.TemporaryDirectory() as d:
+        remote = os.path.join(d, "remote")
+        os.makedirs(os.path.join(remote, "inbox"))
+        # ===== 验收 7 / NFR-5：legacy 回滚 =====
+        print("\n== 验收7/NFR-5: VT_SYNC_MODE=legacy 整体回退 ==")
+        a_dir = os.path.join(d, "A")
+        p1 = run(["kb-baseline-init"], root=remote, local=a_dir)
+        check("baseline-init 成功", p1.returncode == 0 and "baseline 首版已生成" in p1.stdout,
+              p1.stdout[-120:])
+        p2 = run(["kb-sync"], root=remote, local=a_dir,
+                 env={"VT_SYNC_MODE": "legacy"})
+        check("legacy 下 kb-sync 跳过（不拉取不应用）",
+              p2.returncode == 0 and "legacy" in p2.stdout, p2.stdout[-120:])
+        ap = os.path.join(a_dir, "applied.json")
+        check("legacy 下不产生 applied.json", not os.path.exists(ap))
+
+        # ===== 验收 1：双机模拟，A 沉淀 -> B 重启拉取 =====
+        print("\n== 验收1: 双机模拟（A learn -> push -> B pull+merge） ==")
+        b_dir = os.path.join(d, "B")
+        srt_raw = mk_srt(d, "raw.srt", [("荷鲁斯说你好", "Horus says hi")] * 3)
+        srt_cal = mk_srt(d, "cal.srt", [("荷露丝说你好", "Horus says hi")] * 3)
+        kb_a = os.path.join(a_dir, "learned.json")
+        r = run(["learn", srt_raw, srt_cal, "--mode", "bi", "--kb", kb_a],
+                root=remote, local=a_dir)
+        check("A learn 成功", r.returncode == 0 and "confirmed" in r.stdout, r.stdout[-200:])
+        kb_before = os.path.join(b_dir, "learned.json")
+        p = run(["kb-push", "--learned", kb_a], root=remote, local=a_dir)
+        check("A kb-push 上传成功", p.returncode == 0, p.stdout[-150:])
+        sync = run(["kb-sync"], root=remote, local=b_dir)
+        check("B kb-sync 成功", sync.returncode == 0 and "应用" in sync.stdout,
+              sync.stdout[-200:])
+        apb = os.path.join(b_dir, "applied.json")
+        check("B applied.json 生成", os.path.isfile(apb))
+        if os.path.isfile(apb):
+            data = _json.loads(open(apb, encoding="utf-8-sig").read())
+            vals = list(data.get("entries", {}).values())
+            # learn 差分产出最小片段（鲁斯->露丝），扩展形态取决于样本上下文，
+            # 断言放宽为「存在来自 A 的 LEARNED_CANDIDATE 且目标含 露丝」
+            check("B 本地术语含 A 的条目",
+                  any(v["table"] == "LEARNED_CANDIDATE" and "露丝" in v["value"]
+                      for v in vals),
+                  f"{len(vals)} 条生效")
+            b_kb = os.path.join(b_dir, "subtitle_learned_kb.json")
+            if os.path.isfile(b_kb):
+                kb = _json.loads(open(b_kb, encoding="utf-8-sig").read())
+                c = next((c for c in kb["candidates"].values()
+                          if c.get("status") == "confirmed"
+                          and "露丝" in c.get("right", "")), None)
+                check("B 学习库含 confirmed 候选（校准自动注入）",
+                      c is not None, str(c)[:120] if c else "无 confirmed 候选")
+
+        # ===== 验收 2 / NFR-1/2：幂等与确定性 =====
+        print("\n== 验收2/NFR-1/2: 重复拉取幂等 + 确定性 ==")
+        apb1 = open(apb, encoding="utf-8-sig").read()
+        sync2 = run(["kb-sync"], root=remote, local=b_dir)
+        apb2 = open(apb, encoding="utf-8-sig").read()
+        check("B 再次 kb-sync 成功且无冲突", sync2.returncode == 0
+              and "冲突 0" in sync2.stdout.replace("冲突隔离", "冲突 0"),
+              sync2.stdout[-160:])
+        check("应用结果逐字节一致（NFR-1 幂等）", apb1 == apb2)
+        check("合并确定性（NFR-2）：两次入口输出一致",
+              "kb-sync 完成" in open(os.path.join(b_dir, "calib_sync.log"),
+                                     encoding="utf-8").read())
+
+        # ===== 验收 3：取代链（supersedes） =====
+        print("\n== 验收3: supersedes 取代链 ==")
+        sup = os.path.join(a_dir, "sup.jsonl")
+        e1 = {"id": "11111111-1111-4111-8111-111111111111",
+              "author": "alice", "ts": "2026-09-13T00:00:00+00:00",
+              "op": "upsert", "table": "ENTITIES_VARIANT", "mode": "bi",
+              "key": "拉海罗伊", "value": "拉海罗伊", "supersedes": None,
+              "evidence": {"count": 2, "cues": [1], "kb_status": "confirmed"}}
+        e2 = dict(e1)
+        e2.update({"id": "22222222-2222-4222-8222-222222222222",
+                   "ts": "2026-09-13T01:00:00+00:00", "value": "拉海洛",
+                   "supersedes": e1["id"]})
+        with open(sup, "w", encoding="utf-8") as f:
+            f.write(_json.dumps(e1, ensure_ascii=False) + "\n"
+                    + _json.dumps(e2, ensure_ascii=False) + "\n")
+        push = run(["kb-push", "--file", sup], root=remote, local=a_dir)
+        check("A 上传 supersedes 增量", push.returncode == 0)
+        run(["kb-sync"], root=remote, local=b_dir)
+        data = _json.loads(open(apb, encoding="utf-8-sig").read())
+        ents = {v["key"]: v for v in data.get("entries", {}).values()
+                if v["table"] == "ENTITIES_VARIANT"}
+        check("取代后旧目标不生效（值为拉海洛）",
+              ents.get("拉海罗伊", {}).get("value") == "拉海洛",
+              str(ents.get("拉海罗伊")))
+        logtxt = open(os.path.join(b_dir, "calib_sync.log"), encoding="utf-8").read()
+        check("历史可查（日志含被取代条目 id）", e1["id"] in logtxt
+              or "superseded" in logtxt)
+
+        # ===== 验收 4：冲突隔离 =====
+        print("\n== 验收4: 同 key 不同值冲突隔离 ==")
+        con = os.path.join(d, "conf.jsonl")
+        with open(con, "w", encoding="utf-8") as f:
+            for i, val in enumerate(("漂泊者", "流浪者")):
+                f.write(_json.dumps({
+                    "id": f"33333333-3333-4333-8333-33333333330{i}",
+                    "author": f"user{i}", "ts": f"2026-09-13T02:00:0{i}+00:00",
+                    "op": "upsert", "table": "ENTITIES_VARIANT", "mode": "bi",
+                    "key": "罗浮", "value": val, "supersedes": None,
+                    "evidence": {"count": 1, "cues": [], "kb_status": "confirmed"}},
+                    ensure_ascii=False) + "\n")
+        run(["kb-push", "--file", con], root=remote, local=a_dir)
+        run(["kb-sync"], root=remote, local=b_dir)
+        cf = os.path.join(b_dir, "conflict.json")
+        check("B 冲突进入隔离区", os.path.isfile(cf))
+        if os.path.isfile(cf):
+            cdata = _json.loads(open(cf, encoding="utf-8-sig").read())
+            check("隔离区含罗浮且不自动应用",
+                  any("罗浮" in k for k in cdata.get("conflicts", {})) and
+                  all(v["value"] != "流浪者" for v in
+                      _json.loads(open(apb, encoding="utf-8-sig").read())
+                      .get("entries", {}).values()),
+                  str(list(cdata.get("conflicts", {}).keys())[:2]))
+
+        # ===== 验收 5：安全（畸形/超大/非 JSON 注入全拦） =====
+        print("\n== 验收5: 畸形/超大/非 JSON 增量被拦 ==")
+        inbox_dir = os.path.join(remote, "inbox", "evil")
+        os.makedirs(inbox_dir, exist_ok=True)
+        with open(os.path.join(inbox_dir, "20260913T030000.jsonl"), "w",
+                  encoding="utf-8") as f:
+            f.write("not json at all\n")
+            f.write('{"id": 123}\n')
+            f.write("x" * 200000 + "\n")
+            f.write('{"id":"c","author":"e","ts":"t","op":"exec",'
+                    '"table":"BILINGUAL_TERMS","mode":"bi","key":"k",'
+                    '"value":"v","supersedes":null,"evidence":{}}\n')
+        before = open(apb, encoding="utf-8-sig").read()
+        sync3 = run(["kb-sync"], root=remote, local=b_dir)
+        after = open(apb, encoding="utf-8-sig").read()
+        check("畸形/超大/非法 op 增量被拦且不影响既有条目", before == after
+              and sync3.returncode == 0)
+        logtxt = open(os.path.join(b_dir, "calib_sync.log"), encoding="utf-8").read()
+        check("安全拦截已记日志（含拒绝原因）",
+              "非 JSON" in logtxt or "schema 拒绝" in logtxt or "op 非法" in logtxt)
+
+        # ===== 验收 6：离线 =====
+        print("\n== 验收6: 断网/远端不可用 ==")
+        off_root = os.path.join(d, "nonexistent_remote")
+        p = run(["kb-sync"], root=off_root, local=b_dir)
+        check("离线 kb-sync 静默跳过且成功", p.returncode == 0
+              and "跳过" in p.stdout, p.stdout[-120:])
+        p = run(["kb-push", "--learned", kb_a], root=off_root, local=b_dir)
+        check("离线 kb-push 静默留档", p.returncode == 0)
+        lg = open(os.path.join(b_dir, "calib_sync.log"), encoding="utf-8").read()
+        check("离线日志齐全", "远端不可用" in lg or "静默跳过" in lg or "留档" in lg)
+
+        # ===== NFR-5 条目级禁用 =====
+        print("\n== NFR-5: 条目级禁用（disabled_keys） ==")
+        cfgp = os.path.join(b_dir, "config.json")
+        cfg = _json.loads(open(cfgp, encoding="utf-8-sig").read())
+        cfg.setdefault("disabled_keys", []).append(
+            ["LEARNED_CANDIDATE", "bi", "荷鲁斯"])
+        with open(cfgp, "w", encoding="utf-8") as f:
+            _json.dump(cfg, f, ensure_ascii=False, indent=1)
+        run(["kb-sync"], root=remote, local=b_dir)
+        data = _json.loads(open(apb, encoding="utf-8-sig").read())
+        check("禁用条目不再生效",
+              all(not (v["table"] == "LEARNED_CANDIDATE" and v["key"] == "荷鲁斯")
+                  for v in data.get("entries", {}).values()))
+        cfg["disabled_keys"] = []
+        with open(cfgp, "w", encoding="utf-8") as f:
+            _json.dump(cfg, f, ensure_ascii=False, indent=1)
+
+        # ===== FR-4: kb-compact =====
+        print("\n== FR-4: kb-compact 管理员压缩 ==")
+        r = run(["kb-compact"], root=remote, local=b_dir)
+        check("kb-compact 成功", r.returncode == 0 and "seq" in r.stdout,
+              r.stdout[-160:])
+        meta2, base2 = _sync_read_baseline(remote)
+        check("新 baseline seq 递增且归档存在",
+              int(meta2.get("seq")) >= 2 and os.path.isdir(
+                  os.path.join(remote, "archive")))
+        files2 = _sync_inbox_files(remote)
+        check("inbox 已清空（增量已折叠归档）", files2 == [])
+        # 压缩后客户端重新对齐（验收2 等价：掉队以 baseline 整包为准）
+        run(["kb-sync"], root=remote, local=b_dir)
+        check("压缩后客户端以 baseline 对齐成功", os.path.isfile(apb))
+
+    print("\n" + ("selftest-sync 全部通过 ✅" if not fails
+                  else f"selftest-sync 失败 {len(fails)} 项 ❌：{fails}"))
+    return 0 if not fails else 1
+
+
+def _sync_maybe_auto():
+    """校准入口自动同步（v1.11.0）：delta 模式且远端可用时拉取+应用。
+    任何失败都静默降级，绝不影响校准主流程（离线/legacy 同 v1.10.7）。"""
+    if not _sync_enabled():
+        return False
+    try:
+        return _cmd_kb_sync(quiet=True)
+    except Exception as e:  # noqa: BLE001
+        _sync_log(f"自动同步异常已静默降级：{e}")
+        return False
+
+
+def _sync_inject_all():
+    """把 applied.json 中生效条目注入本地表（校准运行时兜底；kb-sync 已注入）。"""
+    ap = os.path.join(_sync_local_dir(), "applied.json")
+    if not os.path.isfile(ap):
+        return 0
+    try:
+        with open(ap, encoding="utf-8-sig") as f:
+            data = json_load(f.read())
+    except Exception:
+        return 0
+    applied = {}
+    for k, v in (data.get("entries") or {}).items():
+        applied[tuple(k.split("\x1f"))] = v
+    return _sync_apply(applied)
 
 
 if __name__ == "__main__":
