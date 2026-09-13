@@ -100,7 +100,39 @@ import io
 import os
 import re
 import sys
+import codecs
 import unicodedata
+
+
+def _decode_any(raw, encodings=("utf-8", "gb18030", "big5", "shift_jis", "latin-1")):
+    """把字幕文件的原始字节稳健解码为 str，同时兼容 UTF-8 / GBK(GB18030) / ASCII。
+
+    先识别 BOM（UTF-8/UTF-16/UTF-32），无 BOM 则按 UTF-8（ASCII 也在此命中）→
+    GB18030（GBK 超集，兼容老式中文 Windows 与字幕工具导出的 GBK 字幕）→ Big5
+    顺序尝试，最后用 replace 兜底，绝不因编码不同而 UnicodeDecodeError 崩溃。
+    注意：调用方仍按原始字节判断 BOM/CRLF，本函数只负责得到处理用的文本；GBK
+    输入经处理后统一以 UTF-8 写出（换行/BOM 策略由各模式自行决定）。
+    """
+    if raw is None:
+        return ""
+    if isinstance(raw, str):
+        return raw
+    for bom, enc in ((codecs.BOM_UTF8, "utf-8-sig"),
+                     (codecs.BOM_UTF32_LE, "utf-32"),
+                     (codecs.BOM_UTF32_BE, "utf-32"),
+                     (codecs.BOM_UTF16_LE, "utf-16"),
+                     (codecs.BOM_UTF16_BE, "utf-16")):
+        if raw.startswith(bom):
+            try:
+                return raw.decode(enc, errors="replace")
+            except (UnicodeDecodeError, LookupError):
+                break
+    for enc in encodings:
+        try:
+            return raw.decode(enc)
+        except (UnicodeDecodeError, LookupError):
+            continue
+    return raw.decode("utf-8", errors="replace")
 
 # =============================================================
 # 1. 通用“中文 + 参考行”双语片源资产（原 calib_rules.py）
@@ -2350,8 +2382,7 @@ def _load_learned_kb(path):
     import json
     if path and os.path.exists(path):
         try:
-            with open(path, encoding="utf-8-sig") as f:
-                kb = json.load(f)
+            kb = json.loads(_decode_any(open(path, "rb").read()))
             if isinstance(kb, dict) and "candidates" in kb:
                 return kb
         except Exception as e:
@@ -2368,7 +2399,7 @@ def _save_learned_kb(kb, path):
 def _parse_cue_pairs(path):
     """解析 SRT -> [(num, 中文行(多行\\n连接), 参考行)]。结构容错同主引擎。"""
     raw = open(path, "rb").read()
-    lines = raw.decode("utf-8-sig").replace("\r\n", "\n").replace("\r", "\n").split("\n")
+    lines = _decode_any(raw).replace("\r\n", "\n").replace("\r", "\n").split("\n")
     cues, i, n = [], 0, len(lines)
     while i < n:
         s = lines[i].strip()
@@ -2687,7 +2718,7 @@ def _load_override_tsv(path):
     over = {}
     if not os.path.exists(path):
         return over
-    for ln in open(path, encoding="utf-8-sig").read().splitlines():
+    for ln in _decode_any(open(path, "rb").read()).splitlines():
         ln = ln.strip("\ufeff").rstrip("\r")
         m = re.match(r"(\d+)", ln)
         if not m:
@@ -2753,7 +2784,7 @@ def process(path, out_path=None, report_path=None, mode="bi",
     raw = open(path, "rb").read()
     crlf = b"\r\n" in raw
     bom = raw.startswith(b"\xef\xbb\xbf")
-    norm = raw.decode("utf-8-sig").replace("\r\n", "\n").replace("\r", "\n")
+    norm = _decode_any(raw).replace("\r\n", "\n").replace("\r", "\n")
     lines = norm.split("\n")
     out = list(lines)
 
@@ -2873,7 +2904,7 @@ def process(path, out_path=None, report_path=None, mode="bi",
 def _cmd_extract(src, out):
     """extract：把双语 SRT 抽为 cue 表 num/中文/英文，中文/英文多行用 \\n 转义。"""
     raw = open(src, "rb").read()
-    norm = (raw.decode("utf-8-sig").replace("\r\n", "\n").replace("\r", "\n"))
+    norm = (_decode_any(raw).replace("\r\n", "\n").replace("\r", "\n"))
     lines = norm.split("\n")
     recs = []
     i, n = 0, len(lines)
@@ -2907,7 +2938,7 @@ def _cmd_split(cues, prefix, n, letters="ABCDEFGHIJKLMNOP"):
     segs = min(n, len(letters))
     if n > len(letters):
         segs = n  # 允许超过字母表，用数字后缀
-    rows = open(cues, encoding="utf-8").read().splitlines()
+    rows = _decode_any(open(cues, "rb").read()).splitlines()
     header, data = rows[0], rows[1:]
     ntotal = len(data)
     size = (ntotal + segs - 1) // segs
@@ -2942,7 +2973,7 @@ def _load_calib_records(src):
     else:
         files = [src] if os.path.exists(src) else []
     for p in files:
-        for ln in open(p, encoding="utf-8-sig").read().splitlines():
+        for ln in _decode_any(open(p, "rb").read()).splitlines():
             ln = ln.strip("\ufeff").rstrip("\r")
             m = re.match(r"(\d+)", ln)
             if not m:
@@ -2969,7 +3000,7 @@ def _cmd_merge(src, calib_src, out, compare=None, side=None, apply_fix=False):
     raw = open(src, "rb").read()
     bom = raw.startswith(b"\xef\xbb\xbf")
     crlf = b"\r\n" in raw
-    norm = raw.decode("utf-8-sig").replace("\r\n", "\n").replace("\r", "\n")
+    norm = _decode_any(raw).replace("\r\n", "\n").replace("\r", "\n")
     lines = norm.split("\n")
     spans, timecodes, orig_zh = [], [], {}
     en_by_num = {}            # 序号->参考行：cue 编号不连续时对照表不再错行
@@ -3035,7 +3066,7 @@ def _cmd_verify(src, out):
     def parse(p):
         raw = open(p, "rb").read()
         crlf = b"\r\n" in raw; bom = raw.startswith(b"\xef\xbb\xbf")
-        lines = raw.decode("utf-8-sig").replace("\r\n", "\n").replace("\r", "\n").split("\n")
+        lines = _decode_any(raw).replace("\r\n", "\n").replace("\r", "\n").split("\n")
         cues = []
         i, n = 0, len(lines)
         while i < n:
@@ -3071,7 +3102,7 @@ def _cmd_verify(src, out):
 def _cmd_compare(src, out, tsv):
     """compare：比对两个 SRT 生成 错误vs正确 对照表（序号/原文中文/校准后中文/英文行）。"""
     def parse(p):
-        lines = open(p, "rb").read().decode("utf-8-sig").replace("\r\n", "\n").split("\n")
+        lines = _decode_any(open(p, "rb").read()).replace("\r\n", "\n").split("\n")
         cues = []
         i, n = 0, len(lines)
         while i < n:
@@ -3101,7 +3132,7 @@ def _cmd_compare(src, out, tsv):
 def _cmd_scan(cues, min_cnt=2):
     """scan：扫描 cues 表英文列高频候选词（辅判定待校准专名/错词）。"""
     from collections import Counter
-    rows = open(cues, encoding="utf-8").read().splitlines()
+    rows = _decode_any(open(cues, "rb").read()).splitlines()
     ens = [ln.split("\t")[2] for ln in rows if len(ln.split("\t")) == 3]
     texts = " ".join(ens)
     words = re.findall(r"[A-Z][a-zA-Z'\-]+", texts)
@@ -3125,7 +3156,7 @@ def _load_subfix_tsv(path):
     """加载逐 cue 子串修正表：num<TAB>old<TAB>new（old 为空串=整行覆盖，用于 ERROR 补译）。
     返回 {num: [(old, new), ...]}，同一 num 可多行（按文件顺序依次应用）。"""
     rules = {}
-    for ln in open(path, encoding="utf-8-sig").read().splitlines():
+    for ln in _decode_any(open(path, "rb").read()).splitlines():
         ln = ln.rstrip("\r")
         parts = ln.split("\t")
         if len(parts) < 3 or not parts[0].strip().isdigit():
@@ -3142,7 +3173,7 @@ def _cmd_subfix(src, fixtsv, out, compare=None, side=None):
     raw = open(src, "rb").read()
     bom = raw.startswith(b"\xef\xbb\xbf")
     crlf = b"\r\n" in raw
-    lines = raw.decode("utf-8-sig").replace("\r\n", "\n").replace("\r", "\n").split("\n")
+    lines = _decode_any(raw).replace("\r\n", "\n").replace("\r", "\n").split("\n")
     out_lines = list(lines)
     applied, miss, rows = 0, [], []
     i, n = 0, len(lines)
@@ -3346,7 +3377,7 @@ def _cmd_lint(cues, calib_src):
     2026-09-05 沉淀自 Gloomwald's Rage 二次校准：分段书写 calib_*.tsv 时
     曾出现序号重复（127 写两遍）与外文残留（undeniable/càng/chord shape）。"""
     cue_nums = []
-    for ln in open(cues, encoding="utf-8").read().splitlines()[1:]:
+    for ln in _decode_any(open(cues, "rb").read()).splitlines()[1:]:
         m = re.match(r"(\d+)\t", ln)
         if m:
             cue_nums.append(int(m.group(1)))
@@ -3363,7 +3394,7 @@ def _cmd_lint(cues, calib_src):
     else:
         files = [calib_src]
     for p in files:
-        for ln in open(p, encoding="utf-8-sig").read().splitlines():
+        for ln in _decode_any(open(p, "rb").read()).splitlines():
             m = re.match(r"(\d+)\t", ln.lstrip("\ufeff"))
             if not m:
                 continue
