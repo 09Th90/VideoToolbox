@@ -13,6 +13,8 @@ venv/
 # Sensitive: API keys and browser profile with cookies
 data/ai_config.json
 data/uploader_profile/
+# 本机 GitHub 代理配置（含代理节点 UUID/密码/secret，严禁入库）
+github_proxy.yaml
 
 # 运行期日志（VideoCaptioner 唤起日志；配置与模型在 %LOCALAPPDATA%\VideoCaptioner）
 data/videocaptioner/
@@ -44,8 +46,15 @@ data/videocaptioner/
 data/VideoCaptioner/
 data/downloads/
 data_dir.txt
+# 运行期本机配置 / 投稿任务 / 目录缓存 / 校准同步基线快照（均自动生成，不入库）
+data/config.json
+data/uploader_tasks/
+data/catalog/
+data/calib_sync_base.py
+data/calib_sync_kb_base.json
 
 # 运行期日志（校准脚本 GitHub 同步日志、投稿运行日志）
+logs/
 logs/calib_sync.log
 logs/uploader/
 
@@ -55,9 +64,15 @@ build/*.png
 build/backup_*/
 build/legacy/
 build/ai_test/
+# 校准功能本地自测样例（临时文件，不入库）
+build/test_calib*
 
-# 历史文件归档（从仓库移出的运行无关文件留档）
-# 注：history/ 保留在仓库中作为留档，不忽略
+# 历史归档：仅 history/ 下分类后的源码快照、开发脚本、发布留档、文档入库；
+# 以下大体积/日志/截图类留档只保留在本机，不进 git（dist/、_installer_check/
+# 已由对应通用规则覆盖）
+history/build/
+history/logs/
+history/data/
 
 # 打包中间产物 / 超限二进制：走 GitHub Releases 或在线仓库分发，不进 git
 dist/
@@ -65,6 +80,11 @@ build/视频工具箱/
 build/ifw_config/
 build/ifw_packages/
 installer_repository/
+# PyInstaller 工作目录（v1.12.0 起用 ASCII 路径 build_ascii 跑打包，避免中文路径
+# 让 Qt 钩子读成 ?????；133MB 级中间产物，永不入库）
+build_ascii/
+# 旧 exe 留档（每次重打包会挪一份进来，体积大）
+history/old_builds/
 
 # 临时诊断脚本 / 构建日志 / 截图（本地用，不入库）
 _probe_big.py

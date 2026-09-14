@@ -1,0 +1,11055 @@
+[
+  {
+    "canonical": "鸣式",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi",
+      "ko"
+    ],
+    "variants": [
+      "哀歌者",
+      "西罗诺德",
+      "狄奥德",
+      "狄奥迪亚",
+      "瑟罗诺德",
+      "瑟罗诺迪安",
+      "瑟罗诺迪亚",
+      "斯罗诺多尼亚",
+      "索罗诺德人",
+      "索罗诺德",
+      "索诺德人",
+      "索诺德",
+      "Thronodian",
+      "Thrronodonian",
+      "Thronodonian",
+      "Thenodian",
+      "Theodian",
+      "Zenodian",
+      "Tenodian",
+      "Thrronodian",
+      "Thrronodians",
+      "图尔诺迪安",
+      "图尔诺迪亚",
+      "塞罗德",
+      "Therodian",
+      "Trinodian",
+      "Frenodian",
+      "Folodian",
+      "索罗尼亚",
+      "索罗诺迪安",
+      "弗雷诺迪安",
+      "弗洛迪安",
+      "Therenodian",
+      "明植"
+    ],
+    "ctx": [
+      {
+        "ref_regex": "\\bFodian\\b|\\bFedian\\b",
+        "wrong": "佛殿"
+      },
+      {
+        "ref_regex": "\\bBodian\\b",
+        "wrong": "博典"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "爱弥斯",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi",
+      "ja"
+    ],
+    "variants": [
+      "艾美斯",
+      "伊穆斯",
+      "伊梅思",
+      "伊莫斯",
+      "伊梅斯",
+      "伊茅斯",
+      "阿莫斯",
+      "阿梅斯",
+      "Immeth",
+      "Ameth",
+      "利莫斯",
+      "Imeth",
+      "IMATH",
+      "IMth",
+      "IMAD",
+      "伊思",
+      "阿马斯",
+      "Immethy",
+      "Imethy",
+      "伊玛美斯",
+      "伊美斯",
+      "希莫斯",
+      "Imus",
+      "Imameth",
+      "Himoth",
+      "Imth",
+      "艾姆斯",
+      "艾梅斯"
+    ],
+    "ctx": [
+      {
+        "ref_regex": "\\b(?:Imeth|Immeth|Ameth)\\b",
+        "wrong": "这个存在"
+      },
+      {
+        "ref_regex": "cosplay meth",
+        "wrong": "冰毒"
+      },
+      {
+        "ref_regex": "\\bmeth\\b",
+        "wrong": "方法"
+      },
+      {
+        "ref_regex": "\\bA ?Math\\b|\\bAmath\\b",
+        "wrong": "一道数学题"
+      },
+      {
+        "ref_regex": "\\bA ?Math\\b|\\bAmath\\b",
+        "wrong": "数学"
+      },
+      {
+        "ref_regex": "\\bIth\\b",
+        "wrong": "伊斯"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "提弗洛斯",
+    "en": "Typhoeus",
+    "ja": "",
+    "ko": "",
+    "category": "角色",
+    "modes": [
+      "endo"
+    ],
+    "variants": [
+      "提夫罗斯",
+      "提夫洛斯",
+      "提莫罗斯",
+      "提芙罗斯",
+      "提普洛斯",
+      "皮夫洛斯",
+      "皮弗洛斯",
+      "疾风洛斯",
+      "其弗洛斯",
+      "吉弗洛斯",
+      "吉克洛斯",
+      "提罗斯",
+      "弗鲁斯",
+      "Typhon",
+      "Typhoeus",
+      "斑疹伤寒",
+      "T-Prus",
+      "Typhros",
+      "Typrus",
+      "泰弗鲁斯",
+      "泰弗罗斯",
+      "迪普罗斯",
+      "杰弗罗斯",
+      "Depros",
+      "伤寒",
+      "台风"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": "终末地'再旅者'形态官方名=提弗洛斯(英文 Typhoeus)。明日方舟本体同角色叫'提丰'(Typhon)，在 AK_TERMS 中（--ak 模式）。英文 'Typhon' 在两模式下的不同归属是合法的模式内多义：endo 片源里 Typhoeus/Typhon 一律指终末地形态 提弗洛斯。"
+  },
+  {
+    "canonical": "隧者",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi",
+      "ja"
+    ],
+    "variants": [
+      "埃克斯德",
+      "Exoriders",
+      "Exorider",
+      "Exorder",
+      "Exorrider",
+      "Exo Strider",
+      "exor strider",
+      "异能跨步者",
+      "跨行者",
+      "Exor",
+      "Exos Rider",
+      "Strider",
+      "Exordder",
+      "Exorid",
+      "exor striders",
+      "exus",
+      "Exos",
+      "exos",
+      "Exost",
+      "Exoswarm",
+      "exo strider",
+      "Exos 骑手",
+      "exos 骑手",
+      "exor",
+      "exo 跨步者"
+    ],
+    "ctx": [
+      {
+        "ref_regex": "[Ss]triders?\\b",
+        "wrong": "步行者"
+      },
+      {
+        "ref_regex": "Exoriders?\\b",
+        "wrong": "驱除者"
+      },
+      {
+        "ref_regex": "Exoriders?\\b",
+        "wrong": "驱逐者"
+      },
+      {
+        "ref_regex": "エクソ[レラ]イダー",
+        "wrong": "Exorider"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "明日方舟",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "wwoc",
+      "endo",
+      "ak",
+      "bi"
+    ],
+    "variants": [
+      "명일방주",
+      "荣誉方舟",
+      "AK",
+      "Ark Knights",
+      "Arknights",
+      "方舟骑士团",
+      "方舟骑士队",
+      "方舟骑士",
+      "弧光之夜",
+      "弧光骑士",
+      "方舟之夜",
+      "弧夜",
+      "Arc Night",
+      "Arc Knights",
+      "arc nights",
+      "Arg Nights",
+      "Arg Knights",
+      "Argite",
+      "Archite",
+      "Argis",
+      "Arg",
+      "阿尔吉特",
+      "阿格内茨",
+      "阿基特"
+    ],
+    "ctx": [
+      {
+        "ref_regex": "\\bArk Knights\\b",
+        "wrong": "方舟骑士团"
+      },
+      {
+        "ref_regex": "\\bArk Knights\\b",
+        "wrong": "方舟骑士"
+      },
+      {
+        "ref_regex": "\\bArknights\\b",
+        "wrong": "方舟骑士团"
+      },
+      {
+        "ref_regex": "\\bArknights\\b",
+        "wrong": "方舟骑士"
+      },
+      {
+        "ref_regex": "\\bKnights\\b",
+        "wrong": "骑士"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "拉海洛",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi",
+      "ja"
+    ],
+    "variants": [
+      "拉海洛伊",
+      "拉海罗伊",
+      "拉希罗伊",
+      "拉希罗",
+      "莱艾·罗伊",
+      "莱伊·罗伊",
+      "La Hairoy",
+      "La Hyroy",
+      "La Hyro",
+      "拉罗伊",
+      "海罗伊",
+      "Laai Roy",
+      "Hyroy",
+      "莱艾罗伊",
+      "Hyroid",
+      "Royer",
+      "High Roy",
+      "high roy",
+      "高罗"
+    ],
+    "ctx": [
+      {
+        "ref_regex": "ラハイロイ",
+        "wrong": "拉海·雷 (Lahai Loi)"
+      },
+      {
+        "ref_regex": "ラハイロイ",
+        "wrong": "拉海洛伊"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "鸣潮",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi",
+      "ko",
+      "endo",
+      "pgren"
+    ],
+    "variants": [
+      "枯萎波",
+      "Wua",
+      "风化波浪",
+      "风化浪潮",
+      "风化浪",
+      "风化波",
+      "呼啸波",
+      "Wolvering Waves",
+      "翼波",
+      "Bua",
+      "明祖",
+      "明州",
+      "明乔",
+      "明朝",
+      "Mungjo",
+      "浇水方式",
+      "Withering Waves",
+      "枯萎的波浪",
+      "Vuva"
+    ],
+    "ctx": [
+      {
+        "ref_regex": "\\bWuthering\\b",
+        "wrong": "呼啸山庄"
+      },
+      {
+        "ref_regex": "\\bWua\\b",
+        "wrong": "瓦阿"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "西格莉卡",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [
+      "Sigi",
+      "Sigy",
+      "Siga",
+      "Sigria",
+      "西吉",
+      "西加",
+      "锡格利亚",
+      "西格利亚",
+      "西格琳卡",
+      "Skiprika",
+      "Skip Raa",
+      "斯基普里卡",
+      "Sria",
+      "斯里亚",
+      "西格里亚",
+      "Sig Gria",
+      "Ziggria",
+      "saggria"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "玄方城",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [
+      "Schwanfong Hold",
+      "Shwanfong Hold",
+      "Schwan Fong",
+      "Schwangfong",
+      "Schwanfong",
+      "Shwanfong",
+      "Schwanfang",
+      "Schwangfun",
+      "施万丰（玄方城）",
+      "施万丰",
+      "Schwanfung",
+      "Schwanfun",
+      "Shranong",
+      "Swanfong",
+      "Fong Hold",
+      "Swanfang",
+      "Swan Fang"
+    ],
+    "ctx": [
+      {
+        "ref_regex": "\\bSchwanf\\b",
+        "wrong": "施万夫"
+      },
+      {
+        "ref_regex": "\\bShuanfang\\b",
+        "wrong": "双芳抱"
+      },
+      {
+        "ref_regex": "\\bShranong\\b",
+        "wrong": "什拉农要塞"
+      },
+      {
+        "ref_regex": "\\bSha Fong\\b",
+        "wrong": "沙风要塞"
+      },
+      {
+        "ref_regex": "\\bSchwanfang\\b",
+        "wrong": "天鹅芳"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "锁暝",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi",
+      "ja"
+    ],
+    "variants": [
+      "苏明",
+      "苏凌",
+      "苏舒明",
+      "Suming",
+      "Suling",
+      "Schuming",
+      "Summit",
+      "鲫美酱",
+      "鲛美酱",
+      "鲇美酱",
+      "萨米酱",
+      "鲨鱼酱",
+      "萨姆酱",
+      "小沙姆",
+      "萨梅伊",
+      "鲛名酱",
+      "锁瞑"
+    ],
+    "ctx": [
+      {
+        "ref_regex": "\\bswimming\\b",
+        "wrong": "游泳"
+      },
+      {
+        "ref_regex": "サメ",
+        "wrong": "鲨鱼"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "终末地",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "jpe",
+      "endo",
+      "ak",
+      "zho",
+      "ja"
+    ],
+    "variants": [
+      "恩菲尔德",
+      "结束场",
+      "结束字段",
+      "结束的方式",
+      "终场",
+      "中落地",
+      "恩德菲尔德",
+      "艾姆菲尔德",
+      "汉德菲尔德",
+      "安菲尔德",
+      "终点场",
+      "内场",
+      "Enfield",
+      "Nfields",
+      "Nfield"
+    ],
+    "ctx": [
+      {
+        "ref_regex": "エンドフィールド",
+        "wrong": "恩菲尔德"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "乘霄山",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "ko"
+    ],
+    "variants": [
+      "胜苏山",
+      "圣沼山",
+      "升沼山",
+      "承素山",
+      "胜水山",
+      "升水山",
+      "承水",
+      "升西",
+      "胜利之山",
+      "承素桑",
+      "升素桑",
+      "胜小山",
+      "升小山",
+      "胜利奖"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "长离",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "ko"
+    ],
+    "variants": [
+      "长丽",
+      "张丽",
+      "张黎",
+      "张离",
+      "姜里",
+      "江里",
+      "江利",
+      "江日",
+      "江尼朗",
+      "江丽",
+      "江嘎",
+      "Jangri",
+      "Jangli",
+      "张里"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "阿达希尔",
+    "en": "Ardashir",
+    "ja": "アルダシル",
+    "ko": "",
+    "category": "角色",
+    "modes": [
+      "jpe"
+    ],
+    "variants": [
+      "阿尔达西尔",
+      "阿达西尔",
+      "阿尔达希尔",
+      "阿尔达塞尔",
+      "阿尔达舍尔",
+      "阿尔达谢尔",
+      "阿尔纳齐尔",
+      "阿尔纳希尔",
+      "阿尔扎尔",
+      "阿尔达希",
+      "Altashell",
+      "Ardacil",
+      "Aldasil",
+      "Ardashir"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": "终末地第二章。戒律：禁用裸键'达希尔'——长键先替换后短键二次命中得'阿阿达希尔'（terms-check 会报）。"
+  },
+  {
+    "canonical": "残星会",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi",
+      "ko"
+    ],
+    "variants": [
+      "弗雷杜斯",
+      "弗拉德",
+      "弗莱杜斯",
+      "fraodus",
+      "詹星会",
+      "詹成会",
+      "建城会",
+      "建成会",
+      "詹森",
+      "詹城会",
+      "詹城",
+      "詹成爱",
+      "Janseong"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "秘日六席",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [
+      "赫利奥六号",
+      "赫利奥提人",
+      "赫利奥提病",
+      "赫利奥提",
+      "赫利奥",
+      "太阳六号",
+      "Heliotic 6",
+      "Heliotic Six",
+      "Helionic 6",
+      "Helionic Six",
+      "Heliotic",
+      "Helionic",
+      "Heliodic"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "阿列夫一",
+    "en": "ALF1 / Alfan",
+    "ja": "アルフワン",
+    "ko": "",
+    "category": "敌人/鸣式",
+    "modes": [
+      "bi",
+      "ja"
+    ],
+    "variants": [
+      "阿尔夫",
+      "ALF1",
+      "LF1",
+      "阿尔凡",
+      "Alfan",
+      "阿尔夫一人",
+      "阿尔夫一定",
+      "阿尔法之一",
+      "ALF one",
+      "Alf one",
+      "ALF 1",
+      "ALF",
+      "Alf"
+    ],
+    "ctx": [
+      {
+        "ref_regex": "アルフ",
+        "wrong": "阿尔夫一"
+      },
+      {
+        "ref_regex": "アルフ",
+        "wrong": "阿尔夫"
+      }
+    ],
+    "exclude": [],
+    "note": "虚无鸣式/黑洞形象，官方中文=阿列夫一（2026-09-10 依官方访谈/库街区，'阿尔凡'沉淀作废）。键序：ALF one/ALF 1/ALF1 长键先行，防裸'Alf'咬半截。日语片由 JA_CONTEXT 的 /アルフ/ 佐证规则处理。"
+  },
+  {
+    "canonical": "清宵",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [
+      "青霄",
+      "Ching Xiao",
+      "Chingsha",
+      "Ching Sha",
+      "Chingcha",
+      "Chingsho",
+      "Chingo",
+      "Ching",
+      "清沙",
+      "清筱",
+      "Chincha",
+      "Chimcha"
+    ],
+    "ctx": [
+      {
+        "ref_regex": "\\bChing\\w*",
+        "wrong": "青沙"
+      },
+      {
+        "ref_regex": "\\bChing\\w*",
+        "wrong": "青晓"
+      },
+      {
+        "ref_regex": "\\bChing\\w*",
+        "wrong": "清晓"
+      },
+      {
+        "ref_regex": "\\bChing\\w*",
+        "wrong": "清秀秀"
+      },
+      {
+        "ref_regex": "\\bChing\\w*",
+        "wrong": "清秀"
+      },
+      {
+        "ref_regex": "\\bChing\\w*",
+        "wrong": "青茶"
+      },
+      {
+        "ref_regex": "\\bChing\\w*",
+        "wrong": "青查"
+      },
+      {
+        "ref_regex": "\\bChing\\w*",
+        "wrong": "肖晴"
+      },
+      {
+        "ref_regex": "\\bChing\\w*",
+        "wrong": "焦伟杰"
+      },
+      {
+        "ref_regex": "\\bChing\\w*",
+        "wrong": "清修"
+      },
+      {
+        "ref_regex": "\\bChingo\\b",
+        "wrong": "钦戈"
+      },
+      {
+        "ref_regex": "\\bChing Shiao\\b",
+        "wrong": "清孝"
+      },
+      {
+        "ref_regex": "\\bChimcha\\b",
+        "wrong": "奇姆查河"
+      },
+      {
+        "ref_regex": "\\bChang's\\b",
+        "wrong": "张"
+      },
+      {
+        "ref_regex": "\\bTing Xiao\\b",
+        "wrong": "霆骁"
+      },
+      {
+        "ref_regex": "\\bTing Shao\\b",
+        "wrong": "丁绍"
+      },
+      {
+        "ref_regex": "\\bTing Sao\\b",
+        "wrong": "婷嫂"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "漂泊者",
+    "en": "Rover",
+    "ja": "漂泊者",
+    "ko": "방랑자",
+    "category": "角色",
+    "modes": [
+      "bi"
+    ],
+    "variants": [
+      "罗弗",
+      "罗孚",
+      "罗浮",
+      "路虎",
+      "漫游车",
+      "Rover",
+      "Ruva",
+      "Ruver",
+      "鲁瓦",
+      "鲁弗",
+      "Wover",
+      "沃弗"
+    ],
+    "ctx": [
+      {
+        "ref_regex": "\\brover\\b",
+        "wrong": "漫游者"
+      }
+    ],
+    "exclude": [],
+    "note": "鸣潮主角。'鲁瓦'长键须先于'鲁瓦扬->罗伊'(罗伊古文明)处理，防误伤；主播昵称'弗罗弗'(Frover)由 CONTEXT_MAP 兜底，防'罗弗'键子串误伤。"
+  },
+  {
+    "canonical": "绯雪",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi",
+      "ja"
+    ],
+    "variants": [
+      "日雪",
+      "Hiuki",
+      "Hyuki",
+      "希希",
+      "桧雪",
+      "日纪",
+      "日树",
+      "胡姬",
+      "胡基",
+      "Huki",
+      "kiuki",
+      "Hiyuki"
+    ],
+    "ctx": [
+      {
+        "ref_regex": "ひゆき",
+        "wrong": "日雪"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "归魂互助会",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "ko"
+    ],
+    "variants": [
+      "归云互助会",
+      "鬼魂互助会",
+      "幽灵互助会",
+      "鬼互助会",
+      "鬼祖会",
+      "桂园互助",
+      "桂恩上祖",
+      "Gwion Sangjo",
+      "Gwion",
+      "鬼魂互助",
+      "幽灵居民会议"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "苇原",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [
+      "Ashinohara",
+      "Ashohara",
+      "Shinahara",
+      "Ashara",
+      "Ashino",
+      "亚夏拉",
+      "阿夏拉",
+      "阿育王",
+      "品原",
+      "芦野",
+      "苇原原"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "佩丽卡",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "jpe",
+      "endo"
+    ],
+    "variants": [
+      "费利卡",
+      "维莉卡",
+      "佩里卡",
+      "赫利卡",
+      "佩莱卡",
+      "佩利卡",
+      "贝利卡",
+      "佩雷卡",
+      "贝莉卡",
+      "帕拉利卡"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "吟霖",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi",
+      "ko",
+      "ja"
+    ],
+    "variants": [
+      "Yin Lingling",
+      "Yin Llin",
+      "Yian Llin",
+      "Eumrim",
+      "Eumlim",
+      "eumlim",
+      "eumrim",
+      "Eum",
+      "尤姆林",
+      "乌姆林"
+    ],
+    "ctx": [
+      {
+        "ref_regex": "\\bYin Llin\\b",
+        "wrong": "尹琳"
+      },
+      {
+        "ref_regex": "インリン?",
+        "wrong": "映里"
+      },
+      {
+        "ref_regex": "インリン?",
+        "wrong": "英灵"
+      },
+      {
+        "ref_regex": "インディ",
+        "wrong": "印度语"
+      },
+      {
+        "ref_regex": "インディ",
+        "wrong": "印第"
+      },
+      {
+        "ref_regex": "インディ",
+        "wrong": "印丁"
+      },
+      {
+        "ref_regex": "インディ",
+        "wrong": "印地"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "守岸人",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [
+      "short守",
+      "Short守",
+      "Shawkeeper",
+      "肖战守护者",
+      "岸边管理员",
+      "海岸警卫队",
+      "海岸守护者",
+      "做空者",
+      "岸守",
+      "Shortkeeper"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "达妮娅",
+    "en": "Denia",
+    "ja": "ダーニャ",
+    "ko": "",
+    "category": "角色",
+    "modes": [
+      "bi",
+      "ja"
+    ],
+    "variants": [
+      "德妮雅",
+      "德娜",
+      "德尼亚",
+      "拉德娜",
+      "达纳",
+      "达娜",
+      "丹尼娅",
+      "丹尼",
+      "Dennia",
+      "丹妮娅"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": "星炬学院学生。昵称 Denny/Dennia 机翻'丹尼/丹尼娅'亦归此；Daniela=丹妮拉 是另一人，勿收。"
+  },
+  {
+    "canonical": "噗切娜",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "endo"
+    ],
+    "variants": [
+      "普切纳",
+      "普奇娜",
+      "普希娜",
+      "迫切娜",
+      "库奇娜",
+      "付辛娜",
+      "普吉娜",
+      "普辛娜",
+      "普切娜"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "言使",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "ko"
+    ],
+    "variants": [
+      "恩思",
+      "言士",
+      "元世",
+      "翁士",
+      "元使",
+      "Eonsa",
+      "unsara",
+      "Unsa",
+      "Unsaga"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "心",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "ja"
+    ],
+    "variants": [
+      "师大人",
+      "辛大人",
+      "史大人",
+      "新様",
+      "聖書様",
+      "圣书様",
+      "C様",
+      "席大人"
+    ],
+    "ctx": [
+      {
+        "ref_regex": "シは|シが|シも|シの",
+        "wrong": "石"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "恩沃拉",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [
+      "N'avorora",
+      "尼沃拉",
+      "尼奥拉",
+      "Nivora",
+      "Nvora",
+      "纳沃拉",
+      "Navora",
+      "N'vora"
+    ],
+    "ctx": [
+      {
+        "ref_regex": "\\bNora\\b|N'avora",
+        "wrong": "诺拉"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "椿",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [
+      "查米莉亚",
+      "Chamellia",
+      "Chameleia",
+      "Chamelia",
+      "Camila",
+      "卡米拉",
+      "茶花属",
+      "茶花"
+    ],
+    "ctx": [
+      {
+        "ref_regex": "\\bChameleia\\b|\\bChamellia\\b",
+        "wrong": "变色龙"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "狂三",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "pgren"
+    ],
+    "variants": [
+      "Crew Me",
+      "Croomie",
+      "Kroomi",
+      "Krumi",
+      "Kumi",
+      "克鲁米",
+      "库米",
+      "久美"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "辛吉勒姆",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [
+      "西吉鲁姆",
+      "Sigilum",
+      "Sigulum",
+      "Sigilm",
+      "Sigilium",
+      "Sidelum",
+      "西古鲁姆",
+      "Sigon"
+    ],
+    "ctx": [
+      {
+        "ref_regex": "[Ss]igil",
+        "wrong": "印记"
+      },
+      {
+        "ref_regex": "[Ss]igil",
+        "wrong": "印章"
+      },
+      {
+        "ref_regex": "[Ss]igilum\\b",
+        "wrong": "海豹"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "长离大人",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "ko"
+    ],
+    "variants": [
+      "张丽仁",
+      "Jangridaein",
+      "金美大仁",
+      "张美大仁",
+      "金美大学",
+      "江美大学",
+      "江日大学",
+      "蔷薇大仁"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "阿德莱德",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "pgren"
+    ],
+    "variants": [
+      "Adelide",
+      "Adelite",
+      "Edelite",
+      "Adelai",
+      "Adeline",
+      "Edaly",
+      "阿德利德",
+      "艾德琳"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "夜刀",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "akko"
+    ],
+    "variants": [
+      "雅托",
+      "矢藤",
+      "亚托",
+      "Yato",
+      "夜斗",
+      "矢富",
+      "亚托娜"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "庄方宜",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "jpe"
+    ],
+    "variants": [
+      "佐安",
+      "佐恩",
+      "佐万",
+      "佐阿",
+      "祖涵",
+      "祖安",
+      "Zowan"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "弗利特·斯诺芙",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [
+      "舰队雪花",
+      "雪绒舰队",
+      "舰队雪绒",
+      "舰队雪绒花",
+      "Fleet Snowfluff",
+      "Fleet Snowfl",
+      "舰队雪毛"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "弗洛洛",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [
+      "弗罗洛娃",
+      "弗罗洛瓦",
+      "Frolova",
+      "Phrolova",
+      "Froolova",
+      "Froloova",
+      "芙罗洛娃"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "景燃",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi",
+      "pgren"
+    ],
+    "variants": [
+      "静然",
+      "晶隆",
+      "Jing Rang",
+      "Jingron",
+      "丁然",
+      "riping ran",
+      "JenRan"
+    ],
+    "ctx": [
+      {
+        "ref_regex": "\\bJing Rang\\b",
+        "wrong": "靖让"
+      },
+      {
+        "ref_regex": "\\bJingron\\b",
+        "wrong": "靖荣"
+      },
+      {
+        "ref_regex": "\\bJingron\\b",
+        "wrong": "靖隆"
+      },
+      {
+        "ref_regex": "\\bJron\\b",
+        "wrong": "杰伦"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "武陵",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "jpe",
+      "endo",
+      "zho"
+    ],
+    "variants": [
+      "武良",
+      "武心",
+      "武料",
+      "武林",
+      "五菱",
+      "武王",
+      "Mureung"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "海伦汀",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "pgren"
+    ],
+    "variants": [
+      "Helentine",
+      "Helenine",
+      "Heline",
+      "Helen",
+      "海伦娜",
+      "帕伦汀",
+      "情人节"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "言使大人",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "ko"
+    ],
+    "variants": [
+      "恩思大人",
+      "Unsaday",
+      "Unsa Daein",
+      "Unsadein",
+      "Eonsadaein",
+      "恩萨达因",
+      "永萨台院"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "Fogveil Pagoda",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [
+      "Fogville Pagoda",
+      "Fogville Pagota",
+      "Fog Val",
+      "福格维尔宝塔",
+      "福格维尔巴戈塔",
+      "福格维尔皮戈塔"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "声碟",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [
+      "声诺光盘",
+      "声诺",
+      "sono 光盘",
+      "sono disc",
+      "Sono 光盘",
+      "Sono disc"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "天元突破红莲螺岩",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "react"
+    ],
+    "variants": [
+      "格伦·洛根",
+      "古兰贷款",
+      "古林·洛根",
+      "Grun Logan",
+      "Guran Logan",
+      "Gurin Logan"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "战双帕弥什",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "pgren"
+    ],
+    "variants": [
+      "惩罚性灰乌鸦",
+      "惩罚灰乌鸦",
+      "惩罚灰鸦",
+      "惩罚灰色",
+      "惩罚伟大的乌鸦",
+      "惩罚同性恋乌鸦"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "梦州",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [
+      "Mong Joe",
+      "Mongjo",
+      "Menjo",
+      "Mjo",
+      "Mongo",
+      "Mango"
+    ],
+    "ctx": [
+      {
+        "ref_regex": "\\bMongjo\\b",
+        "wrong": "蒙乔"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "残星会会长",
+    "en": "Grand Architect",
+    "ja": "",
+    "ko": "",
+    "category": "势力/角色",
+    "modes": [
+      "bi"
+    ],
+    "variants": [
+      "大建筑师",
+      "伟大的建筑师",
+      "伟大建筑师",
+      "盛大建筑师",
+      "Grand Architect",
+      "grand architect"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": "残星会(Fractsidus)首领。'伟大建筑师/伟大的建筑师/盛大建筑师'必须长键先行，否则被'大建筑师'(4字)键咬成'伟残星会会长'。"
+  },
+  {
+    "canonical": "残象",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [
+      "泰莎",
+      "Tazid",
+      "tusset",
+      "Tuset",
+      "塔塞特人",
+      "塔塞特"
+    ],
+    "ctx": [
+      {
+        "ref_regex": "\\bTacit\\b",
+        "wrong": "心照不宣"
+      },
+      {
+        "ref_regex": "\\bTacit\\b",
+        "wrong": "Tacit"
+      },
+      {
+        "ref_regex": "\\btacet\\b",
+        "wrong": "泰泰特"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "深空联合",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [
+      "太空集体",
+      "空间集体",
+      "太空迷航集体",
+      "太空轨迹",
+      "Spacetrek",
+      "space track"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "琳奈",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [
+      "Linny",
+      "Lenny",
+      "Lenise",
+      "林尼",
+      "莱尼",
+      "莱妮丝"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "礼荣",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "ko"
+    ],
+    "variants": [
+      "艺英",
+      "叶英",
+      "艺荣",
+      "艺亨",
+      "艺兴",
+      "Yeyoung"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "罗伊",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [
+      "鲁瓦扬",
+      "鲁瓦安",
+      "鲁扬",
+      "罗亚内斯",
+      "罗耶",
+      "Royanes"
+    ],
+    "ctx": [
+      {
+        "ref_regex": "\\bRoya\\b",
+        "wrong": "罗亚"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "隧门",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [
+      "Strider Gate",
+      "Stridergate",
+      "Strider 门",
+      "strider门",
+      "跨门",
+      "跨步门"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "NIKKE",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "wwoc"
+    ],
+    "variants": [
+      "妮姬（NIKKE）",
+      "妮姬(NIKKE)",
+      "妮姬",
+      "胜利女神",
+      "NIKKE（胜利女神）"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "伏翎",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "ko"
+    ],
+    "variants": [
+      "福翎",
+      "福岭",
+      "富京",
+      "福京",
+      "福明"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "凯尔希",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "ak",
+      "akko"
+    ],
+    "variants": [
+      "Kelsey",
+      "Kelip",
+      "Kelit",
+      "Kelty",
+      "凯尔西"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "原神",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi",
+      "wwoc",
+      "endo",
+      "zho"
+    ],
+    "variants": [
+      "Genchin Impact",
+      "Genchin",
+      "원신",
+      "原心",
+      "根钦"
+    ],
+    "ctx": [
+      {
+        "ref_regex": "\\bGenjin\\b|\\bGenin\\b",
+        "wrong": "原真"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "巨兽心脏",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "jpe"
+    ],
+    "variants": [
+      "居住中心",
+      "住宅的中心",
+      "居住的心脏",
+      "住心",
+      "常住的心"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "灼樱",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [
+      "火焰樱花",
+      "火樱花",
+      "火樱",
+      "Flaming Sakura",
+      "flaming Sakura"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "管理员",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "jpe",
+      "endo"
+    ],
+    "variants": [
+      "管理层",
+      "管理人",
+      "经理",
+      "经理人",
+      "店长"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "绝区零",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "wwoc"
+    ],
+    "variants": [
+      "禅心在世（ZenExistence）",
+      "禅心在世(ZenExistence)",
+      "禅心在世",
+      "젠레스 존 제로",
+      "젠존재"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "聂菲斯",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "jpe"
+    ],
+    "variants": [
+      "奈法里斯",
+      "奈里斯",
+      "尼法利斯",
+      "涅法利斯",
+      "内法里斯"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "落香村",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [
+      "踏板落村",
+      "Pedalfall Village",
+      "Pedalfall",
+      "Pedaphor村",
+      "Petal Fall"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "集成战略",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "ak"
+    ],
+    "variants": [
+      "IS-6",
+      "IS6",
+      "IS-5",
+      "IS-2",
+      "IS-3"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "Camellya",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "fix-en"
+    ],
+    "variants": [
+      "Chamilleia",
+      "Chameleia",
+      "Chamilia",
+      "Camillia"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "Fractsidus",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi",
+      "fix-en"
+    ],
+    "variants": [
+      "Fraidus",
+      "Fraid",
+      "fractur",
+      "fract"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "Jinzhou",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi",
+      "fix-en"
+    ],
+    "variants": [
+      "Jingjo",
+      "Jingo",
+      "Gingjo",
+      "Jindo"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "Threnodian",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "fix-en"
+    ],
+    "variants": [
+      "Thrronodian",
+      "Throdian",
+      "Trinodian",
+      "Frenodian"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "千咲",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [
+      "Chisa",
+      "CHISA",
+      "奇莎",
+      "奇萨"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "安德烈",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "endo"
+    ],
+    "variants": [
+      "安德里",
+      "安德鲁",
+      "Nandre",
+      "安黛尔"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "巨兽之力",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "jpe"
+    ],
+    "variants": [
+      "居住之力",
+      "居住的力量",
+      "居住的力",
+      "住力"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "心月狐",
+    "en": "Sheen / Hsin",
+    "ja": "シン",
+    "ko": "",
+    "category": "角色/岁主",
+    "modes": [
+      "bi"
+    ],
+    "variants": [
+      "Sheen",
+      "月狐希恩",
+      "希恩",
+      "谢恩"
+    ],
+    "ctx": [
+      {
+        "ref_regex": "\\bSheen\\b",
+        "wrong": "辛"
+      },
+      {
+        "ref_regex": "\\bSheen\\b",
+        "wrong": "光泽"
+      },
+      {
+        "ref_regex": "\\bShin\\b",
+        "wrong": "申"
+      },
+      {
+        "ref_regex": "\\bShane\\b",
+        "wrong": "肖恩"
+      },
+      {
+        "ref_regex": "\\bShin\\b",
+        "wrong": "辛"
+      },
+      {
+        "ref_regex": "\\bShin\\b",
+        "wrong": "胫"
+      }
+    ],
+    "exclude": [],
+    "note": "月狐岁主，官方全名 心月狐；独立指代用全名。日语片'シ/シン様'归 心（见 JA_TERMS），3.6 片'聖/聖書'=清宵(セイショウ)非心，勿混。"
+  },
+  {
+    "canonical": "拉特兰",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "akko"
+    ],
+    "variants": [
+      "拉特拉",
+      "Latera",
+      "laterano",
+      "LATERANO"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "星炬学院",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [
+      "星火学院",
+      "星游学园",
+      "星游学院",
+      "罗伊斯塔尔学院"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "森美声",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "react"
+    ],
+    "variants": [
+      "莫里·卡利俄珀",
+      "莫里·卡利彭",
+      "卡利彭",
+      "莫里"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "洛瑟菈",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [
+      "Lucilla",
+      "露西拉",
+      "卢西拉",
+      "洛西拉"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "虹镇",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "ko"
+    ],
+    "variants": [
+      "红金村",
+      "红锦村",
+      "洪锦村",
+      "洪金村"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "龙门",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "ak"
+    ],
+    "variants": [
+      "龙曼",
+      "肺人",
+      "Lungman",
+      "lungman"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "Barge Bingus",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "ak"
+    ],
+    "variants": [
+      "驳船宾格斯",
+      "驳船宾吉特",
+      "平格斯驳船"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "Crimson",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "ak"
+    ],
+    "variants": [
+      "猩红",
+      "赤红",
+      "深红"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "Huanglong",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi",
+      "fix-en"
+    ],
+    "variants": [
+      "Hang Long",
+      "Wang Long",
+      "Guang Long"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "Yinlin",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "fix-en"
+    ],
+    "variants": [
+      "Yinllin",
+      "Yindllin",
+      "Yinland"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "symphony",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "fix-en"
+    ],
+    "variants": [
+      "symphidi",
+      "symphodi",
+      "symphi"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "先行公约",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "ko"
+    ],
+    "variants": [
+      "发誓做好事",
+      "预先承诺",
+      "承诺做好事"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "克洛丝",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "ak"
+    ],
+    "variants": [
+      "Cruz",
+      "cruise",
+      "closure"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "卡提希娅",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi",
+      "ja"
+    ],
+    "variants": [
+      "卡西亚",
+      "Carthea",
+      "笛卡尔"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "叙拉古",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "akko"
+    ],
+    "variants": [
+      "锡拉丘兹",
+      "锡拉库扎",
+      "雪城"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "媛媛",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "ko"
+    ],
+    "variants": [
+      "元元",
+      "Wonwon",
+      "元冶"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "安玛",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "endo"
+    ],
+    "variants": [
+      "按摩师",
+      "按摩",
+      "阿玛"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "岁主",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi",
+      "ko"
+    ],
+    "variants": [
+      "迅哨",
+      "Sentinel",
+      "Soho God"
+    ],
+    "ctx": [
+      {
+        "ref_regex": "\\bSentinel\\b",
+        "wrong": "哨兵"
+      },
+      {
+        "ref_regex": "\\bSentinels\\b",
+        "wrong": "哨兵"
+      },
+      {
+        "ref_regex": "\\bsentinel health\\b",
+        "wrong": "哨点"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "巴别塔",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "akko"
+    ],
+    "variants": [
+      "通天塔",
+      "巴贝尔",
+      "杠铃"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "帕夏",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "jpe"
+    ],
+    "variants": [
+      "帕迪莎",
+      "帕迪逊",
+      "Padishah"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "幕间",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [
+      "赛格威",
+      "Segue",
+      "Segway"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "干员",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "endo",
+      "ak"
+    ],
+    "variants": [
+      "接线员",
+      "运营商",
+      "操作员"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "执花",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [
+      "布隆伯",
+      "布卢姆伯",
+      "绽放者"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "提丰",
+    "en": "Typhon",
+    "ja": "",
+    "ko": "",
+    "category": "角色",
+    "modes": [
+      "endo",
+      "ak"
+    ],
+    "variants": [
+      "T-Phone",
+      "T-phone",
+      "Typhon"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": "明日方舟本体六星狙击（--ak）。终末地韩语片源里 티폰 的机翻残留T-Phone/T-phone 亦归此（故 modes 含 endo）。戒律：英文 'Typhon' 在 endo 模式归 提弗洛斯，只有韩语 ASR 残留的 T-Phone 走本实体，两者错形不重叠、无冲突。"
+  },
+  {
+    "canonical": "时崎狂三",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "pgren"
+    ],
+    "variants": [
+      "Krumi Tokaki",
+      "克鲁米·托卡基",
+      "时明来未"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "暗面",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [
+      "黑暗的一面",
+      "黑暗面",
+      "阴暗面"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "梧黎",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "ko"
+    ],
+    "variants": [
+      "宇赫",
+      "佑赫",
+      "吴赫"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "泰拉",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "akko"
+    ],
+    "variants": [
+      "太拉",
+      "Terra",
+      "地形"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "洛瑟菈校长",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [
+      "洛瑟菈总统",
+      "露西拉总统",
+      "卢西拉总统"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "涅缇娅",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "pgren"
+    ],
+    "variants": [
+      "纳蒂亚",
+      "奈瓦提亚",
+      "涅槃"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "玄渺真人",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "ko"
+    ],
+    "variants": [
+      "贤妙真仁",
+      "贤明真人",
+      "贤明真太"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "瑝珑",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [
+      "煌龙",
+      "煌珑",
+      "Hanglo"
+    ],
+    "ctx": [
+      {
+        "ref_regex": "\\bHang Long\\b",
+        "wrong": "恒隆"
+      },
+      {
+        "ref_regex": "\\bHuan Long\\b",
+        "wrong": "环龙"
+      },
+      {
+        "ref_regex": "\\bSwang Long\\b",
+        "wrong": "斯旺龙"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "秧秧",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi",
+      "ja"
+    ],
+    "variants": [
+      "阳阳",
+      "Yangyang",
+      "亚彦"
+    ],
+    "ctx": [
+      {
+        "ref_regex": "\\bYanging\\b",
+        "wrong": "阳绫"
+      },
+      {
+        "ref_regex": "\\bYang\\b",
+        "wrong": "杨"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "维里奈",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [
+      "维丽娜",
+      "维莉娜",
+      "维琳娜"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "覆潮之下",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "zho"
+    ],
+    "variants": [
+      "Under Tides",
+      "Undertides",
+      "Undertide"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "贝尔博斯",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "endo"
+    ],
+    "variants": [
+      "贝尔沃斯",
+      "行李员",
+      "贝尔布斯"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "辛夷",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "ko"
+    ],
+    "variants": [
+      "Shin先生",
+      "信信",
+      "向进"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "阿莱克琉斯",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "endo"
+    ],
+    "variants": [
+      "阿莱克荔厄斯",
+      "阿莱克修斯",
+      "阿莱克留斯"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "陆·赫斯",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [
+      "Luke",
+      "Luuk",
+      "卢克"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "麦哲伦",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "akko",
+      "zho"
+    ],
+    "variants": [
+      "Magellan",
+      "Majella",
+      "Melansarae"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "黑海岸",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [
+      "布莱克酒店",
+      "黑色海岸",
+      "黑岸"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "黯原",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [
+      "德梅尔平原",
+      "demer plains",
+      "Dimmr"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "Arknights",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "fix-en"
+    ],
+    "variants": [
+      "Arctites",
+      "Ark Knights"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "BGM",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "endo"
+    ],
+    "variants": [
+      "bgeum",
+      "分期付款"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "Crimson Cass",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "ak"
+    ],
+    "variants": [
+      "赤红卡斯",
+      "深红卡斯"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "Crimson Cats",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "ak"
+    ],
+    "variants": [
+      "深红色的猫",
+      "深红深红猫"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "Exostrider",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "fix-en"
+    ],
+    "variants": [
+      "ExoRiders",
+      "Exoriders"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "Jiyan",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi",
+      "fix-en"
+    ],
+    "variants": [
+      "Gian",
+      "Chizzy"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "Jue",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "fix-en"
+    ],
+    "variants": [
+      "Jouer",
+      "Jueer"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "Libera Me From Hell",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "react"
+    ],
+    "variants": [
+      "Liidame",
+      "利比达姆"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "Mortefi",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "fix-en"
+    ],
+    "variants": [
+      "Mortafe",
+      "Mortifi"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "Shorekeeper",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "fix-en"
+    ],
+    "variants": [
+      "Shortke keeper",
+      "Shortke"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "TOA",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "fix-en"
+    ],
+    "variants": [
+      "toa",
+      "Toa"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "Tacet Discord",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "fix-en"
+    ],
+    "variants": [
+      "TD",
+      "tacet discord"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "Tacet Discords",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "fix-en"
+    ],
+    "variants": [
+      "TDs",
+      "tacet discords"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "TikTok",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "fix-en"
+    ],
+    "variants": [
+      "Tik Tok",
+      "tik tok"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "W",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "ak"
+    ],
+    "variants": [
+      "Wang",
+      "Wong"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "arkpedia",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "ak"
+    ],
+    "variants": [
+      "Aripedia",
+      "Aredia"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "丹瑾",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [
+      "丹金",
+      "达宁"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "今州",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [
+      "金戈",
+      "静乔"
+    ],
+    "ctx": [
+      {
+        "ref_regex": "\\bJinzhou\\b",
+        "wrong": "锦州"
+      },
+      {
+        "ref_regex": "\\bJinzhou\\b",
+        "wrong": "晋州"
+      },
+      {
+        "ref_regex": "\\bJinzhou\\b",
+        "wrong": "金州"
+      },
+      {
+        "ref_regex": "\\bJingjo\\b",
+        "wrong": "京城"
+      },
+      {
+        "ref_regex": "\\bJingjo\\b",
+        "wrong": "靖州"
+      },
+      {
+        "ref_regex": "\\bJing ?Joe\\b",
+        "wrong": "荆乔"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "今汐",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [
+      "金汐",
+      "今析"
+    ],
+    "ctx": [
+      {
+        "ref_regex": "\\bJinshi\\b",
+        "wrong": "金石"
+      },
+      {
+        "ref_regex": "\\bGinshi\\b",
+        "wrong": "Ginshi"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "令尹大人",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "ko"
+    ],
+    "variants": [
+      "英允大仁",
+      "Youngyun Daein"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "伊丽莎白·露丝·布拉德弗雷姆",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "react"
+    ],
+    "variants": [
+      "伊丽莎白·罗斯·血焰",
+      "伊丽莎白·罗丝·血焰"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "伊内丝",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "akko"
+    ],
+    "variants": [
+      "伊内斯",
+      "Ines"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "全新职业",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "pgren"
+    ],
+    "variants": [
+      "新班级",
+      "全新的类别"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "剿灭",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "ak"
+    ],
+    "variants": [
+      "Annihilation",
+      "annihilation"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "卜灵",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [
+      "Buling",
+      "布灵"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "卡列尼娜",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "pgren"
+    ],
+    "variants": [
+      "Karanina",
+      "卡维尼娜"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "危机合约",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "ak"
+    ],
+    "variants": [
+      "CC",
+      "Contingency"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "史尔特尔",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "endo"
+    ],
+    "variants": [
+      "苏特尔",
+      "Surut"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "合成玉",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "ak"
+    ],
+    "variants": [
+      "orundum",
+      "orandom"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "噬亡星",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [
+      "死灵星",
+      "Necrostar"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "坎特蕾拉",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi",
+      "ja"
+    ],
+    "variants": [
+      "坎特雷拉",
+      "坎塔雷拉"
+    ],
+    "ctx": [
+      {
+        "ref_regex": "\\bCanell?a\\b|\\bCaner?a\\b",
+        "wrong": "卡内拉"
+      },
+      {
+        "ref_regex": "\\bCanerella\\b",
+        "wrong": "卡内雷拉"
+      },
+      {
+        "ref_regex": "\\bCanellilla\\b",
+        "wrong": "卡内利拉"
+      },
+      {
+        "ref_regex": "\\bContella\\b",
+        "wrong": "康特拉"
+      },
+      {
+        "ref_regex": "\\bCartilla\\b",
+        "wrong": "卡提拉"
+      },
+      {
+        "ref_regex": "\\bCarti\\b",
+        "wrong": "卡蒂"
+      },
+      {
+        "ref_regex": "\\bCterella\\b",
+        "wrong": "克特雷拉"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "塔卫二",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "endo"
+    ],
+    "variants": [
+      "塔洛索 2",
+      "塔洛索2"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "安可",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi",
+      "ja"
+    ],
+    "variants": [
+      "Enrew",
+      "恩鲁"
+    ],
+    "ctx": [
+      {
+        "ref_regex": "アンコ",
+        "wrong": "Anko"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "安洁莉娜",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "ak",
+      "akko"
+    ],
+    "variants": [
+      "Angelina",
+      "安吉丽娜"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "岁主·角",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [
+      "哨兵 Chuy",
+      "哨兵 Ju'e"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "崩坏：星穹铁道",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "endo"
+    ],
+    "variants": [
+      "阪堺星轨",
+      "启星轨道"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "年",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "akko"
+    ],
+    "variants": [
+      "Nien",
+      "尼恩"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "幽客",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [
+      "虚空法师",
+      "Nethermancer"
+    ],
+    "ctx": [
+      {
+        "ref_regex": "\\bnethermancer\\b",
+        "wrong": "虚空巫师"
+      },
+      {
+        "ref_regex": "\\bnethermaner\\b|\\bnethermancer\\b",
+        "wrong": "虚空者"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "幽林之怒",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "endo"
+    ],
+    "variants": [
+      "格洛姆瓦尔德",
+      "格洛姆沃德"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "库奇",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "ak"
+    ],
+    "variants": [
+      "cookie",
+      "Cookie"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "库洛",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [
+      "Kuro games",
+      "Curo Games"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "拉普兰德",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "ak",
+      "akko"
+    ],
+    "variants": [
+      "Lapland",
+      "拉普兰"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "明庭",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "ko"
+    ],
+    "variants": [
+      "明亭",
+      "明正"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "星熊",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "ak",
+      "akko"
+    ],
+    "variants": [
+      "Hoshi",
+      "Hoshigumanuhande"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "木禺",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [
+      "暮羽",
+      "Muyu"
+    ],
+    "ctx": [
+      {
+        "ref_regex": "\\bMuyu\\b",
+        "wrong": "木鱼"
+      },
+      {
+        "ref_regex": "\\bMuyu\\b",
+        "wrong": "圆圈"
+      },
+      {
+        "ref_regex": "\\bMuyu\\b",
+        "wrong": "圆形的"
+      },
+      {
+        "ref_regex": "\\bMuyo\\b",
+        "wrong": "穆约"
+      },
+      {
+        "ref_regex": "\\bWhere is Mu\\b",
+        "wrong": "穆"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "桑葚",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "ak"
+    ],
+    "variants": [
+      "Malberry",
+      "Mulberry"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "残象不和谐",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [
+      "泰莎不和谐",
+      "Tacet 不和"
+    ],
+    "ctx": [
+      {
+        "ref_regex": "\\btacid\\b",
+        "wrong": "冷漠的话语"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "江湖",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [
+      "Jangghue",
+      "Jangghu"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "浮影述忆",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "pgren"
+    ],
+    "variants": [
+      "星星的回忆",
+      "恒星回忆"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "海嗣",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "ak"
+    ],
+    "variants": [
+      "seaborn",
+      "Seaborn"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "涂装",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "pgren"
+    ],
+    "variants": [
+      "编码",
+      "皮肤"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "源石虫",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "endo"
+    ],
+    "variants": [
+      "宝石虫",
+      "元石忠"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "玛莉娅·临光",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "akko"
+    ],
+    "variants": [
+      "玛丽亚·尼尔",
+      "Maria Near"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "生息演算",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "ak"
+    ],
+    "variants": [
+      "RA",
+      "Reclamation"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "祭司",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "endo"
+    ],
+    "variants": [
+      "牧师",
+      "神父"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "稷廷",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "ko"
+    ],
+    "variants": [
+      "直井",
+      "紫井"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "空弦",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "akko"
+    ],
+    "variants": [
+      "阿凯托",
+      "阿尔塞托"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "经验",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "ak"
+    ],
+    "variants": [
+      "XP",
+      "exp"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "维什戴尔",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "ak"
+    ],
+    "variants": [
+      "Wizard",
+      "Wizardell"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "艾尔登法环",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [
+      "长老戒指",
+      "elder ring"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "莫宁",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [
+      "Mouier",
+      "Mornye"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "莫宁教授",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [
+      "莫尔教授",
+      "穆耶教授"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "萨米维格",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "endo"
+    ],
+    "variants": [
+      "萨米尔维格",
+      "萨米沃格"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "调律大厅",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [
+      "调制大厅",
+      "modulation hall"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "铃",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [
+      "sudsu",
+      "Suzu"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "阿格罗斯",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "endo"
+    ],
+    "variants": [
+      "阿格罗蒂亚",
+      "阿吉罗斯"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "阿米娅",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "ak",
+      "akko"
+    ],
+    "variants": [
+      "Amya",
+      "阿米亚"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "露丝·布拉德弗雷姆",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "react"
+    ],
+    "variants": [
+      "罗斯·血焰",
+      "罗丝·血焰"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "露西亚",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "pgren"
+    ],
+    "variants": [
+      "露西娅",
+      "Lucia"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "鹰角",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "ak"
+    ],
+    "variants": [
+      "hyper",
+      "Hypergryph"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "100%",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "react"
+    ],
+    "variants": [
+      "10,00%"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "Amiya",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "fix-en"
+    ],
+    "variants": [
+      "Amiia"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "Barge",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "ak"
+    ],
+    "variants": [
+      "驳船"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "Chixia",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "fix-en"
+    ],
+    "variants": [
+      "Senoa"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "Crimson Cat",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "ak"
+    ],
+    "variants": [
+      "红猫"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "Crownless",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "fix-en"
+    ],
+    "variants": [
+      "crownless"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "Crywolf",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [
+      "战狼"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "Jinhsi",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "fix-en"
+    ],
+    "variants": [
+      "Ginshi"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "Jinzhou City",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "fix-en"
+    ],
+    "variants": [
+      "Jingo City"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "Kitamura",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "fix-en"
+    ],
+    "variants": [
+      "Kamura"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "Lament",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "fix-en"
+    ],
+    "variants": [
+      "Renoians"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "Madame Magistrate",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "fix-en"
+    ],
+    "variants": [
+      "Miss Magistrate"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "Magistrate",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "fix-en"
+    ],
+    "variants": [
+      "magistrate"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "OMORI",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [
+      "Amorei"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "Q版",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "pgren"
+    ],
+    "variants": [
+      "赤壁"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "Roguelike",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "endo"
+    ],
+    "variants": [
+      "类 Rogue"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "Sure",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "fix-en"
+    ],
+    "variants": [
+      "Shov"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "Tacet",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "fix-en"
+    ],
+    "variants": [
+      "Tessa"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "Tacet discords",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "fix-en"
+    ],
+    "variants": [
+      "Tessa discords"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "Threnodian'",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "fix-en"
+    ],
+    "variants": [
+      "Thrronodian'"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "Threnodian's",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "fix-en"
+    ],
+    "variants": [
+      "Thrronodian's"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "Threnodians",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "fix-en"
+    ],
+    "variants": [
+      "Thrronodians"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "Twitch",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "pgren"
+    ],
+    "variants": [
+      "抽搐"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "Yangyang",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "fix-en"
+    ],
+    "variants": [
+      "Yap Yap"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "bass drop",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "fix-en"
+    ],
+    "variants": [
+      "base drop"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "bass drops",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "fix-en"
+    ],
+    "variants": [
+      "base drops"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "cowoos",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "ak"
+    ],
+    "variants": [
+      "科沃斯"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "illusion",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "fix-en"
+    ],
+    "variants": [
+      "Alisium"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "insignificant",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "fix-en"
+    ],
+    "variants": [
+      "Pificant"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "main story quest",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "fix-en"
+    ],
+    "variants": [
+      "MSQ"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "sono",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "fix-en"
+    ],
+    "variants": [
+      "Sono"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "sono disc",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "fix-en"
+    ],
+    "variants": [
+      "sauna disc"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "tacet",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "fix-en"
+    ],
+    "variants": [
+      "tacid"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "the Crownless",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "fix-en"
+    ],
+    "variants": [
+      "the crownless"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "一部分在于音高",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "react"
+    ],
+    "variants": [
+      "一部分是球场"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "一键养成",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "pgren"
+    ],
+    "variants": [
+      "快速升级"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "专精3",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "ak"
+    ],
+    "variants": [
+      "M3"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "今州市政厅",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [
+      "金戈市政厅"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "今州角",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [
+      "金州爵"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "保全派驻",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "ak"
+    ],
+    "variants": [
+      "SSS"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "克丽斯腾",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "akko"
+    ],
+    "variants": [
+      "克里斯汀"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "克制的颤音",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "react"
+    ],
+    "variants": [
+      "测量 VB"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "克里斯托弗",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [
+      "Christophoro"
+    ],
+    "ctx": [
+      {
+        "ref_regex": "Christopho",
+        "wrong": "克里斯托弗罗"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "克雷松",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "endo"
+    ],
+    "variants": [
+      "克莱松"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "全面战争",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "endo"
+    ],
+    "variants": [
+      "道达尔"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "兰德",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "ak"
+    ],
+    "variants": [
+      "Land"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "共鸣解放",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "ja"
+    ],
+    "variants": [
+      "共鸣释放"
+    ],
+    "ctx": [
+      {
+        "ref_regex": "表明解放",
+        "wrong": "清单释放"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "兽主",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "endo"
+    ],
+    "variants": [
+      "兽王"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "再重听一遍",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "react"
+    ],
+    "variants": [
+      "重新列出它"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "凌阳",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [
+      "陵阳"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "凛冬",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "akko"
+    ],
+    "variants": [
+      "矢岛"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "切尔诺伯格",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "akko"
+    ],
+    "variants": [
+      "切尔诺博格"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "划呀，划呀，对抗那力量，就像这样",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "react"
+    ],
+    "variants": [
+      "排，排，对抗力量，就像这样"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "力量属于大家。力量为",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "react"
+    ],
+    "variants": [
+      "权力给窥视者。电源为"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "勤务商店",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "pgren"
+    ],
+    "variants": [
+      "服务店"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "北极航线联合",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "pgren"
+    ],
+    "variants": [
+      "北极航线联盟"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "协同攻击",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "ja"
+    ],
+    "variants": [
+      "联合攻击"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "卡兹戴尔",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "ak"
+    ],
+    "variants": [
+      "卡兹德尔"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "卡列尼娜·烬燃",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "pgren"
+    ],
+    "variants": [
+      "Karanina Eulgan"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "卡池",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "ak"
+    ],
+    "variants": [
+      "banner"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "参事大人",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "ko"
+    ],
+    "variants": [
+      "Chamsa"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "同步率",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [
+      "Syncrate"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "同步者",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [
+      "同步员"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "吾导先路",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "zho"
+    ],
+    "variants": [
+      "Guiding Ahead"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "呃",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "jpe"
+    ],
+    "variants": [
+      "图片"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "唉",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "jpe"
+    ],
+    "variants": [
+      "叹"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "四号谷地",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "endo"
+    ],
+    "variants": [
+      "4号峡谷"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "回路演算",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "pgren"
+    ],
+    "variants": [
+      "模拟"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "因陀罗",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "ak"
+    ],
+    "variants": [
+      "Indra"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "塔罗斯",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "endo"
+    ],
+    "variants": [
+      "塔洛斯"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "塔露拉",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "akko"
+    ],
+    "variants": [
+      "塔卢拉"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "塞雷娅",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "ak"
+    ],
+    "variants": [
+      "Sara"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "增幅器",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "ja"
+    ],
+    "variants": [
+      "扩音器"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "声痕",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [
+      "tacet标记"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "夕",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "ak"
+    ],
+    "variants": [
+      "Dusk"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "夜归军士",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "ko"
+    ],
+    "variants": [
+      "夜鬼兵"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "天弧",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [
+      "skyarch"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "女神异闻录",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "ak"
+    ],
+    "variants": [
+      "Persona"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "她拯救的人",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [
+      "她得救的人"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "好帅",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "jpe"
+    ],
+    "variants": [
+      "凉爽的"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "威德尔",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "ak"
+    ],
+    "variants": [
+      "Widel"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "学院",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [
+      "academyy"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "宴",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "akko"
+    ],
+    "variants": [
+      "Utage"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "对抗强权。触摸那不可触碰之物",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "react"
+    ],
+    "variants": [
+      "对抗权力。触摸不可触摸的东西"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "小爱弥斯",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [
+      "小伊斯"
+    ],
+    "ctx": [
+      {
+        "ref_regex": "little eye meth",
+        "wrong": "小眼睛的方法"
+      },
+      {
+        "ref_regex": "\\bLil Meth\\b",
+        "wrong": "莉尔·梅斯"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "岁主心月狐",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [
+      "月狐岁主希恩"
+    ],
+    "ctx": [
+      {
+        "ref_regex": "\\bSentinel\\b",
+        "wrong": "月狐岁主心"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "岁月已定",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [
+      "年龄已定"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "崩坏",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "wwoc"
+    ],
+    "variants": [
+      "붕괴"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "巴伦阁下",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [
+      "男爵勋爵"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "干净的歌剧演唱",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "react"
+    ],
+    "variants": [
+      "干净的oporatic"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "干员故事",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "endo"
+    ],
+    "variants": [
+      "操作员故事"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "广州",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [
+      "广珠"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "库洛游戏",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "pgren"
+    ],
+    "variants": [
+      "W Crow 游戏"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "应龙",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "jpe"
+    ],
+    "variants": [
+      "王龙"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "应龙关",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "endo"
+    ],
+    "variants": [
+      "应用网关"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "应龙特勤队",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "jpe"
+    ],
+    "variants": [
+      "应龙特种部队"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "弑君者",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "zho"
+    ],
+    "variants": [
+      "Crown Slayer"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "归魂的引用",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "ko"
+    ],
+    "variants": [
+      "幽灵报价"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "彩虹六号",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "ak"
+    ],
+    "variants": [
+      "Rainbow 6"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "很酷",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "react"
+    ],
+    "variants": [
+      "凉爽的"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "微风",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "ak"
+    ],
+    "variants": [
+      "Breeze"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "德克萨斯",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "akko"
+    ],
+    "variants": [
+      "德克萨斯州"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "忌炎",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi",
+      "ja"
+    ],
+    "variants": [
+      "吉恩"
+    ],
+    "ctx": [
+      {
+        "ref_regex": "ジャン(?!ル)",
+        "wrong": "吉恩"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "怪物猎人",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "ak"
+    ],
+    "variants": [
+      "Monster Hunter"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "恋次",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [
+      "莲吉"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "恒星矩阵",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [
+      "斯特拉矩阵"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "感谢提弗洛斯",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "endo"
+    ],
+    "variants": [
+      "感谢泰弗罗斯"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "我喜欢那种咬字的力度",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "react"
+    ],
+    "variants": [
+      "我喜欢咬一口"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "我的明日方舟啊",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "ak"
+    ],
+    "variants": [
+      "圣弧骑士"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "所幸",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "endo"
+    ],
+    "variants": [
+      "索幸"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "提弗洛斯是",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "endo"
+    ],
+    "variants": [
+      "Depros 是"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "斯劳萨",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "ak"
+    ],
+    "variants": [
+      "Srausa"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "无敌帧",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "endo"
+    ],
+    "variants": [
+      "i 框架"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "无根花",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "endo"
+    ],
+    "variants": [
+      "无根之花"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "无限城",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [
+      "无限城堡"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "明日方舟：终末地",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "jpe"
+    ],
+    "variants": [
+      "明日方舟末地"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "星门",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "jpe"
+    ],
+    "variants": [
+      "正门"
+    ],
+    "ctx": [
+      {
+        "ref_regex": "正門|大門",
+        "wrong": "大门"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "星门的另一边",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "jpe"
+    ],
+    "variants": [
+      "大门的另一边"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "昭日者",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [
+      "灵魂誓约者"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "暗属性、聚变型",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "pgren"
+    ],
+    "variants": [
+      "深色过度链接器"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "杰西卡",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "ak"
+    ],
+    "variants": [
+      "Jessica"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "极光",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "akko"
+    ],
+    "variants": [
+      "奥罗拉"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "极境",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "akko"
+    ],
+    "variants": [
+      "极乐世界"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "构造体研发",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "pgren"
+    ],
+    "variants": [
+      "构建研发"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "梦州城",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [
+      "Menjo市"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "森美声 (Mori Calliope)",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "react"
+    ],
+    "variants": [
+      "莫里·卡利俄珀 (Mori Calliope)"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "模组",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "ak"
+    ],
+    "variants": [
+      "module"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "歌剧咏叹调",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "react"
+    ],
+    "variants": [
+      "歌剧艾莉亚"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "歌剧式演唱",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "react"
+    ],
+    "variants": [
+      "杂乱的歌声"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "泥岩",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "zho",
+      "akko"
+    ],
+    "variants": [
+      "Mudrock"
+    ],
+    "ctx": [
+      {
+        "ref_regex": "머드락",
+        "wrong": "泥石"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "泰缇斯",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [
+      "Tethus"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "泰缇斯系统",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [
+      "teth系统"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "洁塔薇",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "pgren"
+    ],
+    "variants": [
+      "Jatavi"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "流星",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "ak"
+    ],
+    "variants": [
+      "Meteor"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "深靛",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "akko"
+    ],
+    "variants": [
+      "靛蓝"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "清流",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "ak"
+    ],
+    "variants": [
+      "Pure Stream"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "温蒂",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "akko"
+    ],
+    "variants": [
+      "威迪"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "溯洄雨",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [
+      "逆雨"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "火神",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "ak"
+    ],
+    "variants": [
+      "Valkcon"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "炽霞",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [
+      "出奇西亚"
+    ],
+    "ctx": [
+      {
+        "ref_regex": "\\bChisha\\b",
+        "wrong": "赤煞"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "爱丽丝",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "akko"
+    ],
+    "variants": [
+      "鸢尾花"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "爱国者",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "akko"
+    ],
+    "variants": [
+      "爱国牛"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "玫兰莎",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "zho"
+    ],
+    "variants": [
+      "Melantha"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "理智",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "ak"
+    ],
+    "variants": [
+      "sanity"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "瑕光",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "akko"
+    ],
+    "variants": [
+      "Blamy Shine"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "瑞迪安",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "ak"
+    ],
+    "variants": [
+      "Rydian"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "直声",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "react"
+    ],
+    "variants": [
+      "直语"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "真理",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "akko"
+    ],
+    "variants": [
+      "伊斯蒂娜"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "石田彰",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "endo"
+    ],
+    "variants": [
+      "石田明"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "祭坛",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "endo"
+    ],
+    "variants": [
+      "基金会"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "离解复合",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "ak"
+    ],
+    "variants": [
+      "解离重组"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "空间震",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "pgren"
+    ],
+    "variants": [
+      "空间震动"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "第七史诗",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "endo"
+    ],
+    "variants": [
+      "史诗 7"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "第纳尔",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "jpe"
+    ],
+    "variants": [
+      "迪纳尔"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "等等",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "jpe"
+    ],
+    "variants": [
+      "不挂断"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "米兰塔",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "ak"
+    ],
+    "variants": [
+      "Milanta"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "精英化",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "ak"
+    ],
+    "variants": [
+      "elite"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "精英化1",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "ak"
+    ],
+    "variants": [
+      "E1"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "精英化2",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "ak"
+    ],
+    "variants": [
+      "E2"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "索拉里斯",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi",
+      "ja"
+    ],
+    "variants": [
+      "Solaris"
+    ],
+    "ctx": [
+      {
+        "ref_regex": "ソラリス",
+        "wrong": "Solaris"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "红潮",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "pgren"
+    ],
+    "variants": [
+      "赤潮"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "约会大作战",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "pgren"
+    ],
+    "variants": [
+      "Data Live"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "终局内容",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "ak"
+    ],
+    "variants": [
+      "endame"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "耶尔什",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "jpe"
+    ],
+    "variants": [
+      "埃尔切"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "聊聊两位非常非常有才华的人（的演绎）",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "react"
+    ],
+    "variants": [
+      "谈论两个非常非常的谎言"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "聚变型",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "pgren"
+    ],
+    "variants": [
+      "过度链接器"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "能天使",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [
+      "谢谢你"
+    ],
+    "ctx": [],
+    "exclude": [
+      {
+        "variant": "谢谢你",
+        "ref_regex": "\\bthanks?\\b"
+      },
+      {
+        "variant": "谢谢你",
+        "ref_regex": "\\bthank you\\b"
+      },
+      {
+        "variant": "谢谢你",
+        "ref_regex": "\\bty\\b"
+      }
+    ],
+    "note": ""
+  },
+  {
+    "canonical": "至纯源石",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "ak"
+    ],
+    "variants": [
+      "Prime"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "花火",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "pgren"
+    ],
+    "variants": [
+      "火花"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "苇草",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "ak"
+    ],
+    "variants": [
+      "Reed"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "苏苏洛",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "ak"
+    ],
+    "variants": [
+      "Suso"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "莫阿米",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "ak"
+    ],
+    "variants": [
+      "莫科米"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "萨尔贡",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "akko"
+    ],
+    "variants": [
+      "Sargon"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "萨科塔",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "akko"
+    ],
+    "variants": [
+      "桑克塔"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "萨米",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "akko"
+    ],
+    "variants": [
+      "Sami"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "蓝毒",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "ak"
+    ],
+    "variants": [
+      "Blue"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "蔚蓝档案",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "wwoc"
+    ],
+    "variants": [
+      "蓝档案"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "蕾缪安",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "ak"
+    ],
+    "variants": [
+      "莱穆因"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "薇薇安娜",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "akko"
+    ],
+    "variants": [
+      "比比亚娜"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "虚空物质",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [
+      "空隙物质"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "虚质风暴",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [
+      "虚空风暴"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "虚质风暴潮",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [
+      "虚空风暴潮"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "衍射属性",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [
+      "光属性"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "说真的",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "jpe"
+    ],
+    "variants": [
+      "严重地"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "调香师",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "ak"
+    ],
+    "variants": [
+      "Perfumer"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "谛天鉴",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "ja"
+    ],
+    "variants": [
+      "谛天监"
+    ],
+    "ctx": [
+      {
+        "ref_regex": "諦天鑑|谛天鑑|停天|ていてん",
+        "wrong": "天工"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "贝币",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "ja"
+    ],
+    "variants": [
+      "贝壳币"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "贝斯 drop",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [
+      "基地掉落"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "贝斯下降",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [
+      "基地下降"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "贝洛内家族",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "akko"
+    ],
+    "variants": [
+      "Bellone"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "贝莫斯",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "endo"
+    ],
+    "variants": [
+      "比莫斯"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "赠送干员",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "ak"
+    ],
+    "variants": [
+      "welfare"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "超域",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "jpe"
+    ],
+    "variants": [
+      "上界"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "超频演算",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "pgren"
+    ],
+    "variants": [
+      "超频"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "转调",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "react"
+    ],
+    "variants": [
+      "更改密钥"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "软腭",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "react"
+    ],
+    "variants": [
+      "软托盘"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "辛夷大人",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "ko"
+    ],
+    "variants": [
+      "申大仁"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "过度咬字和清晰的吐字",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "react"
+    ],
+    "variants": [
+      "过度发音和宣告"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "还有很多滑音",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "react"
+    ],
+    "variants": [
+      "还有很多幻灯片"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "远离标准的歌剧式唱法",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "react"
+    ],
+    "variants": [
+      "远离标准的 oporadic"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "逆冕",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "pgren"
+    ],
+    "variants": [
+      "逆冠"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "遂明城",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "endo"
+    ],
+    "variants": [
+      "遂名城"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "遗尘漫步",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "zho"
+    ],
+    "variants": [
+      "Walk in the Dust"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "那个贝斯",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [
+      "那个基地"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "重点培养",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "ak"
+    ],
+    "variants": [
+      "hyperinvest"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "金戈",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [
+      "金阁"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "铃兰",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "ak"
+    ],
+    "variants": [
+      "Suzuran"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "银灰",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "ak"
+    ],
+    "variants": [
+      "Silver Ash"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "闪击",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "akko"
+    ],
+    "variants": [
+      "Blitz"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "阿尔图罗",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [
+      "沃奥"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "陈尼斯",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "ak"
+    ],
+    "variants": [
+      "Chennis"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "露丝·布拉德弗雷姆的",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "react"
+    ],
+    "variants": [
+      "血德的"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "领域展开",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi",
+      "ja"
+    ],
+    "variants": [
+      "域扩展"
+    ],
+    "ctx": [
+      {
+        "ref_regex": "領域展開",
+        "wrong": "面积扩张"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "颤音",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "react"
+    ],
+    "variants": [
+      "verd"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "颤音（Vibrato）",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "react"
+    ],
+    "variants": [
+      "VBR"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "飞廉之猩",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [
+      "飞镰之猩"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "驮兽",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "akko"
+    ],
+    "variants": [
+      "负担兽"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "高音区",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "react"
+    ],
+    "variants": [
+      "上层寄存器"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "鬼灭之刃",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [
+      "恶魔杀手"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "鹰眼戈夫",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "endo"
+    ],
+    "variants": [
+      "鹰眼高夫"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "龙门币",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "ak"
+    ],
+    "variants": [
+      "LMD"
+    ],
+    "ctx": [],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": ">> 清宵。",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [],
+    "ctx": [
+      {
+        "ref_regex": "\\bChing\\.$",
+        "wrong": ">> 清."
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "Paragon",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [],
+    "ctx": [
+      {
+        "ref_regex": "\\bParagon\\b",
+        "wrong": "帕拉贡沙"
+      },
+      {
+        "ref_regex": "\\bParagon\\b",
+        "wrong": "帕拉贡"
+      },
+      {
+        "ref_regex": "\\bParagon\\b",
+        "wrong": "百丽宫"
+      },
+      {
+        "ref_regex": "\\bParagon\\b",
+        "wrong": "典范"
+      },
+      {
+        "ref_regex": "\\bParagon\\b",
+        "wrong": "至尊者"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "Ratio Ultima",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [],
+    "ctx": [
+      {
+        "ref_regex": "\\bRatio Ultima\\b",
+        "wrong": "比率终极"
+      },
+      {
+        "ref_regex": "\\bRatio Ultima\\b",
+        "wrong": "比率创世纪"
+      },
+      {
+        "ref_regex": "\\bRatio Ultima\\b",
+        "wrong": "比率 Ultima"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "Thank you",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "ja"
+    ],
+    "variants": [],
+    "ctx": [
+      {
+        "ref_regex": "センキュー",
+        "wrong": "仙九"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "《临光》",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "akko"
+    ],
+    "variants": [],
+    "ctx": [
+      {
+        "ref_regex": "니어",
+        "wrong": "《Near》"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "《乐一通",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [],
+    "ctx": [
+      {
+        "ref_regex": "Looney",
+        "wrong": "《鲁尼"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "》",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [],
+    "ctx": [
+      {
+        "ref_regex": "Tunes",
+        "wrong": "曲调”"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "七丘",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi",
+      "ja"
+    ],
+    "variants": [],
+    "ctx": [
+      {
+        "ref_regex": "\\bSeptimont\\b",
+        "wrong": "塞普蒂蒙"
+      },
+      {
+        "ref_regex": "セブン・?ヒルズ",
+        "wrong": "七丘陵"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "临光",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "akko"
+    ],
+    "variants": [],
+    "ctx": [
+      {
+        "ref_regex": "니어",
+        "wrong": "Nee"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "临光姐",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "akko"
+    ],
+    "variants": [],
+    "ctx": [
+      {
+        "ref_regex": "니어",
+        "wrong": "近姐"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "主框架",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [],
+    "ctx": [
+      {
+        "ref_regex": "\\bmain frames?\\b",
+        "wrong": "主要框架"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "主谋",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [],
+    "ctx": [
+      {
+        "ref_regex": "\\bmastermind\\b",
+        "wrong": "大师"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "乐器",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [],
+    "ctx": [
+      {
+        "ref_regex": "\\binstruments?\\b",
+        "wrong": "仪器"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "乐器法",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [],
+    "ctx": [
+      {
+        "ref_regex": "instrumentation",
+        "wrong": "仪器仪表"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "云梭",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [],
+    "ctx": [
+      {
+        "ref_regex": "\\bshuttles?\\b",
+        "wrong": "航天飞机"
+      },
+      {
+        "ref_regex": "\\bshuttles?\\b",
+        "wrong": "班车"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "令尹",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [],
+    "ctx": [
+      {
+        "ref_regex": "\\bmagistrate\\b",
+        "wrong": "地方法官"
+      },
+      {
+        "ref_regex": "\\bmagistrate\\b",
+        "wrong": "法官"
+      },
+      {
+        "ref_regex": "\\bmagistrate\\b",
+        "wrong": "知县"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "以太怪物",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [],
+    "ctx": [
+      {
+        "ref_regex": "\\bethic\\b",
+        "wrong": "道德怪物"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "以太水滴",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [],
+    "ctx": [
+      {
+        "ref_regex": "\\bethic\\b",
+        "wrong": "道德水滴"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "仪式已结束",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [],
+    "ctx": [
+      {
+        "ref_regex": "right has concluded|rite has concluded",
+        "wrong": "权利已结束"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "伤痕",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [],
+    "ctx": [
+      {
+        "ref_regex": "\\bScar\\b",
+        "wrong": "疤痕"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "你好",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "ja"
+    ],
+    "variants": [],
+    "ctx": [
+      {
+        "ref_regex": "ハロー|ハロ",
+        "wrong": "晕"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "你这家伙",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "ja"
+    ],
+    "variants": [],
+    "ctx": [
+      {
+        "ref_regex": "^てめえ",
+        "wrong": "特米"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "傀影",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "akko"
+    ],
+    "variants": [],
+    "ctx": [
+      {
+        "ref_regex": "팬텀",
+        "wrong": "幻影"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "傲娇",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [],
+    "ctx": [
+      {
+        "ref_regex": "[Tt]s?undere",
+        "wrong": "Tundere/h"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "全程",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "ja"
+    ],
+    "variants": [],
+    "ctx": [
+      {
+        "ref_regex": "ノー[ー]?サウンド",
+        "wrong": "总理"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "共鸣回路",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "ja"
+    ],
+    "variants": [],
+    "ctx": [
+      {
+        "ref_regex": "表明回路",
+        "wrong": "清单电路"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "共鸣者",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi",
+      "ja"
+    ],
+    "variants": [],
+    "ctx": [
+      {
+        "ref_regex": "resonators?\\b",
+        "wrong": "谐振器"
+      },
+      {
+        "ref_regex": "共鳴",
+        "wrong": "同情者"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "凛冬出来就选择她吗",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "akko"
+    ],
+    "variants": [],
+    "ctx": [
+      {
+        "ref_regex": "이격지마",
+        "wrong": "这个人出来就选择他吗"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "利维亚坦",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [],
+    "ctx": [
+      {
+        "ref_regex": "\\bLeviathan\\b",
+        "wrong": "利维坦"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "刷本",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [],
+    "ctx": [
+      {
+        "ref_regex": "\\bfarming\\b",
+        "wrong": "种田"
+      },
+      {
+        "ref_regex": "\\bfarming\\b",
+        "wrong": "务农"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "动机",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [],
+    "ctx": [
+      {
+        "ref_regex": "\\bmotifs?\\b",
+        "wrong": "图案"
+      },
+      {
+        "ref_regex": "\\bmotifs?\\b",
+        "wrong": "主题"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "动画强度膨胀",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [],
+    "ctx": [
+      {
+        "ref_regex": "\\bpower creep\\b",
+        "wrong": "动画力量"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "北村",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [],
+    "ctx": [
+      {
+        "ref_regex": "\\bKamura\\b|\\bKitamura\\b",
+        "wrong": "由加村"
+      },
+      {
+        "ref_regex": "\\bKamura\\b|\\bKitamura\\b",
+        "wrong": "卡村"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "十连",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [],
+    "ctx": [
+      {
+        "ref_regex": "\\btent\\b",
+        "wrong": "帐篷"
+      },
+      {
+        "ref_regex": "\\b10p\\b",
+        "wrong": "10点"
+      }
+    ],
+    "exclude": [
+      {
+        "variant": "帐篷",
+        "ref_regex": "\\bwritten tent\\b"
+      }
+    ],
+    "note": ""
+  },
+  {
+    "canonical": "千里之行",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "ja"
+    ],
+    "variants": [],
+    "ctx": [
+      {
+        "ref_regex": "千里",
+        "wrong": "战略之路"
+      },
+      {
+        "ref_regex": "千里",
+        "wrong": "受益之路"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "博士",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "akko"
+    ],
+    "variants": [],
+    "ctx": [
+      {
+        "ref_regex": "박사",
+        "wrong": "医生"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "去救",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [],
+    "ctx": [
+      {
+        "ref_regex": "chasing after",
+        "wrong": "一扑扑救"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "变身",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [],
+    "ctx": [
+      {
+        "ref_regex": "\\balt\\b|\\balult\\b|\\balted\\b|\\balsated\\b",
+        "wrong": "替代项"
+      },
+      {
+        "ref_regex": "\\balsated\\b",
+        "wrong": "阿尔萨德"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "变身形态",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [],
+    "ctx": [
+      {
+        "ref_regex": "\\balt\\b|\\balult\\b|\\balted\\b|\\balsated\\b",
+        "wrong": "替代音"
+      },
+      {
+        "ref_regex": "\\balt\\b|\\balult\\b|\\balted\\b|\\balsated\\b",
+        "wrong": "替代品"
+      },
+      {
+        "ref_regex": "\\balt\\b|\\balult\\b|\\balted\\b|\\balsated\\b",
+        "wrong": "替代形态"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "吗",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "ja"
+    ],
+    "variants": [],
+    "ctx": [
+      {
+        "ref_regex": "^\\s*か\\s*$",
+        "wrong": "蚊子"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "和声",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [],
+    "ctx": [
+      {
+        "ref_regex": "\\bharmony\\b",
+        "wrong": "和谐"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "咎庭",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [],
+    "ctx": [
+      {
+        "ref_regex": "[Cc]entric",
+        "wrong": "中心法院"
+      },
+      {
+        "ref_regex": "(?:centric|centure|centra|censure)[\\s-]?courts?",
+        "wrong": "中心球场"
+      },
+      {
+        "ref_regex": "(?:centric|centure|centra|censure)[\\s-]?courts?",
+        "wrong": "中央法院"
+      },
+      {
+        "ref_regex": "(?:centric|centure|centra|censure)[\\s-]?courts?",
+        "wrong": "中央法庭"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "咎笼",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [],
+    "ctx": [
+      {
+        "ref_regex": "[Cc]entric",
+        "wrong": "中心笼"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "哈",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "ja"
+    ],
+    "variants": [],
+    "ctx": [
+      {
+        "ref_regex": "^\\s*は[、,]?\\s*$",
+        "wrong": "牙齿"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "啊、",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "ja"
+    ],
+    "variants": [],
+    "ctx": [
+      {
+        "ref_regex": "^\\s*あ[、,]?\\s*$",
+        "wrong": "一个"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "喂",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "ja"
+    ],
+    "variants": [],
+    "ctx": [
+      {
+        "ref_regex": "^\\s*おい\\s*$|^\\s*おえ\\s*$",
+        "wrong": "嘿"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "喂喂喂喂喂",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "ja"
+    ],
+    "variants": [],
+    "ctx": [
+      {
+        "ref_regex": "^おいおい",
+        "wrong": "嘿嘿嘿嘿"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "在直播时",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [],
+    "ctx": [
+      {
+        "ref_regex": "\\bstreams?\\b",
+        "wrong": "在流上"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "在这个短片开头",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [],
+    "ctx": [
+      {
+        "ref_regex": "in the beginning of this",
+        "wrong": "在本文开头"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "坠落",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [],
+    "ctx": [
+      {
+        "ref_regex": "\\ball falls\\b",
+        "wrong": "瀑布"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "塞壬唱片",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [],
+    "ctx": [
+      {
+        "ref_regex": "Monster Siren",
+        "wrong": "怪物海妖唱片"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "天鹅灵鸟",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [],
+    "ctx": [
+      {
+        "ref_regex": "\\bSchwan ?Lling\\b",
+        "wrong": "施万林鸟"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "太好了",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "ja"
+    ],
+    "variants": [],
+    "ctx": [
+      {
+        "ref_regex": "^やった",
+        "wrong": "我做到了"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "太帅了",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [],
+    "ctx": [
+      {
+        "ref_regex": "\\bsick\\b",
+        "wrong": "太恶心了"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "失灵了",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [],
+    "ctx": [
+      {
+        "ref_regex": "\\bbusted\\b",
+        "wrong": "被抓了"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "奥古斯塔",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "ja"
+    ],
+    "variants": [],
+    "ctx": [
+      {
+        "ref_regex": "オーガサ",
+        "wrong": "螺旋钻"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "女低音",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [],
+    "ctx": [
+      {
+        "ref_regex": "\\bAltos?\\b",
+        "wrong": "中音"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "好厉害",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "ja"
+    ],
+    "variants": [],
+    "ctx": [
+      {
+        "ref_regex": "^\\s*すげえ\\s*$|^\\s*すご\\s*$",
+        "wrong": "惊人的"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "安吉尔",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [],
+    "ctx": [
+      {
+        "ref_regex": "\\bAngel\\b",
+        "wrong": "天使"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "宣传片",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [],
+    "ctx": [
+      {
+        "ref_regex": "\\btrailer\\b",
+        "wrong": "拖车"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "对位",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [],
+    "ctx": [
+      {
+        "ref_regex": "\\bcounterpoint\\b",
+        "wrong": "反驳"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "封印",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [],
+    "ctx": [
+      {
+        "ref_regex": "\\bseal\\b",
+        "wrong": "海豹"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "就这个短片来说",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [],
+    "ctx": [
+      {
+        "ref_regex": "for this short",
+        "wrong": "现在就这么短"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "幽灵鲨",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "akko"
+    ],
+    "variants": [],
+    "ctx": [
+      {
+        "ref_regex": "스펙터",
+        "wrong": "幽灵"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "弗罗弗",
+    "en": "Frover",
+    "ja": "",
+    "ko": "",
+    "category": "主播/昵称",
+    "modes": [
+      "bi"
+    ],
+    "variants": [],
+    "ctx": [
+      {
+        "ref_regex": "\\bFrover\\b",
+        "wrong": "弗漂泊者"
+      }
+    ],
+    "exclude": [],
+    "note": "鸣潮主播昵称。canonical 内含漂泊者变体'罗弗'子串：若无兜底，替换到'弗漂泊者'后会被'罗弗'键二次咬合。已用 CONTEXT_MAP /\\bFrover\\b/ 佐证规则还原为'弗罗弗'（自动救回，不再人工）。subst 声明把该边界机器可读化，kb-lint 据此不再报警。"
+  },
+  {
+    "canonical": "强度膨胀",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [],
+    "ctx": [
+      {
+        "ref_regex": "\\bpower creep\\b",
+        "wrong": "力量蔓延"
+      },
+      {
+        "ref_regex": "\\bpower creep\\b",
+        "wrong": "权力蠕变"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "必抽",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [],
+    "ctx": [
+      {
+        "ref_regex": "\\bmusts?\\b|musles",
+        "wrong": "肌肉"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "悲鸣",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [],
+    "ctx": [
+      {
+        "ref_regex": "\\blament\\b",
+        "wrong": "哀叹"
+      },
+      {
+        "ref_regex": "\\blament\\b",
+        "wrong": "叹息"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "我是说如果你想同步",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [],
+    "ctx": [
+      {
+        "ref_regex": "if you want to synchronize",
+        "wrong": "我是如果你想同步"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "或者说速度",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [],
+    "ctx": [
+      {
+        "ref_regex": "or like the speed",
+        "wrong": "或喜欢速度"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "战争的泥沼",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [],
+    "ctx": [
+      {
+        "ref_regex": "the Moras of",
+        "wrong": "莫拉斯的泥潭"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "护身符",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [],
+    "ctx": [
+      {
+        "ref_regex": "talisman",
+        "wrong": "符咒"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "披散下来",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [],
+    "ctx": [
+      {
+        "ref_regex": "\\bis let down\\b|hair is let down",
+        "wrong": "很失望"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "抽卡",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [],
+    "ctx": [
+      {
+        "ref_regex": "\\bpulse\\b",
+        "wrong": "脉搏"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "拉古那",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [],
+    "ctx": [
+      {
+        "ref_regex": "\\bRaguna\\b",
+        "wrong": "拉古纳"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "拉芙希妮",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "akko"
+    ],
+    "variants": [],
+    "ctx": [
+      {
+        "ref_regex": "리드",
+        "wrong": "铅"
+      },
+      {
+        "ref_regex": "슈발 ?리드",
+        "wrong": "Chevallid"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "拯救",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [],
+    "ctx": [
+      {
+        "ref_regex": "\\bSalvation\\b",
+        "wrong": "救赎"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "拯救拉海洛",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [],
+    "ctx": [
+      {
+        "ref_regex": "save La\\b",
+        "wrong": "拯救La"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "指挥",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [],
+    "ctx": [
+      {
+        "ref_regex": "\\bconduct(?:s|ed)?\\b",
+        "wrong": "进行"
+      },
+      {
+        "ref_regex": "\\bconduct(?:s|ed)?\\b",
+        "wrong": "行为"
+      },
+      {
+        "ref_regex": "\\bconducting\\b",
+        "wrong": "传导"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "指挥家",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [],
+    "ctx": [
+      {
+        "ref_regex": "\\bconductor\\b",
+        "wrong": "导体"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "指挥过",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [],
+    "ctx": [
+      {
+        "ref_regex": "\\bconducted\\b",
+        "wrong": "进行过"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "挥之不去的残响",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [],
+    "ctx": [
+      {
+        "ref_regex": "\\blingering sessions\\b",
+        "wrong": "挥之不去的会话"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "播下的",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [],
+    "ctx": [
+      {
+        "ref_regex": "\\bsowed\\b|\\bswed\\b",
+        "wrong": "瑞典"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "收招动画",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [],
+    "ctx": [
+      {
+        "ref_regex": "\\boutro\\b",
+        "wrong": "其他动画"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "收缩",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [],
+    "ctx": [
+      {
+        "ref_regex": "\\bdetract\\b",
+        "wrong": "减弱"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "救世主",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [],
+    "ctx": [
+      {
+        "ref_regex": "\\bSavior\\b",
+        "wrong": "救主"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "文明胶囊",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [],
+    "ctx": [
+      {
+        "ref_regex": "\\bcivilization capsule\\b",
+        "wrong": "文明舱"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "无冠者",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [],
+    "ctx": [
+      {
+        "ref_regex": "[Cc]rownless",
+        "wrong": "无冕之王"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "星声",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [],
+    "ctx": [
+      {
+        "ref_regex": "asterit|astrite",
+        "wrong": "星尘"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "星尘",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [],
+    "ctx": [
+      {
+        "ref_regex": "asterit|astrite",
+        "wrong": "星星"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "是啊",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "ja"
+    ],
+    "variants": [],
+    "ctx": [
+      {
+        "ref_regex": "そうだな|そうだよ|そうなんだよね",
+        "wrong": "这是正确的"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "普通话",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [],
+    "ctx": [
+      {
+        "ref_regex": "\\bman drinking\\b",
+        "wrong": "那个喝酒的人"
+      },
+      {
+        "ref_regex": "\\bmenrine\\b",
+        "wrong": "menrine"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "机傀",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [],
+    "ctx": [
+      {
+        "ref_regex": "autopuppets?\\b|auto puppets?\\b",
+        "wrong": "自动傀儡"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "残响",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [],
+    "ctx": [
+      {
+        "ref_regex": "reverberation",
+        "wrong": "混响"
+      },
+      {
+        "ref_regex": "reverberations?\\b",
+        "wrong": "回响"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "没想到会引爆",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [],
+    "ctx": [
+      {
+        "ref_regex": "set off",
+        "wrong": "没想到会出发"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "洛可可",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "ja"
+    ],
+    "variants": [],
+    "ctx": [
+      {
+        "ref_regex": "ロコ",
+        "wrong": "Loco"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "消散",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [],
+    "ctx": [
+      {
+        "ref_regex": "\\bto nothing\\b",
+        "wrong": "无所事事"
+      },
+      {
+        "ref_regex": "\\bto nothing\\b",
+        "wrong": "什么都没有"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "清宵,",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [],
+    "ctx": [
+      {
+        "ref_regex": "\\bChing[,.]",
+        "wrong": "清,"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "灰烬",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "akko"
+    ],
+    "variants": [],
+    "ctx": [
+      {
+        "ref_regex": "애쉬|애시",
+        "wrong": "阿什"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "炎熔",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "akko"
+    ],
+    "variants": [],
+    "ctx": [
+      {
+        "ref_regex": "라바",
+        "wrong": "熔岩"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "焦头烂额",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [],
+    "ctx": [
+      {
+        "ref_regex": "\\bfried\\b",
+        "wrong": "油炸"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "煌",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "akko"
+    ],
+    "variants": [],
+    "ctx": [
+      {
+        "ref_regex": "블레이즈",
+        "wrong": "火焰"
+      },
+      {
+        "ref_regex": "블레이즈",
+        "wrong": "烈焰"
+      },
+      {
+        "ref_regex": "블레이즈",
+        "wrong": "Blaze"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "物理",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "ja"
+    ],
+    "variants": [],
+    "ctx": [
+      {
+        "ref_regex": "フィジカル",
+        "wrong": "体力"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "玄Paragon",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [],
+    "ctx": [
+      {
+        "ref_regex": "\\bSchwan Paragon\\b",
+        "wrong": "天鹅典范"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "玄元境",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [],
+    "ctx": [
+      {
+        "ref_regex": "\\bSchwan Yuan\\b",
+        "wrong": "天鹅园域"
+      },
+      {
+        "ref_regex": "\\bSchwanuan\\b",
+        "wrong": "施瓦努安"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "珂莱塔",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "ja"
+    ],
+    "variants": [],
+    "ctx": [
+      {
+        "ref_regex": "カカロ",
+        "wrong": "卡卡罗"
+      },
+      {
+        "ref_regex": "カカロ",
+        "wrong": "卡卡洛"
+      },
+      {
+        "ref_regex": "カロ",
+        "wrong": "莫卡罗"
+      },
+      {
+        "ref_regex": "カロ",
+        "wrong": "卡罗"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "电锯",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "ja"
+    ],
+    "variants": [],
+    "ctx": [
+      {
+        "ref_regex": "チェンソ",
+        "wrong": "连锁店"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "画面",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [],
+    "ctx": [
+      {
+        "ref_regex": "\\bframe\\b",
+        "wrong": "框架"
+      }
+    ],
+    "exclude": [
+      {
+        "variant": "框架",
+        "ref_regex": "\\bmain frame\\b"
+      }
+    ],
+    "note": ""
+  },
+  {
+    "canonical": "疯子",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [],
+    "ctx": [
+      {
+        "ref_regex": "\\bpsycho\\b",
+        "wrong": "心理"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "直播",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [],
+    "ctx": [
+      {
+        "ref_regex": "\\bstreams?\\b",
+        "wrong": "溪流"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "直播时间表",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [],
+    "ctx": [
+      {
+        "ref_regex": "stream schedule",
+        "wrong": "流时间表"
+      },
+      {
+        "ref_regex": "stream schedule",
+        "wrong": "流式传输您的时间表"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "直播，然后",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [],
+    "ctx": [
+      {
+        "ref_regex": "\\bstreams\\b",
+        "wrong": "流，然后"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "真的",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "ja"
+    ],
+    "variants": [],
+    "ctx": [
+      {
+        "ref_regex": "^\\s*マジ[?？]?\\s*$",
+        "wrong": "严重地"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "确实",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "ja"
+    ],
+    "variants": [],
+    "ctx": [
+      {
+        "ref_regex": "^\\s*確か\\s*$",
+        "wrong": "肯定"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "秧秧和",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [],
+    "ctx": [
+      {
+        "ref_regex": "\\bYang\\b",
+        "wrong": "杨和"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "穗穗",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [],
+    "ctx": [
+      {
+        "ref_regex": "\\bSushi\\b",
+        "wrong": "寿司"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "管钟",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [],
+    "ctx": [
+      {
+        "ref_regex": "tubular",
+        "wrong": "管状钟"
+      },
+      {
+        "ref_regex": "tubular",
+        "wrong": "管状"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "箭镞，由",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [],
+    "ctx": [
+      {
+        "ref_regex": "\\barrowheads\\b",
+        "wrong": "箭头，由"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "糟了",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "ja"
+    ],
+    "variants": [],
+    "ctx": [
+      {
+        "ref_regex": "^\\s*やば\\s*$",
+        "wrong": "哦不"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "老婆",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [],
+    "ctx": [
+      {
+        "ref_regex": "\\bwaifu",
+        "wrong": "外婆"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "耶拉",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "akko"
+    ],
+    "variants": [],
+    "ctx": [
+      {
+        "ref_regex": "쉐라애",
+        "wrong": "Shera Ae"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "英文",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [],
+    "ctx": [
+      {
+        "ref_regex": "\\bthe Ian\\b",
+        "wrong": "伊恩"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "英白拉多",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "ja"
+    ],
+    "variants": [],
+    "ctx": [
+      {
+        "ref_regex": "インペラトル",
+        "wrong": "Imperator"
+      },
+      {
+        "ref_regex": "インペラトル",
+        "wrong": "皇帝"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "莫塔里",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [],
+    "ctx": [
+      {
+        "ref_regex": "\\bMontellis?\\b",
+        "wrong": "蒙特利斯"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "虚空",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [],
+    "ctx": [
+      {
+        "ref_regex": "\\bVoid\\b",
+        "wrong": "空白"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "虚诞虫",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [],
+    "ctx": [
+      {
+        "ref_regex": "\\bexosworm\\b",
+        "wrong": "外蠕虫"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "虚质",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [],
+    "ctx": [
+      {
+        "ref_regex": "\\bVoid\\b",
+        "wrong": "空白"
+      },
+      {
+        "ref_regex": "\\bVoid\\b",
+        "wrong": "虚空"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "虚质浓度",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [],
+    "ctx": [
+      {
+        "ref_regex": "high void\\b",
+        "wrong": "空隙率"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "虚质物质",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [],
+    "ctx": [
+      {
+        "ref_regex": "void matter",
+        "wrong": "虚空物质"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "虚质空间",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [],
+    "ctx": [
+      {
+        "ref_regex": "void space",
+        "wrong": "虚空"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "蜃境",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [],
+    "ctx": [
+      {
+        "ref_regex": "\\bMirage\\b",
+        "wrong": "幻界"
+      },
+      {
+        "ref_regex": "\\bMirage\\b",
+        "wrong": "幻境"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "让我想起尼尔",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [],
+    "ctx": [
+      {
+        "ref_regex": "\\bNier\\b",
+        "wrong": "提醒我的尼尔"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "诶",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "ja"
+    ],
+    "variants": [],
+    "ctx": [
+      {
+        "ref_regex": "^\\s*え[、,?？]?\\s*$",
+        "wrong": "图片"
+      },
+      {
+        "ref_regex": "^\\s*え、?\\s*$",
+        "wrong": "呃"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "调低设置",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [],
+    "ctx": [
+      {
+        "ref_regex": "dial back",
+        "wrong": "拨回设置"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "谢拉格",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "akko"
+    ],
+    "variants": [],
+    "ctx": [
+      {
+        "ref_regex": "쉐라그",
+        "wrong": "沙拉"
+      },
+      {
+        "ref_regex": "쉐라그",
+        "wrong": "Sherag"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "赫默",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "akko"
+    ],
+    "variants": [],
+    "ctx": [
+      {
+        "ref_regex": "사일런스",
+        "wrong": "沉默"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "这个短片里",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [],
+    "ctx": [
+      {
+        "ref_regex": "\\bshort\\b",
+        "wrong": "简而言之"
+      }
+    ],
+    "exclude": [
+      {
+        "variant": "简而言之",
+        "ref_regex": "\\bin short\\b"
+      }
+    ],
+    "note": ""
+  },
+  {
+    "canonical": "适格者",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [],
+    "ctx": [
+      {
+        "ref_regex": "synchronist",
+        "wrong": "同步器"
+      },
+      {
+        "ref_regex": "synchronist",
+        "wrong": "同步员"
+      },
+      {
+        "ref_regex": "synchronist",
+        "wrong": "同步者"
+      },
+      {
+        "ref_regex": "chosen synchronist",
+        "wrong": "被选中的同步者"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "那么",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "ja"
+    ],
+    "variants": [],
+    "ctx": [
+      {
+        "ref_regex": "^そんなに",
+        "wrong": "所以"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "配器法",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [],
+    "ctx": [
+      {
+        "ref_regex": "orchestration",
+        "wrong": "编排"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "重归废墟",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [],
+    "ctx": [
+      {
+        "ref_regex": "\\bReturn to\\b",
+        "wrong": "返回房间"
+      },
+      {
+        "ref_regex": "\\bReturn to\\b",
+        "wrong": "返回所有墙壁"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "链接",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [],
+    "ctx": [
+      {
+        "ref_regex": "\\bmaintain the lane\\b",
+        "wrong": "车道"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "阿布",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [],
+    "ctx": [
+      {
+        "ref_regex": "\\bAbby\\b",
+        "wrong": "艾比"
+      },
+      {
+        "ref_regex": "\\bAby\\b",
+        "wrong": "艾比"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "阿布拉克萨斯",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [],
+    "ctx": [
+      {
+        "ref_regex": "\\bAbbyus\\b|\\bAbrais\\b",
+        "wrong": "阿布雷斯"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "隧群",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [],
+    "ctx": [
+      {
+        "ref_regex": "exos swarm",
+        "wrong": "外星群体"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "雪绒封印",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [],
+    "ctx": [],
+    "exclude": [
+      {
+        "variant": "雪绒海豹",
+        "ref_regex": "\\bseal\\b"
+      }
+    ],
+    "note": ""
+  },
+  {
+    "canonical": "雪绒海豹",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [],
+    "ctx": [
+      {
+        "ref_regex": "\\bSnowfluff seals?\\b",
+        "wrong": "雪绒密封"
+      },
+      {
+        "ref_regex": "\\bSnowfluff seals?\\b",
+        "wrong": "雪毛海豹"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "霜华",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "akko"
+    ],
+    "variants": [],
+    "ctx": [
+      {
+        "ref_regex": "프로스트",
+        "wrong": "弗罗斯特"
+      },
+      {
+        "ref_regex": "프로스트",
+        "wrong": "冰霜"
+      },
+      {
+        "ref_regex": "프로스트",
+        "wrong": "糖霜"
+      },
+      {
+        "ref_regex": "프로스트",
+        "wrong": "霜冻"
+      },
+      {
+        "ref_regex": "프로스트",
+        "wrong": "霜人"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "霜华刚刚出来",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "akko"
+    ],
+    "variants": [],
+    "ctx": [
+      {
+        "ref_regex": "프로스트",
+        "wrong": "霜刚刚出来"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "露帕",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi",
+      "ja"
+    ],
+    "variants": [],
+    "ctx": [
+      {
+        "ref_regex": "\\bLupa\\b",
+        "wrong": "卢帕"
+      },
+      {
+        "ref_regex": "\\bLup\\b",
+        "wrong": "卢普"
+      },
+      {
+        "ref_regex": "ルパ",
+        "wrong": "卢帕"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "露帕武器",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "ja"
+    ],
+    "variants": [],
+    "ctx": [
+      {
+        "ref_regex": "ルパブキ",
+        "wrong": "卢巴布基"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "骗人",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "ja"
+    ],
+    "variants": [],
+    "ctx": [
+      {
+        "ref_regex": "^\\s*嘘[。、]?\\s*$",
+        "wrong": "说谎"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  },
+  {
+    "canonical": "鳞片",
+    "en": "",
+    "ja": "",
+    "ko": "",
+    "category": "",
+    "modes": [
+      "bi"
+    ],
+    "variants": [],
+    "ctx": [
+      {
+        "ref_regex": "\\bscales?\\b",
+        "wrong": "秤"
+      }
+    ],
+    "exclude": [],
+    "note": ""
+  }
+]

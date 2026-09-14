@@ -1,8 +1,24 @@
 ; ============================================================================
-; 视频工具箱 v1.10.7 —— Inno Setup 安装包脚本
+; 视频工具箱 v1.12.0 —— Inno Setup 安装包脚本
 ; 构建前提：已用 tools\python 执行 pyinstaller 视频工具箱.spec，
 ;           产物位于 dist\视频工具箱.exe
-; 编译：ISCC.exe 视频工具箱.iss  →  installer\视频工具箱_Setup_v1.10.7.exe
+; 编译：ISCC.exe 视频工具箱.iss  →  installer\视频工具箱_Setup_v1.12.0.exe
+; v1.12.0：翻译链路全面修缮——① 谷歌翻译改抓 Chrome 内置翻译同源免费接口
+;         （translate_a/t?client=dict-chrome-ex）并加全局请求节流（≥0.12s/次）；
+;         ② 必应翻译换 translatetext 端点取 token；
+;         ③ 翻译基类对失败译文（ERROR/空/xxx||ERROR）不写缓存、块级可重试；
+;         ④ LLM 翻译并发上限（_LLM_THREAD_CAP=5）与限流处理，防 429 刷屏；
+;         ⑤ 取消任务立即停掉翻译/优化线程池；⑥ 关闭「启用 AI」时兜底不介入 LLM。
+; v1.11.0：LLM 拆为两条各自独立的 API 通道（接口 A 工具箱 / 接口 B 字幕引擎与
+;         AI 校准，地址、密钥、模型可分别填写）；新增全局 ASR 语音识别配置
+;         （自有 ASR 服务或本地独立模型，自动写入引擎「转录配置」）；
+;         字幕校准新增 Agent 级「AI 校准」开关与「再次校准」（新增
+;         src\calib_ai_agent.py，随 exe 一起打包）；披露 diskcache 延迟化，
+;         消除进入「字幕处理」页的数秒卡顿（本机实测构建 0.7s 级）。
+; v1.10.8：设置收敛为唯一全局设置页（取消工具/引擎分段与独立引擎对话框），
+;         LLM 配置全局化（工具箱与字幕引擎共用一套），引擎工作目录等默认
+;         位置全部强制到软件文件夹（不再落 C 盘）；校准知识保持启动拉取合并、
+;         退出先并再推的多用户对等并集同步（合并核心抽到 src\calib_merge_core.py）。
 ; v1.10.5：校准脚本升级为对象级知识库版本（新增 ENTITIES 对象层与
 ;         learn 学习系统，kb-lint/kb-export/kb-lookup 子命令）；
 ;         校准界面模式列表与脚本实际支持的全部 12 种模式对齐，移除
@@ -34,7 +50,7 @@
 ; ============================================================================ 
 
 #define MyAppName "视频工具箱"
-#define MyAppVersion "1.10.7"
+#define MyAppVersion "1.12.0"
 #define MyAppPublisher "VideoToolbox"
 #define MyAppExeName "视频工具箱.exe"
 
@@ -84,11 +100,18 @@ Source: "tools\yt-dlp.exe"; DestDir: "{app}\tools"; Flags: ignoreversion nocompr
 ; 内嵌 Python 运行时（VideoCaptioner 字幕引擎及其依赖随包分发，开箱可用）；
 ; 排除字节码缓存瘦身
 Source: "tools\python\*"; DestDir: "{app}\tools\python"; Flags: ignoreversion recursesubdirs createallsubdirs; Excludes: "*.pyc,__pycache__"
+; VideoCaptioner 纯代码 wheel 不含 resource（界面图片/字体/默认字幕样式/多语言）。
+; 这些静态资源随包分发，内嵌引擎才能离线自包含、真正成为程序一部分（v1.10.8）。
+Source: "tools\videocaptioner\resource\*"; DestDir: "{app}\tools\videocaptioner\resource"; Flags: ignoreversion recursesubdirs createallsubdirs
 ; AI 客户端（仅标准库）：字幕/标题语言识别用（v1.10.1 起投稿板块已移除）
 Source: "tools\ai_client.py"; DestDir: "{app}\tools"; Flags: ignoreversion
 ; 源代码 / 脚本启动器统一归入 src\（供脚本方式运行与查阅）
 Source: "src\video_toolbox.py"; DestDir: "{app}\src"; Flags: ignoreversion
 Source: "src\video_toolbox_qt.py"; DestDir: "{app}\src"; Flags: ignoreversion
+; v1.11.0：新增源码——合并核心、AI 校准 Agent、官方实现一键套用脚本
+Source: "src\calib_merge_core.py"; DestDir: "{app}\src"; Flags: ignoreversion
+Source: "src\calib_ai_agent.py"; DestDir: "{app}\src"; Flags: ignoreversion
+Source: "src\apply_vc_official.py"; DestDir: "{app}\src"; Flags: ignoreversion
 Source: "src\视频工具箱.bat"; DestDir: "{app}\src"; Flags: ignoreversion
 ; 文档资料统一归入 docs\
 Source: "docs\使用说明.txt"; DestDir: "{app}\docs"; Flags: ignoreversion
@@ -96,6 +119,11 @@ Source: "docs\界面预览.png"; DestDir: "{app}\docs"; Flags: ignoreversion
 ; 第三方组件合规声明：VideoCaptioner（GPL-3.0）许可全文与组件来源
 Source: "docs\VideoCaptioner_GPL-3.0.txt"; DestDir: "{app}\docs"; Flags: ignoreversion
 Source: "docs\VideoCaptioner_组件来源.txt"; DestDir: "{app}\docs"; Flags: ignoreversion
+; v1.11.0：官方新版提示词与三个免费翻译器实现归档（重装 tools\python 后
+; 用 src\apply_vc_official.py 一键恢复），以及程序说明书
+Source: "docs\vc_prompts_official\*"; DestDir: "{app}\docs\vc_prompts_official"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "docs\vc_translate_impl\*"; DestDir: "{app}\docs\vc_translate_impl"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "docs\程序说明书.md"; DestDir: "{app}\docs"; Flags: ignoreversion
 
 [Dirs]
 ; 用户数据目录空壳（下载/缩略图缓存）
