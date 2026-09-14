@@ -1,0 +1,19 @@
+<Updates>
+ <ApplicationName>{AnyApplication}</ApplicationName>
+ <ApplicationVersion>1.0.0</ApplicationVersion>
+ <Checksum>true</Checksum>
+ <PackageUpdate>
+  <Name>com.videotoolbox.base</Name>
+  <DisplayName>视频工具箱 主程序</DisplayName>
+  <Description>主程序、界面源码、文档与第三方组件声明（必装，约 88MB）</Description>
+  <Version>1.12.0</Version>
+  <ReleaseDate>2026-09-14</ReleaseDate>
+  <ForcedInstallation>true</ForcedInstallation>
+  <SortingPriority>100</SortingPriority>
+  <Script>installscript.qs</Script>
+  <UpdateFile CompressedSize="108768686" OS="Any" UncompressedSize="143182787"/>
+  <DownloadableArchives>docs.7z,src.7z,tools.7z,content.7z</DownloadableArchives>
+ </PackageUpdate>
+ <SHA1>c6bf1dec746e98d6f97509dbb5aa5cd9847d220a</SHA1>
+ <MetadataName>2026-09-14-0827_meta.7z</MetadataName>
+</Updates>
