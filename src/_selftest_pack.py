@@ -210,11 +210,88 @@ def test_output_template(base):
           dirname or f"rc={r.returncode}")
 
 
+def test_launcher_encoding():
+    print("\n[0] 启动器 视频工具箱.bat 编码安全（cmd 按 OEM 代码页解析）")
+    bat = os.path.join(engine.SRC_DIR, "视频工具箱.bat")
+    check("启动器存在", os.path.isfile(bat), bat)
+    if not os.path.isfile(bat):
+        return
+    raw = open(bat, "rb").read()
+    # cmd 在 chcp 65001 生效前按 GBK 解析 .bat 字节；任何非 ASCII（如 UTF-8 中文
+    # 注释）都可能错读后吞掉后续 set 行，导致选错解释器而无法启动。必须纯 ASCII。
+    non_ascii = [i for i, b in enumerate(raw) if b > 127]
+    check("启动器为纯 ASCII（无中文/UTF-8 字节）", not non_ascii,
+          "非 ASCII 字节数=%d" % len(non_ascii))
+    text = raw.decode("ascii", errors="replace")
+    check("优先使用内嵌 tools\\python", "tools\\python\\python.exe" in text)
+    code_lines = [ln.strip() for ln in text.splitlines()
+                  if ln.strip() and not ln.strip().lower().startswith("rem")]
+    check("拖入参数逐个安全加引号（命令行不裸用 %*）",
+          any(':collect' in ln for ln in code_lines) and
+          any('"%~1"' in ln for ln in code_lines) and
+          not any("%*" in ln for ln in code_lines))
+
+
+def test_codec_compat(base):
+    print("\n[*] 文本编码兼容（UTF-8 / GBK / ASCII 同时支持）")
+    d = engine.decode_bytes_any
+    # ASCII 是 UTF-8 子集
+    check("ASCII 正常解码", d(b"hello 123") == "hello 123")
+    cn = "中文字幕：你好，世界！🎉"
+    cn_gbk = "中文字幕：你好，世界！繁體與简体"  # GBK 可编码（不含 emoji）
+    # UTF-8 无 BOM / 带 BOM
+    check("UTF-8 无 BOM", d(cn.encode("utf-8")) == cn)
+    check("UTF-8 带 BOM", d(b"\xef\xbb\xbf" + cn.encode("utf-8")) == cn)
+    # GBK（GB18030 超集）老式中文 Windows / 字幕工具导出
+    gbk = cn_gbk.encode("gbk")
+    check("GBK 正确解码回中文", d(gbk) == cn_gbk, d(gbk)[:12])
+    # UTF-16 LE 带 BOM（记事本“Unicode”保存）
+    check("UTF-16 LE BOM", d((b"\xff\xfe" + cn.encode("utf-16-le"))) == cn)
+    # str 原样、None 安全
+    check("str 原样返回", d(cn) is cn or d(cn) == cn)
+    check("None 返回空串", d(None) == "")
+    # 损坏/随机字节绝不抛异常
+    import random
+    random.seed(1)
+    bad = bytes(random.randrange(256) for _ in range(200))
+    raised = False
+    try:
+        d(bad)
+    except UnicodeDecodeError:
+        raised = True
+    check("任意坏字节不抛 UnicodeDecodeError", not raised)
+
+    # read_text_any：分别以 UTF-8 / GBK 落盘都能正确读回
+    p_u = os.path.join(base, "u.srt")
+    p_g = os.path.join(base, "g.srt")
+    open(p_u, "wb").write(("1\n00:00:01,000 --> 00:00:02,000\n" + cn_gbk + "\n\n").encode("utf-8"))
+    open(p_g, "wb").write(("1\n00:00:01,000 --> 00:00:02,000\n" + cn_gbk + "\n\n").encode("gbk"))
+    check("read_text_any 读 UTF-8 文件", cn_gbk in engine.read_text_any(p_u))
+    check("read_text_any 读 GBK 文件", cn_gbk in engine.read_text_any(p_g))
+    # write_text_utf8 BOM 选项
+    p_b = os.path.join(base, "b.txt")
+    engine.write_text_utf8(p_b, cn_gbk, bom=True)
+    check("write_text_utf8(bom=True) 带 BOM", open(p_b, "rb").read().startswith(b"\xef\xbb\xbf"))
+
+    # 校准统一脚本自带同款 _decode_any，能读 GBK 字幕（端到端关键路径）
+    try:
+        import importlib.util
+        merged = os.path.join(engine.APP_DIR, "subtitle_calib_merged.py")
+        spec = importlib.util.spec_from_file_location("subtitle_calib_merged", merged)
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        check("校准脚本 _decode_any 可读 GBK 字幕",
+              mod._decode_any(cn_gbk.encode("gbk")) == cn_gbk)
+    except Exception as e:  # noqa: BLE001
+        check("校准脚本 _decode_any 可读 GBK 字幕", False, str(e))
+
+
 def main():
     print("=" * 62)
     print("  视频工具箱 v1.3 打包功能离线自检")
     print("=" * 62)
 
+    test_launcher_encoding()
     ffmpeg, ffprobe = engine.ensure_ffmpeg()
     engine.FFPROBE_PATH = ffprobe
     print(f"[工具] ffmpeg: {ffmpeg}")
@@ -226,6 +303,7 @@ def main():
         shutil.copy2(engine.CONFIG_PATH, backup_cfg)
 
     try:
+        test_codec_compat(base)
         test_sanitize_and_unique_folder(base)
         test_write_info_txt(base)
         test_cover_1280x720(base, ffmpeg)

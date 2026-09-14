@@ -1,0 +1,131 @@
+# -*- coding: utf-8 -*-
+"""
+subtitle_calib_merged.py  （演进自 i:\Agent Work\字幕校准\subtitle_calib_merged.py）
+====================================================================================
+明日方舟韩国片源（ko_auto 谷歌翻译）中文字幕校准器。
+2026-09-10 工作目录由 i:\Agent Work\字幕校准 迁移至 D:\字幕（原I盘卷已不在），脚本在此重建。
+
+【用途】针对“明日方舟 PV 只保留首中文行，不动韩语参考行 / 序号 / 时间轴 / 换行 / BOM”的
+       中文机翻字幕做官方名词与机翻错词校准。适合 --kous/side 与 --videos 等出品：
+   python subtitle_calib_merged.py --ko <in.srt> --out <out.srt>
+   （仅改写每个 cue 的首中文行；cue 数/序号/时间轴/韩语参考行原样保留）
+
+【沉淀对照（按 PRTS 等权威源核实，勿凭音译臆断）】
+  - 干员：Mudrock->泥岩；Melantha->玫兰莎；Majella/Melansarae/Magellan->麦哲伦；
+          Crown Slayer->弑君者（柳德米拉）。伊内丝(Ines)、傀影(Phantom)、拉芙希妮已在前几轮。
+  - SideStory：Guiding Ahead->吾导先路（凯尔希，**勿误译作“长夜临光”=Near Light**）；
+          Under Tides/Undertides/Undertide->覆潮之下；Walk in the Dust->遗尘漫步。
+  - 终末地：恩菲尔德->终末地（Endfield，独立游戏）；Mureung(무릉)->武陵（终末地炎国区域）。
+  - 机翻错词（前几轮）：接线员/运营商->干员；近姐->临光姐；泥石->泥岩；巴贝尔->巴别塔。
+  说明：无官方中文的主播人名/ASR口语（如 Snowshine、Jjintini、Sba、Dean、Resik 等）一律保留原样。
+
+【谨慎原则】仅对“首中文行”做长词优先整词替换；关键词若同时存在于英文/参考行，勿写进全文本表。
+"""
+import io, sys, re, os
+
+sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
+
+# 长词优先（书写即按长度降序；运行时再次稳定排序）
+ZH_ONLY_TERMS = {
+    "Walk in the Dust": "遗尘漫步",
+    "Guiding Ahead": "吾导先路",
+    "Crown Slayer": "弑君者",
+    "Under Tides": "覆潮之下",
+    "Undertides": "覆潮之下",
+    "Undertide": "覆潮之下",
+    "Melansarae": "麦哲伦",
+    "Melantha": "玫兰莎",
+    "Majella": "麦哲伦",
+    "Magellan": "麦哲伦",
+    "恩菲尔德": "终末地",
+    "Mureung": "武陵",
+    "Mudrock": "泥岩",
+}
+
+# 首中文行内的通用机翻错词兜底（命中才改，无键字符整行跳过）
+COMMON_FIX = {
+    "接线员": "干员",
+    "运营商": "干员",
+    "近姐": "临光姐",
+    "泥石": "泥岩",
+    "巴贝尔": "巴别塔",
+}
+
+
+def parse_cue_infos(fn):
+    """返回 (cue列表[(seq,timeline,texts)], crlf, has_bom)"""
+    data = open(fn, "rb").read()
+    bom = data[:3] == b"\xef\xbb\xbf"
+    text = data.decode("utf-8-sig")
+    crlf = "\r\n" in text
+    lines = text.split("\r\n" if crlf else "\n")
+    cues = []
+    i, n = 0, len(lines)
+    while i < n:
+        s = lines[i].strip()
+        if s.isdigit() and i + 1 < n and "-->" in lines[i + 1]:
+            j = i + 2
+            ts = []
+            while j < n and lines[j].strip() != "":
+                ts.append(lines[j])
+                j += 1
+            cues.append([int(s), lines[i + 1], ts])
+            i = j
+        else:
+            i += 1
+    return cues, lines, crlf, bom
+
+
+def calibrate(fn, out):
+    cues, lines, crlf, bom = parse_cue_infos(fn)
+    pairs = sorted(ZH_ONLY_TERMS.items(), key=lambda kv: len(kv[0]), reverse=True)
+    cfpairs = sorted(COMMON_FIX.items(), key=lambda kv: len(kv[0]), reverse=True)
+    changes = {}
+    for seq, tl, ts in cues:
+        if not ts:
+            continue
+        old = ts[0]
+        new = old
+        for k, v in pairs + cfpairs:
+            if k in new:
+                new = new.replace(k, v)
+        if new != old:
+            changes[seq] = (old, new)
+    # 定位行号逐条改写首中文行
+    i, n = 0, len(lines)
+    while i < n:
+        s = lines[i].strip()
+        if s.isdigit() and i + 1 < n and "-->" in lines[i + 1]:
+            seq = int(s)
+            if seq in changes:
+                lines[i + 2] = changes[seq][1]
+            j = i + 2
+            while j < n and lines[j].strip() != "":
+                j += 1
+            i = j
+        else:
+            i += 1
+    sep = "\r\n" if crlf else "\n"
+    out_bytes = sep.join(lines).encode("utf-8")
+    open(out, "wb").write((b"\xef\xbb\xbf" + out_bytes) if bom else out_bytes)
+    tl_new = [tl for _, tl, _ in parse_cue_infos(out)[0]]
+    print("改动数:", len(changes))
+    for seq, (o, x) in sorted(changes.items()):
+        print(f"  [{seq}] {o!r} -> {x!r}")
+    return changes
+
+
+if __name__ == "__main__":
+    argv = sys.argv[1:]
+    inf, outf = None, None
+    if "--ko" in argv or "-ko" in argv or len(argv) >= 1:
+        rest = [a for a in argv if not a.startswith("--")]
+        if rest:
+            inf = rest[0]
+            nxt = next((argv[i + 1] for i, a in enumerate(argv) if a == "--out"), None)
+            outf = nxt or (inf[:-4] + "_校准2.srt" if inf.endswith(".srt") else inf + "_校准2.srt")
+    if not inf:
+        print("用法: python subtitle_calib_merged.py <input.srt> [--out out.srt]")
+        sys.exit(1)
+    calibrate(inf, outf)
+    print("输出:", outf)

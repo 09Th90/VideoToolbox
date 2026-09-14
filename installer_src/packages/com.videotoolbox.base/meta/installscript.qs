@@ -10,7 +10,7 @@ Component.prototype.createOperations = function()
     // 与 Inno 版 [Dirs] 保持一致的目录壳（用户数据、日志）
     component.addOperation("Mkdir", "@TargetDir@/data/downloads");
     component.addOperation("Mkdir", "@TargetDir@/data/thumb_cache");
-    // VideoCaptioner 唤起时的工作目录（配置与日志写在 %LOCALAPPDATA%\VideoCaptioner）
+    // 字幕引擎数据/工作目录壳：运行期全部落在软件文件夹 data\VideoCaptioner（v1.10.8 起不再写 LOCALAPPDATA）
     component.addOperation("Mkdir", "@TargetDir@/data/videocaptioner");
 
     // 开始菜单 + 桌面快捷方式；维护工具即卸载入口

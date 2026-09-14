@@ -6,6 +6,9 @@
   2. repogen 打包 data 为 7z 组件仓库 installer_repository/（含 Updates.xml 校验和）
   3. binarycreator --online-only 生成只含向导、不含组件数据的在线安装器 exe
 
+v1.11.0 说明：LLM 拆为两条独立通道、新增全局 ASR 配置、字幕校准新增 Agent 级
+  AI 校准（src/calib_ai_agent.py），均为自研源码，由「主程序」组件随 exe 一并
+  分发；分发方式与文件清单不变（在线形态仍不含 tools/python 运行时）。
 v1.10.4 说明：界面与设置整合（导航宽度自适应、导航底部统一「设置」页、
   跨屏拖拽修正、字幕引擎界面后台预热），改动均在主程序内，分发方式不变。
 v1.10.3 说明：字幕引擎已内嵌进主程序 exe（videocaptioner 及其资源打进
@@ -32,7 +35,7 @@ REPO = ROOT / "installer_repository"
 CONFIG_OUT = ROOT / "build/ifw_config"
 INSTALLER_OUT = ROOT / "installer"
 
-APP_VERSION = "1.10.7"
+APP_VERSION = "1.12.0"
 EXCLUDES = {"__pycache__", "*.pyc", "*.pyo"}
 
 # 组件 -> 文件来源映射：(源路径, data 内相对位置)

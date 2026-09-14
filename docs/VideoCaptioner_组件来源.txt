@@ -30,6 +30,11 @@
     调整，不改动其源码逻辑。许可与来源以本文件与同目录 GPL 全文声明。
   · 随包存放位置：打包形态位于主程序 exe 内；源码形态位于
     tools\python\Lib\site-packages\videocaptioner\
+  · 静态资源补充（v1.10.8）：官方 py3-none-any wheel 仅含 Python 代码，不含
+    resource\（界面图片、烧录字体、默认字幕样式、多语言）。这些文件取自上游
+    v1.4.2 源码树的 resource\ 目录，原样随包放在
+    tools\videocaptioner\resource\（assets/fonts/subtitle_style/translations），
+    未做修改；ffmpeg/ffprobe 不取自该组件，复用本工具箱 tools\ 下自带二进制。
   · 该组件自身及其依赖（PyQt5、PyQt-Fluent-Widgets 等）均沿用各自原有许可。
 
 GPL-3.0 义务提示（分发前请自行确认）

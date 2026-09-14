@@ -239,6 +239,236 @@ def _merge_kb_cases():
             and c["bi|错一"]["count"] == 3)
 
 
+def _qt_src():
+    """界面源码文本（用于源码级结构断言）。"""
+    try:
+        return open(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                 "video_toolbox_qt.py"), encoding="utf-8").read()
+    except OSError:
+        return ""
+
+
+def _merge_core_module_ok():
+    """合并算法抽到 calib_merge_core 纯函数模块，引擎以别名复用同一实现。"""
+    try:
+        import calib_merge_core as core
+    except Exception:
+        return False
+    return (core.merge_calib_script is engine.merge_calib_script
+            and core.merge_learned_kb is engine.merge_learned_kb
+            and callable(core._registry_conflicts)
+            # 纯函数模块不允许偷偷建目录/联网
+            and "import requests" not in dir(core))
+
+
+def _path_normalize_ok():
+    """引擎 settings.json 里的 C 盘工作目录会被强制改回软件文件夹。"""
+    import json as _json
+    data = engine._vc_read_settings()
+    saved = _json.dumps(data, ensure_ascii=False)
+    data.setdefault("Save", {})["Work_Dir"] = "C:/Users/Someone/VideoCaptioner"
+    engine._vc_write_settings(data)
+    try:
+        engine.vc_prepare_settings_file()
+        wd = engine._vc_read_settings().get("Save", {}).get("Work_Dir", "")
+        wd = wd.replace("\\", "/").lower()
+        root = engine.vc_data_dir().replace("\\", "/").lower()
+        ok = wd.startswith(root) and "c:/users" not in wd
+        ok = ok and engine._path_on_system_drive("C:/Users/x/VideoCaptioner")
+        ok = ok and not engine._path_on_system_drive(
+            os.path.join(engine.vc_data_dir(), "work-dir"))
+        return ok
+    finally:
+        engine._vc_write_settings(_json.loads(saved))
+        engine.vc_prepare_settings_file()
+
+
+def _global_llm_engine_ok():
+    """全局 AI 配置写入引擎 OpenAI 兼容槽（引擎不再单独配 LLM；单通道）。"""
+    probe = dict(engine.ai_load_config())
+    probe.update(api_key="test-key-xyz", base_url="https://example.com/v1",
+                 model="test-model")
+    ok, _msg = engine.apply_global_llm_to_engine(probe)
+    s = engine._vc_read_settings().get("LLM", {})
+    good = (ok and s.get("OpenAI_API_Key") == "test-key-xyz"
+            and s.get("OpenAI_API_Base") == "https://example.com/v1"
+            and s.get("OpenAI_Model") == "test-model"
+            and s.get("LLMService") == "OpenAI 兼容")
+    engine.apply_global_llm_to_engine(engine.ai_load_config())  # 还原真实配置
+    return good
+
+
+def _ai_client_data_dir_ok():
+    """ai_client 按 VT_DATA_ROOT 定位 data 目录（不再按错误层级猜目录）。"""
+    import importlib.util
+    import tempfile
+    path = os.path.join(engine.TOOLS_DIR, "ai_client.py")
+    spec = importlib.util.spec_from_file_location("vt_ai_client_probe", path)
+    mod = importlib.util.module_from_spec(spec)
+    old = os.environ.get("VT_DATA_ROOT")
+    tmp = tempfile.mkdtemp(prefix="vt_aicfg_")
+    os.environ["VT_DATA_ROOT"] = tmp
+    try:
+        spec.loader.exec_module(mod)
+        return os.path.abspath(str(mod.DATA_DIR)) == os.path.abspath(
+            os.path.join(tmp, "data"))
+    finally:
+        if old is None:
+            os.environ.pop("VT_DATA_ROOT", None)
+        else:
+            os.environ["VT_DATA_ROOT"] = old
+
+
+def _unified_settings_source_ok():
+    """源码层面：唯一全局设置页——无分段/独立对话框，隐藏引擎重复分组，
+    且内嵌引擎区已消除双层滚动视口（内层无滚条/无边距、高度跟随内容）。"""
+    s = _qt_src()
+    no_seg = "SegmentedWidget(" not in s and "class EngineSettingsDialog" not in s
+    hides = all(g in s for g in ('"llmGroup"', '"saveGroup"',
+                                 '"personalGroup"', '"aboutGroup"'))
+    global_llm = "ai_save_config" in s and "全局 AI" in s
+    # 不再用整个 SettingInterface 当内层滚动视口
+    flat = ("_InnerScrollToContent" in s
+            and "setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)" in s
+            and "setting.expandLayout.setContentsMargins(0, 0, 0, 0)" in s
+            and "setFixedHeight" in s)
+    return no_seg and hides and global_llm and flat
+
+
+def _api_compat_ok():
+    """API 地址归一化多厂商兼容：智谱/OpenAI/DeepSeek/百炼/Gemini/Ollama/
+    Azure（deployment + api-version）与 Anthropic 旧地址友好报错。"""
+    try:
+        cases = [
+            ("https://open.bigmodel.cn/api/paas/v4",
+             "https://open.bigmodel.cn/api/paas/v4/chat/completions"),
+            ("https://api.openai.com",
+             "https://api.openai.com/v1/chat/completions"),
+            ("https://api.deepseek.com",
+             "https://api.deepseek.com/v1/chat/completions"),
+            ("https://dashscope.aliyuncs.com/compatible-mode/v1",
+             "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions"),
+            ("https://generativelanguage.googleapis.com/v1beta/openai/",
+             "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"),
+            ("http://localhost:11434/v1",
+             "http://localhost:11434/v1/chat/completions"),
+            ("https://x.example.com/v1/chat/completions",
+             "https://x.example.com/v1/chat/completions"),
+        ]
+        for raw, expect in cases:
+            if engine.ai_mod()._chat_url(raw) != expect:
+                return False
+        az = engine.ai_mod()._azure_chat_url(
+            "https://res.openai.azure.com/openai/deployments/gpt-4o")
+        if az != ("https://res.openai.azure.com/openai/deployments/gpt-4o"
+                  "/chat/completions?api-version=2024-10-21"):
+            return False
+        try:
+            engine.ai_mod().AIClient(
+                {"base_url": "https://open.bigmodel.cn/api/anthropic",
+                 "api_key": "k", "model": "m"})
+            return False          # Anthropic 旧地址应被拦截并给指引
+        except engine.ai_mod().AIClientError:
+            return True
+    except Exception:  # noqa: BLE001
+        return False
+
+
+def _sync_read_write_ok():
+    """同步链路修复：_read_sync_text / _atomic_write 存在且行为正确。
+
+    v1.10.x 这两个函数被 _pull_and_merge 调用却未定义，启动同步因此长期以
+    NameError 静默失败（logs/calib_sync.log: name '_read_sync_text' is not
+    defined），多用户知识收敛的「拉」半程从未真正生效。
+    """
+    if not (callable(getattr(engine, "_read_sync_text", None))
+            and callable(getattr(engine, "_atomic_write", None))):
+        return False
+    if engine._read_sync_text(os.path.join(engine.TMP_DIR,
+                                           "vt_no_such_sync_file")) != "":
+        return False
+    p = os.path.join(engine.TMP_DIR, "vt_sync_probe.txt")
+    try:
+        engine._atomic_write(p, "内容 ABC")
+        return engine._read_sync_text(p) == "内容 ABC"
+    finally:
+        try:
+            os.remove(p)
+        except OSError:
+            pass
+
+
+def _asr_inject_ok(mode):
+    """ASR 全局配置 → 引擎「转录配置」注入正确（service / local 两种模式）。"""
+    import json as _json
+    saved = _json.dumps(engine._vc_read_settings(), ensure_ascii=False)
+    try:
+        probe = dict(engine.ai_load_config())
+        if mode == "service":
+            probe.update(asr_mode="service",
+                         asr_base_url="https://asr.example.com/v1",
+                         asr_api_key="k-123", asr_model="sensevoice-small")
+        else:
+            probe.update(asr_mode="local", asr_local_model="large-v3-turbo",
+                         asr_local_model_dir=os.path.join(engine.TMP_DIR, "asr_model"))
+        ok, _msg = engine.apply_asr_to_engine(probe)
+        s = engine._vc_read_settings()
+        tr = s.get("Transcribe", {}).get("TranscribeModel", "")
+        if mode == "service":
+            wa = s.get("WhisperAPI", {})
+            return (ok and tr == engine.TM_WHISPER_API
+                    and wa.get("WhisperApiBase") == "https://asr.example.com/v1"
+                    and wa.get("WhisperApiKey") == "k-123"
+                    and wa.get("WhisperApiModel") == "sensevoice-small")
+        fw = s.get("FasterWhisper", {})
+        return (ok and tr == engine.TM_FASTER_WHISPER
+                and fw.get("Model") == "large-v3-turbo"
+                and str(fw.get("ModelDir", "")).endswith("asr_model"))
+    finally:
+        engine._vc_write_settings(_json.loads(saved))
+        # 内存 QConfig 也还原成真实配置（否则会影响后续断言与运行态）
+        engine.vc_prepare_settings_file()
+
+
+def _translate_default_ok():
+    """v1.12.0 翻译板块去 AI：历史「LLM 大模型翻译」配置在读盘前迁回微软翻译。"""
+    import json as _json
+    saved = _json.dumps(engine._vc_read_settings(), ensure_ascii=False)
+    try:
+        data = engine._vc_read_settings()
+        data.setdefault("Translate", {})["TranslatorServiceEnum"] = engine.TS_LLM
+        engine._vc_write_settings(data)
+        engine.vc_prepare_settings_file()
+        got = str(engine._vc_read_settings().get("Translate", {}).get(
+            "TranslatorServiceEnum") or "")
+        return got == engine.TS_BING
+    finally:
+        engine._vc_write_settings(_json.loads(saved))
+        engine.vc_prepare_settings_file()
+
+
+def _machine_translate_only_ok():
+    """v1.12.0 翻译板块去 AI：LLM 回退兜底已整体移除，翻译失败不再转 AI。
+
+    验证三点：engine 上已无回退函数；工厂未被补丁改写（无 _vt 标志）；
+    基类 translate_subtitle 为引擎原生实现（源码不含兜底痕迹）。
+    """
+    try:
+        if (hasattr(engine, "vc_translate_fallback_patch")
+                or hasattr(engine, "_translate_llm_fallback")):
+            return False
+        from videocaptioner.core.translate import base as _tb
+        from videocaptioner.core.translate import factory as _tf
+        if getattr(_tf, "_vt_translate_patched", False):
+            return False
+        import inspect
+        if "_vt" in inspect.getsource(_tb.BaseTranslator.translate_subtitle):
+            return False
+        return True
+    except Exception:  # noqa: BLE001
+        return False
+
+
 def _dump_report():
     """把结果另写一份纯 ASCII 报告，便于在无 stdout 的环境下核对。"""
     try:
@@ -280,40 +510,62 @@ def main():
           f"width={win.navigationInterface.width()}")
 
     # ---- 导航宽度：最长项文字 + 2 个字符 ----
-    fm = QFontMetrics(win.font())
+    # v1.11.0 统一口径：按「导航面板实际字体」量最长项文字 + 2 个中文字宽
+    panel_font = win.navigationInterface.panel.font()
+    fm = QFontMetrics(panel_font)
     longest = max(fm.horizontalAdvance(t) for t in win.NAV_TEXTS)
-    # 实现取「窗口字体 / 默认雅黑」两版计算结果中较宽者（引擎内嵌界面
-    # 用默认字体，需保证其下也够宽），断言须与该口径一致
-    expect = max(gui.nav_width_for(win.NAV_TEXTS, win.font()),
-                 gui.nav_width_for(win.NAV_TEXTS))
+    expect = gui.nav_width_for(win.NAV_TEXTS, panel_font)
     actual = win.navigationInterface.panel.expandWidth
-    check("导航展开宽度按最长项自适应", abs(actual - expect) <= 2,
-          f"actual={actual} expect={expect}")
+    check("导航展开宽度按最长项自适应（统一口径：导航面板字体）",
+          abs(actual - expect) <= 2, f"actual={actual} expect={expect}")
+    check("导航宽度不随重复重算漂移（多次收敛到同一值）",
+          (win.refresh_nav_width(), win.refresh_nav_width(),
+           win.navigationInterface.panel.expandWidth)[-1] == actual,
+          f"{actual}")
+    check("nav_width_for 默认按应用字体度量（不再硬编码雅黑）",
+          gui.nav_width_for(win.NAV_TEXTS) == gui.nav_width_for(
+              win.NAV_TEXTS, gui.QApplication.font()),
+          f"{gui.nav_width_for(win.NAV_TEXTS)} vs "
+          f"{gui.nav_width_for(win.NAV_TEXTS, gui.QApplication.font())}")
     check("导航宽度含 2 个中文字余量",
           actual - gui.NAV_BUTTON_W - gui.NAV_ICON_TEXT_GAP
           - gui.NAV_SIDE_PADDING * 2 >= longest + fm.horizontalAdvance("字字"),
           f"longest={longest}")
     check("导航宽度远小于旧固定值 322", actual < 322, f"actual={actual}")
 
-    # ---- 设置页：工具设置 + 字幕引擎统一入口 ----
+    # ---- 设置页：v1.10.8 唯一全局设置（不分段、无独立引擎对话框）----
     sp = win.settings_page
     check("设置页挂载在导航底部",
           "SettingsPage" in win.navigationInterface.panel.items)
-    check("设置页含分段切换（工具设置/字幕引擎）",
-          len(sp.seg.items) == 2, f"count={len(sp.seg.items)}")
-    check("设置页默认显示工具设置分段",
-          sp._current_seg is sp.tool_seg)
-    check("字幕页不再有独立引擎设置对话框入口",
-          not hasattr(sp, "_style_dlg") or True)
-    check("设置页可切到字幕引擎分段", callable(sp.scroll_to_engine))
-    sp.scroll_to_engine()
-    check("切到字幕引擎分段后已挂载引擎设置界面",
-          sp._current_seg is sp.engine_seg
-          and sp._engine_setting is not None
-          and sp.engine_lay.count() == 1,
-          type(sp._engine_setting).__name__ if sp._engine_setting else "未创建")
-    sp.seg.setCurrentItem("tool")
-    sp._show_seg("tool")
+    check("设置页不再有工具/引擎分段控件", not hasattr(sp, "seg"))
+    check("设置页不再保留工具分段容器", not hasattr(sp, "tool_seg"))
+    check("设置页不再保留引擎分段容器", not hasattr(sp, "engine_seg"))
+    check("保留定位到引擎参数区的入口", callable(getattr(sp, "scroll_to_engine", None)))
+    for attr in ("ai_enabled", "ai_key", "ai_base", "ai_model", "ai_vision"):
+        check(f"全局 AI 卡片含控件 {attr}", hasattr(sp, attr))
+    check("全局 AI 密钥框为密码输入",
+          sp.ai_key.__class__.__name__ == "PasswordLineEdit")
+    check("设置页含校准同步开关", hasattr(sp, "sync_switch"))
+    check("设置页含字幕引擎参数区容器", hasattr(sp, "engine_holder"))
+    _ewd = sp.engine_dir_edit.text().replace("\\", "/").lower()
+    check("引擎工作目录只读且落在数据根下",
+          sp.engine_dir_edit.isReadOnly()
+          and _ewd.startswith(engine.DATA_DIR.replace("\\", "/").lower()),
+          _ewd)
+    # 持久化验证需暂时摘除 VT_NO_CALIB_SYNC（自检常用它禁网，但它会让 getter
+    # 恒为 False，无法反映配置），验证完恢复原环境变量并保持启用
+    _kill = os.environ.pop("VT_NO_CALIB_SYNC", None)
+    try:
+        engine.set_calib_sync_enabled(True)
+        sp.sync_switch.setChecked(True)
+        sp.sync_switch.setChecked(False)
+        check("同步开关切换后持久化", engine.calib_sync_enabled() is False)
+        sp.sync_switch.setChecked(True)
+        check("同步开关再次打开后持久化", engine.calib_sync_enabled() is True)
+    finally:
+        engine.set_calib_sync_enabled(True)
+        if _kill is not None:
+            os.environ["VT_NO_CALIB_SYNC"] = _kill
 
     check("下载页含任务表/画质列表/日志",
           win.download_page.task_table.columnCount() == 6
@@ -333,6 +585,37 @@ def main():
     check("品牌水印与捐助入口已隐藏",
           tc is not None and tc.info_label.isHidden()
           and tc.donate_button.isHidden())
+    # ---- v1.12.0：工作台优化（校准合并 / 底部收起 / 比例调整）----
+    sub_if = getattr(sub._engine, "subtitle_optimization_interface", None)
+    check("工作台「字幕校正」按钮已隐藏（校准并入字幕校准板块）",
+          sub_if is not None
+          and sub_if.optimize_button not in sub_if.command_bar.actions()
+          and all(b.action() is not sub_if.optimize_button
+                  for b in sub_if.command_bar.commandButtons))
+    check("引擎就绪后底部状态行已收起（设置/许可走导航栏）",
+          sub.foot.isHidden())
+    check("字幕表格吃满剩余空间（stretch=1）",
+          sub_if is not None
+          and sub_if.main_layout.stretch(
+              sub_if.main_layout.indexOf(sub_if.subtitle_table)) == 1)
+    # ---- v1.12.0：用户自定义代理 yaml ----
+    check("设置页含网络代理卡片（接入自己的 Clash/mihomo yaml）",
+          hasattr(sp, "proxy_edit") and hasattr(sp, "proxy_hint"))
+    try:
+        saved_py = engine.get_proxy_yaml()
+        engine.set_proxy_yaml("")
+        empty_ok = engine.get_proxy_yaml() == ""
+        port_gh = engine._proxy_yaml_port(os.path.join(engine.APP_DIR,
+                                                       "github_proxy.yaml"))
+        engine.set_proxy_yaml(saved_py)
+        cfg_builtin = os.path.join(engine.TOOLS_DIR, "mihomo", "config.yaml")
+        port_builtin = (engine._proxy_yaml_port(cfg_builtin)
+                        if os.path.isfile(cfg_builtin) else 7897)
+        proxy_ok = (empty_ok and port_gh == 7890
+                    and port_builtin == engine.MIHOMO_PORT)
+    except Exception:  # noqa: BLE001
+        proxy_ok = False
+    check("代理 yaml 端口解析与持久化（自定义 7890 / 内置 7897）", proxy_ok)
     try:
         import videocaptioner  # noqa: F401
         vc_ok = True
@@ -427,6 +710,82 @@ def main():
           _qt_main_uses("sync_calib_on_startup"))
     check("条目级三方合并：并入/采纳/冲突保留/幂等/注册守门", _merge_script_cases())
     check("学习库合并：新增/否决就高/冲突标记/count 取大", _merge_kb_cases())
+
+    # ---- v1.10.8：合并核心抽离 / 唯一全局设置 / 路径归一化 / 全局 LLM ----
+    check("合并核心抽到 calib_merge_core 且引擎复用同一实现", _merge_core_module_ok())
+    check("引擎 C 盘工作目录被强制改回软件文件夹", _path_normalize_ok())
+    check("全局 LLM 配置同步写入字幕引擎 OpenAI 兼容槽", _global_llm_engine_ok())
+    check("ai_client 按 VT_DATA_ROOT 定位数据目录", _ai_client_data_dir_ok())
+    check("唯一全局设置：无分段/独立对话框且隐藏引擎重复分组",
+          _unified_settings_source_ok())
+    check("校准同步暴露持久开关 API",
+          callable(getattr(engine, "calib_sync_enabled", None))
+          and callable(getattr(engine, "set_calib_sync_enabled", None)))
+
+    # ---- v1.12.0：设置板块去重整合（校准合并 / 翻译分组合一 / 转录去重）----
+    try:
+        esp = sp._ensure_engine_setting()
+    except Exception:
+        esp = None
+    check("设置整合：字幕校正/反思翻译卡已隐藏（校准并入字幕校准板块）",
+          esp is not None and esp.subtitleCorrectCard.isHidden()
+          and esp.needReflectTranslateCard.isHidden())
+    check("设置整合：翻译分组合一为「字幕翻译」（服务/开关/语言/线程）",
+          esp is not None
+          and esp.translateGroup.titleLabel.text() == "字幕翻译"
+          and esp.translate_serviceGroup.isHidden()
+          and esp.transcribeGroup.isHidden()
+          and esp.translatorServiceCard.parentWidget() is esp.translateGroup)
+
+    # ---- v1.11.0：独立 ASR / AI 校准 Agent（v1.12.0：双通道合并为单通道）----
+    for attr in ("asr_mode_combo", "asr_base", "asr_key",
+                 "asr_model", "asr_local_model", "asr_local_dir",
+                 "calib_cues", "calib_tokens"):
+        check(f"设置页含 v1.11 控件 {attr}", hasattr(sp, attr))
+    check("全局 AI 已合并为单通道（无 A/B 独立密钥与校准通道选择）",
+          not hasattr(sp, "ai_llm_key") and not hasattr(sp, "calib_channel_combo")
+          and "llm_base_url" not in engine.ai_mod().DEFAULT_CONFIG)
+    check("单通道连通性测试可用（ai_test_connection 忽略 channel）",
+          "channel" in __import__("inspect").signature(
+              engine.ai_test_connection).parameters)
+    check("API 地址归一化兼容多厂商（智谱/OpenAI/DeepSeek/百炼/Gemini/"
+          "Ollama/Azure）", _api_compat_ok())
+    check("ASR 服务/本地区块可切换",
+          hasattr(sp, "asr_service_widget") and hasattr(sp, "asr_local_widget")
+          and callable(getattr(sp, "_sync_asr_visible", None)))
+    check("校准页含 AI 校准开关与「再次校准」",
+          hasattr(win.calib_page, "ai_switch")
+          and hasattr(win.calib_page, "again_btn")
+          and callable(getattr(win.calib_page, "start_again", None)))
+    try:
+        import calib_ai_agent as _agent
+        agent_ok = (_agent.SCRIPT_NAME == "subtitle_calib_merged.py"
+                    and callable(_agent.calibrate)
+                    and callable(_agent.rebuild_srt))
+    except Exception:  # noqa: BLE001
+        agent_ok = False
+    check("AI 校准 Agent 模块可导入（calib_ai_agent）", agent_ok)
+    check("引擎暴露 AI 校准入口（calib_ai_run）",
+          callable(getattr(engine, "calib_ai_run", None)))
+    check("引擎暴露 ASR 注入与本地模型补丁",
+          callable(getattr(engine, "apply_asr_to_engine", None))
+          and callable(getattr(engine, "vc_asr_patch_apply", None)))
+    check("引擎在导入前给 diskcache 装延迟补丁（消除建库数秒）",
+          callable(getattr(engine, "vc_lazy_cache_patch", None))
+          and "vc_lazy_cache_patch()" in _engine_src())
+    check("启动同步修复：_read_sync_text / _atomic_write 齐备",
+          _sync_read_write_ok())
+    check("ASR 注入引擎转录配置（自有服务 → Whisper [API]）",
+          _asr_inject_ok("service"))
+    check("ASR 注入引擎转录配置（本地独立模型 → FasterWhisper）",
+          _asr_inject_ok("local"))
+    check("翻译服务历史 LLM 配置迁回微软翻译（翻译板块仅机翻）",
+          _translate_default_ok())
+    check("翻译板块已全面去 AI（LLM 回退兜底整体移除，失败如实报错）",
+          _machine_translate_only_ok())
+    check("预热只导入 home_interface（设置界面按需懒加载）",
+          "videocaptioner.ui.view.setting_interface" not in
+          _qt_src()[_qt_src().find("def prewarm"):_qt_src().find("def _wait_prewarm")])
 
     def done():
         app.quit()

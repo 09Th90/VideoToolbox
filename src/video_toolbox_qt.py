@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""视频工具箱 GUI v1.10.5 —— Fluent 矢量界面
+"""视频工具箱 GUI v1.11.0 —— Fluent 矢量界面
 ====================================================================
 界面形态（v1.10.0 起，原 tkinter 界面退役）：
   · FluentWindow + 左侧 NavigationInterface 导航（顶部功能区 + 底部分隔项；
@@ -14,6 +14,24 @@
     100%/125%/150%/200% 任意缩放比例下表现一致、不发虚。
 页面（v1.10.0 起共 5 个，v1.10.4 增加设置页共 6 个，B站投稿板块已移除）：
   视频下载 · 视频库 · 音视频合并 · 字幕处理（内嵌第三方字幕引擎）· 字幕校准 · 设置
+v1.12.0：翻译链路修缮配套——任务取消立即停掉翻译/优化线程池（原先取消后台
+  仍跑完剩余批次）；LLM 翻译并发上限 5（防 429 刷屏）；「启用 AI」关闭时翻译
+  兜底不介入 LLM；新增 `apply_version.py`（版本号一键同步）与
+  `apply_vc_official.py`（官方实现套用）。
+v1.11.0：① 全局 AI 拆为两条**独立通道**（接口 A 工具箱 / 接口 B 字幕引擎与
+  AI 校准，各自地址+密钥+模型，可分别测试）；② 设置页新增「ASR 语音识别
+  （转录配置）」卡片（自有 ASR 服务 / 本地独立模型）与「AI 校准（Agent 级）」
+  卡片（校准通道 / 分块条数 / 字符预算 / 输出上限）；③ 字幕校准页新增
+  「AI 校准」开关与「再次校准」（Agent 流程：脚本基线 → 抽取 cue 表 →
+  载入知识库 → 自行分块 → 逐块复校 → 证据校验 → 合并回填 → 独立校验）；
+  ④ 字幕处理页提速：预热只导入 home_interface（设置界面按需懒加载）、预热
+  时机提前到首帧之后、引擎界面构造 0.7s 级（diskcache 延迟化），耗时留痕在
+  logs\\startup.log。
+v1.10.8：设置收敛为「唯一全局设置页」——取消工具/引擎分段与独立引擎对话框；
+ 新增全局 AI（LLM）卡片，工具箱 AI 与字幕引擎共用一套密钥/接口（引擎内不再
+ 单独配 LLM）；引擎工作目录等默认位置全部强制到软件文件夹（不再落 C 盘）；
+ 新增校准知识同步开关与「立即同步」。校准知识仍保持 v1.10.7 对等并集同步：
+ 启动自动拉取合并、退出先并再推，多用户互不覆盖、收敛到全体条目并集。
 v1.10.5：字幕校准页模式列表与脚本实际支持的 12 种模式对齐（去掉脚本已删除的
   --layout 开关）；退出时静默同步校准脚本到 GitHub（挂 aboutToQuit）。
 线程模型沿用旧界面：后台线程只往 app.q 投消息，主线程用 QTimer 泵出后更新控件。
@@ -31,19 +49,19 @@ import threading
 import time
 from datetime import datetime
 
-from PyQt5.QtCore import Qt, QTimer, QEvent, QUrl, QPoint, QRect
+from PyQt5.QtCore import Qt, QTimer, QEvent, QObject, QUrl, QPoint, QRect
 from PyQt5.QtGui import (QColor, QDesktopServices, QFont, QFontMetrics,
                          QGuiApplication, QPixmap, QTextCursor)
 from PyQt5.QtWidgets import (QAbstractItemView, QApplication, QDialog,
                              QFileDialog, QGridLayout, QHBoxLayout, QHeaderView,
-                             QTableWidgetItem, QVBoxLayout, QWidget)
+                             QSizePolicy, QTableWidgetItem, QVBoxLayout, QWidget)
 
 from qfluentwidgets import (BodyLabel, CardWidget, CaptionLabel,
                             ComboBox, FluentIcon as FIF,
                             FluentWindow, InfoBar, InfoBarPosition, LineEdit,
                             ListWidget, MessageBox, NavigationItemPosition,
-                            PrimaryPushButton, ProgressBar, PushButton,
-                            ScrollArea, SegmentedWidget, SimpleCardWidget,
+                            PasswordLineEdit, PrimaryPushButton, ProgressBar,
+                            PushButton, ScrollArea, SimpleCardWidget, SpinBox,
                             SubtitleLabel, StrongBodyLabel, SwitchButton,
                             TableWidget, TextEdit, Theme, TitleLabel,
                             setTheme, setThemeColor)
@@ -51,7 +69,7 @@ from qfluentwidgets.components.navigation.navigation_widget import NavigationWid
 
 import video_toolbox as engine
 
-VERSION = "1.10.7"
+VERSION = "1.12.0"
 
 LIB_EXTS = {".mp4", ".mkv", ".avi", ".mov", ".flv", ".wmv", ".ts", ".m4v", ".webm"}
 THUMB_DIR = engine.THUMB_CACHE_DIR
@@ -98,12 +116,36 @@ def nav_width_for(texts, font=None):
 
     用户要求「单行最大字数宽度 + 2 个字符的宽度」——2 个字符用中文字宽
     （em 宽）计，保证任何文案下右侧都留出约两个汉字的空间。
+
+    字体默认取**应用字体**（main() 里 app.setFont 设定的那个）；只有显式传入
+    font、或 QApplication 尚未建立时才回退雅黑 9pt。硬编码字体名会在「系统装的
+    字体与 app 字体不同」时量出偏差宽度，表现为「程序刚开启时导航宽度不对、
+    过一会儿才收敛」（v1.11.0 修正）。
     """
+    if font is None:
+        try:
+            font = QApplication.font()
+        except Exception:  # noqa: BLE001
+            font = None
     fm = QFontMetrics(font or QFont("Microsoft YaHei UI", 9))
     longest = max((fm.horizontalAdvance(t or "") for t in texts), default=0)
     two_chars = fm.horizontalAdvance("字字")
     return (NAV_SIDE_PADDING * 2 + NAV_BUTTON_W + NAV_ICON_TEXT_GAP
             + longest + two_chars + NAV_TEXT_TAIL)
+
+
+def _perf_note(msg):
+    """启动/预热耗时诊断：静默追加到 logs\\startup.log（best-effort）。
+
+    用于日后排查「进入某页卡顿」——把各阶段耗时留痕，避免只能靠反复计时复现。
+    """
+    try:
+        os.makedirs(engine.LOGS_DIR, exist_ok=True)
+        with open(os.path.join(engine.LOGS_DIR, "startup.log"), "a",
+                  encoding="utf-8") as f:
+            f.write(f"[{datetime.now():%Y-%m-%d %H:%M:%S}] {msg}\n")
+    except OSError:
+        pass
 
 
 # ========== 通用控件 ==========
@@ -157,7 +199,7 @@ def card(title=None, caption=None):
     if title:
         lay.addWidget(StrongBodyLabel(title, box))
     if caption:
-        lay.addWidget(CaptionLabel(caption, box))
+        lay.addWidget(fit_caption(CaptionLabel(caption, box)))
     return box, lay
 
 
@@ -177,6 +219,34 @@ def row(*widgets, spacing=8):
 
 def label_row(text, widget, spacing=8):
     return row(BodyLabel(text), widget, None, spacing=spacing)
+
+
+def expand_h(widget, minimum=360):
+    """让输入框横向自适应填满所在行（长 URL/路径不被截断）。"""
+    try:
+        widget.setMinimumWidth(minimum)
+        widget.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+    except Exception:
+        pass
+    return widget
+
+
+def fit_caption(label):
+    """说明文字「宁可被裁也不撑宽卡片」（滚动区内不能换行的统一兜底）。
+
+    QScrollArea 内一律不能用自动换行标签——heightForWidth 与滚动区会互相触发
+    重排，事件循环卡死。于是长文案只有两种命运：把卡片撑宽（页面横向滚动又被
+    禁用，结果就是超出可视范围、按钮被挤出屏幕），或者被裁。
+    这里把水平方向的 sizeHint 置为忽略（Ignored 会连带忽略最小提示），
+    卡片宽度改由输入框 / 按钮决定，文案再长也不会撑破布局。
+    v1.11.0 起统一应用于 card() 的说明与各页手写的提示标签。
+    """
+    try:
+        label.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Fixed)
+        label.setMinimumWidth(0)
+    except Exception:
+        pass
+    return label
 
 
 class PageBase(QWidget):
@@ -455,8 +525,7 @@ class DownloadPage(QWidget):
         fid, height = fmt["format_id"], fmt["height"]
 
         try:
-            with open(self.info_json_path, "r", encoding="utf-8") as f:
-                raw_text = f.read()
+            raw_text = engine.read_text_any(self.info_json_path)
             task_info = engine.save_info_json(raw_text)
         except OSError:
             self._warn("画质检测结果已失效，请重新点击「检测画质」")
@@ -642,15 +711,17 @@ class DownloadPage(QWidget):
 
     def _run_ytdlp(self, cmd, task_id):
         try:
+            # 按字节读取、逐行智能解码（兼容 yt-dlp 输出 UTF-8/GBK；CJK 多字节
+            # 不会跨越 0x0A 换行，故按行解码不会切断字符）
             proc = engine.popen_process(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-                                        text=True, encoding="utf-8", errors="replace", bufsize=1)
+                                        bufsize=1)
         except Exception as e:
             self.app.q.put(("dl_log", task_id, f"[错误] 无法启动下载器: {e}"))
             return 1, []
         lines = []
         pct_re = re.compile(r"\[download\]\s+([\d.]+)%")
-        for line in proc.stdout:
-            line = line.rstrip()
+        for raw in proc.stdout:
+            line = engine.decode_bytes_any(raw).rstrip()
             lines.append(line)
             m = pct_re.search(line)
             if m:
@@ -1245,7 +1316,9 @@ class SubtitlePage(QWidget):
         flay = QHBoxLayout(foot)
         flay.setContentsMargins(0, 0, 0, 0)
         flay.setSpacing(12)
-        self.state_label = CaptionLabel("正在加载字幕引擎界面 …", foot)
+        self.foot = foot                      # v1.12.0：引擎就绪后整行收起
+        self.state_label = fit_caption(
+            CaptionLabel("正在加载字幕引擎界面 …", foot))
         # v1.10.4：引擎设置并入「设置」页的「字幕引擎」分组，这里只留跳转
         self.set_btn = PushButton(FIF.SETTING, "打开设置", foot)
         self.set_btn.clicked.connect(self.open_settings)
@@ -1260,28 +1333,41 @@ class SubtitlePage(QWidget):
     def prewarm(self):
         """空闲时预导入引擎模块。
 
-        卡顿的根因是 `videocaptioner.ui.view.home_interface` 及其依赖树
-        （qtawesome 图标字体、platformdirs、transcribe/llm 子模块、vlc 探测）
-        在主线程同步 import 时要花数秒。这里先丢到后台线程完成 import
-        （Python 的 import 锁会让主线程的后续 import 命中缓存），
-        再由主线程建界面——建界面本身只有几十毫秒。
+        卡顿的根因有三块，v1.11.0 起逐条拆掉：
+          1. `videocaptioner.core.utils.cache` 在模块级建 5 个 diskcache 库
+             （每个约 0.9s）——已在 prepare_runtime_env 里用惰性代理消除；
+          2. `videocaptioner.ui.view.home_interface` 依赖树（qtawesome 图标
+             字体、platformdirs、transcribe/llm 子模块、vlc 探测）首次 import；
+             本预热把它丢到后台线程完成（Python 的 import 锁让主线程的后续
+             import 命中缓存）；
+          3. 界面构造本身（引擎界面 30 多张卡片）。第 2 步完成后自动回主线程
+             构建，做到「用户点进来时已是现成控件」。
+        设置界面（setting_interface）不在这里预热：它属于设置页，由设置页
+        自己懒加载，避免白等一份当前用不到的导入。
         """
         if self._built or self._prewarming:
             return
         self._prewarming = True
 
         def _work():
+            t0 = time.perf_counter()
             try:
                 engine.engine_ui_brand_patch()
             except Exception:  # noqa: BLE001
                 pass
             try:
+                engine.vc_asr_patch_apply()      # 本地独立 ASR 的模型覆盖补丁
+            except Exception:  # noqa: BLE001
+                pass
+            # v1.12.0：翻译板块已全面去 AI（仅机翻），不再挂 LLM 回退兜底
+            try:
                 import videocaptioner.ui.view.home_interface  # noqa: F401
-                import videocaptioner.ui.view.setting_interface  # noqa: F401
                 ok = True
             except Exception:  # noqa: BLE001
                 ok = False
             self._prewarm_ready = ok
+            _perf_note(f"prewarm 线程：import={'ok' if ok else 'fail'} "
+                       f"{time.perf_counter() - t0:.2f}s")
 
         t = threading.Thread(target=_work, daemon=True, name="vc-prewarm")
         t.start()
@@ -1306,8 +1392,34 @@ class SubtitlePage(QWidget):
             from videocaptioner.ui.view.home_interface import HomeInterface
         except Exception as e:  # noqa: BLE001
             self.state_label.setText(f"字幕引擎加载失败：{e}")
+            _perf_note(f"字幕引擎 import 失败：{e}")
             return None
+        t0 = time.perf_counter()
         home = HomeInterface()
+        _perf_note(f"HomeInterface 构造：{time.perf_counter() - t0:.2f}s")
+        # v1.12.0：工作台优化——
+        #   · 隐藏「字幕校正」按钮（校准类功能统一到「字幕校准」板块）；
+        #   · 收紧主布局间距、字幕表格吃满剩余空间（调整页面比例）。
+        sub_if = getattr(home, "subtitle_optimization_interface", None)
+        if sub_if is not None:
+            opt_btn = getattr(sub_if, "optimize_button", None)
+            cmd_bar = getattr(sub_if, "command_bar", None)
+            if opt_btn is not None and cmd_bar is not None:
+                # optimize_button 是 QAction（非 QWidget），从命令栏移除；
+                # CommandBar.removeAction 只删按钮不清 actions 列表，
+                # 再补一次 QWidget 基类的 removeAction 把 action 摘干净
+                cmd_bar.removeAction(opt_btn)
+                try:
+                    from PyQt5.QtWidgets import QWidget as _QW
+                    _QW.removeAction(cmd_bar, opt_btn)
+                except Exception:
+                    pass
+            lay = getattr(sub_if, "main_layout", None)
+            table = getattr(sub_if, "subtitle_table", None)
+            if lay is not None:
+                lay.setSpacing(10)
+                if table is not None:
+                    lay.setStretch(lay.indexOf(table), 1)
         # 引擎自带白色页面背景，内嵌到深色宿主里改为透明、随主题配色
         home.setStyleSheet("HomeInterface{background:transparent;}")
         tc = getattr(home, "task_creation_interface", None)
@@ -1322,13 +1434,30 @@ class SubtitlePage(QWidget):
         if self._built:
             return
         self._built = True
+        t0 = time.perf_counter()
         if busy_text:
             self.state_label.setText(busy_text)
         self._engine = self._build_engine()
         if self._engine is None:
             return
         self.host_lay.addWidget(self._engine)
+        # 引擎 QConfig 已随 HomeInterface 导入并读盘，再做一次运行期兜底：
+        # 强制工作目录等收敛到软件文件夹（防止历史 C 盘值在内存里复活）
+        try:
+            engine.vc_enforce_runtime_cfg()
+        except Exception:
+            pass
         self.state_label.setText("字幕引擎已就绪（内嵌运行，无需联网下载模型）")
+        # v1.12.0：引擎就绪后收起底部状态行（打开设置/许可走导航栏），
+        # 把页面高度全部让给工作台（调整页面比例）
+        self.foot.hide()
+        _perf_note(f"字幕引擎界面构建完成：{time.perf_counter() - t0:.2f}s"
+                   f"（预热 {'已就绪' if self._prewarm_ready else '未完成'}）")
+        # 引擎界面（自带字体）进来后，导航宽度重新按宿主的统一口径收敛一次
+        try:
+            self.window().refresh_nav_width()
+        except Exception:
+            pass
 
     def showEvent(self, event):
         """首次显示时才加载引擎界面（内嵌 QWidget，随主题自动配色）。"""
@@ -1340,23 +1469,17 @@ class SubtitlePage(QWidget):
         self._build_now("正在准备字幕引擎界面 …")
 
     def open_settings(self):
-        """跳到统一设置页的「字幕引擎」分组。
+        """跳到唯一的全局设置页，并定位到字幕引擎参数区。
 
-        v1.10.4 起引擎设置不再是本页的独立对话框，而是并入主设置页，
-        与下载目录、主题等工具自身设置放在同一处。
+        v1.10.8 起不再保留独立引擎设置对话框：所有设置（含 LLM、保存位置）
+        都在主设置页这一处。
         """
         win = self.window()
         try:
             if hasattr(win, "open_engine_settings"):
                 win.open_engine_settings()
-                return
         except Exception:  # noqa: BLE001
             pass
-        try:
-            dlg = EngineSettingsDialog(win)
-            dlg.exec()
-        except Exception as e:  # noqa: BLE001
-            MessageBox("设置打开失败", str(e)[:300], self).exec()
 
     def show_license(self):
         if os.path.isfile(engine.VC_LICENSE_FILE):
@@ -1371,302 +1494,756 @@ class SubtitlePage(QWidget):
                    self).exec()
 
 
-class EngineSettingsDialog(QDialog):
-    """字幕引擎设置对话框：承载引擎的设置界面（内嵌模式下的唯一入口）。
+# ========== 设置（全程序唯一全局设置，v1.10.8） ==========
+class _InnerScrollToContent(QObject):
+    """让内嵌的引擎 SettingInterface（自身是滚动区）高度恒等于其内容高度。
 
-    · 隐藏「关于」组与上游推广卡片（许可与来源见 docs\\ 声明文件）；
-    · 设置页内跳转「字幕样式」时宿主没有导航栏，改为弹出子对话框。
+    关掉它自身的滚动条后，再把它的固定高度钉到内部 scrollWidget 的实际高度，
+    于是内层不再形成独立视口/滚动条，滚动统一交给外层设置页，视觉上是一整页。
     """
 
-    def __init__(self, parent=None):
-        super().__init__(parent, Qt.Window)
-        from videocaptioner.ui.view.setting_interface import SettingInterface
-        self.setWindowTitle("字幕引擎设置")
-        self.resize(880, 660)
-        # 引擎设置界面自身是透明底，宿主 QDialog 需按主题铺底色；
-        # 滚动区视口默认会画一层浅色底，一并压成透明
-        from qfluentwidgets import isDarkTheme
-        bg = "#1F1F1F" if isDarkTheme() else "#F3F3F3"
-        self.setStyleSheet(
-            f"QDialog{{background:{bg};}}\n"
-            "QScrollArea, QScrollArea>QWidget>QWidget{background:transparent;}")
-        lay = QVBoxLayout(self)
-        lay.setContentsMargins(0, 0, 0, 0)
-        self.setting = SettingInterface(self)
-        self._hide_upstream_promo()
-        lay.addWidget(self.setting)
-        self._style = None
-        self._style_dlg = None
+    def __init__(self, area, parent=None):
+        super().__init__(parent or area)
+        self.area = area
 
-    def _hide_upstream_promo(self):
-        """去掉上游品牌入口：关于组（检查更新/帮助/反馈）与官方 API 推广卡片。"""
-        about = getattr(self.setting, "aboutGroup", None)
-        if about is not None:
-            about.hide()
-        card = getattr(self.setting, "openaiOfficialApiCard", None)
-        if card is not None:
-            orig = card.setVisible
-            card.setVisible = lambda _v=True: orig(False)
-            orig(False)
+    def sync_height(self):
+        w = self.area.widget()
+        if w is not None and w.height() > 0:
+            self.area.setFixedHeight(w.height())
 
-    @property
-    def subtitleStyleInterface(self):
-        if self._style is None:
-            from videocaptioner.ui.view.subtitle_style_interface import (
-                SubtitleStyleInterface)
-            self._style = SubtitleStyleInterface(self)
-            self._style.hide()
-        return self._style
-
-    def switchTo(self, interface):
-        """设置页里的「字幕样式」跳转：宿主无导航栏，弹独立对话框。"""
-        if self._style_dlg is None:
-            dlg = self._style_dlg = QDialog(self, Qt.Window)
-            lay = QVBoxLayout(dlg)
-            lay.setContentsMargins(0, 0, 0, 0)
-            interface.setParent(dlg)
-            lay.addWidget(interface)
-            dlg.setWindowTitle(interface.windowTitle() or "字幕样式")
-            dlg.resize(960, 680)
-        self._style_dlg.exec()
+    def eventFilter(self, obj, ev):
+        if ev.type() == QEvent.Resize:
+            self.sync_height()
+        return False
 
 
-# ========== 设置（统一入口，v1.10.4） ==========
 class SettingsPage(QWidget):
-    """统一设置页：工具自身设置 + 字幕引擎设置集中在一个导航入口下。
+    """全程序唯一的全局设置页（v1.10.8）。
 
-    v1.10.4 起导航底部新增本页，原先散落的设置项与「字幕处理」页右下角的
-    「引擎设置…」全部并入：
-      · 工具设置：下载目录、视频库目录、界面主题/缩放、许可与来源；
-      · 字幕引擎：直接承载引擎自带的设置界面（转录/LLM/翻译/合成/保存/
-        个性化共七个分组），不再另开对话框。
-
-    引擎设置界面由用户首次切到「字幕引擎」分段时才创建（它包含约 30 个
-    卡片，构建有开销），避免拖慢设置页本身的打开速度。
+    不再分「工具设置 / 字幕引擎」两段，也不再有独立引擎设置对话框；一页纵向
+    排开：目录 → 全局 AI（两条独立通道）→ ASR 语音识别 → AI 校准 →
+    字幕引擎运行参数（内嵌引擎设置界面，隐藏与其重复的 LLM / 保存 / 个性化 /
+    关于分组）→ 校准知识同步 → 界面 → 关于。
+    v1.11.0 起 LLM 拆为两条**各自独立**的通道：接口 A（工具箱自身，Anthropic
+    兼容）与接口 B（字幕引擎 / AI 校准，OpenAI 兼容），地址、密钥、模型都能
+    分别填写；另新增 ASR 卡片（自有 ASR 服务或本地独立模型，直接写进引擎的
+    「转录配置」）与 AI 校准卡片（校准通道 / 分块粒度 / 输出上限）。
+    引擎设置界面约 30 张卡片，首次显示本页时才懒加载，避免拖慢启动。
     """
 
     def __init__(self, app, parent=None):
         super().__init__(parent)
         self.app = app
         self.setObjectName("SettingsPage")
-        self._engine_host = None
         self._engine_setting = None
         self._engine_built = False
 
         outer = QVBoxLayout(self)
         outer.setContentsMargins(0, 0, 0, 0)
-        self.shell = ScrollPage("设置", "工具与字幕引擎的全部设置项", self,
-                                scrollable=True)
+        self.shell = ScrollPage("设置", "全局设置对下载、字幕引擎等所有功能统一生效",
+                                self, scrollable=True)
         outer.addWidget(self.shell)
         self.shell.layout().setContentsMargins(24, 12, 24, 12)
         self.shell.layout().setSpacing(8)
         self.vbox = self.shell.content_lay
 
-        # ---- 分段切换：工具设置 / 字幕引擎 ----
-        # 注意 Pivot 的 itemClicked 信号带 (routeKey, checked) 两个参数，
-        # 回调必须能接收任意参数，否则 PyQt 会静默吞掉调用（表现为点了没反应）
-        self.seg = SegmentedWidget(self)
-        self.seg.addItem("tool", "工具设置",
-                         lambda *_a: self._show_seg("tool"))
-        self.seg.addItem("engine", "字幕引擎",
-                         lambda *_a: self._show_seg("engine"))
-        self.vbox.addWidget(self.seg)
+        self._build_dirs_card()
+        self._build_proxy_card()
+        self._build_ai_card()
+        self._build_asr_card()
+        self._build_calib_ai_card()
+        self._build_engine_section()
+        self._build_sync_card()
+        self._build_appearance_card()
+        self._build_about_card()
+        self.vbox.addStretch(1)
 
-        # 用一个容器手动替换子控件，而不用 QStackedWidget——QStackedWidget
-        # 的 sizeHint 只取当前页，在滚动区（ScrollArea + setWidgetResizable）
-        # 的内容布局里切换后不会再请求重排，表现为「状态切了但画面没变」。
-        self.swap_host = QWidget(self)
-        self.swap_lay = QVBoxLayout(self.swap_host)
-        self.swap_lay.setContentsMargins(0, 0, 0, 0)
-        self.vbox.addWidget(self.swap_host, 1)
+    def showEvent(self, event):
+        super().showEvent(event)
+        # 首次显示时再懒加载引擎设置（此时后台预热通常已完成）
+        QTimer.singleShot(0, self._ensure_engine_setting)
+        # 已构建则每次显示重新贴合内层高度（宽度可能变化）
+        f = getattr(self, "_engine_fit", None)
+        if f is not None:
+            QTimer.singleShot(0, f.sync_height)
+            QTimer.singleShot(160, f.sync_height)
 
-        self.tool_seg = self._build_tool_seg()
-        self.engine_seg = QWidget(self)
-        self.engine_lay = QVBoxLayout(self.engine_seg)
-        self.engine_lay.setContentsMargins(0, 0, 0, 0)
-        self.swap_lay.addWidget(self.tool_seg)
-        self._current_seg = self.tool_seg
+    # ------------------------------------------------------------------ #
+    # 目录：下载目录 / 数据根目录 / 引擎工作目录（全部默认在软件文件夹）
+    # ------------------------------------------------------------------ #
+    def _build_dirs_card(self):
+        box, blay = card("目录", "所有默认位置都落在软件文件夹，不写系统盘（C 盘）")
 
-        self.seg.setCurrentItem("tool")
-        self._show_seg("tool", animate=False)
-
-    # ---------- 工具设置 ----------
-    def _build_tool_seg(self):
-        host = QWidget(self)
-        lay = QVBoxLayout(host)
-        lay.setContentsMargins(0, 0, 12, 16)
-        lay.setSpacing(12)
-
-        # 目录设置
-        box, blay = card("目录", "下载与视频库的默认位置")
         self.dir_edit = LineEdit(box)
         self.dir_edit.setText(engine.get_saved_download_dir())
         self.dir_edit.editingFinished.connect(self._on_dir_changed)
         browse = PushButton(FIF.FOLDER, "浏览…", box)
         browse.clicked.connect(self._browse_dir)
         blay.addWidget(label_row("下载目录", row(self.dir_edit, browse, None)))
-        lay.addWidget(box)
 
-        # 数据目录（v1.10.6）：运行期产物（配置/缓存/日志/临时文件/字幕引擎数据）
-        # 的存放根目录。默认就在程序目录，不写系统盘；可改到任意可写位置。
         root, is_default, src = engine.data_root_info()
-        box_d, blay_d = card(
-            "数据目录",
-            "程序运行产生的全部文件（配置、缓存、日志、临时文件）都放这里，默认在程序目录")
-        self.data_edit = LineEdit(box_d)
+        self.data_edit = LineEdit(box)
         self.data_edit.setText(root)
         self.data_edit.setPlaceholderText("留空使用程序目录")
-        apply_btn = PushButton(FIF.SAVE, "应用", box_d)
+        apply_btn = PushButton(FIF.SAVE, "应用", box)
         apply_btn.clicked.connect(self._apply_data_root)
-        reset_btn = PushButton(FIF.SYNC, "还原默认", box_d)
+        reset_btn = PushButton(FIF.SYNC, "还原默认", box)
         reset_btn.clicked.connect(self._reset_data_root)
-        blay_d.addWidget(label_row("数据根目录", row(self.data_edit, apply_btn, reset_btn)))
-        self.data_hint = CaptionLabel(
-            f"当前：{src}" + ("" if is_default else f"　·　{root}"), box_d)
+        blay.addWidget(label_row("数据根目录",
+                                 row(self.data_edit, apply_btn, reset_btn)))
+        self.data_hint = fit_caption(CaptionLabel(
+            f"当前：{src}" + ("" if is_default else f"　·　{root}"), box))
         self.data_hint.setTextColor("#8a8a8a", "#9a9a9a")
-        blay_d.addWidget(self.data_hint)
-        self.data_leftover = CaptionLabel("", box_d)
+        blay.addWidget(self.data_hint)
+        self.data_leftover = fit_caption(CaptionLabel("", box))
         self.data_leftover.setTextColor("#8a8a8a", "#9a9a9a")
-        blay_d.addWidget(self.data_leftover)
+        blay.addWidget(self.data_leftover)
         self._refresh_data_leftover()
-        lay.addWidget(box_d)
 
-        # 界面设置
-        box2, blay2 = card("界面", "主题与缩放；缩放立即生效，主题重启后完全生效")
-        self.theme_combo = ComboBox(box2)
+        # 引擎工作目录：只读展示，强制在软件文件夹（用户不可改到系统盘）
+        self.engine_dir_edit = LineEdit(box)
+        self.engine_dir_edit.setReadOnly(True)
+        try:
+            self.engine_dir_edit.setText(
+                os.path.join(engine.vc_data_dir(), "work-dir"))
+        except Exception:
+            self.engine_dir_edit.setText("")
+        blay.addWidget(label_row("引擎工作目录", self.engine_dir_edit))
+
+        expand_h(self.dir_edit)
+        expand_h(self.data_edit)
+        expand_h(self.engine_dir_edit)
+        self.vbox.addWidget(box)
+
+    # ------------------------------------------------------------------ #
+    # 网络代理：内置 mihomo（GitHub 加速），允许用户接入自己的 Clash yaml
+    # ------------------------------------------------------------------ #
+    def _build_proxy_card(self):
+        box, blay = card(
+            "网络代理",
+            "内置 mihomo 代理仅用于 GitHub 加速（依赖下载、校准知识同步）；"
+            "可接入自己的 Clash/mihomo 配置，按你的节点与端口启动")
+        cur = engine.get_proxy_yaml()
+        self.proxy_edit = LineEdit(box)
+        self.proxy_edit.setPlaceholderText(
+            "留空使用内置 GitHub 专用配置（tools/mihomo/config.yaml，端口 7897）")
+        self.proxy_edit.setText(cur)
+        self.proxy_edit.setReadOnly(True)
+        browse = PushButton(FIF.FOLDER, "选择 yaml…", box)
+        browse.clicked.connect(self._browse_proxy_yaml)
+        reset = PushButton(FIF.SYNC, "恢复内置", box)
+        reset.clicked.connect(self._reset_proxy_yaml)
+        blay.addWidget(label_row("代理配置文件",
+                                 row(self.proxy_edit, browse, reset)))
+        self.proxy_hint = fit_caption(CaptionLabel(self._proxy_hint_text(), box))
+        self.proxy_hint.setTextColor("#8a8a8a", "#9a9a9a")
+        blay.addWidget(self.proxy_hint)
+        expand_h(self.proxy_edit)
+        self.vbox.addWidget(box)
+
+    @staticmethod
+    def _proxy_hint_text():
+        port = engine._proxy_yaml_port(engine.get_proxy_yaml()) if \
+            engine.get_proxy_yaml() else engine.MIHOMO_PORT
+        if engine.get_proxy_yaml():
+            return (f"当前：自定义配置，端口 {port or 7897}。程序按配置里的 "
+                    f"mixed-port / port / socks-port 自动识别端口，"
+                    f"端口已被占用（如你的 Clash 正在运行）时直接复用。"
+                    f"修改后重启程序生效。")
+        return ("支持 Clash / mihomo 格式；程序按配置里的 mixed-port / port / "
+                "socks-port 自动识别端口，端口已被占用（如你的 Clash 正在运行）"
+                "时直接复用。修改后重启程序生效。")
+
+    def _browse_proxy_yaml(self):
+        p, _ = QFileDialog.getOpenFileName(
+            self, "选择 Clash/mihomo 配置", engine.APP_DIR,
+            "Clash 配置 (*.yaml *.yml)")
+        if not p:
+            return
+        if engine._proxy_yaml_port(p) is None:
+            InfoBar.warning(
+                "未能识别端口", "配置里没有 mixed-port / port / socks-port，"
+                "将回退使用默认端口 7897", duration=4000, parent=self)
+        try:
+            engine.set_proxy_yaml(p)
+        except (OSError, ValueError) as e:
+            InfoBar.error("保存失败", str(e), duration=4000, parent=self)
+            return
+        self.proxy_edit.setText(p)
+        self.proxy_hint.setText(self._proxy_hint_text())
+        InfoBar.success("已保存", "自定义代理配置已生效，重启程序后应用",
+                        duration=INFOBAR_DURATION_SUCCESS, parent=self)
+
+    def _reset_proxy_yaml(self):
+        try:
+            engine.set_proxy_yaml("")
+        except (OSError, ValueError):
+            pass
+        self.proxy_edit.setText("")
+        self.proxy_hint.setText(self._proxy_hint_text())
+        InfoBar.success("已恢复", "将使用内置 GitHub 专用代理配置，重启程序后生效",
+                        duration=INFOBAR_DURATION_SUCCESS, parent=self)
+
+    # ------------------------------------------------------------------ #
+    # 全局 AI（LLM）：全程序唯一一套配置
+    # ------------------------------------------------------------------ #
+    def _build_ai_card(self):
+        box, blay = card(
+            "全局 AI",
+            "一套配置全程序共用（OpenAI 兼容）：工具箱（标题/语言识别、视觉）、"
+            "字幕引擎（优化/拆分）与 AI 校准；保存后立即写入字幕引擎")
+        ai = engine.ai_load_config()
+
+        self.ai_enabled = SwitchButton(box)
+        self.ai_enabled.setChecked(bool(ai.get("enabled", True)))
+        blay.addWidget(label_row("启用 AI", row(self.ai_enabled, None)))
+
+        self.ai_key = PasswordLineEdit(box)
+        self.ai_key.setText(str(ai.get("api_key", "")))
+        self.ai_key.setPlaceholderText("API Key")
+        blay.addWidget(label_row("密钥", self.ai_key))
+
+        self.ai_base = LineEdit(box)
+        self.ai_base.setText(str(ai.get("base_url", "")))
+        self.ai_base.setPlaceholderText(
+            "如 https://open.bigmodel.cn/api/paas/v4（兼容 OpenAI/DeepSeek/"
+            "Gemini 兼容层/Ollama/Azure 等，填到域名或版本段均可）")
+        blay.addWidget(label_row("接口地址", self.ai_base))
+
+        self.ai_model = LineEdit(box)
+        self.ai_model.setText(str(ai.get("model", "")))
+        self.ai_model.setPlaceholderText("文本模型，如 glm-4.7-flash")
+        blay.addWidget(label_row("文本模型", self.ai_model))
+
+        self.ai_vision = LineEdit(box)
+        self.ai_vision.setText(str(ai.get("vision_model", "")))
+        self.ai_vision.setPlaceholderText("视觉模型，如 glm-4.6v-flash（屏幕识别用）")
+        blay.addWidget(label_row("视觉模型", self.ai_vision))
+
+        test_btn = PushButton(FIF.SEND, "测试接口", box)
+        test_btn.clicked.connect(lambda: self._ai_test())
+        save_btn = PrimaryPushButton(FIF.SAVE, "保存并应用", box)
+        save_btn.clicked.connect(self._ai_save)
+        blay.addWidget(row(test_btn, save_btn, None))
+
+        self.ai_hint = fit_caption(CaptionLabel(
+            "保存后立即生效：自动写入字幕引擎的 OpenAI 兼容槽，AI 校准同用本配置；"
+            "地址填到域名或版本段均可自动补全（含 Azure：填到 deployments/<部署名>）",
+            box))
+        self.ai_hint.setTextColor("#8a8a8a", "#9a9a9a")
+        blay.addWidget(self.ai_hint)
+        for w in (self.ai_key, self.ai_base, self.ai_model, self.ai_vision):
+            expand_h(w)
+        self.vbox.addWidget(box)
+
+    # ------------------------------------------------------------------ #
+    # ASR 语音识别：独立 ASR 模型（自有服务 / 本地模型）→ 引擎「转录配置」
+    # ------------------------------------------------------------------ #
+    def _build_asr_card(self):
+        box, blay = card(
+            "ASR 语音识别（转录配置）",
+            "语音转文字可用独立的 ASR 模型：自有 ASR 服务（OpenAI 兼容接口）"
+            "或本地独立模型；保存后自动写入字幕引擎的「转录配置」")
+        ai = engine.ai_load_config()
+        mode = str(ai.get("asr_mode") or "service").lower()
+
+        self.asr_mode_combo = ComboBox(box)
+        self.asr_mode_combo.addItems(["自有 ASR 服务（Whisper 兼容接口，推荐）",
+                                      "本地独立模型（faster-whisper）"])
+        self.asr_mode_combo.setCurrentIndex(1 if mode == "local" else 0)
+        self.asr_mode_combo.currentIndexChanged.connect(self._sync_asr_visible)
+        blay.addWidget(label_row("转录模型来源", self.asr_mode_combo))
+
+        # —— 服务模式 ——
+        self.asr_service_widget = QWidget(box)
+        slay = QVBoxLayout(self.asr_service_widget)
+        slay.setContentsMargins(0, 0, 0, 0)
+        slay.setSpacing(8)
+        self.asr_base = LineEdit(self.asr_service_widget)
+        self.asr_base.setText(str(ai.get("asr_base_url", "")))
+        self.asr_base.setPlaceholderText("如 https://api.siliconflow.cn/v1")
+        slay.addWidget(label_row("ASR 接口地址", self.asr_base))
+        self.asr_key = PasswordLineEdit(self.asr_service_widget)
+        self.asr_key.setText(str(ai.get("asr_api_key", "")))
+        self.asr_key.setPlaceholderText("ASR 服务 API Key")
+        slay.addWidget(label_row("ASR 密钥", self.asr_key))
+        self.asr_model = LineEdit(self.asr_service_widget)
+        self.asr_model.setText(str(ai.get("asr_model", "")))
+        self.asr_model.setPlaceholderText("如 FunAudioLLM/SenseVoiceSmall、whisper-1")
+        slay.addWidget(label_row("ASR 模型名", self.asr_model))
+        self.asr_prompt = LineEdit(self.asr_service_widget)
+        self.asr_prompt.setText(str(ai.get("asr_prompt", "")))
+        self.asr_prompt.setPlaceholderText("识别提示词（可留空：中文会自动加简体提示）")
+        slay.addWidget(label_row("识别提示词", self.asr_prompt))
+        blay.addWidget(self.asr_service_widget)
+
+        # —— 本地模型 ——
+        self.asr_local_widget = QWidget(box)
+        llay = QVBoxLayout(self.asr_local_widget)
+        llay.setContentsMargins(0, 0, 0, 0)
+        llay.setSpacing(8)
+        self.asr_local_model = LineEdit(self.asr_local_widget)
+        self.asr_local_model.setText(str(ai.get("asr_local_model", "")))
+        self.asr_local_model.setPlaceholderText("模型名，如 large-v3、large-v3-turbo 或自训练模型目录名")
+        llay.addWidget(label_row("本地模型名", self.asr_local_model))
+        self.asr_local_dir = LineEdit(self.asr_local_widget)
+        self.asr_local_dir.setText(str(ai.get("asr_local_model_dir", "")))
+        self.asr_local_dir.setPlaceholderText("留空 = 用软件 data\\VideoCaptioner\\models")
+        self.asr_local_browse = PushButton(FIF.FOLDER, "浏览…", self.asr_local_widget)
+        self.asr_local_browse.clicked.connect(
+            lambda: self._browse_into(self.asr_local_dir, "选择 ASR 模型目录"))
+        llay.addWidget(row(self.asr_local_dir, self.asr_local_browse))
+        blay.addWidget(self.asr_local_widget)
+
+        asr_test = PushButton(FIF.SEND, "测试 ASR 配置", box)
+        asr_test.clicked.connect(self._asr_test)
+        asr_save = PrimaryPushButton(FIF.SAVE, "保存并应用", box)
+        asr_save.clicked.connect(self._ai_save)
+        blay.addWidget(row(asr_test, asr_save, None))
+
+        self.asr_hint = fit_caption(CaptionLabel(
+            "服务模式：转录模型自动切到 Whisper [API]，填自己的 ASR 地址即可；"
+            "本地模式：切到 FasterWhisper 并优先用上面指定的模型/目录", box))
+        self.asr_hint.setTextColor("#8a8a8a", "#9a9a9a")
+        blay.addWidget(self.asr_hint)
+        for w in (self.asr_base, self.asr_key, self.asr_model, self.asr_prompt,
+                  self.asr_local_model, self.asr_local_dir):
+            expand_h(w)
+        self.vbox.addWidget(box)
+        self._sync_asr_visible()
+
+    def _sync_asr_visible(self):
+        """按 ASR 模式显隐「服务 / 本地」两组输入。"""
+        local = self.asr_mode_combo.currentIndex() == 1
+        self.asr_service_widget.setVisible(not local)
+        self.asr_local_widget.setVisible(local)
+        self.asr_hint.setText(
+            "本地模式：转录模型切到 FasterWhisper，优先用上面填写的模型名与目录"
+            "（可指向自训练/微调的模型）；目录留空则用软件内的 models 目录"
+            if local else
+            "服务模式：转录模型切到 Whisper [API]，由自有 ASR 服务完成语音识别；"
+            "地址填到 /v1 即可（自动补 /audio/transcriptions）")
+
+    def _browse_into(self, edit, title):
+        p = QFileDialog.getExistingDirectory(self, title, edit.text() or engine.APP_DIR)
+        if p:
+            edit.setText(p)
+
+    # ------------------------------------------------------------------ #
+    # AI 校准：Agent 级字幕校准的分块参数（走全局 AI 单通道）
+    # ------------------------------------------------------------------ #
+    def _build_calib_ai_card(self):
+        box, blay = card(
+            "AI 校准（Agent 级）",
+            "字幕校准页开启「AI 校准」后生效：先跑术语脚本基线，再由 AI 逐块复校"
+            "（只改文字，时间轴与格式一字不动；读不完自动拆分再合并）；"
+            "走上方「全局 AI」同一套配置")
+        ai = engine.ai_load_config()
+
+        def _spin(value, lo, hi, step=1):
+            s = SpinBox(box)
+            s.setRange(lo, hi)
+            s.setSingleStep(step)
+            s.setValue(int(value or lo))
+            return s
+
+        self.calib_cues = _spin(ai.get("calib_chunk_cues") or 120, 20, 1000, 10)
+        blay.addWidget(label_row("每块最多条数", row(self.calib_cues, None)))
+        self.calib_chars = _spin(ai.get("calib_max_chars") or 6000, 1000, 40000, 500)
+        blay.addWidget(label_row("每块字符预算", row(self.calib_chars, None)))
+        self.calib_tokens = _spin(ai.get("calib_max_tokens") or 8192, 1024, 65536, 512)
+        blay.addWidget(label_row("单次最大输出 token", row(self.calib_tokens, None)))
+
+        calib_save = PrimaryPushButton(FIF.SAVE, "保存并应用", box)
+        calib_save.clicked.connect(self._ai_save)
+        blay.addWidget(row(calib_save, None))
+
+        self.calib_hint = fit_caption(CaptionLabel(
+            "条数 / 字符预算越小越稳（单次读不完会自动拆半重试），越大越快；"
+            "改动必须能被术语知识库解释，无法解释的提议会被拒绝并写进报告", box))
+        self.calib_hint.setTextColor("#8a8a8a", "#9a9a9a")
+        blay.addWidget(self.calib_hint)
+        self.vbox.addWidget(box)
+
+    def _collect_ai(self):
+        return {
+            "enabled": self.ai_enabled.isChecked(),
+            # 全局 AI 单通道（工具箱 / 字幕引擎 / AI 校准共用）
+            "api_key": self.ai_key.text().strip(),
+            "base_url": self.ai_base.text().strip(),
+            "model": self.ai_model.text().strip(),
+            "vision_model": self.ai_vision.text().strip(),
+            # ASR：独立 ASR 模型
+            "asr_mode": "local" if self.asr_mode_combo.currentIndex() == 1
+                        else "service",
+            "asr_base_url": self.asr_base.text().strip(),
+            "asr_api_key": self.asr_key.text().strip(),
+            "asr_model": self.asr_model.text().strip(),
+            "asr_prompt": self.asr_prompt.text().strip(),
+            "asr_local_model": self.asr_local_model.text().strip(),
+            "asr_local_model_dir": engine.clean_path(self.asr_local_dir.text()),
+            # AI 校准（v1.12.0：通道选择随双通道合并一并移除）
+            "calib_chunk_cues": self.calib_cues.value(),
+            "calib_max_chars": self.calib_chars.value(),
+            "calib_max_tokens": self.calib_tokens.value(),
+        }
+
+    def _ai_save(self):
+        try:
+            engine.ai_save_config(self._collect_ai())
+            InfoBar.success("已保存",
+                            "全局 AI 与 ASR 配置已应用：引擎 LLM 槽、转录配置已同步",
+                            duration=3000, position=InfoBarPosition.BOTTOM_RIGHT,
+                            parent=self)
+        except Exception as e:  # noqa: BLE001
+            InfoBar.error("保存失败", str(e)[:300], duration=5000,
+                          position=InfoBarPosition.BOTTOM_RIGHT, parent=self)
+
+    def _ai_test(self, channel="a"):
+        """测试全局 AI 连通性（v1.12.0 起单通道，channel 参数保留兼容）。"""
+        cfg = self._collect_ai()
+        InfoBar.info("正在测试", "正在连接全局 AI…", duration=1200,
+                     position=InfoBarPosition.BOTTOM_RIGHT, parent=self)
+        self._run_bg(lambda: engine.ai_test_connection(cfg),
+                     lambda r, e: self._ai_test_done(r, e, "全局 AI"))
+
+    def _asr_test(self):
+        """测试 ASR 配置：服务模式校验地址/密钥连通，本地模式校验模型与目录。"""
+        cfg = self._collect_ai()
+        InfoBar.info("正在测试", "正在检查 ASR 配置…", duration=1200,
+                     position=InfoBarPosition.BOTTOM_RIGHT, parent=self)
+        self._run_bg(lambda: engine.ai_test_asr(cfg),
+                     lambda r, e: self._ai_test_done(r, e, "ASR 语音识别"))
+
+    def _ai_test_done(self, result, err, name="AI 接口"):
+        if err is not None:
+            InfoBar.error(f"{name} 测试失败", str(err)[:300], duration=6000,
+                          position=InfoBarPosition.BOTTOM_RIGHT, parent=self)
+            return
+        ok, msg = result
+        (InfoBar.success if ok else InfoBar.error)(
+            f"{name} 正常" if ok else f"{name} 不可用", str(msg)[:300],
+            duration=6000, position=InfoBarPosition.BOTTOM_RIGHT, parent=self)
+
+    # ------------------------------------------------------------------ #
+    # 字幕引擎运行参数（内嵌引擎设置界面，懒加载，隐藏重复分组）
+    # ------------------------------------------------------------------ #
+    def _build_engine_section(self):
+        host = QWidget(self)
+        lay = QVBoxLayout(host)
+        # 左右边距清零，使内嵌引擎分组与上方/下方的全局卡片严格左右对齐
+        lay.setContentsMargins(0, 0, 0, 0)
+        lay.setSpacing(6)
+        lay.addWidget(StrongBodyLabel("字幕引擎：转录 / 翻译 / 合成参数", host))
+        cap = fit_caption(CaptionLabel(
+            "LLM、ASR 与保存位置已上收全局（见上方卡片），这里只保留引擎运行参数",
+            host))
+        cap.setTextColor("#8a8a8a", "#9a9a9a")
+        lay.addWidget(cap)
+        self.engine_card = host
+        self.engine_holder = QWidget(host)
+        self.engine_holder_lay = QVBoxLayout(self.engine_holder)
+        self.engine_holder_lay.setContentsMargins(0, 0, 0, 0)
+        # 与上游 SettingCardGroup 之间 28px 间距接近，分组之间留出呼吸感
+        self.engine_holder_lay.setSpacing(20)
+        lay.addWidget(self.engine_holder)
+        self.vbox.addWidget(host)
+
+    def _ensure_engine_setting(self):
+        """懒加载引擎设置；引擎尚未导入成功时返回 None，下次显示再试。
+
+        布局做法（v1.10.8 修正）：SettingInterface 自身是个滚动区，直接嵌进本页
+        会形成双层视口（内层 80px 顶留白、36px 边距、独立滚动条、卡片错位）。
+        这里保留它内部全部布局/定高机制（分组高度依赖其 ExpandLayout），只把它
+        「拍平成一块」：隐藏大标题与重复分组、关滚动条/边框/内边距，并让其固定
+        高度恒等于内容高度，滚动统一交给外层页面，卡片与全局卡片左右对齐。
+        """
+        if self._engine_built:
+            return self._engine_setting
+        self._engine_built = True
+        try:
+            from PyQt5.QtWidgets import QFrame
+            from videocaptioner.ui.view.setting_interface import SettingInterface
+            engine.engine_ui_brand_patch()
+            setting = SettingInterface(self.engine_holder)
+            try:
+                setting.settingLabel.hide()          # 去掉重复的「设置」大标题
+            except Exception:
+                pass
+            # 隐藏与全局重复或属于上游品牌的分组：
+            #   llmGroup      —— LLM 已全局化（全局 AI 卡片）
+            #   saveGroup     —— 工作目录已强制软件文件夹、缓存并入全局
+            #   personalGroup —— 主题/缩放/语言已在全局「界面」
+            #   aboutGroup    —— 上游检查更新/帮助/反馈品牌入口
+            for gname in ("llmGroup", "saveGroup", "personalGroup", "aboutGroup"):
+                grp = getattr(setting, gname, None)
+                if grp is not None:
+                    grp.setHidden(True)
+            promo = getattr(setting, "openaiOfficialApiCard", None)
+            if promo is not None:
+                orig = promo.setVisible
+                promo.setVisible = lambda _v=True: orig(False)
+                orig(False)
+            # v1.12.0：字幕翻译板块全面去 AI（仅机翻）——从翻译服务下拉框
+            # 移除「LLM 大模型翻译」选项；若引擎 QConfig 当前正选着 LLM，
+            # 一并改回「微软翻译」，保证 combo 移除该项后仍有合法选中值。
+            try:
+                from videocaptioner.core.entities import TranslatorServiceEnum as _TSE
+                from videocaptioner.ui.common.config import cfg as _vcfg
+                if _vcfg.get(_vcfg.translator_service) == _TSE.OPENAI:
+                    _vcfg.set(_vcfg.translator_service, _TSE.BING)
+                ts_card = getattr(setting, "translateServiceCard", None)
+                _combo = getattr(ts_card, "comboBox", None) if ts_card else None
+                if _combo is not None:
+                    for _i in range(_combo.count()):
+                        if _combo.itemText(_i) == "LLM 大模型翻译":
+                            _combo.removeItem(_i)
+                            break
+            except Exception:
+                pass
+            # v1.12.0：设置板块去重整合 ——
+            #   ① 「字幕校正」卡隐藏：校准类功能统一合并到「字幕校准」板块，
+            #      不再在字幕处理设置里保留第二入口（引擎工作台的优化开关
+            #      仍通过同一配置项生效，功能不受影响）；
+            #   ② 「反思翻译」卡隐藏：LLM 四轮反思翻译专属，机翻无意义；
+            #   ③ 「翻译服务」与「翻译与优化」两组合并为一个「字幕翻译」组：
+            #      翻译服务 → 是否翻译 → 目标语言 → 线程数（→ DeepLx 端点）；
+            #   ④ 引擎「转录配置」分组隐藏：ASR 已由全局设置「ASR 语音识别」
+            #      卡片统一写进引擎转录配置，此处是重复入口。
+            try:
+                correct = getattr(setting, "subtitleCorrectCard", None)
+                if correct is not None:
+                    correct.hide()
+                reflect = getattr(setting, "needReflectTranslateCard", None)
+                if reflect is not None:
+                    reflect.hide()
+                # 线程数描述原本面向 LLM 服务商，机翻语境下修正措辞
+                tn_card = getattr(setting, "threadNumCard", None)
+                if tn_card is not None:
+                    tn_card.setContent(
+                        "请求并行处理的数量，免费机翻端点已内置全局限速保护，"
+                        "设置过大不会更快")
+                tr_g = getattr(setting, "transcribeGroup", None)
+                if tr_g is not None:
+                    tr_g.setHidden(True)
+            except Exception:
+                pass
+            try:
+                src_g = getattr(setting, "translate_serviceGroup", None)
+                dst_g = getattr(setting, "translateGroup", None)
+                if src_g is not None and dst_g is not None:
+                    order = ["translatorServiceCard", "subtitleTranslateCard",
+                             "targetLanguageCard", "threadNumCard",
+                             "deeplxEndpointCard"]
+                    dst_lay = dst_g.cardLayout
+                    dst_ws = getattr(dst_lay, "_ExpandLayout__widgets", None)
+                    for _idx, _name in enumerate(order):
+                        _card = getattr(setting, _name, None)
+                        if _card is None:
+                            continue
+                        _card.setParent(dst_g)
+                        if dst_ws is None:        # 兜底：退化为追加
+                            dst_g.addSettingCard(_card)
+                            continue
+                        if _card in dst_ws:
+                            dst_ws.remove(_card)
+                        dst_ws.insert(min(_idx, len(dst_ws)), _card)
+                        _card.installEventFilter(dst_lay)
+                    dst_g.titleLabel.setText("字幕翻译")
+                    dst_g.titleLabel.adjustSize()
+                    dst_g.adjustSize()
+                    # 原翻译服务分组已搬空：隐藏并塌缩占位
+                    src_g.setHidden(True)
+                    src_g.adjustSize()
+            except Exception:
+                pass
+            # —— 消除内层独立视口：无滚条、无边框、零边距、与全局卡片同宽 —— #
+            try:
+                setting.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+                setting.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+            except Exception:
+                pass
+            try:
+                setting.setFrameShape(QFrame.NoFrame)
+            except Exception:
+                pass
+            try:
+                setting.setViewportMargins(0, 0, 0, 0)
+            except Exception:
+                pass
+            try:  # 与本页其它卡片左右对齐、分组间距统一
+                setting.expandLayout.setContentsMargins(0, 0, 0, 0)
+                setting.expandLayout.setSpacing(20)
+            except Exception:
+                pass
+            self.engine_holder_lay.addWidget(setting)
+            # 内层固定高度跟随内容，滚动交给外层
+            self._engine_fit = _InnerScrollToContent(setting, self.engine_holder)
+            sw = setting.widget()
+            if sw is not None:
+                sw.installEventFilter(self._engine_fit)
+            # 内容完成布局时滚动范围必变，是比定时器更可靠的高度触发源
+            try:
+                setting.verticalScrollBar().rangeChanged.connect(
+                    lambda *_a: self._engine_fit.sync_height())
+            except Exception:
+                pass
+
+            def _later_fit():
+                try:
+                    self._engine_fit.sync_height()
+                except Exception:
+                    pass
+
+            # 初始化期卡片会按默认选项显隐，分几次把高度钉准
+            QTimer.singleShot(0, _later_fit)
+            QTimer.singleShot(120, _later_fit)
+            QTimer.singleShot(500, _later_fit)
+            self._engine_setting = setting
+            try:
+                engine.vc_enforce_runtime_cfg()
+            except Exception:
+                pass
+            # 内嵌引擎设置界面会带入它自己的字体与缩放，导航宽度再收敛一次
+            try:
+                self.window().refresh_nav_width()
+            except Exception:
+                pass
+        except Exception as e:  # noqa: BLE001
+            # 引擎仍在后台预热：放开标记，下次 showEvent 再试
+            self._engine_built = False
+            tip = fit_caption(CaptionLabel(
+                f"字幕引擎仍在预热中，稍后回到本页即可查看（{e}）",
+                self.engine_holder))
+            tip.setTextColor("#8a8a8a", "#9a9a9a")
+            self.engine_holder_lay.addWidget(tip)
+        return self._engine_setting
+
+    def scroll_to_engine(self):
+        """外部调用：定位到字幕引擎参数区（并确保其已构建）。"""
+        self._ensure_engine_setting()
+        QTimer.singleShot(0, self._scroll_to_engine_card)
+
+    def _scroll_to_engine_card(self):
+        try:
+            if self.shell.area is not None:
+                self.shell.area.ensureWidgetVisible(self.engine_card, 0, 80)
+        except Exception:
+            pass
+
+    # ------------------------------------------------------------------ #
+    # 校准知识多用户同步（启动拉取合并 / 退出先并再推，对等并集）
+    # ------------------------------------------------------------------ #
+    def _build_sync_card(self):
+        box, blay = card(
+            "校准知识多用户同步",
+            "启动自动拉取 GitHub 最新校准知识并合并其他用户的新条目；退出先并入远程再推送")
+        self.sync_switch = SwitchButton(box)
+        self.sync_switch.setChecked(engine.calib_sync_enabled())
+        self.sync_switch.checkedChanged.connect(self._on_sync_toggle)
+        blay.addWidget(label_row("启用自动同步", row(self.sync_switch, None)))
+
+        sync_btn = PushButton(FIF.SYNC, "立即同步一次", box)
+        sync_btn.clicked.connect(self._sync_now)
+        blay.addWidget(row(sync_btn, None))
+
+        self.sync_hint = fit_caption(CaptionLabel(
+            "多用户互不覆盖：只做条目并集、从不删除，所有人最终收敛到全体条目的并集",
+            box))
+        self.sync_hint.setTextColor("#8a8a8a", "#9a9a9a")
+        blay.addWidget(self.sync_hint)
+        self.vbox.addWidget(box)
+
+    def _on_sync_toggle(self, checked):
+        try:
+            engine.set_calib_sync_enabled(bool(checked))
+            InfoBar.success("已更新", "自动同步已" + ("启用" if checked else "关闭"),
+                            duration=2500, position=InfoBarPosition.BOTTOM_RIGHT,
+                            parent=self)
+        except Exception as e:  # noqa: BLE001
+            InfoBar.error("设置失败", str(e)[:200], duration=4000,
+                          position=InfoBarPosition.BOTTOM_RIGHT, parent=self)
+
+    def _sync_now(self):
+        InfoBar.info("正在同步", "正在拉取并合并远程校准知识…", duration=1200,
+                     position=InfoBarPosition.BOTTOM_RIGHT, parent=self)
+        self._run_bg(lambda: engine.sync_calib_on_startup(force=True),
+                     self._sync_done)
+
+    def _sync_done(self, result, err):
+        if err is not None:
+            InfoBar.error("同步失败", str(err)[:300], duration=6000,
+                          position=InfoBarPosition.BOTTOM_RIGHT, parent=self)
+            return
+        ok, msg = result
+        (InfoBar.success if ok else InfoBar.warning)(
+            "同步完成" if ok else "同步未执行", str(msg)[:300], duration=6000,
+            position=InfoBarPosition.BOTTOM_RIGHT, parent=self)
+
+    # ------------------------------------------------------------------ #
+    # 界面
+    # ------------------------------------------------------------------ #
+    def _build_appearance_card(self):
+        box, blay = card("界面", "主题与缩放；缩放立即生效，主题重启后完全生效")
+        self.theme_combo = ComboBox(box)
         self.theme_combo.addItems(["深色", "浅色", "跟随系统"])
         from qfluentwidgets import isDarkTheme
         self.theme_combo.setCurrentIndex(0 if isDarkTheme() else 1)
         self.theme_combo.currentIndexChanged.connect(self._on_theme_changed)
-        blay2.addWidget(label_row("主题", row(BodyLabel(""), self.theme_combo, None)))
-        self.zoom_combo = ComboBox(box2)
-        self.zoom_combo.addItems(["自动（跟随系统）", "100%", "125%", "150%", "175%", "200%"])
+        blay.addWidget(label_row("主题", row(self.theme_combo, None)))
+        self.zoom_combo = ComboBox(box)
+        self.zoom_combo.addItems(["自动（跟随系统）", "100%", "125%", "150%",
+                                  "175%", "200%"])
         self.zoom_combo.setCurrentIndex(0)
         self.zoom_combo.currentIndexChanged.connect(self._on_zoom_changed)
-        blay2.addWidget(label_row("界面缩放", row(BodyLabel(""), self.zoom_combo, None)))
-        self.mica_switch = SwitchButton(box2)
+        blay.addWidget(label_row("界面缩放", row(self.zoom_combo, None)))
+        self.mica_switch = SwitchButton(box)
         self.mica_switch.setChecked(True)
-        blay2.addWidget(label_row("云母特效", row(BodyLabel(""), self.mica_switch, None)))
-        lay.addWidget(box2)
+        blay.addWidget(label_row("云母特效", row(self.mica_switch, None)))
+        self.vbox.addWidget(box)
 
-        # 许可与来源
-        box3, blay3 = card("关于", f"视频工具箱 v{VERSION}")
-        blay3.addWidget(row(
-            BodyLabel(f"内置第三方字幕引擎，许可与来源见 docs\\ 下声明文件"),
-            None))
-        lic = PushButton(FIF.CERTIFICATE, "打开许可全文", box3)
+    # ------------------------------------------------------------------ #
+    # 关于
+    # ------------------------------------------------------------------ #
+    def _build_about_card(self):
+        box, blay = card("关于", f"视频工具箱 v{VERSION}")
+        blay.addWidget(row(BodyLabel(
+            "内置第三方字幕引擎，许可与来源见 docs\\ 下声明文件"), None))
+        lic = PushButton(FIF.CERTIFICATE, "打开许可全文", box)
         lic.clicked.connect(self._open_license)
-        src = PushButton(FIF.DOCUMENT, "查看组件来源", box3)
+        src = PushButton(FIF.DOCUMENT, "查看组件来源", box)
         src.clicked.connect(self._open_source)
-        blay3.addWidget(row(lic, src, None))
-        lay.addWidget(box3)
+        blay.addWidget(row(lic, src, None))
+        self.vbox.addWidget(box)
 
-        lay.addStretch(1)
-        return host
+    # ------------------------------------------------------------------ #
+    # 后台任务（线程执行 + 主线程 QTimer 回收，避免网络调用卡住界面）
+    # ------------------------------------------------------------------ #
+    def _run_bg(self, work, done):
+        box = {}
 
-    # ---------- 引擎设置 ----------
-    def _build_engine_setting(self):
-        """懒加载引擎设置界面（约 30 个卡片，构建有开销）。"""
-        if self._engine_built:
-            return self._engine_setting
-        self._engine_built = True
-        from qfluentwidgets import isDarkTheme
-        bg = "#1F1F1F" if isDarkTheme() else "#F3F3F3"
-        holder = QWidget(self.engine_seg)
-        holder.setStyleSheet(f"QWidget{{background:{bg};}}")
-        hlay = QVBoxLayout(holder)
-        hlay.setContentsMargins(0, 0, 0, 0)
-        try:
-            from videocaptioner.ui.view.setting_interface import SettingInterface
-            engine.engine_ui_brand_patch()
-            setting = SettingInterface(holder)
-            # 引擎设置页自带一个「设置」大标题与 80px 顶部留白，宿主页已
-            # 有标题区，这里去掉重复标题、收紧留白
+        def worker():
             try:
-                setting.settingLabel.hide()
-            except Exception:
-                pass
-            try:
-                setting.setViewportMargins(0, 0, 0, 20)
-            except Exception:
-                pass
-            self._hide_upstream_promo(setting)
-            hlay.addWidget(setting)
-            self._engine_setting = setting
-        except Exception as e:  # noqa: BLE001
-            hlay.addWidget(CaptionLabel(f"字幕引擎设置加载失败：{e}", holder))
-        self.engine_lay.addWidget(holder)
-        self._engine_host = holder
-        return self._engine_setting
+                box["r"] = work()
+            except Exception as e:  # noqa: BLE001
+                box["e"] = e
 
-    @staticmethod
-    def _hide_upstream_promo(setting):
-        """去掉上游品牌入口：关于组（检查更新/帮助/反馈）与官方 API 推广卡片。"""
-        about = getattr(setting, "aboutGroup", None)
-        if about is not None:
-            about.hide()
-        card_ = getattr(setting, "openaiOfficialApiCard", None)
-        if card_ is not None:
-            orig = card_.setVisible
-            card_.setVisible = lambda _v=True: orig(False)
-            orig(False)
+        threading.Thread(target=worker, daemon=True).start()
+        timer = QTimer(self)
+        timer.setInterval(120)
 
-    # ---------- 分段切换 ----------
-    def _show_seg(self, key, animate=True):
-        """在容器里手动替换子控件（不用 QStackedWidget，见 __init__ 注释）。"""
-        if key == "engine":
-            self._build_engine_setting()
-            target = self.engine_seg
-        else:
-            target = self.tool_seg
-        old = getattr(self, "_current_seg", None)
-        if old is not None and old is not target:
-            self.swap_lay.removeWidget(old)
-            old.setParent(None)
-        if self.swap_lay.indexOf(target) < 0:
-            self.swap_lay.addWidget(target)
-        target.setParent(self.swap_host)
-        # 逐级 show：QWidget 若父级还没显形，自身 show() 只是「解除隐藏标记」，
-        # 需要等父级真正显示后才可见；这里把整条链都显式 show 一遍，
-        # 并在下一轮事件循环再补一次（此时布局已算完，一定可见）
-        self.swap_host.show()
-        target.show()
-        self._current_seg = target
-        # 内容高度变了，通知滚动区重新计算；并回到顶部
-        try:
-            target.adjustSize()
-            self.swap_host.adjustSize()
-            self.swap_host.updateGeometry()
-            if self.shell.area is not None:
-                self.shell.area.widget().adjustSize()
-                self.shell.area.verticalScrollBar().setValue(0)
-        except Exception:
-            pass
+        def poll():
+            if "r" in box or "e" in box:
+                timer.stop()
+                timer.deleteLater()
+                done(box.get("r"), box.get("e"))
 
-        def _resettle():
-            try:
-                self.swap_host.show()
-                target.show()
-                target.updateGeometry()
-                if self.shell.area is not None:
-                    self.shell.area.widget().adjustSize()
-            except Exception:
-                pass
-        QTimer.singleShot(0, _resettle)
+        timer.timeout.connect(poll)
+        timer.start()
 
-    def scroll_to_engine(self):
-        """外部调用：切到「字幕引擎」分段。
-
-        这里同时选中分段按钮并直接切页面——`setCurrentItem` 走的是 Pivot
-        内部的状态同步，不一定触发 itemClicked 回调，所以不能只依赖它。
-        """
-        try:
-            self.seg.setCurrentItem("engine")
-        except Exception:
-            pass
-        self._show_seg("engine")
-
-    # ---------- 槽 ----------
+    # ------------------------------------------------------------------ #
+    # 槽函数
+    # ------------------------------------------------------------------ #
     def _on_dir_changed(self):
         path = self.dir_edit.text().strip()
         if path:
@@ -1682,9 +2259,7 @@ class SettingsPage(QWidget):
             self.dir_edit.setText(d)
             self._on_dir_changed()
 
-    # ---------- 数据目录（v1.10.6） ----------
     def _apply_data_root(self):
-        """把数据根目录切到用户填的位置（写指针文件 + 迁移现有数据）。"""
         path = self.data_edit.text().strip().strip('"')
         if not path:
             self._reset_data_root()
@@ -1693,7 +2268,7 @@ class SettingsPage(QWidget):
         if ok:
             InfoBar.success("数据目录已切换", msg, duration=4000,
                             position=InfoBarPosition.BOTTOM_RIGHT, parent=self)
-            root, is_default, src = engine.data_root_info()
+            root, _is_default, src = engine.data_root_info()
             self.data_edit.setText(root)
             self.data_hint.setText(f"当前：{src}")
             self._refresh_data_leftover()
@@ -1714,7 +2289,6 @@ class SettingsPage(QWidget):
                           position=InfoBarPosition.BOTTOM_RIGHT, parent=self)
 
     def _refresh_data_leftover(self):
-        """提示 C 盘（系统盘）是否还有历史字幕引擎数据残留。"""
         try:
             left = engine.vc_legacy_leftovers()
         except Exception:
@@ -1734,11 +2308,7 @@ class SettingsPage(QWidget):
             pass
 
     def _on_zoom_changed(self, idx):
-        """界面缩放：改写引擎配置的 dpiScale，下次启动生效。
-
-        宿主界面的字号/间距全部按点/逻辑像素定义，Qt 的高 DPI 缩放会整体
-        放大，无需逐控件改字号；这里只把档位记进配置供下次启动应用。
-        """
+        """界面缩放档位记进引擎配置 dpiScale，下次启动生效。"""
         if idx <= 0:
             return
         pct = [100, 100, 125, 150, 175, 200][idx]
@@ -1795,10 +2365,15 @@ class CalibPage(ScrollPage):
         self.app = app
         self.setObjectName("CalibPage")
         self.running = False
+        self.ai_running = False
+        self._cancel_flag = False   # AI 校准取消标志（关闭页面/再次点击）
+        self._round = 0             # 已完成的 AI 校准轮次（「再次校准」据此递增）
+        self._last_out = ""         # 上一轮 AI 校准输出（再次校准的输入）
+        self._base_stem = ""        # 第 1 轮确定的输出基名（后续轮次派生命名）
         self._script = os.path.join(engine.APP_DIR, "subtitle_calib_merged.py")
 
         if not os.path.isfile(self._script):
-            warn = CaptionLabel(f"校准脚本缺失：{self._script}", self.view)
+            warn = fit_caption(CaptionLabel(f"校准脚本缺失：{self._script}", self.view))
             warn.setWordWrap(True)
             warn.setTextColor(Qt.darkRed)
             self.add_card(warn)
@@ -1824,9 +2399,16 @@ class CalibPage(ScrollPage):
         self.report_switch = SwitchButton(self)
         self.report_switch.setChecked(True)
         self.stats_switch = SwitchButton(self)
+        # AI 校准（Agent 级）：开启后「开始校准」等价于让 AI 基于校准脚本
+        # 逐块复校——只改文字、不动时间轴与格式，读不完自动拆分再合并。
+        self.ai_switch = SwitchButton(self)
+        self.ai_switch.checkedChanged.connect(self._on_ai_toggle)
         self.run_btn = PrimaryPushButton(FIF.PLAY, "开始校准", self.view)
         self.run_btn.clicked.connect(self.start)
-        self.stage_label = CaptionLabel("", self.view)
+        self.again_btn = PushButton(FIF.SYNC, "再次校准", self.view)
+        self.again_btn.setEnabled(False)
+        self.again_btn.clicked.connect(self.start_again)
+        self.stage_label = fit_caption(CaptionLabel("", self.view))
 
         box, lay = card("片源模式与选项")
         lay.addWidget(label_row("片源模式", self.mode_combo))
@@ -1836,7 +2418,15 @@ class CalibPage(ScrollPage):
                           self.report_switch, None))
         lay.addWidget(row(BodyLabel("仅统计术语命中，不写输出文件", self.view),
                           self.stats_switch, None))
-        lay.addWidget(row(self.stage_label, None, self.run_btn))
+        lay.addWidget(row(BodyLabel("AI 校准（Agent 级，接入你自己的 AI 辅助校准）",
+                                    self.view), self.ai_switch, None))
+        # 说明文案保持「一行放得下」：滚动区内不能换行，长文案会撑破卡片
+        self.ai_hint = fit_caption(CaptionLabel(
+            "开启后 = 让 AI 基于校准脚本逐块复校：只改文字，不动时间轴与格式",
+            self.view))
+        self.ai_hint.setTextColor("#8a8a8a", "#9a9a9a")
+        lay.addWidget(self.ai_hint)
+        lay.addWidget(row(self.stage_label, None, self.again_btn, self.run_btn))
         self.add_card(box)
 
         self.log = LogView("校准日志", 170, self.view)
@@ -1858,7 +2448,7 @@ class CalibPage(ScrollPage):
             self.out_edit.setText(p)
 
     def start(self):
-        if self.running:
+        if self.running or self.ai_running:
             InfoBar.info("提示", "校准任务进行中，请稍候", duration=3000,
                          position=InfoBarPosition.BOTTOM_RIGHT, parent=self)
             return
@@ -1871,6 +2461,9 @@ class CalibPage(ScrollPage):
                             position=InfoBarPosition.BOTTOM_RIGHT, parent=self)
             return
         mode_flag = self.MODES[self.mode_combo.currentIndex()][1]
+        if self.ai_switch.isChecked():
+            self._start_ai(src, again=False, mode_flag=mode_flag)
+            return
         stats_only = self.stats_switch.isChecked()
 
         out = ""
@@ -1878,12 +2471,7 @@ class CalibPage(ScrollPage):
             out = engine.clean_path(self.out_edit.text())
             if not out:
                 out = os.path.splitext(src)[0] + ".calib.srt"
-            if os.path.exists(out):
-                stem, ext = os.path.splitext(out)
-                n = 2
-                while os.path.exists(f"{stem}({n}){ext}"):
-                    n += 1
-                out = f"{stem}({n}){ext}"
+            out = self._unique(out)
 
         args = [engine.system_python(), self._script, src]
         if out:
@@ -1905,6 +2493,98 @@ class CalibPage(ScrollPage):
             self.log.line(f"[校准] 输出: {out}", "dim")
         threading.Thread(target=self._worker, args=(args, out), daemon=True).start()
 
+    # ---------- AI 校准（Agent 级） ----------
+    @staticmethod
+    def _unique(path):
+        """输出文件重名时自动加序号（与脚本模式的旧行为一致）。"""
+        if not os.path.exists(path):
+            return path
+        stem, ext = os.path.splitext(path)
+        n = 2
+        while os.path.exists(f"{stem}({n}){ext}"):
+            n += 1
+        return f"{stem}({n}){ext}"
+
+    def _on_ai_toggle(self, checked):
+        """AI 校准开关：与「仅统计」互斥，并决定「再次校准」是否可用。"""
+        if checked and self.stats_switch.isChecked():
+            self.stats_switch.setChecked(False)
+        self.stats_switch.setEnabled(not checked)
+        self.again_btn.setEnabled(bool(checked and self._last_out))
+        self.ai_hint.setText(
+            "已开启：先跑机械校准，再由 AI 逐块补齐残留错形（不动时间轴与格式）"
+            if checked else
+            "开启后 = 让 AI 基于校准脚本逐块复校：只改文字，不动时间轴与格式")
+
+    def start_again(self):
+        """再次校准：以上一轮 AI 校准的输出为输入再跑一轮，专挑残留错形。"""
+        if self.running or self.ai_running:
+            InfoBar.info("提示", "校准任务进行中，请稍候", duration=3000,
+                         position=InfoBarPosition.BOTTOM_RIGHT, parent=self)
+            return
+        if not self.ai_switch.isChecked():
+            InfoBar.warning("提示", "「再次校准」需要先开启 AI 校准",
+                            duration=3000,
+                            position=InfoBarPosition.BOTTOM_RIGHT, parent=self)
+            return
+        if not self._last_out or not os.path.isfile(self._last_out):
+            InfoBar.warning("提示", "还没有可续跑的结果，请先完成一轮 AI 校准",
+                            duration=3000,
+                            position=InfoBarPosition.BOTTOM_RIGHT, parent=self)
+            return
+        mode_flag = self.MODES[self.mode_combo.currentIndex()][1]
+        self._start_ai(self._last_out, again=True, mode_flag=mode_flag)
+
+    def _start_ai(self, src, again, mode_flag):
+        """发起一轮 AI 校准（后台线程跑 Agent，日志经消息队列回主线程）。"""
+        if not os.path.isfile(self._script):
+            MessageBox("错误", f"校准脚本缺失：{self._script}", self).exec()
+            return
+        if again:
+            n = self._round + 1
+            out = self._unique(f"{self._base_stem or os.path.splitext(src)[0]}.r{n}.srt")
+        else:
+            out = engine.clean_path(self.out_edit.text())
+            if not out:
+                out = os.path.splitext(src)[0] + ".calib.srt"
+            out = self._unique(out)
+            self._base_stem = os.path.splitext(out)[0]
+            self._round = 0
+            self._last_out = ""
+        report = os.path.splitext(out)[0] + ".md" if self.report_switch.isChecked() else ""
+        round_no = self._round + 1
+
+        self.ai_running = True
+        self._cancel_flag = False
+        self.run_btn.setEnabled(False)
+        self.again_btn.setEnabled(False)
+        self.stage_label.setText(f"AI 校准中（第 {round_no} 轮）…")
+        self.log.line(f"===== AI 校准 · 第 {round_no} 轮 =====", "info")
+        self.log.line(f"[AI] 模式: {self.mode_combo.currentText()}", "dim")
+        self.log.line(f"[AI] 输入: {src}", "dim")
+        self.log.line(f"[AI] 输出: {out}", "dim")
+        if report:
+            self.log.line(f"[AI] 报告: {report}", "dim")
+        threading.Thread(target=self._ai_worker,
+                         args=(src, out, report, mode_flag, round_no),
+                         daemon=True).start()
+
+    def _ai_worker(self, src, out, report, mode_flag, round_no):
+        def _log(msg, level="dim"):
+            self.app.q.put(("cal_log", str(msg), level))
+
+        try:
+            res = engine.calib_ai_run(
+                src, out=out, report=(report or None), mode_flag=mode_flag,
+                fix_en=self.fix_switch.isChecked(), log=_log, round_no=round_no,
+                cancel=lambda: self._cancel_flag)
+        except Exception as e:  # noqa: BLE001
+            res = {"ok": False, "out": out, "error": f"{type(e).__name__}: {e}",
+                   "script_changes": 0, "ai_changes": 0, "rejected": 0,
+                   "round": round_no}
+        self.app.q.put(("cal_done", 0 if res.get("ok") else 1,
+                        res.get("out") or out, res))
+
     def _worker(self, args, out):
         try:
             env = dict(os.environ, PYTHONIOENCODING="utf-8")
@@ -1922,16 +2602,43 @@ class CalibPage(ScrollPage):
             rc = 1
         self.app.q.put(("cal_done", rc, out))
 
-    def on_cal_done(self, rc, out):
+    def on_cal_done(self, rc, out, res=None):
+        """校准结束（脚本模式 res 为 None；AI 模式 res 为 Agent 结果 dict）。"""
         self.running = False
+        self.ai_running = False
         self.run_btn.setEnabled(True)
+        res = res or {}
+        if res.get("round"):                    # AI 轮次
+            if rc == 0:
+                self._round = int(res.get("round") or self._round)
+                self._last_out = out
+            self.again_btn.setEnabled(bool(self.ai_switch.isChecked()
+                                           and self._last_out))
         if rc == 0:
             self.stage_label.setText("校准完成")
-            self.log.line("[OK] 校准完成" +
-                          (f"，输出: {out}" if out else "（仅统计模式，未改写文件）"), "ok")
+            if res:
+                self.log.line(
+                    f"[OK] AI 校准完成（第 {self._round} 轮）：术语脚本 "
+                    f"{res.get('script_changes', 0)} 处 + AI {res.get('ai_changes', 0)} 处，"
+                    f"拒绝 {res.get('rejected', 0)} 处"
+                    + (f"，耗时 {res.get('seconds')}s" if res.get("seconds") else ""),
+                    "ok")
+                if out:
+                    self.log.line(f"[输出] {out}", "ok")
+                if res.get("report"):
+                    self.log.line(f"[报告] {res['report']}（含采纳明细与拒绝原因）", "dim")
+                self.log.line("如仍有残留错形，可点「再次校准」再跑一轮（在第 1 轮输出上续跑）",
+                              "info")
+            else:
+                self.log.line("[OK] 校准完成" +
+                              (f"，输出: {out}" if out else
+                               "（仅统计模式，未改写文件）"), "ok")
         else:
             self.stage_label.setText("校准失败")
-            self.log.line(f"[错误] 校准失败（退出码 {rc}），详见上方日志", "err")
+            msg = res.get("error") or f"退出码 {rc}"
+            self.log.line(f"[错误] 校准失败：{msg}", "err")
+            if res:
+                self.log.line("[提示] 已拒绝的模型提议会写进报告，便于人工复核", "dim")
 
 
 # ========== 主窗口 ==========
@@ -1992,15 +2699,20 @@ class MainWindow(FluentWindow):
         # 侧边导航常驻展开（默认窄条只有图标），宽度按最长项自适应
         self.navigationInterface.setCollapsible(False)
         self._apply_nav_width()
+        # 首帧后 + 字体度量就绪后再各收敛一次：任何时刻导航宽度都是
+        # 「最长项文字 + 2 个字符」，不会出现「启动时一个宽度、稍后另一个宽度」
         QTimer.singleShot(0, self._apply_nav_width)
+        QTimer.singleShot(400, self._apply_nav_width)
 
         self.switchTo(self.download_page)
         self._apply_argv(argv or [])
         QTimer.singleShot(400, self.library_page.auto_load)
         QTimer.singleShot(120, self._pump)
-        # 字幕引擎界面后台预热：等主界面首帧画出后再导入依赖与建界面，
-        # 用户真正点进「字幕处理」时已经是现成控件，无需等数秒
-        QTimer.singleShot(900, self.subtitle_page.prewarm)
+        # 字幕引擎界面后台预热：主窗口首帧之后立刻开始导入依赖（预热本身只起
+        # 一个后台线程，不占主线程），导入完成即回主线程建界面，用户真正点进
+        # 「字幕处理」时通常已是现成控件。v1.11.0 起由 900ms 提前到首帧后立即，
+        # 配合 diskcache 延迟化，最坏情况下（刚启动就点进去）的等待已降到亚秒级。
+        QTimer.singleShot(0, self.subtitle_page.prewarm)
         # 主屏 DPI 变化（改缩放比/拖到另一块屏）时重新计算导航宽度。
         # 注意必须用 QApplication 实例的信号：PyQt5 里类的同名属性是未绑定的
         # pyqtSignal 描述符，直接 .connect 会抛 AttributeError。
@@ -2016,17 +2728,28 @@ class MainWindow(FluentWindow):
         self._remember_screen()
 
     # ---------- 导航宽度 ----------
+    def refresh_nav_width(self):
+        """外部调用：内容/字体变化后重新收敛导航宽度（幂等）。"""
+        self._apply_nav_width()
+
     def _apply_nav_width(self):
-        """按最长导航文案重算展开宽度（含 DPI 变化时的重算）。
+        """按最长导航文案重算展开宽度：最长项文字 + 2 个中文字 + 面板固有占位。
 
         展开宽度用逻辑像素计算，Qt 会按当前屏幕缩放比自动换算物理像素，
         因此 100% / 125% / 150% / 200% 下呈现的视觉宽度一致。
+
+        v1.11.0 统一口径：字体取**导航面板实际使用的字体**（panel.font()），
+        不再在「窗口字体 / 默认雅黑」之间取较宽者——那样在引擎字体与宿主不同
+        时会把导航撑宽，观感上就是「程序开启时宽度是原样、过一会儿才变」。
+        重算时机：窗口构造后、首帧后、引擎界面/设置页引擎区构建后、DPI 变化时。
         """
         try:
-            width = nav_width_for(self.NAV_TEXTS, self.font())
-            # 引擎界面（内嵌）自带一套字体，取两者较宽者，保证任何主题下都够用
-            width = max(width, nav_width_for(self.NAV_TEXTS))
-            self.navigationInterface.setExpandWidth(int(width))
+            panel = getattr(self.navigationInterface, "panel", None)
+            font = panel.font() if panel is not None else self.font()
+            width = int(nav_width_for(self.NAV_TEXTS, font))
+            self.navigationInterface.setExpandWidth(width)
+            _perf_note(f"导航宽度 = {width}px"
+                       f"（{font.family()} {font.pointSize()}pt）")
         except Exception:
             pass
 
@@ -2185,9 +2908,11 @@ class MainWindow(FluentWindow):
             elif kind == "mg_done":
                 mg.on_mg_done(args[0], args[1], args[2])
             elif kind == "cal_log":
-                cal.log.line(args[0], "dim")
+                # AI 校准会带级别（dim/ok/err/info）；脚本模式只有一行文本
+                cal.log.line(args[0], args[1] if len(args) > 1 else "dim")
             elif kind == "cal_done":
-                cal.on_cal_done(args[0], args[1])
+                # (rc, out) 脚本模式 / (rc, out, result) AI 模式
+                cal.on_cal_done(*args)
         except Exception as e:
             import traceback
             self._log_error(traceback.format_exc())
@@ -2265,6 +2990,14 @@ def main():
         def _shot():
             # 只抓本窗口：QScreen.grabWindow(传窗口句柄) 走 PrintWindow，即使被遮挡
             # 也只渲染本窗口，不会把桌面上其它应用的内容截进来（传 0 才是抓屏幕区域）。
+            #
+            # v1.11.0 修正：刚切换到「字幕处理」这类需要当场构建的重页面时，
+            # DWM 尚未提交新帧，PrintWindow 会返回切换前的旧画面（实测截到的是
+            # 上一个页面）。这里先强制重绘本窗口再抓，仍为空才回退 QWidget.grab()。
+            try:
+                window.repaint()
+            except Exception:
+                pass
             scr = QApplication.primaryScreen()
             try:
                 pm = scr.grabWindow(int(window.winId()))
@@ -2275,7 +3008,12 @@ def main():
             pm.save(shot_file)
             print(f"[shot] saved: {shot_file}")
             QApplication.quit()
-        QTimer.singleShot(2600, _shot)
+        # 页面切换后留足重建/重绘时间；重页面可用 VT_SHOT_DELAY 调到 3500+
+        try:
+            _delay = int(os.environ.get("VT_SHOT_DELAY") or 2600)
+        except ValueError:
+            _delay = 2600
+        QTimer.singleShot(_delay, _shot)
     if os.environ.get("VT_GUI_SELFTEST"):
         def _ok():
             try:

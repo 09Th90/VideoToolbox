@@ -1,8 +1,30 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-视频工具箱 v1.10.5（单文件整合版）
+视频工具箱 v1.12.0（单文件整合版）
 ==================================================
+v1.12.0：翻译链路全面修缮（配套 site-packages 里的引擎改动，均由
+  src\apply_vc_official.py 归档可复现）：① 谷歌翻译改抓 Chrome 内置翻译同源
+  免费接口（translate_a/t?client=dict-chrome-ex）并加全局请求节流（≥0.12s/次，
+  约 8 QPS）——官方旧端点 translate.google.com/m 已被 302 到验证码页；
+  ② 必应翻译换 translatetext 端点取 token（官方匿名 token 方案已失效）；
+  ③ 翻译基类对失败译文（ERROR / 空 / xxx||ERROR）不写缓存，块级失败可重试；
+  ④ LLM 翻译并发上限 `_LLM_THREAD_CAP=5`（免费/共享模型速率限制很紧，50 并发
+  会 429 刷屏）与限流处理；⑤ 任务取消立即停掉翻译/优化线程池（原先取消后
+  仍把剩余批次跑完）；⑥ 「启用 AI」关闭时，翻译兜底与引擎 LLM 注入都不介入。
+v1.11.0：① LLM 拆分为**两条各自独立的 API 通道**——接口 A（工具箱自身：
+  标题/语言识别与视觉，Anthropic 兼容）与接口 B（字幕引擎优化/翻译/拆分与
+  AI 校准，OpenAI 兼容），地址、密钥、模型都能分别填写，接口 B 密钥留空则
+  沿用 A（旧配置平滑迁移）；② 新增全局 ASR（语音识别）配置：可接自有 ASR
+  服务（OpenAI 兼容 /audio/transcriptions）或本地独立 faster-whisper 模型
+  （模型名 + 模型目录自定义），保存即写入引擎「转录配置」——服务模式切到
+  Whisper [API]，本地模式切到 FasterWhisper 并由 vc_asr_patch_apply() 覆盖
+  模型名/目录；③ 新增 Agent 级 AI 校准入口 calib_ai_run（实现见
+  src\\calib_ai_agent.py）；④ 修复启动同步长期静默失败：_pull_and_merge 调用
+  的 _read_sync_text / _atomic_write 此前**未定义**（日志反复出现
+  「启动同步异常（忽略）: name '_read_sync_text' is not defined」）；
+  ⑤ vc_lazy_cache_patch()：引擎在模块级建 5 个 diskcache 库（每个约 0.9s）
+  改为惰性代理，进入「字幕处理」页的等待从数秒降到亚秒级。
 v1.10.5：校准脚本升级为对象级知识库版本（ENTITIES 对象层 + learn 学习系统）；
   校准界面模式列表与脚本实际支持的全部 12 种模式对齐，移除脚本已删除的
   「长句拆两行（--layout）」开关；新增退出时自动同步校准脚本到 GitHub
@@ -62,8 +84,92 @@ import time
 import atexit
 import threading
 import tempfile
+import codecs
 from datetime import datetime
 from pathlib import Path
+
+# ========== 统一文本编解码：同时兼容 UTF-8 / GBK(GB18030) / ASCII ==========
+# 设计原则：读取任何“外部/用户产生”的文本（字幕、.url、第三方子进程输出、远程
+# 同步内容等）都走 decode_bytes_any / read_text_any，按 BOM → UTF-8 → GB18030
+# 顺序探测，绝不因编码不同而崩溃或乱码；本程序自己写出的文件统一用 UTF-8
+# （给用户用记事本看的用 utf-8-sig）。ASCII 是 UTF-8 的子集，天然被覆盖。
+# 说明：GB18030 是 GBK 的超集（兼容 GBK/GB2312），用于解码老式中文 Windows、
+# 部分播放器与字幕工具导出的 GBK 字幕；另兼容 Big5 与带 BOM 的 UTF-16。
+_TEXT_BOMS = (
+    (codecs.BOM_UTF8, "utf-8-sig"),
+    # UTF-32 的 BOM 以 UTF-16 BOM 为前缀，必须先判 32 再判 16；
+    # 用 utf-16/utf-32（非 -le/-be）可据 BOM 自动定字节序并剥掉 BOM。
+    (codecs.BOM_UTF32_LE, "utf-32"),
+    (codecs.BOM_UTF32_BE, "utf-32"),
+    (codecs.BOM_UTF16_LE, "utf-16"),
+    (codecs.BOM_UTF16_BE, "utf-16"),
+)
+# 无 BOM 时的探测顺序：先 UTF-8（ASCII 也在此命中），失败再按中文编码回退
+TEXT_ENCODINGS = ("utf-8", "gb18030", "big5", "shift_jis", "latin-1")
+
+
+def decode_bytes_any(data, encodings=TEXT_ENCODINGS):
+    """把 bytes 稳健解码为 str：识别 BOM，依次尝试 UTF-8/GB18030/Big5/...。
+
+    - 传入 str 原样返回；None 返回空串；永不抛 UnicodeDecodeError。
+    - UTF-8（含纯 ASCII）优先；不是合法 UTF-8 时按 GB18030（GBK 超集）等回退，
+      最后才用 replace 兜底，最大化还原中文内容、避免崩溃。
+    """
+    if data is None:
+        return ""
+    if isinstance(data, str):
+        return data
+    if isinstance(data, (bytearray, memoryview)):
+        data = bytes(data)
+    if not isinstance(data, (bytes,)):
+        return str(data)
+    for bom, enc in _TEXT_BOMS:
+        if data.startswith(bom):
+            try:
+                return data.decode(enc, errors="replace")
+            except (UnicodeDecodeError, LookupError):
+                break
+    for enc in encodings:
+        try:
+            return data.decode(enc)
+        except (UnicodeDecodeError, LookupError):
+            continue
+    return data.decode("utf-8", errors="replace")
+
+
+def read_text_any(path, encodings=TEXT_ENCODINGS):
+    """以二进制读取文件并用 decode_bytes_any 解码（兼容 UTF-8/GBK/ASCII）。"""
+    with open(path, "rb") as f:
+        return decode_bytes_any(f.read(), encodings)
+
+
+def write_text_utf8(path, text, bom=False, newline=None):
+    """规范写出文本：默认无 BOM 的 UTF-8；bom=True 写 utf-8-sig（记事本友好）。"""
+    enc = "utf-8-sig" if bom else "utf-8"
+    kw = {} if newline is None else {"newline": newline}
+    with open(path, "w", encoding=enc, **kw) as f:
+        f.write(text)
+
+
+def decode_process_output(value):
+    """兼容子进程 text/bytes 两种返回：bytes 走智能解码，str 原样返回。"""
+    return decode_bytes_any(value)
+
+
+def configure_stdio_utf8():
+    """让标准输出/错误流以 UTF-8、replace 容错，避免在 GBK 控制台打印生僻字/Emoji
+    时 UnicodeEncodeError 崩溃。幂等，可重复调用。"""
+    for stream_name in ("stdout", "stderr"):
+        stream = getattr(sys, stream_name, None)
+        reconfigure = getattr(stream, "reconfigure", None)
+        if callable(reconfigure):
+            try:
+                reconfigure(encoding="utf-8", errors="replace", line_buffering=True)
+            except Exception:
+                pass
+    # 子进程默认也用 UTF-8 与我们通信（个别工具仍可能输出 GBK，读取侧再智能解码）
+    os.environ.setdefault("PYTHONIOENCODING", "utf-8")
+    os.environ.setdefault("PYTHONUTF8", "1")
 
 # ========== 路径与常量（v1.7 按功能分目录） ==========
 # 目录规划（安装后 / 开发期一致）：
@@ -206,6 +312,9 @@ for _d in (DATA_DIR, LOGS_DIR, DEFAULT_DOWNLOAD_DIR, THUMB_CACHE_DIR, TMP_DIR):
 os.environ["TEMP"] = TMP_DIR
 os.environ["TMP"] = TMP_DIR
 tempfile.tempdir = TMP_DIR
+# 数据根目录同样注入环境变量：tools/ai_client.py 等独立加载的模块据此把配置
+# 写到软件文件夹（而非按 __file__ 层级猜目录、或退回用户目录/C 盘）。
+os.environ.setdefault("VT_DATA_ROOT", DATA_ROOT)
 
 
 def _fallback_config_path():
@@ -334,40 +443,104 @@ _VC_LEGACY_DIRS = (
 )
 
 
-def vc_redirect_paths():
-    """在导入 videocaptioner 之前，把它的数据/工作/日志目录重定向到数据根目录。
+def vc_bundled_resource_dir():
+    """随包分发的引擎只读静态资源目录（assets/fonts/subtitle_style/translations）。
 
-    上游 config.py 在导入时即固化 ROOT_PATH / WORK_PATH 等常量：
+    VideoCaptioner 的纯代码 wheel 只含 .py、不含 resource/，故我们把与所集成
+    版本一致的上游 resource 静态文件随包放在 tools/videocaptioner/resource 下，
+    既不落到系统盘，也保证离线环境下界面图片、默认字幕样式、烧录字体齐全。
+    """
+    return os.path.join(TOOLS_DIR, "videocaptioner", "resource")
+
+
+def vc_redirect_paths():
+    """在导入 videocaptioner 之前，把引擎的数据/工作/日志目录重定向到数据根目录，
+    并把静态资源、ffmpeg 接到随包目录，使字幕引擎真正自包含、成为程序的一部分。
+
+    上游 config.py 在导入时即固化一批常量：
       · ROOT_PATH  = platformdirs.user_data_dir("VideoCaptioner")  → AppData\\Local
       · WORK_PATH  = Path.home() / "VideoCaptioner"                → 用户目录
-      · LOG_PATH   = ROOT_PATH / "logs"
-      · CACHE/MODEL_PATH = ROOT_PATH 下
-    这些都在 C 盘。做法是在其模块首次导入时打补丁（不修改第三方源码文件，
-    保证许可合规与可升级），把它们全部指到 <DATA_ROOT>\\data\\VideoCaptioner。
+      · RESOURCE_PATH/ASSETS_PATH/BIN_PATH/FONTS_PATH/...          → 上述目录下
+    pip 形态下 wheel 只有代码、没有 resource（界面图片/默认样式缺失），且空的
+    BIN_PATH 不会被加入 PATH，导致引擎内部裸调 "ffmpeg" 时找不到二进制。这里在不
+    改动第三方源码的前提下统一打补丁：
+      · 可写运行数据（日志/缓存/模型/工作目录/设置/用户字幕样式）→ data\\VideoCaptioner
+      · 只读静态资源（图片/字体/翻译/默认样式）→ tools\\videocaptioner\\resource
+      · ffmpeg/ffprobe 复用工具箱自带 tools\\ffmpeg.exe（BIN_PATH=TOOLS_DIR 并加入 PATH）
     """
     import sys as _sys
     if "videocaptioner.config" in _sys.modules:
         return  # 已导入过，路径常量已固化；补丁只在首次导入时有效
     target = Path(vc_data_dir())
+    user_style_dir = target / "resource" / "subtitle_style"
     try:
         target.mkdir(parents=True, exist_ok=True)
-        for sub in ("logs", "cache", "models", "resource"):
+        for sub in ("logs", "cache", "models", "work-dir"):
             (target / sub).mkdir(parents=True, exist_ok=True)
+        user_style_dir.mkdir(parents=True, exist_ok=True)
     except OSError:
-        return
+        pass
 
     from videocaptioner import config as _vc_cfg
+
+    # —— 可写运行数据，全部收进软件文件夹（不写系统盘）——
     _vc_cfg.ROOT_PATH = target
     _vc_cfg.APPDATA_PATH = target
-    _vc_cfg.RESOURCE_PATH = target / "resource"
     _vc_cfg.WORK_PATH = target / "work-dir"
     _vc_cfg.LOG_PATH = target / "logs"
     _vc_cfg.LLM_LOG_FILE = _vc_cfg.LOG_PATH / "llm_requests.jsonl"
     _vc_cfg.SETTINGS_PATH = target / "settings.json"
     _vc_cfg.CACHE_PATH = target / "cache"
     _vc_cfg.MODEL_PATH = target / "models"
+
+    # —— 只读静态资源：优先随包目录；缺失时回退数据目录（保持旧行为、不崩）——
+    bundled = Path(vc_bundled_resource_dir())
+    res_root = bundled if bundled.is_dir() else (target / "resource")
+    try:
+        res_root.mkdir(parents=True, exist_ok=True)
+    except OSError:
+        pass
+    _vc_cfg.RESOURCE_PATH = res_root
+    _vc_cfg.ASSETS_PATH = res_root / "assets"
+    _vc_cfg.TRANSLATIONS_PATH = res_root / "translations"
+    fonts_dir = res_root / "fonts"
+    if not fonts_dir.is_dir():
+        # 回退到包内自带字体（videocaptioner/resources/fonts）
+        fonts_dir = getattr(_vc_cfg, "_BUNDLED_FONTS", fonts_dir)
+    _vc_cfg.FONTS_PATH = fonts_dir
+
+    # —— 用户字幕样式放可写数据目录，并从随包默认样式补齐缺失预设（不覆盖用户）——
+    _vc_cfg.SUBTITLE_STYLE_PATH = user_style_dir
+    try:
+        seed = bundled / "subtitle_style"
+        if seed.is_dir():
+            for jf in seed.glob("*.json"):
+                dst = user_style_dir / jf.name
+                if not dst.exists():
+                    shutil.copyfile(jf, dst)
+    except OSError:
+        pass
+
+    # —— ffmpeg/ffprobe：复用工具箱自带二进制（BIN_PATH 指向 TOOLS_DIR）——
+    bin_dir = Path(TOOLS_DIR)
+    _vc_cfg.BIN_PATH = bin_dir
+    _vc_cfg.FASTER_WHISPER_PATH = bin_dir / "Faster-Whisper-XXL"
+    # config 导入期那次 PATH 注入用的是空 BIN（目录不存在即跳过），这里自行补上，
+    # 保证引擎内部裸调 "ffmpeg"/"ffprobe" 能命中随包二进制。
+    try:
+        cur = os.environ.get("PATH", "")
+        parts = cur.split(os.pathsep) if cur else []
+        if str(bin_dir) not in parts:
+            os.environ["PATH"] = str(bin_dir) + os.pathsep + cur
+        if _vc_cfg.FASTER_WHISPER_PATH.is_dir() and \
+                str(_vc_cfg.FASTER_WHISPER_PATH) not in parts:
+            os.environ["PATH"] = str(_vc_cfg.FASTER_WHISPER_PATH) + \
+                os.pathsep + os.environ["PATH"]
+    except OSError:
+        pass
+
     for _p in (_vc_cfg.WORK_PATH, _vc_cfg.LOG_PATH, _vc_cfg.CACHE_PATH,
-               _vc_cfg.MODEL_PATH, _vc_cfg.RESOURCE_PATH):
+               _vc_cfg.MODEL_PATH):
         try:
             Path(_p).mkdir(parents=True, exist_ok=True)
         except OSError:
@@ -382,6 +555,472 @@ def vc_redirect_paths():
         _vc_cli.CONFIG_DIR.mkdir(parents=True, exist_ok=True)
     except Exception:
         pass
+
+
+# ---------- 引擎 settings.json：路径全部收进软件文件夹 + 全局 LLM 注入 ----------
+def vc_settings_path():
+    """字幕引擎的 settings.json 路径（数据根下，绝不在系统盘）。"""
+    return os.path.join(vc_data_dir(), "settings.json")
+
+
+def _vc_read_settings():
+    """读取引擎 settings.json；缺失/损坏返回空 dict（绝不抛异常）。"""
+    try:
+        data = json.loads(read_text_any(vc_settings_path()))
+        if isinstance(data, dict):
+            return data
+    except (OSError, ValueError):
+        pass
+    return {}
+
+
+def _vc_write_settings(data):
+    """原子写回引擎 settings.json（缩进与上游 qconfig 落盘风格一致）。"""
+    path = vc_settings_path()
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    tmp = path + ".vt_tmp"
+    with open(tmp, "w", encoding="utf-8", newline="") as f:
+        json.dump(data, f, ensure_ascii=False, indent=4)
+    os.replace(tmp, path)
+
+
+def _path_on_system_drive(p):
+    """绝对路径是否落在系统盘（默认 C:）的用户目录/AppData/ProgramData。
+
+    用于揪出引擎历史设置里仍指向 C 盘的路径项；非绝对路径（相对/空）一律
+    视为安全（上游会按重定向后的常量解析到软件文件夹）。
+    """
+    if not p or not isinstance(p, str) or not os.path.isabs(p):
+        return False
+    s = p.replace("/", "\\").lower()
+    drive = os.path.splitdrive(s)[0]
+    sys_drive = (os.environ.get("SystemDrive") or "C:").lower()
+    if not drive or drive != sys_drive:
+        return False
+    home = os.path.expanduser("~").replace("/", "\\").lower()
+    return (bool(home) and s.startswith(home)) or ("\\appdata\\" in s) \
+        or ("\\programdata\\" in s) or ("\\users\\" in s)
+
+
+def _vc_force_local_paths(settings):
+    """把 settings 里仍指向系统盘的路径项改到软件文件夹。返回是否有改动。"""
+    changed = False
+    # 工作目录：无条件收敛到数据根下的 work-dir（上游用正斜杠存储）
+    work_posix = os.path.join(vc_data_dir(), "work-dir").replace(os.sep, "/")
+    save = settings.setdefault("Save", {})
+    if str(save.get("Work_Dir", "")).replace("\\", "/") != work_posix:
+        save["Work_Dir"] = work_posix
+        changed = True
+    # 转录模型目录：空值=用重定向后的 models 目录；若被指到系统盘则清空回默认
+    fw = settings.get("FasterWhisper")
+    if isinstance(fw, dict) and _path_on_system_drive(fw.get("ModelDir", "")):
+        fw["ModelDir"] = ""
+        changed = True
+    # 字幕样式预览图若残留在系统盘历史目录，清空（样式参数本身保留）
+    ss = settings.get("SubtitleStyle")
+    if isinstance(ss, dict) and _path_on_system_drive(ss.get("PreviewImage", "")):
+        ss["PreviewImage"] = ""
+        changed = True
+    return changed
+
+
+def apply_global_llm_to_engine(ai_cfg=None):
+    """把全局 AI 配置写入引擎的 OpenAI 兼容槽。
+
+    v1.10.8 起字幕引擎不再保留独立 LLM 设置；v1.12.0 起全局 AI 合并为单通道
+    （base_url / api_key / model 一套），工具箱、字幕引擎、AI 校准共用。
+    同时若引擎 QConfig 已在本进程加载，把内存里的对应项一并改掉（免重启生效）。
+    返回 (是否成功, 说明)。
+    """
+    try:
+        ai = ai_cfg or ai_load_config()
+        data = _vc_read_settings()
+        llm = data.setdefault("LLM", {})
+        if not bool(ai.get("enabled", True)):
+            # 「启用 AI」已关闭：清空引擎 LLM 槽（含内存态）。引擎的优化
+            # 会明确提示需配置 AI，而不是拿着历史注入的密钥偷偷消耗额度。
+            wiped = False
+            for k in ("OpenAI_API_Key", "OpenAI_API_Base", "OpenAI_Model"):
+                if llm.get(k):
+                    llm[k] = ""
+                    wiped = True
+            if wiped:
+                _vc_write_settings(data)
+            try:
+                from videocaptioner.ui.common.config import cfg as _cfg
+                _cfg.set(_cfg.openai_api_key, "")
+            except Exception:
+                pass
+            return True, "AI 已关闭，未写入引擎 LLM 槽"
+        base = str(ai.get("base_url") or "").strip()
+        key = str(ai.get("api_key") or "").strip()
+        model = str(ai.get("model") or "").strip()
+        llm["LLMService"] = "OpenAI 兼容"
+        if base:
+            llm["OpenAI_API_Base"] = base
+        if key:
+            llm["OpenAI_API_Key"] = key
+        if model:
+            llm["OpenAI_Model"] = model
+        _vc_write_settings(data)
+        # 内存态同步（引擎界面已构建、QConfig 已导入时）
+        try:
+            from videocaptioner.ui.common.config import cfg as _cfg
+            from videocaptioner.core.entities import LLMServiceEnum
+            if base:
+                _cfg.set(_cfg.openai_api_base, base)
+            if key:
+                _cfg.set(_cfg.openai_api_key, key)
+            if model:
+                _cfg.set(_cfg.openai_model, model)
+            _cfg.set(_cfg.llm_service, LLMServiceEnum.OPENAI)
+        except Exception:
+            pass
+        return True, "ok"
+    except Exception as e:  # noqa: BLE001
+        return False, str(e)
+
+
+# ---------- 引擎「转录配置」：独立 ASR（自有服务 / 本地模型） ----------
+# 引擎的转录模型是枚举项（B 接口 / J 接口 / Whisper [API] ✨ / FasterWhisper ✨），
+# 这里把全局 ASR 配置映射过去：service → Whisper [API]（自有 ASR 服务），
+# local → FasterWhisper ✨ + 独立模型名/目录。
+#: FasterWhisper.Model 是枚举项，枚举外的自定义模型名写不进 settings.json
+#: （读盘会被枚举校验拦下），只能靠 vc_asr_patch_apply() 在建任务时覆盖。
+FW_MODEL_ENUM = ("tiny", "base", "small", "medium", "large-v1", "large-v2",
+                 "large-v3", "large-v3-turbo")
+#: 与 videocaptioner.core.entities.TranscribeModelEnum 的值保持一致
+TM_WHISPER_API = "Whisper [API] ✨"
+TM_FASTER_WHISPER = "FasterWhisper ✨"
+
+
+def asr_local_override(ai_cfg=None):
+    """本地独立 ASR 的覆盖参数：返回 (模型名, 模型目录)；非本地模式返回 None。"""
+    try:
+        ac = ai_mod().asr_config(ai_cfg or ai_load_config())
+    except Exception:  # noqa: BLE001
+        return None
+    if ac.get("mode") != "local":
+        return None
+    model = str(ac.get("local_model") or "").strip()
+    model_dir = str(ac.get("local_model_dir") or "").strip()
+    if not model and not model_dir:
+        return None
+    return model, model_dir
+
+
+def apply_asr_to_engine(ai_cfg=None):
+    """把全局 ASR 配置写进引擎「转录配置」：转录模型 + WhisperAPI / FasterWhisper。
+
+    service：WhisperAPI 槽写入自有 ASR 服务（地址/密钥/模型/提示词），转录模型切
+      到 Whisper [API] ✨；local：转录模型切到 FasterWhisper ✨，模型名（枚举内）
+      与模型目录写入 FasterWhisper 槽，枚举外的自定义模型由运行期补丁生效。
+    返回 (是否成功, 说明)。
+    """
+    try:
+        ac = ai_mod().asr_config(ai_cfg or ai_load_config())
+        data = _vc_read_settings()
+        changed = False
+        want = TM_FASTER_WHISPER if ac["mode"] == "local" else TM_WHISPER_API
+        tr = data.setdefault("Transcribe", {})
+        if tr.get("TranscribeModel") != want:
+            tr["TranscribeModel"] = want
+            changed = True
+        if ac["mode"] == "service":
+            wa = data.setdefault("WhisperAPI", {})
+            for k, v in (("WhisperApiBase", ac["base_url"]),
+                         ("WhisperApiKey", ac["api_key"]),
+                         ("WhisperApiModel", ac["model"]),
+                         ("WhisperApiPrompt", ac["prompt"])):
+                if v and wa.get(k) != v:
+                    wa[k] = v
+                    changed = True
+        else:
+            fw = data.setdefault("FasterWhisper", {})
+            if ac["local_model"] in FW_MODEL_ENUM \
+                    and fw.get("Model") != ac["local_model"]:
+                fw["Model"] = ac["local_model"]
+                changed = True
+            if ac["local_model_dir"] \
+                    and fw.get("ModelDir") != ac["local_model_dir"]:
+                fw["ModelDir"] = ac["local_model_dir"]
+                changed = True
+        if changed:
+            _vc_write_settings(data)
+        # 内存态同步（引擎界面/QConfig 已加载时免重启生效）
+        try:
+            from videocaptioner.ui.common.config import cfg as _cfg
+            from videocaptioner.core.entities import (FasterWhisperModelEnum,
+                                                      TranscribeModelEnum)
+            _cfg.set(_cfg.transcribe_model,
+                     TranscribeModelEnum.FASTER_WHISPER if ac["mode"] == "local"
+                     else TranscribeModelEnum.WHISPER_API)
+            if ac["mode"] == "service":
+                if ac["base_url"]:
+                    _cfg.set(_cfg.whisper_api_base, ac["base_url"])
+                if ac["api_key"]:
+                    _cfg.set(_cfg.whisper_api_key, ac["api_key"])
+                if ac["model"]:
+                    _cfg.set(_cfg.whisper_api_model, ac["model"])
+                if ac["prompt"]:
+                    _cfg.set(_cfg.whisper_api_prompt, ac["prompt"])
+            elif ac["local_model"] in FW_MODEL_ENUM:
+                for m in FasterWhisperModelEnum:
+                    if m.value == ac["local_model"]:
+                        _cfg.set(_cfg.faster_whisper_model, m)
+                        break
+        except Exception:
+            pass
+        detail = (f"转录模型 → {'FasterWhisper（本地独立模型）' if ac['mode'] == 'local' else 'Whisper [API]（自有 ASR 服务）'}")
+        return True, detail
+    except Exception as e:  # noqa: BLE001
+        return False, str(e)
+
+
+def vc_asr_patch_apply():
+    """运行期补丁：让「独立 ASR 模型」真正生效（幂等，best-effort）。
+
+    引擎的 TaskFactory.create_transcribe_task 把 faster_whisper_model_dir 硬编码
+    成数据根 models 目录、模型名取自枚举项；本地独立模型（自定义模型名/模型目录，
+    如自训练/微调的 faster-whisper 模型）必须在这里覆盖进 TranscribeConfig 才会
+    被 used。service 模式不干预（引擎自己读 WhisperAPI 配置）。
+    """
+    try:
+        from videocaptioner.ui import task_factory as _tf
+    except Exception:  # noqa: BLE001
+        return False
+    if getattr(_tf, "_vt_asr_patched", False):
+        return True
+    orig = _tf.TaskFactory.create_transcribe_task
+
+    def _patched(*args, **kwargs):
+        task = orig(*args, **kwargs)
+        try:
+            ov = asr_local_override()
+            if ov:
+                model, model_dir = ov
+                tcfg = getattr(task, "transcribe_config", None)
+                if tcfg is not None:
+                    if model:
+                        tcfg.faster_whisper_model = model
+                    if model_dir:
+                        tcfg.faster_whisper_model_dir = model_dir
+        except Exception:
+            pass
+        return task
+
+    _tf.TaskFactory.create_transcribe_task = staticmethod(_patched)
+    _tf._vt_asr_patched = True
+    return True
+
+
+def _vc_log(msg):
+    """引擎侧运行期补丁日志（logs\\vc_fallback.log，best-effort）。"""
+    try:
+        os.makedirs(LOGS_DIR, exist_ok=True)
+        with open(os.path.join(LOGS_DIR, "vc_fallback.log"), "a",
+                  encoding="utf-8") as f:
+            f.write(f"[{datetime.now():%Y-%m-%d %H:%M:%S}] {msg}\n")
+    except OSError:
+        pass
+    try:
+        logger_note = msg  # noqa: F841  （保留给调试，不写标准输出）
+    except Exception:
+        pass
+
+
+#: 引擎翻译服务枚举值（videocaptioner.core.entities.TranslatorServiceEnum）。
+#: v1.12.0 起字幕翻译板块仅支持机翻（微软 / 谷歌 / DeepLx），LLM 翻译入口
+#: 已全部移除；TS_LLM 仅用于把历史配置迁回机翻。
+TS_LLM = "LLM 大模型翻译"
+TS_BING = "微软翻译"
+
+#: 免费翻译端点预检结果缓存（进程内，避免每条字幕重复探测）
+_TS_PROBE_CACHE = {}
+
+
+def _ts_probe_ok(kind):
+    """免费翻译端点连通性探测（3 秒超时，结果进程内缓存）——诊断/备用。
+
+    v1.12.0 实测：微软 ``edge.microsoft.com/translate/translatetext``（免认证）
+    直连 200；谷歌 ``translate.googleapis.com/translate_a/single?client=gtx``
+    需走系统代理（requests 默认信任），代理未开则超时。本函数**不用于短路**，
+    只保留给诊断与后续"可用性提示"复用。
+    """
+    if kind in _TS_PROBE_CACHE:
+        return _TS_PROBE_CACHE[kind]
+    ok = True
+    if kind == "google":
+        try:
+            import requests
+            r = requests.get(
+                "https://translate.googleapis.com/translate_a/single",
+                params={"client": "gtx", "sl": "auto", "tl": "zh-CN",
+                        "dt": "t", "q": "ok"},
+                headers={"User-Agent": "Mozilla/5.0"}, timeout=3)
+            ok = r.status_code == 200
+        except Exception:  # noqa: BLE001
+            ok = False
+    _TS_PROBE_CACHE[kind] = ok
+    return ok
+
+
+def vc_lazy_cache_patch():
+    """把 diskcache.Cache 换成惰性代理，省掉引擎导入时建库的 2~4 秒（幂等）。
+
+    引擎在 videocaptioner.core.utils.cache 模块级创建 5 个 diskcache 实例
+    （LLM / ASR / TTS / 翻译 / 版本状态），每个都会真实打开 SQLite 建库并做
+    维护：本机实测每个约 0.9 秒（慢盘更久），合计 2.5~4.5 秒——而进入「字幕
+    处理」页并不需要任何缓存。这里在引擎导入**之前**替换 diskcache.Cache：
+    首个属性访问才真正建库，`memoize` 也延迟到首次调用才建库，语义不变。
+    必须在任何 videocaptioner 导入之前调用（prepare_runtime_env 最前面）。
+    """
+    try:
+        import diskcache
+    except Exception:  # noqa: BLE001
+        return False
+    if getattr(diskcache, "_vt_lazy_patched", False):
+        return True
+    real_cache = diskcache.Cache
+
+    class _LazyCache:
+        """diskcache.Cache 的惰性代理：真正用到时才建库。"""
+
+        def __init__(self, directory, **kwargs):
+            self.__dict__["_lc_args"] = (directory,)
+            self.__dict__["_lc_kwargs"] = kwargs
+            self.__dict__["_lc_real"] = None
+
+        def _lc(self):
+            obj = self.__dict__["_lc_real"]
+            if obj is None:
+                obj = self.__dict__["_lc_real"] = real_cache(
+                    *self.__dict__["_lc_args"], **self.__dict__["_lc_kwargs"])
+            return obj
+
+        def __getattr__(self, name):
+            return getattr(self._lc(), name)
+
+        def __len__(self):
+            return len(self._lc())
+
+        def __contains__(self, key):
+            return key in self._lc()
+
+        def __getitem__(self, key):
+            return self._lc()[key]
+
+        def __setitem__(self, key, value):
+            self._lc()[key] = value
+
+        def __delitem__(self, key):
+            del self._lc()[key]
+
+        def __iter__(self):
+            return iter(self._lc())
+
+        def memoize(self, **kwargs):
+            def deco(func):
+                holder = {}
+
+                def wrapper(*a, **kw):
+                    m = holder.get("m")
+                    if m is None:
+                        m = holder["m"] = self._lc().memoize(**kwargs)(func)
+                    return m(*a, **kw)
+                wrapper.__name__ = getattr(func, "__name__", "wrapper")
+                wrapper.__doc__ = getattr(func, "__doc__", None)
+                wrapper.__wrapped__ = func
+                return wrapper
+            return deco
+
+    diskcache.Cache = _LazyCache
+    diskcache._vt_lazy_patched = True
+    return True
+
+
+def vc_prepare_settings_file():
+    """引擎界面导入前规整 settings.json（幂等，在 prepare_runtime_env 调用）。
+
+    1) 工作目录等路径项全部收进软件文件夹（修掉历史 C 盘 Work_Dir）；
+    2) 把全局 LLM 配置注入引擎 OpenAI 兼容槽。
+    必须在 videocaptioner.ui.common.config（qconfig 读盘）之前完成。
+    """
+    try:
+        os.makedirs(vc_data_dir(), exist_ok=True)
+        existed = os.path.isfile(vc_settings_path())
+        data = _vc_read_settings()
+        changed = _vc_force_local_paths(data)
+        ai = ai_load_config()
+        llm = data.setdefault("LLM", {})
+        if not bool(ai.get("enabled", True)):
+            # 「启用 AI」已关闭：清空引擎 LLM 槽（历史注入的密钥一并清掉），
+            # 引擎的优化 / LLM 翻译会明确提示需配置 AI，而不是偷偷消耗额度
+            for k in ("OpenAI_API_Key", "OpenAI_API_Base", "OpenAI_Model"):
+                if llm.get(k):
+                    llm[k] = ""
+                    changed = True
+        else:
+            # v1.12.0：全局 AI 单通道（base_url / api_key / model 一套）
+            want = {
+                "LLMService": "OpenAI 兼容",
+                "OpenAI_API_Base": str(ai.get("base_url") or "").strip(),
+                "OpenAI_API_Key": str(ai.get("api_key") or "").strip(),
+                "OpenAI_Model": str(ai.get("model") or "").strip(),
+            }
+            for k, v in want.items():
+                if v and llm.get(k) != v:
+                    llm[k] = v
+                    changed = True
+        # v1.12.0：微软翻译已改用 Edge 免认证端点、谷歌翻译已改用 gtx 免费网页版
+        # 接口（docs/vc_translate_impl/*.py），两者恢复直连可用。
+        # v1.12.0 起字幕翻译板块全面去 AI（仅机翻）：历史配置若被 v1.11.0 迁到
+        # 「LLM 大模型翻译」，这里迁回「微软翻译」；翻译失败不再回退 LLM，
+        # 如实报错（失败率 ≥50% 时引擎会抛 RuntimeError 提示检查网络）。
+        tr = data.setdefault("Translate", {})
+        cur_ts = str(tr.get("TranslatorServiceEnum") or "").strip()
+        if cur_ts == TS_LLM:
+            tr["TranslatorServiceEnum"] = TS_BING
+            changed = True
+            _vc_log("字幕翻译仅支持机器翻译，已把翻译服务由「LLM 大模型翻译」"
+                    "迁回「微软翻译」")
+        if changed or not existed:
+            _vc_write_settings(data)
+        # v1.11.0：ASR（转录配置）与接口 B 同样在引擎读盘前注入
+        apply_asr_to_engine(ai)
+    except Exception:
+        pass
+
+
+def vc_enforce_runtime_cfg():
+    """引擎 QConfig 已加载后的运行期兜底：强制工作目录收敛到软件文件夹。
+
+    防止历史 settings.json 的 C 盘 Work_Dir 在内存里复活、或被界面回写。
+    在引擎界面/设置界面构建之后调用（best-effort）。
+    """
+    try:
+        from videocaptioner.ui.common.config import cfg as _cfg
+        work_posix = os.path.join(vc_data_dir(), "work-dir").replace(os.sep, "/")
+        try:
+            cur = str(_cfg.get(_cfg.work_dir) or "")
+        except Exception:
+            cur = ""
+        if cur.replace("\\", "/") != work_posix:
+            _cfg.set(_cfg.work_dir, work_posix)
+    except Exception:
+        pass
+    # v1.11.0：转录配置（自有 ASR 服务 / 本地独立模型）与本地模型覆盖补丁
+    # 一并在此兜底——引擎界面构建完成后调用，保证内存 QConfig 与磁盘一致。
+    try:
+        apply_asr_to_engine()
+    except Exception:
+        pass
+    try:
+        vc_asr_patch_apply()
+    except Exception:
+        pass
+    # v1.12.0：翻译板块已全面去 AI（仅机翻），「创建失败/无有效产出回退 LLM」
+    # 兜底补丁（vc_translate_fallback_patch）整体移除；翻译失败如实报错。
 
 
 def vc_migrate_legacy_data():
@@ -544,17 +1183,33 @@ def vc_legacy_leftovers():
 def prepare_runtime_env():
     """统一准备运行期环境（幂等，可重复调用）。
 
+    0. diskcache 延迟化补丁（v1.11.0：省掉引擎导入时建 5 个缓存库的数秒）；
     1. 迁移字幕引擎在 C 盘的历史数据到数据根目录；
     2. 重定向字幕引擎的路径常量为数据根目录；
     3. 兜底确保临时目录指向数据根目录（不落系统 Temp）。
     在导入 videocaptioner *之前* 调用；GUI 启动与自检都会走这里。
     """
+    # 必须最先：任何 videocaptioner 导入之前替换 diskcache.Cache
+    try:
+        vc_lazy_cache_patch()
+    except Exception:
+        pass
+    # 标准流统一 UTF-8 容错，避免 GBK 控制台打印生僻字/Emoji 时崩溃
+    try:
+        configure_stdio_utf8()
+    except Exception:
+        pass
     try:
         vc_migrate_legacy_data()
     except Exception:
         pass
     try:
         vc_redirect_paths()
+    except Exception:
+        pass
+    try:
+        # 引擎界面读盘前规整 settings.json：路径收进软件文件夹 + 注入全局 LLM
+        vc_prepare_settings_file()
     except Exception:
         pass
     try:
@@ -814,6 +1469,121 @@ def set_saved_download_dir(path):
     cfg = load_config()
     cfg["download_dir"] = path
     save_config(cfg)
+
+
+# ========== 全局 AI / LLM 配置（v1.10.8：唯一一套，工具箱与字幕引擎共用） ==========
+# 配置实体仍在 data\ai_config.json（由 tools\ai_client.py 读写），这里提供给
+# 界面使用的加载 / 保存 / 连通性测试接口；保存后立即把 OpenAI 兼容槽同步给
+# 字幕引擎，做到「LLM 配置只在全局设置里出现一次」。
+AI_CONFIG_PATH = os.path.join(DATA_DIR, "ai_config.json")
+
+
+def ai_load_config():
+    """读取全局 AI/LLM 配置（缺失字段用出厂默认补齐）。ai_client 不可用时直接读文件。"""
+    try:
+        return ai_mod().load_config()
+    except Exception:
+        try:
+            with open(AI_CONFIG_PATH, encoding="utf-8-sig") as f:
+                data = json.load(f)
+            return data if isinstance(data, dict) else {}
+        except (OSError, ValueError):
+            return {}
+
+
+def ai_save_config(cfg):
+    """保存全局 AI/LLM 配置：落盘 ai_config.json + 重置客户端单例 + 同步给字幕引擎。
+
+    只保留默认 schema 内的键（避免界面写入杂字段）。返回清洗后的配置 dict。
+    v1.11.0 起含两条通道（A 工具箱 / B 引擎）与 ASR、AI 校准参数；保存后统一
+    把接口 B 注入字幕引擎、把 ASR 注入引擎转录配置。
+    """
+    mod = ai_mod()
+    clean = dict(getattr(mod, "DEFAULT_CONFIG", {}))
+    for k in list(clean.keys()):
+        if k in cfg and cfg[k] is not None:
+            clean[k] = cfg[k]
+    mod.save_config(clean)
+    try:
+        mod.reset_clients()     # 强制下次调用重建客户端（两条通道一起丢）
+    except Exception:
+        pass
+    try:
+        apply_global_llm_to_engine(clean)
+    except Exception:
+        pass
+    try:
+        apply_asr_to_engine(clean)
+    except Exception:
+        pass
+    return clean
+
+
+def ai_test_connection(cfg=None, channel="a"):
+    """连通性自检：返回 (是否成功, 说明)。用传入配置或已保存配置。
+
+    v1.12.0 起单通道（channel 参数保留兼容，忽略）。
+    """
+    mod = ai_mod()
+    probe = ai_save_config(cfg) if cfg is not None else None
+    try:
+        client = mod.AIClient(probe) if probe is not None else mod.get_client()
+        reply = client.chat_text("收到请只回复两个字：正常", max_tokens=512)
+        return True, (reply or "(空回复)") + \
+            f"（全局 AI，模型 {client.model}）"
+    except Exception as e:  # noqa: BLE001
+        return False, str(e)
+
+
+def ai_test_asr(cfg=None):
+    """ASR（语音识别）配置自检：返回 (是否成功, 说明)。"""
+    try:
+        return ai_mod().asr_test_connection(cfg if cfg is not None else ai_load_config())
+    except Exception as e:  # noqa: BLE001
+        return False, str(e)
+
+
+# ========== AI 校准（Agent 级）入口 ==========
+# 界面开启「AI 校准」后点「开始校准」，等价于向 Agent 下达：基于脚本
+# subtitle_calib_merged 校准字幕，不改变时间轴与格式，仅调整文字内容，
+# 一次读不完就自行拆分，最后合并。实现见 src\calib_ai_agent.py。
+def calib_ai_chat(prompt, system=None, max_tokens=None):
+    """AI 校准的 LLM 回调：走全局 AI 单通道（v1.12.0 起不再选通道）。"""
+    client = ai_mod().get_client()
+    return client.chat_text(prompt, system=system,
+                            max_tokens=int(max_tokens or 8192))
+
+
+def calib_ai_run(src, out=None, report=None, mode_flag="", fix_en=False,
+                 log=None, round_no=1, cancel=None, workdir=None):
+    """跑一轮 Agent 级 AI 校准，返回结果 dict（见 calib_ai_agent.calibrate）。
+
+    round_no>1 即「再次校准」：以本轮输出为输入再跑一轮，专挑残留错形。
+    """
+    import calib_ai_agent as _agent
+    ai = ai_load_config()
+    return _agent.calibrate(
+        src, out=out, report=report, mode_flag=mode_flag, fix_en=fix_en,
+        script=os.path.join(APP_DIR, "subtitle_calib_merged.py"),
+        python=system_python(), log=log, chat=calib_ai_chat,
+        chunk_cues=int(ai.get("calib_chunk_cues") or 120),
+        max_chars=int(ai.get("calib_max_chars") or 6000),
+        max_tokens=int(ai.get("calib_max_tokens") or 8192),
+        round_no=round_no, cancel=cancel, workdir=workdir)
+
+
+# ========== 校准知识多用户同步开关（持久化在 config.json） ==========
+def calib_sync_enabled():
+    """是否启用校准知识自动同步（默认启用；VT_NO_CALIB_SYNC 仍可强制关闭）。"""
+    if os.environ.get("VT_NO_CALIB_SYNC"):
+        return False
+    return bool(load_config().get("calib_sync_enabled", True))
+
+
+def set_calib_sync_enabled(flag):
+    cfg = load_config()
+    cfg["calib_sync_enabled"] = bool(flag)
+    save_config(cfg)
 # =============================
 
 
@@ -862,19 +1632,30 @@ def _port_listening(port, timeout=0.5):
 def ensure_builtin_proxy():
     """确保内置 mihomo 代理可用，返回代理地址或 None。
 
-    幂等设计：7897 已被监听（本程序或残留进程已启动 mihomo）时直接复用；
-    否则启动 tools/mihomo/mihomo.exe（隐藏窗口）并等待端口就绪。
+    幂等设计：目标端口已被监听（本程序残留进程、或用户自己的 Clash）时直接
+    复用；否则启动 tools/mihomo/mihomo.exe（隐藏窗口）并等待端口就绪。
     依赖下载失败时才调用，直连成功不会触发。
+
+    v1.12.0：允许用户接入自己的 Clash/mihomo yaml（设置页选择，路径存
+    config.json 的 proxy_yaml 键）——按用户配置的端口启动/复用；留空仍是
+    内置的 GitHub 专用配置（127.0.0.1:7897）。
     """
     global _MIHOMO_PROC
-    if _port_listening(MIHOMO_PORT):
-        return MIHOMO_PROXY
-    if not (os.path.isfile(MIHOMO_EXE) and os.path.isfile(MIHOMO_CONFIG)):
+    yaml_path = get_proxy_yaml()
+    if yaml_path:
+        port = _proxy_yaml_port(yaml_path) or MIHOMO_PORT
+        cfg_path = yaml_path
+    else:
+        port, cfg_path = MIHOMO_PORT, MIHOMO_CONFIG
+    proxy = f"http://127.0.0.1:{port}"
+    if _port_listening(port):
+        return proxy
+    if not (os.path.isfile(MIHOMO_EXE) and os.path.isfile(cfg_path)):
         return None
     try:
         os.makedirs(MIHOMO_DIR, exist_ok=True)
         _MIHOMO_PROC = subprocess.Popen(
-            [MIHOMO_EXE, "-d", MIHOMO_DIR, "-f", MIHOMO_CONFIG],
+            [MIHOMO_EXE, "-d", MIHOMO_DIR, "-f", cfg_path],
             stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
             creationflags=subprocess.CREATE_NO_WINDOW,
@@ -883,11 +1664,52 @@ def ensure_builtin_proxy():
         return None
     # 等待端口就绪（AUTO 组节点首次测速约需数秒）
     for _ in range(40):
-        if _port_listening(MIHOMO_PORT):
-            return MIHOMO_PROXY
+        if _port_listening(port):
+            return proxy
         if _MIHOMO_PROC.poll() is not None:
             return None
         time.sleep(0.5)
+    return None
+
+
+def get_proxy_yaml():
+    """用户自定义的 Clash/mihomo 代理配置 yaml；空 = 内置 GitHub 专用配置。"""
+    return str(load_config().get("proxy_yaml", "")).strip()
+
+
+def set_proxy_yaml(path):
+    """记住用户自定义代理 yaml 路径（长期固定）；空串 = 恢复内置默认。
+
+    文件必须存在；仅做存在性校验，格式/端口在 ensure_builtin_proxy 时解析
+    （解析失败回退默认端口 7897）。
+    """
+    path = clean_path(str(path or "")).strip()
+    if path:
+        path = os.path.abspath(path)
+        if not os.path.isfile(path):
+            raise FileNotFoundError(path)
+    cfg = load_config()
+    cfg["proxy_yaml"] = path
+    save_config(cfg)
+    return path
+
+
+def _proxy_yaml_port(path):
+    """从 Clash/mihomo yaml 解析监听端口（mixed-port > port > socks-port）。"""
+    try:
+        import yaml
+        with open(path, encoding="utf-8-sig") as f:
+            data = yaml.safe_load(f)
+        if isinstance(data, dict):
+            for key in ("mixed-port", "port", "socks-port"):
+                try:
+                    val = int(data.get(key) or 0)
+                except (TypeError, ValueError):
+                    continue
+                if 0 < val < 65536:
+                    return val
+    except Exception:
+        pass
     return None
 
 
@@ -975,8 +1797,8 @@ def _gh_request(method, path, token, payload=None, proxy="", timeout=30):
     except (OSError, subprocess.SubprocessError) as e:
         return False, f"curl 调用失败: {e}"
     if p.returncode != 0:
-        return False, f"curl 退出码 {p.returncode}: {p.stderr.decode(errors='replace')[:150]}"
-    body, _, code = p.stdout.decode(errors="replace").rpartition("\n")
+        return False, f"curl 退出码 {p.returncode}: {decode_bytes_any(p.stderr)[:150]}"
+    body, _, code = decode_bytes_any(p.stdout).rpartition("\n")
     try:
         code = int(code.strip() or 0)
     except ValueError:
@@ -1036,7 +1858,7 @@ def sync_calib_to_github():
         try:
             with open(os.path.join(APP_DIR, rel), "rb") as f:
                 b = f.read()
-            entries.append((rel, b, b.decode("utf-8")))
+            entries.append((rel, b, decode_bytes_any(b)))
         except (OSError, UnicodeDecodeError) as e:
             if rel == SYNC_REL_PATH:
                 _sync_log(f"跳过：读取失败 {e}")
@@ -1118,7 +1940,7 @@ def sync_calib_on_exit():
     用子进程而非线程：主进程退出后线程会被强杀，子进程能自行跑完。
     """
     try:
-        if not os.environ.get("VT_NO_CALIB_SYNC"):
+        if not os.environ.get("VT_NO_CALIB_SYNC") and calib_sync_enabled():
             script = os.path.join(APP_DIR, SYNC_REL_PATH)
             if not os.path.isfile(script):
                 return
@@ -1138,339 +1960,26 @@ def sync_calib_on_exit():
         _sync_log(f"派生同步子进程失败（忽略）: {e}")
 
 
-# ---------- 条目级三方合并（v1.10.7 多用户知识收敛） ----------
-# 需求：不同用户使用中会沉淀不一样的校准内容，启动时自动拿到全体最新版。
-# 做法是「启动拉取 + 条目级合并 + 退出推送」，合并单位从整个文件降到条目：
-#   · 纯字符串字面量 dict（各模式术语表等）：按 错形键 合并；
-#   · 常量二元组列表（CONTEXT_MAP 等上下文佐证规则）：按整元组合并；
-#   · ENTITIES（Entity(...) 调用列表）：按 canonical 合并；
-#   · 学习库 JSON：按 "模式|错形" 候选合并。
-# 只做并集、从不删除，任意多用户反复拉推最终收敛到全体条目的并集。
-# 用 ast 而非文本 diff：脚本是合法 Python，AST 能精确定位表与条目且免误伤。
-import ast as _ast_m
-_ast_Dict, _ast_List, _ast_Const, _ast_Constant = (
-    _ast_m.Dict, _ast_m.List, _ast_m.Constant, _ast_m.Constant)
-_MERGE_MISSING = object()
-
-
-def _read_sync_text(path):
-    try:
-        with open(path, encoding="utf-8-sig") as f:
-            return f.read()
-    except OSError:
-        return ""
-
-
-def _atomic_write(path, text):
-    """同目录临时文件 + os.replace 原子落盘；newline='' 不改写换行符。"""
-    tmp = path + ".sync_tmp"
-    with open(tmp, "w", encoding="utf-8", newline="") as f:
-        f.write(text)
-    os.replace(tmp, path)
-
-
-def _ast_module_tables(src):
-    """解析模块级「名称 = Dict/List 字面量」赋值，返回 {名称: value 节点}。
-    解析失败返回 None。"""
-    import ast as _ast
-    try:
-        tree = _ast.parse(src)
-    except SyntaxError:
-        return None
-    out = {}
-    for node in tree.body:
-        if (isinstance(node, _ast.Assign) and len(node.targets) == 1
-                and isinstance(node.targets[0], _ast.Name)
-                and isinstance(node.value, (_ast.Dict, _ast.List))):
-            out[node.targets[0].id] = node.value
-    return out
-
-
-def _dict_entries(dnode):
-    """Dict 节点中「字符串键 -> 字符串值」的条目 {key: (键节点, 值节点)}。
-    含任何非常量成员的表返回的映射会缺项——调用方以此跳过非纯字面量表。"""
-    out = {}
-    if not isinstance(dnode, _ast_Dict):
-        return out
-    for k, v in zip(dnode.keys, dnode.values):
-        if (isinstance(k, _ast_Const) and isinstance(v, _ast_Const)
-                and isinstance(k.value, str) and isinstance(v.value, str)):
-            out[k.value] = (k, v)
-    return out
-
-
-def _entity_fields(call):
-    """从 Entity(...) 调用节点提取 (canonical, modes, variants)。"""
-    import ast as _ast
-    canonical = None
-    if call.args and isinstance(call.args[0], _ast.Constant):
-        canonical = call.args[0].value
-    modes, variants = (), ()
-    for kw in call.keywords:
-        if kw.arg == "canonical" and isinstance(kw.value, _ast.Constant):
-            canonical = kw.value.value
-        elif kw.arg in ("modes", "variants") and isinstance(kw.value, (_ast.Tuple, _ast.List)):
-            try:
-                vals = tuple(_ast.literal_eval(kw.value))
-            except ValueError:
-                continue
-            if kw.arg == "modes":
-                modes = vals
-            else:
-                variants = vals
-    return canonical, modes, variants
-
-
-def _registry_conflicts(src):
-    """静态复算脚本 _register_entities 的注册冲突检查（同变体不同目标）。
-
-    合并器绝不制造这种冲突——它会 raise SystemExit 让整个校准脚本起不来。
-    返回冲突描述列表（空列表 = 通过）。"""
-    import ast as _ast
-    try:
-        tree = _ast.parse(src)
-    except SyntaxError:
-        return ["语法解析失败"]
-    tables, entities = {}, []
-    for node in tree.body:
-        if (isinstance(node, _ast.Assign) and len(node.targets) == 1
-                and isinstance(node.targets[0], _ast.Name)):
-            name = node.targets[0].id
-            if isinstance(node.value, _ast.Dict):
-                try:
-                    tables[name] = _ast.literal_eval(node.value)
-                except ValueError:
-                    pass
-            if name == "ENTITIES" and isinstance(node.value, _ast.List):
-                for elt in node.value.elts:
-                    if isinstance(elt, _ast.Call):
-                        c, modes, variants = _entity_fields(elt)
-                        if c is not None:
-                            entities.append((c, modes, variants))
-    mode_table = tables.get("_MODE_TERM_TABLE") or {}
-    bad = []
-    for canonical, modes, variants in entities:
-        for m in modes:
-            tname = mode_table.get(m)
-            tbl = tables.get(tname) if tname else None
-            if not isinstance(tbl, dict):
-                continue
-            for v in variants:
-                if v in tbl and tbl[v] != canonical:
-                    bad.append(f"{v!r}->{tbl[v]!r} 与实体 {canonical!r} 冲突")
-    return bad
-
-
-def merge_calib_script(local_src, remote_src, base_src=""):
-    """校准脚本条目级三方合并。返回 (merged, added, conflicts)。
-
-    三方 = 本地 / 远程 / 基线快照（上次同步后的内容，即公共祖先）：
-      · 远程新增条目 -> 并入本地（保留远程原文行，含行尾注释）；
-      · 基线有而本地已删 -> 本地有意删除，不复活；
-      · 本地未动、远程修改 -> 采用远程；
-      · 两边都改且不同 -> 冲突，保留本地并记录（退出推送交由人工裁决）；
-      · 本地新增/修改 -> 保留本地（推送时带给别人）。
-    合并结果必须同时通过 语法编译 与 实体注册冲突 两道门，任一不过整体
-    放弃、返回本地原文——宁可少并一次，绝不产出起不来的脚本。
-    """
-    import ast as _ast
-    crlf = "\r\n" in local_src
-    norm = lambda s: (s or "").replace("\r\n", "\n")
-    local_src, remote_src, base_src = norm(local_src), norm(remote_src), norm(base_src)
-    keep_local = (local_src, 0, ["nothing"])
-    if not remote_src.strip() or not local_src.strip():
-        return (local_src.replace("\n", "\r\n") if crlf else local_src), 0, []
-    L, R = _ast_module_tables(local_src), _ast_module_tables(remote_src)
-    B = _ast_module_tables(base_src) or {}
-    if L is None or R is None:
-        return (local_src.replace("\n", "\r\n") if crlf else local_src), 0, \
-            ["远程或本地脚本解析失败，放弃合并"]
-
-    lines = local_src.split("\n")
-    rlines = remote_src.split("\n")
-    edits = []          # (start0, end0_exclusive, 替换行列表)；start==end 表示插入
-    added, conflicts = 0, []
-
-    for name, rnode in R.items():
-        lnode = L.get(name)
-        if lnode is None or type(lnode) is not type(rnode):
-            continue
-
-        if isinstance(rnode, _ast.Dict):
-            # 只合并纯「字符串->字符串」表；结构复杂的表（INFO/映射表）不动
-            le, re_ = _dict_entries(lnode), _dict_entries(rnode)
-            be = _dict_entries(B.get(name)) if name in B else {}
-            if len(le) != len(lnode.keys) or len(re_) != len(rnode.keys):
-                continue
-            pos = lnode.end_lineno - 1          # 收尾 } 独占一行才可插入
-            if lines[pos].strip() != "}":
-                continue
-            new_rows = []
-            for key, (rk, rv) in re_.items():
-                rval = rv.value
-                if key not in le:
-                    if key in be:
-                        continue                 # 本地删除，尊重本地
-                    row = rlines[rk.lineno - 1:rv.end_lineno]
-                    new_rows.extend(row)
-                    added += 1
-                    continue
-                lk, lv = le[key]
-                if lv.value == rval:
-                    continue                     # 两边一致
-                bval = be[key][1].value if key in be else _MERGE_MISSING
-                if bval is _MERGE_MISSING:
-                    continue                     # 本地新增，保留
-                if lv.value == bval:
-                    # 本地未动、远程修改 -> 采用远程整行
-                    edits.append((lk.lineno - 1, lv.end_lineno,
-                                  rlines[rk.lineno - 1:rv.end_lineno]))
-                else:
-                    conflicts.append(f"{name}[{key!r}] 两边不同：保留本地 {lv.value!r}")
-            if new_rows:
-                edits.append((pos, pos, new_rows))
-
-        elif isinstance(rnode, _ast.List):
-            pos = lnode.end_lineno - 1
-            if lines[pos].strip() != "]":
-                continue
-            if name == "ENTITIES":
-                # Entity 调用列表：按 canonical 合并
-                def _canon_map(node, src):
-                    out = {}
-                    for e in node.elts:
-                        if isinstance(e, _ast.Call):
-                            c, _m, _v = _entity_fields(e)
-                            if c is not None:
-                                out[c] = (e, _ast.get_source_segment(src, e) or "")
-                    return out
-                lmap_e = _canon_map(lnode, local_src)
-                rmap_e = _canon_map(rnode, remote_src)
-                bmap_e = _canon_map(B[name], base_src) if isinstance(B.get(name), _ast.List) else {}
-                new_rows = []
-                for canon, (enode, rseg) in rmap_e.items():
-                    if canon not in lmap_e:
-                        if canon in bmap_e:
-                            continue             # 本地删除，尊重本地
-                        new_rows.extend(rlines[enode.lineno - 1:enode.end_lineno])
-                        added += 1
-                        continue
-                    lnode_e, lseg = lmap_e[canon]
-                    bnode_e = bmap_e.get(canon)
-                    if (bnode_e is not None and lseg == bmap_e[canon][1]
-                            and rseg != bmap_e[canon][1]):
-                        # 本地未动、远程更新 -> 整段替换
-                        edits.append((lnode_e.lineno - 1, lnode_e.end_lineno,
-                                      rlines[enode.lineno - 1:enode.end_lineno]))
-                if new_rows:
-                    edits.append((pos, pos, new_rows))
-            else:
-                # 常量列表（CONTEXT_MAP 等元组规则）：按整元素并集
-                def _elts(node):
-                    out = []
-                    for e in node.elts:
-                        try:
-                            out.append((_ast.literal_eval(e), e))
-                        except ValueError:
-                            return None
-                    return out
-                lels, rels = _elts(lnode), _elts(rnode)
-                bels = _elts(B[name]) if isinstance(B.get(name), _ast.List) else []
-                if lels is None or rels is None or bels is None:
-                    continue
-                lvals = {v for v, _ in lels}
-                bvals = {v for v, _ in bels}
-                new_rows = []
-                for val, enode in rels:
-                    if val in lvals or val in bvals:
-                        continue
-                    new_rows.extend(rlines[enode.lineno - 1:enode.end_lineno])
-                    lvals.add(val)
-                    added += 1
-                if new_rows:
-                    edits.append((pos, pos, new_rows))
-
-    if not edits:
-        merged = local_src
-    else:
-        for s0, e0, repl in sorted(edits, key=lambda t: (t[0], t[1]), reverse=True):
-            lines[s0:e0] = repl
-        merged = "\n".join(lines)
-        try:
-            compile(merged, "merged_calib", "exec")
-        except SyntaxError as e:
-            return (local_src.replace("\n", "\r\n") if crlf else local_src), 0, \
-                [f"合并结果语法不过（{e.msg}，行 {e.lineno}），已放弃并入"]
-        reg = _registry_conflicts(merged)
-        if reg:
-            return (local_src.replace("\n", "\r\n") if crlf else local_src), 0, \
-                ["合并会触发实体注册冲突：" + "；".join(reg[:3]) + "，已放弃并入"]
-    if conflicts:
-        _sync_log(f"脚本合并冲突 {len(conflicts)} 条（保留本地）：{conflicts[0]}")
-    merged = merged.replace("\n", "\r\n") if crlf else merged
-    return merged, added, conflicts
-
-
-def merge_learned_kb(local_text, remote_text):
-    """学习库（subtitle_learned_kb.json）候选级合并。返回 (合并文本, 新增数, 冲突数)。
-
-    键为 "模式|错形"，语义与脚本 learn 状态机对齐：
-      · 单边独有 -> 直接并入；
-      · 同键：count/uncorrected 取较大值，cues/samples 取并集（沿用脚本 20/10
-        封顶），ref_tokens/unc_ref_tokens 计数求和，first/last 取更早/更晚；
-      · 同键不同目标 -> 置 conflict（脚本会停止自动应用，留人工裁决），alts 并入；
-      · status 就高：rejected（人工否决）不被对方的 candidate/confirmed 抵消。
-    任一侧解析失败返回本地原文，绝不产出坏库。
-    """
-    import json as _json
-    empty = _json.dumps({"version": 1, "candidates": {}}, ensure_ascii=False)
-    try:
-        L = _json.loads(local_text) if local_text.strip() else {"candidates": {}}
-        R = _json.loads(remote_text) if remote_text.strip() else {"candidates": {}}
-        lc, rc = dict(L["candidates"]), R["candidates"]
-    except (ValueError, KeyError, TypeError):
-        return (local_text if local_text.strip() else empty), 0, 0
-    added = conflicts = 0
-    for k, r in rc.items():
-        l = lc.get(k)
-        if l is None:
-            lc[k] = r
-            added += 1
-            continue
-        if l == r:
-            continue
-        m = dict(l)
-        rejected = (l.get("status") == "rejected" or r.get("status") == "rejected")
-        if rejected:
-            m["status"] = "rejected"
-        elif r.get("right") != l.get("right"):
-            m["conflict"] = True
-            alts = dict(m.get("alts") or {})
-            alts[r.get("right", "")] = alts.get(r.get("right", ""), 0) + max(r.get("count", 1), 1)
-            m["alts"] = alts
-            conflicts += 1
-        m["count"] = max(l.get("count", 0), r.get("count", 0))
-        m["uncorrected"] = max(l.get("uncorrected", 0), r.get("uncorrected", 0))
-        m["cues"] = list(dict.fromkeys(
-            list(l.get("cues") or []) + list(r.get("cues") or [])))[:20]
-        ls = l.get("samples") or []
-        m["samples"] = (ls + [s for s in (r.get("samples") or []) if s not in ls])[:10]
-        for f in ("ref_tokens", "unc_ref_tokens"):
-            d = dict(l.get(f) or {})
-            for t, n in (r.get(f) or {}).items():
-                d[t] = d.get(t, 0) + n
-            m[f] = d
-        firsts = [x for x in (l.get("first"), r.get("first")) if x]
-        lasts = [x for x in (l.get("last"), r.get("last")) if x]
-        if firsts:
-            m["first"] = min(firsts)
-        if lasts:
-            m["last"] = max(lasts)
-        if l.get("demoted") or r.get("demoted"):
-            m["demoted"] = True
-        lc[k] = m
-    return _json.dumps({"version": 1, "candidates": lc},
-                       ensure_ascii=False, indent=1), added, conflicts
+# ---------- 条目级三方合并（v1.10.8：纯函数核心抽到 calib_merge_core） ----------
+# 多用户知识收敛的合并算法是纯函数、零副作用，统一放在 calib_merge_core，
+# 便于 GUI 引擎、退出同步子进程与脚本/CI 复用；这里只做导入并保留向后兼容
+# 别名（自检与外部仍以 engine.merge_* 调用），并把合并期日志接到同步日志。
+#
+# 同步语义保持 v1.10.7 的对等并集模型（用户最终拍板，不采用 contrib/CI
+# 中心化方案）：启动自动拉取 GitHub main 最新校准知识并把其他用户沉淀的
+# 新条目并入本地；退出时先把远程新内容并进来再推送，多用户互不覆盖，
+# 所有人的脚本最终收敛到全体条目的并集。
+from calib_merge_core import (
+    _MERGE_MISSING,
+    _ast_module_tables,
+    _dict_entries,
+    _entity_fields,
+    _registry_conflicts,
+    merge_calib_script,
+    merge_learned_kb,
+)
+import calib_merge_core as _calib_core
+_calib_core._log = _sync_log  # 合并期冲突日志写入 logs/calib_sync.log
 
 
 def _gh_fetch_file(token, rel_path):
@@ -1491,10 +2000,38 @@ def _gh_fetch_file(token, rel_path):
             if not ok2:
                 return False, str(blob), ""
             data, content = blob, blob.get("content")
-        text = base64.b64decode(content or "").decode("utf-8")
+        text = decode_bytes_any(base64.b64decode(content or ""))
         return True, text, data.get("sha", "")
     except (ValueError, KeyError, TypeError, OSError) as e:
         return False, f"解码失败: {e}", ""
+
+
+def _read_sync_text(path):
+    """读同步目标文件（兼容 UTF-8/GBK/无 BOM）；文件不存在返回空串。
+
+    v1.10.9 修复：_pull_and_merge 曾调用本函数但未定义，导致启动同步每次都
+    以 NameError 静默失败（日志表现为「启动同步异常（忽略）: name
+    '_read_sync_text' is not defined」），多用户知识收敛的「拉」半程从未生效。
+    """
+    try:
+        return read_text_any(path)
+    except OSError:
+        return ""
+
+
+def _atomic_write(path, text):
+    """原子写回同步文件：先写同目录临时文件再 os.replace，避免半截文件。
+
+    与 _vc_write_settings 同风格；统一无 BOM 的 UTF-8 + 原样换行
+    （脚本文件里混有 LF/CRLF，替换换行会污染仓库 diff）。
+    """
+    parent = os.path.dirname(path)
+    if parent:
+        os.makedirs(parent, exist_ok=True)
+    tmp = path + ".vt_tmp"
+    with open(tmp, "w", encoding="utf-8", newline="") as f:
+        f.write(text)
+    os.replace(tmp, path)
 
 
 def _pull_and_merge(token, rel_path, is_script):
@@ -1544,7 +2081,7 @@ def sync_calib_on_startup():
     VT_NO_CALIB_SYNC 同样禁用本入口。返回 (ok, 说明)。
     """
     try:
-        if os.environ.get("VT_NO_CALIB_SYNC"):
+        if os.environ.get("VT_NO_CALIB_SYNC") or not calib_sync_enabled():
             return False, "已禁用同步"
         token = _gh_token()          # 可为空：公开库匿名读
         changed_s = _pull_and_merge(token, SYNC_REL_PATH, True)
@@ -1692,12 +2229,9 @@ def extract_url(arg):
     """从 .url 快捷方式 / 文本文件 / 原始字符串中提取第一个 http 链接"""
     if os.path.isfile(arg):
         try:
-            text = Path(arg).read_text(encoding="utf-8", errors="ignore")
+            text = read_text_any(arg)
         except Exception:
-            try:
-                text = Path(arg).read_text(encoding="gbk", errors="ignore")
-            except Exception:
-                return None
+            return None
         m = URL_RE.search(text)
         return m.group(0) if m else None
     m = URL_RE.search(arg)
@@ -1739,12 +2273,11 @@ def fetch_info_json(ytdlp, url, attempts=4, log=None, wait_base=5):
 
     for i in range(attempts):
         result = run_process([ytdlp, "-J", "--no-playlist", url],
-                             capture_output=True, text=True,
-                             encoding="utf-8", errors="replace")
-        out = result.stdout or ""
+                             capture_output=True)
+        out = decode_bytes_any(result.stdout)
         if result.returncode == 0 and out.strip().startswith("{"):
             return out
-        err = (result.stderr or "") + out
+        err = decode_bytes_any(result.stderr) + out
         detail = _detail(err)
         if i < attempts - 1:
             _log(f"[信息] 提取失败（{i + 1}/{attempts}）: {detail}")
@@ -2035,8 +2568,8 @@ def get_duration(filepath, ffprobe_path):
         filepath
     ]
     try:
-        result = run_process(cmd, capture_output=True, text=True, check=True)
-        return float(result.stdout.strip())
+        result = run_process(cmd, capture_output=True, check=True)
+        return float(decode_bytes_any(result.stdout).strip())
     except Exception:
         return 0.0
 
@@ -2230,10 +2763,10 @@ def merge_pair(mp4_path, audio_path, audio_type, sub_path, sub_type, output_path
     else:
         return False, output_path
 
-    result = run_process(cmd, capture_output=True, text=True)
+    result = run_process(cmd, capture_output=True)
     success = result.returncode == 0
     if not success:
-        print(f"     [错误] {result.stderr[-200:]}")
+        print(f"     [错误] {decode_bytes_any(result.stderr)[-200:]}")
     return success, output_path
 
 

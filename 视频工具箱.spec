@@ -1,5 +1,20 @@
 # -*- mode: python ; coding: utf-8 -*-
-"""视频工具箱 v1.10.5 —— PyInstaller 打包配置
+"""视频工具箱 v1.12.0 —— PyInstaller 打包配置
+v1.12.0：翻译链路全面修缮——① 谷歌翻译改抓 Chrome 内置翻译同源免费接口
+         （translate_a/t?client=dict-chrome-ex，官方旧端点已被 302 到验证码页）
+         并加全局请求节流（相邻请求 ≥0.12s，约 8 QPS）；② 必应翻译换
+         translatetext 端点取 token（官方匿名 token 方案已失效）；③ 翻译基类
+         对失败译文（ERROR / 空 / xxx||ERROR）不写缓存、块级可重试；
+         ④ LLM 翻译并发上限（_LLM_THREAD_CAP=5）与限流处理，防 429 刷屏；
+         ⑤ 取消任务立即停掉翻译/优化线程池（原先取消后仍跑完剩余批次）；
+         ⑥ 「启用 AI」关闭时翻译兜底不介入 LLM。打包配置无需变更。
+v1.11.0：LLM 拆为两条独立通道（接口 A 工具箱 / 接口 B 引擎，各自地址+密钥+模型）、
+         新增全局 ASR（自有 ASR 服务 / 本地独立模型 → 引擎「转录配置」）、
+         字幕校准新增 Agent 级 AI 校准（新增 src\\calib_ai_agent.py，需作为
+         hiddenimport 收进 exe）、diskcache 延迟化消除引擎界面启动数秒卡顿。
+v1.10.8：设置收敛为唯一全局设置页、LLM 配置全局化（工具箱与字幕引擎共用）、
+         引擎默认路径全部强制到软件文件夹；校准知识合并核心抽到
+         src\\calib_merge_core.py（纯函数），需作为 hiddenimport 收进 exe。
 v1.10.5：校准脚本升级（对象级 ENTITIES + 学习系统）、校准界面模式列表与脚本
          对齐（12 种模式，去掉已废弃的 --layout 开关）、新增退出时静默同步
          校准脚本到 GitHub（engine.sync_calib_on_exit，于 aboutToQuit 挂接）。
@@ -41,6 +56,17 @@ hiddenimports = []
 from PyInstaller.utils.hooks import collect_data_files, collect_submodules
 datas += collect_data_files('videocaptioner')
 hiddenimports += collect_submodules('videocaptioner')
+# 注意：引擎界面图片/字体/默认样式等 resource 静态树不打进 exe（onefile 解压目录
+# 并非 vc_bundled_resource_dir 的锚点），而是由 视频工具箱.iss 原样铺到
+# {app}\tools\videocaptioner\resource（exe 同级 tools），运行时按盘路径读取。
+
+# v1.10.8：校准知识条目级合并核心（video_toolbox 顶层 import，静态分析一般能
+# 跟踪到，这里显式声明双保险——退出同步子进程/界面都依赖它）。
+hiddenimports += ['calib_merge_core']
+
+# v1.11.0：AI 校准 Agent（延迟导入：engine.calib_ai_run 内部 import，静态分析
+# 发现不了，必须显式声明，否则打包后点「AI 校准」会 ModuleNotFoundError）。
+hiddenimports += ['calib_ai_agent']
 
 # 字幕引擎的运行时依赖：多为延迟导入，静态分析发现不了，必须显式声明
 hiddenimports += ['httpx', 'httpcore', 'anyio', 'sniffio', 'h11', 'certifi',
