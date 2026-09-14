@@ -3,6 +3,19 @@
 """
 视频工具箱 v1.12.0（单文件整合版）
 ==================================================
+v1.12.2：校准知识收集通道调整（用户拍板）——
+  ① 恢复 GitHub 整文件同步通道（_gh_* / sync_calib_to_github / _pull_and_merge）：
+  用于收集不同使用者在校准过程中产生的增量内容；条目级三方合并保证
+  多用户互不覆盖、收敛到并集；
+  ② 所有上传全自动、隐藏在后台：校准 learn 实时写本地学习库，退出程序时
+  派生隐藏子进程自动推送 GitHub（界面不提供也不显示任何上传入口）；
+  ③ 连接参数统一使用内置 github_proxy.yaml 的 vt-github 段
+  （owner/repo/branch/api/token/files）；直连失败回退同文件的代理规则；
+  ④ 程序界面仅保留「更新」选项（启动自动 + 手动立即更新）；
+  ⑤ v1.12.1 的本地增量镜像通道（kb-sync/kb-push + baseline/inbox）保留为
+  可选增强：管理员用独立程序 kb_admin.exe 配了共享更新库时自动叠加启用。
+v1.12.1：（已被 v1.12.2 部分取代）工具箱曾只保留「更新 + 上传增量」两动作、
+  GitHub 通道全部移交独立程序；现按要求恢复 GitHub 收集通道。
 v1.12.0：翻译链路全面修缮（配套 site-packages 里的引擎改动，均由
   src\apply_vc_official.py 归档可复现）：① 谷歌翻译改抓 Chrome 内置翻译同源
   免费接口（translate_a/t?client=dict-chrome-ex）并加全局请求节流（≥0.12s/次，
@@ -1555,13 +1568,19 @@ def calib_ai_chat(prompt, system=None, max_tokens=None):
 
 
 def calib_ai_run(src, out=None, report=None, mode_flag="", fix_en=False,
-                 log=None, round_no=1, cancel=None, workdir=None):
+                 log=None, round_no=1, cancel=None, workdir=None,
+                 style=None, resume_from=None, prev_changes=None):
     """跑一轮 Agent 级 AI 校准，返回结果 dict（见 calib_ai_agent.calibrate）。
 
-    round_no>1 即「再次校准」：以本轮输出为输入再跑一轮，专挑残留错形。
+    style：None=读配置 `calib_style`——`term` 术语级（只替换名词，默认）/
+           `rewrite` 整句重写（针对机翻腔、跨 cue 断句的片源，长双语片常用）。
+    resume_from：起点文件。长片源「再次校准」应传上一轮产物：这样会**跳过脚本基线**
+           直接在上轮成果上继续；否则从原始源重跑会把上轮已采纳的改动丢掉。
+    prev_changes：上轮采纳明细 [(num, old, new), ...]，注入提示词禁止回退。
     """
     import calib_ai_agent as _agent
     ai = ai_load_config()
+    style = style or str(ai.get("calib_style") or "term")
     return _agent.calibrate(
         src, out=out, report=report, mode_flag=mode_flag, fix_en=fix_en,
         script=os.path.join(APP_DIR, "subtitle_calib_merged.py"),
@@ -1569,7 +1588,10 @@ def calib_ai_run(src, out=None, report=None, mode_flag="", fix_en=False,
         chunk_cues=int(ai.get("calib_chunk_cues") or 120),
         max_chars=int(ai.get("calib_max_chars") or 6000),
         max_tokens=int(ai.get("calib_max_tokens") or 8192),
-        round_no=round_no, cancel=cancel, workdir=workdir)
+        round_no=round_no, cancel=cancel, workdir=workdir,
+        style=style, resume_from=resume_from, prev_changes=prev_changes,
+        sentence_aware=bool(ai.get("calib_sentence_aware", True)),
+        strict_width=bool(ai.get("calib_strict_width", False)))
 
 
 # ========== 校准知识多用户同步开关（持久化在 config.json） ==========
@@ -1726,26 +1748,26 @@ def _stop_builtin_proxy():
 atexit.register(_stop_builtin_proxy)
 
 
-# ========== 校准脚本 GitHub 同步（v1.10.5，退出时静默执行） ==========
-# 需求：每次退出程序，把 subtitle_calib_merged.py 同步到 GitHub 仓库 main 分支。
-# 通道：GitHub Git Data API（api.github.com 可达，git 协议在本机网络不可达）；
-#       直连失败时回退内置 mihomo 代理（127.0.0.1:7897）。
-# 该代理只为 api.github.com 服务，不代理其它流量。
-# 策略：静默后台、不阻塞退出、不弹窗，结果只写 logs/calib_sync.log；
-#       内容是否变化都提交（用户明确要求每次都提交）。
-SYNC_OWNER = "09Th90"
-SYNC_REPO = "VideoToolbox"
-SYNC_BRANCH = "main"
-SYNC_API = "https://api.github.com"
-#: 仓库内目标路径（与本地 APP_DIR 下的相对路径一致）
-SYNC_REL_PATH = "subtitle_calib_merged.py"
-#: 学习库（learn 候选）v1.10.7 起纳入同步：这是各用户日常差异的最大来源
-SYNC_KB_REL_PATH = "subtitle_learned_kb.json"
-#: 基线快照：上次同步成功后的本地内容，即三方合并的「公共祖先」。
-#: 放数据根目录（不入库不分发）；缺失时退化为保守的并集合并策略
-CALIB_BASE_SNAPSHOT = os.path.join(DATA_DIR, "calib_sync_base.py")
-CALIB_KB_BASE_SNAPSHOT = os.path.join(DATA_DIR, "calib_sync_kb_base.json")
+# ========== 校准知识同步（v1.12.2：GitHub 整文件通道收集 + 可选本地增量镜像） ==========
+# 架构：
+#   · 更新（界面唯一入口，启动自动 + 手动）：从内置 github_proxy.yaml 指向的
+#     GitHub 仓库拉取全体使用者沉淀，条目级三方合并进本地；若管理员另配了
+#     共享更新库（VT_SYNC_ROOT 下有 baseline.json），叠加本地增量镜像 kb-sync；
+#   · 上传：全自动、隐藏在后台——learn 实时写本地学习库，退出程序时派生
+#     隐藏子进程把「校准脚本 + 学习库」推回 GitHub（先拉后推，互不覆盖），
+#     镜像启用时同时 kb-push 进收件箱；界面上不存在任何上传按钮；
+#   · 折叠基线、清理更新库等管理动作全部在独立程序 kb_admin.exe。
+# 连接参数统一在 github_proxy.yaml 的 vt-github 段（owner/repo/branch/api/
+#   token/files），改仓库只动 yaml。
+# 策略：静默、不阻塞、不弹窗，结果写 logs/calib_sync.log；失败一律降级为
+#   "本地功能照常可用"，绝不因同步失败影响校准。
 SYNC_LOG = os.path.join(LOGS_DIR, "calib_sync.log")
+#: 用户侧同步脚本与更新库路径（打包后随包分发在程序根目录）
+CALIB_SCRIPT = os.path.join(APP_DIR, "subtitle_calib_merged.py")
+CALIB_KB_PATH = os.path.join(APP_DIR, "subtitle_learned_kb.json")
+#: 更新库根目录（管理员维护、可指向网络盘）与本机同步状态目录
+SYNC_REMOTE_DIR = os.path.join(DATA_DIR, "calib_sync_remote")
+SYNC_LOCAL_DIR = os.path.join(DATA_DIR, "calib_sync")
 
 
 def _sync_log(msg):
@@ -1758,15 +1780,95 @@ def _sync_log(msg):
         pass
 
 
-def _gh_token():
-    """取 GitHub token：环境变量优先，其次 gh keyring。取不到返回空串。"""
+def sync_env_into(env):
+    """给校准/同步子进程补齐增量通道路径变量（外部显式设置优先，setdefault 语义）。
+
+    引擎导入时对 os.environ 调用一次：此后所有子进程（校准 worker、AI 校准、
+    同步子进程）自动继承，保证 learn 自动上传、退出补传、启动更新指向同一库。
+    """
+    env.setdefault("VT_DATA_ROOT", DATA_ROOT)
+    env.setdefault("VT_SYNC_ROOT", SYNC_REMOTE_DIR)
+    env.setdefault("VT_SYNC_DIR", SYNC_LOCAL_DIR)
+    env.setdefault("VT_SYNC_KB", CALIB_KB_PATH)
+    return env
+
+
+for _d in (SYNC_REMOTE_DIR, SYNC_LOCAL_DIR):
+    try:
+        os.makedirs(_d, exist_ok=True)
+    except OSError:
+        pass
+sync_env_into(os.environ)
+
+
+def _calib_py():
+    """跑增量通道子命令的 Python：工具箱内嵌运行时优先，其次系统 python。"""
+    py = system_python()
+    return py if py and os.path.isfile(py) else ""
+
+
+# ---------- GitHub 整文件通道（v1.12.2 恢复：收集各使用者校准增量） ----------
+# 连接参数统一来自内置 github_proxy.yaml 的 vt-github 段（owner/repo/branch/
+# api/token/files）；改仓库或加同步文件只动 yaml、不动代码。上传全部自动、
+# 隐藏在后台完成（退出时自动推送）；界面只保留「更新」。
+# 全程静默、直连失败回退内置 mihomo 代理、任何异常只写 logs/calib_sync.log，
+# 绝不影响校准主流程。
+GITHUB_PROXY_YAML = os.path.join(APP_DIR, "github_proxy.yaml")
+#: yaml 缺失/解析失败时的兜底默认（与内置 yaml 的 vt-github 段一致）
+_SYNC_CONN_DEFAULTS = {
+    "owner": "09Th90", "repo": "VideoToolbox", "branch": "main",
+    "api": "https://api.github.com", "token": "",
+    "files": ["subtitle_calib_merged.py", "subtitle_learned_kb.json"],
+}
+#: 兼容旧引用（自检/文档仍以此名访问）；实际目标文件以 yaml files 段为准
+SYNC_REL_PATH = _SYNC_CONN_DEFAULTS["files"][0]
+SYNC_KB_REL_PATH = _SYNC_CONN_DEFAULTS["files"][1]
+#: 上次同步成功内容快照 = 条目级三方合并的「公共祖先」（放数据根，不入库不分发）
+CALIB_BASE_SNAPSHOT = os.path.join(DATA_DIR, "calib_sync_base.py")
+CALIB_KB_BASE_SNAPSHOT = os.path.join(DATA_DIR, "calib_sync_kb_base.json")
+
+_SYNC_CONN_CACHE = None
+
+
+def _sync_conn(refresh=False):
+    """读内置 github_proxy.yaml 的 vt-github 段（模块级缓存；缺字段用默认补齐）。"""
+    global _SYNC_CONN_CACHE
+    if _SYNC_CONN_CACHE is not None and not refresh:
+        return _SYNC_CONN_CACHE
+    cfg = {k: (list(v) if isinstance(v, list) else v)
+           for k, v in _SYNC_CONN_DEFAULTS.items()}
+    try:
+        import yaml
+        with open(GITHUB_PROXY_YAML, encoding="utf-8-sig") as f:
+            data = yaml.safe_load(f) or {}
+        vg = data.get("vt-github") or {}
+        for key in ("owner", "repo", "branch", "api", "token"):
+            val = str(vg.get(key) or "").strip()
+            if val:
+                cfg[key] = val
+        files = vg.get("files")
+        if isinstance(files, list) and files:
+            cfg["files"] = [str(p).strip() for p in files if str(p).strip()]
+    except Exception as e:  # noqa: BLE001  解析失败退回默认，不阻断同步
+        _sync_log(f"读取 github_proxy.yaml 失败，改用内置默认连接：{e}")
+    if not refresh:
+        _SYNC_CONN_CACHE = cfg
+    return cfg
+
+
+def _gh_token(cfg=None):
+    """取 GitHub token：内置 yaml 显式配置 > 环境变量 > gh keyring；取不到返回空串。"""
+    cfg = cfg or _sync_conn()
+    tok = (cfg.get("token") or "").strip()
+    if tok:
+        return tok
     tok = os.environ.get("GH_TOKEN") or os.environ.get("GITHUB_TOKEN")
     if tok:
         return tok.strip()
     for exe in ("gh", os.path.join(TOOLS_DIR, "gh.exe")):
         try:
-            p = subprocess.run([exe, "auth", "token"], capture_output=True,
-                               text=True, timeout=15)
+            p = run_process([exe, "auth", "token"], capture_output=True,
+                            text=True, timeout=15)
             if p.returncode == 0 and p.stdout.strip():
                 return p.stdout.strip()
         except (OSError, subprocess.SubprocessError):
@@ -1775,12 +1877,12 @@ def _gh_token():
 
 
 def _gh_request(method, path, token, payload=None, proxy="", timeout=30):
-    """访问 GitHub API。返回 (ok, 数据或错误消息)。用 curl，避开 requests 的代理问题。"""
-    url = f"{SYNC_API}/{path}"
+    """访问 GitHub API（用 curl，避开 requests 的代理问题）。返回 (ok, 数据或错误)。"""
+    url = f"{_sync_conn()['api']}/{path}"
     cmd = ["curl", "-sS", "--max-time", str(timeout), "-X", method]
     if proxy:
         cmd += ["-x", proxy]
-    if token:  # 匿名读公开库时不带认证头（启动拉取可无 token）
+    if token:  # 公开库匿名读时不带认证头
         cmd += ["-H", f"Authorization: Bearer {token}"]
     cmd += ["-H", "Accept: application/vnd.github+json",
             "-H", "X-GitHub-Api-Version: 2022-11-28",
@@ -1792,8 +1894,8 @@ def _gh_request(method, path, token, payload=None, proxy="", timeout=30):
         stdin = json.dumps(payload).encode("utf-8")
     cmd.append(url)
     try:
-        p = subprocess.run(cmd, input=stdin, capture_output=True, timeout=timeout + 10,
-                           creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+        p = run_process(cmd, input=stdin, capture_output=True,
+                        timeout=timeout + 10)
     except (OSError, subprocess.SubprocessError) as e:
         return False, f"curl 调用失败: {e}"
     if p.returncode != 0:
@@ -1812,152 +1914,263 @@ def _gh_request(method, path, token, payload=None, proxy="", timeout=30):
 
 
 def _gh_request_any(method, path, token, payload=None):
-    """先直连，失败再走内置代理（仅 GitHub 流量）。返回 (ok, 数据或错误)。
-
-    仅当失败【疑似网络问题】时才启用代理：认证错误（401/403）与参数错误
-    （404/422）走代理也不会变好，直接返回，避免白白拉起 mihomo。
-    """
+    """先直连，失败再走内置代理（仅 GitHub 流量）。认证/参数类错误不重试代理。"""
     ok, data = _gh_request(method, path, token, payload)
     if ok:
         return True, data
     msg = str(data)
-    # 认证/权限/资源类错误：非网络问题，回退无意义
     if any(code in msg for code in ("HTTP 401", "HTTP 403", "HTTP 404", "HTTP 422")):
         return False, data
     _sync_log(f"直连 {method} {path} 失败（{msg[:80]}），改用内置代理")
     proxy = ensure_builtin_proxy()
     if not proxy:
         return False, f"{data}；内置代理不可用"
-    ok2, data2 = _gh_request(method, path, token, payload, proxy=proxy)
-    return (ok2, data2)
+    return _gh_request(method, path, token, payload, proxy=proxy)
 
 
-def sync_calib_to_github():
-    """把本地校准脚本与学习库推到 GitHub main 分支（静默，返回 (ok, 说明)）。
+def _gh_fetch_file(token, rel_path, cfg):
+    """拉仓库单文件最新内容。返回 (ok, 文本或错误, blob_sha)；公开库可匿名读。"""
+    path = (f"repos/{cfg['owner']}/{cfg['repo']}/contents/{rel_path}"
+            f"?ref={cfg['branch']}")
+    ok, data = _gh_request_any("GET", path, token)
+    if not ok:
+        return False, str(data), ""
+    try:
+        content = data.get("content")
+        if not content and data.get("git_url"):
+            blob_path = str(data["git_url"]).replace(cfg["api"] + "/", "")
+            ok2, blob = _gh_request_any("GET", blob_path, token)
+            if not ok2:
+                return False, str(blob), ""
+            data, content = blob, blob.get("content")
+        text = decode_bytes_any(base64.b64decode(content or ""))
+        return True, text, data.get("sha", "")
+    except (ValueError, KeyError, TypeError, OSError) as e:
+        return False, f"解码失败: {e}", ""
 
-    v1.10.7 起推送前先拉远程做条目级三方合并（pull-merge-then-push）：
-    把其他用户沉淀的新条目并入后再推，多用户不再互相覆盖。
-    内容未变也提交（用户要求）。任何异常都被吞掉并记日志，绝不影响退出流程。
-    """
-    local = os.path.join(APP_DIR, SYNC_REL_PATH)
-    if not os.path.isfile(local):
-        _sync_log(f"跳过：本地脚本不存在 {local}")
-        return False, "本地校准脚本不存在"
 
-    token = _gh_token()
+def _read_sync_text(path):
+    """读同步目标文件（兼容 UTF-8/GBK/无 BOM）；不存在返回空串。"""
+    try:
+        return read_text_any(path)
+    except OSError:
+        return ""
+
+
+def _atomic_write(path, text):
+    """原子写回同步文件：先写同目录临时文件再 os.replace，避免半截文件。"""
+    parent = os.path.dirname(path)
+    if parent:
+        os.makedirs(parent, exist_ok=True)
+    tmp = path + ".vt_tmp"
+    with open(tmp, "w", encoding="utf-8", newline="") as f:
+        f.write(text)
+    os.replace(tmp, path)
+
+
+def _pull_and_merge(token, rel_path, base_path, cfg):
+    """拉远程单文件与本地做条目级三方合并，结果回写本地与基线。返回本地是否有更新。
+
+    files 段第一个同步文件视为「校准脚本」（走 merge_calib_script），其余视为
+    「学习库」（走 merge_learned_kb）。任何失败只记日志，绝不阻断启动/退出。"""
+    is_script = (rel_path == cfg["files"][0])
+    local_path = os.path.join(APP_DIR, rel_path)
+    local_text = _read_sync_text(local_path)
+    base_text = _read_sync_text(base_path)
+    ok, remote_text, _sha = _gh_fetch_file(token, rel_path, cfg)
+    if not ok:
+        _sync_log(f"拉取[{rel_path}]跳过合并：{str(remote_text)[:100]}")
+        return False
+    if not local_text.strip():
+        _atomic_write(local_path, remote_text)
+        _atomic_write(base_path, remote_text)
+        _sync_log(f"拉取[{rel_path}]：本地缺失，已采用远程版（{len(remote_text)} 字符）")
+        return True
+    if remote_text == local_text:
+        if base_text != local_text:
+            _atomic_write(base_path, local_text)
+        return False
+    if is_script:
+        merged, added, conflicts = merge_calib_script(local_text, remote_text, base_text)
+    else:
+        merged, added, conflicts = merge_learned_kb(local_text, remote_text)
+    if merged == local_text:
+        if conflicts:
+            _sync_log(f"合并[{rel_path}]：无可并入"
+                      f"（{'; '.join(str(c) for c in conflicts)[:200]}）")
+        return False
+    _atomic_write(local_path, merged)
+    _atomic_write(base_path, merged)
+    n_conf = len(conflicts) if isinstance(conflicts, list) else conflicts
+    _sync_log(f"合并[{rel_path}]：并入 {added} 条，冲突 {n_conf} 条（保留本地）")
+    return True
+
+
+def sync_calib_to_github(cfg=None):
+    """把本地校准脚本与学习库推到 GitHub（推送前先拉远程合并；静默，返回 (ok, 说明)）。"""
+    cfg = cfg or _sync_conn()
+    token = _gh_token(cfg)
     if not token:
-        _sync_log("跳过：未取得 GitHub token（需 gh auth login 或设 GH_TOKEN）")
+        _sync_log("跳过上传：未取得 GitHub token（需 gh auth login 或设 GH_TOKEN）")
         return False, "未取得 GitHub token"
-
-    # 推送前先合并远程新沉淀（结果回写本地与基线），失败则按本地直推
-    _pull_and_merge(token, SYNC_REL_PATH, True)
-    _pull_and_merge(token, SYNC_KB_REL_PATH, False)
-
-    entries = []  # (rel_path, bytes, text)
-    for rel in (SYNC_REL_PATH, SYNC_KB_REL_PATH):
+    # 先拉远程把他人增量并进来再推，多用户互不覆盖、最终收敛到并集
+    for idx, rel in enumerate(cfg["files"]):
+        base_path = (CALIB_BASE_SNAPSHOT if idx == 0 else CALIB_KB_BASE_SNAPSHOT)
+        _pull_and_merge(token, rel, base_path, cfg)
+    entries = []  # (rel, bytes, text)
+    for rel in cfg["files"]:
         try:
             with open(os.path.join(APP_DIR, rel), "rb") as f:
                 b = f.read()
             entries.append((rel, b, decode_bytes_any(b)))
         except (OSError, UnicodeDecodeError) as e:
-            if rel == SYNC_REL_PATH:
-                _sync_log(f"跳过：读取失败 {e}")
+            if rel == cfg["files"][0]:
+                _sync_log(f"跳过上传：读取失败 {e}")
                 return False, f"读取失败: {e}"
-            # 学习库尚不存在（从未 learn 过）则本轮不推
-            _sync_log(f"推送[{rel}]跳过：{e}")
-
-    base = f"repos/{SYNC_OWNER}/{SYNC_REPO}"
-    # 1. 取分支当前 head（同时拿到 base_tree）
-    ok, head = _gh_request_any("GET", f"{base}/git/ref/heads/{SYNC_BRANCH}", token)
+            _sync_log(f"上传[{rel}]跳过：{e}")
+    base = f"repos/{cfg['owner']}/{cfg['repo']}"
+    ok, head = _gh_request_any("GET", f"{base}/git/ref/heads/{cfg['branch']}", token)
     if not ok:
         _sync_log(f"失败：读取分支 head {head}")
         return False, f"读取分支失败: {head}"
     head_sha = head["object"]["sha"]
-
     ok, commit = _gh_request_any("GET", f"{base}/git/commits/{head_sha}", token)
     if not ok:
-        _sync_log(f"失败：读取 commit {commit}")
         return False, f"读取 commit 失败: {commit}"
     base_tree = commit["tree"]["sha"]
-
-    # 2. 上传 blob（脚本 + 学习库）
     tree_entries = []
     for rel, b, _text in entries:
         ok, blob = _gh_request_any("POST", f"{base}/git/blobs", token, {
-            "content": base64.b64encode(b).decode("ascii"),
-            "encoding": "base64",
-        })
+            "content": base64.b64encode(b).decode("ascii"), "encoding": "base64"})
         if not ok:
-            _sync_log(f"失败：创建 blob[{rel}] {blob}")
             return False, f"创建 blob 失败: {blob}"
         tree_entries.append({"path": rel, "mode": "100644",
                              "type": "blob", "sha": blob["sha"]})
-
-    # 3. 建 tree（只动这几个文件，其余保留）
-    tree_payload = {
-        "base_tree": base_tree,
-        "tree": tree_entries,
-    }
-    ok, tree = _gh_request_any("POST", f"{base}/git/trees", token, tree_payload)
+    ok, tree = _gh_request_any("POST", f"{base}/git/trees", token, {
+        "base_tree": base_tree, "tree": tree_entries})
     if not ok:
-        _sync_log(f"失败：创建 tree {tree}")
         return False, f"创建 tree 失败: {tree}"
-
-    # 4. 提交
-    commit_payload = {
-        "message": (f"chore(calib): 同步字幕校准脚本 "
+    ok, new_commit = _gh_request_any("POST", f"{base}/git/commits", token, {
+        "message": (f"chore(calib): 同步校准知识 "
                     f"（{datetime.now():%Y-%m-%d %H:%M:%S}，来自视频工具箱）"),
-        "tree": tree["sha"],
-        "parents": [head_sha],
-    }
-    ok, new_commit = _gh_request_any("POST", f"{base}/git/commits", token, commit_payload)
+        "tree": tree["sha"], "parents": [head_sha]})
     if not ok:
-        _sync_log(f"失败：创建 commit {new_commit}")
         return False, f"创建 commit 失败: {new_commit}"
-
-    # 5. 推进分支
-    ok, res = _gh_request_any("PATCH", f"{base}/git/refs/heads/{SYNC_BRANCH}",
+    ok, res = _gh_request_any("PATCH", f"{base}/git/refs/heads/{cfg['branch']}",
                               token, {"sha": new_commit["sha"], "force": False})
     if not ok:
-        _sync_log(f"失败：更新分支 {res}")
         return False, f"更新分支失败: {res}"
-
-    _sync_log(f"成功：已同步 {len(entries)} 个文件（{', '.join(r for r, _b, _t in entries)}）"
-              f" -> {SYNC_OWNER}/{SYNC_REPO}@{SYNC_BRANCH} commit {new_commit['sha'][:12]}")
-    # 推送成功：基线快照对齐本次推送内容（下次三方合并的公共祖先）
-    for rel, _b, text in entries:
+    _sync_log(f"成功：已上传 {len(entries)} 个文件 -> {cfg['owner']}/{cfg['repo']}"
+              f"@{cfg['branch']} commit {new_commit['sha'][:12]}")
+    # 推送成功：基线快照对齐本次内容（下次三方合并的公共祖先）
+    for idx, (rel, _b, text) in enumerate(entries):
         try:
-            _atomic_write(CALIB_BASE_SNAPSHOT if rel == SYNC_REL_PATH
+            _atomic_write(CALIB_BASE_SNAPSHOT if idx == 0
                           else CALIB_KB_BASE_SNAPSHOT, text)
         except OSError as e:
             _sync_log(f"基线快照写入失败[{rel}]（忽略）: {e}")
-    return True, f"已同步 commit {new_commit['sha'][:12]}"
+    return True, f"已上传 commit {new_commit['sha'][:12]}"
+
+
+# ---------- 本地增量镜像（可选：管理员配了共享盘更新库才启用） ----------
+def _local_delta_enabled():
+    """VT_SYNC_ROOT 下存在 baseline.json 才启用 kb-sync/kb-push 增量镜像。"""
+    try:
+        root = os.environ.get("VT_SYNC_ROOT") or SYNC_REMOTE_DIR
+        return os.path.isfile(os.path.join(root, "baseline.json"))
+    except OSError:
+        return False
+
+
+def sync_calib_push_local():
+    """退出子进程内部调用：把学习库新增增量写进本地更新库收件箱（若启用镜像）。"""
+    try:
+        if not _local_delta_enabled():
+            return
+        py = _calib_py()
+        if not py or not os.path.isfile(CALIB_SCRIPT):
+            return
+        env = sync_env_into(os.environ.copy())
+        env.setdefault("PYTHONIOENCODING", "utf-8")
+        run_process([py, CALIB_SCRIPT, "kb-push", "--learned", CALIB_KB_PATH],
+                    capture_output=True, text=True, encoding="utf-8",
+                    errors="replace", timeout=120, cwd=APP_DIR, env=env)
+    except Exception as e:  # noqa: BLE001
+        _sync_log(f"本地增量上传异常（忽略）: {e}")
+
+
+def _exit_sync_child_script():
+    """退出子进程入口源码：本地增量补传（若启用镜像）+ GitHub 整文件上传。"""
+    src_dir = os.path.join(APP_DIR, "src")
+    return ("import sys; sys.path.insert(0, r'%s');"
+            "import video_toolbox as e;"
+            "e.sync_calib_push_local();"
+            "e.sync_calib_to_github()" % src_dir)
+
+
+def sync_calib_on_startup(force=False):
+    """更新：从 GitHub 拉全体使用者沉淀并条目级合并进本地；可选叠加本地增量镜像。
+
+    幂等、静默、best-effort；任何失败只写日志，本地校准功能照常可用。
+    force 为兼容设置页「立即更新」参数，可忽略。"""
+    try:
+        if os.environ.get("VT_NO_CALIB_SYNC") or not calib_sync_enabled():
+            return False, "同步已禁用"
+        updated, notes = False, []
+        # 1) GitHub 整文件通道（默认收集渠道；公开库可匿名读）
+        cfg = _sync_conn()
+        token = _gh_token(cfg)
+        for idx, rel in enumerate(cfg["files"]):
+            base_path = (CALIB_BASE_SNAPSHOT if idx == 0 else CALIB_KB_BASE_SNAPSHOT)
+            if _pull_and_merge(token, rel, base_path, cfg):
+                updated = True
+                notes.append(rel)
+        # 2) 本地增量镜像（管理员配置了共享盘更新库时）
+        py = _calib_py()
+        if py and os.path.isfile(CALIB_SCRIPT) and _local_delta_enabled():
+            env = sync_env_into(os.environ.copy())
+            env.setdefault("PYTHONIOENCODING", "utf-8")
+            try:
+                p = run_process([py, CALIB_SCRIPT, "kb-sync"],
+                                capture_output=True, text=True, encoding="utf-8",
+                                errors="replace", timeout=180, cwd=APP_DIR, env=env)
+                if p.returncode == 0:
+                    updated = True
+                    notes.append("本地增量")
+                else:
+                    _sync_log(f"本地增量更新失败（降级）：rc={p.returncode}")
+            except Exception as e:  # noqa: BLE001
+                _sync_log(f"本地增量更新异常（忽略）: {e}")
+        if updated:
+            _sync_log("更新完成：" + "、".join(notes))
+            return True, "校准知识已更新（" + "、".join(notes) + "）"
+        return False, "无可用更新或已是最新"
+    except Exception as e:  # noqa: BLE001
+        _sync_log(f"更新异常（忽略）: {e}")
+        return False, str(e)
 
 
 def sync_calib_on_exit():
-    """退出时后台触发同步：起独立子进程，不阻塞退出、不弹窗。
+    """退出时自动上传：派生隐藏子进程完成「本地增量补传 + GitHub 整文件上传」。
 
     用子进程而非线程：主进程退出后线程会被强杀，子进程能自行跑完。
-    """
+    上传对用户完全无感——不阻塞退出、不弹窗、不出现在任何界面。"""
     try:
-        if not os.environ.get("VT_NO_CALIB_SYNC") and calib_sync_enabled():
-            script = os.path.join(APP_DIR, SYNC_REL_PATH)
-            if not os.path.isfile(script):
-                return
-            # 以自身引擎模块为入口，子进程里跑同步逻辑
-            args = [sys.executable, "-c",
-                    "import sys; sys.path.insert(0, r'%s');"
-                    " import video_toolbox as e; e.sync_calib_to_github()"
-                    % os.path.join(APP_DIR, "src")]
-            subprocess.Popen(
-                args, stdin=subprocess.DEVNULL,
-                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-                creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
-                close_fds=True,
-            )
-            _sync_log("已派生退出同步子进程")
+        if os.environ.get("VT_NO_CALIB_SYNC") or not calib_sync_enabled():
+            return
+        py = _calib_py()
+        if not py:
+            _sync_log("退出上传跳过：无可用 Python 运行时")
+            return
+        env = sync_env_into(os.environ.copy())
+        env.setdefault("PYTHONIOENCODING", "utf-8")
+        popen_process([py, "-c", _exit_sync_child_script()],
+                      stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+                      stderr=subprocess.DEVNULL, cwd=APP_DIR, env=env,
+                      close_fds=True)
+        _sync_log("已派生退出上传子进程（GitHub 整文件 + 本地增量）")
     except Exception as e:  # noqa: BLE001
-        _sync_log(f"派生同步子进程失败（忽略）: {e}")
+        _sync_log(f"派生退出上传子进程失败（忽略）: {e}")
 
 
 # ---------- 条目级三方合并（v1.10.8：纯函数核心抽到 calib_merge_core） ----------
@@ -1980,116 +2193,6 @@ from calib_merge_core import (
 )
 import calib_merge_core as _calib_core
 _calib_core._log = _sync_log  # 合并期冲突日志写入 logs/calib_sync.log
-
-
-def _gh_fetch_file(token, rel_path):
-    """拉取仓库单文件最新内容。返回 (ok, 文本或错误消息, blob_sha)。
-
-    公开库可匿名读（token 为空不带认证头）；>1MB 文件 contents API 不内联，
-    回退 git blobs 接口取全量 base64。"""
-    path = (f"repos/{SYNC_OWNER}/{SYNC_REPO}/contents/{rel_path}"
-            f"?ref={SYNC_BRANCH}")
-    ok, data = _gh_request_any("GET", path, token)
-    if not ok:
-        return False, str(data), ""
-    try:
-        content = data.get("content")
-        if not content and data.get("git_url"):
-            blob_path = str(data["git_url"]).replace(SYNC_API + "/", "")
-            ok2, blob = _gh_request_any("GET", blob_path, token)
-            if not ok2:
-                return False, str(blob), ""
-            data, content = blob, blob.get("content")
-        text = decode_bytes_any(base64.b64decode(content or ""))
-        return True, text, data.get("sha", "")
-    except (ValueError, KeyError, TypeError, OSError) as e:
-        return False, f"解码失败: {e}", ""
-
-
-def _read_sync_text(path):
-    """读同步目标文件（兼容 UTF-8/GBK/无 BOM）；文件不存在返回空串。
-
-    v1.10.9 修复：_pull_and_merge 曾调用本函数但未定义，导致启动同步每次都
-    以 NameError 静默失败（日志表现为「启动同步异常（忽略）: name
-    '_read_sync_text' is not defined」），多用户知识收敛的「拉」半程从未生效。
-    """
-    try:
-        return read_text_any(path)
-    except OSError:
-        return ""
-
-
-def _atomic_write(path, text):
-    """原子写回同步文件：先写同目录临时文件再 os.replace，避免半截文件。
-
-    与 _vc_write_settings 同风格；统一无 BOM 的 UTF-8 + 原样换行
-    （脚本文件里混有 LF/CRLF，替换换行会污染仓库 diff）。
-    """
-    parent = os.path.dirname(path)
-    if parent:
-        os.makedirs(parent, exist_ok=True)
-    tmp = path + ".vt_tmp"
-    with open(tmp, "w", encoding="utf-8", newline="") as f:
-        f.write(text)
-    os.replace(tmp, path)
-
-
-def _pull_and_merge(token, rel_path, is_script):
-    """拉取远程单文件并与本地做条目级三方合并，结果回写本地与基线快照。
-
-    供「启动拉取」与「推送前防覆盖」共用。返回 True 表示本地文件有更新。
-    任何失败只记日志，绝不影响启动/退出主流程。"""
-    local_path = os.path.join(APP_DIR, rel_path)
-    base_path = CALIB_BASE_SNAPSHOT if is_script else CALIB_KB_BASE_SNAPSHOT
-    local_text = _read_sync_text(local_path)
-    base_text = _read_sync_text(base_path)
-    ok, remote_text, _sha = _gh_fetch_file(token, rel_path)
-    if not ok:
-        _sync_log(f"拉取[{rel_path}]跳过合并：{str(remote_text)[:100]}")
-        return False
-    if not local_text.strip():
-        # 本地缺失（新装机/误删）：直接采用远程最新版
-        _atomic_write(local_path, remote_text)
-        _atomic_write(base_path, remote_text)
-        _sync_log(f"拉取[{rel_path}]：本地缺失，已采用远程版（{len(remote_text)} 字符）")
-        return True
-    if remote_text == local_text:
-        if base_text != local_text:              # 修复基线缺失/漂移
-            _atomic_write(base_path, local_text)
-        return False
-    if is_script:
-        merged, added, conflicts = merge_calib_script(local_text, remote_text, base_text)
-    else:
-        merged, added, conflicts = merge_learned_kb(local_text, remote_text)
-    if merged == local_text:
-        if conflicts:
-            _sync_log(f"合并[{rel_path}]：无可并入"
-                      f"（{'; '.join(str(c) for c in conflicts)[:200]}）")
-        return False
-    _atomic_write(local_path, merged)
-    _atomic_write(base_path, merged)
-    _sync_log(f"合并[{rel_path}]：并入 {added} 条，"
-              f"冲突 {len(conflicts) if isinstance(conflicts, list) else conflicts} 条（保留本地）")
-    return True
-
-
-def sync_calib_on_startup():
-    """启动时后台同步：拉取仓库最新校准知识并入本地（多用户收敛的「拉」半程）。
-
-    与退出推送（sync_calib_on_exit）构成闭环：启动 拉取+合并，退出 合并+推送，
-    每个用户每次启动都拿到全体用户沉淀的并集。幂等、静默、best-effort；
-    VT_NO_CALIB_SYNC 同样禁用本入口。返回 (ok, 说明)。
-    """
-    try:
-        if os.environ.get("VT_NO_CALIB_SYNC") or not calib_sync_enabled():
-            return False, "已禁用同步"
-        token = _gh_token()          # 可为空：公开库匿名读
-        changed_s = _pull_and_merge(token, SYNC_REL_PATH, True)
-        changed_k = _pull_and_merge(token, SYNC_KB_REL_PATH, False)
-        return (changed_s or changed_k), "ok"
-    except Exception as e:  # noqa: BLE001
-        _sync_log(f"启动同步异常（忽略）: {e}")
-        return False, str(e)
 
 
 def _download(url, dest, label, use_proxy=True):

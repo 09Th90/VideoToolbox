@@ -44,7 +44,7 @@ ERROR 占位行回填（谷翻批量失败的高频场景；2026-09-10 3.6 日�
 
 A. 术语校准（REPLACE 入口，唯一通用校准脚本，可复用）:
   python subtitle_calib_merged.py <input.srt> [--out out.srt] [--report diff.md]
-       [--ja|--jpe|--ko|--endo|--ak|--zho|--pgr] [--fix-en]
+       [--ja|--jpe|--ko|--endo|--ak|--zho|--pgr|--zel] [--fix-en]
 
   默认模式（中英/双语）：BILINGUAL_TERMS + CONTEXT_MAP + WORD_MAP 统一中文行。
   --ko     韩语原声模式：KO_TERMS 统一中文行术语（OVERRIDES 已删除）。
@@ -61,6 +61,10 @@ A. 术语校准（REPLACE 入口，唯一通用校准脚本，可复用）:
   --pgren  战双帕弥什·英文原声模式（中英双语片源：中文机翻 + 英文参考行）：PGR_EN_TERMS
            统一首中文行专名/术语（惩罚灰乌鸦->战双帕弥什、Kumi->狂三、Adelite->阿德莱德、
            编码->涂装 等），英文参考行一字不动。（第 3.3 节，2026-09-11）
+  --zel    塞尔达传说模式（2026-09-14 新增）：ZELDA_TERMS 统一首中文行专名/官方译名
+           （暮光公主->黄昏公主、风之杖->风之律动、海拉尔->海拉鲁、近藤浩二->近藤浩治 等），
+           英文参考行一字不动。表与其它片源严格隔离，勿混用；系统性机翻误译（通用中文词）
+           不入裸键，走逐 cue 侧车整行覆盖。（第 5.x 节，检索依据见该表注释）
   --fix-en 英文/参考行修正：对 cue 内中文行以外的文本行应用 EN_LINE_TERM_FIXES
            （仅双语模式；默认参考行一字不动）。
   不传 --out 则只做"术语命中统计"，不改写文件。
@@ -96,25 +100,66 @@ C. 学习系统（规则引擎 + 从人工修正中学习，自我迭代闭环�
         # subfix：fix.tsv 每行 num<TAB>old<TAB>new；old 为空串=整行覆盖（ERROR 补译）。
         #   等价于原先各项目手写的 fix.py，今后逐条精修统一用本子命令，勿再另建 fix.py。
 
-D. 增量同步通道（v1.11.0，2026-09-13；条目级增量日志，详见文件第 8 节）:
-  多用户知识收敛改为「GitHub 式哑远端 = 收件箱 + 权威基线」：客户端只读基线、
+D. 增量同步通道（v1.12.1 起：本脚本只保留用户侧两个动作，管理动作全部
+   移交给独立程序 kb_admin.py，本脚本不再包含任何管理员命令）:
+  多用户知识收敛为「哑更新库 = 权威基线 + 各人收件箱」：客户端只读基线、
   只写自己的收件箱，本地确定性合并（baseline ∪ 全部增量，ts+id 全局序）：
-  python subtitle_calib_merged.py kb-baseline-init   # 管理员：由内置知识生成首版 baseline（D2）
-  python subtitle_calib_merged.py kb-sync             # 拉取 + 合并 + 三道门 + 应用（校准入口自动执行；幂等）
+  python subtitle_calib_merged.py kb-sync             # 更新：拉取 + 合并 + 三道门 + 应用（校准入口自动执行；幂等）
   python subtitle_calib_merged.py kb-push [--learned 库] [--file 增量.jsonl]
-                                                      # 导出/上传增量（learn 收尾、learned-reject 自动调用）
-  python subtitle_calib_merged.py kb-compact          # 管理员压缩：折叠增量进新 baseline，淘汰失效条目
-  python subtitle_calib_merged.py sync-status         # 本机状态：client_id/水位线/生效/冲突/日志
-  python subtitle_calib_merged.py selftest-sync       # 验收 1-7 + NFR-1/2/5 自动化断言
-  回滚：VT_SYNC_MODE=legacy 整体退回 v1.10.7 行为；VT_NO_SYNC=1 强制关闭；
+                                                      # 上传增量（learn 收尾、learned-reject 自动调用）
+  回滚：VT_SYNC_MODE=legacy 整体停用增量；VT_NO_SYNC=1 强制关闭；
         config.disabled_keys 条目级禁用。增量数据全链路仅 json.load，禁止 eval/exec。
-  默认远端 data/calib_sync_remote/（可 VT_SYNC_ROOT 覆盖）；本地状态 data/calib_sync/。
+  更新库位置：VT_SYNC_ROOT（缺省 data/calib_sync_remote/）；本机状态 data/calib_sync/。
 """
 import io
 import os
 import re
 import sys
 import unicodedata
+
+# =============================================================
+# 0. 统一解码：外部/用户文本一律智能解码，绝不因编码而崩
+# =============================================================
+# 背景（v1.12.0 修复）：本层曾在 v1.11.0 引入，重构时被删，导致输入解码退回
+# 硬 `utf-8-sig` —— GBK/GB18030/Big5 编码的字幕直接 UnicodeDecodeError，
+# 整条校准链路不可用（_selftest_pack 的「_decode_any 可读 GBK 字幕」即为守门断言）。
+# 原则：读取外部/用户文本一律智能解码；写出统一 UTF-8（是否带 BOM / CRLF 按原样保留）。
+TEXT_ENCODINGS = ("utf-8-sig", "utf-8", "gb18030", "big5", "shift_jis", "latin-1")
+
+
+def _decode_any(data, encodings=TEXT_ENCODINGS):
+    """把任意字节流解码成文本（永不抛异常）。
+
+    BOM 优先：utf-32 > utf-16 > utf-8（用带 BOM 的编解码器，可自动剥掉 BOM）；
+    无 BOM 依次尝试 utf-8 → gb18030（GBK 超集）→ big5 → shift_jis → latin-1，
+    最后兜底 utf-8 replace。ASCII 是 UTF-8 子集，天然覆盖。
+    """
+    if isinstance(data, str):
+        return data
+    if not data:
+        return ""
+    if data[:4] in (b"\xff\xfe\x00\x00", b"\x00\x00\xfe\xff"):
+        try:
+            return data.decode("utf-32")
+        except UnicodeDecodeError:
+            pass
+    elif data[:2] in (b"\xff\xfe", b"\xfe\xff"):
+        try:
+            return data.decode("utf-16")
+        except UnicodeDecodeError:
+            pass
+    if data[:3] == b"\xef\xbb\xbf":
+        try:
+            return data.decode("utf-8-sig")
+        except UnicodeDecodeError:
+            pass
+    for enc in encodings:
+        try:
+            return data.decode(enc)
+        except (UnicodeDecodeError, LookupError):
+            continue
+    return data.decode("utf-8", "replace")
+
 
 # =============================================================
 # 1. 通用“中文 + 参考行”双语片源资产（原 calib_rules.py）
@@ -1590,6 +1635,16 @@ AK_TERMS = {
     "赤红卡斯": "Crimson Cass", "深红卡斯": "Crimson Cass",
     "红猫": "Crimson Cat", "猩红": "Crimson", "赤红": "Crimson", "深红": "Crimson",
     "科沃斯": "cowoos",
+    # --- 2026-09-14 沉淀：《Music Composer Reacts - Mortal Eye (Arknights)》reaction
+    #     片源：英文原声 + 谷歌翻译中文行。Mortal Eye = 明日方舟提丰角色歌（衍生音乐，
+    #     作曲 Adam Gubman，主唱 BONZIE，和声 Christine Hals；曲名无官方中文保留直译"凡人之眼"）。
+    #     参考行 ASR 把 Christine Hals 串改成 Christine House；"逆转1999"为 Reverse 1999 直译。
+    "Christine House": "Christine Hals",   # 主唱/和声名 ASR 串改 House
+    "Bonsie": "BONZIE",                    # 主唱 BONZIE 大小写统一
+    "逆转1999": "重返未来：1999",           # Reverse 1999 官方中文名（其它手游引述）
+    "Adam Gubman": "亚当·古布曼",           # 作曲/作词/编曲官方中文名（酷狗/塞壬唱片）
+    # Mortal Eye 官方中文名不存在（PRTS/塞壬唱片均保留英文《Mortal Eye》），
+    # 中文行保留直译"凡人之眼"，勿强改；"提丰"官方中文已在上表 "Typhon".
 }
 # AK_MODE 并入 process：与 endo 类似，但仅精调 ARKNIGHTS 中文行（首中文行）
 
@@ -1808,6 +1863,19 @@ REACT_TERMS = {
     "对抗权力。触摸不可触摸的东西": "对抗强权。触摸那不可触碰之物",
     "排，排，对抗力量，就像这样": "划呀，划呀，对抗那力量，就像这样",
     "权力给窥视者。电源为": "力量属于大家。力量为",
+    # ---- 2026-09-14 终末地音乐 reaction 片沉淀 ----
+    # 片源：《Music Composer Reacts - Alleikhreos Boss Theme (Arknights: Endfield)》
+    #   （Everything Fantasy 频道，英语原声 + 谷歌翻译，468 cue；逐 cue 整行覆盖 400 处，
+    #    verify 全通过。完整流程见 skill `subtitle-calib-script`。）
+    # 官方依据（已检索）：终末地 1.4 最终 BOSS 官方中文＝阿莱克琉斯（千夫长），
+    #   主题曲作曲 Crywolf / YMIR、演唱 Crywolf（《众生行记》OST 曲 7 ＝
+    #   Somniomancer [null set]，Crywolf，2025-05-04 塞壬唱片-MSR）。
+    # 戒律：本片机翻误形绝大部分是**通用中文词**——梦舞者/嗜睡/索曼瑟/歌曼/老板/钥匙/
+    #   希米尔/埃米尔/蝙蝠/未成年/通俗圣经/教堂台阶——按硬契约第 4 条**一律不入表**
+    #   （会误伤正常语境），只能逐 cue 侧车整行覆盖；下面只收非正常中文词的安全键。
+    "冷狼": "Crywolf", "哭狼": "Crywolf",   # crywolf 机翻直译；社区昵称恰为"哭狼"，字幕仍统一保留英文名
+    "梦巫师克雷沃尔夫": "Crywolf", "克雷沃尔夫": "Crywolf",
+    "我们改变了钥匙": "我们转调了",          # change key 机翻直译（长键，避免误伤"钥匙"本义）
 }
 # 用法：python subtitle_calib_merged.py --react <input.srt> --out out.srt
 #   --react 与游戏模式互斥；仅套用 REACT_TERMS 统一首中文行（不动英文/参考行）。
@@ -1867,6 +1935,44 @@ EN_LINE_TERM_FIXES = {
     # 证据：arknights.wiki.gg/wiki/Episode_14/OST（Arknights / Yuka Kitamura）
     "Ark Knights": "Arknights",                            # ASR 误拆
     "Kamura": "Kitamura",                                  # 作曲家 Yuka Kitamura（片内 #258/#709/#736 作 Kitamura）
+}
+
+# =============================================================
+# 5.x 塞尔达传说（Zelda）片源术语表（--zel 模式，2026-09-14 新增）
+#   片源：《ZELDA NINTENDO DIRECT!!!! OOT RELEASE DATEEEE WHENN》——英文直播反应录像
+#     （英语原声 + 谷歌翻译，1596 cue，逐 cue 整行覆盖，verify 全通过）。
+#   本表仅供**未来塞尔达片源**的一键术语校准，与鸣潮/方舟/终末地等表严格隔离，勿混用。
+#   官方简体中文译名依据（已联网检索 2026-09-14，任天堂 / 萌娘百科 / 百度百科）：
+#     Ocarina of Time＝时之笛；Twilight Princess＝黄昏公主；The Wind Waker＝风之律动
+#     （旧俗译“风之杖”，官方简体现为“风之律动”，故收录 风之杖→风之律动）；
+#     Majora's Mask＝梅祖拉的假面；Phantom Hourglass＝幻影沙漏；Spirit Tracks＝灵魂轨迹；
+#     Breath of the Wild＝旷野之息；Tears of the Kingdom＝王国之泪；
+#     Hyrule＝海拉鲁；Triforce＝三角力量；Link＝林克；Zelda＝塞尔达；Ganondorf＝加农多夫；
+#     Navi＝娜薇；Kokiri＝科奇里；Kakariko＝卡卡利科；Zora＝卓拉；Goron＝鼓隆族；
+#     Koji Kondo＝近藤浩治；Eiji Aonuma＝青沼英二；Shigeru Miyamoto＝宫本茂；
+#     Hisashi Fujibayashi＝藤林秀麿；Xenoblade Chronicles＝异度神剑（决定版）。
+#   戒律（硬契约第 4 条）：本片机翻的系统性误译绝大多数是**通用中文词**——呼吸/狂野/
+#     好吃的食物/伟大的一天/精神·曲目(Spirit tracks)/合并曲等——一律**不入裸键**（必误伤正常
+#     语境），只能逐 cue 侧车整行覆盖；下面只收专名级、非正常中文词的安全键，长词优先。
+ZELDA_TERMS = {
+    # ---- 各作标题：俗译/旧译/机翻误形 -> 官方简体中文 ----
+    "暮光公主": "黄昏公主",            # Twilight Princess（谷哥常直译“暮光”）
+    "风之杖": "风之律动",              # The Wind Waker 官方简体（旧俗译“风之杖”）
+    "风之节拍器": "风之律动",          # Wind Waker 另一种直译
+    "穆祖拉": "梅祖拉", "姆祖拉": "梅祖拉", "姆朱拉": "梅祖拉",   # Majora 变体
+    "穆休拉": "梅祖拉",                # 繁中“穆修拉”系直落简体的误形
+    # ---- 地名 / 族名 / 角色（Hyrule 谷哥高频误作“海拉尔”）----
+    "海拉尔": "海拉鲁", "海鲁尔": "海拉鲁",   # Hyrule
+    "佐拉": "卓拉",                    # Zora；歧义低，卓拉为官方
+    "哥隆": "鼓隆", "郭隆": "鼓隆",    # Goron
+    "基里森林": "科奇里森林", "可奇里": "科奇里",   # Kokiri
+    "卡卡尔里科": "卡卡利科", "卡卡尔·里科": "卡卡利科",  # Kakariko
+    "那比": "娜薇", "纳美人": "娜薇", "纳维": "娜薇",   # Navi（“纳美人”系 Avatar 误入，塞尔达语境＝娜薇）
+    # ---- 制作人 / 作曲家（人名 ASR·机翻误形 -> 官方）----
+    "近藤浩二": "近藤浩治",            # Koji Kondo
+    "宫本猫": "宫本茂",                # Shigeru Miyamoto
+    # ---- 同场异业作品 ----
+    "泽诺之刃": "异度神剑", "割裂之刃": "异度神剑",   # Xenoblade 机翻直译
 }
 
 # =============================================================
@@ -1990,12 +2096,159 @@ ENTITIES = [
            "短键二次命中得'阿阿达希尔'（terms-check 会报）。"),
     Entity("达妮娅", modes=("bi", "ja"), en="Denia", ja="ダーニャ",
            category="角色",
-           note="星炬学院学生。昵称 Denny/Dennia 机翻'丹尼/丹尼娅'亦归此；"
-                "Daniela=丹妮拉 是另一人，勿收。"),
+           variants=("Dena", "Denia", "丹妮亚", "塔娜", "Tana", "Tenna"),
+           ctx=((r"\bDa\b", "爸爸"), (r"\bDa\b", "Da"), (r"\bDa\b", "达的"),
+                (r"\bDa\b", "达。"), (r"\bmy wife\b", "娜娜"),
+                (r"\bTenna\b", "特纳"), (r"\bDia\b", "迪亚"), (r"\bDia\b", "Dia")),
+           note="星炬学院虚质科学部学生，3.3 新五星（百度百科/萌娘百科/官方档案确认）。"
+                "昵称 Denny/Dennia 机翻'丹尼/丹妮娅'亦归此；"
+                "Daniela=丹妮拉 是另一人，勿收。真名达斯维达尼亚。"
+                "主播昵称 Da(丹)：机翻常按口癖译成'爸爸'(#139/213/461/473/475/599)、残留英文"
+                "Da/DA(#7/55/654/693/601/607)或咬出'达的'(#51/58)、'达。'(#15)，一律靠参考行"
+                " \\bDa\\b 佐证归 达妮娅；裸'爸爸/Da/达的/达。'绝不进全局表。"
+                "Tenna(#25/26/404)=Denia ASR 乱形（'Tenna is being Tenna'=达妮娅又开始了）；"
+                "塔娜(Tana #255)亦 Denia；wife Nana 的 Nana=Denia(#30)；"
+                "Dia/迪亚(#226/322 参考行 Dia)=Denia 昵称。"
+                "Daniel(#376/378/695) 疑 Denia 乱形，仅侧车，不入全局。"
+                "2026-09-14 《What's wrong with Denia's voice》(3.3幕间 Reaction) 沉淀。"),
+    Entity("陆·赫斯", modes=("bi",), en="Luuk Herssen",
+           category="角色/星炬学院校医",
+           variants=("路克",),
+           ctx=((r"Harrison", "老哈里森博士"),),
+           note="星炬学院共鸣医疗科主执校医（百度百科/网易，英文 Luuk Herssen）。"
+                "主播口音 ASR 常作 Dr. Luke/Dr. Harrison Senior(Herssen Senior 误听)："
+                "#122'路克'、#211'老哈里森博士'（参考行 Harrison 佐证）。"
+                "扁平表已有 Luke/Luuk/卢克 英文残留键。"
+                "2026-09-14 达妮娅片二次校准沉淀。"),
+    # --- 2026-09-14 What's wrong with Denia's voice（鸣潮 3.3 幕间「在熔解的夜空下」
+    #     Reaction 片，775 cue）三次校准沉淀。官方依据：百度百科「达妮娅」「自星海尽处回响」、
+    #     萌娘百科、官方知识库（娜波摩=残星会会长分身化名潜入星炬学院；
+    #     娜斯塔霞=达妮娅挚友；拉贝尔学部；虚质=Void 官方词）与腾讯新闻/网易报道。---
+    Entity("娜斯塔霞", modes=("bi",), en="Nastasha / Nastya",
+           category="角色",
+           variants=("Nastasha", "娜斯塔莎", "娜斯塔夏"),
+           note="达妮娅挚友（星炬学院学生，三人组之一）。官方中文'娜斯塔霞'（多源：官方知识库/腾讯新闻OCR）。"
+                "'娜塔莎'为常用译名不进全局，逐 cue 侧车。"),
+    Entity("娜波摩", modes=("bi",), en="Naborr",
+           category="角色/残星会会长分身",
+           variants=("Neavor", "Naborr"),
+           ctx=((r"\bNvidia\b", "英伟达"), (r"\bNvidia\b", "Nvidia")),
+           note="残星会会长分身（百度百科/fandom：会长斯瓦茨洛的伪装之一），化名潜入星炬学院；"
+                "3.3 幕间追逐环节敌人=娜波摩人偶。"
+                "本片 ASR 乱形：#312/315 Nvidia(机翻'英伟达')靠参考行佐证归 娜波摩——"
+                "裸'英伟达'绝不进全局表。#381 N'vora doll、#664 means Nora 也指娜波摩，勿与恩沃拉"
+                "(N'avorora)混——'N'vora'全局键仍归恩沃拉，本片两处侧车覆盖。"),
+    Entity("达斯维达尼亚", modes=("bi",),
+           category="角色/达妮娅真名",
+           variants=("Dasidia",),
+           note="达妮娅全名，源自俄语'直到下次再见'(Dasvidaniya)（官方知识库/萌百）。"
+                "#286 机翻'黛西迪亚'/ASR'Dasidia'统一。"),
+    Entity("莫宁", modes=("bi",), en="Mornye",
+           category="角色",
+           variants=("Monier", "莫尼尔"),
+           note="星炬学院隧者工学部教授/深空联合研究院工程师（百度百科·琳奈词条）。"
+                "Mouier/Mor 变体已在扁平表；本片 #169 Professor Monier、#184 Professor Mona(侧车)。"),
+    Entity("西格莉卡", modes=("bi",), en="Sigrika",
+           category="角色",
+           variants=("Sriraka",),
+           note="星炬学院学生、达妮娅挚友（3.2 共鸣者）。扁平表已有 Sigrika/Skiprika/Sria 等；"
+                "短形 'Skip Ra'(#743)/'skip Raika'(#114) 为 ASR 文字游戏，侧车处理。"),
+    Entity("残星会", modes=("bi",), en="Fractsidus",
+           category="势力",
+           variants=("Fracidus",),
+           note="本片 #554 Fraidus'/Fracidus' door ASR 变体。"),
+    Entity("绯雪", modes=("bi",), en="Hiyuki", ja="ひゆき",
+           category="角色",
+           variants=("Hiyoki", "桧纪"),
+           note="3.3 共鸣者「灼樱巫女」。扁平表已有 Hiyuki/Huki/kiuki/桧雪；"
+                "裸'Yuki'(#363) 为常用日名不入全局，侧车处理。"),
+    Entity("琳奈", modes=("bi",), en="Linny / Lenna",
+           category="角色",
+           variants=("Linn",),
+           note="星炬学院预科班学生（百度百科）。扁平表已有 Linny/Lenny/林尼/莱妮丝；"
+                "'Linn\\'s'(#736) 为所有格 ASR 残留。"),
+    Entity("拉贝尔学部", modes=("bi",), en="Labell College",
+           category="地点/星炬学院学部",
+           variants=("Rebel Collegeg", "拉贝尔学院"),
+           note="星炬学院学部（官方知识库：'经拉贝尔学部判断其频率……'）。"
+                "#31 机翻'Rebel Collegeg'音译残留。"),
+    Entity("老婆", modes=("bi",), category="术语",
+           variants=("waifuss",),
+           note="waifu 复数 ASR 形 waifuss(#43)；'收集 waifuss'=收集老婆。"
+                "与 CONTEXT '外婆->老婆'(waifu) 同源，非角色名。"),
     Entity("残星会会长", modes=("bi",), en="Grand Architect",
            category="势力/角色",
            note="残星会(Fractsidus)首领。'伟大建筑师/伟大的建筑师/盛大建筑师'必须"
                 "长键先行，否则被'大建筑师'(4字)键咬成'伟残星会会长'。"),
+    # --- 2026-09-14 《The Masses Reacts to Arknights Music - Laterano》沉淀
+    #     （英语原声 reaction 合集，216 cue，ZimaIsHere 频道；一次全句重译+二次官方核实）。---
+    Entity("教堂步", modes=("ak",), en="Church Step / churchstep",
+           category="曲风/术语",
+           variants=("教会步堂",),
+           note="拉特兰配曲曲风梗：圣咏合唱+管风琴融合电子低音，社区俗称'神父打碟'"
+                "（多源：知乎 OST 盘点/B站曲师介绍；无官方中文名，音义兼顾取'教堂步'）。"
+                "本片#2 机翻错形'教会步堂'(church of church step)归此。"
+                "戒律：字面'教堂音乐'(church music)是普通词组，保持原义，勿动。"),
+    Entity("The Pilgrimage", modes=("ak",), en="The Pilgrimage",
+           category="曲目/众生行记OST",
+           variants=("圣徒的旅程",),
+           note="《明日方舟》SideStory『众生行记』(The Masses' Travels) OST 官方曲目"
+                "（PRTS/塞壬唱片：众生行记OST 共 7 首：Touch of the Law / Halo Universalization"
+                " / The Pilgrimage / Faith Enlightenment / The Birth / Underneath the Sanctuary"
+                " / Somniomancer [null set]，均无官方中文名，保留英文）。本片#146 口播曲目，"
+                "机翻'圣徒的旅程'归此。戒律：活动名官方中文=『众生行记』，曲目名勿意译。"),
+    Entity("火焰纹章 风花雪月", modes=("ak",), en="Fire Emblem: Three Houses",
+           category="作品",
+           variants=("火焰纹章三宫",),
+           note="主播联想曲出自《火焰纹章 风花雪月》（本片#207 机翻'火焰纹章三宫'系"
+                "Three 直译+省略 Houses）。系列官方中文=《火焰之纹章》，社区/口语"
+                "'火焰纹章'亦可，反应片保留口语形。"),
+    Entity("拉特兰", modes=("ak",), en="Laterano",
+           category="地点",
+           variants=("拉特拉", "拉特拉诺"),
+           note="政教合一圣城，萨科塔故土，OST 主创 Erik Castro（拉特兰电音）。"
+                "'拉特拉'AK_KO 表已有，ak 模式补充防机翻拆名；'拉特兰教''拉特兰玩家'"
+                "等组合词自然连带，无裸键误伤风险。"),
+    Entity("莫斯提马", modes=("ak",), en="Mostima",
+           category="干员/拉特兰",
+           variants=("莫斯蒂玛", "莫斯提玛"),
+           note="拉特兰六星术士，『吾导先路』核心角色，堕天使。本片#61 口播提及。"
+                "ASR/机翻变体归官方译名'莫斯提马'（PRTS）。"),
+    # --- 2026-09-14 鸣潮 3.6《I Built Jingran In 24 Hours》(Chiken 抽卡实况，460 cue)
+    #     二次校准沉淀。官方依据：百度百科/游民星空/游侠(景燃=热熔长刃主C)、灰机wiki/
+    #     fandom(绯雪=Hiyuki、余波珊瑚=Afterglow Coral、星声=Astrite)、3.7 前瞻(锁暝 Suoming
+    #     与心月狐/心 Hsin 双五星)与 wuthering.gg(莫特斐=Mortefi、长刃=Broadblade)。---
+    Entity("景燃", modes=("bi",), en="Jingran",
+           category="角色/鸣潮3.6",
+           variants=("晶荣", "景荣", "景隆", "静纶", "靖荣", "靖隆"),
+           note="3.6 主推 5★ 热熔长刃主C（寻幽客）。既有 Jingron→景燃 走 CONTEXT_MAP"
+                "（依赖参考行命中），本片机翻'晶荣/景荣/景隆/静纶'等拆词形无稳定英文佐证，"
+                "补无条件键。戒律：'希幸/希希'是 Hiyuki(绯雪)非景燃，勿混。"),
+    Entity("绯雪", modes=("bi",), en="Hiyuki", ja="ひゆき",
+           category="角色",
+           variants=("希希",),
+           note="3.3 共鸣者「灼樱巫女」，主播本命。扁平表已有 Hiyuki/日雪/桧雪；"
+                "本片机翻叠字'希希'(my Hyuki)归此。'希幸'亦 Hiyuki（同音拆字）。"),
+    Entity("星声", modes=("bi",), en="Astrite",
+           category="术语/货币",
+           variants=("星石",),
+           note="鸣潮高级抽卡货币官方中文名=星声（百度百科/fandom）。机翻常误作'星石'。"),
+    Entity("余波珊瑚", modes=("bi",), en="Afterglow Coral",
+           category="术语/货币",
+           variants=("余辉珊瑚",),
+           note="重复抽取返还货币，官方中文=余波珊瑚（fandom/17173 兑换指南）。机翻"
+                "'余辉珊瑚'归此；勿与'星声'混。"),
+    Entity("热熔", modes=("bi",), en="Fusion",
+           category="术语/元素",
+           ctx=((r"\bfusion\b", "融合"), (r"\bfusion\b", "熔合")),
+           note="鸣潮六元素之一 Fusion 官方中文=热熔（火系，景燃即热熔）。机翻按本意误作"
+                "'融合'。戒律：'融合'是普通词，绝不作裸键进全局表，只能靠参考行 \\bfusion\\b 锚定。"),
+    Entity("长刃", modes=("bi",), en="Broadblade",
+           category="术语/武器",
+           variants=("Broadblade",),
+           ctx=((r"\bbroadblade\b", "大剑"),),
+           note="鸣潮武器类型 Broadblade 官方中文=长刃（景燃武器；wuthering.gg/dailiantong 确认）。"
+                "机翻易按 Genshin 习惯误作'大剑'。'大剑'为泛用词，只走参考行 \\bbroadblade\\b 锚定。"),
 ]
 
 
@@ -2291,8 +2544,8 @@ def _load_learned_kb(path):
     import json
     if path and os.path.exists(path):
         try:
-            with open(path, encoding="utf-8-sig") as f:
-                kb = json.load(f)
+            with open(path, "rb") as f:
+                kb = json.loads(_decode_any(f.read()))
             if isinstance(kb, dict) and "candidates" in kb:
                 return kb
         except Exception as e:
@@ -2309,7 +2562,7 @@ def _save_learned_kb(kb, path):
 def _parse_cue_pairs(path):
     """解析 SRT -> [(num, 中文行(多行\\n连接), 参考行)]。结构容错同主引擎。"""
     raw = open(path, "rb").read()
-    lines = raw.decode("utf-8-sig").replace("\r\n", "\n").replace("\r", "\n").split("\n")
+    lines = _decode_any(raw).replace("\r\n", "\n").replace("\r", "\n").split("\n")
     cues, i, n = [], 0, len(lines)
     while i < n:
         s = lines[i].strip()
@@ -2637,7 +2890,7 @@ def _load_override_tsv(path):
     over = {}
     if not os.path.exists(path):
         return over
-    for ln in open(path, encoding="utf-8-sig").read().splitlines():
+    for ln in _decode_any(open(path, "rb").read()).splitlines():
         ln = ln.strip("\ufeff").rstrip("\r")
         m = re.match(r"(\d+)", ln)
         if not m:
@@ -2677,6 +2930,8 @@ def process(path, out_path=None, report_path=None, mode="bi",
         terms = AK_KO_TERMS
     elif mode == "react":
         terms = REACT_TERMS
+    elif mode == "zel":         # 塞尔达传说片源（2026-09-14 新增）：ZELDA_TERMS 统一首中文行，独立于其它片源表
+        terms = ZELDA_TERMS
     elif mode == "pgr":
         terms = {}
     else:
@@ -2703,7 +2958,7 @@ def process(path, out_path=None, report_path=None, mode="bi",
     raw = open(path, "rb").read()
     crlf = b"\r\n" in raw
     bom = raw.startswith(b"\xef\xbb\xbf")
-    norm = raw.decode("utf-8-sig").replace("\r\n", "\n").replace("\r", "\n")
+    norm = _decode_any(raw).replace("\r\n", "\n").replace("\r", "\n")
     lines = norm.split("\n")
     out = list(lines)
 
@@ -2742,7 +2997,7 @@ def process(path, out_path=None, report_path=None, mode="bi",
                         if new != old:
                             rows.append((num, old, new, ref))
                             out[zh_idx] = new
-                    elif mode in ("ko", "wwoc", "react", "pgren"):  # 韩语/综合游戏/音乐点评/战双英文原声：统一首中文行术语（不动参考行）
+                    elif mode in ("ko", "wwoc", "react", "pgren", "zel"):  # 韩语/综合游戏/音乐点评/战双英文原声/塞尔达：统一首中文行术语（不动参考行）
                         new = _replace_report(old, term_pairs, term_chars, hits)
                         if new != old:
                             rows.append((num, old, new, ref))
@@ -2823,7 +3078,7 @@ def process(path, out_path=None, report_path=None, mode="bi",
 def _cmd_extract(src, out):
     """extract：把双语 SRT 抽为 cue 表 num/中文/英文，中文/英文多行用 \\n 转义。"""
     raw = open(src, "rb").read()
-    norm = (raw.decode("utf-8-sig").replace("\r\n", "\n").replace("\r", "\n"))
+    norm = (_decode_any(raw).replace("\r\n", "\n").replace("\r", "\n"))
     lines = norm.split("\n")
     recs = []
     i, n = 0, len(lines)
@@ -2892,7 +3147,7 @@ def _load_calib_records(src):
     else:
         files = [src] if os.path.exists(src) else []
     for p in files:
-        for ln in open(p, encoding="utf-8-sig").read().splitlines():
+        for ln in _decode_any(open(p, "rb").read()).splitlines():
             ln = ln.strip("\ufeff").rstrip("\r")
             m = re.match(r"(\d+)", ln)
             if not m:
@@ -2919,7 +3174,7 @@ def _cmd_merge(src, calib_src, out, compare=None, side=None, apply_fix=False):
     raw = open(src, "rb").read()
     bom = raw.startswith(b"\xef\xbb\xbf")
     crlf = b"\r\n" in raw
-    norm = raw.decode("utf-8-sig").replace("\r\n", "\n").replace("\r", "\n")
+    norm = _decode_any(raw).replace("\r\n", "\n").replace("\r", "\n")
     lines = norm.split("\n")
     spans, timecodes, orig_zh = [], [], {}
     en_by_num = {}            # 序号->参考行：cue 编号不连续时对照表不再错行
@@ -2980,12 +3235,112 @@ def _cmd_merge(src, calib_src, out, compare=None, side=None, apply_fix=False):
     print("写入:", out)
 
 
+# =============================================================
+# 行宽体检（length 子命令，2026-09-14 新增）
+#
+#   动机：verify 只断言「结构未变」（cue 数/序号/时间轴/参考行/CRLF/BOM），
+#   不查行宽；而逐 cue 整行重写（subfix 空 old 覆盖）最容易把中文行写长。
+#   本子命令按 A 版「排版线」既有判据把关，两版口径一致：
+#   东亚 W/F/A 宽字符计 1.0、半角计 0.5 ⇒ 「32 汉字」等价于「64 英文字符」。
+#
+#   默认只统计**内容行**（每个 cue 除最后一行参考行外的文本行），参考行
+#   只做提示（双语片源的参考行本来就常超宽，混在一起会很吵）；
+#   `--all` 把参考行一并计入判定与门禁。
+#   超限退出码 1，可直接在流水线里当门禁用。
+#   用法：length <a.srt> [b.srt ...] [--all]
+# =============================================================
+
+MAX_LINE_ZH = 32            # 内容行上限（汉字当量）
+MAX_LINE_EN = 64            # 与 32 汉字等价（半角计 0.5）
+MAX_LINE_WIDTH = 32.0
+
+
+def char_width(ch):
+    """东亚宽字符（W/F/A）计 1.0，其余（半角）计 0.5。"""
+    return 1.0 if unicodedata.east_asian_width(ch) in ("W", "F", "A") else 0.5
+
+
+def line_width(s):
+    """整行显示宽度（以汉字为单位）。"""
+    return sum(char_width(c) for c in s)
+
+
+def is_line_too_long(s, limit=MAX_LINE_WIDTH):
+    return line_width(s) > limit
+
+
+def _iter_cue_lines(path):
+    """产出 (序号, 内容行列表, 参考行)。与 process()/subfix 同一套块判据。"""
+    raw = open(path, "rb").read()
+    lines = _decode_any(raw).replace("\r\n", "\n").replace("\r", "\n").split("\n")
+    i, n = 0, len(lines)
+    while i < n:
+        s = lines[i].strip()
+        if s.isdigit() and (i == 0 or lines[i - 1].strip() == ""):
+            j = i + 1
+            if j < n and "-->" in lines[j]:
+                kk = j + 1
+                while kk < n and lines[kk].strip() != "":
+                    kk += 1
+                texts = lines[j + 1:kk]
+                if texts:
+                    yield s, texts[:-1], texts[-1]
+                i = kk
+                continue
+        i += 1
+
+
+def _cmd_length(paths, show_all=False):
+    """length：内容行行宽体检（>MAX_LINE_ZH 汉字当量即超限，退出码 1）。"""
+    bad_total = 0
+    for path in paths:
+        if not os.path.exists(path):
+            print(f"[跳过] 文件不存在: {path}")
+            continue
+        bad, ref_bad, cues = [], [], 0
+        widest, ref_widest = (0.0, ""), (0.0, "")
+        for num, zh_lines, ref in _iter_cue_lines(path):
+            cues += 1
+            for t in zh_lines:
+                L = line_width(t)
+                if L > widest[0]:
+                    widest = (L, t)
+                if L > MAX_LINE_WIDTH:
+                    bad.append((num, L, t))
+            L = line_width(ref)
+            if L > ref_widest[0]:
+                ref_widest = (L, ref)
+            if L > MAX_LINE_WIDTH:
+                ref_bad.append((num, L, ref))
+        print(f"{path}: {cues} cues")
+        if bad:
+            print(f"  内容行超限 {len(bad)} 处（>{MAX_LINE_ZH} 汉字当量）:")
+            for num, L, t in bad[:20]:
+                print(f"    #{num} {L:.1f} {t}")
+            if len(bad) > 20:
+                print(f"    ... 另有 {len(bad) - 20} 处")
+        else:
+            print("  内容行超限 0 处")
+        print(f"  最宽内容行 {widest[0]:.1f}: {widest[1]}")
+        if ref_bad:
+            tag = "" if show_all else "（提示，不计入门禁；--all 才纳入）"
+            print(f"  参考行超限 {len(ref_bad)} 处{tag}:")
+            for num, L, t in ref_bad[:10]:
+                print(f"    #{num} {L:.1f} {t}")
+        bad_total += len(bad) + (len(ref_bad) if show_all else 0)
+    if bad_total:
+        print(f"LENGTH FAIL：{bad_total} 处超限")
+        return 1
+    print(f"LENGTH OK：全部在 {MAX_LINE_ZH} 汉字当量内")
+    return 0
+
+
 def _cmd_verify(src, out):
     """verify：校验两个 SRT cue数/序号/时间轴/英文行/换行/BOM 全一致，仅中文行变化。"""
     def parse(p):
         raw = open(p, "rb").read()
         crlf = b"\r\n" in raw; bom = raw.startswith(b"\xef\xbb\xbf")
-        lines = raw.decode("utf-8-sig").replace("\r\n", "\n").replace("\r", "\n").split("\n")
+        lines = _decode_any(raw).replace("\r\n", "\n").replace("\r", "\n").split("\n")
         cues = []
         i, n = 0, len(lines)
         while i < n:
@@ -3021,7 +3376,7 @@ def _cmd_verify(src, out):
 def _cmd_compare(src, out, tsv):
     """compare：比对两个 SRT 生成 错误vs正确 对照表（序号/原文中文/校准后中文/英文行）。"""
     def parse(p):
-        lines = open(p, "rb").read().decode("utf-8-sig").replace("\r\n", "\n").split("\n")
+        lines = _decode_any(open(p, "rb").read()).replace("\r\n", "\n").split("\n")
         cues = []
         i, n = 0, len(lines)
         while i < n:
@@ -3075,7 +3430,7 @@ def _load_subfix_tsv(path):
     """加载逐 cue 子串修正表：num<TAB>old<TAB>new（old 为空串=整行覆盖，用于 ERROR 补译）。
     返回 {num: [(old, new), ...]}，同一 num 可多行（按文件顺序依次应用）。"""
     rules = {}
-    for ln in open(path, encoding="utf-8-sig").read().splitlines():
+    for ln in _decode_any(open(path, "rb").read()).splitlines():
         ln = ln.rstrip("\r")
         parts = ln.split("\t")
         if len(parts) < 3 or not parts[0].strip().isdigit():
@@ -3092,7 +3447,7 @@ def _cmd_subfix(src, fixtsv, out, compare=None, side=None):
     raw = open(src, "rb").read()
     bom = raw.startswith(b"\xef\xbb\xbf")
     crlf = b"\r\n" in raw
-    lines = raw.decode("utf-8-sig").replace("\r\n", "\n").replace("\r", "\n").split("\n")
+    lines = _decode_any(raw).replace("\r\n", "\n").replace("\r", "\n").split("\n")
     out_lines = list(lines)
     applied, miss, rows = 0, [], []
     i, n = 0, len(lines)
@@ -3194,13 +3549,12 @@ def main_argv():
     if argv and not argv[0].startswith("-"):
         sub = argv[0]
         if sub in ("extract", "split", "merge", "verify", "compare", "scan", "lint",
-                   "subfix", "terms-check", "termscheck", "terms",
+                   "subfix", "terms-check", "termscheck", "terms", "length",
                    "kb-export", "kb-lookup", "kb-lint",
                    "learn", "learned-show", "learned-promote", "learned-reject",
-                   "kb-sync", "kb-push", "kb-compact", "kb-baseline-init",
-                   "sync-status", "selftest-sync"):
-            _dispatch_subcommand(sub, argv[1:])
-            return
+                   "kb-sync", "kb-push"):
+            # length 用退出码当门禁（超限 1），其余子命令返回 None -> 0
+            sys.exit(_dispatch_subcommand(sub, argv[1:]) or 0)
 
     src = None
     out_path = report_path = None
@@ -3240,13 +3594,15 @@ def main_argv():
             mode = "pgren"; i += 1
         elif a == "--react":
             mode = "react"; i += 1
+        elif a == "--zel":
+            mode = "zel"; i += 1
         elif a == "--fix-en":
             fix_en = True; i += 1
         elif a == "--kb" and i + 1 < len(args):
             learned_kb = args[i + 1]; i += 2
         elif a == "--mode" and i + 1 < len(args):
             m = args[i + 1].lower()
-            mode = "ja" if m in ("ja", "japanese") else ("ko" if m in ("ko", "korean") else ("ak" if m in ("ak", "arknights") else ("zho" if m in ("zho", "zhonly", "zh_only") else ("endo" if m in ("endo", "endfield") else "bi"))))
+            mode = "ja" if m in ("ja", "japanese") else ("ko" if m in ("ko", "korean") else ("ak" if m in ("ak", "arknights") else ("zho" if m in ("zho", "zhonly", "zh_only") else ("endo" if m in ("endo", "endfield") else ("zel" if m in ("zel", "zelda", "legend of zelda", "zelda_direct") else "bi")))))
             i += 2
         else:
             i += 1
@@ -3280,7 +3636,8 @@ def main_argv():
              "endo": "终末地 (ENDFIELD_TERMS)",
              "pgr": "战双帕弥什 (PGR 侧车整行覆盖, {} 条)".format(len(pgr_override) if pgr_override else 0),
              "pgren": "战双帕弥什·英文原声 (PGR_EN_TERMS)",
-             "react": "音乐/演唱点评 (REACT_TERMS)"}
+             "react": "音乐/演唱点评 (REACT_TERMS)",
+             "zel": "塞尔达传说 (ZELDA_TERMS)"}
     extra = (" + 英文行修正(--fix-en)" if fix_en else "")
     print("模式:", names[mode] + extra)
     if learned_kb:
@@ -3317,7 +3674,7 @@ def _cmd_lint(cues, calib_src):
     else:
         files = [calib_src]
     for p in files:
-        for ln in open(p, encoding="utf-8-sig").read().splitlines():
+        for ln in _decode_any(open(p, "rb").read()).splitlines():
             m = re.match(r"(\d+)\t", ln.lstrip("\ufeff"))
             if not m:
                 continue
@@ -3411,6 +3768,10 @@ def _dispatch_subcommand(sub, args):
         if len(pos) < 2 or "out" not in opts:
             print("用法: subfix <src.srt> <fix.tsv> --out out.srt [--compare tsv] [--side tsv]"); return
         _cmd_subfix(pos[0], pos[1], opts["out"], opts.get("compare"), opts.get("side"))
+    elif sub == "length":
+        if not pos:
+            print("用法: length <a.srt> [b.srt ...] [--all]"); return 0
+        return _cmd_length(pos, show_all=bool(opts.get("all")))
     elif sub in ("terms-check", "termscheck", "terms"):
         _cmd_terms_check(pos)
     elif sub == "kb-export":
@@ -3439,15 +3800,8 @@ def _dispatch_subcommand(sub, args):
     elif sub == "kb-sync":
         _cmd_kb_sync()
     elif sub == "kb-push":
-        _cmd_kb_push(learned=opts.get("kb"), file=opts.get("file"))
-    elif sub == "kb-compact":
-        _cmd_kb_compact()
-    elif sub == "kb-baseline-init":
-        _cmd_kb_baseline_init()
-    elif sub == "sync-status":
-        _cmd_sync_status()
-    elif sub == "selftest-sync":
-        _cmd_selftest_sync()
+        _cmd_kb_push(learned=opts.get("learned") or opts.get("kb"),
+                     file=opts.get("file"))
 
 
 # =============================================================
@@ -3489,19 +3843,14 @@ def _dispatch_subcommand(sub, args):
 #      增量整批拒绝并记日志。信任分级：author ∈ maintainers 直接应用；
 #      普通用户条目应用但标"待观察"；冲突条目永不自动应用。
 #
-#    子命令：
-#      kb-sync            拉取 + 合并 + 应用（校准入口自动执行；幂等）
+#    子命令（v1.12.1 起仅剩用户侧两个；管理员命令见独立程序 kb_admin.py）：
+#      kb-sync            更新：拉取 + 合并 + 应用（校准入口自动执行；幂等）
 #      kb-push [--learned 库] [--file 增量.jsonl]
-#                         导出/上传增量（learn 收尾、learned-reject 自动调用）
-#      kb-compact         管理员压缩：折叠增量进新 baseline，淘汰
-#                         superseded/rejected/已固化条目，归档旧 log
-#      kb-baseline-init   由当前内置知识生成首版 baseline（D2）
-#      sync-status        查看状态：client_id/last_seq/生效条目/冲突区/日志
-#      selftest-sync      验收 1-7 与 NFR-1/2/5 自动化断言
+#                         上传增量（learn 收尾、learned-reject 自动调用）
 #
-#    回滚（NFR-5）：VT_SYNC_MODE=legacy 整体退回 v1.10.7 行为（不拉取、
-#    不合并、不应用增量）；条目级可通过 config.disabled_keys 单独禁用；
-#    VT_NO_SYNC=1 强制关闭。增量数据全链路仅 json.load，禁止
+#    回滚（NFR-5）：VT_SYNC_MODE=legacy 停用增量（不拉取、不合并、不应用）；
+#    条目级可通过 config.disabled_keys 单独禁用；VT_NO_SYNC=1 强制关闭。
+#    增量数据全链路仅 json.load，禁止
 #    eval/exec/import（安全约束，违反即返工）。
 # =============================================================
 
@@ -4101,29 +4450,56 @@ def _cmd_kb_sync(quiet=False):
 
 def _cmd_kb_push(learned=None, file=None):
     """kb-push：把学习库 confirmed 候选或指定增量文件导出并上传（FR-2）。
-    候选导出用扩展形态（_learn_extended），保证增量是完整词元而非最小片段。"""
+    候选导出用扩展形态（_learn_extended），保证增量是完整词元而非最小片段。
+
+    v1.12.1「只上传当前增量」：候选条目 id 是
+    (作者,表,模式,键,值) 的确定性哈希，本机用 pushed_ids.json 台账记录
+    已成功上传的 id，重复导出时跳过——退出/手动触发的整库导出因此只补传
+    「没传过的」条目；远端不可用时不记账，下次再传。"""
     cfg = _sync_cfg()
     entries = []
+    ledger_path = os.path.join(_sync_local_dir(), "pushed_ids.json")
+    try:
+        with open(ledger_path, encoding="utf-8") as f:
+            ledger = set(json_load(f.read()) or [])
+    except (OSError, ValueError):
+        ledger = set()
+    n_skipped = 0
     if learned:
         kb = _load_learned_kb(learned)
         for c in kb.get("candidates", {}).values():
             if c.get("status") == "confirmed" and not c.get("conflict"):
                 w, r = _learn_extended(c)
-                entries.append(_sync_entry(
+                e = _sync_entry(
                     cfg["client_id"], "LEARNED_CANDIDATE", c.get("mode", "bi"),
                     w, r,
                     evidence={"count": c.get("count", 1),
                               "cues": list(c.get("cues") or [])[:20],
-                              "kb_status": c.get("status", "confirmed")}))
+                              "kb_status": c.get("status", "confirmed")})
+                if e["id"] in ledger:
+                    n_skipped += 1
+                    continue
+                entries.append(e)
     if file:
         es, bad = _sync_read_jsonl(file, "kb-push")
         entries.extend(es)
     if not entries:
-        print("没有可上传的增量（学习库无 confirmed 候选，或未指定 --file）")
+        print(f"没有需要上传的增量"
+              + (f"（{n_skipped} 条此前已上传，跳过）" if n_skipped else "（学习库无新 confirmed 候选）"))
         return False
-    _sync_push_entries(entries, cfg)
-    print(f"kb-push：导出 {len(entries)} 条（留档 + 上传，远端不可用则仅留档）")
-    return True
+    ok = _sync_push_entries(entries, cfg)
+    if ok:
+        ledger.update(e["id"] for e in entries)
+        try:
+            os.makedirs(_sync_local_dir(), exist_ok=True)
+            with open(ledger_path, "w", encoding="utf-8") as f:
+                f.write(json_dumps(sorted(ledger)) + "\n")
+        except OSError:
+            pass
+    print(f"kb-push：上传 {len(entries)} 条"
+          + (f"（另 {n_skipped} 条已上传过，跳过）" if n_skipped else "")
+          + ("（留档 + 上传）" if ok else "（远端不可用，仅本机留档，下次补传）"))
+    return ok
 
 
 def _sync_export_learn_entries(kb, kb_before, mode):
@@ -4162,362 +4538,6 @@ def _sync_export_reject_tombstone(word, modes):
     if entries:
         _sync_push_entries(entries, cfg)
     return len(entries)
-
-
-def _cmd_kb_baseline_init(root=None):
-    """kb-baseline-init（D2）：由当前内置知识生成首版 baseline.json。
-    条目 author=system（trust=maintainer），id 用 uuid5 稳定生成。"""
-    import datetime as _dt
-    root = root or _sync_root()
-    g = globals()
-    entries = {}
-    ts = _dt.datetime.now(_dt.timezone.utc).isoformat(timespec="seconds")
-    for mode, tname in _MODE_TERM_TABLE.items():
-        for k, v in (g.get(tname) or {}).items():
-            e = _sync_entry("system", "ENTITIES_VARIANT", mode, k, v,
-                            trust="maintainer")
-            e["ts"] = ts
-            entries[e["id"]] = e
-    for mode, cname in _MODE_CTX_TABLE.items():
-        for rx, wrong, right in (g.get(cname) or []):
-            if not wrong or not right:
-                continue
-            e = _sync_entry("system", "CONTEXT_MAP", mode, wrong, right,
-                            rx=rx, trust="maintainer")
-            e["ts"] = ts
-            entries[e["id"]] = e
-    for wrong, (right, rxs) in (g.get("EXCLUDE_CONTEXT") or {}).items():
-        e = _sync_entry("system", "EXCLUDE_CONTEXT", "bi", wrong, right,
-                        rx=list(rxs), trust="maintainer")
-        e["ts"] = ts
-        entries[e["id"]] = e
-    meta = {"maintainers": ["system"], "source": "subtitle_calib_merged builtin",
-            "created": ts}
-    _sync_write_baseline(root, 1, meta, entries)
-    print(f"baseline 首版已生成：{os.path.join(root, 'baseline.json')} "
-          f"（seq=1，{len(entries)} 条）")
-    return len(entries)
-
-
-def _cmd_kb_compact(root=None):
-    """kb-compact（FR-4，管理员）：折叠全部增量进新 baseline。
-    淘汰：superseded / tombstone / 已 promote 固化进内置表的条目；
-    输出清理报告（淘汰条数、原因分类）；归档旧 baseline 与 inbox（不物理删除）。"""
-    root = root or _sync_root()
-    meta, base_entries = _sync_read_baseline(root)
-    files = _sync_inbox_files(root)
-    pending = []
-    for cid, ts, path in files:
-        es, _bad = _sync_read_jsonl(path, "compact")
-        pending.extend(es)
-    pending.sort(key=lambda x: (x["ts"], x["id"]))
-    applied, conflicts, report = _sync_merge(base_entries, pending)
-    g = globals()
-    pruned = {"superseded": 0, "tombstone": 0, "promoted": 0, "conflict": 0}
-    out_entries = {}
-    for key, e in applied.items():
-        table, mode, k, v = key[0], key[1], e["key"], e["value"]
-        tname = (_MODE_TERM_TABLE.get(mode) if table == "ENTITIES_VARIANT"
-                 else ("BILINGUAL_TERMS" if table == "BILINGUAL_TERMS" else None))
-        if tname and (g.get(tname) or {}).get(k) == v:
-            pruned["promoted"] += 1
-            continue                     # 已固化进代码，无需在通道保留
-        # 键序列化为 \x1f 字符串（json.dumps 不接受 tuple/list 键）
-        out_entries["\x1f".join(map(str, key))] = e
-    for k in conflicts:
-        pruned["conflict"] += 1
-    pruned["superseded"] = report["superseded"]
-    pruned["tombstone"] = report["tombstones"]
-    new_seq = int(meta.get("seq") or 0) + 1
-    arch = os.path.join(root, "archive", f"seq_{new_seq}")
-    os.makedirs(arch, exist_ok=True)
-    # 归档旧 baseline 与全部 inbox 增量（只移不删，可回溯）
-    if os.path.isfile(os.path.join(root, "baseline.json")):
-        import shutil as _sh
-        _sh.copy2(os.path.join(root, "baseline.json"),
-                  os.path.join(arch, f"baseline_v{meta.get('seq')}.json"))
-    for cid, ts, path in files:
-        dstdir = os.path.join(arch, "inbox", cid)
-        os.makedirs(dstdir, exist_ok=True)
-        try:
-            os.replace(path, os.path.join(dstdir, os.path.basename(path)))
-        except OSError:
-            continue
-    new_meta = dict(meta)
-    new_meta["compacted_from"] = int(meta.get("seq") or 0)
-    new_meta["pruned"] = pruned
-    new_meta["maintainers"] = new_meta.get("maintainers") or ["system"]
-    _sync_write_baseline(root, new_seq, new_meta, out_entries)
-    print(f"kb-compact：seq {meta.get('seq')} -> {new_seq}，"
-          f"增量 {len(pending)} 条 -> 生效 {len(out_entries)} 条，"
-          f"冲突 {len(conflicts)} 条（隔离不折叠）")
-    print(f"清理报告：{pruned}（promoted=已固化进脚本内置表）")
-    print(f"归档：{arch}（旧 baseline 与 inbox 只移不删，可回溯）")
-    return out_entries
-
-
-def _cmd_sync_status():
-    """sync-status：查看本机同步状态与生效/冲突/日志。"""
-    cfg = _sync_cfg()
-    root = _sync_root(cfg)
-    print(f"客户端 id : {cfg.get('client_id')}")
-    print(f"同步模式  : {_sync_env_mode()}（启用={_sync_enabled()}）")
-    print(f"远端      : {root}（{'可达' if os.path.isdir(root) else '不可达/离线'}）")
-    print(f"水位线    : last_seq={cfg.get('last_seq') or '（无）'} "
-          f"baseline_seq={cfg.get('last_baseline_seq')}")
-    ap = os.path.join(_sync_local_dir(), "applied.json")
-    if os.path.isfile(ap):
-        try:
-            with open(ap, encoding="utf-8-sig") as f:
-                n = len((json_load(f.read()) or {}).get("entries") or {})
-            print(f"生效条目  : {n} 条（applied.json）")
-        except Exception:
-            pass
-    cf = os.path.join(_sync_local_dir(), "conflict.json")
-    if os.path.isfile(cf):
-        try:
-            with open(cf, encoding="utf-8-sig") as f:
-                n = len((json_load(f.read()) or {}).get("conflicts") or {})
-            print(f"冲突隔离  : {n} 组（conflict.json，永不自动应用）")
-        except Exception:
-            pass
-    lg = os.path.join(_sync_local_dir(), "calib_sync.log")
-    if os.path.isfile(lg):
-        lines = open(lg, encoding="utf-8").read().splitlines()
-        print(f"日志      : {len(lines)} 行，尾部：")
-        for ln in lines[-4:]:
-            print("   " + ln)
-    meta, nbase = _sync_read_baseline(root) if os.path.isdir(root) else ({}, {})
-    if meta:
-        print(f"远端基线  : seq={meta.get('seq')} 条目 {len(nbase)} "
-              f"维护者={meta.get('maintainers')}")
-    files = _sync_inbox_files(root) if os.path.isdir(root) else []
-    print(f"远端增量  : {len(files)} 个文件"
-          + (f"（最新 {files[-1][1]}）" if files else ""))
-
-
-def _cmd_selftest_sync():
-    """selftest-sync：验收 1-7 + NFR-1/2/5 自动化断言（隔离临时环境）。"""
-    import json as _json
-    import subprocess as _sp
-    import tempfile as _tf
-    import shutil as _sh
-    THIS = os.path.abspath(__file__)
-    PY = sys.executable
-    fails = []
-
-    def check(label, cond, detail=""):
-        print(("  [OK] " if cond else "  [FAIL] ") + label + (f"  {detail}" if detail else ""))
-        if not cond:
-            fails.append(label)
-
-    def run(args, env=None, root=None, local=None):
-        e = dict(os.environ)
-        e["VT_SYNC_MODE"] = "delta"
-        if root:
-            e["VT_SYNC_ROOT"] = root
-        if local:
-            e["VT_SYNC_DIR"] = local
-            e["VT_SYNC_KB"] = os.path.join(local, "subtitle_learned_kb.json")
-        if env:
-            e.update(env)
-        return _sp.run([PY, THIS] + args, capture_output=True, text=True,
-                       encoding="utf-8", env=e, timeout=180)
-
-    def mk_srt(d, name, zh_lines):
-        """构造原始 srt：zh_lines = [(中文行, 参考行), ...]"""
-        lines = []
-        for i, (zh, ref) in enumerate(zh_lines, 1):
-            lines += [str(i), "00:00:01,000 --> 00:00:02,000", zh, ref, ""]
-        p = os.path.join(d, name)
-        with open(p, "w", encoding="utf-8", newline="") as f:
-            f.write("\n".join(lines) + "\n")
-        return p
-
-    with _tf.TemporaryDirectory() as d:
-        remote = os.path.join(d, "remote")
-        os.makedirs(os.path.join(remote, "inbox"))
-        # ===== 验收 7 / NFR-5：legacy 回滚 =====
-        print("\n== 验收7/NFR-5: VT_SYNC_MODE=legacy 整体回退 ==")
-        a_dir = os.path.join(d, "A")
-        p1 = run(["kb-baseline-init"], root=remote, local=a_dir)
-        check("baseline-init 成功", p1.returncode == 0 and "baseline 首版已生成" in p1.stdout,
-              p1.stdout[-120:])
-        p2 = run(["kb-sync"], root=remote, local=a_dir,
-                 env={"VT_SYNC_MODE": "legacy"})
-        check("legacy 下 kb-sync 跳过（不拉取不应用）",
-              p2.returncode == 0 and "legacy" in p2.stdout, p2.stdout[-120:])
-        ap = os.path.join(a_dir, "applied.json")
-        check("legacy 下不产生 applied.json", not os.path.exists(ap))
-
-        # ===== 验收 1：双机模拟，A 沉淀 -> B 重启拉取 =====
-        print("\n== 验收1: 双机模拟（A learn -> push -> B pull+merge） ==")
-        b_dir = os.path.join(d, "B")
-        srt_raw = mk_srt(d, "raw.srt", [("荷鲁斯说你好", "Horus says hi")] * 3)
-        srt_cal = mk_srt(d, "cal.srt", [("荷露丝说你好", "Horus says hi")] * 3)
-        kb_a = os.path.join(a_dir, "learned.json")
-        r = run(["learn", srt_raw, srt_cal, "--mode", "bi", "--kb", kb_a],
-                root=remote, local=a_dir)
-        check("A learn 成功", r.returncode == 0 and "confirmed" in r.stdout, r.stdout[-200:])
-        kb_before = os.path.join(b_dir, "learned.json")
-        p = run(["kb-push", "--learned", kb_a], root=remote, local=a_dir)
-        check("A kb-push 上传成功", p.returncode == 0, p.stdout[-150:])
-        sync = run(["kb-sync"], root=remote, local=b_dir)
-        check("B kb-sync 成功", sync.returncode == 0 and "应用" in sync.stdout,
-              sync.stdout[-200:])
-        apb = os.path.join(b_dir, "applied.json")
-        check("B applied.json 生成", os.path.isfile(apb))
-        if os.path.isfile(apb):
-            data = _json.loads(open(apb, encoding="utf-8-sig").read())
-            vals = list(data.get("entries", {}).values())
-            # learn 差分产出最小片段（鲁斯->露丝），扩展形态取决于样本上下文，
-            # 断言放宽为「存在来自 A 的 LEARNED_CANDIDATE 且目标含 露丝」
-            check("B 本地术语含 A 的条目",
-                  any(v["table"] == "LEARNED_CANDIDATE" and "露丝" in v["value"]
-                      for v in vals),
-                  f"{len(vals)} 条生效")
-            b_kb = os.path.join(b_dir, "subtitle_learned_kb.json")
-            if os.path.isfile(b_kb):
-                kb = _json.loads(open(b_kb, encoding="utf-8-sig").read())
-                c = next((c for c in kb["candidates"].values()
-                          if c.get("status") == "confirmed"
-                          and "露丝" in c.get("right", "")), None)
-                check("B 学习库含 confirmed 候选（校准自动注入）",
-                      c is not None, str(c)[:120] if c else "无 confirmed 候选")
-
-        # ===== 验收 2 / NFR-1/2：幂等与确定性 =====
-        print("\n== 验收2/NFR-1/2: 重复拉取幂等 + 确定性 ==")
-        apb1 = open(apb, encoding="utf-8-sig").read()
-        sync2 = run(["kb-sync"], root=remote, local=b_dir)
-        apb2 = open(apb, encoding="utf-8-sig").read()
-        check("B 再次 kb-sync 成功且无冲突", sync2.returncode == 0
-              and "冲突 0" in sync2.stdout.replace("冲突隔离", "冲突 0"),
-              sync2.stdout[-160:])
-        check("应用结果逐字节一致（NFR-1 幂等）", apb1 == apb2)
-        check("合并确定性（NFR-2）：两次入口输出一致",
-              "kb-sync 完成" in open(os.path.join(b_dir, "calib_sync.log"),
-                                     encoding="utf-8").read())
-
-        # ===== 验收 3：取代链（supersedes） =====
-        print("\n== 验收3: supersedes 取代链 ==")
-        sup = os.path.join(a_dir, "sup.jsonl")
-        e1 = {"id": "11111111-1111-4111-8111-111111111111",
-              "author": "alice", "ts": "2026-09-13T00:00:00+00:00",
-              "op": "upsert", "table": "ENTITIES_VARIANT", "mode": "bi",
-              "key": "拉海罗伊", "value": "拉海罗伊", "supersedes": None,
-              "evidence": {"count": 2, "cues": [1], "kb_status": "confirmed"}}
-        e2 = dict(e1)
-        e2.update({"id": "22222222-2222-4222-8222-222222222222",
-                   "ts": "2026-09-13T01:00:00+00:00", "value": "拉海洛",
-                   "supersedes": e1["id"]})
-        with open(sup, "w", encoding="utf-8") as f:
-            f.write(_json.dumps(e1, ensure_ascii=False) + "\n"
-                    + _json.dumps(e2, ensure_ascii=False) + "\n")
-        push = run(["kb-push", "--file", sup], root=remote, local=a_dir)
-        check("A 上传 supersedes 增量", push.returncode == 0)
-        run(["kb-sync"], root=remote, local=b_dir)
-        data = _json.loads(open(apb, encoding="utf-8-sig").read())
-        ents = {v["key"]: v for v in data.get("entries", {}).values()
-                if v["table"] == "ENTITIES_VARIANT"}
-        check("取代后旧目标不生效（值为拉海洛）",
-              ents.get("拉海罗伊", {}).get("value") == "拉海洛",
-              str(ents.get("拉海罗伊")))
-        logtxt = open(os.path.join(b_dir, "calib_sync.log"), encoding="utf-8").read()
-        check("历史可查（日志含被取代条目 id）", e1["id"] in logtxt
-              or "superseded" in logtxt)
-
-        # ===== 验收 4：冲突隔离 =====
-        print("\n== 验收4: 同 key 不同值冲突隔离 ==")
-        con = os.path.join(d, "conf.jsonl")
-        with open(con, "w", encoding="utf-8") as f:
-            for i, val in enumerate(("漂泊者", "流浪者")):
-                f.write(_json.dumps({
-                    "id": f"33333333-3333-4333-8333-33333333330{i}",
-                    "author": f"user{i}", "ts": f"2026-09-13T02:00:0{i}+00:00",
-                    "op": "upsert", "table": "ENTITIES_VARIANT", "mode": "bi",
-                    "key": "罗浮", "value": val, "supersedes": None,
-                    "evidence": {"count": 1, "cues": [], "kb_status": "confirmed"}},
-                    ensure_ascii=False) + "\n")
-        run(["kb-push", "--file", con], root=remote, local=a_dir)
-        run(["kb-sync"], root=remote, local=b_dir)
-        cf = os.path.join(b_dir, "conflict.json")
-        check("B 冲突进入隔离区", os.path.isfile(cf))
-        if os.path.isfile(cf):
-            cdata = _json.loads(open(cf, encoding="utf-8-sig").read())
-            check("隔离区含罗浮且不自动应用",
-                  any("罗浮" in k for k in cdata.get("conflicts", {})) and
-                  all(v["value"] != "流浪者" for v in
-                      _json.loads(open(apb, encoding="utf-8-sig").read())
-                      .get("entries", {}).values()),
-                  str(list(cdata.get("conflicts", {}).keys())[:2]))
-
-        # ===== 验收 5：安全（畸形/超大/非 JSON 注入全拦） =====
-        print("\n== 验收5: 畸形/超大/非 JSON 增量被拦 ==")
-        inbox_dir = os.path.join(remote, "inbox", "evil")
-        os.makedirs(inbox_dir, exist_ok=True)
-        with open(os.path.join(inbox_dir, "20260913T030000.jsonl"), "w",
-                  encoding="utf-8") as f:
-            f.write("not json at all\n")
-            f.write('{"id": 123}\n')
-            f.write("x" * 200000 + "\n")
-            f.write('{"id":"c","author":"e","ts":"t","op":"exec",'
-                    '"table":"BILINGUAL_TERMS","mode":"bi","key":"k",'
-                    '"value":"v","supersedes":null,"evidence":{}}\n')
-        before = open(apb, encoding="utf-8-sig").read()
-        sync3 = run(["kb-sync"], root=remote, local=b_dir)
-        after = open(apb, encoding="utf-8-sig").read()
-        check("畸形/超大/非法 op 增量被拦且不影响既有条目", before == after
-              and sync3.returncode == 0)
-        logtxt = open(os.path.join(b_dir, "calib_sync.log"), encoding="utf-8").read()
-        check("安全拦截已记日志（含拒绝原因）",
-              "非 JSON" in logtxt or "schema 拒绝" in logtxt or "op 非法" in logtxt)
-
-        # ===== 验收 6：离线 =====
-        print("\n== 验收6: 断网/远端不可用 ==")
-        off_root = os.path.join(d, "nonexistent_remote")
-        p = run(["kb-sync"], root=off_root, local=b_dir)
-        check("离线 kb-sync 静默跳过且成功", p.returncode == 0
-              and "跳过" in p.stdout, p.stdout[-120:])
-        p = run(["kb-push", "--learned", kb_a], root=off_root, local=b_dir)
-        check("离线 kb-push 静默留档", p.returncode == 0)
-        lg = open(os.path.join(b_dir, "calib_sync.log"), encoding="utf-8").read()
-        check("离线日志齐全", "远端不可用" in lg or "静默跳过" in lg or "留档" in lg)
-
-        # ===== NFR-5 条目级禁用 =====
-        print("\n== NFR-5: 条目级禁用（disabled_keys） ==")
-        cfgp = os.path.join(b_dir, "config.json")
-        cfg = _json.loads(open(cfgp, encoding="utf-8-sig").read())
-        cfg.setdefault("disabled_keys", []).append(
-            ["LEARNED_CANDIDATE", "bi", "荷鲁斯"])
-        with open(cfgp, "w", encoding="utf-8") as f:
-            _json.dump(cfg, f, ensure_ascii=False, indent=1)
-        run(["kb-sync"], root=remote, local=b_dir)
-        data = _json.loads(open(apb, encoding="utf-8-sig").read())
-        check("禁用条目不再生效",
-              all(not (v["table"] == "LEARNED_CANDIDATE" and v["key"] == "荷鲁斯")
-                  for v in data.get("entries", {}).values()))
-        cfg["disabled_keys"] = []
-        with open(cfgp, "w", encoding="utf-8") as f:
-            _json.dump(cfg, f, ensure_ascii=False, indent=1)
-
-        # ===== FR-4: kb-compact =====
-        print("\n== FR-4: kb-compact 管理员压缩 ==")
-        r = run(["kb-compact"], root=remote, local=b_dir)
-        check("kb-compact 成功", r.returncode == 0 and "seq" in r.stdout,
-              r.stdout[-160:])
-        meta2, base2 = _sync_read_baseline(remote)
-        check("新 baseline seq 递增且归档存在",
-              int(meta2.get("seq")) >= 2 and os.path.isdir(
-                  os.path.join(remote, "archive")))
-        files2 = _sync_inbox_files(remote)
-        check("inbox 已清空（增量已折叠归档）", files2 == [])
-        # 压缩后客户端重新对齐（验收2 等价：掉队以 baseline 整包为准）
-        run(["kb-sync"], root=remote, local=b_dir)
-        check("压缩后客户端以 baseline 对齐成功", os.path.isfile(apb))
-
-    print("\n" + ("selftest-sync 全部通过 ✅" if not fails
-                  else f"selftest-sync 失败 {len(fails)} 项 ❌：{fails}"))
-    return 0 if not fails else 1
 
 
 def _sync_maybe_auto():

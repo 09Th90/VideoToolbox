@@ -44,6 +44,24 @@ SRT = (
 
 FAILED = []
 
+#: 整句重写风格用的样例：带 `>>` 与 [标记]（验证标记保护）、被机翻拉长的行
+SRT_RW = (
+    "1\r\n"
+    "00:00:01,000 --> 00:00:02,000\r\n"
+    ">> 我要你跪下[音乐]\r\n"
+    "I want you on your knees\r\n"
+    "\r\n"
+    "2\r\n"
+    "00:00:03,000 --> 00:00:04,500\r\n"
+    "这是一行被机翻得很长的中文用来验证行宽门禁\r\n"
+    "this is a long reference line\r\n"
+    "\r\n"
+    "3\r\n"
+    "00:00:05,000 --> 00:00:06,000\r\n"
+    "因为这样所以那样\r\n"
+    "because of this, therefore that\r\n"
+)
+
 
 def check(label, cond, detail=""):
     print(("  [OK] " if cond else "  [FAIL] ") + label + (f"  {detail}" if detail else ""))
@@ -129,18 +147,21 @@ def test_split():
 
 def _fake_chat_factory(rules):
     """假模型：从提示词里读出待校准条目，按知识库规则做替换，
-    并故意注入两条非法提议（整句改写 / 行数变化）以验证拒绝链路。"""
+    并故意注入两条非法提议（整句改写 / 行数变化）以验证拒绝链路。
+
+    注意条目自 2026-09-14 起是**三列** `序号<TAB>中文行<TAB>参考行`，解析要跟着走。
+    """
     hits = [(w, c) for w, c in rules if len(w) >= 2]
 
     def fake_chat(prompt, system=None, max_tokens=8192):
         seg = prompt.split("【待校准条目", 1)[-1]
         items = []
         for ln in seg.splitlines():
-            m = re.match(r"^(\d+)\t(.*)$", ln)
+            m = re.match(r"^(\d+)\t([^\t]*)(?:\t(.*))?$", ln)
             if m:
-                items.append((m.group(1), m.group(2)))
+                items.append((m.group(1), m.group(2), m.group(3) or ""))
         out = []
-        for num, zh in items:
+        for num, zh, _ref in items:
             new = zh
             for w, c in hits:
                 if w in new:
@@ -149,11 +170,11 @@ def _fake_chat_factory(rules):
                 out.append({"num": num, "new_zh": new.replace("\n", "\\n"),
                             "reason": "术语表替换"})
         if items:
-            base_num, base_zh = items[0]
+            base_num, base_zh, _r = items[0]
             out.append({"num": base_num, "new_zh": "这是一句被模型自由改写的长句子",
                         "reason": "非法：整句改写"})
             if len(items) > 1:
-                n2, z2 = items[1]
+                n2, z2, _r2 = items[1]
                 out.append({"num": n2, "new_zh": z2, "reason": "非法：无改动"})
         return ag.json.dumps(out, ensure_ascii=False)
     return fake_chat
@@ -209,6 +230,93 @@ def test_end_to_end(use_baseline):
         check("第 2 轮 verify 通过", rc == 0 and "VERIFY OK" in out)
 
 
+def test_long_and_rewrite():
+    """长时双语片源特化：句子边界分块 / 行宽判据 / 整句重写校验与端到端。"""
+    print("\n== 6. 长片源特化（句子边界 / 行宽 / 整句重写） ==")
+    # 6.1 句子边界切块：切点应落在「参考行句末标点」之后
+    cues = [("1", "甲" * 30, "One sentence ends here."),
+            ("2", "乙" * 30, "Second ends here."),
+            ("3", "丙" * 30, "third"),
+            ("4", "丁" * 30, "fourth")]
+    budget = len(cues[0][1]) * 2 + 16
+    chunks = ag.plan_chunks(cues, 10, budget, sentence_aware=True)
+    check("句子边界切块 > 1 块", len(chunks) > 1, f"got {len(chunks)}")
+    check("切点落在句末标点之后",
+          all(ag._is_sentence_end(ch[-1][2]) for ch in chunks[:-1]),
+          str([[c[0] for c in ch] for ch in chunks]))
+    check("所有 cue 恰好覆盖一次",
+          [c[0] for ch in chunks for c in ch] == [c[0] for c in cues])
+    greedy = ag.plan_chunks(cues, 2, 100000, sentence_aware=False)
+    check("sentence_aware=False 时退回纯贪心", len(greedy) == 2, f"got {len(greedy)}")
+
+    # 6.2 行宽判据（与校准脚本 length 同一口径）
+    check("行宽：32 汉字 = 32.0", abs(ag.line_width("汉" * 32) - 32.0) < 1e-6)
+    check("行宽：64 英文字符 = 32.0",
+          abs(ag.line_width("A" * 64) - 32.0) < 1e-6)
+    check("时间轴解析", ag._parse_span("00:00:01,500 --> 00:00:02,250") == (1500, 2250))
+
+    # 6.3 validate_rewrite 的「没破坏什么」断言
+    rules, excludes, canonicals = [("卡西亚", "卡提希娅")], [], {"卡提希娅"}
+    ok, why, _ = ag.validate_rewrite(">> 我要你跪下[音乐]", ">> 我要你跪下来[音乐]",
+                                     rules, excludes, canonicals)
+    check("整句重写被接受（标记保留）", ok, why)
+    ok, why, _ = ag.validate_rewrite(">> 我要你跪下[音乐]", "我要你跪下",
+                                     rules, excludes, canonicals)
+    check("丢失 >> / [标记] 被拒绝", not ok, why)
+    ok, why, _ = ag.validate_rewrite("汉" * 30, "汉" * 34,
+                                     rules, excludes, canonicals)
+    check("行宽超限被拒绝", (not ok) and ("行宽" in why), why)
+    ok, why, _ = ag.validate_rewrite("卡西亚登场", "Khasia 登场",
+                                     rules, excludes, canonicals)
+    check("新增原文没有的拉丁词被拒绝", not ok, why)
+    ok, why, _ = ag.validate_rewrite("卡提希娅登场", "卡西亚登场",
+                                     rules, excludes, canonicals)
+    check("改坏已有官方名被拒绝", not ok, why)
+    ok, why, _ = ag.validate_rewrite("少女与卡西亚\n相遇在鸣潮",
+                                     "少女与卡提希娅\n相遇在鸣潮",
+                                     rules, excludes, canonicals)
+    check("多行重写行数一致时接受", ok, why)
+
+    # 6.4 整句重写端到端（含行宽体检 + 人工复核节）
+    with tempfile.TemporaryDirectory() as d:
+        src = os.path.join(d, "rw.srt")
+        with open(src, "w", encoding="utf-8", newline="") as f:
+            f.write(SRT_RW)
+
+        def fake_rw_chat(prompt, system=None, max_tokens=8192):
+            seg = prompt.split("【待校准条目", 1)[-1]
+            items = []
+            for ln in seg.splitlines():
+                m = re.match(r"^(\d+)\t([^\t]*)(?:\t(.*))?$", ln)
+                if m:
+                    items.append((m.group(1), m.group(2), m.group(3) or ""))
+            out = []
+            if items:
+                out.append({"num": items[0][0], "new_zh": ">> 我要你双膝跪地[音乐]",
+                            "reason": "语序理顺"})
+                out.append({"num": items[0][0], "new_zh": "我要你双膝跪地",
+                            "reason": "非法：丢标记"})
+            if len(items) > 1:
+                out.append({"num": items[1][0], "new_zh": "这" * 40,
+                            "reason": "非法：超宽"})
+            return ag.json.dumps(out, ensure_ascii=False)
+
+        res = ag.calibrate(
+            src, out=os.path.join(d, "rw.calib.srt"),
+            report=os.path.join(d, "rw.calib.ai.md"),
+            script=SCRIPT, python=PYTHON, log=lambda m, level="dim": None,
+            chat=fake_rw_chat, baseline=False, style="rewrite",
+            workdir=os.path.join(d, "work"))
+        check("整句重写流水线成功", res["ok"], res.get("error", ""))
+        check("采纳了合法重写", res["ai_changes"] >= 1, str(res["ai_changes"]))
+        check("标记丢失 / 超宽提议被拒", res["rejected"] >= 2, str(res["rejected"]))
+        check("行宽体检已执行", bool((res.get("width_widest") or ("", ""))[0]),
+              str(res.get("width_widest")))
+        rc, out = ag.run_script(PYTHON, SCRIPT, ["verify", src, res["out"]], print)
+        check("重写后 verify 通过", rc == 0 and "VERIFY OK" in out, out[-160:])
+        check("报告含人工复核节", "建议人工复核" in ag._read_text(res["report"]))
+
+
 if __name__ == "__main__":
     print(f"脚本：{SCRIPT}\n解释器：{PYTHON}")
     test_parse_rebuild()
@@ -216,5 +324,6 @@ if __name__ == "__main__":
     test_split()
     test_end_to_end(use_baseline=True)
     test_end_to_end(use_baseline=False)
+    test_long_and_rewrite()
     print("\n" + ("全部通过 ✅" if not FAILED else f"失败 {len(FAILED)} 项 ❌：{FAILED}"))
     sys.exit(1 if FAILED else 0)

@@ -93,6 +93,8 @@ Source: "dist\视频工具箱.exe"; DestDir: "{app}"; Flags: ignoreversion
 ; 字幕校准统一脚本（v1.9.3）：安装到程序目录顶层，「字幕校准」页签用
 ; tools\python 子进程按 {app}\subtitle_calib_merged.py 调用（不打包进 exe）
 Source: "subtitle_calib_merged.py"; DestDir: "{app}"; Flags: ignoreversion
+; 校准知识同步连接配置（内置统一入口：GitHub 代理规则 + vt-github 仓库参数）
+Source: "github_proxy.yaml"; DestDir: "{app}"; Flags: ignoreversion
 ; 下载与剪辑工具（压缩二进制，不再二次压缩，省时）
 Source: "tools\ffmpeg.exe"; DestDir: "{app}\tools"; Flags: ignoreversion nocompression
 Source: "tools\ffprobe.exe"; DestDir: "{app}\tools"; Flags: ignoreversion nocompression

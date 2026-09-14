@@ -189,6 +189,15 @@ def _qt_main_uses(fn_src_frag):
         return False
 
 
+def _qt_main_uses_src():
+    """video_toolbox_qt.py 全文（用于「界面无某入口」的源码级断言）。"""
+    try:
+        return open(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                 "video_toolbox_qt.py"), encoding="utf-8").read()
+    except OSError:
+        return ""
+
+
 def _merge_script_cases():
     """脚本条目级三方合并：新增并入/远程更新采纳/冲突保留本地/幂等/注册守门。"""
     hdr = '_MODE_TERM_TABLE = {"bi": "A_TERMS"}\n'
@@ -246,6 +255,43 @@ def _qt_src():
                                  "video_toolbox_qt.py"), encoding="utf-8").read()
     except OSError:
         return ""
+
+
+def _no_undefined_names():
+    """src 下所有 .py 是否有「引用了但模块里从没定义」的全局名。
+
+    v1.12.0 教训：这类名字（如 duration=INFOBAR_DURATION_SUCCESS）在 PyQt5 槽里
+    会变成未捕获异常 → 进程直接 abort → 用户看到「点一下按钮程序就没了」，
+    而 py_compile 查不出来。用 check_names 的静态扫描兜住，返回 (ok, 详情)。
+    """
+    try:
+        import check_names
+    except Exception:
+        return False, "check_names 不可用"
+    here = os.path.dirname(os.path.abspath(__file__))
+    bad = []
+    for f in sorted(os.listdir(here)):
+        if not f.endswith(".py") or f.startswith("__"):
+            continue
+        try:
+            with open(os.path.join(here, f), encoding="utf-8") as fh:
+                probs = check_names.scan_source(fh.read(), f)
+        except OSError:
+            continue
+        if probs:
+            bad.append(f)
+    return (not bad), "、".join(bad)
+
+
+def _crash_guard_ok():
+    """未捕获异常兜底是否定义并在 main() 里、QApplication 之前装上。"""
+    src = _qt_src()
+    call = src.find("install_crash_guard()")
+    app = src.find("app = QApplication(sys.argv)")
+    return ("def install_crash_guard()" in src
+            and "sys.excepthook = _hook" in src
+            and "threading.excepthook = _thread_hook" in src
+            and 0 <= call < app)
 
 
 def _merge_core_module_ok():
@@ -374,28 +420,41 @@ def _api_compat_ok():
         return False
 
 
-def _sync_read_write_ok():
-    """同步链路修复：_read_sync_text / _atomic_write 存在且行为正确。
-
-    v1.10.x 这两个函数被 _pull_and_merge 调用却未定义，启动同步因此长期以
-    NameError 静默失败（logs/calib_sync.log: name '_read_sync_text' is not
-    defined），多用户知识收敛的「拉」半程从未真正生效。
-    """
-    if not (callable(getattr(engine, "_read_sync_text", None))
-            and callable(getattr(engine, "_atomic_write", None))):
-        return False
-    if engine._read_sync_text(os.path.join(engine.TMP_DIR,
-                                           "vt_no_such_sync_file")) != "":
-        return False
-    p = os.path.join(engine.TMP_DIR, "vt_sync_probe.txt")
+def _sync_conn_yaml_ok():
+    """v1.12.2 连接统一入口：内置 github_proxy.yaml 的 vt-github 段可解析且
+    字段齐备，_sync_conn() 返回值与 yaml 内容一致（改仓库只动 yaml）。"""
     try:
-        engine._atomic_write(p, "内容 ABC")
-        return engine._read_sync_text(p) == "内容 ABC"
-    finally:
-        try:
-            os.remove(p)
-        except OSError:
-            pass
+        import yaml
+        with open(engine.GITHUB_PROXY_YAML, encoding="utf-8-sig") as f:
+            data = yaml.safe_load(f) or {}
+        vg = data.get("vt-github") or {}
+        cfg = engine._sync_conn(refresh=True)
+        need = ("owner", "repo", "branch", "api", "files")
+        return (all(str(vg.get(k) or "").strip() for k in need[:-1])
+                and isinstance(vg.get("files"), list) and vg["files"]
+                and cfg["owner"] == str(vg["owner"]).strip()
+                and cfg["repo"] == str(vg["repo"]).strip()
+                and cfg["branch"] == str(vg["branch"]).strip()
+                and cfg["files"] == [str(p).strip() for p in vg["files"]])
+    except Exception:  # noqa: BLE001
+        return False
+
+
+def _sync_env_injection_ok():
+    """v1.12.1 增量通道环境注入：sync_env_into 为子进程补齐 VT_SYNC_* 路径。
+
+    旧的 _read_sync_text/_atomic_write 文件级同步辅助随 GitHub 整文件通道
+    一起移除；现在引擎只负责把更新库/状态目录/学习库路径注入子进程环境，
+    合并与应用都发生在知识脚本（kb-sync / kb-push）内部。
+    """
+    fn = getattr(engine, "sync_env_into", None)
+    if not callable(fn):
+        return False
+    env = fn({})
+    return (env.get("VT_SYNC_ROOT") == engine.SYNC_REMOTE_DIR
+            and env.get("VT_SYNC_DIR") == engine.SYNC_LOCAL_DIR
+            and env.get("VT_SYNC_KB") == engine.CALIB_KB_PATH
+            and env.get("VT_DATA_ROOT") == engine.DATA_ROOT)
 
 
 def _asr_inject_ok(mode):
@@ -616,6 +675,25 @@ def main():
     except Exception:  # noqa: BLE001
         proxy_ok = False
     check("代理 yaml 端口解析与持久化（自定义 7890 / 内置 7897）", proxy_ok)
+    # ---- v1.12.0 修复：改代理 yaml 曾因未定义常量闪退（NameError → PyQt5 abort）----
+    try:
+        saved_py2 = engine.get_proxy_yaml()
+        proxy_target = os.path.join(engine.APP_DIR, "github_proxy.yaml")
+        browse_ok = (sp._apply_proxy_yaml(proxy_target) is True
+                     and os.path.abspath(engine.get_proxy_yaml())
+                     == os.path.abspath(proxy_target))
+        sp._reset_proxy_yaml()
+        reset_ok = engine.get_proxy_yaml() == ""
+        if saved_py2:
+            engine.set_proxy_yaml(saved_py2)
+    except Exception:  # noqa: BLE001
+        browse_ok = reset_ok = False
+    check("点「选择 yaml…」不再闪退（_apply_proxy_yaml 保存成功）", browse_ok)
+    check("点「恢复内置」不再闪退且清空配置", reset_ok)
+    names_ok, names_bad = _no_undefined_names()
+    check("src 无「引用但未定义」的全局名（闪退头号成因）", names_ok, names_bad)
+    check("未捕获异常兜底装在 QApplication 之前（不再直接 abort）",
+          _crash_guard_ok())
     try:
         import videocaptioner  # noqa: F401
         vc_ok = True
@@ -632,22 +710,27 @@ def main():
           os.path.isfile(os.path.join(engine.TOOLS_DIR, "ai_client.py")))
     check("配置目录长期记忆生效", os.path.isdir(engine.DEFAULT_DOWNLOAD_DIR))
 
-    # ---- v1.10.5：校准脚本 GitHub 退出同步 ----
-    check("引擎暴露退出同步入口（sync_calib_on_exit）",
-          callable(getattr(engine, "sync_calib_on_exit", None))
-          and callable(getattr(engine, "sync_calib_to_github", None)))
-    check("同步目标为 VideoToolbox 仓库 main 分支",
-          engine.SYNC_OWNER == "09Th90" and engine.SYNC_REPO == "VideoToolbox"
-          and engine.SYNC_BRANCH == "main")
-    check("同步走 Git Data API（api.github.com）",
-          engine.SYNC_API == "https://api.github.com")
+    # ---- 校准知识同步（v1.12.2：GitHub 整文件通道恢复为收集渠道；连接参数
+    #      统一来自内置 github_proxy.yaml 的 vt-github 段；上传全自动、界面
+    #      只有「更新」；本地增量镜像 kb-sync/kb-push 为可选增强）----
+    check("引擎暴露启动 / 退出同步入口",
+          callable(getattr(engine, "sync_calib_on_startup", None))
+          and callable(getattr(engine, "sync_calib_on_exit", None)))
+    check("GitHub 收集通道已恢复（推送 + 拉取合并函数在位）",
+          callable(getattr(engine, "sync_calib_to_github", None))
+          and callable(getattr(engine, "_pull_and_merge", None))
+          and callable(getattr(engine, "_gh_fetch_file", None)))
+    check("连接参数统一读内置 github_proxy.yaml（vt-github 段完整）",
+          _sync_conn_yaml_ok())
+    check("同步远端与本机状态目录已定义（可选增量镜像）",
+          bool(getattr(engine, "SYNC_REMOTE_DIR", ""))
+          and bool(getattr(engine, "SYNC_LOCAL_DIR", "")))
     check("代理回退仅用内置 mihomo（127.0.0.1:7897）",
           engine.MIHOMO_PROXY == "http://127.0.0.1:7897")
-    check("校准脚本就位且仓库内路径正确",
-          os.path.isfile(os.path.join(engine.APP_DIR, engine.SYNC_REL_PATH)),
-          engine.SYNC_REL_PATH)
+    check("校准脚本就位（程序根目录 subtitle_calib_merged.py）",
+          os.path.isfile(os.path.join(engine.APP_DIR, "subtitle_calib_merged.py")))
     check("同步日志落在 logs/ 下", engine.SYNC_LOG.endswith("calib_sync.log"))
-    check("退出已挂接 aboutToQuit → 同步",
+    check("退出已挂接 aboutToQuit → 后台自动上传",
           _about_to_quit_hooked())
 
     # ---- v1.10.5：校准模式列表与脚本实际支持的开关一致 ----
@@ -701,11 +784,16 @@ def main():
     # ---- v1.10.7：多用户校准知识收敛（启动拉取 + 条目级合并）----
     check("引擎暴露启动同步入口（sync_calib_on_startup）",
           callable(getattr(engine, "sync_calib_on_startup", None)))
-    check("学习库纳入同步范围",
-          getattr(engine, "SYNC_KB_REL_PATH", "") == "subtitle_learned_kb.json")
-    check("推送前先做防覆盖合并（pull-merge-then-push）",
-          "_pull_and_merge(token, SYNC_REL_PATH, True)" in _engine_src()
-          and "SYNC_KB_REL_PATH" in _engine_src())
+    check("学习库纳入同步范围（上传增量的来源）",
+          os.path.basename(getattr(engine, "CALIB_KB_PATH", ""))
+          == "subtitle_learned_kb.json")
+    check("GitHub 通道收集增量 + 本地增量镜像两条通道并存",
+          "def sync_calib_to_github" in _engine_src()
+          and "def _pull_and_merge" in _engine_src()
+          and "kb-sync" in _engine_src() and "kb-push" in _engine_src())
+    check("上传全自动、界面只有更新（无手动上传按钮 / 无 push_now 入口）",
+          "sync_calib_push_now" not in _qt_main_uses_src()
+          and "_push_now" not in _qt_main_uses_src())
     check("GUI 启动即后台拉取最新校准知识",
           _qt_main_uses("sync_calib_on_startup"))
     check("条目级三方合并：并入/采纳/冲突保留/幂等/注册守门", _merge_script_cases())
@@ -773,8 +861,8 @@ def main():
     check("引擎在导入前给 diskcache 装延迟补丁（消除建库数秒）",
           callable(getattr(engine, "vc_lazy_cache_patch", None))
           and "vc_lazy_cache_patch()" in _engine_src())
-    check("启动同步修复：_read_sync_text / _atomic_write 齐备",
-          _sync_read_write_ok())
+    check("增量通道环境注入齐备（sync_env_into 补齐 VT_SYNC_*）",
+          _sync_env_injection_ok())
     check("ASR 注入引擎转录配置（自有服务 → Whisper [API]）",
           _asr_inject_ok("service"))
     check("ASR 注入引擎转录配置（本地独立模型 → FasterWhisper）",

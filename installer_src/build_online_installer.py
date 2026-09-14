@@ -45,6 +45,8 @@ COMPONENTS = {
     "com.videotoolbox.base": [
         ("dist/视频工具箱.exe", "视频工具箱.exe"),
         ("subtitle_calib_merged.py", "subtitle_calib_merged.py"),
+        # 校准知识同步连接配置（代理规则 + vt-github 仓库参数，内置统一入口）
+        ("github_proxy.yaml", "github_proxy.yaml"),
         ("src", "src"),
         ("docs", "docs"),
         ("tools/ai_client.py", "tools/ai_client.py"),
@@ -91,7 +93,12 @@ def link_or_copy(s: Path, d: Path, force_copy: bool):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--repo-url", help="重写 config.xml 里的仓库地址（局域网部署用）")
+    ap.add_argument("--repo-url", help="重写主源（config.xml 里第一个 <Url>，局域网/自建源部署用）")
+    ap.add_argument("--mirror-url", action="append", default=[], metavar="URL",
+                    help="追加一个加速镜像源（可重复）。默认写成 Enabled=0，用户可在"
+                         "安装器「设置」页取消官方源后勾选它；下载时 IFW 按源顺序取第一个可用的")
+    ap.add_argument("--mirror-enabled", action="store_true",
+                    help="让 --mirror-url 追加的镜像默认启用（仍排在官方源之后）")
     ap.add_argument("--force-copy", action="store_true", help="禁用硬链接，使用真实复制")
     ap.add_argument("--compression", type=int, default=0, choices=[0, 1, 3, 5, 7, 9],
                     help="repogen 7z 压缩级别（0 不压缩/存储 / 1 快 / 9 小，默认 0）")
@@ -121,14 +128,32 @@ def main():
             size = sum(f.stat().st_size for f in data_dir.rglob("*") if f.is_file())
             print(f"  {comp}: {n} 项, {size / 1048576:.0f}MB")
 
-    # 2. 仓库地址写进 config 副本（源文件保持默认本机镜像）
+    # 2. 仓库地址写进 config 副本（源文件保持默认；多源顺序 = 下载优先级）
+    import re
     CONFIG_OUT.mkdir(parents=True, exist_ok=True)
     cfg = (ROOT / "installer_src/config/config.xml").read_text(encoding="utf-8")
     if args.repo_url:
-        import re
+        # 只替换第一个 <Url>（主源），其余镜像源不动
         cfg = re.sub(r"<Url>[^<]*</Url>", f"<Url>{args.repo_url}</Url>", cfg, count=1)
+    for i, mirror in enumerate(args.mirror_url, 1):
+        url = mirror.strip()
+        if url and not url.endswith("/"):
+            url += "/"
+        item = ("        <Repository>\n"
+                f"            <Url>{url}</Url>\n"
+                f"            <Enabled>{1 if args.mirror_enabled else 0}</Enabled>\n"
+                f"            <DisplayName>加速镜像 {i}</DisplayName>\n"
+                "        </Repository>\n")
+        if "    </RemoteRepositories>" not in cfg:
+            sys.exit("config.xml 结构异常：找不到 </RemoteRepositories>")
+        cfg = cfg.replace("    </RemoteRepositories>", item + "    </RemoteRepositories>", 1)
     config_xml = CONFIG_OUT / "config.xml"
     config_xml.write_text(cfg, encoding="utf-8")
+
+    srcs = re.findall(r"<Url>([^<]*)</Url>", cfg)
+    print("== 组件仓库源（顺序 = 下载优先级，后面的是备用）==")
+    for s in srcs:
+        print(f"   {s}")
 
     # 3. repogen 生成在线仓库
     if args.skip_repo:

@@ -47,6 +47,7 @@ import subprocess
 import sys
 import threading
 import time
+import traceback
 from datetime import datetime
 
 from PyQt5.QtCore import Qt, QTimer, QEvent, QObject, QUrl, QPoint, QRect
@@ -96,6 +97,70 @@ def fmt_hms(seconds):
     h, rem = divmod(seconds, 3600)
     m, s = divmod(rem, 60)
     return f"{h}:{m:02d}:{s:02d}" if h else f"{m:02d}:{s:02d}"
+
+
+# ========== 崩溃兜底：未捕获异常不再让进程「瞬间消失」（v1.12.0） ==========
+# PyQt5 的默认行为是：槽函数 / 回调里抛出未捕获异常时调用 qFatal() → 进程立刻
+# abort（用户看到的就是「点一下按钮，程序没了」，且没有任何提示）。只要我们自己
+# 装上 sys.excepthook，PyQt5 就会改为调用它、不再 abort。
+# 这类 bug 最常见的成因是漏定义名字（例如 duration=INFOBAR_DURATION_SUCCESS 却没定义），
+# 静态检查见 src/check_names.py，自检里已加断言防回归。
+CRASH_LOG = os.path.join(engine.LOGS_DIR, "crash.log")
+
+
+def _crash_log_write(kind, exc_type, exc, tb, thread_name=""):
+    """把 traceback 落盘 + 打到 stderr（best-effort，本身绝不抛）。"""
+    try:
+        os.makedirs(engine.LOGS_DIR, exist_ok=True)
+        with open(CRASH_LOG, "a", encoding="utf-8") as f:
+            f.write(f"\n===== {datetime.now():%Y-%m-%d %H:%M:%S} [{kind}] "
+                    f"线程={thread_name} =====\n")
+            f.write("".join(traceback.format_exception(exc_type, exc, tb)))
+    except Exception:
+        pass
+    try:
+        traceback.print_exception(exc_type, exc, tb)
+    except Exception:
+        pass
+
+
+def _crash_toast(title, text):
+    """尽力在界面上提示一次；非主线程 / 无窗口时静默跳过。"""
+    try:
+        if threading.current_thread() is not threading.main_thread():
+            return
+        app = QApplication.instance()
+        if app is None:
+            return
+        win = app.activeWindow()
+        if win is None:
+            return
+        InfoBar.error(title, text[:300], duration=6000,
+                      position=InfoBarPosition.BOTTOM_RIGHT, parent=win)
+    except Exception:
+        pass
+
+
+def install_crash_guard():
+    """装上未捕获异常钩子（main() 里、创建 QApplication 之前调用）。"""
+    def _hook(exc_type, exc, tb):
+        if issubclass(exc_type, KeyboardInterrupt):
+            sys.__excepthook__(exc_type, exc, tb)
+            return
+        _crash_log_write("主线程", exc_type, exc, tb,
+                         threading.current_thread().name)
+        _crash_toast("界面遇到一个错误（程序已继续运行）",
+                     f"{exc_type.__name__}: {exc}（详情见 logs/crash.log）")
+
+    def _thread_hook(args):
+        if issubclass(args.exc_type, SystemExit):
+            return
+        _crash_log_write("后台线程", args.exc_type, args.exc_value,
+                         args.exc_traceback,
+                         getattr(getattr(args, "thread", None), "name", ""))
+
+    sys.excepthook = _hook
+    threading.excepthook = _thread_hook
 
 
 # ========== 导航宽度（按最长项文字自适应） ==========
@@ -1654,35 +1719,61 @@ class SettingsPage(QWidget):
                 "socks-port 自动识别端口，端口已被占用（如你的 Clash 正在运行）"
                 "时直接复用。修改后重启程序生效。")
 
+    def _proxy_start_dir(self):
+        """文件对话框起始目录：上次选的 yaml 所在目录 > 程序目录 > 当前目录。"""
+        try:
+            cur = engine.get_proxy_yaml()
+            if cur and os.path.isdir(os.path.dirname(cur)):
+                return os.path.dirname(cur)
+            if os.path.isdir(engine.APP_DIR):
+                return engine.APP_DIR
+        except Exception:
+            pass
+        return os.getcwd()
+
     def _browse_proxy_yaml(self):
         p, _ = QFileDialog.getOpenFileName(
-            self, "选择 Clash/mihomo 配置", engine.APP_DIR,
+            self, "选择 Clash/mihomo 配置", self._proxy_start_dir(),
             "Clash 配置 (*.yaml *.yml)")
         if not p:
             return
-        if engine._proxy_yaml_port(p) is None:
-            InfoBar.warning(
-                "未能识别端口", "配置里没有 mixed-port / port / socks-port，"
-                "将回退使用默认端口 7897", duration=4000, parent=self)
+        self._apply_proxy_yaml(p)
+
+    def _apply_proxy_yaml(self, path):
+        """套用自定义代理 yaml（对话框选完后走这里；自检也直接调它）。
+
+        v1.12.0 修复：原实现在这里用了未定义的常量 INFOBAR_DURATION_SUCCESS，
+        点击即 NameError → PyQt5 abort → **闪退**；现已改为字面量并整段兜底，
+        任何异常都只提示、不崩界面。
+        """
         try:
-            engine.set_proxy_yaml(p)
+            if engine._proxy_yaml_port(path) is None:
+                InfoBar.warning(
+                    "未能识别端口", "配置里没有 mixed-port / port / socks-port，"
+                    "将回退使用默认端口 7897", duration=4000, parent=self)
+            engine.set_proxy_yaml(path)
         except (OSError, ValueError) as e:
-            InfoBar.error("保存失败", str(e), duration=4000, parent=self)
-            return
-        self.proxy_edit.setText(p)
+            InfoBar.error("保存失败", str(e)[:200], duration=4000, parent=self)
+            return False
+        except Exception as e:                      # 兜底：任何异常都不该让界面崩
+            InfoBar.error("设置代理失败", f"{type(e).__name__}: {e}"[:200],
+                          duration=5000, parent=self)
+            return False
+        self.proxy_edit.setText(path)
         self.proxy_hint.setText(self._proxy_hint_text())
         InfoBar.success("已保存", "自定义代理配置已生效，重启程序后应用",
-                        duration=INFOBAR_DURATION_SUCCESS, parent=self)
+                        duration=3000, parent=self)
+        return True
 
     def _reset_proxy_yaml(self):
         try:
             engine.set_proxy_yaml("")
-        except (OSError, ValueError):
+        except Exception:
             pass
         self.proxy_edit.setText("")
         self.proxy_hint.setText(self._proxy_hint_text())
         InfoBar.success("已恢复", "将使用内置 GitHub 专用代理配置，重启程序后生效",
-                        duration=INFOBAR_DURATION_SUCCESS, parent=self)
+                        duration=3000, parent=self)
 
     # ------------------------------------------------------------------ #
     # 全局 AI（LLM）：全程序唯一一套配置
@@ -1854,12 +1945,21 @@ class SettingsPage(QWidget):
         self.calib_tokens = _spin(ai.get("calib_max_tokens") or 8192, 1024, 65536, 512)
         blay.addWidget(label_row("单次最大输出 token", row(self.calib_tokens, None)))
 
+        # 校准风格（2026-09-14）：术语级＝只替换名词；整句重写＝理顺机翻腔与断句
+        self.calib_style_combo = ComboBox(box)
+        self.calib_style_combo.addItems(["术语级（只替换名词，稳妥）",
+                                         "整句重写（理顺机翻，双语长片推荐）"])
+        self.calib_style_combo.setCurrentIndex(
+            1 if str(ai.get("calib_style") or "term") == "rewrite" else 0)
+        blay.addWidget(label_row("校准风格", self.calib_style_combo))
+
         calib_save = PrimaryPushButton(FIF.SAVE, "保存并应用", box)
         calib_save.clicked.connect(self._ai_save)
         blay.addWidget(row(calib_save, None))
 
         self.calib_hint = fit_caption(CaptionLabel(
             "条数 / 字符预算越小越稳（单次读不完会自动拆半重试），越大越快；"
+            "双语片源会带上英文参考行、按句子边界切块（长片源不切碎长句）；"
             "改动必须能被术语知识库解释，无法解释的提议会被拒绝并写进报告", box))
         self.calib_hint.setTextColor("#8a8a8a", "#9a9a9a")
         blay.addWidget(self.calib_hint)
@@ -1886,6 +1986,9 @@ class SettingsPage(QWidget):
             "calib_chunk_cues": self.calib_cues.value(),
             "calib_max_chars": self.calib_chars.value(),
             "calib_max_tokens": self.calib_tokens.value(),
+            # 校准风格（2026-09-14）：term=只替换名词；rewrite=整句重写
+            "calib_style": ("rewrite"
+                            if self.calib_style_combo.currentIndex() == 1 else "term"),
         }
 
     def _ai_save(self):
@@ -2132,23 +2235,28 @@ class SettingsPage(QWidget):
             pass
 
     # ------------------------------------------------------------------ #
-    # 校准知识多用户同步（启动拉取合并 / 退出先并再推，对等并集）
+    # 校准知识同步（界面只有「更新」；上传全自动、隐藏在后台退出时完成）
     # ------------------------------------------------------------------ #
     def _build_sync_card(self):
         box, blay = card(
-            "校准知识多用户同步",
-            "启动自动拉取 GitHub 最新校准知识并合并其他用户的新条目；退出先并入远程再推送")
+            "校准知识同步",
+            "「更新」从共享仓库拉取全体使用者沉淀的校准知识并在本地合并"
+            "（启动时也会自动更新一次）；你校准学到的新内容会在退出程序时"
+            "自动上传，全程无需操作、不占用界面。基线整理与过期清理由"
+            "管理员独立程序（kb_admin.exe）负责")
         self.sync_switch = SwitchButton(box)
         self.sync_switch.setChecked(engine.calib_sync_enabled())
         self.sync_switch.checkedChanged.connect(self._on_sync_toggle)
-        blay.addWidget(label_row("启用自动同步", row(self.sync_switch, None)))
+        blay.addWidget(label_row("启用自动同步（启动自动更新 + 退出后台上传）",
+                                 row(self.sync_switch, None)))
 
-        sync_btn = PushButton(FIF.SYNC, "立即同步一次", box)
-        sync_btn.clicked.connect(self._sync_now)
-        blay.addWidget(row(sync_btn, None))
+        pull_btn = PushButton(FIF.SYNC, "立即更新", box)
+        pull_btn.clicked.connect(self._sync_now)
+        blay.addWidget(row(pull_btn, None))
 
         self.sync_hint = fit_caption(CaptionLabel(
-            "多用户互不覆盖：只做条目并集、从不删除，所有人最终收敛到全体条目的并集",
+            "只上传校准产生的增量知识、不触碰程序代码；合并确定性幂等，"
+            "多用户最终收敛到全体条目的并集",
             box))
         self.sync_hint.setTextColor("#8a8a8a", "#9a9a9a")
         blay.addWidget(self.sync_hint)
@@ -2165,7 +2273,7 @@ class SettingsPage(QWidget):
                           position=InfoBarPosition.BOTTOM_RIGHT, parent=self)
 
     def _sync_now(self):
-        InfoBar.info("正在同步", "正在拉取并合并远程校准知识…", duration=1200,
+        InfoBar.info("正在更新", "正在从共享仓库拉取校准知识并合并…", duration=1200,
                      position=InfoBarPosition.BOTTOM_RIGHT, parent=self)
         self._run_bg(lambda: engine.sync_calib_on_startup(force=True),
                      self._sync_done)
@@ -2369,6 +2477,7 @@ class CalibPage(ScrollPage):
         self._cancel_flag = False   # AI 校准取消标志（关闭页面/再次点击）
         self._round = 0             # 已完成的 AI 校准轮次（「再次校准」据此递增）
         self._last_out = ""         # 上一轮 AI 校准输出（再次校准的输入）
+        self._last_accepted = []    # 上一轮 AI 采纳明细 [(num, old, new)]，续跑时禁止回退
         self._base_stem = ""        # 第 1 轮确定的输出基名（后续轮次派生命名）
         self._script = os.path.join(engine.APP_DIR, "subtitle_calib_merged.py")
 
@@ -2561,15 +2670,20 @@ class CalibPage(ScrollPage):
         self.stage_label.setText(f"AI 校准中（第 {round_no} 轮）…")
         self.log.line(f"===== AI 校准 · 第 {round_no} 轮 =====", "info")
         self.log.line(f"[AI] 模式: {self.mode_combo.currentText()}", "dim")
+        self.log.line(f"[AI] 风格: "
+                      + ("整句重写（可理顺机翻语序）"
+                         if self.calib_style_combo.currentIndex() == 1 else "术语级")
+                      + ("；以上轮结果为起点续跑（跳过脚本基线、禁止回退）"
+                         if again else ""), "dim")
         self.log.line(f"[AI] 输入: {src}", "dim")
         self.log.line(f"[AI] 输出: {out}", "dim")
         if report:
             self.log.line(f"[AI] 报告: {report}", "dim")
         threading.Thread(target=self._ai_worker,
-                         args=(src, out, report, mode_flag, round_no),
+                         args=(src, out, report, mode_flag, round_no, again),
                          daemon=True).start()
 
-    def _ai_worker(self, src, out, report, mode_flag, round_no):
+    def _ai_worker(self, src, out, report, mode_flag, round_no, again=False):
         def _log(msg, level="dim"):
             self.app.q.put(("cal_log", str(msg), level))
 
@@ -2577,7 +2691,10 @@ class CalibPage(ScrollPage):
             res = engine.calib_ai_run(
                 src, out=out, report=(report or None), mode_flag=mode_flag,
                 fix_en=self.fix_switch.isChecked(), log=_log, round_no=round_no,
-                cancel=lambda: self._cancel_flag)
+                cancel=lambda: self._cancel_flag,
+                # 续跑：以上轮产物为起点（跳过脚本基线），并把上轮采纳明细注入提示词
+                resume_from=(src if again else None),
+                prev_changes=(self._last_accepted if again else None))
         except Exception as e:  # noqa: BLE001
             res = {"ok": False, "out": out, "error": f"{type(e).__name__}: {e}",
                    "script_changes": 0, "ai_changes": 0, "rejected": 0,
@@ -2612,6 +2729,9 @@ class CalibPage(ScrollPage):
             if rc == 0:
                 self._round = int(res.get("round") or self._round)
                 self._last_out = out
+                # 保存采纳明细：下一轮 resume 时作为「不得回退」清单注入提示词
+                self._last_accepted = [(n, o, x)
+                                       for n, o, x, *_ in res.get("accepted", [])]
             self.again_btn.setEnabled(bool(self.ai_switch.isChecked()
                                            and self._last_out))
         if rc == 0:
@@ -2627,8 +2747,14 @@ class CalibPage(ScrollPage):
                     self.log.line(f"[输出] {out}", "ok")
                 if res.get("report"):
                     self.log.line(f"[报告] {res['report']}（含采纳明细与拒绝原因）", "dim")
-                self.log.line("如仍有残留错形，可点「再次校准」再跑一轮（在第 1 轮输出上续跑）",
-                              "info")
+                if res.get("width_over"):
+                    self.log.line(f"[行宽] {res['width_over']} 处中文行超过 32 汉字当量，"
+                                  f"已列进报告（检查报告第四节）", "err")
+                elif (res.get("width_widest") or ("", ""))[0]:
+                    self.log.line(f"[行宽] 体检通过（最宽 {res['width_widest'][0]} / 32）",
+                                  "dim")
+                self.log.line("可点「再次校准」再跑一轮：以上轮结果为起点，"
+                              "已确认的改动不会被改回去", "info")
             else:
                 self.log.line("[OK] 校准完成" +
                               (f"，输出: {out}" if out else
@@ -2959,6 +3085,8 @@ def main():
     # 2) 重定向引擎的路径常量（否则它会写 %LOCALAPPDATA%，即 C 盘）；
     # 3) 把临时目录指向数据根目录，避免中间产物落系统 Temp。
     engine.prepare_runtime_env()
+    # 未捕获异常兜底：装上后 Qt 槽里的异常只记日志 + 提示，不会再让进程 abort
+    install_crash_guard()
     # 启动即拉取最新校准知识并入本地（v1.10.7 多用户收敛的「拉」半程；
     # 后台 daemon 线程，失败静默记 logs/calib_sync.log）
     threading.Thread(target=engine.sync_calib_on_startup, daemon=True).start()

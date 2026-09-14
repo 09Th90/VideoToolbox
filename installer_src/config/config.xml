@@ -25,11 +25,32 @@
     <WizardStyle>Modern</WizardStyle>
     <RunProgram>@TargetDir@/视频工具箱.exe</RunProgram>
     <RunProgramDescription>启动视频工具箱</RunProgramDescription>
+    <!-- 远端组件仓库：可配置多个。IFW 在下载时**按此处的先后顺序**取第一个可用的
+         仓库，因此想走某个源，必须把它前面的源取消勾选（安装器「设置」页可勾选）。
+
+         ⚠️ 下载速度跟"软件"无关，只取决于这个 URL 在你当前网络下的速度：
+            · 官方源在 GitHub Pages（海外），国内直连通常只有几十 KB/s 甚至不通；
+            · 走代理（安装器默认使用 Windows 系统代理）会明显变快，前提是系统代理开着；
+            · 内网 / 本机安装请用 installer_src\install_local_repo.py 一键秒装，
+              或在「设置」页取消官方源、勾选下面的«本机/局域网源»。 -->
     <RemoteRepositories>
+        <!-- ① 官方源（GitHub Pages）。保持第一个，默认启用，行为与旧版一致。 -->
         <Repository>
             <Url>https://09th90.github.io/VideoToolbox/</Url>
             <Enabled>1</Enabled>
-            <DisplayName>视频工具箱组件仓库</DisplayName>
+            <DisplayName>官方源（GitHub Pages · 海外）</DisplayName>
         </Repository>
+        <!-- ② 本机 / 局域网自建源（默认关闭：外网机器不可达时会被跳过，不影响安装）。
+             用法：先 python installer_src\repo_server.py 8123，再在安装器「设置」页
+             取消①并勾选本项 → 104MB 走内网，通常几秒装完。 -->
+        <Repository>
+            <Url>http://127.0.0.1:8123/</Url>
+            <Enabled>0</Enabled>
+            <DisplayName>本机/局域网源（需先运行 repo_server.py）</DisplayName>
+        </Repository>
+        <!-- ③ 加速镜像位（默认关闭）。由 build_online_installer.py 的 mirror-url
+             参数注入，或手工照抄本项添加；使用前确认该镜像真的能取到 Updates.xml。
+             注意：XML 注释里不能出现连续两个连字符，所以此处写的是"mirror-url"
+             而不是它带两条横线的命令行写法。 -->
     </RemoteRepositories>
 </Installer>

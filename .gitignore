@@ -52,6 +52,10 @@ data/uploader_tasks/
 data/catalog/
 data/calib_sync_base.py
 data/calib_sync_kb_base.json
+# 校准知识同步的本机状态与探测产物（v1.12.0 补：曾误入库 data/_kb_probe.json）
+data/calib_sync/
+data/calib_sync_remote/
+data/_kb_probe.json
 
 # 运行期日志（校准脚本 GitHub 同步日志、投稿运行日志）
 logs/
@@ -97,6 +101,22 @@ _installer_check/
 .workbuddy/
 tools/videocaptioner/
 tools/asr_model/
+
+# 管理员工具产物与打包工作目录（kb_admin 独立程序：源码 kb_admin.py 与
+# build/kb_admin.spec 入库；exe 与 PyInstaller 工作目录不入库）
+kb_admin.exe
+build/pyi_kbadmin/
+# gh-pages 发布暂存（组件 7z + sha1 + Updates.xml，单次 200MB 级）
+build/ghpages_push/
+
+# 字幕校准工作目录（片源、cues/calib TSV、对照等中间产物，本机留档不入库；
+# 以后新增工作目录照此追加一行）
+_calib_*/
+denia_voice_calib/
+laterano_calib/
+
+# 根目录的字幕交付件（如「【字幕】xxx-谷歌翻译-校准.srt」，成品另存不入库）
+【字幕】*
 
 # OS
 .DS_Store
