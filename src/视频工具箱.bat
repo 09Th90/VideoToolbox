@@ -1,4 +1,5 @@
 @echo off
+rem @version 1.12.1
 rem Video Toolbox launcher - drag a link / .url shortcut / folder onto me
 rem NOTE: keep this file ASCII-only. cmd.exe parses .bat bytes with the OEM
 rem codepage (GBK on zh-CN) BEFORE `chcp 65001` takes effect; non-ASCII comments

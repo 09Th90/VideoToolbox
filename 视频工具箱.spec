@@ -1,5 +1,15 @@
 # -*- mode: python ; coding: utf-8 -*-
-"""视频工具箱 v1.12.0 —— PyInstaller 打包配置
+# @version 1.12.1
+"""视频工具箱 v1.12.1 —— PyInstaller 打包配置
+v1.12.1：修复打包版「点退出后程序反复重启」（严重）——退出时的校准知识同步
+         原以 [sys.executable, "-c", ...] 派生子进程；冻结成单文件 exe 后
+         sys.executable 就是主程序自身，于是每次退出都拉起一个新的 GUI 实例，
+         新旧实例互相抢占/删除 _MEI 临时目录，表现为退出后无限重启，并弹出
+         「Failed to remove temporary directory: _MEI***」与「no Qt platform
+         plugin could be initialized」错误框。现统一改用 system_python() /
+         _calib_py() / calib_ai_agent.resolve_python() 解析真实解释器，并以
+         _is_self_exe() 兜底：解析不到就跳过退出同步，绝不回退到 exe 自身。
+         本次改动在 src\\video_toolbox.py 与 src\\calib_ai_agent.py，打包配置无需变更。
 v1.12.0：翻译链路全面修缮——① 谷歌翻译改抓 Chrome 内置翻译同源免费接口
          （translate_a/t?client=dict-chrome-ex，官方旧端点已被 302 到验证码页）
          并加全局请求节流（相邻请求 ≥0.12s，约 8 QPS）；② 必应翻译换

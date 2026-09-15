@@ -1,8 +1,17 @@
+; @version 1.12.1
 ; ============================================================================
-; 视频工具箱 v1.12.0 —— Inno Setup 安装包脚本
+; 视频工具箱 v1.12.1 —— Inno Setup 安装包脚本
 ; 构建前提：已用 tools\python 执行 pyinstaller 视频工具箱.spec，
 ;           产物位于 dist\视频工具箱.exe
-; 编译：ISCC.exe 视频工具箱.iss  →  installer\视频工具箱_Setup_v1.12.0.exe
+; 编译：ISCC.exe 视频工具箱.iss  →  installer\视频工具箱_Setup_v1.12.1.exe
+; v1.12.1：修复打包版「点退出后程序反复重启」（严重）——退出时的校准知识同步
+;         原以 [sys.executable, "-c", ...] 派生子进程；冻结成单文件 exe 后
+;         sys.executable 就是主程序自身，于是每次退出都拉起一个新 GUI 实例，
+;         新旧实例互相抢占/删除 _MEI 临时目录，表现为退出后无限重启，并弹出
+;         「Failed to remove temporary directory: _MEI***」与「no Qt platform
+;         plugin could be initialized」错误框。现统一改用 system_python() /
+;         _calib_py() / calib_ai_agent.resolve_python() 解析真实解释器，并以
+;         _is_self_exe() 兜底：解析不到就跳过退出同步，绝不回退到 exe 自身。
 ; v1.12.0：翻译链路全面修缮——① 谷歌翻译改抓 Chrome 内置翻译同源免费接口
 ;         （translate_a/t?client=dict-chrome-ex）并加全局请求节流（≥0.12s/次）；
 ;         ② 必应翻译换 translatetext 端点取 token；
@@ -50,7 +59,7 @@
 ; ============================================================================ 
 
 #define MyAppName "视频工具箱"
-#define MyAppVersion "1.12.0"
+#define MyAppVersion "1.12.1"
 #define MyAppPublisher "VideoToolbox"
 #define MyAppExeName "视频工具箱.exe"
 
@@ -104,7 +113,7 @@ Source: "tools\yt-dlp.exe"; DestDir: "{app}\tools"; Flags: ignoreversion nocompr
 Source: "tools\python\*"; DestDir: "{app}\tools\python"; Flags: ignoreversion recursesubdirs createallsubdirs; Excludes: "*.pyc,__pycache__"
 ; VideoCaptioner 纯代码 wheel 不含 resource（界面图片/字体/默认字幕样式/多语言）。
 ; 这些静态资源随包分发，内嵌引擎才能离线自包含、真正成为程序一部分（v1.10.8）。
-Source: "tools\videocaptioner\resource\*"; DestDir: "{app}\tools\videocaptioner\resource"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "tools\videocaptioner\resource\*"; DestDir: "{app}\tools\videocaptioner\resource"; Flags: ignoreversion recursesubdirs createallsubdirs; Excludes: "*.pyc,__pycache__"
 ; AI 客户端（仅标准库）：字幕/标题语言识别用（v1.10.1 起投稿板块已移除）
 Source: "tools\ai_client.py"; DestDir: "{app}\tools"; Flags: ignoreversion
 ; 源代码 / 脚本启动器统一归入 src\（供脚本方式运行与查阅）
@@ -123,8 +132,11 @@ Source: "docs\VideoCaptioner_GPL-3.0.txt"; DestDir: "{app}\docs"; Flags: ignorev
 Source: "docs\VideoCaptioner_组件来源.txt"; DestDir: "{app}\docs"; Flags: ignoreversion
 ; v1.11.0：官方新版提示词与三个免费翻译器实现归档（重装 tools\python 后
 ; 用 src\apply_vc_official.py 一键恢复），以及程序说明书
-Source: "docs\vc_prompts_official\*"; DestDir: "{app}\docs\vc_prompts_official"; Flags: ignoreversion recursesubdirs createallsubdirs
-Source: "docs\vc_translate_impl\*"; DestDir: "{app}\docs\vc_translate_impl"; Flags: ignoreversion recursesubdirs createallsubdirs
+; v1.12.1：这两个目录同样必须排除字节码缓存——docs\vc_translate_impl 下曾残留本机
+;          Python 3.13 生成的 __pycache__\*.cpython-313.pyc 被一起打进安装包（随包运行时
+;          是 3.12，这些缓存既非当前版本源码、版本也不匹配）。
+Source: "docs\vc_prompts_official\*"; DestDir: "{app}\docs\vc_prompts_official"; Flags: ignoreversion recursesubdirs createallsubdirs; Excludes: "*.pyc,__pycache__"
+Source: "docs\vc_translate_impl\*"; DestDir: "{app}\docs\vc_translate_impl"; Flags: ignoreversion recursesubdirs createallsubdirs; Excludes: "*.pyc,__pycache__"
 Source: "docs\程序说明书.md"; DestDir: "{app}\docs"; Flags: ignoreversion
 
 [Dirs]

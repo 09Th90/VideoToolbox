@@ -1,17 +1,22 @@
 # -*- coding: utf-8 -*-
+# @version 1.12.1
 """一键同步版本号（幂等）：所有「当前版本」标记处一次改到位。
 
 背景：发布前改版本号历史上要手工同步 spec / iss / 在线安装器三件套 / qt VERSION /
 文档首行等近十处，漏一处就会出现「安装包名对、关于页版本旧」之类的不一致。
 本脚本把这份清单固化下来，只替换**当前版本标记**，不动变更历史里出现的旧版本号。
 
+改完 11 处「当前版本标记」后，会自动调用同目录的 stamp_versions.py，为所有自研
+当前版本文件重打首行 `@version <新版本>` 标记并重生成《文件版本清单》（v1.12.1 起）。
+
 用法（在 src 目录）：
-    python apply_version.py 1.12.0            # 从当前版本改到 1.12.0
-    python apply_version.py 1.12.0 --check    # 只报告会改哪些位置
+    python apply_version.py 1.12.1            # 从当前版本改到 1.12.1
+    python apply_version.py 1.12.1 --check    # 只报告会改哪些位置
 """
 import argparse
 import os
 import re
+import subprocess
 import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -81,6 +86,15 @@ def main():
         print("（--check 模式，未写入）")
     else:
         print(f"完成，共改动 {changed} 个文件。记得同步变更说明段与重打包。")
+        # v1.12.1 起：同步给所有自研当前版本文件打首行版本标记，并重生成
+        # 《文件版本清单》（stamp_versions.py 幂等，失败不影响版本号本身）
+        stamp = os.path.join(HERE, "stamp_versions.py")
+        if os.path.isfile(stamp):
+            print("\n== 同步文件版本标记与《文件版本清单》 ==")
+            try:
+                subprocess.run([sys.executable, stamp], cwd=HERE, check=False)
+            except Exception as e:  # noqa: BLE001
+                print(f"  [warn] 打标失败：{e}")
     return 0
 
 

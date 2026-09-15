@@ -1,3 +1,4 @@
+# @version 1.12.1
 # Python caches
 __pycache__/
 *.pyc
@@ -56,6 +57,9 @@ data/calib_sync_kb_base.json
 data/calib_sync/
 data/calib_sync_remote/
 data/_kb_probe.json
+# 字幕校准学习库（v1.12.1）：程序运行期会持续改写它，导致 git 常驻「已修改」状态；
+# 遂改为不入库，仓库内保留的初始副本见 history/ 留档。
+subtitle_learned_kb.json
 
 # 运行期日志（校准脚本 GitHub 同步日志、投稿运行日志）
 logs/

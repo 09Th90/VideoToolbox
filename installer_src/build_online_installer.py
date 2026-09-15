@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+# @version 1.12.1
 """构建「视频工具箱」Qt Installer Framework 在线安装器。
 
 流程（对应在线安装架构）：
@@ -36,7 +37,7 @@ REPO = ROOT / "installer_repository"
 CONFIG_OUT = ROOT / "build/ifw_config"
 INSTALLER_OUT = ROOT / "installer"
 
-APP_VERSION = "1.12.0"
+APP_VERSION = "1.12.1"
 EXCLUDES = {"__pycache__", "*.pyc", "*.pyo"}
 
 # 组件 -> 文件来源映射：(源路径, data 内相对位置)
