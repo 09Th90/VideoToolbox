@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 1.12.1
+# @version 1.12.2
 """AI 校准 Agent —— Agent 级字幕术语校准（v1.11.0）。
 
 定位
@@ -51,6 +51,7 @@ Agent 的工具与闭环（每一步都进日志）
 
 from __future__ import annotations
 
+import io
 import json
 import os
 import re
@@ -505,11 +506,16 @@ def build_user_prompt(mode_flag: str, rules_text: str, chunk, round_no: int,
 
 
 def parse_changes(raw: str):
-    """从模型回复里解析改动列表；返回 (list, 是否可能被截断)。"""
+    """从模型回复里解析改动列表；返回 (changes, status)。
+
+    status 三态，区分「正常无改动」与「真的没拿到数据」：
+      "ok"＝拿到完整 JSON 数组（空数组 []＝这块无需改动，正常）；
+      "truncated"＝数组未闭合，疑似被 max_tokens 截断；
+      "invalid"＝空回复或 JSON 损坏，无法采信。
+    """
     if not raw:
-        return [], False
+        return [], "invalid"
     s = raw.strip()
-    truncated = not (s.rstrip().endswith("]"))
     if "```" in s:                      # 容忍代码围栏
         segs = [x.strip() for x in s.split("```")]
         for seg in segs:
@@ -520,7 +526,7 @@ def parse_changes(raw: str):
                 break
     start = s.find("[")
     if start < 0:
-        return [], truncated
+        return [], "invalid"   # 连 "[" 都没有：拒绝语/错误页，不是截断
     depth = 0
     for i in range(start, len(s)):
         if s[i] == "[":
@@ -531,9 +537,33 @@ def parse_changes(raw: str):
                 try:
                     data = json.loads(s[start:i + 1])
                 except ValueError:
-                    return [], truncated
-                return (data if isinstance(data, list) else []), truncated
-    return [], True
+                    fixed = _repair_json(s[start:])
+                    if not fixed:
+                        return [], "invalid"
+                    return fixed, "ok"
+                return (data if isinstance(data, list) else []), "ok"
+    repaired = _repair_json(s[start:])
+    if repaired:
+        return repaired, "ok"   # 尾部半条被丢弃，完整部分照常采纳
+    return [], "truncated"
+
+
+def _repair_json(bad: str):
+    """对未闭合/半坏的 JSON 数组做尽力修复（json_repair 可用时）；修不出返回 []。
+
+    对标 Harness「错误反馈也是接口的一部分」：与其把半截回复直接丢弃、再花
+    一整轮拆块重问，不如先抢救出完整的前半部分——修复器会丢掉最后一条
+    残缺记录、保留全部完整记录，宁可少改不可错改。
+    """
+    try:
+        from json_repair import repair_json
+    except ImportError:
+        return []
+    try:
+        data = repair_json(bad, return_objects=True)
+    except Exception:  # noqa: BLE001
+        return []
+    return data if isinstance(data, list) else []
 
 
 # ============================ 改动校验（证据链） ============================
@@ -875,6 +905,19 @@ def calibrate(src: str, out: str = None, report: str = None, mode_flag: str = ""
                 "%s\t%s\t%s" % (n, _esc(o), _esc(x))
                 for n, o, x in list(prev_changes)[:200])
         n_chunks = len(chunks)
+        failed_blocks = 0          # 经重试仍无可信结果的块数（停止判定用）
+        traj_path = os.path.join(tmp, "trajectory.log")
+
+        def _traj(line):
+            """逐轮轨迹（可观测性）：每块开始/结束带时间戳落盘，中断可回溯。"""
+            if not checkpoint:
+                return
+            try:
+                with io.open(traj_path, "a", encoding="utf-8") as f:
+                    f.write(f"[{time.strftime('%H:%M:%S')}] {line}\n")
+            except OSError:
+                pass
+
         for idx, chunk in enumerate(chunks, 1):
             _tick()
             first, last = chunk[0][0], chunk[-1][0]
@@ -890,10 +933,15 @@ def calibrate(src: str, out: str = None, report: str = None, mode_flag: str = ""
                          f"（{len(chunk)} 条，{first}–{last}）…")
             scope = (f"【本块范围】全长 {len(cues)} 条中的第 {idx}/{n_chunks} 块"
                      f"（序号 {first}–{last}）；只处理本块条目。")
-            changes = _ask_block(chat, mode_flag, rules_txt, chunk, round_no,
-                                 max_tokens, log, _tick, style=style,
-                                 with_ref=include_ref, prev_text=prev_text,
-                                 scope_text=scope)
+            _traj(f"block {idx}/{n_chunks} cues={first}-{last} start")
+            changes, block_fail = _ask_block(chat, mode_flag, rules_txt, chunk,
+                                             round_no, max_tokens, log, _tick,
+                                             style=style, with_ref=include_ref,
+                                             prev_text=prev_text, scope_text=scope)
+            if block_fail:
+                failed_blocks += 1
+            _traj(f"block {idx}/{n_chunks} cues={first}-{last} done "
+                  f"changes={len(changes)}{' FAILED' if block_fail else ''}")
             old_map = {num: zh for num, zh, _e in chunk}
             ref_map = {num: en for num, _zh, en in chunk}
             for item in changes:
@@ -936,6 +984,21 @@ def calibrate(src: str, out: str = None, report: str = None, mode_flag: str = ""
                     pass
             _log_do(log, f"  → 累计采纳 {len(accepted)} 处，拒绝 {len(rejected)} 处",
                     "ok" if accepted else "dim")
+
+        # ---------- 停止条件（异常分支）：多数块拿不到可信结果 → 本轮不可信 ----------
+        # Harness 设计要点：不能等模型「自报完成」就照常产出；接口持续故障时，
+        # 宁可整轮失败让用户检查接口后重跑，也不写一份静默漏改的产物。
+        if failed_blocks and (failed_blocks == n_chunks
+ or (failed_blocks >= 3 and failed_blocks * 3 >= n_chunks)):
+            result["error"] = (
+                f"AI 接口持续异常：{failed_blocks}/{n_chunks} 块经重试仍未取得有效结果，"
+                f"本轮校准不可信，已在合并写盘前中止（未生成输出）。"
+                f"请在设置中检查 AI 接口连通性与额度后重试。")
+            _log_do(log, "  ✗ " + result["error"], "err")
+            return result
+        if failed_blocks:
+            _log_do(log, f"  ⚠ {failed_blocks}/{n_chunks} 块因接口异常按无改动跳过"
+                         f"（未达中止阈值，可「再次校准」补跑）", "err")
 
         result["ai_changes"] = len(accepted)
         result["rejected"] = len(rejected)
@@ -1045,35 +1108,65 @@ def _split_chunks(cues, max_cues: int, max_chars: int):
 
 
 def _ask_block(chat, mode_flag, rules_txt, chunk, round_no, max_tokens, log, tick,
-               style="term", with_ref=True, prev_text="", scope_text=""):
-    """请模型判定一个块的改动；调用失败或返回被截断时二分重试（自主拆分）。
+               style="term", with_ref=True, prev_text="", scope_text="",
+               attempt=0):
+    """请模型判定一个块的改动，返回 (changes, hard_fail)。
 
-    截断的半截 JSON 一律丢弃，改为把块拆一半分别重问——这就是「一次读不完
-    就自行拆分，最后合并」的实现。style/with_ref/prev_text/scope_text 见
-    build_user_prompt（长双语片源靠参考行 + 句子边界 + 上轮约束提升稳定性）。
+    失败处理策略（2026-09-15 对标 DeepSeek Harness 的异常分支 / 资源上限同步优化）：
+      · ok        拿到完整数组（含 []＝无需改动）→ 直接采纳，绝不再误拆；
+      · invalid   空响应 / 解析不出：先**原块重问一次**（多为偶发抽风，成本最低、
+                  命中最高）；重问仍坏 → 该块按「无改动」跳过并记失败，
+                  **不再无谓二分**——旧版会把一次接口抖动放大成 log2(N) 层拆块、
+                  把积分烧在注定失败的调用上；
+      · truncated 数组未闭合：第一反应改为**加倍 max_tokens 重问一次**（截断多半
+                  只是输出预算不够），仍截断才二分拆块（保留「读不完→拆分→合并」
+                  的自主能力）；单条仍截断则跳过该条。
+    hard_fail = 本块（含全部拆出的子块）都没拿到可信结果，供上层做停止判定。
     """
     system = STYLE_SYSTEM.get(style, SYSTEM_PROMPT)
     raw = ""
+    err = ""
     try:
         raw = chat(build_user_prompt(mode_flag, rules_txt, chunk, round_no,
                                      style=style, with_ref=with_ref,
                                      prev_text=prev_text, scope_text=scope_text),
                    system, max_tokens=max_tokens)
     except Exception as e:  # noqa: BLE001
-        _log_do(log, f"  ! 该块调用失败：{str(e)[:120]}", "err")
-    changes, truncated = parse_changes(raw)
-    if changes and not truncated:
-        return changes
+        err = str(e)[:120]
+        _log_do(log, f"  ! 该块调用失败：{err}", "err")
+    changes, status = parse_changes(raw)
+    if status == "ok":
+        return changes, False
+
+    if attempt == 0:
+        # 第一次失败先原地重问（truncated 时已自动加倍输出预算；invalid 用原预算）
+        tick()
+        _log_do(log, f"  ! {'返回被截断' if status == 'truncated' else '未取到有效 JSON'}，"
+                     f"原地重问一次（{len(chunk)} 条"
+                     + ("，输出预算加倍）" if status == "truncated" else "）"),
+                "err")
+        return _ask_block(chat, mode_flag, rules_txt, chunk, round_no,
+                          min(max_tokens * 2, 65536) if status == "truncated"
+                          else max_tokens,
+                          log, tick, style, with_ref, prev_text, scope_text, 1)
+
+    if status == "invalid":
+        _log_do(log, "  ✗ 重问后仍未取得有效结果，该块按无改动跳过"
+                     + (f"（{err}）" if err else ""), "err")
+        return [], True
     if len(chunk) <= 1:
-        return changes
+        _log_do(log, "  ! 单条加倍后仍被截断，跳过该条", "err")
+        return [], True
     tick()
     half = max(1, len(chunk) // 2)
-    _log_do(log, f"  ! {'返回被截断' if truncated else '未取到有效 JSON'}，"
-                 f"拆为 {half}+{len(chunk) - half} 重试", "err")
-    return (_ask_block(chat, mode_flag, rules_txt, chunk[:half], round_no,
-                       max_tokens, log, tick, style, with_ref, prev_text, scope_text)
-            + _ask_block(chat, mode_flag, rules_txt, chunk[half:], round_no,
-                         max_tokens, log, tick, style, with_ref, prev_text, scope_text))
+    _log_do(log, f"  ! 重问仍被截断，拆为 {half}+{len(chunk) - half} 分块重试", "err")
+    a, fa = _ask_block(chat, mode_flag, rules_txt, chunk[:half], round_no,
+                       max_tokens, log, tick, style, with_ref, prev_text,
+                       scope_text, 0)
+    b, fb = _ask_block(chat, mode_flag, rules_txt, chunk[half:], round_no,
+                       max_tokens, log, tick, style, with_ref, prev_text,
+                       scope_text, 0)
+    return a + b, (fa and fb)
 
 
 def _write_report(path, src, out, mode_flag, round_no, result, rules) -> None:

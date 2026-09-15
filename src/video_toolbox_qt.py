@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# @version 1.12.1
+# @version 1.12.2
 """视频工具箱 GUI v1.11.0 —— Fluent 矢量界面
 ====================================================================
 界面形态（v1.10.0 起，原 tkinter 界面退役）：
@@ -71,7 +71,7 @@ from qfluentwidgets.components.navigation.navigation_widget import NavigationWid
 
 import video_toolbox as engine
 
-VERSION = "1.12.1"
+VERSION = "1.12.2"
 
 LIB_EXTS = {".mp4", ".mkv", ".avi", ".mov", ".flv", ".wmv", ".ts", ".m4v", ".webm"}
 THUMB_DIR = engine.THUMB_CACHE_DIR
@@ -2480,6 +2480,9 @@ class CalibPage(ScrollPage):
         self._last_out = ""         # 上一轮 AI 校准输出（再次校准的输入）
         self._last_accepted = []    # 上一轮 AI 采纳明细 [(num, old, new)]，续跑时禁止回退
         self._base_stem = ""        # 第 1 轮确定的输出基名（后续轮次派生命名）
+        self._thread = None         # 当前校准工作线程（脚本/AI 共用），卡死自检依据
+        self._gen = 0               # 任务代号：每轮 +1，旧线程残留消息按代号丢弃
+        self._last_beat = 0.0       # 最近一次收到校准日志/完成消息的时刻（心跳）
         self._script = os.path.join(engine.APP_DIR, "subtitle_calib_merged.py")
 
         if not os.path.isfile(self._script):
@@ -2518,6 +2521,10 @@ class CalibPage(ScrollPage):
         self.again_btn = PushButton(FIF.SYNC, "再次校准", self.view)
         self.again_btn.setEnabled(False)
         self.again_btn.clicked.connect(self.start_again)
+        # 刷新：程序卡死（异常/线程僵住导致按钮永久禁用）时，一键复位界面状态，
+        # 之后可正常点「开始校准」重新执行；正常运行时点它只提示不打断任务。
+        self.refresh_btn = PushButton(FIF.UPDATE, "刷新", self.view)
+        self.refresh_btn.clicked.connect(self.refresh_state)
         self.stage_label = fit_caption(CaptionLabel("", self.view))
 
         box, lay = card("片源模式与选项")
@@ -2536,7 +2543,8 @@ class CalibPage(ScrollPage):
             self.view))
         self.ai_hint.setTextColor("#8a8a8a", "#9a9a9a")
         lay.addWidget(self.ai_hint)
-        lay.addWidget(row(self.stage_label, None, self.again_btn, self.run_btn))
+        lay.addWidget(row(self.stage_label, None,
+                          self.refresh_btn, self.again_btn, self.run_btn))
         self.add_card(box)
 
         self.log = LogView("校准日志", 170, self.view)
@@ -2557,11 +2565,64 @@ class CalibPage(ScrollPage):
         if p:
             self.out_edit.setText(p)
 
+    # 卡死判定阈值（秒）：任务标志挂着但超过该时长没有任何日志/完成心跳 → 视为卡死
+    STUCK_AFTER = 120
+
+    def _is_stuck(self):
+        """运行标志挂着、但工作线程已死或长时间无心跳 → 判定卡死。"""
+        if not (self.running or self.ai_running):
+            return False
+        th = self._thread
+        if th is not None and not th.is_alive():
+            return True
+        return (time.time() - self._last_beat) > self.STUCK_AFTER
+
+    def _reset_controls(self, stage_text):
+        """复位运行态控件（开始/再次按钮、阶段标签）。
+
+        逐项单独容错：这是"脱离卡死"的最后出口，任何一个控件调用失败都不能
+        中断其余复位，否则界面又回到按钮永久禁用的卡死状态。
+        """
+        for fn in (lambda: self.run_btn.setEnabled(True),
+                   lambda: self.again_btn.setEnabled(
+                       bool(self.ai_switch.isChecked() and self._last_out)),
+                   lambda: self.stage_label.setText(stage_text)):
+            try:
+                fn()
+            except Exception:  # noqa: BLE001
+                pass
+
+    def refresh_state(self, silent=False):
+        """刷新：复位校准页运行状态，脱离卡死。任务正常心跳时不打断。"""
+        if (self.running or self.ai_running) and not self._is_stuck():
+            if not silent:
+                InfoBar.info("提示", "校准任务正在正常运行，无需刷新",
+                             duration=3000,
+                             position=InfoBarPosition.BOTTOM_RIGHT, parent=self)
+            return False
+        was_stuck = self.running or self.ai_running
+        self.running = False
+        self.ai_running = False
+        self._cancel_flag = True     # 通知可能残留的旧线程尽快退出
+        self._gen += 1               # 旧线程后续投来的消息按代号丢弃
+        self._thread = None
+        self._reset_controls("已刷新，可重新校准")
+        if was_stuck:
+            self.log.line("[刷新] 检测到上一轮校准已中断，界面状态已复位；"
+                          "现在可以重新点「开始校准」", "info")
+        return True
+
     def start(self):
         if self.running or self.ai_running:
-            InfoBar.info("提示", "校准任务进行中，请稍候", duration=3000,
-                         position=InfoBarPosition.BOTTOM_RIGHT, parent=self)
-            return
+            if self._is_stuck():
+                # 卡死自愈：先复位再按本次点击重新执行（用户要求：报错则重新执行）
+                self.refresh_state(silent=True)
+                self.log.line("[刷新] 检测到上一轮校准已卡死，已自动复位并重新执行",
+                              "info")
+            else:
+                InfoBar.info("提示", "校准任务进行中，请稍候", duration=3000,
+                             position=InfoBarPosition.BOTTOM_RIGHT, parent=self)
+                return
         if not os.path.isfile(self._script):
             MessageBox("错误", f"校准脚本缺失：{self._script}", self).exec()
             return
@@ -2594,14 +2655,24 @@ class CalibPage(ScrollPage):
             args.append("--fix-en")
 
         self.running = True
-        self.run_btn.setEnabled(False)
-        self.stage_label.setText("正在校准…")
-        self.log.line(f"[校准] 模式: {self.mode_combo.currentText()}"
-                      + ("（仅统计）" if stats_only else ""), "dim")
-        self.log.line(f"[校准] 输入: {os.path.basename(src)}", "dim")
-        if out:
-            self.log.line(f"[校准] 输出: {out}", "dim")
-        threading.Thread(target=self._worker, args=(args, out), daemon=True).start()
+        self._cancel_flag = False
+        self._gen += 1
+        gen = self._gen
+        self._last_beat = time.time()
+        try:
+            self.run_btn.setEnabled(False)
+            self.stage_label.setText("正在校准…")
+            self.log.line(f"[校准] 模式: {self.mode_combo.currentText()}"
+                          + ("（仅统计）" if stats_only else ""), "dim")
+            self.log.line(f"[校准] 输入: {os.path.basename(src)}", "dim")
+            if out:
+                self.log.line(f"[校准] 输出: {out}", "dim")
+            t = threading.Thread(target=self._worker, args=(gen, args, out),
+                                 daemon=True)
+            self._thread = t
+            t.start()
+        except Exception as e:  # noqa: BLE001
+            self._reset_after_crash(f"校准启动失败：{type(e).__name__}: {e}")
 
     # ---------- AI 校准（Agent 级） ----------
     @staticmethod
@@ -2629,9 +2700,14 @@ class CalibPage(ScrollPage):
     def start_again(self):
         """再次校准：以上一轮 AI 校准的输出为输入再跑一轮，专挑残留错形。"""
         if self.running or self.ai_running:
-            InfoBar.info("提示", "校准任务进行中，请稍候", duration=3000,
-                         position=InfoBarPosition.BOTTOM_RIGHT, parent=self)
-            return
+            if self._is_stuck():
+                self.refresh_state(silent=True)
+                self.log.line("[刷新] 检测到上一轮校准已卡死，已自动复位并重新执行",
+                              "info")
+            else:
+                InfoBar.info("提示", "校准任务进行中，请稍候", duration=3000,
+                             position=InfoBarPosition.BOTTOM_RIGHT, parent=self)
+                return
         if not self.ai_switch.isChecked():
             InfoBar.warning("提示", "「再次校准」需要先开启 AI 校准",
                             duration=3000,
@@ -2666,27 +2742,54 @@ class CalibPage(ScrollPage):
 
         self.ai_running = True
         self._cancel_flag = False
-        self.run_btn.setEnabled(False)
-        self.again_btn.setEnabled(False)
-        self.stage_label.setText(f"AI 校准中（第 {round_no} 轮）…")
-        self.log.line(f"===== AI 校准 · 第 {round_no} 轮 =====", "info")
-        self.log.line(f"[AI] 模式: {self.mode_combo.currentText()}", "dim")
-        self.log.line(f"[AI] 风格: "
-                      + ("整句重写（可理顺机翻语序）"
-                         if self.calib_style_combo.currentIndex() == 1 else "术语级")
-                      + ("；以上轮结果为起点续跑（跳过脚本基线、禁止回退）"
-                         if again else ""), "dim")
-        self.log.line(f"[AI] 输入: {src}", "dim")
-        self.log.line(f"[AI] 输出: {out}", "dim")
-        if report:
-            self.log.line(f"[AI] 报告: {report}", "dim")
-        threading.Thread(target=self._ai_worker,
-                         args=(src, out, report, mode_flag, round_no, again),
-                         daemon=True).start()
+        self._gen += 1
+        gen = self._gen
+        self._last_beat = time.time()
+        try:
+            self.run_btn.setEnabled(False)
+            self.again_btn.setEnabled(False)
+            self.stage_label.setText(f"AI 校准中（第 {round_no} 轮）…")
+            self.log.line(f"===== AI 校准 · 第 {round_no} 轮 =====", "info")
+            self.log.line(f"[AI] 模式: {self.mode_combo.currentText()}", "dim")
+            # 校准风格属于全局设置（设置页「AI 校准」卡片），本页无对应控件；
+            # 与 engine.calib_ai_run 内部 style=None 时的取值口径保持一致，仅用于日志。
+            _style = str((engine.ai_load_config() or {}).get("calib_style") or "term")
+            self.log.line(f"[AI] 风格: "
+                          + ("整句重写（可理顺机翻语序）"
+                             if _style == "rewrite" else "术语级")
+                          + ("；以上轮结果为起点续跑（跳过脚本基线、禁止回退）"
+                             if again else ""), "dim")
+            self.log.line(f"[AI] 输入: {src}", "dim")
+            self.log.line(f"[AI] 输出: {out}", "dim")
+            if report:
+                self.log.line(f"[AI] 报告: {report}", "dim")
+            t = threading.Thread(target=self._ai_worker,
+                                 args=(gen, src, out, report, mode_flag,
+                                       round_no, again),
+                                 daemon=True)
+            self._thread = t
+            t.start()
+        except Exception as e:  # noqa: BLE001
+            self._reset_after_crash(f"AI 校准启动失败：{type(e).__name__}: {e}")
 
-    def _ai_worker(self, src, out, report, mode_flag, round_no, again=False):
+    def _reset_after_crash(self, msg):
+        """主线程启动任务时抛异常：立即复位运行状态，保证界面不会卡死。
+
+        复位必须"无论控件本身是否还能用都要执行完"（见 _reset_controls），
+        否则又回到卡死状态。
+        """
+        self.running = False
+        self.ai_running = False
+        self._cancel_flag = True     # 通知可能残留的旧线程尽快退出
+        self._gen += 1               # 旧线程后续投来的消息按代号丢弃
+        self._thread = None
+        self._reset_controls("校准失败")
+        self.log.line(f"[错误] {msg}", "err")
+        self.log.line("界面状态已自动复位，可直接重新点「开始校准」", "info")
+
+    def _ai_worker(self, gen, src, out, report, mode_flag, round_no, again=False):
         def _log(msg, level="dim"):
-            self.app.q.put(("cal_log", str(msg), level))
+            self.app.q.put(("cal_log", str(msg), level, gen))
 
         try:
             res = engine.calib_ai_run(
@@ -2701,9 +2804,9 @@ class CalibPage(ScrollPage):
                    "script_changes": 0, "ai_changes": 0, "rejected": 0,
                    "round": round_no}
         self.app.q.put(("cal_done", 0 if res.get("ok") else 1,
-                        res.get("out") or out, res))
+                        res.get("out") or out, res, gen))
 
-    def _worker(self, args, out):
+    def _worker(self, gen, args, out):
         try:
             env = dict(os.environ, PYTHONIOENCODING="utf-8")
             proc = engine.popen_process(args, cwd=os.path.dirname(self._script),
@@ -2713,17 +2816,20 @@ class CalibPage(ScrollPage):
             for line in proc.stdout:
                 line = line.rstrip()
                 if line:
-                    self.app.q.put(("cal_log", line))
+                    self.app.q.put(("cal_log", line, "dim", gen))
             rc = proc.wait()
         except Exception as e:  # noqa: BLE001
-            self.app.q.put(("cal_log", f"[错误] 校准进程异常: {e}"))
+            self.app.q.put(("cal_log", f"[错误] 校准进程异常: {e}", "dim", gen))
             rc = 1
-        self.app.q.put(("cal_done", rc, out))
+        self.app.q.put(("cal_done", rc, out, None, gen))
 
-    def on_cal_done(self, rc, out, res=None):
+    def on_cal_done(self, rc, out, res=None, gen=None):
         """校准结束（脚本模式 res 为 None；AI 模式 res 为 Agent 结果 dict）。"""
+        if gen is not None and gen != self._gen:
+            return                      # 已被刷新/新任务取代的旧线程消息，丢弃
         self.running = False
         self.ai_running = False
+        self._thread = None
         self.run_btn.setEnabled(True)
         res = res or {}
         if res.get("round"):                    # AI 轮次
@@ -3035,10 +3141,12 @@ class MainWindow(FluentWindow):
             elif kind == "mg_done":
                 mg.on_mg_done(args[0], args[1], args[2])
             elif kind == "cal_log":
-                # AI 校准会带级别（dim/ok/err/info）；脚本模式只有一行文本
-                cal.log.line(args[0], args[1] if len(args) > 1 else "dim")
+                # (文本, 级别, 任务代号)：旧线程残留消息丢弃；有效消息刷新心跳
+                if len(args) < 3 or args[2] == cal._gen:
+                    cal._last_beat = time.time()
+                    cal.log.line(args[0], args[1] if len(args) > 1 else "dim")
             elif kind == "cal_done":
-                # (rc, out) 脚本模式 / (rc, out, result) AI 模式
+                # (rc, out, result, 任务代号)
                 cal.on_cal_done(*args)
         except Exception as e:
             import traceback

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 1.12.1
+# @version 1.12.2
 """
 全局 AI 客户端（OpenAI 兼容 · 单通道）。
 
@@ -430,7 +430,20 @@ class AIClient:
             content = "\n".join(
                 str(b.get("text") or "") for b in content
                 if isinstance(b, dict) and b.get("type") == "text")
-        return str(content or "").strip()
+        content = str(content or "").strip()
+        if not content:
+            # 推理模型常见故障：思考链吃光输出预算，正文为空。静默返回空串会让
+            # 上层把「没拿到数据」误当「没有改动」，必须显式报错、给出可操作提示。
+            msg = resp["choices"][0] if resp.get("choices") else {}
+            reason = msg.get("finish_reason") or ""
+            if msg.get("message", {}).get("reasoning_content"):
+                raise AIClientError(
+                    "模型只输出了思考链、正文为空"
+                    f"（finish_reason={reason or '未知'}，多为思考耗尽 max_tokens）。"
+                    "请改用非推理模型（如 deepseek-chat）或加大「单次最大输出 token」")
+            if reason == "length":
+                raise AIClientError("输出被 max_tokens 截断，请加大输出预算")
+        return content
 
     # ---- 对话 ------------------------------------------------------------
     def chat(self, content, *, system: str | None = None,

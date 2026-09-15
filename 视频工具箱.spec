@@ -1,6 +1,14 @@
 # -*- mode: python ; coding: utf-8 -*-
-# @version 1.12.1
-"""视频工具箱 v1.12.1 —— PyInstaller 打包配置
+# @version 1.12.2
+"""视频工具箱 v1.12.2 —— PyInstaller 打包配置
+v1.12.2：AI 校准修复 + Agent 可靠性同步优化——校准页误引用设置页控件导致
+         「开始校准」一点即崩、崩后界面永久卡死（启动全程异常兜底 + 校准页
+         新增「刷新」与卡死自愈）；qfluentwidgets 滚动条 eventFilter 对鼠标
+         事件抛 AttributeError（运行副本与 .buildvenv 打包副本已同步改为
+         isinstance 判定 + 父控件尺寸——exe 内嵌的 Qt 库来自 tools\\python
+         那份副本，随 视频工具箱.iss 原样分发，无需改本配置）；calib_ai_agent
+         解析改三态并接入 json_repair 抢救、失败分级重试、停止条件与逐轮轨迹。
+         打包配置无需变更。
 v1.12.1：修复打包版「点退出后程序反复重启」（严重）——退出时的校准知识同步
          原以 [sys.executable, "-c", ...] 派生子进程；冻结成单文件 exe 后
          sys.executable 就是主程序自身，于是每次退出都拉起一个新的 GUI 实例，

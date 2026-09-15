@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 1.12.1
+# @version 1.12.2
 """把官方 VideoCaptioner 新版的两类实现套用到内置引擎（幂等，可重复执行）。
 
 来源：E:\\VideoCaptioner（官方安装版）。相关内容已归档进本仓库 docs\\ 下，
