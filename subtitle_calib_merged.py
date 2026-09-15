@@ -522,6 +522,14 @@ BILINGUAL_TERMS = {
     "Hiyuki": "绯雪", "N'vora": "恩沃拉",
     "Sig Gria": "西格莉卡", "Ziggria": "西格莉卡", "saggria": "西格莉卡",
     "Dennia": "达妮娅", "Shortkeeper": "守岸人", "fraodus": "残星会",
+    # --- 2026-09-15 Opera Singer Reacts 鸣潮清宵/景燃 EP（二次校准沉淀）---
+    # 古琴：清宵 EP《尘外客》官方 credit「古琴：翟忻来」（Guqin: Xinlai Di），**不是古筝**；
+    #   博主口中的 guqin 被 ASR 听成 Cuchen / cooeng / coogen，谷翻作"库根/库恩/气"。
+    #   ⚠ 早期误译为"古筝"，2026-09-15 二次校准依官方 credit 更正为"古琴"。
+    "库根": "古琴", "库恩": "古琴", "Cuchen": "古琴", "cooeng": "古琴", "coogen": "古琴",
+    "喉咙歌唱": "呼麦",                                             # throat singing（本片两处）
+    "铁匠悟空": "黑神话：悟空",                                      # Blackmith Wukong = Black Myth: Wukong
+    "凋零波浪": "鸣潮", "风化波浪": "鸣潮",                           # Withering/Weathering Waves 机翻残留
 }
 
 # 保留英文不译的专名（仅提示，不替换）
@@ -1118,11 +1126,28 @@ JA_ENDFIELD_TERMS = {
     "图片": "呃",              # え、（5 处）
     "严重地": "说真的",        # マジで
     "叹": "唉",                # はあ（单独出现的拟声）
+    # —— 2026-09-15 沉淀自《JP VTubers Hyped Over the Smol Purple Huntress! Arknights
+    #     Endfield Operator Story Typhoeus》ja_auto 谷歌翻译片（86 cue，日语原声）——
+    #     本片主角=提弗洛斯（Typhoeus，终末地 1.5「雪凇幽梦」2026-09-02 实装，罗德岛再旅者/荒野猎手；
+    #     官方中文见 endfield.hypergryph.com/operator 与官方「干员叙事：提弗洛斯·萨米维格的孩子」）。
+    #     日语 ASR 三种读法 ティフォロス/ティフォン/ティボロス 被谷翻成
+    #     「Typhoros/提丰/Typholos/提波洛斯」；本表仅 --jpe(终末地日语片) 生效，
+    #     不会误伤明日方舟本体干员「提丰」(Typhon，属 AK_TERMS)。
+    "提丰": "提弗洛斯", "提波洛斯": "提弗洛斯", "提波罗斯": "提弗洛斯",
+    "Typhoros": "提弗洛斯", "Typholos": "提弗洛斯",
+    # 注：本片 大の字->"大字符"、LINE(线条)->"LINE"、パタパタ->"小嘴"、かよ->"嘉代"
+    #     均属逐句误译（裸键是通用中文词），不进表，走 subfix 侧车整行覆盖。
 }
 
 # (日语参考行正则, 中文错形, 正确)：仅当日语行命中正则、且中文行含错形时才替换
 JA_ENDFIELD_CONTEXT = [
     (r"正門|大門", "大门", "星门"),                  # 正門=星门（Cosmic Gate）；"陈"->陈千语 逐 cue 侧车处理，避免子串二次替换
+    # --- 2026-09-15 沉淀自《JP VTubers Hyped Over ... Operator Story Typhoeus》ja_auto 谷歌翻译片 ---
+    #     官方中文依据：endfield.hypergryph.com 干员叙事《提弗洛斯：萨米维格的孩子》+
+    #     1.5「雪凇幽梦」版本说明（雪松林 / 老雪祀 / 安玛 / 冬猎 / 幽林之怒 / 挽弓试炼）。
+    #     用 context 而非裸键：「雪祭」「惊人的」都是通用中文词，裸键会误伤正常语境。
+    (r"雪祭祀|雪祀", "雪祭", "雪祀"),                # 雪祀=萨米萨满祭司（官方「老雪祀」），ASR 常作「雪祭祀」
+    (r"すご|すげえ|すごい", "惊人的", "好厉害"),      # すごい/すげえ 谷翻系统译成"惊人的"（本片 #36/#55）
 ]
 _JA_ENDFIELD_CONTEXT_COMPILED = [(re.compile(rx), wrong, right) for rx, wrong, right in JA_ENDFIELD_CONTEXT]
 
