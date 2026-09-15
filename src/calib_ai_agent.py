@@ -53,6 +53,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -78,6 +79,41 @@ MODE_NAME = {
 RULE_TEXT_BUDGET = 14000
 #: 单条例外：过短的错形（如单字母）容易误替换，直接不进规则
 MIN_WRONG_LEN = 2
+
+
+def _app_dir():
+    """程序根目录：打包后 = exe 所在目录，源码模式 = src 的上级。"""
+    if getattr(sys, "frozen", False):
+        return os.path.dirname(os.path.abspath(sys.executable))
+    return os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+
+def _is_self_exe(path):
+    """path 是否就是本程序自身。打包后 sys.executable 指向 exe 自己，一旦被
+    当成「Python 解释器」去 Popen，Windows 会拉起一个全新的主程序实例
+    （表现为退出后反复重启），因此这里必须排除。"""
+    if not path or not getattr(sys, "frozen", False):
+        return False
+    try:
+        return (os.path.normcase(os.path.abspath(path)) ==
+                os.path.normcase(os.path.abspath(sys.executable)))
+    except Exception:  # noqa: BLE001
+        return False
+
+
+def resolve_python():
+    """解析可用的 Python 解释器：tools\\python 内嵌运行时 → 系统 python。
+
+    找不到返回 ""（调用方据此给出明确错误），**绝不回退到自身 exe**。
+    """
+    embedded = os.path.join(_app_dir(), "tools", "python", "python.exe")
+    if os.path.isfile(embedded):
+        return embedded
+    if not getattr(sys, "frozen", False) and not _is_self_exe(sys.executable):
+        return sys.executable
+    found = shutil.which("python") or ""
+    return "" if _is_self_exe(found) else found
+
 
 # ============================ 长时双语片源特化（2026-09-14）============================
 # 起因：人工校准《Music Composer Reacts - Alleikhreos Boss Theme》(英语原声 + 谷翻,
@@ -690,8 +726,11 @@ def calibrate(src: str, out: str = None, report: str = None, mode_flag: str = ""
         os.path.dirname(os.path.dirname(os.path.abspath(__file__))), SCRIPT_NAME)
     if not os.path.isfile(script):
         return {"ok": False, "error": f"校准脚本缺失：{script}"}
-    if python is None:                                  # 兜底：当前解释器
-        python = sys.executable
+    if not python or _is_self_exe(python):              # 兜底：内嵌运行时 → 系统 python
+        python = resolve_python()
+    if not python:
+        return {"ok": False, "error": "未找到可用的 Python 运行时"
+                                      "（AI 校准需要 tools\\python 或系统已安装 python）"}
 
     def _tick():
         if cancel is not None and cancel():
