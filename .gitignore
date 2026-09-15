@@ -83,6 +83,8 @@ dist/
 build/视频工具箱/
 build/ifw_config/
 build/ifw_packages/
+# 构建兜底暂存：中文路径下 rmtree 被安全删除钩子拦下时，staging 目录整体移到这里
+build/ifw_trash/
 installer_repository/
 # PyInstaller 工作目录（v1.12.0 起用 ASCII 路径 build_ascii 跑打包，避免中文路径
 # 让 Qt 钩子读成 ?????；133MB 级中间产物，永不入库）

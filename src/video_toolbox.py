@@ -357,15 +357,32 @@ EMBEDDED_PYTHON_DIR = os.path.join(TOOLS_DIR, "python")
 EMBEDDED_SITE_PACKAGES = os.path.join(EMBEDDED_PYTHON_DIR, "Lib", "site-packages")
 
 
+def _is_self_exe(path):
+    """path 是否就是本程序自身（打包后 sys.executable 指向 exe 自己）。
+
+    一旦把自身 exe 当作「Python 解释器」去 Popen，Windows 会拉起一个全新的
+    主程序实例——v1.12.0 的退出同步就是这么写的，结果退出时不断自启、表现为
+    「关不掉的反复重启」。所有解析解释器 / 启动子进程的地方都必须过这道闸。
+    """
+    if not path or not getattr(sys, "frozen", False):
+        return False
+    try:
+        return (os.path.normcase(os.path.abspath(path)) ==
+                os.path.normcase(os.path.abspath(sys.executable)))
+    except Exception:  # noqa: BLE001
+        return False
+
+
 def system_python():
     """运行字幕处理 / 投稿 worker 的 Python：优先用工具箱内 tools\\python\\python.exe；
-    否则源码模式用当前解释器，打包后用系统 PATH 中的 python。"""
+    否则源码模式用当前解释器，打包后用系统 PATH 中的 python（找不到返回 ""）。"""
     embedded = os.path.join(EMBEDDED_PYTHON_DIR, "python.exe")
     if os.path.isfile(embedded):
         return embedded
     if not getattr(sys, "frozen", False):
         return sys.executable
-    return shutil.which("python") or ""
+    found = shutil.which("python") or ""
+    return "" if _is_self_exe(found) else found
 
 
 def worker_subprocess_env():
@@ -1802,9 +1819,15 @@ sync_env_into(os.environ)
 
 
 def _calib_py():
-    """跑增量通道子命令的 Python：工具箱内嵌运行时优先，其次系统 python。"""
+    """跑增量通道子命令的 Python：工具箱内嵌运行时优先，其次系统 python。
+
+    拿不到可用解释器时返回 ""（调用方据此跳过），**绝不回退到 exe 自身**——
+    打包后 sys.executable 就是本程序，拿它 Popen 会拉起一个新实例。
+    """
     py = system_python()
-    return py if py and os.path.isfile(py) else ""
+    if not py or _is_self_exe(py) or not os.path.isfile(py):
+        return ""
+    return py
 
 
 # ---------- GitHub 整文件通道（v1.12.2 恢复：收集各使用者校准增量） ----------

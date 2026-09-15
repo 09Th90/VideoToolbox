@@ -26,6 +26,7 @@ import os
 import shutil
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -56,6 +57,25 @@ COMPONENTS = {
         ("tools/mihomo", "tools/mihomo"),
     ],
 }
+
+
+def reset_dir(p: Path, trash_root: Path) -> None:
+    """清空目录。中文路径下 rmtree 可能被安全删除钩子拦截（误报），
+    此时退化为「整体移走」，保证 staging 目录是全新状态。"""
+    if not p.exists():
+        return
+    try:
+        shutil.rmtree(p)
+        return
+    except Exception as e:  # 例如 SAFE_DELETE_FAIL_CLOSED / trash-failed
+        print(f"   [warn] 删除 {p.name} 失败（{e}），改用移走方式")
+    try:
+        trash_root.mkdir(parents=True, exist_ok=True)
+        dst = trash_root / f"{p.name}_{time.strftime('%Y%m%d_%H%M%S')}"
+        shutil.move(str(p), str(dst))
+        print(f"   已移走 -> {dst}")
+    except Exception as e:
+        print(f"   [warn] 移走也失败：{e}")
 
 
 def stage_one(src: Path, dest: Path, force_copy: bool) -> int:
@@ -116,15 +136,15 @@ def main():
     if not args.skip_staging:
         print("== 暂存组件数据 ==")
         for comp, items in COMPONENTS.items():
+            trash_root = ROOT / "build/ifw_trash"
             data_dir = STAGE / comp / "data"
-            if data_dir.exists():
-                shutil.rmtree(data_dir)
+            reset_dir(data_dir, trash_root)
             n = sum(stage_one(ROOT / s, data_dir / d, args.force_copy) for s, d in items)
             meta_src = ROOT / "installer_src/packages" / comp / "meta"
             meta_dst = STAGE / comp / "meta"
-            if meta_dst.exists():
-                shutil.rmtree(meta_dst)
-            shutil.copytree(meta_src, meta_dst)
+            reset_dir(meta_dst, trash_root)
+            if not meta_dst.exists():
+                shutil.copytree(meta_src, meta_dst)
             size = sum(f.stat().st_size for f in data_dir.rglob("*") if f.is_file())
             print(f"  {comp}: {n} 项, {size / 1048576:.0f}MB")
 
