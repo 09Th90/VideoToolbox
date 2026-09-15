@@ -11,9 +11,9 @@
   <ForcedInstallation>true</ForcedInstallation>
   <SortingPriority>100</SortingPriority>
   <Script>installscript.qs</Script>
-  <UpdateFile CompressedSize="108768686" OS="Any" UncompressedSize="143182787"/>
+  <UpdateFile CompressedSize="105115155" OS="Any" UncompressedSize="143519684"/>
   <DownloadableArchives>docs.7z,src.7z,tools.7z,content.7z</DownloadableArchives>
  </PackageUpdate>
- <SHA1>c6bf1dec746e98d6f97509dbb5aa5cd9847d220a</SHA1>
- <MetadataName>2026-09-14-0827_meta.7z</MetadataName>
+ <SHA1>69ff19d443ed035ee6096cd72df0ddf9dac83337</SHA1>
+ <MetadataName>2026-09-15-1504_meta.7z</MetadataName>
 </Updates>
