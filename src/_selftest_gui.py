@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# @version 1.12.2
+# @version 1.13.0
 """界面自检（v1.10.4 Fluent 界面）：验证窗口与各页面可构建、导航宽度自适应、
 设置页统一入口、字幕处理环境就绪。
 
@@ -370,7 +370,10 @@ def _unified_settings_source_ok():
     """源码层面：唯一全局设置页——无分段/独立对话框，隐藏引擎重复分组，
     且内嵌引擎区已消除双层滚动视口（内层无滚条/无边距、高度跟随内容）。"""
     s = _qt_src()
-    no_seg = "SegmentedWidget(" not in s and "class EngineSettingsDialog" not in s
+    # v1.13.0：SegmentedWidget 已用于「视频下载/字幕处理」页内分段，这里只校验
+    # 设置页自身不分段（其对象无 seg/tool_seg/engine_seg，见下方实例断言）且
+    # 没有独立引擎设置对话框。
+    no_seg = "class EngineSettingsDialog" not in s
     hides = all(g in s for g in ('"llmGroup"', '"saveGroup"',
                                  '"personalGroup"', '"aboutGroup"'))
     global_llm = "ai_save_config" in s and "全局 AI" in s
@@ -549,7 +552,7 @@ def _dump_report():
 
 def main():
     print("=" * 62)
-    print("  界面自检：Fluent 窗口 + 六个页面 + 导航宽度 + 设置入口")
+    print("  界面自检：Fluent 窗口 + 五个页面 + 页内分段 + 导航宽度 + 设置入口")
     print("=" * 62)
 
     from PyQt5.QtCore import QTimer
@@ -561,11 +564,24 @@ def main():
     gui.setTheme(gui.Theme.DARK)
     win = gui.MainWindow([])
 
-    pages = [win.download_page, win.library_page, win.merge_page,
-             win.subtitle_page, win.calib_page, win.settings_page]
-    check("六个页面全部构建", all(p is not None for p in pages))
-    check("堆叠页数量为 6（新增设置页）",
-          win.stackedWidget.count() == 6, f"count={win.stackedWidget.count()}")
+    # v1.13.0：页面合并为 5 个导航页；音画合并/字幕校准以子板块挂在宿主页内
+    pages = [win.download_page, win.library_page, win.subtitle_page,
+             win.subtitle_edit_page, win.settings_page]
+    check("五个页面全部构建", all(p is not None for p in pages))
+    check("被合并子板块：音画合并挂入下载页堆叠、字幕校准作独立内容页存在",
+          win.merge_page is not None
+          and win.download_page.stack.indexOf(win.merge_page) >= 0
+          and win.calib_page is not None
+          and win.subtitle_page.calib_page is not None,
+          f"dl.stack={win.download_page.stack.count()}")
+    check("字幕处理页一级分段已移除（v1.13.0：字幕校准并入引擎工作台分段）",
+          not hasattr(win.subtitle_page, "seg")
+          and not hasattr(win.subtitle_page, "stack"))
+    check("堆叠页数量为 5（合并后）",
+          win.stackedWidget.count() == 5, f"count={win.stackedWidget.count()}")
+    check("下载页分段「视频下载 / 音画合并」就位",
+          "download" in win.download_page.seg.items
+          and "merge" in win.download_page.seg.items)
     check("左侧导航已创建", win.navigationInterface.width() > 0,
           f"width={win.navigationInterface.width()}")
 
@@ -631,9 +647,28 @@ def main():
           win.download_page.task_table.columnCount() == 6
           and win.download_page.qlist.count() == 0
           and bool(win.download_page.log.text))
-    check("合并页含配对表", win.merge_page.table.columnCount() == 5)
+    check("音画合并页含配对表", win.merge_page.table.columnCount() == 5)
     check("视频库默认目录已填回", bool(win.library_page.dir_edit.text()),
           win.library_page.dir_edit.text())
+    # ---- v1.13.0：把文件拖进窗口的类型分派 ----
+    check("拖拽分派：目录→视频库、字幕→字幕编辑、链接→下载页",
+          callable(getattr(win, "_handle_dropped_files", None))
+          and callable(getattr(win.subtitle_edit_page, "load_media", None))
+          and callable(getattr(win.subtitle_edit_page, "load_subtitle", None)))
+    _srt = os.path.join(engine.DATA_DIR, "_selftest_drop.srt")
+    try:
+        with open(_srt, "w", encoding="utf-8") as f:
+            f.write("1\n00:00:01,000 --> 00:00:02,000\nhello\n")
+        win._handle_dropped_files([_srt])
+        drop_ok = win.subtitle_edit_page.sub_path == _srt
+    except Exception:
+        drop_ok = False
+    finally:
+        try:
+            os.remove(_srt)
+        except OSError:
+            pass
+    check("拖入 .srt 自动载入字幕编辑页", drop_ok)
 
     sub = win.subtitle_page
     from PyQt5.QtGui import QShowEvent
@@ -645,6 +680,32 @@ def main():
     check("品牌水印与捐助入口已隐藏",
           tc is not None and tc.info_label.isHidden()
           and tc.donate_button.isHidden())
+    # ---- v1.13.0：引擎分段项「字幕优化与翻译」已更名「字幕翻译」 ----
+    if sub._engine is not None:
+        try:
+            rename_ok = (sub._engine.pivot.items[
+                "SubtitleInterface"].text() == "字幕翻译")
+        except Exception:
+            rename_ok = False
+        check("引擎分段「字幕优化与翻译」已更名「字幕翻译」", rename_ok)
+    # ---- v1.13.0：字幕校准并入引擎工作台分段，排在字幕翻译之后 ----
+    _kstr, calib_in, calib_after = "", False, False
+    if sub._engine is not None:
+        try:
+            # 用布局的实际可见顺序（pivot.items 是 dict 插入序，非视觉序）
+            _ly = sub._engine.pivot.hBoxLayout
+            _order = [(_ly.itemAt(i).widget().property("routeKey"))
+                      for i in range(_ly.count())
+                      if _ly.itemAt(i).widget() is not None]
+            _kstr = str(_order)
+            calib_in = "CalibrationInterface" in _order
+            calib_after = (calib_in and "SubtitleInterface" in _order
+                           and _order.index("CalibrationInterface") >
+                           _order.index("SubtitleInterface"))
+        except Exception:
+            pass
+        check("字幕校准已并入引擎工作台分段（排在字幕翻译之后）",
+              calib_in and calib_after, f"order={_kstr}")
     # ---- v1.12.0：工作台优化（校准合并 / 底部收起 / 比例调整）----
     sub_if = getattr(sub._engine, "subtitle_optimization_interface", None)
     check("工作台「字幕校正」按钮已隐藏（校准并入字幕校准板块）",

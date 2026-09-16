@@ -1,4 +1,4 @@
-# @version 1.12.2
+# @version 1.13.0
 # Python caches
 __pycache__/
 *.pyc
@@ -115,14 +115,20 @@ build/pyi_kbadmin/
 # gh-pages 发布暂存（组件 7z + sha1 + Updates.xml，单次 200MB 级）
 build/ghpages_push/
 
-# 字幕校准工作目录（片源、cues/calib TSV、对照等中间产物，本机留档不入库；
-# 以后新增工作目录照此追加一行）
-_calib_*/
-denia_voice_calib/
-laterano_calib/
+# 字幕校准工作目录 + 交付件（片源、cues/calib TSV、对照等中间产物）。
+# v1.12.2 工作区整理：原先散在根目录的 _calib_*/denia_voice_calib/
+# laterano_calib/【字幕】* 已按功能模块收进 _workspace/ 下，规则合并为一条；
+# 以后新增工作目录一律放进 _workspace/<功能模块>/，无需再改这里。
+_workspace/
 
-# 根目录的字幕交付件（如「【字幕】xxx-谷歌翻译-校准.srt」，成品另存不入库）
-【字幕】*
+# 旧构建归档（归档而非删除，体积大；history/ 下其余分类仍按需入库）
+history/_cleanup_*/
+
+# 字幕编辑页（打轴）的波形峰值缓存：按媒体路径+大小+mtime 建键，可随时重建
+data/waveforms/
+# 播放组件 libmpv-2.dll（LGPL 构建，95MB）：不进仓库，由
+# tools/download_open_source_deps.py --only mpv 运行时拉取
+tools/mpv/
 
 # OS
 .DS_Store

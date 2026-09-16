@@ -1,6 +1,6 @@
 # -*- mode: python ; coding: utf-8 -*-
-# @version 1.12.2
-"""视频工具箱 v1.12.2 —— PyInstaller 打包配置
+# @version 1.13.0
+"""视频工具箱 v1.13.0 —— PyInstaller 打包配置
 v1.12.2：AI 校准修复 + Agent 可靠性同步优化——校准页误引用设置页控件导致
          「开始校准」一点即崩、崩后界面永久卡死（启动全程异常兜底 + 校准页
          新增「刷新」与卡死自愈）；qfluentwidgets 滚动条 eventFilter 对鼠标
@@ -85,6 +85,13 @@ hiddenimports += ['calib_merge_core']
 # v1.11.0：AI 校准 Agent（延迟导入：engine.calib_ai_run 内部 import，静态分析
 # 发现不了，必须显式声明，否则打包后点「AI 校准」会 ModuleNotFoundError）。
 hiddenimports += ['calib_ai_agent']
+
+# v1.13.0：字幕编辑页的 libmpv 播放器。python-mpv 绑定（mpv.py，纯标准库、
+# 约 90KB）由 subtitle_editor_media.load_mpv() 延迟导入，静态分析发现不了。
+# 不声明的话打包后点「打开视频」会 ModuleNotFoundError: No module named 'mpv'。
+# 注意：只打包**绑定**，不打包 libmpv-2.dll（95MB、LGPL，由
+# tools/download_open_source_deps.py --only mpv 运行时拉取到 tools\mpv\）。
+hiddenimports += ['mpv']
 
 # 字幕引擎的运行时依赖：多为延迟导入，静态分析发现不了，必须显式声明
 hiddenimports += ['httpx', 'httpcore', 'anyio', 'sniffio', 'h11', 'certifi',

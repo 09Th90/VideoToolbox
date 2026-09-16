@@ -1,11 +1,14 @@
 # -*- coding: utf-8 -*-
-# @version 1.12.2
+# @version 1.13.0
 """下载开源依赖（不参与安装包构建，一律从网上拉取）。
 
 所有第三方开源组件都由本脚本在安装后/运行时从官方开源地址下载到 tools/ 目录：
   - yt-dlp.exe          GitHub Releases
   - deno.exe            GitHub Releases（yt-dlp 提取 YouTube 所需的 JS 运行时）
   - ffmpeg.exe/ffprobe  BtbN/FFmpeg-Builds GitHub Releases
+  - libmpv（libmpv-2.dll）LGPL 构建，字幕编辑页的视频播放后端。
+                        走**本项目自有 release** 分发（上游资产可访问性有波动）；
+                        用 zip 而非上游 7z，使运行时可直接用内置 zipfile 解压
   - Chromium 内核       通过 tools/python 的 Playwright CLI 下载（版本自动匹配）
   - VideoCaptioner      字幕处理引擎：从随包 wheel 解包到 tools/python 的
                         site-packages（v1.10.0 起，纯 Python 包，无需 pip）
@@ -14,6 +17,7 @@
 用法：
   python tools/download_open_source_deps.py                 # 下载全部
   python tools/download_open_source_deps.py --only yt-dlp,ffmpeg
+  python tools/download_open_source_deps.py --only mpv
   python tools/download_open_source_deps.py --skip chromium
   python tools/download_open_source_deps.py --only videocaptioner
   python tools/download_open_source_deps.py --python 3.12.9 # 额外下载 Python embeddable
@@ -43,6 +47,19 @@ YT_DLP = "https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp.exe"
 FFMPEG_ZIP = "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-win64-gpl.zip"
 DENO_ZIP = ("https://github.com/denoland/deno/releases/latest/download/"
             "deno-x86_64-pc-windows-msvc.zip")
+
+# libmpv（LGPL 构建）：字幕编辑页的视频播放后端（打轴要用它做精确 seek 与逐帧）。
+# 为什么走自有 release 而不是上游 zhongfly/mpv-winbuild：
+#   ① 上游资产可访问性有波动（实测出现过直连 RemoteDisconnected）；
+#   ② 上游只发 .7z，该包含 **BCJ2 过滤器**，py7zr 解不了，会额外要求用户机器
+#      装 7-Zip；改为分发 zip 后，运行时用 Python 内置 zipfile 即可解压，
+#      零额外依赖（代价是压缩包大 12MB，值得）。
+# 许可：LGPL 构建（不含 x264/x265 等 GPL-only 组件），动态链接使用，
+#       不随安装包再分发。
+MPV_ZIP = ("https://github.com/09Th90/VideoToolbox/releases/download/"
+           "deps-mpv-lgpl-20260914/libmpv-2.zip")
+MPV_DLL_SHA256 = "6f059354c5c45b41192cc52d867d94c0044edb48207c4efd2ea1244208c55359"
+MPV_RELEASE_PAGE = "https://github.com/09Th90/VideoToolbox/releases/tag/deps-mpv-lgpl-20260914"
 
 
 def _port_listening(port: int, timeout: float = 0.5) -> bool:
@@ -167,8 +184,56 @@ def install_ffmpeg() -> None:
     zpath.unlink(missing_ok=True)
 
 
+def _sha256(path: Path) -> str:
+    """分块算文件 sha256（别把 95MB 一次读进内存）。"""
+    import hashlib
+    h = hashlib.sha256()
+    with open(path, "rb") as fh:
+        for chunk in iter(lambda: fh.read(1 << 20), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
+def install_mpv() -> None:
+    """libmpv（LGPL 构建）：字幕编辑页 / 打轴的视频播放后端。
+
+    产物：tools/mpv/libmpv-2.dll（解压后约 95MB）。
+
+    ⚠️ 运行时在 `import mpv` **之前**必须把 tools/mpv 加进 PATH，否则
+    python-mpv 会报 "Cannot find mpv-1.dll / libmpv-2.dll in your system %PATH%"
+    —— 那是预期行为，不是安装失败。
+    """
+    print("[4/6] libmpv（字幕编辑页播放后端，LGPL，压缩包约 39MB）")
+    dst_dir = TOOLS / "mpv"
+    dll = dst_dir / "libmpv-2.dll"
+    if dll.exists() and dll.stat().st_size > 0:
+        if _sha256(dll) == MPV_DLL_SHA256:
+            print(f"  已存在且校验一致，跳过 ({dll.stat().st_size / 1048576:.0f}MB)")
+            return
+        print("  已存在但校验不一致，重新下载")
+    zpath = TOOLS / "_libmpv.zip"
+    try:
+        _download(MPV_ZIP, zpath)
+    except Exception as e:  # noqa: BLE001
+        print(f"  下载失败：{e}")
+        print(f"  可手动下载后放到 tools/ 再重跑：{MPV_RELEASE_PAGE}")
+        raise
+    print("  解压 libmpv-2.dll ...")
+    dst_dir.mkdir(parents=True, exist_ok=True)
+    with zipfile.ZipFile(zpath) as zf:
+        with zf.open("libmpv-2.dll") as src, open(dll, "wb") as dst:
+            shutil.copyfileobj(src, dst)
+    zpath.unlink(missing_ok=True)
+    got = _sha256(dll)
+    print(f"  完成: {dll} ({dll.stat().st_size / 1048576:.0f}MB)")
+    if got == MPV_DLL_SHA256:
+        print("  sha256 校验一致 ✓")
+    else:
+        print(f"  !! 校验不一致\n     实际 {got}\n     期望 {MPV_DLL_SHA256}")
+
+
 def install_chromium() -> None:
-    print("[4/5] Chromium 内核（Playwright）")
+    print("[5/6] Chromium 内核（Playwright）")
     py = TOOLS / "python" / "python.exe"
     if not py.exists():
         print("  未找到 tools/python，跳过（先安装 Python 环境）")
@@ -187,7 +252,7 @@ def install_videocaptioner() -> None:
     v1.10.0 起字幕链路由 VideoCaptioner 承担：完整版安装包已随包分发装好的
     环境，此步骤用于「轻量安装形态」或用户误删后的修复。
     """
-    print("[5/5] VideoCaptioner 字幕处理引擎")
+    print("[6/6] VideoCaptioner 字幕处理引擎")
     site = TOOLS / "python" / "Lib" / "site-packages"
     if not site.is_dir():
         print(f"  跳过：内嵌运行时不存在（{site}），请先用完整版安装包安装")
@@ -229,7 +294,7 @@ def install_python(ver: str) -> None:
 def main():
     ap = argparse.ArgumentParser(description="下载开源依赖到 tools/ 目录")
     ap.add_argument("--only", help="仅下载指定项，逗号分隔："
-                                   "yt-dlp,deno,ffmpeg,chromium,videocaptioner")
+                                   "yt-dlp,deno,ffmpeg,mpv,chromium,videocaptioner")
     ap.add_argument("--skip", help="跳过指定项，逗号分隔")
     ap.add_argument("--python", metavar="VER", help="额外下载 Python embeddable，如 3.12.9")
     args = ap.parse_args()
@@ -243,6 +308,7 @@ def main():
     steps = [("yt-dlp", install_ytdlp),
              ("deno", install_deno),
              ("ffmpeg", install_ffmpeg),
+             ("mpv", install_mpv),
              ("chromium", install_chromium),
              ("videocaptioner", install_videocaptioner)]
     for name, fn in steps:

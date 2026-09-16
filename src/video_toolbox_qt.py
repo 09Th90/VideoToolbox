@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# @version 1.12.2
+# @version 1.13.0
 """视频工具箱 GUI v1.11.0 —— Fluent 矢量界面
 ====================================================================
 界面形态（v1.10.0 起，原 tkinter 界面退役）：
@@ -15,6 +15,22 @@
     100%/125%/150%/200% 任意缩放比例下表现一致、不发虚。
 页面（v1.10.0 起共 5 个，v1.10.4 增加设置页共 6 个，B站投稿板块已移除）：
   视频下载 · 视频库 · 音视频合并 · 字幕处理（内嵌第三方字幕引擎）· 字幕校准 · 设置
+v1.13.0 起合并为 5 个导航页：
+  视频下载（含「音画合并」子板块）· 视频库 · 字幕处理（含「字幕校准」子板块）·
+  字幕编辑 · 设置；「字幕优化与翻译」更名为「字幕翻译」。
+  支持把文件（视频/音频/字幕/文档/链接）直接拖进窗口自动分派。
+v1.13.0 变更要点：
+  ① 文件拖入：窗口级 drag&drop，视频/音频/字幕/文档/目录按类型分派到对应页面
+     （媒体→字幕编辑、字幕→字幕编辑、链接文本→下载页、目录→视频库、其余→
+     默认程序），命令行拖入同一套逻辑；
+  ② 字幕编辑全格式：打开媒体对话框与视频库扫描覆盖 av1 / h264 / h265 / x264
+     等裸流及更多封装（libmpv 本身即可解，此前只是过滤串没放开）；
+  ③ 页面合并：「音视频合并」更名「音画合并」并入「视频下载」页、「字幕校准」
+     并入「字幕处理」页，均以页内分段（SegmentedWidget）切换；引擎工作台
+     「字幕优化与翻译」更名「字幕翻译」；
+  ④ 自适应布局：修复窗口缩小/跨 PPI 拖动后页面扭曲——视频库卡片网格重排
+     立即收缩 holder、设置页内嵌引擎设置界面宽度跟随宿主（原硬编码 1000px）、
+     输入行最小宽度收紧、屏幕/DPI 变化强制全页重排。
 v1.12.0：翻译链路修缮配套——任务取消立即停掉翻译/优化线程池（原先取消后台
   仍跑完剩余批次）；LLM 翻译并发上限 5（防 429 刷屏）；「启用 AI」关闭时翻译
   兜底不介入 LLM；新增 `apply_version.py`（版本号一键同步）与
@@ -51,31 +67,57 @@ import time
 import traceback
 from datetime import datetime
 
-from PyQt5.QtCore import Qt, QTimer, QEvent, QObject, QUrl, QPoint, QRect
+from PyQt5.QtCore import Qt, QTimer, QEvent, QObject, QUrl, QPoint, QRect, pyqtSignal
 from PyQt5.QtGui import (QColor, QDesktopServices, QFont, QFontMetrics,
-                         QGuiApplication, QPixmap, QTextCursor)
+                         QGuiApplication, QKeyEvent, QKeySequence, QPixmap, QTextCursor)
 from PyQt5.QtWidgets import (QAbstractItemView, QApplication, QDialog,
                              QFileDialog, QGridLayout, QHBoxLayout, QHeaderView,
-                             QSizePolicy, QTableWidgetItem, QVBoxLayout, QWidget)
+                             QShortcut, QSizePolicy, QSplitter, QStackedWidget,
+                             QTableWidgetItem, QVBoxLayout, QWidget)
 
 from qfluentwidgets import (BodyLabel, CardWidget, CaptionLabel,
                             ComboBox, FluentIcon as FIF,
                             FluentWindow, InfoBar, InfoBarPosition, LineEdit,
                             ListWidget, MessageBox, NavigationItemPosition,
                             PasswordLineEdit, PrimaryPushButton, ProgressBar,
-                            PushButton, ScrollArea, SimpleCardWidget, SpinBox,
-                            SubtitleLabel, StrongBodyLabel, SwitchButton,
-                            TableWidget, TextEdit, Theme, TitleLabel,
-                            setTheme, setThemeColor)
+                            PushButton, ScrollArea, SegmentedWidget,
+                            SimpleCardWidget, SpinBox, SubtitleLabel,
+                            StrongBodyLabel, SwitchButton, TableWidget,
+                            TextEdit, Theme, TitleLabel, setTheme, setThemeColor)
 from qfluentwidgets.components.navigation.navigation_widget import NavigationWidget
 
 import video_toolbox as engine
+# 字幕编辑（打轴）三件套：纯逻辑 / 媒体后端 / 控件。
+# 页面类放在本文件（与其余 6 个页面一致）——若把页面单独成模块，它会
+# 反过来 import 本文件的 ScrollPage，形成循环导入。
+import subtitle_editor_core as secore
+from subtitle_editor import CueTable, WaveformTimeline
+from subtitle_editor_media import MpvPlayer, WaveformCache
 
-VERSION = "1.12.2"
+VERSION = "1.13.0"
 
-LIB_EXTS = {".mp4", ".mkv", ".avi", ".mov", ".flv", ".wmv", ".ts", ".m4v", ".webm"}
+# 全格式媒体/字幕/文档扩展名（v1.13.0）：
+#   视频：常见容器 + av1 / h264 / h265 / x264 等裸流与更多封装；
+#   音频：常见音频容器；
+#   字幕：常见字幕文本格式。
+# 这些集合既用于「视频库」扫描，也用于「把文件拖进程序」时的类型分派。
+VIDEO_EXTS = {".mp4", ".mkv", ".avi", ".mov", ".flv", ".wmv", ".ts", ".m4v",
+              ".webm", ".av1", ".264", ".h264", ".x264", ".265", ".h265",
+              ".x265", ".hevc", ".m2ts", ".mts", ".vob", ".ogv", ".3gp",
+              ".mpg", ".mpeg", ".divx", ".rm", ".rmvb", ".asf", ".mxf"}
+AUDIO_EXTS = {".mp3", ".m4a", ".wav", ".aac", ".flac", ".ogg", ".oga",
+              ".opus", ".wma", ".amr", ".ape", ".ac3", ".dts", ".wv",
+              ".aiff", ".aif", ".caf"}
+SUBTITLE_EXTS = {".srt", ".ass", ".ssa", ".vtt", ".sub", ".smi", ".sbv", ".lrc"}
+
+LIB_EXTS = set(VIDEO_EXTS)
 THUMB_DIR = engine.THUMB_CACHE_DIR
 CARD_W, THUMB_W, THUMB_H = 232, 200, 118
+
+# 字幕编辑「打开媒体」对话框的完整格式过滤串（与 VIDEO_EXTS + AUDIO_EXTS 对应）
+MEDIA_FILE_FILTER = ("媒体文件 (" + " ".join("*" + e for e in
+                      sorted(VIDEO_EXTS | AUDIO_EXTS, key=str.lower)) +
+                     ");;所有文件 (*.*)")
 
 
 def thumb_cache_name(path):
@@ -287,8 +329,35 @@ def label_row(text, widget, spacing=8):
     return row(BodyLabel(text), widget, None, spacing=spacing)
 
 
-def expand_h(widget, minimum=360):
-    """让输入框横向自适应填满所在行（长 URL/路径不被截断）。"""
+def srow(label, *widgets):
+    """设置页输入行：标签 + 输入控件，第一个控件 stretch=1 吃满剩余宽度。
+
+    与 label_row 的区别：label_row 行尾有 addStretch(1)，把布局里额外的横向
+    空白全部吸到右侧，输入框只保持 sizeHint 宽度——长 URL/路径被横向截断
+    （v1.13.0「设置页文字显示不全」的根因）。这里让输入框吃掉行内多余宽度，
+    窗口放大时输入框随之变宽、长文本完整显示；后续按钮自然靠右排列。
+    """
+    holder = QWidget()
+    lay = QHBoxLayout(holder)
+    lay.setContentsMargins(0, 0, 0, 0)
+    lay.setSpacing(8)
+    lay.addWidget(BodyLabel(label, holder))
+    ws = [w for w in widgets if w is not None]
+    if ws:
+        lay.addWidget(ws[0], 1)
+        for w in ws[1:]:
+            lay.addWidget(w)
+    return holder
+
+
+def expand_h(widget, minimum=160):
+    """让输入框横向自适应填满所在行（长 URL/路径不被截断）。
+
+    v1.13.0：最小宽度由 360 → 220 → 160 逐步收紧——窗口缩小 / 导航变宽 /
+    换到低分辨率屏时，卡片内的输入行不再把卡片撑出可视范围（页面扭曲的
+    主要来源之一）；Expanding 策略保证宽度允许时仍会吃满整行。输入框在
+    窄于内容时内部自动滚动，不丢失已有文字。
+    """
     try:
         widget.setMinimumWidth(minimum)
         widget.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
@@ -384,9 +453,53 @@ class ScrollPage(QWidget):
         self.vbox.addWidget(widget, stretch)
 
 
-# ========== 视频下载 ==========
+class TabPage(QWidget):
+    """页内子板块的内容壳：可滚动、无大标题（标题由页内分段控件承担）。
+
+    v1.13.0：页面合并（音画合并并入视频下载、字幕校准并入字幕处理）后，
+    被合并的板块放进页内分段（SegmentedWidget）+ 本壳，各自独立滚动、
+    互不挤占。与 ScrollPage 的区别只是没有 SubtitleLabel 大标题；其余
+    （滚动区 / 卡片宽度跟随视口 / 水平滚动禁用）完全一致。
+    """
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.view = self
+        outer = QVBoxLayout(self)
+        outer.setContentsMargins(0, 0, 0, 0)
+        outer.setSpacing(10)
+        self.area = ScrollArea(self)
+        self.area.setWidgetResizable(True)
+        self.area.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self.area.setStyleSheet("QScrollArea{background:transparent;border:none;}")
+        self.holder = QWidget(self.area)
+        self.holder.setStyleSheet("QWidget{background:transparent;}")
+        self.content_lay = QVBoxLayout(self.holder)
+        self.content_lay.setContentsMargins(24, 10, 24, 16)
+        self.content_lay.setSpacing(12)
+        self.area.setWidget(self.holder)
+        outer.addWidget(self.area, 1)
+        self.vbox = self.content_lay
+
+    def add_card(self, widget, stretch=0):
+        self.vbox.addWidget(widget, stretch)
+
+
+def tab_caption(text, parent=None):
+    """子板块顶部的灰色说明（TabPage 无大标题，用一行说明补上下文）。"""
+    cap = fit_caption(CaptionLabel(text, parent))
+    cap.setTextColor("#8a8a8a", "#9a9a9a")
+    return cap
+
+
+# ========== 视频下载（含「音画合并」板块，v1.13.0 合并） ==========
 class DownloadPage(QWidget):
-    """单个链接反复添加；每个下载任务独立线程，互不阻塞。"""
+    """单个链接反复添加；每个下载任务独立线程，互不阻塞。
+
+    v1.13.0：原「音视频合并」板块更名为「音画合并」并并入本页——
+    页内用 SegmentedWidget 分段切换「视频下载 / 音画合并」两个子板块，
+    参考字幕处理页的「一页多板块」形态。
+    """
 
     _EXTRACT_LOCK = threading.Lock()
     SUB_LANGS = "en,zh,ja,zh-Hans,zh-Hant,ko,es,fr,de"
@@ -407,11 +520,28 @@ class DownloadPage(QWidget):
 
         outer = QVBoxLayout(self)
         outer.setContentsMargins(0, 0, 0, 0)
-        self.shell = ScrollPage("视频下载",
-                                "检测一个链接后即可加入并行下载；每个视频自动打包成独立文件夹"
-                                "（视频 + 封面.jpg + 视频信息.txt）", self, scrollable=True)
-        outer.addWidget(self.shell)
-        self.vbox = self.shell.content_lay
+        outer.setSpacing(0)
+
+        # —— 页内分段：视频下载 / 音画合并 ——
+        # v1.13.0：级联对齐——SegmentedWidget 内部对每项固定 stretch=1 等分，
+        # 只有两个标签时会在窗口变宽时被拉开大片空隙、下划线只跟在文字下方，
+        # 观感「区域不对齐」。这里让分段控件左对齐、宽度收缩到内容，标签紧凑排列。
+        self.seg = SegmentedWidget(self)
+        self.seg.setSizePolicy(QSizePolicy.Maximum, QSizePolicy.Fixed)
+        self.seg.setContentsMargins(24, 12, 24, 0)
+        outer.addWidget(self.seg, 0, Qt.AlignLeft)
+
+        self.stack = QStackedWidget(self)
+        outer.addWidget(self.stack, 1)
+
+        # —— 子板块 1：视频下载（可滚动卡片区） ——
+        self.dl_tab = TabPage(self)
+        self.stack.addWidget(self.dl_tab)
+        self.vbox = self.dl_tab.content_lay
+        self.vbox.setSpacing(12)
+        self.vbox.addWidget(tab_caption(
+            "检测一个链接后即可加入并行下载；每个视频自动打包成独立文件夹"
+            "（视频 + 封面.jpg + 视频信息.txt）", self))
 
         # —— 链接 ——
         self.url_edit = LineEdit(self)
@@ -479,6 +609,18 @@ class DownloadPage(QWidget):
         self.log = LogView("下载日志", 130, self)
         self.vbox.addWidget(self.log)
         self.vbox.addStretch(1)
+
+        # —— 子板块 2：音画合并（原「音视频合并」板块整体迁入） ——
+        self.merge_page = MergePage(self, self)
+        self.stack.addWidget(self.merge_page)
+
+        # —— 分段联动 ——
+        self.seg.addItem("download", "视频下载",
+                         onClick=lambda: self.stack.setCurrentIndex(0))
+        self.seg.addItem("merge", "音画合并",
+                         onClick=lambda: self.stack.setCurrentIndex(1))
+        self.seg.setCurrentItem("download")
+        self.switch_tab = lambda i: self.stack.setCurrentIndex(i)
 
     # ---------- 交互 ----------
     def paste_url(self):
@@ -1071,8 +1213,15 @@ class LibraryPage(QWidget):
     # ---------- 卡片 ----------
     def eventFilter(self, obj, event):
         if obj is self.area and event.type() == QEvent.Resize:
-            self._reflow()
+            self._schedule_reflow()
         return super().eventFilter(obj, event)
+
+    def showEvent(self, event):
+        # v1.13.0：换屏/改 DPI/窗口缩小后回到本页时，按当前视口宽度重排卡片；
+        # 延迟两档：视口尺寸可能晚于 show 更新，holder 重排后也要一次布局收敛。
+        super().showEvent(event)
+        QTimer.singleShot(0, self._reflow)
+        QTimer.singleShot(60, self._reflow)
 
     def _clear_cards(self):
         for c in self.cards.values():
@@ -1123,10 +1272,24 @@ class LibraryPage(QWidget):
         except OSError:
             pass
 
-    def _reflow(self):
+    def _reflow(self, *_):
+        """按当前视口宽度重排卡片列数（v1.13.0：改为可靠触发）。
+
+        旧实现直接在 ScrollArea 的 Resize 事件里读 viewport().width()——
+        事件派发时视口可能还是旧尺寸，窗口缩小/换 DPI 屏后网格仍按旧列数
+        排布，卡片超出视口、右侧被裁（横向滚动又禁用 → 视觉扭曲）。
+        现在：每次都用「视口宽度」重算；若发现与当前列数不一致再重排；
+        并延迟到事件循环空闲后再做一次兜底，覆盖视口晚于区域 resize 的情况。
+        """
         if not self.cards:
             return
-        width = max(self.area.viewport().width(), CARD_W + 8)
+        try:
+            vw = self.area.viewport().width()
+        except Exception:
+            vw = self.area.width()
+        if vw <= 0:
+            vw = self.area.width()
+        width = max(vw, CARD_W + 8)
         cols = max(1, width // (CARD_W + 12))
         if cols == self._cols and self.grid.count() == len(self.cards):
             return
@@ -1136,9 +1299,24 @@ class LibraryPage(QWidget):
         for i, c in enumerate(self.cards.values()):
             self.grid.addWidget(c["box"], i // cols, i % cols)
         self.grid.setRowStretch(self.grid.rowCount(), 1)
+        # v1.13.0：重排后立刻把 holder 收缩到视口宽度——widgetResizable 的
+        # 自动收缩发生在下一事件循环，期间旧列数仍把 holder 撑宽（横向滚动
+        # 已禁用 → 卡片被右侧裁掉，即用户看到的「页面扭曲」）。
+        try:
+            vp = self.area.viewport().width()
+            if vp > 0 and self.holder.width() != vp:
+                self.holder.resize(vp, self.holder.height())
+        except Exception:
+            pass
+
+    def _schedule_reflow(self):
+        """滚动区尺寸变化后：本帧 + 下一帧各重排一次，消除视口/holder 时序差。"""
+        self._reflow()
+        QTimer.singleShot(0, self._reflow)
+        QTimer.singleShot(50, self._reflow)
 
 
-# ========== 音视频合并 ==========
+# ========== 音画合并（v1.13.0 由「音视频合并」更名，并入「视频下载」页） ==========
 class MergePage(QWidget):
     ASS_MODES = {"烧录为硬字幕": "burn", "封装为 MKV": "mkv", "忽略": "ignore"}
 
@@ -1150,11 +1328,12 @@ class MergePage(QWidget):
 
         outer = QVBoxLayout(self)
         outer.setContentsMargins(0, 0, 0, 0)
-        self.shell = ScrollPage("音视频智能合并",
-                                "自动配对 mp4 + m4a/weba + srt/ass；m4a 直封，weba 转 AAC",
-                                self, scrollable=True)
+        self.shell = TabPage(self)
         outer.addWidget(self.shell)
         self.vbox = self.shell.content_lay
+        self.vbox.setSpacing(12)
+        self.vbox.addWidget(tab_caption(
+            "自动配对 mp4 + m4a/weba + srt/ass；m4a 直封，weba 转 AAC", self))
 
         self.in_edit = LineEdit(self)
         self.in_edit.setText(engine.DEFAULT_INPUT_DIR)
@@ -1360,25 +1539,27 @@ class SubtitlePage(QWidget):
 
         outer = QVBoxLayout(self)
         outer.setContentsMargins(0, 0, 0, 0)
-        self.shell = ScrollPage("字幕处理",
-                                "语音转录 · 字幕优化 · 翻译 · 配音 · 合成，一站式内嵌完成",
-                                self, scrollable=False)
-        outer.addWidget(self.shell)
-        # 本页以引擎界面为主体：收紧页边距，把空间让给引擎工作台
-        self.shell.layout().setContentsMargins(20, 12, 20, 12)
-        self.shell.layout().setSpacing(8)
-        self.vbox = self.shell.content_lay
-        self.vbox.setContentsMargins(0, 0, 0, 0)
-        self.vbox.setSpacing(8)
+        outer.setSpacing(0)
+
+        # v1.13.0：移除页内一级分段「字幕处理 / 字幕校准」——SegmentedWidget
+        # 对每项固定 stretch=1 等分，只有两个标签时会被拉开大片空隙、下划线
+        # 与文字错位（观感「区域不对齐」）。「字幕校准」改为并入下方引擎工作台
+        # 分段，排在「字幕翻译」之后（见 _build_engine 中的挂载）。
+        self.work_tab = QWidget(self)
+        wlay = QVBoxLayout(self.work_tab)
+        wlay.setContentsMargins(20, 10, 20, 12)
+        wlay.setSpacing(8)
+        outer.addWidget(self.work_tab, 1)
+        self.vbox = wlay
 
         # 中部：引擎界面宿主；底部一行：引擎状态 + 设置/许可入口
         # （第三方组件的许可与来源见 docs\ 声明文件）
-        self.host = QWidget(self)
+        self.host = QWidget(self.work_tab)
         self.host_lay = QVBoxLayout(self.host)
         self.host_lay.setContentsMargins(0, 0, 0, 0)
         self.vbox.addWidget(self.host, 1)
 
-        foot = QWidget(self)
+        foot = QWidget(self.work_tab)
         flay = QHBoxLayout(foot)
         flay.setContentsMargins(0, 0, 0, 0)
         flay.setSpacing(12)
@@ -1394,6 +1575,10 @@ class SubtitlePage(QWidget):
         flay.addWidget(self.set_btn)
         flay.addWidget(self.lic_btn)
         self.vbox.addWidget(foot)
+
+        # ——「字幕校准」独立内容页：不进入任何宿主导航，待引擎工作台
+        #    构建完成后并入其分段（见 _build_engine） ——
+        self.calib_page = CalibPage(self, self)
 
     # ---------- 预热（消除首次进入卡顿） ----------
     def prewarm(self):
@@ -1488,13 +1673,47 @@ class SubtitlePage(QWidget):
                     lay.setStretch(lay.indexOf(table), 1)
         # 引擎自带白色页面背景，内嵌到深色宿主里改为透明、随主题配色
         home.setStyleSheet("HomeInterface{background:transparent;}")
+        # v1.13.0：引擎工作台分段项「字幕优化与翻译」更名「字幕翻译」
+        try:
+            home.pivot.setItemText("SubtitleInterface", "字幕翻译")
+        except Exception:  # noqa: BLE001
+            pass
         tc = getattr(home, "task_creation_interface", None)
         if tc is not None:
             for attr in ("info_label", "donate_button"):
                 w = getattr(tc, attr, None)
                 if w is not None:
                     w.hide()
+        # v1.13.0：把「字幕校准」并入引擎工作台分段，排在工作台「字幕翻译」
+        # 之后（用户要求：校准并入「字幕翻译排」）。只加引擎界面 + 分段项，
+        # 不改动引擎本体的处理流程。
+        try:
+            self.calib_page.setObjectName("CalibrationInterface")
+            home.stackedWidget.addWidget(self.calib_page)
+            keys = list(home.pivot.items.keys())
+            if "SubtitleInterface" in keys:
+                idx = keys.index("SubtitleInterface") + 1
+            else:
+                idx = -1   # 没找到「字幕翻译」时追加到末尾
+            home.pivot.insertItem(
+                idx, "CalibrationInterface", "字幕校准",
+                onClick=lambda: home.stackedWidget.setCurrentWidget(
+                    self.calib_page))
+        except Exception:  # noqa: BLE001
+            pass
+        self._engine_home = home
         return home
+
+    def switch_to_calib(self):
+        """外部跳转：切到引擎工作台的「字幕校准」子页（拖拽定位/截图用）。"""
+        home = getattr(self, "_engine_home", None)
+        if home is None:
+            return
+        try:
+            home.pivot.setCurrentItem("CalibrationInterface")
+            home.stackedWidget.setCurrentWidget(self.calib_page)
+        except Exception:  # noqa: BLE001
+            pass
 
     def _build_now(self, busy_text):
         if self._built:
@@ -1645,7 +1864,7 @@ class SettingsPage(QWidget):
         self.dir_edit.editingFinished.connect(self._on_dir_changed)
         browse = PushButton(FIF.FOLDER, "浏览…", box)
         browse.clicked.connect(self._browse_dir)
-        blay.addWidget(label_row("下载目录", row(self.dir_edit, browse, None)))
+        blay.addWidget(srow("下载目录", self.dir_edit, browse))
 
         root, is_default, src = engine.data_root_info()
         self.data_edit = LineEdit(box)
@@ -1655,8 +1874,7 @@ class SettingsPage(QWidget):
         apply_btn.clicked.connect(self._apply_data_root)
         reset_btn = PushButton(FIF.SYNC, "还原默认", box)
         reset_btn.clicked.connect(self._reset_data_root)
-        blay.addWidget(label_row("数据根目录",
-                                 row(self.data_edit, apply_btn, reset_btn)))
+        blay.addWidget(srow("数据根目录", self.data_edit, apply_btn, reset_btn))
         self.data_hint = fit_caption(CaptionLabel(
             f"当前：{src}" + ("" if is_default else f"　·　{root}"), box))
         self.data_hint.setTextColor("#8a8a8a", "#9a9a9a")
@@ -1674,7 +1892,7 @@ class SettingsPage(QWidget):
                 os.path.join(engine.vc_data_dir(), "work-dir"))
         except Exception:
             self.engine_dir_edit.setText("")
-        blay.addWidget(label_row("引擎工作目录", self.engine_dir_edit))
+        blay.addWidget(srow("引擎工作目录", self.engine_dir_edit))
 
         expand_h(self.dir_edit)
         expand_h(self.data_edit)
@@ -1695,12 +1913,11 @@ class SettingsPage(QWidget):
             "留空使用内置 GitHub 专用配置（tools/mihomo/config.yaml，端口 7897）")
         self.proxy_edit.setText(cur)
         self.proxy_edit.setReadOnly(True)
-        browse = PushButton(FIF.FOLDER, "选择 yaml…", box)
+        browse = PushButton(FIF.FOLDER, "浏览…", box)
         browse.clicked.connect(self._browse_proxy_yaml)
-        reset = PushButton(FIF.SYNC, "恢复内置", box)
+        reset = PushButton(FIF.SYNC, "恢复", box)
         reset.clicked.connect(self._reset_proxy_yaml)
-        blay.addWidget(label_row("代理配置文件",
-                                 row(self.proxy_edit, browse, reset)))
+        blay.addWidget(srow("代理配置文件", self.proxy_edit, browse, reset))
         self.proxy_hint = fit_caption(CaptionLabel(self._proxy_hint_text(), box))
         self.proxy_hint.setTextColor("#8a8a8a", "#9a9a9a")
         blay.addWidget(self.proxy_hint)
@@ -1712,13 +1929,11 @@ class SettingsPage(QWidget):
         port = engine._proxy_yaml_port(engine.get_proxy_yaml()) if \
             engine.get_proxy_yaml() else engine.MIHOMO_PORT
         if engine.get_proxy_yaml():
-            return (f"当前：自定义配置，端口 {port or 7897}。程序按配置里的 "
+            return (f"当前：自定义配置，端口 {port or 7897}。按配置里的 "
                     f"mixed-port / port / socks-port 自动识别端口，"
-                    f"端口已被占用（如你的 Clash 正在运行）时直接复用。"
-                    f"修改后重启程序生效。")
-        return ("支持 Clash / mihomo 格式；程序按配置里的 mixed-port / port / "
-                "socks-port 自动识别端口，端口已被占用（如你的 Clash 正在运行）"
-                "时直接复用。修改后重启程序生效。")
+                    f"端口被占用（如你的 Clash 在跑）时复用。修改后重启生效。")
+        return ("内置配置仅用于 GitHub 加速（端口 7897）；也可接入自己的 "
+                "Clash/mihomo 配置，自动识别端口，被占用时复用。修改后重启生效。")
 
     def _proxy_start_dir(self):
         """文件对话框起始目录：上次选的 yaml 所在目录 > 程序目录 > 当前目录。"""
@@ -1782,8 +1997,8 @@ class SettingsPage(QWidget):
     def _build_ai_card(self):
         box, blay = card(
             "全局 AI",
-            "一套配置全程序共用（OpenAI 兼容）：工具箱（标题/语言识别、视觉）、"
-            "字幕引擎（优化/拆分）与 AI 校准；保存后立即写入字幕引擎")
+            "一套配置全程序共用（OpenAI 兼容：工具箱、字幕引擎、AI 校准）；"
+            "保存后立即写入字幕引擎")
         ai = engine.ai_load_config()
 
         self.ai_enabled = SwitchButton(box)
@@ -1793,24 +2008,24 @@ class SettingsPage(QWidget):
         self.ai_key = PasswordLineEdit(box)
         self.ai_key.setText(str(ai.get("api_key", "")))
         self.ai_key.setPlaceholderText("API Key")
-        blay.addWidget(label_row("密钥", self.ai_key))
+        blay.addWidget(srow("密钥", self.ai_key))
 
         self.ai_base = LineEdit(box)
         self.ai_base.setText(str(ai.get("base_url", "")))
         self.ai_base.setPlaceholderText(
             "如 https://open.bigmodel.cn/api/paas/v4（兼容 OpenAI/DeepSeek/"
             "Gemini 兼容层/Ollama/Azure 等，填到域名或版本段均可）")
-        blay.addWidget(label_row("接口地址", self.ai_base))
+        blay.addWidget(srow("接口地址", self.ai_base))
 
         self.ai_model = LineEdit(box)
         self.ai_model.setText(str(ai.get("model", "")))
         self.ai_model.setPlaceholderText("文本模型，如 glm-4.7-flash")
-        blay.addWidget(label_row("文本模型", self.ai_model))
+        blay.addWidget(srow("文本模型", self.ai_model))
 
         self.ai_vision = LineEdit(box)
         self.ai_vision.setText(str(ai.get("vision_model", "")))
         self.ai_vision.setPlaceholderText("视觉模型，如 glm-4.6v-flash（屏幕识别用）")
-        blay.addWidget(label_row("视觉模型", self.ai_vision))
+        blay.addWidget(srow("视觉模型", self.ai_vision))
 
         test_btn = PushButton(FIF.SEND, "测试接口", box)
         test_btn.clicked.connect(lambda: self._ai_test())
@@ -1819,8 +2034,7 @@ class SettingsPage(QWidget):
         blay.addWidget(row(test_btn, save_btn, None))
 
         self.ai_hint = fit_caption(CaptionLabel(
-            "保存后立即生效：自动写入字幕引擎的 OpenAI 兼容槽，AI 校准同用本配置；"
-            "地址填到域名或版本段均可自动补全（含 Azure：填到 deployments/<部署名>）",
+            "保存后立即生效；地址填到域名或版本段均可自动补全（含 Azure）",
             box))
         self.ai_hint.setTextColor("#8a8a8a", "#9a9a9a")
         blay.addWidget(self.ai_hint)
@@ -1834,8 +2048,8 @@ class SettingsPage(QWidget):
     def _build_asr_card(self):
         box, blay = card(
             "ASR 语音识别（转录配置）",
-            "语音转文字可用独立的 ASR 模型：自有 ASR 服务（OpenAI 兼容接口）"
-            "或本地独立模型；保存后自动写入字幕引擎的「转录配置」")
+            "语音转文字用独立 ASR 模型（自有服务或本地模型）；"
+            "保存后自动写入引擎「转录配置」")
         ai = engine.ai_load_config()
         mode = str(ai.get("asr_mode") or "service").lower()
 
@@ -1854,19 +2068,19 @@ class SettingsPage(QWidget):
         self.asr_base = LineEdit(self.asr_service_widget)
         self.asr_base.setText(str(ai.get("asr_base_url", "")))
         self.asr_base.setPlaceholderText("如 https://api.siliconflow.cn/v1")
-        slay.addWidget(label_row("ASR 接口地址", self.asr_base))
+        slay.addWidget(srow("ASR 接口地址", self.asr_base))
         self.asr_key = PasswordLineEdit(self.asr_service_widget)
         self.asr_key.setText(str(ai.get("asr_api_key", "")))
         self.asr_key.setPlaceholderText("ASR 服务 API Key")
-        slay.addWidget(label_row("ASR 密钥", self.asr_key))
+        slay.addWidget(srow("ASR 密钥", self.asr_key))
         self.asr_model = LineEdit(self.asr_service_widget)
         self.asr_model.setText(str(ai.get("asr_model", "")))
         self.asr_model.setPlaceholderText("如 FunAudioLLM/SenseVoiceSmall、whisper-1")
-        slay.addWidget(label_row("ASR 模型名", self.asr_model))
+        slay.addWidget(srow("ASR 模型名", self.asr_model))
         self.asr_prompt = LineEdit(self.asr_service_widget)
         self.asr_prompt.setText(str(ai.get("asr_prompt", "")))
         self.asr_prompt.setPlaceholderText("识别提示词（可留空：中文会自动加简体提示）")
-        slay.addWidget(label_row("识别提示词", self.asr_prompt))
+        slay.addWidget(srow("识别提示词", self.asr_prompt))
         blay.addWidget(self.asr_service_widget)
 
         # —— 本地模型 ——
@@ -1877,14 +2091,14 @@ class SettingsPage(QWidget):
         self.asr_local_model = LineEdit(self.asr_local_widget)
         self.asr_local_model.setText(str(ai.get("asr_local_model", "")))
         self.asr_local_model.setPlaceholderText("模型名，如 large-v3、large-v3-turbo 或自训练模型目录名")
-        llay.addWidget(label_row("本地模型名", self.asr_local_model))
+        llay.addWidget(srow("本地模型名", self.asr_local_model))
         self.asr_local_dir = LineEdit(self.asr_local_widget)
         self.asr_local_dir.setText(str(ai.get("asr_local_model_dir", "")))
         self.asr_local_dir.setPlaceholderText("留空 = 用软件 data\\VideoCaptioner\\models")
         self.asr_local_browse = PushButton(FIF.FOLDER, "浏览…", self.asr_local_widget)
         self.asr_local_browse.clicked.connect(
             lambda: self._browse_into(self.asr_local_dir, "选择 ASR 模型目录"))
-        llay.addWidget(row(self.asr_local_dir, self.asr_local_browse))
+        llay.addWidget(srow("目录", self.asr_local_dir, self.asr_local_browse))
         blay.addWidget(self.asr_local_widget)
 
         asr_test = PushButton(FIF.SEND, "测试 ASR 配置", box)
@@ -1910,10 +2124,10 @@ class SettingsPage(QWidget):
         self.asr_service_widget.setVisible(not local)
         self.asr_local_widget.setVisible(local)
         self.asr_hint.setText(
-            "本地模式：转录模型切到 FasterWhisper，优先用上面填写的模型名与目录"
-            "（可指向自训练/微调的模型）；目录留空则用软件内的 models 目录"
+            "本地模式：转录模型切到 FasterWhisper，优先用上面填写的模型名与目录；"
+            "目录留空则用内置 models 目录"
             if local else
-            "服务模式：转录模型切到 Whisper [API]，由自有 ASR 服务完成语音识别；"
+            "服务模式：转录模型切到 Whisper [API]，由自有 ASR 服务识别；"
             "地址填到 /v1 即可（自动补 /audio/transcriptions）")
 
     def _browse_into(self, edit, title):
@@ -1927,8 +2141,7 @@ class SettingsPage(QWidget):
     def _build_calib_ai_card(self):
         box, blay = card(
             "AI 校准（Agent 级）",
-            "字幕校准页开启「AI 校准」后生效：先跑术语脚本基线，再由 AI 逐块复校"
-            "（只改文字，时间轴与格式一字不动；读不完自动拆分再合并）；"
+            "字幕校准页开启后生效：先跑术语基线，再由 AI 逐块复校（只改文字）；"
             "走上方「全局 AI」同一套配置")
         ai = engine.ai_load_config()
 
@@ -1959,9 +2172,8 @@ class SettingsPage(QWidget):
         blay.addWidget(row(calib_save, None))
 
         self.calib_hint = fit_caption(CaptionLabel(
-            "条数 / 字符预算越小越稳（单次读不完会自动拆半重试），越大越快；"
-            "双语片源会带上英文参考行、按句子边界切块（长片源不切碎长句）；"
-            "改动必须能被术语知识库解释，无法解释的提议会被拒绝并写进报告", box))
+            "块越小越稳（读不完自动折半重试）；双语片源带英文参考行、按句子边界"
+            "切块；无法用术语知识库解释的改动会被拒绝并写入报告", box))
         self.calib_hint.setTextColor("#8a8a8a", "#9a9a9a")
         blay.addWidget(self.calib_hint)
         self.vbox.addWidget(box)
@@ -2181,6 +2393,18 @@ class SettingsPage(QWidget):
             except Exception:
                 pass
             self.engine_holder_lay.addWidget(setting)
+            # v1.13.0：引擎设置界面构造时被上游硬编码 resize(1000, 800)，且其
+            # 内容按独立窗口尺寸设计——嵌进比它窄的宿主页时会把卡片撑出可视
+            # 范围、右侧被裁（设置页「扭曲」的根源）。这里放开最小宽度并把
+            # 水平策略改为 Expanding，让宽度跟随宿主卡片；内容卡片是弹性的，
+            # 会跟着一起收窄（实测：父容器 793 时界面随之为 793）。
+            try:
+                setting.setMinimumWidth(0)
+                _sp = setting.sizePolicy()
+                _sp.setHorizontalPolicy(QSizePolicy.Expanding)
+                setting.setSizePolicy(_sp)
+            except Exception:
+                pass
             # 内层固定高度跟随内容，滚动交给外层
             self._engine_fit = _InnerScrollToContent(setting, self.engine_holder)
             sw = setting.widget()
@@ -2196,6 +2420,8 @@ class SettingsPage(QWidget):
             def _later_fit():
                 try:
                     self._engine_fit.sync_height()
+                    # v1.13.0：宽度跟随宿主（布局激活后刷新一次，防 1000px 残留）
+                    setting.updateGeometry()
                 except Exception:
                     pass
 
@@ -2450,8 +2676,8 @@ class SettingsPage(QWidget):
                    self).exec()
 
 
-# ========== 字幕校准 ==========
-class CalibPage(ScrollPage):
+# ========== 字幕校准（v1.13.0 并入「字幕处理」页的子板块） ==========
+class CalibPage(QWidget):
     MODES = [
         ("中英双语（默认，BILINGUAL_TERMS）", ""),
         ("日语原声·鸣潮（--ja）", "--ja"),
@@ -2468,9 +2694,7 @@ class CalibPage(ScrollPage):
     ]
 
     def __init__(self, app, parent=None):
-        super().__init__("字幕校准",
-                         "调用统一校准脚本 subtitle_calib_merged.py 做名词级术语校准；"
-                         "序号 / 时间轴 / 空行 / 换行 / BOM 一字不动", parent)
+        super().__init__(parent)
         self.app = app
         self.setObjectName("CalibPage")
         self.running = False
@@ -2484,6 +2708,20 @@ class CalibPage(ScrollPage):
         self._gen = 0               # 任务代号：每轮 +1，旧线程残留消息按代号丢弃
         self._last_beat = 0.0       # 最近一次收到校准日志/完成消息的时刻（心跳）
         self._script = os.path.join(engine.APP_DIR, "subtitle_calib_merged.py")
+
+        # 子板块壳：可滚动、无大标题（标题由字幕处理页的分段控件承担）。
+        # 保留 ScrollPage 时代的 `view` / `add_card` API，调用方不受影响。
+        outer = QVBoxLayout(self)
+        outer.setContentsMargins(0, 0, 0, 0)
+        self.shell = TabPage(self)
+        outer.addWidget(self.shell)
+        self.view = self.shell
+        self.add_card = self.shell.content_lay.addWidget
+        self.vbox = self.shell.content_lay
+        self.vbox.setSpacing(12)
+        self.vbox.addWidget(tab_caption(
+            "调用统一校准脚本 subtitle_calib_merged.py 做名词级术语校准；"
+            "序号 / 时间轴 / 空行 / 换行 / BOM 一字不动", self.view))
 
         if not os.path.isfile(self._script):
             warn = fit_caption(CaptionLabel(f"校准脚本缺失：{self._script}", self.view))
@@ -2874,10 +3112,890 @@ class CalibPage(ScrollPage):
                 self.log.line("[提示] 已拒绝的模型提议会写进报告，便于人工复核", "dim")
 
 
+# ========== 字幕编辑（打轴） ==========
+class SubtitleEditPage(ScrollPage):
+    """字幕编辑（打轴）：播放器 + 波形时间轴 + 字幕表。
+
+    结构照搬开源实现（Nosub 的三件套、KDE Subtitle Composer 的波形轨）：
+      · 播放器  = libmpv 嵌进 QWidget（`subtitle_editor_media.MpvPlayer`）
+      · 波形轨  = ffmpeg 解峰值 + 自绘字幕块（`subtitle_editor.WaveformTimeline`）
+      · 字幕表  = 序号/起止/时长/文本（`subtitle_editor.CueTable`）
+    数据层是 `subtitle_editor_core.SubtitleDoc` + `UndoStack`，时间一律 **int 毫秒**。
+
+    三条底线：
+      1. **许可**：libmpv 用 **LGPL** 构建，动态链接；
+      2. **体积**：dll 不进安装包，由 `tools/download_open_source_deps.py`
+         运行时拉取（沿用既有依赖拉取方案），缺失时本页只提示、不崩；
+      3. **退出**：`aboutToQuit` 必须调 `shutdown()` 释放 libmpv，否则
+         打包后 onefile 的 `_MEI***` 临时目录删不掉（v1.12.0 踩过）。
+    """
+
+    _wave_progress = pyqtSignal(int)          # 波形构建进度（0-100）
+    _wave_ready = pyqtSignal(object, float)   # (peaks bytearray, 时长秒)
+    _wave_failed = pyqtSignal(str)
+
+    SPEEDS = ("0.25", "0.5", "0.75", "1.0", "1.25", "1.5", "2.0")
+    #: 文本列里换行以 " / " 呈现（表格行高不随多行文本变化）；
+    #: 提交时按同一分隔符还原。字幕里出现 " / " 的概率极低，且只在编辑该格时生效。
+    NL_SEP = " / "
+
+    def __init__(self, app, parent=None):
+        super().__init__("字幕编辑",
+                         "打轴：边看画面边对字幕起止时间——拖波形块改时间、双击切分、"
+                         "[ ] 取起止点、空格播放暂停",
+                         parent, scrollable=False)
+        self.app = app
+        self.setObjectName("SubtitleEditPage")
+
+        self.doc = secore.SubtitleDoc()
+        self.undo = secore.UndoStack()
+        self.video_path = ""
+        self.sub_path = ""
+        self.dirty = False
+        self.ffmpeg = ""
+        self.ffprobe = ""
+        self._wave_stop = threading.Event()
+        self._wave_busy = False
+        self._pre_drag = None            # 拖拽开始前的整档快照
+        self._drag_pushed = False
+        self._shortcuts = []
+
+        self.mpv_dir = os.path.join(engine.TOOLS_DIR, "mpv")
+        self.wave_cache = None
+        self.player = MpvPlayer(self.mpv_dir, self)
+        self.player.position_changed.connect(self._on_position)
+        self.player.duration_changed.connect(self._on_duration)
+        self.player.playing_changed.connect(self._on_playing)
+
+        self._wave_progress.connect(self._on_wave_progress)
+        self._wave_ready.connect(self._on_wave_ready)
+        self._wave_failed.connect(self._on_wave_failed)
+
+        self._build_ui()
+        self._install_shortcuts()
+        self._refresh_status()
+
+    # ---------------------------------------------------------
+    # 界面
+    # ---------------------------------------------------------
+    def _build_ui(self):
+        # —— 工具条 ——
+        bar = QHBoxLayout()
+        bar.setSpacing(8)
+        self.btn_video = PrimaryPushButton(FIF.VIDEO, "打开视频", self)
+        self.btn_sub = PushButton(FIF.FONT, "打开字幕", self)
+        self.btn_save = PushButton(FIF.SAVE, "保存", self)
+        self.btn_save_as = PushButton(FIF.SAVE_AS, "另存为", self)
+        for b in (self.btn_video, self.btn_sub, self.btn_save, self.btn_save_as):
+            bar.addWidget(b)
+        bar.addSpacing(12)
+
+        self.btn_play = PushButton(FIF.PLAY, "播放", self)
+        self.btn_prev_frame = PushButton("◀ 帧", self)
+        self.btn_next_frame = PushButton("帧 ▶", self)
+        bar.addWidget(self.btn_play)
+        bar.addWidget(self.btn_prev_frame)
+        bar.addWidget(self.btn_next_frame)
+
+        self.speed_box = ComboBox(self)
+        self.speed_box.addItems(self.SPEEDS)
+        self.speed_box.setCurrentText("1.0")
+        self.speed_box.setFixedWidth(84)
+        bar.addWidget(self.speed_box)
+        bar.addWidget(CaptionLabel("倍速", self))
+        bar.addStretch(1)
+
+        self.lbl_time = StrongBodyLabel("--:--.--- / --:--.---", self)
+        bar.addWidget(self.lbl_time)
+        self.shell_bar = QWidget(self)
+        self.shell_bar.setLayout(bar)
+        self.vbox.addWidget(self.shell_bar)
+
+        # —— 编辑条 ——
+        ebar = QHBoxLayout()
+        ebar.setSpacing(8)
+        self.ops = []
+        for text, tip, slot in (
+            ("切分", "在播放头处把选中条目切成两条（Ctrl+K，或在波形上双击）", self.split_at_playhead),
+            ("合并", "把选中的多条合并为一条", self.merge_selected),
+            ("删除", "删除选中条目（Del）", self.delete_selected),
+            ("插入", "在播放头处插入一条 1.5s 空白字幕", self.insert_at_playhead),
+            ("取起点 [", "把选中条目的起点设为播放头（[）", self.set_start_here),
+            ("取终点 ]", "把选中条目的终点设为播放头（]）", self.set_end_here),
+            ("前移 0.1s", "选中条目整体前移 100ms（Shift+←）",
+             lambda: self.shift_selected(-100)),
+            ("后移 0.1s", "选中条目整体后移 100ms（Shift+→）",
+             lambda: self.shift_selected(100)),
+        ):
+            btn = PushButton(text, self)
+            btn.setToolTip(tip)
+            btn.clicked.connect(slot)
+            ebar.addWidget(btn)
+            self.ops.append(btn)
+        ebar.addSpacing(12)
+        self.btn_undo = PushButton(FIF.HISTORY, "撤销", self)
+        self.btn_redo = PushButton(FIF.SYNC, "重做", self)
+        ebar.addWidget(self.btn_undo)
+        ebar.addWidget(self.btn_redo)
+        ebar.addStretch(1)
+        self.shell_ebar = QWidget(self)
+        self.shell_ebar.setLayout(ebar)
+        self.vbox.addWidget(self.shell_ebar)
+
+        # —— 画面 + 字幕表 ——
+        self.video_host = QWidget(self)
+        self.video_host.setStyleSheet("background:#000;")
+        self.video_host.setMinimumWidth(280)
+        self.video_host.setMinimumHeight(160)
+        self.video_hint = CaptionLabel("尚未打开视频", self.video_host)
+        self.video_hint.setStyleSheet("color:#777;background:transparent;")
+        vlay = QVBoxLayout(self.video_host)
+        vlay.setContentsMargins(0, 0, 0, 0)
+        vlay.addWidget(self.video_hint, 0, Qt.AlignCenter)
+
+        self.table = CueTable(self)
+
+        self.hsplit = QSplitter(Qt.Horizontal, self)
+        self.hsplit.setChildrenCollapsible(False)
+        self.hsplit.addWidget(self.video_host)
+        self.hsplit.addWidget(self.table)
+        self.hsplit.setStretchFactor(0, 3)
+        self.hsplit.setStretchFactor(1, 2)
+        self.hsplit.setSizes([620, 400])
+
+        self.timeline = WaveformTimeline(self)
+        self.timeline.setMinimumHeight(110)
+
+        self.vsplit = QSplitter(Qt.Vertical, self)
+        self.vsplit.setChildrenCollapsible(False)
+        self.vsplit.addWidget(self.hsplit)
+        self.vsplit.addWidget(self.timeline)
+        self.vsplit.setStretchFactor(0, 1)
+        self.vsplit.setStretchFactor(1, 0)
+        self.vsplit.setSizes([520, 150])
+        self.vbox.addWidget(self.vsplit, 1)
+
+        # —— 状态区 ——
+        self.status = CaptionLabel("就绪", self)
+        self.vbox.addWidget(self.status)
+        self.wave_bar = ProgressBar(self)
+        self.wave_bar.setFixedHeight(4)
+        self.wave_bar.hide()
+        self.vbox.addWidget(self.wave_bar)
+
+        # —— 信号 ——
+        self.btn_video.clicked.connect(self.open_video)
+        self.btn_sub.clicked.connect(self.open_subtitle)
+        self.btn_save.clicked.connect(self.save)
+        self.btn_save_as.clicked.connect(self.save_as)
+        self.btn_play.clicked.connect(self.toggle_play)
+        self.btn_prev_frame.clicked.connect(lambda: self.step_frames(-1))
+        self.btn_next_frame.clicked.connect(lambda: self.step_frames(1))
+        self.speed_box.currentTextChanged.connect(self._on_speed)
+        self.btn_undo.clicked.connect(self.undo_edit)
+        self.btn_redo.clicked.connect(self.redo_edit)
+
+        self.timeline.position_clicked.connect(self.seek_ms)
+        self.timeline.cue_selected.connect(self._on_timeline_cue_selected)
+        self.timeline.drag_started.connect(self._on_drag_started)
+        self.timeline.cue_dragged.connect(self._on_cue_dragged)
+        self.timeline.drag_finished.connect(self._on_drag_finished)
+        self.timeline.split_requested.connect(self._on_split_requested)
+        self.table.selection_changed.connect(self._on_table_selection)
+        self.table.cell_committed.connect(self._on_cell_committed)
+
+    # ---------------------------------------------------------
+    # 快捷键（WidgetWithChildren：焦点在本页时才生效，不抢别的页面）
+    # ---------------------------------------------------------
+    def _install_shortcuts(self):
+        def add(seq, slot):
+            sc = QShortcut(QKeySequence(seq), self)
+            sc.setContext(Qt.WidgetWithChildrenShortcut)
+            sc.activated.connect(slot)
+            self._shortcuts.append(sc)
+
+        add("Space", self.toggle_play)
+        # 逐帧：Aegisub 的 , / . 是行业习惯；←/→ 同时可用（表格内编辑时让路）
+        add(",", lambda: self.step_frames(-1))
+        add(".", lambda: self.step_frames(1))
+        add("Left", lambda: self.step_frames(-1))
+        add("Right", lambda: self.step_frames(1))
+        add("Shift+Left", lambda: self.nudge(-100))
+        add("Shift+Right", lambda: self.nudge(100))
+        add("Alt+Left", lambda: self.nudge(-1000))
+        add("Alt+Right", lambda: self.nudge(1000))
+        add("Up", lambda: self.goto_cue(-1))
+        add("Down", lambda: self.goto_cue(1))
+        add("[", self.set_start_here)
+        add("]", self.set_end_here)
+        add("Ctrl+K", self.split_at_playhead)
+        add("Del", self.delete_selected)
+        add("Ctrl+Z", self.undo_edit)
+        add("Ctrl+Y", self.redo_edit)
+        add("Ctrl+Shift+Z", self.redo_edit)
+        add("Ctrl+S", self.save)
+        add("Ctrl+Shift+S", self.save_as)
+        add("Ctrl+O", self.open_video)
+        add("Ctrl+Shift+O", self.open_subtitle)
+        add("Ctrl+=", lambda: self.timeline.zoom(1.25))
+        add("Ctrl+-", lambda: self.timeline.zoom(1 / 1.25))
+        add("Ctrl+0", self.timeline.fit_all)
+        add("Ctrl+Shift+F", self.fit_selected)
+
+    def _table_editing(self):
+        """表格正在改单元格时，方向键要还给文本编辑框。"""
+        try:
+            if self.table.state() == QAbstractItemView.EditingState:
+                return True
+            w = QApplication.focusWidget()
+            return w is not None and w.metaObject().className() in (
+                "QLineEdit", "QTextEdit", "QPlainTextEdit")
+        except Exception:
+            return False
+
+    def _forgive_key(self, seq):
+        """把被快捷键吃掉的按键原样转发给当前焦点控件（表格内编辑用）。"""
+        try:
+            fw = QApplication.focusWidget()
+            if fw is None:
+                return
+            key = QKeySequence(seq)[0]
+            ev = QKeyEvent(QEvent.KeyPress, key, Qt.NoModifier)
+            QApplication.sendEvent(fw, ev)
+        except Exception:
+            pass
+
+    # ---------------------------------------------------------
+    # 生命周期
+    # ---------------------------------------------------------
+    def showEvent(self, ev):
+        super().showEvent(ev)
+        QTimer.singleShot(0, lambda: self.timeline.setFocus())
+
+    def hideEvent(self, ev):
+        # 页面切走后立刻暂停：mpv 在后台解码只是白烧 CPU
+        try:
+            if self.player.is_playing():
+                self.player.pause()
+        except Exception:
+            pass
+        super().hideEvent(ev)
+
+    def shutdown(self):
+        """退出前释放 libmpv（不调会在退出后留下 _MEI*** 删不掉的毛病）。"""
+        self._wave_stop.set()
+        try:
+            self.player.terminate()
+        except Exception:
+            pass
+
+    # ---------------------------------------------------------
+    # 依赖与提示
+    # ---------------------------------------------------------
+    def _info(self, kind, title, text, duration=4000):
+        try:
+            fn = {"ok": InfoBar.success, "warn": InfoBar.warning,
+                  "err": InfoBar.error}.get(kind, InfoBar.info)
+            fn(title, text, duration=duration, position=InfoBarPosition.TOP,
+               parent=self.window() or self)
+        except Exception:
+            pass
+
+    def _media_tools(self):
+        """返回 (ffmpeg, ffprobe)；够不到就抛 RuntimeError 由调用方提示。"""
+        if self.ffmpeg and self.ffprobe:
+            return self.ffmpeg, self.ffprobe
+        try:
+            ff, fp = engine.ensure_ffmpeg()
+        except SystemExit:
+            raise RuntimeError("ffmpeg 不可用（自动下载失败）")
+        if not (ff and fp and os.path.isfile(ff) and os.path.isfile(fp)):
+            raise RuntimeError("找不到 ffmpeg / ffprobe")
+        self.ffmpeg, self.ffprobe = ff, fp
+        if self.wave_cache is None:
+            self.wave_cache = WaveformCache(engine.DATA_DIR, ff, fp)
+        return ff, fp
+
+    def _ensure_player(self):
+        """播放器按需创建：窗口真正显示后 winId() 才有效，因此不能提前建。
+
+        构造页面时主窗口还没 show()，此时拿句柄会绑到一个随后被销毁的原生
+        窗口上，表现为「有声音没画面」。
+        """
+        if self.player.available:
+            return True
+        if not self.player.attach(self.video_host):
+            err = self.player.error or "未知原因"
+            self._info("err", "播放器不可用", err[:300], 8000)
+            return False
+        return True
+
+    def _mpv_missing_hint(self):
+        dll = os.path.join(self.mpv_dir, "libmpv-2.dll")
+        return ("未找到播放组件：\n%s\n\n"
+                "请在程序目录执行（首次约 40MB）：\n"
+                "    python tools\\download_open_source_deps.py --only mpv\n\n"
+                "或到发布页手动下载 libmpv-2.zip 解压到 tools\\mpv\\。\n"
+                "该组件为 LGPL 构建，不随安装包分发。" % dll)
+
+    # ---------------------------------------------------------
+    # 打开文件
+    # ---------------------------------------------------------
+    def _confirm_discard(self):
+        if not self.dirty:
+            return True
+        box = MessageBox("字幕尚未保存",
+                         "当前改动还没写回文件，确定要放弃吗？", self.window() or self)
+        box.yesButton.setText("放弃改动")
+        box.cancelButton.setText("取消")
+        return bool(box.exec())
+
+    def open_video(self):
+        if not self._confirm_discard():
+            return
+        start = engine.get_saved_download_dir()
+        start = start if os.path.isdir(start) else ""
+        path, _ = QFileDialog.getOpenFileName(
+            self, "打开视频", start, MEDIA_FILE_FILTER)
+        if not path:
+            return
+        self.load_media(path)
+
+    def load_media(self, path):
+        """直接按路径载入媒体（拖进窗口 / 命令行入口），不再弹文件对话框。
+
+        v1.13.0：与 open_video 共用同一套载入逻辑；libmpv 本身支持
+        av1 / h264 / h265 / x264 等全格式，这里不再限制扩展名。
+        """
+        if not self._confirm_discard():
+            return False
+        if not self._ensure_player():
+            return False
+        self.video_path = path
+        self.player.load(path, autoplay=False)
+        self.video_hint.hide()
+        self._refresh_status()
+        self._start_waveform(path)
+        return True
+
+    def open_subtitle(self):
+        if not self._confirm_discard():
+            return
+        start = os.path.dirname(self.video_path) if self.video_path else ""
+        if not start:
+            start = engine.get_saved_download_dir()
+            start = start if os.path.isdir(start) else ""
+        path, _ = QFileDialog.getOpenFileName(
+            self, "打开字幕", start, "字幕文件 (*.srt);;文本文件 (*.txt);;所有文件 (*.*)")
+        if path:
+            self.load_subtitle(path)
+
+    def load_subtitle(self, path):
+        """直接按路径载入字幕（拖进窗口 / 命令行入口）。"""
+        if not self._confirm_discard():
+            return False
+        self._load_subtitle(path)
+        return True
+
+    def _load_subtitle(self, path):
+        if not path:
+            return
+        try:
+            with open(path, "rb") as fh:
+                n, skipped = self.doc.load_bytes(fh.read(), path)
+        except OSError as e:
+            self._info("err", "读取失败", str(e)[:200])
+            return
+        self.sub_path = path
+        self.undo.clear()
+        self.dirty = False
+        self.timeline.set_cues(self.doc.cues)
+        self.table.load(self.doc.cues)
+        self.timeline.set_selected(-1)
+        self._sync_duration()
+        self._refresh_status()
+        msg = "已载入 %d 条（编码 %s，换行 %s）" % (
+            n, self.doc.src_encoding,
+            "CRLF" if self.doc.newline == "\r\n" else "LF")
+        if skipped:
+            msg += "；跳过 %d 行无法识别的内容" % skipped
+        self._info("ok", "字幕已载入", msg)
+
+    def new_subtitle(self):
+        if not self._confirm_discard():
+            return
+        self.doc = secore.SubtitleDoc()
+        self.sub_path = ""
+        self.undo.clear()
+        self.dirty = False
+        self.timeline.set_cues(self.doc.cues)
+        self.table.load(self.doc.cues)
+        self._refresh_status()
+
+    def _sync_duration(self):
+        """时间轴总长取「视频时长 / 字幕末尾」两者较大值。"""
+        dur_ms = self.player.duration_ms
+        if self.doc.cues:
+            dur_ms = max(dur_ms, max(c.end for c in self.doc.cues) + 1000)
+        if dur_ms:
+            self.timeline.set_media(self.timeline.peaks, dur_ms,
+                                    self.timeline.peaks_pps)
+
+    # ---------------------------------------------------------
+    # 保存
+    # ---------------------------------------------------------
+    def save(self):
+        if not self.doc.cues:
+            self._info("warn", "没有内容", "当前没有可保存的字幕")
+            return
+        if not self.doc.path:
+            self.save_as()
+            return
+        self._write(self.doc.path)
+
+    def save_as(self):
+        if not self.doc.cues:
+            self._info("warn", "没有内容", "当前没有可保存的字幕")
+            return
+        start = self.doc.path or (os.path.splitext(self.video_path)[0] + ".srt"
+                                 if self.video_path else "")
+        path, _ = QFileDialog.getSaveFileName(
+            self, "另存为", start, "SRT 字幕 (*.srt);;所有文件 (*.*)")
+        if not path:
+            return
+        self._write(path)
+
+    def _write(self, path):
+        # 首次覆盖别人给的文件时留一份 .bak —— 打轴是高风险编辑，
+        # 「保存后才发现切错」很常见，有备份就能回退。
+        try:
+            if os.path.isfile(path) and not os.path.isfile(path + ".bak"):
+                with open(path, "rb") as src, open(path + ".bak", "wb") as dst:
+                    dst.write(src.read())
+        except OSError:
+            pass
+        try:
+            self.doc.save_file(path)
+        except OSError as e:
+            self._info("err", "保存失败", str(e)[:250])
+            return
+        self.sub_path = path
+        self.dirty = False
+        self._info("ok", "已保存", path)
+        self._refresh_status()
+
+    # ---------------------------------------------------------
+    # 波形
+    # ---------------------------------------------------------
+    def _start_waveform(self, path):
+        if self._wave_busy:
+            self._wave_stop.set()
+        try:
+            self._media_tools()
+        except RuntimeError as e:
+            self._info("err", "无法生成波形", str(e), 6000)
+            return
+        self._wave_busy = True
+        self._wave_stop = threading.Event()
+        self.wave_bar.setValue(0)
+        self.wave_bar.show()
+        self.status.setText("正在解析音频波形…")
+
+        def work():
+            try:
+                peaks, dur = self.wave_cache.get_or_build(
+                    path,
+                    on_progress=lambda p: self._wave_progress.emit(int(p)),
+                    should_stop=self._wave_stop.is_set)
+                if self._wave_stop.is_set():
+                    return
+                self._wave_ready.emit(peaks, dur)
+            except Exception as e:  # noqa: BLE001
+                self._wave_failed.emit("%s: %s" % (type(e).__name__, e))
+
+        threading.Thread(target=work, name="vt-waveform", daemon=True).start()
+
+    def _on_wave_progress(self, pct):
+        try:
+            self.wave_bar.setValue(max(0, min(100, int(pct))))
+        except Exception:
+            pass
+
+    def _on_wave_ready(self, peaks, dur_sec):
+        self._wave_busy = False
+        self.wave_bar.hide()
+        dur_ms = self.player.duration_ms or int(round(float(dur_sec or 0) * 1000))
+        if self.doc.cues:
+            dur_ms = max(dur_ms, max(c.end for c in self.doc.cues) + 1000)
+        self.timeline.set_media(peaks, dur_ms, self.timeline.peaks_pps)
+        self.timeline.set_cues(self.doc.cues)
+        self.timeline.fit_all()
+        self._refresh_status(
+            "波形就绪（%d 个采样点）" % len(peaks) if peaks else "该媒体没有音频轨")
+
+    def _on_wave_failed(self, msg):
+        self._wave_busy = False
+        self.wave_bar.hide()
+        self._refresh_status("波形生成失败：" + msg[:120])
+
+    # ---------------------------------------------------------
+    # 播放
+    # ---------------------------------------------------------
+    def toggle_play(self):
+        if not self._ensure_player():
+            return
+        if not self.player.duration_ms and not self.video_path:
+            self.open_video()
+            return
+        self.player.toggle_play()
+
+    def step_frames(self, n):
+        if self._table_editing():
+            self._forgive_key("Left" if n < 0 else "Right")
+            return
+        if not self._ensure_player():
+            return
+        self.player.step_frame(n)
+
+    def nudge(self, delta_ms):
+        if not self._ensure_player():
+            return
+        self.player.nudge_ms(delta_ms)
+
+    def seek_ms(self, ms):
+        if not self._ensure_player():
+            return
+        self.player.seek_ms(ms)
+
+    def goto_cue(self, step):
+        """上/下一条：选中并把播放头拉过去。"""
+        if not self.doc.cues:
+            return
+        idx = self.timeline.selected
+        if idx < 0:
+            idx = self.doc.nearest_index(self.player.position_ms)
+        else:
+            idx = max(0, min(len(self.doc.cues) - 1, idx + step))
+        self._select_cue(idx, seek=True)
+
+    def _select_cue(self, idx, seek=False):
+        if not (0 <= idx < len(self.doc.cues)):
+            return
+        self.timeline.set_selected(idx)
+        self.table.select_row(idx)
+        if seek:
+            self.seek_ms(self.doc.cues[idx].start)
+
+    def _on_speed(self, text):
+        try:
+            self.player.set_speed(float(text))
+        except (TypeError, ValueError):
+            pass
+
+    def _on_position(self, ms):
+        self.timeline.set_position(ms, follow=True)
+        self._update_clock(ms)
+
+    def _on_duration(self, ms):
+        self._sync_duration()
+        self._update_clock(self.player.position_ms)
+
+    def _on_playing(self, playing):
+        self.btn_play.setText("暂停" if playing else "播放")
+        try:
+            self.btn_play.setIcon(FIF.PAUSE if playing else FIF.PLAY)
+        except Exception:
+            pass
+
+    def _update_clock(self, ms):
+        total = self.player.duration_ms or self.timeline.duration_ms
+        self.lbl_time.setText("%s / %s" % (secore.ms_to_clock(ms),
+                                           secore.ms_to_clock(total)))
+
+    # ---------------------------------------------------------
+    # 撤销 / 重做
+    # ---------------------------------------------------------
+    def _push_undo(self, label, snapshot=None):
+        self.undo.push(self.doc.cues, label, snapshot=snapshot)
+        self.dirty = True
+
+    def undo_edit(self):
+        snap, label = self.undo.undo(self.doc.cues)
+        if snap is None:
+            self._refresh_status("没有可撤销的操作")
+            return
+        self.doc.restore(snap)
+        self.dirty = True
+        self._after_bulk_change()
+        self._refresh_status("已撤销：" + (label or "操作"))
+
+    def redo_edit(self):
+        snap, label = self.undo.redo(self.doc.cues)
+        if snap is None:
+            self._refresh_status("没有可重做的操作")
+            return
+        self.doc.restore(snap)
+        self.dirty = True
+        self._after_bulk_change()
+        self._refresh_status("已重做：" + (label or "操作"))
+
+    def _after_bulk_change(self, keep_sel=None):
+        """条数/顺序可能都变了，表格与时间轴整体重建。"""
+        self.timeline.set_cues(self.doc.cues)
+        self.table.load(self.doc.cues)
+        if keep_sel is not None and 0 <= keep_sel < len(self.doc.cues):
+            self._select_cue(keep_sel)
+        else:
+            self.timeline.set_selected(-1)
+        self._sync_duration()
+        self._refresh_status()
+
+    # ---------------------------------------------------------
+    # 选中
+    # ---------------------------------------------------------
+    def _on_timeline_cue_selected(self, idx):
+        if not (0 <= idx < len(self.doc.cues)):
+            return
+        self.table.select_row(idx)
+        # 播放头不在该条内时跟过去——打轴时这一步能省掉大量拖动
+        c = self.doc.cues[idx]
+        pos = self.player.position_ms
+        if not (c.start <= pos < c.end):
+            self.seek_ms(c.start)
+
+    def _on_table_selection(self, idx):
+        self.timeline.set_selected(idx)
+
+    def _on_drag_started(self):
+        # 拖拽是「边改边看」，快照必须此刻先存下来，等真正动了再压栈
+        self._pre_drag = self.doc.snapshot()
+        self._drag_pushed = False
+
+    def _on_cue_dragged(self, idx, mode, value):
+        if not self._drag_pushed and self._pre_drag is not None:
+            self._push_undo("拖动时间", snapshot=self._pre_drag)
+            self._drag_pushed = True
+        if 0 <= idx < len(self.doc.cues):
+            self.table.refresh_row(idx, self.doc.cues[idx])
+            self._refresh_status()
+
+    def _on_drag_finished(self):
+        self._pre_drag = None
+        self._drag_pushed = False
+        self._sync_duration()
+
+    def _on_split_requested(self, ms):
+        self.split_at(ms)
+
+    def _on_cell_committed(self, row, col, text):
+        if not (0 <= row < len(self.doc.cues)):
+            return
+        c = self.doc.cues[row]
+        if col == 1:
+            ms = secore.clock_to_ms(text)
+            if ms is None:
+                self.table.refresh_row(row, c)
+                return
+            self._push_undo("改起点")
+            secore.set_boundary(self.doc.cues, row, "start", ms)
+        elif col == 2:
+            ms = secore.clock_to_ms(text)
+            if ms is None:
+                self.table.refresh_row(row, c)
+                return
+            self._push_undo("改终点")
+            secore.set_boundary(self.doc.cues, row, "end", ms)
+        elif col == 4:
+            new_text = text.replace(self.NL_SEP, "\n")
+            if new_text == c.text:
+                return
+            self._push_undo("改文本")
+            c.text = new_text
+        else:
+            return
+        self.table.refresh_row(row, c)
+        self.timeline.update()
+        self._sync_duration()
+        self._refresh_status()
+
+    # ---------------------------------------------------------
+    # 编辑操作
+    # ---------------------------------------------------------
+    def _target_index(self):
+        """当前要作用的那一条：优先表格多选里的第一条，其次时间轴选中。"""
+        rows = self.table.selected_rows()
+        if rows:
+            return rows[0]
+        return self.timeline.selected
+
+    def _selected_indices(self):
+        rows = self.table.selected_rows()
+        if rows:
+            return rows
+        idx = self.timeline.selected
+        return [idx] if idx >= 0 else []
+
+    def split_at_playhead(self):
+        pos = self.player.position_ms
+        if not self.video_path:
+            pos = self.timeline.position_ms
+        self.split_at(pos)
+
+    def split_at(self, ms):
+        idx = self.doc.index_at(ms)
+        if idx < 0:
+            idx = self._target_index()
+        if idx < 0:
+            self._refresh_status("没有可切分的条目")
+            return
+        self._push_undo("切分")
+        if not secore.split_cue(self.doc.cues, idx, ms):
+            self.undo.undo(self.doc.cues)      # 落不下去就把刚才的快照撤回来
+            self._refresh_status("切分位置太靠近边界（每条至少保留 %.0fms）"
+                                 % secore.MIN_DURATION_MS)
+            return
+        self._after_bulk_change(keep_sel=idx + 1)
+
+    def merge_selected(self):
+        rows = self.table.selected_rows()
+        if len(rows) < 2:
+            self._refresh_status("合并需要选中至少两条")
+            return
+        self._push_undo("合并")
+        new_idx = secore.merge_cues(self.doc.cues, rows)
+        self._after_bulk_change(keep_sel=new_idx)
+
+    def delete_selected(self):
+        rows = self._selected_indices()
+        if not rows:
+            self._refresh_status("没有选中的条目")
+            return
+        self._push_undo("删除")
+        secore.delete_cues(self.doc.cues, rows)
+        self._after_bulk_change(keep_sel=min(rows))
+
+    def insert_at_playhead(self):
+        pos = self.player.position_ms if self.video_path else self.timeline.position_ms
+        self._push_undo("插入")
+        idx = secore.insert_cue(self.doc.cues, pos, 1500, "")
+        self._after_bulk_change(keep_sel=idx)
+        self.table.editItem(self.table.item(idx, 4))
+
+    def set_start_here(self):
+        self._set_boundary_here("start")
+
+    def set_end_here(self):
+        self._set_boundary_here("end")
+
+    def _set_boundary_here(self, which):
+        idx = self._target_index()
+        if idx < 0:
+            self._refresh_status("先选中一条字幕")
+            return
+        pos = self.player.position_ms if self.video_path else self.timeline.position_ms
+        self._push_undo("取起点" if which == "start" else "取终点")
+        ok = secore.set_boundary(self.doc.cues, idx, which, pos)
+        if not ok:
+            self.undo.undo(self.doc.cues)
+            self._refresh_status("该时间点无法作为边界（会把条目压得过短）")
+            return
+        self.table.refresh_row(idx, self.doc.cues[idx])
+        self.timeline.update()
+        self._refresh_status()
+
+    def shift_selected(self, delta_ms):
+        rows = self._selected_indices()
+        if not rows:
+            self._refresh_status("先选中要平移的条目")
+            return
+        self._push_undo("平移选中的条目")
+        moved = secore.shift_cues(self.doc.cues, rows, delta_ms)
+        self._after_bulk_change(keep_sel=min(rows))
+        self._refresh_status("已平移 %+dms" % moved)
+
+    def shift_all(self, delta_ms):
+        if not self.doc.cues:
+            return
+        self._push_undo("整轨平移")
+        moved = secore.shift_all(self.doc.cues, delta_ms)
+        self._after_bulk_change()
+        self._refresh_status("整轨平移 %+dms" % moved)
+
+    def fix_overlaps(self):
+        self._push_undo("消除重叠")
+        n = secore.fix_overlaps(self.doc.cues)
+        if not n:
+            self.undo.undo(self.doc.cues)
+            self._refresh_status("没有相邻重叠")
+            return
+        self._after_bulk_change()
+        self._refresh_status("已修正 %d 处重叠" % n)
+
+    def clamp_zero(self):
+        self._push_undo("修正零长条目")
+        n = secore.clamp_zero_length(self.doc.cues)
+        if not n:
+            self.undo.undo(self.doc.cues)
+            self._refresh_status("没有零长/倒挂的条目")
+            return
+        self._after_bulk_change()
+        self._refresh_status("已修正 %d 条" % n)
+
+    def renumber(self):
+        self._push_undo("重新排序")
+        secore.renumber(self.doc.cues)
+        self._after_bulk_change()
+
+    def fit_selected(self):
+        """把视图缩放到选中条目所在区间（找不到选中就整轨）。"""
+        rows = self._selected_indices()
+        tw = max(200, self.timeline.width())
+        if rows:
+            c0 = self.doc.cues[rows[0]]
+            c1 = self.doc.cues[rows[-1]]
+            span = max(1000, c1.end - c0.start)
+            self.timeline.pixels_per_second = max(
+                4.0, min(4000.0, tw * 1000.0 / span * 0.9))
+            self.timeline.view_start_ms = max(0, int(c0.start - span * 0.05))
+            self.timeline.update()
+        else:
+            self.timeline.fit_all()
+
+    # ---------------------------------------------------------
+    # 状态栏
+    # ---------------------------------------------------------
+    def _refresh_status(self, extra=""):
+        st = secore.stats(self.doc.cues)
+        parts = []
+        parts.append("视频：" + (os.path.basename(self.video_path) if self.video_path
+                                else "未打开"))
+        parts.append("字幕：" + (os.path.basename(self.sub_path) if self.sub_path
+                                else "未保存"))
+        parts.append("%d 条 / %d 字" % (st["count"], st["chars"]))
+        if st["overlaps"]:
+            parts.append("重叠 %d" % st["overlaps"])
+        if st["zero"]:
+            parts.append("过短 %d" % st["zero"])
+        parts.append("编码 %s/%s" % (self.doc.src_encoding,
+                                    "CRLF" if self.doc.newline == "\r\n" else "LF"))
+        parts.append("缩放 %.0fpx/s" % self.timeline.pixels_per_second)
+        if self.dirty:
+            parts.append("● 未保存")
+        if extra:
+            parts.append(extra)
+        try:
+            self.status.setText("　|　".join(parts))
+        except Exception:
+            pass
+
+
 # ========== 主窗口 ==========
+# v1.13.0：页面合并后共 5 个导航页（音画合并并入视频下载、字幕校准并入字幕处理）。
+# 内嵌子板块仍有自己的 objectName（MergePage / CalibPage），保留映射便于标题定位。
 PAGE_TITLES = {"DownloadPage": "视频下载", "LibraryPage": "视频库",
-               "MergePage": "音视频合并", "SubtitlePage": "字幕处理",
-               "CalibPage": "字幕校准", "SettingsPage": "设置"}
+               "SubtitlePage": "字幕处理", "SubtitleEditPage": "字幕编辑",
+               "SettingsPage": "设置",
+               "MergePage": "音画合并", "CalibPage": "字幕校准"}
 
 
 class MainWindow(FluentWindow):
@@ -2888,10 +4006,15 @@ class MainWindow(FluentWindow):
       · 设置页统一挂在导航底部，字幕引擎设置并入其中；
       · 跨屏拖拽保持相对位置，不再因两屏缩放比不同而瞬移；
       · 字幕引擎界面后台预热，消除首次进入本页的数秒卡顿。
+    v1.13.0 起：
+      · 页面合并为 5 个导航页：「音画合并」并入「视频下载」、「字幕校准」
+        并入「字幕处理」，均以页内分段（SegmentedWidget）切换；
+      · 支持把文件（视频/音频/字幕/文档/链接）直接拖进程序窗口自动分派；
+      · 屏幕 DPI/缩放变化时强制全部页面重新布局，避免拖窗/换屏后扭曲。
     """
 
     #: 导航项文案（宽度按其中最长的一项计算）
-    NAV_TEXTS = ["视频下载", "视频库", "音视频合并", "字幕处理", "字幕校准", "设置"]
+    NAV_TEXTS = ["视频下载", "视频库", "字幕处理", "字幕编辑", "设置"]
 
     def __init__(self, argv=None):
         # 跨屏拖拽状态必须在 super().__init__() 之前建立：窗口构造过程中
@@ -2904,6 +4027,8 @@ class MainWindow(FluentWindow):
         self.setWindowTitle(f"视频工具箱 v{VERSION}")
         self.resize(1180, 860)
         self.setMinimumSize(960, 640)
+        # 接受把文件/链接拖进窗口（v1.13.0）
+        self.setAcceptDrops(True)
 
         try:
             self.setMicaEffectEnabled(True)
@@ -2912,20 +4037,21 @@ class MainWindow(FluentWindow):
 
         self.download_page = DownloadPage(self, self)
         self.library_page = LibraryPage(self, self)
-        self.merge_page = MergePage(self, self)
         self.subtitle_page = SubtitlePage(self, self)
-        self.calib_page = CalibPage(self, self)
+        self.subtitle_edit_page = SubtitleEditPage(self, self)
         self.settings_page = SettingsPage(self, self)
-        for page in (self.download_page, self.library_page, self.merge_page,
-                     self.subtitle_page, self.calib_page, self.settings_page):
+        # 被合并的子板块：仍挂到宿主页的堆叠里，保留快捷引用便于消息路由/自检
+        self.merge_page = self.download_page.merge_page
+        self.calib_page = self.subtitle_page.calib_page
+        for page in (self.download_page, self.library_page, self.subtitle_page,
+                     self.subtitle_edit_page, self.settings_page):
             page.installEventFilter(self)
 
         self.addSubInterface(self.download_page, FIF.DOWNLOAD, "视频下载")
         self.addSubInterface(self.library_page, FIF.VIDEO, "视频库")
-        self.addSubInterface(self.merge_page, FIF.MEDIA, "音视频合并")
         self.navigationInterface.addSeparator()
         self.addSubInterface(self.subtitle_page, FIF.FONT, "字幕处理")
-        self.addSubInterface(self.calib_page, FIF.EDIT, "字幕校准")
+        self.addSubInterface(self.subtitle_edit_page, FIF.CUT, "字幕编辑")
         self.addSubInterface(self.settings_page, FIF.SETTING, "设置",
                              position=NavigationItemPosition.BOTTOM)
 
@@ -2956,9 +4082,46 @@ class MainWindow(FluentWindow):
             pass
 
     def _on_screen_changed(self):
-        """屏幕变化（换主屏 / 改缩放比）时重算导航宽度并收敛窗口。"""
+        """屏幕变化（换主屏 / 改缩放比）时重算导航宽度、强制重新布局并收敛窗口。
+
+        v1.13.0：跨屏拖到不同 PPI 的显示器后，Qt 会按新缩放比重算逻辑坐标，
+        但个别固定尺寸控件/滚动区的旧几何可能残留，表现为页面扭曲。这里
+        统一对所有页面做一次几何刷新（updateGeometry）+ 下一帧重排。
+        """
         self._apply_nav_width()
         self._remember_screen()
+        self._relayout_pages()
+
+    def _relayout_pages(self):
+        """PPI/缩放/导航宽度变化后强制全部页面重排，消除旧几何残留导致的扭曲。
+
+        每个页面：先 updateGeometry 让布局管理器重新计算尺寸提示，再在下一帧
+        由 Qt 完成实际重排；滚动区把内容高度重新贴合视口。整体包 try，任何
+        一个页面出问题都不影响其余页面。
+        """
+        for page in (self.download_page, self.library_page, self.subtitle_page,
+                     self.subtitle_edit_page, self.settings_page):
+            try:
+                page.updateGeometry()
+                for sub in (getattr(page, "dl_tab", None),
+                            getattr(page, "work_tab", None)):
+                    if sub is not None:
+                        sub.updateGeometry()
+                for area in page.findChildren(QWidget):
+                    if getattr(area, "widgetResizable", False):
+                        try:
+                            area.widget().updateGeometry()
+                        except Exception:
+                            pass
+            except Exception:
+                pass
+        try:
+            self.stackedWidget.adjustSize()
+            cur = self.stackedWidget.currentWidget()
+            if cur is not None:
+                cur.updateGeometry()
+        except Exception:
+            pass
 
     # ---------- 导航宽度 ----------
     def refresh_nav_width(self):
@@ -3016,10 +4179,10 @@ class MainWindow(FluentWindow):
         if scr is not self._last_screen:
             self._last_screen = scr
             self._last_screen_geo = scr.geometry()
-            # 监听该屏幕的 DPI 变化（用户改缩放比时需重算导航宽度）
+            # 监听该屏幕的 DPI 变化（用户改缩放比时需重算导航宽度并重排页面）
             try:
                 scr.logicalDotsPerInchChanged.connect(
-                    lambda *_: self._apply_nav_width())
+                    lambda *_: self._on_screen_changed())
             except Exception:
                 pass
 
@@ -3077,10 +4240,19 @@ class MainWindow(FluentWindow):
             f"视频工具箱 v{VERSION} — {PAGE_TITLES.get(page.objectName(), '')}")
 
     def page_by_key(self, key):
+        """按键取页面：download/library/subtitle/edit/settings 为导航页；
+        merge/calib 定位到宿主页并切到对应子板块（供截图/外部跳转）。"""
+        if key == "merge":
+            self.download_page.seg.setCurrentItem("merge")
+            self.download_page.stack.setCurrentIndex(1)
+            return self.download_page
+        if key == "calib":
+            self.switchTo(self.subtitle_page)
+            self.subtitle_page.switch_to_calib()
+            return self.subtitle_page
         return {"download": self.download_page, "library": self.library_page,
-                "merge": self.merge_page, "subtitle": self.subtitle_page,
-                "calib": self.calib_page, "settings": self.settings_page
-                }.get(key)
+                "subtitle": self.subtitle_page, "edit": self.subtitle_edit_page,
+                "settings": self.settings_page}.get(key)
 
     def open_engine_settings(self):
         """跳到统一设置页的「字幕引擎」分组（供其他页面调用）。"""
@@ -3088,16 +4260,100 @@ class MainWindow(FluentWindow):
         self.settings_page.scroll_to_engine()
 
     def _apply_argv(self, argv):
-        """命令行/拖入 .url、含链接的 txt：提取链接填到下载页。"""
-        if not argv:
+        """命令行/拖入到程序图标的文件：提取链接填到下载页，或直接分派。
+
+        v1.13.0：不再只认「含链接的文件」——视频/音频/字幕/目录也按类型
+        分派（与拖进窗口同一套逻辑 `_handle_dropped_files`）。
+        """
+        args = [engine.clean_path(a) for a in (argv or [])]
+        args = [a for a in args if a]
+        if not args:
             return
-        arg = engine.clean_path(argv[0])
-        if not arg:
-            return
-        if os.path.isfile(arg):
-            url = engine.extract_url(arg)
+        self._handle_dropped_files(args)
+
+    # ---------- 文件拖入（v1.13.0） ----------
+    def dragEnterEvent(self, e):
+        if e.mimeData().hasUrls():
+            e.acceptProposedAction()
+        else:
+            super().dragEnterEvent(e)
+
+    def dragMoveEvent(self, e):
+        if e.mimeData().hasUrls():
+            e.acceptProposedAction()
+        else:
+            super().dragMoveEvent(e)
+
+    def dropEvent(self, e):
+        urls = e.mimeData().urls() if e.mimeData().hasUrls() else []
+        paths = [u.toLocalFile() for u in urls if u.isLocalFile()]
+        paths = [p for p in paths if p]
+        if paths:
+            self._handle_dropped_files(paths)
+        e.acceptProposedAction()
+
+    def _handle_dropped_files(self, paths):
+        """把拖进窗口的文件按类型分派到对应页面（视频/音频/字幕/文档/目录）。
+
+        优先级：目录 → 设为视频库目录；字幕/视频/音频 → 字幕编辑页载入；
+        .url 或含链接的文本 → 下载页填链接；其余文档 → 用默认程序打开。
+        一次拖入多个时取同类型第一个，逐类处理并给出汇总提示。
+        """
+        dirs, videos, audios, subs, docs = [], [], [], [], []
+        for p in paths:
+            if os.path.isdir(p):
+                dirs.append(p)
+                continue
+            ext = os.path.splitext(p)[1].lower()
+            if ext in SUBTITLE_EXTS:
+                subs.append(p)
+            elif ext in VIDEO_EXTS:
+                videos.append(p)
+            elif ext in AUDIO_EXTS:
+                audios.append(p)
+            else:
+                docs.append(p)
+
+        msgs = []
+        # 1) 目录 → 视频库
+        if dirs:
+            d = dirs[0]
+            self.library_page.dir_edit.setText(d)
+            self.library_page.refresh()
+            self.switchTo(self.library_page)
+            msgs.append(f"已把「{os.path.basename(d)}」设为视频库目录")
+        # 2) 字幕/视频/音频 → 字幕编辑
+        if subs or videos or audios:
+            ed = self.subtitle_edit_page
+            self.switchTo(ed)
+            media = videos + audios
+            if media:
+                ed.load_media(media[0])
+            if subs:
+                ed.load_subtitle(subs[0])
+            msgs.append("已载入到字幕编辑：" +
+                        (os.path.basename(media[0]) if media else "") +
+                        (" + " + os.path.basename(subs[0]) if subs else ""))
+        # 3) 链接/文档
+        for d in docs:
+            url = None
+            try:
+                url = engine.extract_url(d)
+            except Exception:
+                url = None
             if url:
                 self.download_page.url_edit.setText(url)
+                self.switchTo(self.download_page)
+                msgs.append(f"已从「{os.path.basename(d)}」提取链接")
+            else:
+                engine.open_folder(d)
+                msgs.append(f"已用默认程序打开「{os.path.basename(d)}」")
+        if msgs:
+            try:
+                InfoBar.success("已接收文件", "；".join(msgs[:3]), duration=5000,
+                                position=InfoBarPosition.BOTTOM_RIGHT, parent=self)
+            except Exception:
+                pass
 
     # ---------- 消息泵 ----------
     def _pump(self):
@@ -3266,6 +4522,8 @@ def main():
     # 用 aboutToQuit 而非 closeEvent：覆盖菜单退出/自检退出等所有路径；
     # 内部再派生独立子进程，主进程退出后子进程仍能跑完。
     app.aboutToQuit.connect(engine.sync_calib_on_exit)
+    # 释放 libmpv：不释放的话进程退出后 onefile 的 _MEI*** 临时目录删不掉
+    app.aboutToQuit.connect(window.subtitle_edit_page.shutdown)
 
     window.show()
     window.raise_()
