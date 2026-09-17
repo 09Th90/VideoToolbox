@@ -1,9 +1,9 @@
-; @version 1.13.0
+; @version 1.14.0
 ; ============================================================================
-; 视频工具箱 v1.13.0 —— Inno Setup 安装包脚本
+; 视频工具箱 v1.14.0 —— Inno Setup 安装包脚本
 ; 构建前提：已用 tools\python 执行 pyinstaller 视频工具箱.spec，
 ;           产物位于 dist\视频工具箱.exe
-; 编译：ISCC.exe 视频工具箱.iss  →  installer\视频工具箱_Setup_v1.13.0.exe
+; 编译：ISCC.exe 视频工具箱.iss  →  installer\视频工具箱_Setup_v1.14.0.exe
 ; v1.12.1：修复打包版「点退出后程序反复重启」（严重）——退出时的校准知识同步
 ;         原以 [sys.executable, "-c", ...] 派生子进程；冻结成单文件 exe 后
 ;         sys.executable 就是主程序自身，于是每次退出都拉起一个新 GUI 实例，
@@ -59,7 +59,7 @@
 ; ============================================================================ 
 
 #define MyAppName "视频工具箱"
-#define MyAppVersion "1.13.0"
+#define MyAppVersion "1.14.0"
 #define MyAppPublisher "VideoToolbox"
 #define MyAppExeName "视频工具箱.exe"
 

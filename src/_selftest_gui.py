@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# @version 1.13.0
+# @version 1.14.0
 """界面自检（v1.10.4 Fluent 界面）：验证窗口与各页面可构建、导航宽度自适应、
 设置页统一入口、字幕处理环境就绪。
 
@@ -12,6 +12,8 @@ import sys
 import tempfile
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+# 不启动真实流水线：自检不联网、也不该去扫真实下载目录（v1.14.0）
+os.environ["VT_NO_PIPELINE"] = "1"
 import video_toolbox as engine
 
 os.environ.setdefault(
@@ -559,15 +561,16 @@ def main():
     from PyQt5.QtGui import QFontMetrics
     from PyQt5.QtWidgets import QApplication
     import video_toolbox_qt as gui
+    import ui_theme
 
     app = QApplication.instance() or QApplication(sys.argv)
     gui.setTheme(gui.Theme.DARK)
     win = gui.MainWindow([])
 
-    # v1.13.0：页面合并为 5 个导航页；音画合并/字幕校准以子板块挂在宿主页内
+    # v1.13.0：页面合并为 5 个导航页；v1.14.0：新增「流水线」页（共 6 个）
     pages = [win.download_page, win.library_page, win.subtitle_page,
-             win.subtitle_edit_page, win.settings_page]
-    check("五个页面全部构建", all(p is not None for p in pages))
+             win.subtitle_edit_page, win.pipeline_page, win.settings_page]
+    check("六个页面全部构建", all(p is not None for p in pages))
     check("被合并子板块：音画合并挂入下载页堆叠、字幕校准作独立内容页存在",
           win.merge_page is not None
           and win.download_page.stack.indexOf(win.merge_page) >= 0
@@ -577,8 +580,11 @@ def main():
     check("字幕处理页一级分段已移除（v1.13.0：字幕校准并入引擎工作台分段）",
           not hasattr(win.subtitle_page, "seg")
           and not hasattr(win.subtitle_page, "stack"))
-    check("堆叠页数量为 5（合并后）",
-          win.stackedWidget.count() == 5, f"count={win.stackedWidget.count()}")
+    check("堆叠页数量为 6（合并后 5 页 + 流水线页）",
+          win.stackedWidget.count() == 6, f"count={win.stackedWidget.count()}")
+    check("流水线页已挂进导航且可按键定位",
+          win.page_by_key("pipeline") is win.pipeline_page
+          and "流水线" in getattr(win, "NAV_TEXTS", []))
     check("下载页分段「视频下载 / 音画合并」就位",
           "download" in win.download_page.seg.items
           and "merge" in win.download_page.seg.items)
@@ -752,6 +758,100 @@ def main():
         browse_ok = reset_ok = False
     check("点「选择 yaml…」不再闪退（_apply_proxy_yaml 保存成功）", browse_ok)
     check("点「恢复内置」不再闪退且清空配置", reset_ok)
+    # ---- v1.13.x：界面美化（背景图 / 暗化 / 模糊 / 云母）----
+    _QT_SRC = _qt_main_uses_src()
+    ui_mica_ok = (callable(getattr(ui_theme, "get_mica", None))
+                  and callable(getattr(ui_theme, "set_mica", None))
+                  and isinstance(ui_theme.get_mica(), bool))
+    check("云母特效档可持久化（ui_custom.json mica 键，旧文件缺省为开）",
+          ui_mica_ok)
+    mica_wired = "mica_switch.checkedChanged.connect" in _QT_SRC
+    mica_init = "setMicaEffectEnabled(ui_theme.get_mica())" in _QT_SRC
+    check("云母开关已连接槽且主窗口按配置启用（不再是摆设开关）",
+          mica_wired and mica_init)
+    bg_feedback = ("_info_bg_applied" in _QT_SRC
+                   and "_warn_no_bg_once" in _QT_SRC
+                   and callable(getattr(ui_theme, "has_any_bg", None)))
+    check("背景设置/清除有 InfoBar 反馈；无背景时调暗化/模糊给一次性提示",
+          bg_feedback)
+    check("设置页显示时背景输入框与实际配置对齐（_refresh_bg_edits）",
+          "_refresh_bg_edits" in _QT_SRC)
+    try:
+        saved_bg = ui_theme.get_bg("library")
+        marker = os.path.join(engine.DATA_DIR, "ui_selftest_marker.png")
+        ui_theme.set_bg("library", marker)
+        write_ok = ui_theme.get_bg("library") == marker
+        ui_theme.set_bg("library", "")
+        clear_ok = ui_theme.get_bg("library") == ""
+        ui_theme.set_bg("library", saved_bg)
+        restore_ok = ui_theme.get_bg("library") == saved_bg
+    except Exception:  # noqa: BLE001
+        write_ok = clear_ok = restore_ok = False
+    check("背景图设置/清除/恢复即时生效并持久化", write_ok and clear_ok
+          and restore_ok)
+    main_src = _qt_main_uses_src()
+    single_ok = ("QLockFile" in main_src and "tryLock" in main_src
+                 and "videotoolbox.single.lock" in main_src)
+    check("单实例守卫：第二个实例启动即提示退出（防多实例互相写穿配置）",
+          single_ok)
+    # 手输路径行为（v1.13.4：静默回填改为明确反馈 + 拖拽 + 路径规范化）
+    drop_ok = ("class _BgPathEdit" in _QT_SRC
+               and "dropEvent" in _QT_SRC
+               and "_drop_apply_bg" in _QT_SRC)
+    check("背景输入框支持拖入图片直接应用（_BgPathEdit）", drop_ok)
+    try:
+        valid = os.path.join(engine.APP_DIR, "tools", "mihomo", "config.yaml")
+        saved_bg2 = ui_theme.get_bg("library")
+        sp._on_bg_path_edited("library", sp.bg_page_edits["library"])
+        sp.bg_page_edits["library"].setText(valid)
+        sp._on_bg_path_edited("library", sp.bg_page_edits["library"])
+        type_ok = (ui_theme.get_bg("library") == valid
+                   and os.path.normpath(ui_theme.get_bg("library")) == valid)
+        sp.bg_page_edits["library"].setText(r"I:\__no_such__\x.png")
+        sp._on_bg_path_edited("library", sp.bg_page_edits["library"])
+        invalid_kept = ui_theme.get_bg("library") == valid
+        sp.bg_page_edits["library"].setText(
+            "file:///" + valid.replace("\\", "/"))
+        sp._on_bg_path_edited("library", sp.bg_page_edits["library"])
+        url_ok = (ui_theme.get_bg("library") == valid)
+        sp.bg_page_edits["library"].setText("")
+        sp._on_bg_path_edited("library", sp.bg_page_edits["library"])
+        empty_clear = ui_theme.get_bg("library") == ""
+        ui_theme.set_bg("library", saved_bg2)
+    except Exception:  # noqa: BLE001
+        type_ok = invalid_kept = url_ok = empty_clear = False
+    check("手输背景路径：有效应用/无效弹错并保留原值/file:/// 可识别/"
+          "清空回车=清除",
+          type_ok and invalid_kept and url_ok and empty_clear)
+    # 真实点击「清除」按钮（v1.13.4：clicked 会传 checked，lambda 首参未
+    # 接住时 k=checked → set_bg(False,…) 静默 return——按钮全失效的根因）
+    try:
+        ui_theme.set_bg("library", saved_bg2)
+        sp.bg_page_edits["library"].setText(saved_bg2)
+        from qfluentwidgets import PushButton as _PB
+        lib_edit = sp.bg_page_edits["library"]
+        clear_btn = None
+        for b in sp.findChildren(_PB):
+            if b.text() != "清除":
+                continue
+            p = b.parentWidget()
+            while p is not None:
+                if p is lib_edit.parentWidget():
+                    clear_btn = b
+                    break
+                p = p.parentWidget()
+            if clear_btn:
+                break
+        if clear_btn is not None:
+            clear_btn.click()
+        click_clear_ok = (clear_btn is not None
+                          and ui_theme.get_bg("library") == ""
+                          and lib_edit.text() == "")
+        ui_theme.set_bg("library", saved_bg2)
+    except Exception:  # noqa: BLE001
+        click_clear_ok = False
+    check("真实点击「清除」按钮即清空（clicked/checked 参数陷阱已修）",
+          click_clear_ok)
     names_ok, names_bad = _no_undefined_names()
     check("src 无「引用但未定义」的全局名（闪退头号成因）", names_ok, names_bad)
     check("未捕获异常兜底装在 QApplication 之前（不再直接 abort）",
@@ -771,6 +871,46 @@ def main():
     check("AI 字幕语言识别仍可用（tools/ai_client.py 就位）",
           os.path.isfile(os.path.join(engine.TOOLS_DIR, "ai_client.py")))
     check("配置目录长期记忆生效", os.path.isdir(engine.DEFAULT_DOWNLOAD_DIR))
+
+    # ---- v1.13.7：下载字幕「去重叠」整理 ----
+    # 平台（YouTube）的自动字幕是**滚动**结构：每条结束时间一直延伸到下一条的
+    # 结束，于是大面积互相压住（实测某 3566 条的字幕里 3028 条重叠）。整理方式
+    # 是把每条夹到"下一条的起始"，且只有大范围重叠才动手。
+    srt_ok = False
+    try:
+        def _read_cues(path):
+            out = []
+            for block in engine.read_text_any(path).replace("\r\n", "\n").split("\n\n"):
+                line = next((l for l in block.split("\n") if "-->" in l), "")
+                if line:
+                    a, b = line.split("-->")[:2]
+                    out.append((engine.srt_time_to_ms(a), engine.srt_time_to_ms(b)))
+            return out
+
+        tmpd = tempfile.mkdtemp(prefix="vt_srt_")
+        roll = os.path.join(tmpd, "roll.srt")
+        with open(roll, "w", encoding="utf-8", newline="") as f:
+            for i in range(10):
+                f.write("%d\n00:00:%02d,000 --> 00:00:%02d,000\n第%d条\n\n"
+                        % (i + 1, i, i + 3, i + 1))
+        rolled = engine.normalize_rolling_srt(roll)
+        got = _read_cues(roll)
+        roll_ok = (rolled and len(got) == 10
+                   and all(got[i][1] == got[i + 1][0] for i in range(9)))
+
+        clean = os.path.join(tmpd, "clean.srt")
+        with open(clean, "w", encoding="utf-8", newline="") as f:
+            for i in range(10):
+                f.write("%d\n00:00:%02d,000 --> 00:00:%02d,000\n干净\n\n"
+                        % (i + 1, i * 2, i * 2 + 1))
+        clean_kept = engine.normalize_rolling_srt(clean) is False
+        for p in (roll, clean):
+            os.remove(p)
+        os.rmdir(tmpd)
+        srt_ok = roll_ok and clean_kept
+    except Exception:  # noqa: BLE001
+        srt_ok = False
+    check("下载字幕去重叠（滚动式夹到 next.start；干净文件原样不动）", srt_ok)
 
     # ---- 校准知识同步（v1.12.2：GitHub 整文件通道恢复为收集渠道；连接参数
     #      统一来自内置 github_proxy.yaml 的 vt-github 段；上传全自动、界面

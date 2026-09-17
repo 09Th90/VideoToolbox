@@ -1,6 +1,6 @@
 # -*- mode: python ; coding: utf-8 -*-
-# @version 1.13.0
-"""视频工具箱 v1.13.0 —— PyInstaller 打包配置
+# @version 1.14.0
+"""视频工具箱 v1.14.0 —— PyInstaller 打包配置
 v1.12.2：AI 校准修复 + Agent 可靠性同步优化——校准页误引用设置页控件导致
          「开始校准」一点即崩、崩后界面永久卡死（启动全程异常兜底 + 校准页
          新增「刷新」与卡死自愈）；qfluentwidgets 滚动条 eventFilter 对鼠标
@@ -81,6 +81,10 @@ hiddenimports += collect_submodules('videocaptioner')
 # v1.10.8：校准知识条目级合并核心（video_toolbox 顶层 import，静态分析一般能
 # 跟踪到，这里显式声明双保险——退出同步子进程/界面都依赖它）。
 hiddenimports += ['calib_merge_core']
+
+# v1.13.x：界面美化（各板块自定义背景图，src\ui_theme.py，video_toolbox_qt
+# 顶层 import 本可被静态跟踪，按惯例显式声明双保险）。
+hiddenimports += ['ui_theme']
 
 # v1.11.0：AI 校准 Agent（延迟导入：engine.calib_ai_run 内部 import，静态分析
 # 发现不了，必须显式声明，否则打包后点「AI 校准」会 ModuleNotFoundError）。

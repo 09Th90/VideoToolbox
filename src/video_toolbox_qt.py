@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# @version 1.13.0
+# @version 1.14.0
 """视频工具箱 GUI v1.11.0 —— Fluent 矢量界面
 ====================================================================
 界面形态（v1.10.0 起，原 tkinter 界面退役）：
@@ -67,12 +67,16 @@ import time
 import traceback
 from datetime import datetime
 
-from PyQt5.QtCore import Qt, QTimer, QEvent, QObject, QUrl, QPoint, QRect, pyqtSignal
+from PyQt5.QtCore import (Qt, QTimer, QEvent, QObject, QPoint, QRect, QRectF,
+                          QSize, QUrl, QAbstractNativeEventFilter, pyqtSignal,
+                          QLockFile)
 from PyQt5.QtGui import (QColor, QDesktopServices, QFont, QFontMetrics,
-                         QGuiApplication, QKeyEvent, QKeySequence, QPixmap, QTextCursor)
+                         QGuiApplication, QKeyEvent, QKeySequence, QPainter,
+                         QPen, QPixmap, QTextCursor)
 from PyQt5.QtWidgets import (QAbstractItemView, QApplication, QDialog,
-                             QFileDialog, QGridLayout, QHBoxLayout, QHeaderView,
-                             QShortcut, QSizePolicy, QSplitter, QStackedWidget,
+                             QFileDialog, QFrame, QGridLayout, QHBoxLayout,
+                             QHeaderView, QLabel, QMessageBox, QShortcut,
+                             QSizePolicy, QSplitter, QStackedWidget,
                              QTableWidgetItem, QVBoxLayout, QWidget)
 
 from qfluentwidgets import (BodyLabel, CardWidget, CaptionLabel,
@@ -80,21 +84,31 @@ from qfluentwidgets import (BodyLabel, CardWidget, CaptionLabel,
                             FluentWindow, InfoBar, InfoBarPosition, LineEdit,
                             ListWidget, MessageBox, NavigationItemPosition,
                             PasswordLineEdit, PrimaryPushButton, ProgressBar,
-                            PushButton, ScrollArea, SegmentedWidget,
+                            PushButton, ScrollArea, SegmentedWidget, Slider,
                             SimpleCardWidget, SpinBox, SubtitleLabel,
                             StrongBodyLabel, SwitchButton, TableWidget,
-                            TextEdit, Theme, TitleLabel, setTheme, setThemeColor)
+                            TextEdit, Theme, TitleLabel, ToolButton, setTheme,
+                            setThemeColor)
 from qfluentwidgets.components.navigation.navigation_widget import NavigationWidget
 
 import video_toolbox as engine
+# 流水线（v1.14.0）：目录感知 + 阶段调度。两个模块都是引擎侧（无 Qt 控件依赖），
+# UI 只订阅它们抛出的状态，跨线程一律走 app.q。
+import media_registry as mreg
+import pipeline as pl
+# 界面美化：各导航板块自定义背景图（配置持久化在 data/ui_custom.json）
+import ui_theme
 # 字幕编辑（打轴）三件套：纯逻辑 / 媒体后端 / 控件。
 # 页面类放在本文件（与其余 6 个页面一致）——若把页面单独成模块，它会
 # 反过来 import 本文件的 ScrollPage，形成循环导入。
 import subtitle_editor_core as secore
-from subtitle_editor import CueTable, WaveformTimeline
+from subtitle_editor import CueTable, SubtitlePropsPanel, WaveformTimeline
 from subtitle_editor_media import MpvPlayer, WaveformCache
+from subtitle_overlay import SubtitleStage
+# 内嵌字幕对话框（原引擎工作台「字幕视频合成」那一段，v1.13.x 挪到这里）
+from subtitle_compose import ComposeDialog
 
-VERSION = "1.13.0"
+VERSION = "1.14.0"
 
 # 全格式媒体/字幕/文档扩展名（v1.13.0）：
 #   视频：常见容器 + av1 / h264 / h265 / x264 等裸流与更多封装；
@@ -258,20 +272,21 @@ def _perf_note(msg):
 
 # ========== 通用控件 ==========
 class LogView(CardWidget):
-    """日志卡片：等宽字体、按级别着色、自动滚动到底。"""
+    """日志卡片：等宽字体、按级别着色、自动滚动到底。
 
-    COLORS = {"dim": "#8A8A8A", "ok": "#2E9E5B", "err": "#D64545", "info": "#B0B0B0"}
+    v1.13.x 主题感知：深色主题保持「控制台」深底，浅色主题换浅底深字，
+    跟随主题档/系统深浅实时切换（不再固定深底——浅色页面里一块黑日志
+    过于突兀）。
+    """
 
     def __init__(self, title="运行日志", height=150, parent=None):
         super().__init__(parent)
         self.text = TextEdit(self)
         self.text.setReadOnly(True)
         self.text.setMinimumHeight(height)
-        # 固定深色底：qfluentwidgets 的 TextEdit 在深色主题下不会自动变色，
-        # 默认白底放在深色卡片里非常突兀，这里统一成「控制台」配色
-        self.text.setStyleSheet(
-            "TextEdit{background:#1B1B1B;color:#D6D6D6;border:none;"
-            "font-family:Consolas,'Microsoft YaHei UI';font-size:12px;}")
+        self._apply_log_theme()
+        # 主题切换时重应用样式表（ui_theme 回调；weakref 不拖住本控件）
+        ui_theme.connect_theme(self, lambda v: v._apply_log_theme())
 
         lay = QVBoxLayout(self)
         lay.setContentsMargins(20, 14, 20, 18)
@@ -279,14 +294,34 @@ class LogView(CardWidget):
         lay.addWidget(CaptionLabel(title, self))
         lay.addWidget(self.text)
 
+    def _apply_log_theme(self):
+        """按当前主题给日志文本区上色（深色=控制台深底，浅色=浅底深字）。"""
+        t = ui_theme.tokens()
+        # 固定底色的由来：qfluentwidgets 的 TextEdit 在深色主题下不会自动
+        # 变色，默认白底放在深色卡片里非常突兀——改为按主题 token 上色。
+        self.text.setStyleSheet(
+            f"TextEdit{{background:{t['log_bg']};color:{t['log_text']};"
+            "border:none;"
+            "font-family:Consolas,'Microsoft YaHei UI';font-size:12px;}")
+
+    def _colors(self):
+        """按级别着色（浅色主题下把过浅的级别色加深，保证白底可读）。"""
+        if ui_theme.is_dark():
+            return {"dim": "#8A8A8A", "ok": "#2E9E5B",
+                    "err": "#D64545", "info": "#B0B0B0"}
+        return {"dim": "#787F87", "ok": "#1F8A4C",
+                "err": "#C0392B", "info": "#4A5057"}
+
     def line(self, msg, level="dim"):
-        color = self.COLORS.get(level, self.COLORS["dim"])
+        colors = self._colors()
+        color = colors.get(level, colors["dim"])
         stamp = datetime.now().strftime("%H:%M:%S")
-        self.text.setTextColor(QColor("#8A8A8A"))
+        t = ui_theme.tokens()
+        self.text.setTextColor(QColor(t["log_dim"]))
         self.text.insertPlainText(f"{stamp}  ")
         self.text.setTextColor(QColor(color))
         self.text.insertPlainText(str(msg) + "\n")
-        self.text.setTextColor(QColor("#D0D0D0"))
+        self.text.setTextColor(QColor(t["log_text"]))
         self.text.moveCursor(QTextCursor.End)
         self.text.ensureCursorVisible()
 
@@ -299,8 +334,10 @@ def card(title=None, caption=None):
 
     卡片会被放进滚动区，说明文字不自动换行（避免 heightForWidth 与滚动区
     互相触发重排）；文案一律保持一行能放下的长度。
+    v1.13.x 界面美化：换用 ui_theme.UICard 统一皮肤（圆角 10、1px 描边、
+    hover 提亮），所有页面共用一套卡片观感。
     """
-    box = CardWidget()
+    box = ui_theme.UICard()
     lay = QVBoxLayout(box)
     lay.setContentsMargins(14, 12, 14, 14)
     lay.setSpacing(8)
@@ -422,10 +459,15 @@ class ScrollPage(QWidget):
         outer.setContentsMargins(24, 16, 24, 18)
         outer.setSpacing(10)
         outer.addWidget(SubtitleLabel(title, self))
+        self.cap = None
         if subtitle:
             cap = CaptionLabel(subtitle, self)
             cap.setWordWrap(True)
             outer.addWidget(cap)
+            # v1.13.x：暴露给子类。自动换行标签的 heightForWidth 会在首次布局时
+            # 再算一遍高度（1 行 → 2 行），下方内容整体下移，表现就是「进页面
+            # 上下闪一下」。子类可 `fit_caption(self.cap)` 把它压成不参与重排。
+            self.cap = cap
 
         if scrollable:
             self.area = ScrollArea(self)
@@ -523,13 +565,24 @@ class DownloadPage(QWidget):
         outer.setSpacing(0)
 
         # —— 页内分段：视频下载 / 音画合并 ——
-        # v1.13.0：级联对齐——SegmentedWidget 内部对每项固定 stretch=1 等分，
-        # 只有两个标签时会在窗口变宽时被拉开大片空隙、下划线只跟在文字下方，
-        # 观感「区域不对齐」。这里让分段控件左对齐、宽度收缩到内容，标签紧凑排列。
+        # v1.13.x：改为**铺满整行**（与「字幕处理」页观感对齐）。SegmentedWidget 对
+        # 每项固定 stretch=1 等分：铺满后两个标签各占半行、文字居中、下划线跟文字走，
+        # 不再缩在左上角一小团。旧版为了躲"窗口变宽被拉开空隙"把宽度收缩到内容并
+        # 靠左对齐，结果就是"挤在一边"。
+        # ⚠️ 边距必须加在**外层容器**上，绝不能设在 SegmentedWidget 自己身上：
+        #    qfluentwidgets 的 `SegmentedWidget.paintEvent` 画选中框用的是
+        #    `item.rect()`，而 `item.rect()` 恒为 (0,0,w,h)——它**忽略了 item
+        #    在布局里的实际 y**。一旦控件自身带 contentsMargins，item 被整体
+        #    下压 12px，框却仍画在 y=1，于是就成了「灰色区域贴顶、文字偏下」
+        #    的错位（用户反馈的那张图）。边距挪到外层容器后两者重新对齐。
         self.seg = SegmentedWidget(self)
-        self.seg.setSizePolicy(QSizePolicy.Maximum, QSizePolicy.Fixed)
-        self.seg.setContentsMargins(24, 12, 24, 0)
-        outer.addWidget(self.seg, 0, Qt.AlignLeft)
+        self.seg.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        seg_wrap = QWidget(self)
+        seg_lay = QHBoxLayout(seg_wrap)
+        seg_lay.setContentsMargins(24, 12, 24, 0)
+        seg_lay.setSpacing(0)
+        seg_lay.addWidget(self.seg)
+        outer.addWidget(seg_wrap)
 
         self.stack = QStackedWidget(self)
         outer.addWidget(self.stack, 1)
@@ -816,10 +869,17 @@ class DownloadPage(QWidget):
         try:
             ytdlp = engine.ensure_ytdlp()
             ffmpeg_path, _ = engine.ensure_ffmpeg()
+            # 代理：YouTube 等站点在国内必须经代理才能下载（B 站等本来直连的
+            # 站点，代理的 rules 里是 DIRECT，没有副作用）。拿不到代理就直连。
+            proxy_args = engine.ytdlp_proxy_args()
+            if proxy_args:
+                self.app.q.put(("dl_log", task_id,
+                                f"[代理] 下载经本地代理 {proxy_args[1]}"))
             opts = ["-f", f"{fid}+ba/b", "--merge-output-format", "mp4",
                     "--ffmpeg-location", os.path.dirname(ffmpeg_path),
                     "--newline", "--no-playlist",
                     "--write-thumbnail", "--convert-thumbnails", "jpg",
+                    *proxy_args,
                     "-o", engine.output_template(folder)]
             rc = 1
             if info_json_path and os.path.isfile(info_json_path):
@@ -866,8 +926,59 @@ class DownloadPage(QWidget):
         with DownloadPage._EXTRACT_LOCK:
             return self._run_ytdlp_with_retry([ytdlp, *opts, url], task_id)
 
+    @staticmethod
+    def _srt_state(folder, before=None):
+        """目录里 .srt 的 {路径: (mtime_ns, 大小)} 快照。
+
+        给了 `before` 就只返回**新增或刚被改写**的那些 —— 拉字幕前后各取一次，
+        就能准确知道"这一轮到底拿到了哪几份"，不用猜文件名。
+        """
+        now = {}
+        try:
+            names = os.listdir(folder)
+        except OSError:
+            return {} if before is None else []
+        for name in names:
+            if not name.lower().endswith(".srt"):
+                continue
+            p = os.path.join(folder, name)
+            try:
+                st = os.stat(p)
+            except OSError:
+                continue
+            now[p] = (st.st_mtime_ns, st.st_size)
+        if before is None:
+            return now
+        return sorted(p for p, sig in now.items() if before.get(p) != sig)
+
+    def _fetch_subtitles_once(self, task_id, ytdlp, url, folder,
+                              info_json_path, sub_langs, proxy_args):
+        """跑一轮字幕拉取；返回 yt-dlp 的返回码（0 只代表"命令没报错"）。"""
+        opts = ["--skip-download", "--newline", "--no-playlist",
+                "--socket-timeout", "15", "--retries", "3",
+                "--write-subs", "--write-auto-subs", "--sub-langs", sub_langs,
+                "--sub-format", "srt/best", "--convert-subs", "srt",
+                *proxy_args,
+                "-o", engine.output_template(folder)]
+        if info_json_path and os.path.isfile(info_json_path):
+            rc, _ = self._run_ytdlp(
+                [ytdlp, "--load-info-json", info_json_path, *opts], task_id)
+            if rc == 0:
+                return 0
+        # ⚠️ 这里必须走带 412 重试的版本：字幕请求比视频请求更容易撞上站点风控，
+        #    此前只跑一次 `_run_ytdlp`，一次 412 就白等（用户看到的"字幕下载失败"）。
+        with DownloadPage._EXTRACT_LOCK:
+            return self._run_ytdlp_with_retry([ytdlp, *opts, url], task_id)
+
     def _fetch_subtitles(self, task_id, ytdlp, url, folder, info_json_path, meta=None):
-        """视频下载完成后单独拉字幕；失败只写日志，不影响任务成功状态。"""
+        """视频下载完成后单独拉字幕；失败只写日志，不影响任务成功状态。
+
+        v1.13.7 三处加固：
+          · 全程带代理（此前 yt-dlp 直连，YouTube 字幕根本拉不下来）；
+          · AI 语言识别猜错 / 首轮空手时，改用多语言列表补拉一轮；
+          · 拉到的每份字幕都做「去重叠」整理（平台自动字幕是滚动式，
+            条条互相压住，见 engine.normalize_rolling_srt）。
+        """
         sub_langs = self.SUB_LANGS
         title = ""
         if isinstance(meta, dict):
@@ -883,23 +994,34 @@ class DownloadPage(QWidget):
             else:
                 self.app.q.put(("dl_log", task_id,
                                 "[字幕] AI 语言识别不可用，按多语言列表拉取字幕"))
-        opts = ["--skip-download", "--newline", "--no-playlist",
-                "--socket-timeout", "15", "--retries", "2",
-                "--write-subs", "--write-auto-subs", "--sub-langs", sub_langs,
-                "--sub-format", "srt/best", "--convert-subs", "srt",
-                "-o", engine.output_template(folder)]
-        rc = 1
-        if info_json_path and os.path.isfile(info_json_path):
-            rc, _ = self._run_ytdlp([ytdlp, "--load-info-json", info_json_path, *opts], task_id)
-        if rc != 0:
-            with DownloadPage._EXTRACT_LOCK:
-                rc, _ = self._run_ytdlp([ytdlp, *opts, url], task_id)
-        try:
-            has_srt = any(n.lower().endswith(".srt") for n in os.listdir(folder))
-        except OSError:
-            has_srt = False
-        if has_srt:
-            self.app.q.put(("dl_log", task_id, "[字幕] 已下载到本视频文件夹（.srt）"))
+
+        proxy_args = engine.ytdlp_proxy_args()
+        before = self._srt_state(folder)
+        self._fetch_subtitles_once(task_id, ytdlp, url, folder,
+                                   info_json_path, sub_langs, proxy_args)
+        fresh = self._srt_state(folder, before)
+        if not fresh and sub_langs != self.SUB_LANGS:
+            # 首轮空手：多半是"标题语言"猜错了（比如英文字幕挂在 ja 上）。
+            # 换成覆盖最广的多语言列表再试一次，这是唯一能纠正它的机会。
+            self.app.q.put(("dl_log", task_id,
+                            "[字幕] 首轮没取到字幕，改用多语言列表补拉一次"))
+            self._fetch_subtitles_once(task_id, ytdlp, url, folder,
+                                       info_json_path, self.SUB_LANGS, proxy_args)
+            fresh = self._srt_state(folder, before)
+
+        fixed = 0
+        for p in fresh:
+            try:
+                if engine.normalize_rolling_srt(p):
+                    fixed += 1
+            except Exception as e:  # noqa: BLE001
+                self.app.q.put(("sys_log",
+                                f"[字幕] 整理 {os.path.basename(p)} 失败：{e}"))
+        if fresh:
+            extra = f"，其中 {fixed} 份做了去重叠整理" if fixed else ""
+            self.app.q.put(("dl_log", task_id,
+                            f"[字幕] 已下载 {len(fresh)} 份字幕（.srt）{extra}，"
+                            "已存入该视频文件夹"))
         else:
             self.app.q.put(("dl_log", task_id,
                             "[字幕] 该视频没有可用字幕，或字幕拉取失败"
@@ -1233,7 +1355,8 @@ class LibraryPage(QWidget):
     def _make_card(self, v):
         if v["path"] in self.cards:
             return
-        box = SimpleCardWidget(self.holder)
+        # v1.13.x 界面美化：缩略图卡与全局 card() 共用 UICard 皮肤
+        box = ui_theme.UICard(self.holder)
         box.setFixedWidth(CARD_W)
         lay = QVBoxLayout(box)
         lay.setContentsMargins(10, 10, 10, 10)
@@ -1678,6 +1801,28 @@ class SubtitlePage(QWidget):
             home.pivot.setItemText("SubtitleInterface", "字幕翻译")
         except Exception:  # noqa: BLE001
             pass
+        # v1.13.x：摘掉引擎工作台的「字幕视频合成」分段——用户要求把合成并到
+        # 「字幕编辑」页（那边攥着正在编辑、可能还没保存的字幕，不必先导出
+        # 再喂回来）。只动界面、不碰引擎本体：
+        #   · 先断掉「字幕翻译完成 → 自动跳合成」的连线；
+        #   · 再把分段项与堆叠页摘掉；
+        #   · 实例本身留着（HomeInterface.closeEvent 还会调它的 close()）。
+        # 换到编辑页的入口是工具条上的「内嵌字幕」（只加轨道、不重编码）。
+        try:
+            syn = getattr(home, "video_synthesis_interface", None)
+            if syn is not None:
+                try:
+                    home.subtitle_optimization_interface.finished.disconnect(
+                        home.switch_to_video_synthesis)
+                except Exception:  # noqa: BLE001
+                    pass
+                # 兜底：万一还有别的路径调过来，也不该切到一个已摘掉的页面
+                home.switch_to_video_synthesis = lambda *a, **k: None
+                home.pivot.removeWidget("VideoSynthesisInterface")
+                home.stackedWidget.removeWidget(syn)
+                syn.hide()
+        except Exception:  # noqa: BLE001
+            pass
         tc = getattr(home, "task_creation_interface", None)
         if tc is not None:
             for attr in ("info_label", "donate_button"):
@@ -1802,6 +1947,38 @@ class _InnerScrollToContent(QObject):
         return False
 
 
+class _BgPathEdit(LineEdit):
+    """背景图路径输入框：支持从资源管理器把图片直接拖进来应用。
+
+    拖入是比手输更防错的填入方式——手输路径打错一个字符就会命中
+    isfile 检查失败（旧版此处静默回填，用户毫无感知）。
+    """
+
+    def __init__(self, on_file, parent=None):
+        super().__init__(parent)
+        self._on_file = on_file
+        self.setAcceptDrops(True)
+
+    def dragEnterEvent(self, e):
+        if e.mimeData().hasUrls():
+            for u in e.mimeData().urls():
+                p = u.toLocalFile()
+                if p and os.path.isfile(p):
+                    e.acceptProposedAction()
+                    return
+        e.ignore()
+
+    def dropEvent(self, e):
+        for u in e.mimeData().urls():
+            p = u.toLocalFile()
+            if p and os.path.isfile(p):
+                self.setText(p)
+                self._on_file(p)
+                e.acceptProposedAction()
+                return
+        e.ignore()
+
+
 class SettingsPage(QWidget):
     """全程序唯一的全局设置页（v1.10.8）。
 
@@ -1822,6 +1999,7 @@ class SettingsPage(QWidget):
         self.setObjectName("SettingsPage")
         self._engine_setting = None
         self._engine_built = False
+        self._bg_warned = False
 
         outer = QVBoxLayout(self)
         outer.setContentsMargins(0, 0, 0, 0)
@@ -1839,6 +2017,7 @@ class SettingsPage(QWidget):
         self._build_calib_ai_card()
         self._build_engine_section()
         self._build_sync_card()
+        self._build_uicustom_card()
         self._build_appearance_card()
         self._build_about_card()
         self.vbox.addStretch(1)
@@ -1852,6 +2031,10 @@ class SettingsPage(QWidget):
         if f is not None:
             QTimer.singleShot(0, f.sync_height)
             QTimer.singleShot(160, f.sync_height)
+        # 「界面美化」输入框与实际配置对齐：防止改过配置后界面残留旧值，
+        # 造成「页面有背景但输入框显示未设置」的错位观感
+        if hasattr(self, "bg_page_edits"):
+            self._refresh_bg_edits()
 
     # ------------------------------------------------------------------ #
     # 目录：下载目录 / 数据根目录 / 引擎工作目录（全部默认在软件文件夹）
@@ -1905,12 +2088,13 @@ class SettingsPage(QWidget):
     def _build_proxy_card(self):
         box, blay = card(
             "网络代理",
-            "内置 mihomo 代理仅用于 GitHub 加速（依赖下载、校准知识同步）；"
-            "可接入自己的 Clash/mihomo 配置，按你的节点与端口启动")
+            "内置 mihomo 代理服务于依赖下载、校准知识同步与 YouTube 下载；"
+            "自动测速选择可用节点，死节点自动切换。"
+            "可接入自己的 Clash/订阅 yaml（仅取其中节点，端口固定 7897）")
         cur = engine.get_proxy_yaml()
         self.proxy_edit = LineEdit(box)
         self.proxy_edit.setPlaceholderText(
-            "留空使用内置 GitHub 专用配置（tools/mihomo/config.yaml，端口 7897）")
+            "留空使用内置节点快照（tools/mihomo/config.yaml，端口 7897）")
         self.proxy_edit.setText(cur)
         self.proxy_edit.setReadOnly(True)
         browse = PushButton(FIF.FOLDER, "浏览…", box)
@@ -1929,11 +2113,12 @@ class SettingsPage(QWidget):
         port = engine._proxy_yaml_port(engine.get_proxy_yaml()) if \
             engine.get_proxy_yaml() else engine.MIHOMO_PORT
         if engine.get_proxy_yaml():
-            return (f"当前：自定义配置，端口 {port or 7897}。按配置里的 "
-                    f"mixed-port / port / socks-port 自动识别端口，"
-                    f"端口被占用（如你的 Clash 在跑）时复用。修改后重启生效。")
-        return ("内置配置仅用于 GitHub 加速（端口 7897）；也可接入自己的 "
-                "Clash/mihomo 配置，自动识别端口，被占用时复用。修改后重启生效。")
+            return (f"当前：自定义配置（端口 {port or 7897}），程序只提取其中的"
+                    f"节点，监听端口固定 7897、自动选择可用节点。"
+                    f"修改后重启生效。")
+        return ("程序自动测速并选择可用节点，节点失效自动切换（端口 7897）。"
+                "也可接入自己的 Clash/订阅 yaml，仅提取其中节点。"
+                "修改后重启生效。")
 
     def _proxy_start_dir(self):
         """文件对话框起始目录：上次选的 yaml 所在目录 > 程序目录 > 当前目录。"""
@@ -2533,9 +2718,224 @@ class SettingsPage(QWidget):
         self.zoom_combo.currentIndexChanged.connect(self._on_zoom_changed)
         blay.addWidget(label_row("界面缩放", row(self.zoom_combo, None)))
         self.mica_switch = SwitchButton(box)
-        self.mica_switch.setChecked(True)
+        self.mica_switch.setChecked(ui_theme.get_mica())
+        self.mica_switch.checkedChanged.connect(self._on_mica_changed)
         blay.addWidget(label_row("云母特效", row(self.mica_switch, None)))
+
+        # 主题色：预设色板点选，立即 setThemeColor + 重应用全局 QSS + 持久化
+        # （按钮/开关跟随 qfluentwidgets 主题色，输入框聚焦/滑杆/进度条跟随全局 QSS）
+        self._accent_btns = {}
+        accent_holder = QWidget(box)
+        ah = QHBoxLayout(accent_holder)
+        ah.setContentsMargins(0, 0, 0, 0)
+        ah.setSpacing(6)
+        for hexc in ui_theme.ACCENT_PRESETS:
+            b = PushButton(accent_holder)
+            b.setFixedSize(24, 24)
+            b.setToolTip(hexc)
+            b.setCursor(Qt.PointingHandCursor)
+            b.clicked.connect(lambda _=False, c=hexc: self._on_accent_picked(c))
+            self._accent_btns[hexc] = b
+            ah.addWidget(b)
+        ah.addStretch(1)
+        blay.addWidget(label_row("主题色", accent_holder))
+        self._refresh_accent_ring()
         self.vbox.addWidget(box)
+
+    def _style_accent_btn(self, b, hexc, selected):
+        """色板圆点：选中描白圈，未选中无边框（hover 统一描浅圈）。"""
+        border = "border: 2px solid #FFFFFF;" if selected else "border: none;"
+        b.setStyleSheet(
+            f"PushButton{{background:{hexc};{border}border-radius:12px;}}"
+            "PushButton:hover{border:2px solid #E8EAED;}")
+
+    def _refresh_accent_ring(self):
+        cur = ui_theme.get_accent().upper()
+        for hexc, b in self._accent_btns.items():
+            self._style_accent_btn(b, hexc, hexc.upper() == cur)
+
+    def _on_accent_picked(self, hexc):
+        ui_theme.set_accent(hexc)
+        self._refresh_accent_ring()
+        InfoBar.success("主题色已更新", hexc, duration=1800,
+                        position=InfoBarPosition.BOTTOM_RIGHT, parent=self)
+
+    def _on_mica_changed(self, checked):
+        """云母特效开关：立即启/停主窗口 Mica 并持久化。
+
+        Win10 无 Mica（qfluentwidgets 直接 return），此时开关同步回窗口
+        实际状态并提示，避免"切了没反应"的困惑。
+        """
+        win = self.app
+        try:
+            win.setMicaEffectEnabled(bool(checked))
+        except Exception:
+            pass
+        actual = bool(win.isMicaEffectEnabled())
+        if actual != bool(checked):
+            self.mica_switch.blockSignals(True)
+            self.mica_switch.setChecked(actual)
+            self.mica_switch.blockSignals(False)
+            InfoBar.warning(
+                "云母特效", "当前系统不支持云母特效（需要 Windows 11）",
+                duration=3000, position=InfoBarPosition.BOTTOM_RIGHT,
+                parent=self)
+            return
+        ui_theme.set_mica(bool(checked))
+
+    # ------------------------------------------------------------------ #
+    # 界面美化：每个板块自定义背景图（v1.13.x，能力实现在 ui_theme.py）
+    # ------------------------------------------------------------------ #
+    def _build_uicustom_card(self):
+        box, blay = card(
+            "界面美化",
+            "每个板块可单独设置背景图；未单独设置的板块使用全局背景，"
+            "全局也未设置时保持纯色（即现状）。背景遮罩跟随主题：深色"
+            "主题压暗、浅色主题雾白，配合可选模糊保证前景文字可读。"
+            "支持把图片直接拖进输入框")
+
+        def _make_row(key, name, placeholder):
+            edit = _BgPathEdit(lambda p, k=key: self._drop_apply_bg(k, p), box)
+            edit.setPlaceholderText(placeholder)
+            edit.setText(ui_theme.get_bg(key))
+            edit.editingFinished.connect(
+                lambda k=key, e=edit: self._on_bg_path_edited(k, e))
+            browse = PushButton(FIF.FOLDER, "浏览…", box)
+            # ⚠️ clicked 会传出 checked 布尔参数：lambda 首参必须显式接住，
+            # 否则 k=checked（False）——set_bg(False,…) 直接 return，
+            # 表现即「点浏览/清除毫无反应」（v1.13.4 修复）
+            browse.clicked.connect(
+                lambda _checked=False, k=key, e=edit: self._pick_bg(k, e))
+            clear = PushButton(FIF.DELETE, "清除", box)
+            clear.clicked.connect(
+                lambda _checked=False, k=key, e=edit: self._clear_bg(k, e))
+            expand_h(edit)
+            blay.addWidget(srow(name, edit, browse, clear))
+            return edit
+
+        self.bg_global_edit = _make_row(
+            "global", "全局背景", "未设置（所有板块保持纯色背景）")
+        self.bg_page_edits = {}
+        for key, name in ui_theme.PAGE_DEFS:
+            self.bg_page_edits[key] = _make_row(
+                key, name + "背景", "未设置（使用全局背景）")
+
+        self.bg_dim_slider = Slider(Qt.Horizontal, box)
+        self.bg_dim_slider.setRange(0, ui_theme.DIM_MAX)
+        self.bg_dim_slider.setValue(ui_theme.get_dim())
+        self.bg_dim_slider.setMinimumWidth(200)
+        self.bg_dim_lbl = BodyLabel(f"{ui_theme.get_dim()}%", box)
+        self.bg_dim_slider.valueChanged.connect(self._on_bg_dim_changed)
+        blay.addWidget(srow("背景遮罩", self.bg_dim_slider, self.bg_dim_lbl))
+
+        # 背景模糊（v1.13.x）：预模糊一次并缓存，开关切换不拖累重绘；
+        # 大图/亮图模糊后更衬前景文字
+        self.bg_blur_switch = SwitchButton(box)
+        self.bg_blur_switch.setChecked(ui_theme.get_blur())
+        self.bg_blur_switch.checkedChanged.connect(self._on_bg_blur_changed)
+        blay.addWidget(label_row("背景模糊", row(self.bg_blur_switch, None)))
+
+        blay.addWidget(fit_caption(CaptionLabel(
+            "提示：背景只铺内容区，导航条与标题栏保持原样；"
+            "字幕编辑页的视频画面不受影响", box)))
+        self.vbox.addWidget(box)
+
+    def _refresh_bg_edits(self):
+        """把「界面美化」各输入框/滑杆/开关与当前配置对齐（防界面残留旧值）。"""
+        self.bg_global_edit.setText(ui_theme.get_bg("global"))
+        for key, edit in self.bg_page_edits.items():
+            edit.setText(ui_theme.get_bg(key))
+        dim = ui_theme.get_dim()
+        self.bg_dim_slider.blockSignals(True)
+        self.bg_dim_slider.setValue(dim)
+        self.bg_dim_slider.blockSignals(False)
+        self.bg_dim_lbl.setText(f"{dim}%")
+        self.bg_blur_switch.blockSignals(True)
+        self.bg_blur_switch.setChecked(ui_theme.get_blur())
+        self.bg_blur_switch.blockSignals(False)
+
+    def _on_bg_dim_changed(self, value):
+        """遮罩滑杆：改百分比标签 + 立即重绘 + 持久化（写入很小，不怕高频）。"""
+        self._warn_no_bg_once()
+        self.bg_dim_lbl.setText(f"{value}%")
+        ui_theme.set_dim(value)
+
+    def _on_bg_blur_changed(self, checked):
+        """背景模糊开关：立即重绘（模糊结果按文件缓存，首次稍慢半秒）。"""
+        self._warn_no_bg_once()
+        ui_theme.set_blur(bool(checked))
+
+    def _warn_no_bg_once(self):
+        """一张背景图都没有时，暗化/模糊不会有任何可见变化——仅提示一次。"""
+        if self._bg_warned or ui_theme.has_any_bg():
+            return
+        self._bg_warned = True
+        InfoBar.info(
+            "背景未设置",
+            "当前未设置任何背景图：请先在上方为板块选择背景图，"
+            "遮罩与模糊才会生效", duration=4000,
+            position=InfoBarPosition.BOTTOM_RIGHT, parent=self)
+
+    def _info_bg_applied(self, key):
+        """背景图设置成功后的可见反馈（设置页自身无背景，不提示就看不出变化）。"""
+        name = dict(ui_theme.PAGE_DEFS).get(key, "全局")
+        InfoBar.success(
+            "背景已应用", f"已为「{name}」设置背景图，切换到对应板块即可查看",
+            duration=3200, position=InfoBarPosition.BOTTOM_RIGHT, parent=self)
+
+    def _on_bg_path_edited(self, key, edit):
+        """手输路径回车/失焦：有效则应用（有反馈）；无效弹明确提示并回填。
+
+        此前是静默回填——用户路径打错（或填了文件夹）时毫无提示，
+        表现为「填了图却不生效、回头一看又变回未设置」。
+        """
+        path = self._normalize_bg_path(edit.text())
+        if not path:
+            # 清空回车 = 清除该板块背景（与「清除」按钮等效）
+            ui_theme.set_bg(key, "")
+            return
+        if not os.path.isfile(path):
+            InfoBar.error(
+                "背景图路径无效", f"找不到该文件：{path}",
+                duration=6000, position=InfoBarPosition.BOTTOM_RIGHT,
+                parent=self)
+            edit.setText(ui_theme.get_bg(key))
+            return
+        ui_theme.set_bg(key, path)
+        self._info_bg_applied(key)
+
+    def _normalize_bg_path(self, raw):
+        """背景图路径规范化：去引号/空白、接受 file:/// 前缀、统一分隔符。"""
+        p = (raw or "").strip().strip('"').strip()
+        if not p:
+            return ""
+        if p.lower().startswith("file:"):
+            p = QUrl(p).toLocalFile() or p
+        try:
+            p = os.path.normpath(p)
+        except Exception:  # noqa: BLE001
+            pass
+        return p
+
+    def _drop_apply_bg(self, key, path):
+        """拖入图片直接应用（dragEnter 已确保是存在的本地文件）。"""
+        ui_theme.set_bg(key, path)
+        self._info_bg_applied(key)
+
+    def _pick_bg(self, key, edit):
+        start = os.path.dirname(ui_theme.get_bg(key)) or engine.DATA_DIR
+        path, _ = QFileDialog.getOpenFileName(
+            self, "选择背景图片", start,
+            "图片 (*.png *.jpg *.jpeg *.bmp *.webp)")
+        if not path:
+            return
+        edit.setText(path)
+        ui_theme.set_bg(key, path)
+        self._info_bg_applied(key)
+
+    def _clear_bg(self, key, edit):
+        edit.clear()
+        ui_theme.set_bg(key, "")
 
     # ------------------------------------------------------------------ #
     # 关于
@@ -2639,6 +3039,11 @@ class SettingsPage(QWidget):
     def _on_theme_changed(self, idx):
         try:
             setTheme([Theme.DARK, Theme.LIGHT, Theme.AUTO][idx])
+        except Exception:
+            pass
+        # 持久化主题档（深色/浅色/跟随系统），重启保持（v1.13.x 界面美化）
+        try:
+            ui_theme.set_theme_mode(["dark", "light", "auto"][idx])
         except Exception:
             pass
 
@@ -3112,7 +3517,453 @@ class CalibPage(QWidget):
                 self.log.line("[提示] 已拒绝的模型提议会写进报告，便于人工复核", "dim")
 
 
+# ========== 通用确认框（顶层模态） ==========
+# ========== 流水线（v1.14.0：目录感知 + 阶段自动调度） ==========
+class _StageDot(ToolButton):
+    """阶段圆点：灰=等待 / 蓝=运行 / 绿=完成 / 红=失败 / 斜杠=跳过。
+
+    点击跳到对应功能页（点的是"哪一步出问题了"的人，下一步自然是去那页看）。
+    """
+
+    COLORS = {"waiting": "#6E6E6E", "ready": "#9AA3AD", "running": "#2E7FD6",
+              "done": "#2E9E5B", "failed": "#D64545", "skipped": "#6E6E6E"}
+    LABELS = {"waiting": "等待", "ready": "待执行", "running": "进行中",
+              "done": "已完成", "failed": "失败", "skipped": "已跳过"}
+
+    def __init__(self, stage_key, label, parent=None):
+        super().__init__(parent)
+        self.stage_key = stage_key
+        self.label = label
+        self.state = "waiting"
+        self.detail = ""
+        self.setFixedSize(20, 20)
+        self.setCursor(Qt.PointingHandCursor)
+        self.setText("")
+        self._tip()
+
+    def _tip(self):
+        tip = f"{self.label}：{self.LABELS.get(self.state, self.state)}"
+        if self.detail:
+            tip += f"\n{self.detail[:200]}"
+        tip += "\n（点击跳到对应功能页）"
+        self.setToolTip(tip)
+
+    def set_stage(self, state, detail=""):
+        self.state = state or "waiting"
+        self.detail = str(detail or "")
+        self._tip()
+        self.update()
+
+    def paintEvent(self, e):
+        p = QPainter(self)
+        p.setRenderHint(QPainter.Antialiasing, True)
+        color = QColor(self.COLORS.get(self.state, "#6E6E6E"))
+        r = QRectF(2.5, 2.5, self.width() - 5, self.height() - 5)
+        if self.state in ("waiting", "ready", "skipped"):
+            p.setPen(QPen(color, 2))
+            p.setBrush(Qt.NoBrush)
+        else:
+            p.setPen(Qt.NoPen)
+            p.setBrush(color)
+        p.drawEllipse(r)
+        if self.state == "skipped":      # 跳过：斜杠
+            p.setPen(QPen(color, 2))
+            p.drawLine(r.topRight(), r.bottomLeft())
+        p.end()
+
+
+class _JobCard(SimpleCardWidget):
+    """单个视频的流水线卡片：名称 + 状态 + 阶段圆点（按任务链动态）+ 重试。"""
+
+    def __init__(self, job, on_jump, on_retry, parent=None):
+        super().__init__(parent)
+        self.job_id = job.get("id") or ""
+        self.on_jump = on_jump
+        self.on_retry = on_retry
+        lay = QVBoxLayout(self)
+        lay.setContentsMargins(14, 10, 14, 12)
+        lay.setSpacing(6)
+        self.name_label = StrongBodyLabel(job.get("name") or "(未命名)", self)
+        self.status_label = BodyLabel(job.get("status") or "", self)
+        self.status_label.setTextColor("#8a8a8a", "#9a9a9a")
+        lay.addWidget(row(self.name_label, None, self.status_label))
+        self.dots_holder = QWidget(self)
+        self.dots_lay = QHBoxLayout(self.dots_holder)
+        self.dots_lay.setContentsMargins(0, 0, 0, 0)
+        self.dots_lay.setSpacing(10)
+        self.dots = {}
+        self._chain = tuple(job.get("chain") or ())
+        for key in self._chain:
+            dot = _StageDot(key, pl.STAGE_LABELS.get(key, key), self)
+            dot.clicked.connect(lambda _c=False, k=key: self._jump(k))
+            self.dots[key] = dot
+            self.dots_lay.addWidget(dot)
+        self.dots_lay.addStretch(1)
+        self.retry_btn = PushButton(FIF.UPDATE, "执行", self)
+        self.retry_btn.setFixedHeight(26)
+        self.retry_btn.clicked.connect(self._retry)
+        self.dots_lay.addWidget(self.retry_btn)
+        lay.addWidget(self.dots_holder)
+        self.update_job(job)
+
+    def _jump(self, key):
+        if callable(self.on_jump):
+            self.on_jump(self.job_id, key)
+
+    def _retry(self):
+        if callable(self.on_retry):
+            self.on_retry(self.job_id)
+
+    def update_job(self, job):
+        self.job_id = job.get("id") or self.job_id
+        chain = tuple(job.get("chain") or ())
+        if chain != self._chain:          # 链变了（旧状态迁移）→ 重建圆点
+            self._chain = chain
+            for dot in self.dots.values():
+                self.dots_lay.removeWidget(dot)
+                dot.setParent(None)
+                dot.deleteLater()
+            self.dots = {}
+            for key in chain:
+                dot = _StageDot(key, pl.STAGE_LABELS.get(key, key), self)
+                dot.clicked.connect(lambda _c=False, k=key: self._jump(k))
+                self.dots[key] = dot
+                self.dots_lay.insertWidget(self.dots_lay.count() - 2, dot)
+        stages = job.get("stages") or {}
+        failed = False
+        for key, dot in self.dots.items():
+            st = stages.get(key) or {}
+            state = st.get("state") or "waiting"
+            dot.set_stage(state, st.get("error") or st.get("reason") or "")
+            if state == "failed":
+                failed = True
+        self.status_label.setText(job.get("status") or "")
+        self.name_label.setText(job.get("name") or "(未命名)")
+        # 失败 → 重试；其余（含存量任务）→ 执行
+        self.retry_btn.setText("重试" if failed else "执行")
+        self.retry_btn.setVisible(True)
+
+
+class PipelinePage(QWidget):
+    """流水线页：订阅引擎侧 Pipeline 的状态，只读展示 + 开关/重试。
+
+    线程边界：pipeline 的回调来自后台线程，这里一律不碰控件，只往 app.q 投
+    消息，等主线程 _pump/_dispatch 回来再更新界面（与其余页面同一套模型）。
+    """
+
+    def __init__(self, app, parent=None):
+        super().__init__(parent)
+        self.app = app
+        self.pipe = None
+        self.cards = {}
+        self.setObjectName("PipelinePage")
+
+        outer = QVBoxLayout(self)
+        outer.setContentsMargins(0, 0, 0, 0)
+        self.shell = TabPage(self)
+        outer.addWidget(self.shell)
+        vbox = self.shell.content_lay
+        vbox.addWidget(tab_caption(
+            "填入链接即可自动完成：下载（原片/字幕/封面/信息）→ 谷歌翻译 → "
+            "字幕校准 → 二次校准 → 成品打包；下载目录里新出现的视频也会自动接管", self))
+
+        # ---- 新建任务（链接驱动） ----
+        self.link_edit = LineEdit(self)
+        expand_h(self.link_edit, 220)
+        self.link_edit.setPlaceholderText(
+            "粘贴视频链接（YouTube/B站等），回车或点「添加任务」")
+        self.link_edit.returnPressed.connect(self._add_link)
+        self.add_btn = PrimaryPushButton(FIF.DOWNLOAD, "添加任务", self)
+        self.add_btn.clicked.connect(self._add_link)
+        box, lay = card("新建任务", None)
+        lay.addWidget(row(self.link_edit, self.add_btn, None))
+        vbox.addWidget(box)
+
+        # ---- 自动开关与操作 ----
+        self.auto_switch = SwitchButton(self)
+        self.auto_switch.setChecked(True)
+        self.auto_switch.checkedChanged.connect(self._on_auto)
+        self.scan_btn = PushButton(FIF.SYNC, "立即扫描", self)
+        self.scan_btn.clicked.connect(self._scan)
+        self.retry_btn = PushButton(FIF.UPDATE, "重试失败项", self)
+        self.retry_btn.clicked.connect(self._retry_all)
+        self.open_btn = PushButton(FIF.FOLDER, "打开成品目录", self)
+        self.open_btn.clicked.connect(self._open_out)
+        box, lay = card("自动流水线")
+        lay.addWidget(row(BodyLabel("自动执行后续阶段", self), self.auto_switch, None))
+        lay.addWidget(row(self.scan_btn, self.retry_btn, self.open_btn, None))
+        vbox.addWidget(box)
+
+        self.list_box, self.list_lay = card("任务进度")
+        self.empty = fit_caption(CaptionLabel("暂无任务：下载目录里出现视频后会自动建卡", self))
+        self.list_lay.addWidget(self.empty)
+        vbox.addWidget(self.list_box)
+
+        self.log = LogView("流水线日志", 130, self)
+        vbox.addWidget(self.log)
+        vbox.addStretch(1)
+
+    # ---------- 绑定 ----------
+    def attach(self, pipe):
+        """接上引擎侧 Pipeline（主线程调用）。"""
+        self.pipe = pipe
+        try:
+            self.auto_switch.setChecked(bool(pipe.auto))
+        except Exception:  # noqa: BLE001
+            pass
+        self._refresh()
+
+    # ---------- 状态更新（主线程） ----------
+    def on_state(self, payload):
+        """主线程消息入口（MainWindow._dispatch 转进来）。"""
+        if not isinstance(payload, dict):
+            return
+        kind = payload.get("type")
+        if kind == "log":
+            self.log.line(payload.get("text", ""), "dim")
+        elif kind == "jobs":
+            self._rebuild(payload.get("jobs") or [])
+            auto = payload.get("auto")
+            if auto is not None:
+                self.auto_switch.blockSignals(True)
+                self.auto_switch.setChecked(bool(auto))
+                self.auto_switch.blockSignals(False)
+        elif kind == "auto":
+            self.auto_switch.blockSignals(True)
+            self.auto_switch.setChecked(bool(payload.get("auto")))
+            self.auto_switch.blockSignals(False)
+
+    def _refresh(self):
+        if self.pipe is not None:
+            self._rebuild(self.pipe.job_list())
+
+    def _rebuild(self, jobs):
+        self.empty.setVisible(not jobs)
+        seen = set()
+        for job in jobs:
+            jid = job.get("id") or ""
+            if not jid:
+                continue
+            seen.add(jid)
+            card_w = self.cards.get(jid)
+            if card_w is None:
+                card_w = _JobCard(job, self._jump, self._retry, self.list_box)
+                self.list_lay.addWidget(card_w)
+                self.cards[jid] = card_w
+            else:
+                card_w.update_job(job)
+        for jid in list(self.cards):
+            if jid not in seen:
+                w = self.cards.pop(jid)
+                self.list_lay.removeWidget(w)
+                w.setParent(None)
+                w.deleteLater()
+
+    # ---------- 操作 ----------
+    def _add_link(self):
+        url = engine.extract_url(self.link_edit.text()) or self.link_edit.text().strip()
+        if self.pipe is None:
+            InfoBar.warning("提示", "流水线尚未启动，请稍候", duration=3000,
+                            position=InfoBarPosition.BOTTOM_RIGHT, parent=self)
+            return
+        jid, msg = self.pipe.add_link(url)
+        if jid:
+            self.link_edit.clear()
+            self.log.line(f"[任务] {msg}（{url if len(url) <= 60 else url[:60] + '...'}）", "ok")
+        else:
+            InfoBar.warning("提示", msg, duration=3000,
+                            position=InfoBarPosition.BOTTOM_RIGHT, parent=self)
+
+    def _jump(self, job_id, stage_key):
+        key = pl.STAGE_JUMP.get(stage_key, "download")
+        try:
+            page = self.app.page_by_key(key)
+            if page is not None:
+                self.app.switchTo(page)
+        except Exception:  # noqa: BLE001
+            pass
+
+    def _retry(self, job_id, _stage=None):
+        if self.pipe is not None:
+            self.pipe.retry(job_id)
+
+    def _retry_all(self):
+        if self.pipe is None:
+            return
+        n = 0
+        for job in self.pipe.job_list():
+            stages = job.get("stages") or {}
+            stalled = any((s or {}).get("state") in (pl.FAILED, pl.WAITING)
+                          for s in stages.values())
+            if stalled and not job.get("bootstrap"):
+                self.pipe.retry(job.get("id") or "")
+                n += 1
+        self.log.line(f"[重试] 已重新排队 {n} 个任务" if n else "[重试] 没有停滞的任务",
+                      "ok" if n else "dim")
+
+    def _scan(self):
+        if self.pipe is not None:
+            self.pipe.manual_evaluate()
+            self.log.line("[扫描] 已触发一次目录评估", "dim")
+
+    def _open_out(self):
+        if self.pipe is not None and os.path.isdir(self.pipe.out_root):
+            engine.open_folder(self.pipe.out_root)
+
+    def _on_auto(self, checked):
+        if self.pipe is not None:
+            self.pipe.set_auto(bool(checked))
+            self.log.line(f"[开关] 自动流水线：{'开' if checked else '关'}", "dim")
+
+
+class ConfirmDialog(QDialog):
+    """确认框：**真·顶层模态窗口**，不是贴在主窗口里的自绘遮罩。
+
+    为什么不能用 `qfluentwidgets.MessageBox`（v1.13.7 定论）：
+    它在传了 parent 时会退化成**普通子控件** —— 探针实测
+    `isWindow()==False`、`WS_CHILD==True`、`GetParent()` 就是主窗口、
+    几何等于主窗口整块（见 `_workspace/probes/_probe_msgbox.py`）。而字幕编辑
+    页的视频区是 **mpv 的原生子窗口**（`wid` 嵌进 `video_host`），原生子窗口在
+    Windows 上永远盖在同级 Qt 自绘控件之前，并且播放器通常握着键盘焦点 ——
+    于是用户看到的就是「这个框点不动、Esc/空格/回车全无反应」。
+
+    顶层窗口由系统独立管理，不参与主窗口内部的层级之争，鼠标/键盘都稳。
+    """
+
+    def __init__(self, title, message, parent=None,
+                 yes_text="确定", no_text="取消"):
+        super().__init__(parent)
+        # ⚠️ 必须是 Qt.Dialog：只给 FramelessWindowHint 会丢掉窗口类型
+        self.setWindowFlags(Qt.Dialog | Qt.FramelessWindowHint
+                            | Qt.NoDropShadowWindowHint)
+        self.setWindowModality(Qt.ApplicationModal)
+        self.setAttribute(Qt.WA_TranslucentBackground, True)
+        self.setWindowTitle(title or "确认")
+
+        dark = False
+        try:
+            from qfluentwidgets import isDarkTheme
+            dark = bool(isDarkTheme())
+        except Exception:  # noqa: BLE001
+            pass
+        bg = "#2B2B2B" if dark else "#FFFFFF"
+        fg = "#F3F3F3" if dark else "#1B1B1B"
+        sub = "#C9C9C9" if dark else "#4C4C4C"
+        line = "#3D3D3D" if dark else "#E6E6E6"
+
+        outer = QVBoxLayout(self)
+        outer.setContentsMargins(0, 0, 0, 0)
+        card = QFrame(self, objectName="vtConfirmCard")
+        card.setAttribute(Qt.WA_StyledBackground, True)
+        card.setStyleSheet(
+            "#vtConfirmCard{background:%s;border:1px solid %s;"
+            "border-radius:10px;}" % (bg, line))
+        outer.addWidget(card)
+
+        inner = QVBoxLayout(card)
+        inner.setContentsMargins(26, 22, 26, 18)
+        inner.setSpacing(10)
+
+        lbl_title = QLabel(title or "确认", card, objectName="vtConfirmTitle")
+        lbl_title.setStyleSheet(
+            "#vtConfirmTitle{color:%s;font-size:15px;font-weight:600;"
+            "background:transparent;border:none;}" % fg)
+        lbl_body = QLabel(message or "", card, objectName="vtConfirmBody")
+        lbl_body.setWordWrap(True)
+        lbl_body.setStyleSheet(
+            "#vtConfirmBody{color:%s;font-size:13px;background:transparent;"
+            "border:none;}" % sub)
+        lbl_body.setMinimumWidth(300)
+        lbl_body.setMaximumWidth(420)
+        inner.addWidget(lbl_title)
+        inner.addWidget(lbl_body)
+
+        buttons = QHBoxLayout()
+        buttons.setContentsMargins(0, 8, 0, 0)
+        buttons.setSpacing(10)
+        buttons.addStretch(1)
+        self.cancelButton = PushButton(no_text, card)
+        self.yesButton = PrimaryPushButton(yes_text, card)
+        for b in (self.cancelButton, self.yesButton):
+            b.setFixedWidth(112)
+        buttons.addWidget(self.cancelButton)
+        buttons.addWidget(self.yesButton)
+        inner.addLayout(buttons)
+
+        self.cancelButton.clicked.connect(self.reject)
+        self.yesButton.clicked.connect(self.accept)
+        # 焦点落在"确定"上：回车即确认、Esc 即取消（QDialog 内建）
+        self.yesButton.setFocus()
+        self.adjustSize()
+
+    def showEvent(self, e):
+        super().showEvent(e)
+        parent = self.parentWidget()
+        if parent is not None:
+            try:
+                center = parent.window().frameGeometry().center()
+                self.move(center - self.rect().center())
+            except Exception:  # noqa: BLE001
+                pass
+        # 顶层窗口也可能被别的东西压在下面 / 没拿到前台，显式抬一次
+        self.raise_()
+        self.activateWindow()
+        self.yesButton.setFocus()
+
+    @staticmethod
+    def release_stale_capture():
+        """放掉可能残留的鼠标捕获（Windows 的 SetCapture 是独占的）。
+
+        拖放（OLE）与视频窗口都会留下这种残留：谁握着捕获，鼠标消息就全归谁
+        —— 对话框画得出来也点不动。ReleaseCapture 作用于**调用线程**，
+        正是 GUI 线程自己。
+        """
+        if not sys.platform.startswith("win"):
+            return
+        try:
+            import ctypes
+            user32 = ctypes.windll.user32
+            if user32.GetCapture():
+                user32.ReleaseCapture()
+        except Exception:  # noqa: BLE001
+            pass
+
+    @classmethod
+    def ask(cls, parent, title, message, yes_text="确定", no_text="取消"):
+        """弹一次确认；返回 True = 用户点了 yes。顶层模态，稳定可交互。"""
+        cls.release_stale_capture()
+        dlg = cls(title, message, parent, yes_text, no_text)
+        try:
+            return dlg.exec() == QDialog.Accepted
+        finally:
+            dlg.deleteLater()
+
+
 # ========== 字幕编辑（打轴） ==========
+class _VideoHost(QWidget):
+    """播放器宿主：最小尺寸由 `setMinimumSize` 说了算。
+
+    为什么不直接用 QWidget：mpv 是用 `wid` **嵌入**进来的原生子窗口，
+    Qt 会把它的尺寸算进宿主控件的 `minimumSizeHint()` —— 载入视频后实测
+    整个主窗口的最小高度从 620 涨到 810，于是窗口再也缩不下去（下边缘跑到
+    屏幕外，"只能拉顶部、底部调不了"）。视频区该多小由我们声明，
+    不该由播放器的原生窗口替我们决定。
+    """
+
+    def minimumSizeHint(self):
+        # ⚠️ 判据必须是 **or**，不能写成 `and`：
+        #    `setMinimumWidth` / `setMinimumHeight` 只要有一边没设（高度是 0），
+        #    `and` 就不成立，于是回落到 `super().minimumSizeHint()` —— 而那个值
+        #    里含着 mpv 原生子窗口的尺寸：载入视频后整个主窗口的最小高度会从
+        #    620 一路涨到 810，窗口再也缩不下去（下边缘跑到屏幕外，"只能拉顶部、
+        #    底部调不了"）。只要有一边是我们自己声明的，就以声明为准，
+        #    视频区该多小由我们说了算，不该由播放器的原生窗口替我们决定。
+        ms = self.minimumSize()
+        if ms.width() > 0 or ms.height() > 0:
+            return QSize(ms.width(), ms.height())
+        return super().minimumSizeHint()
+
+
 class SubtitleEditPage(ScrollPage):
     """字幕编辑（打轴）：播放器 + 波形时间轴 + 字幕表。
 
@@ -3140,10 +3991,12 @@ class SubtitleEditPage(ScrollPage):
     NL_SEP = " / "
 
     def __init__(self, app, parent=None):
+        # v1.13.x：副标题缩短到一行放得下，并 fit 掉自动换行。否则首次布局时
+        # heightForWidth 会把 1 行算成 2 行 → 整页内容下移，就是「进页面上下闪一下」。
         super().__init__("字幕编辑",
-                         "打轴：边看画面边对字幕起止时间——拖波形块改时间、双击切分、"
-                         "[ ] 取起止点、空格播放暂停",
+                         "拖波形改起止时间，双击切分，[ ] 取起止点，空格播放暂停",
                          parent, scrollable=False)
+        fit_caption(self.cap)
         self.app = app
         self.setObjectName("SubtitleEditPage")
 
@@ -3159,6 +4012,13 @@ class SubtitleEditPage(ScrollPage):
         self._pre_drag = None            # 拖拽开始前的整档快照
         self._drag_pushed = False
         self._shortcuts = []
+        # 画面字幕预览：cues -> ASS -> mpv 的 sub-add/sub-reload
+        self._ass_sig = None             # 上次下发的 cues 指纹（相同就不重建）
+        # 预览样式（字体 / 字号 / 颜色 / 描边 / 对齐 / 边距）**持久化**：
+        # 这是用户一句句调出来的，重启就回默认等于白调。存数据根目录，不进 .srt。
+        self._preview_style = dict(secore.ASS_DEFAULT_STYLE)
+        self._preview_style.update(self._load_preview_style())
+        self._cur_index = -2             # 面板正在显示的下标；-2 = 强制刷新
 
         self.mpv_dir = os.path.join(engine.TOOLS_DIR, "mpv")
         self.wave_cache = None
@@ -3179,71 +4039,12 @@ class SubtitleEditPage(ScrollPage):
     # 界面
     # ---------------------------------------------------------
     def _build_ui(self):
-        # —— 工具条 ——
-        bar = QHBoxLayout()
-        bar.setSpacing(8)
-        self.btn_video = PrimaryPushButton(FIF.VIDEO, "打开视频", self)
-        self.btn_sub = PushButton(FIF.FONT, "打开字幕", self)
-        self.btn_save = PushButton(FIF.SAVE, "保存", self)
-        self.btn_save_as = PushButton(FIF.SAVE_AS, "另存为", self)
-        for b in (self.btn_video, self.btn_sub, self.btn_save, self.btn_save_as):
-            bar.addWidget(b)
-        bar.addSpacing(12)
-
-        self.btn_play = PushButton(FIF.PLAY, "播放", self)
-        self.btn_prev_frame = PushButton("◀ 帧", self)
-        self.btn_next_frame = PushButton("帧 ▶", self)
-        bar.addWidget(self.btn_play)
-        bar.addWidget(self.btn_prev_frame)
-        bar.addWidget(self.btn_next_frame)
-
-        self.speed_box = ComboBox(self)
-        self.speed_box.addItems(self.SPEEDS)
-        self.speed_box.setCurrentText("1.0")
-        self.speed_box.setFixedWidth(84)
-        bar.addWidget(self.speed_box)
-        bar.addWidget(CaptionLabel("倍速", self))
-        bar.addStretch(1)
-
+        # 时间码放**状态栏右侧**（原来挂在工具条尾部，960px 窗口下会被压成
+        # "00:02.000 /(" 什么都说不清）。
         self.lbl_time = StrongBodyLabel("--:--.--- / --:--.---", self)
-        bar.addWidget(self.lbl_time)
-        self.shell_bar = QWidget(self)
-        self.shell_bar.setLayout(bar)
-        self.vbox.addWidget(self.shell_bar)
 
-        # —— 编辑条 ——
-        ebar = QHBoxLayout()
-        ebar.setSpacing(8)
-        self.ops = []
-        for text, tip, slot in (
-            ("切分", "在播放头处把选中条目切成两条（Ctrl+K，或在波形上双击）", self.split_at_playhead),
-            ("合并", "把选中的多条合并为一条", self.merge_selected),
-            ("删除", "删除选中条目（Del）", self.delete_selected),
-            ("插入", "在播放头处插入一条 1.5s 空白字幕", self.insert_at_playhead),
-            ("取起点 [", "把选中条目的起点设为播放头（[）", self.set_start_here),
-            ("取终点 ]", "把选中条目的终点设为播放头（]）", self.set_end_here),
-            ("前移 0.1s", "选中条目整体前移 100ms（Shift+←）",
-             lambda: self.shift_selected(-100)),
-            ("后移 0.1s", "选中条目整体后移 100ms（Shift+→）",
-             lambda: self.shift_selected(100)),
-        ):
-            btn = PushButton(text, self)
-            btn.setToolTip(tip)
-            btn.clicked.connect(slot)
-            ebar.addWidget(btn)
-            self.ops.append(btn)
-        ebar.addSpacing(12)
-        self.btn_undo = PushButton(FIF.HISTORY, "撤销", self)
-        self.btn_redo = PushButton(FIF.SYNC, "重做", self)
-        ebar.addWidget(self.btn_undo)
-        ebar.addWidget(self.btn_redo)
-        ebar.addStretch(1)
-        self.shell_ebar = QWidget(self)
-        self.shell_ebar.setLayout(ebar)
-        self.vbox.addWidget(self.shell_ebar)
-
-        # —— 画面 + 字幕表 ——
-        self.video_host = QWidget(self)
+        # —— 画面 + 右栏（右栏 = 字幕属性；字幕本身在**画面上**直接操作）——
+        self.video_host = _VideoHost(self)
         self.video_host.setStyleSheet("background:#000;")
         self.video_host.setMinimumWidth(280)
         self.video_host.setMinimumHeight(160)
@@ -3253,18 +4054,49 @@ class SubtitleEditPage(ScrollPage):
         vlay.setContentsMargins(0, 0, 0, 0)
         vlay.addWidget(self.video_hint, 0, Qt.AlignCenter)
 
-        self.table = CueTable(self)
+        # v1.13.2：右栏不再保留字幕框/字幕列表，改为「字幕属性」面板。
+        # 字幕本身是要"看得见、点得到、能拖"的东西，所以挪到画面上直接操作
+        # （SubtitleStage），右侧只留外观参数；两边共用同一份样式字典。
+        # 视频底部的一排图标控制栏：原来铺在页面顶部的两行文字按钮（工具条 +
+        # 编辑条）全部并到这里，页面因此省下近 80px 高度还给画面。
+        self.media_bar = self._build_media_bar()
+        self.video_col = QWidget(self)
+        vclay = QVBoxLayout(self.video_col)
+        vclay.setContentsMargins(0, 0, 0, 0)
+        vclay.setSpacing(2)
+        vclay.addWidget(self.video_host, 1)
+        vclay.addWidget(self.media_bar)
+
+        self.props = SubtitlePropsPanel(self)
+
+        # 画面字幕层：**顶层无边框透明窗口**，贴在视频的**实际显示区域**上。
+        # 为什么不贴满 video_host：视频有黑边时（竖屏/异形比例）整块 widget 里
+        # 只有中间一块是画面，贴满会让选框和真实字幕错位——字幕的坐标基准必须
+        # 与画面一致，这是「浮层位置与字幕真实位置绑定」的关键。
+        self.stage = SubtitleStage(self.video_host, self.window(),
+                                   rect_provider=self._video_rect)
 
         self.hsplit = QSplitter(Qt.Horizontal, self)
         self.hsplit.setChildrenCollapsible(False)
-        self.hsplit.addWidget(self.video_host)
-        self.hsplit.addWidget(self.table)
-        self.hsplit.setStretchFactor(0, 3)
-        self.hsplit.setStretchFactor(1, 2)
-        self.hsplit.setSizes([620, 400])
+        self.hsplit.addWidget(self.video_col)
+        self.hsplit.addWidget(self.props)
+        self.hsplit.setStretchFactor(0, 4)
+        self.hsplit.setStretchFactor(1, 1)
+        self.hsplit.setSizes([700, 300])
 
         self.timeline = WaveformTimeline(self)
         self.timeline.setMinimumHeight(110)
+
+        # 全量列表（批量多选 / 合并 / 删除）挪到时间轴下方的抽屉里、默认收起：
+        # 右栏让给了属性面板，但"批量改时间"的能力不能跟着丢。
+        self.table = CueTable(self)
+        self.table.setMinimumHeight(96)
+        self.table_shell = QWidget(self)
+        tlay = QVBoxLayout(self.table_shell)
+        tlay.setContentsMargins(0, 0, 0, 0)
+        tlay.setSpacing(0)
+        tlay.addWidget(self.table)
+        self.table_shell.hide()
 
         self.vsplit = QSplitter(Qt.Vertical, self)
         self.vsplit.setChildrenCollapsible(False)
@@ -3274,26 +4106,35 @@ class SubtitleEditPage(ScrollPage):
         self.vsplit.setStretchFactor(1, 0)
         self.vsplit.setSizes([520, 150])
         self.vbox.addWidget(self.vsplit, 1)
+        self.vbox.addWidget(self.table_shell)
 
-        # —— 状态区 ——
+        # —— 状态区（左：状态文字；右：时间码）——
+        srow = QHBoxLayout()
+        srow.setSpacing(12)
         self.status = CaptionLabel("就绪", self)
-        self.vbox.addWidget(self.status)
-        self.wave_bar = ProgressBar(self)
+        self.status.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Preferred)
+        srow.addWidget(self.status, 1)
+        srow.addWidget(self.lbl_time, 0)
+        self.shell_status = QWidget(self)
+        self.shell_status.setLayout(srow)
+        self.vbox.addWidget(self.shell_status)
+        # v1.13.x：进度条必须放进**固定高度容器**再显隐。直接 addWidget 后 hide()，
+        # 它一出现/一消失就带着下方内容上下位移（4px + 布局间距），
+        # 表现出来正是「进页面上下闪一下」。容器常驻，显隐只影响它自己。
+        self.wave_slot = QWidget(self)
+        self.wave_slot.setFixedHeight(6)
+        slot_lay = QVBoxLayout(self.wave_slot)
+        slot_lay.setContentsMargins(0, 0, 0, 0)
+        slot_lay.setSpacing(0)
+        self.wave_bar = ProgressBar(self.wave_slot)
         self.wave_bar.setFixedHeight(4)
+        slot_lay.addWidget(self.wave_bar)
         self.wave_bar.hide()
-        self.vbox.addWidget(self.wave_bar)
+        self.vbox.addWidget(self.wave_slot)
 
         # —— 信号 ——
-        self.btn_video.clicked.connect(self.open_video)
-        self.btn_sub.clicked.connect(self.open_subtitle)
-        self.btn_save.clicked.connect(self.save)
-        self.btn_save_as.clicked.connect(self.save_as)
-        self.btn_play.clicked.connect(self.toggle_play)
-        self.btn_prev_frame.clicked.connect(lambda: self.step_frames(-1))
-        self.btn_next_frame.clicked.connect(lambda: self.step_frames(1))
-        self.speed_box.currentTextChanged.connect(self._on_speed)
-        self.btn_undo.clicked.connect(self.undo_edit)
-        self.btn_redo.clicked.connect(self.redo_edit)
+        # 控制栏上那批按钮的信号在 `_build_media_bar` 里已经连好，这里不再重复连
+        # （连两次会让每次点击都触发两遍）。
 
         self.timeline.position_clicked.connect(self.seek_ms)
         self.timeline.cue_selected.connect(self._on_timeline_cue_selected)
@@ -3303,6 +4144,146 @@ class SubtitleEditPage(ScrollPage):
         self.timeline.split_requested.connect(self._on_split_requested)
         self.table.selection_changed.connect(self._on_table_selection)
         self.table.cell_committed.connect(self._on_cell_committed)
+        self.btn_list.clicked.connect(self.toggle_list)
+        self.props.step_requested.connect(self.goto_cue)
+        self.props.style_changed.connect(self._on_style_changed)
+        self.props.set_style(self._preview_style)
+
+        # —— 画面字幕层（点选 / 拖动 / 就地改字 / 双击空白播放暂停）——
+        self.stage.cue_clicked.connect(self._on_stage_cue_clicked)
+        self.stage.selection_cleared.connect(self._on_stage_cleared)
+        self.stage.text_committed.connect(self._on_stage_text)
+        self.stage.layout_changed.connect(self._on_stage_layout)
+        self.stage.play_toggled.connect(self.toggle_play)
+        self.stage.set_style(self._preview_style)
+        self.stage.set_cues(self.doc.cues)
+
+    # ---------------------------------------------------------
+    # 视频底部的一排图标控制栏
+    # ---------------------------------------------------------
+    #: 控制栏图标按钮的边长（逻辑像素）。19 个图标 + 5 条分隔线 + 倍速下拉要在
+    #: 一排里放下（1280 屏上窗口收敛后视频区只有 ~610px 宽），26 是实测算得下
+    #: 的最大值——再大就会挤到裁切。
+    BAR_ICON = 22
+
+    def _build_media_bar(self):
+        """视频**底部**的一排图标控制栏（原顶部两行文字按钮的替代）。
+
+        两组考虑：
+          · **放视频下面，不叠进画面**——video_host 里跑的是 mpv 的**原生
+            子窗口**，任何 Qt 控件叠进去都会被它盖住，一个图标都看不见；
+          · **全图标 + tooltip**——18 个中文按钮并排必然放不下，纯图标才能
+            在一排里排开，完整说明留在 tooltip 与快捷键里。
+        """
+        bar = QWidget(self)
+        bar.setObjectName("MediaBar")
+        bar.setFixedHeight(self.BAR_ICON + 4)
+        # 用 #MediaBar 限定，避免样式级联到里面的图标按钮上
+        bar.setStyleSheet(
+            "QWidget#MediaBar{background:#1b1b1b;border-top:1px solid #2b2b2b;}")
+        lay = QHBoxLayout(bar)
+        lay.setContentsMargins(8, 2, 8, 2)
+        # 20 个图标 + 5 条分组竖线要在一排里放得下：按最小窗口（880 宽 → 视频区
+        # 约 467px）反推，图标 22px、间距 1px 刚好富裕一点。再大就会互相重叠。
+        lay.setSpacing(1)
+
+        def ibtn(icon, tip, slot, checkable=False):
+            b = ToolButton(icon, self)
+            b.setFixedSize(self.BAR_ICON, self.BAR_ICON)
+            b.setToolTip(tip)
+            if checkable:
+                b.setCheckable(True)
+            b.clicked.connect(slot)
+            # stretch=1：按钮本身是固定尺寸，多出来的空间由布局均分，于是
+            # 图标沿整条栏**均匀铺开**，而不是全堆在左边（右边留一大片空）。
+            lay.addWidget(b, 1)
+            return b
+
+        def divider():
+            line = QWidget(bar)
+            line.setFixedSize(1, 14)
+            line.setStyleSheet("background:#3d3d3d;")
+            lay.addWidget(line)
+
+        # —— 文件 ——
+        self.btn_video = ibtn(FIF.VIDEO, "打开视频（Ctrl+O）", self.open_video)
+        self.btn_sub = ibtn(FIF.FONT, "打开字幕（Ctrl+Shift+O）", self.open_subtitle)
+        self.btn_save = ibtn(FIF.SAVE, "保存（Ctrl+S）", self.save)
+        self.btn_save_as = ibtn(FIF.SAVE_AS, "另存为（Ctrl+Shift+S）", self.save_as)
+        self.btn_close_media = ibtn(FIF.CLOSE, "关闭视频：卸下当前视频并复位波形"
+                                              "（字幕不动）", self.close_video)
+        divider()
+
+        # —— 播放 ——
+        self.btn_prev_frame = ibtn(FIF.CARE_LEFT_SOLID, "上一帧（← 或 ,）",
+                                   lambda: self.step_frames(-1))
+        self.btn_play = ibtn(FIF.PLAY_SOLID, "播放 / 暂停（空格）", self.toggle_play)
+        self.btn_next_frame = ibtn(FIF.CARE_RIGHT_SOLID, "下一帧（→ 或 .）",
+                                   lambda: self.step_frames(1))
+        self.speed_box = ComboBox(bar)
+        self.speed_box.addItems(self.SPEEDS)
+        self.speed_box.setCurrentText("1.0")
+        self.speed_box.setFixedWidth(62)
+        self.speed_box.setToolTip("播放倍速")
+        self.speed_box.currentTextChanged.connect(self._on_speed)
+        lay.addWidget(self.speed_box, 1)
+        divider()
+
+        # —— 编辑 ——
+        self.ops = []
+        self.btn_split = ibtn(FIF.CUT, "切分：在播放头处把选中条目切成两条"
+                                       "（Ctrl+K，或在波形上双击）", self.split_at_playhead)
+        self.btn_merge = ibtn(FIF.CONSTRACT, "合并：把选中的多条合并为一条",
+                              self.merge_selected)
+        self.btn_del = ibtn(FIF.DELETE, "删除选中条目（Del）", self.delete_selected)
+        self.btn_ins = ibtn(FIF.ADD, "插入：在播放头处插入一条 1.5s 空白字幕",
+                            self.insert_at_playhead)
+        self.ops.extend([self.btn_split, self.btn_merge, self.btn_del, self.btn_ins])
+        divider()
+
+        # —— 起止点 / 平移 ——
+        self.btn_start = ibtn(FIF.PAGE_LEFT, "取起点：把选中条目的起点设为播放头（[）",
+                              self.set_start_here)
+        self.btn_end = ibtn(FIF.PAGE_RIGHT, "取终点：把选中条目的终点设为播放头（]）",
+                            self.set_end_here)
+        self.btn_fwd = ibtn(FIF.LEFT_ARROW, "前移 0.1s（Shift+←）",
+                            lambda: self.shift_selected(-100))
+        self.btn_bwd = ibtn(FIF.RIGHT_ARROW, "后移 0.1s（Shift+→）",
+                            lambda: self.shift_selected(100))
+        self.ops.extend([self.btn_start, self.btn_end])
+        divider()
+
+        # —— 历史 ——
+        self.btn_undo = ibtn(FIF.HISTORY, "撤销（Ctrl+Z）", self.undo_edit)
+        self.btn_redo = ibtn(FIF.SYNC, "重做（Ctrl+Y）", self.redo_edit)
+        divider()
+
+        # —— 工具 ——
+        self.btn_compose = ibtn(FIF.MOVIE, "内嵌字幕：把当前字幕作为独立轨道内嵌"
+                                           "进视频，音视频原样复制、不重新编码",
+                                self.open_compose)
+        self.btn_list = ibtn(FIF.MENU, "展开时间轴下方的全量列表"
+                                       "（多选合并 / 批量删除 / 改时间）",
+                             self.toggle_list, checkable=True)
+        # 不加 addStretch —— 靠每项的 stretch=1 均分，图标才是「均匀排列」
+        return bar
+
+    # ---------------------------------------------------------
+    # 字幕列表抽屉（批量改时间用；右栏已让给属性面板）
+    # ---------------------------------------------------------
+    def toggle_list(self):
+        """展开/收起时间轴下方的全量列表。"""
+        show = self.btn_list.isChecked()
+        self.table_shell.setVisible(show)
+        if show:
+            self.table.load(self.doc.cues)
+            idx = self.timeline.selected
+            if idx >= 0:
+                self.table.select_row(idx)
+            self.table.setFocus()
+        else:
+            self.timeline.setFocus()
+        self._refresh_status("已展开字幕列表" if show else "")
 
     # ---------------------------------------------------------
     # 快捷键（WidgetWithChildren：焦点在本页时才生效，不抢别的页面）
@@ -3329,6 +4310,7 @@ class SubtitleEditPage(ScrollPage):
         add("[", self.set_start_here)
         add("]", self.set_end_here)
         add("Ctrl+K", self.split_at_playhead)
+        add("Ctrl+A", self.select_all_cues)
         add("Del", self.delete_selected)
         add("Ctrl+Z", self.undo_edit)
         add("Ctrl+Y", self.redo_edit)
@@ -3368,9 +4350,59 @@ class SubtitleEditPage(ScrollPage):
     # ---------------------------------------------------------
     # 生命周期
     # ---------------------------------------------------------
+    def relayout_after_screen_change(self):
+        """跨屏 / DPI 变化后重新收敛本页布局。
+
+        必须做两件事：
+          · **重设分割条比例**。Qt 在 PPI 变化后按各子项的 sizeHint 重排
+            splitter，把视频区压扁、属性面板顶宽——用户看到的就是"跨屏
+            拖动后页面扭曲变形"；而比例只在首次 show 时设过一次。
+          · **让字幕层重新贴合画面**。它是顶层窗口，不会跟着主窗口的重排走，
+            跨屏后会停在旧坐标上（看起来像浮在别处）。
+        """
+        self._apply_split_defaults()
+        try:
+            self._sync_stage_visible()
+            self.stage.snap_to_host()
+        except Exception:  # noqa: BLE001
+            pass
+
+    def _apply_split_defaults(self):
+        """按黄金比例分配上下 / 左右两个分割条。
+
+        为什么不能只在 `_build_ui` 里 `setSizes()` 就完事：构造时 splitter 的
+        尺寸还是 0，Qt 会把这次 setSizes 当成"比例提示"记下来，随后又按各子项
+        的 sizeHint 重新分配——结果视频区被压成一条（实测 531x173），属性面板
+        也跟着挤到最小宽度。必须等**首次 show 之后**再设一次，这时尺寸才是真的。
+
+        左右 72:28、上下 84:16：这是让视频画面接近 16:9、右栏刚好放得下属性
+        面板、时间轴又不至于缩到看不见的一组值（按 1180x729 与 1280 屏实测
+        收敛后的 1080x667 两档算的——后者上下空间更紧，取 84 才不至于把画面
+        压成一条）。
+        """
+        try:
+            w = self.hsplit.width()
+            if w > 0:
+                left = int(w * 0.72)
+                self.hsplit.setSizes([left, w - left])
+            h = self.vsplit.height()
+            if h > 0:
+                top = int(h * 0.84)
+                self.vsplit.setSizes([top, h - top])
+        except Exception:  # noqa: BLE001
+            pass
+
     def showEvent(self, ev):
         super().showEvent(ev)
         QTimer.singleShot(0, lambda: self.timeline.setFocus())
+        # 首次进页面时把属性面板对齐到播放头（此时还没有播放器）
+        QTimer.singleShot(0, self._sync_current)
+        # 字幕层是顶层窗口，页面不走它自己那一套显隐，必须手动跟
+        QTimer.singleShot(0, self._sync_stage_visible)
+        if not getattr(self, "_split_done", False):
+            self._split_done = True
+            QTimer.singleShot(0, self._apply_split_defaults)
+            QTimer.singleShot(150, self._apply_split_defaults)
 
     def hideEvent(self, ev):
         # 页面切走后立刻暂停：mpv 在后台解码只是白烧 CPU
@@ -3379,15 +4411,92 @@ class SubtitleEditPage(ScrollPage):
                 self.player.pause()
         except Exception:
             pass
+        try:
+            self.stage.hide_stage()
+        except Exception:
+            pass
         super().hideEvent(ev)
 
     def shutdown(self):
-        """退出前释放 libmpv（不调会在退出后留下 _MEI*** 删不掉的毛病）。"""
+        """退出前释放画面字幕层与 libmpv。
+
+        两件事都必须做：
+          · libmpv 不 `terminate()` 会留下 _MEI*** 删不掉的毛病（v1.12.0 踩过）；
+          · 画面字幕层是个**顶层窗口**，进程退出时若它还活着，Qt 会在
+            销毁顺序上踩空——实测收尾阶段访问冲突（0xC0000005，无 traceback），
+            所以显式关掉再解引用。
+        """
         self._wave_stop.set()
         try:
+            self.stage.hide_stage()
+            self.stage.close()
+            self.stage.setParent(None)
+            self.stage.deleteLater()
+        except Exception:  # noqa: BLE001
+            pass
+        try:
             self.player.terminate()
+        except Exception:  # noqa: BLE001
+            pass
+
+    # ---------------------------------------------------------
+    # 画面字幕层
+    # ---------------------------------------------------------
+    def _video_rect(self):
+        """视频在 video_host 里的**实际显示矩形**（逻辑像素，已去掉黑边）。
+
+        字幕的坐标基准必须和画面一致：竖屏视频、异形比例、或者窗口被拉成
+        别的比例时，widget 里只有中间一块是画面，其余是黑边。字幕层贴
+        "画面"而不是"widget"，选框和真实字幕才不会错位。
+        """
+        w, h = self.video_host.width(), self.video_host.height()
+        if w < 8 or h < 8:
+            return QRect(0, 0, max(0, w), max(0, h))
+        ar = self.player.video_aspect() if self.player else 0.0
+        if ar <= 0.01:
+            return QRect(0, 0, w, h)          # 还没有视频：整块都算画面
+        if w / float(h) > ar:                 # widget 更宽 → 左右留黑边
+            vw = int(round(h * ar))
+            return QRect((w - vw) // 2, 0, vw, h)
+        vh = int(round(w / ar))               # widget 更高 → 上下留黑边
+        return QRect(0, (h - vh) // 2, w, vh)
+
+    def _sync_stage_visible(self):
+        """按「有视频 + 页面可见」决定字幕层显隐。"""
+        try:
+            show = bool(self.video_path) and self.isVisible()
+            if show:
+                self.stage.show_over()
+            else:
+                self.stage.hide_stage()
         except Exception:
             pass
+
+    def _on_stage_cue_clicked(self, idx):
+        """在画面上点中某条字幕：与时间轴 / 列表选中态对齐。"""
+        if not (0 <= idx < len(self.doc.cues)):
+            return
+        self.timeline.set_selected(idx)
+        self.table.select_row(idx)
+        cue = self.doc.cues[idx]
+        self.props.set_cue(cue, idx, len(self.doc.cues))
+
+    def _on_stage_cleared(self):
+        self.timeline.set_selected(-1)
+
+    def _on_stage_text(self, idx, text):
+        """画面上的就地编辑提交：和列表里改文本走同一条落库路径。"""
+        self._on_current_text(idx, text)
+
+    def _on_stage_layout(self, style):
+        """画面拖动改了位置（margin_v / alignment）：并入预览样式。"""
+        self._preview_style = dict(secore.ASS_DEFAULT_STYLE)
+        self._preview_style.update(style or {})
+        self.props.set_style(self._preview_style)
+        self._ass_sig = None
+        self._save_preview_style()
+        self._push_preview(force=True)
+        self._refresh_status("已调整字幕位置")
 
     # ---------------------------------------------------------
     # 依赖与提示
@@ -3444,11 +4553,13 @@ class SubtitleEditPage(ScrollPage):
     def _confirm_discard(self):
         if not self.dirty:
             return True
-        box = MessageBox("字幕尚未保存",
-                         "当前改动还没写回文件，确定要放弃吗？", self.window() or self)
-        box.yesButton.setText("放弃改动")
-        box.cancelButton.setText("取消")
-        return bool(box.exec())
+        # ⚠️ 用 ConfirmDialog（真·顶层模态），不要用 qfluentwidgets.MessageBox：
+        #    后者退化成主窗口里的子控件，会被 mpv 原生子窗口吃掉鼠标、被播放器
+        #    占着键盘焦点，表现为「整个框点不动、Esc/空格/回车都没反应」。
+        return ConfirmDialog.ask(
+            self.window() or self, "字幕尚未保存",
+            "当前改动还没写回文件，确定要放弃吗？",
+            yes_text="放弃改动", no_text="取消")
 
     def open_video(self):
         if not self._confirm_discard():
@@ -3476,7 +4587,40 @@ class SubtitleEditPage(ScrollPage):
         self.video_hint.hide()
         self._refresh_status()
         self._start_waveform(path)
+        # 视频就绪 → 把画面字幕层贴到视频的**实际显示区域**并显示出来。
+        # 延后一帧：此时 mpv 才拿到宽高比，抽黑边算出来的矩形才是准的。
+        QTimer.singleShot(60, self._sync_stage_visible)
+        QTimer.singleShot(400, self._sync_stage_visible)
         return True
+
+    def close_video(self):
+        """关闭当前视频，回到"尚未打开视频"的状态。
+
+        只卸视频，**不动字幕**——字幕是独立文档，用户常常是"换一段视频接着
+        用同一份字幕"。所以这里不碰 `doc` / `sub_path` / `dirty`。
+        """
+        if not self.video_path and not self.player.available:
+            self._refresh_status("当前没有视频")
+            return
+        self._wave_stop.set()
+        try:
+            self.player.close_media()
+        except Exception:  # noqa: BLE001
+            pass
+        self.video_path = ""
+        try:
+            self.stage.hide_stage()
+        except Exception:  # noqa: BLE001
+            pass
+        self.video_hint.show()
+        self.video_hint.raise_()
+        # 波形与时长一起复位，否则时间轴还留着上一段视频的刻度
+        self.timeline.set_media(bytearray(), 0, self.timeline.peaks_pps)
+        self.timeline.set_cues(self.doc.cues)
+        self._ass_sig = None
+        self._cur_index = -2
+        self._refresh_status("已关闭视频")
+        self._sync_current()
 
     def open_subtitle(self):
         if not self._confirm_discard():
@@ -3514,6 +4658,8 @@ class SubtitleEditPage(ScrollPage):
         self.timeline.set_selected(-1)
         self._sync_duration()
         self._refresh_status()
+        self._mark_preview_dirty()
+        self._sync_current()
         msg = "已载入 %d 条（编码 %s，换行 %s）" % (
             n, self.doc.src_encoding,
             "CRLF" if self.doc.newline == "\r\n" else "LF")
@@ -3531,6 +4677,8 @@ class SubtitleEditPage(ScrollPage):
         self.timeline.set_cues(self.doc.cues)
         self.table.load(self.doc.cues)
         self._refresh_status()
+        self._mark_preview_dirty()
+        self._sync_current()
 
     def _sync_duration(self):
         """时间轴总长取「视频时长 / 字幕末尾」两者较大值。"""
@@ -3583,6 +4731,30 @@ class SubtitleEditPage(ScrollPage):
         self.dirty = False
         self._info("ok", "已保存", path)
         self._refresh_status()
+
+    # ---------------------------------------------------------
+    # 内嵌字幕（原引擎工作台「字幕视频合成」分段，v1.13.x 并到本页）
+    # ---------------------------------------------------------
+    def open_compose(self):
+        """打开「内嵌字幕」对话框。
+
+        用的是**内存里的 cues**（含未保存改动），所以不必先保存——
+        这正是把它从引擎工作台搬过来的意义：那边只能吃磁盘上的文件。
+        只把字幕挂成独立轨道，音视频 copy、不重新编码。
+        """
+        if not self.video_path:
+            self._info("warn", "先打开视频",
+                       "内嵌字幕需要一段视频；字幕用当前编辑的这份")
+            return
+        if not self.doc.cues:
+            self._info("warn", "没有字幕", "先在波形上打轴，或用「插入」新建一条")
+            return
+        try:
+            dlg = ComposeDialog(self, self)
+        except Exception as e:  # noqa: BLE001
+            self._info("err", "无法打开内嵌面板", str(e)[:200])
+            return
+        dlg.exec_()
 
     # ---------------------------------------------------------
     # 波形
@@ -3642,10 +4814,18 @@ class SubtitleEditPage(ScrollPage):
     # 播放
     # ---------------------------------------------------------
     def toggle_play(self):
-        if not self._ensure_player():
+        """空格 / 「播放」按钮：播放暂停。
+
+        ⚠️ 没有视频时**绝不能**顺手弹「打开视频」的文件对话框：用户按空格的
+        意图是"播放/暂停"，突然冒出一个占满屏幕的文件对话框，只会被理解成
+        "程序全屏了"（用户反馈的"没放视频时按空格会全屏"就是这个）。
+        改成一条不打断操作的 InfoBar 提示，顺带告诉他在哪儿打开视频。
+        """
+        if not self.video_path:
+            self._info("warn", "还没有视频",
+                       "先打开一段视频（Ctrl+O，或把文件拖进窗口），空格才是播放/暂停")
             return
-        if not self.player.duration_ms and not self.video_path:
-            self.open_video()
+        if not self._ensure_player():
             return
         self.player.toggle_play()
 
@@ -3664,6 +4844,7 @@ class SubtitleEditPage(ScrollPage):
 
     def seek_ms(self, ms):
         if not self._ensure_player():
+            self._sync_current(ms)      # 没有视频时也能用时间轴定位，面板照样跟着走
             return
         self.player.seek_ms(ms)
 
@@ -3673,7 +4854,10 @@ class SubtitleEditPage(ScrollPage):
             return
         idx = self.timeline.selected
         if idx < 0:
-            idx = self.doc.nearest_index(self.player.position_ms)
+            # 没选中时从"播放头最近的一条"起步，再按方向挪一格，
+            # 这样首次按「下一条」不会看起来"没动"。
+            idx = self.doc.nearest_index(self._pos_for_panel())
+            idx = max(0, min(len(self.doc.cues) - 1, idx + int(step or 0)))
         else:
             idx = max(0, min(len(self.doc.cues) - 1, idx + step))
         self._select_cue(idx, seek=True)
@@ -3695,15 +4879,18 @@ class SubtitleEditPage(ScrollPage):
     def _on_position(self, ms):
         self.timeline.set_position(ms, follow=True)
         self._update_clock(ms)
+        self._sync_current(ms)
 
     def _on_duration(self, ms):
         self._sync_duration()
         self._update_clock(self.player.position_ms)
+        # 媒体刚就绪：字幕轨这时挂最稳（loadfile 之后字幕轨会被清空）
+        self._push_preview(force=True)
 
     def _on_playing(self, playing):
         self.btn_play.setText("暂停" if playing else "播放")
         try:
-            self.btn_play.setIcon(FIF.PAUSE if playing else FIF.PLAY)
+            self.btn_play.setIcon(FIF.PAUSE_BOLD if playing else FIF.PLAY_SOLID)
         except Exception:
             pass
 
@@ -3711,6 +4898,137 @@ class SubtitleEditPage(ScrollPage):
         total = self.player.duration_ms or self.timeline.duration_ms
         self.lbl_time.setText("%s / %s" % (secore.ms_to_clock(ms),
                                            secore.ms_to_clock(total)))
+
+    # ---------------------------------------------------------
+    # 画面字幕预览（cues -> ASS -> mpv 自渲染，不重新编码）
+    # ---------------------------------------------------------
+    # 为什么由 mpv 渲染而不是用 Qt 画一层浮层：播放器是**原生子窗口**
+    # （`MPV(wid=hwnd)`），Windows 上 Qt 控件永远盖不到它上面，浮层会被画面
+    # 整个吃掉。让 mpv 自己渲染（libass）反而更准——透明、贴合画面、
+    # 逐帧精确，而且完全不需要重新编码。
+    def _pos_for_panel(self):
+        """面板跟随的时间点：有视频听播放器，没视频用时间轴自己的位置。"""
+        return self.player.position_ms if self.video_path else self.timeline.position_ms
+
+    def _mark_preview_dirty(self):
+        """cues 内容变了：下次推位置时重建预览字幕，并强制面板重刷。"""
+        self._ass_sig = None
+        self._cur_index = -2
+
+    def _push_preview(self, force=False):
+        """把当前 cues + 样式推给**画面字幕层**（v1.13.2 起不再挂 mpv 字幕轨）。
+
+        为什么改成 Qt 自绘：字幕要能被**点中、拖动、就地改字**，就必须是
+        Qt 控件；而 mpv 是原生子窗口，Windows 上盖在它上面的普通 Qt 控件既
+        画不出来也收不到鼠标。于是反转过来——预览交给 `SubtitleStage`
+        （顶层透明窗口），mpv 只负责画面（`sid=no` 关掉它自己的字幕轨，
+        免得内嵌字幕轨和我们叠成两层）。
+
+        样式字典与 `render_ass` 共用同一份（font/size/color/outline/
+        alignment/margin_*），所以画面上看到的就是导出成 ASS 时的样子。
+        指纹没变就跳过，免得播放时每 40ms 无谓重绘。
+        """
+        if not self.doc.cues:
+            self.stage.set_cues([])
+            return
+        sig = secore.cues_signature(self.doc.cues)
+        if not force and sig == self._ass_sig:
+            return
+        self._ass_sig = sig
+        self.stage.set_style(self._preview_style)
+        self.stage.set_cues(self.doc.cues)
+
+    def _sync_current(self, ms=None):
+        """把属性面板 / 画面字幕层对齐到播放位置。"""
+        ms = self._pos_for_panel() if ms is None else ms
+        idx = self.doc.index_at(int(ms))
+        if idx != self._cur_index:
+            self._cur_index = idx
+            self.props.set_cue(self.doc.cues[idx] if idx >= 0 else None,
+                               idx, len(self.doc.cues))
+        self.stage.set_position(int(ms))
+        self.stage.set_selected(self.timeline.selected)
+        self._push_preview()
+
+    def _on_current_text(self, idx, text):
+        if not (0 <= idx < len(self.doc.cues)):
+            return
+        cue = self.doc.cues[idx]
+        new_text = (text or "").replace("\r\n", "\n")
+        if new_text == cue.text:
+            return
+        self._push_undo("改文本")
+        cue.text = new_text
+        self._after_current_change(idx)
+
+    def _on_current_time(self, idx, start_text, end_text):
+        if not (0 <= idx < len(self.doc.cues)):
+            return
+        cue = self.doc.cues[idx]
+        s = secore.clock_to_ms(start_text)
+        e = secore.clock_to_ms(end_text)
+        if s is None or e is None or (s == cue.start and e == cue.end):
+            self._cur_index = -2          # 输入非法或没改动：把显示复原
+            self._sync_current()
+            return
+        self._push_undo("改时间")
+        secore.set_boundary(self.doc.cues, idx, "start", s)
+        secore.set_boundary(self.doc.cues, idx, "end", e)
+        self._after_current_change(idx)
+        self._sync_duration()
+
+    def _after_current_change(self, idx):
+        """单条改动后的统一收尾：表格 / 时间轴 / 预览 / 状态栏一起刷新。"""
+        if 0 <= idx < len(self.doc.cues):
+            self.table.refresh_row(idx, self.doc.cues[idx])
+        self.timeline.update()
+        self._mark_preview_dirty()
+        self._sync_current()
+        self._refresh_status()
+
+    def _on_style_changed(self, style):
+        """预览样式变了：整份重建（参数只有十来个，重生成比增量改简单）。"""
+        self._preview_style = dict(secore.ASS_DEFAULT_STYLE)
+        self._preview_style.update(style or {})
+        self._save_preview_style()
+        self._ass_sig = None
+        self._push_preview(force=True)
+
+    # ---------------------------------------------------------
+    # 预览样式的持久化
+    # ---------------------------------------------------------
+    # 字体 / 颜色 / 描边 / 对齐 / 边距既是**画面上的预览**，也是导出 ASS 时用的
+    # 同一份参数，所以理应跟项目走、而不是每次启动重来。落一个小 json 到数据
+    # 根目录即可；**绝不写回用户的 .srt**——样式从来不属于字幕文件。
+    STYLE_FILE = "subtitle_style.json"
+
+    def _style_path(self):
+        return os.path.join(engine.DATA_DIR, self.STYLE_FILE)
+
+    def _load_preview_style(self):
+        """读回上次的样式；文件缺失/损坏就退回默认（不抛异常）。"""
+        try:
+            with open(self._style_path(), encoding="utf-8") as fh:
+                data = json.load(fh)
+            if isinstance(data, dict):
+                # 只认当前版本认得的键：旧版残留字段不会把样式搞乱
+                return {k: v for k, v in data.items()
+                        if k in secore.ASS_DEFAULT_STYLE}
+        except Exception:  # noqa: BLE001
+            pass
+        return {}
+
+    def _save_preview_style(self):
+        """原子落盘（先写 .part 再 replace），失败静默。"""
+        try:
+            path = self._style_path()
+            os.makedirs(os.path.dirname(path), exist_ok=True)
+            tmp = path + ".part"
+            with open(tmp, "w", encoding="utf-8") as fh:
+                json.dump(self._preview_style, fh, ensure_ascii=False, indent=1)
+            os.replace(tmp, path)
+        except Exception:  # noqa: BLE001
+            pass
 
     # ---------------------------------------------------------
     # 撤销 / 重做
@@ -3749,14 +5067,19 @@ class SubtitleEditPage(ScrollPage):
             self.timeline.set_selected(-1)
         self._sync_duration()
         self._refresh_status()
+        self._mark_preview_dirty()
+        self._sync_current()
 
     # ---------------------------------------------------------
     # 选中
     # ---------------------------------------------------------
     def _on_timeline_cue_selected(self, idx):
+        # 时间轴上可能是多选（框选 / Ctrl 点选），表格要跟着整批同步
+        idxs = self.timeline.selected_indices()
+        if idxs:
+            self.table.select_rows(idxs, scroll=(len(idxs) == 1))
         if not (0 <= idx < len(self.doc.cues)):
             return
-        self.table.select_row(idx)
         # 播放头不在该条内时跟过去——打轴时这一步能省掉大量拖动
         c = self.doc.cues[idx]
         pos = self.player.position_ms
@@ -3772,17 +5095,38 @@ class SubtitleEditPage(ScrollPage):
         self._drag_pushed = False
 
     def _on_cue_dragged(self, idx, mode, value):
+        """拖动时间轴上的字幕块（高频路径，每帧都会来一次）。
+
+        两处刻意省掉的动作：
+          · 抽屉收起时（默认）不刷表格——看不见的东西没必要重排；
+          · 状态栏按 120ms 节流——`_refresh_status` 里的 stats 会遍历全部
+            cues，字幕几百条时每帧一次全表统计，是拖动卡顿的隐形大头。
+        """
         if not self._drag_pushed and self._pre_drag is not None:
             self._push_undo("拖动时间", snapshot=self._pre_drag)
             self._drag_pushed = True
         if 0 <= idx < len(self.doc.cues):
-            self.table.refresh_row(idx, self.doc.cues[idx])
-            self._refresh_status()
+            if self.table_shell.isVisible():
+                self.table.refresh_row(idx, self.doc.cues[idx])
+            self._status_throttled()
+
+    def _status_throttled(self, interval_ms=120):
+        """高频路径上的状态栏刷新节流（统计要遍历全部 cues，不便宜）。"""
+        now = time.time() * 1000.0
+        if now - getattr(self, "_status_t", 0.0) < interval_ms:
+            return
+        self._status_t = now
+        self._refresh_status()
 
     def _on_drag_finished(self):
         self._pre_drag = None
         self._drag_pushed = False
+        self._status_t = 0.0          # 让收尾那次刷新不被节流吞掉
+        self._refresh_status()
         self._sync_duration()
+        # 拖拽是高频路径：过程中不重建预览字幕，松手后统一来一次
+        self._mark_preview_dirty()
+        self._sync_current()
 
     def _on_split_requested(self, ms):
         self.split_at(ms)
@@ -3817,6 +5161,8 @@ class SubtitleEditPage(ScrollPage):
         self.timeline.update()
         self._sync_duration()
         self._refresh_status()
+        self._mark_preview_dirty()
+        self._sync_current()
 
     # ---------------------------------------------------------
     # 编辑操作
@@ -3826,14 +5172,31 @@ class SubtitleEditPage(ScrollPage):
         rows = self.table.selected_rows()
         if rows:
             return rows[0]
-        return self.timeline.selected
+        idxs = self.timeline.selected_indices()
+        return idxs[0] if idxs else -1
 
     def _selected_indices(self):
+        """当前选中的全部下标（表格多选优先，其次时间轴多选）。"""
         rows = self.table.selected_rows()
         if rows:
             return rows
-        idx = self.timeline.selected
-        return [idx] if idx >= 0 else []
+        return self.timeline.selected_indices()
+
+    def select_all_cues(self):
+        """Ctrl+A：全选字幕（表格抽屉展开时一并同步）。"""
+        w = QApplication.focusWidget()
+        if w is not None and w.metaObject().className() in (
+                "QLineEdit", "QTextEdit", "QPlainTextEdit", "QSpinBox",
+                "QDoubleSpinBox", "QAbstractSpinBox", "QComboBox"):
+            self._forgive_key("Ctrl+A")      # 焦点在输入框 → 交还"全选文本"
+            return
+        if not self.doc.cues:
+            self._refresh_status("还没有字幕")
+            return
+        all_idx = range(len(self.doc.cues))
+        self.timeline.set_selection(all_idx)
+        self.table.select_rows(all_idx, scroll=False)
+        self._refresh_status("已全选 %d 条" % len(self.doc.cues))
 
     def split_at_playhead(self):
         pos = self.player.position_ms
@@ -3990,12 +5353,128 @@ class SubtitleEditPage(ScrollPage):
 
 
 # ========== 主窗口 ==========
-# v1.13.0：页面合并后共 5 个导航页（音画合并并入视频下载、字幕校准并入字幕处理）。
+# v1.13.x：页面合并后共 5 个导航页（音画合并并入视频处理、字幕校准并入字幕处理）。
 # 内嵌子板块仍有自己的 objectName（MergePage / CalibPage），保留映射便于标题定位。
-PAGE_TITLES = {"DownloadPage": "视频下载", "LibraryPage": "视频库",
+# 类名/objectName 一律保持 DownloadPage 不变，避免牵动既有样式与自检。
+PAGE_TITLES = {"DownloadPage": "视频处理", "LibraryPage": "视频库",
                "SubtitlePage": "字幕处理", "SubtitleEditPage": "字幕编辑",
                "SettingsPage": "设置",
                "MergePage": "音画合并", "CalibPage": "字幕校准"}
+
+#: 黄金比例（宽 : 高）。窗口默认尺寸与「按屏幕收敛」后的尺寸都按它算——
+#: 比 1.38 的默认值更接近主流视频区（16:10 / 16:9）留白后的观感。
+GOLDEN_RATIO = 1.6180339887
+
+#: 无边框窗口的**边缘拖拽热区**（逻辑像素）。
+#: 库默认用的是 BORDER_WIDTH 物理像素（5px），在 125%/150% 缩放下只剩 3~4 个
+#: 逻辑像素，鼠标几乎点不中——用户反馈的「无法用鼠标调整窗口大小」即此。
+#: 这里按设备像素比换算出一个宽容热区，四边/四角都能拖。
+RESIZE_MARGIN = 8
+
+
+class _ResizeHitFilter(QAbstractNativeEventFilter):
+    """**应用级** WM_NCHITTEST 过滤器 —— 让「边框拖拽缩放」真正生效。
+
+    为什么不能只在 `MainWindow.nativeEvent` 里做（v1.13.6 的关键修正）：
+    mpv 通过 `wid` 嵌进 `video_host` 时会调用 `winId()`，Qt 随之把导航条 /
+    标题栏 / 页面这些 widget 一并**提升成原生子窗口**。实测载入视频后多出
+    二十多个 `Qt5152QWindowIcon` 子窗口，它们从窗口最边缘铺开，正好盖住
+    `RESIZE_MARGIN` 那 8 逻辑像素的边框带。于是鼠标点在边框上时，
+    WM_NCHITTEST 是发给**子窗口**的 —— `MainWindow.nativeEvent` 根本收不到，
+    子窗口回 HTCLIENT，系统就不发起缩放。
+
+    实测（`_workspace/probes/_diag_hittest3.py`，同一台机器同一份代码）：
+        · 未载入视频：边框带上的点归属主窗口自己 -> 回 HTLEFT，能拖；
+        · 载入视频后：归属某个原生子窗口      -> 子窗口回 HTCLIENT，拖不动；
+        · 卸载视频后：那些子窗口还在（原生窗口一旦创建就不会撤销）
+                      -> 依然拖不动。
+    这正是用户反馈的「放入视频后无法调整窗口大小，视频没了也一样」。
+
+    所以这里在应用级接住**所有** WM_NCHITTEST（含子窗口的消息），只按屏幕
+    坐标判断该点是否落在主窗口的边框带上：
+      · 只处理属于本窗口的消息（`GetAncestor(..., GA_ROOT)` 比对句柄），
+        其它窗口与对话框原样放行；
+      · 不在边缘时返回 False，交给 Qt 照常处理（按钮、拖拽、双击标题栏等
+        都不受影响）。
+    """
+
+    def __init__(self, window):
+        super().__init__()
+        self._window = window
+
+    def nativeEventFilter(self, eventType, message):
+        try:
+            if eventType not in (b"windows_generic_MSG",
+                                 b"windows_dispatcher_MSG"):
+                return False, 0
+            win = self._window
+            if win is None or not win.isVisible():
+                return False, 0
+            if not getattr(win, "_isResizeEnabled", True):
+                return False, 0
+            if win.isMaximized() or win.isFullScreen():
+                return False, 0
+
+            import ctypes
+            from ctypes.wintypes import MSG
+            import win32con
+            import win32gui
+
+            msg = MSG.from_address(int(message))
+            if msg.message != win32con.WM_NCHITTEST:
+                return False, 0
+            hwnd = int(win.winId())
+            if win32gui.GetAncestor(msg.hWnd, win32con.GA_ROOT) != hwnd:
+                return False, 0
+            rect = win32gui.GetWindowRect(hwnd)
+            w, h = rect[2] - rect[0], rect[3] - rect[1]
+            dpr = float(win.devicePixelRatioF() or 1.0)
+            bw = max(5, int(round(RESIZE_MARGIN * dpr)))
+            # 窗口本身就比热区大不了多少时不做命中，免得整窗都成了"边缘"
+            if w <= bw * 4 or h <= bw * 4:
+                return False, 0
+            # lParam 是**屏幕物理坐标**（低 16 位 x、高 16 位 y）。
+            # 这里不用 GetCursorPos()：它给的是"此刻"的鼠标位置，与消息
+            # 携带的坐标在系统连发命中测试时并不一致。
+            sx = ctypes.c_short(msg.lParam & 0xFFFF).value
+            sy = ctypes.c_short((msg.lParam >> 16) & 0xFFFF).value
+            left = sx < rect[0] + bw
+            right = sx > rect[2] - bw
+            top = sy < rect[1] + bw
+            bottom = sy > rect[3] - bw
+            hit = None
+            if left and top:
+                hit = win32con.HTTOPLEFT
+            elif right and bottom:
+                hit = win32con.HTBOTTOMRIGHT
+            elif right and top:
+                hit = win32con.HTTOPRIGHT
+            elif left and bottom:
+                hit = win32con.HTBOTTOMLEFT
+            elif left:
+                hit = win32con.HTLEFT
+            elif right:
+                hit = win32con.HTRIGHT
+            elif top:
+                hit = win32con.HTTOP
+            elif bottom:
+                hit = win32con.HTBOTTOM
+            if hit is None:
+                return False, 0
+            # ⚠️ 关键中的关键：这条消息可能是发给**子窗口**的（载入视频后 Qt 把
+            #    导航条 / 标题栏 / 页面提升成了原生子窗口）。把 NCHITTEST 改成
+            #    HTLEFT 只能骗到**光标**（变成双向箭头），真正按下时
+            #    WM_NCLBUTTONDOWN 还是落到那个子窗口上，系统不会进入缩放循环 ——
+            #    用户看到的就是「光标对了，但拖不动，大小不变」。
+            #    回 HTTRANSPARENT 才是正解：告诉系统"这个点当作透明"，系统会
+            #    继续在**同一线程**里往下找窗口，最终由主窗口接手，于是
+            #    NCLBUTTONDOWN / SIZING / SIZE 全都走主窗口，缩放才真能进行。
+            if msg.hWnd != hwnd:
+                return True, win32con.HTTRANSPARENT
+            return True, hit
+        except Exception:  # noqa: BLE001
+            # 任何意外都退回 Qt 的默认处理，绝不因为命中测试把程序搞崩
+            return False, 0
 
 
 class MainWindow(FluentWindow):
@@ -4007,14 +5486,20 @@ class MainWindow(FluentWindow):
       · 跨屏拖拽保持相对位置，不再因两屏缩放比不同而瞬移；
       · 字幕引擎界面后台预热，消除首次进入本页的数秒卡顿。
     v1.13.0 起：
-      · 页面合并为 5 个导航页：「音画合并」并入「视频下载」、「字幕校准」
-        并入「字幕处理」，均以页内分段（SegmentedWidget）切换；
+      · 页面合并为 5 个导航页：「音画合并」并入「视频处理」（原「视频下载」）、
+        「字幕校准」并入「字幕处理」，均以页内分段（SegmentedWidget）切换；
       · 支持把文件（视频/音频/字幕/文档/链接）直接拖进程序窗口自动分派；
       · 屏幕 DPI/缩放变化时强制全部页面重新布局，避免拖窗/换屏后扭曲。
     """
 
     #: 导航项文案（宽度按其中最长的一项计算）
-    NAV_TEXTS = ["视频下载", "视频库", "字幕处理", "字幕编辑", "设置"]
+    #: v1.13.x：原「视频下载」更名「视频处理」——该页已同时承载「视频下载」与
+    #: 「音画合并」两个板块，只叫"下载"名不副实。页内子板块名保持不变。
+    NAV_TEXTS = ["视频处理", "视频库", "字幕处理", "字幕编辑", "流水线", "设置"]
+
+    #: 默认窗口宽度（高度由黄金比例推）。 以它为上界，
+    #: 而不是以"窗口当前宽度"为上界——后者会把布局撑出来的尺寸固化下来。
+    DEFAULT_WIDTH = 1180
 
     def __init__(self, argv=None):
         # 跨屏拖拽状态必须在 super().__init__() 之前建立：窗口构造过程中
@@ -4025,13 +5510,32 @@ class MainWindow(FluentWindow):
         super().__init__()
         self.q = queue.Queue()
         self.setWindowTitle(f"视频工具箱 v{VERSION}")
-        self.resize(1180, 860)
-        self.setMinimumSize(960, 640)
+        # 默认尺寸按**黄金比例**：1180 / 1.618 ≈ 729。窗口本身可以自由拖拽缩放，
+        # 这里只是给一个观感上最舒服的起始比例（大多数屏幕/分栏都落在这个比例
+        # 附近时才不会显得"扁"）。fit_to_screen() 收敛时也保持该比例。
+        self.resize(self.DEFAULT_WIDTH,
+                    int(round(self.DEFAULT_WIDTH / GOLDEN_RATIO)))
+        self.setMinimumSize(880, 620)
         # 接受把文件/链接拖进窗口（v1.13.0）
         self.setAcceptDrops(True)
+        # 边框缩放热区必须在**应用级**接住：载入视频后 Qt 会把导航条 / 标题栏 /
+        # 页面一并提升成原生子窗口，它们从窗口边缘铺开、盖住边框带，于是主窗口
+        # 的 nativeEvent 根本收不到 WM_NCHITTEST（详见 _ResizeHitFilter 的说明）。
+        # 只对属于本窗口的消息生效，其它窗口与对话框原样放行。
+        self._resize_hit_filter = None
+        try:
+            if sys.platform == "win32":
+                self._resize_hit_filter = _ResizeHitFilter(self)
+                _app = QApplication.instance()
+                if _app is not None:
+                    _app.installNativeEventFilter(self._resize_hit_filter)
+        except Exception:  # noqa: BLE001
+            self._resize_hit_filter = None
 
         try:
-            self.setMicaEffectEnabled(True)
+            # 云母档持久化在 ui_custom.json（设置页「界面」卡片可开关）；
+            # Win10 无 Mica，qfluentwidgets 内部直接忽略，保持原样
+            self.setMicaEffectEnabled(ui_theme.get_mica())
         except Exception:
             pass
 
@@ -4039,21 +5543,32 @@ class MainWindow(FluentWindow):
         self.library_page = LibraryPage(self, self)
         self.subtitle_page = SubtitlePage(self, self)
         self.subtitle_edit_page = SubtitleEditPage(self, self)
+        self.pipeline_page = PipelinePage(self, self)
         self.settings_page = SettingsPage(self, self)
         # 被合并的子板块：仍挂到宿主页的堆叠里，保留快捷引用便于消息路由/自检
         self.merge_page = self.download_page.merge_page
         self.calib_page = self.subtitle_page.calib_page
         for page in (self.download_page, self.library_page, self.subtitle_page,
-                     self.subtitle_edit_page, self.settings_page):
+                     self.subtitle_edit_page, self.pipeline_page,
+                     self.settings_page):
             page.installEventFilter(self)
 
-        self.addSubInterface(self.download_page, FIF.DOWNLOAD, "视频下载")
+        self.addSubInterface(self.download_page, FIF.DOWNLOAD, "视频处理")
         self.addSubInterface(self.library_page, FIF.VIDEO, "视频库")
         self.navigationInterface.addSeparator()
         self.addSubInterface(self.subtitle_page, FIF.FONT, "字幕处理")
         self.addSubInterface(self.subtitle_edit_page, FIF.CUT, "字幕编辑")
+        self.addSubInterface(self.pipeline_page, FIF.SYNC, "流水线")
         self.addSubInterface(self.settings_page, FIF.SETTING, "设置",
                              position=NavigationItemPosition.BOTTOM)
+
+        # 界面美化：五个导航页挂上「自定义背景图」绘制能力（v1.13.x）。
+        # 未设置背景图时 paintEvent 原样透传，视觉与改造前逐像素一致；
+        # 配置在 data/ui_custom.json，设置页「界面美化」卡片里改。
+        try:
+            ui_theme.install_for_window(self)
+        except Exception:
+            pass
 
         # 侧边导航常驻展开（默认窄条只有图标），宽度按最长项自适应
         self.navigationInterface.setCollapsible(False)
@@ -4063,10 +5578,28 @@ class MainWindow(FluentWindow):
         QTimer.singleShot(0, self._apply_nav_width)
         QTimer.singleShot(400, self._apply_nav_width)
 
+        # 切断"页面 → 堆叠 → 窗口"的最小尺寸传导链。
+        # QStackedWidget 的最小尺寸取**所有页面**的最大值，页面里只要有内容
+        # 偏大的（引擎工作台、波形时间轴），整个窗口就缩不下去 —— 实测拖右边缘
+        # 往左、拖右下角，窗口纹丝不动，而拖上边缘看着"能动"只是因为它在移动
+        # 而不是在缩放。用户的原话："左右、对角依旧无法"。
+        try:
+            self.stackedWidget.setMinimumSize(0, 0)
+            _sp = self.stackedWidget.sizePolicy()
+            _sp.setHorizontalPolicy(QSizePolicy.Ignored)
+            _sp.setVerticalPolicy(QSizePolicy.Ignored)
+            self.stackedWidget.setSizePolicy(_sp)
+        except Exception:
+            pass
+
         self.switchTo(self.download_page)
         self._apply_argv(argv or [])
         QTimer.singleShot(400, self.library_page.auto_load)
         QTimer.singleShot(120, self._pump)
+        # 流水线：延后启动，避开首屏与字幕引擎预热（v1.14.0）
+        self.pipeline_registry = None
+        self.pipeline = None
+        QTimer.singleShot(2500, self._start_pipeline)
         # 字幕引擎界面后台预热：主窗口首帧之后立刻开始导入依赖（预热本身只起
         # 一个后台线程，不占主线程），导入完成即回主线程建界面，用户真正点进
         # 「字幕处理」时通常已是现成控件。v1.11.0 起由 900ms 提前到首帧后立即，
@@ -4091,6 +5624,13 @@ class MainWindow(FluentWindow):
         self._apply_nav_width()
         self._remember_screen()
         self._relayout_pages()
+        # 字幕编辑页额外收敛：分割条比例 + 字幕层贴合画面。
+        # 两次是刻意的——第一次让本轮重排完成后各控件拿到新尺寸，第二次在
+        # DWM 提交新帧之后再兜一遍，避免"拖过去看着还是歪的，动一下才好"。
+        for delay in (0, 200):
+            QTimer.singleShot(
+                delay,
+                lambda: self.subtitle_edit_page.relayout_after_screen_change())
 
     def _relayout_pages(self):
         """PPI/缩放/导航宽度变化后强制全部页面重排，消除旧几何残留导致的扭曲。
@@ -4100,7 +5640,8 @@ class MainWindow(FluentWindow):
         一个页面出问题都不影响其余页面。
         """
         for page in (self.download_page, self.library_page, self.subtitle_page,
-                     self.subtitle_edit_page, self.settings_page):
+                     self.subtitle_edit_page, self.pipeline_page,
+                     self.settings_page):
             try:
                 page.updateGeometry()
                 for sub in (getattr(page, "dl_tab", None),
@@ -4151,10 +5692,12 @@ class MainWindow(FluentWindow):
 
     # ---------- 页面/状态 ----------
     def fit_to_screen(self):
-        """按所在屏幕可用区域收敛窗口尺寸并居中。
+        """按所在屏幕可用区域收敛窗口尺寸并居中，**始终保持黄金比例**。
 
-        1180x860 的默认尺寸在小屏（1080p 任务栏/150% 缩放）上会超出屏幕，
-        导致右侧按钮被裁掉——启动时先按可用区域的 92% 收敛。
+        旧版分别对宽高取 min()，屏幕矮一点就会出现"宽度被砍、高度不动"的扁
+        窗口（1180x860 → 1180x780 之类），比例跑掉。现在先按默认宽度定高度，
+        高度超屏就反过来按高度反推宽度，比例恒定。
+
         全程用**逻辑像素**（Qt 的 geometry 在开启高 DPI 缩放后即为逻辑像素），
         因此 100% / 125% / 150% / 200% 下占用屏幕的比例保持一致。
         """
@@ -4162,14 +5705,129 @@ class MainWindow(FluentWindow):
             avail = self.screen().availableGeometry()
         except Exception:
             return
-        w = min(self.width(), int(avail.width() * 0.92))
-        h = min(self.height(), int(avail.height() * 0.92))
+        max_w = max(self.minimumWidth(), int(avail.width() * 0.92))
+        max_h = max(self.minimumHeight(), int(avail.height() * 0.92))
+        # ⚠️ 基准必须用**默认尺寸**，不能用 。
+        #    窗口从构造到显示之间会被布局按 sizeHint 撑大（实测 1440x889，
+        #    在 1280/1440 这类屏幕上等于满屏甚至超屏），拿"当前宽度"当上限
+        #    等于把这个错误尺寸固化下来 —— 用户看到的窗口则贴满屏幕，
+        #    左右边缘与屏幕边缘重合，鼠标够不着，正是"左右、对角依旧无法"
+        #    "只能拉顶部"。
+        w = min(self.DEFAULT_WIDTH, max_w)
+        h = int(round(w / GOLDEN_RATIO))
+        if h > max_h:
+            h = max_h
+            w = int(round(h * GOLDEN_RATIO))
         w = max(w, self.minimumWidth())
         h = max(h, self.minimumHeight())
         self.resize(w, h)
         self.move(avail.x() + (avail.width() - w) // 2,
                   avail.y() + (avail.height() - h) // 2)
         self._remember_screen()
+
+    # ---------- 尺寸约束 ----------
+    def sizeHint(self):
+        """窗口的理想尺寸由我们给，不让"所有页面 sizeHint 取最大值"说了算。
+
+        实测主窗口的 sizeHint 被堆到 1756x991（各页面 sizeHint 的最大值），
+        而布局会拿它当尺寸下限 ——  立即是 620，**一拍之后
+        被布局改回 991**； 干脆完全无效。
+        窗口因此比屏幕还大，下边缘跑到屏幕外，用户的原话是
+        "左右、对角依旧无法""只能拉顶部，底部依旧无法调整"。
+        """
+        return QSize(self.DEFAULT_WIDTH,
+                      int(round(self.DEFAULT_WIDTH / GOLDEN_RATIO)))
+
+    def minimumSizeHint(self):
+        """把窗口能缩到多小**交还给 **，不听布局的。
+
+        为什么必须覆写： 的最小尺寸取的是**所有子页面的最大值**，
+        而"字幕处理"页嵌着引擎工作台，内容天然偏大——实测整个窗口的最小尺寸
+        被顶到 **1440x889**。后果不是"窗口太大"这么温和，而是：
+
+          · 左右方向**只能拉大、不能缩小**（拖右边缘往左毫无反应）；
+          · 对角同理（含左右分量）；
+          · 在 1280x720 这类屏幕上窗口比屏幕还大，上下边缘直接跑到屏幕外，
+            连拖都够不着——用户的原话就是"左右、对角依旧无法"。
+
+        内容超出应该由各页面自己的滚动区消化，而不是反过来把窗口顶大。
+        """
+        ms = self.minimumSize()
+        if ms.width() > 0 and ms.height() > 0:
+            return ms
+        return super().minimumSizeHint()
+
+    # ---------- 窗口缩放（边缘拖拽） ----------
+    def nativeEvent(self, eventType, message):
+        """放宽 Windows 的边缘拖拽热区，让四边/四角都能稳稳拖住。
+
+        背景：无边框窗口的缩放全靠 WM_NCHITTEST 返回 HTLEFT / HTBOTTOMRIGHT 等
+        让系统接管。上游 `qframelesswindow` 的热区是 `BORDER_WIDTH` **物理像素**
+        （仅 5px），在 125%/150% 缩放的高分屏上折算成逻辑像素只剩 3~4px，
+        实际表现就是「窗口边缘拖不动」。这里不碰上游实现，只在自己的
+        nativeEvent 里按**设备像素比**放大热区；命中则直接返回，未命中仍交给
+        基类（`maxBtn` 悬停高亮等逻辑照常）。
+
+        非 Windows 平台 / pywin32 不可用时静默回退到基类行为。
+        """
+        if sys.platform == "win32":
+            try:
+                import ctypes
+                from ctypes.wintypes import MSG
+                import win32con
+                import win32gui
+
+                msg = MSG.from_address(message.__int__())
+                if (msg.message == win32con.WM_NCHITTEST
+                        and getattr(self, "_isResizeEnabled", True)
+                        and not self.isMaximized() and not self.isFullScreen()):
+                    # ⚠️ 坐标必须取 **lParam**（低 16 位 x、高 16 位 y，屏幕坐标），
+                    #    不要用 `GetCursorPos()`：后者返回的是"此刻"的鼠标位置，
+                    #    与消息携带的坐标在系统连发多条命中测试时并不一致，
+                    #    表现为边缘偶尔点不中、光标不变成双向箭头 —— 用户感受
+                    #    就是"窗口拖不动"。（上游 qframelesswindow 也是这么写的，
+                    #    所以我们自己的这份要写对。）
+                    sx = ctypes.c_short(msg.lParam & 0xFFFF).value
+                    sy = ctypes.c_short((msg.lParam >> 16) & 0xFFFF).value
+                    dpr = float(self.devicePixelRatioF() or 1.0)
+                    bw = max(5, int(round(RESIZE_MARGIN * dpr)))
+                    x, y = win32gui.ScreenToClient(msg.hWnd, (sx, sy))
+                    rect = win32gui.GetClientRect(msg.hWnd)
+                    cw, ch = rect[2] - rect[0], rect[3] - rect[1]
+                    # 窗口本身就比热区大不了多少时不做命中，免得整窗都成了"边缘"
+                    if cw > bw * 4 and ch > bw * 4:
+                        left, right = x < bw, x > cw - bw
+                        top, bottom = y < bw, y > ch - bw
+                        hit = None
+                        if left and top:
+                            hit = win32con.HTTOPLEFT
+                        elif right and bottom:
+                            hit = win32con.HTBOTTOMRIGHT
+                        elif right and top:
+                            hit = win32con.HTTOPRIGHT
+                        elif left and bottom:
+                            hit = win32con.HTBOTTOMLEFT
+                        elif left:
+                            hit = win32con.HTLEFT
+                        elif right:
+                            hit = win32con.HTRIGHT
+                        elif top:
+                            hit = win32con.HTTOP
+                        elif bottom:
+                            hit = win32con.HTBOTTOM
+                        if hit is not None:
+                            return True, hit
+                        # ⚠️ 没命中边缘时**明确回 HTCLIENT，不要交给上游**。
+                        #    上游 qframelesswindow 取坐标用的是 
+                        #    而不是消息自带的 lParam，窗口被移动过、或命中测试
+                        #    连发时会算错——实测窗口**正中央**会返回
+                        #    HTBOTTOMLEFT，于是"拖窗口中间"变成了缩放窗口，
+                        #    看起来就是"点哪儿都在缩放、没法正常操作"。
+                        #    我们这份用 lParam，判定可信，整条命中测试由此接管。
+                        return True, win32con.HTCLIENT
+            except Exception:
+                pass
+        return super().nativeEvent(eventType, message)
 
     # ---------- 跨屏拖拽 ----------
     def _remember_screen(self):
@@ -4185,6 +5843,23 @@ class MainWindow(FluentWindow):
                     lambda *_: self._on_screen_changed())
             except Exception:
                 pass
+
+    def showEvent(self, event):
+        """首次显示后把窗口尺寸收敛回默认值。
+
+        为什么非做不可：从构造到显示之间，布局会按各页面的 sizeHint 把窗口
+        撑大（实测 1180x729 变成 1440x889）。在 1280/1440 这类屏幕上，被撑大
+        的窗口等于满屏甚至超屏——左右边缘与屏幕边缘重合，鼠标根本够不着，
+        用户的原话就是"左右、对角依旧无法""只能拉顶部，底部依旧无法调整"。
+        显示后连收敛三次（0/200/600ms）是刻意的：这一段时间里还可能有一次
+        布局重排，兜住它。
+        """
+        super().showEvent(event)
+        if getattr(self, "_first_sized", False):
+            return
+        self._first_sized = True
+        for delay in (0, 200, 600):
+            QTimer.singleShot(delay, self.fit_to_screen)
 
     def moveEvent(self, event):
         """跨屏拖拽时保持窗口在两屏上的相对位置。
@@ -4235,9 +5910,34 @@ class MainWindow(FluentWindow):
             pass
 
     def switchTo(self, page):
+        # 切页时布局会按新页面的 sizeHint 把窗口撑大（实测 1180x729 → 1440x889），
+        # 而用户并没有要求变大 —— 撑大后窗口可能超出屏幕，边缘够不着鼠标。
+        # 记下切页前的尺寸，切页后若被撑大就还原回去（用户自己拖大的尺寸不会丢）。
+        before = self.size()
         self.stackedWidget.setCurrentWidget(page, popOut=False)
         self.setWindowTitle(
             f"视频工具箱 v{VERSION} — {PAGE_TITLES.get(page.objectName(), '')}")
+
+        def _clamp():
+            try:
+                if not self.isVisible() or self.size() == before:
+                    return
+                # ⚠️ 三条护栏，缺任何一条都会表现成"窗口拖不动"：
+                #   1) 用户手还按着鼠标（正在拖边缘）—— 别跟他的操作抢；
+                #   2) 只在**被布局撑大**时收敛。缩小时是用户自己的意图，
+                #      这里再 resize 一次会把他刚拖出来的尺寸直接吃掉；
+                #   3) 收敛目标不超出屏幕可用区，免得把窗口摆成"边缘够不到"。
+                if QApplication.mouseButtons() != Qt.NoButton:
+                    return
+                if (self.width() <= before.width()
+                        and self.height() <= before.height()):
+                    return
+                self.resize(before)
+            except Exception:  # noqa: BLE001
+                pass
+        # 两次：切页动画/布局重排都要置完之后再纠正
+        QTimer.singleShot(0, _clamp)
+        QTimer.singleShot(300, _clamp)
 
     def page_by_key(self, key):
         """按键取页面：download/library/subtitle/edit/settings 为导航页；
@@ -4252,7 +5952,41 @@ class MainWindow(FluentWindow):
             return self.subtitle_page
         return {"download": self.download_page, "library": self.library_page,
                 "subtitle": self.subtitle_page, "edit": self.subtitle_edit_page,
+                "pipeline": self.pipeline_page,
                 "settings": self.settings_page}.get(key)
+
+    # ---------- 流水线（v1.14.0） ----------
+    def _start_pipeline(self):
+        """延迟启动目录感知 + 流水线（不拖慢首屏）。
+
+        registry 监视「上次使用的下载目录 + data\\downloads」，变更事件接给
+        VT_NO_PIPELINE=1 可完全关闭目录感知（自检/排障用）。
+        """
+        if os.environ.get("VT_NO_PIPELINE"):
+            return
+        try:
+            reg = mreg.MediaRegistry(use_watcher=True)
+            pipe = pl.Pipeline(reg, log=lambda m: self.q.put(("pipe_log", str(m))))
+            pipe.add_listener(lambda p: self.q.put(("pipe_state", p)))
+            reg.add_listener(pipe.on_files_changed)
+            reg.add_exclude(pipe.out_root)      # 成品目录不回头再被索引
+            reg.start()
+            self.pipeline_registry = reg
+            self.pipeline = pipe
+            self.pipeline_page.attach(pipe)
+            pipe.manual_evaluate()              # 启动即补一次评估
+        except Exception:  # noqa: BLE001 - 流水线起不来绝不能影响主程序
+            self._log_error(traceback.format_exc())
+
+    def closeEvent(self, e):
+        try:
+            if getattr(self, "pipeline_registry", None) is not None:
+                self.pipeline_registry.stop()
+            if getattr(self, "pipeline", None) is not None:
+                self.pipeline.close()
+        except Exception:  # noqa: BLE001
+            pass
+        super().closeEvent(e)
 
     def open_engine_settings(self):
         """跳到统一设置页的「字幕引擎」分组（供其他页面调用）。"""
@@ -4289,7 +6023,13 @@ class MainWindow(FluentWindow):
         paths = [u.toLocalFile() for u in urls if u.isLocalFile()]
         paths = [p for p in paths if p]
         if paths:
-            self._handle_dropped_files(paths)
+            # ⚠️ 必须**等 Drop 返回后再处理**（延后一帧）。分派里可能弹模态确认框，
+            #    而此刻 OLE 拖放循环仍握着鼠标捕获、前台锁也在拖放源（资源管理器）
+            #    手上 —— 直接在 Drop 回调里 exec() 出来的模态框会完全点不动，
+            #    Esc/回车也没反应。延后一帧，拖放循环已结束，框就正常了。
+            #    注意 paths 要在事件有效期内先取出（mimeData 出了事件就不可靠）。
+            QTimer.singleShot(
+                0, lambda ps=list(paths): self._handle_dropped_files(ps))
         e.acceptProposedAction()
 
     def _handle_dropped_files(self, paths):
@@ -4404,6 +6144,10 @@ class MainWindow(FluentWindow):
             elif kind == "cal_done":
                 # (rc, out, result, 任务代号)
                 cal.on_cal_done(*args)
+            elif kind == "pipe_log":
+                self.pipeline_page.log.line(args[0], "dim")
+            elif kind == "pipe_state":
+                self.pipeline_page.on_state(args[0])
         except Exception as e:
             import traceback
             self._log_error(traceback.format_exc())
@@ -4467,8 +6211,25 @@ def main():
     except Exception:
         pass
     app = QApplication(sys.argv)
-    setTheme(Theme.DARK)
-    setThemeColor("#2F8D63")    # 品牌绿（与字幕引擎界面同色系）
+    # 单实例守卫（v1.13.4）：两个实例会各自持有一份内存配置并写穿同一个
+    # data\ 目录（ui_custom.json / config.json…），表现为「设置过一会儿自动
+    # 复原」「这边改了那边不生效」——正是多窗口交叠写入的典型症状。
+    # QLockFile 在进程存活期间持有锁；崩溃残留的锁会按锁内 PID 校验存活后放行。
+    _single_lock = QLockFile(os.path.join(engine.DATA_DIR,
+                                          "videotoolbox.single.lock"))
+    _single_lock.setStaleLockTime(0)
+    if not _single_lock.tryLock(200):
+        QMessageBox.information(
+            None, "视频工具箱已在运行",
+            "检测到另一个视频工具箱窗口正在运行，本次启动已取消。\n\n"
+            "同时运行两个实例会互相覆盖配置（例如「界面美化」的设置会被"
+            "另一边的旧值写回，看起来像\"自动复原\"）。\n\n"
+            "请改用已打开的窗口；若找不到它，可先在任务管理器结束旧的"
+            " python.exe 再启动。")
+        return
+    # 界面美化（v1.13.x）：主题档/主题色读自 data/ui_custom.json（设置页可改），
+    # 全局 QSS（输入框/菜单/工具提示/滚动条/进度条）在这里一并挂上
+    ui_theme.apply_startup_theme(app)
     app.setFont(QFont("Microsoft YaHei UI", 9))   # 9pt 紧凑正文，高分屏随缩放走
     window = MainWindow(sys.argv[1:])
     window.fit_to_screen()
@@ -4491,13 +6252,19 @@ def main():
                 window.repaint()
             except Exception:
                 pass
+            # VT_SHOT_MODE=qt 时改用 QWidget.grab()（纯 Qt 渲染）。
+            # PrintWindow 会抓到 DWM 尚未提交的旧帧，窗口刚重排完时尤其明显——
+            # 表现为画面上叠着''上一版''的控件（像是控件重复了一份）。
             scr = QApplication.primaryScreen()
-            try:
-                pm = scr.grabWindow(int(window.winId()))
-            except Exception:
-                pm = None
-            if pm is None or pm.isNull():
+            if os.environ.get("VT_SHOT_MODE") == "qt":
                 pm = window.grab()
+            else:
+                try:
+                    pm = scr.grabWindow(int(window.winId()))
+                except Exception:
+                    pm = None
+                if pm is None or pm.isNull():
+                    pm = window.grab()
             pm.save(shot_file)
             print(f"[shot] saved: {shot_file}")
             QApplication.quit()

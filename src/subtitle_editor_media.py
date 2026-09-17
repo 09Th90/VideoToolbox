@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 1.12.2
+# @version 1.14.0
 """字幕编辑页的媒体后端：libmpv 播放器封装 + ffmpeg 波形峰值提取。
 
 与界面分离，便于单独调试（本模块只依赖 PyQt5 的信号机制，不建任何窗口）。
@@ -16,6 +16,7 @@ import json
 import os
 import subprocess
 import sys
+import tempfile
 
 from PyQt5.QtCore import QObject, QTimer, pyqtSignal
 
@@ -254,6 +255,9 @@ class MpvPlayer(QObject):
         self._duration_ms = 0
         self._last_pos = -1
         self._error = ""
+        # 预览字幕（编辑页把当前 cues 生成一份 ASS 交给 mpv 自己渲染）
+        self._sub_path = ""
+        self._sub_added = ""
         self._timer = QTimer(self)
         self._timer.setInterval(40)
         self._timer.timeout.connect(self._poll)
@@ -275,6 +279,15 @@ class MpvPlayer(QObject):
                 input_vo_keyboard=False,
                 hr_seek="yes",                  # 打轴靠它：精确 seek
                 keep_open="yes",
+                # --- 字幕轨一律关掉（v1.13.2）---
+                # sub-auto=no：**关掉自动加载同名外挂字幕**。否则目录里那个
+                #   .srt 会被 mpv 自己加载一遍，和我们画的预览叠成两层。
+                # sid=no：连**内嵌字幕轨**也关掉——预览字幕改由
+                #   `subtitle_overlay.SubtitleStage`（Qt 顶层透明窗口）自绘，
+                #   因为只有 Qt 控件才点得中、拖得动、改得了字；mpv 再画一层
+                #   就是重影。mpv 从此只负责画面。
+                sub_auto="no",
+                sid="no",
                 log_handler=None,
             )
         except Exception as e:  # noqa: BLE001
@@ -287,6 +300,7 @@ class MpvPlayer(QObject):
     def terminate(self):
         """释放 libmpv。**必须调用**，否则 onefile 的 _MEI*** 删不掉。"""
         self._timer.stop()
+        self._sub_added = ""
         if self.player is not None:
             try:
                 self.player.terminate()
@@ -312,6 +326,9 @@ class MpvPlayer(QObject):
             self.player.loadfile(path)
             self._duration_ms = 0
             self._last_pos = -1
+            # loadfile 会清掉全部字幕轨，记账也要跟着清，否则下次
+            # set_subtitles 会误判成"已挂载"而只发 sub-reload（画面空着）
+            self._sub_added = ""
             self._autoplay = bool(autoplay)
             self._timer.start()
         except Exception as e:  # noqa: BLE001
@@ -384,6 +401,60 @@ class MpvPlayer(QObject):
             except Exception:  # noqa: BLE001
                 break
 
+    # ---------- 预览字幕（画面上那一层） ----------
+    def _preview_path(self):
+        """预览 ASS 的落地路径。放系统临时目录，绝不动用户文件。"""
+        if not self._sub_path:
+            self._sub_path = os.path.join(
+                tempfile.gettempdir(), "vt_sub_preview", "preview.ass")
+        return self._sub_path
+
+    def set_subtitles(self, ass_text):
+        """把一份 ASS 文本挂到播放器上，由 libass **直接渲染在画面上**。
+
+        为什么走文件而不是 `data://`：`sub-add` 只认路径/URL，内存协议在
+        这条命令上不成立；而落到临时目录的文件只有几十 KB，也不碰用户的
+        .srt，代价可以忽略。
+
+        首次 `sub-add`，之后只覆盖文件内容 + `sub-reload`——反复 add 会
+        堆出一串字幕轨（还会各自渲染），reload 没有这个副作用。
+        返回 True 表示已生效，False 表示播放器未就绪或写入失败。
+        """
+        if self.player is None:
+            return False
+        path = self._preview_path()
+        try:
+            os.makedirs(os.path.dirname(path), exist_ok=True)
+            tmp = path + ".part"
+            with open(tmp, "w", encoding="utf-8") as fh:
+                fh.write(ass_text or "")
+            os.replace(tmp, path)
+        except OSError:
+            return False
+        try:
+            if self._sub_added == path:
+                self.player.command("sub-reload")
+            else:
+                if self._sub_added:
+                    self.clear_subtitles()
+                self.player.command("sub-add", path, "select")
+                self._sub_added = path
+        except Exception:  # noqa: BLE001
+            return False
+        return True
+
+    def clear_subtitles(self):
+        """摘掉预览字幕轨（`loadfile` 之后字幕轨会被清空，这里同步记账）。"""
+        if self.player is None:
+            self._sub_added = ""
+            return
+        if self._sub_added:
+            try:
+                self.player.command("sub-remove")
+            except Exception:  # noqa: BLE001
+                pass
+            self._sub_added = ""
+
     # ---------- 状态 ----------
     @property
     def duration_ms(self):
@@ -409,6 +480,34 @@ class MpvPlayer(QObject):
             return float(v) if v else 25.0
         except Exception:  # noqa: BLE001
             return 25.0
+
+    def video_aspect(self):
+        """画面宽高比（宽 / 高，含像素比修正）；没有视频时返回 0.0。
+
+        用途是给画面字幕层算**真实显示区域**：竖屏视频放进横向窗口时只占
+        中间一竖条，四周是黑边。字幕的坐标基准必须跟画面走，否则选框会和
+        真实字幕错位。
+        """
+        if self.player is None:
+            return 0.0
+        try:
+            vp = self.player.video_params
+            if vp:
+                a = vp.get("aspect")
+                if a:
+                    return float(a)
+                vw, vh = vp.get("w") or 0, vp.get("h") or 0
+                if vw and vh:
+                    return float(vw) / float(vh)
+        except Exception:  # noqa: BLE001
+            pass
+        try:
+            d = self.player.osd_dimensions
+            if d and d.get("w") and d.get("h"):
+                return float(d["w"]) / float(d["h"])
+        except Exception:  # noqa: BLE001
+            pass
+        return 0.0
 
     def _emit_position(self, ms, force=False):
         ms = max(0, int(ms))

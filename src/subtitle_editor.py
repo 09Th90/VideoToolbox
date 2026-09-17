@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 1.12.2
+# @version 1.14.0
 """字幕编辑页（打轴）的界面控件：波形时间轴 + 字幕表模型。
 
 参照开源实现的结构：
@@ -11,9 +11,12 @@
 控件与数据层（subtitle_editor_core）解耦：控件只持有 cues 的**引用**，
 改动通过信号上报给页面统一处理（便于把每次改动压进撤销栈）。
 """
-from PyQt5.QtCore import QPoint, QRect, Qt, pyqtSignal
-from PyQt5.QtGui import QColor, QFont, QFontMetrics, QPainter, QPen
-from PyQt5.QtWidgets import QAbstractItemView, QHeaderView, QTableWidget, QWidget
+from PyQt5.QtCore import QPoint, QRect, QSize, Qt, pyqtSignal
+from PyQt5.QtGui import (QColor, QFont, QFontMetrics, QPainter, QPen, QPolygon)
+from PyQt5.QtWidgets import (QAbstractItemView, QCheckBox, QColorDialog, QComboBox, QFontComboBox,
+                             QFrame, QGridLayout, QHBoxLayout, QHeaderView, QLabel,
+                             QLineEdit, QPushButton, QScrollArea, QSizePolicy, QSlider,
+                             QSpinBox, QTableWidget, QToolButton, QVBoxLayout, QWidget)
 
 from subtitle_editor_core import MIN_DURATION_MS, ms_to_clock
 
@@ -26,6 +29,8 @@ C_CUE_TEXT = QColor("#d8d8d8")
 C_CUE_SEL = QColor("#c9a227")
 C_CUE_SEL_BG = QColor("#4a3f14")
 C_PLAYHEAD = QColor("#e0533a")
+C_BAND = QColor(69, 200, 119, 70)     # 框选矩形填充
+C_BAND_LINE = QColor("#45C877")
 C_RULER = QColor("#1c1c1c")
 C_RULER_TEXT = QColor("#8a8a8a")
 C_GRID = QColor("#2a2a2a")
@@ -33,18 +38,65 @@ C_GRID = QColor("#2a2a2a")
 RULER_H = 22
 CUE_TRACK_H = 28
 WAVE_MIN_H = 60
+PAN_THRESHOLD_PX = 4    # 空白处按下后位移超过它才算「拖动平移」，否则算「点击定位」
+PLAYHEAD_GRAB_PX = 6    # 播放头左右这么宽内按下 = 抓住播放头拖，而不是点空白
+
+#: 属性面板里那几个**原生 QToolButton / QSlider** 的样式（主题感知）。
+#: 不套样式的话它们在深色主题下几乎是"看不见的"——实测对齐九宫格只剩几个
+#: 极暗的小方块、B/I/U 根本认不出来（原生控件默认走浅色 palette）。
+#: v1.13.x：改为按 ui_theme token 生成深浅两套；面板本身也带上不透明的
+#: 卡片底 + 描边——此前面板是透明的，白字直接叠在板块背景图上，浅色
+#: 主题下基本看不清（用户截图反馈「非深色页面下板块样式不合理」）。
+def props_qss(t, accent):
+    """属性面板全局 QSS。`t` = ui_theme.tokens()，`accent` = 主题色。"""
+    return f"""
+SubtitlePropsPanel{{background:{t['card']};border:1px solid {t['card_border']};
+                    border-radius:10px;}}
+SubtitlePropsPanel QLabel{{color:{t['text']};background:transparent;}}
+SubtitlePropsPanel QLabel#propMeta{{color:{t['text_dim']};}}
+QScrollArea{{background:transparent;border:none;}}
+QScrollArea > QWidget > QWidget{{background:transparent;}}
+QToolButton{{background:{t['input_bg']};color:{t['text']};border:1px solid {t['border']};
+            border-radius:6px;font-size:13px;}}
+QToolButton:hover{{background:{t['card_hover']};border-color:{t['border_hover']};}}
+QToolButton:checked{{background:{accent};color:#FFFFFF;border-color:{accent};}}
+QToolButton#secToggle,QToolButton#secAdd{{background:transparent;border:none;
+            color:{t['text_dim']};}}
+QSlider::groove:horizontal{{height:4px;background:{t['border']};border-radius:2px;}}
+QSlider::sub-page:horizontal{{background:{accent};border-radius:2px;}}
+QSlider::handle:horizontal{{background:{t['text']};width:12px;margin:-5px 0;
+                           border-radius:6px;}}
+QSpinBox{{background:{t['input_bg']};color:{t['text']};border:1px solid {t['border']};
+         border-radius:6px;padding:1px 4px;}}
+QSpinBox:focus{{border-color:{accent};}}
+QPushButton{{background:{t['input_bg']};color:{t['text']};border:1px solid {t['border']};
+            border-radius:6px;padding:2px 10px;}}
+QPushButton:hover{{background:{t['card_hover']};border-color:{t['border_hover']};}}
+"""
 
 
 class WaveformTimeline(QWidget):
     """波形 + 字幕块时间轴。
 
-    交互：
-      · 左键点空白      → 请求定位到该时刻
+    交互（v1.13.x 起空白处可直接拖动平移视图）：
+      · 左键拖播放头    → **拖动橙色播放头**定位（标尺区任意位置按住即可拖，
+                          波形里贴着橙线 ±6px 也可以拖）
+      · 左键点空白      → 请求定位到该时刻（**按下原地抬起**才算点击）
+      · 左键拖空白/波形  → 自由平移视图（拖动超过 PAN_THRESHOLD_PX 即进入平移）
       · 左键拖字幕块中部 → 平移该条
       · 左键拖字幕块边缘 → 改起点/终点
+      · 中键拖          → 同上平移视图（兼容旧习惯）
       · 滚轮            → 以鼠标位置为锚点缩放
-      · Shift+滚轮/中键拖 → 横向滚动
-      · 双击            → 请求在该时刻切割
+      · Shift/Ctrl+滚轮  → 横向滚动
+      · 双击字幕块       → 请求在该时刻切割
+
+    「时间轴拖不动」的两次修法：v1.13.x 先给空白处加了拖动平移分支（此前
+    按下**立刻**发定位信号就返回，根本没有拖动分支）；用户随后指出他要的是
+    **橙线本身可拖**，于是补上播放头抓取模式——标尺区/橙线附近按下即抓住，
+    移动时连续 seek，播放头因此从"只能点"变成"能拖"。
+
+    平移后自动**关闭播放头跟随**，否则播放中会被 `_ensure_visible` 拽回原位，
+    手感仍然是「拖不动」；点击空白定位时重新打开跟随。
     """
 
     position_clicked = pyqtSignal(int)
@@ -65,18 +117,22 @@ class WaveformTimeline(QWidget):
         self.peaks_pps = 200            # 每秒峰值点数
         self.duration_ms = 0
         self.position_ms = 0
-        self.selected = -1
+        self.selected = -1              # "主选中"（最后点中的那条），保持旧语义
+        self.selected_set = set()       # 多选集合；空集表示没有选中
         self.follow_playhead = True
 
         self.pixels_per_second = 80.0    # 缩放
         self.view_start_ms = 0           # 左边缘对应时间
 
-        self._drag_mode = None           # 'move' / 'start' / 'end' / 'scroll'
+        self._drag_mode = None           # 'pending' / 'move' / 'start' / 'end' / 'scroll'
         self._drag_cue = -1
         self._drag_grab_ms = 0
         self._drag_orig = None
         self._drag_x0 = 0
         self._drag_view0 = 0
+        self._press_x = 0                # 'pending' 期间记住按下位置：原地抬起则在此定位
+        self._band0 = 0                  # 框选起点 x
+        self._band1 = 0                  # 框选终点 x
 
     # ---------- 数据 ----------
     def set_media(self, peaks, duration_ms, peaks_pps=200):
@@ -91,15 +147,49 @@ class WaveformTimeline(QWidget):
         self.update()
 
     def set_position(self, ms, follow=True):
+        old_view = self.view_start_ms
+        old_x = self.ms_to_x(self.position_ms)
         self.position_ms = max(0, int(ms))
-        if follow and self.follow_playhead and self.width() > 0:
+        # 用户正在手动平移时不抢视图：否则播放中每帧都被 _ensure_visible 拽回，
+        # 表现就是「怎么拖都拖不动」。
+        if (follow and self.follow_playhead and self.width() > 0
+                and self._drag_mode not in ("pending", "scroll")):
             self._ensure_visible(self.position_ms)
-        self.update()
+        if self.view_start_ms != old_view:
+            self.update()                 # 视图平移了：整条重画
+        else:
+            # 只让播放头扫过的两条窄带失效。这是"播放时不卡"的关键：
+            # 全量重绘会把整条波形（逐像素 drawLine）重跑一遍。
+            for x in (old_x, self.ms_to_x(self.position_ms)):
+                self.update(QRect(x - 4, 0, 9, self.height()))
+
+    def selected_indices(self):
+        """当前选中的全部下标（升序）。没有多选时退化成单选的那一条。"""
+        if self.selected_set:
+            return sorted(self.selected_set)
+        return [self.selected] if self.selected >= 0 else []
+
+    def _repaint_cues(self):
+        """选中态只影响最底下那条 cue 轨道，别牵动整条波形。"""
+        self.update(QRect(0, self.height() - CUE_TRACK_H,
+                          self.width(), CUE_TRACK_H))
+
+    def set_selection(self, indices):
+        """整批设置选中（Ctrl+A / 框选结束 / 外部同步都用它）。"""
+        sel = set(int(i) for i in (indices or []))
+        if sel == self.selected_set:
+            return
+        self.selected_set = sel
+        self.selected = max(sel) if sel else -1
+        self._repaint_cues()
 
     def set_selected(self, idx):
-        if idx != self.selected:
+        idx = int(idx)
+        want = {idx} if idx >= 0 else set()
+        if idx != self.selected or want != self.selected_set:
             self.selected = idx
-            self.update()
+            self.selected_set = want
+            self._repaint_cues()
 
     # ---------- 坐标换算 ----------
     def ms_to_x(self, ms):
@@ -136,6 +226,25 @@ class WaveformTimeline(QWidget):
                                         self.view_start_ms + int(dx * 1000.0 / self.pixels_per_second)))
         self.update()
 
+    def _begin_pan(self, x):
+        """进入「拖动平移视图」模式，并关掉播放头跟随。"""
+        self._drag_mode = "scroll"
+        self._drag_x0 = x
+        self._drag_view0 = self.view_start_ms
+        self.follow_playhead = False
+        self.setCursor(Qt.ClosedHandCursor)
+
+    def _pan_to(self, x):
+        """按拖动**起点**绝对换算视图左边缘。
+
+        与 `scroll_by_px` 的增量做法不同：增量每次都被 clamp，一路拖到最左再往回拖
+        会有明显粘滞；这里始终以 `_drag_view0` 为基准，来回甩都不会丢行程。
+        """
+        delta_ms = int((self._drag_x0 - x) * 1000.0 / self.pixels_per_second)
+        self.view_start_ms = max(0, min(self._max_view_start(),
+                                        self._drag_view0 + delta_ms))
+        self.update()
+
     def fit_all(self):
         if self.duration_ms > 0 and self.width() > 0:
             self.pixels_per_second = max(4.0, self.width() * 1000.0 / self.duration_ms)
@@ -143,21 +252,32 @@ class WaveformTimeline(QWidget):
             self.update()
 
     # ---------- 绘制 ----------
-    def paintEvent(self, _ev):
+    def paintEvent(self, ev):
+        """绘制整条时间轴（支持 Qt 的**局部重绘**）。
+
+        为什么要按 clip 裁剪：波形是 `for x in range(w)` 一列一条 drawLine 画
+        出来的，而播放头 40ms 动一次、拖动时每帧都在动。若每帧都全量重绘，
+        等于每秒几十次把整条波形重画一遍——导入视频后 mpv 还在解码，就明显卡。
+        配合 `set_position` / `set_selected` 的窄带失效，播放时每帧实际只需
+        画到十几个像素列。
+        """
         p = QPainter(self)
-        p.fillRect(self.rect(), C_BG)
+        clip = ev.rect()
         w, h = self.width(), self.height()
+        full = clip.width() >= w and clip.height() >= h
+        p.fillRect(self.rect() if full else clip, C_BG)
         wave_top = RULER_H
         wave_h = max(10, h - RULER_H - CUE_TRACK_H)
         cue_top = h - CUE_TRACK_H
 
-        self._paint_ruler(p, w)
-        self._paint_wave(p, w, wave_top, wave_h)
-        self._paint_cues(p, w, cue_top)
+        self._paint_ruler(p, w, clip)
+        self._paint_wave(p, w, wave_top, wave_h, clip, full)
+        self._paint_cues(p, w, cue_top, clip, full)
+        self._paint_band(p)
         self._paint_playhead(p, h)
 
-    def _paint_ruler(self, p, w):
-        p.fillRect(0, 0, w, RULER_H, C_RULER)
+    def _paint_ruler(self, p, w, clip):
+        p.fillRect(QRect(clip.left(), 0, clip.width(), RULER_H), C_RULER)
         pps = self.pixels_per_second
         # 刻度步长：目标每 80px 一个主刻度
         step_s = _nice_step(80.0 / pps)
@@ -169,7 +289,9 @@ class WaveformTimeline(QWidget):
         end_ms = self.view_start_ms + w * 1000.0 / pps
         while t <= end_ms + step_s * 1000:
             x = self.ms_to_x(int(t))
-            if 0 <= x <= w:
+            # 刻度文字有宽度（mm:ss 约 40px），出界一点也得画，否则局部重绘时
+            # 会出现"字被切掉一半"
+            if 0 <= x <= w and clip.left() - 70 <= x <= clip.right() + 70:
                 p.drawLine(x, RULER_H - 5, x, RULER_H)
                 p.drawText(x + 3, RULER_H - 7, _ruler_label(t, step_s))
                 p.setPen(QPen(C_GRID))
@@ -177,20 +299,23 @@ class WaveformTimeline(QWidget):
                 p.setPen(QPen(C_RULER_TEXT))
             t += step_s * 1000.0
 
-    def _paint_wave(self, p, w, top, wave_h):
+    def _paint_wave(self, p, w, top, wave_h, clip, full):
+        x_from = max(0, clip.left())
+        x_to = min(w - 1, clip.right())
         mid = top + wave_h / 2.0
         p.setPen(QPen(C_WAVE_DIM))
-        p.drawLine(0, int(mid), w, int(mid))
+        p.drawLine(x_from, int(mid), x_to, int(mid))
         if not self.peaks:
-            p.setPen(QPen(C_RULER_TEXT))
-            p.drawText(QRect(0, top, w, wave_h), Qt.AlignCenter,
-                       "（未加载音频波形）")
+            if full:            # 居中提示只在整条重绘时画，避免被切成半句
+                p.setPen(QPen(C_RULER_TEXT))
+                p.drawText(QRect(0, top, w, wave_h), Qt.AlignCenter,
+                           "（未加载音频波形）")
             return
         pps = self.peaks_pps
         half = wave_h / 2.0 - 2
         pen = QPen(C_WAVE)
         p.setPen(pen)
-        for x in range(w):
+        for x in range(x_from, x_to + 1):
             t0 = self.view_start_ms + x * 1000.0 / self.pixels_per_second
             t1 = t0 + 1000.0 / self.pixels_per_second
             i0 = int(t0 * pps / 1000.0)
@@ -209,8 +334,12 @@ class WaveformTimeline(QWidget):
             hh = v / 255.0 * half
             p.drawLine(x, int(mid - hh), x, int(mid + hh))
 
-    def _paint_cues(self, p, w, top):
-        p.fillRect(0, top, w, CUE_TRACK_H, C_RULER)
+    def _paint_cues(self, p, w, top, clip, full):
+        p.fillRect(QRect(clip.left(), top, clip.width(), CUE_TRACK_H), C_RULER)
+        # 夹住绘制范围：字幕块上的文本是逐块 drawText 的，不夹的话局部重绘时
+        # 会把整行文字都画出去（Qt 会裁，但白做一遍排版）
+        p.save()
+        p.setClipRect(clip)
         f = QFont()
         f.setPointSize(8)
         p.setFont(f)
@@ -218,10 +347,11 @@ class WaveformTimeline(QWidget):
         for i, c in enumerate(self.cues):
             x0 = self.ms_to_x(c.start)
             x1 = self.ms_to_x(c.end)
-            if x1 < -20 or x0 > w + 20:
+            if x1 < clip.left() - 20 or x0 > clip.right() + 20:
                 continue
             r = QRect(x0, top + 3, max(2, x1 - x0), CUE_TRACK_H - 6)
-            sel = (i == self.selected)
+            sel = i in self.selected_set or (not self.selected_set
+                                             and i == self.selected)
             p.setBrush(C_CUE_SEL_BG if sel else C_CUE)
             p.setPen(QPen(C_CUE_SEL if sel else QColor("#555555"), 2 if sel else 1))
             p.drawRect(r)
@@ -230,15 +360,43 @@ class WaveformTimeline(QWidget):
                 txt = fm.elidedText((c.text or "").replace("\n", " "),
                                     Qt.ElideRight, r.width() - 6)
                 p.drawText(r.adjusted(3, 0, -3, 0), Qt.AlignVCenter, txt)
-        p.setPen(QPen(C_RULER_TEXT))
-        if not self.cues:
-            p.drawText(QRect(0, top, w, CUE_TRACK_H), Qt.AlignCenter, "（未加载字幕）")
+        p.restore()
+        if not self.cues and full:
+            p.setPen(QPen(C_RULER_TEXT))
+            p.drawText(QRect(0, top, w, CUE_TRACK_H), Qt.AlignCenter,
+                       "（未加载字幕）")
+
+    def _paint_band(self, p):
+        """框选矩形（只在框选进行中画）。"""
+        if self._drag_mode != "band":
+            return
+        x0, x1 = sorted((self._band0, self._band1))
+        top = self.height() - CUE_TRACK_H
+        p.setBrush(C_BAND)
+        p.setPen(QPen(C_BAND_LINE, 1, Qt.DashLine))
+        p.drawRect(QRect(x0, top, max(1, x1 - x0), CUE_TRACK_H))
+
+    def _apply_band(self):
+        """把框选范围换算成命中的 cue 下标（区间相交即算命中）。"""
+        x0, x1 = sorted((self._band0, self._band1))
+        picked = set()
+        for i, c in enumerate(self.cues):
+            cx0, cx1 = self.ms_to_x(c.start), self.ms_to_x(c.end)
+            if cx1 >= x0 and cx0 <= x1:
+                picked.add(i)
+        self.selected_set = picked
+        self.selected = max(picked) if picked else -1
 
     def _paint_playhead(self, p, h):
         x = self.ms_to_x(self.position_ms)
         if 0 <= x <= self.width():
             p.setPen(QPen(C_PLAYHEAD, 2))
             p.drawLine(x, 0, x, h)
+            # 顶部抓手：这条橙线现在可以**直接拖动**，画个把手让"可拖"一眼可见，
+            # 同时也把抓取目标从 1px 的线扩成一个看得见的三角。
+            p.setBrush(C_PLAYHEAD)
+            p.setPen(Qt.NoPen)
+            p.drawPolygon(QPolygon([QPoint(x - 6, 0), QPoint(x + 6, 0), QPoint(x, 9)]))
 
     # ---------- 命中测试 ----------
     def _cue_at(self, x, y):
@@ -263,19 +421,56 @@ class WaveformTimeline(QWidget):
     def mousePressEvent(self, ev):
         x, y = ev.pos().x(), ev.pos().y()
         if ev.button() == Qt.MiddleButton:
-            self._drag_mode = "scroll"
-            self._drag_x0 = x
-            self._drag_view0 = self.view_start_ms
-            self.setCursor(Qt.ClosedHandCursor)
+            self._begin_pan(x)
             return
         if ev.button() != Qt.LeftButton:
             return
+        # ① 播放头优先：标尺区任意位置、或波形/空白区里贴着橙线（±6px）按下，
+        #    都算「抓住播放头拖」。剪映那种"拖橙线找位置"的操作靠的就是这条。
+        #    ⚠️ 字幕块轨道（最底下 28px）不参与播放头命中的抢占——那里的
+        #    边缘拖拽改起止时间更重要，橙线正好压在某条上时不能把它抢走。
+        cue_top = self.height() - CUE_TRACK_H
+        phx = self.ms_to_x(self.position_ms)
+        if y < RULER_H or (y < cue_top - 2 and abs(x - phx) <= PLAYHEAD_GRAB_PX):
+            self._begin_playhead_drag(x)
+            return
         idx, mode = self._cue_at(x, y)
         if idx < 0:
-            self.position_clicked.emit(self.x_to_ms(x))
+            # cue 轨道上的**空白**：拖 = 框选多条。
+            # 波形/标尺区的空白仍然是"待定"（拖动平移视图 / 原地点击定位），
+            # 两者不能抢同一种手势。
+            if y >= cue_top - 2:
+                self._drag_mode = "band"
+                self._band0 = self._band1 = x
+                if not (ev.modifiers() & (Qt.ShiftModifier | Qt.ControlModifier)):
+                    self.selected_set = set()
+                    self.selected = -1
+                self._repaint_cues()
+                return
+            self._drag_mode = "pending"
+            self._drag_x0 = x
+            self._press_x = x
+            self._drag_view0 = self.view_start_ms
             return
-        self.selected = idx
-        self.cue_selected.emit(idx)
+        # —— 点中某条：按修饰键决定单选 / 加选 / 范围选 ——
+        mods = ev.modifiers()
+        if mods & Qt.ShiftModifier and self.selected >= 0:
+            lo, hi = sorted((self.selected, idx))
+            self.selected_set = set(range(lo, hi + 1))
+            self.selected = idx
+        elif mods & Qt.ControlModifier:
+            self.selected_set = set(self.selected_set)
+            if idx in self.selected_set:
+                self.selected_set.discard(idx)
+            else:
+                self.selected_set.add(idx)
+            self.selected = (idx if idx in self.selected_set
+                             else (max(self.selected_set) if self.selected_set else -1))
+        else:
+            self.selected_set = {idx}
+            self.selected = idx
+        self._repaint_cues()
+        self.cue_selected.emit(self.selected)
         # 撤销快照必须在**改动之前**落地：下面 mouseMoveEvent 会直接改 cue
         self.drag_started.emit()
         self._drag_mode = mode
@@ -284,10 +479,32 @@ class WaveformTimeline(QWidget):
         self._drag_orig = (self.cues[idx].start, self.cues[idx].end)
         self.update()
 
+    def _begin_playhead_drag(self, x):
+        """进入「拖动播放头」模式：按下即定位，之后跟着鼠标连续 seek。"""
+        self._drag_mode = "playhead"
+        self.follow_playhead = True          # 拖动播放头时视图要跟着它走
+        self.setCursor(Qt.SizeHorCursor)
+        self.position_clicked.emit(self.x_to_ms(x))
+
     def mouseMoveEvent(self, ev):
         x, y = ev.pos().x(), ev.pos().y()
+        if self._drag_mode == "playhead":
+            # 拖出左右边界时钳到边缘，避免"甩出去就没反应"
+            x = max(0, min(self.width(), x))
+            self.position_clicked.emit(self.x_to_ms(x))
+            return
+        if self._drag_mode == "band":
+            self._band1 = x
+            self._apply_band()
+            self._repaint_cues()
+            return
+        if self._drag_mode == "pending":
+            if abs(x - self._drag_x0) >= PAN_THRESHOLD_PX:
+                # 基准取「进入平移这一刻」的 x，起手不会跳掉阈值那段位移
+                self._begin_pan(x)
+            return
         if self._drag_mode == "scroll":
-            self.scroll_by_px(self._drag_x0 - x)
+            self._pan_to(x)
             return
         if self._drag_mode in ("move", "start", "end") and 0 <= self._drag_cue < len(self.cues):
             delta = self.x_to_ms(x) - self.x_to_ms(self._drag_x0)
@@ -305,9 +522,17 @@ class WaveformTimeline(QWidget):
                 ne = max(o_start + MIN_DURATION_MS, o_end + delta)
                 c.end = ne
                 self.cue_dragged.emit(self._drag_cue, "end", ne)
-            self.update()
+            # 只失效 cue 轨道那一条：拖字幕块时波形一点没变，没必要把
+            # 逐像素绘制的波形整条重画一遍（这是拖动卡顿的另一半来源）。
+            self.update(QRect(0, self.height() - CUE_TRACK_H,
+                              self.width(), CUE_TRACK_H))
             return
-        # 悬停时给边缘换光标
+        # 悬停：播放头附近 / 字幕块边缘 / 字幕块中部各有各的光标
+        cue_top = self.height() - CUE_TRACK_H
+        if y < RULER_H or (y < cue_top - 2
+                           and abs(x - self.ms_to_x(self.position_ms)) <= PLAYHEAD_GRAB_PX):
+            self.setCursor(Qt.SizeHorCursor)
+            return
         idx, mode = self._cue_at(x, y)
         if mode in ("start", "end"):
             self.setCursor(Qt.SizeHorCursor)
@@ -317,7 +542,15 @@ class WaveformTimeline(QWidget):
             self.setCursor(Qt.ArrowCursor)
 
     def mouseReleaseEvent(self, ev):
-        if self._drag_mode in ("move", "start", "end"):
+        if self._drag_mode == "band":
+            self._apply_band()
+            self._repaint_cues()
+            self.cue_selected.emit(self.selected)
+        elif self._drag_mode == "pending":
+            # 全程没超过平移阈值 → 当作点击定位，并恢复播放头跟随
+            self.follow_playhead = True
+            self.position_clicked.emit(self.x_to_ms(self._press_x))
+        elif self._drag_mode in ("move", "start", "end"):
             self.drag_finished.emit()
         self._drag_mode = None
         self._drag_cue = -1
@@ -442,6 +675,26 @@ class CueTable(QTableWidget):
         rows = self.selectionModel().selectedRows() if self.selectionModel() else []
         return sorted(r.row() for r in rows)
 
+    def select_rows(self, rows, scroll=True):
+        """整批选中若干行（时间轴上多选时同步过来）。"""
+        from PyQt5.QtCore import QItemSelection, QItemSelectionModel
+        self._loading = True
+        try:
+            self.clearSelection()
+            sel = QItemSelection()
+            picked = [r for r in rows if 0 <= r < self.rowCount()]
+            for r in picked:
+                sel.select(self.model().index(r, 0),
+                           self.model().index(r, self.columnCount() - 1))
+            if picked:
+                self.selectionModel().select(
+                    sel, QItemSelectionModel.Select | QItemSelectionModel.Rows)
+                if scroll:
+                    self.scrollToItem(self.item(picked[0], 0),
+                                      QAbstractItemView.PositionAtCenter)
+        finally:
+            self._loading = False
+
     def select_row(self, r, scroll=True):
         self._loading = True
         try:
@@ -453,3 +706,512 @@ class CueTable(QTableWidget):
                                       QAbstractItemView.PositionAtCenter)
         finally:
             self._loading = False
+
+
+class _Section(QWidget):
+    """可折叠分组：标题行（▾ 名称 … 右侧可选 +）+ 内容区。
+
+    版式照抄剪映右侧属性栏——每组一个标题行，点标题折叠/展开。
+    """
+
+    def __init__(self, title, parent=None, extra_btn=False):
+        super().__init__(parent)
+        self._open = True
+        lay = QVBoxLayout(self)
+        lay.setContentsMargins(0, 2, 0, 2)
+        lay.setSpacing(4)
+
+        head = QHBoxLayout()
+        head.setSpacing(4)
+        self.btn_toggle = QToolButton(self)
+        self.btn_toggle.setArrowType(Qt.DownArrow)
+        self.btn_toggle.setAutoRaise(True)
+        self.btn_toggle.setFixedSize(16, 16)
+        self.btn_toggle.setToolTip("折叠 / 展开")
+        self.btn_toggle.setObjectName("secToggle")
+        # 必须覆盖 props_qss 里那条 QToolButton 规则：那条给了边框和背景色，
+        # 套到折叠箭头上会渲染成一个像复选框的小方块。覆盖规则也在 props_qss
+        # 里（#secToggle/#secAdd 按主题取色），这里不再写死颜色。
+        self.btn_toggle.clicked.connect(self.toggle)
+        self.lbl = QLabel(title, self)
+        f = self.lbl.font()
+        f.setBold(True)
+        self.lbl.setFont(f)
+        head.addWidget(self.btn_toggle)
+        head.addWidget(self.lbl)
+        head.addStretch(1)
+        self.btn_add = None
+        if extra_btn:
+            self.btn_add = QToolButton(self)
+            self.btn_add.setText("+")
+            self.btn_add.setAutoRaise(True)
+            self.btn_add.setFixedSize(18, 18)
+            self.btn_add.setObjectName("secAdd")
+            head.addWidget(self.btn_add)
+        lay.addLayout(head)
+
+        self.body = QWidget(self)
+        self.body_lay = QVBoxLayout(self.body)
+        self.body_lay.setContentsMargins(4, 0, 0, 4)
+        self.body_lay.setSpacing(5)
+        lay.addWidget(self.body)
+
+    def row(self, *widgets, spacing=5):
+        h = QHBoxLayout()
+        h.setSpacing(spacing)
+        for w in widgets:
+            if w is None:
+                h.addStretch(1)
+            else:
+                h.addWidget(w)
+        h.addStretch(1)
+        self.body_lay.addLayout(h)
+        return h
+
+    def toggle(self):
+        self._open = not self._open
+        self.body.setVisible(self._open)
+        self.btn_toggle.setArrowType(Qt.DownArrow if self._open else Qt.RightArrow)
+
+
+class _PanelBody(QWidget):
+    """属性面板的内容容器：**最小尺寸声明为 0**。
+
+     的实现是直接加上
+    ，**根本不看 sizePolicy** —— 所以想让
+    "滚动区不跟着内容长"，只能从内容控件这头覆写。
+
+    为什么非做不可：面板内容实测 222x830，会让滚动区、右栏、QSplitter、
+    页面、主窗口的最小尺寸一路被顶到 1440x889。窗口比屏幕还大，下边缘跑到
+    屏幕外，用户的原话就是"左右、对角依旧无法""只能拉顶部，底部调不了"。
+    """
+
+    def minimumSizeHint(self):
+        return QSize(0, 0)
+
+
+class SubtitlePropsPanel(QWidget):
+    """「字幕属性」面板（版式复刻剪映右侧属性栏）。
+
+    右栏不再保留任何字幕框：**字幕本身在画面上直接操作**——点它选中、拖它
+    移位、双击就地改字（见 `subtitle_overlay.SubtitleStage`）。这里只管外观，
+    两边共用同一份样式字典，改哪边都是改同一份数据。
+    """
+
+    style_changed = pyqtSignal(dict)
+    step_requested = pyqtSignal(int)
+
+    #: 对齐九宫格（小键盘布局，与 ASS 的 Alignment 一致）
+    ALIGN_CELLS = ((7, "↖"), (8, "↑"), (9, "↗"),
+                   (4, "←"), (5, "·"), (6, "→"),
+                   (1, "↙"), (2, "↓"), (3, "↘"))
+    ALIGN_TIPS = {1: "左下", 2: "底部居中", 3: "右下", 4: "左中", 5: "正中",
+                  6: "右中", 7: "左上", 8: "顶部居中", 9: "右上"}
+    #: 轨道样式：ASS 没有轨道概念，这里只做版式占位
+    TRACK_STYLES = ("无",)
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        # props_qss 给根容器写了 background —— 普通 QWidget 不开这个属性
+        # 就不画样式表背景（深色下面板会透出浅色窗口底，浅字全看不清）
+        self.setAttribute(Qt.WA_StyledBackground, True)
+        self._loading = False
+        self._index = -1
+        self._build()
+
+    def minimumSizeHint(self):
+        """右栏能多窄多矮由 setMinimumWidth 说了算，不由内容决定。
+
+        不覆写的话最小尺寸会顺着"滚动区 → body → 里头的控件"一路传到
+        QSplitter、页面、主窗口，窗口就缩不动（详见 _build 里的注释）。
+        """
+        ms = self.minimumSize()
+        return ms if ms.width() > 0 else super().minimumSizeHint()
+
+    # ---------- 构建 ----------
+    def _build(self):
+        outer = QVBoxLayout(self)
+        outer.setContentsMargins(0, 0, 0, 0)
+        outer.setSpacing(0)
+
+        body = _PanelBody(self)
+        lay = QVBoxLayout(body)
+        lay.setContentsMargins(10, 4, 10, 8)
+        lay.setSpacing(6)
+
+        area = QScrollArea(self)
+        area.setWidgetResizable(True)
+        area.setFrameShape(QFrame.NoFrame)
+        area.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        area.setWidget(body)
+        outer.addWidget(area)
+        # ⚠️ 这两行是"窗口能不能自由缩放"的关键：
+        #     取的是**内容控件**的
+        #    minimumSizeHint —— 面板内容有 830 高 / 570 宽，于是右栏（下面那句
+        #    setMinimumWidth(292) 形同虚设）把 QSplitter 顶到 850 宽、把页面顶到
+        #    898、最后把主窗口顶到 1440x889。窗口比屏幕还大，下边缘跑到屏幕外，
+        #    用户看到的就是"左右、对角都拖不动，只能拉顶部"。
+        #    把 body 的垂直策略设为 Ignored + 给滚动区一个我们自己的最小尺寸，
+        #    滚动区就只按这里声明的尺寸说话。
+        body.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Ignored)
+        area.setMinimumSize(180, 100)
+        # 292 = 文字与控件在窄栏里还放得下的下限（横向滚动条是关掉的）
+        self.setMinimumWidth(292)
+
+        # ---- 标题行：属性 / 当前条序号 / 上下条 ----
+        top = QHBoxLayout()
+        top.setSpacing(6)
+        self.lbl_no = QLabel("属性", self)
+        f = self.lbl_no.font()
+        f.setBold(True)
+        self.lbl_no.setFont(f)
+        self.lbl_meta = QLabel("", self)
+        self.lbl_meta.setObjectName("propMeta")
+        self.lbl_meta.setMinimumWidth(0)
+        self.lbl_meta.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Preferred)
+        top.addWidget(self.lbl_no)
+        top.addWidget(self.lbl_meta)
+        top.addStretch(1)
+        self.btn_prev = QPushButton("▲", self)
+        self.btn_next = QPushButton("▼", self)
+        for b, tip in ((self.btn_prev, "上一条（↑）"), (self.btn_next, "下一条（↓）")):
+            b.setFixedWidth(26)
+            b.setToolTip(tip)
+            top.addWidget(b)
+        lay.addLayout(top)
+
+        # ---- 预览行：当前字幕文本（只读回显，编辑在画面上双击）----
+        self.lbl_preview = QLabel("（当前时间点没有字幕）", self)
+        self.lbl_preview.setWordWrap(True)
+        self.lbl_preview.setToolTip("这一行只是回显；改字请在画面上双击字幕")
+        lay.addWidget(self.lbl_preview)
+
+        # ================= 轨道样式（占位）=================
+        sec_track = _Section("轨道样式", self, extra_btn=True)
+        self.cb_track = QComboBox(self)
+        self.cb_track.addItems(self.TRACK_STYLES)
+        self.cb_track.setToolTip("ASS 字幕没有「轨道样式」这个概念，这里仅保留版式位置")
+        sec_track.row(self.cb_track)
+        lay.addWidget(sec_track)
+
+        # ================= 文本 =================
+        sec_text = _Section("文本", self)
+
+        self.cb_font = QFontComboBox(self)
+        self.cb_font.setMinimumWidth(110)
+        self.cb_font.setSizeAdjustPolicy(QComboBox.AdjustToMinimumContentsLength)
+        self.cb_font.setMinimumContentsLength(6)
+        self.cb_font.setToolTip("画面字幕使用的字体（写进 ASS 的 Fontname）")
+        sec_text.body_lay.addWidget(self.cb_font)
+
+        self.cb_weight = QComboBox(self)
+        self.cb_weight.addItems(("Regular", "Bold"))
+        self.cb_weight.setToolTip("字重：Bold 等同于加粗按钮")
+        sec_text.body_lay.addWidget(self.cb_weight)
+
+        # 字形按钮行：B / I / U / S
+        self.btn_bold = self._toggle("B", "加粗（Bold）")
+        self.btn_ital = self._toggle("I", "斜体（Italic）")
+        self.btn_ul = self._toggle("U", "下划线（Underline，仅预览层可见）")
+        self.btn_strike = self._toggle("S", "删除线（StrikeOut）")
+        for b in (self.btn_bold, self.btn_ital, self.btn_ul, self.btn_strike):
+            b.setFixedWidth(26)
+        sec_text.row(self.btn_bold, self.btn_ital, self.btn_ul, self.btn_strike,
+                     None)
+
+        # 字号：数值 + 滑块
+        size_head = QHBoxLayout()
+        size_head.setSpacing(5)
+        self.sp_size = QSpinBox(self)
+        self.sp_size.setRange(10, 200)
+        self.sp_size.setFixedWidth(64)
+        size_head.addWidget(self._label("字体大小"))
+        size_head.addStretch(1)
+        size_head.addWidget(self.sp_size)
+        sec_text.body_lay.addLayout(size_head)
+        self.sl_size = QSlider(Qt.Horizontal, self)
+        self.sl_size.setRange(10, 200)
+        self.sl_size.setToolTip("字号（按 1080p 画面计，实际按画面高度等比缩放）")
+        sec_text.body_lay.addWidget(self.sl_size)
+
+        # 对齐九宫格
+        grid = QGridLayout()
+        grid.setSpacing(2)
+        self.align_btns = {}
+        for n, (val, sym) in enumerate(self.ALIGN_CELLS):
+            b = QToolButton(self)
+            b.setText(sym)
+            b.setFixedSize(30, 24)
+            b.setCheckable(True)
+            b.setAutoExclusive(True)
+            b.setToolTip(self.ALIGN_TIPS.get(val, ""))
+            grid.addWidget(b, n // 3, n % 3)
+            self.align_btns[val] = b
+        gwrap = QWidget(self)
+        gwrap.setLayout(grid)
+        sec_text.row(self._label("对齐"), gwrap, None)
+
+        # VA（垂直边距）与描边宽度
+        self.sp_margin = QSpinBox(self)
+        self.sp_margin.setRange(0, 900)
+        self.sp_margin.setFixedWidth(76)
+        self.sp_margin.setPrefix("VA ")
+        self.sp_margin.setToolTip("垂直位置：字幕距对齐边的距离（ASS 的 MarginV）")
+        self.sp_outline = QSpinBox(self)
+        self.sp_outline.setRange(0, 8)
+        self.sp_outline.setFixedWidth(58)
+        self.sp_outline.setToolTip("描边宽度（0 = 不描边）")
+        sec_text.row(self.sp_margin, self.sp_outline, None)
+        lay.addWidget(sec_text)
+
+        # ================= 对齐并变换 =================
+        sec_pos = _Section("对齐并变换", self)
+        self.sp_margin_l = QSpinBox(self)
+        self.sp_margin_l.setRange(0, 900)
+        self.sp_margin_l.setFixedWidth(76)
+        self.sp_margin_l.setPrefix("X ")
+        self.sp_margin_l.setToolTip("水平位置（ASS 的 MarginL / MarginR，"
+                                    "按对齐方向决定贴哪一边）")
+        self.sp_scale_x = QSpinBox(self)
+        self.sp_scale_x.setRange(10, 500)
+        self.sp_scale_x.setFixedWidth(76)
+        self.sp_scale_x.setPrefix("%")
+        self.sp_scale_x.setToolTip("横向缩放（ASS 的 ScaleX，100 为原始大小）")
+        sec_pos.row(self.sp_margin_l, self.sp_scale_x, None)
+
+        self.sp_scale_y = QSpinBox(self)
+        self.sp_scale_y.setRange(10, 500)
+        self.sp_scale_y.setFixedWidth(76)
+        self.sp_scale_y.setPrefix("%")
+        self.sp_scale_y.setToolTip("纵向缩放（ASS 的 ScaleY）")
+        sec_pos.row(self.sp_scale_y, None)
+        lay.addWidget(sec_pos)
+
+        # ================= 外观 =================
+        sec_look = _Section("外观", self)
+
+        self.btn_color = QPushButton(self)
+        self.btn_color.setFixedSize(40, 24)
+        self.btn_color.setToolTip("填充色：字幕文字本身（ASS 的 PrimaryColour）")
+        sec_look.row(self._label("填充"), self.btn_color, None)
+
+        self.btn_outline = QPushButton(self)
+        self.btn_outline.setFixedSize(40, 24)
+        self.btn_outline.setToolTip("描边色（ASS 的 OutlineColour）")
+        sec_look.row(self._label("描边"), self.btn_outline, None)
+
+        self.chk_bg = QCheckBox("背景", self)
+        self.chk_bg.setToolTip("给字幕加不透明底框（ASS 的 BorderStyle=3）")
+        self.btn_bg = QPushButton(self)
+        self.btn_bg.setFixedSize(40, 24)
+        self.btn_bg.setToolTip("背景色（ASS 的 BackColour）")
+        sec_look.row(self.chk_bg, self.btn_bg, None)
+
+        self.chk_shadow = QCheckBox("阴影", self)
+        self.chk_shadow.setToolTip("开启投影（ASS 的 Shadow）")
+        self.btn_shadow = QPushButton(self)
+        self.btn_shadow.setFixedSize(40, 24)
+        self.btn_shadow.setToolTip("阴影颜色（与背景共用 ASS 的 BackColour）")
+        self.sp_shadow = QSpinBox(self)
+        self.sp_shadow.setRange(0, 20)
+        self.sp_shadow.setFixedWidth(58)
+        self.sp_shadow.setToolTip("阴影距离（ASS 的 Shadow）")
+        sec_look.row(self.chk_shadow, self.btn_shadow, self.sp_shadow, None)
+        lay.addWidget(sec_look)
+
+        tip = QLabel("双击画面上的字幕可就地改字；拖动它可改位置。", self)
+        tip.setWordWrap(True)
+        tip.setObjectName("propMeta")
+        lay.addWidget(tip)
+        lay.addStretch(1)
+
+        # ---------- 信号 ----------
+        self.btn_prev.clicked.connect(lambda: self.step_requested.emit(-1))
+        self.btn_next.clicked.connect(lambda: self.step_requested.emit(1))
+        self.cb_font.currentFontChanged.connect(self._emit)
+        self.cb_weight.currentIndexChanged.connect(self._on_weight)
+        self.sp_size.valueChanged.connect(self._on_size_spin)
+        self.sl_size.valueChanged.connect(self._on_size_slider)
+        for b in (self.btn_bold, self.btn_ital, self.btn_ul, self.btn_strike):
+            b.toggled.connect(self._emit)
+        self.sp_outline.valueChanged.connect(self._emit)
+        self.sp_margin.valueChanged.connect(self._emit)
+        self.sp_margin_l.valueChanged.connect(self._emit)
+        self.sp_scale_x.valueChanged.connect(self._emit)
+        self.sp_scale_y.valueChanged.connect(self._emit)
+        self.sp_shadow.valueChanged.connect(self._emit)
+        for val, b in self.align_btns.items():
+            b.clicked.connect(self._emit)
+        self.chk_bg.toggled.connect(self._emit)
+        self.chk_shadow.toggled.connect(self._emit)
+        self.btn_color.clicked.connect(lambda: self._pick("color"))
+        self.btn_outline.clicked.connect(lambda: self._pick("outline_color"))
+        self.btn_bg.clicked.connect(lambda: self._pick("back_color"))
+        self.btn_shadow.clicked.connect(lambda: self._pick("back_color"))
+        self._paint_color_buttons()
+        # 主题感知外观：面板底色/控件 QSS 按当前主题生成；主题档或系统深浅
+        # 变化时由 ui_theme 回调重应用（weakref，不拖住本面板回收）
+        self._apply_theme()
+        import ui_theme
+        ui_theme.connect_theme(self, lambda w: w._apply_theme())
+
+    def _apply_theme(self):
+        """按当前主题重应用面板样式（深色=深面板，浅色=白面板）。"""
+        import ui_theme
+        t = ui_theme.tokens()
+        accent = ui_theme.get_accent()
+        self.setStyleSheet(props_qss(t, accent))
+        self.lbl_preview.setStyleSheet(
+            f"color:{t['text_dim']};background:{t['menu_item_sel']};"
+            f"border:1px solid {t['border']};border-radius:4px;"
+            "padding:4px 6px;")
+        self.cb_font.setStyleSheet(
+            f"QFontComboBox{{background:{t['input_bg']};color:{t['text']};"
+            f"border:1px solid {t['border']};border-radius:6px;"
+            "padding:1px 6px;}"
+            "QFontComboBox::drop-down{border:none;width:18px;}"
+            f"QFontComboBox QAbstractItemView{{background:{t['menu_bg']};"
+            f"color:{t['text']};selection-background-color:{accent};"
+            f"border:1px solid {t['border']};}}")
+
+    def _label(self, text):
+        lb = QLabel(text, self)
+        lb.setObjectName("propMeta")
+        return lb
+
+    def _toggle(self, text, tip):
+        b = QToolButton(self)
+        b.setText(text)
+        b.setCheckable(True)
+        b.setToolTip(tip)
+        f = b.font()
+        f.setBold(text == "B")
+        f.setItalic(text == "I")
+        b.setFont(f)
+        return b
+
+    # ---------- 颜色 ----------
+    def _pick(self, key):
+        cur = QColor(str(self.current_style().get(key) or "#FFFFFF"))
+        title = {"color": "填充色", "outline_color": "描边色",
+                 "back_color": "背景 / 阴影色"}.get(key, "选择颜色")
+        col = QColorDialog.getColor(cur, self, title)
+        if not col.isValid():
+            return
+        self._colors[key] = col.name().upper()
+        self._paint_color_buttons()
+        self._emit()
+
+    def _paint_color_buttons(self):
+        st = self.current_style()
+        pairs = (("color", self.btn_color), ("outline_color", self.btn_outline),
+                 ("back_color", self.btn_bg), ("back_color", self.btn_shadow))
+        for key, btn in pairs:
+            c = str(st.get(key) or ("#000000" if key == "back_color" else "#FFFFFF"))
+            btn.setStyleSheet("QPushButton{background:%s;border:1px solid #666;"
+                              "border-radius:3px;}" % c)
+
+    # ---------- 内容 ----------
+    def set_cue(self, cue, idx, total):
+        """回显当前时间点的字幕（文本只预览，改字在画面上双击）。"""
+        self._index = idx
+        if cue is None:
+            self.lbl_meta.setText("· 无字幕（共 %d 条）" % total)
+            self.lbl_preview.setText("（当前时间点没有字幕）")
+            self.lbl_preview.setStyleSheet(
+                "color:#7a7a7a;background:#232323;border:1px solid #333;"
+                "border-radius:4px;padding:4px 6px;")
+        else:
+            self.lbl_meta.setText("· %d/%d · %.2fs"
+                                  % (idx + 1, total, cue.duration / 1000.0))
+            self.lbl_preview.setText("C1:字幕  " + (cue.text or "").replace("\n", " "))
+            self.lbl_preview.setStyleSheet(
+                "color:#cfcfcf;background:#232323;border:1px solid #333;"
+                "border-radius:4px;padding:4px 6px;")
+
+    def current_style(self):
+        align = 2
+        for val, b in self.align_btns.items():
+            if b.isChecked():
+                align = val
+                break
+        cols = getattr(self, "_colors", {})
+        shadow = self.sp_shadow.value() if self.chk_shadow.isChecked() else 0
+        return {
+            "font": self.cb_font.currentFont().family(),
+            "size": self.sp_size.value(),
+            "bold": self.btn_bold.isChecked(),
+            "italic": self.btn_ital.isChecked(),
+            "underline": self.btn_ul.isChecked(),
+            "strikeout": self.btn_strike.isChecked(),
+            "color": cols.get("color", "#FFFFFF"),
+            "outline_color": cols.get("outline_color", "#000000"),
+            "outline": self.sp_outline.value(),
+            "back_color": cols.get("back_color", "#000000"),
+            "border_style": 3 if self.chk_bg.isChecked() else 1,
+            "shadow": shadow,
+            "alignment": align,
+            "margin_v": self.sp_margin.value(),
+            "margin_l": self.sp_margin_l.value(),
+            "margin_r": self.sp_margin_l.value(),
+            "scale_x": self.sp_scale_x.value(),
+            "scale_y": self.sp_scale_y.value(),
+        }
+
+    def set_style(self, style):
+        self._loading = True
+        try:
+            st = dict(style or {})
+            self._colors = {
+                "color": str(st.get("color") or "#FFFFFF").upper(),
+                "outline_color": str(st.get("outline_color") or "#000000").upper(),
+                "back_color": str(st.get("back_color") or "#000000").upper(),
+            }
+            fam = str(st.get("font") or "Microsoft YaHei")
+            if fam and self.cb_font.currentFont().family() != fam:
+                self.cb_font.setCurrentFont(QFont(fam))
+            self.cb_weight.setCurrentIndex(1 if st.get("bold") else 0)
+            self.sp_size.setValue(int(st.get("size", 46)))
+            self.sl_size.setValue(int(st.get("size", 46)))
+            self.sp_outline.setValue(int(st.get("outline", 2)))
+            self.sp_margin.setValue(int(st.get("margin_v", 40)))
+            self.sp_margin_l.setValue(int(st.get("margin_l", 10)))
+            self.sp_scale_x.setValue(int(st.get("scale_x", 100)))
+            self.sp_scale_y.setValue(int(st.get("scale_y", 100)))
+            self.btn_bold.setChecked(bool(st.get("bold")))
+            self.btn_ital.setChecked(bool(st.get("italic")))
+            self.btn_ul.setChecked(bool(st.get("underline")))
+            self.btn_strike.setChecked(bool(st.get("strikeout")))
+            bg = int(st.get("border_style", 1) or 1) == 3
+            self.chk_bg.setChecked(bg)
+            sh = int(st.get("shadow", 0) or 0)
+            self.chk_shadow.setChecked(sh > 0)
+            self.sp_shadow.setValue(sh)
+            align = int(st.get("alignment", 2))
+            b = self.align_btns.get(align) or self.align_btns.get(2)
+            if b is not None:
+                b.setChecked(True)
+            self._paint_color_buttons()
+        finally:
+            self._loading = False
+
+    # ---------- 联动 ----------
+    def _on_weight(self, idx):
+        if self._loading:
+            return
+        self.btn_bold.setChecked(idx == 1)   # 由 _emit 统一上报
+        self._emit()
+
+    def _on_size_slider(self, v):
+        if not self._loading and self.sp_size.value() != v:
+            self.sp_size.setValue(v)
+
+    def _on_size_spin(self, v):
+        if not self._loading and self.sl_size.value() != v:
+            self.sl_size.setValue(v)
+        self._emit()
+
+    def _emit(self, *_a):
+        if self._loading:
+            return
+        self.style_changed.emit(self.current_style())

@@ -1,5 +1,5 @@
-@version 1.13.0
-视频工具箱 v1.13.0 使用说明
+@version 1.14.0
+视频工具箱 v1.14.0 使用说明
 ==============================
 
 零、全局 AI（v1.12.0 起只有一套配置，全程序共用）
@@ -320,7 +320,7 @@ v1.10.1 起「B站投稿」板块已整体移除，原先的分区/简介/话题
     「更新」里；
   · GitHub 连接参数（owner/repo/branch/同步文件清单/token）统一配置在
     内置 github_proxy.yaml 的 vt-github 段——换仓库只改 yaml、不改代码；
-    该文件同时承载「仅 GitHub 走代理」的 mihomo 规则，直连失败自动回退。
+    该文件同时承载「仅 GitHub / YouTube 走代理」的 mihomo 规则，直连失败自动回退。
 
 可选增强（局域网共享盘环境）：管理员用 kb_admin.exe init 建好更新库
 （baseline.json + inbox/）后，把机器指过去（VT_SYNC_ROOT），工具箱会

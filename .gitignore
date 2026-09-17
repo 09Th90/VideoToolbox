@@ -1,4 +1,4 @@
-# @version 1.13.0
+# @version 1.14.0
 # Python caches
 __pycache__/
 *.pyc
@@ -133,3 +133,13 @@ tools/mpv/
 # OS
 .DS_Store
 Thumbs.db
+
+# v1.14.0 追加：整个 data/ 目录一刀切忽略（运行时缓存/状态/配置/自检产物等，
+# 均非程序代码；旧版散在的 data/xxx 规则保留作历史文档，此条兜底新增子项）
+data/
+# 备份文件（例如 _build_exe.py.bak / _build_inno.py.bak），本机保留即可
+*.bak
+# 顶层运行时字幕/工程 yaml（例如 sub24_17slsr.yaml），非源码
+/sub*.yaml
+# 流水线自检结果输出（脚本运行产物，非源码）
+src/_selftest_pipeline_result.txt

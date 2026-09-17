@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 1.12.2
+# @version 1.14.0
 """字幕编辑页的纯逻辑层：SRT 读写、时间换算、编辑操作、撤销栈。
 
 与界面完全解耦（本模块**不 import Qt**），便于 `_selftest_*` 直接测试。
@@ -495,3 +495,155 @@ class UndoStack:
     def clear(self):
         self._undo.clear()
         self._redo.clear()
+
+
+# =============================================================
+# 5. 画面字幕预览：cues -> ASS（交给 libmpv / libass 在画面上渲染）
+# =============================================================
+# 为什么是 ASS 而不是"用 Qt 画一层浮层"：编辑页的播放器是**原生子窗口**
+# （`MPV(wid=hwnd)`），Qt 控件在 Windows 上永远盖不到它上面——浮层会被画面
+# 整个吃掉。唯一能"透明地浮在画面上"的办法就是让 mpv 自己渲染：
+# libass 把字幕画在视频帧之上，天然透明、逐帧精确，而且**不需要重新编码**。
+# 改一个字只需重新生成这段文本再 `sub-reload`，用户的 .srt 文件不受影响。
+#
+# 样式字段与界面上的「字幕样式」区一一对应；任何一项变化都整份重新生成
+# （ASS 头只有几百字节，重生成比增量改简单，且不会残留旧值）。
+ASS_DEFAULT_STYLE = {
+    "font": "Microsoft YaHei",
+    "size": 46,              # 按 PlayResY 计的字号
+    "color": "#FFFFFF",      # 主色（正文）
+    "outline_color": "#000000",
+    "outline": 2,            # 描边宽度
+    "shadow": 0,
+    "bold": False,
+    "italic": False,
+    "underline": False,
+    "strikeout": False,
+    "alignment": 2,          # 小键盘布局：2 = 底部居中
+    "margin_v": 40,          # 距画面下沿的边距
+    # v1.13.2：左右边距提到样式里（此前硬编码 10）。画面字幕层支持拖动改水平
+    # 位置，走的就是「就地切对齐 + 这一对边距」，所以必须可配。
+    "margin_l": 10,
+    "margin_r": 10,
+    # --- v1.13.4：属性面板复刻剪映时新增，对应 ASS Style 行的同名字段 ---
+    "scale_x": 100,          # 横向缩放（ScaleX，100 = 原始）
+    "scale_y": 100,          # 纵向缩放（ScaleY）
+    "spacing": 0,            # 字间距（Spacing）
+    "border_style": 1,       # 1 = 描边+阴影，3 = 不透明底框（ASS 的 BorderStyle）
+    "back_color": "#000000",  # 背景 / 阴影色（BackColour）
+}
+
+ASS_PLAY_RES = (1920, 1080)  # 参考分辨率；libass 会按实际画面等比缩放
+
+
+def ms_to_ass(ms):
+    """int 毫秒 -> `H:MM:SS.cc`（ASS 用**厘秒**，不是毫秒）。"""
+    ms = max(0, int(ms))
+    h, rem = divmod(ms, 3600000)
+    m, rem = divmod(rem, 60000)
+    s, milli = divmod(rem, 1000)
+    return "%d:%02d:%02d.%02d" % (h, m, s, milli // 10)
+
+
+def ass_escape(text):
+    """转义进 ASS 正文：`\\` `{` `}` 是控制字符，换行写成 `\\N`。"""
+    t = (text or "").replace("\r\n", "\n").replace("\r", "\n")
+    t = t.replace("\\", "\\\\").replace("{", "\\{").replace("}", "\\}")
+    return t.replace("\n", "\\N")
+
+
+def _ass_color(css, alpha=0):
+    """`#RRGGBB` -> ASS 的 `&HAABBGGRR`（ASS 是 BGR 序；alpha 0 = 不透明）。"""
+    h = str(css or "#FFFFFF").strip().lstrip("#")
+    if len(h) == 3:
+        h = "".join(ch * 2 for ch in h)
+    if len(h) != 6:
+        h = "FFFFFF"
+    r, g, b = h[0:2], h[2:4], h[4:6]
+    return "&H%02X%s%s%s" % (max(0, min(255, int(alpha))),
+                             b.upper(), g.upper(), r.upper())
+
+
+def render_ass(cues, style=None, play_res=ASS_PLAY_RES):
+    """把 cues 渲染成一份完整 ASS 文本（供 `MpvPlayer.set_subtitles` 用）。
+
+    纯函数：只读 cues 与样式，不碰源字幕文件，也不落任何媒体中间文件。
+    空文本的条目会被跳过——预览是为了"看当前这句长什么样"，
+    空条目在画面上本来就该是空的。
+    """
+    st = dict(ASS_DEFAULT_STYLE)
+    if style:
+        for k, v in style.items():
+            if v is not None:
+                st[k] = v
+    w, h = play_res
+    try:
+        st["font"] = str(st["font"]).replace(",", " ")   # 逗号会截断 Style 行
+    except Exception:  # noqa: BLE001
+        st["font"] = "Microsoft YaHei"
+    lines = [
+        "[Script Info]",
+        "ScriptType: v4.00+",
+        "PlayResX: %d" % int(w),
+        "PlayResY: %d" % int(h),
+        "WrapStyle: 0",
+        "ScaledBorderAndShadow: yes",
+        "YCbCr Matrix: TV.709",
+        "",
+        "[V4+ Styles]",
+        ("Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, "
+         "OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, "
+         "ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, "
+         "MarginL, MarginR, MarginV, Encoding"),
+        # 字段顺序必须与上面 Format 行严格一致（共 23 项）：
+        #   Name, Fontname, Fontsize, PrimaryColour, SecondaryColour,
+        #   OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut,
+        #   ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow,
+        #   Alignment, MarginL, MarginR, MarginV, Encoding
+        "Style: Default,%s,%d,%s,&H000000FF,%s,%s,%d,%d,%d,%d,%d,%d,%d,0,%d,%d,%d,%d,%d,%d,%d,1" % (
+            st["font"],
+            int(st.get("size", 46)),
+            _ass_color(st.get("color", "#FFFFFF")),
+            _ass_color(st.get("outline_color", "#000000")),
+            _ass_color(st.get("back_color", "#000000")),     # BackColour
+            1 if st.get("bold") else 0,
+            1 if st.get("italic") else 0,
+            1 if st.get("underline") else 0,
+            1 if st.get("strikeout") else 0,
+            int(st.get("scale_x", 100)),
+            int(st.get("scale_y", 100)),
+            int(st.get("spacing", 0)),
+            int(st.get("border_style", 1)),
+            int(st.get("outline", 2)),
+            int(st.get("shadow", 0)),
+            int(st.get("alignment", 2)),
+            int(st.get("margin_l", 10)),
+            int(st.get("margin_r", 10)),
+            int(st.get("margin_v", 40)),
+        ),
+        "",
+        "[Events]",
+        "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text",
+    ]
+    for c in cues:
+        body = ass_escape(c.text)
+        if not body.strip():
+            continue
+        lines.append("Dialogue: 0,%s,%s,Default,,0,0,0,,%s" % (
+            ms_to_ass(c.start), ms_to_ass(c.end), body))
+    lines.append("")
+    return "\n".join(lines)
+
+
+def cues_signature(cues):
+    """cues 的轻量指纹：用于判断「预览字幕是否需要重新生成」。
+
+    播放头每 40ms 推一次，若每次都重建 ASS 再喂给 mpv 会平白烧 CPU；
+    只有指纹变了才重生成。
+    """
+    h = 0
+    for c in cues:
+        h = (h * 1000003 + c.start * 31 + c.end) & 0xFFFFFFFFFFFF
+        for ch in c.text:
+            h = (h * 131 + ord(ch)) & 0xFFFFFFFFFFFF
+    return h

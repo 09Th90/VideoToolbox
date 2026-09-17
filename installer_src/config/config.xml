@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- @version 1.13.0 -->
+<!-- @version 1.14.0 -->
 <!--
   视频工具箱 在线安装器配置（Qt Installer Framework 4.7）
   - Repository Url 指向 GitHub Pages 上的组件仓库（由 deploy_installer_ghpages.py
@@ -10,8 +10,8 @@
 -->
 <Installer>
     <Name>视频工具箱</Name>
-    <Version>1.13.0</Version>
-    <Title>视频工具箱 v1.13.0（在线安装）</Title>
+    <Version>1.14.0</Version>
+    <Title>视频工具箱 v1.14.0（在线安装）</Title>
     <Publisher>VideoToolbox</Publisher>
     <ProductUrl>https://github.com/09Th90/VideoToolbox</ProductUrl>
     <StartMenuDir>视频工具箱</StartMenuDir>
