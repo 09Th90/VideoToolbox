@@ -4178,9 +4178,9 @@ class SubtitleEditPage(ScrollPage):
         bar = QWidget(self)
         bar.setObjectName("MediaBar")
         bar.setFixedHeight(self.BAR_ICON + 4)
-        # 用 #MediaBar 限定，避免样式级联到里面的图标按钮上
-        bar.setStyleSheet(
-            "QWidget#MediaBar{background:#1b1b1b;border-top:1px solid #2b2b2b;}")
+        # 用 #MediaBar 限定，避免样式级联到里面的图标按钮上；
+        # 配色主题感知（_apply_media_bar_theme），不再写死深色。
+        self._media_dividers = []
         lay = QHBoxLayout(bar)
         lay.setContentsMargins(8, 2, 8, 2)
         # 20 个图标 + 5 条分组竖线要在一排里放得下：按最小窗口（880 宽 → 视频区
@@ -4202,7 +4202,7 @@ class SubtitleEditPage(ScrollPage):
         def divider():
             line = QWidget(bar)
             line.setFixedSize(1, 14)
-            line.setStyleSheet("background:#3d3d3d;")
+            self._media_dividers.append(line)
             lay.addWidget(line)
 
         # —— 文件 ——
@@ -4266,7 +4266,33 @@ class SubtitleEditPage(ScrollPage):
                                        "（多选合并 / 批量删除 / 改时间）",
                              self.toggle_list, checkable=True)
         # 不加 addStretch —— 靠每项的 stretch=1 均分，图标才是「均匀排列」
+        self._apply_media_bar_theme(bar)
+        try:
+            import ui_theme
+            ui_theme.connect_theme(bar, lambda w: self._apply_media_bar_theme())
+        except Exception:
+            pass
         return bar
+
+    def _apply_media_bar_theme(self, bar=None):
+        """媒体条配色主题感知（v1.14.1）：深色=深控制台条，浅色=浅灰条。
+
+        此前写死 #1b1b1b 深底 + #3d3d3d 分隔线，浅色主题下与整页白卡片
+        割裂（用户截图反馈「浅色背景中不协调」）。浅色底改取 log_bg 同款
+        #F4F6F8、分隔线取 border_hover，与日志控制台保持同一设计语言；
+        深色下 log_bg 恰好就是原来的 #1b1b1b，观感不变。
+        `bar` 可显式传入——构建期 self.media_bar 还没挂上（先建后赋值）。
+        """
+        bar = bar if bar is not None else getattr(self, "media_bar", None)
+        if bar is None:
+            return
+        import ui_theme
+        t = ui_theme.tokens()
+        bar.setStyleSheet(
+            "QWidget#MediaBar{background:%s;border-top:1px solid %s;}"
+            % (t["log_bg"], t["border"]))
+        for line in getattr(self, "_media_dividers", []):
+            line.setStyleSheet("background:%s;" % t["border_hover"])
 
     # ---------------------------------------------------------
     # 字幕列表抽屉（批量改时间用；右栏已让给属性面板）

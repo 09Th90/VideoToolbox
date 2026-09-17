@@ -20,20 +20,58 @@ from PyQt5.QtWidgets import (QAbstractItemView, QCheckBox, QColorDialog, QComboB
 
 from subtitle_editor_core import MIN_DURATION_MS, ms_to_clock
 
-# ---------- 配色（深底，浅/深主题下都可用） ----------
-C_BG = QColor("#141414")
-C_WAVE = QColor("#4aa3df")
-C_WAVE_DIM = QColor("#2f6d94")
-C_CUE = QColor("#3a3a3a")
-C_CUE_TEXT = QColor("#d8d8d8")
-C_CUE_SEL = QColor("#c9a227")
-C_CUE_SEL_BG = QColor("#4a3f14")
-C_PLAYHEAD = QColor("#e0533a")
-C_BAND = QColor(69, 200, 119, 70)     # 框选矩形填充
-C_BAND_LINE = QColor("#45C877")
-C_RULER = QColor("#1c1c1c")
-C_RULER_TEXT = QColor("#8a8a8a")
-C_GRID = QColor("#2a2a2a")
+# ---------- 配色（主题感知：深色=控制台深底，浅色=纸面浅底） ----------
+#: 时间轴调色板，深浅两套键集一致。深色套沿用 v1.13.x 的控制台配色；
+#: 浅色套 v1.14.1 新增——此前浅色主题下波形/标尺/字幕块仍是深底，与整页
+#: 白卡片对比刺眼（用户截图反馈「浅色背景中不协调」）。
+#: 浅色底取 log_bg 同款 #F4F6F8，与日志控制台保持同一设计语言。
+_PAL_DARK = {
+    "bg": QColor("#141414"),
+    "wave": QColor("#4aa3df"),
+    "wave_dim": QColor("#2f6d94"),
+    "cue": QColor("#3a3a3a"),
+    "cue_border": QColor("#555555"),
+    "cue_text": QColor("#d8d8d8"),
+    "cue_sel": QColor("#c9a227"),
+    "cue_sel_bg": QColor("#4a3f14"),
+    "playhead": QColor("#e0533a"),
+    "band": QColor(69, 200, 119, 70),      # 框选矩形填充
+    "band_line": QColor("#45C877"),
+    "ruler": QColor("#1c1c1c"),
+    "ruler_text": QColor("#8a8a8a"),
+    "grid": QColor("#2a2a2a"),
+}
+_PAL_LIGHT = {
+    "bg": QColor("#F4F6F8"),
+    "wave": QColor("#3D8FD1"),
+    "wave_dim": QColor("#B9D3E8"),
+    "cue": QColor("#E7EAEF"),
+    "cue_border": QColor("#C4CAD2"),
+    "cue_text": QColor("#33373D"),
+    "cue_sel": QColor("#A87F0A"),
+    "cue_sel_bg": QColor("#F3E9C8"),
+    "playhead": QColor("#E0533A"),
+    "band": QColor(69, 200, 119, 60),
+    "band_line": QColor("#2FA95F"),
+    "ruler": QColor("#EDEFF2"),
+    "ruler_text": QColor("#7A8087"),
+    "grid": QColor("#E0E3E8"),
+}
+_PAL_CACHE = {"key": None, "pal": None}
+
+
+def _colors():
+    """当前主题的时间轴配色（dict[str, QColor]，按主题缓存、切换自动失效）。"""
+    try:
+        import ui_theme
+        dark = ui_theme.is_dark()
+    except Exception:            # 无 app/无 ui_theme 的测试环境：回退深色
+        dark = True
+    key = "dark" if dark else "light"
+    if _PAL_CACHE["key"] != key:
+        _PAL_CACHE["pal"] = dict(_PAL_DARK if dark else _PAL_LIGHT)
+        _PAL_CACHE["key"] = key
+    return _PAL_CACHE["pal"]
 
 RULER_H = 22
 CUE_TRACK_H = 28
@@ -72,6 +110,11 @@ QSpinBox:focus{{border-color:{accent};}}
 QPushButton{{background:{t['input_bg']};color:{t['text']};border:1px solid {t['border']};
             border-radius:6px;padding:2px 10px;}}
 QPushButton:hover{{background:{t['card_hover']};border-color:{t['border_hover']};}}
+QComboBox{{background:{t['input_bg']};color:{t['text']};border:1px solid {t['border']};
+          border-radius:6px;padding:1px 6px;}}
+QComboBox::drop-down{{border:none;width:18px;}}
+QComboBox QAbstractItemView{{background:{t['menu_bg']};color:{t['text']};
+          selection-background-color:{accent};border:1px solid {t['border']};}}
 """
 
 
@@ -133,6 +176,13 @@ class WaveformTimeline(QWidget):
         self._press_x = 0                # 'pending' 期间记住按下位置：原地抬起则在此定位
         self._band0 = 0                  # 框选起点 x
         self._band1 = 0                  # 框选终点 x
+
+        # 主题感知：深浅切换时按新调色板整条重绘（weakref 回调，不拖住回收）。
+        try:
+            import ui_theme
+            ui_theme.connect_theme(self, lambda w: w.update())
+        except Exception:
+            pass
 
     # ---------- 数据 ----------
     def set_media(self, peaks, duration_ms, peaks_pps=200):
@@ -262,10 +312,11 @@ class WaveformTimeline(QWidget):
         画到十几个像素列。
         """
         p = QPainter(self)
+        c = _colors()
         clip = ev.rect()
         w, h = self.width(), self.height()
         full = clip.width() >= w and clip.height() >= h
-        p.fillRect(self.rect() if full else clip, C_BG)
+        p.fillRect(self.rect() if full else clip, c["bg"])
         wave_top = RULER_H
         wave_h = max(10, h - RULER_H - CUE_TRACK_H)
         cue_top = h - CUE_TRACK_H
@@ -277,12 +328,13 @@ class WaveformTimeline(QWidget):
         self._paint_playhead(p, h)
 
     def _paint_ruler(self, p, w, clip):
-        p.fillRect(QRect(clip.left(), 0, clip.width(), RULER_H), C_RULER)
+        c = _colors()
+        p.fillRect(QRect(clip.left(), 0, clip.width(), RULER_H), c["ruler"])
         pps = self.pixels_per_second
         # 刻度步长：目标每 80px 一个主刻度
         step_s = _nice_step(80.0 / pps)
         t = (int(self.view_start_ms / (step_s * 1000.0))) * step_s * 1000.0
-        p.setPen(QPen(C_RULER_TEXT))
+        p.setPen(QPen(c["ruler_text"]))
         f = QFont()
         f.setPointSize(8)
         p.setFont(f)
@@ -294,26 +346,27 @@ class WaveformTimeline(QWidget):
             if 0 <= x <= w and clip.left() - 70 <= x <= clip.right() + 70:
                 p.drawLine(x, RULER_H - 5, x, RULER_H)
                 p.drawText(x + 3, RULER_H - 7, _ruler_label(t, step_s))
-                p.setPen(QPen(C_GRID))
+                p.setPen(QPen(c["grid"]))
                 p.drawLine(x, RULER_H, x, self.height())
-                p.setPen(QPen(C_RULER_TEXT))
+                p.setPen(QPen(c["ruler_text"]))
             t += step_s * 1000.0
 
     def _paint_wave(self, p, w, top, wave_h, clip, full):
+        c = _colors()
         x_from = max(0, clip.left())
         x_to = min(w - 1, clip.right())
         mid = top + wave_h / 2.0
-        p.setPen(QPen(C_WAVE_DIM))
+        p.setPen(QPen(c["wave_dim"]))
         p.drawLine(x_from, int(mid), x_to, int(mid))
         if not self.peaks:
             if full:            # 居中提示只在整条重绘时画，避免被切成半句
-                p.setPen(QPen(C_RULER_TEXT))
+                p.setPen(QPen(c["ruler_text"]))
                 p.drawText(QRect(0, top, w, wave_h), Qt.AlignCenter,
                            "（未加载音频波形）")
             return
         pps = self.peaks_pps
         half = wave_h / 2.0 - 2
-        pen = QPen(C_WAVE)
+        pen = QPen(c["wave"])
         p.setPen(pen)
         for x in range(x_from, x_to + 1):
             t0 = self.view_start_ms + x * 1000.0 / self.pixels_per_second
@@ -335,7 +388,8 @@ class WaveformTimeline(QWidget):
             p.drawLine(x, int(mid - hh), x, int(mid + hh))
 
     def _paint_cues(self, p, w, top, clip, full):
-        p.fillRect(QRect(clip.left(), top, clip.width(), CUE_TRACK_H), C_RULER)
+        c = _colors()
+        p.fillRect(QRect(clip.left(), top, clip.width(), CUE_TRACK_H), c["ruler"])
         # 夹住绘制范围：字幕块上的文本是逐块 drawText 的，不夹的话局部重绘时
         # 会把整行文字都画出去（Qt 会裁，但白做一遍排版）
         p.save()
@@ -344,25 +398,26 @@ class WaveformTimeline(QWidget):
         f.setPointSize(8)
         p.setFont(f)
         fm = QFontMetrics(f)
-        for i, c in enumerate(self.cues):
-            x0 = self.ms_to_x(c.start)
-            x1 = self.ms_to_x(c.end)
+        for i, cu in enumerate(self.cues):
+            x0 = self.ms_to_x(cu.start)
+            x1 = self.ms_to_x(cu.end)
             if x1 < clip.left() - 20 or x0 > clip.right() + 20:
                 continue
             r = QRect(x0, top + 3, max(2, x1 - x0), CUE_TRACK_H - 6)
             sel = i in self.selected_set or (not self.selected_set
                                              and i == self.selected)
-            p.setBrush(C_CUE_SEL_BG if sel else C_CUE)
-            p.setPen(QPen(C_CUE_SEL if sel else QColor("#555555"), 2 if sel else 1))
+            p.setBrush(c["cue_sel_bg"] if sel else c["cue"])
+            p.setPen(QPen(c["cue_sel"] if sel else c["cue_border"],
+                          2 if sel else 1))
             p.drawRect(r)
             if r.width() > 16:
-                p.setPen(QPen(C_CUE_TEXT))
-                txt = fm.elidedText((c.text or "").replace("\n", " "),
+                p.setPen(QPen(c["cue_text"]))
+                txt = fm.elidedText((cu.text or "").replace("\n", " "),
                                     Qt.ElideRight, r.width() - 6)
                 p.drawText(r.adjusted(3, 0, -3, 0), Qt.AlignVCenter, txt)
         p.restore()
         if not self.cues and full:
-            p.setPen(QPen(C_RULER_TEXT))
+            p.setPen(QPen(c["ruler_text"]))
             p.drawText(QRect(0, top, w, CUE_TRACK_H), Qt.AlignCenter,
                        "（未加载字幕）")
 
@@ -370,10 +425,11 @@ class WaveformTimeline(QWidget):
         """框选矩形（只在框选进行中画）。"""
         if self._drag_mode != "band":
             return
+        c = _colors()
         x0, x1 = sorted((self._band0, self._band1))
         top = self.height() - CUE_TRACK_H
-        p.setBrush(C_BAND)
-        p.setPen(QPen(C_BAND_LINE, 1, Qt.DashLine))
+        p.setBrush(c["band"])
+        p.setPen(QPen(c["band_line"], 1, Qt.DashLine))
         p.drawRect(QRect(x0, top, max(1, x1 - x0), CUE_TRACK_H))
 
     def _apply_band(self):
@@ -390,11 +446,12 @@ class WaveformTimeline(QWidget):
     def _paint_playhead(self, p, h):
         x = self.ms_to_x(self.position_ms)
         if 0 <= x <= self.width():
-            p.setPen(QPen(C_PLAYHEAD, 2))
+            ph = _colors()["playhead"]
+            p.setPen(QPen(ph, 2))
             p.drawLine(x, 0, x, h)
             # 顶部抓手：这条橙线现在可以**直接拖动**，画个把手让"可拖"一眼可见，
             # 同时也把抓取目标从 1px 的线扩成一个看得见的三角。
-            p.setBrush(C_PLAYHEAD)
+            p.setBrush(ph)
             p.setPen(Qt.NoPen)
             p.drawPolygon(QPolygon([QPoint(x - 6, 0), QPoint(x + 6, 0), QPoint(x, 9)]))
 
@@ -625,6 +682,34 @@ class CueTable(QTableWidget):
         self._loading = False
         self.itemSelectionChanged.connect(self._on_sel)
         self.itemChanged.connect(self._on_changed)
+        # 主题感知：表格底/表头/交替行/选中色按 token 生成（v1.14.1）。
+        # 此前无任何 QSS，原生 QTableWidget 吃系统 palette——系统深色模式 +
+        # 浅色主题时表格发黑，与整页白卡片割裂。
+        self._apply_theme()
+        try:
+            import ui_theme
+            ui_theme.connect_theme(self, lambda w: w._apply_theme())
+        except Exception:
+            pass
+
+    def _apply_theme(self):
+        """字幕表主题感知 QSS（深色=深控制台表，浅色=白表）。"""
+        try:
+            import ui_theme
+            t = ui_theme.tokens()
+            accent = ui_theme.get_accent()
+        except Exception:
+            return
+        self.setStyleSheet(
+            f"QTableWidget{{background:{t['card']};color:{t['text']};"
+            f"alternate-background-color:{t['card_hover']};"
+            f"border:1px solid {t['card_border']};gridline-color:{t['border']};"
+            f"selection-background-color:{accent};selection-color:#FFFFFF;}}"
+            "QTableWidget::item{padding:2px 4px;}"
+            f"QHeaderView::section{{background:{t['card_hover']};"
+            f"color:{t['text_dim']};border:none;"
+            f"border-right:1px solid {t['border']};"
+            f"border-bottom:1px solid {t['border']};padding:3px 6px;}}")
 
     def load(self, cues):
         """整体刷新；刷新期间屏蔽 itemChanged，避免把程序性更新当用户编辑。"""
@@ -1061,10 +1146,11 @@ class SubtitlePropsPanel(QWidget):
         t = ui_theme.tokens()
         accent = ui_theme.get_accent()
         self.setStyleSheet(props_qss(t, accent))
+        # 回显条：底色统一走 log_bg（控制台语言，深 #1B1B1B / 浅 #F4F6F8），
+        # 有无字幕只差文字色。此前 set_cue 里写死 #232323 深底，每次刷新都把
+        # 主题样式盖回深色——浅色主题下就是那块突兀的黑框（用户截图反馈）。
         self.lbl_preview.setStyleSheet(
-            f"color:{t['text_dim']};background:{t['menu_item_sel']};"
-            f"border:1px solid {t['border']};border-radius:4px;"
-            "padding:4px 6px;")
+            self._preview_qss(getattr(self, "_index", -1) < 0))
         self.cb_font.setStyleSheet(
             f"QFontComboBox{{background:{t['input_bg']};color:{t['text']};"
             f"border:1px solid {t['border']};border-radius:6px;"
@@ -1073,6 +1159,15 @@ class SubtitlePropsPanel(QWidget):
             f"QFontComboBox QAbstractItemView{{background:{t['menu_bg']};"
             f"color:{t['text']};selection-background-color:{accent};"
             f"border:1px solid {t['border']};}}")
+
+    def _preview_qss(self, dim=True):
+        """字幕回显条样式（主题感知）：`dim`=无字幕时的弱化文字色。"""
+        import ui_theme
+        t = ui_theme.tokens()
+        return (f"color:{t['text_dim'] if dim else t['text']};"
+                f"background:{t['log_bg']};"
+                f"border:1px solid {t['border']};border-radius:4px;"
+                "padding:4px 6px;")
 
     def _label(self, text):
         lb = QLabel(text, self)
@@ -1104,12 +1199,14 @@ class SubtitlePropsPanel(QWidget):
 
     def _paint_color_buttons(self):
         st = self.current_style()
+        import ui_theme
+        border = ui_theme.tokens()["border_hover"]
         pairs = (("color", self.btn_color), ("outline_color", self.btn_outline),
                  ("back_color", self.btn_bg), ("back_color", self.btn_shadow))
         for key, btn in pairs:
             c = str(st.get(key) or ("#000000" if key == "back_color" else "#FFFFFF"))
-            btn.setStyleSheet("QPushButton{background:%s;border:1px solid #666;"
-                              "border-radius:3px;}" % c)
+            btn.setStyleSheet("QPushButton{background:%s;border:1px solid %s;"
+                              "border-radius:3px;}" % (c, border))
 
     # ---------- 内容 ----------
     def set_cue(self, cue, idx, total):
@@ -1118,16 +1215,12 @@ class SubtitlePropsPanel(QWidget):
         if cue is None:
             self.lbl_meta.setText("· 无字幕（共 %d 条）" % total)
             self.lbl_preview.setText("（当前时间点没有字幕）")
-            self.lbl_preview.setStyleSheet(
-                "color:#7a7a7a;background:#232323;border:1px solid #333;"
-                "border-radius:4px;padding:4px 6px;")
+            self.lbl_preview.setStyleSheet(self._preview_qss(True))
         else:
             self.lbl_meta.setText("· %d/%d · %.2fs"
                                   % (idx + 1, total, cue.duration / 1000.0))
             self.lbl_preview.setText("C1:字幕  " + (cue.text or "").replace("\n", " "))
-            self.lbl_preview.setStyleSheet(
-                "color:#cfcfcf;background:#232323;border:1px solid #333;"
-                "border-radius:4px;padding:4px 6px;")
+            self.lbl_preview.setStyleSheet(self._preview_qss(False))
 
     def current_style(self):
         align = 2
