@@ -2089,7 +2089,8 @@ class SettingsPage(QWidget):
         self.vbox = self.shell.content_lay
 
         self._build_dirs_card()
-        self._build_proxy_card()
+        # v1.14.1 安全整改：「网络代理」卡片已移除——内置代理降级为纯后台
+        # 下载兜底，不再有界面入口与文字说明（节点凭据严禁随包分发）。
         self._build_ai_card()
         self._build_asr_card()
         self._build_calib_ai_card()
@@ -2165,98 +2166,11 @@ class SettingsPage(QWidget):
         self.vbox.addWidget(box)
 
     # ------------------------------------------------------------------ #
-    # 网络代理：内置 mihomo（GitHub 加速），允许用户接入自己的 Clash yaml
+    # 网络代理（v1.14.1 起无界面）：原「网络代理」卡片与 _build_proxy_card /
+    # _proxy_hint_text / _proxy_start_dir / _browse_proxy_yaml /
+    # _apply_proxy_yaml / _reset_proxy_yaml 整组已移除——节点凭据严禁随包
+    # 分发，内置代理只作为依赖下载的静默兜底存在（engine.ensure_builtin_proxy）。
     # ------------------------------------------------------------------ #
-    def _build_proxy_card(self):
-        box, blay = card(
-            "网络代理",
-            "内置 mihomo 代理服务于依赖下载、校准知识同步与 YouTube 下载；"
-            "自动测速选择可用节点，死节点自动切换。"
-            "可接入自己的 Clash/订阅 yaml（仅取其中节点，端口固定 7897）")
-        cur = engine.get_proxy_yaml()
-        self.proxy_edit = LineEdit(box)
-        self.proxy_edit.setPlaceholderText(
-            "留空使用内置节点快照（tools/mihomo/config.yaml，端口 7897）")
-        self.proxy_edit.setText(cur)
-        self.proxy_edit.setReadOnly(True)
-        browse = PushButton(FIF.FOLDER, "浏览…", box)
-        browse.clicked.connect(self._browse_proxy_yaml)
-        reset = PushButton(FIF.SYNC, "恢复", box)
-        reset.clicked.connect(self._reset_proxy_yaml)
-        blay.addWidget(srow("代理配置文件", self.proxy_edit, browse, reset))
-        self.proxy_hint = fit_caption(CaptionLabel(self._proxy_hint_text(), box))
-        self.proxy_hint.setTextColor("#8a8a8a", "#9a9a9a")
-        blay.addWidget(self.proxy_hint)
-        expand_h(self.proxy_edit)
-        self.vbox.addWidget(box)
-
-    @staticmethod
-    def _proxy_hint_text():
-        port = engine._proxy_yaml_port(engine.get_proxy_yaml()) if \
-            engine.get_proxy_yaml() else engine.MIHOMO_PORT
-        if engine.get_proxy_yaml():
-            return (f"当前：自定义配置（端口 {port or 7897}），程序只提取其中的"
-                    f"节点，监听端口固定 7897、自动选择可用节点。"
-                    f"修改后重启生效。")
-        return ("程序自动测速并选择可用节点，节点失效自动切换（端口 7897）。"
-                "也可接入自己的 Clash/订阅 yaml，仅提取其中节点。"
-                "修改后重启生效。")
-
-    def _proxy_start_dir(self):
-        """文件对话框起始目录：上次选的 yaml 所在目录 > 程序目录 > 当前目录。"""
-        try:
-            cur = engine.get_proxy_yaml()
-            if cur and os.path.isdir(os.path.dirname(cur)):
-                return os.path.dirname(cur)
-            if os.path.isdir(engine.APP_DIR):
-                return engine.APP_DIR
-        except Exception:
-            pass
-        return os.getcwd()
-
-    def _browse_proxy_yaml(self):
-        p, _ = QFileDialog.getOpenFileName(
-            self, "选择 Clash/mihomo 配置", self._proxy_start_dir(),
-            "Clash 配置 (*.yaml *.yml)")
-        if not p:
-            return
-        self._apply_proxy_yaml(p)
-
-    def _apply_proxy_yaml(self, path):
-        """套用自定义代理 yaml（对话框选完后走这里；自检也直接调它）。
-
-        v1.12.0 修复：原实现在这里用了未定义的常量 INFOBAR_DURATION_SUCCESS，
-        点击即 NameError → PyQt5 abort → **闪退**；现已改为字面量并整段兜底，
-        任何异常都只提示、不崩界面。
-        """
-        try:
-            if engine._proxy_yaml_port(path) is None:
-                InfoBar.warning(
-                    "未能识别端口", "配置里没有 mixed-port / port / socks-port，"
-                    "将回退使用默认端口 7897", duration=4000, parent=self)
-            engine.set_proxy_yaml(path)
-        except (OSError, ValueError) as e:
-            InfoBar.error("保存失败", str(e)[:200], duration=4000, parent=self)
-            return False
-        except Exception as e:                      # 兜底：任何异常都不该让界面崩
-            InfoBar.error("设置代理失败", f"{type(e).__name__}: {e}"[:200],
-                          duration=5000, parent=self)
-            return False
-        self.proxy_edit.setText(path)
-        self.proxy_hint.setText(self._proxy_hint_text())
-        InfoBar.success("已保存", "自定义代理配置已生效，重启程序后应用",
-                        duration=3000, parent=self)
-        return True
-
-    def _reset_proxy_yaml(self):
-        try:
-            engine.set_proxy_yaml("")
-        except Exception:
-            pass
-        self.proxy_edit.setText("")
-        self.proxy_hint.setText(self._proxy_hint_text())
-        InfoBar.success("已恢复", "将使用内置 GitHub 专用代理配置，重启程序后生效",
-                        duration=3000, parent=self)
 
     # ------------------------------------------------------------------ #
     # 全局 AI（LLM）：全程序唯一一套配置

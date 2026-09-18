@@ -43,19 +43,20 @@ EXCLUDES = {"__pycache__", "*.pyc", "*.pyo"}
 # 组件 -> 文件来源映射：(源路径, data 内相对位置)
 # 说明：仅打包自研内容。Python/Chromium/ffmpeg/yt-dlp/Whisper 等开源组件
 # 一律不参与安装包构建，由 tools/download_open_source_deps.py 运行时从网上拉取。
+#
+# ⚠️ v1.14.1 安全整改：以下内容**严禁**进入发布包（曾随 tools.7z 泄漏到公网
+#    gh-pages）——
+#      · github_proxy.yaml（含代理节点 uuid/password/secret）
+#      · tools\mihomo\（config.yaml/runtime.yaml 均含节点凭据，runtime.yaml
+#        与 cache.db 还是运行期生成物，staging 时会被一并硬链接进来）
 COMPONENTS = {
     "com.videotoolbox.base": [
         ("dist/视频工具箱.exe", "视频工具箱.exe"),
         ("subtitle_calib_merged.py", "subtitle_calib_merged.py"),
-        # 校准知识同步连接配置（代理规则 + vt-github 仓库参数，内置统一入口）
-        ("github_proxy.yaml", "github_proxy.yaml"),
         ("src", "src"),
         ("docs", "docs"),
         ("tools/ai_client.py", "tools/ai_client.py"),
         ("tools/download_open_source_deps.py", "tools/download_open_source_deps.py"),
-        # 内置代理核心（mihomo/ClashMeta，与 FlClash 同源）：程序连接
-        # GitHub/HuggingFace 等开源库下载依赖时自动启用，不依赖本机任何代理软件。
-        ("tools/mihomo", "tools/mihomo"),
     ],
 }
 

@@ -73,7 +73,10 @@ DEFAULT_CONFIG: dict = {
     # 唯一 LLM 通道（OpenAI 兼容 /chat/completions）——
     # 工具箱自身、字幕引擎（优化/拆分）、AI 校准共用一套地址/密钥/模型
     "base_url": "https://open.bigmodel.cn/api/paas/v4",
-    "api_key": "a962f094b8c741c9afae51fd09c99e1b.SIxG2jxt0tKvCXWK",
+    # ⚠️ 密钥不随程序分发（v1.14.1 安全整改）：出厂不内置任何 Key，
+    #    用户在「设置 → 全局 AI」填写后写入 data\ai_config.json（运行期文件，
+    #    不入 git、不进安装包）。此处留空，程序检测到空 Key 时给出配置指引。
+    "api_key": "",
     "model": "glm-4.7-flash",
     # 视觉通道（OpenAI chat/completions 格式）：留空 = 沿用 base_url
     "vision_base_url": "",

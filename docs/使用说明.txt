@@ -22,7 +22,8 @@
 
 两个按钮：「测试接口」验证连通性，「保存并应用」立即生效。
 
-配置实体位于 data\ai_config.json（已内置默认 Key，开箱即用）：
+配置实体位于 data\ai_config.json（首次使用需在「设置 → 全局 AI」填入
+自己的密钥；密钥只保存在本机该文件，不随程序分发、不上传）：
   · enabled / api_key / base_url / model / vision_model  —— 全局 AI（全程序共用）
   · asr_*         —— ASR 语音识别（见下）
   · calib_*       —— AI 校准参数（分块条数 / 字符预算 / 输出上限 / 校准风格）
@@ -319,9 +320,8 @@ v1.10.1 起「B站投稿」板块已整体移除，原先的分区/简介/话题
   · 退出程序时自动派生隐藏子进程，把「校准脚本 + 学习库」先拉远程合并
     再推回共享仓库（不阻塞退出、不弹窗），下次启动即出现在其他用户的
     「更新」里；
-  · GitHub 连接参数（owner/repo/branch/同步文件清单/token）统一配置在
-    内置 github_proxy.yaml 的 vt-github 段——换仓库只改 yaml、不改代码；
-    该文件同时承载「仅 GitHub / YouTube 走代理」的 mihomo 规则，直连失败自动回退。
+  · GitHub 连接参数（owner/repo/branch/同步文件清单/token）由维护者本机的
+    github_proxy.yaml vt-github 段提供（该文件属维护者本机配置，不随包分发）。
 
 可选增强（局域网共享盘环境）：管理员用 kb_admin.exe init 建好更新库
 （baseline.json + inbox/）后，把机器指过去（VT_SYNC_ROOT），工具箱会
@@ -358,7 +358,7 @@ subtitle_calib_merged.py 同级摆放即自动读取内置连接配置）：
 【程序本体】
 视频工具箱.exe        主程序（顶层唯一可执行文件，免 Python）
 subtitle_calib_merged.py  字幕校准统一脚本（「字幕处理」页工作台「字幕校准」分段调用）
-github_proxy.yaml     内置连接配置（GitHub 代理规则 + 校准知识同步仓库参数）
+github_proxy.yaml     维护者本机连接配置（不随包分发，普通用户无需理会）
 data_dir.txt          仅在自定义数据目录后出现，记录数据根目录位置
 文件版本清单.md        自研文件的版本标记与 SHA-1 核验清单（自动生成）
 

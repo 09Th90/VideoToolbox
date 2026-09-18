@@ -52,6 +52,5 @@ GPL-3.0 义务提示（分发前请自行确认）
   · Deno              MIT              https://github.com/denoland/deno
   · Chromium（Playwright 内核）Apache-2.0  https://playwright.dev
   · CPython 3.12      PSF License      https://www.python.org
-  · mihomo（内置代理） GPL-3.0          https://github.com/MetaCubeX/mihomo
   · faster-whisper    MIT              https://github.com/SYSTRAN/faster-whisper
   · Whisper 模型（large-v3-turbo / small） MIT  由用户自行从模型库下载

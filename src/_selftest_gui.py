@@ -916,39 +916,12 @@ def main():
         except Exception as e:  # noqa: BLE001
             _tr_why = f"exc={e}"
     check("独立转录完成：字幕自动装载并跳转「字幕翻译」", _tr_ok, _tr_why)
-    # ---- v1.12.0：用户自定义代理 yaml ----
-    check("设置页含网络代理卡片（接入自己的 Clash/mihomo yaml）",
-          hasattr(sp, "proxy_edit") and hasattr(sp, "proxy_hint"))
-    try:
-        saved_py = engine.get_proxy_yaml()
-        engine.set_proxy_yaml("")
-        empty_ok = engine.get_proxy_yaml() == ""
-        port_gh = engine._proxy_yaml_port(os.path.join(engine.APP_DIR,
-                                                       "github_proxy.yaml"))
-        engine.set_proxy_yaml(saved_py)
-        cfg_builtin = os.path.join(engine.TOOLS_DIR, "mihomo", "config.yaml")
-        port_builtin = (engine._proxy_yaml_port(cfg_builtin)
-                        if os.path.isfile(cfg_builtin) else 7897)
-        proxy_ok = (empty_ok and port_gh == 7890
-                    and port_builtin == engine.MIHOMO_PORT)
-    except Exception:  # noqa: BLE001
-        proxy_ok = False
-    check("代理 yaml 端口解析与持久化（自定义 7890 / 内置 7897）", proxy_ok)
-    # ---- v1.12.0 修复：改代理 yaml 曾因未定义常量闪退（NameError → PyQt5 abort）----
-    try:
-        saved_py2 = engine.get_proxy_yaml()
-        proxy_target = os.path.join(engine.APP_DIR, "github_proxy.yaml")
-        browse_ok = (sp._apply_proxy_yaml(proxy_target) is True
-                     and os.path.abspath(engine.get_proxy_yaml())
-                     == os.path.abspath(proxy_target))
-        sp._reset_proxy_yaml()
-        reset_ok = engine.get_proxy_yaml() == ""
-        if saved_py2:
-            engine.set_proxy_yaml(saved_py2)
-    except Exception:  # noqa: BLE001
-        browse_ok = reset_ok = False
-    check("点「选择 yaml…」不再闪退（_apply_proxy_yaml 保存成功）", browse_ok)
-    check("点「恢复内置」不再闪退且清空配置", reset_ok)
+    # ---- v1.14.1 安全整改：「网络代理」卡片已移除（节点凭据严禁随包分发）----
+    check("设置页无「网络代理」入口（卡片与文案已清除）",
+          not hasattr(sp, "proxy_edit") and not hasattr(sp, "proxy_hint")
+          and "def _build_proxy_card" not in _qt_main_uses_src())
+    check("代理兜底仍为静默后台行为（ensure_builtin_proxy 在位）",
+          callable(getattr(engine, "ensure_builtin_proxy", None)))
     # ---- v1.13.x：界面美化（背景图 / 暗化 / 模糊 / 云母）----
     _QT_SRC = _qt_main_uses_src()
     ui_mica_ok = (callable(getattr(ui_theme, "get_mica", None))
