@@ -73,11 +73,12 @@ from PyQt5.QtCore import (Qt, QTimer, QEvent, QObject, QPoint, QRect, QRectF,
 from PyQt5.QtGui import (QColor, QDesktopServices, QFont, QFontMetrics,
                          QGuiApplication, QKeyEvent, QKeySequence, QPainter,
                          QPen, QPixmap, QTextCursor)
-from PyQt5.QtWidgets import (QAbstractItemView, QApplication, QDialog,
-                             QFileDialog, QFrame, QGridLayout, QHBoxLayout,
-                             QHeaderView, QLabel, QMessageBox, QPlainTextEdit,
-                             QShortcut, QSizePolicy, QSplitter, QStackedWidget,
-                             QTableWidgetItem, QTabWidget, QVBoxLayout, QWidget)
+from PyQt5.QtWidgets import (QAbstractButton, QAbstractItemView, QApplication,
+                             QDialog, QFileDialog, QFrame, QGridLayout,
+                             QHBoxLayout, QHeaderView, QLabel, QMessageBox,
+                             QPlainTextEdit, QShortcut, QSizePolicy, QSplitter,
+                             QStackedWidget, QTableWidgetItem, QTabWidget,
+                             QVBoxLayout, QWidget)
 
 from qfluentwidgets import (BodyLabel, CardWidget, CaptionLabel,
                             ComboBox, FluentIcon as FIF,
@@ -346,6 +347,67 @@ def card(title=None, caption=None):
     if caption:
         lay.addWidget(fit_caption(CaptionLabel(caption, box)))
     return box, lay
+
+
+class AccentDot(QAbstractButton):
+    """主题色预设圆点（自绘）。
+
+    之前用 qfluentwidgets PushButton + QSS 上色，有两个绕不开的坑：
+    ① QSS 的 background 在**首帧**不生效（样式缓存），必须等鼠标碰一下
+    才上色；② qfluentwidgets 切主题/页面首显时会按 FluentStyleSheet 给
+    控件重新 setStyleSheet，把自定义背景**覆盖回默认灰**。修补（repolish、
+    showEvent 重刷）都只是治标，用户实测仍是「主题色按键必须点击一次才会
+    显示」。圆点本质是个色块，直接自绘最稳：无 QSS、无样式缓存、无主题
+    重刷覆盖，任何主题下首帧即为最终效果。
+    """
+
+    def __init__(self, hexcolor, parent=None):
+        super().__init__(parent)
+        self._color = QColor(hexcolor)
+        self._selected = False
+        self._hover = False
+        self.setFixedSize(24, 24)
+        self.setCursor(Qt.PointingHandCursor)
+
+    def set_dot_color(self, hexcolor):
+        c = QColor(hexcolor)
+        if c.isValid() and c != self._color:
+            self._color = c
+            self.update()
+
+    def set_selected(self, on):
+        on = bool(on)
+        if on != self._selected:
+            self._selected = on
+            self.update()
+
+    def enterEvent(self, e):
+        self._hover = True
+        self.update()
+        super().enterEvent(e)
+
+    def leaveEvent(self, e):
+        self._hover = False
+        self.update()
+        super().leaveEvent(e)
+
+    def paintEvent(self, e):
+        p = QPainter(self)
+        p.setRenderHint(QPainter.Antialiasing)
+        r = self.rect().adjusted(1, 1, -1, -1)
+        p.setPen(Qt.NoPen)
+        p.setBrush(self._color)
+        p.drawEllipse(r)
+        # 选中描白圈，hover 描浅灰圈（与旧 QSS 行为一致）
+        if self._selected:
+            ring = QColor("#FFFFFF")
+        elif self._hover:
+            ring = QColor("#E8EAED")
+        else:
+            return
+        p.setBrush(Qt.NoBrush)
+        p.setPen(QPen(ring, 2))
+        p.drawEllipse(r.adjusted(1, 1, -1, -1))
 
 
 def row(*widgets, spacing=8):
@@ -2051,6 +2113,10 @@ class SettingsPage(QWidget):
         # 造成「页面有背景但输入框显示未设置」的错位观感
         if hasattr(self, "bg_page_edits"):
             self._refresh_bg_edits()
+        # 主题色板圆点（自绘 AccentDot）：无样式缓存，首帧即终效；这里
+        # 的重刷只是幂等兜底（set_selected 值未变时不会触发重绘）
+        if hasattr(self, "_refresh_accent_ring"):
+            self._refresh_accent_ring()
 
     # ------------------------------------------------------------------ #
     # 目录：下载目录 / 数据根目录 / 引擎工作目录（全部默认在软件文件夹）
@@ -2840,16 +2906,16 @@ class SettingsPage(QWidget):
 
         # 主题色：预设色板点选，立即 setThemeColor + 重应用全局 QSS + 持久化
         # （按钮/开关跟随 qfluentwidgets 主题色，输入框聚焦/滑杆/进度条跟随全局 QSS）
+        # 圆点用自绘 AccentDot（见类注释）——qfluentwidgets PushButton 的
+        # QSS 首帧不生效 + 主题重刷覆盖，正是「必须点击一次才显示」的根源
         self._accent_btns = {}
         accent_holder = QWidget(box)
         ah = QHBoxLayout(accent_holder)
         ah.setContentsMargins(0, 0, 0, 0)
         ah.setSpacing(6)
         for hexc in ui_theme.ACCENT_PRESETS:
-            b = PushButton(accent_holder)
-            b.setFixedSize(24, 24)
+            b = AccentDot(hexc, accent_holder)
             b.setToolTip(hexc)
-            b.setCursor(Qt.PointingHandCursor)
             b.clicked.connect(lambda _=False, c=hexc: self._on_accent_picked(c))
             self._accent_btns[hexc] = b
             ah.addWidget(b)
@@ -2859,11 +2925,13 @@ class SettingsPage(QWidget):
         self.vbox.addWidget(box)
 
     def _style_accent_btn(self, b, hexc, selected):
-        """色板圆点：选中描白圈，未选中无边框（hover 统一描浅圈）。"""
-        border = "border: 2px solid #FFFFFF;" if selected else "border: none;"
-        b.setStyleSheet(
-            f"PushButton{{background:{hexc};{border}border-radius:12px;}}"
-            "PushButton:hover{border:2px solid #E8EAED;}")
+        """色板圆点：自绘 AccentDot，选中描白圈，未选中无边框。
+
+        AccentDot 无 QSS 无样式缓存，set_selected 即时 update 生效，
+        首帧即为最终效果——不再需要 unpolish/polish 兜底。
+        """
+        b.set_dot_color(hexc)
+        b.set_selected(selected)
 
     def _refresh_accent_ring(self):
         cur = ui_theme.get_accent().upper()
@@ -2908,7 +2976,8 @@ class SettingsPage(QWidget):
             "每个板块可单独设置背景图；未单独设置的板块使用全局背景，"
             "全局也未设置时保持纯色（即现状）。背景遮罩跟随主题：深色"
             "主题压暗、浅色主题雾白，配合可选模糊保证前景文字可读。"
-            "支持把图片直接拖进输入框")
+            "「板块遮罩」对每个板块（卡片）统一生效：底色按同一透明度"
+            "绘制、透出背景，六页风格一致。支持把图片直接拖进输入框")
 
         def _make_row(key, name, placeholder):
             edit = _BgPathEdit(lambda p, k=key: self._drop_apply_bg(k, p), box)
@@ -2944,6 +3013,17 @@ class SettingsPage(QWidget):
         self.bg_dim_slider.valueChanged.connect(self._on_bg_dim_changed)
         blay.addWidget(srow("背景遮罩", self.bg_dim_slider, self.bg_dim_lbl))
 
+        # 板块遮罩（v1.14.x）：与背景图无关，画在每个卡片（UICard）底色的
+        # alpha 上——卡片统一半透明、透出背景，六个板块风格一致。
+        # （深色压暗、浅色雾白由卡片 token 色本身决定）
+        self.sec_dim_slider = Slider(Qt.Horizontal, box)
+        self.sec_dim_slider.setRange(0, ui_theme.SECTION_DIM_MAX)
+        self.sec_dim_slider.setValue(ui_theme.get_section_dim())
+        self.sec_dim_slider.setMinimumWidth(200)
+        self.sec_dim_lbl = BodyLabel(f"{ui_theme.get_section_dim()}%", box)
+        self.sec_dim_slider.valueChanged.connect(self._on_sec_dim_changed)
+        blay.addWidget(srow("板块遮罩", self.sec_dim_slider, self.sec_dim_lbl))
+
         # 背景模糊（v1.13.x）：预模糊一次并缓存，开关切换不拖累重绘；
         # 大图/亮图模糊后更衬前景文字
         self.bg_blur_switch = SwitchButton(box)
@@ -2966,15 +3046,25 @@ class SettingsPage(QWidget):
         self.bg_dim_slider.setValue(dim)
         self.bg_dim_slider.blockSignals(False)
         self.bg_dim_lbl.setText(f"{dim}%")
+        sdim = ui_theme.get_section_dim()
+        self.sec_dim_slider.blockSignals(True)
+        self.sec_dim_slider.setValue(sdim)
+        self.sec_dim_slider.blockSignals(False)
+        self.sec_dim_lbl.setText(f"{sdim}%")
         self.bg_blur_switch.blockSignals(True)
         self.bg_blur_switch.setChecked(ui_theme.get_blur())
         self.bg_blur_switch.blockSignals(False)
 
     def _on_bg_dim_changed(self, value):
-        """遮罩滑杆：改百分比标签 + 立即重绘 + 持久化（写入很小，不怕高频）。"""
+        """背景遮罩滑杆：改百分比标签 + 立即重绘 + 持久化（写入很小，不怕高频）。"""
         self._warn_no_bg_once()
         self.bg_dim_lbl.setText(f"{value}%")
         ui_theme.set_dim(value)
+
+    def _on_sec_dim_changed(self, value):
+        """板块遮罩滑杆：每个卡片底色统一半透明——立即重绘 + 持久化。"""
+        self.sec_dim_lbl.setText(f"{value}%")
+        ui_theme.set_section_dim(value)
 
     def _on_bg_blur_changed(self, checked):
         """背景模糊开关：立即重绘（模糊结果按文件缓存，首次稍慢半秒）。"""

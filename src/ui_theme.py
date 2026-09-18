@@ -27,6 +27,9 @@
    背景图，另有「全局背景」兜底；新增「背景模糊」开关（预模糊缓存，
    不拖累重绘），遮罩为主题感知的竖向渐变：深色主题压暗（黑色）、
    浅色主题雾白提亮（白色）——两档下前景文字都可读。
+   另提供**板块遮罩**（v1.14.x）：与是否设置背景图无关，透明度非 0 时
+   给**每个板块（卡片）的底色**统一设置同透明度——卡片变半透明、透出
+   背景图/实底，六页卡片观感一致。
 
 实现方式（刻意选最保守的一种）：
   · 对页面 QWidget 做**实例级 paintEvent 覆盖**——先调原 QWidget.paintEvent
@@ -78,6 +81,12 @@ _ALL_KEYS = tuple([k for k, _ in PAGE_DEFS] + ["global"])
 DEFAULT_DIM = 55
 #: 暗化上限（%）——留 10% 保证背景图永远隐约可见，不至于完全失效
 DIM_MAX = 90
+
+#: 板块遮罩默认透明度（%）。0=不叠加（保持现状），>0 时**每个板块**内容区
+#: 统一叠一层同透明度的遮罩（与是否设置背景图无关），让六页风格一致。
+DEFAULT_SECTION_DIM = 0
+#: 板块遮罩透明度上限（%）
+SECTION_DIM_MAX = 90
 
 #: 背景模糊半径（px，固定档；开关式而非连续可调，避免每次重绘都算模糊）
 BLUR_RADIUS = 24
@@ -183,6 +192,7 @@ def _default_cfg():
     """默认配置结构（accent/theme/blur/mica 为 v2 新增键，旧文件缺省即默认）。"""
     return {"version": 2, "dim": DEFAULT_DIM, "blur": False,
             "accent": DEFAULT_ACCENT, "theme": "dark", "mica": True,
+            "section_dim": DEFAULT_SECTION_DIM,
             "backgrounds": {k: "" for k in _ALL_KEYS}}
 
 
@@ -206,6 +216,9 @@ def _load_cfg():
             mica = raw.get("mica")
             if isinstance(mica, bool):
                 cfg["mica"] = mica
+            sdim = raw.get("section_dim")
+            if isinstance(sdim, int) and 0 <= sdim <= SECTION_DIM_MAX:
+                cfg["section_dim"] = sdim
             accent = raw.get("accent")
             if isinstance(accent, str) and QColor(accent).isValid():
                 cfg["accent"] = accent.strip()
@@ -259,6 +272,45 @@ def set_blur(on):
     _load_cfg()["blur"] = bool(on)
     _save_cfg()
     refresh()
+
+
+def get_section_dim():
+    """板块遮罩透明度（0-90 的整数百分比）。
+
+    与 dim（背景遮罩）不同：板块遮罩**与是否设置背景图无关**，作用在
+    每个卡片（UICard）底色的 alpha 上——卡片半透明、透出页面背景，
+    是让六页视觉风格一致的统一层。
+    """
+    return int(_load_cfg()["section_dim"])
+
+
+def set_section_dim(value):
+    """设置板块遮罩透明度（0-90），立即重绘并持久化。
+
+    遮罩画在每个卡片（UICard）底色的 alpha 上，页面浅刷不足以让卡片
+    重绘（同切主题的坑：父 update() 不触发子卡片 paintEvent），必须
+    deep=True 连子控件一起刷。写入很小，拖动滑条的高频调用可接受。
+    """
+    value = max(0, min(SECTION_DIM_MAX, int(value)))
+    _load_cfg()["section_dim"] = value
+    _save_cfg()
+    refresh(deep=True)
+
+
+def section_dim_card_fill(state="card"):
+    """所有卡片**统一**的底色：token 三态 + 板块遮罩透明度。
+
+    无论遮罩是否开启，UICard 与 qfluentwidgets 原生卡片都从这里取色，
+    保证任何滑条位置下两者完全同色同透明度（用户三轮实测反馈的最终
+    形态：归零时原生行卡的"白 170"材质与大卡纯白也不一样，必须统一）。
+    sdim=0 → 不透明 token 色（与旧 UICard 基线逐像素一致）；
+    sdim>0 → token 色 + 统一 alpha，透出页面背景。
+    state ∈ card / card_hover / card_pressed。
+    """
+    sdim = get_section_dim()
+    c = QColor(tokens()[state])
+    c.setAlpha(max(0, 255 - int(round(sdim / 100.0 * 255))))
+    return c
 
 
 def get_bg(key):
@@ -844,18 +896,19 @@ def _make_uiclass():
         def _pressedBackgroundColor(self):
             return QColor(tokens()["card_pressed"])
 
+        def _fill_color(self):
+            """三态底色：与原生卡片共用 section_dim_card_fill（同源统一）。"""
+            state = ("card_pressed" if self.isPressed else
+                     "card_hover" if self.isHover else "card")
+            return section_dim_card_fill(state)
+
         def paintEvent(self, e):
             # ⚠️ 不用父类缓存的 self.backgroundColor：CardWidget 只在鼠标
             # enter/leave/press/release 时重算它，切主题后 update() 重绘
             # 拿到的还是旧主题的缓存色（实测切深色后卡片停在白色）。
             # 三态色在这里按当前主题现取，重绘即换肤。
             t = tokens()
-            if self.isPressed:
-                fill = QColor(t["card_pressed"])
-            elif self.isHover:
-                fill = QColor(t["card_hover"])
-            else:
-                fill = QColor(t["card"])
+            fill = self._fill_color()
             painter = QPainter(self)
             painter.setRenderHints(QPainter.Antialiasing)
             painter.setBrush(fill)
@@ -930,14 +983,22 @@ def _draw_cover(painter, w, h, pm):
 
 
 def _paint_background(page, key):
-    """在页面自身上画背景（仅当该页有生效背景图时才动手）。
+    """在页面自身上画背景实底 + 背景图。
 
-    遮罩是主题感知的竖向渐变：深色主题用黑色压暗（顶部最重，保标题），
-    浅色主题用白色雾化提亮——同一张背景图在两档主题下都能衬住前景文字。
+    · **板块遮罩**（v1.14.x）：画在**每个卡片（UICard）自身的底色 alpha**
+      上（见 UICard.paintEvent），不在页面这一层画——页面层只负责在有
+      背景图或开了板块遮罩时铺一层 page_base 实底，保证半透明卡片透出
+      的是统一底色而不是 Mica/桌面。sdim=0 且无背景图时逐像素保持现状
+      （不改变自检基线）。
+    · **背景图**：仅当该板块（或全局）设置了生效背景图时铺图；背景遮罩是
+      主题感知的竖向渐变：深色主题用黑色压暗（顶部最重，保标题），浅色主题
+      用白色雾化提亮——同一张背景图在两档主题下都能衬住前景文字。
     """
     path = get_effective_bg(key)
     pm = _pixmap_for(path) if path else None
-    if pm is None:
+    sdim = get_section_dim()
+    # 无背景图且未开板块遮罩：什么都不画，逐像素保持现状（不影响自检基线）
+    if pm is None and sdim <= 0:
         return
     w, h = page.width(), page.height()
     if w <= 0 or h <= 0:
@@ -946,21 +1007,23 @@ def _paint_background(page, key):
     p = QPainter(page)
     try:
         p.setRenderHint(QPainter.SmoothPixmapTransform, True)
-        # 先铺一层实底：背景图若是带透明的 PNG，不铺底会透出 Mica/桌面
+        # 统一实底：背景图若是带透明的 PNG、或开了板块遮罩（半透明卡片
+        # 透出的底色要统一），先铺一层 page_base，避免透出 Mica/桌面
         p.fillRect(0, 0, w, h, QColor(*t["page_base"]))
-        if get_blur():
-            pm = _blurred_pixmap(path, pm)
-        _draw_cover(p, w, h, pm)
-        alpha = int(round(get_dim() / 100.0 * 255))
-        if alpha > 0:
-            # 竖向渐变遮罩：顶部最重（标题区文字可读性）、中段收敛、
-            # 底部略回收一点让画面主体露出来
-            sr, sg, sb = t["shade"]
-            grad = QLinearGradient(0, 0, 0, h)
-            grad.setColorAt(0.0, QColor(sr, sg, sb, min(255, alpha + 50)))
-            grad.setColorAt(0.35, QColor(sr, sg, sb, alpha))
-            grad.setColorAt(1.0, QColor(sr, sg, sb, max(0, alpha - 15)))
-            p.fillRect(0, 0, w, h, grad)
+        if pm is not None:
+            if get_blur():
+                pm = _blurred_pixmap(path, pm)
+            _draw_cover(p, w, h, pm)
+            alpha = int(round(get_dim() / 100.0 * 255))
+            if alpha > 0:
+                # 竖向渐变遮罩：顶部最重（标题区文字可读性）、中段收敛、
+                # 底部略回收一点让画面主体露出来
+                sr, sg, sb = t["shade"]
+                grad = QLinearGradient(0, 0, 0, h)
+                grad.setColorAt(0.0, QColor(sr, sg, sb, min(255, alpha + 50)))
+                grad.setColorAt(0.35, QColor(sr, sg, sb, alpha))
+                grad.setColorAt(1.0, QColor(sr, sg, sb, max(0, alpha - 15)))
+                p.fillRect(0, 0, w, h, grad)
     finally:
         p.end()
 
@@ -1022,3 +1085,83 @@ def refresh(deep=False):
                     child.update()
                 except Exception:
                     pass
+
+
+# ---------------------------------------------------------------------- #
+# qfluentwidgets 原生卡片跟随板块遮罩（引擎面板 SettingCard 系等）
+# ---------------------------------------------------------------------- #
+def install_card_alpha_patch():
+    """让 qfluentwidgets 原生卡片也跟随板块遮罩（模块导入时执行一次）。
+
+    引擎面板（字幕翻译/字幕合成等 tab）的行卡用的是 qfluentwidgets 1.x
+    原生组件，不走 UICard，板块遮罩对它们原本无效（用户实测反馈"调整
+    没有生效"）。两类绘制路径分别处理：
+
+    · SettingCard(QFrame) 及全部子卡（SwitchSettingCard/RangeSettingCard…）：
+      paintEvent 里**硬编码** QColor(255,255,255,170/13)——类级替换
+      paintEvent，底色改走 section_dim_card_fill()（同源统一）；
+    · CardWidget 系（SimpleCardWidget 及 videocaptioner SimpleSettingCard）：
+      底色经 BackgroundAnimationWidget 动画取 _normalBackgroundColor()/
+      _hoverBackgroundColor()/_pressedBackgroundColor()——在**定义处**
+      类级 wrap，动画目标色 alpha 缩放（子类未覆写 normal 的自动继承）。
+
+    ⚠️ 基线对齐（用户二轮反馈"样式还是不统一"）：原生卡片材质基线
+    （浅色白 170）与 UICard（纯白 token）起点不同，即便同比例缩放，
+    遮罩开启后透明度也对不上（sdim=30 时 UICard α=179 vs 原生 α=119）。
+    所以遮罩开启时**直接同源取色**——section_dim_card_fill() 给出与
+    UICard 完全一致的 token 底色 + 统一 alpha + token 描边；遮罩为 0
+    时仍走原材质（自检基线不变）。
+
+    ⚠️ 只 patch qfluentwidgets 定义处类，不 import videocaptioner（其导入
+    有副作用，须走 vc_lazy_cache_patch 的时序约束）。
+    """
+    # 1) SettingCard（qfluentwidgets 1.x：QFrame + 硬编码底色）
+    try:
+        from qfluentwidgets.components.settings.setting_card import (
+            SettingCard as _QFWSettingCard)
+        from qfluentwidgets.common.style_sheet import isDarkTheme as _is_dark
+
+        if not getattr(_QFWSettingCard.paintEvent, "_vt_alpha_patched", False):
+            def _setting_card_paint(self, e, _dark=_is_dark):
+                # ⚠️ 不再保留"原材质"分支（用户三轮实测：归零时原生卡白170
+                # 与 UICard 纯白也不一样）——任何遮罩值都与 UICard 同源：
+                # token 底色 + 统一 alpha + token 描边
+                painter = QPainter(self)
+                painter.setRenderHints(QPainter.Antialiasing)
+                painter.setBrush(section_dim_card_fill("card"))
+                painter.setPen(QColor(tokens()["card_border"]))
+                painter.drawRoundedRect(self.rect().adjusted(1, 1, -1, -1),
+                                        6, 6)
+            _setting_card_paint._vt_alpha_patched = True
+            _QFWSettingCard.paintEvent = _setting_card_paint
+    except Exception:
+        pass
+
+    # 2) CardWidget 系（动画取色）：沿**每个覆写处** wrap——SimpleCardWidget
+    #    覆写了三态取色（MRO 不再经过 CardWidget 的版本），漏掉就无效。
+    #    三态分别对齐 UICard 对应 token（card / card_hover / card_pressed）。
+    try:
+        from qfluentwidgets.components.widgets.card_widget import (
+            CardWidget as _QFWCardWidget, SimpleCardWidget as _QFWSimpleCard,
+            ElevatedCardWidget as _QFWElevatedCard)
+        for _cls in (_QFWCardWidget, _QFWSimpleCard, _QFWElevatedCard):
+            for _name, _state in (
+                    ("_normalBackgroundColor", "card"),
+                    ("_hoverBackgroundColor", "card_hover"),
+                    ("_pressedBackgroundColor", "card_pressed")):
+                _orig = _cls.__dict__.get(_name)
+                if _orig is None or getattr(_orig, "_vt_alpha_patched", False):
+                    continue
+
+                def _make_nbc(_orig, _state):
+                    def _nbc(self, _state=_state):
+                        return section_dim_card_fill(_state)
+                    _nbc._vt_alpha_patched = True
+                    return _nbc
+
+                setattr(_cls, _name, _make_nbc(_orig, _state))
+    except Exception:
+        pass
+
+
+install_card_alpha_patch()
