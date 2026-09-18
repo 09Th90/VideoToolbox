@@ -309,9 +309,11 @@ class LogView(CardWidget):
         """按级别着色（浅色主题下把过浅的级别色加深，保证白底可读）。"""
         if ui_theme.is_dark():
             return {"dim": "#8A8A8A", "ok": "#2E9E5B",
-                    "err": "#D64545", "info": "#B0B0B0"}
+                    "err": "#D64545", "info": "#B0B0B0",
+                    "think": "#8E7CC3"}   # AI 校准思考链（紫，区别于正文）
         return {"dim": "#787F87", "ok": "#1F8A4C",
-                "err": "#C0392B", "info": "#4A5057"}
+                "err": "#C0392B", "info": "#4A5057",
+                "think": "#6A5ACD"}
 
     def line(self, msg, level="dim"):
         colors = self._colors()
@@ -726,7 +728,7 @@ class DownloadPage(QWidget):
         self.vbox.addStretch(1)
 
         # —— 子板块 2：音画合并（原「音视频合并」板块整体迁入） ——
-        self.merge_page = MergePage(self, self)
+        self.merge_page = MergePage(self.app, self)  # v1.14.2 修复：app 必须传主窗口（消息队列 q 挂在主窗口上，传本页会导致合并线程投递日志即抛 AttributeError 而死）
         self.stack.addWidget(self.merge_page)
 
         # —— 分段联动 ——
@@ -1763,7 +1765,7 @@ class SubtitlePage(QWidget):
 
         # ——「字幕校准」独立内容页：不进入任何宿主导航，待引擎工作台
         #    构建完成后并入其分段（见 _build_engine） ——
-        self.calib_page = CalibPage(self, self)
+        self.calib_page = CalibPage(self.app, self)  # v1.14.2 修复：app 必须传主窗口（消息队列 q 挂在主窗口上；此前传 SubtitlePage 导致 AI 校准线程投递日志即抛 AttributeError 而死，校准等于没跑）
 
     # ---------- 预热（消除首次进入卡顿） ----------
     def prewarm(self):
@@ -3311,8 +3313,56 @@ class CalibPage(QWidget):
         self.add_card(box)
 
         self.log = LogView("校准日志", 170, self.view)
+        self.log.text.setAcceptDrops(False)
         self.add_card(self.log)
         self.vbox.addStretch(1)
+        # v1.14.2 修复：拖进本页的字幕文件就地填入「字幕文件」框。
+        # 此前本页不收拖放，.srt 事件冒泡到主窗口的全局分派器，
+        # 被 switchTo 到「字幕编辑」页——表现为"放入字幕后页面乱跳"。
+        self.setAcceptDrops(True)
+        # LineEdit 默认吞文件拖放（会把 file:// 字符串插进框里），关掉后
+        # 事件冒泡到本页统一处理，拖到输入框上与拖到页面空白处行为一致。
+        self.in_edit.setAcceptDrops(False)
+        # 同理：输出路径框与日志区（QLineEdit/QTextEdit 默认 acceptDrops）
+        # 也关掉，避免拖到这些控件上时被就地吞掉、行为不一致。
+        self.out_edit.setAcceptDrops(False)
+
+    # ---------- 拖入字幕就地接收（v1.14.2） ----------
+    def _drop_subtitle_path(self, e):
+        """从拖放事件里取第一个本地字幕文件路径；没有返回 ""。
+        （只认 SUBTITLE_EXTS：视频/音频等仍放行给主窗口全局分派。）"""
+        if not e.mimeData().hasUrls():
+            return ""
+        for u in e.mimeData().urls():
+            p = engine.clean_path(u.toLocalFile() if u.isLocalFile() else "")
+            if p and os.path.splitext(p)[1].lower() in SUBTITLE_EXTS:
+                return p
+        return ""
+
+    def dragEnterEvent(self, e):
+        if self._drop_subtitle_path(e):
+            e.acceptProposedAction()   # 有字幕 → 本页接管
+        # 没有字幕 → 不调 accept，事件照旧冒泡给主窗口全局分派
+
+    def dragMoveEvent(self, e):
+        if self._drop_subtitle_path(e):
+            e.acceptProposedAction()
+
+    def dropEvent(self, e):
+        p = self._drop_subtitle_path(e)
+        if not p:
+            return
+        e.acceptProposedAction()       # 中断冒泡：不再触发主窗口的页面跳转
+        self.in_edit.setText(p)
+        self.log.line(f"[校准] 已接收字幕文件：{p}", "dim")
+        # 混拖的其它文件（视频/目录等）仍交全局分派器，保持原有能力
+        others = [engine.clean_path(u.toLocalFile())
+                  for u in e.mimeData().urls() if u.isLocalFile()]
+        others = [x for x in others
+                  if x and x != p
+                  and os.path.splitext(x)[1].lower() not in SUBTITLE_EXTS]
+        if others:
+            QTimer.singleShot(0, lambda ps=others: self.app._handle_dropped_files(ps))
 
     def browse_in(self):
         p, _ = QFileDialog.getOpenFileName(self, "选择字幕文件",

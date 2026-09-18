@@ -1354,7 +1354,20 @@ def asr_protocol_of(ai_cfg=None):
         return _infer_asr_protocol(ac.get("base_url"), ac.get("model"))
     except Exception:  # noqa: BLE001
         pass
-    return "openai"
+    # v1.14.2：ai_client 读取失败不再盲返 openai（实时模型经 OpenAI SDK 必断、
+    # qwen-audio 族在 maas 无 /audio/transcriptions）——退一步直读磁盘配置推断。
+    try:
+        raw = ai_cfg if ai_cfg else ai_load_config()
+    except Exception:  # noqa: BLE001
+        raw = {}
+    raw = raw or {}
+    p = str(raw.get("asr_protocol") or "auto").strip().lower()
+    if p in ("dashscope", "chat_audio"):
+        return "chat_audio"
+    if p in ASR_PROTOCOLS and p != "auto":
+        return p
+    return _infer_asr_protocol(str(raw.get("asr_base_url") or ""),
+                               str(raw.get("asr_model") or ""))
 
 
 def asr_examples(cfg=None):
@@ -1826,6 +1839,17 @@ def _asr_err_hint(resp):
     if resp.status_code in (401, 403):
         return ("HTTP %d（密钥被拒：确认密钥属于这个服务/实例，并且在设置页按过"
                 "「保存并应用」）: %s" % (resp.status_code, text))
+    if "too large" in low or "file size" in low:
+        # v1.14.2：百炼多模态端点对单次请求内嵌音频有体积上限，整段直传
+        # （尤其降级 qwen3-asr-flash 时）会撞 This Multimodal file size is
+        # too large——提示必须给"切短/压缩"出路，且不能被下面的实时误判分支吞掉。
+        return ("HTTP %d（音频体积超过该端点单次上限：程序会自动把超限音频压成"
+                "低码率 MP3 再传，仍超限说明音频太长——请把音频切短分段后分别转录，"
+                "或改用支持大文件的服务端点）: %s" % (resp.status_code, text))
+    if "too long" in low:
+        return ("HTTP %d（音频时长超过该端点单次上限：程序会自动对半切分重试，"
+                "仍失败则请把音频切短分段，或换支持长音频的模型）: %s"
+                % (resp.status_code, text))
     if ("invalidparameter" in low or "invalid parameter" in low
             or "model not" in low or "unsupported" in low):
         return ("HTTP %d（参数或模型名不被该端点支持——注意实时（realtime）"
@@ -1887,7 +1911,125 @@ def _asr_azure_submit(asr_obj):
         return {"text": r.text}
 
 
-def _asr_chat_audio_submit(asr_obj):
+#: 多模态请求（chat_audio 的 Data URL / gemini 的 inline_data）内嵌音频的
+#: 原始字节上限：base64 会再放大约 4/3，6.5MB 原始 ≈ 8.7MB 编码后，贴着百炼
+#: compatible-mode 多模态请求体上限留余量。超限先压缩，再不行由服务端报体积错。
+ASR_INLINE_AUDIO_MAX_RAW = 6_500_000
+
+#: "audio is too long" 自动对半切分的最大递归层数（2^3=8 段封顶，防无限拆）
+ASR_SPLIT_MAX_DEPTH = 3
+
+
+def _asr_shrink_audio_blob(blob, max_raw_bytes):
+    """超过内嵌上限的音频 → ffmpeg 压成低码率单声道 MP3（v1.14.2）。
+
+    chat_audio / gemini 这类"音频进 JSON"的协议，原始文件直接 base64 会撑爆
+    请求体上限（百炼报 Multimodal file size is too large）。语音识别对码率不
+    敏感，32k/16k 单声道 MP3 足够。任何一步失败（无 ffmpeg/解码失败/越压越大）
+    都**原样返回**，让服务端回它自己的错误码——绝不把用户音频弄丢或弄坏。
+    """
+    blob = blob or b""
+    if len(blob) <= max_raw_bytes:
+        return blob
+    try:
+        ffmpeg, _ffprobe = ensure_ffmpeg()
+    except Exception:  # noqa: BLE001
+        ffmpeg = ""
+    if not ffmpeg:
+        return blob
+    import subprocess as _sp
+    import tempfile as _tf
+    src = dst = ""
+    try:
+        with _tf.NamedTemporaryFile(suffix="." + _asr_audio_format(blob),
+                                    delete=False) as tf:
+            tf.write(blob)
+            src = tf.name
+        dst = src + ".shrink.mp3"
+        for br in ("48k", "32k", "16k"):
+            try:
+                os.unlink(dst)
+            except OSError:
+                pass
+            _sp.run([ffmpeg, "-y", "-i", src, "-vn", "-ac", "1",
+                     "-b:a", br, dst],
+                    capture_output=True, check=True, timeout=300,
+                    creationflags=getattr(_sp, "CREATE_NO_WINDOW", 0)
+                    if os.name == "nt" else 0)
+            data = open(dst, "rb").read()
+            if data and len(data) <= max_raw_bytes:
+                return data
+        return blob          # 压到底仍超限/全部失败：原样交给服务端判
+    except Exception:  # noqa: BLE001 非音频坏数据或 ffmpeg 报错
+        return blob
+    finally:
+        for p in (src, dst):
+            if p:
+                try:
+                    os.unlink(p)
+                except OSError:
+                    pass
+
+
+def _asr_split_audio_blob(blob):
+    """按中点切成（前半, 后半）两段 wav；切不了返回 None（v1.14.2）。
+
+    服务端回 "The audio is too long" 时的自动补救：单请求超长 ⇒ 对半切开分别
+    提交、文本顺序拼回（时间轴由本程序按段占比近似，见 _asr_normalize_resp）。
+    """
+    if not blob:
+        return None
+    try:
+        ffmpeg, ffprobe = ensure_ffmpeg()
+    except Exception:  # noqa: BLE001
+        return None
+    if not ffmpeg or not ffprobe:
+        return None
+    import json as _json
+    import subprocess as _sp
+    import tempfile as _tf
+    src = o1 = o2 = ""
+    try:
+        with _tf.NamedTemporaryFile(suffix="." + _asr_audio_format(blob),
+                                    delete=False) as tf:
+            tf.write(blob)
+            src = tf.name
+        pr = _sp.run([ffprobe, "-v", "error", "-show_entries",
+                      "format=duration", "-of", "json", src],
+                     capture_output=True, text=True, timeout=60,
+                     creationflags=getattr(_sp, "CREATE_NO_WINDOW", 0)
+                     if os.name == "nt" else 0)
+        dur = float((_json.loads(pr.stdout or "{}")
+                     .get("format") or {}).get("duration") or 0)
+        if dur < 2:
+            return None                       # 太短不值得切
+        half = dur / 2.0
+        o1, o2 = src + ".a.wav", src + ".b.wav"
+        _sp.run([ffmpeg, "-y", "-i", src, "-t", "%.3f" % half,
+                 "-vn", "-ac", "1", o1],
+                capture_output=True, check=True, timeout=300,
+                creationflags=getattr(_sp, "CREATE_NO_WINDOW", 0)
+                if os.name == "nt" else 0)
+        _sp.run([ffmpeg, "-y", "-i", src, "-ss", "%.3f" % half,
+                 "-vn", "-ac", "1", o2],
+                capture_output=True, check=True, timeout=300,
+                creationflags=getattr(_sp, "CREATE_NO_WINDOW", 0)
+                if os.name == "nt" else 0)
+        a = open(o1, "rb").read()
+        b = open(o2, "rb").read()
+        return (a, b) if a and b else None
+    except Exception:  # noqa: BLE001
+        return None
+    finally:
+        for p in (src, o1, o2):
+            if p:
+                try:
+                    os.unlink(p)
+                except OSError:
+                    pass
+
+
+def _asr_chat_audio_submit(asr_obj, depth=0):
     """Chat 音频转写（OpenAI 兼容 chat/completions + input_audio）：
 
     POST {base}/chat/completions，音频以 input_audio 进多模态 messages。
@@ -1904,8 +2046,13 @@ def _asr_chat_audio_submit(asr_obj):
     base = (asr_obj.base_url or "").strip().rstrip("/")
     if not base.lower().endswith("/chat/completions"):
         base = base + "/chat/completions"
-    fmt = _asr_audio_format(asr_obj.file_binary or b"")
-    b64 = base64.b64encode(asr_obj.file_binary or b"").decode("ascii")
+    # v1.14.2：整段直传是「Multimodal file size is too large」的头号来源
+    # （尤其实时模型断连后自动降级 qwen3-asr-flash 走的就是这条路）——
+    # 超过内嵌上限先压成低码率 MP3 再进 Data URL。
+    blob = _asr_shrink_audio_blob(asr_obj.file_binary or b"",
+                                  ASR_INLINE_AUDIO_MAX_RAW)
+    fmt = _asr_audio_format(blob)
+    b64 = base64.b64encode(blob).decode("ascii")
     content = [{"type": "input_audio",
                 "input_audio": {"data": "data:audio/%s;base64,%s" % (fmt, b64)}}]
     if asr_obj.prompt:
@@ -1922,6 +2069,27 @@ def _asr_chat_audio_submit(asr_obj):
                  "Content-Type": "application/json"},
         timeout=600)
     if r.status_code != 200:
+        low = (r.text or "").lower()
+        if ("too long" in low or "duration" in low) \
+                and depth < ASR_SPLIT_MAX_DEPTH:
+            halves = _asr_split_audio_blob(blob)
+            if halves:
+                import types as _types
+                parts = []
+                for hb in halves:
+                    sub = _types.SimpleNamespace(
+                        base_url=asr_obj.base_url, model=asr_obj.model,
+                        api_key=asr_obj.api_key,
+                        language=getattr(asr_obj, "language", ""),
+                        prompt=getattr(asr_obj, "prompt", ""),
+                        file_binary=hb)
+                    parts.append(_asr_chat_audio_submit(sub, depth + 1))
+                return "".join(parts)
+        if "too long" in low or "duration" in low:
+            raise RuntimeError(
+                "ASR 服务：音频时长超限且自动切分重试已到底（不再继续切短），"
+                "请把音频切短分段后分别转录，或换支持长音频的模型。"
+                "原始错误：" + _asr_err_hint(r))
         raise RuntimeError("ASR 服务 " + _asr_err_hint(r))
     try:
         data = r.json()
@@ -2025,8 +2193,11 @@ def _asr_gemini_submit(asr_obj):
         or "https://generativelanguage.googleapis.com"
     model = (asr_obj.model or "gemini-2.5-flash").strip()
     url = "%s/v1beta/models/%s:generateContent" % (b, model)
-    fmt = _asr_audio_format(asr_obj.file_binary or b"")
-    b64 = base64.b64encode(asr_obj.file_binary or b"").decode("ascii")
+    # v1.14.2：与 chat_audio 同理，inline_data 的体积上限先压缩再编码
+    blob = _asr_shrink_audio_blob(asr_obj.file_binary or b"",
+                                  ASR_INLINE_AUDIO_MAX_RAW)
+    fmt = _asr_audio_format(blob)
+    b64 = base64.b64encode(blob).decode("ascii")
     instruction = (getattr(asr_obj, "prompt", "") or "").strip() \
         or "请把这段音频逐字转写为文本，只输出转写内容，不要加解释或标注。"
     body = {"contents": [{"parts": [
@@ -2492,6 +2663,15 @@ def vc_asr_protocol_patch():
     def _submit(self):
         global _ASR_WS_DEGRADED
         proto = asr_protocol_of()
+        # v1.14.2 协议自动纠偏：显式/旧配置判成 openai，但端点与模型特征指向
+        # 别族时按推断改走——百炼 maas + 实时模型拿 OpenAI SDK 打必被服务端
+        # 断连；qwen-audio/paraformer 族在 maas 上根本没有 /audio/transcriptions。
+        if proto == "openai":
+            auto = _infer_asr_protocol(getattr(self, "base_url", ""),
+                                       getattr(self, "model", ""))
+            if auto and auto != "openai":
+                proto = auto
+                _vc_log(f"ASR 协议与端点/模型不符，自动由 openai 改走 {auto}")
         if proto != "dashscope_realtime":
             # 实时模型只有走实时协议才有救：其它协议下提前拦，别等服务端 404。
             # 走实时协议时**不能**拦（那正是让实时模型出字幕的路）。
@@ -2561,7 +2741,81 @@ def vc_asr_protocol_patch():
     WhisperAPI._vt_proto_patched = True
     _vc_log("ASR 协议补丁已挂：openai/azure/chat_audio/deepgram/elevenlabs/"
             "gemini/volcengine/assemblyai（纯文本响应按句兜底；实时模型提前拦截）")
+    try:
+        vc_asr_chunk_patch()
+    except Exception as e:  # noqa: BLE001
+        _vc_log(f"分块补丁挂载失败：{e}")
     return True
+
+
+#: chat_audio 族（百炼 compatible-mode）单请求音频时长上限约 3 分钟，
+#: 引擎默认按 600s 切块必超 → 该协议下把块长压到 170s（留转发/编码余量）。
+ASR_CHAT_AUDIO_CHUNK_MS = 170_000
+
+
+def vc_asr_chunk_patch():
+    """chat_audio 协议下把引擎的 ASR 音频分块长度压到 3 分钟内（幂等补丁）。
+
+    引擎的 ChunkedASR 默认 chunk_length_ms=600s，对 OpenAI/Deepgram 这类
+    长音频服务没问题；但百炼 compatible-mode 多模态单次请求上限约 3 分钟，
+    600s 的块必被服务端拒（The audio is too long）。这里包住
+    transcribe._create_whisper_api_asr：构造完成后按当前协议把块长改到 170s，
+    让「切块→逐块提交」在提交前就合规，而不是等 400 再对半救火。
+    """
+    try:
+        import importlib as _il
+        # ⚠️ asr 包属性 transcribe 是**函数**（遮蔽同名子模块），普通
+        # import ... as _tr 拿到的是函数；必须 importlib 按模块名取真模块。
+        _tr = _il.import_module("videocaptioner.core.asr.transcribe")
+    except Exception as e:  # noqa: BLE001
+        _vc_log(f"分块补丁导入 transcribe 失败：{e}")
+        return False
+    if getattr(_tr, "_vt_chunk_patched", False):
+        return True
+    orig = getattr(_tr, "_create_whisper_api_asr", None)
+    if orig is None:
+        return False
+
+    def _create(*a, **k):
+        inst = orig(*a, **k)
+        try:
+            if asr_protocol_of() in ("chat_audio", "dashscope"):
+                inst.chunk_length_ms = ASR_CHAT_AUDIO_CHUNK_MS
+        except Exception as e:  # noqa: BLE001
+            _vc_log(f"分块长度调整失败：{e}")
+        return inst
+
+    _tr._create_whisper_api_asr = _create
+    _tr._vt_chunk_patched = True
+    _vc_log("ASR 分块补丁已挂：chat_audio 协议块长压到 170s（默认 600s 超上限）")
+    return True
+
+
+def asr_non_zh_en_ratio(text):
+    """文本中「非中/英」字符占比（0~1）；无有效字符返回 0。
+
+    判据：跳过空白与标点符号；ASCII（字母数字）与**汉字**算"中/英"，其余
+    书写系统（假名/谚文/西里尔/泰文…）算"非中英"。日文句子里的汉字计入中英，
+    假名为主时占比仍过半 → 用于「默认接口语言提示」判断片源是不是中文/英文，
+    非中英占比高时不再注入简体中文提示词。
+    """
+    import unicodedata
+    total = other = 0
+    for ch in str(text or ""):
+        if ch.isspace():
+            continue
+        if unicodedata.category(ch)[0] in ("P", "S"):
+            continue
+        o = ord(ch)
+        total += 1
+        if o < 128:
+            continue                                  # ASCII 字母数字
+        if (0x4E00 <= o <= 0x9FFF or 0x3400 <= o <= 0x4DBF
+                or 0xF900 <= o <= 0xFAFF
+                or 0x3007 == o or 0x00AA == o or 0x00BA == o):
+            continue                                  # 汉字（日文汉字同源）
+        other += 1
+    return (other / total) if total else 0.0
 
 
 #: 引擎翻译服务枚举值（videocaptioner.core.entities.TranslatorServiceEnum）。
@@ -3287,11 +3541,16 @@ def ai_test_asr(cfg=None):
 # 界面开启「AI 校准」后点「开始校准」，等价于向 Agent 下达：基于脚本
 # subtitle_calib_merged 校准字幕，不改变时间轴与格式，仅调整文字内容，
 # 一次读不完就自行拆分，最后合并。实现见 src\calib_ai_agent.py。
-def calib_ai_chat(prompt, system=None, max_tokens=None):
-    """AI 校准的 LLM 回调：走全局 AI 单通道（v1.12.0 起不再选通道）。"""
+def calib_ai_chat(prompt, system=None, max_tokens=None, on_reasoning=None):
+    """AI 校准的 LLM 回调：走全局 AI 单通道（v1.12.0 起不再选通道）。
+
+    on_reasoning（v1.14.2）：思考链上报回调，透传给 AIClient，把推理模型返回的
+    思考过程（reasoning_content）实时交给校准日志显示。
+    """
     client = ai_mod().get_client()
     return client.chat_text(prompt, system=system,
-                            max_tokens=int(max_tokens or 8192))
+                            max_tokens=int(max_tokens or 8192),
+                            on_reasoning=on_reasoning)
 
 
 def calib_ai_run(src, out=None, report=None, mode_flag="", fix_en=False,
@@ -3304,6 +3563,7 @@ def calib_ai_run(src, out=None, report=None, mode_flag="", fix_en=False,
     resume_from：起点文件。长片源「再次校准」应传上一轮产物：这样会**跳过脚本基线**
            直接在上轮成果上继续；否则从原始源重跑会把上轮已采纳的改动丢掉。
     prev_changes：上轮采纳明细 [(num, old, new), ...]，注入提示词禁止回退。
+    concurrency：逐块 LLM 调用并发路数，None=读配置 `calib_concurrency`（默认 1＝串行）。
     """
     import calib_ai_agent as _agent
     ai = ai_load_config()
@@ -3315,6 +3575,7 @@ def calib_ai_run(src, out=None, report=None, mode_flag="", fix_en=False,
         chunk_cues=int(ai.get("calib_chunk_cues") or 120),
         max_chars=int(ai.get("calib_max_chars") or 6000),
         max_tokens=int(ai.get("calib_max_tokens") or 8192),
+        concurrency=int(ai.get("calib_concurrency") or 1),
         round_no=round_no, cancel=cancel, workdir=workdir,
         style=style, resume_from=resume_from, prev_changes=prev_changes,
         sentence_aware=bool(ai.get("calib_sentence_aware", True)),

@@ -103,6 +103,7 @@ DEFAULT_CONFIG: dict = {
     "calib_chunk_cues": 120,   # 每块最多 cue 条数
     "calib_max_chars": 6000,   # 每块字符预算（超出自动再拆）
     "calib_max_tokens": 8192,  # 单次调用的最大输出
+    "calib_concurrency": 1,    # 逐块 LLM 调用并发路数（1＝串行；v1.16.0 受控并发）
     "max_tokens": 2048,
     "timeout": 90,
     "retries": 3,
@@ -485,6 +486,22 @@ def _is_retryable(status: int | None, detail: str) -> bool:
     return "1305" in d or "overloaded" in d or "稍后再试" in d
 
 
+def _emit_reasoning(on_reasoning, text) -> None:
+    """把思考链片段交给上报回调（v1.14.2，AI 校准日志显示 Agent 思考过程）。
+
+    空白跳过；回调内部异常吞掉，绝不影响正常取回正文。
+    """
+    if on_reasoning is None:
+        return
+    text = (text or "").strip()
+    if not text:
+        return
+    try:
+        on_reasoning(text)
+    except Exception:  # noqa: BLE001
+        logger.debug("on_reasoning 回调异常（忽略）", exc_info=True)
+
+
 class AIClient:
     """OpenAI 兼容最小客户端（无第三方依赖，v1.12.0 起单通道）。
 
@@ -578,8 +595,14 @@ class AIClient:
 
     def chat_openai(self, prompt, *, system: str | None = None,
                     max_tokens: int | None = None,
-                    model: str | None = None) -> str:
-        """OpenAI 兼容文本对话。返回首个 choice 的文本。"""
+                    model: str | None = None,
+                    on_reasoning=None) -> str:
+        """OpenAI 兼容文本对话。返回首个 choice 的文本。
+
+        on_reasoning（v1.14.2）：可选回调，接收模型思考链文本
+        （message.reasoning_content，或 content 块列表里的 thinking 块），
+        供 AI 校准等场景把 Agent 的推理过程打进日志；回调异常不影响主流程。
+        """
         messages: list[dict] = []
         if system:
             messages.append({"role": "system", "content": system})
@@ -593,14 +616,31 @@ class AIClient:
         }
         resp = self._post_openai(self.url, body)
         try:
-            content = resp["choices"][0]["message"].get("content")
+            msg = resp["choices"][0]["message"]
+            content = msg.get("content")
         except (KeyError, IndexError, TypeError):
             raise AIClientError(
                 f"OpenAI 兼容接口返回结构异常: {str(resp)[:200]}")
         if isinstance(content, list):      # 部分模型返回块列表
-            content = "\n".join(
-                str(b.get("text") or "") for b in content
-                if isinstance(b, dict) and b.get("type") == "text")
+            think, texts = [], []
+            for b in content:
+                if not isinstance(b, dict):
+                    continue
+                if b.get("type") == "text":
+                    texts.append(str(b.get("text") or ""))
+                elif b.get("type") in ("thinking", "reasoning"):
+                    think.append(str(b.get("thinking") or b.get("text") or ""))
+            _emit_reasoning(on_reasoning, "\n".join(think))
+            content = "\n".join(texts)
+            if not think and isinstance(msg, dict):   # 块列表无思考块 → 看主字段
+                _emit_reasoning(
+                    on_reasoning,
+                    str(msg.get("reasoning_content") or ""))
+        else:
+            _emit_reasoning(
+                on_reasoning,
+                str(msg.get("reasoning_content") or "")
+                if isinstance(msg, dict) else "")
         content = str(content or "").strip()
         if not content:
             # 推理模型常见故障：思考链吃光输出预算，正文为空。静默返回空串会让
@@ -618,10 +658,12 @@ class AIClient:
 
     # ---- 对话 ------------------------------------------------------------
     def chat(self, content, *, system: str | None = None,
-             max_tokens: int | None = None, model: str | None = None) -> str:
+             max_tokens: int | None = None, model: str | None = None,
+             on_reasoning=None) -> str:
         """文本对话（OpenAI 兼容 /chat/completions）。返回模型回复文本。"""
         return self.chat_openai(content, system=system,
-                                max_tokens=max_tokens, model=model)
+                                max_tokens=max_tokens, model=model,
+                                on_reasoning=on_reasoning)
 
     def chat_text(self, prompt: str, **kw) -> str:
         return self.chat(prompt, **kw)

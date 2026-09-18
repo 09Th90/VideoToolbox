@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # @version 1.14.1
-"""AI 校准 Agent —— Agent 级字幕术语校准（v1.11.0）。
+"""AI 校准 Agent —— Agent 级字幕术语校准（v1.11.0；v1.16.0 并发与提示词优化）。
 
 定位
 ====
@@ -16,6 +16,10 @@ Agent 的工具与闭环（每一步都进日志）
 ====================================
   1. 起点            —— 默认先跑术语脚本基线（机械部分零成本且必定正确）；
                         长片源第二轮可用 `resume_from` 直接以上轮产物为起点。
+  1b. 参考行保护      —— 基线/上轮产物到手后，按 cue 序号把每条参考行强制还原成
+                        原始 src 的样子：`--endo` 等「统一全部文本行」模式会连英文
+                        参考行一起替换，若不纠正，第 8 步 verify 的「英文行 0 改动」
+                        断言必失败、整轮白跑（2026-09-18 终末地反应片实操沉淀）。
   2. 抽取 cue 表      —— `extract`：SRT → 「序号 / 中文行 / 英文行」，剥离全部结构信息。
   3. 载入知识库       —— `kb-export --json`：对象级实体 → 「错形 → 官方名」+ 负向排除。
   4. 自主分块         —— 按 cue 条数与字符预算切块，并**回退到句子边界**（上一条参考行
@@ -47,6 +51,15 @@ Agent 的工具与闭环（每一步都进日志）
     chat(prompt, system=None, max_tokens=8192) -> str   # LLM 文本回调
 
 返回 dict：ok / out / report / script_changes / ai_changes / rejected / round / error
+
+v1.16.0 优化
+============
+  · concurrency      逐块 LLM 调用受控并发（默认 1＝串行，行为与旧版一致）；
+  · 块级规则裁剪      select_rules_for_chunk：只喂本块命中的 hot/warm 规则，
+                     提示词 token 显著下降（校验仍用全量规则，正确性不变）；
+  · JSON 抢救内置     _repair_json 不再依赖可选第三方库 json_repair；
+  · 重试带反馈        invalid/truncated 重问时把失败原因与整改要求写进提示词；
+  · ckpt 转义修复     断点续跑读取与 _esc 对称（旧版含反斜杠的文本会还原错）。
 """
 
 from __future__ import annotations
@@ -61,6 +74,7 @@ import sys
 import tempfile
 import time
 import unicodedata
+from concurrent.futures import ThreadPoolExecutor
 
 SCRIPT_NAME = "subtitle_calib_merged.py"
 
@@ -265,6 +279,43 @@ def rebuild_srt(lines, cues, mapping: dict, crlf: bool, bom: bool) -> str:
     return ("\ufeff" if bom else "") + body
 
 
+def _protect_ref_lines(src_path: str, base_path: str) -> int:
+    """基线后参考行保护：把 base 里每条 cue 的参考行强制还原为 src 的原样。
+
+    起因（2026-09-18《NIKKE Player Reacts to Typhoeus》终末地反应片实操沉淀）：
+    `--endo` 等「统一全部文本行」模式在脚本里是 `for ti in range(j+1, kk)`，
+    会连英文参考行一起替换（如参考行 `Typhon`→`提弗洛斯`）；而第 [8/8] 步 verify
+    硬断言「英文行 0 改动」，于是整轮校准必然以「校验未通过」中止——人工流程正是
+    靠避开 `--endo`、改走 `subfix` 逐 cue 侧车只改中文行来绕开它。
+
+    本函数在基线跑完后立即按 cue 序号对齐、把参考行还原成原始 src 的样子，机械保证
+    「参考行永不改写」这条契约，不再依赖脚本模式的行为。对本就只改中文行的模式
+    （bi/term 等）是 no-op（参考行本就一致，restored=0）。中文行 / 时间轴 / 序号 /
+    换行 / BOM 一律不动。
+
+    返回被还原的参考行数。
+    """
+    _sl, src_cues, _sc, _sb = parse_srt(src_path)
+    _bl, base_cues, base_crlf, base_bom = parse_srt(base_path)
+    src_ref = {c.num: c.ref_line for c in src_cues}   # cue 编号可能不连续，按序号索引
+    out = list(_bl)
+    restored = 0
+    for c in base_cues:
+        want = src_ref.get(c.num)
+        if want is None:
+            continue
+        ref_idx = c.end                # 参考行恒在文本区间末行 = lines[kk-1] = c.end
+        if 0 <= ref_idx < len(out) and out[ref_idx] != want:
+            out[ref_idx] = want
+            restored += 1
+    if restored:
+        body = "\n".join(out)
+        if base_crlf:
+            body = body.replace("\n", "\r\n")
+        _write_text(base_path, ("\ufeff" if base_bom else "") + body)
+    return restored
+
+
 # ============================ 知识库 → 规则 ============================
 def build_rules(entities, mode_key: str):
     """把对象级实体展开为 (错形 → 官方名) 规则与负向排除规则。
@@ -332,6 +383,35 @@ def select_rules(rules, cues, budget: int = RULE_TEXT_BUDGET):
         out.append(line)
         used += len(line) + 1
     return "\n".join(out), len(hot), len(out)
+
+
+def select_rules_for_chunk(rules, chunk, budget: int = RULE_TEXT_BUDGET):
+    """块级规则裁剪（v1.16.0）：只挑「本块」命中的 hot/warm 规则。
+
+    `select_rules` 是全片一次性筛选：长片源规则文本可达预算上限（14000 字符），
+    而单个块通常只涉及少数实体，把全片规则喂给每一块是纯浪费。这里对每块单独
+    裁剪：本块中文行命中的错形必进（hot），本块参考行命中的次之（warm）。
+    正确性说明：证据校验（validate_change / validate_rewrite）仍用全量规则，
+    裁剪只影响提示词规模，不影响改动是否被采纳；块内裁剪结果为空时提示词
+    显示（空），模型自然输出 []（块内本就没有知识库可解释的错形）。
+    返回 (文本, 命中本块中文行的条数)。
+    """
+    zh_text = "\n".join(zh for _n, zh, _e in chunk)
+    ref_text = "\n".join(en for _n, _zh, en in chunk)
+    hot, warm = [], []
+    for wrong, canon in rules:
+        if wrong in zh_text:
+            hot.append((wrong, canon))
+        elif wrong in ref_text:
+            warm.append((wrong, canon))
+    out, used = [], 0
+    for wrong, canon in hot + warm:
+        line = f"{wrong} → {canon}"
+        if used + len(line) + 1 > budget:
+            break
+        out.append(line)
+        used += len(line) + 1
+    return "\n".join(out), len(hot)
 
 
 def rule_text(rules, cues_text: str, budget: int = RULE_TEXT_BUDGET) -> str:
@@ -470,14 +550,42 @@ def _esc(text: str) -> str:
     return (text or "").replace("\\", "\\\\").replace("\t", " ").replace("\n", "\\n")
 
 
+def _unesc(text: str) -> str:
+    """`_esc` 的逆变换（v1.16.0）：字面 \\n → 真实换行；\\\\ → \\。
+
+    旧版断点续跑读取只做 `.replace("\\\\n", "\\n")`，与 `_esc` 的双重转义不对称：
+    含真实反斜杠的文本（如 `C:\\path`）落盘后还原成 `C:\\\\path`，导致二次校准时
+    参考行对不上、防回退比对失真。这里用单遍扫描同时还原两类转义，顺序天然安全。
+    """
+    s = text or ""
+    out, i, n = [], 0, len(s)
+    while i < n:
+        if s[i] == "\\" and i + 1 < n:
+            c = s[i + 1]
+            if c == "n":
+                out.append("\n")
+                i += 2
+                continue
+            if c == "\\":
+                out.append("\\")
+                i += 2
+                continue
+        out.append(s[i])
+        i += 1
+    return "".join(out)
+
+
 def build_user_prompt(mode_flag: str, rules_text: str, chunk, round_no: int,
                       style: str = "term", with_ref: bool = True,
-                      prev_text: str = "", scope_text: str = "") -> str:
+                      prev_text: str = "", scope_text: str = "",
+                      feedback: str = "") -> str:
     """组装单块请求：知识库片段 + 待校准条目 + 本轮约束。
 
     条目固定三列 `序号<TAB>中文行<TAB>参考行`（参考行可为空）：双语片源的参考行是
     最强判据，长片源上「给不给参考行」直接决定模型能不能对齐专名（2026-09-14 起默认给）。
     round_no>1 时额外注入上一轮已确认改动，防止模型在二次校准里把改对的名字改回去。
+    v1.16.0：invalid/truncated 重问时经 `feedback` 注入上次失败的具体原因与
+    整改要求——模型看到具体错误比笼统的「再试一次」命中率高得多。
     """
     cols = (lambda num, zh, en: f"{num}\t{_esc(zh)}\t{_esc(en)}") if with_ref \
         else (lambda num, zh, _en: f"{num}\t{_esc(zh)}")
@@ -488,6 +596,8 @@ def build_user_prompt(mode_flag: str, rules_text: str, chunk, round_no: int,
     extra = ""
     if scope_text:
         extra += scope_text + "\n"
+    if feedback:
+        extra += "【上一次回复的问题（必须整改）】\n" + feedback + "\n\n"
     if round_no > 1:
         extra += ("这是第 %d 轮复查：上一轮的结果已经写回，请只挑出仍然残留的问题；"
                   "下面列出上一轮已确认的改动，**不得回退**。\n" % round_no)
@@ -549,21 +659,61 @@ def parse_changes(raw: str):
 
 
 def _repair_json(bad: str):
-    """对未闭合/半坏的 JSON 数组做尽力修复（json_repair 可用时）；修不出返回 []。
+    """内置 JSON 抢救器（v1.16.0）：对未闭合/半坏的数组尽力修复，修不出返回 []。
 
-    对标 Harness「错误反馈也是接口的一部分」：与其把半截回复直接丢弃、再花
-    一整轮拆块重问，不如先抢救出完整的前半部分——修复器会丢掉最后一条
-    残缺记录、保留全部完整记录，宁可少改不可错改。
+    旧版依赖可选第三方库 json_repair，未安装时截断数组的完整前半段会被整体
+    丢弃、再花一整轮拆块重问。这里内置等价的核心策略，零依赖：
+      1) 逐条抢救：扫描顶层对象的配对（正确处理字符串内的引号/转义/嵌套），
+         每拿到一个完整对象就解析入列；尾部残缺记录直接丢弃——
+         宁可少改不可错改（对标 Harness：错误反馈也是接口的一部分）；
+      2) 单条解析失败再做轻度修补（单引号、未转义的真实换行、尾逗号）。
     """
-    try:
-        from json_repair import repair_json
-    except ImportError:
+    if not bad:
         return []
-    try:
-        data = repair_json(bad, return_objects=True)
-    except Exception:  # noqa: BLE001
-        return []
-    return data if isinstance(data, list) else []
+    s = bad.strip()
+    if s.startswith("["):
+        s = s[1:].lstrip()
+
+    def _loads_obj(t: str):
+        t = t.strip().rstrip(",").strip()
+        if not t:
+            return None
+        for cand in (t, t.replace("'", '"'),
+                     t.replace("\r", "").replace("\n", "\\n")):
+            try:
+                v = json.loads(cand)
+            except ValueError:
+                continue
+            if isinstance(v, dict):
+                return v
+        return None
+
+    out, depth, start = [], 0, -1
+    in_str = esc = False
+    for i, ch in enumerate(s):
+        if in_str:
+            if esc:
+                esc = False
+            elif ch == "\\":
+                esc = True
+            elif ch == '"':
+                in_str = False
+            continue
+        if ch == '"':
+            in_str = True
+        elif ch in "{[":
+            if depth == 0:
+                start = i
+            depth += 1
+        elif ch in "}]":
+            if depth:
+                depth -= 1
+                if depth == 0 and start >= 0:
+                    v = _loads_obj(s[start:i + 1])
+                    if v is not None:
+                        out.append(v)
+                    start = -1
+    return out
 
 
 # ============================ 改动校验（证据链） ============================
@@ -730,7 +880,9 @@ def calibrate(src: str, out: str = None, report: str = None, mode_flag: str = ""
               workdir: str = None, cancel=None, style: str = "term",
               resume_from: str = None, prev_changes=None, include_ref=None,
               sentence_aware: bool = True, strict_width: bool = False,
-              checkpoint: bool = True) -> dict:
+              checkpoint: bool = True,
+              thinking: bool = True,
+              concurrency: int = 1) -> dict:
     """Agent 级 AI 校准主流程（详见模块 docstring）。
 
     baseline=True 时先跑术语脚本得到基线（推荐：机械部分零成本且必定正确）；
@@ -746,6 +898,11 @@ def calibrate(src: str, out: str = None, report: str = None, mode_flag: str = ""
     sentence_aware    分块时回退到句子边界（长双语片源建议 True）
     strict_width      行宽超限即判失败（默认只报告、不阻断）
     checkpoint        显式 workdir 下每块落盘进度，支持断点续跑
+    thinking          v1.14.2：把模型思考链（推理模型返回的 reasoning_content）
+                      实时打进校准日志（level="think"）；chat 回调不支持时自动忽略
+    concurrency       v1.16.0：逐块 LLM 调用的并发路数（默认 1＝串行，行为与
+                      旧版一致）。只并发「取回模型提议」这一步，证据校验与
+                      合并仍在主线程按块序串行执行，结果与 ckpt 落盘顺序确定
     """
     t0 = time.time()
     log = log or (lambda m, level="dim": None)
@@ -767,6 +924,11 @@ def calibrate(src: str, out: str = None, report: str = None, mode_flag: str = ""
         if cancel is not None and cancel():
             raise CalibCancelled()
 
+    def _think(txt):
+        """模型思考链 → 校准日志：首行带 [思考] 前缀，余行缩进续排。"""
+        for i, ln in enumerate(str(txt).splitlines()):
+            _log_do(log, ("[思考] " if i == 0 else "        ") + ln, "think")
+
     tmp = workdir or tempfile.mkdtemp(prefix="vt_calib_ai_")
     os.makedirs(tmp, exist_ok=True)
     stem = os.path.splitext(out or src)[0]
@@ -778,7 +940,8 @@ def calibrate(src: str, out: str = None, report: str = None, mode_flag: str = ""
               "accepted": [], "rejected_items": [], "seconds": 0.0,
               "style": style, "width_over": 0, "width_widest": ("", ""),
               "manual_check": [], "resumed_from": "", "chunks": 0,
-              "rules_injected": 0, "rules_hot": 0}
+              "rules_injected": 0, "rules_hot": 0, "suggest_rewrite": False,
+              "concurrency": max(1, int(concurrency or 1))}
     try:
         # ---------- 1. 起点：上一轮结果（可选）或术语脚本基线 ----------
         base = src
@@ -807,6 +970,12 @@ def calibrate(src: str, out: str = None, report: str = None, mode_flag: str = ""
             m = re.search(r"（(\d+) 处文本改动", text)
             result["script_changes"] = int(m.group(1)) if m else 0
             _log_do(log, f"  → 脚本基线完成：{result['script_changes']} 处改动", "ok")
+
+        # 参考行不变量：无论 base 来自脚本基线还是上轮产物，参考行必须等于原始源。
+        # --endo 等「统一全部文本行」模式会连英文参考行一起替换，在此机械纠正。
+        _protect = _protect_ref_lines(src, base)
+        if _protect:
+            _log_do(log, f"  → 参考行保护：还原 {_protect} 条被基线误改的参考行", "ok")
 
         # ---------- 2. 抽取 cue 表 ----------
         _tick()
@@ -865,11 +1034,11 @@ def calibrate(src: str, out: str = None, report: str = None, mode_flag: str = ""
         _log_do(log, f"[4/8] 分块完成：{len(chunks)} 块"
                      f"（每块 ≤{chunk_cues} 条 / ≤{max_chars} 字符；"
                      f"{'句子边界对齐' if sentence_aware else '纯贪心'}）")
-        rules_txt, hot_n, rule_n = select_rules(rules, cues)
+        _all_txt, hot_n, rule_n = select_rules(rules, cues)
         result["rules_injected"], result["rules_hot"] = rule_n, hot_n
-        _log_do(log, f"  → 喂给模型的知识库片段 {rule_n} 条"
-                     f"（其中 {hot_n} 条命中本片中文行）"
-                     f"；校验仍用全量 {len(rules)} 条规则")
+        _log_do(log, f"  → 知识库片段全片命中 {rule_n} 条"
+                     f"（其中 {hot_n} 条命中本片中文行）；逐块只注入该块命中的"
+                     f"规则（v1.16.0 块级裁剪），校验仍用全量 {len(rules)} 条")
         if include_ref is None:
             include_ref = mode_flag in INCLUDE_REF_MODES
         _log_do(log, f"  → 携带参考行：{'是' if include_ref else '否'}"
@@ -892,7 +1061,7 @@ def calibrate(src: str, out: str = None, report: str = None, mode_flag: str = ""
                 for ln in _read_text(ckpt_path).splitlines():
                     p = ln.split("\t")
                     if len(p) >= 4 and p[0].strip().isdigit():
-                        accepted[p[0].strip()] = p[3].replace("\\n", "\n")
+                        accepted[p[0].strip()] = _unesc(p[3])
                 _log_do(log, f"  ⟲ 断点续跑：载入既有进度 {len(done_blocks)} 块 / "
                              f"{len(accepted)} 条改动（{os.path.basename(ckpt_path)}）",
                         "ok")
@@ -918,8 +1087,9 @@ def calibrate(src: str, out: str = None, report: str = None, mode_flag: str = ""
             except OSError:
                 pass
 
+        # 收集待处理块（断点续跑 / 上轮已完成的直接跳过）
+        pending = []
         for idx, chunk in enumerate(chunks, 1):
-            _tick()
             first, last = chunk[0][0], chunk[-1][0]
             if accepted and all(c[0] in accepted for c in chunk):
                 _log_do(log, f"[5/8] 第 {idx}/{n_chunks} 块（{first}–{last}）"
@@ -929,19 +1099,14 @@ def calibrate(src: str, out: str = None, report: str = None, mode_flag: str = ""
                 _log_do(log, f"[5/8] 第 {idx}/{n_chunks} 块（{first}–{last}）"
                              f"已处理过，跳过（断点续跑）")
                 continue
-            _log_do(log, f"[5/8] 第 {idx}/{n_chunks} 块"
-                         f"（{len(chunk)} 条，{first}–{last}）…")
-            scope = (f"【本块范围】全长 {len(cues)} 条中的第 {idx}/{n_chunks} 块"
-                     f"（序号 {first}–{last}）；只处理本块条目。")
-            _traj(f"block {idx}/{n_chunks} cues={first}-{last} start")
-            changes, block_fail = _ask_block(chat, mode_flag, rules_txt, chunk,
-                                             round_no, max_tokens, log, _tick,
-                                             style=style, with_ref=include_ref,
-                                             prev_text=prev_text, scope_text=scope)
-            if block_fail:
-                failed_blocks += 1
-            _traj(f"block {idx}/{n_chunks} cues={first}-{last} done "
-                  f"changes={len(changes)}{' FAILED' if block_fail else ''}")
+            pending.append((idx, chunk))
+
+        all_zh = {num: zh for num, zh, _e in cues}      # ckpt 全量列修复：
+        all_ref = {num: en for num, _zh, en in cues}    # 旧版只按当前块回填
+        # zh/ref 列，断点续跑载入的旧条目会被写成空列，二次续跑后对不上。
+
+        def _merge_changes(chunk, changes):
+            """证据校验 + 合并（主线程串行执行，顺序确定；v1.16.0 自逐块循环拆出）。"""
             old_map = {num: zh for num, zh, _e in chunk}
             ref_map = {num: en for num, _zh, en in chunk}
             for item in changes:
@@ -969,21 +1134,72 @@ def calibrate(src: str, out: str = None, report: str = None, mode_flag: str = ""
                     result["accepted"].append((num, old_map[num], new, why, soft))
                 else:
                     rejected.append((num, new, why))
-            if ckpt_path:                  # 每块落盘：长片源中断后可续跑
-                try:
-                    _write_text(ckpt_path, "num\tzh\tref\tnew\n" + "".join(
-                        "%s\t%s\t%s\t%s\n" % (n, _esc(old_map.get(n, "")),
-                                              _esc(ref_map.get(n, "")), _esc(v))
-                        for n, v in sorted(accepted.items(),
-                                           key=lambda kv: int(kv[0])
-                                           if kv[0].isdigit() else 0)))
-                    done_blocks.add(str(idx))
-                    _write_text(done_path,
-                                "\n".join(sorted(done_blocks, key=int)) + "\n")
-                except Exception:          # noqa: BLE001 进度写盘失败不影响主流程
-                    pass
-            _log_do(log, f"  → 累计采纳 {len(accepted)} 处，拒绝 {len(rejected)} 处",
-                    "ok" if accepted else "dim")
+
+        def _save_ckpt(idx):
+            """断点落盘（主线程）：zh/ref 用全量映射，避免续跑旧条目写空列。"""
+            if not ckpt_path:
+                return
+            try:
+                _write_text(ckpt_path, "num\tzh\tref\tnew\n" + "".join(
+                    "%s\t%s\t%s\t%s\n" % (n, _esc(all_zh.get(n, "")),
+                                          _esc(all_ref.get(n, "")), _esc(v))
+                    for n, v in sorted(accepted.items(),
+                                       key=lambda kv: int(kv[0])
+                                       if kv[0].isdigit() else 0)))
+                done_blocks.add(str(idx))
+                _write_text(done_path,
+                            "\n".join(sorted(done_blocks, key=int)) + "\n")
+            except Exception:          # noqa: BLE001 进度写盘失败不影响主流程
+                pass
+
+        def _run_block(job):
+            """取回一个块的模型提议（并发时在工作线程执行；校验合并不在这里）。
+
+            规则文本按块级裁剪（select_rules_for_chunk）；`_ask_block` 内部
+            二分拆块时沿用父块的规则文本（是子块的超集，正确性无损）。
+            """
+            idx, chunk = job
+            _tick()                    # 取消检查（线程内）：调用接口前先看一眼
+            first, last = chunk[0][0], chunk[-1][0]
+            rules_txt_i, _hot_i = select_rules_for_chunk(rules, chunk)
+            scope = (f"【本块范围】全长 {len(cues)} 条中的第 {idx}/{n_chunks} 块"
+                     f"（序号 {first}–{last}）；只处理本块条目。")
+            changes, block_fail = _ask_block(chat, mode_flag, rules_txt_i, chunk,
+                                             round_no, max_tokens, log, _tick,
+                                             style=style, with_ref=include_ref,
+                                             prev_text=prev_text, scope_text=scope,
+                                             think=(_think if thinking else None))
+            return idx, chunk, changes, block_fail
+
+        conc = result["concurrency"]
+        if conc > 1:
+            _log_do(log, f"  → 并发调用：{conc} 路（只并发取回提议，"
+                         f"校验合并仍按块序串行）", "ok")
+        for bi in range(0, len(pending), conc):
+            batch = pending[bi:bi + conc]
+            _tick()
+            for idx, chunk in batch:
+                first, last = chunk[0][0], chunk[-1][0]
+                _log_do(log, f"[5/8] 第 {idx}/{n_chunks} 块"
+                             f"（{len(chunk)} 条，{first}–{last}）…")
+                _traj(f"block {idx}/{n_chunks} cues={first}-{last} start")
+            if conc <= 1:
+                results = [_run_block(job) for job in batch]
+            else:
+                # pool.map：按块序回收结果；任一 worker 抛取消异常会向上传播
+                #（其余 worker 因 cancel 已置位会在下一次 _tick 快速退出）
+                with ThreadPoolExecutor(max_workers=conc) as pool:
+                    results = list(pool.map(_run_block, batch))
+            for idx, chunk, changes, block_fail in results:
+                first, last = chunk[0][0], chunk[-1][0]
+                if block_fail:
+                    failed_blocks += 1
+                _traj(f"block {idx}/{n_chunks} cues={first}-{last} done "
+                      f"changes={len(changes)}{' FAILED' if block_fail else ''}")
+                _merge_changes(chunk, changes)
+                _save_ckpt(idx)        # 每块落盘：长片源中断后可续跑
+                _log_do(log, f"  → 累计采纳 {len(accepted)} 处，拒绝 {len(rejected)} 处",
+                        "ok" if accepted else "dim")
 
         # ---------- 停止条件（异常分支）：多数块拿不到可信结果 → 本轮不可信 ----------
         # Harness 设计要点：不能等模型「自报完成」就照常产出；接口持续故障时，
@@ -1008,6 +1224,20 @@ def calibrate(src: str, out: str = None, report: str = None, mode_flag: str = ""
                       "残留错形", "拉丁", "改坏")
         result["manual_check"] = [r for r in rejected
                                   if any(k in r[2] for k in _soft_keys)][:80]
+
+        # 风格改派建议（2026-09-18 实操沉淀）：term 风格下，若模型反复提出
+        # 整句重写却被名词级校验大面积挡回（跨度过大/新增文本），说明本片是机翻腔
+        # （如谷翻反应片），术语级校准改不动。当轮就提醒改用 rewrite 风格再跑一轮，
+        # 而不是让用户翻报告才发现 ai_changes ≈ 0。
+        result["suggest_rewrite"] = False
+        if style == "term" and rejected:
+            _rw_keys = ("跨度", "新增文本", "无知识库依据")
+            _rw_n = sum(1 for r in rejected if any(k in r[2] for k in _rw_keys))
+            if _rw_n >= 6 and _rw_n >= len(accepted):
+                result["suggest_rewrite"] = True
+                _log_do(log, f"  ⚠ 本片疑为机翻腔：{_rw_n} 条整句重写提议被名词级校验挡回"
+                             f"（仅采纳 {len(accepted)} 处）。建议改用 rewrite 风格（整句重写）"
+                             f"重跑一轮，或人工确认后逐条覆盖。", "err")
 
         # ---------- 7. 合并回填 ----------
         _tick()
@@ -1109,7 +1339,7 @@ def _split_chunks(cues, max_cues: int, max_chars: int):
 
 def _ask_block(chat, mode_flag, rules_txt, chunk, round_no, max_tokens, log, tick,
                style="term", with_ref=True, prev_text="", scope_text="",
-               attempt=0):
+               attempt=0, think=None, feedback=""):
     """请模型判定一个块的改动，返回 (changes, hard_fail)。
 
     失败处理策略（2026-09-15 对标 DeepSeek Harness 的异常分支 / 资源上限同步优化）：
@@ -1122,15 +1352,28 @@ def _ask_block(chat, mode_flag, rules_txt, chunk, round_no, max_tokens, log, tic
                   只是输出预算不够），仍截断才二分拆块（保留「读不完→拆分→合并」
                   的自主能力）；单条仍截断则跳过该条。
     hard_fail = 本块（含全部拆出的子块）都没拿到可信结果，供上层做停止判定。
+    v1.16.0：重问时经 `feedback` 把上次失败原因与整改要求写进提示词
+    （build_user_prompt 组装），而不是干巴巴地重发同一份请求。
     """
     system = STYLE_SYSTEM.get(style, SYSTEM_PROMPT)
     raw = ""
     err = ""
+    prompt = build_user_prompt(mode_flag, rules_txt, chunk, round_no,
+                               style=style, with_ref=with_ref,
+                               prev_text=prev_text, scope_text=scope_text,
+                               feedback=feedback)
     try:
-        raw = chat(build_user_prompt(mode_flag, rules_txt, chunk, round_no,
-                                     style=style, with_ref=with_ref,
-                                     prev_text=prev_text, scope_text=scope_text),
-                   system, max_tokens=max_tokens)
+        if think is not None:
+            # v1.14.2：把模型思考链经 think(text) 上报到校准日志；回调方
+            # （如自检的 fake_chat）不认识 on_reasoning 时抛 TypeError →
+            # 退回普通调用，行为与旧版一致。
+            try:
+                raw = chat(prompt, system, max_tokens=max_tokens,
+                           on_reasoning=think)
+            except TypeError:
+                raw = chat(prompt, system, max_tokens=max_tokens)
+        else:
+            raw = chat(prompt, system, max_tokens=max_tokens)
     except Exception as e:  # noqa: BLE001
         err = str(e)[:120]
         _log_do(log, f"  ! 该块调用失败：{err}", "err")
@@ -1139,16 +1382,29 @@ def _ask_block(chat, mode_flag, rules_txt, chunk, round_no, max_tokens, log, tic
         return changes, False
 
     if attempt == 0:
-        # 第一次失败先原地重问（truncated 时已自动加倍输出预算；invalid 用原预算）
+        # 第一次失败先原地重问（truncated 时已自动加倍输出预算；invalid 用原预算）；
+        # v1.16.0：附上失败原因与整改要求——反馈也是接口的一部分。
         tick()
-        _log_do(log, f"  ! {'返回被截断' if status == 'truncated' else '未取到有效 JSON'}，"
-                     f"原地重问一次（{len(chunk)} 条"
-                     + ("，输出预算加倍）" if status == "truncated" else "）"),
-                "err")
+        if status == "truncated":
+            feedback = ("上一次回复因输出过长被截断。整改要求：reason 一句话即可；"
+                        "无需改动的条目一律不要输出；只输出需要修改的条目；"
+                        "严格保持 JSON 数组完整闭合。")
+            _log_do(log, f"  ! 返回被截断，原地重问一次（{len(chunk)} 条，"
+                         f"输出预算加倍，已附整改要求）", "err")
+        else:
+            feedback = ("上一次回复未取得有效 JSON 数组"
+                        + (f"（{err}）" if err else "")
+                        + "。整改要求：只输出严格 JSON 数组本身——不要任何解释、"
+                          "不要 markdown 代码围栏；元素形如 "
+                          '{"num":"12","new_zh":"...","reason":"..."}；'
+                          "无需改动时输出 []。")
+            _log_do(log, f"  ! 未取到有效 JSON，原地重问一次（{len(chunk)} 条，"
+                         f"已附整改要求）", "err")
         return _ask_block(chat, mode_flag, rules_txt, chunk, round_no,
                           min(max_tokens * 2, 65536) if status == "truncated"
                           else max_tokens,
-                          log, tick, style, with_ref, prev_text, scope_text, 1)
+                          log, tick, style, with_ref, prev_text, scope_text, 1,
+                          think, feedback)
 
     if status == "invalid":
         _log_do(log, "  ✗ 重问后仍未取得有效结果，该块按无改动跳过"
@@ -1162,10 +1418,10 @@ def _ask_block(chat, mode_flag, rules_txt, chunk, round_no, max_tokens, log, tic
     _log_do(log, f"  ! 重问仍被截断，拆为 {half}+{len(chunk) - half} 分块重试", "err")
     a, fa = _ask_block(chat, mode_flag, rules_txt, chunk[:half], round_no,
                        max_tokens, log, tick, style, with_ref, prev_text,
-                       scope_text, 0)
+                       scope_text, 0, think)
     b, fb = _ask_block(chat, mode_flag, rules_txt, chunk[half:], round_no,
                        max_tokens, log, tick, style, with_ref, prev_text,
-                       scope_text, 0)
+                       scope_text, 0, think)
     return a + b, (fa and fb)
 
 
@@ -1182,6 +1438,9 @@ def _write_report(path, src, out, mode_flag, round_no, result, rules) -> None:
              f"- 片源模式：{MODE_NAME.get(mode_flag, mode_flag or '中英双语')}",
              f"- 校准风格：{STYLE_NAME.get(result.get('style', 'term'), '术语级（只替换名词）')}",
              f"- 时间：{time.strftime('%Y-%m-%d %H:%M:%S')}"]
+    if result.get("suggest_rewrite"):
+        lines += ["", "> ⚠ **本片疑为机翻腔**：多条整句重写提议被名词级校验挡回。"
+                  "建议改用 `rewrite` 风格（整句重写）重跑一轮。"]
     if result.get("resumed_from"):
         lines.append(f"- 起点：以上轮结果 `{result['resumed_from']}` 为输入（未重跑脚本基线）")
     lines += [
