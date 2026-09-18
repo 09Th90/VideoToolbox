@@ -2345,6 +2345,18 @@ def _asr_dashscope_realtime_submit(asr_obj):
     class _Transient(Exception):
         """瞬态错误（断连/超时）——值得整段重发一次。"""
 
+    def _ws_send(ws, payload):
+        """ws.send 统一包装：服务端掐断后继续 send 会抛
+        WebSocketConnectionClosedException（"socket is already closed"，既不是
+        _Transient 也不是 RuntimeError）——不包的话既不会自动重试、也进不了
+        _submit 的降级分支，用户只会看到裸异常。统一转 _Transient，让
+        「重试一次 → 仍失败 → 降级 qwen3-asr-flash 文件识别」的链路生效。
+        """
+        try:
+            ws.send(payload)
+        except Exception as e:  # noqa: BLE001
+            raise _Transient("实时 ASR 连接中断（发送）：%s" % e)
+
     def _recv_until(ws, want, deadline, segments, texts):
         """收事件直到 want；途中的 result-generated 顺路收集。"""
         while _time.monotonic() < deadline:
@@ -2384,7 +2396,7 @@ def _asr_dashscope_realtime_submit(asr_obj):
         task_id = _uuid.uuid4().hex[:32]     # 每次尝试新 task_id（服务端要求唯一）
         try:
             deadline = _time.monotonic() + 30 * 60      # 整体上限 30 分钟
-            ws.send(_json.dumps({
+            _ws_send(ws, _json.dumps({
                 "header": {"action": "run-task", "task_id": task_id,
                            "streaming": "duplex"},
                 "payload": {"task_group": "audio", "task": "asr",
@@ -2394,11 +2406,11 @@ def _asr_dashscope_realtime_submit(asr_obj):
             for i, off in enumerate(range(0, len(blob), ASR_WS_FRAME_BYTES)):
                 if i and frame_gap > 0:
                     _time.sleep(frame_gap)              # 限速：防服务端断连
-                ws.send(blob[off:off + ASR_WS_FRAME_BYTES])   # 二进制帧=原始音频
-            ws.send(_json.dumps({"header": {"action": "finish-task",
-                                            "task_id": task_id,
-                                            "streaming": "duplex"},
-                                 "payload": {"input": {}}}))
+                _ws_send(ws, blob[off:off + ASR_WS_FRAME_BYTES])   # 二进制帧=原始音频
+            _ws_send(ws, _json.dumps({"header": {"action": "finish-task",
+                                                 "task_id": task_id,
+                                                 "streaming": "duplex"},
+                                      "payload": {"input": {}}}))
             _recv_until(ws, "task-finished", deadline, segments, texts)
         finally:
             try:
