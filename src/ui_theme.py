@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 1.13.0
+# @version 1.14.1
 """界面美化：主题感知的全局视觉体系 + 每个导航板块自定义背景图。
 
 两块能力，配置都持久化在 `data/ui_custom.json`（engine.DATA_DIR 下），
@@ -7,7 +7,13 @@
 
 1) 全局视觉体系（所有页面统一换新，**主题感知**）：
    · build_app_qss()  → 全局 QSS：输入框/菜单/工具提示/滚动条/进度条，
-     深色主题用深色规范（#2B2E33 底、#3A3E45 边），浅色主题用白底浅边；
+     深色主题用深色规范（#2B2E33 底、#3A3E45 边），浅色主题用浅灰底浅边；
+   · 输入类控件成套补齐  → 数字框的上下箭头、下拉框的箭头、复选框的方框
+     都换成与主题同色的小图形（QPainter 现场生成 PNG，见 _input_icon），
+     不再露出系统原生的老式三角箭头/方框；
+   · dialog_palette() / dialog_qss() → 顶层对话框（颜色选择框等）的兜底
+     主题：这类框由 Qt 自己构造，会从父窗口继承 palette，「字幕编辑」页
+     是深色控制台风格，浅色主题下就会整块发暗（用户截图反馈）；
    · UICard           → 统一卡片皮肤：圆角 10、1px 描边、hover 提亮，
      深色下 #26292E 实底、浅色下白色实底（card() 与视频库缩略图卡共用）；
    · 主题色可配置     → ACCENT_PRESETS 预设色板，点一下 setThemeColor
@@ -17,7 +23,7 @@
      「跟随系统」档在系统深浅切换时也会自动跟随（qconfig.themeChanged）。
 
 2) 每个板块自定义背景图（v1.13.x 已有，本次增强）：
-   五个导航页（视频处理/视频库/字幕处理/字幕编辑/设置）可各自铺一张
+   六个导航页（视频处理/视频库/字幕处理/字幕编辑/流水线/设置）可各自铺一张
    背景图，另有「全局背景」兜底；新增「背景模糊」开关（预模糊缓存，
    不拖累重绘），遮罩为主题感知的竖向渐变：深色主题压暗（黑色）、
    浅色主题雾白提亮（白色）——两档下前景文字都可读。
@@ -44,8 +50,9 @@
 import json
 import os
 
-from PyQt5.QtCore import QRectF, Qt
-from PyQt5.QtGui import (QColor, QLinearGradient, QPainter, QPixmap)
+from PyQt5.QtCore import QPointF, QRectF, Qt
+from PyQt5.QtGui import (QColor, QLinearGradient, QPainter, QPalette, QPen,
+                         QPixmap)
 from PyQt5.QtWidgets import (QApplication, QGraphicsBlurEffect, QGraphicsScene,
                              QWidget)
 
@@ -60,6 +67,7 @@ PAGE_DEFS = [
     ("library", "视频库"),
     ("subtitle", "字幕处理"),
     ("edit", "字幕编辑"),
+    ("pipeline", "流水线"),
     ("settings", "设置"),
 ]
 
@@ -86,6 +94,9 @@ ACCENT_PRESETS = ["#45C877", "#2F8D63", "#3B82F6", "#06B6D4",
 #: 深色设计 token。键集与 TOKENS_LIGHT 完全一致（新增键两表同步加）：
 #:   card*          UICard 三态底色 / 描边
 #:   input_bg*      输入类控件（QLineEdit/QTextEdit/QSpinBox）底色
+#:                  ⚠️ 浅色档是**浅灰**而非纯白：卡片本身就是白的，纯白输入框
+#:                  在白卡上只剩一圈极淡的描边，看上去像"没画完的空白条"
+#:                  （用户截图反馈）。聚焦时转白 + 主题色描边，形成反馈。
 #:   border*        通用描边 / hover 描边（QSS + 滚动条）
 #:   text / text_dim / check_text   文字 / 弱文字 / 复选框文字
 #:   menu_bg / menu_item_sel        菜单与工具提示底 / 菜单选中项底
@@ -122,7 +133,7 @@ TOKENS_LIGHT = {
     "card_pressed": "#EFF2F4",
     "card_border": "#E1E4E8",
     "card_border_hover": "#C7CDD4",
-    "input_bg": "#FFFFFF",
+    "input_bg": "#F6F8FA",
     "input_bg_focus": "#FFFFFF",
     "input_disabled_bg": "#F1F3F5",
     "border": "#DEE1E6",
@@ -149,6 +160,8 @@ _REG = {}
 _PIX_CACHE = {}
 #: 模糊图缓存 {(path, mtime): QPixmap}
 _BLUR_CACHE = {}
+#: 小图形（箭头/勾）缓存 {(kind, color, size): QSS 用的 url 片段}
+_ICON_CACHE = {}
 #: 内存中的配置副本（懒加载；写穿到磁盘）
 _CFG = None
 #: 主题变化回调列表（connect_theme 注册，weakref 保证不拖住控件）
@@ -463,6 +476,69 @@ def apply_startup_theme(app):
 
 
 # ---------------------------------------------------------------------- #
+# 小图形资源（QSS 的 image 只吃文件路径，所以现场画一枚 PNG 落盘）
+# ---------------------------------------------------------------------- #
+def _tint(color, alpha):
+    """十六进制色 → `rgba(r, g, b, a)` 字符串（QSS 里做半透明 tint）。"""
+    c = QColor(color)
+    if not c.isValid():
+        c = QColor(DEFAULT_ACCENT)
+    return "rgba(%d, %d, %d, %.2f)" % (c.red(), c.green(), c.blue(), alpha)
+
+
+def _icon_path(kind, color, size=10):
+    """生成/复用一枚小图形 PNG，返回 QSS 可用的 `url("...")` 片段。
+
+    `kind`：up（上箭头）/ down（下箭头）/ check（对勾）。
+    颜色写进文件名——切主题时颜色变、取到的就是另一个文件，不会出现
+    "旧主题的箭头被 QPixmap 缓存住"这种问题。
+
+    没有 QApplication（纯逻辑单测）时返回 "none"：既省去无谓落盘，也避免
+    在 app 之前构造 QPixmap 直接 abort（本仓踩过：QPixmap 必须在 app 之后）。
+    """
+    key = (kind, str(color), int(size))
+    if key in _ICON_CACHE:
+        return _ICON_CACHE[key]
+    if QApplication.instance() is None:
+        return "none"
+    url = "none"
+    try:
+        d = os.path.join(engine.DATA_DIR, "ui_assets")
+        os.makedirs(d, exist_ok=True)
+        path = os.path.join(d, "%s_%s_%d.png" % (
+            kind, str(color).lstrip("#").lower(), int(size)))
+        if not os.path.exists(path):
+            pm = QPixmap(int(size), int(size))
+            pm.fill(Qt.transparent)
+            p = QPainter(pm)
+            p.setRenderHint(QPainter.Antialiasing, True)
+            pen = QPen(QColor(color), 1.4)
+            pen.setCapStyle(Qt.RoundCap)
+            pen.setJoinStyle(Qt.RoundJoin)
+            p.setPen(pen)
+            s = float(size)
+            if kind == "up":
+                p.drawPolyline(QPointF(s * 0.22, s * 0.64),
+                               QPointF(s * 0.50, s * 0.34),
+                               QPointF(s * 0.78, s * 0.64))
+            elif kind == "down":
+                p.drawPolyline(QPointF(s * 0.22, s * 0.36),
+                               QPointF(s * 0.50, s * 0.66),
+                               QPointF(s * 0.78, s * 0.36))
+            else:                       # check
+                p.drawPolyline(QPointF(s * 0.22, s * 0.52),
+                               QPointF(s * 0.42, s * 0.72),
+                               QPointF(s * 0.78, s * 0.26))
+            p.end()
+            pm.save(path, "PNG")
+        url = '"%s"' % path.replace("\\", "/")
+    except Exception:
+        url = "none"
+    _ICON_CACHE[key] = url
+    return url
+
+
+# ---------------------------------------------------------------------- #
 # 全局 QSS
 # ---------------------------------------------------------------------- #
 def build_app_qss():
@@ -474,12 +550,14 @@ def build_app_qss():
 
     排查开关：`VT_UI_QSS_GROUPS=input,menu,misc,scroll`（逗号分隔）只启用
     指定规则组——用于定位样式表与内嵌引擎界面的相性问题。
+    规则组：line / textedit / spin / combo / check / menu / misc / scroll。
     """
     accent = get_accent()
     t = tokens()
     only = os.environ.get("VT_UI_QSS_GROUPS", "").strip()
     allow = ({s.strip() for s in only.split(",") if s.strip()}
-             if only else {"line", "textedit", "spin", "menu", "misc", "scroll"})
+             if only else {"line", "textedit", "spin", "combo", "check",
+                           "menu", "misc", "scroll"})
     parts = []
     # ⚠️ 注意：不给 QLineEdit/QTextEdit 配 selection-background-color 等选区色
     # 不是因为崩溃——「字幕处理」页退出阶段偶发 native 段错误（rc≈139，
@@ -491,6 +569,7 @@ def build_app_qss():
 QLineEdit {{
     background: {t['input_bg']}; color: {t['text']};
     border: 1px solid {t['border']}; border-radius: 6px; padding: 3px 8px;
+    min-height: 20px;
 }}
 QLineEdit:focus {{
     background: {t['input_bg_focus']}; border: 1px solid {accent};
@@ -513,12 +592,105 @@ QTextEdit:disabled, QPlainTextEdit:disabled {{
 }}
 """)
     if "spin" in allow:
+        up = _icon_path("up", t["text_dim"])
+        down = _icon_path("down", t["text_dim"])
         parts.append(f"""
 QSpinBox, QDoubleSpinBox {{
     background: {t['input_bg']}; color: {t['text']};
-    border: 1px solid {t['border']}; border-radius: 6px; padding: 1px 6px;
+    border: 1px solid {t['border']}; border-radius: 6px;
+    padding: 1px 18px 1px 7px; min-height: 20px;
 }}
-QSpinBox:focus, QDoubleSpinBox:focus {{ border: 1px solid {accent}; }}
+QSpinBox:focus, QDoubleSpinBox:focus {{
+    background: {t['input_bg_focus']}; border: 1px solid {accent};
+}}
+QSpinBox:disabled, QDoubleSpinBox:disabled {{
+    background: {t['input_disabled_bg']}; color: {t['text_dim']};
+}}
+QSpinBox::up-button, QDoubleSpinBox::up-button {{
+    subcontrol-origin: border; subcontrol-position: top right;
+    width: 16px; height: 11px; border: none; background: transparent;
+    border-top-right-radius: 6px; margin: 1px 1px 0 0;
+}}
+QSpinBox::down-button, QDoubleSpinBox::down-button {{
+    subcontrol-origin: border; subcontrol-position: bottom right;
+    width: 16px; height: 11px; border: none; background: transparent;
+    border-bottom-right-radius: 6px; margin: 0 1px 1px 0;
+}}
+QSpinBox::up-button:hover, QDoubleSpinBox::up-button:hover,
+QSpinBox::down-button:hover, QDoubleSpinBox::down-button:hover {{
+    background: {_tint(accent, 0.18)};
+}}
+QSpinBox::up-button:pressed, QDoubleSpinBox::up-button:pressed,
+QSpinBox::down-button:pressed, QDoubleSpinBox::down-button:pressed {{
+    background: {_tint(accent, 0.34)};
+}}
+QSpinBox::up-arrow, QDoubleSpinBox::up-arrow {{
+    image: url({up}); width: 10px; height: 10px;
+}}
+QSpinBox::down-arrow, QDoubleSpinBox::down-arrow {{
+    image: url({down}); width: 10px; height: 10px;
+}}
+""")
+    if "combo" in allow:
+        caret = _icon_path("down", t["text_dim"])
+        parts.append(f"""
+QComboBox, QFontComboBox {{
+    background: {t['input_bg']}; color: {t['text']};
+    border: 1px solid {t['border']}; border-radius: 6px;
+    padding: 1px 22px 1px 8px; min-height: 20px;
+}}
+QComboBox:hover, QFontComboBox:hover {{
+    border: 1px solid {t['border_hover']};
+}}
+QComboBox:focus, QFontComboBox:focus {{
+    background: {t['input_bg_focus']}; border: 1px solid {accent};
+}}
+QComboBox:disabled, QFontComboBox:disabled {{
+    background: {t['input_disabled_bg']}; color: {t['text_dim']};
+}}
+QComboBox::drop-down, QFontComboBox::drop-down {{
+    subcontrol-origin: border; subcontrol-position: top right;
+    width: 22px; border: none; background: transparent;
+    border-top-right-radius: 6px; border-bottom-right-radius: 6px;
+}}
+QComboBox::drop-down:hover, QFontComboBox::drop-down:hover {{
+    background: {_tint(accent, 0.18)};
+}}
+QComboBox::down-arrow, QFontComboBox::down-arrow {{
+    image: url({caret}); width: 10px; height: 10px;
+}}
+QComboBox QAbstractItemView, QFontComboBox QAbstractItemView {{
+    background: {t['menu_bg']}; color: {t['text']};
+    border: 1px solid {t['border']}; border-radius: 8px; padding: 4px;
+    outline: 0; selection-background-color: {_tint(accent, 0.22)};
+    selection-color: {t['text']};
+}}
+QComboBox QAbstractItemView::item, QFontComboBox QAbstractItemView::item {{
+    min-height: 24px; padding: 1px 6px; border-radius: 6px;
+}}
+""")
+    if "check" in allow:
+        tick = _icon_path("check", "#FFFFFF")
+        parts.append(f"""
+QCheckBox, QRadioButton {{ color: {t['check_text']}; spacing: 6px; }}
+QCheckBox::indicator {{
+    width: 15px; height: 15px; border: 1px solid {t['border_hover']};
+    border-radius: 4px; background: {t['input_bg']};
+}}
+QCheckBox::indicator:hover {{ border: 1px solid {accent}; }}
+QCheckBox::indicator:checked {{
+    background: {accent}; border: 1px solid {accent}; image: url({tick});
+}}
+QCheckBox::indicator:disabled {{
+    background: {t['input_disabled_bg']}; border: 1px solid {t['border']};
+}}
+QRadioButton::indicator {{
+    width: 15px; height: 15px; border: 1px solid {t['border_hover']};
+    border-radius: 8px; background: {t['input_bg']};
+}}
+QRadioButton::indicator:checked {{
+    border: 4px solid {accent}; background: {t['input_bg']};
+}}
 """)
     if "menu" in allow:
         parts.append(f"""
@@ -533,7 +705,6 @@ QToolTip {{
     background: {t['menu_bg']}; color: {t['text']};
     border: 1px solid {t['border']}; padding: 3px 8px;
 }}
-QCheckBox, QRadioButton {{ color: {t['check_text']}; }}
 """)
     if "misc" in allow:
         parts.append(f"""
@@ -565,6 +736,82 @@ QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal {{
 }}
 """)
     return "".join(parts)
+
+
+# ---------------------------------------------------------------------- #
+# 顶层对话框（颜色选择框等）兜底主题
+# ---------------------------------------------------------------------- #
+def dialog_palette():
+    """按当前主题造一份 QPalette，给 Qt 自建的顶层对话框兜底。
+
+    为什么需要：`QColorDialog.getColor(...)` 这类框由 Qt 自己构造，外观完全
+    取 palette，而 palette 是**从父窗口继承**的。「字幕编辑」页是深色控制台
+    风格（波形/字幕表不随浅色翻转），浅色主题下弹出的颜色框就整块发暗，
+    与白色属性面板并排像两个软件（用户截图反馈）。
+    """
+    t = tokens()
+    accent = get_accent()
+    pal = QPalette()
+    pal.setColor(QPalette.Window, QColor(t["card"]))
+    pal.setColor(QPalette.WindowText, QColor(t["text"]))
+    pal.setColor(QPalette.Base, QColor(t["input_bg"]))
+    pal.setColor(QPalette.AlternateBase, QColor(t["log_bg"]))
+    pal.setColor(QPalette.Text, QColor(t["text"]))
+    pal.setColor(QPalette.Button, QColor(t["input_bg"]))
+    pal.setColor(QPalette.ButtonText, QColor(t["text"]))
+    pal.setColor(QPalette.Highlight, QColor(accent))
+    pal.setColor(QPalette.HighlightedText, QColor("#FFFFFF"))
+    pal.setColor(QPalette.ToolTipBase, QColor(t["menu_bg"]))
+    pal.setColor(QPalette.ToolTipText, QColor(t["text"]))
+    pal.setColor(QPalette.Disabled, QPalette.Text, QColor(t["text_dim"]))
+    pal.setColor(QPalette.Disabled, QPalette.ButtonText, QColor(t["text_dim"]))
+    return pal
+
+
+def dialog_qss():
+    """顶层对话框的样式表：与页面同 token（配色、圆角、主按钮）。
+
+    ⚠️ 这里**不重复**写 QLineEdit / QSpinBox：全局 QSS 已经把它们（含上下
+    箭头、下拉箭头）管起来了；对话框样式表里再写一遍会把全局那套子控件规则
+    挡掉，箭头会退回系统原生的老式三角。
+    """
+    t = tokens()
+    accent = get_accent()
+    return f"""
+/* ⚠️ 底色必须由 QSS 钉死：主窗口（Mica FluentWindow）的 palette.Window 是黑的，
+   顶层对话框在建窗时会把那套 palette 继承过去——只靠 setPalette 会被打回来
+   （见 subtitle_editor.ThemedColorDialog 的注释）。 */
+QDialog, QColorDialog {{ background-color: {t['card']}; color: {t['text']}; }}
+QDialog QLabel {{ color: {t['text']}; background: transparent; }}
+QDialog QPushButton {{
+    background: {t['input_bg']}; color: {t['text']};
+    border: 1px solid {t['border']}; border-radius: 6px;
+    padding: 3px 14px; min-width: 60px; min-height: 20px;
+}}
+QDialog QPushButton:hover {{
+    background: {t['card_hover']}; border: 1px solid {t['border_hover']};
+}}
+QScrollArea, QAbstractScrollArea {{ background: {t['card']}; border: none; }}
+"""
+
+
+def primary_button_qss():
+    """主题色主按钮皮肤（实底白字）：给「确定」这类主操作打标。
+
+    ⚠️ 必须**直接设在按钮自己身上**：这些按钮是对话框的子控件，而对话框又挂在
+    属性面板下——面板自己的样式表里有一条不带前缀的 `QPushButton` 规则，实测
+    它会把对话框样式表里的 `:default` 覆盖掉（OK 按钮仍是灰底）。
+    """
+    accent = get_accent()
+    return f"""
+QPushButton {{
+    background: {accent}; color: #FFFFFF;
+    border: 1px solid {accent}; border-radius: 6px;
+    padding: 3px 14px; min-width: 60px;
+}}
+QPushButton:hover {{ background: {_tint(accent, 0.86)}; }}
+QPushButton:pressed {{ background: {_tint(accent, 0.72)}; }}
+"""
 
 
 # ---------------------------------------------------------------------- #
@@ -743,12 +990,13 @@ def install_page_background(page, key):
 
 
 def install_for_window(window):
-    """一次性给五个导航页挂上背景能力（MainWindow 构造尾部调用一次）。"""
+    """一次性给六个导航页挂上背景能力（MainWindow 构造尾部调用一次）。"""
     pairs = [
         ("download", getattr(window, "download_page", None)),
         ("library", getattr(window, "library_page", None)),
         ("subtitle", getattr(window, "subtitle_page", None)),
         ("edit", getattr(window, "subtitle_edit_page", None)),
+        ("pipeline", getattr(window, "pipeline_page", None)),
         ("settings", getattr(window, "settings_page", None)),
     ]
     for key, page in pairs:

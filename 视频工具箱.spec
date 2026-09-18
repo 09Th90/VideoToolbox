@@ -1,6 +1,6 @@
 # -*- mode: python ; coding: utf-8 -*-
-# @version 1.14.0
-"""视频工具箱 v1.14.0 —— PyInstaller 打包配置
+# @version 1.14.1
+"""视频工具箱 v1.14.1 —— PyInstaller 打包配置
 v1.12.2：AI 校准修复 + Agent 可靠性同步优化——校准页误引用设置页控件导致
          「开始校准」一点即崩、崩后界面永久卡死（启动全程异常兜底 + 校准页
          新增「刷新」与卡死自愈）；qfluentwidgets 滚动条 eventFilter 对鼠标

@@ -41,13 +41,9 @@ history/
 下列历史留档体积大或属运行产物，**只保留在本机磁盘、不纳入 git**（已在 `.gitignore` 忽略，
 克隆仓库后不会出现，需要时应从本机备份或 GitHub Releases 取回）：
 
+- `history/dist/`、`history/build/legacy/` 之外的构建产物与 `history/_installer_check/`：旧 exe、安装日志、向导截图等（约 130+ MB）
 - `history/build/*.log`、`history/build/*.png`：编译日志与界面截图
-- `history/_installer_check/`：安装器验证截图
-
-> 2026-09-17 工作区整理：`_cleanup_20260916\`（废弃 ASR 模型、旧 buildvenv、旧安装器、
-> 仓库备份副本，约 3.1GB）、`old_builds\`（v1.11.0–v1.12.2 旧版 exe/安装包，约 2.3GB）、
-> `dist\`（旧 exe 副本）与 `logs\`、`data\` 缓存已删除。此后旧版 exe 不再长期留存，
-> 重打包前按惯例挪入 `old_builds\`，确认无用即删。
+- `history/logs/`、`history/data/`：历史运行日志与缩略图缓存
 
 > 说明：仓库只对**体积可控的源码/文档/校验值**做长期留档；大体积二进制与运行日志走
 > GitHub Releases 或本机备份，避免仓库与克隆体积膨胀。

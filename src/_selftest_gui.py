@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# @version 1.14.0
+# @version 1.14.1
 """界面自检（v1.10.4 Fluent 界面）：验证窗口与各页面可构建、导航宽度自适应、
 设置页统一入口、字幕处理环境就绪。
 
@@ -25,7 +25,10 @@ _LINES = []
 
 
 def check(name, cond, extra=""):
-    line = f"  [{'PASS' if cond else 'FAIL'}] {name}{(' -> ' + extra) if extra else ''}"
+    # extra 一律 str()：断言里顺手传 tuple / list 是很自然的写法，
+    # 少了这一步会在拼接处抛 TypeError，把后面的检查全带崩（踩过一次）
+    line = (f"  [{'PASS' if cond else 'FAIL'}] {name}"
+            f"{(' -> ' + str(extra)) if extra else ''}")
     print(line)
     _LINES.append(line)
     if not cond:
@@ -256,6 +259,162 @@ def _qt_src():
     try:
         return open(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                  "video_toolbox_qt.py"), encoding="utf-8").read()
+    except OSError:
+        return ""
+
+
+def _props_src():
+    """字幕编辑页的属性面板源码文本（`subtitle_editor.py`）。"""
+    try:
+        return open(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                 "subtitle_editor.py"), encoding="utf-8").read()
+    except OSError:
+        return ""
+
+
+def _export_button_ok():
+    """属性面板右上角「导出」按钮已接线，且导出支持 SRT / 带样式 ASS。
+
+    两段源码分开看：
+      · `subtitle_editor.py` —— 标题行要有「导出」按钮，点击要 emit 信号；
+      · `video_toolbox_qt.py` —— 页面把信号连到 `export_subtitle`，后者必须
+        同时有 ASS 分支（`render_ass`，把样式字典一起带走）与 SRT 分支，
+        且**不得**改 `sub_path` / `dirty`——导出不是另存为，不能顺手把当前
+        文件的关联换掉（这是导出最容易出错的一处语义）。
+    """
+    props = _props_src()
+    qt = _qt_src()
+    i = qt.find("def export_subtitle")
+    body = qt[i:i + 4000] if i >= 0 else ""
+    return ("export_requested = pyqtSignal()" in props
+            and 'self.btn_export = QPushButton("导出"' in props
+            and "self.btn_export.clicked.connect(self.export_requested"
+            in props
+            and "self.props.export_requested.connect(self.export_subtitle)"
+            in qt
+            and i >= 0
+            and "secore.render_ass(" in body
+            and "SubtitleDoc(cues=list(cues)).to_bytes()" in body
+            and "self.sub_path = path" not in body
+            and "self.dirty = False" not in body)
+
+
+def _ass_load_ok():
+    """字幕编辑页能加载 ASS/SSA：core 解析 + 保存分派 + 另存为过滤器。
+
+    运行时验证数据层（subtitle_editor_core 纯逻辑，离屏可跑）：Dialogue 行
+    解析、覆盖标签剥离、文本含逗号、\\N 换行、SRT 不被误判；源码级验证
+    `_write` 按 .ass/.ssa 扩展名走 `render_ass`（把 SRT 文本灌进 .ass 文件
+    播放器直接读不出来），「另存为」对话框提供 ASS 选项。
+    """
+    try:
+        import subtitle_editor_core as _se
+    except Exception:  # noqa: BLE001
+        return False
+    ass = ("[Script Info]\nTitle: t\n\n[V4+ Styles]\n"
+           "Format: Name, Fontname\nStyle: Def,微软雅黑,54\n\n"
+           "[Events]\nFormat: Layer, Start, End, Style, Name, MarginL, "
+           "MarginR, MarginV, Effect, Text\n"
+           "Dialogue: 0,0:00:01.00,0:00:03.50,Def,,0,0,0,,{\\i1}你好{\\i0}\n"
+           "Dialogue: 0,0:00:04.00,0:00:06.25,Def,,0,0,0,,文本, 含逗号\n"
+           "Dialogue: 0,0:00:07.00,0:00:09.00,Def,,0,0,0,,上行\\N下行\n")
+    doc = _se.SubtitleDoc()
+    n, _sk = doc.parse(ass)
+    ok_parse = (n == 3 and doc.cues[0].start == 1000
+                and doc.cues[0].end == 3500 and doc.cues[0].text == "你好"
+                and doc.cues[1].text == "文本, 含逗号"
+                and doc.cues[2].text == "上行\n下行")
+    srt = "1\n00:00:01,000 --> 00:00:02,000\n正文 dialogue: 一词\n"
+    n2, _sk2 = _se.SubtitleDoc().parse(srt)
+    ok_srt = n2 == 1 and _se._looks_like_ass(srt) is False
+    qt = _qt_src()
+    i = qt.find("def _write")
+    body = qt[i:i + 1600] if i >= 0 else ""
+    ok_write = (i >= 0
+                and 'in (".ass", ".ssa")' in body
+                and "secore.render_ass(" in body)
+    ok_filter = '"SRT 字幕 (*.srt);;ASS 字幕，含当前样式 (*.ass)' in qt
+    return ok_parse and ok_srt and ok_write and ok_filter
+
+
+def _align_grid_ok():
+    """九宫格点已选格保持选中并重新定位；画面字幕层的键盘命令已接线。
+
+    运行时验证面板（真实构造 SubtitlePropsPanel）：autoExclusive 的
+    QToolButton 点**已选中**的格会把它取消选中——修复前 alignment 会回落
+    默认 2（"字幕拖动后再点对齐没反应 / 先消失再出现"的两拍行为）。
+    源码级验证 stage.keyPressEvent 命令转发已接线、Ctrl+A 全选会清掉
+    画面层单选框（否则那条字幕显得"被单独锁定"）。
+    """
+    try:
+        from PyQt5.QtWidgets import QApplication
+        import subtitle_editor_core as _se
+        from subtitle_editor import SubtitlePropsPanel
+    except Exception:  # noqa: BLE001
+        return False
+    panel = SubtitlePropsPanel()
+    panel.set_style(dict(_se.ASS_DEFAULT_STYLE))
+    emitted = []
+    panel.style_changed.connect(lambda st: emitted.append(dict(st)))
+    panel.align_btns[8].click()          # 点不同格
+    ok_a = (emitted and emitted[-1].get("alignment") == 8
+            and panel.align_btns[8].isChecked())
+    panel.align_btns[8].click()          # 点同一个格（已选中）
+    ok_b = (emitted and emitted[-1].get("alignment") == 8
+            and panel.align_btns[8].isChecked()
+            and emitted[-1].get("pos_x", "x") is None
+            and emitted[-1].get("pos_y", "y") is None)
+    qt = _qt_src()
+    ok_wired = ("stage.command_requested.connect(self._on_stage_command)"
+                in qt and "def _on_stage_command" in qt)
+    i = qt.find("def select_all_cues")
+    body = qt[i:i + 1200] if i >= 0 else ""
+    ok_clear = i >= 0 and "stage.set_selected(-1)" in body
+    # 画面字幕层：点击与拖动分离（拖动不清多选）+ 右键删除入口
+    ov = _overlay_src()
+    ok_split = ("cue_followed = pyqtSignal" in ov
+                and "_press_moved = True" in ov
+                and "cue_followed.emit" in ov
+                and "def contextMenuEvent" in ov
+                and "delete_requested.emit" in ov)
+    ok_follow = ("def _on_stage_cue_followed" in qt
+                 and "stage.cue_followed.connect" in qt
+                 and "stage.delete_requested.connect" in qt
+                 and "def reveal_row" in _props_src())
+    # 时间轴多选批量平移：全选后拖一条，全部选中条一起动（快照基准防漂移）
+    ok_multi = ("_drag_multi" in _props_src()
+                and "idx in sel and len(sel) > 1" in _props_src()
+                and "保持相对间隔" in _props_src()
+                and "timeline.selected_indices()" in
+                qt[qt.find("def _on_drag_finished"):
+                   qt.find("def _on_drag_finished") + 900]
+                # 按下已选条不得重置多选（否则全选后拖动只动一条）
+                and "idx not in self.selected_set or len(self.selected_set) <= 1"
+                in _props_src())
+    # 时间轴高倍放大 + 帧刻度：上限 20000pps、帧率感知、帧刻度/帧号、
+    # 播放头读数气泡、页面同步 mpv 帧率
+    tl = _props_src()
+    ok_zoom = "min(20000.0, pps)" in tl
+    ok_frame = ("def set_fps" in tl and "def _paint_frame_ticks" in tl
+                and "frame_px >= 56.0" in tl and "f%d" in tl
+                and "timeline.set_fps(self.player.fps)" in qt)
+    # 自由位置以几何原点定位：面板折算返回框左上坐标、手输直写 pos、
+    # 量程放宽到整幅画面
+    ok_origin = ("return {\"_va\": int(round(top)), \"_ha\": int(round(left))}"
+                 in _overlay_src()
+                 and "st[\"pos_x\"] = int(self.sp_margin_l.value())" in tl
+                 and "self.sp_margin_l.setRange(0, 1920)" in tl)
+    return bool(ok_a and ok_b and ok_wired and ok_clear
+                and ok_split and ok_follow and ok_multi
+                and ok_zoom and ok_frame and ok_origin)
+
+
+def _overlay_src():
+    """字幕覆盖层源码文本（`subtitle_overlay.py`）。"""
+    try:
+        return open(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                 "subtitle_overlay.py"),
+                    encoding="utf-8").read()
     except OSError:
         return ""
 
@@ -725,6 +884,38 @@ def main():
           sub_if is not None
           and sub_if.main_layout.stretch(
               sub_if.main_layout.indexOf(sub_if.subtitle_table)) == 1)
+    # ---- v1.14.2：独立转录完成 → 自动装载并跳转「字幕翻译」（回归）----
+    # 坑：HomeInterface 构造时 addWidget 会把子界面 reparent 到 QStackedWidget，
+    # 回填若用 self.parent() 取 HomeInterface 会静默失效（v1.14.1 曾如此）。
+    _tr_ok, _tr_why = False, "no engine"
+    if sub_if is not None and sub._engine is not None:
+        try:
+            _tdir = os.path.join(engine.TMP_DIR, "_selftest_tr_backfill")
+            os.makedirs(_tdir, exist_ok=True)
+            _tr_srt = os.path.join(_tdir, "selftest_tr.srt")
+            with open(_tr_srt, "w", encoding="utf-8") as f:
+                f.write("1\n00:00:00,000 --> 00:00:02,000\n自检字幕\n\n"
+                        "2\n00:00:02,000 --> 00:00:04,000\n第二行\n\n")
+
+            class _FTask:
+                pass
+
+            _ft = _FTask()
+            _ft.output_path = _tr_srt
+            _ft.file_path = _tr_srt
+            _ft.need_next_task = False
+            sub._engine.transcription_interface._on_transcript_finished(_ft)
+            _cur = sub._engine.stackedWidget.currentWidget()
+            _tr_ok = (os.path.abspath(sub_if.subtitle_path or "")
+                      == os.path.abspath(_tr_srt)
+                      and sub_if.model.rowCount() == 2
+                      and _cur is sub_if)
+            _tr_why = ("path=%s rows=%s cur=%s"
+                       % (sub_if.subtitle_path, sub_if.model.rowCount(),
+                          _cur.objectName()))
+        except Exception as e:  # noqa: BLE001
+            _tr_why = f"exc={e}"
+    check("独立转录完成：字幕自动装载并跳转「字幕翻译」", _tr_ok, _tr_why)
     # ---- v1.12.0：用户自定义代理 yaml ----
     check("设置页含网络代理卡片（接入自己的 Clash/mihomo yaml）",
           hasattr(sp, "proxy_edit") and hasattr(sp, "proxy_hint"))
@@ -769,6 +960,20 @@ def main():
     mica_init = "setMicaEffectEnabled(ui_theme.get_mica())" in _QT_SRC
     check("云母开关已连接槽且主窗口按配置启用（不再是摆设开关）",
           mica_wired and mica_init)
+    # ---- v1.14.2：跨屏 / 显示器变化收敛（换屏后页面挤成一团、边上多出半份界面）----
+    # 关键三条：①窗口所在屏变化必须接上（primaryScreenChanged 与
+    # logicalDotsPerInchChanged 在"把窗口拖到另一块屏"时都不会响）；
+    # ②载入视频后被提升成原生子窗口的导航条/页面要重挂显示器；
+    # ③要强制重建窗口表面，否则 DWM 留着旧尺寸的表面清不掉。
+    screen_wired = all(s in _QT_SRC for s in (
+        "screenChanged.connect(self._on_window_screen_changed)",
+        "def _schedule_screen_settle",
+        "def _settle_after_screen_switch",
+        "def _rebind_native_children_screen",
+        "def _rebuild_window_surface",
+        "SWP_FRAMECHANGED"))
+    check("跨屏/DPI 变化已接上收敛（重排 + 原生子窗口重挂 + 表面重建）",
+          screen_wired)
     bg_feedback = ("_info_bg_applied" in _QT_SRC
                    and "_warn_no_bg_once" in _QT_SRC
                    and callable(getattr(ui_theme, "has_any_bg", None)))
@@ -1032,6 +1237,31 @@ def main():
                  "asr_model", "asr_local_model", "asr_local_dir",
                  "calib_cues", "calib_tokens"):
         check(f"设置页含 v1.11 控件 {attr}", hasattr(sp, attr))
+    # ---- v1.14.2：ASR 全协议适配的界面入口 ----
+    check("设置页含 ASR 协议下拉（9 协议 + 自动识别）",
+          hasattr(sp, "asr_proto_combo")
+          and len(sp.ASR_PROTO_KEYS) == len(sp.ASR_PROTO_LABELS) == 10,
+          getattr(sp, "ASR_PROTO_KEYS", None))
+    check("设置页含「调用示例（curl / Python）」入口",
+          hasattr(sp, "asr_example_btn"))
+    check("设置页含「有未保存的改动」提示位",
+          hasattr(sp, "asr_dirty_lbl") and hasattr(sp, "ai_dirty_lbl"))
+    _dlg_ok, _dlg_why = False, ""
+    try:
+        _ex = engine.asr_examples({
+            "asr_mode": "service",
+            "asr_base_url": "https://dashscope.aliyuncs.com/compatible-mode/v1",
+            "asr_api_key": "k", "asr_model": "qwen3-asr-flash",
+            "asr_protocol": "dashscope"})
+        _dlg = gui.AsrExampleDialog(_ex, sp.window())
+        _dlg_ok = ("/chat/completions" in _dlg.ed_curl.toPlainText()
+                   and "stream=False" in _dlg.ed_py.toPlainText()
+                   and _dlg.tabs.count() == 2)
+        _dlg.close()
+        _dlg.deleteLater()
+    except Exception as e:  # noqa: BLE001
+        _dlg_why = str(e)
+    check("调用示例对话框可构造且两页都有内容", _dlg_ok, _dlg_why)
     check("全局 AI 已合并为单通道（无 A/B 独立密钥与校准通道选择）",
           not hasattr(sp, "ai_llm_key") and not hasattr(sp, "calib_channel_combo")
           and "llm_base_url" not in engine.ai_mod().DEFAULT_CONFIG)
@@ -1076,6 +1306,12 @@ def main():
     check("预热只导入 home_interface（设置界面按需懒加载）",
           "videocaptioner.ui.view.setting_interface" not in
           _qt_src()[_qt_src().find("def prewarm"):_qt_src().find("def _wait_prewarm")])
+    check("字幕编辑页右上角「导出」已接线（SRT / 带样式 ASS，且不动当前文件关联）",
+          _export_button_ok())
+    check("字幕编辑页可加载 ASS/SSA（Dialogue 解析 + 保存按扩展名写回 ASS）",
+          _ass_load_ok())
+    check("九宫格点已选格保持选中并清自由位置；画面字幕层键盘命令已接线",
+          _align_grid_ok())
 
     def done():
         app.quit()

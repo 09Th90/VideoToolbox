@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# @version 1.14.0
+# @version 1.14.1
 """
 视频工具箱 v1.12.0（单文件整合版）
 ==================================================
@@ -869,6 +869,1689 @@ def _vc_log(msg):
         pass
 
 
+# ---------- v1.14.1：转录体验补丁（黑窗 / 下拉收敛 / 完成回填） ----------
+
+def vc_pydub_nowindow_patch():
+    """消掉「开启转录时闪黑色控制台窗口」（幂等，仅 Windows 生效）。
+
+    根因：转录统一走 ChunkedASR，其 _split_audio() 必经 pydub 的
+    AudioSegment.from_file()——pydub 内部裸调 ffprobe/ffmpeg 且不带
+    CREATE_NO_WINDOW，GUI 进程下每次转录开始都会闪出黑色控制台窗口
+    （分块导出 mp3、whisper_cpp 的 CLI 子进程同理）。引擎与 pydub 本体
+    都不改：把 pydub / whisper_cpp 模块命名空间里的 subprocess 换成
+    「默认补 CREATE_NO_WINDOW」的 shim，只影响这几个调用点。
+    """
+    if os.name != "nt":
+        return True
+    if getattr(subprocess, "_vt_nowindow", False):
+        return True
+    try:
+        import types
+        orig = subprocess.Popen
+
+        def _popen(*args, **kwargs):
+            try:
+                if not kwargs.get("creationflags"):
+                    kwargs["creationflags"] = subprocess.CREATE_NO_WINDOW
+            except Exception:
+                pass
+            return orig(*args, **kwargs)
+
+        shim = types.ModuleType("subprocess_vt_nowindow_shim")
+        shim.__dict__.update(subprocess.__dict__)
+        shim.Popen = _popen
+        patched = []
+        try:
+            import pydub.audio_segment as _pas
+            _pas.subprocess = shim
+            patched.append("pydub.audio_segment")
+        except Exception:
+            pass
+        try:
+            import pydub.utils as _pu          # from subprocess import Popen
+            _pu.Popen = _popen
+            patched.append("pydub.utils")
+        except Exception:
+            pass
+        try:
+            from videocaptioner.core.asr import whisper_cpp as _wc
+            _wc.subprocess = shim
+            patched.append("whisper_cpp")
+        except Exception:
+            pass
+        subprocess._vt_nowindow = True
+        subprocess._vt_nowindow_orig = orig
+        _vc_log("黑窗隐藏补丁已挂：Popen shim → " + ", ".join(patched))
+        return True
+    except Exception as e:  # noqa: BLE001
+        _vc_log(f"黑窗隐藏补丁失败：{e}")
+        return False
+
+
+#: 转录下拉显示名：「默认」= 引擎免费接口（B 接口）；「ASR」= 全局 ASR 配置
+TM_DISPLAY_DEFAULT = "默认"
+TM_DISPLAY_ASR = "ASR"
+
+
+def vc_transcribe_ui_patch():
+    """工作台转录下拉收敛为「默认 / ASR」+ 独立转录完成回填「字幕翻译」。
+
+    v1.14.1 用户需求，全部运行期补丁（引擎 site-packages 保持原版）：
+      ① 命令栏转录模型菜单只建「默认 / ASR」两项——J 接口 / FasterWhisper /
+         WhisperCpp / Whisper [API] 不再出现；
+      ② 选「ASR」时实时调 apply_asr_to_engine()（以全局设置「ASR 语音识别」
+         卡片为准，按 asr_mode 落到 Whisper [API] / FasterWhisper）；
+         选「默认」时落回 B 接口；历史残留取值一并收敛；
+      ③ 引擎转录页自带的 Whisper API / FasterWhisper 配置块随下拉收敛
+         不再可达（重复入口，从根上消除「与全局设置不一致」的两张页面），
+         空位留一行提示；
+      ④ 在转录页单独转录（拖入媒体，need_next_task=False）完成后，引擎原
+         逻辑不做任何事——这里把生成的字幕装载进「字幕翻译」并自动切换
+         过去（不自动开跑优化/翻译，等用户按「开始」）。
+    幂等；必须在 HomeInterface 导入之后、实例构造之前调用。
+    """
+    try:
+        from videocaptioner.ui.view import transcription_interface as ti
+        from videocaptioner.ui.components import transcription_setting_card as tsc
+        from videocaptioner.core.entities import TranscribeModelEnum
+        from videocaptioner.ui.common.config import cfg as _cfg
+        from qfluentwidgets import (Action, BodyLabel, FluentIcon, InfoBar,
+                                    InfoBarPosition, RoundMenu)
+        from PyQt5.QtWidgets import QVBoxLayout as _QVBox
+    except Exception as e:  # noqa: BLE001
+        _vc_log(f"转录 UI 补丁导入失败：{e}")
+        return False
+    if getattr(ti, "_vt_transcribe_ui_patched", False):
+        return True
+
+    def _asr_not_ready():
+        """全局 ASR 是否还没配好（用于给出设置指引提示）。"""
+        try:
+            ac = ai_mod().asr_config(ai_load_config())
+            if ac.get("mode") == "local":
+                return not (ac.get("local_model") or ac.get("local_model_dir"))
+            return not (ac.get("base_url") and ac.get("api_key"))
+        except Exception:  # noqa: BLE001
+            return False
+
+    def _asr_missing_hint():
+        """**已保存的**配置里缺什么 —— 说清楚，用户才知道该改哪一格。
+
+        ⚠️ 读的是磁盘配置（不是界面输入框）：实测最常踩的坑是"设置页填好了
+        但没点「保存并应用」"，这时磁盘上还是旧值/空值，转录页就说未配置。
+        """
+        try:
+            ac = ai_mod().asr_config(ai_load_config())
+            if ac.get("mode") == "local":
+                if not (ac.get("local_model") or ac.get("local_model_dir")):
+                    return "本地模式还没填模型名或目录"
+                return ""
+            miss = []
+            if not ac.get("base_url"):
+                miss.append("接口地址")
+            if not ac.get("api_key"):
+                miss.append("密钥")
+            return ("已保存的配置里缺：" + "、".join(miss)) if miss else ""
+        except Exception:  # noqa: BLE001
+            return ""
+
+    # ① 命令栏菜单：只留「默认 / ASR」
+    orig_setup_bar = ti.TranscriptionInterface._setup_command_bar
+
+    def _setup_command_bar(self):
+        orig_setup_bar(self)
+        try:
+            menu = RoundMenu(parent=self)
+            menu.addActions([
+                Action(FluentIcon.GLOBE, TM_DISPLAY_DEFAULT),
+                Action(FluentIcon.MICROPHONE, TM_DISPLAY_ASR),
+            ])
+            self.model_menu = menu          # _setup_signals 遍历的是这个菜单
+            self.model_button.setMenu(menu)
+        except Exception:  # noqa: BLE001
+            pass
+
+    ti.TranscriptionInterface._setup_command_bar = _setup_command_bar
+
+    # ② 模型切换：显示名 ↔ 引擎枚举映射
+    def _on_model_changed(self, model_name: str):
+        # 防重入：cfg 信号 → 本槽 → cfg 信号 的环路在此截断
+        if getattr(self, "_vt_model_busy", False):
+            return
+        try:
+            asr_values = (TranscribeModelEnum.WHISPER_API.value,
+                          TranscribeModelEnum.FASTER_WHISPER.value)
+            if model_name == TM_DISPLAY_ASR:
+                # 用户点了「ASR」：以全局「ASR 语音识别」设置为准实时同步
+                self._vt_model_busy = True
+                try:
+                    self.model_button.setText(TM_DISPLAY_ASR)
+                    self.transcription_setting_card.on_model_changed(
+                        TM_DISPLAY_ASR)
+                    ok, detail = apply_asr_to_engine()
+                    if not ok:
+                        _vc_log(f"ASR 应用失败：{detail}")
+                    if _asr_not_ready():
+                        InfoBar.warning(
+                            "ASR 未配置",
+                            ("%s；" % _asr_missing_hint() if _asr_missing_hint()
+                             else "")
+                            + "请到 设置 → ASR 语音识别 填好后点「保存并应用」"
+                              "（只填不保存不生效）",
+                            duration=8000, parent=self.window())
+                finally:
+                    self._vt_model_busy = False
+                return
+            if model_name == TM_DISPLAY_DEFAULT:
+                # 用户点了「默认」：落回 B 接口
+                self._vt_model_busy = True
+                try:
+                    self.model_button.setText(TM_DISPLAY_DEFAULT)
+                    self.transcription_setting_card.on_model_changed(
+                        TM_DISPLAY_DEFAULT)
+                    _cfg.set(_cfg.transcribe_model, TranscribeModelEnum.BIJIAN)
+                finally:
+                    self._vt_model_busy = False
+                return
+            # 其余为启动恢复/signalBus 广播（传引擎枚举值）：只做显示映射，
+            # 不回写配置，避免构造期触发配置环路
+            if model_name in asr_values:
+                self.model_button.setText(TM_DISPLAY_ASR)
+                self.transcription_setting_card.on_model_changed(TM_DISPLAY_ASR)
+            else:
+                # 「B 接口」及被移除的历史取值（J 接口/WhisperCpp）→ 显示「默认」
+                self.model_button.setText(TM_DISPLAY_DEFAULT)
+                self.transcription_setting_card.on_model_changed(
+                    TM_DISPLAY_DEFAULT)
+                if model_name != TranscribeModelEnum.BIJIAN.value:
+                    self._vt_model_busy = True
+                    try:
+                        _cfg.set(_cfg.transcribe_model,
+                                 TranscribeModelEnum.BIJIAN)
+                    finally:
+                        self._vt_model_busy = False
+        except Exception as e:  # noqa: BLE001
+            self._vt_model_busy = False
+            _vc_log(f"转录模型切换异常：{e}")
+
+    ti.TranscriptionInterface.on_transcription_model_changed = _on_model_changed
+
+    # ③ 独立转录完成 → 回填「字幕翻译」
+    orig_finished = ti.TranscriptionInterface._on_transcript_finished
+
+    def _home_of(widget):
+        """沿 parent 链向上找 HomeInterface（判定标准：持有字幕翻译子界面）。
+
+        ⚠️ 不能用 `self.parent()`：HomeInterface 构造时把各子界面
+        `stackedWidget.addWidget(...)`，Qt 会顺手把父级改成那个
+        QStackedWidget，于是 parent() 返回的是容器而不是 HomeInterface，
+        `getattr(home, "subtitle_optimization_interface", None)` 恒为 None，
+        整段回填被静默跳过（v1.14.1「转录完不自动跳字幕翻译」的根因）。
+        这里逐级向上找，并以属性为准而非类名，宿主层级怎么改都不会再失联。
+        """
+        w = widget
+        while w is not None:
+            if getattr(w, "subtitle_optimization_interface", None) is not None:
+                return w
+            w = w.parent()
+        # 兜底：宿主窗口里扫一遍（parent 链被重挂接打断时仍能找到）
+        try:
+            from PyQt5.QtWidgets import QApplication, QWidget as _QWidget
+            for tl in QApplication.topLevelWidgets():
+                if getattr(tl, "subtitle_optimization_interface", None) is not None:
+                    return tl
+                for ch in tl.findChildren(_QWidget):
+                    if getattr(ch, "subtitle_optimization_interface",
+                               None) is not None:
+                        return ch
+        except Exception:  # noqa: BLE001
+            pass
+        return None
+
+    def _produced_subtitle(path):
+        """定位转录产物：引擎按 output_format 落盘（base_path + 实际后缀），
+        task.output_path 的后缀未必等于真实文件名，这里按同基名补齐。"""
+        if not path:
+            return None
+        try:
+            if os.path.isfile(path):
+                return path
+            base = os.path.splitext(path)[0]
+            for ext in (".srt", ".ass", ".vtt"):
+                cand = base + ext
+                if os.path.isfile(cand):
+                    return cand
+            # 输出格式设成「全部」等自定义后缀时，同目录同基名的字幕文件
+            d, stem = os.path.split(base)
+            if os.path.isdir(d):
+                for name in sorted(os.listdir(d)):
+                    low = name.lower()
+                    if (name.startswith(stem + ".")
+                            and low.endswith((".srt", ".ass", ".vtt"))):
+                        return os.path.join(d, name)
+        except Exception:  # noqa: BLE001
+            pass
+        return None
+
+    def _on_transcript_finished(self, task):
+        try:
+            if task is not None and not getattr(task, "need_next_task", False):
+                out = _produced_subtitle(getattr(task, "output_path", None))
+                home = _home_of(self) if out else None
+                sub = (getattr(home, "subtitle_optimization_interface", None)
+                       if home is not None else None)
+                if sub is not None:
+                    from videocaptioner.ui.task_factory import TaskFactory
+                    st = TaskFactory.create_subtitle_task(
+                        out, getattr(task, "file_path", None),
+                        need_next_task=False,
+                        task_id=getattr(home, "_current_task_id", None))
+                    sub.set_task(st)
+                    # 切到「字幕翻译」并让分段控件同步高亮（原生跳转同款两连）
+                    home.stackedWidget.setCurrentWidget(sub)
+                    home.pivot.setCurrentItem("SubtitleInterface")
+                    _vc_log(f"独立转录完成 → 已装载「字幕翻译」：{out}")
+                    InfoBar.success(
+                        "转录完成",
+                        "生成的字幕已装载到「字幕翻译」，可直接开始优化 / 翻译",
+                        duration=5000,
+                        position=InfoBarPosition.BOTTOM,
+                        parent=home)
+                    return
+                if out:
+                    _vc_log("独立转录完成，但未定位到工作台首页，回退引擎原逻辑")
+        except Exception as e:  # noqa: BLE001
+            _vc_log(f"转录完成回填异常：{e}")
+        orig_finished(self, task)
+
+    ti.TranscriptionInterface._on_transcript_finished = _on_transcript_finished
+
+    # ④ 转录设置卡片空位提示（默认/ASR 都不再展示引擎内置 ASR 配置块）
+    orig_card_init = tsc.TranscriptionSettingCard.__init__
+
+    def _card_init(self, parent=None):
+        orig_card_init(self, parent)
+        try:
+            lay = _QVBox(self.empty_widget)
+            lay.setContentsMargins(24, 4, 24, 4)
+            tip = BodyLabel(
+                "默认：内置免费语音识别；ASR：使用设置页「ASR 语音识别」的模型"
+                "（自有服务 / 本地模型），统一在全局设置中维护",
+                self.empty_widget)
+            tip.setStyleSheet("color: #8a8a8a;")
+            lay.addWidget(tip)
+            lay.addStretch(1)
+        except Exception:  # noqa: BLE001
+            pass
+
+    tsc.TranscriptionSettingCard.__init__ = _card_init
+
+    # ⑤ ASR 服务模式多协议适配（auto / openai / azure / dashscope）
+    try:
+        vc_asr_protocol_patch()
+    except Exception:  # noqa: BLE001
+        pass
+
+    ti._vt_transcribe_ui_patched = True
+    _vc_log("转录 UI 补丁已挂：下拉=默认/ASR，独立转录完成回填「字幕翻译」")
+    return True
+
+
+# ---------- v1.14.1 起：ASR 服务模式全协议适配 ----------
+
+#: 支持的协议（= 配置里 asr_protocol 的取值；auto 为自动识别）
+#: ⚠️ `dashscope` 是历史键：它其实就是 chat_audio 那一族（百炼兼容模式），
+#:    保留是为了让老配置继续能用，新推断一律产出 `chat_audio`。
+ASR_PROTOCOLS = ("auto", "openai", "azure", "chat_audio", "dashscope",
+                 "deepgram", "elevenlabs", "gemini",
+                 "volcengine", "assemblyai", "dashscope_realtime")
+
+#: 协议说明（供界面下拉提示与日志引用）
+ASR_PROTOCOL_NOTES = {
+    "openai": "OpenAI Whisper 兼容（multipart /audio/transcriptions）——"
+              "覆盖 OpenAI / 硅基流动 / Groq / Fireworks / DeepInfra / "
+              "Mistral Voxtral / 自建 whisper.cpp、faster-whisper 服务等",
+    "azure": "Azure OpenAI（deployments 端点 + api-key 头）",
+    "chat_audio": "OpenAI 兼容 chat/completions + input_audio（音频以 Data URL "
+                  "传入）——阿里云百炼 Qwen-ASR（qwen3-asr-flash）、"
+                  "小米 MiMo（mimo-v2.5-asr）等",
+    "dashscope": "同 chat_audio（历史键，保留兼容）",
+    "deepgram": "Deepgram（POST /v1/listen，Authorization: Token + 原始音频，"
+                "带词级时间轴）",
+    "elevenlabs": "ElevenLabs Scribe（POST /v1/speech-to-text，xi-api-key，"
+                  "带词级时间轴）",
+    "gemini": "Google Gemini（generateContent + inline_data，返回纯文本，"
+              "时间轴按句兜底）",
+    "volcengine": "火山引擎（豆包）录音识别极速版——一次请求即返回，本地文件"
+                  "直传；密钥填「APPID:AccessToken」或新版 API Key，"
+                  "模型填 Resource ID（默认 volc.bigasr.auc_turbo）",
+    "assemblyai": "AssemblyAI（上传 → 提交 → 轮询；Authorization 头**不带** "
+                  "Bearer，模型名可逗号分隔多个做回退，带词级时间轴）",
+    "dashscope_realtime": "百炼实时（WebSocket）——把本地音频切片推给 "
+                          "wss://…/api-ws/v1/inference/，覆盖**只有实时形态**"
+                          "的模型（fun-asr-flash-8k-realtime / fun-asr-realtime"
+                          " / qwen3-asr-flash-realtime 等），带原生句级时间轴",
+}
+
+#: 实时（WebSocket 流式）模型的识别特征：这些模型**不能**一次性上传调用
+ASR_REALTIME_HINTS = ("realtime", "-rt-", "streaming")
+
+
+#: 「完整端点」的常见尾巴 —— 用户从服务商文档抄地址时容易连路径一起抄进来
+ASR_ENDPOINT_TAILS = ("/audio/transcriptions", "/audio/translations",
+                      "/chat/completions", "/v2/upload", "/v2/transcript")
+
+
+def asr_strip_endpoint_tail(base, *tails):
+    """削掉"用户把**完整端点**抄进地址栏"的那截尾巴。
+
+    为什么要削：无论 OpenAI SDK 还是我们自己的拼接，都是「base + 固定路径」
+    的写法，而服务商文档给的常常是完整 URL —— 例如智谱的
+    `https://open.bigmodel.cn/api/paas/v4/audio/transcriptions`。照抄进去就会
+    拼成 `.../audio/transcriptions/audio/transcriptions` → 404。
+    宁可在这里削一次，也不该让用户对着 404 猜。
+
+    不传 tails 时按 `ASR_ENDPOINT_TAILS` 里的常见端点尾巴削。
+    """
+    tails = tails or ASR_ENDPOINT_TAILS
+    b = str(base or "").strip().rstrip("/")
+    changed = True
+    while changed and b:
+        changed = False
+        low = b.lower()
+        for tail in tails:
+            t = str(tail or "").strip().lower().rstrip("/")
+            if t and low.endswith(t):
+                b = b[: -len(t)].rstrip("/")
+                changed = True
+                break
+    return b
+
+
+def _infer_asr_protocol(base_url, model):
+    """按地址与模型名推断协议（auto 档的唯一实现）。
+
+    顺序有讲究：先认**域名独有的**服务（小米 MiMo / deepgram / elevenlabs /
+    gemini），再认 Azure，最后才是"看着像 OpenAI 兼容"的兜底。
+
+    ⚠️ 「chat/completions + input_audio」这族（百炼 Qwen-ASR、小米 MiMo ASR）
+    必须与 `openai` 分开：这类服务**没有** `/audio/transcriptions` 端点，
+    按 openai 协议去调只会 404（小米 MiMo 官方明确说明 ASR 走 chat completions）。
+    """
+    base = str(base_url or "").lower()
+    mdl = str(model or "").lower()
+    if "openspeech.bytedance.com" in base or "volcengine" in base:
+        return "volcengine"
+    if "assemblyai.com" in base:
+        return "assemblyai"
+    if ("aliyuncs.com" in base or "dashscope" in base) and any(
+            h in mdl for h in ASR_REALTIME_HINTS):
+        # 百炼系域名 + 实时模型：这类模型只有 WebSocket 形态 → 走实时协议。
+        # （它们连 compatible-mode 的 chat/completions 都调不了，官方模型表
+        #   标注「模式=即时、API=WebSocket」。）
+        return "dashscope_realtime"
+    if "deepgram.com" in base:
+        return "deepgram"
+    if "elevenlabs.io" in base:
+        return "elevenlabs"
+    if "generativelanguage.googleapis.com" in base:
+        return "gemini"
+    if ("openai.azure.com" in base or "/openai/deployments/" in base
+            or "azure.com" in base):
+        return "azure"
+    if ("xiaomimimo.com" in base or "mimo-v2" in mdl
+            or "compatible-mode" in base or "dashscope" in base
+            or ("qwen" in mdl and ("audio" in mdl or "asr" in mdl))
+            or "paraformer" in mdl or "fun-asr" in mdl):
+        return "chat_audio"
+    return "openai"
+
+
+def asr_base_guard(base_url):
+    """ASR 地址守卫：地址填成了「文本对话端点」时给出能照着改的提示。
+
+    最常见的错误是把 Anthropic / chat 这类**只收文本**的端点当成 ASR 地址
+    （音频走 multipart 或 input_audio，那些端点根本不收），表现就是五花八门
+    的 404 / 415 —— 与其让用户对着状态码猜，不如直接说"该填什么"。
+    """
+    b = str(base_url or "").lower()
+    if "anthropic" in b:
+        return ("ASR 地址填的是 Anthropic 文本对话端点（%s）——它收不了音频。"
+                "请改填 OpenAI 兼容端点：公共百炼 "
+                "https://dashscope.aliyuncs.com/compatible-mode/v1，"
+                "或专属实例的 …/compatible-mode/v1" % base_url)
+    return ""
+
+
+def asr_model_guard(model):
+    """实时（流式）模型守卫：返回给用户看的提示，可放行时返回空串。
+
+    ⚠️ 只在**非实时协议**下调用：实时模型在「百炼实时（WebSocket）」协议下
+    是能正常出字幕的（_asr_dashscope_realtime_submit），不该被拦。
+    """
+    m = str(model or "").lower()
+    if any(h in m for h in ASR_REALTIME_HINTS):
+        return ("模型「%s」是实时（WebSocket 流式）语音识别，本协议用不了它。"
+                "把「接口协议」改为「百炼实时（WebSocket）」（留自动识别也会"
+                "选中），或改用录音文件识别模型：公共百炼 qwen3-asr-flash、"
+                "硅基流动 FunAudioLLM/SenseVoiceSmall、OpenAI whisper-1" % model)
+    return ""
+
+
+def asr_protocol_of(ai_cfg=None):
+    """解析 ASR 服务模式当前应使用的接口协议。
+
+    显式协议直接用；auto 按 base_url 与模型名推断（与 tools\\ai_client.py
+    resolve_asr_protocol 同一套规则，这里独立实现避免依赖 ai_mod 失败）。
+    """
+    try:
+        ac = ai_mod().asr_config(ai_cfg or ai_load_config())
+        p = str(ac.get("protocol") or "auto").strip().lower()
+        if p in ("dashscope", "chat_audio"):
+            return "chat_audio"      # 历史键归一到 chat_audio（两者同一实现）
+        if p in ASR_PROTOCOLS and p != "auto":
+            return p
+        return _infer_asr_protocol(ac.get("base_url"), ac.get("model"))
+    except Exception:  # noqa: BLE001
+        pass
+    return "openai"
+
+
+def asr_examples(cfg=None):
+    """生成当前 ASR 配置对应的**非流式**调用示例（curl + Python）。
+
+    为什么要有它：设置页「测试 ASR 配置」失败时，或者要在别的程序 / 脚本里
+    集成同一套服务时，用户需要一条**自己能跑通**的命令，用来区分"是我程序
+    的问题"还是"密钥 / 账号 / 模型的问题"。示例里的请求与引擎 `_asr_*_submit`
+    一一对应（同一端点、同样的头与 body 形态），跑通它即等于验证了本程序。
+
+    密钥一律用环境变量占位，不把明文写进可复制文本。
+    返回 dict(protocol, title, curl, python, env, notes)。
+    """
+    try:
+        ac = ai_mod().asr_config(cfg or ai_load_config())
+    except Exception:  # noqa: BLE001
+        ac = {"mode": "service", "base_url": "", "model": "", "api_key": ""}
+    mode = str(ac.get("mode") or "service")
+    base = str(ac.get("base_url") or "").strip().rstrip("/")
+    model = str(ac.get("model") or "").strip()
+    proto = "local" if mode == "local" else asr_protocol_of(cfg)
+    notes = ["非流式：一次请求（或上传→提交→轮询）返回完整结果，"
+             "不是 WebSocket 实时流；实时模型（*realtime*）用不了这种调用。",
+             "示例与程序内实现一一对应：跑通它 = 这套密钥/地址/模型可用。"]
+
+    if proto == "local":
+        return {
+            "protocol": "local", "title": "本地 faster-whisper（不联网）",
+            "env": {},
+            "curl": "（本地模式不涉及 HTTP，没有 curl 示例）",
+            "python": "\n".join([
+                "from faster_whisper import WhisperModel",
+                "",
+                "model = WhisperModel(%r, device=\"auto\")   # 或模型目录" % (model or "large-v3"),
+                "segments, info = model.transcribe(\"audio.mp3\", language=\"zh\")",
+                "print(\"\".join(s.text for s in segments))",
+            ]),
+            "notes": notes + ["本地模型在本程序的「设置 → ASR 语音识别 → 本地独立模型」里配。"],
+        }
+
+    # ⚠️ 只给变量名与说明，**不把密钥明文写进可复制文本**（方便安全地
+    #    贴文档 / 发同事；也让示例本身不因换密钥而失效）
+    env = {"ASR_API_KEY": "设置页「ASR 密钥」里填的那个"}
+    title = {
+        "openai": "OpenAI Whisper 兼容", "azure": "Azure OpenAI",
+        "chat_audio": "Chat 音频转写（百炼 Qwen-ASR / 小米 MiMo 等）",
+        "dashscope": "Chat 音频转写（百炼 Qwen-ASR / 小米 MiMo 等）",
+        "deepgram": "Deepgram",
+        "elevenlabs": "ElevenLabs Scribe", "gemini": "Google Gemini",
+        "volcengine": "火山引擎（豆包）录音识别极速版",
+        "assemblyai": "AssemblyAI",
+    }.get(proto, proto)
+
+    if proto == "openai":
+        sd_base = asr_strip_endpoint_tail(base or "https://api.openai.com/v1",
+                                          "/audio/transcriptions",
+                                          "/audio/translations")
+        url = sd_base + "/audio/transcriptions"
+        mdl = model or "whisper-1"
+        curl = "\n".join([
+            'curl -X POST "%s" \\' % url,
+            '  -H "Authorization: Bearer $ASR_API_KEY" \\',
+            '  -F "file=@audio.mp3" \\',
+            '  -F "model=%s" \\' % mdl,
+            '  -F "response_format=verbose_json" \\',
+            '  -F "timestamp_granularities[]=word"',
+        ])
+        py = "\n".join([
+            "import os",
+            "from openai import OpenAI",
+            "",
+            "client = OpenAI(base_url=%r, api_key=os.environ[\"ASR_API_KEY\"])" % sd_base,
+            "with open(\"audio.mp3\", \"rb\") as f:",
+            "    r = client.audio.transcriptions.create(",
+            "        model=%r, file=f, response_format=\"verbose_json\",  # 非流式" % mdl,
+            "        timestamp_granularities=[\"word\"])",
+            "print(r.text)",
+        ])
+    elif proto == "azure":
+        res = base or "https://<你的资源名>.openai.azure.com"
+        dep = model or "<部署名>"
+        if "/openai/deployments/" in res:
+            url = res if res.lower().endswith("/audio/transcriptions") else \
+                res + "/audio/transcriptions"
+        else:
+            url = "%s/openai/deployments/%s/audio/transcriptions" % (res, dep)
+        if "api-version=" not in url:
+            url += "?api-version=2024-10-21"
+        curl = "\n".join([
+            'curl -X POST "%s" \\' % url,
+            '  -H "api-key: $ASR_API_KEY" \\',
+            '  -F "file=@audio.mp3" \\',
+            '  -F "response_format=verbose_json"',
+        ])
+        py = "\n".join([
+            "import os",
+            "from openai import AzureOpenAI",
+            "",
+            "client = AzureOpenAI(azure_endpoint=%r, api_key=os.environ[\"ASR_API_KEY\"],"
+            % res,
+            "                       api_version=\"2024-10-21\")",
+            "with open(\"audio.mp3\", \"rb\") as f:",
+            "    r = client.audio.transcriptions.create(",
+            "        model=%r, file=f, response_format=\"verbose_json\")   # 非流式" % dep,
+            "print(r.text)",
+        ])
+    elif proto in ("chat_audio", "dashscope"):
+        url = (base or "https://dashscope.aliyuncs.com/compatible-mode/v1") \
+            + "/chat/completions"
+        mdl = model or "qwen3-asr-flash"
+        # body 用 python 现造：base64 的引号嵌套交给 shell 太脆，
+        # 而且 base64 -w0 在 macOS 上不支持（GNU 专有参数）
+        _body = ("python -c \"import base64,json;b=base64.b64encode("
+                 "open('audio.mp3','rb').read()).decode();"
+                 "print(json.dumps({'model':'%s','messages':[{'role':'user',"
+                 "'content':[{'type':'input_audio','input_audio':{'data':"
+                 "'data:audio/mp3;base64,'+b}}]}],'stream':False}))\"" % mdl)
+        curl = "\n".join([
+            "BODY=$(%s)" % _body,
+            'curl -X POST "%s" \\' % url,
+            '  -H "Authorization: Bearer $ASR_API_KEY" \\',
+            '  -H "Content-Type: application/json" \\',
+            '  -d "$BODY"',
+        ])
+        py = "\n".join([
+            "import base64, os",
+            "from openai import OpenAI",
+            "",
+            "client = OpenAI(base_url=%r, api_key=os.environ[\"ASR_API_KEY\"])"
+            % (base or "https://dashscope.aliyuncs.com/compatible-mode/v1"),
+            "b64 = base64.b64encode(open(\"audio.mp3\", \"rb\").read()).decode()",
+            "r = client.chat.completions.create(          # 非流式",
+            "    model=%r," % mdl,
+            "    messages=[{\"role\": \"user\", \"content\": [",
+            "        {\"type\": \"input_audio\",",
+            "         \"input_audio\": {\"data\": \"data:audio/mp3;base64,\" + b64}}]}],",
+            "    stream=False)",
+            "print(r.choices[0].message.content)",
+        ])
+        notes.append("音频走 input_audio 的 **Data URL**（自带 MIME）；"
+                     "`stream=false` 才是非流式。")
+        if "xiaomimimo" in base.lower() or "mimo" in mdl.lower():
+            notes.append("小米 MiMo：ASR 也走 chat/completions（**没有** "
+                         "/audio/transcriptions 端点，别填成 OpenAI Whisper 那样），"
+                         "仅支持 mp3 / wav，返回纯文本（时间轴由本程序按句兜底）。")
+    elif proto == "deepgram":
+        b = base or "https://api.deepgram.com"
+        url = b if b.lower().endswith("/listen") else \
+            (b + "/listen" if b.lower().endswith("/v1") else b + "/v1/listen")
+        mdl = model or "nova-3"
+        curl = "\n".join([
+            'curl -X POST "%s?model=%s&smart_format=true&language=zh-CN" \\'
+            % (url, mdl),
+            '  -H "Authorization: Token $ASR_API_KEY" \\',
+            '  -H "Content-Type: audio/mp3" \\',
+            '  --data-binary @audio.mp3',
+        ])
+        py = "\n".join([
+            "import os",
+            "import requests      # 官方 SDK（deepgram-sdk）各版本写法差异较大，",
+            "                     # 这里给等价的裸 HTTP 版本，最稳",
+            "r = requests.post(",
+            "    %r," % (url + "?model=%s&smart_format=true&language=zh-CN" % mdl),
+            "    headers={\"Authorization\": \"Token \" + os.environ[\"ASR_API_KEY\"],",
+            "             \"Content-Type\": \"audio/mp3\"},",
+            "    data=open(\"audio.mp3\", \"rb\").read(),   # 原始字节，不是 multipart",
+            "    timeout=600)",
+            "j = r.json()[\"results\"][\"channels\"][0][\"alternatives\"][0]",
+            "print(j[\"transcript\"])",
+            "for w in j.get(\"words\", []):        # 词级时间轴（秒）",
+            "    print(w[\"start\"], w[\"end\"], w[\"word\"])",
+        ])
+        notes.append("鉴权头是 `Authorization: Token <key>`（不是 Bearer）；"
+                     "音频以原始字节放在 body 里。")
+    elif proto == "elevenlabs":
+        b = base or "https://api.elevenlabs.io"
+        url = b if b.lower().endswith("/speech-to-text") else b + "/v1/speech-to-text"
+        mdl = model or "scribe_v1"
+        curl = "\n".join([
+            'curl -X POST "%s" \\' % url,
+            '  -H "xi-api-key: $ASR_API_KEY" \\',
+            '  -F "model_id=%s" \\' % mdl,
+            '  -F "timestamps_granularity=word" \\',
+            '  -F "file=@audio.mp3"',
+        ])
+        py = "\n".join([
+            "import os",
+            "from elevenlabs.client import ElevenLabs",
+            "",
+            "client = ElevenLabs(api_key=os.environ[\"ASR_API_KEY\"])",
+            "with open(\"audio.mp3\", \"rb\") as f:",
+            "    r = client.speech_to_text.convert(        # 非流式",
+            "        model_id=%r, file=f, timestamps_granularity=\"word\")" % mdl,
+            "print(r.text)",
+        ])
+    elif proto == "gemini":
+        b = base or "https://generativelanguage.googleapis.com"
+        mdl = model or "gemini-2.5-flash"
+        url = "%s/v1beta/models/%s:generateContent" % (b, mdl)
+        _body = ("python -c \"import base64,json;b=base64.b64encode("
+                 "open('audio.mp3','rb').read()).decode();"
+                 "print(json.dumps({'contents':[{'parts':[{'inline_data':"
+                 "{'mime_type':'audio/mp3','data':b}},{'text':"
+                 "'请把这段音频逐字转写为文本，只输出转写内容。'}]}]}))\"")
+        curl = "\n".join([
+            "BODY=$(%s)" % _body,
+            'curl -X POST "%s" \\' % url,
+            '  -H "x-goog-api-key: $ASR_API_KEY" \\',
+            '  -H "Content-Type: application/json" \\',
+            '  -d "$BODY"',
+        ])
+        py = "\n".join([
+            "import base64, os",
+            "from google import genai            # pip install google-genai",
+            "",
+            "client = genai.Client(api_key=os.environ[\"ASR_API_KEY\"])",
+            "b64 = base64.b64encode(open(\"audio.mp3\", \"rb\").read()).decode()",
+            "r = client.models.generate_content(        # 非流式",
+            "    model=%r," % mdl,
+            "    contents=[{\"inline_data\": {\"mime_type\": \"audio/mp3\", \"data\": b64}},",
+            "              \"请把这段音频逐字转写为文本，只输出转写内容。\"])",
+            "print(r.text)",
+        ])
+        notes.append("Gemini 返回纯文本、没有时间轴；本程序按句切分后再按句长占比"
+                     "给出近似时间轴。")
+    elif proto == "volcengine":
+        url = (base or "https://openspeech.bytedance.com") + \
+            ("" if base.endswith("/recognize/flash")
+             else "/api/v3/auc/bigmodel/recognize/flash")
+        res_id = model or VOLC_DEFAULT_RESOURCE
+        env = {"VOLC_APP_ID": "控制台的 APP ID",
+               "VOLC_ACCESS_KEY": "控制台的 Access Token"}
+        _body = ("python -c \"import base64,json,os;b=base64.b64encode("
+                 "open('audio.mp3','rb').read()).decode();"
+                 "print(json.dumps({'user':{'uid':os.environ['VOLC_APP_ID']},"
+                 "'audio':{'data':b},'request':{'model_name':'bigmodel',"
+                 "'enable_punc':True,'show_utterances':True}}))\"")
+        curl = "\n".join([
+            "BODY=$(%s)" % _body,
+            'curl -X POST "%s" \\' % url,
+            '  -H "X-Api-App-Key: $VOLC_APP_ID" \\',
+            '  -H "X-Api-Access-Key: $VOLC_ACCESS_KEY" \\',
+            '  -H "X-Api-Resource-Id: %s" \\' % res_id,
+            '  -H "X-Api-Request-Id: $(uuidgen)" \\',
+            '  -H "X-Api-Sequence: -1" \\',
+            '  -H "Content-Type: application/json" \\',
+            '  -d "$BODY"',
+        ])
+        py = "\n".join([
+            "import base64, json, os, uuid",
+            "import requests        # 火山没有官方同步 Python SDK，这是等价实现",
+            "",
+            "r = requests.post(",
+            "    %r," % url,
+            "    headers={\"X-Api-App-Key\": os.environ[\"VOLC_APP_ID\"],",
+            "             \"X-Api-Access-Key\": os.environ[\"VOLC_ACCESS_KEY\"],",
+            "             \"X-Api-Resource-Id\": \"%s\"," % res_id,
+            "             \"X-Api-Request-Id\": str(uuid.uuid4()),",
+            "             \"X-Api-Sequence\": \"-1\",",
+            "             \"Content-Type\": \"application/json\"},",
+            "    data=json.dumps({\"user\": {\"uid\": os.environ[\"VOLC_APP_ID\"]},",
+            "                     \"audio\": {\"data\": base64.b64encode(",
+            "                         open(\"audio.mp3\", \"rb\").read()).decode()},",
+            "                     \"request\": {\"model_name\": \"bigmodel\",",
+            "                                 \"show_utterances\": True}}),",
+            "    timeout=600)",
+            "print(r.headers.get(\"X-Api-Status-Code\"))     # 20000000 = 成功（在响应头！）",
+            "print(r.json()[\"result\"][\"text\"])",
+        ])
+        notes.append("状态码在**响应头** `X-Api-Status-Code`（`20000000` 为成功）；"
+                     "新版控制台只有一个 API Key 时，把前两个头换成 "
+                     "`X-Api-Key: $ASR_API_KEY`。")
+    else:   # assemblyai
+        b = base or "https://api.assemblyai.com"
+        models = [x.strip() for x in (model or "").split(",") if x.strip()] \
+            or list(ASSEMBLYAI_DEFAULT_MODELS)
+        models_json = "[\"" + "\", \"".join(models) + "\"]"
+        curl = "\n".join([
+            "# 1) 上传本地文件（raw bytes，不是 multipart）",
+            'UP=$(curl -s -X POST "%s/v2/upload" \\' % b,
+            '  -H "authorization: $ASR_API_KEY" --data-binary @audio.mp3 | jq -r .upload_url)',
+            "# 2) 提交转写任务",
+            'ID=$(curl -s -X POST "%s/v2/transcript" \\' % b,
+            '  -H "authorization: $ASR_API_KEY" -H "content-type: application/json" \\',
+            "  -d '{\"audio_url\": \"'$UP'\", \"speech_models\": %s}' | jq -r .id)"
+            % models_json,
+            "# 3) 轮询到完成（非流式：结果一次性取回）",
+            'while :; do',
+            '  S=$(curl -s "%s/v2/transcript/$ID" -H "authorization: $ASR_API_KEY"' % b,
+            "        | jq -r .status)",
+            '  [ "$S" = "completed" ] && break; [ "$S" = "error" ] && break; sleep 3',
+            'done',
+            'curl -s "%s/v2/transcript/$ID" -H "authorization: $ASR_API_KEY" | jq -r .text' % b,
+        ])
+        py = "\n".join([
+            "import os",
+            "import assemblyai as aai           # pip install assemblyai",
+            "",
+            "aai.settings.api_key = os.environ[\"ASR_API_KEY\"]",
+            "cfg = aai.TranscriptionConfig(speech_models=%r, language_detection=True)"
+            % models,
+            "t = aai.Transcriber().transcribe(\"audio.mp3\", config=cfg)   # 阻塞到完成",
+            "print(t.text)",
+            "for w in (t.words or []):          # 词级时间轴（毫秒）",
+            "    print(w.start, w.end, w.text)",
+        ])
+        notes.append("鉴权头是 `authorization: <key>`（**不带 Bearer**）；"
+                     "`speech_models` 必填（官方无默认值）；词级时间轴单位是**毫秒**。"
+                     "curl 示例用到 jq（Windows 上直接看 Python 版即可）。")
+
+    return {"protocol": proto, "title": title, "curl": curl, "python": py,
+            "env": env, "notes": notes}
+
+
+def asr_examples_text(cfg=None):
+    """把 asr_examples() 拼成一份可直接给人看 / 另存的纯文本。"""
+    ex = asr_examples(cfg)
+    out = ["# %s（协议：%s）" % (ex["title"], ex["protocol"]), ""]
+    if ex.get("env"):
+        out.append("# 先设置环境变量：")
+        for k, note in ex["env"].items():
+            out.append("#   export %s='%s'" % (k, note))
+        out.append("")
+    out += ["# ---- curl（非流式）----", ex["curl"], "",
+            "# ---- Python（非流式）----", ex["python"], "", "# 说明"]
+    out += ["#  · " + n for n in ex.get("notes", [])]
+    return "\n".join(out)
+
+
+def _asr_audio_format(data: bytes) -> str:
+    """按魔数识别音频容器（DashScope input_audio 需要显式 format）。"""
+    head = bytes(data[:16]) if data else b""
+    if head.startswith(b"RIFF") and head[8:12] == b"WAVE":
+        return "wav"
+    if head.startswith(b"ID3") or (len(head) > 2 and head[0] == 0xFF
+                                   and (head[1] & 0xE0) == 0xE0):
+        return "mp3"
+    if head.startswith(b"OggS"):
+        return "ogg"
+    if head.startswith(b"fLaC"):
+        return "flac"
+    return "mp3"
+
+
+def _asr_text_to_segments(text, duration_sec):
+    """把无时间戳的纯文本识别结果按句切分并按时长占比分配时间轴。
+
+    返回与引擎 WhisperAPI._make_segments 兼容的
+    [{"text":…, "start":秒, "end":秒}, …]；文本为空返回空表。
+    """
+    import re
+    text = str(text or "").strip()
+    if not text:
+        return []
+    # 先按句末标点/换行切句，再把超长句按逗号级标点二次切
+    pieces = [p for p in re.split(r"(?<=[。！？!?；;…])\s*|\n+", text) if p.strip()]
+    refined = []
+    for p in pieces:
+        p = p.strip()
+        if len(p) > 42:
+            parts = [q for q in re.split(r"(?<=[，,、])", p) if q.strip()]
+        else:
+            parts = [p]
+        refined.extend(parts)
+    if not refined:
+        refined = [text]
+    weights = [max(len(s), 1) for s in refined]
+    total = float(sum(weights))
+    dur_ms = max(int(float(duration_sec or 0) * 1000), 1000)
+    segs, t = [], 0
+    for s, w in zip(refined, weights):
+        d = int(dur_ms * w / total)
+        segs.append({"text": s, "start": round(t / 1000.0, 3),
+                     "end": round((t + d) / 1000.0, 3)})
+        t += d
+    if segs:
+        segs[-1]["end"] = round(dur_ms / 1000.0, 3)
+    return segs
+
+
+def _asr_is_cjk(ch):
+    return bool(ch) and ord(ch) > 0x2E7F
+
+
+def _asr_join_words(tokens):
+    """拼词成句：中文之间不加空格，拉丁词之间加。"""
+    out = ""
+    for t in tokens:
+        if out and not _asr_is_cjk(out[-1]) and not _asr_is_cjk(t[:1]):
+            out += " "
+        out += t
+    return out
+
+
+def _asr_is_sentence_end(tok):
+    """词尾是否句末（词级 ASR 的 punctuated_word 会带标点）。
+
+    英文句点一律算句末 —— **不需要**给小数开特例：词级结果不会把 `3.5`
+    切成 `3.` + `5`（`3.5` 的末位是 `5`，本来就落不进句点分支）。
+    """
+    if not tok:
+        return False
+    return tok[-1] in "。！？!?；;…."
+
+
+def _asr_words_to_segments(words, max_gap=0.9, max_chars=42):
+    """词级时间轴 → 句级 segments（Deepgram / ElevenLabs 用）。
+
+    断句三条件：句末标点、停顿超过 max_gap 秒、当前句超长。这样拿到的是
+    **原生时间轴**，比"按句时长占比猜"准得多。
+    """
+    segs, cur, start, end = [], [], None, None
+    for w in words or []:
+        tok = str(w.get("word") or w.get("text") or "").strip()
+        if not tok:
+            continue
+        try:
+            s = float(w.get("start") or 0)
+            e = float(w.get("end") or s)
+        except (TypeError, ValueError):
+            continue
+        if cur and (s - (end if end is not None else s) > max_gap
+                    or sum(len(x) for x in cur) >= max_chars):
+            segs.append({"text": _asr_join_words(cur),
+                         "start": round(start or 0, 3),
+                         "end": round(end if end is not None else s, 3)})
+            cur, start = [], None
+        if start is None:
+            start = s
+        cur.append(tok)
+        end = e
+        if _asr_is_sentence_end(tok):
+            segs.append({"text": _asr_join_words(cur),
+                         "start": round(start, 3), "end": round(end, 3)})
+            cur, start = [], None
+    if cur:
+        segs.append({"text": _asr_join_words(cur),
+                     "start": round(start or 0, 3), "end": round(end or 0, 3)})
+    return segs
+
+
+def _asr_words_response(text, words):
+    """统一成 {text, segments, words}：引擎两条消费路径（句级 / 词级）都能吃。"""
+    clean = []
+    for w in words or []:
+        tok = str(w.get("word") or w.get("text") or "").strip()
+        if not tok:
+            continue
+        try:
+            s = float(w.get("start") or 0)
+            e = float(w.get("end") or s)
+        except (TypeError, ValueError):
+            continue
+        clean.append({"word": tok, "start": s, "end": e})
+    out = {"text": str(text or ""), "segments": _asr_words_to_segments(clean)}
+    if clean:
+        out["words"] = clean
+    return out
+
+
+def _asr_err_hint(resp):
+    """把 HTTP 错误响应转成"能照着修"的提示（密钥 / 模型名 / 其它）。"""
+    text = ""
+    try:
+        text = (resp.text or "")[:300]
+    except Exception:  # noqa: BLE001
+        pass
+    low = text.lower()
+    if resp.status_code in (401, 403):
+        return ("HTTP %d（密钥被拒：确认密钥属于这个服务/实例，并且在设置页按过"
+                "「保存并应用」）: %s" % (resp.status_code, text))
+    if ("invalidparameter" in low or "invalid parameter" in low
+            or "model not" in low or "unsupported" in low):
+        return ("HTTP %d（参数或模型名不被该端点支持——注意实时（realtime）"
+                "模型不能一次性上传调用）: %s" % (resp.status_code, text))
+    return "HTTP %d: %s" % (resp.status_code, text)
+
+
+def _asr_normalize_resp(resp, asr_obj):
+    """把各协议响应归一成引擎 _make_segments 可解析的 dict。
+
+    已含 segments/words（带原生时间轴）→ 原样返回；纯文本/仅 text →
+    按句切分 + 时长占比生成近似时间轴（无时间戳协议的兜底）。
+    """
+    if isinstance(resp, dict) and ("segments" in resp or "words" in resp):
+        return resp
+    if isinstance(resp, dict):
+        text = str(resp.get("text") or "")
+    else:
+        text = str(resp or "")
+    return {"text": text,
+            "segments": _asr_text_to_segments(text, getattr(asr_obj,
+                                                            "audio_duration",
+                                                            0))}
+
+
+def _asr_azure_submit(asr_obj):
+    """Azure OpenAI 语音转文字：POST …/deployments/<部署>/audio/transcriptions。
+
+    地址允许填资源根或填到 deployments/<部署名>（自动补齐路径与 api-version），
+    鉴权用 api-key 头（与 LLM 的 Azure 适配同一套约定）。
+    """
+    import requests
+    base = (asr_obj.base_url or "").strip().rstrip("/")
+    model = (asr_obj.model or "").strip()
+    if "/openai/deployments/" not in base.lower():
+        base = f"{base}/openai/deployments/{model}" if model else \
+            f"{base}/openai/deployments"
+    low = base.lower()
+    if not low.endswith("/audio/transcriptions"):
+        base = base + "/audio/transcriptions"
+    if "api-version=" not in base:
+        base = f"{base}{'&' if '?' in base else '?'}api-version=2024-10-21"
+    fmt = _asr_audio_format(asr_obj.file_binary or b"")
+    form = {"response_format": "verbose_json"}
+    if asr_obj.language:
+        form["language"] = asr_obj.language
+    if asr_obj.prompt:
+        form["prompt"] = asr_obj.prompt
+    r = requests.post(
+        base, headers={"api-key": asr_obj.api_key}, data=form,
+        files={"file": (f"audio.{fmt}", asr_obj.file_binary or b"",
+                        f"audio/{fmt}")},
+        timeout=300)
+    if r.status_code != 200:
+        raise RuntimeError(f"Azure ASR HTTP {r.status_code}: {r.text[:200]}")
+    try:
+        return r.json()
+    except ValueError:
+        return {"text": r.text}
+
+
+def _asr_chat_audio_submit(asr_obj):
+    """Chat 音频转写（OpenAI 兼容 chat/completions + input_audio）：
+
+    POST {base}/chat/completions，音频以 input_audio 进多模态 messages。
+    这一族目前包括：**阿里云百炼** Qwen-ASR（qwen3-asr-flash / qwen-audio-asr，
+    含 maas 专属实例）、**小米 MiMo**（mimo-v2.5-asr）。
+
+    ⚠️ `data` 必须是 **Data URL**（`data:audio/mp3;base64,…`）：两家官方示例
+    都是这个形态，它自带 MIME、不必再给 format；只发裸 base64 会被判成无效
+    音频。⚠️ 这些服务**没有** `/audio/transcriptions` 端点，别按 openai 协议调。
+    ⚠️ 音频格式支持有限（百炼/MiMo 都主打 mp3、wav），其它容器请先转码。
+    """
+    import base64
+    import requests
+    base = (asr_obj.base_url or "").strip().rstrip("/")
+    if not base.lower().endswith("/chat/completions"):
+        base = base + "/chat/completions"
+    fmt = _asr_audio_format(asr_obj.file_binary or b"")
+    b64 = base64.b64encode(asr_obj.file_binary or b"").decode("ascii")
+    content = [{"type": "input_audio",
+                "input_audio": {"data": "data:audio/%s;base64,%s" % (fmt, b64)}}]
+    if asr_obj.prompt:
+        content.append({"type": "text", "text": asr_obj.prompt})
+    body = {"model": asr_obj.model,
+            "messages": [{"role": "user", "content": content}],
+            "stream": False}
+    lang = str(getattr(asr_obj, "language", "") or "").strip()
+    if lang and lang not in ("auto", "zh"):
+        body["asr_options"] = {"language": lang}
+    r = requests.post(
+        base, json=body,
+        headers={"Authorization": "Bearer " + asr_obj.api_key,
+                 "Content-Type": "application/json"},
+        timeout=600)
+    if r.status_code != 200:
+        raise RuntimeError("ASR 服务 " + _asr_err_hint(r))
+    try:
+        data = r.json()
+        cont = data["choices"][0]["message"].get("content")
+        if isinstance(cont, list):        # 多模态响应可能是 [{text:…}]
+            cont = "".join(str(x.get("text") or "") for x in cont
+                           if isinstance(x, dict))
+        return str(cont or "")
+    except (ValueError, KeyError, IndexError, TypeError) as e:
+        raise RuntimeError(f"ASR 响应格式无法解析：{e}; body={r.text[:200]}")
+
+
+#: 历史名（可能出现在旧配置 / 日志 / 自检里）：两个名字指同一实现
+_asr_dashscope_submit = _asr_chat_audio_submit
+
+
+def _asr_deepgram_submit(asr_obj):
+    """Deepgram 预录音频识别：POST {base}/v1/listen，原始音频字节 + Token 头。
+
+    地址允许填 https://api.deepgram.com 或填到 /v1（自动补 /listen）。
+    响应带词级时间轴（results.channels[0].alternatives[0].words），
+    这里聚合成句级 segments 交给引擎。
+    """
+    import requests
+    b = (asr_obj.base_url or "").strip().rstrip("/") or "https://api.deepgram.com"
+    low = b.lower()
+    if low.endswith("/listen"):
+        url = b
+    elif low.endswith("/v1"):
+        url = b + "/listen"
+    else:
+        url = b + "/v1/listen"
+    fmt = _asr_audio_format(asr_obj.file_binary or b"")
+    params = {"model": (asr_obj.model or "nova-3"),
+              "smart_format": "true", "punctuate": "true"}
+    lang = str(getattr(asr_obj, "language", "") or "").strip()
+    if lang and lang not in ("auto", "zh"):
+        params["language"] = lang
+    elif lang == "zh":
+        params["language"] = "zh-CN"
+    r = requests.post(
+        url, params=params, data=asr_obj.file_binary or b"",
+        headers={"Authorization": "Token " + asr_obj.api_key,
+                 "Content-Type": "audio/%s" % fmt},
+        timeout=600)
+    if r.status_code != 200:
+        raise RuntimeError("ASR 服务 " + _asr_err_hint(r))
+    try:
+        alt = r.json()["results"]["channels"][0]["alternatives"][0]
+    except (ValueError, KeyError, IndexError, TypeError) as e:
+        raise RuntimeError(f"ASR 响应格式无法解析：{e}; body={r.text[:200]}")
+    return _asr_words_response(
+        alt.get("transcript") or "",
+        [{"word": w.get("punctuated_word") or w.get("word"),
+          "start": w.get("start"), "end": w.get("end")}
+         for w in (alt.get("words") or [])])
+
+
+def _asr_elevenlabs_submit(asr_obj):
+    """ElevenLabs Scribe：POST {base}/v1/speech-to-text（multipart + xi-api-key）。
+
+    响应 {text, words:[{text,start,end}], language_code} —— 同样聚合成句级。
+    """
+    import requests
+    b = (asr_obj.base_url or "").strip().rstrip("/") or "https://api.elevenlabs.io"
+    url = b if b.lower().endswith("/speech-to-text") else b + "/v1/speech-to-text"
+    fmt = _asr_audio_format(asr_obj.file_binary or b"")
+    form = {"model_id": (asr_obj.model or "scribe_v1"),
+            "timestamps_granularity": "word"}
+    lang = str(getattr(asr_obj, "language", "") or "").strip()
+    if lang and lang not in ("auto", "zh"):
+        form["language_code"] = lang
+    r = requests.post(
+        url, data=form,
+        files={"file": ("audio.%s" % fmt, asr_obj.file_binary or b"",
+                        "audio/%s" % fmt)},
+        headers={"xi-api-key": asr_obj.api_key},
+        timeout=600)
+    if r.status_code != 200:
+        raise RuntimeError("ASR 服务 " + _asr_err_hint(r))
+    try:
+        data = r.json()
+    except ValueError as e:
+        raise RuntimeError(f"ASR 响应格式无法解析：{e}; body={r.text[:200]}")
+    return _asr_words_response(
+        data.get("text") or "",
+        [{"word": w.get("text") or w.get("word"),
+          "start": w.get("start"), "end": w.get("end")}
+         for w in (data.get("words") or [])])
+
+
+def _asr_gemini_submit(asr_obj):
+    """Google Gemini 多模态音频理解：POST models/<model>:generateContent。
+
+    返回纯文本（无时间轴），由 _asr_normalize_resp 按句切分兜底；提示词优先
+    用用户填的「识别提示词」，没填就给一句"逐字转写"的指令。
+    """
+    import base64
+    import requests
+    b = (asr_obj.base_url or "").strip().rstrip("/") \
+        or "https://generativelanguage.googleapis.com"
+    model = (asr_obj.model or "gemini-2.5-flash").strip()
+    url = "%s/v1beta/models/%s:generateContent" % (b, model)
+    fmt = _asr_audio_format(asr_obj.file_binary or b"")
+    b64 = base64.b64encode(asr_obj.file_binary or b"").decode("ascii")
+    instruction = (getattr(asr_obj, "prompt", "") or "").strip() \
+        or "请把这段音频逐字转写为文本，只输出转写内容，不要加解释或标注。"
+    body = {"contents": [{"parts": [
+        {"inline_data": {"mime_type": "audio/%s" % fmt, "data": b64}},
+        {"text": instruction}]}]}
+    r = requests.post(url, json=body,
+                      headers={"x-goog-api-key": asr_obj.api_key,
+                               "Content-Type": "application/json"},
+                      timeout=600)
+    if r.status_code != 200:
+        raise RuntimeError("ASR 服务 " + _asr_err_hint(r))
+    try:
+        parts = r.json()["candidates"][0]["content"]["parts"]
+        return "".join(str(p.get("text") or "") for p in parts)
+    except (ValueError, KeyError, IndexError, TypeError) as e:
+        raise RuntimeError(f"ASR 响应格式无法解析：{e}; body={r.text[:200]}")
+
+
+#: 火山（豆包）录音识别极速版默认资源 ID
+VOLC_DEFAULT_RESOURCE = "volc.bigasr.auc_turbo"
+
+#: AssemblyAI 默认模型（官方的 speech_models 必填，没有默认值）
+ASSEMBLYAI_DEFAULT_MODELS = ("universal-3-pro", "universal-2")
+
+
+def _asr_volcengine_submit(asr_obj):
+    """火山引擎（豆包）录音文件识别**极速版**：一次请求即返回，无需轮询。
+
+    鉴权两种形态都吃（零配置改动）：
+      · 新版控制台：`api_key` 填 API Key → 走 `X-Api-Key`；
+      · 旧版控制台：`api_key` 填 `APPID:AccessToken`（冒号分隔）→ 走
+        `X-Api-App-Key` + `X-Api-Access-Key`。
+    `model` 填 Resource ID（默认 `volc.bigasr.auc_turbo`）。
+    ⚠️ 状态码在**响应头** `X-Api-Status-Code`（`20000000` = OK），不在 body；
+    `show_utterances=true` 才有时间轴（毫秒 → 秒）。
+    """
+    import base64
+    import json
+    import uuid
+    import requests
+    base = (asr_obj.base_url or "").strip().rstrip("/") \
+        or "https://openspeech.bytedance.com"
+    url = base if base.endswith("/recognize/flash") else \
+        base + "/api/v3/auc/bigmodel/recognize/flash"
+    key = str(asr_obj.api_key or "")
+    headers = {"Content-Type": "application/json",
+               "X-Api-Resource-Id": (asr_obj.model or VOLC_DEFAULT_RESOURCE),
+               "X-Api-Request-Id": str(uuid.uuid4()),
+               "X-Api-Sequence": "-1"}
+    uid = ""
+    if ":" in key:
+        uid, _, acc = key.partition(":")
+        headers["X-Api-App-Key"] = uid.strip()
+        headers["X-Api-Access-Key"] = acc.strip()
+    else:
+        headers["X-Api-Key"] = key
+    body = {"user": {"uid": uid or key},
+            "audio": {"data": base64.b64encode(
+                asr_obj.file_binary or b"").decode("ascii")},
+            "request": {"model_name": "bigmodel", "enable_itn": True,
+                        "enable_punc": True, "show_utterances": True}}
+    lang = str(getattr(asr_obj, "language", "") or "").strip()
+    if lang and lang not in ("auto", "zh"):
+        body["request"]["language"] = lang
+    r = requests.post(url, data=json.dumps(body, ensure_ascii=False),
+                      headers=headers, timeout=600)
+    code = r.headers.get("X-Api-Status-Code", "")
+    if r.status_code != 200 or (code and code != "20000000"):
+        raise RuntimeError("ASR 服务 " + _asr_err_hint(r)
+                           + "（X-Api-Status-Code=%s %s）"
+                           % (code or r.status_code,
+                              r.headers.get("X-Api-Message", "")))
+    try:
+        res = (r.json() or {}).get("result") or {}
+    except ValueError as e:
+        raise RuntimeError(f"ASR 响应格式无法解析：{e}; body={r.text[:200]}")
+    utts = res.get("utterances") or []
+    ms = 1000.0
+    if any(u.get("words") for u in utts):
+        words = []
+        for u in utts:
+            for w in u.get("words") or []:
+                words.append({
+                    "word": w.get("text"),
+                    "start": float(w.get("start_time") or 0) / ms,
+                    "end": float(w.get("end_time") or 0) / ms})
+        return _asr_words_response(res.get("text") or "", words)
+    if utts:
+        segs = [{"text": (u.get("text") or "").strip(),
+                 "start": round(float(u.get("start_time") or 0) / ms, 3),
+                 "end": round(float(u.get("end_time") or 0) / ms, 3)}
+                for u in utts if (u.get("text") or "").strip()]
+        return {"text": res.get("text") or "", "segments": segs}
+    return res.get("text") or ""
+
+
+def _asr_assemblyai_submit(asr_obj):
+    """AssemblyAI：上传本地文件 → 提交任务 → 轮询结果（三步，异步）。
+
+    ⚠️ 三个易错点：鉴权头是 `Authorization: <key>`（**没有 Bearer 前缀**）；
+    `speech_models` 必填（不填直接报错，官方没有默认值）；词级时间轴单位是
+    **毫秒**（别当秒用）。`model` 支持逗号分隔多个模型做回退。
+    """
+    import time
+    import requests
+    base = asr_strip_endpoint_tail(asr_obj.base_url, "/v2/upload",
+                                   "/v2/transcript") \
+        or "https://api.assemblyai.com"
+    headers = {"authorization": str(asr_obj.api_key or "").strip()}
+    # 1) 上传：必须是 raw bytes（不发 multipart，否则下游 Transcoding failed）
+    up = requests.post(base + "/v2/upload", data=asr_obj.file_binary or b"",
+                       headers=headers, timeout=600)
+    if up.status_code != 200:
+        raise RuntimeError("ASR 服务 上传失败 " + _asr_err_hint(up))
+    try:
+        audio_url = up.json()["upload_url"]
+    except (ValueError, KeyError, TypeError) as e:
+        raise RuntimeError(f"上传响应异常：{e}; body={up.text[:200]}")
+    # 2) 提交
+    models = [m.strip() for m in str(asr_obj.model or "").split(",")
+              if m.strip()] or list(ASSEMBLYAI_DEFAULT_MODELS)
+    payload = {"audio_url": audio_url, "speech_models": models}
+    lang = str(getattr(asr_obj, "language", "") or "").strip()
+    if lang and lang not in ("auto", "zh"):
+        payload["language_code"] = lang
+    else:
+        payload["language_detection"] = True
+    if getattr(asr_obj, "prompt", ""):
+        payload["prompt"] = asr_obj.prompt
+    sub = requests.post(base + "/v2/transcript", json=payload, headers=headers,
+                        timeout=120)
+    if sub.status_code != 200:
+        raise RuntimeError("ASR 服务 " + _asr_err_hint(sub))
+    try:
+        tid = (sub.json() or {}).get("id")
+    except ValueError as e:
+        raise RuntimeError(f"提交响应异常：{e}; body={sub.text[:200]}")
+    if not tid:
+        raise RuntimeError("提交未返回 transcript id：%s" % sub.text[:200])
+    # 3) 轮询（官方建议 3 秒一次；20 分钟上限，避免任务卡死时无限等）
+    url = base + "/v2/transcript/" + str(tid)
+    for _ in range(400):
+        time.sleep(3)
+        got = requests.get(url, headers=headers, timeout=60)
+        if got.status_code != 200:
+            raise RuntimeError("ASR 服务 查询失败 " + _asr_err_hint(got))
+        data = got.json() or {}
+        state = data.get("status")
+        if state == "completed":
+            words = [{"word": w.get("text"),
+                      "start": float(w.get("start") or 0) / 1000.0,
+                      "end": float(w.get("end") or 0) / 1000.0}
+                     for w in (data.get("words") or [])]
+            if words:
+                return _asr_words_response(data.get("text") or "", words)
+            return data.get("text") or ""
+        if state == "error":
+            raise RuntimeError("ASR 任务失败：" + str(data.get("error"))[:200])
+    raise RuntimeError("ASR 任务超时（轮询 20 分钟仍未完成）")
+
+
+def _asr_ws_url(base_url):
+    """从「接口地址」推导百炼实时 ASR 的 WebSocket 端点。
+
+    · 留空 / dashscope 公共 → wss://dashscope.aliyuncs.com/api-ws/v1/inference/
+    · 专属实例（https://xxx.cn-beijing.maas.aliyuncs.com/…）→ 同域名换 wss，
+      API 路径与公共端点一致（/api-ws/v1/inference/）
+    · 用户直接填 wss://… → 尊重原样，只在缺路径时补 /api-ws/v1/inference/
+    """
+    b = str(base_url or "").strip().rstrip("/")
+    if not b:
+        return "wss://dashscope.aliyuncs.com/api-ws/v1/inference/"
+    if b.lower().startswith(("wss://", "ws://")):
+        low = b.lower()
+        if low.endswith("/inference/"):
+            return b
+        if low.endswith("/inference"):
+            return b + "/"
+        return b + "/api-ws/v1/inference/"
+    if b.lower().startswith("https://"):
+        host = b[8:]
+    elif b.lower().startswith("http://"):
+        host = b[7:]
+    else:
+        host = b
+    host = host.strip("/")
+    if "/" in host:                       # 只取域名，路径一律换成 API 路径
+        host = host.split("/", 1)[0]
+    return "wss://%s/api-ws/v1/inference/" % host
+
+
+#: 实时 ASR 的音频帧大小。官方示例按 100ms/3200 字节（16k/16bit）模拟实时，
+#: 但批量转录要的是"尽快灌完"——64KB 一帧不 sleep，一小时音频几十秒发完；
+#: 服务端按到达顺序处理，不需要对齐真实时间。
+ASR_WS_FRAME_BYTES = 65536
+
+#: 实时 ASR 推流倍速（相对 16bit 单声道 PCM 的实时字节率）。
+#: ⚠️ 全速灌发实测会被服务端掐断连接（Connection to remote host was lost）：
+#: 实时识别服务端按流式消费音频，输入速率远超实时会撑爆内部缓冲。默认
+#: 20 倍速折中（6 分钟音频约 19 秒灌完）；VT_ASR_WS_SPEED 可调，最小 1 倍。
+ASR_WS_SPEED = max(float(os.environ.get("VT_ASR_WS_SPEED") or 20), 1.0)
+
+
+def _asr_collect_sentence(msg, segments, texts):
+    """把 result-generated 里的句子收进 segments（毫秒 → 秒）。
+
+    实时流里同一句会先来"中间态"（end_time 为空、文本逐渐变长），说完才有
+    带 begin/end 的最终事件 —— 只收**有终点的**，天然去重。
+    """
+    out = (msg.get("payload") or {}).get("output") or {}
+    sent = out.get("sentence") or {}
+    text = str(sent.get("text") or "").strip()
+    if not text:
+        return
+    texts.append(text)
+    b, e = sent.get("begin_time"), sent.get("end_time")
+    if b is None or e is None:
+        return                            # 句子还没说完，等最终事件
+    try:
+        b, e = float(b) / 1000.0, float(e) / 1000.0
+    except (TypeError, ValueError):
+        return
+    if e > b:
+        segments.append({"text": text, "start": round(b, 3),
+                         "end": round(e, 3)})
+
+
+def _asr_ws_prepare_audio(blob, model):
+    """8k 专版模型 → ffmpeg 重采样为 8kHz 单声道 wav；其它模型原样返回。
+
+    引擎提取音频固定 16kHz（video2audio `-ar 16000`），而
+    fun-asr-flash-8k-realtime 等 8k 电话音专版模型**只收 8kHz**——16k 音频
+    直接发过去服务端会异常断连（Connection to remote host was lost）。
+    ffmpeg 不可用或转码失败时按原样返回，让服务端回具体错误码。
+    """
+    if "8k" not in str(model or "").lower():
+        return blob, 16000
+    if blob[:4] == b"RIFF" and blob[8:12] == b"WAVE":
+        try:
+            if int.from_bytes(blob[24:28], "little") == 8000:
+                return blob, 8000              # 已是 8k wav，免转
+        except Exception:  # noqa: BLE001
+            pass
+    try:
+        ffmpeg, _ = ensure_ffmpeg()
+    except Exception:  # noqa: BLE001
+        ffmpeg = ""
+    if not ffmpeg or not blob:
+        return blob, 16000
+    import subprocess as _sp
+    import tempfile as _tf
+    src = dst = ""
+    try:
+        with _tf.NamedTemporaryFile(suffix=".wav", delete=False) as tf:
+            tf.write(blob)
+            src = tf.name
+        dst = src + ".8k.wav"
+        _sp.run([ffmpeg, "-y", "-i", src, "-vn", "-ac", "1", "-ar", "8000", dst],
+                capture_output=True, check=True,
+                creationflags=getattr(_sp, "CREATE_NO_WINDOW", 0) if os.name == "nt" else 0)
+        with open(dst, "rb") as f:
+            out = f.read()
+        return (out or blob, 8000) if out else (blob, 16000)
+    except Exception:  # noqa: BLE001
+        return blob, 16000
+    finally:
+        for p in (src, dst):
+            if p:
+                try:
+                    os.unlink(p)
+                except OSError:
+                    pass
+
+
+def _asr_dashscope_realtime_submit(asr_obj):
+    """DashScope 实时语音识别（WebSocket，协议见官方「实时语音识别 API」）。
+
+    覆盖**只有实时形态**的模型：fun-asr-flash-8k-realtime / fun-asr-realtime /
+    qwen3-asr-flash-realtime（官方模型表标注「模式=即时、API=WebSocket」，
+    compatible-mode 的 chat/completions 与 /audio/transcriptions 都调不了它们）。
+
+    交互时序：run-task → task-started → 二进制音频帧 → finish-task →
+    result-generated… → task-finished。要点：
+      · 握手鉴权 `Authorization: Bearer <key>`，密钥无效直接握手失败；
+      · result-generated 的 `payload.output.sentence` 带 begin/end（毫秒），
+        即实时模型也有**原生时间轴**，聚合成句级 segments；
+      · 60 秒无消息服务端会断连 —— 推帧循环不会空闲，finish 后服务端继续
+        推结果，不受影响；
+      · 推帧按 ASR_WS_SPEED 倍速限速（全速灌发会被服务端断连）；
+      · 8k 专版模型自动把 16k 音频重采样为 8kHz（_asr_ws_prepare_audio）；
+      · 断连/超时自动重试 1 次；task-failed（参数/模型错误）不重试。
+    """
+    import json as _json
+    import time as _time
+    import uuid as _uuid
+
+    try:
+        import websocket                     # websocket-client
+    except ImportError as e:
+        raise RuntimeError("实时协议缺少依赖 websocket-client，"
+                           "请先安装：pip install websocket-client") from e
+
+    url = _asr_ws_url(getattr(asr_obj, "base_url", ""))
+    key = str(getattr(asr_obj, "api_key", "") or "").strip()
+    lang = str(getattr(asr_obj, "language", "") or "").strip()
+    blob, sample_rate = _asr_ws_prepare_audio(
+        asr_obj.file_binary or b"", getattr(asr_obj, "model", ""))
+    fmt = _asr_audio_format(blob)
+    params = {"sample_rate": sample_rate, "format": fmt}
+    if lang and lang not in ("auto", "zh"):
+        params["language"] = lang
+
+    # 推帧节奏：按 16bit 单声道 PCM 字节率折算每帧"音频时长"，倍速发送
+    frame_gap = ASR_WS_FRAME_BYTES / (2.0 * max(sample_rate, 1)) / ASR_WS_SPEED
+
+    class _Transient(Exception):
+        """瞬态错误（断连/超时）——值得整段重发一次。"""
+
+    def _recv_until(ws, want, deadline, segments, texts):
+        """收事件直到 want；途中的 result-generated 顺路收集。"""
+        while _time.monotonic() < deadline:
+            try:
+                raw = ws.recv()
+            except Exception as e:  # noqa: BLE001
+                raise _Transient("实时 ASR 连接中断：%s" % e)
+            if not raw or isinstance(raw, bytes):
+                continue
+            try:
+                msg = _json.loads(raw)
+            except ValueError:
+                continue
+            header = msg.get("header") or {}
+            event = str(header.get("event") or "")
+            if event == "result-generated":
+                _asr_collect_sentence(msg, segments, texts)
+            elif event == "task-failed":
+                # 参数/模型/密钥类错误，重试也不会好 → 直接抛
+                raise RuntimeError("实时 ASR 任务失败：%s %s"
+                                   % (header.get("error_code"),
+                                      header.get("error_message")))
+            elif event == want:
+                return
+        raise _Transient("实时 ASR 等待 %s 超时" % want)
+
+    def _run_once():
+        try:
+            ws = websocket.create_connection(
+                url, timeout=60,
+                header={"Authorization": "Bearer " + key,
+                        "user-agent": "VideoToolbox-ASR"})
+        except Exception as e:  # noqa: BLE001
+            raise _Transient("实时 ASR 连接失败（%s）——密钥无效时握手会直接"
+                             "被拒（HTTP 401/403）：%s" % (url, e))
+        segments, texts = [], []
+        task_id = _uuid.uuid4().hex[:32]     # 每次尝试新 task_id（服务端要求唯一）
+        try:
+            deadline = _time.monotonic() + 30 * 60      # 整体上限 30 分钟
+            ws.send(_json.dumps({
+                "header": {"action": "run-task", "task_id": task_id,
+                           "streaming": "duplex"},
+                "payload": {"task_group": "audio", "task": "asr",
+                            "function": "recognition", "model": asr_obj.model,
+                            "parameters": params, "input": {}}}))
+            _recv_until(ws, "task-started", deadline, segments, texts)
+            for i, off in enumerate(range(0, len(blob), ASR_WS_FRAME_BYTES)):
+                if i and frame_gap > 0:
+                    _time.sleep(frame_gap)              # 限速：防服务端断连
+                ws.send(blob[off:off + ASR_WS_FRAME_BYTES])   # 二进制帧=原始音频
+            ws.send(_json.dumps({"header": {"action": "finish-task",
+                                            "task_id": task_id,
+                                            "streaming": "duplex"},
+                                 "payload": {"input": {}}}))
+            _recv_until(ws, "task-finished", deadline, segments, texts)
+        finally:
+            try:
+                ws.close()
+            except Exception:  # noqa: BLE001
+                pass
+        return segments, texts
+
+    segments = texts = None
+    for attempt in (1, 2):
+        try:
+            segments, texts = _run_once()
+            break
+        except _Transient as e:
+            if attempt == 1:
+                _time.sleep(2)                          # 稍候重发整段
+            else:
+                hint = ""
+                if "8k" in str(getattr(asr_obj, "model", "") or "").lower():
+                    hint = ("；模型是 8k 电话音专版，已自动重采样为 8kHz 仍中断，"
+                            "多为网络/服务端问题，可改用 16k 模型"
+                            " fun-asr-flash-realtime")
+                raise RuntimeError("%s（自动重试 1 次仍失败）%s" % (e, hint))
+    if segments:
+        return {"text": "".join(texts), "segments": segments}
+    text = "".join(texts or [])
+    if text:
+        return text                     # 没拿到时间轴 → 按句兜底
+    raise RuntimeError("实时 ASR 未返回任何识别结果")
+
+
+#: 实时 WebSocket 会话级降级记忆：服务端掐断实时连接一经确认（官方 dashscope
+#: SDK 也复现），本进程后续转录直接走文件识别，不再重复浪费重试时间。
+_ASR_WS_DEGRADED = False
+
+
+def _asr_fallback_chat_audio(asr_obj, reason=""):
+    """实时 ASR 不可用 → 同端点换 qwen3-asr-flash 文件识别（chat_audio）。
+
+    实测（2026-09-17）：maas 专属实例与公共百炼的 qwen3-asr-flash 文件识别
+    均可用；⚠️ 专属实例的 asr 任务不支持 audio+text 混合输入——带 text
+    提示词会 HTTP 400（"does not support this input"），必须裸音频。
+    """
+    if reason:
+        _vc_log("实时 ASR 不可用（%s）→ 自动降级 qwen3-asr-flash 文件识别"
+                % str(reason)[:80])
+    asr_obj.model = "qwen3-asr-flash"
+    asr_obj.prompt = ""
+    return _asr_chat_audio_submit(asr_obj)
+
+
+def vc_asr_protocol_patch():
+    """ASR 服务模式全协议适配（幂等运行期补丁，引擎 WhisperAPI 不改本体）。
+
+    在引擎 WhisperAPI._submit 前加协议分发：
+      · openai     → 原实现（multipart /audio/transcriptions，verbose_json）；
+      · azure      → deployments 端点 + api-key 头；
+      · chat_audio → chat/completions + input_audio（百炼 Qwen-ASR、小米 MiMo）；
+      · deepgram   → /v1/listen，Token 头 + 原始音频（原生词级时间轴）；
+      · elevenlabs → /v1/speech-to-text，xi-api-key（原生词级时间轴）；
+      · gemini     → generateContent + inline_data（纯文本，按句兜底）；
+      · volcengine → 豆包录音识别极速版（一次请求返回，本地文件直传）；
+      · assemblyai → /v2/upload + /v2/transcript + 轮询（词级时间轴）。
+    各协议响应统一经 _asr_normalize_resp 归一：原生时间轴原样保留，
+    纯文本响应（Azure json / Qwen-Audio / Gemini 等）按句切分 + 时长占比
+    生成近似时间轴。缓存键追加协议名，防止换协议后吃到旧结果。
+    ⚠️ 实时（WebSocket 流式）模型由 asr_model_guard 提前拦下并给出改法。
+    """
+    try:
+        from videocaptioner.core.asr.whisper_api import WhisperAPI
+    except Exception as e:  # noqa: BLE001
+        _vc_log(f"ASR 协议补丁导入失败：{e}")
+        return False
+    if getattr(WhisperAPI, "_vt_proto_patched", False):
+        return True
+    orig_submit = WhisperAPI._submit
+    orig_key = WhisperAPI._get_key
+
+    def _submit(self):
+        global _ASR_WS_DEGRADED
+        proto = asr_protocol_of()
+        if proto != "dashscope_realtime":
+            # 实时模型只有走实时协议才有救：其它协议下提前拦，别等服务端 404。
+            # 走实时协议时**不能**拦（那正是让实时模型出字幕的路）。
+            guard = asr_base_guard(getattr(self, "base_url", ""))
+            if not guard:
+                guard = asr_model_guard(getattr(self, "model", ""))
+            if guard:
+                raise RuntimeError(guard)
+            # 非 openai 协议不走引擎原实现，它那段"简体中文提示词预设"要自己补
+            if (getattr(self, "language", "") == "zh"
+                    and not getattr(self, "prompt", "")):
+                self.prompt = "你好，我们需要使用简体中文，以下是普通话的句子"
+        if proto == "dashscope_realtime" and not _ASR_WS_DEGRADED:
+            try:
+                resp = _asr_dashscope_realtime_submit(self)
+            except RuntimeError as e:
+                # 实时 WebSocket 被服务端中途掐断（握手/task-started 正常、音频
+                # 发送中或完成后无 Close 码断连；官方 dashscope SDK 同样无法
+                # 使用——2026-09-17 实测，与客户端实现/网络路径无关）。
+                _e = str(e)
+                if "连接" not in _e and "超时" not in _e:
+                    raise              # task-failed 等确定性错误，降级无意义
+                _ASR_WS_DEGRADED = True
+                resp = _asr_fallback_chat_audio(self, _e)
+        elif proto == "dashscope_realtime":
+            # 本进程已确认实时通道被服务端掐断 → 直接走文件识别，不再试 WS
+            resp = _asr_fallback_chat_audio(self)
+        elif proto == "azure":
+            resp = _asr_azure_submit(self)
+        elif proto in ("chat_audio", "dashscope"):
+            resp = _asr_chat_audio_submit(self)
+        elif proto == "deepgram":
+            resp = _asr_deepgram_submit(self)
+        elif proto == "elevenlabs":
+            resp = _asr_elevenlabs_submit(self)
+        elif proto == "gemini":
+            resp = _asr_gemini_submit(self)
+        elif proto == "volcengine":
+            resp = _asr_volcengine_submit(self)
+        elif proto == "assemblyai":
+            resp = _asr_assemblyai_submit(self)
+        else:
+            # openai 协议走引擎原实现（OpenAI SDK）。SDK 会在 base_url 后面再
+            # 拼一次 /audio/transcriptions，所以先把"完整端点"的尾巴削掉并
+            # 重建 client —— 内存里改 base_url 不会影响已经建好的 client。
+            clean = asr_strip_endpoint_tail(self.base_url, "/audio/transcriptions",
+                                            "/audio/translations")
+            if clean and clean != self.base_url:
+                self.base_url = clean
+                _vc_log(f"ASR 地址含完整端点，已规范化为 {clean}")
+                try:
+                    from openai import OpenAI
+                    self.client = OpenAI(base_url=clean, api_key=self.api_key)
+                except Exception as e:  # noqa: BLE001
+                    _vc_log(f"规范化后重建 ASR 客户端失败：{e}")
+            resp = orig_submit(self)
+        return _asr_normalize_resp(resp, self)
+
+    def _get_key(self):
+        try:
+            return f"{orig_key(self)}-{asr_protocol_of()}"
+        except Exception:  # noqa: BLE001
+            return orig_key(self)
+
+    WhisperAPI._submit = _submit
+    WhisperAPI._get_key = _get_key
+    WhisperAPI._vt_proto_patched = True
+    _vc_log("ASR 协议补丁已挂：openai/azure/chat_audio/deepgram/elevenlabs/"
+            "gemini/volcengine/assemblyai（纯文本响应按句兜底；实时模型提前拦截）")
+    return True
+
+
 #: 引擎翻译服务枚举值（videocaptioner.core.entities.TranslatorServiceEnum）。
 #: v1.12.0 起字幕翻译板块仅支持机翻（微软 / 谷歌 / DeepLx），LLM 翻译入口
 #: 已全部移除；TS_LLM 仅用于把历史配置迁回机翻。
@@ -1232,6 +2915,11 @@ def prepare_runtime_env():
     # 必须最先：任何 videocaptioner 导入之前替换 diskcache.Cache
     try:
         vc_lazy_cache_patch()
+    except Exception:
+        pass
+    # v1.14.1：转录时 pydub 裸调 ffprobe/ffmpeg 闪黑窗 → 子进程默认隐藏窗口
+    try:
+        vc_pydub_nowindow_patch()
     except Exception:
         pass
     # 标准流统一 UTF-8 容错，避免 GBK 控制台打印生僻字/Emoji 时崩溃

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 1.14.0
+# @version 1.14.1
 """
 全局 AI 客户端（OpenAI 兼容 · 单通道）。
 
@@ -88,6 +88,11 @@ DEFAULT_CONFIG: dict = {
     "asr_api_key": "",
     "asr_model": "FunAudioLLM/SenseVoiceSmall",
     "asr_prompt": "",
+    # asr_protocol: 服务模式接口协议——"auto"=按地址/模型自动识别；
+    #   "openai"=OpenAI Whisper 兼容（multipart /audio/transcriptions）；
+    #   "azure"=Azure OpenAI（deployments + api-key 头）；
+    #   "dashscope"=阿里百炼兼容模式（chat/completions + input_audio）
+    "asr_protocol": "auto",
     "asr_local_model": "large-v3",
     "asr_local_model_dir": "",
     # ---- AI 校准（Agent 级字幕校准）----
@@ -255,13 +260,158 @@ def _asr_url(base: str) -> str:
     return b + "/v1/audio/transcriptions"
 
 
+#: 「完整端点」的常见尾巴（与 src/video_toolbox.py 的 ASR_ENDPOINT_TAILS 一致）
+ASR_ENDPOINT_TAILS = ("/audio/transcriptions", "/audio/translations",
+                      "/chat/completions", "/v2/upload", "/v2/transcript")
+
+
+def _asr_base_clean(base: str) -> str:
+    """削掉"用户把完整端点抄进地址栏"的尾巴。
+
+    与 `src/video_toolbox.py` 的 `asr_strip_endpoint_tail` 同一规则：不削的话
+    探测地址会拼成 `.../audio/transcriptions/v1/models`（智谱那种完整 URL 就
+    会踩到），测试连接会误报不可用。
+    """
+    b = str(base or "").strip().rstrip("/")
+    changed = True
+    while changed and b:
+        changed = False
+        low = b.lower()
+        for tail in ASR_ENDPOINT_TAILS:
+            if low.endswith(tail):
+                b = b[: -len(tail)].rstrip("/")
+                changed = True
+                break
+    return b
+
+
 def _models_url(base: str) -> str:
     """OpenAI 兼容模型列表地址（用于 ASR 服务连通性测试）。"""
-    b = (base or "").rstrip("/")
+    b = _asr_base_clean(base)
     tail = b.rsplit("/", 1)[-1].lower()
     if tail.startswith("v") and tail[1:2].isdigit():
         return b + "/models"
     return b + "/v1/models"
+
+
+#: 支持的 ASR 协议（与 src/video_toolbox.py 的 ASR_PROTOCOLS 保持一致）
+#: ⚠️ `dashscope` 是历史键（= chat_audio 那一族），保留只为兼容老配置
+ASR_PROTOCOLS = ("auto", "openai", "azure", "chat_audio", "dashscope",
+                 "deepgram", "elevenlabs", "gemini",
+                 "volcengine", "assemblyai", "dashscope_realtime")
+
+#: 实时（WebSocket 流式）模型特征：一次性上传整段音频用不了它们
+ASR_REALTIME_HINTS = ("realtime", "-rt-", "streaming")
+
+
+def resolve_asr_protocol(ac: dict) -> str:
+    """解析 ASR 服务模式实际使用的接口协议。
+
+    ac 为 asr_config() 产物。显式配置直接用；auto 按地址与模型名推断：
+    先认域名独有的服务（deepgram / elevenlabs / gemini），再认 Azure，
+    然后是兼容模式（百炼 compatible-mode / dashscope / qwen-asr /
+    paraformer / fun-asr）→ dashscope，其余一律按 OpenAI 兼容处理。
+    ⚠️ 规则必须与 src/video_toolbox.py 的 _infer_asr_protocol 一致，
+    否则「测试连接」与「实际转录」会用两套协议。
+    """
+    p = str(ac.get("protocol") or "auto").strip().lower()
+    if p in ("dashscope", "chat_audio"):
+        return "chat_audio"          # 历史键归一
+    if p in ASR_PROTOCOLS and p != "auto":
+        return p
+    base = (ac.get("base_url") or "").lower()
+    model = (ac.get("model") or "").lower()
+    if "openspeech.bytedance.com" in base or "volcengine" in base:
+        return "volcengine"
+    if "assemblyai.com" in base:
+        return "assemblyai"
+    if ("aliyuncs.com" in base or "dashscope" in base) and any(
+            h in model for h in ASR_REALTIME_HINTS):
+        # 百炼系域名 + 实时模型：只有 WebSocket 形态（与引擎侧同规则）
+        return "dashscope_realtime"
+    if "deepgram.com" in base:
+        return "deepgram"
+    if "elevenlabs.io" in base:
+        return "elevenlabs"
+    if "generativelanguage.googleapis.com" in base:
+        return "gemini"
+    if (_AZURE_HOST_KEYWORD in base or "/openai/deployments/" in base
+            or "azure.com" in base):
+        return "azure"
+    if ("xiaomimimo.com" in base or "mimo-v2" in model
+            or "compatible-mode" in base or "dashscope" in base
+            or ("qwen" in model and ("audio" in model or "asr" in model))
+            or "paraformer" in model or "fun-asr" in model):
+        return "chat_audio"
+    return "openai"
+
+
+def asr_realtime_guard(model: str) -> str:
+    """实时（流式）模型守卫：返回提示，可放行时空串（文案与引擎侧一致）。
+
+    ⚠️ 只在**非实时协议**下调用——实时模型在「百炼实时（WebSocket）」协议
+    （dashscope_realtime）下能正常出字幕，不该被拦。
+    """
+    m = str(model or "").lower()
+    if any(h in m for h in ASR_REALTIME_HINTS):
+        return ("模型「%s」是实时（WebSocket 流式）语音识别，本协议用不了它。"
+                "把「接口协议」改为「百炼实时（WebSocket）」（留自动识别也会"
+                "选中），或改用录音文件识别模型：公共百炼 qwen3-asr-flash、"
+                "硅基流动 FunAudioLLM/SenseVoiceSmall、OpenAI whisper-1" % model)
+    return ""
+
+
+def asr_base_guard(base_url: str) -> str:
+    """ASR 地址守卫：地址填成「文本对话端点」时给出能照着改的提示。
+
+    最常见的是把 Anthropic（/apps/anthropic、/api/anthropic）这类只收文本
+    的端点当成 ASR 地址 —— 它收不了 multipart 音频，表现是五花八门的
+    404 / 415，与其让用户对着状态码猜，不如直接说该填什么。
+    """
+    b = str(base_url or "").lower()
+    if "anthropic" in b:
+        return ("ASR 地址填的是 Anthropic 文本对话端点（%s）——它收不了音频。"
+                "请改填 OpenAI 兼容端点：公共百炼 "
+                "https://dashscope.aliyuncs.com/compatible-mode/v1，"
+                "或专属实例的 …/compatible-mode/v1" % base_url)
+    return ""
+
+
+def asr_model_visible(raw: str, model: str):
+    """从 /models 的 JSON 响应里判断配置的模型是否可见。
+
+    返回 (hit, names)：hit 为 True/False/None（None = 列表解析不了或没法比，
+    例如网关不返回 data 数组）；names 是服务端报告的全部模型 id。
+    匹配按「整串或末段、忽略大小写」——硅基流动这类会把组织前缀拼进 id
+    （FunAudioLLM/SenseVoiceSmall），用户填的常常只有名字段。
+    """
+    try:
+        data = json.loads(raw).get("data") or []
+        names = [str((m or {}).get("id") or "")
+                 for m in data if isinstance(m, dict)]
+    except (ValueError, AttributeError, TypeError):
+        return None, []
+    want = str(model or "").strip().lower()
+    if not want or not names:
+        return None, names
+    tail = want.rsplit("/", 1)[-1]
+    hit = any(x.lower() == want or x.lower().rsplit("/", 1)[-1] == tail
+              for x in names)
+    return hit, names
+
+
+def _azure_asr_probe_url(base: str) -> str:
+    """Azure ASR 连通性探测地址：部署根（GET 列部署，api-key 头）。
+
+    允许填资源根 / .../openai/deployments/<部署名>，截到 deployments 上一层。
+    """
+    b = _asr_base_clean(base)
+    if "/openai/deployments/" in b:
+        b = b.split("/openai/deployments/")[0] + "/openai/deployments"
+    elif not b.endswith("/openai/deployments"):
+        b = b + "/openai/deployments"
+    sep = "&" if "?" in b else "?"
+    return f"{b}{sep}api-version={_AZURE_API_VERSION}"
 
 
 def channel_config(cfg: dict | None = None, channel: str = "a") -> dict:
@@ -286,15 +436,21 @@ def channel_config(cfg: dict | None = None, channel: str = "a") -> dict:
 def asr_config(cfg: dict | None = None) -> dict:
     """取 ASR（语音识别）规范化配置，供字幕引擎「转录配置」注入使用。
 
-    service = 自有 ASR 服务（OpenAI 兼容 /audio/transcriptions）；
+    service = 自有 ASR 服务（协议见 protocol 字段，全协议适配）；
     local   = 本地独立 faster-whisper 模型（模型名 + 模型目录可自定义）。
     """
     c = dict(cfg or load_config())
     mode = str(c.get("asr_mode") or "service").strip().lower()
     if mode not in ("service", "local"):
         mode = "service"
+    proto = str(c.get("asr_protocol") or "auto").strip().lower()
+    if proto not in ASR_PROTOCOLS:
+        # 全协议白名单（v1.14.2）：老版只认 4 个值，把 UI 保存的
+        # dashscope_realtime / deepgram / volcengine 等显式选择静默打回 auto
+        proto = "auto"
     return {
         "mode": mode,
+        "protocol": proto,
         "base_url": str(c.get("asr_base_url") or "").strip(),
         "api_key": str(c.get("asr_api_key") or "").strip(),
         "model": str(c.get("asr_model") or "").strip(),
@@ -685,7 +841,8 @@ def quick_test(channel: str = "a") -> tuple[bool, str]:
 def asr_test_connection(cfg: dict | None = None) -> tuple[bool, str]:
     """ASR（语音识别）配置自检：返回 (是否成功, 说明)。
 
-    service 模式：GET {base}/models（OpenAI 兼容端点通用）验证地址与密钥；
+    service 模式按协议探测：openai/dashscope 用 GET {base}/models（两者均为
+    OpenAI 兼容模型列表）；azure 用 GET 部署根（api-key 头，列出部署）。
     local 模式：只做本地配置校验（模型名非空、模型目录存在性），不真正加载模型
     （加载会占用显存/内存且耗时，交给转录任务自身校验）。
     """
@@ -706,10 +863,60 @@ def asr_test_connection(cfg: dict | None = None) -> tuple[bool, str]:
         return False, "服务模式需要填写 ASR 接口地址"
     if not ac["api_key"]:
         return False, "服务模式需要填写 ASR 密钥"
-    url = _models_url(ac["base_url"])
-    req = urllib.request.Request(
-        url, headers={"Authorization": "Bearer " + ac["api_key"],
-                      "content-type": "application/json"})
+    # ⚠️ 必须先解析协议再跑实时模型守卫：实时模型在「百炼实时（WebSocket）」
+    # 协议下是合法路径（握手验证密钥），先守卫会把 dashscope_realtime 分支
+    # 永远拦死——"接口协议已选实时仍报不可用"就是这么来的。
+    proto = resolve_asr_protocol(ac)
+    guard = asr_base_guard(ac["base_url"])
+    if not guard and proto != "dashscope_realtime":
+        guard = asr_realtime_guard(ac["model"])
+    if guard:
+        return False, guard
+    base = _asr_base_clean(ac["base_url"])
+    if proto == "azure":
+        url = _azure_asr_probe_url(ac["base_url"])
+        headers = {"api-key": ac["api_key"]}
+        proto_note = "Azure OpenAI（deployments）"
+    elif proto == "deepgram":
+        # 探测只读的 projects 列表（Token 头，与转录同一套鉴权）
+        url = base + "/v1/projects"
+        headers = {"Authorization": "Token " + ac["api_key"]}
+        proto_note = "Deepgram（/v1/listen）"
+    elif proto == "elevenlabs":
+        url = base + "/v1/user"      # 只读、零额度消耗
+        headers = {"xi-api-key": ac["api_key"]}
+        proto_note = "ElevenLabs Scribe（/v1/speech-to-text）"
+    elif proto == "gemini":
+        url = base + "/v1beta/models"
+        headers = {"x-goog-api-key": ac["api_key"]}
+        proto_note = "Google Gemini（generateContent）"
+    elif proto == "dashscope_realtime":
+        # 实时协议走 WebSocket：没有只读探测端点，密钥在握手时验证
+        return True, ("百炼实时（WebSocket）：密钥无效会在握手时被拒"
+                      "（HTTP 401/403），实际可用性以转录结果为准；模型 %s"
+                      % (ac["model"] or "未填"))
+    elif proto == "volcengine":
+        # 火山没有只读的探测端点：只校验密钥形态，真伪留给转录那一步
+        key = str(ac["api_key"])
+        if ":" in key:
+            appid, _, acc = key.partition(":")
+            if not appid.strip() or not acc.strip():
+                return False, "密钥格式不对：旧版控制台应填 APPID:AccessToken"
+        return True, ("火山（豆包）录音识别极速版：密钥形态已校验（%s）；"
+                      "该服务不提供只读探测端点，实际可用性以转录结果为准"
+                      % ("APPID:AccessToken" if ":" in key else "新版 X-Api-Key"))
+    elif proto == "assemblyai":
+        url = base + "/v2/transcript"      # 列历史转录，只读
+        headers = {"authorization": ac["api_key"]}
+        proto_note = "AssemblyAI（/v2/transcript）"
+    else:
+        url = _models_url(ac["base_url"])
+        headers = {"Authorization": "Bearer " + ac["api_key"],
+                   "content-type": "application/json"}
+        proto_note = ("Chat 音频转写（chat/completions + input_audio）"
+                      if proto in ("chat_audio", "dashscope")
+                      else "OpenAI Whisper 兼容（/audio/transcriptions）")
+    req = urllib.request.Request(url, headers=headers)
     try:
         with urllib.request.urlopen(req, timeout=15) as resp:
             raw = resp.read().decode("utf-8", "replace")
@@ -719,9 +926,30 @@ def asr_test_connection(cfg: dict | None = None) -> tuple[bool, str]:
             detail = e.read().decode("utf-8", "replace")[:200]
         except Exception:  # noqa: BLE001
             pass
+        if e.code in (401, 403):
+            return False, ("HTTP %d：密钥被拒 —— 确认密钥属于这个服务/实例，"
+                           "并且已经点过设置页的「保存并应用」（只填不保存"
+                           "不会生效）：%s" % (e.code, detail or e.reason))
+        if e.code in (404, 405):
+            # 有的专属实例 / 自建网关不实现"列出模型"，这不代表不能转录
+            return True, ("接口可达（HTTP %d：该端点不提供模型列表，不代表"
+                          "不可用）；协议 %s；地址 %s"
+                          % (e.code, proto_note, url))
         return False, f"HTTP {e.code}: {detail or e.reason}"
     except (urllib.error.URLError, TimeoutError, OSError) as e:
         return False, f"网络错误: {e}"
     n = raw.count('"id"')
-    return True, (f"接口连通（{url}）；模型 {ac['model'] or '未填'}"
+    # 模型存在性核对：专属实例 / 网关往往只部署了部分模型。连通性测试通过
+    # 不代表转录能用——配置的模型名不在列表里时，转录必失败。这里直接把
+    # 实例上「实际可见的模型」告诉用户，免得他继续对着 404 猜。
+    hit, names = asr_model_visible(raw, ac["model"])
+    if hit is False:
+        sample = "、".join(sorted(names)[:8])
+        return False, ("接口连通，但该服务/实例上看不到模型「%s」（可见的模型："
+                       "%s%s）。注意：maas 专属实例通常只部署创建时选定的模型，"
+                       "实时（*realtime*）模型不能用于一次性上传，请改用 "
+                       "qwen3-asr-flash 这类录音文件识别模型。"
+                       % (ac["model"], sample,
+                          " 等 %d 个" % len(names) if len(names) > 8 else ""))
+    return True, (f"接口连通（协议 {proto_note}，{url}）；模型 {ac['model'] or '未填'}"
                   + (f"，服务端可见 {n} 个模型" if n else ""))

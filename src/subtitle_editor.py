@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 1.14.0
+# @version 1.14.1
 """字幕编辑页（打轴）的界面控件：波形时间轴 + 字幕表模型。
 
 参照开源实现的结构：
@@ -11,7 +11,7 @@
 控件与数据层（subtitle_editor_core）解耦：控件只持有 cues 的**引用**，
 改动通过信号上报给页面统一处理（便于把每次改动压进撤销栈）。
 """
-from PyQt5.QtCore import QPoint, QRect, QSize, Qt, pyqtSignal
+from PyQt5.QtCore import QPoint, QRect, QSize, Qt, QTimer, pyqtSignal
 from PyQt5.QtGui import (QColor, QFont, QFontMetrics, QPainter, QPen, QPolygon)
 from PyQt5.QtWidgets import (QAbstractItemView, QCheckBox, QColorDialog, QComboBox, QFontComboBox,
                              QFrame, QGridLayout, QHBoxLayout, QHeaderView, QLabel,
@@ -85,36 +85,45 @@ PLAYHEAD_GRAB_PX = 6    # 播放头左右这么宽内按下 = 抓住播放头拖
 #: v1.13.x：改为按 ui_theme token 生成深浅两套；面板本身也带上不透明的
 #: 卡片底 + 描边——此前面板是透明的，白字直接叠在板块背景图上，浅色
 #: 主题下基本看不清（用户截图反馈「非深色页面下板块样式不合理」）。
+#: v1.14.2：数字框/下拉框/复选框统一交给 ui_theme.build_app_qss() 的全局
+#: 规则（同一控件全应用一套皮肤），这里只留**面板独有**的部分——卡片底、
+#: 分组标题与分隔线、九宫格与 B/I/U/S 这类 QToolButton、滑杆、色块。
 def props_qss(t, accent):
-    """属性面板全局 QSS。`t` = ui_theme.tokens()，`accent` = 主题色。"""
+    """属性面板 QSS。`t` = ui_theme.tokens()，`accent` = 主题色。"""
+    import ui_theme
+    tint = ui_theme._tint(accent, 0.18)
     return f"""
 SubtitlePropsPanel{{background:{t['card']};border:1px solid {t['card_border']};
                     border-radius:10px;}}
 SubtitlePropsPanel QLabel{{color:{t['text']};background:transparent;}}
 SubtitlePropsPanel QLabel#propMeta{{color:{t['text_dim']};}}
+SubtitlePropsPanel QLabel#propCaption{{color:{t['text_dim']};font-size:11px;}}
+SubtitlePropsPanel QLabel#secTitle{{color:{t['text']};font-size:12px;
+                    font-weight:600;}}
 QScrollArea{{background:transparent;border:none;}}
 QScrollArea > QWidget > QWidget{{background:transparent;}}
+/* 分组之间一条发丝线：四组标题在一条竖向流里，没有线就分不出层次 */
+QWidget#propSec{{border-top:1px solid {t['border']};padding-top:6px;}}
+QWidget#propSecTop{{border-top:none;padding-top:0px;}}
 QToolButton{{background:{t['input_bg']};color:{t['text']};border:1px solid {t['border']};
-            border-radius:6px;font-size:13px;}}
+            border-radius:6px;font-size:12px;padding:0px 2px;}}
 QToolButton:hover{{background:{t['card_hover']};border-color:{t['border_hover']};}}
+QToolButton:pressed{{background:{t['card_pressed']};}}
 QToolButton:checked{{background:{accent};color:#FFFFFF;border-color:{accent};}}
 QToolButton#secToggle,QToolButton#secAdd{{background:transparent;border:none;
-            color:{t['text_dim']};}}
+            color:{t['text_dim']};padding:0px;}}
+QToolButton#secToggle:hover,QToolButton#secAdd:hover{{background:{tint};
+            border:none;color:{t['text']};}}
 QSlider::groove:horizontal{{height:4px;background:{t['border']};border-radius:2px;}}
 QSlider::sub-page:horizontal{{background:{accent};border-radius:2px;}}
-QSlider::handle:horizontal{{background:{t['text']};width:12px;margin:-5px 0;
-                           border-radius:6px;}}
-QSpinBox{{background:{t['input_bg']};color:{t['text']};border:1px solid {t['border']};
-         border-radius:6px;padding:1px 4px;}}
-QSpinBox:focus{{border-color:{accent};}}
+QSlider::handle:horizontal{{background:#FFFFFF;border:1px solid {accent};
+                           width:12px;margin:-5px 0;border-radius:6px;}}
+QSlider::handle:horizontal:hover{{background:{t['card_hover']};}}
 QPushButton{{background:{t['input_bg']};color:{t['text']};border:1px solid {t['border']};
-            border-radius:6px;padding:2px 10px;}}
+            border-radius:6px;padding:1px 10px;min-height:20px;}}
 QPushButton:hover{{background:{t['card_hover']};border-color:{t['border_hover']};}}
-QComboBox{{background:{t['input_bg']};color:{t['text']};border:1px solid {t['border']};
-          border-radius:6px;padding:1px 6px;}}
-QComboBox::drop-down{{border:none;width:18px;}}
-QComboBox QAbstractItemView{{background:{t['menu_bg']};color:{t['text']};
-          selection-background-color:{accent};border:1px solid {t['border']};}}
+QPushButton:pressed{{background:{t['card_pressed']};}}
+QPushButton#navBtn{{padding:0px;font-size:9px;}}
 """
 
 
@@ -166,6 +175,7 @@ class WaveformTimeline(QWidget):
 
         self.pixels_per_second = 80.0    # 缩放
         self.view_start_ms = 0           # 左边缘对应时间
+        self.frame_fps = 25.0            # 视频帧率（页面从 mpv 同步；帧刻度用）
 
         self._drag_mode = None           # 'pending' / 'move' / 'start' / 'end' / 'scroll'
         self._drag_cue = -1
@@ -266,7 +276,9 @@ class WaveformTimeline(QWidget):
             anchor_x = self.width() // 2
         anchor_ms = self.x_to_ms(anchor_x)
         pps = self.pixels_per_second * factor
-        self.pixels_per_second = max(4.0, min(4000.0, pps))
+        # 上限 20000pps：30fps 一帧约 667px、60fps 也有 333px——逐帧对齐
+        # 绰绰有余；再大只剩放大噪声，没有信息增量
+        self.pixels_per_second = max(4.0, min(20000.0, pps))
         self.view_start_ms = max(0, min(self._max_view_start(),
                                         int(anchor_ms - anchor_x * 1000.0 / self.pixels_per_second)))
         self.update()
@@ -299,6 +311,16 @@ class WaveformTimeline(QWidget):
         if self.duration_ms > 0 and self.width() > 0:
             self.pixels_per_second = max(4.0, self.width() * 1000.0 / self.duration_ms)
             self.view_start_ms = 0
+            self.update()
+
+    def set_fps(self, fps):
+        """同步视频帧率（页面从 mpv 拿 container-fps；拿不到默认 25）。"""
+        try:
+            fps = float(fps)
+        except (TypeError, ValueError):
+            return
+        if fps > 0 and abs(fps - self.frame_fps) > 1e-6:
+            self.frame_fps = fps
             self.update()
 
     # ---------- 绘制 ----------
@@ -350,6 +372,44 @@ class WaveformTimeline(QWidget):
                 p.drawLine(x, RULER_H, x, self.height())
                 p.setPen(QPen(c["ruler_text"]))
             t += step_s * 1000.0
+        self._paint_frame_ticks(p, w, clip)
+
+    def _paint_frame_ticks(self, p, w, clip):
+        """高倍放大时的**帧刻度**：每帧一条短线，帧距够宽时标帧号。
+
+        「精度更高，显示更多帧」：帧是打轴的最小对齐单位——放大到一帧好
+        几个像素后把帧边界画出来，逐帧对齐（,/.）就有的放矢。一帧不到
+        5px 时画出来全是噪音，直接跳过。
+        """
+        fps = float(self.frame_fps or 25.0)
+        if fps <= 0 or self.pixels_per_second <= 0:
+            return
+        frame_ms = 1000.0 / fps
+        frame_px = frame_ms * self.pixels_per_second
+        if frame_px < 5.0:
+            return
+        c = _colors()
+        x0 = max(0, clip.left())
+        x1 = min(w - 1, clip.right())
+        t0 = self.view_start_ms + x0 * 1000.0 / self.pixels_per_second
+        t1 = self.view_start_ms + (x1 + 1) * 1000.0 / self.pixels_per_second
+        f0 = max(0, int(t0 / frame_ms))
+        f1 = int(t1 / frame_ms) + 1
+        show_no = frame_px >= 56.0
+        pen = QPen(c["grid"])
+        ff = QFont()
+        ff.setPointSize(7)
+        for fi in range(f0, f1 + 1):
+            x = self.ms_to_x(int(fi * frame_ms))
+            if x < 0 or x > w:
+                continue
+            p.setPen(pen)
+            p.drawLine(x, RULER_H - 2, x, RULER_H)
+            if show_no:
+                p.setFont(ff)
+                p.setPen(QPen(c["ruler_text"]))
+                p.drawText(x + 2, RULER_H - 2, str(fi))
+                p.setPen(pen)
 
     def _paint_wave(self, p, w, top, wave_h, clip, full):
         c = _colors()
@@ -454,6 +514,17 @@ class WaveformTimeline(QWidget):
             p.setBrush(ph)
             p.setPen(Qt.NoPen)
             p.drawPolygon(QPolygon([QPoint(x - 6, 0), QPoint(x + 6, 0), QPoint(x, 9)]))
+            if self.pixels_per_second >= 800:
+                # 高倍放大：播放头旁显示精确时间与帧号（逐帧打轴的读数）
+                fps = float(self.frame_fps or 25.0)
+                fr = int(self.position_ms * fps / 1000.0)
+                p.setPen(QPen(_colors()["ruler_text"]))
+                f = QFont()
+                f.setPointSize(8)
+                p.setFont(f)
+                label = "%s  f%d" % (ms_to_clock(self.position_ms), fr)
+                p.drawText(x + (9 if x + 170 <= self.width() else -168),
+                           RULER_H - 7, label)
 
     # ---------- 命中测试 ----------
     def _cue_at(self, x, y):
@@ -524,7 +595,12 @@ class WaveformTimeline(QWidget):
             self.selected = (idx if idx in self.selected_set
                              else (max(self.selected_set) if self.selected_set else -1))
         else:
-            self.selected_set = {idx}
+            # ⚠️ 点**已选中**的条（多选 ≥2 时）不能把它重置成单选——
+            # Ctrl+A 全选后按住字幕块准备拖动，走的就是这条路径；一旦
+            # 重置，紧随其后的批量快照只看到一条，「整体调整」就失效了。
+            # （点集合**外**的条才是「换目标」，单选化。）
+            if idx not in self.selected_set or len(self.selected_set) <= 1:
+                self.selected_set = {idx}
             self.selected = idx
         self._repaint_cues()
         self.cue_selected.emit(self.selected)
@@ -534,6 +610,15 @@ class WaveformTimeline(QWidget):
         self._drag_cue = idx
         self._drag_x0 = x
         self._drag_orig = (self.cues[idx].start, self.cues[idx].end)
+        # ⚠️ 多选批量基准：Ctrl+A 全选（或框选 / Ctrl 点选 ≥2 条）后拖动，
+        # **所有选中条一起平移相同时间量**（保持相对间隔）——基准必须取
+        # 按下那一刻的原始坐标：每帧都拿"当前值"叠位移会越拖越漂。
+        sel = {i for i in self.selected_set if 0 <= i < len(self.cues)}
+        if idx in sel and len(sel) > 1:
+            self._drag_multi = {i: (self.cues[i].start, self.cues[i].end)
+                                for i in sel}
+        else:
+            self._drag_multi = None
         self.update()
 
     def _begin_playhead_drag(self, x):
@@ -570,14 +655,38 @@ class WaveformTimeline(QWidget):
             if self._drag_mode == "move":
                 d = max(-o_start, delta)
                 c.start, c.end = o_start + d, o_end + d
+                if self._drag_multi:
+                    # 全选/多选批量平移：每条以自己的原始坐标为基准加同样
+                    # 的位移（各自钳住不越 0，保持条目间相对间隔）
+                    for i, (s0, e0) in self._drag_multi.items():
+                        if i == self._drag_cue:
+                            continue
+                        cc = self.cues[i]
+                        dd = max(-s0, d)
+                        cc.start, cc.end = s0 + dd, e0 + dd
                 self.cue_dragged.emit(self._drag_cue, "move", d)
             elif self._drag_mode == "start":
                 ns = max(0, min(o_end - MIN_DURATION_MS, o_start + delta))
+                delta_s = ns - o_start
                 c.start = ns
+                if self._drag_multi:
+                    # 批量改起点：全部选中条平移同样的起点位移（各自钳住
+                    # 不越 0、不留小于最短时长的负时长）
+                    for i, (s0, e0) in self._drag_multi.items():
+                        if i != self._drag_cue:
+                            self.cues[i].start = max(
+                                0, min(e0 - MIN_DURATION_MS, s0 + delta_s))
                 self.cue_dragged.emit(self._drag_cue, "start", ns)
             else:
                 ne = max(o_start + MIN_DURATION_MS, o_end + delta)
+                delta_e = ne - o_end
                 c.end = ne
+                if self._drag_multi:
+                    # 批量改终点：全部选中条平移同样的终点位移（起点不变）
+                    for i, (_s0, e0) in self._drag_multi.items():
+                        if i != self._drag_cue:
+                            self.cues[i].end = max(
+                                self.cues[i].start + MIN_DURATION_MS, e0 + delta_e)
                 self.cue_dragged.emit(self._drag_cue, "end", ne)
             # 只失效 cue 轨道那一条：拖字幕块时波形一点没变，没必要把
             # 逐像素绘制的波形整条重画一遍（这是拖动卡顿的另一半来源）。
@@ -611,6 +720,7 @@ class WaveformTimeline(QWidget):
             self.drag_finished.emit()
         self._drag_mode = None
         self._drag_cue = -1
+        self._drag_multi = None      # 多选批量平移的原始坐标快照（见 press）
         self._drag_orig = None
         self.setCursor(Qt.ArrowCursor)
 
@@ -792,6 +902,63 @@ class CueTable(QTableWidget):
         finally:
             self._loading = False
 
+    def reveal_row(self, r):
+        """只滚动定位到某行，**不动选中集合**——画面上点中/拖动字幕时，
+        主选中要跟随，但 Ctrl+A 的多选不能被打散（与 select_row 的区别）。"""
+        if 0 <= r < self.rowCount():
+            it = self.item(r, 0)
+            if it is not None:
+                self.scrollToItem(it, QAbstractItemView.PositionAtCenter)
+
+
+def _skin_color_dialog(dlg):
+    """把当前主题的 palette + QSS 套到颜色框上（含把「确定」涂成主题色）。"""
+    import ui_theme
+    dlg.setPalette(ui_theme.dialog_palette())
+    dlg.setStyleSheet(ui_theme.dialog_qss())
+    for btn in dlg.findChildren(QPushButton):
+        if btn.isDefault():              # 主操作上色（皮肤要贴在按钮自身）
+            btn.setStyleSheet(ui_theme.primary_button_qss())
+
+
+class ThemedColorDialog(QColorDialog):
+    """跟随当前主题的 QColorDialog。
+
+    ⚠️ 皮肤必须**在 showEvent 里再套一次**：主窗口是 Mica 的 FluentWindow，它的
+    palette.Window 是黑的（浅色主题下也一样，页面靠自身 QSS 铺白），而 Qt 建窗
+    那一刻会把这个 palette 往顶层对话框上再解析一遍——实测 show 前 setPalette
+    已是 #FFFFFF，show 之后被打回 #000000，颜色框于是整块发黑（用户截图反馈
+    「浅色页面里这个板块不协调」）。所以构造时套一次、每次 show 再套一次。
+
+    ⚠️ 同时不用静态版 `QColorDialog.getColor()`：那条路走系统原生框，深浅两档
+    都不受我们的 token 管。
+    """
+
+    def __init__(self, cur, parent=None, title=""):
+        super().__init__(cur, parent)
+        if title:
+            self.setWindowTitle(title)
+        self.setOption(QColorDialog.DontUseNativeDialog, True)
+        _skin_color_dialog(self)
+
+    def showEvent(self, ev):
+        super().showEvent(ev)
+        _skin_color_dialog(self)
+        # ⚠️ 光在 showEvent 里套还不够：Qt 建窗过程中（show() 返回之前）会把主窗口
+        #    那套黑 palette 在这只顶层窗口上**再解析一次**，把刚套好的打回去
+        #    （实测 PaletteChange 序列：白 → 黑 → 白 → 黑）。所以再排一个 0ms 的
+        #    补套，落在建窗之后。
+        QTimer.singleShot(0, self._reskin)
+
+    def _reskin(self):
+        if self.isVisible():
+            _skin_color_dialog(self)
+
+
+def themed_color_dialog(cur, parent, title):
+    """造一个跟随当前主题的颜色选择框（`_pick` 与主题预览脚本共用）。"""
+    return ThemedColorDialog(cur, parent, title)
+
 
 class _Section(QWidget):
     """可折叠分组：标题行（▾ 名称 … 右侧可选 +）+ 内容区。
@@ -799,8 +966,12 @@ class _Section(QWidget):
     版式照抄剪映右侧属性栏——每组一个标题行，点标题折叠/展开。
     """
 
-    def __init__(self, title, parent=None, extra_btn=False):
+    def __init__(self, title, parent=None, extra_btn=False, first=False):
         super().__init__(parent)
+        # 分组上方的发丝线（props_qss 的 #propSec）是写在样式表里的边框——
+        # 普通 QWidget 不开 WA_StyledBackground 根本不画。
+        self.setAttribute(Qt.WA_StyledBackground, True)
+        self.setObjectName("propSecTop" if first else "propSec")
         self._open = True
         lay = QVBoxLayout(self)
         lay.setContentsMargins(0, 2, 0, 2)
@@ -819,6 +990,7 @@ class _Section(QWidget):
         # 里（#secToggle/#secAdd 按主题取色），这里不再写死颜色。
         self.btn_toggle.clicked.connect(self.toggle)
         self.lbl = QLabel(title, self)
+        self.lbl.setObjectName("secTitle")
         f = self.lbl.font()
         f.setBold(True)
         self.lbl.setFont(f)
@@ -885,6 +1057,10 @@ class SubtitlePropsPanel(QWidget):
 
     style_changed = pyqtSignal(dict)
     step_requested = pyqtSignal(int)
+    #: 点标题行的「导出」：把当前字幕导出成 SRT / ASS 文件。
+    #: 面板只管发信号，落盘逻辑在页面（SubtitlEditPage.export_subtitle）——
+    #: 那边才拿得到完整 doc、样式字典与文件对话框的父窗口。
+    export_requested = pyqtSignal()
 
     #: 对齐九宫格（小键盘布局，与 ASS 的 Alignment 一致）
     ALIGN_CELLS = ((7, "↖"), (8, "↑"), (9, "↗"),
@@ -892,6 +1068,10 @@ class SubtitlePropsPanel(QWidget):
                    (1, "↙"), (2, "↓"), (3, "↘"))
     ALIGN_TIPS = {1: "左下", 2: "底部居中", 3: "右下", 4: "左中", 5: "正中",
                   6: "右中", 7: "左上", 8: "顶部居中", 9: "右上"}
+    #: 九宫格单格边长（px）＋格间距：缩到 26 才腾得出横向空间，
+    #: 把「垂直距 / 水平距 / 横向 / 纵向 / 描边」五个数值框并到同一排。
+    ALIGN_BTN_PX = 26
+    ALIGN_GAP_PX = 3
     #: 轨道样式：ASS 没有轨道概念，这里只做版式占位
     TRACK_STYLES = ("无",)
 
@@ -961,8 +1141,18 @@ class SubtitlePropsPanel(QWidget):
         self.btn_next = QPushButton("▼", self)
         for b, tip in ((self.btn_prev, "上一条（↑）"), (self.btn_next, "下一条（↓）")):
             b.setFixedWidth(26)
+            b.setObjectName("navBtn")
             b.setToolTip(tip)
             top.addWidget(b)
+        # 右上角「导出」：当前字幕 -> SRT（纯文本）/ ASS（带面板这套样式）。
+        # 走默认 QPushButton 样式（navBtn 那条 font-size:9px 是给 ▲▼ 符号的，
+        # 套到汉字上会小得看不清）。
+        self.btn_export = QPushButton("导出", self)
+        self.btn_export.setToolTip(
+            "导出字幕文件：SRT = 纯文本；ASS = 连同右上方面板调的样式一起带走"
+            "（不改变当前打开的文件）")
+        self.btn_export.clicked.connect(self.export_requested.emit)
+        top.addWidget(self.btn_export)
         lay.addLayout(top)
 
         # ---- 预览行：当前字幕文本（只读回显，编辑在画面上双击）----
@@ -972,7 +1162,7 @@ class SubtitlePropsPanel(QWidget):
         lay.addWidget(self.lbl_preview)
 
         # ================= 轨道样式（占位）=================
-        sec_track = _Section("轨道样式", self, extra_btn=True)
+        sec_track = _Section("轨道样式", self, extra_btn=True, first=True)
         self.cb_track = QComboBox(self)
         self.cb_track.addItems(self.TRACK_STYLES)
         self.cb_track.setToolTip("ASS 字幕没有「轨道样式」这个概念，这里仅保留版式位置")
@@ -1009,7 +1199,8 @@ class SubtitlePropsPanel(QWidget):
         size_head.setSpacing(5)
         self.sp_size = QSpinBox(self)
         self.sp_size.setRange(10, 200)
-        self.sp_size.setFixedWidth(64)
+        # 76：新输入框皮肤右侧留了 34px 给上下箭头，太小会把三位数裁掉
+        self.sp_size.setFixedWidth(84)
         size_head.addWidget(self._label("字体大小"))
         size_head.addStretch(1)
         size_head.addWidget(self.sp_size)
@@ -1019,14 +1210,24 @@ class SubtitlePropsPanel(QWidget):
         self.sl_size.setToolTip("字号（按 1080p 画面计，实际按画面高度等比缩放）")
         sec_text.body_lay.addWidget(self.sl_size)
 
-        # 对齐九宫格
+        lay.addWidget(sec_text)
+
+        # ================= 对齐与变换 =================
+        # 九宫格缩到 26×26（原来 30×24 还单独占一行），右侧**同一排**放五个
+        # 数值框：垂直距 / 水平距 / 横向缩放 / 纵向缩放 / 描边宽度。
+        # 数值排成「小标签 + 框」两列，不再把 VA / % 这类前后缀塞进同一个
+        # 输入框——栏宽被拉窄时（面板最小 292）前后缀会把数字顶掉。
+        # 对齐模式状态与「回到对齐」入口收进左列，正好补上九宫格下面的空当。
+        sec_pos = _Section("对齐并变换", self)
+
         grid = QGridLayout()
-        grid.setSpacing(2)
+        grid.setContentsMargins(0, 0, 0, 0)
+        grid.setSpacing(self.ALIGN_GAP_PX)
         self.align_btns = {}
         for n, (val, sym) in enumerate(self.ALIGN_CELLS):
             b = QToolButton(self)
             b.setText(sym)
-            b.setFixedSize(30, 24)
+            b.setFixedSize(self.ALIGN_BTN_PX, self.ALIGN_BTN_PX)
             b.setCheckable(True)
             b.setAutoExclusive(True)
             b.setToolTip(self.ALIGN_TIPS.get(val, ""))
@@ -1034,77 +1235,122 @@ class SubtitlePropsPanel(QWidget):
             self.align_btns[val] = b
         gwrap = QWidget(self)
         gwrap.setLayout(grid)
-        sec_text.row(self._label("对齐"), gwrap, None)
 
-        # VA（垂直边距）与描边宽度
+        # v1.14.2：画面拖动 = 自由位置。「对齐」九宫格是**一次性**定位（点一次
+        # 就把框摆到那个区域），一旦在画面上拖过，位置就脱离对齐规则，得能一键
+        # 回到规则模式。文字取短（列宽只有九宫格那么宽），细节交给 tooltip。
+        self.lbl_pos = QLabel("跟随对齐", self)
+        self.lbl_pos.setObjectName("propCaption")
+        self.lbl_pos.setToolTip("「跟随对齐」= 位置由对齐九宫格 + 边距决定；"
+                                "在画面上拖动字幕（或拖把手缩放）会变成自由位置")
+        self.btn_pos_reset = QToolButton(self)
+        self.btn_pos_reset.setText("回到对齐")
+        self.btn_pos_reset.setToolTip("清除画面拖动产生的自由位置，"
+                                      "让字幕回到「对齐」九宫格 + 边距决定的位置")
+        self.btn_pos_reset.setEnabled(False)
+        self.btn_pos_reset.setFixedHeight(22)
+        self.btn_pos_reset.setSizePolicy(QSizePolicy.Preferred,
+                                         QSizePolicy.Fixed)
+        self.btn_pos_reset.clicked.connect(self._on_reset_pos)
+
+        left = QVBoxLayout()
+        left.setContentsMargins(0, 0, 0, 0)
+        left.setSpacing(4)
+        left.addWidget(gwrap, 0, Qt.AlignLeft)
+        left.addWidget(self.lbl_pos)
+        left.addWidget(self.btn_pos_reset)
+        left.addStretch(1)
+        lwrap = QWidget(self)
+        lwrap.setLayout(left)
+        # 钉死左列宽度：外层 QWidget 的 sizeHint 会随布局浮动，给死宽度才能
+        # 保证九宫格不被右边的数值列挤扁。
+        lwrap.setFixedWidth(self.ALIGN_BTN_PX * 3 + self.ALIGN_GAP_PX * 2)
+
+        # 五个数值框：位置（垂直 / 水平）、缩放（横向 / 纵向）、描边宽度。
+        # 宽度由布局自适应（原来每个写死 76/58，窄栏里右侧空一大截）。
         self.sp_margin = QSpinBox(self)
         self.sp_margin.setRange(0, 900)
-        self.sp_margin.setFixedWidth(76)
-        self.sp_margin.setPrefix("VA ")
-        self.sp_margin.setToolTip("垂直位置：字幕距对齐边的距离（ASS 的 MarginV）")
-        self.sp_outline = QSpinBox(self)
-        self.sp_outline.setRange(0, 8)
-        self.sp_outline.setFixedWidth(58)
-        self.sp_outline.setToolTip("描边宽度（0 = 不描边）")
-        sec_text.row(self.sp_margin, self.sp_outline, None)
-        lay.addWidget(sec_text)
-
-        # ================= 对齐并变换 =================
-        sec_pos = _Section("对齐并变换", self)
+        self.sp_margin.setToolTip("垂直距：字幕距对齐边的距离（ASS 的 MarginV）")
         self.sp_margin_l = QSpinBox(self)
         self.sp_margin_l.setRange(0, 900)
-        self.sp_margin_l.setFixedWidth(76)
-        self.sp_margin_l.setPrefix("X ")
-        self.sp_margin_l.setToolTip("水平位置（ASS 的 MarginL / MarginR，"
+        self.sp_margin_l.setToolTip("水平距：字幕距对齐边的距离"
+                                    "（ASS 的 MarginL / MarginR，"
                                     "按对齐方向决定贴哪一边）")
         self.sp_scale_x = QSpinBox(self)
         self.sp_scale_x.setRange(10, 500)
-        self.sp_scale_x.setFixedWidth(76)
-        self.sp_scale_x.setPrefix("%")
-        self.sp_scale_x.setToolTip("横向缩放（ASS 的 ScaleX，100 为原始大小）")
-        sec_pos.row(self.sp_margin_l, self.sp_scale_x, None)
-
+        self.sp_scale_x.setSuffix("%")
+        self.sp_scale_x.setToolTip("横向缩放（ASS 的 ScaleX，100% 为原始大小）")
         self.sp_scale_y = QSpinBox(self)
         self.sp_scale_y.setRange(10, 500)
-        self.sp_scale_y.setFixedWidth(76)
-        self.sp_scale_y.setPrefix("%")
-        self.sp_scale_y.setToolTip("纵向缩放（ASS 的 ScaleY）")
-        sec_pos.row(self.sp_scale_y, None)
+        self.sp_scale_y.setSuffix("%")
+        self.sp_scale_y.setToolTip("纵向缩放（ASS 的 ScaleY，100% 为原始大小）")
+        self.sp_outline = QSpinBox(self)
+        self.sp_outline.setRange(0, 8)
+        self.sp_outline.setToolTip("描边宽度（0 = 不描边）")
+
+        nums = QGridLayout()
+        nums.setContentsMargins(0, 0, 0, 0)
+        nums.setHorizontalSpacing(5)
+        nums.setVerticalSpacing(5)
+        for i, (lab, box) in enumerate(
+                (("垂直距", self.sp_margin), ("水平距", self.sp_margin_l),
+                 ("横向", self.sp_scale_x), ("纵向", self.sp_scale_y),
+                 ("描边", self.sp_outline))):
+            cap = self._label(lab)
+            # 小一号的说明字：这五行的标签列宽直接吃掉输入框的宽度，
+            # 面板拉到最小（292）时 12px 的三字标签会把 500% 顶掉。
+            cap.setObjectName("propNumLab")
+            nums.addWidget(cap, i, 0)
+            nums.addWidget(box, i, 1)
+            box.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        nums.setColumnStretch(1, 1)
+        nwrap = QWidget(self)
+        nwrap.setLayout(nums)
+        nwrap.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
+
+        align_row = QHBoxLayout()
+        align_row.setContentsMargins(0, 0, 0, 0)
+        align_row.setSpacing(10)
+        align_row.addWidget(lwrap, 0, Qt.AlignTop)
+        align_row.addWidget(nwrap, 1, Qt.AlignTop)
+        sec_pos.body_lay.addLayout(align_row)
         lay.addWidget(sec_pos)
 
         # ================= 外观 =================
         sec_look = _Section("外观", self)
 
         self.btn_color = QPushButton(self)
-        self.btn_color.setFixedSize(40, 24)
+        self.btn_color.setFixedSize(46, 24)
         self.btn_color.setToolTip("填充色：字幕文字本身（ASS 的 PrimaryColour）")
         sec_look.row(self._label("填充"), self.btn_color, None)
 
         self.btn_outline = QPushButton(self)
-        self.btn_outline.setFixedSize(40, 24)
+        self.btn_outline.setFixedSize(46, 24)
         self.btn_outline.setToolTip("描边色（ASS 的 OutlineColour）")
         sec_look.row(self._label("描边"), self.btn_outline, None)
 
         self.chk_bg = QCheckBox("背景", self)
         self.chk_bg.setToolTip("给字幕加不透明底框（ASS 的 BorderStyle=3）")
         self.btn_bg = QPushButton(self)
-        self.btn_bg.setFixedSize(40, 24)
+        self.btn_bg.setFixedSize(46, 24)
         self.btn_bg.setToolTip("背景色（ASS 的 BackColour）")
         sec_look.row(self.chk_bg, self.btn_bg, None)
 
         self.chk_shadow = QCheckBox("阴影", self)
         self.chk_shadow.setToolTip("开启投影（ASS 的 Shadow）")
         self.btn_shadow = QPushButton(self)
-        self.btn_shadow.setFixedSize(40, 24)
+        self.btn_shadow.setFixedSize(46, 24)
         self.btn_shadow.setToolTip("阴影颜色（与背景共用 ASS 的 BackColour）")
         self.sp_shadow = QSpinBox(self)
         self.sp_shadow.setRange(0, 20)
-        self.sp_shadow.setFixedWidth(58)
+        self.sp_shadow.setFixedWidth(72)
         self.sp_shadow.setToolTip("阴影距离（ASS 的 Shadow）")
         sec_look.row(self.chk_shadow, self.btn_shadow, self.sp_shadow, None)
         lay.addWidget(sec_look)
 
-        tip = QLabel("双击画面上的字幕可就地改字；拖动它可改位置。", self)
+        tip = QLabel("画面上：点一下选中、拖动改位置、拖四角缩放、拖四边拉伸、"
+                     "双击就地改字。位置拖过之后与「对齐」无关，"
+                     "想回到对齐位置按上面的按钮。", self)
         tip.setWordWrap(True)
         tip.setObjectName("propMeta")
         lay.addWidget(tip)
@@ -1126,7 +1372,11 @@ class SubtitlePropsPanel(QWidget):
         self.sp_scale_y.valueChanged.connect(self._emit)
         self.sp_shadow.valueChanged.connect(self._emit)
         for val, b in self.align_btns.items():
-            b.clicked.connect(self._emit)
+            # ⚠️ 不能直连 _emit：autoExclusive 的 QToolButton 点**已选中的格**
+            # 会把它取消选中，alignment 回落默认 2——字幕已拖到自由位置时
+            # 表现为"点了没反应/字幕乱跳"，必须走专门的定位语义（见下）
+            b.clicked.connect(lambda _checked=False, v=val:
+                              self._on_align_clicked(v))
         self.chk_bg.toggled.connect(self._emit)
         self.chk_shadow.toggled.connect(self._emit)
         self.btn_color.clicked.connect(lambda: self._pick("color"))
@@ -1151,14 +1401,10 @@ class SubtitlePropsPanel(QWidget):
         # 主题样式盖回深色——浅色主题下就是那块突兀的黑框（用户截图反馈）。
         self.lbl_preview.setStyleSheet(
             self._preview_qss(getattr(self, "_index", -1) < 0))
-        self.cb_font.setStyleSheet(
-            f"QFontComboBox{{background:{t['input_bg']};color:{t['text']};"
-            f"border:1px solid {t['border']};border-radius:6px;"
-            "padding:1px 6px;}"
-            "QFontComboBox::drop-down{border:none;width:18px;}"
-            f"QFontComboBox QAbstractItemView{{background:{t['menu_bg']};"
-            f"color:{t['text']};selection-background-color:{accent};"
-            f"border:1px solid {t['border']};}}")
+        # 字体下拉不再单独写样式：ui_theme.build_app_qss() 的 combo 组已经把
+        # QFontComboBox（含弹出列表、箭头、hover）一起管了——同一种控件全应用
+        # 一套皮肤，避免"面板里一个样、别处又一个样"。
+        self._paint_color_buttons()
 
     def _preview_qss(self, dim=True):
         """字幕回显条样式（主题感知）：`dim`=无字幕时的弱化文字色。"""
@@ -1190,7 +1436,10 @@ class SubtitlePropsPanel(QWidget):
         cur = QColor(str(self.current_style().get(key) or "#FFFFFF"))
         title = {"color": "填充色", "outline_color": "描边色",
                  "back_color": "背景 / 阴影色"}.get(key, "选择颜色")
-        col = QColorDialog.getColor(cur, self, title)
+        dlg = themed_color_dialog(cur, self, title)
+        if dlg.exec_() != QColorDialog.Accepted:
+            return
+        col = dlg.currentColor()
         if not col.isValid():
             return
         self._colors[key] = col.name().upper()
@@ -1198,15 +1447,20 @@ class SubtitlePropsPanel(QWidget):
         self._emit()
 
     def _paint_color_buttons(self):
+        """四个色块按钮刷上当前颜色（**带外描边**：纯白/纯黑色块也要看得见）。"""
         st = self.current_style()
         import ui_theme
-        border = ui_theme.tokens()["border_hover"]
+        t = ui_theme.tokens()
+        accent = ui_theme.get_accent()
         pairs = (("color", self.btn_color), ("outline_color", self.btn_outline),
                  ("back_color", self.btn_bg), ("back_color", self.btn_shadow))
         for key, btn in pairs:
             c = str(st.get(key) or ("#000000" if key == "back_color" else "#FFFFFF"))
-            btn.setStyleSheet("QPushButton{background:%s;border:1px solid %s;"
-                              "border-radius:3px;}" % (c, border))
+            btn.setStyleSheet(
+                f"QPushButton{{background:{c};"
+                f"border:1px solid {t['border_hover']};border-radius:6px;}}"
+                f"QPushButton:hover{{border:2px solid {accent};}}"
+                f"QPushButton:pressed{{border:2px solid {accent};}}")
 
     # ---------- 内容 ----------
     def set_cue(self, cue, idx, total):
@@ -1230,7 +1484,7 @@ class SubtitlePropsPanel(QWidget):
                 break
         cols = getattr(self, "_colors", {})
         shadow = self.sp_shadow.value() if self.chk_shadow.isChecked() else 0
-        return {
+        st = {
             "font": self.cb_font.currentFont().family(),
             "size": self.sp_size.value(),
             "bold": self.btn_bold.isChecked(),
@@ -1244,12 +1498,40 @@ class SubtitlePropsPanel(QWidget):
             "border_style": 3 if self.chk_bg.isChecked() else 1,
             "shadow": shadow,
             "alignment": align,
-            "margin_v": self.sp_margin.value(),
-            "margin_l": self.sp_margin_l.value(),
-            "margin_r": self.sp_margin_l.value(),
+            "margin_v": self._real_val(self.sp_margin, "_va", 40),
+            "margin_l": self._real_val(self.sp_margin_l, "_ha", 10),
+            "margin_r": self._real_val(self.sp_margin_l, "_ha", 10),
             "scale_x": self.sp_scale_x.value(),
             "scale_y": self.sp_scale_y.value(),
         }
+        # 自由位置模式下，两个位置框的语义是**几何原点**（框左 x / 框顶 y）：
+        # 用户改动了框 = 要求按原点精确定位 → 直接写 pos_x/pos_y；margin 维持
+        # 原真实值（不然"回到对齐"会把坐标值当边距，位置乱跳）
+        if getattr(self, "_free_pos", False) and (
+                int(self.sp_margin.value()) != int(getattr(self, "_va_shown", -1))
+                or int(self.sp_margin_l.value()) != int(getattr(self, "_ha_shown", -1))):
+            st["margin_v"] = int(getattr(self, "_va_real", 40))
+            st["margin_l"] = int(getattr(self, "_ha_real", 10))
+            st["margin_r"] = int(getattr(self, "_ha_real", 10))
+            st["pos_x"] = int(self.sp_margin_l.value())
+            st["pos_y"] = int(self.sp_margin.value())
+        return st
+
+    def _real_val(self, spin, prefix, default):
+        """面板读数 vs 真实值的取舍。
+
+        自由位置模式下，`sp_margin` / `sp_margin_l` 显示的是**折算出来的
+        等效边距**（画面拖动时实时变化），并不是样式里的 margin_*。所以：
+
+          · 用户没动过这个框（值仍等于显示值）→ 上报**真实值**，别把显示用的
+            折算值当成用户输入（否则改颜色都会被判定成"改了位置"）；
+          · 用户动了 → 那就是明确的输入，按输入值上报（同时自由位置作废，
+            回到规则定位，符合"输入边距 = 用规则定位"的直觉）。
+        """
+        cur = int(spin.value())
+        if cur == int(getattr(self, prefix + "_shown", default)):
+            return int(getattr(self, prefix + "_real", default))
+        return cur
 
     def set_style(self, style):
         self._loading = True
@@ -1267,8 +1549,19 @@ class SubtitlePropsPanel(QWidget):
             self.sp_size.setValue(int(st.get("size", 46)))
             self.sl_size.setValue(int(st.get("size", 46)))
             self.sp_outline.setValue(int(st.get("outline", 2)))
-            self.sp_margin.setValue(int(st.get("margin_v", 40)))
-            self.sp_margin_l.setValue(int(st.get("margin_l", 10)))
+            # 「垂直距 / 水平距」两种来源：
+            #   · 跟随对齐模式 → 样式里的 margin_v / margin_l 本身就是它；
+            #   · 自由位置模式 → 画面上拖过之后，stage 按框的实际几何折算成
+            #     等效边距放在 _va / _ha 里传进来，面板照它显示（这样拖动时
+            #     数字才跟着动）。但要**同时记住真实值**：用户没动过这个框时
+            #     上报的仍是原始 margin_v/l —— 否则"拖好位置再改个颜色"会被
+            #     当成"改了位置"而把自由位置丢掉。
+            self._va_shown = int(st.get("_va", st.get("margin_v", 40)))
+            self._va_real = int(st.get("margin_v", 40))
+            self._ha_shown = int(st.get("_ha", st.get("margin_l", 10)))
+            self._ha_real = int(st.get("margin_l", 10))
+            self.sp_margin.setValue(self._va_shown)
+            self.sp_margin_l.setValue(self._ha_shown)
             self.sp_scale_x.setValue(int(st.get("scale_x", 100)))
             self.sp_scale_y.setValue(int(st.get("scale_y", 100)))
             self.btn_bold.setChecked(bool(st.get("bold")))
@@ -1284,11 +1577,76 @@ class SubtitlePropsPanel(QWidget):
             b = self.align_btns.get(align) or self.align_btns.get(2)
             if b is not None:
                 b.setChecked(True)
+            self._set_pos_state(st)
             self._paint_color_buttons()
         finally:
             self._loading = False
 
+    def _set_pos_state(self, style):
+        """刷新「位置：跟随对齐 / 已自定义」状态与回退按钮可用性。
+
+        文案取短（左列只有九宫格那么宽，最长四字），完整语义在 tooltip 里。
+        """
+        free = (style.get("pos_x") is not None and style.get("pos_y") is not None)
+        self._free_pos = free
+        self.lbl_pos.setText("已自定义" if free else "跟随对齐")
+        self.btn_pos_reset.setEnabled(bool(free))
+        # 自由位置下这两个框换了读数基准：**几何原点**（框左上角到画面
+        # 左/顶边的 PlayRes 坐标）——拖动、缩放、手输都以原点为准；
+        # 跟随对齐时仍是 MarginV/L（距对齐边，与对齐规则联动）。
+        if free:
+            self.sp_margin.setToolTip("垂直位置：字幕框**顶边**到画面顶部的"
+                                      "距离（几何原点 y，1080p 坐标），"
+                                      "手输可精确定位")
+            self.sp_margin_l.setToolTip("水平位置：字幕框**左边**到画面左侧的"
+                                        "距离（几何原点 x，1080p 坐标），"
+                                        "手输可精确定位")
+            # 原点坐标的量程是整个画面（PlayRes 1920x1080）——沿用的 900
+            # 上限会把大坐标手输钳掉
+            self.sp_margin.setRange(0, 1080)
+            self.sp_margin_l.setRange(0, 1920)
+        else:
+            self.sp_margin.setToolTip("垂直位置：字幕距对齐边的距离（ASS 的 MarginV）")
+            self.sp_margin_l.setToolTip("水平位置（ASS 的 MarginL / MarginR，"
+                                        "按对齐方向决定贴哪一边）")
+            self.sp_margin.setRange(0, 900)
+            self.sp_margin_l.setRange(0, 900)
+
+    def _on_reset_pos(self):
+        """回到对齐位置：显式把自由位置清成 None 上报。
+
+        ⚠️ 必须显式带 `pos_x/pos_y=None` 两个键：页面只有在样式里**显式**
+        出现这两个键时才认定"用户要求清位置"，否则它会把已拖好的自由位置
+        原样保留（那是"改字号别把位置弄丢"的保护）。
+        """
+        st = self.current_style()
+        st["pos_x"] = None
+        st["pos_y"] = None
+        self.style_changed.emit(st)
+
     # ---------- 联动 ----------
+    def _on_align_clicked(self, val):
+        """九宫格点击 = **把字幕摆到该区域**（清自由位置，重新定位）。
+
+        ⚠️ autoExclusive 的 QToolButton 点**已选中的格**会把它取消选中——
+        若直连 _emit，alignment 会回落默认 2 且样式可能毫无变化，表现就是
+        用户看到的「字幕拖动后再点对齐没反应 / 先消失再出现」两拍行为。
+        这里统一兜住：
+          · 点完把该格**重新 setChecked**（被 autoExclusive 取消了就拉回来，
+            组内其它格自然被顶掉）；
+          · 样式**显式**带 pos_x/pos_y=None——页面据此清自由位置，让本次
+            对齐立即生效（与「回到对齐」按钮同一语义）。
+        """
+        if self._loading:
+            return
+        b = self.align_btns.get(val)
+        if b is not None and not b.isChecked():
+            b.setChecked(True)
+        st = self.current_style()
+        st["pos_x"] = None
+        st["pos_y"] = None
+        self.style_changed.emit(st)
+
     def _on_weight(self, idx):
         if self._loading:
             return

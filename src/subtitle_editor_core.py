@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 1.14.0
+# @version 1.14.1
 """字幕编辑页的纯逻辑层：SRT 读写、时间换算、编辑操作、撤销栈。
 
 与界面完全解耦（本模块**不 import Qt**），便于 `_selftest_*` 直接测试。
@@ -121,6 +121,30 @@ def _ts_to_ms(m):
     return ((h * 60 + mi) * 60 + s) * 1000 + milli
 
 
+def _looks_like_ass(text):
+    """按内容识别 ASS/SSA（比扩展名可靠——用户常把 ASS 内容存成 .srt）。
+
+    `Dialogue:` 必须在**行首**：放宽到任意位置会把正文含 "dialogue:" 的
+    SRT 误判成 ASS，导致整份 0 条。
+    """
+    t = str(text)[:4000].lower()
+    if "[script info]" in t or "[v4+ styles]" in t or "[v4 styles]" in t:
+        return True
+    return re.search(r"^dialogue:", t, re.M) is not None
+
+
+def _ass_strip_text(s):
+    """ASS Dialogue 文本 → Cue 正文。
+
+    · 剥掉全部覆盖标签 `{\\i1}` `{\\pos(x,y)}` `{\\an8}`（样式交给面板）；
+    · 硬换行 `\\N` / 软换行 `\\n` → LF（Cue 内部约定）；
+    · 不换行空格 `\\h` → 空格。
+    """
+    s = re.sub(r"\{[^{}]*\}", "", str(s))
+    s = s.replace("\\N", "\n").replace("\\n", "\n").replace("\\h", " ")
+    return s.strip()
+
+
 # =============================================================
 # 2. 数据模型
 # =============================================================
@@ -168,14 +192,21 @@ class SubtitleDoc:
             return self.load_bytes(fh.read(), path)
 
     def parse(self, text):
-        """宽松解析 SRT/类 SRT 文本。
+        """宽松解析 SRT / ASS / SSA 文本。
 
-        容错点：序号可缺/可错、时间分隔符 `,` 或 `.`、小时位可省、
+        SRT 容错点：序号可缺/可错、时间分隔符 `,` 或 `.`、小时位可省、
         多余空行、文本行数不定（含空行也并入上一条，直到遇到下一条时间行）。
+        ASS/SSA 走 `parse_ass`（`Dialogue:` 行，样式信息不保留）。
         """
-        text = text.replace("\r\n", "\n").replace("\r", "\n")
+        # ⚠️ 换行规范化要连**冗余 CR** 一起处理：`\r\r\n`（CR CR LF）常见于
+        #    老工具导出或手工编辑过的字幕。只做 `\r\n→\n` + `\r→\n` 会把它拆成
+        #    **两个**换行，多出来的空行让「纯数字行紧跟时间行 = 下一条序号」的
+        #    判断失准，下一条的序号就被并进上一条正文（表现为字幕里多个数字）。
+        text = re.sub(r"\r+\n", "\n", text).replace("\r", "\n")
         lines = text.split("\n")
         self.cues = []
+        if _looks_like_ass(text):
+            return self.parse_ass(lines)
         skipped = 0
         i = 0
         n = len(lines)
@@ -204,6 +235,34 @@ class SubtitleDoc:
             while body and not body[-1].strip():
                 body.pop()
             self.cues.append(Cue(start, max(start, end), "\n".join(body)))
+        return len(self.cues), skipped
+
+    def parse_ass(self, lines):
+        """解析 ASS/SSA 的 `Dialogue:` 行为 Cue。
+
+        Dialogue 字段：Layer,Start,End,Style,Name,MarginL,MarginR,MarginV,
+        Effect,Text —— Text 从第 10 段起且**可含逗号**，必须 split(",", 9)。
+        样式信息（Style / 覆盖标签 / 边距）不保留：本页导出 ASS 用右侧
+        面板的样式（见 SubtitleEditPage.export_subtitle）。
+        skipped 只统计「以 Dialogue: 开头但解析失败」的行——段落头、
+        字段定义等 ASS 固有结构不算错误；空文本 Dialogue 保留（打轴时
+        常先建空条再填词，与「插入」行为一致）。
+        """
+        skipped = 0
+        for line in lines:
+            if not line.startswith("Dialogue:"):
+                continue
+            parts = line.split(",", 9)
+            if len(parts) < 10:
+                skipped += 1
+                continue
+            start = clock_to_ms(parts[1])
+            end = clock_to_ms(parts[2])
+            if start is None or end is None:
+                skipped += 1
+                continue
+            self.cues.append(Cue(min(start, end), max(start, end),
+                                 _ass_strip_text(parts[9])))
         return len(self.cues), skipped
 
     # ---------- 写 ----------
@@ -531,6 +590,11 @@ ASS_DEFAULT_STYLE = {
     "spacing": 0,            # 字间距（Spacing）
     "border_style": 1,       # 1 = 描边+阴影，3 = 不透明底框（ASS 的 BorderStyle）
     "back_color": "#000000",  # 背景 / 阴影色（BackColour）
+    # --- v1.14.2：自由位置（画面上拖动 / 把手缩放后写入，按 PlayRes 1080 坐标）---
+    # 两者都有值时**覆盖** alignment + margin 的定位规则（对应 ASS 的 \pos）；
+    # 任一为空则仍走对齐规则。属性面板点一次对齐 = 清掉它，回到规则模式。
+    "pos_x": None,
+    "pos_y": None,
 }
 
 ASS_PLAY_RES = (1920, 1080)  # 参考分辨率；libass 会按实际画面等比缩放
@@ -629,8 +693,14 @@ def render_ass(cues, style=None, play_res=ASS_PLAY_RES):
         body = ass_escape(c.text)
         if not body.strip():
             continue
-        lines.append("Dialogue: 0,%s,%s,Default,,0,0,0,,%s" % (
-            ms_to_ass(c.start), ms_to_ass(c.end), body))
+        # 自由位置（v1.14.2）：\an7 让 \pos 的坐标成为**文字块左上角**，
+        # 与画面预览层 SubtitleStage 的算法一致；没有 pos 就纯走样式定位。
+        prefix = ""
+        px, py = st.get("pos_x"), st.get("pos_y")
+        if px is not None and py is not None:
+            prefix = "{\\an7\\pos(%.0f,%.0f)}" % (float(px), float(py))
+        lines.append("Dialogue: 0,%s,%s,Default,,0,0,0,,%s%s" % (
+            ms_to_ass(c.start), ms_to_ass(c.end), prefix, body))
     lines.append("")
     return "\n".join(lines)
 
