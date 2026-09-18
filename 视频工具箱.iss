@@ -4,6 +4,8 @@
 ; 构建前提：已用 tools\python 执行 pyinstaller 视频工具箱.spec，
 ;           产物位于 dist\视频工具箱.exe
 ; 编译：ISCC.exe 视频工具箱.iss  →  installer\视频工具箱_Setup_v1.14.1.exe
+; v1.14.1（语言修正）：安装向导固定为简体中文——ShowLanguageDialog 改 no
+;         （不再弹出语言选择框），[Languages] 移除 english 仅保留中文一项。
 ; v1.12.1：修复打包版「点退出后程序反复重启」（严重）——退出时的校准知识同步
 ;         原以 [sys.executable, "-c", ...] 派生子进程；冻结成单文件 exe 后
 ;         sys.executable 就是主程序自身，于是每次退出都拉起一个新 GUI 实例，
@@ -83,13 +85,13 @@ ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 ; 用户级安装：无需 UAC 提权（D 盘用户目录默认可写）
 PrivilegesRequired=lowest
-ShowLanguageDialog=yes
-LanguageDetectionMethod=none
+; 安装语言固定为简体中文：不弹语言选择框（ShowLanguageDialog=no 时
+; Inno 直接采用 [Languages] 第一项），且语言列表仅保留中文一项
+ShowLanguageDialog=no
 
 [Languages]
 ; 简体中文语言文件随项目存放（便携版编译器 Languages 目录不带中文），相对本 iss 解析
 Name: "chinesesimp"; MessagesFile: "build\Languages\ChineseSimplified.isl"
-Name: "english"; MessagesFile: "compiler:Default.isl"
 
 [Tasks]
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked

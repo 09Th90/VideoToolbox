@@ -4,7 +4,7 @@
     <DisplayName>视频工具箱 主程序</DisplayName>
     <Description>主程序、界面源码、文档与第三方组件声明（必装，约 88MB）</Description>
     <Version>1.14.1</Version>
-    <ReleaseDate>2026-09-15</ReleaseDate>
+    <ReleaseDate>2026-09-18</ReleaseDate>
     <ForcedInstallation>true</ForcedInstallation>
     <SortingPriority>100</SortingPriority>
     <Script>installscript.qs</Script>
