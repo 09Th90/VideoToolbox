@@ -4229,6 +4229,7 @@ class SubtitleEditPage(ScrollPage):
     _wave_progress = pyqtSignal(int)          # 波形构建进度（0-100）
     _wave_ready = pyqtSignal(object, float)   # (peaks bytearray, 时长秒)
     _wave_failed = pyqtSignal(str)
+    _mpv_ready = pyqtSignal(bool, str)        # 播放组件补装结果 (成功?, 错误)
 
     SPEEDS = ("0.25", "0.5", "0.75", "1.0", "1.25", "1.5", "2.0")
     #: 文本列里换行以 " / " 呈现（表格行高不随多行文本变化）；
@@ -4254,6 +4255,12 @@ class SubtitleEditPage(ScrollPage):
         self.ffprobe = ""
         self._wave_stop = threading.Event()
         self._wave_busy = False
+        # 播放器不可用提示的去重节流（拖时间轴会高频触发 _ensure_player，
+        # 不去重的话 libmpv 缺失时错误 InfoBar 会连珠炮刷屏——用户实测截图）
+        self._player_err_shown = ""
+        self._player_err_at = 0.0
+        self._mpv_installing = False
+        self._mpv_pending_path = ""      # 补装完成后来不及 load 的媒体路径
         self._pre_drag = None            # 拖拽开始前的整档快照
         self._drag_pushed = False
         self._shortcuts = []
@@ -4275,6 +4282,7 @@ class SubtitleEditPage(ScrollPage):
         self._wave_progress.connect(self._on_wave_progress)
         self._wave_ready.connect(self._on_wave_ready)
         self._wave_failed.connect(self._on_wave_failed)
+        self._mpv_ready.connect(self._on_mpv_ready)
 
         self._build_ui()
         self._install_shortcuts()
@@ -4904,19 +4912,71 @@ class SubtitleEditPage(ScrollPage):
             self.wave_cache = WaveformCache(engine.DATA_DIR, ff, fp)
         return ff, fp
 
-    def _ensure_player(self):
+    def _ensure_player(self, quiet=False):
         """播放器按需创建：窗口真正显示后 winId() 才有效，因此不能提前建。
 
         构造页面时主窗口还没 show()，此时拿句柄会绑到一个随后被销毁的原生
         窗口上，表现为「有声音没画面」。
+
+        quiet=True：失败不弹 InfoBar（拖时间轴等高频路径用——seek_ms 每次
+        mouseMove 都会走到这里，去重 + 静默才能既保住"没视频也能拖时间轴
+        定位"又不刷屏）。quiet=False 时同一错误 60 秒内也只提示一次。
         """
         if self.player.available:
             return True
         if not self.player.attach(self.video_host):
             err = self.player.error or "未知原因"
-            self._info("err", "播放器不可用", err[:300], 8000)
+            now = time.monotonic()
+            if (not quiet and err != self._player_err_shown
+                    and now - self._player_err_at > 60):
+                self._info("err", "播放器不可用", err[:300], 8000)
+                self._player_err_shown = err
+                self._player_err_at = now
             return False
+        self._player_err_shown = ""
         return True
+
+    def _install_mpv_async(self, pending_path=""):
+        """后台补装 libmpv-2.dll（安装版不随包分发，用户机器上常常没有）。
+
+        成功后自动重试挂播放器；pending_path 记下补装期间用户已选择的视频，
+        装好即自动载入——用户对"下载了 39MB"的唯一感知就是"视频能放了"。
+        """
+        if self._mpv_installing:
+            if pending_path:
+                self._mpv_pending_path = pending_path
+            return
+        self._mpv_installing = True
+        if pending_path:
+            self._mpv_pending_path = pending_path
+        self._info("warn", "正在补齐播放组件",
+                   "libmpv-2.dll（约 39MB，仅首次）下载中，完成后自动恢复视频预览",
+                   10000)
+
+        def work():
+            try:
+                ok, err = engine.ensure_mpv_dll(self.mpv_dir)
+            except Exception as e:  # noqa: BLE001
+                ok, err = False, "%s: %s" % (type(e).__name__, e)
+            self._mpv_ready.emit(ok, err)
+
+        threading.Thread(target=work, name="vt-mpv-install", daemon=True).start()
+
+    def _on_mpv_ready(self, ok, err):
+        self._mpv_installing = False
+        if not ok:
+            self._info("err", "播放组件补装失败", (err or "未知原因")[:300], 10000)
+            return
+        self._info("ok", "播放组件已就绪", "视频预览已恢复可用", 5000)
+        path = self._mpv_pending_path or self.video_path
+        self._mpv_pending_path = ""
+        if path and os.path.isfile(path) and self._ensure_player():
+            self.player.load(path, autoplay=False)
+            # 与 load_media 相同的延迟同步：等 mpv 解出宽高比再贴字幕层/贴合视频框
+            QTimer.singleShot(60, self._sync_stage_visible)
+            QTimer.singleShot(400, self._sync_stage_visible)
+            QTimer.singleShot(60, self._fit_video_frame)
+            QTimer.singleShot(400, self._fit_video_frame)
 
     def _mpv_missing_hint(self):
         dll = os.path.join(self.mpv_dir, "libmpv-2.dll")
@@ -4956,24 +5016,32 @@ class SubtitleEditPage(ScrollPage):
 
         v1.13.0：与 open_video 共用同一套载入逻辑；libmpv 本身支持
         av1 / h264 / h265 / x264 等全格式，这里不再限制扩展名。
+
+        v1.14.1：**播放组件缺失不再挡住载入**——此前 _ensure_player 失败
+        直接 return，安装版用户（libmpv 不随包分发）连视频都放不进来，
+        字幕/波形也一并瘫痪。现在降级载入：波形与字幕表照常（走 ffmpeg，
+        与 mpv 无关），画面预览缺失只提示；同时后台自动补装组件，装好即
+        自动载入刚才那份视频，无需用户重试。
         """
         if not self._confirm_discard():
             return False
-        if not self._ensure_player():
-            return False
+        if not self._ensure_player(quiet=True):
+            # 组件缺失：降级载入 + 后台补装，装好后 _on_mpv_ready 自动 load
+            self._install_mpv_async(pending_path=path)
         self.video_path = path
-        self.player.load(path, autoplay=False)
         self.video_hint.hide()
         self._refresh_status()
         self._start_waveform(path)
-        # 视频就绪 → 把画面字幕层贴到视频的**实际显示区域**并显示出来。
-        # 延后一帧：此时 mpv 才拿到宽高比，抽黑边算出来的矩形才是准的。
-        QTimer.singleShot(60, self._sync_stage_visible)
-        QTimer.singleShot(400, self._sync_stage_visible)
-        # 视频框自适应比例：mpv 解出 video-params 需要一点时间，两次兜底，
-        # `_on_duration` 里还有最后一次（那时比例一定就绪了）。
-        QTimer.singleShot(60, self._fit_video_frame)
-        QTimer.singleShot(400, self._fit_video_frame)
+        if self.player.available:
+            self.player.load(path, autoplay=False)
+            # 视频就绪 → 把画面字幕层贴到视频的**实际显示区域**并显示出来。
+            # 延后一帧：此时 mpv 才拿到宽高比，抽黑边算出来的矩形才是准的。
+            QTimer.singleShot(60, self._sync_stage_visible)
+            QTimer.singleShot(400, self._sync_stage_visible)
+            # 视频框自适应比例：mpv 解出 video-params 需要一点时间，两次兜底，
+            # `_on_duration` 里还有最后一次（那时比例一定就绪了）。
+            QTimer.singleShot(60, self._fit_video_frame)
+            QTimer.singleShot(400, self._fit_video_frame)
         return True
 
     def close_video(self):
@@ -5306,7 +5374,9 @@ class SubtitleEditPage(ScrollPage):
         self.player.nudge_ms(delta_ms)
 
     def seek_ms(self, ms):
-        if not self._ensure_player():
+        # quiet：拖时间轴每次 mouseMove 都走到这里，没有视频属正常状态，
+        # 静默降级为纯时间轴定位（面板跟着走）；弹窗交给低频动作路径
+        if not self._ensure_player(quiet=True):
             self._sync_current(ms)      # 没有视频时也能用时间轴定位，面板照样跟着走
             return
         self.player.seek_ms(ms)

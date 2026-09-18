@@ -4288,6 +4288,48 @@ def ensure_ffmpeg():
             print("[错误] ffmpeg 解压失败")
             sys.exit(1)
         return FFMPEG_PATH, FFPROBE_PATH
+
+
+MPV_DLL_URL = ("https://github.com/09Th90/VideoToolbox/releases/download/"
+               "deps-mpv-lgpl-20260914/libmpv-2.zip")
+
+
+def ensure_mpv_dll(mpv_dir):
+    """确保 <mpv_dir>\\libmpv-2.dll 就位；缺失时从自有 release 下载解压。
+
+    v1.14.1：字幕编辑页的播放组件（LGPL 构建）不随安装包分发，而原提示
+    让用户手动跑 tools\\download_open_source_deps.py——该脚本既不进 exe
+    也不随安装包分发，对安装版用户等于死路。这里内联最小实现：复用
+    _download（直连失败自动走内置 mihomo 代理），zip 约 39MB、解压约 95MB。
+
+    返回 (True, "") 或 (False, 错误说明)。供界面在后台线程调用。
+    """
+    dll = os.path.join(mpv_dir, "libmpv-2.dll")
+    if os.path.isfile(dll) and os.path.getsize(dll) > 10 * 1024 * 1024:
+        return True, ""
+    os.makedirs(mpv_dir, exist_ok=True)
+    zpath = os.path.join(TOOLS_DIR, "_libmpv.zip")
+    try:
+        _download(MPV_DLL_URL, zpath, "libmpv 播放组件（约 39MB，仅首次）")
+        with zipfile.ZipFile(zpath) as z:
+            name = next(n for n in z.namelist()
+                        if n.replace("\\", "/").lower().endswith("libmpv-2.dll"))
+            with z.open(name) as src, open(dll + ".part", "wb") as dst:
+                shutil.copyfileobj(src, dst)
+        os.replace(dll + ".part", dll)
+        return True, ""
+    except Exception as e:  # noqa: BLE001
+        return False, ("下载/解压 libmpv-2.dll 失败：%s\n"
+                       "可到发布页手动下载 %s 解压到 %s"
+                       % (e, MPV_DLL_URL, mpv_dir))
+    finally:
+        try:
+            if os.path.isfile(zpath):
+                os.remove(zpath)
+        except OSError:
+            pass
+
+
 # =============================
 
 
