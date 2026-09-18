@@ -288,6 +288,18 @@ def _asr_base_clean(base: str) -> str:
     return b
 
 
+def _is_zhipu_asr_base(base: str) -> bool:
+    """是否智谱 ASR 服务（bigmodel.cn / z.ai）。
+
+    智谱的 /models 端点只列 LLM 与视觉模型，ASR 模型（glm-asr-*）不列在
+    列表里，但 audio/transcriptions 端点确实可用。模型可见性核对该类平台
+    必须放行，否则「接口连通、模型实际可用」会被误报成"看不到模型"。
+    """
+    b = str(base or "").lower()
+    return ("bigmodel.cn" in b or ".z.ai" in b or "z.ai/" in b
+            or b.startswith("z.ai"))
+
+
 def _models_url(base: str) -> str:
     """OpenAI 兼容模型列表地址（用于 ASR 服务连通性测试）。"""
     b = _asr_base_clean(base)
@@ -946,7 +958,7 @@ def asr_test_connection(cfg: dict | None = None) -> tuple[bool, str]:
     # 不代表转录能用——配置的模型名不在列表里时，转录必失败。这里直接把
     # 实例上「实际可见的模型」告诉用户，免得他继续对着 404 猜。
     hit, names = asr_model_visible(raw, ac["model"])
-    if hit is False:
+    if hit is False and not _is_zhipu_asr_base(ac["base_url"]):
         sample = "、".join(sorted(names)[:8])
         return False, ("接口连通，但该服务/实例上看不到模型「%s」（可见的模型："
                        "%s%s）。注意：maas 专属实例通常只部署创建时选定的模型，"
@@ -954,5 +966,11 @@ def asr_test_connection(cfg: dict | None = None) -> tuple[bool, str]:
                        "qwen3-asr-flash 这类录音文件识别模型。"
                        % (ac["model"], sample,
                           " 等 %d 个" % len(names) if len(names) > 8 else ""))
+    if hit is False and _is_zhipu_asr_base(ac["base_url"]):
+        # 智谱（bigmodel.cn / z.ai）的 /models 端点**只列 LLM/视觉模型**，
+        # ASR 模型（glm-asr-2512 等）不列在列表里，但 audio/transcriptions
+        # 端点确实可用——模型不在列表不代表不可用，这里如实说明并放行。
+        return True, (f"接口连通（协议 {proto_note}，{url}）；模型 {ac['model'] or '未填'}"
+                      "（智谱 /models 不列 ASR 模型，实际可用性以转录结果为准）")
     return True, (f"接口连通（协议 {proto_note}，{url}）；模型 {ac['model'] or '未填'}"
                   + (f"，服务端可见 {n} 个模型" if n else ""))
