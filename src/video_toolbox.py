@@ -1,9 +1,17 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# @version 1.15.2
+# @version 1.15.3
 """
 视频工具箱 v1.12.0（单文件整合版）
 ==================================================
+v1.15.3：ASR 协议纠偏补「反向守卫」——「接口协议」显式选了「百炼实时
+  （WebSocket）」但模型**不是**实时模型（名里没有 realtime / -rt- / streaming）
+  时，原先会拿文件识别模型直接去连实时端点，服务端只回
+  `InvalidParameter url error, please check url!`——用户看不懂，而且 task-failed
+  属确定性错误，重试与降级都救不回（实测：专属实例上把协议留成「百炼实时」、
+  模型换成 `qwen-audio-3.0-asr-flash-filetrans` 即触发）。现在 `asr_protocol_fix()`
+  按 auto 推断把它改走文件识别协议并写日志；真实时模型完全不受影响。
+  同时把该服务端报错翻译成可操作提示（点名实时模型的命名特征 + 引导改协议）。
 v1.12.2：校准知识收集通道调整（用户拍板）——
   ① 恢复 GitHub 整文件同步通道（_gh_* / sync_calib_to_github / _pull_and_merge）：
   用于收集不同使用者在校准过程中产生的增量内容；条目级三方合并保证
@@ -1307,6 +1315,34 @@ def _infer_asr_protocol(base_url, model):
     return "openai"
 
 
+def asr_protocol_fix(proto, base_url, model):
+    """协议纠偏（双向）：把「协议 ↔ 端点 ↔ 模型」明显对不上的组合拉回正轨。
+
+    返回 `(修正后的协议, 给日志的说明)`；无需修正时说明为空串。
+
+    · `openai` + 百炼/小米系端点或模型 → 按推断改走 `chat_audio`
+      （这类服务没有 `/audio/transcriptions`，按 openai 打只会 404）。
+    · `dashscope_realtime` + 模型**不含实时特征**（v1.15.3 新增的反向守卫）
+      → 按推断改走文件识别。用文件识别模型去连实时端点时，服务端只回
+      `InvalidParameter url error, please check url!`——用户完全无从下手；
+      而「接口协议」显式选过「百炼实时（WebSocket）」后，很容易与后来换成的
+      文件识别模型残留成这个组合（实测踩到）。
+    """
+    p = str(proto or "").strip().lower()
+    mdl = str(model or "").lower()
+    if p == "openai":
+        auto = _infer_asr_protocol(base_url, model)
+        if auto and auto != "openai":
+            return auto, "协议 openai 与该端点/模型不符，自动改走 %s" % auto
+    if p == "dashscope_realtime" and not any(h in mdl for h in ASR_REALTIME_HINTS):
+        auto = _infer_asr_protocol(base_url, model)
+        if auto and auto != "dashscope_realtime":
+            return auto, ("协议设为「百炼实时（WebSocket）」但模型「%s」不是实时"
+                          "模型（名里没有 realtime / -rt- / streaming），"
+                          "自动改走 %s" % (model, auto))
+    return p, ""
+
+
 def asr_base_guard(base_url):
     """ASR 地址守卫：地址填成了「文本对话端点」时给出能照着改的提示。
 
@@ -2546,10 +2582,19 @@ def _asr_dashscope_realtime_submit(asr_obj):
             if event == "result-generated":
                 _asr_collect_sentence(msg, segments, texts)
             elif event == "task-failed":
-                # 参数/模型/密钥类错误，重试也不会好 → 直接抛
-                raise RuntimeError("实时 ASR 任务失败：%s %s"
-                                   % (header.get("error_code"),
-                                      header.get("error_message")))
+                # 参数/模型/密钥类错误，重试也不会好 → 直接抛；顺带把服务端那句
+                # `InvalidParameter url error, please check url!` 翻译成可操作的
+                # 引导——它几乎总是「模型与实时协议不匹配」造成的。
+                code = str(header.get("error_code") or "")
+                emsg = str(header.get("error_message") or "")
+                hint = ""
+                if "url" in emsg.lower() or "invalidparameter" in code.lower():
+                    hint = ("。该模型很可能不是实时（WebSocket）模型——实时模型名"
+                            "通常含 realtime（如 fun-asr-flash-realtime /"
+                            " qwen3-asr-flash-realtime）；若用的是文件识别模型，"
+                            "请把「接口协议」改为「自动识别」")
+                raise RuntimeError("实时 ASR 任务失败：%s %s%s"
+                                   % (code, emsg, hint))
             elif event == want:
                 return
         raise _Transient("实时 ASR 等待 %s 超时" % want)
@@ -2663,15 +2708,17 @@ def vc_asr_protocol_patch():
     def _submit(self):
         global _ASR_WS_DEGRADED
         proto = asr_protocol_of()
-        # v1.14.2 协议自动纠偏：显式/旧配置判成 openai，但端点与模型特征指向
-        # 别族时按推断改走——百炼 maas + 实时模型拿 OpenAI SDK 打必被服务端
-        # 断连；qwen-audio/paraformer 族在 maas 上根本没有 /audio/transcriptions。
-        if proto == "openai":
-            auto = _infer_asr_protocol(getattr(self, "base_url", ""),
-                                       getattr(self, "model", ""))
-            if auto and auto != "openai":
-                proto = auto
-                _vc_log(f"ASR 协议与端点/模型不符，自动由 openai 改走 {auto}")
+        # 协议纠偏统一收在 asr_protocol_fix（v1.14.2 起，v1.15.3 补反向守卫）：
+        # ① 显式/旧配置判成 openai，但端点与模型特征指向别族时按推断改走——
+        #    百炼 maas + 实时模型拿 OpenAI SDK 打必被服务端断连；qwen-audio/
+        #    paraformer 族在 maas 上根本没有 /audio/transcriptions；
+        # ② 协议选了「百炼实时」但模型不是实时模型时改走文件识别——否则服务端
+        #    只回 `InvalidParameter url error, please check url!`，既看不懂、
+        #    重试和降级也都救不回来（task-failed 属确定性错误）。
+        proto, _fix_note = asr_protocol_fix(proto, getattr(self, "base_url", ""),
+                                            getattr(self, "model", ""))
+        if _fix_note:
+            _vc_log("ASR " + _fix_note)
         if proto != "dashscope_realtime":
             # 实时模型只有走实时协议才有救：其它协议下提前拦，别等服务端 404。
             # 走实时协议时**不能**拦（那正是让实时模型出字幕的路）。
