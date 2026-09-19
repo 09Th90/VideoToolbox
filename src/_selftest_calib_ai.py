@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 1.15.3
+# @version 1.15.4
 """AI 校准 Agent 自检（离线，不联网、不调用真实 LLM）。
 
 覆盖：
@@ -677,6 +677,7 @@ def test_meta_dossier():
         def chat(prompt, system=None, max_tokens=8192):
             if "【要做的四件事】" in prompt:      # 片源档案请求
                 seen["meta"] += 1
+                seen["meta_tokens"] = max_tokens
                 return meta_json
             return base_chat(prompt, system, max_tokens)
 
@@ -687,6 +688,9 @@ def test_meta_dossier():
         r1 = ag.calibrate(src, out=os.path.join(d, "a1.srt"), report=report, **kw)
         check("第 1 轮成功", r1["ok"], r1.get("error", ""))
         check("片源档案被调用一次", seen["meta"] == 1, str(seen["meta"]))
+        check("片源档案的 max_tokens 与主流程同级（≥8192；压到 4096 会被推理模型的"
+              "思考链吃光、整段落空）",
+              seen.get("meta_tokens", 0) >= 8192, str(seen.get("meta_tokens")))
         m1 = r1.get("meta") or {}
         check("中文标题解析", m1.get("title") == "终末地 提弗洛斯特工档案",
               str(m1.get("title"))[:40])

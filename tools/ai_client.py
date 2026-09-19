@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 1.15.3
+# @version 1.15.4
 """
 全局 AI 客户端（OpenAI 兼容 · 单通道）。
 
@@ -100,14 +100,29 @@ DEFAULT_CONFIG: dict = {
     "asr_local_model_dir": "",
     # ---- AI 校准（Agent 级字幕校准）----
     # v1.12.0：原 calib_channel（接口 A/B 选择）随双通道合并一并废弃
-    "calib_chunk_cues": 120,   # 每块最多 cue 条数
-    "calib_max_chars": 6000,   # 每块字符预算（超出自动再拆）
-    "calib_max_tokens": 8192,  # 单次调用的最大输出
+    # v1.15.4：按「模型最大值」放开——上下文预算默认 1M token，单次输出默认
+    #   65536（推理模型的思考链也吃这份额度，给小了正文会空）；端点不接受
+    #   该额度时程序会按错误类型**自动减半重试**，无需手工调小。
+    "calib_chunk_cues": 400,          # 每块最多 cue 条数
+    "calib_max_chars": 60000,         # 每块字符预算（超出自动再拆）
+    "calib_max_tokens": 65536,        # 单次调用的最大输出
+    "calib_context_tokens": 1000000,  # 可用上下文预算（片源档案按 1/4 折算采样）
     "calib_concurrency": 1,    # 逐块 LLM 调用并发路数（1＝串行；v1.16.0 受控并发）
     "max_tokens": 2048,
     "timeout": 90,
     "retries": 3,
 }
+
+#: v1.15.4：这些键若**低于**下表值（早期版本落盘的小值，会让推理模型的思考链
+#: 吃光输出额度、片源档案整段落空），首次加载时自动抬到新默认。带迁移标记
+#: 保证只做一次——之后用户若手动调小，程序不再覆盖。
+_RAISE_ON_MIGRATE = {
+    "calib_chunk_cues": 400,
+    "calib_max_chars": 60000,
+    "calib_max_tokens": 65536,
+    "calib_context_tokens": 1000000,
+}
+_TOKEN_MIGRATION_TAG = "1.15.4"
 
 
 def load_config() -> dict:
@@ -118,6 +133,7 @@ def load_config() -> dict:
     地址/模型顶上（两通道密钥本就共用同一个）。
     """
     cfg = dict(DEFAULT_CONFIG)
+    _migrated = False
     try:
         raw = json.loads(CONFIG_PATH.read_text(encoding="utf-8-sig"))
         if isinstance(raw, dict):
@@ -129,9 +145,20 @@ def load_config() -> dict:
             for k in DEFAULT_CONFIG:
                 if k in raw and raw[k] is not None:
                     cfg[k] = raw[k]
+            # v1.15.4 一次性迁移：早期落盘的 calib_* 偏小（如 max_tokens=5120），
+            # 推理模型下思考链会把正文挤空 ⇒ 抬到新默认（见 _RAISE_ON_MIGRATE）。
+            if str(raw.get("calib_token_migrated") or "") != _TOKEN_MIGRATION_TAG:
+                for _k, _v in _RAISE_ON_MIGRATE.items():
+                    try:
+                        if int(cfg.get(_k) or 0) < _v:
+                            cfg[_k] = _v
+                    except (TypeError, ValueError):
+                        cfg[_k] = _v
+                cfg["calib_token_migrated"] = _TOKEN_MIGRATION_TAG
+                _migrated = True
     except (OSError, ValueError):
         pass
-    if not CONFIG_PATH.exists():
+    if not CONFIG_PATH.exists() or _migrated:
         try:
             save_config(cfg)
         except OSError:

@@ -1,6 +1,6 @@
 # -*- mode: python ; coding: utf-8 -*-
-# @version 1.15.3
-"""视频工具箱 v1.15.3 —— PyInstaller 打包配置
+# @version 1.15.4
+"""视频工具箱 v1.15.4 —— PyInstaller 打包配置
 v1.15.2：补 `websocket` 到 hiddenimports——**实时（WebSocket）ASR 协议**（百炼
          `dashscope_realtime`）依赖 websocket-client，而此前**打包环境里根本没装
          这个包**、spec 也没声明 ⇒ exe 内嵌引擎执行到 `import websocket` 必失败，

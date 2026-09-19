@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# @version 1.15.3
+# @version 1.15.4
 """
 视频工具箱 v1.12.0（单文件整合版）
 ==================================================
@@ -3628,9 +3628,10 @@ def calib_ai_run(src, out=None, report=None, mode_flag="", fix_en=False,
         src, out=out, report=report, mode_flag=mode_flag, fix_en=fix_en,
         script=os.path.join(APP_DIR, "subtitle_calib_merged.py"),
         python=system_python(), log=log, chat=calib_ai_chat,
-        chunk_cues=int(ai.get("calib_chunk_cues") or 120),
-        max_chars=int(ai.get("calib_max_chars") or 6000),
-        max_tokens=int(ai.get("calib_max_tokens") or 8192),
+        chunk_cues=int(ai.get("calib_chunk_cues") or 400),
+        max_chars=int(ai.get("calib_max_chars") or 60000),
+        max_tokens=int(ai.get("calib_max_tokens") or 65536),
+        context_tokens=int(ai.get("calib_context_tokens") or 1000000),
         concurrency=int(ai.get("calib_concurrency") or 1),
         round_no=round_no, cancel=cancel, workdir=workdir,
         style=style, resume_from=resume_from, prev_changes=prev_changes,
