@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# @version 1.15.0
+# @version 1.15.1
 """视频工具箱 GUI v1.11.0 —— Fluent 矢量界面
 ====================================================================
 界面形态（v1.10.0 起，原 tkinter 界面退役）：
@@ -109,7 +109,7 @@ from subtitle_overlay import SubtitleStage
 # 内嵌字幕对话框（原引擎工作台「字幕视频合成」那一段，v1.13.x 挪到这里）
 from subtitle_compose import ComposeDialog
 
-VERSION = "1.15.0"
+VERSION = "1.15.1"
 
 # 全格式媒体/字幕/文档扩展名（v1.13.0）：
 #   视频：常见容器 + av1 / h264 / h265 / x264 等裸流与更多封装；
@@ -3550,7 +3550,10 @@ class CalibPage(QWidget):
             self._base_stem = os.path.splitext(out)[0]
             self._round = 0
             self._last_out = ""
-        report = os.path.splitext(out)[0] + ".md" if self.report_switch.isChecked() else ""
+        # v1.15.1：报告固定写**同一个**文件（第 1 轮定的 base_stem.md），多轮校准
+        # 复写它，不再在目录里堆 .r2.md / .r3.md —— 轮次信息写在报告正文里。
+        report_stem = self._base_stem or os.path.splitext(out)[0]
+        report = (report_stem + ".md") if self.report_switch.isChecked() else ""
         round_no = self._round + 1
 
         self.ai_running = True
