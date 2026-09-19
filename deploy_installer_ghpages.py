@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 1.15.3
+# @version 1.15.4
 """把 installer_repository/ 部署到 09Th90/VideoToolbox 的 gh-pages 分支并启用 GitHub Pages。
 
 走 GitHub Git Data API：token 取自 gh keyring（gh auth token），用 curl 直连

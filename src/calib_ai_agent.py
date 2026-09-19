@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 1.15.3
+# @version 1.15.4
 """AI 校准 Agent —— Agent 级字幕术语校准（v1.11.0；v1.16.0 并发与提示词优化）。
 
 定位
@@ -883,7 +883,8 @@ def calibrate(src: str, out: str = None, report: str = None, mode_flag: str = ""
               checkpoint: bool = True,
               thinking: bool = True,
               concurrency: int = 1,
-              learn_kb: str = None) -> dict:
+              learn_kb: str = None,
+              context_tokens: int = 1000000) -> dict:
     """Agent 级 AI 校准主流程（详见模块 docstring）。
 
     baseline=True 时先跑术语脚本得到基线（推荐：机械部分零成本且必定正确）；
@@ -907,6 +908,9 @@ def calibrate(src: str, out: str = None, report: str = None, mode_flag: str = ""
     learn_kb          v1.15.1：学习库路径，交给收尾的 learn 沉淀用；
                       None = 脚本默认（cwd 下的 subtitle_learned_kb.json）。
                       **自检必须显式传临时库**，否则测试数据会写进真实知识库。
+    context_tokens    v1.15.4：可用**上下文预算**（默认 1M token）。片源档案按
+                      它的 1/4 折算采样上限 ⇒ 默认等于全量投喂字幕；输出额度
+                      （max_tokens）默认 65536，端点不接受时会自动减半重试。
     """
     t0 = time.time()
     log = log or (lambda m, level="dim": None)
@@ -1307,10 +1311,17 @@ def calibrate(src: str, out: str = None, report: str = None, mode_flag: str = ""
         # 已经校验通过的字幕白跑，故一律吞掉异常、只记日志。
         try:
             _tick()
+            # v1.15.4：这里**不能**再把 max_tokens 压到 4096 —— 推理模型
+            # （deepseek-flash / reasoner 等）会先吐思考链，4096 常被思考吃光、
+            # 正文为空（finish_reason=length），片源档案整段落空（报告里
+            # 「四、官方中文核对」「五、脚本沉淀建议」全显示「无」，
+            # 用户完全看不出是失败还是真没有）。实测同片源：4096 必失败；
+            # 8192 正常产出标题 / 10 个 tag / 官方中文 / 脚本建议四段。
             result["meta"] = build_meta(chat, mode_flag, src, cues,
                                         result["accepted"], log, round_no,
-                                        max_tokens=min(4096, max_tokens),
-                                        think=_think if thinking else None)
+                                        max_tokens=max_tokens,
+                                        think=_think if thinking else None,
+                                        context_tokens=context_tokens)
         except CalibCancelled:
             _log_do(log, "  片源档案已取消（字幕结果不受影响）", "err")
         except Exception as e:  # noqa: BLE001
@@ -1461,9 +1472,43 @@ def _ask_block(chat, mode_flag, rules_txt, chunk, round_no, max_tokens, log, tic
 # ①③④ 由一次 LLM 调用产出。全部写进**同一份**校准报告（多轮复写，不堆文件）。
 #: tag 个数（用户指定）
 META_TAG_COUNT = 10
-#: 投喂模型的字幕采样上限
+#: 投喂模型的字幕采样上限（**未给上下文预算时的默认值**；v1.15.4 起按
+#: `context_tokens` 放大——默认 1M token 预算下基本等于全量投喂）
 META_SAMPLE_CUES = 150
 META_SAMPLE_CHARS = 12000
+#: 单 token 约合字符数（中英混排的保守估计），用于把上下文 token 预算
+#: 换算成「可喂入的字幕字符数」。
+CHARS_PER_TOKEN = 2.0
+#: 单次输出额度的硬上限（防呆）。用户要求「按模型最大值」，这里给足空间；
+#: 端点不接受时程序会按错误类型自动减半重试。
+MAX_OUT_TOKENS = 1000000
+
+
+def meta_sample_budget(context_tokens):
+    """把「上下文 token 预算」换算成片源档案的采样上限。
+
+    只动用预算的 1/4（其余留给提示词骨架、规则文本与输出），默认 1M token
+    ⇒ 上限 25 万条 cue / 50 万字符，对任何正常片源都等于**全量投喂**。
+    """
+    n = int(context_tokens or 0)
+    if n <= 0:
+        return META_SAMPLE_CUES, META_SAMPLE_CHARS
+    return (max(META_SAMPLE_CUES, n // 4),
+            max(META_SAMPLE_CHARS, int(n * CHARS_PER_TOKEN / 4)))
+
+
+def _budget_error_kind(msg):
+    """调用失败是否与输出额度有关：'exhausted'（额度被思考链吃光，需更大）/
+    'too_big'（端点不接受这么大的值，需更小）/ ''（与额度无关）。"""
+    m = str(msg or "").lower()
+    if ("思考" in m or "finish_reason=length" in m or "截断" in m
+            or "truncat" in m):
+        return "exhausted"
+    if "max_tokens" in m or "max tokens" in m:
+        return "too_big"
+    if "too large" in m or "exceeds" in m or "范围" in m or "超出" in m:
+        return "too_big"
+    return ""
 
 META_SYSTEM = (
     "你是资深的中日英游戏文案与直播视频本地化专家，熟悉鸣潮、明日方舟、"
@@ -1554,7 +1599,7 @@ def _parse_meta_json(raw: str) -> dict:
 
 
 def build_meta(chat, mode_flag, src, cues, accepted, log, round_no=1,
-               max_tokens=4096, think=None) -> dict:
+               max_tokens=65536, think=None, context_tokens=1000000) -> dict:
     """第 9 步：产出片源档案（中文标题 / 10 个 tag / 官方中文核对 / 脚本沉淀建议）。
 
     这是**附加产出**：任何失败都只记日志、不阻断校准（不能让整轮白跑）。
@@ -1562,19 +1607,52 @@ def build_meta(chat, mode_flag, src, cues, accepted, log, round_no=1,
     empty = {"title": "", "tags": [], "official_terms": [], "script_suggestions": []}
     _log_do(log, "[9/9] 片源档案：中文标题 / tag / 官方中文核对 / 脚本沉淀建议…")
     try:
-        sample = _sample_cues(cues)
+        sample = _sample_cues(cues, *meta_sample_budget(context_tokens))
         sample_text = "\n".join(f"{n}\t{zh}\t{en}" for n, zh, en in sample)
         prompt = _meta_prompt(mode_flag, src, sample_text, accepted, round_no,
                               META_TAG_COUNT)
-        try:
-            raw = chat(prompt, META_SYSTEM, max_tokens=max_tokens,
-                       on_reasoning=think)
-        except TypeError:                     # chat 回调不支持 on_reasoning
-            raw = chat(prompt, META_SYSTEM, max_tokens=max_tokens)
-        obj = _parse_meta_json(raw)
+        # 输出额度自适应（v1.15.4）：推理模型会先吐**思考链**，额度被吃光时
+        # 正文为空（finish_reason=length）；而部分端点又不接受过大的
+        # max_tokens（直接报参数错）。故按失败类型自适应调整：
+        # 额度耗尽 → 翻倍；参数超限 → 减半；直到拿到合法 JSON。
+        cur = int(max_tokens or 0) or 65536
+        tried, obj, last = set(), {}, ""
+        for _ in range(6):
+            if cur in tried or cur < 256:
+                break
+            tried.add(cur)
+            try:
+                try:
+                    raw = chat(prompt, META_SYSTEM, max_tokens=cur,
+                               on_reasoning=think)
+                except TypeError:             # chat 回调不支持 on_reasoning
+                    raw = chat(prompt, META_SYSTEM, max_tokens=cur)
+            except Exception as _e:            # noqa: BLE001
+                last = str(_e)[:180]
+                _log_do(log, f"  ⚠ 片源档案调用失败（max_tokens={cur}）：{last}",
+                        "err")
+                _kind = _budget_error_kind(last)
+                if _kind == "exhausted":
+                    cur = min(cur * 2, MAX_OUT_TOKENS)
+                    _log_do(log, f"  ↻ 额度被思考链吃光，以 max_tokens={cur} 重试…")
+                    continue
+                if _kind == "too_big":
+                    cur //= 2
+                    _log_do(log, f"  ↻ 端点不接受该额度，以 max_tokens={cur} 重试…")
+                    continue
+                break                          # 与额度无关，重试无意义
+            obj = _parse_meta_json(raw)
+            if obj:
+                last = ""
+                break
+            last = "模型未返回合法 JSON（多为输出被截断）"
+            _nxt = min(cur * 2, MAX_OUT_TOKENS)
+            _log_do(log, f"  ↠ max_tokens={cur} 下未取得合法 JSON，"
+                         f"加大到 {_nxt} 重试…")
+            cur = _nxt
         if not obj:
-            _log_do(log, "  ⚠ 片源档案解析失败（模型未返回合法 JSON），本轮跳过", "err")
-            return empty
+            _log_do(log, f"  ⚠ 片源档案未生成：{last}", "err")
+            return dict(empty, _error=last or "未取得有效 JSON")
         meta = {
             "title": str(obj.get("title") or "").strip(),
             "tags": [str(t).strip().lstrip("#") for t in (obj.get("tags") or [])
@@ -1596,7 +1674,7 @@ def build_meta(chat, mode_flag, src, cues, accepted, log, round_no=1,
         return meta
     except Exception as e:  # noqa: BLE001
         _log_do(log, f"  ⚠ 片源档案生成失败（不影响校准结果）：{e}", "err")
-        return empty
+        return dict(empty, _error=str(e)[:180])
 
 
 def run_learn(python, script, src, out, mode_flag, log, cancel=None,
@@ -1706,7 +1784,12 @@ def _write_report(path, src, out, mode_flag, round_no, result, rules) -> None:
         lines += ["", "> ⚠ 本表由模型基于自身知识给出，**不是实时联网检索**："
                       "「把握」为低的行请人工核对官方来源后再采纳。"]
     else:
-        lines.append("（无——未发现疑似非官方译名，或本轮未生成片源档案）")
+        # v1.15.4：区分「真的没有」与「本轮没生成」——后者把原因写出来，
+        # 免得用户看到一片「无」却不知道是失败（实测踩过：推理模型思考链
+        # 耗尽 max_tokens，整段落空）。
+        _err = str(meta.get("_error") or "")
+        lines.append("（**本轮未生成片源档案**：%s）" % _err if _err
+                     else "（无——未发现疑似非官方译名）")
 
     # 五、脚本沉淀建议（v1.15.1）
     sugg = meta.get("script_suggestions") or []
@@ -1723,7 +1806,8 @@ def _write_report(path, src, out, mode_flag, round_no, result, rules) -> None:
                       "达频次门槛（≥2 且无反例）后自动生效。"
                       "上表是模型建议，采纳前请核对官方来源。"]
     else:
-        lines.append("（无）")
+        _err = str(meta.get("_error") or "")
+        lines.append("（**本轮未生成片源档案**：%s）" % _err if _err else "（无）")
 
     lines += ["", "## 六、备注", "",
               "- 标 ⚠ 的条目是知识库尚未收录的疑似新错形，建议用 "
