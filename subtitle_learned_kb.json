@@ -107,37 +107,8 @@
    "unc_ref_tokens": {},
    "first": "2026-09-19",
    "last": "2026-09-19",
-   "alts": {}
-  },
-  "bi|明乔": {
-   "wrong": "明乔",
-   "right": "鸣潮",
-   "mode": "bi",
-   "count": 2,
-   "uncorrected": 0,
-   "status": "confirmed",
-   "cues": [
-    214
-   ],
-   "samples": [
-    [
-     "谢谢你，",
-     "亚",
-     "能天使，",
-     "亚"
-    ],
-    [
-     "谢谢你，",
-     "亚",
-     "能天使，",
-     "亚"
-    ]
-   ],
-   "ref_tokens": {},
-   "unc_ref_tokens": {},
-   "first": "2026-09-19",
-   "last": "2026-09-19",
-   "alts": {}
+   "alts": {},
+   "sync": true
   },
   "bi|成城祖": {
    "wrong": "成城祖",
@@ -188,24 +159,6 @@
    "last": "2026-09-19",
    "alts": {},
    "ctx_regex": ""
-  },
-  "bi|谢谢你，明乔亚": {
-   "wrong": "谢谢你，明乔亚",
-   "right": "谢谢你，鸣潮亚",
-   "mode": "bi",
-   "count": 2,
-   "uncorrected": 0,
-   "status": "confirmed",
-   "cues": [
-    214
-   ],
-   "samples": [],
-   "ref_tokens": {},
-   "unc_ref_tokens": {},
-   "first": "2026-09-19",
-   "last": "2026-09-19",
-   "alts": {},
-   "sync": true
   },
   "bi|明朝": {
    "wrong": "明朝",
@@ -378,6 +331,55 @@
    "last": "2026-09-19",
    "alts": {},
    "ctx_regex": "\\byou\\b|\\bgod\\b|\\bwe'll\\b"
+  },
+  "bi|明乔": {
+   "wrong": "明乔",
+   "right": "鸣潮",
+   "mode": "bi",
+   "count": 2,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    214
+   ],
+   "samples": [
+    [
+     "谢谢你，",
+     "亚",
+     "能天使，",
+     "亚"
+    ],
+    [
+     "谢谢你，",
+     "亚",
+     "能天使，",
+     "亚"
+    ]
+   ],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-09-19",
+   "last": "2026-09-19",
+   "alts": {},
+   "ctx_regex": ""
+  },
+  "bi|谢谢你，明乔亚": {
+   "wrong": "谢谢你，明乔亚",
+   "right": "谢谢你，鸣潮亚",
+   "mode": "bi",
+   "count": 2,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    214
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-09-19",
+   "last": "2026-09-19",
+   "alts": {},
+   "sync": true
   }
  }
 }
