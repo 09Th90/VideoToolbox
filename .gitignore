@@ -85,6 +85,8 @@ history/data/
 # 打包中间产物 / 超限二进制：走 GitHub Releases 或在线仓库分发，不进 git
 dist/
 build/视频工具箱/
+# PyInstaller workpath（v1.15.1 起打包脚本自动挑未占用的 build_asciiN）
+build_ascii*/
 build/ifw_config/
 build/ifw_packages/
 # 构建兜底暂存：中文路径下 rmtree 被安全删除钩子拦下时，staging 目录整体移到这里
