@@ -219,7 +219,8 @@
    "unc_ref_tokens": {},
    "first": "2026-09-19",
    "last": "2026-09-19",
-   "alts": {}
+   "alts": {},
+   "sync": true
   },
   "bi|光泽": {
    "wrong": "光泽",
@@ -297,7 +298,8 @@
    "unc_ref_tokens": {},
    "first": "2026-09-19",
    "last": "2026-09-19",
-   "alts": {}
+   "alts": {},
+   "sync": true
   },
   "bi|拖车": {
    "wrong": "拖车",
