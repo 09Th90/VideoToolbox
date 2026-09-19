@@ -1,6 +1,16 @@
 # -*- mode: python ; coding: utf-8 -*-
-# @version 1.15.1
-"""视频工具箱 v1.15.1 —— PyInstaller 打包配置
+# @version 1.15.2
+"""视频工具箱 v1.15.2 —— PyInstaller 打包配置
+v1.15.2：补 `websocket` 到 hiddenimports——**实时（WebSocket）ASR 协议**（百炼
+         `dashscope_realtime`）依赖 websocket-client，而此前**打包环境里根本没装
+         这个包**、spec 也没声明 ⇒ exe 内嵌引擎执行到 `import websocket` 必失败，
+         表现就是点「语音转录」走实时协议时弹「转录失败：实时协议缺少依赖
+         websocket-client」。注意提示里那句「pip install websocket-client」对
+         安装版用户是**无效指引**（exe 用的是内嵌模块，装到系统 Python 不生效）。
+         处置：打包环境已装 `websocket-client==1.9.2`（与 tools\python 运行副本
+         同版本、内容逐文件一致），此处再显式声明双保险。
+         教训：**运行副本装了、打包副本没装的第三方向来是隐形缺口**——发布前用
+         `C:\bld\_check_dep_closure.py`（在打包环境跑）扫一遍依赖闭合。
 v1.12.2：AI 校准修复 + Agent 可靠性同步优化——校准页误引用设置页控件导致
          「开始校准」一点即崩、崩后界面永久卡死（启动全程异常兜底 + 校准页
          新增「刷新」与卡死自愈）；qfluentwidgets 滚动条 eventFilter 对鼠标
@@ -98,13 +108,16 @@ hiddenimports += ['calib_ai_agent']
 hiddenimports += ['mpv']
 
 # 字幕引擎的运行时依赖：多为延迟导入，静态分析发现不了，必须显式声明
+# v1.15.2：'websocket' = websocket-client，实时 ASR 协议（dashscope_realtime）
+#   必需；打包环境当初漏装该包，导致 exe 跑实时协议必报缺依赖。
 hiddenimports += ['httpx', 'httpcore', 'anyio', 'sniffio', 'h11', 'certifi',
                   'openai', 'qrcode', 'pydantic', 'pydantic_core', 'PIL',
                   'PIL.Image', 'PIL.ImageDraw', 'PIL.ImageFont', 'numpy',
                   'tqdm', 'chardet', 'colorama', 'pydub', 'psutil',
                   'diskcache', 'fontTools', 'GPUtil', 'json_repair',
                   'langdetect', 'platformdirs', 'tenacity', 'requests',
-                  'urllib3', 'mutagen', 'brotli', 'curl_cffi']
+                  'urllib3', 'mutagen', 'brotli', 'curl_cffi',
+                  'websocket']
 
 # 该程序只依赖 tkinter 标准库 + 同目录 tools（运行时锚定 exe 同级 tools），
 # 不引入任何重型第三方运行时；打包为单文件 exe，直接双击运行。
