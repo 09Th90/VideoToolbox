@@ -1847,7 +1847,6 @@ _AK_KO_CONTEXT_COMPILED = [(re.compile(rx), wrong, right) for rx, wrong, right i
 MERGE_FIXES = [
     ("巫师", "维什戴尔"),        # Wizard/Wizardell = Wisadel
     ("巫泽尔", "维什戴尔"),      # Wizardell
-    ("夏·新约", "新约能天使"),   # Xia the new covenant
     ("特蕾迪亚", "酒神"),        # Tradia = Tragodia
     ("可露希尔", "克洛丝"),      # closure = Kroos（抽卡语境）
     ("阿雷迪亚", "arkpedia"),    # Aredia = arkpedia（网站）
