@@ -2606,8 +2606,17 @@ def _asr_dashscope_realtime_submit(asr_obj):
                 header={"Authorization": "Bearer " + key,
                         "user-agent": "VideoToolbox-ASR"})
         except Exception as e:  # noqa: BLE001
-            raise _Transient("实时 ASR 连接失败（%s）——密钥无效时握手会直接"
-                             "被拒（HTTP 401/403）：%s" % (url, e))
+            msg = str(e)
+            # v1.15.3：握手 401/403 是**确定性**的密钥/权限问题——重试与降级
+            # 都无意义（降级到文件识别同样用这把密钥，只会再失败一次，用户
+            # 反而看到两条互相矛盾的错误）。直接把结论摆出来并给出改法。
+            if "401" in msg or "403" in msg:
+                raise RuntimeError(
+                    "实时 ASR 握手被拒（401/403）：密钥无效、或该密钥不属于这个"
+                    "实例。请到「设置 → 字幕引擎」核对 ASR 密钥——**别把接口网址"
+                    "粘进密钥栏**（实测踩到过），改完点「保存并应用」。端点：%s"
+                    % url)
+            raise _Transient("实时 ASR 连接失败（%s）：%s" % (url, msg))
         segments, texts = [], []
         task_id = _uuid.uuid4().hex[:32]     # 每次尝试新 task_id（服务端要求唯一）
         try:
