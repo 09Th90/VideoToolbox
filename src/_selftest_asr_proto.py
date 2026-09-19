@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 1.15.2
+# @version 1.15.3
 """ASR 全协议适配自检（离线：全部 mock requests，不联网、不消耗额度）。
 
 覆盖：协议自动识别（两侧规则一致性）、实时模型守卫、六条协议的请求构造、
@@ -931,6 +931,28 @@ def main():
           and "没有" in " ".join(mm["notes"]), mm["protocol"])
     check("MiMo 不是实时模型（不会被守卫误拦）",
           engine.asr_model_guard("mimo-v2.5-asr") == "")
+
+    say("== 14) 协议纠偏（双向）==")
+    _MAAS = ("https://llm-ukmkj60gxr2wms1f.cn-beijing.maas.aliyuncs.com"
+             "/compatible-mode/v1")
+    p, note = engine.asr_protocol_fix("dashscope_realtime", _MAAS,
+                                      "qwen-audio-3.0-asr-flash-filetrans")
+    check("文件识别模型 + 实时协议 → 改走 chat_audio（否则服务端只回 url error）",
+          p == "chat_audio" and "不是实时模型" in note, (p, note[:36]))
+    p, note = engine.asr_protocol_fix("dashscope_realtime", _MAAS,
+                                      "fun-asr-flash-realtime")
+    check("真实时模型 + 实时协议 → 不纠偏", p == "dashscope_realtime" and not note)
+    p, note = engine.asr_protocol_fix("dashscope_realtime", _MAAS,
+                                      "qwen3-asr-flash-realtime")
+    check("qwen3 实时模型 → 不纠偏", p == "dashscope_realtime" and not note)
+    p, note = engine.asr_protocol_fix("openai", _MAAS, "qwen3-asr-flash")
+    check("openai 协议 + 百炼端点 → 仍按推断改走 chat_audio（旧纠偏不退化）",
+          p == "chat_audio" and "openai" in note, (p, note[:30]))
+    p, note = engine.asr_protocol_fix("chat_audio", _MAAS, "qwen3-asr-flash")
+    check("正常组合不纠偏", p == "chat_audio" and not note)
+    p, note = engine.asr_protocol_fix("openai", "https://api.openai.com/v1",
+                                      "whisper-1")
+    check("纯 openai 组合不误伤", p == "openai" and not note)
 
 
 try:
