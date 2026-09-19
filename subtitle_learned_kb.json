@@ -71,14 +71,7 @@
    "cues": [
     214
    ],
-   "samples": [
-    [
-     "谢谢你，",
-     "亚",
-     "能天使，",
-     "亚"
-    ]
-   ],
+   "samples": [],
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-09-19",
