@@ -1,4 +1,4 @@
-<!-- @version 1.15.0 -->
+<!-- @version 1.15.1 -->
 # ASR 非流式调用示例（curl / Python）
 
 > 本文由 `engine.asr_examples()` 生成，与程序内 `_asr_*_submit` 的实现

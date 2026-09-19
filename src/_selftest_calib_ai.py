@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 1.15.0
+# @version 1.15.1
 """AI 校准 Agent 自检（离线，不联网、不调用真实 LLM）。
 
 覆盖：
@@ -22,6 +22,11 @@ import re
 import sys
 import tempfile
 
+#: 自检不碰知识同步：脚本的校准入口会自动执行 kb-sync（拉取/合并/三道门/应用），
+#: 会改写 data/calib_sync* 下的状态文件。测试用不到，一律关掉。
+#: VT_NO_SYNC 由脚本自身识别（见 subtitle_calib_merged.py 帮助的 D 节）。
+os.environ["VT_NO_SYNC"] = "1"
+
 HERE = os.path.dirname(os.path.abspath(__file__))
 if HERE not in sys.path:
     sys.path.insert(0, HERE)
@@ -30,6 +35,21 @@ import calib_ai_agent as ag  # noqa: E402
 
 SCRIPT = os.path.join(os.path.dirname(HERE), ag.SCRIPT_NAME)
 PYTHON = sys.executable
+
+#: 自检**绝不**真调 learn：它除了写学习库，还会产生知识同步增量
+#: （data/calib_sync*/…），测试数据会一路污染真实知识库。
+#: 2026-09-19 踩过：用例里的「卡西亚→卡提希娅」被 confirmed 进真库，
+#: 并生成了 calib_sync_remote/inbox 增量。这里整体换成桩。
+_orig_run_learn = ag.run_learn
+
+
+def _stub_run_learn(python, script, src, out, mode_flag, log, cancel=None,
+                    kb=None):
+    return {"ok": True, "mode": ag.MODE_KEY.get(mode_flag, "bi"),
+            "kb": "<stub>", "output": "（自检桩：未真正调用 learn）"}
+
+
+ag.run_learn = _stub_run_learn
 
 SRT = (
     "1\r\n"
@@ -579,11 +599,15 @@ def test_ckpt_resume():
         base_chat = _fake_chat_factory(rules)
 
         def counting_chat(prompt, system=None, max_tokens=8192):
-            seg = prompt.split("【待校准条目", 1)[-1]
-            for ln in seg.splitlines():
-                m = re.match(r"^(\d+)\t", ln)
-                if m:
-                    calls["nums"].add(m.group(1))
+            # 只统计「待校准块」请求：v1.15.1 起收尾还会多一次「片源档案」调用
+            # （中文标题 / tag / 官方中文核对），它的 prompt 不带"【待校准条目"，
+            # 一并计入会把整片序号混进来，误判成"没有跳过已完成块"。
+            if "【待校准条目" in prompt:
+                seg = prompt.split("【待校准条目", 1)[-1]
+                for ln in seg.splitlines():
+                    m = re.match(r"^(\d+)\t", ln)
+                    if m:
+                        calls["nums"].add(m.group(1))
             calls["n"] += 1
             return base_chat(prompt, system, max_tokens)
 
@@ -618,6 +642,81 @@ def test_ckpt_resume():
         check("续跑产物 verify 通过", rc == 0 and "VERIFY OK" in out, out[-160:])
 
 
+def test_meta_dossier():
+    """v1.15.1：片源档案——中文标题 / 10 个 tag / 官方中文核对 / 脚本沉淀建议，
+    以及「校准报告只保留一份、多轮复写同一个文件」。"""
+    print("\n== 13. 片源档案（标题 / tag / 官方中文 / 脚本沉淀） ==")
+    with tempfile.TemporaryDirectory() as d:
+        src = os.path.join(d, "md.srt")
+        with open(src, "w", encoding="utf-8", newline="") as f:
+            f.write(SRT)
+        kb = os.path.join(d, "kb.json")
+        ag.run_script(PYTHON, SCRIPT, ["kb-export", "--json", "--out", kb], print)
+        rules, _ex, _cn = ag.build_rules(ag.json.loads(ag._read_text(kb)), "bi")
+        base_chat = _fake_chat_factory(rules)
+
+        meta_json = ag.json.dumps({
+            "title": "终末地 提弗洛斯特工档案",
+            "tags": ["明日方舟终末地", "角色档案", "提弗洛斯", "游戏剧情",
+                     "日语配音", "干员介绍", "塔卫二", "终末地工业",
+                     "剧情解析", "二次元游戏"],
+            "official_terms": [
+                {"term": "提弗洛斯", "official": "提弗洛斯",
+                 "confidence": "high", "note": "与官方写法一致"},
+                {"term": "卡西亚", "official": "卡提希娅",
+                 "confidence": "high", "note": "鸣潮角色官方译名"},
+            ],
+            "script_suggestions": [
+                {"wrong": "卡西亚", "right": "卡提希娅", "mode": "bi",
+                 "evidence": "cue 1、2"},
+            ],
+        }, ensure_ascii=False)
+
+        seen = {"meta": 0}
+
+        def chat(prompt, system=None, max_tokens=8192):
+            if "【要做的四件事】" in prompt:      # 片源档案请求
+                seen["meta"] += 1
+                return meta_json
+            return base_chat(prompt, system, max_tokens)
+
+        report = os.path.join(d, "one.md")
+        kw = dict(script=SCRIPT, python=PYTHON,
+                  log=lambda m, level="dim": None, chat=chat,
+                  baseline=False, chunk_cues=3)
+        r1 = ag.calibrate(src, out=os.path.join(d, "a1.srt"), report=report, **kw)
+        check("第 1 轮成功", r1["ok"], r1.get("error", ""))
+        check("片源档案被调用一次", seen["meta"] == 1, str(seen["meta"]))
+        m1 = r1.get("meta") or {}
+        check("中文标题解析", m1.get("title") == "终末地 提弗洛斯特工档案",
+              str(m1.get("title"))[:40])
+        check("tag 恰好 10 个", len(m1.get("tags") or []) == 10,
+              str(len(m1.get("tags") or [])))
+        check("官方中文核对 2 条", len(m1.get("official_terms") or []) == 2,
+              str(len(m1.get("official_terms") or [])))
+        check("脚本沉淀建议 1 条", len(m1.get("script_suggestions") or []) == 1,
+              str(len(m1.get("script_suggestions") or [])))
+        check("学习沉淀已记录", bool(r1.get("learn")), str(r1.get("learn") or "")[:60])
+
+        md1 = ag._read_text(report)
+        check("报告含中文标题", "**中文标题**：终末地 提弗洛斯特工档案" in md1)
+        check("报告含标签行", "**标签**：" in md1)
+        check("报告含「四、官方中文核对」", "## 四、官方中文核对" in md1)
+        check("报告含「五、脚本沉淀建议」", "## 五、脚本沉淀建议" in md1)
+        check("报告节号顺延到「六、备注」", "## 六、备注" in md1)
+        check("报告记录学习沉淀", "学习沉淀：" in md1)
+
+        # 第 2 轮写同一个 report → 覆盖，目录里不该出现第二个 md
+        r2 = ag.calibrate(src, out=os.path.join(d, "a2.srt"), report=report,
+                          round_no=2, resume_from=os.path.join(d, "a1.srt"), **kw)
+        check("第 2 轮成功", r2["ok"], r2.get("error", ""))
+        mds = [x for x in os.listdir(d) if x.endswith(".md")]
+        check("报告只保留一个文件（多轮复写）", mds == ["one.md"], str(mds))
+        md2 = ag._read_text(report)
+        check("第 2 轮复写了同一份报告", "第 2 轮" in md2,
+              md2.splitlines()[0] if md2 else "")
+
+
 if __name__ == "__main__":
     print(f"脚本：{SCRIPT}\n解释器：{PYTHON}")
     test_parse_rebuild()
@@ -632,5 +731,6 @@ if __name__ == "__main__":
     test_ask_block_retry_feedback()
     test_concurrency_equivalence()
     test_ckpt_resume()
+    test_meta_dossier()
     print("\n" + ("全部通过 ✅" if not FAILED else f"失败 {len(FAILED)} 项 ❌：{FAILED}"))
     sys.exit(1 if FAILED else 0)

@@ -96,7 +96,8 @@ class GoogleTranslator(BaseTranslator):
         return self.lang_map.get(name) or get_language_code(self.target_language,
                                                             "google")
 
-    def _request_text(self, text: str, target_lang: str) -> Optional[str]:
+    def _request_text(self, text: str, target_lang: str,
+                      timeout: Optional[int] = None) -> Optional[str]:
         """单条请求，全局限速 + 429 指数退避重试；成功返回译文，失败返回 None。"""
         for attempt in range(4):
             _gtx_throttle()
@@ -109,7 +110,7 @@ class GoogleTranslator(BaseTranslator):
                     "q": text,
                 },
                 headers=self.headers,
-                timeout=self.timeout,
+                timeout=timeout or self.timeout,
             )
             if response.status_code == 429:
                 wait = 2.0 * (2 ** attempt) + random.uniform(0, 1.0)
@@ -130,6 +131,27 @@ class GoogleTranslator(BaseTranslator):
                 if isinstance(seg, str):
                     return seg.strip()
         return None
+
+    def _preflight(self) -> None:
+        """连通性预检（v1.15.1）：探测失败立刻抛错，别让整批字幕慢慢超时。
+
+        背景：谷歌这几个免费端点在境内直连必超时（实测 421 条字幕 421 条失败）。
+        没有预检时，每条约 20s 超时、几十个 chunk 并发跑完要好几分钟，用户干等
+        半天才看到失败。预检只用一条短文本探一次（超时压到 8s），不通就马上把
+        控制权交回上层——上层会换一个免密钥机翻（微软）重试。
+        """
+        try:
+            got = self._request_text("hello", self._target_lang_code(), timeout=8)
+        except Exception as e:  # noqa: BLE001
+            raise RuntimeError(
+                "谷歌翻译端点不可达（%s）。免费谷歌翻译在境内需经代理访问，"
+                "请检查网络代理，或改用「微软翻译」。" % str(e)[:80]
+            ) from e
+        if not got:
+            raise RuntimeError(
+                "谷歌翻译端点没有返回有效译文。该免费端点在境内常被限流/拦截，"
+                "请检查网络代理，或改用「微软翻译」。"
+            )
 
     def _translate_chunk(
         self, subtitle_chunk: List[SubtitleProcessData]

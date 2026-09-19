@@ -60,6 +60,69 @@ def create_translator_from_config(
     )
 
 
+#: 机翻服务回退表：谷歌翻译的免费端点在境内网络**连不上**（直连超时、
+#: 走代理才通），微软翻译用的 Edge 免认证端点则可以直连。首选失败时自动
+#: 退到另一个免密钥机翻，保证整条字幕链路至少能产出一份中文。
+#: 只涉及机器翻译，不引入 LLM（v1.12.0「翻译失败不回退 AI」的原则不变）。
+MACHINE_FALLBACK = {
+    TranslatorServiceEnum.GOOGLE: TranslatorServiceEnum.BING,
+    TranslatorServiceEnum.BING: TranslatorServiceEnum.GOOGLE,
+}
+
+
+def translate_with_machine_fallback(
+    config,
+    custom_prompt,
+    callback,
+    asr_data,
+    progress=None,
+    on_translator=None,
+):
+    """翻译字幕；首选机翻失败时自动回退到另一个免密钥机翻服务。
+
+    背景（2026-09-19 实测）：用户网络下谷歌翻译 421/421 条全部失败——直连被墙、
+    本地代理又不通。若不回退，用户唯一能得到的只有一条报错。
+
+    回退是**可逆**的：只临时改 ``config.translator_service``，用完立刻还原，
+    不污染用户设置；失败的那一轮不写缓存（见 BaseTranslator），回退重跑是干净的。
+
+    :param progress: 可选，``progress(msg: str)``，用于把回退动作告诉 UI。
+    :param on_translator: 可选，``on_translator(t)``，每次新建翻译器后回调
+        （调用方借此把引用存下来，用户点「停止」时才能关掉线程池）。
+    """
+    service = config.translator_service
+    translator = create_translator_from_config(config, custom_prompt, callback)
+    if on_translator:
+        on_translator(translator)
+    try:
+        return translator.translate_subtitle(asr_data)
+    except Exception as e:  # noqa: BLE001
+        fallback = MACHINE_FALLBACK.get(service)
+        if fallback is None:
+            raise
+        logger.warning(
+            "「%s」翻译失败（%s），自动改用「%s」重试",
+            service.value, str(e)[:160], fallback.value,
+        )
+        if progress:
+            progress("「%s」不可用，自动改用「%s」重试…" % (service.value, fallback.value))
+        try:
+            translator.stop()
+        except Exception:  # noqa: BLE001
+            pass
+        # 上一轮可能已写入部分译文，清干净再重跑，免得新旧混杂
+        for seg in asr_data.segments:
+            seg.translated_text = ""
+        config.translator_service = fallback
+        try:
+            translator = create_translator_from_config(config, custom_prompt, callback)
+            if on_translator:
+                on_translator(translator)
+            return translator.translate_subtitle(asr_data)
+        finally:
+            config.translator_service = service
+
+
 class SubtitleThread(QThread):
     finished = pyqtSignal(str, str)
     progress = pyqtSignal(int, str)
@@ -181,11 +244,36 @@ class SubtitleThread(QThread):
                 if not subtitle_config.target_language:
                     raise Exception(self.tr("目标语言未配置"))
 
-                translator = self.translator = create_translator_from_config(
-                    subtitle_config, custom_prompt, self.callback
-                )
+                # v1.15.1：机翻（谷歌/微软/DeepLx）根本不读取自定义提示词与术语表，
+                # 提示词在进 TranslatorFactory 时就被丢掉了；用户填了却毫无效果，
+                # 体感就是"翻译要求没被执行"。这里明确告知，别让用户猜。
+                _user_prompt = (subtitle_config.custom_prompt_text or "").strip()
+                if _user_prompt and subtitle_config.translator_service in (
+                    TranslatorServiceEnum.GOOGLE,
+                    TranslatorServiceEnum.BING,
+                    TranslatorServiceEnum.DEEPLX,
+                ):
+                    logger.warning(
+                        "翻译服务「%s」是机器翻译，不支持自定义提示词/术语表，"
+                        "已填写的内容（%d 字）不会生效；需要按自定义要求翻译请改用 LLM 翻译。",
+                        subtitle_config.translator_service.value,
+                        len(_user_prompt),
+                    )
+                    self.progress.emit(
+                        0,
+                        self.tr("提示：机器翻译不支持自定义提示词，已填写内容未生效"),
+                    )
 
-                asr_data = translator.translate_subtitle(asr_data)
+                # v1.15.1：首选机翻不通（境内直连 Google 必失败）时自动换另一个
+                # 免密钥机翻重跑，避免整条链路只剩一条报错。
+                asr_data = translate_with_machine_fallback(
+                    subtitle_config,
+                    custom_prompt,
+                    self.callback,
+                    asr_data,
+                    progress=lambda msg: self.progress.emit(0, msg),
+                    on_translator=lambda t: setattr(self, "translator", t),
+                )
 
                 # 移除末尾标点符号
                 asr_data.remove_punctuation()
@@ -358,11 +446,14 @@ class RetranslateThread(QThread):
             # 构建仅含选中行的 ASRData
             asr_data = ASRData.from_json(self.selected_data)
 
-            # 创建翻译器并翻译
-            translator = self.translator = create_translator_from_config(
-                config, callback=self._callback
+            # 创建翻译器并翻译（同样带机翻回退，理由见 translate_with_machine_fallback）
+            asr_data = translate_with_machine_fallback(
+                config,
+                "",
+                self._callback,
+                asr_data,
+                on_translator=lambda t: setattr(self, "translator", t),
             )
-            asr_data = translator.translate_subtitle(asr_data)
 
             # 构建 {原始行号: translated_text} 映射
             keys = list(self.selected_data.keys())

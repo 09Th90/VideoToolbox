@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 1.15.0
+# @version 1.15.1
 """AI 校准 Agent —— Agent 级字幕术语校准（v1.11.0；v1.16.0 并发与提示词优化）。
 
 定位
@@ -882,7 +882,8 @@ def calibrate(src: str, out: str = None, report: str = None, mode_flag: str = ""
               sentence_aware: bool = True, strict_width: bool = False,
               checkpoint: bool = True,
               thinking: bool = True,
-              concurrency: int = 1) -> dict:
+              concurrency: int = 1,
+              learn_kb: str = None) -> dict:
     """Agent 级 AI 校准主流程（详见模块 docstring）。
 
     baseline=True 时先跑术语脚本得到基线（推荐：机械部分零成本且必定正确）；
@@ -903,6 +904,9 @@ def calibrate(src: str, out: str = None, report: str = None, mode_flag: str = ""
     concurrency       v1.16.0：逐块 LLM 调用的并发路数（默认 1＝串行，行为与
                       旧版一致）。只并发「取回模型提议」这一步，证据校验与
                       合并仍在主线程按块序串行执行，结果与 ckpt 落盘顺序确定
+    learn_kb          v1.15.1：学习库路径，交给收尾的 learn 沉淀用；
+                      None = 脚本默认（cwd 下的 subtitle_learned_kb.json）。
+                      **自检必须显式传临时库**，否则测试数据会写进真实知识库。
     """
     t0 = time.time()
     log = log or (lambda m, level="dim": None)
@@ -941,6 +945,7 @@ def calibrate(src: str, out: str = None, report: str = None, mode_flag: str = ""
               "style": style, "width_over": 0, "width_widest": ("", ""),
               "manual_check": [], "resumed_from": "", "chunks": 0,
               "rules_injected": 0, "rules_hot": 0, "suggest_rewrite": False,
+              "meta": {}, "learn": {},
               "concurrency": max(1, int(concurrency or 1))}
     try:
         # ---------- 1. 起点：上一轮结果（可选）或术语脚本基线 ----------
@@ -1296,6 +1301,30 @@ def calibrate(src: str, out: str = None, report: str = None, mode_flag: str = ""
             _log_do(log, f"  ✓ 行宽体检通过（最宽 {result['width_widest'][0] or '—'} / "
                          f"{MAX_LINE_WIDTH:.0f} 汉字当量）", "ok")
 
+        # ---------- 9. 片源档案与学习沉淀（v1.15.1）----------
+        # 「再次校准」除校准字幕外还要给出：官方中文核对 / 脚本沉淀建议 /
+        # 10 个 tag / 中文标题。这些都是**附加产出**：取消或失败都不能让
+        # 已经校验通过的字幕白跑，故一律吞掉异常、只记日志。
+        try:
+            _tick()
+            result["meta"] = build_meta(chat, mode_flag, src, cues,
+                                        result["accepted"], log, round_no,
+                                        max_tokens=min(4096, max_tokens),
+                                        think=_think if thinking else None)
+        except CalibCancelled:
+            _log_do(log, "  片源档案已取消（字幕结果不受影响）", "err")
+        except Exception as e:  # noqa: BLE001
+            _log_do(log, f"  ⚠ 片源档案异常（不影响校准结果）：{e}", "err")
+        if result["accepted"] or result["script_changes"]:
+            try:
+                _tick()
+                result["learn"] = run_learn(python, script, src, out, mode_flag,
+                                            log, cancel, kb=learn_kb)
+            except CalibCancelled:
+                _log_do(log, "  学习沉淀已取消（字幕结果不受影响）", "err")
+            except Exception as e:  # noqa: BLE001
+                _log_do(log, f"  ⚠ 学习沉淀异常：{e}", "err")
+
         # 报告
         _write_report(report, src, out, mode_flag, round_no, result, rules)
         result["ok"] = True
@@ -1425,6 +1454,180 @@ def _ask_block(chat, mode_flag, rules_txt, chunk, round_no, max_tokens, log, tic
     return a + b, (fa and fb)
 
 
+# ============================ 第 9 步：片源档案（v1.15.1）============================
+# 用户要求（2026-09-19）：「再次校准」除校准字幕外，还要
+#   ① 检索官方中文  ② 基于改动优化脚本  ③ 总结 10 个 tag  ④ 给出合适的中文标题。
+# 其中 ② 由脚本现成的 `learn` 子命令机械承担（有频次门槛，安全）；
+# ①③④ 由一次 LLM 调用产出。全部写进**同一份**校准报告（多轮复写，不堆文件）。
+#: tag 个数（用户指定）
+META_TAG_COUNT = 10
+#: 投喂模型的字幕采样上限
+META_SAMPLE_CUES = 150
+META_SAMPLE_CHARS = 12000
+
+META_SYSTEM = (
+    "你是资深的中日英游戏文案与直播视频本地化专家，熟悉鸣潮、明日方舟、"
+    "明日方舟：终末地、战双帕弥什等作品的官方简体中文译名与社区常用叫法。"
+    "只输出一个 JSON 对象，不要任何解释，不要代码块围栏。"
+)
+
+
+def _sample_cues(cues, max_n: int = META_SAMPLE_CUES,
+                 max_chars: int = META_SAMPLE_CHARS):
+    """均匀采样 cue：首尾必取，保证模型既看到开场也看到收尾。"""
+    if len(cues) <= max_n:
+        picked = list(cues)
+    else:
+        step = len(cues) / float(max_n)
+        picked = [cues[min(int(i * step), len(cues) - 1)] for i in range(max_n)]
+    out, used = [], 0
+    for n, zh, en in picked:
+        ln = len(zh) + len(en) + 8
+        if used + ln > max_chars:
+            break
+        used += ln
+        out.append((n, zh, en))
+    return out
+
+
+def _meta_prompt(mode_flag, src, sample_text, accepted, round_no, tag_count):
+    """片源档案的提示词。"""
+    accepted_text = "\n".join(
+        f"- {str(o)[:40]} → {str(n)[:40]}" for _num, o, n, *_ in accepted[:80]
+    ) or "（本轮无改动）"
+    mode_key = MODE_KEY.get(mode_flag, "bi")
+    return f"""下面是某视频字幕（已机翻 / 已校准）的内容采样，每行三列：
+序号<TAB>中文行<TAB>原声参考行。
+
+片源文件：{os.path.basename(src)}
+片源模式：{MODE_NAME.get(mode_flag, mode_flag or '中英双语')}（模式键 {mode_key}）
+本轮轮次：第 {round_no} 轮
+
+【字幕采样】
+{sample_text}
+
+【本轮已采纳的改动】
+{accepted_text}
+
+【要做的四件事】
+1. title —— 给这个视频起一个准确的**简体中文标题**：≤30 字，紧扣内容；
+   不要书名号，不要“震惊/必看”这类营销词；作品专名用官方写法。
+2. tags —— 正好 {tag_count} 个**简体中文标签**，覆盖「作品 / 角色 / 内容类型 /
+   主题」四个维度；每个 2~8 字；互不重复；不要带 # 号。
+3. official_terms —— 从采样里挑出**疑似非官方译名 / 机翻误译**的专有名词，
+   给出该作品**公认的官方简体中文**写法。
+   ⚠ 严禁编造：有把握的 confidence 填 "high"；拿不准的填 "low"，
+   并在 note 里说明为什么拿不准——宁可少列，也不要虚构官方译名。
+4. script_suggestions —— 其中值得沉淀进校准脚本术语表的条目，给出
+   wrong（错形）/ right（官方名）/ mode（片源模式键）/ evidence（依据，如 cue 序号）。
+   mode 拿不准就填 "{mode_key}"。
+
+【输出格式：严格 JSON，直接以 {{ 开头】
+{{"title": "…", "tags": ["…"], "official_terms": [{{"term": "…", "official": "…", "confidence": "high", "note": "…"}}], "script_suggestions": [{{"wrong": "…", "right": "…", "mode": "bi", "evidence": "…"}}]}}
+"""
+
+
+def _parse_meta_json(raw: str) -> dict:
+    """从模型回复里抠出片源档案对象（容忍代码围栏与前后废话）。"""
+    if not raw:
+        return {}
+    s = raw.strip()
+    if "```" in s:
+        for seg in s.split("```"):
+            seg = seg.strip()
+            if seg.startswith("json"):
+                seg = seg[4:].strip()
+            if seg.startswith("{"):
+                s = seg
+                break
+    a, b = s.find("{"), s.rfind("}")
+    if a < 0 or b <= a:
+        return {}
+    for cand in (s[a:b + 1], s[a:b + 1].replace("'", '"')):
+        try:
+            v = json.loads(cand)
+        except ValueError:
+            continue
+        if isinstance(v, dict):
+            return v
+    return {}
+
+
+def build_meta(chat, mode_flag, src, cues, accepted, log, round_no=1,
+               max_tokens=4096, think=None) -> dict:
+    """第 9 步：产出片源档案（中文标题 / 10 个 tag / 官方中文核对 / 脚本沉淀建议）。
+
+    这是**附加产出**：任何失败都只记日志、不阻断校准（不能让整轮白跑）。
+    """
+    empty = {"title": "", "tags": [], "official_terms": [], "script_suggestions": []}
+    _log_do(log, "[9/9] 片源档案：中文标题 / tag / 官方中文核对 / 脚本沉淀建议…")
+    try:
+        sample = _sample_cues(cues)
+        sample_text = "\n".join(f"{n}\t{zh}\t{en}" for n, zh, en in sample)
+        prompt = _meta_prompt(mode_flag, src, sample_text, accepted, round_no,
+                              META_TAG_COUNT)
+        try:
+            raw = chat(prompt, META_SYSTEM, max_tokens=max_tokens,
+                       on_reasoning=think)
+        except TypeError:                     # chat 回调不支持 on_reasoning
+            raw = chat(prompt, META_SYSTEM, max_tokens=max_tokens)
+        obj = _parse_meta_json(raw)
+        if not obj:
+            _log_do(log, "  ⚠ 片源档案解析失败（模型未返回合法 JSON），本轮跳过", "err")
+            return empty
+        meta = {
+            "title": str(obj.get("title") or "").strip(),
+            "tags": [str(t).strip().lstrip("#") for t in (obj.get("tags") or [])
+                     if str(t).strip()][:META_TAG_COUNT],
+            "official_terms": [x for x in (obj.get("official_terms") or [])
+                               if isinstance(x, dict)][:60],
+            "script_suggestions": [x for x in (obj.get("script_suggestions") or [])
+                                   if isinstance(x, dict)][:60],
+        }
+        if meta["title"]:
+            _log_do(log, f"  ✓ 中文标题：{meta['title']}", "ok")
+        if meta["tags"]:
+            _log_do(log, f"  ✓ tag（{len(meta['tags'])} 个）："
+                         + " / ".join(meta["tags"]), "ok")
+        if meta["official_terms"]:
+            _log_do(log, f"  ✓ 官方中文核对：{len(meta['official_terms'])} 条")
+        if meta["script_suggestions"]:
+            _log_do(log, f"  ✓ 脚本沉淀建议：{len(meta['script_suggestions'])} 条")
+        return meta
+    except Exception as e:  # noqa: BLE001
+        _log_do(log, f"  ⚠ 片源档案生成失败（不影响校准结果）：{e}", "err")
+        return empty
+
+
+def run_learn(python, script, src, out, mode_flag, log, cancel=None,
+              kb: str = None) -> dict:
+    """把「源 → 本轮产物」投喂给脚本的 learn 子命令，让新错形沉淀进学习库。
+
+    learn 自带频次门槛（count>=2 且无反例才 confirmed 自动生效），所以自动调用
+    是安全的：它只"提候选"，不会立刻乱改术语表。这也是「基于改动优化脚本」的
+    落点——校准发现的错形不再只躺在报告里，而是进了可复用的知识库。
+
+    :param kb: 学习库路径；None = 脚本默认（cwd 下的 subtitle_learned_kb.json）。
+               **自检必须显式传临时库**，否则测试数据会写进真实知识库
+               （2026-09-19 踩过：测试用的「卡西亚→卡提希娅」被 confirmed 进真库）。
+    """
+    mode_key = MODE_KEY.get(mode_flag, "bi")
+    _log_do(log, f"[学习] 沉淀本轮新错形（learn --mode {mode_key}）…")
+    try:
+        args = ["learn", src, out, "--mode", mode_key]
+        if kb:
+            args += ["--kb", kb]
+        rc, text = run_script(python, script, args, log, cancel)
+        tail = [ln.strip() for ln in (text or "").splitlines() if ln.strip()]
+        for ln in tail[-6:]:
+            _log_do(log, "  · " + ln)
+        return {"ok": rc == 0, "mode": mode_key, "kb": kb or "",
+                "output": "\n".join(tail[-8:])}
+    except Exception as e:  # noqa: BLE001
+        _log_do(log, f"  ⚠ 学习沉淀失败（不影响校准结果）：{e}", "err")
+        return {"ok": False, "mode": mode_key, "kb": kb or "", "output": str(e)}
+
+
 def _write_report(path, src, out, mode_flag, round_no, result, rules) -> None:
     """写 AI 校准报告（markdown）：采纳明细 + 拒绝明细 + 行宽体检 + 人工复核清单。
 
@@ -1450,9 +1653,20 @@ def _write_report(path, src, out, mode_flag, round_no, result, rules) -> None:
         f"{result.get('rules_injected') or 0} 条（其中 {result.get('rules_hot') or 0} 条命中本片）",
         "- 校验：序号 / 时间轴 / 英文行 / 换行 / BOM 全部一致（脚本 verify 通过）",
         f"- 行宽体检：超限 {result.get('width_over') or 0} 处；最宽内容行 "
-        f"{widest[0] or '—'} / {MAX_LINE_WIDTH:.0f} 汉字当量",
-        "", "## 一、AI 采纳明细（仅中文行变化）", "",
-        "| 序号 | 原文 | 校准后 | 依据 |", "| --- | --- | --- | --- |"]
+        f"{widest[0] or '—'} / {MAX_LINE_WIDTH:.0f} 汉字当量"]
+    # v1.15.1：片源档案（中文标题 / tag / 学习沉淀），写在同一份报告里
+    meta = result.get("meta") or {}
+    if meta.get("title"):
+        lines.append(f"- **中文标题**：{meta['title']}")
+    if meta.get("tags"):
+        lines.append("- **标签**：" + " / ".join(meta["tags"]))
+    learn = result.get("learn") or {}
+    if learn.get("mode"):
+        lines.append(f"- 学习沉淀：`learn --mode {learn['mode']}` "
+                     + ("已投喂（新错形进入候选库，达频次门槛后自动生效）"
+                        if learn.get("ok") else "未成功，详见日志"))
+    lines += ["", "## 一、AI 采纳明细（仅中文行变化）", "",
+              "| 序号 | 原文 | 校准后 | 依据 |", "| --- | --- | --- | --- |"]
     for num, old, new, why, soft in result["accepted"]:
         tag = ("⚠ " if soft else "") + why.replace("|", "/").replace("\n", "⏎")
         lines.append(f"| {num} | {old.replace('|', '/').replace(chr(10), '⏎')} | "
@@ -1474,7 +1688,44 @@ def _write_report(path, src, out, mode_flag, round_no, result, rules) -> None:
                       "改用 `rewrite` 风格（整句重写）再跑一轮，或人工确认后逐条覆盖。"]
     else:
         lines.append("（无）")
-    lines += ["", "## 四、备注", "",
+
+    # 四、官方中文核对（v1.15.1）
+    terms = meta.get("official_terms") or []
+    lines += ["", "## 四、官方中文核对", ""]
+    if terms:
+        lines += ["| 字幕里的写法 | 建议官方中文 | 把握 | 说明 |",
+                  "| --- | --- | --- | --- |"]
+        for t in terms:
+            conf = {"high": "高", "mid": "中", "low": "低 ⚠"}.get(
+                str(t.get("confidence") or "").lower(),
+                str(t.get("confidence") or "—"))
+            lines.append(
+                f"| {str(t.get('term') or '').replace('|', '/')} "
+                f"| {str(t.get('official') or '').replace('|', '/')} "
+                f"| {conf} | {str(t.get('note') or '').replace('|', '/')} |")
+        lines += ["", "> ⚠ 本表由模型基于自身知识给出，**不是实时联网检索**："
+                      "「把握」为低的行请人工核对官方来源后再采纳。"]
+    else:
+        lines.append("（无——未发现疑似非官方译名，或本轮未生成片源档案）")
+
+    # 五、脚本沉淀建议（v1.15.1）
+    sugg = meta.get("script_suggestions") or []
+    lines += ["", "## 五、脚本沉淀建议（可追加进术语表）", ""]
+    if sugg:
+        lines += ["| 错形 | 应改为 | 模式 | 依据 |", "| --- | --- | --- | --- |"]
+        for s in sugg:
+            lines.append(
+                f"| {str(s.get('wrong') or '').replace('|', '/')} "
+                f"| {str(s.get('right') or '').replace('|', '/')} "
+                f"| {str(s.get('mode') or '').replace('|', '/')} "
+                f"| {str(s.get('evidence') or '').replace('|', '/')} |")
+        lines += ["", "> 本轮已自动把「源 → 产物」投喂给 `learn` 沉淀候选；"
+                      "达频次门槛（≥2 且无反例）后自动生效。"
+                      "上表是模型建议，采纳前请核对官方来源。"]
+    else:
+        lines.append("（无）")
+
+    lines += ["", "## 六、备注", "",
               "- 标 ⚠ 的条目是知识库尚未收录的疑似新错形，建议用 "
               "`learn` 子命令沉淀进学习库后再次校准。",
               "- 行宽超限的条目（若有）只是提示：它意味着这一行在播放器里会偏长，"
