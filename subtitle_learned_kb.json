@@ -139,7 +139,7 @@
    "right": "心月狐",
    "mode": "bi",
    "count": 1,
-   "uncorrected": 2,
+   "uncorrected": 4,
    "status": "candidate",
    "cues": [
     145
@@ -153,15 +153,15 @@
     ]
    ],
    "ref_tokens": {
-    "Holy": 1,
-    "like": 1,
-    "leaves": 1,
-    "sky": 1,
-    "really": 1,
-    "Sheen": 1,
-    "the": 1,
-    "maple": 1,
-    "look": 1
+    "Holy": 2,
+    "like": 2,
+    "leaves": 2,
+    "sky": 2,
+    "really": 2,
+    "Sheen": 2,
+    "the": 2,
+    "maple": 2,
+    "look": 2
    },
    "unc_ref_tokens": {},
    "first": "2026-09-19",
@@ -273,11 +273,12 @@
    "wrong": "哨兵",
    "right": "岁主",
    "mode": "bi",
-   "count": 1,
+   "count": 2,
    "uncorrected": 0,
-   "status": "candidate",
+   "status": "confirmed",
    "cues": [
-    199
+    199,
+    515
    ],
    "samples": [
     [
@@ -285,23 +286,29 @@
      "的形态",
      "这个感觉更像",
      "的形态"
+    ],
+    [
+     "找到",
+     "",
+     "找到",
+     ""
     ]
    ],
    "ref_tokens": {
-    "the": 1,
-    "feels": 1,
-    "sentinel": 1,
-    "one": 1,
-    "This": 1,
-    "more": 1,
-    "form": 1,
-    "like": 1
+    "the": 3,
+    "feels": 2,
+    "sentinel": 3,
+    "one": 2,
+    "This": 2,
+    "more": 2,
+    "form": 2,
+    "like": 2,
+    "Find": 1
    },
    "unc_ref_tokens": {},
    "first": "2026-09-20",
    "last": "2026-09-20",
-   "alts": {},
-   "ctx_regex": "\\bthe\\b|\\bfeels\\b|\\bsentinel\\b"
+   "alts": {}
   },
   "bi|游泳": {
    "wrong": "游泳",
@@ -341,6 +348,225 @@
    "last": "2026-09-20",
    "alts": {},
    "ctx_regex": "\\bshowcasing\\b|\\bthe\\b|\\bdown\\b"
+  },
+  "bi|西穆利尤": {
+   "wrong": "西穆利尤",
+   "right": "心月狐",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    72
+   ],
+   "samples": [
+    [
+     "但如果，正如你所说，",
+     "正处于危险之中，信仰已经",
+     "但如果，正如你所说，",
+     "正处于危险之中，信仰已经"
+    ]
+   ],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-09-20",
+   "last": "2026-09-20",
+   "alts": {},
+   "ctx_regex": ""
+  },
+  "bi|水源": {
+   "wrong": "水源",
+   "right": "心月狐",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    73
+   ],
+   "samples": [
+    [
+     "重要的是，你首先需要找到",
+     "",
+     "重要的是，你首先需要找到",
+     ""
+    ]
+   ],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-09-20",
+   "last": "2026-09-20",
+   "alts": {},
+   "ctx_regex": ""
+  },
+  "bi|明州明州": {
+   "wrong": "明州明州",
+   "right": "鸣潮鸣潮",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    817
+   ],
+   "samples": [
+    [
+     "它就像",
+     "韩国人喜爱的吉祥物",
+     "它就像",
+     "韩国人喜爱的吉祥物"
+    ]
+   ],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-09-20",
+   "last": "2026-09-20",
+   "alts": {},
+   "ctx_regex": ""
+  },
+  "bi|明州": {
+   "wrong": "明州",
+   "right": "鸣潮",
+   "mode": "bi",
+   "count": 2,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    821,
+    822
+   ],
+   "samples": [
+    [
+     "但实际上，我的手机是装在",
+     "手机上的",
+     "但实际上，我的手机是装在",
+     "手机上的"
+    ],
+    [
+     "但安装",
+     "后，我连手机的照片都拍不",
+     "但安装",
+     "后，我连手机的照片都拍不"
+    ]
+   ],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-09-20",
+   "last": "2026-09-20",
+   "alts": {}
+  },
+  "bi|Eumrim": {
+   "wrong": "Eumrim",
+   "right": "吟霖",
+   "mode": "bi",
+   "count": 3,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    971,
+    972,
+    975
+   ],
+   "samples": [
+    [
+     "我又不知道了，是",
+     "",
+     "我又不知道了，是",
+     ""
+    ],
+    [
+     "但如果是",
+     "，似乎从一开始就是这样",
+     "但如果是",
+     "，似乎从一开始就是这样"
+    ],
+    [
+     "今天是",
+     "的三岁生日，我真的很爱你",
+     "今天是",
+     "的三岁生日，我真的很爱你"
+    ]
+   ],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-09-20",
+   "last": "2026-09-20",
+   "alts": {}
+  },
+  "bi|昭昭和": {
+   "wrong": "昭昭和",
+   "right": "朝朝何",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    233
+   ],
+   "samples": [
+    [
+     "全新的微型任务",
+     "年月就从这场不同寻常的朝",
+     "全新的微型任务",
+     "年月就从这场不同寻常的朝"
+    ]
+   ],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-09-20",
+   "last": "2026-09-20",
+   "alts": {},
+   "ctx_regex": ""
+  },
+  "bi|所实际": {
+   "wrong": "所实际",
+   "right": "锁十契",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    549
+   ],
+   "samples": [
+    [
+     "因为此行还将邂逅一些与禁",
+     "有关的记忆",
+     "因为此行还将邂逅一些与禁",
+     "有关的记忆"
+    ]
+   ],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-09-20",
+   "last": "2026-09-20",
+   "alts": {},
+   "ctx_regex": ""
+  },
+  "bi|明珠": {
+   "wrong": "明珠",
+   "right": "鸣潮",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    1159
+   ],
+   "samples": [
+    [
+     "但在我看来，",
+     "最大的魅力是它的故事",
+     "但在我看来，",
+     "最大的魅力是它的故事"
+    ]
+   ],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-09-20",
+   "last": "2026-09-20",
+   "alts": {},
+   "ctx_regex": ""
   }
  }
 }
