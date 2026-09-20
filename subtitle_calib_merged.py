@@ -2213,7 +2213,10 @@ ENTITIES = [
                 (r"\bHsin\b", "欣"), (r"\bHsin\b", "新"), (r"\bHsin\b", "馨"),
                 (r"\bHsin\b", "心"), (r"\bHsin\b", "辛"),
                 (r"\bXin\b", "欣"), (r"\bXin\b", "新"), (r"\bXin\b", "心"),
-                (r"\bShane\b", "肖恩"), (r"\bSentinel\b", "岁主"),
+                (r"\bShane\b", "肖恩"),
+                # 2026-09-20 移除 (r"\bSentinel\b", "岁主")：岁主=Sentinel 的官方通译（类目词），
+                #   心月狐 只是其中一位；该规则会把泛指"岁主形态/sentinel like form"误缩成
+                #   "心月狐"，且 \bSentinel\b 走 re.I 会命中小写普通词 sentinel，属系统性误伤。
                 (r"\bMoon Fox\b", "月狐"), (r"\bMoonfox\b", "月狐")),
            exclude=(r"\bLand Rover\b", r"\bDefender\b"),
            note="月狐岁主，官方全名 心月狐；独立指代用全名。3.7 双五星之一（2026-09-30 上线）。"
@@ -2273,7 +2276,7 @@ ENTITIES = [
                # --- 既有机翻/ASR 乱形 ---
                "Dena", "Denia", "丹妮亚", "塔娜", "Tana", "Tenna",
                # --- 中文同音/音近（dá nī yà）---
-               "达妮亚", "达尼亚", "丹妮娅", "达尼娅",
+               "达妮亚", "丹妮娅", "达尼娅",
                "达妮雅", "塔妮娅", "达你娅", "达腻娅",
                "达妮押", "达妮鸭", "达妮丫",
                # --- 英文 ASR 音近（Denia）---
@@ -2806,6 +2809,76 @@ ENTITIES = [
                 "'千夫长'=罗马军制 Chiliarch，非'将军/千人长'）。旧表已收'阿莱克琉斯'短键，此处补全头衔。"
                 "ASR 音近错形：'阿莱克琉斯'易咬成'阿莱克鲁斯/阿莱克留斯/阿莱克硫斯/阿莱克柳斯/"
                 "阿莱克雷乌斯/阿莱克纽斯'；'千夫长'易咬成'千父长/前夫长/千服长/千付长/千府长/千妇长/千夫涨/千夫章'。"),
+    # --- 2026-09-20 增补：鸣潮 3.6-3.7 活跃角色（尚无独立 Entity，散在 BILINGUAL_TERMS）---
+    Entity("洛瑟菈", modes=("bi",), en="Lucilla",
+           category="角色/星炬学院校长",
+           variants=(
+               # --- 既有机翻音译残留 ---
+               "Lucilla", "露西拉", "卢西拉", "洛西拉", "洛塞拉", "洛瑟拉",
+               # --- 中文同音/音近（luò sè lā）---
+               "洛色拉", "洛瑟垃", "洛瑟啦", "洛瑟菈大人",
+               "罗瑟菈", "锣瑟菈",
+               # --- 英文 ASR 音近（Lucilla）---
+               "Lucila", "Lucilla", "Lucia", "Luciana", "Lucille",
+               "Lusilla", "Lucilla's", "Lucilla`s", "Lu-cilla",
+               "Luciela", "Lucillar", "Lucillia",
+           ),
+           ctx=((r"\bLucilla\b", "露西拉"), (r"\bLucilla\b", "卢西拉"),
+                (r"\bPresident\b", "总统"), (r"\bLucilla\b", "洛瑟菈")),
+           note="星炬学院校长（官方中文'洛瑟菈'，库街区 wiki/3DM/sina 确认）。"
+                "身份：学院 President=校长，机翻误作'总统'（已有'洛瑟菈总统→洛瑟菈校长'长键兜底）。"
+                "ASR 音近错形：'洛瑟菈'易咬成'洛色拉/洛瑟垃/洛瑟啦/罗瑟菈/锣瑟菈'；"
+                "英文侧 Lucilla 易咬成 Lucila/Lucilla/Lucia/Lucille/Lusilla/Luciela。"),
+    Entity("千咲", modes=("bi",), en="Chisa", ja="チサ",
+           category="角色/星炬学院",
+           variants=(
+               # --- 既有机翻错形 ---
+               "Chisa", "CHISA", "奇莎", "奇萨", "千笑",
+               # --- 中文同音/音近（qiān xiào）---
+               "千啸", "千筱", "千晓", "千笑 ", "千霄", "千宵",
+               "牵笑", "芊笑", "千效", "千校", "千肖",
+               # --- 英文 ASR 音近（Chisa）---
+               "Chisa", "Chi-sa", "Chissa", "Chisa's", "Chisa`s",
+               "Chiasa", "Chisaa", "Chiisa", "Chisa!",
+           ),
+           ctx=((r"\bChisa\b", "千咲"), (r"\bChisa\b", "奇莎"),
+                (r"\bChisha\b", "炽霞")),
+           note="星炬学院/解弦之眼角色（官方中文'千咲'，日文 チサ；3.7 复刻池）。"
+                "英文恰为千咲罗马音 Chisa，ASR 易与 Chisha(炽霞) 混——"
+                "已有 CONTEXT_MAP (r'\\bChisha\\b', '千咲'→'炽霞') 回滚规则兜底，防误伤。"
+                "ASR 音近错形：'千咲'易咬成'千啸/千筱/千晓/千霄/千宵/牵笑/芊笑/千效/千校/千肖'；"
+                "英文侧 Chisa 易咬成 Chissa/Chiasa/Chisaa/Chiisa。"),
+    Entity("尤诺", modes=("bi",), en="Juno",
+           category="角色",
+           variants=(
+               # --- 中文同音/音近（yóu nuò）---
+               "由诺", "犹诺", "油诺", "尤那", "尤娜", "尤糯",
+               "尤洛", "尤珞", "游诺", "柚诺", "佑诺",
+               # --- 英文 ASR 音近（Juno）---
+               "Juno", "Juno's", "Juno`s", "Junno", "Juno!",
+               "Jueno", "Juneau", "Junoe", "Junoo", "Juno ",
+           ),
+           note="鸣潮角色（3.7 复刻池'漫于盈缺时轴'）。官方中文'尤诺'，英文 Juno。"
+                "ASR 音近错形：'尤诺'易咬成'由诺/犹诺/油诺/尤那/尤娜/尤糯/尤洛/尤珞/游诺/柚诺/佑诺'；"
+                "英文侧 Juno 易咬成 Junno/Jueno/Juneau/Junoe/Junoo。"),
+    Entity("清宵", modes=("bi",), en="Qingxiao", ja="セイショウ",
+           category="角色/鸣潮3.6",
+           variants=(
+               # --- 既有机翻/ASR 错形 ---
+               "青霄", "Ching Xiao", "Chingsha", "Ching Sha",
+               "Chingcha", "Chingsho", "Chingo", "Ching",
+               "清沙", "清筱", "Chincha", "Chimcha",
+               # --- 中文同音/音近（qīng xiāo）---
+               "清霄", "清晓", "清笑", "清宵 ", "清哮", "清消",
+               "清逍", "青宵", "青晓", "青笑", "清潇", "清萧",
+               # --- 英文 ASR 音近（Qingxiao）---
+               "Qingxiao", "Qing Xiao", "Chingxiao", "Ching-hsiao",
+               "Qingxiaoo", "Qingxiao's", "Qingxiao!",
+           ),
+           note="鸣潮 3.6 新共鸣者（官方中文'清宵'，日文片セイショウ）。"
+                "ASR 音近错形：'清宵'易咬成'清霄/清晓/清笑/清哮/清消/清逍/清潇/清萧'；"
+                "'青霄'为既有机翻错形；英文侧 Qingxiao/Ching Xiao/Chingsha/Chingcha 等已收。"
+                "戒律：日语片'聖/聖書'=清宵(セイショウ)非心月狐(シン)，勿混。"),
 ]
 
 
