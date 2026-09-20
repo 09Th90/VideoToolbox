@@ -139,7 +139,7 @@
    "right": "心月狐",
    "mode": "bi",
    "count": 1,
-   "uncorrected": 2,
+   "uncorrected": 4,
    "status": "candidate",
    "cues": [
     145
@@ -153,15 +153,15 @@
     ]
    ],
    "ref_tokens": {
-    "Holy": 1,
-    "like": 1,
-    "leaves": 1,
-    "sky": 1,
-    "really": 1,
-    "Sheen": 1,
-    "the": 1,
-    "maple": 1,
-    "look": 1
+    "Holy": 2,
+    "like": 2,
+    "leaves": 2,
+    "sky": 2,
+    "really": 2,
+    "Sheen": 2,
+    "the": 2,
+    "maple": 2,
+    "look": 2
    },
    "unc_ref_tokens": {},
    "first": "2026-09-19",
@@ -192,34 +192,20 @@
    "wrong": "拖车",
    "right": "宣传片",
    "mode": "bi",
-   "count": 1,
+   "count": 2,
    "uncorrected": 0,
-   "status": "candidate",
+   "status": "confirmed",
    "cues": [
-    822
+    822,
+    264
    ],
-   "samples": [
-    [
-     "天哪，你们以为我们会有",
-     "吗",
-     "天哪，你们以为我们会有",
-     "吗"
-    ]
-   ],
-   "ref_tokens": {
-    "you": 1,
-    "god": 1,
-    "we'll": 1,
-    "trailer": 1,
-    "guys": 1,
-    "have": 1,
-    "think": 1
-   },
+   "samples": [],
+   "ref_tokens": {},
    "unc_ref_tokens": {},
-   "first": "2026-09-19",
-   "last": "2026-09-19",
+   "first": "2026-09-20",
+   "last": "2026-09-20",
    "alts": {},
-   "ctx_regex": "\\byou\\b|\\bgod\\b|\\bwe'll\\b"
+   "sync": true
   },
   "bi|明乔": {
    "wrong": "明乔",
@@ -273,35 +259,20 @@
    "wrong": "哨兵",
    "right": "岁主",
    "mode": "bi",
-   "count": 1,
+   "count": 2,
    "uncorrected": 0,
-   "status": "candidate",
+   "status": "confirmed",
    "cues": [
-    199
+    199,
+    515
    ],
-   "samples": [
-    [
-     "这个感觉更像",
-     "的形态",
-     "这个感觉更像",
-     "的形态"
-    ]
-   ],
-   "ref_tokens": {
-    "the": 1,
-    "feels": 1,
-    "sentinel": 1,
-    "one": 1,
-    "This": 1,
-    "more": 1,
-    "form": 1,
-    "like": 1
-   },
+   "samples": [],
+   "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-09-20",
    "last": "2026-09-20",
    "alts": {},
-   "ctx_regex": "\\bthe\\b|\\bfeels\\b|\\bsentinel\\b"
+   "sync": true
   },
   "bi|游泳": {
    "wrong": "游泳",
@@ -341,6 +312,451 @@
    "last": "2026-09-20",
    "alts": {},
    "ctx_regex": "\\bshowcasing\\b|\\bthe\\b|\\bdown\\b"
+  },
+  "bi|西穆利尤": {
+   "wrong": "西穆利尤",
+   "right": "心月狐",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    72
+   ],
+   "samples": [
+    [
+     "但如果，正如你所说，",
+     "正处于危险之中，信仰已经",
+     "但如果，正如你所说，",
+     "正处于危险之中，信仰已经"
+    ]
+   ],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-09-20",
+   "last": "2026-09-20",
+   "alts": {},
+   "ctx_regex": ""
+  },
+  "bi|水源": {
+   "wrong": "水源",
+   "right": "心月狐",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    73
+   ],
+   "samples": [
+    [
+     "重要的是，你首先需要找到",
+     "",
+     "重要的是，你首先需要找到",
+     ""
+    ]
+   ],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-09-20",
+   "last": "2026-09-20",
+   "alts": {},
+   "ctx_regex": ""
+  },
+  "bi|明州明州": {
+   "wrong": "明州明州",
+   "right": "鸣潮鸣潮",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    817
+   ],
+   "samples": [
+    [
+     "它就像",
+     "韩国人喜爱的吉祥物",
+     "它就像",
+     "韩国人喜爱的吉祥物"
+    ]
+   ],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-09-20",
+   "last": "2026-09-20",
+   "alts": {},
+   "ctx_regex": ""
+  },
+  "bi|明州": {
+   "wrong": "明州",
+   "right": "鸣潮",
+   "mode": "bi",
+   "count": 2,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    821,
+    822
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-09-20",
+   "last": "2026-09-20",
+   "alts": {},
+   "sync": true
+  },
+  "bi|Eumrim": {
+   "wrong": "Eumrim",
+   "right": "吟霖",
+   "mode": "bi",
+   "count": 3,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    971,
+    972,
+    975
+   ],
+   "samples": [
+    [
+     "我又不知道了，是",
+     "",
+     "我又不知道了，是",
+     ""
+    ],
+    [
+     "但如果是",
+     "，似乎从一开始就是这样",
+     "但如果是",
+     "，似乎从一开始就是这样"
+    ],
+    [
+     "今天是",
+     "的三岁生日，我真的很爱你",
+     "今天是",
+     "的三岁生日，我真的很爱你"
+    ]
+   ],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-09-20",
+   "last": "2026-09-20",
+   "alts": {}
+  },
+  "bi|昭昭和": {
+   "wrong": "昭昭和",
+   "right": "朝朝何",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    233
+   ],
+   "samples": [
+    [
+     "全新的微型任务",
+     "年月就从这场不同寻常的朝",
+     "全新的微型任务",
+     "年月就从这场不同寻常的朝"
+    ]
+   ],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-09-20",
+   "last": "2026-09-20",
+   "alts": {},
+   "ctx_regex": ""
+  },
+  "bi|所实际": {
+   "wrong": "所实际",
+   "right": "锁十契",
+   "mode": "bi",
+   "count": 2,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    549,
+    502
+   ],
+   "samples": [
+    [
+     "因为此行还将邂逅一些与禁",
+     "有关的记忆",
+     "因为此行还将邂逅一些与禁",
+     "有关的记忆"
+    ],
+    [
+     "听闻此行还将邂逅一些与禁",
+     "有关的记忆，欢迎感兴趣的",
+     "听闻此行还将邂逅一些与禁",
+     "有关的记忆，欢迎感兴趣的"
+    ]
+   ],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-09-20",
+   "last": "2026-09-20",
+   "alts": {}
+  },
+  "bi|明珠": {
+   "wrong": "明珠",
+   "right": "鸣潮",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 1,
+   "status": "candidate",
+   "cues": [
+    1159
+   ],
+   "samples": [
+    [
+     "但在我看来，",
+     "最大的魅力是它的故事",
+     "但在我看来，",
+     "最大的魅力是它的故事"
+    ]
+   ],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-09-20",
+   "last": "2026-09-20",
+   "alts": {},
+   "ctx_regex": ""
+  },
+  "bi|是Eumrim": {
+   "wrong": "是Eumrim",
+   "right": "是吟霖",
+   "mode": "bi",
+   "count": 3,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    971,
+    972,
+    975
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-09-20",
+   "last": "2026-09-20",
+   "alts": {},
+   "sync": true
+  },
+  "bi|根钦": {
+   "wrong": "根钦",
+   "right": "原神",
+   "mode": "bi",
+   "count": 2,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    224,
+    241
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-09-20",
+   "last": "2026-09-20",
+   "alts": {},
+   "sync": true
+  },
+  "bi|瓦弗斯": {
+   "wrong": "瓦弗斯",
+   "right": "老婆",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    506
+   ],
+   "samples": [
+    [
+     "变成了",
+     "。这让他们看起来",
+     "变成了",
+     "。这让他们看起来"
+    ]
+   ],
+   "ref_tokens": {
+    "them": 1,
+    "look": 1,
+    "all": 1,
+    "into": 1,
+    "makes": 1,
+    "waifuss": 1
+   },
+   "unc_ref_tokens": {},
+   "first": "2026-09-20",
+   "last": "2026-09-20",
+   "alts": {},
+   "ctx_regex": "\\bthem\\b|\\blook\\b|\\ball\\b"
+  },
+  "bi|瓦阿": {
+   "wrong": "瓦阿",
+   "right": "鸣潮",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    644
+   ],
+   "samples": [
+    [
+     "到",
+     "。复制敌人的攻击",
+     "到",
+     "。复制敌人的攻击"
+    ]
+   ],
+   "ref_tokens": {
+    "attacks": 1,
+    "Copy": 1,
+    "the": 1,
+    "enemy": 1,
+    "for": 1,
+    "Wua": 1
+   },
+   "unc_ref_tokens": {},
+   "first": "2026-09-20",
+   "last": "2026-09-20",
+   "alts": {},
+   "ctx_regex": "\\battacks\\b|\\bCopy\\b|\\bthe\\b"
+  },
+  "bi|AK": {
+   "wrong": "AK",
+   "right": "明日方舟",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    56
+   ],
+   "samples": [
+    [
+     "俄罗斯社区应该帮",
+     "一个忙",
+     "俄罗斯社区应该帮",
+     "一个忙"
+    ]
+   ],
+   "ref_tokens": {
+    "should": 1,
+    "community": 1,
+    "Russian": 1,
+    "favor": 1
+   },
+   "unc_ref_tokens": {},
+   "first": "2026-09-20",
+   "last": "2026-09-20",
+   "alts": {},
+   "ctx_regex": "\\bshould\\b|\\bcommunity\\b|\\bRussian\\b"
+  },
+  "bi|深海": {
+   "wrong": "深海",
+   "right": "声骸",
+   "mode": "bi",
+   "count": 9,
+   "uncorrected": 5,
+   "status": "candidate",
+   "cues": [
+    525,
+    639,
+    642,
+    644,
+    646,
+    648,
+    649,
+    652
+   ],
+   "samples": [
+    [
+     "看来",
+     "们这次可就要被安排上了",
+     "看来",
+     "们这次可就要被安排上了"
+    ],
+    [
+     "7版本更新后，",
+     "推荐以及深海正配的推荐筛",
+     "7版本更新后，",
+     "推荐以及深海正配的推荐筛"
+    ],
+    [
+     "同时，随着版本更新，",
+     "体系的不断扩充，数量、种",
+     "同时，随着版本更新，",
+     "体系的不断扩充，数量、种"
+    ],
+    [
+     "对此，我们决定整体优化",
+     "背包的存储功能，解决深海",
+     "对此，我们决定整体优化",
+     "背包的存储功能，解决深海"
+    ],
+    [
+     "7版本更新后，漂泊者",
+     "背包中所有未被装备且未被",
+     "7版本更新后，漂泊者",
+     "背包中所有未被装备且未被"
+    ],
+    [
+     "个背包格子内可以存储单个",
+     "背包格子，最高可堆叠9 ",
+     "个背包格子内可以存储单个",
+     "背包格子，最高可堆叠9 "
+    ],
+    [
+     "",
+     "背包格子扩容后的画面优化",
+     "",
+     "背包格子扩容后的画面优化"
+    ],
+    [
+     "化前，原本已经非常紧张的",
+     "背包，在优化后大部分深海",
+     "化前，原本已经非常紧张的",
+     "背包，在优化后大部分深海"
+    ],
+    [
+     "理带来的压力，还有效缓解",
+     "背包紧张的问题",
+     "理带来的压力，还有效缓解",
+     "背包紧张的问题"
+    ]
+   ],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-09-20",
+   "last": "2026-09-20",
+   "alts": {},
+   "ctx_regex": ""
+  },
+  "bi|邂逅一些与禁所实际有关的记忆": {
+   "wrong": "邂逅一些与禁所实际有关的记忆",
+   "right": "邂逅一些与禁锁十契有关的记忆",
+   "mode": "bi",
+   "count": 2,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    549,
+    502
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-09-20",
+   "last": "2026-09-20",
+   "alts": {},
+   "sync": true
   }
  }
 }

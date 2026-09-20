@@ -544,6 +544,81 @@ REWRITE_SYSTEM_PROMPT = (
 )
 STYLE_SYSTEM = {"term": SYSTEM_PROMPT, "rewrite": REWRITE_SYSTEM_PROMPT}
 
+#: 联网查证工具说明（web 可用时追加到系统提示词尾部，2026-09-20）
+WEB_TOOL_NOTE = (
+    "【联网查证】遇到知识库里没有的疑似错形、或对官方名没有把握时，"
+    "**先只输出一个工具请求 JSON 数组**（不是改动数组），元素形如 "
+    '{"tool":"web_search","query":"鸣潮 卡提希娅 官方名称"} 或 '
+    '{"tool":"web_fetch","url":"https://…"}；每次最多 2 个请求，只准查术语/专名'
+    "（禁止查整句台词或上传字幕原文）；收到【联网查证结果】后必须直接输出最终"
+    "改动 JSON 数组，不得再请求工具；查证不到就维持不改。\n"
+)
+
+
+def style_system_prompt(style: str, web: bool = False) -> str:
+    """按风格取系统提示词；web=True 时追加联网查证工具说明。"""
+    sys_txt = STYLE_SYSTEM.get(style, SYSTEM_PROMPT)
+    return sys_txt + WEB_TOOL_NOTE if web else sys_txt
+
+
+_RE_TOOL_JSON = re.compile(r"\[\s*\{.*?\}\s*\]", re.S)
+
+
+def parse_tool_requests(raw: str):
+    """从模型回复里识别「工具请求」；不是工具请求则返回 []。
+
+    判定：能解析成 JSON 数组，且**所有**元素都带 tool 字段（混在改动数组里的
+    tool 元素不算——那由 parse_changes 当非法条目拒绝，防止模型把两条通道搅浑）。
+    """
+    if not raw or '"tool"' not in raw:
+        return []
+    s = raw.strip()
+    if "```" in s:
+        for seg in [x.strip() for x in s.split("```")]:
+            if seg.startswith("json"):
+                seg = seg[4:].strip()
+            if seg.startswith("["):
+                s = seg
+                break
+    start = s.find("[")
+    if start < 0:
+        return []
+    m = _RE_TOOL_JSON.search(s, start)
+    if not m:
+        return []
+    try:
+        data = json.loads(m.group(0))
+    except ValueError:
+        return []
+    if not isinstance(data, list) or not data:
+        return []
+    reqs = []
+    for item in data:
+        if not isinstance(item, dict) or not str(item.get("tool") or "").strip():
+            return []
+        reqs.append({"tool": str(item.get("tool")).strip().lower(),
+                     "query": str(item.get("query") or "").strip(),
+                     "url": str(item.get("url") or "").strip()})
+    return reqs[:2]
+
+
+def run_tools(reqs, web):
+    """执行工具请求列表，返回回填文本（每条结果一节）。web 为 make_tools() 产物。"""
+    parts = []
+    for r in reqs:
+        tool = r.get("tool") or ""
+        try:
+            if tool in ("web_search", "search") and web.get("search"):
+                out = web["search"](r.get("query"))
+            elif tool in ("web_fetch", "fetch") and web.get("fetch"):
+                out = web["fetch"](r.get("url"))
+            else:
+                out = f"未知工具 {tool!r}，可用工具仅 web_search / web_fetch。"
+        except Exception as e:  # noqa: BLE001
+            out = f"工具执行异常：{type(e).__name__}: {e}"
+        parts.append(str(out))
+    return "\n\n".join(parts)
+
 
 def _esc(text: str) -> str:
     """条目内的真实换行转成字面 \\n（单行传输），反斜杠先转义避免歧义。"""
@@ -578,7 +653,7 @@ def _unesc(text: str) -> str:
 def build_user_prompt(mode_flag: str, rules_text: str, chunk, round_no: int,
                       style: str = "term", with_ref: bool = True,
                       prev_text: str = "", scope_text: str = "",
-                      feedback: str = "") -> str:
+                      feedback: str = "", evidence: str = "") -> str:
     """组装单块请求：知识库片段 + 待校准条目 + 本轮约束。
 
     条目固定三列 `序号<TAB>中文行<TAB>参考行`（参考行可为空）：双语片源的参考行是
@@ -612,7 +687,9 @@ def build_user_prompt(mode_flag: str, rules_text: str, chunk, round_no: int,
             + ("【待校准条目（每行三列：序号<TAB>中文行<TAB>参考行(原片语言，只读)）】\n"
                if with_ref else
                "【待校准条目（每行：序号<TAB>中文行；\\n 表示该条内的换行）】\n")
-            + body + "\n\n" + guide)
+            + body + "\n\n" + guide
+            + (("\n\n【联网查证结果（你上一轮工具请求的回填，只读证据）】\n"
+                + evidence) if evidence else ""))
 
 
 def parse_changes(raw: str):
@@ -884,6 +961,7 @@ def calibrate(src: str, out: str = None, report: str = None, mode_flag: str = ""
               thinking: bool = True,
               concurrency: int = 1,
               learn_kb: str = None,
+              web=None,
               context_tokens: int = 1000000) -> dict:
     """Agent 级 AI 校准主流程（详见模块 docstring）。
 
@@ -911,6 +989,10 @@ def calibrate(src: str, out: str = None, report: str = None, mode_flag: str = ""
     context_tokens    v1.15.4：可用**上下文预算**（默认 1M token）。片源档案按
                       它的 1/4 折算采样上限 ⇒ 默认等于全量投喂字幕；输出额度
                       （max_tokens）默认 65536，端点不接受时会自动减半重试。
+    web               2026-09-20：calib_web_agent.make_tools() 产物（含
+                      search/fetch 两个函数）。传入后模型可先发起「工具请求」
+                      联网查证官方名，证据回填再下结论；每块至多 1 轮。
+                      None=纯离线，行为与旧版完全一致。
     """
     t0 = time.time()
     log = log or (lambda m, level="dim": None)
@@ -950,6 +1032,7 @@ def calibrate(src: str, out: str = None, report: str = None, mode_flag: str = ""
               "manual_check": [], "resumed_from": "", "chunks": 0,
               "rules_injected": 0, "rules_hot": 0, "suggest_rewrite": False,
               "meta": {}, "learn": {},
+              "tool_calls": 0, "web_enabled": bool(web),
               "concurrency": max(1, int(concurrency or 1))}
     try:
         # ---------- 1. 起点：上一轮结果（可选）或术语脚本基线 ----------
@@ -1177,7 +1260,8 @@ def calibrate(src: str, out: str = None, report: str = None, mode_flag: str = ""
                                              round_no, max_tokens, log, _tick,
                                              style=style, with_ref=include_ref,
                                              prev_text=prev_text, scope_text=scope,
-                                             think=(_think if thinking else None))
+                                             think=(_think if thinking else None),
+                                             web=web, stats=result)
             return idx, chunk, changes, block_fail
 
         conc = result["concurrency"]
@@ -1379,8 +1463,14 @@ def _split_chunks(cues, max_cues: int, max_chars: int):
 
 def _ask_block(chat, mode_flag, rules_txt, chunk, round_no, max_tokens, log, tick,
                style="term", with_ref=True, prev_text="", scope_text="",
-               attempt=0, think=None, feedback=""):
+               attempt=0, think=None, feedback="", web=None, tool_round=0,
+               evidence="", stats=None):
     """请模型判定一个块的改动，返回 (changes, hard_fail)。
+
+    联网查证（2026-09-20）：web 传入 calib_web_agent.make_tools() 产物后，
+    模型可先输出「工具请求」；本函数执行工具、把【联网查证结果】拼回用户
+    提示词再问一次（每块至多 tool_round=1 轮，防无限往返）。工具轮不计入
+    失败重试逻辑——工具回复解析不出改动时按正常流程继续走重试分支。
 
     失败处理策略（2026-09-15 对标 DeepSeek Harness 的异常分支 / 资源上限同步优化）：
       · ok        拿到完整数组（含 []＝无需改动）→ 直接采纳，绝不再误拆；
@@ -1395,13 +1485,13 @@ def _ask_block(chat, mode_flag, rules_txt, chunk, round_no, max_tokens, log, tic
     v1.16.0：重问时经 `feedback` 把上次失败原因与整改要求写进提示词
     （build_user_prompt 组装），而不是干巴巴地重发同一份请求。
     """
-    system = STYLE_SYSTEM.get(style, SYSTEM_PROMPT)
+    system = style_system_prompt(style, web=bool(web))
     raw = ""
     err = ""
     prompt = build_user_prompt(mode_flag, rules_txt, chunk, round_no,
                                style=style, with_ref=with_ref,
                                prev_text=prev_text, scope_text=scope_text,
-                               feedback=feedback)
+                               feedback=feedback, evidence=evidence)
     try:
         if think is not None:
             # v1.14.2：把模型思考链经 think(text) 上报到校准日志；回调方
@@ -1417,6 +1507,23 @@ def _ask_block(chat, mode_flag, rules_txt, chunk, round_no, max_tokens, log, tic
     except Exception as e:  # noqa: BLE001
         err = str(e)[:120]
         _log_do(log, f"  ! 该块调用失败：{err}", "err")
+    # ---- 联网查证工具环：模型请求工具 → 执行 → 证据回填再问（至多一轮）----
+    if web and tool_round < 1:
+        reqs = parse_tool_requests(raw)
+        if reqs:
+            kinds = "、".join(dict.fromkeys(
+                (r.get("tool") or "?") for r in reqs))
+            _log_do(log, f"  ⌕ 模型发起联网查证（{kinds}，{len(reqs)} 个请求）…")
+            if stats is not None:
+                stats["tool_calls"] = stats.get("tool_calls", 0) + len(reqs)
+            found = run_tools(reqs, web)
+            tick()
+            return _ask_block(chat, mode_flag, rules_txt, chunk, round_no,
+                              max_tokens, log, tick, style, with_ref, prev_text,
+                              scope_text, attempt, think, "",
+                              web=web, tool_round=tool_round + 1,
+                              evidence=(evidence + "\n\n" if evidence else "")
+                              + found, stats=stats)
     changes, status = parse_changes(raw)
     if status == "ok":
         return changes, False
@@ -1446,7 +1553,8 @@ def _ask_block(chat, mode_flag, rules_txt, chunk, round_no, max_tokens, log, tic
                           min(max_tokens * 2, 524288) if status == "truncated"
                           else max_tokens,
                           log, tick, style, with_ref, prev_text, scope_text, 1,
-                          think, feedback)
+                          think, feedback, web=web, evidence=evidence,
+                          stats=stats)
 
     if status == "invalid":
         _log_do(log, "  ✗ 重问后仍未取得有效结果，该块按无改动跳过"
@@ -1460,10 +1568,12 @@ def _ask_block(chat, mode_flag, rules_txt, chunk, round_no, max_tokens, log, tic
     _log_do(log, f"  ! 重问仍被截断，拆为 {half}+{len(chunk) - half} 分块重试", "err")
     a, fa = _ask_block(chat, mode_flag, rules_txt, chunk[:half], round_no,
                        max_tokens, log, tick, style, with_ref, prev_text,
-                       scope_text, 0, think)
+                       scope_text, 0, think, web=web, evidence=evidence,
+                       stats=stats)
     b, fb = _ask_block(chat, mode_flag, rules_txt, chunk[half:], round_no,
                        max_tokens, log, tick, style, with_ref, prev_text,
-                       scope_text, 0, think)
+                       scope_text, 0, think, web=web, evidence=evidence,
+                       stats=stats)
     return a + b, (fa and fb)
 
 
@@ -1726,6 +1836,9 @@ def _write_report(path, src, out, mode_flag, round_no, result, rules) -> None:
                   "建议改用 `rewrite` 风格（整句重写）重跑一轮。"]
     if result.get("resumed_from"):
         lines.append(f"- 起点：以上轮结果 `{result['resumed_from']}` 为输入（未重跑脚本基线）")
+    if result.get("web_enabled") or result.get("tool_calls"):
+        lines.append(f"- 联网查证：{'启用' if result.get('web_enabled') else '未启用'}，"
+                     f"共 {result.get('tool_calls') or 0} 次工具调用")
     lines += [
         f"- 改动：术语脚本 {result['script_changes']} 处 + AI {result['ai_changes']} 处；"
         f"拒绝 {result['rejected']} 处",

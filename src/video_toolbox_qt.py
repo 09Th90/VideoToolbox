@@ -2470,13 +2470,20 @@ class SettingsPage(QWidget):
             1 if str(ai.get("calib_style") or "term") == "rewrite" else 0)
         blay.addWidget(label_row("校准风格", self.calib_style_combo))
 
+        # 联网查证（2026-09-20）：Agent 遇到知识库没有的疑似错形时可自主搜索
+        self.calib_web_switch = SwitchButton(box)
+        self.calib_web_switch.setChecked(bool(ai.get("calib_web_enabled", False)))
+        blay.addWidget(label_row("联网查证", row(self.calib_web_switch, None)))
+
         calib_save = PrimaryPushButton(FIF.SAVE, "保存并应用", box)
         calib_save.clicked.connect(self._ai_save)
         blay.addWidget(row(calib_save, None))
 
         self.calib_hint = fit_caption(CaptionLabel(
             "块越小越稳（读不完自动折半重试）；思考关闭更省更快，长片整句重写建议"
-            "开「高/极致」；无法用术语知识库解释的改动会被拒绝并写入报告", box))
+            "开「高/极致」；无法用术语知识库解释的改动会被拒绝并写入报告。开启"
+            "「联网查证」后，Agent 可对库中没有的疑似错形自主搜索官方名再下结论"
+            "（出网走内置代理）", box))
         self.calib_hint.setTextColor("#8a8a8a", "#9a9a9a")
         blay.addWidget(self.calib_hint)
         self.vbox.addWidget(box)
@@ -2517,6 +2524,8 @@ class SettingsPage(QWidget):
             # 校准风格（2026-09-14）：term=只替换名词；rewrite=整句重写
             "calib_style": ("rewrite"
                             if self.calib_style_combo.currentIndex() == 1 else "term"),
+            # 联网查证（2026-09-20）：AI 校准 Agent 可发起 web_search/web_fetch
+            "calib_web_enabled": self.calib_web_switch.isChecked(),
             # 思考控制（v1.15.7）：随校准请求体 thinking / reasoning_effort 下发
             "calib_thinking": self.calib_thinking_switch.isChecked(),
             "calib_reasoning_effort": self.CALIB_EFFORT_KEYS[
@@ -3664,6 +3673,10 @@ class CalibPage(QWidget):
                              if _style == "rewrite" else "术语级")
                           + ("；以上轮结果为起点续跑（跳过脚本基线、禁止回退）"
                              if again else ""), "dim")
+            self.log.line("[AI] 联网查证: "
+                          + ("开启（Agent 可搜索/抓取官方名作证据）"
+                             if (engine.ai_load_config() or {}).get(
+                                 "calib_web_enabled") else "关闭"), "dim")
             self.log.line(f"[AI] 输入: {src}", "dim")
             self.log.line(f"[AI] 输出: {out}", "dim")
             if report:

@@ -100,6 +100,10 @@ hiddenimports += ['ui_theme']
 # 发现不了，必须显式声明，否则打包后点「AI 校准」会 ModuleNotFoundError）。
 hiddenimports += ['calib_ai_agent']
 
+# 2026-09-20：AI 校准 Agent 的联网查证工具（calib_web_agent，同样是
+# calib_ai_run 内部延迟 import，开启「联网查证」后点校准才会加载）。
+hiddenimports += ['calib_web_agent']
+
 # v1.13.0：字幕编辑页的 libmpv 播放器。python-mpv 绑定（mpv.py，纯标准库、
 # 约 90KB）由 subtitle_editor_media.load_mpv() 延迟导入，静态分析发现不了。
 # 不声明的话打包后点「打开视频」会 ModuleNotFoundError: No module named 'mpv'。

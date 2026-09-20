@@ -114,6 +114,11 @@ DEFAULT_CONFIG: dict = {
     "calib_thinking": True,
     "calib_reasoning_effort": "high",
     "calib_concurrency": 1,    # 逐块 LLM 调用并发路数（1＝串行；v1.16.0 受控并发）
+    # calib_style: "term"=术语级（只替换名词）；"rewrite"=整句重写（理顺机翻）
+    # 2026-09-20 修复：此前不在白名单里，界面保存后会被静默丢弃
+    "calib_style": "term",
+    # calib_web_enabled: AI 校准 Agent 联网查证（web_search/web_fetch 工具环）
+    "calib_web_enabled": False,
     "max_tokens": 2048,
     "timeout": 90,
     "retries": 3,

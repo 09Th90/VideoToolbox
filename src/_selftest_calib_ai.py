@@ -721,6 +721,99 @@ def test_meta_dossier():
               md2.splitlines()[0] if md2 else "")
 
 
+def test_web_tool_loop():
+    """联网查证工具环（离线）：请求解析 / 执行回填 / 至多一轮 / 计数统计。"""
+    print("\n== 联网查证工具环（离线 mock） ==")
+    import calib_web_agent as web_ag
+
+    # 1 工具请求识别与边界
+    reqs = ag.parse_tool_requests(
+        '[{"tool":"web_search","query":"鸣潮 守钟者 官方名"}]')
+    check("识别单条工具请求", len(reqs) == 1
+          and reqs[0]["tool"] == "web_search" and "守钟者" in reqs[0]["query"],
+          str(reqs))
+    check("改动数组不误判为工具请求", ag.parse_tool_requests(
+        '[{"num":"3","new_zh":"卡提希娅登场","reason":"错形→官方名"}]') == [])
+    check("混有 num 的数组不当作工具请求", ag.parse_tool_requests(
+        '[{"tool":"web_search","query":"x"},{"num":"1","new_zh":"y"}]') == [])
+    check("空回复/坏 JSON 返回 []", ag.parse_tool_requests("") == []
+          and ag.parse_tool_requests("[{broken") == [])
+    check("至多保留 2 个请求", len(ag.parse_tool_requests(
+        '[{"tool":"web_search","query":"a"},{"tool":"web_search","query":"b"},'
+        '{"tool":"web_search","query":"c"}]')) == 2)
+
+    # 2 run_tools 对未知工具的降级
+    calls = []
+
+    def fake_web(q):
+        calls.append(q)
+        return f"证据<{q}>"
+    out = ag.run_tools([{"tool": "web_search", "query": "鸣潮 术语", "url": ""},
+                        {"tool": "nope", "query": "", "url": ""}],
+                       {"search": fake_web})
+    check("执行结果拼接回填", "证据<鸣潮 术语>" in out and "未知工具" in out, out)
+
+    # 3 _ask_block 工具环：模型先要证据、拿到后给改动
+    seen = {"n": 0, "has_evidence": False}
+
+    def two_phase_chat(prompt, system=None, max_tokens=8192):
+        seen["n"] += 1
+        assert "web_search" in (system or ""), "系统提示词应含工具说明"
+        if seen["n"] == 1:
+            return '[{"tool":"web_search","query":"卡提希娅 官方"}]'
+        seen["has_evidence"] = "【联网查证结果" in prompt
+        return '[{"num":"1","new_zh":"卡提希娅登场","reason":"查证+知识库"}]'
+    stats = {}
+    changes, fail = ag._ask_block(
+        two_phase_chat, "", "卡西亚 → 卡提希娅",
+        [("1", "卡西亚登场", "Carty appears")], 1, 1024,
+        lambda m, level="dim": None, tick=lambda: None,
+        web={"search": lambda q: "官方名：卡提希娅"}, stats=stats)
+    check("工具轮后拿到最终改动", len(changes) == 1
+          and changes[0]["num"] == "1" and not fail, str(changes))
+    check("证据回填进第二轮提示词", seen["has_evidence"])
+    check("调用计数进 stats", stats.get("tool_calls") == 1, str(stats))
+
+    # 4 工具环只走一轮：模型反复要工具 ⇒ 不死循环
+    n2 = {"n": 0}
+
+    def stubborn_chat(prompt, system=None, max_tokens=8192):
+        n2["n"] += 1
+        return '[{"tool":"web_search","query":"whatever"}]'
+    changes, fail = ag._ask_block(
+        stubborn_chat, "", "r", [("1", "甲", "a")], 1, 1024,
+        lambda m, level="dim": None, tick=lambda: None,
+        web={"search": lambda q: "无结果"})
+    check("顽固请求不死循环（≤1 工具轮）", n2["n"] <= 3, f"chat 调用 {n2['n']} 次")
+
+    # 5 calib_web_agent 纯函数（不出网）：HTML 剥离 / proxy 三态 / 入参降级
+    stripped = web_ag._strip_html(
+        "<html><script>var x=1;</script><p>官方名：<b>卡提希娅</b></p>"
+        "<br><p>第二条&amp;继续</p></html>")
+    check("HTML 剥离去脚本留文本", "卡提希娅" in stripped and "var x" not in stripped,
+          stripped)
+    op1 = web_ag._opener(None)
+    op2 = web_ag._opener({})
+    op3 = web_ag._opener({"http": "http://127.0.0.1:7897",
+                          "https": "http://127.0.0.1:7897"})
+    import urllib.request as _ur
+    def _proxies_of(op):
+        for h in op.handlers:
+            if isinstance(h, _ur.ProxyHandler):
+                return h.proxies
+        return "NONE"     # 没挂 ProxyHandler = 强制直连
+    check("proxy=None 构造成功（跟随系统）", isinstance(_proxies_of(op1), dict)
+          or _proxies_of(op1) == "NONE", str(_proxies_of(op1)))
+    check("proxy={} 强制直连（链上无 ProxyHandler）",
+          _proxies_of(op2) == "NONE", str(_proxies_of(op2)))
+    check("proxy 注入 7897", "7897" in str(_proxies_of(op3)), str(_proxies_of(op3)))
+    t = web_ag.make_tools(proxy={}, timeout=1)
+    r1 = t["fetch"]("ftp://invalid.example/x")
+    check("非法协议拒绝并给文本", "失败" in r1, r1)
+    r2 = t["search"]("")
+    check("空查询给文本不抛异常", "失败" in r2, r2)
+
+
 if __name__ == "__main__":
     print(f"脚本：{SCRIPT}\n解释器：{PYTHON}")
     test_parse_rebuild()
@@ -736,5 +829,6 @@ if __name__ == "__main__":
     test_concurrency_equivalence()
     test_ckpt_resume()
     test_meta_dossier()
+    test_web_tool_loop()
     print("\n" + ("全部通过 ✅" if not FAILED else f"失败 {len(FAILED)} 项 ❌：{FAILED}"))
     sys.exit(1 if FAILED else 0)

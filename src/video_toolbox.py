@@ -4000,6 +4000,22 @@ def calib_ai_chat(prompt, system=None, max_tokens=None, on_reasoning=None):
                             reasoning_effort=effort if thinking else None)
 
 
+def calib_web_proxy():
+    """校准 Agent 联网查证的出网代理（返回 calib_web_agent 认的 proxy 快照）。
+
+    走内置 mihomo（`ytdlp_proxy_args` 已带缓存与 204 硬校验）；拿不到代理时
+    返回 None=跟随系统代理，绝不强制直连（国内直连 Bing 常无结果）。
+    """
+    try:
+        args = ytdlp_proxy_args()
+        if args and len(args) >= 2 and args[1]:
+            u = args[1]
+            return {"http": u, "https": u}
+    except Exception:  # noqa: BLE001
+        pass
+    return None
+
+
 def calib_ai_run(src, out=None, report=None, mode_flag="", fix_en=False,
                  log=None, round_no=1, cancel=None, workdir=None,
                  style=None, resume_from=None, prev_changes=None):
@@ -4011,10 +4027,25 @@ def calib_ai_run(src, out=None, report=None, mode_flag="", fix_en=False,
            直接在上轮成果上继续；否则从原始源重跑会把上轮已采纳的改动丢掉。
     prev_changes：上轮采纳明细 [(num, old, new), ...]，注入提示词禁止回退。
     concurrency：逐块 LLM 调用并发路数，None=读配置 `calib_concurrency`（默认 1＝串行）。
+
+    web（2026-09-20 校准 Agent 联网）：`calib_web_enabled` 开启时挂联网查证工具
+    （web_search/web_fetch），出网走内置代理；失败降级为「查不到不改」，不打断主流程。
     """
     import calib_ai_agent as _agent
     ai = ai_load_config()
     style = style or str(ai.get("calib_style") or "term")
+    web = None
+    if bool(ai.get("calib_web_enabled", False)):
+        try:
+            import calib_web_agent as _web
+            web = _web.make_tools(proxy=calib_web_proxy, log=log)
+        except Exception as e:  # noqa: BLE001
+            web = None
+            if log:
+                try:
+                    log(f"  · 联网查证工具初始化失败（按离线继续）：{e}", "err")
+                except TypeError:
+                    log(f"  · 联网查证工具初始化失败（按离线继续）：{e}")
     return _agent.calibrate(
         src, out=out, report=report, mode_flag=mode_flag, fix_en=fix_en,
         script=os.path.join(APP_DIR, "subtitle_calib_merged.py"),
@@ -4027,7 +4058,8 @@ def calib_ai_run(src, out=None, report=None, mode_flag="", fix_en=False,
         round_no=round_no, cancel=cancel, workdir=workdir,
         style=style, resume_from=resume_from, prev_changes=prev_changes,
         sentence_aware=bool(ai.get("calib_sentence_aware", True)),
-        strict_width=bool(ai.get("calib_strict_width", False)))
+        strict_width=bool(ai.get("calib_strict_width", False)),
+        web=web)
 
 
 # ========== 校准知识多用户同步开关（持久化在 config.json） ==========
