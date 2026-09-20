@@ -192,11 +192,12 @@
    "wrong": "拖车",
    "right": "宣传片",
    "mode": "bi",
-   "count": 1,
+   "count": 2,
    "uncorrected": 0,
-   "status": "candidate",
+   "status": "confirmed",
    "cues": [
-    822
+    822,
+    264
    ],
    "samples": [
     [
@@ -217,9 +218,9 @@
    },
    "unc_ref_tokens": {},
    "first": "2026-09-19",
-   "last": "2026-09-19",
+   "last": "2026-09-20",
    "alts": {},
-   "ctx_regex": "\\byou\\b|\\bgod\\b|\\bwe'll\\b"
+   "sync": true
   },
   "bi|明乔": {
    "wrong": "明乔",
@@ -308,7 +309,8 @@
    "unc_ref_tokens": {},
    "first": "2026-09-20",
    "last": "2026-09-20",
-   "alts": {}
+   "alts": {},
+   "sync": true
   },
   "bi|游泳": {
    "wrong": "游泳",
@@ -453,7 +455,8 @@
    "unc_ref_tokens": {},
    "first": "2026-09-20",
    "last": "2026-09-20",
-   "alts": {}
+   "alts": {},
+   "sync": true
   },
   "bi|Eumrim": {
    "wrong": "Eumrim",
@@ -567,6 +570,139 @@
    "last": "2026-09-20",
    "alts": {},
    "ctx_regex": ""
+  },
+  "bi|是Eumrim": {
+   "wrong": "是Eumrim",
+   "right": "是吟霖",
+   "mode": "bi",
+   "count": 3,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    971,
+    972,
+    975
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-09-20",
+   "last": "2026-09-20",
+   "alts": {},
+   "sync": true
+  },
+  "bi|根钦": {
+   "wrong": "根钦",
+   "right": "原神",
+   "mode": "bi",
+   "count": 2,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    224,
+    241
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-09-20",
+   "last": "2026-09-20",
+   "alts": {},
+   "sync": true
+  },
+  "bi|瓦弗斯": {
+   "wrong": "瓦弗斯",
+   "right": "老婆",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    506
+   ],
+   "samples": [
+    [
+     "变成了",
+     "。这让他们看起来",
+     "变成了",
+     "。这让他们看起来"
+    ]
+   ],
+   "ref_tokens": {
+    "them": 1,
+    "look": 1,
+    "all": 1,
+    "into": 1,
+    "makes": 1,
+    "waifuss": 1
+   },
+   "unc_ref_tokens": {},
+   "first": "2026-09-20",
+   "last": "2026-09-20",
+   "alts": {},
+   "ctx_regex": "\\bthem\\b|\\blook\\b|\\ball\\b"
+  },
+  "bi|瓦阿": {
+   "wrong": "瓦阿",
+   "right": "鸣潮",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    644
+   ],
+   "samples": [
+    [
+     "到",
+     "。复制敌人的攻击",
+     "到",
+     "。复制敌人的攻击"
+    ]
+   ],
+   "ref_tokens": {
+    "attacks": 1,
+    "Copy": 1,
+    "the": 1,
+    "enemy": 1,
+    "for": 1,
+    "Wua": 1
+   },
+   "unc_ref_tokens": {},
+   "first": "2026-09-20",
+   "last": "2026-09-20",
+   "alts": {},
+   "ctx_regex": "\\battacks\\b|\\bCopy\\b|\\bthe\\b"
+  },
+  "bi|AK": {
+   "wrong": "AK",
+   "right": "明日方舟",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    56
+   ],
+   "samples": [
+    [
+     "俄罗斯社区应该帮",
+     "一个忙",
+     "俄罗斯社区应该帮",
+     "一个忙"
+    ]
+   ],
+   "ref_tokens": {
+    "should": 1,
+    "community": 1,
+    "Russian": 1,
+    "favor": 1
+   },
+   "unc_ref_tokens": {},
+   "first": "2026-09-20",
+   "last": "2026-09-20",
+   "alts": {},
+   "ctx_regex": "\\bshould\\b|\\bcommunity\\b|\\bRussian\\b"
   }
  }
 }
