@@ -2189,12 +2189,73 @@ ENTITIES = [
                 "主播昵称'弗罗弗'(Frover)由 CONTEXT_MAP 兜底，防'罗弗'键子串误伤。"),
     Entity("心月狐", modes=("bi",), en="Sheen / Hsin", ja="シン",
            category="角色/岁主",
-           variants=("Sheen", "月狐希恩", "希恩", "谢恩"),
+           variants=(
+               # --- 既有：Sheen 音译残留 ---
+               "Sheen", "月狐希恩", "希恩", "谢恩",
+               # --- Hsin 官方罗马音的英文 ASR 高频错听（仅收 Hsin 独有派生形，
+               #     歧义短键 Shin/Sin/Xin/Shen/Hshen 走 ctx 参考行锚定，防误伤普通英文）---
+               "Hsin", "Hsin the Moon Fox", "Hsin the Moonfox",
+               "Xhin", "Hsien", "Hshin", "Hsi",
+               "Hsin'", "hsin", "HSIN",
+               "Hsin-sama", "Hsin sama", "Lady Hsin", "Lord Hsin",
+               # --- 中文机翻义项残留（Sheen=光泽/Hsin=欣/新/馨）---
+               "心月胡", "心悦狐", "新月狐", "心月孤", "心月弧",
+               "心月湖", "心月葫", "心月蝴", "心月狐岁主",
+               # --- 组合词：岁主/月狐的机翻拆字 ---
+               "月狐岁主", "月狐 Sentinel", "Sentinel Sheen",
+               "Sheen Sentinel", "Moon Fox Sheen", "Moonfox Hsin",
+               "月狐辛", "月狐新", "月狐欣", "月狐馨",
+           ),
            ctx=((r"\bSheen\b", "辛"), (r"\bSheen\b", "光泽"),
+                (r"\bSheen\b", "闪光"), (r"\bSheen\b", "光辉"),
                 (r"\bShin\b", "申"), (r"\bShin\b", "辛"), (r"\bShin\b", "胫"),
-                (r"\bShane\b", "肖恩")),
-           note="月狐岁主，官方全名 心月狐；独立指代用全名。日语片'シ/シン様'归 心"
-                "（见 JA_TERMS），3.6 片'聖/聖書'=清宵(セイショウ)非心，勿混。"),
+                (r"\bShin\b", "新"), (r"\bShin\b", "神"),
+                (r"\bHsin\b", "欣"), (r"\bHsin\b", "新"), (r"\bHsin\b", "馨"),
+                (r"\bHsin\b", "心"), (r"\bHsin\b", "辛"),
+                (r"\bXin\b", "欣"), (r"\bXin\b", "新"), (r"\bXin\b", "心"),
+                (r"\bShane\b", "肖恩"), (r"\bSentinel\b", "岁主"),
+                (r"\bMoon Fox\b", "月狐"), (r"\bMoonfox\b", "月狐")),
+           exclude=(r"\bLand Rover\b", r"\bDefender\b"),
+           note="月狐岁主，官方全名 心月狐；独立指代用全名。3.7 双五星之一（2026-09-30 上线）。"
+                "英文侧 Hsin（官方罗马音）与 Sheen（英文服旧译）并存，ASR 常咬成 Xin/Xhin/Shin/Sin/"
+                "Hsien/Hshin/Hsi/Shen 等；机翻按字面把 Sheen 译成'光泽/闪光/光辉'，把 Hsin 译成"
+                "'欣/新/馨/心/辛'，均靠参考行佐证归此。日语片'シ/シン様'归 心（见 JA_TERMS），"
+                "3.6 片'聖/聖書'=清宵(セイショウ)非心，勿混。"
+                "exclude 防'Land Rover/Defender'等越野车品牌被 Rover 键误伤（漂泊者=Rover）。"),
+    Entity("锁暝", modes=("bi", "ja"), en="Suoming", ja="サメイ",
+           category="角色/岁主",
+           variants=(
+               # --- 中文同音/音近（suǒ míng）---
+               "锁瞑", "锁冥", "锁明", "锁名", "锁铭", "锁鸣",
+               "所暝", "所冥", "索暝", "索冥", "琐暝", "琐明", "唢暝",
+               # --- 既有机翻错形（BILINGUAL_TERMS/JA_TERMS 散落键聚合）---
+               "苏明", "苏凌", "苏舒明", "索明", "水明",
+               "Suming", "Suling", "Schuming", "Summit",
+               # --- 英文 ASR 音近（Suoming 官方罗马音）---
+               "Suoming", "Suo Ming", "Swoming", "Suomin", "Somin",
+               "SUOMING", "suoming", "Suomimg", "Suorming",
+               "Souming", "Suowming", "Suomming", "Suomiing",
+               "Suomng", "Suomig", "Suomign", "Suomingg",
+               # --- 日语片假名昵称 ---
+               "サメイ", "サメちゃん", "サメィ", "鲛美",
+               "鲫美酱", "鲛美酱", "鲇美酱", "萨米酱", "鲨鱼酱",
+               "萨姆酱", "小沙姆", "萨梅伊", "鲛名酱",
+               # --- 组合词：岁主/组织 ---
+               "锁暝岁主", "Sentinel Suoming", "Suoming Sentinel",
+           ),
+           ctx=((r"\bswimming\b", "游泳"), (r"\bSuoming\b", "游泳"),
+                (r"\bswimming\b", "苏明"), (r"\bSuoming\b", "锁瞑"),
+                (r"\bSuoming\b", "锁冥"), (r"\bSuoming\b", "锁明"),
+                (r"\bSuoming\b", "锁名"), (r"\bswimming\b", "锁瞑"),
+                (r"\bSentinel\b", "锁暝"), (r"\bMoon\b", "锁暝"),
+                (r"\bSuoming\b", "索明"), (r"\bSuoming\b", "水明")),
+           note="鸣潮 3.7 双五星之二（2026-09-30 上线），岁主形态，专武'沉冥'。"
+                "官方中文'锁暝'（目+冥，非'锁瞑'目+瞑）；执掌组织'谛天鉴'，"
+                "所属'禁锁十契'。英文罗马音 Suoming；ASR 常咬成 Swoming/Suomin/Somin/"
+                "Suomimg/Suorming/Souming/Suowming；机翻按 swimming 音近误译'游泳/苏明/索明/水明'。"
+                "日语片昵称 サメイ/サメちゃん（鲨鱼酱/小沙姆），JA_TERMS 已收；"
+                "本 Entity 聚合 bi+ja 双模式全部散落键，防遗漏。"
+                "戒律：'游泳'为普通词绝不进 variants，只走 \\bswimming\\b 参考行锚定。"),
     Entity("阿列夫一", modes=("bi",), en="ALF1 / Alfan", ja="アルフワン",
            category="敌人/鸣式",
            variants=("阿尔夫", "ALF1", "LF1", "阿尔凡", "Alfan", "阿尔夫一人",
@@ -2208,10 +2269,24 @@ ENTITIES = [
            "短键二次命中得'阿阿达希尔'（terms-check 会报）。"),
     Entity("达妮娅", modes=("bi", "ja"), en="Denia", ja="ダーニャ",
            category="角色",
-           variants=("Dena", "Denia", "丹妮亚", "塔娜", "Tana", "Tenna"),
+           variants=(
+               # --- 既有机翻/ASR 乱形 ---
+               "Dena", "Denia", "丹妮亚", "塔娜", "Tana", "Tenna",
+               # --- 中文同音/音近（dá nī yà）---
+               "达妮亚", "达尼亚", "丹妮娅", "达尼娅",
+               "达妮雅", "塔妮娅", "达你娅", "达腻娅",
+               "达妮押", "达妮鸭", "达妮丫",
+               # --- 英文 ASR 音近（Denia）---
+               "Denya", "Dennia", "Denny", "Deniya",
+               "Danea", "Dania", "Denia's", "Denia`s", "Deina",
+               "Denaia", "Deneia", "Denea", "Denia!",
+               # --- 日文原形 ---
+               "ダーニャ", "ダニア", "でにゃ",
+           ),
            ctx=((r"\bDa\b", "爸爸"), (r"\bDa\b", "Da"), (r"\bDa\b", "达的"),
                 (r"\bDa\b", "达。"), (r"\bmy wife\b", "娜娜"),
-                (r"\bTenna\b", "特纳"), (r"\bDia\b", "迪亚"), (r"\bDia\b", "Dia")),
+                (r"\bTenna\b", "特纳"), (r"\bDia\b", "迪亚"), (r"\bDia\b", "Dia"),
+                (r"\bDenia\b", "达妮娅"), (r"\bDenia\b", "丹妮娅")),
            note="星炬学院虚质科学部学生，3.3 新五星（百度百科/萌娘百科/官方档案确认）。"
                 "昵称 Denny/Dennia 机翻'丹尼/丹妮娅'亦归此；"
                 "Daniela=丹妮拉 是另一人，勿收。真名达斯维达尼亚。"
@@ -2269,11 +2344,6 @@ ENTITIES = [
            category="势力",
            variants=("Fracidus",),
            note="本片 #554 Fraidus'/Fracidus' door ASR 变体。"),
-    Entity("绯雪", modes=("bi",), en="Hiyuki", ja="ひゆき",
-           category="角色",
-           variants=("Hiyoki", "桧纪"),
-           note="3.3 共鸣者「灼樱巫女」。扁平表已有 Hiyuki/Huki/kiuki/桧雪；"
-                "裸'Yuki'(#363) 为常用日名不入全局，侧车处理。"),
     Entity("琳奈", modes=("bi",), en="Linny / Lenna",
            category="角色",
            variants=("Linn",),
@@ -2332,15 +2402,49 @@ ENTITIES = [
     #     与心月狐/心 Hsin 双五星)与 wuthering.gg(莫特斐=Mortefi、长刃=Broadblade)。---
     Entity("景燃", modes=("bi",), en="Jingran",
            category="角色/鸣潮3.6",
-           variants=("晶荣", "景荣", "景隆", "静纶", "靖荣", "靖隆"),
+           variants=(
+               # --- 既有拆词形 ---
+               "晶荣", "景荣", "景隆", "静纶", "靖荣", "靖隆",
+               # --- 中文同音/音近（jǐng rán）ASR 高频错形 ---
+               "静然", "晶隆", "丁然", "井燃", "镜燃", "警燃",
+               "景然", "景冉", "景染", "景焱", "景燃 ", "憬燃",
+               "景澜", "景兰", "京燃", "惊燃", "净燃", "劲燃",
+               # --- 英文 ASR 音近（Jingran）---
+               "Jingran", "Jing Ran", "Jingrang", "Jingrong", "Jingron",
+               "Jinran", "Jingram", "Jingrn", "Jingrana",
+               "Jing-Ran", "Jingrran", "Jinglan",
+               "Jing Ran!", "Jingran's", "Jingran`s",
+           ),
            note="3.6 主推 5★ 热熔长刃主C（寻幽客）。既有 Jingron→景燃 走 CONTEXT_MAP"
                 "（依赖参考行命中），本片机翻'晶荣/景荣/景隆/静纶'等拆词形无稳定英文佐证，"
-                "补无条件键。戒律：'希幸/希希'是 Hiyuki(绯雪)非景燃，勿混。"),
+                "补无条件键。ASR 音近覆盖'静然/晶隆/丁然/井燃/镜燃/景然/景冉/景染/景焱'等；"
+                "英文侧 Jingran/Jing Ran/Jingrang/Jingrong/Jinran/Jingram 为常见拼错。"
+                "戒律：'希幸/希希'是 Hiyuki(绯雪)非景燃，勿混。"),
     Entity("绯雪", modes=("bi",), en="Hiyuki", ja="ひゆき",
            category="角色",
-           variants=("希希",),
-           note="3.3 共鸣者「灼樱巫女」，主播本命。扁平表已有 Hiyuki/日雪/桧雪；"
-                "本片机翻叠字'希希'(my Hyuki)归此。'希幸'亦 Hiyuki（同音拆字）。"),
+           variants=(
+               # --- 既有机翻叠字/同音拆字/旧 Entity 合并 ---
+               "希希", "希幸", "Hiyoki", "桧纪",
+               # --- 中文同音/音近（fēi xuě）ASR 高频错形 ---
+               "非雪", "飞雪", "菲雪", "肥雪", "废雪",
+               "绯雪酱", "绯雪大人", "绯雪峰", "绯薛", "绯雪儿",
+               "费雪", "翡雪", "绯血", "绯鳕",
+               # --- 英文 ASR 音近（Hiyuki）---
+               "Hiyuki", "Hiuki", "Hyuki", "Hiyuki's",
+               "Hiyuki`s", "Hi-yuki", "Hiyukii", "Hiyukie", "Hiyuki!",
+               "Huyuki", "Hiyouki", "Hiyuke", "Hiyuk", "Hiyuuki",
+               "Hiyuki-chan", "Hiyuki chan",
+               # --- 日文原形 ---
+               "ひゆき", "ヒユキ", "緋雪", "日雪",
+           ),
+           ctx=((r"\bYuki\b", "雪"), (r"\bYuki\b", "由纪"),
+                (r"\bYuki\b", "悠纪"), (r"\bHiyuki\b", "日雪"),
+                (r"\bHiyuki\b", "桧雪"), (r"\bHiyuki\b", "绯雪")),
+           note="3.3 共鸣者「灼樱巫女」，主播本命。扁平表已有 Hiyuki/Huki/kiuki/日雪/桧雪；"
+                "本片机翻叠字'希希'(my Hyuki)归此，'希幸'亦 Hiyuki（同音拆字）。"
+                "ASR 音近错形：'绯雪'易咬成'非雪/飞雪/菲雪/肥雪/废雪/绯薛/费雪/翡雪/绯血/绯鳕'；"
+                "英文侧 Hiyuki 易咬成 Hiuki/Hyuki/Huyuki/Hiyouki/Hiyuke/Hiyuuki。"
+                "戒律：裸'Yuki'为常用日名不入全局，只走 \\bYuki\\b 参考行锚定。"),
     Entity("星声", modes=("bi",), en="Astrite",
            category="术语/货币",
            variants=("星石",),
@@ -2361,6 +2465,347 @@ ENTITIES = [
            ctx=((r"\bbroadblade\b", "大剑"),),
            note="鸣潮武器类型 Broadblade 官方中文=长刃（景燃武器；wuthering.gg/dailiantong 确认）。"
                 "机翻易按 Genshin 习惯误作'大剑'。'大剑'为泛用词，只走参考行 \\bbroadblade\\b 锚定。"),
+    # --- 2026-09-20 增补：鸣潮 3.7「镜锁妄世，心照红尘」前瞻官方名词（9月30日上线）
+    #     依据：wuwa.uk/zh/articles/wuwa-3-7-preview-2026、搜狐 1078561190、TapTap 前瞻直播总结 850470334392963021。
+    #     说明：3.7 尚未上线，暂无 ASR/机翻错形沉淀；先登记 canonical+en 元数据，
+    #     上线后 reaction 片出现错形再增量追加 variants。 ---
+    Entity("梦枢天罗", modes=("bi",), category="地点/新地区",
+           variants=("梦书天罗", "梦殊天罗", "梦淑天罗", "门枢天罗",
+                     "梦树天罗", "梦墅天罗", "梦枢天锣", "梦枢添罗",
+                     "梦枢天萝", "梦舒天罗", "孟枢天罗", "梦枢天洛"),
+           note="鸣潮 3.7 新地区（前瞻直播官方名，与梦州城/梦州华亭同域）。"
+                "3.7 版本主题「镜锁妄世，心照红尘」核心探索区。"
+                "ASR 音近错形：'梦枢'易咬成'梦书/梦殊/梦淑/梦树/梦墅/梦舒/孟枢'；"
+                "'天罗'易咬成'天锣/添罗/天萝/天洛'。"),
+    Entity("心影映花", modes=("bi",), category="玩法/常驻",
+           ctx=((r"\bHsin\b", "心影印花"), (r"\bHsin\b", "心影映华"),
+                (r"\bHsin\b", "心影应花"), (r"\bHsin\b", "心影印画"),
+                (r"\bgameplay\b", "心影映花"), (r"\bHsin\b", "心影映化")),
+           note="鸣潮 3.7 新增常驻玩法（前瞻直播官方名）。"
+                "戒律：'心影映花'字面为通用词组，只走参考行 Hsin/gameplay 锚定，"
+                "机翻'心影印花/心影映华/心影应花'等错形归此，绝不作裸键入全局表。"),
+    Entity("玉阙玄华", modes=("bi",), category="武器/心月狐专武",
+           variants=("玉缺玄华", "玉雀玄华", "玉阙宣华", "玉阙玄化",
+                     "雨阙玄华", "玉阙悬华", "玉阙玄画", "玉阙玄花",
+                     "玉阙玄桦", "玉缺悬华", "御阙玄华", "玉阙旋华"),
+           ctx=((r"\bHsin\b", "玉阙玄华"), (r"\bweapon\b", "玉阙玄华"),
+                (r"\bsignature weapon\b", "玉阙玄华")),
+           note="心月狐（Hsin）3.7 专属武器（前瞻直播官方名）。"
+                "ASR 音近错形：'玉阙'易咬成'玉缺/玉雀/雨阙/御阙'；"
+                "'玄华'易咬成'宣华/玄化/悬华/玄画/玄花/玄桦/旋华'。"),
+    Entity("沉冥", modes=("bi",), category="武器/锁暝专武",
+           variants=(),
+           ctx=((r"\bSuoming\b", "沉溟"), (r"\bSuoming\b", "沈冥"),
+                (r"\bSuoming\b", "深冥"), (r"\bSuoming\b", "沉名"),
+                (r"\bSuoming\b", "深名"), (r"\bSuoming\b", "沉明"),
+                (r"\bSuoming\b", "沈明"), (r"\bSuoming\b", "深溟"),
+                (r"\bweapon\b", "沉冥"), (r"\bsignature weapon\b", "沉冥")),
+           note="锁暝（Suoming）3.7 专属武器（前瞻直播官方名）。"
+                "戒律：'沉冥'为古汉语常用词（沉冥于思绪），不可作裸键入全局表，"
+                "只在参考行出现 Suoming/weapon 时才把'沉溟/沈冥/深冥/沉名/深名/沉明/沈明/深溟'等错形归此。"),
+    Entity("凝月辉途", modes=("bi",), category="活动/限时",
+           variants=("凝月辉图", "凝月晖途", "凝月辉涂", "宁月辉途",
+                     "凝乐辉途", "凝月回途", "凝月惠途", "凝月绘途",
+                     "宁月晖途", "凝月辉土", "凝月辉屠", "凝月辉图 "),
+           note="鸣潮 3.7 限时活动（前瞻直播官方名）。"
+                "ASR 音近错形：'凝月'易咬成'宁月/凝乐'；'辉途'易咬成'辉图/晖途/辉涂/回途/惠途/绘途/辉土/辉屠'。"),
+    Entity("团团勇者大乱斗", modes=("bi",), category="活动/特别",
+           variants=("团团勇者大乱逗", "团团庸者大乱斗", "团团用者大乱斗",
+                     "团团永者大乱斗", "团团勇者大乱抖", "团团涌者大乱斗",
+                     "团团勇者大乱陡", "团团勇折大乱斗", "团团庸者大乱逗"),
+           note="鸣潮 3.7 特别活动（前瞻直播官方名）。"
+                "ASR 音近错形：'勇者'易咬成'庸者/用者/永者/涌者/勇折'；'乱斗'易咬成'乱逗/乱抖/乱陡'。"),
+    Entity("朝月赠礼", modes=("bi",), category="活动/特别",
+           variants=("朝月赠里", "潮月赠礼", "朝阳赠礼", "朝月赠利",
+                     "朝月增礼", "朝月赠丽", "潮月赠里", "朝月赠例",
+                     "朝月赠李", "抄月赠礼", "朝乐赠礼"),
+           note="鸣潮 3.7 特别活动（前瞻直播官方名）。"
+                "ASR 音近错形：'朝月'易咬成'潮月/朝阳/抄月/朝乐'；'赠礼'易咬成'赠里/赠利/增礼/赠丽/赠例/赠李'。"),
+    Entity("梦枢心相由心生", modes=("bi",), category="主线/章节",
+           note="鸣潮 3.7 新主线章节名（前瞻直播官方名）。"),
+    Entity("璇心如月寄尘情", modes=("bi",), category="奇谭",
+           note="鸣潮 3.7 新奇谭章节名（前瞻直播官方名）。"),
+    # --- 2026-09-20 增补（二次校准）：鸣潮 3.7「镜锁妄世，心照红尘」补充实体。
+    #     依据：wuwa.uk/zh/articles/wuwa-3-7-preview-2026、taptap 850470334392963021、
+    #     233乐园 2095401601570680832（心月狐/锁暝实机演示）、163.com L77JK0RL05561FYA
+    #     （3.7 定档 9/30、梦枢天罗、心之井、同奏/变奏、奇谭任务、团团勇者大乱斗、
+    #      无音消除、Wuwa Tappo、轨迹回顾、月追祭/追月节回看、声骸堆叠、编队 20 组）。 ---
+    Entity("镜锁妄世，心照红尘", modes=("bi",), category="版本/副标题",
+           variants=("镜锁妄世心照红尘", "镜锁妄世 心照红尘",
+                     "境锁妄世，心照红尘", "镜锁妄世，心照宏尘",
+                     "镜锁妄世，心照红尖"),
+           note="鸣潮 3.7 版本副标题（前瞻直播官方名，2026-09-30 上线）。"
+                "日文原句『鏡に鎖す妄世、心で照らす紅塵』。"),
+    Entity("溢彩荧辉", modes=("bi",), category="武器/音感仪·五星",
+           variants=("溢彩荧晖", "溢彩萤辉", "溢采荧辉", "逸彩荧辉",
+                     "溢彩银辉", "溢彩迎辉"),
+           ctx=((r"\bweapon\b", "溢彩荧辉"), (r"\b5-star\b", "溢彩荧辉")),
+           note="鸣潮 3.7 新五星音感仪官方名（与心月狐专武『玉阙玄华』同批上线，"
+                "非角色绑定专武）。ASR 音近错形：'荧辉'易咬成'荧晖/萤辉/银辉/迎辉'。"),
+    Entity("心之井", modes=("bi",), category="玩法/心域",
+           ctx=((r"\bwell\b", "心之井"), (r"\bHsin\b", "心之井"),
+                (r"\bheart domain\b", "心之井")),
+           note="鸣潮 3.7 新玩法：稳定『心域』并解谜的机制（前瞻直播官方名，"
+                "梦枢天罗深层区域）。戒律：'心之井'字面通用，只走 well/Hsin/heart domain 锚定。"),
+    Entity("万相分形", modes=("bi",), category="异能/心月狐",
+           variants=("万相分型", "万象分形", "万相份形", "万像分形"),
+           note="心月狐（心）3.7 官方异能名（前瞻直播/角色演示）。"),
+    Entity("十重契", modes=("bi",), category="异能/锁暝",
+           variants=("十重器", "十重起", "十重气", "石重契"),
+           ctx=((r"\bSuoming\b", "十重契"), (r"\bResonance\b", "十重契")),
+           note="锁暝 3.7 官方异能名（前瞻直播/角色演示）。"
+                "戒律：'十重契'字面通用度低但仍走 Suoming/Resonance 锚定，防误伤'十重契约'等长句。"),
+    Entity("同奏", modes=("bi",), category="共鸣模式/心月狐",
+           ctx=((r"\bHsin\b", "同奏"), (r"\bResonance Mode\b", "同奏"),
+                (r"\bsync\b", "同奏")),
+           note="心月狐 3.7 独有共鸣模式之一（与『变奏』成对，前瞻直播官方名）。"
+                "戒律：'同奏'为通用动词（同奏一曲），只走 Hsin/Resonance Mode/sync 参考行锚定。"),
+    Entity("变奏", modes=("bi",), category="共鸣模式/心月狐",
+           ctx=((r"\bHsin\b", "变奏"), (r"\bResonance Mode\b", "变奏"),
+                (r"\bvariation\b", "变奏")),
+           note="心月狐 3.7 独有共鸣模式之一（与『同奏』成对，切换时触发；前瞻直播官方名）。"
+                "戒律：'变奏'为通用音乐术语，只走 Hsin/Resonance Mode/variation 参考行锚定。"),
+    Entity("轨迹回顾", modes=("bi",), category="系统/剧情回看",
+           variants=("轨迹回看", "轨跡回顾", "轨迹回頋"),
+           ctx=((r"\bstory recall\b", "轨迹回顾"), (r"\bplayback\b", "轨迹回顾"),
+                (r"\bplot\b", "轨迹回顾")),
+           note="鸣潮 3.7 新增剧情回看功能官方名（首发覆盖 Ver1.1~Ver1.3，后续追加）。"),
+    Entity("Wuwa Tappo", modes=("bi",), category="周边/桌宠软件",
+           variants=("呜哇tap o", "呜哇Tappo", "呜哇塔珀", "呜哇 塔波",
+                     "Wuwa Tapo", "Wuwa Tap po", "WuwaTappo", "呜哇拖波"),
+           note="鸣潮官方主题桌宠软件（3.7 前瞻直播公布，永久免费上线）。"
+                "'呜哇' = Wuwa（鸣潮海外简称）ASR 音译；'tap o' 为 Tappo 拆字。"),
+    Entity("声骸堆叠", modes=("bi",), category="系统优化/声骸",
+           variants=("声骸叠加", "音骸堆叠", "声骸重合"),
+           ctx=((r"\bEcho\b", "声骸堆叠"), (r"\bstack\b", "声骸堆叠")),
+           note="鸣潮 3.7 声骸系统优化：满足条件后声骸可堆叠，背包空间实际增加。"
+                "戒律：只走 Echo/stack 参考行锚定。"),
+    Entity("合鸣效果", modes=("bi",), category="系统/声骸",
+           variants=("合鸣效应", "和鸣效果", "共鸣效果套装"),
+           ctx=((r"\bSonata\b", "合鸣效果"), (r"\bsonata set\b", "合鸣效果"),
+                (r"\bEcho set\b", "合鸣效果")),
+           note="鸣潮声骸套装系统官方名（对应英文 Sonata）。3.7 新增三种全新合鸣效果。"
+                "戒律：'合鸣效果'为专有名词但'共鸣'为通用机制词，只走 Sonata/Echo set 锚定。"),
+    # --- 2026-09-20 增补：明日方舟 ×《女神异闻录3 Reload》联动 SideStory「月行水上」
+    #     （9月4日已上线）。依据：ak.hypergryph.com/news/9681.html、百度百科「结城理」、
+    #     233乐园 2095371353272860672、新浪新闻 5337291081910764。 ---
+    Entity("结城理", modes=("ak",), en="Yuki Makoto", ja="結城理",
+           category="干员/联动·P3R",
+           variants=(
+               # --- 同音字（jié chéng lǐ）ASR 高频错形 ---
+               "洁城理", "杰城理", "截城理", "节城理", "解城理", "捷城理",
+               "结城礼", "结城利", "结城黎", "结城璃", "结城莉", "结诚理",
+               "结成理", "结城李", "结城凛", "结城里", "结城里程",
+               "悠城理", "由城理", "结城理世", "结城真理", "结城 理",
+               # --- 英文 ASR 音近（Yuki Makoto）---
+               "Yuki Makoto", "Makoto Yuki", "Yuki Makato", "Yuki Mokoto",
+               "Yuki Makto", "Youki Makoto", "Yuki Machoto", "Yuki Makotto",
+               "Yuki Makot", "Yuki Macoto", "Yuki Makotoh", "Makato Yuki",
+               # --- 日文原形 ---
+               "結城理", "結城 理", "ゆうき まこと", "ユウキ マコト",
+           ),
+           ctx=((r"\bMakoto\b", "真琴"), (r"\bMakoto\b", "真斗"),
+                (r"\bMakoto\b", "诚"), (r"\bMakoto\b", "真"),
+                (r"\bYuki\b", "雪"), (r"\bYuki\b", "由纪"),
+                (r"\bYuki\b", "悠纪"), (r"\bSEES\b", "西兹"),
+                (r"\bSEES\b", " sees")),
+           note="明日方舟首位六星男干员，联动《女神异闻录3 Reload》主角（P3 SEES 成员）。"
+                "双人格面具'俄耳甫斯/塔纳托斯'三段替身机制。ASR/机翻常把'结城理'咬成"
+                "'结城里/结成理/结城李/结城凛/悠城理/洁城理/杰城理'等；英文原名 Yuki Makoto"
+                "（日漫姓氏前置）。ctx 处理'真琴/真斗/诚/真'等 Makoto 常见机翻义项，"
+                "'雪/由纪/悠纪'等 Yuki 常见日名机翻，仅在参考行佐证时归此。"
+                "'SEES'为 P3 特别课外活动部（Specialized Extracurricular Execution Squad），"
+                "机翻常拆字成'西兹/sees'。"),
+    Entity("埃癸斯", modes=("ak",), en="Aigis", ja="アイギス",
+           category="干员/联动·P3R",
+           variants=(
+               # --- 中文同音/音近字（āi guǐ sī）ASR 高频错形 ---
+               "埃吉斯", "艾癸斯", "艾吉斯", "埃基斯", "埃癸期", "埃及斯",
+               "埃癸丝", "埃癸思", "唉癸斯", "挨癸斯", "埃鬼斯", "埃贵斯",
+               "埃归斯", "埃桂斯", "埃硅斯", "爱癸斯", "艾贵斯", "埃诡斯",
+               "埃癸私", "埃癸司", "埃轨斯", "矮癸斯", "埃瑰斯", "爱吉斯",
+               # --- 英文 ASR 音近（Aigis / Aegis）---
+               "Aigis", "Aegis", "Aigys", "Aiges", "Igis", "Eigis",
+               "Aigi", "Aygis", "Aegys", "Iggis", "Aighis", "Aigiss",
+               "Ai-gis", "Eegis", "Ageis", "Aegos",
+               # --- 日文原形 ---
+               "アイギス", "哀癸斯",
+           ),
+           note="明日方舟 ×《女神异闻录3 Reload》联动五星干员（P3 SEES 成员，机器人少女）。"
+                "官方中文'埃癸斯'（Aigis 希腊神话宙斯神盾）；机翻常按 Aegis 直译'埃吉斯/艾吉斯/爱癸斯'。"
+                "ASR 音近错形覆盖'埃鬼斯/埃贵斯/埃归斯/埃桂斯/埃硅斯'等同音字，"
+                "英文侧 Aigis/Aegis 及 Aigys/Igis/Eigis/Aygis 等常见拼错。"),
+    Entity("岳羽由加莉", modes=("ak",), en="Yukari Takeba", ja="岳羽ゆかり",
+           category="干员/联动·P3R",
+           variants=(
+               # --- 姓氏'岳羽'同音/音近（yuè yǔ）---
+               "月羽由加莉", "乐羽由加莉", "越羽由加莉", "岳雨由加莉",
+               "岳宇由加莉", "岳玉由加莉", "岳瑜由加莉", "岳裕由加莉",
+               "岳羽由加丽", "岳羽有加莉", "岳羽尤加莉", "岳羽由加利",
+               "岳羽由香里", "岳羽由香莉", "岳羽优加莉", "岳羽悠加莉",
+               "岳羽有加丽", "岳羽尤佳莉", "岳羽由嘉莉", "岳羽由佳莉",
+               "岳羽佑加莉", "岳羽由家莉", "岳羽由加理", "岳羽优佳莉",
+               "岳羽有加利", "岳羽由加梨", "岳羽由加篱",
+               # --- 英文 ASR 音近（Yukari Takeba）---
+               "Yukari Takeba", "Takeba Yukari", "Yukali", "Yukary",
+               "Yokari", "Yukarei", "Yukari Takaba", "Yukali Takeba",
+               "Yukarri", "Yukarii", "Youkari", "Yukari Takehara",
+               "Yukali Takeba", "Yukari Takeha", "Takeba Yukali",
+               # --- 日文原形 ---
+               "岳羽ゆかり", "岳羽ユカリ", "たけば ゆかり", "タケバ ユカリ",
+           ),
+           ctx=((r"\bYukari\b", "雪里"), (r"\bYukari\b", "雪莉"),
+                (r"\bYukari\b", "由香里"), (r"\bYukari\b", "雪梨"),
+                (r"\bTakeba\b", "竹庭"), (r"\bTakeba\b", "武庭")),
+           note="明日方舟 ×《女神异闻录3 Reload》联动五星干员（P3 SEES 成员，弓箭手）。"
+                "官方中文'岳羽由加莉'；'ゆかり'机翻易作由加丽/有加莉/尤加莉/由加利/由香里/优加莉/由佳莉，"
+                "均归此。日文汉字形'岳羽ゆかり'亦一并统一。ASR 姓氏'岳羽'音近'月羽/乐羽/越羽/岳雨/岳宇'；"
+                "英文侧 Yukali/Yukary/Yokari/Takaba 为常见拼错。ctx 处理'雪里/雪莉/由香里/竹庭'等"
+                "机翻按普通日名/字面拆译的错形，仅在参考行佐证时归此。"),
+    Entity("虎狼丸", modes=("ak",), en="Koromaru", ja="コロマル",
+           category="干员/联动·P3R",
+           variants=(
+               # --- 中文同音/音近（hǔ láng wán）---
+               "虎狼凡", "虎狼凡丸", "虎郎丸", "胡狼丸", "虎狼圆",
+               "虎朗丸", "虎浪丸", "户狼丸", "浒狼丸", "虎狼完",
+               "虎狼玩", "虎狼晚", "虎狼万", "虎狼宛", "虎狼婉",
+               "狐狼丸", "古狼丸", "苦狼丸", "虎螂丸", "虎狼皖",
+               "浒朗丸", "湖狼丸", "呼狼丸", "琥狼丸", "虎琅丸",
+               # --- 英文 ASR 音近（Koromaru）---
+               "Koromaru", "Kolomaru", "Koramaru", "Coromaru", "Koromaro",
+               "Kuro-maru", "Collomaru", "Koromaruu", "Korumaru",
+               "Koromarou", "Koromalo", "Koromalu",
+               "Koromari", "Koromally", "Coramaru",
+               # --- 日文原形 ---
+               "コロマル", "ころまる", "虎狼マル",
+           ),
+           note="明日方舟 ×《女神异闻录3 Reload》联动一星赠送干员（P3 SEES 成员，忠犬）。"
+                "官方中文'虎狼丸'。ASR 常把'丸'咬成'凡/圆/完/玩/晚/万/宛/婉/皖'；"
+                "'虎'音近'浒/琥/湖/呼'；'狼'音近'郎/朗/浪/螂/琅'；整体误听'胡狼丸/狐狼丸/古狼丸'。"
+                "英文侧 Koromaru 常见拼错 Kolomaru/Koramaru/Coromaru/Koromaro。"),
+    Entity("月行水上", modes=("ak",), en="Moonlit Waters",
+           category="活动/SideStory",
+           variants=("月行水山", "越行水上", "月形水上", "月行税上",
+                     "月形水山", "乐行水上", "月型水上", "月行水尚",
+                     "月行水赏", "跃行水上", "越形水上", "月行谁上",
+                     "月幸水上", "月行瑞上", "月形水赏", "岳行水上"),
+           note="明日方舟 × P3R 联动 SideStory 活动名（官方中文'月行水上'，2026-09-04 开启）。"
+                "对应限时寻访=圣城春日学生寻访。"
+                "ASR 音近错形：'月行'易咬成'越行/乐行/跃行/月形/月型/月幸/岳行'；"
+                "'水上'易咬成'水山/水尚/水赏/谁上/瑞上'。"),
+    Entity("圣城春日学生寻访", modes=("ak",),
+           category="活动/限时寻访",
+           variants=("圣城春日生寻访", "圣城春日学生巡访", "圣城春日学生询问",
+                     "圣城春日学生训访", "圣城春日学生寻防", "圣城春日学生寻方",
+                     "圣城春日学生巡防", "圣成春日学生寻访", "圣城春日学生讯访",
+                     "圣城春日学生巡房", "圣城春日学生寻坊", "圣城春瑞学生寻访"),
+           note="明日方舟 × P3R 联动限时寻访（卡池）官方名。'圣城春日'为 P3R 中的私立月光馆学园都市名，"
+                "'圣城春日学生寻访'=结城理/埃癸斯/岳羽由加莉/虎狼丸联动卡池。"
+                "ASR 音近错形：'寻访'易咬成'巡访/询问/训访/寻防/寻方/巡防/讯访/巡房/寻坊'；"
+                "'圣城'易咬成'圣成'；'春日'易咬成'春瑞'。"),
+    Entity("女神异闻录3 Reload", modes=("ak",), en="Persona 3 Reload", ja="ペルソナ3 リロード",
+           category="作品",
+           variants=("女神异闻录3重制版", "女神异闻录3 reload", "女神异闻录3RELOAD",
+                     "Persona3 Reload", "P3R", "女神異聞錄3 Reload",
+                     "女神异闻录三 Reload", "女神异闻录3: Reload", "女神异闻录III Reload",
+                     "女神异闻录3R", "Persona3Reload", "女神异闻3 Reload",
+                     "女神异闻录3 重制", "女神异闻录3 Reloaded", "女神异闻录3 reloaded",
+                     "女神异闻录3重制", "女神异闻录 3 Reload", "Persona 3 R"),
+           note="ATLUS 出品 JRPG，2024 年重制版；明日方舟 2026-09-04 联动原作。"
+                "官方中文'女神异闻录3 Reload'（Reload 保留英文，非'重制版'）。"
+                "ASR 常见错形：数字'3'被读成'三/III'；'Reload'被咬成'reloaded/重制'；"
+                "空格丢失'Persona3Reload'。"),
+    # --- 2026-09-20 增补：终末地 1.4「向渊行」（7月16日）+ 1.5「雪淞幽梦」（9月2日）
+    #     依据：endfield.hypergryph.com、TapTap 官方前瞻 826747279820983499、
+    #     百度百科「向渊行」、fz.wiki「干员/梨诺」、end.canmoe.com「梨诺」。 ---
+    Entity("梨诺", modes=("endo", "jpe"), en="Liino",
+           category="干员",
+           variants=(
+               # --- 中文同音/音近（lí nuò）ASR 高频错形 ---
+               "利诺", "莉诺", "梨络", "梨落", "李诺", "里诺", "黎诺",
+               "梨諾", "离诺", "璃诺", "丽诺", "犁诺", "鲤诺", "栗诺",
+               "梨那", "梨娜", "梨糯", "梨洛", "梨珞", "梨箩", "梨萝",
+               "莉糯", "梨讷", "利那", "丽那", "礼诺", "理诺",
+               # --- 英文 ASR 音近（Liino）---
+               "Liino", "Lino", "Leeno", "Lyno", "Rino", "Lynor",
+               "Liinno", "Liano", "Linuo", "Li-Nuo", "Lieno", "Linoa",
+               "Riino", "Linoe", "Leano", "Linao", "Liinoo", "Liina",
+           ),
+           note="终末地向渊行下半六星辅助干员，官方叙事《梨诺：心与星的焦点》。"
+                "ASR/机翻常把'梨诺'咬成'利诺/莉诺/李诺/里诺/黎诺/离诺/璃诺/丽诺/犁诺/鲤诺'；"
+                "'诺'音近'那/娜/糯/洛/珞/箩/萝/讷'；英文 Liino（双 i）易漏为 Lino 或误作 Rino/Leeno/Lyno。"
+                "戒律：'李娜/莉娜/黎娜'为常见中文人名不入表，防误伤；ctx 处理'丽诺/黎诺/Lino/Rino'等"
+                "英文参考行佐证场景。"),
+    Entity("北部禁区", modes=("endo", "jpe"),
+           category="地点/武陵",
+           variants=("北部禁地", "北方禁区", "北区禁区", "贝部禁区",
+                     "北部金区", "北部仅区", "北部近区", "北部谨区",
+                     "北部浸区", "北部进区", "北部晋区", "北部锦区"),
+           note="终末地向渊行版本开放的武陵新区域（官方名'北部禁区'，与'武陵应龙关'同为新区域）。"
+                "ASR 音近错形：'北部'易咬成'贝部'；'禁区'易咬成'金区/仅区/近区/谨区/浸区/进区/晋区/锦区'。"),
+    Entity("余晖未却", modes=("endo", "jpe"),
+           category="章节/主线",
+           variants=("余辉未却", "余晖未怯", "余晖未雀", "余晖未确",
+                     "余晖未阙", "余辉未怯", "余晖微却", "余晖喂却",
+                     "余晖未缺", "鱼晖未却", "余惠未却", "余晖未阕",
+                     "余晖为却", "余晖未榷", "余辉未阕"),
+           note="终末地向渊行主线第二章进程VII 官方章节名'余晖未却'（武陵决战篇）。"
+                "ASR 音近错形：'余晖'易咬成'余辉/鱼晖/余惠'；'未却'易咬成'未怯/未雀/未确/未阙/微却/喂却/未缺/未阕/为却/未榷'。"),
+    Entity("蚀影", modes=("endo", "jpe"),
+           category="敌人系列",
+           variants=("食影", "蚀阴", "蚀穎"),
+           ctx=((r"\bEclipse\b", "日蚀"), (r"\bShadow\b", "黑影"),
+                (r"\bEclipsed\b", "日蚀"), (r"\bUmbral\b", "暗影"),
+                (r"\bUmbra\b", "暗影"), (r"\benemy\b", "蚀影"),
+                (r"\bEclipse enemy\b", "蚀影")),
+           note="终末地向渊行新敌人系列（官方名'蚀影系列'）。"
+                "戒律：'蚀影'是特定敌人名，不可裸键映射通用词；日蚀/黑影/暗影等仅在参考行"
+                "Eclipse/Shadow/Umbral/Umbra/enemy 佐证时归此。"),
+    Entity("相伴庆典", modes=("endo", "jpe"),
+           category="活动/版本",
+           variants=("相伴盛殿", "想伴庆典", "相办庆典", "想办庆典",
+                     "乡伴庆典", "香伴庆典", "相伴青典", "相伴清典",
+                     "相拌庆典", "相伴庆点", "向伴庆典", "湘伴庆典"),
+           note="终末地向渊行版本官方庆典活动名（1.4 半周年，与向渊行核心章节同步开启）。"
+                "ASR 音近错形：'相伴'易咬成'想伴/相办/想办/乡伴/香伴/相拌/向伴/湘伴'；"
+                "'庆典'易咬成'盛殿/青典/清典/庆点'。"),
+    Entity("遥望", modes=("endo", "jpe"),
+           category="武器/六星",
+           ctx=((r"\b6-star weapon\b", "远望"), (r"\bsix-star weapon\b", "远望"),
+                (r"\bweapon\b", "遥望远"), (r"\bYao Wang\b", "遥望"),
+                (r"\blong-range weapon\b", "远望"), (r"\bfree weapon\b", "远望"),
+                (r"\b6\s*★\s*weapon\b", "远望"), (r"\bsignature weapon\b", "远望")),
+           note="终末地向渊行版本赠送的六星武器官方名'遥望'。"
+                "戒律：'遥望'为普通动词，只走参考行 6-star weapon / weapon / Yao Wang 锚定，"
+                "机翻'远望/遥望远'等错形归此，绝不作裸键入全局表。"),
+    Entity("嵌晶玉", modes=("endo", "jpe"),
+           category="道具/材料",
+           variants=("嵌晶石", "崁晶玉", "嵌晶钰", "谦晶玉", "欠晶玉",
+                     "千晶玉", "浅晶玉", "嵌金玉", "嵌精玉", "嵌晶羽",
+                     "嵌晶瑜", "嵌晶御", "嵌晶裕", "嵌晶郁", "歉晶玉"),
+           note="终末地向渊行版本官方道具/材料名'嵌晶玉'（云·终末地相关）。"
+                "ASR 音近错形：'嵌'易咬成'崁/谦/欠/千/浅/歉'；'晶'易咬成'金/精'；"
+                "'玉'易咬成'钰/羽/瑜/御/裕/郁'。"),
+    Entity("云·终末地", modes=("endo", "jpe"), en="Cloud Endfield",
+           category="服务/云游戏",
+           variants=("云终末地", "云·末地", "云端终末地", "云·终墨地",
+                     "云·终陌地", "云·终没地", "云·中末地", "云·终末底",
+                     "云·终末帝", "CloudEndfield", "云 终末地", "云·終末地"),
+           note="终末地云游戏服务官方名'云·终末地'（向渊行版本同步开启云测试）。"
+                "ASR 音近错形：'终末'易咬成'终墨/终陌/终没/中末/终末底/终末帝'；"
+                "英文侧 CloudEndfield（空格丢失）；分隔符'·'易被 ASR 吞掉。"),
+    Entity("阿莱克琉斯千夫长", modes=("endo", "jpe"), en="Alektios Chiliarch",
+           category="BOSS",
+           variants=("阿莱克琉斯将军", "阿莱克流斯千夫长", "阿莱克琉斯千人长",
+                     "阿莱克鲁斯千夫长", "阿莱克留斯千夫长", "阿莱克硫斯千夫长",
+                     "阿莱克柳斯千夫长", "阿莱克琉斯千父长", "阿莱克琉斯前夫长",
+                     "阿莱克琉斯千服长", "阿莱克琉斯千付长", "阿莱克琉斯千府长",
+                     "阿莱克雷乌斯千夫长", "阿莱克琉斯千妇长", "阿莱克纽斯千夫长",
+                     "阿莱克琉斯千夫涨", "阿莱克琉斯千夫章"),
+           note="终末地向渊行版本 BOSS 官方全称'阿莱克琉斯千夫长'（1.4 最终 BOSS，"
+                "'千夫长'=罗马军制 Chiliarch，非'将军/千人长'）。旧表已收'阿莱克琉斯'短键，此处补全头衔。"
+                "ASR 音近错形：'阿莱克琉斯'易咬成'阿莱克鲁斯/阿莱克留斯/阿莱克硫斯/阿莱克柳斯/"
+                "阿莱克雷乌斯/阿莱克纽斯'；'千夫长'易咬成'千父长/前夫长/千服长/千付长/千府长/千妇长/千夫涨/千夫章'。"),
 ]
 
 
