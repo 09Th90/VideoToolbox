@@ -124,6 +124,10 @@ Source: "src\video_toolbox_qt.py"; DestDir: "{app}\src"; Flags: ignoreversion
 ; v1.11.0：新增源码——合并核心、AI 校准 Agent、官方实现一键套用脚本
 Source: "src\calib_merge_core.py"; DestDir: "{app}\src"; Flags: ignoreversion
 Source: "src\calib_ai_agent.py"; DestDir: "{app}\src"; Flags: ignoreversion
+; 2026-09-20：AI 校准 Agent 的联网查证工具（calib_ai_run 内延迟 import；
+;             exe 侧已由 spec hiddenimports 内嵌，此处补齐源码副本，
+;             使 src\ 方式运行时「联网查证」同样可用）
+Source: "src\calib_web_agent.py"; DestDir: "{app}\src"; Flags: ignoreversion
 Source: "src\apply_vc_official.py"; DestDir: "{app}\src"; Flags: ignoreversion
 Source: "src\视频工具箱.bat"; DestDir: "{app}\src"; Flags: ignoreversion
 ; 文档资料统一归入 docs\
