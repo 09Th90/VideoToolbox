@@ -16,8 +16,8 @@
    "samples": [],
    "ref_tokens": {},
    "unc_ref_tokens": {},
-   "first": "2026-09-19",
-   "last": "2026-09-19",
+   "first": "2026-09-20",
+   "last": "2026-09-20",
    "alts": {},
    "sync": true
   },
@@ -36,8 +36,8 @@
    "samples": [],
    "ref_tokens": {},
    "unc_ref_tokens": {},
-   "first": "2026-09-19",
-   "last": "2026-09-19",
+   "first": "2026-09-20",
+   "last": "2026-09-20",
    "alts": {},
    "sync": true
   },
@@ -56,8 +56,8 @@
    "samples": [],
    "ref_tokens": {},
    "unc_ref_tokens": {},
-   "first": "2026-09-19",
-   "last": "2026-09-19",
+   "first": "2026-09-20",
+   "last": "2026-09-20",
    "alts": {},
    "sync": true
   },
@@ -126,58 +126,20 @@
     799,
     809
    ],
-   "samples": [
-    [
-     "各位漂泊者们好欢迎来到",
-     "三点七版本前瞻通讯我是策",
-     "各位漂泊者们好欢迎来到",
-     "三点七版本前瞻通讯我是策"
-    ],
-    [
-     "给漂泊者们介绍",
-     "三点七版本的游戏内容",
-     "给漂泊者们介绍",
-     "三点七版本的游戏内容"
-    ],
-    [
-     "下来给漂泊者们带来最新的",
-     "品牌合作情报",
-     "下来给漂泊者们带来最新的",
-     "品牌合作情报"
-    ],
-    [
-     "没错很高兴的和大家宣布",
-     "主题桌宠软件乌瓦塔普",
-     "没错很高兴的和大家宣布",
-     "主题桌宠软件乌瓦塔普"
-    ],
-    [
-     "James 正式授权的",
-     "主题桌宠",
-     "James 正式授权的",
-     "主题桌宠"
-    ],
-    [
-     "由全球创作者们共同参与的",
-     "同人系列企划",
-     "由全球创作者们共同参与的",
-     "同人系列企划"
-    ]
-   ],
-   "ref_tokens": {
-    "James": 1
-   },
+   "samples": [],
+   "ref_tokens": {},
    "unc_ref_tokens": {},
-   "first": "2026-09-19",
-   "last": "2026-09-19",
-   "alts": {}
+   "first": "2026-09-20",
+   "last": "2026-09-20",
+   "alts": {},
+   "sync": true
   },
   "bi|光泽": {
    "wrong": "光泽",
    "right": "心月狐",
    "mode": "bi",
    "count": 1,
-   "uncorrected": 1,
+   "uncorrected": 2,
    "status": "candidate",
    "cues": [
     145
@@ -218,37 +180,13 @@
     676,
     680
    ],
-   "samples": [
-    [
-     "哦，",
-     "，真可爱",
-     "哦，",
-     "，真可爱"
-    ],
-    [
-     "是这辆车里的两个探测车和",
-     "",
-     "是这辆车里的两个探测车和",
-     ""
-    ]
-   ],
-   "ref_tokens": {
-    "Abby": 2,
-    "cute": 1,
-    "that's": 1,
-    "both": 1,
-    "this": 1,
-    "You": 1,
-    "rovers": 1,
-    "What": 1,
-    "and": 1,
-    "one": 1,
-    "get": 1
-   },
+   "samples": [],
+   "ref_tokens": {},
    "unc_ref_tokens": {},
-   "first": "2026-09-19",
-   "last": "2026-09-19",
-   "alts": {}
+   "first": "2026-09-20",
+   "last": "2026-09-20",
+   "alts": {},
+   "sync": true
   },
   "bi|拖车": {
    "wrong": "拖车",
@@ -287,19 +225,122 @@
    "wrong": "明乔",
    "right": "鸣潮",
    "mode": "bi",
-   "count": 1,
+   "count": 2,
    "uncorrected": 0,
-   "status": "candidate",
+   "status": "confirmed",
+   "cues": [
+    214
+   ],
+   "samples": [
+    [
+     "谢谢你，",
+     "亚",
+     "能天使，",
+     "亚"
+    ],
+    [
+     "谢谢你，",
+     "亚",
+     "能天使，",
+     "亚"
+    ]
+   ],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-09-19",
+   "last": "2026-09-19",
+   "alts": {}
+  },
+  "bi|谢谢你，明乔亚": {
+   "wrong": "谢谢你，明乔亚",
+   "right": "谢谢你，鸣潮亚",
+   "mode": "bi",
+   "count": 2,
+   "uncorrected": 0,
+   "status": "confirmed",
    "cues": [
     214
    ],
    "samples": [],
    "ref_tokens": {},
    "unc_ref_tokens": {},
-   "first": "2026-09-19",
-   "last": "2026-09-19",
+   "first": "2026-09-20",
+   "last": "2026-09-20",
    "alts": {},
-   "ctx_regex": ""
+   "sync": true
+  },
+  "bi|哨兵": {
+   "wrong": "哨兵",
+   "right": "岁主",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    199
+   ],
+   "samples": [
+    [
+     "这个感觉更像",
+     "的形态",
+     "这个感觉更像",
+     "的形态"
+    ]
+   ],
+   "ref_tokens": {
+    "the": 1,
+    "feels": 1,
+    "sentinel": 1,
+    "one": 1,
+    "This": 1,
+    "more": 1,
+    "form": 1,
+    "like": 1
+   },
+   "unc_ref_tokens": {},
+   "first": "2026-09-20",
+   "last": "2026-09-20",
+   "alts": {},
+   "ctx_regex": "\\bthe\\b|\\bfeels\\b|\\bsentinel\\b"
+  },
+  "bi|游泳": {
+   "wrong": "游泳",
+   "right": "锁暝",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    213
+   ],
+   "samples": [
+    [
+     "又在给凯特看，他们在展示",
+     "，第三次冲到球场",
+     "又在给凯特看，他们在展示",
+     "，第三次冲到球场"
+    ]
+   ],
+   "ref_tokens": {
+    "showcasing": 1,
+    "the": 1,
+    "down": 1,
+    "Hey": 1,
+    "swimming": 1,
+    "they": 1,
+    "field": 1,
+    "Kate": 1,
+    "Third": 1,
+    "then": 1,
+    "again": 1,
+    "and": 1,
+    "showing": 1
+   },
+   "unc_ref_tokens": {},
+   "first": "2026-09-20",
+   "last": "2026-09-20",
+   "alts": {},
+   "ctx_regex": "\\bshowcasing\\b|\\bthe\\b|\\bdown\\b"
   }
  }
 }

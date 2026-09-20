@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# @version 1.15.4
+# @version 1.15.6
 """界面自检（v1.10.4 Fluent 界面）：验证窗口与各页面可构建、导航宽度自适应、
 设置页统一入口、字幕处理环境就绪。
 
@@ -565,6 +565,11 @@ def _api_compat_ok():
              "http://localhost:11434/v1/chat/completions"),
             ("https://x.example.com/v1/chat/completions",
              "https://x.example.com/v1/chat/completions"),
+            ("https://token-plan.cn-beijing.maas.aliyuncs.com/compatible-mode/v1",
+             "https://token-plan.cn-beijing.maas.aliyuncs.com/compatible-mode/v1"
+             "/chat/completions"),
+            ("https://ark.cn-beijing.volces.com/api/coding/v3",
+             "https://ark.cn-beijing.volces.com/api/coding/v3/chat/completions"),
         ]
         for raw, expect in cases:
             if engine.ai_mod()._chat_url(raw) != expect:
@@ -579,6 +584,13 @@ def _api_compat_ok():
                 {"base_url": "https://open.bigmodel.cn/api/anthropic",
                  "api_key": "k", "model": "m"})
             return False          # Anthropic 旧地址应被拦截并给指引
+        except engine.ai_mod().AIClientError:
+            pass
+        try:
+            engine.ai_mod().AIClient(
+                {"base_url": "https://ark.cn-beijing.volces.com/api/coding",
+                 "api_key": "k", "model": "m"})
+            return False          # 火山 Anthropic-only 端点同样应被拦截
         except engine.ai_mod().AIClientError:
             return True
     except Exception:  # noqa: BLE001
@@ -1204,6 +1216,14 @@ def main():
           and esp.translate_serviceGroup.isHidden()
           and esp.transcribeGroup.isHidden()
           and esp.translatorServiceCard.parentWidget() is esp.translateGroup)
+    # 搬组后的卡片必须同时从原组 ExpandLayout 的 __widgets 摘除，否则原组
+    # 布局再激活时会用旧坐标系把卡片摆到 (0,0)——卡片浮到左上角盖住分组标题
+    _src_ws = (getattr(esp.translate_serviceGroup.cardLayout,
+                       "_ExpandLayout__widgets", []) if esp else [])
+    check("设置整合：搬组卡片已脱离原分组布局（防浮到左上角重叠）",
+          esp is not None and esp.translatorServiceCard not in _src_ws
+          and esp.threadNumCard not in _src_ws
+          and esp.deeplxEndpointCard not in _src_ws)
 
     # ---- v1.11.0：独立 ASR / AI 校准 Agent（v1.12.0：双通道合并为单通道）----
     for attr in ("asr_mode_combo", "asr_base", "asr_key",
@@ -1211,9 +1231,10 @@ def main():
                  "calib_cues", "calib_tokens"):
         check(f"设置页含 v1.11 控件 {attr}", hasattr(sp, attr))
     # ---- v1.14.2：ASR 全协议适配的界面入口 ----
-    check("设置页含 ASR 协议下拉（9 协议 + 自动识别）",
+    check("设置页含 ASR 协议下拉（11 协议 + 自动识别，含百炼原生）",
           hasattr(sp, "asr_proto_combo")
-          and len(sp.ASR_PROTO_KEYS) == len(sp.ASR_PROTO_LABELS) == 10,
+          and len(sp.ASR_PROTO_KEYS) == len(sp.ASR_PROTO_LABELS) == 11
+          and "dashscope_native" in sp.ASR_PROTO_KEYS,
           getattr(sp, "ASR_PROTO_KEYS", None))
     check("设置页含「调用示例（curl / Python）」入口",
           hasattr(sp, "asr_example_btn"))

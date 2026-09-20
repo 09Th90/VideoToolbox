@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 1.15.4
+# @version 1.15.6
 """在 github.com 不可达时，用 GitHub Git Data API 推送当前 HEAD（api.github.com 直连可用）。
 
 背景（本机网络实测）：``git push`` 走 github.com **直连与内置代理均不通**，而

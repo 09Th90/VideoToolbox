@@ -1,9 +1,24 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# @version 1.15.4
+# @version 1.15.6
 """
 视频工具箱 v1.12.0（单文件整合版）
 ==================================================
+v1.15.6：**ASR 新增「百炼原生」协议**（Qwen-Audio-3.0-ASR-Flash 出字幕的
+  正路）：实测（2026-09-20）qwen-audio-3.0-asr-flash 的官方接口是
+  `POST {域名}/api/v1/services/aigc/multimodal-generation/generation`
+  （音频 base64 Data URL + parameters.format/sample_rate，响应在
+  output.sentence.text 且 words[] 带毫秒词级时间轴），而程序一直按
+  compatible-mode 的 chat/completions 提交 → **恒回 HTTP 400 空体 `{}`**，
+  被误判成「模型不可用/实例没部署」。同一模型、同一份音频换端点即 200。
+  落地：① `ASR_PROTOCOLS` 增加 `dashscope_native` + 界面下拉项；
+  ② `is_dashscope_native_asr()` 识别 qwen-audio*asr*（非 realtime/filetrans），
+  `_infer_asr_protocol` 与 `asr_protocol_fix` 命中即改走原生协议；
+  ③ `_asr_dashscope_native_submit()` + `_asr_native_output()`（词级时间轴经
+  `_asr_words_to_segments` 聚合）；④ chat_audio 拿到空体 400/500 时
+  `_asr_retry_native()` 兜一次（Fun-ASR-Flash 等官方同挂原生端点）。
+  另：maas 专属实例的 /models **不列 ASR 模型**，测试连接不再按列表一票否决
+  （tools/ai_client.py 改主动探测，提示不再误报「实例没有可用 ASR 模型」）。
 v1.15.3：ASR 协议纠偏补「反向守卫」——「接口协议」显式选了「百炼实时
   （WebSocket）」但模型**不是**实时模型（名里没有 realtime / -rt- / streaming）
   时，原先会拿文件识别模型直接去连实时端点，服务端只回
@@ -1212,7 +1227,8 @@ def vc_transcribe_ui_patch():
 #:    保留是为了让老配置继续能用，新推断一律产出 `chat_audio`。
 ASR_PROTOCOLS = ("auto", "openai", "azure", "chat_audio", "dashscope",
                  "deepgram", "elevenlabs", "gemini",
-                 "volcengine", "assemblyai", "dashscope_realtime")
+                 "volcengine", "assemblyai", "dashscope_realtime",
+                 "dashscope_native")
 
 #: 协议说明（供界面下拉提示与日志引用）
 ASR_PROTOCOL_NOTES = {
@@ -1239,15 +1255,122 @@ ASR_PROTOCOL_NOTES = {
                           "wss://…/api-ws/v1/inference/，覆盖**只有实时形态**"
                           "的模型（fun-asr-flash-8k-realtime / fun-asr-realtime"
                           " / qwen3-asr-flash-realtime 等），带原生句级时间轴",
+    "dashscope_native": "百炼原生录音文件识别（POST /api/v1/services/aigc/"
+                        "multimodal-generation/generation）——Qwen-Audio-3.0-ASR-"
+                        "Flash（qwen-audio-3.0-asr-flash）等**不走兼容模式**的 "
+                        "ASR 模型专用；音频以 base64 Data URL 传入，响应含词级"
+                        "时间轴（output.sentence.words）",
 }
 
 #: 实时（WebSocket 流式）模型的识别特征：这些模型**不能**一次性上传调用
 ASR_REALTIME_HINTS = ("realtime", "-rt-", "streaming")
 
+#: 实时模型里属于「录音转写」族的关键词：名字带 realtime 但确实是语音识别
+#: 模型（百炼实时协议可用）。livetranslate 这类实时**对话/翻译**模型不在此
+#: 族——任何协议都拿它做不了转写，必须提前拦下给改法。
+_REALTIME_ASR_FAMILY = ("asr", "paraformer", "sensevoice", "whisper",
+                        "stt", "transcri")
+
+
+def is_realtime_asr_family(model: str) -> bool:
+    """是否「实时语音识别」族模型（区别于实时对话/翻译模型）。"""
+    m = str(model or "").lower()
+    if not any(h in m for h in ASR_REALTIME_HINTS):
+        return False
+    return any(k in m for k in _REALTIME_ASR_FAMILY)
+
+
+_TTS_HINTS = ("tts", "speech-synthesis", "voice-synthesis", "cosyvoice",
+              "sambert")
+
+#: 百炼**原生**（multimodal-generation）录音文件识别模型特征：qwen-audio 系带
+#: asr 的即时模型。实测（2026-09-20）：qwen-audio-3.0-asr-flash 官方文档给的就是
+#: 原生端点，拿兼容模式的 chat/completions 打它**恒回 HTTP 400 空体**——同一个
+#: 模型、同一份音频，换端点即 200 并返回词级时间轴。filetrans（异步，需公网
+#: URL）与 realtime 不在此列。
+def is_dashscope_native_asr(model) -> bool:
+    m = str(model or "").lower()
+    if not m or "filetrans" in m or any(h in m for h in ASR_REALTIME_HINTS):
+        return False
+    return "qwen-audio" in m and "asr" in m
+
+
+#: 百炼原生 ASR 的官方 API 路径（与 compatible-mode 不是同一个端点）
+ASR_NATIVE_PATH = "/api/v1/services/aigc/multimodal-generation/generation"
+
+
+def _asr_native_url(base_url):
+    """从「接口地址」推导百炼原生 ASR 端点（只换路径，不换域名）。
+
+    · 已填原生端点 → 原样；
+    · 填 compatible-mode/v1 或只填域名 → 同域名 + 官方 API 路径；
+    · 留空 → 公共百炼 dashscope.aliyuncs.com + 官方 API 路径。
+    """
+    b = asr_strip_endpoint_tail(str(base_url or "").strip())
+    low = b.lower()
+    if low.endswith(ASR_NATIVE_PATH.lower()):
+        return b
+    if not b:
+        return "https://dashscope.aliyuncs.com" + ASR_NATIVE_PATH
+    if "//" in b:
+        scheme, rest = b.split("//", 1)
+        return scheme + "//" + rest.split("/", 1)[0] + ASR_NATIVE_PATH
+    return "https://" + b.split("/", 1)[0] + ASR_NATIVE_PATH
+
+
+def asr_model_hard_guard(model: str) -> str:
+    """模型与「录音转写」根本不符的硬守卫：**不论协议**都返回提示（可放行空串）。
+
+    覆盖两类（v1.15.5 实测各踩一次）：
+      · 实时对话/翻译模型（livetranslate 族）：名字带 realtime 但不是转写；
+      · 语音合成（TTS）模型（qwen-audio-3.0-tts-plus 等）：输出音频不收音频。
+    两类走任何协议都转写不了（WS 被拒后降级文件上传只回 HTTP 400/500 空
+    体），所以无条件拦，并在提示里给出录音文件识别模型与套餐专属端点。
+    """
+    m = str(model or "").lower()
+    if any(h in m for h in ASR_REALTIME_HINTS) and not is_realtime_asr_family(m):
+        return ("模型「%s」是实时对话/翻译模型（名字带 realtime 但不是录音转写"
+                "模型），语音转写用不了它。请改录音文件识别模型：百炼 "
+                "qwen3-asr-flash / qwen-audio-3.0-asr-flash（原生端点）/ "
+                "fun-asr-flash、硅基流动 "
+                "FunAudioLLM/SenseVoiceSmall、OpenAI whisper-1；订阅套餐还要"
+                "端点配套：百炼按量 dashscope.aliyuncs.com/compatible-mode/v1、"
+                "Token Plan token-plan.cn-beijing.maas.aliyuncs.com/"
+                "compatible-mode/v1" % model)
+    if any(k in m for k in _TTS_HINTS):
+        return ("模型「%s」是语音合成（TTS）模型——它输出音频、不收音频，做不了"
+                "语音转写。请改录音文件识别模型：百炼 qwen3-asr-flash / "
+                "qwen-audio-3.0-asr-flash（原生端点）/ fun-asr-flash、硅基流动 "
+                "FunAudioLLM/SenseVoiceSmall、OpenAI whisper-1" % model)
+    return ""
+
+
+def _host_path(base: str):
+    """拆出 (host, 路径) 小写形式，供各端点守卫判断域名与路径段。"""
+    b = str(base or "").strip().rstrip("/").lower()
+    if "//" in b:
+        b = b.split("//", 1)[1]
+    host, _, path = b.partition("/")
+    return host, ("/" + path) if path else ""
+
+
+def _is_anthropic_only_path(base: str) -> bool:
+    """火山方舟 Anthropic 协议专用端点：/api/coding、/api/compatible。
+
+    这两个地址不含 "anthropic" 字样却只收 Anthropic 协议——旧守卫只认
+    "anthropic" 关键词时拦不住，OpenAI 请求打上去必 404/400。该平台的
+    OpenAI 协议端点是 /api/v3（按量）与 /api/coding/v3（Coding Plan）。
+    """
+    host, path = _host_path(base)
+    if "volces.com" not in host and "volcengine" not in host:
+        return False
+    return path.rstrip("/").endswith(("/api/coding", "/api/compatible"))
+
 
 #: 「完整端点」的常见尾巴 —— 用户从服务商文档抄地址时容易连路径一起抄进来
 ASR_ENDPOINT_TAILS = ("/audio/transcriptions", "/audio/translations",
-                      "/chat/completions", "/v2/upload", "/v2/transcript")
+                      "/chat/completions", "/v2/upload", "/v2/transcript",
+                      "/api/v1/services/aigc/multimodal-generation/generation")
 
 
 def asr_strip_endpoint_tail(base, *tails):
@@ -1298,6 +1421,12 @@ def _infer_asr_protocol(base_url, model):
         # （它们连 compatible-mode 的 chat/completions 都调不了，官方模型表
         #   标注「模式=即时、API=WebSocket」。）
         return "dashscope_realtime"
+    if ("aliyuncs.com" in base or "dashscope" in base) \
+            and is_dashscope_native_asr(mdl):
+        # Qwen-Audio-3.0-ASR-Flash 这类**原生端点**专用的录音文件识别模型：
+        # 按 chat_audio 打 compatible-mode 恒回 400 空体（v1.15.6 实测），
+        # 换原生端点即通 —— 必须在这里就分出去。
+        return "dashscope_native"
     if "deepgram.com" in base:
         return "deepgram"
     if "elevenlabs.io" in base:
@@ -1334,6 +1463,14 @@ def asr_protocol_fix(proto, base_url, model):
         auto = _infer_asr_protocol(base_url, model)
         if auto and auto != "openai":
             return auto, "协议 openai 与该端点/模型不符，自动改走 %s" % auto
+    if p in ("chat_audio", "dashscope") and is_dashscope_native_asr(mdl):
+        # v1.15.6：Qwen-Audio-3.0-ASR-Flash 这类原生端点专用模型被显式/旧配置
+        # 判成 chat_audio 时，compatible-mode 只会回 HTTP 400 空体（重试与降级
+        # 都救不回）→ 按推断改走原生端点。
+        return "dashscope_native", (
+            "模型「%s」走百炼原生端点（multimodal-generation），兼容模式的 "
+            "chat/completions 对它恒回 400 空体，协议自动改走 dashscope_native"
+            % model)
     if p == "dashscope_realtime" and not any(h in mdl for h in ASR_REALTIME_HINTS):
         auto = _infer_asr_protocol(base_url, model)
         if auto and auto != "dashscope_realtime":
@@ -1351,11 +1488,13 @@ def asr_base_guard(base_url):
     的 404 / 415 —— 与其让用户对着状态码猜，不如直接说"该填什么"。
     """
     b = str(base_url or "").lower()
-    if "anthropic" in b:
+    if "anthropic" in b or _is_anthropic_only_path(b):
         return ("ASR 地址填的是 Anthropic 文本对话端点（%s）——它收不了音频。"
                 "请改填 OpenAI 兼容端点：公共百炼 "
-                "https://dashscope.aliyuncs.com/compatible-mode/v1，"
-                "或专属实例的 …/compatible-mode/v1" % base_url)
+                "https://dashscope.aliyuncs.com/compatible-mode/v1，Token Plan "
+                "https://token-plan.cn-beijing.maas.aliyuncs.com/compatible-mode/v1，"
+                "火山方舟 https://ark.cn-beijing.volces.com/api/v3（Coding Plan "
+                "为 /api/coding/v3），或专属实例的 …/compatible-mode/v1" % base_url)
     return ""
 
 
@@ -1455,6 +1594,7 @@ def asr_examples(cfg=None):
         "elevenlabs": "ElevenLabs Scribe", "gemini": "Google Gemini",
         "volcengine": "火山引擎（豆包）录音识别极速版",
         "assemblyai": "AssemblyAI",
+        "dashscope_native": "百炼原生端点（Qwen-Audio-3.0-ASR-Flash 等 ASR 专用模型）",
     }.get(proto, proto)
 
     if proto == "openai":
@@ -1549,6 +1689,48 @@ def asr_examples(cfg=None):
             notes.append("小米 MiMo：ASR 也走 chat/completions（**没有** "
                          "/audio/transcriptions 端点，别填成 OpenAI Whisper 那样），"
                          "仅支持 mp3 / wav，返回纯文本（时间轴由本程序按句兜底）。")
+    elif proto == "dashscope_native":
+        # 百炼原生端点（Qwen-Audio-3.0-ASR-Flash / Fun-ASR-Flash 这类模型）：
+        # 不是 chat/completions，走 /api/v1/services/aigc/multimodal-generation/generation
+        url = _asr_native_url(base or "https://dashscope.aliyuncs.com/compatible-mode/v1")
+        mdl = model or "qwen-audio-3.0-asr-flash"
+        _body = ("python -c \"import base64,json;b=base64.b64encode("
+                 "open('audio.wav','rb').read()).decode();"
+                 "print(json.dumps({'model':'%s','input':{'messages':[{'role':"
+                 "'user','content':[{'type':'input_audio','input_audio':{'data':"
+                 "'data:audio/wav;base64,'+b}}]}]},'parameters':"
+                 "{'format':'wav','sample_rate':16000}}))\"" % mdl)
+        curl = "\n".join([
+            "BODY=$(%s)" % _body,
+            'curl -X POST "%s" \\' % url,
+            '  -H "Authorization: Bearer $ASR_API_KEY" \\',
+            '  -H "Content-Type: application/json" \\',
+            '  -d "$BODY"',
+        ])
+        py = "\n".join([
+            "import base64, os",
+            "import requests      # 原生端点不认 OpenAI SDK，直接用裸 HTTP",
+            "",
+            "b64 = base64.b64encode(open(\"audio.wav\", \"rb\").read()).decode()",
+            "r = requests.post(                       # 非流式",
+            "    %r," % url,
+            "    headers={\"Authorization\": \"Bearer \" + os.environ[\"ASR_API_KEY\"],",
+            "             \"Content-Type\": \"application/json\"},",
+            "    json={\"model\": %r," % mdl,
+            "          \"input\": {\"messages\": [{\"role\": \"user\", \"content\": [",
+            "              {\"type\": \"input_audio\",",
+            "               \"input_audio\": {\"data\": \"data:audio/wav;base64,\" + b64}}]}]},",
+            "          \"parameters\": {\"format\": \"wav\", \"sample_rate\": 16000}})",
+            "d = r.json()",
+            "# 返回没有 choices：文本在 output.text，句内字级时间戳在 output.sentence.words",
+            "print(d[\"output\"].get(\"text\") or d[\"output\"][\"sentence\"][\"text\"])",
+        ])
+        notes.append("百炼**原生端点**（不是 chat/completions）：Qwen-Audio-3.0-ASR-Flash "
+                     "这类文件转写模型只认 multimodal-generation；用 chat 协议调它会收到 "
+                     "HTTP 400 空响应（模型本身没问题）。")
+        notes.append("响应没有 choices 字段：识别文本在 `output.text`（整段）/"
+                     "`output.sentence.text`（句级），`output.sentence.words[]` 带字级 "
+                     "begin_time/end_time（毫秒）+ 独立标点。")
     elif proto == "deepgram":
         b = base or "https://api.deepgram.com"
         url = b if b.lower().endswith("/listen") else \
@@ -1864,6 +2046,27 @@ def _asr_words_response(text, words):
     return out
 
 
+def _asr_plan_endpoint_hint(asr_obj):
+    """订阅套餐端点配套提示（转录失败时追加，非套餐端点返回空串）。
+
+    百炼 Token Plan / Coding Plan、智谱与火山 Coding Plan 均为专属端点且
+    密钥不跨方案通用；套餐密钥打错端点时服务端常常只回空体 400/500，用户
+    无从下手，故在此点名各方案端点。
+    """
+    b = str(getattr(asr_obj, "base_url", "") or "").lower()
+    if not any(k in b for k in ("token-plan", "coding.", "/api/coding",
+                                "maas.aliyuncs")):
+        return ""
+    return ("；端点与密钥须同属一个计费方案（百炼按量 "
+            "dashscope.aliyuncs.com/compatible-mode/v1、Token Plan "
+            "token-plan.cn-beijing.maas.aliyuncs.com/compatible-mode/v1、"
+            "火山方舟 /api/v3（Coding Plan 为 /api/coding/v3）、智谱 "
+            "/api/paas/v4（Coding Plan 为 /api/coding/paas/v4）——套餐密钥"
+            "打错端点只会得到空体错误；Qwen-Audio-3.0-ASR-Flash 另有专用原生"
+            "端点 /api/v1/services/aigc/multimodal-generation/generation，"
+            "程序会按模型自动改走）")
+
+
 def _asr_err_hint(resp):
     """把 HTTP 错误响应转成"能照着修"的提示（密钥 / 模型名 / 其它）。"""
     text = ""
@@ -1890,6 +2093,21 @@ def _asr_err_hint(resp):
             or "model not" in low or "unsupported" in low):
         return ("HTTP %d（参数或模型名不被该端点支持——注意实时（realtime）"
                 "模型不能一次性上传调用）: %s" % (resp.status_code, text))
+    if resp.status_code in (400, 500) and (
+            not text.strip() or text.strip() == "{}"
+            or ("internalerror" in low and "unknown" in low)):
+        return ("HTTP %d（端点返回空体/未知错误：① 模型与端点不配套——"
+                "Qwen-Audio-3.0-ASR-Flash（qwen-audio-3.0-asr-flash）这类百炼"
+                "原生 ASR 模型走的是 multimodal-generation 端点，拿兼容模式的 "
+                "chat/completions 打恒回空体 400，请把「接口协议」选为"
+                "「百炼原生（ASR 专用端点）」或留自动识别；② 名字带 *realtime* "
+                "的实时对话/翻译模型（如 livetranslate）、*tts* 语音合成模型"
+                "都做不了录音转写，请改 qwen3-asr-flash、"
+                "FunAudioLLM/SenseVoiceSmall、whisper-1 等；"
+                "maas 专属实例请到百炼控制台确认实例已部署该模型"
+                "（其 /models 列表不显示 ASR 模型，以控制台为准）；"
+                "并确认地址与模型属同一计费套餐）: %s"
+                % (resp.status_code, text))
     return "HTTP %d: %s" % (resp.status_code, text)
 
 
@@ -2126,7 +2344,8 @@ def _asr_chat_audio_submit(asr_obj, depth=0):
                 "ASR 服务：音频时长超限且自动切分重试已到底（不再继续切短），"
                 "请把音频切短分段后分别转录，或换支持长音频的模型。"
                 "原始错误：" + _asr_err_hint(r))
-        raise RuntimeError("ASR 服务 " + _asr_err_hint(r))
+        raise RuntimeError("ASR 服务 " + _asr_err_hint(r)
+                           + _asr_plan_endpoint_hint(asr_obj))
     try:
         data = r.json()
         cont = data["choices"][0]["message"].get("content")
@@ -2140,6 +2359,147 @@ def _asr_chat_audio_submit(asr_obj, depth=0):
 
 #: 历史名（可能出现在旧配置 / 日志 / 自检里）：两个名字指同一实现
 _asr_dashscope_submit = _asr_chat_audio_submit
+
+
+def _asr_native_output(resp):
+    """百炼原生 ASR 响应 → {"text", "segments"}（词级时间轴优先）。
+
+    原生端点**没有 choices**：文本在 `output.sentence.text` / `output.text`
+    （专属实例还会在顶层再复制一份 `sentence`/`text`）；`output.sentence.words[]`
+    带毫秒级 begin_time/end_time 与独立 punctuation → 原生词级时间轴，
+    聚合交给 _asr_words_to_segments（与 Deepgram/ElevenLabs 同一条路）。
+    """
+    try:
+        data = resp.json()
+    except (ValueError, AttributeError):
+        data = {}
+    if not isinstance(data, dict):
+        return {"text": "", "segments": []}
+    out = data.get("output") if isinstance(data.get("output"), dict) else {}
+    sent = out.get("sentence") if isinstance(out.get("sentence"), dict) else {}
+    if not sent and isinstance(data.get("sentence"), dict):
+        sent = data["sentence"]
+    text = str(sent.get("text") or out.get("text") or data.get("text") or "")
+    words = []
+    for w in (sent.get("words") or []):
+        if not isinstance(w, dict):
+            continue
+        tok = (str(w.get("text") or "") + str(w.get("punctuation") or "")).strip()
+        if not tok:
+            continue
+        try:
+            b = float(w.get("begin_time")) / 1000.0
+            e = float(w.get("end_time")) / 1000.0
+        except (TypeError, ValueError):
+            continue
+        words.append({"word": tok, "start": b, "end": e})
+    if words:
+        return {"text": text, "segments": _asr_words_to_segments(words)}
+    return {"text": text, "segments": []}
+
+
+def _asr_dashscope_native_submit(asr_obj, depth=0):
+    """百炼原生录音文件识别（POST /api/v1/services/aigc/multimodal-generation/
+    generation）——Qwen-Audio-3.0-ASR-Flash / Fun-ASR-Flash 等专用。
+
+    与 chat_audio 的差别（v1.15.6 实测）：同一个模型、同一份音频，打
+    compatible-mode 的 chat/completions 恒回 HTTP 400 空体 `{}`；换成本端点
+    即 200 并返回词级时间轴。音频同样用 base64 Data URL（官方示例形态之一），
+    另需 `parameters.format`（wav/mp3…），wav 再带 sample_rate。
+    """
+    import base64
+    import requests
+    url = _asr_native_url(getattr(asr_obj, "base_url", ""))
+    blob = _asr_shrink_audio_blob(getattr(asr_obj, "file_binary", b"") or b"",
+                                  ASR_INLINE_AUDIO_MAX_RAW)
+    fmt = _asr_audio_format(blob)
+    rate = _asr_wav_sample_rate(blob) or 16000
+    content = [{"type": "input_audio",
+                "input_audio": {"data": "data:audio/%s;base64,%s"
+                                        % (fmt, base64.b64encode(blob).decode("ascii"))}}]
+    params = {"format": fmt}
+    if fmt == "wav":
+        params["sample_rate"] = str(rate)
+    body = {"model": asr_obj.model,
+            "input": {"messages": [{"role": "user", "content": content}]},
+            "parameters": params}
+    r = requests.post(url, json=body,
+                      headers={"Authorization": "Bearer " + asr_obj.api_key,
+                               "Content-Type": "application/json"},
+                      timeout=600)
+    if r.status_code != 200:
+        low = (r.text or "").lower()
+        if ("too long" in low or "duration" in low) \
+                and depth < ASR_SPLIT_MAX_DEPTH:
+            halves = _asr_split_audio_blob(blob)
+            if halves:
+                import types as _types
+                parts = []
+                for hb in halves:
+                    sub = _types.SimpleNamespace(
+                        base_url=getattr(asr_obj, "base_url", ""),
+                        model=asr_obj.model, api_key=asr_obj.api_key,
+                        language=getattr(asr_obj, "language", ""),
+                        prompt="", file_binary=hb)
+                    parts.append(_asr_native_text(
+                        _asr_dashscope_native_submit(sub, depth + 1)))
+                return "".join(parts)
+        raise RuntimeError("百炼原生 ASR " + _asr_err_hint(r)
+                           + _asr_plan_endpoint_hint(asr_obj))
+    return _asr_native_output(r)
+
+
+def _asr_native_text(resp):
+    """_asr_native_output 的结果取纯文本（切分重试时拼接用）。"""
+    if isinstance(resp, dict):
+        return str(resp.get("text") or "")
+    return str(resp or "")
+
+
+def _asr_retry_native(asr_obj, reason=""):
+    """chat_audio 拿到空体 400/500 时改走百炼原生端点（同模型同音频）。
+
+    Fun-ASR-Flash 等官方也挂在原生端点上，但老配置/某些网关按 chat_audio
+    也能用 —— 所以不做静态推断，只在 chat_audio 明确失败（空体）时兜一次，
+    且**每个任务只兜一次**（`_vt_native_retried` 标记），避免来回打。
+    """
+    if getattr(asr_obj, "_vt_native_retried", False):
+        raise RuntimeError("ASR 服务 " + str(reason or "接口不可用"))
+    if not _asr_is_dashscope_base(getattr(asr_obj, "base_url", "")):
+        raise RuntimeError("ASR 服务 " + str(reason or "接口不可用"))
+    try:
+        asr_obj._vt_native_retried = True
+    except Exception:  # noqa: BLE001
+        pass
+    _vc_log("chat_audio 空体失败（%s）→ 改走百炼原生 multimodal-generation"
+            % str(reason)[:80])
+    return _asr_dashscope_native_submit(asr_obj)
+
+
+def _asr_is_dashscope_base(base_url):
+    """是否百炼系地址（公共 dashscope 或 *.maas.aliyuncs.com 专属实例）。"""
+    b = str(base_url or "").lower()
+    return "dashscope" in b or "aliyuncs.com" in b
+
+
+def _asr_empty_body_err(exc):
+    """异常是否属「HTTP 400/500 空体」——原生专用模型被兼容模式打回的形态。
+
+    _asr_err_hint 会把空体错误写成「HTTP 400（端点返回空体/未知错误：…）」，
+    未包装的诊断文本则是 `HTTP 400: {}`，两种都认。
+    """
+    s = str(exc or "")
+    return ("空体" in s) or ("HTTP 400: {}" in s) or ("HTTP 500: {}" in s)
+
+
+def _asr_wav_sample_rate(blob):
+    """从 wav 头读采样率；非 wav / 读不到返回 0（调用方兜 16000）。"""
+    try:
+        if blob[:4] == b"RIFF" and blob[8:12] == b"WAVE":
+            return int.from_bytes(blob[24:28], "little")
+    except Exception:  # noqa: BLE001
+        pass
+    return 0
 
 
 def _asr_deepgram_submit(asr_obj):
@@ -2728,18 +3088,22 @@ def vc_asr_protocol_patch():
                                             getattr(self, "model", ""))
         if _fix_note:
             _vc_log("ASR " + _fix_note)
+        # v1.15.5：实时对话/翻译模型（livetranslate 族）任何协议都转写不了，
+        # 无条件拦——否则 WS 被拒后降级文件上传只拿到空体 400/500，无从下手。
+        guard = asr_model_hard_guard(getattr(self, "model", ""))
         if proto != "dashscope_realtime":
             # 实时模型只有走实时协议才有救：其它协议下提前拦，别等服务端 404。
             # 走实时协议时**不能**拦（那正是让实时模型出字幕的路）。
-            guard = asr_base_guard(getattr(self, "base_url", ""))
+            if not guard:
+                guard = asr_base_guard(getattr(self, "base_url", ""))
             if not guard:
                 guard = asr_model_guard(getattr(self, "model", ""))
-            if guard:
-                raise RuntimeError(guard)
             # 非 openai 协议不走引擎原实现，它那段"简体中文提示词预设"要自己补
             if (getattr(self, "language", "") == "zh"
                     and not getattr(self, "prompt", "")):
                 self.prompt = "你好，我们需要使用简体中文，以下是普通话的句子"
+        if guard:
+            raise RuntimeError(guard)
         if proto == "dashscope_realtime" and not _ASR_WS_DEGRADED:
             try:
                 resp = _asr_dashscope_realtime_submit(self)
@@ -2758,7 +3122,17 @@ def vc_asr_protocol_patch():
         elif proto == "azure":
             resp = _asr_azure_submit(self)
         elif proto in ("chat_audio", "dashscope"):
-            resp = _asr_chat_audio_submit(self)
+            try:
+                resp = _asr_chat_audio_submit(self)
+            except RuntimeError as e:
+                # v1.15.6：百炼原生专用模型（Qwen-Audio-3.0-ASR-Flash /
+                # Fun-ASR-Flash）被兼容模式打回空体 400/500 —— 同一模型、同一
+                # 音频换原生端点即通，这里兜一次（每个任务只兜一次）。
+                if not _asr_empty_body_err(e):
+                    raise
+                resp = _asr_retry_native(self, e)
+        elif proto == "dashscope_native":
+            resp = _asr_dashscope_native_submit(self)
         elif proto == "deepgram":
             resp = _asr_deepgram_submit(self)
         elif proto == "elevenlabs":
@@ -2808,6 +3182,9 @@ def vc_asr_protocol_patch():
 #: 引擎默认按 600s 切块必超 → 该协议下把块长压到 170s（留转发/编码余量）。
 ASR_CHAT_AUDIO_CHUNK_MS = 170_000
 
+#: 百炼原生端点（multimodal-generation）单请求音频上限约 5 分钟 → 压到 280s。
+ASR_NATIVE_CHUNK_MS = 280_000
+
 
 def vc_asr_chunk_patch():
     """chat_audio 协议下把引擎的 ASR 音频分块长度压到 3 分钟内（幂等补丁）。
@@ -2835,8 +3212,13 @@ def vc_asr_chunk_patch():
     def _create(*a, **k):
         inst = orig(*a, **k)
         try:
-            if asr_protocol_of() in ("chat_audio", "dashscope"):
+            _p = asr_protocol_of()
+            if _p in ("chat_audio", "dashscope"):
                 inst.chunk_length_ms = ASR_CHAT_AUDIO_CHUNK_MS
+            elif _p == "dashscope_native":
+                # 原生端点官方上限约 5 分钟（Qwen-Audio-3.0-ASR-Flash），
+                # 压到 280s 留转码/转发余量。
+                inst.chunk_length_ms = ASR_NATIVE_CHUNK_MS
         except Exception as e:  # noqa: BLE001
             _vc_log(f"分块长度调整失败：{e}")
         return inst
@@ -3602,11 +3984,20 @@ def calib_ai_chat(prompt, system=None, max_tokens=None, on_reasoning=None):
 
     on_reasoning（v1.14.2）：思考链上报回调，透传给 AIClient，把推理模型返回的
     思考过程（reasoning_content）实时交给校准日志显示。
+
+    思考控制（2026-09-20）：读配置 `calib_thinking` / `calib_reasoning_effort`
+    （设置页「AI 校准」卡片），随请求体 thinking / reasoning_effort 下发；
+    端点不支持时 ai_client 会自动去掉参数重试，不影响可用性。
     """
+    ai = ai_load_config()
+    thinking = bool(ai.get("calib_thinking", True))
+    effort = str(ai.get("calib_reasoning_effort") or "high").strip().lower()
     client = ai_mod().get_client()
     return client.chat_text(prompt, system=system,
                             max_tokens=int(max_tokens or 8192),
-                            on_reasoning=on_reasoning)
+                            on_reasoning=on_reasoning,
+                            thinking=thinking,
+                            reasoning_effort=effort if thinking else None)
 
 
 def calib_ai_run(src, out=None, report=None, mode_flag="", fix_en=False,

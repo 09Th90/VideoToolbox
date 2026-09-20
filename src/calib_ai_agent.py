@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 1.15.4
+# @version 1.15.6
 """AI 校准 Agent —— Agent 级字幕术语校准（v1.11.0；v1.16.0 并发与提示词优化）。
 
 定位
@@ -1441,7 +1441,9 @@ def _ask_block(chat, mode_flag, rules_txt, chunk, round_no, max_tokens, log, tic
             _log_do(log, f"  ! 未取到有效 JSON，原地重问一次（{len(chunk)} 条，"
                          f"已附整改要求）", "err")
         return _ask_block(chat, mode_flag, rules_txt, chunk, round_no,
-                          min(max_tokens * 2, 65536) if status == "truncated"
+                          # 加倍上限 512K（2026-09-20 配合设置页「输出」512K）；
+                          # 旧版硬卡 65536 会把用户大额度配置在截断重问时打回 64K
+                          min(max_tokens * 2, 524288) if status == "truncated"
                           else max_tokens,
                           log, tick, style, with_ref, prev_text, scope_text, 1,
                           think, feedback)

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 1.15.4
+# @version 1.15.6
 """
 全局 AI 客户端（OpenAI 兼容 · 单通道）。
 
@@ -105,8 +105,14 @@ DEFAULT_CONFIG: dict = {
     #   该额度时程序会按错误类型**自动减半重试**，无需手工调小。
     "calib_chunk_cues": 400,          # 每块最多 cue 条数
     "calib_max_chars": 60000,         # 每块字符预算（超出自动再拆）
-    "calib_max_tokens": 65536,        # 单次调用的最大输出
-    "calib_context_tokens": 1000000,  # 可用上下文预算（片源档案按 1/4 折算采样）
+    "calib_max_tokens": 65536,        # 单次调用的最大输出（设置页「输出」）
+    "calib_context_tokens": 1000000,  # 可用上下文预算（设置页「输入」；片源档案按 1/4 折算采样）
+    # v1.15.7：AI 校准思考控制（参考模型厂商「高级配置」样式）——
+    #   calib_thinking=False 时请求体带 thinking={"type":"disabled"}；
+    #   calib_reasoning_effort 取值 low/medium/high/xhigh/max，随请求体
+    #   reasoning_effort 下发（端点不认该参数时自动去掉重试，见 chat_openai）。
+    "calib_thinking": True,
+    "calib_reasoning_effort": "high",
     "calib_concurrency": 1,    # 逐块 LLM 调用并发路数（1＝串行；v1.16.0 受控并发）
     "max_tokens": 2048,
     "timeout": 90,
@@ -293,7 +299,8 @@ def _asr_url(base: str) -> str:
 
 #: 「完整端点」的常见尾巴（与 src/video_toolbox.py 的 ASR_ENDPOINT_TAILS 一致）
 ASR_ENDPOINT_TAILS = ("/audio/transcriptions", "/audio/translations",
-                      "/chat/completions", "/v2/upload", "/v2/transcript")
+                      "/chat/completions", "/v2/upload", "/v2/transcript",
+                      "/api/v1/services/aigc/multimodal-generation/generation")
 
 
 def _asr_base_clean(base: str) -> str:
@@ -328,6 +335,16 @@ def _is_zhipu_asr_base(base: str) -> bool:
             or b.startswith("z.ai"))
 
 
+def _is_maas_base(base: str) -> bool:
+    """是否阿里云百炼 maas 专属实例端点（Token Plan / 专属实例）。
+
+    专属实例的 /models 列表**不列 ASR 模型**（实测 2026-09-20：部署在
+    token-plan 实例上的 qwen-audio-3.0-asr-flash 也不在列表里），列表核对
+    对这类端点不可信，需要发真实探测请求实锤。
+    """
+    return "maas.aliyuncs.com" in str(base or "").lower()
+
+
 def _models_url(base: str) -> str:
     """OpenAI 兼容模型列表地址（用于 ASR 服务连通性测试）。"""
     b = _asr_base_clean(base)
@@ -341,10 +358,108 @@ def _models_url(base: str) -> str:
 #: ⚠️ `dashscope` 是历史键（= chat_audio 那一族），保留只为兼容老配置
 ASR_PROTOCOLS = ("auto", "openai", "azure", "chat_audio", "dashscope",
                  "deepgram", "elevenlabs", "gemini",
-                 "volcengine", "assemblyai", "dashscope_realtime")
+                 "volcengine", "assemblyai", "dashscope_realtime",
+                 "dashscope_native")
+
+#: 百炼原生（multimodal-generation）录音文件识别模型的官方 API 路径
+ASR_NATIVE_PATH = "/api/v1/services/aigc/multimodal-generation/generation"
 
 #: 实时（WebSocket 流式）模型特征：一次性上传整段音频用不了它们
 ASR_REALTIME_HINTS = ("realtime", "-rt-", "streaming")
+
+#: 实时模型里属于「录音转写」族的关键词：名字带 realtime 但确实是语音识别
+#: 模型（百炼实时协议可用）。livetranslate 这类实时**对话/翻译**模型不在此
+#: 族——任何协议都拿它做不了转写，必须提前拦下给改法。
+_REALTIME_ASR_FAMILY = ("asr", "paraformer", "sensevoice", "whisper",
+                        "stt", "transcri")
+
+
+def is_realtime_asr_family(model: str) -> bool:
+    """是否「实时语音识别」族模型（区别于实时对话/翻译模型）。"""
+    m = str(model or "").lower()
+    if not any(h in m for h in ASR_REALTIME_HINTS):
+        return False
+    return any(k in m for k in _REALTIME_ASR_FAMILY)
+
+
+def is_dashscope_native_asr(model: str) -> bool:
+    """是否百炼**原生端点**专用的录音文件识别模型（qwen-audio 系带 asr）。
+
+    与引擎侧 `is_dashscope_native_asr` 同规则。实测（2026-09-20）：
+    qwen-audio-3.0-asr-flash 打 compatible-mode 的 chat/completions 恒回
+    HTTP 400 空体，换原生端点即 200 —— 协议推断必须在这里就分出去。
+    """
+    m = str(model or "").lower()
+    if not m or "filetrans" in m or any(h in m for h in ASR_REALTIME_HINTS):
+        return False
+    return "qwen-audio" in m and "asr" in m
+
+
+def _asr_native_url(base: str) -> str:
+    """推导百炼原生 ASR 端点（只换路径，不换域名）。与引擎侧同规则。"""
+    b = _asr_base_clean(base)
+    low = b.lower()
+    if low.endswith(ASR_NATIVE_PATH.lower()):
+        return b
+    if not b:
+        return "https://dashscope.aliyuncs.com" + ASR_NATIVE_PATH
+    if "//" in b:
+        scheme, rest = b.split("//", 1)
+        return scheme + "//" + rest.split("/", 1)[0] + ASR_NATIVE_PATH
+    return "https://" + b.split("/", 1)[0] + ASR_NATIVE_PATH
+
+
+_TTS_HINTS = ("tts", "speech-synthesis", "voice-synthesis", "cosyvoice",
+              "sambert")
+
+
+def asr_model_hard_guard(model: str) -> str:
+    """模型与「录音转写」根本不符的硬守卫：**不论协议**都返回提示（可放行空串）。
+
+    覆盖两类（v1.15.5 实测各踩一次）：
+      · 实时对话/翻译模型（livetranslate 族）：名字带 realtime 但不是转写；
+      · 语音合成（TTS）模型（qwen-audio-3.0-tts-plus 等）：输出音频不收音频。
+    两类走任何协议都转写不了（WS 被拒后降级文件上传只回 HTTP 400/500 空
+    体），所以无条件拦，并在提示里给出录音文件识别模型与套餐专属端点。
+    """
+    m = str(model or "").lower()
+    if any(h in m for h in ASR_REALTIME_HINTS) and not is_realtime_asr_family(m):
+        return ("模型「%s」是实时对话/翻译模型（名字带 realtime 但不是录音转写"
+                "模型），语音转写用不了它。请改录音文件识别模型：百炼 "
+                "qwen3-asr-flash / qwen-audio-3.0-asr-flash（原生端点）/ "
+                "fun-asr-flash、硅基流动 "
+                "FunAudioLLM/SenseVoiceSmall、OpenAI whisper-1；订阅套餐还要"
+                "端点配套：百炼按量 dashscope.aliyuncs.com/compatible-mode/v1、"
+                "Token Plan token-plan.cn-beijing.maas.aliyuncs.com/"
+                "compatible-mode/v1" % model)
+    if any(k in m for k in _TTS_HINTS):
+        return ("模型「%s」是语音合成（TTS）模型——它输出音频、不收音频，做不了"
+                "语音转写。请改录音文件识别模型：百炼 qwen3-asr-flash / "
+                "qwen-audio-3.0-asr-flash（原生端点）/ fun-asr-flash、硅基流动 "
+                "FunAudioLLM/SenseVoiceSmall、OpenAI whisper-1" % model)
+    return ""
+
+
+def _host_path(base: str):
+    """拆出 (host, 路径) 小写形式，供各端点守卫判断域名与路径段。"""
+    b = str(base or "").strip().rstrip("/").lower()
+    if "//" in b:
+        b = b.split("//", 1)[1]
+    host, _, path = b.partition("/")
+    return host, ("/" + path) if path else ""
+
+
+def _is_anthropic_only_path(base: str) -> bool:
+    """火山方舟 Anthropic 协议专用端点：/api/coding、/api/compatible。
+
+    这两个地址不含 "anthropic" 字样却只收 Anthropic 协议——旧守卫只认
+    "anthropic" 关键词时拦不住，OpenAI 请求打上去必 404/400。该平台的
+    OpenAI 协议端点是 /api/v3（按量）与 /api/coding/v3（Coding Plan）。
+    """
+    host, path = _host_path(base)
+    if "volces.com" not in host and "volcengine" not in host:
+        return False
+    return path.rstrip("/").endswith(("/api/coding", "/api/compatible"))
 
 
 def resolve_asr_protocol(ac: dict) -> str:
@@ -372,6 +487,10 @@ def resolve_asr_protocol(ac: dict) -> str:
             h in model for h in ASR_REALTIME_HINTS):
         # 百炼系域名 + 实时模型：只有 WebSocket 形态（与引擎侧同规则）
         return "dashscope_realtime"
+    if ("aliyuncs.com" in base or "dashscope" in base) \
+            and is_dashscope_native_asr(model):
+        # Qwen-Audio-3.0-ASR-Flash 这类原生端点专用模型（与引擎侧同规则）
+        return "dashscope_native"
     if "deepgram.com" in base:
         return "deepgram"
     if "elevenlabs.io" in base:
@@ -412,11 +531,13 @@ def asr_base_guard(base_url: str) -> str:
     404 / 415，与其让用户对着状态码猜，不如直接说该填什么。
     """
     b = str(base_url or "").lower()
-    if "anthropic" in b:
+    if "anthropic" in b or _is_anthropic_only_path(b):
         return ("ASR 地址填的是 Anthropic 文本对话端点（%s）——它收不了音频。"
                 "请改填 OpenAI 兼容端点：公共百炼 "
-                "https://dashscope.aliyuncs.com/compatible-mode/v1，"
-                "或专属实例的 …/compatible-mode/v1" % base_url)
+                "https://dashscope.aliyuncs.com/compatible-mode/v1，Token Plan "
+                "https://token-plan.cn-beijing.maas.aliyuncs.com/compatible-mode/v1，"
+                "火山方舟 https://ark.cn-beijing.volces.com/api/v3（Coding Plan "
+                "为 /api/coding/v3），或专属实例的 …/compatible-mode/v1" % base_url)
     return ""
 
 
@@ -441,6 +562,62 @@ def asr_model_visible(raw: str, model: str):
     hit = any(x.lower() == want or x.lower().rsplit("/", 1)[-1] == tail
               for x in names)
     return hit, names
+
+
+#: 主动探测用的官方示例音频（真实人声，阿里云 OSS 长期样例）。
+#: ⚠️ 必须用**真实语音**：ASR 模型收到无语音的正弦波/静音时会回 HTTP 400
+#: 空体，拿它探测会把「模型完全正常」误报成「收不了音频」（v1.15.6 踩过）。
+ASR_PROBE_AUDIO_URL = ("https://dashscope.oss-cn-beijing.aliyuncs.com/"
+                       "samples/audio/paraformer/hello_world_female2.wav")
+
+
+def _asr_native_probe(base: str, api_key: str, model: str):
+    """百炼原生 ASR 的主动探测：用官方示例音频实打实跑一次识别。
+
+    返回 (verdict, note)：
+      · (True, text)         200 且拿到文本 —— 端点/密钥/模型都对；
+      · ("missing", detail)  404 / model not exist —— 该实例没部署这个模型；
+      · (False, detail)      其它 HTTP 错误（密钥被拒 / 参数被拒）；
+      · (None, err)          网络失败，下不了结论。
+    """
+    url = _asr_native_url(base)
+    body = json.dumps({
+        "model": str(model or "").strip(),
+        "input": {"messages": [{"role": "user", "content": [
+            {"type": "input_audio",
+             "input_audio": {"data": ASR_PROBE_AUDIO_URL}}]}]},
+        "parameters": {"format": "wav", "sample_rate": "16000"},
+    }).encode("utf-8")
+    req = urllib.request.Request(url, data=body, headers={
+        "Authorization": "Bearer " + str(api_key or ""),
+        "Content-Type": "application/json",
+        "X-DashScope-SSE": "disable"})
+    try:
+        with urllib.request.urlopen(req, timeout=45) as resp:
+            raw = resp.read().decode("utf-8", "replace")
+        try:
+            d = json.loads(raw)
+        except ValueError:
+            return True, ""            # 200 就算通，解析失败不影响结论
+        out = d.get("output") if isinstance(d.get("output"), dict) else {}
+        sent = out.get("sentence") if isinstance(out.get("sentence"), dict) else {}
+        text = str(sent.get("text") or out.get("text") or d.get("text") or "")
+        return True, text
+    except urllib.error.HTTPError as e:
+        detail = ""
+        try:
+            detail = e.read().decode("utf-8", "replace")[:200]
+        except Exception:  # noqa: BLE001
+            pass
+        low = detail.lower()
+        if e.code in (404, 400) and ("model not exist" in low
+                                     or "model_not_found" in low):
+            return "missing", "HTTP %d: %s" % (e.code, detail)
+        if e.code == 404:
+            return "missing", "HTTP %d: %s" % (e.code, detail or e.reason)
+        return False, "HTTP %d: %s" % (e.code, detail or e.reason)
+    except (urllib.error.URLError, TimeoutError, OSError) as e:
+        return None, str(e)
 
 
 def _azure_asr_probe_url(base: str) -> str:
@@ -513,6 +690,29 @@ def _is_retryable(status: int | None, detail: str) -> bool:
     return "1305" in d or "overloaded" in d or "稍后再试" in d
 
 
+#: 「max_tokens 超过端点上限」类报错的关键词（命中即值得减半重试）
+_MAX_TOKENS_OVER_PAT = (
+    "max_tokens", "max token", "maximum tokens", "too large", "too big",
+    "exceed", "greater than", "at most", "no more than",
+    "超过", "超出", "上限", "太大",
+)
+
+
+def _is_max_tokens_over(err) -> bool:
+    """错误文本是否属于「max_tokens 参数值超过端点/模型上限」类。
+
+    ⚠️ 判据故意收紧到「参数值超限」语义：`maximum context length`（输入
+    太长）与 `maximum output tokens`（额度太大）文本近似，但前者减半
+    max_tokens 没用、只会浪费一次请求。误判代价 = 多一次更快失败的请求；
+    漏判代价 = 大额度 + 小端点组合直接报错不可用——两边都可控，取中间值：
+    认 max_tokens 字样与超限措辞，不认裸的 context length。
+    """
+    low = str(err).lower()
+    if "context length" in low or "上下文" in low:
+        return False
+    return any(k in low for k in _MAX_TOKENS_OVER_PAT)
+
+
 def _emit_reasoning(on_reasoning, text) -> None:
     """把思考链片段交给上报回调（v1.14.2，AI 校准日志显示 Agent 思考过程）。
 
@@ -543,11 +743,14 @@ class AIClient:
         self.protocol = "openai"
         self.api_key = cc["api_key"]
         base = cc["base_url"]
-        if "anthropic" in base.lower():
+        if "anthropic" in base.lower() or _is_anthropic_only_path(base):
             raise AIClientError(
-                "检测到 Anthropic 专用地址（如 /api/anthropic）。"
-                "全局 AI 已统一 OpenAI 兼容协议，请填 OpenAI 兼容地址"
-                "（如 https://open.bigmodel.cn/api/paas/v4）")
+                "检测到 Anthropic 协议端点（如 /api/anthropic、火山 /api/coding）。"
+                "全局 AI 已统一 OpenAI 兼容协议，请填 OpenAI 兼容地址："
+                "智谱按量 https://open.bigmodel.cn/api/paas/v4（Coding Plan 为 "
+                "/api/coding/paas/v4）、火山 https://ark.cn-beijing.volces.com/api/v3"
+                "（Coding Plan 为 /api/coding/v3）、百炼 Token Plan "
+                "https://token-plan.cn-beijing.maas.aliyuncs.com/compatible-mode/v1")
         self.is_azure = _is_azure_base(base)
         if self.is_azure:
             self.url = _azure_chat_url(base)
@@ -620,15 +823,57 @@ class AIClient:
             raise AIClientError(str(err))
         return resp
 
+    def _shrink_max_tokens(self, body: dict, first_err: str,
+                           floor: int = 1024):
+        """max_tokens 被端点拒绝时的减半自愈（2026-09-20，配合「输出」512K）。
+
+        各家端点输出上限不一（DeepSeek 384K、多数中转 64K/16K），用户在设置
+        页把「输出」调到 512K 后，小端点会直接 400 报参数超限。此处逐次减半
+        重发（最多 6 次、下界 floor），拿到成功响应即返回 (实际额度, resp)。
+        仍失败则抛最后一次错误——此时是真打不通，不是额度问题。
+        """
+        cur = int(body.get("max_tokens") or 0)
+        err = first_err
+        for _ in range(6):
+            cur //= 2
+            if cur < floor:
+                break
+            body["max_tokens"] = cur
+            logger.info("接口拒绝 max_tokens（%s），减半到 %d 重试",
+                        err[:120], cur)
+            try:
+                resp = self._post_openai(self.url, body)
+                return cur, resp
+            except AIClientError as e:
+                err = str(e)
+                if not _is_max_tokens_over(e):
+                    raise
+        raise AIClientError(
+            f"端点不接受当前 max_tokens（减半到 {cur} 仍被拒）：{err[:200]}")
+
     def chat_openai(self, prompt, *, system: str | None = None,
                     max_tokens: int | None = None,
                     model: str | None = None,
-                    on_reasoning=None) -> str:
+                    on_reasoning=None,
+                    thinking: bool | None = None,
+                    reasoning_effort: str | None = None) -> str:
         """OpenAI 兼容文本对话。返回首个 choice 的文本。
 
         on_reasoning（v1.14.2）：可选回调，接收模型思考链文本
         （message.reasoning_content，或 content 块列表里的 thinking 块），
         供 AI 校准等场景把 Agent 的推理过程打进日志；回调异常不影响主流程。
+
+        thinking / reasoning_effort（2026-09-20，参考模型厂商「高级配置」）：
+        仅显式传入时才写进请求体（不影响未传参数的其它调用）——
+          · thinking=False → {"thinking":{"type":"disabled"},
+            "reasoning_effort":"none"}（DeepSeek/智谱等混合思考模型均认）；
+          · thinking=True + effort(low/medium/high/max) → "reasoning_effort"；
+        端点不认识这些参数（HTTP 400 参数类报错）时自动去掉重试一次。
+
+        max_tokens 超限自愈（2026-09-20）：设置页「输出」最高可调 512K，但
+        各家端点上限不一（DeepSeek 384K、部分中转 64K）——被端点以
+        max_tokens 超限类错误拒绝时，自动**减半重试**（最低 1024），让大额度
+        配置在支持的端点全额下发、在不支持的端点降级可用而不是直接报错。
         """
         messages: list[dict] = []
         if system:
@@ -641,7 +886,40 @@ class AIClient:
             "max_tokens": int(max_tokens or self.max_tokens),
             "messages": messages,
         }
-        resp = self._post_openai(self.url, body)
+        if thinking is False:
+            body["thinking"] = {"type": "disabled"}
+            body["reasoning_effort"] = "none"
+        elif thinking is True or reasoning_effort:
+            effort = str(reasoning_effort or "").strip().lower()
+            if effort and effort != "none":
+                body["reasoning_effort"] = effort
+        try:
+            resp = self._post_openai(self.url, body)
+        except AIClientError as e:
+            low = str(e).lower()
+            if ("reasoning_effort" in body or "thinking" in body) \
+                    and any(k in low for k in
+                            ("reasoning_effort", "thinking", "unrecognized",
+                             "unknown", "not supported", "unsupported",
+                             "extra fields", "invalid parameter",
+                             "invalid argument", "字段", "参数")):
+                # 端点不支持思考控制参数：去掉后重试一次（保持旧行为可用）
+                logger.info("接口拒绝思考控制参数（%s），去掉后重试",
+                            str(e)[:120])
+                body.pop("thinking", None)
+                body.pop("reasoning_effort", None)
+                try:
+                    resp = self._post_openai(self.url, body)
+                except AIClientError as e2:
+                    if not _is_max_tokens_over(e2):
+                        raise
+                    body["max_tokens"], resp = self._shrink_max_tokens(
+                        body, str(e2))
+            else:
+                if not _is_max_tokens_over(e):
+                    raise
+                body["max_tokens"], resp = self._shrink_max_tokens(
+                    body, str(e))
         try:
             msg = resp["choices"][0]["message"]
             content = msg.get("content")
@@ -686,11 +964,14 @@ class AIClient:
     # ---- 对话 ------------------------------------------------------------
     def chat(self, content, *, system: str | None = None,
              max_tokens: int | None = None, model: str | None = None,
-             on_reasoning=None) -> str:
+             on_reasoning=None, thinking: bool | None = None,
+             reasoning_effort: str | None = None) -> str:
         """文本对话（OpenAI 兼容 /chat/completions）。返回模型回复文本。"""
         return self.chat_openai(content, system=system,
                                 max_tokens=max_tokens, model=model,
-                                on_reasoning=on_reasoning)
+                                on_reasoning=on_reasoning,
+                                thinking=thinking,
+                                reasoning_effort=reasoning_effort)
 
     def chat_text(self, prompt: str, **kw) -> str:
         return self.chat(prompt, **kw)
@@ -951,7 +1232,9 @@ def asr_test_connection(cfg: dict | None = None) -> tuple[bool, str]:
     # 协议下是合法路径（握手验证密钥），先守卫会把 dashscope_realtime 分支
     # 永远拦死——"接口协议已选实时仍报不可用"就是这么来的。
     proto = resolve_asr_protocol(ac)
-    guard = asr_base_guard(ac["base_url"])
+    guard = asr_model_hard_guard(ac["model"])
+    if not guard:
+        guard = asr_base_guard(ac["base_url"])
     if not guard and proto != "dashscope_realtime":
         guard = asr_realtime_guard(ac["model"])
     if guard:
@@ -979,6 +1262,30 @@ def asr_test_connection(cfg: dict | None = None) -> tuple[bool, str]:
         return True, ("百炼实时（WebSocket）：密钥无效会在握手时被拒"
                       "（HTTP 401/403），实际可用性以转录结果为准；模型 %s"
                       % (ac["model"] or "未填"))
+    elif proto == "dashscope_native":
+        # 百炼原生端点专用模型（Qwen-Audio-3.0-ASR-Flash 等）：**不能**用
+        # /models 核对模型（该实例列表不列 ASR 模型），也不该拿正弦波试（无
+        # 语音音频会被服务端 400 拒，误报「收不了音频」）——用官方示例音频
+        # 实打实跑一次识别。
+        verdict, note = _asr_native_probe(ac["base_url"], ac["api_key"],
+                                          ac["model"])
+        if verdict is True:
+            return True, ("百炼原生（multimodal-generation，%s）；模型 %s 实测"
+                          "识别通过：%s" % (_asr_native_url(ac["base_url"]),
+                                          ac["model"],
+                                          (note or "(无文本)")[:60]))
+        if verdict == "missing":
+            return False, ("模型「%s」在该实例/账号上不存在（%s）。请到百炼"
+                           "控制台确认实例是否部署了该录音文件识别模型，"
+                           "或改用公共百炼 dashscope.aliyuncs.com 的按量端点 + "
+                           "普通百炼 API Key。" % (ac["model"], note or "404"))
+        if verdict is False:
+            return False, ("接口连通（百炼原生端点），但模型「%s」探测识别被"
+                           "拒：%s。请确认密钥属于该实例、模型名与官方一致，"
+                           "且账号已开通该模型。" % (ac["model"], note))
+        return True, ("百炼原生端点已连通（%s）；模型 %s 的主动探测未完成"
+                      "（%s），实际可用性以转录结果为准"
+                      % (_asr_native_url(ac["base_url"]), ac["model"], note))
     elif proto == "volcengine":
         # 火山没有只读的探测端点：只校验密钥形态，真伪留给转录那一步
         key = str(ac["api_key"])
@@ -1029,6 +1336,20 @@ def asr_test_connection(cfg: dict | None = None) -> tuple[bool, str]:
     hit, names = asr_model_visible(raw, ac["model"])
     if hit is False and not _is_zhipu_asr_base(ac["base_url"]):
         sample = "、".join(sorted(names)[:8])
+        listing = "%s%s" % (sample, " 等 %d 个" % len(names)
+                            if len(names) > 8 else "")
+        if _is_maas_base(ac["base_url"]):
+            # v1.15.6 实测（token-plan 专属实例）：专属实例的 /models **不列
+            # ASR 模型**——名单里没有 ≠ 没部署，列表核对对这类端点不可信。
+            # 这里不再按列表下「不可用」的结论（曾误报「实例没有可用的录音
+            # 文件识别模型」）。模型确实不存在时，转录会给出服务端的明确报错
+            # （404 model not exist）；原生端点专用模型另有主动探测分支。
+            return True, ("接口连通（协议 %s）；模型 %s 不在该实例的 /models "
+                          "列表里（实例可见：%s）。注意：maas 专属实例的 "
+                          "/models 不列 ASR 模型（Qwen-Audio-3.0-ASR-Flash 这类"
+                          "实测也不在列表），列表核对不可信 —— 若控制台确认"
+                          "实例已部署该模型，直接保存并转录即可，以转录结果为"
+                          "准。" % (proto_note, ac["model"], listing))
         return False, ("接口连通，但该服务/实例上看不到模型「%s」（可见的模型："
                        "%s%s）。注意：maas 专属实例通常只部署创建时选定的模型，"
                        "实时（*realtime*）模型不能用于一次性上传，请改用 "

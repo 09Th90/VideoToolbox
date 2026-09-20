@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 1.15.4
+# @version 1.15.6
 """ASR 全协议适配自检（离线：全部 mock requests，不联网、不消耗额度）。
 
 覆盖：协议自动识别（两侧规则一致性）、实时模型守卫、六条协议的请求构造、
@@ -645,6 +645,16 @@ def main():
         obj.language = ""
         obj.prompt = ""
         obj.file_binary = WAV
+        # v1.15.5：实时对话/翻译模型不再进任何协议，_submit 直接拦下给改法
+        try:
+            obj._submit()
+            _lt_block = None
+        except RuntimeError as e:
+            _lt_block = str(e)
+        check("实时翻译模型在 _submit 被拦并给改法（不再等空体 400/500）",
+              bool(_lt_block) and "实时对话/翻译" in _lt_block, _lt_block or "")
+        # 换真实时转写模型，继续验证「非实时协议 → 自动改走 WebSocket」纠偏
+        obj.model = "qwen3-asr-flash-realtime"
         _ws_log = {}
         _install_fake_websocket([
             {"header": {"event": "task-started"}, "payload": {}},
@@ -666,7 +676,7 @@ def main():
               _ws_log.get("url"))
 
         # 百炼/兼容模式端点被判成 openai（旧配置/兜底）→ 改走 chat_audio
-        obj.model = "qwen-audio-3.0-asr-flash"
+        obj.model = "qwen3-asr-flash"
         obj.language = ""
         obj.prompt = ""
         CALLS.clear()
@@ -684,13 +694,32 @@ def main():
               (CALLS or [{}])[-1].get("url"))
         check("非 openai 协议不再注入中文提示词（专属实例混合输入会 400）",
               obj.prompt == "", obj.prompt)
+
+        # v1.15.6：原生端点专用模型被判成 openai/chat_audio → 改走原生端点
+        obj.model = "qwen-audio-3.0-asr-flash"
+        CALLS.clear()
+        ROUTES.clear()
+        ROUTES["multimodal-generation/generation"] = _Resp(
+            200, {"output": {"sentence": {"text": "原生端点你好。"}}})
+        orig_p = engine.asr_protocol_of
+        engine.asr_protocol_of = lambda *a, **k: "openai"
+        try:
+            _nres = obj._submit()
+        finally:
+            engine.asr_protocol_of = orig_p
+        check("百炼端点+openai 协议+原生 ASR 模型 → 自动改走原生端点",
+              CALLS and engine.ASR_NATIVE_PATH in CALLS[-1]["url"],
+              (CALLS or [{}])[-1].get("url"))
+        check("改走原生端点后能出文本（不再空体 400）",
+              (_nres or {}).get("text") == "原生端点你好。", _nres)
     except Exception as e:  # noqa: BLE001
         check("引擎可导入（跳过补丁断言）", False, e)
-    check("协议清单含 10 条实现 + auto（dashscope 为历史键、同实现）",
+    check("协议清单含 12 条实现 + auto（dashscope 为历史键、同实现）",
           set(engine.ASR_PROTOCOLS) == {"auto", "openai", "azure", "chat_audio",
                                         "dashscope", "deepgram", "elevenlabs",
                                         "gemini", "volcengine", "assemblyai",
-                                        "dashscope_realtime"},
+                                        "dashscope_realtime",
+                                        "dashscope_native"},
           engine.ASR_PROTOCOLS)
     check("每条协议都有说明文案",
           all(k in engine.ASR_PROTOCOL_NOTES
@@ -808,6 +837,46 @@ def main():
     check("正常地址不受地址守卫影响",
           engine.asr_base_guard(
               "https://dashscope.aliyuncs.com/compatible-mode/v1") == "")
+    say("")
+    say("== 13b) 套餐端点与实时对话模型守卫（v1.15.5）==")
+    _vg = engine.asr_base_guard("https://ark.cn-beijing.volces.com/api/coding")
+    check("火山 Anthropic-only 端点 /api/coding 被地址守卫点名并给出 v3 改法",
+          "v3" in _vg, _vg[:70])
+    check("火山 OpenAI 协议 /api/coding/v3 不受地址守卫影响",
+          engine.asr_base_guard(
+              "https://ark.cn-beijing.volces.com/api/coding/v3") == "")
+    check("实时翻译模型不论协议都被硬守卫拦下",
+          bool(engine.asr_model_hard_guard(
+              "qwen3.8-livetranslate-flash-realtime")))
+    check("实时转写模型不受硬守卫影响",
+          engine.asr_model_hard_guard("qwen3-asr-flash-realtime") == "")
+    check("TTS 模型被硬守卫点名「语音合成」",
+          "语音合成" in engine.asr_model_hard_guard("qwen-audio-3.0-tts-plus"))
+    check("ASR 族 qwen-audio-3.0-asr-flash 不被硬守卫误伤",
+          engine.asr_model_hard_guard("qwen-audio-3.0-asr-flash") == "")
+    check("套餐端点配套提示对 Token Plan 非空、对普通端点为空",
+          bool(engine._asr_plan_endpoint_hint(type(
+              "_o", (), {"base_url": "https://token-plan.cn-beijing.maas."
+                                     "aliyuncs.com/compatible-mode/v1"})()))
+          and engine._asr_plan_endpoint_hint(type(
+              "_o2", (), {"base_url": "https://api.siliconflow.cn/v1"})()) == "")
+    try:
+        aim.AIClient({"base_url": "https://ark.cn-beijing.volces.com/api/coding",
+                      "api_key": "k", "model": "m"})
+        _volc_block = False
+    except aim.AIClientError:
+        _volc_block = True
+    check("ai_client 对火山 Anthropic-only 端点同样拦截", _volc_block)
+    check("百炼 Token Plan 端点拼出 chat/completions",
+          aim._chat_url("https://token-plan.cn-beijing.maas.aliyuncs.com/"
+                        "compatible-mode/v1").endswith("/chat/completions"))
+    check("硬守卫接入连通性自检（测试连接直接给改法）",
+          aim.asr_test_connection({
+              "asr_mode": "service", "asr_protocol": "auto",
+              "asr_base_url": "https://ws-x.cn-beijing.maas.aliyuncs.com/"
+                              "compatible-mode/v1",
+              "asr_api_key": "k",
+              "asr_model": "qwen3.8-livetranslate-flash-realtime"})[0] is False)
     hit, names = aim.asr_model_visible(
         json.dumps({"data": [{"id": "mimo-v2.5-asr"},
                              {"id": "qwen3-asr-flash"}]}),
@@ -823,6 +892,188 @@ def main():
     check("带组织前缀的模型按末段匹配", hit3 is True)
     hit4, _ = aim.asr_model_visible("not-json", "x")
     check("列表解析不了时不判定（None，不误报）", hit4 is None)
+
+    say("")
+    say("== 13c) 百炼原生协议 + maas 列表核对不可信（v1.15.6）==")
+    _maas = "https://token-plan.cn-beijing.maas.aliyuncs.com/compatible-mode/v1"
+    _native_url = ("https://token-plan.cn-beijing.maas.aliyuncs.com"
+                   + engine.ASR_NATIVE_PATH)
+    check("_is_maas_base 认 token-plan/专属实例、放过公共百炼",
+          aim._is_maas_base(_maas)
+          and aim._is_maas_base("https://llm-x.cn-beijing.maas.aliyuncs.com")
+          and not aim._is_maas_base(
+              "https://dashscope.aliyuncs.com/compatible-mode/v1"))
+    check("原生端点专用 ASR 模型识别（两侧同规则，不误伤 tts/realtime/filetrans）",
+          engine.is_dashscope_native_asr("qwen-audio-3.0-asr-flash")
+          and aim.is_dashscope_native_asr("qwen-audio-3.0-asr-flash")
+          and not engine.is_dashscope_native_asr("qwen-audio-3.0-tts-plus")
+          and not engine.is_dashscope_native_asr(
+              "qwen-audio-3.0-asr-flash-filetrans")
+          and not engine.is_dashscope_native_asr("qwen3-asr-flash"))
+    check("auto 推断：百炼系 + qwen-audio-3.0-asr-flash → dashscope_native"
+          "（引擎/ai_client 一致）",
+          engine._infer_asr_protocol(_maas, "qwen-audio-3.0-asr-flash")
+          == "dashscope_native"
+          and aim.resolve_asr_protocol({"base_url": _maas,
+                                        "model": "qwen-audio-3.0-asr-flash",
+                                        "protocol": "auto"}) == "dashscope_native"
+          and engine._infer_asr_protocol(
+              "https://dashscope.aliyuncs.com/compatible-mode/v1",
+              "qwen-audio-3.0-asr-flash") == "dashscope_native", "")
+    check("显式 chat_audio + 原生模型 → 纠偏改走原生协议（否则恒 400 空体）",
+          engine.asr_protocol_fix("chat_audio", _maas,
+                                  "qwen-audio-3.0-asr-flash")[0]
+          == "dashscope_native")
+    check("原生端点 URL 推导：兼容模式/裸域名换路径、已填原生端点不重复",
+          engine._asr_native_url(_maas) == _native_url
+          and engine._asr_native_url("https://dashscope.aliyuncs.com")
+          == "https://dashscope.aliyuncs.com" + engine.ASR_NATIVE_PATH
+          and engine._asr_native_url(_native_url) == _native_url, "")
+
+    # ---- 原生端点请求构造 + 响应解析（响应没有 choices）----
+    CALLS.clear()
+    ROUTES.clear()
+    _native_payload = {
+        "sentence": {"sentence_id": 1, "begin_time": 600, "end_time": 1800,
+                     "text": "你好世界。",
+                     "words": [{"text": "你好", "punctuation": "，",
+                                "begin_time": 600, "end_time": 1000},
+                               {"text": "世界", "punctuation": "。",
+                                "begin_time": 1000, "end_time": 1800}]},
+        "text": "你好世界。",
+        "output": {"sentence": {"begin_time": 600, "end_time": 1800,
+                                "text": "你好世界。",
+                                "words": [{"text": "你好", "punctuation": "，",
+                                           "begin_time": 600, "end_time": 1000},
+                                          {"text": "世界", "punctuation": "。",
+                                           "begin_time": 1000,
+                                           "end_time": 1800}]}},
+    }
+    ROUTES["multimodal-generation/generation"] = _Resp(200, _native_payload)
+    _nat = engine._asr_dashscope_native_submit(
+        FakeASR(_maas, "qwen-audio-3.0-asr-flash"))
+    _ncall = CALLS[-1]
+    _nbody = _ncall["kw"].get("json") or {}
+    _ndata = _nbody["input"]["messages"][0]["content"][0]["input_audio"]["data"]
+    check("打到百炼原生端点（不是 chat/completions）",
+          _ncall["url"] == _native_url and engine.ASR_NATIVE_PATH in _ncall["url"],
+          _ncall["url"])
+    check("音频以 base64 Data URL 进 input.messages",
+          _ndata.startswith("data:audio/wav;base64,") and len(_ndata) > 40)
+    check("parameters 带 format / sample_rate（官方要求）",
+          _nbody["parameters"].get("format") == "wav"
+          and _nbody["parameters"].get("sample_rate") == "16000",
+          _nbody.get("parameters"))
+    _nsegs = (_nat or {}).get("segments") or []
+    check("响应无 choices 也拿到文本 + 词级时间轴（毫秒→秒）",
+          (_nat or {}).get("text") == "你好世界。"
+          and _nsegs and abs(_nsegs[0]["start"] - 0.6) < 1e-6
+          and abs(_nsegs[0]["end"] - 1.8) < 1e-6, _nsegs)
+    check("词级文本带标点（punctuation 独立字段已合并）",
+          "你好" in _nsegs[0]["text"] or "你好，" in _nsegs[0]["text"],
+          _nsegs[0]["text"] if _nsegs else "")
+
+    # ---- chat_audio 空体 → 原生端点兜底（Fun-ASR-Flash 等）----
+    check("_asr_empty_body_err 只认空体 400/500",
+          engine._asr_empty_body_err("HTTP 400: {}")
+          and engine._asr_empty_body_err(
+              "HTTP 400（端点返回空体/未知错误：…）: {}")
+          and not engine._asr_empty_body_err("HTTP 401: bad key"))
+    CALLS.clear()
+    ROUTES.clear()
+    ROUTES["multimodal-generation/generation"] = _Resp(
+        200, {"output": {"sentence": {"text": "兜底成功。"}}})
+    _fb = engine._asr_retry_native(FakeASR(_maas, "fun-asr-flash"),
+                                   "HTTP 400: {}")
+    check("chat_audio 空体失败 → 原生端点兜底并取到文本",
+          (_fb or {}).get("text") == "兜底成功。", _fb)
+    _fb_obj = FakeASR(_maas, "fun-asr-flash")
+    engine._asr_retry_native(_fb_obj, "HTTP 400: {}")
+    try:
+        engine._asr_retry_native(_fb_obj, "HTTP 400: {}")
+        _once = False
+    except RuntimeError as e:
+        _once = "HTTP 400" in str(e)
+    check("同一任务只兜一次（_vt_native_retried 生效，不再反复打）", _once)
+
+    # ---- 测试连接：原生协议走真实语音探测，不再按 /models 判死 ----
+    _asr_cfg = {"asr_mode": "service", "asr_protocol": "auto",
+                "asr_base_url": _maas, "asr_api_key": "k",
+                "asr_model": "qwen-audio-3.0-asr-flash"}
+    _orig_native_probe = aim._asr_native_probe
+    try:
+        aim._asr_native_probe = lambda *a, **k: (True, "hello world，这里是阿里巴巴语音实验室。")
+        _p1 = aim.asr_test_connection(dict(_asr_cfg))
+        check("原生协议实测识别通过 → 判正常并回显识别文本",
+              _p1[0] is True and "实测识别通过" in _p1[1], _p1[1][:90])
+        aim._asr_native_probe = lambda *a, **k: ("missing", "HTTP 404: Model not exist.")
+        _p2 = aim.asr_test_connection(dict(_asr_cfg))
+        check("原生探测 404 → 判不可用并引导控制台/公共百炼",
+              _p2[0] is False and "不存在" in _p2[1] and "控制台" in _p2[1],
+              _p2[1][:90])
+        aim._asr_native_probe = lambda *a, **k: (None, "网络错误")
+        _p3 = aim.asr_test_connection(dict(_asr_cfg))
+        check("原生探测网络失败 → 判连通但不夸大结论",
+              _p3[0] is True and "主动探测未完成" in _p3[1], _p3[1][:90])
+        aim._asr_native_probe = lambda *a, **k: (False, "HTTP 403: forbidden")
+        _p4 = aim.asr_test_connection(dict(_asr_cfg))
+        check("原生探测被拒（403）→ 判不可用并说明原因",
+              _p4[0] is False and "探测识别被拒" in _p4[1], _p4[1][:90])
+    finally:
+        aim._asr_native_probe = _orig_native_probe
+
+    class _FakeModelsResp:
+        """伪装 /models 响应（context manager 形态，与 urllib 一致）。"""
+        def __init__(self, body):
+            self._b = body
+        def read(self):
+            return self._b
+        def __enter__(self):
+            return self
+        def __exit__(self, *a):
+            return False
+
+    # /models 返回不含 ASR 模型的列表（复刻 token-plan 实测：只有非 ASR 模型）
+    _fake_models = json.dumps({"data": [
+        {"id": "deepseek-v4-pro"}, {"id": "glm-5.3"},
+        {"id": "qwen-audio-3.0-realtime-plus"},
+        {"id": "qwen-audio-3.0-tts-plus"}]}).encode()
+    _orig_urlopen = aim.urllib.request.urlopen
+    try:
+        aim.urllib.request.urlopen = (
+            lambda req, timeout=0: _FakeModelsResp(_fake_models))
+        _r5 = aim.asr_test_connection({
+            "asr_mode": "service", "asr_protocol": "auto",
+            "asr_base_url": _maas, "asr_api_key": "k",
+            "asr_model": "qwen3-asr-flash"})
+        check("maas + chat_audio 模型不在列表 → 不再误判「没有可用 ASR 模型」",
+              _r5[0] is True and "列表核对不可信" in _r5[1], _r5[1][:90])
+        _r6 = aim.asr_test_connection({
+            "asr_mode": "service", "asr_protocol": "auto",
+            "asr_base_url": "https://api.example.com/v1",
+            "asr_api_key": "k", "asr_model": "qwen3-asr-flash"})
+        check("非 dashscope 网关不在列表 → 维持原「看不到模型」判定",
+              _r6[0] is False and "看不到模型" in _r6[1], _r6[1][:90])
+    finally:
+        aim.urllib.request.urlopen = _orig_urlopen
+
+    # ---- 调用示例（设置页「查看示例」弹窗）也要跟着原生端点 ----
+    _ex = engine.asr_examples({"asr_mode": "service", "asr_protocol": "auto",
+                               "asr_base_url": _maas, "asr_api_key": "k",
+                               "asr_model": "qwen-audio-3.0-asr-flash"})
+    check("示例生成：原生模型 → 协议判为 dashscope_native，"
+          "curl 打 multimodal-generation 而非 chat/completions",
+          _ex["protocol"] == "dashscope_native"
+          and engine.ASR_NATIVE_PATH in _ex["curl"]
+          and "chat/completions" not in _ex["curl"], _ex["protocol"])
+    check("示例标题有中文名（不再露出原始协议串）",
+          "原生" in _ex["title"], _ex["title"])
+    _ex2 = engine.asr_examples({"asr_mode": "service", "asr_protocol": "auto",
+                                "asr_base_url": _maas, "asr_api_key": "k",
+                                "asr_model": "qwen3-asr-flash"})
+    check("qwen3-asr-flash 示例仍走 chat_audio（原生分支不误伤兼容模式模型）",
+          _ex2["protocol"] == "chat_audio"
+          and "/chat/completions" in _ex2["curl"], _ex2["protocol"])
 
     say("")
     say("== 14) 百炼实时（WebSocket）协议 ==")

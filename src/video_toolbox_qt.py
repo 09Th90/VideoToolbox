@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# @version 1.15.4
+# @version 1.15.6
 """视频工具箱 GUI v1.11.0 —— Fluent 矢量界面
 ====================================================================
 界面形态（v1.10.0 起，原 tkinter 界面退役）：
@@ -109,7 +109,7 @@ from subtitle_overlay import SubtitleStage
 # 内嵌字幕对话框（原引擎工作台「字幕视频合成」那一段，v1.13.x 挪到这里）
 from subtitle_compose import ComposeDialog
 
-VERSION = "1.15.4"
+VERSION = "1.15.6"
 
 # 全格式媒体/字幕/文档扩展名（v1.13.0）：
 #   视频：常见容器 + av1 / h264 / h265 / x264 等裸流与更多封装；
@@ -2182,10 +2182,12 @@ class SettingsPage(QWidget):
                         "Chat 音频转写（百炼 / MiMo）", "Deepgram",
                         "ElevenLabs Scribe", "Google Gemini",
                         "火山引擎（豆包）", "AssemblyAI",
-                        "百炼实时（WebSocket）")
+                        "百炼实时（WebSocket）",
+                        "百炼原生（ASR 专用端点）")
     ASR_PROTO_KEYS = ("auto", "openai", "azure", "chat_audio",
                       "deepgram", "elevenlabs", "gemini",
-                      "volcengine", "assemblyai", "dashscope_realtime")
+                      "volcengine", "assemblyai", "dashscope_realtime",
+                      "dashscope_native")
 
     def _build_ai_card(self):
         box, blay = card(
@@ -2207,7 +2209,7 @@ class SettingsPage(QWidget):
         self.ai_base.setText(str(ai.get("base_url", "")))
         self.ai_base.setPlaceholderText(
             "如 https://open.bigmodel.cn/api/paas/v4（兼容 OpenAI/DeepSeek/"
-            "Gemini 兼容层/Ollama/Azure 等，填到域名或版本段均可）")
+            "Gemini 兼容层/Ollama/Azure 等，填到域名或版本段均可；订阅套餐填专属端点）")
         blay.addWidget(srow("接口地址", self.ai_base))
 
         self.ai_model = LineEdit(box)
@@ -2232,7 +2234,9 @@ class SettingsPage(QWidget):
         blay.addWidget(row(test_btn, save_btn, self.ai_dirty_lbl))
 
         self.ai_hint = fit_caption(CaptionLabel(
-            "保存后立即生效；地址填到域名或版本段均可自动补全（含 Azure）",
+            "保存后立即生效；地址填到域名或版本段均可自动补全（含 Azure）。"
+            "订阅套餐须填专属端点：百炼 Token Plan token-plan.…/compatible-mode/v1、"
+            "火山 Coding Plan …/api/coding/v3、智谱 Coding Plan …/api/coding/paas/v4",
             box))
         self.ai_hint.setTextColor("#8a8a8a", "#9a9a9a")
         blay.addWidget(self.ai_hint)
@@ -2376,6 +2380,10 @@ class SettingsPage(QWidget):
     # ------------------------------------------------------------------ #
     # AI 校准：Agent 级字幕校准的分块参数（走全局 AI 单通道）
     # ------------------------------------------------------------------ #
+    #: 思考强度（v1.15.7，参考模型厂商「高级配置」）：界面档位 → API 值
+    CALIB_EFFORT_KEYS = ("low", "medium", "high", "xhigh", "max")
+    CALIB_EFFORT_LABELS = ("低", "中", "高", "极高", "极致")
+
     def _build_calib_ai_card(self):
         box, blay = card(
             "AI 校准（Agent 级）",
@@ -2387,15 +2395,72 @@ class SettingsPage(QWidget):
             s = SpinBox(box)
             s.setRange(lo, hi)
             s.setSingleStep(step)
-            s.setValue(int(value or lo))
+            # 落盘值可能超出档位范围（如老配置的 60000）：夹到合法区间内显示，
+            # 但**不反向改写配置**——只有用户真去动它才会变。
+            try:
+                v = int(value or lo)
+            except (TypeError, ValueError):
+                v = lo
+            s.setValue(min(max(v, lo), hi))
             return s
 
-        self.calib_cues = _spin(ai.get("calib_chunk_cues") or 120, 20, 1000, 10)
+        self.calib_cues = _spin(ai.get("calib_chunk_cues") or 400, 20, 1000, 10)
         blay.addWidget(label_row("每块最多条数", row(self.calib_cues, None)))
-        self.calib_chars = _spin(ai.get("calib_max_chars") or 6000, 1000, 40000, 500)
+        # ⚠️ 上限必须 ≥ 引擎默认 60000：旧版上限 40000 会把默认值静默夹小
+        self.calib_chars = _spin(ai.get("calib_max_chars") or 60000,
+                                 1000, 200000, 500)
         blay.addWidget(label_row("每块字符预算", row(self.calib_chars, None)))
-        self.calib_tokens = _spin(ai.get("calib_max_tokens") or 8192, 1024, 65536, 512)
-        blay.addWidget(label_row("单次最大输出 token", row(self.calib_tokens, None)))
+
+        # —— 思考模式 / 思考强度（2026-09-20）：随请求体 thinking + reasoning_effort 下发 ——
+        self.calib_thinking_switch = SwitchButton(box)
+        self.calib_thinking_switch.setChecked(
+            bool(ai.get("calib_thinking", True)))
+        self.calib_thinking_switch.checkedChanged.connect(
+            self._sync_calib_thinking_visible)
+        blay.addWidget(label_row("思考模式", self.calib_thinking_switch))
+
+        self.calib_effort_combo = ComboBox(box)
+        self.calib_effort_combo.addItems(list(self.CALIB_EFFORT_LABELS))
+        _eff = str(ai.get("calib_reasoning_effort") or "high").strip().lower()
+        self.calib_effort_combo.setCurrentIndex(
+            self.CALIB_EFFORT_KEYS.index(_eff) if _eff in self.CALIB_EFFORT_KEYS
+            else 2)
+        self.calib_effort_combo.setToolTip(
+            "下发到请求体 reasoning_effort：\n"
+            "· DeepSeek 认 none/low/high/max，中/极高会被服务端归到 high；\n"
+            "· 端点不认识该参数时程序自动去掉重试，不会因此报错。")
+        blay.addWidget(label_row("思考强度", self.calib_effort_combo))
+
+        # —— 输入 / 输出预算（参考图二的「输入 / 输出」双列 + 快捷档位）——
+        self.calib_context = _spin(ai.get("calib_context_tokens") or 1000000,
+                                   32768, 1048576, 32768)
+        # 上限 512K（2026-09-20）：DeepSeek 官方 384K，超出的额度由请求侧
+        # 「减半自愈」在支持的大额度端点全额下发、小端点自动降级，不会报错。
+        self.calib_tokens = _spin(ai.get("calib_max_tokens") or 65536,
+                                  1024, 524288, 1024)
+        for w in (self.calib_context, self.calib_tokens):
+            expand_h(w, minimum=120)
+        in_col, out_col = QWidget(box), QWidget(box)
+        for holder, lbl, spin, presets in (
+                (in_col, "输入（上下文预算）", self.calib_context,
+                 ((32768, "32K"), (65536, "64K"), (131072, "128K"),
+                  (262144, "256K"), (1048576, "1M"))),
+                (out_col, "输出（单次上限）", self.calib_tokens,
+                 ((8192, "8K"), (32768, "32K"), (65536, "64K"),
+                  (131072, "128K"), (524288, "512K")))):
+            cl = QVBoxLayout(holder)
+            cl.setContentsMargins(0, 0, 0, 0)
+            cl.setSpacing(4)
+            cl.addWidget(BodyLabel(lbl, holder))
+            cl.addWidget(spin)
+            chips = []
+            for val, text in presets:
+                b = PushButton(text, holder)
+                b.setFixedHeight(26)
+                b.clicked.connect(lambda _c=False, s=spin, v=val: s.setValue(v))
+                chips.append(b)
+            cl.addWidget(row(*chips, spacing=4))
+        blay.addWidget(row(in_col, out_col, spacing=16))
 
         # 校准风格（2026-09-14）：术语级＝只替换名词；整句重写＝理顺机翻腔与断句
         self.calib_style_combo = ComboBox(box)
@@ -2410,11 +2475,18 @@ class SettingsPage(QWidget):
         blay.addWidget(row(calib_save, None))
 
         self.calib_hint = fit_caption(CaptionLabel(
-            "块越小越稳（读不完自动折半重试）；双语片源带英文参考行、按句子边界"
-            "切块；无法用术语知识库解释的改动会被拒绝并写入报告", box))
+            "块越小越稳（读不完自动折半重试）；思考关闭更省更快，长片整句重写建议"
+            "开「高/极致」；无法用术语知识库解释的改动会被拒绝并写入报告", box))
         self.calib_hint.setTextColor("#8a8a8a", "#9a9a9a")
         blay.addWidget(self.calib_hint)
         self.vbox.addWidget(box)
+        self._sync_calib_thinking_visible()
+
+    def _sync_calib_thinking_visible(self, *_a):
+        """思考模式关闭时隐藏「思考强度」行（强度参数无意义）。"""
+        w = getattr(self, "calib_effort_combo", None)
+        if w is not None:
+            w.setEnabled(self.calib_thinking_switch.isChecked())
 
     def _collect_ai(self):
         return {
@@ -2440,9 +2512,16 @@ class SettingsPage(QWidget):
             "calib_chunk_cues": self.calib_cues.value(),
             "calib_max_chars": self.calib_chars.value(),
             "calib_max_tokens": self.calib_tokens.value(),
+            # 输入（上下文预算）——2026-09-20 起在设置页可调（此前只能手改文件）
+            "calib_context_tokens": self.calib_context.value(),
             # 校准风格（2026-09-14）：term=只替换名词；rewrite=整句重写
             "calib_style": ("rewrite"
                             if self.calib_style_combo.currentIndex() == 1 else "term"),
+            # 思考控制（v1.15.7）：随校准请求体 thinking / reasoning_effort 下发
+            "calib_thinking": self.calib_thinking_switch.isChecked(),
+            "calib_reasoning_effort": self.CALIB_EFFORT_KEYS[
+                min(max(self.calib_effort_combo.currentIndex(), 0),
+                    len(self.CALIB_EFFORT_KEYS) - 1)],
         }
 
     def _mark_ai_dirty(self, *_a):
@@ -2636,10 +2715,20 @@ class SettingsPage(QWidget):
                              "deeplxEndpointCard"]
                     dst_lay = dst_g.cardLayout
                     dst_ws = getattr(dst_lay, "_ExpandLayout__widgets", None)
+                    # 卡片换组必须同时从「原组」的 ExpandLayout 摘除：
+                    # setParent 不会把控件从旧布局的 __widgets 里移走，旧组
+                    # 一旦再跑 setGeometry/eventFilter，就会用旧组的坐标系
+                    # 给已搬走的卡片摆位置——卡片浮到页面左上角、盖住分组
+                    # 标题（v1.15.x「字幕翻译」组重叠 bug 的根因）。
+                    src_lay = src_g.cardLayout
+                    src_ws = getattr(src_lay, "_ExpandLayout__widgets", None)
                     for _idx, _name in enumerate(order):
                         _card = getattr(setting, _name, None)
                         if _card is None:
                             continue
+                        if src_ws is not None and _card in src_ws:
+                            src_ws.remove(_card)
+                            _card.removeEventFilter(src_lay)
                         _card.setParent(dst_g)
                         if dst_ws is None:        # 兜底：退化为追加
                             dst_g.addSettingCard(_card)
