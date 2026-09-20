@@ -201,32 +201,49 @@ def sha1(path):
 
 
 def git_blob_hashes(rels):
-    """批量算 **git blob SHA-1**（经 filters 归一化），与 GitHub tree API 的 sha 同口径。
+    """取 **index（暂存区）里的 git blob SHA-1**，与 GitHub tree API 的 sha 同口径。
 
-    普通文件 SHA-1 与 git blob SHA-1 **不相等**（后者对 `blob <len>\\0<内容>` 计算，
-    且 `core.autocrlf=true` 下会把 CRLF 归一化为 LF）。清单要能直接和 GitHub 上
-    同名文件的 sha 对上，就必须用这个口径——否则逐条比对会全部对不上。
+    普通文件 SHA-1 与 git blob SHA-1 **不相等**（后者对 `blob <len>\\0<内容>` 计算）。
+
+    ⚠️ 也不要退回 `git hash-object`（2026-09-20 实测的假阴性根因）：它在
+    `core.autocrlf=true` 下把 CRLF 一律归一成 LF 再算，而仓库里存在**按 CRLF
+    原样存储**的文件（如被「整文件覆盖」同步机制写回仓库的
+    `subtitle_calib_merged.py`）——归一化后的 SHA 与 tree / 远端 sha 并不相等，
+    逐条比对会误报「清单不符」。index SHA 就是 Git 实际存储的 blob sha，
+    与远端 tree 完全同口径。
+
+    约定：清单应在**工作区 == index == HEAD**（即改动已提交）时生成；
+    否则打印警告，说明清单记录的是暂存/提交版本而非工作区版本。
     """
     import subprocess
     out = {}
-    CH = 200
-    for i in range(0, len(rels), CH):
-        batch = rels[i:i + CH]
-        inp = "\n".join(os.path.join(ROOT, *r.split("/")) for r in batch) + "\n"
-        try:
-            r = subprocess.run(["git", "-c", "core.quotepath=false",
-                                "hash-object", "--stdin-paths"],
-                               cwd=ROOT, input=inp.encode("utf-8"),
-                               capture_output=True)
-            hashes = r.stdout.decode("utf-8", "replace").split()
-            if len(hashes) != len(batch):
-                raise RuntimeError("数量不符 %d != %d" % (len(hashes), len(batch)))
-            out.update(zip(batch, hashes))
-        except Exception as e:  # noqa: BLE001 —— 无 git 环境时退回普通 SHA-1
-            print("   [warn] git hash-object 不可用（%s），退回普通 SHA-1" % e)
-            for rel in batch:
-                out[rel] = sha1(os.path.join(ROOT, *rel.split("/")))
-    return out
+    r = subprocess.run(["git", "-c", "core.quotepath=false", "ls-files", "-s"],
+                       cwd=ROOT, capture_output=True)
+    for line in r.stdout.decode("utf-8", "replace").splitlines():
+        if "\t" not in line:
+            continue
+        meta, path = line.split("\t", 1)
+        parts = meta.split()
+        if len(parts) >= 2:
+            out[path] = parts[1]
+
+    dirty = set()
+    for args in (["diff", "--name-only"], ["diff", "--cached", "--name-only"]):
+        rr = subprocess.run(["git", "-c", "core.quotepath=false"] + args,
+                            cwd=ROOT, capture_output=True)
+        dirty.update(x for x in rr.stdout.decode("utf-8", "replace").splitlines()
+                     if x.strip())
+    bad = sorted(rel for rel in rels if rel in dirty)
+    if bad:
+        print("   [warn] %d 个文件尚未提交，清单记录的是暂存/提交版本（建议先 commit）："
+              % len(bad))
+        for rel in bad[:8]:
+            print("          · %s" % rel)
+    missing = [rel for rel in rels if rel not in out]
+    if missing:
+        print("   [warn] %d 个文件不在 index（未跟踪）：%s"
+              % (len(missing), ", ".join(missing[:5])))
+    return {rel: out[rel] for rel in rels if rel in out}
 
 
 def build_manifest(version, stamp_results):
