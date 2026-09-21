@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 1.15.6
+# @version 1.15.7
 """ASR 全协议适配自检（离线：全部 mock requests，不联网、不消耗额度）。
 
 覆盖：协议自动识别（两侧规则一致性）、实时模型守卫、六条协议的请求构造、
@@ -1038,9 +1038,11 @@ def main():
         {"id": "deepseek-v4-pro"}, {"id": "glm-5.3"},
         {"id": "qwen-audio-3.0-realtime-plus"},
         {"id": "qwen-audio-3.0-tts-plus"}]}).encode()
-    _orig_urlopen = aim.urllib.request.urlopen
+    # ⚠️ mock 点必须是 ai_client 自己的 urlopen_endpoint：国内端点会走
+    # build_opener(空 ProxyHandler) 强制直连，不再经过 urllib.request.urlopen。
+    _orig_urlopen = aim.urlopen_endpoint
     try:
-        aim.urllib.request.urlopen = (
+        aim.urlopen_endpoint = (
             lambda req, timeout=0: _FakeModelsResp(_fake_models))
         _r5 = aim.asr_test_connection({
             "asr_mode": "service", "asr_protocol": "auto",
@@ -1055,7 +1057,39 @@ def main():
         check("非 dashscope 网关不在列表 → 维持原「看不到模型」判定",
               _r6[0] is False and "看不到模型" in _r6[1], _r6[1][:90])
     finally:
-        aim.urllib.request.urlopen = _orig_urlopen
+        aim.urlopen_endpoint = _orig_urlopen
+
+    # ---- 系统代理劫持回归（v1.15.6）------------------------------------
+    # 实测：requests/urllib 默认 trust_env，Windows 下读注册表 Internet
+    # Settings，把 FlClash 的 127.0.0.1:7890 套给国内百炼端点；该订阅规则
+    # 兜底 MATCH,SELECT ⇒ 走海外节点 ⇒ ProxyError/RemoteDisconnected。
+    say("")
+    say("== 13d) 系统代理劫持：国内端点强制直连 ==")
+    _dom = ("https://token-plan.cn-beijing.maas.aliyuncs.com/x",
+            "https://dashscope.aliyuncs.com/compatible-mode/v1",
+            "https://openspeech.bytedance.com/api/v3/auc",
+            "https://open.bigmodel.cn/api/paas/v4")
+    _abroad = ("https://api.openai.com/v1/audio/transcriptions",
+               "https://api.deepgram.com/v1/listen",
+               "https://api.elevenlabs.io/v1/speech-to-text")
+    check("引擎：国内端点（百炼/火山/智谱）一律显式直连",
+          all(engine.http_proxies_for(u) == {"http": None, "https": None,
+                                              "all": None}
+              for u in _dom),
+          str([engine.http_proxies_for(u) for u in _dom]))
+    check("直连取值含 all 键（只写 http/https 挡不住 ALL_PROXY）",
+          all("all" in (engine.http_proxies_for(u) or {}) for u in _dom), "")
+    check("ai_client：同一批国内端点判为直连",
+          all(aim.is_domestic_ai_endpoint(u) for u in _dom), "")
+    check("引擎：国外端点仍跟随系统代理（它们反而需要代理）",
+          all(engine.http_proxies_for(u) is None for u in _abroad),
+          str([engine.http_proxies_for(u) for u in _abroad]))
+    check("ai_client：国外端点不被误判为国内",
+          not any(aim.is_domestic_ai_endpoint(u) for u in _abroad), "")
+    check("两侧国内端点后缀清单逐项相同（引擎 vs ai_client）",
+          tuple(engine.DOMESTIC_AI_ENDPOINT_SUFFIXES)
+          == tuple(aim.DOMESTIC_AI_ENDPOINT_SUFFIXES),
+          str(aim.DOMESTIC_AI_ENDPOINT_SUFFIXES))
 
     # ---- 调用示例（设置页「查看示例」弹窗）也要跟着原生端点 ----
     _ex = engine.asr_examples({"asr_mode": "service", "asr_protocol": "auto",

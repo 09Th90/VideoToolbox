@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# @version 1.15.6
+# @version 1.15.7
 """端到端自检：模拟一次完整下载，验证任务文件夹的最终产出结构。
 
 直接调用 GUI 的 DownloadPage._pack_task（负责信息导出 + 封面转换的串联逻辑），

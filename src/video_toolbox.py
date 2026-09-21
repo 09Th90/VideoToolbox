@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# @version 1.15.6
+# @version 1.15.7
 """
 视频工具箱 v1.12.0（单文件整合版）
 ==================================================
@@ -1157,6 +1157,14 @@ def vc_transcribe_ui_patch():
         return None
 
     def _on_transcript_finished(self, task):
+        # ⚠️⚠️ 入口先复位「处理中」标记（v1.15.7 修复）。
+        # 引擎原生 _on_transcript_finished 的第一件事就是 is_processing=False，
+        # 而下面的成功分支会 return、不再回调 orig_finished ⇒ 该标记永久停在
+        # True：字幕明明已落盘、卡片按钮已是「转录完成」，但拖拽换视频被拦
+        # 「正在处理中，请等待当前任务完成」，start_button 也被禁用（update_info
+        # 见 is_processing=True 就 setEnabled(False)）⇒ 既中止不了也换不了视频。
+        # 此处无条件复位（orig_finished 里那次复位是幂等的，重复无害）。
+        self.is_processing = False
         try:
             if task is not None and not getattr(task, "need_next_task", False):
                 out = _produced_subtitle(getattr(task, "output_path", None))
@@ -1188,6 +1196,49 @@ def vc_transcribe_ui_patch():
         orig_finished(self, task)
 
     ti.TranscriptionInterface._on_transcript_finished = _on_transcript_finished
+
+    # ③-B 陈旧「处理中」自愈（v1.15.7 兜底）——根因已在 ③ 修掉，这里防历史
+    #      残留与其它路径把标记卡死（例如线程异常退出、任务创建页派发后中断）。
+    #      判据：标记为 True 但转录线程不存在 / 已不在运行 ⇒ 判为陈旧，清标记
+    #      并复位卡片按钮，然后照常放行拖拽与「打开文件」。
+    def _vt_heal_stale(self):
+        """陈旧「处理中」自愈；返回是否真的发生了自愈。"""
+        if not getattr(self, "is_processing", False):
+            return False
+        card = getattr(self, "video_info_card", None)
+        th = (getattr(card, "transcript_thread", None)
+              if card is not None else None)
+        if th is not None:
+            try:
+                if th.isRunning():
+                    return False        # 真在跑：保持拦截，不误放行
+            except Exception:  # noqa: BLE001
+                return False
+        self.is_processing = False
+        try:
+            if card is not None:
+                card.reset_ui()         # 文案→「开始转录」并解除禁用
+        except Exception:  # noqa: BLE001
+            pass
+        _vc_log("转录页陈旧「处理中」状态已自愈（无运行中的转录线程）")
+        return True
+
+    ti.TranscriptionInterface._vt_heal_stale = _vt_heal_stale
+
+    def _heal_guard(orig):
+        """在两个用户入口前先跑一次自愈，其后完全保持原行为。"""
+        def _wrapped(self, *args, **kwargs):
+            try:
+                self._vt_heal_stale()
+            except Exception:  # noqa: BLE001
+                pass
+            return orig(self, *args, **kwargs)
+        return _wrapped
+
+    ti.TranscriptionInterface.dropEvent = _heal_guard(
+        ti.TranscriptionInterface.dropEvent)
+    ti.TranscriptionInterface._on_file_select = _heal_guard(
+        ti.TranscriptionInterface._on_file_select)
 
     # ④ 转录设置卡片空位提示（默认/ASR 都不再展示引擎内置 ASR 配置块）
     orig_card_init = tsc.TranscriptionSettingCard.__init__
@@ -2156,7 +2207,7 @@ def _asr_azure_submit(asr_obj):
         base, headers={"api-key": asr_obj.api_key}, data=form,
         files={"file": (f"audio.{fmt}", asr_obj.file_binary or b"",
                         f"audio/{fmt}")},
-        timeout=300)
+        proxies=http_proxies_for(base), timeout=300)
     if r.status_code != 200:
         raise RuntimeError(f"Azure ASR HTTP {r.status_code}: {r.text[:200]}")
     try:
@@ -2321,7 +2372,7 @@ def _asr_chat_audio_submit(asr_obj, depth=0):
         base, json=body,
         headers={"Authorization": "Bearer " + asr_obj.api_key,
                  "Content-Type": "application/json"},
-        timeout=600)
+        proxies=http_proxies_for(base), timeout=600)
     if r.status_code != 200:
         low = (r.text or "").lower()
         if ("too long" in low or "duration" in low) \
@@ -2426,7 +2477,7 @@ def _asr_dashscope_native_submit(asr_obj, depth=0):
     r = requests.post(url, json=body,
                       headers={"Authorization": "Bearer " + asr_obj.api_key,
                                "Content-Type": "application/json"},
-                      timeout=600)
+                      proxies=http_proxies_for(url), timeout=600)
     if r.status_code != 200:
         low = (r.text or "").lower()
         if ("too long" in low or "duration" in low) \
@@ -2482,6 +2533,58 @@ def _asr_is_dashscope_base(base_url):
     return "dashscope" in b or "aliyuncs.com" in b
 
 
+#: 只可能在境内可达的国内 AI/ASR 端点后缀（v1.15.6 代理劫持修复用）。
+DOMESTIC_AI_ENDPOINT_SUFFIXES = (
+    "aliyuncs.com",         # 百炼：dashscope / *.maas.aliyuncs.com 专属实例
+    "aliyun.com",
+    "volces.com",           # 火山方舟
+    "volcengine.com",
+    "volcengineapi.com",
+    "bytedance.com",        # openspeech.bytedance.com
+    "bigmodel.cn",          # 智谱
+    "xfyun.cn",             # 讯飞
+    "baidubce.com",
+    "tencentcloudapi.com",
+)
+
+
+def is_domestic_ai_endpoint(url):
+    """端点是否属于「只在境内可达」的国内 AI/ASR 服务。"""
+    try:
+        from urllib.parse import urlsplit
+        host = (urlsplit(str(url or "")).hostname or "").lower()
+    except Exception:  # noqa: BLE001
+        return False
+    return any(host == s or host.endswith("." + s)
+               for s in DOMESTIC_AI_ENDPOINT_SUFFIXES)
+
+
+def http_proxies_for(url):
+    """requests 的 ``proxies`` 取值：国内端点强制直连，其余返回 None（跟随系统）。
+
+    requests 默认 ``trust_env=True``，在 Windows 下会**读注册表**
+    ``HKCU\\...\\Internet Settings``，于是 Clash / FlClash 一类客户端的系统
+    代理被套给**所有**请求。实测 ``token-plan.cn-beijing.maas.aliyuncs.com``
+    被送进 FlClash 的 ``127.0.0.1:7890``；该订阅规则兜底是 ``MATCH,SELECT``，
+    域名后缀不是 ``.cn`` 又没命中 GEOIP 直连 ⇒ 走海外节点，而该端点是阿里云
+    北京 NLB 专有入口，海外节点转发失败即被对端断连，抛 ``ProxyError:
+    ... RemoteDisconnected('Remote end closed connection without response')``；
+    同一份音频直连则完全正常（返 401 而非 ProxyError）。
+
+    故：国内端点显式直连，国外端点保持跟随系统代理（它们反而需要代理才能
+    访问）。
+
+    ⚠️ ``all`` 键**必须一起覆盖**（requests 2.34.2 实测）：环境里存在
+    ``ALL_PROXY`` 时 ``getproxies()`` 会给出 ``all`` 键，只写 http/https 的
+    话 ``merge_environment_settings`` 里的 ``setdefault('all', …)`` 仍会把
+    代理塞回来（merged 变成 ``{'all': …}``），照旧走代理；写成三项全 None
+    后 merged 才是空 dict，请求真正直连。
+    """
+    if is_domestic_ai_endpoint(url):
+        return {"http": None, "https": None, "all": None}
+    return None
+
+
 def _asr_empty_body_err(exc):
     """异常是否属「HTTP 400/500 空体」——原生专用模型被兼容模式打回的形态。
 
@@ -2530,7 +2633,7 @@ def _asr_deepgram_submit(asr_obj):
         url, params=params, data=asr_obj.file_binary or b"",
         headers={"Authorization": "Token " + asr_obj.api_key,
                  "Content-Type": "audio/%s" % fmt},
-        timeout=600)
+        proxies=http_proxies_for(url), timeout=600)
     if r.status_code != 200:
         raise RuntimeError("ASR 服务 " + _asr_err_hint(r))
     try:
@@ -2563,7 +2666,7 @@ def _asr_elevenlabs_submit(asr_obj):
         files={"file": ("audio.%s" % fmt, asr_obj.file_binary or b"",
                         "audio/%s" % fmt)},
         headers={"xi-api-key": asr_obj.api_key},
-        timeout=600)
+        proxies=http_proxies_for(url), timeout=600)
     if r.status_code != 200:
         raise RuntimeError("ASR 服务 " + _asr_err_hint(r))
     try:
@@ -2602,7 +2705,7 @@ def _asr_gemini_submit(asr_obj):
     r = requests.post(url, json=body,
                       headers={"x-goog-api-key": asr_obj.api_key,
                                "Content-Type": "application/json"},
-                      timeout=600)
+                      proxies=http_proxies_for(url), timeout=600)
     if r.status_code != 200:
         raise RuntimeError("ASR 服务 " + _asr_err_hint(r))
     try:
@@ -2659,7 +2762,8 @@ def _asr_volcengine_submit(asr_obj):
     if lang and lang not in ("auto", "zh"):
         body["request"]["language"] = lang
     r = requests.post(url, data=json.dumps(body, ensure_ascii=False),
-                      headers=headers, timeout=600)
+                      headers=headers, proxies=http_proxies_for(url),
+                      timeout=600)
     code = r.headers.get("X-Api-Status-Code", "")
     if r.status_code != 200 or (code and code != "20000000"):
         raise RuntimeError("ASR 服务 " + _asr_err_hint(r)
@@ -2705,7 +2809,8 @@ def _asr_assemblyai_submit(asr_obj):
     headers = {"authorization": str(asr_obj.api_key or "").strip()}
     # 1) 上传：必须是 raw bytes（不发 multipart，否则下游 Transcoding failed）
     up = requests.post(base + "/v2/upload", data=asr_obj.file_binary or b"",
-                       headers=headers, timeout=600)
+                       headers=headers, proxies=http_proxies_for(base),
+                       timeout=600)
     if up.status_code != 200:
         raise RuntimeError("ASR 服务 上传失败 " + _asr_err_hint(up))
     try:
@@ -2724,7 +2829,7 @@ def _asr_assemblyai_submit(asr_obj):
     if getattr(asr_obj, "prompt", ""):
         payload["prompt"] = asr_obj.prompt
     sub = requests.post(base + "/v2/transcript", json=payload, headers=headers,
-                        timeout=120)
+                        proxies=http_proxies_for(base), timeout=120)
     if sub.status_code != 200:
         raise RuntimeError("ASR 服务 " + _asr_err_hint(sub))
     try:
@@ -2737,7 +2842,8 @@ def _asr_assemblyai_submit(asr_obj):
     url = base + "/v2/transcript/" + str(tid)
     for _ in range(400):
         time.sleep(3)
-        got = requests.get(url, headers=headers, timeout=60)
+        got = requests.get(url, headers=headers,
+                           proxies=http_proxies_for(url), timeout=60)
         if got.status_code != 200:
             raise RuntimeError("ASR 服务 查询失败 " + _asr_err_hint(got))
         data = got.json() or {}

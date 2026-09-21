@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# @version 1.15.6
+# @version 1.15.7
 """界面自检（v1.10.4 Fluent 界面）：验证窗口与各页面可构建、导航宽度自适应、
 设置页统一入口、字幕处理环境就绪。
 
@@ -928,6 +928,40 @@ def main():
         except Exception as e:  # noqa: BLE001
             _tr_why = f"exc={e}"
     check("独立转录完成：字幕自动装载并跳转「字幕翻译」", _tr_ok, _tr_why)
+    # ---- v1.15.7：回填成功分支提前 return 曾漏掉 is_processing 复位，
+    #      表现是「字幕已输出却提示正在处理中、拖不进新视频」（回归）----
+    _tr2_ok, _tr2_why = False, "no engine"
+    if sub._engine is not None:
+        try:
+            _ti = sub._engine.transcription_interface
+            _tr2_ok = _ti.is_processing is False
+            _tr2_why = f"is_processing={_ti.is_processing}"
+        except Exception as e:  # noqa: BLE001
+            _tr2_why = f"exc={e}"
+    check("独立转录完成：处理中标记已复位（不再卡「正在处理中」）",
+          _tr2_ok, _tr2_why)
+    # ---- v1.15.7：陈旧「处理中」自愈（无运行线程 ⇒ 清标记 + 复位按钮）----
+    _tr3_ok, _tr3_why = False, "no engine"
+    if sub._engine is not None:
+        try:
+            from PyQt5.QtWidgets import QApplication as _QApp
+            _ti = sub._engine.transcription_interface
+            _card = getattr(_ti, "video_info_card", None)
+            if _card is not None and hasattr(_card, "transcript_thread"):
+                del _card.transcript_thread    # 模拟线程已结束/未创建
+            _ti.is_processing = True           # 人为制造陈旧标记
+            _healed = _ti._vt_heal_stale()
+            _txt = _card.start_button.text() if _card is not None else ""
+            _tr3_ok = (_healed is True and _ti.is_processing is False
+                       and "开始" in _txt
+                       and _card.start_button.isEnabled())
+            _tr3_why = (f"healed={_healed} flag={_ti.is_processing} "
+                        f"text={_txt} enabled="
+                        f"{_card.start_button.isEnabled() if _card else None}")
+            _QApp.processEvents()
+        except Exception as e:  # noqa: BLE001
+            _tr3_why = f"exc={e}"
+    check("陈旧「处理中」自愈：清标记并复位开始按钮", _tr3_ok, _tr3_why)
     # ---- v1.14.1 安全整改：「网络代理」卡片已移除（节点凭据严禁随包分发）----
     check("设置页无「网络代理」入口（卡片与文案已清除）",
           not hasattr(sp, "proxy_edit") and not hasattr(sp, "proxy_hint")

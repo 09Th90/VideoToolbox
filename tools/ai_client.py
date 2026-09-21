@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 1.15.6
+# @version 1.15.7
 """
 全局 AI 客户端（OpenAI 兼容 · 单通道）。
 
@@ -414,6 +414,46 @@ def _asr_native_url(base: str) -> str:
     return "https://" + b.split("/", 1)[0] + ASR_NATIVE_PATH
 
 
+#: 只可能在境内可达的国内 AI/ASR 端点后缀。必须与 src/video_toolbox.py 的
+#: DOMESTIC_AI_ENDPOINT_SUFFIXES 同规则（引擎与 AI 客户端两侧一致）。
+DOMESTIC_AI_ENDPOINT_SUFFIXES = (
+    "aliyuncs.com",         # 百炼：dashscope / *.maas.aliyuncs.com 专属实例
+    "aliyun.com",
+    "volces.com",           # 火山方舟
+    "volcengine.com",
+    "volcengineapi.com",
+    "bytedance.com",        # openspeech.bytedance.com
+    "bigmodel.cn",          # 智谱
+    "xfyun.cn",             # 讯飞
+    "baidubce.com",
+    "tencentcloudapi.com",
+)
+
+
+def is_domestic_ai_endpoint(url: str) -> bool:
+    """端点是否属于「只在境内可达」的国内 AI/ASR 服务。"""
+    host, _ = _host_path(url)
+    host = host.split(":")[0]
+    return any(host == s or host.endswith("." + s)
+               for s in DOMESTIC_AI_ENDPOINT_SUFFIXES)
+
+
+def urlopen_endpoint(req, timeout):
+    """按端点归属选 opener：国内端点强制直连，其余跟随系统/环境代理。
+
+    urllib 默认同样经 ``getproxies()`` 读 Windows 注册表的系统代理
+    （Clash / FlClash 一类），国内百炼端点被送进海外节点转发会被对端直接
+    断连——表现为让人误判「实例没有可用的 ASR」。空 dict 的 ProxyHandler
+    表示「不走任何代理」，且 ``build_opener`` 不会再补上默认 ProxyHandler，
+    与 ``src/push_via_git_api.py`` 的 ``_OPENER`` 是同一手法。
+    """
+    url = getattr(req, "full_url", "") or (req if isinstance(req, str) else "")
+    if is_domestic_ai_endpoint(url):
+        opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+        return opener.open(req, timeout=timeout)
+    return urllib.request.urlopen(req, timeout=timeout)
+
+
 _TTS_HINTS = ("tts", "speech-synthesis", "voice-synthesis", "cosyvoice",
               "sambert")
 
@@ -598,7 +638,7 @@ def _asr_native_probe(base: str, api_key: str, model: str):
         "Content-Type": "application/json",
         "X-DashScope-SSE": "disable"})
     try:
-        with urllib.request.urlopen(req, timeout=45) as resp:
+        with urlopen_endpoint(req, 45) as resp:
             raw = resp.read().decode("utf-8", "replace")
         try:
             d = json.loads(raw)
@@ -784,7 +824,7 @@ class AIClient:
             try:
                 req = urllib.request.Request(url, data=data,
                                              headers=headers, method="POST")
-                with urllib.request.urlopen(req, timeout=self.timeout) as resp:
+                with urlopen_endpoint(req, self.timeout) as resp:
                     return json.loads(resp.read().decode("utf-8"))
             except urllib.error.HTTPError as e:
                 detail = ""
@@ -1314,7 +1354,7 @@ def asr_test_connection(cfg: dict | None = None) -> tuple[bool, str]:
                       else "OpenAI Whisper 兼容（/audio/transcriptions）")
     req = urllib.request.Request(url, headers=headers)
     try:
-        with urllib.request.urlopen(req, timeout=15) as resp:
+        with urlopen_endpoint(req, 15) as resp:
             raw = resp.read().decode("utf-8", "replace")
     except urllib.error.HTTPError as e:
         detail = ""

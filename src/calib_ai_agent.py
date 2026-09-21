@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 1.15.6
+# @version 1.15.7
 """AI 校准 Agent —— Agent 级字幕术语校准（v1.11.0；v1.16.0 并发与提示词优化）。
 
 定位

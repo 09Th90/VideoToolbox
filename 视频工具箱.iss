@@ -1,9 +1,9 @@
-; @version 1.15.6
+; @version 1.15.7
 ; ============================================================================
-; 视频工具箱 v1.15.6 —— Inno Setup 安装包脚本
+; 视频工具箱 v1.15.7 —— Inno Setup 安装包脚本
 ; 构建前提：已用 tools\python 执行 pyinstaller 视频工具箱.spec，
 ;           产物位于 dist\视频工具箱.exe
-; 编译：ISCC.exe 视频工具箱.iss  →  installer\视频工具箱_Setup_v1.15.6.exe
+; 编译：ISCC.exe 视频工具箱.iss  →  installer\视频工具箱_Setup_v1.15.7.exe
 ; v1.14.1（语言修正）：安装向导固定为简体中文——ShowLanguageDialog 改 no
 ;         （不再弹出语言选择框），[Languages] 移除 english 仅保留中文一项。
 ; v1.12.1：修复打包版「点退出后程序反复重启」（严重）——退出时的校准知识同步
@@ -61,7 +61,7 @@
 ; ============================================================================ 
 
 #define MyAppName "视频工具箱"
-#define MyAppVersion "1.15.6"
+#define MyAppVersion "1.15.7"
 #define MyAppPublisher "VideoToolbox"
 #define MyAppExeName "视频工具箱.exe"
 
