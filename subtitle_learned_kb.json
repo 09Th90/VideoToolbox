@@ -107,37 +107,8 @@
    "unc_ref_tokens": {},
    "first": "2026-09-19",
    "last": "2026-09-21",
-   "alts": {}
-  },
-  "bi|明乔": {
-   "wrong": "明乔",
-   "right": "鸣潮",
-   "mode": "bi",
-   "count": 2,
-   "uncorrected": 0,
-   "status": "confirmed",
-   "cues": [
-    214
-   ],
-   "samples": [
-    [
-     "谢谢你，",
-     "亚",
-     "能天使，",
-     "亚"
-    ],
-    [
-     "谢谢你，",
-     "亚",
-     "能天使，",
-     "亚"
-    ]
-   ],
-   "ref_tokens": {},
-   "unc_ref_tokens": {},
-   "first": "2026-09-19",
-   "last": "2026-09-19",
-   "alts": {}
+   "alts": {},
+   "sync": true
   },
   "bi|成城祖": {
    "wrong": "成城祖",
@@ -169,7 +140,7 @@
    "right": "鸣潮",
    "mode": "bi",
    "count": 1,
-   "uncorrected": 0,
+   "uncorrected": 1,
    "status": "candidate",
    "cues": [
     106
@@ -183,29 +154,14 @@
     ]
    ],
    "ref_tokens": {},
-   "unc_ref_tokens": {},
+   "unc_ref_tokens": {
+    "earth": 1,
+    "ever": 1
+   },
    "first": "2026-09-19",
    "last": "2026-09-19",
    "alts": {},
    "ctx_regex": ""
-  },
-  "bi|谢谢你，明乔亚": {
-   "wrong": "谢谢你，明乔亚",
-   "right": "谢谢你，鸣潮亚",
-   "mode": "bi",
-   "count": 2,
-   "uncorrected": 0,
-   "status": "confirmed",
-   "cues": [
-    214
-   ],
-   "samples": [],
-   "ref_tokens": {},
-   "unc_ref_tokens": {},
-   "first": "2026-09-20",
-   "last": "2026-09-21",
-   "alts": {},
-   "sync": true
   },
   "bi|明朝": {
    "wrong": "明朝",
@@ -249,15 +205,15 @@
     ]
    ],
    "ref_tokens": {
-    "Holy": 19,
-    "like": 19,
-    "leaves": 19,
-    "sky": 19,
-    "really": 19,
-    "Sheen": 19,
-    "the": 19,
-    "maple": 19,
-    "look": 19
+    "Holy": 26,
+    "like": 26,
+    "leaves": 26,
+    "sky": 26,
+    "really": 26,
+    "Sheen": 26,
+    "the": 26,
+    "maple": 26,
+    "look": 26
    },
    "unc_ref_tokens": {},
    "first": "2026-09-19",
@@ -315,7 +271,56 @@
    "unc_ref_tokens": {},
    "first": "2026-09-19",
    "last": "2026-09-21",
+   "alts": {},
+   "sync": true
+  },
+  "bi|明乔": {
+   "wrong": "明乔",
+   "right": "鸣潮",
+   "mode": "bi",
+   "count": 2,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    214
+   ],
+   "samples": [
+    [
+     "谢谢你，",
+     "亚",
+     "能天使，",
+     "亚"
+    ],
+    [
+     "谢谢你，",
+     "亚",
+     "能天使，",
+     "亚"
+    ]
+   ],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-09-19",
+   "last": "2026-09-19",
    "alts": {}
+  },
+  "bi|谢谢你，明乔亚": {
+   "wrong": "谢谢你，明乔亚",
+   "right": "谢谢你，鸣潮亚",
+   "mode": "bi",
+   "count": 2,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    214
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-09-20",
+   "last": "2026-09-21",
+   "alts": {},
+   "sync": true
   },
   "bi|哨兵": {
    "wrong": "哨兵",
