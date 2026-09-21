@@ -16,7 +16,7 @@
    "samples": [],
    "ref_tokens": {},
    "unc_ref_tokens": {},
-   "first": "2026-09-21",
+   "first": "2026-09-14",
    "last": "2026-09-21",
    "alts": {},
    "sync": true
@@ -36,7 +36,7 @@
    "samples": [],
    "ref_tokens": {},
    "unc_ref_tokens": {},
-   "first": "2026-09-21",
+   "first": "2026-09-14",
    "last": "2026-09-21",
    "alts": {},
    "sync": true
@@ -45,7 +45,7 @@
    "wrong": "明祖",
    "right": "鸣潮",
    "mode": "bi",
-   "count": 4,
+   "count": 8,
    "uncorrected": 0,
    "status": "confirmed",
    "cues": [
@@ -53,13 +53,91 @@
     101,
     265
    ],
-   "samples": [],
+   "samples": [
+    [
+     "当我在做",
+     "时说'阿明祖做得不错，吉",
+     "当我在做",
+     "时说'阿鸣潮做得不错，吉"
+    ],
+    [
+     "当我在做明祖时说'阿",
+     "做得不错，吉米亚'",
+     "当我在做鸣潮时说'阿",
+     "做得不错，吉米亚'"
+    ],
+    [
+     "但即使无限力量出现，",
+     "也会表现不错",
+     "但即使无限力量出现，",
+     "也会表现不错"
+    ],
+    [
+     "哦，如此美丽——",
+     "最令人兴奋的词之一",
+     "哦，如此美丽——",
+     "最令人兴奋的词之一"
+    ],
+    [
+     "当我在做",
+     "时说'阿明祖做得不错，吉",
+     "当我在做",
+     "时说'阿鸣潮做得不错，吉"
+    ],
+    [
+     "当我在做明祖时说'阿",
+     "做得不错，吉米亚'",
+     "当我在做鸣潮时说'阿",
+     "做得不错，吉米亚'"
+    ],
+    [
+     "但即使无限力量出现，",
+     "也会表现不错",
+     "但即使无限力量出现，",
+     "也会表现不错"
+    ],
+    [
+     "哦，如此美丽——",
+     "最令人兴奋的词之一",
+     "哦，如此美丽——",
+     "最令人兴奋的词之一"
+    ]
+   ],
    "ref_tokens": {},
    "unc_ref_tokens": {},
-   "first": "2026-09-21",
+   "first": "2026-09-19",
    "last": "2026-09-21",
-   "alts": {},
-   "sync": true
+   "alts": {}
+  },
+  "bi|明乔": {
+   "wrong": "明乔",
+   "right": "鸣潮",
+   "mode": "bi",
+   "count": 2,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    214
+   ],
+   "samples": [
+    [
+     "谢谢你，",
+     "亚",
+     "能天使，",
+     "亚"
+    ],
+    [
+     "谢谢你，",
+     "亚",
+     "能天使，",
+     "亚"
+    ]
+   ],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-09-19",
+   "last": "2026-09-19",
+   "alts": {}
   },
   "bi|成城祖": {
    "wrong": "成城祖",
@@ -111,6 +189,24 @@
    "alts": {},
    "ctx_regex": ""
   },
+  "bi|谢谢你，明乔亚": {
+   "wrong": "谢谢你，明乔亚",
+   "right": "谢谢你，鸣潮亚",
+   "mode": "bi",
+   "count": 2,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    214
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-09-20",
+   "last": "2026-09-21",
+   "alts": {},
+   "sync": true
+  },
   "bi|明朝": {
    "wrong": "明朝",
    "right": "鸣潮",
@@ -129,7 +225,7 @@
    "samples": [],
    "ref_tokens": {},
    "unc_ref_tokens": {},
-   "first": "2026-09-21",
+   "first": "2026-09-20",
    "last": "2026-09-21",
    "alts": {},
    "sync": true
@@ -153,15 +249,15 @@
     ]
    ],
    "ref_tokens": {
-    "Holy": 7,
-    "like": 7,
-    "leaves": 7,
-    "sky": 7,
-    "really": 7,
-    "Sheen": 7,
-    "the": 7,
-    "maple": 7,
-    "look": 7
+    "Holy": 19,
+    "like": 19,
+    "leaves": 19,
+    "sky": 19,
+    "really": 19,
+    "Sheen": 19,
+    "the": 19,
+    "maple": 19,
+    "look": 19
    },
    "unc_ref_tokens": {},
    "first": "2026-09-19",
@@ -183,7 +279,7 @@
    "samples": [],
    "ref_tokens": {},
    "unc_ref_tokens": {},
-   "first": "2026-09-21",
+   "first": "2026-09-20",
    "last": "2026-09-21",
    "alts": {},
    "sync": true
@@ -199,61 +295,27 @@
     822,
     264
    ],
-   "samples": [],
-   "ref_tokens": {},
-   "unc_ref_tokens": {},
-   "first": "2026-09-21",
-   "last": "2026-09-21",
-   "alts": {},
-   "sync": true
-  },
-  "bi|明乔": {
-   "wrong": "明乔",
-   "right": "鸣潮",
-   "mode": "bi",
-   "count": 2,
-   "uncorrected": 0,
-   "status": "confirmed",
-   "cues": [
-    214
-   ],
    "samples": [
     [
-     "谢谢你，",
-     "亚",
-     "能天使，",
-     "亚"
-    ],
-    [
-     "谢谢你，",
-     "亚",
-     "能天使，",
-     "亚"
+     "天哪，你们以为我们会有",
+     "吗",
+     "天哪，你们以为我们会有",
+     "吗"
     ]
    ],
-   "ref_tokens": {},
+   "ref_tokens": {
+    "you": 3,
+    "god": 3,
+    "we'll": 3,
+    "trailer": 3,
+    "guys": 3,
+    "have": 3,
+    "think": 3
+   },
    "unc_ref_tokens": {},
    "first": "2026-09-19",
-   "last": "2026-09-19",
-   "alts": {}
-  },
-  "bi|谢谢你，明乔亚": {
-   "wrong": "谢谢你，明乔亚",
-   "right": "谢谢你，鸣潮亚",
-   "mode": "bi",
-   "count": 2,
-   "uncorrected": 0,
-   "status": "confirmed",
-   "cues": [
-    214
-   ],
-   "samples": [],
-   "ref_tokens": {},
-   "unc_ref_tokens": {},
-   "first": "2026-09-21",
    "last": "2026-09-21",
-   "alts": {},
-   "sync": true
+   "alts": {}
   },
   "bi|哨兵": {
    "wrong": "哨兵",
@@ -266,10 +328,33 @@
     199,
     515
    ],
-   "samples": [],
-   "ref_tokens": {},
+   "samples": [
+    [
+     "这个感觉更像",
+     "的形态",
+     "这个感觉更像",
+     "的形态"
+    ],
+    [
+     "找到",
+     "",
+     "找到",
+     ""
+    ]
+   ],
+   "ref_tokens": {
+    "the": 3,
+    "feels": 2,
+    "sentinel": 3,
+    "one": 2,
+    "This": 2,
+    "more": 2,
+    "form": 2,
+    "like": 2,
+    "Find": 1
+   },
    "unc_ref_tokens": {},
-   "first": "2026-09-21",
+   "first": "2026-09-20",
    "last": "2026-09-21",
    "alts": {},
    "sync": true
@@ -397,12 +482,32 @@
    "status": "confirmed",
    "cues": [
     821,
-    822
+    822,
+    549
    ],
-   "samples": [],
+   "samples": [
+    [
+     "确实，他们进入",
+     "就是为了这么做",
+     "确实，他们进入",
+     "就是为了这么做"
+    ],
+    [
+     "但实际上，我的手机是装在",
+     "手机上的",
+     "但实际上，我的手机是装在",
+     "手机上的"
+    ],
+    [
+     "但安装",
+     "后，我连手机的照片都拍不",
+     "但安装",
+     "后，我连手机的照片都拍不"
+    ]
+   ],
    "ref_tokens": {},
    "unc_ref_tokens": {},
-   "first": "2026-09-21",
+   "first": "2026-09-20",
    "last": "2026-09-21",
    "alts": {},
    "sync": true
@@ -541,7 +646,7 @@
    "samples": [],
    "ref_tokens": {},
    "unc_ref_tokens": {},
-   "first": "2026-09-21",
+   "first": "2026-09-20",
    "last": "2026-09-21",
    "alts": {},
    "sync": true
@@ -560,7 +665,7 @@
    "samples": [],
    "ref_tokens": {},
    "unc_ref_tokens": {},
-   "first": "2026-09-21",
+   "first": "2026-09-20",
    "last": "2026-09-21",
    "alts": {},
    "sync": true
@@ -753,7 +858,7 @@
    "samples": [],
    "ref_tokens": {},
    "unc_ref_tokens": {},
-   "first": "2026-09-21",
+   "first": "2026-09-20",
    "last": "2026-09-21",
    "alts": {},
    "sync": true
