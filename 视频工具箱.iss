@@ -143,7 +143,8 @@ Source: "docs\VideoCaptioner_组件来源.txt"; DestDir: "{app}\docs"; Flags: ig
 ;          是 3.12，这些缓存既非当前版本源码、版本也不匹配）。
 Source: "docs\vc_prompts_official\*"; DestDir: "{app}\docs\vc_prompts_official"; Flags: ignoreversion recursesubdirs createallsubdirs; Excludes: "*.pyc,__pycache__"
 Source: "docs\vc_translate_impl\*"; DestDir: "{app}\docs\vc_translate_impl"; Flags: ignoreversion recursesubdirs createallsubdirs; Excludes: "*.pyc,__pycache__"
-Source: "docs\程序说明书.md"; DestDir: "{app}\docs"; Flags: ignoreversion
+Source: "docs\程序说明书(开发版).md"; DestDir: "{app}\docs"; Flags: ignoreversion
+Source: "docs\程序说明书(用户版).md"; DestDir: "{app}\docs"; Flags: ignoreversion
 
 [Dirs]
 ; 用户数据目录空壳（下载/缩略图缓存）
