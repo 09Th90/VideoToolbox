@@ -328,6 +328,11 @@ BILINGUAL_TERMS = {
     "路虎": "漂泊者", "漫游车": "漂泊者",                          # Rover 被译成汽车品牌/火星车
     "同步员": "同步者",                                            # synchronist 统一
     "异能跨步者": "隧者", "跨行者": "隧者",                  # exor strider 机翻/简写
+    # 2026-09-22 补：Exostrider 的**子词直译**机翻形态（Exo=外骨骼 + strider=行者/跨步者）。
+    # 此前只收了音译/简写错形（异能跨步者/跨行者/步行者），漏了这条最高频的直译，导致校准后仍留"外骨骼行者"。
+    # 键序无需手排（_replace_report 自动长键优先），但**必须补复数形态**防短键咬出"…们"。
+    "外骨骼行者们": "隧者", "外骨骼行者": "隧者",
+    "外骨骼的行者": "隧者", "外骨骼跨步者": "隧者",
     "小伊斯": "小爱弥斯", "利莫斯": "爱弥斯",                      # little Ith / Limoth
     "Imeth": "爱弥斯", "IMATH": "爱弥斯", "IMth": "爱弥斯", "IMAD": "爱弥斯",
     "Sigon": "辛吉勒姆",                                           # Sigilum 变体
@@ -1440,6 +1445,43 @@ KO_TERMS = {
     '张里': '长离',
     # —— 乘霄山(승소산) 变体补充 ——
     '胜利奖': '乘霄山',
+    # —— 2026-09-22 沉淀：《[명조] 이게 쿠로의 맛인가.. 2주년 PV + 데니아 PV + 3장 5막 에필로그》
+    #     韩语原声 + 谷翻中文行（4543 cue）。以下键均逐条对照韩语参考行确认无误后才入表：
+    #     卡蒂西亚(카르티시아)=卡提希娅 / 守望者(파수인)=守岸人 / 外骨骼行者(엑소스트라이더)=隧者 /
+    #     星触(스타터치)=星炬 / 虚空计量器·空隙计(보이드메터)=虚空计量表 / 丹雅·多尼娅(데니아/되니아)=达妮娅 /
+    #     莱罗伊·拉海·罗伊(라하이로이)=拉海洛 / 弗洛雷罗·弗洛拉(플로러로)=弗洛洛 / 莉纳西塔(리나시타)=黎那汐塔 /
+    #     兰贾(랑자)=漂泊者 / 残像会议(잔상회)·山城会(잔성회)·全成(전성)=残星会 / 斯塔托赫(스타토치)=星炬。
+    #     ⚠ 裸键"流浪者/残酷/著名"是通用中文词（流浪者可能正常语境），禁入表，只能韩语佐证逐 cue 覆盖。
+    '卡蒂西亚': '卡提希娅',
+    '守望者': '守岸人',
+    '外骨骼行者': '隧者',
+    '星触学院': '星炬学院',
+    '斯塔托赫学院': '星炬学院',
+    '虚空计量器': '虚空计量表',
+    '空隙计': '虚空计量表',
+    '丹雅': '达妮娅',
+    '多尼娅': '达妮娅',
+    '莱罗伊': '拉海洛',
+    '拉海·罗伊': '拉海洛',
+    '弗洛雷罗': '弗洛洛',
+    '弗洛拉': '弗洛洛',
+    '莉纳西塔': '黎那汐塔',
+    '兰贾': '漂泊者',
+    '残像会议': '残星会',
+    '山城会': '残星会',
+    '全成': '残星会',
+    # —— 2026-09-22 第4轮（检索官方中文后）追加。来源：库洛官网版本说明/百度百科/灰机WIKI/fandom。
+    #     西格莉卡(시그리카)=星炬学院学生·罗伊符文共鸣者，官方名"西格莉卡"（本片31处机翻"西格丽卡"）；
+    #     阿列夫一(알레프원)=鸣式 Aleph One 官方名"阿列夫一"（残星会资产/容器为达妮娅）；
+    #     秘日六席(헬리오틱6)=Heliotix Six，西格莉卡为罗伊族未来"秘日六席"之一，能力称"昭日者"；
+    #     苇原(아시노하라)=绯雪(Hiyuki)故乡，官方"苇原"（本片"芦原/芦花"→苇原）。
+    #     ⚠ 绯雪(Hiyuki) 的中文错形（日向/日雪/日置/雪女/日向木）均为通用中文词，禁入表，只能韩语佐证逐 cue 覆盖。
+    '西格丽卡': '西格莉卡',
+    '阿拉夫一号': '阿列夫一',
+    '阿列夫一号': '阿列夫一',
+    '阿勒夫一号': '阿列夫一',
+    '日心6号': '秘日六席',
+    '芦原': '苇原',
 }
 
 # =============================================================
@@ -2917,7 +2959,243 @@ ENTITIES = [
                 "ASR 音近错形：'清宵'易咬成'清霄/清晓/清笑/清哮/清消/清逍/清潇/清萧'；"
                 "'青霄'为既有机翻错形；英文侧 Qingxiao/Ching Xiao/Chingsha/Chingcha 等已收。"
                 "戒律：日语片'聖/聖書'=清宵(セイショウ)非心月狐(シン)，勿混。"),
+    # ============================================================
+    # 2026-09-22 音乐台词 · 多语对照（鸣潮 / 明日方舟 / 终末地）
+    #   用途：音乐 reaction / OST 分析片（bi / react / ak / endo）中**跨语识别同一专名**。
+    #   戒律（用户 2026-09-22 指定）：
+    #     ① 曲名/专辑名在四语服常为**各自独立的官方名**（非直译）；有官方外文名才填 en/ja/ko；
+    #     ② **只有单一语种官方名的，不翻译、保留原语言**（如明日方舟曲名保留英文、
+    #        终末地曲名保留中文），en/ja/ko 一律留空，**不臆造译名**；
+    #     ③ 音译/意译错形无片源实测证据前不入 variants（防误伤）。
+    #   来源：库街区鸣潮官方 EP 页、bangumi 696519、acgwiki.tw、dengqi.ren 专题、
+    #         萌娘百科「塞壬唱片 / Give Me Something」、新浪游戏「向渊行OST上线」、17173。
+    # ============================================================
+    Entity("鸣潮先约电台", modes=("bi", "react"), en="", ja="", ko="",
+           category="厂牌/音乐·鸣潮",
+           variants=("先约电台", "先約電臺", "先約电台"),
+           note="《鸣潮》官方音乐出品方（角色印象曲 EP 系列；游戏内'先约随心频道'）。"
+                "官方**无英文/日文/韩文名**，各语服宣传一律沿用中文（日服作繁体'先約電臺'）"
+                "——按'单语保留原语言'原则，en/ja/ko 留空不填。"),
+    Entity("尘外客", modes=("bi", "react"),
+           en="Outside the Mountain", ja="塵世を見守りて", ko="속세 밖 나그네",
+           category="曲目/鸣潮先约电台",
+           note="《鸣潮》先约电台 EP3.6——清宵印象曲（2026-08-20）。"
+                "**四语官方曲名互不直译**：中 尘外客 / 英 Outside the Mountain / "
+                "日 塵世を見守りて（守望着尘世）/ 韩 속세 밖 나그네（尘世外的旅人）。"
+                "制作人宫阁，古琴翟忻来（**非古筝**）；四语演唱分别为 蔡明希(不才) / xBay / "
+                "DAZBEE / 손디아。来源：库街区 EP3.6 页、bangumi 696519、acgwiki.tw、2cycd credits。"),
+    Entity("风之所在", modes=("bi", "react"),
+           en="In the Wind", ja="風の在り処", ko="바람이 머무는 곳",
+           category="曲目/鸣潮先约电台",
+           note="《鸣潮》先约电台 EP3.5——秧秧·玄翎印象曲（2026-07-09）。"
+                "四语官方曲名：风之所在 / In the Wind / 風の在り処 / 바람이 머무는 곳。"
+                "制作人 Sihan；四语演唱 王诗安 / Natalie Taylor / 秧秧(CV:石川由依) / 안다은。"
+                "⚠ 日文版由角色 CV 石川由依演唱，与另三语版歌手不同。"
+                "来源：库街区 EP3.5 页、NGA 47141392、dengqi.ren 专题。"),
+    Entity("星炬不熄", modes=("bi", "react"),
+           en="Unwavering Startorch", ja="絶やさぬスタートーチ",
+           ko="흔들리지 않는 스타토치",
+           category="曲目/鸣潮先约电台",
+           note="《鸣潮》先约电台星炬学院毕业纪念曲（另含'毕业合唱 Ver.'）。"
+                "四语官方曲名：星炬不熄 / Unwavering Startorch / 絶やさぬスタートーチ / "
+                "흔들리지 않는 스타토치。'Startorch'=星炬学院官方英文（学院 Startorch Academy），"
+                "日文写 スタートーチ、韩文写 스타토치。"
+                "来源：dengqi.ren 专题（四语并列）、B站鸣潮 WIKI 影像收录。"),
+    Entity("塞壬唱片", modes=("ak", "react"), en="Monster Siren Records",
+           category="厂牌/音乐·明日方舟",
+           variants=("Monster Siren Records", "MSR", "MSR-MSR", "音角"),
+           note="《明日方舟》官方音乐企划 / 虚构唱片公司，鹰角网络旗下。"
+                "官方英文 Monster Siren Records（缩写 MSR），社区昵称'音角'。"
+                "日/韩服**沿用英文名**（アークナイツ 侧亦作 Monster Siren Records / MSR），"
+                "无独立日/韩文名——按单语保留原语言，ja/ko 留空。"
+                "官网 monster-siren.hypergryph.com。来源：萌娘百科、Genius MSR 页。"
+                "（bi 模式已有参考行锚定 (Monster Siren → 怪物海妖唱片 → 塞壬唱片)，勿重复。）"),
+    Entity("向渊行", modes=("endo", "react"), en="", ja="", ko="",
+           category="专辑/终末地OST",
+           note="《明日方舟：终末地》1.4 版本 OST 专辑（2026-07-30 上架 QQ/网易云/酷狗，"
+                "20+ 曲：帷幕叩问 / 雄关锦绣 / 启天 / 杀身射影 / 万象丹青 / 渡此墨白 / 百险折锋 / "
+                "分雾瘴 / 守心枢 / 空洞灭绝 / 禁土 / 砺剑峥嵘 / 谈此剑 / 堂前事 / 恒流失陷 / "
+                "趋向梦境 / 心中的残垣 / 吾乡旧 / 编织光流 (For Your Name) / 在希望斑驳时 / "
+                "孤海旧锚 / 明视沉霭 / ADELPHOCLAST / ACHERON / ABYSSUS, ABYSSUM, INVOCAT / "
+                "REAPER / AMARANTHUS CAUDATUS / 镇渊回声 / 于旧土响彻 / Vermilion）。"
+                "专辑与曲目为**中英混排**、官方未给统一外文名，日/韩服沿用——"
+                "按'单语保留原语言'，en/ja/ko 留空。来源：新浪游戏「向渊行OST上线」。"),
+    Entity("Give Me Something", modes=("endo", "react"),
+           en="Give Me Something", ja="", ko="",
+           category="曲目/终末地",
+           note="《明日方舟：终末地》公测宣传曲 / 主题曲，副题 'Give Me Something "
+                "(for Arknights: Endfield)'，OneRepublic 演唱，BMG 发行，"
+                "2025-12-11 TGA 2025 首发。官方**仅英文曲名**"
+                "（萌娘百科记中文译名'给我一些指引'，非官方）——按单语保留原语言，"
+                "字幕若出现机翻中文应还原为英文，ja/ko 留空。"
+                "来源：萌娘百科「Give Me Something」、17173 报道。"),
 ]
+
+# ============================================================
+# 2026-09-22 音乐曲库 · **有歌词（人声）歌曲**多语对照
+#   ⚠ 只收**有人声演唱**的歌（角色印象曲 / 主题曲 / 活动曲 / 合作曲，
+#     含游戏内出现过的人声曲与官方 PV 人声曲）；**不收**纯器乐 BGM/OST 伴奏。
+#   戒律（用户 2026-09-22 指定）：
+#     ① 曲名在四语服常为**各自独立的官方名**（非直译），**有官方外文名才填**；
+#     ② **只有单一语种官方名的，不翻译、保留原语言**（en/ja/ko 留空）；
+#     ③ 严禁臆造译名；本表只作多语元数据（variants 一律留空，音译错形待片源实测沉淀）。
+#   格式：(官方曲名, en, ja, ko)；空串 = 该语种无独立官方名。
+#   来源：百度百科「鸣潮」游戏原声、萌娘百科「鸣潮音乐列表/塞壬唱片」、歌词坊 gecifang、
+#         觅歌词「鸣潮人声歌曲合集」、巴哈姆特 EP 一览、Wikiwand 鸣潮音乐列表、Shazam MSR。
+# ============================================================
+_MUSIC_WW = [                       # 鸣潮 · 先约电台 EP（角色印象曲）+ 单曲
+    # --- EP0 / 公测 EP ---
+    ("Saving Light", "Saving Light", "", ""),
+    ("Waking of a World", "Waking of a World", "", ""),
+    # --- EP1.x ---
+    ("往岁乘霄", "Thawing Fates", "過ぎし乗霄山の歳月", "승소산의 메아리"),
+    ("月华如愿", "", "", ""),
+    ("未尽之歌", "An Unfinished Song", "未完成の歌", "끝나지 않은 노래"),
+    ("一千万种可能", "A Million Possibilities", "", ""),
+    # --- EP2.x ---
+    ("昼梦盛宴", "Grand Feast Daydream", "昼夢グランドフィースト", "꿈의 카니발"),
+    ("ONE", "ONE", "", ""),
+    ("Daisy Crown", "Daisy Crown", "", ""),
+    ("不羁灵魂之王（虽然是自封）（但包的）",
+     "THE KING OF WAYWARD SOULS (SELF PROCLAIMED)(BUT DESTINED)", "", ""),
+    ("沉沦幻海", "Elusive Seas", "沈む幻海", "바닷속 환상의 자장가"),
+    ("下班？", "", "", ""),
+    ("Lulala! Lululala!", "", "", ""),
+    ("Against the Tide（逆潮）", "Against the Tide", "", ""),
+    ("RUNNING FOR YOUR LIFE（无所遁藏）", "RUNNING FOR YOUR LIFE", "", ""),
+    ("彼岸的安魂曲", "Requiem of the Beyond", "彼岸のレクイエム", "피안의 진혼곡"),
+    ("Endless Pulse（烈血湍流）", "Endless Pulse", "", ""),
+    ("今夜不属于月亮（There's No Moonlight This Night）",
+     "There's No Moonlight This Night", "", ""),
+    ("远光点（APHELION [Galbrena's Lullaby]）",
+     "APHELION [Galbrena's Lullaby]", "", ""),
+    ("不辞远", "", "", ""),
+    ("破茧之华", "Slashing Bloom", "切り咲く", ""),
+    # --- EP3.x ---
+    ("Catch Me If You Can", "Catch Me If You Can", "", ""),
+    ("Unwritten in the Stars（若能触及群星）", "Unwritten in the Stars", "", ""),
+    ("纸飞机", "", "", ""),
+    ("Thawing Light（融光）", "Thawing Light", "", ""),
+    ("L!!!!ght", "L!!!!ght", "", ""),
+    ("坠入虚无（Decensus Ad Nihilum）", "Decensus Ad Nihilum", "", ""),
+    ("直到下次再见（Dasvidaniya）", "Dasvidaniya", "", ""),
+    ("愿（One More Wish）", "One More Wish", "", ""),
+    ("Replay（重映）", "Replay", "", ""),
+    ("待春归", "", "", ""),
+    # --- 飞行雪绒 EP / 特辑 / 周年 ---
+    ("碎花", "", "", ""),
+    ("靛青宇宙", "", "", ""),
+    ("夏空的歌", "", "", ""),
+    ("Everflow", "Everflow", "", ""),
+    # --- 单曲（官方发行，有人声）---
+    ("Never Let It Go", "Never Let It Go", "", ""),
+    ("奔流，因你不息", "", "", ""),
+    ("潮骚レゾナンス", "", "潮騒レゾナンス", ""),
+    ("Turning Around（余烬重燃）", "Turning Around", "", ""),
+    ("Brand New Sky（新世界的天空）", "Brand New Sky", "", ""),
+    ("星祝", "", "", ""),
+    ("To the Finale（未黯之光）", "To the Finale", "", ""),
+    ("Beautiful Tomorrow", "Beautiful Tomorrow", "", ""),
+    ("Dawnbreaker", "Dawnbreaker", "", ""),
+    ("Deadline Disco（极限迪斯科）", "Deadline Disco", "", ""),
+]
+_MUSIC_AK = [                       # 明日方舟 · 塞壬唱片（人声曲；多数无官方中文，保留英文）
+    ("Grown-up's Paradise", "Grown-up's Paradise", "", ""),
+    ("铁花飞", "TIE HUA FEI", "", ""),
+    ("Speed of Light", "Speed of Light", "", ""),
+    ("Running In The Dark", "Running In The Dark", "", ""),
+    ("Everything's Alright", "Everything's Alright", "", ""),
+    ("Radiant", "Radiant", "", ""),
+    ("Mystic Light Quest", "Mystic Light Quest", "", ""),
+    ("浸春芜", "", "", ""),
+    ("Bluish Light", "Bluish Light", "", ""),
+    ("Little Wish", "Little Wish", "", ""),
+    ("Boiling Blood", "Boiling Blood", "", ""),
+    ("Renegade", "Renegade", "", ""),
+    ("秋绪", "", "", ""),
+    ("春弦", "", "", ""),
+    ("示岁", "", "", ""),
+    ("独行长路", "", "", ""),
+    ("故乡的风", "", "", ""),
+    ("夏浪", "", "", ""),
+    ("尽波澜", "", "", ""),
+    ("更阑影", "", "", ""),
+    ("观心", "", "", ""),
+    ("冬涤", "", "", ""),
+    ("从那高地上远眺", "", "", ""),
+    ("Ensheath", "Ensheath", "", ""),
+    ("Believing", "Believing", "", ""),
+    ("Immutable", "Immutable", "", ""),
+    ("Miss You", "Miss You", "", ""),
+    ("Blade Catcher", "Blade Catcher", "", ""),
+    ("Sealed", "Sealed", "", ""),
+    ("The Walk", "The Walk", "", ""),
+    ("Paper Boat", "Paper Boat", "", ""),
+    ("Follow Your Heart", "Follow Your Heart", "", ""),
+    ("When We Were the Most Beautiful", "When We Were the Most Beautiful", "", ""),
+    ("Across the Wind", "Across the Wind", "", ""),
+    ("Ständchen", "Ständchen", "", ""),
+    ("Stainless Heart", "Stainless Heart", "", ""),
+    ("Spark For Dream", "Spark For Dream", "", ""),
+    ("Echoism", "Echoism", "", ""),
+    ("Revealing", "Revealing", "", ""),
+    ("The After", "The After", "", ""),
+    ("Sentenced", "Sentenced", "", ""),
+    ("Somniomancer (Null Set)", "Somniomancer (Null Set)", "", ""),
+    ("Dormant Craving", "Dormant Craving", "", ""),
+    ("A Sweet Rendez-vous", "A Sweet Rendez-vous", "", ""),
+    ("碧い瞳の中に（in your blue eyes）", "in your blue eyes", "碧い瞳の中に", ""),
+    ("Untitled world", "Untitled world", "", ""),
+    ("Alive", "Alive", "", ""),
+    ("R.I.P.", "R.I.P.", "", ""),
+    ("ACHE in PULS", "ACHE in PULS", "", ""),
+    ("Misty Memory", "Misty Memory", "", ""),
+    ("冲破穹顶", "", "", ""),
+    ("熠曲丰碑", "", "", ""),
+    ("时序花圃", "", "", ""),
+    ("雾色秘访", "", "", ""),
+    ("镜花水月", "", "", ""),
+    ("愚人曲", "", "", ""),
+    ("赴大荒", "", "", ""),
+    ("Vows of the Sea", "Vows of the Sea", "", ""),
+    ("Storyteller", "Storyteller", "", ""),
+    ("Broken Sun", "Broken Sun", "", ""),
+    ("Muse", "Muse", "", ""),
+    ("Whistle Stop", "Whistle Stop", "", ""),
+    ("未许之地", "", "", ""),
+    ("无名策", "", "", ""),
+    ("Wanna Know Me?", "Wanna Know Me?", "", ""),
+    ("辞岁行", "", "", ""),
+    ("反常光谱", "", "", ""),
+    ("次生预案", "", "", ""),
+    ("无忧梦呓", "", "", ""),
+    ("促融共竞", "", "", ""),
+]
+_MUSIC_ENDO = [                     # 终末地 · 铁痕电台-MSR（人声曲；曲名多为中文，保留原语言）
+    ("宜", "", "", ""),
+    ("万象将醒", "", "", ""),
+    ("闪焰预兆", "", "", ""),
+    ("冷烬", "", "", ""),
+    ("日晕", "", "", ""),
+    ("折光成像", "", "", ""),
+    ("回燃", "", "", ""),
+    ("最喜欢的一张", "", "", ""),
+    ("造物道别", "", "", ""),
+    ("像素绘涂", "", "", ""),
+    ("寻觅漫步", "", "", ""),
+    ("反引力悬浮", "", "", ""),
+    ("夕流", "", "", ""),
+    ("编织光流", "For Your Name", "", ""),
+]
+for _songs, _modes, _label in (
+        (_MUSIC_WW, ("bi", "react"), "鸣潮·先约电台"),
+        (_MUSIC_AK, ("ak", "react"), "明日方舟·塞壬唱片"),
+        (_MUSIC_ENDO, ("endo", "react"), "终末地·铁痕电台")):
+    for _c, _en, _ja, _ko in _songs:
+        ENTITIES.append(Entity(_c, modes=_modes, en=_en, ja=_ja, ko=_ko,
+                               category=f"曲目/{_label}",
+                               note="有歌词（人声）歌曲。空字段=该语种无独立官方名，"
+                                    "按'单语保留原语言'处理，勿臆造译名。"))
 
 
 def _register_entities(entities=ENTITIES):

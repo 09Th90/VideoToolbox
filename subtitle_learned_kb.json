@@ -91,7 +91,7 @@
    "right": "鸣潮",
    "mode": "bi",
    "count": 1,
-   "uncorrected": 1,
+   "uncorrected": 12,
    "status": "candidate",
    "cues": [
     106
@@ -106,8 +106,16 @@
    ],
    "ref_tokens": {},
    "unc_ref_tokens": {
-    "earth": 1,
-    "ever": 1
+    "earth": 4,
+    "ever": 3,
+    "the": 1,
+    "clean": 1,
+    "Earth": 4,
+    "Human": 1,
+    "Heaven": 3,
+    "sword": 3,
+    "falls": 3,
+    "all": 3
    },
    "first": "2026-09-19",
    "last": "2026-09-19",
@@ -141,11 +149,18 @@
    "wrong": "光泽",
    "right": "心月狐",
    "mode": "bi",
-   "count": 1,
+   "count": 8,
    "uncorrected": 4,
    "status": "candidate",
    "cues": [
-    145
+    145,
+    2,
+    1349,
+    1446,
+    1629,
+    1705,
+    5870,
+    8897
    ],
    "samples": [
     [
@@ -153,6 +168,48 @@
      "，我真的很喜欢枫叶",
      "天哪，看看天空中的",
      "，我真的很喜欢枫叶"
+    ],
+    [
+     ">> 天啊，我们变得更加",
+     "了",
+     ">> 天啊，我们变得更加",
+     "了"
+    ],
+    [
+     ">> 天啊，我们变得更加",
+     "了",
+     ">> 天啊，我们变得更加",
+     "了"
+    ],
+    [
+     "相信我们会变得更加",
+     "。我",
+     "相信我们会变得更加",
+     "。我"
+    ],
+    [
+     ">> ",
+     "？",
+     ">> ",
+     "？"
+    ],
+    [
+     "",
+     "",
+     "",
+     ""
+    ],
+    [
+     ">> ",
+     "",
+     ">> ",
+     ""
+    ],
+    [
+     "姜，别告诉我这是",
+     "。什么？",
+     "姜，别告诉我这是",
+     "。什么？"
     ]
    ],
    "ref_tokens": {
@@ -161,16 +218,27 @@
     "leaves": 123,
     "sky": 123,
     "really": 123,
-    "Sheen": 123,
+    "Sheen": 129,
     "the": 123,
     "maple": 123,
-    "look": 123
+    "look": 123,
+    "we're": 3,
+    "more": 3,
+    "getting": 3,
+    "god": 2,
+    "believe": 1,
+    "Ginger": 1,
+    "IT'S": 1,
+    "WHAT": 1,
+    "DON'T": 1,
+    "TELL": 1,
+    "SHEEN": 1
    },
    "unc_ref_tokens": {},
    "first": "2026-09-19",
-   "last": "2026-09-19",
+   "last": "2026-09-22",
    "alts": {},
-   "ctx_regex": "\\bHoly\\b|\\blike\\b|\\bleaves\\b"
+   "ctx_regex": "\\bSheen\\b|\\bHoly\\b|\\blike\\b"
   },
   "bi|艾比": {
    "wrong": "艾比",
@@ -281,15 +349,18 @@
    "wrong": "游泳",
    "right": "锁暝",
    "mode": "bi",
-   "count": 5,
-   "uncorrected": 0,
+   "count": 8,
+   "uncorrected": 3,
    "status": "candidate",
    "cues": [
     213,
     605,
     614,
     633,
-    787
+    787,
+    11128,
+    11131,
+    11133
    ],
    "samples": [
     [
@@ -321,53 +392,80 @@
      "眼镜有点好看",
      "等等，",
      "眼镜有点好看"
+    ],
+    [
+     "",
+     "",
+     "",
+     ""
+    ],
+    [
+     ">> 啊，",
+     "的女士。是什么让你来到",
+     ">> 啊，",
+     "的女士。是什么让你来到"
+    ],
+    [
+     ">> ",
+     "？",
+     ">> ",
+     "？"
     ]
    ],
    "ref_tokens": {
-    "showcasing": 3,
-    "the": 3,
-    "down": 3,
-    "Hey": 3,
-    "swimming": 6,
-    "they": 3,
-    "field": 3,
-    "Kate": 3,
-    "Third": 3,
-    "then": 3,
-    "again": 3,
-    "and": 4,
-    "showing": 3,
-    "But": 2,
-    "based": 1,
-    "like": 1,
-    "this": 1,
-    "only": 1,
-    "off": 1,
-    "looks": 1,
-    "paired": 1,
-    "gonna": 1,
-    "are": 2,
-    "Shin": 1,
-    "together": 1,
-    "Swimming": 1,
-    "think": 1,
-    "what": 1,
-    "begs": 1,
-    "really": 1,
-    "you": 1,
-    "that": 1,
-    "know": 1,
-    "kind": 1,
-    "Wait": 1,
-    "glasses": 1,
-    "good": 1,
-    "looking": 1
+    "showcasing": 9,
+    "the": 9,
+    "down": 9,
+    "Hey": 9,
+    "swimming": 20,
+    "they": 9,
+    "field": 9,
+    "Kate": 9,
+    "Third": 9,
+    "then": 9,
+    "again": 9,
+    "and": 12,
+    "showing": 9,
+    "But": 6,
+    "based": 3,
+    "like": 3,
+    "this": 3,
+    "only": 3,
+    "off": 3,
+    "looks": 3,
+    "paired": 3,
+    "gonna": 3,
+    "are": 6,
+    "Shin": 3,
+    "together": 3,
+    "Swimming": 4,
+    "think": 3,
+    "what": 3,
+    "begs": 3,
+    "really": 3,
+    "you": 4,
+    "that": 3,
+    "know": 3,
+    "kind": 3,
+    "Wait": 3,
+    "glasses": 3,
+    "good": 3,
+    "looking": 3,
+    "What": 1,
+    "brings": 1,
+    "lady": 1
    },
-   "unc_ref_tokens": {},
+   "unc_ref_tokens": {
+    "the": 1,
+    "Swaming": 1,
+    "red": 1,
+    "has": 1,
+    "woman": 1
+   },
    "first": "2026-09-20",
-   "last": "2026-09-21",
+   "last": "2026-09-22",
    "alts": {},
-   "ctx_regex": "\\bshowcasing\\b|\\bthe\\b|\\bdown\\b"
+   "ctx_regex": "\\bswimming\\b|\\band\\b|\\bshowcasing\\b"
   },
   "bi|西穆利尤": {
    "wrong": "西穆利尤",
@@ -467,13 +565,15 @@
    "wrong": "Eumrim",
    "right": "吟霖",
    "mode": "bi",
-   "count": 3,
+   "count": 5,
    "uncorrected": 0,
    "status": "confirmed",
    "cues": [
     971,
     972,
-    975
+    975,
+    3523,
+    3524
    ],
    "samples": [
     [
@@ -493,12 +593,24 @@
      "的三岁生日，我真的很爱你",
      "今天是",
      "的三岁生日，我真的很爱你"
+    ],
+    [
+     "",
+     "其实并不重要",
+     "",
+     "其实并不重要"
+    ],
+    [
+     "从没见过星星和角色",
+     "交织在一起",
+     "从没见过星星和角色",
+     "交织在一起"
     ]
    ],
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-09-20",
-   "last": "2026-09-20",
+   "last": "2026-09-22",
    "alts": {}
   },
   "bi|昭昭和": {
@@ -804,17 +916,17 @@
     ]
    ],
    "ref_tokens": {
-    "this": 1,
-    "technology": 1,
-    "crazy": 1
+    "this": 3,
+    "technology": 3,
+    "crazy": 3
    },
    "unc_ref_tokens": {
-    "cos": 1
+    "cos": 3
    },
    "first": "2026-09-20",
    "last": "2026-09-21",
    "alts": {},
-   "ctx_regex": ""
+   "ctx_regex": "\\bthis\\b|\\btechnology\\b|\\bcrazy\\b"
   },
   "bi|邂逅一些与禁所实际有关的记忆": {
    "wrong": "邂逅一些与禁所实际有关的记忆",
@@ -840,7 +952,7 @@
    "right": "鸣潮",
    "mode": "bi",
    "count": 1,
-   "uncorrected": 0,
+   "uncorrected": 1,
    "status": "candidate",
    "cues": [
     166
@@ -861,7 +973,14 @@
     "Wthering": 1,
     "like": 1
    },
-   "unc_ref_tokens": {},
+   "unc_ref_tokens": {
+    "And": 1,
+    "then": 1,
+    "Waves": 1,
+    "based": 1,
+    "Weathering": 1,
+    "off": 1
+   },
    "first": "2026-09-20",
    "last": "2026-09-20",
    "alts": {},
@@ -872,7 +991,7 @@
    "right": "鸣潮",
    "mode": "bi",
    "count": 1,
-   "uncorrected": 0,
+   "uncorrected": 21,
    "status": "candidate",
    "cues": [
     179
@@ -892,7 +1011,43 @@
     "this": 1,
     "waves": 1
    },
-   "unc_ref_tokens": {},
+   "unc_ref_tokens": {
+    "going": 1,
+    "we're": 1,
+    "and": 4,
+    "are": 1,
+    "Waves": 9,
+    "back": 1,
+    "the": 4,
+    "all": 1,
+    "genuinely": 1,
+    "waves": 11,
+    "time": 4,
+    "line": 1,
+    "known": 1,
+    "today": 1,
+    "that": 1,
+    "watering": 1,
+    "ANOTHER": 1,
+    "WAVE": 1,
+    "LOSE": 1,
+    "INCOMING": 1,
+    "YOU": 1,
+    "Weathering": 2,
+    "for": 2,
+    "cuz": 3,
+    "though": 3,
+    "like": 6,
+    "yes": 3,
+    "I'm": 3,
+    "with": 3,
+    "what's": 3,
+    "fathering": 3,
+    "Dude": 3,
+    "same": 3,
+    "you": 3,
+    "But": 3
+   },
    "first": "2026-09-20",
    "last": "2026-09-20",
    "alts": {},
@@ -996,43 +1151,31 @@
    "wrong": "由纪",
    "right": "绯雪",
    "mode": "bi",
-   "count": 1,
+   "count": 2,
    "uncorrected": 0,
-   "status": "candidate",
+   "status": "confirmed",
    "cues": [
-    230
+    230,
+    265
    ],
-   "samples": [
-    [
-     "现在看起来有点像",
-     "的领域了",
-     "现在看起来有点像",
-     "的领域了"
-    ]
-   ],
-   "ref_tokens": {
-    "Yuki": 1,
-    "now": 1,
-    "kind": 1,
-    "realm": 1,
-    "looks": 1,
-    "like": 1
-   },
+   "samples": [],
+   "ref_tokens": {},
    "unc_ref_tokens": {},
-   "first": "2026-09-21",
-   "last": "2026-09-21",
+   "first": "2026-09-22",
+   "last": "2026-09-22",
    "alts": {},
-   "ctx_regex": "\\bYuki\\b|\\bnow\\b|\\bkind\\b"
+   "sync": true
   },
   "bi|融合": {
    "wrong": "融合",
    "right": "热熔",
    "mode": "bi",
-   "count": 1,
-   "uncorrected": 0,
+   "count": 2,
+   "uncorrected": 15,
    "status": "candidate",
    "cues": [
-    600
+    600,
+    3153
    ],
    "samples": [
     [
@@ -1040,22 +1183,42 @@
      "爆发，诸如此类",
      "曲调破裂，",
      "爆发，诸如此类"
+    ],
+    [
+     "软弱无力，无法与公众真正",
+     "",
+     "软弱无力，无法与公众真正",
+     ""
     ]
    ],
    "ref_tokens": {
-    "shit": 1,
-    "tune": 1,
-    "rupture": 1,
-    "burst": 1,
-    "that": 1,
-    "fusion": 1,
-    "like": 1
+    "shit": 3,
+    "tune": 3,
+    "rupture": 3,
+    "burst": 3,
+    "that": 3,
+    "fusion": 4,
+    "like": 3,
+    "with": 1,
+    "for": 1,
+    "proper": 1,
+    "public": 1,
+    "feeble": 1
    },
-   "unc_ref_tokens": {},
+   "unc_ref_tokens": {
+    "perfectly": 4,
+    "fused": 4,
+    "can": 4,
+    "reverberations": 4,
+    "was": 3,
+    "big": 3,
+    "mesh": 3,
+    "like": 3
+   },
    "first": "2026-09-21",
-   "last": "2026-09-21",
+   "last": "2026-09-22",
    "alts": {},
-   "ctx_regex": "\\bshit\\b|\\btune\\b|\\brupture\\b"
+   "ctx_regex": "\\bfusion\\b|\\bshit\\b|\\btune\\b"
   },
   "bi|守护者": {
    "wrong": "守护者",
@@ -1100,6 +1263,9114 @@
    "first": "2026-09-21",
    "last": "2026-09-21",
    "alts": {}
+  },
+  "bi|基尤姆": {
+   "wrong": "基尤姆",
+   "right": "忌炎",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    47
+   ],
+   "samples": [
+    [
+     "我不知道",
+     "的故事。我是",
+     "我不知道",
+     "的故事。我是"
+    ]
+   ],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": ""
+  },
+  "bi|基妍": {
+   "wrong": "基妍",
+   "right": "忌炎",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    48
+   ],
+   "samples": [
+    [
+     "",
+     "的故事从那一刻开始",
+     "",
+     "的故事从那一刻开始"
+    ]
+   ],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": ""
+  },
+  "bi|金熙": {
+   "wrong": "金熙",
+   "right": "今汐",
+   "mode": "bi",
+   "count": 2,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    55,
+    56
+   ],
+   "samples": [
+    [
+     "但那到底是什么？",
+     "，对吧？这家伙",
+     "但那到底是什么？",
+     "，对吧？这家伙"
+    ],
+    [
+     "即使她叫",
+     "，她也感到一种激动",
+     "即使她叫",
+     "，她也感到一种激动"
+    ]
+   ],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {}
+  },
+  "bi|Pasui": {
+   "wrong": "Pasui",
+   "right": "守岸人",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    98
+   ],
+   "samples": [
+    [
+     "",
+     "真的非常感人",
+     "",
+     "真的非常感人"
+    ]
+   ],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": ""
+  },
+  "bi|唐浪子": {
+   "wrong": "唐浪子",
+   "right": "漂泊者",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    471
+   ],
+   "samples": [
+    [
+     ">> 哦，你是",
+     "的学生。拉威尔曲调",
+     ">> 哦，你是",
+     "的学生。拉威尔曲调"
+    ]
+   ],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": ""
+  },
+  "bi|明植": {
+   "wrong": "明植",
+   "right": "鸣式",
+   "mode": "bi",
+   "count": 13,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    551,
+    2275,
+    2928,
+    2956,
+    2966,
+    3058,
+    4047,
+    4075,
+    4084,
+    4103,
+    4105,
+    4411
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "sync": true
+  },
+  "bi|方娘子": {
+   "wrong": "方娘子",
+   "right": "漂泊者",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    598
+   ],
+   "samples": [
+    [
+     "",
+     "肯定是在玩平华文化",
+     "",
+     "肯定是在玩平华文化"
+    ]
+   ],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": ""
+  },
+  "bi|邦贾": {
+   "wrong": "邦贾",
+   "right": "漂泊者",
+   "mode": "bi",
+   "count": 7,
+   "uncorrected": 6,
+   "status": "candidate",
+   "cues": [
+    658,
+    1033,
+    1074,
+    1302,
+    2211,
+    2300,
+    3121
+   ],
+   "samples": [
+    [
+     "我不能信任你。",
+     "",
+     "我不能信任你。",
+     ""
+    ],
+    [
+     "",
+     "学生",
+     "",
+     "学生"
+    ],
+    [
+     "",
+     "，我们先去游戏厅看看吧",
+     "",
+     "，我们先去游戏厅看看吧"
+    ],
+    [
+     ">> ",
+     "",
+     ">> ",
+     ""
+    ],
+    [
+     "你来得早。",
+     "，我们所有人",
+     "你来得早。",
+     "，我们所有人"
+    ],
+    [
+     "",
+     "。今日的动向与两者的场景",
+     "",
+     "。今日的动向与两者的场景"
+    ],
+    [
+     ">>人叫你",
+     "",
+     ">>人叫你",
+     ""
+    ]
+   ],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": ""
+  },
+  "bi|姜郎子": {
+   "wrong": "姜郎子",
+   "right": "漂泊者",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    778
+   ],
+   "samples": [
+    [
+     "",
+     "",
+     "",
+     ""
+    ]
+   ],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": ""
+  },
+  "bi|Sigrika": {
+   "wrong": "Sigrika",
+   "right": "西格莉卡",
+   "mode": "bi",
+   "count": 2,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    1134,
+    3499
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "sync": true
+  },
+  "bi|Wanderer": {
+   "wrong": "Wanderer",
+   "right": "漂泊者",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    1246
+   ],
+   "samples": [
+    [
+     "先把照片保存到",
+     "设备上",
+     "先把照片保存到",
+     "设备上"
+    ]
+   ],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": ""
+  },
+  "bi|艾姆": {
+   "wrong": "艾姆",
+   "right": "爱弥",
+   "mode": "bi",
+   "count": 3,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    1644,
+    1645,
+    4470
+   ],
+   "samples": [
+    [
+     "起初，是",
+     "斯和天花板的结合",
+     "起初，是",
+     "斯和天花板的结合"
+    ],
+    [
+     "",
+     "斯，天花板上的绳子，现在",
+     "",
+     "斯，天花板上的绳子，现在"
+    ],
+    [
+     "在",
+     "斯时代，这实在太过分了。",
+     "在",
+     "斯时代，这实在太过分了。"
+    ]
+   ],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {}
+  },
+  "bi|罗伊": {
+   "wrong": "罗伊",
+   "right": "海洛",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 31,
+   "status": "candidate",
+   "cues": [
+    2704,
+    4027,
+    101,
+    466,
+    738,
+    833,
+    890,
+    58,
+    1628
+   ],
+   "samples": [
+    [
+     "拉",
+     "·基桑阿借用自娜斯塔莎",
+     "拉",
+     "·基桑阿借用自娜斯塔霞"
+    ]
+   ],
+   "ref_tokens": {
+    "and": 1,
+    "left": 1,
+    "know": 1,
+    "Hairoy": 3,
+    "ever": 1,
+    "since": 1,
+    "did": 1,
+    "maybe": 1,
+    "saving": 1,
+    "When": 1,
+    "years": 1,
+    "here": 1,
+    "had": 1,
+    "slipped": 1,
+    "Hyroy": 4,
+    "off": 1,
+    "from": 1,
+    "dude": 1,
+    "Everyone": 1,
+    "back": 1,
+    "there": 1,
+    "Mark": 1,
+    "Heart": 1,
+    "featuring": 1,
+    "laughter": 1
+   },
+   "unc_ref_tokens": {
+    "the": 2,
+    "entrance": 1,
+    "was": 1,
+    "Liroy": 1,
+    "with": 1,
+    "that": 3,
+    "Yuan": 1,
+    "Euan": 1,
+    "Who": 1,
+    "Roy": 9,
+    "would": 4,
+    "see": 4,
+    "But": 4,
+    "why": 4,
+    "here": 5,
+    "it's": 1,
+    "just": 1,
+    "course": 1,
+    "not": 1,
+    "And": 1,
+    "about": 1,
+    "name": 1,
+    "Royan": 1,
+    "her": 1,
+    "mean": 1,
+    "domain": 1,
+    "act": 1,
+    "Drop": 1,
+    "still": 1,
+    "Rajuan": 1,
+    "part": 1,
+    "wow": 1,
+    "Look": 1,
+    "Roish": 1,
+    "Yeah": 1
+   },
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {
+    "洛": 8
+   },
+   "conflict": true
+  },
+  "bi|尤姆林": {
+   "wrong": "尤姆林",
+   "right": "吟霖",
+   "mode": "bi",
+   "count": 2,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    3521,
+    3522
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "sync": true
+  },
+  "bi|芦野": {
+   "wrong": "芦野",
+   "right": "苇",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    3654
+   ],
+   "samples": [
+    [
+     "",
+     "原重聚",
+     "",
+     "原重聚"
+    ]
+   ],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": ""
+  },
+  "bi|Void Meter": {
+   "wrong": "Void Meter",
+   "right": "虚空计量表",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 1,
+   "status": "candidate",
+   "cues": [
+    884
+   ],
+   "samples": [
+    [
+     "",
+     "理学院与校长洛瑟菈",
+     "",
+     "理学院与校长洛瑟菈"
+    ]
+   ],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": ""
+  },
+  "bi|丹雅": {
+   "wrong": "丹雅",
+   "right": "达妮娅",
+   "mode": "bi",
+   "count": 8,
+   "uncorrected": 5,
+   "status": "candidate",
+   "cues": [
+    946,
+    2113,
+    2244,
+    2309,
+    2313,
+    3909,
+    3991,
+    4264
+   ],
+   "samples": [
+    [
+     "",
+     "请求的目标信息。就是这样",
+     "",
+     "请求的目标信息。就是这样"
+    ],
+    [
+     "一旦他出现，",
+     "的",
+     "一旦他出现，",
+     "的"
+    ],
+    [
+     "那个娃娃，就像",
+     "的身体，纸质",
+     "那个娃娃，就像",
+     "的身体，纸质"
+    ],
+    [
+     ">> 那",
+     "的生日蛋糕怎么办？",
+     ">> 那",
+     "的生日蛋糕怎么办？"
+    ],
+    [
+     "毕竟，那是",
+     "的生日",
+     "毕竟，那是",
+     "的生日"
+    ],
+    [
+     "他建议谈谈",
+     "",
+     "他建议谈谈",
+     ""
+    ],
+    [
+     "",
+     "有什么消息吗？",
+     "",
+     "有什么消息吗？"
+    ],
+    [
+     "",
+     "的发型",
+     "",
+     "的发型"
+    ]
+   ],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": ""
+  },
+  "bi|邦陵子": {
+   "wrong": "邦陵子",
+   "right": "漂泊者",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    959
+   ],
+   "samples": [
+    [
+     "总之，先把这个拿到，",
+     "",
+     "总之，先把这个拿到，",
+     ""
+    ]
+   ],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": ""
+  },
+  "bi|Denier": {
+   "wrong": "Denier",
+   "right": "达妮娅",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    973
+   ],
+   "samples": [
+    [
+     ">>之前见到",
+     "时态度也不同",
+     ">>之前见到",
+     "时态度也不同"
+    ]
+   ],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": ""
+  },
+  "bi|封印": {
+   "wrong": "封印",
+   "right": "鸣式",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 5,
+   "status": "candidate",
+   "cues": [
+    987
+   ],
+   "samples": [
+    [
+     "但说到",
+     "频率的问题",
+     "但说到",
+     "频率的问题"
+    ]
+   ],
+   "ref_tokens": {},
+   "unc_ref_tokens": {
+    "sealed": 4,
+    "within": 4,
+    "creature": 1,
+    "life": 1,
+    "Jingron's": 1,
+    "lamp": 3,
+    "That's": 3,
+    "the": 3,
+    "spirit": 3
+   },
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": ""
+  },
+  "bi|Bangja": {
+   "wrong": "Bangja",
+   "right": "漂泊者",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 1,
+   "status": "candidate",
+   "cues": [
+    1345
+   ],
+   "samples": [
+    [
+     "我也应该试着联系有",
+     "终端的家",
+     "我也应该试着联系有",
+     "终端的家"
+    ]
+   ],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": ""
+  },
+  "bi|邦南贾": {
+   "wrong": "邦南贾",
+   "right": "漂泊者",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    1470
+   ],
+   "samples": [
+    [
+     "放进去。",
+     "",
+     "放进去。",
+     ""
+    ]
+   ],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": ""
+  },
+  "bi|兰贾": {
+   "wrong": "兰贾",
+   "right": "漂泊者",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 1,
+   "status": "candidate",
+   "cues": [
+    1699
+   ],
+   "samples": [
+    [
+     "",
+     "公开地似乎和达妮娅在一起",
+     "",
+     "公开地似乎和达妮娅在一起"
+    ]
+   ],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": ""
+  },
+  "bi|朗扎": {
+   "wrong": "朗扎",
+   "right": "漂泊者",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    1963
+   ],
+   "samples": [
+    [
+     "啊，",
+     "说",
+     "啊，",
+     "说"
+    ]
+   ],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": ""
+  },
+  "bi|Tenia": {
+   "wrong": "Tenia",
+   "right": "达妮娅",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    2356
+   ],
+   "samples": [
+    [
+     "如果我是",
+     "",
+     ">>如果我是",
+     ""
+    ]
+   ],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": ""
+  },
+  "bi|姜南子": {
+   "wrong": "姜南子",
+   "right": "漂泊者",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    2898
+   ],
+   "samples": [
+    [
+     ">>",
+     "",
+     ">>",
+     ""
+    ]
+   ],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": ""
+  },
+  "bi|朗佳": {
+   "wrong": "朗佳",
+   "right": "漂泊者",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    3753
+   ],
+   "samples": [
+    [
+     "显然，",
+     "创造了一个难以置信的奇迹",
+     "显然，",
+     "创造了一个难以置信的奇迹"
+    ]
+   ],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": ""
+  },
+  "bi|丁乔": {
+   "wrong": "丁乔",
+   "right": "鸣潮",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    3882
+   ],
+   "samples": [
+    [
+     ">> ",
+     "的最终内容是全息顶端",
+     ">> ",
+     "的最终内容是全息顶端"
+    ]
+   ],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": ""
+  },
+  "bi|明俊": {
+   "wrong": "明俊",
+   "right": "鸣潮",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    3933
+   ],
+   "samples": [
+    [
+     "嘿，和",
+     "一起创作副作会很有趣",
+     "嘿，和",
+     "一起创作副作会很有趣"
+    ]
+   ],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": ""
+  },
+  "bi|赞恒": {
+   "wrong": "赞恒",
+   "right": "残星会",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    4114
+   ],
+   "samples": [
+    [
+     "从",
+     "的角度来看，这些词是新的",
+     "从",
+     "的角度来看，这些词是新的"
+    ]
+   ],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": ""
+  },
+  "bi|志利加": {
+   "wrong": "志利加",
+   "right": "西格莉卡",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    4274
+   ],
+   "samples": [
+    [
+     "日语中的",
+     "",
+     "日语中的",
+     ""
+    ]
+   ],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": ""
+  },
+  "bi|否认": {
+   "wrong": "否认",
+   "right": "达妮娅",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 6,
+   "status": "candidate",
+   "cues": [
+    4417
+   ],
+   "samples": [
+    [
+     "你学到了很多，",
+     "实验，那个",
+     "你学到了很多，",
+     "实验，那个"
+    ]
+   ],
+   "ref_tokens": {},
+   "unc_ref_tokens": {
+    "know": 1,
+    "they": 1,
+    "other": 1,
+    "Don't": 1,
+    "wonder": 1,
+    "each": 1,
+    "denied": 1,
+    "and": 1,
+    "proven": 1,
+    "confirmed": 1,
+    "deny": 3,
+    "although": 3,
+    "that": 3,
+    "like": 3,
+    "can't": 3
+   },
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": ""
+  },
+  "bi|金熙，": {
+   "wrong": "金熙，",
+   "right": "今汐，",
+   "mode": "bi",
+   "count": 2,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    55,
+    56
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "sync": true
+  },
+  "bi|艾姆斯": {
+   "wrong": "艾姆斯",
+   "right": "爱弥斯",
+   "mode": "bi",
+   "count": 3,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    1644,
+    1645,
+    4470
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "sync": true
+  },
+  "bi|钦查": {
+   "wrong": "钦查",
+   "right": "清宵",
+   "mode": "bi",
+   "count": 6,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    10,
+    2366,
+    3158,
+    3606,
+    3874,
+    11308
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "sync": true
+  },
+  "bi|谐振器": {
+   "wrong": "谐振器",
+   "right": "共鸣者",
+   "mode": "bi",
+   "count": 10,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    51,
+    616,
+    926,
+    2135,
+    2488,
+    2836,
+    5485,
+    5488,
+    5667,
+    6974
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "sync": true
+  },
+  "bi|襄阳": {
+   "wrong": "襄阳",
+   "right": "秧秧",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    115
+   ],
+   "samples": [
+    [
+     "也是从",
+     "来的。是那个",
+     "也是从",
+     "来的。是那个"
+    ]
+   ],
+   "ref_tokens": {
+    "here": 1,
+    "Yangyang": 1,
+    "too": 1,
+    "from": 1,
+    "that": 1
+   },
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\bhere\\b|\\bYangyang\\b|\\btoo\\b"
+  },
+  "bi|漫游": {
+   "wrong": "漫游",
+   "right": "漂泊",
+   "mode": "bi",
+   "count": 20,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    135,
+    210,
+    566,
+    2338,
+    2940,
+    3145,
+    3346,
+    4345,
+    5369,
+    6622,
+    6628,
+    6696,
+    7840,
+    8264,
+    10094,
+    10209,
+    10664,
+    11690,
+    12338,
+    2564
+   ],
+   "samples": [
+    [
+     "",
+     "者。我准备了好几份草稿，",
+     "",
+     "者。我准备了好几份草稿，"
+    ],
+    [
+     "姓名。",
+     "者在苍穹山，谢谢",
+     "姓名。",
+     "者在苍穹山，谢谢"
+    ],
+    [
+     "",
+     "者",
+     "",
+     "者"
+    ],
+    [
+     ">> ",
+     "者。清沙典范",
+     ">> ",
+     "者。清宵Paragon"
+    ],
+    [
+     "",
+     "者",
+     "",
+     "者"
+    ],
+    [
+     "",
+     "者。祝你们旅途平安",
+     "",
+     "者。祝你们旅途平安"
+    ],
+    [
+     "是一个天才的方法，伙计。",
+     "者与",
+     "是一个天才的方法，伙计。",
+     "者与"
+    ],
+    [
+     ">> ",
+     "者",
+     ">> ",
+     "者"
+    ],
+    [
+     ">> ",
+     "者",
+     ">> ",
+     "者"
+    ],
+    [
+     "",
+     "者？因为静已经知道罗孚的",
+     "",
+     "者？因为静已经知道漂泊者"
+    ]
+   ],
+   "ref_tokens": {
+    "drafts": 1,
+    "but": 1,
+    "several": 1,
+    "Rover": 16,
+    "prepared": 1,
+    "name": 2,
+    "Firmament": 1,
+    "Mount": 1,
+    "thank": 1,
+    "Sha": 2,
+    "Paragon": 2,
+    "Ching": 2,
+    "both": 1,
+    "journey": 1,
+    "safe": 1,
+    "you": 3,
+    "wish": 1,
+    "dude": 1,
+    "way": 1,
+    "That's": 1,
+    "with": 2,
+    "genius": 1,
+    "already": 1,
+    "knows": 1,
+    "Jing": 1,
+    "Cuz": 1,
+    "Rover's": 1,
+    "said": 1,
+    "he's": 1,
+    "rover's": 1,
+    "Jen": 1,
+    "great": 1,
+    "find": 1,
+    "rover": 3,
+    "these": 1,
+    "messages": 1,
+    "remembers": 1,
+    "she": 1,
+    "Took": 1,
+    "long": 1,
+    "like": 1,
+    "don't": 1,
+    "praise": 1,
+    "Please": 1,
+    "that": 1,
+    "while": 1,
+    "been": 1,
+    "huh": 1,
+    "It's": 1,
+    "You're": 1,
+    "would": 1,
+    "also": 1,
+    "expected": 1,
+    "never": 1,
+    "Watching": 1,
+    "over": 1,
+    "Arise": 1,
+    "Jingo": 1,
+    "The": 1,
+    "auto": 1,
+    "electro": 1,
+    "puppets": 1
+   },
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {}
+  },
+  "bi|Yayyang": {
+   "wrong": "Yayyang",
+   "right": "秧秧",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 2,
+   "status": "candidate",
+   "cues": [
+    175
+   ],
+   "samples": [
+    [
+     "在 ",
+     " 和 Rover 之间，",
+     "在 ",
+     " 和 漂泊者 之间，因为"
+    ]
+   ],
+   "ref_tokens": {
+    "and": 1,
+    "Yayyang": 1,
+    "between": 1,
+    "Rover": 1,
+    "cuz": 1,
+    "feel": 1
+   },
+   "unc_ref_tokens": {
+    "Yayyang": 2,
+    "message": 1,
+    "Ling's": 1,
+    "new": 1,
+    "And": 1,
+    "Schwan": 1,
+    "see": 1,
+    "unk": 1,
+    "wasteline": 1,
+    "Read": 1
+   },
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\band\\b|\\bbetween\\b|\\bRover\\b"
+  },
+  "bi|吉安": {
+   "wrong": "吉安",
+   "right": "忌炎",
+   "mode": "bi",
+   "count": 4,
+   "uncorrected": 1,
+   "status": "candidate",
+   "cues": [
+    185,
+    769,
+    3631,
+    8442,
+    8443
+   ],
+   "samples": [
+    [
+     "",
+     "说道",
+     "",
+     "说道"
+    ],
+    [
+     "",
+     "曾经是一名医生？我很漂亮",
+     "",
+     "曾经是一名医生？我很漂亮"
+    ],
+    [
+     "知道？有点像",
+     "，就像",
+     "知道？有点像",
+     "，就像"
+    ],
+    [
+     "",
+     "将军，非常专注于",
+     "",
+     "将军，非常专注于"
+    ]
+   ],
+   "ref_tokens": {
+    "said": 1,
+    "Gian": 5,
+    "used": 1,
+    "doctor": 1,
+    "who": 1,
+    "I'm": 2,
+    "pretty": 1,
+    "What": 1,
+    "what": 1,
+    "Like": 1,
+    "about": 1,
+    "worried": 1,
+    "like": 1,
+    "Kind": 1,
+    "maybe": 1,
+    "know": 1,
+    "General": 1,
+    "very": 1,
+    "just": 1,
+    "focused": 1
+   },
+   "unc_ref_tokens": {
+    "like": 1,
+    "but": 1,
+    "looked": 1,
+    "with": 1,
+    "Gian": 1,
+    "what": 1,
+    "that's": 1
+   },
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {
+    "Jiyan": 1
+   },
+   "conflict": true
+  },
+  "bi|靖乔": {
+   "wrong": "靖乔",
+   "right": "今州",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    192
+   ],
+   "samples": [
+    [
+     "",
+     "很安全。的精神",
+     "",
+     "很安全。的精神"
+    ]
+   ],
+   "ref_tokens": {
+    "the": 1,
+    "Jingjo": 1,
+    "safe": 1,
+    "The": 1,
+    "spirits": 1
+   },
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\bthe\\b|\\bJingjo\\b|\\bsafe\\b"
+  },
+  "bi|Ginshi": {
+   "wrong": "Ginshi",
+   "right": "今汐",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    212
+   ],
+   "samples": [
+    [
+     "",
+     " 为我们争取了时间。那是",
+     "",
+     " 为我们争取了时间。那是"
+    ]
+   ],
+   "ref_tokens": {
+    "the": 1,
+    "buying": 1,
+    "That's": 1,
+    "time": 1,
+    "for": 1,
+    "Ginshi": 1
+   },
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\bthe\\b|\\bbuying\\b|\\bThat's\\b"
+  },
+  "bi|金石": {
+   "wrong": "金石",
+   "right": "今汐",
+   "mode": "bi",
+   "count": 3,
+   "uncorrected": 1,
+   "status": "candidate",
+   "cues": [
+    216,
+    219,
+    4115
+   ],
+   "samples": [
+    [
+     "哈哈。樟宜，你和",
+     "都有",
+     "哈哈。樟宜，你和",
+     "都有"
+    ],
+    [
+     "成就。你和",
+     "都有",
+     "成就。你和",
+     "都有"
+    ],
+    [
+     ">> 你知道，",
+     "和李正",
+     ">> 你知道，",
+     "和李正"
+    ]
+   ],
+   "ref_tokens": {
+    "Haha": 1,
+    "and": 3,
+    "both": 2,
+    "you": 1,
+    "Jinshi": 3,
+    "Changi": 1,
+    "have": 2,
+    "You": 2,
+    "achievement": 1,
+    "know": 1,
+    "Jung": 1,
+    "Lee": 1
+   },
+   "unc_ref_tokens": {
+    "I'll": 1,
+    "safe": 1,
+    "All": 1,
+    "Gingshi": 1,
+    "keep": 1,
+    "that": 1,
+    "right": 1
+   },
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\band\\b|\\bJinshi\\b|\\bboth\\b"
+  },
+  "bi|阿莎拉": {
+   "wrong": "阿莎拉",
+   "right": "苇原",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    264
+   ],
+   "samples": [
+    [
+     "出于某种原因。是的。",
+     "有消息吗？",
+     "是的。",
+     "有消息吗？"
+    ]
+   ],
+   "ref_tokens": {
+    "reason": 1,
+    "Ashara": 1,
+    "Any": 1,
+    "Yeah": 1,
+    "some": 1,
+    "news": 1
+   },
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\breason\\b|\\bAshara\\b|\\bAny\\b"
+  },
+  "bi|京乔": {
+   "wrong": "京乔",
+   "right": ">> 今州",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    396
+   ],
+   "samples": [
+    [
+     "",
+     "人人都非常信任",
+     "",
+     "人人都非常信任"
+    ]
+   ],
+   "ref_tokens": {
+    "great": 1,
+    "Jingjo": 1,
+    "Everyone": 1,
+    "trust": 1,
+    "places": 1
+   },
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\bgreat\\b|\\bJingjo\\b|\\bEveryone\\b"
+  },
+  "bi|法官": {
+   "wrong": "法官",
+   "right": "令尹",
+   "mode": "bi",
+   "count": 5,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    405,
+    4117,
+    12331,
+    12365,
+    12374
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "sync": true
+  },
+  "bi|露西尔": {
+   "wrong": "露西尔",
+   "right": "洛瑟菈",
+   "mode": "bi",
+   "count": 2,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    567,
+    1726
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "sync": true
+  },
+  "bi|恒龙": {
+   "wrong": "恒龙",
+   "right": "瑝珑",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    704
+   ],
+   "samples": [
+    [
+     "",
+     "市",
+     "",
+     "市"
+    ]
+   ],
+   "ref_tokens": {
+    "city": 1,
+    "Long": 1,
+    "Hang": 1,
+    "over": 1
+   },
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\bcity\\b|\\bLong\\b|\\bHang\\b"
+  },
+  "bi|总统": {
+   "wrong": "总统",
+   "right": "洛瑟菈",
+   "mode": "bi",
+   "count": 2,
+   "uncorrected": 1,
+   "status": "candidate",
+   "cues": [
+    726,
+    744
+   ],
+   "samples": [
+    [
+     " 不知何故，我怀疑卢西洛",
+     "会",
+     " 不知何故，我怀疑卢西洛",
+     "会"
+    ],
+    [
+     "",
+     "早点休息一段时间或者",
+     "",
+     "早点休息一段时间或者"
+    ]
+   ],
+   "ref_tokens": {
+    "would": 1,
+    "President": 1,
+    "Somehow": 1,
+    "Lucilo": 1,
+    "doubt": 1,
+    "off": 1,
+    "sooner": 1,
+    "president": 1,
+    "time": 1,
+    "some": 1,
+    "for": 1
+   },
+   "unc_ref_tokens": {
+    "and": 1,
+    "the": 1,
+    "perfect": 1,
+    "fit": 1,
+    "presidency": 1,
+    "for": 1
+   },
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\bwould\\b|\\bPresident\\b|\\bSomehow\\b"
+  },
+  "bi|恒隆": {
+   "wrong": "恒隆",
+   "right": "瑝珑",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    778
+   ],
+   "samples": [
+    [
+     "ro 有一天或者当我访问",
+     "时",
+     "ro 有一天或者当我访问",
+     "时"
+    ]
+   ],
+   "ref_tokens": {
+    "when": 1,
+    "someday": 1,
+    "Hyro": 1,
+    "Long": 1,
+    "Hang": 1,
+    "visit": 1
+   },
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\bwhen\\b|\\bsomeday\\b|\\bHyro\\b"
+  },
+  "bi|希罗伊": {
+   "wrong": "希罗伊",
+   "right": "海洛",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    796
+   ],
+   "samples": [
+    [
+     "除了拉",
+     "之外，有时也会有阳光",
+     "除了拉",
+     "之外，有时也会有阳光"
+    ]
+   ],
+   "ref_tokens": {
+    "sun": 1,
+    "Beyond": 1,
+    "get": 1,
+    "you": 1,
+    "sometimes": 1,
+    "Hiroy": 1
+   },
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\bsun\\b|\\bBeyond\\b|\\bget\\b"
+  },
+  "bi|尼尔": {
+   "wrong": "尼尔",
+   "right": "宁",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    891
+   ],
+   "samples": [
+    [
+     "从莱恩到卢克到莫",
+     "到露西拉",
+     "从莱恩到陆·赫斯到莫",
+     "到洛瑟菈"
+    ]
+   ],
+   "ref_tokens": {
+    "Len": 1,
+    "Monier": 1,
+    "Lucila": 1,
+    "from": 1,
+    "Luke": 1
+   },
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\bLen\\b|\\bMonier\\b|\\bLucila\\b"
+  },
+  "bi|塞普蒂蒙": {
+   "wrong": "塞普蒂蒙",
+   "right": "七丘",
+   "mode": "bi",
+   "count": 2,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    967,
+    3913
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "sync": true
+  },
+  "bi|gj": {
+   "wrong": "gj",
+   "right": "zh",
+   "mode": "bi",
+   "count": 2,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    968,
+    3795
+   ],
+   "samples": [
+    [
+     "然后跳到 Gin",
+     "o 的边界",
+     "然后跳到 Jin",
+     "ou 的边界"
+    ],
+    [
+     "那是Jin",
+     "o的那一刻",
+     "那是Jin",
+     "ou的那一刻"
+    ]
+   ],
+   "ref_tokens": {
+    "skip": 1,
+    "Gingjo": 1,
+    "over": 1,
+    "Then": 1,
+    "border": 1,
+    "for": 1,
+    "that": 2,
+    "the": 1,
+    "Jingjo": 1,
+    "moment": 1,
+    "was": 1
+   },
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {}
+  },
+  "bi|边管理员": {
+   "wrong": "边管理员",
+   "right": "人",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    975
+   ],
+   "samples": [
+    [
+     "海岸。我想见见岸",
+     "",
+     "海岸。我想见见守岸",
+     ""
+    ]
+   ],
+   "ref_tokens": {
+    "the": 1,
+    "Shores": 1,
+    "want": 1,
+    "meet": 1,
+    "shorekeeper": 1
+   },
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\bthe\\b|\\bShores\\b|\\bwant\\b"
+  },
+  "bi|哀叹": {
+   "wrong": "哀叹",
+   "right": "悲鸣",
+   "mode": "bi",
+   "count": 6,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    980,
+    5184,
+    7435,
+    7568,
+    7636,
+    7814
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "sync": true
+  },
+  "bi|香风": {
+   "wrong": "香风",
+   "right": "玄方城",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    1142
+   ],
+   "samples": [
+    [
+     "",
+     "之地正在慢慢回归",
+     "",
+     "之地正在慢慢回归"
+    ]
+   ],
+   "ref_tokens": {
+    "land": 1,
+    "slowly": 1,
+    "returning": 1,
+    "Shwangfong": 1
+   },
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\bland\\b|\\bslowly\\b|\\breturning\\b"
+  },
+  "bi|姆乔": {
+   "wrong": "姆乔",
+   "right": "梦州",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    1189
+   ],
+   "samples": [
+    [
+     "返回",
+     "。它是否像一个",
+     "返回",
+     "。它是否像一个"
+    ]
+   ],
+   "ref_tokens": {
+    "like": 1,
+    "Mjo": 1,
+    "back": 1,
+    "heading": 1,
+    "Was": 1
+   },
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\blike\\b|\\bMjo\\b|\\bback\\b"
+  },
+  "bi|圆形": {
+   "wrong": "圆形",
+   "right": "木禺",
+   "mode": "bi",
+   "count": 2,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    1215,
+    6803
+   ],
+   "samples": [
+    [
+     ">> ",
+     "",
+     ">> ",
+     ""
+    ],
+    [
+     ">> ",
+     "",
+     ">> ",
+     ""
+    ]
+   ],
+   "ref_tokens": {
+    "Muyu": 2
+   },
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {}
+  },
+  "bi|海绵牙": {
+   "wrong": "海绵牙",
+   "right": "玄方城",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    1233
+   ],
+   "samples": [
+    [
+     "",
+     "",
+     "",
+     ""
+    ]
+   ],
+   "ref_tokens": {
+    "Schwamfang": 1
+   },
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\bSchwamfang\\b"
+  },
+  "bi|芒果哨兵": {
+   "wrong": "芒果哨兵",
+   "right": "梦州岁主",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    1245
+   ],
+   "samples": [
+    [
+     "我曾经做过一个",
+     "",
+     "我曾经做过一个",
+     ""
+    ]
+   ],
+   "ref_tokens": {
+    "sentinel": 1,
+    "certain": 1,
+    "made": 1,
+    "mango": 1,
+    "once": 1
+   },
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\bsentinel\\b|\\bcertain\\b|\\bmade\\b"
+  },
+  "bi|施万芳要塞": {
+   "wrong": "施万芳要塞",
+   "right": "玄方城",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    1251
+   ],
+   "samples": [
+    [
+     "靠近",
+     "",
+     "靠近",
+     ""
+    ]
+   ],
+   "ref_tokens": {
+    "hold": 1,
+    "Schwanfang": 1,
+    "close": 1
+   },
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\bhold\\b|\\bSchwanfang\\b|\\bclose\\b"
+  },
+  "bi|芒果": {
+   "wrong": "芒果",
+   "right": "梦州",
+   "mode": "bi",
+   "count": 8,
+   "uncorrected": 2,
+   "status": "candidate",
+   "cues": [
+    1266,
+    1269,
+    2257,
+    9289,
+    10650,
+    10805,
+    465,
+    1156
+   ],
+   "samples": [
+    [
+     "我会担心",
+     "。除以和",
+     "我会担心",
+     "。除以和"
+    ],
+    [
+     ">> 在",
+     "城保持安全。当心",
+     ">> 在",
+     "城保持安全。当心"
+    ],
+    [
+     ">>自古以来，",
+     "有很多",
+     ">>自古以来，",
+     "有很多"
+    ],
+    [
+     "",
+     "最多的是这个吗",
+     "",
+     "最多的是这个吗"
+    ],
+    [
+     "",
+     "第4章我们还没有完成",
+     "",
+     "第4章我们还没有完成"
+    ],
+    [
+     "不再谈论",
+     "",
+     "不再谈论",
+     ""
+    ],
+    [
+     "我会担心",
+     "的事。除法和",
+     "我会担心",
+     "的事。除法和"
+    ],
+    [
+     ">> 自古以来，",
+     "就有许多",
+     ">> 自古以来，",
+     "就有许多"
+    ]
+   ],
+   "ref_tokens": {
+    "and": 2,
+    "Divide": 2,
+    "I'll": 2,
+    "Mango": 8,
+    "about": 3,
+    "worry": 2,
+    "careful": 1,
+    "safe": 1,
+    "City": 1,
+    "Stay": 1,
+    "olden": 2,
+    "many": 2,
+    "times": 2,
+    "since": 1,
+    "has": 2,
+    "had": 2,
+    "this": 1,
+    "the": 1,
+    "most": 1,
+    "done": 1,
+    "chapter": 1,
+    "even": 1,
+    "not": 1,
+    "We're": 1,
+    "more": 1,
+    "talk": 1,
+    "Since": 1
+   },
+   "unc_ref_tokens": {
+    "City": 2,
+    "Hall": 1,
+    "Mango": 2,
+    "trip": 1,
+    "will": 1,
+    "arrive": 1,
+    "from": 1,
+    "supplies": 1
+   },
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\babout\\b|\\band\\b|\\bDivide\\b"
+  },
+  "bi|钦察": {
+   "wrong": "钦察",
+   "right": "清宵",
+   "mode": "bi",
+   "count": 2,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    1344,
+    11282
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "sync": true
+  },
+  "bi|万丰控股": {
+   "wrong": "万丰控股",
+   "right": "玄方城",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    1393
+   ],
+   "samples": [
+    [
+     "",
+     "",
+     "",
+     ""
+    ]
+   ],
+   "ref_tokens": {
+    "Shwanfong": 1,
+    "hold": 1
+   },
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\bShwanfong\\b|\\bhold\\b"
+  },
+  "bi|百丽宫": {
+   "wrong": "百丽宫",
+   "right": "Paragon",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    1407
+   ],
+   "samples": [
+    [
+     "金沙",
+     "",
+     "金沙",
+     ""
+    ]
+   ],
+   "ref_tokens": {
+    "Sha": 1,
+    "Chin": 1,
+    "Paragon": 1
+   },
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\bSha\\b|\\bChin\\b|\\bParagon\\b"
+  },
+  "bi|莫乔": {
+   "wrong": "莫乔",
+   "right": "梦州",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    1435
+   ],
+   "samples": [
+    [
+     "",
+     "城。哦",
+     "",
+     "城。哦"
+    ]
+   ],
+   "ref_tokens": {
+    "City": 1,
+    "Mojo": 1
+   },
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\bCity\\b|\\bMojo\\b"
+  },
+  "bi|肖恩": {
+   "wrong": "肖恩",
+   "right": "心月狐",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 8,
+   "status": "candidate",
+   "cues": [
+    1500
+   ],
+   "samples": [
+    [
+     "银幕上只有",
+     "这样的人",
+     "银幕上只有",
+     "这样的人"
+    ]
+   ],
+   "ref_tokens": {
+    "like": 1,
+    "just": 1,
+    "screen": 1,
+    "Shane": 1,
+    "had": 1
+   },
+   "unc_ref_tokens": {
+    "interesting": 1,
+    "Sean": 5,
+    "the": 2,
+    "even": 1,
+    "more": 1,
+    "than": 1,
+    "and": 1,
+    "Society": 1,
+    "with": 1,
+    "quest": 1,
+    "about": 3,
+    "Not": 3,
+    "Shawn": 3,
+    "bombards": 3
+   },
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\blike\\b|\\bjust\\b|\\bscreen\\b"
+  },
+  "bi|尚丰堡": {
+   "wrong": "尚丰堡",
+   "right": "玄方城",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    1546
+   ],
+   "samples": [
+    [
+     "",
+     "。我想听听",
+     "",
+     "。我想听听"
+    ]
+   ],
+   "ref_tokens": {
+    "like": 1,
+    "hear": 1,
+    "Shwong": 1,
+    "Hold": 1,
+    "I'd": 1,
+    "Fong": 1,
+    "about": 1
+   },
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\blike\\b|\\bhear\\b|\\bShwong\\b"
+  },
+  "bi|浪费": {
+   "wrong": "浪费",
+   "right": "我想是玄方城吧。完美的",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 19,
+   "status": "candidate",
+   "cues": [
+    1552
+   ],
+   "samples": [
+    [
+     "",
+     "时间。你会长期停留在",
+     "",
+     "时机。我"
+    ]
+   ],
+   "ref_tokens": {
+    "staying": 1,
+    "time": 1,
+    "long": 1,
+    "You'll": 1,
+    "waste": 1
+   },
+   "unc_ref_tokens": {
+    "Let's": 4,
+    "time": 5,
+    "waste": 16,
+    "pointless": 4,
+    "stop": 1,
+    "this": 4,
+    "Why": 1,
+    "not": 2,
+    "I'm": 1,
+    "letting": 1,
+    "Ching": 1,
+    "You'll": 1,
+    "with": 1,
+    "coming": 1,
+    "wasted": 3,
+    "feel": 3,
+    "money": 6,
+    "like": 6,
+    "cuz": 3,
+    "don't": 3,
+    "playing": 3,
+    "Stop": 3
+   },
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\bstaying\\b|\\blong\\b"
+  },
+  "bi|你会长期停留在": {
+   "wrong": "你会长期停留在",
+   "right": "我",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    1552
+   ],
+   "samples": [
+    [
+     "浪费时间。",
+     "",
+     "是玄方城吧。完美的时机。",
+     ""
+    ]
+   ],
+   "ref_tokens": {
+    "staying": 1,
+    "time": 1,
+    "long": 1,
+    "You'll": 1,
+    "waste": 1
+   },
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\bstaying\\b|\\btime\\b|\\blong\\b"
+  },
+  "bi|施旺丰": {
+   "wrong": "施旺丰",
+   "right": "玄方城",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    1554
+   ],
+   "samples": [
+    [
+     "本来计划去",
+     "的",
+     "本来计划去",
+     "的"
+    ]
+   ],
+   "ref_tokens": {
+    "Schwangfong's": 1,
+    "had": 1,
+    "visit": 1,
+    "plans": 1
+   },
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\bSchwangfong's\\b|\\bhad\\b|\\bvisit\\b"
+  },
+  "bi|百丽宫青沙": {
+   "wrong": "百丽宫青沙",
+   "right": "Paragon清宵",
+   "mode": "bi",
+   "count": 2,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    1617,
+    5370
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "sync": true
+  },
+  "bi|青沙": {
+   "wrong": "青沙",
+   "right": "清宵",
+   "mode": "bi",
+   "count": 27,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    1729,
+    1795,
+    1829,
+    2754,
+    3038,
+    3236,
+    4156,
+    4205,
+    6347,
+    6734,
+    7128,
+    7218,
+    7960,
+    8158,
+    10088,
+    10432,
+    11256,
+    11436,
+    11604,
+    11756
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "sync": true
+  },
+  "bi|恶心": {
+   "wrong": "恶心",
+   "right": "帅",
+   "mode": "bi",
+   "count": 14,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    1966,
+    2365,
+    2386,
+    2415,
+    3444,
+    5254,
+    5367,
+    5381,
+    5591,
+    5762,
+    6923,
+    8633,
+    8718,
+    4698
+   ],
+   "samples": [
+    [
+     "天哪，这太",
+     "了。哇哦，我真的",
+     "天哪，这太",
+     "了。哇哦，我真的"
+    ],
+    [
+     "那太",
+     "了",
+     "那太",
+     "了"
+    ],
+    [
+     "哦，这部分太",
+     "了，兄弟",
+     "哦，这部分太",
+     "了，兄弟"
+    ],
+    [
+     "是什么[ __ ] 那太",
+     "了",
+     "是什么[ __ ] 那太",
+     "了"
+    ],
+    [
+     ">> 哦，这太",
+     "了",
+     ">> 哦，这太",
+     "了"
+    ],
+    [
+     "那真是太",
+     "了，兄弟。那是",
+     "那真是太",
+     "了，兄弟。那是"
+    ],
+    [
+     ">> 天哪，这太",
+     "了。光芒四射",
+     ">> 天哪，这太",
+     "了。光芒四射"
+    ],
+    [
+     "__ ]走吧，伙计。这太",
+     "了",
+     "__ ]走吧，伙计。这太",
+     "了"
+    ],
+    [
+     "那太",
+     "了。它降落在",
+     "那太",
+     "了。它降落在"
+    ],
+    [
+     "那太",
+     "了",
+     "那太",
+     "了"
+    ]
+   ],
+   "ref_tokens": {
+    "wow": 1,
+    "really": 1,
+    "god": 1,
+    "sick": 13,
+    "that": 4,
+    "That": 4,
+    "this": 2,
+    "bro": 2,
+    "part": 1,
+    "What": 1,
+    "the": 2,
+    "was": 3,
+    "freaking": 1,
+    "GOD": 2,
+    "The": 1,
+    "glow": 1,
+    "This": 2,
+    "Let's": 1,
+    "man": 1,
+    "back": 1,
+    "lands": 1,
+    "That's": 1,
+    "love": 1,
+    "Yang": 1,
+    "three": 1,
+    "All": 1,
+    "Nice": 1,
+    "they're": 1,
+    "gross": 1,
+    "like": 1,
+    "these": 1,
+    "They're": 1
+   },
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {}
+  },
+  "bi|帕拉贡": {
+   "wrong": "帕拉贡",
+   "right": "Paragon",
+   "mode": "bi",
+   "count": 7,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    2011,
+    2056,
+    2146,
+    2531,
+    9547,
+    10087,
+    10766
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "sync": true
+  },
+  "bi|尼瑟曼": {
+   "wrong": "尼瑟曼",
+   "right": "幽客",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 1,
+   "status": "candidate",
+   "cues": [
+    2030
+   ],
+   "samples": [
+    [
+     "",
+     "在《Mango》中说携带",
+     "",
+     "在《梦州》中说携带硬币就"
+    ]
+   ],
+   "ref_tokens": {
+    "coins": 1,
+    "carry": 1,
+    "Mango": 1,
+    "just": 1,
+    "netherman": 1,
+    "says": 1
+   },
+   "unc_ref_tokens": {
+    "and": 1,
+    "realm": 1,
+    "tracked": 1,
+    "who": 1,
+    "mirage": 1,
+    "Netherman": 1
+   },
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\bcoins\\b|\\bcarry\\b|\\bMango\\b"
+  },
+  "bi|秦莎": {
+   "wrong": "秦莎",
+   "right": "清宵",
+   "mode": "bi",
+   "count": 2,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    2057,
+    6053
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "sync": true
+  },
+  "bi|典范": {
+   "wrong": "典范",
+   "right": "Paragon",
+   "mode": "bi",
+   "count": 7,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    2067,
+    2911,
+    3229,
+    8512,
+    8740,
+    10581,
+    10774
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "sync": true
+  },
+  "bi|施瓦努安": {
+   "wrong": "施瓦努安",
+   "right": "玄元境",
+   "mode": "bi",
+   "count": 3,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    2069,
+    9876,
+    9888
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "sync": true
+  },
+  "bi|Chin Xiao": {
+   "wrong": "Chin Xiao",
+   "right": "清宵",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 3,
+   "status": "candidate",
+   "cues": [
+    2083
+   ],
+   "samples": [
+    [
+     "我只知道Paragon ",
+     "有",
+     "我只知道Paragon ",
+     "有"
+    ]
+   ],
+   "ref_tokens": {
+    "know": 1,
+    "Xiao": 1,
+    "All": 1,
+    "Chin": 1,
+    "has": 1,
+    "Paragon": 1,
+    "Wow": 1
+   },
+   "unc_ref_tokens": {
+    "Paragon": 3,
+    "has": 3,
+    "Xiao": 3,
+    "Chin": 3,
+    "know": 3,
+    "been": 3,
+    "All": 3
+   },
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\bWow\\b"
+  },
+  "bi|查青": {
+   "wrong": "查青",
+   "right": "清宵",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    2090
+   ],
+   "samples": [
+    [
+     "哦，哇。",
+     "几岁了",
+     "哦，哇。",
+     "几岁了"
+    ]
+   ],
+   "ref_tokens": {
+    "What": 1,
+    "wow": 1,
+    "the": 1,
+    "Ching": 1,
+    "How": 1,
+    "Cha": 1,
+    "old": 1
+   },
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\bWhat\\b|\\bwow\\b|\\bthe\\b"
+  },
+  "bi|心照不宣": {
+   "wrong": "心照不宣",
+   "right": "残象",
+   "mode": "bi",
+   "count": 2,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    2146,
+    2167
+   ],
+   "samples": [
+    [
+     "",
+     "的不和谐。这其实是帕拉贡",
+     "",
+     "的不和谐。这其实是Par"
+    ],
+    [
+     "支持这股",
+     "的不和谐浪潮",
+     "支持这股",
+     "的不和谐浪潮"
+    ]
+   ],
+   "ref_tokens": {
+    "discords": 2,
+    "Tacit": 1,
+    "That's": 1,
+    "Paragon": 1,
+    "actually": 1,
+    "back": 1,
+    "this": 1,
+    "tide": 1,
+    "tacit": 1
+   },
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {}
+  },
+  "bi|Chinsha": {
+   "wrong": "Chinsha",
+   "right": "清宵",
+   "mode": "bi",
+   "count": 2,
+   "uncorrected": 2,
+   "status": "candidate",
+   "cues": [
+    2226,
+    2955
+   ],
+   "samples": [
+    [
+     "Rover 比 ",
+     " 还老吧？",
+     "漂泊者 比 ",
+     " 还老吧？"
+    ],
+    [
+     ">> 是",
+     "在玩，不是吗？",
+     ">> 是",
+     "在玩，不是吗？"
+    ]
+   ],
+   "ref_tokens": {
+    "older": 1,
+    "huh": 1,
+    "Chinsha": 2,
+    "still": 1,
+    "Rover": 1,
+    "than": 1,
+    "isn't": 1,
+    "playing": 1,
+    "It's": 1
+   },
+   "unc_ref_tokens": {
+    "like": 1,
+    "Chinsha": 2,
+    "just": 1,
+    "that": 1,
+    "saw": 1,
+    "age": 1,
+    "ask": 1,
+    "Sha": 1,
+    "Paragon": 1,
+    "her": 1,
+    "May": 1
+   },
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\bolder\\b|\\bhuh\\b|\\bstill\\b"
+  },
+  "bi|蒙戈": {
+   "wrong": "蒙戈",
+   "right": "梦州",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    2244
+   ],
+   "samples": [
+    [
+     "它与",
+     "的虚空法师有联系",
+     "它与",
+     "的幽客有联系"
+    ]
+   ],
+   "ref_tokens": {
+    "Mongo's": 1,
+    "nethermancers": 1,
+    "ties": 1,
+    "have": 1
+   },
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\bMongo's\\b|\\bnethermancers\\b|\\bties\\b"
+  },
+  "bi|幻界": {
+   "wrong": "幻界",
+   "right": "蜃境",
+   "mode": "bi",
+   "count": 6,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    2315,
+    2325,
+    5263,
+    5866,
+    6580,
+    12255
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "sync": true
+  },
+  "bi|沙典范": {
+   "wrong": "沙典范",
+   "right": "宵Paragon",
+   "mode": "bi",
+   "count": 3,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    2338,
+    8264,
+    10767
+   ],
+   "samples": [
+    [
+     ">> 漫游者。清",
+     "",
+     ">> 漂泊者。清",
+     ""
+    ],
+    [
+     ">> 漫游者。清",
+     "。花了你很长时间",
+     ">> 漂泊者。清",
+     "。花了你很长时间"
+    ],
+    [
+     "清",
+     "。这是真的。我看到她了",
+     "清",
+     "。这是真的。我看到她了"
+    ]
+   ],
+   "ref_tokens": {
+    "Sha": 3,
+    "Rover": 2,
+    "Paragon": 3,
+    "Ching": 3,
+    "Took": 1,
+    "you": 1,
+    "long": 1,
+    "true": 1,
+    "It's": 1,
+    "her": 1,
+    "saw": 1
+   },
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {}
+  },
+  "bi|静莎": {
+   "wrong": "静莎",
+   "right": "清宵",
+   "mode": "bi",
+   "count": 4,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    2456,
+    5466,
+    11656,
+    11657
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "sync": true
+  },
+  "bi|Schwanghold": {
+   "wrong": "Schwanghold",
+   "right": "玄方城",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    2599
+   ],
+   "samples": [
+    [
+     "",
+     "进入状态",
+     "",
+     "进入状态"
+    ]
+   ],
+   "ref_tokens": {
+    "state": 1,
+    "Schwang": 1,
+    "enters": 1,
+    "hold": 1
+   },
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\bstate\\b|\\bSchwang\\b|\\benters\\b"
+  },
+  "bi|自动": {
+   "wrong": "自动",
+   "right": "机",
+   "mode": "bi",
+   "count": 13,
+   "uncorrected": 1,
+   "status": "candidate",
+   "cues": [
+    2657,
+    3740,
+    4045,
+    4608,
+    5053,
+    5259,
+    5988,
+    6203,
+    6377,
+    6458,
+    6609,
+    6806,
+    3296
+   ],
+   "samples": [
+    [
+     ">> tid 不和谐和",
+     "傀儡不是",
+     ">> tid 不和谐和",
+     "傀不是"
+    ],
+    [
+     ">> 云落定与",
+     "傀儡",
+     ">> 云落定与",
+     "傀"
+    ],
+    [
+     ">> 那是",
+     "傀儡吗？",
+     ">> 那是",
+     "傀吗？"
+    ],
+    [
+     ">> 这些",
+     "傀儡没有任何迹象",
+     ">> 这些",
+     "傀没有任何迹象"
+    ],
+    [
+     "要么让",
+     "傀儡生气，要么",
+     "要么让",
+     "傀生气，要么"
+    ],
+    [
+     "神秘的",
+     "傀儡。噢，是JD",
+     "神秘的",
+     "傀。噢，是JD"
+    ],
+    [
+     "人类的",
+     "傀儡？这就是我",
+     "人类的",
+     "傀？这就是我"
+    ],
+    [
+     "虽然是",
+     "傀儡。怎样会这样",
+     "虽然是",
+     "傀。怎样会这样"
+    ],
+    [
+     ">> ",
+     "傀儡正在攻击那些",
+     ">> ",
+     "傀正在攻击那些"
+    ],
+    [
+     "到攻击的",
+     "傀儡",
+     "到攻击的",
+     "傀"
+    ]
+   ],
+   "ref_tokens": {
+    "discords": 1,
+    "and": 2,
+    "auto": 9,
+    "tid": 1,
+    "were": 1,
+    "puppets": 8,
+    "not": 1,
+    "settles": 1,
+    "cloud": 1,
+    "The": 1,
+    "that": 3,
+    "puppet": 2,
+    "show": 1,
+    "sign": 1,
+    "These": 1,
+    "autopuppets": 2,
+    "the": 3,
+    "angry": 1,
+    "was": 1,
+    "either": 1,
+    "turn": 1,
+    "Auto": 2,
+    "it's": 1,
+    "Puppet": 1,
+    "Mysterious": 1,
+    "That's": 1,
+    "from": 1,
+    "what": 1,
+    "humans": 1,
+    "would": 1,
+    "are": 2,
+    "though": 1,
+    "How": 1,
+    "attacking": 1,
+    "those": 1,
+    "attack": 2,
+    "order": 1,
+    "but": 2,
+    "send": 1,
+    "you": 1,
+    "still": 1,
+    "hunt": 1,
+    "rogue": 1,
+    "past": 1,
+    "this": 1,
+    "get": 1,
+    "point": 1
+   },
+   "unc_ref_tokens": {
+    "autobuppets": 1,
+    "and": 1,
+    "the": 1,
+    "shuttles": 1
+   },
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\bauto\\b|\\bpuppets\\b|\\bthat\\b"
+  },
+  "bi|施瓦姆要塞": {
+   "wrong": "施瓦姆要塞",
+   "right": "玄方城",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    2680
+   ],
+   "samples": [
+    [
+     "对",
+     "的袭击还有另一次",
+     "对",
+     "的袭击还有另一次"
+    ]
+   ],
+   "ref_tokens": {
+    "Schwam": 1,
+    "Hold": 1,
+    "another": 1,
+    "attack": 1,
+    "had": 1
+   },
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\bSchwam\\b|\\bHold\\b|\\banother\\b"
+  },
+  "bi|神芳霍尔": {
+   "wrong": "神芳霍尔",
+   "right": "玄方城",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    2697
+   ],
+   "samples": [
+    [
+     ">> ",
+     "围攻期间",
+     ">> ",
+     "围攻期间"
+    ]
+   ],
+   "ref_tokens": {
+    "Shenfang": 1,
+    "the": 1,
+    "Hol": 1,
+    "siege": 1,
+    "During": 1
+   },
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\bShenfang\\b|\\bthe\\b|\\bHol\\b"
+  },
+  "bi|望祖": {
+   "wrong": "望祖",
+   "right": "梦州",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    2732
+   ],
+   "samples": [
+    [
+     ">> ",
+     "市政府如果追究责任的话",
+     ">> ",
+     "市政府如果追究责任的话"
+    ]
+   ],
+   "ref_tokens": {
+    "the": 1,
+    "blame": 1,
+    "assigns": 1,
+    "hall": 1,
+    "city": 1,
+    "Mongjo": 1
+   },
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\bthe\\b|\\bblame\\b|\\bassigns\\b"
+  },
+  "bi|tacet": {
+   "wrong": "tacet",
+   "right": "残象",
+   "mode": "bi",
+   "count": 2,
+   "uncorrected": 11,
+   "status": "candidate",
+   "cues": [
+    2796,
+    3742
+   ],
+   "samples": [
+    [
+     "那么我就不会害怕",
+     "",
+     "那么我就不会害怕",
+     ""
+    ],
+    [
+     "在他们消除了 ",
+     " 不和谐之后",
+     "在他们消除了 ",
+     " 不和谐之后"
+    ]
+   ],
+   "ref_tokens": {
+    "wouldn't": 1,
+    "afraid": 1,
+    "Then": 1,
+    "tacet": 2,
+    "discords": 1,
+    "the": 1,
+    "After": 1,
+    "they": 1,
+    "cleared": 1
+   },
+   "unc_ref_tokens": {
+    "the": 6,
+    "source": 1,
+    "kernel": 1,
+    "tacetide": 1,
+    "one": 1,
+    "true": 1,
+    "lives": 1,
+    "tacet": 10,
+    "This": 1,
+    "discos": 1,
+    "we'd": 1,
+    "see": 1,
+    "Never": 1,
+    "thought": 1,
+    "discords": 5,
+    "manage": 1,
+    "can": 1,
+    "within": 1,
+    "will": 1,
+    "contained": 1,
+    "past": 3,
+    "few": 3,
+    "slipped": 3,
+    "those": 3,
+    "discores": 3,
+    "Word": 3,
+    "roaming": 3
+   },
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\bwouldn't\\b|\\bafraid\\b|\\bThen\\b"
+  },
+  "bi|百丽宫金莎": {
+   "wrong": "百丽宫金莎",
+   "right": "Paragon清宵",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    2823
+   ],
+   "samples": [
+    [
+     ">> ",
+     "把我照顾得很好",
+     ">> ",
+     "把我照顾得很好"
+    ]
+   ],
+   "ref_tokens": {
+    "Sha": 1,
+    "looked": 1,
+    "Chin": 1,
+    "Paragon": 1,
+    "after": 1,
+    "well": 1
+   },
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\bSha\\b|\\blooked\\b|\\bChin\\b"
+  },
+  "bi|溪流": {
+   "wrong": "溪流",
+   "right": "直播",
+   "mode": "bi",
+   "count": 2,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    2945,
+    4196
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "sync": true
+  },
+  "bi|天鹅典范": {
+   "wrong": "天鹅典范",
+   "right": "玄Paragon",
+   "mode": "bi",
+   "count": 2,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    3022,
+    4027
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "sync": true
+  },
+  "bi|中央法院": {
+   "wrong": "中央法院",
+   "right": "咎庭",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 1,
+   "status": "candidate",
+   "cues": [
+    3027
+   ],
+   "samples": [
+    [
+     "在",
+     "之一",
+     "在",
+     "之一"
+    ]
+   ],
+   "ref_tokens": {
+    "one": 1,
+    "courts": 1,
+    "the": 1,
+    "centure": 1
+   },
+   "unc_ref_tokens": {
+    "and": 1,
+    "auto": 1,
+    "will": 1,
+    "central": 1,
+    "puppets": 1,
+    "courts": 1
+   },
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\bone\\b|\\bthe\\b|\\bcenture\\b"
+  },
+  "bi|金沙百丽宫": {
+   "wrong": "金沙百丽宫",
+   "right": "清宵Paragon",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    3144
+   ],
+   "samples": [
+    [
+     "庆君。嘿伙计。",
+     "",
+     "庆君。嘿伙计。",
+     ""
+    ]
+   ],
+   "ref_tokens": {
+    "Kyongun": 1,
+    "Sha": 1,
+    "man": 1,
+    "Chin": 1,
+    "Paragon": 1,
+    "Hey": 1
+   },
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\bKyongun\\b|\\bSha\\b|\\bman\\b"
+  },
+  "bi|施万芳": {
+   "wrong": "施万芳",
+   "right": "玄方城",
+   "mode": "bi",
+   "count": 2,
+   "uncorrected": 1,
+   "status": "candidate",
+   "cues": [
+    3221,
+    12430
+   ],
+   "samples": [
+    [
+     "每个人。",
+     "要塞将保留",
+     "每个人。",
+     "要塞将保留"
+    ],
+    [
+     "",
+     ".师父曾经带我去",
+     "",
+     ".师父曾经带我去"
+    ]
+   ],
+   "ref_tokens": {
+    "will": 1,
+    "Schwanfang": 1,
+    "everyone": 1,
+    "remain": 1,
+    "Hold": 1,
+    "Master": 1,
+    "used": 1,
+    "Schwan": 1,
+    "Fong": 1,
+    "take": 1
+   },
+   "unc_ref_tokens": {
+    "the": 1,
+    "Schwanfang": 1,
+    "defend": 1,
+    "wardens": 1,
+    "helped": 1,
+    "who": 1
+   },
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\bwill\\b|\\beveryone\\b|\\bremain\\b"
+  },
+  "bi|班车": {
+   "wrong": "班车",
+   "right": "云梭",
+   "mode": "bi",
+   "count": 32,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    3655,
+    3666,
+    4062,
+    4074,
+    4150,
+    4219,
+    4270,
+    4376,
+    4393,
+    4451,
+    4465,
+    4477,
+    4489,
+    4504,
+    4614,
+    4841,
+    4871,
+    4896,
+    5095,
+    5099
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "sync": true
+  },
+  "bi|Tacid": {
+   "wrong": "Tacid",
+   "right": "残象",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 3,
+   "status": "candidate",
+   "cues": [
+    3670
+   ],
+   "samples": [
+    [
+     "攻击。 ",
+     "不和谐使",
+     "攻击。 ",
+     "不和谐使"
+    ]
+   ],
+   "ref_tokens": {
+    "discords": 1,
+    "the": 1,
+    "Tacid": 1,
+    "blackened": 1,
+    "attacked": 1
+   },
+   "unc_ref_tokens": {
+    "tacid": 3,
+    "continue": 3,
+    "discords": 3,
+    "release": 3,
+    "how": 3
+   },
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\bthe\\b|\\bTacid\\b|\\bblackened\\b"
+  },
+  "bi|航天飞机": {
+   "wrong": "航天飞机",
+   "right": "云梭",
+   "mode": "bi",
+   "count": 22,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    3673,
+    3694,
+    4319,
+    4423,
+    4433,
+    4439,
+    4525,
+    4970,
+    4984,
+    6393,
+    6395,
+    6611,
+    6782,
+    6939,
+    7172,
+    8461,
+    8701,
+    8764,
+    8784,
+    8787
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "sync": true
+  },
+  "bi|Swanfun": {
+   "wrong": "Swanfun",
+   "right": "玄方城",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    3847
+   ],
+   "samples": [
+    [
+     "早在 ",
+     " 之前就建立的机制",
+     "早在 ",
+     " 之前就建立的机制"
+    ]
+   ],
+   "ref_tokens": {
+    "Swanfun": 1,
+    "mechanisms": 1,
+    "before": 1,
+    "long": 1,
+    "built": 1
+   },
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\bSwanfun\\b|\\bmechanisms\\b|\\bbefore\\b"
+  },
+  "bi|塔齐德": {
+   "wrong": "塔齐德",
+   "right": "残象",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    3952
+   ],
+   "samples": [
+    [
+     ">> 请不要担心。当",
+     "",
+     ">> 请不要担心。当",
+     ""
+    ]
+   ],
+   "ref_tokens": {
+    "Tazid": 1,
+    "the": 1,
+    "Please": 1,
+    "When": 1,
+    "not": 1,
+    "worry": 1
+   },
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\bTazid\\b|\\bthe\\b|\\bPlease\\b"
+  },
+  "bi|青莎": {
+   "wrong": "青莎",
+   "right": "清宵",
+   "mode": "bi",
+   "count": 4,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    3956,
+    5154,
+    7470,
+    7884
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "sync": true
+  },
+  "bi|天鹅丰堡": {
+   "wrong": "天鹅丰堡",
+   "right": "玄方城",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    4095
+   ],
+   "samples": [
+    [
+     "看到",
+     "在那些非常",
+     "看到",
+     "在那些非常"
+    ]
+   ],
+   "ref_tokens": {
+    "Swanfung": 1,
+    "very": 1,
+    "Hold": 1,
+    "flying": 1,
+    "those": 1,
+    "saw": 1
+   },
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\bSwanfung\\b|\\bvery\\b|\\bHold\\b"
+  },
+  "bi|施万芬堡": {
+   "wrong": "施万芬堡",
+   "right": "玄方城",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    4119
+   ],
+   "samples": [
+    [
+     "战争部的",
+     "",
+     "战争部的",
+     ""
+    ]
+   ],
+   "ref_tokens": {
+    "Schwanfunhold": 1,
+    "War": 1,
+    "for": 1,
+    "Ministry": 1
+   },
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\bSchwanfunhold\\b|\\bWar\\b|\\bfor\\b"
+  },
+  "bi|施万夫": {
+   "wrong": "施万夫",
+   "right": "玄方城",
+   "mode": "bi",
+   "count": 2,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    4364,
+    7528
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "sync": true
+  },
+  "bi|施万芬霍尔德": {
+   "wrong": "施万芬霍尔德",
+   "right": "玄方城",
+   "mode": "bi",
+   "count": 2,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    4365,
+    2269
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "sync": true
+  },
+  "bi|哨兵希恩": {
+   "wrong": "哨兵希恩",
+   "right": "岁主心心月狐",
+   "mode": "bi",
+   "count": 2,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    4374,
+    2393
+   ],
+   "samples": [
+    [
+     ">> ",
+     "，月狐。她不是吗",
+     ">> ",
+     "，心月狐。她不是吗"
+    ],
+    [
+     ">>",
+     "，月狐。不是吗",
+     ">>",
+     "，心月狐。不是吗"
+    ]
+   ],
+   "ref_tokens": {
+    "Moon": 2,
+    "Sheen": 2,
+    "Sentinel": 2,
+    "the": 2,
+    "Fox": 2,
+    "she": 2,
+    "Isn't": 2
+   },
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {}
+  },
+  "bi|施万通": {
+   "wrong": "施万通",
+   "right": "玄方城",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    4381
+   ],
+   "samples": [
+    [
+     "机械艺术来到",
+     "",
+     "机械艺术来到",
+     ""
+    ]
+   ],
+   "ref_tokens": {
+    "arts": 1,
+    "and": 1,
+    "Schwanthon": 1,
+    "came": 1,
+    "mechanist": 1
+   },
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\barts\\b|\\band\\b|\\bSchwanthon\\b"
+  },
+  "bi|弗雷诺迪亚": {
+   "wrong": "弗雷诺迪亚",
+   "right": "鸣式",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    4448
+   ],
+   "samples": [
+    [
+     ">> ",
+     "战争先锋是",
+     ">> ",
+     "战争先锋是"
+    ]
+   ],
+   "ref_tokens": {
+    "was": 1,
+    "vanguard": 1,
+    "The": 1,
+    "wars": 1,
+    "Frenodian": 1
+   },
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\bwas\\b|\\bvanguard\\b|\\bThe\\b"
+  },
+  "bi|青浩": {
+   "wrong": "青浩",
+   "right": "清宵",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    4770
+   ],
+   "samples": [
+    [
+     ">> ",
+     ",",
+     ">> ",
+     ","
+    ]
+   ],
+   "ref_tokens": {
+    "Chinghao": 1
+   },
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\bChinghao\\b"
+  },
+  "bi|图塞特": {
+   "wrong": "图塞特",
+   "right": "残象",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    4996
+   ],
+   "samples": [
+    [
+     ">> 为了阻止",
+     "的最后牺牲",
+     ">> 为了阻止",
+     "的最后牺牲"
+    ]
+   ],
+   "ref_tokens": {
+    "the": 1,
+    "stop": 1,
+    "final": 1,
+    "sacrifice": 1,
+    "tusset": 1
+   },
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\bthe\\b|\\bstop\\b|\\bfinal\\b"
+  },
+  "bi|天鹅凤": {
+   "wrong": "天鹅凤",
+   "right": "玄方城",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    5018
+   ],
+   "samples": [
+    [
+     "要是有这个版本的",
+     "就好了",
+     "要是有这个版本的",
+     "就好了"
+    ]
+   ],
+   "ref_tokens": {
+    "only": 1,
+    "were": 1,
+    "this": 1,
+    "Schwanfong": 1,
+    "version": 1
+   },
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\bonly\\b|\\bwere\\b|\\bthis\\b"
+  },
+  "bi|施万农场": {
+   "wrong": "施万农场",
+   "right": "玄方城",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    5143
+   ],
+   "samples": [
+    [
+     ">> 这就是我塑造的",
+     "",
+     ">> 这就是我塑造的",
+     ""
+    ]
+   ],
+   "ref_tokens": {
+    "farm": 1,
+    "This": 1,
+    "Schwan": 1,
+    "shaped": 1,
+    "have": 1
+   },
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\bfarm\\b|\\bThis\\b|\\bSchwan\\b"
+  },
+  "bi|替代项": {
+   "wrong": "替代项",
+   "right": "变身",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    5243
+   ],
+   "samples": [
+    [
+     ">> 直接进入",
+     "",
+     ">> 直接进入",
+     ""
+    ]
+   ],
+   "ref_tokens": {
+    "alt": 1,
+    "the": 1,
+    "Right": 1,
+    "into": 1
+   },
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\balt\\b|\\bthe\\b|\\bRight\\b"
+  },
+  "bi|下界导师": {
+   "wrong": "下界导师",
+   "right": "幽客",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    5268
+   ],
+   "samples": [
+    [
+     "关于。那么他也是一个",
+     "吗？",
+     "那么他也是一个",
+     "吗？"
+    ]
+   ],
+   "ref_tokens": {
+    "too": 1,
+    "about": 1,
+    "then": 1,
+    "nethermentor": 1
+   },
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\btoo\\b|\\babout\\b|\\bthen\\b"
+  },
+  "bi|流浪": {
+   "wrong": "流浪",
+   "right": "漂泊",
+   "mode": "bi",
+   "count": 4,
+   "uncorrected": 11,
+   "status": "candidate",
+   "cues": [
+    5313,
+    1203,
+    3256,
+    5149
+   ],
+   "samples": [
+    [
+     ">> 愤怒的",
+     "者。不，因为就像之前我们",
+     ">> 愤怒的",
+     "者。不，因为就像之前我们"
+    ],
+    [
+     ">> ",
+     "者典范 清沙",
+     ">> ",
+     "者Paragon 清宵"
+    ],
+    [
+     "你，伟大的",
+     "者。如果你找到了这些",
+     "你，伟大的",
+     "者。如果你找到了这些"
+    ],
+    [
+     ">>",
+     "者典范清沙，我先放下了",
+     ">>",
+     "者Paragon清宵，我"
+    ]
+   ],
+   "ref_tokens": {
+    "like": 1,
+    "Angry": 1,
+    "earlier": 1,
+    "Rover": 3,
+    "because": 1,
+    "Sha": 2,
+    "Ching": 2,
+    "Paragon": 2,
+    "rover": 1,
+    "these": 1,
+    "you": 1,
+    "found": 1,
+    "great": 1,
+    "that": 1,
+    "I'll": 1,
+    "leave": 1
+   },
+   "unc_ref_tokens": {
+    "play": 1,
+    "does": 1,
+    "rovers": 1,
+    "didn't": 1,
+    "for": 1,
+    "only": 4,
+    "Back": 4,
+    "was": 5,
+    "whose": 4,
+    "wanderer": 4,
+    "then": 4,
+    "and": 1,
+    "the": 1,
+    "transcendent": 1,
+    "wandering": 2,
+    "Ching": 1,
+    "gathered": 1,
+    "corrupted": 1,
+    "into": 1,
+    "like": 1,
+    "stray": 1,
+    "cat": 1,
+    "too": 3,
+    "wanderers": 3,
+    "righteous": 3
+   },
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\bRover\\b|\\bSha\\b|\\bParagon\\b"
+  },
+  "bi|青查": {
+   "wrong": "青查",
+   "right": "清宵",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    5344
+   ],
+   "samples": [
+    [
+     " __ ] 输出。来吧，",
+     "。我们得到了",
+     " __ ] 输出。来吧，",
+     "。我们得到了"
+    ]
+   ],
+   "ref_tokens": {
+    "out": 1,
+    "the": 1,
+    "got": 1,
+    "Chingcha": 1,
+    "Come": 1
+   },
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\bout\\b|\\bthe\\b|\\bgot\\b"
+  },
+  "bi|惊然": {
+   "wrong": "惊然",
+   "right": "景燃",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    5664
+   ],
+   "samples": [
+    [
+     "他",
+     "。希望能得到得到得到",
+     "他",
+     "。希望能得到得到得到"
+    ]
+   ],
+   "ref_tokens": {
+    "the": 1,
+    "ran": 1,
+    "get": 1,
+    "Jing": 1,
+    "Hopefully": 1,
+    "his": 1
+   },
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\bthe\\b|\\bran\\b|\\bget\\b"
+  },
+  "bi|静安": {
+   "wrong": "静安",
+   "right": "景燃",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 1,
+   "status": "candidate",
+   "cues": [
+    5672
+   ],
+   "samples": [
+    [
+     "担心。为了所有的",
+     "和乔里",
+     "担心。为了所有的",
+     "和乔里"
+    ]
+   ],
+   "ref_tokens": {
+    "and": 1,
+    "the": 1,
+    "Jingan": 1,
+    "out": 1,
+    "all": 1,
+    "Jories": 1,
+    "For": 1,
+    "worry": 1
+   },
+   "unc_ref_tokens": {
+    "approachable": 1,
+    "and": 1,
+    "making": 1,
+    "Jingan": 1
+   },
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\bthe\\b|\\bout\\b|\\ball\\b"
+  },
+  "bi|框架": {
+   "wrong": "框架",
+   "right": "画面",
+   "mode": "bi",
+   "count": 3,
+   "uncorrected": 22,
+   "status": "candidate",
+   "cues": [
+    5702,
+    9880,
+    5469
+   ],
+   "samples": [
+    [
+     "细长的",
+     "就像来自下面的访客",
+     "细长的",
+     "就像来自下面的访客"
+    ],
+    [
+     "",
+     "的核心数据。但要打破我的",
+     "",
+     "的核心数据。但要打破我的"
+    ],
+    [
+     "",
+     "自己",
+     "",
+     "自己"
+    ]
+   ],
+   "ref_tokens": {
+    "like": 1,
+    "thin": 1,
+    "below": 1,
+    "frame": 2,
+    "from": 1,
+    "visitor": 1,
+    "break": 1,
+    "data": 1,
+    "But": 1,
+    "core": 1,
+    "frame's": 1,
+    "itself": 1
+   },
+   "unc_ref_tokens": {
+    "like": 4,
+    "the": 15,
+    "were": 1,
+    "frame": 16,
+    "core": 4,
+    "main": 16,
+    "Fortress's": 1,
+    "Schwanuan": 1,
+    "domain": 1,
+    "within": 1,
+    "governs": 3,
+    "every": 3,
+    "control": 3,
+    "restored": 3,
+    "With": 3,
+    "centra": 3,
+    "and": 3,
+    "strengthened": 3,
+    "data": 3,
+    "frames": 3,
+    "But": 3,
+    "break": 3,
+    "very": 3,
+    "into": 3,
+    "put": 3,
+    "hypotheticals": 3
+   },
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\bthin\\b|\\bbelow\\b|\\bfrom\\b"
+  },
+  "bi|Jingan": {
+   "wrong": "Jingan",
+   "right": "景燃",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    5752
+   ],
+   "samples": [
+    [
+     "",
+     "，兄弟，这真是太棒了",
+     "",
+     "，兄弟，这真是太棒了"
+    ]
+   ],
+   "ref_tokens": {
+    "bro": 1,
+    "insanely": 1,
+    "Jingan": 1,
+    "just": 1,
+    "this": 1,
+    "well": 1
+   },
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\bbro\\b|\\binsanely\\b|\\bJingan\\b"
+  },
+  "bi|虚空巫师": {
+   "wrong": "虚空巫师",
+   "right": "幽客",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    5804
+   ],
+   "samples": [
+    [
+     "像你一样的",
+     "",
+     "像你一样的",
+     ""
+    ]
+   ],
+   "ref_tokens": {
+    "nethermancer": 1,
+    "yourself": 1,
+    "like": 1
+   },
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\bnethermancer\\b|\\byourself\\b|\\blike\\b"
+  },
+  "bi|何慕语": {
+   "wrong": "何慕语",
+   "right": "木禺",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    5908
+   ],
+   "samples": [
+    [
+     "那里。所以",
+     "期望静然",
+     "那里。所以",
+     "期望景燃"
+    ]
+   ],
+   "ref_tokens": {
+    "Jing": 1,
+    "Muyu": 1,
+    "Ran": 1,
+    "expects": 1,
+    "there": 1
+   },
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\bJing\\b|\\bMuyu\\b|\\bRan\\b"
+  },
+  "bi|分数": {
+   "wrong": "分数",
+   "right": "Fractsidus",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 5,
+   "status": "candidate",
+   "cues": [
+    6197
+   ],
+   "samples": [
+    [
+     "让",
+     "参与他的类似计划",
+     "让",
+     "参与他的类似计划"
+    ]
+   ],
+   "ref_tokens": {
+    "like": 1,
+    "let": 1,
+    "the": 1,
+    "plans": 1,
+    "fractions": 1,
+    "his": 1
+   },
+   "unc_ref_tokens": {
+    "later": 1,
+    "and": 1,
+    "scores": 2,
+    "some": 1,
+    "had": 2,
+    "Hey": 1,
+    "missed": 1,
+    "the": 1,
+    "score": 2,
+    "screenshot": 1,
+    "old": 1,
+    "said": 1,
+    "that": 1,
+    "gosh": 1,
+    "her": 1,
+    "fraction": 1,
+    "The": 1,
+    "It's": 1,
+    "myself": 1,
+    "familiarize": 1,
+    "first": 1,
+    "with": 1
+   },
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\blike\\b|\\blet\\b|\\bplans\\b"
+  },
+  "bi|庄丰货舱": {
+   "wrong": "庄丰货舱",
+   "right": "玄方城",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    6299
+   ],
+   "samples": [
+    [
+     ">> 我住在",
+     "。这",
+     ">> 我住在",
+     "。这"
+    ]
+   ],
+   "ref_tokens": {
+    "Chuang": 1,
+    "staying": 1,
+    "Hold": 1,
+    "The": 1,
+    "Fong": 1
+   },
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\bChuang\\b|\\bstaying\\b|\\bHold\\b"
+  },
+  "bi|庆福": {
+   "wrong": "庆福",
+   "right": "清宵",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 2,
+   "status": "candidate",
+   "cues": [
+    6683
+   ],
+   "samples": [
+    [
+     "我之前给你的",
+     "乐队",
+     "我之前给你的",
+     "乐队"
+    ]
+   ],
+   "ref_tokens": {
+    "gave": 1,
+    "you": 1,
+    "band": 1,
+    "earlier": 1,
+    "that": 1,
+    "Ching": 1
+   },
+   "unc_ref_tokens": {
+    "ching": 1,
+    "eye": 1,
+    "belt": 1,
+    "pendant": 2,
+    "his": 1,
+    "left": 1,
+    "It's": 1,
+    "That": 1,
+    "was": 1,
+    "Ching": 1
+   },
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\bgave\\b|\\byou\\b|\\bband\\b"
+  },
+  "bi|青少": {
+   "wrong": "青少",
+   "right": "清宵",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    6784
+   ],
+   "samples": [
+    [
+     "是啊，",
+     "，别勉强自己",
+     "是啊，",
+     "，别勉强自己"
+    ]
+   ],
+   "ref_tokens": {
+    "don't": 1,
+    "yourself": 1,
+    "Yeah": 1,
+    "push": 1,
+    "Shao": 1,
+    "Ching": 1
+   },
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\bdon't\\b|\\byourself\\b|\\bYeah\\b"
+  },
+  "bi|施万冯": {
+   "wrong": "施万冯",
+   "right": "玄方城",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    6975
+   ],
+   "samples": [
+    [
+     "",
+     "要塞将会陷落，那些",
+     "",
+     "要塞将会陷落，那些"
+    ]
+   ],
+   "ref_tokens": {
+    "and": 1,
+    "will": 1,
+    "Schwanvong": 1,
+    "Hold": 1,
+    "fall": 1,
+    "those": 1
+   },
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\band\\b|\\bwill\\b|\\bSchwanvong\\b"
+  },
+  "bi|流动站": {
+   "wrong": "流动站",
+   "right": "漂泊者",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    7041
+   ],
+   "samples": [
+    [
+     "好的。好的。我将使用",
+     "因为我",
+     "好的。好的。我将使用",
+     "因为我"
+    ]
+   ],
+   "ref_tokens": {
+    "going": 1,
+    "use": 1,
+    "okay": 1,
+    "Okay": 1,
+    "rover": 1,
+    "cuz": 1,
+    "I'm": 1
+   },
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\bgoing\\b|\\buse\\b|\\bokay\\b"
+  },
+  "bi|沙丰": {
+   "wrong": "沙丰",
+   "right": "玄方城",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    7073
+   ],
+   "samples": [
+    [
+     "自从围攻",
+     "要塞之后",
+     "自从围攻",
+     "要塞之后"
+    ]
+   ],
+   "ref_tokens": {
+    "the": 1,
+    "Ever": 1,
+    "Shafong": 1,
+    "since": 1,
+    "Hold": 1,
+    "siege": 1
+   },
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\bthe\\b|\\bEver\\b|\\bShafong\\b"
+  },
+  "bi|杨杨": {
+   "wrong": "杨杨",
+   "right": "秧秧秧秧",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    7131
+   ],
+   "samples": [
+    [
+     "",
+     "天鹅郎。我需要大家",
+     "",
+     "天鹅郎。我需要大家"
+    ]
+   ],
+   "ref_tokens": {
+    "Lang": 1,
+    "need": 1,
+    "everyone": 1,
+    "Yang": 1,
+    "Schwan": 1
+   },
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\bLang\\b|\\bneed\\b|\\beveryone\\b"
+  },
+  "bi|奇夏": {
+   "wrong": "奇夏",
+   "right": "清宵",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    7318
+   ],
+   "samples": [
+    [
+     "",
+     "，动起来。移动吧，女孩。",
+     "",
+     "，动起来。移动吧，女孩。"
+    ]
+   ],
+   "ref_tokens": {
+    "Move": 1,
+    "stay": 1,
+    "Don't": 1,
+    "move": 1,
+    "girl": 1,
+    "Chisha": 1
+   },
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\bMove\\b|\\bstay\\b|\\bDon't\\b"
+  },
+  "bi|钦沙": {
+   "wrong": "钦沙",
+   "right": "清宵",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 1,
+   "status": "candidate",
+   "cues": [
+    7460
+   ],
+   "samples": [
+    [
+     "",
+     "的内心世界",
+     "",
+     "的内心世界"
+    ]
+   ],
+   "ref_tokens": {
+    "inner": 1,
+    "Chinsha's": 1,
+    "world": 1
+   },
+   "unc_ref_tokens": {
+    "Chinsha": 1,
+    "even": 1,
+    "can't": 1,
+    "Rover": 1,
+    "control": 1
+   },
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\binner\\b|\\bChinsha's\\b|\\bworld\\b"
+  },
+  "bi|静沙": {
+   "wrong": "静沙",
+   "right": "清宵",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    7515
+   ],
+   "samples": [
+    [
+     "我在这儿。",
+     ",",
+     "我在这儿。",
+     ","
+    ]
+   ],
+   "ref_tokens": {
+    "I'm": 1,
+    "Sha": 1,
+    "here": 1,
+    "Jing": 1
+   },
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\bI'm\\b|\\bSha\\b|\\bhere\\b"
+  },
+  "bi|钦乔": {
+   "wrong": "钦乔",
+   "right": "清宵",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    7521
+   ],
+   "samples": [
+    [
+     "",
+     "",
+     "",
+     ""
+    ]
+   ],
+   "ref_tokens": {
+    "Chincho": 1
+   },
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\bChincho\\b"
+  },
+  "bi|天鹅芳": {
+   "wrong": "天鹅芳",
+   "right": "玄方城",
+   "mode": "bi",
+   "count": 2,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    7617,
+    11047
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "sync": true
+  },
+  "bi|Schwamfang": {
+   "wrong": "Schwamfang",
+   "right": "玄方城",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    7635
+   ],
+   "samples": [
+    [
+     "您曾经在",
+     "保存的所有内容",
+     "您曾经在",
+     "保存的所有内容"
+    ]
+   ],
+   "ref_tokens": {
+    "Schwamfang": 1,
+    "Everything": 1,
+    "you": 1,
+    "once": 1,
+    "saved": 1
+   },
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\bSchwamfang\\b|\\bEverything\\b|\\byou\\b"
+  },
+  "bi|静兰德": {
+   "wrong": "静兰德",
+   "right": "景燃",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    8280
+   ],
+   "samples": [
+    [
+     ">> ",
+     ".我的不好。我还以为是婧",
+     ">> ",
+     ".我的不好。我还以为是景"
+    ]
+   ],
+   "ref_tokens": {
+    "Jing": 1,
+    "thought": 1,
+    "Rand": 1,
+    "was": 1,
+    "bad": 1
+   },
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\bJing\\b|\\bthought\\b|\\bRand\\b"
+  },
+  "bi|兰德": {
+   "wrong": "兰德",
+   "right": "景燃",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    8281
+   ],
+   "samples": [
+    [
+     "",
+     ".对不起。现在我知道了。",
+     "",
+     ".对不起。现在我知道了。"
+    ]
+   ],
+   "ref_tokens": {
+    "Now": 1,
+    "said": 1,
+    "know": 1,
+    "mean": 1,
+    "Rand": 1,
+    "Sorry": 1
+   },
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\bNow\\b|\\bsaid\\b|\\bknow\\b"
+  },
+  "bi|Muyo": {
+   "wrong": "Muyo",
+   "right": "木禺",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    9307
+   ],
+   "samples": [
+    [
+     "我们即将面对",
+     "，不是吗？",
+     "我们即将面对",
+     "，不是吗？"
+    ]
+   ],
+   "ref_tokens": {
+    "aren't": 1,
+    "face": 1,
+    "Muyo": 1,
+    "We're": 1,
+    "about": 1
+   },
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\baren't\\b|\\bface\\b|\\bMuyo\\b"
+  },
+  "bi|静蓉": {
+   "wrong": "静蓉",
+   "right": "景燃",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    9333
+   ],
+   "samples": [
+    [
+     ">> 谢谢你，",
+     "。感谢你",
+     ">> 谢谢你，",
+     "。感谢你"
+    ]
+   ],
+   "ref_tokens": {
+    "Thank": 1,
+    "Jingron": 1,
+    "Appreciate": 1,
+    "you": 1
+   },
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\bThank\\b|\\bJingron\\b|\\bAppreciate\\b"
+  },
+  "bi|青沙百丽宫": {
+   "wrong": "青沙百丽宫",
+   "right": "清宵Paragon",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    9445
+   ],
+   "samples": [
+    [
+     ">> 越过",
+     "",
+     ">> 越过",
+     ""
+    ]
+   ],
+   "ref_tokens": {
+    "Ching": 1,
+    "Sha": 1,
+    "Paragon": 1,
+    "over": 1
+   },
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\bChing\\b|\\bSha\\b|\\bParagon\\b"
+  },
+  "bi|Seinal": {
+   "wrong": "Seinal",
+   "right": "岁主",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    9573
+   ],
+   "samples": [
+    [
+     "",
+     "的设计来理解",
+     "",
+     "的设计来理解"
+    ]
+   ],
+   "ref_tokens": {
+    "seinal's": 1,
+    "understand": 1,
+    "the": 1,
+    "design": 1
+   },
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\bseinal's\\b|\\bunderstand\\b|\\bthe\\b"
+  },
+  "bi|蒙乔": {
+   "wrong": "蒙乔",
+   "right": "梦州",
+   "mode": "bi",
+   "count": 7,
+   "uncorrected": 3,
+   "status": "candidate",
+   "cues": [
+    9938,
+    405,
+    1002,
+    2198,
+    2630,
+    5479,
+    377
+   ],
+   "samples": [
+    [
+     "",
+     "的",
+     "",
+     "的"
+    ],
+    [
+     "",
+     "那边有什么紧急事吗？",
+     "",
+     "那边有什么紧急事吗？"
+    ],
+    [
+     "",
+     "的渔网携带硬币就像",
+     "",
+     "的渔网携带硬币就像"
+    ],
+    [
+     "停。",
+     "发展部",
+     "停。",
+     "发展部"
+    ],
+    [
+     "纷争，纷争者被",
+     "淹没。不，我",
+     "纷争，纷争者被",
+     "淹没。不，我"
+    ],
+    [
+     "主机实际上是",
+     "的文明",
+     "主机实际上是",
+     "的文明"
+    ],
+    [
+     "我妹妹，她快要去",
+     "了",
+     "我妹妹，她快要去",
+     "了"
+    ]
+   ],
+   "ref_tokens": {
+    "Mongjo": 4,
+    "something": 1,
+    "pressing": 1,
+    "Mong": 1,
+    "Joe": 1,
+    "come": 1,
+    "coins": 1,
+    "just": 1,
+    "nets": 1,
+    "carry": 1,
+    "like": 1,
+    "The": 1,
+    "Ministry": 1,
+    "hold": 1,
+    "Development": 1,
+    "from": 1,
+    "discords": 1,
+    "overrunning": 1,
+    "actually": 1,
+    "Mongjo's": 1,
+    "mainframe": 1,
+    "civilization": 1,
+    "about": 1,
+    "she's": 1,
+    "Muncho": 1,
+    "sister": 1
+   },
+   "unc_ref_tokens": {
+    "and": 1,
+    "the": 1,
+    "guts": 1,
+    "out": 1,
+    "into": 1,
+    "cut": 1,
+    "Moncho": 1,
+    "she's": 2,
+    "about": 2,
+    "Muncho": 2,
+    "sister": 2
+   },
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\bMongjo\\b|\\bsomething\\b|\\bpressing\\b"
+  },
+  "bi|浇水方式": {
+   "wrong": "浇水方式",
+   "right": "鸣潮",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    10004
+   ],
+   "samples": [
+    [
+     "",
+     "如何比以往更好",
+     "",
+     "如何比以往更好"
+    ]
+   ],
+   "ref_tokens": {
+    "better": 1,
+    "ways": 1,
+    "How": 1,
+    "ever": 1,
+    "than": 1,
+    "watering": 1
+   },
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\bbetter\\b|\\bways\\b|\\bHow\\b"
+  },
+  "bi|Fraidus": {
+   "wrong": "Fraidus",
+   "right": "残星会",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    10153
+   ],
+   "samples": [
+    [
+     "几年前与 ",
+     " 合作的技术",
+     "几年前与 ",
+     " 合作的技术"
+    ]
+   ],
+   "ref_tokens": {
+    "years": 1,
+    "the": 1,
+    "ago": 1,
+    "Fraidus": 1,
+    "with": 1,
+    "technology": 1
+   },
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\byears\\b|\\bthe\\b|\\bago\\b"
+  },
+  "bi|天使": {
+   "wrong": "天使",
+   "right": "安吉尔",
+   "mode": "bi",
+   "count": 2,
+   "uncorrected": 6,
+   "status": "candidate",
+   "cues": [
+    10223,
+    5868
+   ],
+   "samples": [
+    [
+     "这样的",
+     "，伙计。哦天哪，伙计",
+     "这样的",
+     "，伙计。哦天哪，伙计"
+    ],
+    [
+     "是的，还是个小",
+     "",
+     "是的，还是个小",
+     ""
+    ]
+   ],
+   "ref_tokens": {
+    "dude": 1,
+    "such": 1,
+    "angel": 2,
+    "man": 1,
+    "gosh": 1,
+    "Yeah": 1,
+    "child": 1,
+    "also": 1
+   },
+   "unc_ref_tokens": {
+    "from": 3,
+    "you": 3,
+    "guy": 3,
+    "Weathering": 3,
+    "the": 3,
+    "aren't": 3,
+    "accept": 3,
+    "celestial": 3,
+    "music": 3
+   },
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\bangel\\b|\\bdude\\b|\\bsuch\\b"
+  },
+  "bi|典范金查": {
+   "wrong": "典范金查",
+   "right": "Paragon清宵",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    10481
+   ],
+   "samples": [
+    [
+     "",
+     "",
+     "",
+     ""
+    ]
+   ],
+   "ref_tokens": {
+    "Gingcha": 1,
+    "Paragon": 1
+   },
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\bGingcha\\b|\\bParagon\\b"
+  },
+  "bi|斯旺龙": {
+   "wrong": "斯旺龙",
+   "right": "瑝珑",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    10499
+   ],
+   "samples": [
+    [
+     "",
+     ".他上山是为了",
+     "",
+     ".他上山是为了"
+    ]
+   ],
+   "ref_tokens": {
+    "the": 1,
+    "came": 1,
+    "Long": 1,
+    "mountain": 1,
+    "Swang": 1
+   },
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\bthe\\b|\\bcame\\b|\\bLong\\b"
+  },
+  "bi|segue": {
+   "wrong": "segue",
+   "right": "幕间",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 3,
+   "status": "candidate",
+   "cues": [
+    10646
+   ],
+   "samples": [
+    [
+     "刚刚收到。这可能是一个",
+     "",
+     "刚刚收到。这可能是一个",
+     ""
+    ]
+   ],
+   "ref_tokens": {
+    "probably": 1,
+    "just": 1,
+    "received": 1,
+    "This": 1,
+    "segue": 1
+   },
+   "unc_ref_tokens": {
+    "the": 1,
+    "Yangyang": 1,
+    "actually": 1,
+    "with": 1,
+    "segue": 3,
+    "this": 1,
+    "bro": 1,
+    "Please": 1,
+    "period": 1,
+    "time": 1,
+    "too": 1,
+    "his": 1
+   },
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\bprobably\\b|\\bjust\\b|\\breceived\\b"
+  },
+  "bi|segway": {
+   "wrong": "segway",
+   "right": "幕间",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    10700
+   ],
+   "samples": [
+    [
+     "",
+     " 也是如此，你只能假设 ",
+     "",
+     " 也是如此，你只能假设 "
+    ]
+   ],
+   "ref_tokens": {
+    "only": 1,
+    "assume": 1,
+    "segway": 1,
+    "can": 1,
+    "you": 1,
+    "too": 1,
+    "that": 1
+   },
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\bonly\\b|\\bassume\\b|\\bsegway\\b"
+  },
+  "bi|晶蓉": {
+   "wrong": "晶蓉",
+   "right": "景燃",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    10750
+   ],
+   "samples": [
+    [
+     ">> 我还有",
+     "的",
+     ">> 我还有",
+     "的"
+    ]
+   ],
+   "ref_tokens": {
+    "still": 1,
+    "Jingron's": 1,
+    "have": 1
+   },
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\bstill\\b|\\bJingron's\\b|\\bhave\\b"
+  },
+  "bi|Muy": {
+   "wrong": "Muy",
+   "right": "木禺",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 4,
+   "status": "candidate",
+   "cues": [
+    10816
+   ],
+   "samples": [
+    [
+     "",
+     "是幕后黑手，对吧？",
+     "",
+     "是幕后黑手，对吧？"
+    ]
+   ],
+   "ref_tokens": {
+    "behind": 1,
+    "Muy": 1,
+    "was": 1,
+    "somehow": 1,
+    "that": 1,
+    "right": 1
+   },
+   "unc_ref_tokens": {
+    "did": 1,
+    "Muy": 1,
+    "the": 1,
+    "But": 1,
+    "dealings": 1,
+    "with": 1,
+    "have": 1,
+    "something": 3,
+    "Well": 3,
+    "Muya": 3,
+    "time": 3,
+    "Not": 3,
+    "created": 3
+   },
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\bbehind\\b|\\bwas\\b|\\bsomehow\\b"
+  },
+  "bi|M Joe": {
+   "wrong": "M Joe",
+   "right": "梦州",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    10915
+   ],
+   "samples": [
+    [
+     "几年后，我又回到",
+     "",
+     "几年后，我又回到",
+     ""
+    ]
+   ],
+   "ref_tokens": {
+    "years": 1,
+    "later": 1,
+    "back": 1,
+    "Joe": 1,
+    "few": 1,
+    "went": 1
+   },
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\byears\\b|\\blater\\b|\\bback\\b"
+  },
+  "bi|Swan Fong": {
+   "wrong": "Swan Fong",
+   "right": "玄方城",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    11014
+   ],
+   "samples": [
+    [
+     "不。对于",
+     "来说，这意味着",
+     "不。对于",
+     "来说，这意味着"
+    ]
+   ],
+   "ref_tokens": {
+    "will": 1,
+    "mean": 1,
+    "Swan": 1,
+    "For": 1,
+    "Fong": 1
+   },
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\bwill\\b|\\bmean\\b|\\bSwan\\b"
+  },
+  "bi|京城": {
+   "wrong": "京城",
+   "right": "今州",
+   "mode": "bi",
+   "count": 2,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    11135,
+    12385
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "sync": true
+  },
+  "bi|谐振器漫游车": {
+   "wrong": "谐振器漫游车",
+   "right": "共鸣者漂泊者",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    11440
+   ],
+   "samples": [
+    [
+     "试验",
+     "。那么，这是",
+     "试验",
+     "。那么，这是"
+    ]
+   ],
+   "ref_tokens": {
+    "this": 1,
+    "rover": 1,
+    "resonator": 1,
+    "trial": 1
+   },
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\bthis\\b|\\brover\\b|\\bresonator\\b"
+  },
+  "bi|惊煞": {
+   "wrong": "惊煞",
+   "right": "清宵",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    11713
+   ],
+   "samples": [
+    [
+     "",
+     "。你好。这里好红啊",
+     "",
+     "。你好。这里好红啊"
+    ]
+   ],
+   "ref_tokens": {
+    "here": 1,
+    "sha": 1,
+    "red": 1,
+    "Jing": 1
+   },
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\bhere\\b|\\bsha\\b|\\bred\\b"
+  },
+  "bi|错误": {
+   "wrong": "错误",
+   "right": "锁暝",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 23,
+   "status": "candidate",
+   "cues": [
+    11764
+   ],
+   "samples": [
+    [
+     "出于",
+     "的原因。的确。大部分",
+     "出于",
+     "的原因。的确。大部分"
+    ]
+   ],
+   "ref_tokens": {
+    "the": 1,
+    "Most": 1,
+    "Indeed": 1,
+    "cause": 1,
+    "wrong": 1,
+    "for": 1
+   },
+   "unc_ref_tokens": {
+    "one": 1,
+    "the": 7,
+    "just": 4,
+    "this": 1,
+    "wrong": 10,
+    "And": 1,
+    "false": 5,
+    "all": 1,
+    "today": 1,
+    "Like": 1,
+    "directions": 1,
+    "complicated": 1,
+    "It's": 1,
+    "way": 1,
+    "more": 1,
+    "than": 1,
+    "beg": 1,
+    "you": 2,
+    "glad": 1,
+    "I'm": 2,
+    "almost": 1,
+    "slipped": 1,
+    "Just": 1,
+    "mistake": 1,
+    "little": 1,
+    "okay": 1,
+    "That's": 2,
+    "while": 1,
+    "error": 4,
+    "back": 1,
+    "some": 1,
+    "for": 1,
+    "but": 1,
+    "button": 1,
+    "Jesus": 1,
+    "Wrong": 1,
+    "motorbike": 1,
+    "time": 5,
+    "can": 2,
+    "revenge": 1,
+    "matters": 1,
+    "your": 1,
+    "Only": 1,
+    "single": 1,
+    "Amazing": 1,
+    "note": 1,
+    "tell": 1,
+    "terrible": 1,
+    "misclick": 1,
+    "timing": 1,
+    "stamp": 1,
+    "was": 1,
+    "guess": 1,
+    "you'll": 3,
+    "get": 3,
+    "Animation": 3
+   },
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\bMost\\b|\\bIndeed\\b|\\bcause\\b"
+  },
+  "bi|精茶": {
+   "wrong": "精茶",
+   "right": "清宵",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    11827
+   ],
+   "samples": [
+    [
+     "玩",
+     "。我一定会坚持下去",
+     "当然。是你教会了我如何玩",
+     "。我一定会坚持下去"
+    ]
+   ],
+   "ref_tokens": {
+    "stick": 1,
+    "play": 1,
+    "Jingcha": 1,
+    "I'm": 1,
+    "sure": 1
+   },
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\bstick\\b|\\bplay\\b|\\bJingcha\\b"
+  },
+  "bi|荆沙": {
+   "wrong": "荆沙",
+   "right": "清宵",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 1,
+   "status": "candidate",
+   "cues": [
+    11836
+   ],
+   "samples": [
+    [
+     "就在那里。",
+     "",
+     "就在那里。",
+     ""
+    ]
+   ],
+   "ref_tokens": {
+    "Jingsha": 1,
+    "right": 1,
+    "there": 1
+   },
+   "unc_ref_tokens": {
+    "duo": 1,
+    "the": 1,
+    "Jing": 1,
+    "Sha": 1,
+    "The": 1,
+    "dynamic": 1
+   },
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\bJingsha\\b|\\bright\\b|\\bthere\\b"
+  },
+  "bi|暴跌": {
+   "wrong": "暴跌",
+   "right": "下落攻击",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    12246
+   ],
+   "samples": [
+    [
+     "最近幻影国度的",
+     "。哇",
+     "最近幻影国度的",
+     "。哇"
+    ]
+   ],
+   "ref_tokens": {
+    "the": 1,
+    "plunge": 1,
+    "recent": 1,
+    "Mirage": 1,
+    "Wow": 1,
+    "Realms": 1
+   },
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\bthe\\b|\\bplunge\\b|\\brecent\\b"
+  },
+  "bi|芒乔": {
+   "wrong": "芒乔",
+   "right": "梦州",
+   "mode": "bi",
+   "count": 2,
+   "uncorrected": 2,
+   "status": "candidate",
+   "cues": [
+    12304,
+    5620
+   ],
+   "samples": [
+    [
+     "罗弗，你从",
+     "回来了。它",
+     "漂泊者，你从",
+     "回来了。它"
+    ],
+    [
+     "前往",
+     "市政厅之行",
+     "前往",
+     "市政厅"
+    ]
+   ],
+   "ref_tokens": {
+    "Mong": 1,
+    "back": 1,
+    "Rover": 1,
+    "from": 1,
+    "you're": 1,
+    "Joe": 1,
+    "Hall": 1,
+    "Mangjo": 1,
+    "trip": 1,
+    "City": 1
+   },
+   "unc_ref_tokens": {
+    "door": 1,
+    "face": 1,
+    "Said": 1,
+    "Joe's": 1,
+    "Mang": 1,
+    "Mangjo": 1,
+    "City": 1,
+    "Hall": 1,
+    "trip": 1
+   },
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\bMong\\b|\\bback\\b|\\bRover\\b"
+  },
+  "bi|Jino": {
+   "wrong": "Jino",
+   "right": "今州",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 3,
+   "status": "candidate",
+   "cues": [
+    12323
+   ],
+   "samples": [
+    [
+     "离开",
+     "后，你总是如何",
+     "离开",
+     "后，你总是如何"
+    ]
+   ],
+   "ref_tokens": {
+    "how": 1,
+    "and": 1,
+    "leaving": 1,
+    "you": 1,
+    "Jingo": 1,
+    "after": 1,
+    "always": 1
+   },
+   "unc_ref_tokens": {
+    "auto": 1,
+    "regarding": 1,
+    "puppets": 1,
+    "here": 1,
+    "Jingo": 3,
+    "even": 2,
+    "Wait": 1,
+    "was": 1,
+    "wasn't": 1,
+    "but": 1,
+    "really": 1,
+    "now": 1,
+    "does": 1,
+    "exist": 1
+   },
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\bhow\\b|\\band\\b|\\bleaving\\b"
+  },
+  "bi|金格拉姆": {
+   "wrong": "金格拉姆",
+   "right": "景燃",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    12722
+   ],
+   "samples": [
+    [
+     "敌方阵线和",
+     "一样",
+     "敌方阵线和",
+     "一样"
+    ]
+   ],
+   "ref_tokens": {
+    "the": 1,
+    "way": 1,
+    "enemy": 1,
+    "Jingram": 1,
+    "same": 1,
+    "that": 1,
+    "lines": 1
+   },
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\bthe\\b|\\bway\\b|\\benemy\\b"
+  },
+  "bi|ingjo": {
+   "wrong": "ingjo",
+   "right": "inzho",
+   "mode": "bi",
+   "count": 2,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    968,
+    3795
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "sync": true
+  },
+  "bi|漫游者": {
+   "wrong": "漫游者",
+   "right": "漂泊者",
+   "mode": "bi",
+   "count": 19,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    135,
+    210,
+    566,
+    2338,
+    2940,
+    3145,
+    3346,
+    4345,
+    5369,
+    6622,
+    6628,
+    6696,
+    7840,
+    8264,
+    10094,
+    10209,
+    10664,
+    11690,
+    12338
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "sync": true
+  },
+  "bi|>> 圆形": {
+   "wrong": ">> 圆形",
+   "right": ">> 木禺",
+   "mode": "bi",
+   "count": 2,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    1215,
+    6803
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "sync": true
+  },
+  "bi|太恶心了": {
+   "wrong": "太恶心了",
+   "right": "太帅了",
+   "mode": "bi",
+   "count": 13,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    1966,
+    2365,
+    2386,
+    2415,
+    3444,
+    5254,
+    5367,
+    5381,
+    5591,
+    5762,
+    6923,
+    8633,
+    8718
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "sync": true
+  },
+  "bi|心照不宣的不和谐": {
+   "wrong": "心照不宣的不和谐",
+   "right": "残象的不和谐",
+   "mode": "bi",
+   "count": 2,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    2146,
+    2167
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "sync": true
+  },
+  "bi|清沙典范": {
+   "wrong": "清沙典范",
+   "right": "清宵Paragon",
+   "mode": "bi",
+   "count": 3,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    2338,
+    8264,
+    10767
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "sync": true
+  },
+  "bi|杨阳": {
+   "wrong": "杨阳",
+   "right": "秧秧",
+   "mode": "bi",
+   "count": 9,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    388,
+    402,
+    570,
+    1512,
+    1844,
+    2796,
+    4689,
+    4692,
+    5562
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "sync": true
+  },
+  "bi|Mangjo哨兵": {
+   "wrong": "Mangjo哨兵",
+   "right": "梦州岁主",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    442
+   ],
+   "samples": [
+    [
+     "追踪某个",
+     "",
+     "追踪某个",
+     ""
+    ]
+   ],
+   "ref_tokens": {
+    "certain": 1,
+    "mangjo": 1,
+    "sentinel": 1,
+    "down": 1,
+    "tracking": 1
+   },
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\bcertain\\b|\\bmangjo\\b|\\bsentinel\\b"
+  },
+  "bi|乌阿": {
+   "wrong": "乌阿",
+   "right": "鸣潮",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    457
+   ],
+   "samples": [
+    [
+     "如果她在",
+     "，那就是奇莎",
+     "如果她在",
+     "，那就是千咲"
+    ]
+   ],
+   "ref_tokens": {
+    "she's": 1,
+    "Wua": 1,
+    "Chisa": 1
+   },
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\bshe's\\b|\\bWua\\b|\\bChisa\\b"
+  },
+  "bi|Chiso": {
+   "wrong": "Chiso",
+   "right": "千咲",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    497
+   ],
+   "samples": [
+    [
+     "",
+     "和嗯，要发布这个",
+     "",
+     "和嗯，要发布这个"
+    ]
+   ],
+   "ref_tokens": {
+    "going": 1,
+    "releasing": 1,
+    "Chiso": 1,
+    "and": 1,
+    "this": 1
+   },
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\bgoing\\b|\\breleasing\\b|\\bChiso\\b"
+  },
+  "bi|主题": {
+   "wrong": "主题",
+   "right": "动机",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 24,
+   "status": "candidate",
+   "cues": [
+    554
+   ],
+   "samples": [
+    [
+     "比如《我猜我猜他们》的",
+     "",
+     "比如《我猜我猜他们》的",
+     ""
+    ]
+   ],
+   "ref_tokens": {
+    "for": 1,
+    "they": 1,
+    "like": 1,
+    "the": 1,
+    "motif": 1,
+    "guess": 1
+   },
+   "unc_ref_tokens": {
+    "aura": 3,
+    "farmer": 3,
+    "theme": 9,
+    "kind": 3,
+    "the": 15,
+    "lot": 3,
+    "like": 3,
+    "Renita": 3,
+    "theming": 6,
+    "had": 3,
+    "far": 3,
+    "that": 3,
+    "we've": 3,
+    "themes": 6,
+    "going": 6,
+    "what": 6,
+    "wonder": 3,
+    "next": 3,
+    "his": 3,
+    "heard": 3,
+    "thought": 3,
+    "with": 3,
+    "into": 3,
+    "darker": 3,
+    "song": 3,
+    "song's": 3,
+    "exactly": 3,
+    "about": 3,
+    "stuff": 3,
+    "that's": 3,
+    "general": 3
+   },
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\bfor\\b|\\bthey\\b|\\bmotif\\b"
+  },
+  "bi|Yyang": {
+   "wrong": "Yyang",
+   "right": "秧秧",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    569
+   ],
+   "samples": [
+    [
+     "我只是想看看",
+     "的反应",
+     "我只是想看看",
+     "的反应"
+    ]
+   ],
+   "ref_tokens": {
+    "Yyang's": 1,
+    "want": 1,
+    "reaction": 1,
+    "just": 1,
+    "see": 1
+   },
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\bYyang's\\b|\\bwant\\b|\\breaction\\b"
+  },
+  "bi|MJO": {
+   "wrong": "MJO",
+   "right": "梦州",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    575
+   ],
+   "samples": [
+    [
+     "",
+     "巡演",
+     "",
+     "巡演"
+    ]
+   ],
+   "ref_tokens": {
+    "tour": 1,
+    "MJO": 1
+   },
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\btour\\b|\\bMJO\\b"
+  },
+  "bi|里亚": {
+   "wrong": "里亚",
+   "right": "莉卡",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    586
+   ],
+   "samples": [
+    [
+     "不是那个穿西格",
+     "服装的特洛亚人",
+     "不是那个穿西格",
+     "服装的特洛亚人"
+    ]
+   ],
+   "ref_tokens": {
+    "with": 1,
+    "outfit": 1,
+    "Sigria": 1,
+    "the": 1,
+    "Not": 1,
+    "Troyan": 1
+   },
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\bwith\\b|\\boutfit\\b|\\bSigria\\b"
+  },
+  "bi|施拉农": {
+   "wrong": "施拉农",
+   "right": "玄方城",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    631
+   ],
+   "samples": [
+    [
+     "搬到",
+     "领地？我甚至有过",
+     "搬到",
+     "领地？我甚至有过"
+    ]
+   ],
+   "ref_tokens": {
+    "had": 1,
+    "Hold": 1,
+    "Shranong": 1,
+    "even": 1,
+    "I've": 1,
+    "moving": 1
+   },
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\bhad\\b|\\bHold\\b|\\bShranong\\b"
+  },
+  "bi|Shins": {
+   "wrong": "Shins",
+   "right": "心月狐",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    649
+   ],
+   "samples": [
+    [
+     ">> ",
+     "对她的模特有太多细节",
+     ">> ",
+     "对她的模特有太多细节"
+    ]
+   ],
+   "ref_tokens": {
+    "Shins": 1,
+    "details": 1,
+    "her": 1,
+    "many": 1,
+    "model": 1,
+    "has": 1
+   },
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\bShins\\b|\\bdetails\\b|\\bher\\b"
+  },
+  "bi|蒙祖": {
+   "wrong": "蒙祖",
+   "right": "梦州",
+   "mode": "bi",
+   "count": 2,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    707,
+    5518
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "sync": true
+  },
+  "bi|下界术士": {
+   "wrong": "下界术士",
+   "right": "幽客",
+   "mode": "bi",
+   "count": 4,
+   "uncorrected": 1,
+   "status": "candidate",
+   "cues": [
+    1019,
+    1141,
+    1191,
+    3208
+   ],
+   "samples": [
+    [
+     "",
+     "",
+     "",
+     ""
+    ],
+    [
+     "",
+     "",
+     "",
+     ""
+    ],
+    [
+     "",
+     "总是带来这样的",
+     "",
+     "总是带来这样的"
+    ],
+    [
+     "追踪幻影领域的",
+     "",
+     "追踪幻影领域的",
+     ""
+    ]
+   ],
+   "ref_tokens": {
+    "nethermancers": 3,
+    "The": 1,
+    "bring": 1,
+    "always": 1,
+    "such": 1,
+    "realm": 1,
+    "who": 1,
+    "tracked": 1,
+    "mirage": 1,
+    "nethermancer": 1
+   },
+   "unc_ref_tokens": {
+    "tracked": 1,
+    "nethermancer": 1,
+    "who": 1,
+    "mirage": 1,
+    "realm": 1
+   },
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\bnethermancers\\b|\\bThe\\b|\\bbring\\b"
+  },
+  "bi|地狱法师": {
+   "wrong": "地狱法师",
+   "right": "幽客",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    1022
+   ],
+   "samples": [
+    [
+     ">> 她已故的丈夫是一名",
+     "",
+     ">> 她已故的丈夫是一名",
+     ""
+    ]
+   ],
+   "ref_tokens": {
+    "husband": 1,
+    "nethermancer": 1,
+    "was": 1,
+    "late": 1,
+    "Her": 1
+   },
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\bhusband\\b|\\bnethermancer\\b|\\bwas\\b"
+  },
+  "bi|地界法师": {
+   "wrong": "地界法师",
+   "right": "幽客",
+   "mode": "bi",
+   "count": 2,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    1147,
+    1162
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "sync": true
+  },
+  "bi|下界法师": {
+   "wrong": "下界法师",
+   "right": "幽客",
+   "mode": "bi",
+   "count": 2,
+   "uncorrected": 1,
+   "status": "candidate",
+   "cues": [
+    1169,
+    4281
+   ],
+   "samples": [
+    [
+     "",
+     "驱散幻影领域",
+     "",
+     "驱散幻影领域"
+    ],
+    [
+     "让我说清楚。没有",
+     "替身",
+     "让我说清楚。没有",
+     "替身"
+    ]
+   ],
+   "ref_tokens": {
+    "mirage": 1,
+    "Nethermancers": 1,
+    "dispel": 1,
+    "realms": 1,
+    "nethermancer": 1,
+    "stands": 1,
+    "Let": 1,
+    "clear": 1
+   },
+   "unc_ref_tokens": {
+    "nethermancer": 1,
+    "Let": 1,
+    "stands": 1,
+    "clear": 1
+   },
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\bmirage\\b|\\bNethermancers\\b|\\bdispel\\b"
+  },
+  "bi|内瑟曼": {
+   "wrong": "内瑟曼",
+   "right": "幽客",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    1178
+   ],
+   "samples": [
+    [
+     "每年",
+     "的数量减少",
+     "每年",
+     "的数量减少"
+    ]
+   ],
+   "ref_tokens": {
+    "are": 1,
+    "fewer": 1,
+    "There": 1,
+    "each": 1,
+    "nethermans": 1,
+    "year": 1
+   },
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\bare\\b|\\bfewer\\b|\\bThere\\b"
+  },
+  "bi|日向": {
+   "wrong": "日向",
+   "right": "绯雪",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    1363
+   ],
+   "samples": [
+    [
+     "全息影像。我想做一个单人",
+     "",
+     "全息影像。我想做一个单人",
+     ""
+    ]
+   ],
+   "ref_tokens": {
+    "hologram": 1,
+    "Hiuki": 1,
+    "wanted": 1,
+    "solo": 1
+   },
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\bhologram\\b|\\bHiuki\\b|\\bwanted\\b"
+  },
+  "bi|穆宇": {
+   "wrong": "穆宇",
+   "right": "木禺",
+   "mode": "bi",
+   "count": 5,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    1410,
+    2440,
+    2706,
+    3138,
+    5456
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "sync": true
+  },
+  "bi|武阿": {
+   "wrong": "武阿",
+   "right": "鸣潮",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    1473
+   ],
+   "samples": [
+    [
+     "我们在",
+     "经历了这种情况，我们",
+     "我们在",
+     "经历了这种情况，我们"
+    ]
+   ],
+   "ref_tokens": {
+    "we're": 1,
+    "where": 1,
+    "that": 1,
+    "experiencing": 1,
+    "Wua": 1
+   },
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\bwe're\\b|\\bwhere\\b|\\bthat\\b"
+  },
+  "bi|蒙焦": {
+   "wrong": "蒙焦",
+   "right": "梦州",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    1479
+   ],
+   "samples": [
+    [
+     ">> 如果",
+     "市政府指责",
+     ">> 如果",
+     "市政府指责"
+    ]
+   ],
+   "ref_tokens": {
+    "assigns": 1,
+    "city": 1,
+    "the": 1,
+    "blame": 1,
+    "Mongjo": 1,
+    "hall": 1
+   },
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\bassigns\\b|\\bcity\\b|\\bthe\\b"
+  },
+  "bi|丽娜": {
+   "wrong": "丽娜",
+   "right": "里奈",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 3,
+   "status": "candidate",
+   "cues": [
+    1541
+   ],
+   "samples": [
+    [
+     "看到维",
+     "彻底对付托尼·斯塔克",
+     "看到维",
+     "彻底对付托尼·斯塔克"
+    ]
+   ],
+   "ref_tokens": {
+    "Stark": 1,
+    "Tony": 1,
+    "full": 1,
+    "see": 1,
+    "got": 1,
+    "Verina": 1
+   },
+   "unc_ref_tokens": {
+    "for": 3,
+    "and": 3,
+    "Companion": 3,
+    "Berina": 3,
+    "quest": 3,
+    "Kakaro": 3
+   },
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\bStark\\b|\\bTony\\b|\\bfull\\b"
+  },
+  "bi|外骨骼游侠": {
+   "wrong": "外骨骼游侠",
+   "right": "隧者",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    1629
+   ],
+   "samples": [
+    [
+     "",
+     "可以在主世界玩，或者",
+     "",
+     "可以在主世界玩，或者"
+    ]
+   ],
+   "ref_tokens": {
+    "overworld": 1,
+    "playable": 1,
+    "Strider": 1,
+    "Exo": 1
+   },
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\boverworld\\b|\\bplayable\\b|\\bStrider\\b"
+  },
+  "bi|寿司": {
+   "wrong": "寿司",
+   "right": "穗穗",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    1947
+   ],
+   "samples": [
+    [
+     "",
+     "。嗯",
+     "",
+     "。嗯"
+    ]
+   ],
+   "ref_tokens": {
+    "Sushi": 1
+   },
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\bSushi\\b"
+  },
+  "bi|金龙": {
+   "wrong": "金龙",
+   "right": "景燃",
+   "mode": "bi",
+   "count": 3,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    2024,
+    5089,
+    5157
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "sync": true
+  },
+  "bi|慕宇": {
+   "wrong": "慕宇",
+   "right": "木禺",
+   "mode": "bi",
+   "count": 2,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    2029,
+    5613
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "sync": true
+  },
+  "bi|索洛诺迪": {
+   "wrong": "索洛诺迪",
+   "right": "鸣式",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    2140
+   ],
+   "samples": [
+    [
+     "说是一支",
+     "先锋队发动了攻击",
+     "说是一支",
+     "先锋队发动了攻击"
+    ]
+   ],
+   "ref_tokens": {
+    "Thronodian": 1,
+    "vanguard": 1,
+    "said": 1,
+    "attacked": 1
+   },
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\bThronodian\\b|\\bvanguard\\b|\\bsaid\\b"
+  },
+  "bi|施万芬保留": {
+   "wrong": "施万芬保留",
+   "right": "玄方城",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    2301
+   ],
+   "samples": [
+    [
+     "",
+     "，战争部",
+     "",
+     "，战争部"
+    ]
+   ],
+   "ref_tokens": {
+    "War": 1,
+    "Schwanfun": 1,
+    "for": 1,
+    "Hold": 1,
+    "Ministry": 1
+   },
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\bWar\\b|\\bSchwanfun\\b|\\bfor\\b"
+  },
+  "bi|施旺冯堡": {
+   "wrong": "施旺冯堡",
+   "right": "玄方城",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    2359
+   ],
+   "samples": [
+    [
+     "我们所知的",
+     "",
+     "我们所知的",
+     ""
+    ]
+   ],
+   "ref_tokens": {
+    "Hold": 1,
+    "that": 1,
+    "know": 1,
+    "the": 1,
+    "Schwanfung": 1
+   },
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\bHold\\b|\\bthat\\b|\\bknow\\b"
+  },
+  "bi|蒙乔哨兵": {
+   "wrong": "蒙乔哨兵",
+   "right": "梦州岁主",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    2388
+   ],
+   "samples": [
+    [
+     "在",
+     "的帮助下",
+     "在",
+     "的帮助下"
+    ]
+   ],
+   "ref_tokens": {
+    "with": 1,
+    "Mongjo's": 1,
+    "sentinel": 1,
+    "the": 1,
+    "aid": 1
+   },
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\bwith\\b|\\bMongjo's\\b|\\bsentinel\\b"
+  },
+  "bi|施万": {
+   "wrong": "施万",
+   "right": "玄方城",
+   "mode": "bi",
+   "count": 5,
+   "uncorrected": 63,
+   "status": "candidate",
+   "cues": [
+    2399,
+    2036,
+    1327,
+    2809,
+    3676
+   ],
+   "samples": [
+    [
+     "艺术带给",
+     "带来了乐趣并教会了我们",
+     "艺术带给",
+     "带来了乐趣并教会了我们"
+    ],
+    [
+     "",
+     "中的机制保持良好且",
+     "",
+     "中的机制保持良好且"
+    ],
+    [
+     "包括",
+     "盾，有",
+     "包括",
+     "盾，有"
+    ],
+    [
+     "会一起战斗。新",
+     "河",
+     "会一起战斗。新",
+     "河"
+    ],
+    [
+     "你为什么要参与",
+     "",
+     "你为什么要参与",
+     ""
+    ]
+   ],
+   "ref_tokens": {
+    "and": 2,
+    "fun": 1,
+    "came": 1,
+    "Schwan": 5,
+    "taught": 1,
+    "art": 1,
+    "hold": 1,
+    "great": 1,
+    "mechanism": 1,
+    "have": 1,
+    "shield": 1,
+    "the": 1,
+    "including": 1,
+    "will": 1,
+    "together": 1,
+    "new": 1,
+    "fight": 1,
+    "The": 1,
+    "you": 1,
+    "Why": 1,
+    "involve": 1,
+    "yourself": 1
+   },
+   "unc_ref_tokens": {
+    "wardens": 3,
+    "Horde": 3,
+    "Schwanfang": 6,
+    "defend": 3,
+    "one": 6,
+    "affected": 3,
+    "all": 3,
+    "only": 6,
+    "Schwan": 12,
+    "hold": 4,
+    "evacuate": 1,
+    "these": 1,
+    "people": 4,
+    "shield": 2,
+    "have": 5,
+    "including": 2,
+    "the": 11,
+    "mainframe": 3,
+    "Schwanfong": 39,
+    "Hold": 12,
+    "had": 1,
+    "That": 1,
+    "attack": 1,
+    "his": 1,
+    "and": 4,
+    "mechanism": 1,
+    "great": 1,
+    "see": 1,
+    "rise": 1,
+    "Schwanfan": 1,
+    "isn't": 3,
+    "this": 6,
+    "returned": 3,
+    "time": 3,
+    "were": 3,
+    "version": 3,
+    "Fang": 3,
+    "shaped": 3,
+    "This": 3,
+    "The": 2,
+    "will": 8,
+    "new": 2,
+    "together": 2,
+    "fight": 2,
+    "its": 3,
+    "itself": 3,
+    "land": 6,
+    "yourself": 2,
+    "involve": 2,
+    "Why": 2,
+    "you": 2,
+    "without": 3,
+    "back": 3,
+    "moment's": 3,
+    "stand": 3,
+    "united": 3,
+    "They": 3,
+    "too": 3,
+    "identity": 3,
+    "under": 3,
+    "another": 3,
+    "Schwanfong's": 3,
+    "disaster": 3,
+    "been": 3,
+    "hit": 3,
+    "across": 2,
+    "celebrated": 2,
+    "Schwanth": 2
+   },
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\bfun\\b|\\bcame\\b|\\btaught\\b"
+  },
+  "bi|环龙": {
+   "wrong": "环龙",
+   "right": "瑝珑",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    2425
+   ],
+   "samples": [
+    [
+     "遍及整个",
+     "。而弗利特则有",
+     "遍及整个",
+     "。而弗利特则有"
+    ]
+   ],
+   "ref_tokens": {
+    "Long": 1,
+    "while": 1,
+    "Huan": 1,
+    "across": 1,
+    "fleet": 1,
+    "has": 1,
+    "all": 1
+   },
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\bLong\\b|\\bwhile\\b|\\bHuan\\b"
+  },
+  "bi|施旺丰堡": {
+   "wrong": "施旺丰堡",
+   "right": "玄方城",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    2436
+   ],
+   "samples": [
+    [
+     "一个没有哨兵的",
+     "",
+     "一个没有岁主的",
+     ""
+    ]
+   ],
+   "ref_tokens": {
+    "with": 1,
+    "Schwanfung": 1,
+    "Hold": 1,
+    "sentinel": 1
+   },
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\bwith\\b|\\bSchwanfung\\b|\\bHold\\b"
+  },
+  "bi|程晓": {
+   "wrong": "程晓",
+   "right": "清宵",
+   "mode": "bi",
+   "count": 4,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    2551,
+    2685,
+    3389,
+    5706
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "sync": true
+  },
+  "bi|秦沙": {
+   "wrong": "秦沙",
+   "right": "清宵",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    2829
+   ],
+   "samples": [
+    [
+     ">>拜托，",
+     "，你们俩都得坚持下去",
+     ">>拜托，",
+     "，你们俩都得坚持下去"
+    ]
+   ],
+   "ref_tokens": {
+    "keep": 1,
+    "have": 1,
+    "Sha": 1,
+    "you": 1,
+    "Chin": 1,
+    "Please": 1,
+    "both": 1
+   },
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\bkeep\\b|\\bhave\\b|\\bSha\\b"
+  },
+  "bi|穆优": {
+   "wrong": "穆优",
+   "right": "木禺",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    3008
+   ],
+   "samples": [
+    [
+     "就像自动木偶的",
+     "一样",
+     "就像自动木偶的",
+     "一样"
+    ]
+   ],
+   "ref_tokens": {
+    "auto": 1,
+    "just": 1,
+    "Muyu": 1,
+    "like": 1,
+    "the": 1,
+    "puppets": 1
+   },
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\bauto\\b|\\bjust\\b|\\bMuyu\\b"
+  },
+  "bi|昌丰岗": {
+   "wrong": "昌丰岗",
+   "right": "玄方城",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    3077
+   ],
+   "samples": [
+    [
+     "我住在",
+     "。该",
+     "我住在",
+     "。该"
+    ]
+   ],
+   "ref_tokens": {
+    "The": 1,
+    "Hold": 1,
+    "staying": 1,
+    "Fong": 1,
+    "Chwang": 1
+   },
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\bThe\\b|\\bHold\\b|\\bstaying\\b"
+  },
+  "bi|施万翁堡垒": {
+   "wrong": "施万翁堡垒",
+   "right": "玄方城",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    3415
+   ],
+   "samples": [
+    [
+     "共振器。",
+     "将会沦陷",
+     "共振器。",
+     "将会沦陷"
+    ]
+   ],
+   "ref_tokens": {
+    "fall": 1,
+    "Hold": 1,
+    "Schwan": 1,
+    "will": 1,
+    "Vong": 1,
+    "resonators": 1
+   },
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\bfall\\b|\\bHold\\b|\\bSchwan\\b"
+  },
+  "bi|山芬堡": {
+   "wrong": "山芬堡",
+   "right": "玄方城",
+   "mode": "bi",
+   "count": 2,
+   "uncorrected": 1,
+   "status": "candidate",
+   "cues": [
+    3448,
+    2046
+   ],
+   "samples": [
+    [
+     "自从",
+     "围城以来",
+     "自从",
+     "围城以来"
+    ],
+    [
+     "",
+     "正在飞翔",
+     "",
+     "正在飞翔"
+    ]
+   ],
+   "ref_tokens": {
+    "siege": 1,
+    "Hold": 2,
+    "since": 1,
+    "Shanfun": 2,
+    "Ever": 1,
+    "the": 1,
+    "flying": 1
+   },
+   "unc_ref_tokens": {
+    "Shanfun": 1,
+    "flying": 1,
+    "Hold": 1
+   },
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\bsiege\\b|\\bsince\\b|\\bEver\\b"
+  },
+  "bi|慕羽": {
+   "wrong": "慕羽",
+   "right": "木禺",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    3482
+   ],
+   "samples": [
+    [
+     ">>你应该去追",
+     "",
+     ">>你应该去追",
+     ""
+    ]
+   ],
+   "ref_tokens": {
+    "should": 1,
+    "Muyu": 1,
+    "You": 1,
+    "after": 1
+   },
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\bshould\\b|\\bMuyu\\b|\\bYou\\b"
+  },
+  "bi|景沙": {
+   "wrong": "景沙",
+   "right": "清宵",
+   "mode": "bi",
+   "count": 2,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    3954,
+    5997
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "sync": true
+  },
+  "bi|帐篷": {
+   "wrong": "帐篷",
+   "right": "十连",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    4223
+   ],
+   "samples": [
+    [
+     "",
+     "的照片。它有，嗯",
+     "",
+     "的照片。它有，嗯"
+    ]
+   ],
+   "ref_tokens": {
+    "tent": 1,
+    "has": 1,
+    "picture": 1
+   },
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\btent\\b|\\bhas\\b|\\bpicture\\b"
+  },
+  "bi|无雨": {
+   "wrong": "无雨",
+   "right": "木禺",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    4271
+   ],
+   "samples": [
+    [
+     "确保",
+     "不被击中的机会更大",
+     "确保",
+     "不被击中"
+    ]
+   ],
+   "ref_tokens": {
+    "for": 1,
+    "better": 1,
+    "odds": 1,
+    "doesn't": 1,
+    "Muyu": 1,
+    "sure": 1,
+    "making": 1
+   },
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\bfor\\b|\\bbetter\\b|\\bodds\\b"
+  },
+  "bi|穆郁": {
+   "wrong": "穆郁",
+   "right": "木禺",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    4300
+   ],
+   "samples": [
+    [
+     ">> ",
+     "的真正意图是什么？",
+     ">> ",
+     "的真正意图是什么？"
+    ]
+   ],
+   "ref_tokens": {
+    "What's": 1,
+    "true": 1,
+    "Muyu's": 1,
+    "intention": 1
+   },
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\bWhat's\\b|\\btrue\\b|\\bMuyu's\\b"
+  },
+  "bi|京蓉": {
+   "wrong": "京蓉",
+   "right": "景燃",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    4477
+   ],
+   "samples": [
+    [
+     "田野。我希望像",
+     "那样",
+     "田野。我希望像",
+     "那样"
+    ]
+   ],
+   "ref_tokens": {
+    "field": 1,
+    "like": 1,
+    "Jingron's": 1,
+    "wish": 1
+   },
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\bfield\\b|\\blike\\b|\\bJingron's\\b"
+  },
+  "bi|霍尔德": {
+   "wrong": "霍尔德",
+   "right": "玄方城",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    4945
+   ],
+   "samples": [
+    [
+     "",
+     "的齿轮至今仍在运转",
+     "",
+     "的齿轮至今仍在运转"
+    ]
+   ],
+   "ref_tokens": {
+    "gears": 1,
+    "turning": 1,
+    "day": 1,
+    "Hold's": 1,
+    "this": 1
+   },
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\bgears\\b|\\bturning\\b|\\bday\\b"
+  },
+  "bi|施万·冯·霍尔特": {
+   "wrong": "施万·冯·霍尔特",
+   "right": "玄方城",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    4947
+   ],
+   "samples": [
+    [
+     "在",
+     "尚未成立之前",
+     "在",
+     "尚未成立之前"
+    ]
+   ],
+   "ref_tokens": {
+    "Schwan": 1,
+    "was": 1,
+    "even": 1,
+    "before": 1,
+    "Halt": 1,
+    "von": 1
+   },
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\bSchwan\\b|\\bwas\\b|\\beven\\b"
+  },
+  "bi|Schwanthong": {
+   "wrong": "Schwanthong",
+   "right": "玄方城",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    5020
+   ],
+   "samples": [
+    [
+     "模拟。",
+     "，等等",
+     "模拟。",
+     "，等等"
+    ]
+   ],
+   "ref_tokens": {
+    "Schwanthong": 1,
+    "hold": 1,
+    "Simulating": 1
+   },
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\bSchwanthong\\b|\\bhold\\b|\\bSimulating\\b"
+  },
+  "bi|山芳": {
+   "wrong": "山芳",
+   "right": "玄方城",
+   "mode": "bi",
+   "count": 2,
+   "uncorrected": 1,
+   "status": "candidate",
+   "cues": [
+    5138,
+    5486
+   ],
+   "samples": [
+    [
+     "所以，去救",
+     "吧，大英雄。我不是",
+     "所以，去救",
+     "吧，大英雄。我不是"
+    ],
+    [
+     "救了",
+     "免于更大的损失",
+     "救了",
+     "免于更大的损失"
+    ]
+   ],
+   "ref_tokens": {
+    "Shan": 1,
+    "hero": 1,
+    "not": 1,
+    "save": 1,
+    "Fong": 1,
+    "big": 1,
+    "I'm": 1,
+    "saved": 1,
+    "loss": 1,
+    "greater": 1,
+    "from": 1,
+    "Shuanfang": 1,
+    "far": 1
+   },
+   "unc_ref_tokens": {
+    "far": 1,
+    "from": 1,
+    "Shuanfang": 1,
+    "saved": 1,
+    "loss": 1,
+    "greater": 1
+   },
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\bShan\\b|\\bhero\\b|\\bnot\\b"
+  },
+  "bi|施旺芬": {
+   "wrong": "施旺芬",
+   "right": "玄方城",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    5208
+   ],
+   "samples": [
+    [
+     "你在",
+     "做的一切",
+     "你在",
+     "做的一切"
+    ]
+   ],
+   "ref_tokens": {
+    "done": 1,
+    "Schwangfun": 1,
+    "everything": 1,
+    "you've": 1
+   },
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\bdone\\b|\\bSchwangfun\\b|\\beverything\\b"
+  },
+  "bi|穆雨": {
+   "wrong": "穆雨",
+   "right": "木禺",
+   "mode": "bi",
+   "count": 2,
+   "uncorrected": 1,
+   "status": "candidate",
+   "cues": [
+    5481,
+    2885
+   ],
+   "samples": [
+    [
+     "",
+     "当然相信是",
+     "",
+     "当然相信是"
+    ],
+    [
+     "他的掩护，他应该和",
+     "在一起",
+     "他的掩护，他应该和",
+     "在一起"
+    ]
+   ],
+   "ref_tokens": {
+    "was": 1,
+    "Muyu": 2,
+    "certainly": 1,
+    "believed": 1,
+    "with": 1,
+    "cover": 1,
+    "his": 1,
+    "should": 1
+   },
+   "unc_ref_tokens": {
+    "with": 1,
+    "cover": 1,
+    "should": 1,
+    "Muyu": 1,
+    "his": 1
+   },
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\bwas\\b|\\bcertainly\\b|\\bbelieved\\b"
+  },
+  "bi|穆游": {
+   "wrong": "穆游",
+   "right": "木禺",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    5521
+   ],
+   "samples": [
+    [
+     "",
+     "的毁灭就是最好的证明",
+     "",
+     "的毁灭就是最好的证明"
+    ]
+   ],
+   "ref_tokens": {
+    "where": 1,
+    "enough": 1,
+    "proof": 1,
+    "Muyu's": 1,
+    "ruin": 1
+   },
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\bwhere\\b|\\benough\\b|\\bproof\\b"
+  },
+  "bi|西奥迪安": {
+   "wrong": "西奥迪安",
+   "right": "鸣式",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    5557
+   ],
+   "samples": [
+    [
+     "这是《",
+     "》",
+     "这是《",
+     "》"
+    ]
+   ],
+   "ref_tokens": {
+    "Theodian": 1,
+    "It's": 1
+   },
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\bTheodian\\b|\\bIt's\\b"
+  },
+  "bi|穆羽": {
+   "wrong": "穆羽",
+   "right": "木禺",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    5581
+   ],
+   "samples": [
+    [
+     "乔治奥·纳特利耶。",
+     "是个天才",
+     "乔治奥·纳特利耶。",
+     "是个天才"
+    ]
+   ],
+   "ref_tokens": {
+    "Natellier": 1,
+    "Georgio": 1,
+    "Muyu": 1,
+    "prodigy": 1,
+    "was": 1
+   },
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\bNatellier\\b|\\bGeorgio\\b|\\bMuyu\\b"
+  },
+  "bi|银杏里": {
+   "wrong": "银杏里",
+   "right": "今州",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    5621
+   ],
+   "samples": [
+    [
+     "在",
+     "。至少他们给我倒了茶",
+     "在",
+     "。至少他们给我倒了茶"
+    ]
+   ],
+   "ref_tokens": {
+    "served": 1,
+    "Gingjo": 1,
+    "tea": 1,
+    "they": 1,
+    "least": 1
+   },
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\bserved\\b|\\bGingjo\\b|\\btea\\b"
+  },
+  "bi|蒙哥": {
+   "wrong": "蒙哥",
+   "right": "梦州",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    5623
+   ],
+   "samples": [
+    [
+     "门就在我面前。说",
+     "的治安官",
+     "门就在我面前。说",
+     "的治安官"
+    ]
+   ],
+   "ref_tokens": {
+    "Said": 1,
+    "magistrate": 1,
+    "Mongo's": 1,
+    "door": 1,
+    "face": 1
+   },
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\bSaid\\b|\\bmagistrate\\b|\\bMongo's\\b"
+  },
+  "bi|景乔": {
+   "wrong": "景乔",
+   "right": "今州",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    5652
+   ],
+   "samples": [
+    [
+     ">> 总有一天我们都会去",
+     "",
+     ">> 总有一天我们都会去",
+     ""
+    ]
+   ],
+   "ref_tokens": {
+    "going": 1,
+    "we're": 1,
+    "visit": 1,
+    "day": 1,
+    "One": 1,
+    "all": 1,
+    "Jingjo": 1
+   },
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\bgoing\\b|\\bwe're\\b|\\bvisit\\b"
+  },
+  "bi|万凤": {
+   "wrong": "万凤",
+   "right": "玄方城",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    5683
+   ],
+   "samples": [
+    [
+     "",
+     "",
+     "",
+     ""
+    ]
+   ],
+   "ref_tokens": {
+    "Shwanfong": 1
+   },
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\bShwanfong\\b"
+  },
+  "bi|真沙典范": {
+   "wrong": "真沙典范",
+   "right": "清宵Paragon",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    5873
+   ],
+   "samples": [
+    [
+     ">> 是",
+     "留下的吗？",
+     ">> 是",
+     "留下的吗？"
+    ]
+   ],
+   "ref_tokens": {
+    "behind": 1,
+    "Paragon": 1,
+    "Sha": 1,
+    "Did": 1,
+    "leave": 1,
+    "Chin": 1,
+    "this": 1
+   },
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\bbehind\\b|\\bParagon\\b|\\bSha\\b"
+  },
+  "bi|过渡": {
+   "wrong": "过渡",
+   "right": "幕间",
+   "mode": "bi",
+   "count": 2,
+   "uncorrected": 3,
+   "status": "candidate",
+   "cues": [
+    5993,
+    5996
+   ],
+   "samples": [
+    [
+     "但还是很酷。",
+     "",
+     "但还是很酷。",
+     ""
+    ],
+    [
+     "",
+     "。好的",
+     "",
+     "。好的"
+    ]
+   ],
+   "ref_tokens": {
+    "The": 1,
+    "but": 1,
+    "still": 1,
+    "segue": 2,
+    "was": 1,
+    "cool": 1,
+    "has": 1,
+    "the": 1,
+    "Okay": 1
+   },
+   "unc_ref_tokens": {
+    "the": 3,
+    "animation": 3,
+    "transition": 3,
+    "nice": 3
+   },
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\bsegue\\b|\\bThe\\b|\\bbut\\b"
+  },
+  "bi|秦绍": {
+   "wrong": "秦绍",
+   "right": "清宵",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    6087
+   ],
+   "samples": [
+    [
+     "基本上就是",
+     "拿出一把Uno",
+     "基本上就是",
+     "拿出一把Uno"
+    ]
+   ],
+   "ref_tokens": {
+    "Uno": 1,
+    "much": 1,
+    "pretty": 1,
+    "Chin": 1,
+    "pulling": 1,
+    "Shao": 1,
+    "out": 1
+   },
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\bUno\\b|\\bmuch\\b|\\bpretty\\b"
+  },
+  "bi|青纱": {
+   "wrong": "青纱",
+   "right": "清宵",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    6285
+   ],
+   "samples": [
+    [
+     "呃，",
+     "贯穿整个故事",
+     "呃，",
+     "贯穿整个故事"
+    ]
+   ],
+   "ref_tokens": {
+    "story": 1,
+    "Sao": 1,
+    "Ching": 1,
+    "throughout": 1,
+    "the": 1
+   },
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\bstory\\b|\\bSao\\b|\\bChing\\b"
+  },
+  "bi|风浪风浪": {
+   "wrong": "风浪风浪",
+   "right": "鸣潮",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    477
+   ],
+   "samples": [
+    [
+     "基于《",
+     "》。然后",
+     "基于《",
+     "》。然后"
+    ]
+   ],
+   "ref_tokens": {
+    "Weathering": 1,
+    "then": 1,
+    "based": 1,
+    "Waves": 1,
+    "off": 1,
+    "And": 1
+   },
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\bWeathering\\b|\\bthen\\b|\\bbased\\b"
+  },
+  "bi|银杏": {
+   "wrong": "银杏",
+   "right": "今州",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    779
+   ],
+   "samples": [
+    [
+     "",
+     "英雄，暗雷",
+     "",
+     "英雄，暗雷"
+    ]
+   ],
+   "ref_tokens": {
+    "hero": 1,
+    "Thunderbolt": 1,
+    "Dark": 1,
+    "Gingjo": 1
+   },
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\bhero\\b|\\bThunderbolt\\b|\\bDark\\b"
+  },
+  "bi|青州": {
+   "wrong": "青州",
+   "right": "清宵",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    1079
+   ],
+   "samples": [
+    [
+     "Paragon",
+     "不拿",
+     "Paragon",
+     "不拿"
+    ]
+   ],
+   "ref_tokens": {
+    "not": 1,
+    "Paragon": 1,
+    "Chingchow": 1,
+    "does": 1,
+    "take": 1
+   },
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\bnot\\b|\\bParagon\\b|\\bChingchow\\b"
+  },
+  "bi|施万堡垒": {
+   "wrong": "施万堡垒",
+   "right": "玄方城",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    1205
+   ],
+   "samples": [
+    [
+     "把这些人撤到",
+     "",
+     "把这些人撤到",
+     ""
+    ]
+   ],
+   "ref_tokens": {
+    "hold": 1,
+    "people": 1,
+    "these": 1,
+    "evacuate": 1,
+    "Schwan": 1
+   },
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\bhold\\b|\\bpeople\\b|\\bthese\\b"
+  },
+  "bi|施万堡": {
+   "wrong": "施万堡",
+   "right": "玄方城",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    1423
+   ],
+   "samples": [
+    [
+     ">> 他对",
+     "的攻击",
+     ">> 他对",
+     "的攻击"
+    ]
+   ],
+   "ref_tokens": {
+    "hold": 1,
+    "had": 1,
+    "That": 1,
+    "Schwan": 1,
+    "his": 1,
+    "attack": 1
+   },
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\bhold\\b|\\bhad\\b|\\bThat\\b"
+  },
+  "bi|Mu": {
+   "wrong": "Mu",
+   "right": "木禺",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 6,
+   "status": "candidate",
+   "cues": [
+    2039
+   ],
+   "samples": [
+    [
+     ">> ",
+     "利用残响来改变 Auto",
+     ">> ",
+     "利用残响来改变 Auto"
+    ]
+   ],
+   "ref_tokens": {
+    "autopet": 1,
+    "used": 1,
+    "alter": 1,
+    "reverberations": 1
+   },
+   "unc_ref_tokens": {
+    "you": 2,
+    "and": 2,
+    "Spotify": 2,
+    "Music": 2,
+    "anywhere": 2,
+    "Apple": 2,
+    "something": 2,
+    "Muya": 2,
+    "time": 2,
+    "created": 2,
+    "Not": 2,
+    "Well": 2,
+    "music": 2,
+    "creation": 2,
+    "stream": 2
+   },
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\bautopet\\b|\\bused\\b|\\balter\\b"
+  },
+  "bi|施旺": {
+   "wrong": "施旺",
+   "right": "玄方城",
+   "mode": "bi",
+   "count": 2,
+   "uncorrected": 5,
+   "status": "candidate",
+   "cues": [
+    2197,
+    4428
+   ],
+   "samples": [
+    [
+     "这些机制远早于",
+     "",
+     "这些机制远早于",
+     ""
+    ],
+    [
+     "呃，",
+     "轰击是作为云的",
+     "呃，",
+     "轰击是作为云的"
+    ]
+   ],
+   "ref_tokens": {
+    "long": 1,
+    "Schwang": 1,
+    "before": 1,
+    "built": 1,
+    "mechanisms": 1,
+    "serve": 1,
+    "bombards": 1,
+    "cloud": 1,
+    "Schwan": 1
+   },
+   "unc_ref_tokens": {
+    "Peaks": 2,
+    "eastern": 2,
+    "school": 2,
+    "the": 2,
+    "The": 2,
+    "Schwan": 2,
+    "Hold": 2,
+    "flying": 2,
+    "those": 2,
+    "Schwangfong": 2,
+    "saw": 2,
+    "Schwang": 1,
+    "peaceful": 1,
+    "are": 1,
+    "Yeah": 1,
+    "Things": 1
+   },
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\blong\\b|\\bbefore\\b|\\bbuilt\\b"
+  },
+  "bi|施万凡": {
+   "wrong": "施万凡",
+   "right": "玄方城",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    2386
+   ],
+   "samples": [
+    [
+     "看着",
+     "起身",
+     "看着",
+     "起身"
+    ]
+   ],
+   "ref_tokens": {
+    "see": 1,
+    "hold": 1,
+    "rise": 1,
+    "Schwanfan": 1
+   },
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\bsee\\b|\\bhold\\b|\\brise\\b"
+  },
+  "bi|地狱之人": {
+   "wrong": "地狱之人",
+   "right": "幽客",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    3212
+   ],
+   "samples": [
+    [
+     "我敢打赌，那个",
+     "",
+     "我敢打赌，那个",
+     ""
+    ]
+   ],
+   "ref_tokens": {
+    "Bet": 1,
+    "the": 1,
+    "anything": 1,
+    "nethermaner": 1,
+    "you": 1,
+    "that": 1
+   },
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\bBet\\b|\\bthe\\b|\\banything\\b"
+  },
+  "bi|Woowa": {
+   "wrong": "Woowa",
+   "right": "鸣潮",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    3312
+   ],
+   "samples": [
+    [
+     "啊，是的。",
+     "长椅。[笑声]",
+     "啊，是的。",
+     "长椅。[笑声]"
+    ]
+   ],
+   "ref_tokens": {
+    "woowa": 1,
+    "bench": 1,
+    "yes": 1,
+    "The": 1,
+    "laughter": 1
+   },
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\bwoowa\\b|\\bbench\\b|\\byes\\b"
+  },
+  "bi|下界人": {
+   "wrong": "下界人",
+   "right": "幽客",
+   "mode": "bi",
+   "count": 2,
+   "uncorrected": 1,
+   "status": "candidate",
+   "cues": [
+    4246,
+    2926
+   ],
+   "samples": [
+    [
+     "那个服役三年的",
+     "",
+     "那个服役三年的",
+     ""
+    ],
+    [
+     "像你这样的",
+     "",
+     "像你这样的",
+     ""
+    ]
+   ],
+   "ref_tokens": {
+    "years": 1,
+    "the": 1,
+    "three": 1,
+    "went": 1,
+    "nethermaner": 2,
+    "who": 1,
+    "yourself": 1,
+    "like": 1
+   },
+   "unc_ref_tokens": {
+    "like": 1,
+    "nethermaner": 1,
+    "yourself": 1
+   },
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\byears\\b|\\bthe\\b|\\bthree\\b"
+  },
+  "bi|乌娃": {
+   "wrong": "乌娃",
+   "right": "鸣潮",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    4808
+   ],
+   "samples": [
+    [
+     "尤其是在",
+     "领域",
+     "尤其是在",
+     "领域"
+    ]
+   ],
+   "ref_tokens": {
+    "especially": 1,
+    "the": 1,
+    "space": 1,
+    "Wuwa": 1
+   },
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\bespecially\\b|\\bthe\\b|\\bspace\\b"
+  },
+  "bi|耐候波浪": {
+   "wrong": "耐候波浪",
+   "right": "鸣潮",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    14
+   ],
+   "samples": [
+    [
+     "3.6分，是",
+     "",
+     "3.6分，是",
+     ""
+    ]
+   ],
+   "ref_tokens": {
+    "Weathering": 1,
+    "Waves": 1,
+    "for": 1
+   },
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\bWeathering\\b|\\bWaves\\b|\\bfor\\b"
+  },
+  "bi|WOWA": {
+   "wrong": "WOWA",
+   "right": "鸣潮",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    40
+   ],
+   "samples": [
+    [
+     "还有像",
+     "那样，真的超级累人",
+     "还有像",
+     "那样，真的超级累人"
+    ]
+   ],
+   "ref_tokens": {
+    "taxing": 1,
+    "WOWA": 1,
+    "like": 1,
+    "and": 1,
+    "super": 1
+   },
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\btaxing\\b|\\bWOWA\\b|\\blike\\b"
+  },
+  "bi|珊凡": {
+   "wrong": "珊凡",
+   "right": "玄方城",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    382
+   ],
+   "samples": [
+    [
+     "",
+     "。等我。我会去的",
+     "",
+     "。等我。我会去的"
+    ]
+   ],
+   "ref_tokens": {
+    "Wait": 1,
+    "Shanfan": 1,
+    "for": 1,
+    "I'll": 1,
+    "there": 1
+   },
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\bWait\\b|\\bShanfan\\b|\\bfor\\b"
+  },
+  "bi|错的": {
+   "wrong": "错的",
+   "right": "锁暝",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 4,
+   "status": "candidate",
+   "cues": [
+    562
+   ],
+   "samples": [
+    [
+     "红宝石袭狼是",
+     "。[笑声]",
+     "红宝石袭狼是",
+     "。[笑声]"
+    ]
+   ],
+   "ref_tokens": {
+    "wrong": 1,
+    "laughter": 1,
+    "raid": 1,
+    "Ruby": 1,
+    "wolf's": 1
+   },
+   "unc_ref_tokens": {
+    "could": 1,
+    "cosplay": 1,
+    "Kiwi": 1,
+    "okay": 1,
+    "were": 1,
+    "there": 1,
+    "hiccups": 1,
+    "animation": 1,
+    "nice": 1,
+    "transition": 1,
+    "the": 2,
+    "you": 1,
+    "price": 1,
+    "paragon": 1,
+    "and": 1,
+    "for": 1,
+    "tidy": 1
+   },
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\bwrong\\b|\\blaughter\\b|\\braid\\b"
+  },
+  "bi|施瓦姆丰堡": {
+   "wrong": "施瓦姆丰堡",
+   "right": "玄方城",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    1712
+   ],
+   "samples": [
+    [
+     ">> ",
+     "本不该出现",
+     ">> ",
+     "本不该出现"
+    ]
+   ],
+   "ref_tokens": {
+    "Schwamfong": 1,
+    "never": 1,
+    "come": 1,
+    "have": 1,
+    "Hold": 1,
+    "should": 1
+   },
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\bSchwamfong\\b|\\bnever\\b|\\bcome\\b"
+  },
+  "bi|探测车": {
+   "wrong": "探测车",
+   "right": "漂泊者",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 1,
+   "status": "candidate",
+   "cues": [
+    1725
+   ],
+   "samples": [
+    [
+     "有女性",
+     "",
+     "有女性",
+     ""
+    ]
+   ],
+   "ref_tokens": {
+    "rover": 1,
+    "female": 1,
+    "have": 1
+   },
+   "unc_ref_tokens": {
+    "that": 1,
+    "you": 1,
+    "the": 1,
+    "know": 1,
+    "guess": 1,
+    "rover": 1,
+    "and": 1
+   },
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\bfemale\\b|\\bhave\\b"
+  },
+  "bi|双堡": {
+   "wrong": "双堡",
+   "right": "玄方城",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    1842
+   ],
+   "samples": [
+    [
+     "所有人。",
+     "将保留",
+     "所有人。",
+     "将保留"
+    ]
+   ],
+   "ref_tokens": {
+    "will": 1,
+    "remain": 1,
+    "Shuanghold": 1,
+    "everyone": 1
+   },
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\bwill\\b|\\bremain\\b|\\bShuanghold\\b"
+  },
+  "bi|下界": {
+   "wrong": "下界",
+   "right": "幽客",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    2915
+   ],
+   "samples": [
+    [
+     "阴阳相汇。",
+     "首领",
+     "阴阳相汇。",
+     "首领"
+    ]
+   ],
+   "ref_tokens": {
+    "converge": 1,
+    "chief": 1,
+    "Yin": 1,
+    "Nether": 1,
+    "Yang": 1,
+    "and": 1
+   },
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\bconverge\\b|\\bchief\\b|\\bYin\\b"
+  },
+  "bi|施旺镇": {
+   "wrong": "施旺镇",
+   "right": "玄方城",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    5640
+   ],
+   "samples": [
+    [
+     ">>是的。",
+     "很和平",
+     ">>是的。",
+     "很和平"
+    ]
+   ],
+   "ref_tokens": {
+    "Things": 1,
+    "Schwang": 1,
+    "Yeah": 1,
+    "peaceful": 1,
+    "are": 1
+   },
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\bThings\\b|\\bSchwang\\b|\\bYeah\\b"
+  },
+  "bi|施万特": {
+   "wrong": "施万特",
+   "right": "玄方城",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    5645
+   ],
+   "samples": [
+    [
+     "在[ __ ] ",
+     "被庆祝",
+     "在[ __ ] ",
+     "被庆祝"
+    ]
+   ],
+   "ref_tokens": {
+    "across": 1,
+    "celebrated": 1,
+    "Schwanth": 1
+   },
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "ctx_regex": "\\bacross\\b|\\bcelebrated\\b|\\bSchwanth\\b"
+  },
+  "bi|哨兵希恩，月狐。": {
+   "wrong": "哨兵希恩，月狐。",
+   "right": "岁主心心月狐，月狐。",
+   "mode": "bi",
+   "count": 2,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    4374,
+    2393
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "sync": true
   }
  }
 }
