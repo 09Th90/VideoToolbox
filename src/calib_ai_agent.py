@@ -1669,8 +1669,25 @@ def _meta_prompt(mode_flag, src, sample_text, accepted, round_no, tag_count):
 【要做的四件事】
 1. title —— 给这个视频起一个准确的**简体中文标题**：≤30 字，紧扣内容；
    不要书名号，不要“震惊/必看”这类营销词；作品专名用官方写法。
-2. tags —— 正好 {tag_count} 个**简体中文标签**，覆盖「作品 / 角色 / 内容类型 /
-   主题」四个维度；每个 2~8 字；互不重复；不要带 # 号。
+   风格参照 B 站二游区观点向视频：可用「引号钩子 + 拆解/聊聊/为什么」结构
+   （例：“抽卡游戏只是没有灵魂的复制品？”一位二游玩家的冷静拆解），
+   但钩子必须来自视频本身的论点，不得夸大。
+2. tags —— 正好 {tag_count} 个**简体中文标签**；每个 2~8 字；互不重复；不要带 # 号。
+   ⚠ 选词与排序**严格按以下优先级**——高优先级优先占名额，但**三类都要有**，
+     建议配比 **游戏专名 6 : 内容/类型 3 : 公司/作者 1**（{tag_count} 个时按此缩放）；
+     **输出顺序必须按优先级从高到低排列**：先作品名、再内容/类型、最后公司/作者。
+   ① 游戏专有名词（最高，占多数名额）——视频里**实际讨论到**的游戏 / IP，用官方名或社区通用简称，
+      如 原神 / 鸣潮 / 崩坏星穹铁道 / 绝区零 / 明日方舟 / 战双帕弥什 / 终末地 /
+      无限大 / 源初之结 / 二重螺旋 / 幻塔 / 崩坏3 / 旷野之息 / 艾尔登法环；
+      只取片中真正出现的作品，按讨论权重排序，**严禁用没出现的作品凑数**。
+   ② 视频内容 / 类型（次之）——B 站真实高频体裁 / 主题词：
+      游戏杂谈 / 二游 / 二次元 / 抽卡 / 氪金 / 游戏设计 / 游戏推荐 / 游戏鉴赏家 /
+      游戏测评 / 游戏吐槽 / 手游情报 / 抄袭。
+   ③ 作品相关的公司 / 作者（最低，1~2 个即可，只在①没占满时补位）——
+      如 米哈游 / 库洛游戏 / 鹰角网络 / 腾讯 / 网易。
+   ⚠ 严禁编造词：每个 tag 必须是 B 站投稿时真实可打的词。
+     不要造“抄袭争议”“借鉴与致敬”这类书面短语（B 站真实 tag 是“抄袭”“游戏设计”）；
+     不要加与视频无关的角色名/作品名凑数（幻觉词一律禁止）。
 3. official_terms —— 从采样里挑出**疑似非官方译名 / 机翻误译**的专有名词，
    给出该作品**公认的官方简体中文**写法。
    ⚠ 严禁编造：有把握的 confidence 填 "high"；拿不准的填 "low"，
@@ -1708,6 +1725,243 @@ def _parse_meta_json(raw: str) -> dict:
         if isinstance(v, dict):
             return v
     return {}
+
+
+# ---- tag 三级优先级（用户 2026-09-21 指定）----
+# ① 游戏专有名词（作品，主体）＞ ② 视频内容/类型 ＞ ③ 公司/作者。
+# 后处理 _build_tags 用这三张表做：分层重排 + 佐证过滤（防幻觉作品名）+ 补足。
+#: ① 作品专名 → 佐证别名（字幕里出现任一即算「有据」；表序≈重要度，核心二游在前）
+_TAG_WORK_ALIASES = {
+    "原神": ["原神", "genshin"],
+    "鸣潮": ["鸣潮", "wuthering waves", "wuthering", "wuwa"],
+    "崩坏星穹铁道": ["崩坏星穹铁道", "星穹铁道", "崩铁", "star rail", "honkai star rail"],
+    "绝区零": ["绝区零", "zenless zone zero", "zenless", "zzz"],
+    "明日方舟": ["明日方舟", "arknights", "ark nights"],
+    "战双帕弥什": ["战双帕弥什", "punishing gray raven", "punishing", "gray raven", "pgr"],
+    "终末地": ["终末地", "明日方舟终末地", "endfield"],
+    "无限大": ["无限大", "ananta", "project mugen", "mugen"],
+    "源初之结": ["源初之结", "noticefall", "nodusfall"],
+    "二重螺旋": ["二重螺旋", "duet night abyss", "duet night"],
+    "幻塔": ["幻塔", "tower of fantasy"],
+    "崩坏3": ["崩坏3", "崩坏三", "honkai impact"],
+    "碧蓝航线": ["碧蓝航线", "azur lane"],
+    "重返未来1999": ["重返未来1999", "重返未来", "reverse 1999"],
+    "尘白禁区": ["尘白禁区", "snowbreak"],
+    "异环": ["异环", "neverness to everness"],
+    "蓝色星原": ["蓝色星原"],
+    "旷野之息": ["旷野之息", "塞尔达", "breath of the wild", "zelda", "botw"],
+    "艾尔登法环": ["艾尔登法环", "elden ring"],
+    "怪物猎人": ["怪物猎人", "monster hunter"],
+    "碧蓝幻想": ["碧蓝幻想", "granblue fantasy", "granblue"],
+    "彩虹六号": ["彩虹六号", "彩虹六号：围攻", "rainbow six siege", "rainbow six"],
+    "寂静岭": ["寂静岭", "silent hill"],
+    "装甲核心": ["装甲核心", "armored core"],
+    "我的世界": ["我的世界", "minecraft"],
+    "王者荣耀": ["王者荣耀", "honor of kings"],
+    "Warframe": ["warframe", "星际战甲"],
+    "电锯人": ["电锯人", "chainsaw man"],
+    "无职转生": ["无职转生", "mushoku tensei"],
+    "葬送的芙莉莲": ["芙莉莲", "葬送的芙莉莲", "frieren"],
+    "黑色四叶草": ["黑色四叶草", "黑色五叶草", "black clover"],
+}
+#: 上表里**不是游戏**的动漫/影视 IP。
+#: 用户规则是「优先以**游戏**专有名词为依据」，所以补足名额时跳过这些；
+#: 但若模型主动给出（说明它判断与本片论点相关，如"抄动漫 IP"的例证），仍保留。
+_TAG_NON_GAME_IP = {"电锯人", "无职转生", "葬送的芙莉莲", "黑色四叶草"}
+#: B 站 tag 更认官方中文名的作品：标准名 → 佐证时也算别名
+_TAG_OFFICIAL_RENAME = {"Warframe": "星际战甲"}
+#: ③ 公司/作者 → 佐证别名
+_TAG_COMPANY_ALIASES = {
+    "米哈游": ["米哈游", "mihoyo", "hoyo", "hoyoverse"],
+    "库洛游戏": ["库洛游戏", "库洛", "kuro games", "kuro"],
+    "鹰角网络": ["鹰角网络", "鹰角", "hypergryph"],
+    "腾讯": ["腾讯", "tencent"],
+    "网易": ["网易", "netease"],
+}
+#: ② B 站二游区高频体裁/主题词（按抓取流量排序，用于补足；无需佐证）
+_TAG_GENRE_ORDER = [
+    "游戏杂谈", "二游", "二次元", "抽卡", "氪金", "游戏设计", "游戏推荐",
+    "游戏鉴赏家", "游戏测评", "游戏吐槽", "手游情报", "抄袭",
+]
+#: ② 可接受的体裁/内容类型词全集（命中即 tier2，免佐证——这类词不指向具体作品）
+_TAG_GENRE_OK = set(_TAG_GENRE_ORDER) | {
+    "杂谈", "锐评", "吐槽", "盘点", "考据", "剧情", "游戏实况", "游戏解说",
+    "实况解说", "单机游戏", "手机游戏", "网络游戏", "手游", "游戏", "RPG",
+    "动作游戏", "开放世界", "卡牌游戏", "塔防", "策略游戏", "独立游戏",
+    "游戏开发", "游戏制作", "游戏策划", "游戏资讯", "游戏试玩", "整点电子榨菜",
+}
+#: 体裁词归一化：模型常写成书面短语，B 站真实 tag 更短
+_TAG_GENRE_ALIAS = {
+    "抽卡游戏": "抽卡", "扭蛋游戏": "抽卡", "gacha": "抽卡", "Gacha": "抽卡",
+    "抄袭争议": "抄袭", "游戏抄袭": "抄袭", "借鉴与致敬": "抄袭",
+    "二次元游戏": "二次元", "二游杂谈": "游戏杂谈", "手游杂谈": "游戏杂谈",
+    "游戏评价": "游戏测评", "游戏评测": "游戏测评", "游戏吐槽向": "游戏吐槽",
+    "游戏鉴赏": "游戏鉴赏家", "氪金抽卡": "氪金",
+}
+_ZH_RE = re.compile(r"[\u4e00-\u9fff]")
+
+
+def _tag_norm(t):
+    """规范化单个 tag：去 # / 书名号 / 引号 / 首尾空白，再做体裁词归一化。
+
+    ⚠ `#` 与括号都要**双向** strip：模型常写成 `#原神#`、`《鸣潮》`，
+      只 lstrip 会留下 `原神#` 这类残形，佐证时查不到 → 被误判幻觉剔除。
+    """
+    n = str(t).strip().strip("#").strip()
+    n = n.strip("《》「」【】\"'“”").strip("#").strip()
+    return _TAG_GENRE_ALIAS.get(n, n)
+
+
+def _tag_attested(tag, hay_zh, hay_en):
+    """作品名/公司名是否在字幕里有据（自身或任一别名出现即算）。"""
+    for a in [tag] + list(_TAG_WORK_ALIASES.get(tag, [])
+                          ) + list(_TAG_COMPANY_ALIASES.get(tag, [])):
+        if not a:
+            continue
+        if _ZH_RE.search(a):
+            if a in hay_zh:
+                return True
+        elif a.lower() in hay_en:
+            return True
+    return False
+
+
+def _tag_tier(tag, hay_zh="", hay_en=""):
+    """① 作品/游戏专名=1 ／ ② 内容·类型=2 ／ ③ 公司·作者=3 ／
+    1.5=字幕有据但**未登记**的词（角色名等）／ 0=无据未知词（剔除）。
+
+    ⚠ 未登记词（不在作品表里的角色名，如 吉尔伽美什 / 万敌 / 简·杜）单列 tier 1.5：
+      用户规则是「优先**游戏专名（作品名）**」，角色名不是作品专名，**不得与登记作品
+      争占作品层名额**，只能在名额富余时补位（排在作品之后、内容类型之前）。
+      字幕里查无此词 → 0（判幻觉剔除）。
+    """
+    if tag in _TAG_WORK_ALIASES or tag in _TAG_OFFICIAL_RENAME.values():
+        return 1                       # 含改名后的官方中文名（如 星际战甲 ← Warframe）
+    if tag in _TAG_COMPANY_ALIASES:
+        return 3
+    if tag in _TAG_GENRE_OK:
+        return 2
+    if hay_zh or hay_en:
+        return 1.5 if _tag_attested(tag, hay_zh, hay_en) else 0
+    return 2
+
+
+def _tag_work_rank(hay_zh, hay_en):
+    """字幕里**有据的作品**，按真实讨论频次降序返回 [(作品名, 命中数), …]。
+
+    「以游戏专有名词为 tag 首要依据」的落点：补足名额时不靠主观表序，
+    而是让片里被讨论得最多的作品优先入选。
+    """
+    scored = []
+    for std, alias in _TAG_WORK_ALIASES.items():
+        n = 0
+        for a in alias:
+            if not a:
+                continue
+            if _ZH_RE.search(a):
+                n += hay_zh.count(a)
+            else:
+                n += hay_en.count(a.lower())
+        if n:
+            scored.append((std, n))
+    scored.sort(key=lambda x: (-x[1], x[0]))
+    return scored
+
+
+def _tag_quota(count):
+    """三级配额：① 作品 6 : ② 内容/类型 3 : ③ 公司/作者 1（随 count 缩放，各层至少 1）。
+
+    ⚠ 配额存在的意义：若只按「高优先级先占满名额」，作品层会把 count 吃光，
+      内容类型/公司一个都进不来——违背用户「三层都要有」的要求。
+    """
+    n_work = max(1, round(count * 0.6))
+    n_comp = max(1, round(count * 0.1))
+    n_genre = max(1, count - n_work - n_comp)
+    return n_work, n_genre, n_comp
+
+
+def _build_tags(model_tags, hay_zh, hay_en, count, log=None):
+    """按三级优先级重排模型给的 tag，并做佐证过滤 + 配额封顶 + 补足到 count。
+
+    优先级（用户 2026-09-21/22 指定）：① 游戏专有名词 ＞ ② 内容/类型 ＞ ③ 公司/作者。
+    - 配额约 6:3:1（见 `_tag_quota`）：**三层都要有**，作品层不占满全部名额。
+    - ①③ 必须在字幕里有据（自身或别名），否则判幻觉/无关 → 剔除并记日志。
+    - 未登记但有据的词（角色名等）= tier 1.5，排在**登记作品之后**，只在富余时补位。
+    - ② 已知体裁词免佐证；`_TAG_GENRE_ALIAS` 把书面短语归一（抄袭争议→抄袭）。
+    - 排序：tier1 → tier1.5 → tier2 → tier3，层内保持模型原序（尊重其语义权重判断）。
+    - 补足 ① 时按**片中讨论频次**降序，并跳过非游戏 IP（动漫/影视）、
+      把 Warframe 这类换成 B 站更认的官方中文名（星际战甲）。
+    """
+    seen, t1, t15, t2, t3, dropped = set(), [], [], [], [], []
+    for raw in (model_tags or []):
+        n = _tag_norm(raw)
+        if not n or n in seen:
+            continue
+        seen.add(n)
+        tier = _tag_tier(n, hay_zh, hay_en)
+        if tier == 0:
+            dropped.append(n)
+            continue
+        if tier in (1, 3) and not _tag_attested(n, hay_zh, hay_en):
+            dropped.append(n)
+            seen.discard(n)          # 允许后续按表序补足时重新纳入（若有据）
+            continue
+        if tier == 1:
+            t1.append(n)
+        elif tier == 3:
+            t3.append(n)
+        elif tier == 2:
+            t2.append(n)
+        else:                        # tier 1.5：未登记但有据（角色名等）
+            t15.append(n)
+
+    n_work, n_genre, n_comp = _tag_quota(count)
+    # 补足 ①：字幕有据、模型未给的作品，按**片中讨论频次**降序
+    if len(t1) < n_work:
+        for std, _n in _tag_work_rank(hay_zh, hay_en):
+            if std in _TAG_NON_GAME_IP:      # 动漫/影视 IP 不作「游戏专名」补位
+                continue
+            std = _TAG_OFFICIAL_RENAME.get(std, std)
+            if std in seen:
+                continue
+            t1.append(std); seen.add(std)
+            if len(t1) >= n_work:
+                break
+    t1 = t1[:n_work]                          # 作品层封顶，给②③留名额
+    # 补足 ②：高频体裁词
+    if len(t2) < n_genre:
+        for g in _TAG_GENRE_ORDER:
+            if g in seen:
+                continue
+            t2.append(g); seen.add(g)
+            if len(t2) >= n_genre:
+                break
+    t2 = t2[:n_genre]
+    # 补足 ③：有据公司
+    if len(t3) < n_comp:
+        for std in _TAG_COMPANY_ALIASES:
+            if std in seen:
+                continue
+            if _tag_attested(std, hay_zh, hay_en):
+                t3.append(std); seen.add(std)
+                if len(t3) >= n_comp:
+                    break
+    t3 = t3[:n_comp]
+    # tier 1.5（角色名）只在名额富余时补位，排在作品之后、内容之前
+    t15 = t15[:max(0, count - len(t1) - len(t2) - len(t3))]
+    order = t1 + t15 + t2 + t3
+    # 兜底：片源太干净、三层都填不满时，用高频体裁词补齐
+    if len(order) < count:
+        for g in _TAG_GENRE_ORDER:
+            if g in seen:
+                continue
+            order.append(g); seen.add(g)
+            if len(order) >= count:
+                break
+    if dropped and log is not None:
+        _log_do(log, "  ⚠ tag 佐证过滤剔除（字幕无据/疑似幻觉）："
+                     + " / ".join(dropped), "err")
+    return order[:count]
 
 
 def build_meta(chat, mode_flag, src, cues, accepted, log, round_no=1,
@@ -1765,10 +2019,17 @@ def build_meta(chat, mode_flag, src, cues, accepted, log, round_no=1,
         if not obj:
             _log_do(log, f"  ⚠ 片源档案未生成：{last}", "err")
             return dict(empty, _error=last or "未取得有效 JSON")
+        # tag 三级优先级后处理（用户 2026-09-21 指定）：
+        # ① 游戏专有名词 ＞ ② 内容/类型 ＞ ③ 公司/作者。
+        # 用字幕原文做佐证，剔除模型编造的、片里根本没出现的作品名（防幻觉），
+        # 再按优先级重排并补足到 META_TAG_COUNT 个。
+        hay_zh = " ".join(zh for _n, zh, _e in cues)
+        hay_en = " ".join((en or "") for _n, _zh, en in cues).lower()
+        tags = _build_tags([str(t) for t in (obj.get("tags") or []) if str(t).strip()],
+                           hay_zh, hay_en, META_TAG_COUNT, log)
         meta = {
             "title": str(obj.get("title") or "").strip(),
-            "tags": [str(t).strip().lstrip("#") for t in (obj.get("tags") or [])
-                     if str(t).strip()][:META_TAG_COUNT],
+            "tags": tags,
             "official_terms": [x for x in (obj.get("official_terms") or [])
                                if isinstance(x, dict)][:60],
             "script_suggestions": [x for x in (obj.get("script_suggestions") or [])

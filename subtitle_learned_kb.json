@@ -16,8 +16,8 @@
    "samples": [],
    "ref_tokens": {},
    "unc_ref_tokens": {},
-   "first": "2026-09-14",
-   "last": "2026-09-21",
+   "first": "2026-09-22",
+   "last": "2026-09-22",
    "alts": {},
    "sync": true
   },
@@ -36,8 +36,8 @@
    "samples": [],
    "ref_tokens": {},
    "unc_ref_tokens": {},
-   "first": "2026-09-14",
-   "last": "2026-09-21",
+   "first": "2026-09-22",
+   "last": "2026-09-22",
    "alts": {},
    "sync": true
   },
@@ -45,7 +45,7 @@
    "wrong": "明祖",
    "right": "鸣潮",
    "mode": "bi",
-   "count": 8,
+   "count": 4,
    "uncorrected": 0,
    "status": "confirmed",
    "cues": [
@@ -53,91 +53,13 @@
     101,
     265
    ],
-   "samples": [
-    [
-     "当我在做",
-     "时说'阿明祖做得不错，吉",
-     "当我在做",
-     "时说'阿鸣潮做得不错，吉"
-    ],
-    [
-     "当我在做明祖时说'阿",
-     "做得不错，吉米亚'",
-     "当我在做鸣潮时说'阿",
-     "做得不错，吉米亚'"
-    ],
-    [
-     "但即使无限力量出现，",
-     "也会表现不错",
-     "但即使无限力量出现，",
-     "也会表现不错"
-    ],
-    [
-     "哦，如此美丽——",
-     "最令人兴奋的词之一",
-     "哦，如此美丽——",
-     "最令人兴奋的词之一"
-    ],
-    [
-     "当我在做",
-     "时说'阿明祖做得不错，吉",
-     "当我在做",
-     "时说'阿鸣潮做得不错，吉"
-    ],
-    [
-     "当我在做明祖时说'阿",
-     "做得不错，吉米亚'",
-     "当我在做鸣潮时说'阿",
-     "做得不错，吉米亚'"
-    ],
-    [
-     "但即使无限力量出现，",
-     "也会表现不错",
-     "但即使无限力量出现，",
-     "也会表现不错"
-    ],
-    [
-     "哦，如此美丽——",
-     "最令人兴奋的词之一",
-     "哦，如此美丽——",
-     "最令人兴奋的词之一"
-    ]
-   ],
+   "samples": [],
    "ref_tokens": {},
    "unc_ref_tokens": {},
-   "first": "2026-09-19",
-   "last": "2026-09-21",
-   "alts": {}
-  },
-  "bi|明乔": {
-   "wrong": "明乔",
-   "right": "鸣潮",
-   "mode": "bi",
-   "count": 2,
-   "uncorrected": 0,
-   "status": "confirmed",
-   "cues": [
-    214
-   ],
-   "samples": [
-    [
-     "谢谢你，",
-     "亚",
-     "能天使，",
-     "亚"
-    ],
-    [
-     "谢谢你，",
-     "亚",
-     "能天使，",
-     "亚"
-    ]
-   ],
-   "ref_tokens": {},
-   "unc_ref_tokens": {},
-   "first": "2026-09-19",
-   "last": "2026-09-19",
-   "alts": {}
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "sync": true
   },
   "bi|成城祖": {
    "wrong": "成城祖",
@@ -192,29 +114,11 @@
    "alts": {},
    "ctx_regex": ""
   },
-  "bi|谢谢你，明乔亚": {
-   "wrong": "谢谢你，明乔亚",
-   "right": "谢谢你，鸣潮亚",
-   "mode": "bi",
-   "count": 2,
-   "uncorrected": 0,
-   "status": "confirmed",
-   "cues": [
-    214
-   ],
-   "samples": [],
-   "ref_tokens": {},
-   "unc_ref_tokens": {},
-   "first": "2026-09-20",
-   "last": "2026-09-21",
-   "alts": {},
-   "sync": true
-  },
   "bi|明朝": {
    "wrong": "明朝",
    "right": "鸣潮",
    "mode": "bi",
-   "count": 10,
+   "count": 6,
    "uncorrected": 0,
    "status": "confirmed",
    "cues": [
@@ -223,44 +127,13 @@
     789,
     796,
     799,
-    809,
-    1040,
-    1081,
-    1087,
-    1111
+    809
    ],
-   "samples": [
-    [
-     "者们带来最新的",
-     "品牌合作情报，包括你平时",
-     "者们带来最新的",
-     "品牌合作情报，包括你平时"
-    ],
-    [
-     "由全球创作者们共同参与的",
-     "同人系列企划，如今也迎来",
-     "由全球创作者们共同参与的",
-     "同人系列企划，如今也迎来"
-    ],
-    [
-     "此外，",
-     "与Re bos荷塘共同推",
-     "此外，",
-     "与Re bos荷塘共同推"
-    ],
-    [
-     "",
-     "3 .",
-     "",
-     "3 ."
-    ]
-   ],
-   "ref_tokens": {
-    "bos": 1
-   },
+   "samples": [],
+   "ref_tokens": {},
    "unc_ref_tokens": {},
-   "first": "2026-09-20",
-   "last": "2026-09-21",
+   "first": "2026-09-22",
+   "last": "2026-09-22",
    "alts": {},
    "sync": true
   },
@@ -283,15 +156,15 @@
     ]
    ],
    "ref_tokens": {
-    "Holy": 97,
-    "like": 97,
-    "leaves": 97,
-    "sky": 97,
-    "really": 97,
-    "Sheen": 97,
-    "the": 97,
-    "maple": 97,
-    "look": 97
+    "Holy": 123,
+    "like": 123,
+    "leaves": 123,
+    "sky": 123,
+    "really": 123,
+    "Sheen": 123,
+    "the": 123,
+    "maple": 123,
+    "look": 123
    },
    "unc_ref_tokens": {},
    "first": "2026-09-19",
@@ -303,37 +176,18 @@
    "wrong": "艾比",
    "right": "阿布",
    "mode": "bi",
-   "count": 4,
+   "count": 2,
    "uncorrected": 0,
    "status": "confirmed",
    "cues": [
     676,
-    680,
-    892,
-    1211
+    680
    ],
-   "samples": [
-    [
-     "哦，是给",
-     "的",
-     "哦，是给",
-     "的"
-    ],
-    [
-     "",
-     "化妆品售价 2 5 0 ",
-     "",
-     "化妆品售价 2 5 0 "
-    ]
-   ],
-   "ref_tokens": {
-    "for": 1,
-    "Abby": 2,
-    "Cosmetic": 1
-   },
+   "samples": [],
+   "ref_tokens": {},
    "unc_ref_tokens": {},
-   "first": "2026-09-20",
-   "last": "2026-09-21",
+   "first": "2026-09-22",
+   "last": "2026-09-22",
    "alts": {},
    "sync": true
   },
@@ -348,26 +202,59 @@
     822,
     264
    ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "sync": true
+  },
+  "bi|明乔": {
+   "wrong": "明乔",
+   "right": "鸣潮",
+   "mode": "bi",
+   "count": 2,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    214
+   ],
    "samples": [
     [
-     "天哪，你们以为我们会有",
-     "吗",
-     "天哪，你们以为我们会有",
-     "吗"
+     "谢谢你，",
+     "亚",
+     "能天使，",
+     "亚"
+    ],
+    [
+     "谢谢你，",
+     "亚",
+     "能天使，",
+     "亚"
     ]
    ],
-   "ref_tokens": {
-    "you": 3,
-    "god": 3,
-    "we'll": 3,
-    "trailer": 3,
-    "guys": 3,
-    "have": 3,
-    "think": 3
-   },
+   "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-09-19",
-   "last": "2026-09-21",
+   "last": "2026-09-19",
+   "alts": {}
+  },
+  "bi|谢谢你，明乔亚": {
+   "wrong": "谢谢你，明乔亚",
+   "right": "谢谢你，鸣潮亚",
+   "mode": "bi",
+   "count": 2,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    214
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
    "alts": {},
    "sync": true
   },
@@ -375,59 +262,18 @@
    "wrong": "哨兵",
    "right": "岁主",
    "mode": "bi",
-   "count": 4,
+   "count": 2,
    "uncorrected": 0,
    "status": "confirmed",
    "cues": [
     199,
-    515,
-    497,
-    498
+    515
    ],
-   "samples": [
-    [
-     "这个感觉更像",
-     "的形态",
-     "这个感觉更像",
-     "的形态"
-    ],
-    [
-     "找到",
-     "",
-     "找到",
-     ""
-    ],
-    [
-     "金池是",
-     "",
-     "金池是",
-     ""
-    ],
-    [
-     "金池才是真正的",
-     "",
-     "金池才是真正的",
-     ""
-    ]
-   ],
-   "ref_tokens": {
-    "the": 8,
-    "feels": 4,
-    "sentinel": 8,
-    "one": 4,
-    "This": 4,
-    "more": 4,
-    "form": 4,
-    "like": 4,
-    "Find": 2,
-    "chi": 2,
-    "Jin": 2,
-    "resident": 1,
-    "actual": 1
-   },
+   "samples": [],
+   "ref_tokens": {},
    "unc_ref_tokens": {},
-   "first": "2026-09-20",
-   "last": "2026-09-21",
+   "first": "2026-09-22",
+   "last": "2026-09-22",
    "alts": {},
    "sync": true
   },
@@ -437,7 +283,7 @@
    "mode": "bi",
    "count": 5,
    "uncorrected": 0,
-   "status": "confirmed",
+   "status": "candidate",
    "cues": [
     213,
     605,
@@ -478,19 +324,19 @@
     ]
    ],
    "ref_tokens": {
-    "showcasing": 2,
-    "the": 2,
-    "down": 2,
-    "Hey": 2,
-    "swimming": 5,
-    "they": 2,
-    "field": 2,
-    "Kate": 2,
-    "Third": 2,
-    "then": 2,
-    "again": 2,
-    "and": 3,
-    "showing": 2,
+    "showcasing": 3,
+    "the": 3,
+    "down": 3,
+    "Hey": 3,
+    "swimming": 6,
+    "they": 3,
+    "field": 3,
+    "Kate": 3,
+    "Third": 3,
+    "then": 3,
+    "again": 3,
+    "and": 4,
+    "showing": 3,
     "But": 2,
     "based": 1,
     "like": 1,
@@ -520,7 +366,8 @@
    "unc_ref_tokens": {},
    "first": "2026-09-20",
    "last": "2026-09-21",
-   "alts": {}
+   "alts": {},
+   "ctx_regex": "\\bshowcasing\\b|\\bthe\\b|\\bdown\\b"
   },
   "bi|西穆利尤": {
    "wrong": "西穆利尤",
@@ -606,33 +453,13 @@
    "status": "confirmed",
    "cues": [
     821,
-    822,
-    549
+    822
    ],
-   "samples": [
-    [
-     "确实，他们进入",
-     "就是为了这么做",
-     "确实，他们进入",
-     "就是为了这么做"
-    ],
-    [
-     "但实际上，我的手机是装在",
-     "手机上的",
-     "但实际上，我的手机是装在",
-     "手机上的"
-    ],
-    [
-     "但安装",
-     "后，我连手机的照片都拍不",
-     "但安装",
-     "后，我连手机的照片都拍不"
-    ]
-   ],
+   "samples": [],
    "ref_tokens": {},
    "unc_ref_tokens": {},
-   "first": "2026-09-20",
-   "last": "2026-09-21",
+   "first": "2026-09-22",
+   "last": "2026-09-22",
    "alts": {},
    "sync": true
   },
@@ -673,6 +500,31 @@
    "first": "2026-09-20",
    "last": "2026-09-20",
    "alts": {}
+  },
+  "bi|昭昭和": {
+   "wrong": "昭昭和",
+   "right": "朝朝何",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    233
+   ],
+   "samples": [
+    [
+     "全新的微型任务",
+     "年月就从这场不同寻常的朝",
+     "全新的微型任务",
+     "年月就从这场不同寻常的朝"
+    ]
+   ],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-09-20",
+   "last": "2026-09-20",
+   "alts": {},
+   "ctx_regex": ""
   },
   "bi|所实际": {
    "wrong": "所实际",
@@ -745,8 +597,8 @@
    "samples": [],
    "ref_tokens": {},
    "unc_ref_tokens": {},
-   "first": "2026-09-20",
-   "last": "2026-09-21",
+   "first": "2026-09-22",
+   "last": "2026-09-22",
    "alts": {},
    "sync": true
   },
@@ -764,8 +616,8 @@
    "samples": [],
    "ref_tokens": {},
    "unc_ref_tokens": {},
-   "first": "2026-09-20",
-   "last": "2026-09-21",
+   "first": "2026-09-22",
+   "last": "2026-09-22",
    "alts": {},
    "sync": true
   },
@@ -962,7 +814,7 @@
    "first": "2026-09-20",
    "last": "2026-09-21",
    "alts": {},
-   "ctx_regex": "\\bthis\\b|\\btechnology\\b|\\bcrazy\\b"
+   "ctx_regex": ""
   },
   "bi|邂逅一些与禁所实际有关的记忆": {
    "wrong": "邂逅一些与禁所实际有关的记忆",
@@ -978,8 +830,8 @@
    "samples": [],
    "ref_tokens": {},
    "unc_ref_tokens": {},
-   "first": "2026-09-20",
-   "last": "2026-09-21",
+   "first": "2026-09-22",
+   "last": "2026-09-22",
    "alts": {},
    "sync": true
   },
@@ -1248,31 +1100,6 @@
    "first": "2026-09-21",
    "last": "2026-09-21",
    "alts": {}
-  },
-  "bi|昭昭和": {
-   "wrong": "昭昭和",
-   "right": "朝朝何",
-   "mode": "bi",
-   "count": 1,
-   "uncorrected": 0,
-   "status": "candidate",
-   "cues": [
-    233
-   ],
-   "samples": [
-    [
-     "全新的微型任务",
-     "年月就从这场不同寻常的朝",
-     "全新的微型任务",
-     "年月就从这场不同寻常的朝"
-    ]
-   ],
-   "ref_tokens": {},
-   "unc_ref_tokens": {},
-   "first": "2026-09-20",
-   "last": "2026-09-20",
-   "alts": {},
-   "ctx_regex": ""
   }
  }
 }

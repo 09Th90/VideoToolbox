@@ -1988,9 +1988,47 @@ REACT_TERMS = {
     "冷狼": "Crywolf", "哭狼": "Crywolf",   # crywolf 机翻直译；社区昵称恰为"哭狼"，字幕仍统一保留英文名
     "梦巫师克雷沃尔夫": "Crywolf", "克雷沃尔夫": "Crywolf",
     "我们改变了钥匙": "我们转调了",          # change key 机翻直译（长键，避免误伤"钥匙"本义）
+    # ---- 2026-09-21 gacha 争议片《Gacha Games Are Soulless Copies Of Actual Games》沉淀 ----
+    # 片源：英语原声 + 谷翻，694 cue（每 cue 恰 2 行：中文 + 英文参考行），主题为
+    #   「抽卡游戏(gacha)是否是现实游戏『无灵魂复制品』」的辩论，大量游戏/角色专名。
+    # 处理：extract→逐 cue 对着英文参考行整行重写中文→二次检索官方中文后精修；verify+length 全过。
+    # 官方依据（均已检索确认）：
+    #   Noticefall / Nodusfall = 米哈游新作《源初之结》（类怪物猎人多人共斗 ARPG，Gamescom 2026 首曝，
+    #     被指像《艾尔登法环》+《怪物猎人》）；Ananta = 网易《无限大》（Naked Rain）；
+    #   Duet Night Abyss(DNA) = 英雄游戏《二重螺旋》（Pan Studio，被指抄袭 Warframe）；
+    #   Mighty = 万敌（崩坏：星穹铁道角色，与 Fate 吉尔伽美什立绘撞车引争议）；
+    #   Jane Doe = 简·杜（绝区零）；Uncus/Unctus = Eunectes 森蚺（明日方舟萨尔贡重装，盾+斧+机甲）。
+    # 戒律：以下键均为**英文专名/特殊串**，作源键安全；替换目标不带书名号（中文行若已用《》包裹会自动衔接）。
+    #   ⚠️ DNA / 深空之眼 **不在此表**——"DNA"是通用词（脱氧核糖核酸，本片就有"脱氧核糖核酸"直译）、
+    #      "深空之眼"是真实游戏（Aether Gazer）官方名，裸键会误伤正常语境；
+    #      它们已通过下方 `REACT_CONTEXT` 参考行佐证机制（英文 \bDNA\b / D Night Abyss 命中才替换）安全入表。
+    "Noticefall": "源初之结", "notice fall": "源初之结", "Nodusfall": "源初之结",
+    "Ananta": "无限大",
+    "Jane Doe": "简·杜",
+    "Mighty": "万敌",
+    "Uncus": "森蚺", "Unctus": "森蚺",
 }
 # 用法：python subtitle_calib_merged.py --react <input.srt> --out out.srt
 #   --react 与游戏模式互斥；仅套用 REACT_TERMS 统一首中文行（不动英文/参考行）。
+
+# 3.1e reaction 片「参考行佐证」歧义词表（2026-09-21 新增，仅 --react 生效）
+# =============================================================
+# 与 REACT_TERMS 的区别：REACT_TERMS 是无条件子串替换（适合英文专名键）；
+# 这里收的是**歧义中文词**——裸键会误伤正常语境，必须等英文参考行命中正则才替换。
+# 结构：[(英文正则, 中文错误形式, 中文正确形式)]，与 CONTEXT_MAP 同构。
+# 应用时机：在 REACT_TERMS 替换之后，仅当该 cue 的英文参考行命中正则且中文行含错误形式才替换。
+# 2026-09-21 gacha 争议片沉淀（官方依据见 REACT_TERMS 注释块）：
+#   DNA = Duet Night Abyss《二重螺旋》——但 "DNA" 是通用词（脱氧核糖核酸，本片就有直译），
+#     且 "DNA Tower Fantasy"（二重螺旋+幻塔）也以 DNA 打头，必须英文 \bDNA\b 佐证；
+#   「深空之眼」是真实游戏（Aether Gazer）官方名，本片却是 Duet Night Abyss 的 ASR 误听
+#     （英文 D Night Abyss = Duet Night Abyss），须英文佐证才敢替换。
+REACT_CONTEXT = [
+    (r"\bDNA\b", "DNA", "《二重螺旋》"),
+    (r"\bDNA\b", "脱氧核糖核酸", "《二重螺旋》"),
+    (r"[Dd] ?[Nn]ight ?[Aa]byss", "深空之眼", "《二重螺旋》"),
+]
+_REACT_CONTEXT_COMPILED = [(re.compile(rx, re.I), wrong, right)
+                           for rx, wrong, right in REACT_CONTEXT if wrong and right]
 
 # =============================================================
 # 5. 英文参考行修正资产（2026-08-29 并入；原 ERROR 占位行翻译表已于同日删除）
@@ -3627,7 +3665,15 @@ def process(path, out_path=None, report_path=None, mode="bi",
                         if new != old:
                             rows.append((num, old, new, ref))
                             out[zh_idx] = new
-                    elif mode in ("ko", "wwoc", "react", "pgren", "zel"):  # 韩语/综合游戏/音乐点评/战双英文原声/塞尔达：统一首中文行术语（不动参考行）
+                    elif mode == "react":     # 音乐/演唱点评：REACT_TERMS 统一首中文行 + REACT_CONTEXT 参考行佐证歧义词
+                        new = _replace_report(old, term_pairs, term_chars, hits)
+                        for crx, wrong, right in _REACT_CONTEXT_COMPILED:
+                            if wrong in new and crx.search(ref):
+                                new = new.replace(wrong, right)
+                        if new != old:
+                            rows.append((num, old, new, ref))
+                            out[zh_idx] = new
+                    elif mode in ("ko", "wwoc", "pgren", "zel"):  # 韩语/综合游戏/战双英文原声/塞尔达：统一首中文行术语（不动参考行）
                         new = _replace_report(old, term_pairs, term_chars, hits)
                         if new != old:
                             rows.append((num, old, new, ref))

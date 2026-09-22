@@ -13,7 +13,9 @@
      重问反馈注入（build_user_prompt）；
   7. v1.16.0 重问带反馈：invalid / truncated 原地重试并附具体整改要求；
   8. v1.16.0 受控并发：多路取回与串行结果等价，产物 verify 通过；
-  9. v1.16.0 断点续跑：ckpt 全量列不写空，已完成块不再重问。
+  9. v1.16.0 断点续跑：ckpt 全量列不写空，已完成块不再重问；
+  10. tag 三级优先级：① 游戏专名 ＞ ② 内容/类型 ＞ ③ 公司/作者——配额 6:3:1、
+      幻觉词剔除、书面短语归一、非游戏 IP 不占作品名额、Warframe→星际战甲。
 
 用法：tools\\python\\python.exe src\\_selftest_calib_ai.py
 """
@@ -721,6 +723,59 @@ def test_meta_dossier():
               md2.splitlines()[0] if md2 else "")
 
 
+def test_tag_priority():
+    """tag 三级优先级（用户 2026-09-21/22 指定）：① 游戏专名 ＞ ② 内容/类型 ＞ ③ 公司/作者。
+
+    覆盖四类回归：配额封顶（作品层不得占满全部名额）、幻觉词剔除、
+    未登记有据词（角色名）降级不争作品名额、非游戏 IP 剔除 + 官方改名。
+    """
+    print("\n== 14. tag 三级优先级（游戏专名 / 内容类型 / 公司） ==")
+    check("配额 6:3:1（count=10）", ag._tag_quota(10) == (6, 3, 1),
+          str(ag._tag_quota(10)))
+    check("配额随 count 缩放（count=8 → 5:2:1）", ag._tag_quota(8) == (5, 2, 1),
+          str(ag._tag_quota(8)))
+
+    # 场景 A：片里多作品 + 公司；模型给了幻觉词与书面短语
+    hz = ("米哈游的原神与鸣潮、崩坏星穹铁道、绝区零、明日方舟、战双帕弥什都很能打，"
+          "幻塔和艾尔登法环也常被拿来对比")
+    he = ("genshin wuthering waves honkai star rail zenless zone zero arknights "
+          "punishing gray raven tower of fantasy elden ring mihoyo")
+    out = ag._build_tags(["抽卡游戏", "游戏杂谈", "抄袭争议", "米哈游",
+                          "原神", "鸣潮", "吉尔伽美什"], hz, he, 10)
+    tiers = [ag._tag_tier(t, hz, he) for t in out]
+    check("tag 输出 10 个", len(out) == 10, str(len(out)))
+    check("输出顺序按优先级单调不降（①→②→③）", tiers == sorted(tiers), str(tiers))
+    check("幻觉词被剔除（字幕无据）", "吉尔伽美什" not in out, " / ".join(out))
+    check("书面短语归一为真实 tag（抄袭争议→抄袭）",
+          "抄袭" in out and "抄袭争议" not in out, " / ".join(out))
+    check("作品层按配额封顶 6（不占满全部名额）",
+          sum(1 for t in tiers if t == 1) == 6, str(tiers))
+    check("内容/类型层保留 3 个名额",
+          sum(1 for t in tiers if t == 2) == 3, str(tiers))
+    check("公司层保留名额（米哈游）", "米哈游" in out, " / ".join(out))
+
+    # 场景 B：模型只给体裁词 → 补足按片源频次补作品，但跳过非游戏 IP、改官方名
+    #   ⚠ 英文别名须落在 hay_en（拉丁词按 hay_en 匹配），中文别名落在 hay_zh
+    hz2 = "原神 怪物猎人 电锯人 无职转生"
+    he2 = "warframe chainsaw man mushoku tensei"
+    out2 = ag._build_tags([], hz2, he2, 10)
+    check("非游戏 IP（动漫/影视）不占游戏专名名额",
+          not any(t in ag._TAG_NON_GAME_IP for t in out2), " / ".join(out2))
+    check("Warframe 改用官方中文名（星际战甲）",
+          "星际战甲" in out2 and "Warframe" not in out2, " / ".join(out2))
+
+    # 场景 C：作品层满额时，未登记有据词（角色名）只能排到作品层之后
+    hz3 = "原神 鸣潮 崩坏星穹铁道 绝区零 明日方舟 战双帕弥什 吉尔伽美什"
+    out3 = ag._build_tags(["吉尔伽美什", "原神"], hz3, "", 10)
+    if "吉尔伽美什" in out3:
+        i = out3.index("吉尔伽美什")
+        check("未登记有据词（角色名）排在作品层之后",
+              all(ag._tag_tier(t, hz3, "") != 1 for t in out3[i:]),
+              " / ".join(out3))
+    else:
+        check("未登记有据词（角色名）不占作品名额", True, " / ".join(out3))
+
+
 def test_web_tool_loop():
     """联网查证工具环（离线）：请求解析 / 执行回填 / 至多一轮 / 计数统计。"""
     print("\n== 联网查证工具环（离线 mock） ==")
@@ -829,6 +884,7 @@ if __name__ == "__main__":
     test_concurrency_equivalence()
     test_ckpt_resume()
     test_meta_dossier()
+    test_tag_priority()
     test_web_tool_loop()
     print("\n" + ("全部通过 ✅" if not FAILED else f"失败 {len(FAILED)} 项 ❌：{FAILED}"))
     sys.exit(1 if FAILED else 0)
