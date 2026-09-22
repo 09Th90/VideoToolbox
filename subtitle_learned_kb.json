@@ -625,7 +625,8 @@
    "unc_ref_tokens": {},
    "first": "2026-09-20",
    "last": "2026-09-22",
-   "alts": {}
+   "alts": {},
+   "sync": true
   },
   "bi|昭昭和": {
    "wrong": "昭昭和",
@@ -10583,6 +10584,25 @@
     "time": 1,
     "then": 1
    },
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {},
+   "sync": true
+  },
+  "bi|海岸守护者": {
+   "wrong": "海岸守护者",
+   "right": "海岸人",
+   "mode": "bi",
+   "count": 2,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    811,
+    812
+   ],
+   "samples": [],
+   "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-09-22",
    "last": "2026-09-22",
