@@ -276,6 +276,7 @@ BILINGUAL_TERMS = {
     "丁然": "景燃", "riping ran": "景燃",                          # Ding Ran / riping ran（ASR 变体）= 景燃
     "Yangyang": "秧秧",                                          # 秧秧 英文残留
     "Wua": "鸣潮",                                              # Wuthering Waves 误听
+    "VUA": "鸣潮",                                              # Wuthering Waves 误听 ASR 大写形（#129 2026-09-23）
     "Mango": "梦州",                                            # Mengzhou 误听（沿 Mongo->梦州 先例）
     "莲吉": "恋次",                                             # Renji（死神）官方中文 恋次
     # --- 2026-09-09 Streamers React to Hsin & Suoming Gameplay Leaks（鸣潮 3.7 心月狐/锁暝 英文谷歌翻译 Reaction 片）首轮验证 ---
@@ -301,7 +302,10 @@ BILINGUAL_TERMS = {
     "阿尔夫": "阿列夫一", "ALF1": "阿列夫一", "LF1": "阿列夫一",
     "阿尔凡": "阿列夫一", "Alfan": "阿列夫一",
     "阿尔夫一人": "阿列夫一", "阿尔夫一定": "阿列夫一", "阿尔法之一": "阿列夫一",
+    # ALF One(首字母大写)/ALF一号：完整形先行，防裸"ALF"级联咬出"阿列夫一 One"、"阿列夫一一号"
+    #   （2026-09-23 达妮娅3.3幕间二次校准沉淀，#565 "ALF One"、#618 "ALF一号"）
     "ALF one": "阿列夫一", "Alf one": "阿列夫一", "ALF 1": "阿列夫一",
+    "ALF One": "阿列夫一", "Alf One": "阿列夫一", "ALF一号": "阿列夫一",
     "ALF": "阿列夫一", "Alf": "阿列夫一",
     # Exostrider 变体（官方中文 隧者，2026-09-08 依库街区/鸣潮助手图鉴确认后统一）
     "Exorder": "隧者", "Exorrider": "隧者",
@@ -525,7 +529,9 @@ BILINGUAL_TERMS = {
     # 恩沃拉(N'avorora) 变体 Navora/纳沃拉
     "纳沃拉": "恩沃拉", "Navora": "恩沃拉",
     # 达妮娅(Denia) 昵称 Denny/Dennia 机翻作"丹尼/丹尼娅"（注意：Daniela=丹妮拉，非同一人，勿收）
-    "丹尼娅": "达妮娅", "丹尼": "达妮娅",
+    # 补"丹尼亚"完整形先行，防裸"丹尼"级联咬出"达妮娅亚"（#259 2026-09-23 沉淀）；
+    #   "丹尼尔"=Daniel 是通用西名，绝不入全局（本片 #376/378 指 Denia 走逐 cue 侧车）。
+    "丹尼娅": "达妮娅", "丹尼亚": "达妮娅", "丹尼": "达妮娅",
     # 星炬学院(Startorch Academy) ASR 误听 Star Tour → 机翻"星游学院"
     "星游学院": "星炬学院", "罗伊斯塔尔学院": "星炬学院",
     # 洛瑟菈(Lucilla) 身份：学院 President=校长，机翻误作"总统"
@@ -1218,7 +1224,8 @@ JA_ENDFIELD_TERMS = {
     "不挂断": "等等",          # 待って（10 处）
     "图片": "呃",              # え、（5 处）
     "严重地": "说真的",        # マジで
-    "叹": "唉",                # はあ（单独出现的拟声）
+    # 注：「叹」->「唉」原为裸键，会把正常词「惊叹/感叹/叹息」误伤成「惊唉/感唉/唉息」
+    #     （2026-09-23 Typhoeus 片 #21 即触发）。改走下方 JA_ENDFIELD_CONTEXT，靠日语行 はあ 佐证。
     # —— 2026-09-15 沉淀自《JP VTubers Hyped Over the Smol Purple Huntress! Arknights
     #     Endfield Operator Story Typhoeus》ja_auto 谷歌翻译片（86 cue，日语原声）——
     #     本片主角=提弗洛斯（Typhoeus，终末地 1.5「雪凇幽梦」2026-09-02 实装，罗德岛再旅者/荒野猎手；
@@ -1228,6 +1235,7 @@ JA_ENDFIELD_TERMS = {
     #     不会误伤明日方舟本体干员「提丰」(Typhon，属 AK_TERMS)。
     "提丰": "提弗洛斯", "提波洛斯": "提弗洛斯", "提波罗斯": "提弗洛斯",
     "Typhoros": "提弗洛斯", "Typholos": "提弗洛斯",
+    "泰弗罗斯": "提弗洛斯",   # 2026-09-23 本片再现谷翻音译形「泰弗罗斯」(#33)，并入统一
     # 注：本片 大の字->"大字符"、LINE(线条)->"LINE"、パタパタ->"小嘴"、かよ->"嘉代"
     #     均属逐句误译（裸键是通用中文词），不进表，走 subfix 侧车整行覆盖。
 }
@@ -1241,6 +1249,9 @@ JA_ENDFIELD_CONTEXT = [
     #     用 context 而非裸键：「雪祭」「惊人的」都是通用中文词，裸键会误伤正常语境。
     (r"雪祭祀|雪祀", "雪祭", "雪祀"),                # 雪祀=萨米萨满祭司（官方「老雪祀」），ASR 常作「雪祭祀」
     (r"すご|すげえ|すごい", "惊人的", "好厉害"),      # すごい/すげえ 谷翻系统译成"惊人的"（本片 #36/#55）
+    # 2026-09-23 本片 #55：谷翻把日语普通名词「雪」按读音误作人名 "Yuki"（参考行含 雪 佐证），改回「雪」
+    (r"雪", "Yuki", "雪"),
+    (r"はあ|はぁ|ふぅ", "叹", "唉"),                  # はあ 拟声谷翻成"叹"，仅在日语行为叹息拟声时改"唉"（防误伤"惊叹/感叹"）
 ]
 _JA_ENDFIELD_CONTEXT_COMPILED = [(re.compile(rx), wrong, right) for rx, wrong, right in JA_ENDFIELD_CONTEXT]
 
@@ -2356,7 +2367,7 @@ ENTITIES = [
                # --- 既有机翻/ASR 乱形 ---
                "Dena", "Denia", "丹妮亚", "塔娜", "Tana", "Tenna",
                # --- 中文同音/音近（dá nī yà）---
-               "达妮亚", "丹妮娅", "达尼娅",
+               "达妮亚", "丹妮娅", "达尼娅", "丹尼亚",
                "达妮雅", "塔妮娅", "达你娅", "达腻娅",
                "达妮押", "达妮鸭", "达妮丫",
                # --- 英文 ASR 音近（Denia）---
@@ -2369,7 +2380,10 @@ ENTITIES = [
            ctx=((r"\bDa\b", "爸爸"), (r"\bDa\b", "Da"), (r"\bDa\b", "达的"),
                 (r"\bDa\b", "达。"), (r"\bmy wife\b", "娜娜"),
                 (r"\bTenna\b", "特纳"), (r"\bDia\b", "迪亚"), (r"\bDia\b", "Dia"),
-                (r"\bDenia\b", "达妮娅"), (r"\bDenia\b", "丹妮娅")),
+                (r"\bDenia\b", "达妮娅"), (r"\bDenia\b", "丹妮娅"),
+                # "迪娜"=Denia/Dena 谷翻音近，通用译名易误伤他片，只走参考行 \bDena\b/\bDenia\b 佐证
+                #   （2026-09-23 达妮娅3.3幕间二次校准沉淀，#8/117/613/625/682/731）
+                (r"\bDena\b", "迪娜"), (r"\bDenia\b", "迪娜")),
            note="星炬学院虚质科学部学生，3.3 新五星（百度百科/萌娘百科/官方档案确认）。"
                 "昵称 Denny/Dennia 机翻'丹尼/丹妮娅'亦归此；"
                 "Daniela=丹妮拉 是另一人，勿收。真名达斯维达尼亚。"
@@ -2380,7 +2394,12 @@ ENTITIES = [
                 "塔娜(Tana #255)亦 Denia；wife Nana 的 Nana=Denia(#30)；"
                 "Dia/迪亚(#226/322 参考行 Dia)=Denia 昵称。"
                 "Daniel(#376/378/695) 疑 Denia 乱形，仅侧车，不入全局。"
-                "2026-09-14 《What's wrong with Denia's voice》(3.3幕间 Reaction) 沉淀。"),
+                "迪娜(#8/117/613/625/682/731 参考行 Dena)=谷翻音近，走 ctx 锚定归达妮娅；"
+                "丹尼亚(尼)补完整形防'达妮娅亚'级联。"
+                "2026-09-14 / 2026-09-23 《What's wrong with Denia's voice》"
+                "(鸣潮3.3「自星海尽处回响」第三章幕间《在熔解的夜空下》Reaction) 沉淀。"
+                "官方中文核对：达妮娅(萌娘/灰机/BWIKI)，全名达斯维达尼亚(先约电台EP《直到下次再见》)，"
+                "中配戈昕宇/日配伊藤美来，PV《人类伪装指南》。"),
     Entity("陆·赫斯", modes=("bi",), en="Luuk Herssen",
            category="角色/星炬学院校医",
            variants=("路克",),
@@ -2420,9 +2439,13 @@ ENTITIES = [
                 "Mouier/Mor 变体已在扁平表；本片 #169 Professor Monier、#184 Professor Mona(侧车)。"),
     Entity("西格莉卡", modes=("bi",), en="Sigrika",
            category="角色",
-           variants=("Sriraka",),
+           variants=("Sriraka", "Skrika"),
+           ctx=((r"\bSkrika\b", "尖叫"),),
            note="星炬学院学生、达妮娅挚友（3.2 共鸣者）。扁平表已有 Sigrika/Skiprika/Sria 等；"
-                "短形 'Skip Ra'(#743)/'skip Raika'(#114) 为 ASR 文字游戏，侧车处理。"),
+                "短形 'Skip Ra'(#743)/'skip Raika'(#114) 为 ASR 文字游戏，侧车处理。"
+                "Skrika(#109) ASR 形：谷翻把专名误作普通词'尖叫'，故裸键 'Skrika'->西格莉卡 补"
+                "英文残留形，另用 ctx 参考行 \\bSkrika\\b 佐证把误译'尖叫'归 西格莉卡"
+                "（'尖叫'通用词绝不入裸键）。2026-09-23 沉淀。"),
     Entity("残星会", modes=("bi",), en="Fractsidus",
            category="势力",
            variants=("Fracidus",),
@@ -5507,7 +5530,11 @@ def _sync_maybe_auto():
 
 
 def _sync_inject_all():
-    """把 applied.json 中生效条目注入本地表（校准运行时兜底；kb-sync 已注入）。"""
+    """把 applied.json 中生效条目注入本地表（校准运行时兜底；kb-sync 已注入）。
+    与 _cmd_kb_sync 一致地遵守 config.disabled_keys（条目级下线）：被禁用的键
+    即便仍残留在 applied.json 里也不再注入。修复：原兜底漏过 disabled_keys，
+    导致离线/VT_NO_SYNC 路径下 jpe 裸键「叹->唉」下线后仍被回灌，误伤
+    「惊叹/感叹/叹息」等正常词（2026-09-23 Typhoeus 片 #21 触发）。"""
     ap = os.path.join(_sync_local_dir(), "applied.json")
     if not os.path.isfile(ap):
         return 0
@@ -5516,9 +5543,13 @@ def _sync_inject_all():
             data = json_load(f.read())
     except Exception:
         return 0
+    dis = {tuple(x) for x in (_sync_cfg().get("disabled_keys") or [])}
     applied = {}
     for k, v in (data.get("entries") or {}).items():
-        applied[tuple(k.split("\x1f"))] = v
+        kk = tuple(k.split("\x1f"))
+        if kk in dis:
+            continue
+        applied[kk] = v
     return _sync_apply(applied)
 
 
