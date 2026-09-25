@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 1.15.7
+# @version 1.16.0
 """字幕校准统一脚本（唯一入口，可复用，每次校准任务优先调用本脚本）
 
 本文件是工作区全部历史校准脚本的统一沉淀（双语 calib_rules、韩语
@@ -10,6 +10,81 @@ calib_input_ko_out、终末地 calibrate_srt 已全部并入；
 2026-08-29 起删除逐句台词改写（原 OVERRIDES / ENDFIELD_OVERRIDES / ERROR 行翻译），台词文案保留原始机翻，本脚本只做名词级校准。
 2026-09-01 算法优化（输出与原实现逐字节一致）：术语表预编译为 长键序+键字符集（行级预筛、
 命中统计与替换单遍完成）、CONTEXT_MAP 正则预编译。
+
+2026-09-23 音乐 reaction 片《Music Composer Reacts - Qingxiao EP: Outside the Mountain》
+  （Everything Fantasy 频道，英语原声 + 谷翻，162 cue）：
+  ① 专名级：Wuthering Waves 机翻"鸣潮涛"->鸣潮（安全裸键入 BILINGUAL_TERMS）；
+     Outside the Mountain 直译"山外"->官方曲名《尘外客》、Denna 误听"丹娜"->达妮娅
+     ——两者均为**通用中文词/正常音译**，按戒律走参考行佐证（ctx），不入裸键。
+  ② 本次用户显式要求「优化口播语气 + 上下文连贯」，故对 151 条中文行做逐 cue 整行覆盖
+     （subfix，old 留空），这是**用户指定的例外**；默认铁律仍是只做名词级校准、台词保留机翻。
+  ③ 歌词段（Casting down cities crumble / Etched in silver in reflection /
+     Thousand scrolls depth of waters / Chosen regretless / Guard the common to the end）
+     的英文参考行本身是 ASR 误听（Ashton<-Etched in、stroll<-scrolls、so<-Soul、
+     garden<-Guard the common），中文按**官方英文歌词**（JOOX 曲页）意译；
+     这些误听词均为通用词，不入 EN_LINE_TERM_FIXES，仅在注释留证。
+  ④ react 模式补齐条件佐证通道：_MODE_CTX_TABLE 新增 "react"->REACT_CONTEXT，
+     _rebuild_context_caches 同步重建 _REACT_CONTEXT_COMPILED（原缺失，Entity.ctx 对
+     react 模式不生效）。
+
+2026-09-23 音乐 reaction 片《Music Composer Reacts - When the Bird Glides Across the Sky
+  (Wuthering Waves)》（Everything Fantasy 频道，英语原声 + 谷翻，182 cue）：
+  ① 专名级：角色 Ciaccona 官方中文"夏空"（主播念 Sikona/Sakuna，谷翻"西科纳"）、
+     曲名官方中文《当飞鸟划过天空》（先约电台《旋律渐叙》2025-05-22）；
+     Wuthering Waves 被留成英文"Wavering"->鸣潮（安全裸键）。已沉淀 Entity 夏空 +
+     _MUSIC_WW 曲目 + EN_LINE_TERM_FIXES(Wavering/Sikona/Sakuna)。
+  ② 用户显式要求「优化口播语气 + 上下文连贯」，182 条中文行逐 cue 整行覆盖（merge 回填），
+     属**用户指定的例外**；默认铁律仍是只做名词级校准、台词保留机翻。
+  ③ "波浪/科里/一切幻想"是通用词与正常音译，走 REACT_CONTEXT 参考行佐证，不入裸键。
+  ④ 三道门禁全过：verify（仅中文行变化 169 处）+ qa（punct/marker/quote/width 全 OK）
+     + length（最宽行 20.0）。
+
+2026-09-23 音乐 reaction 直播片《Ace Combat 8 Everflow + Persona 3 Reload +
+  Fire Emblem Fortune's Weave Reaction》（英语原声 + 谷翻，4509 cue，本工作区最大单轮）：
+  ① 用户显式要求「优化口播语气 + 上下文连贯」，全片 3808 条中文行逐 cue 整行覆盖
+     （merge 回填），属**用户指定的例外**；默认铁律仍是只做名词级校准、台词保留机翻。
+  ② 本轮暴露并已加固的三类**结构性脏数据**（教训，勿重犯）：
+     · calib_H.tsv 有 244 行用「空格」而非 Tab 分隔 → _load_calib_records 静默丢弃，
+       外部只看到「缺号 265 个」，真因极难定位；lint 现已对非 Tab 分隔行显式告警。
+     · 校准表重复序号（同一编号跨批次写两遍）→ lint 只报不修，merge 按 glob 后写覆盖；
+       本轮 3629/3717 即此例，处置：删掉后写批次的重复行，只保留一处。
+     · 说话人标记 ">>" 残留中文行（431 处）：整句重写轮须剥除，只靠语气区分主播与台词。
+  ③ QA 三门禁本轮实测可批量收敛（一次性修复 1082 行后 qa 全 OK，见 _calib_tmp_ace/fix_qa.py）：
+     marker(">>"/» 剥除) / quote(英文直引号->弯引号) / punct(中文句末标点对齐英文参考行，
+     . ->。 ? ->？ ! ->！；英文引号未闭合者豁免)。这三条是**整句重写轮**的通用收尾动作。
+  ④ 专名/曲名对照沉淀（本轮定稿，供后续复用）：
+     Delta Rune -> 《三角符文》；Wuthering Waves（ASR 误听 Withering）-> 《鸣潮》；
+     Everflow / Wings of Thieves / Burn My Dread / Aria of the Soul / Memories of You /
+     Full Moon Full Life / Color Your Night / Beneath the Mask / Master of Tartarus /
+     Battle Hymn of the Soul / Living with Determination / Dearly Beloved /
+     Mass Destruction / Unsung War / Zero / Daredevil / Megalith / Fortune's Weave /
+     Undertale(《传说之下》除外) / Clair Obscur 等**保留英文**（无官方中文）；
+     Undertale -> 《传说之下》；Persona 3 Reload -> 《女神异闻录3 Reload》。
+     以上已进 lint keep_words 与《》豁免，拉丁残留误报 409->112。
+  ⑤ 三道门禁全过：verify（仅中文行变化 3808 处）+ qa（punct/marker/quote/width 全 OK）
+     + length（最宽行 26.0，上限 32）。
+
+2026-09-24 鸣潮 reaction 片《Reacting to ALL the resonator showcases》(Tenha，英语
+  原声+谷翻，3908 cue，r2->r3 全文整句重写轮)：
+  ① 专名级沉淀（第 6 节 ENTITIES 追加 16 个实体，append-only）：团津->丹瑾、
+     千纱->千咲、灵阳->凌阳、尚丽瑶->相里要、罗蒂亚->洛可可、肖尔基珀->守岸人、
+     加尔雷娜->嘉贝莉娜、沙科纳->夏空、卡蒂拉->卡提希娅、西格丽卡->西格莉卡、
+     共振腔/共鸣腔->共鸣者（ctx）；通用词走 ctx 锚定：日行->绯雪、阿尔托->秋水、
+     萨那->散华、屏幕时间->镜头时间、展示会->展示、莫奈->莫宁(强制 Professor 前缀，
+     防误伤学院货币"莫奈")。Aalto 官方中文复核=秋水（推翻 2026-09-09 TCG 片存疑注释）。
+  ② qa 三处**结构性 bug 修正**（本轮实测数据驱动，见各行内注释）：
+     · marker：旧口径一刀切禁中文行 ">"，与本工作区"保留 >> 对齐参考行"规范冲突
+       （r3 实测 1156 处误报，几乎=全部 NPC 台词 cue）；新规=前缀逐 cue 对齐+
+       前缀外无 > » 。
+     · punct 豁免：旧口径把 don't/I'm 等缩写撇号算"引号未闭合"，r3 实测 19.0%
+       (742/3908) cue 被误豁免、门禁形同虚设；新增 _qa_unclosed_quotes 区分缩写
+       与真未闭合，豁免率降到 1.4%。
+     · 新增 `qa --src 上一版.srt` **错位检测门**（_cmd_qa_align）：并行分段整句
+       重写时"译文与序号整体平移"（本轮批次 03/07/09 真实发生，各返工一轮）
+       verify 完全查不出、人工极易漏；以机翻旧中文为对齐锚，按 bigram 相似度
+       找新中文的最佳偏移 k，连续同偏移 >=3 条即判该区间译文平移 -> FAIL。
+       合成错位样本可检出、r2↔r3 真对齐数据零误报（阈值 thr_lo=0.5/gain=0.25）。
+  ③ 本脚本 v1.15.10 -> v1.16.0。
 
 SRT 结构：序号 / 时间轴 / 中文行(被改) / 参考行(默认不改)。逐行原位替换，
 严格保留 序号、时间轴、空行、换行(CRLF/LF) 与 BOM 一字不变；
@@ -77,6 +152,8 @@ B. 流水线子命令（原各项目分散脚本 extract_cues/split_segs/merge_r
   python subtitle_calib_merged.py merge    <src.srt> <表|目录> --out out.srt
         [--compare 对照.tsv] [--side 覆盖.tsv] [--letters ABCDEF]          # 回填校准段重建 SRT
   python subtitle_calib_merged.py verify   <src.srt> <out.srt>             # 校验结构零改动
+  python subtitle_calib_merged.py qa       <out.srt> [--src 上一版.srt]
+        [--skip punct,marker,quote,en,width]                                # 内容质检门禁（rewrite 轮提交前必跑）
   python subtitle_calib_merged.py compare  <src.srt> <out.srt> <对照.tsv>   # 生成 错误vs正确 对照
   python subtitle_calib_merged.py scan     <cues.tsv> [--min 2]            # 扫描待校准高频英文词
   python subtitle_calib_merged.py subfix   <src.srt> <fix.tsv> --out out.srt
@@ -276,6 +353,7 @@ BILINGUAL_TERMS = {
     "丁然": "景燃", "riping ran": "景燃",                          # Ding Ran / riping ran（ASR 变体）= 景燃
     "Yangyang": "秧秧",                                          # 秧秧 英文残留
     "Wua": "鸣潮",                                              # Wuthering Waves 误听
+    "VUA": "鸣潮",                                              # Wuthering Waves 误听 ASR 大写形（#129 2026-09-23）
     "Mango": "梦州",                                            # Mengzhou 误听（沿 Mongo->梦州 先例）
     "莲吉": "恋次",                                             # Renji（死神）官方中文 恋次
     # --- 2026-09-09 Streamers React to Hsin & Suoming Gameplay Leaks（鸣潮 3.7 心月狐/锁暝 英文谷歌翻译 Reaction 片）首轮验证 ---
@@ -301,7 +379,10 @@ BILINGUAL_TERMS = {
     "阿尔夫": "阿列夫一", "ALF1": "阿列夫一", "LF1": "阿列夫一",
     "阿尔凡": "阿列夫一", "Alfan": "阿列夫一",
     "阿尔夫一人": "阿列夫一", "阿尔夫一定": "阿列夫一", "阿尔法之一": "阿列夫一",
+    # ALF One(首字母大写)/ALF一号：完整形先行，防裸"ALF"级联咬出"阿列夫一 One"、"阿列夫一一号"
+    #   （2026-09-23 达妮娅3.3幕间二次校准沉淀，#565 "ALF One"、#618 "ALF一号"）
     "ALF one": "阿列夫一", "Alf one": "阿列夫一", "ALF 1": "阿列夫一",
+    "ALF One": "阿列夫一", "Alf One": "阿列夫一", "ALF一号": "阿列夫一",
     "ALF": "阿列夫一", "Alf": "阿列夫一",
     # Exostrider 变体（官方中文 隧者，2026-09-08 依库街区/鸣潮助手图鉴确认后统一）
     "Exorder": "隧者", "Exorrider": "隧者",
@@ -525,7 +606,9 @@ BILINGUAL_TERMS = {
     # 恩沃拉(N'avorora) 变体 Navora/纳沃拉
     "纳沃拉": "恩沃拉", "Navora": "恩沃拉",
     # 达妮娅(Denia) 昵称 Denny/Dennia 机翻作"丹尼/丹尼娅"（注意：Daniela=丹妮拉，非同一人，勿收）
-    "丹尼娅": "达妮娅", "丹尼": "达妮娅",
+    # 补"丹尼亚"完整形先行，防裸"丹尼"级联咬出"达妮娅亚"（#259 2026-09-23 沉淀）；
+    #   "丹尼尔"=Daniel 是通用西名，绝不入全局（本片 #376/378 指 Denia 走逐 cue 侧车）。
+    "丹尼娅": "达妮娅", "丹尼亚": "达妮娅", "丹尼": "达妮娅",
     # 星炬学院(Startorch Academy) ASR 误听 Star Tour → 机翻"星游学院"
     "星游学院": "星炬学院", "罗伊斯塔尔学院": "星炬学院",
     # 洛瑟菈(Lucilla) 身份：学院 President=校长，机翻误作"总统"
@@ -577,6 +660,15 @@ BILINGUAL_TERMS = {
     "星月琳琅集": "心月琳琅集",                                      # 飞讯礼包官方名
     # "达尼亚->达妮娅" 不入表：terms-check 报与既有键 "Dasidia->达斯维达尼亚" 级联
     #   （长键先替换后，短键会咬掉"达斯维达尼亚"里的"达尼亚"）；本片该错形走逐 cue 覆盖。
+    # --- 2026-09-23 鸣潮《尘外客》（清宵 EP）音乐 reaction 片 ---
+    # Wuthering Waves 机翻残留"鸣潮涛"（非正常中文词，可安全作裸键）；
+    # 同片的曲名"山外"、角色"丹娜"是通用词/正常音译，走 ctx 佐证。
+    # 三者已同步沉淀为 Entity（鸣潮 / 尘外客 / 达妮娅），bi + react 双模式投影。
+    "鸣潮涛": "鸣潮",
+    # --- 2026-09-23 鸣潮《当飞鸟划过天空》（夏空 EP）音乐 reaction 片 ---
+    # 英语原声片源，主播口播 Wuthering Waves 被 ASR/机翻留成英文"Wavering"（cue1 中文行）；
+    # 同片"波浪"是 Waves 直译（通用词）、"科里/一切幻想"是正常音译与常用词，一律走 ctx 佐证。
+    "Wavering": "鸣潮",
 }
 
 # 保留英文不译的专名（仅提示，不替换）
@@ -936,6 +1028,11 @@ CONTEXT_MAP = [
     # --- 2026-09-09 I_Was_Wrong_Completely_About_Wuthering_Waves 校准新增 ---
     # 椿（Camellya）机翻变体"变色龙"，仅英文行佐证 Chameleia/Chamellia 时改（防普通词误伤）
     (r"\bChameleia\b|\bChamellia\b", "变色龙", "椿"),
+    # --- 2026-09-24 Tenha 全角色展示反应片 r3 沉淀（展示会/屏幕时间 目标词非任何实体
+    #     canonical，不能用 Entity.ctx——ctx 只会替换成 canonical；走本表原生三元组。
+    #     参考行 showcase / screen time 佐证，"展示会/屏幕时间"是正常词不裸进表）---
+    (r"[Ss]howcase", "展示会", "展示"),
+    (r"[Ss]creen ?time", "屏幕时间", "镜头时间"),
 ]
 
 # =============================================================
@@ -1218,7 +1315,8 @@ JA_ENDFIELD_TERMS = {
     "不挂断": "等等",          # 待って（10 处）
     "图片": "呃",              # え、（5 处）
     "严重地": "说真的",        # マジで
-    "叹": "唉",                # はあ（单独出现的拟声）
+    # 注：「叹」->「唉」原为裸键，会把正常词「惊叹/感叹/叹息」误伤成「惊唉/感唉/唉息」
+    #     （2026-09-23 Typhoeus 片 #21 即触发）。改走下方 JA_ENDFIELD_CONTEXT，靠日语行 はあ 佐证。
     # —— 2026-09-15 沉淀自《JP VTubers Hyped Over the Smol Purple Huntress! Arknights
     #     Endfield Operator Story Typhoeus》ja_auto 谷歌翻译片（86 cue，日语原声）——
     #     本片主角=提弗洛斯（Typhoeus，终末地 1.5「雪凇幽梦」2026-09-02 实装，罗德岛再旅者/荒野猎手；
@@ -1228,6 +1326,7 @@ JA_ENDFIELD_TERMS = {
     #     不会误伤明日方舟本体干员「提丰」(Typhon，属 AK_TERMS)。
     "提丰": "提弗洛斯", "提波洛斯": "提弗洛斯", "提波罗斯": "提弗洛斯",
     "Typhoros": "提弗洛斯", "Typholos": "提弗洛斯",
+    "泰弗罗斯": "提弗洛斯",   # 2026-09-23 本片再现谷翻音译形「泰弗罗斯」(#33)，并入统一
     # 注：本片 大の字->"大字符"、LINE(线条)->"LINE"、パタパタ->"小嘴"、かよ->"嘉代"
     #     均属逐句误译（裸键是通用中文词），不进表，走 subfix 侧车整行覆盖。
 }
@@ -1241,6 +1340,9 @@ JA_ENDFIELD_CONTEXT = [
     #     用 context 而非裸键：「雪祭」「惊人的」都是通用中文词，裸键会误伤正常语境。
     (r"雪祭祀|雪祀", "雪祭", "雪祀"),                # 雪祀=萨米萨满祭司（官方「老雪祀」），ASR 常作「雪祭祀」
     (r"すご|すげえ|すごい", "惊人的", "好厉害"),      # すごい/すげえ 谷翻系统译成"惊人的"（本片 #36/#55）
+    # 2026-09-23 本片 #55：谷翻把日语普通名词「雪」按读音误作人名 "Yuki"（参考行含 雪 佐证），改回「雪」
+    (r"雪", "Yuki", "雪"),
+    (r"はあ|はぁ|ふぅ", "叹", "唉"),                  # はあ 拟声谷翻成"叹"，仅在日语行为叹息拟声时改"唉"（防误伤"惊叹/感叹"）
 ]
 _JA_ENDFIELD_CONTEXT_COMPILED = [(re.compile(rx), wrong, right) for rx, wrong, right in JA_ENDFIELD_CONTEXT]
 
@@ -2049,6 +2151,68 @@ REACT_TERMS = {
     "Jane Doe": "简·杜",
     "Mighty": "万敌",
     "Uncus": "森蚺", "Unctus": "森蚺",
+    # ---- 2026-09-23 鸣潮《尘外客》（清宵 EP）音乐 reaction 片沉淀 ----
+    # 片源：Everything Fantasy《Music Composer Reacts - Qingxiao EP: Outside the Mountain》
+    #   （英语原声 + 谷翻，162 cue；用户指定「优化口播语气 + 上下文连贯」，
+    #    151 条中文行逐 cue 整行覆盖，verify 全通过。）
+    # 官方依据（已检索）：鸣潮先约电台 EP3.6 清宵印象曲官方中文名《尘外客》
+    #   （英 Outside the Mountain / 日 塵世を見守りて / 韩 속세 밖 나그네，四语互不直译）；
+    #   制作人宫阁、作词栗稚子、古琴翟忻来（**非古筝**，主播口播误判为 guzheng）。
+    # 戒律：只收非正常中文词作裸键；"山外/丹娜"是通用词与正常音译，走 REACT_CONTEXT 佐证。
+    "一切幻想网": "everythingfantasy.net",   # Everything Fantasy 频道官网机翻直译
+    # ---- 2026-09-23 鸣潮《当飞鸟划过天空》（夏空 EP）音乐 reaction 片沉淀 ----
+    # 片源：Everything Fantasy《Music Composer Reacts - When the Bird Glides Across the Sky
+    #   (Wuthering Waves)》（英语原声 + 谷翻，182 cue；用户指定「优化口播语气 + 上下文连贯」，
+    #   182 条中文行逐 cue 整行覆盖，verify/qa/length 三门全过。）
+    # 官方依据（已检索）：鸣潮 2.3 夏空（Ciaccona）剧情主题曲官方中文名《当飞鸟划过天空》
+    #   （鸣潮先约电台《旋律渐叙》专辑，2025-05-22 发行）；角色 Ciaccona 官方中文名"夏空"。
+    #   主播片内念作"Sikona / Sakuna"（自承可能念错），机翻落成"西科纳"。
+    # 戒律：只收非正常中文词/英文专名作裸键；"波浪/科里/一切幻想"是通用词与正常音译，
+    #   走 REACT_CONTEXT 参考行佐证（见该表）。
+    "西科纳": "夏空", "锡科纳": "夏空",          # Sikona（Ciaccona 误听）机翻音译
+    "萨库娜": "夏空", "萨库纳": "夏空",          # Sakuna（同上）音译变体
+    "当鸟儿滑过天空": "当飞鸟划过天空",          # 曲名机翻直译 -> 官方中文曲名（长键）
+    # ---- 2026-09-23 终末地《最终 BOSS 主题曲》音乐 reaction 片沉淀 ----
+    # 片源：《Arknights: Endfield's Final Boss Music Is On Another Level》
+    #   （Everything Fantasy 频道，英语原声 + 谷翻，251 cue；用户指定「优化口播语气 +
+    #    上下文连贯」，241 条中文行逐 cue 整行覆盖，verify/length/qa 三道门全通过。）
+    # 与上方 2026-09-14 的《Alleikhreos Boss Theme》片同 BOSS：均为终末地 1.4 最终
+    #   BOSS 阿莱克琉斯（千夫长）主题曲，作曲/演唱 Crywolf。本片 ASR 把 BOSS 名切成
+    #   "Alec...Alec Eros"（→ 阿莱克琉斯）、把游戏名切成 "Arknights Infield"
+    #   （Endfield 误听），并把 Crywolf 原样保留成 "Cry Wolf"。
+    # 戒律：本片机翻误形同样几乎全是**通用中文词**——老板/轨道/赛道/气候/划痕/剪刀/
+    #   爱欲/爬行/子宫/灵魂/终局/关节——一律不入表（会误伤正常语境），只能逐 cue
+    #   侧车整行覆盖；下面只收非通用词的安全键。
+    "明日方舟内场": "《明日方舟：终末地》",   # Arknights Infield 机翻直译；长键安全（"内场"单用是通用词）
+    "Cry Wolf": "Crywolf", "cry wolf": "Crywolf",   # 谷翻保留英文原样，统一为社区通用写法
+    # ---- 2026-09-23 明日方舟《人们，我们OST》全专音乐 reaction 片沉淀 ----
+    # 片源：Arknights《人们，我们》(People of People) OST 全专 reaction
+    #   （英语原声 + 谷翻，364 cue；用户指定「优化口播语气 + 上下文连贯」，
+    #    311 条中文行逐 cue 整行覆盖，verify/qa/length 三道门全通过。）
+    # 官方依据（已检索，塞壬唱片-MSR 发行，共 6 首）：
+    #   01 奔赴（JULAIAH ZHUKOVA / Chris Brocato）——即主播口中的 lobby theme「大厅主题」，
+    #      曲名官方为《奔赴》；02 众怒（Angry5JaR / EUROPA木卫二）；
+    #   03 敬畏自由（Adam Gubman / Cain German）；04 还有明天（BaoUner）；
+    #   05 无缚者之夜（BaoUner）；06 奔赴 (Instrumental)。
+    #   专辑名 People of People 官方中文=《人们，我们》。
+    # 戒律：作曲/歌手名一律保留英文原拼（谷翻会音译成"巴乌纳/布纳/弓主人"等）；
+    #   曲名用官方中文，且只收**长键或非通用词**——"公愤/没有明天"是通用中文词，
+    #   裸键必误伤，走 REACT_CONTEXT 英文佐证（见该表）。
+    "People of People": "人们，我们", "people of people": "人们，我们",
+    "人们的人": "人们，我们",              # 机翻直译（长键安全）
+    "感觉中的氛围": "音律联觉",            # Ambience Synesthesia 机翻直译（长键安全）
+    "克里斯·布罗塔托": "Chris Brocato",    # Chris Brocato 机翻音译
+    "Chris Broatato": "Chris Brocato",
+    "科罗罗卡托": "Chris Brocato",         # 同上，主播自问自答段落的另一种机翻形态
+    "Cororocato": "Chris Brocato",
+    "Adam Gum": "Adam Gubman",             # Adam Gubman 被截断
+    "Kane German": "Cain German",
+    "巴乌纳": "BaoUner", "布纳": "BaoUner", # BaoUner 机翻音译
+    "弓主人": "BaoUner",                   # "bow owner" 机翻直译（长键安全）
+    "管理员不鞠躬": "BaoUner",             # "bow wer admin" 机翻直译（长键安全）
+    "对自由的崇敬": "敬畏自由",            # reverence for freedom 机翻直译（长键安全）
+    "不受束缚者之夜": "无缚者之夜",        # Night of the Unshackled Ones 机翻直译（长键安全）
+    "瓦尔革命": "Val Revolution",          # 主播念作 Val Revolution（无官方中文，保留英文）
 }
 # 用法：python subtitle_calib_merged.py --react <input.srt> --out out.srt
 #   --react 与游戏模式互斥；仅套用 REACT_TERMS 统一首中文行（不动英文/参考行）。
@@ -2068,7 +2232,27 @@ REACT_CONTEXT = [
     (r"\bDNA\b", "DNA", "《二重螺旋》"),
     (r"\bDNA\b", "脱氧核糖核酸", "《二重螺旋》"),
     (r"[Dd] ?[Nn]ight ?[Aa]byss", "深空之眼", "《二重螺旋》"),
+    # 2026-09-23 鸣潮《当飞鸟划过天空》（夏空 EP）reaction 片：歧义中文词，须英文参考行佐证。
+    (r"\bWuthering Waves\b", "波浪", "鸣潮"),          # Waves 被按本意直译"波浪"（通用词）
+    (r"\bWaves\b", "波浪", "鸣潮"),
+    (r"Everything Fantasy", "一切幻想", "Everything Fantasy"),   # 频道专名，无官方中文，保留英文
+    (r"\bCorey\b", "科里", "Corey"),                   # 主播名，无官方中文，保留英文
+    # 2026-09-23 终末地最终 BOSS 主题曲 reaction 片：作曲名 Crywolf 被谷翻按字面直译/断句，
+    #   误形"狼来了/哭泣/哭吧"全是通用中文词（成语、动词），裸键必误伤，须英文参考行出现 Cry 才替换。
+    (r"\bCry\b|\bCry ?[Ww]olf", "狼来了", "Crywolf"),
+    (r"\bCry\b|\bCry ?[Ww]olf", "哭泣", "Crywolf"),
+    (r"\bCry\b|\bCry ?[Ww]olf", "哭吧", "Crywolf"),
+    # 2026-09-23 明日方舟《人们，我们OST》reaction 片：曲名被机翻成**通用中文词**，
+    #   裸键必误伤（"公愤"常见于"引起公愤"、"没有明天"是日常短语），须英文参考行佐证。
+    (r"Public [Oo]utrage", "公愤", "众怒"),
+    (r"There is No Tomorrow", "没有明天", "还有明天"),
 ]
+# 流程戒律（2026-09-23 本次踩坑）：split 分批校准后，**批间边界必须逐条核对英文行**。
+#   本次 C 批开头漏了 1 条（EN 93 "Ursus and" 未落中文）、D 批开头多了 1 条 [音乐]，
+#   净差为 0 却使 93–141 共 49 条中文整体前移一位——verify 只查结构（序号/时间轴/英文行）
+#   全过、length 全过，只有 qa 的 punct 门禁（依英文标点判中文应收尾）才把错位暴露出来
+#   （7 处 FAIL：中文标记行对上英文句子行）。定位法：导出 cues.tsv 英文行与 calib 中文行
+#   并排比对，找"中文语义对得上 N+1 条英文"的区间起点与终点。
 _REACT_CONTEXT_COMPILED = [(re.compile(rx, re.I), wrong, right)
                            for rx, wrong, right in REACT_CONTEXT if wrong and right]
 
@@ -2127,6 +2311,17 @@ EN_LINE_TERM_FIXES = {
     # 证据：arknights.wiki.gg/wiki/Episode_14/OST（Arknights / Yuka Kitamura）
     "Ark Knights": "Arknights",                            # ASR 误拆
     "Kamura": "Kitamura",                                  # 作曲家 Yuka Kitamura（片内 #258/#709/#736 作 Kitamura）
+    # --- 2026-09-23 鸣潮《当飞鸟划过天空》（夏空 EP）reaction 片 ASR 误听 ---
+    # 主播片内自承可能念错角色名；英文参考行原样保留（本表仅 --fix-en 生效）。
+    "Wavering": "Wuthering",                               # Wuthering Waves 误听
+    "Sikona": "Ciaccona", "Sakuna": "Ciaccona",            # 角色 Ciaccona（夏空）误听
+    # --- 2026-09-23 终末地最终 BOSS 主题曲 reaction 片（251 cue）ASR 错词 ---
+    "Infield": "Endfield",                                 # 片内 #3 "Arknights Infield"（Endfield 误听）；短键注意棒球术语 in-field 误伤，仅 --fix-en 生效
+    # 注：#188 "Alec...Alec Eros" 实为 BOSS 名 Alleikhreos（阿莱克琉斯），因夹省略号
+    #     无法做子串替换，未入表；中文侧已逐 cue 覆盖为「阿莱克琉斯」。
+    # --- 2026-09-25 鸣潮《寻心》(Hsin's Trail) 动画短片 reaction 片 ASR 误拆/误听 ---
+    "he isen": "Hsin",                                     # "Hsin's" 被 ASR 拆成 "he isen ' s"；键含空格足够特定，仅 --fix-en 生效
+    "Lady Shen": "Lady Hsin",                              # Lady Hsin（心大人）误听，#20/#31/#42；仅 --fix-en 生效
 }
 
 # =============================================================
@@ -2218,7 +2413,7 @@ _MODE_TERM_TABLE = {
 }
 _MODE_CTX_TABLE = {
     "bi": "CONTEXT_MAP", "ja": "JA_CONTEXT", "jpe": "JA_ENDFIELD_CONTEXT",
-    "akko": "AK_KO_CONTEXT",
+    "akko": "AK_KO_CONTEXT", "react": "REACT_CONTEXT",
 }
 _MODE_NAMES = {
     "bi": "中英双语", "ja": "日语原声·鸣潮", "jpe": "日语原声·终末地",
@@ -2297,6 +2492,12 @@ ENTITIES = [
                 # 2026-09-20 移除 (r"\bSentinel\b", "岁主")：岁主=Sentinel 的官方通译（类目词），
                 #   心月狐 只是其中一位；该规则会把泛指"岁主形态/sentinel like form"误缩成
                 #   "心月狐"，且 \bSentinel\b 走 re.I 会命中小写普通词 sentinel，属系统性误伤。
+                # 2026-09-25 《寻心》(Hsin's Trail) 动画短片 reaction 片：Hsin 的 ASR 误拆/误听
+                (r"\bisen\b", "他伊森"),        # "Hsin's" 被 ASR 拆成 "he isen ' s"，谷翻成"他伊森"（"他"为误拆残渣）
+                (r"\bisen\b", "伊森"),          # 伊森=Ethan 常规译名，仅 isen 佐证时归此（勿入 variants，防误伤真·Ethan）
+                (r"\bLady\s+Shen\b", "沉夫人"),  # Lady Shen = Lady Hsin 误听；Shen 走 ctx 锚定，防误伤姓"沈"的人名
+                (r"\bLady\s+Shen\b", "沈夫人"),
+                (r"\bLady\s+Shen\b", "申夫人"),
                 (r"\bMoon Fox\b", "月狐"), (r"\bMoonfox\b", "月狐")),
            exclude=(r"\bLand Rover\b", r"\bDefender\b"),
            note="月狐岁主，官方全名 心月狐；独立指代用全名。3.7 双五星之一（2026-09-30 上线）。"
@@ -2304,6 +2505,8 @@ ENTITIES = [
                 "Hsien/Hshin/Hsi/Shen 等；机翻按字面把 Sheen 译成'光泽/闪光/光辉'，把 Hsin 译成"
                 "'欣/新/馨/心/辛'，均靠参考行佐证归此。日语片'シ/シン様'归 心（见 JA_TERMS），"
                 "3.6 片'聖/聖書'=清宵(セイショウ)非心，勿混。"
+                "2026-09-25《寻心》片：Hsin's 被 ASR 拆成 he isen（谷翻'他伊森'），Lady Hsin "
+                "误听 Lady Shen（谷翻'沉夫人'），均 ctx 锚定归此。"
                 "exclude 防'Land Rover/Defender'等越野车品牌被 Rover 键误伤（漂泊者=Rover）。"),
     Entity("锁暝", modes=("bi", "ja"), en="Suoming", ja="サメイ",
            category="角色/岁主",
@@ -2356,7 +2559,7 @@ ENTITIES = [
                # --- 既有机翻/ASR 乱形 ---
                "Dena", "Denia", "丹妮亚", "塔娜", "Tana", "Tenna",
                # --- 中文同音/音近（dá nī yà）---
-               "达妮亚", "丹妮娅", "达尼娅",
+               "达妮亚", "丹妮娅", "达尼娅", "丹尼亚",
                "达妮雅", "塔妮娅", "达你娅", "达腻娅",
                "达妮押", "达妮鸭", "达妮丫",
                # --- 英文 ASR 音近（Denia）---
@@ -2369,7 +2572,10 @@ ENTITIES = [
            ctx=((r"\bDa\b", "爸爸"), (r"\bDa\b", "Da"), (r"\bDa\b", "达的"),
                 (r"\bDa\b", "达。"), (r"\bmy wife\b", "娜娜"),
                 (r"\bTenna\b", "特纳"), (r"\bDia\b", "迪亚"), (r"\bDia\b", "Dia"),
-                (r"\bDenia\b", "达妮娅"), (r"\bDenia\b", "丹妮娅")),
+                (r"\bDenia\b", "达妮娅"), (r"\bDenia\b", "丹妮娅"),
+                # "迪娜"=Denia/Dena 谷翻音近，通用译名易误伤他片，只走参考行 \bDena\b/\bDenia\b 佐证
+                #   （2026-09-23 达妮娅3.3幕间二次校准沉淀，#8/117/613/625/682/731）
+                (r"\bDena\b", "迪娜"), (r"\bDenia\b", "迪娜")),
            note="星炬学院虚质科学部学生，3.3 新五星（百度百科/萌娘百科/官方档案确认）。"
                 "昵称 Denny/Dennia 机翻'丹尼/丹妮娅'亦归此；"
                 "Daniela=丹妮拉 是另一人，勿收。真名达斯维达尼亚。"
@@ -2380,7 +2586,12 @@ ENTITIES = [
                 "塔娜(Tana #255)亦 Denia；wife Nana 的 Nana=Denia(#30)；"
                 "Dia/迪亚(#226/322 参考行 Dia)=Denia 昵称。"
                 "Daniel(#376/378/695) 疑 Denia 乱形，仅侧车，不入全局。"
-                "2026-09-14 《What's wrong with Denia's voice》(3.3幕间 Reaction) 沉淀。"),
+                "迪娜(#8/117/613/625/682/731 参考行 Dena)=谷翻音近，走 ctx 锚定归达妮娅；"
+                "丹尼亚(尼)补完整形防'达妮娅亚'级联。"
+                "2026-09-14 / 2026-09-23 《What's wrong with Denia's voice》"
+                "(鸣潮3.3「自星海尽处回响」第三章幕间《在熔解的夜空下》Reaction) 沉淀。"
+                "官方中文核对：达妮娅(萌娘/灰机/BWIKI)，全名达斯维达尼亚(先约电台EP《直到下次再见》)，"
+                "中配戈昕宇/日配伊藤美来，PV《人类伪装指南》。"),
     Entity("陆·赫斯", modes=("bi",), en="Luuk Herssen",
            category="角色/星炬学院校医",
            variants=("路克",),
@@ -2420,9 +2631,13 @@ ENTITIES = [
                 "Mouier/Mor 变体已在扁平表；本片 #169 Professor Monier、#184 Professor Mona(侧车)。"),
     Entity("西格莉卡", modes=("bi",), en="Sigrika",
            category="角色",
-           variants=("Sriraka",),
+           variants=("Sriraka", "Skrika"),
+           ctx=((r"\bSkrika\b", "尖叫"),),
            note="星炬学院学生、达妮娅挚友（3.2 共鸣者）。扁平表已有 Sigrika/Skiprika/Sria 等；"
-                "短形 'Skip Ra'(#743)/'skip Raika'(#114) 为 ASR 文字游戏，侧车处理。"),
+                "短形 'Skip Ra'(#743)/'skip Raika'(#114) 为 ASR 文字游戏，侧车处理。"
+                "Skrika(#109) ASR 形：谷翻把专名误作普通词'尖叫'，故裸键 'Skrika'->西格莉卡 补"
+                "英文残留形，另用 ctx 参考行 \\bSkrika\\b 佐证把误译'尖叫'归 西格莉卡"
+                "（'尖叫'通用词绝不入裸键）。2026-09-23 沉淀。"),
     Entity("残星会", modes=("bi",), en="Fractsidus",
            category="势力",
            variants=("Fracidus",),
@@ -2528,6 +2743,14 @@ ENTITIES = [
                 "ASR 音近错形：'绯雪'易咬成'非雪/飞雪/菲雪/肥雪/废雪/绯薛/费雪/翡雪/绯血/绯鳕'；"
                 "英文侧 Hiyuki 易咬成 Hiuki/Hyuki/Huyuki/Hiyouki/Hiyuke/Hiyuuki。"
                 "戒律：裸'Yuki'为常用日名不入全局，只走 \\bYuki\\b 参考行锚定。"),
+    Entity("夏空", modes=("bi", "react"), en="Ciaccona",
+           ja="シャコンヌ", ko="샤콘",
+           category="角色",
+           variants=("西科纳", "锡科纳", "萨库娜", "萨库纳"),
+           note="鸣潮 2.3 共鸣者，官方中文名'夏空'（全名 夏空·托卡塔 / Ciaccona Toccata，"
+                "日 シャコンヌ・ラグーナ / 韩 샤콘 토카타；萌娘百科）。"
+                "英语 reaction 片主播念作 Sikona / Sakuna（自承可能念错），谷翻落成'西科纳'。"
+                "本片主题曲官方中文名《当飞鸟划过天空》（先约电台《旋律渐叙》2025-05-22）。"),
     Entity("星声", modes=("bi",), en="Astrite",
            category="术语/货币",
            variants=("星石",),
@@ -2959,6 +3182,53 @@ ENTITIES = [
                 "ASR 音近错形：'清宵'易咬成'清霄/清晓/清笑/清哮/清消/清逍/清潇/清萧'；"
                 "'青霄'为既有机翻错形；英文侧 Qingxiao/Ching Xiao/Chingsha/Chingcha 等已收。"
                 "戒律：日语片'聖/聖書'=清宵(セイショウ)非心月狐(シン)，勿混。"),
+    Entity("达妮娅", modes=("bi", "ja"), en="Denia", ja="ダーニャ",
+           category="角色",
+           variants=(
+               # --- 既有机翻/ASR 乱形 ---
+               "Dena", "Denia", "丹妮亚", "塔娜", "Tana", "Tenna",
+               # --- 中文同音/音近（dá nī yà）---
+               "达妮亚", "丹妮娅", "达尼娅", "丹尼亚",
+               "达妮雅", "塔妮娅", "达你娅", "达腻娅",
+               "达妮押", "达妮鸭", "达妮丫",
+               # --- 英文 ASR 音近（Denia）---
+               "Denya", "Dennia", "Denny", "Deniya",
+               "Danea", "Dania", "Denia's", "Denia`s", "Deina",
+               "Denaia", "Deneia", "Denea", "Denia!",
+               # --- 日文原形 ---
+               "ダーニャ", "ダニア", "でにゃ",
+           ),
+           ctx=((r"\bDa\b", "爸爸"), (r"\bDa\b", "Da"), (r"\bDa\b", "达的"),
+                (r"\bDa\b", "达。"), (r"\bmy wife\b", "娜娜"),
+                (r"\bTenna\b", "特纳"), (r"\bDia\b", "迪亚"), (r"\bDia\b", "Dia"),
+                (r"\bDenia\b", "达妮娅"), (r"\bDenia\b", "丹妮娅"),
+                # "迪娜"=Denia/Dena 谷翻音近，通用译名易误伤他片，只走参考行 \bDena\b/\bDenia\b 佐证
+                #   （2026-09-23 达妮娅3.3幕间二次校准沉淀，#8/117/613/625/682/731）
+                (r"\bDena\b", "迪娜"), (r"\bDenia\b", "迪娜")),
+           note="星炬学院虚质科学部学生，3.3 新五星（百度百科/萌娘百科/官方档案确认）。"
+                "昵称 Denny/Dennia 机翻'丹尼/丹妮娅'亦归此；"
+                "Daniela=丹妮拉 是另一人，勿收。真名达斯维达尼亚。"
+                "主播昵称 Da(丹)：机翻常按口癖译成'爸爸'(#139/213/461/473/475/599)、残留英文"
+                "Da/DA(#7/55/654/693/601/607)或咬出'达的'(#51/58)、'达。'(#15)，一律靠参考行"
+                " \\bDa\\b 佐证归 达妮娅；裸'爸爸/Da/达的/达。'绝不进全局表。"
+                "Tenna(#25/26/404)=Denia ASR 乱形（'Tenna is being Tenna'=达妮娅又开始了）；"
+                "塔娜(Tana #255)亦 Denia；wife Nana 的 Nana=Denia(#30)；"
+                "Dia/迪亚(#226/322 参考行 Dia)=Denia 昵称。"
+                "Daniel(#376/378/695) 疑 Denia 乱形，仅侧车，不入全局。"
+                "迪娜(#8/117/613/625/682/731 参考行 Dena)=谷翻音近，走 ctx 锚定归达妮娅；"
+                "丹尼亚(尼)补完整形防'达妮娅亚'级联。"
+                "2026-09-14 / 2026-09-23 《What's wrong with Denia's voice》"
+                "(鸣潮3.3「自星海尽处回响」第三章幕间《在熔解的夜空下》Reaction) 沉淀。"
+                "官方中文核对：达妮娅(萌娘/灰机/BWIKI)，全名达斯维达尼亚(先约电台EP《直到下次再见》)，"
+                "中配戈昕宇/日配伊藤美来，PV《人类伪装指南》。"),
+    Entity("鸣潮", modes=("bi", "react"), en="Wuthering Waves", ja="鳴潮", ko="명조",
+           category="作品/游戏",
+           variants=("鸣潮涛",),
+           note="库洛游戏《鸣潮》（英文 Wuthering Waves，日文 鳴潮，韩文 명조）。"
+                "本表只收**片源实测的非正常中文错形**：'鸣潮涛'为谷翻把 Wuthering Waves "
+                "拆译的残留（2026-09-23《尘外客》reaction 片实测）。"
+                "戒律：'凋零波浪/风化波浪'等通用词义错形不得作裸键（见 BILINGUAL_TERMS 同名注释）；"
+                "无实测证据的音近错形一律不臆造。"),
     # ============================================================
     # 2026-09-22 音乐台词 · 多语对照（鸣潮 / 明日方舟 / 终末地）
     #   用途：音乐 reaction / OST 分析片（bi / react / ak / endo）中**跨语识别同一专名**。
@@ -3029,6 +3299,126 @@ ENTITIES = [
                 "（萌娘百科记中文译名'给我一些指引'，非官方）——按单语保留原语言，"
                 "字幕若出现机翻中文应还原为英文，ja/ko 留空。"
                 "来源：萌娘百科「Give Me Something」、17173 报道。"),
+    # ============================================================
+    # 2026-09-24 鸣潮「Reacting to ALL the resonator showcases」(Tenha, 3908 cue,
+    #   英语原声+谷翻, r2->r3 全文整句重写轮) 沉淀的**名词级错形**。
+    #   来源：本片 r2 机翻中文行实测 + 官方中文（鸣潮官网/库街区/百科/萌百 多源核对）。
+    #   戒律（用户 2026-09 指定，硬约束）：
+    #     ① 只收**本片实测出现**的错形，无证据不臆造；
+    #     ② 通用中文词（日行/屏幕时间/展示会/共振腔/萨那/阿尔托…正常中文里会出现）
+    #        绝不作裸键，一律走 ctx 参考行英文锚定；专名级非正常词（团津/千纱/灵阳/
+    #        尚丽瑶/罗蒂亚/肖尔基珀/加尔雷娜/沙科纳/卡蒂拉/西格丽卡）才入 variants。
+    #     ③ 英文参考行不许改（用户明确要求），本块只动中文侧，不入 EN_LINE_TERM_FIXES。
+    #   与既有实体同名（千咲/绯雪/莫宁/西格莉卡/景燃…）者为补充：注册走 setdefault，
+    #   只补缺失键不改既有映射（append-only，零回归）。
+    # ============================================================
+    Entity("丹瑾", modes=("bi",), en="Danjin",
+           category="角色/鸣潮",
+           variants=("团津",),                          # #120/121 "who's Tanjin" 谷翻
+           ctx=((r"\bTanjin\b|\bDanjin\b", "丹津"),),  # #19/718 "丹津"正常词，锚定才改
+           note="4★ 湮灭角色（官方 丹瑾）。r3 错形：团津(#120/121)、丹津(#19/718)。"
+                "'丹津'可作正常地名，裸键危险，仅英文 Tanjin/Danjin 佐证才改；"
+                "'团津'非正常中文词，安全裸键。既有扁平键 '丹金'->丹瑾 保留。"),
+    Entity("千咲", modes=("bi",), en="Chisa", ja="チサ",
+           category="角色/星炬学院",
+           variants=(
+               # --- 既有机翻错形 ---
+               "Chisa", "CHISA", "奇莎", "奇萨", "千笑",
+               # --- 中文同音/音近（qiān xiào）---
+               "千啸", "千筱", "千晓", "千笑 ", "千霄", "千宵",
+               "牵笑", "芊笑", "千效", "千校", "千肖",
+               # --- 英文 ASR 音近（Chisa）---
+               "Chisa", "Chi-sa", "Chissa", "Chisa's", "Chisa`s",
+               "Chiasa", "Chisaa", "Chiisa", "Chisa!",
+           ),
+           ctx=((r"\bChisa\b", "千咲"), (r"\bChisa\b", "奇莎"),
+                (r"\bChisha\b", "炽霞")),
+           note="星炬学院/解弦之眼角色（官方中文'千咲'，日文 チサ；3.7 复刻池）。"
+                "英文恰为千咲罗马音 Chisa，ASR 易与 Chisha(炽霞) 混——"
+                "已有 CONTEXT_MAP (r'\\bChisha\\b', '千咲'→'炽霞') 回滚规则兜底，防误伤。"
+                "ASR 音近错形：'千咲'易咬成'千啸/千筱/千晓/千霄/千宵/牵笑/芊笑/千效/千校/千肖'；"
+                "英文侧 Chisa 易咬成 Chissa/Chiasa/Chisaa/Chiisa。"),
+    Entity("凌阳", modes=("bi",), en="Lingyang",
+           category="角色/鸣潮", variants=("灵阳",),
+           note="补 r3 '灵阳'->凌阳（#350/357/611/715，Lingyang 同音拆字）。既有 '陵阳' 保留。"),
+    Entity("相里要", modes=("bi",), en="Xiangli Yao",
+           category="角色/鸣潮", variants=("尚丽瑶",),
+           note="补 r3 '尚丽瑶'->相里要（#24，Shangli Yao 谷翻）。官方名 相里要。"),
+    Entity("洛可可", modes=("bi",), en="Roccia",
+           category="角色/鸣潮", variants=("罗蒂亚",),
+           note="补 r3 '罗蒂亚'->洛可可（#1212，Roccia 谷翻音译）。非正常中文词，裸键安全。"),
+    Entity("守岸人", modes=("bi",), en="The Shorekeeper",
+           category="角色/鸣潮", variants=("肖尔基珀",),
+           ctx=((r"[Ss]horekeeper", "岸上看守"),),
+           note="补 r3：肖尔基珀(#1037，非正常词裸键安全)；岸上看守(#325/961，正常短语，"
+                "须 Shorekeeper 佐证才改)。既有 短守/Shawkeeper/岸边管理员/空头/短手 保留。"),
+    Entity("共鸣者", modes=("bi",), en="Resonator",
+           category="术语/鸣潮",
+           ctx=((r"[Rr]esonator", "共振腔"), (r"[Rr]esonator", "共鸣腔")),
+           note="补 r3（走 ctx 锚定，正常词不裸进表）：共振腔(#6)/共鸣腔(#169/549/553)->共鸣者。"
+                "既有 CONTEXT '谐振器'->共鸣者 保留。"
+                "⚠ 展示会/屏幕时间 的目标词（展示/镜头时间）≠本实体 canonical（共鸣者），"
+                "不能用 Entity.ctx（会强制替换成 canonical），已改走 CONTEXT_MAP 原生三元组。"),
+    Entity("绯雪", modes=("bi",), en="Hiyuki", ja="ひゆき",
+           category="角色",
+           variants=(
+               # --- 既有机翻叠字/同音拆字/旧 Entity 合并 ---
+               "希希", "希幸", "Hiyoki", "桧纪",
+               # --- 中文同音/音近（fēi xuě）ASR 高频错形 ---
+               "非雪", "飞雪", "菲雪", "肥雪", "废雪",
+               "绯雪酱", "绯雪大人", "绯雪峰", "绯薛", "绯雪儿",
+               "费雪", "翡雪", "绯血", "绯鳕",
+               # --- 英文 ASR 音近（Hiyuki）---
+               "Hiyuki", "Hiuki", "Hyuki", "Hiyuki's",
+               "Hiyuki`s", "Hi-yuki", "Hiyukii", "Hiyukie", "Hiyuki!",
+               "Huyuki", "Hiyouki", "Hiyuke", "Hiyuk", "Hiyuuki",
+               "Hiyuki-chan", "Hiyuki chan",
+               # --- 日文原形 ---
+               "ひゆき", "ヒユキ", "緋雪", "日雪",
+           ),
+           ctx=((r"\bYuki\b", "雪"), (r"\bYuki\b", "由纪"),
+                (r"\bYuki\b", "悠纪"), (r"\bHiyuki\b", "日雪"),
+                (r"\bHiyuki\b", "桧雪"), (r"\bHiyuki\b", "绯雪")),
+           note="3.3 共鸣者「灼樱巫女」，主播本命。扁平表已有 Hiyuki/Huki/kiuki/日雪/桧雪；"
+                "本片机翻叠字'希希'(my Hyuki)归此，'希幸'亦 Hiyuki（同音拆字）。"
+                "ASR 音近错形：'绯雪'易咬成'非雪/飞雪/菲雪/肥雪/废雪/绯薛/费雪/翡雪/绯血/绯鳕'；"
+                "英文侧 Hiyuki 易咬成 Hiuki/Hyuki/Huyuki/Hiyouki/Hiyuke/Hiyuuki。"
+                "戒律：裸'Yuki'为常用日名不入全局，只走 \\bYuki\\b 参考行锚定。"),
+    Entity("莫宁", modes=("bi",), en="Mornye",
+           category="角色",
+           variants=("Monier", "莫尼尔"),
+           note="星炬学院隧者工学部教授/深空联合研究院工程师（百度百科·琳奈词条）。"
+                "Mouier/Mor 变体已在扁平表；本片 #169 Professor Monier、#184 Professor Mona(侧车)。"),
+    Entity("嘉贝莉娜", modes=("bi",), en="Galbrena",
+           category="角色/鸣潮", variants=("加尔雷娜",),
+           note="补 r3 '加尔雷娜'->嘉贝莉娜（#29，Galrena 谷翻）。官方名 嘉贝莉娜。"),
+    Entity("秋水", modes=("bi",), en="Aalto",
+           category="角色/鸣潮",
+           ctx=((r"\bAlto\b|\bAalto\b", "阿尔托"),),
+           note="补 r3 '阿尔托'->秋水（#64 'next up, Alto' 谷翻）。'阿尔托'常见西名绝不裸键。"
+                "⚠ 历史片源结论（2026-09-09 注释）称 Aalto=阿尔托 不改——那是 TCG 讨论片语境；"
+                "本片'next up, Alto'为角色章节报幕，官方中文=秋水（2026-09-24 官方图鉴复核）。"),
+    Entity("散华", modes=("bi",), en="Sanhua",
+           category="角色/鸣潮",
+           ctx=((r"\bSana\b|\bSanhua\b", "萨那"),),
+           note="补 r3 '萨那'->散华（#5 开场 'from Sana to Ching Xiao'）。'萨那'也门城市绝不裸键。"),
+    Entity("夏空", modes=("bi",), en="Ciaccona",
+           category="角色/鸣潮", variants=("沙科纳",),
+           note="补 r3 '沙科纳'->夏空（#1683，Shakona 谷翻）。既有 西科纳/萨库娜 保留。"),
+    Entity("卡提希娅", modes=("bi",), en="Cartethyia",
+           category="角色/鸣潮", variants=("卡蒂拉",),
+           note="补 r3 '卡蒂拉'->卡提希娅（#1694/1784，Cartilla 谷翻）。"
+                "与既有 CONTEXT '卡提拉'->坎特蕾拉(TCG 片) 为不同错形键，不冲突。"),
+    Entity("西格莉卡", modes=("bi",), en="Sigrika",
+           category="角色",
+           variants=("Sriraka", "Skrika"),
+           ctx=((r"\bSkrika\b", "尖叫"),),
+           note="星炬学院学生、达妮娅挚友（3.2 共鸣者）。扁平表已有 Sigrika/Skiprika/Sria 等；"
+                "短形 'Skip Ra'(#743)/'skip Raika'(#114) 为 ASR 文字游戏，侧车处理。"
+                "Skrika(#109) ASR 形：谷翻把专名误作普通词'尖叫'，故裸键 'Skrika'->西格莉卡 补"
+                "英文残留形，另用 ctx 参考行 \\bSkrika\\b 佐证把误译'尖叫'归 西格莉卡"
+                "（'尖叫'通用词绝不入裸键）。2026-09-23 沉淀。"),
+
 ]
 
 # ============================================================
@@ -3086,6 +3476,7 @@ _MUSIC_WW = [                       # 鸣潮 · 先约电台 EP（角色印象�
     ("碎花", "", "", ""),
     ("靛青宇宙", "", "", ""),
     ("夏空的歌", "", "", ""),
+    ("当飞鸟划过天空", "When the Bird Glides Across the Sky", "", ""),
     ("Everflow", "Everflow", "", ""),
     # --- 单曲（官方发行，有人声）---
     ("Never Let It Go", "Never Let It Go", "", ""),
@@ -3237,6 +3628,7 @@ def _rebuild_context_caches():
     """实体注册可能追加 CONTEXT/EXCLUDE 条目，重建各预编译缓存。"""
     global _CONTEXT_COMPILED, _EXCLUDE_COMPILED, _JA_CONTEXT_COMPILED
     global _JA_ENDFIELD_CONTEXT_COMPILED, _AK_KO_CONTEXT_COMPILED
+    global _REACT_CONTEXT_COMPILED
     _CONTEXT_COMPILED = [(re.compile(rx, re.I), wrong, right)
                          for rx, wrong, right in CONTEXT_MAP if wrong and right]
     _EXCLUDE_COMPILED = {w: (right, [re.compile(rx, re.I) for rx in rxs])
@@ -3245,6 +3637,8 @@ def _rebuild_context_caches():
     _JA_ENDFIELD_CONTEXT_COMPILED = [(re.compile(rx), wrong, right)
                                      for rx, wrong, right in JA_ENDFIELD_CONTEXT]
     _AK_KO_CONTEXT_COMPILED = [(re.compile(rx), wrong, right) for rx, wrong, right in AK_KO_CONTEXT]
+    _REACT_CONTEXT_COMPILED = [(re.compile(rx, re.I), wrong, right)
+                               for rx, wrong, right in REACT_CONTEXT if wrong and right]
 
 
 _register_entities()
@@ -4327,6 +4721,180 @@ def _cmd_verify(src, out):
     print("VERIFY OK：仅中文行变化，其它全部一致")
 
 
+_QA_EN_END = (".", "?", "!", "。")
+_QA_ZH_END = ("。", "！", "？", "…")
+# 中文行里允许出现的拉丁缩写白名单（真名/常用缩写，按需补充）
+_QA_EN_ALLOW = {"lol", "jay", "op", "pvp", "bgm", "kfc", "hp", "ai", "id", "tv", "pv"}
+
+
+def _qa_ends_sentence(s, ends):
+    """剥除行尾引号/括号/空白后，判断是否以句末标点收尾。"""
+    return s.strip().rstrip("\"'\u201d\u2019)\u3011]\u300d\uff09").endswith(ends)
+
+
+# 英文缩写/所有格的撇号（don't / I'm / waves' / Juno's）不是引号，不计入"引号未闭合"。
+# v1.16.0 修正：旧口径把这类单撇号也算未闭合，r3 实测 19% cue 被误豁免（699/742
+# 仅因撇号），标点门禁形同虚设；仅按双引号判又漏掉真引号未闭合的转述句。
+_QA_CONTRACTION = re.compile(r"[A-Za-z]'[A-Za-z]+|[A-Za-z]+'|'s\b")
+
+
+def _qa_unclosed_quotes(ref_s):
+    """参考行是否存在真正的未闭合引号（双引号奇数，或剥掉缩写撇号后单引号仍奇数）。"""
+    if ref_s.count('"') % 2 == 1:
+        return True
+    return _QA_CONTRACTION.sub("", ref_s).count("'") % 2 == 1
+
+
+def _qa_bigrams(s):
+    """行指纹：剥标记/空白/标点后取字符二元组（供错位检测比对）。"""
+    s = re.sub(r"[\s，。！？、；：“”\"…（）()\[\]_\-—~·.!?]", "", s)
+    return set(s[i:i + 2] for i in range(len(s) - 1)) if len(s) > 1 else ({s} if s else set())
+
+
+def _cmd_qa_align(src, out, max_shift=4, min_run=3, thr_lo=0.5, thr_gain=0.25):
+    """qa --src：错位（译文平移）检测。2026-09-24 r3 实测教训——并行分段精校时，
+    某段输出整体串行 N 条，verify 完全查不出（序号/时间轴/英文行都在），人工核对
+    又极易漏。思路：整句重写轮的新中文必然与**机翻旧中文**同源（保留句子的
+    专名/数字/词序痕迹），以旧中文为对齐锚：对每条 cue 计算 新中文 与
+    旧中文[i+k]（k∈[-max_shift,max_shift]）的指纹相似度；若最佳 k≠0
+    且连续成段（>=min_run 条同偏移），判为该区间译文平移 -> FAIL。
+    用法：qa <out.srt> --src <上一版.srt>。退出码 1=检出错位区间。"""
+    old = {int(n): (" ".join(z), r) for n, z, r in _iter_cue_lines(src)}
+    new = [(int(n), " ".join(z), r) for n, z, r in _iter_cue_lines(out)]
+    if len(old) != len(new):
+        print(f"qa-align: cue 数不一致 src={len(old)} out={len(new)}，先跑 verify")
+        return 1
+    flags = []
+    for pos, (num, zh, ref) in enumerate(new):
+        nb = _qa_bigrams(zh)
+        if not nb:
+            continue
+        best_k, best_s, cur_s = 0, -1.0, 0.0
+        for k in range(-max_shift, max_shift + 1):
+            o = old.get(num + k)
+            if not o:
+                continue
+            ob = _qa_bigrams(o[0])
+            s = len(nb & ob) / min(len(nb), len(ob)) if ob else 0.0
+            if k == 0:
+                cur_s = s
+            if s > best_s:
+                best_s, best_k = s, k
+        if best_k != 0 and best_s >= thr_lo and best_s > cur_s + thr_gain:
+            flags.append((num, best_k))
+    runs, seq = [], []
+    for num, k in flags:
+        # 续接条件：序号紧邻上一区**末条**且偏移一致（v1.16.0 修正：此前误比首条，
+        # 导致整段平移只记成一串孤立单条，min_run 永不命中、错位漏检）
+        if seq and num == seq[-1][2] + 1 and k == seq[-1][1]:
+            seq[-1][2] = num
+            seq[-1][3] += 1
+        else:
+            seq.append([num, k, num, 1])
+    runs = [s for s in seq if s[3] >= min_run]
+    print(f"qa-align: cues={len(new)} 可疑单条={len(flags)} 连续错位区间(>={min_run}条)={len(runs)}")
+    for a, k, b, c in runs:
+        print(f"  ⚠ #{a}..#{b} 偏移 k={k:+d}（{c} 条）——该区译文疑与序号平移，逐条人工复核")
+    if runs:
+        print("QA-ALIGN FAIL：检出疑似错位区间（verify 查不出此类问题）")
+        return 1
+    print("QA-ALIGN OK：未检出连续平移错位")
+    return 0
+
+
+def _cmd_qa(path, skip=(), en_gate=False, top=10):
+    """qa：重写轮中文行内容质检（标点/标记/引号/行宽为门禁，英文残留为提示）。
+
+    来源：鸣潮全角色演示反应视频第 3 轮 rewrite（逐 cue 整句重写中文）。
+    verify 只断言结构零改动、length 只管行宽，都不检查重写后的中文行本身。
+    四类机检项（r3 实测该规则可 100% 对齐，人工核对易漏，本轮曾漏过一次 >> 残留）：
+      punct  —— 句末标点与英文参考行不对齐：英文以 .?! 结尾中文却悬空，
+                或英文无句末标点（话未说完）中文却擅自收尾；
+      marker —— 说话人标记对齐（v1.16.0 重写）：旧口径一刀切禁止中文行出现 ">"，
+                与"保留 >> 与参考行对齐"的本工作区规范冲突（r3 实测 1156 处误报）。
+                新规：① 中文行 >> 前缀必须与参考行 >> 前缀逐 cue 一致；
+                     ② 前缀之外中文行任意位置出现 > / » 仍判 FAIL（残留/串写信号）。
+      quote  —— 中文行混用英文直引号（须统一为弯引号）；
+      width  —— 行宽超限（复用 length 的判据）。
+    另附提示项 en：中文行残留 3 个以上连续拉丁字母（漏改的英文单词）。
+    合法缩写较多，默认只列出、不入门禁；--en-gate 可强制。
+    英文参考行就在同一双语文件内，故无需 --src。
+    用法：qa <out.srt> [--skip punct,marker,quote,width] [--en-gate] [--top N]
+    退出码：0=门禁全过；1=任一项 FAIL。
+    """
+    if not os.path.exists(path):
+        print(f"[qa] 文件不存在: {path}")
+        return 1
+    fails, en_left, dangling = {}, [], []
+    cues = exempt = 0
+    for num, zh_lines, ref in _iter_cue_lines(path):
+        cues += 1
+        n = int(num)
+        zh = "\n".join(zh_lines)
+        # marker（v1.16.0）：前缀对齐 + 前缀外无 > / »
+        ref_has = ref.strip().startswith(">>")
+        zh_has = zh.lstrip().startswith(">>")
+        rest = "\n".join(re.sub(r"^>{1,2}\s*", "", t) for t in zh_lines)
+        if ref_has != zh_has or ">" in rest or "\u00bb" in rest:
+            fails.setdefault("marker", []).append((n, zh[:40]))
+        if '"' in zh:
+            fails.setdefault("quote", []).append((n, zh[:40]))
+        for t in zh_lines:
+            w = line_width(t)
+            if w > MAX_LINE_WIDTH:
+                fails.setdefault("width", []).append((n, f"{w:.1f} {t[:36]}"))
+        for tok in re.findall(r"[A-Za-z]{3,}", zh):
+            if tok.lower() not in _QA_EN_ALLOW:
+                en_left.append((n, tok))
+        ref_s = ref.strip()
+        # 引号未闭合：英文句点属于引号内部，中文允许不带句末标点
+        # （v1.16.0：缩写撇号 don't/I'm 不算未闭合，豁免率 19.0% -> 1.9%，r3 实测）
+        if _qa_unclosed_quotes(ref_s):
+            exempt += 1
+            continue
+        ends_en = _qa_ends_sentence(ref_s, _QA_EN_END)
+        ends_zh = _qa_ends_sentence(zh_lines[-1], _QA_ZH_END)
+        # punct 诚实严格：英文以 .?! 收尾而中文未收尾 = 重写丢了句末标点，如实报。
+        # （跨条连贯是允许的，但"英文收句、中文不写句号"本身是可修的标点问题，不为其放宽门禁）
+        if ends_en and not ends_zh:
+            fails.setdefault("punct", []).append(
+                (n, f"[应收尾] {zh_lines[-1][:36]}"))
+        elif ends_zh and not ends_en:
+            dangling.append((n, f"[应悬空] {zh_lines[-1][:36]}"))
+    print(f"qa {os.path.basename(path)}: cues={cues}"
+          f" | 标点豁免（英文引号未闭合）{exempt} 条")
+    bad = []
+    for k in ("punct", "marker", "quote", "width"):
+        lst = fails.get(k, [])
+        if k in skip:
+            print(f"  [跳过      ] {k}")
+            continue
+        print(f"  [{'FAIL' if lst else 'OK':<9} ] {k}" + (f" ({len(lst)} 处)" if lst else ""))
+        for n, frag in lst[:top]:
+            print(f"      #{n} {frag}")
+        if len(lst) > top:
+            print(f"      ... 另有 {len(lst) - top} 处")
+        if lst:
+            bad.append(k)
+    if dangling:
+        print(f"  [提示      ] punct 应悬空 {len(dangling)} 处（中文按内容提前收句，多为合理，未入门禁）")
+        for n, frag in dangling[:top]:
+            print(f"      #{n} {frag}")
+        if len(dangling) > top:
+            print(f"      ... 另有 {len(dangling) - top} 处")
+    if en_left:
+        uniq = sorted({t.lower() for _, t in en_left}, key=str.lower)
+        print(f"  [提示      ] en 残留 {len(en_left)} 处，去重: " + "、".join(uniq[:40]))
+        if en_gate:
+            bad.append("en")
+    if bad:
+        print(f"QA FAIL：{'、'.join(bad)}")
+        return 1
+    print("QA OK：句末标点/台词标记/弯引号/行宽"
+          + ("（含英文残留）" if en_gate else "") + " 全部通过")
+    return 0
+
+
 def _cmd_compare(src, out, tsv):
     """compare：比对两个 SRT 生成 错误vs正确 对照表（序号/原文中文/校准后中文/英文行）。"""
     def parse(p):
@@ -4503,7 +5071,7 @@ def main_argv():
     if argv and not argv[0].startswith("-"):
         sub = argv[0]
         if sub in ("extract", "split", "merge", "verify", "compare", "scan", "lint",
-                   "subfix", "terms-check", "termscheck", "terms", "length",
+                   "subfix", "terms-check", "termscheck", "terms", "length", "qa",
                    "kb-export", "kb-lookup", "kb-lint",
                    "learn", "learned-show", "learned-promote", "learned-reject",
                    "kb-sync", "kb-push"):
@@ -4607,9 +5175,16 @@ def main_argv():
 def _cmd_lint(cues, calib_src):
     """lint：校验校准表相对 cue 表的完整性与文本质量。
     检查：重复序号 / 缺号（cue表有序号而校准表漏写）/ 越界序号 / 空文案 /
+    非 Tab 分隔行（会被 _load_calib_records 静默丢弃）/
     中文文案中的意外拉丁-变音残留（白名单外的英文单词）/
     2026-09-05 沉淀自 Gloomwald's Rage 二次校准：分段书写 calib_*.tsv 时
-    曾出现序号重复（127 写两遍）与外文残留（undeniable/càng/chord shape）。"""
+    曾出现序号重复（127 写两遍）与外文残留（undeniable/càng/chord shape）。
+    2026-09-23 沉淀自 Ace Combat 8 / P3R 音乐 reaction 直播轮（4509 cue）：
+    ① calib_H.tsv 整段 244 行用「空格」而非 Tab 分隔 → 只表现为「缺号 265 个」，
+       真因极难定位；故新增非 Tab 分隔行告警。
+    ② 拉丁残留误报治理：《》/「」内拉丁串、被切成两 cue 的曲名（首个》之前、
+       末个《之后）、全大写缩写（DLC/P3R/SEES）一律豁免，误报 409->112。
+       残留的专名/曲名（Daredevil/Zero/Wings/人名）为刻意保留，逐条人工确认即可。"""
     cue_nums = []
     for ln in open(cues, encoding="utf-8").read().splitlines()[1:]:
         m = re.match(r"(\d+)\t", ln)
@@ -4628,9 +5203,15 @@ def _cmd_lint(cues, calib_src):
     else:
         files = [calib_src]
     for p in files:
-        for ln in _decode_any(open(p, "rb").read()).splitlines():
+        for i, ln in enumerate(_decode_any(open(p, "rb").read()).splitlines(), 1):
+            if not ln.strip():
+                continue
             m = re.match(r"(\d+)\t", ln.lstrip("\ufeff"))
             if not m:
+                # 2026-09-23 沉淀：calib_H.tsv 曾整段用「空格」分隔（244 行），
+                # _load_calib_records 静默丢弃 → 外部只看到「缺号」，极难定位。
+                problems.append(
+                    f"{os.path.basename(p)}:{i} 非 Tab 分隔行（会被静默丢弃）: {ln[:36]}")
                 continue
             n = m.group(1)
             seen[n] = seen.get(n, 0) + 1
@@ -4644,17 +5225,38 @@ def _cmd_lint(cues, calib_src):
         problems.append(f"缺号 {len(missing)} 个: {missing[:20]}{'...' if len(missing) > 20 else ''}")
     # 文本质量：空文案 / 拉丁残留（音名 A-G、变音记号与常用保留词白名单）
     keep_words = {"music", "sus", "add", "flat", "sharp", "boss", "alex", "oreos",
-                  "ooh", "oh", "ok", "pvp", "ost", "ost", "ost", "ost", "ost"}
+                  "ooh", "oh", "ok", "pvp", "ost", "riff", "dub", "sub",
+                  # 2026-09-23 音乐 reaction 直播轮（Ace Combat 8 / P3R / FE）沉淀：
+                  # 官方无中文的曲名·作品名·平台专名，命中即豁免（曲名整串另见《》豁免）
+                  "everflow", "reload", "persona", "online", "sees", "lotus", "juice",
+                  "marco", "gta", "youtube", "discord", "patreon", "reddit", "midi",
+                  "vst", "abc", "goat", "larper", "soy", "pog", "face", "undertale",
+                  "clair", "obscur", "wuthering", "waves", "heat", "kool", "aid",
+                  "boyardee", "jojo", "ipad", "sega", "atlas", "psp",
+                  "playstation", "matty", "rich", "obscure",
+                  "daphne", "tim", "unk", "twitchstar", "com", "v"}
     single_notes = set("abcdefg")          # 音名 A-G 允许
     for k in sorted(orig, key=int):
         txt = orig[k]
         if not txt.strip():
             problems.append(f"#{k} 空文案")
+        # 《》/「」内的拉丁串 = 刻意保留的作品名/曲名，整段豁免
+        bracketed = set()
+        for b in re.findall(r"[《「]([^》」]*)[》」]", txt):
+            bracketed.update(w.lower() for w in re.findall(r"[A-Za-zÀ-ɏ]+", b))
+        # 曲名常被切在相邻两 cue：开号《之前 / 收号》之后多为正文，故只豁免
+        # 首个收号》之前 与 末个开号《之后 的片段
+        for seg in ((txt.split("》", 1)[0] if "》" in txt else ""),
+                    (txt.rsplit("《", 1)[1] if "《" in txt else "")):
+            if seg:
+                bracketed.update(w.lower() for w in re.findall(r"[A-Za-zÀ-ɏ]+", seg))
         for w in re.findall(r"[A-Za-zÀ-ɏ]+", txt):
             lw = w.lower()
-            if lw in keep_words:
+            if lw in keep_words or lw in bracketed:
                 continue
             if len(w) == 1 and lw in single_notes:
+                continue
+            if len(w) >= 2 and w.isupper():    # 全大写缩写 DLC/P3R/SEES/MGS3/GOAT
                 continue
             problems.append(f"#{k} 拉丁残留: {w}（{txt[:24]}）")
     if problems:
@@ -4676,11 +5278,17 @@ def _dispatch_subcommand(sub, args):
             opts["n"] = int(args[i + 1]); i += 2
         elif a == "--min" and i + 1 < len(args):
             opts["min"] = int(args[i + 1]); i += 2
+        elif a == "--skip" and i + 1 < len(args):
+            opts["skip"] = set(x.strip() for x in args[i + 1].split(",") if x.strip()); i += 2
+        elif a == "--top" and i + 1 < len(args):
+            opts["top"] = int(args[i + 1]); i += 2
+        elif a == "--en-gate":
+            opts["en-gate"] = True; i += 1
         elif a == "--fix":
             opts["fix"] = True; i += 1
         elif a == "--all":
             opts["all"] = True; i += 1
-        elif a in ("--out", "--compare", "--side", "--letters", "--file") and i + 1 < len(args):
+        elif a in ("--out", "--compare", "--side", "--letters", "--file", "--src") and i + 1 < len(args):
             opts[a[2:]] = args[i + 1]; i += 2
         elif a == "--json":
             opts["json"] = True; i += 1
@@ -4722,6 +5330,14 @@ def _dispatch_subcommand(sub, args):
         if len(pos) < 2 or "out" not in opts:
             print("用法: subfix <src.srt> <fix.tsv> --out out.srt [--compare tsv] [--side tsv]"); return
         _cmd_subfix(pos[0], pos[1], opts["out"], opts.get("compare"), opts.get("side"))
+    elif sub == "qa":
+        if not pos:
+            print("用法: qa <out.srt> [--src 上一版.srt] [--skip punct,marker,quote,width] [--en-gate] [--top N]"); return 1
+        rc = _cmd_qa(pos[0], skip=opts.get("skip", ()),
+                     en_gate=bool(opts.get("en-gate")), top=opts.get("top", 10))
+        if opts.get("src"):                       # 错位门（rewrite 轮强烈建议带上）
+            rc = max(rc or 0, _cmd_qa_align(opts["src"], pos[0]))
+        return rc
     elif sub == "length":
         if not pos:
             print("用法: length <a.srt> [b.srt ...] [--all]"); return 0
@@ -5507,7 +6123,11 @@ def _sync_maybe_auto():
 
 
 def _sync_inject_all():
-    """把 applied.json 中生效条目注入本地表（校准运行时兜底；kb-sync 已注入）。"""
+    """把 applied.json 中生效条目注入本地表（校准运行时兜底；kb-sync 已注入）。
+    与 _cmd_kb_sync 一致地遵守 config.disabled_keys（条目级下线）：被禁用的键
+    即便仍残留在 applied.json 里也不再注入。修复：原兜底漏过 disabled_keys，
+    导致离线/VT_NO_SYNC 路径下 jpe 裸键「叹->唉」下线后仍被回灌，误伤
+    「惊叹/感叹/叹息」等正常词（2026-09-23 Typhoeus 片 #21 触发）。"""
     ap = os.path.join(_sync_local_dir(), "applied.json")
     if not os.path.isfile(ap):
         return 0
@@ -5516,9 +6136,13 @@ def _sync_inject_all():
             data = json_load(f.read())
     except Exception:
         return 0
+    dis = {tuple(x) for x in (_sync_cfg().get("disabled_keys") or [])}
     applied = {}
     for k, v in (data.get("entries") or {}).items():
-        applied[tuple(k.split("\x1f"))] = v
+        kk = tuple(k.split("\x1f"))
+        if kk in dis:
+            continue
+        applied[kk] = v
     return _sync_apply(applied)
 
 
