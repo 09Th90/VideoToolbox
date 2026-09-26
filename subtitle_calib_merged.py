@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 1.14.1
+# @version 1.15.7
 """字幕校准统一脚本（唯一入口，可复用，每次校准任务优先调用本脚本）
 
 本文件是工作区全部历史校准脚本的统一沉淀（双语 calib_rules、韩语
@@ -27,8 +27,8 @@ SRT 结构：序号 / 时间轴 / 中文行(被改) / 参考行(默认不改)。
   EN_LINE_TERM_FIXES      英文/参考行 ASR 错词修正（仅 --fix-en 时应用）
   ENTITIES                对象级知识层（2026-09-11 起新对照一律以 Entity 追加于此，
                           注册时自动投影进上述扁平表；见文件第 6 节）
-注意各片源术语按模式分开应用，勿混（如"谢谢你=能天使"是鸣潮角色名，
-在韩语片源里是"谢谢"本意；终末地术语也不能套到鸣潮片源）。
+注意各片源术语按模式分开应用，勿混（同一个中文词在不同片源里含义可能不同；
+终末地术语也不能套到鸣潮片源）。
 
 ERROR 占位行回填（谷翻批量失败的高频场景；2026-09-10 3.6 日语反应片 492/663 条即此例）：
   ① 先统计首文本列 == "ERROR" 的 cue 占比；占比高即整体重译回填，勿只做术语替换；
@@ -184,7 +184,6 @@ BILINGUAL_TERMS = {
     "哀歌者": "鸣式",                                              # 鸣式（鸣潮怪物）
     "灵魂誓约者": "昭日者",                                        # soul sworn 官方译名
     "光属性": "衍射属性",                                          # spectro 元素
-    "谢谢你": "能天使",                                            # 角色名“能天使”被误译为“谢谢你”（仅名字语境）
     "沃奥": "阿尔图罗",                                            # Arcturo
     "日雪": "绯雪",                                                # Xueli?  绯雪
     "大建筑师": "残星会会长",                                      # Fractsidus 首领
@@ -329,6 +328,11 @@ BILINGUAL_TERMS = {
     "路虎": "漂泊者", "漫游车": "漂泊者",                          # Rover 被译成汽车品牌/火星车
     "同步员": "同步者",                                            # synchronist 统一
     "异能跨步者": "隧者", "跨行者": "隧者",                  # exor strider 机翻/简写
+    # 2026-09-22 补：Exostrider 的**子词直译**机翻形态（Exo=外骨骼 + strider=行者/跨步者）。
+    # 此前只收了音译/简写错形（异能跨步者/跨行者/步行者），漏了这条最高频的直译，导致校准后仍留"外骨骼行者"。
+    # 键序无需手排（_replace_report 自动长键优先），但**必须补复数形态**防短键咬出"…们"。
+    "外骨骼行者们": "隧者", "外骨骼行者": "隧者",
+    "外骨骼的行者": "隧者", "外骨骼跨步者": "隧者",
     "小伊斯": "小爱弥斯", "利莫斯": "爱弥斯",                      # little Ith / Limoth
     "Imeth": "爱弥斯", "IMATH": "爱弥斯", "IMth": "爱弥斯", "IMAD": "爱弥斯",
     "Sigon": "辛吉勒姆",                                           # Sigilum 变体
@@ -539,6 +543,40 @@ BILINGUAL_TERMS = {
     "喉咙歌唱": "呼麦",                                             # throat singing（本片两处）
     "铁匠悟空": "黑神话：悟空",                                      # Blackmith Wukong = Black Myth: Wukong
     "凋零波浪": "鸣潮", "风化波浪": "鸣潮",                           # Withering/Weathering Waves 机翻残留
+    # --- 2026-09-20 ECHO OPTIMIZATIONS!! Wuthering Waves 3.7 Livestream Reaction（微软翻译前瞻反应片）二次校准沉淀 ---
+    # 微软翻译官方前瞻字幕片特性：口播段本身就是中文，痛点是 ASR 同音错形，且"深海/换取/明朝/今夕/
+    # 供应者/漂浮者/微型任务/恶障/天宫/灵智异常/林奈/弹切/决心破/玄琴(韩国乐器 가야금)"等误形源自
+    # **通用中文词**，按硬契约第 4 条不得入裸键表，只能逐 cue 整行覆盖（见 _calib_tmp_37live/rebuild.py）。
+    # 以下仅收专名级安全错形（均为 3.7「镜锁妄世，心照红尘」官方名词的错形，检索依据：官网前瞻通讯+库街区）：
+    "索明": "锁暝", "水明": "锁暝",                                  # Suoming 锁暝 微软翻译同音错形
+    "星月湖": "心月狐",                                              # 心月狐 Hsin 错形
+    "昭昭和年月": "朝朝何年月",                                      # 危行任务官方名
+    "梦书天罗": "梦枢天罗", "梦书天炉": "梦枢天罗",                  # 3.7 新区域官方名
+    "天罗湖影": "天罗狐影",                                          # 梦枢天罗巨大狐影
+    "信誉稳定值": "心域稳定值",                                      # 心钥井玩法数值
+    "全方城": "玄方城",                                              # 玄方城错形
+    "图音消除": "无音消除",                                          # 休闲活动官方名
+    "洛塞拉": "洛瑟菈", "洛瑟拉": "洛瑟菈",                          # Lucilla 官方名 洛瑟菈
+    "潜影于明日": "显影于明日",                                      # 洛瑟菈唤取池官方名
+    "玉雀玄华": "玉阙玄华",                                          # 心专武官方名
+    "应感仪": "音感仪", "灵感仪": "音感仪",                          # 武器类型官方名
+    "星湖年糕": "心狐粘糕",                                          # 心最爱食物官方名
+    "千笑": "千咲",                                                  # Qiuxiao? Chisa 千咲 错形
+    "成春": "承春", "陈琉璃": "沉琉璃",                              # 心/锁暝饰品官方名
+    "巡骁枪卫": "巡霄枪卫",                                          # 新声骸官方名
+    "于心所向": "余心所向",                                          # 锁暝唤取池「余心所向九死未悔」
+    "慢于银缺石轴": "漫于盈缺时轴", "宠物银线之间": "曙暮一线之间",  # 尤诺/千咲 复刻池官方名
+    "雾梦寻迹": "故梦寻契",                                          # 留影收集活动官方名
+    "烧烤摩托": "科考摩托",                                          # 奖励载具官方名
+    "净世之器": "禁锁十契", "净所时期": "禁锁十契", "禁所实际": "禁锁十契",  # 锁暝组织官方名错形
+    "既成琴": "璇情",                                                # 奇谭任务『璇心如月寄尘情』少女名
+    "天宫寻物": "天工寻物",                                          # 四字活动名整体专名（"天宫"裸词危险，不加）
+    "深海背包": "声骸背包", "深海体系": "声骸体系", "深海装配": "声骸装配",  # 声骸组合词（"深海"裸键危险，只收三字以上组合）
+    "深海编队": "声骸编队", "深海推荐": "声骸推荐", "深海种类": "声骸种类",
+    "深海们": "声骸们",
+    "星月琳琅集": "心月琳琅集",                                      # 飞讯礼包官方名
+    # "达尼亚->达妮娅" 不入表：terms-check 报与既有键 "Dasidia->达斯维达尼亚" 级联
+    #   （长键先替换后，短键会咬掉"达斯维达尼亚"里的"达尼亚"）；本片该错形走逐 cue 覆盖。
 }
 
 # 保留英文不译的专名（仅提示，不替换）
@@ -964,13 +1002,12 @@ _CONTEXT_COMPILED = [(re.compile(rx, re.I), wrong, right)
 
 # --- 2026-09-08 负向排除上下文（高歧义词防护，仅双语模式）---
 # BILINGUAL_TERMS/CONTEXT_MAP 中个别词在特定口语/非游戏语境会误伤。例：
-#   谢谢你=能天使 是角色名译名，但口语/闲聊片源（如 Thanks La 讨论片）整片"谢谢你"
-#   都是字面 thank you；帐篷=十连 是抽卡术语，但语言讨论语境 tent 是 text 的 ASR 误听。
+#   帐篷=十连 是抽卡术语，但语言讨论语境 tent 是 text 的 ASR 误听；
+#   简而言之=这个短片里 是机翻错形，但参考行 in short 本就是"简而言之"。
 # 机制：术语被替换后，若参考行(英文)命中下列任一排除正则，回滚该替换并从命中统计移除。
 # 结构：{wrong: (right, (排除正则...))}，right 用于回滚（须与所在术语表的 value 一致）。
 # 比无条件替换更精准，不依赖人工负例注释。新增歧义词时按此结构追加。
 EXCLUDE_CONTEXT = {
-    "谢谢你": ("能天使", (r"\bthanks?\b", r"\bthank you\b", r"\bty\b")),   # 字面致谢语境
     "帐篷": ("十连", (r"\bwritten tent\b",)),                              # 语言讨论语境 tent=text 误听
     # --- 2026-09-08 NO ONE CAN CONTROL THEMSELVES! 负例沉淀 ---
     # #1049 "In short, Fong Hold has weathered..."——In short 本就是"简而言之"，
@@ -1007,7 +1044,7 @@ WORD_MAP = {
 #     JA_TERMS    无歧义中文机译错形 -> 正确（仅收正常中文里不会出现的错形，鸣潮日语片专用）
 #     JA_CONTEXT  (日语参考行正则, 中文错形, 正确)：必须日语行佐证才改，防普通词误伤
 #   戒律：日语片 ありがとう=谢谢本意，故日语模式绝不加载 BILINGUAL_TERMS
-#   （其"谢谢你->能天使"在日语片是误伤）；ジラ 前半=自分(自己)、后半抽卡语境=心，
+#   （其指向游戏专名的映射在日语片会误伤本意）；ジラ 前半=自分(自己)、后半抽卡语境=心，
 #   这类随语境翻转的词不进自动表，留给 extract/split 后的人工分段校准。
 # =============================================================
 JA_TERMS = {
@@ -1413,6 +1450,13 @@ KO_TERMS = {
     '张里': '长离',
     # —— 乘霄山(승소산) 变体补充 ——
     '胜利奖': '乘霄山',
+    # —— 2026-09-22 沉淀：《[명조] 이게 쿠로의 맛인가.. 2주년 PV + 데니아 PV + 3장 5막 에필로그》
+    #     韩语原声 + 谷翻中文行（4543 cue）。以下键均逐条对照韩语参考行确认无误后才入表：
+    #     卡蒂西亚(카르티시아)=卡提希娅 / 守望者(파수인)=守岸人 / 外骨骼行者(엑소스트라이더)=隧者 /
+    #     星触(스타터치)=星炬 / 虚空计量器·空隙计(보이드메터)=虚空计量表 / 丹雅·多尼娅(데니아/되니아)=达妮娅 /
+    #     莱罗伊·拉海·罗伊(라하이로이)=拉海洛 / 弗洛雷罗·弗洛拉(플로러로)=弗洛洛 / 莉纳西塔(리나시타)=黎那汐塔 /
+    #     兰贾(랑자)=漂泊者 / 残像会议(잔상회)·山城会(잔성회)·全成(전성)=残星会 / 斯塔托赫(스타토치)=星炬。
+    #     ⚠ 裸键"流浪者/残酷/著名"是通用中文词（流浪者可能正常语境），禁入表，只能韩语佐证逐 cue 覆盖。
     '卡蒂西亚': '卡提希娅',
     '守望者': '守岸人',
     '外骨骼行者': '隧者',
@@ -1431,6 +1475,12 @@ KO_TERMS = {
     '残像会议': '残星会',
     '山城会': '残星会',
     '全成': '残星会',
+    # —— 2026-09-22 第4轮（检索官方中文后）追加。来源：库洛官网版本说明/百度百科/灰机WIKI/fandom。
+    #     西格莉卡(시그리카)=星炬学院学生·罗伊符文共鸣者，官方名"西格莉卡"（本片31处机翻"西格丽卡"）；
+    #     阿列夫一(알레프원)=鸣式 Aleph One 官方名"阿列夫一"（残星会资产/容器为达妮娅）；
+    #     秘日六席(헬리오틱6)=Heliotix Six，西格莉卡为罗伊族未来"秘日六席"之一，能力称"昭日者"；
+    #     苇原(아시노하라)=绯雪(Hiyuki)故乡，官方"苇原"（本片"芦原/芦花"→苇原）。
+    #     ⚠ 绯雪(Hiyuki) 的中文错形（日向/日雪/日置/雪女/日向木）均为通用中文词，禁入表，只能韩语佐证逐 cue 覆盖。
     '西格丽卡': '西格莉卡',
     '阿拉夫一号': '阿列夫一',
     '阿列夫一号': '阿列夫一',
@@ -1878,10 +1928,10 @@ _AK_KO_CONTEXT_COMPILED = [(re.compile(rx), wrong, right) for rx, wrong, right i
 MERGE_FIXES = [
     ("巫师", "维什戴尔"),        # Wizard/Wizardell = Wisadel
     ("巫泽尔", "维什戴尔"),      # Wizardell
-    ("夏·新约", "新约能天使"),   # Xia the new covenant
     ("特蕾迪亚", "酒神"),        # Tradia = Tragodia
     ("可露希尔", "克洛丝"),      # closure = Kroos（抽卡语境）
     ("阿雷迪亚", "arkpedia"),    # Aredia = arkpedia（网站）
+    ("夏·新约", "新约能天使"),   # Xia the new covenant
 ]
 
 # =============================================================
@@ -1986,43 +2036,47 @@ REACT_TERMS = {
     "冷狼": "Crywolf", "哭狼": "Crywolf",   # crywolf 机翻直译；社区昵称恰为"哭狼"，字幕仍统一保留英文名
     "梦巫师克雷沃尔夫": "Crywolf", "克雷沃尔夫": "Crywolf",
     "我们改变了钥匙": "我们转调了",          # change key 机翻直译（长键，避免误伤"钥匙"本义）
-    "Noticefall": "源初之结", "notice fall": "源初之结", "Nodusfall": "源初之结",
-    "Noticefall": "源初之结", "notice fall": "源初之结", "Nodusfall": "源初之结",
+    # ---- 2026-09-21 gacha 争议片《Gacha Games Are Soulless Copies Of Actual Games》沉淀 ----
+    # 片源：英语原声 + 谷翻，694 cue（每 cue 恰 2 行：中文 + 英文参考行），主题为
+    #   「抽卡游戏(gacha)是否是现实游戏『无灵魂复制品』」的辩论，大量游戏/角色专名。
+    # 处理：extract→逐 cue 对着英文参考行整行重写中文→二次检索官方中文后精修；verify+length 全过。
+    # 官方依据（均已检索确认）：
+    #   Noticefall / Nodusfall = 米哈游新作《源初之结》（类怪物猎人多人共斗 ARPG，Gamescom 2026 首曝，
+    #     被指像《艾尔登法环》+《怪物猎人》）；Ananta = 网易《无限大》（Naked Rain）；
+    #   Duet Night Abyss(DNA) = 英雄游戏《二重螺旋》（Pan Studio，被指抄袭 Warframe）；
+    #   Mighty = 万敌（崩坏：星穹铁道角色，与 Fate 吉尔伽美什立绘撞车引争议）；
+    #   Jane Doe = 简·杜（绝区零）；Uncus/Unctus = Eunectes 森蚺（明日方舟萨尔贡重装，盾+斧+机甲）。
+    # 戒律：以下键均为**英文专名/特殊串**，作源键安全；替换目标不带书名号（中文行若已用《》包裹会自动衔接）。
+    #   ⚠️ DNA / 深空之眼 **不在此表**——"DNA"是通用词（脱氧核糖核酸，本片就有"脱氧核糖核酸"直译）、
+    #      "深空之眼"是真实游戏（Aether Gazer）官方名，裸键会误伤正常语境；
+    #      它们已通过下方 `REACT_CONTEXT` 参考行佐证机制（英文 \bDNA\b / D Night Abyss 命中才替换）安全入表。
     "Noticefall": "源初之结", "notice fall": "源初之结", "Nodusfall": "源初之结",
     "Ananta": "无限大",
     "Jane Doe": "简·杜",
     "Mighty": "万敌",
     "Uncus": "森蚺", "Unctus": "森蚺",
-    "Uncus": "森蚺", "Unctus": "森蚺",
-    "一切幻想网": "everythingfantasy.net",   # Everything Fantasy 频道官网机翻直译
-    "西科纳": "夏空", "锡科纳": "夏空",          # Sikona（Ciaccona 误听）机翻音译
-    "西科纳": "夏空", "锡科纳": "夏空",          # Sikona（Ciaccona 误听）机翻音译
-    "萨库娜": "夏空", "萨库纳": "夏空",          # Sakuna（同上）音译变体
-    "萨库娜": "夏空", "萨库纳": "夏空",          # Sakuna（同上）音译变体
-    "当鸟儿滑过天空": "当飞鸟划过天空",          # 曲名机翻直译 -> 官方中文曲名（长键）
-    "明日方舟内场": "《明日方舟：终末地》",   # Arknights Infield 机翻直译；长键安全（"内场"单用是通用词）
-    "Cry Wolf": "Crywolf", "cry wolf": "Crywolf",   # 谷翻保留英文原样，统一为社区通用写法
-    "Cry Wolf": "Crywolf", "cry wolf": "Crywolf",   # 谷翻保留英文原样，统一为社区通用写法
-    "People of People": "人们，我们", "people of people": "人们，我们",
-    "People of People": "人们，我们", "people of people": "人们，我们",
-    "人们的人": "人们，我们",              # 机翻直译（长键安全）
-    "感觉中的氛围": "音律联觉",            # Ambience Synesthesia 机翻直译（长键安全）
-    "克里斯·布罗塔托": "Chris Brocato",    # Chris Brocato 机翻音译
-    "Chris Broatato": "Chris Brocato",
-    "科罗罗卡托": "Chris Brocato",         # 同上，主播自问自答段落的另一种机翻形态
-    "Cororocato": "Chris Brocato",
-    "Adam Gum": "Adam Gubman",             # Adam Gubman 被截断
-    "Kane German": "Cain German",
-    "巴乌纳": "BaoUner", "布纳": "BaoUner", # BaoUner 机翻音译
-    "巴乌纳": "BaoUner", "布纳": "BaoUner", # BaoUner 机翻音译
-    "弓主人": "BaoUner",                   # "bow owner" 机翻直译（长键安全）
-    "管理员不鞠躬": "BaoUner",             # "bow wer admin" 机翻直译（长键安全）
-    "对自由的崇敬": "敬畏自由",            # reverence for freedom 机翻直译（长键安全）
-    "不受束缚者之夜": "无缚者之夜",        # Night of the Unshackled Ones 机翻直译（长键安全）
-    "瓦尔革命": "Val Revolution",          # 主播念作 Val Revolution（无官方中文，保留英文）
 }
 # 用法：python subtitle_calib_merged.py --react <input.srt> --out out.srt
 #   --react 与游戏模式互斥；仅套用 REACT_TERMS 统一首中文行（不动英文/参考行）。
+
+# 3.1e reaction 片「参考行佐证」歧义词表（2026-09-21 新增，仅 --react 生效）
+# =============================================================
+# 与 REACT_TERMS 的区别：REACT_TERMS 是无条件子串替换（适合英文专名键）；
+# 这里收的是**歧义中文词**——裸键会误伤正常语境，必须等英文参考行命中正则才替换。
+# 结构：[(英文正则, 中文错误形式, 中文正确形式)]，与 CONTEXT_MAP 同构。
+# 应用时机：在 REACT_TERMS 替换之后，仅当该 cue 的英文参考行命中正则且中文行含错误形式才替换。
+# 2026-09-21 gacha 争议片沉淀（官方依据见 REACT_TERMS 注释块）：
+#   DNA = Duet Night Abyss《二重螺旋》——但 "DNA" 是通用词（脱氧核糖核酸，本片就有直译），
+#     且 "DNA Tower Fantasy"（二重螺旋+幻塔）也以 DNA 打头，必须英文 \bDNA\b 佐证；
+#   「深空之眼」是真实游戏（Aether Gazer）官方名，本片却是 Duet Night Abyss 的 ASR 误听
+#     （英文 D Night Abyss = Duet Night Abyss），须英文佐证才敢替换。
+REACT_CONTEXT = [
+    (r"\bDNA\b", "DNA", "《二重螺旋》"),
+    (r"\bDNA\b", "脱氧核糖核酸", "《二重螺旋》"),
+    (r"[Dd] ?[Nn]ight ?[Aa]byss", "深空之眼", "《二重螺旋》"),
+]
+_REACT_CONTEXT_COMPILED = [(re.compile(rx, re.I), wrong, right)
+                           for rx, wrong, right in REACT_CONTEXT if wrong and right]
 
 # =============================================================
 # 5. 英文参考行修正资产（2026-08-29 并入；原 ERROR 占位行翻译表已于同日删除）
@@ -2079,12 +2133,6 @@ EN_LINE_TERM_FIXES = {
     # 证据：arknights.wiki.gg/wiki/Episode_14/OST（Arknights / Yuka Kitamura）
     "Ark Knights": "Arknights",                            # ASR 误拆
     "Kamura": "Kitamura",                                  # 作曲家 Yuka Kitamura（片内 #258/#709/#736 作 Kitamura）
-    "Wavering": "Wuthering",                               # Wuthering Waves 误听
-    "Sikona": "Ciaccona", "Sakuna": "Ciaccona",            # 角色 Ciaccona（夏空）误听
-    "Sikona": "Ciaccona", "Sakuna": "Ciaccona",            # 角色 Ciaccona（夏空）误听
-    "Infield": "Endfield",                                 # 片内 #3 "Arknights Infield"（Endfield 误听）；短键注意棒球术语 in-field 误伤，仅 --fix-en 生效
-    "he isen": "Hsin",                                     # "Hsin's" 被 ASR 拆成 "he isen ' s"；键含空格足够特定，仅 --fix-en 生效
-    "Lady Shen": "Lady Hsin",                              # Lady Hsin（心大人）误听，#20/#31/#42；仅 --fix-en 生效
 }
 
 # =============================================================
@@ -2177,7 +2225,6 @@ _MODE_TERM_TABLE = {
 _MODE_CTX_TABLE = {
     "bi": "CONTEXT_MAP", "ja": "JA_CONTEXT", "jpe": "JA_ENDFIELD_CONTEXT",
     "akko": "AK_KO_CONTEXT",
-    "akko": "AK_KO_CONTEXT", "react": "REACT_CONTEXT",
 }
 _MODE_NAMES = {
     "bi": "中英双语", "ja": "日语原声·鸣潮", "jpe": "日语原声·终末地",
@@ -2272,6 +2319,40 @@ ENTITIES = [
                 "2026-09-25《寻心》片：Hsin's 被 ASR 拆成 he isen（谷翻'他伊森'），Lady Hsin "
                 "误听 Lady Shen（谷翻'沉夫人'），均 ctx 锚定归此。"
                 "exclude 防'Land Rover/Defender'等越野车品牌被 Rover 键误伤（漂泊者=Rover）。"),
+    Entity("锁暝", modes=("bi", "ja"), en="Suoming", ja="サメイ",
+           category="角色/岁主",
+           variants=(
+               # --- 中文同音/音近（suǒ míng）---
+               "锁瞑", "锁冥", "锁明", "锁名", "锁铭", "锁鸣",
+               "所暝", "所冥", "索暝", "索冥", "琐暝", "琐明", "唢暝",
+               # --- 既有机翻错形（BILINGUAL_TERMS/JA_TERMS 散落键聚合）---
+               "苏明", "苏凌", "苏舒明", "索明", "水明",
+               "Suming", "Suling", "Schuming", "Summit",
+               # --- 英文 ASR 音近（Suoming 官方罗马音）---
+               "Suoming", "Suo Ming", "Swoming", "Suomin", "Somin",
+               "SUOMING", "suoming", "Suomimg", "Suorming",
+               "Souming", "Suowming", "Suomming", "Suomiing",
+               "Suomng", "Suomig", "Suomign", "Suomingg",
+               # --- 日语片假名昵称 ---
+               "サメイ", "サメちゃん", "サメィ", "鲛美",
+               "鲫美酱", "鲛美酱", "鲇美酱", "萨米酱", "鲨鱼酱",
+               "萨姆酱", "小沙姆", "萨梅伊", "鲛名酱",
+               # --- 组合词：岁主/组织 ---
+               "锁暝岁主", "Sentinel Suoming", "Suoming Sentinel",
+           ),
+           ctx=((r"\bswimming\b", "游泳"), (r"\bSuoming\b", "游泳"),
+                (r"\bswimming\b", "苏明"), (r"\bSuoming\b", "锁瞑"),
+                (r"\bSuoming\b", "锁冥"), (r"\bSuoming\b", "锁明"),
+                (r"\bSuoming\b", "锁名"), (r"\bswimming\b", "锁瞑"),
+                (r"\bSentinel\b", "锁暝"), (r"\bMoon\b", "锁暝"),
+                (r"\bSuoming\b", "索明"), (r"\bSuoming\b", "水明")),
+           note="鸣潮 3.7 双五星之二（2026-09-30 上线），岁主形态，专武'沉冥'。"
+                "官方中文'锁暝'（目+冥，非'锁瞑'目+瞑）；执掌组织'谛天鉴'，"
+                "所属'禁锁十契'。英文罗马音 Suoming；ASR 常咬成 Swoming/Suomin/Somin/"
+                "Suomimg/Suorming/Souming/Suowming；机翻按 swimming 音近误译'游泳/苏明/索明/水明'。"
+                "日语片昵称 サメイ/サメちゃん（鲨鱼酱/小沙姆），JA_TERMS 已收；"
+                "本 Entity 聚合 bi+ja 双模式全部散落键，防遗漏。"
+                "戒律：'游泳'为普通词绝不进 variants，只走 \\bswimming\\b 参考行锚定。"),
     Entity("阿列夫一", modes=("bi",), en="ALF1 / Alfan", ja="アルフワン",
            category="敌人/鸣式",
            variants=("阿尔夫", "ALF1", "LF1", "阿尔凡", "Alfan", "阿尔夫一人",
@@ -2372,11 +2453,6 @@ ENTITIES = [
            category="势力",
            variants=("Fracidus",),
            note="本片 #554 Fraidus'/Fracidus' door ASR 变体。"),
-    Entity("绯雪", modes=("bi",), en="Hiyuki", ja="ひゆき",
-           category="角色",
-           variants=("Hiyoki", "桧纪"),
-           note="3.3 共鸣者「灼樱巫女」。扁平表已有 Hiyuki/Huki/kiuki/桧雪；"
-                "裸'Yuki'(#363) 为常用日名不入全局，侧车处理。"),
     Entity("琳奈", modes=("bi",), en="Linny / Lenna",
            category="角色",
            variants=("Linn",),
@@ -2498,43 +2574,10 @@ ENTITIES = [
            ctx=((r"\bbroadblade\b", "大剑"),),
            note="鸣潮武器类型 Broadblade 官方中文=长刃（景燃武器；wuthering.gg/dailiantong 确认）。"
                 "机翻易按 Genshin 习惯误作'大剑'。'大剑'为泛用词，只走参考行 \\bbroadblade\\b 锚定。"),
-    Entity("锁暝", modes=("bi", "ja"), en="Suoming", ja="サメイ",
-           category="角色/岁主",
-           variants=(
-               # --- 中文同音/音近（suǒ míng）---
-               "锁瞑", "锁冥", "锁明", "锁名", "锁铭", "锁鸣",
-               "所暝", "所冥", "索暝", "索冥", "琐暝", "琐明", "唢暝",
-               # --- 既有机翻错形（BILINGUAL_TERMS/JA_TERMS 散落键聚合）---
-               "苏明", "苏凌", "苏舒明", "索明", "水明",
-               "Suming", "Suling", "Schuming", "Summit",
-               # --- 英文 ASR 音近（Suoming 官方罗马音）---
-               "Suoming", "Suo Ming", "Swoming", "Suomin", "Somin",
-               "SUOMING", "suoming", "Suomimg", "Suorming",
-               "Souming", "Suowming", "Suomming", "Suomiing",
-               "Suomng", "Suomig", "Suomign", "Suomingg",
-               # --- 日语片假名昵称 ---
-               "サメイ", "サメちゃん", "サメィ", "鲛美",
-               "鲫美酱", "鲛美酱", "鲇美酱", "萨米酱", "鲨鱼酱",
-               "萨姆酱", "小沙姆", "萨梅伊", "鲛名酱",
-               # --- 组合词：岁主/组织 ---
-               "锁暝岁主", "Sentinel Suoming", "Suoming Sentinel",
-           ),
-           ctx=((r"\bswimming\b", "游泳"), (r"\bSuoming\b", "游泳"),
-                (r"\bswimming\b", "苏明"), (r"\bSuoming\b", "锁瞑"),
-                (r"\bSuoming\b", "锁冥"), (r"\bSuoming\b", "锁明"),
-                (r"\bSuoming\b", "锁名"), (r"\bswimming\b", "锁瞑"),
-                (r"\bSentinel\b", "锁暝"), (r"\bMoon\b", "锁暝"),
-                (r"\bSuoming\b", "索明"), (r"\bSuoming\b", "水明")),
-           note="鸣潮 3.7 双五星之二（2026-09-30 上线），岁主形态，专武'沉冥'。"
-                "官方中文'锁暝'（目+冥，非'锁瞑'目+瞑）；执掌组织'谛天鉴'，"
-                "所属'禁锁十契'。英文罗马音 Suoming；ASR 常咬成 Swoming/Suomin/Somin/"
-                "Suomimg/Suorming/Souming/Suowming；机翻按 swimming 音近误译'游泳/苏明/索明/水明'。"
-                "日语片昵称 サメイ/サメちゃん（鲨鱼酱/小沙姆），JA_TERMS 已收；"
-                "本 Entity 聚合 bi+ja 双模式全部散落键，防遗漏。"
-                "戒律：'游泳'为普通词绝不进 variants，只走 \\bswimming\\b 参考行锚定。"),
-    Entity("夏空", modes=("bi",), en="Ciaccona",
-           category="角色/鸣潮", variants=("沙科纳",),
-           note="补 r3 '沙科纳'->夏空（#1683，Shakona 谷翻）。既有 西科纳/萨库娜 保留。"),
+    # --- 2026-09-20 增补：鸣潮 3.7「镜锁妄世，心照红尘」前瞻官方名词（9月30日上线）
+    #     依据：wuwa.uk/zh/articles/wuwa-3-7-preview-2026、搜狐 1078561190、TapTap 前瞻直播总结 850470334392963021。
+    #     说明：3.7 尚未上线，暂无 ASR/机翻错形沉淀；先登记 canonical+en 元数据，
+    #     上线后 reaction 片出现错形再增量追加 variants。 ---
     Entity("梦枢天罗", modes=("bi",), category="地点/新地区",
            variants=("梦书天罗", "梦殊天罗", "梦淑天罗", "门枢天罗",
                      "梦树天罗", "梦墅天罗", "梦枢天锣", "梦枢添罗",
@@ -2591,6 +2634,11 @@ ENTITIES = [
            note="鸣潮 3.7 新主线章节名（前瞻直播官方名）。"),
     Entity("璇心如月寄尘情", modes=("bi",), category="奇谭",
            note="鸣潮 3.7 新奇谭章节名（前瞻直播官方名）。"),
+    # --- 2026-09-20 增补（二次校准）：鸣潮 3.7「镜锁妄世，心照红尘」补充实体。
+    #     依据：wuwa.uk/zh/articles/wuwa-3-7-preview-2026、taptap 850470334392963021、
+    #     233乐园 2095401601570680832（心月狐/锁暝实机演示）、163.com L77JK0RL05561FYA
+    #     （3.7 定档 9/30、梦枢天罗、心之井、同奏/变奏、奇谭任务、团团勇者大乱斗、
+    #      无音消除、Wuwa Tappo、轨迹回顾、月追祭/追月节回看、声骸堆叠、编队 20 组）。 ---
     Entity("镜锁妄世，心照红尘", modes=("bi",), category="版本/副标题",
            variants=("镜锁妄世心照红尘", "镜锁妄世 心照红尘",
                      "境锁妄世，心照红尘", "镜锁妄世，心照宏尘",
@@ -2647,6 +2695,9 @@ ENTITIES = [
                 (r"\bEcho set\b", "合鸣效果")),
            note="鸣潮声骸套装系统官方名（对应英文 Sonata）。3.7 新增三种全新合鸣效果。"
                 "戒律：'合鸣效果'为专有名词但'共鸣'为通用机制词，只走 Sonata/Echo set 锚定。"),
+    # --- 2026-09-20 增补：明日方舟 ×《女神异闻录3 Reload》联动 SideStory「月行水上」
+    #     （9月4日已上线）。依据：ak.hypergryph.com/news/9681.html、百度百科「结城理」、
+    #     233乐园 2095371353272860672、新浪新闻 5337291081910764。 ---
     Entity("结城理", modes=("ak",), en="Yuki Makoto", ja="結城理",
            category="干员/联动·P3R",
            variants=(
@@ -2773,6 +2824,9 @@ ENTITIES = [
                 "官方中文'女神异闻录3 Reload'（Reload 保留英文，非'重制版'）。"
                 "ASR 常见错形：数字'3'被读成'三/III'；'Reload'被咬成'reloaded/重制'；"
                 "空格丢失'Persona3Reload'。"),
+    # --- 2026-09-20 增补：终末地 1.4「向渊行」（7月16日）+ 1.5「雪淞幽梦」（9月2日）
+    #     依据：endfield.hypergryph.com、TapTap 官方前瞻 826747279820983499、
+    #     百度百科「向渊行」、fz.wiki「干员/梨诺」、end.canmoe.com「梨诺」。 ---
     Entity("梨诺", modes=("endo", "jpe"), en="Liino",
            category="干员",
            variants=(
@@ -2861,6 +2915,7 @@ ENTITIES = [
                 "'千夫长'=罗马军制 Chiliarch，非'将军/千人长'）。旧表已收'阿莱克琉斯'短键，此处补全头衔。"
                 "ASR 音近错形：'阿莱克琉斯'易咬成'阿莱克鲁斯/阿莱克留斯/阿莱克硫斯/阿莱克柳斯/"
                 "阿莱克雷乌斯/阿莱克纽斯'；'千夫长'易咬成'千父长/前夫长/千服长/千付长/千府长/千妇长/千夫涨/千夫章'。"),
+    # --- 2026-09-20 增补：鸣潮 3.6-3.7 活跃角色（尚无独立 Entity，散在 BILINGUAL_TERMS）---
     Entity("洛瑟菈", modes=("bi",), en="Lucilla",
            category="角色/星炬学院校长",
            variants=(
@@ -2930,14 +2985,17 @@ ENTITIES = [
                 "ASR 音近错形：'清宵'易咬成'清霄/清晓/清笑/清哮/清消/清逍/清潇/清萧'；"
                 "'青霄'为既有机翻错形；英文侧 Qingxiao/Ching Xiao/Chingsha/Chingcha 等已收。"
                 "戒律：日语片'聖/聖書'=清宵(セイショウ)非心月狐(シン)，勿混。"),
-    Entity("鸣潮", modes=("bi", "react"), en="Wuthering Waves", ja="鳴潮", ko="명조",
-           category="作品/游戏",
-           variants=("鸣潮涛",),
-           note="库洛游戏《鸣潮》（英文 Wuthering Waves，日文 鳴潮，韩文 명조）。"
-                "本表只收**片源实测的非正常中文错形**：'鸣潮涛'为谷翻把 Wuthering Waves "
-                "拆译的残留（2026-09-23《尘外客》reaction 片实测）。"
-                "戒律：'凋零波浪/风化波浪'等通用词义错形不得作裸键（见 BILINGUAL_TERMS 同名注释）；"
-                "无实测证据的音近错形一律不臆造。"),
+    # ============================================================
+    # 2026-09-22 音乐台词 · 多语对照（鸣潮 / 明日方舟 / 终末地）
+    #   用途：音乐 reaction / OST 分析片（bi / react / ak / endo）中**跨语识别同一专名**。
+    #   戒律（用户 2026-09-22 指定）：
+    #     ① 曲名/专辑名在四语服常为**各自独立的官方名**（非直译）；有官方外文名才填 en/ja/ko；
+    #     ② **只有单一语种官方名的，不翻译、保留原语言**（如明日方舟曲名保留英文、
+    #        终末地曲名保留中文），en/ja/ko 一律留空，**不臆造译名**；
+    #     ③ 音译/意译错形无片源实测证据前不入 variants（防误伤）。
+    #   来源：库街区鸣潮官方 EP 页、bangumi 696519、acgwiki.tw、dengqi.ren 专题、
+    #         萌娘百科「塞壬唱片 / Give Me Something」、新浪游戏「向渊行OST上线」、17173。
+    # ============================================================
     Entity("鸣潮先约电台", modes=("bi", "react"), en="", ja="", ko="",
            category="厂牌/音乐·鸣潮",
            variants=("先约电台", "先約電臺", "先約电台"),
@@ -2997,6 +3055,17 @@ ENTITIES = [
                 "（萌娘百科记中文译名'给我一些指引'，非官方）——按单语保留原语言，"
                 "字幕若出现机翻中文应还原为英文，ja/ko 留空。"
                 "来源：萌娘百科「Give Me Something」、17173 报道。"),
+    Entity("夏空", modes=("bi",), en="Ciaccona",
+           category="角色/鸣潮", variants=("沙科纳",),
+           note="补 r3 '沙科纳'->夏空（#1683，Shakona 谷翻）。既有 西科纳/萨库娜 保留。"),
+    Entity("鸣潮", modes=("bi", "react"), en="Wuthering Waves", ja="鳴潮", ko="명조",
+           category="作品/游戏",
+           variants=("鸣潮涛",),
+           note="库洛游戏《鸣潮》（英文 Wuthering Waves，日文 鳴潮，韩文 명조）。"
+                "本表只收**片源实测的非正常中文错形**：'鸣潮涛'为谷翻把 Wuthering Waves "
+                "拆译的残留（2026-09-23《尘外客》reaction 片实测）。"
+                "戒律：'凋零波浪/风化波浪'等通用词义错形不得作裸键（见 BILINGUAL_TERMS 同名注释）；"
+                "无实测证据的音近错形一律不臆造。"),
     Entity("丹瑾", modes=("bi",), en="Danjin",
            category="角色/鸣潮",
            variants=("团津",),                          # #120/121 "who's Tanjin" 谷翻
@@ -3043,6 +3112,172 @@ ENTITIES = [
            note="补 r3 '卡蒂拉'->卡提希娅（#1694/1784，Cartilla 谷翻）。"
                 "与既有 CONTEXT '卡提拉'->坎特蕾拉(TCG 片) 为不同错形键，不冲突。"),
 ]
+
+# ============================================================
+# 2026-09-22 音乐曲库 · **有歌词（人声）歌曲**多语对照
+#   ⚠ 只收**有人声演唱**的歌（角色印象曲 / 主题曲 / 活动曲 / 合作曲，
+#     含游戏内出现过的人声曲与官方 PV 人声曲）；**不收**纯器乐 BGM/OST 伴奏。
+#   戒律（用户 2026-09-22 指定）：
+#     ① 曲名在四语服常为**各自独立的官方名**（非直译），**有官方外文名才填**；
+#     ② **只有单一语种官方名的，不翻译、保留原语言**（en/ja/ko 留空）；
+#     ③ 严禁臆造译名；本表只作多语元数据（variants 一律留空，音译错形待片源实测沉淀）。
+#   格式：(官方曲名, en, ja, ko)；空串 = 该语种无独立官方名。
+#   来源：百度百科「鸣潮」游戏原声、萌娘百科「鸣潮音乐列表/塞壬唱片」、歌词坊 gecifang、
+#         觅歌词「鸣潮人声歌曲合集」、巴哈姆特 EP 一览、Wikiwand 鸣潮音乐列表、Shazam MSR。
+# ============================================================
+_MUSIC_WW = [                       # 鸣潮 · 先约电台 EP（角色印象曲）+ 单曲
+    # --- EP0 / 公测 EP ---
+    ("Saving Light", "Saving Light", "", ""),
+    ("Waking of a World", "Waking of a World", "", ""),
+    # --- EP1.x ---
+    ("往岁乘霄", "Thawing Fates", "過ぎし乗霄山の歳月", "승소산의 메아리"),
+    ("月华如愿", "", "", ""),
+    ("未尽之歌", "An Unfinished Song", "未完成の歌", "끝나지 않은 노래"),
+    ("一千万种可能", "A Million Possibilities", "", ""),
+    # --- EP2.x ---
+    ("昼梦盛宴", "Grand Feast Daydream", "昼夢グランドフィースト", "꿈의 카니발"),
+    ("ONE", "ONE", "", ""),
+    ("Daisy Crown", "Daisy Crown", "", ""),
+    ("不羁灵魂之王（虽然是自封）（但包的）",
+     "THE KING OF WAYWARD SOULS (SELF PROCLAIMED)(BUT DESTINED)", "", ""),
+    ("沉沦幻海", "Elusive Seas", "沈む幻海", "바닷속 환상의 자장가"),
+    ("下班？", "", "", ""),
+    ("Lulala! Lululala!", "", "", ""),
+    ("Against the Tide（逆潮）", "Against the Tide", "", ""),
+    ("RUNNING FOR YOUR LIFE（无所遁藏）", "RUNNING FOR YOUR LIFE", "", ""),
+    ("彼岸的安魂曲", "Requiem of the Beyond", "彼岸のレクイエム", "피안의 진혼곡"),
+    ("Endless Pulse（烈血湍流）", "Endless Pulse", "", ""),
+    ("今夜不属于月亮（There's No Moonlight This Night）",
+     "There's No Moonlight This Night", "", ""),
+    ("远光点（APHELION [Galbrena's Lullaby]）",
+     "APHELION [Galbrena's Lullaby]", "", ""),
+    ("不辞远", "", "", ""),
+    ("破茧之华", "Slashing Bloom", "切り咲く", ""),
+    # --- EP3.x ---
+    ("Catch Me If You Can", "Catch Me If You Can", "", ""),
+    ("Unwritten in the Stars（若能触及群星）", "Unwritten in the Stars", "", ""),
+    ("纸飞机", "", "", ""),
+    ("Thawing Light（融光）", "Thawing Light", "", ""),
+    ("L!!!!ght", "L!!!!ght", "", ""),
+    ("坠入虚无（Decensus Ad Nihilum）", "Decensus Ad Nihilum", "", ""),
+    ("直到下次再见（Dasvidaniya）", "Dasvidaniya", "", ""),
+    ("愿（One More Wish）", "One More Wish", "", ""),
+    ("Replay（重映）", "Replay", "", ""),
+    ("待春归", "", "", ""),
+    # --- 飞行雪绒 EP / 特辑 / 周年 ---
+    ("碎花", "", "", ""),
+    ("靛青宇宙", "", "", ""),
+    ("夏空的歌", "", "", ""),
+    ("Everflow", "Everflow", "", ""),
+    # --- 单曲（官方发行，有人声）---
+    ("Never Let It Go", "Never Let It Go", "", ""),
+    ("奔流，因你不息", "", "", ""),
+    ("潮骚レゾナンス", "", "潮騒レゾナンス", ""),
+    ("Turning Around（余烬重燃）", "Turning Around", "", ""),
+    ("Brand New Sky（新世界的天空）", "Brand New Sky", "", ""),
+    ("星祝", "", "", ""),
+    ("To the Finale（未黯之光）", "To the Finale", "", ""),
+    ("Beautiful Tomorrow", "Beautiful Tomorrow", "", ""),
+    ("Dawnbreaker", "Dawnbreaker", "", ""),
+    ("Deadline Disco（极限迪斯科）", "Deadline Disco", "", ""),
+]
+_MUSIC_AK = [                       # 明日方舟 · 塞壬唱片（人声曲；多数无官方中文，保留英文）
+    ("Grown-up's Paradise", "Grown-up's Paradise", "", ""),
+    ("铁花飞", "TIE HUA FEI", "", ""),
+    ("Speed of Light", "Speed of Light", "", ""),
+    ("Running In The Dark", "Running In The Dark", "", ""),
+    ("Everything's Alright", "Everything's Alright", "", ""),
+    ("Radiant", "Radiant", "", ""),
+    ("Mystic Light Quest", "Mystic Light Quest", "", ""),
+    ("浸春芜", "", "", ""),
+    ("Bluish Light", "Bluish Light", "", ""),
+    ("Little Wish", "Little Wish", "", ""),
+    ("Boiling Blood", "Boiling Blood", "", ""),
+    ("Renegade", "Renegade", "", ""),
+    ("秋绪", "", "", ""),
+    ("春弦", "", "", ""),
+    ("示岁", "", "", ""),
+    ("独行长路", "", "", ""),
+    ("故乡的风", "", "", ""),
+    ("夏浪", "", "", ""),
+    ("尽波澜", "", "", ""),
+    ("更阑影", "", "", ""),
+    ("观心", "", "", ""),
+    ("冬涤", "", "", ""),
+    ("从那高地上远眺", "", "", ""),
+    ("Ensheath", "Ensheath", "", ""),
+    ("Believing", "Believing", "", ""),
+    ("Immutable", "Immutable", "", ""),
+    ("Miss You", "Miss You", "", ""),
+    ("Blade Catcher", "Blade Catcher", "", ""),
+    ("Sealed", "Sealed", "", ""),
+    ("The Walk", "The Walk", "", ""),
+    ("Paper Boat", "Paper Boat", "", ""),
+    ("Follow Your Heart", "Follow Your Heart", "", ""),
+    ("When We Were the Most Beautiful", "When We Were the Most Beautiful", "", ""),
+    ("Across the Wind", "Across the Wind", "", ""),
+    ("Ständchen", "Ständchen", "", ""),
+    ("Stainless Heart", "Stainless Heart", "", ""),
+    ("Spark For Dream", "Spark For Dream", "", ""),
+    ("Echoism", "Echoism", "", ""),
+    ("Revealing", "Revealing", "", ""),
+    ("The After", "The After", "", ""),
+    ("Sentenced", "Sentenced", "", ""),
+    ("Somniomancer (Null Set)", "Somniomancer (Null Set)", "", ""),
+    ("Dormant Craving", "Dormant Craving", "", ""),
+    ("A Sweet Rendez-vous", "A Sweet Rendez-vous", "", ""),
+    ("碧い瞳の中に（in your blue eyes）", "in your blue eyes", "碧い瞳の中に", ""),
+    ("Untitled world", "Untitled world", "", ""),
+    ("Alive", "Alive", "", ""),
+    ("R.I.P.", "R.I.P.", "", ""),
+    ("ACHE in PULS", "ACHE in PULS", "", ""),
+    ("Misty Memory", "Misty Memory", "", ""),
+    ("冲破穹顶", "", "", ""),
+    ("熠曲丰碑", "", "", ""),
+    ("时序花圃", "", "", ""),
+    ("雾色秘访", "", "", ""),
+    ("镜花水月", "", "", ""),
+    ("愚人曲", "", "", ""),
+    ("赴大荒", "", "", ""),
+    ("Vows of the Sea", "Vows of the Sea", "", ""),
+    ("Storyteller", "Storyteller", "", ""),
+    ("Broken Sun", "Broken Sun", "", ""),
+    ("Muse", "Muse", "", ""),
+    ("Whistle Stop", "Whistle Stop", "", ""),
+    ("未许之地", "", "", ""),
+    ("无名策", "", "", ""),
+    ("Wanna Know Me?", "Wanna Know Me?", "", ""),
+    ("辞岁行", "", "", ""),
+    ("反常光谱", "", "", ""),
+    ("次生预案", "", "", ""),
+    ("无忧梦呓", "", "", ""),
+    ("促融共竞", "", "", ""),
+]
+_MUSIC_ENDO = [                     # 终末地 · 铁痕电台-MSR（人声曲；曲名多为中文，保留原语言）
+    ("宜", "", "", ""),
+    ("万象将醒", "", "", ""),
+    ("闪焰预兆", "", "", ""),
+    ("冷烬", "", "", ""),
+    ("日晕", "", "", ""),
+    ("折光成像", "", "", ""),
+    ("回燃", "", "", ""),
+    ("最喜欢的一张", "", "", ""),
+    ("造物道别", "", "", ""),
+    ("像素绘涂", "", "", ""),
+    ("寻觅漫步", "", "", ""),
+    ("反引力悬浮", "", "", ""),
+    ("夕流", "", "", ""),
+    ("编织光流", "For Your Name", "", ""),
+]
+for _songs, _modes, _label in (
+        (_MUSIC_WW, ("bi", "react"), "鸣潮·先约电台"),
+        (_MUSIC_AK, ("ak", "react"), "明日方舟·塞壬唱片"),
+        (_MUSIC_ENDO, ("endo", "react"), "终末地·铁痕电台")):
+    for _c, _en, _ja, _ko in _songs:
+        ENTITIES.append(Entity(_c, modes=_modes, en=_en, ja=_ja, ko=_ko,
+                               category=f"曲目/{_label}",
+                               note="有歌词（人声）歌曲。空字段=该语种无独立官方名，"
+                                    "按'单语保留原语言'处理，勿臆造译名。"))
 
 
 def _register_entities(entities=ENTITIES):
@@ -3790,7 +4025,15 @@ def process(path, out_path=None, report_path=None, mode="bi",
                         if new != old:
                             rows.append((num, old, new, ref))
                             out[zh_idx] = new
-                    elif mode in ("ko", "wwoc", "react", "pgren", "zel"):  # 韩语/综合游戏/音乐点评/战双英文原声/塞尔达：统一首中文行术语（不动参考行）
+                    elif mode == "react":     # 音乐/演唱点评：REACT_TERMS 统一首中文行 + REACT_CONTEXT 参考行佐证歧义词
+                        new = _replace_report(old, term_pairs, term_chars, hits)
+                        for crx, wrong, right in _REACT_CONTEXT_COMPILED:
+                            if wrong in new and crx.search(ref):
+                                new = new.replace(wrong, right)
+                        if new != old:
+                            rows.append((num, old, new, ref))
+                            out[zh_idx] = new
+                    elif mode in ("ko", "wwoc", "pgren", "zel"):  # 韩语/综合游戏/战双英文原声/塞尔达：统一首中文行术语（不动参考行）
                         new = _replace_report(old, term_pairs, term_chars, hits)
                         if new != old:
                             rows.append((num, old, new, ref))
