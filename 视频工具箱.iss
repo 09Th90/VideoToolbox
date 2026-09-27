@@ -110,6 +110,19 @@ Source: "github_proxy.yaml"; DestDir: "{app}"; Flags: ignoreversion
 Source: "tools\ffmpeg.exe"; DestDir: "{app}\tools"; Flags: ignoreversion nocompression
 Source: "tools\ffprobe.exe"; DestDir: "{app}\tools"; Flags: ignoreversion nocompression
 Source: "tools\yt-dlp.exe"; DestDir: "{app}\tools"; Flags: ignoreversion nocompression
+; yt-dlp 提取 YouTube 需 JS 运行时（deno，与 yt-dlp.exe 同目录自动发现）；
+; v1.15.8 补：此前离线包漏了它，装完下载功能不可用
+Source: "tools\deno.exe"; DestDir: "{app}\tools"; Flags: ignoreversion nocompression
+; 内置代理 mihomo 核心（v1.15.8 补）：此前离线包只带了小脚本、漏了整个
+; tools\mihomo\，装完 YouTube 无法经代理访问。**仅分发无凭据的核心二进制与
+; GeoIP 库**——config.yaml/runtime.yaml 含节点凭据、且 runtime.yaml/cache.db
+; 是运行期生成物，一律不进包（与在线安装器 v1.14.1 安全整改一致：公开仓库
+; 严禁泄漏订阅凭据）。用户装后在「设置→代理」导入自己的订阅即可。
+Source: "tools\mihomo\mihomo.exe"; DestDir: "{app}\tools\mihomo"; Flags: ignoreversion nocompression
+Source: "tools\mihomo\geoip.metadb"; DestDir: "{app}\tools\mihomo"; Flags: ignoreversion nocompression
+; libmpv 播放组件（字幕编辑页 LGPL 构建，v1.15.8 补）：程序虽有运行时自动
+; 下载兜底（ensure_mpv_dll），但离线全量包直接带上更开箱可用；纯二进制无凭据
+Source: "tools\mpv\libmpv-2.dll"; DestDir: "{app}\tools\mpv"; Flags: ignoreversion nocompression
 ; 内嵌 Python 运行时（VideoCaptioner 字幕引擎及其依赖随包分发，开箱可用）；
 ; 排除字节码缓存瘦身
 Source: "tools\python\*"; DestDir: "{app}\tools\python"; Flags: ignoreversion recursesubdirs createallsubdirs; Excludes: "*.pyc,__pycache__"

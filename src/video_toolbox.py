@@ -5996,6 +5996,42 @@ def output_template(folder, filename_tpl="%(title)s.%(ext)s"):
     return os.path.join(safe_folder, filename_tpl)
 
 
+def hls_alt_format(meta, fid):
+    """给定 itag，找出「同画质、同编码家族」的 m3u8 分片源 itag。
+
+    2026-09 起 YouTube 的 videoplayback 直链有两条新限制：
+      1. 不带 Range 请求的一律 HTTP 403（yt-dlp 默认整体 GET 正好踩中）；
+      2. 单条直链服务能力有限（实测约 5 次请求 / 数十 MB 后失效），
+         大文件几乎不可能一次下完。
+    HLS(m3u8) 分片源每片独立取、每片天然是分段请求，实测 1080p 也能稳定下完，
+    所以要能在直链失败时改走 HLS。这里负责挑出对应的 HLS itag。
+
+    找不到（该画质没有 HLS 源，或 meta 不是 YouTube 的）返回 None，
+    调用方应保持原行为，不要因为这个函数出问题而中断下载。
+    """
+    try:
+        fmts = (meta or {}).get("formats") or []
+        cur = next((f for f in fmts if str(f.get("format_id")) == str(fid)), None)
+        if not cur:
+            return None
+        height = cur.get("height")
+        if not height:
+            return None
+        codec = (cur.get("vcodec") or "").split(".")[0]
+        cands = [f for f in fmts
+                 if f.get("height") == height
+                 and "m3u8" in str(f.get("protocol") or "")
+                 and (f.get("vcodec") or "none") != "none"]
+        if not cands:
+            return None
+        same = [f for f in cands
+                if (f.get("vcodec") or "").split(".")[0] == codec]
+        pick = (same or cands)[0]
+        return str(pick.get("format_id")) if pick.get("format_id") else None
+    except Exception:  # noqa: BLE001
+        return None
+
+
 # ========== 下载字幕的「滚动式重叠」整理（v1.13.7） ==========
 # 平台（YouTube 等）给出的自动字幕是**滚动**结构：同一条的结束时间会一直延伸
 # 到"下一条的结束"，于是整份字幕大面积互相压住（实测某 3566 条的字幕里有
