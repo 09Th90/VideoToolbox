@@ -24,6 +24,7 @@ v1.10.3 说明：字幕引擎已内嵌进主程序 exe（videocaptioner 及其�
 """
 import argparse
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -113,6 +114,33 @@ def link_or_copy(s: Path, d: Path, force_copy: bool):
     shutil.copy2(s, d)
 
 
+def verify_embedded_sources(exe: Path, expect_first: str) -> None:
+    """生成后自检：扫描 exe 明文里的 <Url> 序列，确认主源与配置一致。
+
+    历史事故（v1.15.8 在线包，2026-09-27）：生成时用了
+    `--repo-url http://127.0.0.1:8123/`，它会把 config.xml 的**第一个** <Url>
+    （官方源）原地顶掉，而 <DisplayName> 仍是「官方源（GitHub Pages · 海外）」，
+    外观完全看不出异常。发布后用户端 Welcome 页直接报
+    `Cannot retrieve remote tree.`——因为 8123 端口根本没有服务。
+    此后每次生成都强制自检，主源不是官方源就显式告警。
+    """
+    blob = exe.read_bytes()
+    found = [u.decode("utf-8", "replace").strip()
+             for u in re.findall(rb"<Url>([^<]*)</Url>", blob)]
+    if not found:
+        print("   [warn] exe 内未解析到 <Url>（可能被压缩存储），跳过主源自检")
+        return
+    print("   exe 内嵌仓库源（顺序 = 下载优先级）：")
+    for u in found:
+        print(f"      {u}")
+    if expect_first and found[0] != expect_first:
+        sys.exit(f"自检失败：exe 主源为 {found[0]!r}，与 config 预期 "
+                 f"{expect_first!r} 不一致，请检查是否误用了 --repo-url")
+    if "github.io" not in found[0]:
+        print("   [warn] 主源不是 GitHub Pages 官方源——"
+              "仅调试/局域网部署才应如此，发布前请去掉 --repo-url 重新生成！")
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--repo-url", help="重写主源（config.xml 里第一个 <Url>，局域网/自建源部署用）")
@@ -151,7 +179,6 @@ def main():
             print(f"  {comp}: {n} 项, {size / 1048576:.0f}MB")
 
     # 2. 仓库地址写进 config 副本（源文件保持默认；多源顺序 = 下载优先级）
-    import re
     CONFIG_OUT.mkdir(parents=True, exist_ok=True)
     cfg = (ROOT / "installer_src/config/config.xml").read_text(encoding="utf-8")
     if args.repo_url:
@@ -210,6 +237,7 @@ def main():
     if r.returncode or not out.exists():
         sys.exit("binarycreator 失败")
     print(f"完成: {out} ({out.stat().st_size / 1048576:.1f}MB)")
+    verify_embedded_sources(out, srcs[0] if srcs else "")
     print(f"仓库: {REPO.resolve()}  （python installer_src/repo_server.py 启动镜像）")
 
 
