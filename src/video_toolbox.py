@@ -1279,7 +1279,7 @@ def vc_transcribe_ui_patch():
 ASR_PROTOCOLS = ("auto", "openai", "azure", "chat_audio", "dashscope",
                  "deepgram", "elevenlabs", "gemini",
                  "volcengine", "assemblyai", "dashscope_realtime",
-                 "dashscope_native")
+                 "dashscope_native", "dashscope_filetrans")
 
 #: 协议说明（供界面下拉提示与日志引用）
 ASR_PROTOCOL_NOTES = {
@@ -1306,6 +1306,11 @@ ASR_PROTOCOL_NOTES = {
                           "wss://…/api-ws/v1/inference/，覆盖**只有实时形态**"
                           "的模型（fun-asr-flash-8k-realtime / fun-asr-realtime"
                           " / qwen3-asr-flash-realtime 等），带原生句级时间轴",
+    "dashscope_filetrans":
+        "百炼 Filetrans 异步文件转写（提交 → 轮询，POST /api/v1/services/"
+        "audio/asr/transcription）——模型名带 -filetrans；⚠️ 不收本地音频，"
+        "会先把音频传到百炼临时存储再转写（官方标注勿用于生产环境）；"
+        "说话人分离仅支持单声道、建议 ≤2 小时",
     "dashscope_native": "百炼原生录音文件识别（POST /api/v1/services/aigc/"
                         "multimodal-generation/generation）——Qwen-Audio-3.0-ASR-"
                         "Flash（qwen-audio-3.0-asr-flash）等**不走兼容模式**的 "
@@ -1466,6 +1471,11 @@ def _infer_asr_protocol(base_url, model):
         return "volcengine"
     if "assemblyai.com" in base:
         return "assemblyai"
+    if "filetrans" in mdl:
+        # 模型名带 -filetrans 是百炼异步文件转写的专有命名（qwen3-asr-flash-
+        # filetrans / qwen-audio-3.0-asr-flash-filetrans / fun-asr 系列），
+        # 走同步端点会 404/参数错——直接按异步链路认。
+        return "dashscope_filetrans"
     if ("aliyuncs.com" in base or "dashscope" in base) and any(
             h in mdl for h in ASR_REALTIME_HINTS):
         # 百炼系域名 + 实时模型：这类模型只有 WebSocket 形态 → 走实时协议。
@@ -1514,6 +1524,13 @@ def asr_protocol_fix(proto, base_url, model):
         auto = _infer_asr_protocol(base_url, model)
         if auto and auto != "openai":
             return auto, "协议 openai 与该端点/模型不符，自动改走 %s" % auto
+    if p in ("chat_audio", "dashscope", "dashscope_native") \
+            and "filetrans" in mdl:
+        # 模型名带 -filetrans 却按同步协议在打：走 Filetrans 提交-轮询链路。
+        # 这是用户换模型后最常见的残留组合（旧配置留着 chat_audio）。
+        return "dashscope_filetrans", (
+            "模型「%s」是百炼异步文件转写模型，改走 Filetrans（提交 → 轮询）"
+            "链路" % mdl)
     if p in ("chat_audio", "dashscope") and is_dashscope_native_asr(mdl):
         # v1.15.6：Qwen-Audio-3.0-ASR-Flash 这类原生端点专用模型被显式/旧配置
         # 判成 chat_audio 时，compatible-mode 只会回 HTTP 400 空体（重试与降级
@@ -1596,6 +1613,46 @@ def asr_protocol_of(ai_cfg=None):
                                str(raw.get("asr_model") or ""))
 
 
+def _asr_diarize_flag(val):
+    """把配置里的开关值（bool / 1 / "true" / "yes" / "on"）归一成布尔。"""
+    if isinstance(val, bool):
+        return val
+    if isinstance(val, (int, float)):
+        return bool(val)
+    return str(val or "").strip().lower() in ("1", "true", "yes", "on")
+
+
+def asr_diarize_of(ai_cfg=None):
+    """是否开启说话人分离（diarization）——与 asr_protocol_of 同一套读法。
+
+    只有部分服务端原生支持（火山极速版 / AssemblyAI / Deepgram /
+    ElevenLabs / 百炼 3.1 原生端点 / 百炼 Filetrans）；不支持的端点拿到
+    True 也只是不产生 speaker 字段，字幕形态不变。
+    """
+    try:
+        ac = ai_mod().asr_config(ai_cfg or ai_load_config())
+        return _asr_diarize_flag(ac.get("diarize"))
+    except Exception:  # noqa: BLE001
+        pass
+    try:
+        raw = ai_cfg if ai_cfg else ai_load_config()
+    except Exception:  # noqa: BLE001
+        raw = {}
+    return _asr_diarize_flag((raw or {}).get("asr_diarize"))
+
+
+def _asr_diarize_on(asr_obj):
+    """取本次转录是否要说话人分离。
+
+    _submit 会把全局开关写进 asr_obj.diarize（分块重试、实时降级时沿用同一
+    个值），没写就回落到读配置。
+    """
+    v = getattr(asr_obj, "diarize", None)
+    if v is None:
+        return asr_diarize_of()
+    return _asr_diarize_flag(v)
+
+
 def asr_examples(cfg=None):
     """生成当前 ASR 配置对应的**非流式**调用示例（curl + Python）。
 
@@ -1646,6 +1703,7 @@ def asr_examples(cfg=None):
         "volcengine": "火山引擎（豆包）录音识别极速版",
         "assemblyai": "AssemblyAI",
         "dashscope_native": "百炼原生端点（Qwen-Audio-3.0-ASR-Flash 等 ASR 专用模型）",
+        "dashscope_filetrans": "百炼 Filetrans 异步文件转写（提交 → 轮询）",
     }.get(proto, proto)
 
     if proto == "openai":
@@ -1909,6 +1967,86 @@ def asr_examples(cfg=None):
         notes.append("状态码在**响应头** `X-Api-Status-Code`（`20000000` 为成功）；"
                      "新版控制台只有一个 API Key 时，把前两个头换成 "
                      "`X-Api-Key: $ASR_API_KEY`。")
+    elif proto == "dashscope_filetrans":
+        root = _asr_dashscope_root(base)
+        mdl = model or "qwen3-asr-flash-filetrans"
+        if "filetrans" not in mdl.lower():
+            mdl = mdl + "-filetrans"
+        curl = "\n".join([
+            "# 1) 取上传凭证（Filetrans 不收本地文件，音频须先传到临时存储）",
+            'POL=$(curl -s "%s%s?action=getPolicy&model=%s" \\'
+            % (root, ASR_UPLOAD_POLICY_PATH, mdl),
+            '  -H "Authorization: Bearer $ASR_API_KEY")',
+            "# 2) 按凭证把音频传到百炼临时存储（OSS 表单上传，file 字段放最后）",
+            'curl -s -X POST "$(echo $POL | jq -r .data.upload_host)" \\',
+            '  -F "key=$(echo $POL | jq -r .data.upload_dir)/audio.mp3" \\',
+            '  -F "policy=$(echo $POL | jq -r .data.policy)" \\',
+            '  -F "Signature=$(echo $POL | jq -r .data.signature)" \\',
+            '  -F "OSSAccessKeyId=$(echo $POL | jq -r .data.oss_access_key_id)" \\',
+            '  -F "x-oss-object-acl=private" -F "x-oss-forbid-overwrite=true" \\',
+            '  -F "file=@audio.mp3"',
+            "# 3) 提交任务（oss:// 链接 + 两个必需头）",
+            'ID=$(curl -s -X POST "%s%s" \\' % (root, ASR_FILETRANS_PATH),
+            '  -H "Authorization: Bearer $ASR_API_KEY" \\',
+            '  -H "Content-Type: application/json" \\',
+            '  -H "X-DashScope-Async: enable" \\',
+            '  -H "X-DashScope-OssResourceResolve: enable" \\',
+            "  -d '{\"model\": \"%s\", \"input\": {\"file_urls\": "
+            "[\"oss://<UPLOAD_DIR>/audio.mp3\"]}, \"parameters\": "
+            "{\"diarization_enabled\": true}}' | jq -r .output.task_id)" % mdl,
+            "# 4) 轮询任务；结果 JSON 地址在 output.results[0].transcription_url",
+            'curl -s "%s/api/v1/tasks/$ID" -H "Authorization: Bearer $ASR_API_KEY"'
+            % root,
+        ])
+        py = "\n".join([
+            "import os, time, requests",
+            "",
+            "key = os.environ['ASR_API_KEY']",
+            "root = %r" % root,
+            "model = %r" % mdl,
+            "",
+            "# 程序内部就是这四步：凭证 → 传临时存储 → 提交 → 轮询下载",
+            "pol = requests.get(root + '/api/v1/uploads',",
+            "                   params={'action': 'getPolicy', 'model': model},",
+            "                   headers={'Authorization': 'Bearer ' + key}",
+            "                   ).json()['data']",
+            "key_name = pol['upload_dir'] + '/audio.mp3'",
+            "requests.post(pol['upload_host'],",
+            "              data={'key': key_name, 'policy': pol['policy'],",
+            "                    'Signature': pol['signature'],",
+            "                    'OSSAccessKeyId': pol['oss_access_key_id'],",
+            "                    'x-oss-object-acl': pol['x_oss_object_acl'],",
+            "                    'x-oss-forbid-overwrite': pol['x_oss_forbid_overwrite'],",
+            "                    'success_action_status': '200'},",
+            "              files={'file': ('audio.mp3', open('audio.mp3', 'rb'))})",
+            "",
+            "task = requests.post(root + '/api/v1/services/audio/asr/transcription',",
+            "                     headers={'Authorization': 'Bearer ' + key,",
+            "                              'X-DashScope-Async': 'enable',",
+            "                              'X-DashScope-OssResourceResolve': 'enable'},",
+            "                     json={'model': model,",
+            "                           'input': {'file_urls': ['oss://' + key_name]},",
+            "                           'parameters': {'diarization_enabled': True}}",
+            "                     ).json()['output']['task_id']",
+            "",
+            "while True:",
+            "    out = requests.get(root + '/api/v1/tasks/' + task,",
+            "                       headers={'Authorization': 'Bearer ' + key}",
+            "                       ).json()['output']",
+            "    if out['task_status'] in ('SUCCEEDED', 'FAILED'):",
+            "        break",
+            "    time.sleep(5)",
+            "",
+            "url = out['results'][0]['transcription_url']     # 结果要再下载一次",
+            "sent = requests.get(url).json()['transcripts'][0]['sentences']",
+            "for s in sent:                                   # 开分离后每句带 speaker_id",
+            "    print(s.get('speaker_id'), s['text'])",
+        ])
+        notes.append(
+            "⚠️ 官方限制：临时 URL 有效期 48 小时、凭证接口限流 100 QPS，文档"
+            "标注「请勿用于生产环境」；说话人分离仅支持单声道、建议 ≤ 2 小时。"
+            "qwen3 系模型的 input 字段是 file_url（单对象），qwen-audio / "
+            "fun-asr 是 file_urls（数组），程序会按模型自动选。")
     else:   # assemblyai
         b = base or "https://api.assemblyai.com"
         models = [x.strip() for x in (model or "").split(",") if x.strip()] \
@@ -2043,12 +2181,29 @@ def _asr_is_sentence_end(tok):
 
 
 def _asr_words_to_segments(words, max_gap=0.9, max_chars=42):
-    """词级时间轴 → 句级 segments（Deepgram / ElevenLabs 用）。
+    """词级时间轴 → 句级 segments（Deepgram / ElevenLabs / 火山 / 百炼原生用）。
 
-    断句三条件：句末标点、停顿超过 max_gap 秒、当前句超长。这样拿到的是
-    **原生时间轴**，比"按句时长占比猜"准得多。
+    断句四条件：句末标点、停顿超过 max_gap 秒、当前句超长、**说话人切换**。
+    最后一条为说话人分离（diarization）专用——不在切换处断开的话，同一条
+    字幕里会混进两个人的发言，标签只能落在其中一个头上，看的人更乱。
+
+    words 里带 `speaker` 时，产出段会多一个 `speaker` 字段（原样保留服务端
+    的原始标识，统一编号交给 _asr_apply_speaker_labels 做）。不带 speaker
+    时行为与 v1.15.7 之前完全一致（自检基线依赖这一点）。
     """
-    segs, cur, start, end = [], [], None, None
+    segs = []
+    cur, start, end, cur_spk = [], None, None, None
+
+    def _flush():
+        if not cur:
+            return
+        seg = {"text": _asr_join_words(cur),
+               "start": round(start or 0, 3),
+               "end": round(end if end is not None else (start or 0), 3)}
+        if cur_spk is not None:
+            seg["speaker"] = cur_spk
+        segs.append(seg)
+
     for w in words or []:
         tok = str(w.get("word") or w.get("text") or "").strip()
         if not tok:
@@ -2058,24 +2213,69 @@ def _asr_words_to_segments(words, max_gap=0.9, max_chars=42):
             e = float(w.get("end") or s)
         except (TypeError, ValueError):
             continue
+        spk = w.get("speaker")
+        spk = None if spk is None else str(spk)
+        # 说话人切换 → 立即断句（先于停顿/长度判断，避免把新人的话并进旧句）
+        if cur and spk is not None and cur_spk is not None and spk != cur_spk:
+            _flush()
+            cur, start, cur_spk = [], None, None
         if cur and (s - (end if end is not None else s) > max_gap
                     or sum(len(x) for x in cur) >= max_chars):
-            segs.append({"text": _asr_join_words(cur),
-                         "start": round(start or 0, 3),
-                         "end": round(end if end is not None else s, 3)})
-            cur, start = [], None
+            _flush()
+            cur, start, cur_spk = [], None, None
         if start is None:
             start = s
         cur.append(tok)
         end = e
+        if cur_spk is None:
+            cur_spk = spk
         if _asr_is_sentence_end(tok):
-            segs.append({"text": _asr_join_words(cur),
-                         "start": round(start, 3), "end": round(end, 3)})
-            cur, start = [], None
-    if cur:
-        segs.append({"text": _asr_join_words(cur),
-                     "start": round(start or 0, 3), "end": round(end or 0, 3)})
+            _flush()
+            cur, start, cur_spk = [], None, None
+    _flush()
     return segs
+
+
+#: 说话人标签形态：段文本前置，形如「[说话人1] 台词」
+ASR_SPEAKER_PREFIX = "[说话人%d] "
+
+
+def _asr_apply_speaker_labels(resp):
+    """把段上的 speaker 落成文本前缀「[说话人1] …」。
+
+    为什么拼进文本而不是给 ASRDataSeg 加字段：下游 ASRDataSeg 只有
+    text/start_time/end_time 三个字段，翻译、AI 校准、字幕编辑页、SRT 导出
+    全都只认 text。加字段要把这几处一起改；拼前缀则整条链路零改动。
+
+    服务端返回的标识形态各异（火山是数字串、AssemblyAI 是 A/B/C、ElevenLabs
+    是 spk_0），这里按**首次出现顺序**统一重编成 1、2、3……保证同一个结果
+    内编号连续且与出场顺序一致。
+
+    ⚠️ 有 speaker 时会同时摘掉 `words`：词级模式下 whisper_api._make_segments
+    是一个词一条字幕，前缀会重复糊在每一个词上；说话人分离本就按话轮成段，
+    强制走句级。
+    """
+    if not isinstance(resp, dict):
+        return resp
+    segs = resp.get("segments")
+    if not isinstance(segs, list) or not segs:
+        return resp
+    order = {}
+    hit = False
+    for seg in segs:
+        if not isinstance(seg, dict):
+            continue
+        raw = seg.get("speaker")
+        if raw is None:
+            continue
+        key = str(raw)
+        if key not in order:
+            order[key] = len(order) + 1
+        seg["text"] = (ASR_SPEAKER_PREFIX % order[key]) + str(seg.get("text") or "")
+        hit = True
+    if hit:
+        resp.pop("words", None)
+    return resp
 
 
 def _asr_words_response(text, words):
@@ -2090,7 +2290,11 @@ def _asr_words_response(text, words):
             e = float(w.get("end") or s)
         except (TypeError, ValueError):
             continue
-        clean.append({"word": tok, "start": s, "end": e})
+        item = {"word": tok, "start": s, "end": e}
+        spk = w.get("speaker")
+        if spk is not None:
+            item["speaker"] = str(spk)
+        clean.append(item)
     out = {"text": str(text or ""), "segments": _asr_words_to_segments(clean)}
     if clean:
         out["words"] = clean
@@ -2169,7 +2373,7 @@ def _asr_normalize_resp(resp, asr_obj):
     按句切分 + 时长占比生成近似时间轴（无时间戳协议的兜底）。
     """
     if isinstance(resp, dict) and ("segments" in resp or "words" in resp):
-        return resp
+        return _asr_apply_speaker_labels(resp)
     if isinstance(resp, dict):
         text = str(resp.get("text") or "")
     else:
@@ -2387,6 +2591,7 @@ def _asr_chat_audio_submit(asr_obj, depth=0):
                         api_key=asr_obj.api_key,
                         language=getattr(asr_obj, "language", ""),
                         prompt=getattr(asr_obj, "prompt", ""),
+                        diarize=getattr(asr_obj, "diarize", None),
                         file_binary=hb)
                     parts.append(_asr_chat_audio_submit(sub, depth + 1))
                 return "".join(parts)
@@ -2427,6 +2632,41 @@ def _asr_native_output(resp):
     if not isinstance(data, dict):
         return {"text": "", "segments": []}
     out = data.get("output") if isinstance(data.get("output"), dict) else {}
+    # 开启说话人分离后官方改走 output.sentences[]（每个句子带 speaker_id），
+    # 与不分离时的 output.sentence（单个对象）不是同一个字段——先认数组形态。
+    sents = out.get("sentences")
+    if not isinstance(sents, list):
+        sents = data.get("sentences") \
+            if isinstance(data.get("sentences"), list) else None
+    if sents:
+        words, texts = [], []
+        for s in sents:
+            if not isinstance(s, dict):
+                continue
+            t = str(s.get("text") or "")
+            if t:
+                texts.append(t)
+            spk = s.get("speaker_id")
+            for w in (s.get("words") or []):
+                if not isinstance(w, dict):
+                    continue
+                tok = (str(w.get("text") or "")
+                       + str(w.get("punctuation") or "")).strip()
+                if not tok:
+                    continue
+                try:
+                    b = float(w.get("begin_time")) / 1000.0
+                    e = float(w.get("end_time")) / 1000.0
+                except (TypeError, ValueError):
+                    continue
+                item = {"word": tok, "start": b, "end": e}
+                if spk is not None:
+                    item["speaker"] = str(spk)
+                words.append(item)
+        full = "".join(texts)
+        if words:
+            return {"text": full, "segments": _asr_words_to_segments(words)}
+        return {"text": full, "segments": []}
     sent = out.get("sentence") if isinstance(out.get("sentence"), dict) else {}
     if not sent and isinstance(data.get("sentence"), dict):
         sent = data["sentence"]
@@ -2471,6 +2711,11 @@ def _asr_dashscope_native_submit(asr_obj, depth=0):
     params = {"format": fmt}
     if fmt == "wav":
         params["sample_rate"] = str(rate)
+    if _asr_diarize_on(asr_obj):
+        # 说话人分离：**仅 qwen-audio-3.1-asr-flash 支持**（官方文档标注）。
+        # 3.0 / fun-asr-flash 上带这个参数会被拒或忽略——所以脚本只在用户
+        # 主动开了开关时才下传，不开就与 v1.15.7 完全一致。
+        params["speaker_diarization_enabled"] = True
     body = {"model": asr_obj.model,
             "input": {"messages": [{"role": "user", "content": content}]},
             "parameters": params}
@@ -2491,13 +2736,250 @@ def _asr_dashscope_native_submit(asr_obj, depth=0):
                         base_url=getattr(asr_obj, "base_url", ""),
                         model=asr_obj.model, api_key=asr_obj.api_key,
                         language=getattr(asr_obj, "language", ""),
-                        prompt="", file_binary=hb)
+                        prompt="", diarize=getattr(asr_obj, "diarize", None),
+                        file_binary=hb)
                     parts.append(_asr_native_text(
                         _asr_dashscope_native_submit(sub, depth + 1)))
                 return "".join(parts)
         raise RuntimeError("百炼原生 ASR " + _asr_err_hint(r)
                            + _asr_plan_endpoint_hint(asr_obj))
     return _asr_native_output(r)
+
+
+#: 百炼 Filetrans（异步文件转写）提交端点路径
+ASR_FILETRANS_PATH = "/api/v1/services/audio/asr/transcription"
+
+#: 百炼临时存储上传凭证端点（action=getPolicy）
+ASR_UPLOAD_POLICY_PATH = "/api/v1/uploads"
+
+#: Filetrans 任务轮询上限：5 秒一次 × 240 次 = 20 分钟（与 AssemblyAI 一致）
+ASR_FILETRANS_POLL_MAX = 240
+
+
+def _asr_dashscope_root(base_url):
+    """从「接口地址」推百炼站点根（只留 scheme://host，去掉全部路径）。
+
+    Filetrans 的上传凭证、任务提交、任务查询三个端点都在站点根下，与
+    compatible-mode / multimodal-generation 不是同一层路径，所以这里要
+    把用户填的 `…/compatible-mode/v1` 之类全部削掉，只留域名。
+    """
+    b = asr_strip_endpoint_tail(str(base_url or "").strip())
+    if not b:
+        return "https://dashscope.aliyuncs.com"
+    if "//" in b:
+        scheme, rest = b.split("//", 1)
+        return scheme + "//" + rest.split("/", 1)[0]
+    return "https://" + b.split("/", 1)[0]
+
+
+def _asr_dashscope_upload_oss(root, model, blob, fmt, api_key):
+    """把本地音频传到百炼临时存储，返回 `oss://…` 链接（官方称临时 URL）。
+
+    Filetrans 不收本地文件也不收 Base64——只吃公网 URL，RESTful 下额外接受
+    `oss://`。桌面端的音频在本地，所以只能先走这一步。
+    ⚠️ 官方限制：临时 URL 有效期 48 小时、凭证接口限流 100 QPS，文档明确
+    「请勿用于生产环境」。
+    """
+    import time
+    import requests
+    pol = requests.get(root + ASR_UPLOAD_POLICY_PATH,
+                       params={"action": "getPolicy", "model": model},
+                       headers={"Authorization": "Bearer " + api_key},
+                       proxies=http_proxies_for(root), timeout=120)
+    if pol.status_code != 200:
+        raise RuntimeError("百炼上传凭证获取失败 " + _asr_err_hint(pol))
+    try:
+        d = (pol.json() or {}).get("data") or {}
+    except ValueError as e:
+        raise RuntimeError(f"上传凭证响应异常：{e}; body={pol.text[:200]}")
+    host = str(d.get("upload_host") or "").strip()
+    udir = str(d.get("upload_dir") or "").strip()
+    if not host or not udir:
+        raise RuntimeError("上传凭证缺少 upload_host / upload_dir：%s"
+                           % pol.text[:200])
+    fname = "vt_audio_%d.%s" % (int(time.time()), fmt)
+    key = udir.rstrip("/") + "/" + fname
+    form = {"OSSAccessKeyId": str(d.get("oss_access_key_id") or ""),
+            "policy": str(d.get("policy") or ""),
+            "Signature": str(d.get("signature") or ""),
+            "key": key,
+            "x-oss-object-acl": str(d.get("x_oss_object_acl") or "private"),
+            "x-oss-forbid-overwrite": str(d.get("x_oss_forbid_overwrite") or "true"),
+            "success_action_status": "200"}
+    # file 字段必须是表单最后一项（OSS 要求）
+    up = requests.post(host, data=form,
+                       files={"file": (fname, blob, "audio/%s" % fmt)},
+                       proxies=http_proxies_for(host), timeout=600)
+    if up.status_code not in (200, 204):
+        raise RuntimeError("音频上传到百炼临时存储失败 HTTP %d：%s"
+                           % (up.status_code, up.text[:200]))
+    return "oss://" + key
+
+
+def _asr_filetrans_result_url(output):
+    """取 Filetrans 结果 JSON 的下载地址。
+
+    不同模型族字段不一样（踩过一次就得记下来）：
+      · qwen-audio-3.x-asr-flash-filetrans / fun-asr → `output.results[].transcription_url`
+      · qwen3-asr-flash-filetrans                    → `output.result.transcription_url`
+    """
+    res = output.get("results")
+    if isinstance(res, list) and res:
+        return str((res[0] or {}).get("transcription_url") or "")
+    one = output.get("result")
+    if isinstance(one, dict):
+        return str(one.get("transcription_url") or "")
+    return ""
+
+
+def _asr_dashscope_filetrans_submit(asr_obj):
+    """百炼 Filetrans 异步文件转写（POST /api/v1/services/audio/asr/transcription）。
+
+    为什么单独一条协议：同步端点（multimodal-generation）有音频体积/时长上限，
+    长音频要靠这条**提交-轮询**的异步链路；它也是 3.0 / fun-asr 上唯一能开
+    说话人分离的通道（原生同步端点的 speaker_diarization_enabled 只认 3.1）。
+
+    ⚠️ 与同步端点的根本差别：**不收本地音频**。官方明确 file_urls 只支持公网
+    HTTP/HTTPS（RESTful 下额外支持 `oss://` 临时 URL），不支持 Base64、不支持
+    二进制流、不支持本地路径。因此桌面端必须先把音频传到百炼临时存储
+    （_asr_dashscope_upload_oss），再拿 `oss://` 链接提交，并在请求头带
+    `X-DashScope-OssResourceResolve: enable` 让服务端解析。
+
+    ⚠️ 说话人分离的两条硬限制（官方）：**仅单声道音频**；建议时长 ≤ 2 小时。
+    """
+    import time
+    import requests
+    root = _asr_dashscope_root(getattr(asr_obj, "base_url", ""))
+    key = str(asr_obj.api_key or "")
+    model = (asr_obj.model or "").strip()
+    low_m = model.lower()
+    # 用户常常直接填 qwen3-asr-flash（同步模型名）却选了 Filetrans：补后缀
+    if model and "filetrans" not in low_m and low_m.startswith("qwen"):
+        model = model + "-filetrans"
+        low_m = model.lower()
+    blob = getattr(asr_obj, "file_binary", b"") or b""
+    fmt = _asr_audio_format(blob)
+    oss_url = _asr_dashscope_upload_oss(root, model, blob, fmt, key)
+
+    params = {"channel_id": [0]}
+    if _asr_diarize_on(asr_obj):
+        params["diarization_enabled"] = True
+    lang = str(getattr(asr_obj, "language", "") or "").strip()
+    if lang and lang not in ("auto", "zh"):
+        params["language_hints"] = [lang]
+    url = root + ASR_FILETRANS_PATH
+    headers = {"Authorization": "Bearer " + key,
+               "Content-Type": "application/json",
+               "X-DashScope-Async": "enable",
+               "X-DashScope-OssResourceResolve": "enable"}
+    # qwen3 系用 input.file_url（单对象），qwen-audio / fun-asr 用 file_urls（数组）
+    if low_m.startswith("qwen3-"):
+        payload = {"model": model, "input": {"file_url": oss_url},
+                   "parameters": params}
+        alt = {"model": model, "input": {"file_urls": [oss_url]},
+               "parameters": params}
+    else:
+        payload = {"model": model, "input": {"file_urls": [oss_url]},
+                   "parameters": params}
+        alt = {"model": model, "input": {"file_url": oss_url},
+               "parameters": params}
+    sub = requests.post(url, json=payload, headers=headers,
+                        proxies=http_proxies_for(url), timeout=120)
+    if sub.status_code >= 400:
+        # 两个模型族的 input 字段不通用，被拒时换另一种形态再试一次
+        sub = requests.post(url, json=alt, headers=headers,
+                            proxies=http_proxies_for(url), timeout=120)
+    if sub.status_code != 200:
+        raise RuntimeError("百炼 Filetrans 提交失败 " + _asr_err_hint(sub)
+                           + _asr_plan_endpoint_hint(asr_obj))
+    try:
+        tid = ((sub.json() or {}).get("output") or {}).get("task_id")
+    except (ValueError, AttributeError, TypeError) as e:
+        raise RuntimeError(f"提交响应异常：{e}; body={sub.text[:200]}")
+    if not tid:
+        raise RuntimeError("提交未返回 task_id：%s" % sub.text[:200])
+
+    turl = root + "/api/v1/tasks/" + str(tid)
+    out = None
+    for _ in range(ASR_FILETRANS_POLL_MAX):
+        time.sleep(5)
+        got = requests.get(turl, headers={"Authorization": "Bearer " + key},
+                           proxies=http_proxies_for(turl), timeout=60)
+        if got.status_code != 200:
+            raise RuntimeError("百炼 Filetrans 查询失败 " + _asr_err_hint(got))
+        data = (got.json() or {}).get("output") or {}
+        state = str(data.get("task_status") or "").upper()
+        if state == "SUCCEEDED":
+            out = data
+            break
+        if state in ("FAILED", "CANCELED", "CANCELLED"):
+            raise RuntimeError(
+                "百炼 Filetrans 任务失败：%s"
+                % str(data.get("code") or data.get("message") or "")[:200])
+    if out is None:
+        raise RuntimeError("百炼 Filetrans 任务超时（轮询 20 分钟仍未完成）")
+
+    trs = out.get("transcripts")
+    js_url = _asr_filetrans_result_url(out)
+    if not trs and js_url:
+        jr = requests.get(js_url, proxies=http_proxies_for(js_url), timeout=300)
+        if jr.status_code != 200:
+            raise RuntimeError("下载转写结果失败 HTTP %d：%s"
+                               % (jr.status_code, jr.text[:200]))
+        try:
+            trs = (jr.json() or {}).get("transcripts") or []
+        except ValueError as e:
+            raise RuntimeError(f"转写结果 JSON 解析失败：{e}; body={jr.text[:200]}")
+    if not trs:
+        raise RuntimeError("百炼 Filetrans 结果为空（无 transcripts）")
+
+    segs, words, texts = [], [], []
+    for tr in (trs or []):
+        if not isinstance(tr, dict):
+            continue
+        for s in (tr.get("sentences") or []):
+            if not isinstance(s, dict):
+                continue
+            t = str(s.get("text") or "").strip()
+            spk = s.get("speaker_id")
+            spk = None if spk is None else str(spk)
+            ws = []
+            for w in (s.get("words") or []):
+                if not isinstance(w, dict):
+                    continue
+                tok = (str(w.get("text") or "")
+                       + str(w.get("punctuation") or "")).strip()
+                if not tok:
+                    continue
+                try:
+                    wb = float(w.get("begin_time")) / 1000.0
+                    we = float(w.get("end_time")) / 1000.0
+                except (TypeError, ValueError):
+                    continue
+                item = {"word": tok, "start": wb, "end": we}
+                if spk is not None:
+                    item["speaker"] = spk
+                ws.append(item)
+            if ws:
+                words.extend(ws)
+            elif t:
+                try:
+                    b = float(s.get("begin_time") or 0) / 1000.0
+                    e = float(s.get("end_time") or 0) / 1000.0
+                except (TypeError, ValueError):
+                    b = e = 0.0
+                seg = {"text": t, "start": round(b, 3), "end": round(e, 3)}
+                if spk is not None:
+                    seg["speaker"] = spk
+                segs.append(seg)
+            if t:
+                texts.append(t)
+    full = "".join(texts)
+    if words and not segs:
+        return {"text": full, "segments": _asr_words_to_segments(words)}
+    if segs:
+        return {"text": full, "segments": segs}
+    return full
 
 
 def _asr_native_text(resp):
@@ -2761,6 +3243,9 @@ def _asr_volcengine_submit(asr_obj):
     lang = str(getattr(asr_obj, "language", "") or "").strip()
     if lang and lang not in ("auto", "zh"):
         body["request"]["language"] = lang
+    if _asr_diarize_on(asr_obj):
+        # 说话人分离（说话人日志）：官方标注 10 人以内效果较好。
+        body["request"]["enable_speaker_info"] = True
     r = requests.post(url, data=json.dumps(body, ensure_ascii=False),
                       headers=headers, proxies=http_proxies_for(url),
                       timeout=600)
@@ -2779,19 +3264,48 @@ def _asr_volcengine_submit(asr_obj):
     if any(u.get("words") for u in utts):
         words = []
         for u in utts:
+            spk = _asr_volc_speaker(u)
             for w in u.get("words") or []:
-                words.append({
+                item = {
                     "word": w.get("text"),
                     "start": float(w.get("start_time") or 0) / ms,
-                    "end": float(w.get("end_time") or 0) / ms})
+                    "end": float(w.get("end_time") or 0) / ms}
+                if spk:
+                    item["speaker"] = spk
+                words.append(item)
         return _asr_words_response(res.get("text") or "", words)
     if utts:
-        segs = [{"text": (u.get("text") or "").strip(),
-                 "start": round(float(u.get("start_time") or 0) / ms, 3),
-                 "end": round(float(u.get("end_time") or 0) / ms, 3)}
-                for u in utts if (u.get("text") or "").strip()]
+        segs = []
+        for u in utts:
+            if not (u.get("text") or "").strip():
+                continue
+            seg = {"text": (u.get("text") or "").strip(),
+                   "start": round(float(u.get("start_time") or 0) / ms, 3),
+                   "end": round(float(u.get("end_time") or 0) / ms, 3)}
+            spk = _asr_volc_speaker(u)
+            if spk:
+                seg["speaker"] = spk
+            segs.append(seg)
         return {"text": res.get("text") or "", "segments": segs}
     return res.get("text") or ""
+
+
+def _asr_volc_speaker(utt):
+    """取火山分句上的说话人标识（找不到返回空串）。
+
+    字段位置官方示例里没写死（旧版 v1 在 `utterances[].additions.speaker`，
+    v3 bigmodel 的响应示例只给了 `result.additions`），所以这里把两种位置
+    都试一遍——猜错字段的后果是**静默没有标签**（不报错但没效果），比报错
+    更难发现，宁可多兼容几条路径。
+    """
+    if not isinstance(utt, dict):
+        return ""
+    add = utt.get("additions") if isinstance(utt.get("additions"), dict) else {}
+    for v in (utt.get("speaker"), add.get("speaker"),
+              add.get("speaker_id"), utt.get("speaker_id")):
+        if v not in (None, ""):
+            return str(v)
+    return ""
 
 
 def _asr_assemblyai_submit(asr_obj):
@@ -3182,6 +3696,10 @@ def vc_asr_protocol_patch():
 
     def _submit(self):
         global _ASR_WS_DEGRADED
+        # 说话人分离开关：进 _submit 就取一次挂到实例上，分块重试 / 实时降级
+        # 都沿用同一个值，避免同一段音频前后半截口径不一致。
+        if getattr(self, "diarize", None) is None:
+            self.diarize = asr_diarize_of()
         proto = asr_protocol_of()
         # 协议纠偏统一收在 asr_protocol_fix（v1.14.2 起，v1.15.3 补反向守卫）：
         # ① 显式/旧配置判成 openai，但端点与模型特征指向别族时按推断改走——
@@ -3239,6 +3757,8 @@ def vc_asr_protocol_patch():
                 resp = _asr_retry_native(self, e)
         elif proto == "dashscope_native":
             resp = _asr_dashscope_native_submit(self)
+        elif proto == "dashscope_filetrans":
+            resp = _asr_dashscope_filetrans_submit(self)
         elif proto == "deepgram":
             resp = _asr_deepgram_submit(self)
         elif proto == "elevenlabs":
@@ -4528,6 +5048,108 @@ def ytdlp_proxy_args(refresh=False):
     return ["--proxy", proxy] if proxy else []
 
 
+# ========== YouTube 游客 cookie 自动索取（v1.15.8 反风控） ==========
+#: 2026 版 YouTube 对无 cookie 的 yt-dlp 请求间歇性弹
+#: 「Sign in to confirm you're not a bot」——纯伪 cookie 不可行（SID/SAPISID
+#: 由服务端 HMAC 签发），但**向 YouTube 真实索取游客 cookie**（站方签名）实测
+#: 能显著压低触发率：同节点对照，无 cookie 约半数被拦，带游客 cookie 前几发
+#: 全过；cookie 信誉随请求频次衰减，故按 6 小时自动刷新一次。
+#: 真登录 cookie（浏览器导出 cookies.txt）仍是最彻底方案，此处只做游客兜底。
+GUEST_COOKIES_PATH = os.path.join(DATA_DIR, "guest_cookies.txt")
+GUEST_COOKIES_TTL = 6 * 3600
+_GUEST_COOKIE_LOCK = threading.Lock()
+_GUEST_COOKIE_STATE = {"args": None, "checked": False}
+_GUEST_COOKIE_UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                    "AppleWebKit/537.36 (KHTML, like Gecko) "
+                    "Chrome/131.0.0.0 Safari/537.36")
+
+
+def _refresh_guest_cookies():
+    """经内置代理访问 YouTube，收集站方签发的游客 cookie 并写 Netscape 文件。
+
+    成功返回文件路径，失败返回 None（不抛异常——cookie 只是增益项，
+    任何失败都不能阻塞下载主流程）。
+    """
+    import http.cookiejar
+    # 必须经 ytdlp_proxy_args() 拿代理：它会启动/复用内置 mihomo 并填充缓存，
+    # 直接读 _PROXY_CACHE 在首次调用时永远是 None（缓存还没人填过）
+    proxy_args = ytdlp_proxy_args()
+    proxy = proxy_args[1] if proxy_args else None
+    if not proxy:
+        # 代理不可用时直连抓取在用户网络必然失败，直接放弃，避免 20s 白等
+        return None
+    try:
+        cj = http.cookiejar.MozillaCookieJar()
+        opener = urllib.request.build_opener(
+            urllib.request.ProxyHandler({"http": proxy, "https": proxy}),
+            urllib.request.HTTPCookieProcessor(cj),
+        )
+        opener.addheaders = [
+            ("User-Agent", _GUEST_COOKIE_UA),
+            ("Accept-Language", "en-US,en;q=0.9"),
+            ("Accept", "text/html,application/xhtml+xml,"
+                       "application/xml;q=0.9,*/*;q=0.8"),
+        ]
+        # 首页拿 VISITOR_INFO1_LIVE / YSC / __Secure-ROLLOUT_TOKEN 等，
+        # watch 页补一轮访客凭证（实测两步比只抓首页多拿 VISITOR_PRIVACY_METADATA）
+        opener.open("https://www.youtube.com/", timeout=20).read(65536)
+        time.sleep(1.0)
+        opener.open("https://www.youtube.com/watch?v=BaW_jenozKc",
+                    timeout=20).read(65536)
+        names = {c.name for c in cj}
+        if "VISITOR_INFO1_LIVE" not in names and "YSC" not in names:
+            return None
+        os.makedirs(DATA_DIR, exist_ok=True)
+        cj.save(GUEST_COOKIES_PATH, ignore_discard=True, ignore_expires=True)
+        return GUEST_COOKIES_PATH
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def ytdlp_cookie_args(refresh=False, log=None):
+    """给 yt-dlp 的 `--cookies` 参数表（游客 cookie，自动索取与刷新）。
+
+    · 文件存在且 6 小时内刷新过 → 直接复用（yt-dlp 会话回写还会滚动续期）；
+    · 过期/不存在/损坏 → 锁内重抓一次，失败时旧文件仍可用则继续用旧的；
+    · 全部不可得 → 返回 []（退回无 cookie，行为与旧版一致）。
+    """
+    def _emit(msg):
+        if log:
+            try:
+                log(msg)
+            except Exception:  # noqa: BLE001
+                pass
+
+    def _fresh(path):
+        try:
+            return (time.time() - os.path.getmtime(path)) < GUEST_COOKIES_TTL
+        except OSError:
+            return False
+
+    if not refresh and _GUEST_COOKIE_STATE["checked"]:
+        return _GUEST_COOKIE_STATE["args"] or []
+
+    with _GUEST_COOKIE_LOCK:
+        if not refresh and _GUEST_COOKIE_STATE["checked"]:
+            return _GUEST_COOKIE_STATE["args"] or []
+        path = GUEST_COOKIES_PATH
+        if not _fresh(path):
+            _emit("[信息] 正在获取 YouTube 游客 cookie（反风控）...")
+            new = _refresh_guest_cookies()
+            if new:
+                _emit("[信息] 游客 cookie 已更新（6 小时内自动复用）")
+            elif os.path.isfile(path):
+                _emit("[信息] 游客 cookie 刷新失败，沿用上一次的文件")
+            else:
+                _emit("[信息] 游客 cookie 不可用，按无 cookie 继续")
+        if os.path.isfile(path):
+            _GUEST_COOKIE_STATE["args"] = ["--cookies", path]
+        else:
+            _GUEST_COOKIE_STATE["args"] = []
+        _GUEST_COOKIE_STATE["checked"] = True
+        return _GUEST_COOKIE_STATE["args"]
+
+
 def proxy_status():
     """给界面用：(是否可用, 代理地址或空, 一句话说明)。附当前节点名。"""
     args = ytdlp_proxy_args()
@@ -5278,8 +5900,12 @@ def fetch_info_json(ytdlp, url, attempts=4, log=None, wait_base=5):
     proxy_args = ytdlp_proxy_args()
     if proxy_args:
         _log(f"[信息] 提取视频信息经代理 {proxy_args[1]}")
+    # 游客 cookie 反风控（v1.15.8）：YouTube 对无 cookie 请求间歇性弹
+    # "Sign in to confirm"，自动索取的站方游客 cookie 实测能压低触发率
+    cookie_args = ytdlp_cookie_args(log=_log)
     for i in range(attempts):
-        result = run_process([ytdlp, "-J", "--no-playlist", url, *proxy_args],
+        result = run_process([ytdlp, "-J", "--no-playlist", *cookie_args,
+                              url, *proxy_args],
                              capture_output=True)
         out = decode_bytes_any(result.stdout)
         if result.returncode == 0 and out.strip().startswith("{"):

@@ -944,6 +944,7 @@ class DownloadPage(QWidget):
                     "--newline", "--no-playlist",
                     "--write-thumbnail", "--convert-thumbnails", "jpg",
                     *proxy_args,
+                    *engine.ytdlp_cookie_args(),
                     "-o", engine.output_template(folder)]
             rc = 1
             if info_json_path and os.path.isfile(info_json_path):
@@ -1023,6 +1024,7 @@ class DownloadPage(QWidget):
                 "--write-subs", "--write-auto-subs", "--sub-langs", sub_langs,
                 "--sub-format", "srt/best", "--convert-subs", "srt",
                 *proxy_args,
+                *engine.ytdlp_cookie_args(),
                 "-o", engine.output_template(folder)]
         if info_json_path and os.path.isfile(info_json_path):
             rc, _ = self._run_ytdlp(
@@ -2183,11 +2185,12 @@ class SettingsPage(QWidget):
                         "ElevenLabs Scribe", "Google Gemini",
                         "火山引擎（豆包）", "AssemblyAI",
                         "百炼实时（WebSocket）",
-                        "百炼原生（ASR 专用端点）")
+                        "百炼原生（ASR 专用端点）",
+                        "百炼 Filetrans（异步转写）")
     ASR_PROTO_KEYS = ("auto", "openai", "azure", "chat_audio",
                       "deepgram", "elevenlabs", "gemini",
                       "volcengine", "assemblyai", "dashscope_realtime",
-                      "dashscope_native")
+                      "dashscope_native", "dashscope_filetrans")
 
     def _build_ai_card(self):
         box, blay = card(
@@ -2303,6 +2306,24 @@ class SettingsPage(QWidget):
                         for k, lb in zip(self.ASR_PROTO_KEYS[1:],
                                          self.ASR_PROTO_LABELS[1:])))
         slay.addWidget(srow("接口协议", self.asr_proto_combo))
+        # 说话人分离（diarization）：让服务端区分「谁在说话」，字幕形如
+        # 「[说话人1] 台词」。只在不分不清的端点上有效，其余端点开了也不出标签。
+        _dz = ai.get("asr_diarize")
+        self.asr_diarize_switch = SwitchButton(self.asr_service_widget)
+        self.asr_diarize_switch.setChecked(
+            _dz is True
+            or str(_dz or "").strip().lower() in ("1", "true", "yes", "on"))
+        self.asr_diarize_switch.setToolTip(
+            "多人对话 / 访谈 / 播客：服务端按声纹区分说话人，同一段字幕里不会\n"
+            "混进两个人（说话人切换处自动断开）。\n"
+            "· 支持：火山极速版、AssemblyAI、Deepgram、ElevenLabs、百炼\n"
+            "  Filetrans、百炼 3.1 原生端点；\n"
+            "· 不支持：OpenAI 兼容 / Azure / Gemini / 本地 faster-whisper——\n"
+            "  开了也不会有标签，字幕形态不变；\n"
+            "· 百炼另有两条限制：仅单声道音频、建议时长 ≤ 2 小时。")
+        # 用 label_row 而不是 srow：srow 会给第一个控件 stretch=1 吃满整行，
+        # 开关被横向拉长很难看；label_row 让开关紧跟标签、右侧留白。
+        slay.addWidget(label_row("说话人分离", self.asr_diarize_switch))
         blay.addWidget(self.asr_service_widget)
 
         # —— 本地模型 ——
@@ -2356,6 +2377,7 @@ class SettingsPage(QWidget):
             w.textChanged.connect(self._mark_ai_dirty)
         self.asr_mode_combo.currentIndexChanged.connect(self._mark_ai_dirty)
         self.asr_proto_combo.currentIndexChanged.connect(self._mark_ai_dirty)
+        self.asr_diarize_switch.checkedChanged.connect(self._mark_ai_dirty)
         self.vbox.addWidget(box)
         self._sync_asr_visible()
 
@@ -2515,6 +2537,8 @@ class SettingsPage(QWidget):
                     len(self.ASR_PROTO_KEYS) - 1)],
             "asr_local_model": self.asr_local_model.text().strip(),
             "asr_local_model_dir": engine.clean_path(self.asr_local_dir.text()),
+            # 说话人分离：服务端原生 diarization（不支持的端点静默忽略）
+            "asr_diarize": self.asr_diarize_switch.isChecked(),
             # AI 校准（v1.12.0：通道选择随双通道合并一并移除）
             "calib_chunk_cues": self.calib_cues.value(),
             "calib_max_chars": self.calib_chars.value(),

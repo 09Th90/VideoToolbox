@@ -1265,11 +1265,17 @@ def main():
                  "calib_cues", "calib_tokens"):
         check(f"设置页含 v1.11 控件 {attr}", hasattr(sp, attr))
     # ---- v1.14.2：ASR 全协议适配的界面入口 ----
-    check("设置页含 ASR 协议下拉（11 协议 + 自动识别，含百炼原生）",
+    check("设置页含 ASR 协议下拉（12 协议 + 自动识别，含百炼原生 / Filetrans）",
           hasattr(sp, "asr_proto_combo")
-          and len(sp.ASR_PROTO_KEYS) == len(sp.ASR_PROTO_LABELS) == 11
-          and "dashscope_native" in sp.ASR_PROTO_KEYS,
+          and len(sp.ASR_PROTO_KEYS) == len(sp.ASR_PROTO_LABELS) == 12
+          and "dashscope_native" in sp.ASR_PROTO_KEYS
+          and "dashscope_filetrans" in sp.ASR_PROTO_KEYS,
           getattr(sp, "ASR_PROTO_KEYS", None))
+    # ---- v1.15.8：说话人分离开关 ----
+    check("设置页含说话人分离开关（默认关，与协议下拉同卡片）",
+          hasattr(sp, "asr_diarize_switch")
+          and sp.asr_diarize_switch.isChecked() is False,
+          getattr(sp, "asr_diarize_switch", None))
     check("设置页含「调用示例（curl / Python）」入口",
           hasattr(sp, "asr_example_btn"))
     check("设置页含「有未保存的改动」提示位",

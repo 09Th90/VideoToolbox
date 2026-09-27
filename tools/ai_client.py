@@ -364,7 +364,7 @@ def _models_url(base: str) -> str:
 ASR_PROTOCOLS = ("auto", "openai", "azure", "chat_audio", "dashscope",
                  "deepgram", "elevenlabs", "gemini",
                  "volcengine", "assemblyai", "dashscope_realtime",
-                 "dashscope_native")
+                 "dashscope_native", "dashscope_filetrans")
 
 #: 百炼原生（multimodal-generation）录音文件识别模型的官方 API 路径
 ASR_NATIVE_PATH = "/api/v1/services/aigc/multimodal-generation/generation"
@@ -524,6 +524,10 @@ def resolve_asr_protocol(ac: dict) -> str:
         return p
     base = (ac.get("base_url") or "").lower()
     model = (ac.get("model") or "").lower()
+    if "filetrans" in model:
+        # 与引擎侧 _infer_asr_protocol 同规则：-filetrans 是百炼异步文件转写
+        # 专有命名，走提交-轮询链路（不收本地音频）。
+        return "dashscope_filetrans"
     if "openspeech.bytedance.com" in base or "volcengine" in base:
         return "volcengine"
     if "assemblyai.com" in base:
@@ -720,9 +724,21 @@ def asr_config(cfg: dict | None = None) -> dict:
         "api_key": str(c.get("asr_api_key") or "").strip(),
         "model": str(c.get("asr_model") or "").strip(),
         "prompt": str(c.get("asr_prompt") or "").strip(),
+        # 说话人分离（diarization）总开关——只有部分服务端原生支持，
+        # 不支持的端点拿到 True 也只是不产生说话人标签。
+        "diarize": _asr_diarize_flag(c.get("asr_diarize")),
         "local_model": str(c.get("asr_local_model") or "").strip(),
         "local_model_dir": str(c.get("asr_local_model_dir") or "").strip(),
     }
+
+
+def _asr_diarize_flag(val) -> bool:
+    """把配置里的开关值（bool / 1 / "true" / "yes" / "on"）归一成布尔。"""
+    if isinstance(val, bool):
+        return val
+    if isinstance(val, (int, float)):
+        return bool(val)
+    return str(val or "").strip().lower() in ("1", "true", "yes", "on")
 
 
 def _is_retryable(status: int | None, detail: str) -> bool:
@@ -1331,6 +1347,19 @@ def asr_test_connection(cfg: dict | None = None) -> tuple[bool, str]:
         return True, ("百炼原生端点已连通（%s）；模型 %s 的主动探测未完成"
                       "（%s），实际可用性以转录结果为准"
                       % (_asr_native_url(ac["base_url"]), ac["model"], note))
+    elif proto == "dashscope_filetrans":
+        # Filetrans 模型也不进 /models 列表（与原生端点同理，记忆结论：
+        # 专属实例连部署的 qwen-audio 都不列），按 /models 核对必假阴性；
+        # 且它没有只读探测端点——轻校验模型名，真伪留给转录那一步。
+        m = str(ac["model"] or "").strip()
+        if not m:
+            return False, ("Filetrans 需要模型名（如 qwen3-asr-flash-filetrans、"
+                           "qwen-audio-3.0-asr-flash-filetrans；填同步模型名"
+                           "程序会自动补 -filetrans 后缀）")
+        return True, ("百炼 Filetrans（异步提交 → 轮询）：密钥已填、模型 %s；"
+                      "该服务无只读探测端点，实际可用性以转录结果为准。注意："
+                      "转录时会先把音频传到百炼临时存储（官方标注勿用于生产"
+                      "环境），说话人分离仅支持单声道、建议 ≤ 2 小时" % m)
     elif proto == "volcengine":
         # 火山没有只读的探测端点：只校验密钥形态，真伪留给转录那一步
         key = str(ac["api_key"])

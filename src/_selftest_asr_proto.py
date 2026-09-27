@@ -451,6 +451,78 @@ def main():
            for t in ("world.", "3.5.", "12.", "a.", "3.5", ".5")])
 
     say("")
+    say("== 8c) 说话人分离（diarization）==")
+    spk_words = [
+        {"word": "你好", "start": 0.0, "end": 0.4, "speaker": "0"},
+        {"word": "请问", "start": 0.4, "end": 0.8, "speaker": "0"},
+        {"word": "在的", "start": 0.9, "end": 1.3, "speaker": "1"},
+        {"word": "什么事", "start": 1.3, "end": 1.9, "speaker": "1"},
+        {"word": "谢谢", "start": 2.0, "end": 2.4, "speaker": "0"},
+    ]
+    ssegs = engine._asr_words_to_segments(spk_words)
+    check("说话人切换处断句（A A → B B → A，共 3 段）", len(ssegs) == 3,
+          [(s["text"], s.get("speaker")) for s in ssegs])
+    check("同一说话人连续词合并",
+          ssegs and ssegs[0]["text"] == "你好请问"
+          and ssegs[1]["text"] == "在的什么事", [s["text"] for s in ssegs])
+    check("段上保留服务端原始 speaker 标识",
+          [s.get("speaker") for s in ssegs] == ["0", "1", "0"],
+          [s.get("speaker") for s in ssegs])
+    resp = engine._asr_apply_speaker_labels({"text": "x", "segments": ssegs,
+                                             "words": spk_words})
+    check("标签按首次出现顺序编号（说话人1 / 说话人2）",
+          [s["text"] for s in resp["segments"]]
+          == ["[说话人1] 你好请问", "[说话人2] 在的什么事", "[说话人1] 谢谢"],
+          [s["text"] for s in resp["segments"]])
+    check("有 speaker 时摘掉 words（否则一词一条字幕，前缀重复）",
+          "words" not in resp, sorted(resp.keys()))
+    ab = [{"word": "甲", "start": 0, "end": 0.3, "speaker": "A"},
+          {"word": "乙", "start": 0.4, "end": 0.7, "speaker": "B"}]
+    absegs = engine._asr_apply_speaker_labels(
+        {"segments": engine._asr_words_to_segments(ab)})["segments"]
+    check("字母标识（AssemblyAI 的 A/B）也能统一编号",
+          [s["text"] for s in absegs] == ["[说话人1] 甲", "[说话人2] 乙"],
+          [s["text"] for s in absegs])
+    plain = [{"word": w, "start": i * 0.3, "end": i * 0.3 + 0.25}
+             for i, w in enumerate(["这", "是", "一句", "话"])]
+    psegs = engine._asr_words_to_segments(plain)
+    check("向后兼容：不带 speaker 时与 v1.15.7 完全一致",
+          len(psegs) == 1 and psegs[0]["text"] == "这是一句话"
+          and "speaker" not in psegs[0], psegs)
+    check("火山 speaker 取 utterances[].speaker",
+          engine._asr_volc_speaker({"speaker": "0"}) == "0")
+    check("火山 speaker 取 utterances[].additions.speaker（旧版位置）",
+          engine._asr_volc_speaker({"additions": {"speaker": "2"}}) == "2")
+    check("火山无 speaker 字段返回空串（不报错、不加标签）",
+          engine._asr_volc_speaker({"text": "x"}) == "")
+    check("Filetrans 结果 URL（results[] 形态，3.0 / fun-asr）",
+          engine._asr_filetrans_result_url(
+              {"results": [{"transcription_url": "http://a/b.json"}]})
+          == "http://a/b.json")
+    check("Filetrans 结果 URL（result 单对象形态，qwen3 系）",
+          engine._asr_filetrans_result_url(
+              {"result": {"transcription_url": "http://c/d.json"}})
+          == "http://c/d.json")
+    check("模型名带 -filetrans → dashscope_filetrans",
+          engine._infer_asr_protocol("https://dashscope.aliyuncs.com",
+                                     "qwen3-asr-flash-filetrans")
+          == "dashscope_filetrans")
+    check("协议纠偏：chat_audio + filetrans 模型改走异步链路",
+          engine.asr_protocol_fix("chat_audio",
+                                  "https://dashscope.aliyuncs.com",
+                                  "qwen3-asr-flash-filetrans")[0]
+          == "dashscope_filetrans")
+    check("百炼站点根推导（削掉 compatible-mode 路径）",
+          engine._asr_dashscope_root(
+              "https://dashscope.aliyuncs.com/compatible-mode/v1")
+          == "https://dashscope.aliyuncs.com")
+    check("开关归一：1/true/yes/on/True 开；0/false/空/None/off 关",
+          all(engine._asr_diarize_flag(v)
+              for v in (1, "true", "True", "yes", "on", True))
+          and not any(engine._asr_diarize_flag(v)
+                      for v in (0, "false", "", None, "off")))
+
+    say("")
     say("== 8b) 超限音频自动压缩（Data URL / inline_data 载荷上限）==")
     orig_shrink = engine._asr_shrink_audio_blob
     engine._asr_shrink_audio_blob = (
@@ -714,12 +786,13 @@ def main():
               (_nres or {}).get("text") == "原生端点你好。", _nres)
     except Exception as e:  # noqa: BLE001
         check("引擎可导入（跳过补丁断言）", False, e)
-    check("协议清单含 12 条实现 + auto（dashscope 为历史键、同实现）",
+    check("协议清单含 13 条实现 + auto（dashscope 为历史键、同实现）",
           set(engine.ASR_PROTOCOLS) == {"auto", "openai", "azure", "chat_audio",
                                         "dashscope", "deepgram", "elevenlabs",
                                         "gemini", "volcengine", "assemblyai",
                                         "dashscope_realtime",
-                                        "dashscope_native"},
+                                        "dashscope_native",
+                                        "dashscope_filetrans"},
           engine.ASR_PROTOCOLS)
     check("每条协议都有说明文案",
           all(k in engine.ASR_PROTOCOL_NOTES
@@ -1222,8 +1295,11 @@ def main():
              "/compatible-mode/v1")
     p, note = engine.asr_protocol_fix("dashscope_realtime", _MAAS,
                                       "qwen-audio-3.0-asr-flash-filetrans")
-    check("文件识别模型 + 实时协议 → 改走 chat_audio（否则服务端只回 url error）",
-          p == "chat_audio" and "不是实时模型" in note, (p, note[:36]))
+    # v1.15.8：-filetrans 模型既不能实时、也不能同步（官方只给异步提交-轮询
+    # 一条路），所以这里改走 dashscope_filetrans，而不是 v1.15.7 的 chat_audio。
+    check("filetrans 模型 + 实时协议 → 改走 Filetrans 异步链路",
+          p == "dashscope_filetrans" and "filetrans" in note.lower(),
+          (p, note[:36]))
     p, note = engine.asr_protocol_fix("dashscope_realtime", _MAAS,
                                       "fun-asr-flash-realtime")
     check("真实时模型 + 实时协议 → 不纠偏", p == "dashscope_realtime" and not note)
