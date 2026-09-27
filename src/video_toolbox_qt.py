@@ -609,6 +609,8 @@ class DownloadPage(QWidget):
 
     _EXTRACT_LOCK = threading.Lock()
     SUB_LANGS = "en,zh,ja,zh-Hans,zh-Hant,ko,es,fr,de"
+    #: 下载分片大小：YouTube 直链要求 Range 请求，不分片就 403（见下方说明）
+    DL_CHUNK_SIZE = "5M"
 
     def __init__(self, app, parent=None):
         super().__init__(parent)
@@ -939,9 +941,14 @@ class DownloadPage(QWidget):
             if proxy_args:
                 self.app.q.put(("dl_log", task_id,
                                 f"[代理] 下载经本地代理 {proxy_args[1]}"))
+            # --http-chunk-size 是必须的：YouTube 自 2026-09 起对 videoplayback
+            # 直链强制要求 Range 请求，yt-dlp 默认的整体 GET 一律 403 ——
+            # 表现为"下载几秒/几十 MB 后失败"，看着像风控其实是缺 Range。
+            # 分片后每个请求都带 Range，才能正常取到数据。
             opts = ["-f", f"{fid}+ba/b", "--merge-output-format", "mp4",
                     "--ffmpeg-location", os.path.dirname(ffmpeg_path),
                     "--newline", "--no-playlist",
+                    "--http-chunk-size", self.DL_CHUNK_SIZE,
                     "--write-thumbnail", "--convert-thumbnails", "jpg",
                     *proxy_args,
                     *engine.ytdlp_cookie_args(),
@@ -955,6 +962,12 @@ class DownloadPage(QWidget):
                                           "（多为 CDN 链接过期），改用链接重新提取"))
                 self.app.q.put(("dl_progress", task_id, 0.0))
                 rc = self._fallback_download(task_id, ytdlp, url, opts)
+            if rc != 0:
+                # 直链被限（403/中途断流）时改走 HLS 分片源：每片独立请求，
+                # 不受"单条直链服务时长有限"的限制，实测能下完 1080p。
+                alt = engine.hls_alt_format(meta, fid)
+                if alt:
+                    rc = self._hls_fallback(task_id, ytdlp, url, opts, alt)
             if rc == 0:
                 self._pack_task(task_id, ffmpeg_path, folder, meta, quality_label)
                 if with_subs:
@@ -990,6 +1003,47 @@ class DownloadPage(QWidget):
                 return 0
         with DownloadPage._EXTRACT_LOCK:
             return self._run_ytdlp_with_retry([ytdlp, *opts, url], task_id)
+
+    def _hls_fallback(self, task_id, ytdlp, url, opts, alt_fid):
+        """直链下载失败后的兜底：换同画质的 HLS(m3u8) 分片源再试一轮。"""
+        def slog(m):
+            self.app.q.put(("sys_log", f"[任务 {task_id}] {m}"))
+
+        new_opts = list(opts)
+        try:
+            new_opts[new_opts.index("-f") + 1] = f"{alt_fid}+ba/b"
+        except (ValueError, IndexError):
+            new_opts += ["-f", f"{alt_fid}+ba/b"]
+        # 两轮选择器：先配普通音轨；音轨同样是 https 直链、一样会被 403 时，
+        # 改用 HLS 里的隐藏音轨 itag 233/234（它们 acodec 为空所以不在常规
+        # 音轨列表里，但实测能下且能合并）。
+        selectors = [f"{alt_fid}+ba/b", f"{alt_fid}+233/234/b"]
+        for sel in selectors:
+            opts_i = list(new_opts)
+            try:
+                opts_i[opts_i.index("-f") + 1] = sel
+            except (ValueError, IndexError):
+                opts_i += ["-f", sel]
+            slog(f"直链受限，改用 HLS 分片源（{sel}）重试 ...")
+            with DownloadPage._EXTRACT_LOCK:
+                fresh = engine.fetch_info_json(ytdlp, url, log=slog)
+            if fresh:
+                tmp = engine.save_info_json(fresh)
+                try:
+                    rc, _ = self._run_ytdlp(
+                        [ytdlp, "--load-info-json", tmp, *opts_i], task_id)
+                finally:
+                    try:
+                        os.remove(tmp)
+                    except OSError:
+                        pass
+                if rc == 0:
+                    return 0
+            with DownloadPage._EXTRACT_LOCK:
+                rc = self._run_ytdlp_with_retry([ytdlp, *opts_i, url], task_id)
+            if rc == 0:
+                return 0
+        return rc
 
     @staticmethod
     def _srt_state(folder, before=None):
@@ -1134,11 +1188,17 @@ class DownloadPage(QWidget):
             if rc == 0:
                 return 0
             joined = "\n".join(lines)
-            if "412" not in joined and "Unable to download webpage" not in joined:
+            # 403 也算可重试：YouTube 直链失效/节点 IP 被判风控都会回 403，
+            # 换一次提取（新直链）往往就过了；只有参数类错误才直接放弃。
+            retryable = ("412" in joined
+                         or "Unable to download webpage" in joined
+                         or "HTTP Error 403" in joined)
+            if not retryable:
                 return rc
             if i < attempts - 1:
                 self.app.q.put(("sys_log",
-                                f"[任务 {task_id}] 站点风控拦截（HTTP 412），{wait}s 后重试 "
+                                f"[任务 {task_id}] 站点风控或直链失效"
+                                f"（412/403），{wait}s 后重试 "
                                 f"({i + 2}/{attempts}) ..."))
                 time.sleep(wait)
                 wait *= 2
