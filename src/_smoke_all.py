@@ -334,6 +334,13 @@ if want("I"):
     for d in (engine.DEFAULT_DOWNLOAD_DIR, engine.THUMB_CACHE_DIR, engine.TMP_DIR,
               engine.LOGS_DIR):
         try:
+            # downloads 目录通常有大量用户文件：只做存在性 + 可写判断（open 后
+            # 不删除），避免批量删除类操作触发安全闸；其余目录写探针并清理
+            if os.path.normcase(d) == os.path.normcase(engine.DEFAULT_DOWNLOAD_DIR):
+                probe = os.path.join(d, "_smoke_probe.tmp")
+                open(probe, "a").close()
+                check("I", f"目录可写 {os.path.basename(d)}", True)
+                continue
             probe = os.path.join(d, "_smoke_probe.tmp")
             open(probe, "w").write("x")
             os.remove(probe)
