@@ -2442,7 +2442,7 @@ ENTITIES = [
                 "Mouier/Mor 变体已在扁平表；本片 #169 Professor Monier、#184 Professor Mona(侧车)。"),
     Entity("西格莉卡", modes=("bi",), en="Sigrika",
            category="角色",
-           variants=("Sriraka", "Skrika"),
+           variants=("Sriraka", "Skrika", "Sigrika"),
            ctx=((r"\bSkrika\b", "尖叫"),),
            note="星炬学院学生、达妮娅挚友（3.2 共鸣者）。扁平表已有 Sigrika/Skiprika/Sria 等；"
                 "短形 'Skip Ra'(#743)/'skip Raika'(#114) 为 ASR 文字游戏，侧车处理。"
@@ -2545,9 +2545,10 @@ ENTITIES = [
                "Hiyuki-chan", "Hiyuki chan",
                # --- 日文原形 ---
                "ひゆき", "ヒユキ", "緋雪", "日雪",
+               # --- 2026-09-27 学习库 confirmed 固化(#230/265)：Yuki 音近日名错形 ---
+               "由纪",
            ),
-           ctx=((r"\bYuki\b", "雪"), (r"\bYuki\b", "由纪"),
-                (r"\bYuki\b", "悠纪"), (r"\bHiyuki\b", "日雪"),
+           ctx=((r"\bYuki\b", "雪"), (r"\bYuki\b", "悠纪"), (r"\bHiyuki\b", "日雪"),
                 (r"\bHiyuki\b", "桧雪"), (r"\bHiyuki\b", "绯雪")),
            note="3.3 共鸣者「灼樱巫女」，主播本命。扁平表已有 Hiyuki/Huki/kiuki/日雪/桧雪；"
                 "本片机翻叠字'希希'(my Hyuki)归此，'希幸'亦 Hiyuki（同音拆字）。"
@@ -2980,6 +2981,9 @@ ENTITIES = [
                # --- 英文 ASR 音近（Qingxiao）---
                "Qingxiao", "Qing Xiao", "Chingxiao", "Ching-hsiao",
                "Qingxiaoo", "Qingxiao's", "Qingxiao!",
+               # --- 2026-09-27 学习库 confirmed 固化：谷翻/ASR 音近错形
+               #     (#10/1344/1729/1795/1829/2057/2366/2456，各片人工确认) ---
+               "静莎", "程晓", "钦察", "景沙", "钦查", "青沙", "青莎", "秦莎",
            ),
            note="鸣潮 3.6 新共鸣者（官方中文'清宵'，日文片セイショウ）。"
                 "ASR 音近错形：'清宵'易咬成'清霄/清晓/清笑/清哮/清消/清逍/清潇/清萧'；"
@@ -3060,7 +3064,12 @@ ENTITIES = [
            note="补 r3 '沙科纳'->夏空（#1683，Shakona 谷翻）。既有 西科纳/萨库娜 保留。"),
     Entity("鸣潮", modes=("bi", "react"), en="Wuthering Waves", ja="鳴潮", ko="명조",
            category="作品/游戏",
-           variants=("鸣潮涛",),
+           variants=("鸣潮涛",
+                     # --- 2026-09-27 学习库 confirmed 固化 ---
+                     "Withering Waves",   # 英文名错拼（Wuthering 的常见 ASR/手误形）
+                     "明祖",              # Mingchao ASR 音近残留
+                     # 戒律：'明朝/明州/枯萎' 为常用词/地名，绝不裸键（留学习库注入）
+                     ),
            note="库洛游戏《鸣潮》（英文 Wuthering Waves，日文 鳴潮，韩文 명조）。"
                 "本表只收**片源实测的非正常中文错形**：'鸣潮涛'为谷翻把 Wuthering Waves "
                 "拆译的残留（2026-09-23《尘外客》reaction 片实测）。"
@@ -3105,12 +3114,128 @@ ENTITIES = [
                 "本片'next up, Alto'为角色章节报幕，官方中文=秋水（2026-09-24 官方图鉴复核）。"),
     Entity("散华", modes=("bi",), en="Sanhua",
            category="角色/鸣潮",
+           variants=("三和",),                      # 2026-09-27 学习库固化(#170/344)：Sanhua 音近错形
            ctx=((r"\bSana\b|\bSanhua\b", "萨那"),),
            note="补 r3 '萨那'->散华（#5 开场 'from Sana to Ching Xiao'）。'萨那'也门城市绝不裸键。"),
     Entity("卡提希娅", modes=("bi",), en="Cartethyia",
            category="角色/鸣潮", variants=("卡蒂拉",),
            note="补 r3 '卡蒂拉'->卡提希娅（#1694/1784，Cartilla 谷翻）。"
                 "与既有 CONTEXT '卡提拉'->坎特蕾拉(TCG 片) 为不同错形键，不冲突。"),
+    # ============================================================
+    # 2026-09-27 学习库 confirmed 固化（learned-promote 人工审阅版）
+    #   来源：subtitle_learned_kb.json 各机人工校对 confirmed 条目（89 条，
+    #   GitHub main 收集分支与本机完全一致，sha256 同源核对）。
+    #   甄别戒律：专名/生僻错形才固化进内置表；'明朝/明州/枯萎/骑士/典范/法官/
+    #   哨兵/拖车/哀叹/谐振器/漫游者/太恶心了/圆形/图案/溪流/外骨骼/京城/金龙/
+    #   露西尔/Nvidia' 等常用词义错位不固化（留学习库运行时注入+反例降级，
+    #   详见学习库 bi|<词> 条目）；句子级扩展形态（'谢谢你，鸣潮亚'等）同样不固化。
+    # ============================================================
+    Entity("吟霖", modes=("bi",), en="Yinlin", ko="음림",
+           category="角色/鸣潮",
+           variants=("Eumrim", "尤姆林"),
+           note="学习库固化(#971/972/975/3521-3524，2026-09-20~25 两片实测)："
+                "Eumrim=韩服名음림(Eumlim) ASR 残留；尤姆林=音近错形。"),
+    Entity("今汐", modes=("bi",), en="Jinhsi",
+           category="角色/鸣潮",
+           variants=("金熙",),
+           note="学习库固化(#55/56)：'金熙'为 Jinhsi 音近错形。"),
+    Entity("秧秧", modes=("bi",), en="Yangyang",
+           category="角色/鸣潮",
+           variants=("杨阳",),
+           note="学习库固化(#388/402/570/1512/1844/2796/4689/4692 多片实测)："
+                "'杨阳'为 Yangyang 音近错形。"),
+    Entity("坎特蕾拉", modes=("bi",), en="Cantarella",
+           category="角色/鸣潮",
+           variants=("卡内雷拉", "卡内拉"),
+           note="学习库固化(#192/197/1487/2151/2251-2254)：Cantarella 音译残留。"),
+    Entity("木禺", modes=("bi",),
+           category="角色/鸣潮2.x",
+           variants=("穆宇", "慕宇"),
+           note="学习库固化(#1410/2029/2440/2706/3138/5456/5613)：Muyu 音近错形；"
+                "英文侧 Muyu 佐证形（何慕语等）走学习库 ctx，未固化。"),
+    Entity("露丝", modes=("bi",),
+           category="角色",
+           variants=("鲁斯",),
+           note="学习库固化(#1/2/3)：'鲁斯'为 ASR 残缺音译。同片'荷鲁斯说你好->荷露丝说你好'"
+                "为整句特例，留学习库（'荷鲁斯'=Horus 常规译名绝不裸键）。"),
+    Entity("鸣潮之波", modes=("bi",),
+           category="术语/鸣潮",
+           variants=("枯萎之波",),
+           note="学习库固化(#908/3500)：Wuthering Waves 错拼/误拆的机翻残留，整串安全。"),
+    Entity("Paragon", modes=("bi",), en="Paragon",
+           category="称号/术语·鸣潮",
+           variants=("帕拉贡",),
+           note="学习库固化(#2011-8512 多片实测)：'帕拉贡'=Paragon 音译残留。"
+                "'典范'为常用词义错位，走学习库 ctx（Sha/Chin/Paragon 佐证），不固化。"),
+    Entity("Paragon清宵", modes=("bi",),
+           category="称号/鸣潮3.6",
+           variants=("百丽宫青沙",),
+           note="学习库固化(#1617/5370)：'百丽宫'=Paragon 音译、'青沙'=清宵错形的组合残留。"),
+    Entity("清宵Paragon", modes=("bi",),
+           category="称号/鸣潮3.6",
+           variants=("清沙典范",),
+           note="学习库固化(#2338/8264/10767)：语序相反的另一组合错形，与 Paragon清宵 并存。"),
+    Entity("inzho", modes=("bi",),
+           category="术语·待查证",
+           variants=("ingjo",),
+           note="学习库固化(#968/3795)：ingjo->inzho 小写英文残留替换，两串均生僻，误伤概率极低。"),
+    Entity("七丘", modes=("bi",), en="Septimont",
+           category="地点/鸣潮2.x",
+           variants=("塞普蒂蒙",),
+           note="学习库固化(#967/3913)：Septimont 音译残留。"),
+    Entity("云梭", modes=("bi",),
+           category="载具/鸣潮2.x",
+           variants=("航天飞机",),
+           note="学习库固化(#3655-4219 共8处)：shuttle 机翻'航天飞机'归云梭；"
+                "'班车'义错位留学习库（日常词不裸键扩散）。"),
+    Entity("原神", modes=("bi",), en="Genshin Impact",
+           category="作品/游戏",
+           variants=("根钦",),
+           note="学习库固化(#224/241)：Genshin ASR 错听'根钦'。"),
+    Entity("幽客", modes=("bi",),
+           category="敌人/术语·鸣潮2.x",
+           variants=("地界法师",),
+           note="学习库固化(#1147/1162)：nethermancer 机翻'地界法师'归幽客；"
+                "'下界法师/下界术士/地狱法师'等 ctx 佐证形留学习库候选。"),
+    Entity("强度膨胀", modes=("bi",),
+           category="术语",
+           variants=("力量蔓延",),
+           note="学习库固化(#496/605)：power creep 机翻残留。"),
+    Entity("恒星矩阵导航员", modes=("bi",),
+           category="职务/术语·鸣潮2.x",
+           variants=("斯特拉矩阵导航员",),
+           note="学习库固化(#1304/1320)：Stellar Matrix 音译残留。"),
+    Entity("梦州", modes=("bi",),
+           category="地点/鸣潮2.x",
+           variants=("蒙祖",),
+           note="学习库固化(#707/5518)：Mongzu 音译残留。"),
+    Entity("鸣式", modes=("bi",),
+           category="术语/鸣潮2.x",
+           variants=("明植",),
+           note="学习库固化(#551/2275/2928-4411 共12处多片实测)：Threnodian 专名 ASR/机翻"
+                "错形'明植'（生僻组合，裸键安全）。"),
+    Entity("玄Paragon", modes=("bi",),
+           category="称号/鸣潮2.x",
+           variants=("天鹅典范",),
+           note="学习库固化(#3022/4027)：'天鹅'=Schwan 音译、'典范'=Paragon 机翻，组合残留。"),
+    Entity("玄元境", modes=("bi",),
+           category="地点/术语·鸣潮2.x",
+           variants=("施瓦努安",),
+           note="学习库固化(#2069/9876/9888)：Schwanuan 音译残留。"),
+    Entity("玄方城", modes=("bi",),
+           category="地点/鸣潮2.x",
+           variants=("施万芬霍尔德", "天鹅芳", "施万夫"),
+           note="学习库固化(#2269/4364-4365/7528/7617/11047)：Schwanfang Hold 音译残留组合；"
+                "其余 Schw* 系错形（海绵牙/施万芳要塞/万丰控股 等数十条）均为依赖参考行锚定的"
+                "候选，留学习库 ctx 逐条人工确认，未固化。"),
+    Entity("蜃境", modes=("bi",),
+           category="地点/术语",
+           variants=("幻界",),
+           note="学习库固化(#2315/2325/5263/5866/6580/12255)：mirage 机翻'幻界'归蜃境。"),
+    Entity("爱弥斯", modes=("bi",),
+           category="角色/鸣潮2.x",
+           variants=("艾姆斯",),
+           note="学习库固化(#1644/1645/4470)：Amess 音译残留；'伊梅'(Imeth)走学习库 ctx。"),
 ]
 
 # ============================================================
