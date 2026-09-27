@@ -532,8 +532,18 @@ def vc_redirect_paths():
       · ffmpeg/ffprobe 复用工具箱自带 tools\\ffmpeg.exe（BIN_PATH=TOOLS_DIR 并加入 PATH）
     """
     import sys as _sys
-    if "videocaptioner.config" in _sys.modules:
-        return  # 已导入过，路径常量已固化；补丁只在首次导入时有效
+    _cfg_mod = _sys.modules.get("videocaptioner.config")
+    if _cfg_mod is not None:
+        if getattr(_cfg_mod, "_VT_REDIRECT_DONE", False):
+            return  # 本进程已重定向过，幂等
+        # 已导入但没重定向过 = 有补丁抢跑了（见 prepare_runtime_env 里的顺序说明）。
+        # 此时部分模块可能已把默认常量固化成 AppData，仍尽量覆盖可动态读取的部分，
+        # 并留下日志，避免这类问题再次静默发生。
+        try:
+            _vc_log("警告：videocaptioner.config 在重定向前已被导入，"
+                    "引擎部分模块可能仍指向默认（AppData）路径")
+        except Exception:
+            pass
     target = Path(vc_data_dir())
     user_style_dir = target / "resource" / "subtitle_style"
     try:
@@ -616,6 +626,11 @@ def vc_redirect_paths():
         _vc_cli.CONFIG_DIR = target / "cli"
         _vc_cli.CONFIG_FILE = _vc_cli.CONFIG_DIR / "config.toml"
         _vc_cli.CONFIG_DIR.mkdir(parents=True, exist_ok=True)
+    except Exception:
+        pass
+
+    try:
+        _vc_cfg._VT_REDIRECT_DONE = True
     except Exception:
         pass
 
@@ -4247,6 +4262,16 @@ def prepare_runtime_env():
         vc_lazy_cache_patch()
     except Exception:
         pass
+    # ⚠️ 顺序不可调换：路径重定向必须早于任何会导入 videocaptioner 的补丁。
+    # v1.14.1 的 pydub 补丁内部 `from videocaptioner.core.asr import whisper_cpp`
+    # 会触发引擎 config 导入、把路径常量固化成 AppData 默认值；一旦它先跑，
+    # vc_redirect_paths() 的「已导入即跳过」守卫就会放行，导致重定向整体失效
+    # ——表现为资源/日志/缓存落回 C 盘、随包 assets 与 ffmpeg 定位全丢
+    # （_selftest_vc 11 项失败即由此暴露）。
+    try:
+        vc_redirect_paths()
+    except Exception:
+        pass
     # v1.14.1：转录时 pydub 裸调 ffprobe/ffmpeg 闪黑窗 → 子进程默认隐藏窗口
     try:
         vc_pydub_nowindow_patch()
@@ -4259,10 +4284,6 @@ def prepare_runtime_env():
         pass
     try:
         vc_migrate_legacy_data()
-    except Exception:
-        pass
-    try:
-        vc_redirect_paths()
     except Exception:
         pass
     try:
