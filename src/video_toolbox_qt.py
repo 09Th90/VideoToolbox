@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# @version 1.15.8
+# @version 1.16.1
 """视频工具箱 GUI v1.11.0 —— Fluent 矢量界面
 ====================================================================
 界面形态（v1.10.0 起，原 tkinter 界面退役）：
@@ -112,7 +112,7 @@ from subtitle_compose import ComposeDialog
 # 单独成模块（自带卡片/滚动壳），因此**不反向 import 本文件**，无循环导入。
 import auto_vision_page
 
-VERSION = "1.15.8"
+VERSION = "1.16.1"
 
 # 全格式媒体/字幕/文档扩展名（v1.13.0）：
 #   视频：常见容器 + av1 / h264 / h265 / x264 等裸流与更多封装；

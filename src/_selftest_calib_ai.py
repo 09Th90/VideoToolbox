@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 1.15.8
+# @version 1.16.1
 """AI 校准 Agent 自检（离线，不联网、不调用真实 LLM）。
 
 覆盖：
@@ -789,6 +789,14 @@ def test_tag_priority():
     out5 = ag._build_tags([], hz5, "", 10)
     check("字幕无体裁词时仍凑满 10 个（通用体裁词兜底）", len(out5) == 10,
           " / ".join(out5))
+
+    # 场景 E（v1.16.1 修 bug）：模型给了一大堆体裁词 → ②层封顶 t2[:n_genre] 砍掉的
+    #   词仍留在 seen 里，旧代码的兜底用 seen 判重会把它们当"已用过"跳过，
+    #   最终**凑不满 10 个**（2026-09-28 实测：某片报告只出 8 个 tag）。
+    out6 = ag._build_tags(["鸣潮"] + list(ag._TAG_GENRE_ORDER), "鸣潮", "", 10)
+    check("模型给一堆体裁词时仍凑满 10 个（封顶词可被兜底补回）",
+          len(out6) == 10, "%d 个: %s" % (len(out6), " / ".join(out6)))
+    check("补足后标签不重复", len(set(out6)) == len(out6), " / ".join(out6))
 
 
 def test_web_tool_loop():

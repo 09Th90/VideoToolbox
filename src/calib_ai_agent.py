@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 1.15.8
+# @version 1.16.1
 """AI 校准 Agent —— Agent 级字幕术语校准（v1.11.0；v1.16.0 并发与提示词优化）。
 
 定位
@@ -2262,12 +2262,15 @@ def _build_tags(model_tags, hay_zh, hay_en, count, log=None):
     # tier 1.5（角色名）只在名额富余时补位，排在作品之后、内容之前
     t15 = t15[:max(0, count - len(t1) - len(t2) - len(t3))]
     order = t1 + t15 + t2 + t3
-    # 兜底：片源太干净、三层都填不满时，用体裁词补齐（同样**有据的优先**）
+    # 兜底：片源太干净 / 上层封顶把体裁词挤掉时，用体裁词补齐到 count。
+    #   ⚠ 判重必须用 `order` 而**不是** `seen`：`t2 = t2[:n_genre]` 截断掉的体裁词
+    #   仍留在 seen 里，用 seen 判重会让它们永远补不回来，最终**少于 count 个**
+    #   （2026-09-28 实测：模型给了一堆体裁词，报告里只出 8 个 tag）。
     if len(order) < count:
         for g in _genre_fill_order(hay_zh, hay_en):
-            if g in seen:
+            if g in order:
                 continue
-            order.append(g); seen.add(g)
+            order.append(g)
             if len(order) >= count:
                 break
     if dropped and log is not None:
