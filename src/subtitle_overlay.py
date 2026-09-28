@@ -144,6 +144,9 @@ alignment/margin）。
         self._rect_provider = rect_provider
         self.cues = []
         self.ass_style = {}
+        #: 说话人 -> 颜色（与 secore.speaker_color_map / render_ass 同一份映射）。
+        #: 空字典 = 不启用分色，所有字幕都用 ass_style 的主色。
+        self._speaker_colors = {}
         self.position_ms = 0
         self.selected = -1
 
@@ -182,6 +185,30 @@ alignment/margin）。
         #    取 QStyle），后果是**进程原生崩溃 0xC0000409 且没有任何 traceback**。
         self.ass_style = dict(style or {})
         self.update()
+
+    def set_speaker_colors(self, mapping):
+        """设置「说话人 -> 颜色」映射，用于彩色多人字幕预览。
+
+        颜色由页面用 `secore.speaker_color_map` 算好后传进来——与 ASS 导出
+        共用同一份映射，保证画面上看到的颜色和导出文件里的一致。
+        传空字典即关闭分色。
+        """
+        self._speaker_colors = dict(mapping or {})
+        self.update()
+
+    def _style_for_cue(self, cue):
+        """取某条字幕的绘制样式：带说话人时用该说话人的颜色覆盖主色。
+
+        只覆盖 `color`（正文填充色）——描边、字号、位置等仍走面板统一样式，
+        这样"多人分色"不会把整体版式搞乱。
+        """
+        spk = str(getattr(cue, "speaker", "") or "").strip()
+        col = self._speaker_colors.get(spk) if spk else None
+        if not col:
+            return self.ass_style
+        st = dict(self.ass_style)
+        st["color"] = col
+        return st
 
     def set_position(self, ms):
         ms = max(0, int(ms))
@@ -451,7 +478,7 @@ alignment/margin）。
         p.setRenderHints(QPainter.Antialiasing | QPainter.TextAntialiasing)
         self._rects = []
         for i, c in self._visible_cues():
-            r = self._layout_one(p, c.text, self.ass_style)
+            r = self._layout_one(p, c.text, self._style_for_cue(c))
             if r is not None:
                 self._rects.append((i, r))
         # 选中框画在所有文字之上：它就是一个"独立区块"的可视边界

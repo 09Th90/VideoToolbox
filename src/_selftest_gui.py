@@ -740,8 +740,9 @@ def main():
 
     # v1.13.0：页面合并为 5 个导航页；v1.14.0：新增「流水线」页（共 6 个）
     pages = [win.download_page, win.library_page, win.subtitle_page,
-             win.subtitle_edit_page, win.pipeline_page, win.settings_page]
-    check("六个页面全部构建", all(p is not None for p in pages))
+             win.subtitle_edit_page, win.pipeline_page, win.auto_page,
+             win.settings_page]
+    check("七个页面全部构建", all(p is not None for p in pages))
     check("被合并子板块：音画合并挂入下载页堆叠、字幕校准作独立内容页存在",
           win.merge_page is not None
           and win.download_page.stack.indexOf(win.merge_page) >= 0
@@ -751,11 +752,20 @@ def main():
     check("字幕处理页一级分段已移除（v1.13.0：字幕校准并入引擎工作台分段）",
           not hasattr(win.subtitle_page, "seg")
           and not hasattr(win.subtitle_page, "stack"))
-    check("堆叠页数量为 6（合并后 5 页 + 流水线页）",
-          win.stackedWidget.count() == 6, f"count={win.stackedWidget.count()}")
+    check("堆叠页数量为 7（合并后 5 页 + 流水线页 + 自动化页）",
+          win.stackedWidget.count() == 7, f"count={win.stackedWidget.count()}")
     check("流水线页已挂进导航且可按键定位",
           win.page_by_key("pipeline") is win.pipeline_page
           and "流水线" in getattr(win, "NAV_TEXTS", []))
+    # v1.16.0：自动化页（视觉自动化 demo）——页面/导航/标题/按键定位四处都要就位
+    check("自动化页已挂进导航且可按键定位",
+          win.page_by_key("auto") is win.auto_page
+          and "自动化" in getattr(win, "NAV_TEXTS", [])
+          and gui.PAGE_TITLES.get(win.auto_page.objectName()) == "自动化")
+    check("自动化页自带四段演示（抓帧/识别/任务/内置场景）",
+          all(hasattr(win.auto_page, a) for a in
+              ("shot_view", "btn_run", "task_edit", "dry_switch")),
+          f"objectName={win.auto_page.objectName()}")
     check("下载页分段「视频下载 / 音画合并」就位",
           "download" in win.download_page.seg.items
           and "merge" in win.download_page.seg.items)
@@ -883,6 +893,47 @@ def main():
             pass
         check("字幕校准已并入引擎工作台分段（排在字幕翻译之后）",
               calib_in and calib_after, f"order={_kstr}")
+    # ---- v1.15.8：校准页在前台时，字幕拖到「页面边缘」不得跳页 ----
+    # 坑：CalibPage 只覆盖引擎工作台那块矩形，拖到页面边缘/导航条/窗口边框时
+    # 事件收不到它的 dragEnter，会冒泡到主窗口的全局分派器；此前那里一律
+    # switchTo 到「字幕编辑」，用户看到的就是"拖到边缘就跳页"。
+    if sub._engine is not None:
+        _edge_srt = os.path.join(engine.DATA_DIR, "_selftest_edge_drop.srt")
+        edge_ok = keep_ok = False
+        _home_keep = sub._engine_home
+        try:
+            with open(_edge_srt, "w", encoding="utf-8") as f:
+                f.write("1\n00:00:01,000 --> 00:00:02,000\nhello\n")
+            # ① 停在校准页：拖进来的字幕就地填入，页面不动
+            sub.switch_to_calib()
+            win.switchTo(sub)
+            win.calib_page.in_edit.setText("")
+            win._handle_dropped_files([_edge_srt])   # 等价于"拖到页面边缘"
+            edge_ok = (win.stackedWidget.currentWidget() is sub
+                       and win.calib_page.in_edit.text() == _edge_srt)
+            # ② 没停在校准页：保持原行为（字幕 → 字幕编辑）
+            sub._engine_home = None
+            win._handle_dropped_files([_edge_srt])
+            keep_ok = win.stackedWidget.currentWidget() is win.subtitle_edit_page
+        except Exception:
+            pass
+        finally:
+            sub._engine_home = _home_keep
+            try:
+                os.remove(_edge_srt)
+            except OSError:
+                pass
+        check("校准页前台：字幕拖到页面边缘不跳「字幕编辑」、就地填入校准框",
+              edge_ok)
+        check("校准页不在前台：拖入字幕仍跳「字幕编辑」（原行为不变）", keep_ok)
+    # ---- v1.15.8：窗口标题跟随当前页（导航「返回」键绕过 switchTo）----
+    win.switchTo(win.subtitle_edit_page)
+    _t_before = win.windowTitle()
+    win.stackedWidget.setCurrentWidget(sub, popOut=False)   # 模拟 qrouter.pop
+    _t_after = win.windowTitle()
+    check("窗口标题跟随当前页（绕过 switchTo 的切页也同步）",
+          _t_before.endswith("字幕编辑") and _t_after.endswith("字幕处理"),
+          f"{_t_before} / {_t_after}")
     # ---- v1.12.0：工作台优化（校准合并 / 底部收起 / 比例调整）----
     sub_if = getattr(sub._engine, "subtitle_optimization_interface", None)
     check("工作台「字幕校正」按钮已隐藏（校准并入字幕校准板块）",
@@ -1276,6 +1327,17 @@ def main():
           hasattr(sp, "asr_diarize_switch")
           and sp.asr_diarize_switch.isChecked() is False,
           getattr(sp, "asr_diarize_switch", None))
+    # ---- v1.15.9：语音分离（Separation）开关 + 说话人分色/分轨 ----
+    check("设置页含语音分离开关（默认关，与说话人分离同卡片）",
+          hasattr(sp, "asr_separate_switch")
+          and sp.asr_separate_switch.isChecked() is False,
+          getattr(sp, "asr_separate_switch", None))
+    check("语音分离开关进配置字典（asr_separate）",
+          "asr_separate" in sp._collect_ai(),
+          sorted(k for k in sp._collect_ai() if k.startswith("asr_")))
+    check("字幕编辑页支持按说话人拆分导出（_export_speaker_tracks 已接线）",
+          hasattr(gui.SubtitleEditPage, "_export_speaker_tracks")
+          and hasattr(gui.SubtitleEditPage, "_ask_speaker_export"))
     check("设置页含「调用示例（curl / Python）」入口",
           hasattr(sp, "asr_example_btn"))
     check("设置页含「有未保存的改动」提示位",
@@ -1311,6 +1373,40 @@ def main():
           hasattr(win.calib_page, "ai_switch")
           and hasattr(win.calib_page, "again_btn")
           and callable(getattr(win.calib_page, "start_again", None)))
+    # v1.16.1：AI 校准卡片——档位起点 / 思考轮次上限 / Agent 集群
+    try:
+        _in_chips = [b.text().strip() for b in
+                     sp.calib_preset_chips["输入（上下文预算）"]]
+        _out_chips = [b.text().strip() for b in
+                      sp.calib_preset_chips["输出（单次上限）"]]
+    except Exception:  # noqa: BLE001
+        _in_chips, _out_chips = [], []
+    check("档位起点：输入 128K 起 / 输出 256K 起（低档已移除）",
+          _in_chips == ["128K", "256K", "512K", "1M"]
+          and _out_chips == ["256K", "512K", "1M"],
+          f"输入 {_in_chips} / 输出 {_out_chips}")
+    check("输出额度上限提到 1M（截断重问不再反向打回 512K）",
+          sp.calib_tokens.maximum() == 1048576, str(sp.calib_tokens.maximum()))
+    check("设置页含「思考轮次上限」（默认 0＝关闭，可自定义）",
+          hasattr(sp, "calib_think_rounds")
+          and sp.calib_think_rounds.value() == 0
+          and sp.calib_think_rounds.maximum() >= 8,
+          f"{sp.calib_think_rounds.value()}/{sp.calib_think_rounds.maximum()}")
+    check("设置页含「Agent 集群」开关（默认关闭 + 成员编辑区）",
+          hasattr(sp, "calib_cluster_switch")
+          and not sp.calib_cluster_switch.isChecked()
+          and hasattr(sp, "calib_cluster_edit")
+          and callable(getattr(sp, "_sync_calib_cluster_visible", None)))
+    check("集群成员文本 ↔ 配置列表 往返一致",
+          sp._cluster_text({"calib_cluster_members": [
+              {"role": "review", "name": "R", "base_url": "u",
+               "api_key": "k", "model": "m"}]}) == "review|R|u|k|m"
+          and engine.ai_mod().parse_cluster_text("review|R|u|k|m")[0]["role"]
+          == "review")
+    check("新配置键已进 schema（保存不会被静默丢弃）",
+          all(k in engine.ai_mod().DEFAULT_CONFIG for k in
+              ("calib_think_rounds", "calib_cluster_enabled",
+               "calib_cluster_members", "calib_cluster_rounds")))
     try:
         import calib_ai_agent as _agent
         agent_ok = (_agent.SCRIPT_NAME == "subtitle_calib_merged.py"

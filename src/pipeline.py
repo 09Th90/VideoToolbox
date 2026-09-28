@@ -11,12 +11,24 @@
 * **事件驱动**：只有三类事件会触发评估——目录变更（registry 回调）、阶段完成、
   手动操作（重试 / 打开自动开关 / 点刷新 / 新建链接任务）。定时器只用于
   "发现文件"，绝不用于"推进阶段"。
-* **单并发**：全局一个执行线程，队列 FIFO（同一时刻只有一个子进程/线程在跑）。
+* **多任务并发**：队列 FIFO，但有 N 个执行槽（N = max_workers，默认 3，可配）。
+  **单个 job 内部仍严格串行**（链上同一时刻只有一个阶段在跑，由
+  `_next_actionable` 保证），并行发生在 job 与 job 之间。
 * **幂等**：状态持久化到 data\\pipeline_state.json（走 engine._atomic_write），
   重启后 DONE 的阶段直接跳过，RUNNING 重置为 READY；产物复用必须输入指纹一致。
 * **失败隔离**：某阶段 FAILED 只停住该 job 的后续阶段，其它 job 照常推进。
 * **线程铁律**：本模块不 import 任何 QtGui/QtWidgets；阶段执行体运行在后台线程，
   只通过回调/信号把结果交给上层（GUI 侧再投进 app.q）。
+
+并发下的两条硬约束（历史 bug：多任务时流水线"卡住"不动）
+--------------------------------------------------------
+1. **执行槽必须在自己退出前释放**：`_run_stage` 的 finally 里先把 `(jid, key)`
+   从 `_workers`/`_running` 摘掉，再补一次 `_pump()`。若像旧版那样在"线程还
+   alive 时"就去泵，`_pump` 会以为槽位仍被占用而直接返回，队列里剩下的活
+   永远没人拉 —— 表现为随机卡死（并发任务越多越容易命中）。
+2. **只允许持锁期间登记/启动 worker**：`_pump` 在锁内完成"清理死线程 → 取队
+   列 → 置 RUNNING → 建线程 → start"，否则未 start 的线程 `is_alive()` 为
+   False，会被另一条 `_pump` 当成死线程清掉，导致并发上限失真。
 """
 
 import json
@@ -75,6 +87,11 @@ CHAIN_WATCH = [STAGE_DOWNLOAD, STAGE_MERGE, STAGE_TRANSLATE,
 #: config.json 里的键
 CFG_AUTO = "pipeline_auto"
 CFG_AI = "pipeline_ai_calib"
+CFG_WORKERS = "pipeline_workers"
+
+#: 并发执行槽：默认 3（多任务并行；单任务内部仍严格串行）
+DEFAULT_WORKERS = 3
+MIN_WORKERS, MAX_WORKERS = 1, 8
 
 
 class SkipStage(Exception):
@@ -131,6 +148,19 @@ def _same_path(a, b):
         return os.path.normcase(os.path.abspath(a)) == os.path.normcase(os.path.abspath(b))
     except OSError:
         return False
+
+
+def _file_fp(path):
+    """文件指纹 "size:mtime"（用于「清空任务进度」后判断视频是否被换过）。
+
+    取不到（文件不存在/被移走）时返回空串 —— 空串不代表"没变过"，调用方
+    一律把空串当作"无法确认"，不据此隐藏任务。
+    """
+    try:
+        st = os.stat(path)
+        return "%d:%d" % (int(st.st_size), int(st.st_mtime))
+    except (OSError, TypeError, ValueError):
+        return ""
 
 
 # ============================ 阶段执行体 ============================
@@ -356,6 +386,7 @@ class Job:
         self.files = {}          # kind -> [path]
         self.pair = None         # 最近一次 smart_pair 命中（不持久化）
         self.bootstrap = False   # 存量任务（启动前就在目录里，默认不自动点火）
+        self._drop_after_run = False  # 「清空任务进度」：当前阶段跑完即整条移除
         self.progress = 0.0      # 下载进度 0~100（不持久化）
         self.created = time.time()
         self.chain = list(CHAIN_LINK if self.kind == "link" else CHAIN_WATCH)
@@ -911,7 +942,7 @@ class Pipeline(_Emitter):
     """流水线调度器（引擎侧）。"""
 
     def __init__(self, registry, out_root=None, auto=None, ai_calib=None,
-                 state_path=None, log=None, ignite_existing=False):
+                 state_path=None, log=None, ignite_existing=False, workers=None):
         _Emitter.__init__(self)
         self.registry = registry
         #: 启动前就躺在目录里的"存量任务"是否也自动点火。默认 False：程序一启动
@@ -922,13 +953,16 @@ class Pipeline(_Emitter):
         self.state_path = state_path or STATE_FILE
         self.ai_calib = self._cfg(CFG_AI, True) if ai_calib is None else bool(ai_calib)
         self.auto = self._cfg(CFG_AUTO, True) if auto is None else bool(auto)
+        self.max_workers = (self._cfg_int(CFG_WORKERS, DEFAULT_WORKERS)
+                            if workers is None else self._clamp_workers(workers))
         self.jobs = {}
         self._closed = False
         self._log_cb = log
         self._lock = threading.RLock()
         self._queue = []           # FIFO: [(job_id, stage_key)]
-        self._running = None       # (job_id, stage_key)
-        self._worker = None
+        self._workers = {}         # (job_id, stage_key) -> Thread（并发执行槽）
+        self._running = set()      # 正在执行的 (job_id, stage_key)
+        self._dismissed = {}       # job_id -> 视频指纹（「清空任务进度」后不再自动重建）
         self._eval_thread = None
         self._eval_pending = False
         self._first_sync_done = False   # 首轮同步（存量任务标记）只做一次
@@ -945,10 +979,39 @@ class Pipeline(_Emitter):
         return default if v is None else bool(v)
 
     @staticmethod
+    def _cfg_int(key, default):
+        try:
+            v = engine.load_config().get(key)
+        except Exception:  # noqa: BLE001
+            v = None
+        try:
+            return int(v)
+        except (TypeError, ValueError):
+            return int(default)
+
+    @staticmethod
+    def _clamp_workers(n):
+        try:
+            n = int(n)
+        except (TypeError, ValueError):
+            n = DEFAULT_WORKERS
+        return max(MIN_WORKERS, min(MAX_WORKERS, n))
+
+    @staticmethod
     def _set_cfg(key, value):
         try:
             cfg = engine.load_config()
             cfg[key] = bool(value)
+            engine.save_config(cfg)
+            return True
+        except Exception:  # noqa: BLE001
+            return False
+
+    @staticmethod
+    def _set_cfg_int(key, value):
+        try:
+            cfg = engine.load_config()
+            cfg[key] = int(value)
             engine.save_config(cfg)
             return True
         except Exception:  # noqa: BLE001
@@ -971,6 +1034,78 @@ class Pipeline(_Emitter):
         self._set_cfg(CFG_AI, flag)
         return flag
 
+    def set_workers(self, n):
+        """并发执行槽数量（1~8，持久化）。调大后立刻补泵，无需等下一轮评估。"""
+        n = self._clamp_workers(n)
+        with self._lock:
+            self.max_workers = n
+        self._set_cfg_int(CFG_WORKERS, n)
+        self._emit({"type": "workers", "workers": n})
+        self._emit_jobs()
+        if self.auto:
+            self._pump()
+        self._log(f"[流水线] 并发任务数：{n}")
+        return n
+
+    # ---------- 任务清理 ----------
+    def clear_jobs(self):
+        """清空「任务进度」：移除全部历史任务（已完成 / 失败 / 存量 / 待执行）。
+
+        正在跑的阶段无法安全中断（子进程/线程是 daemon），所以对其所属 job
+        打 `_drop_after_run` 标记：该阶段一结束就整条 job 一起消失，且不再
+        接续后续阶段。所有被清理的 job 都记入 `_dismissed`（带视频指纹），
+        避免下一轮目录评估又把同一批历史视频原地重建出来。
+
+        返回 (立即清理数, 等当前阶段跑完后清理数)。
+        """
+        now, deferred = 0, 0
+        with self._lock:
+            running = {jid for jid, _key in self._running}
+            for jid in list(self.jobs):
+                job = self.jobs[jid]
+                self._dismiss(job)
+                if jid in running:
+                    job._drop_after_run = True
+                    deferred += 1
+                    continue
+                self.jobs.pop(jid, None)
+                now += 1
+            self._queue = []            # 队列里的待执行项一并作废
+        self._save()
+        self._emit_jobs()
+        self._log(f"[流水线] 已清空任务进度：{now} 个历史任务"
+                  + (f"，{deferred} 个执行中（跑完即移除）" if deferred else ""))
+        return now, deferred
+
+    def _dismiss(self, job):
+        """记下"这个任务被用户清掉了"：按视频指纹登记，换过文件就自动复活。"""
+        try:
+            fp = _file_fp(job.video) if job.video else ""
+        except Exception:  # noqa: BLE001
+            fp = ""
+        if fp:
+            self._dismissed[job.id] = fp
+            # 链接任务：其下载目录里的视频会被目录评估当成新的 watch job 重建，
+            # 所以还要把"派生的 watch id"一并登记，否则清完立刻又冒出来。
+            try:
+                self._dismissed[self._job_id(job.video)] = fp
+            except Exception:  # noqa: BLE001
+                pass
+        else:
+            self._dismissed[job.id] = ""
+
+    def _is_dismissed(self, jid, video):
+        """该 job 是否已被「清空任务进度」隐藏（视频没换过才隐藏）。"""
+        if jid not in self._dismissed:
+            return False
+        old = self._dismissed[jid]
+        cur = _file_fp(video) if video else ""
+        if old and cur and old == cur:
+            return True
+        # 指纹对不上（文件被替换/重新下载/被移走）→ 撤销隐藏，让任务正常出现
+        self._dismissed.pop(jid, None)
+        return False
+
     # ---------- 任务创建 ----------
     def add_link(self, url):
         """新建链接任务（用户在流水线页填链接）。返回 (job_id, 提示文案)。"""
@@ -984,12 +1119,14 @@ class Pipeline(_Emitter):
                     return job.id, "该链接的任务已在队列中"
         jid = "link_" + hashlib.md5(url.encode("utf-8")).hexdigest()[:10]
         with self._lock:
+            self._dismissed.pop(jid, None)      # 用户主动重加 → 撤销隐藏
             job = self.jobs.get(jid)
             if job is not None:
                 # 同链接的历史任务已结束：清掉各阶段状态，按新一轮跑
                 job.stages = {k: {"state": WAITING, "error": "", "reason": "",
                                   "out": "", "ts": 0.0} for k in job.chain}
                 job.bootstrap = False
+                job._drop_after_run = False
             else:
                 job = Job(jid, "链接任务（获取标题中…）", "", "", kind="link")
                 job.url = url
@@ -1031,6 +1168,8 @@ class Pipeline(_Emitter):
         with self._lock:
             self._queue = []
             self._eval_pending = False
+            self._workers = {}
+            self._running = set()
             self._listeners = []
         try:
             if self.registry is not None:
@@ -1100,6 +1239,8 @@ class Pipeline(_Emitter):
         fired = []
         with self._lock:
             for job in self.jobs.values():
+                if getattr(job, "_drop_after_run", False):
+                    continue        # 已被「清空任务进度」标记，不再接续下一阶段
                 key = self._next_actionable(job)
                 if not key:
                     continue
@@ -1107,7 +1248,7 @@ class Pipeline(_Emitter):
                     job.stages[key]["state"] = READY
                     job.stages[key]["ts"] = time.time()
                 item = (job.id, key)
-                if self._running == item or item in self._queue:
+                if item in self._running or item in self._queue:
                     continue
                 # 存量任务（本次启动前就在目录里的）默认不自动点火
                 if getattr(job, "bootstrap", False) and not self.ignite_existing:
@@ -1159,34 +1300,47 @@ class Pipeline(_Emitter):
         return None
 
     def _pump(self):
-        """单并发泵：队列里取一个阶段在后台线程执行。"""
+        """并发泵：并发上限内从队列取阶段，各起一个后台线程执行。
+
+        整个"清理死线程 → 取队列 → 置 RUNNING → 建线程 → start"都在锁内完成：
+        未 start 的线程 `is_alive()` 为 False，若放到锁外启动，会被另一条
+        `_pump` 误判为"已结束"而清掉，并发上限随之失真。
+        """
+        started = False
         with self._lock:
-            if self._worker is not None and self._worker.is_alive():
-                return
-            while self._queue:
+            # 清掉已经跑完的 worker，腾出执行槽
+            for item in [k for k, t in self._workers.items() if not t.is_alive()]:
+                self._workers.pop(item, None)
+            limit = max(MIN_WORKERS, min(MAX_WORKERS, int(self.max_workers or 1)))
+            while self._queue and len(self._workers) < limit:
                 jid, key = self._queue.pop(0)
                 job = self.jobs.get(jid)
                 if job is None:
                     continue
-                st = job.stages[key]
-                if st["state"] in (DONE, SKIPPED, RUNNING):
+                st = job.stages.get(key)
+                if st is None or st["state"] in (DONE, SKIPPED, RUNNING):
                     continue
                 st["state"] = RUNNING
                 st["error"] = ""
                 st["ts"] = time.time()
-                self._running = (jid, key)
-                self._worker = threading.Thread(target=self._run_stage,
-                                                args=(jid, key), daemon=True,
-                                                name=f"stage-{key}")
-                self._worker.start()
+                item = (jid, key)
+                self._running.add(item)
+                t = threading.Thread(target=self._run_stage, args=(jid, key),
+                                     daemon=True, name=f"stage-{key}")
+                self._workers[item] = t
+                t.start()
+                started = True
+            if started:
                 self._save()
                 self._emit_jobs()
-                return
 
     def _run_stage(self, jid, key):
         sd = STAGE_BY_KEY[key]
         job = self.jobs.get(jid)
         if job is None:
+            with self._lock:
+                self._running.discard((jid, key))
+                self._workers.pop((jid, key), None)
             return
         ctx = Ctx(self, job)
         self._log(f"[开始] {job.name} → {sd.label}")
@@ -1214,11 +1368,18 @@ class Pipeline(_Emitter):
                 st["ts"] = time.time()
             self._log(f"[失败] {job.name} → {sd.label}：{st['error']}")
         finally:
+            # ① 先释放执行槽（连同"清空任务进度"标记的 job 一并摘除），
+            #    再补泵 —— 顺序反了就会出现"槽位还占着 → 没人拉队列 → 卡死"。
             with self._lock:
-                self._running = None
+                self._running.discard((jid, key))
+                self._workers.pop((jid, key), None)
+                if getattr(job, "_drop_after_run", False):
+                    self.jobs.pop(jid, None)
             self._save()
             self._emit_jobs()
-            self.on_stage_finished()     # 完成 = 新事件 → 驱动下一阶段
+            self.on_stage_finished()     # 完成 = 新事件 → 驱动下一阶段 / 其它 job
+            if self.auto:
+                self._pump()             # 槽位已空 → 立刻补泵，绝不把活留在队列里
 
     # ---------- job 同步 ----------
     def _job_id(self, path):
@@ -1256,6 +1417,9 @@ class Pipeline(_Emitter):
                 directory = os.path.dirname(v)
                 job = self.jobs.get(jid)
                 if job is None:
+                    # 「清空任务进度」清掉的历史视频：文件没换过就别原地重建
+                    if self._is_dismissed(jid, v):
+                        continue
                     job = Job(jid, name, directory, v)
                     # 首轮同步发现的就是"存量任务"（本次启动前已存在）
                     job.bootstrap = not self._first_sync_done
@@ -1336,6 +1500,8 @@ class Pipeline(_Emitter):
             if job is None:
                 return False
             job.bootstrap = False           # 手动点过就不再当存量任务
+            job._drop_after_run = False
+            self._dismissed.pop(jid, None)  # 用户手动执行 → 撤销"清空"隐藏
             keys = [stage] if stage else list(job.chain)
             n = 0
             for k in keys:
@@ -1358,19 +1524,24 @@ class Pipeline(_Emitter):
         with self._lock:
             self.jobs.pop(jid, None)
             self._queue = [it for it in self._queue if it[0] != jid]
+            # 正在跑的线程会自己在 finally 里摘掉 _workers 条目，这里不动它，
+            # 否则执行槽被提前释放，并发上限会失真。
         self._save()
         self._emit_jobs()
 
     def _emit_jobs(self):
         self._emit({"type": "jobs", "jobs": self.job_list(),
-                    "auto": self.auto, "running": self._running})
+                    "auto": self.auto, "workers": self.max_workers,
+                    "running": sorted(list(self._running))})
 
     # ---------- 持久化（幂等） ----------
     def _save(self):
         with self._lock:
             data = {"version": STATE_VERSION, "saved": time.time(),
                     "auto": self.auto, "ai_calib": self.ai_calib,
+                    "workers": self.max_workers,
                     "out_root": self.out_root,
+                    "dismissed": dict(self._dismissed),
                     "jobs": {jid: j.to_dict() for jid, j in self.jobs.items()}}
         try:
             engine._atomic_write(self.state_path,
@@ -1390,6 +1561,9 @@ class Pipeline(_Emitter):
         if not isinstance(data, dict):
             return
         self.out_root = data.get("out_root") or self.out_root
+        dis = data.get("dismissed")
+        if isinstance(dis, dict):
+            self._dismissed = {str(k): str(v or "") for k, v in dis.items()}
         for jid, jd in (data.get("jobs") or {}).items():
             if not isinstance(jd, dict):
                 continue
