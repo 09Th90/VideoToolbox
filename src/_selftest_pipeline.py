@@ -132,14 +132,15 @@ INFO_JSON = {"title": "测试视频", "uploader": "tester",
                   "filesize": 5_000_000}]}
 
 
-def make_pipeline(root, auto=True, poll=0.3, name="dl"):
+def make_pipeline(root, auto=True, poll=0.3, name="dl", workers=None,
+                  state_name="pipeline_state.json"):
     d = os.path.join(root, name)
     os.makedirs(d, exist_ok=True)
     reg = mreg.MediaRegistry(dirs=[d], poll_interval=poll, use_watcher=False,
                              settle_seconds=SETTLE)
     pipe = pl.Pipeline(reg, out_root=os.path.join(root, "成品"),
-                       auto=auto, ai_calib=False,
-                       state_path=os.path.join(root, "pipeline_state.json"),
+                       auto=auto, ai_calib=False, workers=workers,
+                       state_path=os.path.join(root, state_name),
                        log=_pipe_log, ignite_existing=True)
     reg.add_listener(pipe.on_files_changed)
     reg.start()
@@ -564,6 +565,89 @@ def case_auto_off(root):
     reg.stop()
 
 
+def case_parallel_multi(root):
+    """多任务并发：4 个任务同时推进，必须全部跑完（旧版单槽+泵竞态会卡死）。"""
+    d, reg, pipe = make_pipeline(root, name="dl_par", workers=3,
+                                 state_name="par_state.json")
+    names = [f"视频P{i}" for i in range(4)]
+    for nm in names:
+        put(os.path.join(d, nm, nm + ".mp4"))
+        put(os.path.join(d, nm, nm + ".m4a"))
+        put(os.path.join(d, nm, nm + ".srt"), text=SRT)
+    check("并发数夹取在 1~8",
+          pl.Pipeline._clamp_workers(99) == pl.MAX_WORKERS
+          and pl.Pipeline._clamp_workers(0) == pl.MIN_WORKERS
+          and pl.Pipeline._clamp_workers("x") == pl.DEFAULT_WORKERS)
+    reg.poll_once()
+    pipe.manual_evaluate()
+    # 一边等一边采样：并发峰值 与「同一 job 是否同时跑两个阶段」
+    peak = [0]
+    dup = [False]
+    t_end = time.time() + 60
+    while time.time() < t_end:
+        app.processEvents()
+        with pipe._lock:
+            running = list(pipe._running)
+        peak[0] = max(peak[0], len(running))
+        if len(set(j for j, _k in running)) != len(running):
+            dup[0] = True
+        if all(state_of(pipe, nm, "package") == pl.DONE for nm in names):
+            break
+        time.sleep(0.05)
+    ok = all(state_of(pipe, nm, "package") == pl.DONE for nm in names)
+    check("4 个任务并发全部跑到 PACKAGE（不卡住）", ok,
+          " / ".join(f"{nm}={state_of(pipe, nm, 'package')}" for nm in names))
+    check("并发真的发生（峰值 >1）", peak[0] > 1, f"峰值 {peak[0]}")
+    check("单任务内部严格串行（同 job 不会两个阶段同时在跑）", not dup[0])
+    check("并发执行槽未泄漏（跑完后为空）", not pipe._workers and not pipe._running,
+          f"workers={len(pipe._workers)} running={len(pipe._running)}")
+    reg.stop()
+    return pipe
+
+
+def case_clear_jobs(root):
+    """清空「任务进度」：清空即消失，且不会被目录评估原地重建。"""
+    d, reg, pipe = make_pipeline(root, name="dl_clear", workers=2,
+                                 state_name="clear_state.json")
+    names = [f"视频C{i}" for i in range(3)]
+    for nm in names:
+        put(os.path.join(d, nm, nm + ".mp4"))
+        put(os.path.join(d, nm, nm + ".m4a"))
+        put(os.path.join(d, nm, nm + ".srt"), text=SRT)
+    reg.poll_once()
+    pipe.manual_evaluate()
+    ok = wait_until(lambda: all(state_of(pipe, nm, "package") == pl.DONE
+                                for nm in names), 45)
+    check("清空前置：3 个任务跑完", ok,
+          f"{len(pipe.job_list())} 个任务")
+
+    now, deferred = pipe.clear_jobs()
+    check("清空任务进度 → 任务列表为空", not pipe.job_list(),
+          f"now={now} deferred={deferred} left={len(pipe.job_list())}")
+    reg.poll_once()
+    pipe.manual_evaluate()
+    wait_until(lambda: False, 0.5)
+    check("清空后目录评估不会原地重建历史任务", not pipe.job_list(),
+          f"残留 {len(pipe.job_list())} 个")
+
+    # 文件被替换（重新下载）→ 指纹变了，视为新任务正常建卡
+    put(os.path.join(d, names[0], names[0] + ".mp4"), size=4096)
+    reg.poll_once()
+    pipe.manual_evaluate()
+    ok = wait_until(lambda: len(pipe.job_list()) == 1, 10)
+    check("清空后仅被替换的那一个重新出现", ok,
+          f"当前 {len(pipe.job_list())} 个")
+
+    # 链接任务：清空后重新添加同一链接必须还能入队
+    jid, _msg = pipe.add_link("https://example.com/watch?v=clear-test")
+    pipe.clear_jobs()
+    jid2, _msg2 = pipe.add_link("https://example.com/watch?v=clear-test")
+    check("清空后同链接任务可重新入队",
+          bool(jid) and jid2 == jid
+          and any(j["id"] == jid for j in pipe.job_list()))
+    reg.stop()
+
+
 def case_code_review():
     """代码审查：后台代码不得 import Qt 控件类；不得私自 open() 写文本。"""
     for fname in ("media_registry.py", "pipeline.py"):
@@ -650,6 +734,8 @@ def main():
                lambda: case_link_full(root),
                lambda: case_persistence(root),
                lambda: case_auto_off(root),
+               lambda: case_parallel_multi(root),
+               lambda: case_clear_jobs(root),
                case_code_review,
                lambda: case_cli_import(root)):
         try:

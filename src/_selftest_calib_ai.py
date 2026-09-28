@@ -705,8 +705,10 @@ def test_meta_dossier():
         check("学习沉淀已记录", bool(r1.get("learn")), str(r1.get("learn") or "")[:60])
 
         md1 = ag._read_text(report)
-        check("报告含中文标题", "**中文标题**：终末地 提弗洛斯特工档案" in md1)
-        check("报告含标签行", "**标签**：" in md1)
+        check("报告含原始标题行", "- **原始标题**：" in md1)
+        check("报告含中文标题（新）",
+              "**中文标题（新）**：终末地 提弗洛斯特工档案" in md1)
+        check("报告含标签行（带 10 个计数）", "**标签（10 个）**：" in md1)
         check("报告含「四、官方中文核对」", "## 四、官方中文核对" in md1)
         check("报告含「五、脚本沉淀建议」", "## 五、脚本沉淀建议" in md1)
         check("报告节号顺延到「六、备注」", "## 六、备注" in md1)
@@ -775,6 +777,19 @@ def test_tag_priority():
     else:
         check("未登记有据词（角色名）不占作品名额", True, " / ".join(out3))
 
+    # 场景 D（v1.16.1）：补足优先用**字幕有据**的体裁词（用户：tag 来源为字幕内容）
+    hz4 = "这片主要聊抽卡和氪金，别的不提"
+    out4 = ag._build_tags([], hz4, "", 10)
+    check("补足优先字幕有据的体裁词（抽卡/氪金 排最前）",
+          out4[:2] == ["抽卡", "氪金"], " / ".join(out4))
+    check("字幕有据的体裁词优先于无关体裁词",
+          out4.index("抽卡") < out4.index("二次元")
+          and out4.index("氪金") < out4.index("二次元"), " / ".join(out4))
+    hz5 = "完全无关的一段话，没有任何体裁词"
+    out5 = ag._build_tags([], hz5, "", 10)
+    check("字幕无体裁词时仍凑满 10 个（通用体裁词兜底）", len(out5) == 10,
+          " / ".join(out5))
+
 
 def test_web_tool_loop():
     """联网查证工具环（离线）：请求解析 / 执行回填 / 至多一轮 / 计数统计。"""
@@ -829,7 +844,7 @@ def test_web_tool_loop():
     check("证据回填进第二轮提示词", seen["has_evidence"])
     check("调用计数进 stats", stats.get("tool_calls") == 1, str(stats))
 
-    # 4 工具环只走一轮：模型反复要工具 ⇒ 不死循环
+    # 4 工具环轮数由 think_rounds 控制（v1.16.1）：0=关闭（用内部安全上限兜底）
     n2 = {"n": 0}
 
     def stubborn_chat(prompt, system=None, max_tokens=8192):
@@ -838,8 +853,23 @@ def test_web_tool_loop():
     changes, fail = ag._ask_block(
         stubborn_chat, "", "r", [("1", "甲", "a")], 1, 1024,
         lambda m, level="dim": None, tick=lambda: None,
-        web={"search": lambda q: "无结果"})
-    check("顽固请求不死循环（≤1 工具轮）", n2["n"] <= 3, f"chat 调用 {n2['n']} 次")
+        web={"search": lambda q: "无结果"}, think_rounds=1)
+    check("思考轮次=1 时顽固请求不死循环（≤1 工具轮）", n2["n"] <= 3,
+          f"chat 调用 {n2['n']} 次")
+
+    # 4b 关闭（0＝不限）仍有内部安全上限兜底，绝不无限往返
+    n3 = {"n": 0}
+
+    def stubborn_chat2(prompt, system=None, max_tokens=8192):
+        n3["n"] += 1
+        return '[{"tool":"web_search","query":"whatever"}]'
+    ag._ask_block(
+        stubborn_chat2, "", "r", [("1", "甲", "a")], 1, 1024,
+        lambda m, level="dim": None, tick=lambda: None,
+        web={"search": lambda q: "无结果"}, think_rounds=0)
+    check("思考轮次=0（关闭）仍受内部安全上限约束",
+          n3["n"] <= ag.HARD_MAX_THINK_ROUNDS + 3,
+          f"chat 调用 {n3['n']} 次（上限 {ag.HARD_MAX_THINK_ROUNDS}）")
 
     # 5 calib_web_agent 纯函数（不出网）：HTML 剥离 / proxy 三态 / 入参降级
     stripped = web_ag._strip_html(
@@ -869,6 +899,148 @@ def test_web_tool_loop():
     check("空查询给文本不抛异常", "失败" in r2, r2)
 
 
+def test_cluster():
+    """v1.16.1：Agent 集群（多智能体协作）——提议/评审分工、驳回回喂整改、报告留痕。"""
+    print("\n== 14. Agent 集群（多智能体协作，默认关闭） ==")
+    # --- 单元：评审回复解析 / 评审提示词 ---
+    check("_parse_rejects 正常解析",
+          ag._parse_rejects('{"reject":[{"num":"3","reason":"无据"}]}') == {"3": "无据"})
+    check("_parse_rejects 全通过 → 空 dict", ag._parse_rejects('{"reject":[]}') == {})
+    check("_parse_rejects 坏回复 → None（按放行降级）",
+          ag._parse_rejects("抱歉我无法评审") is None
+          and ag._parse_rejects("") is None)
+    rp = ag.build_review_prompt([("1", "卡西亚登场", "Carty appears")],
+                                [{"num": "1", "new_zh": "卡提希娅登场"}])
+    check("build_review_prompt 带原文 + 提案 + 参考行",
+          "卡西亚登场" in rp and "卡提希娅登场" in rp and "Carty appears" in rp)
+
+    with tempfile.TemporaryDirectory() as d:
+        rows = "".join(
+            f"{i}\r\n00:00:{i:02d},000 --> 00:00:{i:02d},900\r\n"
+            "卡西亚登场\r\nCarty appears\r\n\r\n"
+            for i in range(1, 7))
+        src = os.path.join(d, "cl.srt")
+        with open(src, "w", encoding="utf-8", newline="") as f:
+            f.write(rows)
+        kb = os.path.join(d, "kb.json")
+        ag.run_script(PYTHON, SCRIPT, ["kb-export", "--json", "--out", kb], print)
+        rules, _ex, _cn = ag.build_rules(ag.json.loads(ag._read_text(kb)), "bi")
+        propose = _fake_chat_factory(rules)
+        members = [{"name": "提议A", "role": "calibrate"},
+                   {"name": "提议B", "role": "calibrate"},
+                   {"name": "评审R", "role": "review"}]
+
+        def _prop_nums(prompt):
+            seg = prompt.split("【待评审的改动提案】")[-1]
+            return re.findall(r"^(\d+)\t", seg, re.M)
+
+        # ① 首轮驳回一次 → 回喂整改 → 次轮放行
+        seen = {"review": 0, "first": True}
+
+        def chat_round1(prompt, system=None, max_tokens=8192):
+            if system != ag.CLUSTER_REVIEW_SYSTEM:
+                return propose(prompt, system, max_tokens)
+            seen["review"] += 1
+            nums = _prop_nums(prompt)
+            if seen["first"]:
+                seen["first"] = False
+                return ag.json.dumps(
+                    {"reject": [{"num": n, "reason": "缺依据"} for n in nums]},
+                    ensure_ascii=False)
+            return '{"reject":[]}'
+
+        res = ag.calibrate(
+            src, out=os.path.join(d, "cl1.srt"), report=os.path.join(d, "cl1.md"),
+            script=SCRIPT, python=PYTHON, log=lambda m, level="dim": None,
+            chat=propose, chat_for_member=lambda m: chat_round1, baseline=False,
+            chunk_cues=3, workdir=os.path.join(d, "w1"),
+            cluster={"enabled": True, "members": members, "rounds": 2})
+        check("集群跑通（产物生成）", res["ok"], res.get("error", ""))
+        check("集群统计：提议 2 / 评审 1 / 协作轮数 2",
+              res["cluster"]["calibrate"] == 2 and res["cluster"]["review"] == 1
+              and res["cluster"]["rounds"] == 2, str(res["cluster"]))
+        check("首轮驳回触发整改往返（revised ≥ 1）",
+              res["cluster"]["revised"] >= 1, str(res["cluster"]))
+        check("整改后放行并采纳", res["ai_changes"] >= 1
+              and res["cluster"]["reviewed"] >= 1, str(res["cluster"]))
+
+        # ② 评审持续驳回 → 改动被丢弃并写进报告
+        def chat_reject_all(prompt, system=None, max_tokens=8192):
+            if system != ag.CLUSTER_REVIEW_SYSTEM:
+                return propose(prompt, system, max_tokens)
+            return ag.json.dumps(
+                {"reject": [{"num": n, "reason": "始终无据"} for n in _prop_nums(prompt)]},
+                ensure_ascii=False)
+
+        res2 = ag.calibrate(
+            src, out=os.path.join(d, "cl2.srt"), report=os.path.join(d, "cl2.md"),
+            script=SCRIPT, python=PYTHON, log=lambda m, level="dim": None,
+            chat=propose, chat_for_member=lambda m: chat_reject_all, baseline=False,
+            chunk_cues=3, workdir=os.path.join(d, "w2"),
+            cluster={"enabled": True, "members": members, "rounds": 1})
+        check("评审持续驳回 → 改动被丢弃（rejected ≥ 1）",
+              res2["cluster"]["rejected"] >= 1, str(res2["cluster"]))
+        check("驳回写进报告（集群评审驳回）",
+              "集群评审驳回" in ag._read_text(os.path.join(d, "cl2.md")))
+        rc, out = ag.run_script(PYTHON, SCRIPT, ["verify", src, res2["out"]], print)
+        check("集群产物 verify 通过（时间轴/格式未动）",
+              rc == 0 and "VERIFY OK" in out, out[-160:])
+
+        # ③ 集群关闭：统计为空、行为与单智能体一致
+        res3 = ag.calibrate(
+            src, out=os.path.join(d, "cl3.srt"), script=SCRIPT, python=PYTHON,
+            log=lambda m, level="dim": None, chat=propose, baseline=False,
+            chunk_cues=3, workdir=os.path.join(d, "w3"))
+        check("集群默认关闭（enabled=False，无评审成员）",
+              res3["cluster"].get("enabled") is False
+              and res3["cluster"].get("review") == 0, str(res3["cluster"]))
+
+
+def test_orig_title():
+    """v1.16.1：原始标题提取（视频信息.txt → 视频文件名 → 字幕名去噪）+ 提示词带入。"""
+    print("\n== 15. 原始标题（改写新标题的参考基准） ==")
+    with tempfile.TemporaryDirectory() as d:
+        vdir = os.path.join(d, "某视频目录")
+        os.makedirs(vdir)
+        srt = os.path.join(vdir, "【字幕】某视频.en-谷歌翻译.srt")
+        with open(srt, "w", encoding="utf-8", newline="") as f:
+            f.write(SRT)
+        check("① 无信息文件 → 字幕名去噪", ag.read_original_title(srt) == "某视频",
+              ag.read_original_title(srt))
+        with open(os.path.join(vdir, "正式标题.mp4"), "wb") as f:
+            f.write(b"x")
+        check("② 有视频文件 → 视频文件名",
+              ag.read_original_title(srt) == "正式标题",
+              ag.read_original_title(srt))
+        with open(os.path.join(vdir, "视频信息.txt"), "w",
+                  encoding="utf-8-sig") as f:
+            f.write("视频信息\n" + "=" * 40 + "\n\n标题: 原视频的原始标题\n\n"
+                    "简介:\n随便写点\n\n标签: a,b\n")
+        check("③ 视频信息.txt 的「标题:」优先",
+              ag.read_original_title(srt) == "原视频的原始标题",
+              ag.read_original_title(srt))
+        # 全角冒号 + 前后空白也要认
+        with open(os.path.join(vdir, "视频信息.txt"), "w",
+                  encoding="utf-8-sig") as f:
+            f.write("标题　：　全角冒号的标题　\n")
+        check("③b 容忍全角冒号/空白",
+              ag.read_original_title(srt) == "全角冒号的标题",
+              ag.read_original_title(srt))
+        check("取不到时返回空串不抛异常",
+              ag.read_original_title(os.path.join(d, "不存在.srt")) != "")
+
+    # 提示词：必须把原始标题作为「参考基准」喂进去，并要求改写而非照抄
+    p = ag._meta_prompt("", "x.srt", "1\t甲\tA", [], 1, 10,
+                        orig_title="原视频的原始标题")
+    check("提示词带【原始标题】且要求参考改写、不照抄",
+          "原视频的原始标题" in p and "不得原样返回" in p
+          and "参考基准" in p)
+    check("提示词要求 tag 只能来自字幕采样",
+          "tag 只能来自【字幕采样】" in p)
+    p2 = ag._meta_prompt("", "x.srt", "1\t甲\tA", [], 1, 10, orig_title="")
+    check("无原始标题时提示词降级（完全依据字幕）", "未取到" in p2)
+
+
 if __name__ == "__main__":
     print(f"脚本：{SCRIPT}\n解释器：{PYTHON}")
     test_parse_rebuild()
@@ -886,5 +1058,7 @@ if __name__ == "__main__":
     test_meta_dossier()
     test_tag_priority()
     test_web_tool_loop()
+    test_cluster()
+    test_orig_title()
     print("\n" + ("全部通过 ✅" if not FAILED else f"失败 {len(FAILED)} 项 ❌：{FAILED}"))
     sys.exit(1 if FAILED else 0)

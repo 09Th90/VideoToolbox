@@ -283,6 +283,37 @@ def test_codec_compat(base):
         spec.loader.exec_module(mod)
         check("校准脚本 _decode_any 可读 GBK 字幕",
               mod._decode_any(cn_gbk.encode("gbk")) == cn_gbk)
+        # 回归（2026-09-28）：英文 ASR 断词 + 谷翻硬译残留
+        #   实测："Water ing lace just released shin the reson ator showcase,"
+        #         -> 中文"浇水蕾丝刚刚在共鸣者展示柜上发布"（全错）
+        d = tempfile.mkdtemp(prefix="vt_calib_split_")
+        src = os.path.join(d, "s.srt")
+        dst = os.path.join(d, "o.srt")
+        srt = ("1\n00:00:01,000 --> 00:00:03,000\n"
+               "浇水蕾丝刚刚在共鸣者展示柜上发布\n"
+               "Water ing lace just released shin the reson ator showcase,\n\n"
+               "2\n00:00:04,000 --> 00:00:06,000\n"
+               "谐振器刚刚发布\nreson ator just released\n\n"
+               "3\n00:00:07,000 --> 00:00:09,000\n"
+               "我喜欢给花浇水，这是正常的浇水方式\n"
+               "I like watering flowers, this is a normal watering method\n")
+        open(src, "wb").write(srt.encode("utf-8"))
+        mod.process(src, dst, mode="bi")
+        got = open(dst, encoding="utf-8-sig").read()
+        check("校准：ASR 断词硬译 '浇水蕾丝'->'鸣潮'",
+              "鸣潮" in got and "浇水蕾丝" not in got,
+              got.splitlines()[2] if len(got.splitlines()) > 2 else got)
+        check("校准：'共鸣者展示柜'->'共鸣者展示'（resonator showcase）",
+              "展示柜" not in got)
+        check("校准：断词锚定 'reson ator'->谐振器->共鸣者",
+              "共鸣者刚刚发布" in got)
+        check("校准：正常句 '浇水方式' 无英文佐证时不误伤",
+              "正常的浇水方式" in got)
+        check("scan-split 识别 'reson ator' 断词",
+              any(j.lower() == "resonator"
+                  for _l, _r, j, _a in mod._scan_split_line("reson ator just released")))
+        check("_ref_for_match 规整 'Water ing lace'->'Wuthering Waves'",
+              mod._ref_for_match("Water ing lace just released").startswith("Wuthering Waves"))
     except Exception as e:  # noqa: BLE001
         check("校准脚本 _decode_any 可读 GBK 字幕", False, str(e))
 
