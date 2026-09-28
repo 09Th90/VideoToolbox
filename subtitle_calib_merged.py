@@ -25,6 +25,9 @@ SRT 结构：序号 / 时间轴 / 中文行(被改) / 参考行(默认不改)。
   JA_TERMS/JA_CONTEXT 日语原声片源（鸣潮）术语统一 + 日语参考行上下文佐证
   ENDFIELD_TERMS      终末地片源术语统一
   EN_LINE_TERM_FIXES      英文/参考行 ASR 错词修正（仅 --fix-en 时应用）
+  EN_ASR_SPLIT_FIXES      英文参考行 ASR「断词/粘连」修正（2026-09-28 新增）：
+                          锚定匹配前自动规整参考行（CONTEXT 佐证不再被断词打断），
+                          --fix-en 时同时修正英文输出行；另配 scan-split 子命令扫描候选
   ENTITIES                对象级知识层（2026-09-11 起新对照一律以 Entity 追加于此，
                           注册时自动投影进上述扁平表；见文件第 6 节）
 注意各片源术语按模式分开应用，勿混（同一个中文词在不同片源里含义可能不同；
@@ -79,6 +82,8 @@ B. 流水线子命令（原各项目分散脚本 extract_cues/split_segs/merge_r
   python subtitle_calib_merged.py verify   <src.srt> <out.srt>             # 校验结构零改动
   python subtitle_calib_merged.py compare  <src.srt> <out.srt> <对照.tsv>   # 生成 错误vs正确 对照
   python subtitle_calib_merged.py scan     <cues.tsv> [--min 2]            # 扫描待校准高频英文词
+  python subtitle_calib_merged.py scan-split <a.srt> [b.srt ...] [--min 1] # 扫描英文/参考行
+        # 里的疑似 ASR 断词（"reson ator"/"Water ing lace"），列出候选供补 EN_ASR_SPLIT_FIXES（只读）
   python subtitle_calib_merged.py subfix   <src.srt> <fix.tsv> --out out.srt
         [--compare 对照.tsv] [--side 覆盖.tsv]                             # 逐 cue 子串修正（见下）
   python subtitle_calib_merged.py terms-check [表名...]                     # 术语表二次命中隐患自查
@@ -666,6 +671,9 @@ CONTEXT_MAP = [
     (r"synchronist", "同步者", "适格者"),           # 官方中文 适格者（同参考行佐证收敛）
     (r"chosen synchronist", "被选中的同步者", "适格者"),  # #20993 chosen synchronist=适格者（整词先行）
     (r"resonators?\b", "谐振器", "共鸣者"),         # Resonator 官方译名 共鸣者
+    # --- 2026-09-28 ASR 断词片源（reacting to resonator showcases）：硬译残留 ---
+    # "reson ator showcase" 经 EN_ASR_SPLIT_FIXES 规整后锚定；"展示柜"是正常词，须英文佐证
+    (r"\bresonators? showcases?\b", "展示柜", "展示"),   # resonator showcase=共鸣者展示
     (r"reverberation", "混响", "残响"),             # reverberation 语境=残响（官方词；依 NGA/剧情“机傀附着的残响”，2026-09-08 修正）
     (r"\blament\b", "哀叹", "悲鸣"),                # the Lament 官方译名 悲鸣
     (r"\blament\b", "叹息", "悲鸣"),
@@ -2174,6 +2182,176 @@ ZELDA_TERMS = {
 }
 
 # =============================================================
+# 5.9 英文参考行「ASR 断词/粘连」容错层（2026-09-28 新增）
+#
+#   问题（用户实测）：英文 ASR 常在**单词内部插空格**——"reson ator"=resonator，
+#     "Water ing lace"=Wuthering Waves（断词 + 误听）。谷歌翻译按**字面**直译这些
+#     断片，产出中文残渣："浇水蕾丝刚刚在共鸣者展示柜上发布"（正确应为"鸣潮…"）。
+#     既有机制挡不住，因为：① 中文残渣是**无穷生成**的，术语表永远列不全；
+#     ② CONTEXT_MAP 的英文锚定正则（\bWuthering\b / resonators?）因断词**匹配不上**，
+#        所有佐证规则集体失效——这才是根因（事后往中文表补键，挡不住下一部新片）。
+#
+#   本层只作用于「参考行匹配」这一路（对既有输出零侵入，verify 仍逐字节保结构）：
+#     ① EN_ASR_SPLIT_FIXES：人工沉淀的「断词/误听英文形 -> 规范英文」，锚定前先规整；
+#        --fix-en 时同时修正英文输出行（与 EN_LINE_TERM_FIXES 同风格，长键优先）。
+#     ② _rejoin_known()：通用重组——相邻两段纯字母若拼起来是**已知英文专名**
+#        （词表自动取自 ENTITIES 的 en 名 + 两张英文修正表的目标），去掉中间空格。
+#        纯断词（reson ator）无需人工补表；误听（Water ing lace）仍须走 ①。
+#     ③ _ref_for_match()：①②合体，供 CONTEXT/EXCLUDE 锚定使用；报告里的参考行
+#        仍按原样输出（除 --fix-en），保证 verify 结构零改动。
+#     ④ scan-split 子命令：扫全片英文行、列出疑似断词候选（只读），便于补 ①。
+# =============================================================
+EN_ASR_SPLIT_FIXES = {
+    # --- 鸣潮：Wuthering Waves 的断词/误听（2026-09-28 用户实测片源）---
+    # 实测参考行："Water ing lace just released shin the reson ator showcase,"
+    "Water ing lace": "Wuthering Waves",     # Water ing（断词）+ lace（Waves 误听）
+    "Watering lace": "Wuthering Waves",
+    "Watering Lace": "Wuthering Waves",
+    "Wuthering lace": "Wuthering Waves",
+    "Watering Ways": "Wuthering Waves",      # 对应既有中文键"浇水方式"（原误置于 ENDFIELD_TERMS）
+    "Watering Waves": "Wuthering Waves",
+    "Withering Waves": "Wuthering Waves",    # Withering 错拼
+    "Weathering Waves": "Wuthering Waves",
+    "Wuthering wave": "Wuthering Waves",
+    "released shin the": "released in the",  # "shin"=s+in 粘连（存疑，待原片复核）
+    # --- 纯断词：resonator 被切成 reson + ator ---
+    "reson ator": "resonator",
+    "reson ators": "resonators",
+    "Reson ator": "Resonator",
+    "Reson ators": "Resonators",
+}
+
+# ASR 断词可疑"尾巴"片段（右片段命中即视为被切断的单词后缀，供 scan-split 报警）
+_ASR_SPLIT_SUFFIXES = frozenset((
+    "ing", "ings", "ator", "ators", "tor", "tors", "ers", "er", "ed",
+    "ly", "tion", "tions", "sion", "sions", "ance", "ence",
+    "able", "ible", "ness", "ment", "ments", "ic", "ical", "ive", "ous",
+))
+# 常见独立英文词（任一片段本身即完整单词 -> 不报；同时**禁止**进已知词表，
+#   防 "We re"->Were、"Sh ing"->Shing 这类把正常词边界误当断词重组）
+_ASR_COMMON_WORDS = frozenset((
+    "a", "an", "the", "and", "or", "of", "to", "in", "on", "at", "by", "for",
+    "with", "from", "is", "are", "was", "were", "be", "been", "it", "its",
+    "this", "that", "these", "those", "i", "you", "he", "she", "we", "they",
+    "me", "my", "your", "his", "her", "our", "their", "not", "no", "so", "up",
+    "out", "all", "one", "two", "new", "now", "day", "way", "man", "men",
+    "get", "got", "let", "may", "can", "will", "just", "very", "more", "most",
+    "also", "but", "have", "has", "had", "do", "does", "did", "go", "see",
+    "say", "like", "love", "good", "bad", "big", "small", "here", "there",
+    "what", "when", "how", "why", "who", "which", "than", "then", "them", "us",
+    "him", "as", "if", "into", "water", "waves", "wave", "showcase", "time",
+    "when", "were", "give", "know", "life", "come", "take", "make", "made",
+    "work", "well", "only", "over", "such", "play", "game", "show", "open",
+    "next", "last", "long", "high", "free", "full", "down", "back", "away",
+    "much", "many", "need", "want", "feel", "look", "seem", "talk", "call",
+    "said", "says", "went", "gone", "done", "left", "right", "music", "video",
+    "sound", "world", "story", "react", "boss", "final", "level", "first",
+    "second", "third", "fourth", "fifth", "chapter", "version", "update",
+    "stream", "beautiful", "people", "song", "best", "ever", "thing", "things",
+))
+
+_KNOWN_EN_CACHE = None
+_KNOWN_EN_MIN_LEN = 5          # 已知词最短长度：过短易被正常词边界污染（were/when/this…）
+
+
+def _known_en_tokens():
+    """已知英文专名词表（小写纯字母 token），惰性构建并缓存。
+    来源：ENTITIES 的 en 名 + EN_LINE_TERM_FIXES / EN_ASR_SPLIT_FIXES 的目标值。
+    护栏：只收长度 >= _KNOWN_EN_MIN_LEN 且不在 _ASR_COMMON_WORDS 的 token——
+    防长句歌名（如 "When We Were the Most Beautiful"）把 were/when/most 等常用词
+    混进词表，进而让 _rejoin_known 把正常词边界误判成断词。"""
+    global _KNOWN_EN_CACHE
+    if _KNOWN_EN_CACHE is not None:
+        return _KNOWN_EN_CACHE
+    toks = set()
+
+    def _add(s):
+        for t in re.findall(r"[A-Za-z]+", s or ""):
+            tl = t.lower()
+            if len(tl) >= _KNOWN_EN_MIN_LEN and tl not in _ASR_COMMON_WORDS:
+                toks.add(tl)
+
+    for e in globals().get("ENTITIES", ()):      # ENTITIES 在本段之后定义，运行时已就绪
+        _add(getattr(e, "en", ""))
+    for v in EN_LINE_TERM_FIXES.values():
+        _add(v)
+    for v in EN_ASR_SPLIT_FIXES.values():
+        _add(v)
+    _KNOWN_EN_CACHE = frozenset(toks)
+    return _KNOWN_EN_CACHE
+
+
+def _rejoin_known(text, known=None):
+    """把相邻两段纯字母之间的空格去掉——**仅当**拼起来是已知英文专名。
+    纯断词（"reson ator"->"resonator"）自动修复；正常词边界不动。
+    护栏：左片段 >=3 字符（挡 "We re"/"Sh ing"），拼接结果须在已知词表内。
+    迭代至稳定，可处理三段连续断词。"""
+    if not text or " " not in text:
+        return text
+    known = known if known is not None else _known_en_tokens()
+    if not known:
+        return text
+    parts = re.split(r"([ \t]+)", text)          # 奇数位为空白，保留原结构
+    changed = True
+    while changed:
+        changed = False
+        out, i = [], 0
+        while i < len(parts):
+            if (i + 2 < len(parts)
+                    and re.fullmatch(r"[A-Za-z]{3,}", parts[i])
+                    and re.fullmatch(r"[A-Za-z]+", parts[i + 2])
+                    and (parts[i] + parts[i + 2]).lower() in known):
+                out.append(parts[i] + parts[i + 2])   # 吃掉空白 + 右片段
+                i += 3
+                changed = True
+            else:
+                out.append(parts[i])
+                i += 1
+        parts = out
+    return "".join(parts)
+
+
+_SPLIT_FIX_CACHE = None
+
+
+def _split_fix_pairs():
+    """EN_ASR_SPLIT_FIXES 的编译缓存（长键优先 + 键字符集）。"""
+    global _SPLIT_FIX_CACHE
+    if _SPLIT_FIX_CACHE is None:
+        _SPLIT_FIX_CACHE = _compile_map(EN_ASR_SPLIT_FIXES)
+    return _SPLIT_FIX_CACHE
+
+
+def _ref_for_match(ref):
+    """锚定匹配专用：先套断词/误听修正表，再通用重组，返回规整后的参考行。
+    只用于 CONTEXT/EXCLUDE 的正则匹配与 --fix-en 输出；
+    **绝不**改动默认输出里的参考行（结构零改动原则）。"""
+    if not ref:
+        return ref
+    pairs, chars = _split_fix_pairs()
+    ref = _replace_report(ref, pairs, chars, {})
+    return _rejoin_known(ref)
+
+
+def _scan_split_line(line, known=None):
+    """返回一行里疑似 ASR 断词的候选：[(左片段, 右片段, 拼接, 可自动重组)]。
+    左片段须 >=3 字符（与 _rejoin_known 同护栏，挡 "We re"/"Sh ing" 类误报）。"""
+    known = known if known is not None else _known_en_tokens()
+    hits = []
+    for m in re.finditer(r"\b([A-Za-z]{3,})[ \t]+([A-Za-z]{2,})\b", line or ""):
+        l, r = m.group(1), m.group(2)
+        joined = l + r
+        if joined.lower() in known:
+            hits.append((l, r, joined, True))        # 拼起来即已知专名 -> 可直接自动重组
+            continue
+        if l.lower() in _ASR_COMMON_WORDS or r.lower() in _ASR_COMMON_WORDS:
+            continue                                 # 任一片段是完整单词 -> 不是断词
+        if r.lower() in _ASR_SPLIT_SUFFIXES:
+            hits.append((l, r, joined, False))       # 右片段是单词尾巴 -> 疑似断词，待人工确认
+    return hits
+
+
+# =============================================================
 # 6. 对象级知识层（Entity Knowledge Base，2026-09-11）
 #
 #    动机：扁平表时代，一个"对象"（如 漂泊者）的知识散落在几十条
@@ -3068,13 +3246,23 @@ ENTITIES = [
                      # --- 2026-09-27 学习库 confirmed 固化 ---
                      "Withering Waves",   # 英文名错拼（Wuthering 的常见 ASR/手误形）
                      "明祖",              # Mingchao ASR 音近残留
-                     # 戒律：'明朝/明州/枯萎' 为常用词/地名，绝不裸键（留学习库注入）
+                     # --- 2026-09-28 ASR 断词 + 硬译残留（用户实测片源）---
+                     # 参考行 "Water ing lace just released shin the reson ator showcase,"
+                     #   （Wuthering Waves 被 ASR 断词 + 误听），谷翻按字面直译成下形；
+                     #   非正常中文词，裸键安全。英文侧规整见 EN_ASR_SPLIT_FIXES。
+                     "浇水蕾丝", "浇水蕾斯",
+                     # 戒律：'明朝/明州/枯萎/浇水方式/风化波浪' 为常用词/短语，绝不裸键（见下 ctx）
                      ),
+           # 歧义形（本身是正常中文短语）只走参考行佐证：英文侧经 EN_ASR_SPLIT_FIXES
+           #   规整（"Watering Ways"->"Wuthering Waves"）后 \bWuthering Waves\b 才命中。
+           #   注：'风化波浪/风化浪潮' 已是 BILINGUAL_TERMS 无条件变体（第 330/550 行），此处不再重复。
+           ctx=((r"\bWuthering Waves\b", "浇水方式"),),   # Watering Ways
            note="库洛游戏《鸣潮》（英文 Wuthering Waves，日文 鳴潮，韩文 명조）。"
                 "本表只收**片源实测的非正常中文错形**：'鸣潮涛'为谷翻把 Wuthering Waves "
-                "拆译的残留（2026-09-23《尘外客》reaction 片实测）。"
-                "戒律：'凋零波浪/风化波浪'等通用词义错形不得作裸键（见 BILINGUAL_TERMS 同名注释）；"
-                "无实测证据的音近错形一律不臆造。"),
+                "拆译的残留（2026-09-23《尘外客》reaction 片实测）；"
+                "'浇水蕾丝'为 ASR 断词+误听（Water ing lace）后的硬译残留（2026-09-28 实测）。"
+                "戒律：'凋零波浪/风化波浪/浇水方式'等通用词义错形不得作裸键（见 BILINGUAL_TERMS 同名注释），"
+                "改走 ctx 由参考行锚定；无实测证据的音近错形一律不臆造。"),
     Entity("丹瑾", modes=("bi",), en="Danjin",
            category="角色/鸣潮",
            variants=("团津",),                          # #120/121 "who's Tanjin" 谷翻
@@ -4063,7 +4251,9 @@ def process(path, out_path=None, report_path=None, mode="bi",
       mode="endo" 终末地模式：ENDFIELD_TERMS 统一全部文本行。
       mode="ak"   明日方舟本体模式：AK_TERMS 统一中文行术语（仅首中文行）。
       mode="zho"  中文行专属模式：ZH_ONLY_TERMS 只改首中文行英文噪音（不动英文/参考行）。
-      fix_en=True   双语模式下用 EN_LINE_TERM_FIXES 修正英文/参考行（默认不动）。
+      fix_en=True   双语模式下用 EN_ASR_SPLIT_FIXES + EN_LINE_TERM_FIXES 修正英文/参考行（默认不动）。
+    参考行锚定（CONTEXT/EXCLUDE）一律先经 _ref_for_match 规整（ASR 断词容错），
+    但默认输出的参考行保持原样，只有 fix_en=True 才写回。
     """
     if mode == "ko":
         terms = KO_TERMS
@@ -4138,12 +4328,15 @@ def process(path, out_path=None, report_path=None, mode="bi",
                     if fix_en and mode == "bi":  # --fix-en：修正英文/参考行术语（仅双语模式）
                         for ti in range(j + 2, kk):
                             eold = out[ti]
-                            enew = _replace_report(eold, enfix_pairs, enfix_chars, hits)
+                            e1 = _ref_for_match(eold)     # 先修 ASR 断词/粘连，再修术语
+                            enew = _replace_report(e1, enfix_pairs, enfix_chars, hits)
                             if enew != eold:
                                 rows.append((num, eold, enew, eold))
                                 out[ti] = enew
                         if kk - 1 > zh_idx:      # 上下文匹配/ERROR 翻译改用修正后参考行
                             ref = out[kk - 1]
+                    # 锚定匹配用参考行（断词/误听容错）：输出仍用 ref，结构零改动
+                    ref_m = _ref_for_match(ref)
                     if mode == "pgr" and pgr_override and str(num) in pgr_override:
                         # PGR 模式：侧车整行覆盖（校准后中文已是终稿，不再叠加术语表）
                         new = pgr_override[str(num)]
@@ -4153,7 +4346,7 @@ def process(path, out_path=None, report_path=None, mode="bi",
                     elif mode == "react":     # 音乐/演唱点评：REACT_TERMS 统一首中文行 + REACT_CONTEXT 参考行佐证歧义词
                         new = _replace_report(old, term_pairs, term_chars, hits)
                         for crx, wrong, right in _REACT_CONTEXT_COMPILED:
-                            if wrong in new and crx.search(ref):
+                            if wrong in new and crx.search(ref_m):
                                 new = new.replace(wrong, right)
                         if new != old:
                             rows.append((num, old, new, ref))
@@ -4166,7 +4359,7 @@ def process(path, out_path=None, report_path=None, mode="bi",
                     elif mode == "ja":          # 日语原声：JA_TERMS + JA_CONTEXT(日语行佐证) 统一首中文行
                         new = _replace_report(old, term_pairs, term_chars, hits)
                         for crx, wrong, right in _JA_CONTEXT_COMPILED:
-                            if wrong in new and crx.search(ref):
+                            if wrong in new and crx.search(ref_m):
                                 new = new.replace(wrong, right)
                         if new != old:
                             rows.append((num, old, new, ref))
@@ -4174,7 +4367,7 @@ def process(path, out_path=None, report_path=None, mode="bi",
                     elif mode == "jpe":         # 日语原声·终末地：JA_ENDFIELD_TERMS + 上下文佐证
                         new = _replace_report(old, term_pairs, term_chars, hits)
                         for crx, wrong, right in _JA_ENDFIELD_CONTEXT_COMPILED:
-                            if wrong in new and crx.search(ref):
+                            if wrong in new and crx.search(ref_m):
                                 new = new.replace(wrong, right)
                         if new != old:
                             rows.append((num, old, new, ref))
@@ -4182,7 +4375,7 @@ def process(path, out_path=None, report_path=None, mode="bi",
                     elif mode == "akko":        # 明日方舟韩语原声：AK_KO_TERMS + AK_KO_CONTEXT(韩语行佐证) 统一首中文行
                         new = _replace_report(old, term_pairs, term_chars, hits)
                         for crx, wrong, right in _AK_KO_CONTEXT_COMPILED:
-                            if wrong in new and crx.search(ref):
+                            if wrong in new and crx.search(ref_m):
                                 new = new.replace(wrong, right)
                         if new != old:
                             rows.append((num, old, new, ref))
@@ -4202,12 +4395,12 @@ def process(path, out_path=None, report_path=None, mode="bi",
                     else:                      # 双语模式：统一每个 cue 的首中文行
                         new = _replace_report(old, term_pairs, term_chars, hits)
                         for crx, wrong, right in _CONTEXT_COMPILED:
-                            if wrong in new and crx.search(ref):
+                            if wrong in new and crx.search(ref_m):
                                 new = new.replace(wrong, right)
                         # 负向排除（EXCLUDE_CONTEXT）：高歧义词被替换后，若参考行命中
                         # 排除正则（如 thank you/written tent 语境），回滚该替换并从命中统计移除
                         for wrong, (right, rxs) in _EXCLUDE_COMPILED.items():
-                            if wrong in old and wrong not in new and any(rx.search(ref) for rx in rxs):
+                            if wrong in old and wrong not in new and any(rx.search(ref_m) for rx in rxs):
                                 new = new.replace(right, wrong)
                                 hits.pop(wrong, None)
                         new = _replace_report(new, word_pairs, word_chars, {})  # WORD_MAP 命中不计入统计
@@ -4587,6 +4780,60 @@ XP DPS VIP EZ GG""".split())
             print(f"{w}: {cnt}")
 
 
+def _iter_ref_lines(path):
+    """逐 cue 产出 (序号, 参考行)：双语 SRT 里中文行(首个文本行)以外的文本行。"""
+    raw = open(path, "rb").read()
+    lines = _decode_any(raw).replace("\r\n", "\n").replace("\r", "\n").split("\n")
+    i, n = 0, len(lines)
+    while i < n:
+        s = lines[i].strip()
+        if s.isdigit() and (i == 0 or lines[i - 1].strip() == ""):
+            j = i + 1
+            if j < n and "-->" in lines[j]:
+                kk = j + 1
+                while kk < n and lines[kk].strip() != "":
+                    kk += 1
+                if kk - 1 >= j + 2:              # 存在独立参考行
+                    for ti in range(j + 2, kk):
+                        yield int(s), lines[ti]
+                i = kk
+                continue
+        i += 1
+
+
+def _cmd_scan_split(paths, min_cnt=1):
+    """scan-split：扫描英文/参考行里的疑似 ASR 断词（只读，不改文件）。
+    根因定位用：ASR 在单词内部插空格（"reson ator"/"Water ing lace"）会让
+    CONTEXT 英文锚定失效、并让谷翻产出中文残渣。输出候选（片段对 + 频次 + 样例序号），
+    人工确认后按  "断词形": "规范英文"  追加进 EN_ASR_SPLIT_FIXES 即生效。"""
+    if isinstance(paths, str):
+        paths = [paths]
+    agg = {}          # (l, r, joined) -> [cnt, [nums], auto]
+    for p in paths:
+        try:
+            for num, line in _iter_ref_lines(p):
+                for l, r, joined, auto in _scan_split_line(line):
+                    rec = agg.setdefault((l, r, joined), [0, [], auto])
+                    rec[0] += 1
+                    if len(rec[1]) < 6:
+                        rec[1].append(num)
+                    rec[2] = rec[2] or auto
+        except Exception as e:  # noqa: BLE001  单文件异常不影响其余
+            print(f"  ⚠ 跳过 {p}: {e}")
+    rows = [(k, v) for k, v in agg.items() if v[0] >= min_cnt]
+    if not rows:
+        print("未发现疑似 ASR 断词（参考行正常）。")
+        return 0
+    rows.sort(key=lambda kv: (-kv[1][2], -kv[1][0], kv[0][0]))
+    auto_n = sum(1 for _, v in rows if v[2])
+    print(f"疑似 ASR 断词候选 {len(rows)} 组（其中拼接即已知专名、可直接自动重组 {auto_n} 组）：")
+    for (l, r, joined), (cnt, nums, auto) in rows:
+        tag = "可自动重组" if auto else "需人工确认"
+        print(f"  {l} + {r}  ->  {joined}   [{tag}]  x{cnt}  例序号: {nums}")
+    print("\n确认后把条目追加进 EN_ASR_SPLIT_FIXES（\"断词形\": \"规范英文\"）即自动生效。")
+    return 0
+
+
 def _load_subfix_tsv(path):
     """加载逐 cue 子串修正表：num<TAB>old<TAB>new（old 为空串=整行覆盖，用于 ERROR 补译）。
     返回 {num: [(old, new), ...]}，同一 num 可多行（按文件顺序依次应用）。"""
@@ -4710,7 +4957,8 @@ def main_argv():
     if argv and not argv[0].startswith("-"):
         sub = argv[0]
         if sub in ("extract", "split", "merge", "verify", "compare", "scan", "lint",
-                   "subfix", "terms-check", "termscheck", "terms", "length",
+                   "scan-split", "scansplit", "subfix", "terms-check", "termscheck",
+                   "terms", "length",
                    "kb-export", "kb-lookup", "kb-lint",
                    "learn", "learned-show", "learned-promote", "learned-reject",
                    "kb-sync", "kb-push"):
@@ -4921,6 +5169,10 @@ def _dispatch_subcommand(sub, args):
         if not pos:
             print("用法: scan <cues.tsv> [--min 2]"); return
         _cmd_scan(pos[0], opts.get("min", 2))
+    elif sub in ("scan-split", "scansplit"):
+        if not pos:
+            print("用法: scan-split <a.srt> [b.srt ...] [--min 1]"); return
+        return _cmd_scan_split(pos, opts.get("min", 1))
     elif sub == "lint":
         if len(pos) < 2:
             print("用法: lint <cues.tsv> <calib目录|calib_*.tsv>"); return
