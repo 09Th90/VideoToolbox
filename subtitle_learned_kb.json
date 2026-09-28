@@ -12464,6 +12464,312 @@
    "last": "2026-09-28",
    "alts": {},
    "sync": true
+  },
+  "bi|斯特拉": {
+   "wrong": "斯特拉",
+   "right": "恒星",
+   "mode": "bi",
+   "count": 2,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    1304,
+    1320
+   ],
+   "samples": [
+    [
+     "被称为",
+     "矩阵导航员。比如",
+     "被称为",
+     "矩阵导航员。比如"
+    ],
+    [
+     "斯特拉。",
+     "矩阵导航员",
+     "斯特拉。",
+     "矩阵导航员"
+    ]
+   ],
+   "ref_tokens": {
+    "Like": 1,
+    "called": 1,
+    "Matrix": 2,
+    "Navigator": 2,
+    "Stella": 2
+   },
+   "unc_ref_tokens": {},
+   "first": "2026-09-23",
+   "last": "2026-09-23",
+   "alts": {}
+  },
+  "bi|金熙": {
+   "wrong": "金熙",
+   "right": "今汐",
+   "mode": "bi",
+   "count": 2,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    55,
+    56
+   ],
+   "samples": [
+    [
+     "但那到底是什么？",
+     "，对吧？这家伙",
+     "但那到底是什么？",
+     "，对吧？这家伙"
+    ],
+    [
+     "即使她叫",
+     "，她也感到一种激动",
+     "即使她叫",
+     "，她也感到一种激动"
+    ]
+   ],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {}
+  },
+  "bi|沙典范": {
+   "wrong": "沙典范",
+   "right": "宵Paragon",
+   "mode": "bi",
+   "count": 3,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    2338,
+    8264,
+    10767
+   ],
+   "samples": [
+    [
+     ">> 漫游者。清",
+     "",
+     ">> 漂泊者。清",
+     ""
+    ],
+    [
+     ">> 漫游者。清",
+     "。花了你很长时间",
+     ">> 漂泊者。清",
+     "。花了你很长时间"
+    ],
+    [
+     "清",
+     "。这是真的。我看到她了",
+     "清",
+     "。这是真的。我看到她了"
+    ]
+   ],
+   "ref_tokens": {
+    "Sha": 3,
+    "Rover": 2,
+    "Paragon": 3,
+    "Ching": 3,
+    "Took": 1,
+    "you": 1,
+    "long": 1,
+    "true": 1,
+    "It's": 1,
+    "her": 1,
+    "saw": 1
+   },
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {}
+  },
+  "bi|卡内": {
+   "wrong": "卡内",
+   "right": "坎特蕾",
+   "mode": "bi",
+   "count": 3,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    2151,
+    2252,
+    2254
+   ],
+   "samples": [
+    [
+     "不过我不想看",
+     "拉",
+     "不过我不想看",
+     "拉"
+    ],
+    [
+     "年轻的",
+     "拉吃。哦，然后",
+     "年轻的",
+     "拉吃。哦，然后"
+    ],
+    [
+     "其他的可以小",
+     "拉",
+     "其他的可以小",
+     "拉"
+    ]
+   ],
+   "ref_tokens": {
+    "Canella": 2,
+    "don't": 1,
+    "want": 1,
+    "watch": 1,
+    "though": 1,
+    "eat": 1,
+    "and": 1,
+    "then": 1,
+    "younger": 1,
+    "canella": 1,
+    "other": 1,
+    "small": 1,
+    "those": 1,
+    "can": 1
+   },
+   "unc_ref_tokens": {},
+   "first": "2026-09-24",
+   "last": "2026-09-24",
+   "alts": {}
+  },
+  "bi|gj": {
+   "wrong": "gj",
+   "right": "zh",
+   "mode": "bi",
+   "count": 2,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    968,
+    3795
+   ],
+   "samples": [
+    [
+     "然后跳到 Gin",
+     "o 的边界",
+     "然后跳到 Jin",
+     "ou 的边界"
+    ],
+    [
+     "那是Jin",
+     "o的那一刻",
+     "那是Jin",
+     "ou的那一刻"
+    ]
+   ],
+   "ref_tokens": {
+    "skip": 1,
+    "Gingjo": 1,
+    "over": 1,
+    "Then": 1,
+    "border": 1,
+    "for": 1,
+    "that": 2,
+    "the": 1,
+    "Jingjo": 1,
+    "moment": 1,
+    "was": 1
+   },
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {}
+  },
+  "bi|卡内雷": {
+   "wrong": "卡内雷",
+   "right": "坎特蕾",
+   "mode": "bi",
+   "count": 4,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    1487,
+    192,
+    197,
+    2251
+   ],
+   "samples": [
+    [
+     "",
+     "拉",
+     "",
+     "拉"
+    ],
+    [
+     "我感觉像",
+     "拉",
+     "我感觉像",
+     "拉"
+    ],
+    [
+     ">> 我感觉像",
+     "拉，虽然她",
+     ">> 我感觉像",
+     "拉，虽然她"
+    ],
+    [
+     "就像邪恶的",
+     "拉强迫",
+     "就像邪恶的",
+     "拉强迫"
+    ]
+   ],
+   "ref_tokens": {
+    "Canerella": 7,
+    "like": 3,
+    "feel": 2,
+    "her": 1,
+    "although": 1,
+    "forcing": 1,
+    "evil": 1,
+    "was": 1
+   },
+   "unc_ref_tokens": {},
+   "first": "2026-09-23",
+   "last": "2026-09-24",
+   "alts": {}
+  },
+  "bi|艾姆": {
+   "wrong": "艾姆",
+   "right": "爱弥",
+   "mode": "bi",
+   "count": 3,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    1644,
+    1645,
+    4470
+   ],
+   "samples": [
+    [
+     "起初，是",
+     "斯和天花板的结合",
+     "起初，是",
+     "斯和天花板的结合"
+    ],
+    [
+     "",
+     "斯，天花板上的绳子，现在",
+     "",
+     "斯，天花板上的绳子，现在"
+    ],
+    [
+     "在",
+     "斯时代，这实在太过分了。",
+     "在",
+     "斯时代，这实在太过分了。"
+    ]
+   ],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-09-22",
+   "last": "2026-09-22",
+   "alts": {}
   }
  }
 }
