@@ -150,18 +150,25 @@ def _ass_strip_text(s):
 # =============================================================
 @dataclass
 class Cue:
-    """一条字幕。`start`/`end` 为 int 毫秒，`text` 内部用 LF 换行。"""
+    """一条字幕。`start`/`end` 为 int 毫秒，`text` 内部用 LF 换行。
+
+    `speaker`（v1.15.9）：说话人标签，形如 `说话人1`；空串 = 无归属。
+    SRT 没有独立的说话人字段，因此**以正文行首 `[说话人N] ` 前缀承载**：
+    解析时把前缀剥离进本字段、写出时再拼回，带前缀的 SRT 进出一致；
+    同时 `text` 里只剩纯台词，彩色渲染与翻译锚定才拿得到干净正文。
+    """
 
     start: int
     end: int
     text: str = ""
+    speaker: str = ""
 
     @property
     def duration(self):
         return max(0, self.end - self.start)
 
     def clone(self):
-        return Cue(self.start, self.end, self.text)
+        return Cue(self.start, self.end, self.text, self.speaker)
 
     def overlaps(self, other):
         return self.start < other.end and other.start < self.end
@@ -234,7 +241,10 @@ class SubtitleDoc:
                 i += 1
             while body and not body[-1].strip():
                 body.pop()
-            self.cues.append(Cue(start, max(start, end), "\n".join(body)))
+            # 行首 `[说话人N] ` 前缀剥离进 speaker 字段：text 里只留纯台词，
+            # 彩色渲染 / 翻译锚定拿到的是干净正文；dump() 再拼回去，进出对称。
+            spk, pure = split_speaker_prefix("\n".join(body))
+            self.cues.append(Cue(start, max(start, end), pure, spk))
         return len(self.cues), skipped
 
     def parse_ass(self, lines):
@@ -244,6 +254,11 @@ class SubtitleDoc:
         Effect,Text —— Text 从第 10 段起且**可含逗号**，必须 split(",", 9)。
         样式信息（Style / 覆盖标签 / 边距）不保留：本页导出 ASS 用右侧
         面板的样式（见 SubtitleEditPage.export_subtitle）。
+
+        说话人（v1.15.9）：优先取 `Name` 列（render_ass 把 `说话人N` 写在
+        这里）；Name 为空再回退解析正文行首 `[说话人N] ` 前缀，兼容手工
+        标注的字幕。取到后正文里的前缀会被剥掉，与 SRT 路径同一口径。
+
         skipped 只统计「以 Dialogue: 开头但解析失败」的行——段落头、
         字段定义等 ASS 固有结构不算错误；空文本 Dialogue 保留（打轴时
         常先建空条再填词，与「插入」行为一致）。
@@ -261,17 +276,25 @@ class SubtitleDoc:
             if start is None or end is None:
                 skipped += 1
                 continue
-            self.cues.append(Cue(min(start, end), max(start, end),
-                                 _ass_strip_text(parts[9])))
+            body = _ass_strip_text(parts[9])
+            spk = str(parts[4] or "").strip()
+            if not spk:
+                spk, body = split_speaker_prefix(body)
+            self.cues.append(Cue(min(start, end), max(start, end), body, spk))
         return len(self.cues), skipped
 
     # ---------- 写 ----------
     def dump(self):
-        """写出标准 SRT 文本（UTF-8；BOM 与换行按原样）。"""
+        """写出标准 SRT 文本（UTF-8；BOM 与换行按原样）。
+
+        有说话人的条目在正文前补回 `[说话人N] ` 前缀（SRT 无独立字段，
+        前缀是它唯一的承载方式），保证「读进来什么形态、写出去什么形态」。
+        """
         blocks = []
         for idx, c in enumerate(self.cues, 1):
+            body = speaker_prefix(getattr(c, "speaker", "")) + (c.text or "")
             blocks.append("%d\n%s --> %s\n%s" % (
-                idx, ms_to_srt(c.start), ms_to_srt(c.end), c.text or ""))
+                idx, ms_to_srt(c.start), ms_to_srt(c.end), body))
         body = "\n\n".join(blocks)
         if body:
             body += "\n"
@@ -600,6 +623,127 @@ ASS_DEFAULT_STYLE = {
 ASS_PLAY_RES = (1920, 1080)  # 参考分辨率；libass 会按实际画面等比缩放
 
 
+# =============================================================
+# 说话人（speaker / diarization）支持
+# =============================================================
+#: 说话人标记形态：行首 `[说话人N] `（与引擎 ASR_SPEAKER_PREFIX 同形）。
+#: 容错多余空白与全角方括号，老字幕/手工标注都能认。
+_SPEAKER_PREFIX_RE = re.compile(r"^\s*[\[［]\s*说话人\s*(\d+)\s*[\]］]\s*")
+
+#: 说话人配色板（B 站 / YouTube 风格彩色多人字幕）——按出场顺序取色、循环使用。
+#: 挑的都是深底浅底都看得清的高饱和色，与默认白色正文明显区分。
+SPEAKER_PALETTE = (
+    "#4FC3F7",  # 天蓝
+    "#FFD54F",  # 琥珀
+    "#81C784",  # 草绿
+    "#FF8A80",  # 珊瑚红
+    "#BA68C8",  # 紫罗兰
+    "#4DD0E1",  # 青
+    "#FFB74D",  # 橙
+    "#F06292",  # 粉
+    "#AED581",  # 黄绿
+    "#90A4AE",  # 蓝灰
+)
+
+
+def split_speaker_prefix(text):
+    """把 `[说话人2] 台词` 拆成 (说话人标签, 纯台词)。
+
+    没有标记时返回 `("", 原文)`。标签统一成 `说话人N` 形态（去方括号），
+    便于当字典键、当 ASS 的 Name、以及给翻译做锚点。
+    """
+    t = str(text or "")
+    m = _SPEAKER_PREFIX_RE.match(t)
+    if not m:
+        return "", t
+    return "说话人" + m.group(1), t[m.end():]
+
+
+def speaker_prefix(label):
+    """`说话人2` -> `[说话人2] `（写回 SRT / 正文用）；空标签返回空串。"""
+    lab = str(label or "").strip()
+    return "[%s] " % lab if lab else ""
+
+
+def cue_speakers(cues):
+    """按**首次出场顺序**返回 cues 里出现过的说话人标签（去重、跳过空串）。"""
+    seen = []
+    for c in cues or []:
+        spk = str(getattr(c, "speaker", "") or "").strip()
+        if spk and spk not in seen:
+            seen.append(spk)
+    return seen
+
+
+def speaker_color_map(speakers):
+    """说话人 -> 颜色。按传入顺序（一般 = 首次出场顺序）循环取 SPEAKER_PALETTE。
+
+    预览层（SubtitleStage）与 ASS 导出共用这一份映射，保证「画面上看到的
+    颜色」和「导出文件里的颜色」严格一致——两边各算一份迟早会对不上。
+    """
+    out = {}
+    for spk in speakers or []:
+        key = str(spk or "").strip()
+        if key and key not in out:
+            out[key] = SPEAKER_PALETTE[len(out) % len(SPEAKER_PALETTE)]
+    return out
+
+
+def split_by_speaker(cues):
+    """按说话人拆成多条**独立轨**：`[(说话人标签, [cue, ...]), ...]`。
+
+    顺序 = 首次出场顺序；无说话人标记的条目归到 `""` 轨，且永远排在最后。
+    每条轨各自保留原始时间轴，可直接独立打轴 / 翻译 / 渲染 / 导出。
+    """
+    order, groups = [], {}
+    for c in cues or []:
+        spk = str(getattr(c, "speaker", "") or "").strip()
+        if spk not in groups:
+            groups[spk] = []
+            order.append(spk)
+        groups[spk].append(c)
+    if "" in groups:                    # 无归属轨排最后（有归属的才是主体）
+        order.remove("")
+        order.append("")
+    return [(s, groups[s]) for s in order]
+
+
+def speaker_stats(cues):
+    """逐人统计：`[(说话人标签, 条数, 总时长ms, 字数), ...]`（按出场顺序）。
+
+    供「逐人分析」用——谁说得最多、每人讲了多少字一眼可见；也便于据此
+    分配 TTS 声线（说得多的优先给更贴合的声线）。
+    """
+    stats, idx = [], {}
+    for c in cues or []:
+        spk = str(getattr(c, "speaker", "") or "").strip()
+        if spk not in idx:
+            idx[spk] = len(stats)
+            stats.append([spk, 0, 0, 0])
+        row = stats[idx[spk]]
+        row[1] += 1
+        row[2] += max(0, int(c.end) - int(c.start))
+        row[3] += len(str(getattr(c, "text", "") or ""))
+    return [tuple(r) for r in stats]
+
+
+def speaker_voice_map(speakers, voices):
+    """给每个说话人分配一条 TTS 声线（配音用）：`{说话人: 声线id}`。
+
+    `voices` 是候选声线 id 列表，按出场顺序循环分配——这正是"要配音必须
+    知道哪句归哪个角色、才能分配声线"的最小实现。传空列表返回空字典。
+    """
+    vs = [str(v) for v in (voices or []) if str(v or "").strip()]
+    if not vs:
+        return {}
+    out = {}
+    for spk in speakers or []:
+        key = str(spk or "").strip()
+        if key and key not in out:
+            out[key] = vs[len(out) % len(vs)]
+    return out
+
+
 def ms_to_ass(ms):
     """int 毫秒 -> `H:MM:SS.cc`（ASS 用**厘秒**，不是毫秒）。"""
     ms = max(0, int(ms))
@@ -628,12 +772,52 @@ def _ass_color(css, alpha=0):
                              b.upper(), g.upper(), r.upper())
 
 
+def _ass_style_line(name, color, st):
+    """按样式字典生成一条 `Style:` 行。
+
+    字段顺序必须与 `render_ass` 里 Format 行严格一致（共 23 项）：
+      Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour,
+      BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing,
+      Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR,
+      MarginV, Encoding
+    抽成函数是为了给「每个说话人一条 Style」复用——否则那段格式串要抄 N 遍。
+    """
+    return ("Style: %s,%s,%d,%s,&H000000FF,%s,%s,%d,%d,%d,%d,%d,%d,%d,0,%d,%d,%d,%d,%d,%d,%d,1" % (
+        name,
+        st["font"],
+        int(st.get("size", 46)),
+        _ass_color(color),
+        _ass_color(st.get("outline_color", "#000000")),
+        _ass_color(st.get("back_color", "#000000")),     # BackColour
+        1 if st.get("bold") else 0,
+        1 if st.get("italic") else 0,
+        1 if st.get("underline") else 0,
+        1 if st.get("strikeout") else 0,
+        int(st.get("scale_x", 100)),
+        int(st.get("scale_y", 100)),
+        int(st.get("spacing", 0)),
+        int(st.get("border_style", 1)),
+        int(st.get("outline", 2)),
+        int(st.get("shadow", 0)),
+        int(st.get("alignment", 2)),
+        int(st.get("margin_l", 10)),
+        int(st.get("margin_r", 10)),
+        int(st.get("margin_v", 40)),
+    ))
+
+
 def render_ass(cues, style=None, play_res=ASS_PLAY_RES):
     """把 cues 渲染成一份完整 ASS 文本（供 `MpvPlayer.set_subtitles` 用）。
 
     纯函数：只读 cues 与样式，不碰源字幕文件，也不落任何媒体中间文件。
     空文本的条目会被跳过——预览是为了"看当前这句长什么样"，
     空条目在画面上本来就该是空的。
+
+    彩色多人字幕（v1.15.9）：条目带 `speaker` 时，按出场顺序为每个说话人
+    生成一条独立 Style（颜色取自 `SPEAKER_PALETTE`），Dialogue 引用对应
+    Style、并把说话人标签写进 ASS 的 `Name` 列——导出即 B 站 / YouTube
+    风格的彩色多人字幕；重新导入时说话人信息也能从 Name 列还原。
+    无说话人的条目仍走 `Default`，与旧版行为完全一致。
     """
     st = dict(ASS_DEFAULT_STYLE)
     if style:
@@ -645,6 +829,11 @@ def render_ass(cues, style=None, play_res=ASS_PLAY_RES):
         st["font"] = str(st["font"]).replace(",", " ")   # 逗号会截断 Style 行
     except Exception:  # noqa: BLE001
         st["font"] = "Microsoft YaHei"
+
+    # 说话人 -> 颜色 / Style 名。无归属条目统一走 Default（用面板主色）。
+    colors = speaker_color_map(cue_speakers(cues))
+    spk_style = {spk: "Spk%d" % (i + 1) for i, spk in enumerate(colors)}
+
     lines = [
         "[Script Info]",
         "ScriptType: v4.00+",
@@ -659,38 +848,17 @@ def render_ass(cues, style=None, play_res=ASS_PLAY_RES):
          "OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, "
          "ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, "
          "MarginL, MarginR, MarginV, Encoding"),
-        # 字段顺序必须与上面 Format 行严格一致（共 23 项）：
-        #   Name, Fontname, Fontsize, PrimaryColour, SecondaryColour,
-        #   OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut,
-        #   ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow,
-        #   Alignment, MarginL, MarginR, MarginV, Encoding
-        "Style: Default,%s,%d,%s,&H000000FF,%s,%s,%d,%d,%d,%d,%d,%d,%d,0,%d,%d,%d,%d,%d,%d,%d,1" % (
-            st["font"],
-            int(st.get("size", 46)),
-            _ass_color(st.get("color", "#FFFFFF")),
-            _ass_color(st.get("outline_color", "#000000")),
-            _ass_color(st.get("back_color", "#000000")),     # BackColour
-            1 if st.get("bold") else 0,
-            1 if st.get("italic") else 0,
-            1 if st.get("underline") else 0,
-            1 if st.get("strikeout") else 0,
-            int(st.get("scale_x", 100)),
-            int(st.get("scale_y", 100)),
-            int(st.get("spacing", 0)),
-            int(st.get("border_style", 1)),
-            int(st.get("outline", 2)),
-            int(st.get("shadow", 0)),
-            int(st.get("alignment", 2)),
-            int(st.get("margin_l", 10)),
-            int(st.get("margin_r", 10)),
-            int(st.get("margin_v", 40)),
-        ),
+        _ass_style_line("Default", st.get("color", "#FFFFFF"), st),
+    ]
+    for spk in colors:                       # 每个说话人一条 Style（按出场顺序）
+        lines.append(_ass_style_line(spk_style[spk], colors[spk], st))
+    lines += [
         "",
         "[Events]",
         "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text",
     ]
     for c in cues:
-        body = ass_escape(c.text)
+        body = ass_escape(getattr(c, "text", ""))
         if not body.strip():
             continue
         # 自由位置（v1.14.2）：\an7 让 \pos 的坐标成为**文字块左上角**，
@@ -699,8 +867,10 @@ def render_ass(cues, style=None, play_res=ASS_PLAY_RES):
         px, py = st.get("pos_x"), st.get("pos_y")
         if px is not None and py is not None:
             prefix = "{\\an7\\pos(%.0f,%.0f)}" % (float(px), float(py))
-        lines.append("Dialogue: 0,%s,%s,Default,,0,0,0,,%s%s" % (
-            ms_to_ass(c.start), ms_to_ass(c.end), prefix, body))
+        spk = str(getattr(c, "speaker", "") or "").strip()
+        lines.append("Dialogue: 0,%s,%s,%s,%s,0,0,0,,%s%s" % (
+            ms_to_ass(c.start), ms_to_ass(c.end),
+            spk_style.get(spk, "Default"), spk, prefix, body))
     lines.append("")
     return "\n".join(lines)
 

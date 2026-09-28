@@ -1668,6 +1668,59 @@ def _asr_diarize_on(asr_obj):
     return _asr_diarize_flag(v)
 
 
+def asr_separate_of(ai_cfg=None):
+    """是否开启语音分离（separation）——与 asr_diarize_of 同一套读法。
+
+    语音分离比说话人分离（diarization）更硬核：diarization 只回答"谁在
+    什么时候说话"，separation 要在**两人同时说话**时把重叠的混合信号拆成
+    各自独立的单人轨（音乐 reaction 里"把歌声从人声里剔除"也归这一路）。
+
+    ⚠️ 当前版本**只保留开关与接口**，未内置声源分离模型（Demucs /
+    MossFormer 等体积与算力开销较大）。开启后转录会在日志里记录待分离
+    音频路径；后续接入时只需替换 `_asr_separate_audio` 的实现。
+    """
+    try:
+        ac = ai_mod().asr_config(ai_cfg or ai_load_config())
+        return _asr_diarize_flag(ac.get("separate"))
+    except Exception:  # noqa: BLE001
+        pass
+    try:
+        raw = ai_cfg if ai_cfg else ai_load_config()
+    except Exception:  # noqa: BLE001
+        raw = {}
+    return _asr_diarize_flag((raw or {}).get("asr_separate"))
+
+
+def _asr_separate_on(asr_obj):
+    """取本次转录是否要语音分离（与 _asr_diarize_on 同构，供分块重试沿用）。"""
+    v = getattr(asr_obj, "separate", None)
+    if v is None:
+        return asr_separate_of()
+    return _asr_diarize_flag(v)
+
+
+def _asr_separate_audio(audio_path, asr_obj=None):
+    """语音分离的**接口占位**：把音频里的重叠人声拆成单人轨。
+
+    约定（后续接入声源分离模型时按此实现即可，调用方无需改动）：
+      · 入参：`audio_path` 原始音频；`asr_obj` 当前转录对象（可读配置）；
+      · 返回：`[(标签, 音频路径), ...]` 列表——每个元素是一条**单人轨**，
+        标签形如 `说话人1`（与 diarization 的编号口径一致），路径为分离后
+        落盘的音频；无重叠 / 未启用时返回 `[(None, audio_path)]`（原轨）。
+      · 音乐 reaction 场景：把"歌声"当作独立的一路返回（标签 `歌声`），
+        调用方按标签决定是否剔除——这正是"把歌声给剔除出去"的落点。
+
+    当前实现是**直通**（不分离，原样返回单轨），只做日志记录，便于确认
+    开关已经贯通到引擎。真正的分离模型接入点见 docs/程序说明书(开发版).md。
+    """
+    try:
+        _vc_log("[ASR] 语音分离已开启（接口占位，未内置分离模型），待处理音频：%s"
+                % (audio_path,))
+    except Exception:  # noqa: BLE001
+        pass
+    return [(None, audio_path)]
+
+
 def asr_examples(cfg=None):
     """生成当前 ASR 配置对应的**非流式**调用示例（curl + Python）。
 
@@ -3715,6 +3768,17 @@ def vc_asr_protocol_patch():
         # 都沿用同一个值，避免同一段音频前后半截口径不一致。
         if getattr(self, "diarize", None) is None:
             self.diarize = asr_diarize_of()
+        # 语音分离（separation）：同口径取一次挂到实例上。当前是**接口占位**
+        # ——真正接入声源分离模型时，这里改成"先分离出单人轨、再逐轨提交
+        # 识别"，音乐 reaction 的"剔除歌声"也在这一层按轨道标签筛掉。
+        if getattr(self, "separate", None) is None:
+            self.separate = asr_separate_of()
+            if self.separate:
+                try:
+                    _src = getattr(self, "audio_input", "")
+                    _asr_separate_audio(_src if isinstance(_src, str) else "", self)
+                except Exception as e:  # noqa: BLE001
+                    _vc_log("语音分离接口调用失败：%s" % (e,))
         proto = asr_protocol_of()
         # 协议纠偏统一收在 asr_protocol_fix（v1.14.2 起，v1.15.3 补反向守卫）：
         # ① 显式/旧配置判成 openai，但端点与模型特征指向别族时按推断改走——
@@ -4626,7 +4690,8 @@ def ai_test_asr(cfg=None):
 # 界面开启「AI 校准」后点「开始校准」，等价于向 Agent 下达：基于脚本
 # subtitle_calib_merged 校准字幕，不改变时间轴与格式，仅调整文字内容，
 # 一次读不完就自行拆分，最后合并。实现见 src\calib_ai_agent.py。
-def calib_ai_chat(prompt, system=None, max_tokens=None, on_reasoning=None):
+def calib_ai_chat(prompt, system=None, max_tokens=None, on_reasoning=None,
+                  member=None):
     """AI 校准的 LLM 回调：走全局 AI 单通道（v1.12.0 起不再选通道）。
 
     on_reasoning（v1.14.2）：思考链上报回调，透传给 AIClient，把推理模型返回的
@@ -4635,11 +4700,14 @@ def calib_ai_chat(prompt, system=None, max_tokens=None, on_reasoning=None):
     思考控制（2026-09-20）：读配置 `calib_thinking` / `calib_reasoning_effort`
     （设置页「AI 校准」卡片），随请求体 thinking / reasoning_effort 下发；
     端点不支持时 ai_client 会自动去掉参数重试，不影响可用性。
+
+    member（v1.16.1，Agent 集群）：传入集群成员 dict 时改用该成员自己的
+    base_url / api_key / model 建客户端（未填字段回落全局配置）；None = 全局通道。
     """
     ai = ai_load_config()
     thinking = bool(ai.get("calib_thinking", True))
     effort = str(ai.get("calib_reasoning_effort") or "high").strip().lower()
-    client = ai_mod().get_client()
+    client = ai_mod().member_client(member, ai) if member else ai_mod().get_client()
     return client.chat_text(prompt, system=system,
                             max_tokens=int(max_tokens or 8192),
                             on_reasoning=on_reasoning,
@@ -4665,7 +4733,7 @@ def calib_web_proxy():
 
 def calib_ai_run(src, out=None, report=None, mode_flag="", fix_en=False,
                  log=None, round_no=1, cancel=None, workdir=None,
-                 style=None, resume_from=None, prev_changes=None):
+                 style=None, resume_from=None, prev_changes=None, title=None):
     """跑一轮 Agent 级 AI 校准，返回结果 dict（见 calib_ai_agent.calibrate）。
 
     style：None=读配置 `calib_style`——`term` 术语级（只替换名词，默认）/
@@ -4677,6 +4745,14 @@ def calib_ai_run(src, out=None, report=None, mode_flag="", fix_en=False,
 
     web（2026-09-20 校准 Agent 联网）：`calib_web_enabled` 开启时挂联网查证工具
     （web_search/web_fetch），出网走内置代理；失败降级为「查不到不改」，不打断主流程。
+
+    think_rounds（v1.16.1）：读配置 `calib_think_rounds`——每块「思考→联网查证→
+    再思考」的往返轮数上限，0 = 关闭（不限，内部 32 轮安全上限）。
+    cluster（v1.16.1）：读配置 `calib_cluster_enabled` / `calib_cluster_members` /
+    `calib_cluster_rounds`，开启后走多智能体协作（提议 Agent + 评审 Agent）。
+
+    title（v1.16.1）：原始视频标题，传给片源档案作**改写新标题的参考基准**；
+    None = 由 Agent 自动探测（字幕同目录 `视频信息.txt` 的「标题:」→ 视频文件名）。
     """
     import calib_ai_agent as _agent
     ai = ai_load_config()
@@ -4693,10 +4769,27 @@ def calib_ai_run(src, out=None, report=None, mode_flag="", fix_en=False,
                     log(f"  · 联网查证工具初始化失败（按离线继续）：{e}", "err")
                 except TypeError:
                     log(f"  · 联网查证工具初始化失败（按离线继续）：{e}")
+
+    def _member_chat(member):
+        """按集群成员产出 chat 回调（成员走自己的端点/密钥/模型）。"""
+        def _call(prompt, system=None, max_tokens=None, on_reasoning=None):
+            return calib_ai_chat(prompt, system=system, max_tokens=max_tokens,
+                                 on_reasoning=on_reasoning, member=member)
+        return _call
+
+    cluster = None
+    if bool(ai.get("calib_cluster_enabled", False)):
+        cluster = {"enabled": True,
+                   "members": ai_mod().cluster_members(ai),
+                   "rounds": max(1, int(ai.get("calib_cluster_rounds") or 1))}
+
     return _agent.calibrate(
         src, out=out, report=report, mode_flag=mode_flag, fix_en=fix_en,
         script=os.path.join(APP_DIR, "subtitle_calib_merged.py"),
         python=system_python(), log=log, chat=calib_ai_chat,
+        chat_for_member=_member_chat, cluster=cluster,
+        think_rounds=int(ai.get("calib_think_rounds") or 0),
+        orig_title=title,
         chunk_cues=int(ai.get("calib_chunk_cues") or 400),
         max_chars=int(ai.get("calib_max_chars") or 60000),
         max_tokens=int(ai.get("calib_max_tokens") or 65536),

@@ -1,4 +1,5 @@
 import os
+import re
 from pathlib import Path
 from typing import List
 
@@ -213,7 +214,30 @@ class SubtitleThread(QThread):
 
             # 3. 优化字幕
             context_info = f'The subtitles below are from a file named "{task_file}". Use this context to improve accuracy if needed.\n'
-            custom_prompt = context_info + (subtitle_config.custom_prompt_text or "") + "\n"
+            # v1.15.9：说话人一致性锚定。ASR 开了「说话人分离」时，字幕正文
+            # 行首会带 `[说话人N]` 标记（见 video_toolbox.py 的 ASR_SPEAKER_PREFIX）。
+            # 把这条规则显式写进提示词：① 标记必须原样保留（不翻译、不删除、
+            # 不重编号）；② 同一说话人的称谓、语气、性别指代（他/她）前后一致
+            # ——这正是"没有说话人信息，he said/she said 会乱"的解法。
+            # 只在真的检测到标记时才注入，避免给无说话人的字幕平添噪声。
+            speaker_info = ""
+            try:
+                _spk_pat = re.compile(r"^\s*[\[［]\s*说话人\s*\d+\s*[\]］]")
+                if any(_spk_pat.match(str(getattr(s, "text", "") or ""))
+                       for s in asr_data.segments):
+                    speaker_info = (
+                        "IMPORTANT - Speaker diarization: some subtitle lines begin with a "
+                        "[说话人N] (Speaker N) marker. Rules:\n"
+                        "1) Keep that marker EXACTLY as-is at the beginning of the translated "
+                        "line - do NOT translate, remove, reorder or renumber it.\n"
+                        "2) The same speaker ID always refers to the same person. Keep the "
+                        "address terms, tone and gendered pronouns (he/she, 他/她) consistent "
+                        "across every line of that speaker.\n"
+                    )
+            except Exception:
+                speaker_info = ""
+            custom_prompt = (context_info + speaker_info
+                             + (subtitle_config.custom_prompt_text or "") + "\n")
             self.subtitle_length = len(asr_data.segments)
 
             if subtitle_config.need_optimize:

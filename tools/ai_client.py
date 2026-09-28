@@ -114,6 +114,18 @@ DEFAULT_CONFIG: dict = {
     "calib_thinking": True,
     "calib_reasoning_effort": "high",
     "calib_concurrency": 1,    # 逐块 LLM 调用并发路数（1＝串行；v1.16.0 受控并发）
+    # v1.16.1：Agent 思考轮次上限 —— 每块「思考 → 联网查证 → 再思考」的往返轮数。
+    #   0 = 关闭（不限，内部另有 32 轮安全上限防死循环）；>0 = 硬上限。
+    #   注意：它约束的是**工具/查证往返**，不是日志里的 [x/8]（那是 8 个流水线步骤）。
+    "calib_think_rounds": 0,
+    # v1.16.1：Agent 集群（多智能体协作，**默认关闭**）——
+    #   members 每项 {name, base_url, api_key, model, role}：
+    #     role="calibrate" 提议 Agent（多成员按块轮转，分散负载/多模型并行）
+    #     role="review"    评审 Agent（独立端点/模型复核提议，全部通过才采纳）
+    #   未填的 base_url/api_key/model 回落全局配置；rounds = 评审-整改协作轮数。
+    "calib_cluster_enabled": False,
+    "calib_cluster_members": [],
+    "calib_cluster_rounds": 1,
     # calib_style: "term"=术语级（只替换名词）；"rewrite"=整句重写（理顺机翻）
     # 2026-09-20 修复：此前不在白名单里，界面保存后会被静默丢弃
     "calib_style": "term",
@@ -727,6 +739,9 @@ def asr_config(cfg: dict | None = None) -> dict:
         # 说话人分离（diarization）总开关——只有部分服务端原生支持，
         # 不支持的端点拿到 True 也只是不产生说话人标签。
         "diarize": _asr_diarize_flag(c.get("asr_diarize")),
+        # 语音分离（separation）：重叠语音分离 / 音乐 reaction 剔除歌声。
+        # 目前仅作接口占位（引擎侧 _asr_separate_audio），无端点消费。
+        "separate": _asr_diarize_flag(c.get("asr_separate")),
         "local_model": str(c.get("asr_local_model") or "").strip(),
         "local_model_dir": str(c.get("asr_local_model_dir") or "").strip(),
     }
@@ -1205,6 +1220,75 @@ def get_client(channel: str = "a") -> AIClient:
 def reset_clients() -> None:
     """丢弃已建客户端（配置变更后调用，强制下次重建）。"""
     _clients.clear()
+
+
+# ---- v1.16.1：Agent 集群（多智能体协作）成员 -------------------------------
+CLUSTER_ROLES = ("calibrate", "review")
+
+
+def cluster_members(cfg: dict | None = None, role: str | None = None) -> list:
+    """取归一化后的集群成员列表（可选按 role 过滤）。
+
+    成员形如 {name, base_url, api_key, model, role}；role 缺省/非法一律按
+    "calibrate"。空字段保留为空串，由 member_client 回落到全局配置。
+    """
+    c = dict(cfg or load_config())
+    raw = c.get("calib_cluster_members")
+    if isinstance(raw, str):                 # 容错：界面可能存成整段文本
+        raw = parse_cluster_text(raw)
+    out = []
+    for m in (raw or []):
+        if not isinstance(m, dict):
+            continue
+        r = str(m.get("role") or "calibrate").strip().lower()
+        if r not in CLUSTER_ROLES:
+            r = "calibrate"
+        if role and r != role:
+            continue
+        out.append({
+            "name": str(m.get("name") or "").strip() or r,
+            "base_url": str(m.get("base_url") or "").strip(),
+            "api_key": str(m.get("api_key") or "").strip(),
+            "model": str(m.get("model") or "").strip(),
+            "role": r,
+        })
+    return out
+
+
+def parse_cluster_text(text: str) -> list:
+    """把「角色|名称|base_url|api_key|模型」多行文本解析成成员列表（界面输入用）。
+
+    角色缺省/非法时按 calibrate；允许整行只给 base_url（自动补角色）。
+    """
+    out = []
+    for ln in str(text or "").splitlines():
+        ln = ln.strip()
+        if not ln or ln.startswith("#"):
+            continue
+        parts = [p.strip() for p in ln.split("|")]
+        parts += [""] * (5 - len(parts))
+        role = parts[0].lower()
+        if role not in CLUSTER_ROLES:
+            # 允许省略角色（首列直接给 base_url）
+            parts = ["calibrate", ""] + parts[:3]
+            role = "calibrate"
+        out.append({"role": role, "name": parts[1], "base_url": parts[2],
+                    "api_key": parts[3], "model": parts[4]})
+    return out
+
+
+def member_client(member: dict, cfg: dict | None = None) -> "AIClient":
+    """按集群成员构造独立 AIClient（覆盖 base_url / api_key / model）。
+
+    未填字段回落全局配置，因此成员可以只覆盖「模型」或只覆盖「密钥」。
+    """
+    base = dict(cfg or load_config())
+    m = dict(member or {})
+    for k in ("base_url", "api_key", "model"):
+        v = str(m.get(k) or "").strip()
+        if v:
+            base[k] = v
+    return AIClient(base)
 
 
 def is_enabled() -> bool:

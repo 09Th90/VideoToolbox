@@ -60,6 +60,23 @@ v1.16.0 优化
   · JSON 抢救内置     _repair_json 不再依赖可选第三方库 json_repair；
   · 重试带反馈        invalid/truncated 重问时把失败原因与整改要求写进提示词；
   · ckpt 转义修复     断点续跑读取与 _esc 对称（旧版含反斜杠的文本会还原错）。
+
+v1.16.1 新增
+============
+  · think_rounds      每块「思考 → 联网查证 → 再思考」往返轮数上限。
+                      **0＝关闭（不限）**，内部 HARD_MAX_THINK_ROUNDS=32 兜底
+                      防死循环；旧行为等价于 1。注意：日志里的 [x/8] 是流水线
+                      8 个步骤的进度，**不是**本项限制。
+  · cluster           Agent 集群（多智能体协作，**默认关闭**）：
+                        calibrate 角色＝提议 Agent（多成员按块轮转分担）
+                        review    角色＝评审 Agent（独立端点/模型复核）
+                      评审**全票放行才采纳**；被驳回则把理由回喂提议方整改
+                      （最多 cluster["rounds"] 轮），用尽仍被驳回的丢弃并写报告。
+                      通信是结构化 JSON 消息（提议 → 驳回单），可校验可复现；
+                      评审调用异常/回复不可解析一律按**放行**降级（评审只加严，
+                      不能卡死主流程）。统计见 result["cluster"]。
+  · chat_for_member   上层注入的「集群成员 → chat 回调」工厂（各成员走自己的
+                      base_url/api_key/model）；agent 自身不读配置。
 """
 
 from __future__ import annotations
@@ -162,6 +179,20 @@ _SENT_TAIL = ".!?…。！？：；"
 _SENT_TAIL_SOFT = "\"')）】」’”"
 #: 相邻 cue 时间间隙 ≥ 该毫秒数视作断点（说话人换气/换句）
 _SENT_GAP_MS = 800
+
+#: v1.16.1：每块「思考 → 联网查证 → 再思考」往返轮数的**内部安全上限**。
+#: 配置 `calib_think_rounds`=0（关闭＝不限）时用它兜底，防模型无限往返烧额度。
+HARD_MAX_THINK_ROUNDS = 32
+#: v1.16.1：集群协作里评审成员对「驳回」的判定阈值（多数票制）。
+CLUSTER_REVIEW_SYSTEM = (
+    "你是字幕校准流程里的**独立评审智能体**，与提出改动的校准智能体互为制衡。\n"
+    "你会收到：本块字幕原文（序号 / 中文行 / 英文参考行）与另一智能体提交的改动提案。\n"
+    "你的职责是**独立复核**，只放行有依据、且不改变原意、不新增信息的改动：\n"
+    "· 有据：术语/专名/官方译名纠正，或明显的机翻错形纠正；\n"
+    "· 无害：不改动时间轴与格式（你只审文字），不把通顺的原句改差，不臆造新信息；\n"
+    "· 宁可驳回，不可放行无据改动；拿不准就驳回。\n"
+    "严格只输出 JSON：{\"reject\":[{\"num\":\"12\",\"reason\":\"一句话理由\"}]}；\n"
+    "全部通过时输出 {\"reject\":[]}。不要输出任何解释或 markdown 围栏。")
 
 #: 中文行里允许出现的拉丁串（原文自带的不受此表约束；此表只用于放宽"新增拉丁"）
 LATIN_ALLOW = {
@@ -735,6 +766,67 @@ def parse_changes(raw: str):
     return [], "truncated"
 
 
+def _parse_rejects(raw: str):
+    """解析评审智能体的 {"reject":[...]} 回复 → {序号: 理由}。
+
+    解析不出（空回复 / 格式不合 / 异常）时返回 None，调用方按"本次评审放行"降级——
+    评审是**加严**手段，不能因为评审方抽风就把主流程卡死。
+    """
+    if not raw:
+        return None
+    s = raw.strip()
+    if "```" in s:
+        for seg in (x.strip() for x in s.split("```")):
+            if seg.startswith("json"):
+                seg = seg[4:].strip()
+            if seg.startswith("{"):
+                s = seg
+                break
+    st = s.find("{")
+    if st < 0:
+        return None
+    depth = 0
+    for i in range(st, len(s)):
+        if s[i] == "{":
+            depth += 1
+        elif s[i] == "}":
+            depth -= 1
+            if depth == 0:
+                try:
+                    obj = json.loads(s[st:i + 1])
+                except ValueError:
+                    return None
+                if not isinstance(obj, dict):
+                    return None
+                out = {}
+                for it in (obj.get("reject") or []):
+                    if isinstance(it, dict):
+                        n = str(it.get("num") or it.get("index") or "").strip()
+                        if n:
+                            out[n] = str(it.get("reason") or "评审驳回")[:80]
+                return out
+    return None
+
+
+def build_review_prompt(chunk, changes):
+    """组装评审智能体的用户提示：本块原文 + 待评审的改动提案（只读）。"""
+    old_map = {num: zh for num, zh, _e in chunk}
+    lines = ["【本块字幕原文】（序号 / 中文行 / 英文参考行）"]
+    for num, zh, en in chunk:
+        lines.append(f"{num}\t{zh}" + (f"\t{en}" if en else ""))
+    lines.append("")
+    lines.append("【待评审的改动提案】（序号 / 原中文 / => / 提议中文）")
+    for item in changes:
+        num = str(item.get("num") or item.get("index") or "").strip()
+        new = str(item.get("new_zh") or item.get("text") or "").replace(
+            chr(92) + "n", "\n")
+        lines.append(f"{num}\t{old_map.get(num, '')}\t=>\t{new}")
+    lines.append("")
+    lines.append('只输出 JSON：{"reject":[{"num":"...","reason":"..."}]}；'
+                 '全部通过输出 {"reject":[]}。')
+    return "\n".join(lines)
+
+
 def _repair_json(bad: str):
     """内置 JSON 抢救器（v1.16.0）：对未闭合/半坏的数组尽力修复，修不出返回 []。
 
@@ -962,7 +1054,11 @@ def calibrate(src: str, out: str = None, report: str = None, mode_flag: str = ""
               concurrency: int = 1,
               learn_kb: str = None,
               web=None,
-              context_tokens: int = 1000000) -> dict:
+              context_tokens: int = 1000000,
+              think_rounds: int = 0,
+              chat_for_member=None,
+              cluster=None,
+              orig_title: str = None) -> dict:
     """Agent 级 AI 校准主流程（详见模块 docstring）。
 
     baseline=True 时先跑术语脚本得到基线（推荐：机械部分零成本且必定正确）；
@@ -991,8 +1087,24 @@ def calibrate(src: str, out: str = None, report: str = None, mode_flag: str = ""
                       （max_tokens）默认 65536，端点不接受时会自动减半重试。
     web               2026-09-20：calib_web_agent.make_tools() 产物（含
                       search/fetch 两个函数）。传入后模型可先发起「工具请求」
-                      联网查证官方名，证据回填再下结论；每块至多 1 轮。
+                      联网查证官方名，证据回填再下结论。
                       None=纯离线，行为与旧版完全一致。
+    think_rounds      v1.16.1：每块「思考 → 联网查证 → 再思考」往返轮数上限。
+                      0 = 关闭（不限，内部以 HARD_MAX_THINK_ROUNDS=32 兜底防死循环）；
+                      >0 = 硬上限（旧行为等价于 1）。
+    chat_for_member   v1.16.1：集群成员 → chat 回调的工厂。集群开启时，提议/评审
+                      成员各走自己的端点/密钥/模型（由上层注入，agent 不碰配置）。
+    cluster           v1.16.1：Agent 集群（多智能体协作，默认 None＝关闭）。
+                      {"enabled": bool, "members": [{name, base_url, api_key,
+                       model, role}], "rounds": int}；role="calibrate" 提议、
+                      "review" 评审。开启后：
+                        · 多个提议成员按块轮转（idx % n）分担任务；
+                        · 评审成员独立复核每块提案，**全部放行才采纳**；
+                        · 被驳回时把理由回喂提议方整改，最多 rounds 轮。
+    orig_title        v1.16.1：原始视频标题——片源档案据此**改写新标题**（提示词
+                      要求「参考它、不要照抄」），并作为报告里的「原始标题」行。
+                      None＝自动探测（字幕同目录 `视频信息.txt` 的「标题:」→
+                      同目录视频文件名 → 字幕文件名）。
     """
     t0 = time.time()
     log = log or (lambda m, level="dim": None)
@@ -1033,7 +1145,16 @@ def calibrate(src: str, out: str = None, report: str = None, mode_flag: str = ""
               "rules_injected": 0, "rules_hot": 0, "suggest_rewrite": False,
               "meta": {}, "learn": {},
               "tool_calls": 0, "web_enabled": bool(web),
-              "concurrency": max(1, int(concurrency or 1))}
+              "concurrency": max(1, int(concurrency or 1)),
+              "think_rounds": int(think_rounds or 0),
+              "cluster": {},
+              "orig_title": ""}
+    # 原始标题（v1.16.1）：显式传入优先，否则自动探测（不联网、失败给空串）
+    try:
+        result["orig_title"] = (str(orig_title).strip() if orig_title
+                                else read_original_title(src))
+    except Exception:  # noqa: BLE001
+        result["orig_title"] = ""
     try:
         # ---------- 1. 起点：上一轮结果（可选）或术语脚本基线 ----------
         base = src
@@ -1244,25 +1365,125 @@ def calibrate(src: str, out: str = None, report: str = None, mode_flag: str = ""
             except Exception:          # noqa: BLE001 进度写盘失败不影响主流程
                 pass
 
+        # ---------- Agent 集群（多智能体协作，v1.16.1；默认关闭） ----------
+        # 通信协议是**结构化消息**而非自由对话：提议 Agent 出 JSON 改动 →
+        # 评审 Agent 出 JSON 驳回单 → 驳回理由回喂提议方整改，全部落日志/报告。
+        cl = dict(cluster or {})
+        cl_on = bool(cl.get("enabled"))
+        cl_members = [m for m in (cl.get("members") or []) if isinstance(m, dict)]
+        cl_cal = [m for m in cl_members if m.get("role") == "calibrate"]
+        cl_rev = [m for m in cl_members if m.get("role") == "review"]
+        cl_rounds = max(1, int(cl.get("rounds") or 1))
+        result["cluster"] = {"enabled": cl_on, "calibrate": len(cl_cal),
+                             "review": len(cl_rev), "rounds": cl_rounds,
+                             "reviewed": 0, "rejected": 0, "revised": 0}
+        if cl_on:
+            _log_do(log, f"  → Agent 集群开启：提议 {len(cl_cal)} / 评审 {len(cl_rev)}"
+                         f"，协作轮数 {cl_rounds}"
+                         + ("（无评审成员＝仅多提议成员轮转分块）" if not cl_rev else ""),
+                    "ok")
+            if not cl_cal and not cl_rev:
+                _log_do(log, "  ⚠ 集群已开启但未配置任何成员，按单智能体继续", "err")
+
+        def _chat_of(member):
+            """集群成员的 chat 回调（未注入工厂/工厂失败 → 回落全局通道）。"""
+            if member is not None and callable(chat_for_member):
+                try:
+                    return chat_for_member(member)
+                except Exception as e:  # noqa: BLE001
+                    _log_do(log, f"  ⚠ 集群成员「{member.get('name')}」通道构造失败，"
+                                 f"回落全局通道：{str(e)[:80]}", "err")
+            return chat
+
+        def _cluster_review(idx, chunk, changes, propose_chat, rules_txt_i, scope):
+            """提议 → 多评审成员投票 → 驳回则回喂整改（最多 cl_rounds 轮）。
+
+            返回 (最终改动列表, [(序号, 驳回理由), ...])；评审调用异常一律按放行降级
+            （评审是加严手段，不能因评审方抽风卡死主流程）。
+            """
+            rej_log, bad = [], {}
+            for rnd in range(1, cl_rounds + 1):
+                votes = {}
+                for m in cl_rev:
+                    _tick()
+                    try:
+                        raw = _chat_of(m)(build_review_prompt(chunk, changes),
+                                          CLUSTER_REVIEW_SYSTEM,
+                                          max_tokens=min(max_tokens, 8192))
+                    except Exception as e:  # noqa: BLE001
+                        _log_do(log, f"  ⚠ 评审智能体「{m.get('name')}」调用失败，"
+                                     f"本次按放行处理：{str(e)[:80]}", "err")
+                        continue
+                    got = _parse_rejects(raw)
+                    if got is None:
+                        _log_do(log, f"  ⚠ 评审智能体「{m.get('name')}」回复无法解析，"
+                                     f"本次按放行处理", "err")
+                        continue
+                    for n, why in got.items():
+                        votes.setdefault(n, []).append(f"{m.get('name')}: {why}")
+                nums = {str(c.get("num") or c.get("index") or "").strip()
+                        for c in changes}
+                bad = {n: v for n, v in votes.items() if n in nums}
+                if not bad:
+                    _log_do(log, f"  ✓ 第 {idx} 块经 {len(cl_rev)} 个评审智能体复核通过"
+                                 f"（{len(changes)} 处改动）", "ok")
+                    result["cluster"]["reviewed"] += len(changes)
+                    return changes, rej_log
+                if rnd >= cl_rounds:
+                    break
+                fb = ("上一轮提案被独立评审智能体驳回，请逐条整改后重新给出**完整**的"
+                      "改动数组（不要只给差异）：\n"
+                      + "\n".join(f"- 序号 {n}：{'；'.join(v)}" for n, v in bad.items()))
+                _log_do(log, f"  ↻ 第 {idx} 块 {len(bad)} 处被评审驳回，回喂提议智能体"
+                             f"整改（第 {rnd + 1}/{cl_rounds} 轮）", "err")
+                result["cluster"]["revised"] += 1
+                new_changes, _f = _ask_block(
+                    propose_chat, mode_flag, rules_txt_i, chunk, round_no,
+                    max_tokens, log, _tick, style=style, with_ref=include_ref,
+                    prev_text=prev_text, scope_text=scope,
+                    think=(_think if thinking else None), feedback=fb,
+                    web=web, stats=result, think_rounds=think_rounds)
+                if not new_changes:
+                    break
+                changes = new_changes
+            kept = [c for c in changes
+                    if str(c.get("num") or c.get("index") or "").strip() not in bad]
+            for n, v in bad.items():
+                rej_log.append((n, "集群评审驳回：" + "；".join(v)[:100]))
+            result["cluster"]["rejected"] += len(bad)
+            _log_do(log, f"  ⚠ 第 {idx} 块 {len(bad)} 处改动被评审驳回并丢弃"
+                         f"（协作轮数已用尽）", "err")
+            return kept, rej_log
+
         def _run_block(job):
             """取回一个块的模型提议（并发时在工作线程执行；校验合并不在这里）。
 
             规则文本按块级裁剪（select_rules_for_chunk）；`_ask_block` 内部
             二分拆块时沿用父块的规则文本（是子块的超集，正确性无损）。
+            集群开启时：提议成员按块轮转（idx % n），评审成员复核后返回驳回明细。
             """
             idx, chunk = job
             _tick()                    # 取消检查（线程内）：调用接口前先看一眼
             first, last = chunk[0][0], chunk[-1][0]
+            member = cl_cal[(idx - 1) % len(cl_cal)] if cl_cal else None
+            chat_fn = _chat_of(member)
+            if member is not None:
+                _log_do(log, f"  · 第 {idx} 块由提议智能体「{member.get('name')}」处理")
             rules_txt_i, _hot_i = select_rules_for_chunk(rules, chunk)
             scope = (f"【本块范围】全长 {len(cues)} 条中的第 {idx}/{n_chunks} 块"
                      f"（序号 {first}–{last}）；只处理本块条目。")
-            changes, block_fail = _ask_block(chat, mode_flag, rules_txt_i, chunk,
+            changes, block_fail = _ask_block(chat_fn, mode_flag, rules_txt_i, chunk,
                                              round_no, max_tokens, log, _tick,
                                              style=style, with_ref=include_ref,
                                              prev_text=prev_text, scope_text=scope,
                                              think=(_think if thinking else None),
-                                             web=web, stats=result)
-            return idx, chunk, changes, block_fail
+                                             web=web, stats=result,
+                                             think_rounds=think_rounds)
+            rej_log = []
+            if cl_rev and changes:
+                changes, rej_log = _cluster_review(idx, chunk, changes, chat_fn,
+                                                   rules_txt_i, scope)
+            return idx, chunk, changes, block_fail, rej_log
 
         conc = result["concurrency"]
         if conc > 1:
@@ -1283,13 +1504,15 @@ def calibrate(src: str, out: str = None, report: str = None, mode_flag: str = ""
                 #（其余 worker 因 cancel 已置位会在下一次 _tick 快速退出）
                 with ThreadPoolExecutor(max_workers=conc) as pool:
                     results = list(pool.map(_run_block, batch))
-            for idx, chunk, changes, block_fail in results:
+            for idx, chunk, changes, block_fail, cl_rej in results:
                 first, last = chunk[0][0], chunk[-1][0]
                 if block_fail:
                     failed_blocks += 1
                 _traj(f"block {idx}/{n_chunks} cues={first}-{last} done "
                       f"changes={len(changes)}{' FAILED' if block_fail else ''}")
                 _merge_changes(chunk, changes)
+                for num, why in (cl_rej or ()):     # 集群评审驳回（写进同一份报告）
+                    rejected.append((num, "", why))
                 _save_ckpt(idx)        # 每块落盘：长片源中断后可续跑
                 _log_do(log, f"  → 累计采纳 {len(accepted)} 处，拒绝 {len(rejected)} 处",
                         "ok" if accepted else "dim")
@@ -1405,7 +1628,8 @@ def calibrate(src: str, out: str = None, report: str = None, mode_flag: str = ""
                                         result["accepted"], log, round_no,
                                         max_tokens=max_tokens,
                                         think=_think if thinking else None,
-                                        context_tokens=context_tokens)
+                                        context_tokens=context_tokens,
+                                        orig_title=result.get("orig_title") or "")
         except CalibCancelled:
             _log_do(log, "  片源档案已取消（字幕结果不受影响）", "err")
         except Exception as e:  # noqa: BLE001
@@ -1464,13 +1688,14 @@ def _split_chunks(cues, max_cues: int, max_chars: int):
 def _ask_block(chat, mode_flag, rules_txt, chunk, round_no, max_tokens, log, tick,
                style="term", with_ref=True, prev_text="", scope_text="",
                attempt=0, think=None, feedback="", web=None, tool_round=0,
-               evidence="", stats=None):
+               evidence="", stats=None, think_rounds=0):
     """请模型判定一个块的改动，返回 (changes, hard_fail)。
 
     联网查证（2026-09-20）：web 传入 calib_web_agent.make_tools() 产物后，
     模型可先输出「工具请求」；本函数执行工具、把【联网查证结果】拼回用户
-    提示词再问一次（每块至多 tool_round=1 轮，防无限往返）。工具轮不计入
-    失败重试逻辑——工具回复解析不出改动时按正常流程继续走重试分支。
+    提示词再问一次。往返轮数由 `think_rounds` 控制（v1.16.1）：0 = 关闭（不限，
+    内部以 HARD_MAX_THINK_ROUNDS 兜底防死循环），>0 = 硬上限；旧行为等价于 1。
+    工具轮不计入失败重试逻辑——工具回复解析不出改动时按正常流程继续走重试分支。
 
     失败处理策略（2026-09-15 对标 DeepSeek Harness 的异常分支 / 资源上限同步优化）：
       · ok        拿到完整数组（含 []＝无需改动）→ 直接采纳，绝不再误拆；
@@ -1507,13 +1732,17 @@ def _ask_block(chat, mode_flag, rules_txt, chunk, round_no, max_tokens, log, tic
     except Exception as e:  # noqa: BLE001
         err = str(e)[:120]
         _log_do(log, f"  ! 该块调用失败：{err}", "err")
-    # ---- 联网查证工具环：模型请求工具 → 执行 → 证据回填再问（至多一轮）----
-    if web and tool_round < 1:
+    # ---- 联网查证工具环：模型请求工具 → 执行 → 证据回填再问 ----
+    # 轮数上限（v1.16.1）：think_rounds>0 用配置值；0＝关闭（不限）用内部安全上限兜底。
+    _tr_cap = (think_rounds if (think_rounds and think_rounds > 0)
+               else HARD_MAX_THINK_ROUNDS)
+    if web and tool_round < _tr_cap:
         reqs = parse_tool_requests(raw)
         if reqs:
             kinds = "、".join(dict.fromkeys(
                 (r.get("tool") or "?") for r in reqs))
-            _log_do(log, f"  ⌕ 模型发起联网查证（{kinds}，{len(reqs)} 个请求）…")
+            _log_do(log, f"  ⌕ 模型发起联网查证（{kinds}，{len(reqs)} 个请求，"
+                         f"第 {tool_round + 1}/{_tr_cap} 轮）…")
             if stats is not None:
                 stats["tool_calls"] = stats.get("tool_calls", 0) + len(reqs)
             found = run_tools(reqs, web)
@@ -1523,7 +1752,7 @@ def _ask_block(chat, mode_flag, rules_txt, chunk, round_no, max_tokens, log, tic
                               scope_text, attempt, think, "",
                               web=web, tool_round=tool_round + 1,
                               evidence=(evidence + "\n\n" if evidence else "")
-                              + found, stats=stats)
+                              + found, stats=stats, think_rounds=think_rounds)
     changes, status = parse_changes(raw)
     if status == "ok":
         return changes, False
@@ -1548,13 +1777,14 @@ def _ask_block(chat, mode_flag, rules_txt, chunk, round_no, max_tokens, log, tic
             _log_do(log, f"  ! 未取到有效 JSON，原地重问一次（{len(chunk)} 条，"
                          f"已附整改要求）", "err")
         return _ask_block(chat, mode_flag, rules_txt, chunk, round_no,
-                          # 加倍上限 512K（2026-09-20 配合设置页「输出」512K）；
-                          # 旧版硬卡 65536 会把用户大额度配置在截断重问时打回 64K
-                          min(max_tokens * 2, 524288) if status == "truncated"
-                          else max_tokens,
+                          # 截断重问加倍输出预算：上限 1M（v1.16.1 随设置页「输出」
+                          # 档位提到 1M）；且**绝不低于**用户配置值——否则用户配
+                          # 1M 时会被这里的旧 512K 硬顶反向打回，越配越小。
+                          max(max_tokens, min(max_tokens * 2, 1048576))
+                          if status == "truncated" else max_tokens,
                           log, tick, style, with_ref, prev_text, scope_text, 1,
                           think, feedback, web=web, evidence=evidence,
-                          stats=stats)
+                          stats=stats, think_rounds=think_rounds)
 
     if status == "invalid":
         _log_do(log, "  ✗ 重问后仍未取得有效结果，该块按无改动跳过"
@@ -1569,12 +1799,74 @@ def _ask_block(chat, mode_flag, rules_txt, chunk, round_no, max_tokens, log, tic
     a, fa = _ask_block(chat, mode_flag, rules_txt, chunk[:half], round_no,
                        max_tokens, log, tick, style, with_ref, prev_text,
                        scope_text, 0, think, web=web, evidence=evidence,
-                       stats=stats)
+                       stats=stats, think_rounds=think_rounds)
     b, fb = _ask_block(chat, mode_flag, rules_txt, chunk[half:], round_no,
                        max_tokens, log, tick, style, with_ref, prev_text,
                        scope_text, 0, think, web=web, evidence=evidence,
-                       stats=stats)
+                       stats=stats, think_rounds=think_rounds)
     return a + b, (fa and fb)
+
+
+# ---- 原始标题提取（v1.16.1）------------------------------------------------
+# 用户要求（2026-09-28）：校准完成后要「**参考原始的标题**，生成新的标题」，
+# 且 tag 必须来自字幕内容。原始标题来自下载阶段随视频落盘的 `视频信息.txt`
+# （见 engine.write_info_txt 的「标题:」行）；取不到再退回同目录的视频文件名，
+# 最后才是字幕文件名。纯本地、不联网、不抛异常。
+_VIDEO_EXTS_FOR_TITLE = (".mp4", ".mkv", ".flv", ".webm", ".mov", ".avi",
+                         ".m4v", ".ts", ".mp3", ".m4a", ".wav", ".flac")
+
+
+def _title_from_info_txt(path: str) -> str:
+    """从 视频信息.txt 取「标题:」行的值（容忍全角冒号与前后空白）。"""
+    try:
+        txt = _read_text(path)
+    except Exception:  # noqa: BLE001
+        return ""
+    for ln in txt.splitlines():
+        m = re.match(r"\s*标题\s*[:：]\s*(.+?)\s*$", ln)
+        if m:
+            t = m.group(1).strip()
+            if t and t != "（未知标题）":
+                return t
+    return ""
+
+
+def _clean_sub_name(path: str) -> str:
+    """字幕文件名 → 勉强可用的标题（剥掉【字幕】前缀与机翻/校准后缀）。"""
+    s = os.path.splitext(os.path.basename(path))[0]
+    s = re.sub(r"^【字幕】", "", s)
+    s = re.sub(r"[.\-](?:en|ja|ko|zh)\b.*$", "", s)
+    s = re.sub(r"[.\-](?:谷歌翻译|微软翻译|已校准|calib|ai|口播优化版|自然化|润色版|r\d+).*$",
+               "", s)
+    return s.strip() or os.path.splitext(os.path.basename(path))[0]
+
+
+def read_original_title(src: str) -> str:
+    """尽力取片源的「原始标题」（片源档案据此改写新标题）。
+
+    顺序：字幕同目录/上级目录 `*信息.txt` 的「标题:」→ 同目录视频文件名 →
+    字幕文件名（去噪）。取不到返回 ""。纯本地、不联网。
+    """
+    try:
+        d = os.path.dirname(os.path.abspath(src))
+    except Exception:  # noqa: BLE001
+        return ""
+    for base in (d, os.path.dirname(d), os.path.dirname(os.path.dirname(d))):
+        if not base or not os.path.isdir(base):
+            continue
+        try:
+            names = sorted(os.listdir(base))
+        except OSError:
+            continue
+        for fn in names:                       # ① 视频信息.txt 的「标题:」
+            if fn.endswith("信息.txt"):
+                t = _title_from_info_txt(os.path.join(base, fn))
+                if t:
+                    return t
+        for fn in names:                       # ② 同目录视频/音频文件名
+            if os.path.splitext(fn)[1].lower() in _VIDEO_EXTS_FOR_TITLE:
+                return os.path.splitext(fn)[0]
+    return _clean_sub_name(src)                # ③ 字幕文件名（去噪）
 
 
 # ============================ 第 9 步：片源档案（v1.15.1）============================
@@ -1647,12 +1939,16 @@ def _sample_cues(cues, max_n: int = META_SAMPLE_CUES,
     return out
 
 
-def _meta_prompt(mode_flag, src, sample_text, accepted, round_no, tag_count):
-    """片源档案的提示词。"""
+def _meta_prompt(mode_flag, src, sample_text, accepted, round_no, tag_count,
+                 orig_title=""):
+    """片源档案的提示词。orig_title＝原始视频标题（改写新标题的参考基准）。"""
     accepted_text = "\n".join(
         f"- {str(o)[:40]} → {str(n)[:40]}" for _num, o, n, *_ in accepted[:80]
     ) or "（本轮无改动）"
     mode_key = MODE_KEY.get(mode_flag, "bi")
+    orig_block = (f"【原始标题（**参考基准**，可改写，不要照抄）】\n{orig_title}\n\n"
+                  if orig_title else
+                  "【原始标题】\n（未取到——请完全依据下方字幕内容起标题）\n\n")
     return f"""下面是某视频字幕（已机翻 / 已校准）的内容采样，每行三列：
 序号<TAB>中文行<TAB>原声参考行。
 
@@ -1660,19 +1956,24 @@ def _meta_prompt(mode_flag, src, sample_text, accepted, round_no, tag_count):
 片源模式：{MODE_NAME.get(mode_flag, mode_flag or '中英双语')}（模式键 {mode_key}）
 本轮轮次：第 {round_no} 轮
 
-【字幕采样】
+{orig_block}【字幕采样】
 {sample_text}
 
 【本轮已采纳的改动】
 {accepted_text}
 
 【要做的四件事】
-1. title —— 给这个视频起一个准确的**简体中文标题**：≤30 字，紧扣内容；
-   不要书名号，不要“震惊/必看”这类营销词；作品专名用官方写法。
+1. title —— **参考上面的【原始标题】改写出一条新的简体中文标题**（不是照抄）：
+   保留原始标题里的核心信息（作品名 / 人物 / 主题 / 立场），但改写成更贴合
+   **本片实际内容**、更符合 B 站二游区习惯的中文标题；原始标题是外语时译写，
+   已是中文时也要润色，**不得原样返回**。
+   ≤30 字；不要书名号；不要“震惊/必看”这类营销词；作品专名用官方写法。
    风格参照 B 站二游区观点向视频：可用「引号钩子 + 拆解/聊聊/为什么」结构
    （例：“抽卡游戏只是没有灵魂的复制品？”一位二游玩家的冷静拆解），
    但钩子必须来自视频本身的论点，不得夸大。
 2. tags —— 正好 {tag_count} 个**简体中文标签**；每个 2~8 字；互不重复；不要带 # 号。
+   ⚠ **tag 只能来自【字幕采样】里真实出现的内容**（讨论到的作品 / 角色 / 体裁 /
+     公司 / 主题），不得凭空联想、不得用没出现的作品凑数。
    ⚠ 选词与排序**严格按以下优先级**——高优先级优先占名额，但**三类都要有**，
      建议配比 **游戏专名 6 : 内容/类型 3 : 公司/作者 1**（{tag_count} 个时按此缩放）；
      **输出顺序必须按优先级从高到低排列**：先作品名、再内容/类型、最后公司/作者。
@@ -1880,6 +2181,17 @@ def _tag_quota(count):
     return n_work, n_genre, n_comp
 
 
+def _genre_fill_order(hay_zh, hay_en):
+    """体裁词补足顺序（v1.16.1）：**字幕里真有据的排前面**，通用体裁词垫后。
+
+    用户 2026-09-28 要求「tag 来源为字幕内容」——补足时不能再无脑按固定表序填
+    （会把"抽卡/氪金"塞进一个根本没聊抽卡的 PV reaction 片）。有据的优先，
+    仍不够时才用通用体裁词凑满 count（否则数量保证不了）。
+    """
+    att = [g for g in _TAG_GENRE_ORDER if _tag_attested(g, hay_zh, hay_en)]
+    return att + [g for g in _TAG_GENRE_ORDER if g not in att]
+
+
 def _build_tags(model_tags, hay_zh, hay_en, count, log=None):
     """按三级优先级重排模型给的 tag，并做佐证过滤 + 配额封顶 + 补足到 count。
 
@@ -1928,9 +2240,9 @@ def _build_tags(model_tags, hay_zh, hay_en, count, log=None):
             if len(t1) >= n_work:
                 break
     t1 = t1[:n_work]                          # 作品层封顶，给②③留名额
-    # 补足 ②：高频体裁词
+    # 补足 ②：体裁词——**字幕有据的优先**（tag 来源为字幕内容），不够再通用体裁词
     if len(t2) < n_genre:
-        for g in _TAG_GENRE_ORDER:
+        for g in _genre_fill_order(hay_zh, hay_en):
             if g in seen:
                 continue
             t2.append(g); seen.add(g)
@@ -1950,9 +2262,9 @@ def _build_tags(model_tags, hay_zh, hay_en, count, log=None):
     # tier 1.5（角色名）只在名额富余时补位，排在作品之后、内容之前
     t15 = t15[:max(0, count - len(t1) - len(t2) - len(t3))]
     order = t1 + t15 + t2 + t3
-    # 兜底：片源太干净、三层都填不满时，用高频体裁词补齐
+    # 兜底：片源太干净、三层都填不满时，用体裁词补齐（同样**有据的优先**）
     if len(order) < count:
-        for g in _TAG_GENRE_ORDER:
+        for g in _genre_fill_order(hay_zh, hay_en):
             if g in seen:
                 continue
             order.append(g); seen.add(g)
@@ -1965,18 +2277,25 @@ def _build_tags(model_tags, hay_zh, hay_en, count, log=None):
 
 
 def build_meta(chat, mode_flag, src, cues, accepted, log, round_no=1,
-               max_tokens=65536, think=None, context_tokens=1000000) -> dict:
+               max_tokens=65536, think=None, context_tokens=1000000,
+               orig_title="") -> dict:
     """第 9 步：产出片源档案（中文标题 / 10 个 tag / 官方中文核对 / 脚本沉淀建议）。
+
+    orig_title（v1.16.1）：原始视频标题——新标题的**参考基准**（提示词里要求
+    「参考它改写、不要照抄」）；取不到时传 ""，模型完全依据字幕内容起标题。
 
     这是**附加产出**：任何失败都只记日志、不阻断校准（不能让整轮白跑）。
     """
-    empty = {"title": "", "tags": [], "official_terms": [], "script_suggestions": []}
+    empty = {"title": "", "tags": [], "official_terms": [],
+             "script_suggestions": [], "orig_title": str(orig_title or "")}
     _log_do(log, "[9/9] 片源档案：中文标题 / tag / 官方中文核对 / 脚本沉淀建议…")
+    if orig_title:
+        _log_do(log, f"  · 原始标题（供改写参考）：{orig_title}")
     try:
         sample = _sample_cues(cues, *meta_sample_budget(context_tokens))
         sample_text = "\n".join(f"{n}\t{zh}\t{en}" for n, zh, en in sample)
         prompt = _meta_prompt(mode_flag, src, sample_text, accepted, round_no,
-                              META_TAG_COUNT)
+                              META_TAG_COUNT, orig_title=orig_title)
         # 输出额度自适应（v1.15.4）：推理模型会先吐**思考链**，额度被吃光时
         # 正文为空（finish_reason=length）；而部分端点又不接受过大的
         # max_tokens（直接报参数错）。故按失败类型自适应调整：
@@ -2030,11 +2349,16 @@ def build_meta(chat, mode_flag, src, cues, accepted, log, round_no=1,
         meta = {
             "title": str(obj.get("title") or "").strip(),
             "tags": tags,
+            "orig_title": str(orig_title or ""),
             "official_terms": [x for x in (obj.get("official_terms") or [])
                                if isinstance(x, dict)][:60],
             "script_suggestions": [x for x in (obj.get("script_suggestions") or [])
                                    if isinstance(x, dict)][:60],
         }
+        if not meta["title"] and meta["orig_title"]:
+            # 模型没给标题（偶发）→ 退回原始标题，报告里至少有一行可用标题
+            meta["title"] = meta["orig_title"]
+            _log_do(log, "  · 模型未返回 title，暂用原始标题占位", "err")
         if meta["title"]:
             _log_do(log, f"  ✓ 中文标题：{meta['title']}", "ok")
         if meta["tags"]:
@@ -2099,7 +2423,14 @@ def _write_report(path, src, out, mode_flag, round_no, result, rules) -> None:
         lines.append(f"- 起点：以上轮结果 `{result['resumed_from']}` 为输入（未重跑脚本基线）")
     if result.get("web_enabled") or result.get("tool_calls"):
         lines.append(f"- 联网查证：{'启用' if result.get('web_enabled') else '未启用'}，"
-                     f"共 {result.get('tool_calls') or 0} 次工具调用")
+                     f"共 {result.get('tool_calls') or 0} 次工具调用"
+                     f"（思考轮次：{result.get('think_rounds') or '关闭（不限）'}）")
+    clu = result.get("cluster") or {}
+    if clu.get("enabled"):
+        lines.append(f"- Agent 集群（多智能体协作）：提议 {clu.get('calibrate', 0)} 个 / "
+                     f"评审 {clu.get('review', 0)} 个，协作轮数 {clu.get('rounds', 1)}；"
+                     f"评审放行 {clu.get('reviewed', 0)} 处 / 驳回 {clu.get('rejected', 0)} 处"
+                     f" / 整改往返 {clu.get('revised', 0)} 次")
     lines += [
         f"- 改动：术语脚本 {result['script_changes']} 处 + AI {result['ai_changes']} 处；"
         f"拒绝 {result['rejected']} 处",
@@ -2108,12 +2439,16 @@ def _write_report(path, src, out, mode_flag, round_no, result, rules) -> None:
         "- 校验：序号 / 时间轴 / 英文行 / 换行 / BOM 全部一致（脚本 verify 通过）",
         f"- 行宽体检：超限 {result.get('width_over') or 0} 处；最宽内容行 "
         f"{widest[0] or '—'} / {MAX_LINE_WIDTH:.0f} 汉字当量"]
-    # v1.15.1：片源档案（中文标题 / tag / 学习沉淀），写在同一份报告里
+    # v1.15.1 / v1.16.1：片源档案——原始标题 → 新中文标题 / 10 个 tag / 学习沉淀。
+    # v1.16.1 起这三行**恒定输出**（取不到就写「（未生成）」），
+    # 免得用户分不清「没生成」和「生成了但为空」。
     meta = result.get("meta") or {}
-    if meta.get("title"):
-        lines.append(f"- **中文标题**：{meta['title']}")
-    if meta.get("tags"):
-        lines.append("- **标签**：" + " / ".join(meta["tags"]))
+    _orig = result.get("orig_title") or meta.get("orig_title") or ""
+    lines.append(f"- **原始标题**：{_orig or '（未取到）'}")
+    lines.append(f"- **中文标题（新）**：{meta.get('title') or '（未生成）'}")
+    _tags = meta.get("tags") or []
+    lines.append(f"- **标签（{META_TAG_COUNT} 个）**："
+                 + (" / ".join(_tags) if _tags else "（未生成）"))
     learn = result.get("learn") or {}
     if learn.get("mode"):
         lines.append(f"- 学习沉淀：`learn --mode {learn['mode']}` "
