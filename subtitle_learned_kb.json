@@ -163,15 +163,37 @@
    "wrong": "哨兵",
    "right": "岁主",
    "mode": "bi",
-   "count": 2,
+   "count": 4,
    "uncorrected": 0,
    "status": "confirmed",
    "cues": [
     199,
-    515
+    515,
+    218,
+    243
    ],
-   "samples": [],
-   "ref_tokens": {},
+   "samples": [
+    [
+     "",
+     "的胫骨很糟糕",
+     "",
+     "的心月狐骨很糟糕"
+    ],
+    [
+     "",
+     "，好吗？  好的",
+     "",
+     "，好吗？  好的"
+    ]
+   ],
+   "ref_tokens": {
+    "Sentinel's": 1,
+    "shin": 1,
+    "badly": 1,
+    "sentinel": 1,
+    "okay": 1,
+    "Okay": 1
+   },
    "unc_ref_tokens": {},
    "first": "2026-09-28",
    "last": "2026-09-30",
@@ -278,7 +300,7 @@
    "wrong": "谐振器",
    "right": "共鸣者",
    "mode": "bi",
-   "count": 10,
+   "count": 12,
    "uncorrected": 0,
    "status": "confirmed",
    "cues": [
@@ -291,10 +313,32 @@
     5485,
     5488,
     5667,
-    6974
+    6974,
+    155,
+    159
    ],
-   "samples": [],
-   "ref_tokens": {},
+   "samples": [
+    [
+     "",
+     "很快。  蒙达和",
+     "",
+     "很快。  蒙达和"
+    ],
+    [
+     "和他们的",
+     "",
+     "和他们的",
+     ""
+    ]
+   ],
+   "ref_tokens": {
+    "and": 2,
+    "Mung": 1,
+    "soon": 1,
+    "resonator": 1,
+    "their": 1,
+    "resonators": 1
+   },
    "unc_ref_tokens": {},
    "first": "2026-09-28",
    "last": "2026-09-30",
@@ -817,6 +861,28 @@
    "last": "2026-09-29",
    "alts": {},
    "ctx_regex": ""
+  },
+  "bi|游泳": {
+   "wrong": "游泳",
+   "right": "锁暝",
+   "mode": "bi",
+   "count": 5,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    213,
+    605,
+    614,
+    633,
+    787
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-09-30",
+   "last": "2026-09-30",
+   "alts": {},
+   "sync": true
   },
   "bi|鲁斯": {
    "wrong": "鲁斯",
