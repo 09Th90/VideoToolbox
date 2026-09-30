@@ -349,7 +349,7 @@
    "wrong": "法官",
    "right": "令尹",
    "mode": "bi",
-   "count": 5,
+   "count": 6,
    "uncorrected": 0,
    "status": "confirmed",
    "cues": [
@@ -357,9 +357,17 @@
     4117,
     12331,
     12365,
-    12374
+    12374,
+    180
    ],
-   "samples": [],
+   "samples": [
+    [
+     "",
+     "大人",
+     "",
+     "大人"
+    ]
+   ],
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-09-28",
