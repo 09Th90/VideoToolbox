@@ -187,12 +187,12 @@
     ]
    ],
    "ref_tokens": {
-    "Sentinel's": 1,
-    "shin": 1,
-    "badly": 1,
-    "sentinel": 1,
-    "okay": 1,
-    "Okay": 1
+    "Sentinel's": 2,
+    "badly": 2,
+    "shin": 2,
+    "sentinel": 2,
+    "okay": 2,
+    "Okay": 2
    },
    "unc_ref_tokens": {},
    "first": "2026-09-28",
@@ -394,12 +394,12 @@
     ]
    ],
    "ref_tokens": {
-    "and": 2,
-    "Mung": 1,
-    "soon": 1,
-    "resonator": 1,
-    "their": 1,
-    "resonators": 1
+    "and": 4,
+    "resonator": 2,
+    "soon": 2,
+    "Mung": 2,
+    "their": 2,
+    "resonators": 2
    },
    "unc_ref_tokens": {},
    "first": "2026-09-28",
@@ -1226,7 +1226,8 @@
    "unc_ref_tokens": {},
    "first": "2026-09-30",
    "last": "2026-09-30",
-   "alts": {}
+   "alts": {},
+   "sync": true
   },
   "bi|Arkn Ights": {
    "wrong": "Arkn Ights",
@@ -1493,7 +1494,8 @@
    "unc_ref_tokens": {},
    "first": "2026-09-30",
    "last": "2026-09-30",
-   "alts": {}
+   "alts": {},
+   "sync": true
   },
   "bi|Arkn": {
    "wrong": "Arkn",
@@ -1891,7 +1893,7 @@
    "wrong": "天使",
    "right": "安吉尔",
    "mode": "bi",
-   "count": 6,
+   "count": 7,
    "uncorrected": 2,
    "status": "candidate",
    "cues": [
@@ -1900,7 +1902,8 @@
     4207,
     6676,
     7040,
-    7089
+    7089,
+    102
    ],
    "samples": [
     [
@@ -1938,51 +1941,59 @@
      "。",
      "拿枪的",
      "。"
+    ],
+    [
+     "",
+     "在改变事件",
+     "",
+     "在改变事件"
     ]
    ],
    "ref_tokens": {
-    "still": 1,
-    "Bottom": 1,
-    "January": 1,
-    "ina": 4,
-    "right": 1,
-    "Angel": 5,
-    "and": 1,
-    "new": 1,
-    "until": 1,
-    "becoming": 1,
-    "rer": 1,
-    "star": 1,
-    "are": 1,
-    "But": 1,
-    "here": 1,
-    "thing": 1,
-    "global": 1,
-    "come": 1,
-    "will": 1,
-    "the": 2,
-    "resembles": 1,
-    "also": 1,
-    "good": 1,
-    "person": 1,
-    "The": 1,
-    "with": 2,
-    "all": 1,
-    "statues": 1,
-    "angel": 1,
-    "What": 1,
-    "gun": 1
+    "still": 2,
+    "Bottom": 2,
+    "January": 2,
+    "ina": 9,
+    "right": 2,
+    "Angel": 11,
+    "and": 2,
+    "new": 2,
+    "until": 2,
+    "becoming": 2,
+    "rer": 2,
+    "star": 2,
+    "are": 2,
+    "But": 2,
+    "here": 2,
+    "thing": 2,
+    "global": 2,
+    "come": 2,
+    "will": 2,
+    "the": 4,
+    "resembles": 2,
+    "also": 2,
+    "good": 2,
+    "person": 2,
+    "The": 2,
+    "with": 4,
+    "all": 2,
+    "statues": 2,
+    "angel": 2,
+    "What": 2,
+    "gun": 2,
+    "event": 1,
+    "Alter": 1
    },
    "unc_ref_tokens": {
-    "guns": 2,
-    "are": 2,
-    "with": 2,
-    "ang": 2,
-    "angels": 2,
-    "tai": 2,
-    "just": 2,
-    "Sark": 2,
-    "while": 2
+    "guns": 4,
+    "are": 4,
+    "with": 4,
+    "ang": 4,
+    "angels": 4,
+    "tai": 4,
+    "just": 4,
+    "Sark": 4,
+    "while": 4
    },
    "first": "2026-09-30",
    "last": "2026-09-30",
@@ -2030,7 +2041,8 @@
    "unc_ref_tokens": {},
    "first": "2026-09-30",
    "last": "2026-09-30",
-   "alts": {}
+   "alts": {},
+   "sync": true
   },
   "bi|Arkn，光辉": {
    "wrong": "Arkn，光辉",
@@ -2282,7 +2294,8 @@
    "unc_ref_tokens": {},
    "first": "2026-09-30",
    "last": "2026-09-30",
-   "alts": {}
+   "alts": {},
+   "sync": true
   },
   "bi|Arkn灯光": {
    "wrong": "Arkn灯光",
@@ -2564,7 +2577,8 @@
    "unc_ref_tokens": {},
    "first": "2026-09-30",
    "last": "2026-09-30",
-   "alts": {}
+   "alts": {},
+   "sync": true
   },
   "bi|Arkn Light": {
    "wrong": "Arkn Light",
@@ -2612,6 +2626,25 @@
    "last": "2026-09-30",
    "alts": {},
    "ctx_regex": "\\byou\\b|\\bare\\b|\\bWhen\\b"
+  },
+  "bi|阿克恩的": {
+   "wrong": "阿克恩的",
+   "right": "明日方舟的",
+   "mode": "bi",
+   "count": 2,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    249,
+    4250
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-09-30",
+   "last": "2026-09-30",
+   "alts": {},
+   "sync": true
   },
   "bi|鲁斯": {
    "wrong": "鲁斯",
