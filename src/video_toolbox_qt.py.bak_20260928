@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# @version 1.16.4
+# @version 1.15.8
 """视频工具箱 GUI v1.11.0 —— Fluent 矢量界面
 ====================================================================
 界面形态（v1.10.0 起，原 tkinter 界面退役）：
@@ -65,7 +65,6 @@ import sys
 import threading
 import time
 import traceback
-import unicodedata
 from datetime import datetime
 
 from PyQt5.QtCore import (Qt, QTimer, QEvent, QObject, QPoint, QRect, QRectF,
@@ -109,11 +108,8 @@ from subtitle_editor_media import MpvPlayer, WaveformCache
 from subtitle_overlay import SubtitleStage
 # 内嵌字幕对话框（原引擎工作台「字幕视频合成」那一段，v1.13.x 挪到这里）
 from subtitle_compose import ComposeDialog
-# 自动化页（v1.16.0）：视觉自动化 demo，参考 MAA 的「抓帧→识别→声明式任务→点击」。
-# 单独成模块（自带卡片/滚动壳），因此**不反向 import 本文件**，无循环导入。
-import auto_vision_page
 
-VERSION = "1.16.4"
+VERSION = "1.15.8"
 
 # 全格式媒体/字幕/文档扩展名（v1.13.0）：
 #   视频：常见容器 + av1 / h264 / h265 / x264 等裸流与更多封装；
@@ -128,114 +124,6 @@ AUDIO_EXTS = {".mp3", ".m4a", ".wav", ".aac", ".flac", ".ogg", ".oga",
               ".opus", ".wma", ".amr", ".ape", ".ac3", ".dts", ".wv",
               ".aiff", ".aif", ".caf"}
 SUBTITLE_EXTS = {".srt", ".ass", ".ssa", ".vtt", ".sub", ".smi", ".sbv", ".lrc"}
-
-#: 「双语字幕」判定：cue 内同时出现中文行与非中文行。用于「任务创建」的跳转
-#: 分派（单语 → 字幕翻译；双语 → 字幕校准）。
-_ZH_CHAR_RE = re.compile(r"[\u4e00-\u9fff]")
-
-
-def _has_non_zh_letters(line):
-    """该行是否含「非中文的文字」——拉丁 / 假名 / 谚文 / 西里尔 等都算。
-
-    ⚠️ 不能用 `[A-Za-z]` 判：日文（こんにちは）、韩文（안녕하세요）里一个
-    拉丁字母都没有，那样「日中对照」「韩中对照」会被误判成单语。
-    """
-    for ch in line:
-        if _ZH_CHAR_RE.match(ch):
-            continue
-        if unicodedata.category(ch)[0] == "L":      # L* = 字母类
-            return True
-    return False
-
-
-def iter_subtitle_cues(txt, max_cues=200):
-    """把字幕文本拆成 cue 列表（每个 cue = 该条目的若干行文本）。
-
-    兼容 SRT/VTT（`-->` 时间轴行切分）与 ASS/SSA（`Dialogue:` 行，`\\N` 换行）。
-    ⚠️ **不能按"空行分隔"切块**：大量 SRT 的 cue 之间根本没有空行（导出器各异），
-    那样整份文件会被当成一个块，双语判定必然失败（实测踩过）。
-    """
-    cues, cur = [], []
-    for ln in (txt or "").splitlines():
-        s = ln.strip()
-        if "-->" in ln:                       # SRT / VTT 时间轴行
-            if cur:
-                cues.append(cur)
-            cur = []
-            continue
-        if s.startswith("Dialogue:"):         # ASS / SSA
-            if cur:
-                cues.append(cur)
-            cur = []
-            body = ln.split(",", 9)[-1] if ln.count(",") >= 9 else s
-            cur = [p.strip() for p in body.split("\\N") if p.strip()]
-            cues.append(cur)
-            cur = []
-            continue
-        if s and not s.isdigit() and not s.startswith(("[", "{")):
-            cur.append(s)
-        if len(cues) >= max_cues:
-            break
-    if cur:
-        cues.append(cur)
-    return cues
-
-
-def subtitle_looks_bilingual(path, max_cues=200, need=3):
-    """字幕是不是「双语」（中外对照）？
-
-    判据用「同一个 cue 里既有中文行、又有非中文行」，而不是"文件里出现过
-    中文"——否则带中文注释的外语字幕、单语中文字幕都会被误判成双语送去校准。
-    取前 ``max_cues`` 个 cue，命中 ``need`` 个即认为双语（少量行内混排不算）。
-    """
-    try:
-        txt = engine.read_text_any(path)
-    except Exception:  # noqa: BLE001
-        return False
-    hits = 0
-    for lines in iter_subtitle_cues(txt, max_cues=max_cues):
-        if not lines:
-            continue
-        has_zh = any(_ZH_CHAR_RE.search(ln) for ln in lines)
-        # 「非中文行」= 不含汉字、但含别的文字（假名/谚文/拉丁…）
-        has_other = any((not _ZH_CHAR_RE.search(ln)) and _has_non_zh_letters(ln)
-                        for ln in lines)
-        if has_zh and has_other:
-            hits += 1
-            if hits >= need:
-                return True
-    return False
-
-
-def make_task_creation_drop_handler(tc):
-    """给「任务创建」页换一个 dropEvent：额外接受**字幕**文件。
-
-    引擎原实现只认 SupportedVideoFormats / SupportedAudioFormats，拖 `.srt`
-    进去会弹「格式错误 srt / 不支持该文件格式」；可字幕本就是这个工作台的合法
-    输入（任务创建 → 字幕翻译 / 字幕校准）。这里只放宽"接受哪些扩展名"：
-    是字幕就自己收下，**其余一律交回原实现**（保留它原有的提示与行为）。
-    """
-    orig_drop = tc.dropEvent
-
-    def _drop(event):
-        try:
-            files = [u.toLocalFile() for u in event.mimeData().urls()]
-        except Exception:  # noqa: BLE001
-            files = []
-        subs = [p for p in files
-                if p and os.path.isfile(p)
-                and os.path.splitext(p)[1].lower() in SUBTITLE_EXTS]
-        if not subs:
-            return orig_drop(event)
-        tc.search_input.setText(subs[0])
-        try:
-            tc.status_label.setText("导入成功")
-            InfoBar.success(
-                "导入成功", "已导入字幕文件，点右侧按钮继续",
-                duration=3000, position=InfoBarPosition.BOTTOM_RIGHT, parent=tc)
-        except Exception:  # noqa: BLE001
-            pass
-    return _drop
 
 LIB_EXTS = set(VIDEO_EXTS)
 THUMB_DIR = engine.THUMB_CACHE_DIR
@@ -373,12 +261,13 @@ def _perf_note(msg):
     """启动/预热耗时诊断：静默追加到 logs\\startup.log（best-effort）。
 
     用于日后排查「进入某页卡顿」——把各阶段耗时留痕，避免只能靠反复计时复现。
-    v1.16.2：改走 engine._append_log（自动轮转，避免累积到几百 KB）；
-    dedup=False —— 耗时时序本身就是数据，重复的「导航宽度」也要留全。
     """
     try:
-        engine._append_log("startup.log", msg, dedup=False)
-    except Exception:  # noqa: BLE001
+        os.makedirs(engine.LOGS_DIR, exist_ok=True)
+        with open(os.path.join(engine.LOGS_DIR, "startup.log"), "a",
+                  encoding="utf-8") as f:
+            f.write(f"[{datetime.now():%Y-%m-%d %H:%M:%S}] {msg}\n")
+    except OSError:
         pass
 
 
@@ -720,9 +609,6 @@ class DownloadPage(QWidget):
 
     _EXTRACT_LOCK = threading.Lock()
     SUB_LANGS = "en,zh,ja,zh-Hans,zh-Hant,ko,es,fr,de"
-    #: 下载分片大小：YouTube 直链要求 Range 请求，不分片就 403（见下方说明）。
-    #: 取引擎常量，保证下载页与流水线不会各自漂移。
-    DL_CHUNK_SIZE = engine.YTDLP_CHUNK_SIZE
 
     def __init__(self, app, parent=None):
         super().__init__(parent)
@@ -1053,28 +939,9 @@ class DownloadPage(QWidget):
             if proxy_args:
                 self.app.q.put(("dl_log", task_id,
                                 f"[代理] 下载经本地代理 {proxy_args[1]}"))
-            # 源选择：YouTube 直链（videoplayback）单条服务能力有限——约 5 次
-            # 请求 / 数十 MB 即失效回 403，大文件几乎必然失败；实测直链要先白等
-            # 十几分钟才切到 HLS（用户看到的"下载过慢"）。HLS 每片独立取、还能
-            # 并发（-N），稳定性与速度都更好 → **直接首选 HLS**，直链降级为兜底。
-            # 设 VT_YTDLP_PREFER_HLS=0 可退回旧的"直链优先"行为。
-            alt = engine.hls_alt_format(meta, fid)
-            prefer = bool(alt) and engine.ytdlp_prefer_hls()
-            use_fid = alt if prefer else fid
-            if prefer:
-                self.app.q.put(("dl_log", task_id,
-                                f"[策略] 直链单条服务能力有限（数十 MB 即失效），"
-                                f"改用 HLS 分片源 {alt}（分片并发 "
-                                f"{engine.YTDLP_CONCURRENT_FRAGMENTS}）"))
-            # --http-chunk-size 是必须的：YouTube 自 2026-09 起对 videoplayback
-            # 直链强制要求 Range 请求，yt-dlp 默认的整体 GET 一律 403 ——
-            # 表现为"下载几秒/几十 MB 后失败"，看着像风控其实是缺 Range。
-            # 分片后每个请求都带 Range，才能正常取到数据。
-            opts = ["-f", f"{use_fid}+ba/b", "--merge-output-format", "mp4",
+            opts = ["-f", f"{fid}+ba/b", "--merge-output-format", "mp4",
                     "--ffmpeg-location", os.path.dirname(ffmpeg_path),
                     "--newline", "--no-playlist",
-                    "--http-chunk-size", self.DL_CHUNK_SIZE,
-                    *engine.YTDLP_DL_COMMON_ARGS,
                     "--write-thumbnail", "--convert-thumbnails", "jpg",
                     *proxy_args,
                     *engine.ytdlp_cookie_args(),
@@ -1088,13 +955,6 @@ class DownloadPage(QWidget):
                                           "（多为 CDN 链接过期），改用链接重新提取"))
                 self.app.q.put(("dl_progress", task_id, 0.0))
                 rc = self._fallback_download(task_id, ytdlp, url, opts)
-            if rc != 0:
-                # 换另一个源兜底：HLS 优先时退回直链，直链优先时改走 HLS。
-                # （直链被限 403/中途断流时，HLS 每片独立请求，实测能下完 1080p）
-                other = fid if prefer else alt
-                if other:
-                    rc = self._hls_fallback(task_id, ytdlp, url, opts, other,
-                                            hls=bool(alt) and other == alt)
             if rc == 0:
                 self._pack_task(task_id, ffmpeg_path, folder, meta, quality_label)
                 if with_subs:
@@ -1130,51 +990,6 @@ class DownloadPage(QWidget):
                 return 0
         with DownloadPage._EXTRACT_LOCK:
             return self._run_ytdlp_with_retry([ytdlp, *opts, url], task_id)
-
-    def _hls_fallback(self, task_id, ytdlp, url, opts, alt_fid, hls=True):
-        """换**另一个源**再试一轮：直链失败 → 改 HLS；HLS 失败 → 退回直链。
-
-        `hls=True` 表示 `alt_fid` 是 HLS 分片源：此时音轨仍可能是 https 直链、
-        一样会被 403，需再补一轮 HLS 隐藏音轨 itag 233/234（它们 acodec 为空、
-        不在常规音轨列表里，但实测能下且能合并）。换回直链时不需要这一轮。
-        """
-        def slog(m):
-            self.app.q.put(("sys_log", f"[任务 {task_id}] {m}"))
-
-        new_opts = list(opts)
-        try:
-            new_opts[new_opts.index("-f") + 1] = f"{alt_fid}+ba/b"
-        except (ValueError, IndexError):
-            new_opts += ["-f", f"{alt_fid}+ba/b"]
-        selectors = [f"{alt_fid}+ba/b"]
-        if hls:
-            selectors.append(f"{alt_fid}+233/234/b")
-        for sel in selectors:
-            opts_i = list(new_opts)
-            try:
-                opts_i[opts_i.index("-f") + 1] = sel
-            except (ValueError, IndexError):
-                opts_i += ["-f", sel]
-            slog(f"改用备用{'HLS 分片源' if hls else '直链源'}（{sel}）重试 ...")
-            with DownloadPage._EXTRACT_LOCK:
-                fresh = engine.fetch_info_json(ytdlp, url, log=slog)
-            if fresh:
-                tmp = engine.save_info_json(fresh)
-                try:
-                    rc, _ = self._run_ytdlp(
-                        [ytdlp, "--load-info-json", tmp, *opts_i], task_id)
-                finally:
-                    try:
-                        os.remove(tmp)
-                    except OSError:
-                        pass
-                if rc == 0:
-                    return 0
-            with DownloadPage._EXTRACT_LOCK:
-                rc = self._run_ytdlp_with_retry([ytdlp, *opts_i, url], task_id)
-            if rc == 0:
-                return 0
-        return rc
 
     @staticmethod
     def _srt_state(folder, before=None):
@@ -1311,8 +1126,7 @@ class DownloadPage(QWidget):
                 self.app.q.put(("dl_log", task_id, line))
         return proc.wait(), lines
 
-    def _run_ytdlp_with_retry(self, cmd, task_id, attempts=4):
-        """带风控重试：判定复用引擎 `ytdlp_error_retryable`（三处同一口径）。"""
+    def _run_ytdlp_with_retry(self, cmd, task_id, attempts=3):
         wait = 6
         rc, lines = 1, []
         for i in range(attempts):
@@ -1320,16 +1134,12 @@ class DownloadPage(QWidget):
             if rc == 0:
                 return 0
             joined = "\n".join(lines)
-            # 412/403/429、"Sign in to confirm" 等一律可重试：YouTube 直链失效
-            # 或节点 IP 被判风控都会回 403，换一次提取（新直链）往往就过了；
-            # 只有参数类错误才直接放弃。
-            if not engine.ytdlp_error_retryable(joined):
+            if "412" not in joined and "Unable to download webpage" not in joined:
                 return rc
             if i < attempts - 1:
                 self.app.q.put(("sys_log",
-                                f"[任务 {task_id}] 站点风控或直链失效"
-                                f"（{engine.ytdlp_err_brief(joined)}），"
-                                f"{wait}s 后重试 ({i + 2}/{attempts}) ..."))
+                                f"[任务 {task_id}] 站点风控拦截（HTTP 412），{wait}s 后重试 "
+                                f"({i + 2}/{attempts}) ..."))
                 time.sleep(wait)
                 wait *= 2
         return rc
@@ -2101,23 +1911,6 @@ class SubtitlePage(QWidget):
                 w = getattr(tc, attr, None)
                 if w is not None:
                     w.hide()
-            # v1.16.3：任务创建的跳转**按文件类型分派**。引擎原本把它写死成
-            # 「一律跳语音转录」，拖字幕进来也会被当音视频去转录。
-            #   · 视频 / 音频            → 语音转录；
-            #   · 单语字幕（无中文对照）  → 字幕翻译；
-            #   · 双语字幕（中英对照）    → 字幕校准。
-            try:
-                tc.finished.disconnect(home.switch_to_transcription)
-            except Exception:  # noqa: BLE001
-                pass
-            tc.finished.connect(
-                lambda fp: self._dispatch_created_task(home, fp))
-            # v1.16.4：任务创建页原本只收音视频，拖 .srt 会弹「格式错误」。
-            # 字幕本就是本工作台的合法输入，这里放宽接收（见工厂函数说明）。
-            try:
-                tc.dropEvent = make_task_creation_drop_handler(tc)
-            except Exception as e:  # noqa: BLE001
-                _perf_note(f"任务创建页字幕接收补丁失败：{e}")
         # v1.13.0：把「字幕校准」并入引擎工作台分段，排在工作台「字幕翻译」
         # 之后（用户要求：校准并入「字幕翻译排」）。只加引擎界面 + 分段项，
         # 不改动引擎本体的处理流程。
@@ -2138,47 +1931,6 @@ class SubtitlePage(QWidget):
         self._engine_home = home
         return home
 
-    def _dispatch_created_task(self, home, file_path):
-        """任务创建完成后**按文件类型**跳转到对应工作台（见 _build_engine 说明）。
-
-        · 视频 / 音频           → 语音转录（引擎原行为）；
-        · 单语字幕（无中文对照） → 字幕翻译；
-        · 双语字幕（中英对照）   → 字幕校准。
-        """
-        path = str(file_path or "")
-        ext = os.path.splitext(path)[1].lower()
-        if ext not in SUBTITLE_EXTS:
-            home.switch_to_transcription(path)
-            return
-        if subtitle_looks_bilingual(path):
-            self.calib_page.accept_subtitle(path)
-            self.switch_to_calib()
-        else:
-            self._open_subtitle_translate(home, path)
-
-    def _open_subtitle_translate(self, home, sub_path):
-        """把字幕送进引擎「字幕翻译」页并切过去。
-
-        字幕没有配套视频，`video_path` 传 None（引擎的 `create_subtitle_task`
-        本来就允许）；task_id 沿用 home 当前的，保持同一条任务链。
-        """
-        try:
-            from videocaptioner.ui.task_factory import TaskFactory
-            task = TaskFactory.create_subtitle_task(
-                sub_path, None, need_next_task=True,
-                task_id=getattr(home, "_current_task_id", "") or "")
-            home.subtitle_optimization_interface.set_task(task)
-            home.pivot.setCurrentItem("SubtitleInterface")
-            home.stackedWidget.setCurrentWidget(
-                home.subtitle_optimization_interface)
-        except Exception as e:  # noqa: BLE001
-            _perf_note(f"跳转字幕翻译失败：{e}")
-            # 兜底：切不过去就退回引擎原行为，至少别把用户卡在任务创建页
-            try:
-                home.switch_to_transcription(sub_path)
-            except Exception:  # noqa: BLE001
-                pass
-
     def switch_to_calib(self):
         """外部跳转：切到引擎工作台的「字幕校准」子页（拖拽定位/截图用）。"""
         home = getattr(self, "_engine_home", None)
@@ -2189,20 +1941,6 @@ class SubtitlePage(QWidget):
             home.stackedWidget.setCurrentWidget(self.calib_page)
         except Exception:  # noqa: BLE001
             pass
-
-    def calib_active(self):
-        """当前是否停在「字幕校准」子页（引擎工作台分段的当前项）。
-
-        供主窗口的全局拖放分派器判断：用户在校准页上拖字幕时，拖到本页
-        之外的位置（页面边缘、导航条）也应就地填入校准输入框，而不是跳页。
-        """
-        home = getattr(self, "_engine_home", None)
-        if home is None:
-            return False
-        try:
-            return home.stackedWidget.currentWidget() is self.calib_page
-        except Exception:  # noqa: BLE001
-            return False
 
     def _build_now(self, busy_text):
         if self._built:
@@ -2355,7 +2093,6 @@ class SettingsPage(QWidget):
         self.vbox = self.shell.content_lay
 
         self._build_dirs_card()
-        self._build_cookie_card()
         # v1.14.1 安全整改：「网络代理」卡片已移除——内置代理降级为纯后台
         # 下载兜底，不再有界面入口与文字说明（节点凭据严禁随包分发）。
         self._build_ai_card()
@@ -2431,136 +2168,6 @@ class SettingsPage(QWidget):
         expand_h(self.data_edit)
         expand_h(self.engine_dir_edit)
         self.vbox.addWidget(box)
-
-    # ------------------------------------------------------------------ #
-    # 下载 Cookie（反「Sign in to confirm you're not a bot」）
-    # ------------------------------------------------------------------ #
-    def _build_cookie_card(self):
-        """cookie 来源三级配置。
-
-        2026-09 起 YouTube 对代理 / 机房 IP 的**游客** cookie 已不放行，必须上
-        登录态：要么让 yt-dlp 直接读已登录 YouTube 的浏览器，要么导入浏览器
-        扩展导出的 cookies.txt（最稳，不受浏览器锁库影响）。
-        """
-        box, blay = card(
-            "下载 Cookie（反风控）",
-            "YouTube 已不再放行游客 cookie —— 需要登录态：从浏览器读取，"
-            "或导入浏览器扩展导出的 cookies.txt")
-
-        self.cookie_mode_combo = ComboBox(box)
-        self.cookie_mode_combo.addItems([t for t, _k in engine.COOKIE_MODE_LABELS])
-        _keys = [k for _t, k in engine.COOKIE_MODE_LABELS]
-        _mode = engine.cookie_mode()
-        self.cookie_mode_combo.setCurrentIndex(
-            _keys.index(_mode) if _mode in _keys else 0)
-        self.cookie_mode_combo.currentIndexChanged.connect(
-            self._on_cookie_mode_changed)
-        blay.addWidget(label_row("Cookie 来源", self.cookie_mode_combo))
-
-        # —— 浏览器登录态（browser / auto） ——
-        self.cookie_browser_combo = ComboBox(box)
-        self.cookie_browser_combo.addItems(list(engine.COOKIE_BROWSERS))
-        _br = engine.cookie_browser()
-        if _br in engine.COOKIE_BROWSERS:
-            self.cookie_browser_combo.setCurrentIndex(
-                list(engine.COOKIE_BROWSERS).index(_br))
-        self.cookie_browser_combo.currentIndexChanged.connect(self._save_cookie)
-        self.cookie_browser_row = label_row("浏览器", self.cookie_browser_combo)
-        blay.addWidget(self.cookie_browser_row)
-
-        # —— 自备 cookies.txt（file / auto） ——
-        self.cookie_file_edit = LineEdit(box)
-        self.cookie_file_edit.setText(engine.cookie_file() or "")
-        self.cookie_file_edit.setPlaceholderText(
-            r"留空则用 data\user_cookies.txt"
-            r"（推荐用浏览器扩展「Get cookies.txt LOCALLY」在 youtube.com 导出）")
-        self.cookie_file_edit.editingFinished.connect(self._save_cookie)
-        _pick = PushButton(FIF.FOLDER, "选择…", box)
-        _pick.clicked.connect(self._browse_cookie_file)
-        _check = PushButton(FIF.SYNC, "检测", box)
-        # 只有点「检测」才跑浏览器实测（1~3 秒的子进程），构建时不阻塞
-        _check.clicked.connect(lambda: self._refresh_cookie_status(probe=True))
-        self.cookie_file_row = srow("cookies.txt", self.cookie_file_edit,
-                                    _pick, _check)
-        blay.addWidget(self.cookie_file_row)
-
-        self.cookie_hint = fit_caption(CaptionLabel("", box))
-        self.cookie_hint.setTextColor("#8a8a8a", "#9a9a9a")
-        blay.addWidget(self.cookie_hint)
-
-        expand_h(self.cookie_file_edit)
-        self.vbox.addWidget(box)
-        self._on_cookie_mode_changed()
-
-    def _cookie_mode_key(self):
-        keys = [k for _t, k in engine.COOKIE_MODE_LABELS]
-        i = self.cookie_mode_combo.currentIndex()
-        return keys[i] if 0 <= i < len(keys) else "auto"
-
-    def _on_cookie_mode_changed(self):
-        mode = self._cookie_mode_key()
-        self.cookie_browser_row.setVisible(mode in ("auto", "browser"))
-        self.cookie_file_row.setVisible(mode in ("auto", "file"))
-        self._save_cookie()
-
-    def _browse_cookie_file(self):
-        p, _f = QFileDialog.getOpenFileName(
-            self, "选择 cookies.txt", engine.DATA_DIR,
-            "Netscape cookie 文件 (*.txt);;所有文件 (*)")
-        if p:
-            self.cookie_file_edit.setText(p)
-            self._save_cookie()
-
-    def _save_cookie(self):
-        try:
-            cfg = engine.load_config() or {}
-            cfg[engine.CFG_COOKIE_MODE] = self._cookie_mode_key()
-            cfg[engine.CFG_COOKIE_BROWSER] = \
-                self.cookie_browser_combo.currentText().strip()
-            cfg[engine.CFG_COOKIE_FILE] = self.cookie_file_edit.text().strip()
-            engine.save_config(cfg)
-            engine.invalidate_cookie_cache()
-        except Exception as e:  # noqa: BLE001
-            _perf_note(f"保存 cookie 配置失败：{e}")
-        self._refresh_cookie_status()
-
-    def _refresh_cookie_status(self, probe=False):
-        """把当前 cookie 来源的状态写成一行提示，用户不必猜配好没有。
-
-        `probe=True`（点「检测」）才真跑浏览器实测（1~3 秒子进程）；平时用静态
-        文案——设置页构建时同步跑子进程会白白卡住界面。
-        """
-        mode = self._cookie_mode_key()
-        try:
-            _br = self.cookie_browser_combo.currentText().strip()
-            if mode == "browser":
-                if probe:
-                    ok, why = engine.browser_cookie_probe(_br)
-                    txt = ("✅ " if ok else "⚠️ ") + why
-                else:
-                    txt = (f"将从 {_br} 读取登录态（需已登录 YouTube 且完全退出"
-                           f"该浏览器）—— 点「检测」实测")
-            elif mode == "guest":
-                _ok, _lg, why = engine.cookies_file_status(engine.GUEST_COOKIES_PATH)
-                txt = f"仅用自动游客 cookie：{why} —— 2026-09 起多半仍被风控拦"
-            else:
-                p = self.cookie_file_edit.text().strip() or engine.cookie_file()
-                ok, logged, why = engine.cookies_file_status(p)
-                if ok and logged:
-                    txt = f"✅ 登录态 cookie 可用：{p}"
-                elif ok:
-                    txt = (f"⚠️ {why}：{p} —— 建议用已登录 YouTube 的浏览器"
-                           f"重新导出")
-                elif probe:
-                    bok, bwhy = engine.browser_cookie_probe(_br)
-                    txt = (f"⚠️ cookies.txt 不可用（{why}）；"
-                           f"{'浏览器可用：' + bwhy if bok else '浏览器：' + bwhy}")
-                else:
-                    txt = (f"⚠️ cookies.txt 不可用（{why}）→ 将回退自动游客 cookie"
-                           f"；点「检测」实测浏览器登录态")
-        except Exception as e:  # noqa: BLE001
-            txt = f"状态检查失败：{type(e).__name__}"
-        self.cookie_hint.setText(txt)
 
     # ------------------------------------------------------------------ #
     # 网络代理（v1.14.1 起无界面）：原「网络代理」卡片与 _build_proxy_card /
@@ -2717,24 +2324,6 @@ class SettingsPage(QWidget):
         # 用 label_row 而不是 srow：srow 会给第一个控件 stretch=1 吃满整行，
         # 开关被横向拉长很难看；label_row 让开关紧跟标签、右侧留白。
         slay.addWidget(label_row("说话人分离", self.asr_diarize_switch))
-        # 语音分离（Separation）：两人**同时**说话时的重叠段，先把混合信号分离
-        # 成单人轨再逐轨识别；音乐 reaction 场景另有一路"剔除歌声"。当前仅保留
-        # 开关与接口占位（引擎侧 asr_separate_of / _asr_separate_audio），不真正
-        # 跑分离模型——详见 video_toolbox.py 的说明。
-        _sp = ai.get("asr_separate")
-        self.asr_separate_switch = SwitchButton(self.asr_service_widget)
-        self.asr_separate_switch.setChecked(
-            _sp is True
-            or str(_sp or "").strip().lower() in ("1", "true", "yes", "on"))
-        self.asr_separate_switch.setToolTip(
-            "重叠语音分离（Separation）：两人**同时**说话时，普通 ASR 会串音或\n"
-            "漏词；开启后先把混合信号分离成单人轨、再逐轨识别，重叠段识别率\n"
-            "明显提升；音乐 reaction 场景还可把歌声从人声中剔除。\n"
-            "· 需与「说话人分离」同时开启才有意义；\n"
-            "· 本版本仅保留开关与接口占位，尚未内置分离模型（Demucs /\n"
-            "  MossFormer 等声源分离模型体积与算力开销较大）；\n"
-            "· 开启后转录会在日志里记录待分离音频，便于后续接入。")
-        slay.addWidget(label_row("语音分离", self.asr_separate_switch))
         blay.addWidget(self.asr_service_widget)
 
         # —— 本地模型 ——
@@ -2789,7 +2378,6 @@ class SettingsPage(QWidget):
         self.asr_mode_combo.currentIndexChanged.connect(self._mark_ai_dirty)
         self.asr_proto_combo.currentIndexChanged.connect(self._mark_ai_dirty)
         self.asr_diarize_switch.checkedChanged.connect(self._mark_ai_dirty)
-        self.asr_separate_switch.checkedChanged.connect(self._mark_ai_dirty)
         self.vbox.addWidget(box)
         self._sync_asr_visible()
 
@@ -2868,22 +2456,20 @@ class SettingsPage(QWidget):
         # —— 输入 / 输出预算（参考图二的「输入 / 输出」双列 + 快捷档位）——
         self.calib_context = _spin(ai.get("calib_context_tokens") or 1000000,
                                    32768, 1048576, 32768)
-        # 上限 1M（v1.16.1）：随「输出」档位一起提到 1M。DeepSeek 官方 384K，
-        # 超出的额度由请求侧「减半自愈」在支持的大额度端点全额下发、小端点自动降级。
+        # 上限 512K（2026-09-20）：DeepSeek 官方 384K，超出的额度由请求侧
+        # 「减半自愈」在支持的大额度端点全额下发、小端点自动降级，不会报错。
         self.calib_tokens = _spin(ai.get("calib_max_tokens") or 65536,
-                                  1024, 1048576, 1024)
+                                  1024, 524288, 1024)
         for w in (self.calib_context, self.calib_tokens):
             expand_h(w, minimum=120)
         in_col, out_col = QWidget(box), QWidget(box)
-        # 档位起点（v1.16.1）：输入 128K 起、输出 256K 起——小额度已无意义
-        # （推理模型思考链会吃光输出额度），只留大额度快捷档。
-        chips_all = []
         for holder, lbl, spin, presets in (
                 (in_col, "输入（上下文预算）", self.calib_context,
-                 ((131072, "128K"), (262144, "256K"), (524288, "512K"),
-                  (1048576, "1M"))),
+                 ((32768, "32K"), (65536, "64K"), (131072, "128K"),
+                  (262144, "256K"), (1048576, "1M"))),
                 (out_col, "输出（单次上限）", self.calib_tokens,
-                 ((262144, "256K"), (524288, "512K"), (1048576, "1M")))):
+                 ((8192, "8K"), (32768, "32K"), (65536, "64K"),
+                  (131072, "128K"), (524288, "512K")))):
             cl = QVBoxLayout(holder)
             cl.setContentsMargins(0, 0, 0, 0)
             cl.setSpacing(4)
@@ -2895,10 +2481,7 @@ class SettingsPage(QWidget):
                 b.setFixedHeight(26)
                 b.clicked.connect(lambda _c=False, s=spin, v=val: s.setValue(v))
                 chips.append(b)
-            chips_all.append((lbl, chips))
             cl.addWidget(row(*chips, spacing=4))
-        # 快捷档按钮留存引用（供自检断言档位起点；见 _selftest_gui）
-        self.calib_preset_chips = dict(chips_all)
         blay.addWidget(row(in_col, out_col, spacing=16))
 
         # 校准风格（2026-09-14）：术语级＝只替换名词；整句重写＝理顺机翻腔与断句
@@ -2914,54 +2497,6 @@ class SettingsPage(QWidget):
         self.calib_web_switch.setChecked(bool(ai.get("calib_web_enabled", False)))
         blay.addWidget(label_row("联网查证", row(self.calib_web_switch, None)))
 
-        # 思考轮次上限（v1.16.1）：每块「思考 → 联网查证 → 再思考」的往返轮数。
-        # 0 = 关闭（不限，内部另有 32 轮安全上限兜底防死循环）。
-        self.calib_think_rounds = _spin(int(ai.get("calib_think_rounds") or 0),
-                                        0, 64, 1)
-        self.calib_think_rounds.setSpecialValueText("关闭（不限）")
-        self.calib_think_rounds.setToolTip(
-            "每块「思考 → 联网查证 → 再思考」的往返轮数上限：\n"
-            "· 0＝关闭（不限；内部仍有 32 轮安全上限防死循环）；\n"
-            "· 仅「联网查证」开启时才有意义（没有工具可调就没有往返）；\n"
-            "· 日志里的 [x/8] 是校准流水线的 8 个步骤进度，与本项无关。")
-        blay.addWidget(label_row("思考轮次上限", self.calib_think_rounds))
-
-        # Agent 集群（v1.16.1，多智能体协作，**默认关闭**）
-        self.calib_cluster_switch = SwitchButton(box)
-        self.calib_cluster_switch.setChecked(
-            bool(ai.get("calib_cluster_enabled", False)))
-        self.calib_cluster_switch.checkedChanged.connect(
-            self._sync_calib_cluster_visible)
-        self.calib_cluster_switch.setToolTip(
-            "多智能体协作（Agent Cluster）：把校准拆成「提议 Agent + 评审 Agent」，\n"
-            "各角色可走不同端点/密钥/模型；评审不通过不采纳，并可回喂整改。\n"
-            "默认关闭——关闭时行为与单智能体完全一致。")
-        blay.addWidget(label_row("Agent 集群",
-                                 row(self.calib_cluster_switch, None)))
-
-        self.calib_cluster_widget = QWidget(box)
-        ccl = QVBoxLayout(self.calib_cluster_widget)
-        ccl.setContentsMargins(0, 0, 0, 0)
-        ccl.setSpacing(4)
-        ccl.addWidget(BodyLabel(
-            "集群成员（每行一个：角色|名称|base_url|api_key|模型）",
-            self.calib_cluster_widget))
-        self.calib_cluster_edit = TextEdit(self.calib_cluster_widget)
-        self.calib_cluster_edit.setPlaceholderText(
-            "calibrate|主力|https://api.deepseek.com|sk-xxx|deepseek-chat\n"
-            "review|评审A|https://open.bigmodel.cn/api/paas/v4|xxx|glm-4.7-flash\n"
-            "角色 calibrate=提议 / review=评审；留空的字段回落全局 AI 配置")
-        self.calib_cluster_edit.setPlainText(self._cluster_text(ai))
-        self.calib_cluster_edit.setFixedHeight(96)
-        ccl.addWidget(self.calib_cluster_edit)
-        self.calib_cluster_rounds = _spin(int(ai.get("calib_cluster_rounds") or 1),
-                                          1, 5, 1)
-        self.calib_cluster_rounds.setToolTip(
-            "评审-整改协作轮数：被评审驳回的改动会带着理由回喂提议 Agent 整改，\n"
-            "最多往返这么多轮；用尽后仍被驳回的改动直接丢弃（写进报告）。")
-        ccl.addWidget(label_row("协作轮数", self.calib_cluster_rounds))
-        blay.addWidget(self.calib_cluster_widget)
-
         calib_save = PrimaryPushButton(FIF.SAVE, "保存并应用", box)
         calib_save.clicked.connect(self._ai_save)
         blay.addWidget(row(calib_save, None))
@@ -2975,23 +2510,6 @@ class SettingsPage(QWidget):
         blay.addWidget(self.calib_hint)
         self.vbox.addWidget(box)
         self._sync_calib_thinking_visible()
-        self._sync_calib_cluster_visible()
-
-    @staticmethod
-    def _cluster_text(ai):
-        """把配置里的集群成员序列化成「角色|名称|base_url|api_key|模型」多行文本。"""
-        out = []
-        for m in (ai.get("calib_cluster_members") or []):
-            if isinstance(m, dict):
-                out.append("|".join(str(m.get(k) or "") for k in
-                                    ("role", "name", "base_url", "api_key", "model")))
-        return "\n".join(out)
-
-    def _sync_calib_cluster_visible(self, *_a):
-        """集群关闭时隐藏成员编辑区（默认关闭，界面保持简洁）。"""
-        w = getattr(self, "calib_cluster_widget", None)
-        if w is not None:
-            w.setVisible(self.calib_cluster_switch.isChecked())
 
     def _sync_calib_thinking_visible(self, *_a):
         """思考模式关闭时隐藏「思考强度」行（强度参数无意义）。"""
@@ -3021,8 +2539,6 @@ class SettingsPage(QWidget):
             "asr_local_model_dir": engine.clean_path(self.asr_local_dir.text()),
             # 说话人分离：服务端原生 diarization（不支持的端点静默忽略）
             "asr_diarize": self.asr_diarize_switch.isChecked(),
-            # 语音分离：重叠语音分离 / 剔除歌声（接口占位，尚未内置模型）
-            "asr_separate": self.asr_separate_switch.isChecked(),
             # AI 校准（v1.12.0：通道选择随双通道合并一并移除）
             "calib_chunk_cues": self.calib_cues.value(),
             "calib_max_chars": self.calib_chars.value(),
@@ -3034,13 +2550,6 @@ class SettingsPage(QWidget):
                             if self.calib_style_combo.currentIndex() == 1 else "term"),
             # 联网查证（2026-09-20）：AI 校准 Agent 可发起 web_search/web_fetch
             "calib_web_enabled": self.calib_web_switch.isChecked(),
-            # 思考轮次上限（v1.16.1）：0=关闭（不限）；>0=每块查证往返硬上限
-            "calib_think_rounds": self.calib_think_rounds.value(),
-            # Agent 集群（v1.16.1，多智能体协作，默认关闭）
-            "calib_cluster_enabled": self.calib_cluster_switch.isChecked(),
-            "calib_cluster_members": engine.ai_mod().parse_cluster_text(
-                self.calib_cluster_edit.toPlainText()),
-            "calib_cluster_rounds": self.calib_cluster_rounds.value(),
             # 思考控制（v1.15.7）：随校准请求体 thinking / reasoning_effort 下发
             "calib_thinking": self.calib_thinking_switch.isChecked(),
             "calib_reasoning_effort": self.CALIB_EFFORT_KEYS[
@@ -3952,23 +3461,6 @@ class CalibPage(QWidget):
                 return p
         return ""
 
-    def accept_subtitle(self, path):
-        """把字幕文件填进「字幕文件」框；返回 True = 已接收。
-
-        本页拖入与主窗口兜底分派**共用同一条路径**（v1.15.8）：
-        CalibPage 只覆盖引擎工作台那块矩形，页面边缘、顶部导航条、窗口边框
-        这些"本页之外"的位置收不到它的拖放事件，会一路冒泡到主窗口的全局
-        分派器。此前那里一律 switchTo 到「字幕编辑」，用户看到的就是
-        "字幕拖到边缘就跳页"。现在主窗口先问一句"校准页在前台吗"，是就
-        走这里就地填入，行为与拖在页面正中完全一致。
-        """
-        p = engine.clean_path(path or "")
-        if not p or os.path.splitext(p)[1].lower() not in SUBTITLE_EXTS:
-            return False
-        self.in_edit.setText(p)
-        self.log.line(f"[校准] 已接收字幕文件：{p}", "dim")
-        return True
-
     def dragEnterEvent(self, e):
         if self._drop_subtitle_path(e):
             e.acceptProposedAction()   # 有字幕 → 本页接管
@@ -3983,7 +3475,8 @@ class CalibPage(QWidget):
         if not p:
             return
         e.acceptProposedAction()       # 中断冒泡：不再触发主窗口的页面跳转
-        self.accept_subtitle(p)
+        self.in_edit.setText(p)
+        self.log.line(f"[校准] 已接收字幕文件：{p}", "dim")
         # 混拖的其它文件（视频/目录等）仍交全局分派器，保持原有能力
         others = [engine.clean_path(u.toLocalFile())
                   for u in e.mimeData().urls() if u.isLocalFile()]
@@ -4495,26 +3988,12 @@ class PipelinePage(QWidget):
         self.retry_btn.clicked.connect(self._retry_all)
         self.open_btn = PushButton(FIF.FOLDER, "打开成品目录", self)
         self.open_btn.clicked.connect(self._open_out)
-        self.clear_btn = PushButton(FIF.BROOM, "清空任务进度", self)
-        self.clear_btn.clicked.connect(self._clear_jobs)
-        #: 并发任务数（多个 job 同时推进；单个 job 内部仍严格按阶段顺序跑）
-        self.workers_spin = SpinBox(self)
-        self.workers_spin.setRange(pl.MIN_WORKERS, pl.MAX_WORKERS)
-        self.workers_spin.setValue(pl.DEFAULT_WORKERS)
-        self.workers_spin.setFixedWidth(110)
-        self.workers_spin.valueChanged.connect(self._on_workers)
         box, lay = card("自动流水线")
         lay.addWidget(row(BodyLabel("自动执行后续阶段", self), self.auto_switch, None))
-        lay.addWidget(row(BodyLabel("并发任务数", self), self.workers_spin,
-                          fit_caption(CaptionLabel(
-                              "多个任务同时推进；单个任务内部仍按阶段顺序执行", self)),
-                          None))
         lay.addWidget(row(self.scan_btn, self.retry_btn, self.open_btn, None))
         vbox.addWidget(box)
 
         self.list_box, self.list_lay = card("任务进度")
-        # 清空按钮跟着「任务进度」走：清掉的是这一块里的历史任务卡片
-        self.list_lay.insertWidget(1, row(None, self.clear_btn))
         self.empty = fit_caption(CaptionLabel("暂无任务：下载目录里出现视频后会自动建卡", self))
         self.list_lay.addWidget(self.empty)
         vbox.addWidget(self.list_box)
@@ -4528,14 +4007,7 @@ class PipelinePage(QWidget):
         """接上引擎侧 Pipeline（主线程调用）。"""
         self.pipe = pipe
         try:
-            self.auto_switch.blockSignals(True)
             self.auto_switch.setChecked(bool(pipe.auto))
-            self.auto_switch.blockSignals(False)
-        except Exception:  # noqa: BLE001
-            pass
-        try:
-            self._sync_workers_spin(getattr(pipe, "max_workers",
-                                            pl.DEFAULT_WORKERS))
         except Exception:  # noqa: BLE001
             pass
         self._refresh()
@@ -4555,24 +4027,10 @@ class PipelinePage(QWidget):
                 self.auto_switch.blockSignals(True)
                 self.auto_switch.setChecked(bool(auto))
                 self.auto_switch.blockSignals(False)
-            workers = payload.get("workers")
-            if workers is not None:
-                self._sync_workers_spin(workers)
         elif kind == "auto":
             self.auto_switch.blockSignals(True)
             self.auto_switch.setChecked(bool(payload.get("auto")))
             self.auto_switch.blockSignals(False)
-        elif kind == "workers":
-            self._sync_workers_spin(payload.get("workers"))
-
-    def _sync_workers_spin(self, value):
-        try:
-            value = int(value)
-        except (TypeError, ValueError):
-            return
-        self.workers_spin.blockSignals(True)
-        self.workers_spin.setValue(value)
-        self.workers_spin.blockSignals(False)
 
     def _refresh(self):
         if self.pipe is not None:
@@ -4646,50 +4104,6 @@ class PipelinePage(QWidget):
         if self.pipe is not None:
             self.pipe.manual_evaluate()
             self.log.line("[扫描] 已触发一次目录评估", "dim")
-
-    def _clear_jobs(self):
-        """清空「任务进度」：把历史任务卡片全部清掉（含已完成 / 失败 / 存量）。
-
-        执行中的阶段无法安全中断，会等它跑完再连同卡片一起消失；被清掉的
-        任务会被记下来，目录里同一份视频不会下一轮评估又冒出来（换过文件
-        则视为新任务，正常建卡）。
-        """
-        if self.pipe is None:
-            InfoBar.warning("提示", "流水线尚未启动，请稍候", duration=3000,
-                            position=InfoBarPosition.BOTTOM_RIGHT, parent=self)
-            return
-        jobs = self.pipe.job_list()
-        if not jobs:
-            self.log.line("[清空] 当前没有任务", "dim")
-            InfoBar.info("提示", "当前没有可清理的任务", duration=2500,
-                         position=InfoBarPosition.BOTTOM_RIGHT, parent=self)
-            return
-        running = 0
-        for job in jobs:
-            for st in (job.get("stages") or {}).values():
-                if (st or {}).get("state") == pl.RUNNING:
-                    running += 1
-                    break
-        extra = (f"（{running} 个正在执行，跑完即移除）" if running else "")
-        box = MessageBox(
-            "清空任务进度",
-            f"确定清空全部 {len(jobs)} 个任务吗？{extra}"
-            "只清理进度记录，不删除任何已下载 / 已生成的文件；"
-            "清空后这批历史视频不会自动重新入列，重新下载或替换文件后会正常出现。",
-            self)
-        box.yesButton.setText("清空")
-        box.cancelButton.setText("取消")
-        if not box.exec():
-            return
-        now, deferred = self.pipe.clear_jobs()
-        self.log.line(f"[清空] 已清理 {now} 个任务"
-                      + (f"，{deferred} 个执行中（跑完即移除）" if deferred else ""),
-                      "ok")
-        self._refresh()
-
-    def _on_workers(self, value):
-        if self.pipe is not None:
-            self.pipe.set_workers(value)
 
     def _open_out(self):
         if self.pipe is not None and os.path.isdir(self.pipe.out_root):
@@ -6018,20 +5432,6 @@ class SubtitleEditPage(ScrollPage):
         self._bak_once(path)
         # 按时间轴排好再写（与内嵌字幕同一约定；doc 本身的顺序不动）
         cues = sorted(self.doc.cues, key=lambda c: (int(c.start), int(c.end)))
-
-        # 说话人分轨（v1.15.9）：SRT 单文件放不下「说话人」这个维度，检测到
-        # 多人时问一句——合成一个文件，还是按人拆成多条独立轨。ASS 不问：
-        # 它天生支持多 Style，直接导出成一份彩色多人字幕即可（见 render_ass）。
-        if ext == ".srt":
-            named = [t for t in secore.split_by_speaker(cues) if t[0]]
-            if len(named) >= 2:
-                mode = self._ask_speaker_export(len(named))
-                if mode == "split":
-                    self._export_speaker_tracks(path, secore.split_by_speaker(cues))
-                    return
-                if mode == "cancel":
-                    return
-
         try:
             if ext == ".ass":
                 text = secore.render_ass(cues, self._preview_style)
@@ -6045,53 +5445,6 @@ class SubtitleEditPage(ScrollPage):
             self._info("err", "导出失败", str(e)[:250])
             return
         self._info("ok", "已导出 " + ext[1:].upper(), path, 6000)
-
-    def _ask_speaker_export(self, n):
-        """多人字幕导出 SRT 前询问导出方式。返回 "merge" / "split" / "cancel"。"""
-        box = QMessageBox(self)
-        box.setWindowTitle("说话人分轨")
-        box.setIcon(QMessageBox.Question)
-        box.setText("检测到 %d 个说话人，按哪种方式导出 SRT？" % n)
-        box.setInformativeText(
-            "· 合并为一个文件：所有人同在一份 SRT，行首带 [说话人N] 前缀；\n"
-            "· 按说话人拆分：每人一份独立 SRT（各自时间轴，便于独立打轴 / 翻译 / 渲染）。")
-        b_merge = box.addButton("合并为一个文件", QMessageBox.AcceptRole)
-        b_split = box.addButton("按说话人拆分", QMessageBox.ActionRole)
-        box.addButton("取消", QMessageBox.RejectRole)
-        box.setDefaultButton(b_merge)
-        box.exec_()
-        clicked = box.clickedButton()
-        if clicked is b_split:
-            return "split"
-        if clicked is b_merge:
-            return "merge"
-        return "cancel"
-
-    def _export_speaker_tracks(self, base_path, tracks):
-        """把按说话人拆出的多条轨各写一份 SRT（文件名带说话人后缀）。
-
-        每条轨只含该说话人的条目、各自保留原始时间轴——可直接丢进播放器 /
-        剪辑软件当独立字幕轨，或逐条翻译、逐人渲染（对应需求里的「字幕独立
-        轨」）。无归属轨（说话人识别不到的部分）写成 `-无归属` 后缀。
-        """
-        root, ext = os.path.splitext(base_path)
-        ext = ext or ".srt"
-        written = []
-        for spk, cs in tracks:
-            if not cs:
-                continue
-            suffix = ("-" + spk) if spk else "-无归属"
-            path = "%s%s%s" % (root, suffix, ext)
-            self._bak_once(path)
-            try:
-                with open(path, "wb") as fh:
-                    fh.write(secore.SubtitleDoc(cues=list(cs)).to_bytes())
-            except OSError as e:
-                self._info("err", "分轨导出失败", "%s：%s" % (path, str(e)[:150]))
-                return
-            written.append(path)
-        self._info("ok", "已导出 %d 条独立字幕轨" % len(written),
-                   "\n".join(written), 8000)
 
     # ---------------------------------------------------------
     # 内嵌字幕（原引擎工作台「字幕视频合成」分段，v1.13.x 并到本页）
@@ -6295,17 +5648,12 @@ class SubtitleEditPage(ScrollPage):
         """
         if not self.doc.cues:
             self.stage.set_cues([])
-            self.stage.set_speaker_colors({})
             return
         sig = secore.cues_signature(self.doc.cues)
         if not force and sig == self._ass_sig:
             return
         self._ass_sig = sig
         self.stage.set_style(self._preview_style)
-        # 彩色多人字幕：把「说话人 -> 颜色」推给字幕层（与 render_ass 同一份
-        # 映射），预览里每个说话人一种颜色，导出 ASS 后颜色一致。
-        self.stage.set_speaker_colors(secore.speaker_color_map(
-            secore.cue_speakers(self.doc.cues)))
         self.stage.set_cues(self.doc.cues)
 
     def _sync_current(self, ms=None):
@@ -6762,7 +6110,6 @@ class SubtitleEditPage(ScrollPage):
 # 类名/objectName 一律保持 DownloadPage 不变，避免牵动既有样式与自检。
 PAGE_TITLES = {"DownloadPage": "视频处理", "LibraryPage": "视频库",
                "SubtitlePage": "字幕处理", "SubtitleEditPage": "字幕编辑",
-               "AutoVisionPage": "自动化",
                "SettingsPage": "设置",
                "MergePage": "音画合并", "CalibPage": "字幕校准"}
 
@@ -6900,7 +6247,7 @@ class MainWindow(FluentWindow):
     #: 导航项文案（宽度按其中最长的一项计算）
     #: v1.13.x：原「视频下载」更名「视频处理」——该页已同时承载「视频下载」与
     #: 「音画合并」两个板块，只叫"下载"名不副实。页内子板块名保持不变。
-    NAV_TEXTS = ["视频处理", "视频库", "字幕处理", "字幕编辑", "流水线", "自动化", "设置"]
+    NAV_TEXTS = ["视频处理", "视频库", "字幕处理", "字幕编辑", "流水线", "设置"]
 
     #: 默认窗口宽度（高度由黄金比例推）。 以它为上界，
     #: 而不是以"窗口当前宽度"为上界——后者会把布局撑出来的尺寸固化下来。
@@ -6953,15 +6300,11 @@ class MainWindow(FluentWindow):
         self.subtitle_edit_page = SubtitleEditPage(self, self)
         self.pipeline_page = PipelinePage(self, self)
         self.settings_page = SettingsPage(self, self)
-        # 自动化页（v1.16.0）：视觉自动化 demo。页面类在 auto_vision_page 里，
-        # 自带卡片壳，不依赖本文件的 ScrollPage/card()。
-        self.auto_page = auto_vision_page.AutoVisionPage(self, self)
         # 被合并的子板块：仍挂到宿主页的堆叠里，保留快捷引用便于消息路由/自检
         self.merge_page = self.download_page.merge_page
         self.calib_page = self.subtitle_page.calib_page
         for page in (self.download_page, self.library_page, self.subtitle_page,
                      self.subtitle_edit_page, self.pipeline_page,
-                     self.auto_page,
                      self.settings_page):
             page.installEventFilter(self)
 
@@ -6971,15 +6314,8 @@ class MainWindow(FluentWindow):
         self.addSubInterface(self.subtitle_page, FIF.FONT, "字幕处理")
         self.addSubInterface(self.subtitle_edit_page, FIF.CUT, "字幕编辑")
         self.addSubInterface(self.pipeline_page, FIF.SYNC, "流水线")
-        self.addSubInterface(self.auto_page, FIF.ROBOT, "自动化")
         self.addSubInterface(self.settings_page, FIF.SETTING, "设置",
                              position=NavigationItemPosition.BOTTOM)
-        # 窗口标题跟随当前页：导航项点击走 switchTo，但导航「返回」键走
-        # qrouter.pop → setCurrentWidget，绕过 switchTo（见 _on_page_changed）。
-        try:
-            self.stackedWidget.currentChanged.connect(self._on_page_changed)
-        except Exception:  # noqa: BLE001
-            pass
 
         # 界面美化：五个导航页挂上「自定义背景图」绘制能力（v1.13.x）。
         # 未设置背景图时 paintEvent 原样透传，视觉与改造前逐像素一致；
@@ -7566,38 +6902,14 @@ class MainWindow(FluentWindow):
         except Exception:
             pass
 
-    def _page_title(self, page):
-        """当前页对应的标题后缀（PAGE_TITLES 未收录时返回 ""）。"""
-        try:
-            return PAGE_TITLES.get(page.objectName(), "")
-        except Exception:  # noqa: BLE001
-            return ""
-
-    def _on_page_changed(self, _index=None):
-        """窗口标题跟随堆叠的当前页。
-
-        此前标题只在 switchTo 里写。导航「返回」键走 qrouter.pop →
-        stackedWidget.setCurrentWidget，**绕过 switchTo**，于是页面回去了
-        而标题停在上一页（用户反馈：跳转后顶部一直显示「字幕编辑」）。
-        挂到 currentChanged 上，无论谁切的页，标题都跟得上。
-        """
-        try:
-            page = self.stackedWidget.currentWidget()
-            if page is None:
-                return
-            suffix = self._page_title(page)
-            self.setWindowTitle(
-                f"视频工具箱 v{VERSION}" + (f" — {suffix}" if suffix else ""))
-        except Exception:  # noqa: BLE001
-            pass
-
     def switchTo(self, page):
         # 切页时布局会按新页面的 sizeHint 把窗口撑大（实测 1180x729 → 1440x889），
         # 而用户并没有要求变大 —— 撑大后窗口可能超出屏幕，边缘够不着鼠标。
         # 记下切页前的尺寸，切页后若被撑大就还原回去（用户自己拖大的尺寸不会丢）。
         before = self.size()
         self.stackedWidget.setCurrentWidget(page, popOut=False)
-        self._on_page_changed()
+        self.setWindowTitle(
+            f"视频工具箱 v{VERSION} — {PAGE_TITLES.get(page.objectName(), '')}")
 
         def _clamp():
             try:
@@ -7634,7 +6946,6 @@ class MainWindow(FluentWindow):
         return {"download": self.download_page, "library": self.library_page,
                 "subtitle": self.subtitle_page, "edit": self.subtitle_edit_page,
                 "pipeline": self.pipeline_page,
-                "auto": self.auto_page,
                 "settings": self.settings_page}.get(key)
 
     # ---------- 流水线（v1.14.0） ----------
@@ -7714,16 +7025,6 @@ class MainWindow(FluentWindow):
                 0, lambda ps=list(paths): self._handle_dropped_files(ps))
         e.acceptProposedAction()
 
-    def _in_subtitle_workbench(self):
-        """当前是否停在「字幕处理」页（引擎工作台，含其字幕校准子页）。
-
-        边缘拖放分派要用它判断"该不该按字幕类型跳转"，而不是一律去字幕编辑。
-        """
-        try:
-            return self.stackedWidget.currentWidget() is self.subtitle_page
-        except Exception:  # noqa: BLE001
-            return False
-
     def _handle_dropped_files(self, paths):
         """把拖进窗口的文件按类型分派到对应页面（视频/音频/字幕/文档/目录）。
 
@@ -7755,28 +7056,6 @@ class MainWindow(FluentWindow):
             self.switchTo(self.library_page)
             msgs.append(f"已把「{os.path.basename(d)}」设为视频库目录")
         # 2) 字幕/视频/音频 → 字幕编辑
-        #    例外（v1.15.8）：正停在「字幕处理 → 字幕校准」子页时，字幕**就地**
-        #    填进校准输入框、不跳页。CalibPage 只覆盖引擎工作台那一块矩形，拖到
-        #    页面边缘 / 顶部导航条 / 窗口边框时事件收不到它的 dragEnter，会冒泡
-        #    到这里；此前一律 switchTo 到「字幕编辑」，用户看到的就是
-        #    "字幕拖到边缘就跳页"。（混拖的视频/音频仍走原逻辑，与 CalibPage
-        #    dropEvent 里"其它文件交全局分派"的处理保持一致。）
-        # v1.16.4：字幕的落点按「当前所在页」决定 ——
-        #   · 停在「字幕处理」页（引擎工作台，含其字幕校准子页）→ 走与
-        #     「任务创建」**完全同一套**分派：双语 → 字幕校准、单语 → 字幕翻译；
-        #   · 其他页面 → 原逻辑（字幕编辑）。
-        # 此前一律 switchTo 到「字幕编辑」：拖到页面边缘 / 顶部导航条 / 窗口
-        # 边框时（这些位置任务创建页收不到 dragEnter，事件冒泡到这里）就会
-        # 莫名跳页，用户看到的就是"拖到边缘跳字幕编辑"。
-        if subs:
-            home = getattr(self.subtitle_page, "_engine_home", None)
-            if home is not None and self._in_subtitle_workbench():
-                try:
-                    self.subtitle_page._dispatch_created_task(home, subs[0])
-                    msgs.append("已载入到字幕处理：" + os.path.basename(subs[0]))
-                    subs = []
-                except Exception as e:  # noqa: BLE001
-                    _perf_note(f"边缘拖放分派字幕失败：{e}")
         if subs or videos or audios:
             ed = self.subtitle_edit_page
             self.switchTo(ed)
