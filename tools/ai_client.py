@@ -24,6 +24,9 @@
 - detect_language：标题/文本语言识别（字幕语言跟随标题语言用）；
 - 回复中的 thinking 块自动跳过，只拼接 text 块；JSON 回复用 try_parse_json 解析；
 - 智谱"1305 访问量过大 / overloaded"与 HTTP 429/5xx 自动退避重试。
+- 火山方舟 Token Plan 端点（/api/plan/v3）只收套餐模型：按量模型（如
+  deepseek-flash）打上去恒回 404 UnsupportedModel（agent plan feature），
+  此时自动换按量端点（/api/v3，同一 API Key）重试（2026-10-01 修复）。
 """
 
 from __future__ import annotations
@@ -519,6 +522,33 @@ def _is_anthropic_only_path(base: str) -> bool:
     return path.rstrip("/").endswith(("/api/coding", "/api/compatible"))
 
 
+def _is_volces_plan_url(url: str) -> bool:
+    """是否火山方舟「Token Plan」端点（.../api/plan/v3[/chat/completions]）。
+
+    该端点只收「支持 agent plan 特性」的模型（doubao-seed 系列等套餐模型）；
+    deepseek-flash 这类纯按量模型打上去恒回 HTTP 404 UnsupportedModel
+    （"The requested model does not support the agent plan feature"）。
+    """
+    host, path = _host_path(url)
+    if "volces.com" not in host and "volcengine" not in host:
+        return False
+    return "/api/plan/" in path
+
+
+def _volces_paygo_url(url: str) -> str:
+    """火山方舟 Token Plan 端点 → 按量计费端点（/api/plan → /api/v3，只换路径）。
+
+    同一个 API Key 两个端点通用：套餐模型走 /api/plan/v3 消耗套餐额度，
+    按量模型必须走 /api/v3。2026-10-01 修复：此前地址栏填
+    ark.cn-beijing.volces.com/api/plan/v3 + deepseek-flash，测试连接直接
+    报「HTTP 404 UnsupportedModel … agent plan feature」，用户无从下手。
+    注意传入的可能是已拼好 /chat/completions 的完整地址，要替换的是
+    /api/plan/v3 整段（换成 /api/v3），不能只换 /api/plan/ 前缀——
+    否则会把 /api/plan/v3/chat/completions 改错成 /api/v3/v3/chat/completions。
+    """
+    return _re.sub(r"/api/plan/v(\d+)", r"/api/v\1", str(url or ""), count=1)
+
+
 def resolve_asr_protocol(ac: dict) -> str:
     """解析 ASR 服务模式实际使用的接口协议。
 
@@ -880,7 +910,40 @@ class AIClient:
 
         Azure OpenAI 特殊处理：api-key 头鉴权（Bearer 不被接受），
         缺 api-version 参数时自动补默认版本。
+
+        2026-10-01 火山方舟 Plan 端点自愈：地址是 Token Plan 端点
+        （/api/plan/v3）而服务端回「模型不支持 agent plan 特性」时，
+        同域名换按量端点（/api/v3）重试一次（同一 API Key 通用）；
+        成功后把实例地址改成按量端点，后续调用不再重复踩错。
         """
+        try:
+            return self._post_openai_once(url, body)
+        except AIClientError as e:
+            low = str(e).lower()
+            if not (_is_volces_plan_url(url)
+                    and ("agent plan" in low or "unsupportedmodel" in low
+                         or "unsupported model" in low)):
+                raise
+            fixed = _volces_paygo_url(url)
+            logger.warning("Token Plan 端点不支持当前模型（%s），"
+                           "改用按量端点 %s 重试", str(e)[:120], fixed)
+            try:
+                resp = self._post_openai_once(fixed, body)
+            except AIClientError as e2:
+                raise AIClientError(
+                    "当前模型不支持火山方舟 Token Plan 端点（/api/plan/v3），"
+                    "改用按量端点（/api/v3）重试仍失败：%s。按量模型"
+                    "（deepseek-flash 等）请把接口地址改为 "
+                    "https://ark.cn-beijing.volces.com/api/v3；只有套餐内模型"
+                    "才需要保留 /api/plan/v3。" % str(e2)[:300]) from e2
+            if url == getattr(self, "url", None):
+                self.url = fixed
+            if url == getattr(self, "vision_url", None):
+                self.vision_url = fixed
+            return resp
+
+    def _post_openai_once(self, url: str, body: dict) -> dict:
+        """单发一次 OpenAI 兼容请求（Plan 自愈的重试目标，见 _post_openai）。"""
         headers = {"content-type": "application/json"}
         if _is_azure_base(url):
             headers["api-key"] = self.api_key
