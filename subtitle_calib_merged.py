@@ -102,9 +102,13 @@ B. 流水线子命令（原各项目分散脚本 extract_cues/split_segs/merge_r
   python subtitle_calib_merged.py flow     <src.srt> [--out out.srt] [--fix-style]
         # 口播风格 + 跨 cue 连贯体检（2026-10-01 新增）：① 中文行行首悬挂标点
         #   （机翻把日语句中顿号/句号搬到行首）；② 内容行超宽（>32 汉字当量）；
-        #   ③ 书面腔命中（STYLE_MAP：因此/然而/并且/是否/无法…）。
+        #   ③ 书面腔命中（STYLE_MAP：因此/然而/并且/是否/无法/依然/必须/尚未…）；
+        #   ④ 整行=语气填充词（FILLER_MAP：语言/示例/I/以及/因此/然而）；
+        #   ⑤ 行首悬挂连词（LEAD_CONJ：然而/但是/所以/以及…）——整行=连词最刺眼，
+        #      以及"行首连词但上一 cue 已收句"（接不上）。⑤ 只体检不自动改：
+        #      要么并入上一 cue，要么把该 cue 重写成自足短语（须人工 / 走 pair）。
         #   不带 --out 只体检（有问题退出码 1）；带 --out 输出成品，默认只清行首
-        #   悬挂标点，加 --fix-style 才套 STYLE_MAP。只动标点/虚词，不碰术语。
+        #   悬挂标点，加 --fix-style 才套 STYLE_MAP+FILLER_MAP。只动标点/虚词，不碰术语。
   python subtitle_calib_merged.py kb-export [--json] [--out 路径]           # 导出对象级知识库（MD/JSON，投喂用）
   python subtitle_calib_merged.py kb-lookup <词>                            # 按任意形态反查实体全部知识
   python subtitle_calib_merged.py kb-lint                                   # 对象级体检（跨实体冲突/级联/冗余）
@@ -5537,12 +5541,21 @@ MAX_LINE_WIDTH = 32.0
 # =============================================================
 STYLE_MAP = {
     "非常抱歉": "实在抱歉",     # 长键优先，防被 "抱歉" 类短键截断
-    "确实如此": "确实",
+    "确实如此": "是这样",
+    "显而易见": "一眼就看得出",
+    "即便如此": "就算这样",
     "请多关照": "请多指教",
     "我明白了": "原来如此",
+    "不得不": "只能",
     "因此": "所以", "然而": "不过", "并且": "而且", "由于": "因为",
     "此外": "另外", "是否": "是不是", "无法": "没法", "立刻": "马上",
     "十分": "挺", "些许": "有点",
+    # —— 2026-10-01 韩服 3.7 心月狐片（여우별 정주행）第三轮口播化实测补充 ——
+    # ⚠ 长键必须先于裸键：原句常是「依然**是**…」，裸键替换会产出「还是是」
+    "依然是": "还是", "仍然是": "还是", "依旧是": "还是",
+    "依然": "还是", "仍然": "还是", "仍旧": "还是",
+    "必须": "得", "尚未": "还没", "并非": "不是",
+    "实际上": "其实", "这件事": "这事", "的事情": "的事",
 }
 # 整行「语气填充词」归一表（2026-10-01 第三轮口播化沉淀）。
 #   病灶：韩语原声片的谷翻会把韩语语气词/填充词**直译成中文实词**，单独成行时
@@ -5555,11 +5568,25 @@ FILLER_MAP = {
     "语言": "呃",
     "示例": "嗯",
     "I": "我",
+    # ⚠ 整行**连接词**（然而/但是/以及/所以…）**不要**进本表：换成另一个连接词
+    #   仍然过不了「行首悬挂连词」这一关，属于自欺。那类走 LEAD_CONJ 体检 +
+    #   人工改写成自足短语（"不过啊——" / "哇！" / "于是，"），见 _cmd_flow 说明。
 }
 # 中文行**行首悬挂标点**：机翻把日语的句中顿号/句号一起搬到了行首，
 # 单独成行时看着像错字（如 "。以前也经常被人这么说"）。flow 默认清掉。
 # 不含 ！？：行首的叹号/问号承载语气，清了会掉情绪，保留。
 LEAD_PUNCT = "。，、；："
+# 中文行**行首悬挂连词**（2026-10-01 第三轮「跨 cue 连贯」新增）。
+#   病灶：机翻按韩语/日语句读切 cue，把连接词整个留到下一 cue 开头；单看一行像断句，
+#   连读时更糟——连接词与本句被 cue 边界劈开（"否定词/主语跨 cue" 的同源问题）。
+#   分两级：① 整行**就是**一个连接词（最刺眼，必须并入上一 cue 或改写成自足短语）；
+#           ② 行首连词且**上一 cue 中文行已收句**（。！？），说明连词接不上。
+#   与时间轴无关，flow 只体检不自动改（改法须人工：并入上一 cue 或重写成自足句）。
+LEAD_CONJ = ("然而", "但是", "不过", "因此", "所以", "于是", "而且", "并且",
+             "以及", "加之", "另外", "此外", "接着", "然后", "那么", "既然",
+             "因为", "虽然", "即使", "即便", "尽管", "还有", "更重要的是")
+# 上一 cue 收句判定用：这些标点说明上一行已经说完，本行再起连词就是"接不上"。
+_SENT_END = ("。", "！", "？", "……", "！", "？")
 
 
 def char_width(ch):
@@ -5675,7 +5702,8 @@ def _cmd_flow(src, out=None, fix_style=False):
                 continue
         i += 1
     keys = sorted(STYLE_MAP, key=len, reverse=True)
-    lead, longl, styled, filler = [], [], [], []
+    lead, longl, styled, filler, conj, conj2 = [], [], [], [], [], []
+    prev_zh = ""
     for st, ed, num, has_zh in spans:
         if not has_zh:
             continue
@@ -5684,6 +5712,16 @@ def _cmd_flow(src, out=None, fix_style=False):
             lead.append((num, zh))
         if is_line_too_long(zh):
             longl.append((num, round(line_width(zh), 1), zh))
+        # 悬挂连词：① 整行就是连接词；② 行首连词但上一 cue 已收句
+        core = zh.strip().lstrip(">").strip()
+        if core in LEAD_CONJ:
+            conj.append((num, core, zh))
+        elif prev_zh.endswith(_SENT_END):
+            for c in sorted(LEAD_CONJ, key=len, reverse=True):
+                if core.startswith(c):
+                    conj2.append((num, c, zh))
+                    break
+        prev_zh = zh.rstrip()
         if zh.strip() in FILLER_MAP:
             filler.append((num, zh.strip(), FILLER_MAP[zh.strip()]))
             continue
@@ -5704,10 +5742,17 @@ def _cmd_flow(src, out=None, fix_style=False):
     print(f"  书面腔命中 {len(styled)} 处" + ("" if styled else "（干净）"))
     for num, k, t in styled[:8]:
         print(f"    #{num} [{k}] {t[:40]}")
+    print(f"  行首悬挂连词 {len(conj)} 处（整行=连词）" + ("" if conj else "（干净）"))
+    for num, c, t in conj[:8]:
+        print(f"    #{num} [{c}] {t[:40]}")
+    print(f"  行首连词接不上 {len(conj2)} 处（上一 cue 已收句）" + ("" if conj2 else "（干净）"))
+    for num, c, t in conj2[:8]:
+        print(f"    #{num} [{c}] {t[:40]}")
     if not out:
-        bad = len(lead) + len(longl)
+        bad = len(lead) + len(longl) + len(conj)
         if bad:
-            print(f"FLOW：{bad} 处待修（加 --out 输出成品；--fix-style 连书面腔一起改）")
+            print(f"FLOW：{bad} 处待修（加 --out 输出成品；--fix-style 连书面腔一起改；"
+                  f"悬挂连词须人工并入上一 cue 或改写成自足句）")
             return 1
         print("FLOW OK：口播风格与连贯性无待修项")
         return 0
