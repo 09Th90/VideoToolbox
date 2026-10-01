@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 1.16.4
+# @version 1.16.1
 """字幕校准统一脚本（唯一入口，可复用，每次校准任务优先调用本脚本）
 
 本文件是工作区全部历史校准脚本的统一沉淀（双语 calib_rules、韩语
@@ -1420,7 +1420,6 @@ KO_TERMS = {
     '福明': '伏翎',
     # —— 鸣潮(명조) 变体 ——
     '明祖': '鸣潮',
-    '明卓': '鸣潮',
     '明州': '鸣潮',
     '明乔': '鸣潮',
     '明朝': '鸣潮',
@@ -1496,6 +1495,7 @@ KO_TERMS = {
     '阿勒夫一号': '阿列夫一',
     '日心6号': '秘日六席',
     '芦原': '苇原',
+    '明卓': '鸣潮',
 }
 
 # =============================================================
@@ -1913,16 +1913,6 @@ AK_KO_CONTEXT = [
     (r"슈발 ?리드", "Chevallid", "拉芙希妮"),
 ]
 _AK_KO_CONTEXT_COMPILED = [(re.compile(rx), wrong, right) for rx, wrong, right in AK_KO_CONTEXT]
-
-# 韩语原声·鸣潮（--ko）参考行佐证表（2026-10-01 新增）。
-#   与 AK_KO_CONTEXT 同构：(韩语参考行正则, 错形, 正确)。条目由 ENTITIES 里
-#   modes 含 "ko" 的实体 ctx 投影而来（见 _register_entities），故此处默认空表。
-#   这里的"错形"一律是**普通中文词**（耐克/广播/个性/比赛/星轨/迷你甜瓜…），
-#   必须由韩语参考行正则佐证才替换，绝不入 KO_TERMS 裸键（防跨片源误伤）。
-#   用途：韩语反应片里谷翻把 게임 译成"比赛"、방송 译成"广播"、캐릭터 译成"个性"、
-#   니케 译成"耐克"等；此前 --ko 只能逐 cue 写 subfix 侧车，现由本表自动覆盖。
-KO_CONTEXT = []
-_KO_CONTEXT_COMPILED = [(re.compile(rx), wrong, right) for rx, wrong, right in KO_CONTEXT]
 
 # =============================================================
 # 3.1b2 ERROR 占位行批量回填（2026-09-10，명일방주 PV 월드컵 112강 _ko_auto 谷歌翻译）
@@ -2413,6 +2403,7 @@ _MODE_TERM_TABLE = {
 }
 _MODE_CTX_TABLE = {
     "bi": "CONTEXT_MAP", "ja": "JA_CONTEXT", "jpe": "JA_ENDFIELD_CONTEXT",
+    "akko": "AK_KO_CONTEXT",
     "akko": "AK_KO_CONTEXT", "ko": "KO_CONTEXT",
 }
 _MODE_NAMES = {
@@ -2455,13 +2446,24 @@ class Entity:
 # 示范条目：变体已存在于扁平表（注册为幂等 no-op），en/ja/ko/category/note
 # 是本层新增的对象级元数据。实体覆盖的既有键会在 kb-export 视图中带上这些属性。
 ENTITIES = [
-    Entity("漂泊者", modes=("bi",), en="Rover", ja="漂泊者", ko="방랑자",
-           category="角色",
-           variants=("罗弗", "罗孚", "罗浮", "路虎", "漫游车",
-                     "Rover", "Ruva", "Ruver", "鲁瓦", "鲁弗", "Wover", "沃弗"),
-           ctx=((r"\brover\b", "漫游者"),),
-           note="鸣潮主角。'鲁瓦'长键须先于'鲁瓦扬->罗伊'(罗伊古文明)处理，防误伤；"
-                "主播昵称'弗罗弗'(Frover)由 CONTEXT_MAP 兜底，防'罗弗'键子串误伤。"),
+    Entity("漂泊者", modes=("ja",), ja="漂泊者",
+           category="角色/主角/鸣潮",
+           variants=("評白者", "ひ白者"),
+           ctx=((r"脅迫者|評白者|表白者|漂白者|白者さん|ひ白者", "表白者"),
+                (r"脅迫者|評白者|表白者|漂白者|白者さん|ひ白者", "漂白者"),
+                (r"脅迫者|評白者|表白者|漂白者|白者さん|ひ白者", "漂白"),
+                (r"脅迫者|評白者|表白者|漂白者|白者さん|ひ白者", "勒索者"),
+                (r"脅迫者|評白者|表白者|漂白者|白者さん|ひ白者", "威胁者"),
+                (r"脅迫者|評白者|表白者|漂白者|白者さん|ひ白者", "胁迫者"),
+                (r"脅迫者|評白者|表白者|漂白者|白者さん|ひ白者", "威吓者"),
+                (r"評白者|漂白者", "评白"),
+                (r"評白者|漂白者|白者さん", "白物先生"),
+                (r"評白者|漂白者|白者さん", "白先生"),
+                (r"脅迫者|評白者", "威胁的人")),
+           note="鸣潮主角。日语官方名=漂泊者（ひょうはくしゃ）；ASR 常咬成 脅迫者(きょうはくしゃ)"
+                "/評白者/表白者/漂白者/ひ白者。谷翻把 脅迫者 按字面译成 勒索者/威胁者/胁迫者。"
+                "戒律：勒索者/威胁者/胁迫者/白先生/白物先生 都是正常中文词，只走日语行锚定 ctx，"
+                "绝不进 variants。'百士/百紫' 属白芷（ビクシ），另见该实体。"),
     Entity("心月狐", modes=("bi",), en="Sheen / Hsin", ja="シン",
            category="角色/岁主",
            variants=(
@@ -2553,45 +2555,10 @@ ENTITIES = [
     Entity("阿达希尔", modes=("jpe",), en="Ardashir", ja="アルダシル",
            category="角色", note="终末地第二章。戒律：禁用裸键'达希尔'——长键先替换后"
            "短键二次命中得'阿阿达希尔'（terms-check 会报）。"),
-    Entity("达妮娅", modes=("bi", "ja"), en="Denia", ja="ダーニャ",
-           category="角色",
-           variants=(
-               # --- 既有机翻/ASR 乱形 ---
-               "Dena", "Denia", "丹妮亚", "塔娜", "Tana", "Tenna",
-               # --- 中文同音/音近（dá nī yà）---
-               "达妮亚", "丹妮娅", "达尼娅", "丹尼亚",
-               "达妮雅", "塔妮娅", "达你娅", "达腻娅",
-               "达妮押", "达妮鸭", "达妮丫",
-               # --- 英文 ASR 音近（Denia）---
-               "Denya", "Dennia", "Denny", "Deniya",
-               "Danea", "Dania", "Denia's", "Denia`s", "Deina",
-               "Denaia", "Deneia", "Denea", "Denia!",
-               # --- 日文原形 ---
-               "ダーニャ", "ダニア", "でにゃ",
-           ),
-           ctx=((r"\bDa\b", "爸爸"), (r"\bDa\b", "Da"), (r"\bDa\b", "达的"),
-                (r"\bDa\b", "达。"), (r"\bmy wife\b", "娜娜"),
-                (r"\bTenna\b", "特纳"), (r"\bDia\b", "迪亚"), (r"\bDia\b", "Dia"),
-                (r"\bDenia\b", "达妮娅"), (r"\bDenia\b", "丹妮娅"),
-                # "迪娜"=Denia/Dena 谷翻音近，通用译名易误伤他片，只走参考行 \bDena\b/\bDenia\b 佐证
-                #   （2026-09-23 达妮娅3.3幕间二次校准沉淀，#8/117/613/625/682/731）
-                (r"\bDena\b", "迪娜"), (r"\bDenia\b", "迪娜")),
-           note="星炬学院虚质科学部学生，3.3 新五星（百度百科/萌娘百科/官方档案确认）。"
-                "昵称 Denny/Dennia 机翻'丹尼/丹妮娅'亦归此；"
-                "Daniela=丹妮拉 是另一人，勿收。真名达斯维达尼亚。"
-                "主播昵称 Da(丹)：机翻常按口癖译成'爸爸'(#139/213/461/473/475/599)、残留英文"
-                "Da/DA(#7/55/654/693/601/607)或咬出'达的'(#51/58)、'达。'(#15)，一律靠参考行"
-                " \\bDa\\b 佐证归 达妮娅；裸'爸爸/Da/达的/达。'绝不进全局表。"
-                "Tenna(#25/26/404)=Denia ASR 乱形（'Tenna is being Tenna'=达妮娅又开始了）；"
-                "塔娜(Tana #255)亦 Denia；wife Nana 的 Nana=Denia(#30)；"
-                "Dia/迪亚(#226/322 参考行 Dia)=Denia 昵称。"
-                "Daniel(#376/378/695) 疑 Denia 乱形，仅侧车，不入全局。"
-                "迪娜(#8/117/613/625/682/731 参考行 Dena)=谷翻音近，走 ctx 锚定归达妮娅；"
-                "丹尼亚(尼)补完整形防'达妮娅亚'级联。"
-                "2026-09-14 / 2026-09-23 《What's wrong with Denia's voice》"
-                "(鸣潮3.3「自星海尽处回响」第三章幕间《在熔解的夜空下》Reaction) 沉淀。"
-                "官方中文核对：达妮娅(萌娘/灰机/BWIKI)，全名达斯维达尼亚(先约电台EP《直到下次再见》)，"
-                "中配戈昕宇/日配伊藤美来，PV《人类伪装指南》。"),
+    Entity("达妮娅", modes=("ko",), en="Denia", ja="ダーニャ", ko="데니아",
+           category="角色/鸣潮",
+           variants=("德尼娅", "德妮亚", "丹妮亚", "达妮亚"),
+           note="鸣潮 3.3 版本五星角色（热熔/音感仪），星炬学院学生。韩语 데니아；谷翻常作'德尼娅'。"),
     Entity("陆·赫斯", modes=("bi",), en="Luuk Herssen",
            category="角色/星炬学院校医",
            variants=("路克",),
@@ -3106,44 +3073,18 @@ ENTITIES = [
                 "ASR 音近错形：'阿莱克琉斯'易咬成'阿莱克鲁斯/阿莱克留斯/阿莱克硫斯/阿莱克柳斯/"
                 "阿莱克雷乌斯/阿莱克纽斯'；'千夫长'易咬成'千父长/前夫长/千服长/千付长/千府长/千妇长/千夫涨/千夫章'。"),
     # --- 2026-09-20 增补：鸣潮 3.6-3.7 活跃角色（尚无独立 Entity，散在 BILINGUAL_TERMS）---
-    Entity("洛瑟菈", modes=("bi",), en="Lucilla",
-           category="角色/星炬学院校长",
-           variants=(
-               # --- 既有机翻音译残留 ---
-               "Lucilla", "露西拉", "卢西拉", "洛西拉", "洛塞拉", "洛瑟拉",
-               # --- 中文同音/音近（luò sè lā）---
-               "洛色拉", "洛瑟垃", "洛瑟啦", "洛瑟菈大人",
-               "罗瑟菈", "锣瑟菈",
-               # --- 英文 ASR 音近（Lucilla）---
-               "Lucila", "Lucilla", "Lucia", "Luciana", "Lucille",
-               "Lusilla", "Lucilla's", "Lucilla`s", "Lu-cilla",
-               "Luciela", "Lucillar", "Lucillia",
-           ),
-           ctx=((r"\bLucilla\b", "露西拉"), (r"\bLucilla\b", "卢西拉"),
-                (r"\bPresident\b", "总统"), (r"\bLucilla\b", "洛瑟菈")),
-           note="星炬学院校长（官方中文'洛瑟菈'，库街区 wiki/3DM/sina 确认）。"
-                "身份：学院 President=校长，机翻误作'总统'（已有'洛瑟菈总统→洛瑟菈校长'长键兜底）。"
-                "ASR 音近错形：'洛瑟菈'易咬成'洛色拉/洛瑟垃/洛瑟啦/罗瑟菈/锣瑟菈'；"
-                "英文侧 Lucilla 易咬成 Lucila/Lucilla/Lucia/Lucille/Lusilla/Luciela。"),
-    Entity("千咲", modes=("bi",), en="Chisa", ja="チサ",
-           category="角色/星炬学院",
-           variants=(
-               # --- 既有机翻错形 ---
-               "Chisa", "CHISA", "奇莎", "奇萨", "千笑",
-               # --- 中文同音/音近（qiān xiào）---
-               "千啸", "千筱", "千晓", "千笑 ", "千霄", "千宵",
-               "牵笑", "芊笑", "千效", "千校", "千肖",
-               # --- 英文 ASR 音近（Chisa）---
-               "Chisa", "Chi-sa", "Chissa", "Chisa's", "Chisa`s",
-               "Chiasa", "Chisaa", "Chiisa", "Chisa!",
-           ),
-           ctx=((r"\bChisa\b", "千咲"), (r"\bChisa\b", "奇莎"),
-                (r"\bChisha\b", "炽霞")),
-           note="星炬学院/解弦之眼角色（官方中文'千咲'，日文 チサ；3.7 复刻池）。"
-                "英文恰为千咲罗马音 Chisa，ASR 易与 Chisha(炽霞) 混——"
-                "已有 CONTEXT_MAP (r'\\bChisha\\b', '千咲'→'炽霞') 回滚规则兜底，防误伤。"
-                "ASR 音近错形：'千咲'易咬成'千啸/千筱/千晓/千霄/千宵/牵笑/芊笑/千效/千校/千肖'；"
-                "英文侧 Chisa 易咬成 Chissa/Chiasa/Chisaa/Chiisa。"),
+    Entity("洛瑟菈", modes=("ko",), en="Lucilla", ja="ルシラ", ko="루실라",
+           category="角色/鸣潮",
+           variants=("露西拉", "卢西拉", "鲁西拉", "洛瑟拉", "罗瑟菈"),
+           note="鸣潮角色（冷凝/记忆宫殿），星炬学院学院长，2026-06 上线。韩语 루실라；"
+                "谷翻按音译作'露西拉'，官方中文名为'洛瑟菈'。"),
+    Entity("千咲", modes=("ja",), ja="千咲",
+           category="角色/鸣潮",
+           variants=("チさ", "ちさ", "地さ", "チサ"),
+           ctx=((r"千咲|チさ|地さ|千崎|ちさ", "千崎"),
+                (r"千咲|チさ|地さ|千崎|ちさ", "地咲")),
+           note="鸣潮角色千咲（3.7 复刻）。日语 ASR 作 チさ/ちさ/地さ（じさ/ちさ 混淆），"
+                "谷翻给出 千崎/地咲 等错形，统一为 千咲。"),
     Entity("尤诺", modes=("bi",), en="Juno",
            category="角色",
            variants=(
@@ -3251,29 +3192,14 @@ ENTITIES = [
     Entity("夏空", modes=("bi",), en="Ciaccona",
            category="角色/鸣潮", variants=("沙科纳",),
            note="补 r3 '沙科纳'->夏空（#1683，Shakona 谷翻）。既有 西科纳/萨库娜 保留。"),
-    Entity("鸣潮", modes=("bi", "react"), en="Wuthering Waves", ja="鳴潮", ko="명조",
-           category="作品/游戏",
-           variants=("鸣潮涛",
-                     # --- 2026-09-27 学习库 confirmed 固化 ---
-                     "Withering Waves",   # 英文名错拼（Wuthering 的常见 ASR/手误形）
-                     "明祖",              # Mingchao ASR 音近残留
-                     # --- 2026-09-28 ASR 断词 + 硬译残留（用户实测片源）---
-                     # 参考行 "Water ing lace just released shin the reson ator showcase,"
-                     #   （Wuthering Waves 被 ASR 断词 + 误听），谷翻按字面直译成下形；
-                     #   非正常中文词，裸键安全。英文侧规整见 EN_ASR_SPLIT_FIXES。
-                     "浇水蕾丝", "浇水蕾斯",
-                     # 戒律：'明朝/明州/枯萎/浇水方式/风化波浪' 为常用词/短语，绝不裸键（见下 ctx）
-                     ),
-           # 歧义形（本身是正常中文短语）只走参考行佐证：英文侧经 EN_ASR_SPLIT_FIXES
-           #   规整（"Watering Ways"->"Wuthering Waves"）后 \bWuthering Waves\b 才命中。
-           #   注：'风化波浪/风化浪潮' 已是 BILINGUAL_TERMS 无条件变体（第 330/550 行），此处不再重复。
-           ctx=((r"\bWuthering Waves\b", "浇水方式"),),   # Watering Ways
-           note="库洛游戏《鸣潮》（英文 Wuthering Waves，日文 鳴潮，韩文 명조）。"
-                "本表只收**片源实测的非正常中文错形**：'鸣潮涛'为谷翻把 Wuthering Waves "
-                "拆译的残留（2026-09-23《尘外客》reaction 片实测）；"
-                "'浇水蕾丝'为 ASR 断词+误听（Water ing lace）后的硬译残留（2026-09-28 实测）。"
-                "戒律：'凋零波浪/风化波浪/浇水方式'等通用词义错形不得作裸键（见 BILINGUAL_TERMS 同名注释），"
-                "改走 ctx 由参考行锚定；无实测证据的音近错形一律不臆造。"),
+    Entity("鸣潮", modes=("ja",), ja="鳴潮",
+           category="作品名",
+           ctx=((r"名長|名朝|鳴潮", "有名的领袖"), (r"名長|名朝|鳴潮", "著名领袖"),
+                (r"名長|名朝|鳴潮", "纳迦"), (r"名長|名朝|鳴潮", "名长"),
+                (r"名長|名朝|鳴潮", "著名的领袖")),
+           note="作品名。日语 鳴潮(めいちょう) 被 ASR 咬成同音的 名長(めいちょう)，"
+                "谷翻直译成'有名的领袖/著名领袖'，或音译'纳迦/名长'。"
+                "（'纳迦'出现在 cue 1000 '鸣潮的快速传送是世界第一'。）"),
     Entity("丹瑾", modes=("bi",), en="Danjin",
            category="角色/鸣潮",
            variants=("团津",),                          # #120/121 "who's Tanjin" 谷翻
@@ -3290,18 +3216,18 @@ ENTITIES = [
     Entity("洛可可", modes=("bi",), en="Roccia",
            category="角色/鸣潮", variants=("罗蒂亚",),
            note="补 r3 '罗蒂亚'->洛可可（#1212，Roccia 谷翻音译）。非正常中文词，裸键安全。"),
-    Entity("守岸人", modes=("bi",), en="The Shorekeeper",
-           category="角色/鸣潮", variants=("肖尔基珀",),
-           ctx=((r"[Ss]horekeeper", "岸上看守"),),
-           note="补 r3：肖尔基珀(#1037，非正常词裸键安全)；岸上看守(#325/961，正常短语，"
-                "须 Shorekeeper 佐证才改)。既有 短守/Shawkeeper/岸边管理员/空头/短手 保留。"),
-    Entity("共鸣者", modes=("bi",), en="Resonator",
+    Entity("守岸人", modes=("ja",), ja="ショアキーパー",
+           category="角色/鸣潮",
+           ctx=((r"ショアキーパー", "岸上看守"), (r"ショアキーパー", "岸边看守"),
+                (r"ショアキーパー", "海岸看守")),
+           note="鸣潮角色，官方中文=守岸人（Shorekeeper）。谷翻把 ショアキーパー 按字面译成'岸上看守'。"),
+    Entity("共鸣者", modes=("ja",), ja="共鳴者",
            category="术语/鸣潮",
-           ctx=((r"[Rr]esonator", "共振腔"), (r"[Rr]esonator", "共鸣腔")),
-           note="补 r3（走 ctx 锚定，正常词不裸进表）：共振腔(#6)/共鸣腔(#169/549/553)->共鸣者。"
-                "既有 CONTEXT '谐振器'->共鸣者 保留。"
-                "⚠ 展示会/屏幕时间 的目标词（展示/镜头时间）≠本实体 canonical（共鸣者），"
-                "不能用 Entity.ctx（会强制替换成 canonical），已改走 CONTEXT_MAP 原生三元组。"),
+           ctx=((r"共鳴者|共鳴", "共振者"), (r"共鳴者|共鳴", "共振腔"),
+                (r"共鳴者|共鳴", "谐振腔"), (r"共鳴者|共鳴", "谐振器"),
+                (r"共鳴者|共鳴", "共鸣器"), (r"共鳴者|共鳴", "同情者")),
+           note="鸣潮核心术语，官方中文=共鸣者（Resonator）。谷翻对 共鳴者 的固定错译："
+                "共振者/共振腔/谐振腔/共鸣器/同情者。均为普通中文词，只走日语行 ctx。"),
     Entity("嘉贝莉娜", modes=("bi",), en="Galbrena",
            category="角色/鸣潮", variants=("加尔雷娜",),
            note="补 r3 '加尔雷娜'->嘉贝莉娜（#29，Galrena 谷翻）。官方名 嘉贝莉娜。"),
@@ -3316,10 +3242,11 @@ ENTITIES = [
            variants=("三和",),                      # 2026-09-27 学习库固化(#170/344)：Sanhua 音近错形
            ctx=((r"\bSana\b|\bSanhua\b", "萨那"),),
            note="补 r3 '萨那'->散华（#5 开场 'from Sana to Ching Xiao'）。'萨那'也门城市绝不裸键。"),
-    Entity("卡提希娅", modes=("bi",), en="Cartethyia",
-           category="角色/鸣潮", variants=("卡蒂拉",),
-           note="补 r3 '卡蒂拉'->卡提希娅（#1694/1784，Cartilla 谷翻）。"
-                "与既有 CONTEXT '卡提拉'->坎特蕾拉(TCG 片) 为不同错形键，不冲突。"),
+    Entity("卡提希娅", modes=("ko",), en="Cartethyia", ja="カルテジア", ko="카르티시아",
+           category="角色/鸣潮",
+           variants=("卡迪萨西亚", "卡提西亚", "卡尔提西亚", "卡提希亚"),
+           note="鸣潮角色（气动），黎那汐塔流浪骑士，原名芙露德莉斯。韩语 카르티시아；"
+                "ASR 常咬成 카르티샤시아，谷翻'卡迪萨西亚'。"),
     # ============================================================
     # 2026-09-27 学习库 confirmed 固化（learned-promote 人工审阅版）
     #   来源：subtitle_learned_kb.json 各机人工校对 confirmed 条目（89 条，
@@ -3334,15 +3261,18 @@ ENTITIES = [
            variants=("Eumrim", "尤姆林"),
            note="学习库固化(#971/972/975/3521-3524，2026-09-20~25 两片实测)："
                 "Eumrim=韩服名음림(Eumlim) ASR 残留；尤姆林=音近错形。"),
-    Entity("今汐", modes=("bi",), en="Jinhsi",
-           category="角色/鸣潮",
-           variants=("金熙",),
-           note="学习库固化(#55/56)：'金熙'为 Jinhsi 音近错形。"),
-    Entity("秧秧", modes=("bi",), en="Yangyang",
-           category="角色/鸣潮",
-           variants=("杨阳",),
-           note="学习库固化(#388/402/570/1512/1844/2796/4689/4692 多片实测)："
-                "'杨阳'为 Yangyang 音近错形。"),
+    Entity("今汐", modes=("ja",), ja="今汐",
+           category="角色/鸣潮/今州",
+           ctx=((r"今師|今汐", "今石"), (r"今師|今汐", "今师")),
+           note="今州令尹。日语 ASR 常作 今師（きんし）；谷翻作 '今石'（'本周的敬拜成员是今石'）。"),
+    Entity("秧秧", modes=("ja",), ja="やんやん",
+           category="角色/鸣潮/今州",
+           ctx=((r"やんやん|ヤんやん|にゃんやん", "燕燕"),
+                (r"やんやん|ヤんやん|にゃんやん", "延雅"),
+                (r"やんやん|ヤんやん|にゃんやん", "燕"),
+                (r"やんやん|ヤんやん|にゃんやん", "妮艳")),
+           note="鸣潮 4★ 今州共鸣者。日语昵称=やんやん；谷翻音译成 燕燕/延雅/Nyanyan/ヤ。"
+                "'燕燕'为正常中文词，只走日语行锚定 ctx（本片主播也昵称其为'鹿'）。"),
     Entity("坎特蕾拉", modes=("bi",), en="Cantarella",
            category="角色/鸣潮",
            variants=("卡内雷拉", "卡内拉"),
@@ -3435,30 +3365,12 @@ ENTITIES = [
            category="角色/鸣潮2.x",
            variants=("艾姆斯",),
            note="学习库固化(#1644/1645/4470)：Amess 音译残留；'伊梅'(Imeth)走学习库 ctx。"),
-    # ===== 2026-10-01 韩语原声·鸣潮 reaction 片（《명조》B站初体验，577 cue）沉淀 =====
-    # 官方译名来源：百度百科 / 鸣潮WIKI(BWIKI) / 灰机wiki / Fandom / 萌娘百科《鸣潮/译名对照表》/ namu.wiki。
-    # 戒律：官方中文名做 canonical；非正常中文词进 variants（无条件改）；
-    #       普通中文词（耐克/广播/个性/比赛/星轨/迷你甜瓜…）一律走 ctx，靠韩语参考行佐证。
     Entity("露帕", modes=("ko",), en="Lupa", ja="ルパ", ko="루파",
            category="角色/鸣潮",
            variants=("鲁帕", "卢帕"),
            ctx=((r"루파", "Rupa"), (r"루파", "Lupa")),
            note="鸣潮 2.4 版本（2025-07-03）五星角色，七丘阵营。韩语 루파；谷翻残留'鲁帕/Rupa/Lupa'。"
                 "英文 Lupa 走 ctx（防误伤拉丁语 lupa=母狼 / 其它语境）。"),
-    Entity("达妮娅", modes=("ko",), en="Denia", ja="ダーニャ", ko="데니아",
-           category="角色/鸣潮",
-           variants=("德尼娅", "德妮亚", "丹妮亚", "达妮亚"),
-           note="鸣潮 3.3 版本五星角色（热熔/音感仪），星炬学院学生。韩语 데니아；谷翻常作'德尼娅'。"),
-    Entity("洛瑟菈", modes=("ko",), en="Lucilla", ja="ルシラ", ko="루실라",
-           category="角色/鸣潮",
-           variants=("露西拉", "卢西拉", "鲁西拉", "洛瑟拉", "罗瑟菈"),
-           note="鸣潮角色（冷凝/记忆宫殿），星炬学院学院长，2026-06 上线。韩语 루실라；"
-                "谷翻按音译作'露西拉'，官方中文名为'洛瑟菈'。"),
-    Entity("卡提希娅", modes=("ko",), en="Cartethyia", ja="カルテジア", ko="카르티시아",
-           category="角色/鸣潮",
-           variants=("卡迪萨西亚", "卡提西亚", "卡尔提西亚", "卡提希亚"),
-           note="鸣潮角色（气动），黎那汐塔流浪骑士，原名芙露德莉斯。韩语 카르티시아；"
-                "ASR 常咬成 카르티샤시아，谷翻'卡迪萨西亚'。"),
     Entity("妮姬", modes=("ko",), en="NIKKE", ko="니케",
            category="作品",
            variants=("尼肯", "尼凯", "妮凯"),
@@ -3525,15 +3437,6 @@ ENTITIES = [
            category="术语",
            ctx=((r"아이디", "身份证"),),
            note="아이디=ID/账号。谷翻按字面把 ID 译成'身份证'，直播注册场景全错，走 ctx 锚定。"),
-    # ===== 2026-10-01 明日方舟·英配解说双语片（男干员「不嫁调查」961 cue）沉淀 =====
-    # 官方中文名来源：arknights.wiki.gg 各干员页 `|cnname =` 字段（逐条抓取核对，2026-10-01）。
-    # 戒律：**普通中文词/常见音译名一律不进 variants**（阿拉斯加/午夜/兰花/荆棘/标志/内幕/
-    #   不锈钢/极简主义/基线/开襟衫/遗嘱执行人/格雷/艾琳/维吉尔/文月/瑞希/阿伦…），
-    #   全部走 ctx，由**英文参考行正则**锚定；只有"非正常中文词"（音译残留）才可裸键。
-    #   —— 谷翻（谷歌翻译）在英→中时对同一专名会产出"字面义"与"音译"两类错形，
-    #      字面义那类几乎都是正常中文词，裸键必然跨片源误伤。
-    # ⚠ 注意：脚本**已有** Ark Knights 规则（CONTEXT_MAP 第 907~911 行 + AK_TERMS），
-    #   本实体只补 **AK→阿拉斯加** 这一条（此前无任何表覆盖），不重复注册。
     Entity("明日方舟", modes=("bi",), en="Arknights / AK", category="作品",
            ctx=((r"\bAK\b", "阿拉斯加"),),
            note="谷翻把 'AK' 一律误译成'阿拉斯加'（2026-10-01 明日方舟男干员调查片 4 处）。"
@@ -3637,35 +3540,6 @@ ENTITIES = [
            note="官方全名=托兰·卡什；字幕按口语用简称'托兰'。仅作元数据，无替换。"),
     Entity("卡门", modes=("bi",), en="Carmen", category="角色/明日方舟",
            note="官方全名=卡门·伊·伊比利亚。仅作元数据，无替换（'卡门'亦为常见音译名）。"),
-
-    # =========================================================
-    # 2026-10-01 鸣潮 3.7「镜锁妄世，心照红尘」日语初见直播（ガチ初見）片源沉淀
-    #   素材：D:\原片\【ガチ初見】…【鳴潮 Wuthering Waves】\…ja-谷歌翻译.srt
-    #         （3154 块 / 3132 cue，日语 ASR 参考行 + 谷翻中文，CRLF 无 BOM）
-    #   特征：主播首次玩鸣潮 3.7（从今州序章开始），谷翻对**日语 ASR 的专名/术语**
-    #         系统性误译。以下全部走 modes=("ja",)：普通中文词只进 ctx（日语行锚定），
-    #         只有正常中文里不会出现的错形才进 variants。
-    #   官方依据：库街区/BWIKI《鸣潮》名词表、灰机wiki（瑝珑/岁主/无音区/残象/天空海）、
-    #             百度百科《心月狐》《岁主》、鸣潮JP wiki3.jp（白芷=ビャクシ）。
-    # =========================================================
-    Entity("漂泊者", modes=("ja",), ja="漂泊者",
-           category="角色/主角/鸣潮",
-           variants=("評白者", "ひ白者"),
-           ctx=((r"脅迫者|評白者|表白者|漂白者|白者さん|ひ白者", "表白者"),
-                (r"脅迫者|評白者|表白者|漂白者|白者さん|ひ白者", "漂白者"),
-                (r"脅迫者|評白者|表白者|漂白者|白者さん|ひ白者", "漂白"),
-                (r"脅迫者|評白者|表白者|漂白者|白者さん|ひ白者", "勒索者"),
-                (r"脅迫者|評白者|表白者|漂白者|白者さん|ひ白者", "威胁者"),
-                (r"脅迫者|評白者|表白者|漂白者|白者さん|ひ白者", "胁迫者"),
-                (r"脅迫者|評白者|表白者|漂白者|白者さん|ひ白者", "威吓者"),
-                (r"評白者|漂白者", "评白"),
-                (r"評白者|漂白者|白者さん", "白物先生"),
-                (r"評白者|漂白者|白者さん", "白先生"),
-                (r"脅迫者|評白者", "威胁的人")),
-           note="鸣潮主角。日语官方名=漂泊者（ひょうはくしゃ）；ASR 常咬成 脅迫者(きょうはくしゃ)"
-                "/評白者/表白者/漂白者/ひ白者。谷翻把 脅迫者 按字面译成 勒索者/威胁者/胁迫者。"
-                "戒律：勒索者/威胁者/胁迫者/白先生/白物先生 都是正常中文词，只走日语行锚定 ctx，"
-                "绝不进 variants。'百士/百紫' 属白芷（ビクシ），另见该实体。"),
     Entity("白芷", modes=("ja",), ja="ビャクシ",
            category="角色/鸣潮/今州",
            variants=("ビクシ", "ビク師", "ビクシー", "リクシー", "ヒャクシ"),
@@ -3690,17 +3564,6 @@ ENTITIES = [
            note="今州执政职衔=令尹（れいいん）；3.7 时任令尹=今汐（きんせき）。"
                 "日语 ASR 咬成 レイン/霊員/レ員/礼員，谷翻音译成 雷恩/玲/河野玲。"
                 "注：'今師/今石' 属今汐（见下一条），勿与令尹混。"),
-    Entity("今汐", modes=("ja",), ja="今汐",
-           category="角色/鸣潮/今州",
-           ctx=((r"今師|今汐", "今石"), (r"今師|今汐", "今师")),
-           note="今州令尹。日语 ASR 常作 今師（きんし）；谷翻作 '今石'（'本周的敬拜成员是今石'）。"),
-    Entity("共鸣者", modes=("ja",), ja="共鳴者",
-           category="术语/鸣潮",
-           ctx=((r"共鳴者|共鳴", "共振者"), (r"共鳴者|共鳴", "共振腔"),
-                (r"共鳴者|共鳴", "谐振腔"), (r"共鳴者|共鳴", "谐振器"),
-                (r"共鳴者|共鳴", "共鸣器"), (r"共鳴者|共鳴", "同情者")),
-           note="鸣潮核心术语，官方中文=共鸣者（Resonator）。谷翻对 共鳴者 的固定错译："
-                "共振者/共振腔/谐振腔/共鸣器/同情者。均为普通中文词，只走日语行 ctx。"),
     Entity("残象", modes=("ja",), ja="残像",
            category="术语/鸣潮",
            ctx=((r"残像|残響", "残像"), (r"残像|残響", "残影"),
@@ -3720,14 +3583,6 @@ ENTITIES = [
            ctx=((r"天空会|天空海", "天空会"),),
            note="鸣潮现象名，官方中文=天空海（包裹覆盖整个索拉里斯天空的特殊现象，灰机wiki）。"
                 "日语 天空海(てんくうかい) 被 ASR 咬成同音的 天空会(てんくうかい)，谷翻照抄'天空会'。"),
-    Entity("秧秧", modes=("ja",), ja="やんやん",
-           category="角色/鸣潮/今州",
-           ctx=((r"やんやん|ヤんやん|にゃんやん", "燕燕"),
-                (r"やんやん|ヤんやん|にゃんやん", "延雅"),
-                (r"やんやん|ヤんやん|にゃんやん", "燕"),
-                (r"やんやん|ヤんやん|にゃんやん", "妮艳")),
-           note="鸣潮 4★ 今州共鸣者。日语昵称=やんやん；谷翻音译成 燕燕/延雅/Nyanyan/ヤ。"
-                "'燕燕'为正常中文词，只走日语行锚定 ctx（本片主播也昵称其为'鹿'）。"),
     Entity("今州", modes=("ja",), ja="今州",
            category="地名/鸣潮",
            ctx=((r"今週場|今州城", "本周的场外"), (r"今週場|今州城", "本周场"),
@@ -3743,25 +3598,12 @@ ENTITIES = [
                 "日语 瑝珑(こうりゅう) 与 交流(こうりゅう) 同音，ASR 一律作 交流，谷翻译成'交换/交流'。"
                 "⚠ 本条只登记元数据、不加规则：'交流'在日语里也是常用词，无可靠锚点，"
                 "贸然替换会误伤；本片逐 cue 侧车处理。"),
-    Entity("鸣潮", modes=("ja",), ja="鳴潮",
-           category="作品名",
-           ctx=((r"名長|名朝|鳴潮", "有名的领袖"), (r"名長|名朝|鳴潮", "著名领袖"),
-                (r"名長|名朝|鳴潮", "纳迦"), (r"名長|名朝|鳴潮", "名长"),
-                (r"名長|名朝|鳴潮", "著名的领袖")),
-           note="作品名。日语 鳴潮(めいちょう) 被 ASR 咬成同音的 名長(めいちょう)，"
-                "谷翻直译成'有名的领袖/著名领袖'，或音译'纳迦/名长'。"
-                "（'纳迦'出现在 cue 1000 '鸣潮的快速传送是世界第一'。）"),
     Entity("数据坞", modes=("ja",), ja="データドッグ",
            category="系统/鸣潮",
            ctx=((r"データドッ?[ッグ]|データドック", "数据狗"),
                 (r"データドッ?[ッグ]|データドック", "数据犬")),
            note="鸣潮声骸管理系统，官方中文=数据坞（Data Bank）。日语 データドッグ 被谷翻"
                 "按 dog 直译成'数据狗'。'数据狗'非正常中文词，但仍走 ctx 以防万一。"),
-    Entity("守岸人", modes=("ja",), ja="ショアキーパー",
-           category="角色/鸣潮",
-           ctx=((r"ショアキーパー", "岸上看守"), (r"ショアキーパー", "岸边看守"),
-                (r"ショアキーパー", "海岸看守")),
-           note="鸣潮角色，官方中文=守岸人（Shorekeeper）。谷翻把 ショアキーパー 按字面译成'岸上看守'。"),
     Entity("杏鲍菇", modes=("ja",), ja="エリンギ",
            category="梗/鸣潮",
            variants=("エリンギ", "エリンゲ", "エリング", "エリンギー"),
@@ -3772,13 +3614,6 @@ ENTITIES = [
                 (r"エリンギ|エリンゲ|エリング", "王菇")),
            note="主播梗：某残象外形像杏鲍菇（エリンギ），弹幕与主播都以'杏鲍菇'称呼它。"
                 "谷翻给出 帝王平菇/埃林格/艾灵 等不一致译名，统一为 杏鲍菇。"),
-    Entity("千咲", modes=("ja",), ja="千咲",
-           category="角色/鸣潮",
-           variants=("チさ", "ちさ", "地さ", "チサ"),
-           ctx=((r"千咲|チさ|地さ|千崎|ちさ", "千崎"),
-                (r"千咲|チさ|地さ|千崎|ちさ", "地咲")),
-           note="鸣潮角色千咲（3.7 复刻）。日语 ASR 作 チさ/ちさ/地さ（じさ/ちさ 混淆），"
-                "谷翻给出 千崎/地咲 等错形，统一为 千咲。"),
     Entity("超频", modes=("ja",), ja="オーバークロック",
            category="术语/鸣潮",
            note="鸣潮术语：频率能量异常带来的危险状态（灰机wiki《无音区》提到'超频'）。"
@@ -3997,7 +3832,6 @@ def _rebuild_context_caches():
     """实体注册可能追加 CONTEXT/EXCLUDE 条目，重建各预编译缓存。"""
     global _CONTEXT_COMPILED, _EXCLUDE_COMPILED, _JA_CONTEXT_COMPILED
     global _JA_ENDFIELD_CONTEXT_COMPILED, _AK_KO_CONTEXT_COMPILED
-    global _KO_CONTEXT_COMPILED
     _CONTEXT_COMPILED = [(re.compile(rx, re.I), wrong, right)
                          for rx, wrong, right in CONTEXT_MAP if wrong and right]
     _EXCLUDE_COMPILED = {w: (right, [re.compile(rx, re.I) for rx in rxs])
@@ -4006,7 +3840,6 @@ def _rebuild_context_caches():
     _JA_ENDFIELD_CONTEXT_COMPILED = [(re.compile(rx), wrong, right)
                                      for rx, wrong, right in JA_ENDFIELD_CONTEXT]
     _AK_KO_CONTEXT_COMPILED = [(re.compile(rx), wrong, right) for rx, wrong, right in AK_KO_CONTEXT]
-    _KO_CONTEXT_COMPILED = [(re.compile(rx), wrong, right) for rx, wrong, right in KO_CONTEXT]
 
 
 _register_entities()
@@ -4718,15 +4551,7 @@ def process(path, out_path=None, report_path=None, mode="bi",
                         if new != old:
                             rows.append((num, old, new, ref))
                             out[zh_idx] = new
-                    elif mode == "ko":       # 韩语原声·鸣潮：KO_TERMS + KO_CONTEXT(韩语参考行佐证) 统一首中文行
-                        new = _replace_report(old, term_pairs, term_chars, hits)
-                        for crx, wrong, right in _KO_CONTEXT_COMPILED:
-                            if wrong in new and crx.search(ref_m):
-                                new = new.replace(wrong, right)
-                        if new != old:
-                            rows.append((num, old, new, ref))
-                            out[zh_idx] = new
-                    elif mode in ("wwoc", "pgren", "zel"):  # 综合游戏/战双英文原声/塞尔达：统一首中文行术语（不动参考行）
+                    elif mode in ("ko", "wwoc", "pgren", "zel"):  # 韩语/综合游戏/战双英文原声/塞尔达：统一首中文行术语（不动参考行）
                         new = _replace_report(old, term_pairs, term_chars, hits)
                         if new != old:
                             rows.append((num, old, new, ref))
@@ -5660,8 +5485,7 @@ _SYNC_TABLES = ("BILINGUAL_TERMS", "CONTEXT_MAP", "EXCLUDE_CONTEXT",
 _SYNC_MODES = ("bi", "ja", "jpe", "ko", "ak", "akko", "endo", "zho",
                "pgren", "wwoc", "react")
 _SYNC_MODE_CTX_TABLE = {"bi": "CONTEXT_MAP", "ja": "JA_CONTEXT",
-                        "jpe": "JA_ENDFIELD_CONTEXT", "akko": "AK_KO_CONTEXT",
-                        "ko": "KO_CONTEXT"}
+                        "jpe": "JA_ENDFIELD_CONTEXT", "akko": "AK_KO_CONTEXT"}
 
 
 def _sync_env_mode():
