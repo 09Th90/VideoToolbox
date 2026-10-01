@@ -205,7 +205,7 @@ BILINGUAL_TERMS = {
     "阳阳": "秧秧",                                                # Yangyang
     "金汐": "今汐", "今析": "今汐",                                # Jinsy
     "陵阳": "凌阳",                                                # Lingyang
-    "金阁": "金戈",                                                # Gigo / Jingo 地名
+    "金阁": "今州",                                                # Gigo/Jingo 地名→今州（Jinzhou 官方译名；不再经“金戈”中转，消除级联金戈->今州隐患）
     "丹金": "丹瑾", "达宁": "丹瑾",                                # Danjin
     "迅哨": "岁主",                                                # Sentinel 岁主
     "哀歌者": "鸣式",                                              # 鸣式（鸣潮怪物）
@@ -1735,7 +1735,7 @@ ENDFIELD_TERMS = {
     # 벨보스(bellhop 行李员=贝尔博斯) / 안들레(안드레 ASR=安德烈) / 벨버스(벨보스 ASR)
     "行李员": "贝尔博斯", "安黛尔": "安德烈", "贝尔布斯": "贝尔博斯",
     # 티폰=Typhon(提丰)，机翻 T-Phone/T-phone；수르트=Surtr(明日方舟干员史尔特尔)，机翻 苏特尔/购物车(수레)
-    "T-Phone": "提丰", "T-phone": "提丰",
+    #   ⚠ T-Phone/T-phone 属明日方舟(ak)术语，已在 AK_TERMS 落地，不在此 Endfield(endo) 表（否则会让提丰误带 endo 模式，与提弗洛斯在 Typhon 变体上冲突）
     "苏特尔": "史尔特尔", "Surut": "史尔特尔",
     # 원석충(源石虫) 机翻 宝石虫/元石忠
     "宝石虫": "源石虫", "元石忠": "源石虫",
@@ -1826,7 +1826,7 @@ AK_TERMS = {
     #     注意：此片实为终末地(Endfield) reaction，应用 --endo 模式；此处仅沉淀明日方舟本体术语。
     #     提丰(Typhon)=明日方舟本体六星狙击；终末地"再旅者"形态官方名=提弗洛斯(Typhoeus)，见 ENDFIELD_TERMS。
     #     "操作员"为 operator 直译，明日方舟本体语境统一为"干员"（仅 --ak 模式；终末地侧用长键"操作员故事"防误伤）。
-    "Typhon": "提丰",
+    "Typhon": "提丰", "T-Phone": "提丰", "T-phone": "提丰",  # 提丰=明日方舟本体六星狙击；T-Phone/T-phone 为韩语 티폰 机翻形（源自 Endfield 评论片，归 ak）
     "操作员": "干员",
     # 玩法模式
     "RA": "生息演算", "Reclamation": "生息演算",
