@@ -1,4 +1,4 @@
-# @version 1.16.1
+# @version 1.16.4
 # Python caches
 __pycache__/
 *.pyc
@@ -145,3 +145,9 @@ data/
 /sub*.yaml
 # 流水线自检结果输出（脚本运行产物，非源码）
 src/_selftest_pipeline_result.txt
+
+# 运行期备份与扫描数据缓存（不入库）
+*.bak_20*
+bili_version_scan/*.xlsx
+bili_version_scan/raw*.json
+bili_version_scan/games.json
