@@ -899,19 +899,28 @@ def main():
     # switchTo 到「字幕编辑」，用户看到的就是"拖到边缘就跳页"。
     if sub._engine is not None:
         _edge_srt = os.path.join(engine.DATA_DIR, "_selftest_edge_drop.srt")
-        edge_ok = keep_ok = False
+        edge_ok = keep_ok = bi_ok = False
         _home_keep = sub._engine_home
         try:
+            # ① 停在校准页 + **单语**字幕：v1.16.4 起按类型分派到「字幕翻译」，
+            #    但仍在「字幕处理」页内 —— 关键是**不跳**「字幕编辑」
             with open(_edge_srt, "w", encoding="utf-8") as f:
                 f.write("1\n00:00:01,000 --> 00:00:02,000\nhello\n")
-            # ① 停在校准页：拖进来的字幕就地填入，页面不动
             sub.switch_to_calib()
             win.switchTo(sub)
             win.calib_page.in_edit.setText("")
             win._handle_dropped_files([_edge_srt])   # 等价于"拖到页面边缘"
-            edge_ok = (win.stackedWidget.currentWidget() is sub
-                       and win.calib_page.in_edit.text() == _edge_srt)
-            # ② 没停在校准页：保持原行为（字幕 → 字幕编辑）
+            edge_ok = win.stackedWidget.currentWidget() is sub
+            # ② 停在校准页 + **双语**字幕：就地填入校准框
+            with open(_edge_srt, "w", encoding="utf-8") as f:
+                f.write("1\n00:00:01,000 --> 00:00:02,000\nhello\n你好\n"
+                        "2\n00:00:03,000 --> 00:00:04,000\nworld\n世界\n"
+                        "3\n00:00:05,000 --> 00:00:06,000\nthanks\n谢谢\n")
+            win.calib_page.in_edit.setText("")
+            win._handle_dropped_files([_edge_srt])
+            bi_ok = (win.stackedWidget.currentWidget() is sub
+                     and win.calib_page.in_edit.text() == _edge_srt)
+            # ③ 没停在字幕处理页：保持原行为（字幕 → 字幕编辑）
             sub._engine_home = None
             win._handle_dropped_files([_edge_srt])
             keep_ok = win.stackedWidget.currentWidget() is win.subtitle_edit_page
@@ -923,9 +932,9 @@ def main():
                 os.remove(_edge_srt)
             except OSError:
                 pass
-        check("校准页前台：字幕拖到页面边缘不跳「字幕编辑」、就地填入校准框",
-              edge_ok)
-        check("校准页不在前台：拖入字幕仍跳「字幕编辑」（原行为不变）", keep_ok)
+        check("字幕处理页前台：单语字幕拖到页面边缘不跳「字幕编辑」", edge_ok)
+        check("字幕处理页前台：双语字幕拖到边缘就地填入校准框", bi_ok)
+        check("字幕处理页不在前台：拖入字幕仍跳「字幕编辑」（原行为不变）", keep_ok)
     # ---- v1.15.8：窗口标题跟随当前页（导航「返回」键绕过 switchTo）----
     win.switchTo(win.subtitle_edit_page)
     _t_before = win.windowTitle()
@@ -1392,11 +1401,28 @@ def main():
           and sp.calib_think_rounds.value() == 0
           and sp.calib_think_rounds.maximum() >= 8,
           f"{sp.calib_think_rounds.value()}/{sp.calib_think_rounds.maximum()}")
-    check("设置页含「Agent 集群」开关（默认关闭 + 成员编辑区）",
-          hasattr(sp, "calib_cluster_switch")
-          and not sp.calib_cluster_switch.isChecked()
-          and hasattr(sp, "calib_cluster_edit")
-          and callable(getattr(sp, "_sync_calib_cluster_visible", None)))
+    _cluster_ok = (hasattr(sp, "calib_cluster_switch")
+                   and hasattr(sp, "calib_cluster_edit")
+                   and callable(getattr(sp, "_sync_calib_cluster_visible", None)))
+    # v1.16.1 断言的是**出厂默认关闭**；用户之后可以在真实配置里打开——
+    # 自检跑在真实配置上（没有独立数据目录），所以这里只要求 UI 与配置
+    # 一致，不再要求 isChecked() 必为 False（用户 09-30 开了集群导致误报）。
+    try:
+        _cfg_cluster = bool(engine.ai_load_config().get(
+            "calib_cluster_enabled", False))
+    except Exception:  # noqa: BLE001
+        _cfg_cluster = False
+    _ui_cluster = (getattr(getattr(sp, "calib_cluster_switch", None),
+                           "isChecked", lambda: None)())
+    try:
+        _default_off = (engine.ai_mod().DEFAULT_CONFIG.get(
+            "calib_cluster_enabled") is False)
+    except Exception:  # noqa: BLE001
+        _default_off = False
+    check("设置页含「Agent 集群」开关（出厂默认关闭 + 成员编辑区）",
+          _cluster_ok and _default_off and bool(_ui_cluster) == _cfg_cluster,
+          f"控件齐={_cluster_ok} / 出厂默认关={_default_off} / "
+          f"UI={_ui_cluster} / 配置={_cfg_cluster}")
     check("集群成员文本 ↔ 配置列表 往返一致",
           sp._cluster_text({"calib_cluster_members": [
               {"role": "review", "name": "R", "base_url": "u",

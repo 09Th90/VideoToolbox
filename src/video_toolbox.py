@@ -892,19 +892,101 @@ def vc_asr_patch_apply():
     return True
 
 
-def _vc_log(msg):
-    """引擎侧运行期补丁日志（logs\\vc_fallback.log，best-effort）。"""
+# ---------- 日志卫生（v1.16.2）：轮转 / 去重 / 级别标记 / 自检隔离 ----------
+#: 单个日志文件超过该字节数即轮转：旧内容挪到 ``<name>.1``（只留一代，
+#: 总量封顶 2×）。日志是用来定位**最近**问题的，无限累积只会把新信息埋掉
+#: ——vc_fallback.log 曾长到 160KB+，翻十屏全是两周前的自检噪音。
+LOG_MAX_BYTES = 1_500_000
+#: 本进程内已落盘过的消息（去重键 = 文件名 + 正文）。
+_LOGGED_MSGS = set()
+_LOGGED_LOCK = threading.Lock()
+
+#: 关键词 → 级别标记。调用点不必逐个改造：扫日志时 [E]/[W] 一眼可见。
+_LOG_ERR_WORDS = ("失败", "异常", "错误", "Error", "error", "Exception",
+                  "Traceback", "不可用", "无法", "拒绝")
+_LOG_WARN_WORDS = ("警告", "降级", "回退", "兜底", "重试", "超时", "跳过")
+
+
+def _log_level_tag(msg):
+    """按消息关键词推断级别标记（E=错 / W=警 / I=常）。"""
+    s = str(msg)
+    if any(w in s for w in _LOG_ERR_WORDS):
+        return "E"
+    if any(w in s for w in _LOG_WARN_WORDS):
+        return "W"
+    return "I"
+
+
+def _rotate_log(path, max_bytes=None):
+    """超限即把 ``<path>`` 挪成 ``<path>.1``（覆盖上一代），只保留一代历史。"""
+    limit = LOG_MAX_BYTES if max_bytes is None else max_bytes
     try:
-        os.makedirs(LOGS_DIR, exist_ok=True)
-        with open(os.path.join(LOGS_DIR, "vc_fallback.log"), "a",
-                  encoding="utf-8") as f:
-            f.write(f"[{datetime.now():%Y-%m-%d %H:%M:%S}] {msg}\n")
+        if os.path.exists(path) and os.path.getsize(path) > limit:
+            bak = path + ".1"
+            try:
+                if os.path.exists(bak):
+                    os.remove(bak)
+            except OSError:
+                pass
+            os.replace(path, bak)
     except OSError:
         pass
+
+
+def _is_selftest_run():
+    """当前进程是否自检/冒烟脚本（脚本名以 ``_selftest``/``_smoke`` 开头）。
+
+    自检会反复触发协议纠偏与补丁挂载，日志混进生产日志后真问题就找不着
+    ——自动改写到 ``*_selftest.log``，不必逐个脚本自己设环境变量。
+    显式设 ``VT_SELFTEST=1`` 亦可强制开启。
+    """
+    if os.environ.get("VT_SELFTEST"):
+        return True
     try:
-        logger_note = msg  # noqa: F841  （保留给调试，不写标准输出）
-    except Exception:
+        base = os.path.basename(sys.argv[0] or "").lower()
+    except Exception:  # noqa: BLE001
+        return False
+    return base.startswith("_selftest") or base.startswith("_smoke")
+
+
+def _append_log(filename, msg, dedup=True):
+    """统一日志落盘：轮转 + 同进程去重 + 级别标记 + 自检隔离（best-effort）。
+
+    · 自检/测试进程（脚本名 ``_selftest*``/``_smoke*`` 或 ``VT_SELFTEST=1``）
+      写 ``<name>_selftest.log``——自检会反复触发协议纠偏、补丁挂载，混进
+      生产日志后真问题就找不着了；
+    · 同进程内完全相同的消息只落**首次**（跨进程/重启仍各记一次）；
+      协议探测与自检会把同一条「已挂」「自动改走」重放几十次，去重后日志
+      才读得下去；
+    · 任何异常都吞掉——日志永远不能反过来影响主流程。
+    """
+    try:
+        name = filename
+        if _is_selftest_run():
+            name = (filename[:-4] + "_selftest.log"
+                    if filename.endswith(".log") else filename + "_selftest.log")
+        if dedup:
+            key = (name, str(msg))
+            with _LOGGED_LOCK:
+                if key in _LOGGED_MSGS:
+                    return
+                _LOGGED_MSGS.add(key)
+        os.makedirs(LOGS_DIR, exist_ok=True)
+        path = os.path.join(LOGS_DIR, name)
+        _rotate_log(path)
+        stamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        with open(path, "a", encoding="utf-8") as f:
+            f.write("[%s] [%s] %s\n" % (stamp, _log_level_tag(msg), msg))
+    except OSError:
         pass
+
+
+def _vc_log(msg):
+    """引擎侧运行期补丁日志（logs\\vc_fallback.log，best-effort）。
+
+    轮转/去重/级别/自检隔离见 `_append_log`。
+    """
+    _append_log("vc_fallback.log", msg)
 
 
 # ---------- v1.14.1：转录体验补丁（黑窗 / 下拉收敛 / 完成回填） ----------
@@ -2390,6 +2472,73 @@ def _asr_plan_endpoint_hint(asr_obj):
             "程序会按模型自动改走）")
 
 
+#: 实例模型清单缓存：base_url -> (取回时间, [模型名…])
+_ASR_MODELS_CACHE = {}
+
+
+def asr_instance_models(base_url, api_key, ttl=600):
+    """查 `GET {base}/models` 拿该实例**当前可用**的模型名列表（带缓存）。
+
+    为什么需要它：百炼专属实例的模型清单**会变**。实测（2026-09-30）用户实例
+    上 `qwen-audio-3.0-asr-flash` 消失后，原生端点与 chat/completions **都回
+    400 空体 `{}`**——光看响应完全看不出原因，只能靠模型清单定位。拿不到
+    返回 []（绝不干扰原错误路径）。
+    """
+    base = asr_strip_endpoint_tail(str(base_url or "").strip()).rstrip("/")
+    if not base:
+        return []
+    hit = _ASR_MODELS_CACHE.get(base)
+    if hit and (time.time() - hit[0]) < ttl:
+        return hit[1]
+    models = []
+    try:
+        import requests
+        url = base + "/models"
+        r = requests.get(url,
+                         headers={"Authorization": "Bearer " + str(api_key or "")},
+                         proxies=http_proxies_for(url), timeout=20)
+        if r.status_code == 200:
+            data = (r.json() or {}).get("data") or []
+            models = [str(m.get("id")) for m in data if m.get("id")]
+    except Exception:  # noqa: BLE001
+        models = []
+    _ASR_MODELS_CACHE[base] = (time.time(), models)
+    return models
+
+
+def asr_missing_model_hint(asr_obj):
+    """模型不在该实例里时的**可操作**提示；判断不了返回空串。
+
+    这是「转录失败」最常见的真实原因：用户配置没动，但服务端实例的模型清单
+    变了。原文案只猜"模型与端点不配套"，会把人往改协议的方向带（而协议其实
+    已经是对的），所以这里直接查清单点名，并给出该换什么。
+    """
+    model = str(getattr(asr_obj, "model", "") or "").strip()
+    if not model:
+        return ""
+    models = asr_instance_models(getattr(asr_obj, "base_url", ""),
+                                 getattr(asr_obj, "api_key", ""))
+    if not models or model in models:
+        return ""
+    audio_like = [m for m in models
+                  if any(h in m.lower() for h in
+                         ("asr", "audio", "whisper", "paraformer", "sensevoice"))]
+    tip = ("；⚠️ `GET /models` 返回的实例清单里**找不到**模型「%s」"
+           "（服务端模型清单会变，配置没动也可能失效）。" % model)
+    if audio_like:
+        tip += "其中音频相关的是：%s。" % "、".join(audio_like[:6])
+    else:
+        tip += ("而且**一个音频/识别类模型都没有**（现有：%s）。"
+                % "、".join(models[:8]))
+    # 免责：专属实例的 /models 有时不列 ASR 模型（历史踩过），所以清单只能
+    # 当线索、不能当判决——否则会把"其实还能用"的用户劝去换配置。
+    tip += ("（注意：专属实例的 /models 有时**不列** ASR 模型，清单只能作线索；"
+            "若连一个音频类模型都没有，多半是该实例的 ASR 模型已下架——可改用"
+            "公共百炼 dashscope.aliyuncs.com/compatible-mode/v1 + qwen3-asr-flash，"
+            "或在「转录模型来源」里改用本地模型）")
+    return tip
+
+
 def _asr_err_hint(resp):
     """把 HTTP 错误响应转成"能照着修"的提示（密钥 / 模型名 / 其它）。"""
     text = ""
@@ -2793,6 +2942,18 @@ def _asr_dashscope_native_submit(asr_obj, depth=0):
                       proxies=http_proxies_for(url), timeout=600)
     if r.status_code != 200:
         low = (r.text or "").lower()
+        # ① 静音分块：400 空体 + 音频无声 → 这段本来就没内容，返回空即可。
+        #    不做这一步，直播回放里夹的静音段会让**整条转录**判失败
+        #    （短视频恰好没静音段所以能过 —— 用户实测就是这个形态）。
+        if r.status_code == 400 and (r.text or "").strip() in ("", "{}"):
+            # ② 内容类失败：400 空体 = 「这段没有可识别语音」。实测同参数下
+            #    600s 处 20s 片段回 200 + 279 字符，而 60s 处的 30s/280s 片段
+            #    恒回 400 —— 后者是游戏音乐/音效段（音量正常但无语音）。
+            #    直播回放里这类片段极多，一律当致命错误就会**整条转录必挂**
+            #    （用户实测：短视频过、5 小时回放过不去，就是这个形态）。
+            #    密钥/权限问题回 401/403 而不是 400 空体，故此处可安全跳过。
+            _vc_log("原生 ASR：该分块无可识别语音（400 空体），按无内容跳过")
+            return ""
         if ("too long" in low or "duration" in low) \
                 and depth < ASR_SPLIT_MAX_DEPTH:
             halves = _asr_split_audio_blob(blob)
@@ -2810,7 +2971,8 @@ def _asr_dashscope_native_submit(asr_obj, depth=0):
                         _asr_dashscope_native_submit(sub, depth + 1)))
                 return "".join(parts)
         raise RuntimeError("百炼原生 ASR " + _asr_err_hint(r)
-                           + _asr_plan_endpoint_hint(asr_obj))
+                           + _asr_plan_endpoint_hint(asr_obj)
+                           + asr_missing_model_hint(asr_obj))
     return _asr_native_output(r)
 
 
@@ -4341,6 +4503,20 @@ def prepare_runtime_env():
         vc_pydub_nowindow_patch()
     except Exception:
         pass
+    # v1.16.2：翻译请求路由钉死（微软直连 / 谷歌走本地代理）。引擎翻译器默认
+    # 跟随系统代理，mihomo 一挂连直连就能用的微软翻译也会被带崩 → 全段失败。
+    try:
+        vc_translate_route_patch()
+    except Exception:
+        pass
+    # v1.16.2：ASR 协议分发补丁也在这里挂一次。此前它只挂在 GUI 的
+    # 「转录 UI 补丁」里（video_toolbox_qt.py 启动时调），一旦那条路径提前
+    # 失败（引擎 UI 模块导入异常等），协议分发就整体不生效 —— 表现为
+    # qwen-audio-3.0-asr-flash 被按 openai 协议打，直接 404 Api not found。
+    try:
+        vc_asr_protocol_patch()
+    except Exception:
+        pass
     # 标准流统一 UTF-8 容错，避免 GBK 控制台打印生僻字/Emoji 时崩溃
     try:
         configure_stdio_utf8()
@@ -4864,14 +5040,12 @@ MIHOMO_LOG = os.path.join(LOGS_DIR, "mihomo.log")
 
 
 def _mihomo_log(msg):
-    """把 mihomo 相关事件追加到 logs\\mihomo.log（失败静默，绝不影响主流程）。"""
-    try:
-        os.makedirs(LOGS_DIR, exist_ok=True)
-        stamp = time.strftime("%Y-%m-%d %H:%M:%S")
-        with open(MIHOMO_LOG, "a", encoding="utf-8") as f:
-            f.write(f"[{stamp}] {msg}\n")
-    except OSError:
-        pass
+    """把 mihomo 相关事件追加到 logs\\mihomo.log（失败静默，绝不影响主流程）。
+
+    统一走 `_append_log`：轮转 + 去重 + 级别标记（v1.16.2）。节点超时一类
+    重复告警不再把日志刷成几百行。
+    """
+    _append_log("mihomo.log", msg)
 
 
 def _load_proxy_nodes(path):
@@ -5162,20 +5336,127 @@ def ytdlp_proxy_args(refresh=False):
     return ["--proxy", proxy] if proxy else []
 
 
-# ========== YouTube 游客 cookie 自动索取（v1.15.8 反风控） ==========
-#: 2026 版 YouTube 对无 cookie 的 yt-dlp 请求间歇性弹
-#: 「Sign in to confirm you're not a bot」——纯伪 cookie 不可行（SID/SAPISID
-#: 由服务端 HMAC 签发），但**向 YouTube 真实索取游客 cookie**（站方签名）实测
-#: 能显著压低触发率：同节点对照，无 cookie 约半数被拦，带游客 cookie 前几发
-#: 全过；cookie 信誉随请求频次衰减，故按 6 小时自动刷新一次。
-#: 真登录 cookie（浏览器导出 cookies.txt）仍是最彻底方案，此处只做游客兜底。
+# ========== 翻译请求的显式路由（v1.16.2） ==========
+#: 翻译端点里「国内可直连」的域名后缀 —— 这些**强制直连**，绝不跟随系统代理。
+#: 实测 edge.microsoft.com 直连 0.7s 可用；而一旦跟随系统代理（通常指向本地
+#: mihomo），mihomo 没就绪 / 节点不通时它也会跟着失败。
+TRANSLATE_DIRECT_SUFFIXES = ("microsoft.com", "bing.com", "msn.com",
+                             "microsofttranslator.com", "live.com")
+
+
+def translate_session_proxies(endpoint):
+    """翻译请求该用的 `requests` 代理表（`{}` = 直连）。
+
+    引擎的机翻翻译器都用 `requests.Session()`，默认 `trust_env=True` 会**跟随
+    系统代理**；而系统代理通常指向本地 mihomo（Clash / FlClash）。mihomo 没就绪
+    或节点不通时，**连直连就能用的微软翻译也一起被带崩** —— 用户侧
+    「235/235 segments failed (100%)」正是这个形态（谷歌要代理，微软被系统代理
+    拖下水，两个都挂）。
+
+    这里把路由定死，不再依赖系统代理设置：
+      · 微软 `edge.microsoft.com` 等国内可达端点 → 直连；
+      · 谷歌 `translate.googleapis.com`（境内不可达）→ 本地 mihomo，拿不到就直连
+        （总比硬套一个不通的系统代理强）。
+
+    ⚠️ 调用方必须同时设 `session.trust_env = False`：requests 的
+    `merge_environment_settings` 会把环境代理 `setdefault` 进 request 级
+    proxies，只在 session.proxies 里写 None **覆盖不掉**。
+    """
+    host = ""
+    try:
+        from urllib.parse import urlsplit
+        host = (urlsplit(str(endpoint or "")).hostname or "").lower()
+    except Exception:  # noqa: BLE001
+        pass
+    if host and any(host == s or host.endswith("." + s)
+                    for s in TRANSLATE_DIRECT_SUFFIXES):
+        return {}
+    proxy = ""
+    try:
+        args = ytdlp_proxy_args()
+        proxy = args[1] if args else ""
+    except Exception:  # noqa: BLE001
+        proxy = ""
+    return {"http": proxy, "https": proxy} if proxy else {}
+
+
+def _patch_translator_route(mod, cls_name):
+    """给某个翻译器类的 `__init__` 包一层：构造完 session 后钉死路由。"""
+    cls = getattr(mod, cls_name, None)
+    if cls is None or getattr(cls, "_vt_route_patched", False):
+        return False
+    orig_init = cls.__init__
+
+    def _init(self, *a, **kw):
+        orig_init(self, *a, **kw)
+        try:
+            session = getattr(self, "session", None)
+            if session is not None:
+                session.trust_env = False          # 关键：不读环境/系统代理
+                session.proxies = translate_session_proxies(
+                    getattr(self, "endpoint", ""))
+        except Exception as e:  # noqa: BLE001
+            _vc_log(f"翻译会话路由设置失败（{cls_name}）：{e}")
+
+    cls.__init__ = _init
+    cls._vt_route_patched = True
+    return True
+
+
+def vc_translate_route_patch():
+    """把「翻译请求路由」钉死（幂等运行期补丁，理由见 `translate_session_proxies`）。"""
+    try:
+        import videocaptioner.core.translate.bing_translator as _bt
+        import videocaptioner.core.translate.google_translator as _gt
+    except Exception as e:  # noqa: BLE001
+        _vc_log(f"翻译路由补丁导入失败：{e}")
+        return False
+    done = []
+    if _patch_translator_route(_bt, "BingTranslator"):
+        done.append("微软")
+    if _patch_translator_route(_gt, "GoogleTranslator"):
+        done.append("谷歌")
+    if done:
+        _vc_log("翻译路由补丁已挂：%s 请求显式路由（微软直连 / 谷歌走本地代理，"
+                "不再跟随系统代理）" % "+".join(done))
+    return True
+
+
+# ========== YouTube cookie（反「Sign in to confirm」风控） ==========
+# ⚠️ 2026-09 实测：站方**游客 cookie** 在数据中心 / 代理节点 IP 上已基本失效
+# ——同节点、同 UA、带游客 cookie 依旧被 `Sign in to confirm you're not a bot`
+# 拦下（该方案原注释写的"前几发全过"已不再成立）。要真正过风控只能上**登录态**。
+#
+# 三级来源，按可信度从高到低自动降级：
+#   ① 自备 cookies.txt（浏览器扩展导出）→ `--cookies <file>`（最彻底）；
+#   ② 本机浏览器登录态               → `--cookies-from-browser <browser>`；
+#   ③ 自动索取的站方游客 cookie（v1.15.8 老方案，仅作兜底）。
+USER_COOKIES_PATH = os.path.join(DATA_DIR, "user_cookies.txt")
 GUEST_COOKIES_PATH = os.path.join(DATA_DIR, "guest_cookies.txt")
 GUEST_COOKIES_TTL = 6 * 3600
 _GUEST_COOKIE_LOCK = threading.Lock()
-_GUEST_COOKIE_STATE = {"args": None, "checked": False}
 _GUEST_COOKIE_UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
                     "AppleWebKit/537.36 (KHTML, like Gecko) "
                     "Chrome/131.0.0.0 Safari/537.36")
+
+#: cookie 相关配置键（落在 data/config.json）
+CFG_COOKIE_MODE = "ytdlp_cookie_mode"
+CFG_COOKIE_BROWSER = "ytdlp_cookie_browser"
+CFG_COOKIE_FILE = "ytdlp_cookie_file"
+#: cookie 模式：显示名 ↔ 键（设置页下拉与此一一对应）
+COOKIE_MODE_LABELS = (
+    ("自动（自备文件 → 游客 cookie）", "auto"),
+    ("从浏览器读取登录态", "browser"),
+    ("使用我导出的 cookies.txt", "file"),
+    ("只用自动游客 cookie", "guest"),
+)
+#: yt-dlp `--cookies-from-browser` 支持的常见浏览器
+COOKIE_BROWSERS = ("chrome", "edge", "firefox", "brave", "chromium",
+                   "opera", "vivaldi", "safari")
+#: 只有**登录态**才会带的 cookie 名（游客 cookie 里没有这些）
+_LOGIN_COOKIE_NAMES = ("SID", "HSID", "SSID", "APISID", "SAPISID",
+                       "LOGIN_INFO", "__Secure-1PSID", "__Secure-3PSID",
+                       "__Secure-1PAPISID", "__Secure-3PAPISID")
 
 
 def _refresh_guest_cookies():
@@ -5220,17 +5501,117 @@ def _refresh_guest_cookies():
         return None
 
 
-def ytdlp_cookie_args(refresh=False, log=None):
-    """给 yt-dlp 的 `--cookies` 参数表（游客 cookie，自动索取与刷新）。
+def cookie_mode():
+    """当前 cookie 模式：auto / browser / file / guest。"""
+    try:
+        m = str((load_config() or {}).get(CFG_COOKIE_MODE) or "auto").strip().lower()
+    except Exception:  # noqa: BLE001
+        m = "auto"
+    return m if m in ("auto", "browser", "file", "guest") else "auto"
 
-    · 文件存在且 6 小时内刷新过 → 直接复用（yt-dlp 会话回写还会滚动续期）；
-    · 过期/不存在/损坏 → 锁内重抓一次，失败时旧文件仍可用则继续用旧的；
-    · 全部不可得 → 返回 []（退回无 cookie，行为与旧版一致）。
+
+def cookie_browser():
+    """`--cookies-from-browser` 用的浏览器名。
+
+    默认 **edge**（不是 chrome）：2026-09 实测，新版 Chrome 的 cookie 走
+    App-Bound 加密，yt-dlp 直接 `Failed to decrypt with DPAPI` 解不开；Edge 是
+    Windows 预装、加密方式仍可读，只要**完全退出**即可（否则报库被锁）。
     """
+    try:
+        b = str((load_config() or {}).get(CFG_COOKIE_BROWSER)
+                or "edge").strip().lower()
+    except Exception:  # noqa: BLE001
+        b = "edge"
+    return b if b in COOKIE_BROWSERS else "edge"
+
+
+def cookie_file():
+    """自备 cookies.txt 的路径（配置为空时回退 data\\user_cookies.txt）。"""
+    try:
+        p = str((load_config() or {}).get(CFG_COOKIE_FILE) or "").strip().strip('"')
+    except Exception:  # noqa: BLE001
+        p = ""
+    if p and os.path.isfile(p):
+        return p
+    return USER_COOKIES_PATH if os.path.isfile(USER_COOKIES_PATH) else ""
+
+
+def cookies_file_status(path):
+    """检查 cookies.txt 是否可用：返回 `(可用, 是否登录态, 说明)`。
+
+    关键是把「登录态」和「游客」分开报——2026-09 起游客 cookie 基本过不了
+    风控，只说"文件在"会让用户以为配好了却照旧被拦，必须说清是哪一种。
+    """
+    if not path or not os.path.isfile(path):
+        return False, False, "文件不存在"
+    try:
+        txt = read_text_any(path)
+    except Exception as e:  # noqa: BLE001
+        return False, False, f"读取失败：{type(e).__name__}"
+    if "Netscape HTTP Cookie File" not in txt and "HTTP Cookie File" not in txt:
+        return False, False, "不是 Netscape 格式的 cookies.txt"
+    names, has_yt = set(), False
+    for ln in txt.splitlines():
+        if not ln or ln.startswith("#"):
+            continue
+        parts = ln.split("\t")
+        if len(parts) < 7:
+            continue
+        dom = parts[0].lstrip(".")
+        if dom == "youtube.com" or dom.endswith(".youtube.com") \
+                or dom == "google.com" or dom.endswith(".google.com"):
+            has_yt = True
+            names.add(parts[5])
+    if not has_yt:
+        return False, False, "里面没有 youtube.com / google.com 的 cookie"
+    if names & set(_LOGIN_COOKIE_NAMES):
+        return True, True, "登录态（可用）"
+    return True, False, "只有游客 cookie（多半仍会被风控拦）"
+
+
+#: yt-dlp 加载浏览器 cookie 失败时的典型输出 → 给用户看的原因
+_BROWSER_COOKIE_FAILS = (
+    ("could not copy",
+     "浏览器正在运行，cookie 库被锁 —— 请**完全退出**该浏览器后重试"),
+    ("failed to decrypt",
+     "该浏览器的 cookie 用了新版加密（App-Bound / DPAPI），yt-dlp 解不开 "
+     "—— 请改用「cookies.txt」方式导出"),
+    ("could not find",
+     "没找到该浏览器的 cookie 库（未安装，或从未登录过）"),
+)
+
+
+def browser_cookie_probe(browser=None, timeout=30):
+    """离线预检 `--cookies-from-browser` 能否真的读到登录态。
+
+    做法：拿一个不需要联网的伪地址（about:blank）跑 `--simulate` —— yt-dlp 会
+    **先加载 cookie、再解析 URL**：cookie 读不出来就直接报错，读得出来才轮到
+    "Unsupported URL"。整个探测 1~3 秒、不产生真实下载请求，因此可以放心在
+    下载前预检，避免"选了浏览器却读不到 → 任务直接失败"（实测 edge 与 chrome
+    在浏览器开着 / 新版加密时都会这样）。
+
+    返回 `(可用, 说明)`。
+    """
+    br = browser or cookie_browser()
+    try:
+        r = run_process([ensure_ytdlp(), "--cookies-from-browser", br,
+                         "--simulate", "--no-playlist", "about:blank"],
+                        capture_output=True, timeout=timeout)
+        out = (decode_bytes_any(r.stdout) + decode_bytes_any(r.stderr)).lower()
+    except Exception as e:  # noqa: BLE001
+        return False, f"探测失败：{type(e).__name__}"
+    for key, why in _BROWSER_COOKIE_FAILS:
+        if key in out:
+            return False, f"{br}：{why}"
+    return True, f"{br} 登录态可读"
+
+
+def _guest_cookie_args(emit=None):
+    """站方**游客** cookie（v1.15.8 老方案）。2026-09 起多数代理节点已失效。"""
     def _emit(msg):
-        if log:
+        if emit:
             try:
-                log(msg)
+                emit(msg)
             except Exception:  # noqa: BLE001
                 pass
 
@@ -5240,12 +5621,7 @@ def ytdlp_cookie_args(refresh=False, log=None):
         except OSError:
             return False
 
-    if not refresh and _GUEST_COOKIE_STATE["checked"]:
-        return _GUEST_COOKIE_STATE["args"] or []
-
     with _GUEST_COOKIE_LOCK:
-        if not refresh and _GUEST_COOKIE_STATE["checked"]:
-            return _GUEST_COOKIE_STATE["args"] or []
         path = GUEST_COOKIES_PATH
         if not _fresh(path):
             _emit("[信息] 正在获取 YouTube 游客 cookie（反风控）...")
@@ -5256,12 +5632,79 @@ def ytdlp_cookie_args(refresh=False, log=None):
                 _emit("[信息] 游客 cookie 刷新失败，沿用上一次的文件")
             else:
                 _emit("[信息] 游客 cookie 不可用，按无 cookie 继续")
-        if os.path.isfile(path):
-            _GUEST_COOKIE_STATE["args"] = ["--cookies", path]
+        return ["--cookies", path] if os.path.isfile(path) else []
+
+
+#: cookie 参数缓存（配置变更时由 `invalidate_cookie_cache()` 清掉）
+_COOKIE_ARGS_CACHE = {"args": None}
+
+
+def invalidate_cookie_cache():
+    """设置页保存 cookie 配置后调用，让下一次取用重新解析来源。"""
+    _COOKIE_ARGS_CACHE["args"] = None
+
+
+def ytdlp_cookie_args(refresh=False, log=None):
+    """给 yt-dlp 的 cookie 参数表（三级来源，按可信度自动降级）。
+
+    · `auto`（默认）：自备 cookies.txt → 浏览器登录态（**离线预检通过才用**）
+      → 自动游客 cookie，逐级降级。浏览器那级必须预检，否则 cookie 库被锁 /
+      新版加密解不开时 yt-dlp 会直接报错退出，反而把能下的任务弄挂。
+    · `browser`：`--cookies-from-browser <浏览器>`（需该浏览器已登录 YouTube，
+      且读取时**完全退出浏览器**）。
+    · `file`  ：只用自备 cookies.txt。
+    · `guest` ：只用自动索取的游客 cookie。
+
+    全部不可得 → 返回 []（退回无 cookie，行为与旧版一致）。
+    """
+    def _emit(msg):
+        if log:
+            try:
+                log(msg)
+            except Exception:  # noqa: BLE001
+                pass
+
+    if not refresh and _COOKIE_ARGS_CACHE["args"] is not None:
+        return _COOKIE_ARGS_CACHE["args"]
+
+    mode = cookie_mode()
+    args = []
+
+    # ① 自备 cookies.txt（登录态，最彻底）
+    if mode in ("auto", "file"):
+        p = cookie_file()
+        ok, logged, why = cookies_file_status(p) if p else (False, False, "未配置")
+        if ok:
+            if not logged:
+                _emit("[信息] 自备 cookies.txt 里只有游客 cookie —— "
+                      "若仍被风控拦，请用**已登录 YouTube** 的浏览器重新导出")
+            args = ["--cookies", p]
+        elif mode == "file":
+            _emit(f"[信息] 自备 cookies.txt 不可用（{why}），已回退其它来源")
+
+    # ② 浏览器登录态：auto 下**预检通过才用**（避免读不到 cookie 反而把任务
+    #    弄挂）；browser 下由用户显式指定，预检失败只告警、仍照用。
+    if not args and mode in ("auto", "browser"):
+        br = cookie_browser()
+        ok, why = browser_cookie_probe(br)
+        if mode == "browser":
+            if ok:
+                _emit(f"[信息] 从浏览器读取登录态：{br}")
+            else:
+                _emit(f"[警告] 浏览器登录态不可用（{why}）—— 仍按你的选择尝试")
+            args = ["--cookies-from-browser", br]
+        elif ok:
+            _emit(f"[信息] 使用浏览器登录态（{why}）")
+            args = ["--cookies-from-browser", br]
         else:
-            _GUEST_COOKIE_STATE["args"] = []
-        _GUEST_COOKIE_STATE["checked"] = True
-        return _GUEST_COOKIE_STATE["args"]
+            _emit(f"[信息] 浏览器登录态不可用（{why}）")
+
+    # ③ 游客 cookie 兜底
+    if not args and mode in ("auto", "guest"):
+        args = _guest_cookie_args(emit=_emit)
+
+    _COOKIE_ARGS_CACHE["args"] = args
+    return args
 
 
 def proxy_status():
@@ -5359,13 +5802,12 @@ SYNC_LOCAL_DIR = os.path.join(DATA_DIR, "calib_sync")
 
 
 def _sync_log(msg):
-    """追加一行同步日志（best-effort，绝不因日志失败影响主流程）。"""
-    try:
-        os.makedirs(LOGS_DIR, exist_ok=True)
-        with open(SYNC_LOG, "a", encoding="utf-8") as f:
-            f.write(f"[{datetime.now():%Y-%m-%d %H:%M:%S}] {msg}\n")
-    except OSError:
-        pass
+    """追加一行同步日志（best-effort，绝不因日志失败影响主流程）。
+
+    统一走 `_append_log`：轮转 + 去重 + 级别标记（v1.16.2）。GitHub 直连
+    超时这类每次启动都会重放的告警，去重后只留首次。
+    """
+    _append_log("calib_sync.log", msg)
 
 
 def sync_env_into(env):
@@ -5977,6 +6419,75 @@ def extract_url(arg):
     return m.group(0) if m else None
 
 
+#: yt-dlp 下载分片大小。YouTube 自 2026-09 起对 videoplayback 直链**强制要求
+#: Range 请求**，yt-dlp 默认的整体 GET 一律 403 —— 表现为"下载几秒/几十 MB 后
+#: 失败"，看着像风控其实是缺 Range。下载页与流水线共用这一个值。
+YTDLP_CHUNK_SIZE = "5M"
+
+#: HLS/DASH 分片并发数（yt-dlp `-N`，默认 1 = 串行）。分片源提速**最有效**的
+#: 一项：实测 226 片的 HLS 串行下载慢到不可用，并发后是数倍差距。
+#: 别调太高——请求都经本地代理出去，并发过高会加剧代理断连（实测过）。
+YTDLP_CONCURRENT_FRAGMENTS = "5"
+
+#: yt-dlp 下载通用参数（提速 + 抗断流）。**下载页与流水线共用同一份**。
+#: · `--socket-timeout`：代理断连时快速失败。此前没设，实测一次
+#:   `Unable to connect to proxy` 让任务**干等了 9 分钟**才报错；
+#: · `--retries/--fragment-retries`：网络抖动重试（分片级重试只重下那一片，
+#:   不像整文件重来）；
+#: · `--retry-sleep exp=1:20`：指数退避（1→20s），避免连续撞风控。
+YTDLP_DL_COMMON_ARGS = [
+    "--socket-timeout", "20",
+    "--retries", "10",
+    "--fragment-retries", "10",
+    "--retry-sleep", "exp=1:20",
+    "--concurrent-fragments", YTDLP_CONCURRENT_FRAGMENTS,
+]
+
+
+def ytdlp_prefer_hls():
+    """YouTube 是否**优先**走 HLS 分片源（默认开）。
+
+    直链（videoplayback）在 2026-09 后单条服务能力有限（约 5 次请求 / 数十 MB
+    即失效 → 403），大文件几乎必然失败；实测直链要先白等十几分钟才切到 HLS。
+    HLS 每片独立取、可并发，稳定性与速度都更好，所以**直接首选 HLS**，把直链
+    降级为兜底。设 ``VT_YTDLP_PREFER_HLS=0`` 可退回旧的"直链优先"行为。
+    """
+    v = (os.environ.get("VT_YTDLP_PREFER_HLS") or "1").strip().lower()
+    return v not in ("0", "false", "no", "off")
+
+#: yt-dlp 可重试错误关键词（风控 / 网络抖动）。**下载页、流水线、信息提取三处
+#: 共用同一份判定** —— 此前各写各的，流水线只认 412，遇到 403/429 直接放弃，
+#: 而 YouTube 直链失效正好回 403（"下载失败但手动重试又能成"的由来）。
+YTDLP_RETRY_HINTS = (
+    "412", "429", "403", "500", "502", "503", "504",
+    "timed out", "timeout", "Read timed out", "Incomplete",
+    "Unable to download webpage", "Unable to extract",
+    "Sign in to confirm", "bot check", "bot detection", "throttl",
+    "network", "Connection", "connection", "socket",
+    "Temporary failure", "EOF", "reset", "Remote end closed",
+    "Name or service not known", "SSL", "TLS", "giving up",
+)
+
+
+def ytdlp_error_retryable(text):
+    """yt-dlp 输出是否属「可重试」的临时失败（风控 / 网络抖动）。
+
+    非临时错误（参数写错、视频私享/不存在、地区限制等）返回 False，
+    避免无意义的退避等待。
+    """
+    low = str(text or "").lower()
+    return any(k.lower() in low for k in YTDLP_RETRY_HINTS)
+
+
+def ytdlp_err_brief(text, limit=120):
+    """从 yt-dlp 输出里挑一行最能说明问题的（ERROR 优先），用于日志/报错。"""
+    lines = [ln.strip() for ln in str(text or "").splitlines() if ln.strip()]
+    for ln in reversed(lines):
+        if "ERROR" in ln or "error" in ln:
+            return ln[:limit]
+    return lines[-1][:limit] if lines else "未知错误"
+
+
 def fetch_info_json(ytdlp, url, attempts=4, log=None, wait_base=5):
     """运行 yt-dlp -J 获取视频信息原始 JSON。
 
@@ -5992,15 +6503,6 @@ def fetch_info_json(ytdlp, url, attempts=4, log=None, wait_base=5):
                 log(msg)
             except Exception:
                 pass
-
-    # 命中任一关键词即视为可重试的临时性失败；不含这些词的错误（如参数错误）
-    # 直接放弃，避免无意义等待。
-    RETRY_HINTS = ("412", "429", "403", "502", "503", "timed out",
-                   "timeout", "Unable to download webpage", "Unable to extract",
-                   "Sign in to confirm", "bot check", "bot detection",
-                   "network", "Connection", "connection", "socket",
-                   "Temporary failure", "EOF", "reset", "Remote end closed",
-                   "Name or service not known", "SSL", "TLS")
 
     def _detail(err_text):
         """从输出里提取最后一行 ERROR 或非空行，作为给用户看的失败原因。"""
@@ -6028,7 +6530,7 @@ def fetch_info_json(ytdlp, url, attempts=4, log=None, wait_base=5):
         detail = _detail(err)
         if i < attempts - 1:
             _log(f"[信息] 提取失败（{i + 1}/{attempts}）: {detail}")
-        retryable = any(k.lower() in err.lower() for k in RETRY_HINTS)
+        retryable = ytdlp_error_retryable(err)
         if not retryable or i == attempts - 1:
             _log(f"[错误] 画质提取失败: {detail}")
             return None

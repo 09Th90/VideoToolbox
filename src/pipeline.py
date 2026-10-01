@@ -163,7 +163,112 @@ def _file_fp(path):
         return ""
 
 
+#: yt-dlp 单轨分片后缀：xxx.f251.webm / xxx.f137.mp4 / xxx.f251-2.webm
+_FRAG_RE = re.compile(r"\.f\d+(?:-\d+)?$", re.I)
+
+
+def _is_fragment_name(name):
+    """文件名是否是 yt-dlp 的**下载中间产物**（单轨分片 / .temp / .part）。
+
+    分片是「合并前」的素材，不是成品：`_sync_jobs` 拿它当 job.video 后，
+    一旦「智能合并」把分片删掉，任务就会悬空成「失败：下载完成」。
+    """
+    stem, ext = os.path.splitext(str(name or ""))
+    if ext.lower() in (".part", ".ytdl"):
+        return True
+    low = stem.lower()
+    if low.endswith(".temp"):
+        return True
+    return bool(_FRAG_RE.search(low))
+
+
+def _strip_frag_suffix(stem):
+    """去掉分片/临时后缀：``xxx.f251-2`` / ``xxx.temp`` → ``xxx``。"""
+    s = re.sub(r"\.temp$", "", str(stem or ""), flags=re.I)
+    return _FRAG_RE.sub("", s)
+
+
+def _finished_video_in(directory, name=""):
+    """同目录的**成品**视频路径（排除分片/临时文件）；没有返回 ""。
+
+    优先与 ``name`` 同名的（name 可能是 ``xxx.f251`` → 归一化后等于 ``xxx``），
+    同分多个取体积最大的那个。用途：分片被合并删除后把 ``job.video`` 拉回
+    成品，避免任务永远卡在「失败：下载完成」（实测 12 条误报全出自这里）。
+    """
+    if not directory:
+        return ""
+    try:
+        names = os.listdir(directory)
+    except OSError:
+        return ""
+    cands = []
+    for n in names:
+        if _is_fragment_name(n):
+            continue
+        if _KIND_BY_EXT.get(os.path.splitext(n)[1].lower()) != "video":
+            continue
+        p = os.path.join(directory, n)
+        try:
+            if os.path.isfile(p):
+                cands.append(p)
+        except OSError:
+            continue
+    if not cands:
+        return ""
+    want = _strip_frag_suffix(os.path.splitext(str(name or ""))[0]).lower()
+    same = [p for p in cands
+            if os.path.splitext(os.path.basename(p))[0].lower() == want]
+    pool = same or cands
+    try:
+        pool.sort(key=os.path.getsize, reverse=True)
+    except OSError:
+        pass
+    return pool[0]
+
+
+def _heal_dangling_download(job, reason=""):
+    """复位「因文件悬空而失败」的下载阶段（v1.16.2）。
+
+    分片被「智能合并」删除后，``job.video`` 指向的分片不存在 → 下载阶段被判
+    失败。两种收场都不是「下载失败」：成品还在同目录（回退到成品），或整个
+    素材目录已被用户清理。无论哪种都必须复位，否则任务列表永远红着，点
+    「重试」也只会再报一次同样的错。
+
+    ⚠ 只认「视频文件不存在 / 为空」这类**路径悬空**错误；真正的下载失败
+    （yt-dlp 退出码、网络错误）一律保留。
+    """
+    st = job.stages.get(STAGE_DOWNLOAD) or {}
+    if st.get("state") != FAILED:
+        return
+    err = str(st.get("error") or "")
+    # WinError 2 = 系统找不到指定的文件：拿悬空路径去起 ffmpeg/ffprobe 时的形态
+    if ("视频文件不存在" not in err and "视频文件为空" not in err
+            and "WinError 2" not in err):
+        return
+    base = reason or "原视频文件已不在（素材被移走或已清理）"
+    # 原失败原因并进 reason 保留下来：这条失败**确实发生过**（多为站点风控），
+    # 只是重试后成品已补齐，别把历史信息一并抹掉。
+    st.update({"state": WAITING, "error": "",
+               "reason": f"{base}｜原失败：{err[:120]}"})
+
+
 # ============================ 阶段执行体 ============================
+def _heal_skippable_calib2(job):
+    """把「cue 表为空」造成的二次校准失败复位为「已跳过」（v1.16.2）。
+
+    这类失败是**数据条件**（字幕里没有可校准的中文行，如纯韩文/英文轨），
+    不是故障。新版 `_stage_calib2_run` 已改走 SkipStage，这里把历史状态一并
+    修正，免得任务列表里长期挂着红条。
+    """
+    st = job.stages.get(STAGE_CALIB2) or {}
+    if st.get("state") != FAILED:
+        return
+    if "cue 表为空" not in str(st.get("error") or ""):
+        return
+    st.update({"state": SKIPPED, "error": "",
+               "reason": "无需二次校准：字幕没有可校准的中文行"})
+
+
 def _stage_download_ready(job, registry):
     """下载完成：链接任务有 URL 就绪（执行时真正去下载）；
     目录任务要求视频已落盘（连续两次观察内容未变 + 同目录无 .part）。"""
@@ -177,9 +282,19 @@ def _stage_download_run(job, ctx):
         return _download_link_run(job, ctx)
     v = job.video
     if not v or not os.path.isfile(v):
-        raise RuntimeError("视频文件不存在")
+        # 分片被「智能合并」删掉 → 同目录成品顶上（同步可能滞后一拍，再兜一次）
+        fb = _finished_video_in(job.dir, job.name)
+        if fb:
+            v = job.video = fb
+            job.name = os.path.splitext(os.path.basename(fb))[0]
+            ctx.log(f"[下载完成] 原分片已不存在，改用同目录成品 "
+                    f"{os.path.basename(fb)}")
+        else:
+            raise RuntimeError(
+                "视频文件不存在" + (f"：{v}" if v else
+                                "（该任务还没绑定视频文件，请确认素材已放进监控目录）"))
     if os.path.getsize(v) <= 0:
-        raise RuntimeError("视频文件为空")
+        raise RuntimeError(f"视频文件为空：{v}")
     ctx.log(f"[下载完成] {os.path.basename(v)} "
             f"({engine.format_size(os.path.getsize(v))})")
     return v
@@ -292,7 +407,12 @@ def _stage_calib2_run(job, ctx):
     res = engine.calib_ai_run(src, out=out, log=ctx.log, round_no=2,
                               resume_from=src)
     if not (res and res.get("ok")) and not os.path.isfile(out):
-        raise RuntimeError(f"AI 二次校准失败：{str((res or {}).get('error'))[:160]}")
+        err = str((res or {}).get("error") or "")
+        # 「cue 表为空」= 这份字幕没有可校准的中文行（纯韩文/英文轨等），
+        # 属**数据条件不满足**而非故障 → 跳过，别把整条任务染红。
+        if "cue 表为空" in err:
+            raise SkipStage(f"无需二次校准：{err}")
+        raise RuntimeError(f"AI 二次校准失败：{err[:160]}")
     _mark_reusable(out, [src])
     return out
 
@@ -439,7 +559,9 @@ class Job:
                     return f"下载中 {self.progress:.0f}%"
                 return f"进行中：{label}"
             if self.state(k) == FAILED:
-                return f"失败：{STAGE_LABELS.get(k, k)}"
+                # 「失败：下载完成」自相矛盾 → 下载阶段单说「下载」
+                label = "下载" if k == STAGE_DOWNLOAD else STAGE_LABELS.get(k, k)
+                return f"失败：{label}"
             if self.state(k) == READY:
                 return f"待执行：{STAGE_LABELS.get(k, k)}"
         return "已完成" if self.all_done() else "等待文件"
@@ -536,23 +658,29 @@ def _run_ytdlp(ctx, cmd):
     return proc.wait(), lines
 
 
-def _ytdlp_with_retry(ctx, cmd, attempts=3):
-    """带风控重试的 yt-dlp（HTTP 412 等，与下载页同一策略）。"""
+def _ytdlp_with_retry(ctx, cmd, attempts=4):
+    """带风控重试的 yt-dlp（412 / 403 / 429 / "Sign in to confirm" 等）。
+
+    判定复用引擎的 `ytdlp_error_retryable` —— 与下载页、信息提取**同一份
+    口径**。此前这里只认 412 与 "Unable to download webpage"，而 YouTube
+    直链失效 / 节点 IP 被判风控回的正是 403，于是流水线任务"下载失败"、
+    到下载页手动重试却能成功（实测踩到，v1.16.2 修正）。
+    """
     wait = 6
     rc, lines = 1, []
     for i in range(attempts):
         rc, lines = _run_ytdlp(ctx, cmd)
         if rc == 0:
-            return 0
+            return 0, lines
         joined = "\n".join(lines)
-        if "412" not in joined and "Unable to download webpage" not in joined:
-            return rc
+        if not engine.ytdlp_error_retryable(joined):
+            return rc, lines               # 确定性错误：重试无意义，别白等
         if i < attempts - 1:
-            ctx.log(f"[重试] 站点风控拦截（HTTP 412），{wait}s 后重试 "
-                    f"({i + 2}/{attempts}) ...")
+            ctx.log(f"[重试] 站点风控/网络抖动（{engine.ytdlp_err_brief(joined)}），"
+                    f"{wait}s 后重试 ({i + 2}/{attempts}) ...")
             time.sleep(wait)
             wait *= 2
-    return rc
+    return rc, lines
 
 
 def _download_link_run(job, ctx):
@@ -598,21 +726,51 @@ def _download_link_run(job, ctx):
             best = []
         fid = best[0]["format_id"] if best else ""
         height = best[0].get("height") if best else 0
-        fmt = f"{fid}+ba/b" if fid else "bv*+ba/b"
+        # YouTube 直链（videoplayback）单条服务能力有限——约 5 次请求 / 数十 MB
+        # 即失效回 403，大文件几乎必然失败。HLS 每片独立取、可并发 → 优先 HLS。
+        alt = engine.hls_alt_format(meta, fid) if fid else None
+        prefer = bool(alt) and engine.ytdlp_prefer_hls()
+        use_fid = alt if prefer else fid
+        fmt = f"{use_fid}+ba/b" if use_fid else "bv*+ba/b"
+        if prefer:
+            ctx.log(f"[策略] 直链单条服务能力有限，改用 HLS 分片源 {alt}"
+                    f"（分片并发 {engine.YTDLP_CONCURRENT_FRAGMENTS}）")
+        # ⚠️ `--http-chunk-size`、游客 cookie、分片并发/超时（COMMON_ARGS）都必须
+        #    与下载页保持一致：
+        #    · YouTube 直链强制 Range 请求，缺分片就一律 403（看着像风控）；
+        #    · 无 cookie 时更容易撞 "Sign in to confirm you're not a bot"；
+        #    · 缺 --socket-timeout 时代理断连会干等（实测卡过 9 分钟）。
         opts = ["-f", fmt, "--merge-output-format", "mp4",
                 "--ffmpeg-location", os.path.dirname(ffmpeg),
                 "--newline", "--no-playlist",
+                "--http-chunk-size", engine.YTDLP_CHUNK_SIZE,
+                *engine.YTDLP_DL_COMMON_ARGS,
                 "--write-thumbnail", "--convert-thumbnails", "jpg",
                 *proxy_args,
+                *engine.ytdlp_cookie_args(log=ctx.log),
                 "-o", engine.output_template(folder)]
         # 2) 视频本体：先复用检测结果，CDN 过期再退回链接重提
-        rc, _ = _run_ytdlp(ctx, [ytdlp, "--load-info-json", info_path, *opts])
+        rc, lines = _run_ytdlp(ctx, [ytdlp, "--load-info-json", info_path, *opts])
         if rc != 0:
             ctx.log("[下载] 复用检测结果失败（多为 CDN 链接过期），改用链接重新提取")
             ctx.progress(0.0)
-            rc = _ytdlp_with_retry(ctx, [ytdlp, *opts, url])
+            rc, lines = _ytdlp_with_retry(ctx, [ytdlp, *opts, url])
         if rc != 0:
-            raise RuntimeError(f"视频下载失败（退出码 {rc}）")
+            # 2b) 换另一个源兜底：HLS 优先 → 退回直链；直链优先 → 改走 HLS
+            other = fid if prefer else alt
+            if other and other != use_fid:
+                opts_alt = list(opts)
+                try:
+                    opts_alt[opts_alt.index("-f") + 1] = f"{other}+ba/b"
+                except (ValueError, IndexError):
+                    opts_alt += ["-f", f"{other}+ba/b"]
+                ctx.log(f"[下载] 改用备用源 {other} 重试")
+                ctx.progress(0.0)
+                rc, lines = _ytdlp_with_retry(ctx, [ytdlp, *opts_alt, url])
+        if rc != 0:
+            raise RuntimeError(
+                f"视频下载失败（退出码 {rc}）："
+                f"{engine.ytdlp_err_brief(chr(10).join(lines))}")
         # 3) 字幕：按标题语言优先，空手再用多语言兜底（与下载页同策略）
         _fetch_subs_for_job(job, ctx, ytdlp, url, folder, info_path, title)
         # 4) 信息 txt + 封面
@@ -672,12 +830,13 @@ def _fetch_subs_for_job(job, ctx, ytdlp, url, folder, info_path, title):
             "--write-subs", "--write-auto-subs", "--sub-langs", sub_langs,
             "--sub-format", "srt/best", "--convert-subs", "srt",
             *proxy_args,
+            *engine.ytdlp_cookie_args(log=ctx.log),   # 与下载页一致（反风控）
             "-o", engine.output_template(folder)]
     rc = 1
     if info_path and os.path.isfile(info_path):
         rc, _ = _run_ytdlp(ctx, [ytdlp, "--load-info-json", info_path, *opts])
     if rc != 0:
-        rc = _ytdlp_with_retry(ctx, [ytdlp, *opts, url])
+        rc, _ = _ytdlp_with_retry(ctx, [ytdlp, *opts, url])
     fresh = _srt_state(folder, before)
     if not fresh and sub_langs != DEFAULT_SUB_LANGS:
         ctx.log("[字幕] 首轮没取到字幕，改用多语言列表补拉一次")
@@ -1400,6 +1559,14 @@ class Pipeline(_Emitter):
         index = self.registry.snapshot()
         vids = [e["path"] for e in index.values() if e["kind"] == "video"]
         vids.sort()
+        # 分片归一：同目录已有成品视频时，yt-dlp 单轨分片不再单独建 job。
+        # 否则列表里会多出「xxx.f251」这种重复条目，且「智能合并」删掉分片后
+        # 它还会悬空成「失败：下载完成」（实测 12 条误报全出自这里）。
+        _dir_has_final = {os.path.dirname(v) for v in vids
+                          if not _is_fragment_name(os.path.basename(v))}
+        vids = [v for v in vids
+                if not (_is_fragment_name(os.path.basename(v))
+                        and os.path.dirname(v) in _dir_has_final)]
         seen = set()
         with self._lock:
             link_dirs = {os.path.normcase(j.dir) for j in self.jobs.values()
@@ -1471,15 +1638,40 @@ class Pipeline(_Emitter):
                 if os.path.isfile(job.video):
                     seen.add(jid)
                 else:
-                    job.video = ""
-            # 视频被移走 → 保留 job（状态持久化需要），但清掉 video 引用
+                    fb = _finished_video_in(job.dir, job.name)
+                    if fb:
+                        job.video = fb
+                        _heal_dangling_download(job)
+                        seen.add(jid)
+                    else:
+                        job.video = ""
+            # 视频被移走 → 保留 job（状态持久化需要），但清掉 video 引用。
+            # 若同目录还有成品，则把 video 拉回成品并复位陈旧的下载失败——
+            # 这是「分片被智能合并删掉」后的必经路径，不救就会永久误报失败。
             for jid, job in self.jobs.items():
                 if jid in seen:
                     continue
                 if os.path.isfile(job.video or ""):
                     seen.add(jid)
+                    continue
+                # 只在「本来绑着视频」或「下载阶段失败过」时救——旧版把悬空的
+                # video 清空后没复位阶段状态，所以 video 往往是空的，只看
+                # video 非空会把这类任务全漏掉（实测 12 条一条都救不回）。
+                if not job.video and job.state(STAGE_DOWNLOAD) != FAILED:
+                    continue
+                fb = _finished_video_in(job.dir, job.name)
+                if fb and not _same_path(fb, job.video or ""):
+                    job.video = fb
+                    job.name = os.path.splitext(os.path.basename(fb))[0]
+                    _heal_dangling_download(job, "原分片已被合并删除，已改用同目录成品")
+                    seen.add(jid)
                 else:
+                    # 素材目录已被移走/清理，且没有成品可顶：**失败记录如实保留**
+                    # ——它当时确实下载失败了，不能因为文件不在了就洗成"没发生过"。
                     job.video = ""
+            # 历史「cue 表为空」失败 → 按数据条件不满足复位为已跳过
+            for job in self.jobs.values():
+                _heal_skippable_calib2(job)
             self._first_sync_done = True
 
     # ---------- 对外查询 ----------

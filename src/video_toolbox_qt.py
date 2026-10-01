@@ -65,6 +65,7 @@ import sys
 import threading
 import time
 import traceback
+import unicodedata
 from datetime import datetime
 
 from PyQt5.QtCore import (Qt, QTimer, QEvent, QObject, QPoint, QRect, QRectF,
@@ -127,6 +128,114 @@ AUDIO_EXTS = {".mp3", ".m4a", ".wav", ".aac", ".flac", ".ogg", ".oga",
               ".opus", ".wma", ".amr", ".ape", ".ac3", ".dts", ".wv",
               ".aiff", ".aif", ".caf"}
 SUBTITLE_EXTS = {".srt", ".ass", ".ssa", ".vtt", ".sub", ".smi", ".sbv", ".lrc"}
+
+#: 「双语字幕」判定：cue 内同时出现中文行与非中文行。用于「任务创建」的跳转
+#: 分派（单语 → 字幕翻译；双语 → 字幕校准）。
+_ZH_CHAR_RE = re.compile(r"[\u4e00-\u9fff]")
+
+
+def _has_non_zh_letters(line):
+    """该行是否含「非中文的文字」——拉丁 / 假名 / 谚文 / 西里尔 等都算。
+
+    ⚠️ 不能用 `[A-Za-z]` 判：日文（こんにちは）、韩文（안녕하세요）里一个
+    拉丁字母都没有，那样「日中对照」「韩中对照」会被误判成单语。
+    """
+    for ch in line:
+        if _ZH_CHAR_RE.match(ch):
+            continue
+        if unicodedata.category(ch)[0] == "L":      # L* = 字母类
+            return True
+    return False
+
+
+def iter_subtitle_cues(txt, max_cues=200):
+    """把字幕文本拆成 cue 列表（每个 cue = 该条目的若干行文本）。
+
+    兼容 SRT/VTT（`-->` 时间轴行切分）与 ASS/SSA（`Dialogue:` 行，`\\N` 换行）。
+    ⚠️ **不能按"空行分隔"切块**：大量 SRT 的 cue 之间根本没有空行（导出器各异），
+    那样整份文件会被当成一个块，双语判定必然失败（实测踩过）。
+    """
+    cues, cur = [], []
+    for ln in (txt or "").splitlines():
+        s = ln.strip()
+        if "-->" in ln:                       # SRT / VTT 时间轴行
+            if cur:
+                cues.append(cur)
+            cur = []
+            continue
+        if s.startswith("Dialogue:"):         # ASS / SSA
+            if cur:
+                cues.append(cur)
+            cur = []
+            body = ln.split(",", 9)[-1] if ln.count(",") >= 9 else s
+            cur = [p.strip() for p in body.split("\\N") if p.strip()]
+            cues.append(cur)
+            cur = []
+            continue
+        if s and not s.isdigit() and not s.startswith(("[", "{")):
+            cur.append(s)
+        if len(cues) >= max_cues:
+            break
+    if cur:
+        cues.append(cur)
+    return cues
+
+
+def subtitle_looks_bilingual(path, max_cues=200, need=3):
+    """字幕是不是「双语」（中外对照）？
+
+    判据用「同一个 cue 里既有中文行、又有非中文行」，而不是"文件里出现过
+    中文"——否则带中文注释的外语字幕、单语中文字幕都会被误判成双语送去校准。
+    取前 ``max_cues`` 个 cue，命中 ``need`` 个即认为双语（少量行内混排不算）。
+    """
+    try:
+        txt = engine.read_text_any(path)
+    except Exception:  # noqa: BLE001
+        return False
+    hits = 0
+    for lines in iter_subtitle_cues(txt, max_cues=max_cues):
+        if not lines:
+            continue
+        has_zh = any(_ZH_CHAR_RE.search(ln) for ln in lines)
+        # 「非中文行」= 不含汉字、但含别的文字（假名/谚文/拉丁…）
+        has_other = any((not _ZH_CHAR_RE.search(ln)) and _has_non_zh_letters(ln)
+                        for ln in lines)
+        if has_zh and has_other:
+            hits += 1
+            if hits >= need:
+                return True
+    return False
+
+
+def make_task_creation_drop_handler(tc):
+    """给「任务创建」页换一个 dropEvent：额外接受**字幕**文件。
+
+    引擎原实现只认 SupportedVideoFormats / SupportedAudioFormats，拖 `.srt`
+    进去会弹「格式错误 srt / 不支持该文件格式」；可字幕本就是这个工作台的合法
+    输入（任务创建 → 字幕翻译 / 字幕校准）。这里只放宽"接受哪些扩展名"：
+    是字幕就自己收下，**其余一律交回原实现**（保留它原有的提示与行为）。
+    """
+    orig_drop = tc.dropEvent
+
+    def _drop(event):
+        try:
+            files = [u.toLocalFile() for u in event.mimeData().urls()]
+        except Exception:  # noqa: BLE001
+            files = []
+        subs = [p for p in files
+                if p and os.path.isfile(p)
+                and os.path.splitext(p)[1].lower() in SUBTITLE_EXTS]
+        if not subs:
+            return orig_drop(event)
+        tc.search_input.setText(subs[0])
+        try:
+            tc.status_label.setText("导入成功")
+            InfoBar.success(
+                "导入成功", "已导入字幕文件，点右侧按钮继续",
+                duration=3000, position=InfoBarPosition.BOTTOM_RIGHT, parent=tc)
+        except Exception:  # noqa: BLE001
+            pass
+    return _drop
 
 LIB_EXTS = set(VIDEO_EXTS)
 THUMB_DIR = engine.THUMB_CACHE_DIR
@@ -264,13 +373,12 @@ def _perf_note(msg):
     """启动/预热耗时诊断：静默追加到 logs\\startup.log（best-effort）。
 
     用于日后排查「进入某页卡顿」——把各阶段耗时留痕，避免只能靠反复计时复现。
+    v1.16.2：改走 engine._append_log（自动轮转，避免累积到几百 KB）；
+    dedup=False —— 耗时时序本身就是数据，重复的「导航宽度」也要留全。
     """
     try:
-        os.makedirs(engine.LOGS_DIR, exist_ok=True)
-        with open(os.path.join(engine.LOGS_DIR, "startup.log"), "a",
-                  encoding="utf-8") as f:
-            f.write(f"[{datetime.now():%Y-%m-%d %H:%M:%S}] {msg}\n")
-    except OSError:
+        engine._append_log("startup.log", msg, dedup=False)
+    except Exception:  # noqa: BLE001
         pass
 
 
@@ -612,8 +720,9 @@ class DownloadPage(QWidget):
 
     _EXTRACT_LOCK = threading.Lock()
     SUB_LANGS = "en,zh,ja,zh-Hans,zh-Hant,ko,es,fr,de"
-    #: 下载分片大小：YouTube 直链要求 Range 请求，不分片就 403（见下方说明）
-    DL_CHUNK_SIZE = "5M"
+    #: 下载分片大小：YouTube 直链要求 Range 请求，不分片就 403（见下方说明）。
+    #: 取引擎常量，保证下载页与流水线不会各自漂移。
+    DL_CHUNK_SIZE = engine.YTDLP_CHUNK_SIZE
 
     def __init__(self, app, parent=None):
         super().__init__(parent)
@@ -944,14 +1053,28 @@ class DownloadPage(QWidget):
             if proxy_args:
                 self.app.q.put(("dl_log", task_id,
                                 f"[代理] 下载经本地代理 {proxy_args[1]}"))
+            # 源选择：YouTube 直链（videoplayback）单条服务能力有限——约 5 次
+            # 请求 / 数十 MB 即失效回 403，大文件几乎必然失败；实测直链要先白等
+            # 十几分钟才切到 HLS（用户看到的"下载过慢"）。HLS 每片独立取、还能
+            # 并发（-N），稳定性与速度都更好 → **直接首选 HLS**，直链降级为兜底。
+            # 设 VT_YTDLP_PREFER_HLS=0 可退回旧的"直链优先"行为。
+            alt = engine.hls_alt_format(meta, fid)
+            prefer = bool(alt) and engine.ytdlp_prefer_hls()
+            use_fid = alt if prefer else fid
+            if prefer:
+                self.app.q.put(("dl_log", task_id,
+                                f"[策略] 直链单条服务能力有限（数十 MB 即失效），"
+                                f"改用 HLS 分片源 {alt}（分片并发 "
+                                f"{engine.YTDLP_CONCURRENT_FRAGMENTS}）"))
             # --http-chunk-size 是必须的：YouTube 自 2026-09 起对 videoplayback
             # 直链强制要求 Range 请求，yt-dlp 默认的整体 GET 一律 403 ——
             # 表现为"下载几秒/几十 MB 后失败"，看着像风控其实是缺 Range。
             # 分片后每个请求都带 Range，才能正常取到数据。
-            opts = ["-f", f"{fid}+ba/b", "--merge-output-format", "mp4",
+            opts = ["-f", f"{use_fid}+ba/b", "--merge-output-format", "mp4",
                     "--ffmpeg-location", os.path.dirname(ffmpeg_path),
                     "--newline", "--no-playlist",
                     "--http-chunk-size", self.DL_CHUNK_SIZE,
+                    *engine.YTDLP_DL_COMMON_ARGS,
                     "--write-thumbnail", "--convert-thumbnails", "jpg",
                     *proxy_args,
                     *engine.ytdlp_cookie_args(),
@@ -966,11 +1089,12 @@ class DownloadPage(QWidget):
                 self.app.q.put(("dl_progress", task_id, 0.0))
                 rc = self._fallback_download(task_id, ytdlp, url, opts)
             if rc != 0:
-                # 直链被限（403/中途断流）时改走 HLS 分片源：每片独立请求，
-                # 不受"单条直链服务时长有限"的限制，实测能下完 1080p。
-                alt = engine.hls_alt_format(meta, fid)
-                if alt:
-                    rc = self._hls_fallback(task_id, ytdlp, url, opts, alt)
+                # 换另一个源兜底：HLS 优先时退回直链，直链优先时改走 HLS。
+                # （直链被限 403/中途断流时，HLS 每片独立请求，实测能下完 1080p）
+                other = fid if prefer else alt
+                if other:
+                    rc = self._hls_fallback(task_id, ytdlp, url, opts, other,
+                                            hls=bool(alt) and other == alt)
             if rc == 0:
                 self._pack_task(task_id, ffmpeg_path, folder, meta, quality_label)
                 if with_subs:
@@ -1007,8 +1131,13 @@ class DownloadPage(QWidget):
         with DownloadPage._EXTRACT_LOCK:
             return self._run_ytdlp_with_retry([ytdlp, *opts, url], task_id)
 
-    def _hls_fallback(self, task_id, ytdlp, url, opts, alt_fid):
-        """直链下载失败后的兜底：换同画质的 HLS(m3u8) 分片源再试一轮。"""
+    def _hls_fallback(self, task_id, ytdlp, url, opts, alt_fid, hls=True):
+        """换**另一个源**再试一轮：直链失败 → 改 HLS；HLS 失败 → 退回直链。
+
+        `hls=True` 表示 `alt_fid` 是 HLS 分片源：此时音轨仍可能是 https 直链、
+        一样会被 403，需再补一轮 HLS 隐藏音轨 itag 233/234（它们 acodec 为空、
+        不在常规音轨列表里，但实测能下且能合并）。换回直链时不需要这一轮。
+        """
         def slog(m):
             self.app.q.put(("sys_log", f"[任务 {task_id}] {m}"))
 
@@ -1017,17 +1146,16 @@ class DownloadPage(QWidget):
             new_opts[new_opts.index("-f") + 1] = f"{alt_fid}+ba/b"
         except (ValueError, IndexError):
             new_opts += ["-f", f"{alt_fid}+ba/b"]
-        # 两轮选择器：先配普通音轨；音轨同样是 https 直链、一样会被 403 时，
-        # 改用 HLS 里的隐藏音轨 itag 233/234（它们 acodec 为空所以不在常规
-        # 音轨列表里，但实测能下且能合并）。
-        selectors = [f"{alt_fid}+ba/b", f"{alt_fid}+233/234/b"]
+        selectors = [f"{alt_fid}+ba/b"]
+        if hls:
+            selectors.append(f"{alt_fid}+233/234/b")
         for sel in selectors:
             opts_i = list(new_opts)
             try:
                 opts_i[opts_i.index("-f") + 1] = sel
             except (ValueError, IndexError):
                 opts_i += ["-f", sel]
-            slog(f"直链受限，改用 HLS 分片源（{sel}）重试 ...")
+            slog(f"改用备用{'HLS 分片源' if hls else '直链源'}（{sel}）重试 ...")
             with DownloadPage._EXTRACT_LOCK:
                 fresh = engine.fetch_info_json(ytdlp, url, log=slog)
             if fresh:
@@ -1183,7 +1311,8 @@ class DownloadPage(QWidget):
                 self.app.q.put(("dl_log", task_id, line))
         return proc.wait(), lines
 
-    def _run_ytdlp_with_retry(self, cmd, task_id, attempts=3):
+    def _run_ytdlp_with_retry(self, cmd, task_id, attempts=4):
+        """带风控重试：判定复用引擎 `ytdlp_error_retryable`（三处同一口径）。"""
         wait = 6
         rc, lines = 1, []
         for i in range(attempts):
@@ -1191,18 +1320,16 @@ class DownloadPage(QWidget):
             if rc == 0:
                 return 0
             joined = "\n".join(lines)
-            # 403 也算可重试：YouTube 直链失效/节点 IP 被判风控都会回 403，
-            # 换一次提取（新直链）往往就过了；只有参数类错误才直接放弃。
-            retryable = ("412" in joined
-                         or "Unable to download webpage" in joined
-                         or "HTTP Error 403" in joined)
-            if not retryable:
+            # 412/403/429、"Sign in to confirm" 等一律可重试：YouTube 直链失效
+            # 或节点 IP 被判风控都会回 403，换一次提取（新直链）往往就过了；
+            # 只有参数类错误才直接放弃。
+            if not engine.ytdlp_error_retryable(joined):
                 return rc
             if i < attempts - 1:
                 self.app.q.put(("sys_log",
                                 f"[任务 {task_id}] 站点风控或直链失效"
-                                f"（412/403），{wait}s 后重试 "
-                                f"({i + 2}/{attempts}) ..."))
+                                f"（{engine.ytdlp_err_brief(joined)}），"
+                                f"{wait}s 后重试 ({i + 2}/{attempts}) ..."))
                 time.sleep(wait)
                 wait *= 2
         return rc
@@ -1974,6 +2101,23 @@ class SubtitlePage(QWidget):
                 w = getattr(tc, attr, None)
                 if w is not None:
                     w.hide()
+            # v1.16.3：任务创建的跳转**按文件类型分派**。引擎原本把它写死成
+            # 「一律跳语音转录」，拖字幕进来也会被当音视频去转录。
+            #   · 视频 / 音频            → 语音转录；
+            #   · 单语字幕（无中文对照）  → 字幕翻译；
+            #   · 双语字幕（中英对照）    → 字幕校准。
+            try:
+                tc.finished.disconnect(home.switch_to_transcription)
+            except Exception:  # noqa: BLE001
+                pass
+            tc.finished.connect(
+                lambda fp: self._dispatch_created_task(home, fp))
+            # v1.16.4：任务创建页原本只收音视频，拖 .srt 会弹「格式错误」。
+            # 字幕本就是本工作台的合法输入，这里放宽接收（见工厂函数说明）。
+            try:
+                tc.dropEvent = make_task_creation_drop_handler(tc)
+            except Exception as e:  # noqa: BLE001
+                _perf_note(f"任务创建页字幕接收补丁失败：{e}")
         # v1.13.0：把「字幕校准」并入引擎工作台分段，排在工作台「字幕翻译」
         # 之后（用户要求：校准并入「字幕翻译排」）。只加引擎界面 + 分段项，
         # 不改动引擎本体的处理流程。
@@ -1993,6 +2137,47 @@ class SubtitlePage(QWidget):
             pass
         self._engine_home = home
         return home
+
+    def _dispatch_created_task(self, home, file_path):
+        """任务创建完成后**按文件类型**跳转到对应工作台（见 _build_engine 说明）。
+
+        · 视频 / 音频           → 语音转录（引擎原行为）；
+        · 单语字幕（无中文对照） → 字幕翻译；
+        · 双语字幕（中英对照）   → 字幕校准。
+        """
+        path = str(file_path or "")
+        ext = os.path.splitext(path)[1].lower()
+        if ext not in SUBTITLE_EXTS:
+            home.switch_to_transcription(path)
+            return
+        if subtitle_looks_bilingual(path):
+            self.calib_page.accept_subtitle(path)
+            self.switch_to_calib()
+        else:
+            self._open_subtitle_translate(home, path)
+
+    def _open_subtitle_translate(self, home, sub_path):
+        """把字幕送进引擎「字幕翻译」页并切过去。
+
+        字幕没有配套视频，`video_path` 传 None（引擎的 `create_subtitle_task`
+        本来就允许）；task_id 沿用 home 当前的，保持同一条任务链。
+        """
+        try:
+            from videocaptioner.ui.task_factory import TaskFactory
+            task = TaskFactory.create_subtitle_task(
+                sub_path, None, need_next_task=True,
+                task_id=getattr(home, "_current_task_id", "") or "")
+            home.subtitle_optimization_interface.set_task(task)
+            home.pivot.setCurrentItem("SubtitleInterface")
+            home.stackedWidget.setCurrentWidget(
+                home.subtitle_optimization_interface)
+        except Exception as e:  # noqa: BLE001
+            _perf_note(f"跳转字幕翻译失败：{e}")
+            # 兜底：切不过去就退回引擎原行为，至少别把用户卡在任务创建页
+            try:
+                home.switch_to_transcription(sub_path)
+            except Exception:  # noqa: BLE001
+                pass
 
     def switch_to_calib(self):
         """外部跳转：切到引擎工作台的「字幕校准」子页（拖拽定位/截图用）。"""
@@ -2170,6 +2355,7 @@ class SettingsPage(QWidget):
         self.vbox = self.shell.content_lay
 
         self._build_dirs_card()
+        self._build_cookie_card()
         # v1.14.1 安全整改：「网络代理」卡片已移除——内置代理降级为纯后台
         # 下载兜底，不再有界面入口与文字说明（节点凭据严禁随包分发）。
         self._build_ai_card()
@@ -2245,6 +2431,136 @@ class SettingsPage(QWidget):
         expand_h(self.data_edit)
         expand_h(self.engine_dir_edit)
         self.vbox.addWidget(box)
+
+    # ------------------------------------------------------------------ #
+    # 下载 Cookie（反「Sign in to confirm you're not a bot」）
+    # ------------------------------------------------------------------ #
+    def _build_cookie_card(self):
+        """cookie 来源三级配置。
+
+        2026-09 起 YouTube 对代理 / 机房 IP 的**游客** cookie 已不放行，必须上
+        登录态：要么让 yt-dlp 直接读已登录 YouTube 的浏览器，要么导入浏览器
+        扩展导出的 cookies.txt（最稳，不受浏览器锁库影响）。
+        """
+        box, blay = card(
+            "下载 Cookie（反风控）",
+            "YouTube 已不再放行游客 cookie —— 需要登录态：从浏览器读取，"
+            "或导入浏览器扩展导出的 cookies.txt")
+
+        self.cookie_mode_combo = ComboBox(box)
+        self.cookie_mode_combo.addItems([t for t, _k in engine.COOKIE_MODE_LABELS])
+        _keys = [k for _t, k in engine.COOKIE_MODE_LABELS]
+        _mode = engine.cookie_mode()
+        self.cookie_mode_combo.setCurrentIndex(
+            _keys.index(_mode) if _mode in _keys else 0)
+        self.cookie_mode_combo.currentIndexChanged.connect(
+            self._on_cookie_mode_changed)
+        blay.addWidget(label_row("Cookie 来源", self.cookie_mode_combo))
+
+        # —— 浏览器登录态（browser / auto） ——
+        self.cookie_browser_combo = ComboBox(box)
+        self.cookie_browser_combo.addItems(list(engine.COOKIE_BROWSERS))
+        _br = engine.cookie_browser()
+        if _br in engine.COOKIE_BROWSERS:
+            self.cookie_browser_combo.setCurrentIndex(
+                list(engine.COOKIE_BROWSERS).index(_br))
+        self.cookie_browser_combo.currentIndexChanged.connect(self._save_cookie)
+        self.cookie_browser_row = label_row("浏览器", self.cookie_browser_combo)
+        blay.addWidget(self.cookie_browser_row)
+
+        # —— 自备 cookies.txt（file / auto） ——
+        self.cookie_file_edit = LineEdit(box)
+        self.cookie_file_edit.setText(engine.cookie_file() or "")
+        self.cookie_file_edit.setPlaceholderText(
+            r"留空则用 data\user_cookies.txt"
+            r"（推荐用浏览器扩展「Get cookies.txt LOCALLY」在 youtube.com 导出）")
+        self.cookie_file_edit.editingFinished.connect(self._save_cookie)
+        _pick = PushButton(FIF.FOLDER, "选择…", box)
+        _pick.clicked.connect(self._browse_cookie_file)
+        _check = PushButton(FIF.SYNC, "检测", box)
+        # 只有点「检测」才跑浏览器实测（1~3 秒的子进程），构建时不阻塞
+        _check.clicked.connect(lambda: self._refresh_cookie_status(probe=True))
+        self.cookie_file_row = srow("cookies.txt", self.cookie_file_edit,
+                                    _pick, _check)
+        blay.addWidget(self.cookie_file_row)
+
+        self.cookie_hint = fit_caption(CaptionLabel("", box))
+        self.cookie_hint.setTextColor("#8a8a8a", "#9a9a9a")
+        blay.addWidget(self.cookie_hint)
+
+        expand_h(self.cookie_file_edit)
+        self.vbox.addWidget(box)
+        self._on_cookie_mode_changed()
+
+    def _cookie_mode_key(self):
+        keys = [k for _t, k in engine.COOKIE_MODE_LABELS]
+        i = self.cookie_mode_combo.currentIndex()
+        return keys[i] if 0 <= i < len(keys) else "auto"
+
+    def _on_cookie_mode_changed(self):
+        mode = self._cookie_mode_key()
+        self.cookie_browser_row.setVisible(mode in ("auto", "browser"))
+        self.cookie_file_row.setVisible(mode in ("auto", "file"))
+        self._save_cookie()
+
+    def _browse_cookie_file(self):
+        p, _f = QFileDialog.getOpenFileName(
+            self, "选择 cookies.txt", engine.DATA_DIR,
+            "Netscape cookie 文件 (*.txt);;所有文件 (*)")
+        if p:
+            self.cookie_file_edit.setText(p)
+            self._save_cookie()
+
+    def _save_cookie(self):
+        try:
+            cfg = engine.load_config() or {}
+            cfg[engine.CFG_COOKIE_MODE] = self._cookie_mode_key()
+            cfg[engine.CFG_COOKIE_BROWSER] = \
+                self.cookie_browser_combo.currentText().strip()
+            cfg[engine.CFG_COOKIE_FILE] = self.cookie_file_edit.text().strip()
+            engine.save_config(cfg)
+            engine.invalidate_cookie_cache()
+        except Exception as e:  # noqa: BLE001
+            _perf_note(f"保存 cookie 配置失败：{e}")
+        self._refresh_cookie_status()
+
+    def _refresh_cookie_status(self, probe=False):
+        """把当前 cookie 来源的状态写成一行提示，用户不必猜配好没有。
+
+        `probe=True`（点「检测」）才真跑浏览器实测（1~3 秒子进程）；平时用静态
+        文案——设置页构建时同步跑子进程会白白卡住界面。
+        """
+        mode = self._cookie_mode_key()
+        try:
+            _br = self.cookie_browser_combo.currentText().strip()
+            if mode == "browser":
+                if probe:
+                    ok, why = engine.browser_cookie_probe(_br)
+                    txt = ("✅ " if ok else "⚠️ ") + why
+                else:
+                    txt = (f"将从 {_br} 读取登录态（需已登录 YouTube 且完全退出"
+                           f"该浏览器）—— 点「检测」实测")
+            elif mode == "guest":
+                _ok, _lg, why = engine.cookies_file_status(engine.GUEST_COOKIES_PATH)
+                txt = f"仅用自动游客 cookie：{why} —— 2026-09 起多半仍被风控拦"
+            else:
+                p = self.cookie_file_edit.text().strip() or engine.cookie_file()
+                ok, logged, why = engine.cookies_file_status(p)
+                if ok and logged:
+                    txt = f"✅ 登录态 cookie 可用：{p}"
+                elif ok:
+                    txt = (f"⚠️ {why}：{p} —— 建议用已登录 YouTube 的浏览器"
+                           f"重新导出")
+                elif probe:
+                    bok, bwhy = engine.browser_cookie_probe(_br)
+                    txt = (f"⚠️ cookies.txt 不可用（{why}）；"
+                           f"{'浏览器可用：' + bwhy if bok else '浏览器：' + bwhy}")
+                else:
+                    txt = (f"⚠️ cookies.txt 不可用（{why}）→ 将回退自动游客 cookie"
+                           f"；点「检测」实测浏览器登录态")
+        except Exception as e:  # noqa: BLE001
+            txt = f"状态检查失败：{type(e).__name__}"
+        self.cookie_hint.setText(txt)
 
     # ------------------------------------------------------------------ #
     # 网络代理（v1.14.1 起无界面）：原「网络代理」卡片与 _build_proxy_card /
@@ -7398,6 +7714,16 @@ class MainWindow(FluentWindow):
                 0, lambda ps=list(paths): self._handle_dropped_files(ps))
         e.acceptProposedAction()
 
+    def _in_subtitle_workbench(self):
+        """当前是否停在「字幕处理」页（引擎工作台，含其字幕校准子页）。
+
+        边缘拖放分派要用它判断"该不该按字幕类型跳转"，而不是一律去字幕编辑。
+        """
+        try:
+            return self.stackedWidget.currentWidget() is self.subtitle_page
+        except Exception:  # noqa: BLE001
+            return False
+
     def _handle_dropped_files(self, paths):
         """把拖进窗口的文件按类型分派到对应页面（视频/音频/字幕/文档/目录）。
 
@@ -7435,10 +7761,22 @@ class MainWindow(FluentWindow):
         #    到这里；此前一律 switchTo 到「字幕编辑」，用户看到的就是
         #    "字幕拖到边缘就跳页"。（混拖的视频/音频仍走原逻辑，与 CalibPage
         #    dropEvent 里"其它文件交全局分派"的处理保持一致。）
-        if subs and self.subtitle_page.calib_active() \
-                and self.calib_page.accept_subtitle(subs[0]):
-            msgs.append("已载入到字幕校准：" + os.path.basename(subs[0]))
-            subs = []
+        # v1.16.4：字幕的落点按「当前所在页」决定 ——
+        #   · 停在「字幕处理」页（引擎工作台，含其字幕校准子页）→ 走与
+        #     「任务创建」**完全同一套**分派：双语 → 字幕校准、单语 → 字幕翻译；
+        #   · 其他页面 → 原逻辑（字幕编辑）。
+        # 此前一律 switchTo 到「字幕编辑」：拖到页面边缘 / 顶部导航条 / 窗口
+        # 边框时（这些位置任务创建页收不到 dragEnter，事件冒泡到这里）就会
+        # 莫名跳页，用户看到的就是"拖到边缘跳字幕编辑"。
+        if subs:
+            home = getattr(self.subtitle_page, "_engine_home", None)
+            if home is not None and self._in_subtitle_workbench():
+                try:
+                    self.subtitle_page._dispatch_created_task(home, subs[0])
+                    msgs.append("已载入到字幕处理：" + os.path.basename(subs[0]))
+                    subs = []
+                except Exception as e:  # noqa: BLE001
+                    _perf_note(f"边缘拖放分派字幕失败：{e}")
         if subs or videos or audios:
             ed = self.subtitle_edit_page
             self.switchTo(ed)
