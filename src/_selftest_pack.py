@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# @version 1.16.4
+# @version 1.16.5
 """离线自检：验证「独立文件夹 + 封面1280x720 + 信息txt + 目录长期记忆」四项功能。
 
 不联网、不下载视频，全部用本地生成的素材验证打包逻辑。
@@ -318,6 +318,130 @@ def test_codec_compat(base):
         check("校准脚本 _decode_any 可读 GBK 字幕", False, str(e))
 
 
+def test_ai_settings_automatch():
+    """v1.16.5：设置自动匹配——把「错配的设置」在落盘/发请求前纠正掉。
+
+    来源：用户实测反馈。旧版把「火山 Token Plan 地址 + 非套餐模型」这个纯
+    设置错误，处理成「换按量端点重试 → 401 鉴权失败」的长篇英文报错，逐块
+    校准时还会放大成整轮 401 风暴。现在的策略是先就地换模型（端点和 Key 都
+    不动），只有确实换了 Key 类型才动端点。
+    """
+    print("\n[6] 设置自动匹配（火山方舟 Token Plan 端点 ↔ 模型）")
+    try:
+        m = engine.ai_mod()
+    except Exception as e:  # noqa: BLE001
+        check("ai_client 可加载", False, str(e))
+        return
+    PLAN = "https://ark.cn-beijing.volces.com/api/plan/v3"
+    PAYG = "https://ark.cn-beijing.volces.com/api/v3"
+
+    # ① 端点判据：plan / paygo / coding 三者互斥
+    check("plan 端点判据（/api/plan/v3）",
+          m._is_volces_plan_url(PLAN + "/chat/completions") is True
+          and m._is_volces_paygo_url(PLAN + "/chat/completions") is False)
+    check("paygo 端点判据（/api/v3）",
+          m._is_volces_paygo_url(PAYG + "/chat/completions") is True
+          and m._is_volces_plan_url(PAYG + "/chat/completions") is False)
+    check("coding 端点不算 plan 也不算 paygo（Anthropic 专用，另有守卫）",
+          m._is_volces_plan_url("https://ark.cn-beijing.volces.com/api/coding/v3")
+          is False
+          and m._is_volces_paygo_url("https://ark.cn-beijing.volces.com/api/coding/v3")
+          is False)
+
+    # ② 核心：套餐端点 + 非套餐模型 → 换成套餐模型（用户 23:30 的设置错误）
+    out, notes = m.match_settings({
+        "base_url": PLAN, "model": "deepseek-flash",
+        "vision_model": "doubao-seed-1.6-flash",
+        "calib_max_tokens": 1048576, "calib_context_tokens": 1048576})
+    check("套餐端点 + 按量模型 → 自动换套餐模型",
+          out["model"] in m.VOLCES_PLAN_MODELS, out["model"])
+    check("视觉槽同步匹配（否则屏幕识别仍会 404）",
+          out["vision_model"] in m.VOLCES_PLAN_MODELS, out["vision_model"])
+    check("预算按模型能力夹回（1M 输出 → 上限）",
+          out["calib_max_tokens"] <= m.model_caps(out["model"])["out"]
+          and out["calib_context_tokens"] <= m.model_caps(out["model"])["ctx"],
+          f"out={out['calib_max_tokens']} ctx={out['calib_context_tokens']}")
+    check("每项纠正都给出人话说明", len(notes) >= 3, " / ".join(notes)[:150])
+
+    # ③ 已自洽的配置必须原样返回（避免每次保存都"修正"一遍产生噪音）
+    out2, notes2 = m.match_settings({
+        "base_url": PLAN, "model": "deepseek-v4-flash",
+        "vision_model": "deepseek-v4-flash",
+        "calib_max_tokens": 65536, "calib_context_tokens": 1048576})
+    check("自洽配置零改动（模型未变）", out2["model"] == "deepseek-v4-flash")
+    check("自洽配置零说明（不误报修正）", notes2 == [], str(notes2))
+
+    # ④ 纯函数：不得就地修改传入的 dict
+    src = {"base_url": PLAN, "model": "deepseek-flash"}
+    m.match_settings(src)
+    check("match_settings 不就地改动传入配置", src["model"] == "deepseek-flash")
+
+    # ⑤ 视觉槽留空跟随文本模型；输出预算过小抬到可工作阈值
+    out3, _n3 = m.match_settings({
+        "base_url": PLAN, "model": "deepseek-v4-flash", "vision_model": "",
+        "calib_max_tokens": 512})
+    check("视觉模型留空 → 跟随文本模型",
+          out3["vision_model"] == "deepseek-v4-flash", out3["vision_model"])
+    check("输出预算过小（512）→ 抬到 8192",
+          out3["calib_max_tokens"] == 8192, str(out3["calib_max_tokens"]))
+
+    # ⑥ 引擎层：保存时自动匹配 + 说明可回传界面
+    check("引擎暴露 ai_match_settings / ai_last_auto_notes",
+          callable(getattr(engine, "ai_match_settings", None))
+          and callable(getattr(engine, "ai_last_auto_notes", None)))
+
+    # ⑦ 客户端构造即匹配：错配模型不会被打出去（端到端最贴近用户现象的一步）
+    try:
+        c = m.AIClient({"base_url": PLAN, "api_key": "dummy",
+                        "model": "deepseek-flash",
+                        "vision_model": "doubao-seed-1.6-flash"})
+        check("客户端构造即把模型匹配成套餐模型（不发出错配请求）",
+              c.model in m.VOLCES_PLAN_MODELS and bool(c.auto_notes),
+              f"model={c.model} notes={len(c.auto_notes)}")
+        check("客户端默认未标记为「套餐专用 Key」（避免误跳过换端点重试）",
+              c.plan_key_only is False)
+    except Exception as e:  # noqa: BLE001
+        check("客户端构造即匹配", False, str(e))
+
+
+    # ⑧ 厂商 ↔ 模型名（跨平台抄错模型名，比端点类型错更常见）
+    check("DeepSeek 官方 + deepseek-flash（火山按量名）→ deepseek-chat",
+          m.match_provider_model("https://api.deepseek.com",
+                                 "deepseek-flash")[0] == "deepseek-chat")
+    check("DeepSeek 官方 + deepseek-v4.1-flash → deepseek-chat",
+          m.match_provider_model("https://api.deepseek.com",
+                                 "deepseek-v4.1-flash")[0] == "deepseek-chat")
+    check("DeepSeek 官方 + deepseek-v4-pro → deepseek-reasoner",
+          m.match_provider_model("https://api.deepseek.com",
+                                 "deepseek-v4-pro")[0] == "deepseek-reasoner")
+    check("DeepSeek 官方 + deepseek-chat/reasoner 原样保留",
+          m.match_provider_model("https://api.deepseek.com", "deepseek-chat")[0]
+          == "deepseek-chat"
+          and m.match_provider_model("https://api.deepseek.com",
+                                     "deepseek-reasoner")[0]
+          == "deepseek-reasoner")
+    check("智谱端点 + deepseek-chat → glm-4.7-flash",
+          m.match_provider_model("https://open.bigmodel.cn/api/paas/v4",
+                                 "deepseek-chat")[0] == "glm-4.7-flash")
+    check("火山按量 + doubao 模型 原样保留（不做无谓改动）",
+          m.match_provider_model("https://ark.cn-beijing.volces.com/api/v3",
+                                 "doubao-seed-1.6-flash")[0]
+          == "doubao-seed-1.6-flash")
+    check("未识别厂商（自建中转）不做校验，原样放行",
+          m.match_provider_model("https://my-proxy.internal/v1",
+                                 "anything-goes")[0] == "anything-goes")
+    check("厂商判据 provider_of 命中/未命中正确",
+          m.provider_of("https://api.deepseek.com") == "api.deepseek.com"
+          and m.provider_of("https://my-proxy.internal") == "")
+    # ⑨ 端到端：用户实测的失效配置（DeepSeek 官方 + deepseek-flash）被修好
+    _fx, _fn = engine.ai_match_settings({
+        "base_url": "https://api.deepseek.com", "model": "deepseek-flash",
+        "vision_model": "deepseek-flash"})
+    check("端到端：DeepSeek 官方错配模型被自动纠正且给出说明",
+          _fx["model"] == "deepseek-chat" and _fx["vision_model"] == "deepseek-chat"
+          and len(_fn) >= 2, " / ".join(_fn)[:160])
+
+
 def main():
     print("=" * 62)
     print("  视频工具箱 v1.3 打包功能离线自检")
@@ -341,6 +465,7 @@ def main():
         test_cover_1280x720(base, ffmpeg)
         test_config_persistence(base)
         test_output_template(base)
+        test_ai_settings_automatch()
     finally:
         shutil.rmtree(base, ignore_errors=True)
         if backup_cfg:

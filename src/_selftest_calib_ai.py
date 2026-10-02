@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 1.16.4
+# @version 1.16.5
 """AI 校准 Agent 自检（离线，不联网、不调用真实 LLM）。
 
 覆盖：

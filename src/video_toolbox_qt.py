@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# @version 1.16.4
+# @version 1.16.5
 """视频工具箱 GUI v1.11.0 —— Fluent 矢量界面
 ====================================================================
 界面形态（v1.10.0 起，原 tkinter 界面退役）：
@@ -113,7 +113,7 @@ from subtitle_compose import ComposeDialog
 # 单独成模块（自带卡片/滚动壳），因此**不反向 import 本文件**，无循环导入。
 import auto_vision_page
 
-VERSION = "1.16.4"
+VERSION = "1.16.5"
 
 # 全格式媒体/字幕/文档扩展名（v1.13.0）：
 #   视频：常见容器 + av1 / h264 / h265 / x264 等裸流与更多封装；
@@ -2620,6 +2620,17 @@ class SettingsPage(QWidget):
 
         test_btn = PushButton(FIF.SEND, "测试接口", box)
         test_btn.clicked.connect(lambda: self._ai_test())
+        # 自动匹配（2026-10-01 v2）：按接口地址把「模型 / 输入输出预算」纠正成
+        # 自洽可用的组合。针对的正是「火山 Token Plan 地址 + 非套餐模型」这类
+        # 只能靠 404→401 报错才能发现的设置错误——这里一键改对，不用用户猜。
+        match_btn = PushButton(FIF.SYNC, "自动匹配", box)
+        match_btn.setToolTip(
+            "按「接口地址」自动纠正模型与预算，典型场景：\n"
+            "· 火山方舟 Token Plan 地址（/api/plan/v3）+ 非套餐模型 → 换成套餐"
+            "模型（套餐 Key 打按量端点必 401，模型不匹配必 404，两端都不通）；\n"
+            "· 输入/输出预算超所选模型上限 → 夹回该模型可用值。\n"
+            "点完请再点「保存并应用」落盘。")
+        match_btn.clicked.connect(self._ai_match)
         save_btn = PrimaryPushButton(FIF.SAVE, "保存并应用", box)
         save_btn.clicked.connect(self._ai_save)
         self.ai_dirty_lbl = fit_caption(CaptionLabel("● 有未保存的改动", box))
@@ -2627,7 +2638,7 @@ class SettingsPage(QWidget):
         self.ai_dirty_lbl.setToolTip("改完要点「保存并应用」才会写入引擎；"
                                      "不保存的话转录/校准用的仍是上次保存的配置")
         self.ai_dirty_lbl.hide()
-        blay.addWidget(row(test_btn, save_btn, self.ai_dirty_lbl))
+        blay.addWidget(row(test_btn, match_btn, save_btn, self.ai_dirty_lbl))
 
         self.ai_hint = fit_caption(CaptionLabel(
             "保存后立即生效；地址填到域名或版本段均可自动补全（含 Azure）。"
@@ -2862,7 +2873,9 @@ class SettingsPage(QWidget):
         self.calib_effort_combo.setToolTip(
             "下发到请求体 reasoning_effort：\n"
             "· DeepSeek 认 none/low/high/max，中/极高会被服务端归到 high；\n"
-            "· 端点不认识该参数时程序自动去掉重试，不会因此报错。")
+            "· 端点不认识该参数时程序自动去掉重试，不会因此报错；\n"
+            "· ⚠️ 强度越高思考链越长，会先吃掉「输出」预算——额度太小时正文\n"
+            "  会是空的（程序会明确报「只输出了思考链」而不是静默失败）。")
         blay.addWidget(label_row("思考强度", self.calib_effort_combo))
 
         # —— 输入 / 输出预算（参考图二的「输入 / 输出」双列 + 快捷档位）——
@@ -3073,14 +3086,87 @@ class SettingsPage(QWidget):
     def _ai_save(self):
         try:
             engine.ai_save_config(self._collect_ai())
+            notes = engine.ai_last_auto_notes()
             self._clear_ai_dirty()
-            InfoBar.success("已保存",
-                            "全局 AI 与 ASR 配置已应用：引擎 LLM 槽、转录配置已同步",
-                            duration=3000, position=InfoBarPosition.BOTTOM_RIGHT,
-                            parent=self)
+            if notes:
+                # 保存时被自动匹配纠正过：必须回填界面，否则界面显示的还是
+                # 错的值、用户下次又存一遍错的（这正是"设置错误"反复出现的根源）
+                self._reload_ai_fields()
+                InfoBar.warning(
+                    "已保存（含设置自动匹配）",
+                    "已自动纠正：" + "；".join(notes)[:300],
+                    duration=8000, position=InfoBarPosition.BOTTOM_RIGHT,
+                    parent=self)
+            else:
+                InfoBar.success(
+                    "已保存",
+                    "全局 AI 与 ASR 配置已应用：引擎 LLM 槽、转录配置已同步",
+                    duration=3000, position=InfoBarPosition.BOTTOM_RIGHT,
+                    parent=self)
         except Exception as e:  # noqa: BLE001
             InfoBar.error("保存失败", str(e)[:300], duration=5000,
                           position=InfoBarPosition.BOTTOM_RIGHT, parent=self)
+
+    def _reload_ai_fields(self):
+        """把落盘后的 AI 配置回填到界面输入框（自动匹配纠正后调用）。"""
+        ai = engine.ai_load_config()
+        for wid, key in ((getattr(self, "ai_key", None), "api_key"),
+                         (getattr(self, "ai_base", None), "base_url"),
+                         (getattr(self, "ai_model", None), "model"),
+                         (getattr(self, "ai_vision", None), "vision_model")):
+            if wid is None:
+                continue
+            try:
+                wid.blockSignals(True)       # 回填不算用户编辑，别亮"未保存"
+                wid.setText(str(ai.get(key, "")))
+            finally:
+                try:
+                    wid.blockSignals(False)
+                except Exception:  # noqa: BLE001
+                    pass
+        for spin, key in ((getattr(self, "calib_tokens", None),
+                           "calib_max_tokens"),
+                          (getattr(self, "calib_context", None),
+                           "calib_context_tokens")):
+            if spin is None:
+                continue
+            try:
+                spin.setValue(int(ai.get(key) or spin.value()))
+            except (TypeError, ValueError):
+                pass
+
+    def _ai_match(self):
+        """「自动匹配」按钮：按当前接口地址纠正模型与预算，并回填界面。
+
+        纯本地计算（不发网络请求），纠正是确定性的规则，所以不必等异步：
+        点完立刻能看到改了哪几项；用户再点「保存并应用」落盘。
+        """
+        try:
+            cfg, notes = engine.ai_match_settings(self._collect_ai())
+        except Exception as e:  # noqa: BLE001
+            InfoBar.error("自动匹配失败", str(e)[:300], duration=5000,
+                          position=InfoBarPosition.BOTTOM_RIGHT, parent=self)
+            return
+        self.ai_model.setText(str(cfg.get("model") or ""))
+        self.ai_vision.setText(str(cfg.get("vision_model") or ""))
+        try:
+            self.calib_tokens.setValue(int(cfg.get("calib_max_tokens") or
+                                           self.calib_tokens.value()))
+            self.calib_context.setValue(int(cfg.get("calib_context_tokens") or
+                                            self.calib_context.value()))
+        except (TypeError, ValueError):
+            pass
+        self._mark_ai_dirty()
+        if notes:
+            InfoBar.success("已自动匹配",
+                            "；".join(notes)[:400] + "（点「保存并应用」落盘）",
+                            duration=9000, position=InfoBarPosition.BOTTOM_RIGHT,
+                            parent=self)
+        else:
+            InfoBar.info("无需调整",
+                         "当前接口地址与模型、预算已自洽（没发现需要纠正的组合）",
+                         duration=4000, position=InfoBarPosition.BOTTOM_RIGHT,
+                         parent=self)
 
     def _ai_test(self, channel="a"):
         """测试全局 AI 连通性（v1.12.0 起单通道，channel 参数保留兼容）。"""

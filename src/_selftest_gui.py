@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# @version 1.16.4
+# @version 1.16.5
 """界面自检（v1.10.4 Fluent 界面）：验证窗口与各页面可构建、导航宽度自适应、
 设置页统一入口、字幕处理环境就绪。
 
@@ -1375,6 +1375,62 @@ def main():
               engine.ai_test_connection).parameters)
     check("API 地址归一化兼容多厂商（智谱/OpenAI/DeepSeek/百炼/Gemini/"
           "Ollama/Azure）", _api_compat_ok())
+    # v1.16.5：设置自动匹配——套餐端点↔模型错配自动纠正（用户实测反馈）
+    _am = engine.ai_mod()
+    _PLAN = "https://ark.cn-beijing.volces.com/api/plan/v3"
+    _am_ok, _am_why = True, ""
+    try:
+        _o, _n = _am.match_settings({
+            "base_url": _PLAN, "model": "deepseek-flash",
+            "vision_model": "doubao-seed-1.6-flash",
+            "calib_max_tokens": 1048576, "calib_context_tokens": 1048576})
+        if _o["model"] not in _am.VOLCES_PLAN_MODELS:
+            _am_ok, _am_why = False, "非套餐模型未换成套餐模型：" + _o["model"]
+        elif _o["vision_model"] not in _am.VOLCES_PLAN_MODELS:
+            _am_ok, _am_why = False, "视觉槽未匹配：" + _o["vision_model"]
+        elif not _n:
+            _am_ok, _am_why = False, "没给出任何自动匹配说明"
+        # 已自洽的配置不该被改（避免误报"修正"）
+        _o2, _n2 = _am.match_settings({
+            "base_url": _PLAN, "model": "deepseek-v4-flash",
+            "vision_model": "deepseek-v4-flash",
+            "calib_max_tokens": 65536, "calib_context_tokens": 1048576})
+        if _n2:
+            _am_ok, _am_why = False, "自洽配置被无谓改动：" + str(_n2)
+        # 端点判据互斥
+        if _am._is_volces_plan_url(_PLAN + "/chat/completions") is not True \
+                or _am._is_volces_paygo_url(_PLAN + "/chat/completions") is not False:
+            _am_ok, _am_why = False, "plan 端点判据不正确"
+        if _am._is_volces_paygo_url(
+                "https://ark.cn-beijing.volces.com/api/v3/chat/completions") \
+                is not True:
+            _am_ok, _am_why = False, "paygo 端点判据不正确"
+    except Exception as e:  # noqa: BLE001
+        _am_ok, _am_why = False, str(e)
+    check("设置自动匹配：套餐端点↔模型错配自动纠正（含预算钳制、自洽不动）",
+          _am_ok, _am_why)
+    check("设置页含「自动匹配」按钮（与保存并应用同排）",
+          hasattr(sp, "ai_model") and callable(getattr(sp, "_ai_match", None))
+          and callable(getattr(sp, "_reload_ai_fields", None)))
+    check("自动匹配结果能回传界面（ai_last_auto_notes 已接线）",
+          callable(getattr(engine, "ai_last_auto_notes", None))
+          and callable(getattr(engine, "ai_match_settings", None)))
+    # v1.16.5：厂商↔模型名错配（跨平台抄模型名，用户实测的真实设置错误）
+    _pm_ok, _pm_why = True, ""
+    try:
+        if _am.match_provider_model("https://api.deepseek.com",
+                                    "deepseek-flash")[0] != "deepseek-chat":
+            _pm_ok, _pm_why = False, "DeepSeek 官方未纠正 deepseek-flash"
+        if _am.match_provider_model("https://api.deepseek.com",
+                                    "deepseek-reasoner")[0] != "deepseek-reasoner":
+            _pm_ok, _pm_why = False, "合法的 deepseek-reasoner 被误改"
+        if _am.match_provider_model("https://my-proxy.internal/v1",
+                                    "any-model")[0] != "any-model":
+            _pm_ok, _pm_why = False, "未识别厂商被误改"
+    except Exception as e:  # noqa: BLE001
+        _pm_ok, _pm_why = False, str(e)
+    check("设置自动匹配：跨平台抄错的模型名自动纠正（自建端点不误伤）",
+          _pm_ok, _pm_why)
     check("ASR 服务/本地区块可切换",
           hasattr(sp, "asr_service_widget") and hasattr(sp, "asr_local_widget")
           and callable(getattr(sp, "_sync_asr_visible", None)))

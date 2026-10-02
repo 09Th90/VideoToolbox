@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 1.16.4
+# @version 1.16.5
 """一键同步版本号（幂等）：所有「当前版本」标记处一次改到位。
 
 背景：发布前改版本号历史上要手工同步 spec / iss / 在线安装器三件套 / qt VERSION /
@@ -35,7 +35,10 @@ TARGETS = [
     (r"installer_src\packages\com.videotoolbox.base\meta\package.xml",
      "<Version>{v}</Version>", 1),
     (r"docs\使用说明.txt", "视频工具箱 v{v} 使用说明", 1),
-    (r"docs\程序说明书.md", "适用版本：v{v}", 1),
+    # 2026-09-21 改名：程序说明书.md → 程序说明书(开发版).md / 程序说明书(用户版).md，
+    # 两处「适用版本」行都随版本走（此前指向旧名导致改号静默失配，说明书版本滞留）。
+    (r"docs\程序说明书(开发版).md", "适用版本：v{v}", 1),
+    (r"docs\程序说明书(用户版).md", "适用版本：v{v}", 1),
 ]
 
 

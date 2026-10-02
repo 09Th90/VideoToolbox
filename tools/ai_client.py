@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 1.16.4
+# @version 1.16.5
 """
 全局 AI 客户端（OpenAI 兼容 · 单通道）。
 
@@ -25,8 +25,24 @@
 - 回复中的 thinking 块自动跳过，只拼接 text 块；JSON 回复用 try_parse_json 解析；
 - 智谱"1305 访问量过大 / overloaded"与 HTTP 429/5xx 自动退避重试。
 - 火山方舟 Token Plan 端点（/api/plan/v3）只收套餐模型：按量模型（如
-  deepseek-flash）打上去恒回 404 UnsupportedModel（agent plan feature），
-  此时自动换按量端点（/api/v3，同一 API Key）重试（2026-10-01 修复）。
+  deepseek-flash）打上去恒回 404 UnsupportedModel（agent plan feature）。
+- 设置自动匹配（2026-10-01 v2，本文件是唯一权威实现）：
+  · **端点↔模型**：Token Plan 端点 + 非套餐模型 → 自动换成套餐默认模型
+    （match_volces_plan_model）；反向——按量端点（/api/v3）+ 套餐专用模型名
+    不做改写（套餐模型在按量端点同样可用）。
+  · **Key↔端点**：Token Plan 发放的 Key 只被 /api/plan/* 接受，打按量端点
+    恒 401。首次撞 401 即把 `self.plan_key_only = True` 记在客户端上，后续
+    相同端点不再重复「换 /api/v3 再撞 401」的无效重试（避免一次设置错误在
+    逐块校准时放大成整轮 401 风暴）。
+  · **失败前的最后自救**：套餐端点回 UnsupportedModel 时，先按 `MODEL_CAPS`
+    换套餐默认模型在**原端点**重试；仍不行才考虑换端点；两者都不行时给出
+    含「自动匹配」结论的一句话处置建议，不再抛长篇英文原文。
+  · **能力钳制**：已知模型的上下文/输出能力记入 MODEL_CAPS，发送前钳制
+    max_tokens，校准入口钳制输入/输出预算，避免「1M 上下文配 8K 输出小模型」
+    这类组合错误必然失败。
+- 自动匹配结果回传：`AIClient.auto_notes`（人类可读说明列表）+ 模块级
+  `match_settings()`（设置页「自动匹配」按钮与校准入口共用，返回修正后的
+  配置副本与说明）。
 """
 
 from __future__ import annotations
@@ -272,6 +288,13 @@ def _chat_url(base: str) -> str:
         return b
     if b.endswith("/openai"):            # Gemini 的 OpenAI 兼容层
         return b + "/chat/completions"
+    # 火山方舟裸端点（…/api/plan、…/api/coding）：补 v3 版本段——通用规则
+    # 会把尾段 "plan"/"coding" 当裸域名，错拼成 /api/plan/v1/chat/
+    # completions（2026-10-01 实测，方舟只认 /api/plan/v3 与 /api/coding/v3）
+    host, path = _host_path(b)
+    if ("volces.com" in host or "volcengine" in host) \
+            and path.rstrip("/").endswith(("/api/plan", "/api/coding")):
+        return b + "/v3/chat/completions"
     tail = b.rsplit("/", 1)[-1].lower()
     # /v1、/v4、/v1beta 之类的版本段结尾：直接拼后缀
     if tail.startswith("v") and tail[1:2].isdigit():
@@ -532,7 +555,23 @@ def _is_volces_plan_url(url: str) -> bool:
     host, path = _host_path(url)
     if "volces.com" not in host and "volcengine" not in host:
         return False
-    return "/api/plan/" in path
+    return "/api/plan/" in path or path.rstrip("/").endswith("/api/plan")
+
+
+def _is_volces_paygo_url(url: str) -> bool:
+    """是否火山方舟**按量**端点（.../api/v3[/chat/completions]）。
+
+    与 _is_volces_plan_url 互斥；用于识别「地址填按量、Key 却是套餐 Key」
+    这类反向设置错配（打上去恒 401 AuthenticationError）。
+    """
+    host, path = _host_path(url)
+    if "volces.com" not in host and "volcengine" not in host:
+        return False
+    p = path.rstrip("/")
+    if "/api/plan/" in p or p.endswith("/api/plan") \
+            or "/api/coding/" in p or p.endswith("/api/coding"):
+        return False
+    return p.startswith("/api/v3")
 
 
 def _volces_paygo_url(url: str) -> str:
@@ -545,8 +584,294 @@ def _volces_paygo_url(url: str) -> str:
     注意传入的可能是已拼好 /chat/completions 的完整地址，要替换的是
     /api/plan/v3 整段（换成 /api/v3），不能只换 /api/plan/ 前缀——
     否则会把 /api/plan/v3/chat/completions 改错成 /api/v3/v3/chat/completions。
+
+    2026-10-01 实测修正：Token Plan 发放的 Key 只被 /api/plan/* 接受，
+    打按量端点恒 401 AuthenticationError——回落能否成功取决于 Key 类型。
+    2026-10-01 v2：该回落已降级为「就地自救后的第二选择」，见 _post_openai。
     """
     return _re.sub(r"/api/plan/v(\d+)", r"/api/v\1", str(url or ""), count=1)
+
+
+#: 火山方舟 Agent Plan（Token Plan）支持的模型名单（2026-10-01 官方文档
+#: volcengine.com/docs/82379/2366394）。该端点只收名单内模型；名单外模型
+#: （含 deepseek-flash 等纯按量模型）打上去恒回 404 UnsupportedModel。
+VOLCES_PLAN_MODELS = frozenset({
+    "doubao-seed-2.0-mini", "doubao-seed-2.0-lite", "doubao-seed-2.1-turbo",
+    "doubao-seed-evolving", "deepseek-v4-flash", "deepseek-v4-pro",
+    "deepseek-v4.1-flash", "glm-5.3", "glm-5.3-flash", "glm-latest",
+    "minimax-m3", "kimi-k2.7-code", "kimi-k2.8-preview", "kimi-k3",
+})
+
+#: 套餐端点的自动匹配默认模型：多模态（视觉通道可沿用）、1M 上下文、
+#: 384K 最大输出，校准的大上下文 + 大输出场景都够用。
+VOLCES_PLAN_DEFAULT_MODEL = "deepseek-v4.1-flash"
+
+#: 各平台端点的「模型名白名单外」判据与回落：键 = 域名关键词，
+#: 值 = (必须排除的模型名集合, 明显不属于本族的前缀, 回落模型)。
+#: 之所以用「排除集 + 族前缀」两段判据：单靠前缀会把跨平台的
+#: deepseek-flash（火山按量名）误判成 DeepSeek 官方模型。
+PROVIDER_RULES = {
+    "api.deepseek.com": {
+        "not_here": frozenset({"deepseek-flash", "deepseek-v4-flash",
+                               "deepseek-v4.1-flash", "deepseek-v4-pro",
+                               "deepseek-v3", "deepseek-v3.2", "deepseek-r1"}),
+        "prefixes": ("deepseek-",),
+        "default": "deepseek-chat",
+        "hint": "DeepSeek 官方只提供 deepseek-chat（通用）与 "
+                "deepseek-reasoner（推理）",
+    },
+    "bigmodel.cn": {
+        "not_here": frozenset(),
+        "prefixes": ("glm-", "charglm-", "embedding-", "cogview-", "cogvideo-"),
+        "default": "glm-4.7-flash",
+    },
+    ".z.ai": {
+        "not_here": frozenset(),
+        "prefixes": ("glm-",),
+        "default": "glm-4.7-flash",
+    },
+    "volces.com": {
+        "not_here": frozenset(),
+        "prefixes": ("doubao-", "deepseek-v", "kimi-", "glm-", "minimax-",
+                     "seed-", "skylark-"),
+        "default": "",
+    },
+    "volcengine": {
+        "not_here": frozenset(),
+        "prefixes": ("doubao-", "deepseek-v", "kimi-", "glm-", "minimax-",
+                     "seed-", "skylark-"),
+        "default": "",
+    },
+    "aliyuncs.com": {
+        "not_here": frozenset(),
+        "prefixes": ("qwen", "paraformer", "fun-", "sambert", "cosyvoice",
+                     "wanx", "stable-diffusion"),
+        "default": "",
+    },
+    "dashscope": {
+        "not_here": frozenset(),
+        "prefixes": ("qwen", "paraformer", "fun-", "sambert", "cosyvoice"),
+        "default": "",
+    },
+    "api.openai.com": {
+        "not_here": frozenset(),
+        "prefixes": ("gpt-", "o1", "o3", "o4", "chatgpt", "whisper",
+                     "text-embedding", "tts-", "dall-e"),
+        "default": "",
+    },
+}
+
+#: 别名对照（跨平台抄错模型名时给出更贴切的替代说明）
+DEEPSEEK_OFFICIAL_ALIASES = {
+    "deepseek-flash": "deepseek-chat",     # 火山方舟的按量模型名
+    "deepseek-v4-flash": "deepseek-chat",
+    "deepseek-v4.1-flash": "deepseek-chat",
+    "deepseek-v4-pro": "deepseek-reasoner",
+    "deepseek-v3": "deepseek-chat",
+    "deepseek-v3.2": "deepseek-chat",
+    "deepseek-r1": "deepseek-reasoner",
+}
+
+
+def provider_of(base_url) -> str:
+    """识别端点厂商（返回 PROVIDER_RULES 的域名关键词）；未识别返回空串。
+
+    空串 = 不做厂商级校验（维持原行为，避免误伤自建/中转端点）。
+    """
+    b = str(base_url or "").lower()
+    for key in PROVIDER_RULES:
+        if key in b:
+            return key
+    return ""
+
+
+def match_provider_model(base_url, model):
+    """厂商端点 ↔ 模型名自动匹配：返回 (模型, 说明|None)。
+
+    解决的设置错误：把 A 平台的模型名填到 B 平台端点。最典型的是
+    「DeepSeek 官方地址 + deepseek-flash」——deepseek-flash 是**火山方舟**
+    的按量模型名，DeepSeek 官方只有 deepseek-chat / deepseek-reasoner，
+    硬发出去会被服务端当成推理模型（思考链吃光额度、正文为空）或直接报错，
+    报错文本里没有任何线索指向"模型名抄错了平台"，用户无从判断。
+    """
+    p = provider_of(base_url)
+    m = str(model or "").strip()
+    if not p or not m:
+        return m, None
+    rule = PROVIDER_RULES.get(p) or {}
+    low = m.lower()
+    # ① 明确知道「本平台没有这个模型名」→ 给别名替代（说明最贴切）
+    if low in (rule.get("not_here") or ()):
+        alt = DEEPSEEK_OFFICIAL_ALIASES.get(low) if p == "api.deepseek.com" \
+            else None
+        alt = alt or rule.get("default")
+        if alt and alt != m:
+            hint = rule.get("hint") or ""
+            return alt, (
+                "模型「%s」在该端点（%s）不存在%s，已自动换成「%s」"
+                % (m, p, ("（" + hint + "）") if hint else "", alt))
+    # ② 族前缀不匹配 → 换该平台通用模型（仅限有默认值的平台）
+    prefixes = rule.get("prefixes") or ()
+    if prefixes and not low.startswith(tuple(prefixes)):
+        dft = rule.get("default")
+        if dft and dft != m:
+            return dft, ("模型「%s」不属于该端点的模型族（%s），已自动换成该"
+                         "平台通用模型「%s」"
+                         % (m, " / ".join(prefixes), dft))
+    return m, None
+
+
+#: 已知模型的能力表（上下文 ctx / 单次最大输出 out，tokens）：「设置自动
+#: 匹配」据此钳制输入/输出预算；表外模型不钳制（维持原行为）。
+#: 数值来源：火山方舟 Agent Plan 官方文档（2026-10-01）、DeepSeek 官方
+#: 文档；取标称的保守可用值，超发的部分会在发送前被夹回。
+MODEL_CAPS = {
+    # —— 火山方舟 Agent Plan 套餐模型 ——
+    "deepseek-v4.1-flash":  {"ctx": 1048576, "out": 393216},
+    "deepseek-v4-flash":    {"ctx": 1048576, "out": 393216},
+    "deepseek-v4-pro":      {"ctx": 1048576, "out": 393216},
+    "kimi-k2.8-preview":    {"ctx": 1048576, "out": 1048576},
+    "glm-5.3":              {"ctx": 1048576, "out": 131072},
+    "glm-latest":           {"ctx": 1048576, "out": 131072},
+    "glm-5.3-flash":        {"ctx": 1048576, "out": 131072},
+    "kimi-k3":              {"ctx": 1048576, "out": 131072},
+    "minimax-m3":           {"ctx": 1048576, "out": 131072},
+    "doubao-seed-evolving": {"ctx": 1048576, "out": 262144},
+    "doubao-seed-2.1-turbo": {"ctx": 262144, "out": 262144},
+    "doubao-seed-2.0-lite": {"ctx": 262144, "out": 131072},
+    "doubao-seed-2.0-mini": {"ctx": 262144, "out": 131072},
+    "kimi-k2.7-code":       {"ctx": 262144, "out": 32768},
+    # —— 火山方舟按量常见 ——
+    "doubao-seed-1.6-flash":        {"ctx": 262144, "out": 8192},
+    "doubao-seed-1.6-flash-250828": {"ctx": 262144, "out": 8192},
+    "deepseek-flash":       {"ctx": 131072, "out": 65536},
+    # —— DeepSeek 官方 API ——
+    "deepseek-chat":        {"ctx": 65536, "out": 8192},
+    "deepseek-reasoner":    {"ctx": 65536, "out": 32768},
+}
+
+
+def model_caps(model):
+    """查模型能力表：{"ctx":…, "out":…}；表外模型返回 None（不钳制）。"""
+    return MODEL_CAPS.get(str(model or "").strip().lower())
+
+
+def match_volces_plan_model(base_url, model):
+    """Token Plan 端点的模型自动匹配：返回 (模型, 调整说明|None)。
+
+    地址是火山套餐端点（/api/plan/v3，含裸 /api/plan）而模型不在套餐名单
+    内时，自动换成套餐默认模型 VOLCES_PLAN_DEFAULT_MODEL——原模型多半是
+    纯按量模型（deepseek-flash 等），硬发只会 404 UnsupportedModel，而按量
+    端点又不认套餐 Key（401），这个组合没有任何一端能通。模型留空时回落
+    到套餐默认模型；端点与模型本就匹配则原样返回。
+    """
+    if not _is_volces_plan_url(str(base_url or "")):
+        return str(model or "").strip(), None
+    m = str(model or "").strip()
+    if m.lower() in VOLCES_PLAN_MODELS:
+        return m, None
+    return VOLCES_PLAN_DEFAULT_MODEL, (
+        "模型「%s」不在火山方舟 Token Plan 套餐内，已自动切换为「%s」"
+        "（套餐模型；原模型属按量计费，套餐端点不接收、按量端点又不认"
+        "套餐 Key）" % (m or "(空)", VOLCES_PLAN_DEFAULT_MODEL))
+
+
+#: 输入/输出预算的出厂默认（与 DEFAULT_CONFIG 保持一致，供 match_settings 用）
+_CALIB_OUT_DEFAULT = 65536
+_CALIB_CTX_DEFAULT = 1000000
+
+
+def match_settings(cfg: dict) -> tuple[dict, list]:
+    """设置自动匹配（2026-10-01 v2）：把一份 AI 配置**修正成自洽可用的组合**。
+
+    返回 (修正后的配置副本, 说明列表)。纯函数，不改传入的 dict，不发网络请求。
+
+    修正项（"设置错误"逐项自动纠正，避免用户对着报错猜）：
+      0. **厂商 ↔ 模型名**：把 A 平台的模型名填到 B 平台端点（如 DeepSeek
+         官方地址 + 火山方舟的 deepseek-flash）→ 换成该平台真实存在的模型。
+      1. **端点 ↔ 模型**：Token Plan 端点（/api/plan/v3）+ 名单外模型 →
+         换成套餐默认模型。套餐 Key 打按量端点必 401、按量模型打套餐端点
+         必 404，两端都不通。
+      2. **视觉模型**：视觉槽留空时跟随文本模型；地址与文本同源时一并匹配。
+      3. **输出预算**：calib_max_tokens 超模型单次输出上限 → 夹到上限
+         （推理模型思考链吃光额度会让正文为空，超发只会换来 400）。
+      4. **上下文预算**：calib_context_tokens 超模型上下文上限 → 夹到上限。
+      5. **预算过低兜底**：输出低于 8192（校准无法工作）→ 抬到 8192。
+    """
+    out = dict(cfg or {})
+    notes: list = []
+
+    base = str(out.get("base_url") or "").strip()
+    model = str(out.get("model") or "").strip()
+
+    # ---- 0. 厂商 ↔ 模型名（先做：跨平台抄错模型名比端点类型错更常见）----
+    new_model, note = match_provider_model(base, model)
+    if note:
+        notes.append(note)
+        out["model"] = new_model
+        model = new_model
+
+    # ---- 1. 端点 ↔ 模型 ----
+    new_model, note = match_volces_plan_model(base, model)
+    if note:
+        notes.append(note)
+        out["model"] = new_model
+        model = new_model
+
+    # ---- 2. 视觉模型 ----
+    vbase = (str(out.get("vision_base_url") or "").strip() or base)
+    vmodel = str(out.get("vision_model") or "").strip()
+    if not vmodel:
+        out["vision_model"] = model
+        if model:
+            notes.append("视觉模型留空，已跟随文本模型「%s」" % model)
+    else:
+        new_v, note = match_provider_model(vbase, vmodel)
+        if note:
+            notes.append("视觉通道：" + note)
+            out["vision_model"] = new_v
+            vmodel = new_v
+        new_v, note = match_volces_plan_model(vbase, vmodel)
+        if note:
+            notes.append("视觉通道：" + note)
+            out["vision_model"] = new_v
+    # 视觉槽与文本槽指向同一套餐端点时，用非套餐视觉模型同样会 404
+    if base and not vbase:
+        out["vision_base_url"] = base
+
+    # ---- 3~5. 预算钳制 ----
+    caps = model_caps(model)
+    if caps:
+        try:
+            _mt = int(out.get("calib_max_tokens") or _CALIB_OUT_DEFAULT)
+        except (TypeError, ValueError):
+            _mt = _CALIB_OUT_DEFAULT
+        if _mt > caps["out"]:
+            out["calib_max_tokens"] = caps["out"]
+            notes.append("输出预算 %d → %d（模型「%s」的单次输出上限）"
+                         % (_mt, caps["out"], model))
+        try:
+            _cx = int(out.get("calib_context_tokens") or _CALIB_CTX_DEFAULT)
+        except (TypeError, ValueError):
+            _cx = _CALIB_CTX_DEFAULT
+        if _cx > caps["ctx"]:
+            out["calib_context_tokens"] = caps["ctx"]
+            notes.append("上下文预算 %d → %d（模型「%s」的上下文上限）"
+                         % (_cx, caps["ctx"], model))
+    try:
+        if int(out.get("calib_max_tokens") or 0) < 8192:
+            notes.append("输出预算 %s → 8192（推理模型的思考链会吃光额度，"
+                         "过小会让正文为空）" % out.get("calib_max_tokens"))
+            out["calib_max_tokens"] = 8192
+    except (TypeError, ValueError):
+        pass
+
+    return out, notes
+
+
+def is_volces_plan_base(base_url) -> bool:
+    """公开判据：该地址是不是火山方舟 Token Plan 端点（设置页/校准入口共用）。"""
+    return _is_volces_plan_url(str(base_url or ""))
 
 
 def resolve_asr_protocol(ac: dict) -> str:
@@ -870,6 +1195,30 @@ class AIClient:
         self.model = cc["model"] or DEFAULT_CONFIG["model"]
         self.vision_model = str(self.cfg.get("vision_model")
                                 or DEFAULT_CONFIG["vision_model"])
+        # 设置自动匹配（2026-10-01 v2）：厂商↔模型名、Token Plan 端点↔模型，
+        # 两层都过一遍。说明存 auto_notes，由测试连接 / 校准入口亮给用户看
+        # （logger 在打包运行时不落界面）。
+        self.auto_notes: list = []
+        self.model, _n = match_provider_model(base, self.model)
+        if _n:
+            self.auto_notes.append(_n)
+            logger.warning("AI 自动匹配（厂商↔模型）：%s", _n)
+        self.model, _n = match_volces_plan_model(base, self.model)
+        if _n:
+            self.auto_notes.append(_n)
+            logger.warning("AI 自动匹配：%s", _n)
+        #: 已知「这把 Key 是 Token Plan 套餐专用」——按量端点必 401，
+        #: 记下后不再做「换 /api/v3 再撞 401」的无效重试（2026-10-01 v2）。
+        self.plan_key_only = False
+        #: 最近一次「就地换套餐模型」的说明（失败路径也要能回传给设置页）。
+        self._last_rescue = ""
+        _vbase = (str(self.cfg.get("vision_base_url") or "").strip()
+                  or base)
+        self.vision_model, _n = match_volces_plan_model(_vbase,
+                                                        self.vision_model)
+        if _n and _n not in self.auto_notes:
+            self.auto_notes.append(_n)
+            logger.warning("AI 自动匹配（视觉通道）：%s", _n)
         self.vision_fallback_model = str(
             self.cfg.get("vision_fallback_model") or "")
         self.max_tokens = int(self.cfg.get("max_tokens") or 2048)
@@ -911,25 +1260,101 @@ class AIClient:
         Azure OpenAI 特殊处理：api-key 头鉴权（Bearer 不被接受），
         缺 api-version 参数时自动补默认版本。
 
-        2026-10-01 火山方舟 Plan 端点自愈：地址是 Token Plan 端点
-        （/api/plan/v3）而服务端回「模型不支持 agent plan 特性」时，
-        同域名换按量端点（/api/v3）重试一次（同一 API Key 通用）；
-        成功后把实例地址改成按量端点，后续调用不再重复踩错。
+        2026-10-01 火山方舟 Plan 端点**设置自动匹配**（v2，按用户实测反馈重写）：
+
+        旧版（v1）的策略是「套餐端点报模型不支持 → 直接换按量端点重试」。
+        实测这是错的：套餐 Key 打按量端点**必 401**，等于用一次注定失败的
+        请求把「一个设置错误」换成一串 401 报错，逐块校准时还会放大成整轮
+        401 风暴（用户看到的正是这个）。v2 改为**先就地自救，再考虑换端点**：
+
+          ① 套餐端点 + 模型不在套餐名单 → 直接把 body 里的模型换成套餐默认
+             模型，在**同一个套餐端点**上重发。这一步不需要换端点、不需要
+             换 Key，是纯设置错配，绝大多数情况到此即通（并把换过的模型
+             记进 auto_notes，供上层写回设置）。
+          ② ①仍报「模型不支持」→ 才按老路换 /api/v3 试一次。
+          ③ 换按量端点若回 401 → 把 `self.plan_key_only = True` 记在实例上，
+             之后**不再尝试换端点**（Plan Key 只认 /api/plan/*，重试纯属浪费），
+             直接抛出含修复动作的中文说明。
         """
         try:
             return self._post_openai_once(url, body)
         except AIClientError as e:
             low = str(e).lower()
+            # —— 反向设置错配：地址填了按量端点（/api/v3）而 Key 是套餐 Key ——
+            # 这是「设置错误」的另一半。按量端点对套餐 Key 恒 401，用户在设置页
+            # 只看到一串英文 AuthenticationError，无从下手。这里认出火山按量
+            # 地址 + 401，直接给「把地址改回 /api/plan/v3」这一条动作。
+            if (_is_volces_paygo_url(url)
+                    and ("401" in low or "authenticationerror" in low
+                         or "unauthorized" in low)):
+                self.plan_key_only = True
+                raise AIClientError(
+                    "火山方舟按量端点（/api/v3）拒绝了当前 API Key（401）："
+                    "这把是 Token Plan（套餐）专用 Key，按量端点不认它。\n"
+                    "修复：把「接口地址」改回 https://ark.cn-beijing.volces.com/"
+                    "api/plan/v3，或点一次「自动匹配」（程序会按地址纠正模型）；"
+                    "只有到控制台新建常规 Key 之后，才该使用 /api/v3。"
+                    "（原始报错：%s）" % str(e)[:200]) from e
             if not (_is_volces_plan_url(url)
                     and ("agent plan" in low or "unsupportedmodel" in low
                          or "unsupported model" in low)):
                 raise
+            # —— ① 就地自救：只换模型，端点和 Key 都不动 ——
+            _old = str(body.get("model") or "")
+            if _old.strip().lower() not in VOLCES_PLAN_MODELS:
+                body = dict(body)
+                body["model"] = VOLCES_PLAN_DEFAULT_MODEL
+                note = ("模型「%s」不在火山方舟 Token Plan 套餐内，已自动切换"
+                        "为套餐模型「%s」" % (_old or "(空)",
+                                              VOLCES_PLAN_DEFAULT_MODEL))
+                logger.warning("设置自动匹配：%s（重发到套餐端点）", note)
+                try:
+                    resp = self._post_openai_once(url, body)
+                except AIClientError as e1:
+                    logger.warning("换套餐模型后仍失败：%s", str(e1)[:160])
+                    low, _ = str(e1).lower(), note
+                    self._last_rescue = note
+                else:
+                    if url == getattr(self, "url", None):
+                        self.model = VOLCES_PLAN_DEFAULT_MODEL
+                    if url == getattr(self, "vision_url", None):
+                        self.vision_model = VOLCES_PLAN_DEFAULT_MODEL
+                    if note not in self.auto_notes:
+                        self.auto_notes.append(note)
+                    return resp
+            # —— ② Plan Key 已知只认套餐端点：不再做注定 401 的换端点重试 ——
+            if getattr(self, "plan_key_only", False):
+                raise AIClientError(
+                    "当前 API Key 是火山方舟 Token Plan（套餐）专用 Key，"
+                    "只被 /api/plan/v3 接受，按量端点（/api/v3）一律 401。\n"
+                    "请在设置的「全局 AI」卡片点一次「自动匹配」：程序会把"
+                    "模型换成套餐内模型并保持 /api/plan/v3 地址；"
+                    "若确实想用按量模型（deepseek-flash 等），需到火山方舟"
+                    "控制台新建一把常规 Key 并把地址改为 "
+                    "https://ark.cn-beijing.volces.com/api/v3。"
+                    "（原始报错：%s）" % str(e)[:200]) from e
             fixed = _volces_paygo_url(url)
             logger.warning("Token Plan 端点不支持当前模型（%s），"
                            "改用按量端点 %s 重试", str(e)[:120], fixed)
             try:
                 resp = self._post_openai_once(fixed, body)
             except AIClientError as e2:
+                low2 = str(e2).lower()
+                if ("401" in low2 or "authentication" in low2
+                        or "api key" in low2 or "ak/sk" in low2):
+                    # 套餐 Key 打按量端点：这个组合没有任何一端能通，别再
+                    # 让用户对着 401 猜——记住 Key 类型，并直接说明处置方式。
+                    self.plan_key_only = True
+                    raise AIClientError(
+                        "按量端点（/api/v3）拒绝了当前 API Key（401 鉴权失败）："
+                        "这把是 Token Plan（套餐）专用 Key，只能在 /api/plan/v3 "
+                        "上使用，按量端点不认它。\n"
+                        "最快修复：在设置的「全局 AI」卡片点一次「自动匹配」"
+                        "——程序会把模型换成套餐内模型（deepseek-v4.1-flash 等）"
+                        "并保持 https://ark.cn-beijing.volces.com/api/plan/v3 地址；\n"
+                        "想改用按量：到火山方舟控制台「API Key 管理」新建常规 "
+                        "Key，接口地址改为 https://ark.cn-beijing.volces.com/api/v3。"
+                        "（按量重试原文：%s）" % str(e2)[:200]) from e2
                 raise AIClientError(
                     "当前模型不支持火山方舟 Token Plan 端点（/api/plan/v3），"
                     "改用按量端点（/api/v3）重试仍失败：%s。按量模型"
@@ -1020,9 +1445,28 @@ class AIClient:
         messages.append({"role": "user",
                          "content": prompt if isinstance(prompt, str)
                          else str(prompt)})
+        # 设置自动匹配（2026-10-01）：max_tokens 超模型单次输出上限时先夹回
+        # 再发（端点 400 兜底仍有减半自愈，这里能把失败消在发送前）。
+        # v2：显式传入的 model= 也要过一遍「厂商↔模型」「端点↔模型」匹配——
+        # 此前只有 __init__ 做这件事，校准/评审等显式传模型的调用会把不匹配
+        # 的模型直接发出，撞 404 后才走「换按量端点」的弯路（套餐 Key 下必 401）。
+        _m = model or self.model
+        for _matcher in (match_provider_model, match_volces_plan_model):
+            _m2, _mn = _matcher(self.url, _m)
+            if _mn:
+                logger.warning("AI 自动匹配（调用级）：%s", _mn)
+                _m = _m2
+                if _mn not in self.auto_notes:
+                    self.auto_notes.append(_mn)
+        _want = int(max_tokens or self.max_tokens)
+        _caps = model_caps(_m)
+        if _caps and _want > _caps["out"]:
+            logger.info("max_tokens %d 超模型「%s」输出上限，自动降为 %d",
+                        _want, _m, _caps["out"])
+            _want = _caps["out"]
         body: dict = {
-            "model": model or self.model,
-            "max_tokens": int(max_tokens or self.max_tokens),
+            "model": _m,
+            "max_tokens": _want,
             "messages": messages,
         }
         if thinking is False:

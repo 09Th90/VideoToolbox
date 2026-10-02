@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 1.16.4
+# @version 1.16.5
 """AI 校准 Agent —— Agent 级字幕术语校准（v1.11.0；v1.16.0 并发与提示词优化）。
 
 定位
@@ -1520,12 +1520,19 @@ def calibrate(src: str, out: str = None, report: str = None, mode_flag: str = ""
         # ---------- 停止条件（异常分支）：多数块拿不到可信结果 → 本轮不可信 ----------
         # Harness 设计要点：不能等模型「自报完成」就照常产出；接口持续故障时，
         # 宁可整轮失败让用户检查接口后重跑，也不写一份静默漏改的产物。
+        # 2026-10-01 v2：报错必须给出**一个动作**。实践中这一支绝大多数是
+        # 「设置里的端点与模型/Key 不匹配」（火山 Token Plan 地址配按量模型，
+        # 或反过来），而不是真的网络故障——所以先指向设置页的「自动匹配」。
         if failed_blocks and (failed_blocks == n_chunks
  or (failed_blocks >= 3 and failed_blocks * 3 >= n_chunks)):
             result["error"] = (
                 f"AI 接口持续异常：{failed_blocks}/{n_chunks} 块经重试仍未取得有效结果，"
                 f"本轮校准不可信，已在合并写盘前中止（未生成输出）。"
-                f"请在设置中检查 AI 接口连通性与额度后重试。")
+                f"处置：打开「设置 → 全局 AI」点一次「自动匹配」（程序会按接口地址"
+                f"纠正模型与预算），再点「测试接口」确认连通后重跑；"
+                f"若仍不通，检查密钥类型与额度（火山 Token Plan 的 Key 只能配 "
+                f"/api/plan/v3 地址，按量 Key 才配 /api/v3）。"
+                f"上面每块的具体报错已列出，可按其原文定位。")
             _log_do(log, "  ✗ " + result["error"], "err")
             return result
         if failed_blocks:
