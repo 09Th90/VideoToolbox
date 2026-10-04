@@ -139,7 +139,12 @@ def test_parse_rebuild():
         check("BOM 状态保持（无 BOM → 无 BOM）",
               not open(os.path.join(d, "b.srt"), "rb").read().startswith(b"\xef\xbb\xbf"))
         check("CRLF 保持", b"\r\n" in open(os.path.join(d, "b.srt"), "rb").read())
-        check("源文件字节数未变（长度对照）", len(bom_src) > 0)
+        # v1.16.5 修复：原断言只判 bom_src 非空（恒真），未做长度对照。
+        # 改为验证输出与源文件结构一致（行数不增删）。
+        _out_bytes = open(os.path.join(d, "b.srt"), "rb").read()
+        check("输出与源文件行数一致（结构未增删）",
+              _out_bytes.count(b"\n") == bom_src.count(b"\n"),
+              f"{_out_bytes.count(b'\\n')} vs {bom_src.count(b'\\n')}")
 
 
 def test_rules_and_validate():
@@ -244,8 +249,9 @@ def test_end_to_end(use_baseline):
         check("流水线成功", res["ok"], res.get("error", ""))
         check("输出文件存在", os.path.isfile(res["out"]))
         check("报告文件存在", os.path.isfile(res["report"]))
-        check("日志含 8 个阶段", sum(1 for x in logs if x.startswith("[dim] [")
-                                    or x.startswith("[ok] [")) >= 6,
+        check("日志含 ≥6 个阶段（8 阶段流水线的关键步骤）",
+              sum(1 for x in logs if x.startswith("[dim] [")
+                  or x.startswith("[ok] [")) >= 6,
               f"{len(logs)} 行")
         check("拒绝了非法提议", res["rejected"] >= 1, str(res["rejected"]))
         if use_baseline:
@@ -775,7 +781,9 @@ def test_tag_priority():
               all(ag._tag_tier(t, hz3, "") != 1 for t in out3[i:]),
               " / ".join(out3))
     else:
-        check("未登记有据词（角色名）不占作品名额", True, " / ".join(out3))
+        # v1.16.5 修复：原断言直接传字面量 True（恒真）——改为校验确实产出了标签。
+        check("未登记有据词（角色名）未出现时不误报", bool(out3),
+              " / ".join(out3))
 
     # 场景 D（v1.16.1）：补足优先用**字幕有据**的体裁词（用户：tag 来源为字幕内容）
     hz4 = "这片主要聊抽卡和氪金，别的不提"
@@ -895,8 +903,11 @@ def test_web_tool_loop():
             if isinstance(h, _ur.ProxyHandler):
                 return h.proxies
         return "NONE"     # 没挂 ProxyHandler = 强制直连
-    check("proxy=None 构造成功（跟随系统）", isinstance(_proxies_of(op1), dict)
-          or _proxies_of(op1) == "NONE", str(_proxies_of(op1)))
+    # v1.16.5 修复：原断言 dict-or-NONE 覆盖了全部可能取值（恒真）。改为
+    # 校验「跟随系统」与「强制直连」确实走了不同分支。
+    check("proxy=None（跟随系统）≠ proxy={}（强制直连）",
+          _proxies_of(op1) != _proxies_of(op2),
+          f"op1={_proxies_of(op1)} op2={_proxies_of(op2)}")
     check("proxy={} 强制直连（链上无 ProxyHandler）",
           _proxies_of(op2) == "NONE", str(_proxies_of(op2)))
     check("proxy 注入 7897", "7897" in str(_proxies_of(op3)), str(_proxies_of(op3)))
@@ -1034,8 +1045,12 @@ def test_orig_title():
         check("③b 容忍全角冒号/空白",
               ag.read_original_title(srt) == "全角冒号的标题",
               ag.read_original_title(srt))
-        check("取不到时返回空串不抛异常",
-              ag.read_original_title(os.path.join(d, "不存在.srt")) != "")
+        # v1.16.5 实测更正：该函数对「完全取不到元信息」的文件**回落到字幕名
+        # 去噪**（不存在.srt → "不存在"），并非返回空串——原标签写反了，断言
+        # `!= ""` 才是对的。此处只把标签改成与实际行为一致。
+        check("③c 无任何元信息 → 回落到字幕名去噪（不抛异常）",
+              ag.read_original_title(os.path.join(d, "不存在.srt")) != "",
+              repr(ag.read_original_title(os.path.join(d, "不存在.srt"))))
 
     # 提示词：必须把原始标题作为「参考基准」喂进去，并要求改写而非照抄
     p = ag._meta_prompt("", "x.srt", "1\t甲\tA", [], 1, 10,

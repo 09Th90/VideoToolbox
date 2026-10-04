@@ -427,10 +427,13 @@ def main():
               {"word": "知道", "start": 2.5, "end": 2.9}]
     segs2 = engine._asr_words_to_segments(words2)
     check("停顿超过 0.9s 断句", len(segs2) == 2, segs2)
+    # v1.16.5 修复：原用 30 个「字」（< 42 上限）只产出 1 段，而断言是
+    # `>= 1`——恒真、等于没测。改用 50 字（> 42 上限）验证真的按上限断句。
     long_words = [{"word": "字", "start": i * 0.1, "end": i * 0.1 + 0.09}
-                  for i in range(30)]
-    check("超长自动断（按 42 字上限）",
-          len(engine._asr_words_to_segments(long_words)) >= 1)
+                  for i in range(50)]
+    _lsegs = engine._asr_words_to_segments(long_words)
+    check("超长自动断（50 字 > 42 上限 → 至少断成 2 段）",
+          len(_lsegs) >= 2, [s["text"] for s in _lsegs])
     dec = [{"word": "版本", "start": 0, "end": 0.3},
            {"word": "3.5", "start": 0.3, "end": 0.6},
            {"word": "倍", "start": 0.6, "end": 0.9}]

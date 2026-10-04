@@ -104,8 +104,12 @@ Source: "dist\视频工具箱.exe"; DestDir: "{app}"; Flags: ignoreversion
 ; 字幕校准统一脚本（v1.9.3）：安装到程序目录顶层，「字幕校准」页签用
 ; tools\python 子进程按 {app}\subtitle_calib_merged.py 调用（不打包进 exe）
 Source: "subtitle_calib_merged.py"; DestDir: "{app}"; Flags: ignoreversion
-; 校准知识同步连接配置（内置统一入口：GitHub 代理规则 + vt-github 仓库参数）
-Source: "github_proxy.yaml"; DestDir: "{app}"; Flags: ignoreversion
+; ⚠️ 2026-10-04 安全整改：github_proxy.yaml **不再随离线包分发**。
+;    该文件含代理节点 uuid/password/secret 等真实凭据，与 v1.14.1 在线安装器
+;    安全整改同口径（build_online_installer.py 早已列为「严禁进入发布包」），
+;    离线 iss 此前漏改。程序读不到该文件时走 src\video_toolbox.py 的内置兜底
+;    默认（owner/repo/branch 等非敏感连接参数），仅失去预置代理节点——
+;    用户在「设置 → 代理」导入自己的订阅即可恢复。
 ; 下载与剪辑工具（压缩二进制，不再二次压缩，省时）
 Source: "tools\ffmpeg.exe"; DestDir: "{app}\tools"; Flags: ignoreversion nocompression
 Source: "tools\ffprobe.exe"; DestDir: "{app}\tools"; Flags: ignoreversion nocompression

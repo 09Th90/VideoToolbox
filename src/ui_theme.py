@@ -1164,4 +1164,114 @@ def install_card_alpha_patch():
         pass
 
 
+# ---------------------------------------------------------------------- #
+# qfluentwidgets 遮罩对话框（MaskDialogBase 系）顶层化补丁
+# ---------------------------------------------------------------------- #
+def install_mask_dialog_topmodal_patch():
+    """把 qfluentwidgets 的「遮罩对话框」从退化的子控件提升为真·顶层窗口。
+
+    受影响组件（全部继承 `MaskDialogBase`）：`MessageBoxBase` 及其全部子类
+    （字幕引擎的 SubtitleSettingDialog/LanguageSettingDialog/PromptDialog/
+    TranscriptionSettingDialog/DonateDialog/各 Download 进度框…）、`MessageBox`、
+    `MessageDialog`、`ColorDialog`、`FolderListDialog`。
+
+    根因（探针 _workspace/probes/_probe_vc_dialog*.py 实测）：`MaskDialogBase`
+    构造时传了 parent，于是退化成**普通子控件**——`isWindow()==False`、
+    `WS_CHILD==True`、`button.window()` 就是主窗口。而本工程把字幕引擎
+    （videocaptioner 工作台）与 mpv 内嵌进主窗口后，那些面板被提升成了十几个
+    `Qt5152QWindowIcon` **原生子窗口**。Windows 上原生子窗口在输入命中测试里
+    永远压在同级 Qt 自绘控件之上，于是用户看到的就是「对话框画出来了、盖在最
+    上层，但开关点不动、关闭点了没反应、Esc/回车全无反应、也退不出去」——
+    遮罩看着正常纯属它自己也在同一块子控件层里，跟原生子窗口抢不到焦点。
+
+    这与本项目 `ConfirmDialog`（v1.13.7）当初绕开 `qfluentwidgets.MessageBox`
+    的定论是同一个坑，只是这次要修的是引擎自带、无法替换成 ConfirmDialog 的
+    那批对话框。解法也一致：**提升为真·顶层无边框窗口**，几何铺满宿主窗口的
+    全局矩形。顶层窗口由系统独立管理，不参与主窗口内部的层级之争，鼠标/键盘
+    都稳（探针 _probe_vc_dialog11 验证：提升后开关可切换、关闭可点、焦点落进
+    对话框）。
+
+    模态语义保持不变：`exec_()` 打开的（如 SubtitleSettingDialog）由 Qt 自己
+    置为模态；`.show()` 打开的下载进度框仍是非模态——本补丁**不强制**
+    ApplicationModal，避免把进度框变成阻塞主窗口的模态框。
+
+    幂等：只 patch qfluentwidgets 定义处的 `MaskDialogBase`，不 import
+    videocaptioner（其导入有副作用，须走既有预热时序）。
+    """
+    try:
+        from qfluentwidgets.components.dialog_box.mask_dialog_base import (
+            MaskDialogBase as _MDB)
+    except Exception:
+        return
+    if getattr(_MDB, "_vt_topmodal_patched", False):
+        return
+
+    from PyQt5.QtCore import QEvent as _QE
+
+    _o_init = _MDB.__init__
+    _o_show = _MDB.showEvent
+    _o_filter = _MDB.eventFilter
+
+    def _vt_fit(self):
+        """把顶层对话框几何对齐宿主窗口的全局矩形（含跨屏移动）。"""
+        host = getattr(self, "_vt_host", None)
+        if host is None:
+            return
+        try:
+            tl = host.mapToGlobal(host.rect().topLeft())
+            self.setGeometry(tl.x(), tl.y(), host.width(), host.height())
+        except Exception:
+            pass
+
+    def _ni(self, parent=None):
+        _o_init(self, parent)
+        # parent 可能是 None（ColorDialog 等）；也可能是页面控件而非窗口
+        # （MessageBox(title, text, self) 传的是页面）——统一取其 window()
+        # 作宿主，让对话框铺满整个顶层窗口，与原生遮罩行为一致。
+        try:
+            self._vt_host = parent.window() if parent is not None else None
+        except Exception:
+            self._vt_host = parent
+        # ⚠️ 必须显式给 Qt.Dialog：只 FramelessWindowHint 会丢掉窗口类型，
+        #    退化成被系统当普通弹层（本项目 ConfirmDialog 同此约束）。
+        #    **不 setParent(None)**：保留 Qt 父级 → 成为宿主的 owned/transient
+        #    顶层窗口，Z 序自动压在宿主之上、宿主最小化时一起藏；
+        #    WS_CHILD 只是 Qt 的 transient 记账，不影响顶层渲染
+        #    （与已验证的 ConfirmDialog 模式一致）。
+        self.setWindowFlags(Qt.Dialog | Qt.FramelessWindowHint
+                            | Qt.NoDropShadowWindowHint)
+        self.setAttribute(Qt.WA_TranslucentBackground, True)
+        # 基类把事件过滤器装在了 self.window()（提升前=宿主）上，负责宿主
+        # Resize→对话框 resize；但宿主 Move 它不管。这里补装到宿主上，
+        # 宿主移动/缩放/最大化时对话框重新贴合。
+        if self._vt_host is not None and self._vt_host is not self:
+            try:
+                self._vt_host.installEventFilter(self)
+            except Exception:
+                pass
+
+    def _ns(self, e):
+        _vt_fit(self)
+        _o_show(self, e)
+        # 顶层窗口需主动置顶抢焦点，否则可能被宿主其它原生子窗口压住
+        try:
+            self.raise_()
+            self.activateWindow()
+        except Exception:
+            pass
+
+    def _nf(self, obj, e):
+        host = getattr(self, "_vt_host", None)
+        if host is not None and obj is host and e.type() in (
+                _QE.Move, _QE.Resize, _QE.Show, _QE.WindowStateChange):
+            _vt_fit(self)
+        return _o_filter(self, obj, e)
+
+    _MDB.__init__ = _ni
+    _MDB.showEvent = _ns
+    _MDB.eventFilter = _nf
+    _MDB._vt_topmodal_patched = True
+
+
 install_card_alpha_patch()
+install_mask_dialog_topmodal_patch()

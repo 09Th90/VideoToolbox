@@ -8,6 +8,7 @@
 需要图形界面（本机运行）；用内置运行时 tools/python 执行。
 """
 import os
+import shutil
 import sys
 import tempfile
 
@@ -525,6 +526,8 @@ def _ai_client_data_dir_ok():
             os.environ.pop("VT_DATA_ROOT", None)
         else:
             os.environ["VT_DATA_ROOT"] = old
+        # v1.16.5：mkdtemp 目录此前未清理，自检跑完在系统临时区留垃圾。
+        shutil.rmtree(tmp, ignore_errors=True)
 
 
 def _unified_settings_source_ok():
@@ -988,6 +991,12 @@ def main():
         except Exception as e:  # noqa: BLE001
             _tr_why = f"exc={e}"
     check("独立转录完成：字幕自动装载并跳转「字幕翻译」", _tr_ok, _tr_why)
+    # v1.16.5：自检创建的临时目录此前不清理，会残留在 TMP_DIR 下。
+    try:
+        shutil.rmtree(os.path.join(engine.TMP_DIR, "_selftest_tr_backfill"),
+                      ignore_errors=True)
+    except Exception:  # noqa: BLE001
+        pass
     # ---- v1.15.7：回填成功分支提前 return 曾漏掉 is_processing 复位，
     #      表现是「字幕已输出却提示正在处理中、拖不进新视频」（回归）----
     _tr2_ok, _tr2_why = False, "no engine"
@@ -1060,6 +1069,39 @@ def main():
           bg_feedback)
     check("设置页显示时背景输入框与实际配置对齐（_refresh_bg_edits）",
           "_refresh_bg_edits" in _QT_SRC)
+    # ---- 遮罩对话框顶层化（修「字幕设置」弹窗点不动/关不掉）----
+    # 根因：qfluentwidgets MaskDialogBase 传 parent 后退化成 WS_CHILD 子控件，
+    # 被引擎/mpv 提升出的原生子窗口压住输入命中——对话框画在最上层但所有
+    # 控件点不动、Esc 无反应（探针 _workspace/probes/_probe_vc_dialog*.py）。
+    # ui_theme 导入时把整族（MessageBoxBase/MessageBox/MessageDialog/
+    # ColorDialog/FolderListDialog 及引擎全部子类对话框）提升为顶层窗口。
+    try:
+        from qfluentwidgets.components.dialog_box.mask_dialog_base import (
+            MaskDialogBase as _MDB)
+        topmodal_patched = getattr(_MDB, "_vt_topmodal_patched", False)
+    except Exception:
+        topmodal_patched = False
+    check("遮罩对话框顶层化补丁已装载（MaskDialogBase._vt_topmodal_patched）",
+          topmodal_patched)
+    _tm_ok = _tm_geo = False
+    if topmodal_patched:
+        try:
+            from qfluentwidgets import MessageBoxBase as _MBB
+            _mb = _MBB(win)
+            _mb.show()
+            app.processEvents()
+            _tm_ok = _mb.isWindow()
+            _g, _w = _mb.geometry(), win.geometry()
+            _tm_geo = (abs(_g.x() - _w.x()) < 4 and abs(_g.y() - _w.y()) < 4
+                       and abs(_g.width() - _w.width()) < 4
+                       and abs(_g.height() - _w.height()) < 4)
+            _mb.close()
+            _mb.deleteLater()   # v1.16.5：顶层窗口须显式销毁，否则残留隐藏窗
+            app.processEvents()
+        except Exception:
+            pass
+    check("MessageBoxBase 实例化为真顶层窗口（isWindow）", _tm_ok)
+    check("顶层对话框几何铺满主窗口（遮罩覆盖一致）", _tm_geo)
     try:
         saved_bg = ui_theme.get_bg("library")
         marker = os.path.join(engine.DATA_DIR, "ui_selftest_marker.png")

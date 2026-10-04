@@ -1,7 +1,7 @@
 <!-- @version 1.16.5 -->
 # Video Toolbox — User Manual
 
-> Applies to: v1.15.7 | Last updated: 2026-09-21
+> Applies to: v1.16.5 | Last updated: 2026-10-04
 > This manual is written for **people who use the software** — it only covers "how to get things done after opening the app."
 > For source-code structure, packaging, release procedures, and self-test scripts, see the Developer Manual (`程序说明书(开发版).md`) in the same folder.
 
@@ -494,4 +494,4 @@ A: No. All runtime files live under the Data Root Directory (the app folder by d
 
 **About open-source components**: this software embeds the open-source subtitle engine VideoCaptioner v1.4.2 (GPL-3.0 license) and uses open-source components including yt-dlp, FFmpeg, Deno, and CPython. Full license statements are in `docs\VideoCaptioner_组件来源.txt`. The libmpv playback component used by the Subtitle Editor is an **LGPL build**, downloaded on demand and not bundled with the installer.
 
-*This manual was verified against the actual UI and code of v1.15.7. If the interface differs from what is described here, trust what the software actually shows, and feedback is welcome.*
+*This manual was verified against the actual UI and code of v1.16.5. If the interface differs from what is described here, trust what the software actually shows, and feedback is welcome.*

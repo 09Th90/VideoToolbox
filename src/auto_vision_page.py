@@ -641,6 +641,11 @@ class AutoVisionPage(QWidget):
             except Exception:  # noqa: BLE001
                 _tip("warning", "提示", "颜色要写成 R,G,B 三个数字", self)
                 return []
+            # v1.16.5 修复：不足 3 段时 rgb 长度 <3，下游 match_color 的
+            # (H,W,3)-(k,) 广播会抛 ValueError——槽内无 try，PyQt5 会直接 abort。
+            if len(rgb) != 3:
+                _tip("warning", "提示", "颜色要写成 R,G,B 三个数字", self)
+                return []
             hits = [m for m in av.match_color(self._frame, rgb, None,
                                               self.tol_spin.value())
                     if m.score >= thr]

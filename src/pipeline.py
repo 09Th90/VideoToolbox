@@ -266,7 +266,8 @@ def _heal_skippable_calib2(job):
     if "cue 表为空" not in str(st.get("error") or ""):
         return
     st.update({"state": SKIPPED, "error": "",
-               "reason": "无需二次校准：字幕没有可校准的中文行"})
+               "reason": "无需二次校准：字幕没有可校准的中文行",
+               "auto_skip": False})
 
 
 def _stage_download_ready(job, registry):
@@ -1367,7 +1368,11 @@ class Pipeline(_Emitter):
             self._eval_thread = threading.Thread(target=self._evaluate_loop,
                                                  daemon=True,
                                                  name="pipeline-eval")
-        self._eval_thread.start()
+            # v1.16.5 修复：start() 必须与创建同在锁内。未 start 的线程
+            # is_alive() 为 False——放到锁外启动时，另一线程可能在此间隙
+            # 进来看到 alive=False 而再起一个评估线程（与 _pump 的
+            # 「锁内登记+启动」约定一致）。
+            self._eval_thread.start()
 
     def _evaluate_loop(self):
         try:
@@ -1433,8 +1438,28 @@ class Pipeline(_Emitter):
                 continue
             st = job.stages[key]
             state = st["state"]
-            if state in (DONE, SKIPPED):
+            if state == DONE:
                 continue
+            if state == SKIPPED:
+                # v1.16.5 修复：optional 阶段的 SKIPPED 只是「当时条件不满足」
+                # 的快照。目录任务常见「先建任务、后放字幕」，一次性跳过会让
+                # translate 永不重跑（整条链缺翻译）。此处对 optional 阶段重判
+                # ready（两个 ready 均为纯查询、无副作用），满足则复活为 READY。
+                # ⚠ 只复活 auto_skip 那一类（由下方 optional 分支设置）——执行体
+                #   主动 SkipStage 的（如「字幕已是中文，无需翻译」）其 ready 恒真，
+                #   若一并复活会与执行体判定形成死循环（实测日志刷屏）。
+                if not sd.optional or not st.get("auto_skip"):
+                    continue
+                try:
+                    if not sd.ready(job, self.registry):
+                        continue
+                except Exception:  # noqa: BLE001 - 判定异常不点火（与下方同口径）
+                    continue
+                st["state"] = READY
+                st["reason"] = ""
+                st["auto_skip"] = False
+                st["ts"] = time.time()
+                return sd.key
             if state == RUNNING:
                 return None
             if state == FAILED:
@@ -1450,9 +1475,12 @@ class Pipeline(_Emitter):
             if ready:
                 return sd.key
             if sd.optional:
-                # 该阶段对这条片子不适用（如已是中文字幕 → 不必翻译）：跳过并继续
+                # 该阶段对这条片子不适用（如输入未就绪 → 暂不翻译）：跳过并继续。
+                # auto_skip 标记「条件不满足」型跳过，使输入后到时可被复活
+                # （见 _next_actionable 顶部的 SKIPPED 分支）。
                 st["state"] = SKIPPED
                 st["reason"] = "无需执行（输入条件不满足）"
+                st["auto_skip"] = True
                 st["ts"] = time.time()
                 continue
             return None     # 顺序推进：前一阶段没就绪就不看后面
@@ -1517,6 +1545,8 @@ class Pipeline(_Emitter):
                 st = job.stages[key]
                 st["state"] = SKIPPED
                 st["reason"] = str(e)
+                # 执行体主动判定「无需执行」→ 不属可复活类（否则 ready 恒真会死循环）
+                st["auto_skip"] = False
                 st["ts"] = time.time()
             self._log(f"[跳过] {job.name} → {sd.label}：{e}")
         except Exception as e:  # noqa: BLE001

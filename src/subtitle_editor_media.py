@@ -17,6 +17,8 @@ import os
 import subprocess
 import sys
 import tempfile
+import threading
+import time
 
 from PyQt5.QtCore import QObject, QTimer, pyqtSignal
 
@@ -110,6 +112,20 @@ def extract_peaks(ffmpeg, path, peaks_per_sec=PEAKS_PER_SEC, on_progress=None,
     total_bytes = 0
     carry = b""
     proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+
+    # v1.16.5 修复：读循环此前无超时——ffmpeg 挂起（坏文件 / 解码死锁 / 网络
+    # 流不响应）时 proc.stdout.read() 会永久阻塞，波形提取整块卡死。看门狗
+    # 到点直接 kill，read 随即返回 EOF，循环自然退出（10 分钟为 1 小时音频
+    # 解码实测耗时的数量级上限）。
+    def _wd_kill():
+        try:
+            proc.kill()
+        except Exception:  # noqa: BLE001
+            pass
+
+    _wd = threading.Timer(600.0, _wd_kill)
+    _wd.daemon = True
+    _wd.start()
     try:
         while True:
             if should_stop and should_stop():
@@ -133,11 +149,17 @@ def extract_peaks(ffmpeg, path, peaks_per_sec=PEAKS_PER_SEC, on_progress=None,
                 sec = total_bytes / (src_rate * 2)
                 on_progress(min(99, int(sec * 100 / duration)))
     finally:
+        _wd.cancel()
         try:
             proc.stdout.close()
         except Exception:  # noqa: BLE001
             pass
-        proc.wait(timeout=10)
+        try:
+            proc.wait(timeout=10)
+        except subprocess.TimeoutExpired:
+            # v1.16.5：超时仍未退出则强杀（此前 TimeoutExpired 未捕获会冒泡，
+            # 把一次正常的「提前停止」变成异常）
+            _wd_kill()
     if on_progress:
         on_progress(100)
     return peaks, duration

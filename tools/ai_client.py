@@ -117,6 +117,12 @@ DEFAULT_CONFIG: dict = {
     "asr_protocol": "auto",
     "asr_local_model": "large-v3",
     "asr_local_model_dir": "",
+    # v1.16.5 修复：说话人分离 / 语音分离两个开关此前「只写不读」——
+    #   video_toolbox_qt.py 保存时会写进 ai_config.json，但本 schema 缺这两个
+    #   键，而 load_config 只接受 DEFAULT_CONFIG 内的键（见下方 for k in
+    #   DEFAULT_CONFIG）⇒ 保存即被静默丢弃、重启回落 False。此处补齐 schema。
+    "asr_diarize": False,
+    "asr_separate": False,
     # ---- AI 校准（Agent 级字幕校准）----
     # v1.12.0：原 calib_channel（接口 A/B 选择）随双通道合并一并废弃
     # v1.15.4：按「模型最大值」放开——上下文预算默认 1M token，单次输出默认
@@ -1247,6 +1253,11 @@ class AIClient:
                 last_err = AIClientError(f"HTTP {e.code}: {detail}")
             except (urllib.error.URLError, TimeoutError, OSError) as e:
                 last_err = AIClientError(f"网络错误: {e}")
+            except json.JSONDecodeError as e:
+                # v1.16.5 修复：端点返回非 JSON 正文（网关 HTML 错误页 / 空体）
+                # 时 json.loads 抛 JSONDecodeError——它不在上面的 except 元组里，
+                # 会直接冒泡绕过重试与 AIClientError 统一包装。归入可重试失败。
+                last_err = AIClientError(f"响应非 JSON: {e}")
             if attempt < self.retries:
                 wait = 2.0 * (attempt + 1)
                 logger.info("AI 请求失败（%s），%.0f 秒后重试（第 %d/%d 次）",

@@ -432,7 +432,9 @@ def split_cue(cues, index, at_ms, min_dur=MIN_DURATION_MS):
     at_ms = int(at_ms)
     if at_ms - c.start < min_dur or c.end - at_ms < min_dur:
         return False
-    tail = Cue(at_ms, c.end, c.text)
+    # v1.16.5 修复：拆出的两条都须保留 speaker——此前 tail 丢标签，拆分后
+    # 下半条说话人归属丢失（导出按说话人分轨 / 说话人统计会漏）。
+    tail = Cue(at_ms, c.end, c.text, c.speaker)
     c.end = at_ms
     cues.insert(index + 1, tail)
     return True
@@ -447,9 +449,13 @@ def merge_cues(cues, indices, sep=" "):
     start = min(c.start for c in group)
     end = max(c.end for c in group)
     text = sep.join(c.text.strip() for c in group if c.text.strip())
+    # v1.16.5 修复：合并条保留 speaker——组内标签一致则沿用，不一致则清空
+    # （此前一律丢标签，合并后说话人归属丢失）。
+    _spks = {str(getattr(c, "speaker", "") or "").strip() for c in group}
+    spk = _spks.pop() if len(_spks) == 1 else ""
     for i in reversed(idxs):
         del cues[i]
-    cues.insert(idxs[0], Cue(start, end, text))
+    cues.insert(idxs[0], Cue(start, end, text, spk))
     return idxs[0]
 
 

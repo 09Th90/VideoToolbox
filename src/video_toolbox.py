@@ -3644,7 +3644,19 @@ ASR_WS_FRAME_BYTES = 65536
 #: ⚠️ 全速灌发实测会被服务端掐断连接（Connection to remote host was lost）：
 #: 实时识别服务端按流式消费音频，输入速率远超实时会撑爆内部缓冲。默认
 #: 20 倍速折中（6 分钟音频约 19 秒灌完）；VT_ASR_WS_SPEED 可调，最小 1 倍。
-ASR_WS_SPEED = max(float(os.environ.get("VT_ASR_WS_SPEED") or 20), 1.0)
+def _asr_ws_speed() -> float:
+    """VT_ASR_WS_SPEED 归一：环境变量非数字时不炸 import（v1.16.5 修复）。
+
+    此前写成模块级 `max(float(os.environ.get(...) or 20), 1.0)`——环境变量
+    被设成非数字（如 "fast"）时 import 期抛 ValueError，整个引擎加载失败。
+    """
+    try:
+        return max(float(os.environ.get("VT_ASR_WS_SPEED") or 20), 1.0)
+    except (TypeError, ValueError):
+        return 20.0
+
+
+ASR_WS_SPEED = _asr_ws_speed()
 
 
 def _asr_collect_sentence(msg, segments, texts):
@@ -6583,9 +6595,22 @@ def fetch_info_json(ytdlp, url, attempts=4, log=None, wait_base=5):
     # "Sign in to confirm"，自动索取的站方游客 cookie 实测能压低触发率
     cookie_args = ytdlp_cookie_args(log=_log)
     for i in range(attempts):
-        result = run_process([ytdlp, "-J", "--no-playlist", *cookie_args,
-                              url, *proxy_args],
-                             capture_output=True)
+        try:
+            # v1.16.5 修复：此前无 timeout——yt-dlp 在网络挂起（半开连接 /
+            # 站点不响应）时会无限期干等，GUI 表现即「提取画质」永远转圈。
+            # 180s 覆盖慢速站点首包 + 站点侧风控延迟的实测上限。
+            result = run_process([ytdlp, "-J", "--no-playlist", *cookie_args,
+                                  url, *proxy_args],
+                                 capture_output=True, timeout=180)
+        except subprocess.TimeoutExpired:
+            _log(f"[信息] 提取超时（180s，{i + 1}/{attempts}）")
+            if i == attempts - 1:
+                _log("[错误] 画质提取超时")
+                return None
+            wait = wait_base * (i + 1)
+            _log(f"[信息] {wait}s 后自动重试 ...")
+            time.sleep(wait)
+            continue
         out = decode_bytes_any(result.stdout)
         if result.returncode == 0 and out.strip().startswith("{"):
             return out
@@ -6997,6 +7022,14 @@ def download_mode(url=None):
     os.makedirs(task_folder, exist_ok=True)
     print(f"[文件夹] {task_folder}")
 
+    # v1.16.5 修复：此前 base_cmd 未带代理与 cookie——命令行模式（download_mode）
+    # 下 YouTube 直连必失败，而同文件的 fetch_info_json 与 GUI / 流水线路径都带。
+    # 与提取信息同口径，补上「本地代理 + 游客 cookie」。
+    proxy_args = ytdlp_proxy_args()
+    if proxy_args:
+        print(f"[信息] 下载经代理 {proxy_args[1]}")
+    cookie_args = ytdlp_cookie_args(log=print)
+
     base_cmd = [
         "-f", f"{fid}+ba/b",
         "--merge-output-format", "mp4",
@@ -7004,6 +7037,7 @@ def download_mode(url=None):
         "--newline", "--no-playlist",
         "--write-thumbnail", "--convert-thumbnails", "jpg",
         "-o", output_template(task_folder),
+        *cookie_args, *proxy_args,
     ]
 
     info_path = save_info_json(raw)

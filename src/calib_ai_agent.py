@@ -817,6 +817,11 @@ def build_review_prompt(chunk, changes):
     lines.append("")
     lines.append("【待评审的改动提案】（序号 / 原中文 / => / 提议中文）")
     for item in changes:
+        # v1.16.5 修复：模型可能返回非对象元素（parse_changes 不做类型过滤，
+        # _merge_changes 处有 isinstance 兜底）；集群评审路径此处同样兜底，
+        # 否则直接 .get 会抛 AttributeError 打断整轮评审。
+        if not isinstance(item, dict):
+            continue
         num = str(item.get("num") or item.get("index") or "").strip()
         new = str(item.get("new_zh") or item.get("text") or "").replace(
             chr(92) + "n", "\n")
@@ -1422,7 +1427,7 @@ def calibrate(src: str, out: str = None, report: str = None, mode_flag: str = ""
                     for n, why in got.items():
                         votes.setdefault(n, []).append(f"{m.get('name')}: {why}")
                 nums = {str(c.get("num") or c.get("index") or "").strip()
-                        for c in changes}
+                        for c in changes if isinstance(c, dict)}
                 bad = {n: v for n, v in votes.items() if n in nums}
                 if not bad:
                     _log_do(log, f"  ✓ 第 {idx} 块经 {len(cl_rev)} 个评审智能体复核通过"
@@ -1446,8 +1451,8 @@ def calibrate(src: str, out: str = None, report: str = None, mode_flag: str = ""
                 if not new_changes:
                     break
                 changes = new_changes
-            kept = [c for c in changes
-                    if str(c.get("num") or c.get("index") or "").strip() not in bad]
+            kept = [c for c in changes if isinstance(c, dict)
+                    and str(c.get("num") or c.get("index") or "").strip() not in bad]
             for n, v in bad.items():
                 rej_log.append((n, "集群评审驳回：" + "；".join(v)[:100]))
             result["cluster"]["rejected"] += len(bad)

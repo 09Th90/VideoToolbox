@@ -86,12 +86,17 @@ def _curl(method, path, payload, proxy=""):
     return subprocess.run(cmd, input=stdin, capture_output=True, timeout=3700)
 
 
-def api(method, path, payload=None):
+def api(method, path, payload=None, allow_missing=False):
     """访问 GitHub API。
 
     通道优先级：urllib 强制直连（实测唯一稳定）→ curl 直连 → 内置代理。
     curl 在本机对写请求存在中间层 401 拦截，故只作备选；curl 的代理通道
     在国内速率下对 92MB 级 blob 也会超时，因此把 urllib 放前面。
+
+    allow_missing=True（v1.16.5 新增）：目标不存在（HTTP 404）时返回 None
+    而不 sys.exit。此前首次部署时 gh-pages 分支尚不存在，api() 直接退出，
+    于是 main() 里「if not exists: 创建分支」这一支**永不执行**，首次部署
+    必然失败。
     """
     last = None
     for attempt in range(1, 5):
@@ -99,6 +104,8 @@ def api(method, path, payload=None):
             return _api_urllib(method, path, payload)
         except Exception as e:  # noqa: BLE001
             last = str(e)
+            if allow_missing and "404" in last:
+                return None
             wait = min(2 ** attempt * 2, 20)
             print(f"  {method} {path} urllib直连失败（{last[:70]}），"
                   f"{wait}s 后重试 {attempt}/4 ...")
@@ -118,12 +125,16 @@ def api(method, path, payload=None):
                 if code < 400:
                     return json.loads(body) if body.strip() else {}
                 last = f"{label} HTTP {code}: {body[:150]}"
+                if allow_missing and code == 404:
+                    return None
             except Exception as e:  # noqa: BLE001
                 last = f"{label}: {e}"
             wait = min(2 ** attempt * 2, 20)
             print(f"  {method} {path} {label}失败（{str(last)[:60]}），"
                   f"{wait}s 后重试 {attempt}/2 ...")
             time.sleep(wait)
+    if allow_missing:
+        return None
     sys.exit(f"{method} {path} FAILED: {last}")
 
 
@@ -133,7 +144,8 @@ def main():
     print("main head:", parent_sha)
 
     # 检查 / 创建 gh-pages 分支
-    exists = api("GET", f"git/ref/heads/{BRANCH}")
+    # v1.16.5：首次部署时分支不存在，必须 allow_missing 拿到 None 才会走创建支
+    exists = api("GET", f"git/ref/heads/{BRANCH}", allow_missing=True)
     if not exists:
         api("POST", "git/refs", {"ref": f"refs/heads/{BRANCH}", "sha": parent_sha})
         print(f"created branch {BRANCH} at {parent_sha}")

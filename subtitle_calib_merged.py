@@ -968,6 +968,11 @@ CONTEXT_MAP = [
     (r"\bChameleia\b|\bChamellia\b", "变色龙", "椿"),
     (r"[Ss]howcase", "展示会", "展示"),
     (r"[Ss]creen ?time", "屏幕时间", "镜头时间"),
+    # --- 2026-10-04 修正：洛瑟菈（Lucilla）的「总统→校长」必须走本表原生三元组 ---
+    #   原挂在 Entity("洛瑟菈").ctx 里写成 (r"\bPresident\b", "总统")，而 Entity.ctx
+    #   的语义是「强制替换成 canonical（洛瑟菈）」——于是"露西拉是学院的总统"会被
+    #   改成"洛瑟菈是学院的洛瑟菈"。目标词（校长）≠ canonical，必须用本表三元组。
+    (r"\bPresident\b", "总统", "校长"),
 ]
 
 # =============================================================
@@ -3466,9 +3471,12 @@ ENTITIES = [
                "Luciela", "Lucillar", "Lucillia",
            ),
            ctx=((r"\bLucilla\b", "露西拉"), (r"\bLucilla\b", "卢西拉"),
-                (r"\bPresident\b", "总统"), (r"\bLucilla\b", "洛瑟菈")),
+                (r"\bLucilla\b", "洛瑟菈")),
            note="星炬学院校长（官方中文'洛瑟菈'，库街区 wiki/3DM/sina 确认）。"
                 "身份：学院 President=校长，机翻误作'总统'（已有'洛瑟菈总统→洛瑟菈校长'长键兜底）。"
+                "⚠️ 2026-10-04：原 ctx 里的 (r'\\bPresident\\b','总统') 已移出——Entity.ctx"
+                "会强制替换成 canonical（洛瑟菈），把'总统'改成'洛瑟菈'会得到'洛瑟菈是学院的"
+                "洛瑟菈'；现改挂 CONTEXT_MAP 原生三元组 (President,'总统','校长')。"
                 "ASR 音近错形：'洛瑟菈'易咬成'洛色拉/洛瑟垃/洛瑟啦/罗瑟菈/锣瑟菈'；"
                 "英文侧 Lucilla 易咬成 Lucila/Lucilla/Lucia/Lucille/Lusilla/Luciela。"),
     Entity("千咲", modes=("bi",), en="Chisa", ja="チサ",
@@ -3483,11 +3491,14 @@ ENTITIES = [
                "Chisa", "Chi-sa", "Chissa", "Chisa's", "Chisa`s",
                "Chiasa", "Chisaa", "Chiisa", "Chisa!",
            ),
-           ctx=((r"\bChisa\b", "千咲"), (r"\bChisa\b", "奇莎"),
-                (r"\bChisha\b", "炽霞")),
+           ctx=((r"\bChisa\b", "千咲"), (r"\bChisa\b", "奇莎")),
            note="星炬学院/解弦之眼角色（官方中文'千咲'，日文 チサ；3.7 复刻池）。"
                 "英文恰为千咲罗马音 Chisa，ASR 易与 Chisha(炽霞) 混——"
                 "已有 CONTEXT_MAP (r'\\bChisha\\b', '千咲'→'炽霞') 回滚规则兜底，防误伤。"
+                "⚠️ 2026-10-04 移除本 Entity 的 (r'\\bChisha\\b','炽霞') ctx：它与上面"
+                "那条 CONTEXT_MAP 回滚**互逆**且后执行，会把已回滚成'炽霞'的结果又改回"
+                "'千咲'（实测 '奇莎'+Chisha 得'千咲'，应为'炽霞'）。Chisha=炽霞(Chixia)，"
+                "与千咲(Chisa)无关，该 ctx 本就不该存在。"
                 "ASR 音近错形：'千咲'易咬成'千啸/千筱/千晓/千霄/千宵/牵笑/芊笑/千效/千校/千肖'；"
                 "英文侧 Chisa 易咬成 Chissa/Chiasa/Chisaa/Chiisa。"),
     Entity("尤诺", modes=("bi",), en="Juno",
@@ -6613,6 +6624,33 @@ def _sync_entry_key(e):
     return k
 
 
+#: v1.16.5：applied.json / conflict.json 的键序列化。
+#: 此前直接 `"\x1f".join(k)`——但 CONTEXT_MAP 的键末位 rx 可能是 **tuple**
+#: （见 _sync_entry_key），join 对嵌套 tuple 会抛 TypeError，整条同步通道崩。
+#: 统一走下面这对称的一对：嵌套元素用 \x1e 二级连接，读回时还原成 tuple。
+_SYNC_KEY_SEP = "\x1f"
+_SYNC_SUB_SEP = "\x1e"
+
+
+def _sync_key_str(k):
+    """键 tuple → 可存盘字符串（嵌套 tuple/list 用 \\x1e 二级连接）。"""
+    parts = []
+    for x in k:
+        if isinstance(x, (tuple, list)):
+            parts.append(_SYNC_SUB_SEP.join(str(i) for i in x))
+        else:
+            parts.append(str(x))
+    return _SYNC_KEY_SEP.join(parts)
+
+
+def _sync_key_from_str(s):
+    """_sync_key_str 的逆：还原嵌套 tuple（与 _sync_entry_key 输出同构）。"""
+    parts = s.split(_SYNC_KEY_SEP)
+    if len(parts) >= 4 and _SYNC_SUB_SEP in parts[3]:
+        parts[3] = tuple(parts[3].split(_SYNC_SUB_SEP))
+    return tuple(parts)
+
+
 def _sync_validate(e):
     """增量条目 schema 校验（FR-1 字段缺一不可；只读不执行）。"""
     if not isinstance(e, dict):
@@ -6927,7 +6965,7 @@ def _sync_current_terms():
             with open(p, encoding="utf-8-sig") as f:
                 data = json_load(f.read())
             for k, e in (data.get("entries") or {}).items():
-                out[tuple(k.split("\x1f"))] = e["value"]
+                out[_sync_key_from_str(k)] = e["value"]
         except Exception:
             pass
     return out
@@ -6947,7 +6985,7 @@ def _sync_apply(applied):
     """应用生效集：写 applied.json + 注入 globals() 扁平表（键控，只 json）。"""
     p = os.path.join(_sync_local_dir(), "applied.json")
     os.makedirs(os.path.dirname(p), exist_ok=True)
-    keyed = {("\x1f".join(k)): v for k, v in applied.items()}
+    keyed = {_sync_key_str(k): v for k, v in applied.items()}
     with open(p, "w", encoding="utf-8") as f:
         f.write(json_dumps({"schema": 1, "entries": keyed}) + "\n")
     g = globals()
@@ -7022,7 +7060,7 @@ def _sync_write_conflicts(conflicts):
     p = os.path.join(_sync_local_dir(), "conflict.json")
     os.makedirs(os.path.dirname(p), exist_ok=True)
     data = {"schema": 1,
-            "conflicts": {"\x1f".join(k): v for k, v in conflicts.items()}}
+            "conflicts": {_sync_key_str(k): v for k, v in conflicts.items()}}
     with open(p, "w", encoding="utf-8") as f:
         f.write(json_dumps(data) + "\n")
     for k, es in conflicts.items():
@@ -7206,7 +7244,7 @@ def _sync_inject_all():
         return 0
     applied = {}
     for k, v in (data.get("entries") or {}).items():
-        applied[tuple(k.split("\x1f"))] = v
+        applied[_sync_key_from_str(k)] = v
     return _sync_apply(applied)
 
 

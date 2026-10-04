@@ -4300,7 +4300,12 @@ class CalibPage(QWidget):
                 self.log.line(f"[AI] 报告: {report}", "dim")
             t = threading.Thread(target=self._ai_worker,
                                  args=(gen, src, out, report, mode_flag,
-                                       round_no, again),
+                                       round_no, again,
+                                       # v1.16.5 修复：控件值必须在**主线程**读好
+                                       # 再传入——_ai_worker 跑在子线程里，直接在
+                                       # 其中调 fix_switch.isChecked() 属跨线程访问
+                                       # Qt 控件（Qt 非线程安全）。
+                                       self.fix_switch.isChecked()),
                                  daemon=True)
             self._thread = t
             t.start()
@@ -4322,14 +4327,15 @@ class CalibPage(QWidget):
         self.log.line(f"[错误] {msg}", "err")
         self.log.line("界面状态已自动复位，可直接重新点「开始校准」", "info")
 
-    def _ai_worker(self, gen, src, out, report, mode_flag, round_no, again=False):
+    def _ai_worker(self, gen, src, out, report, mode_flag, round_no, again=False,
+                   fix_en=False):
         def _log(msg, level="dim"):
             self.app.q.put(("cal_log", str(msg), level, gen))
 
         try:
             res = engine.calib_ai_run(
                 src, out=out, report=(report or None), mode_flag=mode_flag,
-                fix_en=self.fix_switch.isChecked(), log=_log, round_no=round_no,
+                fix_en=fix_en, log=_log, round_no=round_no,
                 cancel=lambda: self._cancel_flag,
                 # 续跑：以上轮产物为起点（跳过脚本基线），并把上轮采纳明细注入提示词
                 resume_from=(src if again else None),
@@ -5261,7 +5267,9 @@ class SubtitleEditPage(ScrollPage):
         self.timeline.split_requested.connect(self._on_split_requested)
         self.table.selection_changed.connect(self._on_table_selection)
         self.table.cell_committed.connect(self._on_cell_committed)
-        self.btn_list.clicked.connect(self.toggle_list)
+        # v1.16.5 修复：btn_list 的信号已由 _build_media_bar() 的 ibtn() 连过
+        # （该函数内 b.clicked.connect(slot)），此处再连一次会让 toggle_list
+        # 每次点击触发两遍（重复 table.load / setFocus）。故删除本行。
         self.props.step_requested.connect(self.goto_cue)
         self.props.style_changed.connect(self._on_style_changed)
         self.props.export_requested.connect(self.export_subtitle)

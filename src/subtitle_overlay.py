@@ -244,7 +244,11 @@ alignment/margin）。
             try:
                 import win32gui
 
-                win = self.window()
+                # v1.16.5 修复：本层是**顶层 Tool 窗**，`self.window()` 恒为
+                # 自身；而系统拖的是**主窗口**边框（鼠标捕获归主窗口），拿自身
+                # 的 hwnd 去比恒不成立——兜底判据形同虚设，上面注释所述
+                # 「拖边框时窗口拖不动」会复现。改比父窗口（宿主主窗口）。
+                win = self.parent()
                 if win is not None and win32gui.GetCapture() == int(win.winId()):
                     return True
             except Exception:  # noqa: BLE001
