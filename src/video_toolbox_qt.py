@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# @version 1.16.5
+# @version 1.17.0
 """视频工具箱 GUI v1.11.0 —— Fluent 矢量界面
 ====================================================================
 界面形态（v1.10.0 起，原 tkinter 界面退役）：
@@ -113,7 +113,7 @@ from subtitle_compose import ComposeDialog
 # 单独成模块（自带卡片/滚动壳），因此**不反向 import 本文件**，无循环导入。
 import auto_vision_page
 
-VERSION = "1.16.5"
+VERSION = "1.17.0"
 
 # 全格式媒体/字幕/文档扩展名（v1.13.0）：
 #   视频：常见容器 + av1 / h264 / h265 / x264 等裸流与更多封装；
@@ -2647,12 +2647,23 @@ class SettingsPage(QWidget):
             box))
         self.ai_hint.setTextColor("#8a8a8a", "#9a9a9a")
         blay.addWidget(self.ai_hint)
+        # 订阅套餐端点风险提示（2026-10-05 产品口径：**允许接入，只做提示**）——
+        # 套餐条款普遍禁止自动化/批量非交互调用，而本软件的转录与字幕校准正是
+        # 批量调用；能不能用、会不会被判违规由服务商定，风险用户自负。此处常驻
+        # 一行提示，完整条款要点与稳妥替代端点放在悬停提示里（滚动区内不换行）。
+        self.ai_plan_warn = fit_caption(CaptionLabel("", box))
+        self.ai_plan_warn.setTextColor("#c0392b", "#e0705e")
+        self.ai_plan_warn.hide()
+        blay.addWidget(self.ai_plan_warn)
         for w in (self.ai_key, self.ai_base, self.ai_model, self.ai_vision):
             expand_h(w)
         # 编辑即亮「未保存」：不保存的话引擎里还是上一版配置
         for w in (self.ai_key, self.ai_base, self.ai_model, self.ai_vision):
             w.textChanged.connect(self._mark_ai_dirty)
+        for w in (self.ai_base, self.ai_vision):
+            w.textChanged.connect(self._sync_plan_warn)
         self.vbox.addWidget(box)
+        self._sync_plan_warn()
 
     # ------------------------------------------------------------------ #
     # ASR 语音识别：独立 ASR 模型（自有服务 / 本地模型）→ 引擎「转录配置」
@@ -2790,6 +2801,11 @@ class SettingsPage(QWidget):
             "本地模型/目录", box))
         self.asr_hint.setTextColor("#8a8a8a", "#9a9a9a")
         blay.addWidget(self.asr_hint)
+        # ASR 侧的套餐端点风险提示（同「全局 AI」卡片口径：允许接入、只提示）
+        self.asr_plan_warn = fit_caption(CaptionLabel("", box))
+        self.asr_plan_warn.setTextColor("#c0392b", "#e0705e")
+        self.asr_plan_warn.hide()
+        blay.addWidget(self.asr_plan_warn)
         for w in (self.asr_base, self.asr_key, self.asr_model, self.asr_prompt,
                   self.asr_local_model, self.asr_local_dir):
             expand_h(w)
@@ -2797,12 +2813,14 @@ class SettingsPage(QWidget):
         for w in (self.asr_base, self.asr_key, self.asr_model, self.asr_prompt,
                   self.asr_local_model, self.asr_local_dir):
             w.textChanged.connect(self._mark_ai_dirty)
+        self.asr_base.textChanged.connect(self._sync_plan_warn)
         self.asr_mode_combo.currentIndexChanged.connect(self._mark_ai_dirty)
         self.asr_proto_combo.currentIndexChanged.connect(self._mark_ai_dirty)
         self.asr_diarize_switch.checkedChanged.connect(self._mark_ai_dirty)
         self.asr_separate_switch.checkedChanged.connect(self._mark_ai_dirty)
         self.vbox.addWidget(box)
         self._sync_asr_visible()
+        self._sync_plan_warn()
 
     def _sync_asr_visible(self):
         """按 ASR 模式显隐「服务 / 本地」两组输入。"""
@@ -2816,6 +2834,31 @@ class SettingsPage(QWidget):
             "服务模式：转录下拉选「ASR」即由自有 ASR 服务识别；协议可选"
             "自动识别 / OpenAI 兼容 / Azure / 阿里百炼，无时间戳响应自动"
             "按句切分兜底")
+
+    def _sync_plan_warn(self, *_a):
+        """刷新两处「订阅套餐端点」风险提示（全局 AI / ASR）。
+
+        2026-10-05 产品口径：**允许接入套餐端点，只做提示**——能不能用、会不会
+        被判违规由服务商定，风险用户自负。提示只读地址栏、不发网络请求，也绝不
+        改地址或模型；完整条款要点与稳妥替代端点放在 tooltip（滚动区内不换行）。
+        """
+        for edit, label in ((getattr(self, "ai_base", None),
+                             getattr(self, "ai_plan_warn", None)),
+                            (getattr(self, "asr_base", None),
+                             getattr(self, "asr_plan_warn", None))):
+            if edit is None or label is None:
+                continue
+            try:
+                tip = engine.ai_plan_risk(edit.text())
+            except Exception:  # noqa: BLE001
+                tip = ""
+            if tip:
+                label.setText("⚠️ 当前是订阅套餐端点：批量调用可能违反套餐条款，"
+                              "风险自负（悬停查看详情）")
+                label.setToolTip(tip)
+                label.show()
+            else:
+                label.hide()
 
     def _browse_into(self, edit, title):
         p = QFileDialog.getExistingDirectory(self, title, edit.text() or engine.APP_DIR)
@@ -2961,7 +3004,7 @@ class SettingsPage(QWidget):
             self.calib_cluster_widget))
         self.calib_cluster_edit = TextEdit(self.calib_cluster_widget)
         self.calib_cluster_edit.setPlaceholderText(
-            "calibrate|主力|https://api.deepseek.com|sk-xxx|deepseek-chat\n"
+            "calibrate|主力|https://api.deepseek.com|sk-xxx|deepseek-flash\n"
             "review|评审A|https://open.bigmodel.cn/api/paas/v4|xxx|glm-4.7-flash\n"
             "角色 calibrate=提议 / review=评审；留空的字段回落全局 AI 配置")
         self.calib_cluster_edit.setPlainText(self._cluster_text(ai))
@@ -3106,6 +3149,24 @@ class SettingsPage(QWidget):
         except Exception as e:  # noqa: BLE001
             InfoBar.error("保存失败", str(e)[:300], duration=5000,
                           position=InfoBarPosition.BOTTOM_RIGHT, parent=self)
+            return
+        # 保存**已成功**，下面只是合规提示——整体 try 兜底，提示出问题也绝不
+        # 影响保存结果（否则会把"已保存"误报成"保存失败"，让人以为配置没落盘）。
+        try:
+            self._sync_plan_warn()
+            risks = engine.ai_plan_risks(engine.ai_load_config())
+            if risks:
+                # 订阅套餐端点：允许接入，但把条款要点与稳妥替代端点说全（风险自负）。
+                # 标题点明「三个地址都查了」，正文每条带【出处】前缀——否则用户会
+                # 以为弹窗说的是眼前那张卡片里的地址（实测踩过：全局 AI 填智谱、
+                # 弹窗说百炼，只因告警其实来自 ASR 槽）。
+                InfoBar.warning(
+                    "订阅套餐端点风险提示（全局 AI / 视觉 / ASR 三处地址）",
+                    "；".join(risks)[:600],
+                    duration=12000, position=InfoBarPosition.BOTTOM_RIGHT,
+                    parent=self)
+        except Exception:  # noqa: BLE001
+            pass
 
     def _reload_ai_fields(self):
         """把落盘后的 AI 配置回填到界面输入框（自动匹配纠正后调用）。"""

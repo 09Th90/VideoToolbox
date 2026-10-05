@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# @version 1.16.5
+# @version 1.17.0
 """界面自检（v1.10.4 Fluent 界面）：验证窗口与各页面可构建、导航宽度自适应、
 设置页统一入口、字幕处理环境就绪。
 
@@ -769,6 +769,31 @@ def main():
           all(hasattr(win.auto_page, a) for a in
               ("shot_view", "btn_run", "task_edit", "dry_switch")),
           f"objectName={win.auto_page.objectName()}")
+    # v1.17.0：自动化页新增「B 站投稿」卡片（引擎补动作 + 声明式投稿管线 + 模板采集）
+    try:
+        import auto_vision_core as _av
+        import bili_upload as _bu
+        _bili_fields = ("bili_video", "bili_title", "bili_tags", "bili_zone",
+                        "bili_zone_combo", "bili_tpl_combo", "btn_bili_run",
+                        "bili_dry", "bili_progress", "bili_stage")
+        _miss = [a for a in _bili_fields if not hasattr(win.auto_page, a)]
+        check("自动化页新增「B站投稿」卡片控件齐备", not _miss,
+              f"missing={_miss}")
+        _need_actions = ("TypeText", "Key", "Scroll", "Wait", "Activate")
+        check("引擎已补投稿动作（TypeText/Key/Scroll/Wait/Activate）",
+              all(a in _av.ACTIONS for a in _need_actions),
+              f"ACTIONS={_av.ACTIONS}")
+        _pipe = _bu.build_pipeline({"title": "t", "tags": ["a", "b"],
+                                    "zone": "游戏", "topic": "#t#"})
+        _nodes, _errs = _av.parse_pipeline(_pipe)
+        check("投稿管线可构造且引用关系无错（build_pipeline）",
+              len(_nodes) >= 30 and not _errs, f"nodes={len(_nodes)} errs={_errs}")
+        _wl = _bu.parse_wuliao("标题：T\n标签：a / b、c\n分区：游戏\n话题：X")
+        check("投稿物料解析（视频信息.txt）正确",
+              _wl["title"] == "T" and _wl["tags"] == ["a", "b", "c"]
+              and _wl["zone"] == "游戏" and _wl["topic"] == "X", f"{_wl}")
+    except Exception as _exc:  # noqa: BLE001
+        check("B站投稿卡片/管线自检", False, f"{type(_exc).__name__}: {_exc}")
     check("下载页分段「视频下载 / 音画合并」就位",
           "download" in win.download_page.seg.items
           and "merge" in win.download_page.seg.items)
@@ -1461,11 +1486,11 @@ def main():
     _pm_ok, _pm_why = True, ""
     try:
         if _am.match_provider_model("https://api.deepseek.com",
-                                    "deepseek-flash")[0] != "deepseek-chat":
-            _pm_ok, _pm_why = False, "DeepSeek 官方未纠正 deepseek-flash"
+                                    "deepseek-chat")[0] != "deepseek-flash":
+            _pm_ok, _pm_why = False, "DeepSeek 官方未纠正已停用的 deepseek-chat"
         if _am.match_provider_model("https://api.deepseek.com",
-                                    "deepseek-reasoner")[0] != "deepseek-reasoner":
-            _pm_ok, _pm_why = False, "合法的 deepseek-reasoner 被误改"
+                                    "deepseek-v4-pro")[0] != "deepseek-v4-pro":
+            _pm_ok, _pm_why = False, "现役的 deepseek-v4-pro 被误改"
         if _am.match_provider_model("https://my-proxy.internal/v1",
                                     "any-model")[0] != "any-model":
             _pm_ok, _pm_why = False, "未识别厂商被误改"
@@ -1473,6 +1498,46 @@ def main():
         _pm_ok, _pm_why = False, str(e)
     check("设置自动匹配：跨平台抄错的模型名自动纠正（自建端点不误伤）",
           _pm_ok, _pm_why)
+    # v1.17.x：订阅套餐端点合规风险提示（2026-10-05 产品口径——允许接入，
+    # 只做提示、不拦不改；按量端点与专属实例不得误报）
+    _pr_ok, _pr_why = True, ""
+    _pr_old = None
+    try:
+        if not hasattr(sp, "ai_plan_warn") or not hasattr(sp, "asr_plan_warn"):
+            _pr_ok, _pr_why = False, "设置页缺少套餐风险提示位"
+        elif not callable(getattr(sp, "_sync_plan_warn", None)):
+            _pr_ok, _pr_why = False, "_sync_plan_warn 未接线"
+        else:
+            _pr_old = sp.asr_base.text()
+            sp.asr_base.setText("https://token-plan.cn-beijing.maas.aliyuncs.com/"
+                                "compatible-mode/v1")
+            sp._sync_plan_warn()
+            # 用 isHidden 而非 isVisible：自检时页面未必已 show，父级不可见
+            # 会让 isVisible 恒为 False，误判成"提示没点亮"
+            if sp.asr_plan_warn.isHidden() or not sp.asr_plan_warn.text():
+                _pr_ok, _pr_why = False, "套餐端点未点亮风险提示"
+            elif "风险自负" not in sp.asr_plan_warn.text():
+                _pr_ok, _pr_why = False, "提示文案未写明风险自负"
+            sp.asr_base.setText("https://api.siliconflow.cn/v1")
+            sp._sync_plan_warn()
+            if not sp.asr_plan_warn.isHidden():
+                _pr_ok, _pr_why = False, "按量端点被误报为套餐端点"
+            sp.asr_base.setText("https://llm-ukmkj60gxr2wms1f.cn-beijing."
+                                "maas.aliyuncs.com/compatible-mode/v1")
+            sp._sync_plan_warn()
+            if not sp.asr_plan_warn.isHidden():
+                _pr_ok, _pr_why = False, "专属实例被误报为套餐端点"
+    except Exception as e:  # noqa: BLE001
+        _pr_ok, _pr_why = False, str(e)
+    finally:
+        try:
+            if _pr_old is not None:
+                sp.asr_base.setText(_pr_old)
+                sp._sync_plan_warn()
+        except Exception:  # noqa: BLE001
+            pass
+    check("订阅套餐端点风险提示（允许接入，只提示；按量/专属实例不误报）",
+          _pr_ok, _pr_why)
     check("ASR 服务/本地区块可切换",
           hasattr(sp, "asr_service_widget") and hasattr(sp, "asr_local_widget")
           and callable(getattr(sp, "_sync_asr_visible", None)))

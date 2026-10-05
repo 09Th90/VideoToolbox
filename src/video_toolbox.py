@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# @version 1.16.5
+# @version 1.17.0
 """
 视频工具箱 v1.12.0（单文件整合版）
 ==================================================
@@ -2520,9 +2520,23 @@ def asr_missing_model_hint(asr_obj):
                                  getattr(asr_obj, "api_key", ""))
     if not models or model in models:
         return ""
+    # 「可转写」的音频模型：TTS / 实时对话族虽然名字带 audio，却做不了录音
+    # 转写（前者输出音频、后者是流式对话），算进来会把误诊说成"还有能用的"。
     audio_like = [m for m in models
                   if any(h in m.lower() for h in
-                         ("asr", "audio", "whisper", "paraformer", "sensevoice"))]
+                         ("asr", "audio", "whisper", "paraformer", "sensevoice"))
+                  and not any(k in m.lower() for k in _TTS_HINTS)
+                  and not any(k in m.lower() for k in ASR_REALTIME_HINTS)]
+    # 误诊拦截（2026-10-05 实测）：清单里**一个音频类模型都没有**、而配置的
+    # 又是原生端点的 ASR 模型（qwen-audio-*-asr-*）时，多半是这份清单压根不
+    # 列 ASR 模型，而不是模型下架。实证：百炼 Token Plan 共享端点
+    # token-plan.cn-beijing.maas.aliyuncs.com 的 `GET /models` 只回 16 个
+    # 文本/图像/TTS/实时模型，不含 qwen-audio-3.0-asr-flash；但用同一个 Key
+    # POST 原生端点，该模型能正常受理（回 400 空体 = 只是这段没语音），而
+    # qwen3-asr-flash 才真回 404 Model not exist。此时报"模型已下架"会把用户
+    # 引去改一份本来正确的配置，直接不提示。
+    if not audio_like and is_dashscope_native_asr(model):
+        return ""
     tip = ("；⚠️ `GET /models` 返回的实例清单里**找不到**模型「%s」"
            "（服务端模型清单会变，配置没动也可能失效）。" % model)
     if audio_like:
@@ -4836,6 +4850,46 @@ def ai_match_settings(cfg=None):
         return cfg, ["自动匹配不可用：" + str(e)[:200]]
 
 
+def ai_plan_risk(base_url):
+    """订阅套餐端点的合规风险提示（规则见 ai_client.plan_endpoint_risk）。
+
+    只提示、不阻止：套餐端点能不能用、会不会被判违规由服务商定，风险用户自负。
+    非套餐端点或 ai_client 不可用时返回空串。
+    """
+    try:
+        return ai_mod().plan_endpoint_risk(base_url)
+    except Exception:  # noqa: BLE001
+        return ""
+
+
+def ai_plan_risks(cfg=None):
+    """一份配置里**所有**套餐端点的风险提示（全局 AI / 视觉 / ASR 三处）。
+
+    返回形如 ``["【ASR 语音识别】⚠️ 该地址是…"]``：**每条都带出处前缀**，
+    同一端点占多个槽时合并标注（``【全局 AI / ASR 语音识别】``），没有套餐
+    端点时返回空列表。
+
+    ⚠️ 出处前缀不是装饰：三个槽各有独立地址，保存时是一条 InfoBar 汇总弹出。
+    不带前缀时用户会以为它在说眼前卡片里的地址——实测 2026-10-05：全局 AI
+    填的是智谱 open.bigmodel.cn，弹窗却在说「百炼 Token Plan」（告警其实来自
+    ASR 槽），看起来就像"识别错了"。
+    """
+    cfg = dict(cfg if cfg is not None else ai_load_config())
+    order, labels, tips = [], {}, {}
+    for key, label in (("base_url", "全局 AI"),
+                       ("vision_base_url", "视觉通道"),
+                       ("asr_base_url", "ASR 语音识别")):
+        tip = ai_plan_risk(cfg.get(key))
+        if not tip:
+            continue
+        if tip in tips:
+            tips[tip] = tips[tip] + " / " + label
+        else:
+            tips[tip] = label
+            order.append(tip)
+    return ["【%s】%s" % (tips[t], t) for t in order]
+
+
 def ai_save_config(cfg):
     """保存全局 AI/LLM 配置：落盘 ai_config.json + 重置客户端单例 + 同步给字幕引擎。
 
@@ -4943,11 +4997,33 @@ def calib_ai_chat(prompt, system=None, max_tokens=None, on_reasoning=None,
     thinking = bool(ai.get("calib_thinking", True))
     effort = str(ai.get("calib_reasoning_effort") or "high").strip().lower()
     client = ai_mod().member_client(member, ai) if member else ai_mod().get_client()
+    # 过程事件（重试 / 超时 / 端点自愈）接到当前校准的日志上：这些消息以前只走
+    # ai_client 的 logger，而全项目没配过 logging ⇒ 完全不可见。表现为「一块
+    # 校准卡在重试链里拖到 7 分钟，界面一片空白」（2026-10-05 实测）。
+    try:
+        client.on_event = _CALIB_EVENT_SINK[0] if _CALIB_EVENT_SINK else None
+    except Exception:  # noqa: BLE001
+        pass
     return client.chat_text(prompt, system=system,
                             max_tokens=int(max_tokens or 8192),
                             on_reasoning=on_reasoning,
                             thinking=thinking,
                             reasoning_effort=effort if thinking else None)
+
+
+#: 当前校准运行的「过程事件」上报槽（0/1 元素）：calib_ai_run 起止时设置/清空，
+#: calib_ai_chat 每次调用时把 ai_client 的重试/超时事件接到校准日志。
+_CALIB_EVENT_SINK: list = []
+
+
+def _calib_event_sink(log):
+    """把 ai_client 的过程事件转成校准日志的一行（level 默认 err=红字）。"""
+    def _cb(msg, level="err"):
+        try:
+            log("  · " + str(msg), level)
+        except TypeError:
+            log("  · " + str(msg))
+    return _cb
 
 
 def calib_web_proxy():
@@ -5007,6 +5083,16 @@ def calib_ai_run(src, out=None, report=None, mode_flag="", fix_en=False,
                 log("· 设置自动匹配：" + _n, "info")
             except TypeError:
                 log("· 设置自动匹配：" + _n)
+    # 订阅套餐端点：**允许接入，只做提示**（2026-10-05 产品口径）。校准是典型的
+    # 批量非交互调用，正好落在多数套餐条款的禁止范围内，故每轮校准都在日志里
+    # 点名一次，风险由用户自负。只写日志，不拦、不改地址与模型。
+    for _r in ai_plan_risks(ai):
+        if not log:
+            break
+        try:
+            log("· " + _r, "err")
+        except TypeError:
+            log("· " + _r)
     style = style or str(ai.get("calib_style") or "term")
     web = None
     if bool(ai.get("calib_web_enabled", False)):
@@ -5034,23 +5120,33 @@ def calib_ai_run(src, out=None, report=None, mode_flag="", fix_en=False,
                    "members": ai_mod().cluster_members(ai),
                    "rounds": max(1, int(ai.get("calib_cluster_rounds") or 1))}
 
-    return _agent.calibrate(
-        src, out=out, report=report, mode_flag=mode_flag, fix_en=fix_en,
-        script=os.path.join(APP_DIR, "subtitle_calib_merged.py"),
-        python=system_python(), log=log, chat=calib_ai_chat,
-        chat_for_member=_member_chat, cluster=cluster,
-        think_rounds=int(ai.get("calib_think_rounds") or 0),
-        orig_title=title,
-        chunk_cues=int(ai.get("calib_chunk_cues") or 400),
-        max_chars=int(ai.get("calib_max_chars") or 60000),
-        max_tokens=int(ai.get("calib_max_tokens") or 65536),
-        context_tokens=int(ai.get("calib_context_tokens") or 1000000),
-        concurrency=int(ai.get("calib_concurrency") or 1),
-        round_no=round_no, cancel=cancel, workdir=workdir,
-        style=style, resume_from=resume_from, prev_changes=prev_changes,
-        sentence_aware=bool(ai.get("calib_sentence_aware", True)),
-        strict_width=bool(ai.get("calib_strict_width", False)),
-        web=web)
+    _CALIB_EVENT_SINK[:] = [_calib_event_sink(log)] if log else []
+    try:
+        return _agent.calibrate(
+            src, out=out, report=report, mode_flag=mode_flag, fix_en=fix_en,
+            script=os.path.join(APP_DIR, "subtitle_calib_merged.py"),
+            python=system_python(), log=log, chat=calib_ai_chat,
+            chat_for_member=_member_chat, cluster=cluster,
+            think_rounds=int(ai.get("calib_think_rounds") or 0),
+            orig_title=title,
+            chunk_cues=int(ai.get("calib_chunk_cues") or 400),
+            max_chars=int(ai.get("calib_max_chars") or 60000),
+            max_tokens=int(ai.get("calib_max_tokens") or 65536),
+            context_tokens=int(ai.get("calib_context_tokens") or 1000000),
+            concurrency=int(ai.get("calib_concurrency") or 1),
+            round_no=round_no, cancel=cancel, workdir=workdir,
+            style=style, resume_from=resume_from, prev_changes=prev_changes,
+            sentence_aware=bool(ai.get("calib_sentence_aware", True)),
+            strict_width=bool(ai.get("calib_strict_width", False)),
+            web=web)
+    finally:
+        # 事件槽用完即清：否则跑完的校准日志回调会挂在全局客户端上，
+        # 之后别的调用（视觉识别、接口测试）出的重试消息会写进一份已经结束的日志。
+        _CALIB_EVENT_SINK.clear()
+        try:
+            ai_mod().get_client().on_event = None
+        except Exception:  # noqa: BLE001
+            pass
 
 
 # ========== 校准知识多用户同步开关（持久化在 config.json） ==========

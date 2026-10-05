@@ -1,4 +1,4 @@
-<!-- @version 1.16.5 -->
+<!-- @version 1.17.0 -->
 # Video Toolbox — User Manual
 
 > Applies to: v1.16.5 | Last updated: 2026-10-04

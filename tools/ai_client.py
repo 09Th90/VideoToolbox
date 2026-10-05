@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 1.16.5
+# @version 1.17.0
 """
 全局 AI 客户端（OpenAI 兼容 · 单通道）。
 
@@ -86,6 +86,46 @@ def _resolve_data_dir() -> Path:
 
 DATA_DIR = _resolve_data_dir()
 CONFIG_PATH = DATA_DIR / "ai_config.json"
+
+#: 本模块的 logger 以前**从未被配置过**——`logger.info("…重试…")` 全部无声
+#: 丢弃、`logger.warning` 只落到 stderr（GUI 下看不到）。结果是：一块校准卡在
+#: "90 秒超时 → 退避重试"里拖到 7 分 39 秒，用户界面上却一片空白，只能判成
+#: "程序卡死"（2026-10-05 实测）。这里给 logger 挂一个轮转文件 handler，
+#: 让重试 / 超时 / 端点自愈第一次有据可查。
+_LOG_READY = False
+
+
+def _log_filename() -> str:
+    """日志文件名；自检进程隔离（与 video_toolbox._append_log 同一套判据）。"""
+    name = os.path.basename(sys.argv[0] or "")
+    if os.environ.get("VT_SELFTEST") == "1" \
+            or name.startswith(("_selftest", "_smoke")):
+        return "ai_client_selftest.log"
+    return "ai_client.log"
+
+
+def _ensure_file_log() -> None:
+    """给本模块 logger 挂轮转文件 handler（只挂一次；任何异常都吞掉）。"""
+    global _LOG_READY
+    if _LOG_READY:
+        return
+    _LOG_READY = True
+    try:
+        if logger.handlers:            # 宿主已配置过 → 不抢
+            return
+        import logging.handlers
+        logdir = DATA_DIR.parent / "logs"
+        logdir.mkdir(parents=True, exist_ok=True)
+        handler = logging.handlers.RotatingFileHandler(
+            str(logdir / _log_filename()), maxBytes=1_500_000,
+            backupCount=2, encoding="utf-8")
+        handler.setFormatter(logging.Formatter(
+            "%(asctime)s [%(levelname).1s] %(message)s", "%Y-%m-%d %H:%M:%S"))
+        logger.addHandler(handler)
+        logger.setLevel(logging.INFO)
+        logger.propagate = False
+    except Exception:  # noqa: BLE001
+        pass
 
 DEFAULT_CONFIG: dict = {
     "enabled": True,
@@ -618,13 +658,21 @@ VOLCES_PLAN_DEFAULT_MODEL = "deepseek-v4.1-flash"
 #: deepseek-flash（火山按量名）误判成 DeepSeek 官方模型。
 PROVIDER_RULES = {
     "api.deepseek.com": {
-        "not_here": frozenset({"deepseek-flash", "deepseek-v4-flash",
-                               "deepseek-v4.1-flash", "deepseek-v4-pro",
-                               "deepseek-v3", "deepseek-v3.2", "deepseek-r1"}),
+        # 2026-10-05 按官方文档重核（api-docs.deepseek.com/quick_start/pricing）：
+        #   官方现役模型只有 **deepseek-flash**（通用，1M 上下文 / 384K 输出，
+        #   支持视觉）与 **deepseek-v4-pro**（推理，1M / 384K，不支持视觉）。
+        #   旧名 deepseek-chat / deepseek-reasoner 已于 2026-07-24 23:59 停用；
+        #   deepseek-v4.1-flash 是火山方舟套餐侧的名字，官方不认。
+        #   官方仍兼容 deepseek-v4-flash / deepseek-v4-flash-vision-exp
+        #   （等价 deepseek-flash，按 Flash 计费）⇒ 不列入排除集，原样放行。
+        "not_here": frozenset({"deepseek-chat", "deepseek-reasoner",
+                               "deepseek-v3", "deepseek-v3.2", "deepseek-r1",
+                               "deepseek-v4.1-flash"}),
         "prefixes": ("deepseek-",),
-        "default": "deepseek-chat",
-        "hint": "DeepSeek 官方只提供 deepseek-chat（通用）与 "
-                "deepseek-reasoner（推理）",
+        "default": "deepseek-flash",
+        "hint": "DeepSeek 官方现役模型为 deepseek-flash（通用+视觉）与 "
+                "deepseek-v4-pro（推理）；旧名 deepseek-chat / "
+                "deepseek-reasoner 已于 2026-07-24 停用",
     },
     "bigmodel.cn": {
         "not_here": frozenset(),
@@ -667,15 +715,18 @@ PROVIDER_RULES = {
     },
 }
 
-#: 别名对照（跨平台抄错模型名时给出更贴切的替代说明）
+#: 别名对照（模型名抄错平台/抄到已停用的旧名时，给出官方现役替代）
+#: 2026-10-05 按官方文档重核：deepseek-chat / deepseek-reasoner 已于
+#: 2026-07-24 停用，现役只有 deepseek-flash 与 deepseek-v4-pro。
 DEEPSEEK_OFFICIAL_ALIASES = {
-    "deepseek-flash": "deepseek-chat",     # 火山方舟的按量模型名
-    "deepseek-v4-flash": "deepseek-chat",
-    "deepseek-v4.1-flash": "deepseek-chat",
-    "deepseek-v4-pro": "deepseek-reasoner",
-    "deepseek-v3": "deepseek-chat",
-    "deepseek-v3.2": "deepseek-chat",
-    "deepseek-r1": "deepseek-reasoner",
+    # —— 官方已停用的旧名（打上去恒 404 Model Not Exist）——
+    "deepseek-chat": "deepseek-flash",
+    "deepseek-reasoner": "deepseek-v4-pro",
+    "deepseek-v3": "deepseek-flash",
+    "deepseek-v3.2": "deepseek-flash",
+    "deepseek-r1": "deepseek-v4-pro",
+    # —— 其它平台的模型名（火山方舟套餐侧）——
+    "deepseek-v4.1-flash": "deepseek-flash",
 }
 
 
@@ -694,11 +745,14 @@ def provider_of(base_url) -> str:
 def match_provider_model(base_url, model):
     """厂商端点 ↔ 模型名自动匹配：返回 (模型, 说明|None)。
 
-    解决的设置错误：把 A 平台的模型名填到 B 平台端点。最典型的是
-    「DeepSeek 官方地址 + deepseek-flash」——deepseek-flash 是**火山方舟**
-    的按量模型名，DeepSeek 官方只有 deepseek-chat / deepseek-reasoner，
+    解决的设置错误：把 A 平台的模型名填到 B 平台端点，或填了**已停用**的旧
+    模型名。两类都实测踩过：
+      · 「DeepSeek 官方地址 + deepseek-v4.1-flash」——后者是火山方舟套餐侧的
+        名字，官方不认；
+      · 「DeepSeek 官方地址 + deepseek-chat」——该名 2026-07-24 已停用，现役
+        只有 deepseek-flash 与 deepseek-v4-pro（见官方定价页）。
     硬发出去会被服务端当成推理模型（思考链吃光额度、正文为空）或直接报错，
-    报错文本里没有任何线索指向"模型名抄错了平台"，用户无从判断。
+    报错文本里没有任何线索指向"模型名抄错了平台/版本"，用户无从判断。
     """
     p = provider_of(base_url)
     m = str(model or "").strip()
@@ -750,16 +804,97 @@ MODEL_CAPS = {
     # —— 火山方舟按量常见 ——
     "doubao-seed-1.6-flash":        {"ctx": 262144, "out": 8192},
     "doubao-seed-1.6-flash-250828": {"ctx": 262144, "out": 8192},
+    # ⚠️ 同名跨平台：本行是**火山方舟按量**侧的 deepseek-flash。DeepSeek
+    #    官方也有同名模型但能力大得多（1M / 384K），故官方端点走下面的
+    #    PROVIDER_MODEL_CAPS 覆盖表，不要在这里写官方数值。
     "deepseek-flash":       {"ctx": 131072, "out": 65536},
-    # —— DeepSeek 官方 API ——
-    "deepseek-chat":        {"ctx": 65536, "out": 8192},
-    "deepseek-reasoner":    {"ctx": 65536, "out": 32768},
+    # ⚠️ 已删除 deepseek-chat / deepseek-reasoner（2026-07-24 官方停用）。
+    #    这两名字现在只可能出现在第三方中转上，各家中转的能力值无从核实，
+    #    按「表外模型不钳制」处理——宁可让端点自己报错并由 _shrink_max_tokens
+    #    减半自愈，也不要拿旧官方的 65536/8192 去误伤 1M 上下文的中转。
 }
 
 
-def model_caps(model):
-    """查模型能力表：{"ctx":…, "out":…}；表外模型返回 None（不钳制）。"""
-    return MODEL_CAPS.get(str(model or "").strip().lower())
+#: 厂商级能力覆盖表：**同名模型在不同平台能力不同**时用（最典型的就是
+#: deepseek-flash —— DeepSeek 官方 1M/384K，火山方舟按量另有数值）。
+#: 查表顺序：先厂商覆盖表，再回落 MODEL_CAPS。
+#: 数值来源：DeepSeek 官方定价页 api-docs.deepseek.com/quick_start/pricing
+#: （2026-10-05 核对）——deepseek-flash 与 deepseek-v4-pro 均为
+#: 上下文 1M、单次最大输出 384K。
+PROVIDER_MODEL_CAPS = {
+    "api.deepseek.com": {
+        "deepseek-flash":     {"ctx": 1048576, "out": 393216},
+        # 官方兼容的旧名，等价 deepseek-flash（按 Flash 计费）
+        "deepseek-v4-flash":  {"ctx": 1048576, "out": 393216},
+        "deepseek-v4-flash-vision-exp": {"ctx": 1048576, "out": 393216},
+        "deepseek-v4-pro":    {"ctx": 1048576, "out": 393216},
+    },
+}
+
+
+#: 厂商级「无视觉能力」模型 → 该平台的视觉替代模型。视觉槽填到这些模型上
+#: 时屏幕识别/截图理解必失败（服务端直接报"不支持图片输入"）。
+#: DeepSeek 官方：deepseek-v4-pro 不支持 Vision，deepseek-flash 支持。
+PROVIDER_NO_VISION = {
+    "api.deepseek.com": (frozenset({"deepseek-v4-pro"}), "deepseek-flash"),
+}
+
+
+def model_caps(model, base_url=None):
+    """查模型能力表：{"ctx":…, "out":…}；表外模型返回 None（不钳制）。
+
+    base_url 非空时先查厂商级覆盖表 PROVIDER_MODEL_CAPS（同名模型跨平台
+    能力不同，如 deepseek-flash），未命中再回落通用表 MODEL_CAPS。
+    """
+    name = str(model or "").strip().lower()
+    if base_url:
+        p = provider_of(base_url)
+        if p:
+            hit = (PROVIDER_MODEL_CAPS.get(p) or {}).get(name)
+            if hit:
+                return hit
+    return MODEL_CAPS.get(name)
+
+
+#: 订阅套餐（Plan）端点 → (套餐名, 条款要点)。这类端点的服务条款普遍**只允许
+#: 交互式使用**，明确禁止「自动化脚本 / 自定义应用程序后端 / 非交互式批量调用」。
+#: 产品口径（2026-10-05 用户拍板）：**不阻止用户接入**——能不能用、会不会被判
+#: 违规由服务商判定，但程序必须把风险讲清楚，风险由用户自负。
+#: 判据只认套餐专属端点，按量端点（dashscope 公共 / 火山 /api/v3）不在此列，
+#: 也不要把 `*.maas.aliyuncs.com` 泛化成套餐——那还会命中专属实例。
+PLAN_ENDPOINT_RISKS = (
+    (("token-plan",), "百炼 Token Plan",
+     "仅限在编程工具/智能体工具中交互式使用，不可用于自动化脚本、"
+     "自定义应用程序后端或任何非交互式批量调用"),
+    (("coding.dashscope.aliyuncs.com",), "百炼 Coding Plan",
+     "仅限编程工具交互式使用，批量/自动化调用同样属于超范围使用"),
+    (("/api/plan/", "/api/plan"), "火山方舟 Agent Plan（Token Plan）",
+     "套餐权益限交互式使用，脚本化批量调用可能被判定为滥用"),
+    (("/api/coding",), "火山方舟 / 智谱 Coding Plan",
+     "仅限编程工具交互式使用，批量/自动化调用属于超范围使用"),
+)
+
+
+def plan_endpoint_risk(base_url) -> str:
+    """订阅套餐端点的**合规风险**提示；不是套餐端点则返回空串。
+
+    只提示、不改变任何请求行为（不拦、不改地址、不改模型）。本软件的转录与
+    字幕校准是典型的**批量非交互调用**，恰好落在多数套餐条款的禁止范围内，
+    用户看不到条款就会在毫不知情的情况下把 Key 用成违规状态——所以这里把
+    条款原文要点与稳妥替代（按量端点）一并说清。
+    """
+    b = str(base_url or "").strip().lower()
+    if not b:
+        return ""
+    for keys, name, note in PLAN_ENDPOINT_RISKS:
+        if any(k in b for k in keys):
+            return ("⚠️ 该地址是「%s」订阅套餐端点：套餐条款规定%s。本软件的"
+                    "转录与字幕校准属于批量非交互调用，若被服务商判定违规，"
+                    "可能被暂停订阅或封禁 API Key——**风险由你自行承担**。"
+                    "求稳请改用按量计费端点（百炼 dashscope.aliyuncs.com/"
+                    "compatible-mode/v1、火山方舟 ark.cn-beijing.volces.com/"
+                    "api/v3、硅基流动 api.siliconflow.cn/v1）。" % (name, note))
+    return ""
 
 
 def match_volces_plan_model(base_url, model):
@@ -793,14 +928,18 @@ def match_settings(cfg: dict) -> tuple[dict, list]:
     返回 (修正后的配置副本, 说明列表)。纯函数，不改传入的 dict，不发网络请求。
 
     修正项（"设置错误"逐项自动纠正，避免用户对着报错猜）：
-      0. **厂商 ↔ 模型名**：把 A 平台的模型名填到 B 平台端点（如 DeepSeek
-         官方地址 + 火山方舟的 deepseek-flash）→ 换成该平台真实存在的模型。
+      0. **厂商 ↔ 模型名**：把 A 平台的模型名填到 B 平台端点，或填了已停用的
+         旧名（如 DeepSeek 官方地址 + 已停用的 deepseek-chat / 火山套餐侧的
+         deepseek-v4.1-flash）→ 换成该平台现役模型。
       1. **端点 ↔ 模型**：Token Plan 端点（/api/plan/v3）+ 名单外模型 →
          换成套餐默认模型。套餐 Key 打按量端点必 401、按量模型打套餐端点
          必 404，两端都不通。
       2. **视觉模型**：视觉槽留空时跟随文本模型；地址与文本同源时一并匹配。
+      2b. **视觉能力**：视觉槽落到「不支持图片输入」的模型上（DeepSeek 官方
+         deepseek-v4-pro）→ 换成同平台的视觉模型（deepseek-flash）。
       3. **输出预算**：calib_max_tokens 超模型单次输出上限 → 夹到上限
          （推理模型思考链吃光额度会让正文为空，超发只会换来 400）。
+         能力值先按厂商覆盖表（PROVIDER_MODEL_CAPS）取，再回落通用表。
       4. **上下文预算**：calib_context_tokens 超模型上下文上限 → 夹到上限。
       5. **预算过低兜底**：输出低于 8192（校准无法工作）→ 抬到 8192。
     """
@@ -845,8 +984,18 @@ def match_settings(cfg: dict) -> tuple[dict, list]:
     if base and not vbase:
         out["vision_base_url"] = base
 
+    # ---- 2b. 视觉能力：模型本身不收图片 → 换同平台的视觉模型 ----
+    # DeepSeek 官方 deepseek-v4-pro 不支持 Vision；用户把文本模型设成它、
+    # 视觉槽留空（跟随文本）时，屏幕识别/截图理解会直接报"不支持图片输入"。
+    _vnow = str(out.get("vision_model") or "").strip()
+    _vrule = PROVIDER_NO_VISION.get(provider_of(vbase) or provider_of(base))
+    if _vrule and _vnow.lower() in _vrule[0] and _vrule[1] != _vnow:
+        out["vision_model"] = _vrule[1]
+        notes.append("视觉模型「%s」不支持图片输入（屏幕识别会失败），已换成"
+                     "同平台的「%s」" % (_vnow, _vrule[1]))
+
     # ---- 3~5. 预算钳制 ----
-    caps = model_caps(model)
+    caps = model_caps(model, base)
     if caps:
         try:
             _mt = int(out.get("calib_max_tokens") or _CALIB_OUT_DEFAULT)
@@ -1135,6 +1284,16 @@ _MAX_TOKENS_OVER_PAT = (
 )
 
 
+#: 网络/超时类报错特征：这类错误**永远不是**「输出预算太大」，必须先行排除。
+#: 教训（2026-10-05）：_MAX_TOKENS_OVER_PAT 里有「超过/超出/上限」这种泛词，
+#: 任何含这些字的中文报错都会被误判成 max_tokens 超限 → 白白跑 6 次减半请求
+#: （每次减半还各带一轮 4 次重试），把一次超时放大成重试风暴。
+_NETWORK_ERR_PAT = ("超时", "timed out", "timeout", "网络错误", "urlopen",
+                    "connection reset", "connection refused", "connection aborted",
+                    "dns", "temporary failure", "name or service",
+                    "ssl", "proxy", "代理")
+
+
 def _is_max_tokens_over(err) -> bool:
     """错误文本是否属于「max_tokens 参数值超过端点/模型上限」类。
 
@@ -1145,6 +1304,8 @@ def _is_max_tokens_over(err) -> bool:
     认 max_tokens 字样与超限措辞，不认裸的 context length。
     """
     low = str(err).lower()
+    if any(k in low for k in _NETWORK_ERR_PAT):
+        return False                      # 超时/连不上：减半 max_tokens 修不了
     if "context length" in low or "上下文" in low:
         return False
     return any(k in low for k in _MAX_TOKENS_OVER_PAT)
@@ -1231,16 +1392,67 @@ class AIClient:
         self.timeout = float(self.cfg.get("timeout") or 90)
         self.retries = int(self.cfg.get("retries")
                            if self.cfg.get("retries") is not None else 3)
+        #: 过程事件回调（可选）callable(msg, level) —— 重试 / 超时 / 端点自愈
+        #: 这类"过程动作"经它上报给调用方（校准日志），否则用户在整个等待期间
+        #: 看不到任何输出，只能把"正在重试"判成"程序卡死"。
+        self.on_event = None
+        _ensure_file_log()
+
+    # ---- 过程事件上报 ----------------------------------------------------
+    def _emit(self, msg: str, level: str = "info") -> None:
+        """把一次过程动作同时写进文件日志与调用方回调（都 best-effort）。"""
+        try:
+            logger.log(logging.WARNING if level in ("err", "warn") else logging.INFO,
+                       "%s", msg)
+        except Exception:  # noqa: BLE001
+            pass
+        cb = self.on_event
+        if not callable(cb):
+            return
+        try:
+            cb(msg, level)
+        except TypeError:
+            try:
+                cb(msg)
+            except Exception:  # noqa: BLE001
+                pass
+        except Exception:  # noqa: BLE001
+            pass
+
+    # ---- 超时取值 --------------------------------------------------------
+    def _timeout_for(self, body: dict) -> float:
+        """按本次输出预算放大超时，避免大块校准被 90 秒默认值反复打断。
+
+        2026-10-05 实测：火山 Agent Plan + 400 条/块（约 6 万字符输入、输出
+        预算 65536）时，单块正常耗时约 85 秒——**正好压在 90 秒默认超时线上**，
+        服务端稍慢就被判超时、退避重试，一块能拖到 7 分 39 秒，而这段等待在
+        界面上完全空白（用户只能判断成"卡住"）。这里按输出预算线性放宽：
+
+          · max_tokens ≤ 8192（连通性测试、小请求）→ 维持原超时，行为不变；
+          · 更大预算 → 按 token/128 秒给量（65536 → 512s），上限 300 秒。
+
+        上限 300 秒是**刻意留的**：请求期间不检查取消标志，超时太长会让
+        「停止」按钮迟迟不生效。
+        """
+        try:
+            mt = int(body.get("max_tokens") or 0)
+        except (TypeError, ValueError):
+            mt = 0
+        if mt <= 8192:
+            return self.timeout
+        return max(self.timeout, min(300.0, mt / 128.0))
 
     # ---- 底层请求 --------------------------------------------------------
     def _request(self, url: str, headers: dict, body: dict) -> dict:
         data = json.dumps(body, ensure_ascii=False).encode("utf-8")
+        _to = self._timeout_for(body)
         last_err: Exception | None = None
         for attempt in range(self.retries + 1):
+            _t0 = time.time()
             try:
                 req = urllib.request.Request(url, data=data,
                                              headers=headers, method="POST")
-                with urlopen_endpoint(req, self.timeout) as resp:
+                with urlopen_endpoint(req, _to) as resp:
                     return json.loads(resp.read().decode("utf-8"))
             except urllib.error.HTTPError as e:
                 detail = ""
@@ -1252,7 +1464,17 @@ class AIClient:
                     raise AIClientError(f"HTTP {e.code}: {detail}") from e
                 last_err = AIClientError(f"HTTP {e.code}: {detail}")
             except (urllib.error.URLError, TimeoutError, OSError) as e:
-                last_err = AIClientError(f"网络错误: {e}")
+                # 超时与"连不上"分开说：前者多半是模型还没吐完（大块 + 思考），
+                # 后者才是网络/代理问题——两者的处置完全不同。
+                if isinstance(e, TimeoutError) or "timed out" in str(e).lower():
+                    # ⚠ 措辞刻意避开「超过/超出/上限/太大」——那些词会被
+                    # _is_max_tokens_over 当成"输出预算太大"，进而触发 6 次
+                    # 减半重试（每次还各带一轮 4 次重试），把一次超时放大成
+                    # 重试风暴。超时减半 max_tokens 毫无用处。
+                    last_err = AIClientError(
+                        f"等待响应超时（{_to:.0f} 秒内没收到任何数据）")
+                else:
+                    last_err = AIClientError(f"网络错误: {e}")
             except json.JSONDecodeError as e:
                 # v1.16.5 修复：端点返回非 JSON 正文（网关 HTML 错误页 / 空体）
                 # 时 json.loads 抛 JSONDecodeError——它不在上面的 except 元组里，
@@ -1260,8 +1482,14 @@ class AIClient:
                 last_err = AIClientError(f"响应非 JSON: {e}")
             if attempt < self.retries:
                 wait = 2.0 * (attempt + 1)
-                logger.info("AI 请求失败（%s），%.0f 秒后重试（第 %d/%d 次）",
-                            last_err, wait, attempt + 1, self.retries)
+                _el = time.time() - _t0
+                # 这条以前只走 logger.info，而全项目没配过 logging ⇒ 谁也看不到，
+                # 用户只能对着空白的界面等（2026-10-05 实测踩到）。改为 _emit：
+                # 文件日志 + 校准日志双落，让"正在重试"看得见。
+                self._emit("AI 请求失败（%.0f 秒后重试，第 %d/%d 次；"
+                           "本次已等待 %.0f 秒）：%s"
+                           % (wait, attempt + 1, self.retries, _el, last_err),
+                           "err")
                 time.sleep(wait)
         raise last_err or AIClientError("AI 请求失败")
 
@@ -1550,7 +1778,8 @@ class AIClient:
                 raise AIClientError(
                     "模型只输出了思考链、正文为空"
                     f"（finish_reason={reason or '未知'}，多为思考耗尽 max_tokens）。"
-                    "请改用非推理模型（如 deepseek-chat）或加大「单次最大输出 token」")
+                    "请改用非推理模型（如 deepseek-flash / glm-4.7-flash）"
+                    "或在设置页把「思考」关掉、加大「单次最大输出 token」")
             if reason == "length":
                 raise AIClientError("输出被 max_tokens 截断，请加大输出预算")
         return content

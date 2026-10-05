@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 1.16.5
+# @version 1.17.0
 """AI 校准 Agent 自检（离线，不联网、不调用真实 LLM）。
 
 覆盖：
@@ -14,7 +14,8 @@
   7. v1.16.0 重问带反馈：invalid / truncated 原地重试并附具体整改要求；
   8. v1.16.0 受控并发：多路取回与串行结果等价，产物 verify 通过；
   9. v1.16.0 断点续跑：ckpt 全量列不写空，已完成块不再重问；
-  10. tag 三级优先级：① 游戏专名 ＞ ② 内容/类型 ＞ ③ 公司/作者——配额 6:3:1、
+  10. tag 分层优先级：① 游戏专名 ＞ ①b 版本/角色 ＞ ② 内容/类型 ＞ ③ 公司/作者
+      ——配额 5:2:2:1（v1.17.1 起）、
       幻觉词剔除、书面短语归一、非游戏 IP 不占作品名额、Warframe→星际战甲。
 
 用法：tools\\python\\python.exe src\\_selftest_calib_ai.py
@@ -732,15 +733,17 @@ def test_meta_dossier():
 
 
 def test_tag_priority():
-    """tag 三级优先级（用户 2026-09-21/22 指定）：① 游戏专名 ＞ ② 内容/类型 ＞ ③ 公司/作者。
+    """tag 分层优先级（用户 2026-09-21/22 指定）：① 游戏专名 ＞ ①b 版本/角色
+    ＞ ② 内容/类型 ＞ ③ 公司/作者（①b 为 v1.17.1 依 B 站实测数据新增）。
 
-    覆盖四类回归：配额封顶（作品层不得占满全部名额）、幻觉词剔除、
-    未登记有据词（角色名）降级不争作品名额、非游戏 IP 剔除 + 官方改名。
+    覆盖五类回归：配额封顶（作品层不得占满全部名额）、幻觉词剔除、
+    未登记有据词（版本名/角色名）保底名额、非游戏 IP 剔除 + 官方改名、
+    兜底补词不破坏分层顺序。
     """
-    print("\n== 14. tag 三级优先级（游戏专名 / 内容类型 / 公司） ==")
-    check("配额 6:3:1（count=10）", ag._tag_quota(10) == (6, 3, 1),
+    print("\n== 14. tag 分层优先级（作品 / 版本·角色 / 内容类型 / 公司） ==")
+    check("配额 5:2:2:1（count=10）", ag._tag_quota(10) == (5, 2, 2, 1),
           str(ag._tag_quota(10)))
-    check("配额随 count 缩放（count=8 → 5:2:1）", ag._tag_quota(8) == (5, 2, 1),
+    check("配额随 count 缩放（count=8 → 4:2:1:1）", ag._tag_quota(8) == (4, 2, 1, 1),
           str(ag._tag_quota(8)))
 
     # 场景 A：片里多作品 + 公司；模型给了幻觉词与书面短语
@@ -756,10 +759,10 @@ def test_tag_priority():
     check("幻觉词被剔除（字幕无据）", "吉尔伽美什" not in out, " / ".join(out))
     check("书面短语归一为真实 tag（抄袭争议→抄袭）",
           "抄袭" in out and "抄袭争议" not in out, " / ".join(out))
-    check("作品层按配额封顶 6（不占满全部名额）",
-          sum(1 for t in tiers if t == 1) == 6, str(tiers))
-    check("内容/类型层保留 3 个名额",
-          sum(1 for t in tiers if t == 2) == 3, str(tiers))
+    check("作品层按配额封顶 5（不占满全部名额）",
+          sum(1 for t in tiers if t == 1) == 5, str(tiers))
+    check("内容/类型层至少保留 2 个名额",
+          sum(1 for t in tiers if t == 2) >= 2, str(tiers))
     check("公司层保留名额（米哈游）", "米哈游" in out, " / ".join(out))
 
     # 场景 B：模型只给体裁词 → 补足按片源频次补作品，但跳过非游戏 IP、改官方名
@@ -805,6 +808,22 @@ def test_tag_priority():
     check("模型给一堆体裁词时仍凑满 10 个（封顶词可被兜底补回）",
           len(out6) == 10, "%d 个: %s" % (len(out6), " / ".join(out6)))
     check("补足后标签不重复", len(set(out6)) == len(out6), " / ".join(out6))
+
+    # 场景 F（v1.17.1）：版本名 / 角色名（未登记但有据）**保底名额**。
+    #   依据：B 站四游戏 16636 条高播放视频实测，「版本名 + 当期新角色」类标签的
+    #   Lift 普遍 4~9（战双「远信回响」达 48），是当期流量核心；
+    #   旧逻辑「只在富余时补位」会被补满的作品层挤光，角色名永远进不来。
+    hz7 = "原神 鸣潮 崩坏星穹铁道 绝区零 明日方舟 战双帕弥什 清宵 心月狐"
+    out7 = ag._build_tags(["原神", "清宵", "心月狐"], hz7, "", 10)
+    n15 = sum(1 for t in out7 if ag._tag_tier(t, hz7, "") == 1.5)
+    check("版本/角色名保底名额（未登记有据 ≥2 个）", n15 >= 2,
+          "%d 个: %s" % (n15, " / ".join(out7)))
+    if n15:
+        i7 = min(out7.index(t) for t in out7
+                 if ag._tag_tier(t, hz7, "") == 1.5)
+        check("版本/角色名排在作品层之后",
+              all(ag._tag_tier(t, hz7, "") != 1 for t in out7[i7:]),
+              " / ".join(out7))
 
 
 def test_web_tool_loop():

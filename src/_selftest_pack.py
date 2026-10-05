@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# @version 1.16.5
+# @version 1.17.0
 """离线自检：验证「独立文件夹 + 封面1280x720 + 信息txt + 目录长期记忆」四项功能。
 
 不联网、不下载视频，全部用本地生成的素材验证打包逻辑。
@@ -404,22 +404,24 @@ def test_ai_settings_automatch():
         check("客户端构造即匹配", False, str(e))
 
 
-    # ⑧ 厂商 ↔ 模型名（跨平台抄错模型名，比端点类型错更常见）
-    check("DeepSeek 官方 + deepseek-flash（火山按量名）→ deepseek-chat",
+    # ⑧ 厂商 ↔ 模型名（跨平台抄错模型名 / 抄到已停用旧名，比端点类型错更常见）
+    check("DeepSeek 官方 + 已停用的 deepseek-chat → deepseek-flash",
           m.match_provider_model("https://api.deepseek.com",
-                                 "deepseek-flash")[0] == "deepseek-chat")
-    check("DeepSeek 官方 + deepseek-v4.1-flash → deepseek-chat",
+                                 "deepseek-chat")[0] == "deepseek-flash")
+    check("DeepSeek 官方 + 已停用的 deepseek-reasoner → deepseek-v4-pro",
           m.match_provider_model("https://api.deepseek.com",
-                                 "deepseek-v4.1-flash")[0] == "deepseek-chat")
-    check("DeepSeek 官方 + deepseek-v4-pro → deepseek-reasoner",
+                                 "deepseek-reasoner")[0] == "deepseek-v4-pro")
+    check("DeepSeek 官方 + 火山套餐名 deepseek-v4.1-flash → deepseek-flash",
           m.match_provider_model("https://api.deepseek.com",
-                                 "deepseek-v4-pro")[0] == "deepseek-reasoner")
-    check("DeepSeek 官方 + deepseek-chat/reasoner 原样保留",
-          m.match_provider_model("https://api.deepseek.com", "deepseek-chat")[0]
-          == "deepseek-chat"
+                                 "deepseek-v4.1-flash")[0] == "deepseek-flash")
+    check("DeepSeek 官方现役模型原样保留（含官方兼容的旧名）",
+          m.match_provider_model("https://api.deepseek.com",
+                                 "deepseek-flash")[0] == "deepseek-flash"
           and m.match_provider_model("https://api.deepseek.com",
-                                     "deepseek-reasoner")[0]
-          == "deepseek-reasoner")
+                                     "deepseek-v4-pro")[0] == "deepseek-v4-pro"
+          and m.match_provider_model("https://api.deepseek.com",
+                                     "deepseek-v4-flash")[0]
+          == "deepseek-v4-flash")
     check("智谱端点 + deepseek-chat → glm-4.7-flash",
           m.match_provider_model("https://open.bigmodel.cn/api/paas/v4",
                                  "deepseek-chat")[0] == "glm-4.7-flash")
@@ -433,13 +435,128 @@ def test_ai_settings_automatch():
     check("厂商判据 provider_of 命中/未命中正确",
           m.provider_of("https://api.deepseek.com") == "api.deepseek.com"
           and m.provider_of("https://my-proxy.internal") == "")
-    # ⑨ 端到端：用户实测的失效配置（DeepSeek 官方 + deepseek-flash）被修好
+    # ⑨ 端到端：用户实测的失效配置（DeepSeek 官方 + 已停用的 deepseek-chat，
+    #    预算还被旧能力表夹到 8192/65536）被修好
     _fx, _fn = engine.ai_match_settings({
-        "base_url": "https://api.deepseek.com", "model": "deepseek-flash",
-        "vision_model": "deepseek-flash"})
-    check("端到端：DeepSeek 官方错配模型被自动纠正且给出说明",
-          _fx["model"] == "deepseek-chat" and _fx["vision_model"] == "deepseek-chat"
+        "base_url": "https://api.deepseek.com", "model": "deepseek-chat",
+        "vision_model": "deepseek-chat",
+        "calib_max_tokens": 65536, "calib_context_tokens": 1000000})
+    check("端到端：DeepSeek 官方停用旧名被换成现役模型并给出说明",
+          _fx["model"] == "deepseek-flash"
+          and _fx["vision_model"] == "deepseek-flash"
           and len(_fn) >= 2, " / ".join(_fn)[:160])
+    check("端到端：DeepSeek 官方能力值按官方文档（1M / 384K）不再误夹预算",
+          _fx["calib_max_tokens"] == 65536
+          and _fx["calib_context_tokens"] == 1000000,
+          "out=%s ctx=%s" % (_fx["calib_max_tokens"],
+                             _fx["calib_context_tokens"]))
+    # ⑩ 视觉能力：deepseek-v4-pro 不支持图片输入 → 视觉槽换 deepseek-flash
+    _vx, _vn = engine.ai_match_settings({
+        "base_url": "https://api.deepseek.com", "model": "deepseek-v4-pro",
+        "vision_model": ""})
+    check("DeepSeek v4-pro 视觉槽自动换成支持视觉的 deepseek-flash",
+          _vx["vision_model"] == "deepseek-flash", _vx["vision_model"])
+    check("厂商级能力覆盖表生效（同名 deepseek-flash 官方 1M/384K）",
+          (m.model_caps("deepseek-flash", "https://api.deepseek.com") or {}).get("ctx")
+          == 1048576
+          and (m.model_caps("deepseek-flash",
+                            "https://ark.cn-beijing.volces.com/api/v3")
+               or {}).get("ctx") == 131072)
+
+    # ⑪ 订阅套餐端点合规风险提示（2026-10-05 产品口径：允许接入、只做提示）
+    _plan_hits = [
+        "https://token-plan.cn-beijing.maas.aliyuncs.com/compatible-mode/v1",
+        "https://token-plan.cn-beijing.maas.aliyuncs.com/apps/anthropic",
+        "https://coding.dashscope.aliyuncs.com/v1",
+        "https://ark.cn-beijing.volces.com/api/plan/v3",
+        "https://ark.cn-beijing.volces.com/api/coding/v3",
+        "https://open.bigmodel.cn/api/coding/paas/v4",
+    ]
+    _miss = [
+        "https://dashscope.aliyuncs.com/compatible-mode/v1",
+        "https://ark.cn-beijing.volces.com/api/v3",
+        "https://api.siliconflow.cn/v1",
+        # ⚠ 专属实例不能当套餐端点，否则会把自建部署的用户吓一跳
+        "https://llm-ukmkj60gxr2wms1f.cn-beijing.maas.aliyuncs.com/"
+        "compatible-mode/v1",
+        "",
+    ]
+    check("套餐端点识别齐全（百炼 Token/Coding Plan、火山 Agent/Coding、智谱 Coding）",
+          all(m.plan_endpoint_risk(u) for u in _plan_hits),
+          " / ".join(u for u in _plan_hits if not m.plan_endpoint_risk(u))[:120])
+    check("按量端点与专属实例不误报",
+          all(not m.plan_endpoint_risk(u) for u in _miss),
+          " / ".join(u for u in _miss if m.plan_endpoint_risk(u))[:120])
+    check("提示含「风险自负」与稳妥替代端点",
+          "风险由你自行承担" in m.plan_endpoint_risk(_plan_hits[0])
+          and "dashscope.aliyuncs.com" in m.plan_endpoint_risk(_plan_hits[0]))
+    check("只提示、不改变地址与模型（提示函数是纯查询）",
+          m.plan_endpoint_risk(_plan_hits[0]) != ""
+          and m.match_settings({"base_url": _plan_hits[0],
+                                "model": "deepseek-v4.1-flash"})[0]["base_url"]
+          == _plan_hits[0])
+    check("引擎暴露 ai_plan_risk / ai_plan_risks（三处端点去重）",
+          callable(getattr(engine, "ai_plan_risk", None))
+          and callable(getattr(engine, "ai_plan_risks", None)))
+    _risks = engine.ai_plan_risks({
+        "base_url": "https://token-plan.cn-beijing.maas.aliyuncs.com/"
+                    "compatible-mode/v1",
+        "vision_base_url": "",
+        "asr_base_url": "https://token-plan.cn-beijing.maas.aliyuncs.com/"
+                        "compatible-mode/v1"})
+    check("同一套餐端点只提示一次（去重）", len(_risks) == 1, str(_risks)[:120])
+    # ⚠ 出处前缀：三个槽各有地址，汇总成一条 InfoBar 时必须说清是哪一处，
+    #   否则"全局 AI 填智谱、弹窗说百炼"看起来就像识别错了（2026-10-05 实测）
+    _rr = engine.ai_plan_risks({
+        "base_url": "https://open.bigmodel.cn/api/paas/v4/chat/completions",
+        "asr_base_url": "https://token-plan.cn-beijing.maas.aliyuncs.com/"
+                        "compatible-mode/v1"})
+    check("风险提示标明出处（智谱地址 + 百炼 ASR 时只报 ASR 那条）",
+          len(_rr) == 1 and _rr[0].startswith("【ASR 语音识别】"), str(_rr)[:90])
+    _rr2 = engine.ai_plan_risks({
+        "base_url": "https://token-plan.cn-beijing.maas.aliyuncs.com/"
+                    "compatible-mode/v1",
+        "asr_base_url": "https://token-plan.cn-beijing.maas.aliyuncs.com/"
+                        "compatible-mode/v1"})
+    check("同一端点占两个槽时合并标注（不重复弹两遍）",
+          len(_rr2) == 1 and _rr2[0].startswith("【全局 AI / ASR 语音识别】"),
+          str(_rr2)[:90])
+    check("非套餐配置零提示", engine.ai_plan_risks({
+        "base_url": "https://open.bigmodel.cn/api/paas/v4",
+        "asr_base_url": "https://api.siliconflow.cn/v1"}) == [])
+
+    # ⑫ 校准等待期可观测性（2026-10-05：一块因超时重试拖到 7 分 39 秒，
+    #    而重试消息走的是一个从没配过 handler 的 logger ⇒ 界面全程空白）
+    # ⚠ 用 m.logger 而不是 getLogger("ai_client")：ai_client 可能以包名导入
+    #   （logger 名带前缀），按名字取会拿到另一个空 logger，误判成"没挂上"。
+    check("ai_client 挂了文件日志 handler（重试/超时留痕）",
+          any(type(h).__name__ == "RotatingFileHandler" for h in m.logger.handlers),
+          "%s: %s" % (m.logger.name,
+                      [type(h).__name__ for h in m.logger.handlers]))
+    _c1 = m.AIClient({"base_url": "https://api.deepseek.com", "api_key": "x"})
+    _tos = [_c1._timeout_for({"max_tokens": n}) for n in (512, 8192, 65536, 393216)]
+    check("大块请求超时按输出预算放宽（≤8192 维持 90s；65536→300s 封顶）",
+          _tos[0] == 90 and _tos[1] == 90 and _tos[2] == 300 and _tos[3] == 300,
+          str(_tos))
+    check("超时/网络错误不再被误判成「max_tokens 超限」（防减半重试风暴）",
+          m._is_max_tokens_over("等待响应超时（90 秒内没收到任何数据）") is False
+          and m._is_max_tokens_over("网络错误: <urlopen error timed out>") is False
+          and m._is_max_tokens_over("HTTP 400: max_tokens is too large") is True)
+    _ev = []
+    _c2 = m.AIClient({"base_url": "https://10.255.255.1/v1", "api_key": "x",
+                      "timeout": 0.5, "retries": 1})
+    _c2.on_event = lambda msg, level="info": _ev.append((level, msg))
+    try:
+        _c2.chat_openai("hi", max_tokens=64)
+    except Exception:  # noqa: BLE001
+        pass
+    check("重试事件经 on_event 上报（校准日志能看见「正在重试」）",
+          len(_ev) == 1 and _ev[0][0] == "err" and "重试" in _ev[0][1],
+          str(_ev)[:140])
+    check("引擎把重试事件接到校准日志（_CALIB_EVENT_SINK 已接线）",
+          callable(getattr(engine, "_calib_event_sink", None))
+          and isinstance(getattr(engine, "_CALIB_EVENT_SINK", None), list)
+          and callable(getattr(engine, "calib_ai_chat", None)))
 
 
 def main():
