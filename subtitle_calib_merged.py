@@ -296,6 +296,19 @@ BILINGUAL_TERMS = {
     "Schwang": "玄方", "Schwan": "玄方",
     "Mongo": "梦州",                                               # Mongjo/Mong 误听
     "Nethermancer": "幽客",                                        # 中文行残留英文
+    # 2026-10-05 第二部 3.7 reaction 片（I Wasn't Ready...）二次校准：中文行英文/生僻错形残留
+    "Nexus Fox": "天罗狐影", "枢纽 Fox": "天罗狐影", "枢纽Fox": "天罗狐影",  # 长键先于 Nexus->枢纽
+    "Prolog": "序章",                                              # 序章（#5147）
+    "Evedroping": "偷听",                                         # eavesdropping 漏听（#2537）
+    "Wibes": "感觉", "wibes": "感觉",                             # vibes 错拼（#5739）
+    "Thingabob": "那玩意儿", "thingabob": "那玩意儿", "abobb": "玩意儿",  # thingamabob 断词（#5731/#5733）
+    "Autopet": "机关宠物", "autopet": "机关宠物",                  # 玄方城机关宠物维修（#1908）
+    "shling鸟": "天鹅灵鸟",                                       # Xuanling/Lling bird（#5455）
+    "玄方城hold": "玄方城",                                       # Schwanfong Hold 中英混合残留
+    "玄方fangjo": "玄方城", "玄方fang": "玄方城",                 # 长键先行
+    "玄方 Fong": "玄方", "玄方f": "玄方",                         # 玄方碎形（#3303/#7174）
+    "Shrung": "玄方城",                                           # miniature Schwan(fong Hold) 跨行残段（#5680）
+    "唐唐宁": "同宁",                                             # Tang Tang Ning 谷翻（长键先于"唐宁"，防单遍残留"唐同宁"，#200）
     # 2026-10-04 补全长键：裸键"枯萎"（学习库 bi|枯萎->鸣潮）会抢先命中，把"枯萎的波浪/枯萎波浪/
     #   枯萎浪潮"咬成"鸣潮的波浪/鸣潮浪/鸣潮潮"；补这些长键（长键先行）即可整体归"鸣潮"。
     "枯萎的波浪": "鸣潮", "枯萎浪潮": "鸣潮", "枯萎波浪": "鸣潮",
@@ -621,6 +634,86 @@ BILINGUAL_TERMS = {
     "星月琳琅集": "心月琳琅集",                                      # 飞讯礼包官方名
     # "达尼亚->达妮娅" 不入表：terms-check 报与既有键 "Dasidia->达斯维达尼亚" 级联
     #   （长键先替换后，短键会咬掉"达斯维达尼亚"里的"达尼亚"）；本片该错形走逐 cue 覆盖。
+    # --- 2026-10-05 ABSOLUTE HSINEMA｜Wuthering Waves 3.7 主线 reaction（en-谷翻，5423 cue）二次校准沉淀 ---
+    # 官方中文依据（本轮检索确认）：瑝珑=Huanglong（百度百科/萌娘百科/鸣潮 huijiwiki；别称皇龙，
+    #   所辖今州·梦州·诏州·越州·重州·戎州）；玄方城=瑝珑机关都市（科技源自岁主心月狐，3.5 梦州·玄方地界）；
+    #   稷廷=Court of Savantae（官中即"稷廷"，非"稷庭"）；鸣式=Threnodian；残星会=Fractsidus；
+    #   玄翎雀=岁主信使；木禺之乱；文明之匣；岁主「心」（梦州）；追月节（典故「心狐追月」）。
+    # ⚠ 「黄龙」非官方名（官中=瑝珑）且属同音误写词 → 走 CONTEXT_MAP 英文锚定，不进本裸键表。
+    # ⚠ 「苏姐/起诉」同属误译，也用 CONTEXT_MAP 由 \bSuing\b 锚定，不进裸键表。
+    # 残象(Tacet Discord) 机翻残留
+    "言语不和谐": "残象",                                            # tacet discords（#53）
+    # 机傀(auto puppet) 机翻残留
+    "汽车傀儡": "机傀",                                              # auto puppets（#419）
+    # 稷廷(Court of Savantae) 英文/机翻残留
+    "Zeante": "稷廷",                                                # Court of Savantae（#2143）
+    "Gju Natalier": "乔贾·纳塔利娅",                                 # 同 #2368「乔贾·纳塔利娅 Joja Natalia」
+    "圣工匠": "稷廷工匠",                                            # court of sante artisan（#905）
+    # 玄翎雀(Shenling/Shrenling bird，岁主信使) 机翻残留
+    "雪万灵鸟": "玄翎雀", "栓灵鸟": "玄翎雀",                         # #2988/#3520
+    # 万相神宫(manifold sanctum) 机翻残留
+    "密室深处": "万相神宫深处",                                      # deep in the sanctum（#1322）
+    # 漂泊者(Rover) 机翻残留
+    "轨道飞行器": "漂泊者",                                          # orbiter（#622/#2639）
+    # 谛天鉴(Ministry of Sentinel Affairs) 头衔机翻残留
+    "岁主事务总管": "谛天鉴州监",                                    # intendant of Sentinel Affairs（#2937）
+    # 鸣式(Threnodian) 本片新见 ASR/机翻形态（长键先行，避免残留「鸣式人」）
+    "特罗迪亚人": "鸣式", "特罗迪亚": "鸣式", "鸣式人": "鸣式",       # Trodian/Thrronian（#3470/#3545）
+    # 溯心(Susheen) / 锁暝(Swarming) 英文残留（出现在中文行 = 未译专名）
+    "Sushi": "溯心", "Sushin": "溯心", "Susheen": "溯心",             # #4171/#4172
+    "Suing": "锁暝", "Swaming": "锁暝",                               # #4771
+    # 务安面纱(Muan Veil，梦枢天罗内静修处) 英文/机翻残留
+    "Monguan Veil": "务安面纱", "Monuan Veil": "务安面纱", "莫努安面纱": "务安面纱",
+    # 朝月会(Waking Moon Festival) 机翻直译残留；「醒月」非通用中文词，可安全收表
+    #   （更长键「醒月盛宴/醒月节」->朝月会 已先行，按键长降序不会被子串误咬）
+    "醒着的月亮": "朝月", "醒来的月光": "朝月的月光", "苏醒之月": "朝月",
+    "醒着的月灯": "朝月的月灯", "醒月": "朝月",
+    "Raiki Moon Festival": "朝月会", "Shran Hall": "玄方城要塞",     # #3384 英文整段未译
+    # 玄元境域(Schwanuan/Shreuan domain) 英文/机翻残留
+    "Shreuan 域": "玄元境域", "Schwanuan": "玄元境域",                # #4689（同 #863 玄元境域）
+    # 瑝珑(Huanglong) 错形
+    "鸿隆": "瑝珑",                                                  # #85
+    # 本片确认正确的既有专名补入脚本（此前脚本内 0 处，便于复用）
+    # 注：Providence lock 官方中文=锦妙锁（见 ENTITIES），2026-10-05 删除早先误沉淀的音译键"普罗维登斯锁"
+    "Mind Watcher": "心灵观察者",
+    # --- 2026-10-05 同片二次校准：把上一轮「只走逐 cue 覆盖、未入表」的 3.7 玄方专名补全为脚本规则 ---
+    # 硬契约第 4 条：以下只收**非通用中文词**的错形；「圣殿/圣地/胶囊/货舱/总督/管家/蜂拥而至/
+    #   中秋节/海豹/山房/宋国」等属通用词或历史名词，一律不进裸键表 → 走 CONTEXT_MAP 英文锚定或保留逐 cue。
+    # 梦州(Mengjo/Mhjo/Mong Joe) 机翻错形
+    "梦祖": "梦州", "孟乔": "梦州", "姆乔": "梦州", "孟乔万": "梦州",
+    # 玄方城(Schwangfong Hold) 机翻音译错形（长键先行）
+    "玄方芳": "玄方城", "玄方芬": "玄方城", "玄方方": "玄方城",
+    "玄方 fang": "玄方城", "玄方fang": "玄方城", "玄方 Fong": "玄方城",
+    "山峰控股": "玄方城", "上风控股": "玄方城", "仁丰控股": "玄方城",
+    "身芳": "玄方城", "丰丰堡": "玄方城", "山通堡": "玄方城",
+    "栓握会": "玄方城", "海绵牙": "玄方城", "宋国芳": "玄方城",
+    "玄方要塞": "玄方城要塞", "玄方之地": "玄方地界",
+    # 命运棱镜(Prism of Fate) —— ASR 把 prism 听成 prison
+    "命运监狱": "命运棱镜", "命运的监狱": "命运棱镜",
+    "命运的牢狱": "命运棱镜", "命运的牢笼": "命运棱镜",
+    # 朝月会(Waking Moon Festival)：长键必须显式收，否则会先被「醒月->朝月」咬成「朝月盛宴/朝月节」
+    "醒月盛宴": "朝月会", "醒月节": "朝月会", "朝月盛宴": "朝月会", "朝月节": "朝月会",
+    # 瑝珑(Huanglong) 错形
+    "还龙": "瑝珑",
+    # 秧秧(Yangyang) / 同宁(Tonging)
+    "林秧秧": "秧秧", "童宁": "同宁", "通宁": "同宁",
+    # 稷廷(Court of Savante) 机翻变体
+    "桑特宫廷": "稷廷宫廷", "萨万特法院": "稷廷宫廷", "萨万特宫廷": "稷廷宫廷",
+    "桑特法院": "稷廷宫廷", "萨万特": "稷廷",
+    # 玄翎雀(Shenling，岁主信使) / 玄朱锁(Vermillion lock)
+    "神铃": "玄翎雀",
+    # "朱锁->玄朱锁" 不入表：terms-check 报 7 处二次命中（"朱红锁/Vermillion lock" 已产出"玄朱锁"，
+    #   短键会再咬成"玄玄朱锁"）；按既有判例退回逐 cue 覆盖（本片 #2886/#5168/#5346）。
+    # 机傀(auto puppet)
+    "自动木偶": "机傀", "自动人偶": "机傀",
+    # 残象(Tacet Discord) 机翻错形
+    "塔卡不和谐": "残象", "泰塞特不和": "残象", "策略不和谐": "残象",
+    "冷漠的不和谐": "残象", "沉默不和谐": "残象",
+    "Tesset 不和谐": "残象", "Tesset不和谐": "残象", "Tesset 不和": "残象",   # #1465
+    # 锁暝(Swarming)：swarming 被直译成成语"蜂拥而至"；补长键，收掉裸键"蜂拥"留下的"而至"尾巴
+    "蜂拥而至": "锁暝",                                              # #549/#789/#2030/#2872/#2885/#2957
+    # 溯心(Susheen) 机翻音译变体
+    "苏辛": "溯心", "苏珊": "溯心", "苏夏": "溯心", "苏夏": "溯心",
 }
 
 # 保留英文不译的专名（仅提示，不替换）
@@ -678,6 +771,34 @@ CONTEXT_MAP = [
     (r"\bLady\s+Shin\b|\bShin\s+Lady\b", "Shin Lady", "心月狐女士"),
     # --- 2026-09-04 THIS_IS_CRAZY_Hsin 二次校准：需英文佐证的常见机翻错词（可复用于抽卡 Reaction 片源）---
     (r"\bswimming\b", "游泳", "锁暝"),             # swimming 是 Suoming(锁暝) 的 ASR 误听，非"游泳"
+    # 2026-10-05 3.7 reaction 片：Swarming 同为 Suoming(锁暝) ASR 误听，谷翻按 swarm 本意译成
+    #   蜂群/蜂拥/群聚（锚点须同时容纳 EN 修正后的 Suoming，--fix-en 先于 ctx 执行）
+    (r"\bSwarming\b|\bSuoming\b", "蜂群", "锁暝"),
+    (r"\bSwarming\b|\bSuoming\b", "蜂拥", "锁暝"),
+    (r"\bSwarming\b|\bSuoming\b", "群聚", "锁暝"),
+    (r"\bSwaming\b|\bSuoming\b", "斯瓦明", "锁暝"),     # #4316 Suoming 音译错形（EN 同步修 Swaming）
+    # 2026-10-05 3.7 reaction 片：intendant(州监) 被谷翻成"总监/工作人员"（attendant 为 ASR 漏音节形）
+    (r"\b[Ii]ntendant\b|\b[Aa]ttendant\b", "总监", "州监"),
+    (r"\b[Ii]ntendant\b|\b[Aa]ttendant\b", "工作人员", "州监"),
+    # autopuppet(机傀) 被谷翻成"木偶/自动木偶"（鸣潮片 puppet 均指机傀，ctx 锚英文 puppet 防误伤比喻义）
+    (r"\bauto[\s-]?puppets?\b|\b[Aa]utopuppets?\b|\b[Pp]uppets?\b", "自动木偶", "机傀"),
+    (r"\bauto[\s-]?puppets?\b|\b[Aa]utopuppets?\b|\b[Pp]uppets?\b", "木偶", "机傀"),
+    # autopet(机关宠物) 被谷翻成"自动宠物"
+    (r"\b[Aa]utopets?\b", "自动宠物", "机关宠物"),
+    # 2026-10-05 3.7 reaction 片：Suming(锁暝) 音译"素明"；Arbiter 官方中文即"御者"（岁主对玩家的
+    #   称呼，心月狐官方台词"御者，我们终于见面了"），谷翻两处异译"裁决者"统一回御者
+    (r"\bSuming\b|\bSuoming\b", "素明", "锁暝"),
+    (r"\b[Aa]rbiter\b|\bAbiter\b", "裁决者", "御者"),
+    # 2026-10-05 3.7 reaction 片：小狐狸搭档/呼语 Fox 被音译成"福克斯"（普通名词，应译狐狸；
+    #   Moon Fox 称号组合的跨 cue 处由 subfix 整行覆盖为"月狐"）
+    (r"\b[Ff]ox\b", "福克斯", "狐狸"),
+    (r"\bAbiter\b|\bArbiter\b", "阿比特", "御者"),       # #2088 Abiter=Arbiter 漏音节
+    (r"\bAby\b|\bAbby\b", "阿比", "阿布"),              # #5846/#5990 Aby=Abby 阿布（小狐狸搭档）
+    # 2026-10-05 3.7 reaction 片二次校准：
+    # Shranong=Schwanfong(玄方城) ASR 形；Ministry 在梦州语境=谛天鉴（Ministry of Sentinel
+    #   Affairs），谷翻按哈利波特梗译成"魔法部"；Ministry of War=军策府/兵部 不含"魔法部"不受影响
+    (r"\bShranong\b|\bSchwanfong\b", "施拉农", "玄方城"),
+    (r"\b[Mm]inistr(?:y|ies)\b", "魔法部", "谛天鉴"),
     (r"\balt\b|\balult\b|\balted\b|\balsated\b", "替代音", "变身形态"),   # alt=alternate form 变身形态
     (r"\balt\b|\balult\b|\balted\b|\balsated\b", "替代项", "变身"),
     (r"\balt\b|\balult\b|\balted\b|\balsated\b", "替代品", "变身形态"),
@@ -819,6 +940,14 @@ CONTEXT_MAP = [
     (r"\bTing Xiao\b", "霆骁", "清宵"),            # #99 为清宵而来的姐姐能量
     (r"\bTing Shao\b", "丁绍", "清宵"),            # #136 Paragon 丁绍=清宵（主播昵称群）
     (r"\bTing Sao\b", "婷嫂", "清宵"),             # #1129
+    # 2026-10-05 3.7 reaction 片补录：Ching Sha/Ching Shia/独立 Ching 的谷翻错形
+    (r"\bChing\w*", "清莎", "清宵"),
+    (r"\bChing\w*", "青石", "清宵"),               # #6593 Ching Shia（"青石"为常用词，须 Ching 佐证）
+    (r"\bChing\b", "青", "清宵"),                  # #1015 Suming and Ching 独立简称
+    (r"\bChing\b", "程", "清宵"),                  # #6503 呼语 Ching,（程为常用字，须独立 Ching 佐证）
+    # 景燃(Jingran) 2026-10-05 补录
+    (r"\bChingan\b|\bJingran\b", "钦安", "景燃"),   # #6776 Chingan（与下句 Jingron 同指一人）
+    (r"\bJingron\b|\bJingran\b", "景蓉", "景燃"),   # #6779 Jingron 谷翻错形
     # 景燃(Jingran，寻幽客=幽客，幕间「幽客销残声」主角；Nethermancer) ASR 变体
     (r"\bJing Rang\b", "靖让", "景燃"),            # #332 景燃的狮子（白泽）
     (r"\bJingron\b", "靖荣", "景燃"),              # #336/#990
@@ -997,6 +1126,46 @@ CONTEXT_MAP = [
     #   的语义是「强制替换成 canonical（洛瑟菈）」——于是"露西拉是学院的总统"会被
     #   改成"洛瑟菈是学院的洛瑟菈"。目标词（校长）≠ canonical，必须用本表三元组。
     (r"\bPresident\b", "总统", "校长"),
+    # --- 2026-10-05 第二部 3.7 reaction 片（I Wasn't Ready...）二次校准新增 ---
+    (r"\bLady\b", "Lady", "心月狐女士"),          # Lady(Shin) 称呼，谷翻留英文（#1662/#3356）
+    (r"\bseal\b", "seal", "封印"),                # 玄朱锁语境 seal=封印（#4107）
+    (r"\bSector Bing\b", "Bing", "丙"),           # Sector Bing=丙区（天干分区，#1537）
+    (r"\bEin said\b", "Ein", "艾因"),             # NPC 艾因（#1944）
+    (r"\bbang boo\b|\bbamboo\b", "bang boo", "竹子"),        # bamboo 断词误写（#5757，容纳 EN 修正后形态）
+    (r"\bsheen guide\b|\bSheen's guidance\b", "sheen指南", "心月狐指引"),  # Sheen's guide（#5757）
+    (r"\b[Tt]ac[ei]t discords?\b", "默契的不和", "残象"),  # Tacet Discord 谷翻系列错形（#3503/#5508）
+    (r"\b[Tt]ac[ei]t discords?\b", "默契的分歧", "残象"),  # #4698
+    (r"\b[Tt]ac[ei]t discords?\b", "默契的纷争", "残象"),  # #5952
+    # --- 2026-10-05 ABSOLUTE HSINEMA｜WuWa 3.7 主线 reaction（5423 cue）二次校准：英文锚定新增 ---
+    # 瑝珑(Huanglong)：官中=瑝珑（别称皇龙），「黄龙」是同音误写词，必须英文锚定，禁入裸键表
+    (r"\bHuang ?Long\b|\bHong ?Long\b|\bHuan ?Long\b", "黄龙", "瑝珑"),   # #85/#1007/#5084
+    # 锁暝(Swimming/Swaming 系) 名称被 ASR 作 Suing，谷翻误译成"苏姐/起诉"
+    (r"\bSuing\b", "苏姐", "锁暝姐"),            # #2920/#5005
+    (r"\bSuing\b", "起诉", "锁暝"),              # #2851
+    # Arbiter 被 ASR 作 Alberta/albat，谷翻误作加拿大省名"艾伯塔省"
+    (r"\bAlberta\b|\balbat\b", "艾伯塔省", "御者"),   # #5231
+    (r"\bAlberta\b|\balbat\b", "阿尔巴特", "御者"),   # #5235
+    # 梦州(Mongjo) 被主播简写作 MJ，谷翻原样保留
+    (r"\bmoving to MJ\b|\bto MJ\b|\bMJ\b", "MJ", "梦州"),   # #51
+    # --- 2026-10-05 同片二次校准：**通用词/歧义词**错形一律英文锚定，绝不进裸键表（硬契约第 4 条）---
+    # 万相神宫(Manifold Sanctum)：sanctum 被直译成"圣殿/圣地/圣所"
+    (r"\bsanctums?\b", "圣殿", "万相神宫"),      # #241/#244/#456/#693/#757/#987/#1044/#1072/#2048/#4750
+    (r"\bsanctums?\b", "圣地", "万相神宫"),      # #590
+    (r"\bsanctums?\b", "圣所", "万相神宫"),      # Entity ctx 已覆盖，双保险
+    # 文明之匣(civilization capsule)：capsule 被直译成"胶囊"
+    (r"\bcapsules?\b", "文明胶囊", "文明之匣"),  # #1013/#2393/#2427（长键先行）
+    (r"\bcapsules?\b", "胶囊", "文明之匣"),      # #867/#2038/#2079/#2086/#2141/#2464/#2490/#3760/#3819/#3983/#4048/#4071/#4091/#4105/#4232/#4538/#4685/#4693/#4818
+    # 玄方城(the hold)：hold 被直译成"货舱/山房"（名词义；动词义"持有"按上一轮判例不动）
+    (r"\bholds?\b", "货舱", "玄方城"),           # #466/#704/#712/#855/#988/#1103
+    (r"\bholds?\b", "山房", "玄方城"),           # #2046/#2996/#3488
+    # 州监(Intendant)：intendant 被直译成"总督/管家/管理员"
+    (r"\bintendants?\b|\bintendance\b", "总督", "州监"),   # #2788/#2879/#2921/#2933
+    (r"\bintendants?\b|\bintendance\b", "管家", "州监"),   # #690
+    (r"\bintendants?\b|\bintendance\b", "管理员", "州监"),
+    # 朝月会(Waking Moon Festival)：中秋节是通用节日名，必须英文锚定
+    (r"\bMoon Festival\b|\bWaking Moon\b|\bwaking moon\b", "中秋节", "朝月会"),   # #814
+    # 封印(seal)：seal 被直译成"海豹"（动物名）
+    (r"\bseals?\b", "海豹", "封印"),             # #2888/#5365
 ]
 
 # =============================================================
@@ -1101,6 +1270,13 @@ EXCLUDE_CONTEXT = {
     #    =楷模/典范（普通语义）。实测 "a paragon of virtue" 被误改成称号 Paragon。
     #    注：第 3745/5068 行已注明"'典范'为常用词义错位，不固化"，此处补齐回滚保护。
     "典范": ("Paragon", (r"\bparagon of\b", r"\bparagon\.?\s+(?:of|for)\b")),
+    # ④ \bswimming\b -> 锁暝(Suoming) 的负例：**真·游泳/固定短语与比喻**。
+    #    up 主常把 Suoming 玩梗念成 swimming（归锁暝），但 "go swimming"（双关梗，
+    #    原文保留游泳二字更忠实原声）与 "swimming in an ocean/sea"（情感比喻）须回滚。
+    "游泳": ("锁暝", (
+        r"\bgo swimming\b", r"\bgoes swimming\b", r"\bwent swimming\b",
+        r"\bswimming in\b", r"\bocean\b", r"\bsea\b", r"\bpool\b", r"\bunderwater\b",
+    )),
 }
 _EXCLUDE_COMPILED = {w: (right, [re.compile(rx, re.I) for rx in rxs])
                      for w, (right, rxs) in EXCLUDE_CONTEXT.items()}
@@ -2530,6 +2706,60 @@ EN_LINE_TERM_FIXES = {
     # （#3342 tacid discords / #4734 tacid discord / #5260 tacid discourse，2026-10-05 3.7 片）
     "tacid discourses": "Tacet Discords", "tacid discourse": "Tacet Discord",
     "tacid discords": "Tacet Discords", "tacid discord": "Tacet Discord",
+    # --- 2026-10-05 第二部 3.7 英文 reaction 片（I Wasn't Ready...）逐 cue 核实补录 ---
+    "Hong Lang": "Huanglong",                                   # 瑝珑（与 Hang Long 同组）
+    "Shrungfang hold": "Schwanfong Hold", "Shrung fun hold": "Schwanfong Hold",
+    "Schwan Funk": "Schwanfong", "Schwanf.": "Schwanfong.",     # 玄方碎形（land of Schwanf.）
+    "moving to MJ": "moving to Mengzhou",                       # MJ=Mengzhou 梦州（短键防误伤）
+    "Mojo and the": "Mengzhou and the", "to Mango": "to Mengzhou",
+    "balanaphora": "balanophora",                               # 蛇菰英文生词拼写修正
+    "Shind": "Shin",                                            # 心月狐 ASR 吞音
+    "Evedropping": "Eavesdropping", "Evedroping": "Eavesdropping",
+    "wibes": "vibes",                                           # 氛围错拼
+    "practal": "fractal",                                       # fractal 口胡形（fractal proliferation）
+    "Fox Fox shadow": "Fox shadow",                             # ASR 重复 Fox（Nexus Fox Shadow）
+    "S Surgeon Rex": "Surgeon Rex",                             # 句首碎词 S
+    "those tacit discords": "those Tacet Discords",             # 残象（tacit=tacet 变体）
+    "like Shane": "like Sheen",                                 # Shane=Sheen 心月狐（组合键防常见人名误伤）
+    "Swimming said": "Suoming said", "adore swimming": "adore Suoming",
+    "get to swimming": "get to Suoming",                        # Swimming=Suoming 锁暝（组合键防游泳语境）
+    "Tang Tang Ning": "Tongning",                               # 同宁结巴重复形
+    # --- 英文行专名规范（实体 variants 只投中文行表，英文行须在此手动登记）---
+    "Tanging": "Tongning",
+    "Strongfang's": "Schwanfong's", "Strongfang": "Schwanfong Hold",
+    "Shrung": "Schwan", "fun hold": "fong Hold",                # 跨行碎形 miniature Shrung / fun hold
+    "Schwanfunhold": "Schwanfong Hold",
+    "Schwangfunhold's": "Schwanfong Hold's", "Schwangfunhold": "Schwanfong Hold",
+    "Schwangfong": "Schwanfong",
+    "Shwanfong Hold": "Schwanfong Hold", "Shwanfang": "Schwanfong",
+    "Schwangfang's": "Schwanfong's", "Schwangfangjo": "Schwanfong",
+    "Schwang Fong": "Schwanfong",
+    "Lor keeper": "Shorekeeper",
+    "MJ Joe": "Mengzhou", "Mang Joe": "Mengzhou",
+    "Simakum Nexus": "Simulacrum Nexus", "Sumacum Nexus": "Simulacrum Nexus",
+    "simakum nexus": "Simulacrum Nexus", "sumacum nexus": "Simulacrum Nexus",
+    "tessid discords": "Tacet Discords", "Tessid Discords": "Tacet Discords",
+    "Tessid Discord": "Tacet Discord", "Tasa Discord": "Tacet Discord",
+    "Tacit discord": "Tacet Discord", "Tacit discords": "Tacet Discords",
+    "tacit discords": "Tacet Discords", "those tacit": "those Tacet",
+    "Nintendent": "Intendant",
+    "Jingan": "Jingran",
+    "Susheen": "Suxin", "susheen": "Suxin",
+    "Wii Moon Festival": "Waking Moon Festival",
+    "bang boo": "bamboo", "sheen guide": "Sheen's guidance",
+    "Moonf Fox": "Moon Fox", "moonf fox": "Moon Fox",   # 心月狐英文称号漏 f（8 处，含小写）
+    "Shwanfong": "Schwanfong",                          # 玄方城 ASR 形（注意不收短键 Shwan：Shwan School=玄元境学派保留）
+    "Swarming": "Suoming",                              # 锁暝 ASR 误听（swarm 蜂群；大写专名形态，小写普通词不动）
+    "Swaming": "Suoming",                               # 锁暝 ASR 误听（少 r 形，#4316 Sister Swaming）
+    "Auto Puppets": "Autopuppets", "Auto Puppet": "Autopuppet",
+    "auto puppets": "autopuppets", "auto puppet": "autopuppet",  # 机傀官方英文 autopuppet 合写
+    "the attendant ordered": "the Intendant ordered",  # #927 attendant=intendant(州监) ASR 漏音节，组合键防误伤普通 attendant
+    "Suming": "Suoming",                                # 锁暝 ASR 形（#1015 Suming and Ching）
+    "Chingan": "Jingran",                               # 景燃 ASR 形（#6776，下句自我纠正为 Jingron）
+    "Jingron": "Jingran",                               # 景燃 ASR 形（#6779 等）
+    "Abiter": "Arbiter",                                # 御者 Arbiter 漏音节（#2088）
+    "Aby": "Abby",                                      # 阿布 Abby ASR 形（#5846/#5990 Aby's）
+    "Shranong": "Schwanfong",                           # 玄方城 ASR 形（#5677 land of Shranong）
     "Thrronodians": "Threnodians", "Thrronodian's": "Threnodian's",
     "Thrronodian'": "Threnodian'", "Thrronodian": "Threnodian",
     "Throdian": "Threnodian", "Trinodian": "Threnodian", "Frenodian": "Threnodian",
@@ -3120,7 +3350,7 @@ ENTITIES = [
                "景澜", "景兰", "京燃", "惊燃", "净燃", "劲燃",
                # --- 英文 ASR 音近（Jingran）---
                "Jingran", "Jing Ran", "Jingrang", "Jingrong", "Jingron",
-               "Jinran", "Jingram", "Jingrn", "Jingrana",
+               "Jinran", "Jingram", "Jingrn", "Jingrana", "Jingan",
                "Jing-Ran", "Jingrran", "Jinglan",
                "Jing Ran!", "Jingran's", "Jingran`s",
            ),
@@ -3834,8 +4064,9 @@ ENTITIES = [
            note="学习库固化(#3022/4027)：'天鹅'=Schwan 音译、'典范'=Paragon 机翻，组合残留。"),
     Entity("玄元境", modes=("bi",),
            category="地点/术语·鸣潮2.x",
-           variants=("施瓦努安",),
-           note="学习库固化(#2069/9876/9888)：Schwanuan 音译残留。"),
+           variants=("施瓦努安", "Shwanuan"),
+           note="学习库固化(#2069/9876/9888)：Schwanuan 音译残留；Shwanuan 为少 c 的 ASR 形"
+                "（2026-10-05 第二部 3.7 片 #653/#655/#1509）。"),
     Entity("玄方城", modes=("bi",),
            category="地点/鸣潮2.x",
            variants=("施万芬霍尔德", "天鹅芳", "施万夫"),
@@ -4059,8 +4290,15 @@ ENTITIES = [
            ctx=((r"\bMinimalist\b", "极简主义"),),
            note="'极简主义'是正常中文词，只走 ctx。"),
     Entity("伺夜", modes=("bi",), en="Vigil", category="角色/明日方舟",
-           ctx=((r"\bVigil\b", "维吉尔"),),
-           note="'维吉尔'是常见音译名（Virgil），走 ctx。"),
+           ctx=((r"\bVigil\b", "维吉尔"), (r"Leontuzzo|Leon Tuzo|\bLeon\b", "莱昂")),
+           note="本名=莱昂图索·贝洛内（Leontuzzo Bellone），别号'莱昂'（黑手党少爷）。ASR 常把 Leontuzzo 咬成 "
+                "Leon Tuzo、'莱昂'被机翻保留；'维吉尔'是常见音译名（Virgil），均走 ctx。"),
+    Entity("车尔尼", modes=("bi",), en="Czerny", category="角色/明日方舟",
+           variants=("Chney",),
+           note="5★ 驭法铁卫重装（尘影余音活动）。ASR 常把 Czerny 咬成 Chney，'Chney'是英文残留可裸键。"),
+    Entity("安多恩", modes=("bi",), en="Andoain", category="角色/明日方舟",
+           variants=("Andwin",),
+           note="拉特兰'寻路者'领袖（殉道者），吾导先路/众生行记。ASR 常作 Andwin，'Andwin'是英文残留可裸键。"),
     Entity("深律", modes=("bi",), en="Bassline", category="角色/明日方舟",
            ctx=((r"\bBassline\b", "基线"),),
            note="ASR 常把 Bassline 咬成 baseline。'基线'是正常中文词，只走 ctx。"),
@@ -4126,6 +4364,55 @@ ENTITIES = [
            note="官方全名=托兰·卡什；字幕按口语用简称'托兰'。仅作元数据，无替换。"),
     Entity("卡门", modes=("bi",), en="Carmen", category="角色/明日方舟",
            note="官方全名=卡门·伊·伊比利亚。仅作元数据，无替换（'卡门'亦为常见音译名）。"),
+
+    # =========================================================
+    # 2026-10-05 明日方舟男干员婚姻梗 reaction 片沉淀
+    #   素材：D:\原片\Why Will You Not Marry This Arknights Operator (2)\…en-谷歌翻译.calib.r2.srt
+    #         （961 cue，英语原声 + 谷翻中文，CRLF 无 BOM）
+    #   特征：谷翻对大量 AK 男干员/活动的音译错形。官方依据：PRTS/BWIKI/萌娘百科/英文wiki。
+    #   通用中文词/常见音译（忏悔/乘客/赫拉/赫尔/尾田/织田/松木/诺西斯/西尔维/门）只走 ctx 英文锚定；
+    #   非通用音译错形（特雷斯/多塞勒斯/多尔斯/伊利西姆/赫尔加/赫利格/安赛尔/Lumen/西尔维娅·阿什）进 variants。
+    # =========================================================
+    Entity("奥达", modes=("bi",), en="Odda", category="角色/明日方舟",
+           ctx=((r"\bOda\b", "尾田"), (r"\bOda\b", "织田")),
+           note="5★ 撼地者近卫（巴别塔活动）。ASR 常作 Oda。'尾田/织田'是日文姓氏，走 ctx。"),
+    Entity("松桐", modes=("bi",), en="Matsukiri", category="角色/明日方舟",
+           ctx=((r"\bMatsuki\b", "松木"), (r"\bMatsukiri\b", "松切")),
+           note="5★ 先锋（本名森内彻，关东煮摊主）。ASR 常作 Matsuki/Matsukiri。'松木'是木材常见词，走 ctx。"),
+    Entity("特雷西斯", modes=("bi",), en="Theresis", category="角色/明日方舟",
+           variants=("特雷斯",),
+           note="卡兹戴尔摄政王，特蕾西娅之兄。'特雷斯'是音译残留，可裸键。"),
+    Entity("灵知", modes=("bi",), en="Gnosis", category="角色/明日方舟",
+           ctx=((r"Gnosis|Nosis", "诺西斯"),),
+           note="6★ 削弱者辅助，本名诺希斯·埃德怀斯（官方代号=灵知）。ASR 常作 Nosis。'诺西斯'走 ctx。"),
+    Entity("赫拉格", modes=("bi",), en="Hellagur", category="角色/明日方舟",
+           variants=("赫尔加", "赫利格", "Heliger"),
+           ctx=((r"\bHela\b", "赫拉"), (r"\bHel\b", "赫尔")),
+           note="6★ 无畏者近卫（乌萨斯老爷子）。ASR 常作 Helga/Heliger/Hela/Hel。"
+                "'赫拉/赫尔'是通用中文词/希腊神名，走 ctx；'赫尔加/赫利格'等音译与英文残留可裸键。"),
+    Entity("斥罪", modes=("bi",), en="Penance", category="角色/明日方舟",
+           ctx=((r"penance", "忏悔"),),
+           note="6★ 不屈者重装。'忏悔'是通用中文词，只走 ctx 锚定 penance。"),
+    Entity("异客", modes=("bi",), en="Passenger", category="角色/明日方舟",
+           ctx=((r"passenger", "乘客"),),
+           note="6★ 链术师（凯尔希相关）。'乘客'是通用中文词，只走 ctx 锚定 passenger。"),
+    Entity("流明", modes=("bi",), en="Lumen", category="角色/明日方舟",
+           variants=("Lumen",),
+           note="6★ 疗养师医疗。谷翻残留英文'Lumen'，统一为流明。"),
+    Entity("极境", modes=("bi",), en="Elysium", category="角色/明日方舟",
+           variants=("伊利西姆",),
+           note="5★ 执旗手先锋。ASR 常作 Elisium；'伊利西姆'是音译残留，可裸键。"),
+    Entity("银灰", modes=("bi",), en="SilverAsh", category="角色/明日方舟",
+           variants=("西尔维娅·阿什", "Sylvia Ash"),
+           ctx=((r"\bSylve\b", "西尔维"),),
+           note="6★ 领主近卫（谢拉格军阀）。ASR 常作 Sylvia Ash/Sylve；'西尔维娅·阿什'是音译残留可裸键，'西尔维'走 ctx。"),
+    Entity("多索雷斯假日", modes=("bi",), en="Dossoles Holiday", category="活动/明日方舟",
+           variants=("多塞勒斯", "多尔斯"),
+           ctx=((r"Door?s Holiday|Dors|Doselus", "门"),),
+           note="SideStory 活动。ASR 常作 Dors/Doselus/Doors；'多塞勒斯/多尔斯'是音译残留可裸键，'门'是通用中文词走 ctx。"),
+    Entity("安赛尔", modes=("bi",), en="Ansel", category="角色/明日方舟",
+           variants=("Anel",),
+           note="3★ 医师医疗（外形清秀）。ASR 常作 Anel（残留英文）。"),
 
     # =========================================================
     # 2026-10-01 鸣潮 3.7「镜锁妄世，心照红尘」日语初见直播（ガチ初見）片源沉淀
@@ -4384,7 +4671,7 @@ ENTITIES = [
     # ============================================================
     Entity("溯心", modes=("bi",), en="Suxin",
            category="角色/岁主·鸣潮3.7",
-           variants=("Susheen", "Sushin", "Sushun"),
+           variants=("Susheen", "susheen", "Sushin", "Sushun"),
            ctx=((r"\bSuxin\b|\bSusheen\b|\bSushin\b|\bSushun\b", "苏珊"),
                 (r"\bSuxin\b|\bSusheen\b|\bSushin\b|\bSushun\b", "寿司")),
            note="天罗狐影异变体（3.7 精校报告核心术语表）。ASR 把 Suxin 咬成 "
@@ -4444,7 +4731,8 @@ ENTITIES = [
                 "'Sanctum' 单独歧义不裸键。"),
     Entity("锦妙锁", modes=("bi",), en="Providence Lock",
            category="物品/术语·鸣潮3.7",
-           variants=("天意锁", "Providence Lock", "Providence lock"),
+           variants=("天意锁", "Providence Lock", "Providence lock",
+                     "普罗维登斯锁", "普罗维登斯船闸"),   # 2026-10-05 二次校准：谷翻音译/lock 误译"船闸"
            note="3.7 版本主题'镜锁妄世'相关，官方中文=锦妙锁。谷翻按字面出'天意锁'"
                 "（Providence=天意），生僻组合裸键安全；英文词组残留同收。"),
     Entity("玄朱锁", modes=("bi",), en="Vermilion Lock",
@@ -4523,7 +4811,7 @@ ENTITIES = [
                 "（faith=信仰）生僻组合裸键安全；英文词组残留同收。"),
     Entity("同宁", modes=("bi",), en="Tongning",
            category="角色/NPC·鸣潮3.7",
-           variants=("佟宁", "唐宁", "Tong Ning", "Tonging"),
+           variants=("佟宁", "唐宁", "唐同宁", "Tanging", "Tong Ning", "Tonging"),
            note="NPC（音译，无官方出处，报告标注为音译/语境译）。ASR 把 Tongning 咬成 Tonging；"
                 "谷翻'佟宁/唐宁'音译残留。英文/中文错形均生僻，裸键安全。"),
     # ============================================================
@@ -4621,9 +4909,96 @@ ENTITIES = [
                 "只走 ctx 参考行锚定。"),
     Entity("朝月会", modes=("bi",), en="Waking Moon Festival",
            category="活动/鸣潮3.7",
-           variants=("醒中月节", "舜丰醒中月节"),
+           variants=("醒中月节", "舜丰醒中月节", "Wii Moon Festival", "Wii月球节", "清醒月节"),
            note="英文残留补录：Waking Moon Festival 官方中文=朝月会；谷翻生僻错形"
-                "'醒中月节/舜丰醒中月节'。"),
+                "'醒中月节/舜丰醒中月节/清醒月节/Wii月球节'；ASR 把 Waking 咬成 Wii。"),
+    # ============================================================
+    # 2026-10-05 第二部 3.7 reaction 片（I Wasn't Ready for How Much This Quest Would Hurt）
+    #   二次校准补录：与上一部同版本，重复注册 setdefault 追加 variants/ctx。
+    # ============================================================
+    Entity("玄方城", modes=("bi",), en="Schwanfong Hold",
+           category="地名/鸣潮3.7",
+           variants=("Strongfang", "Shrungfang", "Shwanfong Hold", "Shwanfang",
+                     "Schwangfang's", "Schwangfangjo", "Schwang Fong",
+                     "Schwanfunhold", "Schwangfunhold"),
+           note="英文残留补录（第二部片）：ASR 把 Schwanfong 咬成 Strongfang/Shrungfang/"
+                "Shwanfang/Schwangfang/Schwanfunhold 等，谷翻留英文整词，均生僻裸键安全。"
+                "⚠ 'Shrungfang hold'/'Shrung fun hold' 会产生 Hold hold 重复，走 EN_LINE "
+                "组合键；'Schwan Funk'/'Schwanf.' 碎形同走 EN_LINE 组合键。"),
+    Entity("梦州", modes=("bi",), en="Mengzhou",
+           category="地名/鸣潮",
+           variants=("MJ Joe", "Mang Joe", "MJ·乔"),
+           ctx=((r"\bMJ\b|\bMengzhou\b", "MJ"),
+                (r"\bMango\b|\bMengzhou\b", "芒果"),
+                (r"\bMojo\b|\bMengzhou\b", "Mojo")),
+           note="英文残留补录（第二部片）：MJ Joe/Mang Joe/MJ·乔 为 ASR+谷翻组合错形，"
+                "生僻可裸键；单独 'MJ'/'Mojo' 与 '芒果'(Mango) 是常用缩写/常用词，只走 ctx；"
+                "ctx 正则同时容纳 --fix-en 修正后的 Mengzhou（锚点先被 EN 组合键改写的情形）；"
+                "英文行 'moving to MJ'/'Mojo and the'/'to Mango' 走 EN_LINE 组合键。"),
+    Entity("梦枢天罗", modes=("bi",), en="Simulacrum Nexus",
+           category="地点/新地区",
+           variants=("Simakum Nexus", "Sumacum Nexus", "simakum nexus", "sumacum nexus",
+                     "Simakum", "Sumacum"),
+           note="英文残留补录（第二部片）：Simakum/Sumacum 为 Simulacrum 的 ASR 咬断形，"
+                "谷翻留英文整词（#1462/#3266）。"),
+    Entity("残象", modes=("bi",), en="Tacet Discord",
+           category="术语/鸣潮",
+           variants=("Tessid Discords", "Tessid Discord", "tessid discords",
+                     "Tasa Discord", "特莎Discord"),
+           ctx=((r"\b[Tt]ac[ei]t\b", "默许"),),
+           note="英文残留补录（第二部片）：Tessid/Tasa 为 Tacet 的 ASR 变体，"
+                "谷翻'特莎Discord'；'默许'仅在参考行 tacit 佐证下改残象（#5047，discords 跨行）；"
+                "'默契的不和/分歧/纷争'等谷翻错形见 CONTEXT_MAP。"),
+    Entity("州监", modes=("bi",), en="Intendant",
+           category="称号/鸣潮3.7",
+           variants=("Nintendent",),
+           note="英文残留补录（第二部片 #4367）：'a Nintendent' 为 an intendant 粘连误写。"),
+    Entity("守岸人", modes=("bi",), en="The Shorekeeper",
+           category="角色/鸣潮",
+           variants=("Lor keeper",),
+           note="英文残留补录（第二部片 #1192）：Lor keeper 为 The Shorekeeper 的 ASR 漏音形。"),
+    Entity("维里奈", modes=("bi",), en="Verina",
+           category="角色/鸣潮",
+           variants=("Verina", "维丽娜"),
+           note="英文残留补录（第二部片 #4179）：谷翻'维丽娜'为 Verina 音译错形。"),
+    Entity("阿布", modes=("bi",), en="Abby",
+           category="角色/鸣潮3.7",
+           ctx=((r"\bAbby\b", "Abby"),),
+           note="3.7 角色阿布（真名阿布拉克萨斯），英文 ASR 作 Abby；'Abby' 是常见英文名，"
+                "只走 ctx 参考行锚定（#2231）。"),
+    Entity("心月狐", modes=("bi",), en="Shin",
+           category="角色/岁主·鸣潮3.7",
+           ctx=((r"\bShane\b|\bSheen\b", "Shane"),),
+           note="英文残留补录（第二部片）：Shane 为 Shin 的 ASR 音近形（常见人名，只走 ctx；"
+                "正则同时容纳修正后 Sheen；英文行 'like Shane' 走 EN_LINE 组合键）；"
+                "'Lady' 指心月狐女士（目标≠canonical），已挂 CONTEXT_MAP 原生三元组（#1662/#3356）。"),
+    Entity("锁暝", modes=("bi",), en="Suoming",
+           category="角色/鸣潮3.7",
+           ctx=((r"\bSwimming\b|\bSuoming\b", "Swimming"),),
+           note="英文残留补录（第二部片）：大写 Swimming 为 Suoming 的 ASR 形（#1057），"
+                "走 ctx（正则同时容纳修正后 Suoming）；英文行 Swimming said/adore swimming/"
+                "get to swimming 走 EN_LINE 组合键。"),
+    Entity("吟霖", modes=("bi",), en="Yinlin",
+           category="角色/鸣潮",
+           ctx=((r"\bYinlin\b", "尹兰"),),
+           note="英文残留补录（第二部片 #7265）：谷翻'尹兰'为 Yinlin 音译错形，参考行锚定。"),
+    Entity("清宵", modes=("bi",), en="Qingxiao",
+           category="角色/鸣潮3.7",
+           ctx=((r"\bSha\b", "Sha"),),
+           note="英文残留补录（第二部片）：Sha 为清宵简称（#1016/#1152），只走 ctx。"),
+    Entity("玄方", modes=("bi",), en="Xuan / Schwan",
+           category="地名/鸣潮3.7",
+           ctx=((r"\bShenfang\b", "申方"),),
+           note="英文残留补录（第二部片）：Shenfang 为 Xuanfang/Schwan 的 ASR 音近形，"
+                "谷翻'申方'，走参考行锚定。"),
+    Entity("瑝珑", modes=("bi",), en="Huanglong",
+           category="地名/鸣潮",
+           ctx=((r"\bHong Lang\b|\bHuanglong\b", "洪朗"),),
+           note="英文残留补录（第二部片 #175）：Hong Lang 为 Huanglong 的 ASR 形，"
+                "谷翻'洪朗'，走参考行锚定（正则同时容纳修正后 Huanglong）；英文行走 EN_LINE 组合键。"),
+    # --- 第二部 3.7 片：CONTEXT_MAP 直挂（无合适实体 canonical 承载）---
+    # 封印/丙区/艾因/竹子/心月狐指引：常用词或一次性 NPC，仅在参考行佐证下改。
+
     # --- 2026-10-05 沉淀自《Arknights: Endfield ACTUALLY Listened》谷歌翻译反应片二次校准 ---
     Entity("菈梵朵玛", modes=("bi", "endo"), en="La Fantoma / La Fantôme",
            category="地名/终末地",
