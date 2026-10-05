@@ -1,145 +1,6 @@
 {
  "version": 1,
  "candidates": {
-  "bi|枯萎": {
-   "wrong": "枯萎",
-   "right": "鸣潮",
-   "mode": "bi",
-   "count": 3,
-   "uncorrected": 0,
-   "status": "confirmed",
-   "cues": [
-    908,
-    3500,
-    3979
-   ],
-   "samples": [],
-   "ref_tokens": {},
-   "unc_ref_tokens": {},
-   "first": "2026-10-02",
-   "last": "2026-10-04",
-   "alts": {},
-   "sync": true
-  },
-  "bi|银杏": {
-   "wrong": "银杏",
-   "right": "今州",
-   "mode": "bi",
-   "count": 2,
-   "uncorrected": 0,
-   "status": "confirmed",
-   "cues": [
-    779,
-    560,
-    2118
-   ],
-   "samples": [],
-   "ref_tokens": {},
-   "unc_ref_tokens": {},
-   "first": "2026-10-02",
-   "last": "2026-10-04",
-   "alts": {},
-   "sync": true
-  },
-  "bi|游泳": {
-   "wrong": "游泳",
-   "right": "锁暝",
-   "mode": "bi",
-   "count": 5,
-   "uncorrected": 0,
-   "status": "confirmed",
-   "cues": [
-    213,
-    605,
-    614,
-    633,
-    787
-   ],
-   "samples": [],
-   "ref_tokens": {},
-   "unc_ref_tokens": {},
-   "first": "2026-10-02",
-   "last": "2026-10-04",
-   "alts": {},
-   "sync": true
-  },
-  "bi|Arkn ights": {
-   "wrong": "Arkn ights",
-   "right": "明日方舟",
-   "mode": "bi",
-   "count": 3,
-   "uncorrected": 0,
-   "status": "confirmed",
-   "cues": [
-    3649,
-    3891,
-    7092
-   ],
-   "samples": [],
-   "ref_tokens": {},
-   "unc_ref_tokens": {},
-   "first": "2026-10-02",
-   "last": "2026-10-04",
-   "alts": {},
-   "sync": true
-  },
-  "bi|寿司": {
-   "wrong": "寿司",
-   "right": "穗穗",
-   "mode": "bi",
-   "count": 3,
-   "uncorrected": 0,
-   "status": "confirmed",
-   "cues": [
-    3062,
-    3063,
-    7124
-   ],
-   "samples": [],
-   "ref_tokens": {},
-   "unc_ref_tokens": {},
-   "first": "2026-10-02",
-   "last": "2026-10-04",
-   "alts": {},
-   "sync": true
-  },
-  "bi|Monster Siren Records": {
-   "wrong": "Monster Siren Records",
-   "right": "塞壬唱片",
-   "mode": "bi",
-   "count": 2,
-   "uncorrected": 0,
-   "status": "confirmed",
-   "cues": [
-    5595,
-    5625
-   ],
-   "samples": [],
-   "ref_tokens": {},
-   "unc_ref_tokens": {},
-   "first": "2026-10-02",
-   "last": "2026-10-04",
-   "alts": {},
-   "sync": true
-  },
-  "bi|Arkn 光": {
-   "wrong": "Arkn 光",
-   "right": "明日方舟",
-   "mode": "bi",
-   "count": 2,
-   "uncorrected": 0,
-   "status": "confirmed",
-   "cues": [
-    60
-   ],
-   "samples": [],
-   "ref_tokens": {},
-   "unc_ref_tokens": {},
-   "first": "2026-10-02",
-   "last": "2026-10-04",
-   "alts": {},
-   "sync": true
-  },
   "bi|阿克恩的": {
    "wrong": "阿克恩的",
    "right": "明日方舟的",
@@ -155,7 +16,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-02",
-   "last": "2026-10-04",
+   "last": "2026-10-05",
    "alts": {},
    "sync": true
   },
@@ -174,7 +35,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-02",
-   "last": "2026-10-04",
+   "last": "2026-10-05",
    "alts": {},
    "sync": true
   },
@@ -192,7 +53,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-02",
-   "last": "2026-10-04",
+   "last": "2026-10-05",
    "alts": {},
    "sync": true
   },
@@ -210,7 +71,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-02",
-   "last": "2026-10-04",
+   "last": "2026-10-05",
    "alts": {},
    "sync": true
   },
@@ -230,47 +91,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-02",
-   "last": "2026-10-04",
-   "alts": {},
-   "sync": true
-  },
-  "bi|鲁斯": {
-   "wrong": "鲁斯",
-   "right": "露丝",
-   "mode": "bi",
-   "count": 3,
-   "uncorrected": 0,
-   "status": "confirmed",
-   "cues": [
-    1,
-    2,
-    3
-   ],
-   "samples": [],
-   "ref_tokens": {},
-   "unc_ref_tokens": {},
-   "first": "2026-10-02",
-   "last": "2026-10-04",
-   "alts": {},
-   "sync": true
-  },
-  "bi|明祖": {
-   "wrong": "明祖",
-   "right": "鸣潮",
-   "mode": "bi",
-   "count": 4,
-   "uncorrected": 0,
-   "status": "confirmed",
-   "cues": [
-    86,
-    101,
-    265
-   ],
-   "samples": [],
-   "ref_tokens": {},
-   "unc_ref_tokens": {},
-   "first": "2026-10-02",
-   "last": "2026-10-04",
+   "last": "2026-10-05",
    "alts": {},
    "sync": true
   },
@@ -288,7 +109,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-02",
-   "last": "2026-10-04",
+   "last": "2026-10-05",
    "alts": {},
    "sync": true
   },
@@ -307,7 +128,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-02",
-   "last": "2026-10-04",
+   "last": "2026-10-05",
    "alts": {},
    "sync": true
   },
@@ -330,7 +151,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-02",
-   "last": "2026-10-04",
+   "last": "2026-10-05",
    "alts": {},
    "sync": true
   },
@@ -340,7 +161,7 @@
    "mode": "bi",
    "count": 2,
    "uncorrected": 0,
-   "status": "confirmed",
+   "status": "rejected",
    "cues": [
     821,
     822
@@ -349,7 +170,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-02",
-   "last": "2026-10-04",
+   "last": "2026-10-05",
    "alts": {},
    "sync": true
   },
@@ -368,7 +189,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-02",
-   "last": "2026-10-04",
+   "last": "2026-10-05",
    "alts": {},
    "sync": true
   },
@@ -388,26 +209,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-02",
-   "last": "2026-10-04",
-   "alts": {},
-   "sync": true
-  },
-  "bi|根钦": {
-   "wrong": "根钦",
-   "right": "原神",
-   "mode": "bi",
-   "count": 2,
-   "uncorrected": 0,
-   "status": "confirmed",
-   "cues": [
-    224,
-    241
-   ],
-   "samples": [],
-   "ref_tokens": {},
-   "unc_ref_tokens": {},
-   "first": "2026-10-02",
-   "last": "2026-10-04",
+   "last": "2026-10-05",
    "alts": {},
    "sync": true
   },
@@ -426,7 +228,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-02",
-   "last": "2026-10-04",
+   "last": "2026-10-05",
    "alts": {},
    "sync": true
   },
@@ -445,7 +247,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-02",
-   "last": "2026-10-04",
+   "last": "2026-10-05",
    "alts": {},
    "sync": true
   },
@@ -464,94 +266,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-02",
-   "last": "2026-10-04",
-   "alts": {},
-   "sync": true
-  },
-  "bi|Sigrika": {
-   "wrong": "Sigrika",
-   "right": "西格莉卡",
-   "mode": "bi",
-   "count": 2,
-   "uncorrected": 0,
-   "status": "confirmed",
-   "cues": [
-    1134,
-    3499
-   ],
-   "samples": [],
-   "ref_tokens": {},
-   "unc_ref_tokens": {},
-   "first": "2026-10-02",
-   "last": "2026-10-04",
-   "alts": {},
-   "sync": true
-  },
-  "bi|艾姆斯": {
-   "wrong": "艾姆斯",
-   "right": "爱弥斯",
-   "mode": "bi",
-   "count": 3,
-   "uncorrected": 0,
-   "status": "confirmed",
-   "cues": [
-    1644,
-    1645,
-    4470
-   ],
-   "samples": [],
-   "ref_tokens": {},
-   "unc_ref_tokens": {},
-   "first": "2026-10-02",
-   "last": "2026-10-04",
-   "alts": {},
-   "sync": true
-  },
-  "bi|尤姆林": {
-   "wrong": "尤姆林",
-   "right": "吟霖",
-   "mode": "bi",
-   "count": 2,
-   "uncorrected": 0,
-   "status": "confirmed",
-   "cues": [
-    3521,
-    3522
-   ],
-   "samples": [],
-   "ref_tokens": {},
-   "unc_ref_tokens": {},
-   "first": "2026-10-02",
-   "last": "2026-10-04",
-   "alts": {},
-   "sync": true
-  },
-  "bi|明植": {
-   "wrong": "明植",
-   "right": "鸣式",
-   "mode": "bi",
-   "count": 13,
-   "uncorrected": 0,
-   "status": "confirmed",
-   "cues": [
-    551,
-    2275,
-    2928,
-    2956,
-    2966,
-    3058,
-    4047,
-    4075,
-    4084,
-    4103,
-    4105,
-    4411
-   ],
-   "samples": [],
-   "ref_tokens": {},
-   "unc_ref_tokens": {},
-   "first": "2026-10-02",
-   "last": "2026-10-04",
+   "last": "2026-10-05",
    "alts": {},
    "sync": true
   },
@@ -570,64 +285,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-02",
-   "last": "2026-10-04",
-   "alts": {},
-   "sync": true
-  },
-  "bi|百丽宫青沙": {
-   "wrong": "百丽宫青沙",
-   "right": "Paragon清宵",
-   "mode": "bi",
-   "count": 2,
-   "uncorrected": 0,
-   "status": "confirmed",
-   "cues": [
-    1617,
-    5370
-   ],
-   "samples": [],
-   "ref_tokens": {},
-   "unc_ref_tokens": {},
-   "first": "2026-10-02",
-   "last": "2026-10-04",
-   "alts": {},
-   "sync": true
-  },
-  "bi|塞普蒂蒙": {
-   "wrong": "塞普蒂蒙",
-   "right": "七丘",
-   "mode": "bi",
-   "count": 2,
-   "uncorrected": 0,
-   "status": "confirmed",
-   "cues": [
-    967,
-    3913
-   ],
-   "samples": [],
-   "ref_tokens": {},
-   "unc_ref_tokens": {},
-   "first": "2026-10-02",
-   "last": "2026-10-04",
-   "alts": {},
-   "sync": true
-  },
-  "bi|由纪": {
-   "wrong": "由纪",
-   "right": "绯雪",
-   "mode": "bi",
-   "count": 2,
-   "uncorrected": 0,
-   "status": "confirmed",
-   "cues": [
-    230,
-    265
-   ],
-   "samples": [],
-   "ref_tokens": {},
-   "unc_ref_tokens": {},
-   "first": "2026-10-02",
-   "last": "2026-10-04",
+   "last": "2026-10-05",
    "alts": {},
    "sync": true
   },
@@ -654,201 +312,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-02",
-   "last": "2026-10-04",
-   "alts": {},
-   "sync": true
-  },
-  "bi|施万夫": {
-   "wrong": "施万夫",
-   "right": "玄方城",
-   "mode": "bi",
-   "count": 2,
-   "uncorrected": 0,
-   "status": "confirmed",
-   "cues": [
-    4364,
-    7528
-   ],
-   "samples": [],
-   "ref_tokens": {},
-   "unc_ref_tokens": {},
-   "first": "2026-10-02",
-   "last": "2026-10-04",
-   "alts": {},
-   "sync": true
-  },
-  "bi|天鹅芳": {
-   "wrong": "天鹅芳",
-   "right": "玄方城",
-   "mode": "bi",
-   "count": 2,
-   "uncorrected": 0,
-   "status": "confirmed",
-   "cues": [
-    7617,
-    11047
-   ],
-   "samples": [],
-   "ref_tokens": {},
-   "unc_ref_tokens": {},
-   "first": "2026-10-02",
-   "last": "2026-10-04",
-   "alts": {},
-   "sync": true
-  },
-  "bi|幻界": {
-   "wrong": "幻界",
-   "right": "蜃境",
-   "mode": "bi",
-   "count": 6,
-   "uncorrected": 0,
-   "status": "confirmed",
-   "cues": [
-    2315,
-    2325,
-    5263,
-    5866,
-    6580,
-    12255
-   ],
-   "samples": [],
-   "ref_tokens": {},
-   "unc_ref_tokens": {},
-   "first": "2026-10-02",
-   "last": "2026-10-04",
-   "alts": {},
-   "sync": true
-  },
-  "bi|ingjo": {
-   "wrong": "ingjo",
-   "right": "inzho",
-   "mode": "bi",
-   "count": 2,
-   "uncorrected": 0,
-   "status": "confirmed",
-   "cues": [
-    968,
-    3795
-   ],
-   "samples": [],
-   "ref_tokens": {},
-   "unc_ref_tokens": {},
-   "first": "2026-10-02",
-   "last": "2026-10-04",
-   "alts": {},
-   "sync": true
-  },
-  "bi|钦察": {
-   "wrong": "钦察",
-   "right": "清宵",
-   "mode": "bi",
-   "count": 2,
-   "uncorrected": 0,
-   "status": "confirmed",
-   "cues": [
-    1344,
-    11282
-   ],
-   "samples": [],
-   "ref_tokens": {},
-   "unc_ref_tokens": {},
-   "first": "2026-10-02",
-   "last": "2026-10-04",
-   "alts": {},
-   "sync": true
-  },
-  "bi|青沙": {
-   "wrong": "青沙",
-   "right": "清宵",
-   "mode": "bi",
-   "count": 27,
-   "uncorrected": 0,
-   "status": "confirmed",
-   "cues": [
-    1729,
-    1795,
-    1829,
-    2754,
-    3038,
-    3236,
-    4156,
-    4205,
-    6347,
-    6734,
-    7128,
-    7218,
-    7960,
-    8158,
-    10088,
-    10432,
-    11256,
-    11436,
-    11604,
-    11756
-   ],
-   "samples": [],
-   "ref_tokens": {},
-   "unc_ref_tokens": {},
-   "first": "2026-10-02",
-   "last": "2026-10-04",
-   "alts": {},
-   "sync": true
-  },
-  "bi|航天飞机": {
-   "wrong": "航天飞机",
-   "right": "云梭",
-   "mode": "bi",
-   "count": 22,
-   "uncorrected": 0,
-   "status": "confirmed",
-   "cues": [
-    3673,
-    3694,
-    4319,
-    4423,
-    4433,
-    4439,
-    4525,
-    4970,
-    4984,
-    6393,
-    6395,
-    6611,
-    6782,
-    6939,
-    7172,
-    8461,
-    8701,
-    8764,
-    8784,
-    8787
-   ],
-   "samples": [],
-   "ref_tokens": {},
-   "unc_ref_tokens": {},
-   "first": "2026-10-02",
-   "last": "2026-10-04",
-   "alts": {},
-   "sync": true
-  },
-  "bi|静莎": {
-   "wrong": "静莎",
-   "right": "清宵",
-   "mode": "bi",
-   "count": 4,
-   "uncorrected": 0,
-   "status": "confirmed",
-   "cues": [
-    2456,
-    5466,
-    11656,
-    11657
-   ],
-   "samples": [],
-   "ref_tokens": {},
-   "unc_ref_tokens": {},
-   "first": "2026-10-02",
-   "last": "2026-10-04",
+   "last": "2026-10-05",
    "alts": {},
    "sync": true
   },
@@ -870,27 +334,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-02",
-   "last": "2026-10-04",
-   "alts": {},
-   "sync": true
-  },
-  "bi|施瓦努安": {
-   "wrong": "施瓦努安",
-   "right": "玄元境",
-   "mode": "bi",
-   "count": 3,
-   "uncorrected": 0,
-   "status": "confirmed",
-   "cues": [
-    2069,
-    9876,
-    9888
-   ],
-   "samples": [],
-   "ref_tokens": {},
-   "unc_ref_tokens": {},
-   "first": "2026-10-02",
-   "last": "2026-10-04",
+   "last": "2026-10-05",
    "alts": {},
    "sync": true
   },
@@ -927,7 +371,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-02",
-   "last": "2026-10-04",
+   "last": "2026-10-05",
    "alts": {},
    "sync": true
   },
@@ -950,7 +394,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-02",
-   "last": "2026-10-04",
+   "last": "2026-10-05",
    "alts": {},
    "sync": true
   },
@@ -974,28 +418,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-02",
-   "last": "2026-10-04",
-   "alts": {},
-   "sync": true
-  },
-  "bi|青莎": {
-   "wrong": "青莎",
-   "right": "清宵",
-   "mode": "bi",
-   "count": 4,
-   "uncorrected": 0,
-   "status": "confirmed",
-   "cues": [
-    3956,
-    5154,
-    7470,
-    7884
-   ],
-   "samples": [],
-   "ref_tokens": {},
-   "unc_ref_tokens": {},
-   "first": "2026-10-02",
-   "last": "2026-10-04",
+   "last": "2026-10-05",
    "alts": {},
    "sync": true
   },
@@ -1031,30 +454,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-02",
-   "last": "2026-10-04",
-   "alts": {},
-   "sync": true
-  },
-  "bi|钦查": {
-   "wrong": "钦查",
-   "right": "清宵",
-   "mode": "bi",
-   "count": 6,
-   "uncorrected": 0,
-   "status": "confirmed",
-   "cues": [
-    10,
-    2366,
-    3158,
-    3606,
-    3874,
-    11308
-   ],
-   "samples": [],
-   "ref_tokens": {},
-   "unc_ref_tokens": {},
-   "first": "2026-10-02",
-   "last": "2026-10-04",
+   "last": "2026-10-05",
    "alts": {},
    "sync": true
   },
@@ -1073,31 +473,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-02",
-   "last": "2026-10-04",
-   "alts": {},
-   "sync": true
-  },
-  "bi|帕拉贡": {
-   "wrong": "帕拉贡",
-   "right": "Paragon",
-   "mode": "bi",
-   "count": 7,
-   "uncorrected": 0,
-   "status": "confirmed",
-   "cues": [
-    2011,
-    2056,
-    2146,
-    2531,
-    9547,
-    10087,
-    10766
-   ],
-   "samples": [],
-   "ref_tokens": {},
-   "unc_ref_tokens": {},
-   "first": "2026-10-02",
-   "last": "2026-10-04",
+   "last": "2026-10-05",
    "alts": {},
    "sync": true
   },
@@ -1127,7 +503,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-02",
-   "last": "2026-10-04",
+   "last": "2026-10-05",
    "alts": {},
    "sync": true
   },
@@ -1146,46 +522,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-02",
-   "last": "2026-10-04",
-   "alts": {},
-   "sync": true
-  },
-  "bi|天鹅典范": {
-   "wrong": "天鹅典范",
-   "right": "玄Paragon",
-   "mode": "bi",
-   "count": 2,
-   "uncorrected": 0,
-   "status": "confirmed",
-   "cues": [
-    3022,
-    4027
-   ],
-   "samples": [],
-   "ref_tokens": {},
-   "unc_ref_tokens": {},
-   "first": "2026-10-02",
-   "last": "2026-10-04",
-   "alts": {},
-   "sync": true
-  },
-  "bi|清沙典范": {
-   "wrong": "清沙典范",
-   "right": "清宵Paragon",
-   "mode": "bi",
-   "count": 3,
-   "uncorrected": 0,
-   "status": "confirmed",
-   "cues": [
-    2338,
-    8264,
-    10767
-   ],
-   "samples": [],
-   "ref_tokens": {},
-   "unc_ref_tokens": {},
-   "first": "2026-10-02",
-   "last": "2026-10-04",
+   "last": "2026-10-05",
    "alts": {},
    "sync": true
   },
@@ -1204,45 +541,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-02",
-   "last": "2026-10-04",
-   "alts": {},
-   "sync": true
-  },
-  "bi|地界法师": {
-   "wrong": "地界法师",
-   "right": "幽客",
-   "mode": "bi",
-   "count": 2,
-   "uncorrected": 0,
-   "status": "confirmed",
-   "cues": [
-    1147,
-    1162
-   ],
-   "samples": [],
-   "ref_tokens": {},
-   "unc_ref_tokens": {},
-   "first": "2026-10-02",
-   "last": "2026-10-04",
-   "alts": {},
-   "sync": true
-  },
-  "bi|秦莎": {
-   "wrong": "秦莎",
-   "right": "清宵",
-   "mode": "bi",
-   "count": 2,
-   "uncorrected": 0,
-   "status": "confirmed",
-   "cues": [
-    2057,
-    6053
-   ],
-   "samples": [],
-   "ref_tokens": {},
-   "unc_ref_tokens": {},
-   "first": "2026-10-02",
-   "last": "2026-10-04",
+   "last": "2026-10-05",
    "alts": {},
    "sync": true
   },
@@ -1261,45 +560,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-02",
-   "last": "2026-10-04",
-   "alts": {},
-   "sync": true
-  },
-  "bi|蒙祖": {
-   "wrong": "蒙祖",
-   "right": "梦州",
-   "mode": "bi",
-   "count": 2,
-   "uncorrected": 0,
-   "status": "confirmed",
-   "cues": [
-    707,
-    5518
-   ],
-   "samples": [],
-   "ref_tokens": {},
-   "unc_ref_tokens": {},
-   "first": "2026-10-02",
-   "last": "2026-10-04",
-   "alts": {},
-   "sync": true
-  },
-  "bi|慕宇": {
-   "wrong": "慕宇",
-   "right": "木禺",
-   "mode": "bi",
-   "count": 2,
-   "uncorrected": 0,
-   "status": "confirmed",
-   "cues": [
-    2029,
-    5613
-   ],
-   "samples": [],
-   "ref_tokens": {},
-   "unc_ref_tokens": {},
-   "first": "2026-10-02",
-   "last": "2026-10-04",
+   "last": "2026-10-05",
    "alts": {},
    "sync": true
   },
@@ -1318,33 +579,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-02",
-   "last": "2026-10-04",
-   "alts": {},
-   "sync": true
-  },
-  "bi|杨阳": {
-   "wrong": "杨阳",
-   "right": "秧秧",
-   "mode": "bi",
-   "count": 9,
-   "uncorrected": 0,
-   "status": "confirmed",
-   "cues": [
-    388,
-    402,
-    570,
-    1512,
-    1844,
-    2796,
-    4689,
-    4692,
-    5562
-   ],
-   "samples": [],
-   "ref_tokens": {},
-   "unc_ref_tokens": {},
-   "first": "2026-10-02",
-   "last": "2026-10-04",
+   "last": "2026-10-05",
    "alts": {},
    "sync": true
   },
@@ -1364,88 +599,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-02",
-   "last": "2026-10-04",
-   "alts": {},
-   "sync": true
-  },
-  "bi|程晓": {
-   "wrong": "程晓",
-   "right": "清宵",
-   "mode": "bi",
-   "count": 4,
-   "uncorrected": 0,
-   "status": "confirmed",
-   "cues": [
-    2551,
-    2685,
-    3389,
-    5706
-   ],
-   "samples": [],
-   "ref_tokens": {},
-   "unc_ref_tokens": {},
-   "first": "2026-10-02",
-   "last": "2026-10-04",
-   "alts": {},
-   "sync": true
-  },
-  "bi|景沙": {
-   "wrong": "景沙",
-   "right": "清宵",
-   "mode": "bi",
-   "count": 2,
-   "uncorrected": 0,
-   "status": "confirmed",
-   "cues": [
-    3954,
-    5997
-   ],
-   "samples": [],
-   "ref_tokens": {},
-   "unc_ref_tokens": {},
-   "first": "2026-10-02",
-   "last": "2026-10-04",
-   "alts": {},
-   "sync": true
-  },
-  "bi|穆宇": {
-   "wrong": "穆宇",
-   "right": "木禺",
-   "mode": "bi",
-   "count": 5,
-   "uncorrected": 0,
-   "status": "confirmed",
-   "cues": [
-    1410,
-    2440,
-    2706,
-    3138,
-    5456
-   ],
-   "samples": [],
-   "ref_tokens": {},
-   "unc_ref_tokens": {},
-   "first": "2026-10-02",
-   "last": "2026-10-04",
-   "alts": {},
-   "sync": true
-  },
-  "bi|施万芬霍尔德": {
-   "wrong": "施万芬霍尔德",
-   "right": "玄方城",
-   "mode": "bi",
-   "count": 2,
-   "uncorrected": 0,
-   "status": "confirmed",
-   "cues": [
-    4365,
-    2269
-   ],
-   "samples": [],
-   "ref_tokens": {},
-   "unc_ref_tokens": {},
-   "first": "2026-10-02",
-   "last": "2026-10-04",
+   "last": "2026-10-05",
    "alts": {},
    "sync": true
   },
@@ -1473,7 +627,1261 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-02",
-   "last": "2026-10-04",
+   "last": "2026-10-05",
+   "alts": {},
+   "sync": true
+  },
+  "bi|海岸守护者": {
+   "wrong": "海岸守护者",
+   "right": "海岸人",
+   "mode": "bi",
+   "count": 2,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    811,
+    812
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-10-02",
+   "last": "2026-10-05",
+   "alts": {},
+   "sync": true
+  },
+  "bi|武阿": {
+   "wrong": "武阿",
+   "right": "鸣潮",
+   "mode": "bi",
+   "count": 2,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    1473,
+    484
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-10-02",
+   "last": "2026-10-05",
+   "alts": {},
+   "sync": true
+  },
+  "bi|外骨骼": {
+   "wrong": "外骨骼",
+   "right": "隧者",
+   "mode": "bi",
+   "count": 2,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    3328,
+    3337
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-10-02",
+   "last": "2026-10-05",
+   "alts": {},
+   "sync": true
+  },
+  "bi|枯萎之波": {
+   "wrong": "枯萎之波",
+   "right": "鸣潮之波",
+   "mode": "bi",
+   "count": 2,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    908,
+    3500
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-10-02",
+   "last": "2026-10-05",
+   "alts": {},
+   "sync": true
+  },
+  "bi|Nvidia": {
+   "wrong": "Nvidia",
+   "right": "娜波摩",
+   "mode": "bi",
+   "count": 2,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    3189,
+    3201
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-10-02",
+   "last": "2026-10-05",
+   "alts": {},
+   "sync": true
+  },
+  "bi|“呜哇tap o ”": {
+   "wrong": "“呜哇tap o ”",
+   "right": "“Wuwa Tap o ”",
+   "mode": "bi",
+   "count": 2,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    1052,
+    1054
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-10-02",
+   "last": "2026-10-05",
+   "alts": {},
+   "sync": true
+  },
+  "bi|图案": {
+   "wrong": "图案",
+   "right": "动机",
+   "mode": "bi",
+   "count": 2,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    680,
+    1827
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-10-02",
+   "last": "2026-10-05",
+   "alts": {},
+   "sync": true
+  },
+  "bi| Fraidus ": {
+   "wrong": " Fraidus ",
+   "right": " 残星会 ",
+   "mode": "bi",
+   "count": 2,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    10153,
+    878
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-10-02",
+   "last": "2026-10-05",
+   "alts": {},
+   "sync": true
+  },
+  "bi|流动站": {
+   "wrong": "流动站",
+   "right": "漂泊者",
+   "mode": "bi",
+   "count": 2,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    7041,
+    1799
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-10-02",
+   "last": "2026-10-05",
+   "alts": {},
+   "sync": true
+  },
+  "bi|瓦阿": {
+   "wrong": "瓦阿",
+   "right": "鸣潮",
+   "mode": "bi",
+   "count": 2,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    644,
+    617
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-10-02",
+   "last": "2026-10-05",
+   "alts": {},
+   "sync": true
+  },
+  "bi|枯萎": {
+   "wrong": "枯萎",
+   "right": "鸣潮",
+   "mode": "bi",
+   "count": 3,
+   "uncorrected": 0,
+   "status": "rejected",
+   "cues": [
+    908,
+    3500,
+    3979
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-10-02",
+   "last": "2026-10-05",
+   "alts": {},
+   "sync": true
+  },
+  "bi|银杏": {
+   "wrong": "银杏",
+   "right": "今州",
+   "mode": "bi",
+   "count": 2,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    779,
+    560,
+    2118
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-10-02",
+   "last": "2026-10-05",
+   "alts": {},
+   "sync": true
+  },
+  "bi|游泳": {
+   "wrong": "游泳",
+   "right": "锁暝",
+   "mode": "bi",
+   "count": 5,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    213,
+    605,
+    614,
+    633,
+    787
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-10-02",
+   "last": "2026-10-05",
+   "alts": {},
+   "sync": true
+  },
+  "bi|Arkn ights": {
+   "wrong": "Arkn ights",
+   "right": "明日方舟",
+   "mode": "bi",
+   "count": 3,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    3649,
+    3891,
+    7092
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-10-02",
+   "last": "2026-10-05",
+   "alts": {},
+   "sync": true
+  },
+  "bi|寿司": {
+   "wrong": "寿司",
+   "right": "穗穗",
+   "mode": "bi",
+   "count": 3,
+   "uncorrected": 0,
+   "status": "rejected",
+   "cues": [
+    3062,
+    3063,
+    7124
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-10-02",
+   "last": "2026-10-05",
+   "alts": {},
+   "sync": true
+  },
+  "bi|Monster Siren Records": {
+   "wrong": "Monster Siren Records",
+   "right": "塞壬唱片",
+   "mode": "bi",
+   "count": 2,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    5595,
+    5625
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-10-02",
+   "last": "2026-10-05",
+   "alts": {},
+   "sync": true
+  },
+  "bi|Arkn 光": {
+   "wrong": "Arkn 光",
+   "right": "明日方舟",
+   "mode": "bi",
+   "count": 2,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    60
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-10-02",
+   "last": "2026-10-05",
+   "alts": {},
+   "sync": true
+  },
+  "bi|融合": {
+   "wrong": "融合",
+   "right": "热熔",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    431
+   ],
+   "samples": [
+    [
+     "讨论了现代",
+     "",
+     "讨论了现代",
+     ""
+    ]
+   ],
+   "ref_tokens": {
+    "modern": 1,
+    "discussed": 1,
+    "fusion": 1,
+    "the": 1
+   },
+   "unc_ref_tokens": {},
+   "first": "2026-10-05",
+   "last": "2026-10-05",
+   "alts": {},
+   "ctx_regex": "\\bmodern\\b|\\bdiscussed\\b|\\bfusion\\b"
+  },
+  "bi|伊恩": {
+   "wrong": "伊恩",
+   "right": "英文",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 2,
+   "status": "candidate",
+   "cues": [
+    467
+   ],
+   "samples": [
+    [
+     "这场比赛在",
+     "一方被批评了",
+     "这场比赛在",
+     "一方被批评了"
+    ]
+   ],
+   "ref_tokens": {
+    "side": 1,
+    "was": 1,
+    "this": 1,
+    "game": 1,
+    "Ian": 1,
+    "the": 1,
+    "trashed": 1
+   },
+   "unc_ref_tokens": {
+    "contract": 1,
+    "cup": 1,
+    "had": 1,
+    "Ian": 1,
+    "contingency": 1,
+    "the": 1,
+    "side": 1,
+    "for": 1,
+    "Ian's": 1,
+    "things": 1,
+    "tournament": 1
+   },
+   "first": "2026-10-05",
+   "last": "2026-10-05",
+   "alts": {},
+   "ctx_regex": "\\bwas\\b|\\bthis\\b|\\bgame\\b"
+  },
+  "bi|Arc Knights": {
+   "wrong": "Arc Knights",
+   "right": "明日方舟",
+   "mode": "bi",
+   "count": 2,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    473,
+    722
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-10-05",
+   "last": "2026-10-05",
+   "alts": {},
+   "sync": true
+  },
+  "bi|卡米尔": {
+   "wrong": "卡米尔",
+   "right": "椿",
+   "mode": "bi",
+   "count": 3,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    643,
+    645
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-10-05",
+   "last": "2026-10-05",
+   "alts": {},
+   "sync": true
+  },
+  "bi|呼啸波涛": {
+   "wrong": "呼啸波涛",
+   "right": "鸣潮",
+   "mode": "bi",
+   "count": 6,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    4,
+    34,
+    88,
+    148,
+    228,
+    252
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-10-05",
+   "last": "2026-10-05",
+   "alts": {},
+   "sync": true
+  },
+  "bi|漫游": {
+   "wrong": "漫游",
+   "right": "漂泊",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    92
+   ],
+   "samples": [
+    [
+     "非常酷的东西。 3.5、",
+     "者",
+     "非常酷的东西。 3.5、",
+     "者"
+    ]
+   ],
+   "ref_tokens": {
+    "really": 1,
+    "some": 1,
+    "things": 1,
+    "cool": 1,
+    "Rover": 1
+   },
+   "unc_ref_tokens": {},
+   "first": "2026-10-05",
+   "last": "2026-10-05",
+   "alts": {},
+   "ctx_regex": "\\breally\\b|\\bsome\\b|\\bthings\\b"
+  },
+  "bi|皇帝": {
+   "wrong": "皇帝",
+   "right": "英白拉多",
+   "mode": "bi",
+   "count": 2,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    126,
+    137
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-10-05",
+   "last": "2026-10-05",
+   "alts": {},
+   "sync": true
+  },
+  "bi|庆萧": {
+   "wrong": "庆萧",
+   "right": "清宵",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    328
+   ],
+   "samples": [
+    [
+     "因为我在",
+     "之后输了50/50",
+     "因为我在",
+     "之后输了50/50"
+    ]
+   ],
+   "ref_tokens": {
+    "because": 1,
+    "Qing": 1,
+    "lost": 1,
+    "the": 1,
+    "after": 1,
+    "Shaw": 1
+   },
+   "unc_ref_tokens": {},
+   "first": "2026-10-05",
+   "last": "2026-10-05",
+   "alts": {},
+   "ctx_regex": "\\bbecause\\b|\\bQing\\b|\\blost\\b"
+  },
+  "bi|鲁斯": {
+   "wrong": "鲁斯",
+   "right": "露丝",
+   "mode": "bi",
+   "count": 3,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    1,
+    2,
+    3
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-10-02",
+   "last": "2026-10-05",
+   "alts": {},
+   "sync": true
+  },
+  "bi|明祖": {
+   "wrong": "明祖",
+   "right": "鸣潮",
+   "mode": "bi",
+   "count": 4,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    86,
+    101,
+    265
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-10-02",
+   "last": "2026-10-05",
+   "alts": {},
+   "sync": true
+  },
+  "bi|根钦": {
+   "wrong": "根钦",
+   "right": "原神",
+   "mode": "bi",
+   "count": 2,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    224,
+    241
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-10-02",
+   "last": "2026-10-05",
+   "alts": {},
+   "sync": true
+  },
+  "bi|Sigrika": {
+   "wrong": "Sigrika",
+   "right": "西格莉卡",
+   "mode": "bi",
+   "count": 2,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    1134,
+    3499
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-10-02",
+   "last": "2026-10-05",
+   "alts": {},
+   "sync": true
+  },
+  "bi|艾姆斯": {
+   "wrong": "艾姆斯",
+   "right": "爱弥斯",
+   "mode": "bi",
+   "count": 3,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    1644,
+    1645,
+    4470
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-10-02",
+   "last": "2026-10-05",
+   "alts": {},
+   "sync": true
+  },
+  "bi|尤姆林": {
+   "wrong": "尤姆林",
+   "right": "吟霖",
+   "mode": "bi",
+   "count": 2,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    3521,
+    3522
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-10-02",
+   "last": "2026-10-05",
+   "alts": {},
+   "sync": true
+  },
+  "bi|明植": {
+   "wrong": "明植",
+   "right": "鸣式",
+   "mode": "bi",
+   "count": 13,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    551,
+    2275,
+    2928,
+    2956,
+    2966,
+    3058,
+    4047,
+    4075,
+    4084,
+    4103,
+    4105,
+    4411
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-10-02",
+   "last": "2026-10-05",
+   "alts": {},
+   "sync": true
+  },
+  "bi|百丽宫青沙": {
+   "wrong": "百丽宫青沙",
+   "right": "Paragon清宵",
+   "mode": "bi",
+   "count": 2,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    1617,
+    5370
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-10-02",
+   "last": "2026-10-05",
+   "alts": {},
+   "sync": true
+  },
+  "bi|塞普蒂蒙": {
+   "wrong": "塞普蒂蒙",
+   "right": "七丘",
+   "mode": "bi",
+   "count": 2,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    967,
+    3913
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-10-02",
+   "last": "2026-10-05",
+   "alts": {},
+   "sync": true
+  },
+  "bi|由纪": {
+   "wrong": "由纪",
+   "right": "绯雪",
+   "mode": "bi",
+   "count": 2,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    230,
+    265
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-10-02",
+   "last": "2026-10-05",
+   "alts": {},
+   "sync": true
+  },
+  "bi|施万夫": {
+   "wrong": "施万夫",
+   "right": "玄方城",
+   "mode": "bi",
+   "count": 2,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    4364,
+    7528
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-10-02",
+   "last": "2026-10-05",
+   "alts": {},
+   "sync": true
+  },
+  "bi|天鹅芳": {
+   "wrong": "天鹅芳",
+   "right": "玄方城",
+   "mode": "bi",
+   "count": 2,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    7617,
+    11047
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-10-02",
+   "last": "2026-10-05",
+   "alts": {},
+   "sync": true
+  },
+  "bi|幻界": {
+   "wrong": "幻界",
+   "right": "蜃境",
+   "mode": "bi",
+   "count": 6,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    2315,
+    2325,
+    5263,
+    5866,
+    6580,
+    12255
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-10-02",
+   "last": "2026-10-05",
+   "alts": {},
+   "sync": true
+  },
+  "bi|ingjo": {
+   "wrong": "ingjo",
+   "right": "inzho",
+   "mode": "bi",
+   "count": 2,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    968,
+    3795
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-10-02",
+   "last": "2026-10-05",
+   "alts": {},
+   "sync": true
+  },
+  "bi|钦察": {
+   "wrong": "钦察",
+   "right": "清宵",
+   "mode": "bi",
+   "count": 2,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    1344,
+    11282
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-10-02",
+   "last": "2026-10-05",
+   "alts": {},
+   "sync": true
+  },
+  "bi|青沙": {
+   "wrong": "青沙",
+   "right": "清宵",
+   "mode": "bi",
+   "count": 27,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    1729,
+    1795,
+    1829,
+    2754,
+    3038,
+    3236,
+    4156,
+    4205,
+    6347,
+    6734,
+    7128,
+    7218,
+    7960,
+    8158,
+    10088,
+    10432,
+    11256,
+    11436,
+    11604,
+    11756
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-10-02",
+   "last": "2026-10-05",
+   "alts": {},
+   "sync": true
+  },
+  "bi|航天飞机": {
+   "wrong": "航天飞机",
+   "right": "云梭",
+   "mode": "bi",
+   "count": 22,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    3673,
+    3694,
+    4319,
+    4423,
+    4433,
+    4439,
+    4525,
+    4970,
+    4984,
+    6393,
+    6395,
+    6611,
+    6782,
+    6939,
+    7172,
+    8461,
+    8701,
+    8764,
+    8784,
+    8787
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-10-02",
+   "last": "2026-10-05",
+   "alts": {},
+   "sync": true
+  },
+  "bi|静莎": {
+   "wrong": "静莎",
+   "right": "清宵",
+   "mode": "bi",
+   "count": 4,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    2456,
+    5466,
+    11656,
+    11657
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-10-02",
+   "last": "2026-10-05",
+   "alts": {},
+   "sync": true
+  },
+  "bi|施瓦努安": {
+   "wrong": "施瓦努安",
+   "right": "玄元境",
+   "mode": "bi",
+   "count": 3,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    2069,
+    9876,
+    9888
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-10-02",
+   "last": "2026-10-05",
+   "alts": {},
+   "sync": true
+  },
+  "bi|青莎": {
+   "wrong": "青莎",
+   "right": "清宵",
+   "mode": "bi",
+   "count": 4,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    3956,
+    5154,
+    7470,
+    7884
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-10-02",
+   "last": "2026-10-05",
+   "alts": {},
+   "sync": true
+  },
+  "bi|钦查": {
+   "wrong": "钦查",
+   "right": "清宵",
+   "mode": "bi",
+   "count": 6,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    10,
+    2366,
+    3158,
+    3606,
+    3874,
+    11308
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-10-02",
+   "last": "2026-10-05",
+   "alts": {},
+   "sync": true
+  },
+  "bi|帕拉贡": {
+   "wrong": "帕拉贡",
+   "right": "Paragon",
+   "mode": "bi",
+   "count": 7,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    2011,
+    2056,
+    2146,
+    2531,
+    9547,
+    10087,
+    10766
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-10-02",
+   "last": "2026-10-05",
+   "alts": {},
+   "sync": true
+  },
+  "bi|天鹅典范": {
+   "wrong": "天鹅典范",
+   "right": "玄Paragon",
+   "mode": "bi",
+   "count": 2,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    3022,
+    4027
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-10-02",
+   "last": "2026-10-05",
+   "alts": {},
+   "sync": true
+  },
+  "bi|清沙典范": {
+   "wrong": "清沙典范",
+   "right": "清宵Paragon",
+   "mode": "bi",
+   "count": 3,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    2338,
+    8264,
+    10767
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-10-02",
+   "last": "2026-10-05",
+   "alts": {},
+   "sync": true
+  },
+  "bi|地界法师": {
+   "wrong": "地界法师",
+   "right": "幽客",
+   "mode": "bi",
+   "count": 2,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    1147,
+    1162
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-10-02",
+   "last": "2026-10-05",
+   "alts": {},
+   "sync": true
+  },
+  "bi|秦莎": {
+   "wrong": "秦莎",
+   "right": "清宵",
+   "mode": "bi",
+   "count": 2,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    2057,
+    6053
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-10-02",
+   "last": "2026-10-05",
+   "alts": {},
+   "sync": true
+  },
+  "bi|蒙祖": {
+   "wrong": "蒙祖",
+   "right": "梦州",
+   "mode": "bi",
+   "count": 2,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    707,
+    5518
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-10-02",
+   "last": "2026-10-05",
+   "alts": {},
+   "sync": true
+  },
+  "bi|慕宇": {
+   "wrong": "慕宇",
+   "right": "木禺",
+   "mode": "bi",
+   "count": 2,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    2029,
+    5613
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-10-02",
+   "last": "2026-10-05",
+   "alts": {},
+   "sync": true
+  },
+  "bi|杨阳": {
+   "wrong": "杨阳",
+   "right": "秧秧",
+   "mode": "bi",
+   "count": 9,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    388,
+    402,
+    570,
+    1512,
+    1844,
+    2796,
+    4689,
+    4692,
+    5562
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-10-02",
+   "last": "2026-10-05",
+   "alts": {},
+   "sync": true
+  },
+  "bi|程晓": {
+   "wrong": "程晓",
+   "right": "清宵",
+   "mode": "bi",
+   "count": 4,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    2551,
+    2685,
+    3389,
+    5706
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-10-02",
+   "last": "2026-10-05",
+   "alts": {},
+   "sync": true
+  },
+  "bi|景沙": {
+   "wrong": "景沙",
+   "right": "清宵",
+   "mode": "bi",
+   "count": 2,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    3954,
+    5997
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-10-02",
+   "last": "2026-10-05",
+   "alts": {},
+   "sync": true
+  },
+  "bi|穆宇": {
+   "wrong": "穆宇",
+   "right": "木禺",
+   "mode": "bi",
+   "count": 5,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    1410,
+    2440,
+    2706,
+    3138,
+    5456
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-10-02",
+   "last": "2026-10-05",
+   "alts": {},
+   "sync": true
+  },
+  "bi|施万芬霍尔德": {
+   "wrong": "施万芬霍尔德",
+   "right": "玄方城",
+   "mode": "bi",
+   "count": 2,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    4365,
+    2269
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-10-02",
+   "last": "2026-10-05",
    "alts": {},
    "sync": true
   },
@@ -1495,26 +1903,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-02",
-   "last": "2026-10-04",
-   "alts": {},
-   "sync": true
-  },
-  "bi|海岸守护者": {
-   "wrong": "海岸守护者",
-   "right": "海岸人",
-   "mode": "bi",
-   "count": 2,
-   "uncorrected": 0,
-   "status": "confirmed",
-   "cues": [
-    811,
-    812
-   ],
-   "samples": [],
-   "ref_tokens": {},
-   "unc_ref_tokens": {},
-   "first": "2026-10-02",
-   "last": "2026-10-04",
+   "last": "2026-10-05",
    "alts": {},
    "sync": true
   },
@@ -1533,45 +1922,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-02",
-   "last": "2026-10-04",
-   "alts": {},
-   "sync": true
-  },
-  "bi|武阿": {
-   "wrong": "武阿",
-   "right": "鸣潮",
-   "mode": "bi",
-   "count": 2,
-   "uncorrected": 0,
-   "status": "confirmed",
-   "cues": [
-    1473,
-    484
-   ],
-   "samples": [],
-   "ref_tokens": {},
-   "unc_ref_tokens": {},
-   "first": "2026-10-02",
-   "last": "2026-10-04",
-   "alts": {},
-   "sync": true
-  },
-  "bi|外骨骼": {
-   "wrong": "外骨骼",
-   "right": "隧者",
-   "mode": "bi",
-   "count": 2,
-   "uncorrected": 0,
-   "status": "confirmed",
-   "cues": [
-    3328,
-    3337
-   ],
-   "samples": [],
-   "ref_tokens": {},
-   "unc_ref_tokens": {},
-   "first": "2026-10-02",
-   "last": "2026-10-04",
+   "last": "2026-10-05",
    "alts": {},
    "sync": true
   },
@@ -1590,45 +1941,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-02",
-   "last": "2026-10-04",
-   "alts": {},
-   "sync": true
-  },
-  "bi|枯萎之波": {
-   "wrong": "枯萎之波",
-   "right": "鸣潮之波",
-   "mode": "bi",
-   "count": 2,
-   "uncorrected": 0,
-   "status": "confirmed",
-   "cues": [
-    908,
-    3500
-   ],
-   "samples": [],
-   "ref_tokens": {},
-   "unc_ref_tokens": {},
-   "first": "2026-10-02",
-   "last": "2026-10-04",
-   "alts": {},
-   "sync": true
-  },
-  "bi|Nvidia": {
-   "wrong": "Nvidia",
-   "right": "娜波摩",
-   "mode": "bi",
-   "count": 2,
-   "uncorrected": 0,
-   "status": "confirmed",
-   "cues": [
-    3189,
-    3201
-   ],
-   "samples": [],
-   "ref_tokens": {},
-   "unc_ref_tokens": {},
-   "first": "2026-10-02",
-   "last": "2026-10-04",
+   "last": "2026-10-05",
    "alts": {},
    "sync": true
   },
@@ -1647,26 +1960,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-02",
-   "last": "2026-10-04",
-   "alts": {},
-   "sync": true
-  },
-  "bi|“呜哇tap o ”": {
-   "wrong": "“呜哇tap o ”",
-   "right": "“Wuwa Tap o ”",
-   "mode": "bi",
-   "count": 2,
-   "uncorrected": 0,
-   "status": "confirmed",
-   "cues": [
-    1052,
-    1054
-   ],
-   "samples": [],
-   "ref_tokens": {},
-   "unc_ref_tokens": {},
-   "first": "2026-10-02",
-   "last": "2026-10-04",
+   "last": "2026-10-05",
    "alts": {},
    "sync": true
   },
@@ -1685,26 +1979,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-02",
-   "last": "2026-10-04",
-   "alts": {},
-   "sync": true
-  },
-  "bi|图案": {
-   "wrong": "图案",
-   "right": "动机",
-   "mode": "bi",
-   "count": 2,
-   "uncorrected": 0,
-   "status": "confirmed",
-   "cues": [
-    680,
-    1827
-   ],
-   "samples": [],
-   "ref_tokens": {},
-   "unc_ref_tokens": {},
-   "first": "2026-10-02",
-   "last": "2026-10-04",
+   "last": "2026-10-05",
    "alts": {},
    "sync": true
   },
@@ -1724,45 +1999,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-02",
-   "last": "2026-10-04",
-   "alts": {},
-   "sync": true
-  },
-  "bi| Fraidus ": {
-   "wrong": " Fraidus ",
-   "right": " 残星会 ",
-   "mode": "bi",
-   "count": 2,
-   "uncorrected": 0,
-   "status": "confirmed",
-   "cues": [
-    10153,
-    878
-   ],
-   "samples": [],
-   "ref_tokens": {},
-   "unc_ref_tokens": {},
-   "first": "2026-10-02",
-   "last": "2026-10-04",
-   "alts": {},
-   "sync": true
-  },
-  "bi|流动站": {
-   "wrong": "流动站",
-   "right": "漂泊者",
-   "mode": "bi",
-   "count": 2,
-   "uncorrected": 0,
-   "status": "confirmed",
-   "cues": [
-    7041,
-    1799
-   ],
-   "samples": [],
-   "ref_tokens": {},
-   "unc_ref_tokens": {},
-   "first": "2026-10-02",
-   "last": "2026-10-04",
+   "last": "2026-10-05",
    "alts": {},
    "sync": true
   },
@@ -1783,26 +2020,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-02",
-   "last": "2026-10-04",
-   "alts": {},
-   "sync": true
-  },
-  "bi|瓦阿": {
-   "wrong": "瓦阿",
-   "right": "鸣潮",
-   "mode": "bi",
-   "count": 2,
-   "uncorrected": 0,
-   "status": "confirmed",
-   "cues": [
-    644,
-    617
-   ],
-   "samples": [],
-   "ref_tokens": {},
-   "unc_ref_tokens": {},
-   "first": "2026-10-02",
-   "last": "2026-10-04",
+   "last": "2026-10-05",
    "alts": {},
    "sync": true
   },

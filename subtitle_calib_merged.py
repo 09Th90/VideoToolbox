@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 1.16.5
+# @version 1.18.0
 """字幕校准统一脚本（唯一入口，可复用，每次校准任务优先调用本脚本）
 
 本文件是工作区全部历史校准脚本的统一沉淀（双语 calib_rules、韩语
@@ -287,6 +287,13 @@ BILINGUAL_TERMS = {
     "施万": "玄方", "施旺": "玄方", "方旺": "玄方",
     # 英文原声残留：Nexus 未被谷翻，且被裸键"exus->隧者"误咬成"N隧者"（长键 Nexus 先行即可）
     "Nexus": "枢纽", "nexus": "枢纽",
+    # 英文原声残留（2026-10-04 3.7 反应片）：谷翻整词未译，中文行内留英文专名
+    "Swaming": "锁暝", "Swarming": "锁暝", "Mhjo": "梦州", "mjo": "梦州",
+    "Tacet": "残象", "Arbiter": "御者",   # 2026-10-05 用户裁决：Arbiter 官方中文=御者（原误沉淀"仲裁者"；与韩语模式 어자->御者 及 3.7 精校报告一致）
+    # 2026-10-04 二次校准补：英文整词残留（官方中文已核）
+    "Taca Discord": "残象", "Tacit Discord": "残象", "Tacet Discord": "残象",
+    "Wither Waves": "鸣潮", "Withering Waves": "鸣潮",
+    "Schwang": "玄方", "Schwan": "玄方",
     "Mongo": "梦州",                                               # Mongjo/Mong 误听
     "Nethermancer": "幽客",                                        # 中文行残留英文
     # 2026-10-04 补全长键：裸键"枯萎"（学习库 bi|枯萎->鸣潮）会抢先命中，把"枯萎的波浪/枯萎波浪/
@@ -1066,6 +1073,28 @@ EXCLUDE_CONTEXT = {
     # \bseal\b=封印 规则的负例：官方名词"雪绒海豹"（Snowplush Seal）语境下回滚，
     # 参考行命中 seal 时先被 CONTEXT 改成"雪绒封印"再整词换回，不影响行内其他"封印"。
     "雪绒海豹": ("雪绒封印", (r"\bseal\b",)),
+    # --- 2026-10-05《鸣潮》3.7 精校报告沉淀复查所得高歧义负例（用户："以官方中文为准"）---
+    # ① \bSushi\b -> 穗穗(Suisui) 的负例：**真食物寿司**。
+    #    实测 "I love eating sushi with my friends" + 中文行"我喜欢吃寿司" 被误改成
+    #    "穗穗很好吃"。食物语境回滚；穗穗被 ASR 咬成 Sushi 时不含食物词，仍正确归穗穗。
+    "寿司": ("穗穗", (
+        r"\beat(?:ing|en|s)?\b", r"\bfood\b", r"\bmeal\b", r"\brestaurant\b",
+        r"\bmenu\b", r"\bchef\b", r"\bcook(?:ing|ed)?\b", r"\border(?:ed|ing)?\b",
+        r"\bdelicious\b", r"\btasty\b", r"\byummy\b", r"\bsnack\b", r"\brecipe\b",
+        r"\brice\b", r"\braw fish\b", r"\bsoy sauce\b", r"\bchopsticks\b",
+        r"\bbreakfast\b", r"\blunch\b", r"\bdinner\b", r"\bhungry\b", r"\bplate\b",
+    )),
+    # ② \bSanctum\b -> 万相神宫 的负例：**普通"圣所/密室"**。实测 "a holy sanctum" 被误改。
+    #    宗教/建筑通用语境回滚；Manifold Sanctum 与 ASR 错形 sectum 不含这些词，仍正确归万相神宫。
+    "圣所": ("万相神宫", (
+        r"\bholy\b", r"\bsacred\b", r"\bshrine\b", r"\btemple\b", r"\bsanctuary\b",
+        r"\bchurch\b", r"\bcathedral\b", r"\bmonastery\b", r"\bchapel\b",
+        r"\binner sanctum\b", r"\bsanctum sanctorum\b", r"\baltar\b", r"\bdeity\b",
+    )),
+    # ③ \bParagon\b -> Paragon(称号) 的负例：英语成语 "a paragon of virtue/excellence"
+    #    =楷模/典范（普通语义）。实测 "a paragon of virtue" 被误改成称号 Paragon。
+    #    注：第 3745/5068 行已注明"'典范'为常用词义错位，不固化"，此处补齐回滚保护。
+    "典范": ("Paragon", (r"\bparagon of\b", r"\bparagon\.?\s+(?:of|for)\b")),
 }
 _EXCLUDE_COMPILED = {w: (right, [re.compile(rx, re.I) for rx in rxs])
                      for w, (right, rxs) in EXCLUDE_CONTEXT.items()}
@@ -3729,10 +3758,8 @@ ENTITIES = [
            variants=("鲁斯",),
            note="学习库固化(#1/2/3)：'鲁斯'为 ASR 残缺音译。同片'荷鲁斯说你好->荷露丝说你好'"
                 "为整句特例，留学习库（'荷鲁斯'=Horus 常规译名绝不裸键）。"),
-    Entity("鸣潮之波", modes=("bi",),
-           category="术语/鸣潮",
-           variants=("枯萎之波",),
-           note="学习库固化(#908/3500)：Wuthering Waves 错拼/误拆的机翻残留，整串安全。"),
+    # 2026-10-04 删除 Entity("鸣潮之波", variants=("枯萎之波",))：目标"鸣潮之波"是
+    #   "枯萎之波"被裸键"枯萎"咬半截的产物，正确形应为"鸣潮"（已并入 BILINGUAL_TERMS 长键）。
     Entity("Paragon", modes=("bi",), en="Paragon",
            category="称号/术语·鸣潮",
            variants=("帕拉贡",),
@@ -4318,6 +4345,171 @@ ENTITIES = [
                 "日语 ASR 作 収走スキル(しゅうそう)，谷翻译成'跑步技能/逃跑/收走'。"
                 "⚠ 本条只登记元数据、不加规则：'终奏/延奏'的官方中文用字尚未坐实，"
                 "本片按'终奏'处理并留待后续片源验证，勿贸然固化为规则。"),
+    # --- 2026-10-04 鸣潮 3.7 英文原声反应片（MarcoMeatball「Xuanfang is Over」7225 cue）二次校准沉淀 ---
+    Entity("玄方", modes=("bi",), en="Xuan / Schwan",
+           category="地名/鸣潮3.7",
+           variants=("Schwang", "Schwan", "施万方", "施旺丰",
+                     "施万", "施旺", "方旺"),
+           note="梦州·玄方地界（3.5 上线，3.7 玄方篇收官）。英文服作 Xuan（ASR 常咬成 Schwan/Schwang），"
+                "谷翻音译残留『施万/施旺/方旺』系（施万方堡/施旺丰堡→玄方城，见 Entity('玄方城')）。"
+                "⚠ 裸键『施万/施旺』须短于『施万丰/施万夫/施万方堡』等长键，靠长键先行防半截替换。"),
+    # ============================================================
+    # 2026-10-05《鸣潮》3.7 剧情反应视频字幕精校报告 · 核心术语订正总表沉淀
+    #   来源：H:\精校修改对照报告.md（5026 条逐句精校，术语总表 45 项）。
+    #   用户裁决：① Arbiter 官方中文=御者（BILINGUAL_TERMS 旧映射'仲裁者'已改，
+    #   与韩语模式 어자->御者 一致）；② Sheen/Hsin 保留脚本现有全名'心月狐'，
+    #   不按报告简称改'心'（'心'为分身，与本体'心月狐'是两个对象）。
+    #   戒律（严格遵循本文件既有约定）：
+    #     · 官方中文做 canonical；modes 默认 ("bi",)（报告为中英双语片源）。
+    #     · variants（裸键，出现即改）：只放**生僻**中文机翻错形 + **生僻**英文残留专名。
+    #     · ctx（参考行正则锚定）：放**歧义常用词**（寿司/圣所/天体/皇帝/朱/战争部…），
+    #       靠英文 ASR 变体命中参考行才改，绝不裸键。
+    #     · 常用英文词（Sushi/Swimming/Sanctum/Imperator/Celestials…）一律不作裸键。
+    # ============================================================
+    Entity("溯心", modes=("bi",), en="Suxin",
+           category="角色/岁主·鸣潮3.7",
+           variants=("Susheen", "Sushin", "Sushun"),
+           ctx=((r"\bSuxin\b|\bSusheen\b|\bSushin\b|\bSushun\b", "苏珊"),
+                (r"\bSuxin\b|\bSusheen\b|\bSushin\b|\bSushun\b", "寿司")),
+           note="天罗狐影异变体（3.7 精校报告核心术语表）。ASR 把 Suxin 咬成 "
+                "Susheen/Sushin/Sushun/Sushi；谷翻按字面出'苏珊'(Susan)/'寿司'(sushi)。"
+                "戒律：'苏珊/寿司'均常用词，绝不裸键，只走参考行 Suxin/Susheen/Sushin/Sushun 系锚定；"
+                "⚠ ASR 变体 'Sushi' 与真食物寿司同形，已从佐证正则剔除"
+                "（2026-10-05 实测'I love eating sushi'被误改成'溯心'）：宁可漏改被咬成 "
+                "sushi 的溯心，不可误伤食物语境；英文残留 Susheen/Sushin/Sushun 生僻，裸键安全。"),
+    Entity("御者", modes=("bi",), en="Arbiter",
+           category="称号/术语·鸣潮3.7",
+           variants=("Abiter",),
+           ctx=((r"\bArbiter\b|\bAbiter\b|\bAlberta\b", "仲裁者"),
+                (r"\bArbiter\b|\bAbiter\b|\bAlberta\b", "仲裁员"),
+                (r"\bArbiter\b|\bAbiter\b|\bAlberta\b", "阿尔伯塔")),
+           note="3.7 心对漂泊者的称呼，官方中文=御者（韩语模式 어자->御者 已沉淀）。"
+                "本轮用户裁决：BILINGUAL_TERMS 旧映射 Arbiter->'仲裁者' 已改 '御者'。"
+                "ASR 变体 Abiter/Alberta；谷翻出'仲裁者/仲裁员/阿尔伯塔'(Alberta=加拿大省)，"
+                "均歧义走 ctx；英文残留 Abiter 生僻裸键，Arbiter 裸键已在扁平表(->御者)。"),
+    Entity("谛天鉴", modes=("bi",), en="Ministry of Sentinel Affairs",
+           category="势力/官署·鸣潮3.7",
+           variants=("岁主事务部", "哨兵事务部", "谛天监", "Ministry of Sentinel Affairs"),
+           note="锁暝执掌、专管岁主事务的组织，官方中文=谛天鉴（ja 表已有 谛天监->谛天鉴，"
+                "本轮补 bi）。机翻两种字面错译均须收：Sentinel 译'哨兵'->'哨兵事务部'、"
+                "译'岁主'->'岁主事务部'（2026-10-05 用户指正：'岁主事务部'为错误翻译，"
+                "官方中文=谛天鉴）。二者均为生僻组合，裸键安全；英文整词残留同收。"
+                "⚠ 级联（有意为之）：中文行'Sentinel事务部' 先由裸键 Sentinel->岁主 得到"
+                "'岁主事务部'，再由本键收束成'谛天鉴'（长键先行，terms-check 会列出此级联）。"),
+    Entity("州监", modes=("bi",), en="Intendant",
+           category="官职/术语·鸣潮3.7",
+           variants=("Intendant", "intendence"),
+           note="梦州官职（锁暝任州监，官方档案'谛天鉴州监'）。ASR 把 Intendant 咬成 "
+                "intended/intendence；戒律：'intended' 是常用英文词，绝不裸键（本轮不收，"
+                "防误伤），只收生僻的 Intendant/intendence 英文残留。"),
+    Entity("稷廷", modes=("bi",), en="Court of Savantae",
+           category="势力/组织·鸣潮3.7",
+           variants=("萨凡特宫廷", "Court of Savante", "Savante", "Sante", "Cante"),
+           note="旧时代机巧科研组织，官方中文=稷廷（韩语模式 직정->稷廷 已沉淀）。"
+                "ASR 变体 Court of Savante/Sante/Cante；谷翻'萨凡特宫廷'生僻组合裸键安全。"),
+    Entity("军策府", modes=("bi",), en="Ministry of War",
+           category="势力/官署·鸣潮3.7",
+           variants=("Ministry of War",),
+           ctx=((r"\bMinistry of War\b", "战争部"),),
+           note="梦州军事官署，官方中文=军策府。谷翻按字面出'战争部'（普通词组），"
+                "走参考行 Ministry of War 锚定；英文整词残留裸键安全。"),
+    Entity("朝月会", modes=("bi",), en="Waking Moon Festival",
+           category="节日/术语·鸣潮3.7",
+           variants=("唤醒月亮节", "Waking Moon Festival", "Moonchasing Festival"),
+           note="玄方篇节日，官方中文=朝月会。ASR/旧译 Waking Moon Festival / Moonchasing "
+                "Festival；谷翻'唤醒月亮节'生僻组合裸键安全。戒律：脚本别处注释曾提'追月节'，"
+                "官方名待核，本轮不收，防误并。"),
+    Entity("万相神宫", modes=("bi",), en="(Manifold) Sanctum",
+           category="地点/建筑·鸣潮3.7",
+           variants=("sectum",),
+           ctx=((r"\bManifold Sanctum\b|\bmanifold sanctum\b|\bSanctum\b|\bsectum\b", "圣所"),),
+           note="玄方篇建筑，官方中文=万相神宫。ASR 把 Sanctum 咬成 sectum；谷翻'圣所'"
+                "（普通词）走参考行 Sanctum 系锚定；英文残留 sectum 生僻裸键，"
+                "'Sanctum' 单独歧义不裸键。"),
+    Entity("锦妙锁", modes=("bi",), en="Providence Lock",
+           category="物品/术语·鸣潮3.7",
+           variants=("天意锁", "Providence Lock", "Providence lock"),
+           note="3.7 版本主题'镜锁妄世'相关，官方中文=锦妙锁。谷翻按字面出'天意锁'"
+                "（Providence=天意），生僻组合裸键安全；英文词组残留同收。"),
+    Entity("玄朱锁", modes=("bi",), en="Vermilion Lock",
+           category="物品/术语·鸣潮3.7",
+           variants=("朱红锁", "Vermilion Lock", "Vermillion lock"),
+           note="与锦妙锁并列的'锁'，官方中文=玄朱锁。ASR 变体 Vermillion；谷翻'朱红锁'"
+                "（Vermilion=朱红）生僻组合裸键安全；戒律：'Vermilion' 单独歧义（朱红色）"
+                "不裸键，只收带 Lock 的词组。"),
+    Entity("天人", modes=("bi",), en="Celestials",
+           category="术语/群体·鸣潮3.7",
+           ctx=((r"\b[Cc]elestials\b", "天体"),),
+           note="玄方/梦州的'天人'群体（与凡人相对），官方中文=天人（ko 模式 천인->天人 已沉淀）。"
+                "谷翻按字面把 celestials 出'天体'（天文常用词），必须走参考行锚定，绝不裸键。"
+                "⚠ 佐证正则强制复数 celestials（2026-10-05 实测：单数 'celestial bodies "
+                "twinkle'=真天体，被误改成'天人'）；指群体的天人英文用复数，故收窄不漏。"
+                "canonical'天人'本身无错形裸键。"),
+    Entity("解形煞", modes=("bi",), en="Form Renders",
+           category="敌人/术语·鸣潮3.7",
+           variants=("形态渲染器", "forenders"),
+           note="玄方篇敌对存在，官方中文=解形煞。ASR 把 Form Renders 咬成 for renters/"
+                "forenders；谷翻按字面出'形态渲染器'（render=渲染）生僻组合裸键安全；"
+                "英文残留 forenders 生僻裸键，'form renders/for renters' 歧义不裸键。"),
+    Entity("玄翎雀", modes=("bi",), en="Xuanling Bird",
+           category="生物/传说·鸣潮3.7",
+           variants=("Shrening Bird", "Shrenling", "Schwanling", "shrening 鸟", "Shrening 鸟"),
+           note="玄方城传说灵鸟（叼子以身开城门），官方中文=玄翎雀（ko 模式 혈령작->玄翎雀 已沉淀）。"
+                "ASR 把 Xuanling 咬成 Shrening/Shrenling/Schwanling；谷翻残留'shrening 鸟'。"
+                "英文错形均生僻，裸键安全。"),
+    Entity("恶瘴", modes=("bi",), en="Evil Miasma",
+           category="术语/灾厄·鸣潮3.7",
+           variants=("邪恶瘴气", "Evil Miasma", "evil Miasma"),
+           note="华亭故乡灾厄（官方档案'故乡「恶瘴」之厄'），官方中文=恶瘴（ko 模式 악장->恶瘴 已沉淀）。"
+                "谷翻'邪恶瘴气'生僻组合裸键安全；戒律：'Miasma' 单独歧义（瘴气普通词）不裸键，"
+                "只收带 Evil 词组。"),
+    Entity("渊城", modes=("bi",), en="Yuan Fortress",
+           category="地点/鸣潮3.7",
+           variants=("Yuan Fortress", "Yan Fortress", "Tuan Fortress"),
+           ctx=((r"\bYuan Fortress\b|\bYan Fortress\b|\bTuan Fortress\b|\bYuan\b", "元堡"),),
+           note="云渊之役相关地点，官方中文=渊城。ASR 把 Yuan 咬成 Yan/Tuan；谷翻'元堡'"
+                "（'元'常用字）走参考行 Yuan Fortress 锚定；英文词组残留裸键安全。"),
+    Entity("云渊之役", modes=("bi",), en="Yuan Fortress–Gorges War",
+           category="事件/术语·鸣潮3.7",
+           variants=("堡垒与华丽的战争",),
+           note="渊城与云凌谷之战（简称云渊之役），官方中文=云渊之役。ASR 把 Gorges 咬成 "
+                "gorgeous/Spirits（fortress and gorgeous war / Gorges of Spirits）；"
+                "谷翻整句'堡垒与华丽的战争'生僻，裸键安全。"),
+    Entity("梦枢", modes=("bi",), en="Nexus Axis",
+           category="地点/术语·鸣潮3.7",
+           variants=("词典轴", "lexicon axis"),
+           note="中枢（Nexus Axis），官方中文=梦枢。⚠ 与 Entity('梦枢天罗')(Simulacrum Nexus) "
+                "为不同对象，勿混。ASR 把 Nexus 咬成 lexicon；谷翻'词典轴'（lexicon=词典）"
+                "生僻组合裸键安全。canonical'梦枢'(2字)与'梦枢天罗'长键先行不级联。"),
+    Entity("芙露德莉丝", modes=("bi",), en="Frudelis",
+           category="角色/残星会·鸣潮3.7",
+           variants=("芬特利亚", "Frudelis", "Fentellia", "Fentilia"),
+           note="残星会成员，官方中文=芙露德莉丝。ASR 把 Frudelis 咬成 Fentellia/Fentilia；"
+                "谷翻'芬特利亚'音译残留。英文/中文错形均生僻，裸键安全。"),
+    Entity("英白拉多", modes=("bi",), en="Imperator",
+           category="角色/残星会·鸣潮3.7",
+           variants=("Imperator",),
+           ctx=((r"\bImperator\b", "皇帝"),),
+           note="残星会首领，官方中文=英白拉多（Imperator 拉丁'统帅/皇帝'）。谷翻按字面出"
+                "'皇帝'（极常用词）必须走参考行 Imperator 锚定，绝不裸键；英文残留 Imperator "
+                "生僻裸键。"),
+    Entity("角", modes=("bi",), en="Jue",
+           category="角色/岁主·鸣潮3.7",
+           variants=("Jue",),
+           ctx=((r"\bJue\b", "朱"),),
+           note="今州岁主，官方中文=角（单字）。⚠ 高风险术语：canonical'角'与错形'朱'均极常用，"
+                "'朱'（姓氏/红色）只走参考行 \\bJue\\b 强锚定才改，绝不裸键；英文残留 Jue 生僻裸键。"
+                "ASR 变体 Ju 太短歧义，本轮不收。"),
+    Entity("命运棱镜", modes=("bi",), en="Prism of Fate",
+           category="物品/术语·鸣潮3.7",
+           variants=("信仰棱镜", "Prisma Fate", "prism of faith", "Prism of Fate"),
+           note="官方中文=命运棱镜。ASR 把 Fate 咬成 faith、Prism 咬成 Prisma；谷翻'信仰棱镜'"
+                "（faith=信仰）生僻组合裸键安全；英文词组残留同收。"),
+    Entity("同宁", modes=("bi",), en="Tongning",
+           category="角色/NPC·鸣潮3.7",
+           variants=("佟宁", "Tong Ning", "Tonging"),
+           note="NPC（音译，无官方出处，报告标注为音译/语境译）。ASR 把 Tongning 咬成 Tonging；"
+                "谷翻'佟宁'音译残留。英文/中文错形均生僻，裸键安全。"),
 ]
 
 # ============================================================
@@ -4886,6 +5078,19 @@ def _ref_tokens(ref):
     return set(re.findall(r"[A-Za-z][A-Za-z'\-]{2,}", ref))
 
 
+# 常用中文词黑名单：**禁止自动 confirmed**（2026-10-04 沉淀）。
+# 戒律：常用词义错位（明朝/骑士/法官/哨兵/拖车/哀叹/谐振器/枯萎…）绝不作为裸键进术语表，
+# 只能走 ctx（参考行正则锚定）或 subfix（逐 cue 侧车）。learn 的自动 confirmed 会绕过这条戒律，
+# 导致跨片源误伤（实测：枯萎→鸣潮 改坏 blight way；骑士→明日方舟 改坏 Knights 本义）。
+# 命中此表者仅保留候选，须人工 learned-promote 审阅后才生效。
+LEARN_AUTOCONFIRM_DENY = frozenset({
+    "明朝", "明州", "明祖", "明朝", "明植",
+    "骑士", "法官", "哨兵", "拖车", "哀叹", "谐振器", "谐振腔", "枯萎",
+    "图案", "溪流", "班车", "航天飞机", "外骨骼", "流动站", "银杏", "鲁斯",
+    "三和", "京城", "典范", "帕拉贡", "太恶心了", "海岸守护者", "金龙", "蒙祖",
+})
+
+
 def _learn_update_status(c):
     """候选状态机：count/uncorrected 驱动 确认/降级，并生成上下文建议。
     返回 True 表示本次发生了 confirmed->candidate 反例降级。"""
@@ -4895,6 +5100,12 @@ def _learn_update_status(c):
         c["status"] = "candidate"
         return False
     if c["count"] >= 2 and c["uncorrected"] == 0:
+        if c["wrong"] in LEARN_AUTOCONFIRM_DENY:
+            # 常用词裸键：绝不允许自动 confirmed（戒律：常用词义错位只走 ctx/subfix）。
+            # 候选保留，须人工 learned-promote 才会生效（2026-10-04 3.7 反应片实测沉淀）。
+            c["needs_review"] = True
+            c["status"] = "candidate"
+            return False
         c["status"] = "confirmed"
         c.pop("ctx_regex", None)
         return False
