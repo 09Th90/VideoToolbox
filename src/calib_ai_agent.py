@@ -960,7 +960,7 @@ def validate_change(old: str, new: str, rules, excludes, canonicals,
     joined = "".join(news)
     if len(joined) > 40:
         return False, "新增文本过多（疑似改写）", False
-    hit_canon = [c for c in canonicals if c in joined]
+    hit_canon = [c for c in canonicals if len(c) >= 2 and c in joined]
     if hit_canon and all(len(x) <= 12 for x in olds):
         return True, "疑似新错形 → " + "、".join(hit_canon[:3]) + "（建议 learn 沉淀）", True
     return False, "无知识库依据且未落在官方名上", False
