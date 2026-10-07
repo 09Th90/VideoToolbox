@@ -83,6 +83,7 @@ B. 流水线子命令（原各项目分散脚本 extract_cues/split_segs/merge_r
    gen_compare/scan_names/merge_compare 的统一入口，2026-08-31 并入）:
   python subtitle_calib_merged.py extract  <src.srt> <cues.tsv>            # 抽 cue 表 num/中文/英文
   python subtitle_calib_merged.py split    <cues.tsv> <outprefix> --n 6    # 切分段（用于并行校准）
+  python subtitle_calib_merged.py detect-mode <src.srt>                    # 片源自动识别：打印 DETECT=<模式>
   python subtitle_calib_merged.py pair     <seg_X.tsv> <纯文本.txt> [--out calib_X.tsv]
         # 把「每行一个 cue 的纯文本译文」按 seg 的序号配对成 calib 表（2026-10-01 新增）。
         # ⚠ Agent 级逐段校准**不要手写 序号<TAB>译文**：手写序号会整体漂移
@@ -2130,6 +2131,42 @@ ENDFIELD_BI_TERMS = {
     "瓦勒林": "华法琳", "沃拉林": "华法琳", "Warerin": "华法琳",   # Warfarin
     "普利卡": "佩丽卡",                      # Perlica（终末地工业监督）
 }
+
+#: 片源自适应（2026-10-07）：默认 bi 模式下的「终末地·中英双语片源」特征词。
+#:   起因：终末地专名对照只挂在 ENDFIELD_TERMS(--endo) 与 ENDFIELD_BI_TERMS(--endobi)，
+#:   而流水线（pipeline.py 调脚本时不带模式）与 GUI 默认都走 bi 模式
+#:   → 终末地专名一处都不会被替换（表现即「终末地没有被正确翻译」）。
+#:   命中 >= 2 个特征词即判为终末地双语片源，自动并入 ENDFIELD_BI_TERMS。
+#:   关闭：环境变量 VT_NO_AUTO_TERMS=1。
+ENDFIELD_AUTO_MARKERS = (
+    "恩菲尔德", "塔洛斯", "Seshka", "Seska", "Feramute", "Ferraamute",
+    "兰安托玛", "Lafantoma", "Laantoma", "La Phantoma", "道路岛", "路兹岛",
+    "公路岛", "萨米·瓦格", "Sami Vaker", "文明乐队", "乐队协奏曲",
+    "乐队绳索", "汉尼贝", "威克", "瓦勒林", "沃拉林", "Warerin", "普利卡",
+    "巫术我们的",
+)
+
+
+def endfield_auto_markers(lines):
+    """返回文本里命中的终末地双语片源特征词（去重）。"""
+    blob = "\n".join(lines)
+    return [m for m in ENDFIELD_AUTO_MARKERS if m in blob]
+
+
+def detect_source_mode(path):
+    """片源自动识别（2026-10-07）：目前只区分「终末地·中英双语」与通用双语。
+
+    供 AI 校准代理（calib_ai_agent）与流水线在**未显式指定模式**时调用，
+    避免终末地专名因走默认 bi 模式而一处不改。
+    """
+    try:
+        lines = _decode_any(open(path, "rb").read()).split("\n")
+    except OSError:
+        return "bi"
+    return "endobi" if len(endfield_auto_markers(lines)) >= 2 else "bi"
+
+
+
 
 
 # =============================================================
@@ -6695,6 +6732,19 @@ def process(path, out_path=None, report_path=None, mode="bi",
     lines = norm.split("\n")
     out = list(lines)
 
+    # 片源自适应（2026-10-07）：默认 bi 模式自动识别终末地双语片源并并入其术语表。
+    #   不加这段，流水线/GUI 默认（都不传片源模式）对本类片源一处不改。
+    if mode == "bi" and os.environ.get("VT_NO_AUTO_TERMS", "") != "1":
+        _mk = endfield_auto_markers(lines)
+        if len(_mk) >= 2:
+            _merged = dict(terms)
+            for _w, _r in ENDFIELD_BI_TERMS.items():
+                _merged.setdefault(_w, _r)
+            terms = _merged
+            term_pairs, term_chars = _compile_map(terms)
+            print("片源自适应：检测到终末地双语片源（特征词 %d 个：%s）→ 已并入 ENDFIELD_BI_TERMS"
+                  % (len(_mk), "、".join(_mk[:6])))
+
     hits, rows = {}, []
     i, n = 0, len(lines)
     while i < n:
@@ -7734,7 +7784,7 @@ def main_argv():
                    "terms", "length", "flow", "align-audit", "alignaudit",
                    "kb-export", "kb-lookup", "kb-lint",
                    "learn", "learned-show", "learned-promote", "learned-reject",
-                   "kb-sync", "kb-push"):
+                   "kb-sync", "kb-push", "detect-mode", "detectmode"):
             # length 用退出码当门禁（超限 1），其余子命令返回 None -> 0
             sys.exit(_dispatch_subcommand(sub, argv[1:]) or 0)
 
@@ -7937,6 +7987,10 @@ def _dispatch_subcommand(sub, args):
         if len(pos) < 2:
             print("用法: extract <src.srt> <cues.tsv>"); return
         _cmd_extract(pos[0], pos[1])
+    elif sub in ("detect-mode", "detectmode"):
+        if not pos:
+            print("用法: detect-mode <src.srt>"); return
+        print("DETECT=" + detect_source_mode(pos[0]))
     elif sub == "split":
         if len(pos) < 2:
             print("用法: split <cues.tsv> <outprefix> --n <N>"); return
@@ -8084,8 +8138,8 @@ def json_dumps(obj):
 
 _SYNC_TABLES = ("BILINGUAL_TERMS", "CONTEXT_MAP", "EXCLUDE_CONTEXT",
                 "ENTITIES_VARIANT", "LEARNED_CANDIDATE")
-_SYNC_MODES = ("bi", "ja", "jpe", "ko", "ak", "akko", "endo", "zho",
-               "pgren", "wwoc", "react")
+_SYNC_MODES = ("bi", "ja", "jpe", "ko", "ak", "akko", "endo", "endobi",
+               "zho", "pgren", "wwoc", "react")
 _SYNC_MODE_CTX_TABLE = {"bi": "CONTEXT_MAP", "ja": "JA_CONTEXT",
                         "jpe": "JA_ENDFIELD_CONTEXT", "akko": "AK_KO_CONTEXT",
                         "ko": "KO_CONTEXT", "ak": "AK_CONTEXT"}
