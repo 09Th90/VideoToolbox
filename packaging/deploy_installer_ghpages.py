@@ -2,13 +2,40 @@
 # @version 1.18.0
 """把 installer_repository/ 部署到 09Th90/VideoToolbox 的 gh-pages 分支并启用 GitHub Pages。
 
-走 GitHub Git Data API：token 取自 gh keyring（gh auth token），用 curl 直连
-api.github.com。规避两个问题：git 协议在此网络下不可达；gh CLI 在子进程中偶发
-401 认证异常。gh-pages 分支只包含安装器仓库内容，不污染 main。
+⚠⚠ 两种模式，**默认 git**（2026-10-08 起）：
+  · `--mode git`（默认，推荐）：把 installer_repository/ 镜像到
+    build/ghpages_push/，再作为**独立 git 仓库** `git push --force` 到 gh-pages，
+    **内容位于分支根**（即 https://09th90.github.io/VideoToolbox/Updates.xml）。
+    只有这条路推得动 100 MiB 级大归档——走 pack 协议，只要**单文件** ≤100 MiB 即可。
+  · `--mode api`：走 GitHub Git Data API 逐个上传 blob。**对当前体积已不可用**：
+    content.7z 已 98 MiB，base64 后单请求 >130MB，GitHub 直接 422 "input too large"
+    （git/blobs 有体积上限）。保留仅为小体积仓库与历史参考。
+
+⚠⚠ gh-pages 的**目录层级必须与安装器内嵌 URL 对齐**（2026-10-08 事故根因）：
+  安装器 config.xml 写的是 `https://09th90.github.io/VideoToolbox/`，IFW 会在其后拼
+  `Updates.xml`。所以仓库内容**必须放在 gh-pages 分支根**。
+  历史上曾把整个 `installer_repository/` 目录（连目录名）推上去，实际路径就成了
+  `.../VideoToolbox/installer_repository/Updates.xml`，而安装器去取
+  `.../VideoToolbox/Updates.xml` 得 **404** ⇒ 向导 Welcome 页红字
+  `Cannot retrieve remote tree`。**别把仓库目录名带进 gh-pages。**
+
+⚠⚠ GitHub 单文件硬限 **100 MiB**（104,857,600 字节），超了 push 会被服务端拒绝。
+  主程序 exe 是 PyInstaller onefile（内部已压缩）⇒ 7z 只能再压 0.06%，
+  故 `content.7z` ≈ exe 体积。exe 一逼近 100 MiB 就会越线——v1.18.0 是靠剔掉
+  8.2MB 无人引用的 Qt5Qml/Qt5Quick 才压回 98.24 MiB，**余量仅 1.76 MiB**。
+  发布前务必先跑 `--check-size`。真要治本得改挂 GitHub Releases（单 asset 2GB）。
+
+用法：
+    python packaging/deploy_installer_ghpages.py --check-size   # 只量体积，不发布
+    python packaging/deploy_installer_ghpages.py                # git 模式发布
+    python packaging/deploy_installer_ghpages.py --dry-run      # 只镜像不推
+    python packaging/deploy_installer_ghpages.py --mode api     # 旧通道（大文件会 422）
 """
+import argparse
 import base64
 import json
 import os
+import shutil
 import subprocess
 import sys
 import time
@@ -20,13 +47,28 @@ BRANCH = "gh-pages"
 # 仓库目录可通过 VT_REPO_DIR 覆盖（脚本被复制到其它位置运行时用）
 _BASE = Path(os.environ.get("VT_REPO_DIR", Path(__file__).resolve().parent.parent))
 REPO_DIR = Path(_BASE) / "installer_repository"
+#: git 模式的发布暂存目录（独立 git 仓库；已被 .gitignore 忽略）
+PUSH_DIR = _BASE / "build" / "ghpages_push"
+REMOTE_URL = f"https://github.com/{OWNER}/{REPO}"
+#: GitHub 单文件硬限
+GIT_FILE_LIMIT = 100 * 1024 * 1024
 API = f"repos/{OWNER}/{REPO}"
 API_BASE = "https://api.github.com"
 
-TOKEN = subprocess.run(["gh", "auth", "token"], capture_output=True,
-                       text=True).stdout.strip()
-if not TOKEN:
-    sys.exit("无法从 gh keyring 获取 token，请先 gh auth login")
+#: ⚠ token 改为**惰性获取**（2026-10-08）：原先在模块顶层就 `gh auth token`，
+#:   取不到直接 sys.exit —— 于是 `--check-size` / `--mode git` 这些**根本不需要
+#:   token** 的路径也被一起挡死。现在只在走 API 通道时才去取。
+TOKEN = ""
+
+
+def _ensure_token():
+    global TOKEN
+    if not TOKEN:
+        TOKEN = subprocess.run(["gh", "auth", "token"], capture_output=True,
+                               text=True).stdout.strip()
+        if not TOKEN:
+            sys.exit("无法从 gh keyring 获取 token，请先 gh auth login")
+    return TOKEN
 
 # 本机网络对 api.github.com 的写入请求存在间歇性中间层拦截（偶发 401）。
 # 程序内置了 mihomo 代理（海外出口）作为回退通道，可绕开本机设备检测。
@@ -49,6 +91,7 @@ _OPENER = urllib.request.build_opener(urllib.request.ProxyHandler({}))
 
 
 def _api_urllib(method, path, payload=None):
+    _ensure_token()
     url = f"{API_BASE}/{API}/{path}"
     data = json.dumps(payload).encode() if payload is not None else None
     req = urllib.request.Request(url, data=data, method=method, headers={
@@ -138,7 +181,7 @@ def api(method, path, payload=None, allow_missing=False):
     sys.exit(f"{method} {path} FAILED: {last}")
 
 
-def main():
+def main_api():
     head = api("GET", "git/ref/heads/main")
     parent_sha = head["object"]["sha"]
     print("main head:", parent_sha)
@@ -184,5 +227,136 @@ def main():
     print("Pages enabled: https://09th90.github.io/VideoToolbox/")
 
 
+# ---------------------------------------------------------------- git 通道
+
+
+def check_size():
+    """量一遍待发布文件的体积，超 GitHub 100 MiB 硬限就报错退出。返回 0/2。"""
+    if not REPO_DIR.is_dir():
+        sys.exit(f"仓库目录不存在：{REPO_DIR}（先跑 build_online_installer.py）")
+    rows = []
+    for r, _d, fs in os.walk(REPO_DIR):
+        for f in fs:
+            p = Path(r) / f
+            rows.append((p.stat().st_size, p.relative_to(REPO_DIR).as_posix()))
+    if not rows:
+        sys.exit("installer_repository 为空")
+    rows.sort(reverse=True)
+    total = sum(s for s, _ in rows)
+    print(f"仓库：{len(rows)} 个文件，合计 {total} 字节（{total / 1048576:.1f} MiB）")
+    for s, name in rows[:5]:
+        print("   %11d  %-48s %7.2f MiB" % (s, name, s / 1048576))
+    over = [(s, n) for s, n in rows if s > GIT_FILE_LIMIT]
+    if over:
+        print()
+        for s, n in over:
+            print("   ✗ 超 GitHub 单文件 100 MiB 硬限：%s（%.2f MiB）"
+                  % (n, s / 1048576))
+        print("   ⇒ git push 会被服务端拒绝。要么给 exe 瘦身，要么改挂 GitHub Releases。")
+        return 2
+    slack = GIT_FILE_LIMIT - rows[0][0]
+    print("   ✓ 最大单文件 %.2f MiB，距硬限余量 %.2f MiB"
+          % (rows[0][0] / 1048576, slack / 1048576))
+    if slack < 2 * 1024 * 1024:
+        print("   ⚠ 余量不足 2 MiB：exe 再涨一点就会越线，建议尽快改挂 GitHub Releases。")
+    return 0
+
+
+def deploy_via_git(dry_run=False):
+    """镜像 installer_repository/ 到 PUSH_DIR，再作为独立 git 仓库推到 gh-pages。
+
+    ⚠ 内容是镜像到 PUSH_DIR 的**根**（不是 PUSH_DIR/installer_repository），
+      这样 gh-pages 根下直接就是 Updates.xml —— 与安装器内嵌 URL 对齐。
+    """
+    rc = check_size()
+    if rc:
+        return rc
+    if PUSH_DIR.exists():
+        for name in os.listdir(PUSH_DIR):
+            p = PUSH_DIR / name
+            if p.is_dir():
+                shutil.rmtree(p, ignore_errors=True)
+            else:
+                p.unlink()
+    else:
+        PUSH_DIR.mkdir(parents=True)
+
+    n = 0
+    for r, _d, fs in os.walk(REPO_DIR):
+        rel = os.path.relpath(r, REPO_DIR)
+        out = PUSH_DIR if rel == "." else PUSH_DIR / rel
+        out.mkdir(parents=True, exist_ok=True)
+        for f in fs:
+            src, dst = Path(r) / f, out / f
+            if not dst.exists() or not filecmp.cmp(src, dst, shallow=False):
+                shutil.copy2(src, dst)
+            n += 1
+    print(f"已镜像 {n} 个文件到 {PUSH_DIR}（gh-pages 根）")
+    if dry_run:
+        print("（--dry-run，未提交、未推送）")
+        return 0
+
+    def git(*args, check=True):
+        r = subprocess.run(["git", "-c", "core.quotepath=false", *args],
+                           cwd=str(PUSH_DIR), capture_output=True)
+        out = (r.stdout or b"").decode("utf-8", "replace")
+        err = (r.stderr or b"").decode("utf-8", "replace")
+        if check and r.returncode != 0:
+            print(f"!! git {' '.join(args)} 失败 rc={r.returncode}\n{err[:2000]}")
+            sys.exit(1)
+        return out + err
+
+    if not (PUSH_DIR / ".git").is_dir():
+        print(git("init", "-q"))
+        git("remote", "add", "origin", REMOTE_URL, check=False)
+
+    git("add", "-A")
+    st = git("status", "--porcelain")
+    if not st.strip():
+        print("发布目录无变化，无需提交")
+        return 0
+    ver = "?"
+    upd = REPO_DIR / "Updates.xml"
+    if upd.is_file():
+        import re as _re
+        m = _re.search(r"<Version>([^<]+)</Version>",
+                       upd.read_text(encoding="utf-8", errors="replace"))
+        ver = m.group(1) if m else "?"
+    print(git("commit", "-q", "-m",
+              f"deploy: 视频工具箱 v{ver} 在线安装器组件仓库"
+              f"（内容位于 gh-pages 根，与安装器内嵌 URL 对齐）"))
+    print("   新提交:", git("log", "--oneline", "-1").strip())
+
+    t0 = time.time()
+    r = subprocess.run(["git", "-c", "core.quotepath=false", "push",
+                        "--force", "origin", "HEAD:" + BRANCH],
+                       cwd=str(PUSH_DIR), capture_output=True)
+    out = ((r.stdout or b"") + (r.stderr or b"")).decode("utf-8", "replace")
+    print("   rc = %d  用时 %.1fs" % (r.returncode, time.time() - t0))
+    print(out[-2500:])
+    if r.returncode:
+        return 1
+    print(f"✅ gh-pages 已更新：{REMOTE_URL.replace('github.com', 'github.io')}/"
+          f"{REPO}/  （CDN 生效通常需 30~60s）")
+    return 0
+
+
+def main():
+    ap = argparse.ArgumentParser(description="部署在线安装器组件仓库到 gh-pages")
+    ap.add_argument("--mode", choices=("git", "api"), default="git",
+                    help="git=独立仓库 git push（默认，能推大归档）；"
+                         "api=GitHub Git Data API（大文件会 422）")
+    ap.add_argument("--check-size", action="store_true",
+                    help="只量体积并检查 GitHub 100 MiB 硬限，不发布")
+    ap.add_argument("--dry-run", action="store_true",
+                    help="只镜像到 build/ghpages_push/，不提交不推送")
+    args = ap.parse_args()
+    if args.check_size:
+        return check_size()
+    if args.mode == "git":
+        return deploy_via_git(dry_run=args.dry_run)
+    return main_api()
+
+
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())
