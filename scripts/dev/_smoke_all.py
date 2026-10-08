@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# @version 1.17.0
+# @version 1.18.0
 """全功能引擎层冒烟测试（v1.15.8 审查用）。
 
 分组覆盖（--only A,C / --skip B 选组）：

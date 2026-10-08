@@ -1,9 +1,15 @@
-; @version 1.17.0
+; @version 1.18.0
 ; ============================================================================
-; 视频工具箱 v1.17.0 —— Inno Setup 安装包脚本
+; 视频工具箱 v1.18.0 —— Inno Setup 安装包脚本
 ; 构建前提：已用 tools\python 执行 pyinstaller 视频工具箱.spec，
 ;           产物位于 dist\视频工具箱.exe
-; 编译：ISCC.exe 视频工具箱.iss  →  installer\视频工具箱_Setup_v1.17.0.exe
+; 编译：ISCC.exe 视频工具箱.iss  →  installer\视频工具箱_Setup_v1.18.0.exe
+; v1.18.0：① 新增主播声纹（exe 侧已由 spec hiddenimports 内嵌），[Files]
+;         补装 src\speaker_voiceprint.py / speaker_voiceprint_page.py /
+;         subtitle_editor_core.py 源码副本，使安装版也能按开发版说明书的 CLI
+;         用法跑 enroll / score / filter。② ⚠️ [InstallDelete] **不再删**
+;         {app}\tools\asr_model —— 该目录已改为**主播声纹模型**（27MB，用户
+;         按需下载）的落点，属用户数据；升级时删掉等于让用户每次升级都重下。
 ; v1.14.1（语言修正）：安装向导固定为简体中文——ShowLanguageDialog 改 no
 ;         （不再弹出语言选择框），[Languages] 移除 english 仅保留中文一项。
 ; v1.12.1：修复打包版「点退出后程序反复重启」（严重）——退出时的校准知识同步
@@ -61,7 +67,7 @@
 ; ============================================================================ 
 
 #define MyAppName "视频工具箱"
-#define MyAppVersion "1.17.0"
+#define MyAppVersion "1.18.0"
 #define MyAppPublisher "VideoToolbox"
 #define MyAppExeName "视频工具箱.exe"
 
@@ -160,7 +166,7 @@ Source: "..\src\calib_web_agent.py"; DestDir: "{app}\src"; Flags: ignoreversion
 ; 2026-10-08：文件功能分类后，apply_vc_official.py 已移至 scripts\dev\
 ; （它是打包前套用官方实现的开发脚本，非运行时依赖，见 src\video_toolbox_qt.py:37）
 Source: "..\scripts\dev\apply_vc_official.py"; DestDir: "{app}\src"; Flags: ignoreversion
-; v1.17.0：主播声纹（exe 侧已由 spec hiddenimports 内嵌，此处补源码副本，
+; v1.18.0：主播声纹（exe 侧已由 spec hiddenimports 内嵌，此处补源码副本，
 ;          使安装版也能按开发版说明书里的 CLI 用法跑
 ;          `python src\speaker_voiceprint.py enroll/score/filter`）。
 ;          subtitle_editor_core 是它的 SRT 读写底座（纯标准库，无三方依赖）。
@@ -202,7 +208,7 @@ Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChang
 ; data\、logs\ 等用户数据不受影响
 Type: filesandordirs; Name: "{app}\tools\uploader_src"
 Type: filesandordirs; Name: "{app}\tools\ms-playwright"
-; ⚠️ v1.17.0：**不要**再删 {app}\tools\asr_model —— 该目录已改为**主播声纹
+; ⚠️ v1.18.0：**不要**再删 {app}\tools\asr_model —— 该目录已改为**主播声纹
 ;    模型**（27MB，用户按需下载）的落点，属用户数据；升级时删掉等于让用户
 ;    每次升级都重下一次。旧版遗留的废弃 ASR 模型由更早版本的本段已清过，
 ;    现役机器上不会残留。

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 1.17.0
+# @version 1.18.0
 """校验 视频工具箱.iss 里所有 Source 路径是否真实存在（打包前必做）。
 
 Inno 对缺失 Source 只在编译期报错，且错误信息不便定位；这里提前把

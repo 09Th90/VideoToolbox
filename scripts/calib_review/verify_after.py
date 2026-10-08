@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 1.17.0
+# @version 1.18.0
 """改后回归验证：导入无冲突 + 命中量 + 输出差异审计（只允许命中行变化）。"""
 import os, sys, hashlib, re
 sys.stdout.reconfigure(encoding='utf-8')

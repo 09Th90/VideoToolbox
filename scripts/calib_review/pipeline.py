@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# @version 1.17.0
+# @version 1.18.0
 """split -> batch_XX.tsv ; merge -> zh_map.json ; apply -> r3.srt ; verify -> 结构断言
 源文件结构：3908 条 x 4 行 + 3907 空行 = 19539 行，CRLF，无 BOM。"""
 import os, re, sys, glob, json

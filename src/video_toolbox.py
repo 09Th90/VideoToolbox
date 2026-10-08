@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# @version 1.17.0
+# @version 1.18.0
 """
 视频工具箱 v1.12.0（单文件整合版）
 ==================================================
@@ -1338,7 +1338,7 @@ def vc_transcribe_ui_patch():
         ti.TranscriptionInterface._on_file_select)
 
     # ④ 转录设置卡片空位提示（默认/ASR 都不再展示引擎内置 ASR 配置块）
-    #    + ⑥ 主播声纹录入卡（v1.17.0）：本页 `empty_widget` 是默认显示的空白
+    #    + ⑥ 主播声纹录入卡（v1.18.0）：本页 `empty_widget` 是默认显示的空白
     #    区，正好用来放声纹录入——不新增页面，用户也不用另找入口。
     orig_card_init = tsc.TranscriptionSettingCard.__init__
 
@@ -1366,7 +1366,7 @@ def vc_transcribe_ui_patch():
 
     tsc.TranscriptionSettingCard.__init__ = _card_init
 
-    # ⑦ 转录设置弹窗加「主播声纹（可多选）」（v1.17.0）
+    # ⑦ 转录设置弹窗加「主播声纹（可多选）」（v1.18.0）
     #    勾选即写入 data/voiceprint/selection.json；多选 = 并集语义。
     try:
         from videocaptioner.ui.components.TranscriptionSettingDialog import (

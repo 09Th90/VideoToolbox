@@ -1,5 +1,5 @@
-@version 1.17.0
-视频工具箱 v1.17.0 使用说明
+@version 1.18.0
+视频工具箱 v1.18.0 使用说明
 ==============================
 
 零、全局 AI（v1.12.0 起只有一套配置，全程序共用）
@@ -147,7 +147,7 @@ v1.10.1 起「B站投稿」板块已整体移除，原先的分区/简介/话题
 6. 单击卡片直接播放视频；右键卡片打开所在文件夹
 7. 视频库刷新只扫描本地文件并用 ffmpeg 抽帧，全程隐藏控制台窗口
 
-五、音画合并（v1.13.0 并入「视频下载」页；v1.17.x 起分「自动配对 / 手动合并」）
+五、音画合并（v1.13.0 并入「视频下载」页；v1.18.0 起分「自动配对 / 手动合并」）
 ------------------------------
 [自动配对] 适合成批处理下载下来的文件
 1. 在「视频下载」页顶部分段切到「音画合并」，再切「自动配对」
@@ -463,13 +463,16 @@ data\VideoCaptioner\work-dir，历史上写到 C 盘（C:\Users\…\VideoCaption
 打包工具放在程序目录之外的独立位置，不影响运行期。
 
 
-自检方式（不联网、不下载视频，仅在临时目录验证，在 src 目录执行）：
-  python _selftest_pack.py
-  python _selftest_gui.py
-  python _selftest_vc.py
-  python _selftest_e2e.py
-  python _selftest_calib_ai.py     # AI 校准 Agent：解析/回填、规则展开、
-                                   # 改动校验与端到端流水线（用假模型，不联网）
+自检方式（不联网、不下载视频，仅在临时目录验证）：
+自检脚本 v1.17.0 起已从 src\ 移入 scripts\dev\，请在程序目录下执行：
+  python scripts\dev\_selftest_pack.py
+  python scripts\dev\_selftest_gui.py
+  python scripts\dev\_selftest_vc.py
+  python scripts\dev\_selftest_e2e.py
+  python scripts\dev\_selftest_calib_ai.py   # AI 校准 Agent：解析/回填、规则展开、
+                                             # 改动校验与端到端流水线（假模型，不联网）
+  python scripts\dev\_selftest_merge_manual.py  # 音画合并：编码探测 + 手动合并
+  python src\_selftest_speaker_voiceprint.py    # 主播声纹链路（离线，含真模型段）
 
 注意：exe 未做代码签名，部分开启了 Device Guard / 应用控制策略
 的电脑会被拦截，此时请改用脚本方式运行。

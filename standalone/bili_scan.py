@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 1.17.0
+# @version 1.18.0
 """B站版本热榜扫描：抓取指定关键词在时间窗口内的视频（标题/标签/播放量）。"""
 import urllib.request, urllib.parse, json, time, os, sys, hashlib, re
 

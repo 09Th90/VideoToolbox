@@ -1,6 +1,22 @@
 # -*- mode: python ; coding: utf-8 -*-
-# @version 1.17.0
-"""视频工具箱 v1.17.0 —— PyInstaller 打包配置
+# @version 1.18.0
+"""视频工具箱 v1.18.0 —— PyInstaller 打包配置
+v1.18.0：① 新增**主播声纹筛选**的运行时——`speaker_voiceprint_page` /
+        `speaker_voiceprint` 是 `video_toolbox.vc_transcribe_ui_patch()` 里的
+        **延迟导入**（缺依赖只记日志、界面照起），静态分析跟踪不到，必须显式
+        声明；`onnxruntime` 同理（`faster_whisper/vad.py` 与
+        `speaker_voiceprint._session()` 都在函数体内 import）。⚠⚠ 它原本在
+        **excludes** 里，而 **excludes 优先级高于 hiddenimports** —— 只加
+        hiddenimports 不摘 excludes，包出来照样没有；已一并摘掉并加
+        `collect_dynamic_libs('onnxruntime')`（PyInstaller 无官方 hook）。
+        代价约 +40MB（主要是 18MB 的 onnxruntime.dll）。声纹**模型** 27MB 仍
+        按需下载、不进包。② ⚠⚠ 声纹还依赖启动期那段 MSVC 运行时预加载
+        （`video_toolbox_qt.py::_fix_msvc_runtime_shadow`，必须在 PyQt5 导入
+        之前）——少了它，onnxruntime 的 pyd 会被 Qt5\bin 里的旧运行时顶掉而
+        加载失败。③ ⚠ 打包环境 `C://bld//qt_build` 当时**没有** onnxruntime
+        （pip 直连 pypi 超时），已从 `tools\python\Lib\site-packages` 直接
+        拷贝同版本（两侧同为 CPython 3.12.10 AMD64）。**新功能引入新三方依赖
+        时，先查打包环境有没有。**
 v1.15.2：补 `websocket` 到 hiddenimports——**实时（WebSocket）ASR 协议**（百炼
          `dashscope_realtime`）依赖 websocket-client，而此前**打包环境里根本没装
          这个包**、spec 也没声明 ⇒ exe 内嵌引擎执行到 `import websocket` 必失败，
@@ -123,7 +139,7 @@ hiddenimports += ['mpv']
 #   java 由用户自备 JDK 17+（见 npe_backend.find_java 与 docs\组件来源声明）。
 hiddenimports += ['npe_backend']
 
-# v1.17.0：主播声纹（本地声纹筛选，只出主播字幕）。**必须显式声明**——
+# v1.18.0：主播声纹（本地声纹筛选，只出主播字幕）。**必须显式声明**——
 #   video_toolbox.vc_transcribe_ui_patch() 的两个补丁体里都是
 #   `from speaker_voiceprint_page import ...`（延迟导入，缺依赖时只记日志、
 #   不影响引擎界面起来），PyInstaller 静态分析跟踪不到 ⇒ 不声明的话打包后
@@ -133,7 +149,7 @@ hiddenimports += ['npe_backend']
 #   这里一并列出双保险。
 hiddenimports += ['speaker_voiceprint_page', 'speaker_voiceprint']
 
-# v1.17.0（已拍板：**打进包**）：onnxruntime 是声纹筛选的运行时。
+# v1.18.0（已拍板：**打进包**）：onnxruntime 是声纹筛选的运行时。
 #   faster_whisper/vad.py 是在**函数体内** `import onnxruntime`（延迟导入），
 #   speaker_voiceprint 也是在 `_session()` 里延迟导入 ⇒ 两者 PyInstaller 静态
 #   分析都发现不了，必须显式声明；不声明的话 exe 里既没有声纹运行时，
@@ -180,7 +196,7 @@ a = Analysis(
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
-    # ⚠ v1.17.0：'onnxruntime' **已从剔单里摘掉**（声纹筛选要它，见上方注释）。
+    # ⚠ v1.18.0：'onnxruntime' **已从剔单里摘掉**（声纹筛选要它，见上方注释）。
     #   excludes 优先级高于 hiddenimports，留着它等于白声明。
     #   'faster_whisper' 仍剔除——它跑在 tools\python 的**内嵌解释器**里
     #   （字幕引擎子进程），不占 exe 体积；同理 torch 系列一律不进。

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# @version 1.17.0
+# @version 1.18.0
 """说话人（diarization / separation）链路自检（离线，不联网）。
 
 覆盖 v1.15.9 新增能力：

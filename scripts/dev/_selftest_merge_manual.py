@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# @version 1.17.0
+# @version 1.18.0
 """音画合并「手动合并」自检：引擎侧编码探测 + 拖入合成，界面侧子页结构。
 
-覆盖 v1.17.x 新增能力：
+覆盖 v1.18.0 新增能力：
   · engine.probe_audio_codec  —— 实测音频编码（决定 copy / 转 AAC）
   · engine.merge_pair(reencode_video=) —— 视频 copy 失败后的重编码回退
   · MergePage 二级分段「自动配对 / 手动合并」、三个拖放槽、页级拖放分派
