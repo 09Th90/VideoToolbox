@@ -200,6 +200,19 @@ Type: filesandordirs; Name: "{app}\tools\videocaptioner"
 Type: filesandordirs; Name: "{app}\tools\python\Lib\site-packages\videocaptioner"
 Type: files; Name: "{app}\src\asr_subtitle_worker.py"
 Type: files; Name: "{app}\src\video_toolbox_gui.py"
+; 2026-10-08 文件功能分类：构建/自检脚本移出 src\（见 scripts\dev\），清掉旧路径副本。
+; ⚠️ iss 仍把 apply_vc_official.py 装到 {app}\src\（供脚本方式运行与查阅），
+;    但从旧版本升级时该路径下可能残留移动前的旧文件，故显式清理。
+Type: files; Name: "{app}\src\_selftest_*.py"
+Type: files; Name: "{app}\src\_smoke_all.py"
+Type: files; Name: "{app}\src\_demo_speaker.py"
+Type: files; Name: "{app}\src\_prof_gui.py"
+Type: files; Name: "{app}\src\check_deps.py"
+Type: files; Name: "{app}\src\check_names.py"
+Type: files; Name: "{app}\src\apply_version.py"
+Type: files; Name: "{app}\src\stamp_versions.py"
+Type: files; Name: "{app}\src\push_via_git_api.py"
+Type: files; Name: "{app}\src\fix_rolling_srt.py"
 
 [UninstallDelete]
 ; 无需额外清理：v1.10.1 起不再使用递归通配分发目录（投稿引擎已移除），
