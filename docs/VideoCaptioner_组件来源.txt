@@ -44,7 +44,28 @@ GPL-3.0 义务提示（分发前请自行确认）
   取决于具体的链接/调用方式，请以 GPL-3.0 官方文本与法律意见为准。
 
 --------------------------------------------------------------------
-2. 其它开源依赖（运行时安装，不随安装包分发二进制源码）
+2. NewPipe Extractor（YouTube 第二解析引擎，v1.17.0 起随包分发）
+--------------------------------------------------------------------
+组件名称 ：NewPipe Extractor
+用途     ：yt-dlp 全部源失败时的兜底解析引擎（本工具箱仅调用其 Java 侧
+           解析接口取得流地址，实际下载仍由 FFmpeg 完成）
+版本     ：随 tools\newpipe-cli\build.py 锁定的依赖版本构建
+作者     ：TeamNewPipe 及 NewPipe 贡献者
+许可     ：GNU General Public License v3.0（GPL-3.0）
+许可全文 ：本目录 VideoCaptioner_GPL-3.0.txt（标准 GPL-3.0 原文，两组件通用）
+项目主页 ：https://github.com/TeamNewPipe/NewPipeExtractor
+源码     ：https://github.com/TeamNewPipe/NewPipeExtractor
+源码压缩包：https://github.com/TeamNewPipe/NewPipeExtractor/archive/refs/heads/dev.zip
+发行包   ：tools\newpipe-cli\dist\npe-cli.jar（本工具箱自建 fat jar，
+           构建脚本与 Java 侧封装源码随仓库分发于 tools\newpipe-cli\）
+
+  GPL-3.0 义务提示：本组件为 GPL-3.0，分发二进制时须随包提供许可全文与对应
+  源码获取途径——本安装包已附许可全文，上表给出上游官方源码地址。本工具箱
+  通过子进程调用（java -jar）与之交互，未修改其源码；本工具箱自身的授权方式
+  由作者决定，与本组件许可不互相传染。
+
+--------------------------------------------------------------------
+3. 其它开源依赖（运行时安装，不随安装包分发二进制源码）
 --------------------------------------------------------------------
 以下组件由工具箱在运行时按需下载，均来自其官方开源地址，许可随各自发行包提供：
   · yt-dlp            Unlicense        https://github.com/yt-dlp/yt-dlp

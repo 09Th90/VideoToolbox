@@ -1251,8 +1251,17 @@ def install_mask_dialog_topmodal_patch():
                 pass
 
     def _ns(self, e):
+        from PyQt5.QtCore import QTimer as _QT
         _vt_fit(self)
         _o_show(self, e)
+        # ⚠ 首次 show 时 Qt 会按 sizeHint（≈885×547）布置平台窗口，这次布置
+        #   可能晚于 showEvent 到来，把上面那次 setGeometry 覆盖掉 —— 对话框
+        #   偶发「不铺满宿主」（探针实测同一流程两次结果不同）。事件循环转起
+        #   后再补贴一次；对话框若已销毁，RuntimeError 由 _vt_fit 兜住。
+        try:
+            _QT.singleShot(0, lambda: _vt_fit(self))
+        except Exception:
+            pass
         # 顶层窗口需主动置顶抢焦点，否则可能被宿主其它原生子窗口压住
         try:
             self.raise_()

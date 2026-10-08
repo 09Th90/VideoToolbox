@@ -147,13 +147,22 @@ class MediaRegistry(_Emitter):
         self._running = False
         self._watcher = None
         self._timer = None
+        self._debounce = None
         if use_watcher and _HAS_QT and QFileSystemWatcher is not None:
             try:
                 self._watcher = QFileSystemWatcher()
                 self._watcher.directoryChanged.connect(self._on_watched)
                 self._watcher.fileChanged.connect(self._on_watched)
+                # 去抖合并：一次任务完成（改名/封面/信息txt/字幕…）会连发多个
+                # directoryChanged，每个都同步全量重扫会把主线程连续占住——
+                # 800ms 内的突发合并为一次重扫。
+                self._debounce = QTimer()
+                self._debounce.setSingleShot(True)
+                self._debounce.setInterval(800)
+                self._debounce.timeout.connect(self.refresh)
             except Exception:  # noqa: BLE001
                 self._watcher = None
+                self._debounce = None
 
     # ---------- 目录集合 ----------
     def set_dirs(self, dirs):
@@ -253,8 +262,15 @@ class MediaRegistry(_Emitter):
                 pass
 
     def _on_watched(self, _path=""):
-        """watch 通道：目录/文件变化 → 立刻重扫（主线程回调）。"""
-        self.refresh()
+        """watch 通道：目录/文件变化 → 置脏，去抖窗口（800ms）后统一重扫。
+
+        主线程回调：refresh 是全量扫描（os.walk + 每文件 stat），突发事件
+        直接重扫会把主线程连续占住（并行下载完成风暴时最明显），先合并。
+        """
+        if self._debounce is not None:
+            self._debounce.start()
+        else:
+            self.refresh()
 
     def poll_once(self):
         """轮询通道：重扫一次并返回变更集合（无 Qt 事件循环时手动驱动）。"""

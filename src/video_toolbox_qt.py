@@ -396,6 +396,9 @@ class LogView(CardWidget):
         self.text = TextEdit(self)
         self.text.setReadOnly(True)
         self.text.setMinimumHeight(height)
+        # 文档限行：日志区长期运行会积累上万行，富文本插入与光标滚动成本随
+        # 行数线性上升——并行下载时数千条日志会把主线程塞死。旧行自动丢弃。
+        self.text.document().setMaximumBlockCount(1500)
         self._apply_log_theme()
         # 主题切换时重应用样式表（ui_theme 回调；weakref 不拖住本控件）
         ui_theme.connect_theme(self, lambda v: v._apply_log_theme())
@@ -1095,7 +1098,27 @@ class DownloadPage(QWidget):
                 if other:
                     rc = self._hls_fallback(task_id, ytdlp, url, opts, other,
                                             hls=bool(alt) and other == alt)
+            if rc != 0 and engine.npe_engine_mode() != "off":
+                # 第二引擎兜底（2026-10-08 接入）：yt-dlp 的直链/HLS 全失败后，
+                # 改用 NewPipe Extractor 重新解析并下载。实测同一网络、同一份
+                # cookie 下 yt-dlp 报 "Sign in to confirm you're not a bot" 而
+                # NPE 能拿到流，两个引擎确有互补性。
+                rc = self._npe_fallback(task_id, url, folder, meta, quality_label)
             if rc == 0:
+                leftovers = engine.ytdlp_part_leftovers(folder)
+                if leftovers:
+                    # rc==0 但仍有分片残留 = yt-dlp 重试耗尽后跳过了不可用
+                    # 分片（返回码仍为 0）——告警"成品可能缺秒"再清残骸。
+                    self.app.q.put((
+                        "dl_log", task_id,
+                        f"[警告] 检测到 {len(leftovers)} 个分片残留（已清理）："
+                        f"{os.path.basename(leftovers[0])} 等 —— 成品可能缺对应"
+                        "分片的几秒内容，如画面有跳变请重新下载", "err"))
+                    for _p in leftovers:
+                        try:
+                            os.remove(_p)
+                        except OSError:
+                            pass
                 self._pack_task(task_id, ffmpeg_path, folder, meta, quality_label)
                 if with_subs:
                     self._fetch_subtitles(task_id, ytdlp, url, folder,
@@ -1128,8 +1151,10 @@ class DownloadPage(QWidget):
                     pass
             if rc == 0:
                 return 0
-        with DownloadPage._EXTRACT_LOCK:
-            return self._run_ytdlp_with_retry([ytdlp, *opts, url], task_id)
+        # 锁只保护上方的元数据提取（fetch_info_json，短）；完整下载绝不能在
+        # _EXTRACT_LOCK 内——此前把 _run_ytdlp_with_retry 整个包进锁，一个任务
+        # 的几十分钟下载会让其余并行任务的兜底/字幕全部排队停摆。
+        return self._run_ytdlp_with_retry([ytdlp, *opts, url], task_id)
 
     def _hls_fallback(self, task_id, ytdlp, url, opts, alt_fid, hls=True):
         """换**另一个源**再试一轮：直链失败 → 改 HLS；HLS 失败 → 退回直链。
@@ -1170,11 +1195,67 @@ class DownloadPage(QWidget):
                         pass
                 if rc == 0:
                     return 0
-            with DownloadPage._EXTRACT_LOCK:
-                rc = self._run_ytdlp_with_retry([ytdlp, *opts_i, url], task_id)
+            # 下载段不进锁（理由同 _fallback_download）：fetch_info_json 上方
+            # 已在锁内完成，yt-dlp 下载本身有风控重试兜底。
+            rc = self._run_ytdlp_with_retry([ytdlp, *opts_i, url], task_id)
             if rc == 0:
                 return 0
         return rc
+
+    # ---------- 第二引擎：NewPipe Extractor 兜底（2026-10-08） ----------
+    def _npe_fallback(self, task_id, url, folder, meta, quality_label):
+        """yt-dlp 全部源失败后，用 NewPipe Extractor 重新解析并下载。
+
+        返回 0/1。这里只做「取参数 + 转发消息」，下载逻辑全在
+        `npe_backend.download()`（纯 Python，可脱离 GUI 单独测试）。
+        任何异常都收敛成日志 + 1，绝不让兜底本身把任务弄崩。
+        """
+        def log(m, level="dim"):
+            self.app.q.put(("dl_log", task_id, m, level))
+
+        def prog(pct):
+            self.app.q.put(("dl_progress", task_id, pct))
+
+        try:
+            import npe_backend
+        except Exception as e:  # noqa: BLE001
+            log(f"[NPE] 模块导入失败：{e}", "err")
+            return 1
+
+        ok, why = npe_backend.is_available()
+        if not ok:
+            log(f"[NPE] 不可用：{why}", "err")
+            return 1
+
+        proxy = engine.npe_proxy_url()
+        cookie_file = engine.npe_cookie_file(log=lambda m: log(m))
+        log("[NPE] yt-dlp 各源均失败，改用 NewPipe Extractor 兜底解析 ...")
+        info = npe_backend.probe(url, proxy=proxy, cookie_file=cookie_file)
+        if not info.get("ok"):
+            log(f"[NPE] 解析失败：{npe_backend.error_hint(info)}", "err")
+            return 1
+
+        # 画质对齐：尽量贴合用户已选的那一档
+        target = 0
+        m = re.search(r"(\d{3,4})\s*p", str(quality_label or ""))
+        if m:
+            target = int(m.group(1))
+        log("[NPE] 已解析：%s" % (info.get("title") or ""))
+
+        ffmpeg_path, _ = engine.ensure_ffmpeg()
+        ok2, out_path, err = npe_backend.download(
+            info, folder, ffmpeg_path, proxy=proxy,
+            referer="https://www.youtube.com/", max_height=target,
+            log=log, progress=prog,
+            sanitize=lambda t: engine.sanitize_folder_name(t, "video"),
+            title_fallback=str((meta or {}).get("title") or "video"))
+        if not ok2:
+            log(f"[NPE] 兜底下载失败：{err}", "err")
+            return 1
+        log("[NPE] 兜底下载成功：%s（%s）" % (
+            os.path.basename(out_path),
+            engine.format_size(os.path.getsize(out_path))), "ok")
+        return 0
 
     @staticmethod
     def _srt_state(folder, before=None):
@@ -1218,8 +1299,8 @@ class DownloadPage(QWidget):
                 return 0
         # ⚠️ 这里必须走带 412 重试的版本：字幕请求比视频请求更容易撞上站点风控，
         #    此前只跑一次 `_run_ytdlp`，一次 412 就白等（用户看到的"字幕下载失败"）。
-        with DownloadPage._EXTRACT_LOCK:
-            return self._run_ytdlp_with_retry([ytdlp, *opts, url], task_id)
+        #    字幕下载不进 _EXTRACT_LOCK（理由同 _fallback_download 的下载段）。
+        return self._run_ytdlp_with_retry([ytdlp, *opts, url], task_id)
 
     def _fetch_subtitles(self, task_id, ytdlp, url, folder, info_json_path, meta=None):
         """视频下载完成后单独拉字幕；失败只写日志，不影响任务成功状态。
@@ -1301,13 +1382,26 @@ class DownloadPage(QWidget):
             return 1, []
         lines = []
         pct_re = re.compile(r"\[download\]\s+([\d.]+)%")
+        frag_re = re.compile(r"\[download\]\s+Downloading fragment (\d+)/(\d+)")
         for raw in proc.stdout:
             line = engine.decode_bytes_any(raw).rstrip()
             lines.append(line)
             m = pct_re.search(line)
             if m:
                 self.app.q.put(("dl_progress", task_id, float(m.group(1))))
-            elif line and "Deprecated" not in line and "WARNING" not in line:
+                continue
+            m = frag_re.search(line)
+            if m:
+                # HLS 分片行是大文件（直播存档可达数千片）日志洪流的主要来源，
+                # 每片一行会把主线程日志控件塞死——每 100 片折叠一条汇总；
+                # 内存 lines 仍保留全量供排障。
+                n, total = int(m.group(1)), int(m.group(2))
+                if n == total or n % 100 == 0:
+                    self.app.q.put(("dl_log", task_id, f"[分片] 已下载 {n}/{total}"))
+                continue
+            if line and "Deprecated" not in line:
+                # WARNING 透出：跳片（fragment not found / missing）之类警告
+                # 一旦被过滤，"静默缺片"就完全不可见。
                 self.app.q.put(("dl_log", task_id, line))
         return proc.wait(), lines
 
@@ -1349,8 +1443,8 @@ class DownloadPage(QWidget):
         if n:
             self.pct_label.setToolTip(f"并行下载中：{n} 个任务")
 
-    def on_dl_log(self, task_id, text):
-        self.log.line(f"[任务 {task_id}] {text}", "dim")
+    def on_dl_log(self, task_id, text, level="dim"):
+        self.log.line(f"[任务 {task_id}] {text}", level)
 
     def on_dl_done(self, task_id, rc, folder):
         item = self.tasks.get(task_id)
@@ -1369,11 +1463,15 @@ class DownloadPage(QWidget):
             self.log.line(f"[任务 {task_id}] [完成] 已打包到独立文件夹: {folder}", "ok")
             if item and item.get("with_subs"):
                 self.log.line(f"[任务 {task_id}] 字幕（.srt，若有）已存入该视频文件夹", "dim")
-            root_dir = (item or {}).get("dest") or os.path.dirname(folder)
-            self.app.library_page.set_dir(root_dir)
-            self.app.library_page.refresh()
+            # 并行完成风暴去重：视频库刷新 = 全目录重扫 + 每个媒体文件起一个
+            # ffprobe 进程（刚写完的几 GB 大文件单次可达数秒），每个任务完成
+            # 各刷一次会连跑 N 轮——推迟到全部任务结束后统一刷一次。
             if self.active_count() == 0:
-                engine.open_folder(folder)
+                root_dir = (item or {}).get("dest") or os.path.dirname(folder)
+                self.app.library_page.set_dir(root_dir)
+                self.app.library_page.refresh()
+                if task_id == self.active_task:
+                    engine.open_folder(folder)
         else:
             self.log.line(f"[任务 {task_id}] [错误] 下载失败，请查看上方日志"
                           "（多为站点风控或网络问题）", "err")
@@ -3973,6 +4071,7 @@ class CalibPage(QWidget):
         ("明日方舟（--ak）", "--ak"),
         ("明日方舟·韩语（--akko）", "--akko"),
         ("终末地（--endo）", "--endo"),
+        ("终末地·中英双语（--endobi）", "--endobi"),
         ("中文行专属（--zho）", "--zho"),
         ("战双帕弥什（--pgr）", "--pgr"),
         ("战双英文原声（--pgren）", "--pgren"),
@@ -4624,7 +4723,8 @@ class PipelinePage(QWidget):
         vbox = self.shell.content_lay
         vbox.addWidget(tab_caption(
             "填入链接即可自动完成：下载（原片/字幕/封面/信息）→ 谷歌翻译 → "
-            "字幕校准 → 二次校准 → 成品打包；下载目录里新出现的视频也会自动接管", self))
+            "字幕校准 → 二次校准 → 成品输出；下载目录里新出现的视频也会自动接管。"
+            "成品不另建目录，直接增量写回视频所在的原文件夹", self))
 
         # ---- 新建任务（链接驱动） ----
         self.link_edit = LineEdit(self)
@@ -4646,8 +4746,8 @@ class PipelinePage(QWidget):
         self.scan_btn.clicked.connect(self._scan)
         self.retry_btn = PushButton(FIF.UPDATE, "重试失败项", self)
         self.retry_btn.clicked.connect(self._retry_all)
-        self.open_btn = PushButton(FIF.FOLDER, "打开成品目录", self)
-        self.open_btn.clicked.connect(self._open_out)
+        self.open_btn = PushButton(FIF.FOLDER, "打开下载目录", self)
+        self.open_btn.clicked.connect(self._open_download_dir)
         self.clear_btn = PushButton(FIF.BROOM, "清空任务进度", self)
         self.clear_btn.clicked.connect(self._clear_jobs)
         #: 并发任务数（多个 job 同时推进；单个 job 内部仍严格按阶段顺序跑）
@@ -4844,9 +4944,13 @@ class PipelinePage(QWidget):
         if self.pipe is not None:
             self.pipe.set_workers(value)
 
-    def _open_out(self):
-        if self.pipe is not None and os.path.isdir(self.pipe.out_root):
-            engine.open_folder(self.pipe.out_root)
+    def _open_download_dir(self):
+        """打开下载根目录：成品已直接写回各视频的原文件夹（v1.17.1）。"""
+        d = engine.get_saved_download_dir()
+        if d and os.path.isdir(d):
+            engine.open_folder(d)
+        else:
+            self.log.line("[流水线] 下载目录不存在，请先在「下载」页设置", "dim")
 
     def _on_auto(self, checked):
         if self.pipe is not None:
@@ -7108,8 +7212,8 @@ class MainWindow(FluentWindow):
         self.subtitle_edit_page = SubtitleEditPage(self, self)
         self.pipeline_page = PipelinePage(self, self)
         self.settings_page = SettingsPage(self, self)
-        # 自动化页（v1.16.0）：视觉自动化 demo。页面类在 auto_vision_page 里，
-        # 自带卡片壳，不依赖本文件的 ScrollPage/card()。
+        # 自动化页：B 站自动投稿（v1.17.x 起页面精简为投稿专用）。
+        # 页面类在 auto_vision_page 里，自带卡片壳，不依赖本文件的 ScrollPage/card()。
         self.auto_page = auto_vision_page.AutoVisionPage(self, self)
         # 被合并的子板块：仍挂到宿主页的堆叠里，保留快捷引用便于消息路由/自检
         self.merge_page = self.download_page.merge_page
@@ -7806,7 +7910,6 @@ class MainWindow(FluentWindow):
             pipe = pl.Pipeline(reg, log=lambda m: self.q.put(("pipe_log", str(m))))
             pipe.add_listener(lambda p: self.q.put(("pipe_state", p)))
             reg.add_listener(pipe.on_files_changed)
-            reg.add_exclude(pipe.out_root)      # 成品目录不回头再被索引
             reg.start()
             self.pipeline_registry = reg
             self.pipeline = pipe
@@ -7967,7 +8070,9 @@ class MainWindow(FluentWindow):
     # ---------- 消息泵 ----------
     def _pump(self):
         try:
-            while True:
+            # 每轮限量排空：队列积压时一次性全量处理会把主线程连续占用数秒
+            # （界面冻结脉冲），分批消化让每轮之间留出事件循环响应窗口。
+            for _ in range(200):
                 msg = self.q.get_nowait()
                 self._dispatch(msg)
         except queue.Empty:
@@ -7986,7 +8091,7 @@ class MainWindow(FluentWindow):
             elif kind == "dl_progress":
                 dl.on_dl_progress(args[0], args[1])
             elif kind == "dl_log":
-                dl.on_dl_log(args[0], args[1])
+                dl.on_dl_log(args[0], args[1], args[2] if len(args) > 2 else "dim")
             elif kind == "dl_done":
                 dl.on_dl_done(args[0], args[1], args[2])
             elif kind == "lib_scan_done":

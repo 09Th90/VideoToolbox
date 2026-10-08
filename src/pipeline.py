@@ -3,7 +3,7 @@
 """视频全流程流水线（引擎侧，v1.14.0 新增）：事件驱动的阶段状态机。
 
 链接任务：填入链接 → 下载(原片+字幕+封面+信息) → 字幕翻译(谷歌) →
-          字幕校准(脚本基线) → 二次校准(AI 续跑) → 成品打包
+          字幕校准(脚本基线) → 二次校准(AI 续跑) → 成品输出(写回原文件夹)
 目录任务：下载目录里出现文件 → 下载完成判定 → (可选)智能合并 → 同上
 
 调度原则
@@ -72,7 +72,7 @@ STAGE_ORDER = [STAGE_DOWNLOAD, STAGE_MERGE, STAGE_TRANSLATE,
                STAGE_CALIB1, STAGE_CALIB2, STAGE_PACKAGE]
 STAGE_LABELS = {STAGE_DOWNLOAD: "下载完成", STAGE_MERGE: "智能合并",
                 STAGE_TRANSLATE: "字幕翻译", STAGE_CALIB1: "字幕校准",
-                STAGE_CALIB2: "二次校准", STAGE_PACKAGE: "成品打包"}
+                STAGE_CALIB2: "二次校准", STAGE_PACKAGE: "成品输出"}
 #: 点击圆点跳转的功能页（MainWindow.page_by_key 的 key）
 STAGE_JUMP = {STAGE_DOWNLOAD: "download", STAGE_MERGE: "merge",
               STAGE_TRANSLATE: "subtitle", STAGE_CALIB1: "calib",
@@ -382,9 +382,10 @@ def _stage_calib1_run(job, ctx):
     if rc != 0 or not os.path.isfile(out):
         raise RuntimeError(f"校准脚本退出码 {rc}")
     _mark_reusable(out, [src])
-    # 统一编码写出（读/写全部走 engine 的统一编解码入口）
+    # 统一编码写出（读/写全部走 engine 的统一编解码入口；\r\n 先归一成 \n，
+    # 否则文本模式写出的二次翻译会把换行变 \r\r\n —— 每行间多一个空行）
     try:
-        engine.write_text_utf8(out, engine.read_text_any(out))
+        engine.write_text_utf8(out, _normalize_nl(engine.read_text_any(out)))
     except OSError:
         pass
     return out
@@ -419,7 +420,7 @@ def _stage_calib2_run(job, ctx):
 
 
 def _stage_package_ready(job, registry):
-    """成品打包：校准链已走到终态 + 成品视频存在。"""
+    """成品输出：校准链已走到终态 + 成品视频存在。"""
     st1 = job.state(STAGE_CALIB1)
     if st1 not in (DONE, SKIPPED):
         return False
@@ -428,29 +429,85 @@ def _stage_package_ready(job, registry):
     return bool(job.final_video())
 
 
+#: 交付字幕命名与「字幕翻译」页输出同款：`【字幕】名-谷歌翻译.srt`
+#: （引擎 TaskFactory.create_subtitle_task 的格式；未走翻译链路的
+#: —— 原始中文字幕直接校准 —— 与引擎 need_translate=False 一样不带服务后缀）
+DELIVER_SRT_PREFIX = "【字幕】"
+DELIVER_TRANSLATE_SUFFIX = "-谷歌翻译"
+
+
+def _deliver_srt_name(job):
+    """成品字幕文件名（与「字幕翻译」输出格式一致）。"""
+    name = _safe_name(job.name)
+    tr = job.stage_out(STAGE_TRANSLATE)
+    if tr and os.path.isfile(tr):
+        return f"{DELIVER_SRT_PREFIX}{name}{DELIVER_TRANSLATE_SUFFIX}.srt"
+    return f"{DELIVER_SRT_PREFIX}{name}.srt"
+
+
+def _zh_first_body(body):
+    """双语 cue 的文本行 `[原文, 译, 原文, 译, ...]` → `[译, 原文, ...]`
+    （译文在上，与「字幕翻译」页默认布局一致）。
+
+    只在结构确凿时才动：行数成对、且奇数位（译文位）都含汉字；单语 cue、
+    识别不了的一律原样返回 —— 布局重排绝不能弄坏字幕。
+    """
+    if not body or len(body) % 2:
+        return body
+    for i in range(1, len(body), 2):
+        if not any("\u4e00" <= ch <= "\u9fff" for ch in body[i]):
+            return body
+    out = []
+    for i in range(0, len(body), 2):
+        out += [body[i + 1], body[i]]
+    return out
+
+
+def _to_translate_on_top(text):
+    """把（校准链产出的）双语 srt 重排成「译文在上」布局。"""
+    text = _normalize_nl(text)          # 兼容历史 \r\r\n 坏产物（每行间多空行）
+    rebuilt = []
+    for block in _parse_srt_cues(text):
+        head, body = block[:2], block[2:]
+        rebuilt.extend(head + _zh_first_body(body))
+        rebuilt.append("")
+    return "\n".join(rebuilt).rstrip() + "\n"
+
+
 def _stage_package_run(job, ctx):
+    """成品输出：**不另建成品文件夹**，直接在下载时就生成、包含视频/封面/
+    信息的原文件夹里增量落盘（v1.17.1）。
+
+    · 视频：智能合并的产物在 work 目录，搬回原文件夹；本来就在的（下载成品）
+      一个字节都不动。
+    · 字幕：校准链最终产物按「字幕翻译」页同款格式（`【字幕】名-谷歌翻译.srt`、
+      译文在上）写入原文件夹。
+    · 封面/信息：下载阶段就已生成在原文件夹，无需搬运。
+    已存在的文件一律不覆盖（用户可能手动改过）。
+    """
     src_video = job.final_video()
     if not src_video or not os.path.isfile(src_video):
         raise RuntimeError("找不到成品视频")
-    dest_dir = os.path.join(ctx.out_root, _safe_name(job.name))
+    dest_dir = job.dir or os.path.dirname(src_video)
     os.makedirs(dest_dir, exist_ok=True)
-    # 只复制，绝不移动/覆盖用户原始文件
-    dst_video = os.path.join(dest_dir, _safe_name(job.name) + os.path.splitext(src_video)[1])
-    if not os.path.exists(dst_video):
-        shutil.copy2(src_video, dst_video)
+    if not _same_path(os.path.dirname(src_video), dest_dir):
+        dst_video = os.path.join(dest_dir, _safe_name(job.name)
+                                 + os.path.splitext(src_video)[1])
+        if not os.path.exists(dst_video):
+            shutil.copy2(src_video, dst_video)
+            ctx.log(f"[成品输出] 合并视频 → {os.path.basename(dst_video)}")
     srt = job.srt()
+    out_path = dest_dir
     if srt and os.path.isfile(srt):
-        dst_srt = os.path.join(dest_dir, _safe_name(job.name) + ".srt")
+        dst_srt = os.path.join(dest_dir, _deliver_srt_name(job))
         if not os.path.exists(dst_srt):
-            shutil.copy2(srt, dst_srt)
-    for kind in ("cover", "info"):
-        for p in (job.files.get(kind) or [])[:1]:
-            if os.path.isfile(p):
-                dst = os.path.join(dest_dir, os.path.basename(p))
-                if not os.path.exists(dst):
-                    shutil.copy2(p, dst)
-    ctx.log(f"[成品打包] → {dest_dir}")
-    return dest_dir
+            engine.write_text_utf8(dst_srt, _to_translate_on_top(engine.read_text_any(srt)))
+        ctx.log(f"[成品输出] 字幕 → {os.path.basename(dst_srt)}")
+        out_path = dst_srt
+    else:
+        ctx.log("[成品输出] 没有可用字幕，仅确认视频在原文件夹")
+    ctx.log(f"[成品输出] → {dest_dir}")
+    return out_path
 
 
 class StageDef:
@@ -936,6 +993,17 @@ def _google_translate_lines(lines, target="zh-CN", proxy="", log=None):
     return out
 
 
+def _normalize_nl(text):
+    """坏换行归一：`\\r\\r\\n` / `\\r\\n` / `\\r` → `\\n`。
+
+    历史 bug（v1.14~v1.17）：文本自带 `\\r\\n` 时再经文本模式 write_text_utf8
+    写出会被二次翻译成 `\\r\\r\\n`，落盘后每行之间多一个空行 —— 播放器多半
+    能容错，但按空行分块的 srt 解析会全乱。写出前先归一成 `\\n`，让
+    write_text_utf8 的换行转换（Windows → `\\r\\n`）只做一次。
+    """
+    return text.replace("\r\r\n", "\n").replace("\r\n", "\n").replace("\r", "\n")
+
+
 def _parse_srt_cues(text):
     """把 srt 拆成块列表：[ [行, 行, ...], ... ]（按空行分隔，保持原始顺序）。"""
     blocks, cur = [], []
@@ -985,7 +1053,6 @@ def _pick_source_srt(job):
 def _translate_srt_file(src, out, ctx):
     """把 src 翻译成中文并写成**双语** srt（原文在上、译文在下），时间轴不动。"""
     text = engine.read_text_any(src)
-    nl = "\r\n" if "\r\n" in text else "\n"
     blocks = _parse_srt_cues(text)
     # 收集所有正文行（前两行的序号/时间轴不翻译；正文行可能含内嵌时间样式行）
     body_idx, body_lines = [], []
@@ -1010,7 +1077,9 @@ def _translate_srt_file(src, out, ctx):
     for block in blocks:
         rebuilt.extend(block)
         rebuilt.append("")                                  # 块间空行
-    out_text = nl.join(rebuilt).rstrip() + nl
+    # ⚠ 用 \n join：write_text_utf8 是文本模式，\n → \r\n 只翻译一次；
+    #   若直接用 \r\n join 会写出 \r\r\n（每行间多一个空行，v1.14~v1.17 的老毛病）
+    out_text = "\n".join(rebuilt).rstrip() + "\n"
     engine.write_text_utf8(out, out_text)
     _mark_reusable(out, [src])
     ctx.log(f"[翻译] 已生成双语字幕 {os.path.basename(out)}")
@@ -1026,7 +1095,6 @@ class Ctx:
         self.registry = pipeline.registry
         self.engine = engine
         self.log = pipeline._log
-        self.out_root = pipeline.out_root
 
     def work_dir(self, job):
         d = os.path.join(WORK_ROOT, _safe_name(job.id or job.name))
@@ -1101,7 +1169,7 @@ class _Emitter(QObject):
 class Pipeline(_Emitter):
     """流水线调度器（引擎侧）。"""
 
-    def __init__(self, registry, out_root=None, auto=None, ai_calib=None,
+    def __init__(self, registry, auto=None, ai_calib=None,
                  state_path=None, log=None, ignite_existing=False, workers=None):
         _Emitter.__init__(self)
         self.registry = registry
@@ -1109,7 +1177,6 @@ class Pipeline(_Emitter):
         #: 就把几十个历史视频全部重跑一遍（合并/校准/复制）代价太大，也未必是用户
         #: 想要的；存量任务停在 WAITING，由用户在流水线页点「执行」或打开开关。
         self.ignite_existing = bool(ignite_existing)
-        self.out_root = out_root or os.path.join(engine.get_saved_download_dir(), "成品")
         self.state_path = state_path or STATE_FILE
         self.ai_calib = self._cfg(CFG_AI, True) if ai_calib is None else bool(ai_calib)
         self.auto = self._cfg(CFG_AUTO, True) if auto is None else bool(auto)
@@ -1332,6 +1399,11 @@ class Pipeline(_Emitter):
             self._running = set()
             self._listeners = []
         try:
+            # 退出前强制落一次盘：evaluate 的节流可能跳过最后一次中间态
+            self._save()
+        except Exception:  # noqa: BLE001
+            pass
+        try:
             if self.registry is not None:
                 self.registry.stop()
         except Exception:  # noqa: BLE001
@@ -1425,7 +1497,13 @@ class Pipeline(_Emitter):
                 job = self.jobs.get(jid)
                 if job:
                     self._log(f"[流水线] {job.name}：{STAGE_LABELS[key]} 已就绪")
-        self._save()
+        # 落盘节流：完成风暴期 evaluate 可能一秒多次，每次都是全量 JSON
+        # 序列化+写盘（73KB 级）——0.5s 内的中间态跳过，下一次评估或阶段
+        # 完成时的 _save 会补写（各阶段收尾点不走此节流）。
+        now = time.time()
+        if now - getattr(self, "_last_eval_save", 0.0) >= 0.5:
+            self._last_eval_save = now
+            self._save()
         self._emit_jobs()
         if self.auto:
             self._pump()
@@ -1762,7 +1840,6 @@ class Pipeline(_Emitter):
             data = {"version": STATE_VERSION, "saved": time.time(),
                     "auto": self.auto, "ai_calib": self.ai_calib,
                     "workers": self.max_workers,
-                    "out_root": self.out_root,
                     "dismissed": dict(self._dismissed),
                     "jobs": {jid: j.to_dict() for jid, j in self.jobs.items()}}
         try:
@@ -1782,7 +1859,6 @@ class Pipeline(_Emitter):
             return
         if not isinstance(data, dict):
             return
-        self.out_root = data.get("out_root") or self.out_root
         dis = data.get("dismissed")
         if isinstance(dis, dict):
             self._dismissed = {str(k): str(v or "") for k, v in dis.items()}

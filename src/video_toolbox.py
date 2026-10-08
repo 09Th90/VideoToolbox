@@ -5485,6 +5485,7 @@ def ensure_builtin_proxy():
 #: 代理地址缓存（进程内）。ensure_builtin_proxy 每次都要探测端口/等 20 秒，
 #: 而下载链路每个任务、每次拉字幕都会问一次，必须记住结果。
 _PROXY_CACHE = {"checked": False, "proxy": None}
+_PROXY_LOCK = threading.Lock()
 
 
 def ytdlp_proxy_args(refresh=False):
@@ -5494,17 +5495,21 @@ def ytdlp_proxy_args(refresh=False):
     相关请求，yt-dlp 全程直连 —— 在国内那就是"YouTube 永远连不上"。带上本地
     mihomo 之后，分流仍由 yaml 的 rules 决定（规则没覆盖的域名它自己也走
     直连），所以对 B 站等本来直连的站点没有副作用。
+
+    并发安全：双检锁。此前 N 个任务同时首次取用时，各线程都会看到缓存为空，
+    各自去拉起/等待 mihomo（最坏各等 20s 端口就绪）——多任务同加时集体白等。
     """
-    if not refresh and _PROXY_CACHE["checked"]:
-        return ["--proxy", _PROXY_CACHE["proxy"]] if _PROXY_CACHE["proxy"] else []
-    proxy = None
-    try:
-        proxy = ensure_builtin_proxy()
-    except Exception as e:  # noqa: BLE001
-        _mihomo_log(f"ensure_builtin_proxy 异常：{e}")
-    _PROXY_CACHE["checked"] = True
-    _PROXY_CACHE["proxy"] = proxy
-    return ["--proxy", proxy] if proxy else []
+    with _PROXY_LOCK:
+        if not refresh and _PROXY_CACHE["checked"]:
+            return ["--proxy", _PROXY_CACHE["proxy"]] if _PROXY_CACHE["proxy"] else []
+        proxy = None
+        try:
+            proxy = ensure_builtin_proxy()
+        except Exception as e:  # noqa: BLE001
+            _mihomo_log(f"ensure_builtin_proxy 异常：{e}")
+        _PROXY_CACHE["checked"] = True
+        _PROXY_CACHE["proxy"] = proxy
+        return ["--proxy", proxy] if proxy else []
 
 
 # ========== 翻译请求的显式路由（v1.16.2） ==========
@@ -5808,6 +5813,7 @@ def _guest_cookie_args(emit=None):
 
 #: cookie 参数缓存（配置变更时由 `invalidate_cookie_cache()` 清掉）
 _COOKIE_ARGS_CACHE = {"args": None}
+_COOKIE_ARGS_LOCK = threading.Lock()
 
 
 def invalidate_cookie_cache():
@@ -5835,9 +5841,19 @@ def ytdlp_cookie_args(refresh=False, log=None):
             except Exception:  # noqa: BLE001
                 pass
 
-    if not refresh and _COOKIE_ARGS_CACHE["args"] is not None:
-        return _COOKIE_ARGS_CACHE["args"]
+    #: 双检锁：并发任务同时首次取用时只探测一次 cookie 来源。此前 N 个任务
+    #: 会各自 spawn 一个浏览器 cookie 预检 yt-dlp 进程（各 30s 超时）、再
+    #: 串行抢游客 cookie 刷新锁——多任务同加时集体白等几十秒。
+    with _COOKIE_ARGS_LOCK:
+        if not refresh and _COOKIE_ARGS_CACHE["args"] is not None:
+            return _COOKIE_ARGS_CACHE["args"]
+        args = _ytdlp_cookie_args_uncached(_emit)
+        _COOKIE_ARGS_CACHE["args"] = args
+        return args
 
+
+def _ytdlp_cookie_args_uncached(_emit):
+    """（调用方须持 _COOKIE_ARGS_LOCK）三级 cookie 来源逐级降级。"""
     mode = cookie_mode()
     args = []
 
@@ -5874,7 +5890,6 @@ def ytdlp_cookie_args(refresh=False, log=None):
     if not args and mode in ("auto", "guest"):
         args = _guest_cookie_args(emit=_emit)
 
-    _COOKIE_ARGS_CACHE["args"] = args
     return args
 
 
@@ -6626,6 +6641,24 @@ def ytdlp_prefer_hls():
     v = (os.environ.get("VT_YTDLP_PREFER_HLS") or "1").strip().lower()
     return v not in ("0", "false", "no", "off")
 
+
+def ytdlp_part_leftovers(folder):
+    """任务目录里的 yt-dlp 分片/临时残留（*.part、*.ytdl）。
+
+    正常完成的下载不会有这些文件：HLS 每片完成即拼入主临时文件并自删，
+    全部完成后 .part 改名为成品。出现残留 = yt-dlp 重试耗尽后**跳过了
+    不可用分片**（--skip-unavailable-fragments 默认开、返回码仍为 0）——
+    成品可能缺对应分片的几秒内容，调用方应告警用户并清掉残骸。
+    """
+    out = []
+    try:
+        for fn in os.listdir(folder):
+            if fn.lower().endswith((".part", ".ytdl")):
+                out.append(os.path.join(folder, fn))
+    except OSError:
+        pass
+    return out
+
 #: yt-dlp 可重试错误关键词（风控 / 网络抖动）。**下载页、流水线、信息提取三处
 #: 共用同一份判定** —— 此前各写各的，流水线只认 412，遇到 403/429 直接放弃，
 #: 而 YouTube 直链失效正好回 403（"下载失败但手动重试又能成"的由来）。
@@ -6783,6 +6816,66 @@ def unique_folder(dest, name):
         folder = os.path.join(dest, f"{name} ({n})")
         n += 1
     return folder
+
+
+# ========== NPE 第二解析引擎（NewPipe Extractor，2026-10-08 接入） ==========
+#: NPE 引擎模式：auto（yt-dlp 各源失败后兜底，默认）/ off（完全不用）/ only（直接用）
+CFG_NPE_ENGINE = "npe_engine"
+
+
+def npe_engine_mode():
+    """当前 NPE 引擎模式：auto（默认，yt-dlp 失败后兜底）/ off / only。
+
+    配置项 `npe_engine`（data/ai_config.json）为主；环境变量
+    `VT_NPE_ENGINE` 可临时覆盖（排查问题时不必改配置文件）。
+
+    ⚠️ 当前实现里 **only 与 auto 行为相同**（yt-dlp 仍先跑，只在它全失败后
+    才启用 NPE 兜底）——见 video_toolbox_qt 里 `!= "off"` 的判定。`only`
+    是为「强制只走 NPE」预留的取值，尚未接线，届时可在此处做分流。
+    """
+    env = os.environ.get("VT_NPE_ENGINE", "").strip().lower()
+    if env in ("auto", "off", "only"):
+        return env
+    try:
+        m = str((load_config() or {}).get(CFG_NPE_ENGINE) or "auto").strip().lower()
+    except Exception:  # noqa: BLE001
+        m = "auto"
+    return m if m in ("auto", "off", "only") else "auto"
+
+
+def npe_available():
+    """(是否可用, 说明)。缺 java 或未构建 jar 时返回 False。"""
+    try:
+        import npe_backend
+        return npe_backend.is_available()
+    except Exception as e:  # noqa: BLE001
+        return False, f"NPE 模块不可用：{e}"
+
+
+def npe_proxy_url():
+    """NPE / ffmpeg 要用的代理 URL（拿不到返回空串）。"""
+    try:
+        args = ytdlp_proxy_args()
+    except Exception:  # noqa: BLE001
+        return ""
+    return args[1] if args else ""
+
+
+def npe_cookie_file(log=None):
+    """给 NPE 用的 **cookie 文件**路径（Netscape 格式）。
+
+    与 yt-dlp 的 cookie 来源刻意不同：yt-dlp 可以用 `--cookies-from-browser`
+    直接读浏览器 cookie 库，而 NPE 只吃文件。所以这里复用 `ytdlp_cookie_args()`
+    的解析结果，只在它是「文件型」时采用；若它给的是浏览器模式，则回落到
+    游客 cookie 文件（data/guest_cookies.txt），实在没有才返回空串。
+    """
+    try:
+        args = ytdlp_cookie_args(log=log)
+    except Exception:  # noqa: BLE001
+        args = []
+    if args and len(args) > 1 and args[0] == "--cookies" and os.path.isfile(args[1]):
+        return args[1]
+    return GUEST_COOKIES_PATH if os.path.isfile(GUEST_COOKIES_PATH) else ""
 
 
 def output_template(folder, filename_tpl="%(title)s.%(ext)s"):
@@ -6971,7 +7064,30 @@ def normalize_rolling_srt(path, dry_run=False, stats=None):
 
 
 def write_info_txt(folder, data, quality_label=""):
-    """把标题/简介/视频链接/博主链接等写成 视频信息.txt（utf-8-sig，记事本直接可读）"""
+    """把 源地址/来源/原简介/标题/博主/画质下载时间 写成 视频信息.txt
+    （utf-8-sig，记事本直接可读）。
+
+    用户样版（2026-10-06 定稿，2026-10-08 补回字段）：字段行下一行直接跟内容、
+    段间只空一行：
+
+        标题：<视频标题>
+
+        源地址：
+        <视频链接>
+
+        来源：<频道主页>
+
+        博主：<UP 主名>
+
+        原简介：
+        <简介全文，原样保留换行>
+
+        下载画质：<quality_label>
+        下载时间：<当前时间>
+
+    ⚠️ 标题/博主/画质/下载时间 四项在 10-06 定稿时一度被移除，10-08 按用户
+    要求补回（AI 校准仍以视频文件名取原始标题，两处互不冲突）。
+    """
     def pick(*keys):
         for k in keys:
             v = data.get(k)
@@ -6980,49 +7096,26 @@ def write_info_txt(folder, data, quality_label=""):
         return ""
 
     title = pick("title") or "（未知标题）"
-    desc = pick("description") or "（无简介）"
-    page_url = pick("webpage_url", "original_url")
+    page_url = pick("webpage_url", "original_url") or "（无）"
     uploader = pick("uploader", "channel", "uploader_id")
     up_url = pick("uploader_url", "channel_url")
     if not up_url:
         uid = pick("uploader_id", "channel_id")
-        if uid and "bilibili" in (page_url or ""):
+        if uid and "bilibili" in page_url:
             up_url = f"https://space.bilibili.com/{uid}"
 
-    # 投稿对齐字段：标签取站点自带 tags（B 站常为空，投稿时可再补）；
-    # 分区/话题下载时无法确定，给出空行占位，创作声明默认“无需标注”。
-    raw_tags = data.get("tags") or data.get("categories") or []
-    if isinstance(raw_tags, str):
-        tag_line = raw_tags
-    else:
-        tag_line = ",".join(str(t).strip() for t in raw_tags if str(t).strip())
-
-    lines = [
-        "视频信息",
-        "=" * 40,
-        "",
-        f"标题: {title}",
-        "",
-        "简介:",
-        desc,
-        "",
-        f"视频链接: {page_url or '（无）'}",
-        f"博主: {uploader or '（未知）'}",
-        f"博主主页: {up_url or '（未知）'}",
-        "",
-        "—— 以下字段与「B站投稿」表单一一对应，可按需修改 ——",
-        f"标签: {tag_line}",
-        "分区: ",
-        "创作声明: 无需标注",
-        "话题: ",
-    ]
-    if quality_label:
-        lines.append(f"下载画质: {quality_label}")
-    lines.append(f"下载时间: {datetime.now():%Y-%m-%d %H:%M:%S}")
+    desc = pick("description") or "（无简介）"
+    text = (f"标题：{title}\n\n"
+            f"源地址：\n{page_url}\n\n"
+            f"来源：{up_url or '（未知）'}\n\n"
+            f"博主：{uploader or '（未知）'}\n\n"
+            f"原简介：\n{desc}\n\n"
+            f"下载画质：{quality_label or '（未知）'}\n"
+            f"下载时间：{datetime.now():%Y-%m-%d %H:%M:%S}\n")
 
     path = os.path.join(folder, "视频信息.txt")
     with open(path, "w", encoding="utf-8-sig") as f:
-        f.write("\n".join(lines) + "\n")
+        f.write(text)
     return path
 
 
@@ -7176,6 +7269,12 @@ def download_mode(url=None):
 
 
 # ========== 功能 2：音视频智能合并（整合自 v3.2） ==========
+#: 时长探测缓存（路径+大小+mtime 建键）：视频库每次刷新会对每个媒体文件
+#: 起一个 ffprobe 进程，实测对刚写完的几 GB 大文件单次可达数秒——同文件
+#: 未变时直接复用结果，完成风暴下不再反复 spawn ffprobe。
+_DUR_CACHE = {}
+
+
 def get_duration(filepath, ffprobe_path):
     cmd = [
         ffprobe_path, '-v', 'error',
@@ -7184,10 +7283,22 @@ def get_duration(filepath, ffprobe_path):
         filepath
     ]
     try:
-        result = run_process(cmd, capture_output=True, check=True)
-        return float(decode_bytes_any(result.stdout).strip())
-    except Exception:
+        st = os.stat(filepath)
+        key = (os.path.abspath(filepath), st.st_size, st.st_mtime_ns)
+    except OSError:
         return 0.0
+    hit = _DUR_CACHE.get(key)
+    if hit is not None:
+        return hit
+    try:
+        result = run_process(cmd, capture_output=True, check=True)
+        dur = float(decode_bytes_any(result.stdout).strip() or 0.0)
+    except Exception:
+        dur = 0.0
+    if len(_DUR_CACHE) > 5000:
+        _DUR_CACHE.clear()
+    _DUR_CACHE[key] = dur
+    return dur
 
 
 def scan_media(folder):

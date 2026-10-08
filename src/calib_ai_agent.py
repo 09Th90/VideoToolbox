@@ -100,12 +100,14 @@ MODE_KEY = {
     "": "bi", "--ja": "ja", "--jpe": "jpe", "--ko": "ko", "--ak": "ak",
     "--akko": "akko", "--endo": "endo", "--zho": "zho", "--pgr": "pgr",
     "--pgren": "pgren", "--wwoc": "wwoc", "--react": "react",
+    "--endobi": "endobi",
 }
 MODE_NAME = {
     "": "中英双语", "--ja": "日语原声·鸣潮", "--jpe": "日语原声·终末地",
     "--ko": "韩语原声·鸣潮", "--ak": "明日方舟", "--akko": "明日方舟·韩语",
     "--endo": "终末地", "--zho": "中文行专属", "--pgr": "战双帕弥什",
     "--pgren": "战双英文原声", "--wwoc": "综合手游OST", "--react": "音乐点评",
+    "--endobi": "终末地·中英双语",
 }
 
 #: 知识库规则展开时的字符上限（喂给模型的精简子集；校验仍用全量规则）
@@ -166,7 +168,7 @@ STYLE_NAME = {"term": "术语级（只替换名词）", "rewrite": "整句重写
 #: 是否把参考行一并喂给模型（双语/多语片源建议 True；比原文长不了多少，
 #: 却能把它从「盲替换」变成「有据改写」。None = 由片源模式决定）
 INCLUDE_REF_MODES = ("", "--ja", "--jpe", "--ko", "--ak", "--akko", "--endo",
-                     "--pgren", "--wwoc", "--react")
+                     "--pgren", "--wwoc", "--react", "--endobi")
 
 #: 单行显示宽度上限（汉字当量；与 subtitle_calib_merged 的 MAX_LINE_ZH 同判据：
 #: 东亚 W/F/A 宽字符计 1.0、半角计 0.5，故「32 汉字」等价于「64 英文字符」）
@@ -1161,6 +1163,18 @@ def calibrate(src: str, out: str = None, report: str = None, mode_flag: str = ""
     except Exception:  # noqa: BLE001
         result["orig_title"] = ""
     try:
+        # 片源自适应（2026-10-07）：未显式指定片源模式时按内容自动识别。
+        #   起因：终末地专名只挂在 endo / endobi 两张表上，默认 bi 模式下
+        #   终末地一处都不会被替换（表现为「终末地没有被正确翻译」）。
+        if not mode_flag:
+            _rc, _txt = run_script(python, script, ["detect-mode", src], log, cancel)
+            _det = ""
+            for _ln in (_txt or "").splitlines():
+                if _ln.strip().startswith("DETECT="):
+                    _det = _ln.strip().split("=", 1)[1].strip()
+            if _det and _det != "bi":
+                mode_flag = "--" + _det
+                _log_do(log, f"片源自适应：检测到片源模式 {_det} → 自动启用 {mode_flag}", "ok")
         # ---------- 1. 起点：上一轮结果（可选）或术语脚本基线 ----------
         base = src
         if resume_from and os.path.isfile(resume_from):
@@ -1828,9 +1842,10 @@ def _ask_block(chat, mode_flag, rules_txt, chunk, round_no, max_tokens, log, tic
 
 # ---- 原始标题提取（v1.16.1）------------------------------------------------
 # 用户要求（2026-09-28）：校准完成后要「**参考原始的标题**，生成新的标题」，
-# 且 tag 必须来自字幕内容。原始标题来自下载阶段随视频落盘的 `视频信息.txt`
-# （见 engine.write_info_txt 的「标题:」行）；取不到再退回同目录的视频文件名，
-# 最后才是字幕文件名。纯本地、不联网、不抛异常。
+# 且 tag 必须来自字幕内容。原始标题优先取下载阶段随视频落盘的 `视频信息.txt`
+# （v1.17.1 起该文件是三段式 源地址/来源/原简介，没有「标题:」行，这里自然
+# 落空），再退回同目录的视频文件名（下载文件夹即标题），最后才是字幕文件名。
+# 纯本地、不联网、不抛异常。
 _VIDEO_EXTS_FOR_TITLE = (".mp4", ".mkv", ".flv", ".webm", ".mov", ".avi",
                          ".m4v", ".ts", ".mp3", ".m4a", ".wav", ".flac")
 

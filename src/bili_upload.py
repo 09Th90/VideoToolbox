@@ -17,7 +17,7 @@ backup_v19_vision/`），v1.10.1 随投稿板块一起移除。本模块按 v1.1
   · R4 分区检测     —— 分区下拉用 AI 视觉枚举（见 `detect_zone_options`）；
   · R5 提交         —— 等「立即投稿」可用 → 点击 → 等成功标志。
 
-本模块**不碰 Qt**，可单独单测；界面在 `auto_vision_page.py` 的第⑥卡片。
+本模块**不碰 Qt**，可单独单测；界面在 `auto_vision_page.py`。
 
 素材（模板）从哪来
 ==================
@@ -26,12 +26,14 @@ backup_v19_vision/`），v1.10.1 随投稿板块一起移除。本模块按 v1.1
 文件名引用。模板缺失时 `missing_templates()` 会列出来，界面据此提示。
 """
 
+import io
 import json
 import os
 import re
 import time
 
 import auto_vision_core as av
+from PIL import Image
 
 #: B 站投稿页（用户浏览器里需已登录）
 UPLOAD_URL = "https://member.bilibili.com/platform/upload/video/frame"
@@ -39,7 +41,7 @@ UPLOAD_URL = "https://member.bilibili.com/platform/upload/video/frame"
 TEMPLATE_SUBDIR = "bili"
 #: 失败截图子目录（相对 data）
 SCREENSHOT_SUBDIR = os.path.join("bili_upload", "shots")
-#: 投稿物料文件名（与历史开发一致：成品目录里的 视频信息.txt）
+#: 投稿物料文件名（与历史开发一致：视频所在目录里的 视频信息.txt）
 WULIAO_NAME = "视频信息.txt"
 
 #: 上传等待上限（秒）：大文件上传 + 转码，给足时间
@@ -128,9 +130,14 @@ _FIELD_ALIASES = {
     "title": ("标题", "title", "名字", "稿件标题"),
     "tags": ("标签", "tag", "tags", "关键词"),
     "zone": ("分区", "zone", "版块", "分类"),
-    "desc": ("简介", "描述", "desc", "description", "说明"),
+    "desc": ("简介", "描述", "desc", "description", "说明", "原简介"),
     "topic": ("话题", "topic", "参与话题", "活动"),
 }
+
+#: 旧版 视频信息.txt 里「简介:」之后还有 链接/博主/标签 等结构行；
+#: 收集多行简介时遇到这些行要停，别把它们吃进简介正文
+_STRUCT_BREAK_KEYS = ("视频链接", "博主", "博主主页", "下载画质", "下载时间",
+                      "创作声明")
 
 
 def _split_list(value):
@@ -139,9 +146,36 @@ def _split_list(value):
     return [p.strip() for p in parts if p.strip()]
 
 
+def _field_of(key):
+    """字段名 → 归一字段（title/tags/zone/desc/topic）；不认识返回空串。"""
+    k = str(key or "").strip().lower()
+    for field, aliases in _FIELD_ALIASES.items():
+        if k in [a.lower() for a in aliases]:
+            return field
+    return ""
+
+
 def split_tags(value):
     """把界面上的标签输入串拆成列表（额外把空白也当分隔符）。"""
     return _split_list(re.sub(r"\s+", "/", str(value or "")))
+
+
+def _collect_desc_body(lines, i):
+    """收集「原简介」行之后的多行正文（新样版 2026-10-06：字段行下一行直接
+    跟内容）。遇到下一个已知字段行、旧版结构行或追加段落的 `──` 分隔线
+    （校准产物「中文标题推荐」等，不属于简介）就停。返回 (desc, 新下标)。"""
+    buf = []
+    while i < len(lines):
+        probe = lines[i].strip().lstrip("#").strip()
+        if probe.startswith("──"):
+            break
+        pm = re.match(r"^([^:：]{1,8})\s*[:：]\s*(.+)$", probe)
+        if pm and (_field_of(pm.group(1)) in ("title", "tags", "zone", "topic")
+                   or pm.group(1) in _STRUCT_BREAK_KEYS):
+            break
+        buf.append(lines[i].rstrip())
+        i += 1
+    return "\n".join(buf).strip(), i
 
 
 def parse_wuliao(text):
@@ -149,26 +183,37 @@ def parse_wuliao(text):
 
     兼容历史 `视频信息.txt` 的写法：`标题：xxx`、`标签：a / b / c`、
     `分区：游戏`、`话题：...`；标签/话题支持 `/`、`、`、`，`、`,` 分隔。
+    v1.17.1 新样版：`原简介`（不带冒号）独立成行，正文从下一行起到文件尾
+    （或下一个已知结构行 / 追加段分隔线）都算简介原文 —— 多行、原样保留；
+    带冒号的 `原简介：` 旧写法同样支持。
     未出现的字段返回空串 / 空列表。
     """
     out = {"title": "", "tags": [], "zone": "", "desc": "", "topic": ""}
-    for raw in str(text or "").splitlines():
-        line = raw.strip().lstrip("#").strip()
+    lines = str(text or "").splitlines()
+    i = 0
+    while i < len(lines):
+        line = lines[i].strip().lstrip("#").strip()
+        i += 1
         if not line:
             continue
         m = re.match(r"^([^:：]{1,8})\s*[:：]\s*(.*)$", line)
         if not m:
+            if line == "原简介":                 # 新样版：无冒号独立成行
+                out["desc"], i = _collect_desc_body(lines, i)
             continue
         key, val = m.group(1).strip(), m.group(2).strip()
+        field = _field_of(key)
+        if not field:
+            continue
         # 去掉可能包着的引号/书名号
         val = val.strip().strip("「」《》\"'“”‘’")
-        for field, aliases in _FIELD_ALIASES.items():
-            if key.lower() in [a.lower() for a in aliases]:
-                if field in ("tags",):
-                    out[field] = _split_list(val)
-                else:
-                    out[field] = val
-                break
+        if field == "desc" and not val:
+            out["desc"], i = _collect_desc_body(lines, i)
+            continue
+        if field == "tags":
+            out[field] = _split_list(val)
+        else:
+            out[field] = val
     return out
 
 
@@ -503,8 +548,6 @@ def vision_list_options(win, instruction, *, scope="该列表中",
     frame, _origin, _cost = av.capture_window(win)
     if frame is None:
         raise RuntimeError("抓帧失败")
-    import io
-    from PIL import Image
     buf = io.BytesIO()
     Image.fromarray(frame).save(buf, format="PNG")
     raw = mod.get_client().chat_vision(
@@ -587,25 +630,23 @@ def run_submission(*, task, win, dry_run=True, data_dir,
         log("⚠ 缺少模板：" + "、".join(m["label"] for m in missing))
         log("  → 请先在「采集模板」里把这几张截出来，否则对应步骤会走熔断分支")
 
+    def _on_stage(node_name):
+        """节点 → 阶段文案（界面进度展示）；异常只忽略，不打断投稿。"""
+        if on_stage is None:
+            return
+        try:
+            on_stage(node_name, STAGES.get(node_name, node_name))
+        except Exception:  # noqa: BLE001
+            pass
+
     pipeline = build_pipeline(task)
     vars_ = default_vars(task)
-    runner = av.PipelineRunner(frame_provider, tdir, on_log=log, vars=vars_)
+    runner = av.PipelineRunner(frame_provider, tdir, on_log=log, vars=vars_,
+                               on_stage=_on_stage)
 
     log(f"投稿任务：视频={vars_['video'] or '(未填)'}｜标题={vars_['title'] or '(未填)'}"
         f"｜标签={len(vars_['tags'])} 个｜分区={vars_['zone'] or '(未填)'}"
         f"｜话题={vars_['topic'] or '(无)'}｜提交={task.get('submit', True)}")
-
-    # 阶段回调：包一层 on_log 之外再单独通知
-    if on_stage is not None:
-        _orig_step = runner.step
-
-        def _step(node, *a, **kw):
-            try:
-                on_stage(node.name, STAGES.get(node.name, node.name))
-            except Exception:  # noqa: BLE001
-                pass
-            return _orig_step(node, *a, **kw)
-        runner.step = _step
 
     trace = runner.run(pipeline, win=win, dry_run=dry_run)
 

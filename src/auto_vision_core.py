@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 # @version 1.17.0
-"""视觉自动化引擎（demo）—— 参考 MAA（MaaAssistantArknights）的四段设计
+"""视觉自动化引擎 —— 参考 MAA（MaaAssistantArknights）的四段设计
 ====================================================================
 MAA 的本质是一个「游戏 UI 的视觉状态机机器人」，完全站在玩家位置看屏幕、
 点按钮，不碰目标进程内存。它把整条链路拆成四段（详见工作区
@@ -14,16 +14,17 @@ MAA 的本质是一个「游戏 UI 的视觉状态机机器人」，完全站在
                   `maxTimes` + `exceededNext` 构成熔断兜底；
   ④ 行动（注入）  ClickSelf = 点本节点识别命中的位置；还有滑动、长按等。
 
-本模块把同一套骨架做成**与具体游戏无关**的最小实现，供「自动化」页调用：
+本模块把同一套骨架做成**与具体应用无关**的最小实现，供 B 站自动投稿
+（`bili_upload.py`）使用：
 
   · `list_windows()` / `capture_window()`       —— 感知：枚举窗口 + 客户区抓帧
   · `match_template()` / `match_color()`        —— 认知：FFT 归一化互相关 / 色块
   · `parse_pipeline()` / `PipelineRunner`       —— 决策：声明式节点 + 熔断转移
   · `click()`                                   —— 行动：SendInput 绝对坐标点击
 
-与 MAA 的差异（有意为之，demo 规模）：
+与 MAA 的差异（有意为之，最小实现）：
   1. 识别只做**模板匹配 + 色块**，OCR / 神经网络留接口不实现——不引第三方
-     模型（本机没装 opencv，也不想为 demo 增依赖）；
+     模型（本机没装 opencv，也不想为此增加依赖）；
   2. 模板匹配用 numpy FFT 算归一化互相关（NCC），对亮度线性变化不敏感，
      与 OpenCV `TM_CCOEFF_NORMED` 同源；
   3. **默认演练（dry-run）**：只识别、只标注，不真的点鼠标；要真点必须在页面上
@@ -139,8 +140,8 @@ def list_windows(min_size=(80, 60)):
 def window_info(hwnd):
     """由句柄直接构造 WindowInfo（**包含本进程自己的窗口**）。
 
-    `list_windows()` 有意把本程序的窗口滤掉（避免"自己抓自己"），但内置演示
-    场景恰恰就是本程序弹出的一个窗口，需要走这条通道。非 Windows 返回 None。
+    `list_windows()` 有意把本程序的窗口滤掉（避免"自己抓自己"），需要按句柄
+    取本进程或未出现在枚举结果里的窗口时，走这条通道。非 Windows 返回 None。
     """
     if not _HAS_WIN32:
         return None
@@ -548,11 +549,15 @@ class PipelineRunner:
         这就是 MAA 的熔断兜底，防死循环。
     """
 
-    def __init__(self, frame_provider, template_dir="", on_log=None, vars=None):
+    def __init__(self, frame_provider, template_dir="", on_log=None, vars=None,
+                 on_stage=None):
         #: frame_provider(win) -> (frame, origin) 由调用方提供（页面持有窗口）
         self.frame_provider = frame_provider
         self.template_dir = template_dir
         self.on_log = on_log or (lambda *_a, **_k: None)
+        #: 阶段回调 on_stage(node_name)：每开始执行一个节点前调用一次，
+        #: 供界面显示「当前阶段」；抛异常只忽略，不影响管线本身。
+        self.on_stage = on_stage
         #: 变量表：管线里的 `{{name}}` 用它替换（run(vars=...) 可再覆盖）
         self.vars = dict(vars or {})
 
@@ -712,6 +717,11 @@ class PipelineRunner:
                 break
             self.on_log(f"[{i + 1}] 执行节点「{node.name}」"
                         f"{'（' + node.note + '）' if node.note else ''}")
+            if self.on_stage is not None:
+                try:
+                    self.on_stage(node.name)
+                except Exception:  # noqa: BLE001
+                    pass
             res = None
             tries = max(1, node.max_times)
             for attempt in range(tries):
@@ -1145,52 +1155,3 @@ def save_frame(frame, path):
         return path
     except Exception:  # noqa: BLE001
         return None
-
-
-# ---------------------------------------------------------------------- #
-# 内置演示管线：不依赖任何外部素材，直接跑「找到图标 → 点它」
-# ---------------------------------------------------------------------- #
-#: 页面「内置演示场景」用的任务（模板由页面从自绘图标现渲染，见 auto_vision_page）
-DEMO_PIPELINE = {
-    "_说明": "仿 MAA tasks.json 的最小管线：感知 → 识别 → 点击 → 复核 → 结束",
-    "FindTarget": {
-        "algorithm": "TemplateMatch",
-        "template": "__demo_target__.png",
-        "roi": [0, 0, 0, 0],
-        "threshold": 0.75,
-        "action": "ClickSelf",
-        "next": ["Verify"],
-        "exceededNext": ["NotFound"],
-        "maxTimes": 2,
-        "postDelay": 120,
-        "note": "全屏范围找目标图标并点它",
-    },
-    "Verify": {
-        "algorithm": "ColorMatch",
-        "color": [245, 196, 84],
-        "colorTolerance": 40,
-        "roi": [0, 0, 0, 0],
-        "threshold": 0.35,
-        "action": "Log",
-        "next": [],
-        "maxTimes": 2,
-        "note": "复核：图标主色块还在 → 任务成功结束",
-    },
-    "NotFound": {
-        "algorithm": "ColorMatch",
-        "color": [30, 34, 40],
-        "colorTolerance": 12,
-        "roi": [0, 0, 0, 0],
-        "threshold": 0.5,
-        "action": "Log",
-        "next": [],
-        "maxTimes": 1,
-        "note": "熔断兜底：没找到目标时走这里，确认仍在场景后结束",
-    },
-}
-
-
-def demo_pipeline_text():
-    """给页面预填的 JSON 文本（保留注释键，便于用户照着改）。"""
-    import json as _json
-    return _json.dumps(DEMO_PIPELINE, ensure_ascii=False, indent=2)
