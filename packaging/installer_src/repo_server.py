@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # @version 1.17.0
-"""本地/局域网组件仓库镜像：python installer_src/repo_server.py [端口]
+"""本地/局域网组件仓库镜像：python packaging/installer_src/repo_server.py [端口]
 
 服务 installer_repository/ 目录（repogen 产物），安装器从这里的
 Updates.xml + *.7z 下载组件。启动后打印本机局域网地址，同网段机器

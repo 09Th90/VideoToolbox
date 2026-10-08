@@ -10,14 +10,14 @@
 （该选项图形模式同样生效），必要时顺带把 repo_server.py 拉起来。
 
 用法（在仓库根或 installer_src 下都可以）：
-    python installer_src\\install_local_repo.py                 # 本机源（自动起 repo_server）
-    python installer_src\\install_local_repo.py --port 9000
-    python installer_src\\install_local_repo.py --repo-url http://192.168.1.10:8123/
-    python installer_src\\install_local_repo.py --file          # 直接用 file:/// 本地目录（不起服务）
-    python installer_src\\install_local_repo.py --dry-run        # 只打印将执行的命令
+    python packaging\\installer_src\\install_local_repo.py                 # 本机源（自动起 repo_server）
+    python packaging\\installer_src\\install_local_repo.py --port 9000
+    python packaging\\installer_src\\install_local_repo.py --repo-url http://192.168.1.10:8123/
+    python packaging\\installer_src\\install_local_repo.py --file          # 直接用 file:/// 本地目录（不起服务）
+    python packaging\\installer_src\\install_local_repo.py --dry-run        # 只打印将执行的命令
 
 给同事装（局域网分发）时，在放着仓库的那台机器上跑：
-    python installer_src\\repo_server.py 8123
+    python packaging\\installer_src\\repo_server.py 8123
 再把上面打印的 http://<局域网IP>:8123/ 用 --repo-url 传给本脚本即可。
 """
 import argparse
@@ -49,7 +49,7 @@ def find_installer(pattern=None):
     pat = pattern or str(ROOT / "installer" / "视频工具箱_在线安装_v*.exe")
     cands = glob.glob(pat)
     if not cands:
-        sys.exit(f"没找到在线安装器：{pat}\n先运行 python installer_src\\build_online_installer.py")
+        sys.exit(f"没找到在线安装器：{pat}\n先运行 python packaging\\installer_src\\build_online_installer.py")
     return Path(max(cands, key=os.path.getmtime))
 
 
@@ -107,7 +107,7 @@ def main():
     installer = Path(args.installer).resolve() if args.installer else find_installer()
 
     if not args.repo_url and not repo_dir.joinpath("Updates.xml").exists():
-        sys.exit(f"仓库目录里没有 Updates.xml：{repo_dir}\n先运行 python installer_src\\build_online_installer.py")
+        sys.exit(f"仓库目录里没有 Updates.xml：{repo_dir}\n先运行 python packaging\\installer_src\\build_online_installer.py")
 
     server = None
     if args.repo_url:

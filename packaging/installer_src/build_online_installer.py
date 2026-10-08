@@ -18,9 +18,9 @@ v1.10.3 说明：字幕引擎已内嵌进主程序 exe（videocaptioner 及其�
   docs/ 下的 VideoCaptioner 许可全文与组件来源声明仍随组件分发，以尽合规义务。
 
 用法：
-  python installer_src/build_online_installer.py
-  python installer_src/build_online_installer.py --repo-url http://192.168.1.10:8123/
-  python installer_src/build_online_installer.py --force-copy   # 不用硬链接
+  python packaging/installer_src/build_online_installer.py
+  python packaging/installer_src/build_online_installer.py --repo-url http://192.168.1.10:8123/
+  python packaging/installer_src/build_online_installer.py --force-copy   # 不用硬链接
 """
 import argparse
 import os
@@ -33,6 +33,10 @@ from pathlib import Path
 
 #: 脚本位于 <仓库根>/packaging/installer_src/，仓库根再上一级
 ROOT = Path(__file__).resolve().parent.parent.parent
+#: ⚠ 本脚本所在的 installer_src 目录。2026-10-08 文件功能分类后它从仓库根搬进了
+#:   packaging\，**不能再写死 `ROOT / "installer_src"`**（那条路径已不存在，
+#:   报 WinError 3 找不到 ...\installer_src\packages\...\meta）。
+HERE = Path(__file__).resolve().parent
 IFW_BIN = ROOT / ".buildvenv/qtifw/Tools/QtInstallerFramework/4.7/bin"
 STAGE = ROOT / "build/ifw_packages"
 REPO = ROOT / "installer_repository"
@@ -171,7 +175,7 @@ def main():
             data_dir = STAGE / comp / "data"
             reset_dir(data_dir, trash_root)
             n = sum(stage_one(ROOT / s, data_dir / d, args.force_copy) for s, d in items)
-            meta_src = ROOT / "installer_src/packages" / comp / "meta"
+            meta_src = HERE / "packages" / comp / "meta"
             meta_dst = STAGE / comp / "meta"
             reset_dir(meta_dst, trash_root)
             if not meta_dst.exists():
@@ -181,7 +185,7 @@ def main():
 
     # 2. 仓库地址写进 config 副本（源文件保持默认；多源顺序 = 下载优先级）
     CONFIG_OUT.mkdir(parents=True, exist_ok=True)
-    cfg = (ROOT / "installer_src/config/config.xml").read_text(encoding="utf-8")
+    cfg = (HERE / "config/config.xml").read_text(encoding="utf-8")
     if args.repo_url:
         # 只替换第一个 <Url>（主源），其余镜像源不动
         cfg = re.sub(r"<Url>[^<]*</Url>", f"<Url>{args.repo_url}</Url>", cfg, count=1)
@@ -239,7 +243,8 @@ def main():
         sys.exit("binarycreator 失败")
     print(f"完成: {out} ({out.stat().st_size / 1048576:.1f}MB)")
     verify_embedded_sources(out, srcs[0] if srcs else "")
-    print(f"仓库: {REPO.resolve()}  （python installer_src/repo_server.py 启动镜像）")
+    print(f"仓库: {REPO.resolve()}  "
+          f"（python packaging/installer_src/repo_server.py 启动镜像）")
 
 
 if __name__ == "__main__":
