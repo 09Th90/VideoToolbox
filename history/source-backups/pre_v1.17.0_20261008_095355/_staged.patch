@@ -1,0 +1,160 @@
+diff --git a/build/Languages/ChineseSimplified.isl b/packaging/Languages/ChineseSimplified.isl
+similarity index 100%
+rename from build/Languages/ChineseSimplified.isl
+rename to packaging/Languages/ChineseSimplified.isl
+diff --git a/deploy_installer_ghpages.py b/packaging/deploy_installer_ghpages.py
+similarity index 100%
+rename from deploy_installer_ghpages.py
+rename to packaging/deploy_installer_ghpages.py
+diff --git a/installer_src/build_online_installer.py b/packaging/installer_src/build_online_installer.py
+similarity index 100%
+rename from installer_src/build_online_installer.py
+rename to packaging/installer_src/build_online_installer.py
+diff --git a/installer_src/config/config.xml b/packaging/installer_src/config/config.xml
+similarity index 100%
+rename from installer_src/config/config.xml
+rename to packaging/installer_src/config/config.xml
+diff --git a/installer_src/install_local_repo.py b/packaging/installer_src/install_local_repo.py
+similarity index 100%
+rename from installer_src/install_local_repo.py
+rename to packaging/installer_src/install_local_repo.py
+diff --git a/installer_src/packages/com.videotoolbox.base/meta/installscript.qs b/packaging/installer_src/packages/com.videotoolbox.base/meta/installscript.qs
+similarity index 100%
+rename from installer_src/packages/com.videotoolbox.base/meta/installscript.qs
+rename to packaging/installer_src/packages/com.videotoolbox.base/meta/installscript.qs
+diff --git a/installer_src/packages/com.videotoolbox.base/meta/package.xml b/packaging/installer_src/packages/com.videotoolbox.base/meta/package.xml
+similarity index 100%
+rename from installer_src/packages/com.videotoolbox.base/meta/package.xml
+rename to packaging/installer_src/packages/com.videotoolbox.base/meta/package.xml
+diff --git a/installer_src/repo_server.py b/packaging/installer_src/repo_server.py
+similarity index 100%
+rename from installer_src/repo_server.py
+rename to packaging/installer_src/repo_server.py
+diff --git a/build/kb_admin.spec b/packaging/kb_admin.spec
+similarity index 100%
+rename from build/kb_admin.spec
+rename to packaging/kb_admin.spec
+diff --git "a/\350\247\206\351\242\221\345\267\245\345\205\267\347\256\261.iss" "b/packaging/\350\247\206\351\242\221\345\267\245\345\205\267\347\256\261.iss"
+similarity index 100%
+rename from "\350\247\206\351\242\221\345\267\245\345\205\267\347\256\261.iss"
+rename to "packaging/\350\247\206\351\242\221\345\267\245\345\205\267\347\256\261.iss"
+diff --git "a/\350\247\206\351\242\221\345\267\245\345\205\267\347\256\261.spec" "b/packaging/\350\247\206\351\242\221\345\267\245\345\205\267\347\256\261.spec"
+similarity index 100%
+rename from "\350\247\206\351\242\221\345\267\245\345\205\267\347\256\261.spec"
+rename to "packaging/\350\247\206\351\242\221\345\267\245\345\205\267\347\256\261.spec"
+diff --git "a/\351\207\215\345\220\257\350\247\206\351\242\221\345\267\245\345\205\267\347\256\261.bat" "b/packaging/\351\207\215\345\220\257\350\247\206\351\242\221\345\267\245\345\205\267\347\256\261.bat"
+similarity index 100%
+rename from "\351\207\215\345\220\257\350\247\206\351\242\221\345\267\245\345\205\267\347\256\261.bat"
+rename to "packaging/\351\207\215\345\220\257\350\247\206\351\242\221\345\267\245\345\205\267\347\256\261.bat"
+diff --git a/extract.py b/scripts/calib_review/extract.py
+similarity index 100%
+rename from extract.py
+rename to scripts/calib_review/extract.py
+diff --git a/pipeline.py b/scripts/calib_review/pipeline.py
+similarity index 100%
+rename from pipeline.py
+rename to scripts/calib_review/pipeline.py
+diff --git a/split.py b/scripts/calib_review/split.py
+similarity index 100%
+rename from split.py
+rename to scripts/calib_review/split.py
+diff --git a/verify_after.py b/scripts/calib_review/verify_after.py
+similarity index 100%
+rename from verify_after.py
+rename to scripts/calib_review/verify_after.py
+diff --git a/src/_demo_speaker.py b/scripts/dev/_demo_speaker.py
+similarity index 100%
+rename from src/_demo_speaker.py
+rename to scripts/dev/_demo_speaker.py
+diff --git a/src/_prof_gui.py b/scripts/dev/_prof_gui.py
+similarity index 100%
+rename from src/_prof_gui.py
+rename to scripts/dev/_prof_gui.py
+diff --git a/src/_selftest_asr_proto.py b/scripts/dev/_selftest_asr_proto.py
+similarity index 100%
+rename from src/_selftest_asr_proto.py
+rename to scripts/dev/_selftest_asr_proto.py
+diff --git a/src/_selftest_calib_ai.py b/scripts/dev/_selftest_calib_ai.py
+similarity index 100%
+rename from src/_selftest_calib_ai.py
+rename to scripts/dev/_selftest_calib_ai.py
+diff --git a/src/_selftest_e2e.py b/scripts/dev/_selftest_e2e.py
+similarity index 100%
+rename from src/_selftest_e2e.py
+rename to scripts/dev/_selftest_e2e.py
+diff --git a/src/_selftest_gui.py b/scripts/dev/_selftest_gui.py
+similarity index 100%
+rename from src/_selftest_gui.py
+rename to scripts/dev/_selftest_gui.py
+diff --git a/src/_selftest_pack.py b/scripts/dev/_selftest_pack.py
+similarity index 100%
+rename from src/_selftest_pack.py
+rename to scripts/dev/_selftest_pack.py
+diff --git a/src/_selftest_pipeline.py b/scripts/dev/_selftest_pipeline.py
+similarity index 100%
+rename from src/_selftest_pipeline.py
+rename to scripts/dev/_selftest_pipeline.py
+diff --git a/src/_selftest_speaker.py b/scripts/dev/_selftest_speaker.py
+similarity index 100%
+rename from src/_selftest_speaker.py
+rename to scripts/dev/_selftest_speaker.py
+diff --git a/src/_selftest_translate.py b/scripts/dev/_selftest_translate.py
+similarity index 100%
+rename from src/_selftest_translate.py
+rename to scripts/dev/_selftest_translate.py
+diff --git a/src/_selftest_vc.py b/scripts/dev/_selftest_vc.py
+similarity index 100%
+rename from src/_selftest_vc.py
+rename to scripts/dev/_selftest_vc.py
+diff --git a/src/_smoke_all.py b/scripts/dev/_smoke_all.py
+similarity index 100%
+rename from src/_smoke_all.py
+rename to scripts/dev/_smoke_all.py
+diff --git a/src/apply_vc_official.py b/scripts/dev/apply_vc_official.py
+similarity index 100%
+rename from src/apply_vc_official.py
+rename to scripts/dev/apply_vc_official.py
+diff --git a/src/apply_version.py b/scripts/dev/apply_version.py
+similarity index 100%
+rename from src/apply_version.py
+rename to scripts/dev/apply_version.py
+diff --git a/src/check_deps.py b/scripts/dev/check_deps.py
+similarity index 100%
+rename from src/check_deps.py
+rename to scripts/dev/check_deps.py
+diff --git a/src/check_names.py b/scripts/dev/check_names.py
+similarity index 100%
+rename from src/check_names.py
+rename to scripts/dev/check_names.py
+diff --git a/src/fix_rolling_srt.py b/scripts/dev/fix_rolling_srt.py
+similarity index 100%
+rename from src/fix_rolling_srt.py
+rename to scripts/dev/fix_rolling_srt.py
+diff --git a/src/push_via_git_api.py b/scripts/dev/push_via_git_api.py
+similarity index 100%
+rename from src/push_via_git_api.py
+rename to scripts/dev/push_via_git_api.py
+diff --git a/src/stamp_versions.py b/scripts/dev/stamp_versions.py
+similarity index 100%
+rename from src/stamp_versions.py
+rename to scripts/dev/stamp_versions.py
+diff --git a/bili_scan.py b/standalone/bili_scan.py
+similarity index 100%
+rename from bili_scan.py
+rename to standalone/bili_scan.py
+diff --git a/bili_version_scan/analyze.py b/standalone/bili_version_scan/analyze.py
+similarity index 100%
+rename from bili_version_scan/analyze.py
+rename to standalone/bili_version_scan/analyze.py
+diff --git a/bili_version_scan/scan.py b/standalone/bili_version_scan/scan.py
+similarity index 100%
+rename from bili_version_scan/scan.py
+rename to standalone/bili_version_scan/scan.py
+diff --git a/bili_version_scan/xlsx_min.py b/standalone/bili_version_scan/xlsx_min.py
+similarity index 100%
+rename from bili_version_scan/xlsx_min.py
+rename to standalone/bili_version_scan/xlsx_min.py
+diff --git a/kb_admin.py b/standalone/kb_admin.py
+similarity index 100%
+rename from kb_admin.py
+rename to standalone/kb_admin.py

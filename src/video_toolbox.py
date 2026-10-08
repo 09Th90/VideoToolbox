@@ -1338,6 +1338,8 @@ def vc_transcribe_ui_patch():
         ti.TranscriptionInterface._on_file_select)
 
     # ④ 转录设置卡片空位提示（默认/ASR 都不再展示引擎内置 ASR 配置块）
+    #    + ⑥ 主播声纹录入卡（v1.17.0）：本页 `empty_widget` 是默认显示的空白
+    #    区，正好用来放声纹录入——不新增页面，用户也不用另找入口。
     orig_card_init = tsc.TranscriptionSettingCard.__init__
 
     def _card_init(self, parent=None):
@@ -1350,12 +1352,40 @@ def vc_transcribe_ui_patch():
                 "（自有服务 / 本地模型），统一在全局设置中维护",
                 self.empty_widget)
             tip.setStyleSheet("color: #8a8a8a;")
+            tip.setWordWrap(True)   # 窄窗口下不换行会被裁掉右半句
             lay.addWidget(tip)
+            try:
+                from speaker_voiceprint_page import VoiceprintEnrollCard
+                self.vt_voiceprint_card = VoiceprintEnrollCard(self.empty_widget)
+                lay.addWidget(self.vt_voiceprint_card)
+            except Exception as e:  # noqa: BLE001
+                _vc_log(f"声纹录入卡挂载失败：{e}")
             lay.addStretch(1)
         except Exception:  # noqa: BLE001
             pass
 
     tsc.TranscriptionSettingCard.__init__ = _card_init
+
+    # ⑦ 转录设置弹窗加「主播声纹（可多选）」（v1.17.0）
+    #    勾选即写入 data/voiceprint/selection.json；多选 = 并集语义。
+    try:
+        from videocaptioner.ui.components.TranscriptionSettingDialog import (
+            TranscriptionSettingDialog as _VTSettingDialog)
+        from speaker_voiceprint_page import VoiceprintPicker
+
+        _orig_dlg_init = _VTSettingDialog.__init__
+
+        def _dlg_init(self, parent=None):
+            _orig_dlg_init(self, parent)
+            try:
+                self.vt_voiceprint_picker = VoiceprintPicker(self)
+                self.viewLayout.addWidget(self.vt_voiceprint_picker)
+            except Exception as e:  # noqa: BLE001
+                _vc_log(f"声纹多选器挂载失败：{e}")
+
+        _VTSettingDialog.__init__ = _dlg_init
+    except Exception as e:  # noqa: BLE001
+        _vc_log(f"转录设置弹窗声纹补丁未挂：{e}")
 
     # ⑤ ASR 服务模式多协议适配（auto / openai / azure / dashscope）
     try:
@@ -6861,6 +6891,126 @@ def npe_proxy_url():
     return args[1] if args else ""
 
 
+# ========== 代理节点锁定（2026-10-08：治「EOF in violation of protocol」） ==========
+#: mihomo 的 external-controller（见 tools/mihomo/config.yaml）
+MIHOMO_API = os.environ.get("VT_MIHOMO_API", "http://127.0.0.1:9098")
+#: 出网策略组名
+PROXY_GROUP = os.environ.get("VT_PROXY_GROUP", "SELECT")
+#: 节点锁定开关：默认开。设 VT_PROXY_LOCK=0 可退回「由 mihomo 自动切换」的旧行为。
+PROXY_LOCK_ENABLED = os.environ.get("VT_PROXY_LOCK", "1").strip().lower() not in ("0", "off", "no", "false")
+
+_PROXY_LOCK_STATE = {"orig": None, "count": 0}
+_PROXY_LOCK_MUTEX = threading.Lock()
+
+
+def _mihomo_api(method, path, payload=None, timeout=10):
+    """调 mihomo 的 RESTful API；失败抛异常（调用方按需吞掉）。"""
+    from urllib.parse import quote
+    import urllib.request
+
+    data = json.dumps(payload).encode("utf-8") if payload is not None else None
+    # ⚠ safe 必须保留 URL 结构字符：整体 quote 会把 `?`/`&`/`=` 也编码掉，
+    #   导致 /proxies/<节点>/delay?url=... 这类带查询串的路径失效。
+    req = urllib.request.Request(
+        MIHOMO_API + "/proxies/" + quote(path, safe="/?=&:%~"), method=method,
+        data=data, headers={"Content-Type": "application/json"})
+    with urllib.request.urlopen(req, timeout=timeout) as r:
+        body = r.read().decode("utf-8", "replace")
+        # 切换节点(PUT)返回 204 空体，别 json.loads
+        return json.loads(body) if body.strip() else None
+
+
+def proxy_group_now(group=None):
+    """策略组当前选中的节点名；拿不到返回空串。"""
+    try:
+        return (_mihomo_api("GET", group or PROXY_GROUP, timeout=6) or {}).get("now", "") or ""
+    except Exception:  # noqa: BLE001
+        return ""
+
+
+def proxy_node_delays(names, url="https://www.youtube.com/", timeout=6000):
+    """实测各节点到 `url` 的延迟（毫秒）；不可达的节点不出现在结果里。"""
+    from urllib.parse import quote
+    out = {}
+    for name in names:
+        try:
+            d = _mihomo_api("GET", "%s/delay?url=%s&timeout=%d"
+                            % (name, quote(url, safe=""), timeout), timeout=12)
+            delay = d.get("delay") if isinstance(d, dict) else None
+            if delay and delay > 0:
+                out[name] = int(delay)
+        except Exception:  # noqa: BLE001
+            continue
+    return out
+
+
+def pick_best_proxy_node(group=None, url="https://www.youtube.com/"):
+    """挑出延迟最低的可用节点；测不到返回空串（表示维持现状）。"""
+    try:
+        info = _mihomo_api("GET", group or PROXY_GROUP, timeout=8) or {}
+    except Exception:  # noqa: BLE001
+        return ""
+    # ⚠ mihomo 的 `all` 是**节点名字符串数组**，不是对象数组
+    members = [m for m in (info.get("all") or []) if isinstance(m, str) and m]
+    # 排除策略组与内置项（AUTO 本身是 url-test 组，不能当出口节点测）
+    skip = {"AUTO", "DIRECT", "REJECT", "GLOBAL", "SELECT", "PROXY", group or PROXY_GROUP}
+    members = [m for m in members if m not in skip]
+    if not members:
+        return ""
+    delays = proxy_node_delays(members[:12], url=url)
+    if not delays:
+        return ""
+    return min(delays.items(), key=lambda kv: kv[1])[0]
+
+
+def proxy_lock_acquire():
+    """下载任务开始时调用：把策略组钉到当前最快的节点。
+
+    为什么要钉：YouTube 的 videoplayback 直链在签发时会**绑定当时的出口 IP**，
+    而 mihomo 的 AUTO/Fallback 组会在中途换节点（url-test 每 300s 重测、
+    fallback 遇故障即切）。一换 IP，已签发的所有分片 URL 全部失效 —— 表现为
+    「Got error: EOF occurred in violation of protocol (_ssl.c:1007). Retrying」，
+    且重试多少次都没用（重试用的还是那条绑定旧 IP 的 URL）。
+
+    多任务并行时用引用计数：只有第一个任务真正切换，最后一个任务结束时恢复。
+    """
+    if not PROXY_LOCK_ENABLED:
+        return ""
+    with _PROXY_LOCK_MUTEX:
+        _PROXY_LOCK_STATE["count"] += 1
+        if _PROXY_LOCK_STATE["count"] > 1:
+            return ""
+        orig = proxy_group_now()
+        _PROXY_LOCK_STATE["orig"] = orig
+        best = pick_best_proxy_node()
+        if not best or best == orig:
+            return ""
+        try:
+            _mihomo_api("PUT", PROXY_GROUP, {"name": best})
+            return best
+        except Exception:  # noqa: BLE001
+            return ""
+
+
+def proxy_lock_release():
+    """下载任务结束时调用：引用计数归零后把策略组恢复成原样。"""
+    if not PROXY_LOCK_ENABLED:
+        return
+    with _PROXY_LOCK_MUTEX:
+        if _PROXY_LOCK_STATE["count"] > 0:
+            _PROXY_LOCK_STATE["count"] -= 1
+        if _PROXY_LOCK_STATE["count"] > 0:
+            return
+        orig = _PROXY_LOCK_STATE["orig"]
+        _PROXY_LOCK_STATE["orig"] = None
+        if not orig:
+            return
+        try:
+            _mihomo_api("PUT", PROXY_GROUP, {"name": orig})
+        except Exception:  # noqa: BLE001
+            pass
+
+
 def npe_cookie_file(log=None):
     """给 NPE 用的 **cookie 文件**路径（Netscape 格式）。
 
@@ -7301,6 +7451,28 @@ def get_duration(filepath, ffprobe_path):
     return dur
 
 
+def probe_audio_codec(filepath, ffprobe_path):
+    """探测首个音频流的编码名（小写）；失败返回 ''。
+
+    手动合并用它决定音频走「直接 copy」还是「转 AAC」——不能像自动配对那样
+    靠扩展名猜（那里只有 m4a / weba 两种）。用户从资源管理器拖进来的是任意
+    音频：mp3 / wav / flac / ogg / opus / aac / m4a …，扩展名与容器里的实际
+    编码未必一致（例如 .m4a 里可能是 ALAC 无损）。实测编码才是可靠依据。
+    """
+    cmd = [
+        ffprobe_path, '-v', 'error',
+        '-select_streams', 'a:0',
+        '-show_entries', 'stream=codec_name',
+        '-of', 'default=noprint_wrappers=1:nokey=1',
+        filepath,
+    ]
+    try:
+        result = run_process(cmd, capture_output=True, check=True)
+        return decode_bytes_any(result.stdout).strip().lower()
+    except Exception:  # noqa: BLE001
+        return ''
+
+
 def scan_media(folder):
     """扫描 mp4, m4a, weba, srt, ass"""
     mp4s = sorted(glob.glob(os.path.join(folder, '*.mp4')) + glob.glob(os.path.join(folder, '*.MP4')),
@@ -7406,15 +7578,21 @@ def smart_pair(mp4s, m4as, webas, srts, asss, ffprobe_path):
     return pairs, remaining_mp4, remaining_m4a, remaining_weba
 
 
-def merge_pair(mp4_path, audio_path, audio_type, sub_path, sub_type, output_path, ffmpeg_path, ass_mode='burn'):
+def merge_pair(mp4_path, audio_path, audio_type, sub_path, sub_type, output_path, ffmpeg_path, ass_mode='burn',
+               reencode_video=False):
     """
     合并一对音视频+字幕
     audio_type: 'm4a' 或 'weba'
     ass_mode: 'burn'=硬字幕, 'mkv'=封装MKV, 'ignore'=忽略
+    reencode_video: 视频流是否强制重编码 H.264（默认 copy）。
+        手动合并拖进来的视频可能是 vp9 / av1 等 mp4 装不下的编码，copy 封装
+        会失败；调用方在失败后置 True 重试一次即可，不必让用户自己判断。
     """
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
 
     audio_codec = ['-c:a', 'copy'] if audio_type == 'm4a' else ['-c:a', 'aac', '-b:a', '192k']
+    video_codec = (['-c:v', 'libx264', '-crf', '18', '-preset', 'fast']
+                   if reencode_video else ['-c:v', 'copy'])
 
     # 无字幕
     if not sub_path:
@@ -7423,7 +7601,7 @@ def merge_pair(mp4_path, audio_path, audio_type, sub_path, sub_type, output_path
             '-fflags', '+genpts',
             '-i', mp4_path,
             '-i', audio_path,
-            '-c:v', 'copy',
+            *video_codec,
             *audio_codec,
             '-map', '0:v:0',
             '-map', '1:a:0',
@@ -7440,7 +7618,7 @@ def merge_pair(mp4_path, audio_path, audio_type, sub_path, sub_type, output_path
             '-i', mp4_path,
             '-i', audio_path,
             '-i', sub_path,
-            '-c:v', 'copy',
+            *video_codec,
             *audio_codec,
             '-c:s', 'mov_text',
             '-map', '0:v:0',
@@ -7478,7 +7656,7 @@ def merge_pair(mp4_path, audio_path, audio_type, sub_path, sub_type, output_path
             '-i', mp4_path,
             '-i', audio_path,
             '-i', sub_path,
-            '-c:v', 'copy',
+            *video_codec,
             *audio_codec,
             '-map', '0:v:0',
             '-map', '1:a:0',

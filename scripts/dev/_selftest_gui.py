@@ -883,6 +883,10 @@ def main():
           and win.download_page.qlist.count() == 0
           and bool(win.download_page.log.text))
     check("音画合并页含配对表", win.merge_page.table.columnCount() == 5)
+    check("音画合并页二级分段「自动配对 / 手动合并」+ 三个拖放槽",
+          list(win.merge_page.mode_seg.items) == ["auto", "manual"]
+          and all(hasattr(win.merge_page, a)
+                  for a in ("mv_video", "mv_audio", "mv_sub", "mv_button")))
     check("视频库默认目录已填回", bool(win.library_page.dir_edit.text()),
           win.library_page.dir_edit.text())
     # ---- v1.13.0：把文件拖进窗口的类型分派 ----

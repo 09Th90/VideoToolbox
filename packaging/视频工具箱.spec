@@ -123,6 +123,25 @@ hiddenimports += ['mpv']
 #   java 由用户自备 JDK 17+（见 npe_backend.find_java 与 docs\组件来源声明）。
 hiddenimports += ['npe_backend']
 
+# v1.17.0：主播声纹（本地声纹筛选，只出主播字幕）。**必须显式声明**——
+#   video_toolbox.vc_transcribe_ui_patch() 的两个补丁体里都是
+#   `from speaker_voiceprint_page import ...`（延迟导入，缺依赖时只记日志、
+#   不影响引擎界面起来），PyInstaller 静态分析跟踪不到 ⇒ 不声明的话打包后
+#   界面上既没有「主播声纹」录入卡、也没有转录设置里的多声纹勾选，
+#   而且**不报错**（补丁里 try/except 吞掉），最难查。
+#   speaker_voiceprint 被 speaker_voiceprint_page 静态 import，声明后者即可，
+#   这里一并列出双保险。
+hiddenimports += ['speaker_voiceprint_page', 'speaker_voiceprint']
+
+# ⚠⚠ 待定（v1.17.0，需人工拍板）：onnxruntime **尚未进包**。
+#   faster_whisper/vad.py 是在**函数体内** `import onnxruntime`（延迟导入），
+#   PyInstaller 静态分析发现不了 ⇒ 当前 exe 里既没有声纹功能所需的运行时，
+#   faster_whisper 的 VAD 过滤其实也是缺的（只是默认不开，一直没人发现）。
+#   要启用声纹筛选，须打开下面这行（实测约 +40MB，主要是 18MB 的
+#   onnxruntime.dll）；代价换来的还有 faster_whisper VAD 一并可用。
+#   ⚠ 声纹**模型**（27MB）不进包，仍由 download_open_source_deps.py 按需下载。
+# hiddenimports += ['onnxruntime']
+
 # 字幕引擎的运行时依赖：多为延迟导入，静态分析发现不了，必须显式声明
 # v1.15.2：'websocket' = websocket-client，实时 ASR 协议（dashscope_realtime）
 #   必需；打包环境当初漏装该包，导致 exe 跑实时协议必报缺依赖。

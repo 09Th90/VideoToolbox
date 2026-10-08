@@ -1,0 +1,67 @@
+ M .gitignore
+ M "docs/\347\250\213\345\272\217\350\257\264\346\230\216\344\271\246(\345\274\200\345\217\221\347\211\210).md"
+R  build/Languages/ChineseSimplified.isl -> packaging/Languages/ChineseSimplified.isl
+RM deploy_installer_ghpages.py -> packaging/deploy_installer_ghpages.py
+RM installer_src/build_online_installer.py -> packaging/installer_src/build_online_installer.py
+R  installer_src/config/config.xml -> packaging/installer_src/config/config.xml
+RM installer_src/install_local_repo.py -> packaging/installer_src/install_local_repo.py
+R  installer_src/packages/com.videotoolbox.base/meta/installscript.qs -> packaging/installer_src/packages/com.videotoolbox.base/meta/installscript.qs
+R  installer_src/packages/com.videotoolbox.base/meta/package.xml -> packaging/installer_src/packages/com.videotoolbox.base/meta/package.xml
+RM installer_src/repo_server.py -> packaging/installer_src/repo_server.py
+RM build/kb_admin.spec -> packaging/kb_admin.spec
+RM "\350\247\206\351\242\221\345\267\245\345\205\267\347\256\261.iss" -> "packaging/\350\247\206\351\242\221\345\267\245\345\205\267\347\256\261.iss"
+RM "\350\247\206\351\242\221\345\267\245\345\205\267\347\256\261.spec" -> "packaging/\350\247\206\351\242\221\345\267\245\345\205\267\347\256\261.spec"
+RM "\351\207\215\345\220\257\350\247\206\351\242\221\345\267\245\345\205\267\347\256\261.bat" -> "packaging/\351\207\215\345\220\257\350\247\206\351\242\221\345\267\245\345\205\267\347\256\261.bat"
+R  extract.py -> scripts/calib_review/extract.py
+R  pipeline.py -> scripts/calib_review/pipeline.py
+R  split.py -> scripts/calib_review/split.py
+RM verify_after.py -> scripts/calib_review/verify_after.py
+RM src/_demo_speaker.py -> scripts/dev/_demo_speaker.py
+RM src/_prof_gui.py -> scripts/dev/_prof_gui.py
+RM src/_selftest_asr_proto.py -> scripts/dev/_selftest_asr_proto.py
+RM src/_selftest_calib_ai.py -> scripts/dev/_selftest_calib_ai.py
+RM src/_selftest_e2e.py -> scripts/dev/_selftest_e2e.py
+RM src/_selftest_gui.py -> scripts/dev/_selftest_gui.py
+RM src/_selftest_pack.py -> scripts/dev/_selftest_pack.py
+RM src/_selftest_pipeline.py -> scripts/dev/_selftest_pipeline.py
+RM src/_selftest_speaker.py -> scripts/dev/_selftest_speaker.py
+RM src/_selftest_translate.py -> scripts/dev/_selftest_translate.py
+RM src/_selftest_vc.py -> scripts/dev/_selftest_vc.py
+RM src/_smoke_all.py -> scripts/dev/_smoke_all.py
+RM src/apply_vc_official.py -> scripts/dev/apply_vc_official.py
+RM src/apply_version.py -> scripts/dev/apply_version.py
+RM src/check_deps.py -> scripts/dev/check_deps.py
+RM src/check_names.py -> scripts/dev/check_names.py
+RM src/fix_rolling_srt.py -> scripts/dev/fix_rolling_srt.py
+RM src/push_via_git_api.py -> scripts/dev/push_via_git_api.py
+RM src/stamp_versions.py -> scripts/dev/stamp_versions.py
+ M src/auto_vision_core.py
+ M src/auto_vision_page.py
+ M src/bili_upload.py
+ M src/calib_ai_agent.py
+ M src/media_registry.py
+ M src/pipeline.py
+ M src/ui_theme.py
+ M src/video_toolbox.py
+ M src/video_toolbox_qt.py
+R  bili_scan.py -> standalone/bili_scan.py
+R  bili_version_scan/analyze.py -> standalone/bili_version_scan/analyze.py
+R  bili_version_scan/scan.py -> standalone/bili_version_scan/scan.py
+R  bili_version_scan/xlsx_min.py -> standalone/bili_version_scan/xlsx_min.py
+RM kb_admin.py -> standalone/kb_admin.py
+ M subtitle_calib_merged.py
+ M subtitle_learned_kb.json
+ M "\346\226\207\344\273\266\347\211\210\346\234\254\346\270\205\345\215\225.md"
+?? .zcodeignore
+?? history/source-backups/backup_v_pre_korecheck2/
+?? history/source-backups/pre_v1.17.0_20261008_095355/
+?? "outbox/\343\200\220\345\255\227\345\271\225\343\200\221\343\200\212\353\252\205\354\241\260\343\200\213 \354\230\244\354\227\264\354\243\274\354\235\230\357\274\232 3.7 \353\252\275\354\243\274 4\354\236\245 4\353\247\211 \343\200\214\353\252\275\354\243\274\354\235\230 \352\266\244\354\240\201, \353\247\210\354\235\214\354\235\264 \352\267\270\353\246\254\353\212\224 \353\214\200\353\241\234\343\200\215\360\237\215\2232026.10.05 \354\233\224.ko-\350\260\267\346\255\214\347\277\273\350\257\221.\346\240\241\345\207\206\346\212\245\345\221\212.md"
+?? "outbox/\343\200\220\345\255\227\345\271\225\343\200\221\343\200\212\353\252\205\354\241\260\343\200\213 \354\230\244\354\227\264\354\243\274\354\235\230\357\274\232 3.7 \353\252\275\354\243\274 4\354\236\245 4\353\247\211 \343\200\214\353\252\275\354\243\274\354\235\230 \352\266\244\354\240\201, \353\247\210\354\235\214\354\235\264 \352\267\270\353\246\254\353\212\224 \353\214\200\353\241\234\343\200\215\360\237\215\2232026.10.05 \354\233\224.ko-\350\260\267\346\255\214\347\277\273\350\257\221.\351\200\220cue\346\224\271\345\212\250\346\230\216\347\273\206.md"
+?? "outbox/\346\226\271\350\210\237PV_\346\240\241\345\207\206\346\210\220\345\223\201.srt"
+?? "outbox/\346\270\205\347\220\206\346\270\205\345\215\225_2026-10-08.md"
+?? "outbox/\351\270\243\346\275\256\346\242\246\345\267\236_\346\240\241\345\207\206\346\210\220\345\223\201_20261006.srt"
+?? scripts/dev/_selftest_npe.py
+?? scripts/dev/asr_probe.py
+?? src/npe_backend.py
+?? tools/newpipe-cli/
+?? "\346\226\207\344\273\266\345\212\237\350\203\275\345\210\206\347\261\273\346\226\271\346\241\210.md"

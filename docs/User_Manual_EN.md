@@ -152,9 +152,21 @@ You can keep pasting the next link while downloads are running — tasks don't i
 
 Some sites deliver video and audio as separate files (e.g. an `.mp4` video plus an `.m4a` audio), which must be merged before they play properly.
 
-1. Switch to the **A/V Merge** (音画合并) tab and select the input folder;
+This tab is split into two sub-tabs: **Auto Pairing** (自动配对) and **Manual Merge** (手动合并).
+
+**Auto Pairing** — for batch-processing downloaded files:
+
+1. Select the input folder;
 2. Click **"Scan & Pair"** (扫描配对) — the app pairs video and audio files automatically by file name and duration;
 3. Click **"Start Merging"** (开始合成); results are output to the "Merge Results" (合成结果) folder.
+
+**Manual Merge** — for loose files of your own, no matching names required:
+
+1. Drag your **video** and **audio** files in from Explorer (drop them on any slot or anywhere on the page — they are routed by file type automatically), or click a slot to browse; subtitles are optional and support `.srt` / `.ass`;
+2. Optionally change the **output folder**; leave it empty to write next to the video;
+3. Click **"Start Merging"** (开始合并); the result is named `original-name_merged.mp4`, and existing files are never overwritten (a numeric suffix is added instead).
+
+Manual merge is more forgiving than auto pairing: the audio codec is probed first — AAC is muxed as-is, anything else (mp3/wav/flac/…) is transcoded to AAC; the video is muxed directly first, and if it cannot live in an mp4 (vp9/av1 and friends) the app automatically retries with H.264 re-encoding.
 
 How files are handled: `.m4a` audio is muxed directly without re-encoding (zero quality loss); `.weba` is automatically converted to AAC; `.srt` subtitles are attached as soft subtitles (toggleable in players); `.ass` styled subtitles can be burned into the picture, muxed into an MKV, or ignored — your choice.
 

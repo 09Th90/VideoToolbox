@@ -12,6 +12,9 @@
   - Chromium 内核       通过 tools/python 的 Playwright CLI 下载（版本自动匹配）
   - VideoCaptioner      字幕处理引擎：从随包 wheel 解包到 tools/python 的
                         site-packages（v1.10.0 起，纯 Python 包，无需 pip）
+  - 主播声纹模型        3D-Speaker CAM++ ONNX（约 27MB）→ tools/asr_model/，
+                        供「只出主播字幕」的本地声纹筛选使用（按需下载，
+                        不进安装包；仅需已内置的 onnxruntime + numpy）
   - Python 环境         python.org 官方 embeddable（占位下载，见 --python）
 
 用法：
@@ -60,6 +63,18 @@ MPV_ZIP = ("https://github.com/09Th90/VideoToolbox/releases/download/"
            "deps-mpv-lgpl-20260914/libmpv-2.zip")
 MPV_DLL_SHA256 = "6f059354c5c45b41192cc52d867d94c0044edb48207c4efd2ea1244208c55359"
 MPV_RELEASE_PAGE = "https://github.com/09Th90/VideoToolbox/releases/tag/deps-mpv-lgpl-20260914"
+
+# 主播声纹模型（3D-Speaker CAM++，中文 16k，输出 192 维，约 27MB）。
+# 用途：本地判定「谁是主播」，把非主播（他人 / BGM / 歌声）从字幕里筛掉——
+#       服务端 ASR 只回 [说话人N] 标签，不给声纹，只能本地算。
+# 依赖：onnxruntime + numpy（随包已内置），特征提取是纯 numpy 的 kaldi 兼容
+#       fbank（见 src/speaker_voiceprint.py），**不需要 torch / librosa**。
+# 上游：sherpa-onnx 官方 release（tag 名 "recongition" 是上游拼写，勿改）。
+SPEAKER_MODEL_NAME = "3dspeaker_speech_campplus_sv_zh-cn_16k-common.onnx"
+SPEAKER_MODEL_URL = ("https://github.com/k2-fsa/sherpa-onnx/releases/download/"
+                     "speaker-recongition-models/" + SPEAKER_MODEL_NAME)
+SPEAKER_MODEL_SHA256 = ("f682b514c05d947ee3fa91cd6ec6c5c7543479a128373fa29b1f"
+                        "aedccd21fd11")
 
 
 def _port_listening(port: int, timeout: float = 0.5) -> bool:
@@ -282,6 +297,35 @@ def install_videocaptioner() -> None:
     print(f"  已写入 {n} 个文件" + (f"；仍缺少依赖 {missing}" if missing else ""))
 
 
+def install_speaker_model() -> None:
+    """下载主播声纹模型（3D-Speaker CAM++，约 27MB）到 tools/asr_model/。
+
+    产物：tools/asr_model/3dspeaker_speech_campplus_sv_zh-cn_16k-common.onnx
+
+    ⚠️ 这是「按需组件」：不做声纹筛选的用户用不到，所以**不进安装包**，
+    由本脚本在需要时下载（与 libmpv / Chromium 同一策略）。运行时若模型
+    缺失，`speaker_voiceprint.VoiceprintError` 会直接给出本脚本的调用命令。
+    """
+    print("[*] 主播声纹模型（3D-Speaker CAM++，约 27MB）")
+    dst = TOOLS / "asr_model" / SPEAKER_MODEL_NAME
+    if dst.exists() and dst.stat().st_size > 0:
+        if _sha256(dst) == SPEAKER_MODEL_SHA256:
+            print(f"  已存在且校验一致，跳过 ({dst.stat().st_size / 1048576:.0f}MB)")
+            return
+        print("  已存在但校验不一致，重新下载")
+    try:
+        _download(SPEAKER_MODEL_URL, dst)
+    except Exception as e:  # noqa: BLE001
+        print(f"  下载失败：{e}")
+        print(f"  可手动下载后放到 tools/asr_model/ 再重跑：{SPEAKER_MODEL_URL}")
+        raise
+    got = _sha256(dst)
+    if got == SPEAKER_MODEL_SHA256:
+        print("  sha256 校验一致 ✓")
+    else:
+        print(f"  !! 校验不一致\n     实际 {got}\n     期望 {SPEAKER_MODEL_SHA256}")
+
+
 def install_python(ver: str) -> None:
     """下载 python.org 官方 embeddable 包（占位实现，最终建议使用完整安装器+requirements）。"""
     print("[*] Python embeddable（占位）")
@@ -294,7 +338,8 @@ def install_python(ver: str) -> None:
 def main():
     ap = argparse.ArgumentParser(description="下载开源依赖到 tools/ 目录")
     ap.add_argument("--only", help="仅下载指定项，逗号分隔："
-                                   "yt-dlp,deno,ffmpeg,mpv,chromium,videocaptioner")
+                                   "yt-dlp,deno,ffmpeg,mpv,chromium,videocaptioner,"
+                                   "speaker-model")
     ap.add_argument("--skip", help="跳过指定项，逗号分隔")
     ap.add_argument("--python", metavar="VER", help="额外下载 Python embeddable，如 3.12.9")
     args = ap.parse_args()
@@ -310,7 +355,8 @@ def main():
              ("ffmpeg", install_ffmpeg),
              ("mpv", install_mpv),
              ("chromium", install_chromium),
-             ("videocaptioner", install_videocaptioner)]
+             ("videocaptioner", install_videocaptioner),
+             ("speaker-model", install_speaker_model)]
     for name, fn in steps:
         if want(name):
             try:
