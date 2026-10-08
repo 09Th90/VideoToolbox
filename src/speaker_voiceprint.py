@@ -55,7 +55,7 @@ MODEL_DIR = os.path.join(TOOLS_DIR, "asr_model")
 MODEL_NAME = "3dspeaker_speech_campplus_sv_zh-cn_16k-common.onnx"
 MODEL_URL = ("https://github.com/k2-fsa/sherpa-onnx/releases/download/"
              "speaker-recongition-models/" + MODEL_NAME)
-#: 模型 sha256 由 download_open_source_deps.py 校验（下载后自动写入 .sha256）
+#: 模型 sha256 由 download_open_source_deps.py 在下载后就地校验（不落 .sha256）
 MODEL_PATH = os.path.join(MODEL_DIR, MODEL_NAME)
 
 #: 声纹模板落盘目录（用户数据，不进安装包）
@@ -381,7 +381,14 @@ def cosine(a, b):
 
 
 def template_path(name):
+    """模板文件名。**刻意与 `selection.json` 保持互斥**：后者是「启用名单」，
+    与模板同目录；若允许把声纹命名为 selection，落盘时会把名单文件覆盖掉，
+    而 `list_templates()` 又会把它当名单排掉 —— 表现为「录完就消失」。
+    这里给撞名的声纹加后缀，既保住用户输入，也保住名单文件。
+    """
     safe = "".join(c for c in str(name) if c not in '\\/:*?"<>|').strip() or "主播"
+    if safe.lower() == "selection":
+        safe += "_声纹"
     return os.path.join(TEMPLATE_DIR, safe + ".json")
 
 
@@ -639,9 +646,11 @@ def filter_srt(src, srt_path, template, threshold=DEFAULT_THRESHOLD,
     tpls = _as_template_list(template)
     if not tpls:
         raise VoiceprintError("没有可用的声纹模板（先 enroll 录入）")
-    text = open(srt_path, encoding="utf-8-sig", errors="replace").read()
+    # ⚠ 走 `load_file` 而非「open 后 encode」：前者直接吃字节，能如实判定
+    #   BOM 与源换行（CRLF/LF）；后者先被 utf-8-sig 吃掉 BOM，写出来就没了。
+    #   项目一贯要求「BOM / 换行一字不动」，产物风格应当与源字幕一致。
     doc = secore.SubtitleDoc()
-    doc.load_bytes(text.encode("utf-8"))
+    doc.load_file(srt_path)
     cues = list(doc.cues)
     if not cues:
         raise VoiceprintError("字幕里没有解析到任何 cue：%s" % srt_path)
@@ -660,7 +669,8 @@ def filter_srt(src, srt_path, template, threshold=DEFAULT_THRESHOLD,
     n_drop = sum(1 for _, st, _ in verdict if st == "drop")
 
     if out_path:
-        d = secore.SubtitleDoc(cues=list(kept))
+        d = secore.SubtitleDoc(cues=list(kept), newline=doc.newline,
+                               has_bom=doc.has_bom)
         with open(out_path, "wb") as fh:
             fh.write(d.to_bytes())
 

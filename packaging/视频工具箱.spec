@@ -133,14 +133,28 @@ hiddenimports += ['npe_backend']
 #   这里一并列出双保险。
 hiddenimports += ['speaker_voiceprint_page', 'speaker_voiceprint']
 
-# ⚠⚠ 待定（v1.17.0，需人工拍板）：onnxruntime **尚未进包**。
+# v1.17.0（已拍板：**打进包**）：onnxruntime 是声纹筛选的运行时。
 #   faster_whisper/vad.py 是在**函数体内** `import onnxruntime`（延迟导入），
-#   PyInstaller 静态分析发现不了 ⇒ 当前 exe 里既没有声纹功能所需的运行时，
-#   faster_whisper 的 VAD 过滤其实也是缺的（只是默认不开，一直没人发现）。
-#   要启用声纹筛选，须打开下面这行（实测约 +40MB，主要是 18MB 的
-#   onnxruntime.dll）；代价换来的还有 faster_whisper VAD 一并可用。
+#   speaker_voiceprint 也是在 `_session()` 里延迟导入 ⇒ 两者 PyInstaller 静态
+#   分析都发现不了，必须显式声明；不声明的话 exe 里既没有声纹运行时，
+#   faster_whisper 的 VAD 过滤也是缺的（只是默认不开，一直没人发现）。
+#   代价约 +40MB（主要是 18MB 的 onnxruntime.dll）；换来的是：
+#     · 装的机器上「主播声纹筛选」开箱可用（模型另下）；
+#     · faster_whisper 的 VAD 过滤一并可用。
 #   ⚠ 声纹**模型**（27MB）不进包，仍由 download_open_source_deps.py 按需下载。
-# hiddenimports += ['onnxruntime']
+#   ⚠ 声纹功能还依赖启动期那段 MSVC 运行时预加载
+#     （video_toolbox_qt.py::_fix_msvc_runtime_shadow，必须在 PyQt5 导入之前）——
+#     少了它，onnxruntime 的 pyd 会被 Qt5\bin 里的旧运行时顶掉而加载失败。
+hiddenimports += ['onnxruntime']
+
+# ⚠⚠ 必须与上面配套：onnxruntime 原本在 **excludes** 里（当初按"重型运行时
+#   一律剔"的策略加的），而 excludes 优先于 hiddenimports —— 只加 hiddenimports
+#   不摘 excludes，包出来的 exe 里照样没有 onnxruntime。见下方 excludes 注释。
+#   原生 DLL（onnxruntime.dll 18MB + providers_shared）放在包的 capi\ 子目录，
+#   PyInstaller 无官方 hook，靠 bindepend 扫 .pyd 导入表一般能带上，这里显式
+#   收集双保险（漏一个就是"导入成功但推理时报 DLL 找不到"）。
+from PyInstaller.utils.hooks import collect_dynamic_libs
+binaries += collect_dynamic_libs('onnxruntime')
 
 # 字幕引擎的运行时依赖：多为延迟导入，静态分析发现不了，必须显式声明
 # v1.15.2：'websocket' = websocket-client，实时 ASR 协议（dashscope_realtime）
@@ -166,8 +180,12 @@ a = Analysis(
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
+    # ⚠ v1.17.0：'onnxruntime' **已从剔单里摘掉**（声纹筛选要它，见上方注释）。
+    #   excludes 优先级高于 hiddenimports，留着它等于白声明。
+    #   'faster_whisper' 仍剔除——它跑在 tools\python 的**内嵌解释器**里
+    #   （字幕引擎子进程），不占 exe 体积；同理 torch 系列一律不进。
     excludes=['torch', 'torchaudio', 'torchvision', 'gradio', 'gradio_client',
-              'transformers', 'faster_whisper', 'onnxruntime', 'playwright',
+              'transformers', 'faster_whisper', 'playwright',
               'pandas', 'matplotlib', 'scipy', 'pytest', 'cv2', 'webview',
               'pyautogui'],
     noarchive=False,

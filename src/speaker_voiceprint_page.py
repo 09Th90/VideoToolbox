@@ -164,8 +164,12 @@ class VoiceprintEnrollCard(QWidget):
 
     # ---------------- 列表 ----------------
     def refresh(self):
+        # ⚠ setParent(None) 只把控件摘成顶层窗口（仍隐藏驻留），必须再
+        #   deleteLater()——反复刷新会攒下一堆看不见的孤儿窗口占内存。
+        #   与主界面其余动态列表的处理保持一致（setParent(None) + deleteLater()）。
         for w in self._rows:
             w.setParent(None)
+            w.deleteLater()
         self._rows = []
         names = SV.list_templates()
         if not names:
@@ -299,6 +303,7 @@ class VoiceprintPicker(QWidget):
     def refresh(self):
         for w in self._boxes:
             w.setParent(None)
+            w.deleteLater()
         self._boxes = []
         names = SV.list_templates()
         sel = set(SV.load_selection())
@@ -319,19 +324,32 @@ class VoiceprintPicker(QWidget):
             except SV.VoiceprintError:
                 text = n
             cb = CheckBox(text, self.box_wrap)
-            cb.setChecked(n in sel)
+            # ⚠ 名字必须**原样挂**在控件上：显示文本是「名字（x.x 秒）」，
+            #   靠 split("（") 反解名字在名字里本就含括号时会截错
+            #   （例「主播（小明）」→ 取成「主播」→ save_selection 查无此人 →
+            #   勾选被静默丢弃）。
+            cb.vp_name = n
             cb.stateChanged.connect(self._on_toggle)
+            # 回填勾选状态会触发 stateChanged → 逐个写盘（中间态会把名单写成
+            # 只有前几项）。先屏蔽信号，填完再放开；最终名单由调用方落盘。
+            cb.blockSignals(True)
+            cb.setChecked(n in sel)
+            cb.blockSignals(False)
             self.box_lay.addWidget(cb)
             self._boxes.append(cb)
         self.status.setText("已启用 %d 个" % len(SV.load_selection()))
 
     # ---------------- 动作 ----------------
     def selected(self):
-        """当前勾选的声纹名列表（顺序 = 列表顺序）。"""
+        """当前勾选的声纹名列表（顺序 = 列表顺序）。
+
+        名字取 `cb.vp_name`（录入时挂上的原值），**不反解显示文本**——
+        显示文本带「（x.x 秒）」后缀，反解在名字含括号时会截错。
+        """
         out = []
         for cb in self._boxes:
             if isinstance(cb, CheckBox) and cb.isChecked():
-                out.append(cb.text().split("（")[0].strip())
+                out.append(getattr(cb, "vp_name", None) or cb.text())
         return out
 
     def _on_toggle(self, _state=0):
