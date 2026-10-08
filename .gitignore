@@ -76,6 +76,8 @@ build/*.png
 build/backup_*/
 build/legacy/
 build/ai_test/
+# 自研在线更新包的发布暂存（v<版本>-base.zip 约 100MB + manifest.json，走 GitHub Releases 分发）
+installer_online/
 # 校准功能本地自测样例（临时文件，不入库）
 build/test_calib*
 
