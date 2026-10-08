@@ -212,7 +212,28 @@ pyz = PYZ(a.pure)
 #   opengl32sw.dll(20MB)  软件 OpenGL 回退，有显卡驱动时不需要
 #   hf_xet(9MB)           HuggingFace Xet 下载加速，字幕引擎不走 HF 大模型下载
 #   PIL/_avif(7.5MB)      AVIF 解码，封面/字幕图片均为 jpg/png/webp
-_DROP_BINARIES = ('opengl32sw.dll', 'hf_xet', '_avif')
+#   Qt5Qml / Qt5Quick(8.2MB)  QML 运行时（v1.18.0 追加）——见下方长注释
+_DROP_BINARIES = ('opengl32sw.dll', 'hf_xet', '_avif',
+                  'qt5qml.dll', 'qt5quick.dll', 'qt5qmlmodels.dll')
+# ⚠⚠ v1.18.0 追加 QML 三件套的原因（**不是为了省体积，是被硬限逼的**）：
+#   在线安装器要把组件仓库发布到 gh-pages，而 **GitHub 单文件硬限 100 MiB**。
+#   本轮 exe 因引入 onnxruntime 涨到 106,281,428 字节 ⇒ `1.18.0content.7z`
+#   （该归档基本就是 exe 本身）变成 101.3 MiB，**超限 1.3 MiB，git push 必被拒**。
+#   而 exe 是 PyInstaller onefile（内部已 zlib 压缩）⇒ 7z 只能再压 0.06%，
+#   换压缩级别完全救不回来。故只能真减内容。
+#   可安全剔除的依据（已逐项核过，不是猜的）：
+#     · `src\` 与 `tools\python\Lib\site-packages\videocaptioner\` 全量 grep
+#       `QtQuick|QtQml|QQmlApplicationEngine|QQuickView|QtQmlModels` → **零命中**；
+#       整个 site-packages 里只有 PyInstaller 自己的工具链代码提到这些名字。
+#     · 本项目与字幕引擎都是 qfluentwidgets（纯 QtWidgets），**不用 QML**。
+#     · 依赖方向是 Qt5Quick → Qt5Widgets/Qt5Gui/Qt5Qml，保留的 DLL 不反向依赖它们，
+#       所以删掉不会连累保留下来的 Qt5Widgets/Qt5Gui/Qt5Core。
+#     · PyQt5 的 `QtQuick.pyd` / `QtQml.pyd` 本来就没被 PyInstaller 收进来
+#       （没人 import），这三份 DLL 是 hook 按 Qt 发行版整体带进来的死重。
+#   ⚠ 别顺手把 libGLESv2.dll / d3dcompiler_47.dll 也删了 —— 那是 ANGLE，
+#     Qt5 在 Windows 上可能真的在用（spec 已删 opengl32sw 软件回退），删了会黑屏。
+#   ⚠ 这层「100 MiB 墙」是结构性的：exe 再涨 3~4MB 就会再次越线。
+#     真要治本得把组件仓库改挂 GitHub Releases（单 asset 上限 2GB），见开发版说明书 6.x。
 a.binaries = [b for b in a.binaries
               if not any(d in os.path.basename(b[0]).lower() or d in b[0].lower()
                          for d in _DROP_BINARIES)]
