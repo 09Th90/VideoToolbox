@@ -160,6 +160,13 @@ Source: "..\src\calib_web_agent.py"; DestDir: "{app}\src"; Flags: ignoreversion
 ; 2026-10-08：文件功能分类后，apply_vc_official.py 已移至 scripts\dev\
 ; （它是打包前套用官方实现的开发脚本，非运行时依赖，见 src\video_toolbox_qt.py:37）
 Source: "..\scripts\dev\apply_vc_official.py"; DestDir: "{app}\src"; Flags: ignoreversion
+; v1.17.0：主播声纹（exe 侧已由 spec hiddenimports 内嵌，此处补源码副本，
+;          使安装版也能按开发版说明书里的 CLI 用法跑
+;          `python src\speaker_voiceprint.py enroll/score/filter`）。
+;          subtitle_editor_core 是它的 SRT 读写底座（纯标准库，无三方依赖）。
+Source: "..\src\speaker_voiceprint.py"; DestDir: "{app}\src"; Flags: ignoreversion
+Source: "..\src\speaker_voiceprint_page.py"; DestDir: "{app}\src"; Flags: ignoreversion
+Source: "..\src\subtitle_editor_core.py"; DestDir: "{app}\src"; Flags: ignoreversion
 Source: "..\src\视频工具箱.bat"; DestDir: "{app}\src"; Flags: ignoreversion
 ; 文档资料统一归入 docs\
 Source: "..\docs\使用说明.txt"; DestDir: "{app}\docs"; Flags: ignoreversion
@@ -195,7 +202,10 @@ Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChang
 ; data\、logs\ 等用户数据不受影响
 Type: filesandordirs; Name: "{app}\tools\uploader_src"
 Type: filesandordirs; Name: "{app}\tools\ms-playwright"
-Type: filesandordirs; Name: "{app}\tools\asr_model"
+; ⚠️ v1.17.0：**不要**再删 {app}\tools\asr_model —— 该目录已改为**主播声纹
+;    模型**（27MB，用户按需下载）的落点，属用户数据；升级时删掉等于让用户
+;    每次升级都重下一次。旧版遗留的废弃 ASR 模型由更早版本的本段已清过，
+;    现役机器上不会残留。
 Type: filesandordirs; Name: "{app}\tools\videocaptioner"
 Type: filesandordirs; Name: "{app}\tools\python\Lib\site-packages\videocaptioner"
 Type: files; Name: "{app}\src\asr_subtitle_worker.py"
