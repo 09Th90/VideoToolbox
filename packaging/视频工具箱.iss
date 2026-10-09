@@ -156,6 +156,30 @@ Source: "..\tools\newpipe-cli\dist\npe-cli.jar"; DestDir: "{app}\tools\newpipe-c
 ; 源代码 / 脚本启动器统一归入 src\（供脚本方式运行与查阅）
 Source: "..\src\video_toolbox.py"; DestDir: "{app}\src"; Flags: ignoreversion
 Source: "..\src\video_toolbox_qt.py"; DestDir: "{app}\src"; Flags: ignoreversion
+; ⚠⚠ v1.18.2 补漏：这两个是 video_toolbox_qt.py 的**运行时必需依赖**——
+;   第 136-137 行 `import media_registry as mreg` / `import pipeline as pl`
+;   是**模块级**导入（不是函数体内延迟导入），缺了必ImportError。
+;   此前 iss漏装，exe 侧靠 spec 的 PYZ 副本存活，于是「src\ 方式运行」一跑就崩，
+;   而 check_install_sync 从 iss 提取清单 ⇒ 这两个压根不在比对范围，
+;   28/28 全绿也照样漏（2026-10-09 实测：安装版 media_registry.py 比仓库
+;   少 2 行、无 MERGE_VIDEO_EXTS，多容器配对在脚本方式下静默失效）。
+;   ⇒ **凡是视频工具箱_qt.py 里模块级 import 的自研模块，都必须在此列出。**
+Source: "..\src\media_registry.py"; DestDir: "{app}\src"; Flags: ignoreversion
+Source: "..\src\pipeline.py"; DestDir: "{app}\src"; Flags: ignoreversion
+; ⚠ v1.18.2 同批补漏：这几个同样是 video_toolbox_qt.py 的**模块级**依赖
+;   （ast 扫 col_offset==0 的 import 得出，缺任一个都会 ImportError）。
+;   ui_theme —— qfluentwidgets 主题；subtitle_editor —— 字幕编辑页主模块；
+;   subtitle_editor_core / subtitle_editor_media / subtitle_compose /
+;   subtitle_overlay —— 字幕编辑的读写 / 媒体 / 合成 / 叠层底座；
+;   auto_vision_page —— 「自动化」页（B站投稿等）。
+;   exe 侧都由 spec hiddenimports / PyInstaller 静态分析覆盖，iss 补的是
+;   **脚本方式运行**（开发版说明书里的 `python src\video_toolbox_qt.py`）。
+Source: "..\src\ui_theme.py"; DestDir: "{app}\src"; Flags: ignoreversion
+Source: "..\src\subtitle_editor.py"; DestDir: "{app}\src"; Flags: ignoreversion
+Source: "..\src\subtitle_editor_media.py"; DestDir: "{app}\src"; Flags: ignoreversion
+Source: "..\src\subtitle_compose.py"; DestDir: "{app}\src"; Flags: ignoreversion
+Source: "..\src\subtitle_overlay.py"; DestDir: "{app}\src"; Flags: ignoreversion
+Source: "..\src\auto_vision_page.py"; DestDir: "{app}\src"; Flags: ignoreversion
 ; v1.11.0：新增源码——合并核心、AI 校准 Agent、官方实现一键套用脚本
 Source: "..\src\calib_merge_core.py"; DestDir: "{app}\src"; Flags: ignoreversion
 Source: "..\src\calib_ai_agent.py"; DestDir: "{app}\src"; Flags: ignoreversion

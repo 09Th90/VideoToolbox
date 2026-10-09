@@ -44,4 +44,43 @@ print("检查通过 =", ok)
 print("缺失/异常 =", len(missing))
 for spec, why in missing:
     print("   [%s] %s" % (why, spec))
+
+# ---------------------------------------------------------------------------
+# 反向检查：video_toolbox_qt.py 的**模块级** import 是否都在 iss 里列出？
+#
+# ⚠⚠ 为什么必须查（2026-10-09 实测踩坑）：上面的正向检查只保证
+#   「iss 里写的文件都存在」，但**保证不了该装的都装了**。
+#   当时 media_registry.py / pipeline.py 就是漏装的——它们是
+#   video_toolbox_qt.py 第 136-137 行的**模块级** import，缺了必 ImportError；
+#   而 exe 侧靠 spec 的 PYZ 副本照样能跑（只是多容器配对静默失效），
+#   更坑的是 check_install_sync 从 iss 提取清单 ⇒ 这两个压根不在
+#   比对范围，28/28 全绿也照样漏。**三个环节互相掩护，只能靠本检查兜底。**
+# ---------------------------------------------------------------------------
+import ast
+
+QT = os.path.join(base, "..", "src", "video_toolbox_qt.py")
+qt = os.path.normpath(QT)
+if os.path.isfile(qt):
+    tree = ast.parse(open(qt, encoding="utf-8").read())
+    mods = set()
+    for n in ast.walk(tree):
+        if isinstance(n, ast.Import):
+            for a in n.names:
+                mods.add(a.name.split(".")[0])
+        elif isinstance(n, ast.ImportFrom) and n.module and n.col_offset == 0:
+            mods.add(n.module.split(".")[0])
+    srcdir = os.path.normpath(os.path.join(base, "..", "src"))
+    local = sorted(m for m in mods
+                   if os.path.isfile(os.path.join(srcdir, m + ".py")))
+    # iss 里所有 ..\src\*.py 条目的文件名
+    iss_text = open(ISS, encoding="utf-8").read()
+    installed = set(re.findall(r"\.\.[\\/]src[\\/]([a-z_0-9]+\.py)", iss_text))
+    absent = [m + ".py" for m in local if m + ".py" not in installed]
+    print("模块级依赖覆盖 = %d/%d" % (len(local) - len(absent), len(local)))
+    for f in absent:
+        print("   [未随包分发] src\\%s"
+              "（video_toolbox_qt.py 模块级 import，缺了 src\\ 方式运行会 ImportError）" % f)
+    if absent:
+        missing += [(f, "模块级依赖未随包分发") for f in absent]
+
 sys.exit(1 if missing else 0)
