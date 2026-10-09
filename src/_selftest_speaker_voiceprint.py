@@ -328,19 +328,42 @@ def main():
         check("报告含各说话人得分", "说话人1" in open(rep, encoding="utf-8").read())
 
         strict_out = os.path.join(tmpdir, "strict.srt")
+        # ⚠ 注入分数必须落在**现行默认存疑区** [low, threshold) = [0.45, 0.55)
+        #   之内。原先取 0.42 是配旧的 (threshold=0.5, low=0.35)；阈值收紧后
+        #   0.42 掉到 low 之下、判 drop，本组就测不到 keep_review 这个分支了。
+        #   这里改用 0.50（区间正中），并把阈值显式写死，不依赖默认值。
         sc4 = {"说话人1": {"score": 1.0, "n": 2, "seconds": 2.0},
-               "说话人2": {"score": 0.42, "n": 1, "seconds": 1.0},
+               "说话人2": {"score": 0.50, "n": 1, "seconds": 1.0},
                "说话人3": {"score": 0.05, "n": 1, "seconds": 1.0}}
         old_sbs = SV.score_by_speaker
         SV.score_by_speaker = lambda *a, **k: sc4
         try:
             res2 = SV.filter_srt("fake.mp4", srt_path, {"embedding": tpl},
                                  out_path=strict_out, encoder=enc,
+                                 threshold=0.55, low=0.45,
                                  keep_review=False)
             check("keep_review=False 时存疑条也被丢弃",
                   res2["kept_total"] == 2 and res2["review"] == 1, res2)
         finally:
             SV.score_by_speaker = old_sbs
+
+        # 钉住出厂默认阈值本身：这次调参（0.5→0.55 / 0.35→0.45）是真实素材
+        # 踩坑后的决定（游戏官方旁白相似度 0.390 落在旧存疑区里被误保留）。
+        # 断言写死数值，防止以后有人"看着宽松点好"又调回去。
+        check("出厂默认阈值 = 0.55（异人上限 0.450 与同人下限 0.681 的中点）",
+              SV.DEFAULT_THRESHOLD == 0.55, SV.DEFAULT_THRESHOLD)
+        check("出厂默认存疑区下界 = 0.45（贴着异人实测上限，不再宽到 0.35）",
+              SV.DEFAULT_LOW == 0.45, SV.DEFAULT_LOW)
+        # 回归：0.390 的「游戏官方中文旁白」必须落在存疑区之下被丢弃。
+        # 期望 keep/drop/keep/drop：说话人1 占 cues[0] 与 cues[2] 两条（都保留），
+        # 0.390 的旁白与 0.05 的路人两条都是 drop。
+        sc_narr = {"说话人1": {"score": 1.0, "n": 2, "seconds": 2.0},
+                   "说话人2": {"score": 0.390, "n": 1, "seconds": 2.7},
+                   "说话人3": {"score": 0.05, "n": 1, "seconds": 1.0}}
+        vd_narr = SV.decide(cues, sc_narr)
+        check("回归：相似度 0.390 的官方旁白被判 drop（旧阈值会误判 review 保留）",
+              [st for _, st, _ in vd_narr] == ["keep", "drop", "keep", "drop"],
+              [st for _, st, _ in vd_narr])
     finally:
         SV.read_pcm = old_read_pcm
         shutil.rmtree(tmpdir, ignore_errors=True)
