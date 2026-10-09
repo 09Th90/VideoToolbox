@@ -64,6 +64,40 @@ def collect_pairs():
     return out
 
 
+def _exe_version(exe: str) -> str:
+    """从 exe 的 CArchive 里挖出 video_toolbox_qt 模块的 VERSION 常量。
+
+    ⚠⚠ v1.18.2 新增。起因：安装目录曾被**外部**（便携测试目录 / 手工拷贝）
+    整体覆盖成旧版 exe + 旧 src\，而 sha256 比对是「谁最后跑谁说了算」——
+    只有在旧版覆盖**之后**主动跑本脚本才会发现。而用户在 UI 上看到的现象是
+    「文案是旧的」（旧版才有「先执行 python ...」那句），此时该问的是
+    「这个 exe 到底是哪一版」，而不是「它和 dist 一样吗」。
+
+    做法：`video_toolbox_qt` 是 exe 的 **CArchive 顶层条目**（不在 PYZ 里，
+    记忆里的老铁律），CArchiveReader.extract() 取回的是 **marshalled 字节**，
+    要再 marshal.loads() 才是 code 对象；然后扫模块级 co_consts 里形如
+    `x.y.z` 的字符串常量。比 sha256 更快，且能直接报出版本号。
+
+    ⚠ 提取失败**不算失败**（返回 ""），交由 sha256 比对兜底——本函数是
+    增强项，不能因为它反而让正常安装报红。
+    """
+    try:
+        import marshal as _marshal
+        import os as _os
+        import re as _re
+
+        from PyInstaller.archive.readers import CArchiveReader
+        if not _os.path.isfile(exe):
+            return ""
+        co = _marshal.loads(CArchiveReader(exe).extract("video_toolbox_qt"))
+        for k in getattr(co, "co_consts", ()):
+            if isinstance(k, str) and _re.fullmatch(r"\d+\.\d+\.\d+", k):
+                return k
+        return ""
+    except Exception:            # noqa: BLE001
+        return ""
+
+
 def main() -> int:
     app = sys.argv[1] if len(sys.argv) > 1 else DEFAULT_APP
     if not os.path.isdir(app):
@@ -90,6 +124,31 @@ def main() -> int:
           " 不一致 =", diff, " 缺失 =", missing)
     for why, rel in bad[:25]:
         print("   [%s] %s" % (why, rel))
+
+    # ---- exe 版本指纹交叉核对（v1.18.2 新增）----
+    # sha256 只说「一样/不一样」，看不出「装的到底是哪一版」。
+    # 仓库声明的版本 = src\video_toolbox_qt.py 里的 VERSION =。
+    repo_ver = ""
+    try:
+        import ast
+        qt = os.path.join(ROOT, "src", "video_toolbox_qt.py")
+        for node in ast.walk(ast.parse(io.open(qt, encoding="utf-8").read())):
+            if (isinstance(node, ast.Assign)
+                    and any(getattr(t, "id", "") == "VERSION" for t in node.targets)
+                    and isinstance(node.value, ast.Constant)
+                    and isinstance(node.value.value, str)):
+                repo_ver = node.value.value
+                break
+    except Exception:            # noqa: BLE001
+        pass
+
+    inst_ver = _exe_version(os.path.join(app, "视频工具箱.exe"))
+    print("exe 版本：仓库 = %s  安装版 = %s" % (repo_ver or "?", inst_ver or "未识别"))
+    if repo_ver and inst_ver and repo_ver != inst_ver:
+        print("   [版本不符] 安装目录的 exe 是 %s，仓库是 %s —— "
+              "说明安装目录被旧版覆盖（外部拷贝/便携目录），重装即可"
+              % (inst_ver, repo_ver))
+        return 1
     return 0 if not bad else 1
 
 
