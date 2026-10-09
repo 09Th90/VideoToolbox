@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 1.18.0
+# @version 1.18.2
 """主播声纹：本地声纹录入 + 字幕筛选（无 Qt，可脱离界面单测）。
 
 把「只出主播的字幕」做成本地**后处理**：
@@ -60,7 +60,14 @@ def _resolve_dirs():
     算出来的 tools 就成了 `%TEMP%\\tools` —— 表现是「声纹模型缺失：C:\\Users\\
     …\\Temp\\tools\\asr_model\\…」，而且模板会落到 C 盘临时目录、退出即丢。
 
-    引擎导入失败时才回落自算（口径与引擎保持一致，勿改语义）。
+    引擎导入失败时才回落自算。
+
+    ⚠ 回落分支的口径**刻意比引擎简化**：只认 `VT_DATA_ROOT`，不读
+    `data_dir.txt` 指针。理由——引擎导入失败说明运行时环境已经不完整
+    （源码搬迁、site-packages 缺失、或 onefile 早期），此时再去猜
+    `{app}\data_dir.txt` 的位置并不可靠，猜错会静默写到错误的盘。
+    真到了那一步，声纹模型和模板目录保持一致比「尊重用户指针」更重要。
+    **引擎能导入时一律走引擎分支，指针逻辑自动生效。**
     """
     try:
         import video_toolbox as _e
@@ -83,8 +90,20 @@ def _resolve_dirs():
             if parent == d:
                 break
             d = parent
-    root = (os.environ.get("VT_DATA_ROOT") or "").strip().strip('"') or app
-    return tools, os.path.join(os.path.abspath(root), "data")
+    # 兜底也向上找 data 目录：源码从 src\ 直接跑时 data 在上一层
+    root = (os.environ.get("VT_DATA_ROOT") or "").strip().strip('"')
+    data_parent = os.path.abspath(root) if root else app
+    if not os.path.isdir(os.path.join(data_parent, "data")):
+        d = data_parent
+        for _ in range(5):
+            if os.path.isdir(os.path.join(d, "data")):
+                data_parent = d
+                break
+            parent = os.path.dirname(d)
+            if parent == d:
+                break
+            d = parent
+    return tools, os.path.join(data_parent, "data")
 
 
 TOOLS_DIR, DATA_DIR = _resolve_dirs()

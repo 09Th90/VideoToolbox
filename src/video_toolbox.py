@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# @version 1.18.0
+# @version 1.18.2
 """
 视频工具箱 v1.12.0（单文件整合版）
 ==================================================
@@ -7721,8 +7721,13 @@ MERGE_VIDEO_EXTS = (".mp4", ".mkv", ".webm", ".mov", ".m4v",
 def scan_media(folder, video_exts=None):
     """扫描视频、音频(m4a优先，其次weba)、字幕(srt/ass)。
 
-    video_exts：参与自动配对的视频扩展名，默认 MERGE_VIDEO_EXTS。传空集合则
-    只扫 mp4（保留给"只想要 mp4"的旧口径，如流水线按后缀筛任务的场景）。
+    video_exts：参与自动配对的视频扩展名，默认 `MERGE_VIDEO_EXTS`。
+      · 传 `None`（默认）⇒ 用 `MERGE_VIDEO_EXTS` 全量；
+      · 传 `(".mp4",)` ⇒ 只扫 mp4（旧的「只要 mp4」口径，自检
+        `multicontainer_cases()` 用它验证多容器确实是新增行为而非一直如此）；
+      · 传**空集合** ⇒ 一个视频都不扫，`videos` 恒为 `[]`。
+      ⚠️ 别把空集合当「退回 mp4」用——那会让 `find_pairs()` 配不出对，
+      表现为「目录里明明有视频却扫不到」。要限制口径就显式写 `(".mp4",)`。
 
     ⚠️ 历史坑：这里曾硬编码只 glob `*.mp4`，于是「同名 webm + m4a」这类目录
     配对结果恒为 0，webm 只能走「手动合并」逐个拖。现在多容器统一参与，

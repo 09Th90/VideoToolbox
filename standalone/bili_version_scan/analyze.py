@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 1.18.0
+# @version 1.18.2
 """B站「最近版本」视频：标题 / 标签 高频词与短语分析 -> Excel
 
 输入 raw.json（scan.py 产出），输出 xlsx。

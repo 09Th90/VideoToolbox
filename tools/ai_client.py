@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 1.18.0
+# @version 1.18.2
 """
 全局 AI 客户端（OpenAI 兼容 · 单通道）。
 

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# @version 1.18.0
+# @version 1.18.2
 """B 站自动投稿 —— 用内置 MAA 视觉引擎驱动（不碰目标进程内存、不注入脚本）。
 
 定位

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 1.18.0
+# @version 1.18.2
 """
 newpipe-cli 构建脚本（零构建工具依赖，只用 JDK 自带的 javac / jar）。
 
