@@ -305,8 +305,10 @@ def _stage_merge_ready(job, registry):
     """智能合并：配对逻辑一律走 registry.find_pairs() → engine.smart_pair()。"""
     if not job.video:
         return False
-    if os.path.splitext(job.video)[1].lower() != ".mp4":
-        return False          # smart_pair 只处理 mp4
+    # v1.18.0：不再只放行 .mp4。smart_pair/scan_media 已支持 mkv/webm/mov…
+    # （见 engine.MERGE_VIDEO_EXTS），这里跟着放行，否则流水线仍会漏掉 webm。
+    if os.path.splitext(job.video)[1].lower() not in engine.MERGE_VIDEO_EXTS:
+        return False          # 配对侧不认的容器（如裸 .264 / .h264 流）
     for p in registry.find_pairs():
         if _same_path(p[0], job.video):
             job.pair = p

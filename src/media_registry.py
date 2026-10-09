@@ -46,8 +46,10 @@ for _kind, _exts in (("video", VIDEO_EXTS), ("audio", AUDIO_EXTS),
     for _e in _exts:
         KIND_BY_EXT[_e] = _kind
 
-#: smart_pair 的口径（只吃这五种扩展名），索引里其余类型仅供打包阶段附带
-PAIR_EXTS = {".mp4", ".m4a", ".weba", ".srt", ".ass"}
+#: smart_pair 的口径，索引里其余类型仅供打包阶段附带。
+#: v1.18.0：视频侧改为跟随 engine.MERGE_VIDEO_EXTS（不再只 .mp4），否则
+#: 「同名 webm + m4a」目录在流水线里恒配不出对（find_pairs 只喂 mp4）。
+PAIR_EXTS = set(engine.MERGE_VIDEO_EXTS) | {".m4a", ".weba", ".srt", ".ass"}
 #: 扫描时不进入的目录（流水线自身的产物目录，避免"产物又触发一轮"）
 SKIP_DIRS = {"成品", "合成结果", "合成输出", "pipeline_work", ".git", "__pycache__"}
 #: 轮询兜底间隔（秒）
@@ -416,7 +418,7 @@ class MediaRegistry(_Emitter):
                 if e["ext"] in PAIR_EXTS))
             if not force and self._pairs_cache is not None and self._pairs_sig == sig:
                 return self._pairs_cache
-            mp4s = self.files(exts={".mp4"})
+            videos = self.files(exts=set(engine.MERGE_VIDEO_EXTS))
             m4as = self.files(exts={".m4a"})
             webas = self.files(exts={".weba"})
             srts = self.files(exts={".srt"})
@@ -426,7 +428,7 @@ class MediaRegistry(_Emitter):
                 _ff, ffprobe = engine.ensure_ffmpeg()
             except Exception:  # noqa: BLE001
                 ffprobe = engine.FFPROBE_PATH
-        pairs = engine.smart_pair(mp4s, m4as, webas, srts, asss, ffprobe)
+        pairs = engine.smart_pair(videos, m4as, webas, srts, asss, ffprobe)
         # smart_pair 返回 (pairs, remaining_mp4, remaining_m4a, remaining_weba)：
         # 对外只暴露 pairs；兼容被 mock 成"只返回列表"的情况
         if isinstance(pairs, tuple) and pairs and isinstance(pairs[0], list):

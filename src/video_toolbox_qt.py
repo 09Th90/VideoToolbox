@@ -1920,11 +1920,12 @@ class _MergeDropSlot(SimpleCardWidget):
 class MergePage(QWidget):
     """音画合并：页内二级分段「自动配对 / 手动合并」。
 
-    · 自动配对（原流程）：扫描目录 → 按文件名 + 时长自动配 mp4 + m4a/weba +
-      srt/ass → 批量合成；
+    · 自动配对（原流程）：扫描目录 → 按文件名 + 时长自动配 视频 + m4a/weba +
+      srt/ass → 批量合成。视频侧不止 mp4：mkv/webm/mov/m4v… 一律参与配对
+      （v1.18.0；此前只 glob `*.mp4`，同名 webm + m4a 恒配不出对）；
     · 手动合并（v1.18.0 新增）：用户把任意视频、音频（+ 可选字幕）拖进来或点选，
       直接合成一个文件。音频编码由 ffprobe 实测决定 copy / 转 AAC，视频 copy
-      失败（vp9/av1 装不进 mp4）自动改 H.264 重编码重试。
+      失败自动改 H.264 重编码重试（实测救的是 VP8；vp9/av1 本就能 copy）。
 
     两条路互不干扰：各自独立的进度条、日志、输出设置；页级拖放只在「手动合并」
     子页生效，其余情形仍按主窗口的全局分派走（视频/音频进字幕编辑）。
@@ -1968,7 +1969,8 @@ class MergePage(QWidget):
         self.vbox = self.shell.content_lay
         self.vbox.setSpacing(12)
         self.vbox.addWidget(tab_caption(
-            "自动配对 mp4 + m4a/weba + srt/ass；m4a 直封，weba 转 AAC", self))
+            "自动配对 视频（mp4/mkv/webm/mov…）+ m4a/weba + srt/ass；"
+            "m4a 直封，weba 转 AAC", self))
 
         self.in_edit = LineEdit(self)
         self.in_edit.setText(engine.DEFAULT_INPUT_DIR)
@@ -2266,7 +2268,7 @@ class MergePage(QWidget):
                 item.setToolTip(str(text))
                 self.table.setItem(r, c, item)
         n_mp4, n_m4a, n_weba, n_srt, n_ass = counts
-        self.log.line(f"[OK] 找到 {n_mp4} 个 mp4 / {n_m4a} 个 m4a / {n_weba} 个 weba / "
+        self.log.line(f"[OK] 找到 {n_mp4} 个视频 / {n_m4a} 个 m4a / {n_weba} 个 weba / "
                       f"{n_srt} 个 srt / {n_ass} 个 ass，配对 {len(self.pairs)} 对", "ok")
         rem_mp4, rem_m4a, rem_weba = remaining
         if rem_mp4:
@@ -2434,7 +2436,10 @@ class MergePage(QWidget):
                                               sub_type, out_path, ffmpeg_path,
                                               ass_mode)
             if not ok:
-                # copy 封装失败（典型：vp9 / av1 装不进 mp4）→ 视频重编码重试一次
+                # copy 封装失败 → 视频重编码 H.264 重试一次。
+                # 实测（v1.18.0 纠正旧注释）：vp9 / av1 其实能直接进 mp4，
+                # 真正失败的是 **vp8**；输入容器是 webm 也一样失败
+                # （webm 容器装不了 h264/aac）。重试机制仍要留着。
                 self.app.q.put(("mvm_log",
                                 "[信息] 首次封装失败，改用 H.264 重编码重试…", "dim"))
                 ok, final_out = engine.merge_pair(video, audio, audio_type, sub,

@@ -9,6 +9,9 @@
   · MergePage 二级分段「自动配对 / 手动合并」、三个拖放槽、页级拖放分派
   · 配对表鼠标选中语义 —— 单选/多选/全选/清空；选中后「开始合成」只合选中，
     未选中仍合全部；重新扫描后旧选中必须失效
+  · v1.18.0 自动配对多容器 —— scan_media 收 mp4/mkv/webm…（此前只 glob
+    `*.mp4`，同名 webm + m4a 恒配不出对）；并固化「哪些编码能 copy、
+    哪些必须重编码」，防止有人再照旧注释以为 vp9/av1 不能进 mp4
 
 不联网。用法：tools/python/python.exe scripts/dev/_selftest_merge_manual.py
 """
@@ -62,6 +65,105 @@ def _has_audio(path, ffprobe):
            "default=noprint_wrappers=1:nokey=1", path]
     r = engine.run_process(cmd, capture_output=True)
     return bool(engine.decode_bytes_any(r.stdout).strip())
+
+
+def multicontainer_cases():
+    """v1.18.0：自动配对支持多容器（此前 scan_media 只 glob `*.mp4`）。
+
+    同时固化"哪些编码能 copy 进 mp4、哪些必须重编码"——旧注释写着
+    「vp9/av1 装不进 mp4」，实测是错的（真正失败的是 vp8）。这类结论
+    依赖具体 ffmpeg 构建，必须由自检守着，改环境后能立刻看到差异。
+    """
+    ffmpeg, ffprobe = engine.ensure_ffmpeg()
+    with tempfile.TemporaryDirectory(dir=engine.DATA_DIR + os.sep + "tmp") as tmp:
+        # 三种容器的同名三连：webm(VP9) / mp4(H.264) / mkv(VP9)
+        specs = (("EP01", "libvpx-vp9", ".webm"),
+                 ("EP02", "libx264", ".mp4"),
+                 ("EP03", "libvpx-vp9", ".mkv"))
+        for name, venc, ext in specs:
+            vp = os.path.join(tmp, name + ext)
+            ap = os.path.join(tmp, name + ".m4a")
+            engine.run_process([
+                ffmpeg, "-y", "-f", "lavfi", "-i",
+                "testsrc=size=160x120:rate=10:duration=2",
+                "-c:v", venc, "-preset", "ultrafast", "-b:v", "200k",
+                "-an", vp], capture_output=True)
+            engine.run_process([
+                ffmpeg, "-y", "-f", "lavfi", "-i", "sine=frequency=440:duration=2",
+                "-c:a", "aac", ap], capture_output=True)
+            with open(os.path.join(tmp, name + ".srt"), "w", encoding="utf-8") as fh:
+                fh.write("1\n00:00:00,000 --> 00:00:01,000\nhi\n")
+
+        check("测试素材就位（3 容器 × 各自 m4a/srt）",
+              all(os.path.exists(os.path.join(tmp, n + x))
+                  for n, _, x in specs))
+
+        videos, m4as, webas, srts, asss = engine.scan_media(tmp)
+        got_exts = {os.path.splitext(v)[1].lower() for v in videos}
+        check("scan_media 认到三种视频容器",
+              got_exts == {".webm", ".mp4", ".mkv"}, got_exts)
+        check("MERGE_VIDEO_EXTS 含 webm / mkv",
+              {".webm", ".mkv"} <= set(engine.MERGE_VIDEO_EXTS),
+              engine.MERGE_VIDEO_EXTS)
+
+        # 显式传入旧口径仍能只扫 mp4（流水线按后缀筛任务的场景依赖这点）
+        only_mp4 = engine.scan_media(tmp, video_exts=(".mp4",))[0]
+        check("video_exts=(.mp4,) 时退回旧口径（只扫 mp4）",
+              len(only_mp4) == 1 and only_mp4[0].endswith("EP02.mp4"),
+              [os.path.basename(v) for v in only_mp4])
+
+        pairs, rem_v, rem_a, rem_w = engine.smart_pair(
+            videos, m4as, webas, srts, asss, ffprobe)
+        check("三种容器全部配出对（此前 webm 恒配不出）", len(pairs) == 3, len(pairs))
+        by_video = {os.path.basename(p[0]): p for p in pairs}
+        check("EP01.webm 配上了同名 m4a",
+              "EP01.webm" in by_video and by_video["EP01.webm"][1].endswith("EP01.m4a"),
+              sorted(by_video))
+        check("配对项都关联到同名 srt",
+              all(p[5] and os.path.basename(p[5]).startswith(
+                  os.path.splitext(os.path.basename(p[0]))[0]) for p in pairs),
+              [(os.path.basename(p[0]), p[5]) for p in pairs])
+
+        # —— 端到端真合并：webm(VP9) 输入 → mp4 产物 ——
+        out = os.path.join(tmp, "out")
+        os.makedirs(out, exist_ok=True)
+        ok, f1 = engine.merge_pair(os.path.join(tmp, "EP01.webm"),
+                                   os.path.join(tmp, "EP01.m4a"), "m4a",
+                                   None, None, os.path.join(out, "EP01.mp4"),
+                                   ffmpeg)
+        check("webm(VP9) 无字幕合成成功且直接 copy（无需重编码）",
+              ok and os.path.exists(f1), f1)
+        if ok and os.path.exists(f1):
+            vc = engine.decode_bytes_any(engine.run_process(
+                [ffprobe, "-v", "error", "-select_streams", "v:0",
+                 "-show_entries", "stream=codec_name", "-of",
+                 "default=noprint_wrappers=1:nokey=1", f1],
+                capture_output=True).stdout).strip()
+            dec = engine.run_process(
+                [ffmpeg, "-v", "error", "-i", f1, "-f", "null", "-"],
+                capture_output=True).returncode
+            check("产物视频流仍是 vp9（无损 copy，不是转码）", vc == "vp9", vc)
+            check("产物能被完整解码", dec == 0, dec)
+
+        # —— 固化"只有 vp8 需要重编码"这个实测结论 ——
+        vp8 = os.path.join(tmp, "V8.webm")
+        engine.run_process([
+            ffmpeg, "-y", "-f", "lavfi", "-i",
+            "testsrc=size=160x120:rate=10:duration=2",
+            "-c:v", "libvpx", "-b:v", "150k", "-an", vp8], capture_output=True)
+        o8 = os.path.join(out, "V8.mp4")
+        ok8, _ = engine.merge_pair(vp8, os.path.join(tmp, "EP02.m4a"), "m4a",
+                                   None, None, o8, ffmpeg)
+        check("vp8 首次 copy 确实失败（重试机制有存在意义）", not ok8, ok8)
+        ok8b, f8 = engine.merge_pair(vp8, os.path.join(tmp, "EP02.m4a"), "m4a",
+                                     None, None, o8, ffmpeg, reencode_video=True)
+        vc8 = engine.decode_bytes_any(engine.run_process(
+            [ffprobe, "-v", "error", "-select_streams", "v:0",
+             "-show_entries", "stream=codec_name", "-of",
+             "default=noprint_wrappers=1:nokey=1", f8],
+            capture_output=True).stdout).strip() if ok8b else ""
+        check("vp8 靠 reencode_video=True 救回 h264", ok8b and vc8 == "h264",
+              (ok8b, vc8))
 
 
 def engine_cases():
@@ -420,6 +522,8 @@ def gui_cases():
 def main():
     print("== 引擎：音频编码探测 / 手动合成 ==")
     engine_cases()
+    print("== 引擎：自动配对多容器（webm/mkv/mp4）==")
+    multicontainer_cases()
     print("== 界面：手动合并子页与拖放 ==")
     gui_cases()
     print()

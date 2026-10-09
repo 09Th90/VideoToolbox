@@ -7473,10 +7473,41 @@ def probe_audio_codec(filepath, ffprobe_path):
         return ''
 
 
-def scan_media(folder):
-    """扫描 mp4, m4a, weba, srt, ass"""
-    mp4s = sorted(glob.glob(os.path.join(folder, '*.mp4')) + glob.glob(os.path.join(folder, '*.MP4')),
-                  key=lambda x: os.path.basename(x).lower())
+#: 自动配对接受的视频容器（v1.18.0 起不再只认 mp4）。
+#: ⚠️ 这里只列**能装进 mp4 输出**的容器：合并产物恒定 .mp4，容器能力不对就会
+#   在 copy 阶段炸掉。实测（tools\ffmpeg.exe）：
+#     mp4/mov/m4v/mkv/ts/avi/flv/wmv —— 接受 -c:v copy + aac；
+#     **webm 装不了 h264/aac**（`Could not write header`），但它的典型编码
+#     VP9/AV1 **可以**直接进 mp4，所以 webm 输入照样能用（VP8 才会失败并
+#     靠 reencode_video=True 重试救回）。
+#: 因此「输入容器」不加限制也可以，只要内容编码与 mp4 兼容。
+MERGE_VIDEO_EXTS = (".mp4", ".mkv", ".webm", ".mov", ".m4v",
+                    ".avi", ".flv", ".ts", ".m4s", ".wmv", ".f4v")
+
+
+def scan_media(folder, video_exts=None):
+    """扫描视频、音频(m4a优先，其次weba)、字幕(srt/ass)。
+
+    video_exts：参与自动配对的视频扩展名，默认 MERGE_VIDEO_EXTS。传空集合则
+    只扫 mp4（保留给"只想要 mp4"的旧口径，如流水线按后缀筛任务的场景）。
+
+    ⚠️ 历史坑：这里曾硬编码只 glob `*.mp4`，于是「同名 webm + m4a」这类目录
+    配对结果恒为 0，webm 只能走「手动合并」逐个拖。现在多容器统一参与，
+    排序仍按文件名（大小写不敏感）以保证配对顺序稳定。
+    """
+    exts = tuple(MERGE_VIDEO_EXTS if video_exts is None else video_exts)
+
+    def _by_ext(ext):
+        out = []
+        for suffix in (ext, ext.upper()):
+            out += glob.glob(os.path.join(folder, f'*{suffix}'))
+        return sorted(out, key=lambda x: os.path.basename(x).lower())
+
+    videos = []
+    for ext in exts:
+        for p in _by_ext(ext):
+            if p not in videos:      # 扩展名重叠时去重（保持首次出现顺序）
+                videos.append(p)
     m4as = sorted(glob.glob(os.path.join(folder, '*.m4a')) + glob.glob(os.path.join(folder, '*.M4A')),
                   key=lambda x: os.path.basename(x).lower())
     webas = sorted(glob.glob(os.path.join(folder, '*.weba')) + glob.glob(os.path.join(folder, '*.WEBA')),
@@ -7485,7 +7516,7 @@ def scan_media(folder):
                   key=lambda x: os.path.basename(x).lower())
     asss = sorted(glob.glob(os.path.join(folder, '*.ass')) + glob.glob(os.path.join(folder, '*.ASS')),
                   key=lambda x: os.path.basename(x).lower())
-    return mp4s, m4as, webas, srts, asss
+    return videos, m4as, webas, srts, asss
 
 
 def get_base_name(filepath):
@@ -7504,7 +7535,13 @@ def find_subtitle(video_base, srts, asss):
 
 
 def smart_pair(mp4s, m4as, webas, srts, asss, ffprobe_path):
-    """智能配对 mp4 + 音频(m4a优先，其次weba)，并关联字幕"""
+    """智能配对 视频 + 音频(m4a优先，其次weba)，并关联字幕。
+
+    ⚠️ 第一个形参名叫 `mp4s` 是历史包袱，实际收的是**任意容器**的视频列表
+    （scan_media 默认按 MERGE_VIDEO_EXTS 收）。**所有调用点都用位置传参**，
+    所以只改名不动顺序；真要语义化得连调用点一起改，另说。
+    内部逻辑本来就不依赖"必须是 mp4"，只是拿文件名 + 时长做匹配。
+    """
     mp4_dur = {f: get_duration(f, ffprobe_path) for f in mp4s}
     m4a_dur = {f: get_duration(f, ffprobe_path) for f in m4as}
     weba_dur = {f: get_duration(f, ffprobe_path) for f in webas}
@@ -7585,8 +7622,15 @@ def merge_pair(mp4_path, audio_path, audio_type, sub_path, sub_type, output_path
     audio_type: 'm4a' 或 'weba'
     ass_mode: 'burn'=硬字幕, 'mkv'=封装MKV, 'ignore'=忽略
     reencode_video: 视频流是否强制重编码 H.264（默认 copy）。
-        手动合并拖进来的视频可能是 vp9 / av1 等 mp4 装不下的编码，copy 封装
-        会失败；调用方在失败后置 True 重试一次即可，不必让用户自己判断。
+
+    reencode_video 的由来（实测纠正，别再照旧注释传）：
+      早先以为「vp9 / av1 装不进 mp4」，实测**错**——用当前 tools\ffmpeg.exe，
+      VP9 与 AV1 都能 `-c:v copy` 直接封进 mp4 且解码校验通过。
+      真正会失败的是 **VP8**（`tag for codec vp8 in stream #0, codec not
+      currently supported in container`）。所以 copy 失败后的重试仍然要留着，
+      但它救的是 VP8 这类，而不是 vp9/av1。
+      另注：输入容器是 **webm 也不行**——webm 容器本身装不了 h264/aac
+      （连不带 `-movflags` 都 `Could not write header`），产物恒为 mp4。
     """
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
 
@@ -7677,7 +7721,7 @@ def merge_pair(mp4_path, audio_path, audio_type, sub_path, sub_type, output_path
 
 def merge_mode(input_dir=None):
     print("\n" + "=" * 60)
-    print("  音视频智能合并（mp4 + m4a/weba + srt/ass）")
+    print("  音视频智能合并（mp4/mkv/webm/mov… + m4a/weba + srt/ass）")
     print("=" * 60)
     ffmpeg_path, ffprobe_path = ensure_ffmpeg()
     print(f"[OK] ffmpeg 就绪\n")
@@ -7700,13 +7744,13 @@ def merge_mode(input_dir=None):
     mp4s, m4as, webas, srts, asss = scan_media(input_dir)
 
     if not mp4s:
-        print("[错误] 未找到 mp4 视频文件")
+        print(f"[错误] 未找到视频文件（支持: {' '.join(MERGE_VIDEO_EXTS)}）")
         return
     if not m4as and not webas:
         print("[错误] 未找到 m4a 或 weba 音频文件")
         return
 
-    print(f"[OK] 找到 {len(mp4s)} 个 mp4, {len(m4as)} 个 m4a, {len(webas)} 个 weba, {len(srts)} 个 srt, {len(asss)} 个 ass")
+    print(f"[OK] 找到 {len(mp4s)} 个视频, {len(m4as)} 个 m4a, {len(webas)} 个 weba, {len(srts)} 个 srt, {len(asss)} 个 ass")
 
     print("\n[信息] 正在分析配对...")
     pairs, rem_mp4, rem_m4a, rem_weba = smart_pair(mp4s, m4as, webas, srts, asss, ffprobe_path)
