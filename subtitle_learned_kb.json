@@ -1145,12 +1145,6 @@
    "uncorrected": 0,
    "status": "confirmed",
    "cues": [
-    92,
-    4161,
-    5266,
-    5284,
-    5286,
-    5287,
     135,
     210,
     566,
@@ -1164,7 +1158,13 @@
     6628,
     6696,
     7840,
-    8264
+    8264,
+    10094,
+    10209,
+    10664,
+    11690,
+    12338,
+    92
    ],
    "samples": [],
    "ref_tokens": {},
@@ -4224,26 +4224,25 @@
     ]
    ],
    "ref_tokens": {
-    "answer": 144,
-    "know": 144,
-    "best": 144,
-    "Arbita": 144,
-    "I'll": 144,
-    "tell": 144,
-    "Abiter": 180,
-    "yours": 144,
-    "that": 144,
-    "plan": 144,
-    "The": 36,
-    "look": 36,
-    "celebrations": 36,
-    "are": 36
+    "answer": 576,
+    "know": 576,
+    "best": 576,
+    "Arbita": 576,
+    "I'll": 576,
+    "tell": 576,
+    "Abiter": 720,
+    "yours": 576,
+    "that": 576,
+    "plan": 576,
+    "The": 144,
+    "look": 144,
+    "celebrations": 144,
+    "are": 144
    },
    "unc_ref_tokens": {},
    "first": "2026-10-05",
    "last": "2026-10-09",
-   "alts": {},
-   "sync": true
+   "alts": {}
   },
   "bi|Shin Lady": {
    "wrong": "Shin Lady",
@@ -4754,18 +4753,17 @@
     ]
    ],
    "ref_tokens": {
-    "Gingjo": 180,
-    "and": 180,
-    "the": 180,
-    "future": 180,
-    "Mongjo": 180,
-    "rests": 36
+    "Gingjo": 720,
+    "and": 720,
+    "the": 720,
+    "future": 720,
+    "Mongjo": 720,
+    "rests": 144
    },
    "unc_ref_tokens": {},
    "first": "2026-10-05",
    "last": "2026-10-09",
-   "alts": {},
-   "sync": true
+   "alts": {}
   },
   "bi|山房": {
    "wrong": "山房",
@@ -4909,21 +4907,20 @@
     ]
    ],
    "ref_tokens": {
-    "want": 144,
-    "Mongjo": 144,
-    "have": 36,
-    "dark": 36,
-    "The": 36,
-    "yet": 36,
-    "currents": 36,
-    "Mong": 36,
-    "Joe": 36
+    "want": 576,
+    "Mongjo": 576,
+    "have": 144,
+    "dark": 144,
+    "The": 144,
+    "yet": 144,
+    "currents": 144,
+    "Mong": 144,
+    "Joe": 144
    },
    "unc_ref_tokens": {},
    "first": "2026-10-05",
    "last": "2026-10-09",
-   "alts": {},
-   "sync": true
+   "alts": {}
   },
   "bi|哨兵希恩": {
    "wrong": "哨兵希恩",
@@ -5279,29 +5276,28 @@
     ]
    ],
    "ref_tokens": {
-    "across": 180,
-    "began": 180,
-    "Mango": 324,
-    "spreading": 180,
-    "miasma": 180,
-    "over": 36,
-    "excuse": 36,
-    "And": 36,
-    "then": 36,
-    "Joe": 36,
-    "Act": 36,
-    "Chapter": 36,
-    "corruption": 36,
-    "Shao": 36,
-    "young": 36,
-    "Chin": 36,
-    "mean": 36
+    "across": 720,
+    "began": 720,
+    "Mango": 1296,
+    "spreading": 720,
+    "miasma": 720,
+    "over": 144,
+    "excuse": 144,
+    "And": 144,
+    "then": 144,
+    "Joe": 144,
+    "Act": 144,
+    "Chapter": 144,
+    "corruption": 144,
+    "Shao": 144,
+    "young": 144,
+    "Chin": 144,
+    "mean": 144
    },
    "unc_ref_tokens": {},
    "first": "2026-10-05",
    "last": "2026-10-09",
-   "alts": {},
-   "sync": true
+   "alts": {}
   },
   "bi|分形增殖。它们是碎片": {
    "wrong": "分形增殖。它们是碎片",
@@ -5353,20 +5349,19 @@
     ]
    ],
    "ref_tokens": {
-    "Swaming": 144,
-    "sharing": 144,
-    "you": 144,
-    "Thank": 144,
-    "for": 144,
-    "that's": 36,
-    "Swaming's": 36,
-    "Wait": 36
+    "Swaming": 576,
+    "sharing": 576,
+    "you": 576,
+    "Thank": 576,
+    "for": 576,
+    "that's": 144,
+    "Swaming's": 144,
+    "Wait": 144
    },
    "unc_ref_tokens": {},
    "first": "2026-10-05",
    "last": "2026-10-09",
-   "alts": {},
-   "sync": true
+   "alts": {}
   },
   "bi|神风": {
    "wrong": "神风",
@@ -9989,8 +9984,7 @@
    "unc_ref_tokens": {},
    "first": "2026-10-07",
    "last": "2026-10-09",
-   "alts": {},
-   "sync": true
+   "alts": {}
   },
   "bi|루실라": {
    "wrong": "루실라",
@@ -10110,8 +10104,7 @@
    "unc_ref_tokens": {},
    "first": "2026-10-07",
    "last": "2026-10-09",
-   "alts": {},
-   "sync": true
+   "alts": {}
   },
   "bi|루파": {
    "wrong": "루파",
