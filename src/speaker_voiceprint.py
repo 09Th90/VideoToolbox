@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 1.18.2
+# @version 1.18.3
 """主播声纹：本地声纹录入 + 字幕筛选（无 Qt，可脱离界面单测）。
 
 把「只出主播的字幕」做成本地**后处理**：
@@ -147,6 +147,18 @@ DEFAULT_LOW = 0.45
 
 class VoiceprintError(RuntimeError):
     """声纹链路可预期的失败（模型缺失、ffmpeg 缺失、音频读不出等）。"""
+
+
+#: 单次 onnx 推理的帧数上限（100 帧/秒 ⇒ 6000 = 60 秒）。
+#: 实测 onnxruntime 跑 CAM++ 的内存随输入时长**线性**增长（≈2.2MB/秒音频）：
+#: 300 秒 ≈ 0.7GB、600 秒 ≈ 1.35GB、1200 秒 ≈ 2.7GB（build/_vp_mem_probe.py）。
+#: 簇打分会把同一说话人的全部 cue 拼接后**一次**推理（score_by_speaker /
+#: score_clusters 里的 np.concatenate），长片十几分钟的素材在低内存机器上
+#: 直接 bad allocation（报错节点 /head/layer1/…/Conv_output_0_nchwc）。
+#: 分块推理 + 子向量取均值后：同人语音 240 秒长轨单跑与 60 秒分块对同一模板
+#: 的得分偏差 < 1e-4（build/_vp_margin_check.py），647 秒素材峰值内存从
+#: 1.5GB 降到 0.34GB 封顶（build/_vp_fresh_mem.py），与素材时长无关。
+EMBED_MAX_FRAMES = 6000
 
 
 # ---------------------------------------------------------------- 模型下载
@@ -520,20 +532,35 @@ class VoiceprintEncoder:
             self._in = self._sess.get_inputs()[0].name
         return self._sess
 
+    def _embed_frames(self, feats):
+        """一段 fbank 帧矩阵 -> 单个 L2 归一化向量（一次 onnx 推理）。"""
+        x = feats[None, :, :].astype(np.float32)
+        y = self._session().run(None, {self._in: x})[0][0]
+        y = np.asarray(y, dtype=np.float32)
+        nrm = float(np.linalg.norm(y))
+        return y / (nrm if nrm > 1e-9 else 1.0)
+
     def embed(self, samples, sample_rate=SAMPLE_RATE):
         """一段音频 -> L2 归一化后的 192 维向量。音频过短会抛 VoiceprintError。
 
         内部先做峰值归一化（见 `normalize_peak`），使结果与录音增益无关。
+        超过 `EMBED_MAX_FRAMES` 帧的长输入按块分别推理、子向量取均值后再归一化
+        ——单次推理的内存随输入时长线性增长，不设上限会把长片素材的簇打分
+        （整簇音频拼接后一次推理）顶到 bad allocation。
         """
         feats = fbank(normalize_peak(samples), sample_rate)
         if feats.shape[0] < 10:
             raise VoiceprintError("音频太短（%d 帧），至少需要约 0.2 秒人声"
                                   % feats.shape[0])
         # 模型元数据 feature_normalize_type=global-mean：逐维减时间均值
+        # ⚠ 必须先对**整段**减均值再分块——分块减均值会让每块的直流偏置不同，
+        #   与单跑结果产生系统性偏差。
         feats = feats - feats.mean(axis=0, keepdims=True)
-        x = feats[None, :, :].astype(np.float32)
-        y = self._session().run(None, {self._in: x})[0][0]
-        y = np.asarray(y, dtype=np.float32)
+        if feats.shape[0] <= EMBED_MAX_FRAMES:
+            return self._embed_frames(feats)
+        parts = [self._embed_frames(feats[s:s + EMBED_MAX_FRAMES])
+                 for s in range(0, feats.shape[0], EMBED_MAX_FRAMES)]
+        y = np.mean(np.stack(parts, axis=0), axis=0)
         nrm = float(np.linalg.norm(y))
         return y / (nrm if nrm > 1e-9 else 1.0)
 

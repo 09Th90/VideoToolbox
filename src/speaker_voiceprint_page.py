@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# @version 1.18.2
+# @version 1.18.3
 """主播声纹 · 界面组件（v1.18.0）
 ====================================================================
 两个组件，供 `video_toolbox.py::vc_transcribe_ui_patch()` 挂进引擎界面：

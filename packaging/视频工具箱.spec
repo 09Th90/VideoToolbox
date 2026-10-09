@@ -1,6 +1,6 @@
 # -*- mode: python ; coding: utf-8 -*-
-# @version 1.18.2
-"""视频工具箱 v1.18.2 —— PyInstaller 打包配置
+# @version 1.18.3
+"""视频工具箱 v1.18.3 —— PyInstaller 打包配置
 v1.18.0：① 新增**主播声纹筛选**的运行时——`speaker_voiceprint_page` /
         `speaker_voiceprint` 是 `video_toolbox.vc_transcribe_ui_patch()` 里的
         **延迟导入**（缺依赖只记日志、界面照起），静态分析跟踪不到，必须显式

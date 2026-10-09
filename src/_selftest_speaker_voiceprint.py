@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# @version 1.18.2
+# @version 1.18.3
 """主播声纹链路自检（离线，不联网、不依赖 ffmpeg）。
 
 覆盖 src/speaker_voiceprint.py：
@@ -10,6 +10,7 @@
   · 按说话人聚簇打分 / 逐条打分
   · decide() 的 keep / drop / review 三分支
   · filter_srt() 端到端（注入假编码器 + 假 PCM，绕开 ffmpeg）
+  · 长音频分块推理（假会话钉块数/边界/均值算术；真模型钉单跑一致性）
   · 真模型（存在才跑）：单位范数、同段自比 1.0
 
 fbank 的正确性另有**外部基准**验证：与 kaldi-native-fbank 逐元素比对，
@@ -411,6 +412,59 @@ def main():
         SV.read_pcm = old_read_pcm
         shutil.rmtree(tmpdir, ignore_errors=True)
 
+    # ---------------- 7b) 长音频分块推理（假会话） ----------------
+    say("\n== 7b) 长音频分块推理（假会话，防 bad allocation 回归）==")
+
+    class _RecSess:
+        """假 onnx 会话：记录每次推理的帧数，输出由帧矩阵确定性导出。"""
+
+        def __init__(self):
+            self.calls = []
+
+        def run(self, _out, feed):
+            x = list(feed.values())[0]                 # (1, T, 80)
+            self.calls.append(int(x.shape[1]))
+            m = x[0].mean(axis=0)                      # (80,)
+            return [np.tile(m, 3)[:SV.EMB_DIM][None, :]]
+
+    def _rec_encoder(sess):
+        e = SV.VoiceprintEncoder.__new__(SV.VoiceprintEncoder)
+        e._sess, e._in = sess, "x"
+        return e
+
+    sig_long = np.tile(sig, 40)                        # 0.5s × 40 = 20 秒
+    n_frames = SV.fbank(sig_long).shape[0]
+    check("20 秒素材帧数 = 2000", n_frames == 2000, n_frames)
+    old_mf = SV.EMBED_MAX_FRAMES
+    try:
+        SV.EMBED_MAX_FRAMES = 700                      # 7 秒/块
+        rs = _RecSess()
+        v = _rec_encoder(rs).embed(sig_long)
+        check("长输入被分块：3 次推理，块界 700/700/600",
+              rs.calls == [700, 700, 600], rs.calls)
+        # 期望 = 对「整段减全局均值后」的各块分别过假会话、归一化、取均值再归一化
+        feats = SV.fbank(SV.normalize_peak(sig_long))
+        feats = feats - feats.mean(axis=0, keepdims=True)
+        sub = []
+        for s in range(0, feats.shape[0], 700):
+            blk = np.asarray(rs.run(None, {"x": feats[s:s + 700][None]})[0][0],
+                             dtype=np.float32)
+            sub.append(blk / float(np.linalg.norm(blk)))
+        exp = np.mean(np.stack(sub, axis=0), axis=0)
+        exp = exp / float(np.linalg.norm(exp))
+        check("分块结果 = 子向量均值再归一化（均值在分块**前**对整段减）",
+              float(np.max(np.abs(v - exp))) < 1e-6,
+              float(np.max(np.abs(v - exp))))
+        check("结果 L2 归一化", abs(float(np.linalg.norm(v)) - 1.0) < 1e-5,
+              float(np.linalg.norm(v)))
+        rs2 = _RecSess()
+        _rec_encoder(rs2).embed(sig)                   # 0.5 秒 = 50 帧 < 700
+        check("短输入仍单次推理（行为不变）", rs2.calls == [50], rs2.calls)
+    finally:
+        SV.EMBED_MAX_FRAMES = old_mf
+    check("出厂单次推理上限 = 6000 帧（60 秒 ≈ 150MB 封顶）",
+          SV.EMBED_MAX_FRAMES == 6000, SV.EMBED_MAX_FRAMES)
+
     # ---------------- 8) 真模型（存在才跑） ----------------
     say("\n== 8) 真模型（CAM++ ONNX）==")
     if not os.path.isfile(SV.MODEL_PATH):
@@ -436,6 +490,23 @@ def main():
             check("过短音频抛 VoiceprintError",
                   _raises(SV.VoiceprintError, enc2.embed,
                           np.zeros(100, dtype=np.float32)))
+            # 长输入分块与单跑的一致性（周期性内容下两种池化应几乎重合；
+            # 240 秒单跑约需 0.5GB 内存，正是要防的 bad allocation 量级）
+            per = np.tile(sig, 480)                    # 0.5s × 480 = 240 秒
+            old_mf2 = SV.EMBED_MAX_FRAMES
+            try:
+                SV.EMBED_MAX_FRAMES = 10 ** 9
+                e_full = enc2.embed(per)
+                SV.EMBED_MAX_FRAMES = 6000
+                e_chunk = enc2.embed(per)
+            finally:
+                SV.EMBED_MAX_FRAMES = old_mf2
+            check("240 秒长音频：分块与单跑余弦 > 0.999",
+                  SV.cosine(e_full, e_chunk) > 0.999,
+                  SV.cosine(e_full, e_chunk))
+            dev = abs(SV.cosine(e1, e_full) - SV.cosine(e1, e_chunk))
+            check("分块对模板得分偏差 < 0.01（判定边际 0.13 内无感）",
+                  dev < 0.01, "%.5f" % dev)
         except SV.VoiceprintError as e:
             check("真模型可运行", False, str(e)[:120])
 
