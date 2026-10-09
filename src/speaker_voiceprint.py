@@ -781,6 +781,117 @@ def score_by_cue(pcm, cues, template, encoder=None, sample_rate=SAMPLE_RATE):
     return out
 
 
+#: 本地聚簇阈值：两条 cue 的声纹余弦 ≥ 此值视为同一说话人。
+#: 与判定阈值同源（实测同人 min 0.681 / 异人 max 0.450，0.5 落在间隔正中）。
+CLUSTER_THRESHOLD = 0.5
+#: 短于该秒数的 cue 不参与聚类（向量太不稳，会污染簇心）
+CLUSTER_MIN_SECONDS = 0.4
+
+
+def cluster_cues(pcm, cues, encoder=None, sample_rate=SAMPLE_RATE,
+                 threshold=CLUSTER_THRESHOLD,
+                 min_seconds=CLUSTER_MIN_SECONDS):
+    """按声纹把 cue 就地聚成说话人簇（**不依赖 ASR 的 `[说话人N]`**）。
+
+    为什么需要：ASR 端的说话人分离**不是所有端点都支持**——本项目实测
+    `qwen-audio-3.0-asr-flash` 走百炼 Token Plan 时，配置里 `asr_diarize=True`
+    也照样拿不到标签（只有 3.1 原生 / 火山极速版 / AssemblyAI / Deepgram /
+    ElevenLabs / 百炼 Filetrans 支持）。而声纹向量我们本来就算得出来，干脆自己聚。
+
+    做法：逐 cue 提向量 → **按音频时长降序**贪心聚簇（长 cue 的向量更稳，
+    先立簇心）→ 新向量与各簇心比余弦，≥ `threshold` 归入并更新簇心，否则新建。
+    顺序确定、结果可复现（不用随机初始化，也不需要 sklearn/scipy）。
+
+    返回 `(labels, sizes)`：`labels[i]` 是 cue i 的簇号（**`-1` = 音频不足，
+    未参与聚类**），`sizes` 是 `{簇号: 条数}`。
+    """
+    enc = encoder or VoiceprintEncoder()
+    chunks = _cue_chunks(pcm, cues, sample_rate)
+    min_len = int(min_seconds * sample_rate)
+    order = []                      # [(cue_index, duration_seconds)]，按时长降序
+    for i, ch in enumerate(chunks):
+        if ch is not None and len(ch) >= min_len:
+            order.append((i, len(ch) / float(sample_rate)))
+    order.sort(key=lambda t: -t[1])
+
+    labels = [-1] * len(cues)
+    centroids = []                  # 每个簇的归一化簇心
+    sums = []                       # 簇心累加（未归一化），用于增量更新
+    counts = []
+    for idx, _dur in order:
+        try:
+            v = enc.embed(chunks[idx], sample_rate)
+        except VoiceprintError:
+            continue
+        if centroids:
+            sims = [float(np.dot(v, c)) for c in centroids]
+            best = int(np.argmax(sims))
+            if sims[best] >= threshold:
+                labels[idx] = best
+                sums[best] = sums[best] + v
+                counts[best] += 1
+                n = sums[best]
+                centroids[best] = n / (float(np.linalg.norm(n)) + 1e-9)
+                continue
+        labels[idx] = len(centroids)
+        sums.append(v.copy())
+        counts.append(1)
+        centroids.append(v.copy())
+
+    sizes = {}
+    for lb in labels:
+        if lb >= 0:
+            sizes[lb] = sizes.get(lb, 0) + 1
+    return labels, sizes
+
+
+def score_clusters(pcm, cues, labels, template, encoder=None,
+                   sample_rate=SAMPLE_RATE):
+    """每个簇把成员 cue 的音频拼起来算**一个**向量，再与模板比对。
+
+    返回 `{簇号: {"score", "n", "seconds", "best"}}`（键是字符串形式的簇号，
+    便于直接喂给 `decide()` 的 `speaker_scores` 与写报告）。
+    """
+    enc = encoder or VoiceprintEncoder()
+    tpls = _as_template_list(template)
+    chunks = _cue_chunks(pcm, cues, sample_rate)
+    groups = {}
+    for i, lb in enumerate(labels):
+        if lb >= 0:
+            groups.setdefault(lb, []).append(i)
+    out = {}
+    for lb, idxs in groups.items():
+        parts = [chunks[i] for i in idxs if chunks[i] is not None]
+        secs = sum(len(p) for p in parts) / float(sample_rate)
+        try:
+            emb = enc.embed(np.concatenate(parts), sample_rate)
+            scored = [(cosine(e, emb), n) for n, e in tpls] or [(float("nan"), "")]
+            sc, best = max(scored, key=lambda x: (x[0] if x[0] == x[0] else -9))
+        except VoiceprintError:
+            sc, best = float("nan"), ""
+        out[str(lb)] = {"score": sc, "n": len(idxs), "seconds": round(secs, 2),
+                        "best": best if sc == sc else ""}
+    return out
+
+
+def _labels_to_cue_scores(cues, labels, cluster_scores):
+    """把「簇分」摊回每条 cue，得到与 cues 等长的分数表。
+
+    `[说话人N]` 标签与本地簇号可以共存：**优先用 cue 自带的标签**（那是 ASR
+    分离的结果，比我们聚的更可信），没有标签的 cue 才用本地簇分。
+    """
+    out = []
+    for i, c in enumerate(cues):
+        spk = str(getattr(c, "speaker", "") or "")
+        if spk:
+            info = cluster_scores.get(spk)
+            out.append(info["score"] if info else float("nan"))
+        else:
+            info = cluster_scores.get(str(labels[i])) if labels[i] >= 0 else None
+            out.append(info["score"] if info else float("nan"))
+    return out
+
+
 def decide(cues, speaker_scores, threshold=DEFAULT_THRESHOLD,
            low=DEFAULT_LOW, cue_scores=None):
     """判定每条 cue 的归属。
@@ -814,12 +925,22 @@ def decide(cues, speaker_scores, threshold=DEFAULT_THRESHOLD,
 
 def filter_srt(src, srt_path, template, threshold=DEFAULT_THRESHOLD,
                low=DEFAULT_LOW, out_path=None, encoder=None,
-               keep_review=True, report=True):
+               keep_review=True, report=True, progress=None):
     """端到端：音频 + SRT -> 只保留主播的 SRT。
 
     `template` 支持单个模板 dict / 模板名，或**模板名列表**（多声纹取并集：
     与其中任意一个够像即保留）。返回 dict（含产物路径与统计）。
+
+    `progress(text)` 可选：在阶段边界回调一句人话（解码 / 提取 / 写盘），
+    供界面显示状态——18 分钟的片子要跑一两分钟，没反馈用户会以为卡死。
     """
+    def _say(msg):
+        if progress:
+            try:
+                progress(msg)
+            except Exception:  # noqa: BLE001
+                pass
+
     tpls = _as_template_list(template)
     if not tpls:
         raise VoiceprintError("没有可用的声纹模板（先 enroll 录入）")
@@ -832,12 +953,30 @@ def filter_srt(src, srt_path, template, threshold=DEFAULT_THRESHOLD,
     if not cues:
         raise VoiceprintError("字幕里没有解析到任何 cue：%s" % srt_path)
 
+    _say("正在解码音频…")
     pcm = read_pcm(src)
+    _say("音频 %.0f 秒，正在提取声纹…" % (len(pcm) / float(SAMPLE_RATE)))
     enc = encoder or VoiceprintEncoder()
-    spk_scores = score_by_speaker(pcm, cues, tpls, enc)
-    cue_scores = None
-    if any(not str(getattr(c, "speaker", "") or "") for c in cues):
-        cue_scores = score_by_cue(pcm, cues, tpls, enc)
+    n_labeled = sum(1 for c in cues if str(getattr(c, "speaker", "") or ""))
+    local_clusters = 0
+    if n_labeled:
+        # 有 `[说话人N]`：直接用 ASR 分离的结果（比我们聚的更可信）
+        spk_scores = score_by_speaker(pcm, cues, tpls, enc)
+        cue_scores = None
+        if n_labeled < len(cues):
+            # 少数 cue 没标签：用本地簇补上，别让它们走 NaN -> review 白留
+            labels, _ = cluster_cues(pcm, cues, enc)
+            local_clusters = len({x for x in labels if x >= 0})
+            extra = score_clusters(pcm, cues, labels, tpls, enc)
+            for k, v in extra.items():
+                spk_scores.setdefault("簇" + k, v)
+            cue_scores = _labels_to_cue_scores(cues, labels, extra)
+    else:
+        # 无标签（ASR 端点不支持说话人分离时很常见）：**本地声纹聚类**
+        labels, _sizes = cluster_cues(pcm, cues, enc)
+        local_clusters = len({x for x in labels if x >= 0})
+        spk_scores = score_clusters(pcm, cues, labels, tpls, enc)
+        cue_scores = _labels_to_cue_scores(cues, labels, spk_scores)
 
     verdict = decide(cues, spk_scores, threshold, low, cue_scores)
     kept = [c for c, st, _ in verdict if st == "keep" or (keep_review and st == "review")]
@@ -855,6 +994,7 @@ def filter_srt(src, srt_path, template, threshold=DEFAULT_THRESHOLD,
            "review": n_review, "drop": n_drop,
            "kept_total": len(kept), "speakers": spk_scores,
            "threshold": threshold, "low": low,
+           "local_clusters": local_clusters,
            "templates": [n for n, _e in tpls]}
     if report and out_path:
         _write_report(out_path, res, verdict)
@@ -871,10 +1011,16 @@ def _write_report(out_path, res, verdict):
              "  阈值     : keep>=%.2f / drop<%.2f" % (res["threshold"], res["low"]),
              "  cue 总数 : %d -> 保留 %d（其中存疑 %d）/ 丢弃 %d"
              % (res["total"], res["kept_total"], res["review"], res["drop"]),
-             "", "各说话人得分（按相似度降序）："]
+             "  分组依据 : %s"
+             % ("字幕的 [说话人N] 标签"
+                if not res.get("local_clusters")
+                else "本地声纹聚类（%d 簇）" % res["local_clusters"]),
+             "", "各组得分（按相似度降序）："]
     for spk, info in sorted(res["speakers"].items(),
                             key=lambda kv: -(kv[1]["score"] if kv[1]["score"] == kv[1]["score"] else -9)):
         label = spk or "(无标签)"
+        if label.isdigit():                      # 本地聚类：0/1/2 -> 簇 0/1/2
+            label = "簇 " + label
         mark = "<= 判为主播" if info["score"] >= res["threshold"] else (
             "存疑" if info["score"] >= res["low"] else "丢弃")
         if info.get("best") and info["score"] >= res["low"]:
