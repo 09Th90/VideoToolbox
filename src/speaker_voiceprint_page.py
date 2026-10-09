@@ -29,8 +29,9 @@ from PyQt5.QtCore import QThread, pyqtSignal
 from PyQt5.QtWidgets import QFileDialog, QHBoxLayout, QVBoxLayout, QWidget
 
 from qfluentwidgets import (BodyLabel, CaptionLabel, CheckBox, LineEdit,
-                            PrimaryPushButton, PushButton, SpinBox,
-                            StrongBodyLabel, ToolButton, FluentIcon as FIF)
+                            PrimaryPushButton, ProgressBar, PushButton,
+                            SpinBox, StrongBodyLabel, ToolButton,
+                            FluentIcon as FIF)
 
 import speaker_voiceprint as SV
 
@@ -66,6 +67,23 @@ class EnrollWorker(QThread):
             self.done.emit(False, "录入失败：%s" % e)
 
 
+class ModelDownloadWorker(QThread):
+    """后台下载声纹模型（约 27MB，直连失败自动走内置代理）。"""
+
+    progress = pyqtSignal(int, int)      # done, total（total 可能为 0 = 未知）
+    done = pyqtSignal(bool, str)
+
+    def run(self):
+        try:
+            p = SV.download_model(
+                progress=lambda d, t: self.progress.emit(int(d), int(t)))
+            self.done.emit(True, "模型已就绪：%s" % os.path.basename(p))
+        except SV.VoiceprintError as e:
+            self.done.emit(False, str(e))
+        except Exception as e:  # noqa: BLE001
+            self.done.emit(False, "下载失败：%s" % e)
+
+
 # ---------------------------------------------------------------------- #
 # ① 声纹录入卡（语音转录页空白区）
 # ---------------------------------------------------------------------- #
@@ -78,6 +96,7 @@ class VoiceprintEnrollCard(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self._worker = None
+        self._dl_worker = None
         self._rows = []
         self._build()
         self.refresh()
@@ -98,16 +117,24 @@ class VoiceprintEnrollCard(QWidget):
         head.addStretch(1)
         root.addLayout(head)
 
-        # 模型缺失时的提示（非阻塞：仍允许看列表）
-        self.model_tip = CaptionLabel("", self)
+        # 模型缺失时的提示 + 一键下载（非阻塞：仍允许看列表）
+        self.model_row = QWidget(self)
+        mrow = QHBoxLayout(self.model_row)
+        mrow.setContentsMargins(0, 0, 0, 0)
+        mrow.setSpacing(8)
+        self.model_tip = CaptionLabel("", self.model_row)
         self.model_tip.setWordWrap(True)
         self.model_tip.setStyleSheet("color: #b06a00;")
-        self.model_tip.setVisible(not os.path.isfile(SV.MODEL_PATH))
-        if not os.path.isfile(SV.MODEL_PATH):
-            self.model_tip.setText(
-                "尚未下载声纹模型（约 27MB）。先执行："
-                "python tools\\download_open_source_deps.py --only speaker-model")
-        root.addWidget(self.model_tip)
+        mrow.addWidget(self.model_tip, 1)
+        self.btn_model = PushButton("下载模型", self.model_row)
+        self.btn_model.clicked.connect(self._do_download_model)
+        mrow.addWidget(self.btn_model)
+        root.addWidget(self.model_row)
+
+        self.model_bar = ProgressBar(self)
+        self.model_bar.setVisible(False)
+        root.addWidget(self.model_bar)
+        self._refresh_model_state()
 
         # 已录入列表容器
         self.list_box = QWidget(self)
@@ -215,6 +242,41 @@ class VoiceprintEnrollCard(QWidget):
         return row
 
     # ---------------- 动作 ----------------
+    def _refresh_model_state(self):
+        """按模型是否就位切换「下载模型」提示区的显隐。返回是否已就位。"""
+        ok = SV.model_present()
+        self.model_row.setVisible(not ok)
+        self.model_bar.setVisible(False)
+        if not ok:
+            self.model_tip.setText(
+                "尚未下载声纹模型（约 27MB）。点「下载模型」即可"
+                "（存到 %s，不占系统盘）" % SV.MODEL_DIR)
+        return ok
+
+    def _do_download_model(self):
+        if self._dl_worker is not None and self._dl_worker.isRunning():
+            return
+        self.btn_model.setEnabled(False)
+        self.model_bar.setVisible(True)
+        self.model_bar.setValue(0)
+        self.model_tip.setText("正在下载声纹模型（约 27MB，直连慢会自动走内置代理）…")
+        self._dl_worker = ModelDownloadWorker(self)
+        self._dl_worker.progress.connect(self._on_dl_progress)
+        self._dl_worker.done.connect(self._on_dl_done)
+        self._dl_worker.start()
+
+    def _on_dl_progress(self, done, total):
+        if total > 0:
+            self.model_bar.setValue(int(done * 100 / total))
+        else:
+            self.model_bar.setValue(0)
+
+    def _on_dl_done(self, ok, msg):
+        self.btn_model.setEnabled(True)
+        self.status.setText(msg)
+        if ok and self._refresh_model_state():
+            self.status.setText("声纹模型已就绪，可以开始录入了")
+
     def _pick_file(self):
         p, _ = QFileDialog.getOpenFileName(self, "选择音视频文件", "",
                                            MEDIA_FILTER)

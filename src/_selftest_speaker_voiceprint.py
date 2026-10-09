@@ -373,6 +373,32 @@ def main():
         except SV.VoiceprintError as e:
             check("真模型可运行", False, str(e)[:120])
 
+    # ---------------- 9) 路径解析（不落 C 盘 / 打包形态） ----------------
+    say("\n== 9) 路径解析 ==")
+    check("TOOLS_DIR 在 tools 下",
+          os.path.basename(SV.TOOLS_DIR) == "tools", SV.TOOLS_DIR)
+    check("MODEL_PATH 落在 TOOLS_DIR\\asr_model",
+          os.path.dirname(SV.MODEL_PATH) == SV.MODEL_DIR
+          and os.path.basename(SV.MODEL_DIR) == "asr_model", SV.MODEL_PATH)
+    check("TEMPLATE_DIR 落在 DATA_DIR\\voiceprint",
+          os.path.dirname(SV.TEMPLATE_DIR) == SV.DATA_DIR
+          and os.path.basename(SV.TEMPLATE_DIR) == "voiceprint",
+          SV.TEMPLATE_DIR)
+    check("FFMPEG 落在 TOOLS_DIR",
+          os.path.dirname(SV.FFMPEG) == SV.TOOLS_DIR, SV.FFMPEG)
+    _sysdrive = (os.environ.get("SystemDrive") or "C:").lower()
+    _on_c = [p for p in (SV.TOOLS_DIR, SV.DATA_DIR, SV.MODEL_PATH,
+                         SV.TEMPLATE_DIR, SV.FFMPEG)
+             if os.path.splitdrive(p)[0].lower() == _sysdrive]
+    check("所有落盘路径都不在系统盘（%s）" % _sysdrive, not _on_c, _on_c)
+    check("TOOLS_DIR 优先取自引擎（而非按 __file__ 推）",
+          _engine_tools_matches(), SV.TOOLS_DIR)
+    check("model_present() 返回布尔", isinstance(SV.model_present(), bool),
+          SV.model_present())
+    if SV.model_present():
+        check("模型已就位时 download_model 直接返回、不联网",
+              SV.download_model() == SV.MODEL_PATH)
+
     # ---------------- 汇总 ----------------
     say("\n" + "=" * 62)
     if FAILS:
@@ -389,6 +415,21 @@ def main():
     except OSError:
         pass
     return 1 if FAILS else 0
+
+
+def _engine_tools_matches():
+    """确认声纹模块的 TOOLS_DIR 与引擎解析结果一致。
+
+    这条是**回归防线**：早先声纹模块按 `__file__` 自己推层级，源码运行没事，
+    打包后 `__file__` 指向 PyInstaller 的 `_MEIPASS` 临时目录，于是模型路径
+    变成 `%TEMP%\\tools\\asr_model\\…`（C 盘），用户侧表现就是「声纹模型缺失」。
+    """
+    try:
+        import video_toolbox as _e
+        return (os.path.normcase(os.path.abspath(SV.TOOLS_DIR))
+                == os.path.normcase(os.path.abspath(_e.TOOLS_DIR)))
+    except Exception:  # noqa: BLE001
+        return False
 
 
 def _raises(exc, fn, *a, **kw):

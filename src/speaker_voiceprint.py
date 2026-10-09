@@ -45,12 +45,51 @@ import subtitle_editor_core as secore  # noqa: E402
 
 # ---------------------------------------------------------------- 路径 / 常量
 
-HERE = os.path.dirname(os.path.abspath(__file__))
-ROOT = os.path.dirname(HERE)
-TOOLS_DIR = os.path.join(ROOT, "tools")
-DATA_DIR = os.path.join(ROOT, "data")
 
-#: 声纹模型目录（与安装包 `{app}\\tools\\asr_model` 一致）
+def _resolve_dirs():
+    """定位 tools / data 两个目录。
+
+    ⚠⚠ **必须优先用引擎（`video_toolbox`）的常量**，别自己按 `__file__` 推层级。
+    引擎那套同时处理了三种情形：
+      ① 源码运行（本文件在 `APP_DIR\\src` 下）；
+      ② **打包后**（`sys.frozen` ⇒ `APP_DIR = exe 所在目录`，而不是 PyInstaller
+         onefile 的 `_MEIPASS` 临时解压目录）；
+      ③ 用户在「设置 → 工具设置 → 数据目录」改过数据根（`data_dir.txt` 指针）
+         或设了 `VT_DATA_ROOT`。
+    自己推层级在打包后**必错**：onefile 把模块解压到 `%TEMP%\\_MEIxxxx`，
+    算出来的 tools 就成了 `%TEMP%\\tools` —— 表现是「声纹模型缺失：C:\\Users\\
+    …\\Temp\\tools\\asr_model\\…」，而且模板会落到 C 盘临时目录、退出即丢。
+
+    引擎导入失败时才回落自算（口径与引擎保持一致，勿改语义）。
+    """
+    try:
+        import video_toolbox as _e
+        return _e.TOOLS_DIR, _e.DATA_DIR
+    except Exception:  # noqa: BLE001
+        pass
+    if getattr(sys, "frozen", False):
+        app = os.path.dirname(os.path.abspath(sys.executable))
+    else:
+        app = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    tools = os.path.join(app, "tools")
+    if not os.path.isdir(tools):        # 直接跑构建产物时向上找（同引擎口径）
+        d = app
+        for _ in range(5):
+            cand = os.path.join(d, "tools")
+            if os.path.isdir(cand):
+                tools = cand
+                break
+            parent = os.path.dirname(d)
+            if parent == d:
+                break
+            d = parent
+    root = (os.environ.get("VT_DATA_ROOT") or "").strip().strip('"') or app
+    return tools, os.path.join(os.path.abspath(root), "data")
+
+
+TOOLS_DIR, DATA_DIR = _resolve_dirs()
+
+#: 声纹模型目录（与安装包 `{app}\tools\asr_model` 一致）
 MODEL_DIR = os.path.join(TOOLS_DIR, "asr_model")
 MODEL_NAME = "3dspeaker_speech_campplus_sv_zh-cn_16k-common.onnx"
 MODEL_URL = ("https://github.com/k2-fsa/sherpa-onnx/releases/download/"
@@ -84,6 +123,144 @@ DEFAULT_LOW = 0.35
 
 class VoiceprintError(RuntimeError):
     """声纹链路可预期的失败（模型缺失、ffmpeg 缺失、音频读不出等）。"""
+
+
+# ---------------------------------------------------------------- 模型下载
+#: 模型 sha256（与 tools/download_open_source_deps.py 的 SPEAKER_MODEL_SHA256 一致）
+MODEL_SHA256 = ("f682b514c05d947ee3fa91cd6ec6c5c7543479a128373fa29b1f"
+                "aedccd21fd11")
+
+
+def model_present():
+    """模型是否已就位（存在且非空）。"""
+    try:
+        return os.path.getsize(MODEL_PATH) > 0
+    except OSError:
+        return False
+
+
+def download_model(progress=None, timeout=300, force=False,
+                   stall_seconds=20.0):
+    """把声纹模型下到 `TOOLS_DIR\\asr_model\\`。
+
+    `progress(done, total)` 每读一块回调一次（total 可能为 0 = 未知）；返回
+    模型绝对路径。
+
+    取源顺序（**为什么不照搬 `download_open_source_deps.py` 的"直连失败才用代理"**）：
+      ① **内置 mihomo 已在运行** → 直接用它。GitHub release 直连实测 190KB/s
+         （27MB 要 125~155 秒），走代理 3.3MB/s（8 秒），差一个数量级；而
+         "已在运行"是瞬时探测（0.3s 连一下 7897 端口），不触发 mihomo 启动。
+      ② 直连。
+      ③ 前面都失败 → 拉起内置 mihomo 再试一次。
+    ⚠ 试过"速率太慢就切代理"，**弃用**：实测直连慢时代理也可能慢，
+    切换反而把总耗时从 125s 拖到 155s。按"谁已经在跑"取源比按速率猜稳。
+
+    另保留 `stall_seconds` 秒收不到任何数据的兜底（防连接挂死）。
+
+    ⚠ 落盘位置只认 `MODEL_PATH`（= 引擎解析出的 tools 目录，打包后在 exe 同级），
+    **不会写 C 盘**。先写 `.part` 再 `os.replace`，中断不留半截文件。
+    """
+    import hashlib
+    import urllib.request
+
+    if model_present() and not force:
+        return MODEL_PATH
+    os.makedirs(MODEL_DIR, exist_ok=True)
+    tmp = MODEL_PATH + ".part"
+    req = urllib.request.Request(MODEL_URL,
+                                 headers={"User-Agent": "VideoToolbox/1.18"})
+
+    def _opener(proxy):
+        if not proxy:
+            return None
+        return urllib.request.build_opener(
+            urllib.request.ProxyHandler({"http": proxy, "https": proxy}))
+
+    def _fetch(proxy=None):
+        op = _opener(proxy)
+        resp = (op.open(req, timeout=timeout) if op is not None
+                else urllib.request.urlopen(req, timeout=timeout))
+        started = time.time()
+        with resp:
+            total = int(resp.headers.get("Content-Length") or 0)
+            got = 0
+            with open(tmp, "wb") as fh:
+                while True:
+                    chunk = resp.read(1 << 20)
+                    if not chunk:
+                        break
+                    fh.write(chunk)
+                    got += len(chunk)
+                    if progress:
+                        try:
+                            progress(got, total)
+                        except Exception:  # noqa: BLE001
+                            pass
+                    if got < (1 << 16) and time.time() - started > stall_seconds:
+                        raise VoiceprintError(
+                            "连接 %d 秒仍无数据（%s）"
+                            % (stall_seconds, "代理" if proxy else "直连"))
+
+    def _cleanup():
+        try:
+            os.remove(tmp)
+        except OSError:
+            pass
+
+    def _proxy_if_up():
+        """内置代理**已经在跑**才返回地址；不触发启动（瞬时探测）。"""
+        import socket
+        for port in (7897,):
+            try:
+                with socket.create_connection(("127.0.0.1", port), timeout=0.3):
+                    return "http://127.0.0.1:%d" % port
+            except OSError:
+                pass
+        return None
+
+    running = _proxy_if_up()
+    tried = [("代理（已在运行）", running)] if running else []
+    tried.append(("直连", None))
+    last = None
+    ok = False
+    for label, px in tried:
+        try:
+            _fetch(px)
+            ok = True
+            break
+        except Exception as e:  # noqa: BLE001
+            last = (label, e)
+            _cleanup()
+
+    if not ok:
+        px = None
+        try:
+            import video_toolbox as _e
+            px = _e.ensure_builtin_proxy()
+        except Exception:  # noqa: BLE001
+            px = None
+        if not px:
+            raise VoiceprintError(
+                "下载失败（%s：%s）；内置代理也不可用，可手动下载后放到 %s"
+                % (last[0] if last else "直连",
+                   str(last[1])[:120] if last else "未知", MODEL_DIR))
+        try:
+            _fetch(px)
+            ok = True
+        except Exception as e:  # noqa: BLE001
+            _cleanup()
+            raise VoiceprintError(
+                "下载失败（%s：%s / 内置代理：%s）"
+                % (last[0] if last else "直连",
+                   str(last[1])[:80] if last else "未知", str(e)[:80]))
+
+    got = hashlib.sha256(open(tmp, "rb").read()).hexdigest()
+    if got != MODEL_SHA256:
+        _cleanup()
+        raise VoiceprintError("模型校验不一致（期望 %s…，实际 %s…），已丢弃"
+                              % (MODEL_SHA256[:12], got[:12]))
+    os.replace(tmp, MODEL_PATH)
+    return MODEL_PATH
 
 
 # ---------------------------------------------------------------- 音频读取
