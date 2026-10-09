@@ -310,6 +310,24 @@ def deploy_via_git(dry_run=False):
         print(git("init", "-q"))
         git("remote", "add", "origin", REMOTE_URL, check=False)
 
+    # ⚠⚠ 2026-10-09 补：暂存仓库必须**自带身份**，否则 `git commit` 报
+    #   "Author identity unknown" 直接 rc=128 中断整个发布。
+    # 起因：本机只在**主仓库**配了 user.name/email（仓库级 config），而
+    # build/ghpages_push 是独立仓库，既读不到仓库级、也没有 --global ——
+    # 于是「本地一切正常，一部署就挂」。取值优先级：主仓库 config →
+    # 环境变量 → 固定兜底（GitHub noreply 邮箱，不泄露真实邮箱）。
+    def _ident(key, env, default):
+        r = subprocess.run(["git", "-C", str(_BASE), "config", "--get", key],
+                           capture_output=True, text=True)
+        v = (r.stdout or "").strip()
+        return v or os.environ.get(env, "").strip() or default
+
+    git("config", "user.name",
+        _ident("user.name", "VT_DEPLOY_GIT_NAME", "VideoToolbox Deploy"))
+    git("config", "user.email",
+        _ident("user.email", "VT_DEPLOY_GIT_EMAIL",
+               "09Th90@users.noreply.github.com"))
+
     git("add", "-A")
     st = git("status", "--porcelain")
     if not st.strip():
