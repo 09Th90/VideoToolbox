@@ -1,3 +1,4 @@
+# @version 1.18.3
 # 复现「声纹筛选 bad allocation」：CAM++ 单次推理内存随输入时长 T 的变化。
 # 用法：tools/python/python.exe build/_vp_mem_probe.py <秒数>
 import os
