@@ -47,7 +47,7 @@ import subtitle_editor_core as secore  # noqa: E402
 
 
 def _resolve_dirs():
-    """定位 tools / data 两个目录。
+    r"""定位 tools / data 两个目录。
 
     ⚠⚠ **必须优先用引擎（`video_toolbox`）的常量**，别自己按 `__file__` 推层级。
     引擎那套同时处理了三种情形：

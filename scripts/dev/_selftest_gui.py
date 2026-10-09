@@ -8,6 +8,7 @@
 需要图形界面（本机运行）；用内置运行时 tools/python 执行。
 """
 import os
+import time
 import shutil
 import sys
 import tempfile
@@ -28,9 +29,18 @@ FAILS = []
 _LINES = []
 
 
-def check(name, cond, extra=""):
+def check(name, cond, extra="", skip=False):
     # extra 一律 str()：断言里顺手传 tuple / list 是很自然的写法，
     # 少了这一步会在拼接处抛 TypeError，把后面的检查全带崩（踩过一次）
+    if skip:
+        # 环境不具备（如引擎未就绪）⇒ 记 SKIP 不记 FAIL。
+        # ⚠ 别把这类跳过伪装成通过，也别当成回归——两者都会误导排查方向
+        # （2026-10-09 实测：引擎未就绪时整组被静默跳过，却因沿用上一组的
+        #   旧变量而报 FAIL，看起来像代码回归）。
+        line = f"  [SKIP] {name}" + (f" -> {extra}" if extra else "")
+        print(line)
+        _LINES.append(line)
+        return
     line = (f"  [{'PASS' if cond else 'FAIL'}] {name}"
             f"{(' -> ' + str(extra)) if extra else ''}")
     print(line)
@@ -1008,38 +1018,73 @@ def main():
           sub_if is not None
           and sub_if.main_layout.stretch(
               sub_if.main_layout.indexOf(sub_if.subtitle_table)) == 1)
-    # ---- v1.14.2：独立转录完成 → 自动装载并跳转「字幕翻译」（回归）----
+# ---- v1.14.2：独立转录完成 → 自动装载并跳转「字幕翻译」（回归）----
     # 坑：HomeInterface 构造时 addWidget 会把子界面 reparent 到 QStackedWidget，
     # 回填若用 self.parent() 取 HomeInterface 会静默失效（v1.14.1 曾如此）。
-    _tr_ok, _tr_why = False, "no engine"
-    if sub_if is not None and sub._engine is not None:
-        try:
-            _tdir = os.path.join(engine.TMP_DIR, "_selftest_tr_backfill")
-            os.makedirs(_tdir, exist_ok=True)
-            _tr_srt = os.path.join(_tdir, "selftest_tr.srt")
-            with open(_tr_srt, "w", encoding="utf-8") as f:
-                f.write("1\n00:00:00,000 --> 00:00:02,000\n自检字幕\n\n"
-                        "2\n00:00:02,000 --> 00:00:04,000\n第二行\n\n")
+    #
+    # ⚠⚠ **必须先等引擎就绪**，否则整组被静默跳过却报 FAIL（2026-10-09 实测）：
+    #   `sub._engine` 由 `prewarm()` 之后的 `_build_engine()` 赋值，是**异步**的；
+    #   原代码 `if sub._engine is not None` 门禁在引擎未就绪时直接跳过整个用例，
+    #   `_tr_why` 留着上一组用例的旧值 → 看起来像断言失败，实则根本没跑。
+    #   这里显式轮询等待，就绪后再取 subtitle_optimization_interface；
+    #   超时/缺失则记 SKIP 而非 FAIL，别把环境问题伪装成代码回归。
+    _tr_ok, _tr_skip, _tr_why = False, False, "no engine"
+    for _w in range(60):                     # 最多等 15s
+        if getattr(sub, "_engine", None) is not None:
+            break
+        _QApp.processEvents()
+        time.sleep(0.25)
+    if getattr(sub, "_engine", None) is None:
+        _tr_skip, _tr_why = True, "引擎 15s 内未就绪（prewarm 未完成）"
+    else:
+        _si = getattr(sub._engine, "subtitle_optimization_interface", None)
+        if _si is None:
+            _tr_skip, _tr_why = True, "subtitle_optimization_interface 不存在"
+        else:
+            _tr_ok, _tr_why = False, "未执行"
+            try:
+                _tdir = os.path.join(engine.TMP_DIR, "_selftest_tr_backfill")
+                os.makedirs(_tdir, exist_ok=True)
+                _tr_srt = os.path.join(_tdir, "selftest_tr.srt")
+                with open(_tr_srt, "w", encoding="utf-8") as f:
+                    f.write("1\n00:00:00,000 --> 00:00:02,000\n自检字幕\n\n"
+                            "2\n00:00:02,000 --> 00:00:04,000\n第二行\n\n")
 
-            class _FTask:
-                pass
+                class _FTask:
+                    pass
 
-            _ft = _FTask()
-            _ft.output_path = _tr_srt
-            _ft.file_path = _tr_srt
-            _ft.need_next_task = False
-            sub._engine.transcription_interface._on_transcript_finished(_ft)
-            _cur = sub._engine.stackedWidget.currentWidget()
-            _tr_ok = (os.path.abspath(sub_if.subtitle_path or "")
-                      == os.path.abspath(_tr_srt)
-                      and sub_if.model.rowCount() == 2
-                      and _cur is sub_if)
-            _tr_why = ("path=%s rows=%s cur=%s"
-                       % (sub_if.subtitle_path, sub_if.model.rowCount(),
-                          _cur.objectName()))
-        except Exception as e:  # noqa: BLE001
-            _tr_why = f"exc={e}"
-    check("独立转录完成：字幕自动装载并跳转「字幕翻译」", _tr_ok, _tr_why)
+                _ft = _FTask()
+                _ft.output_path = _tr_srt
+                _ft.file_path = _tr_srt
+                _ft.need_next_task = False
+                # ⚠⚠ 必须显式关掉声纹筛选，否则本组结论依赖**真实用户配置**。
+                #   自检跑在未隔离的 VT_DATA_ROOT 上（项目铁律），本机
+                #   `data\voiceprint\selection.json` 里启用了声纹（如 'SmugSlav'），
+                #   于是 `voiceprint_enabled_names()` 非空 → 转录完成走 **QThread
+                #   后台**筛选路径（v1.18.0 ⑥），跳转被推迟到 `_handoff` 回调里，
+                #   同步断言必然测不到。本组测的是「回填 + 跳转」，故隔离掉。
+                #   ⚠ 补丁里的 `_on_transcript_finished` 是闭包，引用的是**模块
+                #   全局** `voiceprint_enabled_names`，所以必须替换 engine 上的名字
+                #   （替换 sub._engine 上的属性无效）。
+                _old_vp = engine.voiceprint_enabled_names
+                try:
+                    engine.voiceprint_enabled_names = lambda: []
+                    sub._engine.transcription_interface \
+                        ._on_transcript_finished(_ft)
+                finally:
+                    engine.voiceprint_enabled_names = _old_vp
+                _cur = sub._engine.stackedWidget.currentWidget()
+                _tr_ok = (os.path.abspath(_si.subtitle_path or "")
+                          == os.path.abspath(_tr_srt)
+                          and _si.model.rowCount() == 2
+                          and _cur is _si)
+                _tr_why = ("path=%s rows=%s cur=%s"
+                           % (_si.subtitle_path, _si.model.rowCount(),
+                              _cur.objectName()))
+            except Exception as e:  # noqa: BLE001
+                _tr_ok, _tr_why = False, f"exc={e}"
+    check("独立转录完成：字幕自动装载并跳转「字幕翻译」",
+          _tr_ok, _tr_why, skip=_tr_skip)
     # v1.16.5：自检创建的临时目录此前不清理，会残留在 TMP_DIR 下。
     try:
         shutil.rmtree(os.path.join(engine.TMP_DIR, "_selftest_tr_backfill"),
@@ -1423,15 +1468,34 @@ def main():
           and "dashscope_filetrans" in sp.ASR_PROTO_KEYS,
           getattr(sp, "ASR_PROTO_KEYS", None))
     # ---- v1.15.8：说话人分离开关 ----
-    check("设置页含说话人分离开关（默认关，与协议下拉同卡片）",
+    # ⚠⚠ **不能断言 UI 当前值 = False**：自检跑在未隔离的 VT_DATA_ROOT 上
+    #   （项目铁律），本机 data\ai_config.json 里 asr_diarize=true（用户自己开的），
+    #   UI 会如实显示「开」——那是**正确的**，不是缺陷。
+    #   拆成两件事分别断言（同本文件 calib_cluster 的处理范式）：
+    #     ① 出厂默认关 ⇒ 查 DEFAULT_CONFIG；
+    #     ② UI 忠实反映当前配置 ⇒ 查 UI 值 == 配置值。
+    def _sw_ui(page, attr):
+        return (getattr(getattr(page, attr, None),
+                         "isChecked", lambda: None)())
+
+    _dc = engine.ai_mod().DEFAULT_CONFIG
+    check("设置页含说话人分离开关（出厂默认关 + UI 与配置一致）",
           hasattr(sp, "asr_diarize_switch")
-          and sp.asr_diarize_switch.isChecked() is False,
-          getattr(sp, "asr_diarize_switch", None))
+          and _dc.get("asr_diarize") is False
+          and _sw_ui(sp, "asr_diarize_switch") ==
+          bool(sp._collect_ai().get("asr_diarize")),
+          f"出厂默认={_dc.get('asr_diarize')} / "
+          f"UI={_sw_ui(sp, 'asr_diarize_switch')} / "
+          f"配置={sp._collect_ai().get('asr_diarize')}")
     # ---- v1.15.9：语音分离（Separation）开关 + 说话人分色/分轨 ----
-    check("设置页含语音分离开关（默认关，与说话人分离同卡片）",
+    check("设置页含语音分离开关（出厂默认关 + UI 与配置一致）",
           hasattr(sp, "asr_separate_switch")
-          and sp.asr_separate_switch.isChecked() is False,
-          getattr(sp, "asr_separate_switch", None))
+          and _dc.get("asr_separate") is False
+          and _sw_ui(sp, "asr_separate_switch") ==
+          bool(sp._collect_ai().get("asr_separate")),
+          f"出厂默认={_dc.get('asr_separate')} / "
+          f"UI={_sw_ui(sp, 'asr_separate_switch')} / "
+          f"配置={sp._collect_ai().get('asr_separate')}")
     check("语音分离开关进配置字典（asr_separate）",
           "asr_separate" in sp._collect_ai(),
           sorted(k for k in sp._collect_ai() if k.startswith("asr_")))
