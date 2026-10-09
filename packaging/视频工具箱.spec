@@ -238,6 +238,48 @@ a.binaries = [b for b in a.binaries
               if not any(d in os.path.basename(b[0]).lower() or d in b[0].lower()
                          for d in _DROP_BINARIES)]
 
+# ⚠⚠⚠ v1.18.2 修：**Qt5\bin 里的旧 MSVC runtime 会顶掉 onnxruntime 的新版**
+#   现象：安装版点「录入声纹」报
+#     ImportError: DLL load failed while importing onnxruntime_pybind11_state:
+#     动态链接库(DLL)初始化例程失败。
+#   根因：exe 里同时存在**两套同名** MSVC runtime，且 `PyQt5\Qt5\bin` 在
+#     DLL 搜索路径里**优先级高于 `_MEIPASS` 根目录**：
+#       · PyQt5\Qt5\bin\MSVCP140.dll  = **14.26**（2020 年，Qt 自带）
+#       · MSVCP140.dll（根目录）        = **14.50**（onnxruntime 依赖）
+#     onnxruntime.dll（编译时链的是 14.50 的导出表）拿到 14.26 的实现 ⇒
+#     符号版本不匹配 ⇒ DllMain 里就失败 ⇒ 报「初始化例程失败」而不是
+#     「找不到 DLL」。⚠ 这跟上面注释担心的「pyd 被顶掉」是**两个**问题：
+#     那次只解了 `onnxruntime_pybind11_state.pyd`，**onnxruntime.dll 本体
+#     同样会被顶掉**，所以没修干净。
+#   修法（不删文件、零体积代价）：把 Qt5\bin 下那四个 MSVC DLL 的**内容**
+#     换成根目录的新版 —— Qt5 只用到运行时导出函数（memcpy/_vsnprintf 等），
+#     新版对这些 ABI **完全向后兼容**；反向（旧版顶新版）才不安全。
+#     已用 build/_ort_repro.py 在模拟 _MEIPASS 里双向验证：
+#       场景A（现状）  → RESULT=FAIL（DLL load failed …初始化例程失败）
+#       场景B（覆盖后）→ RESULT=OK  onnxruntime 1.29.0
+#   ⚠ 关键前提：exe 根目录那份 14.50 **不是**从 site-packages 收集的
+#     （`find site-packages -iname "*msvcp140*"` 只命中 Qt5\bin 的 14.26
+#     与 numpy.libs 的 14.40），而是 PyInstaller 从 **Python 运行时目录**
+#     收集的。所以不能写死某个 site-packages 路径，只能从 `a.binaries`
+#     里按「目录为空 = _MEIPASS 根」筛出来，取它的**源路径**去复用。
+_MSVC_NAMES = {'msvcp140.dll', 'msvcp140_1.dll',
+               'vcruntime140.dll', 'vcruntime140_1.dll'}
+_root_msvc = {}
+for _e in a.binaries:
+    _n = os.path.basename(_e[0]).lower()
+    if _n in _MSVC_NAMES and not os.path.dirname(_e[0]).strip('/\\'):
+        _root_msvc[_n] = _e[1]
+print('[fix] 找到根目录新版 MSVC：%s'
+      % ', '.join(sorted(os.path.basename(p) for p in _root_msvc.values())))
+_patched = 0
+for _i, _e in enumerate(a.binaries):
+    _bn = os.path.basename(_e[0])
+    _dir = os.path.dirname(_e[0]).replace('\\', '/').lower()
+    if _dir.startswith('pyqt5/qt5/bin') and _bn.lower() in _root_msvc:
+        a.binaries[_i] = (_e[0], _root_msvc[_bn.lower()], _e[2])
+        _patched += 1
+print('[fix] Qt5\\bin 旧 MSVC runtime 已改指向根目录新版：%d 个' % _patched)
+
 exe = EXE(
     pyz,
     a.scripts,
