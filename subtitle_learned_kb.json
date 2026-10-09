@@ -1145,6 +1145,12 @@
    "uncorrected": 0,
    "status": "confirmed",
    "cues": [
+    92,
+    4161,
+    5266,
+    5284,
+    5286,
+    5287,
     135,
     210,
     566,
@@ -1158,13 +1164,7 @@
     6628,
     6696,
     7840,
-    8264,
-    10094,
-    10209,
-    10664,
-    11690,
-    12338,
-    92
+    8264
    ],
    "samples": [],
    "ref_tokens": {},
@@ -4242,7 +4242,8 @@
    "unc_ref_tokens": {},
    "first": "2026-10-05",
    "last": "2026-10-09",
-   "alts": {}
+   "alts": {},
+   "sync": true
   },
   "bi|Shin Lady": {
    "wrong": "Shin Lady",
@@ -4763,7 +4764,8 @@
    "unc_ref_tokens": {},
    "first": "2026-10-05",
    "last": "2026-10-09",
-   "alts": {}
+   "alts": {},
+   "sync": true
   },
   "bi|山房": {
    "wrong": "山房",
@@ -4920,7 +4922,8 @@
    "unc_ref_tokens": {},
    "first": "2026-10-05",
    "last": "2026-10-09",
-   "alts": {}
+   "alts": {},
+   "sync": true
   },
   "bi|哨兵希恩": {
    "wrong": "哨兵希恩",
@@ -5297,7 +5300,8 @@
    "unc_ref_tokens": {},
    "first": "2026-10-05",
    "last": "2026-10-09",
-   "alts": {}
+   "alts": {},
+   "sync": true
   },
   "bi|分形增殖。它们是碎片": {
    "wrong": "分形增殖。它们是碎片",
@@ -5361,7 +5365,8 @@
    "unc_ref_tokens": {},
    "first": "2026-10-05",
    "last": "2026-10-09",
-   "alts": {}
+   "alts": {},
+   "sync": true
   },
   "bi|神风": {
    "wrong": "神风",
@@ -9984,7 +9989,8 @@
    "unc_ref_tokens": {},
    "first": "2026-10-07",
    "last": "2026-10-09",
-   "alts": {}
+   "alts": {},
+   "sync": true
   },
   "bi|루실라": {
    "wrong": "루실라",
@@ -10104,7 +10110,8 @@
    "unc_ref_tokens": {},
    "first": "2026-10-07",
    "last": "2026-10-09",
-   "alts": {}
+   "alts": {},
+   "sync": true
   },
   "bi|루파": {
    "wrong": "루파",
