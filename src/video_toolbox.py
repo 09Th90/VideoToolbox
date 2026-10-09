@@ -1053,6 +1053,56 @@ TM_DISPLAY_DEFAULT = "默认"
 TM_DISPLAY_ASR = "ASR"
 
 
+# ---------- v1.18.0：转录完成后的「主播声纹筛选」 ----------
+def voiceprint_enabled_names():
+    """当前启用的声纹名单（空 = 用户没打算筛，别动字幕）。"""
+    try:
+        import speaker_voiceprint as _sv
+        return _sv.load_selection()
+    except Exception as e:  # noqa: BLE001
+        _vc_log(f"读取声纹启用名单失败：{e}")
+        return []
+
+
+def voiceprint_filter_subtitle(srt_path, media_path, progress=None):
+    """把刚转录出的字幕按「已启用声纹」筛成只留主播（**就地覆盖**）。
+
+    返回结果 dict；返回 `None` 表示「本次不筛」——以下情形都算：
+      · 一个声纹都没启用（用户没打算筛）
+      · 声纹模型还没下载（提示用户去「主播声纹 → 下载模型」）
+      · 字幕或媒体文件不存在
+
+    ⚠ 就地覆盖前先把原件备份成 `<名>_未筛选.srt`：筛选是启发式的，万一误杀
+    用户还能拿回全文。**任何异常都不吞**——由调用方记日志，绝不留半截产物。
+    """
+    import shutil
+    import speaker_voiceprint as sv
+
+    names = sv.load_selection()
+    if not names:
+        return None
+    if not sv.model_present():
+        _vc_log("声纹筛选跳过：模型未下载（界面「主播声纹 → 下载模型」）")
+        return None
+    if not (srt_path and os.path.isfile(srt_path)
+            and media_path and os.path.isfile(media_path)):
+        _vc_log(f"声纹筛选跳过：字幕或媒体不存在（{srt_path} / {media_path}）")
+        return None
+
+    backup = os.path.splitext(srt_path)[0] + "_未筛选.srt"
+    if not os.path.isfile(backup):
+        shutil.copyfile(srt_path, backup)
+    res = sv.filter_srt(media_path, srt_path, names, out_path=srt_path,
+                        progress=progress)
+    res["backup"] = backup
+    res["report"] = os.path.splitext(srt_path)[0] + ".报告.txt"
+    _vc_log("声纹筛选完成（%s）：%d 条 -> 保留 %d / 存疑 %d / 丢弃 %d；"
+            "原件备份 %s"
+            % ("、".join(names), res["total"], res["kept_total"],
+               res["review"], res["drop"], os.path.basename(backup)))
+    return res
+
+
 def vc_transcribe_ui_patch():
     """工作台转录下拉收敛为「默认 / ASR」+ 独立转录完成回填「字幕翻译」。
 
@@ -1253,6 +1303,77 @@ def vc_transcribe_ui_patch():
             pass
         return None
 
+    def _start_voiceprint_filter(iface, out, media, then):
+        """后台跑声纹筛选，完成后回调 `then()`；返回是否已接管流程。
+
+        ⚠ 用 QThread 而非同步调用：实测 18 分钟素材「解码 + 提 275 段声纹 +
+        聚类打分」约 27 秒，同步跑会把界面冻住（用户会以为卡死）。
+        ⚠ worker 必须挂在 iface 上防 GC——局部变量出作用域就被回收，线程会被
+        连带销毁，表现为"进度条一闪、什么都没发生"。
+        """
+        try:
+            from PyQt5.QtCore import QThread as _QThread
+        except Exception:  # noqa: BLE001
+            return False
+
+        parent = _home_of(iface) or iface.window()
+        try:
+            bar = InfoBar.info(
+                "正在按声纹筛选", "只保留主播台词，请稍候（长片约需半分钟）…",
+                duration=-1, position=InfoBarPosition.BOTTOM, parent=parent)
+        except Exception:  # noqa: BLE001
+            bar = None
+
+        class _VpWorker(_QThread):
+            done = pyqtSignal(object)
+
+            def run(self):
+                try:
+                    r = voiceprint_filter_subtitle(out, media)
+                except Exception as e:  # noqa: BLE001
+                    _vc_log(f"声纹筛选失败：{e}")
+                    r = {"error": str(e)}
+                self.done.emit(r)
+
+        def _finish(res):
+            try:
+                if bar is not None:
+                    bar.close()
+            except Exception:  # noqa: BLE001
+                pass
+            try:
+                if isinstance(res, dict) and res.get("error"):
+                    InfoBar.error("声纹筛选失败",
+                                  str(res["error"])[:200] + "\n字幕已保留未筛选版本",
+                                  duration=9000,
+                                  position=InfoBarPosition.BOTTOM, parent=parent)
+                elif res is None:
+                    InfoBar.warning(
+                        "声纹筛选未执行",
+                        "声纹模型还没下载：到「语音转录 → 主播声纹」点「下载模型」",
+                        duration=8000,
+                        position=InfoBarPosition.BOTTOM, parent=parent)
+                else:
+                    InfoBar.success(
+                        "声纹筛选完成",
+                        "保留 %d 条（其中存疑 %d）/ 丢弃 %d；原件已备份为「%s」"
+                        % (res["kept_total"], res["review"], res["drop"],
+                           os.path.basename(res.get("backup") or "")),
+                        duration=9000,
+                        position=InfoBarPosition.BOTTOM, parent=parent)
+            except Exception:  # noqa: BLE001
+                pass
+            try:
+                then()
+            except Exception as e:  # noqa: BLE001
+                _vc_log(f"声纹筛选后回填异常：{e}")
+
+        w = _VpWorker()
+        w.done.connect(_finish)
+        iface._vt_vp_worker = w          # 防 GC
+        w.start()
+        return True
+
     def _on_transcript_finished(self, task):
         # ⚠️⚠️ 入口先复位「处理中」标记（v1.15.7 修复）。
         # 引擎原生 _on_transcript_finished 的第一件事就是 is_processing=False，
@@ -1265,14 +1386,21 @@ def vc_transcribe_ui_patch():
         try:
             if task is not None and not getattr(task, "need_next_task", False):
                 out = _produced_subtitle(getattr(task, "output_path", None))
-                home = _home_of(self) if out else None
-                sub = (getattr(home, "subtitle_optimization_interface", None)
-                       if home is not None else None)
-                if sub is not None:
+                media = getattr(task, "file_path", None)
+
+                def _handoff():
+                    """把产物字幕装载到「字幕翻译」并切过去（原 ③ 的跳转）。"""
+                    home = _home_of(self) if out else None
+                    sub = (getattr(home, "subtitle_optimization_interface", None)
+                           if home is not None else None)
+                    if sub is None:
+                        if out:
+                            _vc_log("独立转录完成，但未定位到工作台首页，"
+                                    "回退引擎原逻辑")
+                        return False
                     from videocaptioner.ui.task_factory import TaskFactory
                     st = TaskFactory.create_subtitle_task(
-                        out, getattr(task, "file_path", None),
-                        need_next_task=False,
+                        out, media, need_next_task=False,
                         task_id=getattr(home, "_current_task_id", None))
                     sub.set_task(st)
                     # 切到「字幕翻译」并让分段控件同步高亮（原生跳转同款两连）
@@ -1285,9 +1413,17 @@ def vc_transcribe_ui_patch():
                         duration=5000,
                         position=InfoBarPosition.BOTTOM,
                         parent=home)
+                    return True
+
+                # ⑥ 主播声纹（v1.18.0）：启用了声纹就先筛，**筛完再回填字幕翻译**
+                #    ——顺序不能反：字幕翻译要拿筛过的字幕，否则翻译出来还是多人。
+                #    ⚠ 必须走后台线程：18 分钟的片子解码+提声纹要二三十秒，同步跑
+                #    会把主线程（也就是整个界面）冻住。
+                if out and voiceprint_enabled_names():
+                    if _start_voiceprint_filter(self, out, media, _handoff):
+                        return
+                if _handoff():
                     return
-                if out:
-                    _vc_log("独立转录完成，但未定位到工作台首页，回退引擎原逻辑")
         except Exception as e:  # noqa: BLE001
             _vc_log(f"转录完成回填异常：{e}")
         orig_finished(self, task)
