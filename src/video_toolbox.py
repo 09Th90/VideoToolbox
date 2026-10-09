@@ -1126,7 +1126,7 @@ def vc_transcribe_ui_patch():
         from videocaptioner.core.entities import TranscribeModelEnum
         from videocaptioner.ui.common.config import cfg as _cfg
         from qfluentwidgets import (Action, BodyLabel, FluentIcon, InfoBar,
-                                    InfoBarPosition, RoundMenu)
+                                    InfoBarPosition, PushButton, RoundMenu)
         from PyQt5.QtWidgets import QVBoxLayout as _QVBox
     except Exception as e:  # noqa: BLE001
         _vc_log(f"转录 UI 补丁导入失败：{e}")
@@ -1312,7 +1312,13 @@ def vc_transcribe_ui_patch():
         连带销毁，表现为"进度条一闪、什么都没发生"。
         """
         try:
+            # ⚠ `pyqtSignal` 必须在这里导入：本补丁函数只 import 了
+            #   QVBoxLayout / BodyLabel 等，没带 pyqtSignal。漏了会抛
+            #   `name 'pyqtSignal' is not defined`，而它被外层 try 吞进
+            #   logs\vc_fallback.log —— 界面上表现就是"什么都没发生"
+            #   （v1.18.0 实测踩过：转录完既不筛也不提示）。
             from PyQt5.QtCore import QThread as _QThread
+            from PyQt5.QtCore import pyqtSignal as _pyqtSignal
         except Exception:  # noqa: BLE001
             return False
 
@@ -1325,7 +1331,7 @@ def vc_transcribe_ui_patch():
             bar = None
 
         class _VpWorker(_QThread):
-            done = pyqtSignal(object)
+            done = _pyqtSignal(object)
 
             def run(self):
                 try:
@@ -1373,6 +1379,50 @@ def vc_transcribe_ui_patch():
         iface._vt_vp_worker = w          # 防 GC
         w.start()
         return True
+
+    def _vt_filter_current_subtitle(iface):
+        """对「字幕翻译」页**当前加载的字幕**套用声纹筛选，完了刷新表格。
+
+        为什么需要这个手动入口：自动筛选只在「转录完成」时触发，而用户完全可能
+        （a）走的是别的路径、（b）直接打开一份旧字幕、（c）想换个阈值再筛一次
+        ——总不能每次都重转录（费时又费 ASR 额度）。有了它，任何来源的字幕都能筛。
+        """
+        path = getattr(iface, "subtitle_path", None)
+        media = getattr(getattr(iface, "task", None), "video_path", None)
+        if not path or not os.path.isfile(path):
+            InfoBar.warning("没有可筛选的字幕", "请先加载字幕文件",
+                            duration=5000, position=InfoBarPosition.BOTTOM,
+                            parent=iface)
+            return
+        if not media or not os.path.isfile(media):
+            InfoBar.warning(
+                "缺少配套视频",
+                "声纹筛选要从原视频/音频里取声音，当前字幕没有关联的媒体文件",
+                duration=7000, position=InfoBarPosition.BOTTOM, parent=iface)
+            return
+        if not voiceprint_enabled_names():
+            InfoBar.warning(
+                "没有启用声纹",
+                "到「语音转录 → 主播声纹」勾选要保留的声音（可多选）",
+                duration=7000, position=InfoBarPosition.BOTTOM, parent=iface)
+            return
+        # 先把表格里的编辑写回文件——与引擎 `start_subtitle_optimization` 同款，
+        # 否则筛选会连带丢掉用户在表格里做的合并 / 删除 / 编辑。
+        try:
+            from videocaptioner.core.asr.asr_data import ASRData
+            if getattr(getattr(iface, "model", None), "_data", None):
+                ASRData.from_json(iface.model._data).to_srt(save_path=path)
+        except Exception as e:  # noqa: BLE001
+            _vc_log(f"筛选前回写表格失败（忽略，继续筛）：{e}")
+
+        def _after():
+            try:
+                iface.load_subtitle_file(path)      # 刷新表格为筛选后的内容
+            except Exception as e:  # noqa: BLE001
+                _vc_log(f"筛选后刷新表格失败：{e}")
+
+        if not _start_voiceprint_filter(iface, path, media, _after):
+            _after()
 
     def _on_transcript_finished(self, task):
         # ⚠️⚠️ 入口先复位「处理中」标记（v1.15.7 修复）。
@@ -1522,6 +1572,53 @@ def vc_transcribe_ui_patch():
         _VTSettingDialog.__init__ = _dlg_init
     except Exception as e:  # noqa: BLE001
         _vc_log(f"转录设置弹窗声纹补丁未挂：{e}")
+
+    # ⑧ 任务创建路径的声纹筛选（v1.18.0）
+    #    ⚠⚠ 引擎的 `TranscriptionInterface._on_transcript_finished` **只在
+    #    `need_next_task=True` 时**才 `self.finished.emit(...)`；而补丁 ③ 挂的是
+    #    `not need_next_task`（「独立转录」）那一支 ⇒ **走「任务创建」的用户筛选
+    #    完全不生效**（2026-10-09 实测踩过：转录产物 275 条原样没筛，用户看到
+    #    "还是混杂"）。这里把另一条路也挂上——它的落点是
+    #    `HomeInterface.switch_to_subtitle_optimization(file_path, video_path)`。
+    try:
+        from videocaptioner.ui.view.home_interface import (
+            HomeInterface as _VT_HOME)
+        _orig_switch_sub = _VT_HOME.switch_to_subtitle_optimization
+
+        def _switch_sub(self, file_path, video_path):
+            if voiceprint_enabled_names() and _start_voiceprint_filter(
+                    self, file_path, video_path,
+                    lambda: _orig_switch_sub(self, file_path, video_path)):
+                return
+            return _orig_switch_sub(self, file_path, video_path)
+
+        _VT_HOME.switch_to_subtitle_optimization = _switch_sub
+    except Exception as e:  # noqa: BLE001
+        _vc_log(f"任务创建路径的声纹筛选补丁未挂：{e}")
+
+    # ⑨ 「字幕翻译」页加「按声纹筛选」按钮（v1.18.0）
+    #    自动筛选只在「转录完成」时触发；用户完全可能直接打开一份旧字幕、或想
+    #    换个阈值再筛一次——总不能每次重转录。给个手动入口，任何来源都能筛。
+    try:
+        from videocaptioner.ui.view.subtitle_interface import (
+            SubtitleInterface as _VT_SubIface)
+        _orig_sub_init = _VT_SubIface.__init__
+
+        def _sub_init(self, parent=None):
+            _orig_sub_init(self, parent)
+            try:
+                btn = PushButton("按声纹筛选", self)
+                btn.setToolTip("按已启用的主播声纹过滤当前字幕"
+                               "（原件自动备份为 *_未筛选.srt）")
+                btn.clicked.connect(lambda: _vt_filter_current_subtitle(self))
+                self.command_bar.addWidget(btn)
+                self._vt_vp_button = btn
+            except Exception as e:  # noqa: BLE001
+                _vc_log(f"字幕翻译页声纹按钮挂载失败：{e}")
+
+        _VT_SubIface.__init__ = _sub_init
+    except Exception as e:  # noqa: BLE001
+        _vc_log(f"字幕翻译页声纹补丁未挂：{e}")
 
     # ⑤ ASR 服务模式多协议适配（auto / openai / azure / dashscope）
     try:

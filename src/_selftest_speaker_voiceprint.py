@@ -283,6 +283,49 @@ def main():
           [st for _, st, _ in verdict_m] == ["keep", "keep", "keep", "drop"],
           [st for _, st, _ in verdict_m])
 
+    # ---------------- 5c) 本地声纹聚类（无 [说话人N] 时） ----------------
+    say("\n== 5c) 本地声纹聚类 ==")
+    # 造 3 位「说话人」交替的假音频 + 对应 cue（cue 2 故意很短，应不参与聚类）
+    plan = [(0.0, 1.0, 1), (1.5, 1.0, 2), (3.0, 1.2, 1), (5.0, 1.0, 3),
+            (6.5, 1.0, 2), (8.0, 0.25, 3)]
+    pcm2 = np.zeros(int(11.0 * 16000), dtype=np.float32)
+    doc2 = SV.secore.SubtitleDoc()
+    rows = []
+    for i, (st, dur, sid) in enumerate(plan, 1):
+        a, b = int(st * 16000), int((st + dur) * 16000)
+        pcm2[a:b] = sid / 10.0
+        rows.append("%d\n%s --> %s\n第 %d 句\n" % (
+            i, _ts(st), _ts(st + dur), i))
+    doc2.load_bytes("\n".join(rows).encode("utf-8"))
+    cues2 = list(doc2.cues)
+    check("假素材解析出 6 条 cue", len(cues2) == 6, len(cues2))
+
+    labels2, sizes2 = SV.cluster_cues(pcm2, cues2, enc)
+    check("聚出 3 个说话人簇", len(sizes2) == 3, sizes2)
+    check("过短 cue 不参与聚类（标 -1）", labels2[5] == -1, labels2)
+    check("同说话人落同一簇",
+          labels2[0] == labels2[2] and labels2[1] == labels2[4]
+          and labels2[0] != labels2[1], labels2)
+    check("聚类结果可复现（两次一致）",
+          SV.cluster_cues(pcm2, cues2, enc)[0] == labels2)
+
+    sc2 = SV.score_clusters(pcm2, cues2, labels2, tpl, enc)
+    hit = [v for v in sc2.values() if abs(v["score"] - 1.0) < 1e-6]
+    check("簇分：spk1 的簇命中模板 = 1.0", len(hit) == 1 and hit[0]["n"] == 2,
+          sc2)
+    check("簇分：其余簇 = 0",
+          all(abs(v["score"]) < 1e-6 for v in sc2.values()
+              if not abs(v["score"] - 1.0) < 1e-6), sc2)
+    cue_scores2 = SV._labels_to_cue_scores(cues2, labels2, sc2)
+    check("簇分摊回每条 cue（长度一致）", len(cue_scores2) == 6, len(cue_scores2))
+    check("过短 cue 摊回 NaN",
+          cue_scores2[5] != cue_scores2[5], cue_scores2[5])
+    v2 = SV.decide(cues2, {}, 0.55, 0.45, cue_scores2)
+    check("按簇判定：spk1 保留、其余丢弃/存疑",
+          [st for _c, st, _s in v2] == ["keep", "drop", "keep", "drop",
+                                        "drop", "review"],
+          [st for _c, st, _s in v2])
+
     # ---------------- 6) decide() 三分支 ----------------
     say("\n== 6) decide() 判定 ==")
     verdict = SV.decide(cues, sc, threshold=0.5, low=0.35)
@@ -438,6 +481,14 @@ def main():
     except OSError:
         pass
     return 1 if FAILS else 0
+
+
+def _ts(sec):
+    """秒 -> SRT 时间戳（00:00:01,500）。"""
+    h = int(sec // 3600)
+    m = int(sec % 3600 // 60)
+    s = sec % 60
+    return ("%02d:%02d:%06.3f" % (h, m, s)).replace(".", ",")
 
 
 def _engine_tools_matches():
