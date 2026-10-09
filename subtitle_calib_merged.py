@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 1.18.0
+# @version 1.18.3
 """字幕校准统一脚本（唯一入口，可复用，每次校准任务优先调用本脚本）
 
 本文件是工作区全部历史校准脚本的统一沉淀（双语 calib_rules、韩语
@@ -1845,6 +1845,161 @@ KO_TERMS = {
     "万尚星景": "万相神宫", "万桑圣公会": "万相神宫", "万桑新公": "万相神宫",
     "万桑神社": "万相神宫",
 
+
+    # ══ 2026-10-09 二次校准沉淀（奇谭「璇心如月寄尘情」韩语实况）══
+    # —— 心月狐 漏校变体 ——
+    '新月狐': '心月狐',
+    'Shinwol Fox': '心月狐',
+    'Deep Moon Fox': '心月狐',
+    '心血狐': '心月狐',
+    '心血狐狸': '心月狐',
+    '心血女性宠儿': '心月狐',
+    '嗜血女性精英': '心月狐',
+    '勤奋女性精英': '心月狐',
+    '石末狐': '心月狐',
+    '深邃狐狸': '心月狐',
+    '赤木狐狸': '心月狐',
+    '奇穆尔狐': '心月狐',
+    '奇梅尔狐': '心月狐',
+    '奇美欧狐': '心月狐',
+    '思月狐狸': '心月狐',
+    '首都狐狸': '心月狐',
+    '灭狐专家': '心月狐',
+    '植鱼狐': '心月狐',
+    '虎狐': '心月狐',
+    '夜里的狐狸': '心月狐',
+    '植物狐狸': '心月狐',
+    '狐狸的心战斗场': '心巷战场',
+    # —— 奉月舞团 漏校变体 ——
+    '盂兰舞团': '奉月舞团',
+    '邦霍尔舞团': '奉月舞团',
+    '奉霍尔舞团': '奉月舞团',
+    '四方邦霍尔舞蹈团': '奉月舞团',
+    '应用舞蹈队': '奉月舞团',
+    'Bonwol舞': '奉月舞',
+    'Eo-yoi之舞': '奉月舞',
+    '凤凰之舞': '奉月舞',
+    '盆月舞': '奉月舞',
+    '本月舞': '奉月舞',
+    '盂兰舞': '奉月舞',
+    '邦霍尔舞': '奉月舞',
+    # —— 朝月会 漏校变体 ——
+    '朝月尤聚会': '朝月会',
+    '朝月悦会': '朝月会',
+    'Joyo月促销期': '朝月会',
+    '朝月海': '朝月会',
+    '珠尔聚会': '朝月会',
+    'Joeoora': '朝月会',
+    '初月节': '朝月会',
+    # —— 梦枢天罗（몽추천라） 漏校 ——
+    '孟洙天罗': '梦枢天罗',
+    '蒙楚哲': '梦枢天罗',
+    '蒙楚楚梦楚': '梦枢天罗',
+    'Mongnae': '梦枢天罗',
+    '蒙奈信': '梦枢天罗',
+    '阿蒙推荐': '梦枢天罗',
+    '金梦推荐': '梦枢天罗',
+    # —— 荒凉之心 漏校变体 ——
+    '荒凉心灵': '荒凉之心',
+    '荒凉的心脏': '荒凉之心',
+    '荒凉的心': '荒凉之心',
+    '一颗荒凉的心': '荒凉之心',
+    # —— 其他 ——
+    '二次共振': '二次共鸣',
+    '恩贤战争': '云渊之役',
+    '心航道': '心巷',
+    '沃尔申糯米糕': '心月狐糯米糕',
+    'Shinwol Fox的糯米糕': '心月狐糯米糕',
+    '清谷腐败': '青玉腐化',
+    '清谷笛': '青玉笛',
+    '机构娃娃': '机构机关傀儡',
+    '审判盒': '情匣',
+    '正义盒碎片': '情匣碎片',
+    '情感箱': '情匣',
+    '心月和恋爱节': '朝月会',
+    '心月狐宝盒': '情匣',
+    '心月狐鱼': '心月狐',
+    '心月就是心月': '心月狐就是心月狐',
+    '庆邦城': '玄方城',
+    '高门州川': '玄方地界',
+    '乌翁蒙山世界中万相之域': '索拉里斯世界中万相之域',
+    '心花园': '心月狐',
+    '宋氏': '璇情',
+    '璇情贞的影子': '璇情的影子',
+    '璇情贞向狐祈祷': '璇情向心月狐祈祷',
+    '河璇情贞': '璇情',
+    '思念璇情贞': '思念璇情',
+    '璇情贞姐姐': '璇情姐姐',
+    '璇情贞根本看不到': '璇情根本看不到',
+
+    # ══ 2026-10-09 二次校准沉淀·第二批：3.7 梦州 4장4막「梦枢心相由心生」官方术语 ══
+    # 官方依据：鸣潮官网 3.7「镜锁妄世，心照红尘」版本说明（news/detail/5569）、
+    # Arcalive 韩服测试服官方术语中韩对照（184301465，宿镜/梦枢天罗/心钥井/锦妙锁/心域/
+    # 禁锁十契/朝月会/天罗狐影）、梦州-玄方地界登场人物评价（185077278）。
+    # 本批只收**非词中文错形/罗马字**（可安全裸键）；通用中文词错形（命运之镜/月灯/青草/
+    # 纯粹/素素/高粱/杨阳/肉鸡/口味/黄金世界/总督察/神殿/运动/改革…）一律走文末
+    # KO_CONTEXT 韩语锚定，禁止裸键。
+    # —— 锦妙锁(금묘쇄，心月狐为谛天鉴成员所制信物)：금요세/금묘세 谷翻"金曜税/金苗税"；
+    #    금요세요 句尾被误作"星期五"（通用词，见 KO_CONTEXT）——
+    '金曜税': '锦妙锁', '金苗税': '锦妙锁', '金曜世': '锦妙锁', '金苗世': '锦妙锁',
+    # —— 心相迷宫(심상미궁，梦枢天罗下辖场景；注意 심상 单独=心象，是普通词) ——
+    '想象迷宫': '心相迷宫', '心象迷宫': '心相迷宫',
+    # —— 心钥井(심약정/마음의 열쇠 우물，连接各心域，需心域秘钥) ——
+    '心灵的钥匙井': '心钥井', '钥匙井': '心钥井', '关键之井': '心钥井',
+    '关键井': '心钥井', '关键泉源': '心钥井',
+    # —— 琢钧堂(탁균당/닭균당，工匠组织，与天工部共建渊城) ——
+    '大坤堂': '琢钧堂', '塔基恩堂': '琢钧堂', '塔金当': '琢钧堂',
+    # —— 渊城(연성，玄方城建其地基之上)；"软体/延性/柔和"等字面义见 KO_CONTEXT ——
+    '延城': '渊城',
+    # —— 稷廷(직정，工匠群体，后自愿弃肉身成天人、意识寄宿机关活字) ——
+    '志进': '稷廷', '吉江': '稷廷', '直正': '稷廷',
+    # —— 梁鸢(양연，心仿灭绝的玄翎雀所造传信机关鸟)；"第一对狮子"的"狮子"见 KO_CONTEXT ——
+    '贤纺织': '玄方',
+    # —— 天罗狐影(천라호영，心月狐法相) ——
+    '天罗浩英': '天罗狐影', '天拉浩英': '天罗狐影', '天罗浩': '天罗狐影',
+    # —— 梦玄溪山(몽현계산) ——
+    '梦境和梦境的计算': '梦玄溪山', '梦境的计算': '梦玄溪山',
+    # —— 玄朱锁(현주쇄，锁暝封禁锁九人与恶瘴频率之锁，共十人) ——
+    '贤珠世': '玄朱锁', '现行的州税': '玄朱锁', '现行酒类税': '玄朱锁',
+    # —— 禁锁十契(금쇄십계/금세쉽게 ASR，锁暝所创) / 契主(계주/개주) ——
+    '快速而易行': '禁锁十契', '黄金世界接力赛': '禁锁的契主', '开州税': '契主',
+    '狗主人': '契主大人',
+    # —— 守护神(수호신) ASR 非词错形（소신 的多义碎片只在 KO_CONTEXT 按搭配收）——
+    '苏霍希': '守护神', '寿湖市': '守护神', 'Sohoshi': '守护神',
+    '苏奥茨': '守护神', '宗心大人': '守护神大人', '须星': '守护神',
+    '苍星的频率': '守护神大人的频率',
+    # —— 蛇菰(사마도，被蛇寄生的谛天鉴州监，残星会，刺杀心月狐本体) ——
+    '萨马多': '蛇菰',
+    # —— 云渊之役(운연 전쟁，心伪装岁主救民之战；"恩贤战争"已收) ——
+    '运气战争': '云渊之役',
+    # —— 月灯(월등，朝月会沉月灯习俗/梦构匣中玩法)；"沃尔登/月光/大灯/满月"见 KO_CONTEXT ——
+    '月登': '月灯', '月东': '月灯',
+    # —— 谛天鉴(제천감/제청감/체천감/재천감) 非词错形（"济川监狱/堤清岩"等已在 ctx）——
+    '济川岩': '谛天鉴', '济清岩': '谛天鉴', '堤川监': '谛天鉴',
+    '堤川监察官': '谛天鉴的人', '济川神': '谛天鉴',
+    '济川岩监察长': '谛天鉴的州监', '天察署': '谛天鉴', '提交官员': '谛天鉴的人',
+    # —— 州监(주감，谛天鉴职位) 非词错形（"总督察/首席督察"等真实头衔见 KO_CONTEXT）——
+    '朱甘先生': '三位州监大人', '世宗朱甘': '三位州监', '世宗周焕': '三位州监',
+    '谢明珠': '三位州监', '苏明聚甘': '锁暝州监', '崔明柱主管': '锁暝州监大人',
+    'Jugam': '州监',
+    # —— 清宵(청초，玄方城镇玄司骑，3.6 起) 非词错形（"青草/纯粹/青州/绿色"见 ctx）——
+    '青州佐木': '清宵司骑', '晋延萨吉': '镇玄司骑', '晋延史义': '镇玄司骑',
+    # —— 秧秧·玄翎(양양/양냥/아기야우) 非词错形（"杨阳/阳阳/小姚"见 KO_CONTEXT）——
+    '宝宝雅欠': '小秧秧', '西沃廖': '心月狐', '油星': '秧秧', '祖月': '朝月会',
+    # —— 正贤(정현，玄方城留守官员；官方汉字名未证实，按汉字音稳定) ——
+    'Junghyun': '正贤',
+    # —— 解形煞(해형살，3.7 新声骸) ——
+    '海亨萨尔': '解形煞', '海亨萨': '解形煞',
+    # —— 四灯阁(4등각，管理所有月灯之处；官方名未证实，按汉字音) ——
+    '四度角': '四灯阁',
+    # —— 梦枢天罗(몽추천라) 残余谷翻错形 ——
+    '梦楚天拉': '梦枢天罗',
+    # —— 频率(주파수/주파스 ASR) 谷翻"朱帕斯/Jupas" ——
+    'Jupas（朱帕斯）': '频率', '朱帕斯': '频率',
+    # —— 万相神宫(만상신궁) 与天人 박근형（官方名未证实，按音"朴根亨"）断句错形 ——
+    '新宫公园根亨': '万相神宫朴根亨',
+    # —— 遇合之节(우합지절，心钥井相关机制；官方名未证实，按汉字音) ——
+    '合池节': '遇合之节',
 }
 
 # 已下线的危险裸键（2026-10-06）：静态表已删，但增量库 applied.json / learned_kb
@@ -2122,7 +2277,9 @@ ENDFIELD_BI_TERMS = {
     "Seshka": "塞什卡", "Seska": "塞什卡", "Sashka": "塞什卡",
     "兰安托玛": "菈梵朵玛", "Lafantoma": "菈梵朵玛", "Laantoma": "菈梵朵玛",
     "Laafantoma": "菈梵朵玛", "La Phantoma": "菈梵朵玛",
-    "白垩纪边界": "白垩洲边境", "白垩纪地质带": "白垩洲地质带", "白垩纪": "白垩洲",
+    "白垩纪边界": "白垩洲边境", "白垩纪地质带": "白垩洲地质带",
+    # 勿收裸键「白垩纪→白垩洲」：会连锁误伤「白垩纪地质」（Cretaceous geological，地质形容词，
+    # 如 cue574「克雷特岩地质」→「白垩纪地质」）；指地区时原文多作「白鄂州」，由专名键处理。
     "羊毛城": "武陵城",                      # Wooling（裸键「羊毛」不收）
     # —— 生物 / 品牌 ——
     "Feramute": "巨兽", "Ferraamute": "巨兽",
@@ -2130,6 +2287,151 @@ ENDFIELD_BI_TERMS = {
     # —— 角色 ——
     "瓦勒林": "华法琳", "沃拉林": "华法琳", "Warerin": "华法琳",   # Warfarin
     "普利卡": "佩丽卡",                      # Perlica（终末地工业监督）
+    # —— 2026-10-09 沉淀：《BANGER ALERT, ARKNIGHTS: ENDFIELD 1.6 IS A BLAST!》
+    #    1.6「丹青渡」前瞻直播英文 reaction 片（762 cue，英文主播评论机翻 + 官方中文直播 ASR）。
+    #    官方依据：终末地官网/TapTap 官方论坛 1.6 前瞻总结、新浪前瞻直播汇总、NGA 危机合约攻略。
+    # 星球/地区（本片 ASR 音译错形）
+    "En Field": "终末地", "恩德场": "终末地",
+    "塔威尔": "塔卫二", "塔维尔": "塔卫二",
+    "塞斯卡拉": "塞什卡",
+    "梵多玛": "菈梵朵玛", "拉梵多玛": "菈梵朵玛",
+    "白鄂州": "白垩洲",
+    "乌灵": "武陵",
+    "克雷特亚斯边疆": "白垩边疆", "克雷特岩地质": "白垩纪地质",
+    "萨克亚兹": "萨卡兹", "萨克人": "萨卡兹人",
+    # 1.6 角色/坐骑
+    "小克": "小刻",                          # 刻俄柏(Ceobe)塔卫二版，官方直播字幕 ASR 错
+    "冥河": "明河",                          # 明河坐骑语境（羡慕明河有战马）
+    "怒离": "怒骊",                          # 明河专属坐骑
+    "别里塞西": "别礼、赛希",                # 联机阵容连读：别礼+赛希两名干员
+    "塞西": "赛希", "别里": "别礼",          # 赛希(挂寒冷附着)/别礼，ASR 简称为此
+    "秋丽": "秋栗",                          # 干员秋栗（终结技快速恢复技力）
+    # 1.6 活动/玩法/赛季（官方名）
+    "烟火深渊": "烟火生缘", "烟火深远": "烟火生缘",
+    "圆圆庄": "缘缘庄",
+    "影拓风碑": "影拓丰碑", "隐拓丰碑": "影拓丰碑",
+    "近蓝测试作战": "浸蓝测试作战",          # 危机合约#2
+    # 注：「森林异域」（影拓丰碑系列）、「异想与狂热」（战争回响 Illusion/Fervor 两赛季）、
+    #     「妙趣游乐」（幸运萝卜打牌玩法，官方即此名，勿改作妙趣横乐）查无官方改名依据，保留原文。
+    "画外移光": "画外遗光",                  # 密境行者新空间组画
+    "凶行皆明": "凶行揭明",                  # 影拓丰碑特殊高难新系列
+    "单精度版本": "丹青渡版本",
+    "明日方舟兄弟": "明日方舟：终末地",      # Steam 版口播 ASR
+    "周末地周末回响": "终末地版音律联觉",    # 线下音乐会（品牌＝音律联觉 Ambience Synesthesia）
+    # 1.6 系统/装备/道具
+    "原始虫": "源石虫",
+    # 墨魉：仅怪物语境替换；贴纸「线性墨量」是专名须保留，故不用裸键「墨量」，改为带上下文键
+    "气窗和墨量": "气窗和墨魉", "这些墨量": "这些墨魉",
+    "嵌金玉": "嵌晶玉", "倩天玉": "嵌晶玉", "千年玉": "嵌晶玉",
+    "千金玉": "嵌晶玉", "千金月": "嵌晶玉",  # 抽卡货币 Oroberyl 官方中文
+    "明慧炉": "明晦炉",                      # 阵列科技设备
+    "塔金奇幻": "塔晶集换", "塔金极幻": "塔晶集换",  # 塔晶兑换商店
+    "长吸装备组": "长息装备组",
+    "英龙装备组": "应龙装备组",
+    "射渊装备组": "涉渊装备组",
+    "卓同装备元件": "息壤装备元件", "卓统装备元件": "息壤装备元件",
+    "玉钟声": "玉中身",                      # 祀专武（六星双手剑）
+    "幻月": "唤月",                          # 明河专武（六星单手剑，本片仅专武语境）
+    # 注：「聚合工业」是官方六星单手剑名/武陵地名、「归隐」为明河叙事活动名，均查无改名依据，保留原文。
+    "以诺维加": "一诺为家",                  # 汤汤重制 EP
+    "北部进区": "北部禁区",
+    "魔镜大冒险": "蘑境大冒险", "大魔镜": "大蘑境", "魔镜": "蘑境",  # 小刻蘑菇主题玩法
+    "洪山": "宏山",                          # 特别映像《宏山》
+    # 1.6 战斗机制/怪物/优化项（官方直播 ASR 错形）
+    "比翼": "笔意",                          # 祀的核心机制（定身/笔意/墨魂）
+    "多种全能": "多种权能",
+    "记忆力": "技力",                        # 养气图恢复技力
+    "食影牙兽": "蚀影牙兽",                  # 注：「球刺兽」是官方正确怪名，勿改作棘球刺兽
+    "密教之力": "密钥：锁闭",                # 危机合约密钥指标
+    "环境易散": "环境：逸散",
+    "满浅光效": "满潜光效", "基建牌班": "基建排班", "快速拜法": "快速拜访",
+    "奇妙视线收藏包": "奇妙视界收藏包",
+    "RTS Spark": "RTX Spark",
+    # —— 2026-10-09 二次校准沉淀（官网 operator 页、1.6 前瞻省流、NGA 危机合约#2 攻略核实）——
+    "诗颖队长": "李织烟队长",                # 诀（本名李织烟，应龙特勤队队长），ASR 误作诗颖
+    "隔山控你": "河山共影",                  # 祀战技官方名（定身/笔意/墨魂）
+    "呈现起笔": "乘兴起笔",                  # 祀普攻官方名
+    "五零式英龙": "50式应龙",                # 50式应龙装备组（另有长息/涉渊，见上）
+    "雪风林": "雪松林",                      # 「武陵-雪松林」是官方区域，勿误作雪风林
+    "存续的痕等": "存续的痕迹等",            # 影拓丰碑奖励道具（常漏「迹」）；带「等」字避免误伤正确的「痕迹」
+    "新筑心血": "倾注心血",                  # 固定成语 ASR 误听
+    "特许巡场凭证": "特许寻访凭证",          # UP 池（特许寻访）抽卡道具
+    "通用装备元件": "息壤装备元件",          # 防御：官方为息壤装备元件（武陵基建制造）
+    "密钥·锁闭": "密钥：锁闭", "环境·逸散": "环境：逸散",  # 官方指标名用全角冒号，非间隔号
+    # —— 2026-10-09 三次沉淀：《What Is Arknights: Endfield Cooking?》英文角色盘点机翻片（736 cue，
+    #    1.5「雪凇幽梦」前后 survey/reaction，英文主播口播 ASR→谷歌机翻）。官方依据：终末地官网
+    #    operator 页中英对照、PRTS/萌娘百科、TapTap 官方论坛、NGA 武陵与 1.5 剧情讨论。
+    # 明日方舟 Arknights 机翻错形：条件变体漏掉的所有格/单数语境，用裸键兜底
+    "方舟骑士": "明日方舟", "弧骑士": "明日方舟", "阿克奈特": "明日方舟",
+    # 1.5 地名 / 区域（官网定名）
+    "伍林市": "武陵城", "伍林": "武陵", "雪山森林": "雪林",
+    # 干员 / 角色（英文 ASR 音译错形 → 官网定名）
+    "罗西": "洛茜",                      # Rossi
+    "达潘": "大潘",                      # Da Pan（潘远，Perro）
+    "卡米尔": "卡缪",                    # Camille（塞什卡血魔，1.1 卫星）
+    "沃加德": "狼卫",                    # Wgard / Wulfgard
+    "李芳": "黎风",                      # Lee Fang / Lifeng
+    "安索尔": "安塔尔",                  # Anthol / Antal
+    "阿库里": "秋栗",                    # Akuri / Akekuri（Z7 队长）
+    "捕手": "卡契尔",                    # Catcher（铁卫；终末地片源中专指该干员，非棒球捕手）
+    "氟石": "萤石",                      # Fluorite
+    "佩里利卡": "佩丽卡",                # Perlica ASR 拖音错形
+    "斑疹伤寒": "提弗洛斯",              # Typhoeus（ASR Typhus；1.5 雪林登场，终末地官网定名提弗洛斯）
+    "唐唐": "汤汤",                      # Tang Tang（清波寨大当家）
+    "恩德曼": "管理员",                  # Endministrator / Admin 的 ASR
+    "米纳尔": "瑕光", "梅拉尔": "瑕光",  # Blemishine skin 的 ASR 漂移
+    "Blemenshine": "瑕光", "Bllemanshine": "瑕光", "Blanchshine": "瑕光",  # 明日方舟干员瑕光（库兰塔剑盾骑士）
+    "乌玛姆斯": "赛马娘", "乌玛·穆苏姆": "赛马娘", "马女": "马娘",  # Uma Musume
+    # 系统 / 职业 / 稀有度（机翻普通词错位，仅终末地游戏片源语境）
+    "操作员": "干员", "算符": "干员", "接线员": "干员", "操作者": "干员", "运营商": "干员",  # operator
+    "管理者": "管理员",                  # administrator（主角固定称谓）
+    "身体守卫": "物理近卫", "电护罩": "电气近卫", "电动护罩": "电气近卫",  # guard=近卫（物理/电气）
+    "六星祭坛": "六星异格", "银灰祭坛": "银灰异格", "SPalter": "SP异格",  # alter 被误听成 altar
+    "五星级": "五星", "四星级": "四星", "四颗星": "四星", "五颗星": "五星",  # 干员稀有度
+    "成虫": "成年",                      # adult 被机翻成昆虫学「成虫」
+    "Gotacha": "抽卡", "OpenW世界": "开放世界",
+    # —— 2026-10-09 四次沉淀：《What Is Arknights: Endfield Cooking?》第二轮全片逐句中英通读
+    #    （736 cue，补整词漏译、同音 ASR 名词，并按官方依据把 alter 意译统一为「异格」）。
+    # 星球（官方 Talos-II 无「号」字）
+    "塔卫二号": "塔卫二",
+    # 角色 survey / 性格选项（ASR 错形）
+    "弗纳布尔": "脆弱",                      # Vernable＝vulnerable
+    "Dity": "傻气",                          # ditzy（与 cute 并列「傻气可爱」）
+    # 服装主题（night armor＝knight armor 同音 ASR；elements 被误译为部队）
+    "夜间护甲": "骑士铠甲", "夜装甲": "骑士铠甲",
+    "技术军事部队": "技术军事元素",
+    "身体素质强的前锋": "物理型前锋",        # striker physical（物理输出型前锋）
+    # alter 官方术语统一为「异格」：只收特异长键；裸「变形/变身/分身/人格/变革/改变形态」
+    # 多为正常中文词或他语境合法用法，一律不收，靠 subfix 逐 cue 处理
+    "单人变身形态": "SP异格形态", "SP变形形式": "SP异格形态", "SP变形态": "SP异格形态",
+    "SP变更形式": "SP异格形态", "变身形态": "异格形态",
+    "变形态会被释放": "异格形态会被释放",
+    "SP的分身": "SP异格", "陈那个分身": "陈异格",
+    "SP的六星人格": "SP六星异格", "佩丽卡变形": "佩丽卡异格",
+    "角色发展与变革": "角色成长与异格",
+    # 角色实装 / 相机演出 / 区域标题揭晓演出
+    "出柜了": "实装了",                      # came out＝角色实装/登场，非性取向梗
+    "透视有时是暂时的": "视角有时会被暂时",  # perspective＝游戏相机视角，非 X 光透视
+    "三重动作游戏": "3A动作游戏",            # triple-A（3A 大作，类比《最后生还者》）
+    "3D三重动作游戏": "3D的3A动作游戏",      # 长键优先，补出「的」字
+    "地区冠军掉落": "地区标题揭晓", "冠军发布会随之而来": "标题揭晓就来了",
+    "地区头衔的发布": "地区标题揭晓",        # title drop＝进入新区域时区域名揭晓演出
+    # 管理员 / 联机 / 剧情关系
+    "管理人员": "管理员",                    # administrator 漏网（主角固定称谓）
+    "合作社": "联机合作",                    # co-op＝联机合作模式，非经济合作社
+    "先验关联": "早有的渊源",                # prior connection（非哲学「先验」）
+    # 终局玩法（roguelike ASR 粘连）
+    "星罗吉克": "肉鸽",                      # Star Rogike＝starved [for] roguelike
+    # character 被机翻成编程「字符」：只收 survey 句式长键，裸「字符」可能误伤文字/代码讨论
+    "哪一个字符": "哪一个角色", "字符SP变更形式": "角色SP异格形态",
+    "哪个字符来获得": "哪个角色来获得",
+    # 不收裸键（普通词，需英文行佐证，本次靠 subfix 逐 cue 处理）：
+    #   奥术(→李织烟 Arcane)、珍珠/烈焰(→佩丽卡/煌)、蒂娅(→提弗洛斯)、缪(→弭弗 Mi Fu)、
+    #   奈特(跨行 Knight's)、守卫(→近卫)、祭坛(→异格)；
+    #   二轮新增不收：锅(pan＝panda 缩略，依赖语境)、Lo(＝Low 过短)、代码(＝cold 仅中置信)、
+    #   机械师(→机制，可能是真职业)、目录(→内容)、社会系统(→社交系统)、格均/格子/平均、
+    #   Glazed/被迷糊的(捧杀俚语)、做饭(＝cooking 梗)、裸变形/分身/人格/变革；
+    #   未考证保留：Porcha、DJ Breacher、Rua and Hoa、playing arts(疑 Arknights，中置信已随片 subfix)。
 }
 
 #: 片源自适应（2026-10-07）：默认 bi 模式下的「终末地·中英双语片源」特征词。
@@ -2260,6 +2562,17 @@ AK_TERMS = {
     "Adam Gubman": "亚当·古布曼",           # 作曲/作词/编曲官方中文名（酷狗/塞壬唱片）
     # Mortal Eye 官方中文名不存在（PRTS/塞壬唱片均保留英文《Mortal Eye》），
     # 中文行保留直译"凡人之眼"，勿强改；"提丰"官方中文已在上表 "Typhon".
+    # --- 2026-10-09 沉淀：《Arknights OST "Awaken" Reaction + Analysis》音乐分析片
+    #     片源：英文原声 + 谷歌翻译中文行（155 cue）。Awaken=归溟幽灵鲨(Specter the
+    #     Unchained)角色曲，Adam Gubman 作词作曲，塞壬唱片发行，曲名官方保留英文。
+    #     博主为音乐作曲人，全程乐理分析（Dorian调式/sea shanty/转调/乐句等），
+    #     谷翻把大量音乐术语译错。以下为音译残留/非普通中文词，裸键安全。
+    "多里安": "多利亚",               # Dorian mode 标准中文乐理术语=多利亚调式，谷翻误译"多里安"
+    "海什蚂蚁": "水手歌",             # sea shanties 谷翻音译错误
+    "海上棚屋": "水手歌",             # sea shanty 谷翻误译（shanty≠棚屋）
+    "梅尔奥迪克": "旋律",             # melodic 谷翻音译错误
+    "B自然": "还原B",                 # B natural 标准乐理术语=还原B
+    "音调中心": "调性中心",           # tonal center 标准乐理术语=调性中心
 }
 # =============================================================
 # 3.1c AK_CONTEXT：明日方舟**双语**片源（英文原声 + 谷歌翻译中文行）的条件变体。
@@ -2278,6 +2591,13 @@ AK_CONTEXT = [
     (r"\bvoicings?\b", "声音", "音色"),         # #103 the chords and voicings（voicing=音色/和声配置；ASR 断词 vo ic ings 已入 EN_ASR_SPLIT_FIXES）
     (r"\bEverything Fantasy\b", "一切幻想", "Everything Fantasy"),  # #3 博主频道名，保留拉丁原名（与 #145/#146 网址写法统一）
     (r"\bupbeat\b", "乐观", "欢快"),            # #14 very upbeat so far（音乐语境=欢快，非"乐观"）
+    # --- 2026-10-09 沉淀：《Awaken》音乐分析片，乐理术语普通中文词义错位（参考行锚定）
+    (r"\bphrases?\b", "词组", "乐句"),          # 音乐分析中 phrases=乐句，谷翻误译"词组"
+    (r"\bphrases?\b", "短语", "乐句"),          # 同上，谷翻另一误译形"短语"
+    (r"\bkey\s+changes?\b", "按键变化", "转调"), # key change=转调，谷翻误译"按键变化"
+    (r"\bkey\s+changes?\b", "关键变化", "转调"), # 同上，谷翻另一误译形"关键变化"
+    (r"\bmodal\b", "模态", "调式"),              # modal ambiguity=调式歧义，谷翻误译"模态"
+    (r"\bsubdued\b", "压抑", "弱化"),            # 音乐/配器语境 subdued=弱化，谷翻误译"压抑"
 ]
 _AK_CONTEXT_COMPILED = [(re.compile(rx, re.I), wrong, right) for rx, wrong, right in AK_CONTEXT]
 # AK_MODE 并入 process：与 endo 类似，但仅精调 ARKNIGHTS 中文行（首中文行）
@@ -2770,12 +3090,12 @@ KO_CONTEXT = [
     (r"공명자", "谐振器", "共鸣者"),                        # 4 处
     (r"공명자", "公明子", "共鸣者"),                        # #1700
     # —— 情感之匣（감정의 상자）：与「文明之匣」同构，谷翻 情感盒子/一盒情感/情绪盒 ——
-    (r"감정의 상자", "情感盒子", "情感之匣"),                # 12 处
-    (r"감정의 상자", "情感的盒子", "情感之匣"),
-    (r"감정의 상자", "情感盒", "情感之匣"),
-    (r"감정의 상자", "情绪盒", "情感之匣"),                  # #2031/#2035
-    (r"감정의 상자", "一盒情感", "情感之匣"),                # #2595/#2660
-    (r"감정의 상자", "一盒精选的情感", "情感之匣"),          # #85
+    (r"감정의 상자", "情感盒子", "情匣"),                # 12 处
+    (r"감정의 상자", "情感的盒子", "情匣"),
+    (r"감정의 상자", "情感盒", "情匣"),
+    (r"감정의 상자", "情绪盒", "情匣"),                  # #2031/#2035
+    (r"감정의 상자", "一盒情感", "情匣"),                # #2595/#2660
+    (r"감정의 상자", "一盒精选的情感", "情匣"),          # #85
     (r"상자와 황량한", "盒子", "匣"),                        # #1741
     (r"감정의 상자", "匣子", "匣"),                          # #2265（长键命中后残留的「子」）
     (r"상자인데", "盒子", "匣"),                             # #2362
@@ -3096,24 +3416,24 @@ KO_CONTEXT = [
     # ══ 2026-10-07 奇谭「달빛에 빌어보는 선정의 그리움」（璇情篇）三轮校准沉淀 ══
     # 全部韩语行锚定（裸键一个不放），同片源复用；长键必须先于短键。
     # —— 情感之匣(감정의 상자)：本片核心道具，谷翻出 11 种错形 ——
-    (r"감정의\s*상자", "装满最后情感的盒子", "装满最后情感的情感之匣"),  # 先于「情感的盒子」
-    (r"감정의\s*상자", "《Yudok Gamg》（情感）盒子", "情感之匣"),
-    (r"감정의\s*상자", "欢快狐狸正义盒子", "情感之匣"),
-    (r"감정의\s*상자", "情感的盒子", "情感之匣"),
-    (r"감정의\s*상자", "感情盒子", "情感之匣"),
-    (r"감정의\s*상자", "情感盒子", "情感之匣"),
-    (r"감정의\s*상자", "感恩之盒", "情感之匣"),
-    (r"감정의\s*상자", "纠正之盒", "情感之匣"),
-    (r"감정의\s*상자", "感伤之箱", "情感之匣"),
-    (r"감정의\s*상자", "正义之匣", "情感之匣"),
-    (r"감정의\s*상자", "正义之盒", "情感之匣"),
-    (r"감정의\s*상자", "情感之盒", "情感之匣"),
-    (r"감정의\s*상자", "感伤箱", "情感之匣"),
-    (r"감정의\s*상자", "感恩箱", "情感之匣"),
-    (r"감정의\s*상자", "评估箱", "情感之匣"),
-    (r"감정의\s*상자", "感情盒", "情感之匣"),
-    (r"감정의\s*상자", "情感盒", "情感之匣"),
-    (r"감정의\s*상자", "盒子", "情感之匣"),                 # #1529（放最后，长键先吃）
+    (r"감정의\s*상자", "装满最后情感的盒子", "装满最后情感的情匣"),  # 先于「情感的盒子」
+    (r"감정의\s*상자", "《Yudok Gamg》（情感）盒子", "情匣"),
+    (r"감정의\s*상자", "欢快狐狸正义盒子", "情匣"),
+    (r"감정의\s*상자", "情感的盒子", "情匣"),
+    (r"감정의\s*상자", "感情盒子", "情匣"),
+    (r"감정의\s*상자", "情感盒子", "情匣"),
+    (r"감정의\s*상자", "感恩之盒", "情匣"),
+    (r"감정의\s*상자", "纠正之盒", "情匣"),
+    (r"감정의\s*상자", "感伤之箱", "情匣"),
+    (r"감정의\s*상자", "正义之匣", "情匣"),
+    (r"감정의\s*상자", "正义之盒", "情匣"),
+    (r"감정의\s*상자", "情感之盒", "情匣"),
+    (r"감정의\s*상자", "感伤箱", "情匣"),
+    (r"감정의\s*상자", "感恩箱", "情匣"),
+    (r"감정의\s*상자", "评估箱", "情匣"),
+    (r"감정의\s*상자", "感情盒", "情匣"),
+    (r"감정의\s*상자", "情感盒", "情匣"),
+    (r"감정의\s*상자", "盒子", "情匣"),                 # #1529（放最后，长键先吃）
     # —— 残象潮(잔상류)：官方中文=残象潮（海蚀现象之一，见 biligame 过场提示）——
     (r"잔상류", "残余水流", "残象潮"),
     (r"잔상류", "残留电流", "残象潮"),
@@ -3229,6 +3549,101 @@ KO_CONTEXT = [
     (r"방랑자", "Wandering Purple", "漂泊者"),
     # —— 御者(어자)：机翻成「被吸引」——
     (r"시몰\s*여우에게\s*어자", "我听说有人被心月狐吸引", "我听说心月狐大人身边有一位御者"),
+    # ══ 2026-10-09 二次校准沉淀·第二批（3.7 梦州 4장4막）：通用中文词错形，一律韩语锚定 ══
+    # 官方依据同 KO_TERMS 新批次。下列错形全是普通中文词/真实词/双关词，裸键必误伤，
+    # 只在韩语参考行命中对应专名 ASR 形态时才替换；长键/特殊搭配排在短键前。
+    # —— 宿镜(숙명의 거울/숙경，心月狐授予谛天鉴、唯持镜者可入心域)：谷翻"命运之镜" ——
+    (r"숙명의\s?거울|숙경", "命运之镜", "宿镜"),
+    (r"숙명의\s?거울", "命运的镜子", "宿镜"),
+    # —— 锦妙锁：금요세요 句尾被谷翻作"星期五"（금요일=周五 的近形干扰）——
+    (r"금요세|금묘세", "星期五", "锦妙锁"),
+    # —— 心域(마음의 공간，梦枢天罗内，除岁主外仅持宿镜者可入) 补普通词错形 ——
+    (r"마음의\s?공간\s?새", "心中的新空间", "心域的新区域"),
+    (r"마음의\s?공간\s?깊", "内心深处", "心域深处"),
+    (r"마음의\s?공간", "心之空间", "心域"),
+    (r"마음의\s?공간", "内心空间", "心域"),
+    (r"마음의\s?공간", "心理空间", "心域"),
+    (r"마음의\s?공간", "精神空间", "心域"),
+    (r"마음의\s?공간", "情感空间", "心域"),
+    # —— 恶瘴(악장，锁暝故乡华亭所遭灾厄)：악장 另有"乐章/乐团指挥"义，谷翻全篇误译音乐系 ——
+    (r"악장", "音乐总监", "恶瘴"),
+    (r"악장", "乐团指挥", "恶瘴"),
+    (r"악장", "音乐厅", "恶瘴"),
+    (r"악장", "乐团", "恶瘴"),
+    (r"악장", "运动", "恶瘴"),
+    # —— 禁锁之策(개책，消灭恶瘴的对策)：谷翻"改革" ——
+    (r"개책", "改革", "计策"),
+    # —— 禁锁(금세계/금세쉽게 = 금쇄 ASR)："黄金世界"是通用奇幻词组，必须锚定 ——
+    (r"금세계|금세쉽", "黄金世界", "禁锁"),
+    # —— 六契(육계/육개，禁锁十契成员)：육계 韩语本义即"肉鸡(肉用鸡)"，片源双关 ——
+    (r"육계|육개", "肉用鸡", "六契"),
+    (r"육계|육개", "肉鸡", "六契"),
+    (r"육개", "玉凯", "六契"),
+    (r"육개", "玉界", "六契"),
+    # —— 九契(구계/구개，禁锁十契成员)：구개 韩语本义"口盖/上腭"，片源双关 ——
+    (r"구개", "口味", "九契"),
+    (r"구개", "上腭", "九契"),
+    # —— 月灯(월등，朝月会沉月灯习俗/梦构匣中玩法)：谷翻沃尔登/月光/大灯/满月 ——
+    (r"월등", "沃尔登", "月灯"),
+    (r"월등", "月光", "月灯"),
+    (r"월등", "大灯", "月灯"),
+    (r"월등", "满月", "月灯"),
+    # —— 渊城(연성，玄方城建于其上)：연성 另有"延性/养成"义，谷翻软体/延性 ——
+    (r"연성", "软体", "渊城"),
+    (r"연성", "延性", "渊城"),
+    # —— 州监(주감，谛天鉴职位，锁暝曾任)：谷翻总督察/首席督察/监察长 等真实头衔 ——
+    (r"주감", "总督察", "州监"),
+    (r"주감", "总监督", "州监"),
+    (r"주감", "首席督察", "州监"),
+    (r"주감", "主要检查员", "州监"),
+    (r"주감", "主要监督", "州监"),
+    (r"주감", "主要监察官", "州监"),
+    (r"주감", "监察长", "州监"),
+    (r"주감", "主游", "州监"),
+    (r"재감|제감", "载神", "谛天鉴"),                      # 몽주 재감=梦州谛天鉴 ASR 缩略
+    # —— 神宫(신궁，万相神宫简称)：谷翻神殿/新宫/神龛（均为真实词）——
+    (r"신궁", "神殿", "神宫"),
+    (r"신궁", "新宫", "神宫"),
+    (r"신궁", "神龛", "神宫"),
+    # —— 清宵(청초，玄方城镇玄司骑)：谷翻青草/清草/青楚/纯粹/青州/绿色 ——
+    (r"청초대인", "蓝色时代", "清宵大人"),
+    (r"청초사기|청초\s?사기", "青州", "清宵司骑"),
+    (r"청초", "青草", "清宵"),
+    (r"청초", "清草", "清宵"),
+    (r"청초", "青楚", "清宵"),
+    (r"청초", "纯粹", "清宵"),
+    (r"청초", "青州", "清宵"),
+    (r"청잖아", "绿色", "青色"),                          # 260 청잖아=是青(清宵的青)色啊
+    # —— 穗穗(수수，秧秧之姐、昭明商会理事长)：수수 韩语本义"高粱"，片源双关 ——
+    (r"수수", "高粱", "穗穗"),
+    (r"수수", "素素", "穗穗"),
+    # —— 秧秧·玄翎(양양/양냥/아기야우)：谷翻杨阳/阳阳/小姚（常见人名，必须锚定）——
+    (r"아기야우", "小姚", "小秧秧"),
+    (r"양양|양냥", "杨阳", "秧秧"),
+    (r"양양|양냥", "阳阳", "秧秧"),
+    # —— 赛博朋克(사펑，主播主题外联想旧视频，非本片设定)：沙峰/沙芳/沙鹏/萨芬 ——
+    (r"사펑|사이버펑크", "沙峰", "赛博朋克"),
+    (r"사펑|사이버펑크", "沙芳", "赛博朋克"),
+    (r"사펑|사이버펑크", "沙鹏", "赛博朋克"),
+    (r"사펑|사이버펑크", "萨芬", "赛博朋克"),
+    # —— 朝月会(조례=조월회 ASR 连读)："朝礼"为佛教/日语真实词，锚定 조례 ——
+    (r"조례", "朝礼", "朝月会"),
+    # —— 信物(신물，锦妙锁一类守护神所赐之物)：谷翻"苦水" ——
+    (r"신물", "苦水", "信物"),
+    # —— 梁鸢(양연，机关鸟)：谷翻"狮子"（양연 与 사자 无关，纯 ASR/断句错）——
+    (r"양연", "狮子", "梁鸢"),
+    # —— 守护神 소신 多义碎片：소신 另有韩语"所信/本心"义，只收明确搭配，勿裸改 ——
+    (r"소신의\s?행", "信念的行为", "守护神的行为"),
+    (r"소신\s?인정", "自己的信念", "守护神"),
+    (r"소신에게서", "我自己的信念", "守护神"),
+    (r"응답을\s?소신", "明确的答案", "守护神的回应"),
+    (r"소신이\s?하는", "我坚定的事", "守护神能做到的事"),
+    (r"소신\s?심월", "定罪", "守护神"),
+    (r"소신이\s?있었던", "信念", "守护神"),
+    # —— 情绪心域（梦构匣中，官方中文名未证实，按韩语字面稳定译法）——
+    (r"뜨거운\s?마음", "激情之心", "热心"),
+    (r"뜨거운\s?마음", "热情的心", "热心"),
+    (r"고요한\s?마음", "平静的心", "静心"),
 ]
 _KO_CONTEXT_COMPILED = [(re.compile(rx), wrong, right) for rx, wrong, right in KO_CONTEXT]
 
@@ -3608,6 +4023,86 @@ EN_ASR_SPLIT_FIXES = {
     "vo ic ing": "voicing",
     "Vo ic ings": "Voicings",
     "Vo ic ing": "Voicing",
+    # --- 2026-10-09 终末地 1.6「丹青渡」前瞻 reaction 片实测断词 ---
+    "En field": "Endfield", "En Field": "Endfield",
+    "Del phi": "Delphi",
+    "Umb ro": "Umbro",
+    "Min us": "Minus", "Radi ant": "Radiant",
+    "Vind rian": "Vindrian", "Bl azing": "Blazing", "St ove": "Stove",
+    "Inf lict ion": "Infliction",
+    "Tal os": "Talos",
+    "Sark az": "Sarkaz",
+    "Sesh ka": "Seshka",
+    "La Fant oma": "La Fantoma",
+    "Gyp socea": "Gypsocea",
+    "Had amis": "Hadamis",
+    "Cre taceous": "Cretaceous",
+    "N VIDIA": "NVIDIA",
+    "Follow s": "Followers",
+    "ep ilogue": "epilogue",
+    "tyr ant": "tyrant",
+    "ban anas": "bananas",
+    "Command er": "Commander",
+    "Cook ing": "Cooking",
+    "Support er": "Supporter",
+    "hyp ed": "hyped",
+    "S word": "Sword",
+    "neutral ized": "neutralized",
+    "anom alous": "anomalous",
+    "Cret aceous": "Cretaceous",
+    "so cea": "socea",
+    "G yp so cea": "Gypsocea", "G yp socea": "Gypsocea",
+    "Land ship": "Landship",
+    "RTS Spark": "RTX Spark",
+    # --- 2026-10-09 终末地片第二轮：人工通读英文参考行补录 ---
+    "Real imag iner": "Real imagineer",
+    "G onna": "Gonna",
+    "imp lore": "implore",
+    "in the PBR": "in the banner",
+    "Intel lect": "Intellect",
+    "Effic acy": "Efficacy",
+    "Sus ie": "Susie",
+    "Echo es": "Echoes",
+    "Ind igo": "Indigo",
+    "a bite y": "a bitey",
+    "finish er thing": "finisher thing",
+    "exp iring": "expiring",
+    "ok ami": "okay to me",
+    "Se ems": "Seems",
+    "what NCU is": "what AIC is",
+    "Dn B": "DnB",
+    "Fac ilities": "Facilities",
+    "the the stream": "the stream",
+    "s uff iciency": "sufficiency",
+    "Talo ' s": "Talos '",
+    "Sam my ' s": "Sami's",
+    "Sam i field": "Sami field",
+    "witch craft": "witchcraft",
+    "for 1 0 0 years": "for 100 years",
+    "ex panse": "expanse",
+    "Art ificial": "Artificial",
+    "unf org iving": "unforgiving",
+    "Minoy an": "Minoan",
+    "Sav on": "Sargon",
+    "U ss is": "Who's this",
+    "very kel": "very Kal'tsit",
+    "that kel": "that Kal'tsit",
+    "more kel": "more Kal'tsit",
+    "M 3": "M3",
+    "rog uel ike": "roguelike",
+    "sh room": "shroom",
+    "R ogue": "Rogue",
+    "Hong shan": "Hongshan",
+    "1 5 2 years": "152 years",
+    "un bidden": "unbidden",
+    "stre ngthen": "strengthen",
+    "Origin ium": "Originium",
+    "thr ives": "thrives",
+    "livest ream": "livestream",
+    "7 0 minutes": "70 minutes",
+    "7 : 3 0, 8 : 4 0": "7:30, 8:40",
+    "bigger up nights": "bigger update nights",
+    "to the to the damage": "to the damage",
 }
 
 # ASR 断词可疑"尾巴"片段（右片段命中即视为被切断的单词后缀，供 scan-split 报警）
@@ -3895,6 +4390,7 @@ ENTITIES = [
                # 谷翻把人名 선정 按音译/字面义拆出的非词形态（韩语片专属，可无条件改）
                "宣杰", "宣殿", "Seonjeon", "Seonjeong", "宋正成", "宋善",
                "善善先生", "善善的妹妹", "善善如此说道", "善田先生", "善善",
+               "善贞",  # ⚠ 2026-10-09 修复：ctx「善」→「璇情」会把「善贞」变成「璇情贞」，长键先吃
                "禅那",  # 선정=禅定 的佛经字面义，本片一律指璇情
            ),
            ctx=(
@@ -6907,11 +7403,83 @@ def process(path, out_path=None, report_path=None, mode="bi",
     return rows, hits
 
 
+# =============================================================
+# 片源版式探测（mono 单语 / bi 双语，2026-10-09 沉淀）
+#   extract/merge/verify/length/flow 原先默认「每条 cue ≥2 文本行、末行为
+#   不可改动的参考（英/日/韩）行」。纯中文单行片源（如 UP 主 reaction 熟肉，
+#   每条只有一行中文、无参考行）下，唯一文本行被当成参考行：merge 永不覆盖、
+#   verify 又把它同时当中文行和英文行而误判。这里统一探测版式供各子命令复用，
+#   双语片源（bi）的既有行为保持逐字节不变。
+# =============================================================
+def _script_counts(s):
+    """统计一段文本里 汉字 / 谚文 / 假名 / 拉丁字母 的数量。"""
+    han = hangul = kana = lat = 0
+    for ch in s:
+        o = ord(ch)
+        if 0x4E00 <= o <= 0x9FFF:
+            han += 1
+        elif 0xAC00 <= o <= 0xD7AF:
+            hangul += 1
+        elif 0x3040 <= o <= 0x30FF:
+            kana += 1
+        elif ("A" <= ch <= "Z") or ("a" <= ch <= "z"):
+            lat += 1
+    return han, hangul, kana, lat
+
+
+def _is_chinese_dominant(s):
+    """一行是否以中文为主导（至少 1 个汉字，汉字数 > 谚文+假名，且不少于拉丁字母）。"""
+    han, hangul, kana, lat = _script_counts(s)
+    return han >= 1 and han > hangul + kana and han >= lat
+
+
+def _iter_cue_text_blocks(lines):
+    """遍历已 norm（\\n 分行）的 SRT 行，逐 cue 产出其文本行 list（不含序号/时间轴/空行）。"""
+    i, n = 0, len(lines)
+    while i < n:
+        s = lines[i].strip()
+        if s.isdigit() and (i == 0 or lines[i - 1].strip() == ""):
+            j = i + 1
+            if j < n and "-->" in lines[j]:
+                kk = j + 1
+                while kk < n and lines[kk].strip() != "":
+                    kk += 1
+                texts = lines[j + 1:kk]
+                if texts:
+                    yield texts
+                i = kk
+                continue
+        i += 1
+
+
+def _detect_layout(lines):
+    """返回片源版式：'mono'（单语，文本行即校准目标、无参考行）或 'bi'（双语，末行为参考行）。
+
+    r_single：仅 1 个文本行的 cue 占比；r_zh_last：末行中文主导的 cue 占比。
+    纯中文单行片 r_single≈1、r_zh_last≈1 → mono；常规中+外双行片 r_single≈0 → bi。
+    """
+    blocks = list(_iter_cue_text_blocks(lines))
+    if not blocks:
+        return "bi"
+    total = len(blocks)
+    single = sum(1 for t in blocks if len(t) == 1)
+    last_zh = sum(1 for t in blocks if _is_chinese_dominant(t[-1]))
+    r_single = single / total
+    r_zh_last = last_zh / total
+    if r_single >= 0.95 or (r_single >= 0.80 and r_zh_last >= 0.98):
+        return "mono"
+    return "bi"
+
+
 def _cmd_extract(src, out):
-    """extract：把双语 SRT 抽为 cue 表 num/中文/英文，中文/英文多行用 \\n 转义。"""
+    """extract：把 SRT 抽为 cue 表 num/中文/英文，中文/英文多行用 \\n 转义。
+
+    双语片（bi）：中文=除末行外文本行，英文=末行参考行；
+    单语片（mono，如纯中文单行熟肉）：全部文本行即中文，英文列留空。"""
     raw = open(src, "rb").read()
     norm = (_decode_any(raw).replace("\r\n", "\n").replace("\r", "\n"))
     lines = norm.split("\n")
+    layout = _detect_layout(lines)
     recs = []
     i, n = 0, len(lines)
     while i < n:
@@ -6926,8 +7494,12 @@ def _cmd_extract(src, out):
                 if not texts:
                     i = kk; continue
                 esc = lambda x: x.replace("\\", "\\\\").replace("\u0009", " ").replace("\n", "\\n")
-                zh = "\\n".join(esc(t) for t in texts[:-1]) if len(texts) > 1 else esc(texts[0])
-                en = esc(texts[-1])
+                if layout == "mono":
+                    zh = "\\n".join(esc(t) for t in texts)
+                    en = ""
+                else:
+                    zh = "\\n".join(esc(t) for t in texts[:-1]) if len(texts) > 1 else esc(texts[0])
+                    en = esc(texts[-1])
                 recs.append((s, zh, en))
                 i = kk
                 continue
@@ -6936,7 +7508,7 @@ def _cmd_extract(src, out):
         f.write("序号\t中文行\t英文行\n")
         for num, zh, en in recs:
             f.write(f"{num}\t{zh}\t{en}\n")
-    print(f"cues={len(recs)} -> {out}")
+    print(f"[{layout}] cues={len(recs)} -> {out}")
 
 
 def _cmd_split(cues, prefix, n, letters="ABCDEFGHIJKLMNOP"):
@@ -7055,6 +7627,7 @@ def _cmd_merge(src, calib_src, out, compare=None, side=None, apply_fix=False):
     crlf = b"\r\n" in raw
     norm = _decode_any(raw).replace("\r\n", "\n").replace("\r", "\n")
     lines = norm.split("\n")
+    layout = _detect_layout(lines)
     spans, timecodes, orig_zh = [], [], {}
     en_by_num = {}            # 序号->参考行：cue 编号不连续时对照表不再错行
     i, n = 0, len(lines)
@@ -7071,11 +7644,20 @@ def _cmd_merge(src, calib_src, out, compare=None, side=None, apply_fix=False):
                     i = kk; continue
                 num = s
                 timecodes.append(lines[j])
-                en_by_num[num] = texts[-1]
-                orig_zh[num] = "\n".join(texts[:-1])
-                # (st,ed)=中文行区间 [j+1, kk-1)；单文本行 cue 无中文行（st==ed），
-                # 回填会毁掉唯一参考行，重建时同样跳过不覆盖
-                spans.append((j + 1, kk - 1, num, len(texts) >= 2))
+                if layout == "mono":
+                    # 单语片：全部文本行都是待校准目标，没有末位参考行。
+                    # 目标区间 [j+1, kk) 含唯一文本行，回填时才会真正覆盖。
+                    t_st, t_ed, has_target = j + 1, kk, True
+                    en_by_num[num] = ""
+                    orig_zh[num] = "\n".join(texts)
+                else:
+                    # 双语片：中文行区间 [j+1, kk-1)，末行 kk-1 为不可改动的参考行；
+                    # 单文本行 cue 无中文行（st==ed），重建时原样保留、绝不覆盖参考行。
+                    t_st, t_ed = j + 1, kk - 1
+                    has_target = len(texts) >= 2
+                    en_by_num[num] = texts[-1]
+                    orig_zh[num] = "\n".join(texts[:-1])
+                spans.append((t_st, t_ed, num, has_target))
                 i = kk
                 continue
         i += 1
@@ -7084,20 +7666,20 @@ def _cmd_merge(src, calib_src, out, compare=None, side=None, apply_fix=False):
     # 串写到错误位置。按 cue 边界重建输出：单行场景与旧实现逐字节一致；
     # 校准文本自带 \n 时按多行展开，多行原文 cue 无校准也原样保留。
     out_lines, prev = [], 0
-    for st, ed, num, has_zh in spans:
-        out_lines.extend(lines[prev:st])
-        if has_zh and num in orig:
+    for t_st, t_ed, num, has_target in spans:
+        out_lines.extend(lines[prev:t_st])
+        if has_target and num in orig:
             out_lines.extend(_norm_fix(orig[num]).split("\n"))
         else:
-            out_lines.extend(lines[st:ed])
-        prev = ed
+            out_lines.extend(lines[t_st:t_ed])
+        prev = t_ed
     out_lines.extend(lines[prev:])
     body = "\n".join(out_lines)
     if crlf:
         body = body.replace("\n", "\r\n")
     with open(out, "w", encoding="utf-8", newline="") as f:
         f.write(("\ufeff" if bom else "") + body)
-    print("校准条目:", len(orig), "| 已应用:", sum(1 for k in orig if k in orig_zh),
+    print(f"[{layout}] 校准条目:", len(orig), "| 已应用:", sum(1 for k in orig if k in orig_zh),
           "| 校准但原文件无此cue:", [k for k in sorted(orig, key=int) if k not in orig_zh])
     if compare:
         with open(compare, "w", encoding="utf-8", newline="") as f:
@@ -7204,9 +7786,13 @@ def is_line_too_long(s, limit=MAX_LINE_WIDTH):
 
 
 def _iter_cue_lines(path):
-    """产出 (序号, 内容行列表, 参考行)。与 process()/subfix 同一套块判据。"""
+    """产出 (序号, 内容行列表, 参考行)。与 process()/subfix 同一套块判据。
+
+    双语片（bi）：内容行=除末行外文本行，参考行=末行；
+    单语片（mono）：全部文本行都是内容行，参考行为 None（length 等据此跳过参考行检查）。"""
     raw = open(path, "rb").read()
     lines = _decode_any(raw).replace("\r\n", "\n").replace("\r", "\n").split("\n")
+    layout = _detect_layout(lines)
     i, n = 0, len(lines)
     while i < n:
         s = lines[i].strip()
@@ -7218,7 +7804,10 @@ def _iter_cue_lines(path):
                     kk += 1
                 texts = lines[j + 1:kk]
                 if texts:
-                    yield s, texts[:-1], texts[-1]
+                    if layout == "mono":
+                        yield s, texts, None
+                    else:
+                        yield s, texts[:-1], texts[-1]
                 i = kk
                 continue
         i += 1
@@ -7241,11 +7830,12 @@ def _cmd_length(paths, show_all=False):
                     widest = (L, t)
                 if L > MAX_LINE_WIDTH:
                     bad.append((num, L, t))
-            L = line_width(ref)
-            if L > ref_widest[0]:
-                ref_widest = (L, ref)
-            if L > MAX_LINE_WIDTH:
-                ref_bad.append((num, L, ref))
+            if ref is not None:
+                L = line_width(ref)
+                if L > ref_widest[0]:
+                    ref_widest = (L, ref)
+                if L > MAX_LINE_WIDTH:
+                    ref_bad.append((num, L, ref))
         print(f"{path}: {cues} cues")
         if bad:
             print(f"  内容行超限 {len(bad)} 处（>{MAX_LINE_ZH} 汉字当量）:")
@@ -7286,6 +7876,7 @@ def _cmd_flow(src, out=None, fix_style=False):
     crlf = b"\r\n" in raw
     norm = _decode_any(raw).replace("\r\n", "\n").replace("\r", "\n")
     lines = norm.split("\n")
+    layout = _detect_layout(lines)
     spans, i, n = [], 0, len(lines)
     while i < n:
         s = lines[i].strip()
@@ -7297,7 +7888,11 @@ def _cmd_flow(src, out=None, fix_style=False):
                     kk += 1
                 texts = lines[j + 1:kk]
                 if texts:
-                    spans.append((j + 1, kk - 1, s, len(texts) >= 2))
+                    if layout == "mono":
+                        # 单语片：唯一文本行即目标（区间含该行），纳入体检/修复。
+                        spans.append((j + 1, kk, s, True))
+                    else:
+                        spans.append((j + 1, kk - 1, s, len(texts) >= 2))
                 i = kk
                 continue
         i += 1
@@ -7492,11 +8087,15 @@ def _cmd_align_audit(src, out, window=5, ratio=1.45, min_ratio=0.45, quiet=False
 
 
 def _cmd_verify(src, out):
-    """verify：校验两个 SRT cue数/序号/时间轴/英文行/换行/BOM 全一致，仅中文行变化。"""
+    """verify：校验两个 SRT cue数/序号/时间轴/参考行/换行/BOM 全一致，仅内容文本行变化。
+
+    双语片（bi）：额外断言末位参考（英/日/韩）行零变化；
+    单语片（mono）：无参考行，断言 cue数/序号/时间轴/总行数/CRLF/BOM 一致，文本行允许变化。"""
     def parse(p):
         raw = open(p, "rb").read()
         crlf = b"\r\n" in raw; bom = raw.startswith(b"\xef\xbb\xbf")
         lines = _decode_any(raw).replace("\r\n", "\n").replace("\r", "\n").split("\n")
+        layout = _detect_layout(lines)
         cues = []
         i, n = 0, len(lines)
         while i < n:
@@ -7512,27 +8111,39 @@ def _cmd_verify(src, out):
                     i = kk
                     continue
             i += 1
-        return cues, crlf, bom
-    s, scrlf, sbom = parse(src)
-    o, ocrlf, obom = parse(out)
-    print(f"src: {len(s)} cues, CRLF={scrlf}, BOM={sbom} | out: {len(o)} cues, CRLF={ocrlf}, BOM={obom}")
+        return cues, crlf, bom, layout, len(lines)
+    s, scrlf, sbom, slay, snlines = parse(src)
+    o, ocrlf, obom, olay, onlines = parse(out)
+    print(f"src: {len(s)} cues, {slay}, CRLF={scrlf}, BOM={sbom} | "
+          f"out: {len(o)} cues, {olay}, CRLF={ocrlf}, BOM={obom}")
     assert len(s) == len(o), "cue count mismatch"
     assert scrlf == ocrlf, "CRLF mismatch"
     assert sbom == obom, "BOM mismatch"
+    assert slay == olay, f"layout mismatch: {slay} vs {olay}"
+    if slay == "mono":
+        assert snlines == onlines, f"TOTAL LINE COUNT CHANGED! {snlines} vs {onlines}"
     ts = e = z = 0
     for (n1, t1, z1, e1), (n2, t2, z2, e2) in zip(s, o):
         assert n1 == n2, f"num mismatch {n1}"
-        ts += t1 != t2; e += e1 != e2; z += z1 != z2
+        ts += t1 != t2
+        z += z1 != z2
+        if slay == "bi":
+            e += e1 != e2
     assert ts == 0, "TIMESTAMPS CHANGED!"
-    assert e == 0, "ENGLISH LINES CHANGED!"
-    print(f"timestamp diffs: {ts} | english diffs: {e} | chinese diffs: {z}")
-    print("VERIFY OK：仅中文行变化，其它全部一致")
+    if slay == "bi":
+        assert e == 0, "REFERENCE (last) LINES CHANGED!"
+        print(f"timestamp diffs: {ts} | reference diffs: {e} | content(first) diffs: {z}")
+        print("VERIFY OK[bi]：仅中文内容行变化，序号/时间轴/参考行/CRLF/BOM 全部一致")
+    else:
+        print(f"timestamp diffs: {ts} | total lines: {snlines} (unchanged) | text diffs: {z}")
+        print("VERIFY OK[mono]：单语片文本行已更新，cue数/序号/时间轴/总行数/CRLF/BOM 全部一致")
 
 
 def _cmd_compare(src, out, tsv):
     """compare：比对两个 SRT 生成 错误vs正确 对照表（序号/原文中文/校准后中文/英文行）。"""
     def parse(p):
         lines = _decode_any(open(p, "rb").read()).replace("\r\n", "\n").split("\n")
+        layout = _detect_layout(lines)
         cues = []
         i, n = 0, len(lines)
         while i < n:
@@ -7544,7 +8155,8 @@ def _cmd_compare(src, out, tsv):
                     while kk < n and lines[kk].strip() != "":
                         kk += 1
                     if kk - 1 >= j + 1:
-                        cues.append((int(s), lines[j + 1], lines[kk - 1]))
+                        ref = "" if layout == "mono" else lines[kk - 1]
+                        cues.append((int(s), lines[j + 1], ref))
                     i = kk
                     continue
             i += 1
