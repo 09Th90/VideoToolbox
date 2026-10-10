@@ -1209,6 +1209,9 @@ CONTEXT_MAP = [
     (r"\bMoon Festival\b|\bWaking Moon\b|\bwaking moon\b", "中秋节", "朝月会"),   # #814
     # 封印(seal)：seal 被直译成"海豹"（动物名）
     (r"\bseals?\b", "海豹", "封印"),             # #2888/#5365
+    # --- 2026-10-10 ADHD REACTS to Wuthering Waves 3.7 Hsin MAIN QUEST（kettletoro）二次校准 ---
+    # celestial phantom（单数）->天人幻影：Entity ctx 正确形恒=canonical 会丢"幻影"，故走三元组
+    (r"\bcelestial phantom\b", "天界幻影", "天人幻影"),
     # --- 2026-10-10 Jadealy REACTS to Every HSIN Trailers（鸣潮3.7「心」预告片合集 reaction）二次校准 ---
     #   目标非专名的口语/俚语错译，无合适 Entity canonical 承载，直挂本表。
     # 抽卡俚语：pull for=抽（卡）、pools=卡池（旧条 pulse/tent 在上方）
@@ -3076,6 +3079,14 @@ ENDFIELD_BI_TERMS = {
     "Sarc ASM": "萨卡兹",
     "Cre T Aceous Front Iers": "白垩洲",
     "阿姆·伊娅": "阿米娅",                   # Amiya（音频复核主播念 Amiya）
+    # —— 2026-10-10 十五次沉淀：同片二次校准（以官方中配《塔卫二：一号简报》台词 +
+    #    终末地官网 1.6 导览为权威依据，逐句核查名词漏校/漏译）。下列为零歧义中文错形；
+    #    预告片旁白的整句机翻错译（舰炮掩护/歇脚地/泰拉之海/环带的明珠/使者列森 等）
+    #    按官方中配逐 cue 整行覆盖，走 subfix，不入裸键。
+    "费伦·马茨·阿米": "巨兽", "费伦·马茨": "巨兽",   # Feranmut 的 ASR 音译（旁白「那些骑乘巨兽的人」）
+    "在寺遗留": "在祀遗留", "在寺的画境": "在祀的画境",  # 祀(Si)的画境；音频复核念「祀」（长键防「寺」误伤）
+    "告别斯": "告别祀",                      # 同上（小刻 1.6 剧情：告别祀的画境）
+    "萨卡兹豪宅": "歇脚地",                  # Seshka mansion→歇脚地（塞什卡别名，官方中配定名）
 }
 
 # =============================================================
@@ -7282,9 +7293,14 @@ ENTITIES = [
     Entity("天人", modes=("bi",), en="Celestials",
            category="术语/鸣潮",
            ctx=((r"\b[Cc]elestials\b", "天界生物"), (r"\b[Cc]elestials\b", "天界幻影"),
-                (r"\b[Cc]elestials\b", "天神"), (r"\b[Cc]elestials\b", "天界")),
-           note="本片补录：谷翻把 celestials 按字面译成'天神/天界/天界生物/天界幻影'"
-                "（均常用词），只走参考行锚定归官方中文'天人'；长错形须先于短'天界'。"),
+                 (r"\b[Cc]elestials\b", "天神们"), (r"\b[Cc]elestials\b", "天神"),
+                 (r"\b[Cc]elestials\b", "天界"),
+                 (r"\b[Cc]elestial\b", "天神")),
+           note="本片补录：谷翻把 celestials 按字面译成'天神/天神们/天界/天界生物/天界幻影'"
+                 "（均常用词），只走参考行锚定归官方中文'天人'；长错形须先于短'天界'。"
+                 "2026-10-10 二次校准增补：①'天神们'整词（防产'天人们'）；②单数 "
+                 "\bcelestial\b 只锚错形'天神'（'天体'义不受影响，2026-10-05 的单数禁区"
+                 "仅针对错形'天体'）；③'celestial phantom'（单数）->天人幻影改挂 CONTEXT_MAP 三元组。"),
     Entity("溯心", modes=("bi",), en="Sushin",
            category="角色/鸣潮3.7",
            variants=("苏希安",),

@@ -1970,7 +1970,7 @@ soldiers sacrificed themselves.
 
 395
 00:17:17,839 --> 00:17:20,480
->> 这场战斗决定了玄方的命运
+>> 这场战斗决定了玄方城的命运
 >> This battle determines Shanfang's fate.
 
 396
@@ -2750,7 +2750,7 @@ This is Shu something, right? Whatever
 
 551
 00:24:40,720 --> 00:24:44,520
-名字是。修院
+名字是。心月狐
 the name was. Shuin.
 
 552
