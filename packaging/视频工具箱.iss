@@ -1,9 +1,9 @@
-; @version 1.18.3
+; @version 1.19.0
 ; ============================================================================
-; 视频工具箱 v1.18.3 —— Inno Setup 安装包脚本
+; 视频工具箱 v1.19.0 —— Inno Setup 安装包脚本
 ; 构建前提：已用 tools\python 执行 pyinstaller 视频工具箱.spec，
 ;           产物位于 dist\视频工具箱.exe
-; 编译：ISCC.exe 视频工具箱.iss  →  installer\视频工具箱_Setup_v1.18.3.exe
+; 编译：ISCC.exe 视频工具箱.iss  →  installer\视频工具箱_Setup_v1.19.0.exe
 ; v1.18.0：① 新增主播声纹（exe 侧已由 spec hiddenimports 内嵌），[Files]
 ;         补装 src\speaker_voiceprint.py / speaker_voiceprint_page.py /
 ;         subtitle_editor_core.py 源码副本，使安装版也能按开发版说明书的 CLI
@@ -67,7 +67,7 @@
 ; ============================================================================ 
 
 #define MyAppName "视频工具箱"
-#define MyAppVersion "1.18.3"
+#define MyAppVersion "1.19.0"
 #define MyAppPublisher "VideoToolbox"
 #define MyAppExeName "视频工具箱.exe"
 
@@ -196,6 +196,11 @@ Source: "..\scripts\dev\apply_vc_official.py"; DestDir: "{app}\src"; Flags: igno
 ;          subtitle_editor_core 是它的 SRT 读写底座（纯标准库，无三方依赖）。
 Source: "..\src\speaker_voiceprint.py"; DestDir: "{app}\src"; Flags: ignoreversion
 Source: "..\src\speaker_voiceprint_page.py"; DestDir: "{app}\src"; Flags: ignoreversion
+; voiceprint_sync 是声纹模板的多用户同步通道（纯标准库，**独立于**校准知识同步）：
+; speaker_voiceprint 在录入/删除时延迟 import 它排队列，引擎启动/退出同步也直接调
+; 它——不装进包，安装版一录入声纹就 ImportError。（exe 侧由 spec 的静态分析自动
+; 收进 PYZ，这里补的是 {app}\src 下的源码副本，供 CLI 与 tools\python 子进程用。）
+Source: "..\src\voiceprint_sync.py"; DestDir: "{app}\src"; Flags: ignoreversion
 Source: "..\src\subtitle_editor_core.py"; DestDir: "{app}\src"; Flags: ignoreversion
 Source: "..\src\视频工具箱.bat"; DestDir: "{app}\src"; Flags: ignoreversion
 ; 文档资料统一归入 docs\

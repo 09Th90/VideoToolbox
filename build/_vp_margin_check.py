@@ -1,4 +1,4 @@
-# @version 1.18.3
+# @version 1.19.0
 # 同人/异人余弦 + 分块对判定边际的影响（真实语音）。
 # 用法：tools/python/python.exe build/_vp_margin_check.py
 import glob

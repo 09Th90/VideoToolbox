@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 1.18.3
+# @version 1.19.0
 """NewPipe Extractor 后端 —— 视频工具箱的 YouTube 第二解析引擎。
 
 为什么要这个模块
@@ -326,8 +326,13 @@ def _default_sanitize(name: str) -> str:
     return out[:120] or "video"
 
 
-def _run_ffmpeg(cmd: list, duration: float = 0.0, progress=None) -> bool:
-    """执行 ffmpeg 并解析 `-progress` 输出回传百分比；返回是否成功。"""
+def _run_ffmpeg(cmd: list, duration: float = 0.0, progress=None,
+                cancel=None) -> bool:
+    """执行 ffmpeg 并解析 `-progress` 输出回传百分比；返回是否成功。
+
+    ``cancel``（可选 threading.Event）：置位即杀进程返回 False —— GUI 的
+    下载取消按钮经此让 NPE 兜底下载随叫随停（v1.19.0）。
+    """
     cmd = list(cmd)
     try:
         pos = cmd.index("-i")
@@ -341,7 +346,15 @@ def _run_ffmpeg(cmd: list, duration: float = 0.0, progress=None) -> bool:
                                 stderr=subprocess.STDOUT)
     except Exception:  # noqa: BLE001
         return False
+    cancelled = False
     for raw in proc.stdout:
+        if cancel is not None and cancel.is_set():
+            cancelled = True
+            try:
+                proc.kill()
+            except Exception:  # noqa: BLE001
+                pass
+            break
         line = _decode(raw).strip()
         if duration > 0 and line.startswith("out_time_us=") and progress:
             try:
@@ -351,18 +364,24 @@ def _run_ffmpeg(cmd: list, duration: float = 0.0, progress=None) -> bool:
             progress(min(99.5, us / 1_000_000.0 / duration * 100.0))
         elif line.startswith("progress=end") and progress:
             progress(100.0)
-    return proc.wait() == 0
+    rc = proc.wait()
+    if cancelled:
+        return False
+    return rc == 0
 
 
 def download(info: dict, folder: str, ffmpeg: str, proxy: str = "",
              referer: str = "", max_height: int = 0, log=None, progress=None,
-             sanitize=None, title_fallback: str = "video") -> tuple:
+             sanitize=None, title_fallback: str = "video",
+             cancel=None) -> tuple:
     """按 NPE 解析结果下载并合流，返回 ``(ok, out_path, error)``。
 
     ⚠️ 关键策略：**先分别下载视频流与音频流，再本地合流**。实测 ffmpeg 同时对
     googlevideo 开两条连接会触发限流（第二条直接 5XX），串行则稳定。
 
     - ``log(msg, level)`` / ``progress(pct)``：可选回调，供 GUI 回传。
+    - ``cancel``（可选 threading.Event）：置位即中止下载，返回
+      ``(False, "", "已取消")``（v1.19.0，GUI 取消按钮用）。
     - ``sanitize``：文件名净化函数（缺省用内置简单实现）。
     - 失败时清理所有临时分片，不留残骸。
     """
@@ -372,6 +391,9 @@ def download(info: dict, folder: str, ffmpeg: str, proxy: str = "",
                 log(m, lv)
             except Exception:  # noqa: BLE001
                 pass
+
+    def _cancelled():
+        return bool(cancel is not None and cancel.is_set())
 
     video, audio = pick_streams(info, max_height=max_height)
     if not video:
@@ -383,25 +405,34 @@ def download(info: dict, folder: str, ffmpeg: str, proxy: str = "",
     v_tmp = os.path.join(folder, base + ".npe_v" + _stream_ext(video))
     a_tmp = os.path.join(folder, base + ".npe_a" + _stream_ext(audio)) if audio else ""
     duration = float(info.get("duration") or 0)
-    made = []
+    # 临时路径一出世就登记进 made：下载中途失败/取消时 finally 才能清掉半成品
+    # （此前 v_tmp 在下载成功后才 append，视频流阶段被杀会留下完整的 .npe_v 残骸）。
+    made = [p for p in (v_tmp, a_tmp) if p]
 
     try:
         if progress:
             progress(0.0)
         if not _run_ffmpeg(build_stream_cmd(video, v_tmp, ffmpeg,
                                             referer=referer, proxy=proxy),
-                           duration, progress):
+                           duration, progress, cancel=cancel):
+            if _cancelled():
+                return False, "", "已取消"
             return False, "", "视频流下载失败"
-        made.append(v_tmp)
 
+        if _cancelled():
+            return False, "", "已取消"
         if audio:
             if not _run_ffmpeg(build_stream_cmd(audio, a_tmp, ffmpeg,
                                                 referer=referer, proxy=proxy),
-                               duration, progress):
+                               duration, progress, cancel=cancel):
+                if _cancelled():
+                    return False, "", "已取消"
                 return False, "", "音频流下载失败"
-            made.append(a_tmp)
             _log("[NPE] 音视频合流 ...")
-            if not _run_ffmpeg(build_mux_cmd(v_tmp, a_tmp, out_path, ffmpeg)):
+            if not _run_ffmpeg(build_mux_cmd(v_tmp, a_tmp, out_path, ffmpeg),
+                               cancel=cancel):
+                if _cancelled():
+                    return False, "", "已取消"
                 return False, "", "合流失败"
         else:
             os.replace(v_tmp, out_path)

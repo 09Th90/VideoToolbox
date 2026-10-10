@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 1.18.3
+# @version 1.19.0
 """视频工具箱 · 在线引导安装器（自研，替代 Qt IFW 在线安装器）。
 
 为什么自研：见 `vt_update_core.py` 顶部长注释 —— IFW 的仓库要求

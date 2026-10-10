@@ -1,5 +1,5 @@
 @echo off
-rem @version 1.18.3
+rem @version 1.19.0
 rem Video Toolbox launcher.
 rem
 rem Design goal: whatever you save is what runs. The launcher therefore

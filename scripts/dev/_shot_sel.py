@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 1.18.3
+# @version 1.19.0
 """截图：音画合并「自动配对」子页的选中态（浅色 / 深色各一张）。
 
 用途：肉眼确认「选中的行看得见」——qfluentwidgets 的 delegate 默认只给

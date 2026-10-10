@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 1.18.3
+# @version 1.19.0
 """本地/局域网组件仓库镜像：python packaging/installer_src/repo_server.py [端口]
 
 服务 installer_repository/ 目录（repogen 产物），安装器从这里的

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# @version 1.18.3
+# @version 1.19.0
 """
 视频工具箱 v1.12.0（单文件整合版）
 ==================================================
@@ -6656,6 +6656,66 @@ def sync_calib_on_exit():
         _sync_log("已派生退出上传子进程（GitHub 整文件 + 本地增量）")
     except Exception as e:  # noqa: BLE001
         _sync_log(f"派生退出上传子进程失败（忽略）: {e}")
+
+
+# ---------- 声纹模板同步（独立通道；与上面的校准知识同步互不干涉） ----------
+# 数据形态、生命周期与责任边界都不同（192 维向量 / 重录与删除是常态 / 无基线
+# 概念），故自成一套：schema、确定性合并、落地裁决、待传队列、状态目录与 CLI
+# 全在 src\voiceprint_sync.py，只共用哑存储根的 vp_inbox\ 子目录作传输
+# （校准通道只枚举 inbox\，两边永远看不到对方的条目）。
+# 用户侧开关沿用同一个「校准同步」设置项（避免设置页多一个语义重叠的开关），
+# 另有独立环境变量 VT_NO_VP_SYNC 可单独关停声纹通道。
+VP_SYNC_LOG = os.path.join(LOGS_DIR, "vp_sync.log")
+
+
+def _vp_sync_log(msg):
+    try:
+        os.makedirs(LOGS_DIR, exist_ok=True)
+        with open(VP_SYNC_LOG, "a", encoding="utf-8") as f:
+            f.write(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] {msg}\n")
+    except OSError:
+        pass
+
+
+def sync_voiceprint_on_startup(force=False):
+    """启动：把其他客户端录入的主播声纹模板拉下来落地（幂等、静默、best-effort）。
+
+    与 `sync_calib_on_startup` 各自独立：不共用子进程、不共用日志、失败互不影响。
+    返回 (是否更新, 说明) 以兼容设置页「立即更新」的回调口径。"""
+    try:
+        if os.environ.get("VT_NO_CALIB_SYNC") or not calib_sync_enabled():
+            return False, "同步已禁用"
+        import voiceprint_sync as _vps
+        if not _vps.enabled():
+            return False, "声纹同步已单独禁用（VT_NO_VP_SYNC）"
+        ok = _vps.sync(quiet=True)
+        s = _vps.status()
+        _vp_sync_log(f"启动同步{'完成' if ok else '跳过（无远端/未启用）'}："
+                     f"模板 {s['templates']}（同步副本 {s['synced']}）、"
+                     f"待传 {s['pending']}、冲突 {s['conflicts']}")
+        return ok, ("声纹模板已同步" if ok else "无声纹更新")
+    except Exception as e:  # noqa: BLE001
+        _vp_sync_log(f"启动同步异常（忽略）: {e}")
+        return False, str(e)
+
+
+def sync_voiceprint_on_exit():
+    """退出：把本机录入/重录/删除产生的声纹增量推进通道。
+
+    直接在本进程做（纯标准库、只有本地文件写，通常几条），**不派生子进程**——
+    与校准退出上传（要跑 GitHub 网络请求，故用子进程）不同。失败只写日志，
+    绝不阻塞退出。"""
+    try:
+        if os.environ.get("VT_NO_CALIB_SYNC") or not calib_sync_enabled():
+            return
+        import voiceprint_sync as _vps
+        if not _vps.enabled():
+            return
+        n = _vps.push(quiet=True)
+        if n:
+            _vp_sync_log(f"退出推送 {n} 条声纹增量")
+    except Exception as e:  # noqa: BLE001
+        _vp_sync_log(f"退出推送异常（忽略）: {e}")
 
 
 # ---------- 条目级三方合并（v1.10.8：纯函数核心抽到 calib_merge_core） ----------

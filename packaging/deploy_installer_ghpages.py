@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 1.18.3
+# @version 1.19.0
 """把 installer_repository/ 部署到 09Th90/VideoToolbox 的 gh-pages 分支并启用 GitHub Pages。
 
 ⚠⚠ 两种模式，**默认 git**（2026-10-08 起）：

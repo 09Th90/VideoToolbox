@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 1.18.3
+# @version 1.19.0
 """一键同步版本号（幂等）：所有「当前版本」标记处一次改到位。
 
 背景：发布前改版本号历史上要手工同步 spec / iss / 在线安装器三件套 / qt VERSION /
@@ -53,20 +53,74 @@ def _current_version():
     return m.group(1) if m else None
 
 
+def _stale_version(new):
+    """探测 12 个同步点里「还停留在哪个旧版本」。
+
+    ⚠ 光靠 `old == new` 判断要不要改是不够的：VERSION 可能被手改过，
+    于是出现「VERSION=新、同步点=旧」的错位，此时 `old == new` 会短路、
+    错位永远修不回来。本函数从目标文件里找出出现次数最多的「非目标」版本号。
+    """
+    import collections
+    # 先收集所有出现在目标文件里的版本号（排除目标版本本身）。
+    # ⚠ 不能只按「出现次数最多」选：文档正文里会反复提到历史版本号
+    #   （实测曾因此误判成 v1.12.0）。真正的判据是——**哪个候选能让 12 个
+    #   TARGETS 模式真正命中**。
+    cands = collections.Counter()
+    texts = {}
+    for rel, _pattern, _expect in TARGETS:
+        path = os.path.join(ROOT, *rel.split("\\"))
+        if not os.path.isfile(path):
+            continue
+        try:
+            text = open(path, encoding="utf-8").read()
+        except OSError:
+            continue
+        texts[rel] = text
+        for m in re.finditer(r"\d+\.\d+\.\d+", text):
+            if m.group(0) != new:
+                cands[m.group(0)] += 1
+    best, best_hits = None, 0
+    for v, _n in cands.most_common():
+        hits = 0
+        for rel, pattern, _expect in TARGETS:
+            if rel in texts and pattern.replace("{v}", v) in texts[rel]:
+                hits += 1
+        if hits > best_hits:
+            best, best_hits = v, hits
+    return best
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("new_version")
     ap.add_argument("--check", action="store_true")
+    ap.add_argument("--force", action="store_true", help=(
+        "即使「当前版本 == 目标版本」也照样对齐同步点。"
+        "⚠ 2026-10-10 事故：有人手改了 src\\video_toolbox_qt.py 的 VERSION 到 1.19.0，"
+        "而 12 个同步点还停在 1.18.3；此时本脚本因 old==new 直接短路，"
+        "于是「VERSION=1.19.0 + spec/iss/config.xml=1.18.3」的错位状态**无法用本脚本修复**。"
+        "遇到这种错位就用 --force（会自动探测停在哪个旧版，也可用 --stale 显式指定）。"))
+    ap.add_argument("--stale", default="",
+                    help="配合 --force：显式指定同步点停留的旧版本号")
     args = ap.parse_args()
     old = _current_version()
     new = args.new_version.strip()
     if not old:
         print("无法从 src/video_toolbox_qt.py 读取当前版本")
         return 2
-    if old == new:
-        print(f"当前已是 v{new}，无需改动")
-        return 0
-    print(f"版本 {old} → {new}")
+    if old != new:
+        print(f"版本 {old} → {new}")
+    else:
+        if not args.force:
+            print(f"当前已是 v{new}，无需改动")
+            return 0
+        stale = args.stale.strip() or _stale_version(new)
+        if not stale:
+            print(f"当前已是 v{new}，且没探测到停留在旧版本的位置，无需改动")
+            return 0
+        print(f"当前已是 v{new}，但同步点仍停留在 v{stale}（--force 对齐）")
+        old = stale
+        print(f"版本 {old} → {new}")
     changed = 0
     for rel, pattern, expect in TARGETS:
         path = os.path.join(ROOT, *rel.split("\\"))

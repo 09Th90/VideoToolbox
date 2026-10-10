@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# @version 1.18.3
+# @version 1.19.0
 """主播声纹 · 界面流程自检（离屏，跑真实线程 + 真实模型）
 
 覆盖「录入卡」与「多选器」的完整交互链路：
@@ -34,6 +34,8 @@ os.environ.setdefault("QT_QPA_PLATFORM_PLUGIN_PATH",
                       os.path.join(SITE, "PyQt5", "Qt5", "plugins"))
 os.environ["VT_NO_PIPELINE"] = "1"
 os.environ["VT_NO_SYNC"] = "1"
+# 声纹同步独立通道也要关：UI 自检会真跑录入/删除，别往真实待传队列写测试条目
+os.environ["VT_NO_VP_SYNC"] = "1"
 sys.path.insert(0, SRC)
 sys.path.insert(0, SITE)
 

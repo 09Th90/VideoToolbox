@@ -1,7 +1,7 @@
-<!-- @version 1.18.3 -->
+<!-- @version 1.19.0 -->
 # Video Toolbox — User Manual
 
-> Applies to: v1.18.3 | Last updated: 2026-10-08
+> Applies to: v1.19.0 | Last updated: 2026-10-08
 > This manual is written for **people who use the software** — it only covers "how to get things done after opening the app."
 > For source-code structure, packaging, release procedures, and self-test scripts, see the Developer Manual (`程序说明书(开发版).md`) in the same folder.
 
