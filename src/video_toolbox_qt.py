@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# @version 1.18.3
+# @version 1.19.0
 """视频工具箱 GUI v1.11.0 —— Fluent 矢量界面
 ====================================================================
 界面形态（v1.10.0 起，原 tkinter 界面退役）：
@@ -31,6 +31,9 @@ v1.13.0 变更要点：
   ④ 自适应布局：修复窗口缩小/跨 PPI 拖动后页面扭曲——视频库卡片网格重排
      立即收缩 holder、设置页内嵌引擎设置界面宽度跟随宿主（原硬编码 1000px）、
      输入行最小宽度收紧、屏幕/DPI 变化强制全页重排。
+v1.19.0：下载可中止——任务列表新增「取消选中任务」：置取消标志 + 强杀
+  yt-dlp/ffmpeg 子进程，下载/兜底重试/字幕各阶段都会即时响应，已取消任务清理
+  .part/.ytdlp 等临时分片并标记「已取消」（可重新加入同一链接）。
 v1.12.0：翻译链路修缮配套——任务取消立即停掉翻译/优化线程池（原先取消后台
   仍跑完剩余批次）；LLM 翻译并发上限 5（防 429 刷屏）；「启用 AI」关闭时翻译
   兜底不介入 LLM；新增 `apply_version.py`（版本号一键同步）与
@@ -150,7 +153,7 @@ from subtitle_compose import ComposeDialog
 # 单独成模块（自带卡片/滚动壳），因此**不反向 import 本文件**，无循环导入。
 import auto_vision_page
 
-VERSION = "1.18.3"
+VERSION = "1.19.0"
 
 # 全格式媒体/字幕/文档扩展名（v1.13.0）：
 #   视频：常见容器 + av1 / h264 / h265 / x264 等裸流与更多封装；
@@ -785,6 +788,10 @@ class DownloadPage(QWidget):
         self.active_task = None
         self._dest_syncing = False
         self._row_of = {}
+        # v1.19.0 下载中止：task_id → threading.Event（置位 = 用户请求取消）、
+        # task_id → 当前正在跑的 yt-dlp/ffmpeg 子进程（取消时直接强杀）。
+        self._cancel_events = {}
+        self._procs = {}
 
         outer = QVBoxLayout(self)
         outer.setContentsMargins(0, 0, 0, 0)
@@ -882,6 +889,11 @@ class DownloadPage(QWidget):
         self.task_table.horizontalHeader().setSectionResizeMode(5, QHeaderView.Stretch)
         self.task_table.itemSelectionChanged.connect(self.on_task_select)
         box, lay = card("并行下载任务", "点击任务行可查看对应进度")
+        # v1.19.0：选中一行后点「取消选中任务」即可中止该下载。
+        self.cancel_btn = PushButton(FIF.CANCEL, "取消选中任务", self)
+        self.cancel_btn.setEnabled(False)
+        self.cancel_btn.clicked.connect(self.cancel_selected_task)
+        lay.addWidget(row(None, self.cancel_btn))
         lay.addWidget(self.task_table)
         self.vbox.addWidget(box)
 
@@ -1037,6 +1049,7 @@ class DownloadPage(QWidget):
             "url": url, "quality": f"{height}p", "pct": 0.0, "status": "下载中",
             "dest": dest, "folder": task_folder, "with_subs": with_subs,
         }
+        self._cancel_events[task_id] = threading.Event()
         self._add_task_row(task_id, url, f"{height}p", "0.0%", "下载中", task_folder)
         self.active_task = task_id
         self.prog.setValue(0)
@@ -1073,6 +1086,7 @@ class DownloadPage(QWidget):
     def on_task_select(self):
         rows = self.task_table.selectionModel().selectedRows()
         if not rows:
+            self.cancel_btn.setEnabled(False)
             return
         r = rows[0].row()
         for tid, rr in self._row_of.items():
@@ -1083,7 +1097,70 @@ class DownloadPage(QWidget):
                     self.prog.setValue(int(item["pct"]))
                     self.pct_label.setText(
                         f"{item['pct']:.1f}%" if item["status"] == "下载中" else item["status"])
+                    self.cancel_btn.setEnabled(item["status"] == "下载中")
                 break
+
+    # ---------- 下载中止（v1.19.0） ----------
+    #: 取消专用返回码：强杀子进程后 proc.wait() 的返回码不固定（Windows 上常是
+    #: -9/1），统一收敛成这个值再投给 dl_done，主线程据此标记「已取消」。
+    RC_CANCELLED = -9
+
+    def _is_cancelled(self, task_id):
+        evt = self._cancel_events.get(task_id)
+        return bool(evt and evt.is_set())
+
+    def cancel_selected_task(self):
+        """中止选中的下载任务：置标志 + 强杀当前子进程，工作线程随即收敛。"""
+        rows = self.task_table.selectionModel().selectedRows()
+        if not rows:
+            self._warn("请先在任务列表中选中要取消的任务")
+            return
+        r = rows[0].row()
+        tid = next((t for t, rr in self._row_of.items() if rr == r), None)
+        item = self.tasks.get(tid)
+        if not item:
+            return
+        if item["status"] != "下载中":
+            self._info(f"任务 {tid} 已结束（{item['status']}），无需取消")
+            return
+        evt = self._cancel_events.get(tid)
+        if evt:
+            evt.set()
+        proc = self._procs.get(tid)
+        if proc is not None and proc.poll() is None:
+            try:
+                proc.kill()
+            except Exception:  # noqa: BLE001 —— 进程可能刚好自行退出
+                pass
+        item["status"] = "已取消"
+        self._set_cell(tid, 4, "已取消")
+        self.cancel_btn.setEnabled(False)
+        self.log.line(f"[任务 {tid}] 已请求取消，正在停止下载并清理临时文件 ...", "err")
+
+    def _cleanup_cancelled(self, task_id, folder):
+        """取消后清理半成品：.part/.ytdlp 分片、NPE 临时流文件；空文件夹一并移除。"""
+        removed = 0
+        try:
+            names = os.listdir(folder)
+        except OSError:
+            names = []
+        for name in names:
+            low = name.lower()
+            if low.endswith((".part", ".ytdlp", ".npe_v.mp4", ".npe_a.m4a",
+                             ".npe_v.m4v", ".npe_a.mp4", ".npe_v.webm",
+                             ".npe_a.webm", ".npe_v.mp2t", ".npe_a.mp2t")):
+                try:
+                    os.remove(os.path.join(folder, name))
+                    removed += 1
+                except OSError:
+                    pass
+        if removed:
+            self.app.q.put(("dl_log", task_id,
+                            f"[清理] 已删除 {removed} 个未完成的临时文件"))
+        try:
+            os.rmdir(folder)  # 只删空目录；里面还有成品/字幕时保持原样
+        except OSError:
+            pass
 
     @staticmethod
     def _display_url(url, limit=44):
@@ -1136,27 +1213,32 @@ class DownloadPage(QWidget):
                     *engine.ytdlp_cookie_args(),
                     "-o", engine.output_template(folder)]
             rc = 1
-            if info_json_path and os.path.isfile(info_json_path):
-                rc, _ = self._run_ytdlp(
-                    [ytdlp, "--load-info-json", info_json_path, *opts], task_id)
-            if rc != 0:
+            if not self._is_cancelled(task_id):
+                if info_json_path and os.path.isfile(info_json_path):
+                    rc, _ = self._run_ytdlp(
+                        [ytdlp, "--load-info-json", info_json_path, *opts], task_id)
+            if rc != 0 and not self._is_cancelled(task_id):
                 self.app.q.put(("sys_log", f"[任务 {task_id}] 复用检测结果下载失败"
                                           "（多为 CDN 链接过期），改用链接重新提取"))
                 self.app.q.put(("dl_progress", task_id, 0.0))
                 rc = self._fallback_download(task_id, ytdlp, url, opts)
-            if rc != 0:
+            if rc != 0 and not self._is_cancelled(task_id):
                 # 换另一个源兜底：HLS 优先时退回直链，直链优先时改走 HLS。
                 # （直链被限 403/中途断流时，HLS 每片独立请求，实测能下完 1080p）
                 other = fid if prefer else alt
                 if other:
                     rc = self._hls_fallback(task_id, ytdlp, url, opts, other,
                                             hls=bool(alt) and other == alt)
-            if rc != 0 and engine.npe_engine_mode() != "off":
+            if rc != 0 and not self._is_cancelled(task_id) \
+                    and engine.npe_engine_mode() != "off":
                 # 第二引擎兜底（2026-10-08 接入）：yt-dlp 的直链/HLS 全失败后，
                 # 改用 NewPipe Extractor 重新解析并下载。实测同一网络、同一份
                 # cookie 下 yt-dlp 报 "Sign in to confirm you're not a bot" 而
                 # NPE 能拿到流，两个引擎确有互补性。
                 rc = self._npe_fallback(task_id, url, folder, meta, quality_label)
+            if self._is_cancelled(task_id):
+                # v1.19.0：用户取消优先于一切——即使某一步刚好返回 0 也不打包。
+                rc = self.RC_CANCELLED
             if rc == 0:
                 leftovers = engine.ytdlp_part_leftovers(folder)
                 if leftovers:
@@ -1173,9 +1255,14 @@ class DownloadPage(QWidget):
                         except OSError:
                             pass
                 self._pack_task(task_id, ffmpeg_path, folder, meta, quality_label)
-                if with_subs:
+                if with_subs and not self._is_cancelled(task_id):
                     self._fetch_subtitles(task_id, ytdlp, url, folder,
                                           info_json_path, meta=meta)
+                if self._is_cancelled(task_id):
+                    # 打包/字幕阶段被 Cancel：同样按取消收尾（成品若已写完会保留）。
+                    rc = self.RC_CANCELLED
+            elif rc == self.RC_CANCELLED:
+                self._cleanup_cancelled(task_id, folder)
             self.app.q.put(("dl_done", task_id, rc, folder))
         except Exception as e:
             self.app.q.put(("dl_done", task_id, 1, f"出错: {e}"))
@@ -1191,6 +1278,9 @@ class DownloadPage(QWidget):
         """复用检测结果失败时的兜底：重新提取后继续；提取阶段全局串行防风控。"""
         def slog(m):
             self.app.q.put(("sys_log", f"[任务 {task_id}] {m}"))
+
+        if self._is_cancelled(task_id):  # v1.19.0：取消后不再进提取/重试
+            return self.RC_CANCELLED
 
         with DownloadPage._EXTRACT_LOCK:
             fresh = engine.fetch_info_json(ytdlp, url, log=slog)
@@ -1220,6 +1310,8 @@ class DownloadPage(QWidget):
         def slog(m):
             self.app.q.put(("sys_log", f"[任务 {task_id}] {m}"))
 
+        if self._is_cancelled(task_id):  # v1.19.0：取消后不再换源重试
+            return self.RC_CANCELLED
         new_opts = list(opts)
         try:
             new_opts[new_opts.index("-f") + 1] = f"{alt_fid}+ba/b"
@@ -1229,6 +1321,8 @@ class DownloadPage(QWidget):
         if hls:
             selectors.append(f"{alt_fid}+233/234/b")
         for sel in selectors:
+            if self._is_cancelled(task_id):  # v1.19.0：换源循环里也响应取消
+                return self.RC_CANCELLED
             opts_i = list(new_opts)
             try:
                 opts_i[opts_i.index("-f") + 1] = sel
@@ -1301,9 +1395,13 @@ class DownloadPage(QWidget):
             info, folder, ffmpeg_path, proxy=proxy,
             referer="https://www.youtube.com/", max_height=target,
             log=log, progress=prog,
+            cancel=self._cancel_events.get(task_id),  # v1.19.0：取消即停 ffmpeg
             sanitize=lambda t: engine.sanitize_folder_name(t, "video"),
             title_fallback=str((meta or {}).get("title") or "video"))
         if not ok2:
+            if self._is_cancelled(task_id) or err == "已取消":
+                log("[NPE] 已取消")
+                return self.RC_CANCELLED
             log(f"[NPE] 兜底下载失败：{err}", "err")
             return 1
         log("[NPE] 兜底下载成功：%s（%s）" % (
@@ -1434,39 +1532,58 @@ class DownloadPage(QWidget):
         except Exception as e:
             self.app.q.put(("dl_log", task_id, f"[错误] 无法启动下载器: {e}"))
             return 1, []
+        # v1.19.0：登记当前子进程——取消按钮据此直接 kill；同一任务先后启动的
+        # 多个进程（主源/兜底/字幕）只会登记最后一个，旧的早已 wait 完毕。
+        self._procs[task_id] = proc
         lines = []
         pct_re = re.compile(r"\[download\]\s+([\d.]+)%")
         frag_re = re.compile(r"\[download\]\s+Downloading fragment (\d+)/(\d+)")
-        for raw in proc.stdout:
-            line = engine.decode_bytes_any(raw).rstrip()
-            lines.append(line)
-            m = pct_re.search(line)
-            if m:
-                self.app.q.put(("dl_progress", task_id, float(m.group(1))))
-                continue
-            m = frag_re.search(line)
-            if m:
-                # HLS 分片行是大文件（直播存档可达数千片）日志洪流的主要来源，
-                # 每片一行会把主线程日志控件塞死——每 100 片折叠一条汇总；
-                # 内存 lines 仍保留全量供排障。
-                n, total = int(m.group(1)), int(m.group(2))
-                if n == total or n % 100 == 0:
-                    self.app.q.put(("dl_log", task_id, f"[分片] 已下载 {n}/{total}"))
-                continue
-            if line and "Deprecated" not in line:
-                # WARNING 透出：跳片（fragment not found / missing）之类警告
-                # 一旦被过滤，"静默缺片"就完全不可见。
-                self.app.q.put(("dl_log", task_id, line))
-        return proc.wait(), lines
+        try:
+            for raw in proc.stdout:
+                if self._is_cancelled(task_id) and proc.poll() is None:
+                    # 取消路径之一（另一路是 cancel_selected_task 直接 kill）：
+                    # 读流循环里发现取消标志就主动杀，避免卡在慢速连接上。
+                    try:
+                        proc.kill()
+                    except Exception:  # noqa: BLE001
+                        pass
+                    break
+                line = engine.decode_bytes_any(raw).rstrip()
+                lines.append(line)
+                m = pct_re.search(line)
+                if m:
+                    self.app.q.put(("dl_progress", task_id, float(m.group(1))))
+                    continue
+                m = frag_re.search(line)
+                if m:
+                    # HLS 分片行是大文件（直播存档可达数千片）日志洪流的主要来源，
+                    # 每片一行会把主线程日志控件塞死——每 100 片折叠一条汇总；
+                    # 内存 lines 仍保留全量供排障。
+                    n, total = int(m.group(1)), int(m.group(2))
+                    if n == total or n % 100 == 0:
+                        self.app.q.put(("dl_log", task_id, f"[分片] 已下载 {n}/{total}"))
+                    continue
+                if line and "Deprecated" not in line:
+                    # WARNING 透出：跳片（fragment not found / missing）之类警告
+                    # 一旦被过滤，"静默缺片"就完全不可见。
+                    self.app.q.put(("dl_log", task_id, line))
+            return proc.wait(), lines
+        finally:
+            self._procs.pop(task_id, None)
 
     def _run_ytdlp_with_retry(self, cmd, task_id, attempts=4):
         """带风控重试：判定复用引擎 `ytdlp_error_retryable`（三处同一口径）。"""
         wait = 6
         rc, lines = 1, []
         for i in range(attempts):
+            if self._is_cancelled(task_id):
+                # v1.19.0：取消后立即退出重试，不再白等退避。
+                return self.RC_CANCELLED
             rc, lines = self._run_ytdlp(cmd, task_id)
             if rc == 0:
                 return 0
+            if self._is_cancelled(task_id):
+                return self.RC_CANCELLED
             joined = "\n".join(lines)
             # 412/403/429、"Sign in to confirm" 等一律可重试：YouTube 直链失效
             # 或节点 IP 被判风控都会回 403，换一次提取（新直链）往往就过了；
@@ -1478,7 +1595,12 @@ class DownloadPage(QWidget):
                                 f"[任务 {task_id}] 站点风控或直链失效"
                                 f"（{engine.ytdlp_err_brief(joined)}），"
                                 f"{wait}s 后重试 ({i + 2}/{attempts}) ..."))
-                time.sleep(wait)
+                # 退避等待改为可取消的短睡眠：取消一到立即返回，不等完整个
+                # 指数退避（最长 48s，原先取消后要白等这么久才真正停下）。
+                for _ in range(wait * 2):
+                    if self._is_cancelled(task_id):
+                        return self.RC_CANCELLED
+                    time.sleep(0.5)
                 wait *= 2
         return rc
 
@@ -1501,7 +1623,20 @@ class DownloadPage(QWidget):
         self.log.line(f"[任务 {task_id}] {text}", level)
 
     def on_dl_done(self, task_id, rc, folder):
+        self._cancel_events.pop(task_id, None)  # v1.19.0：回收取消标志
+        self._procs.pop(task_id, None)
         item = self.tasks.get(task_id)
+        if rc == self.RC_CANCELLED:  # v1.19.0：用户主动取消
+            if item:
+                item["status"] = "已取消"
+            self._set_cell(task_id, 3, "—")
+            self._set_cell(task_id, 4, "已取消")
+            if task_id == self.active_task:
+                self.pct_label.setText("已取消")
+                self.cancel_btn.setEnabled(False)
+            self.log.line(f"[任务 {task_id}] [已取消] 未完成的部分已清理，"
+                          "可重新加入下载", "err")
+            return
         if item:
             item["pct"] = 100.0 if rc == 0 else item["pct"]
             item["status"] = "完成" if rc == 0 else "失败"
@@ -1513,6 +1648,7 @@ class DownloadPage(QWidget):
             if rc == 0:
                 self.prog.setValue(100)
             self.pct_label.setText("完成" if rc == 0 else "失败")
+            self.cancel_btn.setEnabled(False)  # v1.19.0：任务已结束，取消按钮复位
         if rc == 0:
             self.log.line(f"[任务 {task_id}] [完成] 已打包到独立文件夹: {folder}", "ok")
             if item and item.get("with_subs"):
@@ -4202,10 +4338,21 @@ class SettingsPage(QWidget):
                           position=InfoBarPosition.BOTTOM_RIGHT, parent=self)
 
     def _sync_now(self):
-        InfoBar.info("正在更新", "正在从共享仓库拉取校准知识并合并…", duration=1200,
+        InfoBar.info("正在更新", "正在从共享仓库拉取校准知识与声纹模板并合并…",
+                     duration=1200,
                      position=InfoBarPosition.BOTTOM_RIGHT, parent=self)
-        self._run_bg(lambda: engine.sync_calib_on_startup(force=True),
-                     self._sync_done)
+        self._run_bg(self._sync_both_channels, self._sync_done)
+
+    def _sync_both_channels(self):
+        """设置页「立即更新」：校准知识与声纹模板**两条独立通道**都走一遍。
+
+        声纹通道失败不影响校准结果（各自独立、各自记日志）；返回值仍是校准
+        通道的 (ok, msg)，供 _sync_done 原样显示。"""
+        try:
+            engine.sync_voiceprint_on_startup(force=True)
+        except Exception:  # noqa: BLE001
+            pass
+        return engine.sync_calib_on_startup(force=True)
 
     def _sync_done(self, result, err):
         if err is not None:
@@ -4633,6 +4780,7 @@ class CalibPage(QWidget):
         ("明日方舟·韩语（--akko）", "--akko"),
         ("终末地（--endo）", "--endo"),
         ("终末地·中英双语（--endobi）", "--endobi"),
+        ("终末地·韩语原声（--endoko）", "--endoko"),
         ("中文行专属（--zho）", "--zho"),
         ("战双帕弥什（--pgr）", "--pgr"),
         ("战双英文原声（--pgren）", "--pgren"),
@@ -8748,6 +8896,10 @@ def main():
     # 启动即拉取最新校准知识并入本地（v1.10.7 多用户收敛的「拉」半程；
     # 后台 daemon 线程，失败静默记 logs/calib_sync.log）
     threading.Thread(target=engine.sync_calib_on_startup, daemon=True).start()
+    # 声纹模板同步是**独立通道**（src\voiceprint_sync.py，与校准知识同步互不
+    # 干涉：不共用子进程/日志/状态目录），单独一条后台线程，失败静默记
+    # logs\vp_sync.log
+    threading.Thread(target=engine.sync_voiceprint_on_startup, daemon=True).start()
     configure_qt_plugins()
     # 矢量化：高分屏按逻辑像素缩放、图标/文字按矢量渲染，避免放大后发虚
     QApplication.setAttribute(Qt.AA_EnableHighDpiScaling, True)
@@ -8838,6 +8990,9 @@ def main():
     # 用 aboutToQuit 而非 closeEvent：覆盖菜单退出/自检退出等所有路径；
     # 内部再派生独立子进程，主进程退出后子进程仍能跑完。
     app.aboutToQuit.connect(engine.sync_calib_on_exit)
+    # 声纹增量的退出推送（独立通道；纯本地文件写、不派生子进程，失败只记
+    # logs\vp_sync.log，不阻塞退出）
+    app.aboutToQuit.connect(engine.sync_voiceprint_on_exit)
     # 释放 libmpv：不释放的话进程退出后 onefile 的 _MEI*** 临时目录删不掉
     app.aboutToQuit.connect(window.subtitle_edit_page.shutdown)
 

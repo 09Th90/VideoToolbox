@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 1.18.3
+# @version 1.19.0
 """主播声纹：本地声纹录入 + 字幕筛选（无 Qt，可脱离界面单测）。
 
 把「只出主播的字幕」做成本地**后处理**：
@@ -18,6 +18,12 @@ kaldi 兼容 fbank，不引入任何新的第三方包。
 
 用法（命令行，便于脱离界面验证）：
     python speaker_voiceprint.py enroll --src 视频.mp4 --start 12 --dur 20 --name 主播
+    # 多片段录入（先做同人一致性校验，再取均值，模板更稳）：
+    python speaker_voiceprint.py enroll --src 视频.mp4 --start 12 --dur 20 --name 主播 \
+                                        --clip "另一段.mp4,30,15" --clip "另一段.mp4,90,10"
+    # 追加到已有同名声纹（扩充校准，不覆盖）：
+    python speaker_voiceprint.py enroll --src 视频.mp4 --start 200 --dur 15 \
+                                        --name 主播 --append
     python speaker_voiceprint.py list                     # 列出已录入（x = 已启用）
     python speaker_voiceprint.py use 主播,嘉宾            # 启用多个声纹（并集）
     python speaker_voiceprint.py delete 主播
@@ -25,10 +31,26 @@ kaldi 兼容 fbank，不引入任何新的第三方包。
     python speaker_voiceprint.py filter --src 视频.mp4 --srt 字幕.srt --name 主播,嘉宾 \
                                         --threshold 0.5 --out 主播.srt
 
+提特征前会做两道预处理（见 `trim_silence` / `normalize_rms`）：
+    ① 能量 VAD 剪掉头尾静音与句间长停顿——静音帧经 log(eps) 截断后会污染
+       嵌入向量，实测给判定边际带来 0.2~0.3 的塌缩；
+    ② RMS 归一化到 -20 dBFS——峰值归一化会被单个爆音/咔哒声带偏（增益被
+      爆音吃掉，人声被压到地板），RMS 对这类毛刺稳健且同样增益不变。
+
 多声纹是**并集**语义：一条 cue 只要与其中任意一个声纹够像就算「主播」，
 对应「一档节目有两位主播 / 常驻嘉宾也算」这类场景。启用名单单独落
 `data/voiceprint/selection.json`（**刻意不写进 `data/ai_config.json`**——
 那个文件由设置页 `_collect_ai()` 整份重写，未进 schema 的键会被静默丢弃）。
+
+多用户共享：模板的录入/重录/删除会经 `voiceprint_sync`（**独立通道**，与
+字幕校准知识同步互不干涉）排进待传队列，由引擎启动/退出同步或
+`python src/voiceprint_sync.py sync` 与其它客户端收敛。**不同用户上传同一
+主播的声纹会做「数据迭代」**：同名 alive 条目按向量加权并集折叠
+（`fold_leaves`：mix 叶子按 fp 去重、加权求和归一，同人守卫 0.55 挡住
+异名同录的脏数据），每份上传都是并集的一份子——声纹库越用越准。
+本机也可以随时**追加**同一主播的新片段（`enroll --append`）扩充校准，
+与远端折叠走同一条数学路径。`selection.json` 是本地偏好，刻意不同步。
+详见 `src/voiceprint_sync.py` 模块文档。
 """
 import argparse
 import json
@@ -132,9 +154,15 @@ PREEMPH_COEFF = 0.97
 DITHER = 0.0
 EMB_DIM = 192
 
-#: 判定阈值。CAM++ 中文实测（3 位说话人 14 条样本）：
-#: 同人余弦 **min 0.681** / mean 0.784，异人 **max 0.450** / mean 0.174。
-#: 决策边界取两者中点 ≈ 0.566，**向上取整到 0.55**。
+#: 判定阈值。依据 sherpa 中文说话人测试集（3 位 × 录入/测试共 14 段，
+#: scripts/dev/voiceprint_accuracy.py 可复跑）的实测：
+#:   旧管线（峰值归一化、无 VAD）：同人余弦 min 0.681 / mean 0.784，
+#:                                异人 max 0.450 / mean 0.174；
+#:   现行管线（VAD + RMS）：单片段录入 同人 min 0.666 / 异人 max 0.458，
+#:                          多片段录入 同人 min 0.768 / 异人 max 0.468。
+#: 决策边界取各组中点（≈0.56~0.62）的公共保守值 **0.55**。
+#: 语料只有 3 位说话人，0.55 的可靠性来自「同人/异人两段分布之间的空档」
+#: 而非精确边界——抗劣化（padding/爆音/底噪）比抠小数点后两位更有用。
 DEFAULT_THRESHOLD = 0.55
 #: 「存疑区」下界。**取异人相似度的实测上限 0.450**——低于它就基本可以断定
 #: 「不是主播」，没必要再留。
@@ -143,6 +171,30 @@ DEFAULT_THRESHOLD = 0.55
 #: 存疑区被**保留**，用户看到的就是「依旧多人混合输出」（164 秒旁白没筛掉）。
 #: 教训：存疑区要**窄**且**贴着决策边界**，不能一路宽到"看起来还行"。
 DEFAULT_LOW = 0.45
+
+# ---------------------------------------------------------------- 预处理常量
+#: RMS 归一化目标电平（-20 dBFS）。语音录音的典型工作电平；语音峰值/RMS
+#: 一般在 3~10（10~20dB crest factor），目标 0.1 下归一化后峰值 0.3~1.0，
+#: 绝大多数素材不触顶，个别 crest 极大的片段退化为峰值归一化（gain = 1/peak）。
+RMS_TARGET = 0.1
+
+#: 能量 VAD（trim_silence）参数。阈值用**相对 dB**（对录音增益天然不变）：
+#: 取「最响帧 -40dB」与「低分位 +12dB」中较保守（较低）的一个——
+#: 纯人声片段低分位≈最响帧，退化为 -40dB（几乎不剪）；带静音的片段低分位
+#: 落在静音上，自适应地把静音排除。40dB 的 headroom 远大于 16bit 编码噪声
+#: （-90dB）与正常房间底噪（-60~-50dB），又不会碰到有效语音。
+VAD_DB_HEADROOM = 40.0
+VAD_DB_FLOOR_MARGIN = 12.0
+VAD_FLOOR_PCTL = 25.0
+#: 形态学处理：≤0.35s 的间断视为语句停顿予以保留（填回），<0.12s 的孤立响帧
+#: 视为毛刺丢弃（爆点/咔哒声）。帧移与 fbank 对齐（10ms）。
+VAD_FILL_GAP_MS = 350.0
+VAD_MIN_RUN_MS = 120.0
+#: 整段检出的人声不足 0.2 秒 -> 视为无人声（与 embed 的最短帧数要求对齐），
+#: 调用方拿到 VoiceprintError 后按 NaN 处理（保守保留），不再拿静音硬算向量。
+VAD_MIN_SPEECH_SECONDS = 0.2
+#: 帧能量低于该绝对值（dB）视为数字静音（16bit 地板约 -90dB，留 15dB 余量）。
+VAD_ABS_SILENCE_DB = -75.0
 
 
 class VoiceprintError(RuntimeError):
@@ -543,12 +595,20 @@ class VoiceprintEncoder:
     def embed(self, samples, sample_rate=SAMPLE_RATE):
         """一段音频 -> L2 归一化后的 192 维向量。音频过短会抛 VoiceprintError。
 
-        内部先做峰值归一化（见 `normalize_peak`），使结果与录音增益无关。
+        内部先做两道预处理（见模块头）：
+          ① `trim_silence` 能量 VAD 剪掉静音/长停顿——静音帧经 log(eps) 截断
+            后不再能被「减全局均值」抵消，会实打实地污染嵌入；
+          ② `normalize_rms` 把电平归一到 -20 dBFS，使结果与录音增益无关
+            （比峰值归一化稳：单个爆音不再会把整段人声压到地板）。
         超过 `EMBED_MAX_FRAMES` 帧的长输入按块分别推理、子向量取均值后再归一化
         ——单次推理的内存随输入时长线性增长，不设上限会把长片素材的簇打分
         （整簇音频拼接后一次推理）顶到 bad allocation。
         """
-        feats = fbank(normalize_peak(samples), sample_rate)
+        if sample_rate != SAMPLE_RATE:
+            samples = resample_linear(np.asarray(samples, dtype=np.float32),
+                                      sample_rate, SAMPLE_RATE)
+        x = normalize_rms(trim_silence(samples, SAMPLE_RATE))
+        feats = fbank(x, SAMPLE_RATE)
         if feats.shape[0] < 10:
             raise VoiceprintError("音频太短（%d 帧），至少需要约 0.2 秒人声"
                                   % feats.shape[0])
@@ -593,6 +653,102 @@ def normalize_peak(x):
     return a / m
 
 
+def normalize_rms(x, target=RMS_TARGET):
+    """把波形 RMS 归一化到目标电平（默认 -20 dBFS），峰值顶格时退化为峰值归一化。
+
+    与 `normalize_peak` 同为增益不变（缩放输入 → 输出逐位一致），但**抗爆音**：
+    峰值归一化被一个 0.9 的咔哒声/音效顶着时，整段人声会被压到 -20dB 以下，
+    更多 fbank bin 撞上 log 截断、特征系统性偏离（基准 build/_vp_accuracy_*
+    实测「干净模板 vs 爆音测试」边际从 0.53 塌到 0.25）。RMS 按**整体能量**定增益，
+    单点毛刺几乎不影响；crest 极大的极端素材自动退回峰值语义（gain=1/peak），
+    不会削波。
+    """
+    a = np.asarray(x, dtype=np.float32).reshape(-1)
+    if a.size == 0:
+        raise VoiceprintError("空音频，无法提取声纹")
+    rms = float(np.sqrt(np.mean(a.astype(np.float64) ** 2)))
+    if rms < 1e-6:
+        raise VoiceprintError("音频几乎无声（RMS %.1e），无法提取声纹" % rms)
+    peak = float(np.max(np.abs(a)))
+    g = min(target / rms, 1.0 / peak)
+    return (a * g).astype(np.float32)
+
+
+def _runs(mask):
+    """True 段列表 [(start, end_excl), ...]（按出现顺序）。"""
+    m = np.asarray(mask, dtype=np.int8)
+    d = np.diff(np.concatenate(([0], m, [0])))
+    starts = np.where(d == 1)[0]
+    ends = np.where(d == -1)[0]
+    return list(zip([int(s) for s in starts], [int(e) for e in ends]))
+
+
+def _close_gaps(mask, max_gap):
+    """把长度 ≤ max_gap 的 False 间断填成 True（保留语句停顿）。"""
+    out = np.asarray(mask, dtype=bool).copy()
+    if max_gap <= 0 or not out.any():
+        return out
+    for s, e in _runs(~out):
+        if e - s <= max_gap:
+            out[s:e] = True
+    return out
+
+
+def _drop_blips(mask, min_run):
+    """把长度 < min_run 的 True 毛刺段清成 False（去爆点/咔哒声）。"""
+    out = np.asarray(mask, dtype=bool).copy()
+    if min_run <= 1:
+        return out
+    for s, e in _runs(out):
+        if e - s < min_run:
+            out[s:e] = False
+    return out
+
+
+def trim_silence(x, sample_rate=SAMPLE_RATE):
+    """能量 VAD：剪掉带头尾静音、句间长停顿和孤立爆点，返回「只剩人声」的波形。
+
+    阈值全用**相对 dB**（对录音增益不变，无需先归一化）：
+    `thr = min(最响帧 - VAD_DB_HEADROOM, 25% 低分位帧 + VAD_DB_FLOOR_MARGIN)`——
+    纯人声片段两者都退到「最响帧 -40dB」，几乎不剪；带头尾静音的片段低分位
+    落在静音上，自适应地把静音段排除。随后 ≤0.35s 的间断填回（语句停顿）、
+    <0.12s 的孤立响帧丢弃（毛刺），按帧覆盖区间拼接回采样。
+
+    这是**能量** VAD：剪得掉静音，剪不掉 BGM/背景音乐（它们同样有能量），
+    重叠说话人也无能为力——那两类要靠声源分离，别指望这里。
+    整段人声 < 0.2s 或近乎数字静音（< -75dB）时抛 VoiceprintError，
+    让调用方按「判不了」处理（NaN → 保守保留待人工），而不是拿静音硬算一个
+    随机向量去污染簇心。
+    """
+    a = np.asarray(x, dtype=np.float32).reshape(-1)
+    if a.size == 0:
+        raise VoiceprintError("空音频，无法提取声纹")
+    fl = int(round(30.0 * sample_rate / 1000.0))
+    sh = int(round(FRAME_SHIFT_MS * sample_rate / 1000.0))
+    if a.size < fl:
+        return a                                  # 不足一帧：无从判断，原样返回
+    n_frames = (a.size - fl) // sh + 1
+    # 累计和算帧能量，避免整段展开 (T, 400) 的内存（240s ≈ 24000 帧）
+    c = np.concatenate(([0.0], np.cumsum(a.astype(np.float64) ** 2)))
+    starts = np.arange(n_frames) * sh
+    e = (c[starts + fl] - c[starts]) / float(fl)
+    db = 10.0 * np.log10(e + 1e-12)
+    mx = float(db.max())
+    if mx < VAD_ABS_SILENCE_DB:
+        raise VoiceprintError("几乎无人声（最响帧 %.1f dB），无法提取声纹" % mx)
+    thr = min(mx - VAD_DB_HEADROOM,
+              float(np.percentile(db, VAD_FLOOR_PCTL)) + VAD_DB_FLOOR_MARGIN)
+    mask = _drop_blips(
+        _close_gaps(db >= thr, int(round(VAD_FILL_GAP_MS / FRAME_SHIFT_MS))),
+        int(round(VAD_MIN_RUN_MS / FRAME_SHIFT_MS)))
+    parts = [a[s * sh:(k - 1) * sh + fl] for s, k in _runs(mask)]
+    kept = sum(len(p) for p in parts)
+    if kept < int(VAD_MIN_SPEECH_SECONDS * sample_rate):
+        raise VoiceprintError("未检出足够人声（%.2f 秒），无法提取声纹"
+                              % (kept / float(sample_rate)))
+    return np.concatenate(parts).astype(np.float32)
+
+
 def cosine(a, b):
     """余弦相似度（两向量已归一化时等价于点积）。"""
     if a is None or b is None:
@@ -620,16 +776,65 @@ def template_path(name):
     return os.path.join(TEMPLATE_DIR, safe + ".json")
 
 
+def _vp_sync_queue(kind, name, obj=None, prev_id=None, embedding=None):
+    """把录入/删除排进**声纹同步**待传队列（best-effort，绝不影响主流程）。
+
+    声纹同步是独立通道（`src/voiceprint_sync.py`，数据落 `data/vp_sync/` 与
+    远端 `vp_inbox/`），与字幕校准知识同步（`subtitle_calib_merged` 的
+    kb-sync / kb-push）**互不干涉**。队列由引擎启动/退出同步或
+    `python src/voiceprint_sync.py sync|push` 冲刷；`VT_NO_VP_SYNC=1` 可单独关停。
+    """
+    try:
+        import voiceprint_sync as _vps
+        if kind == "upsert":
+            _vps.queue_upsert(name, obj, prev_id)
+        else:
+            _vps.queue_tombstone(name, prev_id,
+                                 _vps.embedding_fp(embedding or []))
+    except Exception:  # noqa: BLE001  同步是附加能力，坏了也不能挡住录入/删除
+        pass
+
+
+def _vp_prev_sync(p):
+    """读旧副本的 (sync_id, embedding)——重录/追加时用于构造 supersedes 与指纹。
+
+    同步副本直接取 sync_id；**自录副本没有 sync_id**，改用文件内容确定性重建
+    本机条目 id（own_entry_id）——fold 语义下重录若不带 supersedes，旧条目仍
+    alive、旧片段会被折进新模板，「重录=替换」会退化成「重录=追加」。
+    文件内容 == 当年入队 value（入队前剥同步标记），重建是可靠的。"""
+    try:
+        with open(p, encoding="utf-8-sig") as fh:
+            prev = json.load(fh) or {}
+    except (OSError, ValueError):
+        return None, []
+    emb = prev.get("embedding") or []
+    pid = prev.get("sync_id")
+    if pid:
+        return pid, emb
+    try:
+        import voiceprint_sync as _vps
+        name = os.path.splitext(os.path.basename(p))[0]
+        return _vps.own_entry_id(name, prev), emb
+    except Exception:  # noqa: BLE001
+        return None, emb
+
+
 def save_template(name, embedding, **meta):
-    """把声纹模板落盘为 JSON（192 个浮点，便于人工查看与 diff）。"""
+    """把声纹模板落盘为 JSON（192 个浮点，便于人工查看与 diff）。
+
+    落盘后排一条 upsert 进声纹同步待传队列（多用户共享）；同名重录时用旧副本
+    的 `sync_id` 作 supersedes——其它客户端据此把旧条目判为「被取代」，而不是
+    同名不同向量的冲突。"""
     os.makedirs(TEMPLATE_DIR, exist_ok=True)
     obj = {"name": str(name), "dim": int(len(embedding)),
            "created": time.strftime("%Y-%m-%d %H:%M:%S"),
            "embedding": [round(float(v), 6) for v in embedding]}
     obj.update({k: v for k, v in meta.items() if v is not None})
     p = template_path(name)
+    prev_id, _prev_emb = _vp_prev_sync(p) if os.path.isfile(p) else (None, [])
     with open(p, "w", encoding="utf-8") as fh:
         json.dump(obj, fh, ensure_ascii=False, indent=1)
+    _vp_sync_queue("upsert", name, obj, prev_id)
     return p
 
 
@@ -697,9 +902,14 @@ def save_selection(names):
 
 
 def delete_template(name):
-    """删除一个声纹模板，并把它从启用名单里摘掉。返回是否真的删了。"""
+    """删除一个声纹模板，并把它从启用名单里摘掉。返回是否真的删了。
+
+    同时排一条 tombstone 进声纹同步待传队列，带上被删副本的向量指纹——其它
+    客户端只在指纹匹配时才删本地副本（防「A 删除后 B 已本地重录同名」被误删；
+    B 重录产生的 upsert 会随后收敛全场）。"""
     p = template_path(name)
     existed = os.path.isfile(p)
+    prev_id, prev_emb = _vp_prev_sync(p) if existed else (None, [])
     try:
         os.remove(p)
     except OSError:
@@ -707,25 +917,169 @@ def delete_template(name):
     sel = load_selection()
     if str(name) in sel:
         save_selection([n for n in sel if n != str(name)])
+    if existed:
+        _vp_sync_queue("tombstone", name, prev_id=prev_id, embedding=prev_emb)
     return existed
 
 
-def enroll(src, start=None, dur=None, name="主播", encoder=None):
-    """录入声纹：从音频/视频截一段提向量并落盘，返回模板 dict。
+def _mean_unit(vecs):
+    """多条 L2 归一化向量取均值再归一化（多片段录入/分块推理共用的池化）。"""
+    v = np.mean(np.stack(vecs, axis=0), axis=0)
+    nrm = float(np.linalg.norm(v))
+    return v / (nrm if nrm > 1e-9 else 1.0)
 
-    ⚠ 参考片段越干净越好（单人、无 BGM、无重叠说话），建议 10~30 秒。
+
+def _local_author():
+    """本机 client_id 前 8 位（叶子的来源标注；同步不可用时为空串）。"""
+    try:
+        import voiceprint_sync as _vps
+        return str(_vps.config()["client_id"])[:8]
+    except Exception:  # noqa: BLE001
+        return ""
+
+
+def _embedding_fp(v):
+    """向量指纹（与 voiceprint_sync.embedding_fp 同口径；其不可用时本地复刻）。"""
+    import hashlib
+    try:
+        import voiceprint_sync as _vps
+        return _vps.embedding_fp(v)
+    except Exception:  # noqa: BLE001
+        pass
+    return hashlib.sha256(json.dumps(
+        [round(float(x), 6) for x in v]).encode("utf-8")).hexdigest()[:16]
+
+
+def _make_leaf(agg, weight, n, author=""):
+    """一次录入/追加动作 -> 一个折叠叶子（round(6) 与落盘口径一致）。"""
+    v = [round(float(x), 6) for x in np.asarray(agg, dtype=np.float64).reshape(-1)]
+    return {"fp": _embedding_fp(v), "v": v, "w": float(weight),
+            "n": int(n), "author": str(author or "")}
+
+
+def _plain_template(obj):
+    """load_template 的产物（embedding 是 numpy）-> 纯 Python 结构（喂折叠用）。"""
+    if not isinstance(obj, dict):
+        return {}
+    out = dict(obj)
+    e = out.get("embedding")
+    if isinstance(e, np.ndarray):
+        out["embedding"] = [float(x) for x in e.reshape(-1)]
+    return out
+
+
+def enroll_pcm(clips, name="主播", encoder=None, source=None, base=None, **meta):
+    """录入/追加声纹核心：逐片段提向量 →（追加时与旧模板折叠）→ 落盘。
+
+    `clips` 为 16k 单声道 PCM 列表。多片段录入比单片段稳得多（基准
+    build/_vp_accuracy_* 实测判定边际 +0.04~+0.09）：单片段容易被
+    BGM / 重叠说话 / 爆音带偏，多片段均值把这类随机偏差摊平。
+    任两片相似度低于 `DEFAULT_THRESHOLD` 时**拒绝落盘**——片段里混了
+    别人比「没录上」更有害：坏模板会让整批 cue 误判。
+
+    `base` 为可选的已有模板 dict（`enroll(append=True)` 传入）——**追加模式**：
+    本批片段先内部一致性校验，再与旧模板做加权并集折叠（旧叶子 trusted、
+    不会被翻旧账；新叶子对每片旧叶子过 0.55 同人守卫），不通过即拒绝。
+    多用户同步到达的同名数据在 voiceprint_sync.apply_upserts 里走同一个
+    fold_leaves，本机追加与远端迭代是**同一条数学路径**。
+
+    模板除 embedding 外记录迭代字段：weight（合成长度，折叠权重）、
+    clips、mix（叶子列表）、sources（贡献者），供同步折叠与界面展示。
+
+    返回模板 dict（含 `clips` 片段总数与 `consistency` 最低两两相似度）。
     """
     enc = encoder or VoiceprintEncoder()
-    pcm = read_pcm(src, start=start, dur=dur)
-    if len(pcm) < SAMPLE_RATE // 5:
-        raise VoiceprintError("参考片段太短（%.2f 秒），建议 10 秒以上"
-                              % (len(pcm) / float(SAMPLE_RATE)))
-    emb = enc.embed(pcm)
-    path = save_template(name, emb, source=os.path.basename(str(src)),
-                         start=start, dur=dur,
-                         seconds=round(len(pcm) / float(SAMPLE_RATE), 2))
-    return {"name": name, "path": path, "embedding": emb,
-            "seconds": round(len(pcm) / float(SAMPLE_RATE), 2)}
+    if not clips:
+        raise VoiceprintError("没有可用的参考片段")
+    embs = []
+    seconds = 0.0
+    for c in clips:
+        if len(c) < SAMPLE_RATE // 5:
+            raise VoiceprintError("参考片段太短（%.2f 秒），建议 10 秒以上"
+                                  % (len(c) / float(SAMPLE_RATE)))
+        embs.append(enc.embed(c))
+        seconds += len(c) / float(SAMPLE_RATE)
+    if len(embs) > 1:
+        pairs = [cosine(embs[i], embs[j])
+                 for i in range(len(embs))
+                 for j in range(i + 1, len(embs))]
+        worst = min(pairs)
+        if worst < DEFAULT_THRESHOLD:
+            raise VoiceprintError(
+                "片段间声纹不一致（最低相似度 %.2f < %.2f），疑似混入了他人"
+                "声音；请每段只保留目标说话人，或缩短/移动片段后重试"
+                % (worst, DEFAULT_THRESHOLD))
+    else:
+        worst = None
+    agg = embs[0] if len(embs) == 1 else _mean_unit(embs)
+    # 合成长度 w = |Σ 片段向量|：折叠按 w 加权等效于对全部底层片段向量求均值
+    s = np.sum(np.stack(embs, axis=0), axis=0)
+    r = float(np.linalg.norm(s))
+    leaf = _make_leaf(agg, max(r, 1e-9), len(embs), _local_author())
+    appended = base is not None
+    if base is None:
+        obj = {"embedding": leaf["v"], "weight": leaf["w"],
+               "clips": leaf["n"], "mix": [leaf],
+               "sources": [leaf["author"]] if leaf["author"] else []}
+    else:
+        import voiceprint_sync as _vps
+        old_leaves = _vps.template_leaves(_plain_template(base))
+        if not old_leaves:
+            raise VoiceprintError("已有声纹「%s」内容为空，无法追加" % name)
+        obj, rejected = _vps.fold_leaves(
+            old_leaves + [leaf],
+            trusted={l["fp"] for l in old_leaves})
+        if obj is None or any(l["fp"] == leaf["fp"] for l in rejected):
+            raise VoiceprintError(
+                "新片段与已有声纹「%s」不像同一人（相似度 < %.2f）。若这其实是"
+                "另一位主播，请换个名字录入；若确认同一人，请检查片段是否"
+                "干净（单人、无 BGM、无重叠说话）" % (name, DEFAULT_THRESHOLD))
+        seconds += float(base.get("seconds") or 0.0)
+        if source is None:
+            source = base.get("source")
+        meta.setdefault("created", base.get("created"))
+        meta.setdefault("start", base.get("start"))
+        meta.setdefault("dur", base.get("dur"))
+    cons = [c for c in (obj.get("consistency"), worst,
+                        (base or {}).get("consistency")) if c is not None]
+    if cons:
+        obj["consistency"] = round(min(cons), 6)
+        meta["consistency"] = obj["consistency"]
+    meta["clips"] = obj["clips"]
+    meta["weight"] = obj["weight"]
+    meta["mix"] = obj["mix"]
+    meta["sources"] = obj.get("sources") or []
+    path = save_template(name, obj["embedding"], source=source,
+                         seconds=round(seconds, 2), **meta)
+    return {"name": name, "path": path,
+            "embedding": np.asarray(obj["embedding"], dtype=np.float32),
+            "seconds": round(seconds, 2), "clips": obj["clips"],
+            "consistency": obj.get("consistency"), "appended": appended}
+
+
+def enroll(src, start=None, dur=None, name="主播", encoder=None, extra=None,
+           append=False):
+    """录入声纹：从音频/视频截一段（可附多段）提向量并落盘，返回模板 dict。
+
+    `extra` 为可选的 `[(src, start, dur), ...]` 额外参考片段，与主片段一起走
+    `enroll_pcm` 的多片段校验 + 均值流程。`append=True` 时**追加到已有同名声纹**
+    （旧片段保留、加权并集折叠），而不是覆盖重录——声纹库因此可以不断扩充校准；
+    不存在同名声纹则报错提示先录入。⚠ 每段参考越干净越好（单人、无 BGM、
+    无重叠说话），建议每段 10~30 秒。
+    """
+    enc = encoder or VoiceprintEncoder()
+    clips = [read_pcm(src, start=start, dur=dur)]
+    for s2, st2, du2 in (extra or []):
+        clips.append(read_pcm(s2, start=st2, dur=du2))
+    base = None
+    if append:
+        if not os.path.isfile(template_path(name)):
+            raise VoiceprintError("没有已录入的声纹「%s」，无法追加（先去掉"
+                                  " --append 正常录入，或换个名字）" % name)
+        base = load_template(name)
+    return enroll_pcm(clips, name=name, encoder=enc,
+                      source=os.path.basename(str(src)), start=start, dur=dur,
+                      base=base)
 
 
 # ---------------------------------------------------------------- 打分与筛选
@@ -837,6 +1191,49 @@ def score_by_cue(pcm, cues, template, encoder=None, sample_rate=SAMPLE_RATE):
 CLUSTER_THRESHOLD = 0.5
 #: 短于该秒数的 cue 不参与聚类（向量太不稳，会污染簇心）
 CLUSTER_MIN_SECONDS = 0.4
+#: 歧义拒分裕量：最佳簇心相似度领先次佳不足此值时，不强行归簇、自成一簇。
+#: 防止「卡在两个说话人中间」的 cue 把某簇的簇心拖向另一簇（该簇整组得分
+#: 随之偏移，误判整组 cue）。取 0.04：同人向量在 VAD/归一化后的抖动约 ±0.02。
+CLUSTER_ASSIGN_MARGIN = 0.04
+#: 近重复簇合并阈值：两个**多 cue** 簇的簇心余弦 ≥ 此值视为同一说话人被拆开，
+#: 合并后重指派。取 0.6 依据实测分布（异人上限 0.450 / 同人下限 0.681，0.6 在
+#: 空档上半区）；宁可不合并也不误并两个声音相近的不同说话人。
+CLUSTER_MERGE_THRESHOLD = 0.6
+#: 簇心更新的时长权重指数：0 = 等权（旧行为），1 = 按秒线性加权。取 0.5
+#: （√秒数）——向量稳定性随时长提升但趋于饱和：长 cue 应占更大权重，又不该
+#: 一票定心。等权会让一条 0.5s 的边界 cue 把 10s 立起来的簇心拖走 1/3。
+CLUSTER_LENGTH_WEIGHT = 0.5
+
+
+def _merge_close(members, centroids_of, threshold=CLUSTER_MERGE_THRESHOLD):
+    """近重复簇合并（就地改 members，返回是否动过）。
+
+    `centroids_of(members)` 返回与 members 平行的簇心列表（空簇给 None）。
+    **只并 ≥2 成员的簇**：单 cue 簇多半是边界拒分产生的离群簇，并回去会把
+    刚拒出去的 cue 又拉进别人的簇。合并是防御性的——0.5 归簇阈值下主流程
+    几乎走不到这里（能在 pass1 里共存的簇心相似度天然 < 0.5），它兜的是
+    「歧义拒分把同一说话人拆成两个多 cue 簇」的边角。每轮重算簇心，避免
+    用过期的合并前方向继续比。
+    """
+    did = False
+    while True:
+        cents = centroids_of(members)
+        best = None
+        for i in range(len(members)):
+            if len(members[i]) < 2 or cents[i] is None:
+                continue
+            for j in range(i + 1, len(members)):
+                if len(members[j]) < 2 or cents[j] is None:
+                    continue
+                s = float(np.dot(cents[i], cents[j]))
+                if s >= threshold and (best is None or s > best[0]):
+                    best = (s, i, j)
+        if best is None:
+            return did
+        _s, i, j = best
+        members[i].extend(members[j])
+        members[j] = []
+        did = True
 
 
 def cluster_cues(pcm, cues, encoder=None, sample_rate=SAMPLE_RATE,
@@ -849,51 +1246,117 @@ def cluster_cues(pcm, cues, encoder=None, sample_rate=SAMPLE_RATE,
     也照样拿不到标签（只有 3.1 原生 / 火山极速版 / AssemblyAI / Deepgram /
     ElevenLabs / 百炼 Filetrans 支持）。而声纹向量我们本来就算得出来，干脆自己聚。
 
-    做法：逐 cue 提向量 → **按音频时长降序**贪心聚簇（长 cue 的向量更稳，
-    先立簇心）→ 新向量与各簇心比余弦，≥ `threshold` 归入并更新簇心，否则新建。
-    顺序确定、结果可复现（不用随机初始化，也不需要 sklearn/scipy）。
+    **两遍聚类**（旧版是一遍贪心、等权簇心，实测会被边界 cue 拖心、被说话人
+    内部抖动拆簇——基准 build/_vp_accuracy_* 场景 C 可复现）：
+      第 1 遍 —— 逐 cue 提向量，**按音频时长降序**贪心立簇，簇心按 √时长
+                加权更新（长 cue 向量更稳，先立簇心、权重也更大）；
+      第 2 遍 —— 重算全部簇心后**整体重指派**：最佳簇心余弦 ≥ threshold 且
+                领先次佳 ≥ `CLUSTER_ASSIGN_MARGIN` 才归簇，否则自成一簇
+                （歧义拒分，保簇纯度——归错的代价比单飞大得多）；
+      合并   —— 近重复多 cue 簇合并（`_merge_close`）后再重指派一轮。
+    顺序全程确定（时长降序、同长按 cue 序号），结果可复现，不用随机初始化，
+    也不需要 sklearn/scipy。
 
     返回 `(labels, sizes)`：`labels[i]` 是 cue i 的簇号（**`-1` = 音频不足，
-    未参与聚类**），`sizes` 是 `{簇号: 条数}`。
+    未参与聚类**），`sizes` 是 `{簇号: 条数}`，簇号按 cue 出现顺序紧凑编号。
     """
     enc = encoder or VoiceprintEncoder()
     chunks = _cue_chunks(pcm, cues, sample_rate)
     min_len = int(min_seconds * sample_rate)
-    order = []                      # [(cue_index, duration_seconds)]，按时长降序
+    order = []                      # [(cue_index, duration_seconds)]，时长降序
     for i, ch in enumerate(chunks):
         if ch is not None and len(ch) >= min_len:
             order.append((i, len(ch) / float(sample_rate)))
-    order.sort(key=lambda t: -t[1])
+    order.sort(key=lambda t: (-t[1], t[0]))
 
-    labels = [-1] * len(cues)
-    centroids = []                  # 每个簇的归一化簇心
-    sums = []                       # 簇心累加（未归一化），用于增量更新
-    counts = []
+    vecs = {}                       # cue_index -> 向量（只提参与者的）
     for idx, _dur in order:
         try:
-            v = enc.embed(chunks[idx], sample_rate)
+            vecs[idx] = enc.embed(chunks[idx], sample_rate)
         except VoiceprintError:
-            continue
-        if centroids:
-            sims = [float(np.dot(v, c)) for c in centroids]
-            best = int(np.argmax(sims))
-            if sims[best] >= threshold:
-                labels[idx] = best
-                sums[best] = sums[best] + v
-                counts[best] += 1
-                n = sums[best]
-                centroids[best] = n / (float(np.linalg.norm(n)) + 1e-9)
-                continue
-        labels[idx] = len(centroids)
-        sums.append(v.copy())
-        counts.append(1)
-        centroids.append(v.copy())
+            pass
+    weights = {i: d ** CLUSTER_LENGTH_WEIGHT for i, d in order if i in vecs}
 
+    def _centroid_of(mem):
+        s = np.zeros_like(vecs[mem[0]])
+        for i in mem:
+            s += vecs[i] * weights[i]
+        return s / (float(np.linalg.norm(s)) + 1e-9)
+
+    def _pick(sims, threshold):
+        """(是否可归属, 最佳簇号)。歧义拒分：领先次佳不足裕量时不可归属。"""
+        ranked = sorted(range(len(sims)), key=lambda k: (-sims[k], k))
+        best = ranked[0]
+        ok = sims[best] >= threshold and (
+            len(ranked) == 1
+            or sims[best] - sims[ranked[1]] >= CLUSTER_ASSIGN_MARGIN)
+        return ok, best
+
+    labels = [-1] * len(cues)
+    if not vecs:
+        return labels, {}
+
+    # 第 1 遍：按时长降序贪心立簇（在线 √时长加权更新簇心）
+    members = []                    # [ [cue_index...] ]
+    cents = []                      # 与 members 平行的归一化簇心
+    for idx, _dur in order:
+        if idx not in vecs:
+            continue
+        v = vecs[idx]
+        if cents:
+            sims = [float(np.dot(v, c)) for c in cents]
+            ok, best = _pick(sims, threshold)
+            if ok:
+                labels[idx] = best
+                members[best].append(idx)
+                cents[best] = _centroid_of(members[best])
+                continue
+        labels[idx] = len(cents)
+        members.append([idx])
+        cents.append(v.copy())
+
+    # 第 2 遍：近重复簇合并 → 重算簇心 → 整体重指派（含歧义拒分）；
+    # 两轮兜住「合并改变格局后又有 cue 可落回」的边角。全程确定顺序。
+    for _round in range(2):
+        _merge_close(members,
+                     lambda ms: [_centroid_of(m) if m else None for m in ms])
+        new_mem = []
+        new_cents = []
+        lab = {}
+        for idx, _dur in order:
+            if idx not in vecs:
+                continue
+            v = vecs[idx]
+            sims = [float(np.dot(v, c)) for c in new_cents]
+            if sims:
+                ok, best = _pick(sims, threshold)
+            else:
+                ok, best = False, -1
+            if not ok:
+                best = len(new_mem)
+                new_mem.append([])
+            lab[idx] = best
+            new_mem[best].append(idx)
+            if len(new_mem[best]) == 1:
+                new_cents.append(v.copy())
+            else:
+                new_cents[best] = _centroid_of(new_mem[best])
+        members = new_mem
+
+    # 簇号按 cue 出现顺序紧凑编号
+    remap = {}
+    out = []
+    for i in range(len(cues)):
+        lb = lab.get(i, -1)
+        if lb < 0:
+            out.append(-1)
+        else:
+            out.append(remap.setdefault(lb, len(remap)))
     sizes = {}
-    for lb in labels:
+    for lb in out:
         if lb >= 0:
             sizes[lb] = sizes.get(lb, 0) + 1
-    return labels, sizes
+    return out, sizes
 
 
 def score_clusters(pcm, cues, labels, template, encoder=None,
@@ -1122,6 +1585,12 @@ def _main(argv=None):
     p1.add_argument("--start", type=float, default=None)
     p1.add_argument("--dur", type=float, default=None)
     p1.add_argument("--name", default="主播")
+    p1.add_argument("--clip", action="append", default=[],
+                    help="额外参考片段（可多给），格式 \"路径,起点秒,时长秒\"；"
+                         "多片段先做同人一致性校验再取均值，模板更稳")
+    p1.add_argument("--append", action="store_true",
+                    help="追加到已有同名声纹（旧片段保留、加权并集折叠）；"
+                         "默认是覆盖重录")
 
     p2 = sub.add_parser("score", help="按说话人打印相似度（只看不筛）")
     p2.add_argument("--src", required=True)
@@ -1169,8 +1638,27 @@ def _main(argv=None):
         print("已删除声纹「%s」" % args.name if ok else "未找到声纹「%s」" % args.name)
         return 0 if ok else 1
     if args.cmd == "enroll":
-        r = enroll(args.src, args.start, args.dur, args.name)
-        print("已录入声纹「%s」：%.1f 秒 -> %s" % (r["name"], r["seconds"], r["path"]))
+        extra = []
+        for raw in (args.clip or []):
+            # 从右侧切两段逗号：路径里出现逗号也不误伤
+            parts = str(raw).rsplit(",", 2)
+            if len(parts) != 3:
+                raise VoiceprintError("--clip 格式应为 \"路径,起点秒,时长秒\"：%s"
+                                      % raw)
+            extra.append((parts[0].strip().strip('"'),
+                          float(parts[1]), float(parts[2])))
+        r = enroll(args.src, args.start, args.dur, args.name, extra=extra,
+                   append=args.append)
+        if r.get("appended"):
+            print("已追加到声纹「%s」：现共 %d 个片段 %.1f 秒 -> %s"
+                  % (r["name"], r["clips"], r["seconds"], r["path"]))
+        elif r["clips"] > 1:
+            print("已录入声纹「%s」：%d 段共 %.1f 秒（一致性 %.3f）-> %s"
+                  % (r["name"], r["clips"], r["seconds"],
+                     r["consistency"], r["path"]))
+        else:
+            print("已录入声纹「%s」：%.1f 秒 -> %s"
+                  % (r["name"], r["seconds"], r["path"]))
         return 0
 
     names = [x.strip() for x in str(args.name).split(",") if x.strip()]

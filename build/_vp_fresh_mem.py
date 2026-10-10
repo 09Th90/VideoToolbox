@@ -1,4 +1,4 @@
-# @version 1.18.3
+# @version 1.19.0
 import os, sys
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "src"))
 os.environ.setdefault("VT_NO_PIPELINE", "1"); os.environ.setdefault("VT_NO_SYNC", "1")

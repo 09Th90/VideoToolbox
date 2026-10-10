@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# @version 1.18.3
+# @version 1.19.0
 """主播声纹 · 界面组件（v1.18.0）
 ====================================================================
 两个组件，供 `video_toolbox.py::vc_transcribe_ui_patch()` 挂进引擎界面：
@@ -53,14 +53,21 @@ class EnrollWorker(QThread):
 
     done = pyqtSignal(bool, str)
 
-    def __init__(self, src, start, dur, name, parent=None):
+    def __init__(self, src, start, dur, name, append=False, parent=None):
         super().__init__(parent)
         self._src, self._start, self._dur, self._name = src, start, dur, name
+        self._append = bool(append)
 
     def run(self):
         try:
-            r = SV.enroll(self._src, self._start, self._dur, self._name)
-            self.done.emit(True, "已录入「%s」：%.1f 秒人声" % (r["name"], r["seconds"]))
+            r = SV.enroll(self._src, self._start, self._dur, self._name,
+                          append=self._append)
+            if r.get("appended"):
+                self.done.emit(True, "已追加到「%s」：现共 %d 个片段"
+                               % (r["name"], r["clips"]))
+            else:
+                self.done.emit(True, "已录入「%s」：%.1f 秒人声"
+                               % (r["name"], r["seconds"]))
         except SV.VoiceprintError as e:
             self.done.emit(False, str(e))
         except Exception as e:  # noqa: BLE001
@@ -177,6 +184,10 @@ class VoiceprintEnrollCard(QWidget):
         self.name_edit.setText("主播")
         self.name_edit.setMinimumWidth(120)
         form2.addWidget(self.name_edit)
+        self.append_box = CheckBox("追加到已有同名声纹", self)
+        self.append_box.setToolTip("勾选：在已有声纹上继续添加该主播的声音（扩充校准）\n"
+                                   "不勾：同名覆盖重录")
+        form2.addWidget(self.append_box)
         self.btn_enroll = PrimaryPushButton("开始录入", self)
         self.btn_enroll.clicked.connect(self._do_enroll)
         form2.addWidget(self.btn_enroll)
@@ -219,6 +230,10 @@ class VoiceprintEnrollCard(QWidget):
             meta = []
             if t.get("seconds"):
                 meta.append("%.1f 秒" % float(t["seconds"]))
+            if int(t.get("clips") or 1) > 1:
+                meta.append("%d 片段" % int(t["clips"]))
+            if t.get("sources"):
+                meta.append("%d 来源" % len(t["sources"]))
             if t.get("created"):
                 meta.append(str(t["created"])[:16])
             if t.get("source"):
@@ -300,7 +315,9 @@ class VoiceprintEnrollCard(QWidget):
         self.btn_enroll.setEnabled(False)
         self.status.setText("正在提取声纹…（首次会加载模型，约需数秒）")
         self._worker = EnrollWorker(src, float(self.start_spin.value()),
-                                    float(self.dur_spin.value()), name, self)
+                                    float(self.dur_spin.value()), name,
+                                    append=self.append_box.isChecked(),
+                                    parent=self)
         self._worker.done.connect(self._on_enrolled)
         self._worker.start()
 

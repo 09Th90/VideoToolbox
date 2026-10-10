@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# @version 1.18.3
+# @version 1.19.0
 """结构体检 + 导出审阅用清单（编号 / 中文行 / 英文行）。"""
 import re, os, collections
 

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 1.18.3
+# @version 1.19.0
 """AI 校准 Agent 自检（离线，不联网、不调用真实 LLM）。
 
 覆盖：
@@ -1040,7 +1040,13 @@ def test_cluster():
 def test_orig_title():
     """v1.16.1：原始标题提取（视频信息.txt → 视频文件名 → 字幕名去噪）+ 提示词带入。"""
     print("\n== 15. 原始标题（改写新标题的参考基准） ==")
-    with tempfile.TemporaryDirectory() as d:
+    with tempfile.TemporaryDirectory() as d0:
+        # ⚠ read_original_title 会向上走 **3 层**目录找「*信息.txt / 视频文件名」，
+        #   而 tempfile 的父目录是**共享的系统 Temp**——别的自检残留的 .mp4 会被
+        #   当成片源标题（本组曾因此把 `npe_selftest_…_v` 当答案而误报 FAIL）。
+        #   垫两层私有目录，让向上查找止步于本自检自己的地盘（密闭化）。
+        d = os.path.join(d0, "_iso_a", "_iso_b")
+        os.makedirs(d)
         vdir = os.path.join(d, "某视频目录")
         os.makedirs(vdir)
         srt = os.path.join(vdir, "【字幕】某视频.en-谷歌翻译.srt")

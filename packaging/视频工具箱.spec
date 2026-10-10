@@ -1,6 +1,6 @@
 # -*- mode: python ; coding: utf-8 -*-
-# @version 1.18.3
-"""视频工具箱 v1.18.3 —— PyInstaller 打包配置
+# @version 1.19.0
+"""视频工具箱 v1.19.0 —— PyInstaller 打包配置
 v1.18.0：① 新增**主播声纹筛选**的运行时——`speaker_voiceprint_page` /
         `speaker_voiceprint` 是 `video_toolbox.vc_transcribe_ui_patch()` 里的
         **延迟导入**（缺依赖只记日志、界面照起），静态分析跟踪不到，必须显式
@@ -148,6 +148,14 @@ hiddenimports += ['npe_backend']
 #   speaker_voiceprint 被 speaker_voiceprint_page 静态 import，声明后者即可，
 #   这里一并列出双保险。
 hiddenimports += ['speaker_voiceprint_page', 'speaker_voiceprint']
+# v1.19.0：声纹模板的**多用户同步通道** `voiceprint_sync`（独立通道，与校准知识
+#   同步无关，数据落 data\vp_sync\）。⚠ speaker_voiceprint.py 里是三处
+#   **函数体内延迟 import**（录入/重录/删除时排队列），静态分析同样跟踪不到。
+#   不声明的话：安装版一录入或删除声纹就 ImportError——而调用点外面套了
+#   try/except 静默降级，表现为「声纹录进去了但永远不同步、且不报错」，
+#   与上面 v1.18.0 那次「界面没有声纹卡且不报错」是同一类最难查的坑。
+#   ⚠ 同时 packaging\视频工具箱.iss 也要装 {app}\src 下的源码副本（已装）。
+hiddenimports += ['voiceprint_sync']
 
 # v1.18.0（已拍板：**打进包**）：onnxruntime 是声纹筛选的运行时。
 #   faster_whisper/vad.py 是在**函数体内** `import onnxruntime`（延迟导入），
