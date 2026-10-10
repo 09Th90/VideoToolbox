@@ -282,6 +282,8 @@ BILINGUAL_TERMS = {
     "Sheen": "心月狐",                                             # 月狐 Sheen 官方全名 心月狐（独立指代用全名，长词规则先行不会重复）
     "月狐希恩": "心月狐",                                          # 语序调整为官方名
     "希恩": "心月狐",                                              # 旧译名统一为官方全名 心月狐
+    "哨兵谐振器": "岁主共鸣者",                                    # Sentinel resonator（岁主共鸣者=官方 Resonator；长键先于 ctx 哨兵->岁主）
+    "岁主谐振器": "岁主共鸣者",                                    # 防御性收录：ctx 哨兵->岁主 跑过一遍后的中间形态（谐振器=机翻 resonator）
     "谢恩": "心月狐",                                              # Shane（Sheen 音近变体）
     "Sentinel": "岁主",                                            # 中文行残留的英文 Sentinel
     "虚空法师": "幽客",                                            # Nethermancer（幕间官方名「幽客销残声」）
@@ -626,6 +628,7 @@ BILINGUAL_TERMS = {
     "星月湖": "心月狐",                                              # 心月狐 Hsin 错形
     "昭昭和年月": "朝朝何年月",                                      # 危行任务官方名
     "梦书天罗": "梦枢天罗", "梦书天炉": "梦枢天罗",                  # 3.7 新区域官方名
+    "西米拉克林": "梦枢天罗", "Simiracrim": "梦枢天罗",              # similacrim ASR/机翻残留（同 梦书天罗 家族）
     "天罗湖影": "天罗狐影",                                          # 梦枢天罗巨大狐影
     "信誉稳定值": "心域稳定值",                                      # 心钥井玩法数值
     "全方城": "玄方城",                                              # 玄方城错形
@@ -1229,6 +1232,11 @@ CONTEXT_MAP = [
     #   非黑海岸守岸人(Shorekeeper)；谷翻 cue45 作"监视者"，参考行 Watcher 锚定归"守望者"。
     #   （"守望者"被误归守岸人的回滚见 EXCLUDE_CONTEXT；"守护者"为 Guardian 正确译法不收。）
     (r"\bwatchers?\b", "监视者", "守望者"),
+    # --- 2026-10-10 ADHD REACTS to WuWa 3.7 Hsin MAIN QUEST（本片二次校准）---
+    # 谷翻把心月狐(Shin)按常用词直译，但目标需保留原句虚词（非 canonical），
+    # 只能走扁平 CONTEXT_MAP 三元组（Entity.ctx 的 2 元组目标恒为 canonical）：
+    (r"\bShin\b", "真终于", "心月狐终于"),
+    (r"\bShin\b", "叫信", "叫心月狐"),
 ]
 
 # =============================================================
@@ -3044,6 +3052,30 @@ ENDFIELD_BI_TERMS = {
     #   CC(cue56=危机合约)、Emil(cue446=realm)、特里尔(cue222=terrain)、font(cue359=FOMO)、
     #   字元(cue370=character 角色)、GA(cue241=gacha 抽卡)、watered/浇水(cue403=watered down)、
     #   stream/溪流(cue428/494/498/505=直播)、fanny me(cue325=fan in me 粉丝)。
+    # —— 2026-10-10 十三次沉淀（二次校准 · 逐句核查名词漏校/漏译）：本片复核新增零歧义中文错形 ——
+    "枯萎的波浪": "鸣潮", "徘徊的波浪": "鸣潮", "能抵御波浪": "鸣潮",   # Wuthering Waves 谷翻错形（bi 表已有"枯萎的波浪"）
+    "金色的枝条": "金枝",                       # golden boughs（边狱巴士核心道具，与表内 golden bough/金色弓 同源）
+    "字元": "角色",                             # character（台湾用词；本片 cue370 机翻错形）
+    # —— 2026-10-10 十四次沉淀：《RHODES ISLAND IS COMING?! Arknights: Endfield
+    #    "Sanctuary of Ink" Special Program REACTION》英文主播 reaction（355 cue，
+    #    英文音轨 + 谷歌机翻中英双语，--endobi）。官方依据：终末地官网「丹青渡」新版本导览、
+    #    TapTap/IT之家 1.6 前瞻速览、NGA/萌娘百科；疑难处经原片音频（百炼
+    #    qwen-audio-3.0-asr-flash）二次复核。Sanctuary of Ink 即 1.6「丹青渡」官方英文名。
+    # 地名 / 组织（官方中文旁白 ASR 错形）
+    "番多玛": "菈梵朵玛",                    # La Fantoma（与塞什卡、塔卫二并列的城市；音频复核念「番多玛」）
+    "武林的灵秀": "武陵的灵秀",              # Wuling（长键防武侠常用词「武林」误伤；音频复核念「武陵」）
+    "周末地": "终末地",                      # Endfield 的 ASR 错形（非词错形，可裸键）
+    "魔境大冒险": "蘑境大冒险",              # 小刻蘑菇主题玩法（与已收「魔镜大冒险」同源，境/镜双形）
+    "乐队协议": "环带公约",                  # Band Accord（与已收「乐队协奏曲/乐队绳索/剥夺协议」同源）
+    # 联动 / 平台（cue272；原片音频复核为美国连锁娱乐 Round One，保龄球/KTV 联动）
+    "Run One": "Round One", "run one": "Round One",
+    # 管理员称谓（ASR 吞「员」；长键避与常用词「管理」冲突）
+    "和管理们": "和管理员们", "与管理分享": "与管理员分享",
+    # 预告英文碎拼（中文行内夹英文；--endobi 只改首中文行，英文参考行一字不动；长键先于裸「Sam i」）
+    "Sam i Waker": "萨米维格",
+    "Sarc ASM": "萨卡兹",
+    "Cre T Aceous Front Iers": "白垩洲",
+    "阿姆·伊娅": "阿米娅",                   # Amiya（音频复核主播念 Amiya）
 }
 
 # =============================================================
@@ -6863,9 +6895,10 @@ ENTITIES = [
            note="英文残留补录：Lahai-Roi 的 ASR/谷翻残留 La Hai Roy/La Hyroy/Lahiroy。"),
     Entity("残星会", modes=("bi",), en="Fractsidus",
            category="组织/鸣潮",
-           variants=("Fractsidus", "Fractidus"),
+           variants=("Fractsidus", "Fractidus", "弗赖杜斯"),
            note="英文残留补录：Fractsidus/Fractidus 英文残留整词留行（'Fraidus' 既有表"
-                "已映射为正确英文 Fractsidus，此处不重复登记）。"),
+                "已映射为正确英文 Fractsidus，此处不重复登记）。"
+                "本片补录：谷翻把 Fraidus 音译成'弗赖杜斯'（生僻裸键；既有表另有'弗雷杜斯'）。"),
     Entity("残象", modes=("bi",), en="Tacet Discord",
            category="术语/鸣潮",
            variants=("Tacid", "Taca", "tacetern", "Tacid Discord", "Taca Discord",
@@ -7208,6 +7241,94 @@ ENTITIES = [
                 "Sentinel/Sheen；旧 ctx Shin 锚定（错形 申/辛/胫）->心月狐 为剧情片沉淀，"
                 "评论片会系统性偏到心月狐，本条不改旧规则，人工 pair 按语境在心/心月狐间"
                 "取舍（本片 20 余处 Shin 评论均归『心』，开场剧情 real Guardian 归岁主）。"),
+    # ============================================================
+    # 2026-10-10《鸣潮》3.7 主线 reaction 片
+    #   （ADHD REACTS to Wuthering Waves Version 3.7 Hsin MAIN QUEST，kettletoro）
+    #   二次校准补录：英文 ASR + 谷翻残留错形。戒律：生僻音译/英文残留可裸键；
+    #   常用中文词（罪/辛/信/真/成/千/游水/摇摆/天神/天界/枢纽/歧管/领地/吴…）
+    #   一律走参考行 ctx 锚定，绝不裸键。ctx 按列表顺序应用，长错形须先于短错形。
+    # ============================================================
+    Entity("心月狐", modes=("bi",), en="Shin",
+           category="角色/岁主·鸣潮3.7",
+           ctx=((r"\bSin\b", "辛"), (r"\bSin\b", "罪恶"), (r"\bSin\b", "罪"),
+                (r"\bShing\b", "成"),
+                (r"\bSeen\b", "Seen"), (r"\bShuin\b", "修院")),
+           note="本片补录：ASR 把 Shin 听成 Sin/Shing/Seen/Shuin，谷翻一律按常用词直译"
+                "（Sin->辛/罪/罪恶、Shing->成、Shuin->修院、Seen 整词留英文）。"
+                "全为常用词，只走参考行锚定；'罪恶'须先于'罪'。"
+                "⚠ 错形用最窄形：'Shin->信/真' 裸形会误伤（实测裸'真'把 cue415'丑陋的真相'"
+                "咬成'丑陋的心月狐相'），改走扁平 CONTEXT_MAP 三元组 '真终于->心月狐终于'、"
+                "'叫信->叫心月狐'（保留原句虚词）。"
+                "⚠ 不收 'Sen->千'：本片 cue809 'but Sen still has no resonator' 的 Sen 指代"
+                "存疑（心月狐本有共鸣者璇情），无官方依据不臆断，留人工。"
+                "⚠ 本片为剧情 reaction 片，Shin/Sheen 均指岁主本体心月狐；"
+                "评论片中单独 Shin 多指可玩角色「心」，见 Entity('心') 的 note。"),
+    Entity("锁暝", modes=("bi",), en="Suoming",
+           category="角色/鸣潮3.7",
+           variants=("斯沃明",),
+           ctx=((r"\bSwaming\b", "游水"), (r"\bSwinging\b", "摇摆")),
+           note="本片补录：Swaming 的谷翻音译'斯沃明'（生僻裸键）；ASR 形 Swaming->谷翻"
+                "'游水'、Swinging->'摇摆'（均常用词，只走参考行锚定）。"),
+    Entity("玄方城", modes=("bi",), en="Schwanfong Hold",
+           category="地名/鸣潮3.7",
+           variants=("Shwenfong", "Shenfong", "神丰堡", "山坊", "山芳"),
+           ctx=((r"\bSchwang\w*\b|\bShanfang\b", "王风"),
+                (r"\b[Hh]old's\b", "等待结束"),
+                (r"\b[Hh]old\b", "领地"), (r"\b[Hh]old\b", "固定点")),
+           note="本片补录：ASR/谷翻把玄方城写成英文残留 Shwenfong/Shenfong 或音译"
+                "'神丰堡/山坊/山芳'（均生僻，裸键）；'王风'（Schwangfong 误读）、"
+                "'领地/固定点'（剧情里的 the Hold=玄方城）、'等待结束'（Hold's completion）"
+                "均为常用词，只走参考行锚定。"),
+    Entity("天人", modes=("bi",), en="Celestials",
+           category="术语/鸣潮",
+           ctx=((r"\b[Cc]elestials\b", "天界生物"), (r"\b[Cc]elestials\b", "天界幻影"),
+                (r"\b[Cc]elestials\b", "天神"), (r"\b[Cc]elestials\b", "天界")),
+           note="本片补录：谷翻把 celestials 按字面译成'天神/天界/天界生物/天界幻影'"
+                "（均常用词），只走参考行锚定归官方中文'天人'；长错形须先于短'天界'。"),
+    Entity("溯心", modes=("bi",), en="Sushin",
+           category="角色/鸣潮3.7",
+           variants=("苏希安",),
+           note="本片补录：ASR 把 Sushin 咬成 Sushian，谷翻音译'苏希安'（生僻裸键->溯心）。"),
+    Entity("梦枢天罗", modes=("bi",), en="Simulacrum Nexus",
+           category="地点/新地区",
+           variants=("西米拉克林",),
+           ctx=((r"\bnexus\b", "梦枢天罗 枢纽"), (r"\bnexus\b", "枢纽")),
+           note="本片补录：ASR 把 Simulacrum 咬成 Simiracrim，谷翻音译'西米拉克林'"
+                "（生僻裸键）；'nexus' 被直译'枢纽'（常用词，只走参考行锚定）。"
+                "⚠ 'Simiracrim' 已在 BILINGUAL_TERMS 裸键->梦枢天罗，故先落'梦枢天罗 枢纽'"
+                "再收敛，组合错形须先于单'枢纽'，否则产'梦枢天罗 梦枢天罗'。"),
+    Entity("万相神宫", modes=("bi",), en="(Manifold) Sanctum",
+           category="地点/建筑·鸣潮3.7",
+           ctx=((r"\bmanifold\b", "歧管"),),
+           note="本片补录：'the manifold sanctum'（=万相神宫）被谷翻按机械义译成'歧管'"
+                "（常用词），只走参考行 manifold 锚定。"),
+    Entity("朝月会", modes=("bi",), en="Waking Moon Festival",
+           category="活动/鸣潮3.7",
+           ctx=((r"\bMoon Festival\b", "月亮节"),),
+           note="本片补录：简称 'the Moon Festival' 被谷翻直译'月亮节'（常用词），"
+                "只走参考行锚定归官方中文'朝月会'。"),
+    Entity("鸣潮", modes=("bi",), en="Wuthering Waves",
+           category="作品/鸣潮",
+           variants=("枯萎战争",),
+           ctx=((r"\bWua\b", "吴"),),
+           note="本片补录：主播口播把 Wuthering Waves 咬成 'Wua'（谷翻当姓氏译'吴'）与"
+                "'War of Withering Waves'（谷翻'枯萎战争'）；'吴'是常用姓氏，只走参考行锚定；"
+                "'枯萎战争'为生僻组合串，裸键。"),
+    Entity("梦州", modes=("bi",), en="Mengzhou",
+           category="地名/鸣潮",
+           ctx=((r"\b(Mongjo|Mojo|Mongo|Mong Joe)\b", "蒙乔"),),
+           note="本片补录：谷翻把 Mongjo 音译'蒙乔'（学习库同名裸键已因跨片源风险被否决，"
+                "改走参考行锚定；本片 cue534/690/716/803）。"),
+    Entity("今州", modes=("bi",), en="Jinzhou",
+           category="地名/鸣潮",
+           ctx=((r"\b(Gingjo|Jingo|Ginjo)\b", "银杏"),),
+           note="本片补录：谷翻把 Gingjo 误译'银杏'（学习库同名裸键已因跨片源风险被否决，"
+                "改走参考行锚定；本片 cue857 'Gingjo patroller'）。"),
+    Entity("御者", modes=("bi",), en="Arbiter",
+           category="称号/鸣潮",
+           ctx=((r"\barbiter\b", "裁判"),),
+           note="本片补录：谷翻把 arbiter 按体育/法律义译成'裁判'（常用词），"
+                "只走参考行 arbiter 锚定归'御者'（本片 cue537）。"),
 ]
 
 
