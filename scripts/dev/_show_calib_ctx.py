@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 1.19.0
+# @version 1.19.1
 """查看指定候选错形的原始 cue 上下文（旧行/新行全貌），供裁断锚点用。"""
 import glob
 import os
