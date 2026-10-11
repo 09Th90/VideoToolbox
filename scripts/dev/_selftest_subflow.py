@@ -19,7 +19,6 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO_ROOT / "subflow"))
-sys.path.insert(0, str(REPO_ROOT / "scripts" / "dev"))
 
 import bridges  # noqa: E402
 import kb_export  # noqa: E402
@@ -93,6 +92,20 @@ def test_mosp_roundtrip(tmp: Path) -> None:
     m2 = mosp_bridge.mosp_to_srt(mosp, back)
     check(m2 == 2, f"disabled 段跳过（{m2}）")
 
+    # 空文本段也应被跳过（MAW 工程可能出现空 cue）
+    project["segments"][1]["disabled"] = False
+    project["segments"][1]["text"] = ""
+    mosp_bridge.write_text(mosp, json.dumps(project, ensure_ascii=False, indent=2), crlf=False)
+    check(mosp_bridge.mosp_to_srt(mosp, back) == 2, "空文本段跳过")
+
+    # 换行二次翻译回归：输入已含 CRLF 的文本再写 crlf=True 不得出现 \r\r\n
+    crlf_in = tmp / "crlf_in.srt"
+    crlf_out = tmp / "crlf_out.srt"
+    mosp_bridge.write_text(crlf_in, "1\n00:00:00,000 --> 00:00:00,500\n甲\n\n2\n00:00:01,000 --> 00:00:01,500\n乙\n", crlf=True)
+    mosp_bridge.write_text(crlf_out, mosp_bridge.read_text_any(crlf_in), crlf=True)
+    check(b"\r\r\n" not in crlf_out.read_bytes(), "write_text 对 CRLF 输入不二次翻译")
+    check(crlf_out.read_bytes().count(b"\r\n") == 7, "CRLF 行数正确（无行间空行膨胀）")
+
 
 # ---------- 2. 知识库导出 ----------
 def test_kb_export(cfg: ToolConfig) -> None:
@@ -112,6 +125,7 @@ def test_kb_export(cfg: ToolConfig) -> None:
     check(("空月の歌", "空月之歌") in by_pair, "条目术语行：源语言→中文定名")
     check(("ナド・クライ", "挪德卡莱") in by_pair, "条目术语行二")
     check(("Lauma", "菈乌玛") in by_pair, "别名列展开（英文别名）")
+    check("以挪德卡莱为舞台" in by_pair[("空月の歌", "空月之歌")].note, "含竖线的描述完整保留")
     check(("原神", "原神") not in by_pair, "[本名] 同名去重（源=译名不导出）")
     check(("げんしん", "原神") in by_pair, "[本名] 括号读音展开为别名行")
     check(
@@ -189,6 +203,13 @@ def test_task_state_machine(tmp: Path, cfg: ToolConfig) -> None:
     check("校对后的字幕行" in mosp_bridge.read_text_any(final_srt), "定稿 SRT 与成片同目录")
     task = subflow.Task.load(cfg, "sample")
     check(task.stage == "done", "burn 后 stage=done")
+    hist = {h["stage"]: h for h in task.data.get("history", [])}
+    if "burn" in hist:
+        hb = hist["burn"]
+        check(
+            hb["start"] >= task.data["created_at"] and hb["end"] >= hb["start"] and hb["duration_s"] > 0,
+            "record 墙钟时间戳合理（monotonic 未混入时间戳）",
+        )
 
     # resume 对已完成任务不回退
     subflow.cmd_resume(argparse.Namespace(name="sample"), cfg)

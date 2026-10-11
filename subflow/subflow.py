@@ -23,7 +23,7 @@ import re
 import sys
 import time
 import webbrowser
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -95,13 +95,18 @@ class Task:
             raise ToolError(f"未知阶段: {stage}")
         self.data["stage"] = stage
 
-    def record(self, stage: str, started: float, returncode: int = 0) -> None:
+    def record(self, stage: str, started_monotonic: float, returncode: int = 0) -> None:
+        """记录一次阶段执行。started_monotonic 是 time.monotonic() 起点；
+        wall 时间戳由 duration 反推（monotonic 值不是墙钟，不能直接进 fromtimestamp）。"""
+        duration = max(0.0, time.monotonic() - started_monotonic)
+        end_dt = datetime.now(timezone.utc)
+        start_dt = end_dt - timedelta(seconds=duration)
         self.data.setdefault("history", []).append(
             {
                 "stage": stage,
-                "start": datetime.fromtimestamp(started, tz=timezone.utc).strftime("%Y-%m-%dT%H:%M:%S+00:00"),
-                "end": _NOW(),
-                "duration_s": round(time.monotonic() - started, 1),
+                "start": start_dt.strftime("%Y-%m-%dT%H:%M:%S+00:00"),
+                "end": end_dt.strftime("%Y-%m-%dT%H:%M:%S+00:00"),
+                "duration_s": round(duration, 1),
                 "returncode": returncode,
             }
         )

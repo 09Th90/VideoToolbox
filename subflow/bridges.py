@@ -153,12 +153,13 @@ def finesub_transcribe(
     language: str = "",
     extra_info: str = "",
     knowledge: str = "update",
-    timeout_s: float = 6 * 3600,
+    timeout_s: float = 12 * 3600,
 ) -> None:
     """finesub 全流水线：媒体 → 成品 SRT（+ 同名 -raw.srt 留档）。
 
     知识库通过 FINESUB_KNOWLEDGE_ROOT 钉到 SubFlow 主库，实现三工具单源同步；
     成功判定按仓库约定：退出码 0 且 -o 指定的成品 SRT 落盘。
+    CWD 钉到工作站根：finesub 的 out/、批量状态等相对路径产物不会散落调用方目录。
     """
     if not cfg.finesub_python.exists():
         raise ToolError(
@@ -187,6 +188,7 @@ def finesub_transcribe(
         cmd,
         log_path=cfg.logs_dir / "finesub.log",
         timeout_s=timeout_s,
+        cwd=cfg.root,
         env_extra={"FINESUB_KNOWLEDGE_ROOT": str(cfg.knowledge_root), "FINESUB_NO_UPDATE_CHECK": "1"},
     )
     if not out_srt.exists():
@@ -204,6 +206,7 @@ def ytdlp_download(cfg: ToolConfig, url: str, dest_dir: Path, name: str = "input
             "-o",
             str(dest_dir / f"{name}.%(ext)s"),
             "--no-playlist",
+            "--no-overwrites",
             "--ffmpeg-location",
             str(cfg.ffmpeg_bin),
             url,
@@ -264,12 +267,11 @@ def maw_open_review(cfg: ToolConfig, project_mosp: Path, media: Path | None, *, 
         cwd=str(cfg.maw_exe.parent),
     )
     if not maw_server_ready(port):
-        raise ToolError(f"MAW 编辑器服务 {wait_fail_hint(port)}")
+        raise ToolError(
+            f"MAW 编辑器服务未在 60s 内就绪（http://127.0.0.1:{port}/）。"
+            "可手动执行 MAW.exe --server 后在浏览器拖入工程。"
+        )
     return port
-
-
-def wait_fail_hint(port: int) -> str:
-    return f"未在 60s 内就绪（http://127.0.0.1:{port}/）。可手动执行 MAW.exe --server 后在浏览器拖入工程。"
 
 
 def ffmpeg_burn(

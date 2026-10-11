@@ -97,7 +97,8 @@ def parse_index_line(line: str) -> tuple[str, str, list[str], list[str], str] | 
         key_cell, type_tag = m.group(1).strip(), m.group(2).strip()
     names = _split_alts(parts[1]) if len(parts) > 1 else []
     alts = _split_alts(parts[2]) if len(parts) > 2 else []
-    note = parts[-1] if len(parts) >= 4 else ""
+    # 简介在最后一格且可含竖线：重新 join，避免按 | 拆列时截断
+    note = "|".join(p.strip() for p in parts[3:]) if len(parts) >= 4 else ""
     return key_cell, type_tag, names, alts, note
 
 
@@ -153,7 +154,8 @@ def parse_entry(path: Path, default_category: str) -> tuple[list[Term], str, str
         cols = [c.strip() for c in line.split("|")]
         # 术语行：首列非空、次列（中文定名）非空、至少 3 列；[标记] 开头的是元数据行
         if len(cols) >= 3 and cols[0] and cols[1] and not cols[0].startswith("["):
-            note = cols[-1] if len(cols) >= 4 else ""
+            # 描述在最后一格且可含竖线：重新 join 还原，避免截断
+            note = "|".join(cols[3:]) if len(cols) >= 4 else ""
             terms.append(Term(cols[0], cols[1], default_category or title, note))
             # 别名列逐个展开（同一定名，多个源语言写法）
             for alt in _split_alts(cols[2] if len(cols) > 2 else ""):
@@ -201,11 +203,11 @@ def collect(cfg: "bridges.ToolConfig") -> tuple[list[Term], KbStats]:
                     if src and zh2 and src != zh2 and (src, zh2) not in seen:
                         seen.add((src, zh2))
                         terms.append(Term(src, zh2, category or _type_tag, note))
-        # 条目 md
+        # 条目 md（类别取条目名，比目录名对校准更有辨识度）
         for entry in sorted(cat_dir.glob("*.md")):
             if entry.name == "index.md":
                 continue
-            entry_terms, _zh, _note = parse_entry(entry, category)
+            entry_terms, _zh, _note = parse_entry(entry, entry.stem)
             stats.entries += 1
             for t in entry_terms:
                 if (t.src, t.zh) in seen:

@@ -90,7 +90,12 @@ def read_text_any(path: Path) -> str:
 
 
 def write_text(path: Path, text: str, *, crlf: bool) -> None:
-    """写出 UTF-8 无 BOM。crlf=True 供 SRT（Windows 本地生态），False 供 .mosp JSON。"""
+    """写出 UTF-8 无 BOM。crlf=True 供 SRT（Windows 本地生态），False 供 .mosp JSON。
+
+    先把任意来源的换行（\\r\\n / \\r）归一成 \\n，再交给 newline 参数统一翻译，
+    避免对已含 CRLF 的文本二次翻译出 \\r\\r\\n（行间多空行的经典坑）。
+    """
+    text = text.replace("\r\n", "\n").replace("\r", "\n")
     path.parent.mkdir(parents=True, exist_ok=True)
     with open(path, "w", encoding="utf-8", newline="\r\n" if crlf else "\n") as f:
         f.write(text)
@@ -142,7 +147,7 @@ def mosp_to_srt(mosp_path: Path, srt_path: Path) -> int:
     cues = [
         Cue(int(seg["start"]), int(seg["end"]), str(seg.get("text", "")))
         for seg in segments
-        if not seg.get("disabled")
+        if not seg.get("disabled") and str(seg.get("text", "")).strip()
     ]
     write_text(srt_path, cues_to_srt(cues), crlf=True)
     return len(cues)
