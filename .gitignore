@@ -11,6 +11,9 @@ __pycache__/
 .venv/
 venv/
 
+# 三方源码副本与自构建产物（MAW/finesub 整合用，许可纪律：不随本仓库分发）
+downloads/
+
 # Sensitive: API keys and browser profile with cookies
 data/ai_config.json
 data/uploader_profile/
