@@ -75,7 +75,7 @@ class EnrollWorker(QThread):
 
 
 class ModelDownloadWorker(QThread):
-    """后台下载声纹模型（约 27MB，直连失败自动走内置代理）。"""
+    """后台下载声纹模型（约 27MB，直连失败自动切 gh-proxy 镜像 / 内置代理）。"""
 
     progress = pyqtSignal(int, int)      # done, total（total 可能为 0 = 未知）
     done = pyqtSignal(bool, str)
@@ -274,7 +274,7 @@ class VoiceprintEnrollCard(QWidget):
         self.btn_model.setEnabled(False)
         self.model_bar.setVisible(True)
         self.model_bar.setValue(0)
-        self.model_tip.setText("正在下载声纹模型（约 27MB，直连慢会自动走内置代理）…")
+        self.model_tip.setText("正在下载声纹模型（约 27MB，失败会自动切换镜像 / 代理）…")
         self._dl_worker = ModelDownloadWorker(self)
         self._dl_worker.progress.connect(self._on_dl_progress)
         self._dl_worker.done.connect(self._on_dl_done)

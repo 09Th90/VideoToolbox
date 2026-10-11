@@ -135,6 +135,11 @@ MODEL_DIR = os.path.join(TOOLS_DIR, "asr_model")
 MODEL_NAME = "3dspeaker_speech_campplus_sv_zh-cn_16k-common.onnx"
 MODEL_URL = ("https://github.com/k2-fsa/sherpa-onnx/releases/download/"
              "speaker-recongition-models/" + MODEL_NAME)
+#: gh-proxy 直连镜像（deno 同款通道：镜像**直连通常可用，不需要代理**）。
+#: 为什么必须有它——在线安装形态**不随包分发 mihomo**（config.yaml 含节点
+#: 凭据，v1.14.1 安全整改），GitHub 直连不通的机器上「下载模型」的最后
+#: 生路就是这道镜像；官方源失败自动切镜像，无需用户任何配置。
+MODEL_MIRROR_URL = "https://gh-proxy.com/" + MODEL_URL
 #: 模型 sha256 由 download_open_source_deps.py 在下载后就地校验（不落 .sha256）
 MODEL_PATH = os.path.join(MODEL_DIR, MODEL_NAME)
 
@@ -239,7 +244,10 @@ def download_model(progress=None, timeout=300, force=False,
          （27MB 要 125~155 秒），走代理 3.3MB/s（8 秒），差一个数量级；而
          "已在运行"是瞬时探测（0.3s 连一下 7897 端口），不触发 mihomo 启动。
       ② 直连。
-      ③ 前面都失败 → 拉起内置 mihomo 再试一次。
+      ③ **gh-proxy 直连镜像**（v1.19.1）：不挂代理直接请求镜像 URL。在线安装
+         形态没有内置 mihomo（不随包分发），直连又不通的机器全靠这一步；
+         镜像在国内直连可用（deno 已实测同通道）。
+      ④ 前面都失败 → 拉起内置 mihomo 再试一次（仅离线完整版有 mihomo）。
     ⚠ 试过"速率太慢就切代理"，**弃用**：实测直连慢时代理也可能慢，
     切换反而把总耗时从 125s 拖到 155s。按"谁已经在跑"取源比按速率猜稳。
 
@@ -255,8 +263,6 @@ def download_model(progress=None, timeout=300, force=False,
         return MODEL_PATH
     os.makedirs(MODEL_DIR, exist_ok=True)
     tmp = MODEL_PATH + ".part"
-    req = urllib.request.Request(MODEL_URL,
-                                 headers={"User-Agent": "VideoToolbox/1.18"})
 
     def _opener(proxy):
         if not proxy:
@@ -264,10 +270,12 @@ def download_model(progress=None, timeout=300, force=False,
         return urllib.request.build_opener(
             urllib.request.ProxyHandler({"http": proxy, "https": proxy}))
 
-    def _fetch(proxy=None):
+    def _fetch(url, proxy=None):
         op = _opener(proxy)
-        resp = (op.open(req, timeout=timeout) if op is not None
-                else urllib.request.urlopen(req, timeout=timeout))
+        req2 = urllib.request.Request(
+            url, headers={"User-Agent": "VideoToolbox/1.18"})
+        resp = (op.open(req2, timeout=timeout) if op is not None
+                else urllib.request.urlopen(req2, timeout=timeout))
         started = time.time()
         with resp:
             total = int(resp.headers.get("Content-Length") or 0)
@@ -307,13 +315,16 @@ def download_model(progress=None, timeout=300, force=False,
         return None
 
     running = _proxy_if_up()
-    tried = [("代理（已在运行）", running)] if running else []
-    tried.append(("直连", None))
+    tried = []
+    if running:
+        tried.append(("代理（已在运行）", MODEL_URL, running))
+    tried.append(("直连", MODEL_URL, None))
+    tried.append(("gh-proxy 镜像", MODEL_MIRROR_URL, None))
     last = None
     ok = False
-    for label, px in tried:
+    for label, url, px in tried:
         try:
-            _fetch(px)
+            _fetch(url, px)
             ok = True
             break
         except Exception as e:  # noqa: BLE001
@@ -329,11 +340,13 @@ def download_model(progress=None, timeout=300, force=False,
             px = None
         if not px:
             raise VoiceprintError(
-                "下载失败（%s：%s）；内置代理也不可用，可手动下载后放到 %s"
+                "下载失败（%s：%s）；内置代理也不可用。可手动下载（官方或镜像）"
+                "后放到 %s\n镜像地址：%s"
                 % (last[0] if last else "直连",
-                   str(last[1])[:120] if last else "未知", MODEL_DIR))
+                   str(last[1])[:120] if last else "未知", MODEL_DIR,
+                   MODEL_MIRROR_URL))
         try:
-            _fetch(px)
+            _fetch(MODEL_URL, px)
             ok = True
         except Exception as e:  # noqa: BLE001
             _cleanup()

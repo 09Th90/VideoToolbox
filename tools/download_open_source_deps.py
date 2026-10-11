@@ -17,6 +17,10 @@
                         不进安装包；仅需已内置的 onnxruntime + numpy）
   - Python 环境         python.org 官方 embeddable（占位下载，见 --python）
 
+网络取源顺序（v1.19.1 起）：直连 → gh-proxy.com 直连镜像（仅 GitHub URL，
+不需代理；在线安装形态不随包分发 mihomo，镜像是直连失败后的第一道兜底）
+→ 内置 mihomo 代理（离线完整版才有）。
+
 用法：
   python tools/download_open_source_deps.py                 # 下载全部
   python tools/download_open_source_deps.py --only yt-dlp,ffmpeg
@@ -125,27 +129,60 @@ def _stream_to_file(resp, tmp: Path, total: int) -> None:
                       f"{got * 100 // total}%", end="")
 
 
+def _mirror_url(url: str) -> str | None:
+    """GitHub 直连镜像（gh-proxy.com 前缀，deno 同款通道）。
+
+    为什么必须有：在线安装形态**不随包分发 mihomo**（config.yaml 含节点凭据，
+    v1.14.1 安全整改），GitHub 直连不通的机器上，镜像是对直连失败后的第一道
+    兜底——镜像在国内直连可用，不需要代理。非 GitHub URL 返回 None。
+    """
+    if "github.com/" in url:
+        return "https://gh-proxy.com/" + url
+    return None
+
+
 def _download(url: str, dest: Path) -> None:
-    """带简单进度条的下载；dest 不存在时才下载。直连失败自动启用内置代理重试。"""
+    """带简单进度条的下载；dest 不存在时才下载。
+
+    取源顺序：直连 → gh-proxy 直连镜像（仅 GitHub URL，不需代理）→ 内置 mihomo。
+    """
     if dest.exists() and dest.stat().st_size > 0:
         print(f"  已存在，跳过: {dest.name} ({dest.stat().st_size / 1048576:.0f}MB)")
         return
     dest.parent.mkdir(parents=True, exist_ok=True)
     tmp = dest.with_suffix(dest.suffix + ".part")
-    req = urllib.request.Request(url, headers={"User-Agent": "VideoToolbox/1.9.3"})
-    print(f"  下载 {url}")
-    try:
-        with urllib.request.urlopen(req, timeout=60) as resp:
+
+    def _fetch(u: str) -> None:
+        r = urllib.request.Request(u, headers={"User-Agent": "VideoToolbox/1.9.3"})
+        with urllib.request.urlopen(r, timeout=60) as resp:
             _stream_to_file(resp, tmp, int(resp.headers.get("Content-Length") or 0))
         print()
+
+    print(f"  下载 {url}")
+    try:
+        _fetch(url)
     except Exception as e:
-        print(f"  直连失败（{e}），启用内置代理重试 ...")
+        mirror = _mirror_url(url)
+        if mirror:
+            try:
+                print(f"  直连失败（{e}），改用 gh-proxy 镜像 ...")
+                _fetch(mirror)
+                print("  镜像下载完成")
+                tmp.replace(dest)
+                print(f"  完成: {dest} ({dest.stat().st_size / 1048576:.0f}MB)")
+                return
+            except Exception as e2:
+                print(f"  镜像也失败（{e2}），启用内置代理重试 ...")
+        else:
+            print(f"  直连失败（{e}），启用内置代理重试 ...")
         proxy = ensure_mihomo_proxy()
         if not proxy:
             print("  内置代理不可用，下载失败")
             raise
         opener = urllib.request.build_opener(
             urllib.request.ProxyHandler({"http": proxy, "https": proxy}))
+        req = urllib.request.Request(url,
+                                     headers={"User-Agent": "VideoToolbox/1.9.3"})
         with opener.open(req, timeout=180) as resp:
             _stream_to_file(resp, tmp, int(resp.headers.get("Content-Length") or 0))
         print()
