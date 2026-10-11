@@ -6502,6 +6502,15 @@ def sync_calib_to_github(cfg=None):
     for idx, rel in enumerate(cfg["files"]):
         base_path = (CALIB_BASE_SNAPSHOT if idx == 0 else CALIB_KB_BASE_SNAPSHOT)
         _pull_and_merge(token, rel, base_path, cfg)
+    # 声纹模板增量：与校准文件同走一条 GitHub 通道，但目录隔离——只有这里会搬运
+    # vp_inbox/，校准的 files 段永远看不到它（反之亦然）。同一份 rtree 既用于
+    # 拉他人增量、也用于判断本机哪些增量还没上去，省一次递归树请求。
+    rtree, n_vp_pull = {}, 0
+    try:
+        rtree = _gh_remote_tree(cfg, token) or {}
+        n_vp_pull = _gh_pull_vp_inbox(cfg, token, rtree)
+    except Exception as e:  # noqa: BLE001  声纹失败不影响校准知识上传
+        _sync_log(f"声纹收件箱拉取异常（忽略）: {e}")
     entries = []  # (rel, bytes, text)
     for rel in cfg["files"]:
         try:
@@ -6531,12 +6540,22 @@ def sync_calib_to_github(cfg=None):
             return False, f"创建 blob 失败: {blob}"
         tree_entries.append({"path": rel, "mode": "100644",
                              "type": "blob", "sha": blob["sha"]})
+    # 声纹增量：远端没有的本机文件才上传（文件名含 cid+时间戳+随机 hex，撞名即同一次推送）
+    vp_entries, n_vp_push = [], 0
+    try:
+        vp_entries, n_vp_push = _gh_push_vp_inbox(cfg, token, rtree)
+    except Exception as e:  # noqa: BLE001  声纹失败不影响校准知识上传
+        _sync_log(f"声纹增量上传异常（忽略）: {e}")
+    tree_entries.extend(vp_entries)
+    if not tree_entries:
+        _sync_log("跳过上传：无内容可提交")
+        return True, "无变更"
     ok, tree = _gh_request_any("POST", f"{base}/git/trees", token, {
         "base_tree": base_tree, "tree": tree_entries})
     if not ok:
         return False, f"创建 tree 失败: {tree}"
     ok, new_commit = _gh_request_any("POST", f"{base}/git/commits", token, {
-        "message": (f"chore(calib): 同步校准知识 "
+        "message": (f"chore(calib): 同步校准知识{'与声纹模板' if n_vp_push else ''} "
                     f"（{datetime.now():%Y-%m-%d %H:%M:%S}，来自视频工具箱）"),
         "tree": tree["sha"], "parents": [head_sha]})
     if not ok:
@@ -6545,8 +6564,10 @@ def sync_calib_to_github(cfg=None):
                               token, {"sha": new_commit["sha"], "force": False})
     if not ok:
         return False, f"更新分支失败: {res}"
-    _sync_log(f"成功：已上传 {len(entries)} 个文件 -> {cfg['owner']}/{cfg['repo']}"
-              f"@{cfg['branch']} commit {new_commit['sha'][:12]}")
+    _sync_log(f"成功：已上传 {len(entries)} 个文件"
+              f"（另声纹模板 +{n_vp_push} / 拉取 {n_vp_pull}）-> "
+              f"{cfg['owner']}/{cfg['repo']}@{cfg['branch']} "
+              f"commit {new_commit['sha'][:12]}")
     # 推送成功：基线快照对齐本次内容（下次三方合并的公共祖先）
     for idx, (rel, _b, text) in enumerate(entries):
         try:
@@ -6587,8 +6608,11 @@ def sync_calib_push_local():
 def _exit_sync_child_script():
     """退出子进程入口源码：本地增量补传（若启用镜像）+ GitHub 整文件上传。"""
     src_dir = os.path.join(APP_DIR, "src")
+    # ⚠ 顺序要紧：先把待传声纹冲进本地 vp_inbox（纯本地、秒级），再跑 GitHub
+    #   上传——否则本次录入的模板要等下一次退出才进得了仓库。
     return ("import sys; sys.path.insert(0, r'%s');"
             "import video_toolbox as e;"
+            "e.sync_voiceprint_on_exit();"
             "e.sync_calib_push_local();"
             "e.sync_calib_to_github()" % src_dir)
 
@@ -6666,6 +6690,131 @@ def sync_calib_on_exit():
 # 用户侧开关沿用同一个「校准同步」设置项（避免设置页多一个语义重叠的开关），
 # 另有独立环境变量 VT_NO_VP_SYNC 可单独关停声纹通道。
 VP_SYNC_LOG = os.path.join(LOGS_DIR, "vp_sync.log")
+#: 声纹增量在仓库里的子目录（与 voiceprint_sync.INBOX_SUB 同名，挂在哑存储根下）
+VP_INBOX_SUB = "vp_inbox"
+#: 单次同步最多搬运的声纹增量文件数（防目录异常膨胀把启动/退出拖成网络风暴）
+VP_INBOX_MAX_FILES = 200
+
+
+def _vp_inbox_local_files():
+    """本机哑存储根下的声纹增量 -> [(仓库相对路径, 绝对路径)]（按路径排序，确定性）。"""
+    base = os.path.join(SYNC_REMOTE_DIR, VP_INBOX_SUB)
+    out = []
+    if not os.path.isdir(base):
+        return out
+    for cid in sorted(os.listdir(base)):
+        d = os.path.join(base, cid)
+        if not os.path.isdir(d):
+            continue
+        for fn in sorted(os.listdir(d)):
+            p = os.path.join(d, fn)
+            if fn.endswith(".jsonl") and os.path.isfile(p):
+                out.append(("%s/%s/%s" % (VP_INBOX_SUB, cid, fn), p))
+    return out
+
+
+def _gh_remote_tree(cfg, token):
+    """拉远端分支整树 -> {path: blob_sha}（只收 blob）；失败返回 None。
+
+    ⚠ `?recursive=1` 是必须的：不带它只能拿到第一层目录，vp_inbox/<cid>/ 下的
+    文件一个都看不到，声纹就永远同步不到。"""
+    base = "repos/%s/%s" % (cfg["owner"], cfg["repo"])
+    ok, ref = _gh_request_any("GET", "%s/git/ref/heads/%s" % (base, cfg["branch"]),
+                              token)
+    if not ok:
+        return None
+    ok, commit = _gh_request_any(
+        "GET", "%s/git/commits/%s" % (base, (ref or {}).get("object", {}).get("sha", "")),
+        token)
+    if not ok:
+        return None
+    ok, tree = _gh_request_any(
+        "GET", "%s/git/trees/%s?recursive=1"
+        % (base, (commit or {}).get("tree", {}).get("sha", "")), token)
+    if not ok:
+        return None
+    return {t.get("path"): (t.get("sha") or "")
+            for t in ((tree or {}).get("tree") or [])
+            if t.get("type") == "blob" and t.get("path")}
+
+
+def _gh_pull_vp_inbox(cfg, token, tree=None):
+    """把远端收件箱里本机没有的声纹增量拉进哑存储根。返回拉取文件数。
+
+    「只新建、绝不改写」与 voiceprint_sync 的收件箱语义一致：文件名带
+    client_id + UTC 时间戳 + 随机 hex，同名必然是同一次推送、内容相同。
+    写盘用临时文件 + os.replace，避免拉到一半被中断留下半截文件。
+    任何失败只记日志——没有声纹增量不影响校准知识同步。"""
+    if tree is None:
+        tree = _gh_remote_tree(cfg, token)
+    if not tree:
+        return 0
+    want = [(p, s) for p, s in sorted(tree.items())
+            if p.startswith(VP_INBOX_SUB + "/") and p.endswith(".jsonl")]
+    if not want:
+        return 0
+    base = "repos/%s/%s" % (cfg["owner"], cfg["repo"])
+    n = 0
+    for rel, sha in want[:VP_INBOX_MAX_FILES]:
+        dst = os.path.join(SYNC_REMOTE_DIR, rel.replace("/", os.sep))
+        if os.path.isfile(dst) or not sha:
+            continue
+        ok, blob = _gh_request_any("GET", "%s/git/blobs/%s" % (base, sha), token)
+        if not ok:
+            continue
+        try:
+            raw = base64.b64decode((blob or {}).get("content") or "")
+        except (ValueError, TypeError):
+            continue
+        if not raw.strip():
+            continue
+        try:
+            # ⚠ 必须按**字节**落盘：文本模式下 Windows 会把远端文件里已有的
+            #   \r\n 再转成 \r\r\n（实测往返内容不一致的根因）。原样写才能
+            #   保证多客户端间逐字节一致。
+            os.makedirs(os.path.dirname(dst), exist_ok=True)
+            tmp = dst + ".vt_tmp"
+            with open(tmp, "wb") as f:
+                f.write(raw)
+            os.replace(tmp, dst)
+            n += 1
+        except OSError:
+            continue
+    if n:
+        _sync_log("声纹收件箱：拉取 %d 个增量文件" % n)
+    return n
+
+
+def _gh_push_vp_inbox(cfg, token, tree):
+    """把本机新增的声纹增量做成 tree 条目。返回 (条目列表, 上传数)。
+
+    远端已有的跳过——文件名含 client_id + 时间戳 + 随机 hex，撞名即同一次
+    推送，内容必然相同；这样每次退出只为真正的新增量付 API 调用。"""
+    if not tree:
+        return [], 0
+    base = "repos/%s/%s" % (cfg["owner"], cfg["repo"])
+    out, n = [], 0
+    for rel, abs_p in _vp_inbox_local_files():
+        if rel in tree:
+            continue
+        if len(out) >= VP_INBOX_MAX_FILES:
+            break
+        try:
+            with open(abs_p, "rb") as f:
+                b = f.read()
+        except OSError:
+            continue
+        if not b.strip():
+            continue
+        ok, blob = _gh_request_any("POST", "%s/git/blobs" % base, token, {
+            "content": base64.b64encode(b).decode("ascii"), "encoding": "base64"})
+        if not ok:
+            _sync_log("声纹增量上传跳过[%s]：%s" % (rel, str(blob)[:80]))
+            continue
+        out.append({"path": rel, "mode": "100644", "type": "blob",
+                    "sha": blob["sha"]})
+        n += 1
+    return out, n
 
 
 def _vp_sync_log(msg):
@@ -6685,6 +6834,14 @@ def sync_voiceprint_on_startup(force=False):
     try:
         if os.environ.get("VT_NO_CALIB_SYNC") or not calib_sync_enabled():
             return False, "同步已禁用"
+        # 先把远端收件箱搬进本地哑存储根，再让 voiceprint_sync 合并落地。
+        # ⚠ vp_inbox/ 不在 cfg["files"] 里，校准通道不会替我们搬——少了这一步，
+        #   声纹就只在本机打转（v1.19.0 的「声纹库没共享」就是漏了它）。
+        try:
+            _cfg = _sync_conn()
+            _gh_pull_vp_inbox(_cfg, _gh_token(_cfg))
+        except Exception as _e:  # noqa: BLE001
+            _vp_sync_log(f"声纹收件箱拉取异常（忽略）: {_e}")
         import voiceprint_sync as _vps
         if not _vps.enabled():
             return False, "声纹同步已单独禁用（VT_NO_VP_SYNC）"

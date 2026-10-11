@@ -72,6 +72,7 @@
 用法：
     python src/voiceprint_sync.py sync      # 推待传 + 拉取 + 合并 + 落地（幂等）
     python src/voiceprint_sync.py push      # 只把待传队列发出去
+    python src/voiceprint_sync.py backfill  # 把本机老模板（v1.19.0 前录入）补进队列并推送
     python src/voiceprint_sync.py status    # 看本机/远端/冲突概况
 引擎侧由 video_toolbox.sync_voiceprint_on_startup / _on_exit 自动调用。
 全链路只 json.load，禁止 eval/exec；任何失败都静默降级，绝不影响录入与转录。
@@ -670,6 +671,46 @@ def push(quiet=False):
     return n
 
 
+def backfill_local(force=False):
+    """把「本机自录、从未进过通道」的老模板补进待传队列（一次性）。
+
+    为什么需要：v1.19.0 之前录入的模板由旧版 save_template 写盘，既没有
+    `sync` 标记、也从没入过队——不补就永远只在本机打转，「声纹库没共享」
+    在老数据上依旧成立。
+
+    幂等与一次性：
+      · 条目 id 由 (client_id, name, 内容) 确定性生成、**不含时间戳**，
+        重复入队是同一个 id，收件箱天然去重，不会污染；
+      · config 里的 `backfilled` 标记做一次性守卫，`force=True` 可强制重来。
+
+    只补**没有 sync 标记**的文件：同步副本（别人录的、或本机已落地过的）
+    不回传，避免把远端数据又推一遍。
+    """
+    cfg = config()
+    if cfg.get("backfilled") and not force:
+        return 0
+    d = template_dir()
+    if not os.path.isdir(d):
+        return 0
+    n = 0
+    for fn in sorted(os.listdir(d)):
+        if not fn.endswith(".json") or fn == "selection.json":
+            continue
+        obj = _read_template(os.path.join(d, fn))
+        if not isinstance(obj, dict) or not (obj.get("embedding") or []):
+            continue
+        if obj.get("sync"):
+            continue                       # 同步副本，不回传
+        name = obj.get("name") or os.path.splitext(fn)[0]
+        if queue_upsert(name, obj):
+            n += 1
+    cfg["backfilled"] = True
+    _save_cfg(cfg)
+    if n:
+        _log("补传老模板 %d 个（v1.19.0 前录入、从未进通道）" % n)
+    return n
+
+
 # ---------------------------------------------------------------- 合并
 def merge(entries):
     """确定性合并（纯函数，同输入必同输出）。
@@ -987,6 +1028,11 @@ def _main(argv):
     if cmd == "sync":
         return 0 if sync(quiet=False) else 0
     if cmd == "push":
+        push(quiet=False)
+        return 0
+    if cmd == "backfill":
+        n = backfill_local(force=True)
+        print("声纹补传：老模板入队 %d 个" % n)
         push(quiet=False)
         return 0
     if cmd == "status":
