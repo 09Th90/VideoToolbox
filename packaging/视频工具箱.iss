@@ -13,14 +13,23 @@
 ; v1.19.0（升级报错修复）：v1.18.x 用户升级时，安装程序替换 视频工具箱.exe
 ;         遇「正在运行」会卡在「无法自动关闭所有应用程序」的对话框——因为
 ;         既没装 single-instance 互斥体、也没配置 CloseApplicationsFilter，
-;         Inno 只能弹「重试/忽略/取消」。修复：[Setup] 加
-;         CloseApplicationsFilter=视频工具箱.exe（按进程名关）。Inno 对匹配
-;         进程走 SendMessageTimeout(WM_CLOSE)，Qt 应用收到即走 closeEvent →
-;         QApplication.quit → aboutToQuit → sync_calib_on_exit 子进程，与
-;         用户日常点叉一致的退出闭环；modal 阻塞超时时 Inno 还有
-;         TerminateProcess 兜底。曾试过加 [Code] PrepareToInstall 主动
-;         PostMessage 作二重保险，但 Inno 6.5 对该事件报「Invalid prototype」
-;         编译失败，遂回退到单层指令（实测已够用）。
+;         Inno 只能弹「重试/忽略/取消」。修复分两层（升级验证日志见
+;         [Code] 段注释）：
+;         ① [Setup] CloseApplicationsFilter=*.exe——Restart Manager 对所有
+;            被占用的 exe 走自动关闭。⚠ filter 匹配的是**待更新文件名**而非
+;            进程名，只写「视频工具箱.exe」会把 mihomo.exe、ffmpeg.exe 等其它
+;            待更新 exe 全排除在自动关闭之外。
+;         ② [Code] PrepareToInstall 强杀 视频工具箱.exe + mihomo.exe——
+;            onefile 是 bootloader+真身多进程结构，RM 的 WM_CLOSE 优雅关闭
+;            实测不可靠（Some applications could not be shut down）；
+;            mihomo 是常驻控制台进程，主程序 atexit 才回收，上次升级被
+;            「忽略错误并继续」后必残留。两者都对 WM_CLOSE 无响应，必须
+;            taskkill /F /T 连树强杀。代价：跳过退出时校准同步，由升级后
+;            首启的「自动拉取合并」补偿（data\ 不在覆盖范围，零丢失）。
+;         历史试错：曾用 [Code] PostMessage 作二重保险，报 Inno 6.5
+;         「Invalid prototype」——是签名写错，官方原型
+;         function PrepareToInstall(var NeedsRestart: Boolean): String
+;         编译通过（见本文件末尾 [Code] 段）。
 ; v1.14.1（语言修正）：安装向导固定为简体中文——ShowLanguageDialog 改 no
 ;         （不再弹出语言选择框），[Languages] 移除 english 仅保留中文一项。
 ; v1.12.1：修复打包版「点退出后程序反复重启」（严重）——退出时的校准知识同步
@@ -102,10 +111,12 @@ ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 ; 用户级安装：无需 UAC 提权（D 盘用户目录默认可写）
 PrivilegesRequired=lowest
-; v1.19.0 升级报错修复：Inno 按进程名自动关闭正在运行的 视频工具箱.exe，
-; 覆盖替换文件前不必用户手动关闭。配合下方 [Code] PrepareToInstall 的
-; WM_CLOSE 双重保险（详见 [Code] 段注释）。
-CloseApplicationsFilter=视频工具箱.exe
+; v1.19.0 升级报错修复：Restart Manager 对所有被占用的 exe 走自动关闭，
+; 常驻进程（视频工具箱.exe / mihomo.exe）在 RM 阶段之前由下方 [Code]
+; PrepareToInstall 连树强杀。⚠ filter 匹配的是**待更新文件名**，不是进程
+; 名——只列「视频工具箱.exe」会把 mihomo.exe 等其它待更新 exe 排除在自动
+; 关闭之外。
+CloseApplicationsFilter=*.exe
 ; 安装语言固定为简体中文：不弹语言选择框（ShowLanguageDialog=no 时
 ; Inno 直接采用 [Languages] 第一项），且语言列表仅保留中文一项
 ShowLanguageDialog=no
@@ -279,3 +290,31 @@ Type: files; Name: "{app}\src\fix_rolling_srt.py"
 ; [Files] 逐条列举的项卸载时由 Inno 标准删除流程处理。
 ; 注意：绝不对 {app}\tools 整体使用 filesandordirs——其中 python 运行时与
 ; 随包 wheel 之外的用户数据不能随卸载误删。
+
+[Code]
+// v1.19.0 升级报错修复：在「关闭应用程序」（Restart Manager）阶段之前
+// 就地清掉所有会锁定待更新文件的本应用进程。
+// 实测依据（2026-10-11 升级验证日志）：
+//   · mihomo.exe —— 常驻控制台进程，只由主程序退出路径（atexit
+//     _stop_builtin_proxy）回收；上次升级被点「忽略错误并继续」或主程序
+//     异常退出后它必残留，且对 WM_CLOSE 无响应，Restart Manager 关不掉
+//     就会弹「无法自动关闭所有应用程序」。
+//   · 视频工具箱.exe —— PyInstaller onefile 是 bootloader 父进程+真身
+//     子进程的多进程结构（日志里 RmGetList 同名 3 次），Inno 的 WM_CLOSE
+//     优雅关闭对它不可靠：实测 Shutting down applications 后仍报
+//     "Some applications could not be shut down" 并弹框。
+// 故对两者一律 taskkill /F /T 连树强杀（Exit code 非零=没在跑，忽略）。
+// 代价：跳过退出时的校准知识同步——由升级后首次启动的「启动自动拉取
+// 合并」补偿（data\ 用户数据不在安装覆盖范围，本地改动零丢失）。
+// 注意签名必须用官方原型 function PrepareToInstall(var NeedsRestart: Boolean): String;
+// （此前试错写成其它原型会报 Inno 6.5「Invalid prototype」编译失败）。
+function PrepareToInstall(var NeedsRestart: Boolean): String;
+var
+  ResultCode: Integer;
+begin
+  Result := '';
+  NeedsRestart := False;
+  Exec(ExpandConstant('{cmd}'),
+    '/C taskkill /F /T /IM "视频工具箱.exe" > nul 2>&1 & taskkill /F /T /IM mihomo.exe > nul 2>&1',
+    '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+end;
