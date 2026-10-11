@@ -13,11 +13,14 @@
 ; v1.19.0（升级报错修复）：v1.18.x 用户升级时，安装程序替换 视频工具箱.exe
 ;         遇「正在运行」会卡在「无法自动关闭所有应用程序」的对话框——因为
 ;         既没装 single-instance 互斥体、也没配置 CloseApplicationsFilter，
-;         Inno 只能弹「重试/忽略/取消」。修复：① [Setup] 加
-;         CloseApplicationsFilter=视频工具箱.exe（按进程名关）；② [Code]
-;         在 PrepareToInstall 向主窗口发 WM_CLOSE（Qt 收到后走
-;         QApplication.quit，自动触发 aboutToQuit → sync_calib_on_exit 子进程），
-;         双重保险。
+;         Inno 只能弹「重试/忽略/取消」。修复：[Setup] 加
+;         CloseApplicationsFilter=视频工具箱.exe（按进程名关）。Inno 对匹配
+;         进程走 SendMessageTimeout(WM_CLOSE)，Qt 应用收到即走 closeEvent →
+;         QApplication.quit → aboutToQuit → sync_calib_on_exit 子进程，与
+;         用户日常点叉一致的退出闭环；modal 阻塞超时时 Inno 还有
+;         TerminateProcess 兜底。曾试过加 [Code] PrepareToInstall 主动
+;         PostMessage 作二重保险，但 Inno 6.5 对该事件报「Invalid prototype」
+;         编译失败，遂回退到单层指令（实测已够用）。
 ; v1.14.1（语言修正）：安装向导固定为简体中文——ShowLanguageDialog 改 no
 ;         （不再弹出语言选择框），[Languages] 移除 english 仅保留中文一项。
 ; v1.12.1：修复打包版「点退出后程序反复重启」（严重）——退出时的校准知识同步
