@@ -111,58 +111,6 @@ ShowLanguageDialog=no
 ; 简体中文语言文件随项目存放（便携版编译器 Languages 目录不带中文），相对本 iss 解析
 Name: "chinesesimp"; MessagesFile: "Languages\ChineseSimplified.isl"
 
-[Code]
-// v1.19.0 升级报错修复：文件替换前主动关掉正在运行的应用。
-// 思路：FindWindowByWindowName 取主窗口（标题「视频工具箱 v{#MyAppVersion}」），
-// PostMessage 发 WM_CLOSE（0x0010）。Qt 收到后走 QApplication.closeEvent → quit →
-// aboutToQuit → sync_calib_on_exit（派生 Python 子进程冲刷校准/声纹增量），
-// 退出闭环与用户日常点叉一致——不会出现「数据没存盘」类副作用。
-//
-// 之所以还要加这一层（[Setup] 已经有 CloseApplicationsFilter）：Inno 的内置关
-// 闭用的是 SendMessageTimeout，会被 Qt 的 modal 阻塞；先主动 PostMessage +
-// 等够久更可靠。两层一起用：先 Code 关掉，Inno 后续检测文件没被占用时直接放过。
-const
-  WM_CLOSE = $0010;
-
-function CloseAppByTitle(const WinName: String): Boolean;
-var
-  H: HWND;
-  Deadline: DWORD;
-begin
-  Result := False;
-  H := FindWindowByWindowName(WinName);
-  if H = 0 then Exit;
-  Log('PrepareToInstall: posting WM_CLOSE to main window: ' + WinName);
-  PostMessage(H, WM_CLOSE, 0, 0);
-  // 等到窗口消失；最多 8 秒（卸载重装场景下 Qt 退出 + 子进程同步可能慢一点）
-  Deadline := GetTickCount + 8000;
-  while (H <> 0) and (GetTickCount < Deadline) do
-  begin
-    Sleep(500);
-    H := FindWindowByWindowName(WinName);
-  end;
-  Result := H = 0;
-end;
-
-function PrepareToInstall(var NeedsRestart: Boolean): Boolean;
-var
-  TitleExact, TitleBare: String;
-begin
-  Result := True;
-  NeedsRestart := False;
-  TitleExact := ExpandConstant('{#MyAppName} v{#MyAppVersion}');
-  TitleBare := ExpandConstant('{#MyAppName}');
-  // 主窗口（v1.19.0 起的标准窗口名）。找不到再退到裸名——万一标题是用户改过的
-  // 或老版本没带版本号
-  if not CloseAppByTitle(TitleExact) then
-    if not CloseAppByTitle(TitleBare) then
-    begin
-      // 主窗口没找到：可能根本没在运行、也可能已经在「关闭中」却没释放——
-      // 都交给 [Setup] CloseApplicationsFilter 兜底。
-      Log('PrepareToInstall: main window not found; let CloseApplicationsFilter try');
-    end;
-end;
-
 [Tasks]
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
 
