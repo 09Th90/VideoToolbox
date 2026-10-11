@@ -10,6 +10,14 @@
 ;         用法跑 enroll / score / filter。② ⚠️ [InstallDelete] **不再删**
 ;         {app}\tools\asr_model —— 该目录已改为**主播声纹模型**（27MB，用户
 ;         按需下载）的落点，属用户数据；升级时删掉等于让用户每次升级都重下。
+; v1.19.0（升级报错修复）：v1.18.x 用户升级时，安装程序替换 视频工具箱.exe
+;         遇「正在运行」会卡在「无法自动关闭所有应用程序」的对话框——因为
+;         既没装 single-instance 互斥体、也没配置 CloseApplicationsFilter，
+;         Inno 只能弹「重试/忽略/取消」。修复：① [Setup] 加
+;         CloseApplicationsFilter=视频工具箱.exe（按进程名关）；② [Code]
+;         在 PrepareToInstall 向主窗口发 WM_CLOSE（Qt 收到后走
+;         QApplication.quit，自动触发 aboutToQuit → sync_calib_on_exit 子进程），
+;         双重保险。
 ; v1.14.1（语言修正）：安装向导固定为简体中文——ShowLanguageDialog 改 no
 ;         （不再弹出语言选择框），[Languages] 移除 english 仅保留中文一项。
 ; v1.12.1：修复打包版「点退出后程序反复重启」（严重）——退出时的校准知识同步
@@ -91,6 +99,10 @@ ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 ; 用户级安装：无需 UAC 提权（D 盘用户目录默认可写）
 PrivilegesRequired=lowest
+; v1.19.0 升级报错修复：Inno 按进程名自动关闭正在运行的 视频工具箱.exe，
+; 覆盖替换文件前不必用户手动关闭。配合下方 [Code] PrepareToInstall 的
+; WM_CLOSE 双重保险（详见 [Code] 段注释）。
+CloseApplicationsFilter=视频工具箱.exe
 ; 安装语言固定为简体中文：不弹语言选择框（ShowLanguageDialog=no 时
 ; Inno 直接采用 [Languages] 第一项），且语言列表仅保留中文一项
 ShowLanguageDialog=no
@@ -98,6 +110,58 @@ ShowLanguageDialog=no
 [Languages]
 ; 简体中文语言文件随项目存放（便携版编译器 Languages 目录不带中文），相对本 iss 解析
 Name: "chinesesimp"; MessagesFile: "Languages\ChineseSimplified.isl"
+
+[Code]
+// v1.19.0 升级报错修复：文件替换前主动关掉正在运行的应用。
+// 思路：FindWindowByWindowName 取主窗口（标题「视频工具箱 v{#MyAppVersion}」），
+// PostMessage 发 WM_CLOSE（0x0010）。Qt 收到后走 QApplication.closeEvent → quit →
+// aboutToQuit → sync_calib_on_exit（派生 Python 子进程冲刷校准/声纹增量），
+// 退出闭环与用户日常点叉一致——不会出现「数据没存盘」类副作用。
+//
+// 之所以还要加这一层（[Setup] 已经有 CloseApplicationsFilter）：Inno 的内置关
+// 闭用的是 SendMessageTimeout，会被 Qt 的 modal 阻塞；先主动 PostMessage +
+// 等够久更可靠。两层一起用：先 Code 关掉，Inno 后续检测文件没被占用时直接放过。
+const
+  WM_CLOSE = $0010;
+
+function CloseAppByTitle(const WinName: String): Boolean;
+var
+  H: HWND;
+  Deadline: DWORD;
+begin
+  Result := False;
+  H := FindWindowByWindowName(WinName);
+  if H = 0 then Exit;
+  Log('PrepareToInstall: posting WM_CLOSE to main window: ' + WinName);
+  PostMessage(H, WM_CLOSE, 0, 0);
+  // 等到窗口消失；最多 8 秒（卸载重装场景下 Qt 退出 + 子进程同步可能慢一点）
+  Deadline := GetTickCount + 8000;
+  while (H <> 0) and (GetTickCount < Deadline) do
+  begin
+    Sleep(500);
+    H := FindWindowByWindowName(WinName);
+  end;
+  Result := H = 0;
+end;
+
+function PrepareToInstall(var NeedsRestart: Boolean): Boolean;
+var
+  TitleExact, TitleBare: String;
+begin
+  Result := True;
+  NeedsRestart := False;
+  TitleExact := ExpandConstant('{#MyAppName} v{#MyAppVersion}');
+  TitleBare := ExpandConstant('{#MyAppName}');
+  // 主窗口（v1.19.0 起的标准窗口名）。找不到再退到裸名——万一标题是用户改过的
+  // 或老版本没带版本号
+  if not CloseAppByTitle(TitleExact) then
+    if not CloseAppByTitle(TitleBare) then
+    begin
+      // 主窗口没找到：可能根本没在运行、也可能已经在「关闭中」却没释放——
+      // 都交给 [Setup] CloseApplicationsFilter 兜底。
+      Log('PrepareToInstall: main window not found; let CloseApplicationsFilter try');
+    end;
+end;
 
 [Tasks]
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
