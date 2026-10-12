@@ -70,16 +70,16 @@ v1.10.4：界面与设置整合——导航宽度按最长项文字自适应、�
         本次改动全在 src\\video_toolbox_qt.py，打包配置无需变更。
 v1.10.3：打包环境固定为 tools\\python（内嵌 CPython 3.12，videocaptioner 及
         全部依赖就在其 site-packages 里）；此前用系统 Python312 打包时
-        videocaptioner 不可见，exe 里其实没进引擎。
+        字幕引擎运行时不可见，exe 里其实没进引擎。
 v1.10.2：字幕引擎内嵌进 exe（collect_data_files/collect_submodules 收集
-        videocaptioner 及其资源）；不再依赖 tools/python 里的引擎副本。
+        字幕引擎运行时及其资源）；不再依赖 tools/python 里的引擎副本。
 
 v1.10.1：入口改为 video_toolbox_qt.py（Fluent 界面，PyQt5 + qfluentwidgets），
         B站投稿板块已移除；不再随包分发 tools/uploader_src 与 tools/ms-playwright。
 
-v1.10.0：字幕链路替换为内置 VideoCaptioner——原 asr_subtitle_worker.py 已移除，
+v1.10.0：字幕链路替换为自研字幕处理引擎——原 asr_subtitle_worker.py 已移除，
         不再向 exe 注入任何 worker 数据文件；字幕处理工具以独立进程从
-        tools\\python 拉起（含 VideoCaptioner 及其依赖），exe 本身只依赖
+        tools\\python 拉起（含字幕处理引擎运行时及其依赖），exe 本身只依赖
         tkinter 标准库 + 同级 tools 目录。
 v1.9.3：新增「字幕校准」功能——校准脚本 subtitle_calib_merged.py 不打包进 exe
         （运行时被 tools\\python 子进程按 APP_DIR 根目录路径调用），
@@ -93,7 +93,7 @@ SPEC_DIR = os.path.abspath(SPECPATH) if isinstance(SPECPATH, str) else SPECPATH[
 # spec 位于 <仓库根>/packaging/，主程序源码在 <仓库根>/src
 SRC_DIR = os.path.abspath(os.path.join(SPEC_DIR, os.pardir, "src"))
 
-# v1.10.2：字幕引擎内嵌进 exe（videocaptioner + 全部 UI 资源），界面不再唤起独立窗口。
+# v1.10.2：字幕引擎内嵌进 exe（运行时 + 全部 UI 资源），界面不再唤起独立窗口。
 #   VC 的数据文件（assets/字体/图标）与子模块需显式收集，否则运行时缺资源白屏。
 datas = []
 binaries = []

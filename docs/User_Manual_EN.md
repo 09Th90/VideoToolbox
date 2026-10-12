@@ -186,7 +186,7 @@ Thumbnails are generated automatically and cached in `data\thumb_cache`; the sec
 
 ## 6. Subtitle Processing: Transcription, Translation, Calibration, Burning
 
-This page embeds an open-source subtitle engine (VideoCaptioner), used directly inside the page without popping up a separate window. Tabs at the top: **Task Creation** (任务创建) / **Speech Transcription** (语音转录) / **Subtitle Translation** (字幕翻译) / **Subtitle Calibration** (字幕校准) / **Subtitle-Video Composition** (字幕视频合成).
+This page ships with a self-developed subtitle processing engine, used directly inside the page without popping up a separate window. Tabs at the top: **Task Creation** (任务创建) / **Speech Transcription** (语音转录) / **Subtitle Translation** (字幕翻译) / **Subtitle Calibration** (字幕校准) / **Subtitle-Video Composition** (字幕视频合成).
 
 Opening this page causes no stutter — the engine is pre-warmed in the background after the app starts; in practice the UI builds in about 0.7 seconds.
 
@@ -201,7 +201,7 @@ Drag a video in, or paste a link, then run whichever steps you need:
 
 Subtitle optimization and voice-over depend on large language models, so **enter your AI configuration in Settings first**. Without it, only these two items are unavailable; transcription and translation work as usual.
 
-Configuration, logs, model caches, and task outputs all live under `data\VideoCaptioner\` inside the app folder — **nothing is written to the C drive**.
+Configuration, logs, model caches, and task outputs all live in the subtitle engine data folder under `data\` inside the app folder — **nothing is written to the C drive**.
 
 ### 6.2 A Note on Translation Services
 
@@ -438,7 +438,7 @@ To switch back, click "Restore Default" (还原默认).
 │   ├─ downloads\                default download directory
 │   ├─ thumb_cache\              Video Library thumbnail cache (deletable; rebuilds automatically)
 │   ├─ waveforms\                waveform cache for the Subtitle Editor (deletable; rebuilds automatically)
-│   └─ VideoCaptioner\           subtitle engine data (config / cache / models / task outputs)
+│   └─ SubtitleEngineData\       subtitle engine data (config / cache / models / task outputs)
 ├─ logs\                         logs (show these to the maintainer when something goes wrong)
 │   ├─ gui_errors.log            UI exception records
 │   ├─ calib_sync.log            calibration knowledge sync log
@@ -451,7 +451,7 @@ To switch back, click "Restore Default" (还原默认).
 
 **Safe to delete**: `data\thumb_cache\` (thumbnail cache), `data\waveforms\` (waveform cache), `data\tmp\` (temp files), and the logs under `logs\`. All of these rebuild on demand — the first use after deletion is just a bit slower.
 
-**Do not delete**: `data\ai_config.json` (your AI key configuration), `data\config.json` (global settings), anything under `tools\`, and `docs\VideoCaptioner_GPL-3.0.txt` (full open-source license text; legally required to be kept).
+**Do not delete**: `data\ai_config.json` (your AI key configuration), `data\config.json` (global settings), anything under `tools\`, and `docs\开源许可_GPL-3.0.txt` (full open-source license text; legally required to be kept).
 
 ### 10.3 Uninstalling
 
@@ -486,7 +486,7 @@ A: Platforms like YouTube have a "rolling" subtitle format where one entry's end
 A: Yes — see Section 10, "Moving Data Somewhere Else."
 
 **Q: Does the app write anything to the C drive?**
-A: No. All runtime files live under the Data Root Directory (the app folder by default). Historically the subtitle engine once wrote to `C:\Users\…\VideoCaptioner`; on startup this is now migrated back into the app folder automatically.
+A: No. All runtime files live under the Data Root Directory (the app folder by default). Historically the subtitle engine once wrote to a folder under the C: user profile; on startup this is now migrated back into the app folder automatically.
 
 ---
 
@@ -498,12 +498,12 @@ A: No. All runtime files live under the Data Root Directory (the app folder by d
 | `docs\程序说明书(用户版).md` | This manual (Chinese original) |
 | `docs\程序说明书(开发版).md` | For developers and maintainers: file-by-file source structure, build & release procedures, known pitfalls |
 | `docs\校准知识增量同步_管理员手册.md` | Administrator manual for the knowledge base in LAN shared-drive environments |
-| `docs\VideoCaptioner_GPL-3.0.txt` | Full GPL-3.0 license text of the embedded subtitle engine |
-| `docs\VideoCaptioner_组件来源.txt` | Third-party component provenance and license list |
+| `docs\开源许可_GPL-3.0.txt` | Full GPL-3.0 license text for bundled third-party components |
+| `docs\第三方组件来源与许可声明.txt` | Third-party component provenance and license list |
 | `文件版本清单.md` | Version stamps and SHA-1 checksums for all files (auto-generated, for version verification) |
 
 ---
 
-**About open-source components**: this software embeds the open-source subtitle engine VideoCaptioner v1.4.2 (GPL-3.0 license) and uses open-source components including yt-dlp, FFmpeg, Deno, and CPython. Full license statements are in `docs\VideoCaptioner_组件来源.txt`. The libmpv playback component used by the Subtitle Editor is an **LGPL build**, downloaded on demand and not bundled with the installer.
+**About open-source components**: the subtitle pipeline in this software is developed in-house; it uses open-source components including yt-dlp, FFmpeg, Deno, and CPython. Full license statements are in `docs\第三方组件来源与许可声明.txt`. The libmpv playback component used by the Subtitle Editor is an **LGPL build**, downloaded on demand and not bundled with the installer.
 
 *This manual was verified against the actual UI and code of v1.16.5. If the interface differs from what is described here, trust what the software actually shows, and feedback is welcome.*

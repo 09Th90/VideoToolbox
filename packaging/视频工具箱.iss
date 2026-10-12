@@ -73,9 +73,9 @@
 ;         隐藏上游关于组与推广卡片）；全局字体 9pt、页边距收紧；
 ;         打包环境改为 tools\python（此前误用系统 Python312，videocaptioner
 ;         未装进 exe，字幕页报 No module named 'httpx'）。
-; v1.10.1：界面重写为 Fluent 风格（照搬 VideoCaptioner 布局）；移除「B站投稿」
+; v1.10.1：界面重写为 Fluent 风格；移除「B站投稿」
 ;         板块——tools\uploader_src、tools\ms-playwright 不再进包，新增 tools\ai_client.py；
-; v1.10.0：字幕链路替换为内置 VideoCaptioner v1.4.2（GPL-3.0）——
+; v1.10.0：字幕链路替换为自研字幕处理引擎——
 ;         1) 移除 src\asr_subtitle_worker.py 与 tools\asr_model 模型引导；
 ; v1.10.2：字幕引擎内嵌进主程序 exe（界面内嵌呈现，不再唤起独立窗口）；
 ;         tools\python 里的引擎副本与随包 wheel 不再需要，升级时自动清理；
@@ -130,7 +130,7 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{
 
 [Files]
 ; —— 采用"白名单"逐条列举：凡未在此处出现的目录（data 用户数据、logs 日志、
-;    VideoCaptioner 用户配置）都不会进入安装包，从源头杜绝账号凭据被分发。 ——
+;    字幕引擎用户配置）都不会进入安装包，从源头杜绝账号凭据被分发。 ——
 ; 主程序（PyInstaller 单文件 exe）——安装后程序目录顶层唯一可执行文件
 Source: "..\dist\视频工具箱.exe"; DestDir: "{app}"; Flags: ignoreversion
 ; 字幕校准统一脚本（v1.9.3）：安装到程序目录顶层，「字幕校准」页签用
@@ -159,12 +159,13 @@ Source: "..\tools\mihomo\geoip.metadb"; DestDir: "{app}\tools\mihomo"; Flags: ig
 ; libmpv 播放组件（字幕编辑页 LGPL 构建，v1.15.8 补）：程序虽有运行时自动
 ; 下载兜底（ensure_mpv_dll），但离线全量包直接带上更开箱可用；纯二进制无凭据
 Source: "..\tools\mpv\libmpv-2.dll"; DestDir: "{app}\tools\mpv"; Flags: ignoreversion nocompression
-; 内嵌 Python 运行时（VideoCaptioner 字幕引擎及其依赖随包分发，开箱可用）；
+; 内嵌 Python 运行时（字幕处理引擎运行时及其依赖随包分发，开箱可用）；
 ; 排除字节码缓存瘦身
 Source: "..\tools\python\*"; DestDir: "{app}\tools\python"; Flags: ignoreversion recursesubdirs createallsubdirs; Excludes: "*.pyc,__pycache__"
-; VideoCaptioner 纯代码 wheel 不含 resource（界面图片/字体/默认字幕样式/多语言）。
+; 字幕引擎纯代码 wheel 不含 resource（界面图片/字体/默认字幕样式/多语言）。
 ; 这些静态资源随包分发，内嵌引擎才能离线自包含、真正成为程序一部分（v1.10.8）。
-Source: "..\tools\videocaptioner\resource\*"; DestDir: "{app}\tools\videocaptioner\resource"; Flags: ignoreversion recursesubdirs createallsubdirs; Excludes: "*.pyc,__pycache__"
+; 字幕引擎静态资源目录已于 2026-10-12 归档，不再随包分发（资源已内嵌进主程序 exe）
+;Source: "..\tools\videocaptioner\resource\*"; DestDir: "{app}\tools\videocaptioner\resource"; Flags: ignoreversion recursesubdirs createallsubdirs; Excludes: "*.pyc,__pycache__"
 ; AI 客户端（仅标准库）：字幕/标题语言识别用（v1.10.1 起投稿板块已移除）
 Source: "..\tools\ai_client.py"; DestDir: "{app}\tools"; Flags: ignoreversion
 ; 第二解析引擎 NewPipe Extractor（v1.17.0 补，GPL-3.0）：
@@ -232,9 +233,9 @@ Source: "..\src\视频工具箱.bat"; DestDir: "{app}\src"; Flags: ignoreversion
 ; 文档资料统一归入 docs\
 Source: "..\docs\使用说明.txt"; DestDir: "{app}\docs"; Flags: ignoreversion
 Source: "..\docs\界面预览.png"; DestDir: "{app}\docs"; Flags: ignoreversion
-; 第三方组件合规声明：VideoCaptioner（GPL-3.0）许可全文与组件来源
-Source: "..\docs\VideoCaptioner_GPL-3.0.txt"; DestDir: "{app}\docs"; Flags: ignoreversion
-Source: "..\docs\VideoCaptioner_组件来源.txt"; DestDir: "{app}\docs"; Flags: ignoreversion
+; 第三方组件合规声明：GPL-3.0 许可全文与组件来源
+Source: "..\docs\开源许可_GPL-3.0.txt"; DestDir: "{app}\docs"; Flags: ignoreversion
+Source: "..\docs\第三方组件来源与许可声明.txt"; DestDir: "{app}\docs"; Flags: ignoreversion
 ; v1.11.0：官方新版提示词与三个免费翻译器实现归档（重装 tools\python 后
 ; 用 src\apply_vc_official.py 一键恢复），以及程序说明书
 ; v1.12.1：这两个目录同样必须排除字节码缓存——docs\vc_translate_impl 下曾残留本机
