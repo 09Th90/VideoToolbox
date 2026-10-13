@@ -63,6 +63,8 @@ class SetupApp:
         #: 全版本目录（点「全部版本…」后才拉，默认不发多余请求）
         self.index = None
         self.busy = False
+        #: busy 期间用户请求过退出/关窗（done 后顺势关掉）
+        self.quit_requested = False
         self.exit_code = 0
         self.stage = ""
         self.q = queue.Queue()
@@ -147,8 +149,13 @@ class SetupApp:
         self.btn_cancel = ttk.Button(btns, text="取消", command=self._cancel,
                                      state="disabled")
         self.btn_cancel.pack(side="right", padx=(0, 8))
-        ttk.Button(btns, text="退出", command=self.root.destroy).pack(
+        ttk.Button(btns, text="退出", command=self._quit).pack(
             side="right", padx=(0, 8))
+        # 窗口 X 与「退出」按钮同一路径：busy 时不能裸 destroy——
+        # daemon 工作线程会被强杀，若正停在 apply_staging 第一遍 rename
+        # （目标已全部改名 .vtold、新文件未就位），安装目录主程序文件
+        # 全在 .vtold 里，用户再启动就缺文件（2026-10-13 审查修复）。
+        self.root.protocol("WM_DELETE_WINDOW", self._quit)
 
     def _browse(self):
         d = filedialog.askdirectory(title="选择安装目录",
@@ -185,8 +192,10 @@ class SetupApp:
                         self.lbl_pct.configure(text="%s  %s" % (self.stage,
                                                                 core.human(a)))
                 elif kind == "stage":
+                    # 只记阶段名，不覆盖 lbl_pct：随后到的 prog 事件会把
+                    # 「阶段 + 大小/速度/源」一起渲染；此处覆盖会让那段
+                    # 详细文本永远不可见（2026-10-13 审查修复）
                     self.stage = a
-                    self.lbl_pct.configure(text=a)
                 elif kind == "plan":
                     self.lbl_plan.configure(text=a)
                 elif kind == "done":
@@ -347,7 +356,12 @@ class SetupApp:
             messagebox.showwarning(APP_TITLE, "请先选择安装目录")
             return
         if core.app_running(d):
-            if not messagebox.askokcancel(
+            if self.args.silent:
+                # silent 模式弹 askokcancel 会永久挂起（无人点确定，
+                # root.destroy 只在 done 事件后触发）——改为警告后继续：
+                # apply_staging 靠 rename 语义可覆盖运行中的 exe
+                self._log("[warn] 检测到程序正在运行，silent 模式继续安装")
+            elif not messagebox.askokcancel(
                     APP_TITLE, "检测到视频工具箱正在运行。\n"
                                "更新会覆盖主程序文件，请先完全退出。\n\n仍要继续吗？"):
                 return
@@ -397,14 +411,29 @@ class SetupApp:
         self.btn_cancel.configure(state="disabled", text="正在取消…")
         self._log("已请求取消（当前块下完即停，进度保留可续传）")
 
+    def _quit(self):
+        """退出：busy 时先取消，等工作线程收尾（done 事件）再关窗口。"""
+        if self.busy:
+            self.quit_requested = True
+            if not self.cancel.is_set():
+                self.cancel.set()
+                self.btn_cancel.configure(state="disabled", text="正在取消…")
+                self._log("已请求取消（关窗将在落地收尾后完成）")
+            return
+        self.root.destroy()
+
     def _on_done(self, ok, info):
         self.busy = False
         self.bar.stop()
         self.bar.configure(mode="determinate")
         self.btn_go.configure(state="normal", text="重新执行")
         self.btn_cancel.configure(state="disabled", text="取消")
+        # busy 期间用户点过退出/关窗：收尾后顺势关掉，别让他再点一次
+        closing = getattr(self, "quit_requested", False)
         if ok == "cancel":
             self.lbl_pct.configure(text="已取消")
+            if closing:
+                self.root.after(100, self.root.destroy)
             return
         if ok:
             self.exit_code = 0
@@ -488,7 +517,9 @@ def run_check(args):
         print("CHECK-FAIL plan: %r" % e)
         return 2
     local_ver = plan.get("local_version") or "未安装"
-    if not plan["need"] and not plan["orphans"]:
+    # remove 也要参与"有变化"判定：只该删文件的版本（无 need/orphans）
+    # 曾被误报 UP-TO-DATE（2026-10-13 审查修复）
+    if not plan["need"] and not plan["orphans"] and not plan["remove"]:
         print("UP-TO-DATE local=%s remote=v%s" % (local_ver, m["version"]))
         return 0
     pkgs = " + ".join("%s(%s)" % (a.get("name"), core.human(int(a.get("size") or 0)))

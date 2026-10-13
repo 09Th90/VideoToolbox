@@ -229,6 +229,22 @@ Source: "..\src\speaker_voiceprint_page.py"; DestDir: "{app}\src"; Flags: ignore
 ; 收进 PYZ，这里补的是 {app}\src 下的源码副本，供 CLI 与 tools\python 子进程用。）
 Source: "..\src\voiceprint_sync.py"; DestDir: "{app}\src"; Flags: ignoreversion
 Source: "..\src\subtitle_editor_core.py"; DestDir: "{app}\src"; Flags: ignoreversion
+; v2.0.0 补漏：vt_update_check 是 video_toolbox_qt.py:173 的**模块级** import
+; （`import vt_update_check`），主程序「检查更新 / 在线更新」全链路入口。
+; 缺了它，「脚本方式运行」在 import 阶段直接 ImportError——连 GUI 都起不来，
+; 比 exe 侧的静默降级严重得多。exe 侧由 spec 的 pathex/hiddenimports 覆盖。
+Source: "..\src\vt_update_check.py"; DestDir: "{app}\src"; Flags: ignoreversion
+; v2.0.0 同批补漏（本轮 AST 传递闭包复查揪出，与上一条同一类坑）：
+;   auto_vision_core / bili_upload 是 auto_vision_page.py 第 44-45 行的
+;   **模块级** import（auto_vision_page 又在 video_toolbox_qt.py 顶层导入）。
+;   原检查只查 video_toolbox_qt.py 的**直接** import，这一层够不着 ⇒ 漏装。
+;   缺了它俩，「自动化」页面一开就 ImportError。
+Source: "..\src\auto_vision_core.py"; DestDir: "{app}\src"; Flags: ignoreversion
+Source: "..\src\bili_upload.py"; DestDir: "{app}\src"; Flags: ignoreversion
+; calib_media_agent 是 engine 里「AI 校准的音画证据」工具，
+; video_toolbox.py:5465 函数体内延迟 import（开启 calib_media_enabled 才走），
+;   exe 侧静默降级 ⇒ 与 calib_web_agent 同类，iss + spec 都要显式列出。
+Source: "..\src\calib_media_agent.py"; DestDir: "{app}\src"; Flags: ignoreversion
 Source: "..\src\视频工具箱.bat"; DestDir: "{app}\src"; Flags: ignoreversion
 ; 文档资料统一归入 docs\
 Source: "..\docs\使用说明.txt"; DestDir: "{app}\docs"; Flags: ignoreversion

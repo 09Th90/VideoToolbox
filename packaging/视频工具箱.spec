@@ -121,6 +121,13 @@ hiddenimports += ['calib_ai_agent']
 # calib_ai_run 内部延迟 import，开启「联网查证」后点校准才会加载）。
 hiddenimports += ['calib_web_agent']
 
+# 2026-10-12：AI 校准 Agent 的**音画证据**工具（calib_media_agent）。engine
+#   video_toolbox.py:5465 在函数体内 `import calib_media_agent as _media`
+#   （开启「音画证据」开关后点校准才走），静态分析跟踪不到 ⇒ 不声明的话
+#   打包后音画证据永远走降级分支、只返回「证据获取失败」，且**不报错**。
+#   该模块零第三方依赖（ffmpeg 子进程 + urllib multipart POST）。
+hiddenimports += ['calib_media_agent']
+
 # v1.13.0：字幕编辑页的 libmpv 播放器。python-mpv 绑定（mpv.py，纯标准库、
 # 约 90KB）由 subtitle_editor_media.load_mpv() 延迟导入，静态分析发现不了。
 # 不声明的话打包后点「打开视频」会 ModuleNotFoundError: No module named 'mpv'。

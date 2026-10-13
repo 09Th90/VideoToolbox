@@ -58,6 +58,11 @@ READ_BLOCK = 256 << 10
 CHUNKS_PER_THREAD = 16
 #: 连接/读取超时（秒）。镜像站 23KB/s 时 256KB 块约 11s，120s 足够宽裕。
 HTTP_TIMEOUT = 120
+#: 探测超时（秒）。探测只求「活着吗 + 多大」，不值得等满 HTTP_TIMEOUT：
+#   网络黑洞时每源 120s、三源两轮 = 数分钟无响应（2026-10-13 审查修复）。
+PROBE_TIMEOUT = 15
+#: 探测总时限（秒）：探到可用源就收手，别把整条链都拖完。
+PROBE_DEADLINE = 45
 #: 本地代理端口（clash / 已运行的 mihomo）。命中即作为最后一个源。
 LOCAL_PROXY_PORT = 7897
 #: 整体 sha256 不符时的整文件重下次数（续传状态里的坏块只能这样救）。
@@ -223,8 +228,15 @@ class Probe:
         self.err = err
 
 
-def probe_source(src):
-    """探测单个源：拿 size 与 Range 支持情况。不抛异常，失败写进 .err。"""
+def probe_source(src, cancel=None):
+    """探测单个源：拿 size 与 Range 支持情况。不抛异常，失败写进 .err。
+
+    `cancel` 置位时立刻返回带 err 的 Probe——探测阶段没有取消点的话，
+    网络黑洞时每个源各挂 HTTP_TIMEOUT（120s），取消按钮会假死数分钟
+    （2026-10-13 审查修复）。
+    """
+    if cancel is not None and cancel.is_set():
+        return Probe(0, False, "已取消")
     if src.url.startswith("file://"):
         try:
             p = urllib.request.url2pathname(
@@ -237,7 +249,7 @@ def probe_source(src):
     req = urllib.request.Request(src.url, headers={
         "User-Agent": _UA, "Range": "bytes=0-0"})
     try:
-        with _src_open(src, req) as r:
+        with _src_open(src, req, timeout=PROBE_TIMEOUT) as r:
             status = getattr(r, "status", 200)
             cr = r.headers.get("Content-Range")
             if status == 206 and cr:
@@ -255,7 +267,7 @@ def probe_source(src):
             req2 = urllib.request.Request(src.url, headers={
                 "User-Agent": _UA, "Range": "bytes=0-99"})
             try:
-                with _src_open(src, req2) as r:
+                with _src_open(src, req2, timeout=PROBE_TIMEOUT) as r:
                     cl = r.headers.get("Content-Length")
                     if cl and cl.isdigit():
                         return Probe(int(cl), False)
@@ -395,11 +407,12 @@ def _read_range(src, start, end, cancel):
         return b"".join(parts)
 
 
-def _probe_best(chain, log):
+def _probe_best(chain, log, cancel=None):
     """按优先级探测源链，返回 ([(源, 是否支持 Range)], 总长)。
 
     探测失败的源直接剔除；全部失败抛 DlError（带各源失败原因）。
     同一文件在多个源上长度不一致时，弃掉长度不对的那个。
+    `cancel` 置位即抛 Canceled；已有可用源后不再拖过总时限。
     """
     def say(msg):
         if log:
@@ -407,8 +420,11 @@ def _probe_best(chain, log):
 
     ok, size = [], 0
     why = []
+    deadline = time.time() + PROBE_DEADLINE
     for src in chain:
-        pr = probe_source(src)
+        if cancel is not None and cancel.is_set():
+            raise Canceled()
+        pr = probe_source(src, cancel)
         if pr.err:
             why.append("%s：%s" % (src.label, pr.err))
             continue
@@ -419,6 +435,9 @@ def _probe_best(chain, log):
             why.append("%s：长度不符（%d ≠ %d）" % (src.label, pr.size, size))
             continue
         ok.append((src, pr.ranged))
+        if time.time() > deadline:
+            # 已有可用源就别再耗：剩下的源留给换源重试时再探
+            break
     if not ok:
         raise DlError("所有下载源均不可用：\n  " + "\n  ".join(why))
     if size <= 0:
@@ -458,7 +477,7 @@ def download_file(url, dest, progress=None, log=None, cancel=None,
     os.makedirs(os.path.dirname(os.path.abspath(dest)), exist_ok=True)
 
     for round_no in range(RESHUFFLE_TRIES + 1):
-        probed, size = _probe_best(chain, log)
+        probed, size = _probe_best(chain, log, cancel)
         ranged = [(s, r) for s, r in probed if r]
         if not ranged:
             # 没有任何源支持 Range：退化成单连接整文件流（仍走源链择优）
@@ -518,7 +537,11 @@ def download_file(url, dest, progress=None, log=None, cancel=None,
             say("续传文件已完整，直接校验")
 
         # 进度：完成字节数 + 节流回调 + 速度估计
-        done_bytes = [0]
+        # ⚠ 续传时把已完成的字节预填进来：done_bytes 从 0 起算会让
+        # 90% 已下的文件在 UI 上从 0% 重新爬，速度统计同样失真
+        # （2026-10-13 审查修复）。
+        done_bytes = [sum(chunks[i][1] - chunks[i][0]
+                          for i in state.done if i < len(chunks))]
         prog_lock = threading.Lock()
         last_cb = [0.0]
         speed_win = []          # [(t, done_bytes)]
@@ -597,11 +620,21 @@ def download_file(url, dest, progress=None, log=None, cancel=None,
                 raise DlError("下载后文件大小不符：%d ≠ %d"
                               % (os.path.getsize(part), size))
             say("下载完成，正在校验 sha256 …")
-            got = sha256_file(part)
+            try:
+                got = sha256_file(part)
+            except OSError as e:
+                raise DlError("读取已下载数据失败：%s" % e)
             if expect_sha256 and got != expect_sha256:
                 raise DlError("sha256 校验不通过：\n  期望 %s\n  实际 %s"
                               % (expect_sha256, got))
-            os.replace(part, dest)
+            # 磁盘满/路径过长等 OSError 一律包成 DlError：docstring 承诺
+            # 调用方只需处理 DlError/Canceled（2026-10-13 审查修复）
+            try:
+                os.replace(part, dest)
+            except OSError as e:
+                state.drop()
+                _quiet_remove(part)
+                raise DlError("下载文件落地失败：%s" % e)
             state.drop()
             stats["source"] = srcs[0].label
             return dest
@@ -611,14 +644,18 @@ def download_file(url, dest, progress=None, log=None, cancel=None,
             say("已取消（进度已保留，可续传）")
             raise
         except DlError:
-            state.save()
             stats["speed"] = 0.0
             if round_no < RESHUFFLE_TRIES:
                 say("本轮失败，清空续传状态后重下整文件")
                 state.drop()
                 continue
+            # 末轮仍失败：绝不能把「done=全部块」的假状态写回盘——
+            # 下次运行会打印"续传文件已完整，直接校验"，白跑一遍整体
+            # sha256 才失败。连 .dlpart 一起清掉，失败即无残留
+            # （2026-10-13 审查修复）。
+            state.drop()
+            _quiet_remove(part)
             raise
-    raise DlError("下载失败（已重试 %d 次）" % RESHUFFLE_TRIES)
 
 
 def download_simple(url, dest, progress=None, log=None, cancel=None,

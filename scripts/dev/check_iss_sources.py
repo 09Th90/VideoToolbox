@@ -46,7 +46,7 @@ for spec, why in missing:
     print("   [%s] %s" % (why, spec))
 
 # ---------------------------------------------------------------------------
-# 反向检查：video_toolbox_qt.py 的**模块级** import 是否都在 iss 里列出？
+# 反向检查：src\ 下的**自研模块**是否都在 iss 里列出？
 #
 # ⚠⚠ 为什么必须查（2026-10-09 实测踩坑）：上面的正向检查只保证
 #   「iss 里写的文件都存在」，但**保证不了该装的都装了**。
@@ -55,32 +55,86 @@ for spec, why in missing:
 #   而 exe 侧靠 spec 的 PYZ 副本照样能跑（只是多容器配对静默失效），
 #   更坑的是 check_install_sync 从 iss 提取清单 ⇒ 这两个压根不在
 #   比对范围，28/28 全绿也照样漏。**三个环节互相掩护，只能靠本检查兜底。**
+#
+# ⚠⚠ 2026-10-12 二轮补漏：只看 video_toolbox_qt.py 的**直接** import 不够——
+#   auto_vision_page.py（qt 顶层导入）自己又模块级导入 auto_vision_core /
+#   bili_upload，本轮 AST 传递闭包复查才揪出来。故改成**闭包**：
+#   从 video_toolbox_qt.py 与 video_toolbox.py 两个入口出发，
+#   沿 import（模块级 + 函数体内延迟）走完整条链，链上任一 src 模块缺失即报错。
+#   延迟导入（col_offset>0）单列一档「建议随包分发」：它的症状同样是静默的
+#   （音画证据 / 联网查证 / 声纹同步都走 try/except 降级），故也计入缺失。
 # ---------------------------------------------------------------------------
 import ast
 
-QT = os.path.join(base, "..", "src", "video_toolbox_qt.py")
-qt = os.path.normpath(QT)
-if os.path.isfile(qt):
-    tree = ast.parse(open(qt, encoding="utf-8").read())
-    mods = set()
-    for n in ast.walk(tree):
-        if isinstance(n, ast.Import):
-            for a in n.names:
-                mods.add(a.name.split(".")[0])
-        elif isinstance(n, ast.ImportFrom) and n.module and n.col_offset == 0:
-            mods.add(n.module.split(".")[0])
-    srcdir = os.path.normpath(os.path.join(base, "..", "src"))
-    local = sorted(m for m in mods
-                   if os.path.isfile(os.path.join(srcdir, m + ".py")))
-    # iss 里所有 ..\src\*.py 条目的文件名
+BASE = os.path.normpath(os.path.join(base, ".."))
+ROOTS = ["video_toolbox_qt", "video_toolbox"]
+SRCDIR = os.path.normpath(os.path.join(BASE, "src"))
+
+
+def _imported_names(tree):
+    """返回 (模块级顶层 import 的模块名集合, 函数体内延迟 import 的模块名集合)。"""
+    top, lazy = set(), set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            names = [a.name.split(".")[0] for a in node.names]
+            (top if node.col_offset == 0 else lazy).update(names)
+        elif isinstance(node, ast.ImportFrom) and node.module and node.col_offset == 0:
+            # ImportFrom 只在顶层层级算（缩进的 from-import 也满足 col_offset==0，
+            # 无法区分行内缩进，统一按顶层处理，宁可多报不可漏报）
+            top.add(node.module.split(".")[0])
+    return top, lazy
+
+
+missing = []
+ok = 0
+qt_present = os.path.isfile(os.path.join(SRCDIR, "video_toolbox_qt.py"))
+if qt_present:
+    closure, seen, stack = {}, set(), list(ROOTS)
+    while stack:
+        mod = stack.pop()
+        if mod in seen or not os.path.isfile(os.path.join(SRCDIR, mod + ".py")):
+            continue
+        seen.add(mod)
+        try:
+            tree = ast.parse(open(os.path.join(SRCDIR, mod + ".py"),
+                                  encoding="utf-8").read())
+        except (SyntaxError, UnicodeDecodeError) as exc:
+            missing.append(("src\\%s.py" % mod, "AST 解析失败：%s" % exc))
+            continue
+        top, lazy = _imported_names(tree)
+        closure[mod] = (top, lazy)
+        for dep in top | lazy:
+            if os.path.isfile(os.path.join(SRCDIR, dep + ".py")) and dep not in seen:
+                stack.append(dep)
+
+    # iss 里所有 ..\src\*.py 条目的文件名（兼容非 ASCII 文件名）
     iss_text = open(ISS, encoding="utf-8").read()
-    installed = set(re.findall(r"\.\.[\\/]src[\\/]([a-z_0-9]+\.py)", iss_text))
-    absent = [m + ".py" for m in local if m + ".py" not in installed]
-    print("模块级依赖覆盖 = %d/%d" % (len(local) - len(absent), len(local)))
-    for f in absent:
-        print("   [未随包分发] src\\%s"
-              "（video_toolbox_qt.py 模块级 import，缺了 src\\ 方式运行会 ImportError）" % f)
-    if absent:
-        missing += [(f, "模块级依赖未随包分发") for f in absent]
+    installed = set(re.findall(r"\.\.[\\/]src[\\/]([^\";]+\.py)", iss_text))
+
+    # 谁在**模块级**导入 mod（不是 mod 自己导入谁）
+    imported_at_top = set()
+    for top, _lazy in closure.values():
+        imported_at_top |= top
+
+    hard_absent, lazy_absent = [], []
+    for mod in sorted(closure):
+        if mod + ".py" in installed:
+            continue
+        if mod in imported_at_top:
+            hard_absent.append(mod + ".py")
+        else:
+            lazy_absent.append(mod + ".py")
+    print("src 模块闭包 = %d 个（自 video_toolbox_qt.py / video_toolbox.py 沿 import 传递）"
+          % len(closure))
+    print("模块级依赖覆盖 = %d/%d"
+          % (len(closure) - len(hard_absent) - len(lazy_absent), len(closure)))
+    for f in hard_absent:
+        print("   [未随包分发·模块级] src\\%s"
+              "（闭包内某模块顶层 import 它，缺了 src\\ 方式运行会 ImportError）" % f)
+    for f in lazy_absent:
+        print("   [未随包分发·延迟导入] src\\%s"
+              "（闭包内某模块函数体内 import 它，缺了功能静默降级）" % f)
+    missing += [(f, "模块级依赖未随包分发") for f in hard_absent]
+    missing += [(f, "延迟导入依赖未随包分发") for f in lazy_absent]
 
 sys.exit(1 if missing else 0)

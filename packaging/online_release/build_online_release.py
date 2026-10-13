@@ -168,9 +168,9 @@ def iter_files(src, dest_rel):
         yield src, dest_rel.replace("\\", "/")
         return
     for cur, dirs, files in os.walk(src):
-        dirs[:] = [d for d in dirs if d not in ("__pycache__",)]
+        dirs[:] = sorted(d for d in dirs if d not in ("__pycache__",))
         rel = Path(cur).relative_to(src)
-        for f in files:
+        for f in sorted(files):
             if f.endswith((".pyc", ".pyo")):
                 continue
             p = Path(cur) / f
@@ -191,7 +191,6 @@ def build_package(pkg, items, out_dir, volume_max):
     Path(out_dir).mkdir(parents=True, exist_ok=True)
     files = {}          # zip 内相对路径 -> {size, sha256}
     n = 0
-    bad = []
     with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED, compresslevel=6) as zf:
         for src_rel, dest_rel in items:
             src = ROOT / src_rel
@@ -201,8 +200,12 @@ def build_package(pkg, items, out_dir, volume_max):
             for ap, zn in iter_files(src, dest_rel):
                 low = zn.lower()
                 if any(b in low for b in FORBIDDEN):
-                    bad.append(zn)
-                    continue
+                    # 命中即退出（与"源不存在"同级）：被跳过的文件既不进 zip
+                    # 也不进 files 清单，客户端按清单逐个校验发现不了
+                    # "从未存在的文件"——宁可发不出，也不能发个缺文件的版本
+                    print("   !! 禁止入库的文件：%s（命中 FORBIDDEN：%s）"
+                          % (zn, [b for b in FORBIDDEN if b in low]))
+                    sys.exit(2)
                 size = ap.stat().st_size
                 method = (zipfile.ZIP_STORED if size >= STORE_OVER
                           else zipfile.ZIP_DEFLATED)
@@ -216,10 +219,6 @@ def build_package(pkg, items, out_dir, volume_max):
                 zf.writestr(zi, data)
                 files[zn] = {"size": size, "sha256": h.hexdigest(), "pkg": pkg}
                 n += 1
-    if bad:
-        print("   !! 有 %d 个禁止入库的文件被跳过（请核对是否误配）：%s"
-              % (len(bad), bad[:5]))
-
     asset = {"name": pkg, "file": out.name, "size": out.stat().st_size,
              "sha256": _sha256_path(out), "entries": n, "target": "",
              "desc": _PKG_DESC.get(pkg, "")}
@@ -263,13 +262,24 @@ def _sha256_path(path):
 
 
 def read_version():
-    """从 src/video_toolbox_qt.py 读 VERSION（唯一版本号源头）。"""
+    """从 src/video_toolbox_qt.py 读 VERSION（唯一版本号源头）。
+
+    2026-10-13：原正则会读不出预发布号（如 2.1.0-beta.1 匹配失败直接
+    sys.exit），而 vt_version_index 与 --state 都支持预发布——
+    两条能力在发布脚本里断链。改为取任意非引号串，再用
+    vindex.parse_version 校验（单一真相源）。
+    """
     import re
     p = ROOT / "src" / "video_toolbox_qt.py"
-    m = re.search(r'VERSION\s*=\s*"([\d.]+)"', p.read_text(encoding="utf-8"))
+    m = re.search(r'VERSION\s*=\s*"([^"]+)"', p.read_text(encoding="utf-8"))
     if not m:
         sys.exit("读不到 src/video_toolbox_qt.py 里的 VERSION")
-    return m.group(1)
+    ver = m.group(1).strip()
+    try:
+        vindex.parse_version(ver)
+    except vindex.VersionError as ex:
+        sys.exit("VERSION 不是合法版本号：%s" % ex)
+    return ver
 
 
 def find_updater():
@@ -282,31 +292,54 @@ def find_updater():
 # ---------------------------------------------------------------- 版本索引
 
 
-def fetch_remote_index(base_url, log=print):
-    """取远端已有的 index.json；没有（首次发版 / 404）就造个空的。
+def fetch_remote_index(base_url, log=print, force_first=False, tries=3):
+    """取远端已有的 index.json。
 
-    ⚠ 走**公开下载地址**而不是 API：Release 是公开的，直接 GET 比
-    「查 asset id → 走 API 下载」少一次鉴权往返，也少一处失败点。
-    取不到一律按「首次发版」处理——新索引会在上传时被整体覆盖，
-    不会把远端已有记录弄丢（因为我们只 append 本地已知的版本…）。
-    真丢了的情况见 main() 里的「远端版本合并」注释。
+    ⚠ 只有 **404** 才算真·首次发版（造空索引）。网络错 / 5xx / 坏 JSON
+    一律指数退避重试，仍失败则**拒绝发布**——旧实现把这些失败都按
+    "首次发版"处理，空索引会在上传时整体覆盖远端，把全版本目录抹掉
+    （资产还在 Release 上，但索引没了就没人找得到，换机器不可恢复）。
+    `--force-first` 供确认过后果的手工场景显式放行。
     """
     if not base_url:
         return vindex.new_index()
     url = base_url.rstrip("/") + "/" + vindex.INDEX_NAME
-    try:
-        req = urllib.request.Request(url, headers={
-            "User-Agent": "VideoToolbox-online-release"})
-        with urllib.request.urlopen(req, timeout=60) as r:
-            raw = r.read()
-    except Exception as e:  # noqa: BLE001
-        log("   [info] 取不到远端版本索引（%s），按首次发版处理" % e)
-        return vindex.new_index()
+    last = None
+    for attempt in range(1, tries + 1):
+        try:
+            req = urllib.request.Request(url, headers={
+                "User-Agent": "VideoToolbox-online-release"})
+            with urllib.request.urlopen(req, timeout=60) as r:
+                raw = r.read()
+            break
+        except urllib.error.HTTPError as e:
+            if e.code == 404:
+                log("   [info] 远端无版本索引，按首次发版处理")
+                return vindex.new_index()
+            last = "HTTP %s" % e.code
+        except Exception as e:  # noqa: BLE001
+            last = repr(e)[:200]
+        if attempt < tries:
+            log("   [warn] 取远端索引失败（%s），%d/%d 重试中…"
+                % (last, attempt, tries))
+            time.sleep(min(2 ** attempt * 2, 15))
+    else:
+        if force_first:
+            log("   [warn] 取远端索引持续失败（%s），--force-first 放行："
+                "按首次发版处理（历史版本目录将丢失！）" % last)
+            return vindex.new_index()
+        sys.exit("取远端版本索引失败（%s）。\n"
+                 "    拒绝发布：此时若按首次发版处理，上传的空索引会把远端\n"
+                 "    全版本目录整体抹掉（资产还在但不可发现、不可回滚）。\n"
+                 "    请修好网络/代理后重试；确要认真空索引发版，显式加 --force-first。"
+                 % last)
     try:
         idx = vindex.parse_index(raw)
     except Exception as e:  # noqa: BLE001
-        log("   [warn] 远端版本索引解析失败（%s），按首次发版处理" % e)
-        return vindex.new_index()
+        if force_first:
+            log("   [warn] 远端索引解析失败（%s），--force-first 放行" % e)
+            return vindex.new_index()
+        sys.exit("远端版本索引解析失败（%s）。拒绝发布（同上）。" % e)
     log("   远端索引已有 %d 个版本：%s"
         % (len(idx.get("versions", [])),
            "、".join(e["version"] for e in idx.get("versions", [])[:6])
@@ -340,6 +373,8 @@ def prune_index(idx, keep, log=print):
     ⚠ 只动**目录条目**，不动 Release 上的资产——资产清理在
     `cleanup_old_assets()` 里按裁剪后的索引决定，两者必须同参调用，
     否则会出现"目录里有、资产已删"的死链。
+    裁剪后同步清理 channels：latest/stable 指向被裁版本时清除，
+    让 resolve 的兜底（可见里最高）顶上来，别留悬空指针。
     """
     vers = sorted(idx.get("versions", []),
                   key=lambda e: vindex.vkey(e["version"]), reverse=True)
@@ -349,6 +384,11 @@ def prune_index(idx, keep, log=print):
     idx["versions"] = vers[:keep]
     for e in drop:
         log("   索引移除旧版本 v%s" % e["version"])
+    ch = idx.get("channels") or {}
+    for k, v in list(ch.items()):
+        if not v or vindex.find_version(idx, v) is None:
+            log("   通道 %s 指向被裁/不存在的版本 %r，已清除" % (k, v))
+            ch.pop(k, None)
     return idx
 
 
@@ -356,30 +396,46 @@ def prune_index(idx, keep, log=print):
 
 
 def _token():
+    # 每次 api() 都 spawn 一次 gh auth token 太浪费（一次清理几十个子进程），
+    # 进程内缓存——token 有效期远长于一次发布。
+    global _TOKEN_CACHE
+    if _TOKEN_CACHE:
+        return _TOKEN_CACHE
     t = subprocess.run(["gh", "auth", "token"], capture_output=True,
                        text=True).stdout.strip()
     if not t:
         sys.exit("取不到 gh token（先 gh auth login）")
+    _TOKEN_CACHE = t
     return t
 
 
+_TOKEN_CACHE = ""
+
+
 def api(method, path, payload=None, raw=None, ctype="application/json",
-        host="https://api.github.com", timeout=1800):
+        host="https://api.github.com", timeout=1800, extra_headers=None):
     tok = _token()
     data = raw if raw is not None else (
         json.dumps(payload).encode() if payload is not None else None)
     url = path if path.startswith("http") else host + path
-    req = urllib.request.Request(url, data=data, method=method, headers={
+    headers = {
         "Authorization": "Bearer " + tok,
         "Accept": "application/vnd.github+json",
         "X-GitHub-Api-Version": "2022-11-28",
         "User-Agent": "VideoToolbox-online-release",
         "Content-Type": ctype,
-    })
+    }
+    if extra_headers:
+        headers.update(extra_headers)
+    req = urllib.request.Request(url, data=data, method=method, headers=headers)
     try:
         with urllib.request.urlopen(req, timeout=timeout) as r:
             b = r.read().decode("utf-8", "replace")
-            return r.status, (json.loads(b) if b.strip() else {})
+            # 502/网关页可能返回 HTML——json.loads 炸 traceback 不如给可读错误
+            try:
+                return r.status, (json.loads(b) if b.strip() else {})
+            except ValueError:
+                return r.status, b[:400]
     except urllib.error.HTTPError as e:
         return e.code, e.read().decode("utf-8", "replace")[:400]
 
@@ -429,8 +485,11 @@ def upload_asset(rel_id, path, name, tries=4):
     for attempt in range(1, tries + 1):
         t0 = time.time()
         try:
-            raw = open(path, "rb").read()
-            c, d = api("POST", url, raw=raw, ctype="application/octet-stream")
+            # 流式发送：1.5GB 卷整读进内存 + 重试叠加有 MemoryError 风险。
+            # http.client 对文件对象会边读边发，但需自带 Content-Length。
+            with open(path, "rb") as fh:
+                c, d = api("POST", url, raw=fh, ctype="application/octet-stream",
+                           extra_headers={"Content-Length": str(size)})
         except Exception as e:  # noqa: BLE001  —— 网络层异常（非 HTTP 状态码）
             c, d = 0, repr(e)[:200]
         dt = time.time() - t0
@@ -467,40 +526,74 @@ def upload_asset(rel_id, path, name, tries=4):
     return False
 
 
+def _asset_version(name):
+    """从资产名解析版本号（含预发布）；解析不出返回 None。
+
+    形如 v主.次.修(预发布)?- —— 预发布段必须一起吃掉，否则
+    "v2.1.0-beta.1-app.zip" 会被当成 2.1.0 正式版分组，与 keep_set
+    里的 "2.1.0-beta.1" 永远对不上（白名单静默失配）。
+    """
+    import re
+    m = re.match(r"v(\d+)\.(\d+)\.(\d+(?:[-.+][0-9A-Za-z.\-]+)?)-", name)
+    if not m:
+        return None
+    ver = m.group(1)
+    try:
+        vindex.parse_version(ver)
+    except vindex.VersionError:
+        return None
+    return ver
+
+
+def _keep_key(v):
+    """白名单命中键：版本号元组级（吃 v 前缀/缺位/预发布差异）。"""
+    try:
+        return ("v", vindex.parse_version(v))
+    except vindex.VersionError:
+        return ("s", v)
+
+
 def cleanup_old_assets(rel_id, keep, keep_versions=None):
     """清理旧版资产：只保留最近 keep 个版本的文件（按资产名里的版本号判代）。
 
     manifest.json / index.json 与在线安装器永远保留。版本号按
-    (主.次.修订) 排序，解析不出版本号的资产不动（宁可留垃圾也不误删）。
+    版本序排序，解析不出版本号的资产不动（宁可留垃圾也不误删）。
 
     ⚠⚠ `keep_versions` 是**硬白名单**：索引里还列着的版本，其资产永不删。
     没有这层保护，「全版本通用」就是假的——目录里写着 v1.18.0 可装、
     资产却早被清掉，用户点了装才 404。宁可多占空间也不能留死链。
+    白名单比较走 `_keep_key`（版本号元组）而非字符串精确匹配，
+    防止索引存 "v1.19.0"/短写法时静默失配。
     """
-    import re
-    keep_set = set(keep_versions or ())
+    keep_keys = {_keep_key(v) for v in (keep_versions or ())}
     c, d = api("GET", f"/repos/{OWNER}/{REPO}/releases/{rel_id}/assets")
     if c != 200:
         print("   [warn] 取资产列表失败，跳过清理")
         return
     vers = {}
     for a in d:
-        m = re.match(r"v(\d+)\.(\d+)\.(\d+)-", a["name"])
-        if m:
-            vers.setdefault(tuple(int(x) for x in m.groups()), []).append(a)
+        v = _asset_version(a["name"])
+        if v:
+            vers.setdefault(v, []).append(a)
     if len(vers) <= keep:
         return
-    for v in sorted(vers, reverse=True)[keep:]:
-        tag = ".".join(map(str, v))
-        if tag in keep_set:
-            print("   保留 v%s（索引仍在引用）" % tag)
+    for v in sorted(vers, key=vindex.vkey, reverse=True)[keep:]:
+        if _keep_key(v) in keep_keys:
+            print("   保留 v%s（索引仍在引用）" % v)
             continue
         for a in vers[v]:
-            print("   清理旧资产 v%s：%s" % (tag, a["name"]))
+            print("   清理旧资产 v%s：%s" % (v, a["name"]))
             api("DELETE", f"/repos/{OWNER}/{REPO}/releases/assets/{a['id']}")
 
 
 # ---------------------------------------------------------------- 主流程
+
+
+def _positive_int(text):
+    v = int(text)
+    if v < 1:
+        raise argparse.ArgumentTypeError("必须 ≥ 1（收到 %r）" % text)
+    return v
 
 
 def main():
@@ -510,9 +603,10 @@ def main():
     ap.add_argument("--notes", default="", help="写进 manifest 的更新说明")
     ap.add_argument("--remove", default="",
                     help="本次应删除的安装相对路径（逗号分隔；升级时要清理的旧文件）")
-    ap.add_argument("--volume-max", type=int, default=DEFAULT_VOLUME_MAX,
-                    help="单卷字节上限，超过自动分卷（默认 1.5GB）")
-    ap.add_argument("--keep", type=int, default=3,
+    ap.add_argument("--volume-max", type=_positive_int, default=DEFAULT_VOLUME_MAX,
+                    help="单卷字节上限，超过自动分卷（默认 1.5GB；≤0 曾让 read(0) "
+                         "返回空、parts[0] 直接 IndexError）")
+    ap.add_argument("--keep", type=_positive_int, default=3,
                     help="Release 上保留最近几个版本的资产（默认 3；"
                          "仍在索引里的版本不受此限，见 --index-keep）")
     ap.add_argument("--state", default="stable", choices=list(vindex.ALL_STATES),
@@ -520,8 +614,12 @@ def main():
                          "发版后发现严重问题用 yanked 撤回：目录里除名但资产保留）")
     ap.add_argument("--min-updater", default="",
                     help="安装本版本所需的在线安装器最低版本（留空=不限制）")
-    ap.add_argument("--index-keep", type=int, default=10,
-                    help="版本索引里保留最近几个版本（默认 10）")
+    ap.add_argument("--index-keep", type=_positive_int, default=10,
+                    help="版本索引里保留最近几个版本（默认 10；裁空后所有"
+                         "客户端都会报「没有 versions 列表」）")
+    ap.add_argument("--force-first", action="store_true",
+                    help="取远端索引持续失败/解析失败时仍按首次发版放行"
+                         "（默认拒绝发布，防止空索引覆盖抹掉历史目录）")
     ap.add_argument("--dry-run", action="store_true", help="只打包+出清单，不上传")
     args = ap.parse_args()
 
@@ -580,7 +678,8 @@ def main():
     # ------------------------------------------------------ 版本索引
     # ⚠ 先取远端已有索引并**合并**：本机索引只在本机累积，换机器或清过
     #   out 目录就是空的，直接覆盖会把历史版本从目录里抹掉。
-    remote = fetch_remote_index(base_url)
+    #   取不到（非 404）默认拒绝发布，--force-first 显式放行。
+    remote = fetch_remote_index(base_url, force_first=args.force_first)
     idx = merge_remote_versions(vindex.new_index("视频工具箱", base_url),
                                 remote)
     vindex.upsert_version(idx, {

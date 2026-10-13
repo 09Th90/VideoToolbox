@@ -117,6 +117,9 @@ class VersionError(ValueError):
 
 #: 宽松 semver：允许 `v` 前缀、允许只写到主/次版本、允许预发布后缀。
 #: 例：1.20.0 / v1.20 / 1.20.0-beta.1 / 2.0
+#: ⚠ 第 4 个数值段与 `+` 后元数据都会落在预发布组（`[-.+]` 触发）：
+#:   因此 "1.2.3.4" 是"1.2.3 的预发布"（< 1.2.3）、"1.2.3+build" 同。
+#:   这是刻意取舍——四段号本就非 semver 标准，宁可降级为预发布也不算相等。
 _VER_RE = re.compile(
     r"^v?(\d+)(?:\.(\d+))?(?:\.(\d+))?(?:[-.+]([0-9A-Za-z][0-9A-Za-z.\-]*))?$")
 
@@ -169,13 +172,20 @@ def cmp_version(a, b):
 
 
 def vkey(text):
-    """排序键，供 `sorted(..., key=vkey)` 用。解析失败排到最前。"""
+    """排序键，供 `sorted(..., key=vkey)` 用。
+
+    ⚠ 调用方一律 `reverse=True`（新的在前），所以**键越大越靠前**：
+    正式版的第二个分量必须**大于**预发布，否则同号预发布会排到正式版
+    前面（2026-10-13 审查实测：旧代码 0=正式/1=预发布 + reverse=True
+    让 2.0.0-beta.1 排在 2.0.0 前，stable 通道被预发布污染）。
+    解析失败 → (0,0,0) 且视同预发布，排到最后。
+    """
     try:
         nums, pre = parse_version(text)
     except VersionError:
-        return ((0, 0, 0), 1, ())
-    # 第二个分量：0=正式版，1=预发布 —— 保证正式版排在预发布之前
-    return (nums, 0 if not pre else 1, pre)
+        return ((0, 0, 0), 0, ())
+    # 第二个分量：1=正式版，0=预发布 —— 配合 reverse=True 保证正式版在前
+    return (nums, 1 if not pre else 0, pre)
 
 
 def version_eq(a, b):
@@ -217,7 +227,18 @@ def match_selector(ver, selector):
 
     if op in ("^", "~"):
         lo = body
-        hi = _next_major(body) if op == "^" else _next_minor(body)
+        nums, _pre = parse_version(body)
+        # 段数以 _VER_RE 实际写到的数值位计——不能用十进制段计数：
+        # "v1".isdigit() 为 False，v 前缀那段会被漏掉（v1.20 曾被误判成 1 段）
+        m = _VER_RE.match(body.strip())
+        has_minor = bool(m and m.group(2))
+        if op == "^":
+            # ^0.x 递进次版本（npm semver：^0.2 → <0.3.0），其余递进主版本
+            hi = _next_minor(body) if nums[0] == 0 else _next_major(body)
+        else:
+            # ~ 只写到主版本时递进主版本（~1 ≡ >=1.0.0 <2.0.0，与裸写 "1" 一致）；
+            # 写了次版本才递进修版本（~1.20 → <1.21.0）
+            hi = _next_major(body) if not has_minor else _next_minor(body)
         return cmp_version(ver, lo) >= 0 and cmp_version(ver, hi) < 0
     if op in ("=", "=="):
         return cmp_version(ver, body) == 0
@@ -237,10 +258,11 @@ def match_selector(ver, selector):
     #   1.20.0 → 精确匹配
     # ⚠ 曾经一律按 ~ 处理，一位写法 "1" 被误判成只匹配 1.0.x。
     nums, _pre = parse_version(body)
-    segs = [x for x in re.split(r"[.\-]", body) if x.isdigit()]
-    if len(segs) >= 3:
+    m = _VER_RE.match(body.strip())
+    segs = sum(1 for i in (1, 2, 3) if m and m.group(i))
+    if segs >= 3:
         return cmp_version(ver, body) == 0
-    hi = (_next_minor("%d.%d" % (nums[0], nums[1])) if len(segs) >= 2
+    hi = (_next_minor("%d.%d" % (nums[0], nums[1])) if segs >= 2
           else _next_major("%d" % nums[0]))
     return cmp_version(ver, body) >= 0 and cmp_version(ver, hi) < 0
 
@@ -291,6 +313,11 @@ def normalize_entry(e, where="versions[]"):
         # 没写 manifest 就按模板推——早期版本可能只写了 version
         e["manifest"] = MANIFEST_TEMPLATE % e["version"]
     e.setdefault("state", "stable")
+    if e["state"] not in ALL_STATES:
+        # 拼错 state（如 "Stable"）会让版本既不可见也不可说，只能手改
+        # index.json——入口就拦下，与 state 白名单同一处生效
+        raise VIndexError("%s state 非法：%r（可用：%s）"
+                          % (where, e["state"], "、".join(ALL_STATES)))
     e.setdefault("notes", "")
     e.setdefault("released", "")
     e.setdefault("pkgs", [])
@@ -369,7 +396,8 @@ def upsert_version(idx, entry):
     ver = entry.get("version") or ""
     # 归一化（补 manifest 等缺省字段）+ 校验版本号：提前炸，别让脏数据进索引
     normalize_entry(entry, "version %r" % ver)
-    vers = [e for e in idx.get("versions", []) if e.get("version") != ver]
+    vers = [e for e in idx.get("versions", [])
+            if not _same_version(e.get("version"), ver)]
     vers.append(dict(entry))
     vers.sort(key=lambda e: vkey(e["version"]), reverse=True)
     idx["versions"] = vers
@@ -395,10 +423,26 @@ def visible_versions(idx, allow_hidden=False):
     return [e for e in idx.get("versions", []) if e.get("state") in keep]
 
 
+def _ver_key(e):
+    return e.get("version") or ""
+
+
+def _same_version(a, b):
+    """版本号相等（吃 v 前缀/缺位：v1.20.0 == 1.20 == 1.20.0）。
+
+    字符串精确比较会把 "v1.20.0" 与 "1.20.0" 当成两个版本，
+    upsert 不去重、find_version 找不到——一律走 cmp_version。
+    """
+    try:
+        return cmp_version(a, b) == 0
+    except VersionError:
+        return (a or "") == (b or "")
+
+
 def find_version(idx, version):
     """按精确版本号找记录；找不到返回 None（不抛）。"""
     for e in idx.get("versions", []):
-        if e.get("version") == version:
+        if _same_version(e.get("version"), version):
             return e
     return None
 
@@ -439,7 +483,13 @@ def resolve(idx, want="latest", allow_hidden=False, log=None):
         say("通道 stable → v%s" % e["version"])
         return e
 
-    hits = [e for e in vers if match_selector(e["version"], want)]
+    # VersionError（选择器非法，如 ">abc"）也要归一成 VIndexError：
+    # VIndexError 的定位是"UI 直接显示其文本"，VersionError 漏出去
+    # 会逃过调用方的 except VIndexError，变成未处理异常
+    try:
+        hits = [e for e in vers if match_selector(e["version"], want)]
+    except VersionError as ex:
+        raise VIndexError("版本选择器 %r 无法解析：%s" % (want, ex))
     if not hits:
         raise VIndexError(
             "没有版本满足 %r。可用版本：%s"

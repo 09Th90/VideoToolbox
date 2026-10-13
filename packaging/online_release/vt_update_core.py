@@ -138,9 +138,17 @@ def human(n):
 
 
 def ver_tuple(v):
-    """'1.20.0' → (1, 20, 0)；解析失败按 (0,0,0)。"""
+    """'1.20.0' → (1, 20, 0)；解析失败按 (0,0,0)。
+
+    ⚠ 2026-10-13 审查修复：旧实现 `split(".")[:3]` 有两个坑：
+      · "1.20" → (1, 20) 与 (1, 20, 0) 比较时更小 → 同版本被判成降级；
+      · "2.1.0-beta.1" → int("0-beta") 炸 → (0,0,0)，预发布恒最低。
+    改为委托 vindex.parse_version（支持缺位补 0 与预发布的单一真相源），
+    不足三位补 0。调用方（vt_update_check 的升降级判断）随之正确。
+    """
     try:
-        return tuple(int(x) for x in str(v).split(".")[:3])
+        nums = vindex.parse_version(str(v).strip())[0]
+        return nums + (0,) * (3 - len(nums))
     except Exception:  # noqa: BLE001
         return (0, 0, 0)
 
@@ -286,8 +294,15 @@ def resolve_manifest(want="latest", index_url=None, manifest=None,
     idx = load_version_index(index_url, log=log)
     if base_url:
         idx["base_url"] = base_url
-    entry = vindex.resolve(idx, want, allow_hidden=allow_hidden, log=log)
-    url = vindex.manifest_url(idx, entry, base_url=base_url)
+    # vindex 的 VIndexError / VersionError 必须归一成 UpdateError：
+    # vt_online_setup 的 worker 只捕 core.UpdateError，漏一个类型
+    # 界面就永远停在"正在获取更新信息…"、退出码还是 0
+    # （--version 9.9.9、索引被全部 yanked、">abc" 都会走到这里）。
+    try:
+        entry = vindex.resolve(idx, want, allow_hidden=allow_hidden, log=log)
+        url = vindex.manifest_url(idx, entry, base_url=base_url)
+    except (vindex.VIndexError, vindex.VersionError) as e:
+        raise UpdateError(str(e))
     say("已选版本 v%s → %s" % (entry["version"], url))
 
     # 自身版本不够新时不能硬装：新版清单可能有老安装器不认的字段，
@@ -381,13 +396,21 @@ def installed_path(install_dir):
 
 
 def read_installed(install_dir):
-    """读本地安装清单；不存在/损坏返回 None。"""
+    """读本地安装清单；不存在/损坏返回 None。
+
+    ⚠ 2026-10-13 审查修复：`files` 的每个值也必须是 dict——旧实现只查
+    顶层，`files: {"a": 1}` 会让后续 `meta.get("sha256")` 抛
+    AttributeError，一路逃到调用方兜底（表现为"比对本地文件失败"）。
+    值不是 dict 的一律剔除（记不全比炸了好）。
+    """
     p = installed_path(install_dir)
     if not os.path.isfile(p):
         return None
     try:
         d = json.loads(open(p, "rb").read().decode("utf-8"))
         if isinstance(d.get("files"), dict):
+            d["files"] = {k: v for k, v in d["files"].items()
+                          if isinstance(v, dict)}
             return d
     except Exception:  # noqa: BLE001
         pass
@@ -705,8 +728,20 @@ def apply_staging(staging, install_dir, manifest, pkg_names, log=None):
                 pass
         for tgt, old in reversed(renamed):
             try:
-                if os.path.exists(old) and not os.path.exists(tgt):
-                    os.replace(old, tgt)
+                if not os.path.exists(old):
+                    continue
+                # ⚠ 2026-10-13 审查修复：旧条件 `not os.path.exists(tgt)`
+                # 漏掉了「拷到一半失败」的目标——跨卷时 shutil.move 退化为
+                # copy2+unlink，磁盘满/占用会让 tgt 留下半截新文件。旧版本
+                # 还躺在 .vtold 里，而下一轮更新会直接删掉 .vtold → 旧版
+                # 永久丢失。现在：凡 old 还在，先把当前 tgt（不管是落地
+                # 的还是拷了一半的）清掉再还原。
+                if os.path.exists(tgt):
+                    if os.path.isfile(tgt):
+                        os.remove(tgt)
+                    else:
+                        shutil.rmtree(tgt, ignore_errors=True)
+                os.replace(old, tgt)
             except OSError:
                 pass
 
@@ -746,11 +781,32 @@ def apply_staging(staging, install_dir, manifest, pkg_names, log=None):
     return len(landed)
 
 
+def _safe_rel(rel):
+    """把 manifest/orphan 列表里的相对路径规范化成安全形态。
+
+    拒绝空串 / "." / 含 ".." 的路径——`os.path.join(install_dir, "")`
+    就是安装目录本身，rmtree 下去整个安装目录（含用户数据）没了。
+    manifest 是远程可更新文件，发布侧一个 bug 混进空串就等于帮用户
+    「格式化安装目录」。zip slip 有 `_safe_members` 挡着，manifest 自己
+    的 remove 列表同理要防。
+    """
+    rel = (rel or "").strip().replace("\\", "/").lstrip("/")
+    parts = [p for p in rel.split("/") if p not in ("", ".")]
+    if not rel or not parts or ".." in parts:
+        return None
+    return "/".join(parts)
+
+
 def apply_removals(install_dir, remove, log=None):
     """按 manifest.remove 删除文件/目录（删除失败只警告，不阻断）。"""
     n = 0
     for rel in remove or []:
-        p = os.path.join(install_dir, rel.replace("/", os.sep))
+        safe = _safe_rel(rel)
+        if safe is None:
+            if log:
+                log("    [warn] 跳过可疑删除路径：%r" % rel)
+            continue
+        p = os.path.join(install_dir, safe.replace("/", os.sep))
         try:
             if os.path.isfile(p):
                 os.remove(p)
@@ -1044,9 +1100,19 @@ def apply_update(manifest, install_dir, work_dir, progress=None, log=None,
                 "seconds": 0.0, "full": False, "dir": install_dir}
 
     need_bytes = plan["download_bytes"]
+    # ⚠ 2026-10-13 审查修复：下载/暂存全在 work_dir（TEMP 盘，通常 C:），
+    # 只查 install_dir 会让「D: 安装省 C: 盘」的目标被自身破坏——C: 先满，
+    # 而落地时 staging→install 的跨卷拷贝正好需要两份空间。异盘时两个盘
+    # 都要查（安装侧还要容纳解压暂存，故 ×2）。
     if not free_space_ok(install_dir, need_bytes + need_bytes):
-        raise UpdateError("目标盘剩余空间不足（约需 %s）"
+        raise UpdateError("安装盘剩余空间不足（约需 %s）"
                           % human(need_bytes * 2))
+    if os.path.splitdrive(os.path.abspath(work_dir))[0].lower() != \
+            os.path.splitdrive(os.path.abspath(install_dir))[0].lower():
+        if not free_space_ok(work_dir, need_bytes + need_bytes):
+            raise UpdateError("下载缓存盘（%s）剩余空间不足（约需 %s）"
+                              % (os.path.splitdrive(os.path.abspath(work_dir))[0],
+                                 human(need_bytes * 2)))
 
     t0 = time.time()
     downloaded = 0
