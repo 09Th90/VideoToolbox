@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 1.20.0
+# @version 2.0.0
 """为仓库内**自研的当前版本文件**打版本号标记，并生成《文件版本清单》。
 
 背景（v1.12.1）：仅靠文件名无法判断一份文件属于哪一版——同名不同内容的情况
@@ -55,12 +55,22 @@ MARKER_RE = re.compile(r"^\s*(?:#|;|//|rem\s+|<!--)?\s*@version\s+(\S+?)\s*(?:--
                        re.IGNORECASE)
 
 #: 第三方 / 合规原件——原文保持，不得追加标记
+#: ⚠ 2026-10-12 修复：本清单原先只登记**改名前**的文件名
+#: （VideoCaptioner_GPL-3.0.txt / VideoCaptioner_组件来源.txt），而 docs/ 下
+#: 实际早已改名为「开源许可_GPL-3.0.txt」「第三方组件来源与许可声明.txt」，
+#: 于是打标脚本把它们当成自研文件，**往 GPL 许可全文第一行插了 @version**。
+#: 合规原件必须逐字节保持原样，故新旧名都登记。
 THIRD_PARTY = {
     "packaging/Languages/ChineseSimplified.isl",
     "docs/VideoCaptioner_GPL-3.0.txt",
     "docs/VideoCaptioner_组件来源.txt",
+    "docs/开源许可_GPL-3.0.txt",
+    "docs/第三方组件来源与许可声明.txt",
 }
 THIRD_PARTY_PREFIX = ("docs/vc_prompts_official/", "docs/vc_translate_impl/")
+#: 合规原件的**文件名特征兜底**：精确名单挡不住「换个名就不打标了」这种
+#: 回归（如本次）。凡文件名带这些特征的一律视为合规/第三方，不追加标记。
+THIRD_PARTY_NAME_HINTS = ("许可", "组件来源", "LICENSE", "license", "COPYING")
 
 #: 历史归档 / 早期版本留档——不属当前版本
 HISTORY_PREFIX = ("history/",)
@@ -186,11 +196,28 @@ def classify(rel):
     """返回 (类别, 是否应为当前版本代码)。"""
     if rel.startswith(HISTORY_PREFIX) or rel in HISTORY_FILES:
         return "历史归档", False
-    if rel in THIRD_PARTY or rel.startswith(THIRD_PARTY_PREFIX):
+    if (rel in THIRD_PARTY or rel.startswith(THIRD_PARTY_PREFIX)
+            or _is_third_party_by_name(rel)):
         return "第三方/合规原件", False
     if rel in RUNTIME_FILES or rel.startswith(RUNTIME_PREFIX):
         return "运行期数据/占位", False
     return "当前版本", True
+
+
+def _is_third_party_by_name(rel):
+    """文件名是否带合规原件特征（许可 / 组件来源 / LICENSE…）。
+
+    ⚠ 只豁免「**无注释语法**」的文件：有正经注释前缀的（.py / .spec /
+    .iss / .md…）是我们自己的代码或自撰文档，即便名字里带「许可」也该
+    正常打标记（例如自撰的「许可差异说明.md」）。
+    而 .txt 这类前缀为空的**恰恰最危险**——打标会往首行插入一行裸
+    `@version`，正是 2026-10-12 插进 GPL 许可全文的那种情况。
+    """
+    st = style_for(rel)
+    if st is not None and st[0]:
+        return False          # 有注释语法：自研文件，按常理打标
+    base = os.path.basename(rel)
+    return any(h in base for h in THIRD_PARTY_NAME_HINTS)
 
 
 def sha1(path):
