@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.0.0
+# @version 2.1.0
 """End-to-end: vt_update_check.check_update against a local file:// repo.
 
 复现用户截图场景（开发版 v2.0.0 运行、安装目录是空的、远端最新
@@ -79,8 +79,14 @@ os.makedirs(repo)
 m119 = write_manifest(repo, "1.19.0")
 m118 = write_manifest(repo, "2.1.0", sha="b" * 64)
 
+#: 「正在运行的版本」一律取自模块的 SELF_VERSION，**不硬编码**。
+#: 2026-10-13教训：升版到 2.1.0 后本探针里 6 处写死的 "2.0.0" 全部失配，
+#: 报出 3 个 FAIL ——看起来像更新逻辑坏了，其实是探针自己过期。
+#: 期望值绑定到被测对象的真实取值，升版后无需再改探针。
+RUN = u.SELF_VERSION
+
 try:
-    print("== 1) 截图场景：开发版 2.0.0 在跑、安装目录空、远端 1.19.0 ==")
+    print("== 1) 截图场景：开发版 %s 在跑、安装目录空、远端 1.19.0 ==" % RUN)
     empty = os.path.join(tmp, "install_empty")
     os.makedirs(empty)
     r = u.check_update(install_dir=empty, manifest_url=m119,
@@ -90,16 +96,16 @@ try:
     chk("本地=未安装", r.local_ver == "未安装", r.local_ver)
     chk("远端=1.19.0", r.remote_ver == "1.19.0", r.remote_ver)
     chk("判为全新安装", r.full is True)
-    chk("基准=运行版本 2.0.0", r.baseline_ver == u.SELF_VERSION,
-        r.baseline_ver)
-    chk("判降级（1.19.0 < 2.0.0）", r.downgrade() is True)
+    chk("基准=运行版本", r.baseline_ver == RUN, r.baseline_ver)
+    chk("判降级（1.19.0 < %s）" % RUN, r.downgrade() is True)
     chk("标题=安装较旧版本", r.action_label() == "安装较旧版本")
     chk("下载量=99.4 MB", u._human(r.download_bytes) == "99.4 MB",
         u._human(r.download_bytes))
     chk("组件=base", [n for n, _ in r.packages] == ["base"], r.packages)
     lines = "\n".join(r.detail_lines())
     chk("正文无 v未安装", "v未安装" not in lines, lines)
-    chk("正文写明『正在运行 v2.0.0』", "正在运行 v2.0.0" in lines)
+    chk("正文写明『正在运行 v%s』" % RUN,
+        ("正在运行 v%s" % RUN) in lines, lines)
     chk("正文标明降级", "低于当前" in lines)
 
     print("\n== 2) 对照：安装目录空、远端比运行版本新 ==")
@@ -109,19 +115,20 @@ try:
     report(r)
     chk("标题=全新安装", r.action_label() == "全新安装", r.action_label())
 
-    print("\n== 3) 对照：已装 v2.0.0、远端 1.19.0（回滚）==")
-    inst2 = os.path.join(tmp, "install_200")
-    write_installed(inst2, "2.0.0")
+    print("\n== 3) 对照：已装 v%s、远端 1.19.0（回滚）==" % RUN)
+    inst2 = os.path.join(tmp, "install_cur")
+    write_installed(inst2, RUN)
     r = u.check_update(install_dir=inst2, manifest_url=m119,
                        base_url=furi(repo))
     chk("检测成功", r.ok is True, r.err)
     report(r)
-    chk("本地=2.0.0", r.local_ver == "2.0.0", r.local_ver)
-    chk("基准=2.0.0", r.baseline_ver == "2.0.0", r.baseline_ver)
+    chk("本地=%s" % RUN, r.local_ver == RUN, r.local_ver)
+    chk("基准=%s" % RUN, r.baseline_ver == RUN, r.baseline_ver)
     chk("标题=回滚到旧版本", r.action_label() == "回滚到旧版本")
     chk("非全新安装", r.full is False)
     lines = r.detail_lines()
-    chk("首行=当前版本：v2.0.0", lines[0] == "当前版本：v2.0.0", lines[0])
+    chk("首行=当前版本：v%s" % RUN,
+        lines[0] == "当前版本：v%s" % RUN, lines[0])
 
     print("\n== 4) 对照：已装 1.18.0、远端 1.19.0（普通升级，SELF 压低复现）==")
     inst1 = os.path.join(tmp, "install_118")
