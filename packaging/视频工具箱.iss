@@ -257,6 +257,10 @@ Source: "..\docs\第三方组件来源与许可声明.txt"; DestDir: "{app}\docs
 ; v1.12.1：这两个目录同样必须排除字节码缓存——docs\vc_translate_impl 下曾残留本机
 ;          Python 3.13 生成的 __pycache__\*.cpython-313.pyc 被一起打进安装包（随包运行时
 ;          是 3.12，这些缓存既非当前版本源码、版本也不匹配）。
+; v1.20.0：三个免费翻译器（bing/google/deeplx）+ base + llm_translator 的第三方源码
+;          副本已退役——翻译能力由 src\engine_translate.py 自研接管，不再随包分发
+;          第三方源码。此目录仅剩 subtitle_thread.py（引擎字幕线程本地补丁版，
+;          待 P2/P3 重写为自研），仍属第三方改写件、照常登记许可。
 Source: "..\docs\vc_prompts_official\*"; DestDir: "{app}\docs\vc_prompts_official"; Flags: ignoreversion recursesubdirs createallsubdirs; Excludes: "*.pyc,__pycache__"
 Source: "..\docs\vc_translate_impl\*"; DestDir: "{app}\docs\vc_translate_impl"; Flags: ignoreversion recursesubdirs createallsubdirs; Excludes: "*.pyc,__pycache__"
 Source: "..\docs\程序说明书(开发版).md"; DestDir: "{app}\docs"; Flags: ignoreversion

@@ -296,6 +296,49 @@ def make_task_creation_drop_handler(tc):
             pass
     return _drop
 
+
+# ========== 自研字幕工作台 UI 选择器（P3 / 档 C：引擎自研化替换） ==========
+# 默认使用自研 UI 包 vt_engine_ui —— 视觉与引擎逐像素对齐，且原先打在引擎类上的
+# UI 视觉/交互补丁（品牌中性化、下拉收敛、声纹录入/多选/筛选、陈旧状态自愈、独立
+# 转录回填、任务创建收字幕……）均已内建为各页显式逻辑，不再 monkey-patch 引擎。
+# 后端（配置 / 任务工厂 / 线程 / 核心数据模型）仍走既有引擎，属档 A/B（P1~P2）。
+#
+# 安全兜底：自研 UI 不可导入或构造抛异常时，自动回退到引擎 UI，界面永不因替换打不开。
+# 排障/对照：设环境变量 VT_ENGINE_UI=engine 强制走引擎旧路径。
+_ENGINE_UI_DECISION = None
+
+
+def _resolve_engine_ui():
+    """返回 (home_cls, setting_cls, is_self, err)；结果缓存，仅解析一次。"""
+    global _ENGINE_UI_DECISION
+    if _ENGINE_UI_DECISION is not None:
+        return _ENGINE_UI_DECISION
+    mode = (os.environ.get("VT_ENGINE_UI", "self") or "self").strip().lower()
+    home_cls = setting_cls = None
+    is_self = False
+    err = None
+    if mode != "engine":
+        try:
+            import vt_engine_ui
+            if vt_engine_ui.self_ui_available():
+                home_cls = vt_engine_ui.HomeInterface
+                setting_cls = vt_engine_ui.SettingInterface
+                is_self = True
+            else:
+                err = vt_engine_ui.self_ui_error()
+        except Exception as e:  # noqa: BLE001
+            err = f"{type(e).__name__}: {e}"
+    if not is_self:
+        try:
+            from videocaptioner.ui.view.home_interface import HomeInterface as _EH
+            from videocaptioner.ui.view.setting_interface import SettingInterface as _ES
+            home_cls, setting_cls = _EH, _ES
+        except Exception as e:  # noqa: BLE001
+            err = (err + " | " if err else "") + f"engine fallback failed: {e}"
+    _ENGINE_UI_DECISION = (home_cls, setting_cls, is_self, err)
+    return _ENGINE_UI_DECISION
+
+
 LIB_EXTS = set(VIDEO_EXTS)
 THUMB_DIR = engine.THUMB_CACHE_DIR
 CARD_W, THUMB_W, THUMB_H = 232, 200, 118
@@ -2890,17 +2933,28 @@ class SubtitlePage(QWidget):
         def _work():
             t0 = time.perf_counter()
             try:
-                engine.engine_ui_brand_patch()
-            except Exception:  # noqa: BLE001
-                pass
-            try:
-                engine.vc_asr_patch_apply()      # 本地独立 ASR 的模型覆盖补丁
+                engine.vc_asr_patch_apply()      # 本地独立 ASR 的模型覆盖补丁（后端）
             except Exception:  # noqa: BLE001
                 pass
             # v1.12.0：翻译板块已全面去 AI（仅机翻），不再挂 LLM 回退兜底
+            # v1.21.0（P3）：按解析结果预热——自研路径预热 vt_engine_ui 与后端，
+            # 引擎路径沿用原预热（品牌补丁 + 引擎 home 模块导入树）。
+            ok = False
             try:
-                import videocaptioner.ui.view.home_interface  # noqa: F401
-                ok = True
+                _home_cls, _setting_cls, is_self, _err = _resolve_engine_ui()
+                if is_self:
+                    import vt_engine_ui  # noqa: F401
+                    from vt_engine_ui import _seams
+                    _ = _seams.cfg          # 预热后端配置读盘
+                    _ = _seams.entities
+                    ok = True
+                else:
+                    try:
+                        engine.engine_ui_brand_patch()
+                    except Exception:  # noqa: BLE001
+                        pass
+                    import videocaptioner.ui.view.home_interface  # noqa: F401
+                    ok = True
             except Exception:  # noqa: BLE001
                 ok = False
             self._prewarm_ready = ok
@@ -2924,33 +2978,62 @@ class SubtitlePage(QWidget):
 
     # ---------- 构建 ----------
     def _build_engine(self):
-        """创建并内嵌引擎工作台；隐藏品牌水印与捐助入口。"""
-        engine.engine_ui_brand_patch()   # 用户可见文案中性化（见 docs\ 声明）
-        try:
-            from videocaptioner.ui.view.home_interface import HomeInterface
-        except Exception as e:  # noqa: BLE001
-            self.state_label.setText(f"字幕引擎加载失败：{e}")
-            _perf_note(f"字幕引擎 import 失败：{e}")
+        """创建并内嵌字幕工作台；隐藏品牌水印与捐助入口。
+
+        v1.21.0（P3 引擎自研化）：默认使用自研 UI 包 ``vt_engine_ui``，其各页已把
+        原先的 UI 视觉/交互补丁内建为显式逻辑；构造失败时自动回退引擎 UI。走自研
+        路径时不再挂 ``engine_ui_brand_patch`` / ``vc_transcribe_ui_patch``（那些是
+        打在引擎类上的运行期补丁，自研页无需），但**后端**协议补丁照挂。
+        """
+        HomeInterface, _setting_cls, is_self, ui_err = _resolve_engine_ui()
+        if ui_err:
+            _perf_note(f"自研 UI 不可用，回退引擎：{ui_err}")
+        if HomeInterface is None:
+            self.state_label.setText("字幕引擎加载失败：无可用 UI 实现")
+            _perf_note("字幕引擎 import 失败：home_cls=None")
             return None
-        # v1.14.1：转录下拉收敛「默认/ASR」+ 独立转录完成回填「字幕翻译」
-        # （类级运行期补丁，必须在 HomeInterface 实例化之前挂上）
-        try:
-            engine.vc_transcribe_ui_patch()
-        except Exception as e:  # noqa: BLE001
-            # 别再静默：UI 补丁一旦失败，协议补丁（在它的 ⑤ 里挂）就跟着
-            # 没了，表现为"百炼端点被拿去打 /audio/transcriptions 而断连"
+        if not is_self:
+            # 引擎路径：品牌中性化 + 转录 UI 补丁（类级，须在实例化前挂上）
+            engine.engine_ui_brand_patch()   # 用户可见文案中性化（见 docs\ 声明）
+            # v1.14.1：转录下拉收敛「默认/ASR」+ 独立转录完成回填「字幕翻译」
             try:
-                engine._vc_log(f"转录 UI 补丁失败：{e}")
-            except Exception:  # noqa: BLE001
-                pass
-        # 协议补丁独立再挂一次（幂等）：它才是"走哪条协议"的决定因素
+                engine.vc_transcribe_ui_patch()
+            except Exception as e:  # noqa: BLE001
+                # 别再静默：UI 补丁一旦失败，协议补丁（在它的 ⑤ 里挂）就跟着
+                # 没了，表现为"百炼端点被拿去打 /audio/transcriptions 而断连"
+                try:
+                    engine._vc_log(f"转录 UI 补丁失败：{e}")
+                except Exception:  # noqa: BLE001
+                    pass
+        # 协议补丁独立再挂一次（幂等）：它才是"走哪条协议"的决定因素（后端，两条路径都要）
         try:
             engine.vc_asr_protocol_patch()
         except Exception:  # noqa: BLE001
             pass
         t0 = time.perf_counter()
-        home = HomeInterface()
-        _perf_note(f"HomeInterface 构造：{time.perf_counter() - t0:.2f}s")
+        try:
+            home = HomeInterface()
+        except Exception as e:  # noqa: BLE001
+            if not is_self:
+                self.state_label.setText(f"字幕引擎加载失败：{e}")
+                _perf_note(f"HomeInterface 构造失败：{e}")
+                return None
+            # 自研构造失败 → 回退引擎，界面绝不能打不开
+            _perf_note(f"自研 HomeInterface 构造失败，回退引擎：{e}")
+            try:
+                engine._vc_log(f"自研 UI 构造失败，回退引擎：{e}")
+            except Exception:  # noqa: BLE001
+                pass
+            try:
+                from videocaptioner.ui.view.home_interface import HomeInterface as _EH
+                engine.engine_ui_brand_patch()
+                engine.vc_transcribe_ui_patch()
+            except Exception as e2:  # noqa: BLE001
+                self.state_label.setText(f"字幕引擎加载失败：{e2}")
+                return None
+            home = _EH()
+        _perf_note(f"HomeInterface 构造：{time.perf_counter() - t0:.2f}s"
+                   f"（{'自研' if is_self else '引擎'}）")
         # v1.12.0：工作台优化——
         #   · 隐藏「字幕校正」按钮（校准类功能统一到「字幕校准」板块）；
         #   · 收紧主布局间距、字幕表格吃满剩余空间（调整页面比例）。
@@ -4269,9 +4352,23 @@ class SettingsPage(QWidget):
         self._engine_built = True
         try:
             from PyQt5.QtWidgets import QFrame
-            from videocaptioner.ui.view.setting_interface import SettingInterface
-            engine.engine_ui_brand_patch()
-            setting = SettingInterface(self.engine_holder)
+            _home_cls, SettingInterface, is_self, ui_err = _resolve_engine_ui()
+            if ui_err:
+                _perf_note(f"自研设置页不可用，回退引擎：{ui_err}")
+            if SettingInterface is None:
+                raise RuntimeError("无可用设置页实现")
+            if not is_self:
+                engine.engine_ui_brand_patch()
+            try:
+                setting = SettingInterface(self.engine_holder)
+            except Exception as e:  # noqa: BLE001
+                if not is_self:
+                    raise
+                _perf_note(f"自研 SettingInterface 构造失败，回退引擎：{e}")
+                from videocaptioner.ui.view.setting_interface import (
+                    SettingInterface as _ES)
+                engine.engine_ui_brand_patch()
+                setting = _ES(self.engine_holder)
             try:
                 setting.settingLabel.hide()          # 去掉重复的「设置」大标题
             except Exception:
@@ -4294,7 +4391,7 @@ class SettingsPage(QWidget):
             # 移除「LLM 大模型翻译」选项；若引擎 QConfig 当前正选着 LLM，
             # 一并改回「微软翻译」，保证 combo 移除该项后仍有合法选中值。
             try:
-                from videocaptioner.core.entities import TranslatorServiceEnum as _TSE
+                from engine_entities import TranslatorServiceEnum as _TSE
                 from videocaptioner.ui.common.config import cfg as _vcfg
                 if _vcfg.get(_vcfg.translator_service) == _TSE.OPENAI:
                     _vcfg.set(_vcfg.translator_service, _TSE.BING)

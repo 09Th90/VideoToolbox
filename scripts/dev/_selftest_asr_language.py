@@ -5,7 +5,7 @@
 覆盖：
   1. schema：DEFAULT_CONFIG 含 asr_language（否则保存被静默丢弃）；
   2. asr_config 语言映射：标签 → ISO 码（自动检测/未知 → ""）；
-  3. 标签表与引擎 LANGUAGES / TranscribeLanguageEnum 对齐（含 QT 下拉 ⊆ 枚举）；
+  3. 标签表与契约 LANGUAGES / TranscribeLanguageEnum 对齐（含 QT 下拉 ⊆ 枚举）；
   4. apply_asr_to_engine：显式语言写 settings.json 的 TranscribeLanguage，
      「自动检测」刻意不碰（mock IO，不写真实引擎配置）；
   5. 运行期补丁：任务创建时 TranscribeConfig.transcribe_language 被强制
@@ -60,13 +60,14 @@ check("缺键 → 按自动检测", ac["language"] == "")
 ac = engine.ai_mod().asr_config({"asr_language": "克林贡语"})
 check("未知标签 → code=''（不猜）", ac["language"] == "")
 
-# ---------- 3. 与引擎表对齐 ----------
+# ---------- 3. 与契约表对齐 ----------
+# 权威表已迁到自研 engine_entities（与引擎的逐值一致性由
+# scripts/dev/_selftest_engine_entities.py 保证），此处验我们自己的码表。
 try:
-    from videocaptioner.core.entities import (LANGUAGES,
-                                              TranscribeLanguageEnum)
+    from engine_entities import LANGUAGES, TranscribeLanguageEnum
     _enum = [e.value for e in TranscribeLanguageEnum]
     _codes = engine.ai_mod().ASR_LANGUAGE_CODES
-    check("码表键 ⊆ 引擎 LANGUAGES", all(k in LANGUAGES for k in _codes),
+    check("码表键 ⊆ 契约 LANGUAGES", all(k in LANGUAGES for k in _codes),
           str([k for k in _codes if k not in LANGUAGES]))
     check("码表值与 LANGUAGES 一致",
           all(LANGUAGES[k] == v for k, v in _codes.items()),

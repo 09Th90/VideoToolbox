@@ -565,9 +565,12 @@ def vc_redirect_paths():
       · ffmpeg/ffprobe 复用工具箱自带 tools\\ffmpeg.exe（BIN_PATH=TOOLS_DIR 并加入 PATH）
     """
     import sys as _sys
+    from engine_paths import (REDIRECT_FLAG, apply_engine_paths,
+                              ensure_runtime_dirs)
+
     _cfg_mod = _sys.modules.get("videocaptioner.config")
     if _cfg_mod is not None:
-        if getattr(_cfg_mod, "_VT_REDIRECT_DONE", False):
+        if getattr(_cfg_mod, REDIRECT_FLAG, False):
             return  # 本进程已重定向过，幂等
         # 已导入但没重定向过 = 有补丁抢跑了（见 prepare_runtime_env 里的顺序说明）。
         # 此时部分模块可能已把默认常量固化成 AppData，仍尽量覆盖可动态读取的部分，
@@ -577,95 +580,41 @@ def vc_redirect_paths():
                     "引擎部分模块可能仍指向默认（AppData）路径")
         except Exception:
             pass
-    target = Path(vc_data_dir())
-    user_style_dir = target / "resource" / "subtitle_style"
-    try:
-        target.mkdir(parents=True, exist_ok=True)
-        for sub in ("logs", "cache", "models", "work-dir"):
-            (target / sub).mkdir(parents=True, exist_ok=True)
-        user_style_dir.mkdir(parents=True, exist_ok=True)
-    except OSError:
-        pass
 
     from videocaptioner import config as _vc_cfg
 
-    # —— 可写运行数据，全部收进软件文件夹（不写系统盘）——
-    _vc_cfg.ROOT_PATH = target
-    _vc_cfg.APPDATA_PATH = target
-    _vc_cfg.WORK_PATH = target / "work-dir"
-    _vc_cfg.LOG_PATH = target / "logs"
-    _vc_cfg.LLM_LOG_FILE = _vc_cfg.LOG_PATH / "llm_requests.jsonl"
-    _vc_cfg.SETTINGS_PATH = target / "settings.json"
-    _vc_cfg.CACHE_PATH = target / "cache"
-    _vc_cfg.MODEL_PATH = target / "models"
-
-    # —— 只读静态资源：优先随包目录；缺失时回退数据目录（保持旧行为、不崩）——
-    bundled = Path(vc_bundled_resource_dir())
-    res_root = bundled if bundled.is_dir() else (target / "resource")
-    try:
-        res_root.mkdir(parents=True, exist_ok=True)
-    except OSError:
-        pass
-    _vc_cfg.RESOURCE_PATH = res_root
-    _vc_cfg.ASSETS_PATH = res_root / "assets"
-    _vc_cfg.TRANSLATIONS_PATH = res_root / "translations"
-    fonts_dir = res_root / "fonts"
-    if not fonts_dir.is_dir():
-        # 回退到包内自带字体（videocaptioner/resources/fonts）
-        fonts_dir = getattr(_vc_cfg, "_BUNDLED_FONTS", fonts_dir)
-    _vc_cfg.FONTS_PATH = fonts_dir
-
-    # —— 用户字幕样式放可写数据目录，并从随包默认样式补齐缺失预设（不覆盖用户）——
-    _vc_cfg.SUBTITLE_STYLE_PATH = user_style_dir
-    try:
-        seed = bundled / "subtitle_style"
-        if seed.is_dir():
-            for jf in seed.glob("*.json"):
-                dst = user_style_dir / jf.name
-                if not dst.exists():
-                    shutil.copyfile(jf, dst)
-    except OSError:
-        pass
-
-    # —— ffmpeg/ffprobe：复用工具箱自带二进制（BIN_PATH 指向 TOOLS_DIR）——
-    bin_dir = Path(TOOLS_DIR)
-    _vc_cfg.BIN_PATH = bin_dir
-    _vc_cfg.FASTER_WHISPER_PATH = bin_dir / "Faster-Whisper-XXL"
-    # config 导入期那次 PATH 注入用的是空 BIN（目录不存在即跳过），这里自行补上，
-    # 保证引擎内部裸调 "ffmpeg"/"ffprobe" 能命中随包二进制。
-    try:
-        cur = os.environ.get("PATH", "")
-        parts = cur.split(os.pathsep) if cur else []
-        if str(bin_dir) not in parts:
-            os.environ["PATH"] = str(bin_dir) + os.pathsep + cur
-        if _vc_cfg.FASTER_WHISPER_PATH.is_dir() and \
-                str(_vc_cfg.FASTER_WHISPER_PATH) not in parts:
-            os.environ["PATH"] = str(_vc_cfg.FASTER_WHISPER_PATH) + \
-                os.pathsep + os.environ["PATH"]
-    except OSError:
-        pass
-
-    for _p in (_vc_cfg.WORK_PATH, _vc_cfg.LOG_PATH, _vc_cfg.CACHE_PATH,
-               _vc_cfg.MODEL_PATH):
-        try:
-            Path(_p).mkdir(parents=True, exist_ok=True)
-        except OSError:
-            pass
-
-    # CLI 子模块另有一套 user_config_dir 约定（默认 AppData\\Roaming），
-    # 它按需导入，故用 sys.modules 预置桩模块的方式覆盖其常量。
+    # 路径取值的唯一事实来源是自研 engine_paths（v1.20.0 起接管 config 接缝）：
+    # 本函数只负责「取第三方模块 → 交给自研模块写 → 建目录 / 注 PATH」。
+    # 引擎侧日后新增路径常量，只需改 engine_paths 一处，不必在这里人肉维护。
+    _paths = _engine_paths()
     try:
         from videocaptioner.cli import config as _vc_cli
-        _vc_cli.CONFIG_DIR = target / "cli"
-        _vc_cli.CONFIG_FILE = _vc_cli.CONFIG_DIR / "config.toml"
-        _vc_cli.CONFIG_DIR.mkdir(parents=True, exist_ok=True)
     except Exception:
-        pass
+        _vc_cli = None
+    apply_engine_paths(
+        _vc_cfg, _paths,
+        cli_cfg=_vc_cli,
+        fallback_fonts_dir=getattr(_vc_cfg, "_BUNDLED_FONTS", None),
+    )
+    ensure_runtime_dirs(
+        _paths,
+        fallback_fonts_dir=getattr(_vc_cfg, "_BUNDLED_FONTS", None),
+    )
 
-    try:
-        _vc_cfg._VT_REDIRECT_DONE = True
-    except Exception:
-        pass
+
+def _engine_paths():
+    """构造引擎路径视图（``engine_paths.EnginePaths``）。
+
+    单独一个小函数是为了让自检能直接复用同一套取值，而不必重复拼
+    ``DATA_DIR`` / ``TOOLS_DIR`` / 随包资源目录这三处。
+    """
+    from engine_paths import EnginePaths
+    return EnginePaths(
+        data_dir=vc_data_dir(),
+        tools_dir=TOOLS_DIR,
+        bundled_resource_dir=vc_bundled_resource_dir(),
+        vc_name=VC_NAME,
+    )
 
 
 # ---------- 引擎 settings.json：路径全部收进软件文件夹 + 全局 LLM 注入 ----------
@@ -777,7 +726,7 @@ def apply_global_llm_to_engine(ai_cfg=None):
         # 内存态同步（引擎界面已构建、QConfig 已导入时）
         try:
             from videocaptioner.ui.common.config import cfg as _cfg
-            from videocaptioner.core.entities import LLMServiceEnum
+            from engine_entities import LLMServiceEnum
             if base:
                 _cfg.set(_cfg.openai_api_base, base)
             if key:
@@ -869,8 +818,8 @@ def apply_asr_to_engine(ai_cfg=None):
         # 内存态同步（引擎界面/QConfig 已加载时免重启生效）
         try:
             from videocaptioner.ui.common.config import cfg as _cfg
-            from videocaptioner.core.entities import (FasterWhisperModelEnum,
-                                                      TranscribeModelEnum)
+            from engine_entities import (FasterWhisperModelEnum,
+                                         TranscribeModelEnum)
             _cfg.set(_cfg.transcribe_model,
                      TranscribeModelEnum.FASTER_WHISPER if ac["mode"] == "local"
                      else TranscribeModelEnum.WHISPER_API)
@@ -891,7 +840,7 @@ def apply_asr_to_engine(ai_cfg=None):
             # 识别语言内存同步（与 settings.json 写入同口径：仅显式语言）
             _lang_label = str(ac.get("language_label") or "").strip()
             if _lang_label and _lang_label != "自动检测":
-                from videocaptioner.core.entities import TranscribeLanguageEnum
+                from engine_entities import TranscribeLanguageEnum
                 _cfg.set(_cfg.transcribe_language,
                          TranscribeLanguageEnum(_lang_label))
         except Exception:
@@ -947,7 +896,7 @@ def vc_asr_patch_apply():
                 tcfg = getattr(task, "transcribe_config", None)
                 if tcfg is not None:
                     try:
-                        from videocaptioner.core.entities import LANGUAGES
+                        from engine_entities import LANGUAGES
                         tcfg.transcribe_language = LANGUAGES.get(_label, "")
                     except Exception:  # noqa: BLE001
                         tcfg.transcribe_language = \
@@ -1192,7 +1141,7 @@ def vc_transcribe_ui_patch():
     try:
         from videocaptioner.ui.view import transcription_interface as ti
         from videocaptioner.ui.components import transcription_setting_card as tsc
-        from videocaptioner.core.entities import TranscribeModelEnum
+        from engine_entities import TranscribeModelEnum
         from videocaptioner.ui.common.config import cfg as _cfg
         from qfluentwidgets import (Action, BodyLabel, FluentIcon, InfoBar,
                                     InfoBarPosition, PushButton, RoundMenu)
@@ -1478,7 +1427,7 @@ def vc_transcribe_ui_patch():
         # 先把表格里的编辑写回文件——与引擎 `start_subtitle_optimization` 同款，
         # 否则筛选会连带丢掉用户在表格里做的合并 / 删除 / 编辑。
         try:
-            from videocaptioner.core.asr.asr_data import ASRData
+            from engine_asr_data import ASRData
             if getattr(getattr(iface, "model", None), "_data", None):
                 ASRData.from_json(iface.model._data).to_srt(save_path=path)
         except Exception as e:  # noqa: BLE001
@@ -4529,77 +4478,65 @@ def _ts_probe_ok(kind):
 
 
 def vc_lazy_cache_patch():
-    """把 diskcache.Cache 换成惰性代理，省掉引擎导入时建库的 2~4 秒（幂等）。
+    """把引擎 5 处 diskcache 实例创建改成惰性建库（幂等）。
 
-    引擎在 videocaptioner.core.utils.cache 模块级创建 5 个 diskcache 实例
+    引擎在 `videocaptioner.core.utils.cache` 模块级创建 5 个 diskcache 实例
     （LLM / ASR / TTS / 翻译 / 版本状态），每个都会真实打开 SQLite 建库并做
     维护：本机实测每个约 0.9 秒（慢盘更久），合计 2.5~4.5 秒——而进入「字幕
-    处理」页并不需要任何缓存。这里在引擎导入**之前**替换 diskcache.Cache：
-    首个属性访问才真正建库，`memoize` 也延迟到首次调用才建库，语义不变。
+    处理」页并不需要任何缓存。
+
+    v1.20.0 起改用自研 `engine_cache`（cache 接缝接管）：
+      · 惰性策略与实例管理归自研模块，**不再 monkey-patch diskcache 的类**——
+        旧做法把 `diskcache.Cache` 整个换成代理类，等于改写第三方库的公开面；
+      · diskcache 保留为 Apache-2.0 底层组件（不重写 SQLite 缓存引擎）；
+      · diskcache 缺失时降级为进程内字典缓存，而不是让程序起不来。
+
     必须在任何 videocaptioner 导入之前调用（prepare_runtime_env 最前面）。
     """
     try:
+        import sys as _sys
         import diskcache
-    except Exception:  # noqa: BLE001
+    except Exception as e:  # noqa: BLE001
+        _vc_log(f"缓存补丁跳过（diskcache 不可用，引擎将走内存降级）：{e}")
         return False
     if getattr(diskcache, "_vt_lazy_patched", False):
         return True
+    from engine_cache import CACHE_KINDS, LazyCache
+
+    # 让第三方 `from diskcache import Cache` 拿到的仍是真 Cache——
+    # 我们只在这里把「模块级实例」换成惰性代理，公开类本身不动。
     real_cache = diskcache.Cache
 
-    class _LazyCache:
-        """diskcache.Cache 的惰性代理：真正用到时才建库。"""
+    def _vt_lazy_cache_factory(directory, *args, **kwargs):
+        """引擎构造缓存实例时的唯一入口：返回自研惰性代理。"""
+        sub = str(directory).replace("\\", "/").rstrip("/").split("/")[-1]
+        kind = next((k for k, v in CACHE_KINDS.items() if v == sub), None)
+        if kind is not None:
+            # 走 hub：同一 kind 复用同一实例（与引擎「模块级单例」等价）
+            return _vt_cache_hub().get(kind)
+        return LazyCache(directory, *args, **kwargs)
 
-        def __init__(self, directory, **kwargs):
-            self.__dict__["_lc_args"] = (directory,)
-            self.__dict__["_lc_kwargs"] = kwargs
-            self.__dict__["_lc_real"] = None
-
-        def _lc(self):
-            obj = self.__dict__["_lc_real"]
-            if obj is None:
-                obj = self.__dict__["_lc_real"] = real_cache(
-                    *self.__dict__["_lc_args"], **self.__dict__["_lc_kwargs"])
-            return obj
-
-        def __getattr__(self, name):
-            return getattr(self._lc(), name)
-
-        def __len__(self):
-            return len(self._lc())
-
-        def __contains__(self, key):
-            return key in self._lc()
-
-        def __getitem__(self, key):
-            return self._lc()[key]
-
-        def __setitem__(self, key, value):
-            self._lc()[key] = value
-
-        def __delitem__(self, key):
-            del self._lc()[key]
-
-        def __iter__(self):
-            return iter(self._lc())
-
-        def memoize(self, **kwargs):
-            def deco(func):
-                holder = {}
-
-                def wrapper(*a, **kw):
-                    m = holder.get("m")
-                    if m is None:
-                        m = holder["m"] = self._lc().memoize(**kwargs)(func)
-                    return m(*a, **kw)
-                wrapper.__name__ = getattr(func, "__name__", "wrapper")
-                wrapper.__doc__ = getattr(func, "__doc__", None)
-                wrapper.__wrapped__ = func
-                return wrapper
-            return deco
-
-    diskcache.Cache = _LazyCache
+    diskcache.Cache = _vt_lazy_cache_factory
     diskcache._vt_lazy_patched = True
+    diskcache._vt_real_cache = real_cache
     return True
+
+
+def _vt_cache_hub():
+    """进程内单例的缓存工厂（幂等）。
+
+    放在这里而不是模块级，是为了让缓存根目录跟随 `engine_paths` 的取值，
+    且能在 `VT_DATA_ROOT` 变更后仍取到正确根。
+    """
+    hub = getattr(vc_lazy_cache_patch, "_hub", None)
+    if hub is None:
+        from engine_cache import CacheHub
+        hub = CacheHub(os.path.join(vc_data_dir(), "cache"))
+        try:
+            vc_lazy_cache_patch._hub = hub
+        except (AttributeError, TypeError):
+            pass
+    return hub
 
 
 def vc_prepare_settings_file():

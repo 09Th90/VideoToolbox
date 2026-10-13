@@ -51,16 +51,28 @@ PROMPTS = {
     "split_sentence.md": "core/prompts/split/sentence.md",
     "analysis_video.md": "core/prompts/analysis/video.md",
 }
-#: 官方翻译器实现（docs/vc_translate_impl）→ 引擎 translate 对应文件
-TRANSLATORS = {
-    "google_translator.py": "core/translate/google_translator.py",
-    "bing_translator.py": "core/translate/bing_translator.py",
-    "deeplx_translator.py": "core/translate/deeplx_translator.py",
-    # v1.12.0：base 补丁——失败条目不写缓存（防端点失败结果污染缓存 7 天）
-    "base.py": "core/translate/base.py",
-    # v1.12.0：LLM 提示词传 target_language.value（枚举对象渲染成字面量）
-    "llm_translator.py": "core/translate/llm_translator.py",
-    # v1.11.0：字幕线程的「取消」修复（stop() 补停翻译器线程池）
+#: 引擎 translate 对应文件的**本地补丁**（翻译器本体已迁至 src/engine_translate.py）
+#:
+#: v1.20.0 变更（P1 翻译接缝接管）：原先此处从 ``docs/vc_translate_impl/``
+#: 回写 6 个第三方文件。其中 5 个是**翻译器实现**（bing/google/deeplx/base/
+#: llm_translator），已由 ``src/engine_translate.py``（自研：端点/协议/错误标记
+#: 按可观察行为重写）接管 ⇒ 从回写表中**退役**。
+#:
+#: ⚠ 诚实边界：``subtitle_thread.py`` **仍需保留**在回写表中。它是引擎
+#: ``ui/thread/subtitle_thread.py`` 的**本地补丁版**（取消修复 stop() 补停
+#: 翻译器线程池 + 说话人提示词注入），属第三方源码的改写件——彻底退役需要
+#: 把整个字幕线程重写为自研（P2/P3 范围，非 P1）。本项目**如实**把它单列到
+#: ``TRANSLATORS_REMAINING``，使「还剩几处第三方源码」一眼可见，而不是
+#: 藏在已退役的表里。
+#:
+#: ``docs/vc_prompts_official/``（提示词 .md）**保留**：那是提示词文本数据、
+#: 不是源码，属资源归档；LLM 翻译/反思翻译仍从那里套用。
+TRANSLATORS = {}
+
+#: 仍持有第三方源码的引擎文件（P2/P3 待自研替换）。每项：
+#: 归档文件名 → 引擎内相对路径。
+TRANSLATORS_REMAINING = {
+    # 引擎 ui/thread/subtitle_thread.py 的本地补丁版（P2/P3 重写为自研）
     "subtitle_thread.py": "ui/thread/subtitle_thread.py",
 }
 
@@ -86,7 +98,8 @@ def main():
 
     jobs = []
     for src_dir, table, tag in (("vc_prompts_official", PROMPTS, "提示词"),
-                                ("vc_translate_impl", TRANSLATORS, "翻译器")):
+                                ("vc_translate_impl", TRANSLATORS_REMAINING,
+                                 "翻译器")):
         base = os.path.join(ROOT, "docs", src_dir)
         for fname, rel in table.items():
             src = os.path.join(base, fname)
@@ -101,6 +114,15 @@ def main():
     for tag, src, dst, rel, same in jobs:
         mark = "已是官方版" if same else ("将覆盖" if args.check else "已覆盖")
         print(f"[{tag}] {rel:<44} {mark}")
+
+    # 透明披露：仍持有第三方源码的归档文件（P2/P3 待自研替换）。
+    # 不静默删除——「还剩几处」必须是可见事实，供 P5 清理与 P6 口径统一引用。
+    remaining = sorted(TRANSLATORS_REMAINING)
+    if remaining:
+        print(f"\n[合规] 仍归档 {len(remaining)} 个第三方源码改写件（P2/P3 待替换）："
+              f"{', '.join(remaining)}")
+        print("       翻译器本体已由 src/engine_translate.py 自研接管；"
+              "此处仅为引擎字幕线程补丁，待 P2/P3 重写。")
 
     if args.check or not pending:
         print(f"共 {len(jobs)} 项，待套用 {len(pending)} 项。")

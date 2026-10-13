@@ -54,6 +54,35 @@ def top_level_imports(paths):
     return hits
 
 
+def own_modules(src):
+    """本项目自研的顶层模块名集合（= spec 会打进 exe 的那些）。
+
+    口径必须与 ``视频工具箱.spec`` 的 pathex 一致，否则发布前检查永远红：
+
+    * ``src/*.py`` 的文件级模块；
+    * ``src/<子包>/``（如 ``vt_engine_ui``）的**包**——它们由
+      ``collect_submodules('vt_engine_ui')`` 收进 PYZ，物理上在``src`` 下但
+      **不是** ``src`` 的直接子文件。此前只取 ``src.glob('*.py')``，
+      于是把自研子包报成「缺失的第三方模块」——假阳性（v2.1.0 实测：
+      ``vt_engine_ui`` 被报缺失，而它 import 成功、spec 也已登记）；
+    * ``packaging/online_release/*.py``（vt_dl / vt_update_core /
+      vt_version_index）——由 pathex + hiddenimports 收进 PYZ。
+    """
+    names = {p.stem for p in src.glob("*.py")}
+    for pkg in src.iterdir():
+        if not pkg.is_dir():
+            continue
+        if pkg.name == "__pycache__":
+            continue
+        # 目录名本身即包名；以 __init__.py 确认，避免把普通文件夹当包
+        if (pkg / "__init__.py").is_file():
+            names.add(pkg.name)
+    orel = ROOT / "packaging" / "online_release"
+    if orel.is_dir():
+        names |= {p.stem for p in orel.glob("*.py")}
+    return names
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--list", action="store_true", help="打印全部顶层模块")
@@ -62,29 +91,35 @@ def main():
     src = ROOT / "src"
     targets = [p for p in src.glob("*.py")
                if not p.name.startswith(SKIP_PREFIX)]
+    n_own_files = len(targets)
+    # 自研**子包**（如 vt_engine_ui）也要扫：里面的 import 同样是打包依赖。
+    # 排除 __pycache__ 与开发期脚本目录。
+    for pkg in src.iterdir():
+        if not pkg.is_dir() or pkg.name == "__pycache__":
+            continue
+        for f in pkg.rglob("*.py"):
+            if "__pycache__" in f.parts or f.name.startswith(SKIP_PREFIX):
+                continue
+            targets.append(f)
+    n_self_pkg = len(targets) - n_own_files
     # 引擎取**当前解释器**能 import 到的那份（打包环境=打包副本，tools\python=运行副本）
     try:
         spec = importlib.util.find_spec("videocaptioner")
         engine_dir = Path(spec.origin).parent if spec and spec.origin else None
     except Exception:  # noqa: BLE001
         engine_dir = None
+    n_engine = 0
     if engine_dir:
-        targets += list(engine_dir.rglob("*.py"))
-        print("自研脚本 %d 个 + 引擎 %s"
-              % (len(targets) - len(list(engine_dir.rglob('*.py'))), engine_dir))
+        engine_files = list(engine_dir.rglob("*.py"))
+        n_engine = len(engine_files)
+        targets += engine_files
+        print("自研脚本 %d 个 + 自研子包 %d 个 + 引擎 %s"
+              % (n_own_files, n_self_pkg, engine_dir))
     else:
         print("⚠ 当前解释器下解析不到 videocaptioner，只检查自研脚本")
 
     hits = top_level_imports(targets)
-    own = {p.stem for p in src.glob("*.py")}          # 自研兄弟模块
-    # ⚠ v2.0.0：在线安装/更新的三个模块（vt_dl / vt_update_core /
-    #   vt_version_index）物理上在 packaging\online_release\，由 spec 的
-    #   **pathex + hiddenimports** 收进 PYZ，不装进解释器环境。此前本检查
-    #   只认 src\*.py，于是把它们报成「缺失」——假阳性。口径必须与
-    #   视频工具箱.spec 的 pathex 保持一致，否则发布前检查永远红。
-    orel = ROOT / "packaging" / "online_release"
-    if orel.is_dir():
-        own |= {p.stem for p in orel.glob("*.py")}
+    own = own_modules(src)
     # 引擎自身的子包
     own |= {"videocaptioner"}
 

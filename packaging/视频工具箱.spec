@@ -109,6 +109,39 @@ hiddenimports += collect_submodules('videocaptioner')
 # 跟踪到，这里显式声明双保险——退出同步子进程/界面都依赖它）。
 hiddenimports += ['calib_merge_core']
 
+# 2026-10-13：P1 引擎自研化接缝（替代 videocaptioner.core.entities 的枚举与
+#   videocaptioner.core.asr.asr_data 的字幕数据模型）。video_toolbox 里全是
+#   **函数体内延迟 import**（如 vc_transcribe_ui_patch 内 import engine_entities、
+#   _vt_filter_current_subtitle 内 import engine_asr_data），静态分析跟踪不到；
+#   且 engine_asr_data 静态 import 了 engine_entities / subtitle_editor_core，
+#   必须显式声明，否则声纹筛选回写字幕表格时 ModuleNotFoundError（调用点套了
+#   try/except 只记日志，不报错）。两模块均零三方依赖（langdetect 为可选增强）。
+hiddenimports += ['engine_entities', 'engine_asr_data']
+
+# 2026-10-13（并行会话补）：cache / paths 两个接缝同样是函数体内延迟 import
+#   （video_toolbox.vc_lazy_cache_patch 内 import engine_cache、路径重定向处
+#   import engine_paths），不声明的话打包后惰性缓存与路径接管静默失效。
+hiddenimports += ['engine_cache', 'engine_paths']
+
+# 2026-10-13：翻译接缝（engine_translate）——自研替代三个免费翻译器的第三方
+#   实现，是本项目**不再持有第三方翻译器源码**的关键（原先靠 docs\vc_translate_impl
+#   的 GPL 副本回写引擎）。仅被自检与将来的接管调用点引用，故显式声明。
+hiddenimports += ['engine_translate']
+
+# 2026-10-13：ASR 链路（P2 档 B）—— WhisperAPI / BaseASR / ChunkedASR+ChunkMerger /
+#   transcribe 编排。engine_asr 内对 engine_asr_http / engine_asr_local 都是**函数体内
+#   延迟 import**（前者只在 _submit 里用到、后者只在 local 模式分发时用到），
+#   静态分析跟踪不到；漏声明的表现是「远端转录可用、local 模式 ImportError」。
+#   engine_asr_local 依赖 GPUtil（可选增强，try-import），不必显式声明。
+hiddenimports += ['engine_asr', 'engine_asr_http', 'engine_asr_local']
+
+# 2026-10-13（P2 尾部 / 档 B）：自研任务工厂 engine_task_factory —— 接管
+#   videocaptioner.ui.task_factory 的构造逻辑，内建 vc_asr_patch_apply 的本地模型/
+#   显式语言覆盖。由 vt_engine_ui._seams 在**属性访问时惰性 import**（且有引擎回退），
+#   静态分析跟踪不到；漏声明的表现是「打包后自研 UI 静默回退引擎工厂」——功能不缺
+#   但自研化没生效，最难发现。_selftest_engine_task_factory.py 已逐字段比对通过。
+hiddenimports += ['engine_task_factory']
+
 # v1.13.x：界面美化（各板块自定义背景图，src\ui_theme.py，video_toolbox_qt
 # 顶层 import 本可被静态跟踪，按惯例显式声明双保险）。
 hiddenimports += ['ui_theme']
@@ -213,6 +246,22 @@ hiddenimports += ['httpx', 'httpcore', 'anyio', 'sniffio', 'h11', 'certifi',
 #     兼顾「在线安装器也能从主程序目录取用」的场景。
 online_release_dir = os.path.join(SPEC_DIR, 'online_release')
 hiddenimports += ['vt_dl', 'vt_update_core', 'vt_version_index']
+
+# v2.1.0（P3 引擎自研化 · 档 C）：自研字幕工作台 UI 包 `vt_engine_ui`。
+#   由 video_toolbox_qt._resolve_engine_ui() 在**函数体内** `import vt_engine_ui`
+#   （延迟导入 + 引擎回退），PyInstaller 静态分析跟踪不到；其子模块
+#   （home_interface / *_interface / components / _seams / _signals 等）又在包
+#   __init__ 里二次延迟导入 ⇒ 不声明的话打包后自研 UI 整体缺失，_resolve 静默
+#   回退引擎，表现为「替换没生效但也不报错」——与声纹那两次同类、最难查。
+#   collect_submodules 递归收全包，一次到位。
+#   ⚠ vt_engine_ui 物理位于 src\（非 site-packages 安装包），而 collect_submodules
+#     在 **spec 解析期**就要 import 该包来枚举子模块——此时 pathex 尚未生效
+#     （pathex 只作用于下方 Analysis）。不先把 SRC_DIR 塞进 sys.path，本调用会
+#     **静默返回空列表**（实测 resolved=0），等于没声明。故显式补 path 再收集。
+import sys as _sys
+if SRC_DIR not in _sys.path:
+    _sys.path.insert(0, SRC_DIR)
+hiddenimports += collect_submodules('vt_engine_ui')
 if os.path.isdir(online_release_dir):
     datas += [(os.path.join(online_release_dir, f),
                os.path.join('online_release', f))

@@ -237,18 +237,19 @@ def main():
         #    第一次 dirname 得到 scripts/dev，故共需三层才到仓库根
         #    （原为两层 ⇒ 解析成 scripts/docs/... 而 FileNotFoundError，
         #     2026-10-08 文件功能分类移动时漏改）。
-        p = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
-            os.path.abspath(__file__)))), "docs", "vc_translate_impl",
-            "subtitle_thread.py")
-        src = open(p, encoding="utf-8").read()
-        check("归档源含说话人一致性提示词注入",
-              "speaker_info" in src and "Speaker diarization" in src)
-        check("运行时引擎已同步该改动",
-              "speaker_info" in open(os.path.join(
-                  engine.EMBEDDED_SITE_PACKAGES, "videocaptioner", "ui",
-                  "thread", "subtitle_thread.py"), encoding="utf-8").read())
+        # v1.20.0：docs/vc_translate_impl 的第三方源码副本已退役（P1 翻译接缝
+        #   由 src/engine_translate.py 接管），本项改为**只**校验运行期引擎
+        #   侧是否含该提示词注入。原先「归档源 + 引擎侧」双查，前者已无对象。
+        eng_thread = os.path.join(engine.EMBEDDED_SITE_PACKAGES,
+                                  "videocaptioner", "ui", "thread",
+                                  "subtitle_thread.py")
+        eng_src = open(eng_thread, encoding="utf-8").read()
+        check("运行时引擎含说话人一致性提示词注入",
+              "speaker_info" in eng_src and "Speaker diarization" in eng_src)
+        check("引擎侧已同步该改动",
+              "speaker_info" in eng_src)
     except Exception as e:  # noqa: BLE001
-        check("翻译锚定源可读", False, repr(e))
+        check("说话人提示词注入校验失败", False, repr(e))
 
     # ---------------- 汇总 ----------------
     say("\n" + "=" * 62)
