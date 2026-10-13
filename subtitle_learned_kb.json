@@ -1353,7 +1353,7 @@
    "mode": "bi",
    "count": 2,
    "uncorrected": 0,
-   "status": "confirmed",
+   "status": "rejected",
    "cues": [
     811,
     812
@@ -1364,7 +1364,8 @@
    "first": "2026-10-02",
    "last": "2026-10-13",
    "alts": {},
-   "sync": true
+   "sync": true,
+   "note": "2026-10-13 本片裁决：普通词/子串级联误改，废"
   },
   "bi|Withering Waves": {
    "wrong": "Withering Waves",
@@ -1700,7 +1701,7 @@
    "mode": "bi",
    "count": 5,
    "uncorrected": 0,
-   "status": "confirmed",
+   "status": "rejected",
    "cues": [
     213,
     605,
@@ -1714,7 +1715,8 @@
    "first": "2026-10-02",
    "last": "2026-10-13",
    "alts": {},
-   "sync": true
+   "sync": true,
+   "note": "2026-10-13 本片裁决：普通词/子串级联误改，废"
   },
   "bi|Arkn ights": {
    "wrong": "Arkn ights",
@@ -2145,7 +2147,7 @@
    "mode": "bi",
    "count": 2,
    "uncorrected": 0,
-   "status": "confirmed",
+   "status": "rejected",
    "cues": [
     4146,
     4382
@@ -2156,7 +2158,8 @@
    "first": "2026-10-05",
    "last": "2026-10-13",
    "alts": {},
-   "sync": true
+   "sync": true,
+   "note": "2026-10-13 裁决：静态表已有正确键 月狐岁主希恩->岁主心月狐，KB 版产生月狐心月狐坏形，废"
   },
   "bi|Shin": {
    "wrong": "Shin",
@@ -3673,7 +3676,7 @@
    "mode": "bi",
    "count": 10,
    "uncorrected": 0,
-   "status": "confirmed",
+   "status": "rejected",
    "cues": [
     815,
     886,
@@ -3692,7 +3695,8 @@
    "first": "2026-10-07",
    "last": "2026-10-13",
    "alts": {},
-   "sync": true
+   "sync": true,
+   "note": "2026-10-13 本片裁决：普通词/子串级联误改，废"
   },
   "bi|总统露西拉，": {
    "wrong": "总统露西拉，",
@@ -3836,7 +3840,7 @@
    "mode": "bi",
    "count": 3,
    "uncorrected": 0,
-   "status": "confirmed",
+   "status": "rejected",
    "cues": [
     871,
     2419,
@@ -3848,7 +3852,8 @@
    "first": "2026-10-07",
    "last": "2026-10-13",
    "alts": {},
-   "sync": true
+   "sync": true,
+   "note": "2026-10-13 本片裁决：普通词/子串级联误改，废"
   },
   "bi|休斯": {
    "wrong": "休斯",
@@ -5825,7 +5830,7 @@
    "mode": "bi",
    "count": 2,
    "uncorrected": 0,
-   "status": "confirmed",
+   "status": "rejected",
    "cues": [
     173
    ],
@@ -5835,7 +5840,8 @@
    "first": "2026-10-10",
    "last": "2026-10-13",
    "alts": {},
-   "sync": true
+   "sync": true,
+   "note": "2026-10-13 本片裁决：普通词/子串级联误改，废"
   },
   "bi|我很高兴听到": {
    "wrong": "我很高兴听到",
@@ -15107,7 +15113,7 @@
    "mode": "bi",
    "count": 2,
    "uncorrected": 0,
-   "status": "confirmed",
+   "status": "rejected",
    "cues": [
     128
    ],
@@ -15117,7 +15123,8 @@
    "first": "2026-10-10",
    "last": "2026-10-11",
    "alts": {},
-   "sync": true
+   "sync": true,
+   "note": "2026-10-13 本片裁决：普通词/子串级联误改，废"
   }
  }
 }

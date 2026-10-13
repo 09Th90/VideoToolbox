@@ -14,6 +14,40 @@
 #   重要官方修正：쇄명（锁暝，쇄=锁'鎖'）/금쇄십계/계주/제천감/진현사기/천라 호영/
 #   몽추천라/화정/악장/더 액시온 等，详见 2.3b 表头注释。
 
+# 2026-10-13 新增任务：《【字幕】Wuthering Waves Exploration Quests and Tales!-谷歌翻译.srt》
+#   （4349 cue，CRLF 无 BOM，中英双语，detect=bi）。三轮治理后终稿 100 处净改动，
+#   verify/align-audit OK。三轮治理内容：
+#   ① 首轮 295 处暴露 6 条学习库坏规则，全部 rejected：'真的'->'其实'（191 处误改，
+#     true 语境"这是真的"被咬成"这是其实"）、'游泳'->'锁暝'（swim 真游泳）、
+#     '这种情况'->'这最后'、'海岸守护者'->'海岸人'、'海罗伊'->'海洛'、'空间集体'->'空联合'
+#     （后三条保持静态表目标）。另废 '月狐哨兵希恩'->'月狐心月狐'（KB 版，静态表
+#     '月狐岁主希恩'->'岁主心月狐' 正确）。
+#   ② 同步层治理：applied.json/baseline.json 里的 CONTEXT_MAP[bi] \bpsycho\b 心理->疯子
+#     条目（2026-09-13 system）在本片 #3563 "psychoanalyze"=心理分析 被误改"疯子分析"；
+#     disabled_keys 三元组对 CONTEXT_MAP 四元键（含 rx）匹配失效（脚本已知局限），
+#     从 baseline.json 直接删除该条目；静态表 psycho CONTEXT 规则同时注释废除并记录。
+#   ③ 侧车 11 条（side_wuwa_explore.tsv）：#152 米达妮娅->米德娜回滚（Midna 是塞尔达
+#     黄昏公主角色，勿套鸣潮达妮娅）；#297 杨秧秧光玲->秧秧阳光玲（'阳阳'键级联咬
+#     "阳光"，待裁决形）；#1535/#2590/#2703 月狐罪/月狐罪恶/沈月狐 ctx 级联
+#     （'月狐'+'罪/罪恶'/'沈'多 ctx 短键互咬出"心月狐心月狐"，组合长键 ctx 已入
+#     3.7 心月狐实体但投影顺序仍在短键后，根治需 ctx 全局长键优先，本轮侧车兜底）；
+#     #1857 疏忽的Aster->重制版（rem aster ASR 断词，'REM'->'疏忽' 3.7 键误咬）；
+#     #2295/#2307 ->岁主共鸣者（Sentinel Res on ator 断词；本片 Sentin els 语境是
+#     Sentinel 非 celestial，3.7 片 'Sentin els'->'天民' 键勿盲套）；#2598 心月狐->
+#     罪回滚（该行 sin 是普通名词非角色指代）；#2788 雷斯->共鸣者；#3214 库洛后空格。
+#   ④ 补键：BILINGUAL '重振器'->'共鸣者'（谷翻 resonator 错形）、'金习'->'今汐'；
+#     心月狐实体 ctx 增组合长键（Sin+Moon Fox->月狐罪/月狐罪恶、Shen+Moon Fox->沈月狐）。
+#   ⚠ 级联教训（同 2026-10-12 韩语片 해형살례 教训一致）：ctx 短键（月狐/罪/沈）+
+#     组合长键共存时，投影顺序不受 ctx 列表顺序控制，长键可能咬短键产物或被短键
+#     抢先——多 ctx 短键交集的词必须侧车整行覆盖兜底，或 ctx 引擎升级全局长键优先。
+#   留观/不确定（未收键，待用户裁决）：#297 "阳光玲"（Sh uang ling 音译，角色名未考）；
+#     #590 "换尿布"（change Yuki 机翻，句级误译按戒律不改）；#1556 梦枢天罗（Simulacrum
+#     无 Nexus 是否同词）；#1976 Fraxinus->残星会（3.7 键沿用，Fraxinus≠Fractsidus 音近）；
+#     #2303 "岁主事务"（Ministry of Sentinel Affairs 跨行断句，与 #2302 谛天鉴并存）；
+#     #2763 川青（Chuan Qing 官方名未考）；#3880/#3889/#3890 演/合作社/合作教育
+#     （play/co-op 机翻，句级不动）。
+#
+
 本文件是工作区全部历史校准脚本的统一沉淀（双语 calib_rules、韩语
 calib_input_ko_out、终末地 calibrate_srt 已全部并入；
 2026-10-12 新增 WUWA CONCERT WATCHPARTY（演唱会观看派对反应片，3731 cue，bi 模式）：
@@ -884,6 +918,60 @@ BILINGUAL_TERMS = {
     "Fractsidus": "残星会",
     # 鸣潮(Wuthering Waves) 的 EN ASR 误听（"Wu"→"Water"），出现即游戏名，无歧义
     "Watering Waves": "鸣潮", "Watering Wave": "鸣潮",
+    # --- 2026-10-13 WISH GRANTED!! Hsin 3.7 Main Story Quest FULL REACTION（2341 cue）二次校准沉淀 ---
+    #   根因诊断：上一轮只收了 "Sister Swarming" 这类**带前缀的长键**，而本片中文行里的
+    #   拉丁残留是**裸名**形态（"Sw ami"、"Sw arming"、"SW 武装"、"Arb iter"、"Sim ul ac rum"），
+    #   长键匹配不到 ⇒ 术语 pass 几乎全落空（基线仅 166 处）。本块补裸名长键。
+    #   官方依据（3.7 版本内容说明 / 百度百科谛天鉴条 / wutheringwaves.fandom）：
+    #     锁暝=Suoming（州监，执掌谛天鉴）  岁主=心月狐  谛天鉴=Ministry of Sentinel Affairs
+    #     州监=Intendant（**非"智力"**，机翻把 Intendant 听成"智力"的音译陷阱）
+    #     玄方城=Xuanfang Hold（ASR 常听成 Shuangfeng/Shuangfang ⇒ 同指玄方城）
+    #     残星会=Fractsidus  稷廷=Court of Savantae  天民=Celestials（**非 Sentinels**，
+    #     本片大量 "Sentin els" 其实是 celestial 的 ASR 误听，语境为玄方城匠人）
+    #     仲裁者=Arbiter  机傀=Autopuppet（**非"反对宠物"**）
+    #     共鸣者=Resonator  梦枢天罗=Simulacrum Nexus
+    # 戒律：只收"该串出现即该专名、且不会被通用短键/子串误咬"的**长**键；
+    #   "智力/智力代言/智力应答者"是通用中文词 → 不入裸键，走 CONTEXT_MAP 英文锚定。
+    # --- 锁暝 Suoming：裸名 ASR 变体（"Sw"+"aming" 之间的空格是 ASR 断词痕迹）---
+    "Sw aming": "锁暝", "Sw aming ": "锁暝",
+    "Sw aming": "锁暝", "Sw amin": "锁暝", "Sw ami": "锁暝",
+    "Sw arming": "锁暝", "Sw arming": "锁暝", "Sw arming": "锁暝",
+    "Sw AM": "锁暝", "SW AM": "锁暝", "Sw ammings": "锁暝",
+    "sw ammings": "锁暝", "Sw imming": "锁暝", "Sw imming": "锁暝",
+    "SW武装": "锁暝", "SW 武装": "锁暝", "sw arming": "锁暝",
+    # --- 仲裁者 Arbiter：ASR 把 -bi- 听成空格 ---
+    "Arb iter": "仲裁者", "Ar b iter": "仲裁者", "Arb iter": "仲裁者",
+    # --- 玄方城 Xuanfang：ASR 把 Xuan 听成 Shuang ---
+    "Sh uang f eng Hold": "玄方城", "Sh uang f ang": "玄方地界",
+    "Sh uang Fang": "玄方地界", "Sh uang f eng hold": "玄方城",
+    "Sh uang y uan": "玄元", "Sh uangling": "玄翎",
+    "Xuan f eng Hold": "玄方城", "Xuan f eng": "玄方城",
+    # --- 梦枢天罗 Simulacrum Nexus：ASR 把 -la- 听成空格 ---
+    "Sim ul ac rum": "梦枢天罗", "simul ac rum": "梦枢天罗",
+    "Simulacrum Nexus": "梦枢天罗", "Sim ul ac rum Nexus": "梦枢天罗",
+    # --- 残星会 Fractsidus：ASR 把 -ct- 听成 x ---
+    "Fr ax id us": "残星会", "Fr ax idus": "残星会", "Fr ax inus": "残星会",
+    "Fr ax idas": "残星会", "Fr ax id us": "残星会",
+    # --- 2026-10-13 WuWa Exploration Quests and Tales（4349 cue）补键 ---
+    "重振器": "共鸣者",                                            # 谷翻 resonator 错形（#917，官方=共鸣者）
+    "金习": "今汐",                                                # Jin Xi ASR 音译残留（#2759，"作为岁主"语境）
+    # --- 稷廷 Court of Savantae / 天民 Celestials / 岁主 Sheen ---
+    "Sav ante": "稷廷", "Sav anti": "稷廷", "Sav ante": "稷廷",
+    "Sentin els": "天民", "Sentin el": "天民", "Sentinel s": "天民",
+    "森廷": "天民", "森廷艾尔": "天民", "森廷·埃尔斯": "岁主",
+    "Cele stials": "天民", "Cele stial": "天民", "Cele stil": "天民",
+    "cele stials": "天民",
+    "Sh ien": "岁主", "She en": "岁主", "she en": "岁主",
+    # --- 其余拉丁残留（长键，无通用词歧义）---
+    "Tyr Ant": "暴君", "glo om": "阴郁", "REM": "疏忽",
+    "M uyu": "牧羽", "Par agon": "帕尔阿贡", "Bal anafor": "巴拉纳福",
+    "Bal ana": "巴拉纳福", "Bal an oph ora": "巴拉诺弗拉",
+    "S assy Ab ird": "萨西·艾伯德", "Saf ar": "萨法尔",
+    "Tats": "塔茨", "Y asuri ice": "雅苏里", "Fr ax idus": "残星会",
+    "Sim ul ac rum": "梦枢天罗", "Arb iter": "仲裁者",
+    "Em i M acha": "AnyMatcha", "Em i M acha": "AnyMatcha",
+    "Rover,": "漂泊者", "Lex icon Axis": "轴心图标",
+    "Allegs": "小巷", "alle ys": "小巷",
 }
 
 # 保留英文不译的专名（仅提示，不替换）
@@ -1050,9 +1138,10 @@ CONTEXT_MAP = [
     (r"\bWuthering\b", "呼啸山庄", "鸣潮"),          # Wuthering Waves 被误作《呼啸山庄》
     (r"\bscales?\b", "秤", "鳞片"),                  # scales（龙鳞）被误译"秤"
     # --- 2026-10-11 鸣潮音乐会反应片（This actually BROKE me）：学习库裸键治理 ---
-    # 谷翻"真的"在 actually 语境应作"其实"（本片 cue 494/1087 佐证）；裸键 bi|真的
-    # 系单 cue 泛化误沉淀（产生"是其实吗"等病句），已人工否决，收编为此锚定形式。
-    (r"\bactually\b", "真的", "其实"),
+    # ⚠ 2026-10-13 废除 (r"\bactually\b", "真的", "其实")：WuWa Exploration Quests 片
+    # 实测 9+ 处误改——谷翻把 really/true 也译"真的"，锚定词形过宽（"这是真的"true
+    # 被改成"这是其实"病句）。"真的→其实"是风格偏好非专名校准，永久否决，勿再收编。
+    # (r"\bactually\b", "真的", "其实"),
     # --- 2026-10-11 同片二次校准（逐句核查 1415 cue；官方名依 references/鸣潮对照表、灰机/萌娘/fandom wiki）---
     (r"\bChisa\b", "千纱", "千咲"),                     # Chisa=千咲（表内已有英文键，谷翻中文形"千纱"漏校，cue75/77）
     (r"\bFroova\b", "弗鲁娃", "弗洛洛"),               # Phrolova ASR 变体（cue310，"杀NPC/撒谎"反派语境）
@@ -1232,7 +1321,9 @@ CONTEXT_MAP = [
     (r"reverberations?\b", "回响", "残响"),          # #523/#869 死者的残响
     (r"\blingering sessions\b", "挥之不去的会话", "挥之不去的残响"),   # #526
     # 常见机翻错词（参考行佐证）
-    (r"\bpsycho\b", "心理", "疯子"),               # #559
+    # ⚠ 2026-10-13 废除 (r"\bpsycho\b", "心理", "疯子")：WuWa Exploration Quests 片
+    # #3563 "psychoanalyze"=心理分析，改"疯子分析"为病句；psychoanalyze 心理学义优先，永久否决。
+    # (r"\bpsycho\b", "心理", "疯子"),               # #559
     (r"\bmastermind\b", "大师", "主谋"),           # #594
     (r"\bmaintain the lane\b", "车道", "链接"),     # #671 维持链接
     (r"\bsowed\b|\bswed\b", "瑞典", "播下的"),      # #1069 木禺播下的混乱
@@ -3444,7 +3535,99 @@ ENDFIELD_KO_TERMS = {
     "星座模式": "满潜",
     # —— 原版角色（cue351「원보캐」=원본 캐릭터 简称，谷翻硬作"一人出局的角色"）——
     "一人出局的角色": "原版角色",
+    # ═══════════════════════════════════════════════════════════════
+    # 2026-10-13 沉淀：韩国主播读终末地干员「提弗洛斯」前作解说片
+    #   片源：《엔드필드》 전작을 이해해보자 티폰 설명 읽어보기!「티프로스 편」
+    #         （644 cue，韩语原声 + 谷歌机翻中文，韩语行作参考行）
+    #   内容：主播读**明日方舟本体**干员「提丰」的档案/活动剧情，用前作设定解释
+    #        终末地的提弗洛斯。故本片的地名/种族/机构绝大多数属**明日方舟本家**，
+    #        与 --ak（本体）表重叠但语境不同（终末地主播讲解），故在此独立登记。
+    #   官方依据：明日方舟 wiki.gg（Typhon/Story、Sami、Andenate Maryam）、
+    #        萌娘百科「萨米/提丰/麦哲伦/凛视/安玛」、百度百科「提丰/安玛/邪魔」、
+    #        集成战略#4「探索者的银凇止境」剧情梗概。
+    # ═══════════════════════════════════════════════════════════════
+    # —— 干员：티폰=提丰（明日本家六星狙击·攻城手，出身萨米的萨卡兹）——
+    #    谷翻全片作「泰丰/提丰」混用；「T-Phone/T-phone」变体见 AK_TERMS。
+    "泰丰": "提丰",
+    "蒂佛": "提弗洛斯", "蒂弗": "提弗洛斯",
+    "Tipo": "提弗洛斯", "Tief": "提弗洛斯", "Typros": "提弗洛斯",
+    "Typhon": "提丰",
+    # —— 独眼巨人：아르게스(Arges)=凛视 Valarqvin（本名艾尔启），提丰的监护人 ——
+    "阿尔杰斯": "凛视",
+    # —— 种族：살카지=萨卡兹 / 엘라피아=埃拉菲亚（萨米主体种族，鹿形）——
+    "萨尔卡吉": "萨卡兹", "萨尔卡齐尔": "萨卡兹", "萨尔卡伊": "萨卡兹",
+    "埃拉皮亚": "埃拉菲亚",
+    # —— 国家：우르스=乌萨斯（萨米邻国；谷翻作「乌尔斯/乌尔苏斯」）——
+    "乌尔斯": "乌萨斯", "乌尔苏斯": "乌萨斯",
+    # —— 巨兽：베이무스/베이모스/베무스 = 베헤모스 사미「巨兽萨米」——
+    #    ⚠ 本片最大的系统性错译：谷翻把同一个专名按字面拆成「贝姆斯3/拜莫斯排名第三/
+    #      贝穆斯」，读起来像"第三名"。韩语「베이무스 3」是「베헤모스 사미」的连读。
+    "贝姆斯3": "巨兽萨米", "拜莫斯排名第三": "巨兽萨米", "贝穆斯": "巨兽萨米",
+    "贝姆斯": "巨兽萨米", "拜莫斯": "巨兽萨米", "贝穆斯": "巨兽萨米",
+    "维穆斯": "巨兽萨米",
+    # —— 兽主：안마/암마 = Amma「安玛」（萨米兽主·鹿之主，萨米语"老妈妈"）——
+    #    谷翻全片把专名当普通词「按摩」，是本片最高频的错译（见 ENDFIELD_KO_CONTEXT）。
+    # —— 邪魔：데몬 = 明日方舟官方中文「邪魔」（非"恶魔"）。Collapsal/污染体的统称。
+    "戴蒙": "邪魔",
+    # —— 收藏品/术语：안마의 사랑 = 官方藏品「安玛爱的力量」——
+    #    官方描述"口袋里那份重量便是佐证"即本片 cue452 机翻"里面的分量就是证据"。
+    "按摩之爱": "安玛的爱", "按摩的热爱": "安玛的爱",
+    # —— 机构：라인(Rhine)=莱茵生命（麦哲伦所属；谷翻作"LINE生命研究所/线实验室"）——
+    "LINE生命研究所": "莱茵生命研究所", "线实验室": "莱茵实验室",
+    "Motive的研究机构": "麦哲伦的研究机构",
+    # —— 人名：마리암(마리아암)=安德涅特·马里亚姆（莱茵生命科学考察科主任）——
+    "玛丽亚姆": "马里亚姆", "马利亚姆": "马里亚姆", "马吉兰": "麦哲伦",
+    "玛盖拉": "麦哲伦",
+    "Mariam Eye": "马里亚姆",
+    "아이야파들라": "艾雅法拉", "Aiyapadla": "艾雅法拉",
+    # —— 剧集/活动名：미니 이벤트《나무늘 속에 잠들다》=官方《眠于树影之中》——
+    "《入睡》": "《眠于树影之中》",
+    "타이포스": "提弗洛斯",
+    # —— 塔卫二：엔드필드의 무대인 탈로스 2（谷翻"塔洛斯2号"；韩语 "타로스" 为
+    #    Arknights 的 Taros 气态巨行星，与塔卫二 Talos-II 无关，故只收长键「塔洛斯2号」，
+    #    不收裸键「塔罗斯/塔拉斯」（那些是 Taros，见 ENDFIELD_KO_TERMS 既有条目）。
+    "塔洛斯2号": "塔卫二",
+    "恩德菲尔德": "终末地",
+    # —— 污染物：붕괴체(Collapsal)=官方「坍缩体」（谷翻"衰变体"）——
+    "衰变体": "坍缩体",
+    # —— 萨米重镇：체파트(Čappat)=察帕特（萨米南部城镇，莱茵生命办事处所在）——
+    "切帕特": "察帕特",
+    # —— 星门：스타게이트 = 官方「星门」（谷翻"星际之门"，非官方直译）——
+    "星际之门": "星门",
 }
+
+# =============================================================
+# 3.1d 终末地·韩语原声片源的**普通中文词**锚定表（2026-10-13 新增，--endoko）
+#   与 KO_CONTEXT 同构：(韩语参考行正则, 错形, 正确)。
+#   收录本片实测的**通用中文词误译**——它们绝不能进 ENDFIELD_KO_TERMS 裸键
+#   （"恶魔/按摩/第三/王子"在正常语境都是好词），必须由韩语行正则佐证。
+#   ⚠ 本表随 ENDFIELD_KO_TERMS 的 --endoko 模式生效（见 process() endoko 分支）。
+# =============================================================
+ENDFIELD_KO_CONTEXT = [
+    # —— 데몬(demon) → 官方「邪魔」——
+    #    本片 13 处把明日方舟的"邪魔"机翻成"恶魔/魔鬼"，是本片最高频的错译。
+    #    依据：百度百科「邪魔」条目——泰拉的敌方存在统称，萨米/乌萨斯常年与之作战；
+    #    萌百「萨米」——"萨米北部的冰原是'邪魔'主要盘踞的区域"。
+    (r"데몬", "恶魔", "邪魔"),
+    (r"데몬", "魔鬼", "邪魔"),
+    # —— 안마/암마(Amma) → 官方「安玛」——
+    #    萨米兽主·鹿之主，萨米语意为"老妈妈"（百度百科「安玛」）。
+    #    谷翻把专名当普通词"按摩"，本片出现 9 次，是最典型的专名漏校。
+    (r"안마|암마", "按摩", "安玛"),
+    (r"안마|암마", "阿玛", "安玛"),
+    # —— 3위 → 官方「萨米」——
+    #    ⚠ 本片最隐蔽的系统性错译：谷翻把"3위"按字面译成"排名第三/第三名"，
+    #    但该词在《眠于树影之中》语境中是**地名/地区名**（提丰的故乡萨米）。
+    #    依据：萌百「萨米」——提丰出身地萨米；英文 wiki「Typhon/Story」——
+    #    Typhon the Sami Sarkaz（萨米的萨卡兹）。
+    #    仅在"排名/第三"这类字面译法上做替换，避免误伤正常序数。
+    (r"3위", "排名第三", "萨米"),
+    (r"3위", "第三名", "萨米"),
+    (r"3위", "第三位", "萨米"),
+    (r"3위", "第三", "萨米"),
+    # —— 안마의 사랑 → 官方藏品「安玛的爱」——
+    (r"안마의 사랑", "按摩的热爱", "安玛的爱"),
+]
 
 #: 片源自适应（2026-10-07）：默认 bi 模式下的「终末地·中英双语片源」特征词。
 #:   起因：终末地专名对照只挂在 ENDFIELD_TERMS(--endo) 与 ENDFIELD_BI_TERMS(--endobi)，
@@ -5628,6 +5811,7 @@ _MODE_TERM_TABLE = {
 _MODE_CTX_TABLE = {
     "bi": "CONTEXT_MAP", "ja": "JA_CONTEXT", "jpe": "JA_ENDFIELD_CONTEXT",
     "akko": "AK_KO_CONTEXT", "ko": "KO_CONTEXT", "ak": "AK_CONTEXT",
+    "endoko": "ENDFIELD_KO_CONTEXT",
 }
 _MODE_NAMES = {
     "bi": "中英双语", "ja": "日语原声·鸣潮", "jpe": "日语原声·终末地",
@@ -7908,12 +8092,19 @@ ENTITIES = [
     # ============================================================
     Entity("心月狐", modes=("bi",), en="Shin",
            category="角色/岁主·鸣潮3.7",
-           ctx=((r"\bSin\b", "辛"), (r"\bSin\b", "罪恶"), (r"\bSin\b", "罪"),
+           ctx=((r"\bSin\b[^\n]{0,30}\bMoon ?Fox\b|\bMoon ?Fox\b[^\n]{0,30}\bSin\b", "月狐罪"),
+                (r"\bSin\b[^\n]{0,30}\bMoon ?Fox\b|\bMoon ?Fox\b[^\n]{0,30}\bSin\b", "月狐罪恶"),
+                (r"\bShen\b[^\n]{0,30}\bMoon ?Fox\b|\bMoon ?Fox\b[^\n]{0,30}\bShen\b", "沈月狐"),
+                (r"\bSin\b", "辛"), (r"\bSin\b", "罪恶"), (r"\bSin\b", "罪"),
                 (r"\bShing\b", "成"),
                 (r"\bSeen\b", "Seen"), (r"\bShuin\b", "修院")),
            note="本片补录：ASR 把 Shin 听成 Sin/Shing/Seen/Shuin，谷翻一律按常用词直译"
                 "（Sin->辛/罪/罪恶、Shing->成、Shuin->修院、Seen 整词留英文）。"
                 "全为常用词，只走参考行锚定；'罪恶'须先于'罪'。"
+                "⚠ 2026-10-13 增补组合长错形（WuWa Exploration Quests 片 #1535/#2590/#2703）："
+                "参考行同时含 Sin+Moon Fox/Shen+Moon Fox 时，谷翻中文'月狐罪/月狐罪恶/沈月狐'"
+                "是角色全名压缩形，若不整键替换会被'月狐'+'罪'两条 ctx 级联咬成'心月狐心月狐'。"
+                "ctx 按列表顺序应用，组合长键须置于短键之前。"
                 "⚠ 错形用最窄形：'Shin->信/真' 裸形会误伤（实测裸'真'把 cue415'丑陋的真相'"
                 "咬成'丑陋的心月狐相'），改走扁平 CONTEXT_MAP 三元组 '真终于->心月狐终于'、"
                 "'叫信->叫心月狐'（保留原句虚词）。"
@@ -8231,11 +8422,17 @@ def _register_entities(entities=ENTITIES):
                     exc[v] = (e.canonical, tuple(e.exclude))
 
 
+_ENDFIELD_KO_CONTEXT_COMPILED = [
+    (re.compile(rx), wrong, right) for rx, wrong, right in ENDFIELD_KO_CONTEXT
+]
+
+
 def _rebuild_context_caches():
     """实体注册可能追加 CONTEXT/EXCLUDE 条目，重建各预编译缓存。"""
     global _CONTEXT_COMPILED, _EXCLUDE_COMPILED, _JA_CONTEXT_COMPILED
     global _JA_ENDFIELD_CONTEXT_COMPILED, _AK_KO_CONTEXT_COMPILED
     global _KO_CONTEXT_COMPILED, _AK_CONTEXT_COMPILED
+    global _ENDFIELD_KO_CONTEXT_COMPILED
     _CONTEXT_COMPILED = [(re.compile(rx, re.I), wrong, right)
                          for rx, wrong, right in CONTEXT_MAP if wrong and right]
     _EXCLUDE_COMPILED = {w: (right, [re.compile(rx, re.I) for rx in rxs])
@@ -8246,6 +8443,8 @@ def _rebuild_context_caches():
     _AK_KO_CONTEXT_COMPILED = [(re.compile(rx), wrong, right) for rx, wrong, right in AK_KO_CONTEXT]
     _KO_CONTEXT_COMPILED = [(re.compile(rx), wrong, right) for rx, wrong, right in KO_CONTEXT]
     _AK_CONTEXT_COMPILED = [(re.compile(rx, re.I), wrong, right) for rx, wrong, right in AK_CONTEXT]
+    _ENDFIELD_KO_CONTEXT_COMPILED = [(re.compile(rx), wrong, right)
+                                     for rx, wrong, right in ENDFIELD_KO_CONTEXT]
 
 
 _register_entities()
@@ -9130,8 +9329,14 @@ def process(path, out_path=None, report_path=None, mode="bi",
                         if new != old:
                             rows.append((num, old, new, ref))
                             out[zh_idx] = new
-                    elif mode == "endoko":     # 终末地·韩语原声：只改首中文行（韩语参考行不动）
+                    elif mode == "endoko":     # 终末地·韩语原声：ENDFIELD_KO_TERMS 只改首中文行，
+                        #   并用 ENDFIELD_KO_CONTEXT（韩语参考行正则佐证）修「普通中文词」误译
+                        #   —— 2026-10-13 新增：恶魔→邪魔 / 按摩→安玛 / 排名第三→萨米
+                        #   （这三条都是通用中文词，裸键会误伤，必须韩语行锚定）。
                         new = _replace_report(old, term_pairs, term_chars, hits)
+                        for crx, wrong, right in _ENDFIELD_KO_CONTEXT_COMPILED:
+                            if wrong in new and crx.search(ref_m):
+                                new = _ctx_replace(new, wrong, right)
                         if new != old:
                             rows.append((num, old, new, ref))
                             out[zh_idx] = new
