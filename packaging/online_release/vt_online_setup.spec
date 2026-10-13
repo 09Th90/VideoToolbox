@@ -1,5 +1,5 @@
 # -*- mode: python ; coding: utf-8 -*-
-# @version 1.20.0
+# @version 2.0.0
 """视频工具箱 · 在线引导安装器 —— PyInstaller 打包配置。
 
 产物：单文件 exe，`视频工具箱_在线安装_v<版本>.exe`（输出到 installer_online\\）。
@@ -8,10 +8,13 @@
 tkinter 是标准库，打出来约 12MB；换成 PyQt5 要 ~40MB —— 而它本身也是要给
 用户下载的，体积直接算在更新成本里。
 
-⚠ 只打包 vt_online_setup.py 与 vt_update_core.py 两个文件，**不收集任何第三方包**：
+⚠ 只打包 vt_online_setup.py / vt_update_core.py / vt_dl.py / vt_version_index.py
+   四个自研文件，**不收集任何第三方包**：
    · tkinter 由 PyInstaller 的 hook 自动带上（含 tcl/tk 运行库）；
    · 更新逻辑刻意只用标准库（见 vt_update_core.py 顶部说明），
      这样引导安装器不会被主程序的依赖树拖大。
+   ⚠ 后两个模块是 import 进来的、没有在分析期被静态引用到名字，
+     必须列进 hiddenimports，否则打包后运行时才 ImportError。
 """
 import os
 
@@ -35,7 +38,7 @@ a = Analysis(
     pathex=[SPEC_DIR],
     binaries=[],
     datas=[],
-    hiddenimports=["vt_update_core"],
+    hiddenimports=["vt_update_core", "vt_dl", "vt_version_index"],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],

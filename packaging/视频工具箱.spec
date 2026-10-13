@@ -1,6 +1,6 @@
 # -*- mode: python ; coding: utf-8 -*-
-# @version 1.20.0
-"""视频工具箱 v1.20.0 —— PyInstaller 打包配置
+# @version 2.0.0
+"""视频工具箱 v2.0.0 —— PyInstaller 打包配置
 v1.18.0：① 新增**主播声纹筛选**的运行时——`speaker_voiceprint_page` /
         `speaker_voiceprint` 是 `video_toolbox.vc_transcribe_ui_patch()` 里的
         **延迟导入**（缺依赖只记日志、界面照起），静态分析跟踪不到，必须显式
@@ -195,9 +195,30 @@ hiddenimports += ['httpx', 'httpcore', 'anyio', 'sniffio', 'h11', 'certifi',
 # 该程序只依赖 tkinter 标准库 + 同目录 tools（运行时锚定 exe 同级 tools），
 # 不引入任何重型第三方运行时；打包为单文件 exe，直接双击运行。
 
+# v2.0.0：主程序「检查更新」依赖自研在线安装器的三个模块。它们在
+#   **packaging\online_release\ 下，不在 src\ 里**，且 `vt_update_check`
+#   对它们是 `import vt_update_core` 的**普通顶层 import**——但注意
+#   它自己做了 try/except 降级（找不到就返回 None），所以**漏声明的
+#   症状是静默的**：更新按钮点了报「更新组件未随程序分发」，而不是崩。
+#   这类「静默降级」最容易被当成功能没做，故显式声明：
+#   · pathex 已在下方 Analysis 里含 PACKAGING 根，故能解析到；
+#   · 同时把三个模块源码**当作数据**随包分发到 online_release\，
+#     兼顾「在线安装器也能从主程序目录取用」的场景。
+online_release_dir = os.path.join(SPEC_DIR, 'online_release')
+hiddenimports += ['vt_dl', 'vt_update_core', 'vt_version_index']
+if os.path.isdir(online_release_dir):
+    datas += [(os.path.join(online_release_dir, f),
+               os.path.join('online_release', f))
+              for f in sorted(os.listdir(online_release_dir))
+              if f.endswith('.py')]
+
 a = Analysis(
     [os.path.join(SRC_DIR, 'video_toolbox_qt.py')],
-    pathex=[SPEC_DIR, SRC_DIR],
+    # ⚠ online_release_dir 必须在 pathex 里：三个更新模块物理上位于
+    #   packaging\online_release\，而 pathex 只有 packaging 根的话，
+    #   `import vt_update_core` 解析不到，hiddenimports 会静默失效。
+    pathex=[SPEC_DIR, SRC_DIR] + ([online_release_dir]
+                                   if os.path.isdir(online_release_dir) else []),
     binaries=binaries,
     datas=datas,
     hiddenimports=hiddenimports,

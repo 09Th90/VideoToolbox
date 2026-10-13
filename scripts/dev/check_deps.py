@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 1.20.0
+# @version 2.0.0
 """依赖闭合自检：把「自研 src + 内嵌字幕引擎」用到的顶层模块在当前解释器里
 逐个解析，列出**解析不到的第三方模块**。
 
@@ -77,6 +77,14 @@ def main():
 
     hits = top_level_imports(targets)
     own = {p.stem for p in src.glob("*.py")}          # 自研兄弟模块
+    # ⚠ v2.0.0：在线安装/更新的三个模块（vt_dl / vt_update_core /
+    #   vt_version_index）物理上在 packaging\online_release\，由 spec 的
+    #   **pathex + hiddenimports** 收进 PYZ，不装进解释器环境。此前本检查
+    #   只认 src\*.py，于是把它们报成「缺失」——假阳性。口径必须与
+    #   视频工具箱.spec 的 pathex 保持一致，否则发布前检查永远红。
+    orel = ROOT / "packaging" / "online_release"
+    if orel.is_dir():
+        own |= {p.stem for p in orel.glob("*.py")}
     # 引擎自身的子包
     own |= {"videocaptioner"}
 

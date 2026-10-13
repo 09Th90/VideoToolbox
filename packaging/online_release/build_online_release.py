@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 1.20.0
+# @version 2.0.0
 """把「在线更新包」发布成 GitHub Release 的**平铺资产**（替代 IFW 的在线仓库）。
 
 ====================================================================
@@ -9,15 +9,31 @@
 `<组件名>/<归档>.7z`，再由 binarycreator 生成在线安装器。那条路有**两个硬约束**：
   1. IFW 取归档的 URL 是 `<基址>/<组件名>/<归档>` —— **多一层目录**；
   2. 仓库要能承载它，只能放 gh-pages（有目录结构），而 gh-pages 走 git，
-     **单文件 100 MiB 硬限**（主程序 exe 已 103MB，撞线）。
+     **单文件 100 MiB 硬限**（主程序 exe 已 103MB，撞线，余量不足 2MiB）。
 GitHub Releases 能放 2GB/资产、但**资产是平铺的**，装不下 IFW 的目录结构
 （实测嵌套路径 404；带斜杠 tag 冒充目录会撞 git D/F 冲突）。
 
 本脚本改走「平铺 + 自解压」：组件打成 **zip** 平铺上传，由自研的
 `vt_online_setup.exe` 自己下载解压。于是：
-  · 不再有 100 MiB 限制（单资产上限 2GB）；
+  · 不再有 100 MiB 限制（单资产上限 2GB，超了自动分卷）；
   · 不再依赖 gh-pages 的目录结构；
   · 打包侧只剩「zip + manifest + 上传」三件事。
+
+====================================================================
+v1.20.0：manifest schema 2（增量更新的地基）
+====================================================================
+旧版（schema 1）只有一个 base 包：客户端每次更新都要重下全部 104MB。
+本版起 manifest 带**文件级清单**（files）与**分卷**（parts）：
+
+  · files —— {安装相对路径: {size, sha256, pkg}}，客户端拿它和本地
+    磁盘比对，只下载 sha256 不同的文件所在的包。日常迭代（只改源码）
+    用户只需下 ~2MB 的 code 包，104MB 的 app 包（exe）不变则不碰。
+  · parts —— 单个 zip 超过 --volume-max（默认 1.5GB）时按字节切卷，
+    每卷是一个普通资产；客户端按序拼接还原（zip 可字节切分后原样拼回）。
+    GitHub 单资产 2GB 的上限就此也不再是上限。
+  · updater —— 在线安装器自身的条目。主程序「检查更新」靠它保证
+    拉起的永远是最新逻辑（老安装器不认 schema 2 也不怕）。
+  · remove —— 本次应删除的路径（发版时用 --remove 指定）。
 
 ====================================================================
 用法
@@ -26,14 +42,16 @@ GitHub Releases 能放 2GB/资产、但**资产是平铺的**，装不下 IFW �
     python packaging/online_release/build_online_release.py             # 打包并上传
     python packaging/online_release/build_online_release.py --tag repo-latest
     python packaging/online_release/build_online_release.py --notes "本次更新…"
+    python packaging/online_release/build_online_release.py --keep 3     # 旧资产保留策略
 
-⚠ 资产文件名带版本号（`v1.18.0-base.zip`），**同一 tag 下可累积多版**，
-  客户端按 manifest 取，不受影响；发布后建议手工清掉过老的版本资产。
+⚠ 先打在线安装 exe（vt_online_setup.spec → installer_online\视频工具箱_在线安装_vX.exe），
+  本脚本会把它作为 updater 资产一并上传；找不到只警告不中断。
 """
 import argparse
 import hashlib
 import json
 import os
+import shutil
 import subprocess
 import sys
 import time
@@ -43,6 +61,9 @@ import urllib.request
 import zipfile
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import vt_version_index as vindex  # noqa: E402  全版本目录（index.json）
+
 HERE = Path(__file__).resolve().parent
 #: 脚本位于 <仓库根>/packaging/online_release/，仓库根再上两级
 ROOT = HERE.parent.parent
@@ -51,15 +72,30 @@ DIST = ROOT / "installer_online"
 OWNER, REPO = "09Th90", "VideoToolbox"
 DEFAULT_TAG = "repo-latest"
 
-#: 组件 -> [(源路径(相对仓库根), zip 内相对路径)]。target 恒为安装目录根。
-#: ⚠ 必须与 installer_src/build_online_installer.py 的 COMPONENTS 保持一致；
-#:   本脚本启动时会 import 那个模块做一次比对，不一致直接报错（防止两边漂移）。
-COMPONENTS = {
-    "base": [
+#: 发布包划分。**按变更频率分层，而不是按目录分类**——同一层内的文件
+#: 必须"同生共死"，否则会把不变的文件拖进变更层，白白多下。
+#:
+#:   app   主程序 exe（PyInstaller onefile，内嵌全部依赖）   每次迭代必变 ~104MB
+#:   code  自研源码 + 校准脚本                               每次迭代必变 ~2MB
+#:   docs  文档（含 GPL-3.0 合规声明）                        偶尔变
+#:   tools 工具脚本                                          偶尔变
+#:
+#: ⚠ 各包文件集必须**互斥**：重叠会让后解的包覆盖前一个，
+#:   verify_staging 的逐文件校验会抓到，但发布前就该避免。
+#: ⚠ 并集必须与 installer_src/build_online_installer.py 的 COMPONENTS
+#:   一致——脚本启动时会比对，防止两条发布路线文件清单漂移。
+PACKAGES = {
+    "app": [
         ("dist/视频工具箱.exe", "视频工具箱.exe"),
-        ("subtitle_calib_merged.py", "subtitle_calib_merged.py"),
+    ],
+    "code": [
         ("src", "src"),
+        ("subtitle_calib_merged.py", "subtitle_calib_merged.py"),
+    ],
+    "docs": [
         ("docs", "docs"),
+    ],
+    "tools": [
         ("tools/ai_client.py", "tools/ai_client.py"),
         ("tools/download_open_source_deps.py", "tools/download_open_source_deps.py"),
     ],
@@ -73,6 +109,14 @@ FORBIDDEN = ("github_proxy.yaml", "mihomo", "runtime.yaml", "cache.db",
 #: 内部已 zlib 压缩，deflate 再压一次只会白费 CPU（实测收益 0.06%）。
 STORE_OVER = 8 * 1024 * 1024
 
+#: 单卷上限（字节）。GitHub 单资产硬限 2GB，留 25% 余量给 CDN/重试抖动；
+#: 超了自动按字节切卷，客户端拼接还原。
+DEFAULT_VOLUME_MAX = int(1.5 * 1024 * 1024 * 1024)
+
+#: 固定 zip 内时间戳——同内容重复打包得到逐字节相同的 zip，
+#: 这样「内容没变」在 sha256 层面可判，客户端缓存命中率最高。
+ZIP_DATE_TIME = (2026, 1, 1, 0, 0, 0)
+
 
 def human(n):
     n = float(n)
@@ -82,8 +126,12 @@ def human(n):
         n /= 1024
 
 
-def check_components_in_sync():
-    """与 IFW 那份组件清单比对，防止两处漂移。"""
+def check_packages_in_sync():
+    """与 IFW 那份组件清单比对**文件并集**，防止两处漂移。
+
+    只比文件清单、不比包名：IFW 那边是一个大组件 com.videotoolbox.base，
+    这边为了增量拆成四个包，属有意差异；但两边分发的文件必须完全一致。
+    """
     old = ROOT / "packaging" / "installer_src" / "build_online_installer.py"
     if not old.is_file():
         print("   [warn] 找不到 IFW 版组件清单，跳过一致性比对：%s" % old)
@@ -98,15 +146,19 @@ def check_components_in_sync():
     except Exception as e:  # noqa: BLE001
         print("   [warn] 载入 IFW 组件清单失败（%s），跳过比对" % e)
         return
-    # 只比「文件清单」，不比组件键名：IFW 那边是包名 com.videotoolbox.base，
-    # 这边为了资产文件名短一些叫 base，属有意差异。
-    if sorted(ifw.values()) != sorted(COMPONENTS.values()):
-        print("   !! 组件文件清单与 IFW 版不一致，两边必须同步改：")
-        print("      IFW:", ifw)
-        print("      本脚本:", COMPONENTS)
+    ifw_all = sorted(tuple(x) for v in ifw.values() for x in v)
+    mine_all = sorted(tuple(x) for v in PACKAGES.values() for x in v)
+    if ifw_all != mine_all:
+        print("   !! 发布文件清单与 IFW 版不一致，两边必须同步改：")
+        only_ifw = [x for x in ifw_all if x not in mine_all]
+        only_mine = [x for x in mine_all if x not in ifw_all]
+        if only_ifw:
+            print("      仅 IFW 有：%s" % only_ifw)
+        if only_mine:
+            print("      仅本脚本有：%s" % only_mine)
         sys.exit(2)
-    print("   ✓ 组件文件清单与 IFW 版一致（键名差异属有意：%s -> %s）"
-          % (", ".join(ifw), ", ".join(COMPONENTS)))
+    print("   ✓ 发布文件清单与 IFW 版一致（共 %d 项；包名拆分属有意）"
+          % len(ifw_all))
 
 
 def iter_files(src, dest_rel):
@@ -126,10 +178,18 @@ def iter_files(src, dest_rel):
             yield p, z
 
 
-def build_zip(comp, items, out_dir):
-    """按组件打一个 zip，返回 (zip 路径, 文件数, sha256, 大小)。"""
+def build_package(pkg, items, out_dir, volume_max):
+    """打一个发布包，返回 manifest 用的资产 dict（含分卷与文件清单）。
+
+    单包超 volume_max 时按字节切卷（zip 可字节切分后原样拼回），
+    每卷 ≤ 1.5GB，远低于 GitHub 单资产 2GB 硬限——单文件大小从此
+    不再是发布约束。
+    """
     ver = read_version()
-    out = Path(out_dir) / ("v%s-%s.zip" % (ver, comp))
+    stem = "v%s-%s" % (ver, pkg)
+    out = Path(out_dir) / (stem + ".zip")
+    Path(out_dir).mkdir(parents=True, exist_ok=True)
+    files = {}          # zip 内相对路径 -> {size, sha256}
     n = 0
     bad = []
     with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED, compresslevel=6) as zf:
@@ -146,21 +206,60 @@ def build_zip(comp, items, out_dir):
                 size = ap.stat().st_size
                 method = (zipfile.ZIP_STORED if size >= STORE_OVER
                           else zipfile.ZIP_DEFLATED)
-                # 固定时间戳，让同内容重复打包得到逐字节相同的 zip
-                zi = zipfile.ZipInfo(zn, date_time=(2026, 1, 1, 0, 0, 0))
+                zi = zipfile.ZipInfo(zn, date_time=ZIP_DATE_TIME)
                 zi.compress_type = method
                 zi.external_attr = 0o644 << 16
+                h = hashlib.sha256()
                 with open(ap, "rb") as fh:
-                    zf.writestr(zi, fh.read())
+                    data = fh.read()
+                h.update(data)
+                zf.writestr(zi, data)
+                files[zn] = {"size": size, "sha256": h.hexdigest(), "pkg": pkg}
                 n += 1
     if bad:
         print("   !! 有 %d 个禁止入库的文件被跳过（请核对是否误配）：%s"
               % (len(bad), bad[:5]))
+
+    asset = {"name": pkg, "file": out.name, "size": out.stat().st_size,
+             "sha256": _sha256_path(out), "entries": n, "target": "",
+             "desc": _PKG_DESC.get(pkg, "")}
+    if out.stat().st_size > volume_max:
+        # 分卷：按字节切，客户端按序拼接（zip 格式对字节切分透明）
+        vol = volume_max
+        parts = []
+        idx = 0
+        with open(out, "rb") as fh:
+            while True:
+                b = fh.read(vol)
+                if not b:
+                    break
+                idx += 1
+                pname = "%s.zip.%03d" % (stem, idx)
+                (Path(out_dir) / pname).write_bytes(b)
+                parts.append(pname)
+        os.remove(out)
+        asset["parts"] = parts
+        asset["file"] = parts[0].replace(".001", "")
+        print("      %s 超 %s，已切 %d 卷（%s）"
+              % (out.name, human(volume_max), len(parts),
+                 " / ".join(parts)))
+    return asset, files
+
+
+_PKG_DESC = {
+    "app": "主程序（PyInstaller onefile，内嵌全部运行时依赖）",
+    "code": "自研源码与字幕校准脚本（日常迭代主要变这一层）",
+    "docs": "文档与第三方组件许可声明",
+    "tools": "工具脚本（AI 客户端、开源依赖下载器）",
+}
+
+
+def _sha256_path(path):
     h = hashlib.sha256()
-    with open(out, "rb") as fh:
+    with open(path, "rb") as fh:
         for b in iter(lambda: fh.read(1 << 20), b""):
             h.update(b)
-    return out, n, h.hexdigest(), out.stat().st_size
+    return h.hexdigest()
 
 
 def read_version():
@@ -171,6 +270,86 @@ def read_version():
     if not m:
         sys.exit("读不到 src/video_toolbox_qt.py 里的 VERSION")
     return m.group(1)
+
+
+def find_updater():
+    """找在线安装器 exe（installer_online\视频工具箱_在线安装_v<版本>.exe）。"""
+    ver = read_version()
+    p = DIST / ("视频工具箱_在线安装_v%s.exe" % ver)
+    return p if p.is_file() else None
+
+
+# ---------------------------------------------------------------- 版本索引
+
+
+def fetch_remote_index(base_url, log=print):
+    """取远端已有的 index.json；没有（首次发版 / 404）就造个空的。
+
+    ⚠ 走**公开下载地址**而不是 API：Release 是公开的，直接 GET 比
+    「查 asset id → 走 API 下载」少一次鉴权往返，也少一处失败点。
+    取不到一律按「首次发版」处理——新索引会在上传时被整体覆盖，
+    不会把远端已有记录弄丢（因为我们只 append 本地已知的版本…）。
+    真丢了的情况见 main() 里的「远端版本合并」注释。
+    """
+    if not base_url:
+        return vindex.new_index()
+    url = base_url.rstrip("/") + "/" + vindex.INDEX_NAME
+    try:
+        req = urllib.request.Request(url, headers={
+            "User-Agent": "VideoToolbox-online-release"})
+        with urllib.request.urlopen(req, timeout=60) as r:
+            raw = r.read()
+    except Exception as e:  # noqa: BLE001
+        log("   [info] 取不到远端版本索引（%s），按首次发版处理" % e)
+        return vindex.new_index()
+    try:
+        idx = vindex.parse_index(raw)
+    except Exception as e:  # noqa: BLE001
+        log("   [warn] 远端版本索引解析失败（%s），按首次发版处理" % e)
+        return vindex.new_index()
+    log("   远端索引已有 %d 个版本：%s"
+        % (len(idx.get("versions", [])),
+           "、".join(e["version"] for e in idx.get("versions", [])[:6])
+           or "（空）"))
+    return idx
+
+
+def merge_remote_versions(local_idx, remote_idx, log=print):
+    """把远端索引里的版本记录并入本地索引（**合并而非覆盖**）。
+
+    ⚠ 这是"别把远端历史弄丢"的关键：本地索引只在本机累积，换机器
+    / 清理过 out 目录后就是空的。若直接拿本地空索引覆盖远端，
+    历史版本会从目录里消失——虽然资产还在 Release 上，但没人再找得到。
+    """
+    n = 0
+    for e in (remote_idx or {}).get("versions", []):
+        if not vindex.find_version(local_idx, e.get("version")):
+            try:
+                vindex.upsert_version(local_idx, dict(e))
+                n += 1
+            except Exception as ex:  # noqa: BLE001
+                log("   [warn] 跳过远端版本 %r：%s" % (e.get("version"), ex))
+    if n:
+        log("   已从远端索引并入 %d 个历史版本" % n)
+    return local_idx
+
+
+def prune_index(idx, keep, log=print):
+    """把索引裁到最近 keep 个版本（按版本号降序）。
+
+    ⚠ 只动**目录条目**，不动 Release 上的资产——资产清理在
+    `cleanup_old_assets()` 里按裁剪后的索引决定，两者必须同参调用，
+    否则会出现"目录里有、资产已删"的死链。
+    """
+    vers = sorted(idx.get("versions", []),
+                  key=lambda e: vindex.vkey(e["version"]), reverse=True)
+    if len(vers) <= keep:
+        return idx
+    drop = vers[keep:]
+    idx["versions"] = vers[:keep]
+    for e in drop:
+        log("   索引移除旧版本 v%s" % e["version"])
+    return idx
 
 
 # ---------------------------------------------------------------- 上传
@@ -288,6 +467,39 @@ def upload_asset(rel_id, path, name, tries=4):
     return False
 
 
+def cleanup_old_assets(rel_id, keep, keep_versions=None):
+    """清理旧版资产：只保留最近 keep 个版本的文件（按资产名里的版本号判代）。
+
+    manifest.json / index.json 与在线安装器永远保留。版本号按
+    (主.次.修订) 排序，解析不出版本号的资产不动（宁可留垃圾也不误删）。
+
+    ⚠⚠ `keep_versions` 是**硬白名单**：索引里还列着的版本，其资产永不删。
+    没有这层保护，「全版本通用」就是假的——目录里写着 v1.18.0 可装、
+    资产却早被清掉，用户点了装才 404。宁可多占空间也不能留死链。
+    """
+    import re
+    keep_set = set(keep_versions or ())
+    c, d = api("GET", f"/repos/{OWNER}/{REPO}/releases/{rel_id}/assets")
+    if c != 200:
+        print("   [warn] 取资产列表失败，跳过清理")
+        return
+    vers = {}
+    for a in d:
+        m = re.match(r"v(\d+)\.(\d+)\.(\d+)-", a["name"])
+        if m:
+            vers.setdefault(tuple(int(x) for x in m.groups()), []).append(a)
+    if len(vers) <= keep:
+        return
+    for v in sorted(vers, reverse=True)[keep:]:
+        tag = ".".join(map(str, v))
+        if tag in keep_set:
+            print("   保留 v%s（索引仍在引用）" % tag)
+            continue
+        for a in vers[v]:
+            print("   清理旧资产 v%s：%s" % (tag, a["name"]))
+            api("DELETE", f"/repos/{OWNER}/{REPO}/releases/assets/{a['id']}")
+
+
 # ---------------------------------------------------------------- 主流程
 
 
@@ -296,45 +508,116 @@ def main():
     ap.add_argument("--tag", default=DEFAULT_TAG, help="固定的 Release tag")
     ap.add_argument("--out", default=str(DIST), help="zip 与 manifest 的输出目录")
     ap.add_argument("--notes", default="", help="写进 manifest 的更新说明")
+    ap.add_argument("--remove", default="",
+                    help="本次应删除的安装相对路径（逗号分隔；升级时要清理的旧文件）")
+    ap.add_argument("--volume-max", type=int, default=DEFAULT_VOLUME_MAX,
+                    help="单卷字节上限，超过自动分卷（默认 1.5GB）")
+    ap.add_argument("--keep", type=int, default=3,
+                    help="Release 上保留最近几个版本的资产（默认 3；"
+                         "仍在索引里的版本不受此限，见 --index-keep）")
+    ap.add_argument("--state", default="stable", choices=list(vindex.ALL_STATES),
+                    help="本次版本在索引里的状态（默认 stable；"
+                         "发版后发现严重问题用 yanked 撤回：目录里除名但资产保留）")
+    ap.add_argument("--min-updater", default="",
+                    help="安装本版本所需的在线安装器最低版本（留空=不限制）")
+    ap.add_argument("--index-keep", type=int, default=10,
+                    help="版本索引里保留最近几个版本（默认 10）")
     ap.add_argument("--dry-run", action="store_true", help="只打包+出清单，不上传")
     args = ap.parse_args()
 
     ver = read_version()
-    print("== 打包在线更新包 v%s ==" % ver)
-    check_components_in_sync()
+    print("== 打包在线更新包 v%s（schema 2）==" % ver)
+    check_packages_in_sync()
     out_dir = Path(args.out)
     out_dir.mkdir(parents=True, exist_ok=True)
 
     base_url = (f"https://github.com/{OWNER}/{REPO}/releases/download/"
                 f"{urllib.parse.quote(args.tag, safe='')}/")
     assets = []
-    for comp, items in COMPONENTS.items():
-        print("   组件 %s …" % comp)
-        zp, n, sha, size = build_zip(comp, items, out_dir)
-        print("      %s  %d 个文件  %s" % (zp.name, n, human(size)))
-        assets.append({
-            "name": comp, "file": zp.name, "size": size, "sha256": sha,
-            "entries": n, "target": "",
-            "desc": "主程序、界面源码、文档与第三方组件声明（必装）",
-        })
+    files_all = {}
+    for pkg, items in PACKAGES.items():
+        print("   包 %s …" % pkg)
+        asset, files = build_package(pkg, items, out_dir, args.volume_max)
+        print("      %s  %d 个文件  %s%s"
+              % (asset["file"], asset["entries"], human(asset["size"]),
+                 "（%d 卷）" % len(asset.get("parts", []))
+                 if asset.get("parts") else ""))
+        assets.append(asset)
+        files_all.update(files)
+
+    updater = None
+    up = find_updater()
+    if up:
+        updater = {"file": up.name, "size": up.stat().st_size,
+                   "sha256": _sha256_path(up)}
+        print("   更新器 %s  %s" % (up.name, human(up.stat().st_size)))
+    else:
+        print("   [warn] 找不到在线安装器 exe（%s），manifest 将不含 updater 条目"
+              % (DIST / ("视频工具箱_在线安装_v%s.exe" % ver)))
 
     manifest = {
-        "schema": 1, "app": "视频工具箱", "version": ver,
+        "schema": 2, "app": "视频工具箱", "version": ver,
         "released": time.strftime("%Y-%m-%d %H:%M:%S"),
         "base_url": base_url, "assets": assets,
+        "files": files_all,
+        "remove": [s.strip().replace("\\", "/") for s in args.remove.split(",")
+                   if s.strip()],
         "notes": args.notes or ("视频工具箱 v%s 在线更新包" % ver),
     }
+    if updater:
+        manifest["updater"] = updater
+
+    # 两份内容**逐字节相同**：
+    #   manifest-<版本>.json  每版本留档，永不覆盖 —— 装任意版本 / 回滚靠它
+    #   manifest.json         最新版别名，老客户端（只认这个名字）仍能工作
+    text = json.dumps(manifest, ensure_ascii=False, indent=1)
+    mf_ver = out_dir / (vindex.MANIFEST_TEMPLATE % ver)
+    mf_ver.write_text(text, encoding="utf-8")
     mf = out_dir / "manifest.json"
-    mf.write_text(json.dumps(manifest, ensure_ascii=False, indent=1),
-                  encoding="utf-8")
+    mf.write_text(text, encoding="utf-8")
+    print("   清单留档 %s；别名 manifest.json" % mf_ver.name)
+
+    # ------------------------------------------------------ 版本索引
+    # ⚠ 先取远端已有索引并**合并**：本机索引只在本机累积，换机器或清过
+    #   out 目录就是空的，直接覆盖会把历史版本从目录里抹掉。
+    remote = fetch_remote_index(base_url)
+    idx = merge_remote_versions(vindex.new_index("视频工具箱", base_url),
+                                remote)
+    vindex.upsert_version(idx, {
+        "version": ver,
+        "manifest": mf_ver.name,
+        "released": manifest["released"],
+        "notes": manifest["notes"],
+        "state": args.state,
+        "pkgs": [a["name"] for a in assets],
+        "total_size": sum(int(a.get("size") or 0) for a in assets),
+        "min_updater": args.min_updater or "",
+    })
+    prune_index(idx, args.index_keep)
+    idx["updated"] = time.strftime("%Y-%m-%d %H:%M:%S")
+    idx_path = out_dir / vindex.INDEX_NAME
+    vindex.save_index(idx, idx_path)
+    print("   版本索引 %d 个版本：%s"
+          % (len(idx["versions"]),
+             "、".join(e["version"] for e in idx["versions"][:6])
+             + ("…" if len(idx["versions"]) > 6 else "")))
+
     print("\n== manifest ==")
-    print("   %s" % mf)
+    print("   %s" % mf_ver)
     print("   base_url = %s" % base_url)
     for a in assets:
-        print("   %-6s %-24s %10s  %s" % (a["name"], a["file"],
-                                          human(a["size"]), a["sha256"][:16] + "…"))
+        print("   %-6s %-26s %10s  %s%s"
+              % (a["name"], a["file"], human(a["size"]), a["sha256"][:16] + "…",
+                 "  parts=%d" % len(a["parts"]) if a.get("parts") else ""))
+    print("   files 清单：%d 个文件" % len(files_all))
     if args.dry_run:
-        print("\n（--dry-run：未上传。可直接用本地 manifest 跑引导安装器自测）")
+        print("\n（--dry-run：未上传。可直接用本地文件跑引导安装器自测：）")
+        # ⚠ base-url 必须是**绝对**路径：相对路径拼出的 file:///build/...
+        #   会让 url2pathname 解出一个不存在的盘符根，照着跑必定失败。
+        print("   vt_online_setup.exe --manifest %s --base-url file:///%s "
+              "--dir <临时目录>" % (mf_ver, out_dir.resolve().as_posix()))
+        print("   选版本用 --index %s --version <版本号>"
+              % (idx_path,))
         return 0
 
     print("\n== 上传到 Release %s ==" % args.tag)
@@ -344,17 +627,34 @@ def main():
     print("   release id = %s" % rel["id"])
     ok = True
     for a in assets:
-        zp = out_dir / a["file"]
-        # 同名资产要先删再传（GitHub 不允许同名覆盖）
-        if drop_asset(rel["id"], a["file"]):
-            print("   （删除同名旧资产 %s）" % a["file"])
-        ok &= upload_asset(rel["id"], zp, a["file"])
+        for fname in (a.get("parts") or [a["file"]]):
+            zp = out_dir / fname
+            # 同名资产要先删再传（GitHub 不允许同名覆盖）
+            if drop_asset(rel["id"], fname):
+                print("   （删除同名旧资产 %s）" % fname)
+            ok &= upload_asset(rel["id"], zp, fname)
+    if updater:
+        if drop_asset(rel["id"], updater["file"]):
+            print("   （删除同名旧资产 %s）" % updater["file"])
+        ok &= upload_asset(rel["id"], up, updater["file"])
+    # 每版本清单留档（装任意版本 / 回滚的定位依据）
+    if drop_asset(rel["id"], mf_ver.name):
+        print("   （删除同名旧资产 %s）" % mf_ver.name)
+    ok &= upload_asset(rel["id"], mf_ver, mf_ver.name)
+    # 最新版别名（老客户端只认这个名字）
     if drop_asset(rel["id"], "manifest.json"):
         print("   （删除旧的 manifest.json）")
     ok &= upload_asset(rel["id"], mf, "manifest.json")
+    # 全版本目录
+    if drop_asset(rel["id"], vindex.INDEX_NAME):
+        print("   （删除旧的 %s）" % vindex.INDEX_NAME)
+    ok &= upload_asset(rel["id"], idx_path, vindex.INDEX_NAME)
 
     if not ok:
         sys.exit("!! 有资产上传失败")
+    # ⚠ 索引里还列着的版本，其资产**不许删**（否则目录里写着能装、点了 404）
+    cleanup_old_assets(rel["id"], args.keep,
+                       [e["version"] for e in idx.get("versions", [])])
     print("\n✅ 已发布：%s" % base_url)
     print("   manifest：%smanifest.json" % base_url)
     print("   ⚠ GitHub 资产下载会 302 跳转，CDN 生效通常几秒内")
