@@ -79,63 +79,55 @@ NewPipe Extractor 与早期字幕引擎两个 GPL 组件。
 | `pyqtSlot` | `Slot` | 0 | 未使用 |
 | `pyqtProperty` | `Property` | 0 | 未使用 |
 
-### 3.2 必须逐处改（有同名陷阱，不能盲替换）
+### 3.2 实测后修正（2026-10-13 隔离环境验证，**原先判断有误**）
 
-| API | PyQt5 | PySide6 | 处数 |
+隔离环境 `E:\vt_pyside6_probe\venv` 实测（PySide6 6.12.0 / Qt 6.12.0 /
+PySide6-Fluent-Widgets 1.11.3），探针 `build/_probe_pyside6.py` **15 项全通过**。
+
+| 项 | 原先判断 | **实测结论** | 迁移影响 |
 |---|---|---|---|
-| 模态对话框 | `dlg.exec_()` | `dlg.exec()` | **11** |
-| 表头拉伸 | `setSectionResizeMode(0, QHeaderView.Fixed)` | 需改用 `QHeaderView.ResizeMode.Fixed` 枚举 | **8** |
+| `.exec_()` 11 处 | 「PySide6 已移除，必须改 `.exec()`」 | ❌ **判断错了** —— PySide6 **保留了 `exec_()`**（向后兼容） | **不必改** |
+| `setSectionResizeMode` 8 处 | 「裸枚举成员已不存在，会 AttributeError」 | ❌ **判断错了** —— `QHeaderView.Fixed` 仍可用（值 == `ResizeMode.Fixed`） | **不必改** |
+| `isSystemDarkTheme` | 未查 | ⚠ **确实被移除** —— 替代品是 `isDarkThemeMode()` | `ui_theme.py:401` 需改 |
+| `pyqtSignal` → `Signal` | 92+ 处 | ✅ 需改（`Signal` 是正确名） | 须改 |
+| 信号触发 `sig(...)` | 未查 | ⚠ PySide6 **只能 `.emit()`**，`sig(...)` 报 `TypeError: native Qt signal instance is not callable` | ✅ 无影响 —— 本项目 96 处触发**全部已是 `.emit()`** |
 
-`exec_()` 分布（迁移时逐个改）：
+⇒ **实际必改项只剩两处**：`pyqtSignal` → `Signal`（92+ 处，可脚本化）、
+`isSystemDarkTheme` → `isDarkThemeMode`（1 处，在 `ui_theme.py`）。
+原先清单里「19 处 exec_/枚举必须逐个改」的判断作废。
 
-```
-src/subtitle_editor.py:1440
-src/video_toolbox_qt.py:4296, 4716, 7647, 7703, 9635   ← 9635 是 app.exec_()，主入口
-src/vt_engine_ui/subtitle_interface.py:328, 520
-src/vt_engine_ui/transcription_interface.py:365
-```
+### 3.3 已验证可用的能力（实测）
 
-`setSectionResizeMode` 分布：
+| 能力 | 结果 |
+|---|---|
+| 项目用到的 18 个 qfluentwidgets API | **全部存在** |
+| 主题切换 `setTheme(LIGHT/DARK)` + `isDarkTheme()` | **真实生效**（LIGHT=False / DARK=True） |
+| `setThemeColor` | 生效 |
+| `CardWidget` + `BodyLabel` 渲染 | 成功（600×300 非空） |
+| `Signal` + `.emit()` | 可用 |
 
-```
-src/subtitle_editor.py:791
-src/video_toolbox_qt.py:960, 2313
-src/vt_engine_ui/subtitle_interface.py:289, 290, 291
-```
+### 3.4 依赖包替换
 
-> ⚠ PySide6 里 `QHeaderView.Fixed` 这类**裸枚举成员不再存在**，直接沿用会
-> `AttributeError`。须写成 `QHeaderView.ResizeMode.Fixed`。
-
-### 3.3 依赖包必须更换
-
-| 现装 | 问题 | 应换为 |
+| 现装 | 问题 | 换成 |
 |---|---|---|
-| `PyQt-Fluent-Widgets 1.8.4` | **基于 PyQt5**，且许可为 **GPLv3（仅非商业）** | `PySide6-Fluent-Widgets` |
-| `PyQt5` | GPLv3 | `PySide6` |
-
-项目用到的 qfluentwidgets API（11 个，均属基础组件，PySide6 版应有对应）：
-
-```
-CardWidget / FluentIcon / InfoBar / Theme / qconfig / setTheme /
-setThemeColor / isDarkTheme / isSystemDarkTheme
-qfluentwidgets.common.config.ConfigItem
-qfluentwidgets.common.style_sheet.isDarkTheme
-qfluentwidgets.components.navigation.navigation_widget.NavigationWidget
-```
-
-> `src/ui_theme.py`（1286 行）直接依赖 qfluentwidgets API，**换包后必须重新验证**。
-> 这是本次迁移风险最高的一处——它不是机械替换。
+| `PyQt-Fluent-Widgets 1.8.4` | 基于 PyQt5，GPLv3 非商业 | `PySide6-Fluent-Widgets 1.11.3` ✅ 已实测可用 |
 
 ## 四、迁移步骤（每步可回滚）
 
-1. **隔离验证**（E 盘 venv）：装PySide6 + PySide6-Fluent-Widgets，跑一个最小窗口
-   ——验证 qfluentwidgets 在 PySide6 下能起、`ui_theme` 的主题切换可用；
-2. **批量替换**：import 包名 + `pyqtSignal`→`Signal`（脚本化，逐文件验证语法）；
-3. **逐处修正**：`exec_()` 11 处 + `setSectionResizeMode` 8 处；
-4. **重验 `ui_theme.py`**：主题、亚克力/云母材质、卡片取色；
-5. **改打包链路**：`packaging/视频工具箱.spec` 与 `iss` 里那 1393 处 Qt5 DLL/路径
-   引用——**这一步最易漏**，PySide6 的 DLL 布局与 PyQt5 不同；
-6. **全量自检**：至少 GUI 全过 + `_selftest_vc` + 本清单新增的迁移自检。
+0. ~~隔离验证~~ ✅ **已完成**（15/15 通过，见 3.2 / 3.3）；
+1. **批量替换**：`pyqtSignal` → `Signal`、`PyQt5.*` → `PySide6.*`
+   （脚本化，逐文件 `py_compile` 验证）；
+2. **改 1 处**：`ui_theme.py:401` 的 `isSystemDarkTheme` → `isDarkThemeMode`；
+3. **重验 `ui_theme.py`**：主题、亚克力/云母材质、卡片取色
+   （依赖已验证可用，但它是 1286 行的自研补丁，需实跑）；
+4. **改打包链路**：`packaging/视频工具箱.spec` 与 `iss` 里那 1393 处
+   Qt5 DLL / 路径引用——**这一步最易漏**，PySide6 的 DLL 布局与 PyQt5 不同
+   （`Qt5/bin/*.dll` → `Qt/lib/*.dll`）；
+5. **全量自检**：至少 GUI 全过 + `_selftest_vc` + 打包链路自检。
+
+> ⚠ `AcrylicLabel`（亚克力/云母效果）在 **lite 版没有**，需装
+> `PySide6-Fluent-Widgets[full]`。项目的云母特效依赖它——
+> 装 full 变体时连带装 scipy 等大依赖，注意网络耗时。
 
 ## 五、待确认事项
 
