@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 1.20.0
+# @version 2.0.0
 """
 全局 AI 客户端（OpenAI 兼容 · 单通道）。
 
@@ -87,6 +87,15 @@ def _resolve_data_dir() -> Path:
 DATA_DIR = _resolve_data_dir()
 CONFIG_PATH = DATA_DIR / "ai_config.json"
 
+# 缓存目录重定向：本模块也会被主程序以**独立进程**加载（VT_DATA_ROOT 已注入），
+# 这里同步改写 XDG / HuggingFace 缓存位置，避免本地 faster-whisper 权重按
+# XDG 默认规则落回 %USERPROFILE%\.cache（C 盘）。用 setdefault —— 主程序
+# （video_toolbox.py）已显式设定时以主程序为准。
+_CACHE_DIR = DATA_DIR.parent / ".cache"
+os.environ.setdefault("XDG_CACHE_HOME", str(_CACHE_DIR))
+os.environ.setdefault("HF_HOME", str(_CACHE_DIR / "huggingface"))
+os.environ.setdefault("HF_HUB_CACHE", str(_CACHE_DIR / "huggingface" / "hub"))
+
 #: 本模块的 logger 以前**从未被配置过**——`logger.info("…重试…")` 全部无声
 #: 丢弃、`logger.warning` 只落到 stderr（GUI 下看不到）。结果是：一块校准卡在
 #: "90 秒超时 → 退避重试"里拖到 7 分 39 秒，用户界面上却一片空白，只能判成
@@ -163,6 +172,13 @@ DEFAULT_CONFIG: dict = {
     #   DEFAULT_CONFIG）⇒ 保存即被静默丢弃、重启回落 False。此处补齐 schema。
     "asr_diarize": False,
     "asr_separate": False,
+    # asr_language: 识别语言（2026-10-12 新增）——引擎 TranscribeLanguageEnum 的
+    #   **标签值**（"自动检测"/"中文"/"英语"/"日本語"/"韩语"/"粤语"…）。
+    #   "自动检测" = 交给识别端按内容自行判断（默认，不覆盖引擎设置）；
+    #   指定后强制按该语言识别，服务与本地模式都生效，并写进引擎转录配置。
+    #   ⚠️ 选错语言会明显拉低识别率（对日语音频强制中文会输出乱码）——
+    #      没有把握就留「自动检测」。
+    "asr_language": "自动检测",
     # ---- AI 校准（Agent 级字幕校准）----
     # v1.12.0：原 calib_channel（接口 A/B 选择）随双通道合并一并废弃
     # v1.15.4：按「模型最大值」放开——上下文预算默认 1M token，单次输出默认
@@ -196,6 +212,11 @@ DEFAULT_CONFIG: dict = {
     "calib_style": "term",
     # calib_web_enabled: AI 校准 Agent 联网查证（web_search/web_fetch 工具环）
     "calib_web_enabled": False,
+    # calib_media_enabled: AI 校准 Agent 音画证据（2026-10-12）——
+    #   开启后 Agent 可请求源媒体的 audio_evidence / frame_evidence（裁音频
+    #   重转写 / 抽帧视觉描述），佐证疑似误听与丢弃候选。要求：字幕同目录
+    #   有同名源媒体（视频或音频）；音频腿需 ASR 配 OpenAI 兼容端点。
+    "calib_media_enabled": False,
     "max_tokens": 2048,
     "timeout": 90,
     "retries": 3,
@@ -449,6 +470,33 @@ ASR_PROTOCOLS = ("auto", "openai", "azure", "chat_audio", "dashscope",
                  "deepgram", "elevenlabs", "gemini",
                  "volcengine", "assemblyai", "dashscope_realtime",
                  "dashscope_native", "dashscope_filetrans")
+
+#: 识别语言标签 → ISO 码（asr_language 存标签，请求/证据侧要码）。
+#: 标签与 videocaptioner core.entities.TranscribeLanguageEnum 的 value 逐字对齐
+#: （前 12 项中文标签、其余英文标签——选错标签引擎 EnumSerializer 解析不了），
+#: 码值与 LANGUAGES 表一致。设置页下拉与自检都以引擎枚举为准收口；
+#: 未收录的标签按自动检测处理（不下发 language 参数），引擎路径不受影响——
+#: 引擎写 settings.json 时同样只收枚举内标签。
+ASR_LANGUAGE_CODES = {
+    "自动检测": "",
+    "英语": "en", "中文": "zh", "日本語": "ja", "韩语": "ko", "粤语": "yue",
+    "法语": "fr", "德语": "de", "西班牙语": "es", "俄语": "ru",
+    "葡萄牙语": "pt", "土耳其语": "tr",
+    # 以下为引擎枚举里的英文标签项
+    "Italian": "it", "Swedish": "sv", "Dutch": "nl", "Polish": "pl",
+    "Catalan": "ca", "Arabic": "ar", "Indonesian": "id", "Hindi": "hi",
+    "Vietnamese": "vi", "Thai": "th", "Hebrew": "he", "Ukrainian": "uk",
+    "Greek": "el", "Czech": "cs", "Romanian": "ro", "Danish": "da",
+    "Hungarian": "hu", "Finnish": "fi", "Norwegian": "no",
+}
+
+
+def asr_language_code(label) -> str:
+    """识别语言标签 → ISO 码；未知标签返回 ""（= 不下发，识别端自动判断）。"""
+    key = str(label or "").strip()
+    if not key or key == "自动检测":
+        return ""
+    return ASR_LANGUAGE_CODES.get(key, "")
 
 #: 百炼原生（multimodal-generation）录音文件识别模型的官方 API 路径
 ASR_NATIVE_PATH = "/api/v1/services/aigc/multimodal-generation/generation"
@@ -1229,6 +1277,10 @@ def asr_config(cfg: dict | None = None) -> dict:
 
     service = 自有 ASR 服务（协议见 protocol 字段，全协议适配）；
     local   = 本地独立 faster-whisper 模型（模型名 + 模型目录可自定义）。
+
+    language_label / language（2026-10-12）：识别语言。label 是引擎枚举标签
+    （"自动检测"/"日本語"…），language 是 ISO 码（"ja"…，未知标签为 ""）。
+    "自动检测" 或空 = 不强制语言，由识别端自行判断。
     """
     c = dict(cfg or load_config())
     mode = str(c.get("asr_mode") or "service").strip().lower()
@@ -1252,6 +1304,11 @@ def asr_config(cfg: dict | None = None) -> dict:
         # 语音分离（separation）：重叠语音分离 / 音乐 reaction 剔除歌声。
         # 目前仅作接口占位（引擎侧 _asr_separate_audio），无端点消费。
         "separate": _asr_diarize_flag(c.get("asr_separate")),
+        # 识别语言（2026-10-12）：label 原样带给引擎注入；language 是 ISO 码，
+        # 供直接请求 /audio/transcriptions 与音画证据 harness 使用。
+        # 未知标签按自动检测（"" = 不下发 language 参数）。
+        "language_label": str(c.get("asr_language") or "").strip(),
+        "language": asr_language_code(c.get("asr_language")),
         "local_model": str(c.get("asr_local_model") or "").strip(),
         "local_model_dir": str(c.get("asr_local_model_dir") or "").strip(),
     }

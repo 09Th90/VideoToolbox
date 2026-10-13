@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# @version 1.20.0
+# @version 2.0.0
 """界面自检（v1.10.4 Fluent 界面）：验证窗口与各页面可构建、导航宽度自适应、
 设置页统一入口、字幕处理环境就绪。
 
@@ -1683,7 +1683,11 @@ def main():
     check("新配置键已进 schema（保存不会被静默丢弃）",
           all(k in engine.ai_mod().DEFAULT_CONFIG for k in
               ("calib_think_rounds", "calib_cluster_enabled",
-               "calib_cluster_members", "calib_cluster_rounds")))
+               "calib_cluster_members", "calib_cluster_rounds",
+               "calib_media_enabled")))
+    check("设置页含「音画证据」开关（出厂默认关闭）",
+          hasattr(sp, "calib_media_switch")
+          and engine.ai_mod().DEFAULT_CONFIG.get("calib_media_enabled") is False)
     try:
         import calib_ai_agent as _agent
         agent_ok = (_agent.SCRIPT_NAME == "subtitle_calib_merged.py"

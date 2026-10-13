@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# @version 1.20.0
+# @version 2.0.0
 """视频工具箱 GUI v1.11.0 —— Fluent 矢量界面
 ====================================================================
 界面形态（v1.10.0 起，原 tkinter 界面退役）：
@@ -31,6 +31,19 @@ v1.13.0 变更要点：
   ④ 自适应布局：修复窗口缩小/跨 PPI 拖动后页面扭曲——视频库卡片网格重排
      立即收缩 holder、设置页内嵌引擎设置界面宽度跟随宿主（原硬编码 1000px）、
      输入行最小宽度收紧、屏幕/DPI 变化强制全页重排。
+v1.19.1：修「中止下载没有真正生效」——v1.19.0 的取消只覆盖了下载进程一段，
+  而任务实际要过 引导/提取/下载/兜底重试/换源/NPE解析/NPE下载/封面 八个阶段，
+  其中提取(fetch_info_json)、NPE 解析、封面三处用的是 subprocess.run（跑满
+  180s×4、(45+25)s×2、60s 超时），且这些子进程都没登记进 _procs ⇒ 取消按钮
+  根本拿不到它们；`proc.kill()` 也只杀父进程，yt-dlp/ffmpeg fork 的孙进程继续
+  写 .part、继续吃带宽；`with _EXTRACT_LOCK` 更是不可中断阻塞，排队等锁时取消
+  毫无反应。现全阶段接通：run→Popen+轮询、新增 cancel/register 形参、所有
+  子进程经 _register_proc 登记、改用 kill_process_tree（taskkill /F /T）、
+  提取锁改可中断、退避改 sleep_cancellable、引导阶段抛 _CancelledEarly。
+  另修 UI 回弹（on_dl_progress 无条件把状态写回「下载中」，把刚点完取消的
+  界面顶回去 —— 用户判定「没生效」的直接观感）：取消时先置「取消中」，
+  on_dl_progress/on_dl_log 对取消中/已取消/完成/失败直接丢弃。
+  自检 `scripts/dev/_selftest_download_cancel.py` 29/29。
 v1.19.0：下载可中止——任务列表新增「取消选中任务」：置取消标志 + 强杀
   yt-dlp/ffmpeg 子进程，下载/兜底重试/字幕各阶段都会即时响应，已取消任务清理
   .part/.ytdlp 等临时分片并标记「已取消」（可重新加入同一链接）。
@@ -58,6 +71,7 @@ v1.10.5：字幕校准页模式列表与脚本实际支持的 12 种模式对齐
 调试钩子（供打包验证/截图）：VT_GUI_SELFTEST=1 自检自退；VT_SHOT_TAB/VT_SHOT_FILE 截图。
 """
 
+import contextlib
 import hashlib
 import json
 import os
@@ -152,8 +166,13 @@ from subtitle_compose import ComposeDialog
 # 自动化页（v1.16.0）：视觉自动化 demo，参考 MAA 的「抓帧→识别→声明式任务→点击」。
 # 单独成模块（自带卡片/滚动壳），因此**不反向 import 本文件**，无循环导入。
 import auto_vision_page
+# 程序更新（v2.0.0）：与自研在线安装器（packaging\online_release）之间的
+# 接线层——只做检测/决策/自替换委托，下载逻辑复用安装器侧已验证的实现。
+# 该模块对「在线发布组件缺失」是**静默降级**（返回 None 能力），所以
+# 这里 import 本身不会因分发形态而失败。
+import vt_update_check
 
-VERSION = "1.20.0"
+VERSION = "2.0.0"
 
 # 全格式媒体/字幕/文档扩展名（v1.13.0）：
 #   视频：常见容器 + av1 / h264 / h265 / x264 等裸流与更多封装；
@@ -761,6 +780,15 @@ def tab_caption(text, parent=None):
 
 
 # ========== 视频下载（含「音画合并」板块，v1.13.0 合并） ==========
+class _CancelledEarly(Exception):
+    """下载线程在引导阶段（ensure_ytdlp / ensure_ffmpeg）就被取消。
+
+    v1.19.1：引导阶段原先连取消标志都不看，用户点完取消还得干等 ~170MB
+    的 ffmpeg 下载完。用专用异常而非返回码，是为了不污染 `rc` 语义
+    （1 = 失败，只有 RC_CANCELLED 才走临时文件清理分支）。
+    """
+
+
 class DownloadPage(QWidget):
     """单个链接反复添加；每个下载任务独立线程，互不阻塞。
 
@@ -1109,8 +1137,20 @@ class DownloadPage(QWidget):
         evt = self._cancel_events.get(task_id)
         return bool(evt and evt.is_set())
 
+    def _register_proc(self, task_id, proc):
+        """把当前阶段（提取/下载/封面/NPE）的子进程登记到 _procs。
+
+        v1.19.1：原先只有 `_run_ytdlp` 会登记，提取阶段
+        （`fetch_info_json`）和封面阶段用的是引擎里另一个入口，取消按钮
+        拿不到进程 → 点了取消完全没用。现在所有子进程都走这里。
+        """
+        if proc is None:
+            self._procs.pop(task_id, None)
+        else:
+            self._procs[task_id] = proc
+
     def cancel_selected_task(self):
-        """中止选中的下载任务：置标志 + 强杀当前子进程，工作线程随即收敛。"""
+        """中止选中的下载任务：置标志 + 强杀当前子进程树，工作线程随即收敛。"""
         rows = self.task_table.selectionModel().selectedRows()
         if not rows:
             self._warn("请先在任务列表中选中要取消的任务")
@@ -1127,13 +1167,15 @@ class DownloadPage(QWidget):
         if evt:
             evt.set()
         proc = self._procs.get(tid)
-        if proc is not None and proc.poll() is None:
-            try:
-                proc.kill()
-            except Exception:  # noqa: BLE001 —— 进程可能刚好自行退出
-                pass
-        item["status"] = "已取消"
-        self._set_cell(tid, 4, "已取消")
+        if proc is not None:
+            # v1.19.1：杀进程**树**。yt-dlp/ffmpeg 会再 fork 子进程，
+            # 只 kill 父进程的话孙进程继续写 .part、继续吃带宽。
+            engine.kill_process_tree(proc)
+        # v1.19.1：置「待确认」状态。原先立刻写死「已取消」，但只要
+        # 队列里还有几条进度消息在泵，就会被 on_dl_progress 立刻改回
+        # 「下载中」——用户看到的就是「点了取消，状态又跳回去了」。
+        item["status"] = "取消中"
+        self._set_cell(tid, 4, "取消中")
         self.cancel_btn.setEnabled(False)
         self.log.line(f"[任务 {tid}] 已请求取消，正在停止下载并清理临时文件 ...", "err")
 
@@ -1167,6 +1209,39 @@ class DownloadPage(QWidget):
         return url if len(url) <= limit else url[: limit - 3] + "..."
 
     # ---------- 下载线程（与旧界面逻辑一致） ----------
+    def _extract_lock(self, task_id, timeout=30.0):
+        """可取消地获取提取锁；返回是否拿到。
+
+        v1.19.1：`with _EXTRACT_LOCK` 是**不可中断阻塞**——并行任务里另一个
+        正在做 180s 提取时，本任务卡在锁上，此时点取消毫无反应（它还没走到
+        任何检查取消的地方）。改成带超时轮询，取消一置位立刻退出等待。
+        """
+        if task_id is None:
+            DownloadPage._EXTRACT_LOCK.acquire()
+            return True
+        deadline = time.time() + timeout
+        while True:
+            if DownloadPage._EXTRACT_LOCK.acquire(timeout=0.2):
+                return True
+            if self._is_cancelled(task_id):
+                return False
+            if time.time() > deadline:
+                self.app.q.put(("dl_log", task_id,
+                                "[提取] 等待另一个任务的提取超时，继续排队重试"))
+                return DownloadPage._EXTRACT_LOCK.acquire(timeout=0.2)
+
+    def _fetch_info_for_task(self, task_id, ytdlp, url, slog):
+        """任务线程内的提取：带取消 + 子进程登记。"""
+        with contextlib.ExitStack() as stack:
+            if not self._extract_lock(task_id):
+                return None
+            stack.callback(DownloadPage._EXTRACT_LOCK.release)
+            evt = self._cancel_events.get(task_id)
+            return engine.fetch_info_json(
+                ytdlp, url, log=slog,
+                cancel=evt,
+                register=lambda p: self._register_proc(task_id, p))
+
     def _download_worker(self, task_id, url, fid, folder, with_subs=False,
                          info_json_path=None, meta=None, quality_label=""):
         try:
@@ -1179,7 +1254,13 @@ class DownloadPage(QWidget):
                                 f"[代理] 已锁定出口节点 {locked}"
                                 "（避免下载中途换 IP 导致分片失效）"))
             ytdlp = engine.ensure_ytdlp()
+            # v1.19.1：引导阶段（首次运行要下 ~170MB ffmpeg）也能被取消。
+            # 原先这里连取消标志都不看，用户点了取消还得干等整个下载。
+            if self._is_cancelled(task_id):
+                raise _CancelledEarly()
             ffmpeg_path, _ = engine.ensure_ffmpeg()
+            if self._is_cancelled(task_id):
+                raise _CancelledEarly()
             # 代理：YouTube 等站点在国内必须经代理才能下载（B 站等本来直连的
             # 站点，代理的 rules 里是 DIRECT，没有副作用）。拿不到代理就直连。
             proxy_args = engine.ytdlp_proxy_args()
@@ -1264,6 +1345,10 @@ class DownloadPage(QWidget):
             elif rc == self.RC_CANCELLED:
                 self._cleanup_cancelled(task_id, folder)
             self.app.q.put(("dl_done", task_id, rc, folder))
+        except _CancelledEarly:
+            # v1.19.1：引导阶段被取消，按取消收尾（清掉刚建的空目录）。
+            self._cleanup_cancelled(task_id, folder)
+            self.app.q.put(("dl_done", task_id, self.RC_CANCELLED, folder))
         except Exception as e:
             self.app.q.put(("dl_done", task_id, 1, f"出错: {e}"))
         finally:
@@ -1282,8 +1367,11 @@ class DownloadPage(QWidget):
         if self._is_cancelled(task_id):  # v1.19.0：取消后不再进提取/重试
             return self.RC_CANCELLED
 
-        with DownloadPage._EXTRACT_LOCK:
-            fresh = engine.fetch_info_json(ytdlp, url, log=slog)
+        fresh = self._fetch_info_for_task(
+            task_id, ytdlp, url,
+            lambda m: self.app.q.put(("sys_log", f"[任务 {task_id}] {m}")))
+        if self._is_cancelled(task_id):
+            return self.RC_CANCELLED
         if fresh:
             tmp = engine.save_info_json(fresh)
             try:
@@ -1329,8 +1417,9 @@ class DownloadPage(QWidget):
             except (ValueError, IndexError):
                 opts_i += ["-f", sel]
             slog(f"改用备用{'HLS 分片源' if hls else '直链源'}（{sel}）重试 ...")
-            with DownloadPage._EXTRACT_LOCK:
-                fresh = engine.fetch_info_json(ytdlp, url, log=slog)
+            fresh = self._fetch_info_for_task(task_id, ytdlp, url, slog)
+            if self._is_cancelled(task_id):
+                return self.RC_CANCELLED
             if fresh:
                 tmp = engine.save_info_json(fresh)
                 try:
@@ -1378,7 +1467,13 @@ class DownloadPage(QWidget):
         proxy = engine.npe_proxy_url()
         cookie_file = engine.npe_cookie_file(log=lambda m: log(m))
         log("[NPE] yt-dlp 各源均失败，改用 NewPipe Extractor 兜底解析 ...")
-        info = npe_backend.probe(url, proxy=proxy, cookie_file=cookie_file)
+        evt = self._cancel_events.get(task_id)
+        info = npe_backend.probe(
+            url, proxy=proxy, cookie_file=cookie_file,
+            cancel=evt, register=lambda p: self._register_proc(task_id, p))
+        if self._is_cancelled(task_id) or info.get("errorType") == "cancelled":
+            log("[NPE] 已取消")
+            return self.RC_CANCELLED
         if not info.get("ok"):
             log(f"[NPE] 解析失败：{npe_backend.error_hint(info)}", "err")
             return 1
@@ -1518,8 +1613,16 @@ class DownloadPage(QWidget):
             self.app.q.put(("dl_log", task_id, "[打包] 视频信息.txt 已生成"))
         except Exception as e:
             self.app.q.put(("dl_log", task_id, f"[打包] 视频信息.txt 写入失败: {e}"))
-        if engine.make_cover_1280x720(ffmpeg_path, folder):
+        # v1.19.1：封面生成同样可取消（原先 subprocess.run 跑满 60s 超时，
+        # 取消后还要白等；且 ffmpeg 收尾阶段没登记进程，按钮杀不掉）。
+        evt = self._cancel_events.get(task_id)
+        made = engine.make_cover_1280x720(
+            ffmpeg_path, folder, cancel=evt,
+            register=lambda p: self._register_proc(task_id, p))
+        if made:
             self.app.q.put(("dl_log", task_id, "[打包] 封面.jpg（1280x720）已生成"))
+        elif self._is_cancelled(task_id):
+            self.app.q.put(("dl_log", task_id, "[打包] 已取消，跳过封面", "err"))
         else:
             self.app.q.put(("dl_log", task_id, "[打包] 该视频无可用封面，已跳过封面步骤"))
 
@@ -1609,6 +1712,11 @@ class DownloadPage(QWidget):
         item = self.tasks.get(task_id)
         if not item:
             return
+        # v1.19.1：取消/收尾后到达的**迟到进度消息**必须丢弃。原实现无条件
+        # 把状态写回「下载中」，队列里积压的几条进度会把刚点完取消的界面
+        # 顶回「下载中 / 正在增长」——用户判定「中止没生效」的直接原因。
+        if item["status"] in ("取消中", "已取消", "完成", "失败"):
+            return
         item["pct"] = pct
         self._set_cell(task_id, 3, f"{pct:.1f}%")
         self._set_cell(task_id, 4, "下载中")
@@ -1620,6 +1728,10 @@ class DownloadPage(QWidget):
             self.pct_label.setToolTip(f"并行下载中：{n} 个任务")
 
     def on_dl_log(self, task_id, text, level="dim"):
+        # v1.19.1：已取消/已收尾的任务不再继续刷屏（子进程被杀前吐的最后几行）。
+        item = self.tasks.get(task_id)
+        if item and item["status"] in ("已取消", "完成", "失败"):
+            return
         self.log.line(f"[任务 {task_id}] {text}", level)
 
     def on_dl_done(self, task_id, rc, folder):
@@ -1667,7 +1779,8 @@ class DownloadPage(QWidget):
                           "（多为站点风控或网络问题）", "err")
 
     def active_count(self):
-        return sum(1 for item in self.tasks.values() if item["status"] == "下载中")
+        return sum(1 for item in self.tasks.values()
+                   if item["status"] in ("下载中", "取消中"))
 
     # ---------- 提示 ----------
     def _warn(self, text):
@@ -3158,6 +3271,7 @@ class SettingsPage(QWidget):
         self._build_calib_ai_card()
         self._build_engine_section()
         self._build_sync_card()
+        self._build_update_card()
         self._build_uicustom_card()
         self._build_appearance_card()
         self._build_about_card()
@@ -3379,6 +3493,14 @@ class SettingsPage(QWidget):
                       "deepgram", "elevenlabs", "gemini",
                       "volcengine", "assemblyai", "dashscope_realtime",
                       "dashscope_native", "dashscope_filetrans")
+    #: 识别语言下拉（2026-10-12）：与引擎 TranscribeLanguageEnum 逐字对齐的
+    #: 常用子集（前 12 项中文标签 + 常用英文标签）。**新增项必须先在引擎枚举里
+    #: 存在**——写进引擎 settings.json 的标签解析不了会静默回落默认值；
+    #: 自检 _selftest_asr_language.py 钉住「本表 ⊆ 引擎枚举」。
+    ASR_LANG_LABELS = ("自动检测", "中文", "英语", "日本語", "韩语", "粤语",
+                       "法语", "德语", "西班牙语", "俄语", "葡萄牙语",
+                       "土耳其语", "Italian", "Polish", "Dutch", "Arabic",
+                       "Indonesian", "Thai", "Vietnamese")
 
     def _build_ai_card(self):
         box, blay = card(
@@ -3477,6 +3599,27 @@ class SettingsPage(QWidget):
         self.asr_mode_combo.setCurrentIndex(1 if mode == "local" else 0)
         self.asr_mode_combo.currentIndexChanged.connect(self._sync_asr_visible)
         blay.addWidget(label_row("转录模型来源", self.asr_mode_combo))
+
+        # 识别语言（2026-10-12）：服务 / 本地两种模式都生效。默认「自动检测」
+        # 不写引擎配置（沿用引擎自己的取值）；指定后强制按该语言识别，并写进
+        # 引擎转录配置（settings.json + 内存态 + 任务创建兜底三层）。
+        self.asr_lang_combo = ComboBox(box)
+        _langs = list(self.ASR_LANG_LABELS)
+        _saved_lang = str(ai.get("asr_language") or "").strip() or "自动检测"
+        if _saved_lang not in _langs:
+            # 历史上存过下拉之外的标签（如更早版本/手改配置）：插回列表，
+            # 保证界面显示的就是真值，保存时不会把它悄悄换成「自动检测」。
+            _langs.insert(1, _saved_lang)
+        self.asr_lang_combo.addItems(_langs)
+        self.asr_lang_combo.setCurrentText(_saved_lang)
+        self.asr_lang_combo.setMaxVisibleItems(8)
+        self.asr_lang_combo.setToolTip(
+            "音视频中说话的语言，服务与本地模型都生效。\n"
+            "· 自动检测（默认）：交给识别端按内容自行判断，不覆盖引擎设置；\n"
+            "· 指定语言：强制按该语言识别——多语言混夹 / 短片段素材上更准，\n"
+            "  但**选错会明显拉低识别率**（如对日语音频强制中文会输出乱码）；\n"
+            "· 没有把握就留「自动检测」。")
+        blay.addWidget(label_row("识别语言", self.asr_lang_combo))
 
         # —— 服务模式 ——
         self.asr_service_widget = QWidget(box)
@@ -3610,6 +3753,7 @@ class SettingsPage(QWidget):
             w.textChanged.connect(self._mark_ai_dirty)
         self.asr_base.textChanged.connect(self._sync_plan_warn)
         self.asr_mode_combo.currentIndexChanged.connect(self._mark_ai_dirty)
+        self.asr_lang_combo.currentIndexChanged.connect(self._mark_ai_dirty)
         self.asr_proto_combo.currentIndexChanged.connect(self._mark_ai_dirty)
         self.asr_diarize_switch.checkedChanged.connect(self._mark_ai_dirty)
         self.asr_separate_switch.checkedChanged.connect(self._mark_ai_dirty)
@@ -3765,6 +3909,20 @@ class SettingsPage(QWidget):
         self.calib_web_switch.setChecked(bool(ai.get("calib_web_enabled", False)))
         blay.addWidget(label_row("联网查证", row(self.calib_web_switch, None)))
 
+        # 音画证据（2026-10-12）：Agent 可请求源媒体的音频重转写/抽帧描述，
+        # 佐证疑似误听与丢弃候选（对标 FineSub 多模态纠错 harness）。
+        # 音频腿要求 ASR 配 OpenAI 兼容端点；画面腿走全局视觉通道。
+        self.calib_media_switch = SwitchButton(box)
+        self.calib_media_switch.setChecked(bool(ai.get("calib_media_enabled", False)))
+        self.calib_media_switch.setToolTip(
+            "音画证据：校准时 Agent 可请求源媒体的证据（只读）——\n"
+            "· 音频：按 cue 时间轴裁一段音频重转写，回填「第二模型听到了什么」；\n"
+            "· 画面：同区间抽帧，回填屏幕文字/界面描述。\n"
+            "用于疑似误听（专名/同音词/口误）与丢弃候选的最终确认。\n"
+            "要求：① 字幕页已打开源视频；② 音频腿需 ASR 配 OpenAI 兼容端点；\n"
+            "③ 画面腿走全局视觉通道。任一缺失自动降级，不打断校准。")
+        blay.addWidget(label_row("音画证据", row(self.calib_media_switch, None)))
+
         # 思考轮次上限（v1.16.1）：每块「思考 → 联网查证 → 再思考」的往返轮数。
         # 0 = 关闭（不限，内部另有 32 轮安全上限兜底防死循环）。
         self.calib_think_rounds = _spin(int(ai.get("calib_think_rounds") or 0),
@@ -3874,6 +4032,8 @@ class SettingsPage(QWidget):
             "asr_diarize": self.asr_diarize_switch.isChecked(),
             # 语音分离：重叠语音分离 / 剔除歌声（接口占位，尚未内置模型）
             "asr_separate": self.asr_separate_switch.isChecked(),
+            # 识别语言（2026-10-12）：引擎枚举标签；「自动检测」= 不强制
+            "asr_language": self.asr_lang_combo.currentText(),
             # AI 校准（v1.12.0：通道选择随双通道合并一并移除）
             "calib_chunk_cues": self.calib_cues.value(),
             "calib_max_chars": self.calib_chars.value(),
@@ -3885,6 +4045,8 @@ class SettingsPage(QWidget):
                             if self.calib_style_combo.currentIndex() == 1 else "term"),
             # 联网查证（2026-09-20）：AI 校准 Agent 可发起 web_search/web_fetch
             "calib_web_enabled": self.calib_web_switch.isChecked(),
+            # 音画证据（2026-10-12）：Agent 可请求源媒体音频重转写/抽帧描述
+            "calib_media_enabled": self.calib_media_switch.isChecked(),
             # 思考轮次上限（v1.16.1）：0=关闭（不限）；>0=每块查证往返硬上限
             "calib_think_rounds": self.calib_think_rounds.value(),
             # Agent 集群（v1.16.1，多智能体协作，默认关闭）
@@ -4353,6 +4515,212 @@ class SettingsPage(QWidget):
         except Exception:  # noqa: BLE001
             pass
         return engine.sync_calib_on_startup(force=True)
+
+    # ------------------------------------------------------------------ #
+    # 程序更新（v2.0.0）：检测 → 用户确认 → 下载 → 退出替换自身
+    # ------------------------------------------------------------------ #
+    def _build_update_card(self):
+        box, blay = card(
+            "程序更新",
+            "检查视频工具箱是否有新版本并在本机直接更新（任意版本之间"
+            "可升可降；升/降以当前运行版本为基准判断）；启动时也会"
+            "自动检查一次，仅在有真正的新版本时提示，全程不打扰日常使用")
+        self.upd_ver_label = BodyLabel("当前版本 v%s" % VERSION, box)
+        blay.addWidget(row(self.upd_ver_label, None))
+
+        self.upd_btn = PushButton(FIF.SYNC, "检查更新", box)
+        self.upd_btn.clicked.connect(self._check_update_manual)
+        blay.addWidget(row(self.upd_btn, None))
+
+        self.upd_hint = fit_caption(CaptionLabel(
+            "更新会下载新版本并在你确认后替换程序文件，完成后自动重新打开；"
+            "更新前请先关闭正在进行的下载或字幕处理任务",
+            box))
+        self.upd_hint.setTextColor("#8a8a8a", "#9a9a9a")
+        blay.addWidget(self.upd_hint)
+        self.vbox.addWidget(box)
+
+    def _check_update_manual(self):
+        """设置页「检查更新」按钮：手动触发一次检测（不受启动节流限制）。"""
+        if getattr(self, "_upd_running", False):
+            return
+        self._upd_running = True
+        self.upd_btn.setEnabled(False)
+        self.upd_btn.setText("检查中…")
+        self._run_bg(self._do_check_update, self._check_update_done)
+
+    def _do_check_update(self):
+        """后台线程：跑检测。网络请求可能几十秒，绝不能在界面线程跑。"""
+        try:
+            return vt_update_check.check_update()
+        except Exception as e:  # noqa: BLE001 —— 顶层兜底，别让后台线程静默死掉
+            r = vt_update_check.CheckResult()
+            r.err = str(e)
+            return r
+
+    def _check_update_done(self, result, err):
+        self._upd_running = False
+        self.upd_btn.setEnabled(True)
+        self.upd_btn.setText("检查更新")
+        if err is not None:
+            InfoBar.error("检查失败", str(err)[:300], duration=6000,
+                          position=InfoBarPosition.BOTTOM_RIGHT, parent=self)
+            return
+        r = result
+        vt_update_check.note_auto_checked(r.remote_ver, r.update)
+        if not r.ok:
+            InfoBar.warning("检查更新失败", r.err[:300], duration=6000,
+                            position=InfoBarPosition.BOTTOM_RIGHT, parent=self)
+            return
+        if not r.update:
+            # 基准版本 = 已装版本优先、否则当前运行版本；本地没装时
+            # 别说「v未安装 已是最新」，那是拼接事故
+            cur = r.local_ver if r.local_ver != "未安装" else r.baseline_ver
+            InfoBar.success("已是最新", "当前 v%s 已是最新版本" % cur,
+                            duration=4000,
+                            position=InfoBarPosition.BOTTOM_RIGHT, parent=self)
+            return
+        if vt_update_check.user_declined(r.remote_ver):
+            InfoBar.info("有新版本",
+                         "v%s 可用（已忽略，不再提示）" % r.remote_ver,
+                         duration=5000,
+                         position=InfoBarPosition.BOTTOM_RIGHT, parent=self)
+            return
+        self._confirm_update(r)
+
+    def _confirm_update(self, r):
+        """弹出更新确认框；同意则开始下载。"""
+        dlg = QMessageBox(self)
+        # 标题文案由版本方向决定（全新安装 / 升级 / 降级），不再一律
+        # 「发现新版本」——运行 v2.0.0 时远端 v1.19.0 是降级不是新版本
+        label = r.action_label()
+        dlg.setWindowTitle(label)
+        dlg.setText("%s %s" % (label, r.remote_ver))
+        lines = list(r.detail_lines())
+        ok_in_proc, why = vt_update_check.update_available_in_process()
+        if not ok_in_proc:
+            # 源码运行 / 只读位置：先说清楚会装到哪、为什么不会替换
+            # 正在运行的程序，别等几十 MB 下完才告知
+            lines.extend(vt_update_check.wrap_lines([
+                "",
+                "注意：%s。" % why,
+                "本次只会把新版本安装到：%s"
+                % (r.install_dir or "默认安装目录"),
+            ]))
+        dlg.setInformativeText("\n".join(lines))
+        # detail_lines 已按 30 列折行；给个下限宽度防止 informativeText
+        # 被 QMessageBox 的尺寸策略裁掉（截断在半个字形上）
+        dlg.setMinimumWidth(520)
+        yes = PushButton("立即更新", dlg)
+        no = PushButton("以后再说", dlg)
+        dlg.addButton(yes, QMessageBox.AcceptRole)
+        dlg.addButton(no, QMessageBox.RejectRole)
+        dlg.setDefaultButton(no)
+        dlg.exec_()
+        if dlg.clickedButton() is not yes:
+            vt_update_check.record_declined(r.remote_ver)
+            InfoBar.info("已跳过", "不再提示 v%s；随时可在设置页点「检查更新」"
+                         % r.remote_ver, duration=4000,
+                         position=InfoBarPosition.BOTTOM_RIGHT, parent=self)
+            return
+        self._start_update(r)
+
+    def _start_update(self, r):
+        """开始下载更新（后台线程，带取消）。"""
+        self._upd_result = r
+        self._upd_cancel = threading.Event()
+        # 标题动词跟着方向走：全新安装 / 回滚 / 升级
+        verb = ("正在安装" if r.full else
+                ("正在回滚到" if r.downgrade() else "正在更新到"))
+        dlg = UpdateProgressDialog(
+            self, "%s v%s" % (verb, r.remote_ver),
+            "准备下载…\n更新过程中请勿关闭程序",
+            on_cancel=lambda: self._upd_cancel.set())
+        self._upd_dlg = dlg
+        dlg.show()
+        self._run_bg(self._do_apply_update, self._apply_update_done)
+
+    def _do_apply_update(self):
+        """后台线程：下载 + 校验 + 落地。"""
+        r = self._upd_result
+
+        def progress(stage, done, total):
+            if self._upd_dlg:
+                self._upd_dlg.update_progress(stage, done, total)
+
+        return vt_update_check.apply_update(
+            r, progress=progress,
+            log=lambda m: self._upd_dlg.append_log(m) if self._upd_dlg else None,
+            cancel=self._upd_cancel)
+
+    def _apply_update_done(self, result, err):
+        dlg = getattr(self, "_upd_dlg", None)
+        if dlg:
+            dlg.close()
+            dlg.deleteLater()
+            self._upd_dlg = None
+        if err is not None:
+            InfoBar.error("更新失败", str(err)[:300], duration=8000,
+                          position=InfoBarPosition.BOTTOM_RIGHT, parent=self)
+            return
+        if self._upd_cancel.is_set():
+            InfoBar.info("已取消", "更新已取消，程序保持当前版本", duration=4000,
+                         position=InfoBarPosition.BOTTOM_RIGHT, parent=self)
+            return
+        InfoBar.success("更新已就绪",
+                        "文件已更新完毕，程序将退出并自动重新打开", duration=5000,
+                        position=InfoBarPosition.BOTTOM_RIGHT, parent=self)
+        # 落地后需要替换运行中的 exe：派发脚本，等主进程退出后再换。
+        self._schedule_self_replace()
+
+    def _schedule_self_replace(self):
+        """派发自替换脚本；失败则提示用户手动重装（不要静默失败）。"""
+        ok, msg = vt_update_check.schedule_relaunch()
+        if not ok:
+            InfoBar.error("无法自动替换",
+                          "%s\n文件已下载完成，请关闭程序后运行在线安装器完成替换"
+                          % msg, duration=0,
+                          position=InfoBarPosition.BOTTOM_RIGHT, parent=self)
+            return
+        QTimer.singleShot(1200, QApplication.instance().quit)
+
+    # ---- 启动时自动检测（无新版本则完全不打扰）---- #
+
+    def auto_check_update(self):
+        """启动后静默检测一次（供 main() 调用；不是设置页方法）。
+
+        · 有节流：距上次询问不足 12 小时不重复发请求；
+        · 用户拒绝过的同一版本不再提示；
+        · 失败完全静默——更新功能不可用不该在启动时打扰用户。
+        """
+        try:
+            if not vt_update_check.should_auto_check():
+                return
+        except Exception:  # noqa: BLE001
+            return
+        self._run_bg(self._do_check_update, self._auto_check_done)
+
+    def _auto_check_done(self, result, err):
+        if err is not None or result is None or not getattr(result, "ok", False):
+            # 静默失败，但仍记时间戳：远端挂掉不该导致每次启动都重试
+            try:
+                vt_update_check.note_auto_checked("", False)
+            except Exception:  # noqa: BLE001
+                pass
+            return
+        r = result
+        vt_update_check.note_auto_checked(r.remote_ver, r.update)
+        if not r.update or vt_update_check.user_declined(r.remote_ver):
+            return
+        if r.downgrade():
+            # 目标版本比当前运行的程序还旧：启动时别拿「发现新版本」扰民
+            # （典型场景：开发版 v2.0.0 vs 远端最新发布 v1.19.0）。
+            # 确实想回滚的用户会自己去设置页点「检查更新」。
+            return
+        InfoBar.info("发现新版本",
+                     "v%s 可用（当前 v%s），可在设置页点「检查更新」立即升级"
+                     % (r.remote_ver, r.baseline_ver), duration=10000,
+                     position=InfoBarPosition.BOTTOM_RIGHT, parent=self)
 
     def _sync_done(self, result, err):
         if err is not None:
@@ -5163,6 +5531,15 @@ class CalibPage(QWidget):
                           + ("开启（Agent 可搜索/抓取官方名作证据）"
                              if (engine.ai_load_config() or {}).get(
                                  "calib_web_enabled") else "关闭"), "dim")
+            _media_cfg = (engine.ai_load_config() or {}).get("calib_media_enabled")
+            _media_src = engine.calib_media_for_srt(src) if _media_cfg else ""
+            self.log.line("[AI] 音画证据: "
+                          + ("开启（Agent 可请求源媒体音频重转写/抽帧作证据）"
+                             if _media_cfg else "关闭")
+                          + (("（%s）" % os.path.basename(_media_src)
+                              if _media_src else
+                              ("（未找到同名源视频，按离线继续）"
+                               if _media_cfg else ""))), "dim")
             self.log.line(f"[AI] 输入: {src}", "dim")
             self.log.line(f"[AI] 输出: {out}", "dim")
             if report:
@@ -5174,7 +5551,10 @@ class CalibPage(QWidget):
                                        # 再传入——_ai_worker 跑在子线程里，直接在
                                        # 其中调 fix_switch.isChecked() 属跨线程访问
                                        # Qt 控件（Qt 非线程安全）。
-                                       self.fix_switch.isChecked()),
+                                       self.fix_switch.isChecked(),
+                                       # 音画证据（2026-10-12）：同名源媒体路径
+                                       # （找不到传空串，Agent 按离线继续）。
+                                       engine.calib_media_for_srt(src)),
                                  daemon=True)
             self._thread = t
             t.start()
@@ -5197,7 +5577,7 @@ class CalibPage(QWidget):
         self.log.line("界面状态已自动复位，可直接重新点「开始校准」", "info")
 
     def _ai_worker(self, gen, src, out, report, mode_flag, round_no, again=False,
-                   fix_en=False):
+                   fix_en=False, media_path=""):
         def _log(msg, level="dim"):
             self.app.q.put(("cal_log", str(msg), level, gen))
 
@@ -5206,6 +5586,9 @@ class CalibPage(QWidget):
                 src, out=out, report=(report or None), mode_flag=mode_flag,
                 fix_en=fix_en, log=_log, round_no=round_no,
                 cancel=lambda: self._cancel_flag,
+                # 音画证据（2026-10-12）：同名源媒体作为证据源；
+                # 空串 = 未找到，Agent 按离线继续（行为同旧版）。
+                media_path=media_path,
                 # 续跑：以上轮产物为起点（跳过脚本基线），并把上轮采纳明细注入提示词
                 resume_from=(src if again else None),
                 prev_changes=(self._last_accepted if again else None))
@@ -5782,6 +6165,143 @@ class AsrExampleDialog(QDialog):
     def _reskin(self):
         if self.isVisible():
             self._skin()
+
+
+class UpdateProgressDialog(QDialog):
+    """更新进度窗：阶段文字 + 进度条 + 日志 + 取消（v2.0.0）。
+
+    形态沿用 `ConfirmDialog` 的定论（真·顶层模态窗口）：贴成主窗口子控件
+    会被 mpv 原生子窗口压住、收不到键盘焦点，用户看到的是「点不动的框」。
+    更新是长耗时操作，必须能取消——下载几百 MB 时不给取消等于绑架。
+
+    线程约定：`update_progress` / `append_log` 由**后台线程**调用，
+    内部一律走 Qt 信号切回主线程（直接改控件会跨线程崩）。
+    """
+
+    #: 后台线程 → 主线程的信号中转（连接时带 self，保证自动断开）
+    sig_progress = pyqtSignal(str, int, int)
+    sig_log = pyqtSignal(str)
+
+    def __init__(self, parent=None, title="正在更新",
+                 subtitle="", on_cancel=None):
+        super().__init__(parent)
+        self._on_cancel = on_cancel
+        self.setWindowFlags(Qt.Dialog | Qt.FramelessWindowHint
+                            | Qt.NoDropShadowWindowHint)
+        self.setWindowModality(Qt.ApplicationModal)
+        self.setAttribute(Qt.WA_TranslucentBackground, True)
+        self.setWindowTitle(title)
+
+        dark = False
+        try:
+            from qfluentwidgets import isDarkTheme
+            dark = bool(isDarkTheme())
+        except Exception:  # noqa: BLE001
+            pass
+        bg = "#2B2B2B" if dark else "#FFFFFF"
+        fg = "#F3F3F3" if dark else "#1B1B1B"
+        sub = "#C9C9C9" if dark else "#4C4C4C"
+        line = "#3D3D3D" if dark else "#E6E6E6"
+
+        outer = QVBoxLayout(self)
+        outer.setContentsMargins(0, 0, 0, 0)
+        card = QFrame(self, objectName="vtUpdCard")
+        card.setAttribute(Qt.WA_StyledBackground, True)
+        card.setStyleSheet(
+            "#vtUpdCard{background:%s;border:1px solid %s;"
+            "border-radius:10px;}" % (bg, line))
+        outer.addWidget(card)
+
+        inner = QVBoxLayout(card)
+        inner.setContentsMargins(26, 22, 26, 18)
+        inner.setSpacing(10)
+
+        t = QLabel(title, card, objectName="vtUpdTitle")
+        t.setStyleSheet("#vtUpdTitle{color:%s;font-size:15px;font-weight:600;"
+                        "background:transparent;border:none;}" % fg)
+        inner.addWidget(t)
+
+        self.stage = QLabel(subtitle or "准备中…", card, objectName="vtUpdStage")
+        self.stage.setWordWrap(True)
+        self.stage.setMinimumWidth(340)
+        self.stage.setMaximumWidth(460)
+        self.stage.setStyleSheet("#vtUpdStage{color:%s;font-size:13px;"
+                                 "background:transparent;border:none;}" % sub)
+        inner.addWidget(self.stage)
+
+        self.prog = ProgressBar(card)
+        self.prog.setRange(0, 0)          # 0,0 = 不确定进度（忙碌动画）
+        inner.addWidget(self.prog)
+
+        self.log = QPlainTextEdit(card)
+        self.log.setReadOnly(True)
+        self.log.setMaximumHeight(132)
+        self.log.setStyleSheet(
+            "QPlainTextEdit{background:transparent;border:1px solid %s;"
+            "border-radius:6px;color:%s;font-size:11px;}" % (line, sub))
+        inner.addWidget(self.log)
+
+        buttons = QHBoxLayout()
+        buttons.setContentsMargins(0, 6, 0, 0)
+        buttons.addStretch(1)
+        self.cancelButton = PushButton("取消", card)
+        self.cancelButton.setFixedWidth(112)
+        buttons.addWidget(self.cancelButton)
+        inner.addLayout(buttons)
+
+        # 「取消」只是置位标志，真正中止发生在后台任务里——
+        # 立即 close() 会让用户以为已经停了，其实还在下。
+        self.cancelButton.clicked.connect(self._do_cancel)
+        self.sig_progress.connect(self._on_progress)
+        self.sig_log.connect(self._on_log)
+        self.adjustSize()
+
+    def _do_cancel(self):
+        self.stage.setText("正在取消…（当前分块结束后生效）")
+        self.cancelButton.setEnabled(False)
+        if self._on_cancel:
+            try:
+                self._on_cancel()
+            except Exception:  # noqa: BLE001
+                pass
+
+    # ---- 后台线程调用（跨线程安全入口）----
+
+    def update_progress(self, stage, done, total):
+        self.sig_progress.emit(str(stage or ""), int(done or 0),
+                               int(total or 0))
+
+    def append_log(self, msg):
+        self.sig_log.emit(str(msg))
+
+    # ---- 主线程槽 ----
+
+    def _on_progress(self, stage, done, total):
+        if stage:
+            self.stage.setText(stage)
+        if total > 0:
+            self.prog.setRange(0, total)
+            self.prog.setValue(done)
+        else:
+            self.prog.setRange(0, 0)
+
+    def _on_log(self, msg):
+        # 末尾裁剪，避免长更新把内存吃满（日志只用于即时查看，不落盘）
+        self.log.appendPlainText(msg)
+        if self.log.blockCount() > 500:
+            self.log.document().setMaximumBlockCount(500)
+
+    def showEvent(self, e):
+        super().showEvent(e)
+        parent = self.parentWidget()
+        if parent is not None:
+            try:
+                center = parent.window().frameGeometry().center()
+                self.move(center - self.rect().center())
+            except Exception:  # noqa: BLE001
+                pass
+        self.raise_()
+        self.activateWindow()
 
 
 class ConfirmDialog(QDialog):
@@ -8998,6 +9518,23 @@ def main():
 
     window.show()
     window.raise_()
+
+    # 启动自动检测更新（v2.0.0）：延迟 1.5s 起步，先让首屏渲染完再发网络
+    # 请求；且由更新模块自己按 12 小时节流 + 用户拒绝记录决定要不要真查。
+    # ⚠ 用 QTimer.singleShot 而不是直接调：直调会让检测线程与窗口首帧构建
+    #   抢 GIL，表现为「启动那几秒界面卡一下」。
+    # ⚠ 自检/截图模式一律不查：VT_GUI_SELFTEST 与 VT_SHOT_FILE 下自动退出，
+    #   发起网络请求只会拖慢退出、污染结果。
+    if not (os.environ.get("VT_GUI_SELFTEST")
+            or os.environ.get("VT_SHOT_FILE")
+            or os.environ.get("VT_NO_UPDATE_CHECK")):
+        def _auto_update():
+            try:
+                window.settings_page.auto_check_update()
+            except Exception:  # noqa: BLE001 —— 更新功能绝不影响主流程
+                pass
+        QTimer.singleShot(1500, _auto_update)
+
     return app.exec_()
 
 

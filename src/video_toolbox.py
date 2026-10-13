@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# @version 1.20.0
+# @version 2.0.0
 """
 视频工具箱 v1.12.0（单文件整合版）
 ==================================================
@@ -362,6 +362,27 @@ tempfile.tempdir = TMP_DIR
 # 写到软件文件夹（而非按 __file__ 层级猜目录、或退回用户目录/C 盘）。
 os.environ.setdefault("VT_DATA_ROOT", DATA_ROOT)
 
+# XDG / HuggingFace 缓存目录重定向：huggingface-hub（本地 faster-whisper 权重，
+# 单个模型 0.5~1.6 GB）、yt-dlp 等第三方组件默认按 XDG 规范把缓存写到
+# %USERPROFILE%\.cache（C 盘）。这里统一改写到数据根目录下的 .cache，
+# 与「运行期产物一律不落系统盘」保持一致；已随软件搬迁的既有缓存原样可用，
+# 不会触发重新下载。子进程经 worker_subprocess_env() 继承同一设置。
+CACHE_DIR = os.path.join(DATA_ROOT, ".cache")
+os.environ["XDG_CACHE_HOME"] = CACHE_DIR
+os.environ["HF_HOME"] = os.path.join(CACHE_DIR, "huggingface")
+os.environ["HF_HUB_CACHE"] = os.path.join(CACHE_DIR, "huggingface", "hub")
+# deno（yt-dlp 的 JS 运行时）默认缓存 %LOCALAPPDATA%\deno；modelscope（字幕引擎
+# 模型下载通道）默认 ~/.cache/modelscope —— 两者都不认 XDG，必须单独指定。
+os.environ["DENO_DIR"] = os.path.join(CACHE_DIR, "deno")
+os.environ["MODELSCOPE_CACHE"] = os.path.join(CACHE_DIR, "modelscope")
+# XDG 的另外两兄弟一并收编：部分库把配置/数据散在 ~/.config、~/.local/share。
+os.environ["XDG_CONFIG_HOME"] = os.path.join(CACHE_DIR, "xdg-config")
+os.environ["XDG_DATA_HOME"] = os.path.join(CACHE_DIR, "xdg-data")
+try:
+    os.makedirs(CACHE_DIR, exist_ok=True)
+except OSError:
+    pass
+
 
 def _fallback_config_path():
     """配置回退位置。
@@ -422,7 +443,9 @@ def worker_subprocess_env():
     """worker 子进程环境：内嵌解释器已完整自包含，无需注入 PYTHONPATH；
     仅当回退到系统 Python 时，把内嵌 site-packages 追加进去以免缺包。
     v1.10.6 起同时把 TEMP/TMP 指向数据根目录，避免子进程把中间产物
-    写进系统盘；并传递 VT_DATA_ROOT 供子进程内的引擎解析同一根目录。"""
+    写进系统盘；并传递 VT_DATA_ROOT 供子进程内的引擎解析同一根目录。
+    缓存目录（XDG_CACHE_HOME / HF_HOME / HF_HUB_CACHE）同样显式下发，
+    保证子进程里的 faster-whisper 不会退回去读 %USERPROFILE%\\.cache。"""
     env = os.environ.copy()
     if system_python() != os.path.join(EMBEDDED_PYTHON_DIR, "python.exe"):
         env["PYTHONPATH"] = (EMBEDDED_SITE_PACKAGES + os.pathsep +
@@ -434,6 +457,13 @@ def worker_subprocess_env():
     except OSError:
         pass
     env["VT_DATA_ROOT"] = DATA_ROOT
+    env["XDG_CACHE_HOME"] = CACHE_DIR
+    env["HF_HOME"] = os.path.join(CACHE_DIR, "huggingface")
+    env["HF_HUB_CACHE"] = os.path.join(CACHE_DIR, "huggingface", "hub")
+    env["DENO_DIR"] = os.path.join(CACHE_DIR, "deno")
+    env["MODELSCOPE_CACHE"] = os.path.join(CACHE_DIR, "modelscope")
+    env["XDG_CONFIG_HOME"] = os.path.join(CACHE_DIR, "xdg-config")
+    env["XDG_DATA_HOME"] = os.path.join(CACHE_DIR, "xdg-data")
     return env
 # =============================
 
@@ -450,8 +480,11 @@ VC_LICENSE = "GPL-3.0"
 VC_HOMEPAGE = "https://github.com/WEIFENG2333/VideoCaptioner"
 VC_DOCS = "https://weifeng2333.github.io/VideoCaptioner/"
 VC_PKG_DIR = os.path.join(EMBEDDED_SITE_PACKAGES, "videocaptioner")
-VC_LICENSE_FILE = os.path.join(DOCS_DIR, "VideoCaptioner_GPL-3.0.txt")
-VC_SOURCE_FILE = os.path.join(DOCS_DIR, "VideoCaptioner_组件来源.txt")
+# 许可与来源声明文件（docs\ 下实际文件名——2026-10-12 修正：此前指向重命名前的
+# 旧文件名，而 packaging\视频工具箱.iss 早已跟随新名，GUI 自检「许可随包」一项
+# 因此长期误报；两处文件名以 docs\ 与 iss 为准保持一致）。
+VC_LICENSE_FILE = os.path.join(DOCS_DIR, "开源许可_GPL-3.0.txt")
+VC_SOURCE_FILE = os.path.join(DOCS_DIR, "第三方组件来源与许可声明.txt")
 
 
 def vc_importable():
@@ -823,6 +856,14 @@ def apply_asr_to_engine(ai_cfg=None):
                     and fw.get("ModelDir") != ac["local_model_dir"]:
                 fw["ModelDir"] = ac["local_model_dir"]
                 changed = True
+        # 识别语言（2026-10-12）：显式语言才写——「自动检测」时刻意不碰
+        # TranscribeLanguage，让引擎保留自己的取值（默认也是自动检测），
+        # 避免工具箱的默认值把用户在引擎里设过的语言覆盖掉。
+        _lang_label = str(ac.get("language_label") or "").strip()
+        if _lang_label and _lang_label != "自动检测":
+            if tr.get("TranscribeLanguage") != _lang_label:
+                tr["TranscribeLanguage"] = _lang_label
+                changed = True
         if changed:
             _vc_write_settings(data)
         # 内存态同步（引擎界面/QConfig 已加载时免重启生效）
@@ -847,9 +888,18 @@ def apply_asr_to_engine(ai_cfg=None):
                     if m.value == ac["local_model"]:
                         _cfg.set(_cfg.faster_whisper_model, m)
                         break
+            # 识别语言内存同步（与 settings.json 写入同口径：仅显式语言）
+            _lang_label = str(ac.get("language_label") or "").strip()
+            if _lang_label and _lang_label != "自动检测":
+                from videocaptioner.core.entities import TranscribeLanguageEnum
+                _cfg.set(_cfg.transcribe_language,
+                         TranscribeLanguageEnum(_lang_label))
         except Exception:
             pass
-        detail = (f"转录模型 → {'FasterWhisper（本地独立模型）' if ac['mode'] == 'local' else 'Whisper [API]（自有 ASR 服务）'}")
+        detail = (f"转录模型 → {'FasterWhisper（本地独立模型）' if ac['mode'] == 'local' else 'Whisper [API]（自有 ASR 服务）'}"
+                  + (f"；识别语言 → {ac.get('language_label')}"
+                     if str(ac.get("language_label") or "").strip()
+                     and ac.get("language_label") != "自动检测" else ""))
         return True, detail
     except Exception as e:  # noqa: BLE001
         return False, str(e)
@@ -862,6 +912,8 @@ def vc_asr_patch_apply():
     成数据根 models 目录、模型名取自枚举项；本地独立模型（自定义模型名/模型目录，
     如自训练/微调的 faster-whisper 模型）必须在这里覆盖进 TranscribeConfig 才会
     被 used。service 模式不干预（引擎自己读 WhisperAPI 配置）。
+    另：识别语言（asr_language，2026-10-12）为显式非自动值时，同样在这里写进
+    TranscribeConfig.transcribe_language（apply_asr_to_engine 的兜底）。
     """
     try:
         from videocaptioner.ui import task_factory as _tf
@@ -883,6 +935,23 @@ def vc_asr_patch_apply():
                         tcfg.faster_whisper_model = model
                     if model_dir:
                         tcfg.faster_whisper_model_dir = model_dir
+            # 识别语言（2026-10-12）：显式语言时直接写进 TranscribeConfig。
+            # apply_asr_to_engine 已同步 settings.json 与内存 cfg，这里是兜底——
+            # 任务在内存同步之前创建（或 cfg 尚未加载）时同样生效。
+            try:
+                ac = ai_mod().asr_config(ai_load_config())
+            except Exception:  # noqa: BLE001
+                ac = {}
+            _label = str(ac.get("language_label") or "").strip()
+            if _label and _label != "自动检测":
+                tcfg = getattr(task, "transcribe_config", None)
+                if tcfg is not None:
+                    try:
+                        from videocaptioner.core.entities import LANGUAGES
+                        tcfg.transcribe_language = LANGUAGES.get(_label, "")
+                    except Exception:  # noqa: BLE001
+                        tcfg.transcribe_language = \
+                            ai_mod().asr_language_code(_label)
         except Exception:
             pass
         return task
@@ -2090,6 +2159,7 @@ def asr_examples(cfg=None):
              "示例与程序内实现一一对应：跑通它 = 这套密钥/地址/模型可用。"]
 
     if proto == "local":
+        _lang = str(ac.get("language") or "").strip()
         return {
             "protocol": "local", "title": "本地 faster-whisper（不联网）",
             "env": {},
@@ -2098,10 +2168,13 @@ def asr_examples(cfg=None):
                 "from faster_whisper import WhisperModel",
                 "",
                 "model = WhisperModel(%r, device=\"auto\")   # 或模型目录" % (model or "large-v3"),
-                "segments, info = model.transcribe(\"audio.mp3\", language=\"zh\")",
+                "segments, info = model.transcribe(\"audio.mp3\", %s)"
+                % (("language=%r" % _lang) if _lang else "language=None  # 自动检测"),
                 "print(\"\".join(s.text for s in segments))",
             ]),
-            "notes": notes + ["本地模型在本程序的「设置 → ASR 语音识别 → 本地独立模型」里配。"],
+            "notes": notes + ["本地模型在本程序的「设置 → ASR 语音识别 → 本地独立模型」里配。"]
+                    + (["识别语言已固定为 %s（%r）。" % (ac.get("language_label"), _lang)]
+                       if _lang else []),
         }
 
     # ⚠️ 只给变量名与说明，**不把密钥明文写进可复制文本**（方便安全地
@@ -2125,11 +2198,14 @@ def asr_examples(cfg=None):
                                           "/audio/translations")
         url = sd_base + "/audio/transcriptions"
         mdl = model or "whisper-1"
+        _lang = str(ac.get("language") or "").strip()
         curl = "\n".join([
             'curl -X POST "%s" \\' % url,
             '  -H "Authorization: Bearer $ASR_API_KEY" \\',
             '  -F "file=@audio.mp3" \\',
             '  -F "model=%s" \\' % mdl,
+        ] + (['  -F "language=%s" \\' % _lang] if _lang else [])
+        + [
             '  -F "response_format=verbose_json" \\',
             '  -F "timestamp_granularities[]=word"',
         ])
@@ -2141,9 +2217,13 @@ def asr_examples(cfg=None):
             "with open(\"audio.mp3\", \"rb\") as f:",
             "    r = client.audio.transcriptions.create(",
             "        model=%r, file=f, response_format=\"verbose_json\",  # 非流式" % mdl,
+        ] + (["        language=%r," % _lang] if _lang else [])
+        + [
             "        timestamp_granularities=[\"word\"])",
             "print(r.text)",
         ])
+        notes = notes + (["识别语言已固定为 %s（请求带 language=%r）。"
+                          % (ac.get("language_label"), _lang)] if _lang else [])
     elif proto == "azure":
         res = base or "https://<你的资源名>.openai.azure.com"
         dep = model or "<部署名>"
@@ -5307,7 +5387,8 @@ def calib_web_proxy():
 
 def calib_ai_run(src, out=None, report=None, mode_flag="", fix_en=False,
                  log=None, round_no=1, cancel=None, workdir=None,
-                 style=None, resume_from=None, prev_changes=None, title=None):
+                 style=None, resume_from=None, prev_changes=None, title=None,
+                 media_path=None):
     """跑一轮 Agent 级 AI 校准，返回结果 dict（见 calib_ai_agent.calibrate）。
 
     style：None=读配置 `calib_style`——`term` 术语级（只替换名词，默认）/
@@ -5327,6 +5408,11 @@ def calib_ai_run(src, out=None, report=None, mode_flag="", fix_en=False,
 
     title（v1.16.1）：原始视频标题，传给片源档案作**改写新标题的参考基准**；
     None = 由 Agent 自动探测（字幕同目录 `视频信息.txt` 的「标题:」→ 视频文件名）。
+
+    media_path（2026-10-12 音画证据）：源视频/音频路径。`calib_media_enabled`
+    开启且路径可用时，装配 calib_media_agent 的音画证据工具（裁音频重转写 /
+    抽帧视觉描述），Agent 可对疑似误听与丢弃候选请求证据；无路径或工具装配
+    失败按离线继续，行为与旧版完全一致。
     """
     import calib_ai_agent as _agent
     ai = ai_load_config()
@@ -5370,6 +5456,42 @@ def calib_ai_run(src, out=None, report=None, mode_flag="", fix_en=False,
                 except TypeError:
                     log(f"  · 联网查证工具初始化失败（按离线继续）：{e}")
 
+    # 音画证据（2026-10-12）：calib_media_enabled 开启且传入源媒体路径时装配。
+    # 只支持 OpenAI 兼容 ASR 端点（重转写）；视觉走全局视觉通道。任何一步
+    # 缺失都按「无音画证据」继续，不打断校准主流程。
+    media = None
+    if bool(ai.get("calib_media_enabled", False)) and media_path:
+        try:
+            import calib_media_agent as _media
+            _asr = ai_mod().asr_config(ai)
+            _asr["protocol"] = ai_mod().resolve_asr_protocol(_asr)
+            _ff = ""
+            try:
+                _ff, _fp = ensure_ffmpeg()
+            except Exception:  # noqa: BLE001
+                _ff = ""
+            _vision = None
+            try:
+                _vision = ai_mod().get_client().chat_vision
+            except Exception:  # noqa: BLE001
+                _vision = None
+            media = _media.make_tools(media_path, asr=_asr, vision=_vision,
+                                      ffmpeg=_ff or None, log=log)
+            if log:
+                try:
+                    log("  · 音画证据已装配（音频重转写 + 抽帧视觉；"
+                        + ("视觉通道就绪" if _vision else "视觉通道不可用")
+                        + "）", "dim")
+                except TypeError:
+                    pass
+        except Exception as e:  # noqa: BLE001
+            media = None
+            if log:
+                try:
+                    log(f"  · 音画证据工具初始化失败（按离线继续）：{e}", "err")
+                except TypeError:
+                    log(f"  · 音画证据工具初始化失败（按离线继续）：{e}")
+
     def _member_chat(member):
         """按集群成员产出 chat 回调（成员走自己的端点/密钥/模型）。"""
         def _call(prompt, system=None, max_tokens=None, on_reasoning=None):
@@ -5401,7 +5523,7 @@ def calib_ai_run(src, out=None, report=None, mode_flag="", fix_en=False,
             style=style, resume_from=resume_from, prev_changes=prev_changes,
             sentence_aware=bool(ai.get("calib_sentence_aware", True)),
             strict_width=bool(ai.get("calib_strict_width", False)),
-            web=web)
+            web=web, media=media)
     finally:
         # 事件槽用完即清：否则跑完的校准日志回调会挂在全局客户端上，
         # 之后别的调用（视觉识别、接口测试）出的重试消息会写进一份已经结束的日志。
@@ -5450,6 +5572,56 @@ def run_process(*args, **kwargs):
 
 def popen_process(*args, **kwargs):
     return _SUBPROCESS_POPEN(*args, **_hide_console_kwargs(kwargs))
+
+
+# ========== 下载中止原语（v1.19.1） ==========
+def kill_process_tree(proc):
+    """杀掉子进程**及其全部后代**，返回是否成功。
+
+    为什么不能只用 `proc.kill()`：yt-dlp / ffmpeg / NPE(java) 都会再 fork
+    出自己的子进程（ffmpeg 合并、NPE 内部再起下载线程对应的进程）。只杀
+    父进程的话，孙进程会继续持有 .part 文件写句柄、继续吃带宽——用户点完
+    「取消选中任务」看着像没生效，日志还在滚就是这个原因。
+    Windows 没有 POSIX 进程组，用 taskkill /T 递归杀；其余平台退回 kill()。
+    """
+    if proc is None:
+        return False
+    try:
+        if proc.poll() is not None:
+            return True          # 已经自己退出了，无需再杀
+    except Exception:  # noqa: BLE001
+        return False
+    if sys.platform.startswith("win"):
+        try:
+            run_process(["taskkill", "/F", "/T", "/PID", str(proc.pid)],
+                        capture_output=True, timeout=15)
+            return True
+        except Exception:  # noqa: BLE001 —— 退回单进程 kill
+            pass
+    try:
+        proc.kill()
+        return True
+    except Exception:  # noqa: BLE001
+        return False
+
+
+def sleep_cancellable(seconds, cancel=None):
+    """可被取消标志打断的睡眠；被打断返回 True。
+
+    取消按钮置位后，退避等待必须立刻放行——原先 `time.sleep(6)` 一口气睡满，
+    用户点完取消还要白等几十秒才看到界面收敛。
+    """
+    if cancel is None:
+        time.sleep(seconds)
+        return False
+    end = time.time() + max(0.0, float(seconds))
+    while True:
+        if cancel.is_set():
+            return True
+        left = end - time.time()
+        if left <= 0:
+            return False
+        time.sleep(min(0.2, left))
 # =============================
 
 
@@ -7172,7 +7344,8 @@ def ytdlp_err_brief(text, limit=120):
     return lines[-1][:limit] if lines else "未知错误"
 
 
-def fetch_info_json(ytdlp, url, attempts=4, log=None, wait_base=5):
+def fetch_info_json(ytdlp, url, attempts=4, log=None, wait_base=5,
+                    cancel=None, register=None):
     """运行 yt-dlp -J 获取视频信息原始 JSON。
 
     部分站点（如 B 站）对无 cookie 的连续请求有风控，随机返回 HTTP 412；
@@ -7180,12 +7353,27 @@ def fetch_info_json(ytdlp, url, attempts=4, log=None, wait_base=5):
     "Sign in to confirm" / 连接被重置等）。这里把网络类与风控类错误都纳入
     自动重试，并把每一次的具体失败原因透出给 log，方便定位问题。
     log 为可选回调，用于向 GUI / 命令行透出重试进度与错误详情。
+
+    v1.19.1：`cancel`（threading.Event）+ `register`（登记当前子进程的回调）。
+    原先用 `subprocess.run` 跑到结束，**提取阶段完全无法中止**——用户点取消
+    后这里还要白等最多 180s×4 次 + 退避；而 GUI 的杀进程逻辑也拿不到这个
+    子进程（没登记），于是「取消」对正在提取/换源重试的任务彻底无效。
     """
     def _log(msg):
         if log:
             try:
                 log(msg)
             except Exception:
+                pass
+
+    def _cancelled():
+        return cancel is not None and cancel.is_set()
+
+    def _unregister():
+        if register:
+            try:
+                register(None)
+            except Exception:  # noqa: BLE001
                 pass
 
     def _detail(err_text):
@@ -7204,26 +7392,66 @@ def fetch_info_json(ytdlp, url, attempts=4, log=None, wait_base=5):
     # "Sign in to confirm"，自动索取的站方游客 cookie 实测能压低触发率
     cookie_args = ytdlp_cookie_args(log=_log)
     for i in range(attempts):
+        if _cancelled():
+            _unregister()
+            return None
+        proc = None
         try:
             # v1.16.5 修复：此前无 timeout——yt-dlp 在网络挂起（半开连接 /
             # 站点不响应）时会无限期干等，GUI 表现即「提取画质」永远转圈。
             # 180s 覆盖慢速站点首包 + 站点侧风控延迟的实测上限。
-            result = run_process([ytdlp, "-J", "--no-playlist", *cookie_args,
+            # v1.19.1：改 Popen + 轮询，取消标志一置位立刻杀整棵进程树。
+            proc = popen_process([ytdlp, "-J", "--no-playlist", *cookie_args,
                                   url, *proxy_args],
-                                 capture_output=True, timeout=180)
-        except subprocess.TimeoutExpired:
+                                 stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        except Exception:  # noqa: BLE001
+            _unregister()
+            raise
+        if register:
+            try:
+                register(proc)
+            except Exception:  # noqa: BLE001
+                pass
+        deadline = time.time() + 180
+        out_b = err_b = b""
+        timed_out = False
+        try:
+            while True:
+                if _cancelled():
+                    kill_process_tree(proc)
+                    try:
+                        proc.communicate(timeout=5)
+                    except Exception:  # noqa: BLE001
+                        pass
+                    _unregister()
+                    return None
+                if proc.poll() is not None:
+                    break
+                if time.time() > deadline:
+                    timed_out = True
+                    kill_process_tree(proc)
+                    break
+                time.sleep(0.15)
+            try:
+                out_b, err_b = proc.communicate(timeout=5)
+            except Exception:  # noqa: BLE001
+                out_b, err_b = b"", b""
+        finally:
+            _unregister()
+        if timed_out:
             _log(f"[信息] 提取超时（180s，{i + 1}/{attempts}）")
             if i == attempts - 1:
                 _log("[错误] 画质提取超时")
                 return None
             wait = wait_base * (i + 1)
             _log(f"[信息] {wait}s 后自动重试 ...")
-            time.sleep(wait)
+            if sleep_cancellable(wait, cancel):
+                return None
             continue
-        out = decode_bytes_any(result.stdout)
-        if result.returncode == 0 and out.strip().startswith("{"):
+        out = decode_bytes_any(out_b)
+        if proc.returncode == 0 and out.strip().startswith("{"):
             return out
-        err = decode_bytes_any(result.stderr) + out
+        err = decode_bytes_any(err_b) + out
         detail = _detail(err)
         if i < attempts - 1:
             _log(f"[信息] 提取失败（{i + 1}/{attempts}）: {detail}")
@@ -7233,7 +7461,8 @@ def fetch_info_json(ytdlp, url, attempts=4, log=None, wait_base=5):
             return None
         wait = wait_base * (i + 1)
         _log(f"[信息] {wait}s 后自动重试 ...")
-        time.sleep(wait)
+        if sleep_cancellable(wait, cancel):
+            return None
     return None
 
 
@@ -7353,8 +7582,24 @@ _PROXY_LOCK_STATE = {"orig": None, "count": 0}
 _PROXY_LOCK_MUTEX = threading.Lock()
 
 
-def _mihomo_api(method, path, payload=None, timeout=10):
-    """调 mihomo 的 RESTful API；失败抛异常（调用方按需吞掉）。"""
+def _mihomo_proxy_api(method, path, payload=None, timeout=10):
+    """调 mihomo 的 RESTful API；失败抛异常（调用方按需吞掉）。
+
+    ⚠️ 与上面的 `_mihomo_api(path, ...)` 是**两个函数**，勿再合并/重名：
+    2026-10-12 修复前两者同名，后定义的这本把前一本整个遮蔽掉——
+    代理引导链路（`_pick_alive_node` → `ensure_builtin_proxy`）按
+    `_mihomo_api("/proxies", ...)` 全路径风格调用，撞上这本的
+    `(method, path, ...)` 签名直接 TypeError，`ensure_builtin_proxy`
+    异常中断 → `ytdlp_proxy_args()` 拿不到代理 → yt-dlp 直连 →
+    YouTube 提取 180s 超时 ×4 →「检测画质」永远失败（日志见
+    logs\\mihomo.log 的 "missing 1 required positional argument"）。
+
+    区别约定：
+      · `_mihomo_api(path, ...)`      —— path 为**完整路径**（调用方自行
+        quote），失败返回 None；服务 ensure_builtin_proxy / proxy_status。
+      · `_mihomo_proxy_api(method, path, ...)` —— path 为 `/proxies/` **之后**
+        的一段（函数内统一 quote），失败抛异常；服务节点锁定/测速。
+    """
     from urllib.parse import quote
     import urllib.request
 
@@ -7373,7 +7618,7 @@ def _mihomo_api(method, path, payload=None, timeout=10):
 def proxy_group_now(group=None):
     """策略组当前选中的节点名；拿不到返回空串。"""
     try:
-        return (_mihomo_api("GET", group or PROXY_GROUP, timeout=6) or {}).get("now", "") or ""
+        return (_mihomo_proxy_api("GET", group or PROXY_GROUP, timeout=6) or {}).get("now", "") or ""
     except Exception:  # noqa: BLE001
         return ""
 
@@ -7384,7 +7629,7 @@ def proxy_node_delays(names, url="https://www.youtube.com/", timeout=6000):
     out = {}
     for name in names:
         try:
-            d = _mihomo_api("GET", "%s/delay?url=%s&timeout=%d"
+            d = _mihomo_proxy_api("GET", "%s/delay?url=%s&timeout=%d"
                             % (name, quote(url, safe=""), timeout), timeout=12)
             delay = d.get("delay") if isinstance(d, dict) else None
             if delay and delay > 0:
@@ -7397,7 +7642,7 @@ def proxy_node_delays(names, url="https://www.youtube.com/", timeout=6000):
 def pick_best_proxy_node(group=None, url="https://www.youtube.com/"):
     """挑出延迟最低的可用节点；测不到返回空串（表示维持现状）。"""
     try:
-        info = _mihomo_api("GET", group or PROXY_GROUP, timeout=8) or {}
+        info = _mihomo_proxy_api("GET", group or PROXY_GROUP, timeout=8) or {}
     except Exception:  # noqa: BLE001
         return ""
     # ⚠ mihomo 的 `all` 是**节点名字符串数组**，不是对象数组
@@ -7436,7 +7681,7 @@ def proxy_lock_acquire():
         if not best or best == orig:
             return ""
         try:
-            _mihomo_api("PUT", PROXY_GROUP, {"name": best})
+            _mihomo_proxy_api("PUT", PROXY_GROUP, {"name": best})
             return best
         except Exception:  # noqa: BLE001
             return ""
@@ -7456,7 +7701,7 @@ def proxy_lock_release():
         if not orig:
             return
         try:
-            _mihomo_api("PUT", PROXY_GROUP, {"name": orig})
+            _mihomo_proxy_api("PUT", PROXY_GROUP, {"name": orig})
         except Exception:  # noqa: BLE001
             pass
 
@@ -7719,8 +7964,20 @@ def write_info_txt(folder, data, quality_label=""):
     return path
 
 
-def make_cover_1280x720(ffmpeg_path, folder, timeout=60):
-    """把 yt-dlp 下载的封面缩略图转为 1280x720 的 封面.jpg（等比缩放+黑边补齐），删除原图"""
+def make_cover_1280x720(ffmpeg_path, folder, timeout=60, cancel=None,
+                        register=None):
+    """把 yt-dlp 下载的封面缩略图转为 1280x720 的 封面.jpg（等比缩放+黑边补齐），删除原图
+
+    v1.19.1：`cancel` + `register` 让打包阶段也能被「取消选中任务」打断
+    （原先 subprocess.run 跑满 timeout，用户点取消后还要白等 60s）。
+    """
+    def _unregister():
+        if register:
+            try:
+                register(None)
+            except Exception:  # noqa: BLE001
+                pass
+
     try:
         names = os.listdir(folder)
     except OSError:
@@ -7734,13 +7991,34 @@ def make_cover_1280x720(ffmpeg_path, folder, timeout=60):
     out = os.path.join(folder, "封面.jpg")
     vf = ("scale=1280:720:force_original_aspect_ratio=decrease,"
           "pad=1280:720:(ow-iw)/2:(oh-ih)/2,setsar=1")
+    proc = None
     try:
-        r = run_process([ffmpeg_path, "-y", "-i", src, "-vf", vf,
-                         "-frames:v", "1", "-q:v", "2", out],
-                        capture_output=True, timeout=timeout)
-    except Exception:
+        proc = popen_process([ffmpeg_path, "-y", "-i", src, "-vf", vf,
+                              "-frames:v", "1", "-q:v", "2", out],
+                             stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    except Exception:  # noqa: BLE001
+        _unregister()
         return False
-    if r.returncode != 0 or not os.path.isfile(out):
+    if register:
+        try:
+            register(proc)
+        except Exception:  # noqa: BLE001
+            pass
+    deadline = time.time() + timeout
+    try:
+        while True:
+            if cancel is not None and cancel.is_set():
+                kill_process_tree(proc)
+                return False
+            if proc.poll() is not None:
+                break
+            if time.time() > deadline:
+                kill_process_tree(proc)
+                return False
+            time.sleep(0.1)
+    finally:
+        _unregister()
+    if proc.returncode != 0 or not os.path.isfile(out):
         return False
     for c in cands:
         try:
@@ -7933,6 +8211,32 @@ def probe_audio_codec(filepath, ffprobe_path):
 #: 因此「输入容器」不加限制也可以，只要内容编码与 mp4 兼容。
 MERGE_VIDEO_EXTS = (".mp4", ".mkv", ".webm", ".mov", ".m4v",
                     ".avi", ".flv", ".ts", ".m4s", ".wmv", ".f4v")
+
+#: 音画证据（2026-10-12）：按 SRT 路径猜源媒体的扩展名（视频容器 + 音频兜底）
+CALIB_MEDIA_EXTS = MERGE_VIDEO_EXTS + (".m4a", ".mp3", ".wav", ".aac",
+                                       ".flac", ".ogg")
+
+
+def calib_media_for_srt(srt_path):
+    """按字幕路径找同目录同名源媒体（视频优先，其次音频）；找不到返回 ""。
+
+    校准页只认 SRT 路径，而音画证据需要源媒体——下载/剪辑流程里视频与
+    字幕恒定同目录同名，这是最可靠的猜法。猜不到就返回空串，Agent 按
+    离线继续（行为与旧版完全一致）。
+    """
+    try:
+        base = os.path.splitext(os.path.abspath(srt_path))[0]
+        d = os.path.dirname(base)
+        if not os.path.isdir(d):
+            return ""
+        for ext in CALIB_MEDIA_EXTS:
+            for suffix in (ext, ext.upper()):
+                p = base + suffix
+                if os.path.isfile(p):
+                    return p
+    except Exception:  # noqa: BLE001
+        pass
+    return ""
 
 
 def scan_media(folder, video_exts=None):

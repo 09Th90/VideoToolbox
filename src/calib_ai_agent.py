@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 1.20.0
+# @version 2.0.0
 """AI 校准 Agent —— Agent 级字幕术语校准（v1.11.0；v1.16.0 并发与提示词优化）。
 
 定位
@@ -77,6 +77,17 @@ v1.16.1 新增
                       不能卡死主流程）。统计见 result["cluster"]。
   · chat_for_member   上层注入的「集群成员 → chat 回调」工厂（各成员走自己的
                       base_url/api_key/model）；agent 自身不读配置。
+
+v1.20.0 新增（音画证据）
+========================
+  · media             calib_media_agent.make_tools() 产物（audio_evidence /
+                      frame_evidence）。传入后模型可请求源媒体的音画证据：
+                      按 cue 时间轴裁音频重转写（「第二模型听到了什么」）/
+                      同区间抽帧视觉描述，佐证疑似误听与丢弃候选。与 web
+                      可同时开启——证据分两个提示词块回填，互不混用。
+                      证据规则见 MEDIA_TOOL_NOTE（只读、可推翻「听成了什么」
+                      但不动知识库译名、画面文字不是字幕、冲突不静默取舍）。
+                       None=无音画证据，行为与旧版完全一致。
 """
 
 from __future__ import annotations
@@ -587,11 +598,34 @@ WEB_TOOL_NOTE = (
     "改动 JSON 数组，不得再请求工具；查证不到就维持不改。\n"
 )
 
+#: 音画证据工具说明（media 可用时追加到系统提示词尾部，2026-10-12）。
+#: 与联网查证同构：先只输出工具请求数组，证据回填后直接给结论。
+#: 证据规则源自 FineSub fragment_corr_role_audio / evidence_pack_usage。
+MEDIA_TOOL_NOTE = (
+    "【音画证据】对疑似误听（专名/同音词/口误）或丢弃候选没有把握时，可请求"
+    "源媒体的音画证据（只读）：\n"
+    '  {"tool":"audio_evidence","start":123.4,"end":126.8,"num":"42"} —— '
+    "从源媒体裁该区间音频重转写，回填「第二模型听到了什么」；\n"
+    '  {"tool":"frame_evidence","start":123.4,"end":126.8,"num":"42"} —— '
+    "同区间抽帧回填画面文字/界面描述。\n"
+    "start/end 为该 cue 时间轴的**秒数**（可省略 num）；每次最多 2 个请求；"
+    "收到【音画证据】后必须直接输出最终改动 JSON 数组，不得再请求工具。\n"
+    "证据规则：① 证据只读且可能出错，采信前与 ASR 文本、知识库交叉验证；"
+    "②「听成了什么」以音频证据为准（可推翻前置结论），但知识库沉淀的固定译名"
+    "与设定不由听觉裁决；③ 画面文字只是证据，不是字幕——不要为画面上出现、"
+    "但未说出的文字输出内容；④ 证据与知识库冲突时不静默取舍，把冲突写进 "
+    "reason；⑤ 取证据失败就维持不改。\n"
+)
 
-def style_system_prompt(style: str, web: bool = False) -> str:
-    """按风格取系统提示词；web=True 时追加联网查证工具说明。"""
+
+def style_system_prompt(style: str, web: bool = False, media: bool = False) -> str:
+    """按风格取系统提示词；web/media=True 时追加对应的工具说明。"""
     sys_txt = STYLE_SYSTEM.get(style, SYSTEM_PROMPT)
-    return sys_txt + WEB_TOOL_NOTE if web else sys_txt
+    if web:
+        sys_txt += WEB_TOOL_NOTE
+    if media:
+        sys_txt += MEDIA_TOOL_NOTE
+    return sys_txt
 
 
 _RE_TOOL_JSON = re.compile(r"\[\s*\{.*?\}\s*\]", re.S)
@@ -629,24 +663,47 @@ def parse_tool_requests(raw: str):
     for item in data:
         if not isinstance(item, dict) or not str(item.get("tool") or "").strip():
             return []
-        reqs.append({"tool": str(item.get("tool")).strip().lower(),
-                     "query": str(item.get("query") or "").strip(),
-                     "url": str(item.get("url") or "").strip()})
+        req = {"tool": str(item.get("tool")).strip().lower(),
+               "query": str(item.get("query") or "").strip(),
+               "url": str(item.get("url") or "").strip()}
+        # 音画证据工具（2026-10-12）：区间秒数 + 可选 cue 序号，原样透传
+        for k in ("start", "end"):
+            try:
+                req[k] = float(item.get(k))
+            except (TypeError, ValueError):
+                req[k] = None
+        req["num"] = str(item.get("num") or "").strip()
+        reqs.append(req)
     return reqs[:2]
 
 
-def run_tools(reqs, web):
-    """执行工具请求列表，返回回填文本（每条结果一节）。web 为 make_tools() 产物。"""
+#: 音画证据工具名（run_tools 分发用）
+MEDIA_TOOLS = ("audio_evidence", "frame_evidence")
+
+
+def run_tools(reqs, web, media=None):
+    """执行工具请求列表，返回回填文本（每条结果一节）。
+
+    web 为 make_tools() 产物（search/fetch）；media 为
+    calib_media_agent.make_tools() 产物（audio_evidence/frame_evidence）。
+    两类工具可混合出现在同一轮（每次总计仍限 2 个请求）。
+    """
     parts = []
     for r in reqs:
         tool = r.get("tool") or ""
         try:
-            if tool in ("web_search", "search") and web.get("search"):
+            if tool in ("web_search", "search") and web and web.get("search"):
                 out = web["search"](r.get("query"))
-            elif tool in ("web_fetch", "fetch") and web.get("fetch"):
+            elif tool in ("web_fetch", "fetch") and web and web.get("fetch"):
                 out = web["fetch"](r.get("url"))
+            elif tool in MEDIA_TOOLS and media and media.get(tool):
+                out = media[tool](r.get("start"), r.get("end"))
             else:
-                out = f"未知工具 {tool!r}，可用工具仅 web_search / web_fetch。"
+                avail = ["web_search/web_fetch"] if web else []
+                if media:
+                    avail.append("audio_evidence/frame_evidence")
+                out = ("未知工具 %r，当前可用工具仅 %s。"
+                       % (tool, "、".join(avail) or "（无）"))
         except Exception as e:  # noqa: BLE001
             out = f"工具执行异常：{type(e).__name__}: {e}"
         parts.append(str(out))
@@ -686,7 +743,8 @@ def _unesc(text: str) -> str:
 def build_user_prompt(mode_flag: str, rules_text: str, chunk, round_no: int,
                       style: str = "term", with_ref: bool = True,
                       prev_text: str = "", scope_text: str = "",
-                      feedback: str = "", evidence: str = "") -> str:
+                      feedback: str = "", evidence: str = "",
+                      media_evidence: str = "") -> str:
     """组装单块请求：知识库片段 + 待校准条目 + 本轮约束。
 
     条目固定三列 `序号<TAB>中文行<TAB>参考行`（参考行可为空）：双语片源的参考行是
@@ -722,7 +780,9 @@ def build_user_prompt(mode_flag: str, rules_text: str, chunk, round_no: int,
                "【待校准条目（每行：序号<TAB>中文行；\\n 表示该条内的换行）】\n")
             + body + "\n\n" + guide
             + (("\n\n【联网查证结果（你上一轮工具请求的回填，只读证据）】\n"
-                + evidence) if evidence else ""))
+                + evidence) if evidence else "")
+            + (("\n\n【音画证据（你上一轮工具请求的回填，只读证据）】\n"
+                + media_evidence) if media_evidence else ""))
 
 
 def parse_changes(raw: str):
@@ -1061,6 +1121,7 @@ def calibrate(src: str, out: str = None, report: str = None, mode_flag: str = ""
               concurrency: int = 1,
               learn_kb: str = None,
               web=None,
+              media=None,
               context_tokens: int = 1000000,
               think_rounds: int = 0,
               chat_for_member=None,
@@ -1096,6 +1157,11 @@ def calibrate(src: str, out: str = None, report: str = None, mode_flag: str = ""
                       search/fetch 两个函数）。传入后模型可先发起「工具请求」
                       联网查证官方名，证据回填再下结论。
                       None=纯离线，行为与旧版完全一致。
+    media             2026-10-12：calib_media_agent.make_tools() 产物（含
+                      audio_evidence/frame_evidence 两个函数）。传入后模型
+                      可请求源媒体的音画证据（裁音频重转写 / 抽帧视觉描述），
+                      佐证疑似误听与丢弃候选；与 web 可同时开启（证据分块回填）。
+                      None=无音画证据，行为与旧版完全一致。
     think_rounds      v1.16.1：每块「思考 → 联网查证 → 再思考」往返轮数上限。
                       0 = 关闭（不限，内部以 HARD_MAX_THINK_ROUNDS=32 兜底防死循环）；
                       >0 = 硬上限（旧行为等价于 1）。
@@ -1152,6 +1218,7 @@ def calibrate(src: str, out: str = None, report: str = None, mode_flag: str = ""
               "rules_injected": 0, "rules_hot": 0, "suggest_rewrite": False,
               "meta": {}, "learn": {},
               "tool_calls": 0, "web_enabled": bool(web),
+              "media_enabled": bool(media),
               "concurrency": max(1, int(concurrency or 1)),
               "think_rounds": int(think_rounds or 0),
               "cluster": {},
@@ -1461,7 +1528,8 @@ def calibrate(src: str, out: str = None, report: str = None, mode_flag: str = ""
                     max_tokens, log, _tick, style=style, with_ref=include_ref,
                     prev_text=prev_text, scope_text=scope,
                     think=(_think if thinking else None), feedback=fb,
-                    web=web, stats=result, think_rounds=think_rounds)
+                    web=web, media=media, stats=result,
+                    think_rounds=think_rounds)
                 if not new_changes:
                     break
                 changes = new_changes
@@ -1496,7 +1564,7 @@ def calibrate(src: str, out: str = None, report: str = None, mode_flag: str = ""
                                              style=style, with_ref=include_ref,
                                              prev_text=prev_text, scope_text=scope,
                                              think=(_think if thinking else None),
-                                             web=web, stats=result,
+                                             web=web, media=media, stats=result,
                                              think_rounds=think_rounds)
             rej_log = []
             if cl_rev and changes:
@@ -1713,8 +1781,9 @@ def _split_chunks(cues, max_cues: int, max_chars: int):
 
 def _ask_block(chat, mode_flag, rules_txt, chunk, round_no, max_tokens, log, tick,
                style="term", with_ref=True, prev_text="", scope_text="",
-               attempt=0, think=None, feedback="", web=None, tool_round=0,
-               evidence="", stats=None, think_rounds=0):
+               attempt=0, think=None, feedback="", web=None, media=None,
+               tool_round=0, evidence="", media_evidence="", stats=None,
+               think_rounds=0):
     """请模型判定一个块的改动，返回 (changes, hard_fail)。
 
     联网查证（2026-09-20）：web 传入 calib_web_agent.make_tools() 产物后，
@@ -1722,6 +1791,10 @@ def _ask_block(chat, mode_flag, rules_txt, chunk, round_no, max_tokens, log, tic
     提示词再问一次。往返轮数由 `think_rounds` 控制（v1.16.1）：0 = 关闭（不限，
     内部以 HARD_MAX_THINK_ROUNDS 兜底防死循环），>0 = 硬上限；旧行为等价于 1。
     工具轮不计入失败重试逻辑——工具回复解析不出改动时按正常流程继续走重试分支。
+
+    音画证据（2026-10-12）：media 传入 calib_media_agent.make_tools() 产物后，
+    模型可请求 audio_evidence / frame_evidence；证据进独立的
+    【音画证据】回填块（与联网结果分开，模型不会把两者混用）。
 
     失败处理策略（2026-09-15 对标 DeepSeek Harness 的异常分支 / 资源上限同步优化）：
       · ok        拿到完整数组（含 []＝无需改动）→ 直接采纳，绝不再误拆；
@@ -1736,13 +1809,14 @@ def _ask_block(chat, mode_flag, rules_txt, chunk, round_no, max_tokens, log, tic
     v1.16.0：重问时经 `feedback` 把上次失败原因与整改要求写进提示词
     （build_user_prompt 组装），而不是干巴巴地重发同一份请求。
     """
-    system = style_system_prompt(style, web=bool(web))
+    system = style_system_prompt(style, web=bool(web), media=bool(media))
     raw = ""
     err = ""
     prompt = build_user_prompt(mode_flag, rules_txt, chunk, round_no,
                                style=style, with_ref=with_ref,
                                prev_text=prev_text, scope_text=scope_text,
-                               feedback=feedback, evidence=evidence)
+                               feedback=feedback, evidence=evidence,
+                               media_evidence=media_evidence)
     # 心跳：非流式请求在模型吐完之前**没有任何输出**，一块 400 条正常也要
     # 一分多钟。以前这里一声不响，用户只能判断成"卡死"（2026-10-05 实测：
     # 一块因超时重试拖到 7 分 39 秒）。这里先说明"已发出、在等"，超时重试
@@ -1765,27 +1839,44 @@ def _ask_block(chat, mode_flag, rules_txt, chunk, round_no, max_tokens, log, tic
     except Exception as e:  # noqa: BLE001
         err = str(e)[:120]
         _log_do(log, f"  ! 该块调用失败：{err}", "err")
-    # ---- 联网查证工具环：模型请求工具 → 执行 → 证据回填再问 ----
-    # 轮数上限（v1.16.1）：think_rounds>0 用配置值；0＝关闭（不限）用内部安全上限兜底。
+    # ---- 工具环：模型请求工具 → 执行 → 证据回填再问 ----
+    # 两类工具（联网查证 / 音画证据）可混合出现在同一轮；web 与 media 各自
+    # 处理自己名下的请求，证据合并回填。轮数上限（v1.16.1）：think_rounds>0
+    # 用配置值；0＝关闭（不限）用内部安全上限兜底。
     _tr_cap = (think_rounds if (think_rounds and think_rounds > 0)
                else HARD_MAX_THINK_ROUNDS)
-    if web and tool_round < _tr_cap:
+    if (web or media) and tool_round < _tr_cap:
         reqs = parse_tool_requests(raw)
         if reqs:
             kinds = "、".join(dict.fromkeys(
                 (r.get("tool") or "?") for r in reqs))
-            _log_do(log, f"  ⌕ 模型发起联网查证（{kinds}，{len(reqs)} 个请求，"
+            _log_do(log, f"  ⌕ 模型发起工具请求（{kinds}，{len(reqs)} 个请求，"
                          f"第 {tool_round + 1}/{_tr_cap} 轮）…")
             if stats is not None:
                 stats["tool_calls"] = stats.get("tool_calls", 0) + len(reqs)
-            found = run_tools(reqs, web)
-            tick()
+            # 证据按通道分派回填位：联网结果进 evidence、音画结果进
+            # media_evidence（两个提示词块分开，模型不会把网页摘要当成
+            # 音频证据用）。按工具名分组执行，避免按分隔符拆分结果。
+            web_kinds = ("web_search", "search", "web_fetch", "fetch")
+            web_part = media_part = ""
+            if web:
+                sub = [r for r in reqs if (r.get("tool") or "") in web_kinds]
+                if sub:
+                    web_part = run_tools(sub, web)
+            if media:
+                sub = [r for r in reqs if (r.get("tool") or "") not in web_kinds]
+                if sub:
+                    media_part = run_tools(sub, None, media=media)
             return _ask_block(chat, mode_flag, rules_txt, chunk, round_no,
                               max_tokens, log, tick, style, with_ref, prev_text,
                               scope_text, attempt, think, "",
-                              web=web, tool_round=tool_round + 1,
-                              evidence=(evidence + "\n\n" if evidence else "")
-                              + found, stats=stats, think_rounds=think_rounds)
+                              web=web, media=media,
+                              tool_round=tool_round + 1,
+                              evidence=(evidence + "\n\n" + web_part)
+                              if web_part else evidence,
+                              media_evidence=(media_evidence + "\n\n" + media_part)
+                              if media_part else media_evidence,
+                              stats=stats, think_rounds=think_rounds)
     changes, status = parse_changes(raw)
     if status == "ok":
         return changes, False
@@ -1816,7 +1907,8 @@ def _ask_block(chat, mode_flag, rules_txt, chunk, round_no, max_tokens, log, tic
                           max(max_tokens, min(max_tokens * 2, 1048576))
                           if status == "truncated" else max_tokens,
                           log, tick, style, with_ref, prev_text, scope_text, 1,
-                          think, feedback, web=web, evidence=evidence,
+                          think, feedback, web=web, media=media,
+                          evidence=evidence, media_evidence=media_evidence,
                           stats=stats, think_rounds=think_rounds)
 
     if status == "invalid":
@@ -1831,11 +1923,13 @@ def _ask_block(chat, mode_flag, rules_txt, chunk, round_no, max_tokens, log, tic
     _log_do(log, f"  ! 重问仍被截断，拆为 {half}+{len(chunk) - half} 分块重试", "err")
     a, fa = _ask_block(chat, mode_flag, rules_txt, chunk[:half], round_no,
                        max_tokens, log, tick, style, with_ref, prev_text,
-                       scope_text, 0, think, web=web, evidence=evidence,
+                       scope_text, 0, think, web=web, media=media,
+                       evidence=evidence, media_evidence=media_evidence,
                        stats=stats, think_rounds=think_rounds)
     b, fb = _ask_block(chat, mode_flag, rules_txt, chunk[half:], round_no,
                        max_tokens, log, tick, style, with_ref, prev_text,
-                       scope_text, 0, think, web=web, evidence=evidence,
+                       scope_text, 0, think, web=web, media=media,
+                       evidence=evidence, media_evidence=media_evidence,
                        stats=stats, think_rounds=think_rounds)
     return a + b, (fa and fb)
 
