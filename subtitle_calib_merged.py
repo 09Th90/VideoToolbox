@@ -1,9 +1,81 @@
 # -*- coding: utf-8 -*-
-# @version 1.19.1
+# @version 2.0.0
 """字幕校准统一脚本（唯一入口，可复用，每次校准任务优先调用本脚本）
+# 2026-10-12 二次校准（v1.22）：对同片按官方中文/韩服官方资料逐句复查，补
+#   시몰려와/심월여의/형방지계/어저와/어저신가요/직전과의/해형살례 7 裸键 +
+#   세 명 系 8 条锚定（#5279"三个人"正常义明确排除不收）+ 30 条 subfix 侧车
+#   （跨行断句/ASR 幻觉碎片：박근형→내부、중국 병원→중군 병영、우암→우함 等）。
+#   ⚠ 级联残留教训：해형살례의 → [해형살→해영살] → 해영살례의（례의 悬空），
+#   长键 해형살례 必须先于 해형살 命中；修表重跑主校准会覆盖此前 subfix 侧车
+#   改动，定稿流程必须 主校准→侧车→verify 一气呵成。
+# 2026-10-12 新增 2.3b KO_ASR 层（纯韩语片源，--ko 自动启用）：《【명조】4장 4막
+#   『몽주의 궤적』ㅣWuthering Waves.ko.srt》（韩国主播 5 小时直播 ASR，5326 cue，
+#   每 cue 单行韩语）——首轮 430 处，verify OK。
+#   重要官方修正：쇄명（锁暝，쇄=锁'鎖'）/금쇄십계/계주/제천감/진현사기/천라 호영/
+#   몽추천라/화정/악장/더 액시온 等，详见 2.3b 表头注释。
+
+# 2026-10-13 新增任务：《【字幕】Wuthering Waves Exploration Quests and Tales!-谷歌翻译.srt》
+#   （4349 cue，CRLF 无 BOM，中英双语，detect=bi）。三轮治理后终稿 100 处净改动，
+#   verify/align-audit OK。三轮治理内容：
+#   ① 首轮 295 处暴露 6 条学习库坏规则，全部 rejected：'真的'->'其实'（191 处误改，
+#     true 语境"这是真的"被咬成"这是其实"）、'游泳'->'锁暝'（swim 真游泳）、
+#     '这种情况'->'这最后'、'海岸守护者'->'海岸人'、'海罗伊'->'海洛'、'空间集体'->'空联合'
+#     （后三条保持静态表目标）。另废 '月狐哨兵希恩'->'月狐心月狐'（KB 版，静态表
+#     '月狐岁主希恩'->'岁主心月狐' 正确）。
+#   ② 同步层治理：applied.json/baseline.json 里的 CONTEXT_MAP[bi] \bpsycho\b 心理->疯子
+#     条目（2026-09-13 system）在本片 #3563 "psychoanalyze"=心理分析 被误改"疯子分析"；
+#     disabled_keys 三元组对 CONTEXT_MAP 四元键（含 rx）匹配失效（脚本已知局限），
+#     从 baseline.json 直接删除该条目；静态表 psycho CONTEXT 规则同时注释废除并记录。
+#   ③ 侧车 11 条（side_wuwa_explore.tsv）：#152 米达妮娅->米德娜回滚（Midna 是塞尔达
+#     黄昏公主角色，勿套鸣潮达妮娅）；#297 杨秧秧光玲->秧秧阳光玲（'阳阳'键级联咬
+#     "阳光"，待裁决形）；#1535/#2590/#2703 月狐罪/月狐罪恶/沈月狐 ctx 级联
+#     （'月狐'+'罪/罪恶'/'沈'多 ctx 短键互咬出"心月狐心月狐"，组合长键 ctx 已入
+#     3.7 心月狐实体但投影顺序仍在短键后，根治需 ctx 全局长键优先，本轮侧车兜底）；
+#     #1857 疏忽的Aster->重制版（rem aster ASR 断词，'REM'->'疏忽' 3.7 键误咬）；
+#     #2295/#2307 ->岁主共鸣者（Sentinel Res on ator 断词；本片 Sentin els 语境是
+#     Sentinel 非 celestial，3.7 片 'Sentin els'->'天民' 键勿盲套）；#2598 心月狐->
+#     罪回滚（该行 sin 是普通名词非角色指代）；#2788 雷斯->共鸣者；#3214 库洛后空格。
+#   ④ 补键：BILINGUAL '重振器'->'共鸣者'（谷翻 resonator 错形）、'金习'->'今汐'；
+#     心月狐实体 ctx 增组合长键（Sin+Moon Fox->月狐罪/月狐罪恶、Shen+Moon Fox->沈月狐）。
+#   ⚠ 级联教训（同 2026-10-12 韩语片 해형살례 教训一致）：ctx 短键（月狐/罪/沈）+
+#     组合长键共存时，投影顺序不受 ctx 列表顺序控制，长键可能咬短键产物或被短键
+#     抢先——多 ctx 短键交集的词必须侧车整行覆盖兜底，或 ctx 引擎升级全局长键优先。
+#   留观/不确定（未收键，待用户裁决）：#297 "阳光玲"（Sh uang ling 音译，角色名未考）；
+#     #590 "换尿布"（change Yuki 机翻，句级误译按戒律不改）；#1556 梦枢天罗（Simulacrum
+#     无 Nexus 是否同词）；#1976 Fraxinus->残星会（3.7 键沿用，Fraxinus≠Fractsidus 音近）；
+#     #2303 "岁主事务"（Ministry of Sentinel Affairs 跨行断句，与 #2302 谛天鉴并存）；
+#     #2763 川青（Chuan Qing 官方名未考）；#3880/#3889/#3890 演/合作社/合作教育
+#     （play/co-op 机翻，句级不动）。
+#
 
 本文件是工作区全部历史校准脚本的统一沉淀（双语 calib_rules、韩语
 calib_input_ko_out、终末地 calibrate_srt 已全部并入；
+2026-10-12 新增 WUWA CONCERT WATCHPARTY（演唱会观看派对反应片，3731 cue，bi 模式）：
+  《【字幕】🔴LIVE! TIME TO JAM!!! WUWA CONCERT WATCHPARTY REACTION｜Wuthering Waves
+  .en-谷歌翻译.srt》。首轮术语校准 152 处 + subfix 2 处；二次校准（官方中文逐句
+  复查）再补 21 处 + subfix 12 cue；三轮终检（全稿 zh 行残留扫描终检清零）再补
+  Encore->安可 键 + 侧车 4 条（#2440 安可是经纪人、#553/554 Star Rail 错拆修复+
+  "Fon"推断=白厄 Phainon（ASR 音近，畅销角色语境，待用户裁决）、#3531 歌名
+  《Close to Close》->《Close to You》MT 复制错误），合计 185 处内容改动，
+  verify/align-audit OK，终检（Encore/Star的方/Close to Close/畅销书/伺夜/热熔了/
+  满全部爱/天星声 等全部清零）。
+  首轮沉淀：10 个 BILINGUAL 裸/长键（拉伊鲁瓦/拉·伊鲁瓦->拉海洛、塞普蒂蒙特->七丘、
+  丹尼尔->达妮娅、吴阿->鸣潮、银林->吟霖、共振器->共鸣者、露巴->露帕、
+  耐候波浪->鸣潮、Flova->弗洛瓦）+ CONTEXT (asterit,"天星石","星声") +
+  Entity 星声 variants 补"天星石"（长键防"天星声"畸形）+ EXCLUDE_CONTEXT
+  3 条负例（⑧融合->热熔 combine 语境、⑨满的->全部"满满的爱"子串、⑩莱昂->伺夜
+  里昂×艾达联动语境）。#3184 Deny=达妮娅 为英文常用词，只走本片侧车不入裸键。
+  二次校准沉淀：12 个 BILINGUAL 键（Shorekeeper->守岸人、Ith/Immoth->爱弥斯、
+  Kultcharo/Kolaro/Kcharo/Karo->卡卡罗、Mangzo->梦州、PGR->战双帕弥什、Wooa/VUA->
+  鸣潮、Zenless->绝区零、Ginsi->今汐、Dingron->景燃、Jiyan->忌炎）+ Gian/Chizzy
+  目标由 Jiyan 统一改官方中文忌炎（applied.json/baseline.json 权威条目同步修正）+
+  CONTEXT (figure,"Changi","长离" 手办语境锚定) + 侧车 12 条（#641 PGR 误译"研究生"、
+  #638 Kuro 误译"黑"、#334 Gingi 误译"姜吉"、#609 中文"卡罗"、#996/1000 ADA、
+  #1007 Ada、#1542 Wool、#2471 Prosec=世界计划、#2772/2773/3102 Selen Pizza 拼写
+  统一）。⚠ applied.json 运行时覆盖静态表：改 BILINGUAL 值时须同步改
+  data/calib_sync_remote/baseline.json 同键条目，否则 _sync_maybe_auto 会回滚。
+  留观（指代不明未收键）：#1139 Woola、#920 Star Ro、#831 Yishwan、#310 Mor、
+  #448 Shikica、#2440 Encore、#773 Enfield(神话兽/终末地歧义)、#69 SAR。
 2026-08-29 再并入 srt_calibrator.py / fix_srt.py / fix_all.py / fix_simple.py
 的通用术语表与 ERROR 行翻译表，以及 7 月 WW 演唱会脚本的通用专名），
 其它脚本已删除，勿再另建平行脚本，新对照直接追加进本文件各表。
@@ -118,6 +190,7 @@ B. 流水线子命令（原各项目分散脚本 extract_cues/split_segs/merge_r
   python subtitle_calib_merged.py terms-check [表名...]                     # 术语表二次命中隐患自查
   python subtitle_calib_merged.py flow     <src.srt> [--out out.srt] [--fix-style]
         # 口播风格 + 跨 cue 连贯体检（2026-10-01 新增）：① 中文行行首悬挂标点
+        #   ② 书面腔 ③ 行首悬挂连词（人工并入上一 cue 或改写成自足句）。默认只体检。
         #   （机翻把日语句中顿号/句号搬到行首）；② 内容行超宽（>32 汉字当量）；
         #   ③ 书面腔命中（STYLE_MAP：因此/然而/并且/是否/无法/依然/必须/尚未…）；
         #   ④ 整行=语气填充词（FILLER_MAP：语言/示例/I/以及/因此/然而）；
@@ -126,6 +199,16 @@ B. 流水线子命令（原各项目分散脚本 extract_cues/split_segs/merge_r
         #      要么并入上一 cue，要么把该 cue 重写成自足短语（须人工 / 走 pair）。
         #   不带 --out 只体检（有问题退出码 1）；带 --out 输出成品，默认只清行首
         #   悬挂标点，加 --fix-style 才套 STYLE_MAP+FILLER_MAP。只动标点/虚词，不碰术语。
+  python subtitle_calib_merged.py stabilize <src.srt> [--out out.srt] [--report r.md]
+        [--drop] [--merge] [--split] [--no-drop] [--no-merge] [--no-split]
+        # SRT cue 级稳定化（2026-10-12 新增，对标 FineSub ASR 稳定化层，库在
+        # src/calib_stabilize.py，查漏报告见 finesub_stabilize_gap_analysis.md）：
+        #   丢弃候选＝套话语速幽灵（整段=套话且 >20 字/秒）+ 复读幻觉（tandem ≥4 轮 ≥32 单位）；
+        #   合并候选＝相邻续句（硬门槛 20 字/4 秒，绝对门槛 36 字/7 秒，filler 三明治 3/16/4）；
+        #   拆分候选＝超墙 cue（36 字/8 秒）按标点分级切分、时间按加权字数比例分配。
+        # ⚠ 这是校准**之前**的结构层：会重排序号、重算时间轴，verify 不再适用；
+        #   不带 --out 只出报告（退出码 1＝有候选）；带 --out 才应用显式开启的操作。
+        #   英文套话/复读超 7 次/纯填充短行/语言切换噪音只观测不自动丢（FineSub 口径）。
   python subtitle_calib_merged.py kb-export [--json] [--out 路径]           # 导出对象级知识库（MD/JSON，投喂用）
   python subtitle_calib_merged.py kb-lookup <词>                            # 按任意形态反查实体全部知识
   python subtitle_calib_merged.py kb-lint                                   # 对象级体检（跨实体冲突/级联/冗余）
@@ -251,7 +334,7 @@ BILINGUAL_TERMS = {
     "Jingjo": "Jinzhou", "Jingo": "Jinzhou", "Gingjo": "Jinzhou",
     "Hang Long": "Huanglong", "Wang Long": "Huanglong", "Guang Long": "Huanglong",
     "Fraidus": "Fractsidus", "Fraid": "Fractsidus",        # 残星会官方英文名（依 md 中英对照）
-    "Gian": "Jiyan", "Chizzy": "Jiyan",
+    "Gian": "忌炎", "Chizzy": "忌炎",
     "sono 光盘": "声碟", "sono disc": "声碟",
     "Sono 光盘": "声碟", "Sono disc": "声碟",
     # --- 2026-08-29 并入：7月 WW 演唱会脚本通用专名（calibrate_ww/auto_correct） ---
@@ -450,7 +533,85 @@ BILINGUAL_TERMS = {
     "虚空风暴": "虚质风暴", "虚空风暴潮": "虚质风暴潮",             # Void Storm 官方中文=虚质风暴（拉海洛灾难，依官方剧情文本）
     "星游学园": "星炬学院",                                         # Star Tour Academy = 星炬学院 ASR 变体（#15214）
     "Laai Roy": "拉海洛",                                           # Lahai-Roi ASR 变体（#4278 Laai Roy is my responsibility）
+    # --- 2026-10-12 WuWa 3.3 Story Reaction（I must save Aemeath!，10653 cue）二次校准沉淀 ---
+    # 官方依据：库洛 3.3 公告 mc.kurogames.com/news/4551（绯雪=特别对策组唯一成员、隧者计划、
+    # 黯原/恒黯之原、罗伊神话中赫龙格被巴德尔封印）、官方英文站（Lahai-Roi = Solaris's
+    # Extreme，situated beneath the Roya Frostlands，Spacetrek Collective's Startorch
+    # Academy）、NGA 拉海洛考据帖
+    # （巴德尔=万米最大隧者/太阳朔尔化身，与灭世邪祇赫龙格终焉之战）、日文 wiki 用语翻译
+    # （绯雪=Hiyuki、鸣式=Threnodian）。
+    # Lahai-Roi 本片谷翻错形：ASR "La Hyroy/Lyroy" 被谷翻拆成"拉·伊鲁罗伊"等碎片
+    "拉·伊鲁罗伊": "拉海洛", "拉·伊鲁伊": "拉海洛", "拉·伊鲁罗": "拉海洛",
+    "海洛伊": "拉海洛", "拉伊罗伊罗伊": "拉海洛", "拉伊罗": "拉海洛",
+    "莱罗伊": "拉海洛",                                             # 双语表补录（韩语表虽有同名键，双语模式勿依赖他表）
+    # ASR "the demer" 谷翻"德默尔"=黯原（Dimmr Plains，#573 既有沉淀：3.3 官方新地区）。
+    # ⚠ 教训：wuthering.gg 第三方地图 zh-Hans 页名"迪姆平原"系机翻，一度误导本轮判为
+    # "迪姆平原"，与 #573 官方沉淀冲突后被 ENTITIES 注册冲突检查拦下纠正——第三方站
+    # 页名不可直接当官方译名，须以库洛公告/游戏内地名为准。
+    "德默尔": "黯原",
+    # Lahai-Roi 谷翻独立形"拉伊罗伊"（长键须先于"拉伊罗"应用，否则短键咬出"拉海洛伊"畸形；
+    # #1062/1148/1170/5683 实测）。同理"海洛伊"的后缀粘连形须先行，防替换后残留"河/气象"：
+    "拉伊罗伊": "拉海洛", "海洛伊河": "拉海洛", "海洛伊气象": "拉海洛气象学",
+    # Exor Rider 谷翻形：整词"艾克索/埃克索 骑士"->隧者（#396/4015，参考行 exor rider 语境；
+    # 裸"骑士"戒律禁入，走 CONTEXT_MAP \brider\b 锚定 #2269）
+    "艾克索骑士": "隧者", "埃克索骑士": "隧者",
+    # '日向/日行'与 ASR 粘连字的组合（'日树/日纪'先例 #523；组合词无通用歧义，且 BILINGUAL
+    # 先于 CONTEXT_MAP 应用，长键先行消化后 ctx 的裸"日向"不再误命中）：
+    "日向树": "绯雪", "日向月": "绯雪", "日向梦": "绯雪", "日向木": "绯雪",
+    "日行城": "绯雪", "日向城": "绯雪",
+    # 特别对策组：3.3 公告官方组织名；ASR "Special Response Force" 谷翻"特种反应部队"
+    "特种反应部队": "特别对策组",
+    # Thrronodonian：本片 ASR 比先例键 Thrronodian(#448) 多一音节，谷翻当国名"索罗诺多尼亚"；
+    # 主播复述剧情用的是类别名 Threnodian=鸣式（"封印隧门之外的那只鸣式"即官方设定中被
+    # 巴德尔封印于黯原的赫龙格；个体名主播未念出，勿擅自升级为专名）
+    "索罗诺多尼亚人": "鸣式", "索罗诺多尼亚": "鸣式",
+    # Nastasha 谷翻错形（诺斯塔系）
+    "诺斯塔希亚": "娜斯塔霞", "诺斯塔希": "娜斯塔霞",
+    # N'ora/Nav'ora：库内 3.2 片 confirmed "N'vora"->恩沃拉，本片同角色 ASR 变体随库内目标
+    "N'ora": "恩沃拉", "Nav'ora": "恩沃拉",
+    # Exo Strider 整词错形："隧者游侠"仅 Exo Strider 语境组合，安全裸键
+    "隧者游侠": "隧者",
+    # Strider Gate 纯音译组合（"斯特赖德门"明确组合可裸键；裸"斯特赖德"走 ctx 防人名误伤）
+    "斯特赖德门": "隧门",
     "舰队雪毛": "弗利特·斯诺芙",                                    # Fleet Snowfluff（#18043）
+    # --- 2026-10-12 WUWA CONCERT WATCHPARTY REACTION（演唱会观看派对反应片，3470 cue）校准新增 ---
+    # Lahai-Roi 谷翻"拉伊鲁瓦/拉·伊鲁瓦"形：长键须先于"鲁瓦->漂泊者"（Rover ASR 变体键），
+    # 否则"拉伊鲁瓦"被咬出"拉伊漂泊者"畸形（#392/2752/2753 实测）：
+    "拉伊鲁瓦": "拉海洛", "拉·伊鲁瓦": "拉海洛",
+    # Septimont 官方=七丘（库洛 2.4 公告 mc.kurogames.com/news/2744「全新区域：七丘」）；
+    # 长键先于学习库"塞普蒂蒙->七丘"，防残尾"七丘特"（#392 实测）：
+    "塞普蒂蒙特": "七丘",
+    # Dennia ASR 变体 Daniel 谷翻"丹尼尔"：长键先于"丹尼->达妮娅"，防残尾"达妮娅尔"（#2288/2300/2343/2594 实测）：
+    "丹尼尔": "达妮娅",
+    # Wua 谷翻整体形"吴阿"：长键先于 ctx 裸"吴->鸣潮"，防残尾"鸣潮阿"（#434 实测）：
+    "吴阿": "鸣潮",
+    # 银林（Yinlin 谷翻错形，与"尹琳->吟霖"同类，#664 漏校）：
+    "银林": "吟霖",
+    # resonator 机翻"共振器"（学习库已有"谐振器->共鸣者" confirmed，同类补齐，#541 漏校）：
+    "共振器": "共鸣者",
+    # Lupa ASR 错形"露巴"（参考行 Luba，#2579 漏校；"露巴"非常用词裸键安全）：
+    "露巴": "露帕",
+    # Wuthering Waves ASR "Weathering wave" 谷翻"耐候波浪"（#2787；"耐候波浪"裸键安全）：
+    "耐候波浪": "鸣潮",
+    # Flova 英文残留（拉海洛漫游车"弗洛瓦·达妮娅·西格莉卡号"命名三人组，#3184；裸键安全）：
+    "Flova": "弗洛瓦",
+    # --- 2026-10-12 演唱会反应片二次校准（官方中文逐句复查，英文残留/ASR 变体补漏）---
+    "Shorekeeper": "守岸人",                                       # #451/474 谷翻保留英文（Shortkeeper 变体已有键，本尊补齐）
+    "Ith": "爱弥斯",                                               # #597 "sell as much as Ith" 谷翻保留英文（CONTEXT \bIth\b 只锚中文"伊斯"，补英文残留）
+    "Kultcharo": "卡卡罗", "Kolaro": "卡卡罗", "Kcharo": "卡卡罗",
+    "Karo": "卡卡罗",                                              # Calcharo 卡卡罗 ASR 变体族（#609/611 长键先行防短键"Karo"咬残）
+    "Mangzo": "梦州",                                              # #625 "part of the not Mangzo region"=非梦州地区（Mengjo/Mongjo 同族）
+    "PGR": "战双帕弥什",                                           # #633/635/638/648/725 谷翻保留缩写（官方中文全称；#641 被谷翻误译"研究生"走侧车）
+    "Wooa": "鸣潮",                                                # #933 WuWa ASR 双 O 变体
+    "Immoth": "爱弥斯",                                            # #994 "my bike was playing the Immoth songs"（Imeth 同族 ASR）
+    "VUA": "鸣潮",                                                 # #1672 "the actual like VUA concert tour"（WuWa ASR 变体，LA/新加坡巡演语境）
+    "Zenless": "绝区零",                                           # #822/896/921/1541 绝区零官方英文名（用户规则：绝区零）
+    "Ginsi": "今汐",                                               # #334 Jinhsi ASR（"姜吉"=Gingi 误译走侧车）
+    "Dingron": "景燃",                                             # #346 Ding Ran ASR 粘连（"可惜我还没有景燃"抽卡语境）
+    "Jiyan": "忌炎",                                               # #661/664 中文行英文残留改官方中文（原沉淀 Gian->Jiyan 保留英文，二次校准统一改中文）
+    "Encore": "安可",                                              # 三轮补漏：鸣潮角色官方中文=安可（#2440"她太年轻不能工作"=小孩子角色铁证、
+                                                                   #   #2951/2952；zh 行均为角色指代，英文"再来一个"义在中文行未出现）
+    # ⚠ 勿收 "Woola"->鸣潮：#1139 "the Woola character" 指代不明（聊配音角色，非 WuWa 本体），留观
     # --- 2026-09-08 NO ONE CAN CONTROL THEMSELVES!（WuWa 3.6 Story Streamers REACTIONS）校准新增 ---
     # 玄方城(Schwanfong Hold) ASR/英文残留变体（3.6 梦州玄方城）
     "Shranong": "玄方城", "Swanfong": "玄方城", "Fong Hold": "玄方城",
@@ -562,7 +723,8 @@ BILINGUAL_TERMS = {
     # 漂泊者(Rover) ASR 变体 Wover
     "Wover": "漂泊者", "沃弗": "漂泊者",
     # 库洛(Kuro Games) 英文残留
-    "Kuro games": "库洛", "Curo Games": "库洛",
+    "Kuro games": "库洛", "Curo Games": "库洛", "Kuro Games": "库洛",   # 大写 G 形（谷翻整词未译，2026-10-11 音乐会反应片 cue5/1375）
+    "Kuro系列": "库洛系列",                                              # 同上（cue1340）
     # 艾尔登法环(Elden Ring) ASR 误听"长老戒指/elder ring"
     "长老戒指": "艾尔登法环", "elder ring": "艾尔登法环",
     # --- 2026-09-10 同片二次校准（检索官方中文后修正/新增）---
@@ -756,6 +918,148 @@ BILINGUAL_TERMS = {
     "Fractsidus": "残星会",
     # 鸣潮(Wuthering Waves) 的 EN ASR 误听（"Wu"→"Water"），出现即游戏名，无歧义
     "Watering Waves": "鸣潮", "Watering Wave": "鸣潮",
+    # --- 2026-10-13 WISH GRANTED!! Hsin 3.7 Main Story Quest FULL REACTION（2341 cue）二次校准沉淀 ---
+    #   根因诊断：上一轮只收了 "Sister Swarming" 这类**带前缀的长键**，而本片中文行里的
+    #   拉丁残留是**裸名**形态（"Sw ami"、"Sw arming"、"SW 武装"、"Arb iter"、"Sim ul ac rum"），
+    #   长键匹配不到 ⇒ 术语 pass 几乎全落空（基线仅 166 处）。本块补裸名长键。
+    #   官方依据（3.7 版本内容说明 / 百度百科谛天鉴条 / wutheringwaves.fandom）：
+    #     锁暝=Suoming（州监，执掌谛天鉴）  岁主=心月狐  谛天鉴=Ministry of Sentinel Affairs
+    #     州监=Intendant（**非"智力"**，机翻把 Intendant 听成"智力"的音译陷阱）
+    #     玄方城=Xuanfang Hold（ASR 常听成 Shuangfeng/Shuangfang ⇒ 同指玄方城）
+    #     残星会=Fractsidus  稷廷=Court of Savantae  天民=Celestials（**非 Sentinels**，
+    #     本片大量 "Sentin els" 其实是 celestial 的 ASR 误听，语境为玄方城匠人）
+    #     仲裁者=Arbiter  机傀=Autopuppet（**非"反对宠物"**）
+    #     共鸣者=Resonator  梦枢天罗=Simulacrum Nexus
+    # 戒律：只收"该串出现即该专名、且不会被通用短键/子串误咬"的**长**键；
+    #   "智力/智力代言/智力应答者"是通用中文词 → 不入裸键，走 CONTEXT_MAP 英文锚定。
+    # --- 锁暝 Suoming：裸名 ASR 变体（"Sw"+"aming" 之间的空格是 ASR 断词痕迹）---
+    "Sw aming": "锁暝", "Sw aming ": "锁暝",
+    "Sw aming": "锁暝", "Sw amin": "锁暝", "Sw ami": "锁暝",
+    "Sw arming": "锁暝", "Sw arming": "锁暝", "Sw arming": "锁暝",
+    "Sw AM": "锁暝", "SW AM": "锁暝", "Sw ammings": "锁暝",
+    "sw ammings": "锁暝", "Sw imming": "锁暝", "Sw imming": "锁暝",
+    "SW武装": "锁暝", "SW 武装": "锁暝", "sw arming": "锁暝",
+    # --- 仲裁者 Arbiter：ASR 把 -bi- 听成空格 ---
+    "Arb iter": "仲裁者", "Ar b iter": "仲裁者", "Arb iter": "仲裁者",
+    # --- 玄方城 Xuanfang：ASR 把 Xuan 听成 Shuang ---
+    "Sh uang f eng Hold": "玄方城", "Sh uang f ang": "玄方地界",
+    "Sh uang Fang": "玄方地界", "Sh uang f eng hold": "玄方城",
+    "Sh uang y uan": "玄元", "Sh uangling": "玄翎",
+    "Xuan f eng Hold": "玄方城", "Xuan f eng": "玄方城",
+    # --- 梦枢天罗 Simulacrum Nexus：ASR 把 -la- 听成空格 ---
+    "Sim ul ac rum": "梦枢天罗", "simul ac rum": "梦枢天罗",
+    "Simulacrum Nexus": "梦枢天罗", "Sim ul ac rum Nexus": "梦枢天罗",
+    # --- 残星会 Fractsidus：ASR 把 -ct- 听成 x ---
+    "Fr ax id us": "残星会", "Fr ax idus": "残星会", "Fr ax inus": "残星会",
+    "Fr ax idas": "残星会", "Fr ax id us": "残星会",
+    # --- 2026-10-13 WuWa Exploration Quests and Tales（4349 cue）补键 ---
+    "重振器": "共鸣者",                                            # 谷翻 resonator 错形（#917，官方=共鸣者）
+    "金习": "今汐",                                                # Jin Xi ASR 音译残留（#2759，"作为岁主"语境）
+    # --- 稷廷 Court of Savantae / 天民 Celestials / 岁主 Sheen ---
+    "Sav ante": "稷廷", "Sav anti": "稷廷", "Sav ante": "稷廷",
+    "Sentin els": "天民", "Sentin el": "天民", "Sentinel s": "天民",
+    "森廷": "天民", "森廷艾尔": "天民", "森廷·埃尔斯": "岁主",
+    "Cele stials": "天民", "Cele stial": "天民", "Cele stil": "天民",
+    "cele stials": "天民",
+    "Sh ien": "岁主", "She en": "岁主", "she en": "岁主",
+    # --- 其余拉丁残留（长键，无通用词歧义）---
+    "Tyr Ant": "暴君", "glo om": "阴郁", "REM": "疏忽",
+    "M uyu": "牧羽", "Par agon": "帕尔阿贡", "Bal anafor": "巴拉纳福",
+    "Bal ana": "巴拉纳福", "Bal an oph ora": "巴拉诺弗拉",
+    "S assy Ab ird": "萨西·艾伯德", "Saf ar": "萨法尔",
+    "Tats": "塔茨", "Y asuri ice": "雅苏里", "Fr ax idus": "残星会",
+    "Sim ul ac rum": "梦枢天罗", "Arb iter": "仲裁者",
+    "Em i M acha": "AnyMatcha", "Em i M acha": "AnyMatcha",
+    "Rover,": "漂泊者", "Lex icon Axis": "轴心图标",
+    "Allegs": "小巷", "alle ys": "小巷",
+    # --- 2026-10-13 WuWa Exploration Quests and Tales（4349 cue）二次校准 round2 沉淀 ---
+    #   side_r2.tsv 侧车回填 466 处（verify OK：时间轴/参考行零变更）；cue 级明细见
+    #   wuwa_explore_tales_diff.md「二次校准（round2）」章节。以下为重复模式归纳成的
+    #   通用键（该串出现即该专名/该错形、无通用词歧义；歧义条目走 CONTEXT_MAP 英文锚定）。
+    "王牌空战": "皇牌空战",                                        # Ace Combat 官方名（#46/52/80/133/180/3555/3596/4156/4240）
+    "Gens hin": "原神", "Gens": "原神",                            # Genshin 裸/撕裂残留（#107/200）
+    "三华": "散华", "San hua": "散华",                             # Sanhua（#345）
+    "库查尔罗": "卡卡罗", "K uchar ro": "卡卡罗", "K Uchar Ro": "卡卡罗",  # Calcharo（#323/324）
+    "陆佩": "露帕", "Lu pe": "露帕",                               # Lupa（#333/334）
+    "香丽乌": "相里要",                                            # Xiangli Yao（#336）
+    "岸上守门员": "守岸人", "岸上守卫": "守岸人",                  # Shorekeeper（#287/298）
+    "Card itth ia": "卡提希娅",                                    # Cartethyia（#288）
+    "Cam ellia": "椿",                                             # Camellia（#2087/2089/2138）
+    "金时": "今汐",                                                # Jinhsi（#2190）
+    "景跑": "忌炎", "Jing ran": "忌炎",                            # Jiyan（#3084/3112）
+    "清朝×嚷": "清宵",                                             # Qingxiao（#3317）
+    "拉海罗": "拉海洛",                                            # Lahai Roi（"拉海罗伊"长键先行）
+    "千佐": "千咲",                                                # Chisa（#3066）
+    "Fro lo va": "弗洛洛",                                         # Phrolova（#285）
+    "汤呆子": "汤包",                                              # soup dumplings（#2373）
+    "拿坡里战争": "拿破仑战争", "拿坡路战争": "拿破仑战争",        # Napoleonic Wars（#1016/3830）
+    "全息公羊": "全息投影",                                        # hologram（#617/2785）
+    "退货奖励": "回归奖励",                                        # returner rewards（#628）
+    "格里菲斯塔": "格里菲斯天文台",                                # Griffith Observatory（#630）
+    "鳄梨": "牛油果",                                              # avocado（#636）
+    "Pier Ogi": "波兰饺子",                                        # pierogi（#653）
+    "Like Wars": "华沙", "Var sh ava": "华沙",                     # Warsaw ASR（#668/673）
+    "St arry Stage": "星舞台", "圣艾利2阶段": "星舞台2", "圣艾瑞第二阶段": "星舞台2",  # Starry Stage（#678/691/695/696）
+    "红色空缺": "救赎",                                            # Redemption（#693）
+    "贝利·瓦布尔": "难以置信",                                     # Unbelievable（#880）
+    "森特·里克": "为中心",                                         # centric（#889）
+    "幽灵奔跑者": "幽灵行者",                                      # Ghostrunner（#1023）
+    "女巫ER3": "巫师3", "女巫ER": "巫师",                          # Witcher 3（#1105/1855/4165）
+    "Res 识别 Evil": "生化危机",                                   # Resident Evil（#1073）
+    "Onim ush a": "鬼武者",                                        # Onimusha（#1077）
+    "Crim son Desert": "红色沙漠",                                 # Crimson Desert（#1097）
+    "Dawn Walker": "黎明行者",                                     # Dawnwalker（#1100/1101）
+    "Dig Imon": "数码宝贝",                                        # Digimon（#1117）
+    "S cri b bl en aut s": "涂鸦冒险家",                           # Scribblenauts（#1120）
+    "勇敢前人5": "勇气启示录",                                     # Brave Exvius（#1124）
+    "王国红心": "王国之心",                                        # Kingdom Hearts（#1139）
+    "Nik Ke": "NIKKE", "Nik kei": "NIKKE", "Nik ke i": "NIKKE",    # NIKKE（#1249/1373）
+    "LAR Per": "跑团扮演者", "LAR PER": "跑团扮演者",              # LARPer（#1182/1184）
+    "地下城大吃怪": "魔物饭大冒险",                                # Dungeon Munchies（#1412）
+    "第一阶梯的后奏": "第一后裔",                                  # First Descendant（#1452）
+    "SH罩": "遮罩",                                                # shroud（#1520）
+    "月亮雷弗伦斯舞蹈团": "崇月舞团",                              # Moon Reverence Dance Fellowship（#1595）
+    "黑色神话": "黑神话", "Wuk ong": "悟空",                       # Black Myth Wukong（#1841/1865）
+    "Met aph or": "暗喻幻想",                                      # Metaphor ReFantazio（#1843/1847）
+    "光辉之路": "苍炎之轨迹",                                      # Path of Radiance（#1803）
+    "Heart of Th orns": "荆棘之心",                                # GW2 Heart of Thorns（#1755）
+    "卡门光的动机": "卡门主导动机",                                # Carmen leitmotif（#1781）
+    "瓦尔伊里亚的阴影": "瓦伦西亚之影",                            # Shadows of Valyria（#1794）
+    "新灌溉": "新联邦",                                            # new fed 谷翻（#1964）
+    "孟周": "孟舟",                                                # Meng Zhou 统一写法（#1951/3205）
+    "天讯": "腾讯",                                                # Tencent 谷翻（#2288）
+    "梅兰克奥利": "忧郁",                                          # melancholy（#2627）
+    "偏见主义": "部分主义",                                        # particularism（#2576）
+    "雷·阿彦·阿米": "绫波丽",                                      # Rei Ayanami（#2567）
+    "神父斧": "残星会",                                            # Frax ASR（#2677）
+    "乐初叔": "楚叔",                                              # Uncle Chu（#2697）
+    "Ab igail": "阿布",                                            # Abby（#846）
+    "Steel Ball Run": "飙马野郎",                                  # JoJo SBR 官方名（#867）
+    "Sentin els Res on ator": "岁主共鸣者", "Sentin els reson ator": "岁主共鸣者",  # Sentinel's Resonator（长键先行于 "Sentin els"->天民）
+    "Valor Mort": "死之勇气",                                      # Valor Mortis 官方中文名（#277/1012/1110/1806；跨行"Val orm ort is"形态不误咬）
+    "Wither ing Waves": "鸣潮", "Wuth ering Waves": "鸣潮",        # WuWa ASR 拉丁残留（#3150/3171/3191 等）
+    "吴乐队": "鸣潮", "吴巴": "鸣潮", "WU HA": "鸣潮",             # WuWa ASR 变体（#1458/3718/1904）
+    "吴演唱会": "鸣潮演唱会",                                      # Wu concert（#618）
+    "他的战斗8": "皇牌空战8",                                      # Ace Combat 8 谷翻（#1336）
+    "迷你帽": "缩小帽",                                            # Minish Cap 官方名（#4137）
+    "Xen obl ade Chronicles": "异度神剑", "Xen obl ade": "异度神剑",  # Xenoblade（#4180/4192）
+    "绝地被放逐": "绝地武士：放逐者",                              # Jedi Outcast（#4040）
+    "荒野大人": "荒野大镖客", "荒野大杀人": "荒野大镖客",          # Red Dead 2 谷翻（#4218/4221/4261/4271）
+    "Arm ored Core": "装甲核心", "Arm Ored Core": "装甲核心",      # Armored Core 6（#4116-4120）
+    "Where Wins Me": "战舰世界",                                   # World of Warships ASR（#3883/3885）
+    "莫克斯·伊": "莫克茜", "M ox ie": "莫克茜", "Mox ie": "莫克茜",  # Moxie（#3589-3591）
+    "共生症": "共生关系",                                          # symbiotic（#3618）
+    "Roc吃了": "回报大家",                                         # reciprocate ASR（#3625）
+    "被疏离": "被疏远",                                            # alienated（#3667）
+    "传送机": "传送点",                                            # teleporter（#3780）
+    "Fires IDE聊天": "炉边谈话",                                   # fireside chat（#4299）
+    "VT大学": "虚拟主播", "VT的学生": "虚拟主播",                  # VTubers ASR（#4331/4339）
+    "不是艾德": "记下了",                                          # Noted ASR（#4341）
+    "西南阿曼": "锁暝",                                            # Swoman=Swarming ASR（#3048）
+    "分隔方式": "过渡段", "分离方式": "过渡段", "分隔的方式": "过渡段", "seg ways": "过渡段",  # segue（#3055-3064）
+    "H arem": "后宫烂活", "后宫慢速": "后宫烂活",                  # harem slop（#860/861/3404）
+    "Gl acio": "冷凝",                                             # Glacio 官方属性=冷凝（#751/753）
+    "Day of Def eat": "胜利之日",                                  # Day of Defeat（#4034/4039）
 }
 
 # 保留英文不译的专名（仅提示，不替换）
@@ -903,6 +1207,10 @@ CONTEXT_MAP = [
     (r"Exoriders?\b", "驱逐者", "隧者"),               # Exoriders 被译"驱逐者"（#831 驱逐者的脚）
     (r"\bSavior\b", "救主", "救世主"),                  # savior 统一 救世主
     (r"asterit|astrite", "星尘", "星声"),              # Astrite 官方中文 星声（修正前条"星尘"）
+    (r"asterit|astrite", "天星石", "星声"),            # Astrite 谷翻异形"天星石"（2026-10-12 演唱会反应片 #2559/2561 实测；
+                                                       #   长键先于"星石"形锚定，否则咬出畸形"天星声"）
+    (r"\bfigure\b", "Changi", "长离"),                 # #1868 "new Changi figure"=长离（Changli）手办；Changi 樟宜为新加坡地名，
+                                                       #   仅 figure（手办）语境锚定，防误伤旅行话题（2026-10-12 二次校准）
     # --- 2026-09-08 Thanks La 声优讨论片 二次校准：ASR 变体误译（参考行佐证）---
     # #236 "the Ian" = EN(英文版) 的 ASR 误听（语境对比 English VA vs Chinese version 评分）
     (r"\bthe Ian\b", "伊恩", "英文"),
@@ -917,6 +1225,33 @@ CONTEXT_MAP = [
     (r"\bJinshi\b", "金石", "今汐"),                # Jinshi = Jinhsi 今汐（须英文佐证防误伤"金石"）
     (r"\bWuthering\b", "呼啸山庄", "鸣潮"),          # Wuthering Waves 被误作《呼啸山庄》
     (r"\bscales?\b", "秤", "鳞片"),                  # scales（龙鳞）被误译"秤"
+    # --- 2026-10-11 鸣潮音乐会反应片（This actually BROKE me）：学习库裸键治理 ---
+    # ⚠ 2026-10-13 废除 (r"\bactually\b", "真的", "其实")：WuWa Exploration Quests 片
+    # 实测 9+ 处误改——谷翻把 really/true 也译"真的"，锚定词形过宽（"这是真的"true
+    # 被改成"这是其实"病句）。"真的→其实"是风格偏好非专名校准，永久否决，勿再收编。
+    # (r"\bactually\b", "真的", "其实"),
+    # --- 2026-10-11 同片二次校准（逐句核查 1415 cue；官方名依 references/鸣潮对照表、灰机/萌娘/fandom wiki）---
+    (r"\bChisa\b", "千纱", "千咲"),                     # Chisa=千咲（表内已有英文键，谷翻中文形"千纱"漏校，cue75/77）
+    (r"\bFroova\b", "弗鲁娃", "弗洛洛"),               # Phrolova ASR 变体（cue310，"杀NPC/撒谎"反派语境）
+    (r"\bThrodian\b|\bThrenodian\b", "索德人", "鸣式"), # Threnodian 官方中文=鸣式（cue499，2.7 主线最终战）
+    (r"\bCarla\b", "卡拉", "珂莱塔"),                   # Carlotta ASR 截断（cue168，2.0 trailer/娃娃语境）
+    (r"\bcara\b", "卡拉", "卡提希娅"),                  # Cartethyia 截断（cue389，"2.0/2.x 的耶稣"=圣女救世主梗）
+    (r"\bUno\b", "Uno", "尤诺"),                        # Iuno ASR 变体（cue443，与奥古斯塔日/月对比语境）
+    (r"\bUnun\b", "Unun", "尤诺"),                      # 同上变体（cue444）
+    (r"\bShakona\b", "Shakona", "夏空"),                # Ciaccona=夏空·托卡塔；韩国主播读"샤콘"致 ASR Shakona（cue193，EP/暮光歌词）
+    (r"\bAusta\b", "澳大利亚", "奥古斯塔"),             # Augusta ASR 截断被谷翻当国名（cue700，歌手讨论）
+    (r"\bSahroy\b", "萨罗伊", "拉海洛"),                # Lahai-Roi ASR 变体（cue740 介绍）
+    (r"\bLa ?Hyroi\b", "拉·希罗伊", "拉海洛"),          # 同上带点形（cue751）
+    (r"\bginshi\b", "银人", "今汐"),                    # Jinhsi ASR 变体（cue1135，观众席今汐应援气球）
+    (r"I miss'?s\b", "我很想念", "爱弥斯"),             # Immeth ASR 变体被谷翻当短语（cue935）
+    (r"\bGata\b", "Gata", "抽卡"),                      # gacha ASR 变体谷翻未译（cue1300）
+    (r"\benchor\b", "魔咒", "安可"),                    # encore ASR 变体（cue1357，返场语境）
+    (r"\bKur\b", "库尔", "库洛"),                       # Kuro robots ASR 截断（cue1338，"库洛机器人集结"）
+    (r"\bIris\b", "艾瑞斯", "I.R.I.S."),                # 星炬学院 AI NPC 官方名不意译（cue1124，灰机/萌娘/fandom 均用 I.R.I.S.）
+    (r"\bIMTH\b|\bim{2,}ith\b", "IMTH", "爱弥斯"),      # Immeth ASR 变体英文残留（cue658）
+    (r"\bIMTH\b|\bim{2,}ith\b", "Immmith", "爱弥斯"),   # 同上三重m形（cue1318）
+    (r"\bImmeth\b", "伊米斯", "爱弥斯"),                # 谷翻音译与表内"爱弥斯"不一致（cue659）
+    (r"\bITH\b", "ITH", "爱弥斯"),                      # Immeth 截断英文残留（cue734）
     (r"right has concluded|rite has concluded", "权利已结束", "仪式已结束"),  # right=rite 误听
     (r"\bmagistrate\b", "地方法官", "令尹"),           # 长词先行，防"地方法官"被"法官"规则拆开
     (r"\bmagistrate\b", "法官", "令尹"),               # magistrate 官方译名 令尹（今州管理者）
@@ -1074,7 +1409,9 @@ CONTEXT_MAP = [
     (r"reverberations?\b", "回响", "残响"),          # #523/#869 死者的残响
     (r"\blingering sessions\b", "挥之不去的会话", "挥之不去的残响"),   # #526
     # 常见机翻错词（参考行佐证）
-    (r"\bpsycho\b", "心理", "疯子"),               # #559
+    # ⚠ 2026-10-13 废除 (r"\bpsycho\b", "心理", "疯子")：WuWa Exploration Quests 片
+    # #3563 "psychoanalyze"=心理分析，改"疯子分析"为病句；psychoanalyze 心理学义优先，永久否决。
+    # (r"\bpsycho\b", "心理", "疯子"),               # #559
     (r"\bmastermind\b", "大师", "主谋"),           # #594
     (r"\bmaintain the lane\b", "车道", "链接"),     # #671 维持链接
     (r"\bsowed\b|\bswed\b", "瑞典", "播下的"),      # #1069 木禺播下的混乱
@@ -1235,11 +1572,99 @@ CONTEXT_MAP = [
     #   非黑海岸守岸人(Shorekeeper)；谷翻 cue45 作"监视者"，参考行 Watcher 锚定归"守望者"。
     #   （"守望者"被误归守岸人的回滚见 EXCLUDE_CONTEXT；"守护者"为 Guardian 正确译法不收。）
     (r"\bwatchers?\b", "监视者", "守望者"),
+    # --- 2026-10-12 本片声纹筛选版（108 cue）三次校准 ---
+    # past/previous/former Sentinel：官方作『前任岁主』；谷翻按字面出"过去的岁主"。
+    #   ⚠ 必须走三元组：Entity('岁主').ctx 的 2 元组目标恒为 canonical「岁主」，
+    #   会把"过去的岁主"整串吞成"岁主"、丢掉"前任"这一层（实测 #83 踩坑）。
+    (r"\bpast\s+Sentinel\b|\bprevious\s+Sentinel\b|\bformer\s+Sentinel\b", "过去的岁主", "前任岁主"),
+    (r"\bpast\s+Sentinel\b|\bprevious\s+Sentinel\b|\bformer\s+Sentinel\b", "以前的岁主", "前任岁主"),
     # --- 2026-10-10 ADHD REACTS to WuWa 3.7 Hsin MAIN QUEST（本片二次校准）---
     # 谷翻把心月狐(Shin)按常用词直译，但目标需保留原句虚词（非 canonical），
     # 只能走扁平 CONTEXT_MAP 三元组（Entity.ctx 的 2 元组目标恒为 canonical）：
     (r"\bShin\b", "真终于", "心月狐终于"),
     (r"\bShin\b", "叫信", "叫心月狐"),
+    # --- 2026-10-12 WuWa 3.3 Story Reaction（I must save Aemeath!，10653 cue）二次校准 ---
+    # '日向/日行/早之'（Hiyuki 错形）已挂绯雪 Entity.ctx；以下为无 Entity 挂靠点的锚定：
+    (r"strider", "游侠门", "隧门"), (r"strider", "游侠之门", "隧门"),   # Strider Gate 谷翻拆词
+    (r"strider", "游侠河", "隧门"), (r"strider", "游侠气体", "隧门"),   # ASR gate->河 / gase->气体
+    (r"strider", "斯特赖德", "隧门"),                                  # 裸音译（观测站/裂隙等无"门"形）
+    (r"\bvoidthirst\b", "虚空摇篮", "虚质渴望摇篮"),                    # Voidthirst Cradle 与 #9068 统一
+    (r"\bvoidish\b", "虚空", "虚质色"),                                # gold -> voidish 颜色变化
+    (r"\bvoids\b", "虚空", "虚质"),                                    # 复数形（\bVoid\b 命不中 voids/voidish）
+    (r"and sol\.?", "太阳系", "太阳"),                                 # voids, storms, and sol（拉海洛地底无太阳）
+    (r"\bbatter\b", "虚质击球科学", "虚质科学"),                        # ASR matter->batter（星炬学院虚质科学部）
+    (r"\briders?\b", "骑士", "隧者"),                                  # Exor Rider 裸"骑士"（Rider 本义戒律禁裸键；#2269 参考行 rider 佐证）
+    (r"Roya (?:designs|partners|are\b)", "Roya", "罗伊"),              # Roya 英文残留窄语境；作品名《Roya Frost》=罗伊冰原走 Entity.ctx
+    # --- 2026-10-13 WuWa Exploration Quests and Tales round2：需参考行佐证的歧义错词 ---
+    (r"\bChong Li\b", "重力", "长离"),                                 # Chong Li=长离 ASR（#286；"重力"通用词不进裸键）
+    (r"\bHi\s?y?uki\b|\bHi\s?[Uu]ki\b", "浮喜", "绯雪"),               # Hiyuki=绯雪（#284）
+    (r"\bHi\s?y?uki\b|\bHi\s?[Uu]ki\b", "宇基", "绯雪"),               # （#232）
+    (r"\bpers ?im ?mons\b", "人鱼", "柿子"),                           # persimmons（#2299）
+    (r"\bsc ?all ?ions\b", "离子", "葱花"),                            # scallions（#2456）
+    (r"\bno rate\b", "没有命运", "没有概率公示"),                      # no rate->no fate ASR（#2431）
+    (r"blow smoke up", "吹烟", "溜须拍马"),                            # blow smoke up ass（#2386）
+    (r"rebuild", "重构版", "新剧场版"),                                # Evangelion rebuild（#2539/2544）
+    (r"rebuild", "福音复兴剧", "EVA新剧场版"),                         # （#2565）
+    (r"\bher ?esy\b", "她是这样", "这是异端"),                         # heresy（#2599）
+    (r"\bavoid ?ant\b", "避开蚂蚁", "回避型"),                         # avoidant（#2625）
+    (r"unt ?angling", "不划船", "解开纠葛"),                           # untangling（#2744）
+    (r"rip ?pling", "撕裂着方向", "泛起涟漪"),                         # rippling（#2762）
+    (r"\bre ?birth\b", "反叛军", "重生"),                              # rebirth（#2766）
+    (r"aura ?farming", "刷气", "攒气场"),                              # aura farming（#2822）
+    (r"got ?cha game", "有魅力的游戏", "抽卡游戏"),                    # gacha game（#2855/2906）
+    (r"booty ?cheeks", "超级臀部", "烂透了"),                          # booty cheeks（#2889）
+    (r"decomp", "分解", "反编译"),                                     # decompiling（#729/730）
+    (r"\bGlacial\b", "冰川", "冷凝"),                                  # Glacial Damage Bonus（#733）
+    (r"\bechoes\b", "回声", "声骸"),                                   # echoes=声骸（#721）
+    (r"start the tails", "反面", "传说任务"),                          # story tails 撕裂（#704）
+    (r"\bCritical\b", "关键难度", "Critical难度"),                     # Kingdom Hearts Critical（#1322）
+    (r"\bpick ?y\b", "选择Y", "挑剔"),                                 # picky（#1457）
+    (r"soft ?locked", "软锁", "卡死"),                                 # softlocked（#1523）
+    (r"\barr ?anger\b", "愤怒", "编曲师"),                             # arranger ASR（#1590）
+    (r"press in this track", "媒体", "贝斯"),                          # bass ASR->press（#1593）
+    (r"tre ?acher ?ous", "非常强烈", "非常凶险"),                      # treacherous（#1607）
+    (r"vocal ?fry", "声部炸弹", "气泡音"),                             # vocal fry（#1612）
+    (r"imm ?olation", "免疫口服", "自焚"),                             # immolation（#1642）
+    (r"gre ?asy", "紧张", "油腻"),                                     # Luna greasy（#1768）
+    (r"gre ?asy", "你很有意思", "你好油腻"),                           # （#1770/1773）
+    (r"gre ?asy", "全是灰色的", "全是油"),                             # （#1771）
+    (r"disillusion ?ed", "失望", "幻灭"),                              # （#1776）
+    (r"three houses", "三座房子", "风花雪月"),                         # FE Three Houses（#1802）
+    (r"Unicorn Over ?lord", "独角兽", "圣兽之王"),                     # Unicorn Overlord（#1815/1816）
+    (r"Hex ?agram", "六角星", "六芒星"),                               # Hexagram（#1190）
+    (r"spl ?urge", "SPL有点冲动", "挥霍一下"),                         # splurge（#1432）
+    (r"inc ?ensed", "很有把握", "被激怒"),                             # incensed（#881）
+    (r"fer ?ocious", "非常神秘", "非常凶猛"),                          # ferocious（#884）
+    (r"被药物折磨得很糟糕", "被药物折磨得很糟糕", "真的很失落"),       # bummed out（#1037；英文行锚定）
+    (r"service ?able", "还算可以维修", "还算凑合"),                    # serviceable（#1040）
+    (r"go ?oner game", "普通的游戏", "卖肉游戏"),                      # gooner game（#3401）
+    (r"waif ?us", "我们", "老婆"),                                     # waifus（#3952）
+    (r"norm ?ie", "正常的", "普通玩家"),                               # normie（#3985）
+    (r"norm ?ie", "常态", "普通玩家"),                                 # （#3991）
+    (r"pilled", "迷糊", "入坑"),                                       # pilled（#4005）
+    (r"co ?- ?op", "合作社", "联机"),                                  # co-op（#3889）
+    (r"co ?- ?op", "合作教育", "联机"),                                # （#3890）
+    (r"\bSon ?ny\b", "儿子", "桑尼"),                                  # Sonny 观众名（#3797）
+    (r"run ?backs", "回溯", "跑尸流程"),                               # run backs（#3783）
+    (r"alien ?ate", "外星人吃掉", "疏远"),                             # alienate（#3657）
+    (r"engaged", "订婚", "投入"),                                      # engaged（#4285）
+    (r"before the tip", "提示", "旅行"),                               # tip=trip（#4297）
+    (r"pass as Ace", "以艾斯的身份", "以王牌难度"),                    # Ace=Ace difficulty（#4158）
+    (r"\bdeadlock\b", "僵局", "Deadlock"),                             # Deadlock 保留英文（#4130）
+    (r"\bMiho\b", "美穗", "米哈游"),                                   # miHoYo（#3959/3960）
+    (r"\bIm ?eth\b", "我是eth", "爱弥斯"),                             # Imeth（#3948）
+    (r"\bAn ?anta\b", "Anta", "异环"),                                 # Ananta 谷翻残留（#1715）
+    (r"\bAn ?anta\b", "Ananta", "异环"),                               # 中文行英文残留（#414/3986/3994）
+    (r"\bLim ?bus\b", "林巴斯", "边狱公司"),                           # Limbus Company（#409）
+    (r"\bLim ?bus\b", "林巴士", "边狱公司"),                           # （#422）
+    (r"\bLim ?bus\b", "林姆公交", "边狱公司"),                         # （#455/456）
+    (r"bus Company videos", "公交公司", "边狱公司"),                   # （#464）
+    (r"behind a pass", "传球后面", "战令后面"),                        # battle pass（#2159）
+    (r"\bWu\b", "吴博士", "鸣潮"),                                     # Wu=WuWa（#4231）
+    (r"\bWua\b", "演吴", "玩鸣潮"),                                    # （#3880）
+    (r"\bWu\b", "锁定在吴", "锁定鸣潮的"),                             # （#3702）
+    (r"\bWulu\b", "Wulu", "鸣潮"),                                     # WuWa ASR（#598；英文行佐证）
+    (r"from San\b", "从San身上", "从散华身上"),                        # Sanhua（#2186）
 ]
 
 # =============================================================
@@ -1371,6 +1796,20 @@ EXCLUDE_CONTEXT = {
         r"\bnewspaper\b", r"\bBritish\b", r"\beditorial\b", r"\bjournalist\b",
         r"\breporter\b", r"\bheadline\b", r"\bcolumn(?:ist)?\b", r"\btabloid\b",
     )),
+    # ⑧ "融合" -> 热熔(Fusion 属性) 的负例：**combine 动词语境**（2026-10-12 演唱会反应片）。
+    #    #2125 "This song kind of combines so many elements" 谷翻"这首歌融合了许多元素"
+    #    （动词融合），被学习库"融合->热熔"误改成"热熔了许多元素"。参考行命中
+    #    combines/combination 即回滚；Fusion 属性语境（fusion girl 热熔女孩）不误回滚。
+    "融合": ("热熔", (r"\bcombin\w+\b",)),
+    # ⑨ "满的" -> 全部 的负例：**"满满的爱"被子串咬伤**（2026-10-12 演唱会反应片）。
+    #    #2925 "so love" 谷翻"满满的爱"、#3696 "lots of love" 同理：学习库"满的->全部"
+    #    子串命中"满满【的】爱"，咬出畸形"满全部爱"。参考行命中 so love/lots of love 即回滚。
+    "满的": ("全部", (r"\bso love\b", r"\blots of love\b")),
+    # ⑩ "莱昂" -> 伺夜(Vigil，明日方舟) 的负例：**其他游戏联动角色里昂（Leon）**。
+    #    2026-10-12 演唱会反应片 #996/#1008 主播聊某游戏摩托车联动皮肤 "the Leon and ADA
+    #    skin"（里昂×艾达），伺夜 Entity 的 \bLeon\b 锚定误伤成"伺夜"。ref 同时命中
+    #    ADA 即生化危机联动语境回滚；明日方舟片源 Leon 与 ADA 同现概率低，不影响。
+    "莱昂": ("伺夜", (r"\bADA\b",)),
 }
 _EXCLUDE_COMPILED = {w: (right, [re.compile(rx, re.I) for rx in rxs])
                      for w, (right, rxs) in EXCLUDE_CONTEXT.items()}
@@ -1426,6 +1865,7 @@ JA_TERMS = {
     "席大人": "心",                                  # シ様 = 心（心月狐），2026-09-09 心＆鎖暝先行片
     "丹尼娅": "达妮娅",                              # ダーニャ = 达妮娅（Denia，官方对照表）
     "丹妮娅": "达妮娅",
+    "拉哈罗伊": "拉海洛",                            # ラハロイ組（ラハイロイ組 ASR 掉イ）谷翻音译；2026-10-12 索拉逐星舞台S2
 
     # ══ 2026-10-10 沉淀：3.7 奇谭「璇心如月寄尘情」日本 VTuber 反应片（日语原声 ASR→谷翻）══
     # 与同视频韩语听译片（KO 表 2026-10-10 批次）互为印证；日语是原声，词形比韩语听译权威。
@@ -1453,6 +1893,28 @@ JA_TERMS = {
     "神胜先生": "上胜",
     # —— 残象潮(ざんぞうちょう，ASR"残像値"，谷翻"残像值") ——
     "残像值": "残象潮",
+    # ══ 2026-10-12 沉淀：菊雛まろん【鸣潮】キャラPV鑑賞会（日语原声 ASR→谷翻）二次校准 ══
+    # 官方依据：日语 wikiwiki 用語の翻訳 表 + 鸣潮官网 2.2/2.3/2.6 版本公告。
+    # —— 守岸人(ショアキーパー)：主播造梗 ショート/ロングキーパー=短/长守岸人 ——
+    "海岸守护者": "守岸人", "岸守": "守岸人", "射击守者": "守岸人", "守护者酱": "守岸人",
+    "Shockieper": "守岸人", "Shikiper": "守岸人",
+    "短门将": "短守岸人", "长门将": "长守岸人", "长门员": "长守岸人",
+    # —— 角色名机译错形（仅收正常中文里不会出现的错形）——
+    "卡洛塔": "珂莱塔",                              # カルロッタ = Carlotta
+    "卢珀": "露帕",                                  # ルパ/ルパー = Lupa
+    "莫尼尔": "莫宁",                                # モーニエ = Mornye
+    "加尔布丽娜": "嘉贝莉娜",                        # ガルブレーナ = Galbrena
+    "霞空": "夏空",                                  # シャコンヌ，官中作"夏空"
+    "弗洛娃": "弗洛洛", "弗拉瓦": "弗洛洛", "弗卢拉": "弗洛洛",
+    "弗洛巴": "弗洛洛", "弗罗瓦": "弗洛洛",          # フローヴァ = Phrolova 谷翻音译变体
+    "丹妮娜": "达妮娅", "丹娅": "达妮娅",            # ダーニャ = Dania（"丹娅"⊂"丹妮娅"，长键优先单遍无碍）
+    "大古斯塔": "奥古斯塔", "乌加斯塔": "奥古斯塔", "加斯塔": "奥古斯塔",  # オーガスタ = Augusta
+    "卡德西亚": "卡提希娅", "卡迪西亚": "卡提希娅",  # カルテジア = Cartethyia（英文 Cartesia/Carticia 同批）
+    "Cartesia": "卡提希娅", "Carticia": "卡提希娅",
+    "洛可酱": "洛可可",                              # ロッコちゃん = Rocco
+    "艾美斯": "爱弥斯", "埃姆斯": "爱弥斯",          # エメス/エイメス（英文 Emes/Aimes 走 JA_CONTEXT 锚定）
+    # 注：'阿尔托'→秋水、'约翰尼'→赞妮、'皮皮/米菲比'→菲比、'守门员'→守岸人 存在
+    # 跨片/跨语境误伤风险，统一入下方 JA_CONTEXT 日语参考行锚定。
 }
 
 # (日语参考行正则, 中文错形, 正确)：仅当日语行命中正则、且中文行含错形时才替换
@@ -1497,6 +1959,67 @@ JA_CONTEXT = [
     (r"フィジカル", "体力", "物理"),                   # フィジカル=物理（属性语境，非"体力"）
     (r"オーガサ", "螺旋钻", "奥古斯塔"),               # オーガスタ ASR 吞音变体（机翻瞎译"螺旋钻"）
     (r"シは|シが|シも|シの", "石", "心"),              # シ=心（心月狐），单字片假名被机翻成"石"
+    # --- 2026-10-12 索拉逐星舞台 S2 同视片沉淀（【棺咲蒼琉】同人スペシャル番組同時視聴 ja 谷翻 652cue）---
+    #     节目官方名 ソラリス・スターリーステージ = Solaris Starry Stage，B站官方搬运标签「索拉逐星舞台」；
+    #     ASR 常咬成 スターリング/スタリステージ/ラリスターリーステージ，谷翻乱译 星环关卡/星光舞台/星光关卡/斯特林。
+    (r"スター?リー?ス?ス?テージ", "星环关卡", "逐星舞台"),
+    (r"スター?リー?ス?ス?テージ", "星光舞台", "逐星舞台"),
+    (r"スター?リー?ス?ス?テージ", "星光关卡", "逐星舞台"),
+    (r"スターリング|スター?リー?ス?ス?テージ", "斯特林", "逐星舞台"),   # スターリング=スターリーステージ 咬字（英镑语境慎用，戒律见上）
+    (r"ラリスターリーステージ", "拉利斯特利舞台季", "索拉逐星舞台季"),
+    (r"MMD", "多发性抑郁症", "MMD"),                  # MMD(動画) 被当成医学缩写 MDD 误译"多发性抑郁症"
+    (r"エメス", "埃梅斯", "爱弥斯"),                   # エメス=エイメス(Imeth 爱弥斯) ASR 掉イ
+    (r"エイメス", "埃梅斯", "爱弥斯"),                 # エイメス 谷翻也会音译成"埃梅斯"（cue474）
+    (r"カルテジア", "卡蒂西亚", "卡提希娅"),           # カルテジア=Cartethyia 卡提希娅 ASR 变体
+    (r"カルロッタ", "卡洛塔", "珂莱塔"),               # カルロッタ=Carlotta 珂莱塔 谷翻音译残留
+    (r"モンテリー", "蒙特里", "莫塔里"),               # モンテリー=Montelli 莫塔里家族（同人梗"番组赞助商"）
+    (r"ルパー", "卢珀", "露帕"),                       # ルパー=ルパ(露帕) 长音昵称
+    (r"ラハイロイ", "拉海罗伊", "拉海洛"),
+    (r"ラハロ", "拉哈罗", "拉海洛"),                   # ラハロ=ラハイロイ ASR 截断
+    (r"ラハ類", "拉哈小组", "拉海洛组"),
+    (r"ハイロイ組", "High-Roy班", "拉海洛组"),         # ハイロイ組=ラハイロイ組 学园梗班级名
+    (r"リナシータ", "Linasita", "黎那汐塔"),
+    (r"リナシー?組", "Linasy 组", "黎那汐塔组"),
+    (r"リナシー?組", "Linashi组", "黎那汐塔组"),
+    (r"ひゆき", "日向", "绯雪"),                       # ひゆきちゃん 被谷翻成"日向酱"（ひゆき=绯雪，非ひなた）
+    (r"異世界情長|異世界上長", "异世之爱", "异世界情绪"),   # 異世界情緒(歌手) ASR/谷翻变体
+    (r"異世界情緒|異世界情長|異世界上長", "异世界氛围", "异世界情绪"),
+    (r"異世界さん", "异世界先生", "异世界情绪"),        # 異世界さん=異世界情緒 粉丝简称
+    (r"異世界上長", "来自另一个世界的孩子", "异世界情绪酱"),
+    # --- 2026-10-12 二次校准沉淀（索拉逐星舞台 S2 同视片，以官方中文为基准逐句复查 652cue）---
+    #  黑海岸（Black Shores）：ブラックショアーズ 的 ASR 咬字 ブラックシア/ブラックシュア，
+    #  谷翻拆成"布莱克谢亚集团/布莱克谢一家/Blacksure/染黑色乳木果"等乱形；
+    #  佐证：cue309「ブラックショあったよね」= S1 有过黑海岸主题同人演出。
+    (r"ブラックシア|ブラックシュア", "布莱克谢亚集团", "黑海岸组"),
+    (r"ブラックシア|ブラックシュア", "布莱克谢一家", "黑海岸组"),
+    (r"ブラックシア|ブラックシュア", "Blacksure系列", "黑海岸组"),
+    (r"ブラックシア|ブラックシュア", "Blacksure", "黑海岸"),
+    (r"ブラックシア|ブラックシュア", "Blackshea集团", "黑海岸组"),
+    (r"ブラックシア|ブラックシュア", "染黑色乳木果", "黑海岸"),
+    #  漂泊者（ひょうはくしゃ）：ASR 咬字 ひょ君/ひょちゃん（3.6片 ひょ君=漂泊者 同机制；
+    #  cue428 主播对 ひょ君/ひょちゃん 犹豫称呼即 ASR 变体佐证；ひょうちゃん=表酱 多一う不冲突）
+    (r"ひょ君", "赫坤", "漂泊者"),
+    (r"ひょ君", "兵君", "漂泊者"),
+    (r"ひょ君", "Hyokun", "漂泊者"),
+    (r"ひょ君", "德孝", "漂泊者"),
+    (r"ひょちゃん", "兵酱", "漂泊者"),
+    (r"ひょちゃん", "Hyo酱", "漂泊者"),
+    (r"ひょちゃん", "孝春", "漂泊者"),
+    #  雄之助（Yunosuke，ボカロP/DJ）：S2 同人曲创作者，谷翻乱音译 由之介/云之助
+    (r"ユ之助|ゆ之助", "由之介", "雄之助"),
+    (r"ユ之助|ゆ之助", "云之助", "雄之助"),
+    #  洛瑟菈（Lucilla）：ルシラ=ルチッラ ASR 掉チ；中英表已有"卢西拉→洛瑟菈"，补日语锚定
+    (r"ルシラ", "卢西拉", "洛瑟菈"),
+    #  兑换码环节：引き換え行動=引換=兑换行动（80×2=160星声）；シリアルコード=兑换码
+    (r"引き[替換]え行動", "权衡的行动", "兑换行动"),
+    (r"引き[替換]え行動", "交换行动", "兑换行动"),
+    (r"交換が出て", "交换机会", "兑换码"),
+    (r"シリアルコード", "序列号", "兑换码"),
+    (r"ルパ", "Lupa", "露帕"),                         # 中文行残留英文 Lupa（ルパ 锚定）
+    (r"ハイロイ", "高罗伊", "拉海洛"),                  # ハイロイ=ラハイロイ 截断（High-Roy班 另有条目）
+    (r"ダーニは", "丹妮", "达妮娅"),                    # ダーニ=ダーニャ 掉ャ；收窄 ダーニは 防"丹妮娅娅"级联
+    (r"いぐるみ|ぬいぐるみ", "同款玩具", "毛绒玩具"),   # いぐるみ=ぬいぐるみ ASR 掉ぬ
+    (r"ブランドニュースカイ", "Brand News Sky", "Brand New Sky"),   # 曲名拼写，无官方中文保留英文
     # --- #476 共鳴→表明 ASR 近音误听（きょうめい→ひょうめい），机翻跟着错译成"清单" ---
     (r"表明解放", "清单释放", "共鸣解放"),               # 共鳴解放=共鸣解放（官方词）
     (r"表明回路", "清单电路", "共鸣回路"),               # 共鳴回路=共鸣回路（官方词，攒满触发强化/召唤形态）
@@ -1590,6 +2113,25 @@ JA_CONTEXT = [
     (r"祭祀として御社", "祭品", "岁主"),
     (r"御社に認められ", "神社", "御者"),
     (r"御社に認められ", "神明", "御者"),
+    # ===== 2026-10-12 第三批：菊雛まろん【鸣潮】キャラPV鑑賞会（角色 PV 鉴赏会）二次校准 =====
+    # 仅收日语行锚定可裁决的跨语境易误伤词；角色名读法混杂官方音读与主播习惯。
+    # —— 秋水(アルト/アールト)：与常见西文人名"阿尔托"撞形，必须日语锚定 ——
+    (r"アルト|アールト", "阿尔托", "秋水"),
+    # —— 赞妮(ザンニー)：谷翻把 ザンニー/ジャンニー（ASR ザ行↔ジャ行混淆）记作"约翰尼" ——
+    (r"ザンニー|ザンニ|ジョンニー|ジャンニー|ジャンニ", "约翰尼", "赞妮"),
+    # —— 菲比(フィービー)："皮皮"是常见昵称，仅菲比语境才改；ASR 偶作"米菲比"、清浊混淆"フィーピー" ——
+    (r"フィ[ー]?[ビピ][ー]?", "皮皮", "菲比"),
+    (r"フィ[ー]?[ビピ][ー]?", "米菲比", "菲比"),
+    # —— 守岸人(ショアキーパー)及其主播造梗 ショート/ロングキーパー："守门员"为正常足球词 ——
+    (r"ショアキーパ[ー]?|ショートキーパ[ー]?|ロングキーパ[ー]?", "守门员", "守岸人"),
+    # —— 爱弥斯(エメス/エイメス)：英文残留 'Emes'/'Aimes' 裸替换会误伤 Themes 等 ——
+    (r"エメス|エイメス", "Emes", "爱弥斯"),
+    (r"エメス|エイメス", "Aimes", "爱弥斯"),
+    # —— 2026-10-12 残留复核补充：ASR 断词变体（ショマ=ショート+マ），specific 须排在 キーパー 兜底前 ——
+    (r"ショマキーパ[ー]?", "昭和守门员", "短守岸人"),
+    (r"ショートキーパ[ー]?|ロングキーパ[ー]?", "短门", "短守岸人"),
+    # 本片主播口中的 キーパー 均指守岸人系（含 キーパーちゃん/キーパーのこと），兜底锚定
+    (r"キーパ[ー]?", "守门员", "守岸人"),
 ]
 _JA_CONTEXT_COMPILED = [(re.compile(rx), wrong, right) for rx, wrong, right in JA_CONTEXT]
 
@@ -3087,6 +3629,34 @@ ENDFIELD_BI_TERMS = {
     "在寺遗留": "在祀遗留", "在寺的画境": "在祀的画境",  # 祀(Si)的画境；音频复核念「祀」（长键防「寺」误伤）
     "告别斯": "告别祀",                      # 同上（小刻 1.6 剧情：告别祀的画境）
     "萨卡兹豪宅": "歇脚地",                  # Seshka mansion→歇脚地（塞什卡别名，官方中配定名）
+
+    # —— 2026-10-11 沉淀：《Rhodes Island Is On It's Way!!! Arknights Endfield Dev Log 1.6》
+    #    英文 ASR+谷歌机翻中英双语反应片（216 cue，--endobi；日语音译经英文 ASR 转写再机翻，
+    #    错形均来自塞什卡领袖致词与白垩洲导览段，官方依据＝本表已收十四/九次沉淀的同段官方中文）。
+    "恩德菲尔德": "终末地",                  # Endfield 音译（ENDFIELD_TERMS 2026-08-30 已收，BI 表补一份）
+    "塞西卡": "塞什卡", "塞西奥": "塞什卡",    # Cecica/Cecio＝セシカ＝Seshka（#115/#119 领袖致词佐证）
+    "猿一": "萨卡兹",                        # Sarukazu＝サルカズ＝Sarkaz（#116/#120 同一致词，长键先于既有「塞西」）
+    "文明区协议": "环带公约",                 # Civilization Zone Agreement（#137 与官方「开发建设科研勘探受环带公约限制」逐字对应）
+    # —— 同片二次校准（原片音频 large-v3-turbo 日语 ASR 逐段复核，fix2.tsv 侧车 13 处）——
+    #    本片为 7 位日本 VTuber mashup 反应片（Serenade 日→英人工字幕 + 谷歌机翻中文），专名残差
+    #    链路为：日语音译 → 英文人转 → 谷歌机翻。以下为 ASR 听写坐实、可复用的非词错形：
+    "Seche": "塞什卡",                       # 次がセシカ（#122；VTuber 确认下一座城＝塞什卡）
+    "ArkNice": "明日方舟",                    # アークナイツで教えて（#154，与既有 "Arknet" 同族）
+    "铁成军队": "铁誓军",                     # テッセイグン（#107；铁誓军 Order of Steel Oath＝萨米武装，官方对照表有载）
+    "泰国大陆": "泰拉大陆",                    # テラ大陸 被英转听作 Thailand（#162；长键防泰国旅游语境，仅限终末地片源表）
+    # 不入裸键（本片走逐 cue subfix，侧车 fix1/fix2.tsv 随片存放）：
+    #   吉普赛人→吉普索西亚（普通词；#142 音频复核 VTuber 念「ジプソシア」＝Exosia 坐实）、
+    #   太郎2→塔卫二（会误伤 #5「太郎2号」奥特曼·泰罗梗台词；#85/#121 旁白「タロスツー」坐实）、
+    #   赫莉卡→佩丽卡（Helica＝ペリリカ；#93 音频「ペリカが喋ってる」坐实，中置信不建键）、
+    #   洛文德门(特)/洛夫曼/拉万德→菈梵朵玛（ラファントマ 三级残差；c08「安らぎの地と肩を並べる都市」＝
+    #     官方「与塞什卡、塔卫二并列的城市」语境锚定）、
+    #   特拉拉海→泰拉之海（旁白「それはテラの海ではなく」）、白原→白垩洲（旁白「土地、ハクアバラ」
+    #     ＝白亜原音读，同段「ハクアバラはエンドフィールドの協力が必要」坐实）、
+    #   原马克→源石方舟（旁白「オリジニウムアーク、回収可能。まもなく帰還する」＝Originium Ark）、
+    #   艾尔芙美→精灵耳（「エルフ耳」误作人名，他片可为真译名）。
+    #   疑难保留：#55 关零（音频「かんれい」疑指寒冷要素或昵称，无官方锚）、#94-95 穆拉清酒/上层地区
+    #   （ルリョの巨大な裂け目 官方中文名待考）、#112 热能虫（サーミフィオド）、#151 Dimiler/马勒
+    #   （エラーイオン）、#159 Warung先生、#128 南极社区（塞什卡致词谢辞段无官方全文）——证据不足不改。
 }
 
 # =============================================================
@@ -3123,7 +3693,99 @@ ENDFIELD_KO_TERMS = {
     "星座模式": "满潜",
     # —— 原版角色（cue351「원보캐」=원본 캐릭터 简称，谷翻硬作"一人出局的角色"）——
     "一人出局的角色": "原版角色",
+    # ═══════════════════════════════════════════════════════════════
+    # 2026-10-13 沉淀：韩国主播读终末地干员「提弗洛斯」前作解说片
+    #   片源：《엔드필드》 전작을 이해해보자 티폰 설명 읽어보기!「티프로스 편」
+    #         （644 cue，韩语原声 + 谷歌机翻中文，韩语行作参考行）
+    #   内容：主播读**明日方舟本体**干员「提丰」的档案/活动剧情，用前作设定解释
+    #        终末地的提弗洛斯。故本片的地名/种族/机构绝大多数属**明日方舟本家**，
+    #        与 --ak（本体）表重叠但语境不同（终末地主播讲解），故在此独立登记。
+    #   官方依据：明日方舟 wiki.gg（Typhon/Story、Sami、Andenate Maryam）、
+    #        萌娘百科「萨米/提丰/麦哲伦/凛视/安玛」、百度百科「提丰/安玛/邪魔」、
+    #        集成战略#4「探索者的银凇止境」剧情梗概。
+    # ═══════════════════════════════════════════════════════════════
+    # —— 干员：티폰=提丰（明日本家六星狙击·攻城手，出身萨米的萨卡兹）——
+    #    谷翻全片作「泰丰/提丰」混用；「T-Phone/T-phone」变体见 AK_TERMS。
+    "泰丰": "提丰",
+    "蒂佛": "提弗洛斯", "蒂弗": "提弗洛斯",
+    "Tipo": "提弗洛斯", "Tief": "提弗洛斯", "Typros": "提弗洛斯",
+    "Typhon": "提丰",
+    # —— 独眼巨人：아르게스(Arges)=凛视 Valarqvin（本名艾尔启），提丰的监护人 ——
+    "阿尔杰斯": "凛视",
+    # —— 种族：살카지=萨卡兹 / 엘라피아=埃拉菲亚（萨米主体种族，鹿形）——
+    "萨尔卡吉": "萨卡兹", "萨尔卡齐尔": "萨卡兹", "萨尔卡伊": "萨卡兹",
+    "埃拉皮亚": "埃拉菲亚",
+    # —— 国家：우르스=乌萨斯（萨米邻国；谷翻作「乌尔斯/乌尔苏斯」）——
+    "乌尔斯": "乌萨斯", "乌尔苏斯": "乌萨斯",
+    # —— 巨兽：베이무스/베이모스/베무스 = 베헤모스 사미「巨兽萨米」——
+    #    ⚠ 本片最大的系统性错译：谷翻把同一个专名按字面拆成「贝姆斯3/拜莫斯排名第三/
+    #      贝穆斯」，读起来像"第三名"。韩语「베이무스 3」是「베헤모스 사미」的连读。
+    "贝姆斯3": "巨兽萨米", "拜莫斯排名第三": "巨兽萨米", "贝穆斯": "巨兽萨米",
+    "贝姆斯": "巨兽萨米", "拜莫斯": "巨兽萨米", "贝穆斯": "巨兽萨米",
+    "维穆斯": "巨兽萨米",
+    # —— 兽主：안마/암마 = Amma「安玛」（萨米兽主·鹿之主，萨米语"老妈妈"）——
+    #    谷翻全片把专名当普通词「按摩」，是本片最高频的错译（见 ENDFIELD_KO_CONTEXT）。
+    # —— 邪魔：데몬 = 明日方舟官方中文「邪魔」（非"恶魔"）。Collapsal/污染体的统称。
+    "戴蒙": "邪魔",
+    # —— 收藏品/术语：안마의 사랑 = 官方藏品「安玛爱的力量」——
+    #    官方描述"口袋里那份重量便是佐证"即本片 cue452 机翻"里面的分量就是证据"。
+    "按摩之爱": "安玛的爱", "按摩的热爱": "安玛的爱",
+    # —— 机构：라인(Rhine)=莱茵生命（麦哲伦所属；谷翻作"LINE生命研究所/线实验室"）——
+    "LINE生命研究所": "莱茵生命研究所", "线实验室": "莱茵实验室",
+    "Motive的研究机构": "麦哲伦的研究机构",
+    # —— 人名：마리암(마리아암)=安德涅特·马里亚姆（莱茵生命科学考察科主任）——
+    "玛丽亚姆": "马里亚姆", "马利亚姆": "马里亚姆", "马吉兰": "麦哲伦",
+    "玛盖拉": "麦哲伦",
+    "Mariam Eye": "马里亚姆",
+    "아이야파들라": "艾雅法拉", "Aiyapadla": "艾雅法拉",
+    # —— 剧集/活动名：미니 이벤트《나무늘 속에 잠들다》=官方《眠于树影之中》——
+    "《入睡》": "《眠于树影之中》",
+    "타이포스": "提弗洛斯",
+    # —— 塔卫二：엔드필드의 무대인 탈로스 2（谷翻"塔洛斯2号"；韩语 "타로스" 为
+    #    Arknights 的 Taros 气态巨行星，与塔卫二 Talos-II 无关，故只收长键「塔洛斯2号」，
+    #    不收裸键「塔罗斯/塔拉斯」（那些是 Taros，见 ENDFIELD_KO_TERMS 既有条目）。
+    "塔洛斯2号": "塔卫二",
+    "恩德菲尔德": "终末地",
+    # —— 污染物：붕괴체(Collapsal)=官方「坍缩体」（谷翻"衰变体"）——
+    "衰变体": "坍缩体",
+    # —— 萨米重镇：체파트(Čappat)=察帕特（萨米南部城镇，莱茵生命办事处所在）——
+    "切帕特": "察帕特",
+    # —— 星门：스타게이트 = 官方「星门」（谷翻"星际之门"，非官方直译）——
+    "星际之门": "星门",
 }
+
+# =============================================================
+# 3.1d 终末地·韩语原声片源的**普通中文词**锚定表（2026-10-13 新增，--endoko）
+#   与 KO_CONTEXT 同构：(韩语参考行正则, 错形, 正确)。
+#   收录本片实测的**通用中文词误译**——它们绝不能进 ENDFIELD_KO_TERMS 裸键
+#   （"恶魔/按摩/第三/王子"在正常语境都是好词），必须由韩语行正则佐证。
+#   ⚠ 本表随 ENDFIELD_KO_TERMS 的 --endoko 模式生效（见 process() endoko 分支）。
+# =============================================================
+ENDFIELD_KO_CONTEXT = [
+    # —— 데몬(demon) → 官方「邪魔」——
+    #    本片 13 处把明日方舟的"邪魔"机翻成"恶魔/魔鬼"，是本片最高频的错译。
+    #    依据：百度百科「邪魔」条目——泰拉的敌方存在统称，萨米/乌萨斯常年与之作战；
+    #    萌百「萨米」——"萨米北部的冰原是'邪魔'主要盘踞的区域"。
+    (r"데몬", "恶魔", "邪魔"),
+    (r"데몬", "魔鬼", "邪魔"),
+    # —— 안마/암마(Amma) → 官方「安玛」——
+    #    萨米兽主·鹿之主，萨米语意为"老妈妈"（百度百科「安玛」）。
+    #    谷翻把专名当普通词"按摩"，本片出现 9 次，是最典型的专名漏校。
+    (r"안마|암마", "按摩", "安玛"),
+    (r"안마|암마", "阿玛", "安玛"),
+    # —— 3위 → 官方「萨米」——
+    #    ⚠ 本片最隐蔽的系统性错译：谷翻把"3위"按字面译成"排名第三/第三名"，
+    #    但该词在《眠于树影之中》语境中是**地名/地区名**（提丰的故乡萨米）。
+    #    依据：萌百「萨米」——提丰出身地萨米；英文 wiki「Typhon/Story」——
+    #    Typhon the Sami Sarkaz（萨米的萨卡兹）。
+    #    仅在"排名/第三"这类字面译法上做替换，避免误伤正常序数。
+    (r"3위", "排名第三", "萨米"),
+    (r"3위", "第三名", "萨米"),
+    (r"3위", "第三位", "萨米"),
+    (r"3위", "第三", "萨米"),
+    # —— 안마의 사랑 → 官方藏品「安玛的爱」——
+    (r"안마의 사랑", "按摩的热爱", "安玛的爱"),
+]
 
 #: 片源自适应（2026-10-07）：默认 bi 模式下的「终末地·中英双语片源」特征词。
 #:   起因：终末地专名对照只挂在 ENDFIELD_TERMS(--endo) 与 ENDFIELD_BI_TERMS(--endobi)，
@@ -3264,6 +3926,26 @@ AK_TERMS = {
     "梅尔奥迪克": "旋律",             # melodic 谷翻音译错误
     "B自然": "还原B",                 # B natural 标准乐理术语=还原B
     "音调中心": "调性中心",           # tonal center 标准乐理术语=调性中心
+    # --- 2026-10-12 沉淀：《【字幕】All You Should Know in Arknights Next Update!》
+    #     17章前瞻片（英文原声+谷歌翻译中文行，132 cue）。Kal'tsit ASR 成 Kal sey、
+    #     Ursus 音译乌尔苏斯、Mystic Caster 译"神秘施法者"、Closure 大写形（可露希尔）、
+    #     IS3 音译《我之剑3》等。注意：closure(小写)=克洛丝 为旧片 ASR 沉淀，
+    #     Closure(大写)=可露希尔，大小写敏感替换二者不冲突。
+    "乌尔苏斯": "乌萨斯",              # Ursus 官方=乌萨斯
+    "卡尔·塞·阿尔特": "凯尔希异格",    # Kal'tsit alter ASR+谷翻串形
+    "卡尔·赛": "凯尔希", "卡尔·塞": "凯尔希",
+    "Kal sey alter": "凯尔希异格", "Kal Sey": "凯尔希", "Kal sey": "凯尔希",
+    "Closure": "可露希尔",             # Closure 官方=可露希尔（大写形）
+    "神秘施法者": "秘术师",            # Mystic Caster 官方子职业=秘术师
+    "新算符": "新干员", "运营商": "干员",   # operator 谷翻误译（仅 --ak 模式生效）
+    "限量卡池": "限定卡池", "限量赛": "限定干员",
+    "罐体单元": "坦克单位",            # tank unit 谷翻
+    "《我之剑3》": "集成战略3",        # IS3 谷翻音译
+    "Orundum": "合成玉",               # 大写形（小写 orundum 已有）
+    "Degen": "锏",                     # Degenbrecher 官方=锏
+    "Savage": "暴行",                  # Savage 官方=暴行
+    "穆穆": "缪缪",                    # Muelsyse(MuMu) 昵称，谷翻"穆穆"
+    "模块": "模组",                    # 明日方舟 module 官方=模组（--ak 模式隔离，编程语境不入）
 }
 # =============================================================
 # 3.1c AK_CONTEXT：明日方舟**双语**片源（英文原声 + 谷歌翻译中文行）的条件变体。
@@ -3289,6 +3971,46 @@ AK_CONTEXT = [
     (r"\bkey\s+changes?\b", "关键变化", "转调"), # 同上，谷翻另一误译形"关键变化"
     (r"\bmodal\b", "模态", "调式"),              # modal ambiguity=调式歧义，谷翻误译"模态"
     (r"\bsubdued\b", "压抑", "弱化"),            # 音乐/配器语境 subdued=弱化，谷翻误译"压抑"
+    # --- 2026-10-12 沉淀：《All You Should Know in Arknights Next Update!》普通中文词义错位 ---
+    (r"\barchetypes?\b", "典型", "职业分支"),       # #18 this archetype=职业分支，谷翻"典型"
+    (r"\barchetypes?\b", "原型", "职业分支"),       # #109 archetype=职业分支（"原型"字面义错位）
+    (r"\btalent\b", "才华", "天赋"),                # #19 talent=明日方舟机制"天赋"
+    (r"true damage", "真伤害", "真实伤害"),         # #21 true damage 官方=真实伤害
+    (r"\bpotential\b", "潜力", "潜能"),             # #54 potential=明日方舟"潜能"
+    (r"\bspecter alter\b", "幽灵变形", "归溟幽灵鲨"),  # #55 Specter alter 官方=归溟幽灵鲨
+    (r"\bgavial alter\b", "加维尔", "百炼嘉维尔"),  # #56 Gavial alter 官方=百炼嘉维尔
+    (r"\bspark\b", "火花", "黄票兑换"),             # #55 spark cost=黄票兑换消耗
+    (r"\brate up\b", "卡率提升", "概率提升"),       # #53 rate up
+    (r"\bbenablers?\b", "纵容者", "启动器"),        # #47 corrosion enabler
+    (r"\brerun\b", "重播的皮肤", "复刻皮肤"),       # #59 rerun skins
+    (r"\bstages\b", "各个阶段", "各个关卡"),        # #62 examine the stages
+    (r"\bstages\b", "赛段", "关卡"),                # #78 The stages will also have
+    (r"[Ee]pisode 17", "第17集", "第17章"),         # #63 主线 episode=章节
+    (r"\bepisode\b", "这一集", "这一章"),           # #74 this episode
+    (r"\bboss\b", "老板", "Boss"),                  # #81 As for the boss
+    (r"\bmedics?\b", "医疗兵", "医疗干员"),         # #66 bring enough medic
+    (r"leak source", "漏水源", "泄漏源"),           # #69
+    (r"leak mark", "漏水痕迹", "泄漏标记"),         # #78
+    (r"\btiles?\b", "瓷砖", "格子"),                # #72 4 tiles（明日方舟 tile=格子）
+    (r"\bstunned?\b", "昏迷", "眩晕"),              # #73 stun=明日方舟"眩晕"
+    (r"old well", "旧水井", "旧井"),                # #102 bring back the old well
+    (r"yellow rocks", "黄色石头", "至纯源石"),      # #103 主线通关奖励=至纯源石俗称
+    (r"arts damage", "术技伤害", "法术伤害"),       # #85 arts damage=法术伤害
+    (r"\bscreen\b", "屏风", "屏幕"),                # #101 tap the screen
+    (r"\breclamation\b", "收复局", "生息演算"),     # #117 Reclamation Algorithm=生息演算
+    (r"\bwrong\b", "买到", "弄错"),                 # #61 get some things wrong
+    (r"will be life", "出生", "上线"),              # #4 will be live（ASR life）
+    (r"\bbanner\b", "旗帜", "卡池"),                # #11 limited banner
+    (r"stun\s+counter", "晕眩装备", "眩晕对策"),    # #75 stun counter
+    (r"to start your stage", "结局", "可露希尔"),   # #31 ref 尾行锚定（Closure 不在尾行）
+    (r"in the squad", "闭合", "可露希尔"),          # #34 ref 尾行锚定（同上）
+    (r"Compared to Kal", "卡尔", "凯尔希"),         # #38（"卡尔"裸键过宽，仅此句式锚定）
+    (r"\boperator records?\b", "干员记录", "干员密录"),  # #112 Operator Record 官方=干员密录
+    # --- 2026-10-12 二次校准沉淀（同片第二轮，普通中文词义错位）---
+    (r"chem\s*leak", "泄露", "泄漏"),               # 化学泄漏机制名用字统一（泄漏≠泄露）
+    (r"same resistance", "抵抗", "法术抗性"),       # #93 resistance=明日方舟"法术抗性"
+    (r"total login", "总登录", "累计登录"),         # #122/123 total login reward=累计登录奖励
+    (r"\bselectors?\b", "选择器", "自选券"),        # #119/126 6 star selector=六星自选券
 ]
 _AK_CONTEXT_COMPILED = [(re.compile(rx, re.I), wrong, right) for rx, wrong, right in AK_CONTEXT]
 # AK_MODE 并入 process：与 endo 类似，但仅精调 ARKNIGHTS 中文行（首中文行）
@@ -4401,6 +5123,212 @@ KO_CONTEXT = [
 _KO_CONTEXT_COMPILED = [(re.compile(rx), wrong, right) for rx, wrong, right in KO_CONTEXT]
 
 # =============================================================
+# 2.3b 韩语 ASR 层校准（纯韩语片源，--ko 自动启用；2026-10-12 新增）
+#   片源：《【명조】4장 4막『몽주의 궤적, 마음이 그리는 대로 』ㅣWuthering Waves.ko.srt》
+#   （韩国主播 5 小时直播录像穿插 4.4 梦州篇主线，YouTube 韩语 ASR，5326 cue，
+#   每 cue 单行韩语、无中文行 —— 旧 --ko 表键全是中文错形，对此类文件零命中）。
+#   触发条件：--ko 模式下某 cue 的全部文本行都含谚文（zh_tis 为空）→ 对韩语行
+#   应用本表（韩语错形 → 官方韩语写法）。双语片源（中文行+韩语参考行）行为
+#   完全不变，严格向后兼容。
+#   官方写法依据（2026-10-12 联网核实）：
+#   · 3.6 版本公告（wutheringwaves.kurogames.com/kr/news/detail/5358）：
+#     청초 = 현방성 **진현사기**（真玄司记）——旧听译 정연사기/진연사기 均归位；
+#     천라 호영（天罗护影，3.7 公告「몽추천라 밖에서 천라 호영은」原文带空格）。
+#   · 3.7 新共鸣者「쇄명」官方介绍（memic.at / gametoc）：몽주 화정 출신，
+#     계주로서 **금쇄십계**(金锁十戒) 창설 → 주감 → **제천감** 관장。
+#     ⚠ 重要修正：쇄명（쇄=锁'鎖'）才是韩服官方名，此前沉淀误作「쇠명」；
+#     KO_CONTEXT 旧锚定 쇠명주 ?감 对旧双语片仍兼容（锚定的是 ASR 原形），
+#     但纯韩语片一律归位 쇄명。中文官方名仍为「锁暝」不变。
+#   · 몽추천라（梦枢天罗）、만상신궁（万相神宫）、악장、화정（华定）、
+#     더 액시온（3.7 战争的명식，금주편）等经 arca.live 스토리 요약帖 交叉确认。
+#   · 此前 2026-10-01/10-06 双语片沉淀的韩语锚点（심월여우/몽주/현방성/
+#     혈령작/조월/소호신/명식/직정/잔성회/운연/문명의 상자/솔라리스）沿用。
+#   目标形态约定：角色/机构名一律连写（심월여우/몽추천라/만상신궁/금쇄십계），
+#   官方带空格的组合保持空格（천라 호영/숙명의 거울/문명의 상자/기관 인형/
+#   여우의 별자리/운연 전쟁）。普通词错形（순조러워/알락해 等）一律不动。
+KO_ASR_TERMS = {
+    # —— 心月狐(심월여우) 变体（ASR 시월/시몰/심려/치월/시모 系）——
+    "시월여우": "심월여우", "시월 여우": "심월여우", "10월 여우": "심월여우",
+    "시월여야우": "심월여우", "시월야우": "심월여우", "시월 여호와": "심월여우",
+    "시료우": "심월여우", "시멀 여우": "심월여우", "시몰려우": "심월여우",
+    "시몰려와": "심월여우와", "시몰 여우": "심월여우", "시몰 여우대인": "심월여우 대인",
+    "시몰 여우의": "심월여우의", "심려오": "심월여우", "심려우": "심월여우",
+    "치월여우": "심월여우", "치말려야우": "심월여우", "시모의 여우": "심월여우",
+    "심월용라는": "심월여우라는", "심리우": "심월여우", "심여우": "심월여우",
+    "심할 여우": "심월여우", "시월라는": "심월여우라는", "심월여이": "심월여우",
+    "심월여의": "심월여우의", "심월라고": "심월여우라고", "심원료의": "심월여우의", "심우의": "심월여우의",
+    "심월여우대인": "심월여우 대인", "시월여우대인": "심월여우 대인",
+    "심월여대인": "심월여우 대인", "심월여 우대인": "심월여우 대인",
+    "심월여 대인": "심월여우 대인", "시월 대인": "심월여우 대인",
+    "심월 대인": "심월여우 대인", "심월여와": "심월여우와",
+    # —— 梦州(몽주)/梦枢天罗(몽추천라) 变体 ——
+    "몸주": "몽주", "몽조": "몽주", "몽추라": "몽주라",
+    "멍추나": "몽주나", "몽추나": "몽주나",
+    "몽추 천천라": "몽추천라", "몽추 철라": "몽추천라", "몽추 천의": "몽추천라",
+    "몸명": "문명",
+    # —— 锁暝(쇄명，韩服官方) 系：쇠명/세명 均 ASR 错形 ——
+    "쇠명주가님": "쇄명주감님", "세명주가님": "쇄명주감님",
+    "쇠명주감": "쇄명주감", "세명주감": "쇄명주감", "세명 주감": "쇄명 주감",
+    "최명주감": "쇄명주감", "최면 감님": "쇄명주감님",
+    "세 명 언니": "쇄명 언니", "세명": "쇄명", "쇠명": "쇄명",
+    # —— 玄方城(현방성)/玄方地界(현방지계) 变体 ——
+    "현방송": "현방성", "형방송": "현방성", "천방송": "현방성",
+    "현관성": "현방성", "현방상": "현방성", "성한의": "성안의",
+    "현방직계": "현방지계", "현방직": "현방지계", "현방 지계": "현방지계",
+    "현방지기": "현방지계", "형방지계": "현방지계", "변정": "변경", "변망": "변경",
+    # —— 万相神宫(만상신궁)/万相 ——
+    "만상신공": "만상신궁", "만상 신궁": "만상신궁", "신공보수": "신궁 보수",
+    "만자의 중추": "만상의 중추", "만산을": "만상을",
+    # —— 谛天鉴(제천감)/재청감 变体 ——
+    "제청관": "제천감", "제천가": "제천감", "제청감": "제천감",
+    "제천견": "제천감", "제첨감": "제천감", "재천감": "제천감",
+    "재천관": "제천감", "재감": "재청감",
+    # —— 천라 호영（天罗护影，官方带空格）变体 ——
+    "천호영": "천라 호영", "천락 호영": "천라 호영", "천호형": "천라 호영",
+    # —— 해영살(骇影煞) 变体（⚠ 해형살례 必须长于 해형살 先行，否则级联残留 해영살례）——
+    "해영살례": "해영살의", "해형살례": "해영살의", "해형살": "해영살", "해용살": "해영살",
+    "해양살": "해영살", "해영사": "해영살",
+    # —— 조월래(朝月来)/朝月酒(조월주)/烛夜笼(조야롱) 变体 ——
+    "조아일": "조월래", "조아을": "조월래", "조아레": "조월래",
+    "조알회": "조월래", "조어리": "조월래", "조어을": "조월래를",
+    "조아리": "조월래", "조월줄": "조월주", "조월해": "조월래",
+    "조야령": "조야롱", "조야대": "조야롱",
+    # —— 玄翎雀(혈령작) 变体 ——
+    "혈명작": "혈령작", "혈년": "혈령",
+    # —— 현주수(玄주수)/金묘사(금묘사)/玄元境(현원경) 变体 ——
+    "현주세": "현주수", "금묘새": "금묘사", "금요새": "금묘사",
+    "음묘사": "금묘사", "현경": "현원경",
+    # —— 수호신(守护神)/岁主(소호신) ASR 系 ——
+    "소우신": "소호신", "수우신": "수호신", "소호시": "소호신",
+    "수요신": "수호신", "수호식": "수호신", "수호시": "수호신",
+    "수호씨": "수호신", "수실": "수호신", "수호님": "수호신님",
+    "수신님": "수호신님", "수시님": "수호신님",
+    # —— 여우의 별자리/여우별 变体 ——
+    "별제리": "별자리", "별자이": "별자리", "벨자리": "별자리",
+    "자자리": "별자리", "별리": "별자리", "여별": "여우별",
+    "여호의 별자리": "여우의 별자리", "너우의 별자리": "여우의 별자리",
+    # —— 대인(大人) ASR 系 ——
+    "데인": "대인", "태인께서": "대인께서", "여우대인": "여우 대인",
+    # —— 숙명의 거울(宿命之镜) 变体 ——
+    "순명의 거울": "숙명의 거울", "속명의 거울": "숙명의 거울",
+    "숙룡의 거울": "숙명의 거울",
+    # —— 진현사기(청초 职衔，3.6 官方公告)/청초 变体 ——
+    "정연사기": "진현사기", "진연사기": "진현사기",
+    "청사기": "청초", "청추사기": "청초", "청를": "청초를",
+    "청에게": "청초에게", "청소사부님": "청초사부님", "청소처럼": "청초처럼",
+    "청사님": "청초님",
+    # —— 방랑자(漂泊者) ASR 变体 ——
+    "기랑자": "방랑자", "광랑자": "방랑자", "방남자": "방랑자",
+    "랑자랑": "방랑자랑",
+    # —— 야귀(夜归) 变体 ——
+    "야과": "야귀",
+    # —— 금쇄십계(金锁十戒)/계주(戒主)/구계·육계·팔계 变体 ——
+    "금세쉽게": "금쇄십계", "금세계": "금쇄십계",
+    "갤주": "계주", "개주": "계주", "육개": "육계",
+    "구개": "구계", "구게": "구계", "6개와 8개": "육계와 팔계",
+    # —— 탁균당 变体 ——
+    "닭균당": "탁균당", "탁당": "탁균당", "탁락": "탁균당",
+    # —— 잔상류/기관 인형/운연 전쟁/계승 等错形 ——
+    "장상류": "잔상류", "기간 인형": "기관 인형",
+    "운영 전쟁": "운연 전쟁", "운년 전쟁": "운연 전쟁",
+    "개승": "계승", "개책": "계책", "자냥": "자연", "우염": "오염",
+    "축파수": "주파수", "인무": "임무", "집책": "집착",
+    "직전과의": "직정과의",
+    "대초의": "태초의", "대초에": "태초에",
+    # —— 어자(御者) ASR 变体（어자=3.7 起对漂泊者的尊称）——
+    "어제로서": "어자로서", "어제는 먼저": "어자는 먼저",
+    "어제가 허락해": "어자가 허락해", "어저의": "어자의",
+    "어저께서": "어자께서", "어저와": "어자와", "어저신가요": "어자신가요",
+    # —— 주감(州监) ASR 变体 ——
+    "주관님": "주감님", "주가님": "주감님",
+    # —— 짭별/찐여우 主播用语统一 ——
+    "짜별": "짭별", "짬별": "짭별", "별려우": "별여우",
+    "짜별려오": "짭별여우", "찐멸 여우": "찐여우", "찐멸 영우": "찐여우",
+    # —— 杂项 ——
+    "이물쇠": "자물쇠", "보자관": "보좌관", "보자가": "보좌관이",
+    "살떡": "찹쌀떡", "찰라": "찰나", "미공": "미궁",
+    "심상미군": "심상미궁", "조각성": "조각상", "구디": "굳이",
+    "통를": "통로를", "데일": "대의", "낮추로": "자격으로",
+    "무함": "우함", "걸속": "거울 속",
+    "히몰여우": "히멀리우", "히말려우": "히멀리우",
+    "검은 해안에": "검은혜안에", "검은혜 안에서": "검은혜안에서",
+    "절식백기": "철식백기",
+}
+# 高歧义词（裸键会误伤正常词义）走行内锚定：锚定对象 = 该韩语行自身。
+KO_ASR_CONTEXT = [
+    # —— 세 명(带空格，"三个人"正常义) 的锁暝语境组合 ——
+    #    ⚠ 本片唯一"三个人"正常义出现在 #5279（뛰어난 인물 세 명이 동행），不收该组合
+    (r"세\s?명\s?파트", "세 명 파트", "쇄명 파트"),
+    (r"세\s?명\.\s?무슨", "세 명. 무슨", "쇄명. 무슨"),
+    (r"세\s?명이\s?무모하게", "세 명이 무모하게", "쇄명이 무모하게"),
+    (r"세\s?명을이?\s?대나무숲", "세 명을", "쇄명을"),
+    (r"세\s?명\s?어딨어", "세 명 어딨어", "쇄명 어딨어"),
+    (r"세\s?명이\s?준\s?거지", "세 명이 준", "쇄명이 준"),
+    (r"세\s?명이\s?열쇠", "세 명이 열쇠", "쇄명이 열쇠"),
+    (r"세\s?명의\s?열쇠거나|세\s?명의\s?열쇠", "세 명의 열쇠", "쇄명의 열쇠"),
+    (r"세\s?명도\s?닭장", "세 명도", "쇄명도"),
+    (r"고마워요,?\s?세\s?명", "세 명", "쇄명"),
+    (r"세\s?명의\s?능력", "세 명의 능력", "쇄명의 능력"),
+    (r"아니면\s?세\s?명이", "세 명이", "쇄명이"),
+    (r"세\s?명\s?\.\s*$", "세 명.", "쇄명."),
+    (r"세\s?명을\s?따르는", "세 명을", "쇄명을"),
+    (r"세\s?명이\s?그\s?빨간", "세 명이", "쇄명이"),
+    (r"세\s?명에\s?대한\s?이야기", "세 명에 대한", "쇄명에 대한"),
+    (r"세\s?명이랑", "세 명이랑", "쇄명이랑"),
+    (r"저는\s?세\s?명입니다", "세 명입니다", "쇄명입니다"),
+    (r"이게\s?세\s?명이", "이게 세 명이", "이게 쇄명이"),
+    (r"세\s?명이\s?모두\s?마지막", "세 명이 모두", "쇄명이 모두"),
+    (r"세\s?명을\s?제외한", "세 명을 제외한", "쇄명을 제외한"),
+    (r"세\s?명은\s?자신의", "세 명은", "쇄명은"),
+    (r"계\s?주라서\s?개주", "개주라고", "계주라고"),
+    # —— 사기(士气/欺诈正常义) 的쇄명称呼语境 ——
+    # （#2683/#2721 走 subfix 整句侧车，不收 ctx，防误伤"사기"正常义）
+    # —— 수신(受信正常义) 的수호신语境 ——
+    (r"수신이\s?함정으로", "수신이", "수호신이"),
+    (r"수신이\s?습격당하고", "수신이 습격당하고", "수호신이 습격당하고"),
+    (r"수신의\s?재림", "수신의 재림", "수호신의 재림"),
+    (r"진정한\s?소신의", "소신의 의지", "수호신의 의지"),
+    # —— 신공(神功正常义) 的신궁(神宫)语境 ——
+    (r"신공\s?내부", "신공 내부", "신궁 내부"),
+    (r"신공은\s?(시월|심월)", "신공은", "신궁은"),
+    (r"대인께서\s?신공을", "신공을", "신궁을"),
+    # —— 몽주 저녁(晚饭正常义) → 몽주 전역(全域) ——
+    (r"몽주\s?저녁에\s?화가", "몽주 저녁에", "몽주 전역에"),
+    (r"몽주\s?저녁으로\s?퍼졌", "몽주 저녁으로", "몽주 전역으로"),
+    (r"몽주\s?저녁을\s?돌볼", "몽주 저녁을", "몽주 전역을"),
+    # —— 백초의(白草?) → 태초의（태초의 여우의 별자리 官方前缀）——
+    (r"백초의\s?여우의", "백초의 여우의", "태초의 여우의"),
+    # —— 여우의 별자리 系锚定 ——
+    (r"여우의\s?별리", "별리", "별자리"),
+    (r"여우의\s?별다리", "별다리", "별자리"),
+    (r"여기의\s?별자리", "여기의 별자리", "여우의 별자리"),
+    (r"그\s?여울을\s?보지", "그 여울을", "그 여우를"),
+    # —— 청(单字) 的청초语境 ——
+    # （"청에게"/"청를" 已收裸键；"저와 청를 몰래" 裸键覆盖）
+    # —— 관능(官能正常义) → 권능 ——
+    (r"관능은\s?본래", "관능은", "권능은"),
+    # —— 계장(系长正常义) → 계주（戒主）——
+    (r"불렀나요\??\s*$", "계장", "계주"),
+    # —— 조어(鱼正常义) 的조월래语境 ——
+    (r"조어를\s?마음껏", "조어를", "조월래를"),
+    # —— 杂项高歧义锚定 ——
+    (r"옆에\s?소옷이", "소옷이", "쇄명이"),
+    (r"현방의\s?권세를", "권세를", "공사를"),
+    (r"중축\s?근처", "중축 근처", "중추 근처"),
+    (r"실로\s?우묘하게", "우묘하게", "오묘하게"),
+    (r"가차\s?같았거나|가차\s?같았다면", "가차", "가짜"),
+    (r"성밖으로\s?내모라", "내모라", "내몰라"),
+    (r"물에\s?비친\s?탈이었구나", "비친 탈이었구나", "비친 달이었구나"),
+    (r"연애를\s?떠들썩하게", "연애를", "연회를"),
+    (r"다음\s?일무", "다음 일무", "다음 임무"),
+    (r"아끼던\s?부아의", "부아의", "부하의"),
+    (r"찰나의\s?성리의|찰라의\s?성리의", "성리의", "성공의"),
+    (r"대인\s?직전과", "직전과", "직정과"),
+]
+_KO_ASR_CONTEXT_COMPILED = [(re.compile(rx), wrong, right) for rx, wrong, right in KO_ASR_CONTEXT]
+# 裸键表在 calibrate() 内惰性编译（_compile_map 定义于本文件后部，模块级不可用）
+
+# =============================================================
 # 3.1b2 ERROR 占位行批量回填（2026-09-10，명일방주 PV 월드컵 112강 _ko_auto 谷歌翻译）
 #   源文件 5031 处 "ERROR" 占位（一些 cue 拆成多行共覆盖 5606 序号），经韩语 ASR
 #   重译后以 ERROR行_中文映射.json 回填到首文本列，保留第二行韩语原文。
@@ -5041,6 +5969,7 @@ _MODE_TERM_TABLE = {
 _MODE_CTX_TABLE = {
     "bi": "CONTEXT_MAP", "ja": "JA_CONTEXT", "jpe": "JA_ENDFIELD_CONTEXT",
     "akko": "AK_KO_CONTEXT", "ko": "KO_CONTEXT", "ak": "AK_CONTEXT",
+    "endoko": "ENDFIELD_KO_CONTEXT",
 }
 _MODE_NAMES = {
     "bi": "中英双语", "ja": "日语原声·鸣潮", "jpe": "日语原声·终末地",
@@ -5133,6 +6062,10 @@ ENTITIES = [
                 (r"\bLady\s+Shen\b", "沉夫人"),  # Lady Shen = Lady Hsin 误听；Shen 走 ctx 锚定，防误伤姓"沈"的人名
                 (r"\bLady\s+Shen\b", "沈夫人"),
                 (r"\bLady\s+Shen\b", "申夫人"),
+                # 2026-10-12 本片声纹筛选版（#97 'this story about Shen'）：ASR 把
+                #   Hsin 咬成 Shen，谷翻按姓氏直译'沈'。⚠ '沈'为常见姓氏，
+                #   绝不裸键，只走参考行 \bShen\b 锚定（沿 Lady Shen 先例）。
+                (r"\bShen\b", "沈"),
                 (r"\bMoon Fox\b", "月狐"), (r"\bMoonfox\b", "月狐")),
            exclude=(r"\bLand Rover\b", r"\bDefender\b"),
            note="月狐岁主，官方全名 心月狐；独立指代用全名。3.7 双五星之一（2026-09-30 上线）。"
@@ -5216,6 +6149,7 @@ ENTITIES = [
            variants=(
                # --- 既有机翻/ASR 乱形 ---
                "Dena", "Denia", "丹妮亚", "塔娜", "Tana", "Tenna",
+               "丹雅",   # 谷翻错形（2026-10-12 鳴潮キャラPV鑑賞会 ja 片 cue5447，参考行ダーニャ佐证）
                # --- 中文同音/音近（dá nī yà）---
                "达妮亚", "丹妮娅", "达尼娅", "丹尼亚",
                "达妮雅", "塔妮娅", "达你娅", "达腻娅",
@@ -6545,11 +7479,14 @@ ENTITIES = [
            category="地名/鸣潮",
            ctx=((r"今週場|今州城", "本周的场外"), (r"今週場|今州城", "本周场"),
                 (r"今週場|今州城", "今周场"), (r"今週場|今州城", "今正场"),
-                (r"今週(?!場)|今州", "本周"), (r"今週(?!場)|今州", "这周"),
-                (r"今週(?!場)|今州", "纳迦")),
+                (r"今週(?!場)(?!って|だった|に|は|の|も|から|まで)|今州", "本周"),
+                (r"今週(?!場)(?!って|だった|に|は|の|も|から|まで)|今州", "这周"),
+                (r"今週(?!場)(?!って|だった|に|は|の|も|から|まで)|今州", "纳迦")),
            note="瑝珑六州之一（今州）。日语 今州(きんしゅう) 被 ASR 咬成同音的 今週(こんしゅう)，"
                 "谷翻一律按'本周'处理（'本周的场外活动'=今州城）。'今週場'=今州城。"
-                "戒律：本周/这周是正常中文词，只走日语行锚定 ctx。"),
+                "戒律：本周/这周是正常中文词，只走日语行锚定 ctx。"
+                "2026-10-12 收紧：今週って/今週だった 等 = 现实'这周'（如 3連休 闲聊），"
+                "非今州（索拉逐星舞台 S2 同视片 cue5/cue639 实测误改），加负向后顾排除。"),
     Entity("瑝珑", modes=("ja",), ja="瑝珑",
            category="地名/鸣潮",
            note="鸣潮东方文明国名，'一庭六州'，每州由对应东方七宿的岁主掌管（百度百科/灰机wiki）。"
@@ -7174,11 +8111,21 @@ ENTITIES = [
     Entity("溯心", modes=("bi",), en="Suxin",
            category="角色/岁主·鸣潮3.7",
            variants=("Shu Xin", "Shu Shin", "Su Xin", "Soo Hee",
-                     "舒欣", "苏鑫"),
+                     "舒欣", "苏鑫",
+                     # --- 2026-10-12 本片声纹筛选版（108 cue）：ASR 三叠碎形 ---
+                     "S Ush In", "Sub Shin"),
            ctx=((r"\bShu\s+Xin\b|\bShu\s+Shin\b|\bSu\s+Xin\b|\bSoo\s+Hee\b"
                  r"|\bSuxin\b|\bSusheen\b|\bSushin\b|\bSushun\b", "舒心"),
                 (r"\bShu\s+Xin\b|\bShu\s+Shin\b|\bSu\s+Xin\b|\bSoo\s+Hee\b"
-                 r"|\bSuxin\b|\bSusheen\b|\bSushin\b|\bSushun\b", "苏...嘻")),
+                 r"|\bSuxin\b|\bSusheen\b|\bSushin\b|\bSushun\b", "苏...嘻"),
+                # 2026-10-12 本片声纹筛选版（#31/35/38/65）：ASR 把 Suxin 咬成
+                #   S ush in / Su Hinds / Sub Shin / soup shin；谷翻按字面音译
+                #   '徐信'/'苏·欣兹'/'苏真'。三者均为姓名式组合，绝不裸键，
+                #   只走参考行锚定（锚点各自独立，互不串味）。
+                (r"\bS\s+ush\s+[Ii]n\b", "徐信"),
+                (r"\bSub\s*Shin\b", "徐信"),
+                (r"\bSu\s*Hinds\b", "苏·欣兹"),
+                (r"\bsoup\s*shin\b", "苏真")),
            note="第三部 3.7 片：ASR 把 Suxin 咬成带空格两词串 Shu Xin/Shu Shin/Su Xin/Soo Hee"
                 "（cue94/98/110-111/116/187-188）。中文行英文残留四串生僻，裸键->溯心；"
                 "谷翻错形：'舒心'(常用词，只走 ctx)、'舒欣/苏鑫'(生僻裸键，沿苏辛/苏珊先例)、"
@@ -7252,6 +8199,23 @@ ENTITIES = [
                 "Sentinel/Sheen；旧 ctx Shin 锚定（错形 申/辛/胫）->心月狐 为剧情片沉淀，"
                 "评论片会系统性偏到心月狐，本条不改旧规则，人工 pair 按语境在心/心月狐间"
                 "取舍（本片 20 余处 Shin 评论均归『心』，开场剧情 real Guardian 归岁主）。"),
+    # --- 2026-10-12 本片声纹筛选版（108 cue）三次校准补录 ---
+    #   官方依据（3.7 前瞻特别节目 / 官方角色档案）：
+    #     心月狐（心 / Hsin）五星·导电·音感仪，梦州岁主，首位可玩岁主，异能力『万相分形』
+    #       ——化一为众、衍形化象，诸分形各自成形却仍与本源相系、互通所感、亦可复归于一；
+    #     锁暝（Suoming）五星·导电·迅刀，异能力『十重契』；
+    #     版本主题 Prism's Illusion, Heart's Illumination = 镜锁妄世，心照红尘；
+    #     新区域 Simulacrum Nexus of Mengzhou = 梦枢天罗（已收 Entity）。
+    Entity("分形", modes=("bi",), en="Fractal / copy",
+           category="设定/鸣潮3.7",
+           ctx=((r"\blesser copy\b|\bcopy born of\b|\bfragment of\b", "复制品"),
+                (r"\blesser copy\b|\bcopy born of\b|\bfragment of\b", "复制体"),
+                (r"\blesser copy\b|\bcopy born of\b|\bfragment of\b", "克隆体")),
+           note="3.7 官方设定词：心月狐异能力『万相分形』，岁主情感面所生者官方称『分形』"
+                "（本片 #61 'lesser copy'、#64 'copy born of the sentinel's emotional "
+                "aspect'、#60 'last fragment of Shin'）。谷翻作'复制品/复制体/克隆体'，"
+                "三者皆常用词，绝不裸键，只走参考行 lesser copy / copy born of / "
+                "fragment of 锚定；'分形'本身生僻，可在中文行直接出现。"),
     # ============================================================
     # 2026-10-10《鸣潮》3.7 主线 reaction 片
     #   （ADHD REACTS to Wuthering Waves Version 3.7 Hsin MAIN QUEST，kettletoro）
@@ -7345,6 +8309,40 @@ ENTITIES = [
            ctx=((r"\barbiter\b", "裁判"),),
            note="本片补录：谷翻把 arbiter 按体育/法律义译成'裁判'（常用词），"
                 "只走参考行 arbiter 锚定归'御者'（本片 cue537）。"),
+    # --- 2026-10-12 WuWa 3.3 Story Reaction（I must save Aemeath!，10653 cue）Entity 沉淀 ---
+    #     配套扁平键/锚定见 BILINGUAL_TERMS 与 CONTEXT_MAP 同日追加块；赫龙格（罗伊神话
+    #     被巴德尔封印于黯原的灭世邪祇，3.3 公告官方名词）本片未以个体名出现（主播用类别名
+    #     Threnodian），故不建 Entity，仅在此留档：官方英文拼写待考。
+    Entity("隧门", modes=("bi",), en="Strider Gate",
+           category="地点/拉海洛",
+           variants=("斯特赖德门", "stridegate", "Stridegate"),
+           ctx=((r"strider", "游侠门"), (r"strider", "游侠之门"),
+                (r"strider", "游侠河"), (r"strider", "游侠气体"),
+                (r"strider", "斯特赖德")),
+           note="拉海洛通往地底黯原/隧锚的门户，3.3 隧者计划的穿越对象（官方公告）。"
+                "谷翻把 Strider Gate 拆成'游侠门/游侠之门'，ASR 把 gate 咬成河/气体"
+                "（'游侠河/游侠气体'）；'游侠'是通用词按戒律只走 strider 参考行锚定，"
+                "'斯特赖德门'纯音译组合裸键、裸'斯特赖德'走锚定防人名误伤。"
+                "彩蛋：#4283 '德州斯特赖德观测站'是主播玩'德州仪器'梗，'德州'保留。"),
+    Entity("迪姆平原", modes=("bi",), en="Dimmr Plains",
+           category="地点/拉海洛",
+           variants=(),
+           note="⚠ 反例留档（不生效）：wuthering.gg 第三方地图 zh-Hans 页名'迪姆平原'"
+                "系机翻，实为 3.3 官方新地区「黯原」（Dimmr Plains，#573 既有沉淀）；"
+                "variants 刻意留空防止错误映射注册，本条仅记录第三方页名不可轻信的教训。"),
+    Entity("特别对策组", modes=("bi",),
+           category="组织/鸣潮",
+           variants=("特种反应部队",),
+           note="绯雪现任所属（3.3 公告：以特别对策组唯一成员的身份在拉海洛停留）。"
+                "ASR 'Special Response Force' 谷翻'特种反应部队'归此。"),
+    Entity("罗伊冰原", modes=("bi",), en="Roya Frostlands",
+           category="地点/鸣潮",
+           variants=("罗伊霜原",),
+           ctx=((r"Roya Frost", "《Roya Frost》"),),
+           note="3.0 大地区，拉海洛位于其地下（官方英文公告：Lahai-Roi ... situated "
+                "beneath the Roya Frostlands）。本片 #5417 谷翻保留英文《Roya Frost》、"
+                "#5418 断行 'Lands'，ctx 整段归一；裸 'Roya' 英文残留只锚定 "
+                "designs/partners/are 窄语境（见 CONTEXT_MAP 同日块），防误伤作品名。"),
 ]
 
 
@@ -7550,11 +8548,17 @@ def _register_entities(entities=ENTITIES):
                     exc[v] = (e.canonical, tuple(e.exclude))
 
 
+_ENDFIELD_KO_CONTEXT_COMPILED = [
+    (re.compile(rx), wrong, right) for rx, wrong, right in ENDFIELD_KO_CONTEXT
+]
+
+
 def _rebuild_context_caches():
     """实体注册可能追加 CONTEXT/EXCLUDE 条目，重建各预编译缓存。"""
     global _CONTEXT_COMPILED, _EXCLUDE_COMPILED, _JA_CONTEXT_COMPILED
     global _JA_ENDFIELD_CONTEXT_COMPILED, _AK_KO_CONTEXT_COMPILED
     global _KO_CONTEXT_COMPILED, _AK_CONTEXT_COMPILED
+    global _ENDFIELD_KO_CONTEXT_COMPILED
     _CONTEXT_COMPILED = [(re.compile(rx, re.I), wrong, right)
                          for rx, wrong, right in CONTEXT_MAP if wrong and right]
     _EXCLUDE_COMPILED = {w: (right, [re.compile(rx, re.I) for rx in rxs])
@@ -7565,6 +8569,8 @@ def _rebuild_context_caches():
     _AK_KO_CONTEXT_COMPILED = [(re.compile(rx), wrong, right) for rx, wrong, right in AK_KO_CONTEXT]
     _KO_CONTEXT_COMPILED = [(re.compile(rx), wrong, right) for rx, wrong, right in KO_CONTEXT]
     _AK_CONTEXT_COMPILED = [(re.compile(rx, re.I), wrong, right) for rx, wrong, right in AK_CONTEXT]
+    _ENDFIELD_KO_CONTEXT_COMPILED = [(re.compile(rx), wrong, right)
+                                     for rx, wrong, right in ENDFIELD_KO_CONTEXT]
 
 
 _register_entities()
@@ -7920,11 +8926,19 @@ def _ref_tokens(ref):
 # 只能走 ctx（参考行正则锚定）或 subfix（逐 cue 侧车）。learn 的自动 confirmed 会绕过这条戒律，
 # 导致跨片源误伤（实测：枯萎→鸣潮 改坏 blight way；骑士→明日方舟 改坏 Knights 本义）。
 # 命中此表者仅保留候选，须人工 learned-promote 审阅后才生效。
+# 2026-10-12 WuWa3.3 反应片双教训：
+#   ① "骑士"历史 confirmed（AK 片源 Knights 语境）跨片源误伤 WuWa 的 Exor Rider 语境 5 处，
+#      已 learned-reject；本片 Exor Rider(Exo Strider/Exorder/Exorrider) 官方中文=「隧者」，
+#      "艾克索/埃克索/外骨骼 骑士"整词修法见 side 表 wuwa33_fix.tsv（num<TAB>old<TAB>new）。
+#      注意同步通道 _sync_apply_learned_candidate 只尊重 rejected，降级 candidate 会被回写覆盖。
+#   ② "做了很多"同批 reject 并入 DENY（本义短语 I do a lot of，绝不作裸键）。
 LEARN_AUTOCONFIRM_DENY = frozenset({
     "明朝", "明州", "明祖", "明朝", "明植",
     "骑士", "法官", "哨兵", "拖车", "哀叹", "谐振器", "谐振腔", "枯萎",
     "图案", "溪流", "班车", "航天飞机", "外骨骼", "流动站", "银杏", "鲁斯",
     "三和", "京城", "典范", "帕拉贡", "太恶心了", "海岸守护者", "金龙", "蒙祖",
+    "做了很多",            # 2026-10-12 WuWa3.3 反应片：本义短语裸键（I do a lot of），
+                           # 历史 confirmed 曾把 "我做了很多探索" 误改为 "我做得更探索"
 })
 
 
@@ -8307,8 +9321,21 @@ def process(path, out_path=None, report_path=None, mode="bi",
                     zh_idx = j + 1
                     ref = lines[kk - 1]
                     if mode != "endo" and kk - 1 == j + 1:
-                        # 单文本行 cue：该行即参考行（无独立中文行），
-                        # 跳过整块，防止把术语替换误写到参考/英文行上
+                        # 单文本行 cue：该行即参考行（无独立中文行）。
+                        # 例外（2026-10-12）：--ko 纯韩语片源（韩国主播直播 ASR，每 cue
+                        # 单行韩语）——该行含谚文即应用 KO_ASR 层（韩语错形→官方韩语），
+                        # 否则整块跳过，防止把术语替换误写到参考/英文行上。
+                        only = lines[j + 1]
+                        if mode == "ko" and _KO_HANGUL.search(only):
+                            if "_ko_asr_pairs" not in dir():
+                                _ko_asr_pairs, _ko_asr_chars = _compile_map(KO_ASR_TERMS)
+                            new = _replace_report(only, _ko_asr_pairs, _ko_asr_chars, hits)
+                            for crx, wrong, right in _KO_ASR_CONTEXT_COMPILED:
+                                if wrong in new and crx.search(new):
+                                    new = _ctx_replace(new, wrong, right)
+                            if new != only:
+                                rows.append((num, only, new, only))
+                                out[j + 1] = new
                         i = kk
                         continue
                     old = lines[zh_idx]
@@ -8349,6 +9376,24 @@ def process(path, out_path=None, report_path=None, mode="bi",
                         #   （v1 报告回滚点 cue 497）。谚文参考行仍一字不动（结构零改动不变）。
                         zh_tis = [ti for ti in range(j + 1, kk) if not _KO_HANGUL.search(lines[ti])]
                         kr_tis = [ti for ti in range(j + 1, kk) if _KO_HANGUL.search(lines[ti])]
+                        if not zh_tis and kr_tis:
+                            # 纯韩语片源（2026-10-12 新增）：每 cue 全部文本行都含谚文
+                            # （韩国主播直播 ASR 等），旧表键全是中文错形无法命中。
+                            # 对韩语行应用 KO_ASR_TERMS(韩语错形→官方韩语) + KO_ASR_CONTEXT
+                            # （锚定对象 = 行自身）。双语片源 zh_tis 非空，不进本分支。
+                            if "_ko_asr_pairs" not in dir():
+                                _ko_asr_pairs, _ko_asr_chars = _compile_map(KO_ASR_TERMS)
+                            for ti in kr_tis:
+                                lold = lines[ti]
+                                new = _replace_report(lold, _ko_asr_pairs, _ko_asr_chars, hits)
+                                for crx, wrong, right in _KO_ASR_CONTEXT_COMPILED:
+                                    if wrong in new and crx.search(new):
+                                        new = _ctx_replace(new, wrong, right)
+                                if new != lold:
+                                    rows.append((num, lold, new, ref))
+                                    out[ti] = new
+                            i = kk
+                            continue
                         kr_all = " ".join(_ref_for_match(lines[ti]) for ti in kr_tis)
                         for zi, ti in enumerate(zh_tis):
                             if len(zh_tis) == len(kr_tis):
@@ -8410,8 +9455,14 @@ def process(path, out_path=None, report_path=None, mode="bi",
                         if new != old:
                             rows.append((num, old, new, ref))
                             out[zh_idx] = new
-                    elif mode == "endoko":     # 终末地·韩语原声：只改首中文行（韩语参考行不动）
+                    elif mode == "endoko":     # 终末地·韩语原声：ENDFIELD_KO_TERMS 只改首中文行，
+                        #   并用 ENDFIELD_KO_CONTEXT（韩语参考行正则佐证）修「普通中文词」误译
+                        #   —— 2026-10-13 新增：恶魔→邪魔 / 按摩→安玛 / 排名第三→萨米
+                        #   （这三条都是通用中文词，裸键会误伤，必须韩语行锚定）。
                         new = _replace_report(old, term_pairs, term_chars, hits)
+                        for crx, wrong, right in _ENDFIELD_KO_CONTEXT_COMPILED:
+                            if wrong in new and crx.search(ref_m):
+                                new = _ctx_replace(new, wrong, right)
                         if new != old:
                             rows.append((num, old, new, ref))
                             out[zh_idx] = new
@@ -8915,6 +9966,137 @@ def _cmd_length(paths, show_all=False):
     return 0
 
 
+# ── rewrap：超宽行按标点拆行（2026-10-11 沉淀，替代旧版 --layout）──────────
+# 断点规则：仅句读标点后可断；吸附后续收尾引号/句读防行首标点；引号括号内（depth>0）不断；
+# 英文缩写（Mr./Dr. 等）与"标点+数字"（1.6/2.0）不断；无标点长串按宽度硬切兜底。
+# 注：ASCII 撇号/右侧弯引号（it's、That's）不入引号对——否则 depth 卡死、断点全废、退化硬切
+_REWRAP_OPENERS = "《「『【（(\"“‘"
+_REWRAP_CLOSERS = "》」』】）)\"”’"
+_REWRAP_ZH_BREAKS = "。！？；…、，"
+_REWRAP_EN_BREAKS = ".!?:;,"
+_REWRAP_ABSORB = "！？…。、，》」』】）)\"'”’"
+_REWRAP_ABBREV = re.compile(r"(?i)\b(mr|mrs|ms|dr|st|jr|sr|vs|etc|prof|capt|sgt|col|lt|gen|approx|no)\.$|\b[A-Za-z]\.$")
+
+
+def _rewrap_segments(line, respect_depth=True):
+    """按可断标点把一行切成段；段顺序拼接＝原行（仅断点处切开）。"""
+    segs, start, depth, n = [], 0, 0, len(line)
+    i = 0
+    while i < n:
+        c = line[i]
+        if c in _REWRAP_OPENERS:
+            depth += 1
+        elif c in _REWRAP_CLOSERS:
+            depth = max(0, depth - 1)
+        brk = False
+        if not respect_depth or depth == 0:
+            if c in _REWRAP_ZH_BREAKS:
+                brk = True
+            elif c in _REWRAP_EN_BREAKS and i + 1 < n and line[i + 1] in " \t":
+                if c != "." or not _REWRAP_ABBREV.search(line[:i + 1]):
+                    brk = True
+        if brk:
+            j = i + 1
+            while j < n and line[j] in _REWRAP_ABSORB:
+                j += 1
+            if j < n and line[j].isdigit():
+                i += 1          # 1.6 / 2.0 等版本号、小数：该标点不设断点
+                continue
+            segs.append(line[start:j])
+            start = j
+            i = j
+            continue
+        i += 1
+    if start < n:
+        segs.append(line[start:])
+    return segs
+
+
+def _rewrap_line(line, width):
+    """超宽行拆为多行（贪心装段，续行去首空白）；未超宽原样返回单行。"""
+    if line_width(line) <= width:
+        return [line]
+    segs = _rewrap_segments(line)
+    if len(segs) == 1:
+        segs = _rewrap_segments(line, respect_depth=False)
+    pieces = []
+    for s in segs:
+        if line_width(s) <= width:
+            pieces.append(s)
+            continue
+        cur = ""
+        for ch in s:            # 无标点长串兜底：按宽度硬切
+            if cur and line_width(cur) + char_width(ch) > width:
+                pieces.append(cur)
+                cur = ch
+            else:
+                cur += ch
+        if cur:
+            pieces.append(cur)
+    out, cur, cur_w = [], "", 0.0
+    for s in pieces:
+        if cur and cur_w + line_width(s) > width:
+            out.append(cur.rstrip())
+            cur = s.lstrip(" \t\u3000")     # 仅换行起点去首空白；行内合并保留原空格
+            cur_w = line_width(cur)
+        else:
+            cur += s
+            cur_w += line_width(s)
+    if cur.strip():
+        out.append(cur.rstrip())
+    return out or [line]
+
+
+def _cmd_rewrap(src, out=None, width=None, report=None):
+    """rewrap：超宽文本行在标点处于 cue 内拆行。序号/时间轴/空行/换行(CRLF)/BOM 原样，
+    内容不增删（仅断点处空白并入行界）。默认宽度 = MAX_LINE_WIDTH 汉字当量（半角 0.5）。
+    内容行与参考行一并处理；不带 --out 仅体检统计。"""
+    limit = MAX_LINE_WIDTH if width is None else float(width)
+    raw = open(src, "rb").read()
+    bom = raw.startswith(b"\xef\xbb\xbf")
+    crlf = b"\r\n" in raw
+    lines = _decode_any(raw).replace("\r\n", "\n").replace("\r", "\n").split("\n")
+    out_lines, rows, num, cues = [], [], None, 0
+    i, n = 0, len(lines)
+    while i < n:
+        s = lines[i].strip()
+        if (s.isdigit() and (i == 0 or lines[i - 1].strip() == "")
+                and i + 1 < n and "-->" in lines[i + 1]):
+            num, cues = s, cues + 1
+            out_lines.extend(lines[i:i + 2])
+            j = i + 2
+            while j < n and lines[j].strip() != "":
+                ln = lines[j]
+                new = _rewrap_line(ln, limit)
+                # 内容保全校验（去空白比对）：断点处空白并入行界属预期，非空白内容必须一致
+                if len(new) > 1 and re.sub(r"\s+", "", "".join(new)) == re.sub(r"\s+", "", ln):
+                    rows.append((num, ln, new))
+                    out_lines.extend(new)
+                else:
+                    out_lines.append(ln)
+                j += 1
+            i = j
+        else:
+            out_lines.append(lines[i])
+            i += 1
+    print(f"[{src}] cues={cues} 拆行 {len(rows)} 行（宽度上限 {limit:g} 汉字当量）")
+    for num, ln, new in rows:
+        print(f"  #{num} {line_width(ln):.1f} -> {' / '.join(f'{line_width(x):.1f}' for x in new)}")
+    if out:
+        body = "\n".join(out_lines)
+        if crlf:
+            body = body.replace("\n", "\r\n")
+        with open(out, "w", encoding="utf-8", newline="") as f:
+            f.write(("\ufeff" if bom else "") + body)
+        print(f"已写入：{out}")
+    if report:
+        with open(report, "w", encoding="utf-8") as f:
+            f.write("# 超宽行拆行对照\n\n序号 | 原行 | 拆行后\n--- | --- | ---\n")
+            for num, ln, new in rows:
+                f.write(f"`{num}` | {ln} | {'<br>'.join(new)}\n")
+        print(f"报告：{report}")
+
+
 def _cmd_flow(src, out=None, fix_style=False):
     """flow：口播风格 + 跨 cue 连贯体检（可顺带修复）。
 
@@ -9029,6 +10211,34 @@ def _cmd_flow(src, out=None, fix_style=False):
         f.write(("\ufeff" if bom else "") + body)
     print(f"已修复并写入: {out}")
     return 0
+
+
+# =============================================================
+# SRT cue 级稳定化（stabilize 子命令，2026-10-12 新增）
+#
+#   对标 FineSub（downloads/finesub v0.5.1）ASR 稳定化层的 SRT 移植：
+#   丢弃候选 / 碎片合并 / 超长 cue 拆分。库实现与阈值出处见
+#   src\calib_stabilize.py 与 finesub_stabilize_gap_analysis.md。
+#
+#   与校准铁律的关系：稳定化是校准**之前**的结构层（FineSub 管线里排在
+#   raw SRT 之前），本来就负责时间轴；校准（REPLACE/Agent）仍严守
+#   "只改文字不动时间轴"。两者不冲突。
+#
+#   产品口径：不带 --out 只出报告（退出码 1＝有候选）；带 --out 才应用
+#   显式开启的操作（--drop/--merge/--split 默认开，--no-* 可关）。
+# =============================================================
+def _cmd_stabilize(src, out=None, report=None, drop=True, merge=True, split=True):
+    """stabilize：SRT cue 级稳定化（幻觉丢弃 / 碎片合并 / 超长拆分）。"""
+    here = os.path.dirname(os.path.abspath(__file__))
+    for _p in (here, os.path.join(here, "src")):
+        if _p not in sys.path:
+            sys.path.insert(0, _p)
+    try:
+        import calib_stabilize as _st
+    except ImportError as e:
+        print(f"[错误] 无法导入 src\\calib_stabilize.py：{e}")
+        return 2
+    return _st.run(src, out=out, report=report, drop=drop, merge=merge, split=split)
 
 
 # =============================================================
@@ -9519,7 +10729,8 @@ def main_argv():
         sub = argv[0]
         if sub in ("extract", "split", "pair", "merge", "verify", "compare", "scan", "lint",
                    "scan-split", "scansplit", "missing", "subfix", "terms-check", "termscheck",
-                   "terms", "length", "flow", "align-audit", "alignaudit",
+                   "terms", "length", "flow", "align-audit", "alignaudit", "rewrap",
+                   "stabilize",
                    "kb-export", "kb-lookup", "kb-lint",
                    "learn", "learned-show", "learned-promote", "learned-reject",
                    "kb-sync", "kb-push", "detect-mode", "detectmode"):
@@ -9716,7 +10927,12 @@ def _dispatch_subcommand(sub, args):
             opts["fix-style"] = True; i += 1
         elif a == "--single":
             opts["single"] = True; i += 1
-        elif a in ("--out", "--compare", "--side", "--letters", "--file") and i + 1 < len(args):
+        elif a in ("--drop", "--merge", "--split"):
+            opts[a[2:]] = True; i += 1
+        elif a in ("--no-drop", "--no-merge", "--no-split"):
+            opts[a[5:]] = False; i += 1
+        elif a in ("--out", "--compare", "--side", "--letters", "--file", "--width",
+                   "--report") and i + 1 < len(args):
             opts[a[2:]] = args[i + 1]; i += 2
         elif a == "--json":
             opts["json"] = True; i += 1
@@ -9780,6 +10996,10 @@ def _dispatch_subcommand(sub, args):
         if len(pos) < 2:
             print("用法: lint <cues.tsv> <calib目录|calib_*.tsv>"); return
         _cmd_lint(pos[0], pos[1])
+    elif sub == "rewrap":
+        if not pos:
+            print("用法: rewrap <src.srt> [--out out.srt] [--width 32] [--report md]"); return
+        return _cmd_rewrap(pos[0], opts.get("out"), opts.get("width"), opts.get("report"))
     elif sub == "subfix":
         if len(pos) < 2 or "out" not in opts:
             print("用法: subfix <src.srt> <fix.tsv> --out out.srt [--compare tsv] [--side tsv] [--single]"); return
@@ -9793,6 +11013,17 @@ def _dispatch_subcommand(sub, args):
         if not pos:
             print("用法: flow <src.srt> [--out out.srt] [--fix-style]"); return 0
         return _cmd_flow(pos[0], opts.get("out"), bool(opts.get("fix-style")))
+    elif sub == "stabilize":
+        if not pos:
+            print("用法: stabilize <src.srt> [--out out.srt] [--report r.md] "
+                  "[--drop] [--merge] [--split] [--no-drop] [--no-merge] [--no-split]")
+            print("      SRT cue 级稳定化（对标 FineSub ASR 稳定化层）。不带 --out 只出"
+                  "报告（退出码 1＝有候选）；带 --out 才应用显式开启的操作。")
+            return 0
+        return _cmd_stabilize(pos[0], opts.get("out"), opts.get("report"),
+                              bool(opts.get("drop", True)),
+                              bool(opts.get("merge", True)),
+                              bool(opts.get("split", True)))
     elif sub in ("terms-check", "termscheck", "terms"):
         _cmd_terms_check(pos)
     elif sub == "kb-export":
