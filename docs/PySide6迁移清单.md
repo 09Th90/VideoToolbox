@@ -125,9 +125,22 @@ PySide6-Fluent-Widgets 1.11.3），探针 `build/_probe_pyside6.py` **15 项全�
    （`Qt5/bin/*.dll` → `Qt/lib/*.dll`）；
 5. **全量自检**：至少 GUI 全过 + `_selftest_vc` + 打包链路自检。
 
-> ⚠ `AcrylicLabel`（亚克力/云母效果）在 **lite 版没有**，需装
-> `PySide6-Fluent-Widgets[full]`。项目的云母特效依赖它——
-> 装 full 变体时连带装 scipy 等大依赖，注意网络耗时。
+> ### 关于 `AcrylicLabel`（澄清，避免误判）
+>
+> 装 `[full]` 变体（连带 colorthief / numpy / pillow / scipy）后，
+> **`AcrylicLabel` 仍不存在**——该组件在新版里已不提供。
+> 但**本项目根本没用它**：`grep` 确认 `src/` 里零处引用。
+>
+> 项目的云母/亚克力效果实际走的是 **Mica `FluentWindow`**：
+> ```python
+> w.isMicaEffectEnabled()      # True（存在）
+> w.setMicaEffectEnabled(True) # True（存在）
+> ```
+> 实测 `FluentWindow` 在 PySide6 下**可构造、可渲染**（800×600 非空），
+> Mica 接口齐全 ⇒ **云母效果不构成迁移障碍**。
+>
+> `acrylic_*` 组件（`acrylic_menu` / `acrylic_line_edit` / `acrylic_flyout` 等）
+> 仍在 `qfluentwidgets.components.material` 下，如将来要用可从那里取。
 
 ## 五、待确认事项
 
