@@ -1,4 +1,4 @@
-# @version 2.0.0
+# @version 2.1.0
 # Python caches
 __pycache__/
 *.pyc
@@ -186,3 +186,16 @@ scripts/dev/_sel_shots/
 packaging/build/
 # 在线发布本地测试仓库（build_online_release 的 file:// 自测产物，百 MB 级）
 build/online_release_test/
+
+# ── 字幕校准任务的中间产物（2026-10-13 补）──────────────────────────
+#   分块表（cue 级切分，便于分批人工复核）与侧车/对照表都是**过程物**：
+#   复核结论必须沉淀成 subtitle_calib_merged.py 的通用术语键（或 CONTEXT_MAP
+#   / subfix 规则），成品 srt 则归档到 outbox\。过程物本身不提供补充信息，
+#   留在根目录只会淹没真正的交付物。
+chunks_r*.tsv
+cues_round*.tsv
+side_*.tsv
+wuwa_explore_tales_compare.tsv
+wuwa_explore_tales_side_compare.tsv
+# 校准脚本的人工备份（当前版本始终在 subtitle_calib_merged.py）
+subtitle_calib_merged.py.bak_*
