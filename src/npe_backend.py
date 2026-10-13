@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 1.20.0
+# @version 2.0.0
 """NewPipe Extractor 后端 —— 视频工具箱的 YouTube 第二解析引擎。
 
 为什么要这个模块
@@ -110,7 +110,8 @@ def is_available() -> tuple:
 
 
 def probe(url: str, proxy: str = "", cookie: str = "", cookie_file: str = "",
-          timeout: int = 45, retries: int = 1) -> dict:
+          timeout: int = 45, retries: int = 1, cancel=None,
+          register=None) -> dict:
     """解析一条视频，返回 info 字典；**失败也返回 dict**（ok=False + errorType）。
 
     errorType 取值：captcha / unavailable / extract / network / error / spawn。
@@ -119,20 +120,62 @@ def probe(url: str, proxy: str = "", cookie: str = "", cookie_file: str = "",
     ⚠️ 默认重试 1 次：YouTube 的风控是**按 IP 且偶发**的（实测同一视频连跑
     可能一次成功一次 LOGIN_REQUIRED），兜底路径若不带重试，一次风控就白兜了。
     只有「内容不可用」「启动失败」这两种确定性失败不重试。
+
+    v1.19.1：`cancel`（threading.Event）+ `register`（登记子进程回调）——
+    NPE 是 Java 进程，解析阶段最长 (45+25)s×2，原先完全杀不掉。
     """
     info = {}
     for attempt in range(max(0, retries) + 1):
+        if cancel is not None and cancel.is_set():
+            return {"ok": False, "errorType": "cancelled", "error": "已取消"}
         info = _probe_once(url, proxy=proxy, cookie=cookie,
-                           cookie_file=cookie_file, timeout=timeout)
-        if info.get("ok") or info.get("errorType") in ("unavailable", "spawn"):
+                           cookie_file=cookie_file, timeout=timeout,
+                           cancel=cancel, register=register)
+        if info.get("ok") or info.get("errorType") in ("unavailable", "spawn",
+                                                      "cancelled"):
             return info
         if attempt < retries:
-            time.sleep(2.0)
+            if _sleep_cancellable(2.0, cancel):
+                return {"ok": False, "errorType": "cancelled", "error": "已取消"}
     return info
 
 
+def _sleep_cancellable(seconds, cancel):
+    if cancel is None:
+        time.sleep(seconds)
+        return False
+    end = time.time() + seconds
+    while True:
+        if cancel.is_set():
+            return True
+        left = end - time.time()
+        if left <= 0:
+            return False
+        time.sleep(min(0.2, left))
+
+
+def _kill_tree(proc):
+    """杀掉子进程及其后代（Windows taskkill /T；其余平台 kill）。"""
+    try:
+        if proc.poll() is not None:
+            return
+    except Exception:  # noqa: BLE001
+        return
+    if os.name == "nt":
+        try:
+            subprocess.run(["taskkill", "/F", "/T", "/PID", str(proc.pid)],
+                           capture_output=True, timeout=15)
+            return
+        except Exception:  # noqa: BLE001
+            pass
+    try:
+        proc.kill()
+    except Exception:  # noqa: BLE001
+        pass
+
+
 def _probe_once(url: str, proxy: str = "", cookie: str = "", cookie_file: str = "",
-                timeout: int = 45) -> dict:
+                timeout: int = 45, cancel=None, register=None) -> dict:
     ok, why = is_available()
     if not ok:
         return {"ok": False, "errorType": "spawn", "error": why}
@@ -145,14 +188,48 @@ def _probe_once(url: str, proxy: str = "", cookie: str = "", cookie_file: str = 
     if cookie_file and os.path.isfile(cookie_file):
         cmd += ["--cookie-file", cookie_file]
 
-    try:
-        r = subprocess.run(cmd, capture_output=True, timeout=timeout + 25)
-    except subprocess.TimeoutExpired:
-        return {"ok": False, "errorType": "network", "error": "NPE 解析超时"}
-    except Exception as e:  # noqa: BLE001
-        return {"ok": False, "errorType": "spawn", "error": str(e)}
+    def _unregister():
+        if register:
+            try:
+                register(None)
+            except Exception:  # noqa: BLE001
+                pass
 
-    out = _decode(r.stdout or b"")
+    try:
+        proc = subprocess.Popen(cmd, stdout=subprocess.PIPE,
+                                stderr=subprocess.PIPE)
+    except Exception as e:  # noqa: BLE001
+        _unregister()
+        return {"ok": False, "errorType": "spawn", "error": str(e)}
+    if register:
+        try:
+            register(proc)
+        except Exception:  # noqa: BLE001
+            pass
+    deadline = time.time() + timeout + 25
+    try:
+        while True:
+            if cancel is not None and cancel.is_set():
+                _kill_tree(proc)
+                try:
+                    proc.communicate(timeout=5)
+                except Exception:  # noqa: BLE001
+                    pass
+                return {"ok": False, "errorType": "cancelled", "error": "已取消"}
+            if proc.poll() is not None:
+                break
+            if time.time() > deadline:
+                _kill_tree(proc)
+                return {"ok": False, "errorType": "network", "error": "NPE 解析超时"}
+            time.sleep(0.15)
+        try:
+            out_b, err_b = proc.communicate(timeout=5)
+        except Exception:  # noqa: BLE001
+            out_b, err_b = b"", b""
+    finally:
+        _unregister()
+
+    out = _decode(out_b or b"")
     for line in reversed(out.splitlines()):
         line = line.strip()
         if line.startswith("{") and line.endswith("}"):
@@ -164,7 +241,7 @@ def _probe_once(url: str, proxy: str = "", cookie: str = "", cookie_file: str = 
             info["engine"] = "npe"
             return info
     return {"ok": False, "errorType": "spawn",
-            "error": (_decode(r.stderr or b"").strip() or "NPE 未输出 JSON")[:400]}
+            "error": (_decode(err_b or b"").strip() or "NPE 未输出 JSON")[:400]}
 
 
 def ytdlp_probe(url: str, proxy: str = "", cookie_file: str = "",
@@ -350,10 +427,9 @@ def _run_ffmpeg(cmd: list, duration: float = 0.0, progress=None,
     for raw in proc.stdout:
         if cancel is not None and cancel.is_set():
             cancelled = True
-            try:
-                proc.kill()
-            except Exception:  # noqa: BLE001
-                pass
+            # v1.19.1：杀整棵进程树。ffmpeg 会再 fork 出子进程，只 kill 父进程
+            # 的话合并仍在跑、磁盘仍在写，用户看着像取消没生效。
+            _kill_tree(proc)
             break
         line = _decode(raw).strip()
         if duration > 0 and line.startswith("out_time_us=") and progress:
