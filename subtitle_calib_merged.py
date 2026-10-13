@@ -972,6 +972,94 @@ BILINGUAL_TERMS = {
     "Em i M acha": "AnyMatcha", "Em i M acha": "AnyMatcha",
     "Rover,": "漂泊者", "Lex icon Axis": "轴心图标",
     "Allegs": "小巷", "alle ys": "小巷",
+    # --- 2026-10-13 WuWa Exploration Quests and Tales（4349 cue）二次校准 round2 沉淀 ---
+    #   side_r2.tsv 侧车回填 466 处（verify OK：时间轴/参考行零变更）；cue 级明细见
+    #   wuwa_explore_tales_diff.md「二次校准（round2）」章节。以下为重复模式归纳成的
+    #   通用键（该串出现即该专名/该错形、无通用词歧义；歧义条目走 CONTEXT_MAP 英文锚定）。
+    "王牌空战": "皇牌空战",                                        # Ace Combat 官方名（#46/52/80/133/180/3555/3596/4156/4240）
+    "Gens hin": "原神", "Gens": "原神",                            # Genshin 裸/撕裂残留（#107/200）
+    "三华": "散华", "San hua": "散华",                             # Sanhua（#345）
+    "库查尔罗": "卡卡罗", "K uchar ro": "卡卡罗", "K Uchar Ro": "卡卡罗",  # Calcharo（#323/324）
+    "陆佩": "露帕", "Lu pe": "露帕",                               # Lupa（#333/334）
+    "香丽乌": "相里要",                                            # Xiangli Yao（#336）
+    "岸上守门员": "守岸人", "岸上守卫": "守岸人",                  # Shorekeeper（#287/298）
+    "Card itth ia": "卡提希娅",                                    # Cartethyia（#288）
+    "Cam ellia": "椿",                                             # Camellia（#2087/2089/2138）
+    "金时": "今汐",                                                # Jinhsi（#2190）
+    "景跑": "忌炎", "Jing ran": "忌炎",                            # Jiyan（#3084/3112）
+    "清朝×嚷": "清宵",                                             # Qingxiao（#3317）
+    "拉海罗": "拉海洛",                                            # Lahai Roi（"拉海罗伊"长键先行）
+    "千佐": "千咲",                                                # Chisa（#3066）
+    "Fro lo va": "弗洛洛",                                         # Phrolova（#285）
+    "汤呆子": "汤包",                                              # soup dumplings（#2373）
+    "拿坡里战争": "拿破仑战争", "拿坡路战争": "拿破仑战争",        # Napoleonic Wars（#1016/3830）
+    "全息公羊": "全息投影",                                        # hologram（#617/2785）
+    "退货奖励": "回归奖励",                                        # returner rewards（#628）
+    "格里菲斯塔": "格里菲斯天文台",                                # Griffith Observatory（#630）
+    "鳄梨": "牛油果",                                              # avocado（#636）
+    "Pier Ogi": "波兰饺子",                                        # pierogi（#653）
+    "Like Wars": "华沙", "Var sh ava": "华沙",                     # Warsaw ASR（#668/673）
+    "St arry Stage": "星舞台", "圣艾利2阶段": "星舞台2", "圣艾瑞第二阶段": "星舞台2",  # Starry Stage（#678/691/695/696）
+    "红色空缺": "救赎",                                            # Redemption（#693）
+    "贝利·瓦布尔": "难以置信",                                     # Unbelievable（#880）
+    "森特·里克": "为中心",                                         # centric（#889）
+    "幽灵奔跑者": "幽灵行者",                                      # Ghostrunner（#1023）
+    "女巫ER3": "巫师3", "女巫ER": "巫师",                          # Witcher 3（#1105/1855/4165）
+    "Res 识别 Evil": "生化危机",                                   # Resident Evil（#1073）
+    "Onim ush a": "鬼武者",                                        # Onimusha（#1077）
+    "Crim son Desert": "红色沙漠",                                 # Crimson Desert（#1097）
+    "Dawn Walker": "黎明行者",                                     # Dawnwalker（#1100/1101）
+    "Dig Imon": "数码宝贝",                                        # Digimon（#1117）
+    "S cri b bl en aut s": "涂鸦冒险家",                           # Scribblenauts（#1120）
+    "勇敢前人5": "勇气启示录",                                     # Brave Exvius（#1124）
+    "王国红心": "王国之心",                                        # Kingdom Hearts（#1139）
+    "Nik Ke": "NIKKE", "Nik kei": "NIKKE", "Nik ke i": "NIKKE",    # NIKKE（#1249/1373）
+    "LAR Per": "跑团扮演者", "LAR PER": "跑团扮演者",              # LARPer（#1182/1184）
+    "地下城大吃怪": "魔物饭大冒险",                                # Dungeon Munchies（#1412）
+    "第一阶梯的后奏": "第一后裔",                                  # First Descendant（#1452）
+    "SH罩": "遮罩",                                                # shroud（#1520）
+    "月亮雷弗伦斯舞蹈团": "崇月舞团",                              # Moon Reverence Dance Fellowship（#1595）
+    "黑色神话": "黑神话", "Wuk ong": "悟空",                       # Black Myth Wukong（#1841/1865）
+    "Met aph or": "暗喻幻想",                                      # Metaphor ReFantazio（#1843/1847）
+    "光辉之路": "苍炎之轨迹",                                      # Path of Radiance（#1803）
+    "Heart of Th orns": "荆棘之心",                                # GW2 Heart of Thorns（#1755）
+    "卡门光的动机": "卡门主导动机",                                # Carmen leitmotif（#1781）
+    "瓦尔伊里亚的阴影": "瓦伦西亚之影",                            # Shadows of Valyria（#1794）
+    "新灌溉": "新联邦",                                            # new fed 谷翻（#1964）
+    "孟周": "孟舟",                                                # Meng Zhou 统一写法（#1951/3205）
+    "天讯": "腾讯",                                                # Tencent 谷翻（#2288）
+    "梅兰克奥利": "忧郁",                                          # melancholy（#2627）
+    "偏见主义": "部分主义",                                        # particularism（#2576）
+    "雷·阿彦·阿米": "绫波丽",                                      # Rei Ayanami（#2567）
+    "神父斧": "残星会",                                            # Frax ASR（#2677）
+    "乐初叔": "楚叔",                                              # Uncle Chu（#2697）
+    "Ab igail": "阿布",                                            # Abby（#846）
+    "Steel Ball Run": "飙马野郎",                                  # JoJo SBR 官方名（#867）
+    "Sentin els Res on ator": "岁主共鸣者", "Sentin els reson ator": "岁主共鸣者",  # Sentinel's Resonator（长键先行于 "Sentin els"->天民）
+    "Valor Mort": "死之勇气",                                      # Valor Mortis 官方中文名（#277/1012/1110/1806；跨行"Val orm ort is"形态不误咬）
+    "Wither ing Waves": "鸣潮", "Wuth ering Waves": "鸣潮",        # WuWa ASR 拉丁残留（#3150/3171/3191 等）
+    "吴乐队": "鸣潮", "吴巴": "鸣潮", "WU HA": "鸣潮",             # WuWa ASR 变体（#1458/3718/1904）
+    "吴演唱会": "鸣潮演唱会",                                      # Wu concert（#618）
+    "他的战斗8": "皇牌空战8",                                      # Ace Combat 8 谷翻（#1336）
+    "迷你帽": "缩小帽",                                            # Minish Cap 官方名（#4137）
+    "Xen obl ade Chronicles": "异度神剑", "Xen obl ade": "异度神剑",  # Xenoblade（#4180/4192）
+    "绝地被放逐": "绝地武士：放逐者",                              # Jedi Outcast（#4040）
+    "荒野大人": "荒野大镖客", "荒野大杀人": "荒野大镖客",          # Red Dead 2 谷翻（#4218/4221/4261/4271）
+    "Arm ored Core": "装甲核心", "Arm Ored Core": "装甲核心",      # Armored Core 6（#4116-4120）
+    "Where Wins Me": "战舰世界",                                   # World of Warships ASR（#3883/3885）
+    "莫克斯·伊": "莫克茜", "M ox ie": "莫克茜", "Mox ie": "莫克茜",  # Moxie（#3589-3591）
+    "共生症": "共生关系",                                          # symbiotic（#3618）
+    "Roc吃了": "回报大家",                                         # reciprocate ASR（#3625）
+    "被疏离": "被疏远",                                            # alienated（#3667）
+    "传送机": "传送点",                                            # teleporter（#3780）
+    "Fires IDE聊天": "炉边谈话",                                   # fireside chat（#4299）
+    "VT大学": "虚拟主播", "VT的学生": "虚拟主播",                  # VTubers ASR（#4331/4339）
+    "不是艾德": "记下了",                                          # Noted ASR（#4341）
+    "西南阿曼": "锁暝",                                            # Swoman=Swarming ASR（#3048）
+    "分隔方式": "过渡段", "分离方式": "过渡段", "分隔的方式": "过渡段", "seg ways": "过渡段",  # segue（#3055-3064）
+    "H arem": "后宫烂活", "后宫慢速": "后宫烂活",                  # harem slop（#860/861/3404）
+    "Gl acio": "冷凝",                                             # Glacio 官方属性=冷凝（#751/753）
+    "Day of Def eat": "胜利之日",                                  # Day of Defeat（#4034/4039）
 }
 
 # 保留英文不译的专名（仅提示，不替换）
@@ -1507,6 +1595,76 @@ CONTEXT_MAP = [
     (r"\bbatter\b", "虚质击球科学", "虚质科学"),                        # ASR matter->batter（星炬学院虚质科学部）
     (r"\briders?\b", "骑士", "隧者"),                                  # Exor Rider 裸"骑士"（Rider 本义戒律禁裸键；#2269 参考行 rider 佐证）
     (r"Roya (?:designs|partners|are\b)", "Roya", "罗伊"),              # Roya 英文残留窄语境；作品名《Roya Frost》=罗伊冰原走 Entity.ctx
+    # --- 2026-10-13 WuWa Exploration Quests and Tales round2：需参考行佐证的歧义错词 ---
+    (r"\bChong Li\b", "重力", "长离"),                                 # Chong Li=长离 ASR（#286；"重力"通用词不进裸键）
+    (r"\bHi\s?y?uki\b|\bHi\s?[Uu]ki\b", "浮喜", "绯雪"),               # Hiyuki=绯雪（#284）
+    (r"\bHi\s?y?uki\b|\bHi\s?[Uu]ki\b", "宇基", "绯雪"),               # （#232）
+    (r"\bpers ?im ?mons\b", "人鱼", "柿子"),                           # persimmons（#2299）
+    (r"\bsc ?all ?ions\b", "离子", "葱花"),                            # scallions（#2456）
+    (r"\bno rate\b", "没有命运", "没有概率公示"),                      # no rate->no fate ASR（#2431）
+    (r"blow smoke up", "吹烟", "溜须拍马"),                            # blow smoke up ass（#2386）
+    (r"rebuild", "重构版", "新剧场版"),                                # Evangelion rebuild（#2539/2544）
+    (r"rebuild", "福音复兴剧", "EVA新剧场版"),                         # （#2565）
+    (r"\bher ?esy\b", "她是这样", "这是异端"),                         # heresy（#2599）
+    (r"\bavoid ?ant\b", "避开蚂蚁", "回避型"),                         # avoidant（#2625）
+    (r"unt ?angling", "不划船", "解开纠葛"),                           # untangling（#2744）
+    (r"rip ?pling", "撕裂着方向", "泛起涟漪"),                         # rippling（#2762）
+    (r"\bre ?birth\b", "反叛军", "重生"),                              # rebirth（#2766）
+    (r"aura ?farming", "刷气", "攒气场"),                              # aura farming（#2822）
+    (r"got ?cha game", "有魅力的游戏", "抽卡游戏"),                    # gacha game（#2855/2906）
+    (r"booty ?cheeks", "超级臀部", "烂透了"),                          # booty cheeks（#2889）
+    (r"decomp", "分解", "反编译"),                                     # decompiling（#729/730）
+    (r"\bGlacial\b", "冰川", "冷凝"),                                  # Glacial Damage Bonus（#733）
+    (r"\bechoes\b", "回声", "声骸"),                                   # echoes=声骸（#721）
+    (r"start the tails", "反面", "传说任务"),                          # story tails 撕裂（#704）
+    (r"\bCritical\b", "关键难度", "Critical难度"),                     # Kingdom Hearts Critical（#1322）
+    (r"\bpick ?y\b", "选择Y", "挑剔"),                                 # picky（#1457）
+    (r"soft ?locked", "软锁", "卡死"),                                 # softlocked（#1523）
+    (r"\barr ?anger\b", "愤怒", "编曲师"),                             # arranger ASR（#1590）
+    (r"press in this track", "媒体", "贝斯"),                          # bass ASR->press（#1593）
+    (r"tre ?acher ?ous", "非常强烈", "非常凶险"),                      # treacherous（#1607）
+    (r"vocal ?fry", "声部炸弹", "气泡音"),                             # vocal fry（#1612）
+    (r"imm ?olation", "免疫口服", "自焚"),                             # immolation（#1642）
+    (r"gre ?asy", "紧张", "油腻"),                                     # Luna greasy（#1768）
+    (r"gre ?asy", "你很有意思", "你好油腻"),                           # （#1770/1773）
+    (r"gre ?asy", "全是灰色的", "全是油"),                             # （#1771）
+    (r"disillusion ?ed", "失望", "幻灭"),                              # （#1776）
+    (r"three houses", "三座房子", "风花雪月"),                         # FE Three Houses（#1802）
+    (r"Unicorn Over ?lord", "独角兽", "圣兽之王"),                     # Unicorn Overlord（#1815/1816）
+    (r"Hex ?agram", "六角星", "六芒星"),                               # Hexagram（#1190）
+    (r"spl ?urge", "SPL有点冲动", "挥霍一下"),                         # splurge（#1432）
+    (r"inc ?ensed", "很有把握", "被激怒"),                             # incensed（#881）
+    (r"fer ?ocious", "非常神秘", "非常凶猛"),                          # ferocious（#884）
+    (r"被药物折磨得很糟糕", "被药物折磨得很糟糕", "真的很失落"),       # bummed out（#1037；英文行锚定）
+    (r"service ?able", "还算可以维修", "还算凑合"),                    # serviceable（#1040）
+    (r"go ?oner game", "普通的游戏", "卖肉游戏"),                      # gooner game（#3401）
+    (r"waif ?us", "我们", "老婆"),                                     # waifus（#3952）
+    (r"norm ?ie", "正常的", "普通玩家"),                               # normie（#3985）
+    (r"norm ?ie", "常态", "普通玩家"),                                 # （#3991）
+    (r"pilled", "迷糊", "入坑"),                                       # pilled（#4005）
+    (r"co ?- ?op", "合作社", "联机"),                                  # co-op（#3889）
+    (r"co ?- ?op", "合作教育", "联机"),                                # （#3890）
+    (r"\bSon ?ny\b", "儿子", "桑尼"),                                  # Sonny 观众名（#3797）
+    (r"run ?backs", "回溯", "跑尸流程"),                               # run backs（#3783）
+    (r"alien ?ate", "外星人吃掉", "疏远"),                             # alienate（#3657）
+    (r"engaged", "订婚", "投入"),                                      # engaged（#4285）
+    (r"before the tip", "提示", "旅行"),                               # tip=trip（#4297）
+    (r"pass as Ace", "以艾斯的身份", "以王牌难度"),                    # Ace=Ace difficulty（#4158）
+    (r"\bdeadlock\b", "僵局", "Deadlock"),                             # Deadlock 保留英文（#4130）
+    (r"\bMiho\b", "美穗", "米哈游"),                                   # miHoYo（#3959/3960）
+    (r"\bIm ?eth\b", "我是eth", "爱弥斯"),                             # Imeth（#3948）
+    (r"\bAn ?anta\b", "Anta", "异环"),                                 # Ananta 谷翻残留（#1715）
+    (r"\bAn ?anta\b", "Ananta", "异环"),                               # 中文行英文残留（#414/3986/3994）
+    (r"\bLim ?bus\b", "林巴斯", "边狱公司"),                           # Limbus Company（#409）
+    (r"\bLim ?bus\b", "林巴士", "边狱公司"),                           # （#422）
+    (r"\bLim ?bus\b", "林姆公交", "边狱公司"),                         # （#455/456）
+    (r"bus Company videos", "公交公司", "边狱公司"),                   # （#464）
+    (r"behind a pass", "传球后面", "战令后面"),                        # battle pass（#2159）
+    (r"\bWu\b", "吴博士", "鸣潮"),                                     # Wu=WuWa（#4231）
+    (r"\bWua\b", "演吴", "玩鸣潮"),                                    # （#3880）
+    (r"\bWu\b", "锁定在吴", "锁定鸣潮的"),                             # （#3702）
+    (r"\bWulu\b", "Wulu", "鸣潮"),                                     # WuWa ASR（#598；英文行佐证）
+    (r"from San\b", "从San身上", "从散华身上"),                        # Sanhua（#2186）
 ]
 
 # =============================================================
