@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.0.0
+# @version 2.1.0
 """视频工具箱 · 主程序侧「检查更新」与自更新（v2.0.0 起）。
 
 定位
@@ -55,7 +55,8 @@ _HERE = os.path.dirname(os.path.abspath(__file__))
 #: 主程序自身版本。与 src\video_toolbox_qt.py 的 VERSION 同源；
 #: 这里独立存一份是因为更新逻辑必须在**不 import Qt** 的前提下可用
 #: （子进程脚本、自检都要能读）。
-SELF_VERSION = "2.0.0"
+#: ⚠ 改版本号时须一并改——scripts/dev/apply_version.py 覆盖不到这里。
+SELF_VERSION = "2.1.0"
 
 #: 远端清单与版本索引（与安装器默认值一致，固定 tag repo-latest）
 DEFAULT_MANIFEST_URL = ("https://github.com/09Th90/VideoToolbox/releases/"

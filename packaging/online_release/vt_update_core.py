@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.0.0
+# @version 2.1.0
 """在线引导安装器 · 核心逻辑（无 UI，可单测）。
 
 ====================================================================
@@ -89,9 +89,9 @@ FALLBACK_DRIVES = ("D:", "E:", "F:", "C:")
 #: 本更新器自身的版本（用于比对目标版本的 min_updater 要求）
 #: ⚠ 必须与 src/video_toolbox_qt.py 的 VERSION 一致：它是**硬门槛**——
 #: 发布侧若给 manifest 写了 min_updater="2.0.0"，而随包的更新器仍自称
-#: 1.20.0，装 2.0.0 会被直接拒（updater_ok 返回 False）。改版本号时
+#: 1.20.0，装 2.1.0 会被直接拒（updater_ok 返回 False）。改版本号时
 #: scripts/dev/apply_version.py 覆盖不到这里，须一并改。
-SELF_VERSION = "2.0.0"
+SELF_VERSION = "2.1.0"
 #: 安装目录里的本地清单文件名（记录本次安装的文件级 sha256）
 INSTALLED_NAME = "vt_installed.json"
 #: 下载分块（sha256 等本地 IO 用；网络分块在 vt_dl 里）

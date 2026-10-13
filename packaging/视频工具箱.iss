@@ -1,9 +1,9 @@
-; @version 2.0.0
+; @version 2.1.0
 ; ============================================================================
-; 视频工具箱 v2.0.0 —— Inno Setup 安装包脚本
+; 视频工具箱 v2.1.0 —— Inno Setup 安装包脚本
 ; 构建前提：已用 tools\python 执行 pyinstaller 视频工具箱.spec，
 ;           产物位于 dist\视频工具箱.exe
-; 编译：ISCC.exe 视频工具箱.iss  →  installer\视频工具箱_Setup_v2.0.0.exe
+; 编译：ISCC.exe 视频工具箱.iss  →  installer\视频工具箱_Setup_v2.1.0.exe
 ; v1.18.0：① 新增主播声纹（exe 侧已由 spec hiddenimports 内嵌），[Files]
 ;         补装 src\speaker_voiceprint.py / speaker_voiceprint_page.py /
 ;         subtitle_editor_core.py 源码副本，使安装版也能按开发版说明书的 CLI
@@ -87,7 +87,7 @@
 ; ============================================================================ 
 
 #define MyAppName "视频工具箱"
-#define MyAppVersion "2.0.0"
+#define MyAppVersion "2.1.0"
 #define MyAppPublisher "VideoToolbox"
 #define MyAppExeName "视频工具箱.exe"
 

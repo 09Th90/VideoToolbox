@@ -1,4 +1,4 @@
-// @version 2.0.0
+// @version 2.1.0
 // 组件安装脚本：创建用户数据/日志目录壳 + 开始菜单/桌面快捷方式
 function Component()
 {
