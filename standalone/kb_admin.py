@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# @version 1.20.0
+# @version 2.0.0
 """视频工具箱 · 校准知识更新库 —— 管理员工具（完全独立程序）
 
 定位：工具箱本体只做两件事——「更新」（kb-sync 拉基线+增量并本地合并）与
@@ -71,6 +71,25 @@ DEFAULT_SCRIPT = os.path.join(APP_DIR, "subtitle_calib_merged.py")
 #: 连接参数唯一入口：内置 github_proxy.yaml（与工具箱同一份；exe 放程序目录旁）
 GITHUB_PROXY_YAML = os.environ.get("VT_GITHUB_YAML") or \
     os.path.join(APP_DIR, "github_proxy.yaml")
+
+#: 本工具版本。⚠ 与 src\video_toolbox_qt.py 的 VERSION 同值——本工具
+#:   随工具箱一起重打包分发，两边错位就意味着「旧 exe 配新脚本」，
+#:   而这种错位在功能上表现为莫名其妙的解析/字段错误，极难定位。
+SELF_VERSION = "2.0.0"
+
+
+def _toolbox_version():
+    """读随附工具箱的版本号；读不到返回""（不抛，version 要能离线跑）。"""
+    p = os.path.join(APP_DIR, "src", "video_toolbox_qt.py")
+    try:
+        with open(p, "r", encoding="utf-8") as fh:
+            m = re.search(r'VERSION\s*=\s*"([\d.]+)"', fh.read())
+        return m.group(1) if m else ""
+    except OSError:
+        return ""
+
+
+TOOLBOX_VERSION = _toolbox_version()
 
 #: 兜底默认（与内置 yaml 的 vt-github 段一致）
 _CONN_DEFAULTS = {
@@ -408,6 +427,36 @@ def cmd_status(args):
         print("冲突样例 :")
         for k in list(conflicts)[:5]:
             print("   " + " | ".join(str(x) for x in k))
+    return 0
+
+
+def cmd_version(args):
+    """自查本工具版本 + 更新库/远端分支状态（v2.0.0）。
+
+    kb_admin 是**独立运行**的管理员工具（不 import 工具箱任何模块），
+    所以它没法像主程序那样点「检查更新」。给它一个 `version` 子命令，
+    就能一条命令看清三件事：自身版本、随它发布的工具箱版本、
+    以及更新库与远端分支是否同步——这三者错位往往就是「publish 了但
+    客户端没收到」这类问题的根因。
+    """
+    print(f"kb_admin 版本 : {SELF_VERSION}")
+    print(f"随附工具箱    : {TOOLBOX_VERSION or '—'}"
+          + ("（与源码版本一致）" if TOOLBOX_VERSION else ""))
+    print(f"更新库        : {args.root}"
+          + ("" if os.path.isdir(args.root) else "  ← 目录不存在"))
+    if os.path.isdir(args.root):
+        meta, base, files, _bad = load_library(args.root)
+        print(f"  基线 seq     : {meta.get('seq','—')}（{len(base)} 条）")
+        print(f"  待收编增量   : {len(files)} 文件")
+    if not args.offline:
+        try:
+            conn = _gh_conn()
+            print(f"远端          : {conn.get('branch') or '—'}（可达）"
+                  if isinstance(conn, dict) else f"远端          : {conn}")
+        except Exception as e:  # noqa: BLE001 —— 离线也要能看版本
+            print(f"远端          : 不可达（{e}）")
+    else:
+        print("远端          : 已跳过（--offline）")
     return 0
 
 
@@ -1066,6 +1115,11 @@ def build_parser():
     p.add_argument("--days", type=int, default=30)
     p.add_argument("--task-name", default="VideoToolbox-KB")
     p.set_defaults(fn=cmd_schedule)
+
+    p = sub.add_parser("version", help="自查本工具版本与更新库/远端状态")
+    p.add_argument("--offline", action="store_true",
+                   help="不连 GitHub（只看本地）")
+    p.set_defaults(fn=cmd_version)
 
     p = sub.add_parser("selftest", help="隔离环境端到端断言")
     p.set_defaults(fn=cmd_selftest)
