@@ -7017,6 +7017,22 @@ def sync_voiceprint_on_startup(force=False):
         import voiceprint_sync as _vps
         if not _vps.enabled():
             return False, "声纹同步已单独禁用（VT_NO_VP_SYNC）"
+        # ⚠⚠ 在「拉取收件箱」之后、「合并落地」之前，把**待传队列冲刷一遍**
+        #   （2026-10-13 补）：
+        #   退出推送只挂在 QApplication.aboutToQuit 上，进程被强杀 / 崩溃 /
+        #   taskkill 时它根本不触发——实测安装版 08:43、08:50 录入的两个声纹
+        #   就因此一直卡在 data/vp_sync/voiceprint_pending.jsonl（vp_sync.log
+        #   停在 07:33，其后只有校准的退出上传记录，没有任何「退出推送」行；
+        #   同一时刻残留的孤儿 mihomo.exe 亦印证是异常终止）。
+        #   启动时补一次，队列即自愈：强杀只影响「本次到上次启动之间」的增量，
+        #   且下一次启动必补上。push 只写本地哑存储根，不联网、不阻塞启动。
+        try:
+            _n_pushed = _vps.push(quiet=True)
+            if _n_pushed:
+                _vp_sync_log(f"启动补推 %d 条声纹增量（上次未正常退出遗留）"
+                             % _n_pushed)
+        except Exception as _e:  # noqa: BLE001
+            _vp_sync_log(f"启动补推异常（忽略）: {_e}")
         ok = _vps.sync(quiet=True)
         s = _vps.status()
         _vp_sync_log(f"启动同步{'完成' if ok else '跳过（无远端/未启用）'}："
