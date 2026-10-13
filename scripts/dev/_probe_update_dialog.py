@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+# @version 2.0.0
 """Verify update dialog text/version-direction fixes (no network)."""
 import os
 import sys
