@@ -153,6 +153,27 @@ def main():
     tree = r.stdout.decode().strip()
     print("tree:", tree)
 
+    # ---- 护栏：合并树不许丢任何 origin/main 上的文件（2026-10-13 踩坑复盘）----
+    # 上一轮（8ab2689）把 origin/main 上新增的 vp_inbox 声纹增量记录**静默丢掉**
+    # 了：临时索引里那条 update-index 没生效（原因已不可考），write-tree 出的树
+    # 缺该文件，脚本仍照常推进 main ⇒ 远端客户端从此拉不到那条声纹，
+    # 表现为「声纹数量不对」。故在 update-ref 之前逐条核对：
+    #   ① 三个目标路径都在合并树里、且 blob 与预期一致；
+    #   ② 合并树相对 origin/main 没有任何删除。
+    # 任一不满足直接 SystemExit，绝不动 main。
+    for path, sha in ((JSONL, jsonl_sha), (CALIB, calib_sha), (KB, kb_sha)):
+        p = git("rev-parse", "%s:%s" % (tree, path))
+        got = p.stdout.decode().strip()
+        if p.returncode != 0 or got != sha:
+            raise SystemExit("护栏拦截：合并树缺少/不符 %s（want=%s got=%s rc=%d）"
+                             % (path, sha[:8], got[:8], p.returncode))
+    p = git("diff", "--name-status", "--diff-filter=D", "origin/main", tree)
+    deleted = [l for l in p.stdout.decode("utf-8", "replace").splitlines() if l.strip()]
+    if deleted:
+        raise SystemExit("护栏拦截：合并树相对 origin/main 有删除，拒绝推进 main：\n  "
+                         + "\n  ".join(deleted))
+    print("护栏 OK：目标路径齐全且合并树无任何删除（origin/main -> %s）" % tree[:8])
+
     msg = ("merge: 合并 origin/main 4 个校准知识同步 commit 到 dev 2.0.0\n"
            "\n"
            "origin/main 领先的 9f0c4ba/354cbe3/575c671/a5f4dea（另一实例 2026-10-12\n"

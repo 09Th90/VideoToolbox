@@ -810,6 +810,69 @@ def main():
         check("模型已就位时 download_model 直接返回、不联网",
               SV.download_model() == SV.MODEL_PATH)
 
+    # ---------------- 声纹同步状态分类（2026-10-13 回归） ----------------
+    # ⚠⚠ 曾有 bug：`voiceprint_sync.status()` 只看 `sync` 标记就把模板分成
+    #   「同步副本 / 本地自录」，而**本人录入的模板经通道折叠回来后同样带**
+    #   sync 标记（v1.19.0 的 backfill 就是先把本机老模板补传进通道，sync 时
+    #   按 fp 序折叠、最后一条作者恰好是本机）。后果：开发版 3 个自己录的
+    #   模板全被计成「同步副本」，状态显示「本地自录 0」——用户看到的就是
+    #   「声纹数据数量不对」。
+    #   正确口径与合并端 `_apply_upserts` 判「本地在野叶子」同源：
+    #     · 无 sync 标记            ⇒ 本人录入
+    #     · 有标记且 mix 含本机叶子  ⇒ 本人录入（绕通道一圈回来的）
+    #     · 有标记且 sync_author 本机 ⇒ 本人录入
+    #     · 其余                     ⇒ 他人同步
+    try:
+        import json as _json
+        import voiceprint_sync as vps
+        _me = "abcd1234-0000-0000-0000-000000000000"
+        _other = "ffff9999-0000-0000-0000-000000000000"
+        _tmp = tempfile.mkdtemp(prefix="vp_status_")
+        _tpl = os.path.join(_tmp, "voiceprint")
+        os.makedirs(_tpl, exist_ok=True)
+
+        def _wt(name, obj):
+            with open(os.path.join(_tpl, name + ".json"), "w",
+                      encoding="utf-8") as fh:
+                _json.dump(obj, fh, ensure_ascii=False)
+
+        _b = {"dim": 192, "embedding": [0.0] * 192, "seconds": 1.0, "clips": 1}
+        _leaf_mine = {"fp": "a", "v": [0.0] * 192, "w": 1.0, "n": 1, "author": _me[:8]}
+        _leaf_other = {"fp": "b", "v": [0.0] * 192, "w": 1.0, "n": 1, "author": _other[:8]}
+        _wt("mine_local", dict(_b, name="mine_local"))            # 本机自录、未进通道
+        _wt("mine_roundtrip", dict(_b, name="mine_roundtrip", sync=True,
+                                   sync_id="x1", sync_author=_me[:8],
+                                   sync_ts="2026-10-13T00:00:00Z",
+                                   mix=[dict(_leaf_mine)]))        # 本机录入绕通道一圈
+        _wt("theirs", dict(_b, name="theirs", sync=True, sync_id="x2",
+                           sync_author=_other[:8], mix=[dict(_leaf_other)]))
+        _wt("mixed", dict(_b, name="mixed", sync=True, sync_id="x3",
+                          sync_author=_other[:8],
+                          mix=[dict(_leaf_other), dict(_leaf_mine)]))  # 含本机叶子
+        with open(os.path.join(_tpl, "selection.json"), "w",
+                  encoding="utf-8") as fh:
+            _json.dump({"enabled": []}, fh)
+
+        _orig = (vps.template_dir, vps.remote_root, vps._conflicts_path,
+                 vps._pending_path, vps.config)
+        vps.template_dir = lambda: _tpl
+        vps.remote_root = lambda: os.path.join(_tmp, "no_remote")
+        vps._conflicts_path = lambda: os.path.join(_tmp, "conflicts.json")
+        vps._pending_path = lambda: os.path.join(_tmp, "pending.jsonl")
+        vps.config = lambda: {"client_id": _me}
+        try:
+            s = vps.status()
+        finally:
+            (vps.template_dir, vps.remote_root, vps._conflicts_path,
+             vps._pending_path, vps.config) = _orig
+        shutil.rmtree(_tmp, ignore_errors=True)
+        check("status 模板总数 = 4", s["templates"] == 4, s["templates"])
+        check("status 他人同步只算 1（纯他人）", s["synced"] == 1, s["synced"])
+        check("status 本人录入 = 3（自录/绕圈/含本机叶子）",
+              s["local_only"] == 3, s["local_only"])
+    except Exception as _e:  # noqa: BLE001
+        check("status 分类回归", False, repr(_e))
+
     # ---------------- 汇总 ----------------
     say("\n" + "=" * 62)
     if FAILS:

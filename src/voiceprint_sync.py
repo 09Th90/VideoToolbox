@@ -1004,16 +1004,37 @@ def status():
     if os.path.isdir(d):
         names = [os.path.splitext(f)[0] for f in os.listdir(d)
                  if f.endswith(".json") and f != "selection.json"]
-    synced = 0
+    # ⚠⚠ 分类口径必须落到 **sync_author / mix 叶子作者**，不能只看 `sync` 标记
+    #   （2026-10-13 实测踩坑）：
+    #   本人录入的模板经通道折叠回来后**同样带** sync 标记——v1.19.0 的 backfill
+    #   就是先把本机老模板补传进通道，sync 时按 fp 序折叠、最后一条的作者恰好
+    #   是本机。只看 sync 会把「本人录入」全数计成「他人同步副本」：
+    #   开发版 3 个模板全是自己录的，却长期报「同步副本 3 / 本地自录 0」，
+    #   用户看到的就是「声纹数据数量不对」。
+    #   判据与合并端 `_apply_upserts` 判「本地在野叶子」同源：整份自录文件
+    #   （无 sync 标记）算本机；带标记时看 mix 里有没有本机作者的叶子，
+    #   或 sync_author 是否就是本机（绕通道一圈回来的自录）。
+    me8 = str(config().get("client_id") or "")[:8]
+    remote = own = 0
     for n in names:
         t = _read_template(os.path.join(d, n + ".json"))
-        if isinstance(t, dict) and t.get("sync"):
-            synced += 1
+        if not isinstance(t, dict):
+            continue
+        if not t.get("sync"):
+            own += 1
+            continue
+        mix = t.get("mix") or []
+        mine = any(str(l.get("author") or "")[:8] == me8 for l in mix
+                   if isinstance(l, dict))
+        if mine or str(t.get("sync_author") or "")[:8] == me8:
+            own += 1
+        else:
+            remote += 1
     files = _inbox_files(remote_root())
     conf = _read_template(_conflicts_path()) or {}
     cfg = config()
-    return {"templates": len(names), "synced": synced,
-            "local_only": len(names) - synced,
+    return {"templates": len(names), "synced": remote,
+            "local_only": own,
             "pending": pending_count(),
             "remote_files": len(files),
             "remote_root": remote_root(),
@@ -1038,7 +1059,7 @@ def _main(argv):
     if cmd == "status":
         s = status()
         print("== 声纹同步状态 ==")
-        print("  模板总数   : %d（同步副本 %d / 本地自录 %d）"
+        print("  模板总数   : %d（他人同步 %d / 本人录入 %d）"
               % (s["templates"], s["synced"], s["local_only"]))
         print("  待传队列   : %d 条" % s["pending"])
         print("  远端收件箱 : %d 个文件（%s\\%s）"
