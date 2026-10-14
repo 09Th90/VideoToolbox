@@ -1,6 +1,114 @@
 {
  "version": 1,
  "candidates": {
+  "bi|给了他一个": {
+   "wrong": "给了他一个",
+   "right": "给了她",
+   "mode": "bi",
+   "count": 2,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    258
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-10-14",
+   "last": "2026-10-14",
+   "alts": {},
+   "sync": true
+  },
+  "bi|人们，这将打开一个": {
+   "wrong": "人们，这将打开一个",
+   "right": "人们，这会开一个",
+   "mode": "bi",
+   "count": 2,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    226
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-10-14",
+   "last": "2026-10-14",
+   "alts": {},
+   "sync": true
+  },
+  "bi|停留": {
+   "wrong": "停留",
+   "right": "保持",
+   "mode": "bi",
+   "count": 2,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    272
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-10-14",
+   "last": "2026-10-14",
+   "alts": {},
+   "sync": true
+  },
+  "bi|还是相信她": {
+   "wrong": "还是相信她",
+   "right": "仍然相信她",
+   "mode": "bi",
+   "count": 2,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    231
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-10-14",
+   "last": "2026-10-14",
+   "alts": {},
+   "sync": true
+  },
+  "bi|懂得道德": {
+   "wrong": "懂得道德",
+   "right": "理解了寓意：",
+   "mode": "bi",
+   "count": 2,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    192
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-10-14",
+   "last": "2026-10-14",
+   "alts": {},
+   "sync": true
+  },
+  "bi|有多种方法可以选择": {
+   "wrong": "有多种方法可以选择",
+   "right": "有办法可以选择",
+   "mode": "bi",
+   "count": 2,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    204
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-10-14",
+   "last": "2026-10-14",
+   "alts": {},
+   "sync": true
+  },
   "bi|荷鲁斯说你好": {
    "wrong": "荷鲁斯说你好",
    "right": "荷露丝说你好",
@@ -6146,114 +6254,6 @@
    "status": "confirmed",
    "cues": [
     240
-   ],
-   "samples": [],
-   "ref_tokens": {},
-   "unc_ref_tokens": {},
-   "first": "2026-10-14",
-   "last": "2026-10-14",
-   "alts": {},
-   "sync": true
-  },
-  "bi|给了他一个": {
-   "wrong": "给了他一个",
-   "right": "给了她",
-   "mode": "bi",
-   "count": 2,
-   "uncorrected": 0,
-   "status": "confirmed",
-   "cues": [
-    258
-   ],
-   "samples": [],
-   "ref_tokens": {},
-   "unc_ref_tokens": {},
-   "first": "2026-10-14",
-   "last": "2026-10-14",
-   "alts": {},
-   "sync": true
-  },
-  "bi|人们，这将打开一个": {
-   "wrong": "人们，这将打开一个",
-   "right": "人们，这会开一个",
-   "mode": "bi",
-   "count": 2,
-   "uncorrected": 0,
-   "status": "confirmed",
-   "cues": [
-    226
-   ],
-   "samples": [],
-   "ref_tokens": {},
-   "unc_ref_tokens": {},
-   "first": "2026-10-14",
-   "last": "2026-10-14",
-   "alts": {},
-   "sync": true
-  },
-  "bi|停留": {
-   "wrong": "停留",
-   "right": "保持",
-   "mode": "bi",
-   "count": 2,
-   "uncorrected": 0,
-   "status": "confirmed",
-   "cues": [
-    272
-   ],
-   "samples": [],
-   "ref_tokens": {},
-   "unc_ref_tokens": {},
-   "first": "2026-10-14",
-   "last": "2026-10-14",
-   "alts": {},
-   "sync": true
-  },
-  "bi|还是相信她": {
-   "wrong": "还是相信她",
-   "right": "仍然相信她",
-   "mode": "bi",
-   "count": 2,
-   "uncorrected": 0,
-   "status": "confirmed",
-   "cues": [
-    231
-   ],
-   "samples": [],
-   "ref_tokens": {},
-   "unc_ref_tokens": {},
-   "first": "2026-10-14",
-   "last": "2026-10-14",
-   "alts": {},
-   "sync": true
-  },
-  "bi|懂得道德": {
-   "wrong": "懂得道德",
-   "right": "理解了寓意：",
-   "mode": "bi",
-   "count": 2,
-   "uncorrected": 0,
-   "status": "confirmed",
-   "cues": [
-    192
-   ],
-   "samples": [],
-   "ref_tokens": {},
-   "unc_ref_tokens": {},
-   "first": "2026-10-14",
-   "last": "2026-10-14",
-   "alts": {},
-   "sync": true
-  },
-  "bi|有多种方法可以选择": {
-   "wrong": "有多种方法可以选择",
-   "right": "有办法可以选择",
-   "mode": "bi",
-   "count": 2,
-   "uncorrected": 0,
-   "status": "confirmed",
-   "cues": [
-    204
    ],
    "samples": [],
    "ref_tokens": {},
