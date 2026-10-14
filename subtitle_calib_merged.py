@@ -1,6 +1,20 @@
 # -*- coding: utf-8 -*-
 # @version 2.0.0
 """字幕校准统一脚本（唯一入口，可复用，每次校准任务优先调用本脚本）
+# 2026-10-14 新增任务：《【字幕】I'm Disappointed But Not Suprised, This Is Gacha.en-谷歌翻译.srt》
+#   （523 cue，CRLF 无 BOM，中英双语，detect=bi）——蛮啾《蓝色星原：旅谣》(Azur Promilia)
+#   英文版延期杂谈。关键考证：ASR 把 Azur Promilia 误听成 "Azure Striker"（谷翻"蔚蓝突击者"），
+#   官方帖开头 "Dear Starborn" 被连读成 "Diya Starborn"；Starborn=玩家称谓"星临者"；
+#   Manjuu=蛮啾（谷翻"万寿"）；#429 "within waves"=Wuthering Waves 断词（鸣潮）；
+#   抽卡术语 clairvoyance=千里眼（谷翻通灵/预知混出）、banner=卡池（旗帜/横幅）、
+#   subs=字幕（潜艇）、meta 保留英文（元能力/元玩家）。
+#   ⚠ 歧义戒律：本片 "Azur Lane" 参考行既可能是本体碧蓝航线（#152/#172/#192/#479），
+#   也可能是 Azur Promilia 误听（#60/#64/#108），规则无法区分——只走本片侧车，绝不入表。
+#   沉淀 9 个 Entity（蓝色星原/星临者/蛮啾/明日方舟：终末地/千里眼/卡池/meta/字幕/鸣潮补 ctx）。
+#   二次校准（逐句复查名词漏校/漏译）：新增 CONTEXT_MAP 窄锚定 6 条（character 追求品格/那个性格→
+#   角色、multiple tests 检查→测试、simultaneous release 释放→发布、poor showing 这场比赛→这次展示、
+#   discus- discussions 口吃残片清理）+ 侧车 5 条（#197 I→我/#247 启动版→上线待遇/#333 跨cue
+#   "那个/性格"断句兜底/#364 bad 漏译/#416 stagger releases 漏译），终稿 35 cue 净改动，verify OK。
 # 2026-10-12 二次校准（v1.22）：对同片按官方中文/韩服官方资料逐句复查，补
 #   시몰려와/심월여의/형방지계/어저와/어저신가요/직전과의/해형살례 7 裸键 +
 #   세 명 系 8 条锚定（#5279"三个人"正常义明确排除不收）+ 30 条 subfix 侧车
@@ -1666,6 +1680,13 @@ CONTEXT_MAP = [
     (r"\bWulu\b", "Wulu", "鸣潮"),                                     # WuWa ASR（#598；英文行佐证）
     (r"from San\b", "从San身上", "从散华身上"),                        # Sanhua（#2186）
     (r"\bpsycho\b", "心理", "疯子"),               # #559
+    # --- 2026-10-14 蓝色星原延期杂谈片 二次校准沉淀（谷翻常用词义错位，全部窄锚定）---
+    (r"\bcharacter\b", "追求品格", "追求角色"),     # #321 seek character releases（character=角色，品格义错位）
+    (r"\bcharacter\b", "那个性格", "那个角色"),     # #332 get that character（性格=角色 错译）
+    (r"\bmultiple tests?\b", "检查", "测试"),       # #254 multiple tests=多次测试（抽卡封闭/内测）
+    (r"\bsimultaneous release\b", "释放", "发布"),  # #267 simultaneous release=同步发布
+    (r"\bpoor showing\b", "这场比赛", "这次展示"),  # #144 poor showing=这次展示很差（showing 比赛义错位）
+    (r"\bdiscus- ?discussions?\b", "Discus讨论", "讨论"),  # #56 ASR 口吃残片 discus- discussions，清残留
 ]
 
 # =============================================================
@@ -8344,6 +8365,59 @@ ENTITIES = [
                 "beneath the Roya Frostlands）。本片 #5417 谷翻保留英文《Roya Frost》、"
                 "#5418 断行 'Lands'，ctx 整段归一；裸 'Roya' 英文残留只锚定 "
                 "designs/partners/are 窄语境（见 CONTEXT_MAP 同日块），防误伤作品名。"),
+    # --- 2026-10-14 I'm Disappointed But Not Suprised, This Is Gacha（蓝色星原英文版延期杂谈，bi，523 cue）沉淀 ---
+    Entity("蓝色星原", modes=("bi",), en="Azur Promilia", category="作品/游戏",
+           variants=("蔚蓝突击者", "Diya Starborn"),
+           ctx=((r"\bAzure Striker\b", "Azure Striker"),),
+           note="蛮啾 Manjuu《蓝色星原：旅谣》官方英文名 Azur Promilia（官网 azurpromilia.manjuu.com）。"
+                "本片 ASR 把游戏名误听成 Azure Striker（#2 谷翻'蔚蓝突击者'、#27/#51 中文行英文残留）；"
+                "#50《Diya Starborn》实为官方帖开头称呼 'Dear Starborn' 被 ASR 连读进游戏名位"
+                "（官方帖原文：'Update on the English Release. Dear Starborn, since Azur Promilia was "
+                "first revealed...'）。⚠ 勿与本体碧蓝航线混淆：本片 #152/#172/#192/#479 的 Azur Lane "
+                "是真指碧蓝航线（角色既视感/玩家群体/开发者语境），#60/#64/#108 的 Azur Lane 才是"
+                "Azur Promilia 误听，参考行无法区分，只走本片侧车，绝不入规则。"),
+    Entity("星临者", modes=("bi",), en="Starborn", category="游戏称谓",
+           variants=(),
+           ctx=((r"\bStarborn\b", "星裔"),),
+           note="蓝色星原玩家官方称谓（官方微博图绘栏目'星临者'；英文 Starborn）。"
+                "'星裔'为常见奇幻词，不裸键，只走参考行 Starborn 锚定。"),
+    Entity("蛮啾", modes=("bi",), en="Manjuu", category="厂商",
+           variants=("Manjuu",),
+           ctx=((r"\bManjuu\b", "万寿"),),
+           note="上海蛮啾（Manjuu Games），碧蓝航线/蓝色星原开发商。中文行英文残留 'Manjuu' 裸键归此；"
+                "谷翻误作'万寿'（#191/#478）——万寿为常用词（万寿菊），绝不裸键，只走参考行 Manjuu 锚定。"),
+    Entity("明日方舟：终末地", modes=("bi",), en="Arknights: Endfield", category="作品/游戏",
+           variants=("Arc骑士Enfield", "Arc Knights Enfield"),
+           note="bi 双语片源里 Arknights: Endfield 的 ASR/谷翻错形（#277 评论区列举同期上线游戏）。"
+                "⚠ 长键必须先于 CONTEXT_MAP 的 (Knights,骑士,明日方舟)（约 L1466）：首轮实测"
+                "骑士 被短 ctx 先咬成 'Arc明日方舟Enfield' 畸形；裸键走 BILINGUAL 长键降序先于 ctx 层。"),
+    Entity("千里眼", modes=("bi",), en="Clairvoyance", category="抽卡术语",
+           variants=(),
+           ctx=((r"[Cc]lairvoyance", "通灵"), (r"[Cc]lairvoyance", "预知")),
+           note="抽卡社区术语：靠 CN 服进度预知 EN 服内容。谷翻在本片随机输出 通灵/预知/千里眼 三形"
+                "（#94/#230/#326/#498），统一'千里眼'。通灵/预知为常用词，只走参考行锚定。"),
+    Entity("卡池", modes=("bi",), en="Banner", category="抽卡术语",
+           variants=(),
+           ctx=((r"\b[Bb]anners?\b", "旗帜"), (r"\b[Bb]anners?\b", "横幅")),
+           note="banner=卡池（沿 AK_CONTEXT 先例入 bi）。'横幅'同样参考行 banner 佐证才改"
+                "（#336 'giga banner'谷翻'超级横幅'→'超级卡池'，保留'超级'，勿整词'超级横幅'入键丢修饰）；"
+                "无 banner 佐证的'横幅'不动。"),
+    Entity("meta", modes=("bi",), en="Meta", category="抽卡术语",
+           variants=(),
+           ctx=((r"\bmeta\b", "元能力者"), (r"\bmeta\b", "元能力"), (r"\bmeta\b", "元玩家")),
+           note="meta（版本强度玩法）保留英文，谷翻'元能力/元玩家'为错形（#397/#496）。"
+                "⚠ 列表顺序：元能力者 必须先于 元能力（子串），否则出 'meta者' 残留；"
+                "meta slave 跨 cue 断行（#397 末 '如果你是meta' + #398 首 '奴隶'），替换后自然拼接。"),
+    Entity("字幕", modes=("bi",), en="Subs", category="抽卡术语",
+           variants=(),
+           ctx=((r"\bsub(s)?\b", "潜艇"),),
+           note="subs=字幕（'I only do subs'看动漫只看字幕语境，#371）。潜艇为常用词，只走参考行锚定。"),
+    Entity("鸣潮", modes=("bi",), en="Wuthering Waves", category="作品/游戏",
+           variants=(),
+           ctx=((r"\bwithin waves\b", "波浪"),),
+           note="本片 #429 'you see within waves, 40% of its revenue comes from outside CN'——"
+                "Wuthering Waves 的 ASR 断词形（Wuthering→within），以鸣潮收入分布（CN 外约 40%）语境佐证；"
+                "裸'波浪'为常用词，只走 within waves 整短语锚定。"),
 ]
 
 
