@@ -1,42 +1,6 @@
 {
  "version": 1,
  "candidates": {
-  "bi|懂得道德": {
-   "wrong": "懂得道德",
-   "right": "理解了寓意：",
-   "mode": "bi",
-   "count": 2,
-   "uncorrected": 0,
-   "status": "confirmed",
-   "cues": [
-    192
-   ],
-   "samples": [],
-   "ref_tokens": {},
-   "unc_ref_tokens": {},
-   "first": "2026-10-10",
-   "last": "2026-10-13",
-   "alts": {},
-   "sync": true
-  },
-  "bi|有多种方法可以选择": {
-   "wrong": "有多种方法可以选择",
-   "right": "有办法可以选择",
-   "mode": "bi",
-   "count": 2,
-   "uncorrected": 0,
-   "status": "confirmed",
-   "cues": [
-    204
-   ],
-   "samples": [],
-   "ref_tokens": {},
-   "unc_ref_tokens": {},
-   "first": "2026-10-10",
-   "last": "2026-10-13",
-   "alts": {},
-   "sync": true
-  },
   "bi|荷鲁斯说你好": {
    "wrong": "荷鲁斯说你好",
    "right": "荷露丝说你好",
@@ -53,7 +17,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-02",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -73,7 +37,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-02",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -93,7 +57,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-02",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -111,7 +75,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-02",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -130,7 +94,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-02",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -153,7 +117,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-02",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -215,7 +179,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-02",
-   "last": "2026-10-12",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -234,7 +198,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-02",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -254,7 +218,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-02",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -273,7 +237,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-02",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -292,7 +256,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-02",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -311,7 +275,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-02",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -330,7 +294,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-02",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -349,7 +313,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-02",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -369,7 +333,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-02",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -388,7 +352,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-02",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -417,7 +381,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-02",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -436,7 +400,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-02",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -455,7 +419,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-02",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -474,7 +438,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-02",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -493,7 +457,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-02",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -520,7 +484,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-02",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -539,7 +503,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-02",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -558,7 +522,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-02",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -581,7 +545,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-02",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -600,7 +564,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-02",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -619,7 +583,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-02",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -656,7 +620,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-02",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -693,7 +657,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-02",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -714,7 +678,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-02",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -736,7 +700,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-02",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -756,7 +720,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-02",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -793,7 +757,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-02",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -816,7 +780,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-02",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -840,7 +804,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-02",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -861,7 +825,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-02",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -898,7 +862,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-02",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -921,7 +885,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-02",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -940,7 +904,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-02",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -964,7 +928,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-02",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -994,7 +958,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-02",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -1013,7 +977,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-02",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -1032,7 +996,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-02",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -1052,7 +1016,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-02",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -1071,7 +1035,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-02",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -1090,7 +1054,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-02",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -1109,7 +1073,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-02",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -1128,7 +1092,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-02",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -1147,7 +1111,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-02",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -1166,7 +1130,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-02",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -1192,7 +1156,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-02",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -1212,7 +1176,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-02",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -1233,7 +1197,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-02",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -1252,7 +1216,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-02",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -1274,7 +1238,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-02",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -1293,35 +1257,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-02",
-   "last": "2026-10-13",
-   "alts": {},
-   "sync": true
-  },
-  "bi|骑士": {
-   "wrong": "骑士",
-   "right": "明日方舟",
-   "mode": "bi",
-   "count": 14,
-   "uncorrected": 0,
-   "status": "rejected",
-   "cues": [
-    13,
-    149,
-    466,
-    9,
-    18,
-    117,
-    168,
-    170,
-    251,
-    447,
-    479
-   ],
-   "samples": [],
-   "ref_tokens": {},
-   "unc_ref_tokens": {},
-   "first": "2026-10-02",
-   "last": "2026-10-12",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -1343,7 +1279,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-02",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -1362,10 +1298,9 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-02",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
-   "sync": true,
-   "note": "2026-10-13 本片裁决：普通词/子串级联误改，废"
+   "sync": true
   },
   "bi|Withering Waves": {
    "wrong": "Withering Waves",
@@ -1382,7 +1317,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-02",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -1401,7 +1336,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-02",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -1420,7 +1355,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-02",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -1439,7 +1374,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-02",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -1458,7 +1393,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-02",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -1477,7 +1412,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-02",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -1496,7 +1431,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-02",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -1515,7 +1450,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-02",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -1534,7 +1469,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-02",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -1553,7 +1488,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-02",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -1573,7 +1508,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-02",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -1592,7 +1527,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-02",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -1611,7 +1546,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-02",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -1632,7 +1567,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-02",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -1651,7 +1586,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-02",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -1671,7 +1606,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-02",
-   "last": "2026-10-12",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -1691,7 +1626,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-02",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -1713,10 +1648,9 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-02",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
-   "sync": true,
-   "note": "2026-10-13 本片裁决：普通词/子串级联误改，废"
+   "sync": true
   },
   "bi|Arkn ights": {
    "wrong": "Arkn ights",
@@ -1734,7 +1668,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-02",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -1826,30 +1760,30 @@
     ]
    ],
    "ref_tokens": {
-    "Sushin": 152390,
-    "Sushi": 174160,
-    "sushi": 217700,
-    "lead": 87080,
-    "Arbiter": 87080,
-    "will": 87080,
-    "Focus": 108850,
-    "ground": 108850,
-    "Sushi's": 43540,
-    "clearance": 21770,
-    "from": 21770,
-    "the": 65310,
-    "comes": 21770,
-    "power": 21770,
-    "could": 21770,
-    "reclaimed": 21770,
-    "inevitable": 21770,
-    "Susheen": 21770,
-    "sushin": 21770,
-    "pop": 21770
+    "Sushin": 32246704,
+    "Sushi": 36853376,
+    "sushi": 46066720,
+    "lead": 18426688,
+    "Arbiter": 18426688,
+    "will": 18426688,
+    "Focus": 23033360,
+    "ground": 23033360,
+    "Sushi's": 9213344,
+    "clearance": 4606672,
+    "from": 4606672,
+    "the": 13820016,
+    "comes": 4606672,
+    "power": 4606672,
+    "could": 4606672,
+    "reclaimed": 4606672,
+    "inevitable": 4606672,
+    "Susheen": 4606672,
+    "sushin": 4606672,
+    "pop": 4606672
    },
    "unc_ref_tokens": {},
    "first": "2026-10-02",
-   "last": "2026-10-12",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -1868,7 +1802,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-02",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -1886,7 +1820,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-02",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -1905,7 +1839,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-02",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -1924,7 +1858,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-02",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -1942,7 +1876,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-02",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -1960,7 +1894,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-02",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -1979,7 +1913,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-05",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -1998,7 +1932,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-05",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -2021,7 +1955,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-05",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -2040,7 +1974,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-05",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -2060,7 +1994,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-05",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -2079,7 +2013,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-05",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -2098,7 +2032,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-05",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -2118,7 +2052,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-05",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -2137,7 +2071,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-05",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -2156,10 +2090,9 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-05",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
-   "sync": true,
-   "note": "2026-10-13 裁决：静态表已有正确键 月狐岁主希恩->岁主心月狐，KB 版产生月狐心月狐坏形，废"
+   "sync": true
   },
   "bi|Shin": {
    "wrong": "Shin",
@@ -2183,7 +2116,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-05",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -2202,7 +2135,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-05",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -2239,7 +2172,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-05",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -2262,7 +2195,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-05",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -2286,7 +2219,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-05",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -2304,7 +2237,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-05",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -2322,7 +2255,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-05",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -2340,7 +2273,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-05",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -2358,7 +2291,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-05",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -2376,7 +2309,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-05",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -2394,7 +2327,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-05",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -2412,7 +2345,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-05",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -2430,7 +2363,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-05",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -2448,7 +2381,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-05",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -2466,7 +2399,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-05",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -2484,7 +2417,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-05",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -2502,7 +2435,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-05",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -2520,7 +2453,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-05",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -2538,7 +2471,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-05",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -2556,7 +2489,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-05",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -2574,7 +2507,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-05",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -2592,7 +2525,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-05",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -2610,7 +2543,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-05",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -2628,7 +2561,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-05",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -2646,7 +2579,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-05",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -2664,7 +2597,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-05",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -2682,7 +2615,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-05",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -2700,7 +2633,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-05",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -2718,7 +2651,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-05",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -2736,7 +2669,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-05",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -2754,7 +2687,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-05",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -2772,7 +2705,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-05",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -2790,7 +2723,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-05",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -2808,7 +2741,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-05",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -2826,7 +2759,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-05",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -2844,7 +2777,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-05",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -2862,7 +2795,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-05",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -2880,7 +2813,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-05",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -2898,7 +2831,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-05",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -2916,7 +2849,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-05",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -2934,7 +2867,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-05",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -2953,7 +2886,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-05",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -2974,7 +2907,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-05",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -2997,7 +2930,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-05",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -3017,7 +2950,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-05",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -3036,7 +2969,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-05",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -3056,7 +2989,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-05",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -3079,7 +3012,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-05",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -3098,7 +3031,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-05",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -3117,7 +3050,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-05",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -3136,7 +3069,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-05",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -3156,7 +3089,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-05",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -3183,7 +3116,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-05",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -3202,7 +3135,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-05",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -3222,7 +3155,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-05",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -3246,14 +3179,14 @@
     ]
    ],
    "ref_tokens": {
-    "modern": 123,
-    "discussed": 123,
-    "fusion": 123,
-    "the": 123
+    "modern": 369,
+    "discussed": 369,
+    "fusion": 369,
+    "the": 369
    },
    "unc_ref_tokens": {},
    "first": "2026-10-05",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -3289,16 +3222,16 @@
     ]
    ],
    "ref_tokens": {
-    "Gingjo": 124020,
-    "and": 124020,
-    "the": 124020,
-    "future": 124020,
-    "Mongjo": 124020,
-    "rests": 24804
+    "Gingjo": 3720600,
+    "and": 3720600,
+    "the": 3720600,
+    "future": 3720600,
+    "Mongjo": 3720600,
+    "rests": 744120
    },
    "unc_ref_tokens": {},
    "first": "2026-10-05",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -3334,19 +3267,19 @@
     ]
    ],
    "ref_tokens": {
-    "want": 99216,
-    "Mongjo": 99216,
-    "have": 24804,
-    "dark": 24804,
-    "The": 24804,
-    "yet": 24804,
-    "currents": 24804,
-    "Mong": 24804,
-    "Joe": 24804
+    "want": 2976480,
+    "Mongjo": 2976480,
+    "have": 744120,
+    "dark": 744120,
+    "The": 744120,
+    "yet": 744120,
+    "currents": 744120,
+    "Mong": 744120,
+    "Joe": 744120
    },
    "unc_ref_tokens": {},
    "first": "2026-10-05",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -3395,24 +3328,24 @@
     ]
    ],
    "ref_tokens": {
-    "answer": 99216,
-    "know": 99216,
-    "best": 99216,
-    "Arbita": 99216,
-    "I'll": 99216,
-    "tell": 99216,
-    "Abiter": 124020,
-    "yours": 99216,
-    "that": 99216,
-    "plan": 99216,
-    "The": 24804,
-    "look": 24804,
-    "celebrations": 24804,
-    "are": 24804
+    "answer": 2976480,
+    "know": 2976480,
+    "best": 2976480,
+    "Arbita": 2976480,
+    "I'll": 2976480,
+    "tell": 2976480,
+    "Abiter": 3720600,
+    "yours": 2976480,
+    "that": 2976480,
+    "plan": 2976480,
+    "The": 744120,
+    "look": 744120,
+    "celebrations": 744120,
+    "are": 744120
    },
    "unc_ref_tokens": {},
    "first": "2026-10-05",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -3431,7 +3364,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-07",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -3495,27 +3428,27 @@
     ]
    ],
    "ref_tokens": {
-    "across": 124020,
-    "began": 124020,
-    "Mango": 223236,
-    "spreading": 124020,
-    "miasma": 124020,
-    "over": 24804,
-    "excuse": 24804,
-    "And": 24804,
-    "then": 24804,
-    "Joe": 24804,
-    "Act": 24804,
-    "Chapter": 24804,
-    "corruption": 24804,
-    "Shao": 24804,
-    "young": 24804,
-    "Chin": 24804,
-    "mean": 24804
+    "across": 3720600,
+    "began": 3720600,
+    "Mango": 6697080,
+    "spreading": 3720600,
+    "miasma": 3720600,
+    "over": 744120,
+    "excuse": 744120,
+    "And": 744120,
+    "then": 744120,
+    "Joe": 744120,
+    "Act": 744120,
+    "Chapter": 744120,
+    "corruption": 744120,
+    "Shao": 744120,
+    "young": 744120,
+    "Chin": 744120,
+    "mean": 744120
    },
    "unc_ref_tokens": {},
    "first": "2026-10-05",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -3551,18 +3484,18 @@
     ]
    ],
    "ref_tokens": {
-    "Swaming": 99216,
-    "sharing": 99216,
-    "you": 99216,
-    "Thank": 99216,
-    "for": 99216,
-    "that's": 24804,
-    "Swaming's": 24804,
-    "Wait": 24804
+    "Swaming": 2976480,
+    "sharing": 2976480,
+    "you": 2976480,
+    "Thank": 2976480,
+    "for": 2976480,
+    "that's": 744120,
+    "Swaming's": 744120,
+    "Wait": 744120
    },
    "unc_ref_tokens": {},
    "first": "2026-10-05",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -3585,7 +3518,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-07",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -3604,7 +3537,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-07",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -3624,7 +3557,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-07",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -3647,7 +3580,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-07",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -3666,7 +3599,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-07",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -3693,10 +3626,9 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-07",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
-   "sync": true,
-   "note": "2026-10-13 本片裁决：普通词/子串级联误改，废"
+   "sync": true
   },
   "bi|总统露西拉，": {
    "wrong": "总统露西拉，",
@@ -3713,7 +3645,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-07",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -3733,7 +3665,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-07",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -3753,7 +3685,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-07",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -3772,7 +3704,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-07",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -3791,7 +3723,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-07",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -3811,7 +3743,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-07",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -3830,7 +3762,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-07",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -3850,10 +3782,9 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-07",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
-   "sync": true,
-   "note": "2026-10-13 本片裁决：普通词/子串级联误改，废"
+   "sync": true
   },
   "bi|休斯": {
    "wrong": "休斯",
@@ -3871,7 +3802,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-07",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -3891,7 +3822,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-07",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -3910,7 +3841,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-07",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -3956,7 +3887,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-07",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -4052,7 +3983,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-07",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -4077,7 +4008,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-07",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -4096,7 +4027,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-07",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -4115,7 +4046,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-07",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -4134,7 +4065,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-07",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -4153,7 +4084,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-07",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -4172,7 +4103,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-08",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -4191,7 +4122,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-08",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -4210,7 +4141,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-08",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -4230,7 +4161,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-08",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -4250,7 +4181,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-08",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -4272,7 +4203,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-09",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -4290,7 +4221,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-10",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -4308,7 +4239,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-10",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -4326,7 +4257,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-10",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -4344,7 +4275,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-10",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -4362,7 +4293,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-10",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -4380,7 +4311,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-10",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -4398,7 +4329,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-10",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -4416,7 +4347,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-10",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -4434,7 +4365,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-10",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -4452,7 +4383,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-10",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -4470,7 +4401,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-10",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -4488,7 +4419,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-10",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -4506,7 +4437,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-10",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -4524,7 +4455,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-10",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -4542,7 +4473,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-10",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -4560,7 +4491,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-10",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -4578,7 +4509,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-10",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -4596,7 +4527,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-10",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -4614,7 +4545,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-10",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -4632,7 +4563,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-10",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -4650,7 +4581,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-10",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -4668,7 +4599,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-10",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -4686,7 +4617,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-10",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -4704,7 +4635,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-10",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -4722,7 +4653,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-10",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -4740,7 +4671,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-10",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -4758,7 +4689,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-10",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -4776,25 +4707,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-10",
-   "last": "2026-10-13",
-   "alts": {},
-   "sync": true
-  },
-  "bi|做了很多": {
-   "wrong": "做了很多",
-   "right": "做得更",
-   "mode": "bi",
-   "count": 2,
-   "uncorrected": 0,
-   "status": "rejected",
-   "cues": [
-    150
-   ],
-   "samples": [],
-   "ref_tokens": {},
-   "unc_ref_tokens": {},
-   "first": "2026-10-10",
-   "last": "2026-10-12",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -4812,7 +4725,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-10",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -4830,7 +4743,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-10",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -4848,7 +4761,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-10",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -4866,7 +4779,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-10",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -4884,7 +4797,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-10",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -4902,7 +4815,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-10",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -4920,7 +4833,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-10",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -4938,7 +4851,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-10",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -4956,7 +4869,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-10",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -4974,7 +4887,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-10",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -4992,7 +4905,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-10",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -5010,7 +4923,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-10",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -5028,7 +4941,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-10",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -5046,7 +4959,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-10",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -5064,7 +4977,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-10",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -5082,7 +4995,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-10",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -5100,7 +5013,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-10",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -5118,7 +5031,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-10",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -5136,7 +5049,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-10",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -5154,7 +5067,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-10",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -5172,7 +5085,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-10",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -5190,7 +5103,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-10",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -5208,7 +5121,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-10",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -5226,7 +5139,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-10",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -5244,7 +5157,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-10",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -5262,7 +5175,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-10",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -5280,7 +5193,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-10",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -5298,7 +5211,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-10",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -5316,7 +5229,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-10",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -5334,7 +5247,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-10",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -5352,7 +5265,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-10",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -5370,7 +5283,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-10",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -5388,7 +5301,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-10",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -5406,7 +5319,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-10",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -5424,7 +5337,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-10",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -5442,7 +5355,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-10",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -5460,7 +5373,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-10",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -5478,7 +5391,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-10",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -5496,7 +5409,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-10",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -5514,7 +5427,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-10",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -5532,7 +5445,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-10",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -5550,7 +5463,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-10",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -5568,7 +5481,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-10",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -5586,7 +5499,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-10",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -5604,7 +5517,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-10",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -5622,7 +5535,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-10",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -5640,7 +5553,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-10",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -5658,7 +5571,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-10",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -5676,7 +5589,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-10",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -5694,7 +5607,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-10",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -5712,7 +5625,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-10",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -5730,7 +5643,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-10",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -5748,7 +5661,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-10",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -5766,7 +5679,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-10",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -5784,7 +5697,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-10",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -5802,7 +5715,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-10",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -5820,7 +5733,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-10",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -5838,10 +5751,9 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-10",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
-   "sync": true,
-   "note": "2026-10-13 本片裁决：普通词/子串级联误改，废"
+   "sync": true
   },
   "bi|我很高兴听到": {
    "wrong": "我很高兴听到",
@@ -5857,7 +5769,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-10",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -5875,7 +5787,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-10",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -5893,7 +5805,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-10",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -5911,7 +5823,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-10",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -5929,7 +5841,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-10",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -5947,7 +5859,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-10",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -5965,7 +5877,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-10",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -5983,7 +5895,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-10",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -6001,7 +5913,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-10",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -6019,7 +5931,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-10",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -6037,7 +5949,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-10",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -6055,7 +5967,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-10",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -6073,7 +5985,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-10",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -6091,7 +6003,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-10",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -6109,7 +6021,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-10",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -6127,7 +6039,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-10",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -6145,7 +6057,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-10",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -6163,7 +6075,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-10",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -6181,7 +6093,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-10",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -6199,7 +6111,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-10",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -6217,7 +6129,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-10",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -6235,7 +6147,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-10",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -6253,7 +6165,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-10",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -6271,7 +6183,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-10",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -6289,7 +6201,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-10",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -6307,7 +6219,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-10",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -6325,7 +6237,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-10",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -6343,7 +6255,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-10",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -6361,7 +6273,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-10",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -6379,7 +6291,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-10",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -6397,7 +6309,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-10",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -6415,7 +6327,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-10",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -6433,7 +6345,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-10",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -6451,7 +6363,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-10",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -6469,7 +6381,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-10",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -6487,7 +6399,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-10",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -6505,7 +6417,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-10",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -6523,7 +6435,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-10",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -6541,7 +6453,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-10",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -6559,7 +6471,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-10",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -6577,7 +6489,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-10",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -6595,7 +6507,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-10",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -6613,7 +6525,43 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-10",
-   "last": "2026-10-13",
+   "last": "2026-10-14",
+   "alts": {},
+   "sync": true
+  },
+  "bi|懂得道德": {
+   "wrong": "懂得道德",
+   "right": "理解了寓意：",
+   "mode": "bi",
+   "count": 2,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    192
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-10-10",
+   "last": "2026-10-14",
+   "alts": {},
+   "sync": true
+  },
+  "bi|有多种方法可以选择": {
+   "wrong": "有多种方法可以选择",
+   "right": "有办法可以选择",
+   "mode": "bi",
+   "count": 2,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    204
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-10-10",
+   "last": "2026-10-14",
    "alts": {},
    "sync": true
   },
@@ -6633,6 +6581,34 @@
    "unc_ref_tokens": {},
    "first": "2026-10-02",
    "last": "2026-10-05",
+   "alts": {},
+   "sync": true
+  },
+  "bi|骑士": {
+   "wrong": "骑士",
+   "right": "明日方舟",
+   "mode": "bi",
+   "count": 14,
+   "uncorrected": 0,
+   "status": "rejected",
+   "cues": [
+    13,
+    149,
+    466,
+    9,
+    18,
+    117,
+    168,
+    170,
+    251,
+    447,
+    479
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-10-02",
+   "last": "2026-10-12",
    "alts": {},
    "sync": true
   },
@@ -15123,8 +15099,25 @@
    "first": "2026-10-10",
    "last": "2026-10-11",
    "alts": {},
-   "sync": true,
-   "note": "2026-10-13 本片裁决：普通词/子串级联误改，废"
+   "sync": true
+  },
+  "bi|做了很多": {
+   "wrong": "做了很多",
+   "right": "做得更",
+   "mode": "bi",
+   "count": 2,
+   "uncorrected": 0,
+   "status": "rejected",
+   "cues": [
+    150
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-10-10",
+   "last": "2026-10-12",
+   "alts": {},
+   "sync": true
   }
  }
 }
