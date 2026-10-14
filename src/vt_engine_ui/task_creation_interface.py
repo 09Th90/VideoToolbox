@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+# @version 2.1.0
 """自研「任务创建」页。
 
 视觉与行为对齐既有引擎工作台的任务创建页，并把原本运行期打上的两处补丁
@@ -10,17 +11,18 @@
     字幕文件——命中字幕就地收下并提示，其余一律走原「媒体文件」逻辑。
 
 对外暴露的属性/信号（``search_input`` / ``status_label`` / ``info_label`` /
-``donate_button`` / ``logo_label`` / ``main_layout`` / ``finished`` / ``dropEvent``
-/ ``setup_ui``）与引擎同名同义，宿主的实例级整形与拖放分派因此无需改动。
+``donate_button`` / ``logo_label`` / ``main_layout`` / ``finished`` / ``url_detected``
+/ ``ai_requested`` / ``dropEvent`` / ``setup_ui``）与引擎同名同义，宿主的实例级
+整形与拖放分派因此无需改动。
 """
 from __future__ import annotations
 
 import os
 from urllib.parse import urlparse
 
-from PyQt5.QtCore import QStandardPaths, Qt, QTimer, pyqtSignal
-from PyQt5.QtGui import QPixmap, QTextCursor
-from PyQt5.QtWidgets import (
+from PySide6.QtCore import QStandardPaths, Qt, QTimer, Signal
+from PySide6.QtGui import QPixmap, QTextCursor
+from PySide6.QtWidgets import (
     QFileDialog,
     QHBoxLayout,
     QLabel,
@@ -46,6 +48,19 @@ from . import _seams
 
 # 字幕扩展名（与宿主 video_toolbox_qt.SUBTITLE_EXTS 一致）
 SUBTITLE_EXTS = {".srt", ".ass", ".ssa", ".vtt", ".sub", ".smi", ".sbv", ".lrc"}
+
+
+def _harness_ready() -> bool:
+    """harness（AI 托管引擎）是否部署就绪。
+
+    惰性 import + 全异常兜底：harness_bridge 只依赖标准库，但即便它因任何
+    原因导入失败，这里也只返回 False——任务创建页的行为与从前完全一致。
+    """
+    try:
+        import harness_bridge
+        return harness_bridge.available()
+    except Exception:  # noqa: BLE001
+        return False
 
 
 class LogWindow(QWidget):
@@ -165,9 +180,27 @@ class LogWindow(QWidget):
 
 
 class TaskCreationInterface(QWidget):
-    """任务创建页（自研）。"""
+    """任务创建页（自研）。
 
-    finished = pyqtSignal(str)
+    v2.1.0 起本页同时是**应用首页**（宿主把它从工作台分段里摘出来挂到
+    导航第一项），所以除了「拖文件建任务」，还多了一件事：**识别网页链接
+    并交给宿主的「视频下载」页**（见 ``url_detected`` 信号）。
+
+    链接识别放宽到「用户真的那么粘」的程度——分享文案整段、漏协议头
+    （``www.bilibili.com/...``）、带引号、结尾粘了中文标点都能认；判不准
+    就当没有（弹原提示），绝不猜。
+    """
+
+    finished = Signal(str)
+    #: 输入框里识别出一个网页链接。宿主（``video_toolbox_qt``）接它 →
+    #: 跳到「视频处理 / 视频下载」并把链接填进去。**本页不再自己下载**：
+    #: 宿主的下载页有画质选择 / 并行队列 / 中止 / 代理 / 字幕打包，
+    #: 引擎那套 VideoDownloadThread 只有裸下一条，能力完全被覆盖。
+    url_detected = Signal(str)
+    #: v2.1.0：harness 就绪、且用户输入的是**纯文本**（不是文件也不是链接）
+    #: 时不弹「格式错误」，改走 AI 托管（宿主接它 → 跳「AI 托管」页开跑）。
+    #: harness 未部署时 :func:`process` 压根不会发这个信号，行为与从前一致。
+    ai_requested = Signal(str)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -227,7 +260,10 @@ class TaskCreationInterface(QWidget):
         self.search_layout = QHBoxLayout()
         self.search_layout.setContentsMargins(80, 0, 80, 0)
         self.search_input = LineEdit(self)
-        self.search_input.setPlaceholderText(self.tr("请拖拽文件或输入视频URL"))
+        self.search_input.setPlaceholderText(
+            self.tr("请拖拽文件、粘贴视频链接，或输入要做的事（AI 托管）")
+            if _harness_ready()
+            else self.tr("请拖拽文件，或粘贴视频链接（自动识别整段分享文案）"))
         self.search_input.setFixedHeight(40)
         self.search_input.setClearButtonEnabled(True)
         self.search_input.focusOutEvent = lambda e: super(
@@ -334,6 +370,8 @@ class TaskCreationInterface(QWidget):
     def setup_signals(self):
         self.start_button.clicked.connect(self.on_start_clicked)
         self.search_input.textChanged.connect(self.on_search_input_changed)
+        # 回车 = 点右侧按钮（输入框为空时回车等同「打开文件选择」，与按钮一致）
+        self.search_input.returnPressed.connect(self.on_start_clicked)
         self.log_button.clicked.connect(self.show_log_window)
         self.donate_button.clicked.connect(self.show_donate_dialog)
 
@@ -422,27 +460,19 @@ class TaskCreationInterface(QWidget):
         self.finished.emit(file_path)
 
     def _process_url(self, url):
-        const = _seams.constants
-        try:
-            cookiefile_path = _seams.vc_config.APPDATA_PATH / "cookies.txt"
-            if not cookiefile_path.exists():
-                InfoBar.warning(
-                    self.tr("警告"),
-                    self.tr("建议根据文档配置cookies.txt文件，以可以下载高清视频"),
-                    duration=const.INFOBAR_DURATION_WARNING, parent=self)
-        except Exception:  # noqa: BLE001
-            pass
-        work_dir = str(_seams.cfg.work_dir.value)
-        self.video_download_thread = _seams.threads.VideoDownloadThread(url, work_dir)
-        self.video_download_thread.finished.connect(self.on_video_download_finished)
-        self.video_download_thread.progress.connect(self.on_create_task_progress)
-        self.video_download_thread.error.connect(self.on_create_task_error)
-        self.video_download_thread.start()
-        InfoBar.info(
-            self.tr("开始下载"), self.tr("开始下载视频..."),
-            duration=const.INFOBAR_DURATION_INFO, parent=self)
+        """识别到网页链接 → 交给宿主跳「视频下载」（v2.1.0）。
+
+        原实现在这里起 ``VideoDownloadThread`` 把视频下一条、再 emit
+        ``finished`` 进转录链路。自研化后不再这么做：那条链路没有画质
+        选择、没有并行队列、没有中止、没有代理兜底，而宿主下载页全都有，
+        且下载完带字幕打包与信息 txt。**下载归下载页，建任务归本页**——
+        用户粘链接时的意图本来就是「下载」，顺手在下载页把画质选好更符合。
+        """
+        self.url_detected.emit(url)
 
     def on_video_download_finished(self, video_file_path):
+        """兼容钩子：宿主若仍接 ``on_video_download_finished``（例如引擎回退
+        路径），行为不变。本页不再自行下载，正常路径不会走到这里。"""
         const = _seams.constants
         if video_file_path:
             self.finished.emit(video_file_path)
@@ -475,15 +505,31 @@ class TaskCreationInterface(QWidget):
             self.search_input.setText(self.task.file_path)
 
     def process(self):
-        search_input = self.search_input.text()
-        if os.path.isfile(search_input):
-            self._process_file(search_input)
-        elif self._is_valid_url(search_input):
-            self._process_url(search_input)
-        else:
-            InfoBar.error(
-                self.tr("错误"), self.tr("请输入音视频文件路径或URL"),
-                duration=_seams.constants.INFOBAR_DURATION_ERROR, parent=self)
+        """入口：本地文件 → 建任务；网页链接 → 跳下载页；纯文本 → AI 托管。
+
+        顺序要紧：``os.path.isfile`` 先判，否则 ``C:\\videos\\a.mp4`` 这种
+        路径会被链接识别当成裸域名（``extract_web_url`` 已挡掉反斜杠与
+        数字末段，但先判文件更省事也更保险）。最后的兜底也不是从前那个
+        「格式错误」了——v2.1.0 起 harness 就绪时，纯文本交给 AI 托管
+        （``ai_requested``）；harness 不在场才弹原来的错误提示。
+        """
+        raw = self.search_input.text()
+        text = (raw or "").strip()
+        if text and os.path.isfile(text):
+            self._process_file(text)
+            return
+        # 链接识别放宽到分享文案整段 / 漏协议头 / 带引号 / 尾部标点
+        url = _seams.extract_web_url(raw)
+        if url:
+            self.search_input.setText(url)
+            self._process_url(url)
+            return
+        if text and _harness_ready():
+            self.ai_requested.emit(text)
+            return
+        InfoBar.error(
+            self.tr("错误"), self.tr("请输入音视频文件路径或URL"),
+            duration=_seams.constants.INFOBAR_DURATION_ERROR, parent=self)
 
     def show_log_window(self):
         if self.log_window is None:

@@ -199,3 +199,8 @@ wuwa_explore_tales_compare.tsv
 wuwa_explore_tales_side_compare.tsv
 # 校准脚本的人工备份（当前版本始终在 subtitle_calib_merged.py）
 subtitle_calib_merged.py.bak_*
+
+# AI 托管引擎（deepseek-harness 独立部署文件夹）：第三方原件、内部文件零改动，
+# 升级 = 整目录替换；不进 git（含 node_modules/构建产物）。
+# 部署/升级步骤见 docs/AI托管_部署与排障.md 与 scripts/dev/deploy_harness.ps1
+/harness/

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.0.0
+# @version 2.1.0
 """字幕编辑页的「内嵌字幕」：把当前字幕挂成视频的一条独立轨道，不重新编码。
 
 （原引擎工作台「字幕视频合成」那一段搬到编辑页，并按需求收窄为"只内嵌"。）
@@ -33,8 +33,8 @@ import sys
 import tempfile
 import threading
 
-from PyQt5.QtCore import pyqtSignal
-from PyQt5.QtWidgets import (QDialog, QFileDialog, QGridLayout, QHBoxLayout,
+from PySide6.QtCore import Signal
+from PySide6.QtWidgets import (QDialog, QFileDialog, QGridLayout, QHBoxLayout,
                              QLabel, QLineEdit, QVBoxLayout)
 from qfluentwidgets import (InfoBar, InfoBarPosition, PrimaryPushButton,
                             ProgressBar, PushButton, RadioButton, isDarkTheme)
@@ -161,13 +161,13 @@ class ComposeDialog(QDialog):
 
     ⚠️ 信号名不能叫 `done` / `progress` 之类与 Qt 基类重名的东西：
     `QDialog` 自带 `done(int)`（accept/reject 内部都走它），一旦在子类里用
-    `done = pyqtSignal(...)` 盖掉同名成员，sip 的元对象就和 C++ 侧错位，
+    `done = Signal(...)` 盖掉同名成员，sip 的元对象就和 C++ 侧错位，
     表现为**关闭对话框时进程直接崩掉**（Windows 上 exit code 0xC0000409，
     Python 层看不到任何 traceback）。这个坑踩过一次，别再改回去。
     """
 
-    progress_changed = pyqtSignal(int)     # 0-100
-    compose_done = pyqtSignal(bool, str)   # (成功?, 末尾日志/错误)
+    progress_changed = Signal(int)     # 0-100
+    compose_done = Signal(bool, str)   # (成功?, 末尾日志/错误)
 
     def __init__(self, page, parent=None):
         super().__init__(parent or page.window())

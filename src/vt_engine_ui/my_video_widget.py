@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+# @version 2.1.0
 """视频预览弹窗（可选能力，惰性代理到引擎实现）。
 
 本 UI 层不重写视频预览控件：它依赖 ``vlc`` + qfluentwidgets 多媒体播放条（均为
@@ -22,7 +23,7 @@ def MyVideoWidget(parent=None):
             super().__init__(p)
             self.setWindowTitle("视频预览")
             try:
-                from PyQt5.QtWidgets import QApplication
+                from PySide6.QtWidgets import QApplication
                 icon = QApplication.windowIcon()
                 if not icon.isNull():
                     self.setWindowIcon(icon)

@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+# @version 2.1.0
 """自研字幕工作台 UI 的**后端接缝层**（single adapter）。
 
 本包（``vt_engine_ui``）只负责「UI 视觉层」——即规格文档 P3 / 档 C 的自研化。
@@ -25,7 +26,7 @@ __all__ = [
     "cfg", "signal_bus", "TaskFactory", "entities", "constants", "vc_config",
     "platform_utils", "subtitle_style", "translate_types", "ASRData", "threads",
     "apply_asr_to_engine", "voiceprint_enabled_names", "voiceprint_filter_subtitle",
-    "ai_mod", "ai_load_config", "vc_log",
+    "ai_mod", "ai_load_config", "vc_log", "extract_web_url",
     "TM_DISPLAY_DEFAULT", "TM_DISPLAY_ASR",
     "VoiceprintEnrollCard", "VoiceprintPicker",
     "backend_available", "backend_error",
@@ -193,6 +194,15 @@ def ai_mod():
 
 def ai_load_config():
     return _bk.engine_mod.ai_load_config()
+
+
+def extract_web_url(text):
+    """网页链接识别（宽松：分享文案整段 / 漏协议头 / 带引号 / 尾部标点）。
+
+    纯函数在本项目自研引擎里（``video_toolbox.extract_web_url``）——UI 包不
+    自己实现一份，避免同一套判据在两处漂移。
+    """
+    return _bk.engine_mod.extract_web_url(text)
 
 
 def vc_log(msg):

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# @version 2.0.0
+# @version 2.1.0
 """
 视频工具箱 v1.12.0（单文件整合版）
 ==================================================
@@ -80,7 +80,7 @@ v1.10.2：字幕引擎改为内嵌——不再唤起独立窗口，「字幕处�
   内容滚动」，窗口尺寸按屏幕自适应，高分屏矢量渲染；随包 wheel 与独立进程
   唤起链路（launch_vc_gui / vc_install_from_wheel）移除。
 v1.10.1：① 界面整体重写为 Fluent 风格（FluentWindow +
-  左侧导航 + 卡片分组，PyQt5 + PyQt-Fluent-Widgets），原 tkinter 界面退役；
+  左侧导航 + 卡片分组，PySide6 + PySide6-Fluent-Widgets），原 tkinter 界面退役；
   ② 移除「B站投稿」板块及其 Playwright 引擎（tools/uploader_src、tools/ms-playwright
   不再随包分发），AI 客户端独立为 tools/ai_client.py 供字幕语言识别继续使用；
   ③ 修复：直接运行构建产物时找不到 tools/python 的问题（向上逐级查找）。
@@ -248,6 +248,41 @@ def _resolve_tools_dir():
 TOOLS_DIR = _resolve_tools_dir()
 SRC_DIR = os.path.join(APP_DIR, "src")
 DOCS_DIR = os.path.join(APP_DIR, "docs")
+
+
+def app_icon_path():
+    r"""定位应用图标（ico）：冻结态优先读 PyInstaller 解压目录。
+
+    v2.1.0 引入。此前程序**完全没有窗口图标**——exe 文件本身也没有
+    （spec 的 ``EXE(icon=...)`` 是这次才加的），任务栏与资源管理器全是
+    默认的空白 exe 图标。
+
+    三处候选，依次回退：
+      1. ``sys._MEIPASS/assets``：onefile 冻结态，spec 的 ``datas`` 收进来的
+         那一份。**必须用 _MEIPASS 而不能用 APP_DIR**——冻结后 exe 旁边
+         只有 exe，``assets\`` 并不在磁盘上。
+      2. ``APP_DIR/assets``：安装版（iss 把 assets 装到程序目录）——注意
+         安装版里这一份其实用不上（窗口图标可从 exe 资源段直接取），留着
+         是为了万一将来走"装了就散装"的形态时也能用。
+      3. ``APP_DIR/assets`` 的父目录再找一次：源码态 ``APP_DIR`` 是仓库根，
+         图标就在 ``assets/`` 下；这一条主要是为开发时从别处启动兜底。
+    找不到就返回 ``""``——**绝不抛异常**：图标缺失只是少个图，不能因此
+    让程序起不来。
+    """
+    candidates = []
+    meipass = getattr(sys, "_MEIPASS", None)
+    if meipass:
+        candidates.append(os.path.join(meipass, "assets", "app_icon.ico"))
+    candidates.append(os.path.join(APP_DIR, "assets", "app_icon.ico"))
+    candidates.append(
+        os.path.join(os.path.dirname(APP_DIR), "assets", "app_icon.ico"))
+    for p in candidates:
+        try:
+            if p and os.path.isfile(p):
+                return p
+        except Exception:  # noqa: BLE001
+            continue
+    return ""
 
 # ===== 数据根目录（v1.10.6：运行期产物一律落此，不回写系统盘）=====
 # 设计目标：程序运行中产生的全部文件（配置/下载/缓存/日志/临时文件/字幕引擎
@@ -497,9 +532,9 @@ def vc_importable():
 
 
 def vc_missing_deps():
-    """引擎界面运行所需依赖缺哪些（PyQt5 / qfluentwidgets）；齐全返回空列表。"""
+    """引擎界面运行所需依赖缺哪些（PySide6 / qfluentwidgets）；齐全返回空列表。"""
     import importlib.util
-    need = {"PyQt5": "PyQt5", "qfluentwidgets": "PyQt-Fluent-Widgets"}
+    need = {"PySide6": "PySide6", "qfluentwidgets": "PySide6-Fluent-Widgets"}
     return [pip_name for mod, pip_name in need.items()
             if importlib.util.find_spec(mod) is None]
 
@@ -1145,7 +1180,7 @@ def vc_transcribe_ui_patch():
         from videocaptioner.ui.common.config import cfg as _cfg
         from qfluentwidgets import (Action, BodyLabel, FluentIcon, InfoBar,
                                     InfoBarPosition, PushButton, RoundMenu)
-        from PyQt5.QtWidgets import QVBoxLayout as _QVBox
+        from PySide6.QtWidgets import QVBoxLayout as _QVBox
     except Exception as e:  # noqa: BLE001
         _vc_log(f"转录 UI 补丁导入失败：{e}")
         return False
@@ -1284,7 +1319,7 @@ def vc_transcribe_ui_patch():
             w = w.parent()
         # 兜底：宿主窗口里扫一遍（parent 链被重挂接打断时仍能找到）
         try:
-            from PyQt5.QtWidgets import QApplication, QWidget as _QWidget
+            from PySide6.QtWidgets import QApplication, QWidget as _QWidget
             for tl in QApplication.topLevelWidgets():
                 if getattr(tl, "subtitle_optimization_interface", None) is not None:
                     return tl
@@ -1330,13 +1365,13 @@ def vc_transcribe_ui_patch():
         连带销毁，表现为"进度条一闪、什么都没发生"。
         """
         try:
-            # ⚠ `pyqtSignal` 必须在这里导入：本补丁函数只 import 了
-            #   QVBoxLayout / BodyLabel 等，没带 pyqtSignal。漏了会抛
-            #   `name 'pyqtSignal' is not defined`，而它被外层 try 吞进
+            # ⚠ `Signal` 必须在这里导入：本补丁函数只 import 了
+            #   QVBoxLayout / BodyLabel 等，没带 Signal。漏了会抛
+            #   `name 'Signal' is not defined`，而它被外层 try 吞进
             #   logs\vc_fallback.log —— 界面上表现就是"什么都没发生"
             #   （v1.18.0 实测踩过：转录完既不筛也不提示）。
-            from PyQt5.QtCore import QThread as _QThread
-            from PyQt5.QtCore import pyqtSignal as _pyqtSignal
+            from PySide6.QtCore import QThread as _QThread
+            from PySide6.QtCore import Signal as _Signal
         except Exception:  # noqa: BLE001
             return False
 
@@ -1349,7 +1384,7 @@ def vc_transcribe_ui_patch():
             bar = None
 
         class _VpWorker(_QThread):
-            done = _pyqtSignal(object)
+            done = _Signal(object)
 
             def run(self):
                 try:
@@ -4967,7 +5002,7 @@ def _patch_video_widget(MyVideoWidget):
         # 视频预览弹出窗口：标题与图标跟随宿主，去除上游品牌
         self.setWindowTitle("视频预览")
         try:
-            from PyQt5.QtWidgets import QApplication
+            from PySide6.QtWidgets import QApplication
             icon = QApplication.windowIcon()
             if not icon.isNull():
                 self.setWindowIcon(icon)
@@ -6140,6 +6175,20 @@ def browser_cookie_probe(browser=None, timeout=30):
 
     返回 `(可用, 说明)`。
     """
+    ok, _key, why = _browser_cookie_probe_raw(browser, timeout)
+    return ok, why
+
+
+def _browser_cookie_probe_raw(browser=None, timeout=30):
+    """同 `browser_cookie_probe`，但额外把**失败类别**透出来。
+
+    返回 `(可用, 失败键, 说明)`；失败键 ∈ `""` / `"could not copy"` /
+    `"failed to decrypt"` / `"could not find"` / `"probe"`。
+
+    为什么要多返一个键：`browser_cookie_probe` 给的是**中文文案**，拿它做分类
+    只能靠字符串匹配中文，一改文案就失效（踩过）；分类判据必须钉在 yt-dlp 的
+    英文原文上。`browser_cookie_diagnose` 用这个版本。
+    """
     br = browser or cookie_browser()
     try:
         r = run_process([ensure_ytdlp(), "--cookies-from-browser", br,
@@ -6147,11 +6196,347 @@ def browser_cookie_probe(browser=None, timeout=30):
                         capture_output=True, timeout=timeout)
         out = (decode_bytes_any(r.stdout) + decode_bytes_any(r.stderr)).lower()
     except Exception as e:  # noqa: BLE001
-        return False, f"探测失败：{type(e).__name__}"
+        return False, "probe", f"探测失败：{type(e).__name__}"
     for key, why in _BROWSER_COOKIE_FAILS:
         if key in out:
-            return False, f"{br}：{why}"
-    return True, f"{br} 登录态可读"
+            return False, key, f"{br}：{why}"
+    return True, "", f"{br} 登录态可读"
+
+
+#: yt-dlp 读不出浏览器 cookie 库的输出特征（与网络无关，重试同参数永远失败）
+_COOKIE_LOAD_FAIL_KEYS = (
+    "could not copy",            # #7271：浏览器开着，cookie 库被独占锁
+    "could not find",            # 找不到 cookie 库（未安装 / 从未登录）
+    "failed to decrypt",         # App-Bound / DPAPI 解不开
+    "no encrypted key",
+    "cookie database",
+)
+
+
+def cookie_load_failure_reason(text):
+    """yt-dlp 输出是否属「浏览器 cookie 读不出来」。是则返回中文原因，否则 ''。
+
+    这类失败跟站点风控/网络都无关，**换 cookie 来源才能继续**——所以调用方
+    应当失效 cookie 缓存、重新解析来源后重试，而不是退避重试同一套参数。
+    """
+    low = str(text or "").lower()
+    if not any(k in low for k in _COOKIE_LOAD_FAIL_KEYS):
+        return ""
+    for key, why in _BROWSER_COOKIE_FAILS:
+        if key in low:
+            return why
+    return "浏览器 cookie 库读取失败"
+
+
+#: 各浏览器「用户数据目录」（与 yt-dlp `_get_chromium_based_browser_settings` 同源）
+_BROWSER_USER_DATA = {
+    "chrome": r"%LOCALAPPDATA%\Google\Chrome\User Data",
+    "edge": r"%LOCALAPPDATA%\Microsoft\Edge\User Data",
+    "chromium": r"%LOCALAPPDATA%\Chromium\User Data",
+    "brave": r"%LOCALAPPDATA%\BraveSoftware\Brave-Browser\User Data",
+    "vivaldi": r"%LOCALAPPDATA%\Vivaldi\User Data",
+    "whale": r"%LOCALAPPDATA%\Naver\Naver Whale\User Data",
+    "opera": r"%APPDATA%\Opera Software\Opera Stable",
+}
+#: 各浏览器可执行文件的候选路径（按顺序取第一个存在的）
+_BROWSER_EXE = {
+    "chrome": (r"%PROGRAMFILES%\Google\Chrome\Application\chrome.exe",
+               r"%PROGRAMFILES(X86)%\Google\Chrome\Application\chrome.exe",
+               r"%LOCALAPPDATA%\Google\Chrome\Application\chrome.exe"),
+    "edge": (r"%PROGRAMFILES(X86)%\Microsoft\Edge\Application\msedge.exe",
+             r"%PROGRAMFILES%\Microsoft\Edge\Application\msedge.exe"),
+    "chromium": (r"%PROGRAMFILES%\Chromium\Application\chrome.exe",
+                 r"%LOCALAPPDATA%\Chromium\Application\chrome.exe"),
+    "brave": (r"%PROGRAMFILES%\BraveSoftware\Brave-Browser\Application\brave.exe",
+              r"%LOCALAPPDATA%\BraveSoftware\Brave-Browser\Application\brave.exe"),
+    "vivaldi": (r"%LOCALAPPDATA%\Vivaldi\Application\vivaldi.exe",),
+    "whale": (r"%PROGRAMFILES%\Naver\Naver Whale\Application\whale.exe",
+              r"%LOCALAPPDATA%\Naver\Naver Whale\Application\whale.exe"),
+    "opera": (r"%LOCALAPPDATA%\Programs\Opera\opera.exe",
+              r"%PROGRAMFILES%\Opera\opera.exe"),
+}
+
+
+def browser_user_data_dir(browser=None):
+    """浏览器「用户数据目录」绝对路径（不存在时也返回路径，供上层判断）。"""
+    br = browser or cookie_browser()
+    p = _BROWSER_USER_DATA.get(br)
+    return os.path.expandvars(p) if p else ""
+
+
+def browser_exe_path(browser=None):
+    """浏览器可执行文件路径；找不到返回 ""。"""
+    br = browser or cookie_browser()
+    for p in _BROWSER_EXE.get(br, ()):
+        p = os.path.expandvars(p)
+        if os.path.isfile(p):
+            return p
+    return ""
+
+
+def browser_app_bound_enabled(browser=None):
+    """浏览器是否启用了 App-Bound 加密（cookie 值前缀 `v20`）。
+
+    判据：`Local State` 的 `os_crypt.app_bound_encrypted_key` 存在。这是
+    「yt-dlp 解不开」的根因标志（见 `browser_cookie_diagnose`）。
+    """
+    base = browser_user_data_dir(browser)
+    if not base:
+        return False
+    try:
+        with open(os.path.join(base, "Local State"), encoding="utf-8") as f:
+            oc = (json.load(f) or {}).get("os_crypt") or {}
+        return bool(oc.get("app_bound_encrypted_key"))
+    except Exception:  # noqa: BLE001
+        return False
+
+
+def browser_cookie_diagnose(browser=None):
+    """浏览器登录态可读性诊断：返回 `(verdict, 说明)`。
+
+    verdict ∈ `ok` / `locked` / `appbound` / `missing` / `unknown`。
+
+    ⚠️ 2026-10-14 实测结论（本机 Edge 155 / Chrome 155，Windows）：
+    Chrome / Edge 已全面启用 **App-Bound 加密**（cookie 值前缀 `v20`，
+    `meta.version=24`，`Local State` 带 `os_crypt.app_bound_encrypted_key`）。
+    而 yt-dlp 2026.08.19 的 `WindowsChromeCookieDecryptor.decrypt` **只认 `v10`**，
+    其它前缀一律当成 DPAPI 去解 → `Failed to decrypt with DPAPI`
+    （yt-dlp #10927）→ 直接 `DownloadError` 判死任务。
+
+    ⇒ **现代 Chrome/Edge 的登录态，yt-dlp 根本读不出来，跟浏览器开不开无关。**
+    真正可用的只有两条路：
+      ① `export_browser_cookies_via_cdp()`——让浏览器自己解密后经 CDP 吐明文；
+      ② 浏览器扩展导出 cookies.txt。
+    """
+    br = browser or cookie_browser()
+    base = browser_user_data_dir(br)
+    if not base or not os.path.isdir(base):
+        return "missing", f"没找到 {br} 的用户数据目录（未安装，或从未运行过）"
+
+    ok, key, why = _browser_cookie_probe_raw(br)
+    if ok:
+        return "ok", f"{br} 登录态可读，可直接使用"
+    if key == "could not copy":
+        return "locked", (
+            f"{br} 正在运行 → cookie 库被独占锁，yt-dlp 读不出来"
+            f"（yt-dlp #7271；实测 `FILE_SHARE_READ|WRITE|DELETE` 也开不了）。"
+            f"两条路：① 完全退出 {br} 后重试；② 直接点下面的"
+            f"「导入浏览器登录态」——它用独立配置目录，不受这个锁影响")
+    if key == "failed to decrypt":
+        abe = "（已在 Local State 确认启用）" \
+            if browser_app_bound_enabled(br) else ""
+        return "appbound", (
+            f"{br} 的 cookie 是 **App-Bound 加密（v20）**{abe}，而 yt-dlp 只会"
+            f"按老的 DPAPI(v10) 去解 → 必然失败（yt-dlp #10927）——"
+            f"**完全退出浏览器也没用**。两条路："
+            f"① 点下面的「导入浏览器登录态」（借浏览器自己解密、经 CDP 取明文）；"
+            f"② 用浏览器扩展「Get cookies.txt LOCALLY」在 youtube.com 导出")
+    if key == "could not find":
+        return "missing", (f"{br}：没找到 cookie 库（未安装，或从未登录过）"
+                           f"—— 先打开该浏览器登录一次 YouTube 再试")
+    return "unknown", f"{why}"
+
+
+#: 「导入浏览器登录态」专用的独立配置目录。
+#: ⚠️ 刻意**不复用**用户正在用的配置：既不与运行中的浏览器抢 cookie 库锁，
+#: 也不会被浏览器的单实例守卫拦下（用户原来的浏览器可以照常开着）。
+CDP_LOGIN_DIR = os.path.join(DATA_DIR, "browser_login")
+#: 登录窗口打开的地址
+CDP_LOGIN_URL = "https://www.youtube.com/"
+
+
+def write_netscape_cookies(cookies, path):
+    """把 CDP 取回的 cookie 列表写成 yt-dlp 认的 Netscape cookies.txt。
+
+    返回写入条数。`expires<=0`（会话 cookie）按 Netscape 惯例写 0。
+    """
+    lines = ["# Netscape HTTP Cookie File",
+             "# 由 视频工具箱 经 CDP 从浏览器导出（明文）；内含登录凭据，请勿外传",
+             ""]
+    n = 0
+    for c in cookies or []:
+        domain = str(c.get("domain") or "").strip()
+        name = str(c.get("name") or "").strip()
+        if not domain or not name:
+            continue
+        try:
+            exp = int(float(c.get("expires") or 0))
+        except (TypeError, ValueError):
+            exp = 0
+        if exp < 0:
+            exp = 0
+        lines.append("\t".join((
+            domain,
+            "TRUE" if domain.startswith(".") else "FALSE",
+            str(c.get("path") or "/"),
+            "TRUE" if c.get("secure") else "FALSE",
+            str(exp), name, str(c.get("value") or ""))))
+        n += 1
+    d = os.path.dirname(path)
+    if d:
+        os.makedirs(d, exist_ok=True)
+    # 固定 LF：Netscape 文件跨平台通用，也避免 CRLF 影响 yt-dlp 解析
+    with open(path, "w", encoding="utf-8", newline="\n") as f:
+        f.write("\n".join(lines) + "\n")
+    return n
+
+
+def _free_local_port():
+    import socket
+    s = socket.socket()
+    try:
+        s.bind(("127.0.0.1", 0))
+        return s.getsockname()[1]
+    finally:
+        s.close()
+
+
+def export_browser_cookies_via_cdp(browser=None, log=None, cancel=None,
+                                   login_timeout=300, start_timeout=60,
+                                   out_path=None, port=0):
+    """借「独立配置 + 调试端口」的浏览器，把登录态 cookie 导出成 cookies.txt。
+
+    **为什么必须绕这一圈**：现代 Chrome/Edge 的 cookie 是 App-Bound 加密
+    （v20），yt-dlp 解不开（#10927）；但**浏览器自己**解得开。于是让它把 cookie
+    通过 CDP（DevTools 协议）吐出来——那是明文，与加密版本无关，也不受
+    「浏览器开着锁库」影响（#7271）。
+
+    流程：用 `--user-data-dir=<独立目录> --remote-debugging-port=<端口>` 起一个
+    全新配置的浏览器窗口 → 用户在窗口里登录 YouTube → 程序轮询 CDP 直到出现
+    登录态 cookie（`SID` / `SAPISID` / `__Secure-3PSID` …）→ 写
+    `data/user_cookies.txt` → 把「Cookie 来源」切到「自备 cookies.txt」→
+    关掉这个临时浏览器。
+
+    返回 `(是否成功, 说明, cookies.txt 路径或 "")`。全程不抛异常。
+    """
+    def _log(msg):
+        if log:
+            try:
+                log(msg)
+            except Exception:  # noqa: BLE001
+                pass
+
+    def _cancelled():
+        return cancel is not None and cancel.is_set()
+
+    br = browser or cookie_browser()
+    exe = browser_exe_path(br)
+    if not exe:
+        return False, (f"没找到 {br} 的可执行文件——请先在设置页把「浏览器」"
+                       f"换成已安装的那个，或改用 cookies.txt 方式"), ""
+    try:
+        from playwright.sync_api import sync_playwright
+    except Exception as e:  # noqa: BLE001
+        return False, f"内置浏览器组件（Playwright）不可用：{type(e).__name__}", ""
+
+    prof = os.path.join(CDP_LOGIN_DIR, br)
+    try:
+        os.makedirs(prof, exist_ok=True)
+    except OSError as e:
+        return False, f"无法创建登录用配置目录：{e}", ""
+    out = out_path or USER_COOKIES_PATH
+    p = int(port or 0) or _free_local_port()
+
+    args = [
+        exe,
+        f"--user-data-dir={prof}",
+        f"--remote-debugging-port={p}",
+        "--no-first-run", "--no-default-browser-check",
+        "--disable-features=Translate,MediaRouter",
+        "--window-size=1180,860",
+        CDP_LOGIN_URL,
+    ]
+    _log(f"[信息] 正在启动独立配置的 {br}（不影响你正在用的浏览器窗口）...")
+    proc = None
+    try:
+        proc = popen_process(args, stdout=subprocess.DEVNULL,
+                             stderr=subprocess.DEVNULL)
+    except Exception as e:  # noqa: BLE001
+        return False, f"启动浏览器失败：{type(e).__name__}: {e}", ""
+
+    endpoint = f"http://127.0.0.1:{p}"
+    try:
+        # ① 等 CDP 端点就绪
+        deadline = time.time() + max(10, int(start_timeout))
+        ver = None
+        while time.time() < deadline:
+            if _cancelled():
+                return False, "已取消", ""
+            try:
+                import urllib.request
+                with urllib.request.urlopen(endpoint + "/json/version",
+                                            timeout=1) as r:
+                    ver = json.loads(r.read().decode("utf-8", "replace"))
+                break
+            except Exception:  # noqa: BLE001
+                time.sleep(0.5)
+        if not ver:
+            return False, (
+                f"{br} 的调试端口没起来。常见原因：上一次导入留下的浏览器窗口"
+                f"还开着（会顶掉这次启动）——把它关掉后重试；"
+                f"或换一个浏览器再试"), ""
+        _log(f"[信息] 已连接浏览器 {ver.get('Browser', br)}，"
+             f"请在打开的窗口里登录 YouTube ...")
+
+        # ② 连上去轮询登录态 cookie
+        login_names = set(_LOGIN_COOKIE_NAMES)
+        with sync_playwright() as pw:
+            browser_cdp = pw.chromium.connect_over_cdp(endpoint)
+            try:
+                ctx = browser_cdp.contexts[0] if browser_cdp.contexts \
+                    else browser_cdp.new_context()
+                deadline = time.time() + max(30, int(login_timeout))
+                last_tip = 0.0
+                cookies = []
+                while True:
+                    if _cancelled():
+                        return False, "已取消", ""
+                    try:
+                        cookies = ctx.cookies()
+                    except Exception:  # noqa: BLE001
+                        cookies = []
+                    names = {c.get("name") for c in cookies}
+                    if names & login_names:
+                        break
+                    if time.time() > deadline:
+                        return False, (
+                            f"等待登录超时（{int(login_timeout)}s）——"
+                            f"请在打开的 {br} 窗口里完成 YouTube 登录后重试"), ""
+                    if time.time() - last_tip > 20:
+                        last_tip = time.time()
+                        _log("[信息] 仍在等待登录（登录成功后会自动继续）...")
+                    time.sleep(1.5)
+
+                n = write_netscape_cookies(cookies, out)
+                if n <= 0:
+                    return False, "已连接但没取到任何 cookie", ""
+                ok, logged, why = cookies_file_status(out)
+                if not (ok and logged):
+                    return False, f"导出的 cookies.txt 校验不通过（{why}）", ""
+                # ③ 切到「自备 cookies.txt」并清缓存
+                cfg = load_config() or {}
+                cfg[CFG_COOKIE_MODE] = "file"
+                cfg[CFG_COOKIE_FILE] = out
+                save_config(cfg)
+                invalidate_cookie_cache()
+                _log(f"[信息] 已导出 {n} 条 cookie（含登录态）→ {out}")
+                return True, f"已导出 {n} 条 cookie 并切换为「自备 cookies.txt」", out
+            finally:
+                try:
+                    browser_cdp.close()
+                except Exception:  # noqa: BLE001
+                    pass
+    except Exception as e:  # noqa: BLE001
+        return False, f"导入失败：{type(e).__name__}: {e}", ""
+    finally:
+        if proc is not None:
+            try:
+                kill_process_tree(proc)
+            except Exception:  # noqa: BLE001
+                try:
+                    proc.terminate()
+                except Exception:  # noqa: BLE001
+                    pass
 
 
 def _guest_cookie_args(emit=None):
@@ -6184,13 +6569,19 @@ def _guest_cookie_args(emit=None):
 
 
 #: cookie 参数缓存（配置变更时由 `invalidate_cookie_cache()` 清掉）
-_COOKIE_ARGS_CACHE = {"args": None}
+_COOKIE_ARGS_CACHE = {"args": None, "at": 0.0}
 _COOKIE_ARGS_LOCK = threading.Lock()
+#: 缓存有效期（秒）。浏览器登录态是**易变**的——用户随时开/关浏览器。缓存太久
+#: 会出现：预检时浏览器没开 → 缓存了「浏览器来源」→ 用户随后打开浏览器 →
+#: 之后所有任务都撞 cookie 库被独占锁（yt-dlp #7271）。120s 既省掉同一批任务
+#: 的重复预检，又让状态变化在一两分钟内自愈。
+_COOKIE_ARGS_TTL = 120.0
 
 
 def invalidate_cookie_cache():
     """设置页保存 cookie 配置后调用，让下一次取用重新解析来源。"""
     _COOKIE_ARGS_CACHE["args"] = None
+    _COOKIE_ARGS_CACHE["at"] = 0.0
 
 
 def ytdlp_cookie_args(refresh=False, log=None):
@@ -6217,52 +6608,87 @@ def ytdlp_cookie_args(refresh=False, log=None):
     #: 会各自 spawn 一个浏览器 cookie 预检 yt-dlp 进程（各 30s 超时）、再
     #: 串行抢游客 cookie 刷新锁——多任务同加时集体白等几十秒。
     with _COOKIE_ARGS_LOCK:
-        if not refresh and _COOKIE_ARGS_CACHE["args"] is not None:
+        if (not refresh and _COOKIE_ARGS_CACHE["args"] is not None
+                and (time.time() - _COOKIE_ARGS_CACHE["at"]) < _COOKIE_ARGS_TTL):
             return _COOKIE_ARGS_CACHE["args"]
         args = _ytdlp_cookie_args_uncached(_emit)
         _COOKIE_ARGS_CACHE["args"] = args
+        _COOKIE_ARGS_CACHE["at"] = time.time()
         return args
 
 
+def _self_cookie_args(_emit, warn=False):
+    """① 自备 cookies.txt（登录态，最彻底）。不可用时返回 []。"""
+    p = cookie_file()
+    ok, logged, why = cookies_file_status(p) if p else (False, False, "未配置")
+    if ok:
+        if not logged:
+            _emit("[信息] 自备 cookies.txt 里只有游客 cookie —— "
+                  "若仍被风控拦，请用**已登录 YouTube** 的浏览器重新导出")
+        return ["--cookies", p]
+    if warn:
+        _emit(f"[信息] 自备 cookies.txt 不可用（{why}），已回退其它来源")
+    return []
+
+
+def _browser_cookie_args(_emit, explicit):
+    """② 浏览器登录态。不可用时返回 []。`explicit` = 设置页显式选了 browser 档。
+
+    ⚠️ 2026-10-14 修正：此前 `explicit` 时**预检失败也照用**——结果浏览器开着
+    → cookie 库被独占锁 → yt-dlp 直接 `ERROR: Could not copy Chrome cookie
+    database`（yt-dlp #7271）→ 整条任务判死，界面上只看到「画质检测失败：
+    站点风控或网络异常」，完全看不出真因。现在一律**预检通过才用**，否则降级
+    到下一级来源，并把「怎么恢复登录态」直接写进日志。
+    """
+    br = cookie_browser()
+    verdict, text = browser_cookie_diagnose(br)
+    if verdict == "ok":
+        _emit(f"[信息] 从浏览器读取登录态：{br}")
+        return ["--cookies-from-browser", br]
+    # 诊断文案里已经带了「怎么办」，这里只补一句设置页的入口
+    _emit(f"[警告] 浏览器登录态不可用 —— {text}")
+    if explicit:
+        if verdict == "locked":
+            _emit("[提示] 完全退出该浏览器后重试即可；"
+                  "或用设置页「下载 Cookie」卡片的「导入浏览器登录态」"
+                  "（独立配置，不受浏览器开着的影响）")
+        else:
+            _emit("[提示] 请用设置页「下载 Cookie」卡片的「导入浏览器登录态」，"
+                  "或用浏览器扩展「Get cookies.txt LOCALLY」导出 cookies.txt")
+    return []
+
+
 def _ytdlp_cookie_args_uncached(_emit):
-    """（调用方须持 _COOKIE_ARGS_LOCK）三级 cookie 来源逐级降级。"""
+    """（调用方须持 _COOKIE_ARGS_LOCK）cookie 来源逐级降级。
+
+    顺序按当前模式定：
+      · auto    → 自备文件 → 浏览器登录态 → 游客 cookie
+      · file    → 自备文件 → 游客 cookie
+      · browser → 浏览器登录态 → 自备文件 → 游客 cookie
+      · guest   → 游客 cookie
+    任一来源不可用就往下走——**绝不把「读不到 cookie」当成任务失败**。
+    """
     mode = cookie_mode()
-    args = []
 
     # ① 自备 cookies.txt（登录态，最彻底）
     if mode in ("auto", "file"):
-        p = cookie_file()
-        ok, logged, why = cookies_file_status(p) if p else (False, False, "未配置")
-        if ok:
-            if not logged:
-                _emit("[信息] 自备 cookies.txt 里只有游客 cookie —— "
-                      "若仍被风控拦，请用**已登录 YouTube** 的浏览器重新导出")
-            args = ["--cookies", p]
-        elif mode == "file":
-            _emit(f"[信息] 自备 cookies.txt 不可用（{why}），已回退其它来源")
+        args = _self_cookie_args(_emit, warn=(mode == "file"))
+        if args:
+            return args
 
-    # ② 浏览器登录态：auto 下**预检通过才用**（避免读不到 cookie 反而把任务
-    #    弄挂）；browser 下由用户显式指定，预检失败只告警、仍照用。
-    if not args and mode in ("auto", "browser"):
-        br = cookie_browser()
-        ok, why = browser_cookie_probe(br)
+    # ② 浏览器登录态
+    if mode in ("auto", "browser"):
+        args = _browser_cookie_args(_emit, explicit=(mode == "browser"))
+        if args:
+            return args
+        # browser 档预检不过时再退一级到自备文件（总比裸奔强）
         if mode == "browser":
-            if ok:
-                _emit(f"[信息] 从浏览器读取登录态：{br}")
-            else:
-                _emit(f"[警告] 浏览器登录态不可用（{why}）—— 仍按你的选择尝试")
-            args = ["--cookies-from-browser", br]
-        elif ok:
-            _emit(f"[信息] 使用浏览器登录态（{why}）")
-            args = ["--cookies-from-browser", br]
-        else:
-            _emit(f"[信息] 浏览器登录态不可用（{why}）")
+            args = _self_cookie_args(_emit, warn=False)
+            if args:
+                return args
 
     # ③ 游客 cookie 兜底
-    if not args and mode in ("auto", "guest"):
-        args = _guest_cookie_args(emit=_emit)
-
-    return args
+    return _guest_cookie_args(emit=_emit)
 
 
 def proxy_status():
@@ -7210,6 +7636,135 @@ def extract_url(arg):
     return m.group(0) if m else None
 
 
+# ========== 网页链接识别（「任务创建」输入框用） ==========
+# 用户往输入框里贴的东西远不止一个光秃秃的 URL，实际见过这几种：
+#   1) https://www.bilibili.com/video/BVxxxx        —— 标准形态
+#   2) 「【标题】  https://b23.tv/xxxx  复制本条信息…」—— 分享文案整段
+#   3) www.bilibili.com/video/BVxxxx              —— 手打漏了协议头
+#   4) 「...」『...』<...> 包裹的链接              —— 带引号/尖括号
+#   5) 结尾粘上了中文标点（，。！）或英文标点        —— URL_RE 不吃这些
+# 原实现只认 `scheme in (http, https)`，把 2/3/4/5 全判成「不是 URL」，
+# 用户看到的就是「请输入音视频文件路径或URL」——链接明明就在框里。
+#: 结尾要剥掉的标点（中英文都收）。**只剥结尾**，链接中间的标点不动
+#: （YouTube 的 `?v=` 后面可能跟 `&list=` 之类，剥中间会截断）。
+_URL_TRAIL_PUNCT = ".,;:!?、，。；：！？…～~'\"’”」』)】》〉>"
+
+#: **绝不可能是顶级域**的末段——它们是本程序支持的媒体/字幕文件扩展名。
+#: 光靠「末段纯字母」挡不住 `x.mkv` / `clip.avi`（mkv、avi 全是字母），
+#: 补成 `https://x.mkv` 会把一个文件名当网址跳去下载页。
+#: 双向约定：本程序 VIDEO_EXTS / AUDIO_EXTS / SUBTITLE_EXTS 里有的，
+#: 这里就得有；改那三处时记得同步（否则新增格式会从这个洞漏出去）。
+_NOT_A_TLD = {
+    # 视频
+    "mp4", "mkv", "avi", "mov", "flv", "wmv", "webm", "m4v", "mpg",
+    "mpeg", "rmvb", "ts", "m2ts", "mts", "vob", "ogv", "asf", "divx",
+    "mxf", "three", "ogm", "rm", "vtt",
+    # 音频
+    "mp3", "m4a", "wav", "aac", "flac", "ogg", "oga", "opus", "wma",
+    "aiff", "aif", "amr", "ape", "mka",
+    # 字幕
+    "srt", "ass", "ssa", "vtt", "sub", "smi", "sbv", "lrc",
+}
+
+
+def _strip_url_punct(url):
+    """剥掉链接结尾的标点/包裹符；剥到不再变化为止（连续多个时也干净）。"""
+    out = url
+    while out and out[-1] in _URL_TRAIL_PUNCT:
+        out = out[:-1]
+    return out
+
+
+def _prepend_scheme_if_bare(host_path):
+    """裸域名补协议头。
+
+    只在「像域名」时才补——`C:\\视频\\a.mp4` 里有 `\\`、不会命中；
+    `BV1xx411c7mD` 这种纯 ID 也不会命中（要求至少一个点）。
+    ⚠ 末段必须 **≥2 个字符**且字母开头：`a.b` / `1.5` 这类版本号、句号
+    分句不是网址，补出 `https://a.b` 只会把用户带到一个必然 404 的地址。
+    """
+    body = host_path.strip()
+    if not body or "://" in body:
+        return body
+    # 反斜杠（Windows 路径）一律不当作裸域名
+    if "\\" in body:
+        return body
+    host = body.split("/", 1)[0].split("?", 1)[0].split("#", 1)[0]
+    # 去掉端口再判末段（`192.168.1.1:8080/x` 的末段是 "1:8080"）
+    host_no_port = host.rsplit(":", 1)[0] if host.count(":") == 1 else host
+    if "." not in host_no_port:
+        return body
+    # 末段得像个域名段（≥2 字符、纯字母、且**不是媒体文件扩展名**）
+    tail = host_no_port.rsplit(".", 1)[-1].lower()
+    # ⚠ 三重约束，缺一个就会把本地文件名当网址（实测依次踩到）：
+    #   · ≥2 字符      —— `a.b` / `1.5` 这类版本号、句号分句；
+    #   · 纯字母      —— `a.mp4` 的 "mp4" 含数字；
+    #   · 不在 _NOT_A_TLD —— `x.mkv` / `clip.avi` 全是字母，只能靠黑名单。
+    # 为什么宁严勿松：TaskCreationInterface.process() 里 os.path.isfile
+    # 已经先判过，能走到这里的都是**不存在的路径**——用户看到的是"我明明
+    # 输的是文件，怎么跳到下载页去了"。漏判 punycode 顶级域（xn--p1ai）
+    # 用户手动补个 https:// 就行；误判则是一次莫名其妙的跳转。
+    if len(tail) < 2 or not tail.isalpha() or tail in _NOT_A_TLD:
+        return body
+    return "https://" + body
+
+
+def extract_web_url(text):
+    """从任意文本里提取**一个**网页链接；没有则返回 ``""``。
+
+    与 :func:`extract_url` 的分工：那个只做「http(s):// 正则捞第一个」，
+    这个负责「用户到底想表达什么」，覆盖分享文案整段 / 漏协议头 / 带引号
+    / 尾部标点。纯函数，不碰 IO，自检可直接断言。
+
+    返回值已归一（剥尾部标点、裸域名补 ``https://``），可直接喂给 yt-dlp。
+    """
+    if not text:
+        return ""
+    raw = str(text).strip()
+    if not raw:
+        return ""
+
+    # ① 整段就是链接（含漏协议头的裸域名）——最常见，优先走这条，
+    #    避免整段分享文案被当成 URL 的一部分。
+    #    ⚠ 必须**不含空白**：否则「看看这个 www.bilibili.com/... 不错」整段
+    #    会被当成一个超长 host，补出 `https://看看这个 www.bilibili.com/...`。
+    whole = _strip_url_punct(raw.strip(" \t\"'“”‘’<>《》【】()（）"))
+    if whole and not any(c.isspace() for c in whole):
+        cand = _prepend_scheme_if_bare(whole)
+        if cand.lower().startswith(("http://", "https://")):
+            rest = cand.split("://", 1)[1]
+            # 光有协议头不够，还得像个网址（含点域名或 localhost）
+            host = rest.split("/", 1)[0]
+            if host and ("." in host or host.lower().startswith("localhost")):
+                return _strip_url_punct(cand)
+
+    # ② 分享文案整段：从里面正则捞一个 http(s):// 开头的
+    m = URL_RE.search(raw)
+    if m:
+        got = _strip_url_punct(m.group(0))
+        if got.lower().startswith(("http://", "https://")):
+            return got
+
+    # ③ 整段里嵌着裸域名（如「看看这个 www.bilibili.com/video/BVxx 不错」）
+    #    三处约束缺一不可，都是实测踩出来的：
+    #      · 前瞻 `(?<![\w./\\-])`：排除反斜杠，否则 `C:\v\a.mp4` 里的
+    #        `a.mp4` 会被当成裸域名（`\` 不在原字符类里）。
+    #      · 域名后必须紧跟分隔符或结束（`(?=[/?#\s]|$)` 等价地要求），
+    #        否则 `a.mp4` 会被截成 `a.mp` 当域名——TLD 后若还跟着**任何**
+    #        字母数字，就说明我们只啃下了域名的一部分。
+    #      · TLD 至少 2 字符且字母开头（由 `_prepend_scheme_if_bare` 保证）。
+    m2 = re.search(
+        r"(?<![\w./\\-])((?:[\w-]+\.)+[a-zA-Z]{2,})(?![0-9A-Za-z._-])"
+        r"([/?#]\S*)?", raw)
+    if m2:
+        got = _strip_url_punct(m2.group(1) + (m2.group(2) or ""))
+        cand = _prepend_scheme_if_bare(got)
+        if cand.lower().startswith("https://"):
+            return _strip_url_punct(cand)
+
+    return ""
+
+
 #: yt-dlp 下载分片大小。YouTube 自 2026-09 起对 videoplayback 直链**强制要求
 #: Range 请求**，yt-dlp 默认的整体 GET 一律 403 —— 表现为"下载几秒/几十 MB 后
 #: 失败"，看着像风控其实是缺 Range。下载页与流水线共用这一个值。
@@ -7344,6 +7899,9 @@ def fetch_info_json(ytdlp, url, attempts=4, log=None, wait_base=5,
     # 游客 cookie 反风控（v1.15.8）：YouTube 对无 cookie 请求间歇性弹
     # "Sign in to confirm"，自动索取的站方游客 cookie 实测能压低触发率
     cookie_args = ytdlp_cookie_args(log=_log)
+    #: 浏览器 cookie 库被锁（yt-dlp #7271）时自救一次：失效缓存 → 换来源 →
+    #: 立刻重试。只做一次，避免「所有来源都读不出」时反复空转。
+    cookie_rescued = False
     for i in range(attempts):
         if _cancelled():
             _unregister()
@@ -7406,6 +7964,17 @@ def fetch_info_json(ytdlp, url, attempts=4, log=None, wait_base=5,
             return out
         err = decode_bytes_any(err_b) + out
         detail = _detail(err)
+        # cookie 读不出来跟风控 / 网络无关：退避重试同一套参数永远失败。
+        # 这里就地失效缓存、重新解析 cookie 来源，然后**立刻**重试（不吃退避）。
+        if not cookie_rescued:
+            why = cookie_load_failure_reason(err)
+            if why:
+                cookie_rescued = True
+                _log(f"[警告] cookie 读取失败：{why}")
+                _log("[信息] 已自动重新选择 cookie 来源，立即重试 ...")
+                invalidate_cookie_cache()
+                cookie_args = ytdlp_cookie_args(refresh=True, log=_log)
+                continue
         if i < attempts - 1:
             _log(f"[信息] 提取失败（{i + 1}/{attempts}）: {detail}")
         retryable = ytdlp_error_retryable(err)

@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+# @version 2.1.0
 """「字幕视频合成」页的**占位实现**。
 
 在视频工具箱里，合成功能已并入自研「字幕编辑」页；宿主 ``_build_engine`` 会：
@@ -14,12 +15,12 @@ from __future__ import annotations
 
 from typing import Optional
 
-from PyQt5.QtCore import pyqtSignal
-from PyQt5.QtWidgets import QWidget
+from PySide6.QtCore import Signal
+from PySide6.QtWidgets import QWidget
 
 
 class VideoSynthesisInterface(QWidget):
-    finished = pyqtSignal()
+    finished = Signal()
 
     def __init__(self, parent: Optional[QWidget] = None):
         super().__init__(parent)

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# @version 2.0.0
+# @version 2.1.0
 """说话人（diarization / separation）链路自检（离线，不联网）。
 
 覆盖 v1.15.9 新增能力：
@@ -33,7 +33,7 @@ import subtitle_editor_core as secore  # noqa: E402
 # 与 _selftest_gui.py 同一套 Qt 插件路径（否则预览层构造时找不到平台插件）
 os.environ.setdefault(
     "QT_QPA_PLATFORM_PLUGIN_PATH",
-    os.path.join(engine.EMBEDDED_SITE_PACKAGES, "PyQt5", "Qt5", "plugins"))
+    os.path.join(engine.EMBEDDED_SITE_PACKAGES, "PySide6", "plugins"))
 
 OUT = r"C:\bld\_speaker_test"
 LINES, FAILS = [], []
@@ -176,7 +176,7 @@ def main():
     # ---------------- 6) 预览层按说话人取色 ----------------
     say("\n== 6) 预览层 SubtitleStage 分色 ==")
     try:
-        from PyQt5.QtWidgets import QApplication, QWidget
+        from PySide6.QtWidgets import QApplication, QWidget
         import subtitle_overlay as so
         app = QApplication.instance() or QApplication([])
         host = QWidget()

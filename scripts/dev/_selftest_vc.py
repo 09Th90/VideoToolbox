@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# @version 2.0.0
+# @version 2.1.0
 """字幕引擎自检（v1.10.2）：验证内嵌字幕引擎可导入、界面可构建、品牌已中性化。
 
 步骤：
@@ -22,7 +22,7 @@ import video_toolbox as engine
 
 os.environ.setdefault(
     "QT_QPA_PLATFORM_PLUGIN_PATH",
-    os.path.join(engine.EMBEDDED_SITE_PACKAGES, "PyQt5", "Qt5", "plugins"))
+    os.path.join(engine.EMBEDDED_SITE_PACKAGES, "PySide6", "plugins"))
 
 FAILS = []
 
@@ -42,7 +42,7 @@ def main():
     engine.prepare_runtime_env()
 
     check("字幕引擎可导入（内嵌可用）", engine.vc_importable())
-    check("Qt 依赖齐全（PyQt5 / qfluentwidgets）",
+    check("Qt 依赖齐全（PySide6 / qfluentwidgets）",
           not engine.vc_missing_deps(), str(engine.vc_missing_deps()))
     ready, main_text, detail = engine.vc_state()
     check("引擎判定环境就绪", ready, main_text)
@@ -84,8 +84,8 @@ def main():
           os.path.splitdrive(str(C.WORK_PATH))[0].lower() != "c:",
           str(C.RESOURCE_PATH))
 
-    from PyQt5.QtWidgets import QApplication
-    from PyQt5.QtCore import qInstallMessageHandler
+    from PySide6.QtWidgets import QApplication
+    from PySide6.QtCore import qInstallMessageHandler
     _qt_msgs = []
     qInstallMessageHandler(lambda mode, ctx, msg: _qt_msgs.append(msg))
     app = QApplication.instance() or QApplication(sys.argv)

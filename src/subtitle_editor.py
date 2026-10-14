@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.0.0
+# @version 2.1.0
 """字幕编辑页（打轴）的界面控件：波形时间轴 + 字幕表模型。
 
 参照开源实现的结构：
@@ -11,9 +11,9 @@
 控件与数据层（subtitle_editor_core）解耦：控件只持有 cues 的**引用**，
 改动通过信号上报给页面统一处理（便于把每次改动压进撤销栈）。
 """
-from PyQt5.QtCore import QPoint, QRect, QSize, Qt, QTimer, pyqtSignal
-from PyQt5.QtGui import (QColor, QFont, QFontMetrics, QPainter, QPen, QPolygon)
-from PyQt5.QtWidgets import (QAbstractItemView, QCheckBox, QColorDialog, QComboBox, QFontComboBox,
+from PySide6.QtCore import QPoint, QRect, QSize, Qt, QTimer, Signal
+from PySide6.QtGui import (QColor, QFont, QFontMetrics, QPainter, QPen, QPolygon)
+from PySide6.QtWidgets import (QAbstractItemView, QCheckBox, QColorDialog, QComboBox, QFontComboBox,
                              QFrame, QGridLayout, QHBoxLayout, QHeaderView, QLabel,
                              QLineEdit, QPushButton, QScrollArea, QSizePolicy, QSlider,
                              QSpinBox, QTableWidget, QToolButton, QVBoxLayout, QWidget)
@@ -151,12 +151,12 @@ class WaveformTimeline(QWidget):
     手感仍然是「拖不动」；点击空白定位时重新打开跟随。
     """
 
-    position_clicked = pyqtSignal(int)
-    cue_selected = pyqtSignal(int)
-    drag_started = pyqtSignal()                 # 拖拽即将改动时间：页面借此先压撤销快照
-    cue_dragged = pyqtSignal(int, str, int)     # (下标, 'start'/'end'/'move', ms)
-    drag_finished = pyqtSignal()
-    split_requested = pyqtSignal(int)
+    position_clicked = Signal(int)
+    cue_selected = Signal(int)
+    drag_started = Signal()                 # 拖拽即将改动时间：页面借此先压撤销快照
+    cue_dragged = Signal(int, str, int)     # (下标, 'start'/'end'/'move', ms)
+    drag_finished = Signal()
+    split_requested = Signal(int)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -767,8 +767,8 @@ class CueTable(QTableWidget):
     直接编辑时把改动通过 `cell_committed` 上报，由页面统一落库 + 压撤销栈。
     """
 
-    cell_committed = pyqtSignal(int, int, str)   # (行, 列, 新文本)
-    selection_changed = pyqtSignal(int)
+    cell_committed = Signal(int, int, str)   # (行, 列, 新文本)
+    selection_changed = Signal(int)
 
     COLS = ("#", "起始", "结束", "时长", "文本")
     COL_W = (48, 100, 100, 70, 320)
@@ -846,7 +846,7 @@ class CueTable(QTableWidget):
             self._loading = False
 
     def _set_item(self, r, c, text, editable=True):
-        from PyQt5.QtWidgets import QTableWidgetItem
+        from PySide6.QtWidgets import QTableWidgetItem
         it = self.item(r, c)
         if it is None:
             it = QTableWidgetItem()
@@ -872,7 +872,7 @@ class CueTable(QTableWidget):
 
     def select_rows(self, rows, scroll=True):
         """整批选中若干行（时间轴上多选时同步过来）。"""
-        from PyQt5.QtCore import QItemSelection, QItemSelectionModel
+        from PySide6.QtCore import QItemSelection, QItemSelectionModel
         self._loading = True
         try:
             self.clearSelection()
@@ -1055,12 +1055,12 @@ class SubtitlePropsPanel(QWidget):
     两边共用同一份样式字典，改哪边都是改同一份数据。
     """
 
-    style_changed = pyqtSignal(dict)
-    step_requested = pyqtSignal(int)
+    style_changed = Signal(dict)
+    step_requested = Signal(int)
     #: 点标题行的「导出」：把当前字幕导出成 SRT / ASS 文件。
     #: 面板只管发信号，落盘逻辑在页面（SubtitlEditPage.export_subtitle）——
     #: 那边才拿得到完整 doc、样式字典与文件对话框的父窗口。
-    export_requested = pyqtSignal()
+    export_requested = Signal()
 
     #: 对齐九宫格（小键盘布局，与 ASS 的 Alignment 一致）
     ALIGN_CELLS = ((7, "↖"), (8, "↑"), (9, "↗"),
@@ -1174,7 +1174,8 @@ class SubtitlePropsPanel(QWidget):
 
         self.cb_font = QFontComboBox(self)
         self.cb_font.setMinimumWidth(110)
-        self.cb_font.setSizeAdjustPolicy(QComboBox.AdjustToMinimumContentsLength)
+        # Qt6 起重策略枚举更名：AdjustToMinimumContentsLength → AdjustToContents
+        self.cb_font.setSizeAdjustPolicy(QComboBox.AdjustToContents)
         self.cb_font.setMinimumContentsLength(6)
         self.cb_font.setToolTip("画面字幕使用的字体（写进 ASS 的 Fontname）")
         sec_text.body_lay.addWidget(self.cb_font)

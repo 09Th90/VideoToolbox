@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.0.0
+# @version 2.1.0
 """视频画面上的**字幕层**：可点选、可拖动、可就地改字。
 
 为什么要自己开一个窗口
@@ -36,10 +36,10 @@ setGeometry 都是一次 SetWindowPos，插进系统的缩放模态循环会把�
 import sys
 import time
 
-from PyQt5.QtCore import QPoint, QPointF, QRect, QRectF, Qt, QTimer, pyqtSignal
-from PyQt5.QtGui import (QColor, QFont, QFontMetricsF, QPainter, QPainterPath,
+from PySide6.QtCore import QPoint, QPointF, QRect, QRectF, Qt, QTimer, Signal
+from PySide6.QtGui import (QColor, QFont, QFontMetricsF, QPainter, QPainterPath,
                          QPen, QRegion)
-from PyQt5.QtWidgets import QApplication, QTextEdit, QWidget
+from PySide6.QtWidgets import QApplication, QTextEdit, QWidget
 
 ASS_PLAY_RES_Y = 1080.0
 
@@ -68,7 +68,7 @@ HANDLE_CURSORS = {
 class _InlineEdit(QTextEdit):
     """就地编辑框：Enter 提交、Shift+Enter 换行、Esc 取消。"""
 
-    submitted = pyqtSignal(bool)     # True=提交，False=取消
+    submitted = Signal(bool)     # True=提交，False=取消
 
     def keyPressEvent(self, ev):
         if ev.key() in (Qt.Key_Return, Qt.Key_Enter) and not (
@@ -111,20 +111,20 @@ class SubtitleStage(QWidget):
 alignment/margin）。
     """
 
-    cue_clicked = pyqtSignal(int)
+    cue_clicked = Signal(int)
     #: 拖动某条字幕时的"主选中跟随"：与 cue_clicked 的区别是**不清多选**——
     #: 全选（Ctrl+A）后拖画面字幕，多选集合必须原样保留（页面据此处理）
-    cue_followed = pyqtSignal(int)
-    delete_requested = pyqtSignal(int)
-    selection_cleared = pyqtSignal()
-    text_committed = pyqtSignal(int, str)
-    layout_changed = pyqtSignal(dict)
-    layout_preview = pyqtSignal(dict)
-    play_toggled = pyqtSignal()
+    cue_followed = Signal(int)
+    delete_requested = Signal(int)
+    selection_cleared = Signal()
+    text_committed = Signal(int, str)
+    layout_changed = Signal(dict)
+    layout_preview = Signal(dict)
+    play_toggled = Signal()
     #: 本层是**独立顶层窗口**：点画面上的字幕后激活权在本层，主窗口失活，
     #: 主窗的 QShortcut（WidgetWithChildren）全部收不到——Del 删不掉、
     #: Ctrl+Z/Y 无效。keyPressEvent 把按键翻成命令名交页面执行。
-    command_requested = pyqtSignal(str)
+    command_requested = Signal(str)
 
     def __init__(self, host, parent_window, rect_provider=None):
         super().__init__(parent_window,
@@ -682,7 +682,7 @@ alignment/margin）。
         idx = self._hit(ev.pos())
         if idx < 0 or self._editor is not None:
             return
-        from PyQt5.QtWidgets import QMenu
+        from PySide6.QtWidgets import QMenu
         menu = QMenu(self)
         act_del = menu.addAction("删除此字幕")
         act_edit = menu.addAction("就地编辑")

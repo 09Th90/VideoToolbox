@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.0.0
+# @version 2.1.0
 """主播声纹：本地声纹录入 + 字幕筛选（无 Qt，可脱离界面单测）。
 
 把「只出主播的字幕」做成本地**后处理**：
@@ -17,13 +17,19 @@ kaldi 兼容 fbank，不引入任何新的第三方包。
       `tools/download_open_source_deps.py --only speaker-model` 下载。
 
 用法（命令行，便于脱离界面验证）：
+    # **推荐**：自动选段录入（全片扫描 → 主说话人 → 频谱门控排 BGM → 分箱取 12 段
+    # → 录完当场做素材体检 + 库内混淆检查；体检判为 risky 时退出码 3）
+    python speaker_voiceprint.py enroll --src 视频.mp4 --name 主播 --auto
+    # 手工选段（已知哪一段干净时更快）：
     python speaker_voiceprint.py enroll --src 视频.mp4 --start 12 --dur 20 --name 主播
     # 多片段录入（先做同人一致性校验，再取均值，模板更稳）：
     python speaker_voiceprint.py enroll --src 视频.mp4 --start 12 --dur 20 --name 主播 \
                                         --clip "另一段.mp4,30,15" --clip "另一段.mp4,90,10"
-    # 追加到已有同名声纹（扩充校准，不覆盖）：
+    # 追加到已有同名声纹（扩充校准，不覆盖；--auto 同样支持）：
     python speaker_voiceprint.py enroll --src 视频.mp4 --start 200 --dur 15 \
                                         --name 主播 --append
+    python speaker_voiceprint.py assess --src 视频.mp4 [--name 主播]   # 素材体检（不落盘）
+    python speaker_voiceprint.py audit                              # 声纹库体检 + 混淆矩阵
     python speaker_voiceprint.py list                     # 列出已录入（x = 已启用）
     python speaker_voiceprint.py use 主播,嘉宾            # 启用多个声纹（并集）
     python speaker_voiceprint.py delete 主播
@@ -36,6 +42,35 @@ kaldi 兼容 fbank，不引入任何新的第三方包。
        嵌入向量，实测给判定边际带来 0.2~0.3 的塌缩；
     ② RMS 归一化到 -20 dBFS——峰值归一化会被单个爆音/咔哒声带偏（增益被
       爆音吃掉，人声被压到地板），RMS 对这类毛刺稳健且同样增益不变。
+
+上面两道是**提特征时**的预处理，录入片段与待筛 cue 一视同仁。此外还有一道只
+作用于**选段阶段**的判据（v2.2.0，见 `gate_speech_runs`）：
+    ③ 频谱门控（谱平坦度 + 4k-8k 高频衰减）挑出「像人声」的时刻。能量 VAD 判不了
+       「是不是人声」——BGM / 游戏音同样有能量，`trim_silence` 照单全收（其
+       docstring 已明说剪不掉 BGM）。实测口径（逐 0.2 秒帧）：干净人声素材谱平坦度
+       中位 0.005、4k-8k 衰减 -19.6 dB；全程铺 BGM 的素材是 0.030 / -9.1 dB。
+       门控**只挑时间区间、不改音频**：筛选时 cue 是原样切出来直接提向量的，录入侧
+       任何独有的滤波（低通 / 谱减 / 降噪）都会造成两侧口径不一致，反而拉低实战得分。
+
+配套两项**录入后自查**，因为「坏模板」在录入当下不会报任何错：
+  · `assess_material` 素材体检——一份全程铺着 BGM 的录播能录出批内一致性 0.87、
+    对本片每个窗口都给 0.91~0.97 的模板，常规指标全漂亮，可它认的是这段录音的
+    **声学底**而不是嗓音：换一份同主播、不同 BGM 的素材就会整体掉分（误丢主播
+    字幕）。体检按六项实测标定的门槛把它点出来（背景音能量占比 / 最长人声连续段 /
+    背景帧电平 / 频谱形态 / 有无低分对照窗 / 人声段与背景音段的等长落差）。
+    ⚠ 判读输出分**告警**与**提示**两类：单人干净素材本来就该 100% 判为本人、本来
+    就没有纯背景音段，把这类「没测到」算成告警会把好素材误判成有风险（第一版就
+    踩了，已知可用的素材被判 risky）。
+  · `check_confusion` 库内混淆检查——新声纹与已录入声纹逐对算余弦，超过 keep 线
+    当场告警（实测某库 8 个模板里有 4 对 ≥0.55，最高 0.663，录入时全程无感）。
+    纯余弦、不解码音频，所以手工录入也照样跑。全库矩阵用 `audit` 一次看完。
+  结论会写进模板的 `quality` / `auto` 字段（本机录入溯源，不参与同步收敛）。
+
+自动选段（`suggest_clips` / `enroll_auto`，界面默认走这条）把上面这些串成一条：
+全片扫描 → 按声纹聚簇取**主说话人**（多人素材自动剔掉嘉宾，并按主簇时间区间
+裁剪人声段）→ 频谱门控排掉 BGM 最响的时刻 → 按时间**分箱**拼接（不分箱时片段
+会全挤在视频开头，后段音色变化进不来）→ 录入 → 体检 + 混淆检查。实测复现：对
+同一份 17 分钟素材，自动选段得到的模板与人工挑段逐轮验证出来的模板余弦 **0.999**。
 
 多声纹是**并集**语义：一条 cue 只要与其中任意一个声纹够像就算「主播」，
 对应「一档节目有两位主播 / 常驻嘉宾也算」这类场景。启用名单单独落
@@ -58,6 +93,7 @@ import os
 import subprocess
 import sys
 import time
+import unicodedata
 import wave
 
 import numpy as np
@@ -1095,6 +1131,733 @@ def enroll(src, start=None, dur=None, name="主播", encoder=None, extra=None,
                       base=base)
 
 
+# ------------------------------------------------- 频谱门控 / 自动选段 / 素材体检
+#: **能量 VAD 判不了「是不是人声」**：BGM 与游戏音同样有能量，`trim_silence`
+#: 会照单全收（其 docstring 已明说「剪不掉 BGM」）。这里补一道**频谱**判据，
+#: 门限来自实测（2026-10-14，两份主播录播逐 0.2 秒帧统计）：
+#:   干净人声素材    谱平坦度中位 0.041、4k-8k 相对 500-2k 衰减 -14.4 dB
+#:   带连续 BGM 素材 谱平坦度中位 0.168、衰减 -2.7 dB
+#: 取两者之间偏人声一侧。⚠ 门控**只用于挑参考片段的时间区间**，不改音频本身：
+#: 筛选时 cue 是原样切出来直接提向量的，录入侧任何独有的滤波（低通、谱减、
+#: 降噪）都会造成两侧口径不一致，反而拉低实战得分。
+GATE_FRAME_SEC = 0.2
+SPEECH_FLAT_MAX = 0.08
+SPEECH_HF_MAX_DB = -8.0
+GATE_CLOSE_GAP_SEC = 0.4
+GATE_MIN_RUN_SEC = 1.0
+GATE_LEVEL_HEADROOM_DB = 45.0
+#: 严格档：专门用来挑「背景音对照段」（判为非人声的段落），素材体检靠它算落差
+STRICT_FLAT_MAX = 0.05
+STRICT_HF_MAX_DB = -12.0
+STRICT_MIN_RUN_SEC = 3.0
+#: 自动选段：片段数 / 每片段目标人声秒数 / 单片段最短人声秒数
+AUTO_CLIPS = 12
+AUTO_CLIP_SEC = 12.0
+AUTO_MIN_CLIP_SEC = 3.0
+#: 扫描窗口与步长；长素材按 `AUTO_MAX_SCAN_WINDOWS` 自动放大步长
+#: （2 小时的片子若按 6 秒步长要提 1200 个向量，白等十几分钟）
+AUTO_SCAN_WIN_SEC = 12.0
+AUTO_SCAN_STEP_SEC = 6.0
+AUTO_MAX_SCAN_WINDOWS = 200
+AUTO_WIN_SPEECH_RATIO = 0.3    # 窗内门控人声帧占比下限，低于则不参与聚簇
+#: 自动选段的最短素材长度。**要能按声纹聚簇分辨主说话人**，至少得有 3 个扫描窗
+#: （= 3×步长 + 窗长 ≈ 30 秒），再短就退化成「把全片都当主说话人」——多人素材
+#: 会把嘉宾一起录进去，最后被 `enroll_pcm` 的一致性校验拦下，报错却指向「片段
+#: 不干净」，用户看不出真因。所以这里直接拒并指路手工选段。
+AUTO_MIN_TOTAL_SEC = 45.0
+#: 拼接处的升余弦淡变长度。直接对接会留下阶跃（咔哒声），而咔哒声是宽频毛刺，
+#: 会实打实污染嵌入（同 `normalize_rms` 防爆音的顾虑）。
+STITCH_FADE_SEC = 0.010
+#: 素材体检判读门槛。**按两份真实主播录播标定**（2026-10-14，
+#: `scripts/dev/voiceprint_material_calib.py` 可复跑）：一份干净人声素材
+#: （判「可用」）、一份全程铺 BGM 的素材（判「可疑」）。门槛一律取在两组实测值
+#: 之间并留余量：
+#:   指标                    可用       可疑       门槛
+#:   背景音能量占比           1.6%      31.1%     > 15%
+#:   最长人声连续段          150.6s     13.6s     < 30s
+#:   全片最低窗口得分         0.255     0.909     > 0.60（且无低分窗）
+#:   4k-8k 高频衰减         -19.6dB    -9.1dB    > -12dB
+#:   谱平坦度 中位 / p75     0.005/0.017 0.030/0.080  > 0.02 / > 0.05
+#:   背景帧电平（相对最响）   -14.8dB   -6.9dB    > -12dB
+#: ⚠ 只有 2 份样本，门槛的作用是「把这两类分开」，不是精确边界；换新素材实测后
+#:   应当再校。
+#: ⚠⚠ 旧判据「人声段 vs 背景音段落差 < 0.05 就告警」在正对照上**误报**：可用素材
+#:   +0.008、可疑素材 +0.001，毫无区分力。根因是对照段用**严格档**门控挑，在干净
+#:   素材里那些段仍然是人声（擦音/笑声的谱平坦度本来就偏高），于是两侧都在测同
+#:   一个人的嗓音。现改为：对照段用**松档**门控的补集（连松档都不像人声才算背景
+#:   音），且只保留「落差为负」这一强信号（背景音比人声还像本人 = 模板认错了东西）。
+QUALITY_FLAT_WARN = 0.02           # 逐帧谱平坦度中位高于此值 = 宽频成分多
+QUALITY_FLAT_P75_WARN = 0.05       # 谱平坦度 p75 高于此值 = 相当比例的时刻是宽频音
+QUALITY_HF_WARN_DB = -12.0         # 4k-8k 高频衰减不足此值 = 高频一直在响
+QUALITY_BG_LEVEL_WARN_DB = -12.0   # 背景帧电平高出此值（相对最响帧）= 背景音几乎不停
+QUALITY_BG_ENERGY_WARN_PCT = 15.0  # 背景音能量占比高于此值 = 背景音压得人声无处躲
+QUALITY_VOICE_RUN_WARN_SEC = 30.0  # 最长人声连续段短于此值 = 人声被背景音打碎
+QUALITY_WIN_MIN_WARN = 0.60        # 全片最低窗口得分高于此值 = 素材没有低分对照窗
+QUALITY_MARGIN_INVERTED = 0.0      # 落差低于此值（背景音比人声更像本人）才告警
+#: 自动选段的「人声太碎」提示门槛。刻意比体检的 30 秒宽：拼接本身是正常做法，
+#: 只有碎到 10 秒以下才值得提醒用户「这份素材的背景音很密」。
+AUTO_FRAGMENT_WARN_SEC = 10.0
+QUALITY_MAX_WINDOWS = 40           # 体检逐窗打分的窗口上限
+QUALITY_MAX_VOICE_SEGS = 12        # 体检用的人声段上限
+QUALITY_MAX_BG_SEGS = 8            # 体检用的背景音对照段上限
+QUALITY_VOICE_RATIO_MIN = 0.6      # 人声段候选窗的门控人声占比下限
+
+
+def spectral_frame_features(pcm, frame_sec=GATE_FRAME_SEC,
+                            sample_rate=SAMPLE_RATE):
+    """逐帧 (谱平坦度, 4k-8k 相对 500-2k 的 dB, 帧电平 dB)——纯 numpy 整批算。
+
+    两个判据的取舍：
+      · **谱平坦度** = 功率谱（100~7000Hz）的几何均值 / 算术均值。谐波结构清晰
+        的语音低（能量集中在少数 formant 峰上），宽频的音乐/游戏音/噪声高。
+      · **高频衰减** = 4k-8k 与 500-2k 的频带能量差。语音能量集中在 formant 区，
+        4kHz 以上迅速掉落；镲片、枪声、合成器 pad 则一路平推到高频。
+    两者都要，是因为单看任一个都会误判：气声/擦音（低能量的宽频语音）谱平坦度
+    偏高但高频衰减仍明显；低音铺底（bass pad）高频衰减够但谱平坦度极低。
+    """
+    a = np.asarray(pcm, dtype=np.float32).reshape(-1)
+    n = max(8, int(round(frame_sec * sample_rate)))
+    cnt = int(a.size // n)
+    if cnt == 0:
+        z = np.zeros(0, dtype=np.float64)
+        return z, z.copy(), z.copy()
+    fr = a[:cnt * n].reshape(cnt, n)
+    sp = np.abs(np.fft.rfft(fr * np.hanning(n).astype(np.float32), axis=1)) ** 2
+    f = np.fft.rfftfreq(n, 1.0 / sample_rate)
+
+    def _band(lo, hi):
+        m = (f >= lo) & (f < hi)
+        return 10.0 * np.log10(np.maximum(sp[:, m].sum(axis=1), 1e-12))
+
+    p = sp[:, (f >= 100.0) & (f < 7000.0)]
+    flat = (np.exp(np.log(np.maximum(p, 1e-12)).mean(axis=1))
+            / np.maximum(p.mean(axis=1), 1e-12))
+    rms = np.sqrt(np.maximum((fr.astype(np.float64) ** 2).mean(axis=1), 1e-20))
+    return flat, _band(4000.0, 8000.0) - _band(500.0, 2000.0), 20.0 * np.log10(rms)
+
+
+def gate_speech_runs(pcm, flat_max=SPEECH_FLAT_MAX, hf_max=SPEECH_HF_MAX_DB,
+                     close_gap=GATE_CLOSE_GAP_SEC, min_run=GATE_MIN_RUN_SEC,
+                     frame_sec=GATE_FRAME_SEC, sample_rate=SAMPLE_RATE):
+    """频谱门控 -> `(mask, runs, features)`；`runs` = [(起点秒, 时长秒), ...]。
+
+    三条判据同时成立才算「像人声」的帧：谱平坦度低、高频衰减够、电平不在地板上
+    （最后一条排除静音帧——静音的谱平坦度是随机的，会把纯静音段误判成人声）。
+    随后走与 `trim_silence` **同一套**形态学（`_close_gaps` / `_drop_blips`）：
+    ≤`close_gap` 秒的间断填回（语句停顿不该把一句话切成两半），<`min_run` 秒
+    的孤立段丢弃（碎段拼进参考片段只会增加拼接痕迹）。
+    """
+    flat, hf, db = spectral_frame_features(pcm, frame_sec, sample_rate)
+    if flat.size == 0:
+        return np.zeros(0, dtype=bool), [], (flat, hf, db)
+    # 电平判据取「相对最响帧 -45dB」与「绝对数字静音地板 -75dB」中较严的一个，
+    # 口径同 `trim_silence`：整段录音很轻（最响帧才 -50dB）时，纯相对判据会把
+    # -95dB 的数字静音也放进来，而静音帧的谱平坦度是随机值，可能蒙混过关。
+    floor = max(float(db.max()) - GATE_LEVEL_HEADROOM_DB, VAD_ABS_SILENCE_DB)
+    mask = (flat < flat_max) & (hf < hf_max) & (db > floor)
+    mask = _drop_blips(_close_gaps(mask, max(1, int(round(close_gap / frame_sec)))),
+                       max(1, int(round(min_run / frame_sec))))
+    runs = [(s * frame_sec, (e - s) * frame_sec) for s, e in _runs(mask)]
+    return mask, runs, (flat, hf, db)
+
+
+def stitch_runs(pcm, runs, target_sec=AUTO_CLIP_SEC, n_bins=None,
+                min_sec=AUTO_MIN_CLIP_SEC, fade_sec=STITCH_FADE_SEC,
+                sample_rate=SAMPLE_RATE, total_sec=None):
+    """把门控挑出的人声段拼成参考片段；给 `n_bins` 则**按时间分箱、每箱一片**。
+
+    为什么必须分箱：不分箱时开头几分钟的人声段就能凑满全部片段，模板只覆盖
+    视频开头——后段的音色变化（喊叫、低语、疲劳）一点没进模板，换素材就掉分。
+    分箱后每箱各出一段，铺满全片（2026-10-14 实测：不分箱的 12 段全挤在前
+    240 秒，分箱后覆盖 0~1030 秒全片）。
+
+    拼接处做 `fade_sec` 升余弦淡变：直接对接会留下阶跃（咔哒声），而咔哒声是
+    宽频毛刺，会污染嵌入。返回 [(samples, [(起点秒, 时长秒), ...]), ...]，
+    人声不足 `min_sec` 的箱直接跳过（宁缺毋滥）。
+    """
+    a = np.asarray(pcm, dtype=np.float32).reshape(-1)
+    total = float(total_sec if total_sec is not None
+                  else a.size / float(sample_rate))
+    rs = [(float(s), float(d)) for s, d in (runs or [])
+          if d > 0 and s >= 0 and s + d <= total + 1e-6]
+    if not rs:
+        return []
+    nb = max(1, int(n_bins or 1))
+    edges = np.linspace(0.0, total, nb + 1)
+    fn = max(1, int(round(fade_sec * sample_rate)))
+    ramp = (0.5 - 0.5 * np.cos(np.linspace(0.0, 2.0 * np.pi, fn))).astype(np.float32)
+    out = []
+    for bi in range(nb):
+        buf, spans, acc = [], [], 0.0
+        for s, d in rs:
+            if acc >= target_sec or not (edges[bi] <= s < edges[bi + 1]):
+                continue
+            x = a[int(s * sample_rate):int((s + d) * sample_rate)].copy()
+            if x.size == 0:
+                continue
+            if x.size > fn * 2:
+                x[:fn] *= ramp
+                x[-fn:] *= ramp[::-1]
+            buf.append(x)
+            spans.append((round(s, 3), round(d, 3)))
+            acc += d
+        if buf and acc >= min_sec:
+            out.append((np.concatenate(buf).astype(np.float32), spans))
+    return out
+
+
+def _clip_to_intervals(runs, intervals, pad=1.0):
+    """把人声段裁剪到若干时间区间的并集内：跨界的段被**切开**，界外部分丢掉。
+
+    为什么不是「整段取舍」：早先的实现按段中点判断归属，于是一个横跨两位说话人
+    的长段会被整段收下（实测合成素材里 0~60 秒一段直通，把第二个人一起录进了
+    模板，最后只被 `enroll_pcm` 的一致性校验兜住，报错还指向「片段不干净」）。
+    按区间裁剪后，长段会在主说话人窗口的边界处被切断。
+
+    ⚠ 粒度上限就是扫描窗（12 秒）：**同一个窗口内**插话的嘉宾仍然切不掉，那道
+    兜底是 `enroll_pcm` 的批内一致性校验（相似度 < 0.55 拒绝落盘）。
+    `pad` 给区间两端各留一点余量，避免把边界上的半个字切掉。
+    """
+    iv = sorted((float(lo) - pad, float(hi) + pad) for lo, hi in (intervals or []))
+    if not iv:
+        return list(runs)
+    pieces = []
+    for s, d in runs:
+        e = float(s) + float(d)
+        for lo, hi in iv:
+            a, b = max(float(s), lo), min(e, hi)
+            if b - a > 1e-6:
+                pieces.append((a, b - a))
+    pieces.sort()
+    out = []
+    for s, d in pieces:                      # pad 造成的重叠合并回去
+        if out and s <= out[-1][0] + out[-1][1] + 1e-6:
+            p, pd = out[-1]
+            out[-1] = (p, max(pd, s + d - p))
+        else:
+            out.append((s, d))
+    return out
+
+
+def _progress(progress, msg):
+    """阶段回调（best-effort）：全片扫描要跑一两分钟，没反馈用户会以为卡死。"""
+    if not progress:
+        return
+    try:
+        progress(str(msg))
+    except Exception:  # noqa: BLE001  回调坏了不能挡住主流程
+        pass
+
+
+class _ScanWin:
+    """给 `cluster_cues` 复用的轻量时间窗（只需 start/end，单位毫秒）。
+
+    刻意**不另写一份聚类**：`cluster_cues` 是两遍聚类（√时长加权立簇 + 整体
+    重指派 + 歧义拒分 + 近重复簇合并），有自检 5c/5d 两节盯着。再写一份贪心
+    就是两份会各自漂移的实现——自动选段与筛选判定用的必须是同一套簇口径，
+    否则「选段时认的主说话人」和「筛选时认的主播」可能不是同一个人。
+    """
+
+    __slots__ = ("start", "end", "speaker", "text")
+
+    def __init__(self, start_sec, end_sec):
+        self.start = float(start_sec) * 1000.0
+        self.end = float(end_sec) * 1000.0
+        self.speaker = ""
+        self.text = ""
+
+
+def suggest_clips(src, n_clips=AUTO_CLIPS, clip_sec=AUTO_CLIP_SEC, encoder=None,
+                  progress=None, pcm=None, sample_rate=SAMPLE_RATE):
+    """自动挑参考片段：全片扫描 → 声纹聚簇取主说话人 → 频谱门控 → 分箱拼接。
+
+    为什么需要它（手工给 `--start/--dur` 的三个实测坑，2026-10-14）：
+      ① 人耳挑「这段是主播」挑不出 BGM 之外的干净时刻——能量 VAD 也挑不出，
+         于是背景音被一起录进模板；
+      ② 顺手挑开头一段 → 模板只覆盖视频开头，后段的音色变化一点没进去；
+      ③ 素材里有第二位说话人（嘉宾 / 游戏旁白）时，手工很容易把他录进去，
+         而 `enroll_pcm` 的一致性校验只有在两人差得够远时才拦得住。
+    这里用**主说话人簇**过滤：先按声纹把全片窗口聚簇（复用 `cluster_cues`），
+    只保留落在最大簇里的人声段，多人素材因此也能自动只取主播。
+
+    `pcm` 可选：调用方已解码就传进来，省一次全片解码（`enroll_auto` 就是这么用的）。
+    返回 dict：`clips`（[(samples, spans)]，直接喂 `enroll_pcm`）、`spans`、
+    `dominant`、`speech`、`warnings`（人话告警）等。
+    """
+    enc = encoder or VoiceprintEncoder()
+    if pcm is None:
+        _progress(progress, "正在解码音频…")
+        pcm = read_pcm(src, sample_rate=sample_rate)
+    a = np.asarray(pcm, dtype=np.float32).reshape(-1)
+    total = a.size / float(sample_rate)
+    warns = []
+    if total < AUTO_MIN_TOTAL_SEC:
+        raise VoiceprintError(
+            "素材太短（%.1f 秒）：自动选段至少要 %.0f 秒才能按声纹聚簇分辨出"
+            "主说话人；请改用手工选段（--start/--dur，界面里取消勾选「自动选段」），"
+            "或换一段更长的素材" % (total, AUTO_MIN_TOTAL_SEC))
+
+    _progress(progress, "正在做频谱门控（挑人声、排背景音）…")
+    mask, runs, (flat, hf, db) = gate_speech_runs(a, sample_rate=sample_rate)
+    speech_sec = sum(d for _s, d in runs)
+    if not runs:
+        raise VoiceprintError(
+            "全片找不到「像人声」的段落（谱平坦度 <%.2f 且 4k-8k 衰减 <%.0fdB）。"
+            "素材可能以音乐为主，或背景音乐压过了人声——请换一段没有 BGM 的"
+            "说话音频，或用手工选段指定区间" % (SPEECH_FLAT_MAX, SPEECH_HF_MAX_DB))
+    if speech_sec < AUTO_MIN_CLIP_SEC * 2:
+        raise VoiceprintError("门控后只剩 %.1f 秒人声，不足以录入（至少 %.0f 秒）"
+                              % (speech_sec, AUTO_MIN_CLIP_SEC * 2))
+
+    _progress(progress, "正在扫描全片、按声纹聚簇（找主说话人）…")
+    step = max(AUTO_SCAN_STEP_SEC, total / float(AUTO_MAX_SCAN_WINDOWS))
+    wins = []
+    t = 0.0
+    while t + AUTO_SCAN_WIN_SEC <= total:
+        i0 = int(t / GATE_FRAME_SEC)
+        i1 = min(int(mask.size), int((t + AUTO_SCAN_WIN_SEC) / GATE_FRAME_SEC))
+        if i1 > i0 and float(mask[i0:i1].mean()) >= AUTO_WIN_SPEECH_RATIO:
+            wins.append(_ScanWin(t, t + AUTO_SCAN_WIN_SEC))
+        t += step
+    dom_iv, share, n_clusters = [(0.0, total)], 1.0, 1
+    if len(wins) >= 3:
+        labels, sizes = cluster_cues(a, wins, enc, sample_rate=sample_rate)
+        n_clusters = max(1, len(sizes))
+        dom = max(sizes, key=lambda k: (sizes[k], -k))
+        iv = [(w.start / 1000.0, w.end / 1000.0)
+              for w, l in zip(wins, labels) if l == dom]
+        if iv:
+            dom_iv, share = iv, float(sizes[dom]) / float(len(wins))
+    if len(dom_iv) < len(wins):
+        kept = _clip_to_intervals(runs, dom_iv)
+        if sum(d for _s, d in kept) >= AUTO_MIN_CLIP_SEC * 2:
+            drop = speech_sec - sum(d for _s, d in kept)
+            if drop >= 1.0:
+                warns.append("素材里检测到多个说话人：已剔除主说话人之外的 %.0f 秒"
+                             "人声（主簇占 %.0f%% 扫描窗）" % (drop, share * 100.0))
+            runs, speech_sec = kept, sum(d for _s, d in kept)
+        else:
+            warns.append("主说话人簇内的人声不足（%.0f 秒），已退回使用全部门控人声段"
+                         % sum(d for _s, d in kept))
+    if share < 0.6:
+        warns.append("主说话人只占 %.0f%% 的扫描窗：素材可能是多人对谈，"
+                     "自动选段的结果请人工确认" % (share * 100.0))
+
+    longest = max(d for _s, d in runs)
+    if longest < AUTO_FRAGMENT_WARN_SEC:
+        warns.append("最长人声连续段只有 %.1f 秒：人声被背景音打碎，参考片段由"
+                     "多段拼接而成（拼接处已做 %.0fms 淡变）。素材背景音的强弱"
+                     "由录入后的素材体检给出结论"
+                     % (longest, STITCH_FADE_SEC * 1000.0))
+    flat_med = float(np.median(flat)) if flat.size else 0.0
+    hf_med = float(np.median(hf)) if hf.size else 0.0
+
+    _progress(progress, "正在按时间分箱拼接参考片段…")
+    packed = stitch_runs(a, runs, target_sec=clip_sec, n_bins=n_clips,
+                         sample_rate=sample_rate, total_sec=total)
+    if not packed:
+        raise VoiceprintError("门控人声段拼不出任何 ≥%.0f 秒的参考片段；"
+                              "请改用手工选段，或换更长的素材" % AUTO_MIN_CLIP_SEC)
+    return {"clips": packed,
+            "spans": [s for _c, sp in packed for s in sp],
+            "total_sec": round(total, 1),
+            "dominant": {"share": round(share, 3), "clusters": n_clusters,
+                         "windows": len(dom_iv), "scanned": len(wins)},
+            "speech": {"sec": round(speech_sec, 1),
+                       "ratio": round(float(mask.mean()), 3) if mask.size else 0.0,
+                       "runs": len(runs), "longest_run": round(longest, 1),
+                       "flat_median": round(flat_med, 4),
+                       "hf_median": round(hf_med, 1)},
+            "gate": {"flat_max": SPEECH_FLAT_MAX, "hf_max_db": SPEECH_HF_MAX_DB,
+                     "frame_sec": GATE_FRAME_SEC},
+            "scan": {"win_sec": AUTO_SCAN_WIN_SEC, "step_sec": round(step, 2)},
+            "warnings": warns}
+
+
+def _quality_verdict(m):
+    """素材体检指标 → `(档位, 告警, 提示)`。纯函数，自检可直接钉判读口径。
+
+    档位：`clean`（无告警）/ `caution`（1 条）/ `risky`（≥2 条）。
+    **告警**是「这份素材撑不起可靠声纹」的证据，**提示**（infos）是「这一项没测
+    到」的说明——两者必须分开：把「没测到」算成告警，单人干净素材（本来就该
+    100% 判为本人、本来就没有纯背景音段）会被误判成有风险，实测踩过。
+
+    每条门槛的标定依据见 `QUALITY_*` 常量注释（两份真实素材的实测值）。
+    """
+    w, info = [], []
+    if (m.get("bg_energy_pct") or 0.0) > QUALITY_BG_ENERGY_WARN_PCT:
+        w.append("背景音占了 %.0f%% 的能量（干净人声素材实测约 2%%）：人声几乎"
+                 "没有「独占」的时刻，模板会连背景音一起录进去"
+                 % (m.get("bg_energy_pct") or 0.0))
+    if (m.get("voice_run_max") or 0.0) < QUALITY_VOICE_RUN_WARN_SEC:
+        w.append("最长人声连续段只有 %.1f 秒（干净人声素材实测可达 150 秒）："
+                 "人声被背景音打碎，参考片段全靠拼接"
+                 % (m.get("voice_run_max") or 0.0))
+    if m.get("bg_level_db") is not None \
+            and m["bg_level_db"] > QUALITY_BG_LEVEL_WARN_DB:
+        w.append("背景音几乎不停：非人声帧电平只比最响帧低 %.1f dB"
+                 % abs(m["bg_level_db"]))
+    if (m.get("hf_median") or -99.0) > QUALITY_HF_WARN_DB \
+            or (m.get("flat_median") or 0.0) > QUALITY_FLAT_WARN \
+            or (m.get("flat_p75") or 0.0) > QUALITY_FLAT_P75_WARN:
+        w.append("频谱不像干净人声：4k-8k 衰减 %.1f dB、谱平坦度 中位 %.3f / "
+                 "p75 %.3f（干净人声素材实测 -19.6 dB、0.005 / 0.017）"
+                 % (m.get("hf_median") or 0.0, m.get("flat_median") or 0.0,
+                    m.get("flat_p75") or 0.0))
+    if m.get("windows") and not m.get("pct_below_threshold") \
+            and (m.get("win_min") or 0.0) > QUALITY_WIN_MIN_WARN:
+        # 「没有低分对照窗」本身**不是缺点**：单人连续说话的素材本来就该 100%
+        # 判为本人（实测干净素材 40 窗最低 0.717、无一低于 keep 线）。只有当素材
+        # 同时表现出背景音偏重时，它才升级成告警——那时候「全片都判为本人」更可能
+        # 是模板在匹配声学底，而不是真的每句都是主播。
+        txt = ("全片 %d 个窗口最低也有 %.3f、无一低于 keep 线：素材里没有「不像"
+               "本人」的对照窗，模板的筛选能力等于没测到"
+               % (m["windows"], m.get("win_min") or 0.0))
+        bg_heavy = ((m.get("bg_energy_pct") or 0.0) > QUALITY_BG_ENERGY_WARN_PCT
+                    or (m.get("voice_run_max") or 1e9) < QUALITY_VOICE_RUN_WARN_SEC)
+        if bg_heavy:
+            w.append(txt + "（且这份素材背景音偏重，更需要一份干净素材来验证：换一份"
+                           "关掉 BGM 的说话素材重录或追加）")
+        else:
+            info.append(txt + "（单人连续说话的素材本该如此，属正常）")
+    mg = m.get("margin")
+    if mg is not None and mg < QUALITY_MARGIN_INVERTED:
+        w.append("模板在「纯背景音段」上比在「人声段」上更像本人（等长 %.1f 秒"
+                 "连续窗，中位 %.3f vs %.3f，落差 %+.3f）：它认的极可能是这段"
+                 "录音的声学底而不是嗓音，换素材就会整体掉分"
+                 % (float(m.get("seg_len") or 0.0), m.get("bg_median") or 0.0,
+                    m.get("voice_median") or 0.0, mg))
+    if m.get("bg_kind") == "none":
+        info.append("素材里找不到 ≥%.0f 秒的纯背景音对照段：无法用「人声段 vs "
+                    "背景音段」的落差验证模板认的是不是嗓音（干净素材通常如此，"
+                    "属正常；这一项是没测到，不是通过）" % STRICT_MIN_RUN_SEC)
+    return (("clean" if not w else ("caution" if len(w) == 1 else "risky")), w, info)
+
+
+def assess_material(pcm, template, encoder=None, max_windows=QUALITY_MAX_WINDOWS,
+                    win_sec=AUTO_SCAN_WIN_SEC, progress=None,
+                    sample_rate=SAMPLE_RATE):
+    """素材体检：这份素材撑不撑得起一个「认嗓音」的模板。
+
+    为什么必须有它（2026-10-14 实测教训）：一份全程铺着 BGM 的主播录播，按能量
+    切段录入会得到一个**自洽但认不出人**的模板——批内一致性 0.87、对本片每个
+    窗口都给 0.91~0.97，各项常规指标都漂亮，可它认的是这段录音的**声学底**：
+    换一份同主播、不同 BGM 的素材就可能整体掉分（误丢主播字幕），而录入全程
+    不报任何错。这类模板必须在录入当场被点出来，不能等用户拿到错字幕才发现。
+
+    判据（门槛按两份真实素材标定，见 `QUALITY_*` 常量注释）：背景音能量占比、
+    最长人声连续段、背景帧电平、频谱形态（高频衰减 / 谱平坦度 中位与 p75）、
+    全片逐窗得分分布、以及「人声段 vs 纯背景音段」的等长连续窗落差。
+    ⚠ 判读输出**分「告警」与「提示」两类**：单人干净素材本来就该 100% 判为本人、
+    本来就没有纯背景音段，把这类「没测到」算成告警会把好素材误判成有风险
+    （第一版就踩了这个坑：已知可用的素材被判 risky）。
+
+    `template` 可以是模板 dict / 名字 / 裸向量（落盘前用候选向量体检）。
+    """
+    enc = encoder or VoiceprintEncoder()
+    tpls = _as_template_list(template)
+    if not tpls:
+        raise VoiceprintError("没有可用于体检的声纹向量")
+    tv = tpls[0][1]
+    a = np.asarray(pcm, dtype=np.float32).reshape(-1)
+    total = a.size / float(sample_rate)
+    mask, runs, (flat, hf, db) = gate_speech_runs(a, sample_rate=sample_rate)
+    if not runs:
+        return {"total_sec": round(total, 1), "verdict": "risky",
+                "warnings": ["全片找不到「像人声」的段落，无法体检：素材可能以音乐"
+                             "为主，或 BGM 压过了人声"],
+                "infos": [], "speech_sec": 0.0, "voice_run_max": 0.0,
+                "bg_kind": "none", "windows": 0}
+
+    # 背景音对照段：**松档**门控的补集里 ≥3 秒的最长几段。
+    # ⚠ 不能用严格档：严格档在干净人声素材里挑出的「非人声段」其实仍然是人声
+    # （擦音/笑声的谱平坦度本来就偏高），拿它当对照，两侧都在测同一个人的嗓音，
+    # 落差恒≈0 —— 实测可用素材 +0.008 / 可疑素材 +0.001，判据完全失效并且误报。
+    # 松档补集的语义是「连松档都不像人声」，才是真正的背景音；干净素材通常一段
+    # 都没有（实测 0 段），此时如实报 bg_kind=none、不做落差判定。
+    bg_runs = sorted([(s * GATE_FRAME_SEC, (e - s) * GATE_FRAME_SEC)
+                      for s, e in _runs(~mask)
+                      if (e - s) * GATE_FRAME_SEC >= STRICT_MIN_RUN_SEC],
+                     key=lambda r: -r[1])
+    # ⚠ 两侧必须**等长且都是连续原样切**的音频。人声侧若直接用门控拼接出来的
+    # 参考片段，拼接处的淡变与断口会被算成「不像本人」，落差就成了测量口径的
+    # 假象而不是素材的性质——实测同一素材：拼接人声段 vs 连续背景段 = **-0.081**
+    # （符号都是错的），等长连续窗对比 = +0.05。
+    seg_len = min(float(win_sec), bg_runs[0][1]) if bg_runs else float(win_sec)
+    bg = [(s, seg_len) for s, _d in bg_runs[:QUALITY_MAX_BG_SEGS]]
+    vs, t = [], 0.0
+    while t + seg_len <= total:
+        i0 = int(t / GATE_FRAME_SEC)
+        i1 = min(int(mask.size), int((t + seg_len) / GATE_FRAME_SEC))
+        ratio = float(mask[i0:i1].mean()) if i1 > i0 else 0.0
+        if ratio >= QUALITY_VOICE_RATIO_MIN:
+            vs.append((t, ratio))
+        t += seg_len
+    vs = [(x, seg_len) for x, _r in
+          sorted(sorted(vs, key=lambda v: -v[1])[:QUALITY_MAX_VOICE_SEGS])]
+
+    def _sim(s, d):
+        try:
+            return float(cosine(enc.embed(a[int(s * sample_rate):
+                                            int((s + d) * sample_rate)],
+                                          sample_rate), tv))
+        except VoiceprintError:
+            return float("nan")
+
+    _progress(progress, "正在体检：人声段 %d 个 / 背景音对照段 %d 个…"
+              % (len(vs), len(bg)))
+    vsc = [x for x in (_sim(s, d) for s, d in vs) if x == x]
+    bsc = [x for x in (_sim(s, d) for s, d in bg) if x == x]
+    n_win = max(1, min(int(max_windows), int(total // win_sec) or 1))
+    starts = (np.linspace(0.0, max(0.0, total - win_sec), n_win)
+              if n_win > 1 else np.zeros(1))
+    wsc = [x for x in (_sim(float(t), win_sec) for t in starts) if x == x]
+
+    pw = np.power(10.0, db / 10.0) if db.size else np.zeros(0)
+    m = {"total_sec": round(total, 1),
+         "speech_sec": round(sum(d for _s, d in runs), 1),
+         "speech_ratio": round(float(mask.mean()), 3) if mask.size else 0.0,
+         "flat_median": round(float(np.median(flat)), 4) if flat.size else None,
+         "flat_p75": (round(float(np.percentile(flat, 75)), 4)
+                      if flat.size else None),
+         "hf_median": round(float(np.median(hf)), 1) if hf.size else None,
+         "bg_level_db": (round(float(np.median(db[~mask]) - db.max()), 1)
+                         if (~mask).any() else None),
+         "bg_energy_pct": (round(100.0 * float(pw[~mask].sum())
+                                 / max(float(pw.sum()), 1e-12), 1)
+                           if pw.size else None),
+         "voice_run_max": round(max(d for _s, d in runs), 1),
+         "seg_len": round(float(seg_len), 2),
+         "bg_kind": "windows" if bg else "none",
+         "n_voice_segs": len(vsc), "n_bg_segs": len(bsc),
+         "voice_median": round(float(np.median(vsc)), 4) if vsc else None,
+         "voice_min": round(min(vsc), 4) if vsc else None,
+         "bg_median": round(float(np.median(bsc)), 4) if bsc else None,
+         "bg_max": round(max(bsc), 4) if bsc else None,
+         "margin": (round(float(np.median(vsc) - np.median(bsc)), 4)
+                    if vsc and bsc else None),
+         "windows": len(wsc),
+         "win_min": round(min(wsc), 4) if wsc else None,
+         "win_p10": round(float(np.percentile(wsc, 10)), 4) if wsc else None,
+         "win_median": round(float(np.median(wsc)), 4) if wsc else None,
+         "win_max": round(max(wsc), 4) if wsc else None,
+         "pct_below_threshold": (round(
+             100.0 * sum(1 for s in wsc if s < DEFAULT_THRESHOLD)
+             / float(len(wsc)), 1) if wsc else None)}
+    m["verdict"], m["warnings"], m["infos"] = _quality_verdict(m)
+    return m
+
+
+def _compact_quality(q):
+    """体检结果落进模板元信息的精简版（完整指标只在返回值 / 报告里）。
+
+    只留判读用的几个数与告警文本：模板会经声纹同步上传给其他客户端，别把逐窗
+    明细塞进去。远端折叠（`voiceprint_sync.apply_upserts`）重建模板时不带这个
+    键，所以它是**本机录入的溯源信息**，不参与同步收敛。
+    """
+    if not q:
+        return None
+    keep = ("verdict", "flat_median", "flat_p75", "hf_median", "bg_level_db",
+            "bg_energy_pct", "voice_run_max", "speech_ratio", "voice_median",
+            "bg_median", "margin", "bg_kind", "seg_len", "win_min", "win_median",
+            "win_max", "pct_below_threshold", "windows")
+    out = {k: q[k] for k in keep if q.get(k) is not None}
+    out["warnings"] = [str(x) for x in (q.get("warnings") or [])]
+    out["infos"] = [str(x) for x in (q.get("infos") or [])]
+    return out
+
+
+def check_confusion(template, low=DEFAULT_LOW, threshold=DEFAULT_THRESHOLD,
+                    skip=None):
+    """本声纹与库内其它声纹的混淆检查（纯余弦，不解码音频，成本可忽略）。
+
+    为什么要主动查（2026-10-14 实测）：新录的「Pixel Tree」与库内 MarcoMeatball
+    相似度 **0.578**、SmugSlav **0.565**——都超过 keep 线 0.55，意味着拿它去筛
+    那两位的素材会把对方的字幕当主播保留（多声纹是并集语义，同时启用时更糟）。
+    这种风险录入时不会报错，只有逐对比对才看得见，所以录入/追加后自动跑一次。
+
+    顺带说明阈值口径：0.55/0.45 是按**中文 3 人**语料定的（见 DEFAULT_THRESHOLD
+    注释），英语素材上不同主播之间挤到 0.5~0.66 是实测常态，所以这里的告警是
+    「注意」而非「录错了」。
+
+    `template` 可以是模板 dict / 名字 / 裸向量；`skip` 是要跳过的模板名
+    （传裸向量时 `_as_template_list` 会给出占位名「主播」，靠 skip 才排得掉自己）。
+    返回 [(名字, 相似度, 级别)]，级别 `keep`/`review`/`ok`，按相似度降序。
+    """
+    tpls = _as_template_list(template)
+    if not tpls:
+        return []
+    self_name, vec = tpls[0]
+    out = []
+    for n in list_templates():
+        if n == self_name or (skip is not None and n == skip):
+            continue
+        try:
+            v = load_template(n)["embedding"]
+        except VoiceprintError:
+            continue
+        s = cosine(vec, v)
+        if s != s:
+            continue
+        s = float(s)
+        out.append((n, round(s, 4),
+                    "keep" if s >= threshold else ("review" if s >= low else "ok")))
+    out.sort(key=lambda r: (-r[1], r[0]))
+    return out
+
+
+def format_confusion(rows, min_level="keep"):
+    """把 `check_confusion` 的结果格式成人话告警（CLI 与界面共用同一份措辞）。
+
+    `min_level="keep"`（默认）只输出**会真误判**的那一档（相似度 ≥ keep 线）：
+    录入当下的回显要给得克制，存疑区那种「会进存疑保留」的提示留到 `audit`
+    全库体检时再看，否则库里模板一多，告警会把真正要紧的那条淹掉
+    （实测 8 个模板的库能出 11 条告警，其中只有 4 条是 keep 级）。
+    `min_level="review"` 则两档都输出。
+    """
+    out = []
+    for n, s, lvl in rows or []:
+        if lvl == "keep":
+            out.append("与已录入的「%s」相似度 %.3f ≥ keep 线 %.2f：拿本声纹去筛"
+                       "他的素材会把他的字幕当主播保留（两者别同时启用；若确实是"
+                       "同一人，考虑合并成一个声纹）" % (n, s, DEFAULT_THRESHOLD))
+        elif lvl == "review" and min_level == "review":
+            out.append("与已录入的「%s」相似度 %.3f 落在存疑区 [%.2f, %.2f)："
+                       "筛他的素材时会进「存疑保留」" % (n, s, DEFAULT_LOW,
+                                                         DEFAULT_THRESHOLD))
+    return out
+
+
+def audit_library(low=DEFAULT_LOW, threshold=DEFAULT_THRESHOLD):
+    """声纹库体检：各模板元信息 + 两两混淆矩阵 + 告警。返回 dict（CLI 负责排版）。
+
+    库里模板攒多了以后，「哪两个声纹其实分不开」是看不见的——只有逐对比对才
+    暴露（实测某库 8 个模板里有 3 对 ≥0.55，最高 0.663，且跨素材的对反而比同
+    素材的对更高，说明不是共用背景音、而是音色本身接近）。
+    """
+    names = list_templates()
+    vecs, metas = {}, {}
+    for n in names:
+        try:
+            t = load_template(n)
+        except VoiceprintError:
+            continue
+        vecs[n] = t["embedding"]
+        q = t.get("quality") or {}
+        metas[n] = {"clips": int(t.get("clips") or 1),
+                    "seconds": float(t.get("seconds") or 0.0),
+                    "created": str(t.get("created") or ""),
+                    "source": os.path.basename(str(t.get("source") or "")),
+                    "consistency": t.get("consistency"),
+                    "auto": bool(t.get("auto")),
+                    "verdict": q.get("verdict"),
+                    "quality_warnings": list(q.get("warnings") or [])}
+    keys = sorted(vecs)
+    matrix = {}
+    warns = []
+    for i, a in enumerate(keys):
+        for b in keys[i + 1:]:
+            s = cosine(vecs[a], vecs[b])
+            if s != s:
+                continue
+            s = round(float(s), 4)
+            matrix.setdefault(a, {})[b] = s
+            matrix.setdefault(b, {})[a] = s
+            if s >= threshold:
+                warns.append((s, "「%s」与「%s」相似度 %.3f ≥ keep 线 %.2f：互相会把"
+                                 "对方的字幕判成本人" % (a, b, s, threshold)))
+            elif s >= low:
+                warns.append((s, "「%s」与「%s」相似度 %.3f 落在存疑区 [%.2f, %.2f)"
+                                 % (a, b, s, low, threshold)))
+    # 按相似度降序：最危险的（互相误判为本人）排最前，库里模板多时不被淹没
+    warns.sort(key=lambda t: (-t[0], t[1]))
+    return {"names": keys, "meta": metas, "matrix": matrix,
+            "warnings": [t for _s, t in warns]}
+
+
+def enroll_auto(src, name="主播", n_clips=AUTO_CLIPS, clip_sec=AUTO_CLIP_SEC,
+                encoder=None, append=False, assess=True, progress=None,
+                sample_rate=SAMPLE_RATE, pcm=None):
+    """**自动选段录入（推荐入口）**：选段 + 录入 + 素材体检 + 库内混淆检查。
+
+    = `suggest_clips` → `enroll_pcm` → `assess_material` → `check_confusion`，
+    一次跑完。返回值在 `enroll_pcm` 的字段之外另带：
+      `quality`    素材体检完整指标（含 verdict / warnings）
+      `confusion`  与库内其它声纹的相似度表
+      `warnings`   人话告警汇总（选段 + 体检 + 混淆），界面与 CLI 直接回显
+      `spans`      实际用到的参考片段时间明细
+      `suggest`    选段过程统计（主簇占比 / 门控统计 / 扫描参数）
+
+    比手工给 `--start/--dur` 稳在哪（都是实测踩到的）：① 多片段而非单片段
+    （`enroll_pcm` 文档：判定边际 +0.04~+0.09）；② 片段按时间分箱铺满全片；
+    ③ 频谱门控避开 BGM 最响的时刻；④ 多人素材只取主说话人簇；⑤ 录完当场体检
+    + 查库内混淆，坏模板不会静默入库。
+
+    `assess=False` 可跳过体检（省约 60 次推理）；体检不改模板向量，只产出告警
+    与元信息，所以**默认开着**——精准度优先于这几秒。
+    `pcm` 可选：调用方已解码好的 16k 单声道波形（自检注入假音频用，也省一次
+    全片解码）；给了就不再读 `src` 的音频，但 `src` 仍用于模板的 `source` 字段。
+    """
+    enc = encoder or VoiceprintEncoder()
+    if pcm is None:
+        _progress(progress, "正在解码音频…")
+        pcm = read_pcm(src, sample_rate=sample_rate)
+    sug = suggest_clips(src, n_clips=n_clips, clip_sec=clip_sec, encoder=enc,
+                        progress=progress, pcm=pcm, sample_rate=sample_rate)
+    packed = sug["clips"]
+    clips = [c for c, _sp in packed]
+    base = None
+    if append:
+        if not os.path.isfile(template_path(name)):
+            raise VoiceprintError("没有已录入的声纹「%s」，无法追加（先关掉追加"
+                                  "正常录入，或换个名字）" % name)
+        base = load_template(name)
+    spans = [s for _c, sp in packed for s in sp]
+    # 体检用「候选向量」= 本批片段的归一均值：新建时与最终落盘向量逐位相同；
+    # 追加时最终向量还会与旧叶子折叠，体检结论描述的是**本批素材**（旧叶子是
+    # 历史事实，不该被新素材翻旧账）。
+    cand = _mean_unit([enc.embed(c, sample_rate) for c in clips])
+    quality = None
+    if assess:
+        _progress(progress, "正在体检素材（人声段 / 背景音段 / 全片逐窗）…")
+        quality = assess_material(pcm, cand, encoder=enc, progress=progress,
+                                  sample_rate=sample_rate)
+    try:
+        r = enroll_pcm(clips, name=name, encoder=enc,
+                       source=os.path.basename(str(src)),
+                       start=round(spans[0][0], 2) if spans else None,
+                       dur=round(sum(len(c) for c in clips) / float(sample_rate), 2),
+                       base=base, quality=_compact_quality(quality),
+                       auto={"clips": len(clips), "bins": int(n_clips),
+                             "clip_sec": float(clip_sec),
+                             "gate_flat_max": SPEECH_FLAT_MAX,
+                             "gate_hf_max_db": SPEECH_HF_MAX_DB,
+                             "dominant_share": sug["dominant"]["share"],
+                             "speech_sec": sug["speech"]["sec"]})
+    except VoiceprintError as e:
+        # 自动选段已经按「主说话人簇 + 频谱门控」过滤过还被拦下，说明素材本身
+        # 分不开人（多人音色接近 / 背景音压过人声）。原始报错只说「片段间声纹
+        # 不一致」，用户看不出下一步该做什么，这里补一条可操作的指路。
+        raise VoiceprintError(
+            "%s\n（自动选段已按主说话人簇 + 频谱门控过滤；仍被拦下通常是素材里"
+            "多人声音接近、或背景音压过了人声。可取消「自动选段」改用手工选段，"
+            "挑一段只有主播说话的音频，或换一份素材）" % e)
+    confusion = check_confusion(load_template(name), skip=name)
+    w_sel = list(sug["warnings"])
+    w_q = list((quality or {}).get("warnings") or [])
+    w_conf = format_confusion(confusion)
+    r.update({"quality": quality, "confusion": confusion,
+              "infos": list((quality or {}).get("infos") or []),
+              # 三类告警分开存：CLI 的体检段已经打过 w_q，末尾只补选段与混淆两类，
+              # 否则同一条 ⚠ 会出现两遍（第一版就是这样，噪音盖住重点）
+              "warnings_select": w_sel, "warnings_quality": w_q,
+              "warnings_confusion": w_conf,
+              "warnings": w_sel + w_q + w_conf,
+              "spans": spans,
+              "suggest": {k: v for k, v in sug.items() if k != "clips"}})
+    return r
+
+
 # ---------------------------------------------------------------- 打分与筛选
 
 
@@ -1577,7 +2340,95 @@ def _print_scores(title, scores):
               % (spk or "(无标签)", info["score"], info["n"], info["seconds"]))
 
 
+#: 体检档位的中文说法（CLI 回显用）
+_VERDICT_CN = {"clean": "可用", "caution": "可用，但有保留", "risky": "有风险"}
+
+
+def verdict_text(verdict):
+    """体检档位的中文说法（CLI 与界面共用同一份措辞，别各写一套）。"""
+    return _VERDICT_CN.get(verdict, verdict or "—")
+
+
+def _disp_w(s):
+    """终端显示宽度：全角（中/日/韩）算 2 列。声纹名常是韩文，用 `%-18s`
+    按字符数补齐会让矩阵错位（实测韩文名的行整体往左挤两列）。"""
+    return sum(2 if unicodedata.east_asian_width(c) in "WF" else 1
+               for c in str(s))
+
+
+def _pad(s, w):
+    """按显示宽度右侧补空格到 `w` 列。"""
+    s = str(s)
+    return s + " " * max(0, int(w) - _disp_w(s))
+
+
+def _print_quality(q):
+    """把素材体检结果打成人话（`enroll --auto` 与 `assess` 子命令共用）。"""
+    if not q:
+        return
+    print("\n=== 素材体检：%s ===" % verdict_text(q.get("verdict")))
+
+    def _f(v, fmt="%.3f"):
+        return (fmt % v) if isinstance(v, (int, float)) else "—"
+
+    print("  人声占比 %s（%s 秒），最长人声连续段 %s 秒（干净素材实测可达 150 秒）"
+          % (_f(100.0 * float(q.get("speech_ratio") or 0.0), "%.0f%%"),
+             _f(q.get("speech_sec"), "%.0f"), _f(q.get("voice_run_max"), "%.1f")))
+    print("  谱平坦度 中位 %s / p75 %s，4k-8k 衰减 %s dB"
+          "（干净人声素材实测 0.005 / 0.017、-19.6 dB）"
+          % (_f(q.get("flat_median")), _f(q.get("flat_p75")),
+             _f(q.get("hf_median"), "%.1f")))
+    if q.get("bg_level_db") is not None:
+        print("  背景音电平 %s dB（相对最响帧），占能量 %s%%（干净素材实测约 2%%）"
+              % (_f(q["bg_level_db"], "%.1f"), _f(q.get("bg_energy_pct"), "%.0f")))
+    if q.get("voice_median") is not None:
+        if q.get("bg_median") is not None:
+            print("  等长 %.1f 秒连续窗：人声段 中位 %s / 最低 %s ；纯背景音段 中位 %s"
+                  " / 最高 %s  → 落差 %s（为负即模板更认背景音）"
+                  % (float(q.get("seg_len") or 0.0), _f(q.get("voice_median")),
+                     _f(q.get("voice_min")), _f(q.get("bg_median")),
+                     _f(q.get("bg_max")), _f(q.get("margin"), "%+.3f")))
+        else:
+            print("  人声段得分 中位 %s / 最低 %s ；无纯背景音对照段（bg_kind=%s）"
+                  % (_f(q.get("voice_median")), _f(q.get("voice_min")),
+                     q.get("bg_kind")))
+    if q.get("windows"):
+        print("  全片逐窗（%d 窗，连续音频）：min %s  p10 %s  中位 %s  max %s；"
+              "低于 keep 线的占 %s%%"
+              % (q["windows"], _f(q.get("win_min")), _f(q.get("win_p10")),
+                 _f(q.get("win_median")), _f(q.get("win_max")),
+                 _f(q.get("pct_below_threshold"), "%.0f")))
+    for w in (q.get("warnings") or []):
+        print("  ⚠ %s" % w)
+    for i in (q.get("infos") or []):
+        print("  · %s" % i)
+
+
+def _configure_stdio():
+    """标准流按 UTF-8 容错——声纹名常是韩文/日文（「미니보기」「감군장」），
+    GBK 控制台下打印会 UnicodeEncodeError：`list` 直接崩在半截、名单显示不全，
+    `use` / `delete` / `score` 的回显同理。管道与重定向到文件时 Python 也用
+    locale 编码（cp936），所以命令行里 `| head` 一样会炸。
+
+    优先复用引擎的 `configure_stdio_utf8`（与引擎 CLI / GUI 同一口径，幂等）；
+    引擎导入失败才本地兜底，理由同 `_resolve_dirs`。**只在命令行入口调用**：
+    界面 import 本模块时不去动全局标准流。
+    """
+    try:
+        import video_toolbox as _e
+        _e.configure_stdio_utf8()
+        return
+    except Exception:  # noqa: BLE001
+        pass
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            stream.reconfigure(encoding="utf-8", errors="replace")
+        except Exception:  # noqa: BLE001
+            pass
+
+
 def main(argv=None):
+    _configure_stdio()
     try:
         return _main(argv)
     except VoiceprintError as e:
@@ -1604,6 +2455,16 @@ def _main(argv=None):
     p1.add_argument("--append", action="store_true",
                     help="追加到已有同名声纹（旧片段保留、加权并集折叠）；"
                          "默认是覆盖重录")
+    p1.add_argument("--auto", action="store_true",
+                    help="**自动选段（推荐）**：全片扫描 → 声纹聚簇取主说话人 → "
+                         "频谱门控排 BGM → 按时间分箱拼 %d 段，录完自动做素材体检"
+                         "与库内混淆检查；给了本开关就忽略 --start/--dur/--clip"
+                         % AUTO_CLIPS)
+    p1.add_argument("--clips", type=int, default=AUTO_CLIPS,
+                    help="自动选段的片段数（默认 %d，每段约 %.0f 秒人声）"
+                         % (AUTO_CLIPS, AUTO_CLIP_SEC))
+    p1.add_argument("--no-assess", action="store_true",
+                    help="自动选段后跳过素材体检（省约 60 次推理，不建议）")
 
     p2 = sub.add_parser("score", help="按说话人打印相似度（只看不筛）")
     p2.add_argument("--src", required=True)
@@ -1630,6 +2491,17 @@ def _main(argv=None):
     p6 = sub.add_parser("delete", help="删除一个声纹模板")
     p6.add_argument("name")
 
+    p7 = sub.add_parser("assess",
+                        help="素材体检（不落盘）：这份素材撑不撑得起一个「认嗓音」的模板")
+    p7.add_argument("--src", required=True)
+    p7.add_argument("--name", default=None,
+                    help="用哪个已录入声纹体检；不给则先自动选段、用候选向量体检")
+    p7.add_argument("--json", default=None, help="完整指标另写成 JSON")
+
+    p8 = sub.add_parser("audit",
+                        help="声纹库体检：各模板元信息 + 两两混淆矩阵 + 告警")
+    p8.add_argument("--json", default=None, help="完整结果另写成 JSON")
+
     args = ap.parse_args(argv)
     if args.cmd == "list":
         sel = set(load_selection())
@@ -1651,17 +2523,30 @@ def _main(argv=None):
         print("已删除声纹「%s」" % args.name if ok else "未找到声纹「%s」" % args.name)
         return 0 if ok else 1
     if args.cmd == "enroll":
-        extra = []
-        for raw in (args.clip or []):
-            # 从右侧切两段逗号：路径里出现逗号也不误伤
-            parts = str(raw).rsplit(",", 2)
-            if len(parts) != 3:
-                raise VoiceprintError("--clip 格式应为 \"路径,起点秒,时长秒\"：%s"
-                                      % raw)
-            extra.append((parts[0].strip().strip('"'),
-                          float(parts[1]), float(parts[2])))
-        r = enroll(args.src, args.start, args.dur, args.name, extra=extra,
-                   append=args.append)
+        sayp = lambda m: print("[声纹] %s" % m, flush=True)   # noqa: E731
+        if args.auto:
+            r = enroll_auto(args.src, args.name, n_clips=max(1, int(args.clips)),
+                            append=args.append, assess=not args.no_assess,
+                            progress=sayp)
+        else:
+            extra = []
+            for raw in (args.clip or []):
+                # 从右侧切两段逗号：路径里出现逗号也不误伤
+                parts = str(raw).rsplit(",", 2)
+                if len(parts) != 3:
+                    raise VoiceprintError("--clip 格式应为 \"路径,起点秒,时长秒\"：%s"
+                                          % raw)
+                extra.append((parts[0].strip().strip('"'),
+                              float(parts[1]), float(parts[2])))
+            r = enroll(args.src, args.start, args.dur, args.name, extra=extra,
+                       append=args.append)
+            # 手工录入也查一次库内混淆：纯余弦、不解码音频，成本可忽略，而
+            # 「新声纹跟库里某人分不开」正是录入当下最该知道的事
+            try:
+                r["warnings"] = format_confusion(
+                    check_confusion(load_template(r["name"]), skip=r["name"]))
+            except VoiceprintError:
+                r["warnings"] = []
         if r.get("appended"):
             print("已追加到声纹「%s」：现共 %d 个片段 %.1f 秒 -> %s"
                   % (r["name"], r["clips"], r["seconds"], r["path"]))
@@ -1672,6 +2557,80 @@ def _main(argv=None):
         else:
             print("已录入声纹「%s」：%.1f 秒 -> %s"
                   % (r["name"], r["seconds"], r["path"]))
+        sug = r.get("suggest") or {}
+        if sug:
+            d, sp = sug.get("dominant") or {}, sug.get("speech") or {}
+            print("  自动选段：主说话人占 %s%% 扫描窗（共 %s 簇），门控人声 %s 秒"
+                  "（%s 段，最长 %s 秒）"
+                  % (int(100.0 * float(d.get("share") or 0)), d.get("clusters"),
+                     sp.get("sec"), sp.get("runs"), sp.get("longest_run")))
+        _print_quality(r.get("quality"))     # 体检段自带 ⚠ 告警与 · 提示
+        for w in ((r.get("warnings_select") or [])
+                  + (r.get("warnings_confusion") or r.get("warnings") or [])):
+            print("⚠ %s" % w)
+        if (r.get("quality") or {}).get("verdict") == "risky":
+            return 3
+        return 0
+    if args.cmd == "assess":
+        sayp = lambda m: print("[声纹] %s" % m, flush=True)   # noqa: E731
+        pcm = read_pcm(args.src)
+        enc = VoiceprintEncoder()
+        warns = []
+        if args.name:
+            vec = load_template(args.name)["embedding"]
+            label = "已录入声纹「%s」" % args.name
+        else:
+            sug = suggest_clips(args.src, encoder=enc, pcm=pcm, progress=sayp)
+            vec = _mean_unit([enc.embed(c) for c, _s in sug["clips"]])
+            label = "自动选段候选向量（%d 段，未落盘）" % len(sug["clips"])
+            warns = list(sug["warnings"])
+        q = assess_material(pcm, vec, encoder=enc, progress=sayp)
+        print("\n体检对象：%s" % label)
+        for w in warns:
+            print("⚠ %s" % w)
+        _print_quality(q)
+        if args.json:
+            with open(args.json, "w", encoding="utf-8") as fh:
+                json.dump({"src": args.src, "target": label, "select_warnings": warns,
+                           "quality": q}, fh, ensure_ascii=False, indent=1)
+            print("\n已写 %s" % args.json)
+        return 3 if q.get("verdict") == "risky" else 0
+    if args.cmd == "audit":
+        rep = audit_library()
+        if not rep["names"]:
+            print("（还没有录入任何声纹；先跑 enroll --auto）")
+            return 0
+        print("=== 声纹库体检（%d 个）===" % len(rep["names"]))
+        for n in rep["names"]:
+            m = rep["meta"][n]
+            print("  %s %2d 片段 %6.1f 秒  一致性 %s  %s  %s%s"
+                  % (_pad(n, 18), m["clips"], m["seconds"],
+                     _pad(("%.3f" % m["consistency"]) if m["consistency"] else "—", 6),
+                     (m["created"] or "")[:16],
+                     "自动选段" if m["auto"] else "手工选段",
+                     ("  体检:%s" % verdict_text(m["verdict"]))
+                     if m["verdict"] else ""))
+            for w in m["quality_warnings"]:
+                print("      ⚠ %s" % w)
+        keys = rep["names"]
+        print("\n=== 两两相似度（≥%.2f 互相误判为本人 / ≥%.2f 存疑）==="
+              % (DEFAULT_THRESHOLD, DEFAULT_LOW))
+        for a in keys:
+            cells = "".join(
+                "%8s" % ("-" if a == b else
+                         ("%.3f" % rep["matrix"].get(a, {}).get(b, float("nan"))))
+                for b in keys)
+            print("  %s%s" % (_pad(a, 20), cells))
+        print("  列顺序同上行顺序：%s"
+              % "、".join("%d=%s" % (i + 1, n) for i, n in enumerate(keys)))
+        for w in rep["warnings"]:
+            print("⚠ %s" % w)
+        if not rep["warnings"]:
+            print("  没有互相混淆的声纹对")
+        if args.json:
+            with open(args.json, "w", encoding="utf-8") as fh:
+                json.dump(rep, fh, ensure_ascii=False, indent=1)
+            print("\n已写 %s" % args.json)
         return 0
 
     names = [x.strip() for x in str(args.name).split(",") if x.strip()]

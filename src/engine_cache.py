@@ -1,3 +1,4 @@
+# @version 2.1.0
 """引擎磁盘缓存（自研，替代 videocaptioner.core.utils.cache）。
 
 P1 接缝之一：引擎在 ``core/utils/cache.py`` **模块级**创建 5 个 diskcache
@@ -56,6 +57,16 @@ CACHE_KINDS = {
 #: 需要 tag 索引的缓存类型（引擎对 asr_results 传了 tag_index=True）。
 #: tag 索引用来按标签批量失效，自研降级实现不支持 ⇒ 这些类型不走降级路径。
 _TAG_INDEXED = {"asr"}
+
+#: 第三方引擎通过 diskcache 的**私有** ``_sql`` 属性查限流记录
+#: （``videocaptioner.core.asr.base.BaseASR._check_rate_limit``：
+#: ``SELECT key FROM Cache WHERE tag = ? AND store_time >= ?``）。
+#: ``LazyCache.__getattr__`` 对 ``_`` 前缀一律 AttributeError 是为了挡
+#: copy/pickle 等协议探测，但会把这类「已知的私有 API 转发」一并挡掉——
+#: 症状是公益转录（Bcut/剪映）直接失败，报错文本就是裸属性名
+#: （``Failed to query rate limit: _sql``）。这里显式放行**仅此一个**
+#: 具名属性，不开任意私有属性的口子。
+_FORWARDED_PRIVATE = frozenset({"_sql"})
 
 #: 全局开关（与引擎 is_cache_enabled 语义一致）
 _cache_enabled = True
@@ -239,7 +250,7 @@ class LazyCache:
     # ---------- Cache 协议 ----------
     def __getattr__(self, name):
         # 只在底层对象建好后才解析属性；未建库时访问即触发建库（与旧代理一致）
-        if name.startswith("_"):
+        if name.startswith("_") and name not in _FORWARDED_PRIVATE:
             raise AttributeError(name)
         return getattr(self._ensure(), name)
 

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# @version 2.0.0
+# @version 2.1.0
 """声纹模板多用户同步自检（离线：临时目录模拟两个客户端 + 一个共享哑存储根）。
 
 覆盖 `src/voiceprint_sync.py`（独立通道）与产生端 `src/speaker_voiceprint.py`
@@ -14,6 +14,8 @@
     两叶折叠（方向 = 加权均值、clips 累加、sources 记双方）
   · 端到端两客户端：A 录入 -> push -> B sync 落地（带 sync 标记）-> B 再 sync 幂等
   · 重录传播（supersedes 链不产生冲突；自录副本重建本机条目 id）
+  · **带溯源字段的模板**（声纹模块 2.2.0 的 `quality` / `auto`）：不破坏
+    「文件内容 == 条目 value」这条 id 重建前提，取代链照常，落地不受影响
   · 删除传播（tombstone + 向量指纹保护；合并模板指纹不同天然不被误删）
   · 「本地自录优先」：B 自录同名异人**不被覆盖**，条目进 conflict.json 隔离
   · `selection.json` 是本地偏好不进通道；`vp_inbox/` 与校准 `inbox/` 命名空间隔离
@@ -378,6 +380,50 @@ def main():
             check("B 的副本已更新为重录后的向量",
                   V.embedding_fp(got["embedding"])
                   == V.embedding_fp(mk_template("主播", 2.0)["embedding"]))
+            check("B 侧无冲突隔离", V.status()["conflicts"] == 0,
+                  V.status()["conflicts"])
+
+        # ---------------- 4b) 带 quality/auto 溯源字段的模板（声纹模块 2.2.0）------
+        say("\n== 4b) 自动选段模板（带 quality / auto 字段）的同步不变式 ==")
+        # 自动录入会往模板里多写两个键：`auto`（选段溯源）与 `quality`（素材体检
+        # 结论 + 告警）。这两个键必须：① 不破坏「文件内容 == 条目 value」这条
+        # own_entry_id 的重建前提（否则重录的 supersedes 指错，「重录=替换」退化成
+        # 「重录=追加」）；② 不影响推送/拉取落地（远端折叠只认 embedding/mix，
+        # 溯源字段属本机信息，丢了也不能报错）。
+        with Client(tmp, remote, "A") as A:
+            emb3 = mk_template("主播", 3.0)["embedding"]
+            SV.save_template("主播", emb3, source="auto.mp4", seconds=165.4,
+                             quality={"verdict": "risky", "margin": 0.007,
+                                      "warnings": ["背景音占了 31% 的能量"]},
+                             auto={"clips": 12, "bins": 12,
+                                   "dominant_share": 1.0})
+            p3 = os.path.join(A.vp, "主播.json")
+            obj3 = read_json(p3)
+            check("溯源字段已落盘", obj3.get("auto", {}).get("clips") == 12
+                  and (obj3.get("quality") or {}).get("verdict") == "risky",
+                  sorted(k for k in obj3 if k in ("auto", "quality")))
+            q3 = A.pending()
+            check("带溯源字段仍排入 1 条待传", len(q3) == 1, len(q3))
+            check("条目 value == 文件内容（own_entry_id 前提未被破坏）",
+                  V.own_entry_id("主播", obj3) == q3[0]["id"],
+                  (V.own_entry_id("主播", obj3)[:8], q3[0]["id"][:8]))
+            # 再录一次：supersedes 必须指向上一条（带溯源字段的那条）
+            SV.save_template("主播", mk_template("主播", 4.0)["embedding"],
+                             source="auto2.mp4", seconds=120.0,
+                             quality={"verdict": "clean", "warnings": []},
+                             auto={"clips": 8, "bins": 8})
+            q4 = A.pending()
+            # 队列是追加式的（还没 push），所以此刻应有 2 条：上一条 + 本次重录
+            check("带溯源字段的重录仍构成取代链",
+                  len(q4) == 2 and q4[-1]["supersedes"] == q3[0]["id"],
+                  (len(q4), (q4[-1]["supersedes"] or "-")[:8], q3[0]["id"][:8]))
+            V.push(quiet=True)
+        with Client(tmp, remote, "B") as B:
+            V.sync(quiet=True)
+            got = read_json(os.path.join(B.vp, "主播.json"))
+            check("B 收敛到最新向量（溯源字段不影响落地）",
+                  V.embedding_fp(got["embedding"])
+                  == V.embedding_fp(mk_template("主播", 4.0)["embedding"]))
             check("B 侧无冲突隔离", V.status()["conflicts"] == 0,
                   V.status()["conflicts"])
 

@@ -1,12 +1,12 @@
 # -*- mode: python ; coding: utf-8 -*-
-# @version 2.0.0
+# @version 2.1.0
 """视频工具箱 · 在线引导安装器 —— PyInstaller 打包配置。
 
 产物：单文件 exe，`视频工具箱_在线安装_v<版本>.exe`（输出到 installer_online\\）。
 
-为什么用 tkinter 而不是 PyQt5：本 exe 只需「版本信息 / 选目录 / 进度 / 日志」，
-tkinter 是标准库，打出来约 12MB；换成 PyQt5 要 ~40MB —— 而它本身也是要给
-用户下载的，体积直接算在更新成本里。
+为什么用 tkinter 而不是 Qt：本 exe 只需「版本信息 / 选目录 / 进度 / 日志」，
+tkinter 是标准库，打出来约 12MB；换成 Qt（PyQt5 / PySide6）要 ~40MB —— 而它
+本身也是要给用户下载的，体积直接算在更新成本里。
 
 ⚠ 只打包 vt_online_setup.py / vt_update_core.py / vt_dl.py / vt_version_index.py
    四个自研文件，**不收集任何第三方包**：
@@ -43,7 +43,8 @@ a = Analysis(
     hooksconfig={},
     runtime_hooks=[],
     # 引导安装器不需要这些重型件；显式排除可让体积与构建时间都更可控
-    excludes=["PyQt5", "numpy", "onnxruntime", "PIL", "torch", "cv2",
+    # （2026-10-14 PySide6 迁移：PySide6 与 PyQt5 一并剔除，两边都别进包）
+    excludes=["PyQt5", "PySide6", "numpy", "onnxruntime", "PIL", "torch", "cv2",
               "matplotlib", "pandas", "scipy", "cryptography"],
     noarchive=False,
 )

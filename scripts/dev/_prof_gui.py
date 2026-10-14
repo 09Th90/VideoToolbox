@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.0.0
+# @version 2.1.0
 """真实 GUI 启动/进入字幕处理页的耗时剖析（不联网、不写自检文件）。
 
 用法：
@@ -116,9 +116,9 @@ def main():
     mark("prepare_runtime_env 完成")
     import video_toolbox_qt as g
     g.configure_qt_plugins()
-    from PyQt5.QtCore import Qt, QTimer
-    from PyQt5.QtGui import QFont, QGuiApplication
-    from PyQt5.QtWidgets import QApplication
+    from PySide6.QtCore import Qt, QTimer
+    from PySide6.QtGui import QFont, QGuiApplication
+    from PySide6.QtWidgets import QApplication
     from qfluentwidgets import Theme, setTheme, setThemeColor
 
     QApplication.setAttribute(Qt.AA_EnableHighDpiScaling, True)
@@ -163,8 +163,8 @@ def main():
 
     if MODE in ("warm", "lazy+warm"):
         def warm_fonts():
-            from PyQt5.QtGui import QFont
-            from PyQt5.QtWidgets import QLabel
+            from PySide6.QtGui import QFont
+            from PySide6.QtWidgets import QLabel
             from qfluentwidgets.common.font import getFont
             keep = []
             for size in (12, 14, 16, 18, 20, 24):

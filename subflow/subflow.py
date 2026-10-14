@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.0.0
+# @version 2.1.0
 """subflow——字幕生产全链路单命令编排（整合方案书 v1.0 阶段 2/3 交付物）。
 
 链路：获取 → finesub 转写精修 → MAW/MAWE 人工校对（人工交接点）→ ffmpeg 烧录交付。

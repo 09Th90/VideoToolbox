@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+# @version 2.1.0
 """GUI 黄金基准比对工具（P3 引擎自研化替换 · 需在**能跑 Qt 的桌面**执行）。
 
 用途：证明「自研 UI（vt_engine_ui）」与「引擎 UI（videocaptioner）」经过**同一套
@@ -36,6 +37,22 @@ IGNORE_CLASSES = {
     "WhisperAPISettingWidget",
     "FasterWhisperSettingWidget",
 }
+
+#: 控件路径**正则** → 比对时忽略的属性键（只对匹配到的节点生效，不放宽全局）。
+#:
+#: v2.1.0 起「任务创建」输入框的 placeholder 自研侧改成了
+#: 「请拖拽文件，或粘贴视频链接（自动识别整段分享文案）」，引擎侧仍是旧文案。
+#: 这是**有意为之**的功能提示（识别能力放宽了，得说出来），引擎侧我们改不了
+#: 也不该改——所以按路径精确豁免这一个属性，其余节点仍逐属性严格比对。
+#:
+#: 用正则而非全等：``cur`` 里含 ``QStackedWidget[4]`` / ``…[1]`` 这类会随
+#: 页面增删、兄弟节点排序而变的下标，写死字符串等于给自己埋一颗
+#: "哪天多插一个页就静默失效"的雷。
+IGNORE_ATTRS_BY_PATH_RE = {
+    r"/TaskCreationInterface#TaskCreationInterface\[\d+\]/LineEdit$": ("ph",),
+}
+_IGNORE_COMPILED = [(re.compile(p), keys)
+                    for p, keys in IGNORE_ATTRS_BY_PATH_RE.items()]
 
 
 def _norm_ws(s):
@@ -83,7 +100,7 @@ def serialize(w, depth=0, max_depth=60):
         return None
     if w.__class__.__name__ in IGNORE_CLASSES:
         return None
-    from PyQt5.QtWidgets import QWidget
+    from PySide6.QtWidgets import QWidget
     node = {"cls": w.__class__.__name__, "obj": w.objectName() or ""}
     try:
         g = w.geometry()
@@ -154,8 +171,29 @@ def _flatten(node, path, out, in_hidden=False):
                if k in node}
     summary.pop("hid", None)      # 已按可见性过滤，无需再比
     out.append((cur, summary))
-    for i, k in enumerate(node.get("kids", [])):
-        _flatten(k, "%s[%d]" % (cur, i), out, hidden)
+    # ⚠ 隐藏子节点**不参与比对、也不占 sibling 下标**：它们是交互态对象
+    # （RoundMenu/QMenu 之类），两侧数量天然可能不同（实证：引擎侧挂
+    # ``vc_transcribe_ui_patch`` 构造期建 2 个 model_menu，自研页内建 1 个）。
+    # 若让隐藏节点占号，后面所有可见兄弟的下标都会整体错位——同一段代码
+    # 菜单数一变，比对就从 7/6 恶化成 63/63。
+    idx = 0
+    for k in node.get("kids", []):
+        if k.get("hid"):
+            continue
+        _flatten(k, "%s[%d]" % (cur, idx), out, hidden)
+        idx += 1
+
+
+def _drop_ignored_attrs(path, summary):
+    """按路径剔除「有意为之」的属性键。
+
+    只在**比对**这一步生效，采集侧（``_flatten``）保持原样——否则 dump 出的
+    JSON 里这些属性就没了，将来想回看"当初到底差在哪"都无从下手。
+    """
+    for rx, keys in _IGNORE_COMPILED:
+        if rx.search(path):
+            return {k: v for k, v in summary.items() if k not in keys}
+    return summary
 
 
 def diff(a_path, b_path):
@@ -166,7 +204,8 @@ def diff(a_path, b_path):
     fa, fb = [], []
     _flatten(a, "", fa)
     _flatten(b, "", fb)
-    da, db = dict(fa), dict(fb)
+    da = {p: _drop_ignored_attrs(p, s) for p, s in fa}
+    db = {p: _drop_ignored_attrs(p, s) for p, s in fb}
     ka = [p for p, _ in fa]
     kb = [p for p, _ in fb]
     only_a = [k for k in ka if k not in db]
@@ -192,7 +231,7 @@ def diff(a_path, b_path):
 
 def apply_home_surgery(h, app):
     """复现宿主对内嵌工作台的实例级整形（两条路径共用，保证输入一致）。"""
-    from PyQt5.QtWidgets import QWidget as _QW, QStackedWidget, QVBoxLayout
+    from PySide6.QtWidgets import QWidget as _QW, QStackedWidget, QVBoxLayout
     sub_if = getattr(h, "subtitle_optimization_interface", None)
     if sub_if is not None:
         opt = getattr(sub_if, "optimize_button", None)
@@ -222,9 +261,23 @@ def apply_home_surgery(h, app):
             except Exception:
                 pass
             h.switch_to_video_synthesis = lambda *a, **k: None
+            # ⚠ 与宿主同款：QLayout.removeWidget 只解除布局管理、不隐藏控件，
+            # deleteLater 之前那一帧仍会画出来 ⇒ 先显式 hide。
+            item = h.pivot.items.get("VideoSynthesisInterface")
+            if item is not None:
+                item.hide()
             h.pivot.removeWidget("VideoSynthesisInterface")
+            # removeWidget 内部是 deleteLater()，**延迟**到事件循环才真正销毁；
+            # 在那之前它仍是 SegmentedWidget 的子控件（多出一个 sibling 下标）。
+            # 立即脱父才能与自研路径（构造期就 setParent(None)）结构一致，
+            # 也顺带彻底断掉那一帧的绘制来源。
+            if item is not None:
+                item.setParent(None)
             h.stackedWidget.removeWidget(syn)
             syn.hide()
+            # 自研路径在构造期就没把它 addSubInterface，而是直接 setParent(None)；
+            # 宿主侧必须同样脱父，否则子控件编号差一 ⇒ golden 报下标偏移。
+            syn.setParent(None)
     except Exception:
         pass
     tc = getattr(h, "task_creation_interface", None)
@@ -233,6 +286,29 @@ def apply_home_surgery(h, app):
             w = getattr(tc, attr, None)
             if w is not None:
                 w.hide()
+        # v2.1.0：与宿主同款——构建时就摘掉任务创建分段（结构性保证）。
+        # tc 摘除后成为孤儿，golden 不挂首页（两条路径一致即可）。
+        # ⚠ 先把当前页切走再摘：构造期当前页就是 tc，直接 removeWidget 会让
+        # currentIndex 自动落到「语音转录」，引擎转录页 showEvent 会 lazy 建
+        # 第二个 RoundMenu（自研页无此 lazy）⇒ 结构差 1，比对永远 DIFFERS。
+        try:
+            h.stackedWidget.setCurrentWidget(h.subtitle_optimization_interface)
+        except Exception:
+            pass
+        try:
+            _item = h.pivot.items.get("TaskCreationInterface")
+            if _item is not None:
+                _item.hide()
+            h.pivot.removeWidget("TaskCreationInterface")
+            if _item is not None:
+                _item.setParent(None)
+            h.stackedWidget.removeWidget(tc)
+            if h.stackedWidget.count():
+                _first = h.stackedWidget.widget(0)
+                h.stackedWidget.setCurrentWidget(_first)
+                h.pivot.setCurrentItem(_first.objectName())
+        except Exception:
+            pass
         try:
             tc.finished.disconnect(h.switch_to_transcription)
         except Exception:
@@ -250,6 +326,9 @@ def apply_home_surgery(h, app):
                            onClick=lambda: h.stackedWidget.setCurrentWidget(calib))
     except Exception:
         pass
+    # v2.1.0：剩余三个分段自然平铺（stretch=1 + 随容器扩张），**无需干预**。
+    # 曾在此复刻过宿主的 setAlignment/setSizePolicy/setSizeConstraint 一套，
+    # 负向验证证明几何完全相同 ⇒ 属多余代码，已删。
     h.resize(1200, 800)
     h.show()
     app.processEvents()
@@ -258,8 +337,8 @@ def apply_home_surgery(h, app):
 
 def apply_setting_surgery(s, app):
     """复现宿主 _ensure_engine_setting 的整形（隐藏分组/卡片、合并翻译组、拍平视口）。"""
-    from PyQt5.QtCore import Qt
-    from PyQt5.QtWidgets import QFrame, QSizePolicy
+    from PySide6.QtCore import Qt
+    from PySide6.QtWidgets import QFrame, QSizePolicy
     try:
         s.settingLabel.hide()
     except Exception:
@@ -342,7 +421,7 @@ def apply_setting_surgery(s, app):
 
 #: 进程内唯一的 QApplication 强引用。
 #:
-#: ⚠ PyQt5 同一进程**只能有一个** QApplication：第二次构造会销毁前一个实例，
+#: ⚠ PySide6 同一进程**只能有一个** QApplication：第二次构造会销毁前一个实例，
 #: 挂在它上面的 widget 随即变成已删除的 C++ 对象
 #: （报 "wrapped C/C++ object of type HomeInterface has been deleted"）。
 #: `_mk_app()` 若每次新建，_all() 里连着 dump 四个界面时必然踩到 ⇒ 用模块级
@@ -372,7 +451,7 @@ _CACHED_WIDGET_ATTRS = (
 
 def _clear_class_widget_cache(cls):
     """清掉界面类上的 widget 实例缓存，使下一轮能干净构造。"""
-    from PyQt5.QtWidgets import QWidget
+    from PySide6.QtWidgets import QWidget
     cleared = []
     for attr in _CACHED_WIDGET_ATTRS:
         try:
@@ -393,7 +472,7 @@ def _clear_class_widget_cache(cls):
 
 def _mk_app():
     global _APP
-    from PyQt5.QtWidgets import QApplication
+    from PySide6.QtWidgets import QApplication
     inst = QApplication.instance()
     if inst is None:
         inst = QApplication(sys.argv[:1])
@@ -441,7 +520,7 @@ def _setting_parent():
     实测：把父对象存进模块级 ``_KEEP`` 后同一操作正常。父对象无 parent，
     只能靠 Python 侧强引用维持存活（``_KEEP`` 持有到进程退出）。
     """
-    from PyQt5.QtWidgets import QWidget
+    from PySide6.QtWidgets import QWidget
     parent = QWidget()
     _KEEP.append(parent)
     return parent

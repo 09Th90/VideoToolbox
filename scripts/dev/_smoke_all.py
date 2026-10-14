@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# @version 2.0.0
+# @version 2.1.0
 """全功能引擎层冒烟测试（v1.15.8 审查用）。
 
 分组覆盖（--only A,C / --skip B 选组）：
@@ -104,7 +104,7 @@ if want("B"):
               r.stdout.decode(errors="replace").strip())
     except Exception as e:  # noqa: BLE001
         check("B", "python -V", False, repr(e)[:100])
-    for modname in ("PyQt5", "qfluentwidgets", "videocaptioner", "faster_whisper",
+    for modname in ("PySide6", "qfluentwidgets", "videocaptioner", "faster_whisper",
                     "yaml", "diskcache", "platformdirs"):
         try:
             r = run([py, "-c", f"import {modname}; print('ok')"], timeout=150)

@@ -1,3 +1,4 @@
+# @version 2.1.0
 """字幕机翻（自研，替代 videocaptioner.core.translate.* 翻译器实现）。
 
 P1 接缝之一：把第三方引擎的三个免费翻译器（微软 / 谷歌 / DeepLx）的公开

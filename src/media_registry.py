@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.0.0
+# @version 2.1.0
 """目录感知层（引擎侧，v1.14.0 新增）：监视下载目录，维护文件索引，变更即发信号。
 
 设计要点
@@ -9,8 +9,8 @@
   是必须的第二条腿（只负责"感知"，**不负责驱动流水线**）。
 * 只做索引，不做业务判断：配对一律转交 `engine.smart_pair()`，本模块不重写、
   不复制任何配对规则（自检会断言 `smart_pair` 被真实调用）。
-* 零 Qt 控件依赖：只用 QtCore（QFileSystemWatcher / QTimer / pyqtSignal）。
-  PyQt5 缺失或无事件循环时自动退化为"无信号 + 手动 poll_once()"实现，
+* 零 Qt 控件依赖：只用 QtCore（QFileSystemWatcher / QTimer / Signal）。
+  PySide6 缺失或无事件循环时自动退化为"无信号 + 手动 poll_once()"实现，
   纯 CLI 下也能 import 与跑通（自检依赖这一点）。
 """
 
@@ -18,8 +18,8 @@ import os
 import threading
 import time
 
-try:  # QtCore 可选：无 PyQt5 时退化，逻辑照常可用
-    from PyQt5.QtCore import QFileSystemWatcher, QObject, QTimer, pyqtSignal
+try:  # QtCore 可选：无 PySide6 时退化，逻辑照常可用
+    from PySide6.QtCore import QFileSystemWatcher, QObject, QTimer, Signal
     _HAS_QT = True
 except Exception:  # noqa: BLE001 - 纯 CLI 自检环境
     _HAS_QT = False
@@ -27,7 +27,7 @@ except Exception:  # noqa: BLE001 - 纯 CLI 自检环境
     QTimer = None
     QObject = object
 
-    def pyqtSignal(*_a, **_k):  # noqa: N802 - 占位，保持类定义语法一致
+    def Signal(*_a, **_k):  # noqa: N802 - 占位，保持类定义语法一致
         return None
 
 import video_toolbox as engine
@@ -66,7 +66,7 @@ class _Emitter(QObject):
     """Qt 信号 + 普通回调双通道：GUI 用信号，自检/CLI 用回调。"""
 
     if _HAS_QT:
-        files_changed = pyqtSignal(object)   # list[str]
+        files_changed = Signal(object)   # list[str]
 
     def __init__(self):
         if _HAS_QT:

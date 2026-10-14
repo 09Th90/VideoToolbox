@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# @version 2.0.0
+# @version 2.1.0
 """主播声纹链路自检（离线，不联网、不依赖 ffmpeg）。
 
 覆盖 src/speaker_voiceprint.py：
@@ -9,6 +9,12 @@
   · 声纹模板落盘 -> 读回 往返
   · 多片段录入（enroll_pcm：同人一致性校验 + 均值、拒落盘）
   · 追加录入（enroll_pcm(base=)：与已有模板折叠、守卫拒绝异人）
+  · 命令行回显编码（GBK 流下打印韩文声纹名不崩、不乱码）
+  · 频谱门控（谐波音 vs 白噪声的判据分离、静音地板、严格档）
+  · 参考片段拼接（时间分箱、拼接淡变、越界/过短 run 的处理）
+  · 素材体检判读（_quality_verdict 的 clean/caution/risky 与逐条告警）
+  · 库内混淆检查与库体检（check_confusion / format_confusion / audit_library）
+  · 自动选段与自动录入（suggest_clips 只取主说话人、enroll_auto 落溯源元信息）
   · 按说话人聚簇打分 / 逐条打分
   · 本地声纹聚类：基本纯度 + 时长加权簇心 / 歧义拒分的几何关系用例
   · decide() 的 keep / drop / review 三分支
@@ -24,6 +30,7 @@ fbank 的正确性另有**外部基准**验证：与 kaldi-native-fbank 逐元�
 运行：tools/python/python.exe _selftest_speaker_voiceprint.py
 结果同时打印到 stdout 并写入 C:\\bld\\_speaker_vp_test\\result.txt。
 """
+import io
 import os
 import shutil
 import sys
@@ -106,6 +113,39 @@ class FakeEncoder:
 def fake_pcm(spk_id, seconds=2.0):
     """构造「说话人 spk_id」的假 PCM（值恒为 spk_id/10）。"""
     return np.full(int(16000 * seconds), spk_id / 10.0, dtype=np.float32)
+
+
+def tone_pcm(f0=150.0, seconds=2.0, peak=0.1, n_harm=8, sample_rate=SR1):
+    """谐波叠加音：能量集中在低频少数几根谐波上——**频谱门控眼里「像人声」**
+    （谱平坦度低、4k-8k 迅速衰减）。按峰值归一，方便 `FakeEncoder` 分辨说话人。
+    """
+    t = np.arange(int(seconds * sample_rate), dtype=np.float64) / sample_rate
+    x = np.zeros_like(t)
+    for k in range(1, n_harm + 1):
+        x += np.sin(2 * np.pi * f0 * k * t) / float(k ** 2)
+    x *= float(peak) / max(float(np.max(np.abs(x))), 1e-9)
+    return x.astype(np.float32)
+
+
+def noise_pcm(seconds=2.0, peak=0.1, seed=7, sample_rate=SR1):
+    """白噪声：谱平坦度≈1、高频不衰减——**门控眼里「像音乐/游戏音」**。"""
+    x = np.random.RandomState(seed).randn(int(seconds * sample_rate))
+    x *= float(peak) / max(float(np.max(np.abs(x))), 1e-9)
+    return x.astype(np.float32)
+
+
+def talk_pcm(f0=150.0, peak=0.1, chunks=10, chunk_sec=4.0, gap_sec=0.6,
+             sample_rate=SR1):
+    """合成「某人在说话」：一段段谐波音夹静音停顿。
+
+    必须带停顿——真实语音有句间停顿，门控因此切出多个 run；纯连续音会整片连成
+    **一个** run，`_clip_to_intervals` 的裁剪逻辑与体检的对照段就都测不到了。
+    """
+    parts = []
+    for _i in range(chunks):
+        parts.append(tone_pcm(f0, chunk_sec, peak, sample_rate=sample_rate))
+        parts.append(np.zeros(int(gap_sec * sample_rate), dtype=np.float32))
+    return np.concatenate(parts).astype(np.float32)
 
 
 SRT = """1
@@ -411,6 +451,357 @@ def main():
                       name="主播A", encoder=enc5, base=SV.load_template("主播A")))
         check("被拒时原模板未被改写（clips 仍 2）",
               SV.load_template("主播A")["clips"] == 2)
+    finally:
+        SV.TEMPLATE_DIR = old_tpl_dir
+        shutil.rmtree(tmpdir, ignore_errors=True)
+
+    # ---------------- 4e) 命令行回显编码（GBK 流 / 管道）----------------
+    say("\n== 4e) 命令行回显编码（韩文声纹名）==")
+    tmpdir = tempfile.mkdtemp(prefix="vt_vp_cli_")
+    old_tpl_dir, old_sel = SV.TEMPLATE_DIR, SV.SELECTION_PATH
+    SV.TEMPLATE_DIR = tmpdir
+    SV.SELECTION_PATH = os.path.join(tmpdir, "selection.json")
+    old_out, old_err = sys.stdout, sys.stderr
+
+    def _run_cli(argv):
+        """在「编码 gbk + 严格报错」的假标准流上跑 CLI，返回 (rc, out字节, err字节)。
+
+        模拟 Windows 下**管道 / 重定向**的口径：此时 Python 按 locale（中文系统
+        cp936）编码 stdout，韩文声纹名会直接 UnicodeEncodeError —— 真实控制台
+        走 WriteConsoleW 反而不崩，所以这个坑只在 `| head`、`> log` 时暴露。
+        """
+        bo, be = io.BytesIO(), io.BytesIO()
+        wo = io.TextIOWrapper(bo, encoding="gbk", errors="strict")
+        we = io.TextIOWrapper(be, encoding="gbk", errors="strict")
+        sys.stdout, sys.stderr = wo, we
+        try:
+            rc = SV.main(argv)
+            wo.flush()
+            we.flush()
+        finally:
+            sys.stdout, sys.stderr = old_out, old_err
+        # ⚠ 必须在 wo/we 还活着时取字节：包装器被 GC 会连带关掉底层 BytesIO
+        out_b, err_b = bo.getvalue(), be.getvalue()
+        del wo, we
+        return rc, out_b, err_b
+
+    try:
+        e6 = np.zeros(SV.EMB_DIM, dtype=np.float32)
+        e6[0] = 1.0
+        SV.save_template("미니보기", e6)
+        probe = io.TextIOWrapper(io.BytesIO(), encoding="gbk", errors="strict")
+        check("假流有效：GBK 严格流直写韩文必崩（否则本节断言无意义）",
+              _raises(UnicodeEncodeError,
+                      lambda: (probe.write("미니보기"), probe.flush())))
+
+        rc, out_b, _err_b = _run_cli(["list"])
+        text = out_b.decode("utf-8", "replace")
+        check("list 在 GBK 流下不崩（rc=0）", rc == 0, rc)
+        check("list 完整回显韩文声纹名", "미니보기" in text,
+              text.strip().replace("\n", " | ")[:120])
+        check("回显不是问号占位（真按 UTF-8 写出）", "??" not in text)
+
+        rc2, o2, err2 = _run_cli(["delete", "미니보기_查无此人"])
+        dtext = (o2 + err2).decode("utf-8", "replace")
+        check("delete 查无此人返回 1", rc2 == 1, rc2)
+        check("delete 回显里的韩文名不崩、不乱码", "미니보기_查无此人" in dtext,
+              dtext.strip()[:100])
+        check("同名真模板未被误删", os.path.isfile(SV.template_path("미니보기")))
+
+        # VoiceprintError 走 stderr：模板缺失的提示里同样带韩文名
+        rc3, o3, err3 = _run_cli(["score", "--src", "无此素材.mp4",
+                                  "--srt", "无此字幕.srt", "--name", "미니보기2"])
+        etext = err3.decode("utf-8", "replace")
+        check("模板缺失按可预期失败返回 2", rc3 == 2, rc3)
+        check("stderr 的失败提示里韩文名不崩、不乱码", "미니보기2" in etext,
+              etext.strip()[:100])
+    finally:
+        sys.stdout, sys.stderr = old_out, old_err
+        SV.TEMPLATE_DIR, SV.SELECTION_PATH = old_tpl_dir, old_sel
+        shutil.rmtree(tmpdir, ignore_errors=True)
+
+    # ---------------- 4f) 频谱门控 ----------------
+    say("\n== 4f) 频谱门控（排 BGM 的选段判据）==")
+    n_fr = int(SV.GATE_FRAME_SEC * SR1)
+    seg_sp, seg_nz = tone_pcm(150.0, 2.0, 0.1), noise_pcm(2.0, 0.1)
+    mixed = np.concatenate([seg_sp, seg_nz, seg_sp])
+    flat, hf, db = SV.spectral_frame_features(mixed)
+    k = int(round(2.0 / SV.GATE_FRAME_SEC))          # 每段的帧数
+    check("逐帧特征三列同长且帧数 = 时长/帧长",
+          flat.shape == hf.shape == db.shape and flat.size == len(mixed) // n_fr,
+          (flat.size, len(mixed) // n_fr))
+    check("谐波音谱平坦度低（< %.2f）" % SV.SPEECH_FLAT_MAX,
+          float(np.median(flat[:k])) < SV.SPEECH_FLAT_MAX,
+          round(float(np.median(flat[:k])), 4))
+    check("白噪声谱平坦度高（> 0.5）", float(np.median(flat[k:2 * k])) > 0.5,
+          round(float(np.median(flat[k:2 * k])), 4))
+    check("谐波音高频衰减够（< %.0f dB）" % SV.SPEECH_HF_MAX_DB,
+          float(np.median(hf[:k])) < SV.SPEECH_HF_MAX_DB,
+          round(float(np.median(hf[:k])), 1))
+    check("白噪声高频不衰减（> %.0f dB）" % SV.SPEECH_HF_MAX_DB,
+          float(np.median(hf[k:2 * k])) > SV.SPEECH_HF_MAX_DB,
+          round(float(np.median(hf[k:2 * k])), 1))
+    mask6, runs6, _f6 = SV.gate_speech_runs(mixed)
+    check("门控留下两段谐波音、排掉中间的白噪声", len(runs6) == 2, runs6)
+    check("第一段起点贴着 0、时长≈2 秒",
+          runs6 and runs6[0][0] <= 0.4 and 1.4 <= runs6[0][1] <= 2.4,
+          runs6[:1])
+    check("第二段落在 4~6 秒（跳过噪声段）",
+          len(runs6) == 2 and 3.6 <= runs6[1][0] <= 4.4
+          and 1.4 <= runs6[1][1] <= 2.4, runs6[1:2])
+    check("纯静音不产生人声段（绝对电平地板生效）",
+          SV.gate_speech_runs(np.zeros(int(3.0 * SR1), dtype=np.float32))[1] == [])
+    # 整段录音都比数字静音地板还轻：纯相对判据（最响帧 -45dB）会把它**全部**
+    # 放进来（-83dB 的帧确实高于 -128dB），绝对地板 -75dB 必须拦住
+    quiet = np.concatenate([tone_pcm(150.0, 3.0, 1e-4),
+                            np.zeros(int(1.0 * SR1), dtype=np.float32)]
+                           ).astype(np.float32)
+    q_runs = SV.gate_speech_runs(quiet)[1]
+    check("极轻录音不被相对判据放行（绝对地板 %.0f dB 生效）" % SV.VAD_ABS_SILENCE_DB,
+          q_runs == [], q_runs[:2])
+    check("音频不足一帧时返回空而不是崩", SV.gate_speech_runs(
+        np.zeros(10, dtype=np.float32))[1] == [])
+    check("门控判据可加严（严格档留下更少人声）",
+          SV.gate_speech_runs(mixed, flat_max=SV.STRICT_FLAT_MAX,
+                              hf_max=SV.STRICT_HF_MAX_DB,
+                              min_run=SV.STRICT_MIN_RUN_SEC)[1] == [])
+
+    # ---------------- 4g) 参考片段拼接 ----------------
+    say("\n== 4g) 参考片段拼接（分箱铺满全片 + 拼接淡变）==")
+    pcm7 = tone_pcm(150.0, 20.0, 0.1)
+    runs7 = [(0.5, 2.0), (5.0, 2.0), (10.0, 2.0), (15.0, 2.0)]
+    packed = SV.stitch_runs(pcm7, runs7, target_sec=3.0, n_bins=2, min_sec=1.5)
+    check("按箱出片段（2 箱 -> 2 片）", len(packed) == 2, len(packed))
+    check("第 1 箱只收前半段的 run", packed
+          and all(s < 10.0 for s, _d in packed[0][1]), packed[0][1] if packed else None)
+    check("第 2 箱只收后半段的 run", len(packed) == 2
+          and all(s >= 10.0 for s, _d in packed[1][1]),
+          packed[1][1] if len(packed) == 2 else None)
+    check("片段采样数 = 所含 run 时长之和", packed
+          and abs(len(packed[0][0]) / float(SR1)
+                  - sum(d for _s, d in packed[0][1])) < 0.02,
+          len(packed[0][0]) / float(SR1) if packed else None)
+    check("拼接处已淡变（首尾样本≈0，不留咔哒声）", packed
+          and abs(float(packed[0][0][0])) < 1e-4
+          and abs(float(packed[0][0][-1])) < 1e-4)
+    check("人声不足 min_sec 的箱被跳过（宁缺毋滥）",
+          SV.stitch_runs(pcm7, [(0.5, 1.0)], target_sec=3.0, n_bins=2,
+                         min_sec=1.5) == [])
+    check("越界 run 与零长 run 被忽略",
+          SV.stitch_runs(pcm7, [(19.5, 5.0), (0.5, 0.0)], n_bins=1,
+                         min_sec=0.5) == [])
+    check("不给 n_bins 时全部 run 拼成一片",
+          len(SV.stitch_runs(pcm7, runs7, target_sec=100.0, n_bins=None,
+                             min_sec=1.0)) == 1)
+
+    # ---------------- 4h) 素材体检判读 ----------------
+    say("\n== 4h) 素材体检判读（_quality_verdict，门槛按实测标定）==")
+    # 下面两组数是 2026-10-14 两份真实主播录播的实测值（`_vp_tmp_pixeltree/calib.py`
+    # 可复跑）：一份干净人声素材（应判 clean）、一份全程铺 BGM（应判 risky）。
+    # 用真实测得的数当夹具，判据漂了自检就会红——比手编的漂亮数字有用。
+    good = {"margin": 0.0078, "windows": 40, "pct_below_threshold": 1.4,
+            "flat_median": 0.0049, "flat_p75": 0.0172, "hf_median": -19.6,
+            "bg_level_db": -14.8, "bg_energy_pct": 1.6, "voice_run_max": 150.6,
+            "voice_median": 0.9269, "voice_min": 0.79, "bg_median": 0.9191,
+            "bg_max": 0.94, "win_min": 0.255, "win_median": 0.920,
+            "bg_kind": "windows", "seg_len": 12.0}
+    v, w, info = SV._quality_verdict(good)
+    check("干净素材（实测）判 clean 且无告警", v == "clean" and w == [], (v, w))
+    bad = {"margin": 0.0502, "windows": 40, "pct_below_threshold": 0.0,
+           "flat_median": 0.030, "flat_p75": 0.0803, "hf_median": -9.1,
+           "bg_level_db": -6.9, "bg_energy_pct": 31.1, "voice_run_max": 13.6,
+           "voice_median": 0.9513, "voice_min": 0.944, "bg_median": 0.9011,
+           "bg_max": 0.96, "win_min": 0.909, "win_median": 0.950,
+           "bg_kind": "windows", "seg_len": 12.0}
+    v2, w2, info2 = SV._quality_verdict(bad)
+    check("BGM 压人声的素材（实测）判 risky", v2 == "risky", (v2, len(w2)))
+    check("点出背景音能量占比", any("能量" in x for x in w2), [x[:22] for x in w2])
+    check("点出人声被打碎", any("打碎" in x for x in w2))
+    check("点出背景音几乎不停", any("背景音几乎不停" in x for x in w2))
+    check("点出频谱不像干净人声", any("频谱不像干净人声" in x for x in w2))
+    check("点出没有低分对照窗", any("对照窗" in x for x in w2))
+    check("落差为正（+0.05）不误报「更认背景音」",
+          not any("声学底" in x for x in w2), [x[:22] for x in w2])
+    check("每条判据都在两份实测值之间留了余量",
+          SV.QUALITY_BG_ENERGY_WARN_PCT > 15.0 * 0.5
+          and SV.QUALITY_VOICE_RUN_WARN_SEC < 150.6
+          and SV.QUALITY_WIN_MIN_WARN < 0.909 and SV.QUALITY_WIN_MIN_WARN > 0.255
+          and SV.QUALITY_HF_WARN_DB < -9.1 and SV.QUALITY_HF_WARN_DB > -19.6
+          and SV.QUALITY_FLAT_P75_WARN < 0.0803 and SV.QUALITY_FLAT_P75_WARN > 0.0172,
+          (SV.QUALITY_BG_ENERGY_WARN_PCT, SV.QUALITY_VOICE_RUN_WARN_SEC,
+           SV.QUALITY_WIN_MIN_WARN, SV.QUALITY_HF_WARN_DB, SV.QUALITY_FLAT_P75_WARN))
+    # 落差为负 = 背景音比人声还像本人，这才是强信号
+    v3, w3, _i3 = SV._quality_verdict(dict(bad, margin=-0.081))
+    check("落差为负时点出「认的可能是声学底」",
+          any("声学底" in x for x in w3), [x[:22] for x in w3])
+    v4, w4, _i4 = SV._quality_verdict(dict(good, bg_energy_pct=40.0))
+    check("单条告警判 caution", v4 == "caution" and len(w4) == 1, (v4, w4))
+    # 没有对照段 / 单人素材 100% 判为本人 -> 只进「提示」，不算告警
+    v5, w5, i5 = SV._quality_verdict(dict(good, bg_kind="none", bg_median=None,
+                                          margin=None, pct_below_threshold=0.0,
+                                          win_min=0.717))
+    check("无对照段 + 单人素材：不告警（不误判好素材）",
+          v5 == "clean" and w5 == [], (v5, w5))
+    check("无对照段进「提示」而不是「告警」",
+          len(i5) == 2 and any("没测到" in x for x in i5), [x[:24] for x in i5])
+    # assess_material 端到端（注入假编码器，不碰真模型 / ffmpeg）：
+    #   「人声区 + 一段纯噪声对照区」-> 应量出明显落差；
+    #   「全程人声、没有对照段」  -> bg_kind=none，必须明说「这一项没测到」，
+    #                                  且只进提示、不算告警（干净素材本该如此）。
+    enc8 = FakeEncoder()
+    vvec = enc8.embed(tone_pcm(150.0, 4.0, 0.1))
+    pcm_h = np.concatenate([talk_pcm(150.0, 0.1, 8),       # 0~36.8 秒 人声
+                            noise_pcm(6.0, 0.3),           # 36.8~42.8 秒 纯背景音
+                            talk_pcm(150.0, 0.1, 4)]       # 尾部再接人声
+                           ).astype(np.float32)
+    q = SV.assess_material(pcm_h, vvec, encoder=enc8)
+    check("体检返回档位与告警列表",
+          q["verdict"] in ("clean", "caution", "risky")
+          and isinstance(q["warnings"], list), q["verdict"])
+    check("对照段两侧等长（seg_len = 背景段长，≤ 窗长）",
+          q["bg_kind"] == "windows" and 0 < q["seg_len"] <= SV.AUTO_SCAN_WIN_SEC,
+          (q["bg_kind"], q["seg_len"]))
+    check("人声段得分远高于背景音段（假编码器下应完全分开）",
+          q["margin"] is not None and q["margin"] > 0.5,
+          (q["voice_median"], q["bg_median"], q["margin"]))
+    check("有对照且分得开时不误报「认的是声学底」",
+          not any("声学底" in x for x in q["warnings"]),
+          [x[:30] for x in q["warnings"]])
+    check("逐窗指标齐全", all(k in q for k in ("windows", "win_min", "win_median",
+                                               "win_max", "pct_below_threshold")),
+          q["windows"])
+    # 干净但「没有对照段」的素材：人声连续段够长（>30 秒）、背景音能量极低，
+    # 只是全程都有人在说话 —— 应当判 clean，两条「没测到」只进提示。
+    q2 = SV.assess_material(talk_pcm(150.0, 0.1, 3, chunk_sec=40.0), vvec,
+                            encoder=enc8)
+    check("无对照段时 bg_kind=none 且 margin 为空",
+          q2["bg_kind"] == "none" and q2["margin"] is None, q2["bg_kind"])
+    check("干净素材不因「没有对照」被判有风险",
+          q2["verdict"] == "clean" and q2["warnings"] == [],
+          (q2["verdict"], [x[:26] for x in q2["warnings"]]))
+    check("无对照段 / 无低分窗只进「提示」，不算成告警",
+          len(q2["infos"]) == 2 and all("没测" in x for x in q2["infos"]),
+          [x[:30] for x in q2["infos"]])
+    cq = SV._compact_quality(dict(good, verdict="clean", warnings=[],
+                                  win_list=[1, 2, 3], extra_key="不该进模板"))
+    check("体检精简版只留判读字段",
+          "extra_key" not in cq and "win_list" not in cq
+          and cq["verdict"] == "clean", sorted(cq))
+    check("体检精简版保留告警列表", cq["warnings"] == [])
+    check("没有体检结果时精简版为 None", SV._compact_quality(None) is None)
+
+    # ---------------- 4i) 库内混淆检查与库体检 ----------------
+    say("\n== 4i) 库内混淆检查与库体检 ==")
+    tmpdir = tempfile.mkdtemp(prefix="vt_vp_conf_")
+    old_tpl_dir = SV.TEMPLATE_DIR
+    SV.TEMPLATE_DIR = tmpdir
+    try:
+        e_a = np.zeros(SV.EMB_DIM, dtype=np.float32)
+        e_a[0] = 1.0
+        e_c = np.zeros(SV.EMB_DIM, dtype=np.float32)
+        e_c[1] = 1.0
+        e_d = (e_a * 0.5 + e_c * 0.866).astype(np.float32)      # 余弦 0.5 -> 存疑区
+        for nm, ev in (("甲", e_a), ("乙", e_a.copy()), ("丙", e_c), ("丁", e_d)):
+            SV.save_template(nm, ev)
+        rows = SV.check_confusion("甲")
+        check("按相似度降序列出全部对比对象",
+              [r[0] for r in rows] == ["乙", "丁", "丙"], rows)
+        check("同向量判 keep（≥%.2f）" % SV.DEFAULT_THRESHOLD,
+              rows[0][2] == "keep" and rows[0][1] >= SV.DEFAULT_THRESHOLD, rows[0])
+        check("0.5 判 review（存疑区）", rows[1][2] == "review", rows[1])
+        check("正交判 ok", rows[2][2] == "ok" and rows[2][1] < SV.DEFAULT_LOW, rows[2])
+        check("传裸向量时靠 skip 排掉自己",
+              [r[0] for r in SV.check_confusion(e_a, skip="甲")] == ["乙", "丁", "丙"])
+        fw = SV.format_confusion(rows)
+        check("只有 keep 级出人话告警", len(fw) == 1 and "乙" in fw[0],
+              [x[:40] for x in fw])
+        check("告警点明后果与处置", "当主播保留" in fw[0] and "别同时启用" in fw[0])
+        rep = SV.audit_library()
+        check("库体检列出全部模板", rep["names"] == ["丁", "丙", "乙", "甲"],
+              rep["names"])
+        check("矩阵对称", rep["matrix"]["甲"]["乙"] == rep["matrix"]["乙"]["甲"])
+        check("矩阵不含自比", "甲" not in rep["matrix"]["甲"])
+        check("≥keep 的对进告警", any("甲" in x and "乙" in x for x in rep["warnings"]),
+              [x[:36] for x in rep["warnings"][:2]])
+        check("告警按相似度降序（最危险的在前）",
+              bool(rep["warnings"]) and "1.000" in rep["warnings"][0],
+              [x[:40] for x in rep["warnings"][:2]])
+        check("元信息带 clips / seconds / 录入方式",
+              rep["meta"]["甲"]["clips"] == 1 and rep["meta"]["甲"]["auto"] is False)
+    finally:
+        SV.TEMPLATE_DIR = old_tpl_dir
+        shutil.rmtree(tmpdir, ignore_errors=True)
+
+    # ---------------- 4j) 自动选段（suggest_clips / enroll_auto）----------------
+    say("\n== 4j) 自动选段（suggest_clips / enroll_auto，注入假编码器）==")
+
+    # 0~46 秒「说话人A」（峰值 0.1），46 秒起「说话人B」（峰值 0.2）。
+    # FakeEncoder 按峰值给 one-hot，A/B 向量正交——聚簇必须把 B 剔掉。
+    pcm_a = talk_pcm(150.0, 0.1, 10)
+    pcm_ab = np.concatenate([pcm_a, talk_pcm(220.0, 0.2, 2)]).astype(np.float32)
+    a_end = len(pcm_a) / float(SR1)
+    enc9 = FakeEncoder()
+    short_msg = ""
+    try:
+        SV.suggest_clips("假素材.mp4", pcm=pcm_ab[:int(20.0 * SR1)], encoder=enc9)
+    except SV.VoiceprintError as e:
+        short_msg = str(e)
+    check("素材过短明确拒绝（< %.0f 秒，聚不出主说话人）" % SV.AUTO_MIN_TOTAL_SEC,
+          bool(short_msg), short_msg[:60])
+    check("过短报错指路手工选段", "手工选段" in short_msg, short_msg[:60])
+    sug = SV.suggest_clips("假素材.mp4", n_clips=4, clip_sec=3.0,
+                           encoder=enc9, pcm=pcm_ab)
+    check("选出片段非空", len(sug["clips"]) >= 2, len(sug["clips"]))
+    check("片段数不超过请求的箱数", len(sug["clips"]) <= 4, len(sug["clips"]))
+    check("只取主说话人（B 在 %.0f 秒后，选段全落在其之前）" % a_end,
+          all(s + d <= a_end for s, d in sug["spans"]),
+          ["%.1f+%.1f" % sd for sd in sug["spans"]][:6])
+    check("剔除非主说话人时给出告警",
+          any("多个说话人" in x for x in sug["warnings"]),
+          [x[:40] for x in sug["warnings"]])
+    check("主簇占比 < 1（确实识别出第二人）",
+          sug["dominant"]["share"] < 1.0, sug["dominant"])
+    check("门控统计齐全", all(k in sug["speech"] for k in
+                              ("sec", "ratio", "runs", "longest_run", "flat_median")),
+          sug["speech"])
+    check("门控按停顿切出多个 run（不是一整段）", sug["speech"]["runs"] >= 8,
+          sug["speech"]["runs"])
+    check("片段样本数与 spans 时长一致",
+          all(abs(len(c) / float(SR1) - sum(d for _s, d in sp)) < 0.02
+              for c, sp in sug["clips"]))
+
+    tmpdir = tempfile.mkdtemp(prefix="vt_vp_auto_")
+    old_tpl_dir = SV.TEMPLATE_DIR
+    SV.TEMPLATE_DIR = tmpdir
+    try:
+        r = SV.enroll_auto("假素材.mp4", name="主播AUTO", n_clips=4,
+                           clip_sec=3.0, encoder=enc9, pcm=pcm_ab)
+        check("自动录入已落盘", os.path.isfile(r["path"]), r["path"])
+        check("片段数与选段一致", r["clips"] == len(sug["clips"]),
+              (r["clips"], len(sug["clips"])))
+        check("假编码器下同一说话人一致性 = 1.0", r["consistency"] == 1.0,
+              r["consistency"])
+        t = SV.load_template("主播AUTO")
+        check("模板记录自动选段溯源（auto 元信息）",
+              bool(t.get("auto")) and t["auto"]["bins"] == 4, t.get("auto"))
+        check("模板记录素材体检结论",
+              (t.get("quality") or {}).get("verdict") in ("clean", "caution", "risky"),
+              (t.get("quality") or {}).get("verdict"))
+        check("返回体带 warnings / confusion / quality / spans",
+              all(k in r for k in ("warnings", "confusion", "quality", "spans")))
+        check("seconds = 各片段之和", abs(r["seconds"] - sum(
+            d for _s, d in r["spans"])) < 1.0, (r["seconds"], r["spans"][:2]))
+        r2 = SV.enroll_auto("假素材.mp4", name="主播AUTO", n_clips=4,
+                            clip_sec=3.0, encoder=enc9, pcm=pcm_ab, append=True)
+        check("追加模式返回 appended=True", r2.get("appended") is True)
+        check("同一批片段重复追加被指纹去重（clips 不变）",
+              r2["clips"] == r["clips"], (r["clips"], r2["clips"]))
+        check("追加到不存在的声纹明确报错",
+              _raises(SV.VoiceprintError, SV.enroll_auto, "假素材.mp4",
+                      name="查无此人", encoder=enc9, pcm=pcm_ab, append=True))
+        check("assess=False 时跳过体检（quality 为 None）",
+              SV.enroll_auto("假素材.mp4", name="主播NOQ", n_clips=4, clip_sec=3.0,
+                             encoder=enc9, pcm=pcm_ab, assess=False)["quality"] is None)
     finally:
         SV.TEMPLATE_DIR = old_tpl_dir
         shutil.rmtree(tmpdir, ignore_errors=True)

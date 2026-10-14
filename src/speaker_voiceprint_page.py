@@ -1,14 +1,17 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# @version 2.0.0
+# @version 2.1.0
 """主播声纹 · 界面组件（v1.18.0）
 ====================================================================
 两个组件，供 `video_toolbox.py::vc_transcribe_ui_patch()` 挂进引擎界面：
 
   ① `VoiceprintEnrollCard` —— **声纹录入卡**，挂在「语音转录」页的空白区
      （引擎 `TranscriptionSettingCard.empty_widget`）。列出已录入声纹，并
-     提供「选源文件 + 起点 + 时长 + 名字 → 开始录入」的表单；提特征要跑
-     模型，所以走后台线程，日志经信号回主线程。
+     提供「选源文件 + 自动选段（默认）/ 起点 + 时长 + 名字 → 开始录入」的表单；
+     提特征要跑模型，所以走后台线程，日志经信号回主线程。
+     v2.2.0 起默认走**自动选段**（`SV.enroll_auto`：全片扫描 → 主说话人簇 →
+     频谱门控排 BGM → 时间分箱取 12 段 → 录入后素材体检 + 库内混淆检查），
+     体检与混淆告警直接回显在状态栏（琥珀色）。
 
   ② `VoiceprintPicker` —— **声纹多选器**，挂在「转录设置」弹窗
      （引擎 `TranscriptionSettingDialog`）。勾选要保留的声纹，**可多选**
@@ -25,8 +28,8 @@
 
 import os
 
-from PyQt5.QtCore import QThread, pyqtSignal
-from PyQt5.QtWidgets import QFileDialog, QHBoxLayout, QVBoxLayout, QWidget
+from PySide6.QtCore import QThread, Signal
+from PySide6.QtWidgets import QFileDialog, QHBoxLayout, QVBoxLayout, QWidget
 
 from qfluentwidgets import (BodyLabel, CaptionLabel, CheckBox, LineEdit,
                             PrimaryPushButton, ProgressBar, PushButton,
@@ -49,25 +52,53 @@ class EnrollWorker(QThread):
     ⚠ 属性名必须带下划线：`QThread` 自己有 `start()` / `wait()` 等方法，
     直接写 `self.start = 0.0` 会**把 start() 覆盖成浮点数**，之后
     `self._worker.start()` 就报 `'float' object is not callable`。
+
+    `auto=True` 走 `SV.enroll_auto`（全片扫描 + 频谱门控 + 分箱拼接 + 录入后
+    素材体检），比手选一段稳得多，代价是慢（十几分钟的素材约 1~2 分钟），所以
+    阶段进度经 `progress` 信号回显——没有反馈用户会以为卡死。
+    录入结果里的 `warnings`（素材体检 / 库内混淆）一律拼进 done 的文本，
+    界面不再另开一个告警区。
     """
 
-    done = pyqtSignal(bool, str)
+    done = Signal(bool, str)
+    progress = Signal(str)
 
-    def __init__(self, src, start, dur, name, append=False, parent=None):
+    def __init__(self, src, start, dur, name, append=False, auto=False,
+                 parent=None):
         super().__init__(parent)
         self._src, self._start, self._dur, self._name = src, start, dur, name
         self._append = bool(append)
+        self._auto = bool(auto)
 
     def run(self):
         try:
-            r = SV.enroll(self._src, self._start, self._dur, self._name,
-                          append=self._append)
-            if r.get("appended"):
-                self.done.emit(True, "已追加到「%s」：现共 %d 个片段"
-                               % (r["name"], r["clips"]))
+            if self._auto:
+                r = SV.enroll_auto(self._src, self._name, append=self._append,
+                                   progress=lambda m: self.progress.emit(str(m)))
+                msg = ("已追加到「%s」：现共 %d 个片段 / %.1f 秒"
+                       % (r["name"], r["clips"], r["seconds"])
+                       if r.get("appended") else
+                       "已录入「%s」：自动选段 %d 片段 / %.1f 秒人声"
+                       % (r["name"], r["clips"], r["seconds"]))
+                q = r.get("quality") or {}
+                if q.get("verdict"):
+                    msg += "（素材体检：%s）" % SV.verdict_text(q["verdict"])
             else:
-                self.done.emit(True, "已录入「%s」：%.1f 秒人声"
-                               % (r["name"], r["seconds"]))
+                r = SV.enroll(self._src, self._start, self._dur, self._name,
+                              append=self._append)
+                msg = ("已追加到「%s」：现共 %d 个片段"
+                       % (r["name"], r["clips"]) if r.get("appended") else
+                       "已录入「%s」：%.1f 秒人声" % (r["name"], r["seconds"]))
+                # 手工录入也查库内混淆：纯余弦、不解码音频，成本可忽略
+                try:
+                    r["warnings"] = SV.format_confusion(SV.check_confusion(
+                        SV.load_template(self._name), skip=self._name))
+                except SV.VoiceprintError:
+                    r["warnings"] = []
+            warn = [str(x) for x in (r.get("warnings") or [])]
+            if warn:
+                msg += "\n⚠ " + "\n⚠ ".join(warn)
+            self.done.emit(True, msg)
         except SV.VoiceprintError as e:
             self.done.emit(False, str(e))
         except Exception as e:  # noqa: BLE001
@@ -77,8 +108,8 @@ class EnrollWorker(QThread):
 class ModelDownloadWorker(QThread):
     """后台下载声纹模型（约 27MB，直连失败自动切 gh-proxy 镜像 / 内置代理）。"""
 
-    progress = pyqtSignal(int, int)      # done, total（total 可能为 0 = 未知）
-    done = pyqtSignal(bool, str)
+    progress = Signal(int, int)      # done, total（total 可能为 0 = 未知）
+    done = Signal(bool, str)
 
     def run(self):
         try:
@@ -98,7 +129,7 @@ class VoiceprintEnrollCard(QWidget):
     """声纹录入卡：列已录入 + 录入新声纹。"""
 
     #: 声纹增删后发出，供多选器刷新
-    changed = pyqtSignal()
+    changed = Signal()
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -149,13 +180,19 @@ class VoiceprintEnrollCard(QWidget):
         self.list_lay.setContentsMargins(0, 0, 0, 0)
         self.list_lay.setSpacing(4)
         root.addWidget(self.list_box)
+        # v2.1.0：按用户要求**隐藏「已录入声纹」历史列表**——历史卡片只增
+        # 不减（删除入口在此），录多了把任务创建/首页拉得老长，视觉噪音大。
+        # 隐藏后 refresh() 仍照常构建行（删改逻辑原样保留，数据不动），
+        # 只是容器不显示；声纹的选择走转录设置里的「主播声纹（可多选）」。
+        self.list_box.hide()
 
         # 录入表单
         form = QHBoxLayout()
         form.setSpacing(8)
         form.addWidget(CaptionLabel("源文件", self))
         self.src_edit = LineEdit(self)
-        self.src_edit.setPlaceholderText("拖入或选择一段含主播人声的音视频（10~30 秒最稳）")
+        self.src_edit.setPlaceholderText(
+            "拖入或选择含主播人声的音视频（默认自动选段，整段丢进来即可）")
         self.src_edit.setClearButtonEnabled(True)
         self.src_edit.setMinimumWidth(240)
         form.addWidget(self.src_edit, 1)
@@ -166,6 +203,21 @@ class VoiceprintEnrollCard(QWidget):
 
         form2 = QHBoxLayout()
         form2.setSpacing(6)
+        # v2.2.0：自动选段默认开着。手工挑一段的问题是实测出来的——挑不出 BGM
+        # 之外的干净时刻、只覆盖视频开头、多人素材容易把嘉宾录进去；自动选段
+        # 全片扫描后按「主说话人 + 频谱门控 + 时间分箱」取 12 段，录完还当场
+        # 体检素材并查库内混淆。代价是慢（十几分钟的素材 1~2 分钟），所以进度
+        # 经 worker 的 progress 信号回显在状态栏。
+        self.auto_box = CheckBox("自动选段（推荐）", self)
+        self.auto_box.setChecked(True)
+        self.auto_box.setToolTip(
+            "勾选（默认）：全片扫描 → 只取主说话人 → 频谱门控排掉 BGM 响的时段 →\n"
+            "按时间分箱取 %d 段拼成模板，录完自动做素材体检与库内混淆检查。\n"
+            "更稳，但更慢：十几分钟的素材约 1~2 分钟，进度显示在下方状态栏。\n"
+            "取消勾选：改用右边的「起点 / 时长」手工指定一段（快，适合已经\n"
+            "知道哪一段干净的情况）。" % SV.AUTO_CLIPS)
+        self.auto_box.stateChanged.connect(self._on_auto_toggled)
+        form2.addWidget(self.auto_box)
         form2.addWidget(CaptionLabel("起点", self))
         self.start_spin = SpinBox(self)
         self.start_spin.setRange(0, 100000)
@@ -193,6 +245,7 @@ class VoiceprintEnrollCard(QWidget):
         form2.addWidget(self.btn_enroll)
         form2.addStretch(1)
         root.addLayout(form2)
+        self._on_auto_toggled()          # 初始：自动选段开着 -> 起点/时长禁用
 
         self.status = CaptionLabel("", self)
         self.status.setWordWrap(True)
@@ -308,22 +361,44 @@ class VoiceprintEnrollCard(QWidget):
         src = (self.src_edit.text() or "").strip().strip('"')
         if not src or not os.path.isfile(src):
             self.status.setText("请先选择一个存在的音视频文件")
+            self.status.setStyleSheet("color: #8a8a8a;")   # 清掉上一次的告警色
             return
         if self._worker is not None and self._worker.isRunning():
             return
         name = (self.name_edit.text() or "").strip() or "主播"
+        auto = self.auto_box.isChecked()
         self.btn_enroll.setEnabled(False)
-        self.status.setText("正在提取声纹…（首次会加载模型，约需数秒）")
+        self.auto_box.setEnabled(False)
+        self.status.setText("正在扫描全片、自动选段…（十几分钟的素材约 1~2 分钟）"
+                            if auto else
+                            "正在提取声纹…（首次会加载模型，约需数秒）")
         self._worker = EnrollWorker(src, float(self.start_spin.value()),
                                     float(self.dur_spin.value()), name,
                                     append=self.append_box.isChecked(),
-                                    parent=self)
+                                    auto=auto, parent=self)
+        self._worker.progress.connect(self._on_progress)
         self._worker.done.connect(self._on_enrolled)
         self._worker.start()
 
+    def _on_auto_toggled(self, _state=0):
+        """自动选段勾选状态 -> 起点/时长两个 spin 的可用性（互斥，避免误解）。"""
+        auto = self.auto_box.isChecked()
+        self.start_spin.setEnabled(not auto)
+        self.dur_spin.setEnabled(not auto)
+
+    def _on_progress(self, msg):
+        # 录入进行中才刷进度：done 之后再来的迟到信号不该盖掉结果文本
+        if self._worker is not None and self._worker.isRunning():
+            self.status.setText(str(msg))
+
     def _on_enrolled(self, ok, msg):
         self.btn_enroll.setEnabled(True)
+        self.auto_box.setEnabled(True)
         self.status.setText(msg)
+        # 有告警就换成琥珀色（与「模型缺失」提示同色系）：素材体检/库内混淆
+        # 的结论是用户该看见的，灰色小字容易被当成普通状态忽略掉
+        self.status.setStyleSheet("color: #b06a00;" if "⚠" in str(msg)
+                                  else "color: #8a8a8a;")
         if ok:
             self.refresh()
             self.changed.emit()
@@ -335,7 +410,7 @@ class VoiceprintEnrollCard(QWidget):
 class VoiceprintPicker(QWidget):
     """声纹多选器：勾选要保留的声纹（可多选，并集）。选择即时落盘。"""
 
-    changed = pyqtSignal(list)
+    changed = Signal(list)
 
     def __init__(self, parent=None):
         super().__init__(parent)

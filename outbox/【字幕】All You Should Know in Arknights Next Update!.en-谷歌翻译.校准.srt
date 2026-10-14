@@ -1,0 +1,821 @@
+1
+00:00:03,280 --> 00:00:05,040
+女士们，先生们
+Ladies and gentlemen.
+
+2
+00:00:05,040 --> 00:00:08,640
+最近，《明日方舟》已经结束了
+他们的特别直播
+Recently, Arknights has finished 
+their special livestream,
+
+3
+00:00:08,640 --> 00:00:14,400
+接下来我们从哪里获得了《明日方舟》的信息
+更新，包括主线故事更新
+where we got info for Arknights next 
+update, including main story update.
+
+4
+00:00:14,400 --> 00:00:18,720
+主线故事第17章
+将于10月14日上线
+Episode 17 of the main story 
+will be life on October 14,
+
+5
+00:00:18,720 --> 00:00:24,400
+我们将继续在乌萨斯的旅程，
+并寻找恢复旧井的方法
+where we will continue our journey in Ursus, 
+and search for a way to bring back the old well.
+
+6
+00:00:24,400 --> 00:00:28,480
+整个更新其实是
+国服七周年纪念
+This whole update was actually 
+the 7th anniversary for CN server,
+
+7
+00:00:28,480 --> 00:00:32,941
+所以我们确实收到了很多东西
+以及本次更新中的免费赠品
+so we do get a lot of stuff 
+and freebies in this update.
+
+8
+00:00:32,941 --> 00:00:32,987
+我会总结所有重要信息
+I'll summarize all the important information,
+
+9
+00:00:32,987 --> 00:00:33,040
+并给你看第17章
+关卡机制和敌人
+and show you episode 17 
+stage mechanics and enemies.
+
+10
+00:00:33,040 --> 00:00:35,920
+首先，让我们看看新的干员
+First, let's see the new operators.
+
+11
+00:00:35,920 --> 00:00:39,760
+我们会有新的限定
+卡池，新增5个干员
+We will get a new limited 
+banner, with 5 new operators.
+
+12
+00:00:39,760 --> 00:00:43,600
+本事件的限定是
+正是凯尔希·思衡托
+The limited in this event is 
+none other than Kal sey alter.
+
+13
+00:00:43,600 --> 00:00:48,960
+是的，她已经通过某种方式回来了
+只有故事直播后我们才能知道
+Yes, she has returned, through means 
+we do not know until the story live.
+
+14
+00:00:48,960 --> 00:00:53,040
+除非你已经看过CN剧透
+Unless you already caught up with the CN spoiler.
+
+15
+00:00:53,040 --> 00:00:56,560
+无论如何，未来五个月所有干员的意见
+Anyway, from all operators in the next 5 months,
+
+16
+00:00:56,560 --> 00:01:00,240
+我认为凯尔希·思衡托是
+这是首要任务
+I’d argue Kal sey alter is 
+the top priority to get.
+
+17
+00:01:00,240 --> 00:01:06,000
+从游戏玩法上看，她有着疯狂的能力，她
+是一名守望者，一个能飞的医疗干员
+Gameplay wise she has crazy ability, she 
+is a watch man medic, a medic who can fly
+
+18
+00:01:06,000 --> 00:01:09,000
+但当其他职业分支中的人
+在他们的技能期间飞行
+but when others in this archetype 
+fly during their skills.
+
+19
+00:01:09,000 --> 00:01:13,200
+凯尔希凭借她的天赋将永远飞翔
+Kal sey will forever fly, thanks to her talent.
+
+20
+00:01:13,200 --> 00:01:18,800
+这基本上让她变成了“几乎”的
+不朽的单位，几乎免受任何伤害
+This essentially turns her into an almost 
+immortal unit, safe from almost any harm.
+
+21
+00:01:19,360 --> 00:01:22,480
+她的技能2是轻松获得范围真实伤害的来源
+Her skill 2 is an easy source of AOE true damage,
+
+22
+00:01:22,480 --> 00:01:27,280
+这也能治疗干员
+那东西被爆炸波及了
+that can also heal operators 
+that got caught in the blast.
+
+23
+00:01:27,280 --> 00:01:30,960
+而技能3则非常独特
+能够瞬移自己
+While Skill 3 has a very unique 
+ability to teleport herself,
+
+24
+00:01:30,960 --> 00:01:33,040
+以及另外两个干员
+and 2 other operators.
+
+25
+00:01:33,040 --> 00:01:35,280
+这被视为再部署
+It is considered as redeployment,
+
+26
+00:01:35,280 --> 00:01:42,400
+所以它是帮助直升机投放单位的好工具
+so it is a great tool for helping heli drop units.
+
+27
+00:01:42,400 --> 00:01:47,840
+与此同时，常驻六星
+她是我们最喜欢的骗子可露希尔
+Meanwhile, the standard 6 star beside 
+her is our favorite scam artist Closure.
+
+28
+00:01:47,840 --> 00:01:52,640
+NPC玩了将近7年
+监狱，她终于来了
+After almost 7 years of NPC 
+jail, she's finally here.
+
+29
+00:01:52,640 --> 00:01:56,000
+这让她成为可玩时间最长的NPC
+Making her the longest NPC to become playable.
+
+30
+00:01:56,000 --> 00:02:00,080
+她是我们的第二位六星
+缪尔赛思之后的战术家
+She's our second 6 star 
+tactician vanguard after Mumu.
+
+31
+00:02:00,080 --> 00:02:03,680
+可露希尔是最好的之一
+单位开始你的关卡
+Closure is one of the best 
+units to start your stage.
+
+32
+00:02:03,680 --> 00:02:10,400
+多亏了她的天赋，所有干员的DP消耗
+可以减少3，或4，具有潜能
+Thanks to her talent, all operators DP cost 
+can be reduced by 3, or 4 with potential.
+
+33
+00:02:10,400 --> 00:02:13,520
+更疯狂的是，这种DP的降低可以
+What's even crazier, this DP reduction can be
+
+34
+00:02:13,520 --> 00:02:16,800
+即使可露希尔是激活状态
+只是简单地在小队里
+active even if Closure is 
+just simply in the squad.
+
+35
+00:02:17,760 --> 00:02:23,280
+嗯，技术上你借用了DP的词
+但通常这并不重要
+Well you technically borrowed DP from 
+her, but it usually doesn't really matter.
+
+36
+00:02:23,280 --> 00:02:27,760
+她还拥有多才多艺的技能，
+这些因素会施加各种效果
+She also has versatile skills, 
+that apply various effects,
+
+37
+00:02:27,760 --> 00:02:32,800
+提升她的DPS，当然还有DP
+improving her DPS, and of course generating DP.
+
+38
+00:02:32,800 --> 00:02:36,480
+相比凯尔希，她的优先级其实更低
+Compared to Kal, she's honestly a lower priority.
+
+39
+00:02:36,480 --> 00:02:44,560
+但如果你想给先锋队增添趣味，
+排队，她是顶级先锋
+But if you're looking to spice your vanguard 
+line up, she's a top vanguard to get.
+
+40
+00:02:44,560 --> 00:02:47,760
+这次更新我们还会免费获得6星奖励
+We will also get a free 6 star in this update.
+
+41
+00:02:47,760 --> 00:02:50,000
+一个叫维伊的新角色
+A new character called Viy.
+
+42
+00:02:50,000 --> 00:02:55,487
+他是秘术师
+He is a mystic caster.
+
+43
+00:02:55,487 --> 00:02:55,565
+说实话，我和他玩得不多，
+不过，看起来他还算不错
+Honestly I haven't played with him much, 
+but well, it looks like he's decent,
+
+44
+00:02:55,565 --> 00:02:55,600
+秘术师能达到的还算不错的水平
+as decent as mystic caster can get.
+
+45
+00:02:55,600 --> 00:02:59,120
+抽卡5星是个叫裂响的人
+The gacha 5 star is someone called Crackborne.
+
+46
+00:02:59,120 --> 00:03:02,080
+专注于侵蚀的本源铁卫
+Primal defender that focuses on corrosion.
+
+47
+00:03:02,080 --> 00:03:06,480
+作为坦克单位或侵蚀
+启动器，说实话她并不好
+As a tank unit or corrosion 
+enabler, she's honestly not great.
+
+48
+00:03:06,480 --> 00:03:09,920
+如果你打算拉
+致即将成为干员的珊比
+And if you're planning to pull 
+for upcoming operator Thumphy,
+
+49
+00:03:09,920 --> 00:03:12,880
+其实没必要去找她
+there's really no reason to get her.
+
+50
+00:03:16,400 --> 00:03:21,520
+最后，我们还会有新的1
+这次更新中的一星，名为GALLUS²
+Lastly, we will also get a new 1 
+star in this update, called Gallus.
+
+51
+00:03:21,520 --> 00:03:30,720
+一个能减少敌人的术师
+法术抗性持续几秒
+A caster that can reduce enemy 
+resistance for a few seconds
+
+52
+00:03:30,720 --> 00:03:32,960
+关于抽卡相关的内容
+For gacha related stuff.
+
+53
+00:03:32,960 --> 00:03:36,880
+这些之前的限定干员将获得
+限定卡池中的概率提升
+These previous limited will get 
+a rate up in the limited banner.
+
+54
+00:03:36,880 --> 00:03:41,280
+凯尔希·思衡托 或她的潜能
+300次抽卡时保证成功
+Kal sey alter or her potential 
+is guaranteed at 300 pulls.
+
+55
+00:03:41,280 --> 00:03:44,560
+归溟幽灵鲨的黄票兑换消耗也降低了
+And the spark cost for specter alter is reduced,
+
+56
+00:03:44,560 --> 00:03:50,560
+百炼嘉维尔也是同样的情况
+下一个限定卡池
+also the same case for gavial 
+alter in the next limited banner.
+
+57
+00:03:50,560 --> 00:03:54,000
+新干员尚未完整
+没有一些新皮肤
+New operators are not complete 
+without some new skins.
+
+58
+00:03:54,000 --> 00:04:01,360
+这次更新将带来6个新皮肤
+We will get 6 new skins in this update
+
+59
+00:08:23,040 --> 00:08:28,240
+然后这里是复刻皮肤，
+而且还会有更多
+Then here are the rerun skins, 
+and more should be available
+
+60
+00:08:28,240 --> 00:08:31,440
+好，让我们看看关卡机制和敌人
+Okay let's see the stage mechanics and enemies.
+
+61
+00:08:31,440 --> 00:08:35,360
+记住我可能会弄错一些东西
+与中文译本不符
+Keep in mind I might get some things 
+wrong from the Chinese translation,
+
+62
+00:08:35,360 --> 00:08:38,480
+所以一定要之后再仔细检查各个关卡
+so make sure to examine the stages again later.
+
+63
+00:08:38,480 --> 00:08:41,760
+第17章，看起来我们正在战斗
+In episode 17, it looks like we are fighting in
+
+64
+00:08:41,760 --> 00:08:45,520
+乌萨斯的秘密实验室和
+与他们的生物武器作战
+Ursus' secret laboratory and 
+fighting their bio weapons.
+
+65
+00:08:45,520 --> 00:08:51,360
+在这些关卡，你的干员将持续进行
+化学泄漏造成持续伤害
+In these stages, your operators will continuously 
+take a DoT damage from chemical leak.
+
+66
+00:08:51,360 --> 00:08:55,440
+伤害通常不算大问题
+只要你带足够的医疗干员
+The damage is usually not a big deal 
+as long as you bring enough medic.
+
+67
+00:08:55,440 --> 00:08:59,440
+但问题在于化学
+泄漏可以增强敌人能力
+But the problem here is that the chem 
+leak can enhance enemy abilities.
+
+68
+00:08:59,440 --> 00:09:03,760
+泄漏源是看不见的，但
+每当你的干员受到伤害
+The leak source is invisible, but 
+whenever your operators take damage,
+
+69
+00:09:03,760 --> 00:09:08,080
+有某种绿色指示灯
+你可以用它来定位泄漏源
+there's some sort of green indicator which 
+you can use to locate the leak source.
+
+70
+00:09:08,080 --> 00:09:13,280
+通过逆方向
+指示器指向的方向
+By going the opposite direction of 
+where the indicator is pointing.
+
+71
+00:09:18,960 --> 00:09:22,240
+一旦找到了源头，要么直接忽略它
+Once you locate the source, either just ignore it,
+
+72
+00:09:22,240 --> 00:09:27,600
+或者在该格子上放置一个干员，或者
+用4块格子围住堵漏
+or place an operator on that tile, or 
+surrounding 4 tiles to stop the leak.
+
+73
+00:09:27,600 --> 00:09:31,760
+但小心点，那个干员
+会暂时眩晕
+But be careful, that operator 
+will be stunned temporarily,
+
+74
+00:09:31,760 --> 00:09:34,560
+这一章会非常有眩晕效果
+this episode is going to be quite stun heavy,
+
+75
+00:09:34,560 --> 00:09:39,120
+所以可能要带个眩晕对策
+反击就像疗养师的医疗干员
+so might want to bring a stun 
+counter like a therapist medic.
+
+76
+00:09:39,120 --> 00:09:42,720
+站在顶端一段时间后
+泄漏的部分，泄漏应该停止
+After some time standing on top 
+of the leak, the leak should stop,
+
+77
+00:09:42,720 --> 00:09:46,960
+而且你所有的干员都会获得SP加成
+and all of your operators will get SP bonus.
+
+78
+00:09:46,960 --> 00:09:50,240
+关卡还会有
+这个泄漏标记什么的
+The stages will also have 
+this leak mark or something.
+
+79
+00:09:50,240 --> 00:10:01,040
+它逐渐填满SP条，
+在地图某处生成新的泄漏源
+Where it gradually fills up its SP bar, and 
+generates a new leak source somewhere on the map.
+
+80
+00:10:01,040 --> 00:10:06,560
+好，敌人来了，你
+将在第17章战斗
+Okay, here's the enemy you 
+will fight in Episode 17
+
+81
+00:11:17,920 --> 00:11:19,520
+至于Boss
+As for the boss.
+
+82
+00:11:19,520 --> 00:11:22,320
+我们将与凯尔希机械形态战斗
+We'll be fighting Kal sey mechanical form.
+
+83
+00:11:22,320 --> 00:11:26,960
+她的机械形态其实并不耐打，
+但它有巨大的伤害减免
+Her clanker form isn't really tanky, 
+but it got massive damage reduction,
+
+84
+00:11:26,960 --> 00:11:29,680
+从周围的防火墙可以看出来
+indicated by the fire wall around it.
+
+85
+00:11:29,680 --> 00:11:34,080
+所有物理和法术伤害都会被处理
+墙体外部的辐射会被削弱
+All physical and arts damage coming 
+from outside the wall will be reduced.
+
+86
+00:11:34,080 --> 00:11:37,600
+你也无法确定你的
+墙内的干员
+And you cannot place your 
+operators inside the wall.
+
+87
+00:11:37,600 --> 00:11:40,800
+所以通常你想要放置
+你的干员们在某处
+So typically you want to place 
+your operators somewhere,
+
+88
+00:11:40,800 --> 00:11:47,680
+他们最终会在哪里
+在防火墙内
+where they will eventually 
+be inside the fire wall.
+
+89
+00:11:53,520 --> 00:12:06,800
+或者，你也可以暴力破解，
+无论是使用元素损伤还是真实伤害
+Alternatively, you can brute force it, 
+by using either elemental or true damage.
+
+90
+00:12:06,800 --> 00:12:12,320
+这个Boss遭遇了相当恶劣的攻击，比如
+它不断向前发射冲击波
+This boss got some pretty nasty attack, like 
+how it constantly fires a shockwave ahead,
+
+91
+00:12:12,320 --> 00:12:16,080
+这会对干员造成伤害和眩晕
+that will damage and stun operators.
+
+92
+00:12:16,080 --> 00:12:21,280
+第二阶段，Boss会分裂
+分为两部分，各自防御更强
+In the second phase, the boss will split 
+into two, with each having tougher defense,
+
+93
+00:12:21,280 --> 00:12:23,200
+但同样的法术抗性
+but the same resistance.
+
+94
+00:12:23,200 --> 00:12:29,440
+有点像集成战略3里的那个中路Boss，如果有的话
+Boss被击败，但另一个还活着
+Kinda like that 1 mid boss from I S 3, If one 
+boss is defeated, but the other one still alive,
+
+95
+00:12:29,440 --> 00:12:32,800
+被击败的Boss会逐渐恢复生命值
+the defeated boss will gradually recover its HP.
+
+96
+00:12:32,800 --> 00:12:38,720
+你还需要击败
+另一个人迅速继续
+And you'll need to defeat the 
+other one quickly to proceed.
+
+97
+00:12:38,720 --> 00:12:40,640
+然后进入最后阶段
+Then in the last phase.
+
+98
+00:12:40,640 --> 00:12:42,560
+我想那是她的核心
+I suppose it's her core.
+
+99
+00:12:42,560 --> 00:12:46,320
+这个相对简单一些，
+只要准备一个输出
+This one is relatively easier, 
+just prepare a damage dealer,
+
+100
+00:12:46,320 --> 00:12:49,360
+还有一个能从正面承受冲击波的人
+and someone to tank the shockwave from the front.
+
+101
+00:12:49,360 --> 00:12:53,280
+有时你得点击
+屏幕打断她的能力
+Occasionally you'll have to tap the 
+screen to interrupt her ability.
+
+102
+00:12:53,280 --> 00:13:13,120
+做对了，你会
+最终让旧井恢复
+Do things right, and you'll 
+eventually bring back the old well.
+
+103
+00:13:14,800 --> 00:13:19,520
+清除所有这些章节关卡
+应该能给你大约40块至纯源石
+Clearing all of this episode stages 
+should give you about 40 yellow rocks.
+
+104
+00:13:19,520 --> 00:13:24,080
+有一些新的升级
+第17章引入的材料
+There are some new upgrade 
+materials introduced in episode 17.
+
+105
+00:13:24,080 --> 00:13:30,000
+更新后一段时间里，农场也在进行
+第17章关卡会给你活动货币
+And for some time after the update, farming 
+Episode 17 stages will give you event currency,
+
+106
+00:13:30,000 --> 00:13:33,360
+你可以用这些工具在活动商店购买物品
+which you can use to buy items in the event shop.
+
+107
+00:13:33,360 --> 00:13:34,880
+新模组
+For new module.
+
+108
+00:13:34,880 --> 00:13:36,800
+没有新的职业分支模组
+No new archetype module.
+
+109
+00:13:36,800 --> 00:13:41,840
+但所有新的干员职业分支
+已经有模组的人会立刻获得一个
+But all new operators whose archetype 
+already have module will instantly get one.
+
+110
+00:13:41,840 --> 00:13:47,120
+还有第二个模组是关于锏的，
+信仰搅拌机，缄默德克萨斯
+There's a second module for Degen, 
+Sankta grandpa, and Texas alter.
+
+111
+00:13:47,120 --> 00:13:51,760
+以及一个专门的模组
+为归溟幽灵鲨和提丰
+As well as a specialized module 
+for Specter alter and Typhon.
+
+112
+00:13:51,760 --> 00:13:55,120
+新的干员密录和悖论模拟
+New operator record and paradox simulation.
+
+113
+00:13:55,120 --> 00:13:56,960
+这是新家具
+This is the new furniture.
+
+114
+00:13:56,960 --> 00:13:59,200
+理智上限会提高
+Sanity cap will be increased.
+
+115
+00:13:59,200 --> 00:14:03,200
+采购凭证新增内容
+商店，凭证交易所
+New addition to the red token 
+shop, and certificate shop.
+
+116
+00:14:03,200 --> 00:14:05,040
+我不确定这事有没有被宣布过
+I'm not sure if this was announced,
+
+117
+00:14:05,040 --> 00:14:09,280
+但对生息演算有重大更新
+算法应该很快就会发布
+but a big update to the reclamation 
+algorithm should be available soon.
+
+118
+00:14:09,920 --> 00:14:13,680
+这里有一堆免费赠品，你
+可能已经收到其中一些
+There's a bunch of freebies, you 
+have probably received some of them,
+
+119
+00:14:13,680 --> 00:14:19,120
+就像免费月卡，免费6
+星级自选券，以及新的界面主题
+like a free monthly card, free 6 
+star selector, and new UI theme.
+
+120
+00:14:19,120 --> 00:14:23,440
+也有一些预期
+更新上线后免费赠送
+There are also some expected 
+freebies once the update goes live.
+
+121
+00:14:23,440 --> 00:14:29,520
+比如免费10次抽取，免费每日合成玉，还有
+限定卡池每日免费抽卡一次
+Like free 10x pull, free daily orundum, and 
+1 free daily pull on the limited banner.
+
+122
+00:14:29,520 --> 00:14:31,600
+新增了累计登录奖励
+There's a new total login reward,
+
+123
+00:14:31,600 --> 00:14:37,040
+你会获得新的大厅背景
+在累计登录1500天后
+you will get a new lobby background 
+after a total of 1500 days of login.
+
+124
+00:14:37,040 --> 00:14:42,480
+一部以凯尔希为主角的新短漫画
+已在《明日方舟》官方网站上发布
+A new short comic focusing on Kal sey has 
+been released on Arknights official website.
+
+125
+00:14:42,480 --> 00:14:48,640
+还有一个新的网络活动，务必参加
+你的那部分，这样我们都能得到暴行「又一年秋季」皮肤
+And there's a new web event, make sure to do 
+your part, so we all can get Savage bride skin.
+
+126
+00:14:48,640 --> 00:14:51,520
+我们换了个新的高级六星自选券
+We got a new premium 6 star selector.
+
+127
+00:14:51,520 --> 00:14:55,840
+这些是
+标准寻访，以及这个用于中坚甄选的
+These are the operators in the 
+standard pool, and this one for kernel.
+
+128
+00:14:55,840 --> 00:14:58,880
+其他一些包和周边
+同时也已宣布
+Some other packs and merchandise 
+have also been announced,
+
+129
+00:14:58,880 --> 00:15:03,360
+虽然有些事情你在直播见过
+Stream 可能只在日本有
+although some things you saw in the life 
+stream are probably only available in Japan,
+
+130
+00:15:03,360 --> 00:15:07,440
+像遥的ASMR
+Like Haruka ASMR
+
+131
+00:15:07,440 --> 00:15:08,880
+应该就这些了
+That should be all
+
+132
+00:15:08,880 --> 00:15:20,240
+再见
+Adios

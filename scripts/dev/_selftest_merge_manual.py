@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# @version 2.0.0
+# @version 2.1.0
 """音画合并「手动合并」自检：引擎侧编码探测 + 拖入合成，界面侧子页结构。
 
 覆盖 v1.18.0 新增能力：
@@ -29,7 +29,7 @@ os.environ.setdefault(
     "QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault(
     "QT_QPA_PLATFORM_PLUGIN_PATH",
-    os.path.join(engine.EMBEDDED_SITE_PACKAGES, "PyQt5", "Qt5", "plugins"))
+    os.path.join(engine.EMBEDDED_SITE_PACKAGES, "PySide6", "plugins"))
 
 FAILS = []
 
@@ -214,8 +214,8 @@ def engine_cases():
 
 def _sel_cases(mp, app):
     """配对表选中语义：单选 / 多选 / 全选 / 清空 + 「开始合成」取哪些行。"""
-    from PyQt5.QtCore import Qt, QItemSelectionModel, QVariant
-    from PyQt5.QtWidgets import QTableWidgetItem
+    from PySide6.QtCore import Qt, QItemSelectionModel
+    from PySide6.QtWidgets import QAbstractItemView, QTableWidgetItem
 
     def _fake_pairs(n):
         """n 组假配对；match_type 交替覆盖 perfect / name_only 两条过滤分支。"""
@@ -242,10 +242,10 @@ def _sel_cases(mp, app):
         return [os.path.basename(p[0]) for p in mp.merge_targets()]
 
     check("配对表允许多选（ExtendedSelection）",
-          mp.table.selectionMode() == mp.table.ExtendedSelection,
+          mp.table.selectionMode() == QAbstractItemView.ExtendedSelection,
           mp.table.selectionMode())
     check("配对表按整行选中", mp.table.selectionBehavior()
-          == mp.table.SelectRows, mp.table.selectionBehavior())
+          == QAbstractItemView.SelectRows, mp.table.selectionBehavior())
 
     pairs = _feed(4)
     check("灌入 4 组配对", mp.table.rowCount() == 4 and len(mp.pairs) == 4,
@@ -336,8 +336,8 @@ def _sel_cases(mp, app):
     # —— 真实鼠标点击（用户实际的操作路径，与 selectRow 走的不是同一条路）——
     # TableBase.mousePressEvent 对左键是放行给 QTableView 的，鼠标点击选择
     # 与 selectRow 走的是两套入口，必须各自验一遍，别只测后者。
-    from PyQt5.QtTest import QTest
-    from PyQt5.QtCore import Qt as _Qt
+    from PySide6.QtTest import QTest
+    from PySide6.QtCore import Qt as _Qt
 
     def _click_row(r, mod=_Qt.NoModifier, clear=True):
         if clear:
@@ -399,13 +399,13 @@ def _sel_cases(mp, app):
     check("表格行序与 pairs 一致（选中行号能直接映射回 pair）", same)
 
     mp.table.clearSelection()
-    assert pairs is not None and QVariant is not None and QTableWidgetItem is not None
+    assert pairs is not None and QTableWidgetItem is not None
 
 
 def gui_cases():
-    from PyQt5.QtWidgets import QApplication
-    from PyQt5.QtCore import QMimeData, QUrl, QPoint, Qt
-    from PyQt5.QtGui import QDropEvent
+    from PySide6.QtWidgets import QApplication
+    from PySide6.QtCore import QMimeData, QUrl, QPoint, Qt
+    from PySide6.QtGui import QDropEvent
     import video_toolbox_qt as vtq
 
     app = QApplication.instance() or QApplication(sys.argv)

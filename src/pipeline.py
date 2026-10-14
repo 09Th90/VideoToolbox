@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.0.0
+# @version 2.1.0
 """视频全流程流水线（引擎侧，v1.14.0 新增）：事件驱动的阶段状态机。
 
 链接任务：填入链接 → 下载(原片+字幕+封面+信息) → 字幕翻译(谷歌) →
@@ -42,13 +42,13 @@ import time
 import traceback
 
 try:  # QtCore 可选
-    from PyQt5.QtCore import QObject, pyqtSignal
+    from PySide6.QtCore import QObject, Signal
     _HAS_QT = True
 except Exception:  # noqa: BLE001
     _HAS_QT = False
     QObject = object
 
-    def pyqtSignal(*_a, **_k):  # noqa: N802
+    def Signal(*_a, **_k):  # noqa: N802
         return None
 
 import video_toolbox as engine
@@ -1133,7 +1133,7 @@ class Ctx:
 
 class _Emitter(QObject):
     if _HAS_QT:
-        state_changed = pyqtSignal(object)   # dict（见 Pipeline._emit）
+        state_changed = Signal(object)   # dict（见 Pipeline._emit）
 
     def __init__(self):
         if _HAS_QT:

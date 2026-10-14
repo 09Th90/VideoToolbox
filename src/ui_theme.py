@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.0.0
+# @version 2.1.0
 """界面美化：主题感知的全局视觉体系 + 每个导航板块自定义背景图。
 
 两块能力，配置都持久化在 `data/ui_custom.json`（engine.DATA_DIR 下），
@@ -53,10 +53,10 @@
 import json
 import os
 
-from PyQt5.QtCore import QPointF, QRectF, Qt
-from PyQt5.QtGui import (QColor, QLinearGradient, QPainter, QPalette, QPen,
+from PySide6.QtCore import QPointF, QRectF, Qt
+from PySide6.QtGui import (QColor, QLinearGradient, QPainter, QPalette, QPen,
                          QPixmap)
-from PyQt5.QtWidgets import (QApplication, QGraphicsBlurEffect, QGraphicsScene,
+from PySide6.QtWidgets import (QApplication, QGraphicsBlurEffect, QGraphicsScene,
                              QWidget)
 
 import video_toolbox as engine
@@ -398,8 +398,8 @@ def is_dark():
     except Exception:
         pass
     try:
-        from qfluentwidgets import isSystemDarkTheme
-        return bool(isSystemDarkTheme())
+        from qfluentwidgets import isDarkThemeMode
+        return bool(isDarkThemeMode())
     except Exception:
         return True
 
@@ -1031,7 +1031,7 @@ def _paint_background(page, key):
 def install_page_background(page, key):
     """给页面挂背景绘制能力（实例级 paintEvent 覆盖，可重复调用）。
 
-    原理：PyQt5 的虚方法派发会先查实例字典，`page.paintEvent = fn` 即可
+    原理：PySide6 的虚方法派发会先查实例字典，`page.paintEvent = fn` 即可
     覆盖而不必派生子类——对已构造完成的页面零侵入。原 QWidget.paintEvent
     仍会先执行，保留既有底色行为。
     """
@@ -1206,7 +1206,7 @@ def install_mask_dialog_topmodal_patch():
     if getattr(_MDB, "_vt_topmodal_patched", False):
         return
 
-    from PyQt5.QtCore import QEvent as _QE
+    from PySide6.QtCore import QEvent as _QE
 
     _o_init = _MDB.__init__
     _o_show = _MDB.showEvent
@@ -1251,7 +1251,7 @@ def install_mask_dialog_topmodal_patch():
                 pass
 
     def _ns(self, e):
-        from PyQt5.QtCore import QTimer as _QT
+        from PySide6.QtCore import QTimer as _QT
         _vt_fit(self)
         _o_show(self, e)
         # ⚠ 首次 show 时 Qt 会按 sizeHint（≈885×547）布置平台窗口，这次布置

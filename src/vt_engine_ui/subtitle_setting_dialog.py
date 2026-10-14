@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+# @version 2.1.0
 """自研「字幕设置」弹窗 + 数值输入设置卡（对齐引擎同名组件）。
 
 由「字幕翻译」页命令栏的设置按钮打开。仅依赖 qfluentwidgets（保留组件）与
@@ -8,8 +9,8 @@ from __future__ import annotations
 
 from typing import Optional, Union
 
-from PyQt5.QtCore import Qt, pyqtSignal
-from PyQt5.QtGui import QIcon
+from PySide6.QtCore import Qt, Signal
+from PySide6.QtGui import QIcon
 from qfluentwidgets import (
     BodyLabel,
     CompactSpinBox,
@@ -24,7 +25,7 @@ from . import _seams
 
 
 class SpinBoxSettingCard(SettingCard):
-    valueChanged = pyqtSignal(int)
+    valueChanged = Signal(int)
 
     def __init__(self, configItem: ConfigItem, icon: Union[str, QIcon], title: str,
                  content: Optional[str] = None, minimum: int = 0, maximum: int = 100,

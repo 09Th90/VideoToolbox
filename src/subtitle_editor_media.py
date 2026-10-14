@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
-# @version 2.0.0
+# @version 2.1.0
 """字幕编辑页的媒体后端：libmpv 播放器封装 + ffmpeg 波形峰值提取。
 
-与界面分离，便于单独调试（本模块只依赖 PyQt5 的信号机制，不建任何窗口）。
+与界面分离，便于单独调试（本模块只依赖 PySide6 的信号机制，不建任何窗口）。
 
 三条来之不易的约束（详见 tools/download_open_source_deps.py 的注释）：
   1. `import mpv` **之前**必须先把 tools/mpv 加进 PATH，否则 python-mpv
@@ -20,7 +20,7 @@ import tempfile
 import threading
 import time
 
-from PyQt5.QtCore import QObject, QTimer, pyqtSignal
+from PySide6.QtCore import QObject, QTimer, Signal
 
 # =============================================================
 # 0. libmpv 延迟加载（失败不炸主程序，只在编辑页给出可读提示）
@@ -265,10 +265,10 @@ class MpvPlayer(QObject):
     · 对外一律 **int 毫秒**。
     """
 
-    position_changed = pyqtSignal(int)     # 当前播放位置（ms）
-    duration_changed = pyqtSignal(int)     # 媒体总长（ms）
-    playing_changed = pyqtSignal(bool)
-    loaded = pyqtSignal(bool, str)         # (成功?, 错误信息)
+    position_changed = Signal(int)     # 当前播放位置（ms）
+    duration_changed = Signal(int)     # 媒体总长（ms）
+    playing_changed = Signal(bool)
+    loaded = Signal(bool, str)         # (成功?, 错误信息)
 
     def __init__(self, mpv_dir, parent=None):
         super().__init__(parent)

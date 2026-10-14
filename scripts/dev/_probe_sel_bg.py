@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.0.0
+# @version 2.1.0
 """探针：QTableWidgetItem 的 BackgroundRole 到底怎么才算"清干净"。
 
 背景：qfluentwidgets 的 TableItemDelegate.paint() 里
@@ -11,7 +11,8 @@
 要验三件事：
   1) setBackground(QColor) 确实写入了角色；
   2) setBackground(Qt.NoBrush) 是否**没有**清掉角色（我怀疑它是坑）；
-  3) setData(role, QVariant()) 能否把角色真正删成 invalid。
+  3) setData(role, None) 能否把角色真正删成 invalid（Qt6 起 QVariant 已移除，
+     None 即空值，效果等同旧的 QVariant()）。
 用法：tools/python/python.exe scripts/dev/_probe_sel_bg.py
 """
 import os
@@ -27,11 +28,11 @@ import video_toolbox as engine  # noqa: E402
 
 os.environ.setdefault(
     "QT_QPA_PLATFORM_PLUGIN_PATH",
-    os.path.join(engine.EMBEDDED_SITE_PACKAGES, "PyQt5", "Qt5", "plugins"))
+    os.path.join(engine.EMBEDDED_SITE_PACKAGES, "PySide6", "plugins"))
 
-from PyQt5.QtCore import Qt, QVariant  # noqa: E402
-from PyQt5.QtGui import QBrush, QColor  # noqa: E402
-from PyQt5.QtWidgets import QApplication, QTableWidgetItem  # noqa: E402
+from PySide6.QtCore import Qt  # noqa: E402
+from PySide6.QtGui import QBrush, QColor  # noqa: E402
+from PySide6.QtWidgets import QApplication, QTableWidgetItem  # noqa: E402
 
 
 def _state(item):
@@ -53,12 +54,12 @@ def main():
     print("setBackground(QBrush(NoBrush)):", _state(item),
           "  <-- True 就说明 delegate 会跳过隔行/hover 底色")
 
-    item.setData(Qt.BackgroundRole, QVariant())
-    print("setData(role, QVariant()):", _state(item))
+    item.setData(Qt.BackgroundRole, None)
+    print("setData(role, None):", _state(item))
 
     # 复查：清掉之后重新选中，delegate 的绘制路径能恢复正常
     item.setBackground(QColor(0, 200, 119, 60))
-    item.setData(Qt.BackgroundRole, QVariant())
+    item.setData(Qt.BackgroundRole, None)
     print("重选后再清:", _state(item))
     del app
 

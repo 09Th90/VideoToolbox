@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.0.0
+# @version 2.1.0
 """流水线离线自检（v1.14.0）：临时目录 + 假文件 + mock 引擎调用。
 
 不联网、不碰真实下载目录、不需要 GUI：
@@ -27,7 +27,7 @@ ROOT = os.path.dirname(os.path.dirname(HERE))
 SRC = os.environ.get("VT_PIPE_SRC") or os.path.join(ROOT, "src")
 sys.path.insert(0, SRC)
 
-from PyQt5.QtCore import QCoreApplication, QTimer         # noqa: E402
+from PySide6.QtCore import QCoreApplication, QTimer         # noqa: E402
 
 app = QCoreApplication.instance() or QCoreApplication(sys.argv)
 

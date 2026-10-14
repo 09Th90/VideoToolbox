@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
-# @version 2.0.0
+# @version 2.1.0
 """静态体检：找出「引用了但整个模块里没有定义」的全局名字。
 
-为什么需要它：PyQt5 里**槽函数/回调里抛出的未捕获异常默认会让进程直接 abort**，
+为什么需要它：PySide6 里**槽函数/回调里抛出的未捕获异常默认会让进程直接 abort**，
 表现就是「点一下按钮程序突然没了」。而这类异常最常见的原因就是写错/漏定义了一个
 全局常量或函数（例如 `duration=INFOBAR_DURATION_SUCCESS` 但该常量从未定义）——
 `python -m py_compile` 查不出来（语法没错），只有真的点到那行才炸。
@@ -75,7 +75,7 @@ def scan_file(path, quiet=False):
 
 
 def main():
-    ap = argparse.ArgumentParser(description="扫描未定义的全局名（PyQt5 回调闪退的头号成因）")
+    ap = argparse.ArgumentParser(description="扫描未定义的全局名（PySide6 回调闪退的头号成因）")
     ap.add_argument("files", nargs="*", help="要扫描的 .py（默认扫描 src/ 主程序源码）")
     ap.add_argument("-q", "--quiet", action="store_true", help="只输出汇总")
     args = ap.parse_args()

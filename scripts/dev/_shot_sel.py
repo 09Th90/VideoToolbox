@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.0.0
+# @version 2.1.0
 """截图：音画合并「自动配对」子页的选中态（浅色 / 深色各一张）。
 
 用途：肉眼确认「选中的行看得见」——qfluentwidgets 的 delegate 默认只给
@@ -20,7 +20,7 @@ import video_toolbox as engine  # noqa: E402
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault(
     "QT_QPA_PLATFORM_PLUGIN_PATH",
-    os.path.join(engine.EMBEDDED_SITE_PACKAGES, "PyQt5", "Qt5", "plugins"))
+    os.path.join(engine.EMBEDDED_SITE_PACKAGES, "PySide6", "plugins"))
 
 import ui_theme  # noqa: E402
 
@@ -39,9 +39,9 @@ def main():
         os.path.dirname(os.path.abspath(__file__)), "_sel_shots")
     os.makedirs(out_dir, exist_ok=True)
 
-    from PyQt5.QtWidgets import QApplication
-    from PyQt5.QtCore import Qt
-    from PyQt5.QtTest import QTest
+    from PySide6.QtWidgets import QApplication
+    from PySide6.QtCore import Qt
+    from PySide6.QtTest import QTest
     import video_toolbox_qt as vtq
 
     app = QApplication.instance() or QApplication(sys.argv)

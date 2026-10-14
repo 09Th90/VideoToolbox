@@ -1,7 +1,9 @@
 ; @version 2.1.0
 ; ============================================================================
 ; 视频工具箱 v2.1.0 —— Inno Setup 安装包脚本
-; 构建前提：已用 tools\python 执行 pyinstaller 视频工具箱.spec，
+; 构建前提：已用打包环境 C:\bld\qt_build 执行 pyinstaller 视频工具箱.spec
+;           （2026-10-14 起该环境为 PySide6 6.12.0 + PySide6-Fluent-Widgets
+;           1.11.3；此前为 PyQt5 5.15.11 + PyQt-Fluent-Widgets 1.8.4），
 ;           产物位于 dist\视频工具箱.exe
 ; 编译：ISCC.exe 视频工具箱.iss  →  installer\视频工具箱_Setup_v2.1.0.exe
 ; v1.18.0：① 新增主播声纹（exe 侧已由 spec hiddenimports 内嵌），[Files]
@@ -104,6 +106,14 @@ DefaultGroupName={#MyAppName}
 DisableProgramGroupPage=yes
 OutputDir=..\installer
 OutputBaseFilename=视频工具箱_Setup_v{#MyAppVersion}
+; v2.1.0：安装向导 / 卸载程序 的图标。⚠ 这一处只管**安装器自己**（含
+; 「卸载程序」条目）；被安装的程序图标另有三处，缺一不可：
+;   ① SetupIconFile（本行）      —— 安装向导 + 卸载 exe
+;   ② [Icons] 各条目的 IconFilename —— 开始菜单 / 桌面快捷方式
+;   ③ spec 的 EXE(icon=...)       —— 视频工具箱.exe 文件自身的图标
+;      （资源管理器显示、任务栏、Alt-Tab 都走它）
+; 少配任何一处，用户看到的仍是默认空白图标——这是最容易漏的一类。
+SetupIconFile=..\assets\app_icon.ico
 Compression=lzma2/max
 SolidCompression=yes
 WizardStyle=modern
@@ -133,6 +143,12 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{
 ;    字幕引擎用户配置）都不会进入安装包，从源头杜绝账号凭据被分发。 ——
 ; 主程序（PyInstaller 单文件 exe）——安装后程序目录顶层唯一可执行文件
 Source: "..\dist\视频工具箱.exe"; DestDir: "{app}"; Flags: ignoreversion
+; v2.1.0：应用图标。装到 {app}\assets\ 供两处用——
+;   ① [Icons] 的 IconFilename（快捷方式不继承目标 exe 图标，必须有实体文件）；
+;   ② 兜底运行期窗口图标（冻结态实际读 _MEIPASS，这份是双保险）。
+; 顺带装 PNG 源图：改图时不必重打包 exe，在安装目录里换图重生成 ico 即可。
+Source: "..\assets\app_icon.ico"; DestDir: "{app}\assets"; Flags: ignoreversion
+Source: "..\assets\app_icon.png"; DestDir: "{app}\assets"; Flags: ignoreversion
 ; 字幕校准统一脚本（v1.9.3）：安装到程序目录顶层，「字幕校准」页签用
 ; tools\python 子进程按 {app}\subtitle_calib_merged.py 调用（不打包进 exe）
 Source: "..\subtitle_calib_merged.py"; DestDir: "{app}"; Flags: ignoreversion
@@ -164,8 +180,11 @@ Source: "..\tools\mpv\libmpv-2.dll"; DestDir: "{app}\tools\mpv"; Flags: ignoreve
 Source: "..\tools\python\*"; DestDir: "{app}\tools\python"; Flags: ignoreversion recursesubdirs createallsubdirs; Excludes: "*.pyc,__pycache__"
 ; 字幕引擎纯代码 wheel 不含 resource（界面图片/字体/默认字幕样式/多语言）。
 ; 这些静态资源随包分发，内嵌引擎才能离线自包含、真正成为程序一部分（v1.10.8）。
-; 字幕引擎静态资源目录已于 2026-10-12 归档，不再随包分发（资源已内嵌进主程序 exe）
-;Source: "..\tools\videocaptioner\resource\*"; DestDir: "{app}\tools\videocaptioner\resource"; Flags: ignoreversion recursesubdirs createallsubdirs; Excludes: "*.pyc,__pycache__"
+; ⚠️ 2026-10-12 曾误判「资源已内嵌进主程序 exe」而归档停发，实际 exe 并不含
+;   这些资源 —— 后果是工作台 logo/默认封面变空图（自检实测 2 处空图）。
+;   PySide6 迁移期间（2026-10-14）恢复随包分发：源码态 assets 直接指向本目录，
+;   安装态 = {app}\tools\videocaptioner\resource，engine_paths 优先取随包目录。
+Source: "..\tools\videocaptioner\resource\*"; DestDir: "{app}\tools\videocaptioner\resource"; Flags: ignoreversion recursesubdirs createallsubdirs; Excludes: "*.pyc,__pycache__"
 ; AI 客户端（仅标准库）：字幕/标题语言识别用（v1.10.1 起投稿板块已移除）
 Source: "..\tools\ai_client.py"; DestDir: "{app}\tools"; Flags: ignoreversion
 ; 第二解析引擎 NewPipe Extractor（v1.17.0 补，GPL-3.0）：
@@ -272,9 +291,12 @@ Name: "{app}\data\downloads"
 Name: "{app}\data\thumb_cache"
 
 [Icons]
-Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
-Name: "{group}\卸载 {#MyAppName}"; Filename: "{uninstallexe}"
-Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
+; v2.1.0：三条都显式指定 IconFilename —— 快捷方式**默认不继承目标 exe 的图标**，
+; 不写就是默认的空白 exe 图标（这是 Inno 侧最常见的一处漏配）。
+; IconFilename 接受 .ico 或 .exe；此处用与 exe 同一份 assets\app_icon.ico。
+Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; IconFilename: "{app}\assets\app_icon.ico"
+Name: "{group}\卸载 {#MyAppName}"; Filename: "{uninstallexe}"; IconFilename: "{app}\assets\app_icon.ico"
+Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon; IconFilename: "{app}\assets\app_icon.ico"
 
 [Run]
 Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(MyAppName, '&', '&&')}}"; Flags: nowait postinstall skipifsilent

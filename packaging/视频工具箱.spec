@@ -1,6 +1,16 @@
 # -*- mode: python ; coding: utf-8 -*-
 # @version 2.1.0
 """视频工具箱 v2.1.0 —— PyInstaller 打包配置
+v2.1.0（2026-10-14）：PyQt5 → PySide6 迁移（docs/PySide6迁移方案书）。本 spec 的
+        实质改动只有三处：① _DROP_BINARIES 的 QML 三件套从 Qt5 名改成 Qt6 名
+        （Qt6Qml/Qt6Quick/Qt6QmlModels/Qt6QmlMeta/Qt6QmlWorkerScript.dll）；
+        ② MSVC 补丁的目录判据从 `pyqt5/qt5/bin` 改为 `pyside6`/`shiboken6`
+        （2026-10-14 实测：PySide6 wheel 确实自带 MSVC runtime，PySide6\ 与
+        shiboken6\ 下共有 9 个同名副本，该补丁实际匹配并改写 6 个，非空转）；
+        ③ 注释口径同步。其余（hiddenimports/datas/collect_* 规则）与 Qt 绑定
+        无关，全部不变——PySide6 的 Qt6 DLL/plugins 由 PyInstaller 自带 hook
+        收集，布局与 PyQt5 不同（扁平、无 Qt5\bin 与 Qt5\plugins 中间层），
+        spec 无需手动指定路径。
 v1.18.0：① 新增**主播声纹筛选**的运行时——`speaker_voiceprint_page` /
         `speaker_voiceprint` 是 `video_toolbox.vc_transcribe_ui_patch()` 里的
         **延迟导入**（缺依赖只记日志、界面照起），静态分析跟踪不到，必须显式
@@ -11,9 +21,10 @@ v1.18.0：① 新增**主播声纹筛选**的运行时——`speaker_voiceprint_
         `collect_dynamic_libs('onnxruntime')`（PyInstaller 无官方 hook）。
         代价约 +40MB（主要是 18MB 的 onnxruntime.dll）。声纹**模型** 27MB 仍
         按需下载、不进包。② ⚠⚠ 声纹还依赖启动期那段 MSVC 运行时预加载
-        （`video_toolbox_qt.py::_fix_msvc_runtime_shadow`，必须在 PyQt5 导入
-        之前）——少了它，onnxruntime 的 pyd 会被 Qt5\bin 里的旧运行时顶掉而
-        加载失败。③ ⚠ 打包环境 `C://bld//qt_build` 当时**没有** onnxruntime
+        （`video_toolbox_qt.py::_fix_msvc_runtime_shadow`，必须在 PySide6 导入
+        之前）——少了它，旧版 Qt 运行时会顶掉 onnxruntime 依赖的新版而加载失败
+        （PyQt5 时代 Qt5\bin 自带 14.26 MSVC runtime 是真实根因；PySide6 实测
+        已不自带，该函数变为防御性冗余，时机要求不变）。③ ⚠ 打包环境 `C://bld//qt_build` 当时**没有** onnxruntime
         （pip 直连 pypi 超时），已从 `tools\python\Lib\site-packages` 直接
         拷贝同版本（两侧同为 CPython 3.12.10 AMD64）。**新功能引入新三方依赖
         时，先查打包环境有没有。**
@@ -74,7 +85,8 @@ v1.10.3：打包环境固定为 tools\\python（内嵌 CPython 3.12，videocapti
 v1.10.2：字幕引擎内嵌进 exe（collect_data_files/collect_submodules 收集
         字幕引擎运行时及其资源）；不再依赖 tools/python 里的引擎副本。
 
-v1.10.1：入口改为 video_toolbox_qt.py（Fluent 界面，PyQt5 + qfluentwidgets），
+v1.10.1：入口改为 video_toolbox_qt.py（Fluent 界面，PyQt5 + qfluentwidgets；
+        2026-10-14 起为 PySide6 + qfluentwidgets），
         B站投稿板块已移除；不再随包分发 tools/uploader_src 与 tools/ms-playwright。
 
 v1.10.0：字幕链路替换为自研字幕处理引擎——原 asr_subtitle_worker.py 已移除，
@@ -268,6 +280,25 @@ if os.path.isdir(online_release_dir):
               for f in sorted(os.listdir(online_release_dir))
               if f.endswith('.py')]
 
+# ---------------------------------------------------------------------------
+# 应用图标（v2.1.0）
+# ---------------------------------------------------------------------------
+# 两处都要，缺一不可，各管一段：
+#   ① EXE(icon=...) —— 写进 PE 资源段，决定**资源管理器 / 任务栏 / 快捷方式**
+#      显示 exe 本身时用什么图。这是最要紧的一处：安装后用户看到的图标
+#      全部来自这里，光靠运行期 setWindowIcon 是**管不到**的（那是窗口图标，
+#      任务栏按钮会跟着变，但 .exe 文件本身的图标不会）。
+#   ② datas 收一份 —— 运行期 `MainWindow` 要 `setWindowIcon`（标题栏、
+#      Alt-Tab、任务栏）；onefile 下源码 assets\ 不在磁盘上，只能从
+#      `sys._MEIPASS` 读，故必须显式收进包。
+# 图标由 scripts\dev\make_icon.py 从 assets\app_icon.png 生成（7 档，
+# 像素画用最近邻缩放）。⚠ 换图标只需重跑该脚本并改这两行，无需动其它。
+APP_ICON = os.path.join(os.path.dirname(SPEC_DIR), 'assets', 'app_icon.ico')
+if not os.path.isfile(APP_ICON):
+    raise SystemExit('缺少应用图标：%s（先跑 scripts\\dev\\make_icon.py 生成）'
+                     % APP_ICON)
+datas += [(APP_ICON, 'assets')]
+
 a = Analysis(
     [os.path.join(SRC_DIR, 'video_toolbox_qt.py')],
     # ⚠ online_release_dir 必须在 pathex 里：三个更新模块物理上位于
@@ -297,9 +328,11 @@ pyz = PYZ(a.pure)
 #   opengl32sw.dll(20MB)  软件 OpenGL 回退，有显卡驱动时不需要
 #   hf_xet(9MB)           HuggingFace Xet 下载加速，字幕引擎不走 HF 大模型下载
 #   PIL/_avif(7.5MB)      AVIF 解码，封面/字幕图片均为 jpg/png/webp
-#   Qt5Qml / Qt5Quick(8.2MB)  QML 运行时（v1.18.0 追加）——见下方长注释
+#   Qt6Qml / Qt6Quick(8.2MB)  QML 运行时（v1.18.0 追加；PySide6 迁移时按
+#     Qt6 命名同步改名，见下方长注释）
 _DROP_BINARIES = ('opengl32sw.dll', 'hf_xet', '_avif',
-                  'qt5qml.dll', 'qt5quick.dll', 'qt5qmlmodels.dll')
+                  'qt6qml.dll', 'qt6quick.dll', 'qt6qmlmodels.dll',
+                  'qt6qmlmeta.dll', 'qt6qmlworkerscript.dll')
 # ⚠⚠ v1.18.0 追加 QML 三件套的原因（**不是为了省体积，是被硬限逼的**）：
 #   在线安装器要把组件仓库发布到 gh-pages，而 **GitHub 单文件硬限 100 MiB**。
 #   本轮 exe 因引入 onnxruntime 涨到 106,281,428 字节 ⇒ `1.18.0content.7z`
@@ -311,24 +344,24 @@ _DROP_BINARIES = ('opengl32sw.dll', 'hf_xet', '_avif',
 #       `QtQuick|QtQml|QQmlApplicationEngine|QQuickView|QtQmlModels` → **零命中**；
 #       整个 site-packages 里只有 PyInstaller 自己的工具链代码提到这些名字。
 #     · 本项目与字幕引擎都是 qfluentwidgets（纯 QtWidgets），**不用 QML**。
-#     · 依赖方向是 Qt5Quick → Qt5Widgets/Qt5Gui/Qt5Qml，保留的 DLL 不反向依赖它们，
-#       所以删掉不会连累保留下来的 Qt5Widgets/Qt5Gui/Qt5Core。
-#     · PyQt5 的 `QtQuick.pyd` / `QtQml.pyd` 本来就没被 PyInstaller 收进来
-#       （没人 import），这三份 DLL 是 hook 按 Qt 发行版整体带进来的死重。
+#     · 依赖方向是 Qt6Quick → Qt6Widgets/Qt6Gui/Qt6Qml，保留的 DLL 不反向依赖它们，
+#       所以删掉不会连累保留下来的 Qt6Widgets/Qt6Gui/Qt6Core。
+#     · PySide6 的 `QtQml.pyd` / `QtQuick.pyd` 本来就没被 PyInstaller 收进来
+#       （没人 import），这几份 DLL 是 hook 按 Qt 发行版整体带进来的死重。
 #   ⚠ 别顺手把 libGLESv2.dll / d3dcompiler_47.dll 也删了 —— 那是 ANGLE，
-#     Qt5 在 Windows 上可能真的在用（spec 已删 opengl32sw 软件回退），删了会黑屏。
+#     Qt6 在 Windows 上可能真的在用（spec 已删 opengl32sw 软件回退），删了会黑屏。
 #   ⚠ 这层「100 MiB 墙」是结构性的：exe 再涨 3~4MB 就会再次越线。
 #     真要治本得把组件仓库改挂 GitHub Releases（单 asset 上限 2GB），见开发版说明书 6.x。
 a.binaries = [b for b in a.binaries
               if not any(d in os.path.basename(b[0]).lower() or d in b[0].lower()
                          for d in _DROP_BINARIES)]
 
-# ⚠⚠⚠ v1.18.2 修：**Qt5\bin 里的旧 MSVC runtime 会顶掉 onnxruntime 的新版**
+# ⚠⚠⚠ v1.18.2 修：**旧版 Qt 目录里的 MSVC runtime 会顶掉 onnxruntime 的新版**
 #   现象：安装版点「录入声纹」报
 #     ImportError: DLL load failed while importing onnxruntime_pybind11_state:
 #     动态链接库(DLL)初始化例程失败。
-#   根因：exe 里同时存在**两套同名** MSVC runtime，且 `PyQt5\Qt5\bin` 在
-#     DLL 搜索路径里**优先级高于 `_MEIPASS` 根目录**：
+#   根因（PyQt5 时代实测）：exe 里同时存在**两套同名** MSVC runtime，且
+#     `PyQt5\Qt5\bin` 在 DLL 搜索路径里**优先级高于 `_MEIPASS` 根目录**：
 #       · PyQt5\Qt5\bin\MSVCP140.dll  = **14.26**（2020 年，Qt 自带）
 #       · MSVCP140.dll（根目录）        = **14.50**（onnxruntime 依赖）
 #     onnxruntime.dll（编译时链的是 14.50 的导出表）拿到 14.26 的实现 ⇒
@@ -336,17 +369,22 @@ a.binaries = [b for b in a.binaries
 #     「找不到 DLL」。⚠ 这跟上面注释担心的「pyd 被顶掉」是**两个**问题：
 #     那次只解了 `onnxruntime_pybind11_state.pyd`，**onnxruntime.dll 本体
 #     同样会被顶掉**，所以没修干净。
-#   修法（不删文件、零体积代价）：把 Qt5\bin 下那四个 MSVC DLL 的**内容**
-#     换成根目录的新版 —— Qt5 只用到运行时导出函数（memcpy/_vsnprintf 等），
+#   修法（不删文件、零体积代价）：把旧版 Qt 目录下那四个 MSVC DLL 的**内容**
+#     换成根目录的新版 —— Qt 只用到运行时导出函数（memcpy/_vsnprintf 等），
 #     新版对这些 ABI **完全向后兼容**；反向（旧版顶新版）才不安全。
 #     已用 build/_ort_repro.py 在模拟 _MEIPASS 里双向验证：
 #       场景A（现状）  → RESULT=FAIL（DLL load failed …初始化例程失败）
 #       场景B（覆盖后）→ RESULT=OK  onnxruntime 1.29.0
 #   ⚠ 关键前提：exe 根目录那份 14.50 **不是**从 site-packages 收集的
-#     （`find site-packages -iname "*msvcp140*"` 只命中 Qt5\bin 的 14.26
-#     与 numpy.libs 的 14.40），而是 PyInstaller 从 **Python 运行时目录**
+#     （`find site-packages -iname "*msvcp140*"` 只命中 PySide6 无关副本
+#      与 numpy.libs 的 14.40），而是 PyInstaller 从 **Python 运行时目录**
 #     收集的。所以不能写死某个 site-packages 路径，只能从 `a.binaries`
 #     里按「目录为空 = _MEIPASS 根」筛出来，取它的**源路径**去复用。
+#   PySide6 迁移后（2026-10-14 实测修正）：PySide6 的 wheel **确实自带** MSVC
+#   runtime（PySide6\MSVCP140*.dll / VCRUNTIME*.dll 共 5 个，方案书初查只看了
+#   Qt6 的 bin/lib 目录、漏了包根），且 shiboken6\ 下另有 4 个同名副本——扁平
+#   布局下默认不进 DLL 搜索路径，但兜住所有已知布局更稳。判据覆盖两大目录：
+_MSVC_DIR_PREFIXES = ('pyside6', 'shiboken6')
 _MSVC_NAMES = {'msvcp140.dll', 'msvcp140_1.dll',
                'vcruntime140.dll', 'vcruntime140_1.dll'}
 _root_msvc = {}
@@ -360,10 +398,11 @@ _patched = 0
 for _i, _e in enumerate(a.binaries):
     _bn = os.path.basename(_e[0])
     _dir = os.path.dirname(_e[0]).replace('\\', '/').lower()
-    if _dir.startswith('pyqt5/qt5/bin') and _bn.lower() in _root_msvc:
+    if (_dir.split('/')[0] in _MSVC_DIR_PREFIXES
+            and _bn.lower() in _root_msvc):
         a.binaries[_i] = (_e[0], _root_msvc[_bn.lower()], _e[2])
         _patched += 1
-print('[fix] Qt5\\bin 旧 MSVC runtime 已改指向根目录新版：%d 个' % _patched)
+print('[fix] PySide6/shiboken6 目录旧 MSVC runtime 已改指向根目录新版：%d 个' % _patched)
 
 exe = EXE(
     pyz,
@@ -372,6 +411,9 @@ exe = EXE(
     a.datas,
     [],
     name='视频工具箱',
+    # v2.1.0：exe 文件自身的图标（资源管理器 / 任务栏 / 快捷方式）。
+    # 见上方 APP_ICON 段注释——运行期 setWindowIcon 管不到这一段。
+    icon=APP_ICON,
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,

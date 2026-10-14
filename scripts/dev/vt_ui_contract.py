@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+# @version 2.1.0
 """自研 UI 契约静态校验（P3）。
 
 在**无法实例化 Qt**（本机 QApplication 挂起）的前提下，用 AST 静态校验：
@@ -36,6 +37,11 @@ CONTRACT = {
             "status_label", "progress_bar", "info_label", "donate_button",
             "log_button", "dropEvent", "dragEnterEvent", "process",
             "set_task", "update_info", "show_log_window",
+            # v2.1.0：识别到网页链接 → 由宿主接走跳「视频下载」；
+            # 另有 _is_valid_url / _process_url / on_video_download_finished
+            # 保留（引擎回退路径与兼容钩子仍会碰到）。
+            "url_detected", "_is_valid_url", "_process_url",
+            "on_video_download_finished", "create_task",
         },
         "LogWindow": {"update_log", "open_log_folder", "load_last_lines"},
     },

@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+# @version 2.1.0
 """自研工作台首页（分段控件 + 堆叠页组合）。
 
 忠实复现引擎 ``HomeInterface`` 的组合结构与信号连线（``pivot`` / ``stackedWidget``
@@ -17,8 +18,8 @@ from __future__ import annotations
 
 from typing import Optional
 
-from PyQt5.QtCore import QThread, pyqtSignal
-from PyQt5.QtWidgets import QSizePolicy, QStackedWidget, QVBoxLayout, QWidget
+from PySide6.QtCore import QThread, Signal
+from PySide6.QtWidgets import QSizePolicy, QStackedWidget, QVBoxLayout, QWidget
 from qfluentwidgets import InfoBar, InfoBarPosition, SegmentedWidget
 
 from . import _seams
@@ -49,7 +50,12 @@ class HomeInterface(QWidget):
         self.addSubInterface(self.task_creation_interface, "TaskCreationInterface", self.tr("任务创建"))
         self.addSubInterface(self.transcription_interface, "TranscriptionInterface", self.tr("语音转录"))
         self.addSubInterface(self.subtitle_optimization_interface, "SubtitleInterface", self.tr("字幕优化与翻译"))
-        self.addSubInterface(self.video_synthesis_interface, "VideoSynthesisInterface", self.tr("字幕视频合成"))
+        # v2.1.0：「字幕视频合成」**不再注册进分段/堆叠**。合成能力已并入
+        # 「字幕编辑」页（工具条「内嵌字幕」入口），这里保留实例只是为了让
+        # 宿主与 closeEvent 的对象清单不变——它从未被 addSubInterface，
+        # 因此任何路径都不会把用户带到一个已废弃的分段上。
+        self.video_synthesis_interface.setParent(None)
+        self.video_synthesis_interface.hide()
 
         self.vBoxLayout.addWidget(self.pivot)
         self.vBoxLayout.addWidget(self.stackedWidget)
@@ -61,7 +67,8 @@ class HomeInterface(QWidget):
 
         self.task_creation_interface.finished.connect(self.switch_to_transcription)
         self.transcription_interface.finished.connect(self.switch_to_subtitle_optimization)
-        self.subtitle_optimization_interface.finished.connect(self.switch_to_video_synthesis)
+        # v2.1.0：不再把「字幕翻译完成」连到合成页（合成页已废弃，见上）。
+        # 字幕翻译完成后停在翻译页，由用户自行决定下一步。
 
     def switch_to_transcription(self, file_path):
         self._current_task_id = _seams.generate_task_id()
@@ -99,7 +106,7 @@ class HomeInterface(QWidget):
             bar = None
 
         class _VpWorker(QThread):
-            done = pyqtSignal(object)
+            done = Signal(object)
 
             def run(self):
                 try:
@@ -149,18 +156,15 @@ class HomeInterface(QWidget):
             return False
 
     def switch_to_video_synthesis(self, video_path, subtitle_path):
-        # 合成已并入「字幕编辑」页；宿主会把本方法置为 no-op 并摘掉合成页。
-        # 保留可覆盖的实例方法语义（宿主直接对实例赋值 lambda）。
+        """v2.1.0 起为**永久 no-op**。
+
+        「字幕视频合成」分段已从分段控件与堆叠页里彻底摘除（合成能力并入
+        「字幕编辑」页的「内嵌字幕」入口）。保留这个方法只为兼容宿主与旧
+        代码里可能残留的调用——**任何实现都会把用户带到一个已经不存在
+        的页面上**，故直接返回，不做任何切换。
+        """
         self._current_task_id = None
-        try:
-            synthesis_task = _seams.TaskFactory.create_synthesis_task(
-                video_path, subtitle_path, need_next_task=True, task_id=self._current_task_id)
-            self.video_synthesis_interface.set_task(synthesis_task)
-            self.video_synthesis_interface.process()
-            self.stackedWidget.setCurrentWidget(self.video_synthesis_interface)
-            self.pivot.setCurrentItem("VideoSynthesisInterface")
-        except Exception:  # noqa: BLE001
-            pass
+        return
 
     def addSubInterface(self, widget, objectName, text):
         widget.setObjectName(objectName)
@@ -174,8 +178,17 @@ class HomeInterface(QWidget):
             self.pivot.setCurrentItem(widget.objectName())
 
     def closeEvent(self, event):
-        self.task_creation_interface.close()
-        self.transcription_interface.close()
-        self.subtitle_optimization_interface.close()
-        self.video_synthesis_interface.close()
+        # ⚠ 任务创建页可能已被宿主摘走挂到「首页」（见
+        # ``video_toolbox_qt.HomePage.adopt``）。此时它不再是本页的子控件，
+        # 这里再 close() 会把首页上的那个控件一起关掉——表现为"程序关到一半
+        # 首页内容凭空消失"。故逐个检查父对象，只关仍属于本页的。
+        for w in (self.task_creation_interface,
+                  self.transcription_interface,
+                  self.subtitle_optimization_interface,
+                  self.video_synthesis_interface):
+            try:
+                if w is not None and w.parent() is self:
+                    w.close()
+            except Exception:  # noqa: BLE001
+                pass
         super().closeEvent(event)

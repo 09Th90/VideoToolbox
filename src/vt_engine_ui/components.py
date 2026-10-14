@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+# @version 2.1.0
 """自研 UI 组件（设置卡片 / 转录设置卡与弹窗）。
 
 包含：
@@ -16,9 +17,9 @@ from __future__ import annotations
 
 from typing import List, Optional, Union
 
-from PyQt5.QtCore import Qt, pyqtSignal
-from PyQt5.QtGui import QIcon
-from PyQt5.QtWidgets import QCompleter, QStackedWidget, QVBoxLayout, QWidget
+from PySide6.QtCore import Qt, Signal
+from PySide6.QtGui import QIcon
+from PySide6.QtWidgets import QCompleter, QStackedWidget, QVBoxLayout, QWidget
 from qfluentwidgets import (
     BodyLabel,
     ComboBoxSettingCard,
@@ -37,7 +38,7 @@ from . import _seams
 # 行输入设置卡
 # --------------------------------------------------------------------------
 class LineEditSettingCard(SettingCard):
-    textChanged = pyqtSignal(str)
+    textChanged = Signal(str)
 
     def __init__(self, configItem: ConfigItem, icon, title: str,
                  content: Optional[str] = None, placeholder: str = "", parent=None):
@@ -65,7 +66,7 @@ class LineEditSettingCard(SettingCard):
 # 可编辑下拉设置卡
 # --------------------------------------------------------------------------
 class EditComboBoxSettingCard(SettingCard):
-    currentTextChanged = pyqtSignal(str)
+    currentTextChanged = Signal(str)
 
     def __init__(self, configItem: ConfigItem, icon: Union[str, QIcon], title: str,
                  content: Optional[str] = None, items: Optional[List[str]] = None,

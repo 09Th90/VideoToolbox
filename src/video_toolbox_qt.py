@@ -87,21 +87,25 @@ from datetime import datetime
 
 
 # ============================================================================
-# ⚠⚠ 必须在**任何 PyQt5 导入之前**执行：修 MSVC 运行时的 DLL 遮蔽
+# ⚠⚠ 必须在**任何 PySide6 导入之前**执行：修 MSVC 运行时的 DLL 遮蔽
 # ----------------------------------------------------------------------------
-# PyQt5\Qt5\bin 自带一份 msvcp140.dll / vcruntime140.dll（实测 14.26.28720.3），
-# 系统 System32 里的是 14.50.35719.0。`PyQt5.QtCore` 一导入就把 Qt5\bin 加进
+# 历史背景（旧版 Qt5 绑定时代，2026-10-09 实测踩坑）：当时的绑定把 Qt5\bin
+# 一并带入，其中自带一份旧版 msvcp140.dll / vcruntime140.dll（14.26.28720.3），
+# 而系统 System32 里的是 14.50.35719.0。QtCore 一导入就把 Qt5\bin 加进
 # DLL 搜索路径，于是**旧版把系统新版顶掉**；onnxruntime 的 pyd 是按新版 MSVC
 # 运行时编译的，之后加载就报：
 #     ImportError: DLL load failed while importing onnxruntime_pybind11_state:
 #     动态链接库(DLL)初始化例程失败。
-# 实测「先 import onnxruntime 再导 PyQt5」也能绕过，但那要在启动期为**所有**
-# 用户白付 ~250ms（import onnxruntime 的实测开销），不用声纹功能的人是纯浪费。
-# 这里改为**先把 System32 的运行时按文件名装进进程**：同名 DLL 已在进程里时
-# Windows 直接复用，Qt5\bin 的旧副本就没机会被选中。开销可忽略（几次 WinDLL）。
+# 解法：先把 System32 的运行时按文件名装进进程——同名 DLL 已在进程里时
+# Windows 直接复用，旧副本就没机会被选中。开销可忽略（几次 WinDLL）。
+#
+# PySide6 迁移后（2026-10-14）：实测 PySide6 已**不自带** MSVC runtime
+# （Qt6 各目录下均无 MSVCP140* / VCRUNTIME140*），该冲突的根源随之消失，
+# 本函数成为无害的防御性冗余——**保留**（零成本），调用时机也不变
+# （仍在任何 Qt 导入之前）。详见 docs/PySide6迁移方案书 第四节。
 #
 # 影响面：声纹筛选（`speaker_voiceprint` 依赖 onnxruntime）。**将来任何引入
-# onnxruntime 的功能都受这条约束——别把这段挪到 PyQt5 导入之后。**
+# onnxruntime 的功能都受这条约束——别把这段挪到 PySide6 导入之后。**
 # ============================================================================
 def _fix_msvc_runtime_shadow():
     if os.name != "nt":
@@ -122,16 +126,16 @@ def _fix_msvc_runtime_shadow():
 
 _fix_msvc_runtime_shadow()
 
-from PyQt5.QtCore import (Qt, QTimer, QEvent, QObject, QPoint, QRect, QRectF,
-                          QSize, QUrl, QAbstractNativeEventFilter, QVariant,
-                          pyqtSignal, QLockFile)
-from PyQt5.QtGui import (QColor, QDesktopServices, QFont, QFontMetrics,
-                         QGuiApplication, QKeyEvent, QKeySequence, QPainter,
-                         QPen, QPixmap, QTextCursor)
-from PyQt5.QtWidgets import (QAbstractButton, QAbstractItemView, QApplication,
+from PySide6.QtCore import (Qt, QTimer, QEvent, QObject, QPoint, QRect, QRectF,
+                          QSize, QUrl, QAbstractNativeEventFilter, Signal,
+                          QLockFile)
+from PySide6.QtGui import (QColor, QDesktopServices, QFont, QFontMetrics,
+                         QGuiApplication, QIcon, QKeyEvent, QKeySequence,
+                         QPainter, QPen, QPixmap, QShortcut, QTextCursor)
+from PySide6.QtWidgets import (QAbstractButton, QAbstractItemView, QApplication,
                              QDialog, QFileDialog, QFrame, QGridLayout,
                              QHBoxLayout, QHeaderView, QLabel, QMessageBox,
-                             QPlainTextEdit, QShortcut, QSizePolicy, QSplitter,
+                             QPlainTextEdit, QSizePolicy, QSplitter,
                              QStackedWidget, QTableWidgetItem, QTabWidget,
                              QVBoxLayout, QWidget)
 
@@ -154,6 +158,9 @@ import media_registry as mreg
 import pipeline as pl
 # 界面美化：各导航板块自定义背景图（配置持久化在 data/ui_custom.json）
 import ui_theme
+# Qt 兼容补丁（2026-10-14）：Qt 6.12.0 的 QStyleSheetStyle 回归会让
+# qfluentwidgets 的 SpinBox 数值全空白（见 qt_compat.install_spinbox_fix）
+import qt_compat
 # 字幕编辑（打轴）三件套：纯逻辑 / 媒体后端 / 控件。
 # 页面类放在本文件（与其余 6 个页面一致）——若把页面单独成模块，它会
 # 反过来 import 本文件的 ScrollPage，形成循环导入。
@@ -171,6 +178,22 @@ import auto_vision_page
 # 该模块对「在线发布组件缺失」是**静默降级**（返回 None 能力），所以
 # 这里 import 本身不会因分发形态而失败。
 import vt_update_check
+# AI 托管（v2.1.0）：harness 适配层 + 托管页。两者都设计成「harness 不在场
+# 也零影响」——bridge 只依赖标准库、探测失败只返回状态；页面也只在
+# ``harness_bridge.available()`` 为真时才创建并挂导航。import 本身依旧兜底，
+# 确保任何意外都不会拖垮既有功能。
+try:
+    import harness_bridge
+    import harness_page as _harness_page_mod
+    _HARNESS_IMPORT_OK = True
+except Exception as _e:  # noqa: BLE001
+    harness_bridge = None
+    _harness_page_mod = None
+    _HARNESS_IMPORT_OK = False
+    try:
+        _perf_note(f"harness 模块导入失败（不影响既有功能）：{_e}")
+    except Exception:  # noqa: BLE001
+        pass
 
 VERSION = "2.1.0"
 
@@ -379,10 +402,13 @@ def fmt_hms(seconds):
     return f"{h}:{m:02d}:{s:02d}" if h else f"{m:02d}:{s:02d}"
 
 
-# ========== 崩溃兜底：未捕获异常不再让进程「瞬间消失」（v1.12.0） ==========
-# PyQt5 的默认行为是：槽函数 / 回调里抛出未捕获异常时调用 qFatal() → 进程立刻
-# abort（用户看到的就是「点一下按钮，程序没了」，且没有任何提示）。只要我们自己
-# 装上 sys.excepthook，PyQt5 就会改为调用它、不再 abort。
+# ========== 崩溃兜底：未捕获异常落盘 + 界面提示（v1.12.0） ==========
+# 旧版 Qt5 绑定的默认行为：槽函数 / 回调里抛出未捕获异常时调用 qFatal() → 进程
+# 立刻 abort（用户看到的就是「点一下按钮，程序没了」，且没有任何提示）。
+# PySide6 起默认改为走 sys.excepthook（进程不再 abort，仅打 traceback，
+# 2026-10-14 实测），但默认钩子不落盘、不弹提示；这里仍显式装钩子，保证：
+#   · traceback 落盘 logs/crash.log（事后排查的唯一依据）；
+#   · 主线程异常弹一次 InfoBar，后台线程异常仅记录（不打断工作）。
 # 这类 bug 最常见的成因是漏定义名字（例如 duration=INFOBAR_DURATION_SUCCESS 却没定义），
 # 静态检查见 src/check_names.py，自检里已加断言防回归。
 CRASH_LOG = os.path.join(engine.LOGS_DIR, "crash.log")
@@ -2468,7 +2494,8 @@ class MergePage(QWidget):
                 if r in sel:
                     item.setBackground(bg)
                 else:
-                    item.setData(Qt.BackgroundRole, QVariant())
+                    # Qt6/PySide6 已移除 QVariant：None 即空值，效果等同旧 QVariant()
+                    item.setData(Qt.BackgroundRole, None)
         self.table.viewport().update()
 
     def _refresh_selection_ui(self):
@@ -3047,7 +3074,7 @@ class SubtitlePage(QWidget):
                 # 再补一次 QWidget 基类的 removeAction 把 action 摘干净
                 cmd_bar.removeAction(opt_btn)
                 try:
-                    from PyQt5.QtWidgets import QWidget as _QW
+                    from PySide6.QtWidgets import QWidget as _QW
                     _QW.removeAction(cmd_bar, opt_btn)
                 except Exception:
                     pass
@@ -3064,13 +3091,14 @@ class SubtitlePage(QWidget):
             home.pivot.setItemText("SubtitleInterface", "字幕翻译")
         except Exception:  # noqa: BLE001
             pass
-        # v1.13.x：摘掉引擎工作台的「字幕视频合成」分段——用户要求把合成并到
-        # 「字幕编辑」页（那边攥着正在编辑、可能还没保存的字幕，不必先导出
-        # 再喂回来）。只动界面、不碰引擎本体：
-        #   · 先断掉「字幕翻译完成 → 自动跳合成」的连线；
-        #   · 再把分段项与堆叠页摘掉；
-        #   · 实例本身留着（HomeInterface.closeEvent 还会调它的 close()）。
-        # 换到编辑页的入口是工具条上的「内嵌字幕」（只加轨道、不重编码）。
+        # v2.1.0：彻底摘掉「字幕视频合成」分段——用户要求「去掉这块多余内容，
+        # 剩下三个平铺」。合成能力早已并入「字幕编辑」页的「内嵌字幕」入口。
+        #
+        # ⚠ 这里**不能只调** ``pivot.removeWidget()``：它内部是
+        # ``items.pop`` + ``hBoxLayout.removeWidget`` + ``item.deleteLater()``，
+        # 而 ``QLayout.removeWidget`` **只解除布局管理、不隐藏控件**，控件在
+        # 被真正 delete 之前仍会照常绘制（用户截图里那个孤立残留的
+        # 「字幕视频合成」小块就是这么来的）。所以额外显式 hide 一次。
         try:
             syn = getattr(home, "video_synthesis_interface", None)
             if syn is not None:
@@ -3081,9 +3109,19 @@ class SubtitlePage(QWidget):
                     pass
                 # 兜底：万一还有别的路径调过来，也不该切到一个已摘掉的页面
                 home.switch_to_video_synthesis = lambda *a, **k: None
+                item = home.pivot.items.get("VideoSynthesisInterface")
+                if item is not None:
+                    item.hide()
                 home.pivot.removeWidget("VideoSynthesisInterface")
+                # removeWidget 内部是 deleteLater()，**延迟**到事件循环才真正
+                # 销毁；在那之前它仍是 SegmentedWidget 的子控件（多出一个
+                # sibling 下标，且仍有一帧绘制）。立即脱父，顺带彻底切断
+                # 残留来源，也与自研路径（构造期就 setParent(None)）结构一致。
+                if item is not None:
+                    item.setParent(None)
                 home.stackedWidget.removeWidget(syn)
                 syn.hide()
+                syn.setParent(None)
         except Exception:  # noqa: BLE001
             pass
         tc = getattr(home, "task_creation_interface", None)
@@ -3092,6 +3130,36 @@ class SubtitlePage(QWidget):
                 w = getattr(tc, attr, None)
                 if w is not None:
                     w.hide()
+            # v2.1.0：「任务创建」已提为应用首页 ⇒ 工作台**构建时就永久摘除**
+            # 该分段——**不能**依赖 adopt 的时机或成败（用户实机出现过分段
+            # 仍在的情况，原因难追，必须结构性保证）。摘掉后 tc 成为孤儿
+            # （引用仍挂在 home 上），随后 adopt 把它认领到首页；即使 adopt
+            # 没跑，工作台也绝无这个分段。
+            #   · pivot 项：hide → removeWidget → setParent(None)（三件套，
+            #     原因同上「字幕视频合成」：QLayout.removeWidget 不隐藏控件）；
+            #   · 堆叠页：removeWidget（会顺手 hide，正好）。
+            try:
+                # ⚠ 摘除前先把当前页切走：构造期当前页就是 tc 本身，
+                # 直接 removeWidget 会让 currentIndex 自动落到「语音转录」，
+                # 引擎回退路径的转录页 showEvent 会 **lazy 创建第二个
+                # RoundMenu**（自研页无此 lazy）⇒ golden 结构比对失衡，
+                # 且引擎路径下用户会凭空看到一次转录页闪现。
+                home.stackedWidget.setCurrentWidget(
+                    home.subtitle_optimization_interface)
+                _item = home.pivot.items.get("TaskCreationInterface")
+                if _item is not None:
+                    _item.hide()
+                home.pivot.removeWidget("TaskCreationInterface")
+                if _item is not None:
+                    _item.setParent(None)
+                home.stackedWidget.removeWidget(tc)
+                # 摘掉首段后堆叠/分段的当前项可能悬空，落到第一个存在的分段
+                if home.stackedWidget.count():
+                    _first = home.stackedWidget.widget(0)
+                    home.stackedWidget.setCurrentWidget(_first)
+                    home.pivot.setCurrentItem(_first.objectName())
+            except Exception as e:  # noqa: BLE001
+                _perf_note(f"工作台摘除任务创建分段失败：{e}")
             # v1.16.3：任务创建的跳转**按文件类型分派**。引擎原本把它写死成
             # 「一律跳语音转录」，拖字幕进来也会被当音视频去转录。
             #   · 视频 / 音频            → 语音转录；
@@ -3109,6 +3177,25 @@ class SubtitlePage(QWidget):
                 tc.dropEvent = make_task_creation_drop_handler(tc)
             except Exception as e:  # noqa: BLE001
                 _perf_note(f"任务创建页字幕接收补丁失败：{e}")
+            # v2.1.0：识别到网页链接 → 跳「视频处理 / 视频下载」。
+            # 自研路径有 url_detected 信号；引擎回退路径没有（那边仍走
+            # VideoDownloadThread），用 hasattr 分流即可，两条路径都不炸。
+            try:
+                sig = getattr(tc, "url_detected", None)
+                if sig is not None:
+                    sig.connect(self.app.goto_video_download)
+            except Exception as e:  # noqa: BLE001
+                _perf_note(f"任务创建页链接跳转接线失败：{e}")
+            # v2.1.0：harness 就绪时，首页任务框输入**纯文本**（非文件、
+            # 非链接）→ AI 托管。信号只有 harness 在场时才会真的发出来
+            # （TaskCreationInterface.process 里判过 available()），所以
+            # 这条线对「没有 harness」的用户是完全的空操作。
+            try:
+                sig = getattr(tc, "ai_requested", None)
+                if sig is not None:
+                    sig.connect(self._on_ai_requested)
+            except Exception as e:  # noqa: BLE001
+                _perf_note(f"任务创建页 AI 托管接线失败：{e}")
         # v1.13.0：把「字幕校准」并入引擎工作台分段，排在工作台「字幕翻译」
         # 之后（用户要求：校准并入「字幕翻译排」）。只加引擎界面 + 分段项，
         # 不改动引擎本体的处理流程。
@@ -3126,8 +3213,36 @@ class SubtitlePage(QWidget):
                     self.calib_page))
         except Exception:  # noqa: BLE001
             pass
+        # v2.1.0：三个分段**平铺**这件事**不需要任何额外干预**——
+        # ``Pivot.insertWidget`` 内部就是 ``hBoxLayout.insertWidget(idx, w, 1)``，
+        # stretch=1，SegmentedWidget 又随外层容器同宽扩张，三项自然等宽均分
+        # （实测 252/253/252@757）。曾在这里加过一套「setAlignment /
+        # setSizePolicy(Expanding) / setSizeConstraint(0)」，负向验证
+        # （``_negtest_synth_tabs.py`` N2：整段撤掉）证明撤掉后几何**一模一样**
+        # ⇒ 属多余代码，已删。教训：别凭"看起来该这么配"加设置，
+        # 先用负向验证证明它是必要的。
+        #
+        # ⚠ 但若将来真要加分段边距：**绝不能设在 SegmentedWidget 自身上**——
+        # 它的 paintEvent 用 ``item.rect().adjusted(1,1,-1,-1).translated(
+        # slideAni,0)`` 画选中底框，完全无视布局 y；一旦加上下边距，
+        # 选中框会和文字错位。要留白就加在外层容器（HomeInterface 的
+        # vBoxLayout）上。
         self._engine_home = home
         return home
+
+    def _on_ai_requested(self, text):
+        """首页任务框识别到「纯文本」→ 交给 AI 托管页执行（v2.1.0）。
+
+        只在 harness 就绪时才会收到这个信号（发送方判过 ``available()``）；
+        宿主没建 AI 托管页（harness 不在场）时这里是静默 no-op。
+        """
+        try:
+            win = self.app if hasattr(self, "app") else self.window()
+            goto = getattr(win, "goto_ai_console", None)
+            if goto is not None:
+                goto(text)
+        except Exception as e:  # noqa: BLE001
+            _perf_note(f"AI 托管跳转失败：{e}")
 
     def _dispatch_created_task(self, home, file_path):
         """任务创建完成后**按文件类型**跳转到对应工作台（见 _build_engine 说明）。
@@ -3135,9 +3250,14 @@ class SubtitlePage(QWidget):
         · 视频 / 音频           → 语音转录（引擎原行为）；
         · 单语字幕（无中文对照） → 字幕翻译；
         · 双语字幕（中英对照）   → 字幕校准。
+
+        v2.1.0：任务创建已提为**首页**，用户此刻停在首页而不是工作台内，
+        所以每次分派都要先把宿主窗口切到「字幕处理」——否则分段切了、
+        窗口还停在首页，用户看到的是"点了没反应"。
         """
         path = str(file_path or "")
         ext = os.path.splitext(path)[1].lower()
+        self._reveal_workbench()
         if ext not in SUBTITLE_EXTS:
             home.switch_to_transcription(path)
             return
@@ -3146,6 +3266,17 @@ class SubtitlePage(QWidget):
             self.switch_to_calib()
         else:
             self._open_subtitle_translate(home, path)
+
+    def _reveal_workbench(self):
+        """把宿主窗口切到「字幕处理」页（工作台所在的导航页）。"""
+        try:
+            win = self.window()
+            if getattr(win, "stackedWidget", None) is not None:
+                cur = win.stackedWidget.currentWidget()
+                if cur is not self:
+                    win.switchTo(self)
+        except Exception as e:  # noqa: BLE001
+            _perf_note(f"切到字幕处理页失败：{e}")
 
     def _open_subtitle_translate(self, home, sub_path):
         """把字幕送进引擎「字幕翻译」页并切过去。
@@ -3206,6 +3337,16 @@ class SubtitlePage(QWidget):
         if self._engine is None:
             return
         self.host_lay.addWidget(self._engine)
+        # v2.1.0：任务创建分段已提升为应用首页（见 HomePage）。把它从工作台
+        # 摘出来交给首页——**必须在 addWidget 到本页之后**，否则首页先拿到
+        # 控件、工作台随后又把同一个控件 addWidget 一次，Qt 只会保留最后一次。
+        try:
+            win = self.window()
+            hp = getattr(win, "home_page", None)
+            if hp is not None:
+                hp.adopt(self._engine)
+        except Exception as e:  # noqa: BLE001
+            _perf_note(f"任务创建页移交首页失败：{e}")
         # 引擎 QConfig 已随 HomeInterface 导入并读盘，再做一次运行期兜底：
         # 强制工作目录等收敛到软件文件夹（防止历史 C 盘值在内存里复活）
         try:
@@ -3231,6 +3372,19 @@ class SubtitlePage(QWidget):
             return
         # 预热尚未完成时也直接建（用户已点进来，等不了）；import 缓存已热，
         # 即便预热线程还在跑，主线程这里也只是等 import 锁，比冷启动快
+        self._build_now("正在准备字幕引擎界面 …")
+
+    def ensure_built(self):
+        """确保工作台已构建（幂等）——供首页在启动时提前触发。
+
+        v2.1.0：任务创建成为应用默认落地页，构建时机从「用户点进本页」
+        提前到「首页首次显示」。预热线程仍在跑时不等它（:meth:`_wait_prewarm`
+        会在预热结束后自行构建），直接返回即可。
+        """
+        if self._built:
+            return
+        if self._prewarming:
+            return          # 预热线程在跑，_wait_prewarm 会接手
         self._build_now("正在准备字幕引擎界面 …")
 
     def open_settings(self):
@@ -3457,7 +3611,24 @@ class SettingsPage(QWidget):
             self.cookie_browser_combo.setCurrentIndex(
                 list(engine.COOKIE_BROWSERS).index(_br))
         self.cookie_browser_combo.currentIndexChanged.connect(self._save_cookie)
-        self.cookie_browser_row = label_row("浏览器", self.cookie_browser_combo)
+        # 「检测」= 完整诊断（能区分「浏览器在运行」与「App-Bound 加密解不开」）
+        _bdiag = PushButton(FIF.SYNC, "检测", box)
+        _bdiag.clicked.connect(self._diag_browser_cookie)
+        # 「导入浏览器登录态」= 绕开 yt-dlp 的浏览器读取（见下方按钮说明）
+        self.cookie_import_btn = PushButton(FIF.DOWNLOAD, "导入浏览器登录态", box)
+        self.cookie_import_btn.setToolTip(
+            "为什么需要这个按钮：\n"
+            "· 现代 Chrome / Edge 的 cookie 是 App-Bound 加密（值前缀 v20），"
+            "yt-dlp 只会按老的 DPAPI(v10) 解，必然失败（yt-dlp #10927）；\n"
+            "· 浏览器开着时 cookie 库还会被独占锁（yt-dlp #7271）。\n"
+            "所以 yt-dlp 自己「读浏览器」这条路在新版 Chrome/Edge 上已经走不通。\n\n"
+            "本按钮改走另一条路：用**独立配置目录**启动一个浏览器窗口"
+            "（不碰你正在用的那个，所以不受上面两个限制），"
+            "你在窗口里登录一次 YouTube，程序借浏览器自己解密、经 CDP 取回"
+            "**明文** cookie，导出成 data\\user_cookies.txt 并自动切到该来源。")
+        self.cookie_import_btn.clicked.connect(self._import_browser_cookie)
+        self.cookie_browser_row = srow("浏览器", self.cookie_browser_combo,
+                                       _bdiag, self.cookie_import_btn)
         blay.addWidget(self.cookie_browser_row)
 
         # —— 自备 cookies.txt（file / auto） ——
@@ -3553,6 +3724,80 @@ class SettingsPage(QWidget):
         except Exception as e:  # noqa: BLE001
             txt = f"状态检查失败：{type(e).__name__}"
         self.cookie_hint.setText(txt)
+
+    def _diag_browser_cookie(self):
+        """「检测」浏览器登录态：跑完整诊断，把真因（锁库 / App-Bound）说清楚。"""
+        br = self.cookie_browser_combo.currentText().strip()
+        try:
+            verdict, text = engine.browser_cookie_diagnose(br)
+        except Exception as e:  # noqa: BLE001
+            InfoBar.error("检测失败", f"{type(e).__name__}: {e}", duration=6000,
+                          position=InfoBarPosition.BOTTOM_RIGHT, parent=self)
+            return
+        title = {"ok": "浏览器登录态可读",
+                 "locked": "浏览器正在运行 —— cookie 库被独占锁",
+                 "appbound": "该浏览器用了 App-Bound 加密，yt-dlp 解不开",
+                 "missing": "没找到该浏览器的登录数据"}.get(verdict, "检测结果")
+        if verdict == "ok":
+            InfoBar.success(title, text, duration=9000,
+                            position=InfoBarPosition.BOTTOM_RIGHT, parent=self)
+        else:
+            InfoBar.warning(title, text, duration=18000,
+                            position=InfoBarPosition.BOTTOM_RIGHT, parent=self)
+        self._refresh_cookie_status()
+
+    def _import_browser_cookie(self):
+        """「导入浏览器登录态」：起独立配置的浏览器，走 CDP 导出明文 cookie。"""
+        if getattr(self, "_cookie_import_running", False):
+            # 再点一次 = 取消（导入要等用户登录，必须有退路）
+            ev = getattr(self, "_cookie_import_cancel", None)
+            if ev is not None:
+                ev.set()
+                InfoBar.info("正在取消导入", "已请求取消：浏览器窗口会被关掉。",
+                             duration=5000,
+                             position=InfoBarPosition.BOTTOM_RIGHT, parent=self)
+            return
+        br = self.cookie_browser_combo.currentText().strip()
+        InfoBar.info(
+            "开始导入浏览器登录态",
+            f"即将打开一个**独立配置**的 {br} 窗口（你正在用的窗口不受影响）："
+            f"请在其中登录 YouTube，登录成功后程序会自动导出 cookie 并关掉它。"
+            f"（想中途放弃就再点一次本按钮）",
+            duration=12000, position=InfoBarPosition.BOTTOM_RIGHT, parent=self)
+        self._cookie_import_running = True
+        self._cookie_import_cancel = threading.Event()
+        self.cookie_import_btn.setText("取消导入")
+        threading.Thread(target=self._import_cookie_worker, args=(br,),
+                         daemon=True).start()
+
+    def _import_cookie_worker(self, br):
+        try:
+            ok, msg, path = engine.export_browser_cookies_via_cdp(
+                br, log=lambda m: self.app.q.put(("sys_log", m)),
+                cancel=self._cookie_import_cancel)
+        except Exception as e:  # noqa: BLE001
+            ok, msg, path = False, f"{type(e).__name__}: {e}", ""
+        self.app.q.put(("cookie_import_done", ok, msg, path))
+
+    def on_cookie_import_done(self, ok, msg, path):
+        """（主线程）导入结束：回填界面 / 提示结果。"""
+        self._cookie_import_running = False
+        self.cookie_import_btn.setText("导入浏览器登录态")
+        if not ok:
+            InfoBar.warning("浏览器登录态导入未完成", msg, duration=15000,
+                            position=InfoBarPosition.BOTTOM_RIGHT, parent=self)
+            return
+        # 引擎侧已把配置切成 file 模式；先把路径回填，再切下拉
+        # （切下拉会触发 _save_cookie，按界面当前值落盘）
+        self.cookie_file_edit.setText(path or "")
+        try:
+            keys = [k for _t, k in engine.COOKIE_MODE_LABELS]
+            self.cookie_mode_combo.setCurrentIndex(keys.index("file"))
+        except ValueError:
+            pass
+        self._refresh_cookie_status()
+        InfoBar.success("浏览器登录态导入成功", msg, duration=12000,
+                        position=InfoBarPosition.BOTTOM_RIGHT, parent=self)
 
     # ------------------------------------------------------------------ #
     # 网络代理（v1.14.1 起无界面）：原「网络代理」卡片与 _build_proxy_card /
@@ -4351,7 +4596,7 @@ class SettingsPage(QWidget):
             return self._engine_setting
         self._engine_built = True
         try:
-            from PyQt5.QtWidgets import QFrame
+            from PySide6.QtWidgets import QFrame
             _home_cls, SettingInterface, is_self, ui_err = _resolve_engine_ui()
             if ui_err:
                 _perf_note(f"自研设置页不可用，回退引擎：{ui_err}")
@@ -6276,8 +6521,8 @@ class UpdateProgressDialog(QDialog):
     """
 
     #: 后台线程 → 主线程的信号中转（连接时带 self，保证自动断开）
-    sig_progress = pyqtSignal(str, int, int)
-    sig_log = pyqtSignal(str)
+    sig_progress = Signal(str, int, int)
+    sig_log = Signal(str)
 
     def __init__(self, parent=None, title="正在更新",
                  subtitle="", on_cancel=None):
@@ -6578,10 +6823,10 @@ class SubtitleEditPage(ScrollPage):
          打包后 onefile 的 `_MEI***` 临时目录删不掉（v1.12.0 踩过）。
     """
 
-    _wave_progress = pyqtSignal(int)          # 波形构建进度（0-100）
-    _wave_ready = pyqtSignal(object, float)   # (peaks bytearray, 时长秒)
-    _wave_failed = pyqtSignal(str)
-    _mpv_ready = pyqtSignal(bool, str)        # 播放组件补装结果 (成功?, 错误)
+    _wave_progress = Signal(int)          # 波形构建进度（0-100）
+    _wave_ready = Signal(object, float)   # (peaks bytearray, 时长秒)
+    _wave_failed = Signal(str)
+    _mpv_ready = Signal(bool, str)        # 播放组件补装结果 (成功?, 错误)
 
     SPEEDS = ("0.25", "0.5", "0.75", "1.0", "1.25", "1.5", "2.0")
     #: 文本列里换行以 " / " 呈现（表格行高不随多行文本变化）；
@@ -8345,9 +8590,9 @@ class SubtitleEditPage(ScrollPage):
 # v1.13.x：页面合并后共 5 个导航页（音画合并并入视频处理、字幕校准并入字幕处理）。
 # 内嵌子板块仍有自己的 objectName（MergePage / CalibPage），保留映射便于标题定位。
 # 类名/objectName 一律保持 DownloadPage 不变，避免牵动既有样式与自检。
-PAGE_TITLES = {"DownloadPage": "视频处理", "LibraryPage": "视频库",
+PAGE_TITLES = {"HomePage": "首页", "DownloadPage": "视频处理", "LibraryPage": "视频库",
                "SubtitlePage": "字幕处理", "SubtitleEditPage": "字幕编辑",
-               "AutoVisionPage": "自动化",
+               "AutoVisionPage": "自动化", "HarnessPage": "AI 托管",
                "SettingsPage": "设置",
                "MergePage": "音画合并", "CalibPage": "字幕校准"}
 
@@ -8467,6 +8712,127 @@ class _ResizeHitFilter(QAbstractNativeEventFilter):
             return False, 0
 
 
+class HomePage(QWidget):
+    """首页：程序入口（原「字幕处理」工作台里的「任务创建」分段）。
+
+    v2.1.0：用户要求把「任务创建」提升为**应用首页**——它是整个工具箱的
+    起点（拖文件、粘链接），却原先藏在「字幕处理」页的第二个分段里，
+    要先点进字幕处理才看得见。
+
+    这里**不是新建一个长得像的页面**，而是把工作台里那一个
+    ``TaskCreationInterface`` 实例原样搬过来（见 :meth:`adopt`），
+    因此拖放、字幕接收、链接跳转、按类型分派等行为全部是同一份代码，
+    不存在两处实现漂移。搬走后工作台分段变成「语音转录 / 字幕翻译 /
+    字幕校准」——任务创建完成后的后续流程仍在那里进行。
+
+    引擎界面是懒加载的（后台预热 + 首次显示时构建），所以构造时先占位，
+    控件就绪后由 :meth:`adopt` 换上真身。
+    """
+
+    def __init__(self, app, parent=None):
+        super().__init__(parent)
+        self.app = app
+        self.setObjectName("HomePage")
+        self.setAcceptDrops(True)
+        self._task_creation = None
+
+        outer = QVBoxLayout(self)
+        outer.setContentsMargins(0, 0, 0, 0)
+        outer.setSpacing(0)
+        self.vbox = outer
+
+        # 占位：引擎工作台还没构建好（预热中 / 构建失败）时显示这一行
+        self.host = QWidget(self)
+        self.host_lay = QVBoxLayout(self.host)
+        self.host_lay.setContentsMargins(0, 0, 0, 0)
+        outer.addWidget(self.host, 1)
+        self.state_label = fit_caption(
+            BodyLabel("正在准备任务创建界面 …", self.host))
+        self.state_label.setAlignment(Qt.AlignCenter)
+        self.state_label.setStyleSheet("font-size: 14px; color: #888888;")
+        self.host_lay.addWidget(self.state_label)
+
+    # ---------- 装载真正的任务创建控件 ----------
+    def adopt(self, home, widget=None):
+        """把工作台的 ``TaskCreationInterface`` 搬进首页（只搬一次）。
+
+        v2.1.0：分段摘除已**前移到工作台构建时**（``_build_engine``，结构性
+        保证工作台绝无此分段）；本方法只负责**认领**这个孤儿控件——setParent
+        挂到首页 + show。下面的 removeWidget 保留为幂等兜底（key 已不在
+        items 时是 no-op），万一调用顺序颠倒也不会出现"一个控件被两个父
+        容器持有"。
+        """
+        if widget is None:
+            widget = getattr(home, "task_creation_interface", None)
+        if widget is None or self._task_creation is not None:
+            return
+        try:
+            try:
+                home.pivot.removeWidget("TaskCreationInterface")
+            except Exception:  # noqa: BLE001
+                pass
+            try:
+                home.stackedWidget.removeWidget(widget)
+            except Exception:  # noqa: BLE001
+                pass
+            lay = self.host_lay
+            while lay.count():
+                item = lay.takeAt(0)
+                w = item.widget()
+                if w is not None:
+                    w.setParent(None)
+            widget.setParent(self.host)
+            lay.addWidget(widget)
+            # ⚠ 必须显式 show：``QStackedWidget.removeWidget`` 会顺手把控件
+            # **hide()** 掉（它只管"移出当前显示"，不管搬去哪儿）。忘了这一句
+            # 的症状极隐蔽——探针各项断言全过（对象在、isAncestorOf 为真），
+            # 可首页就是一片空白：父容器是 visible 的，控件自己 hidden，
+            # 于是没有一次 paint 被派发。只能在真机截图里看出来。
+            widget.show()
+            self._task_creation = widget
+            self.state_label = None
+            # 摘掉首段后工作台的当前分段可能悬空，显式落到一个存在的分段上
+            try:
+                if home.stackedWidget.count():
+                    first = home.stackedWidget.widget(0)
+                    home.stackedWidget.setCurrentWidget(first)
+                    home.pivot.setCurrentItem(first.objectName())
+            except Exception:  # noqa: BLE001
+                pass
+        except Exception as e:  # noqa: BLE001
+            _perf_note(f"首页装载任务创建页失败：{e}")
+
+    @property
+    def task_creation(self):
+        """已装载的任务创建控件；未就绪时为 ``None``。"""
+        return self._task_creation
+
+    def showEvent(self, event):
+        """首次显示时确保工作台在构建——否则首页会一直停在占位文案上。
+
+        工作台原本是「用户点进字幕处理页才构建」，首页成了默认落地页之后
+        这个时机必须提前，否则启动后停在首页看到的是一行占位字。
+        """
+        super().showEvent(event)
+        if self._task_creation is not None:
+            return
+        try:
+            self.app.subtitle_page.ensure_built()
+        except Exception as e:  # noqa: BLE001
+            _perf_note(f"首页触发工作台构建失败：{e}")
+
+    def dragEnterEvent(self, event):
+        # 首页由「任务创建」控件本体收拖放（它 setAcceptDrops(True)）；
+        # 这里只保证空白处拖入时事件不被吞掉，交给主窗口的全局分派。
+        try:
+            if event.mimeData().hasUrls():
+                event.acceptProposedAction()
+            else:
+                event.ignore()
+        except Exception:  # noqa: BLE001
+            event.ignore()
+
+
 class MainWindow(FluentWindow):
     """FluentWindow + 左侧导航（结构与主流 Fluent 桌面应用一致）。
 
@@ -8480,12 +8846,19 @@ class MainWindow(FluentWindow):
         「字幕校准」并入「字幕处理」，均以页内分段（SegmentedWidget）切换；
       · 支持把文件（视频/音频/字幕/文档/链接）直接拖进程序窗口自动分派；
       · 屏幕 DPI/缩放变化时强制全部页面重新布局，避免拖窗/换屏后扭曲。
+    v2.1.0 起：
+      · 新增「首页」（= 原「任务创建」分段），并作为**启动默认页**；
+      · 导航面板顶部的返回箭头改为「定位到首页」——原先它调 qrouter.pop
+        回退到"上一个访问过的页面"，而本程序几乎总是"从首页出发、到某页
+        干活、再回首页"，回退语义反而不符合直觉（用户反馈：点返回后停在
+        了没去过的页面）。改成固定跳首页，语义唯一、无歧义。
     """
 
     #: 导航项文案（宽度按其中最长的一项计算）
     #: v1.13.x：原「视频下载」更名「视频处理」——该页已同时承载「视频下载」与
     #: 「音画合并」两个板块，只叫"下载"名不副实。页内子板块名保持不变。
-    NAV_TEXTS = ["视频处理", "视频库", "字幕处理", "字幕编辑", "流水线", "自动化", "设置"]
+    NAV_TEXTS = ["首页", "视频处理", "视频库", "字幕处理", "字幕编辑", "流水线",
+             "自动化", "设置"]
 
     #: 默认窗口宽度（高度由黄金比例推）。 以它为上界，
     #: 而不是以"窗口当前宽度"为上界——后者会把布局撑出来的尺寸固化下来。
@@ -8503,6 +8876,17 @@ class MainWindow(FluentWindow):
         super().__init__()
         self.q = queue.Queue()
         self.setWindowTitle(f"视频工具箱 v{VERSION}")
+        # 应用图标（v2.1.0）：main() 已挂在 QApplication 上了，这里再显式给
+        # 主窗口设一份——MainWindow 若被自检/截图脚本**不经 main()** 直接
+        # 构造（VT_GUI_SELFTEST 等路径就是），就只靠这一行拿到图标。
+        try:
+            _p = engine.app_icon_path()
+            if _p:
+                _ic = QIcon(_p)
+                if not _ic.isNull():
+                    self.setWindowIcon(_ic)
+        except Exception:  # noqa: BLE001
+            pass
         # 默认尺寸按**黄金比例**：1180 / 1.618 ≈ 729。窗口本身可以自由拖拽缩放，
         # 这里只是给一个观感上最舒服的起始比例（大多数屏幕/分栏都落在这个比例
         # 附近时才不会显得"扁"）。fit_to_screen() 收敛时也保持该比例。
@@ -8532,24 +8916,38 @@ class MainWindow(FluentWindow):
         except Exception:
             pass
 
+        self.home_page = HomePage(self, self)
         self.download_page = DownloadPage(self, self)
         self.library_page = LibraryPage(self, self)
         self.subtitle_page = SubtitlePage(self, self)
         self.subtitle_edit_page = SubtitleEditPage(self, self)
         self.pipeline_page = PipelinePage(self, self)
         self.settings_page = SettingsPage(self, self)
+        # v2.1.0：AI 托管页——**仅当 harness 部署就绪时才创建**。harness 不在场
+        # （没部署 / 没装依赖 / 配置关闭）时 self.harness_page 保持 None，
+        # 导航里连「AI 托管」这一项都不出现，既有界面与交互零变化。
+        self.harness_page = None
+        try:
+            if _HARNESS_IMPORT_OK and harness_bridge.available():
+                self.harness_page = _harness_page_mod.HarnessPage(self, self)
+        except Exception as e:  # noqa: BLE001
+            self.harness_page = None
+            _perf_note(f"AI 托管页创建失败（不影响既有功能）：{e}")
         # 自动化页：B 站自动投稿（v1.17.x 起页面精简为投稿专用）。
         # 页面类在 auto_vision_page 里，自带卡片壳，不依赖本文件的 ScrollPage/card()。
         self.auto_page = auto_vision_page.AutoVisionPage(self, self)
         # 被合并的子板块：仍挂到宿主页的堆叠里，保留快捷引用便于消息路由/自检
         self.merge_page = self.download_page.merge_page
         self.calib_page = self.subtitle_page.calib_page
-        for page in (self.download_page, self.library_page, self.subtitle_page,
+        for page in (self.home_page, self.download_page, self.library_page,
+                     self.subtitle_page,
                      self.subtitle_edit_page, self.pipeline_page,
                      self.auto_page,
                      self.settings_page):
             page.installEventFilter(self)
 
+        # v2.1.0：「首页」= 任务创建，导航第一项 + 启动默认页
+        self.addSubInterface(self.home_page, FIF.HOME, "首页")
         self.addSubInterface(self.download_page, FIF.DOWNLOAD, "视频处理")
         self.addSubInterface(self.library_page, FIF.VIDEO, "视频库")
         self.navigationInterface.addSeparator()
@@ -8557,10 +8955,15 @@ class MainWindow(FluentWindow):
         self.addSubInterface(self.subtitle_edit_page, FIF.CUT, "字幕编辑")
         self.addSubInterface(self.pipeline_page, FIF.SYNC, "流水线")
         self.addSubInterface(self.auto_page, FIF.ROBOT, "自动化")
+        if self.harness_page is not None:
+            self.addSubInterface(self.harness_page, FIF.IOT, "AI 托管")
         self.addSubInterface(self.settings_page, FIF.SETTING, "设置",
                              position=NavigationItemPosition.BOTTOM)
-        # 窗口标题跟随当前页：导航项点击走 switchTo，但导航「返回」键走
-        # qrouter.pop → setCurrentWidget，绕过 switchTo（见 _on_page_changed）。
+        # v2.1.0：导航面板顶部的返回箭头 → 固定跳首页（见 _setup_home_button）
+        self._setup_home_button()
+        # 窗口标题跟随当前页。v2.1.0 起「返回」键不再走 qrouter.pop
+        # （改成跳首页，见 _setup_home_button），但仍挂 currentChanged：
+        # 谁切的页（导航点击 / switchTo / 拖放分派）标题都跟得上。
         try:
             self.stackedWidget.currentChanged.connect(self._on_page_changed)
         except Exception:  # noqa: BLE001
@@ -8596,7 +8999,10 @@ class MainWindow(FluentWindow):
         except Exception:
             pass
 
-        self.switchTo(self.download_page)
+        # v2.1.0：默认落地页 = 首页（任务创建），不再是「视频处理」。
+        # 首页控件来自字幕工作台，这里只落页；控件由 HomePage.showEvent
+        # → subtitle_page.ensure_built() 就绪后换上（先显示占位文案）。
+        self.switchTo(self.home_page)
         self._apply_argv(argv or [])
         QTimer.singleShot(400, self.library_page.auto_load)
         QTimer.singleShot(120, self._pump)
@@ -8610,8 +9016,8 @@ class MainWindow(FluentWindow):
         # 配合 diskcache 延迟化，最坏情况下（刚启动就点进去）的等待已降到亚秒级。
         QTimer.singleShot(0, self.subtitle_page.prewarm)
         # 主屏 DPI 变化（改缩放比/换主屏）时重新计算导航宽度。
-        # 注意必须用 QApplication 实例的信号：PyQt5 里类的同名属性是未绑定的
-        # pyqtSignal 描述符，直接 .connect 会抛 AttributeError。
+        # 注意必须用 QApplication 实例的信号：PySide6 里类的同名属性是未绑定的
+        # Signal 描述符，直接 .connect 会抛 AttributeError。
         try:
             QApplication.instance().primaryScreenChanged.connect(
                 lambda *_: self._on_screen_changed())
@@ -8897,6 +9303,154 @@ class MainWindow(FluentWindow):
                 cur.updateGeometry()
         except Exception:
             pass
+
+    # ---------- 首页 / 返回箭头 ----------
+    def goto_home(self):
+        """回首页（任务创建）。导航返回箭头、外部跳转都走这里。"""
+        page = getattr(self, "home_page", None)
+        if page is None:
+            return
+        try:
+            self.switchTo(page)
+        except Exception as e:  # noqa: BLE001
+            _perf_note(f"回首页失败：{e}")
+
+    def goto_video_download(self, url):
+        """把一个网页链接交给「视频处理 / 视频下载」页并跳过去。
+
+        任务创建输入框识别到链接时走这里（见 ``url_detected``）。选下载页
+        而不是让任务创建页自己下载，是因为下载页有画质选择 / 并行队列 /
+        中止 / 代理 / 字幕打包，引擎那套 VideoDownloadThread 只有裸下一条。
+
+        ⚠ 必须在下载页已可用时调用；若页面尚未构建完（理论上不会——它随
+        主窗口一起建），只填链接不跳页，避免把用户卡住。
+        """
+        url = str(url or "").strip()
+        if not url:
+            return
+        try:
+            dp = self.download_page
+            dp.url_edit.setText(url)
+            try:
+                dp.seg.setCurrentItem("download")
+                dp.stack.setCurrentIndex(0)
+            except Exception:  # noqa: BLE001
+                pass
+            self.switchTo(dp)
+            # 自动开一次画质检测：用户粘链接的意图就是「下载」，替他省掉
+            # 切页后还要点一次「检测画质」。检测是后台线程，不卡 UI。
+            QTimer.singleShot(0, dp.detect)
+            InfoBar.success(
+                "已识别视频链接", "已跳转到「视频下载」，正在检测可用画质…",
+                duration=4000, position=InfoBarPosition.BOTTOM, parent=self)
+        except Exception as e:  # noqa: BLE001
+            _perf_note(f"跳转视频下载失败：{e}")
+
+    # ---------- AI 托管（v2.1.0） ----------
+    def goto_ai_console(self, text=""):
+        """把一段纯文本交给「AI 托管」页执行并跳过去。
+
+        首页任务框 ``ai_requested`` 的落点。harness 不在场时
+        ``self.harness_page`` 为 None，这里静默返回——调用方（任务创建页）
+        在没 harness 时压根不会发信号，双保险。
+        """
+        page = getattr(self, "harness_page", None)
+        if page is None:
+            return
+        try:
+            self.switchTo(page)
+            if text:
+                page.run_task(text)
+        except Exception as e:  # noqa: BLE001
+            _perf_note(f"AI 托管跳转失败：{e}")
+
+    def ai_settings_summary(self):
+        """「设置」页 AI 配置的一行摘要（AI 托管页状态卡展示用）。
+
+        harness 的模型 / 密钥 / 接口地址**唯一事实来源就是这份配置**
+        （harness_bridge.sync_provider_config 每次运行前同步）。
+        """
+        try:
+            import json as _json
+            p = os.path.join(engine.DATA_DIR, "ai_config.json")
+            with open(p, encoding="utf-8-sig") as f:
+                d = _json.load(f) or {}
+            model = (d.get("model") or "").strip()
+            base = (d.get("base_url") or "").strip()
+            key = (d.get("api_key") or "").strip()
+            if not (model and base and key):
+                return "「设置」页尚未配置 AI（接口地址 / 密钥 / 模型）"
+            masked = key[:4] + "…" + key[-4:] if len(key) > 10 else "…"
+            return "AI 配置（来自「设置」页）：模型 %s · 接口 %s · 密钥 %s" % (
+                model, base, masked)
+        except Exception:  # noqa: BLE001
+            return ""
+
+    def _setup_home_button(self):
+        """把导航面板顶部的返回箭头改成「定位到首页」。
+
+        原实现（qfluentwidgets 默认）：``returnButton.clicked → qrouter.pop``，
+        且 ``history.emptyChanged → setDisabled``——历史栈空了就灰掉。
+        问题是本程序的访问模式几乎总是「首页 → 某页干活 → 想回首页」，pop
+        回退到"上一个访问过的页面"并不等于"回首页"，用户反馈点返回后停在
+        了没去过的页面。
+
+        改成固定跳首页：语义唯一、任何时候可点。图标 RETURN→HOME，
+        tooltip 「Back」→「定位到首页」。另外顺手断开 push：历史栈既然
+        没人消费，每切一次页就往里塞一条，纯属无谓增长。
+        """
+        try:
+            panel = getattr(self.navigationInterface, "panel", None)
+            btn = getattr(panel, "returnButton", None)
+            if btn is None:
+                return
+            # 断开 qrouter.pop（原 clicked 槽）
+            try:
+                btn.clicked.disconnect()
+            except Exception:  # noqa: BLE001
+                pass
+            btn.clicked.connect(self.goto_home)
+            # 断开"历史空即禁用"，否则启动后栈空 → 按钮灰着点不动
+            try:
+                panel.history.emptyChanged.disconnect(btn.setDisabled)
+            except Exception:  # noqa: BLE001
+                pass
+            # 断开 qrouter.push（_onCurrentInterfaceChanged 里的那一行）：
+            # 它把每次切页都记进全局历史栈，而本程序已不用 pop 语义。
+            # 只改 push 会连带影响 setCurrentItem，必须整段替换。
+            try:
+                self.stackedWidget.currentChanged.disconnect(
+                    self._onCurrentInterfaceChanged)
+            except Exception:  # noqa: BLE001
+                pass
+
+            def _sync_nav(index):
+                try:
+                    w = self.stackedWidget.widget(index)
+                    if w is not None and w.objectName():
+                        self.navigationInterface.setCurrentItem(w.objectName())
+                    self._updateStackedBackground()
+                except Exception:  # noqa: BLE001
+                    pass
+
+            self.stackedWidget.currentChanged.connect(_sync_nav)
+            # 图标/提示改成"定位到首页"
+            try:
+                from qfluentwidgets import FluentIcon as _FI
+                btn.setIcon(_FI.HOME)
+            except Exception:  # noqa: BLE001
+                pass
+            try:
+                btn.setToolTip(self.tr("定位到首页"))
+            except Exception:  # noqa: BLE001
+                pass
+            # ⚠ NavigationPanel.__init__ 里**直接调过**一次
+            # ``returnButton.setDisabled(True)``（不只是连了 emptyChanged）。
+            # 只 disconnect 信号不够——那一刀早就砍下去了，必须显式恢复，
+            # 否则按钮永远灰着、点了没反应（正是这次要修的那个症状）。
+            btn.setEnabled(True)
+        except Exception as e:  # noqa: BLE001
+            _perf_note(f"返回箭头改造失败：{e}")
 
     # ---------- 导航宽度 ----------
     def refresh_nav_width(self):
@@ -9216,10 +9770,12 @@ class MainWindow(FluentWindow):
             self.switchTo(self.subtitle_page)
             self.subtitle_page.switch_to_calib()
             return self.subtitle_page
-        return {"download": self.download_page, "library": self.library_page,
+        return {"home": self.home_page,
+                "download": self.download_page, "library": self.library_page,
                 "subtitle": self.subtitle_page, "edit": self.subtitle_edit_page,
                 "pipeline": self.pipeline_page,
                 "auto": self.auto_page,
+                "harness": getattr(self, "harness_page", None),
                 "settings": self.settings_page}.get(key)
 
     # ---------- 流水线（v1.14.0） ----------
@@ -9302,9 +9858,12 @@ class MainWindow(FluentWindow):
         """当前是否停在「字幕处理」页（引擎工作台，含其字幕校准子页）。
 
         边缘拖放分派要用它判断"该不该按字幕类型跳转"，而不是一律去字幕编辑。
+        v2.1.0：首页（任务创建）也是同一套分派的入口——它就是原来工作台的
+        第一个分段，拖字幕进来同样该按类型分流。
         """
         try:
-            return self.stackedWidget.currentWidget() is self.subtitle_page
+            cur = self.stackedWidget.currentWidget()
+            return cur is self.subtitle_page or cur is self.home_page
         except Exception:  # noqa: BLE001
             return False
 
@@ -9420,6 +9979,8 @@ class MainWindow(FluentWindow):
         try:
             if kind == "detect_done":
                 dl.on_detect_done(*args)
+            elif kind == "cookie_import_done":
+                self.settings_page.on_cookie_import_done(*args)
             elif kind == "sys_log":
                 dl.log.line(args[0], "dim")
             elif kind == "dl_progress":
@@ -9482,24 +10043,67 @@ class MainWindow(FluentWindow):
 def configure_qt_plugins():
     """显式指定 Qt 平台插件目录（必须在创建 QApplication 之前调用）。
 
-    内置 PyQt5 不是用安装器装的，而是把 wheel 解包到 tools\\python 的
+    内置 PySide6 不是用安装器装的，而是把 wheel 解包到 tools\\python 的
     site-packages —— Qt 按 sys.prefix 推算插件的默认逻辑在这种情况下找不到
     platforms/qwindows.dll，会直接报
     「no Qt platform plugin could be initialized」并弹模态框卡住进程。
+    （PySide6 是扁平布局：插件就在 site-packages\\PySide6\\plugins，
+    没有旧版 Qt5\\ 那一层中间目录。）
     忽略平台插件目录的探测在打包后由 PyInstaller 的钩子负责（它会把
     platforms/qwindows.dll 一起打进包里），此时若强行指向内置运行时的
-    PyQt5 反而可能因版本不一致而崩，故冻结模式下直接跳过。
+    PySide6 反而可能因版本不一致而崩，故冻结模式下直接跳过。
     """
     if getattr(sys, "frozen", False):
         return ""
     for base in (engine.EMBEDDED_SITE_PACKAGES,
                  os.path.join(engine.TOOLS_DIR, "python", "Lib", "site-packages")):
-        plugins = os.path.join(base, "PyQt5", "Qt5", "plugins")
+        plugins = os.path.join(base, "PySide6", "plugins")
         if os.path.isdir(plugins):
             os.environ.setdefault("QT_QPA_PLATFORM_PLUGIN_PATH", plugins)
             os.environ.setdefault("QT_PLUGIN_PATH", plugins)
             return plugins
     return ""
+
+
+def _apply_app_icon(app):
+    """把应用图标挂到 ``QApplication`` 上（v2.1.0）。
+
+    为什么挂 QApplication 而不是 MainWindow：
+      · ``QApplication.setWindowIcon`` 是**默认图标**——之后创建的**所有**
+        顶层窗口都继承它（主窗口、日志查看器、各对话框，以及引擎回退路径
+        自己起的那些）。只给 MainWindow 设的话，对话框标题栏全是空白图标。
+      · 更要紧的一层：``video_toolbox.py`` 的任务创建页与
+        ``vt_engine_ui/my_video_widget.py`` 都有「继承 QApplication 默认
+        图标」的逻辑（引擎 UI 自带这套行为），不设应用图标它们就都是空的。
+
+    **绝不抛异常**：图标是装饰，缺了只是少个图，不该让程序起不来。
+    找不到 ico 时静默跳过（``engine.app_icon_path()`` 已负责多路径回退）。
+
+    冻结态（onefile）走 ``sys._MEIPASS/assets/app_icon.ico``——spec 的
+    ``datas`` 收的那一份。源码态直接读仓库根的 ``assets/``。
+    """
+    try:
+        path = engine.app_icon_path()
+        if not path:
+            return
+        icon = QIcon(path)
+        if icon.isNull():
+            # 图标存在却读不出（文件被截断 / 编码坏了）——同样只记不抛
+            _perf_note("应用图标读取失败：%s" % path)
+            return
+        app.setWindowIcon(icon)
+        # 显式给主窗口也设一份：QApplication 默认图标对**已创建**的窗口
+        # 不追溯（此处还没建 MainWindow，但显式设更保险，也便于将来调整顺序）
+        try:
+            app.setApplicationIcon(icon)
+        except Exception:  # noqa: BLE001
+            pass
+        _perf_note("应用图标已应用：%s" % path)
+    except Exception as e:  # noqa: BLE001
+        try:
+            _perf_note("应用图标设置异常（已忽略）：%s" % e)
+        except Exception:  # noqa: BLE001
+            pass
 
 
 def main():
@@ -9529,6 +10133,13 @@ def main():
     except Exception:
         pass
     app = QApplication(sys.argv)
+    # Qt 兼容补丁（2026-10-14）：必须在任何 SpinBox 被创建（MainWindow 构造）
+    # **之前**打上。自带运行期探测：没复现出问题就什么都不做。
+    qt_compat.install_spinbox_fix()
+    # 应用图标（v2.1.0）：挂在 QApplication 上，**所有**窗口（含各对话框、
+    # 日志查看器、以及引擎回退路径自己起的那些）都跟着有图标——挂到
+    # MainWindow 上只管主窗口，对话框会是空白图标。
+    _apply_app_icon(app)
     # 单实例守卫（v1.13.4）：两个实例会各自持有一份内存配置并写穿同一个
     # data\ 目录（ui_custom.json / config.json…），表现为「设置过一会儿自动
     # 复原」「这边改了那边不生效」——正是多窗口交叠写入的典型症状。

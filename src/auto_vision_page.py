@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# @version 2.0.0
+# @version 2.1.0
 """「自动化」页 —— B 站自动投稿（v1.17.x 起精简为投稿专用）
 ====================================================================
 页面只做一件事：用内置视觉引擎（`auto_vision_core`）驱动用户自己已登录
@@ -30,9 +30,9 @@ import time
 
 import numpy as np
 from PIL import Image
-from PyQt5.QtCore import Qt, QRect, QThread, pyqtSignal
-from PyQt5.QtGui import QColor, QFont, QImage, QPainter, QPen, QPixmap
-from PyQt5.QtWidgets import (QApplication, QFileDialog, QHBoxLayout, QLabel,
+from PySide6.QtCore import Qt, QRect, QThread, Signal
+from PySide6.QtGui import QColor, QFont, QImage, QPainter, QPen, QPixmap
+from PySide6.QtWidgets import (QApplication, QFileDialog, QHBoxLayout, QLabel,
                              QPlainTextEdit, QSizePolicy, QVBoxLayout, QWidget)
 
 from qfluentwidgets import (CaptionLabel, ComboBox, FluentIcon as FIF,
@@ -98,7 +98,7 @@ def _tip(level, title, text, parent):
 class ShotView(QLabel):
     """显示抓到的画面；支持拖拽框选，并把选中区域换算回**帧像素坐标**。"""
 
-    selectionChanged = pyqtSignal(int, int, int, int)
+    selectionChanged = Signal(int, int, int, int)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -221,9 +221,9 @@ class BiliUploadWorker(QThread):
     `logged` / `staged` / `done`。
     """
 
-    logged = pyqtSignal(str)
-    staged = pyqtSignal(str, str)          # (node_name, 阶段文案)
-    done = pyqtSignal(dict)
+    logged = Signal(str)
+    staged = Signal(str, str)          # (node_name, 阶段文案)
+    done = Signal(dict)
 
     def __init__(self, task, win, dry_run, data_dir, parent=None):
         super().__init__(parent)

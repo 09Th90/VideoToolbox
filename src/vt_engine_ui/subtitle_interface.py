@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+# @version 2.1.0
 """自研「字幕翻译」页（含 ``SubtitleTableModel`` / ``PromptDialog``）。
 
 视觉与引擎字幕页对齐；把补丁 ⑨ 的「按声纹筛选」按钮 + 筛选前表格回写内建为
@@ -19,9 +20,9 @@ import tempfile
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 
-from PyQt5.QtCore import QAbstractTableModel, QModelIndex, Qt, QTime, QThread, pyqtSignal
-from PyQt5.QtGui import QColor, QDragEnterEvent, QDropEvent, QKeyEvent
-from PyQt5.QtWidgets import (
+from PySide6.QtCore import QAbstractTableModel, QModelIndex, Qt, QTime, QThread, Signal
+from PySide6.QtGui import QColor, QDragEnterEvent, QDropEvent, QKeyEvent
+from PySide6.QtWidgets import (
     QAbstractItemView,
     QFileDialog,
     QHBoxLayout,
@@ -154,7 +155,7 @@ class SubtitleTableModel(QAbstractTableModel):
 
 
 class SubtitleInterface(QWidget):
-    finished = pyqtSignal(str, str)
+    finished = Signal(str, str)
 
     def __init__(self, parent: Optional[QWidget] = None):
         super().__init__(parent)
@@ -163,6 +164,11 @@ class SubtitleInterface(QWidget):
         self.subtitle_path: Optional[str] = None
         self.custom_prompt_text: str = _seams.cfg.custom_prompt_text.value
         self._vt_vp_worker = None
+        # 优化/重译线程是否在跑（终态权威标记）。引擎 SubtitleThread 在
+        # except 分支先 error.emit 再补发 progress(100)，stop() 也会补发
+        # progress(100, "已终止")——没有这个标记，这些迟到进度会把错误态
+        # （progress_bar.error() 的红色）覆盖成 100% 完成态。
+        self._opt_active = False
         self.setAttribute(Qt.WA_DeleteOnClose)
         self._init_ui()
         self._setup_signals()
@@ -338,6 +344,7 @@ class SubtitleInterface(QWidget):
     def set_task(self, task) -> None:
         if hasattr(self, "subtitle_optimization_thread"):
             self.subtitle_optimization_thread.stop()
+            self._opt_active = False
         self.start_button.setEnabled(True)
         self.task = task
         self.subtitle_path = task.subtitle_path
@@ -379,6 +386,7 @@ class SubtitleInterface(QWidget):
         self.subtitle_optimization_thread.update_all.connect(self.update_all)
         self.subtitle_optimization_thread.error.connect(self.on_subtitle_optimization_error)
         self.subtitle_optimization_thread.set_custom_prompt_text(self.custom_prompt_text)
+        self._opt_active = True
         self.subtitle_optimization_thread.start()
         InfoBar.info(self.tr("开始优化"), self.tr("开始优化字幕"),
                      duration=const.INFOBAR_DURATION_INFO, parent=self)
@@ -387,6 +395,7 @@ class SubtitleInterface(QWidget):
         self.start_subtitle_optimization(need_create_task=False)
 
     def on_subtitle_optimization_finished(self, video_path: str, output_path: str) -> None:
+        self._opt_active = False
         self.start_button.setEnabled(True)
         self.cancel_button.hide()
         self.progress_bar.setValue(100)
@@ -398,6 +407,7 @@ class SubtitleInterface(QWidget):
             position=InfoBarPosition.BOTTOM, parent=self.parent())
 
     def on_subtitle_optimization_error(self, error: str) -> None:
+        self._opt_active = False
         self.start_button.setEnabled(True)
         self.cancel_button.hide()
         self.progress_bar.error()
@@ -405,6 +415,12 @@ class SubtitleInterface(QWidget):
                       duration=_seams.constants.INFOBAR_DURATION_ERROR, parent=self)
 
     def on_subtitle_optimization_progress(self, value: int, status: str) -> None:
+        # 终态后到来的进度不回弹：引擎 SubtitleThread 在 except 分支先
+        # error.emit 再补发 progress(100, "字幕处理失败")，stop() 也会补发
+        # progress(100, "已终止")。无脑 setValue 会把 error() 的红色错误态
+        # 覆盖成满格完成态——进度条撒谎比不动更难排查。
+        if not self._opt_active:
+            return
         self.progress_bar.setValue(value)
         self.status_label.setText(status)
 
@@ -626,9 +642,11 @@ class SubtitleInterface(QWidget):
         self._retranslate_thread.finished.connect(self._on_retranslate_finished)
         self._retranslate_thread.progress.connect(self.on_subtitle_optimization_progress)
         self._retranslate_thread.error.connect(self._on_retranslate_error)
+        self._opt_active = True
         self._retranslate_thread.start()
 
     def _on_retranslate_finished(self, result: dict) -> None:
+        self._opt_active = False
         self.start_button.setEnabled(True)
         self.model.update_data(result)
         self.progress_bar.setValue(100)
@@ -637,6 +655,7 @@ class SubtitleInterface(QWidget):
                         duration=_seams.constants.INFOBAR_DURATION_SUCCESS, parent=self)
 
     def _on_retranslate_error(self, error: str) -> None:
+        self._opt_active = False
         self.start_button.setEnabled(True)
         self.progress_bar.error()
         self.status_label.setText(self.tr("重新翻译失败"))
@@ -670,6 +689,7 @@ class SubtitleInterface(QWidget):
     def cancel_optimization(self) -> None:
         if hasattr(self, "subtitle_optimization_thread"):
             self.subtitle_optimization_thread.stop()
+            self._opt_active = False
             self.start_button.setEnabled(True)
             self.cancel_button.hide()
             self.progress_bar.resume()
@@ -709,7 +729,7 @@ class SubtitleInterface(QWidget):
             bar = None
 
         class _VpWorker(QThread):
-            done = pyqtSignal(object)
+            done = Signal(object)
 
             def run(self):
                 try:

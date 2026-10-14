@@ -26,7 +26,77 @@
   由作者决定，与本组件许可不互相传染。
 
 --------------------------------------------------------------------
-2. 其它开源依赖（运行时安装，不随安装包分发二进制源码）
+2. 界面框架组件（随主程序 exe 分发；2026-10-14 PySide6 迁移后口径）
+--------------------------------------------------------------------
+自 PySide6 迁移起，主程序界面框架由 PyQt5 换成 PySide6（Qt for Python）。
+以下三件均经 PyInstaller 打入主程序 exe，运行副本同置于
+tools\python\Lib\site-packages\（随 tools\python\* 整体分发）：
+
+组件名称 ：PySide6（Qt for Python）
+用途     ：主程序整个图形界面的 Qt 绑定层（PyQt5 的继任者）
+版本     ：6.12.0（随包）
+作者     ：The Qt Company Ltd. 及 Qt for Python 贡献者
+许可     ：LGPL-3.0-only（或 GPL-2.0-only / GPL-3.0-only；另提供商业许可）
+项目主页 ：https://www.qt.io/qt-for-python
+源码     ：https://doc.qt.io/qtforpython-6/ 及各 PyPI 发行页
+合规说明 ：本工具箱按 LGPL-3.0 方式分发——动态链接使用、随包提供许可与源码
+           获取途径即满足义务，不要求公开本工具箱自身的源码与授权。
+
+组件名称 ：PySide6-Fluent-Widgets
+用途     ：主程序界面组件库（导入名仍为 qfluentwidgets，PyQt-Fluent-Widgets
+           的 PySide6 继任包；原 PyQt-Fluent-Widgets 1.8.4 随迁移停用）
+版本     ：1.11.3（随包）
+作者     ：zhiyiYo
+许可     ：GNU General Public License v3.0（GPL-3.0）
+许可全文 ：本目录 开源许可_GPL-3.0.txt（标准 GPL-3.0 原文）
+项目主页 ：https://qfluentwidgets.com
+源码     ：https://github.com/zhiyiYo/PyQt-Fluent-Widgets
+义务提示 ：该组件为 GPL-3.0，分发二进制须随包提供许可全文与源码获取途径
+           （本安装包已附许可全文，上表给出上游源码地址）。⚠ 若本软件作
+           商业用途，需另行向组件作者购买商用许可——此项与换不换 PySide6
+           无关，PySide6 自身为 LGPL、不受此限。
+
+组件名称 ：PySideSix-Frameless-Window
+用途     ：无边框窗口的拖拽 / 缩放 / 贴边底层实现（替代原 PyQt5-Frameless-
+           Window；同一导入名 qframelesswindow）
+版本     ：0.8.2（随包）
+作者     ：leewi2k9 及贡献者
+许可     ：LGPLv3
+项目主页 ：https://github.com/leewi2k9/PySide6-Frameless-Window-Host
+源码     ：https://github.com/leewi2k9/PySide6-Frameless-Window-Host
+
+历史登记缺口说明（2026-10-14 补登）：本声明此前**从未登记过 Qt 绑定与界面
+组件库**——PyQt5 5.15.11 与 PyQt-Fluent-Widgets 1.8.4 自 v1.x 起一直随
+主程序分发，却两处都未登记（两者均为 GPLv3）。该缺口与本次 PySide6 迁移
+无关、迁移前就存在，现同期补齐：PyQt5 与 PyQt-Fluent-Widgets 已随迁移下线
+（PyQt5 仅保留在运行副本 tools\python 中供回滚对比，不再参与构建与分发），
+上表三件即为现行登记项。
+
+--------------------------------------------------------------------
+2b. AI 托管引擎（v2.1.0 起随程序目录部署；按需安装，不随安装包分发）
+--------------------------------------------------------------------
+组件名称 ：DeepSeek Harness（命令行 dsh）
+用途     ：AI 托管的载体引擎——首页任务框输入纯文本时，由它驱动 AI 以程序
+           根目录为工作区读写文件、执行命令，完整托管本程序；也提供交互式
+           Web 控制台（默认 127.0.0.1:3080）
+版本     ：0.2.1-alpha.2（官方源码 zip 部署）
+作者     ：DeepSeek AI（深度求索）
+许可     ：MIT License
+许可全文 ：随部署目录 harness\LICENSE（上游原文，本工具箱未做任何改动）
+项目主页 ：https://github.com/deepseek-ai/deepseek-harness
+源码     ：https://github.com/deepseek-ai/deepseek-harness
+源码压缩包：https://github.com/deepseek-ai/deepseek-harness/archive/refs/heads/master.zip
+部署方式 ：官方 zip 解压至程序根目录 harness\（独立文件夹、与程序完全解耦，
+           内部文件零改动），依赖与构建产物由 scripts\dev\deploy_harness.ps1
+           一键生成；运行期状态落 data\harness-home（本工具箱数据目录）。
+合规说明 ：MIT 许可允许使用/复制/修改/分发，仅要求保留许可与版权声明——
+           上游 LICENSE 原文随 harness\LICENSE 一并留存，未修改、未删声明。
+           harness 不在场时，本工具箱 AI 托管功能不激活，其余功能不受影响。
+           依赖 Node.js >= 22.19（用户机自备，不随本安装包分发）。
+接入细节 ：docs\AI托管_部署与排障.md
+
+--------------------------------------------------------------------
+3. 其它开源依赖（运行时安装，不随安装包分发二进制源码）
 --------------------------------------------------------------------
 以下组件由工具箱在运行时按需下载，均来自其官方开源地址，许可随各自发行包提供：
   · yt-dlp            Unlicense        https://github.com/yt-dlp/yt-dlp
@@ -39,7 +109,7 @@
   · libmpv（字幕编辑页播放组件）LGPL   按需下载，不随安装包分发
 
 --------------------------------------------------------------------
-3. 历史版本说明（早期版本曾随包分发、现不再分发的组件）
+4. 历史版本说明（早期版本曾随包分发、现不再分发的组件）
 --------------------------------------------------------------------
   · 字幕处理引擎组件（第三方，版本 1.4.2，GPL-3.0）
     - 时期：v1.10.0 起曾随主程序分发，承担字幕转录 / 优化 / 翻译链路；
@@ -52,7 +122,7 @@
       history\_cleanup_20261012\tools_字幕引擎静态资源\，仅供历史追溯。
 
 --------------------------------------------------------------------
-4. 范围说明
+5. 范围说明
 --------------------------------------------------------------------
 本文件登记的范围仅限「第三方组件」的来源与许可。本工具箱自研的功能模块
 （下载、语音转录、字幕翻译、术语校准、字幕视频合成、自动投稿、安装与更新、

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.0.0
+# @version 2.1.0
 """Measure update-dialog label geometry: every detail line must fit the
 informativeText label's width (the old bug clipped lines mid-glyph)."""
 import os
@@ -10,11 +10,11 @@ ROOT = os.path.dirname(os.path.dirname(HERE))
 sys.path.insert(0, os.path.join(ROOT, "src"))
 os.environ["QT_QPA_PLATFORM"] = "offscreen"
 _p = os.path.abspath(os.path.join(ROOT, "tools", "python", "Lib",
-                                  "site-packages", "PyQt5", "Qt5", "plugins"))
+                                  "site-packages", "PySide6", "plugins"))
 os.environ.setdefault("QT_QPA_PLATFORM_PLUGIN_PATH", _p)
 
 import vt_update_check as u  # noqa: E402
-from PyQt5.QtWidgets import QApplication, QMessageBox, QLabel  # noqa: E402
+from PySide6.QtWidgets import QApplication, QMessageBox, QLabel  # noqa: E402
 from qfluentwidgets import PushButton  # noqa: E402
 
 app = QApplication(sys.argv)

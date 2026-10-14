@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+# @version 2.1.0
 """自研「语音转录」页（含 ``VideoInfoCard``）。
 
 视觉与引擎转录页对齐；把原本运行期打在引擎类上的转录补丁**内建为显式逻辑**：
@@ -28,9 +29,9 @@ import os
 from pathlib import Path
 from typing import Optional
 
-from PyQt5.QtCore import QStandardPaths, Qt, QThread, pyqtSignal
-from PyQt5.QtGui import QFont, QPixmap
-from PyQt5.QtWidgets import (
+from PySide6.QtCore import QStandardPaths, Qt, QThread, Signal
+from PySide6.QtGui import QFont, QPixmap
+from PySide6.QtWidgets import (
     QApplication,
     QFileDialog,
     QHBoxLayout,
@@ -60,7 +61,7 @@ from .components import TranscriptionSettingCard, TranscriptionSettingDialog
 
 
 class VideoInfoCard(CardWidget):
-    finished = pyqtSignal(object)
+    finished = Signal(object)
 
     def __init__(self, parent: Optional[QWidget] = None):
         super().__init__(parent)
@@ -260,6 +261,14 @@ class VideoInfoCard(CardWidget):
         self.transcript_thread.start()
 
     def on_transcript_progress(self, value, message):
+        # 终态后到来的进度不回弹按钮文案：引擎 TranscriptThread 在 except 分支
+        # 先 error.emit 再补发 progress(100, "转录失败")，两个信号都会排到主
+        # 线程队列；无脑 setText 会把错误态刚设好的「重新转录」覆盖成「转录
+        # 失败」——绿色主按钮挂着失败文案，状态既看不懂也点不出正确预期。
+        # is_processing 是终态权威标记：start_transcription 置真，
+        # error / finished / _vt_heal_stale 置假。
+        if not self.transcription_interface.is_processing:
+            return
         self.start_button.setText(message)
         self.progress_ring.setValue(value)
 
@@ -295,7 +304,7 @@ class VideoInfoCard(CardWidget):
 
 
 class TranscriptionInterface(QWidget):
-    finished = pyqtSignal(str, str)
+    finished = Signal(str, str)
 
     def __init__(self, parent: Optional[QWidget] = None):
         super().__init__(parent)
@@ -498,7 +507,7 @@ class TranscriptionInterface(QWidget):
             bar = None
 
         class _VpWorker(QThread):
-            done = pyqtSignal(object)
+            done = Signal(object)
 
             def run(self):
                 try:

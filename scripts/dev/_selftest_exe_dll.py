@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.0.0
+# @version 2.1.0
 r"""自检：exe 内的 onnxruntime 能否在**模拟 _MEIPASS 布局**下真正 import。
 
 ======================================================================
@@ -15,13 +15,18 @@ r"""自检：exe 内的 onnxruntime 能否在**模拟 _MEIPASS 布局**下真正
     而且与打包环境里那份**字节完全一致**——比哈希也看不出问题；
   · 在**打包环境 / src\ 方式**下 import 一切正常——所以「src 方式自检」
     永远测不到这个 bug。
-只有把 exe 解成 `_MEIPASS` 布局、并且**把 `PyQt5\\Qt5\\bin` 也加进
+只有把 exe 解成 `_MEIPASS` 布局、并且**把 Qt 自带的 DLL 目录也加进
 DLL 搜索路径**（这才是真实运行时的加载顺序），才会复现。
 
-根因：exe 里同时存在两套同名 MSVC runtime，且 `PyQt5\\Qt5\\bin` 优先级更高：
-    PyQt5\\Qt5\\bin\\MSVCP140.dll = 14.26（Qt 自带，2020 年）
-    MSVCP140.dll（根目录）       = 14.50（onnxruntime 编译时依赖的）
+根因（迁移前的旧绑定时代）：exe 里同时存在两套同名 MSVC runtime，且旧绑定
+自带的 `Qt5\\bin` 在 DLL 搜索路径中优先级更高：
+    Qt5\\bin\\MSVCP140.dll = 14.26（Qt 自带，2020 年）
+    MSVCP140.dll（根目录）= 14.50（onnxruntime 编译时依赖的）
 onnxruntime.dll 链的是 14.50 的导出表，拿到 14.26 的实现 ⇒ DllMain 就失败。
+
+PySide6 迁移后（2026-10-14）：实测 PySide6 已不自带 MSVC runtime，冲突的
+根源消失。本自检继续保留，用于**防回归**——任何子目录（含 PySide6/）一旦
+夹带与根目录不同版本的同名 MSVC runtime，都会被这里揪出来。
 
 用法：
     python scripts/dev/_selftest_exe_dll.py                 # 测 dist/ 那份
@@ -45,7 +50,7 @@ import os, sys
 me = sys.argv[1]
 sys.path.insert(0, me)
 os.add_dll_directory(me)
-q = os.path.join(me, "PyQt5", "Qt5", "bin")
+q = os.path.join(me, "PySide6")
 if os.path.isdir(q):
     os.add_dll_directory(q)
 try:
@@ -59,7 +64,7 @@ except Exception as e:
 _PATTERNS = [
     (r"^onnxruntime\\", "onnxruntime"),
     (r"^(msvcp140|msvcp140_1|vcruntime140|vcruntime140_1)\.dll$", ""),
-    (r"^PyQt5\\Qt5\\bin\\(MSVCP140|MSVCP140_1|VCRUNTIME140)", "PyQt5/Qt5/bin"),
+    (r"^PySide6\\(MSVCP140|MSVCP140_1|VCRUNTIME140)", "PySide6"),
 ]
 
 
@@ -92,9 +97,11 @@ def build_mei(exe: str, mei: str) -> int:
 
 
 def check_msvc_conflict(exe: str) -> int:
-    """比对 Qt5\\bin 与 _MEIPASS 根目录下同名 MSVC DLL 的版本。
+    """比对 PySide6 子目录与 _MEIPASS 根目录下同名 MSVC DLL 的版本。
 
-    Qt5\\bin 优先级更高，若它更旧就会顶掉新版 ⇒ onnxruntime 加载失败。
+    子目录在 DLL 搜索路径中优先级更高，若它更旧就会顶掉新版
+    ⇒ onnxruntime 加载失败。（PySide6 本身不带 MSVC runtime，正常情况下
+    PySide6/ 下没有任何同名 DLL，qtbin 为空即通过。）
     """
     from PyInstaller.archive.readers import CArchiveReader
     a = CArchiveReader(exe)
@@ -105,20 +112,20 @@ def check_msvc_conflict(exe: str) -> int:
             continue
         v = file_version(a.extract(name))
         d = os.path.dirname(name).replace("\\", "/").lower()
-        if d.startswith("pyqt5/qt5/bin"):
+        if d.startswith("pyside6"):
             qtbin[bn] = v
         elif not d.strip("/"):
             root[bn] = v
     print("  MSVC runtime 版本：")
     for bn in sorted(set(root) | set(qtbin)):
         r, q = root.get(bn, "—"), qtbin.get(bn, "—")
-        print("    %-20s 根目录=%-16s Qt5\\bin=%s" % (bn, r, q))
+        print("    %-20s 根目录=%-16s PySide6=%s" % (bn, r, q))
 
     bad = []
     for bn, qv in qtbin.items():
         rv = root.get(bn)
         if rv and qv != rv:
-            bad.append("%s：Qt5\\bin(%s) 比根目录(%s)旧 ⇒ 会被优先加载顶掉新版"
+            bad.append("%s：PySide6(%s) 比根目录(%s)旧 ⇒ 会被优先加载顶掉新版"
                        % (bn, qv, rv))
     for msg in bad:
         print("  [FAIL] " + msg)
@@ -153,7 +160,7 @@ def main() -> int:
         ok = out.startswith("OK")
         if not ok:
             print("    [FAIL] exe 内 onnxruntime 无法加载 —— "
-                  "检查 Qt5\\bin 的旧 MSVC runtime")
+                  "检查 PySide6 目录是否夹带旧 MSVC runtime")
     finally:
         import shutil
         shutil.rmtree(mei, ignore_errors=True)

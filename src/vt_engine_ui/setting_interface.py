@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+# @version 2.1.0
 """自研「设置」页（对齐引擎 SettingInterface 的原始结构）。
 
 本类**忠实复现引擎设置页的原始控件树**（同名分组/卡片、同顺序、同标题、同样式
@@ -13,9 +14,9 @@ from __future__ import annotations
 
 import webbrowser
 
-from PyQt5.QtCore import Qt, QThread, QUrl, pyqtSignal
-from PyQt5.QtGui import QDesktopServices
-from PyQt5.QtWidgets import QFileDialog, QLabel, QWidget
+from PySide6.QtCore import Qt, QThread, QUrl, Signal
+from PySide6.QtGui import QDesktopServices
+from PySide6.QtWidgets import QFileDialog, QLabel, QWidget
 from qfluentwidgets import (
     ComboBoxSettingCard,
     CustomColorSettingCard,
@@ -547,8 +548,8 @@ class SettingInterface(ScrollArea):
 
 
 class WhisperConnectionThread(QThread):
-    finished = pyqtSignal(bool, str)
-    error = pyqtSignal(str)
+    finished = Signal(bool, str)
+    error = Signal(str)
 
     def __init__(self, base_url, api_key, model):
         super().__init__()
@@ -566,8 +567,8 @@ class WhisperConnectionThread(QThread):
 
 
 class LLMConnectionThread(QThread):
-    finished = pyqtSignal(bool, str, list)
-    error = pyqtSignal(str)
+    finished = Signal(bool, str, list)
+    error = Signal(str)
 
     def __init__(self, api_base, api_key, model):
         super().__init__()

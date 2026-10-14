@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# @version 2.0.0
+# @version 2.1.0
 """界面自检（v1.10.4 Fluent 界面）：验证窗口与各页面可构建、导航宽度自适应、
 设置页统一入口、字幕处理环境就绪。
 
@@ -23,7 +23,7 @@ import video_toolbox as engine
 
 os.environ.setdefault(
     "QT_QPA_PLATFORM_PLUGIN_PATH",
-    os.path.join(engine.EMBEDDED_SITE_PACKAGES, "PyQt5", "Qt5", "plugins"))
+    os.path.join(engine.EMBEDDED_SITE_PACKAGES, "PySide6", "plugins"))
 
 FAILS = []
 _LINES = []
@@ -300,7 +300,7 @@ def _export_button_ok():
     qt = _qt_src()
     i = qt.find("def export_subtitle")
     body = qt[i:i + 4000] if i >= 0 else ""
-    return ("export_requested = pyqtSignal()" in props
+    return ("export_requested = Signal()" in props
             and 'self.btn_export = QPushButton("导出"' in props
             and "self.btn_export.clicked.connect(self.export_requested"
             in props
@@ -361,7 +361,7 @@ def _align_grid_ok():
     画面层单选框（否则那条字幕显得"被单独锁定"）。
     """
     try:
-        from PyQt5.QtWidgets import QApplication
+        from PySide6.QtWidgets import QApplication
         import subtitle_editor_core as _se
         from subtitle_editor import SubtitlePropsPanel
     except Exception:  # noqa: BLE001
@@ -386,7 +386,7 @@ def _align_grid_ok():
     ok_clear = i >= 0 and "stage.set_selected(-1)" in body
     # 画面字幕层：点击与拖动分离（拖动不清多选）+ 右键删除入口
     ov = _overlay_src()
-    ok_split = ("cue_followed = pyqtSignal" in ov
+    ok_split = ("cue_followed = Signal" in ov
                 and "_press_moved = True" in ov
                 and "cue_followed.emit" in ov
                 and "def contextMenuEvent" in ov
@@ -435,7 +435,7 @@ def _overlay_src():
 def _no_undefined_names():
     """src 下所有 .py 是否有「引用了但模块里从没定义」的全局名。
 
-    v1.12.0 教训：这类名字（如 duration=INFOBAR_DURATION_SUCCESS）在 PyQt5 槽里
+    v1.12.0 教训：这类名字（如 duration=INFOBAR_DURATION_SUCCESS）在 PySide6 槽里
     会变成未捕获异常 → 进程直接 abort → 用户看到「点一下按钮程序就没了」，
     而 py_compile 查不出来。用 check_names 的静态扫描兜住，返回 (ok, 详情)。
     """
@@ -743,9 +743,9 @@ def main():
     print("  界面自检：Fluent 窗口 + 五个页面 + 页内分段 + 导航宽度 + 设置入口")
     print("=" * 62)
 
-    from PyQt5.QtCore import QTimer
-    from PyQt5.QtGui import QFontMetrics
-    from PyQt5.QtWidgets import QApplication
+    from PySide6.QtCore import QTimer
+    from PySide6.QtGui import QFontMetrics
+    from PySide6.QtWidgets import QApplication
     import video_toolbox_qt as gui
     import ui_theme
 
@@ -767,8 +767,14 @@ def main():
     check("字幕处理页一级分段已移除（v1.13.0：字幕校准并入引擎工作台分段）",
           not hasattr(win.subtitle_page, "seg")
           and not hasattr(win.subtitle_page, "stack"))
-    check("堆叠页数量为 7（合并后 5 页 + 流水线页 + 自动化页）",
-          win.stackedWidget.count() == 7, f"count={win.stackedWidget.count()}")
+    # v2.1.0：「首页」（任务创建提升为首页）已挂进堆叠 —— 共 8 页。
+    # 注意：v2.1.0 的 home_page 改动落在工作树（迁移前就存在），此处期望值
+    # 同步从 7 改为 8，否则会误报成 PySide6 迁移回归。
+    # 「AI 托管」页是**条件挂载**（harness 已部署才挂），所以 8/9 都对——
+    # 写死 8 会在装了 harness 的机器上误报（2026-10-14 实测踩到）。
+    _stacked = win.stackedWidget.count()
+    check("堆叠页数量为 8（AI 托管页可用时 9）", _stacked in (8, 9),
+          f"count={_stacked}")
     check("流水线页已挂进导航且可按键定位",
           win.page_by_key("pipeline") is win.pipeline_page
           and "流水线" in getattr(win, "NAV_TEXTS", []))
@@ -920,7 +926,7 @@ def main():
     check("拖入 .srt 自动载入字幕编辑页", drop_ok)
 
     sub = win.subtitle_page
-    from PyQt5.QtGui import QShowEvent
+    from PySide6.QtGui import QShowEvent
     sub.showEvent(QShowEvent())   # 首次显示触发引擎界面内嵌
     check("字幕引擎界面已内嵌（非独立窗口）",
           sub._engine is not None and sub.host_lay.count() == 1,
@@ -1107,7 +1113,7 @@ def main():
     _tr3_ok, _tr3_why = False, "no engine"
     if sub._engine is not None:
         try:
-            from PyQt5.QtWidgets import QApplication as _QApp
+            from PySide6.QtWidgets import QApplication as _QApp
             _ti = sub._engine.transcription_interface
             _card = getattr(_ti, "video_info_card", None)
             if _card is not None and hasattr(_card, "transcript_thread"):

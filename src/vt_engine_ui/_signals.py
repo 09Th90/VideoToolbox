@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+# @version 2.1.0
 """自研信号总线（UI 层内部广播）。
 
 等价于引擎 ``ui.common.signal_bus.signalBus``，但完全自研、零后端依赖：只有
@@ -6,33 +7,33 @@ Qt 信号定义，UI 各页用它做跨页联动（字幕排布 / 翻译开关 /
 模型 / 视频播放片段 等）。信号名与语义与既有 UI 保持一致，保证各页联动行为
 不变。
 """
-from PyQt5.QtCore import QObject, QUrl, pyqtSignal
+from PySide6.QtCore import QObject, QUrl, Signal
 
 
 class SignalBus(QObject):
     # 字幕排布
-    subtitle_layout_changed = pyqtSignal(str)
+    subtitle_layout_changed = Signal(str)
     # 字幕优化 / 翻译开关
-    subtitle_optimization_changed = pyqtSignal(bool)
-    subtitle_translation_changed = pyqtSignal(bool)
+    subtitle_optimization_changed = Signal(bool)
+    subtitle_translation_changed = Signal(bool)
     # 翻译语言
-    target_language_changed = pyqtSignal(str)
+    target_language_changed = Signal(str)
     # 转录模型
-    transcription_model_changed = pyqtSignal(str)
+    transcription_model_changed = Signal(str)
     # 合成相关
-    soft_subtitle_changed = pyqtSignal(bool)
-    need_video_changed = pyqtSignal(bool)
-    video_quality_changed = pyqtSignal(str)
-    use_subtitle_style_changed = pyqtSignal(bool)
-    subtitle_render_mode_changed = pyqtSignal(str)
+    soft_subtitle_changed = Signal(bool)
+    need_video_changed = Signal(bool)
+    video_quality_changed = Signal(str)
+    use_subtitle_style_changed = Signal(bool)
+    subtitle_render_mode_changed = Signal(str)
 
     # 视频控制
-    video_play = pyqtSignal()
-    video_pause = pyqtSignal()
-    video_stop = pyqtSignal()
-    video_source_changed = pyqtSignal(QUrl)
-    video_segment_play = pyqtSignal(int, int)
-    video_subtitle_added = pyqtSignal(str)
+    video_play = Signal()
+    video_pause = Signal()
+    video_stop = Signal()
+    video_source_changed = Signal(QUrl)
+    video_segment_play = Signal(int, int)
+    video_subtitle_added = Signal(str)
 
     def play_video(self):
         self.video_play.emit()
