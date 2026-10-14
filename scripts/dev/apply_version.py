@@ -43,6 +43,12 @@ TARGETS = [
     # 2026-10-08 补：英文说明书此前**不在清单里**，版本号一路滞留在 v1.16.5
     # （1.17.0 改号时静默漏掉，直到手工核对才发现）。它的写法是 `Applies to: vX`。
     (r"docs\User_Manual_EN.md", "Applies to: v{v}", 1),
+    # 2026-10-14 补（v2.2.5）：在线更新链路的两处硬编码此前不在清单里，每次改号
+    # 都要手工同步，漏了即漂移——vt_update_core.SELF_VERSION 是 min_updater 的
+    # **硬门槛**（不一致会把已装用户拒之门外），vt_dl._UA 的主次版本则决定
+    # 服务端能否按版本分流。两处均由 _selftest_online_xval.py 的口径断言兜底。
+    (r"packaging\online_release\vt_update_core.py", 'SELF_VERSION = "{v}"', 1),
+    (r"packaging\online_release\vt_dl.py", "VideoToolbox-downloader/{v}", 1),
 ]
 
 

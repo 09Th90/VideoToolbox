@@ -831,16 +831,37 @@ def t_build_side(tmp):
     open(bad, "w").write("x: 1")
     okf = os.path.join(tmp, "tools", "ok.py")
     open(okf, "w").write("y = 2")
-    _a, files3 = bor.build_package("tools",
-                                   [(bad, "tools/github_proxy.yaml"),
-                                    (okf, "tools/ok.py")], out3, 10 ** 9)
-    check("禁止项被跳过", "tools/github_proxy.yaml" not in files3,
-          list(files3))
-    check("正常文件入库", "tools/ok.py" in files3)
+    # v2.0.0 起语义升级：FORBIDDEN 命中不再「静默跳过」而是**拒绝发布**（exit 2）
+    # ——被跳过的文件既不进 zip 也不进清单，客户端校验发现不了「从未存在的文件」。
+    # 故此处断言"抛 SystemExit(2)"，而非旧语义的"跳过后其余文件正常入库"。
+    rc = 0
+    try:
+        bor.build_package("tools",
+                          [(bad, "tools/github_proxy.yaml"),
+                           (okf, "tools/ok.py")], out3, 10 ** 9)
+    except SystemExit as e:
+        rc = e.code
+    check("禁止项命中即拒绝发布", rc == 2, "exit=%r" % rc)
+    check("拒绝时未产出半成品清单",
+          not os.path.exists(os.path.join(out3, "manifest.json")))
 
     idx = vindex.new_index("视频工具箱", "file:///" + out.replace("\\", "/"))
-    got = bor.fetch_remote_index("file:///" + out.replace("\\", "/"))
-    check("取不到远端索引按首次发版处理", got.get("versions") == [])
+    # P0 语义（v2.0.0 起）：只有 **404** 才算首次发版；网络错/不存在的路径
+    # 一律**拒绝发布**——旧实现按首次发版处理，空索引上传会整体覆盖抹掉
+    # 远端全版本目录。此处 file:// 走到的是 FileNotFoundError（非 404）。
+    rc2 = None
+    try:
+        got = bor.fetch_remote_index("file:///" + out.replace("\\", "/"),
+                                     tries=1)
+    except SystemExit as e:
+        got, rc2 = None, e.code
+    check("取远端索引失败按拒绝发布（非首次发版）",
+          rc2 is not None and "拒绝发布" in str(rc2), str(rc2)[:80])
+    # --force-first 显式放行 → 才按首次发版造空索引
+    gotf = bor.fetch_remote_index("file:///" + out.replace("\\", "/"),
+                                  force_first=True, tries=1)
+    check("--force-first 放行后按首次发版",
+          gotf.get("versions") == [], gotf.get("versions"))
     bor.merge_remote_versions(idx, {"versions": [
         {"version": "0.9.0", "manifest": "manifest-0.9.0.json"}]})
     vindex.upsert_version(idx, {"version": ver, "manifest": "m.json",

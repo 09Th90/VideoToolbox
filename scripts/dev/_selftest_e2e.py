@@ -97,6 +97,10 @@ def main():
 
         page = gui.DownloadPage.__new__(gui.DownloadPage)  # 不构建界面，只取方法
         page.app = FakeApp()
+        # __new__ 跳过了 __init__，而 _pack_task（v1.19.1 起）要读取
+        # _cancel_events / _procs 做封面取消登记，必须手动补齐这两个实例属性。
+        page._cancel_events = {}
+        page._procs = {}
         page._pack_task("T1", ffmpeg, folder, meta, "1080p")
 
         # ---- 6. 验证最终产出结构 ----

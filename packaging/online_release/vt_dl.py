@@ -68,7 +68,7 @@ LOCAL_PROXY_PORT = 7897
 #: 整体 sha256 不符时的整文件重下次数（续传状态里的坏块只能这样救）。
 RESHUFFLE_TRIES = 1
 
-_UA = "VideoToolbox-downloader/2.0"
+_UA = "VideoToolbox-downloader/2.2.5"
 
 
 class Canceled(Exception):

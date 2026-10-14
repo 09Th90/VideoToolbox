@@ -264,6 +264,14 @@ Source: "..\src\bili_upload.py"; DestDir: "{app}\src"; Flags: ignoreversion
 ; video_toolbox.py:5465 函数体内延迟 import（开启 calib_media_enabled 才走），
 ;   exe 侧静默降级 ⇒ 与 calib_web_agent 同类，iss + spec 都要显式列出。
 Source: "..\src\calib_media_agent.py"; DestDir: "{app}\src"; Flags: ignoreversion
+; v2.2.5 同批补漏（AST 闭包复查，与上一批同类）：
+;   qt_compat 是 video_toolbox_qt.py 163 行的**模块级** import（Qt 6.12
+;   SpinBox 回归补丁），缺了 src\ 方式直接起不来 ⇒ 必报错档。
+;   harness_bridge / harness_page 在 try: 里模块级 import（能力缺失时降级），
+;   缺了「AI 托管」页整体消失 ⇒ 按静默降级档一并随包。
+Source: "..\src\qt_compat.py"; DestDir: "{app}\src"; Flags: ignoreversion
+Source: "..\src\harness_bridge.py"; DestDir: "{app}\src"; Flags: ignoreversion
+Source: "..\src\harness_page.py"; DestDir: "{app}\src"; Flags: ignoreversion
 Source: "..\src\视频工具箱.bat"; DestDir: "{app}\src"; Flags: ignoreversion
 ; 文档资料统一归入 docs\
 Source: "..\docs\使用说明.txt"; DestDir: "{app}\docs"; Flags: ignoreversion
