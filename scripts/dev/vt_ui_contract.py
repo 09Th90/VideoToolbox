@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.1.0
+# @version 2.2.5
 """自研 UI 契约静态校验（P3）。
 
 在**无法实例化 Qt**（本机 QApplication 挂起）的前提下，用 AST 静态校验：

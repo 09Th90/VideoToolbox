@@ -1,4 +1,4 @@
-# @version 2.1.0
+# @version 2.2.5
 """harness_bridge 离线自检（不启动 harness、不联网、可反复跑）。
 
 覆盖：路径解析（默认/env/配置三级）、probe 状态机、web_alive 语义

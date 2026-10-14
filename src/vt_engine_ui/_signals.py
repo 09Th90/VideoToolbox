@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.1.0
+# @version 2.2.5
 """自研信号总线（UI 层内部广播）。
 
 等价于引擎 ``ui.common.signal_bus.signalBus``，但完全自研、零后端依赖：只有
