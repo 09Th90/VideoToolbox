@@ -55,7 +55,7 @@ import os
 
 from PySide6.QtCore import QPointF, QRectF, Qt
 from PySide6.QtGui import (QColor, QLinearGradient, QPainter, QPalette, QPen,
-                         QPixmap)
+                           QPolygonF, QPixmap)
 from PySide6.QtWidgets import (QApplication, QGraphicsBlurEffect, QGraphicsScene,
                              QWidget)
 
@@ -563,25 +563,36 @@ def _icon_path(kind, color, size=10):
             pm = QPixmap(int(size), int(size))
             pm.fill(Qt.transparent)
             p = QPainter(pm)
-            p.setRenderHint(QPainter.Antialiasing, True)
-            pen = QPen(QColor(color), 1.4)
-            pen.setCapStyle(Qt.RoundCap)
-            pen.setJoinStyle(Qt.RoundJoin)
-            p.setPen(pen)
-            s = float(size)
-            if kind == "up":
-                p.drawPolyline(QPointF(s * 0.22, s * 0.64),
-                               QPointF(s * 0.50, s * 0.34),
-                               QPointF(s * 0.78, s * 0.64))
-            elif kind == "down":
-                p.drawPolyline(QPointF(s * 0.22, s * 0.36),
-                               QPointF(s * 0.50, s * 0.66),
-                               QPointF(s * 0.78, s * 0.36))
-            else:                       # check
-                p.drawPolyline(QPointF(s * 0.22, s * 0.52),
-                               QPointF(s * 0.42, s * 0.72),
-                               QPointF(s * 0.78, s * 0.26))
-            p.end()
+            # ⚠ 本 try 的 except 会吞异常，故 end() 必须自己兜底：PySide6 下
+            # 下面任一句出错若跳过 end()，QPainter 析构时仍处 Active 会直接
+            # **abort 进程**（0xC0000409，Python 的 try/except 救不回来）。
+            # 实测触发路径：drawPolyline 可变参数是 PyQt5 语法，PySide6 抛
+            # TypeError ⇒ 启动在 build_app_qss 处整个崩掉。
+            try:
+                p.setRenderHint(QPainter.Antialiasing, True)
+                pen = QPen(QColor(color), 1.4)
+                pen.setCapStyle(Qt.RoundCap)
+                pen.setJoinStyle(Qt.RoundJoin)
+                p.setPen(pen)
+                s = float(size)
+                if kind == "up":
+                    pts = (QPointF(s * 0.22, s * 0.64),
+                           QPointF(s * 0.50, s * 0.34),
+                           QPointF(s * 0.78, s * 0.64))
+                elif kind == "down":
+                    pts = (QPointF(s * 0.22, s * 0.36),
+                           QPointF(s * 0.50, s * 0.66),
+                           QPointF(s * 0.78, s * 0.36))
+                else:                       # check
+                    pts = (QPointF(s * 0.22, s * 0.52),
+                           QPointF(s * 0.42, s * 0.72),
+                           QPointF(s * 0.78, s * 0.26))
+                # PySide6 的 QPainter.drawPolyline 只收**一个**图形对象
+                # （QPolygonF/QPainterPath），不再像 PyQt5 那样收可变个
+                # QPointF。传点序列给 QPolygonF 即可，语义完全等价。
+                p.drawPolyline(QPolygonF(list(pts)))
+            finally:
+                p.end()
             pm.save(path, "PNG")
         url = '"%s"' % path.replace("\\", "/")
     except Exception:
