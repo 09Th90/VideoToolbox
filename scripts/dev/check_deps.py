@@ -31,8 +31,10 @@ SKIP_PREFIX = ("_selftest", "_prof_", "check_", "stamp_", "apply_", "push_via_")
 
 #: 已知的**软依赖**：代码里 try/except 包裹，缺了会走别的分支，不算缺口
 SOFT_OK = {
-    "tomli",    # py>=3.11 有 tomllib，引擎 config.py 只在旧解释器上用 tomli
-    "vlc",      # 引擎的 VLC 播放后端，本工具箱走 libmpv，不依赖它
+    "tomli",      # py>=3.11 有 tomllib，引擎 config.py 只在旧解释器上用 tomli
+    "vlc",        # 引擎的 VLC 播放后端，本工具箱走 libmpv，不依赖它
+    "playwright", # CDP 连已装浏览器（sync_playwright 函数内延迟 import + 降级
+                  # 提示）；v1.10.1 起浏览器引擎不随包分发，缺库属预期
 }
 
 

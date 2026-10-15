@@ -3,7 +3,7 @@ import re
 from pathlib import Path
 from typing import List
 
-from PyQt5.QtCore import QThread, pyqtSignal
+from PySide6.QtCore import QThread, Signal
 
 from videocaptioner.core.asr.asr_data import ASRData
 from videocaptioner.core.entities import (
@@ -125,11 +125,11 @@ def translate_with_machine_fallback(
 
 
 class SubtitleThread(QThread):
-    finished = pyqtSignal(str, str)
-    progress = pyqtSignal(int, str)
-    update = pyqtSignal(dict)
-    update_all = pyqtSignal(dict)
-    error = pyqtSignal(str)
+    finished = Signal(str, str)
+    progress = Signal(int, str)
+    update = Signal(dict)
+    update_all = Signal(dict)
+    error = Signal(str)
 
     def __init__(self, task: SubtitleTask):
         super().__init__()
@@ -417,9 +417,9 @@ class SubtitleThread(QThread):
 class RetranslateThread(QThread):
     """重新翻译选中行的轻量线程"""
 
-    finished = pyqtSignal(dict)  # {key: translated_text}
-    progress = pyqtSignal(int, str)  # (百分比, 状态描述)
-    error = pyqtSignal(str)
+    finished = Signal(dict)  # {key: translated_text}
+    progress = Signal(int, str)  # (百分比, 状态描述)
+    error = Signal(str)
 
     def __init__(self, selected_data: dict, subtitle_config: SubtitleConfig, file_name: str = ""):
         """
