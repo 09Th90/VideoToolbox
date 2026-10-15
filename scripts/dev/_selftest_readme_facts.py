@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.2.5
+# @version 2.3.0
 """自检：README 里的术语底表条数与导航页清单是否与代码一致。
 
 为什么需要
@@ -43,8 +43,8 @@ GROUPS = {
 }
 
 #: 期望 README 里出现的导航页（顺序取自 video_toolbox_qt.addSubInterface）
-EXPECT_PAGES = ["视频处理", "视频库", "字幕处理", "字幕编辑",
-                "流水线", "自动化", "设置"]
+EXPECT_PAGES = ["首页", "视频处理", "视频库", "字幕处理", "字幕编辑",
+                "流水线", "自动化", "AI 托管", "设置"]
 
 fails = []
 
@@ -73,8 +73,8 @@ def main():
     # ── 1. 导航页清单 ──
     src = _read(os.path.join(ROOT, "src", "video_toolbox_qt.py"))
     actual = re.findall(r'addSubInterface\([^,]+,[^,]+,\s*"([^"]+)"', src)
-    chk("导航页数量（README 称「七个功能页」）",
-        len(actual) == 7, "实际 %d 项：%s" % (len(actual), "、".join(actual)))
+    chk("导航页数量（README 称「九个功能页」）",
+        len(actual) == 9, "实际 %d 项：%s" % (len(actual), "、".join(actual)))
     chk("导航页清单与README 期望一致",
         [p for p in actual if p != "设置"] == EXPECT_PAGES[:-1],
         "实际 %s" % "、".join(actual))

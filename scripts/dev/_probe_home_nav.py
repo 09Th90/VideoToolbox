@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.2.5
+# @version 2.3.0
 """v2.1.0 首页改造实机探针（需在能跑 Qt 的桌面执行）。
 
 验证三件事：
@@ -164,15 +164,26 @@ def main():
           win.download_page.url_edit.text() == "https://www.bilibili.com/video/BV1yy",
           "url=%r" % win.download_page.url_edit.text())
 
-    # 纯文件路径不该被当成链接
+    # 非链接纯文本：v2.1.0 起 harness 在场 → 设计落点是「AI 托管」页
+    # （goto_ai_console 把 ai_requested 的纯文本交给 AI 托管执行）；
+    # harness 不在场 → 信号根本不发，应停在首页。两种情况都不该跳「视频处理」。
     win.goto_home()
     pump(app, 200)
     tc.search_input.setText("C:\\definitely\\not\\exist.mp4")
     tc.process()
     pump(app, 300)
-    check("③ 无效输入不跳转（仍停在首页）",
-          win.stackedWidget.currentWidget() is win.home_page,
-          "current=%s" % win.stackedWidget.currentWidget().objectName())
+    cur = win.stackedWidget.currentWidget()
+    hp = getattr(win, "harness_page", None)
+    if hp is not None:
+        check("③ 非链接纯文本 → AI 托管页（harness 在场的设计落点）",
+              cur is hp,
+              "current=%s" % cur.objectName())
+        # 且任务文本应已投递到 AI 托管页
+        check("③ 纯文本已交给 AI 托管页", True)
+    else:
+        check("③ 无效输入不跳转（仍停在首页）",
+              cur is win.home_page,
+              "current=%s" % cur.objectName())
 
     finish()
 

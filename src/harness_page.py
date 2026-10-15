@@ -1,4 +1,4 @@
-# @version 2.2.5
+# @version 2.3.0
 """「AI 托管」页 —— 首页任务框输入**纯文本**时的落点（harness 接入的界面壳）。
 
 边界（与 harness_bridge 的分工）
@@ -161,6 +161,10 @@ class HarnessPage(ScrollArea):
             self.url_label.setText("控制台：%s" % hb.web_console_url())
         else:
             self.url_label.setText("控制台未启动（打开可能需要 1～3 分钟冷启动）")
+        self._refresh_sync_label()
+
+    def _refresh_sync_label(self):
+        """只刷「设置」页 AI 配置摘要（不碰探测/控制台探针，可安全频发）。"""
         try:
             info = self.app.ai_settings_summary()
         except Exception:  # noqa: BLE001
@@ -218,6 +222,7 @@ class HarnessPage(ScrollArea):
         self.run_hint.setText("")
         ok = bool(result.get("ok"))
         self.run_hint.setText("完成 %.1fs" % float(result.get("elapsed") or 0))
+        self._refresh_sync_label()   # 亮出本次实际使用的「设置」页配置
         if result.get("answer"):
             self._append("\n===== AI 答复 =====\n%s\n" % result["answer"])
         if result.get("error"):

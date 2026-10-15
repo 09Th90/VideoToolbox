@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# @version 2.2.5
+# @version 2.3.0
 """
 视频工具箱 v1.12.0（单文件整合版）
 ==================================================
@@ -5239,6 +5239,14 @@ def ai_save_config(cfg):
         pass
     try:
         apply_asr_to_engine(clean)
+    except Exception:
+        pass
+    # AI 托管（harness）实时同步：设置页一保存就把 provider 路由/凭据重写进
+    # DSH_HOME——headless 下次运行拿新值，已在跑的交互控制台经 HMR 热加载。
+    # （v2.3.0：旧实现只在跑任务时才同步，用户切换账号后控制台仍在调用旧 API）
+    try:
+        import harness_bridge as _hb
+        _hb.sync_provider_config()
     except Exception:
         pass
     _AI_LAST_AUTO_NOTES.clear()

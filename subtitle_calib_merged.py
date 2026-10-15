@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.2.5
+# @version 2.3.0
 """字幕校准统一脚本（唯一入口，可复用，每次校准任务优先调用本脚本）
 # 2026-10-14 二次校准 + 脚本升级：《【字幕】All You Should Know in Arknights Next Update!
 #   .en-谷歌翻译.srt》（132 cue，CRLF 无 BOM，谷翻「中文2行+英文2行」，detect=bi，走 --ak）。
@@ -8737,6 +8737,81 @@ ENTITIES = [
     Entity("哈卡舞", modes=("bi",), en="haka", category="术语",
            variants=("哈卡里",),
            note="毛利战舞 haka。谷翻把『in the haka』译成『在哈卡里』，回改为哈卡舞。"),
+    # ============================================================
+    # 2026-10-15 《A Complete Crashout Regarding Wuthering Waves》二次校准沉淀
+    #   （英文原声·谷歌机翻双语，6934 cue，bi 模式；官方中文逐句复查补名词漏校）。
+    #   甄别戒律：生僻音译组合才收裸键；常用词/常见译名一律 ctx 参考行锚定。
+    #   不录项：'环形人'(Looper)、'奥古斯都'(Augustus) 系主播自造昵称/凯撒玩梗，
+    #   对英文行忠实、无官方对应，保留原译；#1005 '小碎片'(my little fragment)
+    #   字面义保留，仅 Fractus 锚定的'碎片'(#2830)收口。
+    # ============================================================
+    Entity("漂泊者", modes=("bi",),
+           ctx=((r"\brover", "探测车"),),
+           note="Crashout 片补漏：Rover 谷翻成'探测车'57处（#111 起，全部经英文行 "
+                "rover 锚定核验，无失配），'探测车'为正常词绝不裸键。"),
+    Entity("达妮娅", modes=("bi",),
+           ctx=((r"\bDia\b|\bDia's\b", "迪娅"),),
+           note="Crashout 片补漏：Denia 被主播昵称为 Dia，谷翻作'迪娅'13处（#1869 起），"
+                "须参考行 Dia 佐证；'迪娅'两字有他片误伤风险，不裸键。"
+                "#2747 口误形 Dana 走侧车（常见英文名不建键）。"),
+    Entity("守岸人", modes=("bi",), en="The Shorekeeper",
+           variants=("肖基珀",),
+           note="Crashout 片补漏：Shawkeeper 谷翻音译'肖基珀'7处（#1894 起），生僻组合裸键安全"
+                "（同既有'肖尔基珀'）。"),
+    Entity("木禺", modes=("bi",),
+           ctx=((r"Muyu|Amuyu", "木余"), (r"Muyu|Amuyu", "木雨"),
+                (r"Muyu|Amuyu", "木宇"), (r"Muyu|Amuyu", "木羽"),
+                (r"Muyu|Amuyu", "穆尤"), (r"Muyu|Amuyu", "穆优"),
+                (r"Muyu|Amuyu", "木优"), (r"Muyu|Amuyu", "阿姆优")),
+           note="Crashout 片补漏：Muyu/Amuyu 谷翻同音拆字 8 形（#3365/3460 等）。"
+                "'木雨/木羽/木优'等均为正常词组合，一律 Muyu 佐证才改，绝不裸键。"),
+    Entity("卡提希娅", modes=("bi",),
+           ctx=((r"Karthia|Cartethyia", "卡尔蒂亚"), (r"Karthia|Cartethyia", "卡蒂亚"),
+                (r"Karthia|Cartethyia", "卡蒂娅"), (r"Karthia|Cartethyia", "卡西娅"),
+                (r"\bKia\b", "起亚")),
+           note="Crashout 片补漏：Cartethyia 被主播念作 Karthia/Kia，谷翻作卡尔蒂亚/卡蒂亚/"
+                "卡蒂娅/卡西娅/起亚 诸形（#1644/2537/4198 等）。'卡蒂娅'是常见译名、"
+                "'起亚'是汽车品牌，全部走参考行锚定，绝不裸键。"),
+    Entity("嘉贝莉娜", modes=("bi",),
+           variants=("加尔布丽娜", "吉尔布丽娜"),
+           note="Crashout 片补漏：Galbrena 谷翻音译二形（#966/2276/6862 等），生僻长键裸键安全。"),
+    Entity("尤诺", modes=("bi",), en="Juno",
+           variants=("卢诺", "Luno", "Lunos"),
+           note="Crashout 片补漏：官方图鉴复核 尤诺=Juno（英配 Ella Boyes）。"
+                "主播念 Luno/Juno 混杂，谷翻'卢诺'10处、英文残留 Luno/Lunos（#871/6574）。"
+                "'Luno 系'拼写生僻裸键安全；'露玛'等其余形本片未出现，不臆造。"),
+    Entity("赞妮", modes=("bi",), en="Zani",
+           variants=("Zany",),
+           note="Crashout 片新增角色实体：Zani（3.5 热熔大剑角色）ASR 成 Zany 残留中文行"
+                "8+ 处（#5713 '我有 Zany S6 R2'）。大小写敏感裸键；小写 zany 普通形容词不收。"),
+    Entity("弗洛洛", modes=("bi",),
+           ctx=((r"Favlova|Havlova|Pavlova", "法夫洛娃"),
+                (r"Favlova|Havlova|Pavlova", "哈芙洛娃"),
+                (r"Favlova|Havlova|Pavlova", "帕芙洛娃"),
+                (r"Favlova|Havlova|Pavlova", "巴甫洛娃")),
+           note="Crashout 片补漏：Phrolova 被主播念成 Favlova/Havlova/Pavlova，谷翻作"
+                "法夫洛娃/哈芙洛娃/帕芙洛娃/巴甫洛娃 16 处（#3465/3569/5044 等）。"
+                "'巴甫洛娃'是常见译名（网坛姓氏），必须参考行锚定，绝不裸键。"),
+    Entity("残星会", modes=("bi",),
+           ctx=((r"Fractus|fracters", "分叉"), (r"\bFractus\b", "碎片")),
+           note="Crashout 片补漏：Fractsidus 被主播口语化成 Fractus/fracters，谷翻作"
+                "'分叉'（#2817/3101）；#2830 '碎片'由 Fractus 佐证收口。"
+                "⚠ #1005 'my little fragment'（字面 fragment，昵称）的'碎片'无 Fractus 锚定，"
+                "必须保留——本条 ctx 只收 \bFractus\b 佐证形。'分叉/碎片'正常词绝不裸键。"),
+    Entity("鸣式", modes=("bi",),
+           variants=("西奥丹斯", "西奥丹人", "西奥丁", "西奥丹",
+                     "Theodin", "theodin", "Theodan", "Theodans", "theodans"),
+           note="Crashout 片补漏：Threnodian 被主播念成 Theodin/Theodan（维基百科词条亦载俗称），"
+                "谷翻'西奥丁/西奥丹'9处 + 英文残留 6 处（#544/617/3154/6427 等）。"
+                "长键'西奥丹斯/西奥丹人'必须先咬（表按键长降序自动保证），防'鸣式斯'畸形。"),
+    Entity("心月狐", modes=("bi",),
+           ctx=((r"\bHin\b", "Hin"),),
+           note="Crashout 片补漏：Hsin 又被 ASR 截成 Hin（#1011/3363/4198，参考行 Hin's 佐证）。"
+                "'Hin'三字母裸键会咬 Hindi 等词，仅走 \bHin\b 锚定。"),
+    Entity("爱弥斯", modes=("bi",), en="Aemeath",
+           ctx=((r"\bAmia\b", "阿米娅"),),
+           note="Crashout 片补漏：Aemeath(/ˈiːmɪθ/) 被 ASR 成 Amia，谷翻'阿米娅'1处（#2711）。"
+                "'阿米娅'=Arknights 阿米娅常用译名，绝不裸键，仅 Amia 佐证才改。"),
 ]
 
 

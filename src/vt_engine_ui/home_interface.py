@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.2.5
+# @version 2.3.0
 """自研工作台首页（分段控件 + 堆叠页组合）。
 
 忠实复现引擎 ``HomeInterface`` 的组合结构与信号连线（``pivot`` / ``stackedWidget``

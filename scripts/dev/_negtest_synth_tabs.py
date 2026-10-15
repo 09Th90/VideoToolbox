@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.2.5
+# @version 2.3.0
 """负向验证：v2.1.0「去掉字幕视频合成 + 剩下三个平铺」。
 
 正向检查全过不说明检查有效。这里把源码**故意改坏**三处，确认探针真的会报FAIL：
@@ -91,6 +91,8 @@ for _ in range(20):
     while time.time() < end:
         app.processEvents()
         time.sleep(0.01)
+def _e(x):
+    return x.value if hasattr(x, 'value') else int(x)
 print("@@" + json.dumps({
     "keys": keys,
     "count": len(keys),
@@ -105,9 +107,9 @@ print("@@" + json.dumps({
     "vp_found": vp_found,
     "widths": widths,
     "pivot_w": p.width(),
-    "sp": int(p.sizePolicy().horizontalPolicy()),
-    "sp_item": int(p.items[keys[0]].sizePolicy().horizontalPolicy()) if keys else -1,
-    "constraint": int(p.hBoxLayout.sizeConstraint()),
+    "sp": _e(p.sizePolicy().horizontalPolicy()),
+    "sp_item": _e(p.items[keys[0]].sizePolicy().horizontalPolicy()) if keys else -1,
+    "constraint": _e(p.hBoxLayout.sizeConstraint()),
 }))
 ''' % ROOT.replace("\\", "\\\\")
 
@@ -307,9 +309,12 @@ def main():
         restore(HOST, bak)
 
     # ---- N5 「隐藏声纹历史列表」失守 ⇒ 必须报出 list_box 可见 ----
+    # ⚠ new 必须带 8 空格前导缩进（与 N2 同理）：replace 是纯字符串替换，
+    #   顶格 pass 会把方法体打断成 IndentationError ⇒ 模块 import 失败、
+    #   卡片根本不构造（vp_found=0），探针失明而不是测到"未隐藏"。
     old = "        self.list_box.hide()"
     bak = patch(os.path.join(ROOT, "src", "speaker_voiceprint_page.py"),
-                old, "pass  # negtest", "N5-vp")
+                old, "        pass  # negtest", "N5-vp")
     try:
         r = run_probe()
         print("[N5 声纹历史列表未隐藏]", r)
