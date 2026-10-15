@@ -1049,6 +1049,18 @@ def ensure_updater(manifest, install_dir, work_dir, progress=None, log=None,
         raise UpdateError(str(e))
     # 落地：自己在跑也能被重命名（Windows 语义），旧的留 .vtold 下次清
     os.makedirs(os.path.dirname(dest), exist_ok=True)
+    # ⚠ 跨盘陷阱（2026-10-15 实测）：work_dir 在 %TEMP%（通常 C:），安装目录
+    #   常在 D: —— os.replace 跨盘一律 OSError 18「无法将文件移到不同的磁盘
+    #   驱动器」，首次安装（dest 不存在）也照样炸，整个安装以 rc=1 收场
+    #   （组件其实已全部落地，只有 updater 这一步失败，症状极具迷惑性）。
+    #   先把文件 copy 到**目标盘**的临时名，再同盘 os.replace——rename 可
+    #   覆盖运行中的 exe 这一 Windows 语义原样保留。
+    if os.path.splitdrive(os.path.abspath(tmp))[0].lower() != \
+            os.path.splitdrive(os.path.abspath(dest))[0].lower():
+        tmp2 = dest + ".new"
+        shutil.copyfile(tmp, tmp2)
+        _quiet_remove(tmp)
+        tmp = tmp2
     if os.path.isfile(dest):
         try:
             os.replace(dest, dest + OLD_SUFFIX)
