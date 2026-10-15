@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.3.0
+# @version 2.3.1
 """把「在线更新包」发布成 GitHub Release 的**平铺资产**（替代 IFW 的在线仓库）。
 
 ====================================================================
@@ -646,9 +646,21 @@ def main():
     updater = None
     up = find_updater()
     if up:
-        updater = {"file": up.name, "size": up.stat().st_size,
+        # GitHub Release 资产名**不支持中文**：中文名会被平台强制净化成
+        # `_._v2.3.0.exe`（2026-10-15 实测，PATCH 改名同样被拦），与
+        # manifest 记录对不上导致 updater 下载 404。远端一律用 ASCII
+        # 资产名 `asset`，`file` 保留中文本地名（安装目录里的落地名）。
+        updater = {"file": up.name,
+                   "asset": "vt_online_setup_v%s.exe" % ver,
+                   "size": up.stat().st_size,
                    "sha256": _sha256_path(up)}
-        print("   更新器 %s  %s" % (up.name, human(up.stat().st_size)))
+        # file:// 自测的 updater 下载按 manifest 的 asset（ASCII）名找文件：
+        # 本地暂存区放一份同名副本，与远端资产布局一致（sha256 相同）。
+        # 缺了它，--dry-run 后的离线自检会在 ensure_updater 一步找不到文件
+        # ——组件全部落地、只炸最后一步，rc=1 的症状极具迷惑性。
+        shutil.copy2(up, out_dir / updater["asset"])
+        print("   更新器 %s → %s  %s"
+              % (up.name, updater["asset"], human(up.stat().st_size)))
     else:
         print("   [warn] 找不到在线安装器 exe（%s），manifest 将不含 updater 条目"
               % (DIST / ("视频工具箱_在线安装_v%s.exe" % ver)))
@@ -733,9 +745,9 @@ def main():
                 print("   （删除同名旧资产 %s）" % fname)
             ok &= upload_asset(rel["id"], zp, fname)
     if updater:
-        if drop_asset(rel["id"], updater["file"]):
-            print("   （删除同名旧资产 %s）" % updater["file"])
-        ok &= upload_asset(rel["id"], up, updater["file"])
+        if drop_asset(rel["id"], updater["asset"]):
+            print("   （删除同名旧资产 %s）" % updater["asset"])
+        ok &= upload_asset(rel["id"], up, updater["asset"])
     # 每版本清单留档（装任意版本 / 回滚的定位依据）
     if drop_asset(rel["id"], mf_ver.name):
         print("   （删除同名旧资产 %s）" % mf_ver.name)

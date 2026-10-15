@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.3.0
+# @version 2.3.1
 """`vt_version_index.py` 的离线自测（无需网络）。
 
 跑法：

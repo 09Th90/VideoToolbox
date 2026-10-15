@@ -1,4 +1,4 @@
-# @version 2.3.0
+# @version 2.3.1
 """「AI 托管」页 —— 首页任务框输入**纯文本**时的落点（harness 接入的界面壳）。
 
 边界（与 harness_bridge 的分工）

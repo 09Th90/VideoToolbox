@@ -1,4 +1,4 @@
-# @version 2.3.0
+# @version 2.3.1
 """deepseek-harness 适配层——工具箱**单向适配** harness 的唯一入口。
 
 设计契约（用户 2026-10-14 拍板）
@@ -210,11 +210,13 @@ def dsh_home() -> str:
 
 # ---------------------------------------------------------------- 探测
 def _node_exe() -> str:
-    """node 可执行文件：PATH 优先，其次 harness 部署目录旁的可能位置。"""
+    """node 可执行文件：PATH 优先 → tools 目录运行时（在线安装形态由
+    tools/download_open_source_deps.py 的 node 项下载）→ harness 部署目录旁。"""
     n = shutil.which("node")
     if n:
         return n
-    for c in (os.path.join(harness_dir(), "node.exe"),
+    for c in (os.path.join(app_root(), "tools", "node.exe"),
+              os.path.join(harness_dir(), "node.exe"),
               os.path.join(harness_dir(), "runtime", "node.exe")):
         if os.path.isfile(c):
             return c
@@ -1130,3 +1132,15 @@ def open_web() -> dict:
         except Exception:  # noqa: BLE001
             pass
     return r
+
+
+# ------------------------------------------------------------ 模块级兜底落盘
+# 技能包（AGENTS.md / SKILL.md 等 9 处约定位置）属于 harness 的「配套资产」，
+# 不能依赖 harness 本体就绪（run_task/控制台）才落盘——在线安装形态用户可能
+# 一直没部署 harness 本体，但配套必须开箱完整。主程序 exe 启动即无条件
+# import 本模块（video_toolbox_qt 顶层），在这里幂等执行一次即可全链覆盖；
+# 失败静默（只读目录等），不阻塞程序启动。
+try:
+    ensure_agent_assets()
+except Exception:  # noqa: BLE001
+    pass

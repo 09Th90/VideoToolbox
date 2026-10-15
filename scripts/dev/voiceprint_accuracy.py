@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# @version 2.3.0
+# @version 2.3.1
 """主播声纹 · 准确性基准（真实语音语料：3 位说话人 × 录入/测试样本）
 
 用 C:\\bld\\sv_ref\\wavs 的 15 段真实人声，量化「改造前 vs 改造后」的准确性：

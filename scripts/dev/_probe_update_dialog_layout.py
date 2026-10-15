@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.3.0
+# @version 2.3.1
 """Measure update-dialog label geometry: every detail line must fit the
 informativeText label's width (the old bug clipped lines mid-glyph)."""
 import os

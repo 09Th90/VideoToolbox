@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.3.0
+# @version 2.3.1
 """GUI 黄金基准比对工具（P3 引擎自研化替换 · 需在**能跑 Qt 的桌面**执行）。
 
 用途：证明「自研 UI（vt_engine_ui）」与「引擎 UI（videocaptioner）」经过**同一套

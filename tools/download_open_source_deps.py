@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.3.0
+# @version 2.3.1
 """下载开源依赖（不参与安装包构建，一律从网上拉取）。
 
 所有第三方开源组件都由本脚本在安装后/运行时从官方开源地址下载到 tools/ 目录：
@@ -54,6 +54,14 @@ YT_DLP = "https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp.exe"
 FFMPEG_ZIP = "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-win64-gpl.zip"
 DENO_ZIP = ("https://github.com/denoland/deno/releases/latest/download/"
             "deno-x86_64-pc-windows-msvc.zip")
+
+# Node.js 运行时（LTS，win-x64 zip 内含 node.exe）：harness（AI 托管）的配套
+# 依赖。在线安装形态不分发 harness 本体，但 node 必须就位——harness 本体
+# 无论以何种方式部署（用户自行放置/后续下载），node 缺失都会卡在
+# harness_bridge.probe() 的 no_node。src/harness_bridge._node_exe() 会从
+# tools/node.exe 找到它。nodejs.org 官方分发国内可直连。
+NODE_VERSION = "22.14.0"
+NODE_ZIP = f"https://nodejs.org/dist/v{NODE_VERSION}/node-v{NODE_VERSION}-win-x64.zip"
 
 # libmpv（LGPL 构建）：字幕编辑页的视频播放后端（打轴要用它做精确 seek 与逐帧）。
 # 为什么走自有 release 而不是上游 zhongfly/mpv-winbuild：
@@ -363,6 +371,38 @@ def install_speaker_model() -> None:
         print(f"  !! 校验不一致\n     实际 {got}\n     期望 {SPEAKER_MODEL_SHA256}")
 
 
+def install_node() -> None:
+    """Node.js 运行时（LTS win-x64，zip 约 30MB → node.exe 约 80MB）。
+
+    产物：tools/node.exe。harness（AI 托管）的配套运行时：在线安装形态不
+    分发 harness 本体，但配套必须完整——无论 harness 本体何时以何种方式
+    部署，node 缺失都会卡在 harness_bridge.probe() 的 no_node 状态。
+    src/harness_bridge._node_exe() 的搜索顺序：PATH → tools/node.exe →
+    harness 部署目录旁。
+    """
+    print(f"[*] Node.js 运行时（harness 配套，v{NODE_VERSION}，约 30MB）")
+    dst = TOOLS / "node.exe"
+    if dst.exists() and dst.stat().st_size > 0:
+        print(f"  已存在，跳过 ({dst.stat().st_size / 1048576:.0f}MB)")
+        return
+    zpath = TOOLS / "_node.zip"
+    _download(NODE_ZIP, zpath)
+    print("  解压 node.exe ...")
+    prefix = f"node-v{NODE_VERSION}-win-x64/"
+    with zipfile.ZipFile(zpath) as zf:
+        target = None
+        for name in zf.namelist():
+            if name.lower() == prefix + "node.exe":
+                target = name
+                break
+        if target is None:
+            raise RuntimeError(f"zip 内未找到 {prefix}node.exe")
+        with zf.open(target) as src, open(dst, "wb") as out:
+            shutil.copyfileobj(src, out)
+    zpath.unlink(missing_ok=True)
+    print(f"  完成: {dst} ({dst.stat().st_size / 1048576:.0f}MB)")
+
+
 def install_python(ver: str) -> None:
     """下载 python.org 官方 embeddable 包（占位实现，最终建议使用完整安装器+requirements）。"""
     print("[*] Python embeddable（占位）")
@@ -376,7 +416,7 @@ def main():
     ap = argparse.ArgumentParser(description="下载开源依赖到 tools/ 目录")
     ap.add_argument("--only", help="仅下载指定项，逗号分隔："
                                    "yt-dlp,deno,ffmpeg,mpv,chromium,videocaptioner,"
-                                   "speaker-model")
+                                   "speaker-model,node")
     ap.add_argument("--skip", help="跳过指定项，逗号分隔")
     ap.add_argument("--python", metavar="VER", help="额外下载 Python embeddable，如 3.12.9")
     args = ap.parse_args()
@@ -393,7 +433,8 @@ def main():
              ("mpv", install_mpv),
              ("chromium", install_chromium),
              ("videocaptioner", install_videocaptioner),
-             ("speaker-model", install_speaker_model)]
+             ("speaker-model", install_speaker_model),
+             ("node", install_node)]
     for name, fn in steps:
         if want(name):
             try:

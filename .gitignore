@@ -1,4 +1,4 @@
-# @version 2.3.0
+# @version 2.3.1
 # Python caches
 __pycache__/
 *.pyc
@@ -31,6 +31,9 @@ tools/ffmpeg.exe
 tools/ffprobe.exe
 tools/yt-dlp.exe
 tools/deno.exe
+# Node.js 运行时（harness 配套，v2.3.1 起由 download_open_source_deps.py
+# 的 node 项在线拉取，约 79MB）：不进仓库，安装后按需下载
+tools/node.exe
 tools/mihomo/
 # newpipe-cli：依赖 jar 与编译中间产物可 build.py 重建，不入库
 # （dist/npe-cli.jar 已被上方 dist/ 规则覆盖）
@@ -179,6 +182,8 @@ debug.log
 scripts/dev/_sel_shots/
 # Agent 本地工作区数据（记忆/技能/会话状态，不入库）
 .workbuddy-ai/
+# IDE 本地目录（CodeBuddy/WorkBuddy 会话状态）
+.codebuddy/
 # XDG / HuggingFace 缓存目录（本地 faster-whisper 权重等，数 GB，随机搬迁不入库）
 .cache/
 

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.3.0
+# @version 2.3.1
 """在线引导安装器 · 核心逻辑（无 UI，可单测）。
 
 ====================================================================
@@ -92,7 +92,7 @@ FALLBACK_DRIVES = ("D:", "E:", "F:", "C:")
 #: 旧版，装新版本会被直接拒（updater_ok 返回 False）。
 #: v2.2.5 起已纳入 scripts/dev/apply_version.py 的 TARGETS，改号自动同步
 #: （此前是手工项，正是这类漂移的来源）。
-SELF_VERSION = "2.3.0"
+SELF_VERSION = "2.3.1"
 #: 安装目录里的本地清单文件名（记录本次安装的文件级 sha256）
 INSTALLED_NAME = "vt_installed.json"
 #: 下载分块（sha256 等本地 IO 用；网络分块在 vt_dl 里）
@@ -378,7 +378,12 @@ def asset_url(manifest, asset):
     base = (manifest.get("base_url") or "").rstrip("/")
     if not base:
         raise UpdateError("更新清单里没有 base_url，无法定位资产")
-    return base + "/" + asset["file"]
+    # 文件名必须 percent-encode：updater 资产名带中文
+    # （视频工具箱_在线安装_vX.exe），裸拼进 URL 会让 urllib 在
+    # 发请求时抛 UnicodeEncodeError，整个安装以 rc=1 收场
+    # （组件其实已全部落地，只有这一步炸，2026-10-15 实测）。
+    import urllib.parse
+    return base + "/" + urllib.parse.quote(asset["file"])
 
 
 def asset_parts(manifest, asset):
@@ -1034,7 +1039,12 @@ def ensure_updater(manifest, install_dir, work_dir, progress=None, log=None,
     say("更新在线安装器：%s（%s）" % (up["file"], human(int(up.get("size") or 0))))
     os.makedirs(work_dir, exist_ok=True)
     tmp = os.path.join(work_dir, up["file"] + ".new")
-    url = asset_url(manifest, {"file": up["file"]})
+    # 远端资产名与本地落地名分开：GitHub Release 资产名**不支持中文**
+    # （中文名会被平台强制净化成 `_._v2.3.0.exe`，PATCH 改名也拦不住），
+    # 而发布侧 manifest 记的 file 是中文本地名。2026-10-15 实测：两者
+    # 混用导致 updater 下载 404。新 manifest 带 `asset`（ASCII 资产名），
+    # 老 manifest 没有就退回 file。
+    url = asset_url(manifest, {"file": up.get("asset") or up["file"]})
     # vt_dl 的 progress 是 2 arg (done, total)；本层契约是 3 arg
     # (阶段, done, total)——必须包一层，否则调用方传 3-arg 回调会
     # TypeError（曾被通用 except 吞掉、把成功的更新误报成失败）。
