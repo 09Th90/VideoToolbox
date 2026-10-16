@@ -43,17 +43,26 @@ def main():
     live = "--live" in sys.argv
 
     # ---- 1) AST 复查：同名定义只能有一个 -------------------------------
-    src_path = os.path.join(ROOT, "src", "video_toolbox.py")
+    # v2.3.1 拆分：_mihomo_api / _mihomo_proxy_api 已搬入 core/shared/proxy.py，
+    # 靶文件随之改指向；facade（video_toolbox.py）里不该再有它们的定义。
+    src_path = os.path.join(ROOT, "src", "core", "shared", "proxy.py")
     with open(src_path, encoding="utf-8") as f:
         tree = ast.parse(f.read())
     defs = collections.Counter()
     for node in tree.body:
         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
             defs[node.name] += 1
-    check("模块内 _mihomo_api 定义唯一", defs.get("_mihomo_api", 0) == 1,
+    check("proxy.py 内 _mihomo_api 定义唯一", defs.get("_mihomo_api", 0) == 1,
           "实际 %d 个" % defs.get("_mihomo_api", 0))
     check("_mihomo_proxy_api 已独立存在", defs.get("_mihomo_proxy_api", 0) == 1,
           "实际 %d 个" % defs.get("_mihomo_proxy_api", 0))
+    with open(os.path.join(ROOT, "src", "video_toolbox.py"), encoding="utf-8") as f:
+        ftree = ast.parse(f.read())
+    fdefs = {n.name for n in ftree.body
+             if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))}
+    check("facade 无 _mihomo_api/_mihomo_proxy_api 残留定义",
+          not ({"_mihomo_api", "_mihomo_proxy_api"} & fdefs),
+          sorted({"_mihomo_api", "_mihomo_proxy_api"} & fdefs))
 
     import video_toolbox as engine  # noqa: E402
 

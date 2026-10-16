@@ -45,6 +45,13 @@ sys.path.insert(0, os.path.join(APP_DIR, "src"))
 os.environ.setdefault("VT_NO_PIPELINE", "1")
 
 import video_toolbox as engine  # noqa: E402
+# v2.3.1（A1 拆 download 域）：子进程拦截的 patch 点跟随实现域——函数搬进
+# core.download.* 后，内部调用查的是**那些模块命名空间**的 popen_process /
+# ytdlp_proxy_args / ytdlp_cookie_args，再 patch engine.* 不再生效
+# （WinError 2 / 3a 前置失败即此形态）。engine.* 的 patch 保留（无害，
+# 且护住尚未拆域的调用方）。
+from core.download import util as _dl_util  # noqa: E402
+from core.download import ytdlp_util as _dl_ytdlp  # noqa: E402
 
 PASS, FAIL = [], []
 
@@ -187,12 +194,18 @@ def t_fetch():
     script = _script(tmp, "fk_extract.py", FAKE_YTDLP_BODY)
     shim = _PyShim(script)
     orig = engine.popen_process
+    orig_dl = _dl_ytdlp.popen_process
     # 隔离代理/cookie 初始化：这两步会去拉起 mihomo / 索取游客 cookie，
     # 与「取消能否生效」无关，却会把子进程启动拖到测量窗口之外。
+    # v2.3.1：patch 点跟随实现域（见文件头说明）——engine.* 与
+    # core.download.ytdlp_util.* 两侧都打，护住所有调用路径。
     orig_proxy, orig_cookie = engine.ytdlp_proxy_args, engine.ytdlp_cookie_args
     engine.popen_process = lambda *a, **k: shim.Popen(*a, **k)
+    _dl_ytdlp.popen_process = engine.popen_process
     engine.ytdlp_proxy_args = lambda: []
     engine.ytdlp_cookie_args = lambda log=None: []
+    _dl_ytdlp.ytdlp_proxy_args = engine.ytdlp_proxy_args
+    _dl_ytdlp.ytdlp_cookie_args = engine.ytdlp_cookie_args
     try:
         # --- 正向对照：不取消时子进程确实起来了（否则下面的 PASS 是假阳性）
         evt0 = threading.Event()
@@ -240,13 +253,17 @@ def t_fetch():
         engine.popen_process = (
             lambda *a, **k: subprocess.Popen(
                 [sys.executable, short, *list(a[0])[1:]], **k))
+        _dl_ytdlp.popen_process = engine.popen_process
         r = engine.fetch_info_json("yt-dlp.exe", "http://example.invalid/v",
                                    attempts=1, cancel=threading.Event())
         check("8a 未取消 + 短命假源 → 仍返回 None（失败路径未变）", r is None)
     finally:
         engine.popen_process = orig
+        _dl_ytdlp.popen_process = orig_dl
         engine.ytdlp_proxy_args = orig_proxy
         engine.ytdlp_cookie_args = orig_cookie
+        _dl_ytdlp.ytdlp_proxy_args = orig_proxy
+        _dl_ytdlp.ytdlp_cookie_args = orig_cookie
 
 
 # ---------- 4. make_cover_1280x720 ----------
@@ -263,7 +280,9 @@ def t_cover():
         os.remove(marker)
     shim = _PyShim(script)
     orig = engine.popen_process
+    orig_dl = _dl_util.popen_process
     engine.popen_process = lambda *a, **k: shim.Popen(*a, **k)
+    _dl_util.popen_process = engine.popen_process
     try:
         evt = threading.Event()
         box = {}
@@ -288,6 +307,7 @@ def t_cover():
               f"rc={proc.poll() if proc else 'no proc'}")
     finally:
         engine.popen_process = orig
+        _dl_util.popen_process = orig_dl
 
 
 # ---------- 5. NPE probe ----------
@@ -365,7 +385,9 @@ def t_gui_source():
     check("8b on_task_select 只对「下载中」开放取消按钮",
           'self.cancel_btn.setEnabled(item["status"] == "下载中")' in text)
     # 反向：确认没有残留的 subprocess.run 提取/封面调用（它们杀不掉）
-    eng = os.path.join(APP_DIR, "src", "video_toolbox.py")
+    # v2.3.1：download 域拆入 core/download/，fetch_info_json/parse_qualities
+    # 锚点随迁至 core/download/ytdlp_util.py（facade 里已无这两个 def）。
+    eng = os.path.join(APP_DIR, "src", "core", "download", "ytdlp_util.py")
     with open(eng, encoding="utf-8") as f:
         et = f.read()
     i = et.index("def fetch_info_json(")

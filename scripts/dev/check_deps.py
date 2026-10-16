@@ -62,11 +62,15 @@ def own_modules(src):
     口径必须与 ``视频工具箱.spec`` 的 pathex 一致，否则发布前检查永远红：
 
     * ``src/*.py`` 的文件级模块；
-    * ``src/<子包>/``（如 ``vt_engine_ui``）的**包**——它们由
-      ``collect_submodules('vt_engine_ui')`` 收进 PYZ，物理上在``src`` 下但
-      **不是** ``src`` 的直接子文件。此前只取 ``src.glob('*.py')``，
-      于是把自研子包报成「缺失的第三方模块」——假阳性（v2.1.0 实测：
-      ``vt_engine_ui`` 被报缺失，而它 import 成功、spec 也已登记）；
+    * ``src/<子包>/``（如 ``vt_engine_ui``、``core/download``）的**包**——它们由
+      ``collect_submodules('vt_engine_ui')`` / ``collect_submodules('core')``
+      收进 PYZ，物理上在``src`` 下但**不是** ``src`` 的直接子文件。此前只取
+      ``src.glob('*.py')``，于是把自研子包报成「缺失的第三方模块」——假阳性
+      （v2.1.0 实测：``vt_engine_ui`` 被报缺失，而它 import 成功、spec 也已
+      登记）；
+    * **嵌套子包递归**（v2.3.1 拆分工程）：``core/download`` 这类两层及以上的
+      包，只扫一层同样误报——``top_level_imports`` 记的是 ``core.download``
+      拆点前的顶层名 ``core``，递归把每层目录名都收进 own 集合才闭合；
     * ``packaging/online_release/*.py``（vt_dl / vt_update_core /
       vt_version_index）——由 pathex + hiddenimports 收进 PYZ。
     """
@@ -76,9 +80,15 @@ def own_modules(src):
             continue
         if pkg.name == "__pycache__":
             continue
-        # 目录名本身即包名；以 __init__.py 确认，避免把普通文件夹当包
+        # 目录名本身即包名；以 __init__.py 确认，避免把普通文件夹当包。
+        # v2.3.1：包**自身**与**嵌套子孙**都要收——core/download 这类两层及
+        # 以上的包，只收一层或只收子孙都会漏（前者漏 core.download、后者漏
+        # vt_engine_ui 自身），报成第三方缺失就是假阳性。
         if (pkg / "__init__.py").is_file():
             names.add(pkg.name)
+        for sub in sorted(pkg.rglob("*")):
+            if sub.is_dir() and (sub / "__init__.py").is_file():
+                names.add(sub.name)
     orel = ROOT / "packaging" / "online_release"
     if orel.is_dir():
         names |= {p.stem for p in orel.glob("*.py")}
