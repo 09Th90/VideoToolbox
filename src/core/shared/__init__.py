@@ -24,6 +24,8 @@ from .proxy import *  # noqa: F401,F403
 from .config import *  # noqa: F401,F403
 from .ai import *  # noqa: F401,F403
 from .vcsettings import *  # noqa: F401,F403
+from .env import *  # noqa: F401,F403
+from .uibrand import *  # noqa: F401,F403
 from .log import *  # noqa: F401,F403 —— LOG_MAX_BYTES（其余私有，见下方显式导）
 
 # 私有名再导出（* 不收下划线；facade 与其余 core 域按需引用）
@@ -33,6 +35,8 @@ from .runtime import _is_self_exe, _VC_LEGACY_DIRS  # noqa: F401
 from .proxy import _mihomo_log  # noqa: F401
 from .vcsettings import (_path_on_system_drive, _vc_force_local_paths,  # noqa: F401
                          _vc_read_settings, _vc_write_settings)
+from .env import _move_data_to  # noqa: F401
+from .uibrand import (_patch_task_creation, _patch_video_widget)  # noqa: F401
 from .proc import (_BOOTSTRAP_LOCK, _hide_console_kwargs,  # noqa: F401
                    _SUBPROCESS_POPEN, _SUBPROCESS_RUN)
 from .ai import _AI_LAST_AUTO_NOTES, _AI_MOD  # noqa: F401
@@ -46,8 +50,11 @@ from .config import __all__ as _config_all
 from .ai import __all__ as _ai_all
 from .vcsettings import __all__ as _vcsettings_all
 from .log import __all__ as _log_all
+from .env import __all__ as _env_all
+from .uibrand import __all__ as _uibrand_all
 
 __all__ = sorted(set(
     _textio_all + _paths_all + _runtime_all + _proc_all
     + _proxy_all + _config_all + _ai_all + _vcsettings_all + _log_all
+    + _env_all + _uibrand_all
 ))

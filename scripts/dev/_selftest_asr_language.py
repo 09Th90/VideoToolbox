@@ -28,6 +28,11 @@ os.environ.setdefault("VT_NO_CALIB_SYNC", "1")
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 import video_toolbox as engine  # noqa: E402
+# v2.3.1（A2 拆 asr 域）：patch 跟随实现域——apply_asr_to_engine /
+# vc_asr_patch_apply 搬入 core.asr.engine_config 后，内部读的是该模块
+# 命名空间的 _vc_read/_vc_write_settings 与 ai_load_config；只打 engine 侧
+# 不生效（_sink KeyError 实证）。
+import core.asr.engine_config as _aec  # noqa: E402
 
 LINES, FAILS = [], []
 
@@ -94,6 +99,8 @@ try:
     engine._vc_read_settings = lambda: dict(_sink.get("data")
                                             or {"Transcribe": {}})
     engine._vc_write_settings = lambda d: _sink.update(data=d)
+    _aec._vc_read_settings = engine._vc_read_settings
+    _aec._vc_write_settings = engine._vc_write_settings
 
     ok, detail = engine.apply_asr_to_engine(
         {"asr_mode": "service", "asr_base_url": "u", "asr_api_key": "k",
@@ -120,6 +127,8 @@ try:
           _sink["data"].get("Transcribe"))
 finally:
     engine._vc_read_settings, engine._vc_write_settings = _orig_read, _orig_write
+    _aec._vc_read_settings, _aec._vc_write_settings = (engine._vc_read_settings,
+                                                       engine._vc_write_settings)
 
 # ---------- 5. 运行期补丁：任务创建强制语言 ----------
 try:
@@ -131,6 +140,7 @@ try:
     # 不碰真实 ai_config.json；settings.json 同步写成日语，模拟 apply 已跑过。
     _orig_cfg = engine.ai_load_config
     engine.ai_load_config = lambda: {"asr_language": "日本語"}
+    _aec.ai_load_config = engine.ai_load_config
     try:
         engine.vc_asr_patch_apply()
         from videocaptioner.ui import task_factory as _tf
@@ -143,6 +153,7 @@ try:
               repr(_task.transcribe_config.transcribe_language))
         # 反向：工具箱配置为自动检测时补丁不强制（任务保持引擎自己的取值）
         engine.ai_load_config = lambda: {"asr_language": "自动检测"}
+        _aec.ai_load_config = engine.ai_load_config
         _task2 = _tf.TaskFactory.create_transcribe_task(
             os.path.abspath("subtitle_calib_merged.py"))
         from videocaptioner.ui.common.config import cfg as _cfg
@@ -154,6 +165,7 @@ try:
                                    _expect))
     finally:
         engine.ai_load_config = _orig_cfg
+        _aec.ai_load_config = _orig_cfg
         _data["Transcribe"]["TranscribeLanguage"] = _old
         engine._vc_write_settings(_data)
 except Exception as e:  # noqa: BLE001
