@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.3.1
+# @version 2.3.0
 """字幕校准统一脚本（唯一入口，可复用，每次校准任务优先调用本脚本）
 # 2026-10-14 二次校准 + 脚本升级：《【字幕】All You Should Know in Arknights Next Update!
 #   .en-谷歌翻译.srt》（132 cue，CRLF 无 BOM，谷翻「中文2行+英文2行」，detect=bi，走 --ak）。
