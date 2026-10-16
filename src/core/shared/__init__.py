@@ -31,6 +31,8 @@ from .log import (_LOG_ERR_WORDS, _LOG_WARN_WORDS, _append_log,  # noqa: F401
                   _is_selftest_run, _log_level_tag, _rotate_log, _vc_log)
 from .runtime import _is_self_exe, _VC_LEGACY_DIRS  # noqa: F401
 from .proxy import _mihomo_log  # noqa: F401
+from .vcsettings import (_path_on_system_drive, _vc_force_local_paths,  # noqa: F401
+                         _vc_read_settings, _vc_write_settings)
 from .proc import (_BOOTSTRAP_LOCK, _hide_console_kwargs,  # noqa: F401
                    _SUBPROCESS_POPEN, _SUBPROCESS_RUN)
 from .ai import _AI_LAST_AUTO_NOTES, _AI_MOD  # noqa: F401

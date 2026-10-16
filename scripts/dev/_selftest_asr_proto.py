@@ -24,6 +24,40 @@ os.environ.setdefault("VT_NO_CALIB_SYNC", "1")
 
 import video_toolbox as engine  # noqa: E402
 
+# v2.3.1（A2 拆 asr 域）：patch 跟随实现域——engine 属性与 core 各实现模块的
+# 绑定必须同时打；只打 engine 侧，补丁/提交函数内部读的仍是旧绑定
+# （asr_protocol_of/_ASR_WS_DEGRADED/ai_mod 三连败实证）。
+import core.asr.patches as _ap  # noqa: E402
+import core.asr.protocol as _aprot  # noqa: E402
+import core.shared.ai as _sai  # noqa: E402
+
+_PATCH_MODS = {
+    "asr_protocol_of": (_ap, _aprot),
+    "_ASR_WS_DEGRADED": (_aprot,),
+    "ai_mod": (_sai, _aprot),
+    "ai_load_config": (_sai, _aprot),
+    "_asr_shrink_audio_blob": (_aprot,),
+}
+
+
+def _pk(name, val):
+    """patch engine 属性 + 各 core 实现模块绑定，返回 (name, [(holder, orig)])。"""
+    orig = [(engine, getattr(engine, name))]
+    for m in _PATCH_MODS.get(name, ()):
+        if hasattr(m, name):
+            orig.append((m, getattr(m, name)))
+            setattr(m, name, val)
+    setattr(engine, name, val)
+    return (name, orig)
+
+
+def _unpk(pair):
+    name, orig = pair
+    for holder, v in orig:
+        setattr(holder, name, v)
+
+
+
 OUT = r"C:\bld\_asr_proto_test"
 os.makedirs(OUT, exist_ok=True)
 LINES, FAILS = [], []
@@ -529,9 +563,8 @@ def main():
 
     say("")
     say("== 8b) 超限音频自动压缩（Data URL / inline_data 载荷上限）==")
-    orig_shrink = engine._asr_shrink_audio_blob
-    engine._asr_shrink_audio_blob = (
-        lambda blob, mr: (blob[:64] if len(blob) > mr else blob))
+    orig_shrink = _pk("_asr_shrink_audio_blob",
+                      lambda blob, mr: (blob[:64] if len(blob) > mr else blob))
     try:
         big = WAV + b"\x00" * (7 * 1024 * 1024)   # 7MB 假音频（> chat_audio 6.5MB）
         CALLS.clear()
@@ -565,7 +598,7 @@ def main():
               data == "data:audio/wav;base64,"
               + base64.b64encode(WAV).decode())
     finally:
-        engine._asr_shrink_audio_blob = orig_shrink
+        _unpk(orig_shrink)
 
     # 真实 ffmpeg 转码（tools 下自带二进制；转码失败会让断言红）
     import io as _io
@@ -653,7 +686,6 @@ def main():
         _tr = _il.import_module("videocaptioner.core.asr.transcribe")
         check("分块补丁已挂", engine.vc_asr_chunk_patch() is True
               and getattr(_tr, "_vt_chunk_patched", False) is True)
-        _orig_p = engine.asr_protocol_of
 
         class _Cfg:
             need_word_time_stamp = False
@@ -663,12 +695,12 @@ def main():
             whisper_api_base = "https://dashscope.aliyuncs.com/compatible-mode/v1"
             whisper_api_prompt = ""
 
-        engine.asr_protocol_of = lambda *a, **k: "chat_audio"
+        _orig_p = _pk("asr_protocol_of", lambda *a, **k: "chat_audio")
         try:
             # ChunkedASR 构造只读字节、不解析音频，用脚本自身当"音频路径"
             _inst = _tr._create_whisper_api_asr(__file__, _Cfg())
         finally:
-            engine.asr_protocol_of = _orig_p
+            _unpk(_orig_p)
         check("chat_audio：块长 170s（引擎默认 600s 会超百炼时长上限）",
               getattr(_inst, "chunk_length_ms", 0) == 170000,
               getattr(_inst, "chunk_length_ms", None))
@@ -741,13 +773,12 @@ def main():
                                                  "end_time": 900}}}},
             {"header": {"event": "task-finished"}, "payload": {}},
         ], _ws_log)
-        engine._ASR_WS_DEGRADED = False
-        orig_p = engine.asr_protocol_of
-        engine.asr_protocol_of = lambda *a, **k: "openai"
+        _pk("_ASR_WS_DEGRADED", False)
+        orig_p = _pk("asr_protocol_of", lambda *a, **k: "openai")
         try:
             obj._submit()
         finally:
-            engine.asr_protocol_of = orig_p
+            _unpk(orig_p)
         check("实时模型+百炼域名：非实时协议自动改走 WebSocket（不再断连）",
               str(_ws_log.get("url", "")).startswith("wss://"),
               _ws_log.get("url"))
@@ -760,12 +791,11 @@ def main():
         ROUTES.clear()
         ROUTES["/chat/completions"] = _Resp(200, {"choices": [
             {"message": {"content": "你好。"}}]})
-        orig_p = engine.asr_protocol_of
-        engine.asr_protocol_of = lambda *a, **k: "openai"
+        orig_p = _pk("asr_protocol_of", lambda *a, **k: "openai")
         try:
             obj._submit()
         finally:
-            engine.asr_protocol_of = orig_p
+            _unpk(orig_p)
         check("百炼端点+openai 协议 → 自动改走 chat/completions（不再断连）",
               CALLS and CALLS[-1]["url"].endswith("/chat/completions"),
               (CALLS or [{}])[-1].get("url"))
@@ -778,12 +808,11 @@ def main():
         ROUTES.clear()
         ROUTES["multimodal-generation/generation"] = _Resp(
             200, {"output": {"sentence": {"text": "原生端点你好。"}}})
-        orig_p = engine.asr_protocol_of
-        engine.asr_protocol_of = lambda *a, **k: "openai"
+        orig_p = _pk("asr_protocol_of", lambda *a, **k: "openai")
         try:
             _nres = obj._submit()
         finally:
-            engine.asr_protocol_of = orig_p
+            _unpk(orig_p)
         check("百炼端点+openai 协议+原生 ASR 模型 → 自动改走原生端点",
               CALLS and engine.ASR_NATIVE_PATH in CALLS[-1]["url"],
               (CALLS or [{}])[-1].get("url"))
@@ -812,16 +841,16 @@ def main():
         def asr_config(self, *a, **k):
             raise RuntimeError("boom")
 
-    engine.ai_mod = lambda: _Boom()
-    engine.ai_load_config = lambda: {
+    _p_aimod = _pk("ai_mod", lambda: _Boom())
+    _p_aiload = _pk("ai_load_config", lambda: {
         "asr_base_url": ("https://llm-ukmkj60gxr2wms1f.cn-beijing."
                          "maas.aliyuncs.com/compatible-mode/v1"),
-        "asr_model": "qwen3.8-livetranslate-flash-realtime"}
+        "asr_model": "qwen3.8-livetranslate-flash-realtime"})
     try:
         got = engine.asr_protocol_of()
     finally:
-        engine.ai_mod = orig_aimod
-        engine.ai_load_config = orig_load
+        _unpk(_p_aiload)
+        _unpk(_p_aimod)
     check("配置读取失败时按磁盘字段推断（实时模型仍落实时协议）",
           got == "dashscope_realtime", got)
 
