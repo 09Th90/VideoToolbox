@@ -97,13 +97,15 @@ Fluent System Icons（MIT），自研引擎 + 自写 QSS 承担 Fluent 外观。
 
 ### A. 拆分（每域一门：搬 → facade 再导出 → 置 SPLIT_STATUS=done → 跑全量自检）
 
-| 步 | 域 | 门 |
-|---|---|---|
-| A0 | core 骨架 + spec `collect_submodules('core')` + `check_deps.py` own_modules 递归（两层包防误报，同 online_release 坑） | core_api 的 NEG-CORE 档转正、check_deps 无误报 |
-| A1 | download（cookie/ytdlp/NPE/merge/探测） | download_cancel 29/29、pipeline 64/64、core_api PASS |
-| A2 | asr（~4000 行，最大头；分 3~4 个提交） | asr_proto 207/0、七接缝 `_selftest_engine_*` 全 PASS |
-| A3 | translate → calibrate → pipeline | _selftest_translate / _selftest_calib_ai / _smoke_all |
-| A4 | facade 收口（video_toolbox.py 只剩再导出 + 版本头） | core_api 全域 done、全量自检复跑 |
+| 步 | 域 | 门 | 状态 |
+|---|---|---|---|
+| A0 | core 骨架 + spec `collect_submodules('core')` + `check_deps.py` own_modules 递归（两层包防误报，同 online_release 坑） | core_api 的 NEG-CORE 档转正、check_deps 无误报 | ✅ 2026-10-16 完成（接口测试先立：core_api 黄金基线 + qss_migration 使用面基线双护） |
+| A1 | **shared 底座**（textio/log/paths/runtime/proc/proxy/config/ai/vcsettings 九模块）+ **download 域**（deps/urls/ytdlp_util/cookies/npe/media/util 七模块） | download_cancel 29/29、core_api PASS（download=done 严格档） | ✅ 2026-10-16 完成（`f79d312`；单体 9221→5475 行） |
+| A2 | **asr 域全量**：protocol（协议推断/守卫+九服务商 submit+词级聚合）/ patches（协议注入+分块几何）/ engine_config / voiceprint / ui_patch / runtime_patches；shared 收口两族（env/uibrand） | asr_proto 207/0、asr_language ALL PASS、speaker/vc/rate_limit_sql、七接缝全 PASS、smoke D+E 15/15 | ✅ 2026-10-16 完成（`6ee0854`+`4371c40`；单体 5475→1338 行，域进度档 2/6） |
+| A3 | translate（vc_translate_route_patch）/ calibrate（calib_ai_* + GitHub 同步族）/ pipeline（main + SRT 工具链） | _selftest_translate / _selftest_calib_ai / _smoke_all 全量 / pipeline 自检 | 待施工 |
+| A4 | facade 收口（video_toolbox.py 只剩再导出 + main + 版本头；SPLIT_STATUS 全 done） | core_api 全档 + 全量自检复跑 + **出包验证**（repack + check_install_sync） | 待施工 |
+
+**单体行数轨迹**：9221 → 5475（A1）→ 2676（A2a）→ **1338（A2b）**。facade 残留 = translate 1 符号 + calibrate 16 符号 + pipeline 4 符号 + main。
 
 ### B. QSS 迁移（每控件一族一门：vt_fluent 实现 → parity 绿 → 切一个文件的 import → golden/截图验收）
 
@@ -122,6 +124,25 @@ B0 落地结构（src/vt_fluent/）：`__init__.py`（71 符号契约面 + 常�
 （winreg，不依赖 darkdetect）；FluentStyleSheet 载体为合并文件（规则按类名
 作用域，与逐控件分文件渲染等价）。
 
+## 5.1 功能正常性验证（任务暂停点快照，2026-10-16 13:30）
+
+暂停拆分施工，对当前状态做「程序功能正常」验证：
+
+| 验证层 | 项 | 结果 |
+|---|---|---|
+| GUI 构建+导航 | `_probe_home_nav`（主窗口构建 + 23 项导航交互，含 AI 托管页切换） | ✅ 23/23 |
+| GUI 全量自检 | `_selftest_gui`（92+ 项：页面构建/交互/源码契约/引擎内嵌） | ✅（修复 2 处后） |
+| CLI | `_selftest_agent_cli` | ✅ 21/21 |
+| 下载链 | `_selftest_download_cancel`（8 阶段可中止） | ✅ 29/29 |
+| ASR 链 | asr_proto 207/0、asr_language、speaker、vc、rate_limit_sql | ✅ 全过 |
+| 引擎接缝 | 七接缝 `_selftest_engine_*` | ✅ 全 PASS |
+| 冒烟 | `_smoke_all`（59/61；2 失败 = B站直连/YouTube 风控，网络环境项） | ✅ |
+| 依赖 | check_deps / py_compile 全树 | ✅ |
+
+暂停点修复记录：
+1. **check_names 升级**：`import *` 展开目标模块 `__all__` 消除 facade 静态误报（symtable 天然失明于 * 导入）
+2. **facade 补真缺**：`_fallback_config_path`（config.py 私有，GUI 自检内联测试直调）经 shared 私有导出链补齐
+
 ## 6. 打包口径变更点（A0/B4 时落地）
 
 1. `packaging/视频工具箱.spec`：`collect_submodules('core')`（显式补 SRC_DIR 再收集，防静默空列表）；vt_fluent 同款。
@@ -133,9 +154,47 @@ B0 落地结构（src/vt_fluent/）：`__init__.py`（71 符号契约面 + 常�
 
 | 风险 | 缓解 |
 |---|---|
-| facade 漏再导出 → 运行期 AttributeError | core_api 基线比对（符号级）+ 全量自检 |
+| facade 漏再导出 → 运行期 AttributeError | core_api 基线比对（符号级）+ 全量自检；**暂停点实证**：check_names 升级 `import *` 展开 + facade 私有显式块补齐（_fallback_config_path/_path_on_system_drive） |
 | core 子包循环依赖 | 依赖规则（§3.1）+ 每域单独 import 探针 |
 | collect_submodules 静默空列表（pathex 时序坑） | 照 vt_engine_ui 先例显式补 sys.path；验证读 PYZ-00.pyz toc |
 | QSS 迁移视觉回归 | vt_ui_golden 控件树 + _sel_shots 截图黄金 + 逐控件行为清单 |
 | SpinBox Qt 6.12.0 回归复犯 | qt_compat 补丁改挂 vt_fluent.SpinBox 前不得退役 |
 | 工作树半迁移态 | 每域一提交；git 树可随时 `git stash` 回退到上一门 |
+| **monkeypatch 接缝跟随实现域**（A1/A2 累计 5 处实证） | 测试 patch 一律双侧打（engine.* + core 实现模块.*）；asr_proto 的 `_pk/_unpk + _PATCH_MODS` 基础设施可复用 |
+| **跨模块 `global`**（A2 实证） | import 审计的盲区——搬段时 grep `global ` 手工复核，改模块属性读写 |
+| 探针污染（kb-sync 重放删 @version） | 每轮跑 GUI 探针后 `git checkout -- AGENTS.md CLAUDE.md SKILL.md ×3 .trae` |
+
+## 8. 后续任务清单（任务暂停点，2026-10-16 13:40）
+
+### A3：translate / calibrate / pipeline 三域拆分（预计 2~3 个提交）
+
+| # | 任务 | 门 |
+|---|---|---|
+| A3-1 | translate 域（vc_translate_route_patch + _patch_translator_route + TS_* 常量；env.py 的延迟 import 改 `from core.translate import`） | smoke E 段 + protocol 207 |
+| A3-2 | calibrate 域（calib_ai_chat/calib_web_proxy/calib_ai_run/_calib_event_sink + 校准 GitHub 同步族 sync_calib_* + 声纹同步族 sync_voiceprint_* + _sync_log/_atomic_write/_sync_conn/_gh_* + SYNC_*/CALIB_* 常量 + sync_env_into——shared 收口最后 1 符号） | _selftest_calib_ai（需联网）+ _selftest_agent_cli |
+| A3-3 | pipeline 域（main + srt_time_to_ms/ms_to_srt_time/normalize_rolling_srt + _SRT_*/_ROLLING_* 常量；DEFAULT_INPUT_DIR/DURATION_THRESHOLD/URL_RE 视引用归 download 或随迁） | _smoke_all 全量 + pipeline 自检 |
+| A3-4 | SPLIT_STATUS：asr ✓ 已置；translate/calibrate/pipeline 逐域置 done；shared 置 done（sync_env_into 归位后） | core_api 全档 |
+
+### A4：facade 收口 + 出包验证
+
+| # | 任务 | 门 |
+|---|---|---|
+| A4-1 | facade 终态：只剩版本头 + 再导出块 + main 转发；grep `global ` 复核；DOMAIN_MAP↔core 互校 | core_api 全档 PASS |
+| A4-2 | **repack**（PyInstaller onefile，换新 build_asciiN；改 src/ 不 repack 不生效） | 打包成功 + PYZ toc 含 core.* |
+| A4-3 | `check_install_sync.py`（37 项 sha256 + 版本指纹）+ 在线发布 file:// 自测 | 全绿 |
+| A4-4 | `stamp_versions.py` 重生成清单（先 git add） | 清单无漂移 |
+| A4-5 | 许可声明更新：qfluentwidgets 移出随包（B4 完成后）；`docs/第三方组件来源与许可声明.txt` 第 3 节 | 合规成立 |
+
+### B 区（用户并发，B2~B4）
+
+| # | 任务 | 门 |
+|---|---|---|
+| B2 | `_feedback.py` / `_menu.py` / `_setting.py` | InfoBar 队列/动效、菜单 flyout、设置卡布局 |
+| B3 | `_window.py`（FluentWindow + NavigationInterface，最难） | `_probe_home_nav` 23/23 + 导航展开/收起/角标 |
+| B4 | 逐文件切 import（video_toolbox_qt.py → vt_engine_ui/* → 其余页）→ ui_theme 改接 → qt_compat 退役 | qss_migration 残留归零、vt_ui_golden IDENTICAL、_sel_shots 截图黄金 |
+
+### 联合收尾（A+B 全完成后）
+
+1. `docs/第三方组件来源与许可声明.txt` 与随包 `docs\开源许可_GPL-3.0.txt` 义务复核（qfluentwidgets 移出后 GPL-3.0 义务状态重估）
+2. 全量自检 + smoke 终跑基线固化进 memory
+3. GitHub push（本地直连；不通走 push_via_git_api.py + blob SHA 校验）

@@ -40,6 +40,7 @@ from .uibrand import (_patch_task_creation, _patch_video_widget)  # noqa: F401
 from .proc import (_BOOTSTRAP_LOCK, _hide_console_kwargs,  # noqa: F401
                    _SUBPROCESS_POPEN, _SUBPROCESS_RUN)
 from .ai import _AI_LAST_AUTO_NOTES, _AI_MOD  # noqa: F401
+from .config import _fallback_config_path  # noqa: F401
 
 from .textio import __all__ as _textio_all
 from .paths import __all__ as _paths_all

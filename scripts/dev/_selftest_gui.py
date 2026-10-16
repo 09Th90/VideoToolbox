@@ -21,6 +21,11 @@ sys.path.insert(0, _SRC)
 os.environ["VT_NO_PIPELINE"] = "1"
 import video_toolbox as engine
 
+# v2.3.1（A2 拆 asr 域）：vc_migrate_legacy_data / vc_legacy_leftovers 搬入
+# core.asr.runtime_patches 后，内部读该模块命名空间的 _VC_LEGACY_DIRS /
+# vc_data_dir——patch 需跟随实现域（engine 侧保留，护未拆调用方）。
+from core.asr import runtime_patches as _rp
+
 os.environ.setdefault(
     "QT_QPA_PLATFORM_PLUGIN_PATH",
     os.path.join(engine.EMBEDDED_SITE_PACKAGES, "PySide6", "plugins"))
@@ -115,11 +120,14 @@ def _migrate_flattens_nested():
 
         orig_dirs, orig_dst = engine._VC_LEGACY_DIRS, engine.vc_data_dir
         engine._VC_LEGACY_DIRS = (legacy,)
+        _rp._VC_LEGACY_DIRS = (legacy,)
         engine.vc_data_dir = lambda: dst
+        _rp.vc_data_dir = lambda: dst
         try:
             engine.vc_migrate_legacy_data()
         finally:
             engine._VC_LEGACY_DIRS, engine.vc_data_dir = orig_dirs, orig_dst
+            _rp._VC_LEGACY_DIRS, _rp.vc_data_dir = orig_dirs, orig_dst
 
         got_settings = os.path.isfile(os.path.join(dst, "settings.json"))
         got_log = os.path.isfile(os.path.join(dst, "logs", "app.log"))
@@ -149,11 +157,14 @@ def _leftover_ignores_migrated():
 
         orig_dirs, orig_dst = engine._VC_LEGACY_DIRS, engine.vc_data_dir
         engine._VC_LEGACY_DIRS = (legacy,)
+        _rp._VC_LEGACY_DIRS = (legacy,)
         engine.vc_data_dir = lambda: dst
+        _rp.vc_data_dir = lambda: dst
         try:
             leftovers = engine.vc_legacy_leftovers()
         finally:
             engine._VC_LEGACY_DIRS, engine.vc_data_dir = orig_dirs, orig_dst
+            _rp._VC_LEGACY_DIRS, _rp.vc_data_dir = orig_dirs, orig_dst
         return leftovers == []
     except OSError:
         return False
@@ -176,12 +187,15 @@ def _migrate_idempotent():
 
         orig_dirs, orig_dst = engine._VC_LEGACY_DIRS, engine.vc_data_dir
         engine._VC_LEGACY_DIRS = (legacy,)
+        _rp._VC_LEGACY_DIRS = (legacy,)
         engine.vc_data_dir = lambda: dst
+        _rp.vc_data_dir = lambda: dst
         try:
             first = engine.vc_migrate_legacy_data()
             second = engine.vc_migrate_legacy_data()
         finally:
             engine._VC_LEGACY_DIRS, engine.vc_data_dir = orig_dirs, orig_dst
+            _rp._VC_LEGACY_DIRS, _rp.vc_data_dir = orig_dirs, orig_dst
         # 首次至少搬 1 项；第二次必须为 0（源已空）
         return first >= 1 and second == 0
     except OSError:

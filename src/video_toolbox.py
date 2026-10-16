@@ -194,7 +194,8 @@ from core.shared import (  # 私有名（* 不导出下划线开头，必须显�
     _AI_LAST_AUTO_NOTES, _LOG_ERR_WORDS, _LOG_WARN_WORDS, _append_log,
     _vc_log, _mihomo_log, _is_self_exe, _VC_LEGACY_DIRS,
     _BOOTSTRAP_LOCK, _hide_console_kwargs,
-    _vc_read_settings, _vc_write_settings,
+    _vc_read_settings, _vc_write_settings, _fallback_config_path,
+    _path_on_system_drive,
 )
 
 

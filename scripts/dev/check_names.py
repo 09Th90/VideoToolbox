@@ -19,6 +19,7 @@
 """
 import argparse
 import builtins
+import importlib
 import os
 import symtable
 import sys
@@ -31,6 +32,34 @@ IMPLICIT = {
 }
 
 
+def _star_names(src):
+    """展开源码里 `from X import *` 的已知名（v2.3.1 拆分工程）。
+
+    facade（video_toolbox.py）以 `from core.shared import *` 等再导出常量，
+    symtable 不解析 * 的语义——模块可导入时把其 __all__（缺省 dir 非下划线）
+    展开为已知名，消除「静态分析看不见 * 导入」的整类误报；模块不可导入
+    （如 requires 打包环境）时跳过该语句。
+    """
+    import ast as _ast
+    names = set()
+    try:
+        tree = _ast.parse(src)
+    except SyntaxError:
+        return names
+    for node in _ast.walk(tree):
+        if isinstance(node, _ast.ImportFrom) and node.level == 0 \
+                and any(a.name == "*" for a in node.names) and node.module:
+            try:
+                mod = importlib.import_module(node.module)
+            except Exception:  # noqa: BLE001
+                continue
+            exported = getattr(mod, "__all__", None)
+            if exported is None:
+                exported = (n for n in dir(mod) if not n.startswith("_"))
+            names.update(exported)
+    return names
+
+
 def scan_source(src, filename="<string>"):
     """返回 [(作用域, 行号, 名字), ...]：函数/类作用域里引用了但没有定义的全局名。"""
     try:
@@ -38,7 +67,7 @@ def scan_source(src, filename="<string>"):
     except SyntaxError as e:                     # 语法错由 py_compile 负责，这里只提示
         return [(f"<SyntaxError> {e.msg}", e.lineno or 0, filename)]
 
-    defined = set(top.get_identifiers()) | IMPLICIT
+    defined = set(top.get_identifiers()) | IMPLICIT | _star_names(src)
     problems = []
 
     def walk(table):

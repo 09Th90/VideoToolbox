@@ -130,6 +130,7 @@ DOMAIN_MAP = {
 #: 严格断言（core 子包可导入 / __all__ 覆盖 / facade 只剩再导出）。
 SPLIT_STATUS = {d: "pending" for d in DOMAIN_MAP}
 SPLIT_STATUS["download"] = "done"  # v2.3.1 A1：56 符号 + 15 常量全量搬入
+SPLIT_STATUS["asr"] = "done"       # v2.3.1 A2：31 符号全量搬入（A2a+A2b）
 
 #: 常量基线只快照这些类型（dict/set 等运行期缓存会变，不钉）
 _CONST_TYPES = (str, int, float, bool, tuple, list, frozenset)
