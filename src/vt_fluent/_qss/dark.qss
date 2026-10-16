@@ -1,0 +1,50 @@
+/* vt_fluent 深色档色板（TOKENS_DARK 的 QSS 形态）。
+ *
+ * 令牌逐值对照基准 = qfluentwidgets 1.11.3 dark/*.qss（B0 门）。
+ * 命名对照（--ThemeColorXxx 由 _theme.ThemeColor 运行期派生，不在此钉值）：
+ *
+ *   表面 acrylic      控件底 rgba(255,255,255,0.0605)；hover 0.0837；
+ *                     pressed 0.0326；disabled 0.0419（button.qss）
+ *   描边              rgba(255,255,255,0.08) 周框；输入框底线
+ *                     rgba(255,255,255,0.5442)；disabled 描边 0.0698
+ *   文字              主文 white；placeholder rgba(255,255,255,0.6063)；
+ *                     pressed 0.786；disabled 0.3628（另见 0.36/0.4 两处）
+ *   实底              输入框聚焦 rgb(31,31,31)（transparent=false 档）；
+ *                     菜单/提示底 rgb(43,43,43)；菜单描边 rgba(255,255,255,0.1)；
+ *                     提示描边 rgb(28,28,28)；滑杆槽 rgb(158,159,159)；
+ *                     滑杆把手描边 rgb(58,58,58)/rgb(69,69,69)
+ *   主按钮            底 --ThemeColorPrimary、字 black、周框 --ThemeColorLight1、
+ *                     底线 --ThemeColorLight2（深色档底线取亮档）
+ *   圆角              控件 5px；菜单 9px；菜单项 5px；提示 4px
+ *   度量              CheckBox 指示器 18px/圆角 5px；菜单项 padding 10px
+ */
+
+/* ---- 标签 ------------------------------------------------------------ */
+FluentLabelBase {
+    color: white;
+}
+
+/* ---- 工具提示 -------------------------------------------------------- */
+ToolTip > #container {
+    background-color: rgb(43, 43, 43);
+    border: 1px solid rgb(28, 28, 28);
+    border-radius: 4px;
+}
+
+ToolTip > #container[transparent=true] {
+    background-color: transparent;
+    border: 1px solid rgba(0, 0, 0, 50);
+}
+
+/* ---- 超链接标签 ------------------------------------------------------ */
+HyperlinkLabel {
+    color: --ThemeColorPrimary;
+}
+
+HyperlinkLabel:hover {
+    color: --ThemeColorDark1;
+}
+
+HyperlinkLabel:pressed {
+    color: --ThemeColorLight1;
+}

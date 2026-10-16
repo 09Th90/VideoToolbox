@@ -1,0 +1,31 @@
+/* vt_fluent 公共结构规则（明暗两档一致的部分）。
+ *
+ * 载入顺序：common.qss + (light.qss | dark.qss) 合并后经 renderQss()
+ * 替换 --ThemeColorXxx / --FontFamilies 占位符，再 setStyleSheet 到控件。
+ * 规则按 Qt 类名作用域：套到任一控件上，只有与其类名匹配的规则生效，
+ * 故「全量合并」与「逐控件分文件」渲染等价（见 _theme.py FluentStyleSheet）。
+ *
+ * 本文件（B0）只含标签基类与工具提示的公共结构；按钮/输入/展示等族的
+ * 结构规则随 B1/B2 各步补入本目录三文件（不新增文件）。
+ */
+
+/* ---- 标签基类 -------------------------------------------------------- */
+FluentLabelBase {
+    font: 14px --FontFamilies;
+    background-color: transparent;
+    border: none;
+}
+
+/* ---- 工具提示 -------------------------------------------------------- */
+ToolTip {
+    border-radius: 4px;
+}
+
+/* ---- 超链接标签（结构部分；颜色在明暗文件里按主题给） ----------------- */
+HyperlinkLabel {
+    border: none;
+    background-color: transparent;
+    text-align: left;
+    padding: 0;
+    margin: 0;
+}

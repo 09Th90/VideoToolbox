@@ -1,0 +1,532 @@
+{
+ "qfluentwidgets.common.config::ConfigItem": {
+  "count": 2,
+  "files": [
+   "src/vt_engine_ui/components.py",
+   "src/vt_engine_ui/subtitle_setting_dialog.py"
+  ]
+ },
+ "qfluentwidgets.common.config::qconfig": {
+  "count": 2,
+  "files": [
+   "src/vt_engine_ui/components.py",
+   "src/vt_engine_ui/subtitle_setting_dialog.py"
+  ]
+ },
+ "qfluentwidgets.common.style_sheet::isDarkTheme": {
+  "count": 1,
+  "files": [
+   "src/ui_theme.py"
+  ]
+ },
+ "qfluentwidgets.components.dialog_box.mask_dialog_base::MaskDialogBase": {
+  "count": 1,
+  "files": [
+   "src/ui_theme.py"
+  ]
+ },
+ "qfluentwidgets.components.navigation.navigation_widget::NavigationWidget": {
+  "count": 1,
+  "files": [
+   "src/video_toolbox_qt.py"
+  ]
+ },
+ "qfluentwidgets.components.settings.setting_card::SettingCard": {
+  "count": 1,
+  "files": [
+   "src/ui_theme.py"
+  ]
+ },
+ "qfluentwidgets.components.widgets.card_widget::CardWidget": {
+  "count": 1,
+  "files": [
+   "src/ui_theme.py"
+  ]
+ },
+ "qfluentwidgets.components.widgets.card_widget::ElevatedCardWidget": {
+  "count": 1,
+  "files": [
+   "src/ui_theme.py"
+  ]
+ },
+ "qfluentwidgets.components.widgets.card_widget::SimpleCardWidget": {
+  "count": 1,
+  "files": [
+   "src/ui_theme.py"
+  ]
+ },
+ "qfluentwidgets.components.widgets.spin_box::SpinBoxBase": {
+  "count": 1,
+  "files": [
+   "src/qt_compat.py"
+  ]
+ },
+ "qfluentwidgets::Action": {
+  "count": 3,
+  "files": [
+   "src/video_toolbox.py",
+   "src/vt_engine_ui/subtitle_interface.py",
+   "src/vt_engine_ui/transcription_interface.py"
+  ]
+ },
+ "qfluentwidgets::BodyLabel": {
+  "count": 9,
+  "files": [
+   "src/harness_page.py",
+   "src/speaker_voiceprint_page.py",
+   "src/video_toolbox.py",
+   "src/video_toolbox_qt.py",
+   "src/vt_engine_ui/components.py",
+   "src/vt_engine_ui/subtitle_interface.py",
+   "src/vt_engine_ui/subtitle_setting_dialog.py",
+   "src/vt_engine_ui/task_creation_interface.py",
+   "src/vt_engine_ui/transcription_interface.py"
+  ]
+ },
+ "qfluentwidgets::CaptionLabel": {
+  "count": 4,
+  "files": [
+   "src/auto_vision_page.py",
+   "src/harness_page.py",
+   "src/speaker_voiceprint_page.py",
+   "src/video_toolbox_qt.py"
+  ]
+ },
+ "qfluentwidgets::CardWidget": {
+  "count": 4,
+  "files": [
+   "src/harness_page.py",
+   "src/ui_theme.py",
+   "src/video_toolbox_qt.py",
+   "src/vt_engine_ui/transcription_interface.py"
+  ]
+ },
+ "qfluentwidgets::CheckBox": {
+  "count": 1,
+  "files": [
+   "src/speaker_voiceprint_page.py"
+  ]
+ },
+ "qfluentwidgets::ComboBox": {
+  "count": 2,
+  "files": [
+   "src/auto_vision_page.py",
+   "src/video_toolbox_qt.py"
+  ]
+ },
+ "qfluentwidgets::ComboBoxSettingCard": {
+  "count": 2,
+  "files": [
+   "src/vt_engine_ui/components.py",
+   "src/vt_engine_ui/setting_interface.py"
+  ]
+ },
+ "qfluentwidgets::CommandBar": {
+  "count": 2,
+  "files": [
+   "src/vt_engine_ui/subtitle_interface.py",
+   "src/vt_engine_ui/transcription_interface.py"
+  ]
+ },
+ "qfluentwidgets::CompactSpinBox": {
+  "count": 1,
+  "files": [
+   "src/vt_engine_ui/subtitle_setting_dialog.py"
+  ]
+ },
+ "qfluentwidgets::CustomColorSettingCard": {
+  "count": 1,
+  "files": [
+   "src/vt_engine_ui/setting_interface.py"
+  ]
+ },
+ "qfluentwidgets::EditableComboBox": {
+  "count": 1,
+  "files": [
+   "src/vt_engine_ui/components.py"
+  ]
+ },
+ "qfluentwidgets::ExpandLayout": {
+  "count": 1,
+  "files": [
+   "src/vt_engine_ui/setting_interface.py"
+  ]
+ },
+ "qfluentwidgets::FluentIcon": {
+  "count": 12,
+  "files": [
+   "src/auto_vision_page.py",
+   "src/harness_page.py",
+   "src/speaker_voiceprint_page.py",
+   "src/video_toolbox.py",
+   "src/video_toolbox_qt.py",
+   "src/vt_engine_ui/components.py",
+   "src/vt_engine_ui/setting_interface.py",
+   "src/vt_engine_ui/subtitle_interface.py",
+   "src/vt_engine_ui/subtitle_setting_dialog.py",
+   "src/vt_engine_ui/task_creation_interface.py",
+   "src/vt_engine_ui/transcription_interface.py"
+  ]
+ },
+ "qfluentwidgets::FluentStyleSheet": {
+  "count": 1,
+  "files": [
+   "src/vt_engine_ui/task_creation_interface.py"
+  ]
+ },
+ "qfluentwidgets::FluentWindow": {
+  "count": 1,
+  "files": [
+   "src/video_toolbox_qt.py"
+  ]
+ },
+ "qfluentwidgets::HyperlinkButton": {
+  "count": 1,
+  "files": [
+   "src/vt_engine_ui/task_creation_interface.py"
+  ]
+ },
+ "qfluentwidgets::HyperlinkCard": {
+  "count": 1,
+  "files": [
+   "src/vt_engine_ui/setting_interface.py"
+  ]
+ },
+ "qfluentwidgets::InfoBar": {
+  "count": 10,
+  "files": [
+   "src/auto_vision_page.py",
+   "src/harness_page.py",
+   "src/subtitle_compose.py",
+   "src/video_toolbox.py",
+   "src/video_toolbox_qt.py",
+   "src/vt_engine_ui/home_interface.py",
+   "src/vt_engine_ui/setting_interface.py",
+   "src/vt_engine_ui/subtitle_interface.py",
+   "src/vt_engine_ui/task_creation_interface.py",
+   "src/vt_engine_ui/transcription_interface.py"
+  ]
+ },
+ "qfluentwidgets::InfoBarPosition": {
+  "count": 9,
+  "files": [
+   "src/auto_vision_page.py",
+   "src/harness_page.py",
+   "src/subtitle_compose.py",
+   "src/video_toolbox.py",
+   "src/video_toolbox_qt.py",
+   "src/vt_engine_ui/home_interface.py",
+   "src/vt_engine_ui/subtitle_interface.py",
+   "src/vt_engine_ui/task_creation_interface.py",
+   "src/vt_engine_ui/transcription_interface.py"
+  ]
+ },
+ "qfluentwidgets::LineEdit": {
+  "count": 5,
+  "files": [
+   "src/auto_vision_page.py",
+   "src/speaker_voiceprint_page.py",
+   "src/video_toolbox_qt.py",
+   "src/vt_engine_ui/components.py",
+   "src/vt_engine_ui/task_creation_interface.py"
+  ]
+ },
+ "qfluentwidgets::ListWidget": {
+  "count": 1,
+  "files": [
+   "src/video_toolbox_qt.py"
+  ]
+ },
+ "qfluentwidgets::MessageBox": {
+  "count": 1,
+  "files": [
+   "src/video_toolbox_qt.py"
+  ]
+ },
+ "qfluentwidgets::MessageBoxBase": {
+  "count": 3,
+  "files": [
+   "src/vt_engine_ui/components.py",
+   "src/vt_engine_ui/subtitle_interface.py",
+   "src/vt_engine_ui/subtitle_setting_dialog.py"
+  ]
+ },
+ "qfluentwidgets::NavigationItemPosition": {
+  "count": 1,
+  "files": [
+   "src/video_toolbox_qt.py"
+  ]
+ },
+ "qfluentwidgets::OptionsSettingCard": {
+  "count": 1,
+  "files": [
+   "src/vt_engine_ui/setting_interface.py"
+  ]
+ },
+ "qfluentwidgets::PasswordLineEdit": {
+  "count": 1,
+  "files": [
+   "src/video_toolbox_qt.py"
+  ]
+ },
+ "qfluentwidgets::PillPushButton": {
+  "count": 1,
+  "files": [
+   "src/vt_engine_ui/transcription_interface.py"
+  ]
+ },
+ "qfluentwidgets::PlainTextEdit": {
+  "count": 1,
+  "files": [
+   "src/harness_page.py"
+  ]
+ },
+ "qfluentwidgets::PrimaryPushButton": {
+  "count": 7,
+  "files": [
+   "src/auto_vision_page.py",
+   "src/harness_page.py",
+   "src/speaker_voiceprint_page.py",
+   "src/subtitle_compose.py",
+   "src/video_toolbox_qt.py",
+   "src/vt_engine_ui/subtitle_interface.py",
+   "src/vt_engine_ui/transcription_interface.py"
+  ]
+ },
+ "qfluentwidgets::PrimaryPushSettingCard": {
+  "count": 1,
+  "files": [
+   "src/vt_engine_ui/setting_interface.py"
+  ]
+ },
+ "qfluentwidgets::ProgressBar": {
+  "count": 6,
+  "files": [
+   "src/auto_vision_page.py",
+   "src/speaker_voiceprint_page.py",
+   "src/subtitle_compose.py",
+   "src/video_toolbox_qt.py",
+   "src/vt_engine_ui/subtitle_interface.py",
+   "src/vt_engine_ui/task_creation_interface.py"
+  ]
+ },
+ "qfluentwidgets::ProgressRing": {
+  "count": 1,
+  "files": [
+   "src/vt_engine_ui/transcription_interface.py"
+  ]
+ },
+ "qfluentwidgets::PushButton": {
+  "count": 9,
+  "files": [
+   "src/auto_vision_page.py",
+   "src/harness_page.py",
+   "src/speaker_voiceprint_page.py",
+   "src/subtitle_compose.py",
+   "src/video_toolbox.py",
+   "src/video_toolbox_qt.py",
+   "src/vt_engine_ui/subtitle_interface.py",
+   "src/vt_engine_ui/task_creation_interface.py",
+   "src/vt_engine_ui/transcription_interface.py"
+  ]
+ },
+ "qfluentwidgets::PushSettingCard": {
+  "count": 1,
+  "files": [
+   "src/vt_engine_ui/setting_interface.py"
+  ]
+ },
+ "qfluentwidgets::RadioButton": {
+  "count": 1,
+  "files": [
+   "src/subtitle_compose.py"
+  ]
+ },
+ "qfluentwidgets::RangeSettingCard": {
+  "count": 1,
+  "files": [
+   "src/vt_engine_ui/setting_interface.py"
+  ]
+ },
+ "qfluentwidgets::RoundMenu": {
+  "count": 3,
+  "files": [
+   "src/video_toolbox.py",
+   "src/vt_engine_ui/subtitle_interface.py",
+   "src/vt_engine_ui/transcription_interface.py"
+  ]
+ },
+ "qfluentwidgets::ScrollArea": {
+  "count": 4,
+  "files": [
+   "src/auto_vision_page.py",
+   "src/harness_page.py",
+   "src/video_toolbox_qt.py",
+   "src/vt_engine_ui/setting_interface.py"
+  ]
+ },
+ "qfluentwidgets::SegmentedWidget": {
+  "count": 2,
+  "files": [
+   "src/video_toolbox_qt.py",
+   "src/vt_engine_ui/home_interface.py"
+  ]
+ },
+ "qfluentwidgets::SettingCard": {
+  "count": 2,
+  "files": [
+   "src/vt_engine_ui/components.py",
+   "src/vt_engine_ui/subtitle_setting_dialog.py"
+  ]
+ },
+ "qfluentwidgets::SettingCardGroup": {
+  "count": 1,
+  "files": [
+   "src/vt_engine_ui/setting_interface.py"
+  ]
+ },
+ "qfluentwidgets::SimpleCardWidget": {
+  "count": 1,
+  "files": [
+   "src/video_toolbox_qt.py"
+  ]
+ },
+ "qfluentwidgets::Slider": {
+  "count": 1,
+  "files": [
+   "src/video_toolbox_qt.py"
+  ]
+ },
+ "qfluentwidgets::SpinBox": {
+  "count": 3,
+  "files": [
+   "src/qt_compat.py",
+   "src/speaker_voiceprint_page.py",
+   "src/video_toolbox_qt.py"
+  ]
+ },
+ "qfluentwidgets::StrongBodyLabel": {
+  "count": 4,
+  "files": [
+   "src/auto_vision_page.py",
+   "src/harness_page.py",
+   "src/speaker_voiceprint_page.py",
+   "src/video_toolbox_qt.py"
+  ]
+ },
+ "qfluentwidgets::SubtitleLabel": {
+  "count": 2,
+  "files": [
+   "src/auto_vision_page.py",
+   "src/video_toolbox_qt.py"
+  ]
+ },
+ "qfluentwidgets::SwitchButton": {
+  "count": 2,
+  "files": [
+   "src/auto_vision_page.py",
+   "src/video_toolbox_qt.py"
+  ]
+ },
+ "qfluentwidgets::SwitchSettingCard": {
+  "count": 2,
+  "files": [
+   "src/vt_engine_ui/setting_interface.py",
+   "src/vt_engine_ui/subtitle_setting_dialog.py"
+  ]
+ },
+ "qfluentwidgets::TableView": {
+  "count": 1,
+  "files": [
+   "src/vt_engine_ui/subtitle_interface.py"
+  ]
+ },
+ "qfluentwidgets::TableWidget": {
+  "count": 1,
+  "files": [
+   "src/video_toolbox_qt.py"
+  ]
+ },
+ "qfluentwidgets::TextEdit": {
+  "count": 5,
+  "files": [
+   "src/auto_vision_page.py",
+   "src/harness_page.py",
+   "src/video_toolbox_qt.py",
+   "src/vt_engine_ui/subtitle_interface.py",
+   "src/vt_engine_ui/task_creation_interface.py"
+  ]
+ },
+ "qfluentwidgets::Theme": {
+  "count": 2,
+  "files": [
+   "src/ui_theme.py",
+   "src/video_toolbox_qt.py"
+  ]
+ },
+ "qfluentwidgets::TitleLabel": {
+  "count": 2,
+  "files": [
+   "src/harness_page.py",
+   "src/video_toolbox_qt.py"
+  ]
+ },
+ "qfluentwidgets::ToolButton": {
+  "count": 3,
+  "files": [
+   "src/speaker_voiceprint_page.py",
+   "src/video_toolbox_qt.py",
+   "src/vt_engine_ui/task_creation_interface.py"
+  ]
+ },
+ "qfluentwidgets::TransparentDropDownPushButton": {
+  "count": 2,
+  "files": [
+   "src/vt_engine_ui/subtitle_interface.py",
+   "src/vt_engine_ui/transcription_interface.py"
+  ]
+ },
+ "qfluentwidgets::isDarkTheme": {
+  "count": 6,
+  "files": [
+   "src/subtitle_compose.py",
+   "src/ui_theme.py",
+   "src/video_toolbox_qt.py",
+   "src/vt_engine_ui/task_creation_interface.py"
+  ]
+ },
+ "qfluentwidgets::isDarkThemeMode": {
+  "count": 1,
+  "files": [
+   "src/ui_theme.py"
+  ]
+ },
+ "qfluentwidgets::qconfig": {
+  "count": 1,
+  "files": [
+   "src/ui_theme.py"
+  ]
+ },
+ "qfluentwidgets::setFont": {
+  "count": 1,
+  "files": [
+   "src/vt_engine_ui/transcription_interface.py"
+  ]
+ },
+ "qfluentwidgets::setTheme": {
+  "count": 4,
+  "files": [
+   "src/ui_theme.py",
+   "src/video_toolbox_qt.py",
+   "src/vt_engine_ui/setting_interface.py"
+  ]
+ },
+ "qfluentwidgets::setThemeColor": {
+  "count": 4,
+  "files": [
+   "src/ui_theme.py",
+   "src/video_toolbox_qt.py",
+   "src/vt_engine_ui/setting_interface.py"
+  ]
+ }
+}
