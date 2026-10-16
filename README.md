@@ -150,7 +150,7 @@ scripts/dev/                开发期自检脚本
 
 > 安装包内 `docs\开源许可_GPL-3.0.txt` 是法律要求必须保留的文件，请勿删除。
 
-本软件自身的许可见 [`LICENSE`](LICENSE)。
+本软件自身以 [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/)（署名-相同方式共享 4.0 国际）许可发布，许可全文（含官方英文原文）见 [`LICENSE`](LICENSE)。
 
 ---
 
