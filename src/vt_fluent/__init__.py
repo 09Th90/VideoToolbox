@@ -39,6 +39,17 @@ from ._theme import (Theme, QConfig, qconfig, ConfigItem, ConfigValidator,
                      fontFamilies, getFont, setFont, QT_VERSION)
 from ._icon import (FluentIcon, FluentIconBase, FluentIconEngine, SvgIconEngine,
                     Icon, Action, toQIcon, getIconColor)
+from ._buttons import (PushButton, PrimaryPushButton, ToolButton,
+                      HyperlinkButton, PillPushButton,
+                      TransparentDropDownPushButton, RadioButton)
+from ._inputs import (LineEdit, PasswordLineEdit, TextEdit, PlainTextEdit,
+                     ComboBox, EditableComboBox, SpinBox, CompactSpinBox,
+                     SpinBoxBase, CheckBox, SwitchButton, Slider)
+from ._display import (BodyLabel, CaptionLabel, StrongBodyLabel,
+                      SubtitleLabel, TitleLabel, CardWidget, SimpleCardWidget,
+                      ElevatedCardWidget, ScrollArea, SegmentedWidget,
+                      ProgressBar, ProgressRing, ListWidget, TableWidget,
+                      TableView)
 
 __version__ = "2.3.1"
 
@@ -86,19 +97,6 @@ def _make_pending(name, step):
 #: (符号名, 所属 B 步)
 _PENDING = [
     # B1 · 纯控件族（_buttons/_inputs/_display）
-    ("PushButton", 1), ("PrimaryPushButton", 1), ("ToolButton", 1),
-    ("HyperlinkButton", 1), ("PillPushButton", 1),
-    ("TransparentDropDownPushButton", 1),
-    ("LineEdit", 1), ("PasswordLineEdit", 1), ("TextEdit", 1),
-    ("PlainTextEdit", 1), ("ComboBox", 1), ("EditableComboBox", 1),
-    ("SpinBox", 1), ("CompactSpinBox", 1), ("SpinBoxBase", 1),
-    ("CheckBox", 1), ("RadioButton", 1), ("SwitchButton", 1), ("Slider", 1),
-    ("BodyLabel", 1), ("CaptionLabel", 1), ("StrongBodyLabel", 1),
-    ("SubtitleLabel", 1), ("TitleLabel", 1),
-    ("CardWidget", 1), ("SimpleCardWidget", 1), ("ElevatedCardWidget", 1),
-    ("ScrollArea", 1), ("SegmentedWidget", 1),
-    ("ProgressBar", 1), ("ProgressRing", 1),
-    ("ListWidget", 1), ("TableWidget", 1), ("TableView", 1),
     # B2 · 反馈/菜单/设置（_feedback/_menu/_setting）
     ("MaskDialogBase", 2), ("MessageBox", 2), ("MessageBoxBase", 2),
     ("InfoBar", 2), ("RoundMenu", 2), ("CommandBar", 2),

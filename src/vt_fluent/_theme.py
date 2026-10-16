@@ -819,3 +819,32 @@ def getFont(fontSize=14, weight=QFont.Normal):
 def setFont(widget: QWidget, fontSize=14, weight=QFont.Normal):
     """设控件字体（像素字号 + 字体族清单）。"""
     widget.setFont(getFont(fontSize, weight))
+
+
+# ---------------------------------------------------------------------- #
+# 颜色辅助（对应 qfluentwidgets.common.color 的使用面子集）
+# ---------------------------------------------------------------------- #
+class FluentSystemColor(Enum):
+    """系统语义色（前景 light/dark 两档；B1 用于输入框错误态描边）。"""
+
+    CRITICAL_FOREGROUND = ("#c42b1c", "#ff99a4")
+
+    def color(self):
+        from ._theme import isDarkTheme
+        return QColor(self.value[1] if isDarkTheme() else self.value[0])
+
+
+def validColor(color: QColor, default: QColor) -> QColor:
+    """颜色非法（空 QColor）时回落默认值。"""
+    return color if color.isValid() else default
+
+
+def fallbackThemeColor(color: QColor) -> QColor:
+    """空颜色回落主题色（PRIMARY）。"""
+    return color if color.isValid() else themeColor()
+
+
+def autoFallbackThemeColor(light: QColor, dark: QColor) -> QColor:
+    """按主题取 light/dark 之一，空值回落主题色。"""
+    color = dark if isDarkTheme() else light
+    return fallbackThemeColor(color)

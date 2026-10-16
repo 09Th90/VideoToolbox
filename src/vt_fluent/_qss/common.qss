@@ -5,27 +5,283 @@
  * 规则按 Qt 类名作用域：套到任一控件上，只有与其类名匹配的规则生效，
  * 故「全量合并」与「逐控件分文件」渲染等价（见 _theme.py FluentStyleSheet）。
  *
- * 本文件（B0）只含标签基类与工具提示的公共结构；按钮/输入/展示等族的
- * 结构规则随 B1/B2 各步补入本目录三文件（不新增文件）。
+ * 逐值基准：qfluentwidgets 1.11.3 对应 QSS（data/tmp/qss_ref/qss/，
+ * 跑 scripts/dev/_gen_vt_fluent_icons.py 再生）。B0 交付标签/提示底座，
+ * B1 补按钮/输入/展示族结构，B2/B3 续补。
+ *
+ * 注：RadioButton/Slider 的指示器 QSS 与 CheckBox::indicator 在 Fluent 类
+ * 上是**惰性规则**（这些类的 paintEvent 全自绘，不走样式子控件绘制）——
+ * 保留是为 style 几何契约与潜在的原生 QRadioButton/QSlider 实例对齐。
  */
 
-/* ---- 标签基类 -------------------------------------------------------- */
+/* ---- 标签基类（B0） -------------------------------------------------- */
+/* ⚠ 不设 font：字号/字重由各标签类 Python 侧 getFont() 给出
+   （Caption 12 / Body 14 / Strong 14 半粗 / Subtitle 20 / Title 28）。
+   QSS 类型选择器匹配子类，写死 font 会把全部标签盖成同一号。 */
 FluentLabelBase {
-    font: 14px --FontFamilies;
     background-color: transparent;
     border: none;
 }
 
-/* ---- 工具提示 -------------------------------------------------------- */
+/* ---- 工具提示（B0） -------------------------------------------------- */
 ToolTip {
     border-radius: 4px;
 }
 
-/* ---- 超链接标签（结构部分；颜色在明暗文件里按主题给） ----------------- */
+/* ---- 超链接标签结构（颜色在明暗文件） -------------------------------- */
 HyperlinkLabel {
     border: none;
     background-color: transparent;
     text-align: left;
     padding: 0;
     margin: 0;
+}
+
+/* ---- 按钮族结构 ------------------------------------------------------ */
+PushButton, ToolButton, ToggleButton, ToggleToolButton {
+    border-radius: 5px;
+    padding: 5px 12px 6px 12px;
+    outline: none;
+}
+
+ToolButton {
+    padding: 5px 9px 6px 8px;
+}
+
+PushButton[hasIcon=false] {
+    padding: 5px 12px 6px 12px;
+}
+
+PushButton[hasIcon=true] {
+    padding: 5px 12px 6px 36px;
+}
+
+DropDownToolButton,
+PrimaryDropDownToolButton {
+    padding: 5px 31px 6px 8px;
+}
+
+DropDownPushButton[hasIcon=false],
+PrimaryDropDownPushButton[hasIcon=false] {
+    padding: 5px 31px 6px 12px;
+}
+
+DropDownPushButton[hasIcon=true],
+PrimaryDropDownPushButton[hasIcon=true] {
+    padding: 5px 31px 6px 36px;
+}
+
+HyperlinkButton[hasIcon=false] {
+    padding: 5px 12px 6px 12px;
+}
+
+HyperlinkButton[hasIcon=true] {
+    padding: 5px 12px 6px 36px;
+}
+
+RadioButton {
+    min-height: 24px;
+    max-height: 24px;
+    background-color: transparent;
+    font: 14px --FontFamilies;
+    outline: none;
+}
+
+RadioButton::indicator {
+    width: 18px;
+    height: 18px;
+    border-radius: 11px;
+    margin-right: 4px;
+}
+
+/* ---- 复选结构（自绘指示器；文字色在明暗文件） ------------------------ */
+CheckBox {
+    spacing: 8px;
+    min-width: 28px;
+    min-height: 22px;
+    outline: none;
+    margin-left: 1px;
+}
+
+CheckBox::indicator {
+    width: 18px;
+    height: 18px;
+    border-radius: 5px;
+    border: 1px solid transparent;
+    background-color: transparent;
+}
+
+/* ---- 输入框结构 ------------------------------------------------------ */
+LineEdit, TextEdit, PlainTextEdit, TextBrowser {
+    border-radius: 5px;
+    padding: 0px 10px;
+    outline: none;
+}
+
+TextEdit, PlainTextEdit, TextBrowser {
+    padding: 2px 3px 2px 8px;
+}
+
+LineEditButton {
+    background-color: transparent;
+    border-radius: 4px;
+    margin: 0;
+}
+
+/* ---- 数字框结构 ------------------------------------------------------ */
+SpinBox, DoubleSpinBox {
+    border-radius: 5px;
+    padding: 0px 80px 0 10px;
+}
+
+CompactSpinBox, CompactDoubleSpinBox {
+    padding: 0px 26px 0 10px;
+}
+
+SpinBox:read-only, DoubleSpinBox:read-only,
+SpinBox[symbolVisible=false], DoubleSpinBox[symbolVisible=false],
+CompactSpinBox:read-only, CompactDoubleSpinBox:read-only,
+CompactSpinBox[symbolVisible=false], CompactDoubleSpinBox[symbolVisible=false] {
+    padding: 0px 10px 0 10px;
+}
+
+/* ---- 下拉框结构 ------------------------------------------------------ */
+ComboBox, QFontComboBox {
+    border-radius: 5px;
+    padding: 5px 31px 6px 11px;
+    text-align: left;
+    outline: none;
+}
+
+/* ---- 开关结构 -------------------------------------------------------- */
+SwitchButton {
+    qproperty-spacing: 12;
+    background-color: transparent;
+}
+
+SwitchButton>QLabel {
+    font: 14px --FontFamilies;
+    background-color: transparent;
+    border: none;
+}
+
+/* ---- Pivot / 分段控件结构 -------------------------------------------- */
+PivotItem {
+    padding: 10px 12px;
+    background-color: transparent;
+    border: none;
+    outline: none;
+}
+
+PivotItem[hasIcon=false] {
+    padding-left: 12px;
+    padding-right: 12px;
+}
+
+PivotItem[hasIcon=true] {
+    padding-left: 36px;
+    padding-right: 12px;
+}
+
+Pivot {
+    border: none;
+    background-color: transparent;
+}
+
+SegmentedToolItem {
+    padding: 5px 9px 6px 8px;
+}
+
+SegmentedWidget, SegmentedToolWidget {
+    border-radius: 6px;
+}
+
+SegmentedItem[isSelected=false], SegmentedToolItem[isSelected=false] {
+    padding-top: 3px;
+    padding-bottom: 3px;
+    background-color: transparent;
+    border: none;
+    border-radius: 6px;
+    margin: 3px 0px;
+}
+
+SegmentedItem[isSelected=true], SegmentedToolItem[isSelected=true] {
+    padding-top: 6px;
+    padding-bottom: 6px;
+    margin: 0px;
+    background-color: transparent;
+}
+
+/* ---- 表格 / 列表结构（行选中由 delegate 自绘） ----------------------- */
+QTableView {
+    outline: none;
+    border: none;
+    selection-background-color: transparent;
+    alternate-background-color: transparent;
+}
+
+QTableView::item {
+    background: transparent;
+    border: 0px;
+    padding-left: 16px;
+    padding-right: 16px;
+    height: 35px;
+}
+
+QTableView::indicator {
+    width: 18px;
+    height: 18px;
+    border-radius: 5px;
+    border: none;
+    background-color: transparent;
+}
+
+QHeaderView {
+    background-color: transparent;
+}
+
+QHeaderView::section {
+    background-color: transparent;
+    padding-left: 5px;
+    padding-right: 5px;
+    font: 13px --FontFamilies;
+}
+
+QHeaderView::section:horizontal {
+    border-left: none;
+    height: 33px;
+}
+
+QHeaderView::section:vertical {
+    border-top: none;
+}
+
+QHeaderView::section:checked {
+    background-color: transparent;
+}
+
+ListView, ListWidget {
+    outline: none;
+    border: none;
+    selection-background-color: transparent;
+    alternate-background-color: transparent;
+    padding-left: 4px;
+    padding-right: 4px;
+}
+
+ListView::item, ListWidget::item {
+    background: transparent;
+    border: 0px;
+    padding-left: 11px;
+    padding-right: 11px;
+    height: 35px;
+}
+
+ListView::indicator, ListWidget::indicator {
+    width: 18px;
+    height: 18px;
+    border-radius: 5px;
+    border: none;
+    background-color: transparent;
+    margin-right: 4px;
 }

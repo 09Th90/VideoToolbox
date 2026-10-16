@@ -19,12 +19,12 @@
  *   度量              CheckBox 指示器 18px/圆角 5px；菜单项 padding 10px
  */
 
-/* ---- 标签 ------------------------------------------------------------ */
+/* ---- 标签（B0） ------------------------------------------------------ */
 FluentLabelBase {
     color: white;
 }
 
-/* ---- 工具提示 -------------------------------------------------------- */
+/* ---- 工具提示（B0） -------------------------------------------------- */
 ToolTip > #container {
     background-color: rgb(43, 43, 43);
     border: 1px solid rgb(28, 28, 28);
@@ -36,7 +36,7 @@ ToolTip > #container[transparent=true] {
     border: 1px solid rgba(0, 0, 0, 50);
 }
 
-/* ---- 超链接标签 ------------------------------------------------------ */
+/* ---- 超链接标签（B0） ------------------------------------------------ */
 HyperlinkLabel {
     color: --ThemeColorPrimary;
 }
@@ -47,4 +47,364 @@ HyperlinkLabel:hover {
 
 HyperlinkLabel:pressed {
     color: --ThemeColorLight1;
+}
+
+/* ---- 按钮族 ---------------------------------------------------------- */
+PushButton, ToolButton, ToggleButton, ToggleToolButton {
+    background: rgba(255, 255, 255, 0.0605);
+    border: 1px solid rgba(255, 255, 255, 0.053);
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    color: white;
+}
+
+PushButton[isPlaceholderText=true] {
+    color: rgba(255, 255, 255, 0.6063);
+}
+
+PushButton:hover, ToolButton:hover, ToggleButton:hover, ToggleToolButton:hover {
+    background: rgba(255, 255, 255, 0.0837);
+}
+
+PushButton:pressed, ToolButton:pressed, ToggleButton:pressed, ToggleToolButton:pressed {
+    color: rgba(255, 255, 255, 0.786);
+    background: rgba(255, 255, 255, 0.0326);
+    border-top: 1px solid rgba(255, 255, 255, 0.053);
+}
+
+PushButton:disabled, ToolButton:disabled, ToggleButton:disabled, ToggleToolButton:disabled {
+    color: rgba(255, 255, 255, 0.3628);
+    background: rgba(255, 255, 255, 0.0419);
+    border: 1px solid rgba(255, 255, 255, 0.053);
+    border-top: 1px solid rgba(255, 255, 255, 0.053);
+}
+
+PrimaryPushButton,
+PrimaryToolButton,
+ToggleButton:checked,
+ToggleToolButton:checked {
+    color: black;
+    background-color: --ThemeColorPrimary;
+    border: 1px solid --ThemeColorLight1;
+    border-bottom: 1px solid --ThemeColorLight2;
+}
+
+PrimaryPushButton:hover,
+PrimaryToolButton:hover,
+ToggleButton:checked:hover,
+ToggleToolButton:checked:hover {
+    background-color: --ThemeColorLight1;
+    border: 1px solid --ThemeColorLight2;
+    border-bottom: 1px solid --ThemeColorDark1;
+}
+
+PrimaryPushButton:pressed,
+PrimaryToolButton:pressed,
+ToggleButton:checked:pressed,
+ToggleToolButton:checked:pressed {
+    color: rgba(0, 0, 0, 0.63);
+    background-color: --ThemeColorDark2;
+    border: 1px solid --ThemeColorDark2;
+}
+
+PrimaryPushButton:disabled,
+PrimaryToolButton:disabled,
+ToggleButton:checked:disabled,
+ToggleToolButton:checked:disabled {
+    color: rgba(255, 255, 255, 0.43);
+    background-color: rgb(52, 52, 52);
+    border: 1px solid rgb(52, 52, 52);
+}
+
+HyperlinkButton {
+    color: --ThemeColorPrimary;
+    border: none;
+    border-radius: 6px;
+    background-color: transparent;
+}
+
+HyperlinkButton:hover {
+    color: --ThemeColorPrimary;
+    background-color: rgba(255, 255, 255, 10);
+    border: none;
+}
+
+HyperlinkButton:pressed {
+    color: --ThemeColorDark1;
+    background-color: rgba(255, 255, 255, 7);
+    border: none;
+}
+
+HyperlinkButton:disabled {
+    color: rgba(255, 255, 255, 0.43);
+    background-color: transparent;
+    border: none;
+}
+
+RadioButton {
+    color: white;
+}
+
+RadioButton::indicator {
+    border: 2px solid #848484;
+    background-color: transparent;
+}
+
+RadioButton::indicator:hover {
+    background-color: rgba(255, 255, 255, 16);
+}
+
+RadioButton::indicator:pressed {
+    border: 2px solid #434343;
+    background-color: qradialgradient(spread:pad, cx:0.5, cy:0.5, radius:0.5, fx:0.5, fy:0.5,
+            stop:0 rgb(0, 0, 0),
+            stop:0.5 rgb(0, 0, 0),
+            stop:0.6 rgb(43, 42, 42),
+            stop:1 rgb(43, 42, 42));
+}
+
+RadioButton::indicator:checked {
+    height: 22px;
+    width: 22px;
+    border: none;
+    background-color: qradialgradient(spread:pad, cx:0.5, cy:0.5, radius:0.5, fx:0.5, fy:0.5,
+            stop:0 rgb(0, 0, 0),
+            stop:0.5 rgb(0, 0, 0),
+            stop:0.6 --ThemeColorPrimary,
+            stop:1 --ThemeColorPrimary);
+}
+
+RadioButton::indicator:checked:hover {
+    background-color: qradialgradient(spread:pad, cx:0.5, cy:0.5, radius:0.5, fx:0.5, fy:0.5,
+            stop:0 rgb(0, 0, 0),
+            stop:0.6 rgb(0, 0, 0),
+            stop:0.7 --ThemeColorPrimary,
+            stop:1 --ThemeColorPrimary);
+}
+
+/* ---- 输入框 ---------------------------------------------------------- */
+LineEdit, TextEdit, PlainTextEdit, TextBrowser {
+    background-color: rgba(255, 255, 255, 0.0605);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.5442);
+    color: white;
+    selection-background-color: --ThemeColorPrimary;
+    selection-color: black;
+}
+
+LineEdit:hover, TextEdit:hover, PlainTextEdit:hover, TextBrowser:hover {
+    background: rgba(255, 255, 255, 0.0837);
+}
+
+LineEdit[transparent=false]:focus {
+    background: rgb(31, 31, 31);
+}
+
+TextEdit:focus, PlainTextEdit:focus, TextBrowser:focus {
+    border-bottom: 1px solid --ThemeColorPrimary;
+    background-color: rgba(30, 30, 30, 0.7);
+}
+
+LineEdit:disabled, TextEdit:disabled, PlainTextEdit:disabled, TextBrowser:disabled {
+    color: rgba(255, 255, 255, 92);
+    background-color: rgba(255, 255, 255, 0.0419);
+    border: 1px solid rgba(255, 255, 255, 0.0698);
+}
+
+LineEditButton:hover {
+    background-color: rgba(255, 255, 255, 9);
+}
+
+LineEditButton:pressed {
+    background-color: rgba(255, 255, 255, 6);
+}
+
+/* ---- 数字框 ---------------------------------------------------------- */
+SpinBox, DoubleSpinBox {
+    background-color: rgba(255, 255, 255, 0.0605);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.5442);
+    color: white;
+    selection-background-color: --ThemeColorPrimary;
+    selection-color: black;
+}
+
+SpinBox:hover, DoubleSpinBox:hover {
+    background-color: rgba(255, 255, 255, 0.0837);
+}
+
+SpinBox[transparent=false]:focus, DoubleSpinBox[transparent=false]:focus {
+    border-bottom: 1px solid --ThemeColorPrimary;
+    background-color: rgb(31, 31, 31);
+}
+
+SpinBox:disabled, DoubleSpinBox:disabled {
+    color: rgba(255, 255, 255, 92);
+    background-color: rgba(255, 255, 255, 0.0837);
+    border: 1px solid rgba(255, 255, 255, 0.0698);
+}
+
+SpinButton:hover {
+    background-color: rgba(255, 255, 255, 9);
+}
+
+SpinButton:pressed {
+    background-color: rgba(255, 255, 255, 6);
+}
+
+/* ---- 下拉框 ---------------------------------------------------------- */
+ComboBox, QFontComboBox {
+    background-color: rgba(255, 255, 255, 0.0605);
+    border: 1px solid rgba(255, 255, 255, 0.053);
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    color: white;
+}
+
+ComboBox:hover, QFontComboBox:hover {
+    background-color: rgba(255, 255, 255, 0.0837);
+}
+
+ComboBox:pressed, QFontComboBox:pressed {
+    background-color: rgba(255, 255, 255, 0.0326);
+    border-top: 1px solid rgba(255, 255, 255, 0.053);
+    color: rgba(255, 255, 255, 0.63);
+}
+
+ComboBox:disabled, QFontComboBox:disabled {
+    color: rgba(255, 255, 255, 0.3628);
+    background: rgba(255, 255, 255, 0.0419);
+    border: 1px solid rgba(255, 255, 255, 0.053);
+    border-top: 1px solid rgba(255, 255, 255, 0.053);
+}
+
+ComboBox[isPlaceholderText=true], QFontComboBox[isPlaceholderText=true] {
+    color: rgba(255, 255, 255, 0.6063);
+}
+
+ComboBox QAbstractItemView {
+    background-color: rgb(43, 43, 43);
+    color: white;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    padding: 4px;
+    outline: 0;
+    selection-background-color: rgba(255, 255, 255, 0.0837);
+    selection-color: white;
+}
+
+ComboBox QAbstractItemView::item {
+    min-height: 24px;
+    padding: 1px 6px;
+    border-radius: 5px;
+}
+
+/* ---- 开关 ------------------------------------------------------------ */
+SwitchButton>QLabel {
+    color: white;
+}
+
+SwitchButton>QLabel:disabled {
+    color: rgba(255, 255, 255, 0.36);
+}
+
+/* ---- 滑杆（Fluent 类全自绘，QSS 为几何/原生实例契约） ----------------- */
+QSlider:horizontal {
+    min-height: 24px;
+}
+
+QSlider::groove:horizontal {
+    height: 4px;
+    background-color: rgb(158, 159, 159);
+    border-radius: 2px;
+}
+
+QSlider::sub-page:horizontal {
+    background: --ThemeColorPrimary;
+    height: 4px;
+    border-radius: 2px;
+}
+
+QSlider::handle:horizontal {
+    border: 1px solid rgb(58, 58, 58);
+    width: 21px;
+    min-height: 22px;
+    margin: -9px 0;
+    border-radius: 11px;
+    background-color: qradialgradient(spread:pad, cx:0.5, cy:0.5, radius:0.5, fx:0.5, fy:0.5,
+        stop:0 --ThemeColorPrimary,
+        stop:0.5 --ThemeColorPrimary,
+        stop:0.6 rgb(69, 69, 69),
+        stop:1 rgb(69, 69, 69));
+}
+
+QSlider::handle:horizontal:hover {
+    background-color: qradialgradient(spread:pad, cx:0.5, cy:0.5, radius:0.5, fx:0.5, fy:0.5,
+        stop:0 --ThemeColorPrimary,
+        stop:0.6 --ThemeColorPrimary,
+        stop:0.7 rgb(69, 69, 69),
+        stop:1 rgb(69, 69, 69));
+}
+
+/* ---- Pivot / 分段 ---------------------------------------------------- */
+PivotItem {
+    color: white;
+}
+
+PivotItem[isSelected=true]:hover {
+    color: rgba(255, 255, 255, 0.63);
+}
+
+PivotItem[isSelected=true]:pressed {
+    color: rgba(255, 255, 255, 0.53);
+}
+
+PivotItem[isSelected=false]:pressed {
+    color: rgba(255, 255, 255, 0.75);
+}
+
+SegmentedWidget,
+SegmentedToolWidget {
+    background-color: rgba(0, 0, 0, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+SegmentedItem[isSelected=false]:hover,
+SegmentedToolItem[isSelected=false]:hover {
+    background-color: rgba(255, 255, 255, 9);
+}
+
+SegmentedItem[isSelected=false]:pressed,
+SegmentedToolItem[isSelected=false]:pressed {
+    background-color: rgba(255, 255, 255, 6);
+}
+
+SegmentedItem[isSelected=true],
+SegmentedToolItem[isSelected=true] {
+    color: white;
+}
+
+/* ---- 表格 / 列表 ----------------------------------------------------- */
+QTableView[isBorderVisible=true] {
+    border: 1px solid rgba(255, 255, 255, 21);
+}
+
+QHeaderView::section {
+    color: rgb(203, 203, 203);
+    border: 1px solid rgba(255, 255, 255, 21);
+}
+
+QTableView[isBorderVisible=true] QHeaderView::section:horizontal {
+    border-top: none;
+}
+
+QHeaderView::section:horizontal:last {
+    border-right: none;
+}
+
+/* ---- 复选框文字 ------------------------------------------------------ */
+CheckBox {
+    color: white;
+}
+
+CheckBox:disabled {
+    color: rgba(255, 255, 255, 0.36);
 }

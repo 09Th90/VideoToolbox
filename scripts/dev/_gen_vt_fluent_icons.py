@@ -38,8 +38,15 @@ USED = sorted({
     "MENU", "LEFT_ARROW", "LAYOUT", "IOT", "INFO", "HELP", "GLOBE",
     "FEEDBACK", "DEVELOPER_TOOLS", "CONSTRACT", "CODE", "CARE_RIGHT_SOLID",
     "CARE_LEFT_SOLID", "CAMERA", "BRUSH", "BROOM", "ADD", "ACCEPT",
-    "MICROPHONE",
+    "MICROPHONE", "ARROW_DOWN",
 })
+
+#: FluentIcon 使用面之外的、B1 控件族自绘需要的图标
+#: （资源路径前缀 + 成员名；LIGHT=黑变体）
+EXTRA_ICON_SRCS = [
+    ("images/check_box/", ["Accept", "PartialAccept"]),
+    ("images/spin_box/", ["Up", "Down"]),
+]
 
 
 def read_qrc(path):
@@ -72,6 +79,19 @@ def main():
             continue
         with open(os.path.join(REF_DIR, "icons", name + ".svg"), "wb") as f:
             f.write(data)
+    # 额外图标（B1 控件族自绘用）：check_box / spin_box
+    extra = {}
+    for prefix, names in EXTRA_ICON_SRCS:
+        for name in names:
+            src = ":/qfluentwidgets/%s%s_black.svg" % (prefix, name)
+            data = read_qrc(src)
+            if data is None:
+                print("[MISS extra icon]", prefix, name)
+                continue
+            key = prefix.strip("/").replace("/", "_") + "_" + name
+            extra[key] = normalize_svg(data.decode("utf-8"))
+            with open(os.path.join(REF_DIR, "icons", key + ".svg"), "wb") as f:
+                f.write(data)
     nq = 0
     for theme_dir, theme in (("dark", Theme.DARK), ("light", Theme.LIGHT)):
         d = os.path.join(REF_DIR, "qss", theme_dir)
@@ -107,6 +127,7 @@ def main():
         "· MEMBERS：FluentIcon 枚举全成员 (名, 值)——API 兼容面，含别名对",
         '  （LIBRARY 与 BOOK_SHELF 同为 "BookShelf"，枚举按定义序自动成别名）。',
         "  未在 ART 中的成员可导入但渲染时报缺失错（指引跑再生成脚本）。",
+        "· EXTRA_ART：非 FluentIcon 的自绘图标（check_box/spin_box，B1 控件族用）。",
         '"""',
         "",
         "#: {成员名: 单行 SVG}。viewBox 16x16，单 path，fill=#000000/#000。",
@@ -118,7 +139,11 @@ def main():
               "MEMBERS = ["]
     for name, value in members:
         lines.append("    (%r, %r)," % (name, value))
-    lines += ["]", ""]
+    lines += ["]", "", "#: 非 FluentIcon 自绘图标（键 = 资源路径扁平化）。",
+              "EXTRA_ART = {"]
+    for key in sorted(extra):
+        lines.append("    %r: %r," % (key, extra[key]))
+    lines += ["}", ""]
 
     with open(OUT, "w", encoding="utf-8", newline="\r\n") as f:
         f.write("\n".join(lines))

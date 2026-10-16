@@ -61,6 +61,8 @@ src/
 ```
 src/vt_fluent/
   __init__.py           # __all__ = 全量符号（parity 测试读它）
+  _anim.py              # 共享动画基建（B1 落地）：背景过渡/阴影/指示器滑动/
+                        # 平滑滚动 + singledispatchmethod（对齐上游 overload.py）
   _theme.py             # Theme / setTheme / setThemeColor / isDarkTheme / qconfig / ConfigItem / FluentStyleSheet
   _qss/                 # light.qss / dark.qss / common.qss（自写，与 qfluentwidgets 行为等价）
   _icon.py              # FluentIcon 枚举 + Segoe Fluent Icons 字体 QIcon 引擎
@@ -83,6 +85,7 @@ src/vt_fluent/
 | `scripts/dev/_selftest_qss_migration.py` | qfluentwidgets 使用面基线（71 符号/15 文件）、只许收缩不许新增、vt_fluent parity | ✅ 首跑 PASS；B0 后 parity 绿（71 符号全覆盖） |
 | `scripts/dev/_selftest_vt_fluent_theme.py` | 主题令牌 parity（B0 门）：ThemeColor 七档 × 6 主题色 × 明暗逐值、renderQss 逐字节、ConfigItem 语义、字体 | ✅ B0 首跑 PASS |
 | `scripts/dev/_selftest_vt_fluent_icon.py` | 图标渲染 parity（B0 门）：175 成员面 + 59 图标 × 明暗 × 4 尺寸合成像素逐项 | ✅ B0 首跑 PASS（472/472） |
+| `scripts/dev/_selftest_vt_fluent_widgets.py` | 控件族 parity（B1 门）：几何度量 + 标签字体 + SwitchButton/CheckBox 8 态×明暗色矩阵 + 进度条/滑杆态色 | ✅ B1 首跑 PASS（218 项） |
 | `scripts/dev/vt_ui_contract.py` / `vt_ui_lint.py` / `vt_ui_golden.py` | UI 契约 AST / lint / 黄金样本（既有，QSS 切换期继续守护） | ✅ 基线全过 |
 | `scripts/dev/_gen_vt_fluent_icons.py` | 图标数据再生成（dev 期；前置 qfluentwidgets 已装） | ✅ 工具就位 |
 
@@ -107,7 +110,7 @@ Fluent System Icons（MIT），自研引擎 + 自写 QSS 承担 Fluent 外观。
 | 步 | 内容 | 门 | 状态 |
 |---|---|---|---|
 | B0 | `_theme.py` + `_qss/` + `_icon.py`（主题引擎与图标先行） | 深浅色令牌与 qfluentwidgets 逐值对照 | ✅ 2026-10-16 完成（theme 探针 PASS：6 色 × 明暗 × 七档逐值 + QSS 渲染逐字节；icon 探针 PASS：472/472 合成像素；qss_migration parity 绿） |
-| B1 | `_buttons.py` / `_inputs.py` / `_display.py`（纯控件族） | 单控件探针（离屏 WA_DontShowOnScreen 量几何 + 态色） | 待施工 |
+| B1 | `_buttons.py` / `_inputs.py` / `_display.py`（纯控件族） | 单控件探针（离屏 WA_DontShowOnScreen 量几何 + 态色） | ✅ 2026-10-16 完成（widgets 探针 PASS：218 项——几何/字体/8 态×明暗色矩阵/进度条/滑杆） |
 | B2 | `_feedback.py` / `_menu.py` / `_setting.py` | InfoBar 队列/动效、菜单 flyout、设置卡布局 | 待施工 |
 | B3 | `_window.py`（FluentWindow + NavigationInterface，最难） | `_probe_home_nav` 23/23 + 导航展开/收起/角标 | 待施工 |
 | B4 | 逐文件切 import（video_toolbox_qt.py → vt_engine_ui/* → 其余页）→ ui_theme 改接 → qt_compat 退役 | qss_migration 残留归零、vt_ui_golden IDENTICAL、_sel_shots 截图黄金 | 待施工 |

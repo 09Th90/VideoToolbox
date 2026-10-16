@@ -16,14 +16,14 @@
 
 import re
 from enum import Enum
-from functools import singledispatchmethod
+from ._anim import singledispatchmethod
 
 from PySide6.QtCore import QRect, QRectF, Qt
 from PySide6.QtGui import (QAction, QColor, QIcon, QIconEngine, QImage, QPainter,
                            QPixmap)
 from PySide6.QtSvg import QSvgRenderer
 
-from ._icons_data import ART, MEMBERS
+from ._icons_data import ART, EXTRA_ART, MEMBERS
 from ._theme import Theme, isDarkTheme
 
 #: 单 fill 占位（59 个图标经核均为 #000000 或 #000，恰好一处）
@@ -123,25 +123,25 @@ class FluentIconBase:
         return ":/vt_fluent/images/icons/%s_%s.svg" % (
             self.value, getIconColor(theme))
 
-    def _art(self):
+    def _svg(self):
+        """取该图标的 SVG 源（枚举成员查 ART，缺项报清晰错）。"""
         svg = ART.get(self.name)
         if svg is None:
             raise RuntimeError(
                 "vt_fluent.FluentIcon.%s 无内嵌艺术字（使用面外成员）。"
-                "补充：跑 data/tmp/_extract_qfw_ref.py 提取后重跑"
-                " data/tmp/_gen_icons_data.py 再生成 _icons_data.py。"
-                % self.name)
+                "补充：跑 scripts/dev/_gen_vt_fluent_icons.py 再生成"
+                " _icons_data.py。" % self.name)
         return svg
 
     def _svg_bytes(self, hexcolor):
-        return _fill_swapped(self._art(), hexcolor).encode()
+        return _fill_swapped(self._svg(), hexcolor).encode()
 
     def icon(self, theme=Theme.AUTO, color=None) -> QIcon:
         """造 QIcon（主题感知：AUTO 跟随当前主题实时换色）。"""
         if color is None:
             return QIcon(FluentIconEngine(self))
         return QIcon(SvgIconEngine(
-            _fill_swapped(self._art(), QColor(color).name())))
+            _fill_swapped(self._svg(), QColor(color).name())))
 
     def qicon(self, reverse=False) -> QIcon:
         """转 QIcon（主题同步更新）。"""
@@ -150,6 +150,15 @@ class FluentIconBase:
     def colored(self, lightColor, darkColor):
         """明暗双色图标（运行期按主题取色）。"""
         return _ColoredFluentIcon(self, QColor(lightColor), QColor(darkColor))
+
+    def render(self, painter, rect, theme=Theme.AUTO, **attributes):
+        """自绘渲染（对齐上游 render：可带 fill 等属性覆盖取色）。"""
+        if "fill" in attributes:
+            color = QColor(attributes["fill"]).name()
+        else:
+            color = QColor(getIconColor(theme)).name()
+        renderer = QSvgRenderer(self._svg_bytes(color))
+        renderer.render(painter, QRectF(rect))
 
 
 class _ColoredFluentIcon(FluentIconBase):
@@ -160,19 +169,51 @@ class _ColoredFluentIcon(FluentIconBase):
         self.lightColor = lightColor
         self.darkColor = darkColor
 
+    def _svg(self):
+        return self.fluentIcon._svg()
+
     def _target(self):
         return self.darkColor if isDarkTheme() else self.lightColor
 
     def icon(self, theme=Theme.AUTO, color=None) -> QIcon:
         return QIcon(SvgIconEngine(
-            _fill_swapped(self.fluentIcon._art(),
+            _fill_swapped(self.fluentIcon._svg(),
                           self._target().name())))
 
     def render(self, painter, rect, theme=Theme.AUTO, **attributes):
         renderer = QSvgRenderer(
-            _fill_swapped(self.fluentIcon._art(),
+            _fill_swapped(self.fluentIcon._svg(),
                           self._target().name()).encode())
         renderer.render(painter, QRectF(rect))
+
+
+class ExtraIcon(FluentIconBase):
+    """EXTRA_ART 内的自绘图标（check_box/spin_box 等非 FluentIcon 资源）。
+
+    构造：ExtraIcon("images_check_box_Accept")（键 = 资源路径扁平化）。
+    """
+
+    def __init__(self, key):
+        self._key = key
+
+    @property
+    def name(self):
+        return self._key
+
+    @property
+    def value(self):
+        return self._key
+
+    def path(self, theme=Theme.AUTO):
+        return ":/vt_fluent/images/%s.svg" % self._key
+
+    def _svg(self):
+        svg = EXTRA_ART.get(self._key)
+        if svg is None:
+            raise RuntimeError(
+                "vt_fluent 无 EXTRA_ART 图标 %r；补提取：跑"
+                " scripts/dev/_gen_vt_fluent_icons.py。" % self._key)
+        return svg
 
 
 #: FluentIcon 枚举：成员表来自 _icons_data.MEMBERS（与上游逐名同值）
@@ -194,6 +235,29 @@ def toQIcon(icon):
     if isinstance(icon, FluentIconBase):
         return icon.icon()
     return icon
+
+
+def drawIcon(icon, painter, rect, state=QIcon.Off, **attributes):
+    """画图标（FluentIconBase 走自绘引擎，其余走 QIcon）。
+
+    对齐上游 common.icon.drawIcon 的语义：FluentIconBase 渲染（可带 fill
+    等属性），Icon 溯源到其 fluentIcon，其余按普通 QIcon 绘制。
+    """
+    if isinstance(icon, FluentIconBase):
+        fill = attributes.get("fill")
+        if fill:
+            renderer = QSvgRenderer(
+                _fill_swapped(icon._svg(), QColor(fill).name()).encode())
+            renderer.render(painter, QRectF(rect))
+        else:
+            # 复用引擎（主题感知 + 态透明度由引擎处理）
+            engine = FluentIconEngine(icon)
+            engine.paint(painter, QRect(rect).toRect(), QIcon.Normal, state)
+    elif isinstance(icon, Icon):
+        drawIcon(icon.fluentIcon, painter, rect, state, **attributes)
+    else:
+        icon = QIcon(icon)
+        icon.paint(painter, QRectF(rect).toRect(), Qt.AlignCenter, state=state)
 
 
 class Action(QAction):
