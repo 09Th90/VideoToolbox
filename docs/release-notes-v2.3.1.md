@@ -8,12 +8,12 @@
 
 | 文件 | 体积 | 说明 |
 | --- | --- | --- |
-| `视频工具箱_在线安装_v2.3.1.exe` | 12.5 MB | 当前唯一发布形态。安装时从本仓库 Releases 拉取约 127 MB 组件 |
+| `VideoToolbox_OnlineSetup_v2.3.1.exe` | 12.5 MB | 当前唯一发布形态。安装时从本仓库 Releases 拉取约 127 MB 组件 |
 
 SHA-256 校验：
 
 ```
-51985fa81c38ede85196b029d0858838ffc5040f8540431f8f758dbf6ab03be1  视频工具箱_在线安装_v2.3.1.exe
+51985fa81c38ede85196b029d0858838ffc5040f8540431f8f758dbf6ab03be1  VideoToolbox_OnlineSetup_v2.3.1.exe
 ```
 
 **本版没有离线安装包。** onefile 单体打包后超过 1 GB，已超出可维护的分发体积；
@@ -54,7 +54,7 @@ SHA-256 校验：
 
 ```bash
 gh release create v2.3.1 \
-  "installer_online/视频工具箱_在线安装_v2.3.1.exe" \
+  "installer_online/VideoToolbox_OnlineSetup_v2.3.1.exe" \
   --title "视频工具箱 v2.3.1" \
   --notes-file docs/release-notes-v2.3.1.md \
   --latest

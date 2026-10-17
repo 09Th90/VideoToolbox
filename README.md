@@ -77,7 +77,11 @@
 
 | 安装包 | 体积 | 说明 |
 | --- | --- | --- |
-| **在线安装器** `视频工具箱_在线安装_v2.3.1.exe` | 约 12 MB | 当前唯一发布形态。安装时从 GitHub Releases 拉取约 127 MB 组件 |
+| **在线安装器** `VideoToolbox_OnlineSetup_v2.3.1.exe` | 约 12 MB | 当前唯一发布形态。安装时从 GitHub Releases 拉取约 127 MB 组件 |
+
+> 附件名用英文，是因为 GitHub Releases 会把非 ASCII 文件名截断
+> （历史版本 v1.12.0 的 Setup 包在下载页显示成了 `_Setup_v1.12.0.exe`）。
+> 安装后程序名仍是中文。
 
 > 最新发布：[v2.3.1](https://github.com/09Th90/VideoToolbox/releases/tag/v2.3.1)。
 > 发布产物与源码版本严格对应，**README 不再预告尚未构建的产物**。
