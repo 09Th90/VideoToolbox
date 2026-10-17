@@ -112,7 +112,8 @@ def check_requirements() -> None:
 
 def check_promised_artifacts(readme: str, ci_mode: bool) -> None:
     """README 提到的安装包文件名，必须真有实物（CI 环境无二进制，跳过）。"""
-    names = re.findall(r"`(视频工具箱_[^`]*?\.exe)`", readme)
+    # 发布产物一律 ASCII 名（GitHub 会截断中文附件名），兼容旧的中文名写法
+    names = re.findall(r"`((?:VideoToolbox|视频工具箱)_[^`]*?\.exe)`", readme)
     if not names:
         return
     if ci_mode:
