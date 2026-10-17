@@ -7,7 +7,14 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/09Th90/VideoToolbox/releases">下载</a> ·
+  <a href="https://github.com/09Th90/VideoToolbox/releases/latest"><img src="https://img.shields.io/github/v/release/09Th90/VideoToolbox?label=release&color=blue" alt="Release"></a>
+  <a href="https://github.com/09Th90/VideoToolbox/actions/workflows/ci.yml"><img src="https://github.com/09Th90/VideoToolbox/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <img src="https://img.shields.io/badge/platform-Windows-0078D4" alt="Platform">
+  <img src="https://img.shields.io/badge/license-CC%20BY--SA%204.0-lightgrey" alt="License">
+</p>
+
+<p align="center">
+  <a href="https://github.com/09Th90/VideoToolbox/releases/latest">下载</a> ·
   <a href="#-快速开始">快速开始</a> ·
   <a href="#-功能">功能</a> ·
   <a href="#-第三方组件与许可">许可</a>
@@ -68,16 +75,20 @@
 
 ### 下载
 
-| 安装包 | 体积 | 适合谁 |
+| 安装包 | 体积 | 说明 |
 | --- | --- | --- |
-| **离线安装包** `视频工具箱_Setup_v2.3.1.exe` | 约 790 MB | 大多数人。一次下载，装的时候不用联网拉组件 |
-| **在线安装器** `视频工具箱_在线安装_v2.3.1.exe` | 约 32 MB | 下载体积小，但安装时要从网上拉约 100 MB 组件 |
+| **在线安装器** `视频工具箱_在线安装_v2.3.1.exe` | 约 12 MB | 当前唯一发布形态。安装时从 GitHub Releases 拉取约 127 MB 组件 |
 
-> 当前源码版本：**v2.3.1**。发布产物请见
-> [Releases](https://github.com/09Th90/VideoToolbox/releases)。
+> 最新发布：[v2.3.1](https://github.com/09Th90/VideoToolbox/releases/tag/v2.3.1)。
+> 发布产物与源码版本严格对应，**README 不再预告尚未构建的产物**。
 
-> 在线安装器从 GitHub Pages（海外）下载组件，国内直连常常只有几十 KB/s。
-> **慢的是这条国际链路，不是软件本身有问题**。遇到这种情况直接换离线安装包最省事。
+> **离线安装包当前不提供。** onefile 单体打包后体积超过 1 GB，已超出可维护的分发体积，
+> 也不适合放在仓库或 Release 附件里。需要完全离线部署的场合，请按
+> [源码方式](#源码方式) 运行，或自行用 `packaging/` 下的脚本构建。
+> 后续版本会把运行时依赖拆出安装包，届时恢复离线包。
+
+> 安装器从 GitHub Releases（海外）下载组件，国内直连常常只有几十 KB/s。
+> **慢的是这条国际链路，不是软件本身有问题**。
 
 ### 安装
 
@@ -97,13 +108,32 @@
 Device Guard 或应用控制策略的电脑会拦住它。这种情况可改用脚本方式启动：
 双击安装目录里的 `src\视频工具箱.bat`（需要电脑装有 Python 3）。
 
+### 源码方式
+
+完全离线、或想直接用最新源码时，按下面几步走（需要 Python 3.12）：
+
+```bash
+git clone https://github.com/09Th90/VideoToolbox.git
+cd VideoToolbox
+pip install -r requirements.txt
+python -m playwright install chromium   # 可选：Cookie 导出 / B 站投稿才需要
+python src/video_toolbox_qt.py
+```
+
+**必须在仓库根目录运行**：程序按当前工作目录定位 `tools/`、`data/`，换目录启动会找不到运行时。
+
+首次运行会按需下载 FFmpeg、yt-dlp、ASR 模型、libmpv 等外部依赖；
+`python tools/download_open_source_deps.py --check` 可先体检缺什么。
+`tools/videocaptioner/` 是随仓库内置的组件包，不需要另行 pip 安装。
+
 ---
 
 ## 🧩 技术栈与架构
 
 | 层 | 选型 |
 | --- | --- |
-| 界面 | PyQt5 + qfluentwidgets（Fluent 风格） |
+| 界面 | PySide6（Qt for Python）+ PySide6-Fluent-Widgets（导入名 `qfluentwidgets`，Fluent 风格） |
+| 界面主题 | 自研 `vt_fluent` QSS 主题引擎（正逐步替换 qfluentwidgets 的控件外观） |
 | 语音识别 | OpenAI 兼容 ASR API（service 模式）/ faster-whisper（local 模式） |
 | 下载 | yt-dlp（主）+ NewPipe Extractor（兜底） |
 | 媒体处理 | FFmpeg / ffprobe |
@@ -140,8 +170,8 @@ scripts/dev/                开发期自检脚本
 | 组件 | 用途 | 许可证 |
 | --- | --- | --- |
 | NewPipe Extractor | YouTube 兜底解析 | GPL-3.0 |
-| PyQt5 | 界面框架 | GPL-3.0 |
-| qfluentwidgets | 界面组件 | MIT |
+| PySide6 | 界面框架（Qt for Python） | LGPL-3.0 |
+| PySide6-Fluent-Widgets | 界面组件库（导入名 `qfluentwidgets`） | GPL-3.0 |
 | yt-dlp | 视频下载 | Unlicense |
 | FFmpeg / ffprobe | 音视频处理 | GPL / LGPL |
 | faster-whisper | 本地语音识别 | MIT |
@@ -150,7 +180,32 @@ scripts/dev/                开发期自检脚本
 
 > 安装包内 `docs\开源许可_GPL-3.0.txt` 是法律要求必须保留的文件，请勿删除。
 
-本软件自身以 [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/)（署名-相同方式共享 4.0 国际）许可发布，许可全文（含官方英文原文）见 [`LICENSE`](LICENSE)。
+### 本软件自身的许可
+
+本软件自身以 [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/)（署名-相同方式共享 4.0 国际）许可发布，
+许可全文（含官方英文原文）见 [`LICENSE`](LICENSE)。
+
+由于 CC BY-SA 4.0 与 GPL-3.0 存在单向兼容（CC BY-SA 4.0 作品可并入 GPL-3.0 组合作品），
+**随安装包分发的组合作品（本软件 + 上述 GPL-3.0 组件）整体按 GPL-3.0 提供**。
+这一条是分发义务的闭环：安装包内含 GPL-3.0 组件时，接收方对组合作品整体享有 GPL-3.0 的权利。
+单独获取本软件源码的，仍按 CC BY-SA 4.0 授权。
+
+---
+
+## ⚠️ 已知限制
+
+写在这里，而不是藏在 issue 列表里——这些是当前版本明确做不到的事：
+
+| 限制 | 现状 | 对你的影响 |
+| --- | --- | --- |
+| 无代码签名 | 签名证书需付费购买 | 少数开启 Device Guard / 应用控制策略的电脑会拦截 exe |
+| 无离线安装包 | onefile 打包后超过 1 GB | 完全断网的环境只能用「源码方式」 |
+| 无自动化测试 | 只有 `scripts/dev/` 下的人工自检脚本 | 升级前建议先备份 `data/` 目录 |
+| 组件走国际链路 | 托管在 GitHub Releases | 国内直连速度取决于你的网络 |
+
+已具备的工程约束：`scripts/dev/check_syntax.py`（全部受跟踪 `.py` 的语法解析）
+与 `scripts/dev/check_doc_drift.py`（README / LICENSE 与代码事实的一致性）随仓库
+提供，本地一条命令即可跑，把文档漂移挡在提交之前。
 
 ---
 

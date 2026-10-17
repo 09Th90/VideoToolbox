@@ -12,7 +12,8 @@ License，简称 CC BY-SA 4.0）向公众许可。
     亦可在线查阅 https://creativecommons.org/licenses/by-sa/4.0/legalcode
   · 人类可读摘要（简体中文，仅供参考、不具法律效力）：
     https://creativecommons.org/licenses/by-sa/4.0/deed.zh-Hans
-  · SPDX 标识符：CC-BY-SA-4.0
+  · SPDX 标识符：CC-BY-SA-4.0（源码单独分发）
+                 GPL-3.0-only（组合作品分发，见下文「组合作品的许可」）
 
 署名时请一并注明：作品名「视频工具箱（VideoToolbox）」、作者 09Th90、
 许可协议 CC BY-SA 4.0 及其链接，并说明是否作出了修改。
@@ -49,6 +50,32 @@ License，简称 CC BY-SA 4.0）向公众许可。
 其中包含 GPL-3.0 组件（NewPipe Extractor、PySide6-Fluent-Widgets）与
 LGPL 组件（PySide6、PySide6-Frameless-Window）。安装包内附有标准
 GPL-3.0 许可全文（`docs\开源许可_GPL-3.0.txt`）。
+
+──────────────────────────── 组合作品的许可（GPL-3.0 兼容声明） ────────────────────────────
+
+Creative Commons 官方明确不建议将 CC 许可用于软件：CC 许可不区分源码与
+目标码，且「相同方式共享」在软件中的触发边界模糊。本软件之所以仍以
+CC BY-SA 4.0 发布自身源码，是为了让文档、术语表等非代码素材与代码共用
+一套条款；而涉及二进制分发的部分，以下面的兼容声明为准。
+
+CC BY-SA 4.0 与 GNU GPL v3.0 之间存在单向兼容：Creative Commons 已将
+GNU GPL v3.0 列为 CC BY-SA 4.0 的兼容许可（BY-SA Compatible License），
+见 https://creativecommons.org/compatiblelicenses 。
+
+据此，并依 CC BY-SA 4.0 第 3(b)(1) 条，凡随安装包分发的组合作品——即
+本软件与上述 GPL-3.0 组件构成的整体——一律按 GNU General Public
+License v3.0 向接收方提供。接收方对该组合作品整体享有 GPL-3.0 项下的
+全部权利，包括获取对应源码的权利。GPL-3.0 全文见安装目录下
+`docs\开源许可_GPL-3.0.txt`，本软件源码见
+https://github.com/09Th90/VideoToolbox 。
+
+著作权人由此提供两种并行的授权，接收方按使用方式择一：
+
+  (a) 仅使用本软件自身的源码与文档：CC BY-SA 4.0（见本文件前部）；
+  (b) 使用随安装包分发的组合作品（含 GPL-3.0 组件）：GPL-3.0。
+
+两种授权互不冲突：GPL-3.0 的额外义务只在以组合作品形态分发时生效，
+不回溯改变源码单独分发时的授权。
 
 本软件对自身的许可选择不影响上述第三方组件的许可条款：第三方组件由其
 作者授权，本软件仅作为使用者获取并调用它们。
