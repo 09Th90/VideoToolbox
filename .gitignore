@@ -198,6 +198,18 @@ build/online_release_test/
 #   / subfix 规则），成品 srt 则归档到 outbox\。过程物本身不提供补充信息，
 #   留在根目录只会淹没真正的交付物。
 chunks_r*.tsv
+
+# ── 运行期收发箱与本地过程留档（2026-10-17 瘦身，整目录停止跟踪）────────
+#   这四个目录都不是源码，而是「本机运行时产生的东西」，不该出现在公开仓库：
+#     inbox/    投稿任务收件（JSONL，含本机路径与任务上下文）
+#     outbox/   校准交付暂存（SRT/TSV/MD，成品按约定另存片源目录）
+#     vp_inbox/ 视觉/投稿流水线收件（JSONL）
+#     history/  源码快照、旧 exe、patch 留档（27MB，含两个 12MB 的 v1.x exe）
+#   文件仍保留在本机，需要追溯时看历史提交即可。
+/inbox/
+/outbox/
+/vp_inbox/
+/history/
 cues_round*.tsv
 side_*.tsv
 wuwa_explore_tales_compare.tsv

@@ -1,0 +1,37 @@
+# 视频工具箱 · 运行依赖
+# 版本号取自 v2.3.1 实测环境（Python 3.12 / tools/python）。
+# 仅用于「源码方式」运行；安装包用户不需要这个文件。
+#
+# 不在本清单里的东西，由 tools/download_open_source_deps.py 在首次运行时按需下载：
+#   FFmpeg / ffprobe、yt-dlp 可执行文件、Deno、ASR 模型、libmpv、Chromium 内核。
+#   （yt-dlp 的 Python 包仍在此列，两者用途不同。）
+
+# --- 界面 ---
+PySide6==6.12.0
+PySide6-Fluent-Widgets==1.11.3
+
+# --- 引擎 ---
+faster-whisper==1.1.1
+onnxruntime==1.29.0
+numpy==2.5.2
+pydub==0.25.1
+
+# --- 下载与网络 ---
+yt-dlp==2026.8.19
+requests==2.34.2
+openai==3.11.0
+websocket-client==1.9.2
+PyYAML==6.0.3
+
+# --- 数据与工具 ---
+diskcache==5.6.3
+langdetect==1.0.9
+Pillow==12.3.0
+GPUtil==1.4.0
+
+# --- Windows 集成 ---
+pywin32==312
+
+# --- 浏览器自动化（Cookie 导出、B 站投稿）---
+# 装完还需执行：python -m playwright install chromium
+playwright==1.62.0
