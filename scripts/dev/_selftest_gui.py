@@ -204,12 +204,65 @@ def _migrate_idempotent():
         shutil.rmtree(sandbox, ignore_errors=True)
 
 
-def _engine_src():
-    """引擎模块源码文本（用于源码级结构断言）。"""
+
+
+def _dialog_base():
+    """遮罩对话框基类双形态（v2.3.1：B 区已切 vt_fluent.MaskDialogBase，
+    qfluentwidgets 版兜底——两侧在途都可测）。"""
     try:
-        return open(os.path.abspath(engine.__file__), encoding="utf-8").read()
+        from vt_fluent import MaskDialogBase
+        return MaskDialogBase
+    except Exception:
+        from qfluentwidgets.components.dialog_box.mask_dialog_base import (
+            MaskDialogBase)
+        return MaskDialogBase
+
+
+def _push_btn_cls():
+    """PushButton 双形态（vt_fluent 优先）。"""
+    try:
+        from vt_fluent import PushButton
+        return PushButton
+    except Exception:
+        from qfluentwidgets import PushButton
+        return PushButton
+
+
+def _nav_expand_width(win):
+    """导航展开宽度双形态读取（v2.3.1：B 区自研 NavigationInterface 把
+    expandWidth 私有化为 _expandWidth——公开优先、私有兜底，两侧在途都不炸）。"""
+    panel = win.navigationInterface.panel
+    v = getattr(panel, 'expandWidth', None)
+    if v is None:
+        v = getattr(panel, '_expandWidth', None)
+    return v
+
+
+def _engine_src():
+    """引擎源码文本（用于源码级结构断言）。
+
+    v2.3.1 起 video_toolbox.py 是 facade（228 行纯再导出）——「引擎源码」
+    的语义 = facade + core/ 全树拼接；只读 facade 会把所有已拆域的源码级
+    断言全判 FAIL（GitHub 同步族 5 连败实证）。
+    """
+    parts = []
+    try:
+        parts.append(open(os.path.abspath(engine.__file__),
+                          encoding="utf-8").read())
     except (OSError, AttributeError):
         return ""
+    core_dir = os.path.join(_SRC, "core")
+    for dirpath, _dirs, files in os.walk(core_dir):
+        if "__pycache__" in dirpath:
+            continue
+        for f in sorted(files):
+            if f.endswith(".py"):
+                try:
+                    parts.append(open(os.path.join(dirpath, f),
+                                      encoding="utf-8").read())
+                except OSError:
+                    continue
+    return "\n".join(parts)
 
 
 def _qt_main_uses(fn_src_frag):
@@ -218,7 +271,7 @@ def _qt_main_uses(fn_src_frag):
         src = open(os.path.join(_SRC, "video_toolbox_qt.py"),
                    encoding="utf-8").read()
         i = src.find("def main()")
-        return i >= 0 and fn_src_frag in src[i:i + 800]
+        return i >= 0 and fn_src_frag in src[i:i + 2000]
     except OSError:
         return False
 
@@ -856,12 +909,12 @@ def main():
     fm = QFontMetrics(panel_font)
     longest = max(fm.horizontalAdvance(t) for t in win.NAV_TEXTS)
     expect = gui.nav_width_for(win.NAV_TEXTS, panel_font)
-    actual = win.navigationInterface.panel.expandWidth
+    actual = _nav_expand_width(win)
     check("导航展开宽度按最长项自适应（统一口径：导航面板字体）",
           abs(actual - expect) <= 2, f"actual={actual} expect={expect}")
     check("导航宽度不随重复重算漂移（多次收敛到同一值）",
           (win.refresh_nav_width(), win.refresh_nav_width(),
-           win.navigationInterface.panel.expandWidth)[-1] == actual,
+           _nav_expand_width(win))[-1] == actual,
           f"{actual}")
     check("nav_width_for 默认按应用字体度量（不再硬编码雅黑）",
           gui.nav_width_for(win.NAV_TEXTS) == gui.nav_width_for(
@@ -1190,9 +1243,7 @@ def main():
     # ui_theme 导入时把整族（MessageBoxBase/MessageBox/MessageDialog/
     # ColorDialog/FolderListDialog 及引擎全部子类对话框）提升为顶层窗口。
     try:
-        from qfluentwidgets.components.dialog_box.mask_dialog_base import (
-            MaskDialogBase as _MDB)
-        topmodal_patched = getattr(_MDB, "_vt_topmodal_patched", False)
+        topmodal_patched = getattr(_dialog_base(), "_vt_topmodal_patched", False)
     except Exception:
         topmodal_patched = False
     check("遮罩对话框顶层化补丁已装载（MaskDialogBase._vt_topmodal_patched）",
@@ -1200,8 +1251,7 @@ def main():
     _tm_ok = _tm_geo = False
     if topmodal_patched:
         try:
-            from qfluentwidgets import MessageBoxBase as _MBB
-            _mb = _MBB(win)
+            _mb = _dialog_base()(win)
             _mb.show()
             app.processEvents()
             _tm_ok = _mb.isWindow()
@@ -1268,7 +1318,7 @@ def main():
     try:
         ui_theme.set_bg("library", saved_bg2)
         sp.bg_page_edits["library"].setText(saved_bg2)
-        from qfluentwidgets import PushButton as _PB
+        _PB = _push_btn_cls()
         lib_edit = sp.bg_page_edits["library"]
         clear_btn = None
         for b in sp.findChildren(_PB):

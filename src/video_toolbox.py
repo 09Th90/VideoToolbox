@@ -217,12 +217,7 @@ from core.shared import (  # 私有名（* 不导出下划线开头，必须显�
 )
 
 
-
-
-
-
-# =============================
-
-
-
-
+# ========== CLI 入口（v2.3.1：main 搬入 core.pipeline，此处只留守门） ==========
+if __name__ == "__main__":
+    from core.pipeline import main
+    main()
