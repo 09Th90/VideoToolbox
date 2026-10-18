@@ -123,7 +123,7 @@ def main():
     check("② tooltip 已改为定位到首页",
           "首页" in (btn.toolTip() or ""), "tip=%r" % btn.toolTip())
     check("② 不再随历史栈为空而禁用", btn.isEnabled(),
-          "history=%s" % getattr(panel.history, "history", None))
+          "history=%s" % getattr(getattr(panel, "history", None), "history", None))
 
     # 点一下：应落到首页
     win.switchTo(win.settings_page)
