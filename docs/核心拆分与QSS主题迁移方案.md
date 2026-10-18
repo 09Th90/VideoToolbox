@@ -103,8 +103,8 @@ Fluent System Icons（MIT），自研引擎 + 自写 QSS 承担 Fluent 外观。
 | A0 | core 骨架 + spec `collect_submodules('core')` + `check_deps.py` own_modules 递归（两层包防误报，同 online_release 坑） | core_api 的 NEG-CORE 档转正、check_deps 无误报 | ✅ 2026-10-16 完成（接口测试先立：core_api 黄金基线 + qss_migration 使用面基线双护） |
 | A1 | **shared 底座**（textio/log/paths/runtime/proc/proxy/config/ai/vcsettings 九模块）+ **download 域**（deps/urls/ytdlp_util/cookies/npe/media/util 七模块） | download_cancel 29/29、core_api PASS（download=done 严格档） | ✅ 2026-10-16 完成（`f79d312`；单体 9221→5475 行） |
 | A2 | **asr 域全量**：protocol（协议推断/守卫+九服务商 submit+词级聚合）/ patches（协议注入+分块几何）/ engine_config / voiceprint / ui_patch / runtime_patches；shared 收口两族（env/uibrand） | asr_proto 207/0、asr_language ALL PASS、speaker/vc/rate_limit_sql、七接缝全 PASS、smoke D+E 15/15 | ✅ 2026-10-16 完成（`6ee0854`+`4371c40`；单体 5475→1338 行，域进度档 2/6） |
-| A3 | translate（vc_translate_route_patch）/ calibrate（calib_ai_* + GitHub 同步族）/ pipeline（main + SRT 工具链） | _selftest_translate / _selftest_calib_ai / _smoke_all 全量 / pipeline 自检 | 待施工 |
-| A4 | facade 收口（video_toolbox.py 只剩再导出 + main + 版本头；SPLIT_STATUS 全 done） | core_api 全档 + 全量自检复跑 + **出包验证**（repack + check_install_sync） | 待施工 |
+| A3 | translate（vc_translate_route_patch）/ calibrate（calib_ai_* + GitHub 同步族 + sync_env_into）/ pipeline（rolling SRT + main） | _selftest_translate / _selftest_calib_ai / _smoke_all 全量 / pipeline 自检 | ✅ 2026-10-18 完成（`2c2dd2a` A3-1 + `42f0394` A3-2 + `1ed611f` A3-3；A3-2 追认 sync_env_into 移域 shared→calibrate） |
+| A4 | facade 收口（video_toolbox.py 只剩再导出 + 版本头 + CLI 守门；SPLIT_STATUS 全 done） | core_api 全档 + 全量自检复跑 | ✅ 2026-10-18 完成（`01c9512`；facade **223 行零函数体**，CLI 守门补回，测试双形态适配 B 区在途 API） |
 
 **单体行数轨迹**：9221 → 5475（A1）→ 2676（A2a）→ **1338（A2b）**。facade 残留 = translate 1 符号 + calibrate 16 符号 + pipeline 4 符号 + main。
 
@@ -125,24 +125,27 @@ B0 落地结构（src/vt_fluent/）：`__init__.py`（71 符号契约面 + 常�
 （winreg，不依赖 darkdetect）；FluentStyleSheet 载体为合并文件（规则按类名
 作用域，与逐控件分文件渲染等价）。
 
-## 5.1 功能正常性验证（任务暂停点快照，2026-10-16 13:30）
+## 5.1 功能正常性验证（收官快照，2026-10-18 11:10）
 
-暂停拆分施工，对当前状态做「程序功能正常」验证：
+六域拆分 + QSS 迁移全部完成后的全量验证：
 
 | 验证层 | 项 | 结果 |
 |---|---|---|
-| GUI 构建+导航 | `_probe_home_nav`（主窗口构建 + 23 项导航交互，含 AI 托管页切换） | ✅ 23/23 |
-| GUI 全量自检 | `_selftest_gui`（92+ 项：页面构建/交互/源码契约/引擎内嵌） | ✅（修复 2 处后） |
-| CLI | `_selftest_agent_cli` | ✅ 21/21 |
+| 接口契约 | `_selftest_core_api`（157 符号 + 69 常量 + 行为抽查 + 禁 GUI 桩） | ✅ PASS（**域完成 6/6**） |
+| QSS parity | `_selftest_qss_migration` | ✅ **71/71 符号、残留 0 符号 / 0 文件** |
+| GUI 全量自检 | `_selftest_gui`（166 项） | ✅ 166/166 |
+| GUI 导航探针 | `_probe_home_nav` | ✅ 23/23 |
+| CLI | `_selftest_agent_cli` + `python src/video_toolbox.py` 菜单 | ✅ 21/21 + 菜单正常 |
 | 下载链 | `_selftest_download_cancel`（8 阶段可中止） | ✅ 29/29 |
 | ASR 链 | asr_proto 207/0、asr_language、speaker、vc、rate_limit_sql | ✅ 全过 |
-| 引擎接缝 | 七接缝 `_selftest_engine_*` | ✅ 全 PASS |
-| 冒烟 | `_smoke_all`（59/61；2 失败 = B站直连/YouTube 风控，网络环境项） | ✅ |
+| 引擎七接缝 | `_selftest_engine_*` | ✅ 全 PASS |
+| 冒烟 | `_smoke_all` | 60/61（唯一失败 = YouTube 画质风控，环境项） |
 | 依赖 | check_deps / py_compile 全树 | ✅ |
 
-暂停点修复记录：
-1. **check_names 升级**：`import *` 展开目标模块 `__all__` 消除 facade 静态误报（symtable 天然失明于 * 导入）
-2. **facade 补真缺**：`_fallback_config_path`（config.py 私有，GUI 自检内联测试直调）经 shared 私有导出链补齐
+收官修复记录（A4 轮）：
+1. **CLI 入口守门**：main 搬入 core.pipeline 后 facade 尾部补 `if __name__ == "__main__"`（`python src/video_toolbox.py` 静默失效实证）
+2. **测试双形态适配 B 区在途 API**：`_engine_src()` 扩展为 facade + core 全树；导航宽度/遮罩对话框/PushButton 查找改「vt_fluent 优先 + qfluentwidgets 兜底」（B 区 expandWidth 私有化、MaskDialogBase/PushButton 迁自研后测试锚旧类名）
+3. **core/calibrate/sync.py `__all__` 补全**：私有全家 + merge_calib_script/merge_learned_kb 别名（seg 原样搬入但漏登记）
 
 ## 6. 打包口径变更点（A0/B4 时落地）
 
@@ -165,37 +168,34 @@ B0 落地结构（src/vt_fluent/）：`__init__.py`（71 符号契约面 + 常�
 | **跨模块 `global`**（A2 实证） | import 审计的盲区——搬段时 grep `global ` 手工复核，改模块属性读写 |
 | 探针污染（kb-sync 重放删 @version） | 每轮跑 GUI 探针后 `git checkout -- AGENTS.md CLAUDE.md SKILL.md ×3 .trae` |
 
-## 8. 后续任务清单（任务暂停点，2026-10-16 13:40）
+## 8. 后续任务清单（收官态，2026-10-18 11:10）
 
-### A3：translate / calibrate / pipeline 三域拆分（预计 2~3 个提交）
+### A 区拆分 —— 全部完成 ✅
 
-| # | 任务 | 门 |
+| # | 任务 | 状态 |
 |---|---|---|
-| A3-1 | translate 域（vc_translate_route_patch + _patch_translator_route + TS_* 常量；env.py 的延迟 import 改 `from core.translate import`） | smoke E 段 + protocol 207 |
-| A3-2 | calibrate 域（calib_ai_chat/calib_web_proxy/calib_ai_run/_calib_event_sink + 校准 GitHub 同步族 sync_calib_* + 声纹同步族 sync_voiceprint_* + _sync_log/_atomic_write/_sync_conn/_gh_* + SYNC_*/CALIB_* 常量 + sync_env_into——shared 收口最后 1 符号） | _selftest_calib_ai（需联网）+ _selftest_agent_cli |
-| A3-3 | pipeline 域（main + srt_time_to_ms/ms_to_srt_time/normalize_rolling_srt + _SRT_*/_ROLLING_* 常量；DEFAULT_INPUT_DIR/DURATION_THRESHOLD/URL_RE 视引用归 download 或随迁） | _smoke_all 全量 + pipeline 自检 |
-| A3-4 | SPLIT_STATUS：asr ✓ 已置；translate/calibrate/pipeline 逐域置 done；shared 置 done（sync_env_into 归位后） | core_api 全档 |
+| A3-1 | translate 域（route_patch） | ✅ `2c2dd2a`（v3 流程首单：并行文件先行） |
+| A3-2 | calibrate 域（ai + sync 两模块，sync_env_into 追认移域） | ✅ `42f0394` |
+| A3-3 | pipeline 域（srt_rolling + main 编排层） | ✅ `1ed611f` |
+| A4 | facade 收口：223 行纯再导出 + CLI 守门 + SPLIT_STATUS 全 done | ✅ `01c9512` |
 
-### A4：facade 收口 + 出包验证
+**单体轨迹**：9221 → 5475 → 2676 → 1303 → 398 → **223 行（零函数体）**。域进度 6/6。
 
-| # | 任务 | 门 |
+### B 区 QSS 迁移 —— 全部完成 ✅（用户主导）
+
+| # | 任务 | 状态 |
 |---|---|---|
-| A4-1 | facade 终态：只剩版本头 + 再导出块 + main 转发；grep `global ` 复核；DOMAIN_MAP↔core 互校 | core_api 全档 PASS |
-| A4-2 | **repack**（PyInstaller onefile，换新 build_asciiN；改 src/ 不 repack 不生效） | 打包成功 + PYZ toc 含 core.* |
-| A4-3 | `check_install_sync.py`（37 项 sha256 + 版本指纹）+ 在线发布 file:// 自测 | 全绿 |
-| A4-4 | `stamp_versions.py` 重生成清单（先 git add） | 清单无漂移 |
-| A4-5 | 许可声明更新：qfluentwidgets 移出随包（B4 完成后）；`docs/第三方组件来源与许可声明.txt` 第 3 节 | 合规成立 |
+| B2/B3 | feedback/menu/setting/window 四族 | ✅ `75ef899` |
+| B4 | 15 文件切 import，qfluentwidgets 残留归零 | ✅ `2b75b94`（71/71、残留 0） |
 
-### B 区（用户并发，B2~B4）
+### 剩余收尾（联合）
 
-| # | 任务 | 门 |
-|---|---|---|
-| B2 | `_feedback.py` / `_menu.py` / `_setting.py` | InfoBar 队列/动效、菜单 flyout、设置卡布局 |
-| B3 | `_window.py`（FluentWindow + NavigationInterface，最难） | `_probe_home_nav` 23/23 + 导航展开/收起/角标 |
-| B4 | 逐文件切 import（video_toolbox_qt.py → vt_engine_ui/* → 其余页）→ ui_theme 改接 → qt_compat 退役 | qss_migration 残留归零、vt_ui_golden IDENTICAL、_sel_shots 截图黄金 |
-
-### 联合收尾（A+B 全完成后）
-
-1. `docs/第三方组件来源与许可声明.txt` 与随包 `docs\开源许可_GPL-3.0.txt` 义务复核（qfluentwidgets 移出后 GPL-3.0 义务状态重估）
-2. 全量自检 + smoke 终跑基线固化进 memory
-3. GitHub push（本地直连；不通走 push_via_git_api.py + blob SHA 校验）
+| # | 任务 | 门 | 状态 |
+|---|---|---|---|
+| 1 | **repack 出包**（PyInstaller onefile；改 src/ 不 repack 不生效——六域 + vt_fluent 全量落地后必须出包） | 打包成功 + PYZ toc 含 core.* 与 vt_fluent.* | ⬜ 待办 |
+| 2 | `check_install_sync.py`（37 项 sha256 + 版本指纹）+ 在线发布 file:// 自测 | 全绿 | ⬜ 待办 |
+| 3 | `stamp_versions.py` 重生成清单（先 git add） | 清单无漂移 | ⬜ 待办 |
+| 4 | 许可声明：qfluentwidgets 已移出随包 → `docs/第三方组件来源与许可声明.txt` 第 3 节重写 + GPL-3.0 义务状态重估 | 合规成立 | ⬜ 待办 |
+| 5 | `_sel_shots` 截图黄金补跑（需桌面环境，headless 不可） | 与 golden 比对 | ⬜ 待办 |
+| 6 | GitHub push（本地直连；不通走 push_via_git_api.py + blob SHA 校验） | remote 一致 | ⬜ 待办 |
+| 7 | memory 基线固化（六域 + B 区完工态写进 MEMORY.md） | — | ⬜ 待办 |
