@@ -1,11 +1,17 @@
 # -*- coding: utf-8 -*-
 # @version 2.3.1
-"""流水线域：入口编排（main）+ SRT 工具链（时间轴换算 / 滚动字幕稳定化）。
+"""流水线域（core/pipeline）：CLI 编排入口 + 下载字幕滚动重叠整理。
 
-任务级流水线主体在 ``pipeline.py``（目录感知 + 阶段调度）；本域收单体里
-残存的编排入口与 SRT 后处理工具。施工清单（拆分完成时 __all__ 须覆盖）：
+子模块：
+  · ``main``         CLI 主入口（下载/合并模式分发；编排层，横向依赖 download）
+  · ``srt_rolling``  滚动式重叠整理（srt_time_to_ms / ms_to_srt_time /
+                     normalize_rolling_srt + 门槛常量）
 
-main, srt_time_to_ms, ms_to_srt_time, normalize_rolling_srt
+依赖规则：pipeline 为编排层，允许横向依赖 core/download；其余域不横向。
 """
+from .srt_rolling import *  # noqa: F401,F403
+from .main import *  # noqa: F401,F403
 
-__all__ = []
+from .srt_rolling import __all__ as _sr_all
+
+__all__ = sorted(set(_sr_all + ["main"]))

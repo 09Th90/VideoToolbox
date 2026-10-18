@@ -149,6 +149,8 @@ SPLIT_STATUS["download"] = "done"  # v2.3.1 A1：56 符号 + 15 常量全量搬�
 SPLIT_STATUS["asr"] = "done"       # v2.3.1 A2：31 符号全量搬入（A2a+A2b）
 SPLIT_STATUS["translate"] = "done"  # v2.3.1 A3-1：1 符号（route_patch，含 10-17 双重保险增强）
 SPLIT_STATUS["calibrate"] = "done"   # v2.3.1 A3-2：16 符号 + sync_env_into 追认移域（shared→calibrate）
+SPLIT_STATUS["pipeline"] = "done"    # v2.3.1 A3-3：4 符号（rolling 3 + main 编排层）
+SPLIT_STATUS["shared"] = "done"     # v2.3.1 A3-4：55 符号（含用户 10-17/18 新增 7 个）全量在册
 
 #: 常量基线只快照这些类型（dict/set 等运行期缓存会变，不钉）
 _CONST_TYPES = (str, int, float, bool, tuple, list, frozenset)
