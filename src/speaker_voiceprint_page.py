@@ -31,7 +31,7 @@ import os
 from PySide6.QtCore import QThread, Signal
 from PySide6.QtWidgets import QFileDialog, QHBoxLayout, QVBoxLayout, QWidget
 
-from qfluentwidgets import (BodyLabel, CaptionLabel, CheckBox, LineEdit,
+from vt_fluent import (BodyLabel, CaptionLabel, CheckBox, LineEdit,
                             PrimaryPushButton, ProgressBar, PushButton,
                             SpinBox, StrongBodyLabel, ToolButton,
                             FluentIcon as FIF)

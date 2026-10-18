@@ -20,7 +20,7 @@ from typing import Optional
 
 from PySide6.QtCore import QThread, Signal
 from PySide6.QtWidgets import QSizePolicy, QStackedWidget, QVBoxLayout, QWidget
-from qfluentwidgets import InfoBar, InfoBarPosition, SegmentedWidget
+from vt_fluent import InfoBar, InfoBarPosition, SegmentedWidget
 
 from . import _seams
 from .subtitle_interface import SubtitleInterface

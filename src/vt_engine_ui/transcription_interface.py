@@ -39,7 +39,7 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
-from qfluentwidgets import (
+from vt_fluent import (
     Action,
     BodyLabel,
     CardWidget,

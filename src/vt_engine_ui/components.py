@@ -20,7 +20,7 @@ from typing import List, Optional, Union
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import QCompleter, QStackedWidget, QVBoxLayout, QWidget
-from qfluentwidgets import (
+from vt_fluent import (
     BodyLabel,
     ComboBoxSettingCard,
     EditableComboBox,
@@ -28,8 +28,8 @@ from qfluentwidgets import (
     MessageBoxBase,
     SettingCard,
 )
-from qfluentwidgets import FluentIcon as FIF
-from qfluentwidgets.common.config import ConfigItem, qconfig
+from vt_fluent import FluentIcon as FIF
+from vt_fluent import ConfigItem, qconfig
 
 from . import _seams
 

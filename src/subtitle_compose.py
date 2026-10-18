@@ -36,7 +36,7 @@ import threading
 from PySide6.QtCore import Signal
 from PySide6.QtWidgets import (QDialog, QFileDialog, QGridLayout, QHBoxLayout,
                              QLabel, QLineEdit, QVBoxLayout)
-from qfluentwidgets import (InfoBar, InfoBarPosition, PrimaryPushButton,
+from vt_fluent import (InfoBar, InfoBarPosition, PrimaryPushButton,
                             ProgressBar, PushButton, RadioButton, isDarkTheme)
 
 import subtitle_editor_core as secore

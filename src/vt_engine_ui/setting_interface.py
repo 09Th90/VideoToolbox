@@ -17,7 +17,7 @@ import webbrowser
 from PySide6.QtCore import Qt, QThread, QUrl, Signal
 from PySide6.QtGui import QDesktopServices
 from PySide6.QtWidgets import QFileDialog, QLabel, QWidget
-from qfluentwidgets import (
+from vt_fluent import (
     ComboBoxSettingCard,
     CustomColorSettingCard,
     ExpandLayout,
@@ -33,7 +33,7 @@ from qfluentwidgets import (
     setTheme,
     setThemeColor,
 )
-from qfluentwidgets import FluentIcon as FIF
+from vt_fluent import FluentIcon as FIF
 
 from . import _seams
 from .components import EditComboBoxSettingCard, LineEditSettingCard

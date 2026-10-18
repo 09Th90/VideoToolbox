@@ -29,7 +29,7 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
-from qfluentwidgets import (
+from vt_fluent import (
     BodyLabel,
     FluentIcon,
     FluentStyleSheet,

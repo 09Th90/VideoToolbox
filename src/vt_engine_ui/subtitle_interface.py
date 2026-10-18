@@ -30,7 +30,7 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
-from qfluentwidgets import (
+from vt_fluent import (
     Action,
     BodyLabel,
     CommandBar,
@@ -45,7 +45,7 @@ from qfluentwidgets import (
     TextEdit,
     TransparentDropDownPushButton,
 )
-from qfluentwidgets import FluentIcon as FIF
+from vt_fluent import FluentIcon as FIF
 
 from . import _seams
 

@@ -22,7 +22,7 @@ from PySide6.QtGui import QFont
 from PySide6.QtWidgets import (QApplication, QHBoxLayout, QLabel,
                              QPlainTextEdit, QSizePolicy, QVBoxLayout, QWidget)
 
-from qfluentwidgets import (BodyLabel, CaptionLabel, CardWidget,
+from vt_fluent import (BodyLabel, CaptionLabel, CardWidget,
                             FluentIcon as FIF, InfoBar, InfoBarPosition,
                             PlainTextEdit, PrimaryPushButton, PushButton,
                             ScrollArea, StrongBodyLabel, TextEdit, TitleLabel)

@@ -35,7 +35,7 @@ from PySide6.QtGui import QColor, QFont, QImage, QPainter, QPen, QPixmap
 from PySide6.QtWidgets import (QApplication, QFileDialog, QHBoxLayout, QLabel,
                              QPlainTextEdit, QSizePolicy, QVBoxLayout, QWidget)
 
-from qfluentwidgets import (CaptionLabel, ComboBox, FluentIcon as FIF,
+from vt_fluent import (CaptionLabel, ComboBox, FluentIcon as FIF,
                             InfoBar, InfoBarPosition, LineEdit,
                             PrimaryPushButton, ProgressBar, PushButton,
                             ScrollArea, StrongBodyLabel, SubtitleLabel,
