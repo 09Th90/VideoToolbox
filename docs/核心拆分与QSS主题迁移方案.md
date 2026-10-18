@@ -116,7 +116,7 @@ Fluent System Icons（MIT），自研引擎 + 自写 QSS 承担 Fluent 外观。
 | B1 | `_buttons.py` / `_inputs.py` / `_display.py`（纯控件族） | 单控件探针（离屏 WA_DontShowOnScreen 量几何 + 态色） | ✅ 2026-10-16 完成（widgets 探针 PASS：218 项——几何/字体/8 态×明暗色矩阵/进度条/滑杆） |
 | B2 | `_feedback.py` / `_menu.py` / `_setting.py` | InfoBar 队列/动效、菜单 flyout、设置卡布局 | ✅ 2026-10-18 完成（InfoBar 叠放/滑入、RoundMenu flyout 五档动画、设置卡全家桶 + ExpandLayout） |
 | B3 | `_window.py`（FluentWindow + NavigationInterface，最难） | `_probe_home_nav` 23/23 + 导航展开/收起/角标 | ✅ 2026-10-18 完成（自研无边框/Mica/标题栏/导航；b2b3 探针覆盖加页/切换/移除/常驻展开/宽度自适应） |
-| B4 | 逐文件切 import（video_toolbox_qt.py → vt_engine_ui/* → 其余页）→ ui_theme 改接 → qt_compat 退役 | qss_migration 残留归零、vt_ui_golden IDENTICAL、_sel_shots 截图黄金 | 施工中（2026-10-18 起：先切安静文件；video_toolbox_qt/video_toolbox/qt_compat 待 A 区并发会话收口） |
+| B4 | 逐文件切 import（video_toolbox_qt.py → vt_engine_ui/* → 其余页）→ ui_theme 改接 → qt_compat 退役 | qss_migration 残留归零、vt_ui_golden IDENTICAL、_sel_shots 截图黄金 | ✅ 2026-10-18 完成（qss_migration **71/71、残留 0 符号 / 0 文件**；MainWindow 在 vt_fluent 上实例化 9 页/9 导航项、切页与主题切换冒烟通过；qt_compat SpinBox 补丁已重挂 vt_fluent.SpinBoxBase 并验证。⚠ 截图黄金 _sel_shots 待桌面环境补跑） |
 
 B0 落地结构（src/vt_fluent/）：`__init__.py`（71 符号契约面 + 常量枚举
 + B1/B2/B3 pending 桩）、`_theme.py`（qconfig/ConfigItem/ThemeColor/样式表管理/

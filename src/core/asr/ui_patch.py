@@ -35,8 +35,8 @@ def vc_transcribe_ui_patch():
         from videocaptioner.ui.components import transcription_setting_card as tsc
         from engine_entities import TranscribeModelEnum
         from videocaptioner.ui.common.config import cfg as _cfg
-        from qfluentwidgets import (Action, BodyLabel, FluentIcon, InfoBar,
-                                    InfoBarPosition, PushButton, RoundMenu)
+        from vt_fluent import (Action, BodyLabel, FluentIcon, InfoBar,
+                               InfoBarPosition, PushButton, RoundMenu)
         from PySide6.QtWidgets import QVBoxLayout as _QVBox
     except Exception as e:  # noqa: BLE001
         _vc_log(f"转录 UI 补丁导入失败：{e}")

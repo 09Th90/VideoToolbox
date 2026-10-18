@@ -139,17 +139,15 @@ from PySide6.QtWidgets import (QAbstractButton, QAbstractItemView, QApplication,
                              QStackedWidget, QTableWidgetItem, QTabWidget,
                              QVBoxLayout, QWidget)
 
-from qfluentwidgets import (BodyLabel, CardWidget, CaptionLabel,
-                            ComboBox, FluentIcon as FIF,
-                            FluentWindow, InfoBar, InfoBarPosition, LineEdit,
-                            ListWidget, MessageBox, NavigationItemPosition,
-                            PasswordLineEdit, PrimaryPushButton, ProgressBar,
-                            PushButton, ScrollArea, SegmentedWidget, Slider,
-                            SimpleCardWidget, SpinBox, SubtitleLabel,
-                            StrongBodyLabel, SwitchButton, TableWidget,
-                            TextEdit, Theme, TitleLabel, ToolButton, setTheme,
-                            setThemeColor)
-from qfluentwidgets.components.navigation.navigation_widget import NavigationWidget
+from vt_fluent import (BodyLabel, CardWidget, CaptionLabel,
+                       ComboBox, FluentIcon as FIF,
+                       FluentWindow, InfoBar, InfoBarPosition, LineEdit,
+                       ListWidget, MessageBox, NavigationItemPosition,
+                       NavigationWidget, PasswordLineEdit, PrimaryPushButton,
+                       ProgressBar, PushButton, ScrollArea, SegmentedWidget,
+                       Slider, SimpleCardWidget, SpinBox, SubtitleLabel,
+                       StrongBodyLabel, SwitchButton, TableWidget, TextEdit,
+                       Theme, TitleLabel, ToolButton, setTheme, setThemeColor)
 
 import video_toolbox as engine
 # 流水线（v1.14.0）：目录感知 + 阶段调度。两个模块都是引擎侧（无 Qt 控件依赖），
@@ -5081,7 +5079,7 @@ class SettingsPage(QWidget):
         box, blay = card("界面", "主题与缩放；缩放立即生效，主题重启后完全生效")
         self.theme_combo = ComboBox(box)
         self.theme_combo.addItems(["深色", "浅色", "跟随系统"])
-        from qfluentwidgets import isDarkTheme
+        from vt_fluent import isDarkTheme
         self.theme_combo.setCurrentIndex(0 if isDarkTheme() else 1)
         self.theme_combo.currentIndexChanged.connect(self._on_theme_changed)
         blay.addWidget(label_row("主题", row(self.theme_combo, None)))
@@ -6536,7 +6534,7 @@ class UpdateProgressDialog(QDialog):
 
         dark = False
         try:
-            from qfluentwidgets import isDarkTheme
+            from vt_fluent import isDarkTheme
             dark = bool(isDarkTheme())
         except Exception:  # noqa: BLE001
             pass
@@ -6672,7 +6670,7 @@ class ConfirmDialog(QDialog):
 
         dark = False
         try:
-            from qfluentwidgets import isDarkTheme
+            from vt_fluent import isDarkTheme
             dark = bool(isDarkTheme())
         except Exception:  # noqa: BLE001
             pass
@@ -9436,7 +9434,7 @@ class MainWindow(FluentWindow):
             self.stackedWidget.currentChanged.connect(_sync_nav)
             # 图标/提示改成"定位到首页"
             try:
-                from qfluentwidgets import FluentIcon as _FI
+                from vt_fluent import FluentIcon as _FI
                 btn.setIcon(_FI.HOME)
             except Exception:  # noqa: BLE001
                 pass

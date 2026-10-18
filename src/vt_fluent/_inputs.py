@@ -1541,8 +1541,14 @@ class Slider(QSlider):
 
     clicked = Signal(int)
 
+    @singledispatchmethod
     def __init__(self, parent=None):
         super().__init__(parent)
+        self._postInit()
+
+    @__init__.register
+    def _(self, orientation: Qt.Orientation, parent=None):
+        super().__init__(orientation, parent)
         self._postInit()
 
     def _postInit(self):

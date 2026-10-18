@@ -363,7 +363,7 @@ def set_accent(hexcolor):
     _load_cfg()["accent"] = hexcolor
     _save_cfg()
     try:
-        from qfluentwidgets import setThemeColor
+        from vt_fluent import setThemeColor
         setThemeColor(QColor(hexcolor))
     except Exception:
         pass
@@ -393,12 +393,12 @@ def is_dark():
     if mode == "light":
         return False
     try:
-        from qfluentwidgets import isDarkTheme
+        from vt_fluent import isDarkTheme
         return bool(isDarkTheme())
     except Exception:
         pass
     try:
-        from qfluentwidgets import isDarkThemeMode
+        from vt_fluent import isDarkThemeMode
         return bool(isDarkThemeMode())
     except Exception:
         return True
@@ -462,7 +462,7 @@ def set_theme_mode(mode):
     _load_cfg()["theme"] = mode
     _save_cfg()
     try:
-        from qfluentwidgets import setTheme
+        from vt_fluent import setTheme
         setTheme(qtheme())
     except Exception:
         pass
@@ -478,7 +478,7 @@ def set_theme_mode(mode):
 
 def qtheme():
     """配置里的主题档 → qfluentwidgets.Theme 枚举。"""
-    from qfluentwidgets import Theme
+    from vt_fluent import Theme
     return {"dark": Theme.DARK, "light": Theme.LIGHT,
             "auto": Theme.AUTO}.get(get_theme_mode(), Theme.DARK)
 
@@ -502,11 +502,11 @@ def apply_startup_theme(app):
     已注册控件并深度重绘（否则只有 fluent 组件跟着变，我们的 QSS/卡片
     停在旧外观上）。信号挂接失败只影响 auto 跟随，不影响启动。
     """
-    from qfluentwidgets import setTheme, setThemeColor
+    from vt_fluent import setTheme, setThemeColor
     setTheme(qtheme())
     setThemeColor(QColor(get_accent()))
     try:
-        from qfluentwidgets import qconfig
+        from vt_fluent import qconfig
 
         def _on_theme_changed(*_):
             try:
@@ -889,7 +889,7 @@ def _make_uiclass():
     **每次绘制时按当前主题 token 取**——深色下 #26292E 系，浅色下白色系，
     切主题即换肤，不用重建卡片。
     """
-    from qfluentwidgets import CardWidget
+    from vt_fluent import CardWidget
 
     class UICard(CardWidget):
         """统一卡片皮肤（所有页面的 card() 与视频库缩略图卡共用）。"""
@@ -1128,9 +1128,8 @@ def install_card_alpha_patch():
     """
     # 1) SettingCard（qfluentwidgets 1.x：QFrame + 硬编码底色）
     try:
-        from qfluentwidgets.components.settings.setting_card import (
-            SettingCard as _QFWSettingCard)
-        from qfluentwidgets.common.style_sheet import isDarkTheme as _is_dark
+        from vt_fluent import SettingCard as _QFWSettingCard
+        from vt_fluent import isDarkTheme as _is_dark
 
         if not getattr(_QFWSettingCard.paintEvent, "_vt_alpha_patched", False):
             def _setting_card_paint(self, e, _dark=_is_dark):
@@ -1152,7 +1151,7 @@ def install_card_alpha_patch():
     #    覆写了三态取色（MRO 不再经过 CardWidget 的版本），漏掉就无效。
     #    三态分别对齐 UICard 对应 token（card / card_hover / card_pressed）。
     try:
-        from qfluentwidgets.components.widgets.card_widget import (
+        from vt_fluent import (
             CardWidget as _QFWCardWidget, SimpleCardWidget as _QFWSimpleCard,
             ElevatedCardWidget as _QFWElevatedCard)
         for _cls in (_QFWCardWidget, _QFWSimpleCard, _QFWElevatedCard):
@@ -1210,8 +1209,7 @@ def install_mask_dialog_topmodal_patch():
     videocaptioner（其导入有副作用，须走既有预热时序）。
     """
     try:
-        from qfluentwidgets.components.dialog_box.mask_dialog_base import (
-            MaskDialogBase as _MDB)
+        from vt_fluent import MaskDialogBase as _MDB
     except Exception:
         return
     if getattr(_MDB, "_vt_topmodal_patched", False):

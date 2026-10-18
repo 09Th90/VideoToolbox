@@ -23,7 +23,7 @@ def _spin_editfield_is_broken():
     """
     from PySide6.QtCore import Qt
     from PySide6.QtWidgets import QApplication, QVBoxLayout, QWidget
-    from qfluentwidgets import SpinBox
+    from vt_fluent import SpinBox
 
     host = QWidget()
     # WA_DontShowOnScreen：照常走 show/布局/几何计算，但不上屏，避免启动闪窗
@@ -67,7 +67,7 @@ def install_spinbox_fix():
     """
     try:
         from PySide6.QtWidgets import QAbstractSpinBox, QStyle
-        from qfluentwidgets.components.widgets.spin_box import SpinBoxBase
+        from vt_fluent import SpinBoxBase
     except Exception:  # noqa: BLE001
         return False
     if getattr(SpinBoxBase, "_vt_editfield_fixed", False):

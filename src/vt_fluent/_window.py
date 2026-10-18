@@ -371,6 +371,12 @@ class NavigationInterface(QWidget):
         self.scrollLayout.addStretch(1)
         self.scrollLayout.addLayout(self.bottomLayout)
 
+        #: 顶部返回键（应用把它改挂「定位到首页」；上游同位置同名）
+        self.returnButton = NavigationToolButton(FluentIcon.RETURN, self)
+        self.returnButton.setToolTip(self.tr("返回"))
+        self.returnButton.move(4, 4)
+        self.returnButton.show()
+
         self.vBoxLayout.setContentsMargins(0, 0, 0, 0)
         self.vBoxLayout.setSpacing(0)
         self.vBoxLayout.addWidget(self.scrollArea)
@@ -508,6 +514,63 @@ class NavigationInterface(QWidget):
         pass
 
     def isAcrylicEnabled(self):
+        return False
+
+
+class StackedWidget(QFrame):
+    """页面栈（对齐上游 window.StackedWidget：popOut 参数 + currentChanged 转发）。
+
+    上游用 PopUpAniStackedWidget 做滑动动画；此处为**纯切换**（静态截图与
+    布局完全一致），动画属后续 nicety，接口签名保持兼容。
+    """
+
+    currentChanged = Signal(int)
+
+    def __init__(self, parent=None):
+        super().__init__(parent=parent)
+        self.hBoxLayout = QHBoxLayout(self)
+        self.view = QStackedWidget(self)
+
+        self.hBoxLayout.setContentsMargins(0, 0, 0, 0)
+        self.hBoxLayout.addWidget(self.view)
+
+        self.view.currentChanged.connect(self.currentChanged)
+        self.setAttribute(Qt.WA_StyledBackground)
+
+    def addWidget(self, widget):
+        self.view.addWidget(widget)
+
+    def removeWidget(self, widget):
+        self.view.removeWidget(widget)
+
+    def widget(self, index):
+        return self.view.widget(index)
+
+    def count(self):
+        return self.view.count()
+
+    def indexOf(self, widget):
+        return self.view.indexOf(widget)
+
+    def setCurrentWidget(self, widget, popOut=True):
+        from PySide6.QtWidgets import QAbstractScrollArea
+        if isinstance(widget, QAbstractScrollArea):
+            widget.verticalScrollBar().setValue(0)
+        self.view.setCurrentWidget(widget)
+
+    def setCurrentIndex(self, index, popOut=True):
+        self.view.setCurrentIndex(index)
+
+    def currentIndex(self):
+        return self.view.currentIndex()
+
+    def currentWidget(self):
+        return self.view.currentWidget()
+
+    def setAnimationEnabled(self, isEnabled: bool):
+        pass
+
+    def isAnimationEnabled(self):
         return False
 
 
@@ -671,7 +734,7 @@ class FluentWindow(BackgroundAnimationWidget, FramelessWindow):
 
         self.hBoxLayout = QHBoxLayout(self)
         self.widgetLayout = QHBoxLayout()
-        self.stackedWidget = QStackedWidget(self)
+        self.stackedWidget = StackedWidget(self)
         self.navigationInterface = NavigationInterface(self, showReturnButton=True)
 
         self.hBoxLayout.setSpacing(0)
