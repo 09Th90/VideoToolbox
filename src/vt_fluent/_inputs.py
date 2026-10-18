@@ -1326,6 +1326,13 @@ class Indicator(ToolButton):
     sliderX = Property(float, getSliderX, setSliderX)
 
 
+class IndicatorPosition(Enum):
+    """开关指示器位置（与上游逐名同值）。"""
+
+    LEFT = 0
+    RIGHT = 1
+
+
 class SwitchButton(QWidget):
     """开关按钮（对齐上游 SwitchButton）。
 
@@ -1337,7 +1344,8 @@ class SwitchButton(QWidget):
 
     checkedChanged = Signal(bool)
 
-    def __init__(self, parent=None):
+    @singledispatchmethod
+    def __init__(self, parent=None, indicatorPos=IndicatorPosition.LEFT):
         super().__init__(parent=parent)
         self._text = self.tr("Off")
         self._offText = self.tr("Off")
@@ -1345,10 +1353,18 @@ class SwitchButton(QWidget):
         self._spacing = 12
         self.lightTextColor = QColor(0, 0, 0)
         self.darkTextColor = QColor(255, 255, 255)
+        self.indicatorPos = indicatorPos
 
         self.indicator = Indicator(self)
         self.label = QLabel(self._text, self)
         self._initWidget()
+
+    @__init__.register
+    def _(self, text: str = "Off", parent=None,
+          indicatorPos=IndicatorPosition.LEFT):
+        self.__init__(parent, indicatorPos)
+        self._offText = text
+        self.setText(text)
 
     def _initWidget(self):
         self.setAttribute(Qt.WA_StyledBackground)
@@ -1358,9 +1374,14 @@ class SwitchButton(QWidget):
         self.hBox = QHBoxLayout(self)
         self.hBox.setSpacing(self._spacing)
         self.hBox.setContentsMargins(2, 0, 0, 0)
-        self.hBox.addWidget(self.indicator)
-        self.hBox.addWidget(self.label)
-        self.hBox.setAlignment(Qt.AlignLeft)
+        if self.indicatorPos == IndicatorPosition.LEFT:
+            self.hBox.addWidget(self.indicator)
+            self.hBox.addWidget(self.label)
+            self.hBox.setAlignment(Qt.AlignLeft)
+        else:
+            self.hBox.addWidget(self.label, 0, Qt.AlignRight)
+            self.hBox.addWidget(self.indicator, 0, Qt.AlignRight)
+            self.hBox.setAlignment(Qt.AlignRight)
 
         FluentStyleSheet.SWITCH_BUTTON.apply(self)
         FluentStyleSheet.SWITCH_BUTTON.apply(self.label)

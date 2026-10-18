@@ -41,11 +41,16 @@ USED = sorted({
     "MICROPHONE", "ARROW_DOWN",
 })
 
-#: FluentIcon 使用面之外的、B1 控件族自绘需要的图标
-#: （资源路径前缀 + 成员名；LIGHT=黑变体）
+#: FluentIcon 使用面之外的、控件族自绘需要的图标。
+#: (资源路径前缀, [(成员名, 颜色后缀)])——suffix 为 black/light/dark；
+#: info_bar 是**语义彩色双变体**（light/dark 各一套，不做 fill 替换）。
 EXTRA_ICON_SRCS = [
-    ("images/check_box/", ["Accept", "PartialAccept"]),
-    ("images/spin_box/", ["Up", "Down"]),
+    ("images/check_box/", [("Accept", "black"), ("PartialAccept", "black")]),
+    ("images/spin_box/", [("Up", "black"), ("Down", "black")]),
+    ("images/info_bar/", [("Info", "light"), ("Info", "dark"),
+                          ("Success", "light"), ("Success", "dark"),
+                          ("Warning", "light"), ("Warning", "dark"),
+                          ("Error", "light"), ("Error", "dark")]),
 ]
 
 
@@ -82,13 +87,14 @@ def main():
     # 额外图标（B1 控件族自绘用）：check_box / spin_box
     extra = {}
     for prefix, names in EXTRA_ICON_SRCS:
-        for name in names:
-            src = ":/qfluentwidgets/%s%s_black.svg" % (prefix, name)
+        for name, suffix in names:
+            src = ":/qfluentwidgets/%s%s_%s.svg" % (prefix, name, suffix)
             data = read_qrc(src)
             if data is None:
-                print("[MISS extra icon]", prefix, name)
+                print("[MISS extra icon]", prefix, name, suffix)
                 continue
-            key = prefix.strip("/").replace("/", "_") + "_" + name
+            key = (prefix.strip("/").replace("/", "_") + "_" + name
+                   + ("" if suffix == "black" else "_" + suffix))
             extra[key] = normalize_svg(data.decode("utf-8"))
             with open(os.path.join(REF_DIR, "icons", key + ".svg"), "wb") as f:
                 f.write(data)

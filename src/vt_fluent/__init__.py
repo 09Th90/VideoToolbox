@@ -22,6 +22,31 @@ NotImplementedError 并指明所属 B 步。切换 src/ 某个文件的 import �
 
 from enum import Enum
 
+# ---------------------------------------------------------------------- #
+# 纯常量枚举（先于子模块导入定义：_feedback/_window 模块级要用，
+# 放到后面会触发循环导入）
+# ---------------------------------------------------------------------- #
+class NavigationItemPosition(Enum):
+    """导航项位置（与 qfluentwidgets 逐名同值）。"""
+
+    TOP = 0
+    SCROLL = 1
+    BOTTOM = 2
+
+
+class InfoBarPosition(Enum):
+    """信息条位置（与 qfluentwidgets 逐名同值）。"""
+
+    TOP = 0
+    BOTTOM = 1
+    TOP_LEFT = 2
+    TOP_RIGHT = 3
+    BOTTOM_LEFT = 4
+    BOTTOM_RIGHT = 5
+    NONE = 6
+
+
+
 from ._theme import (Theme, QConfig, qconfig, ConfigItem, ConfigValidator,
                      RangeValidator, OptionsValidator, BoolValidator,
                      FolderValidator, FolderListValidator, ColorValidator,
@@ -50,31 +75,18 @@ from ._display import (BodyLabel, CaptionLabel, StrongBodyLabel,
                       ElevatedCardWidget, ScrollArea, SegmentedWidget,
                       ProgressBar, ProgressRing, ListWidget, TableWidget,
                       TableView)
+from ._menu import RoundMenu, CommandBar, MenuAnimationType
+from ._feedback import (MaskDialogBase, MessageBox, MessageBoxBase, InfoBar,
+                        InfoBarIcon)
+from ._setting import (SettingCard, SettingCardGroup, ExpandLayout,
+                       ComboBoxSettingCard, OptionsSettingCard,
+                       SwitchSettingCard, RangeSettingCard, PushSettingCard,
+                       PrimaryPushSettingCard, CustomColorSettingCard,
+                       HyperlinkCard)
+from ._window import (FluentWindow, NavigationWidget, NavigationInterface,
+                      FluentTitleBar)
 
 __version__ = "2.3.1"
-
-
-# ---------------------------------------------------------------------- #
-# 纯常量枚举（不属任何控件族，B0 随主题层一并落地；成员值与上游逐一相同）
-# ---------------------------------------------------------------------- #
-class NavigationItemPosition(Enum):
-    """导航项位置（与 qfluentwidgets 逐名同值）。"""
-
-    TOP = 0
-    SCROLL = 1
-    BOTTOM = 2
-
-
-class InfoBarPosition(Enum):
-    """信息条位置（与 qfluentwidgets 逐名同值）。"""
-
-    TOP = 0
-    BOTTOM = 1
-    TOP_LEFT = 2
-    TOP_RIGHT = 3
-    BOTTOM_LEFT = 4
-    BOTTOM_RIGHT = 5
-    NONE = 6
 
 
 # ---------------------------------------------------------------------- #
@@ -96,17 +108,8 @@ def _make_pending(name, step):
 
 #: (符号名, 所属 B 步)
 _PENDING = [
-    # B1 · 纯控件族（_buttons/_inputs/_display）
-    # B2 · 反馈/菜单/设置（_feedback/_menu/_setting）
-    ("MaskDialogBase", 2), ("MessageBox", 2), ("MessageBoxBase", 2),
-    ("InfoBar", 2), ("RoundMenu", 2), ("CommandBar", 2),
-    ("SettingCard", 2), ("SettingCardGroup", 2), ("ExpandLayout", 2),
-    ("ComboBoxSettingCard", 2), ("OptionsSettingCard", 2),
-    ("SwitchSettingCard", 2), ("RangeSettingCard", 2),
-    ("PushSettingCard", 2), ("PrimaryPushSettingCard", 2),
-    ("CustomColorSettingCard", 2), ("HyperlinkCard", 2),
-    # B3 · 窗口与导航（_window）
-    ("FluentWindow", 3), ("NavigationWidget", 3),
+    # B1/B2/B3 已全部落地（2026-10-18）。本机制保留：后续新增契约符号若需
+    # 分步实现，按 ("Name", 步号) 登记即可，import 可用、实例化报错。
 ]
 
 for _name, _step in _PENDING:

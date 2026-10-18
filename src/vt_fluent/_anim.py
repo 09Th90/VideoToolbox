@@ -530,12 +530,14 @@ class SmoothScrollDelegate(QObject):
         parent.setHorizontalScrollBarPolicy = self.setHorizontalScrollBarPolicy
 
     def setVerticalScrollBarPolicy(self, policy):
-        super(QAbstractScrollArea, self.parent()).setVerticalScrollBarPolicy(
-            Qt.ScrollBarAlwaysOff)
+        # ⚠ 必须直接调 QAbstractScrollArea 的方法：super(QAbstractScrollArea,
+        # widget) 会跳过 QAbstractScrollArea 自身，落到 QFrame 上（无此方法）。
+        QAbstractScrollArea.setVerticalScrollBarPolicy(
+            self.parent(), Qt.ScrollBarAlwaysOff)
 
     def setHorizontalScrollBarPolicy(self, policy):
-        super(QAbstractScrollArea, self.parent()).setHorizontalScrollBarPolicy(
-            Qt.ScrollBarAlwaysOff)
+        QAbstractScrollArea.setHorizontalScrollBarPolicy(
+            self.parent(), Qt.ScrollBarAlwaysOff)
 
     def eventFilter(self, obj, e):
         if e.type() == QEvent.Wheel:

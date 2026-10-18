@@ -86,6 +86,7 @@ src/vt_fluent/
 | `scripts/dev/_selftest_vt_fluent_theme.py` | 主题令牌 parity（B0 门）：ThemeColor 七档 × 6 主题色 × 明暗逐值、renderQss 逐字节、ConfigItem 语义、字体 | ✅ B0 首跑 PASS |
 | `scripts/dev/_selftest_vt_fluent_icon.py` | 图标渲染 parity（B0 门）：175 成员面 + 59 图标 × 明暗 × 4 尺寸合成像素逐项 | ✅ B0 首跑 PASS（472/472） |
 | `scripts/dev/_selftest_vt_fluent_widgets.py` | 控件族 parity（B1 门）：几何度量 + 标签字体 + SwitchButton/CheckBox 8 态×明暗色矩阵 + 进度条/滑杆态色 | ✅ B1 首跑 PASS（218 项） |
+| `scripts/dev/_selftest_vt_fluent_b2b3.py` | B2/B3 可用性：SettingCard/CommandBar/RoundMenu/InfoBar/导航项/FluentWindow 几何对照 + 菜单/InfoBar/设置卡/窗口功能冒烟 | ✅ 首跑 PASS（38 项） |
 | `scripts/dev/vt_ui_contract.py` / `vt_ui_lint.py` / `vt_ui_golden.py` | UI 契约 AST / lint / 黄金样本（既有，QSS 切换期继续守护） | ✅ 基线全过 |
 | `scripts/dev/_gen_vt_fluent_icons.py` | 图标数据再生成（dev 期；前置 qfluentwidgets 已装） | ✅ 工具就位 |
 
@@ -113,9 +114,9 @@ Fluent System Icons（MIT），自研引擎 + 自写 QSS 承担 Fluent 外观。
 |---|---|---|---|
 | B0 | `_theme.py` + `_qss/` + `_icon.py`（主题引擎与图标先行） | 深浅色令牌与 qfluentwidgets 逐值对照 | ✅ 2026-10-16 完成（theme 探针 PASS：6 色 × 明暗 × 七档逐值 + QSS 渲染逐字节；icon 探针 PASS：472/472 合成像素；qss_migration parity 绿） |
 | B1 | `_buttons.py` / `_inputs.py` / `_display.py`（纯控件族） | 单控件探针（离屏 WA_DontShowOnScreen 量几何 + 态色） | ✅ 2026-10-16 完成（widgets 探针 PASS：218 项——几何/字体/8 态×明暗色矩阵/进度条/滑杆） |
-| B2 | `_feedback.py` / `_menu.py` / `_setting.py` | InfoBar 队列/动效、菜单 flyout、设置卡布局 | 待施工 |
-| B3 | `_window.py`（FluentWindow + NavigationInterface，最难） | `_probe_home_nav` 23/23 + 导航展开/收起/角标 | 待施工 |
-| B4 | 逐文件切 import（video_toolbox_qt.py → vt_engine_ui/* → 其余页）→ ui_theme 改接 → qt_compat 退役 | qss_migration 残留归零、vt_ui_golden IDENTICAL、_sel_shots 截图黄金 | 待施工 |
+| B2 | `_feedback.py` / `_menu.py` / `_setting.py` | InfoBar 队列/动效、菜单 flyout、设置卡布局 | ✅ 2026-10-18 完成（InfoBar 叠放/滑入、RoundMenu flyout 五档动画、设置卡全家桶 + ExpandLayout） |
+| B3 | `_window.py`（FluentWindow + NavigationInterface，最难） | `_probe_home_nav` 23/23 + 导航展开/收起/角标 | ✅ 2026-10-18 完成（自研无边框/Mica/标题栏/导航；b2b3 探针覆盖加页/切换/移除/常驻展开/宽度自适应） |
+| B4 | 逐文件切 import（video_toolbox_qt.py → vt_engine_ui/* → 其余页）→ ui_theme 改接 → qt_compat 退役 | qss_migration 残留归零、vt_ui_golden IDENTICAL、_sel_shots 截图黄金 | 施工中（2026-10-18 起：先切安静文件；video_toolbox_qt/video_toolbox/qt_compat 待 A 区并发会话收口） |
 
 B0 落地结构（src/vt_fluent/）：`__init__.py`（71 符号契约面 + 常量枚举
 + B1/B2/B3 pending 桩）、`_theme.py`（qconfig/ConfigItem/ThemeColor/样式表管理/

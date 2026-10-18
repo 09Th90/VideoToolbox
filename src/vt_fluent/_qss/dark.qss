@@ -408,3 +408,199 @@ CheckBox {
 CheckBox:disabled {
     color: rgba(255, 255, 255, 0.36);
 }
+
+/* ---- 菜单（B2） ------------------------------------------------------ */
+MenuActionListWidget {
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background-color: rgb(43, 43, 43);
+}
+
+MenuActionListWidget[transparent=true] {
+    background-color: transparent;
+}
+
+MenuActionListWidget::item {
+    color: white;
+}
+
+MenuActionListWidget::item:disabled {
+    color: rgba(255, 255, 255, 0.4);
+}
+
+MenuActionListWidget::item:hover {
+    background-color: rgba(255, 255, 255, 0.08);
+}
+
+MenuActionListWidget::item:selected {
+    background-color: rgba(255, 255, 255, 0.08);
+    color: white;
+}
+
+MenuActionListWidget::item:selected:active {
+    background-color: rgba(255, 255, 255, 0.06);
+    color: rgba(255, 255, 255, 0.7);
+}
+
+/* ---- 信息条（B2） ---------------------------------------------------- */
+InfoBar {
+    border: 1px solid rgb(29, 29, 29);
+    border-radius: 6px;
+    background-color: rgb(39, 39, 39);
+}
+
+InfoBar #titleLabel {
+    font: 14px --FontFamilies;
+    font-weight: bold;
+    color: white;
+    background-color: transparent;
+}
+
+InfoBar #contentLabel {
+    font: 14px --FontFamilies;
+    color: white;
+    background-color: transparent;
+}
+
+InfoBar[type="Info"] {
+    background-color: rgb(39, 39, 39);
+}
+
+InfoBar[type="Success"] {
+    background-color: rgb(57, 61, 27);
+}
+
+InfoBar[type="Warning"] {
+    background-color: rgb(67, 53, 25);
+}
+
+InfoBar[type="Error"] {
+    background-color: rgb(68, 39, 38);
+}
+
+/* ---- 对话框（B2） ---------------------------------------------------- */
+QDialog {
+    background-color: rgb(43, 43, 43);
+}
+
+#buttonGroup {
+    background-color: rgb(32, 32, 32);
+    border-top: 1px solid rgb(29, 29, 29);
+    border-left: none;
+    border-right: none;
+    border-bottom: none;
+}
+
+MessageBoxBase #buttonGroup,
+MessageBox #buttonGroup {
+    border-bottom-left-radius: 8px;
+    border-bottom-right-radius: 8px;
+}
+
+#centerWidget {
+    border: 1px solid rgb(58, 58, 58);
+    border-radius: 10px;
+    background-color: rgb(43, 43, 43);
+}
+
+QDialog QLabel {
+    background-color: transparent;
+    color: white;
+    border: none;
+}
+
+QDialog #titleLabel {
+    font: 20px --FontFamilies;
+    font-weight: 600;
+}
+
+QDialog #contentLabel {
+    font: 14px --FontFamilies;
+}
+
+/* ---- 设置卡（B2） ---------------------------------------------------- */
+SettingCard QLabel {
+    font: 14px --FontFamilies;
+    color: white;
+    padding: 0;
+    border: none;
+    background-color: transparent;
+}
+
+SettingCard QLabel#contentLabel {
+    font: 11px --FontFamilies;
+    color: rgb(208, 208, 208);
+    padding: 0;
+}
+
+RangeSettingCard > QLabel#valueLabel {
+    color: rgb(159, 159, 159);
+}
+
+SettingCard QLabel:disabled,
+SettingCard QLabel#contentLabel:disabled {
+    color: rgba(255, 255, 255, 0.36);
+}
+
+SettingCard QPushButton {
+    background: rgba(255, 255, 255, 0.0605);
+    border: 1px solid rgba(255, 255, 255, 0.053);
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 5px;
+    padding: 5px 36px 5px 36px;
+    font: 14px --FontFamilies;
+    color: white;
+    outline: none;
+}
+
+SettingCard QPushButton:hover {
+    background: rgba(255, 255, 255, 0.0837);
+}
+
+SettingCard QPushButton:pressed {
+    color: rgba(255, 255, 255, 0.786);
+    background: rgba(255, 255, 255, 0.0326);
+}
+
+SettingCardGroup {
+    background-color: transparent;
+}
+
+SettingCardGroup > QLabel {
+    background-color: transparent;
+    color: white;
+    border: none;
+}
+
+ExpandSettingCard {
+    border: 1px solid transparent;
+    border-radius: 6px;
+    background-color: transparent;
+}
+
+ExpandSettingCard #view {
+    background: rgba(255, 255, 255, 0.051);
+    border: none;
+    border-bottom-left-radius: 8px;
+    border-bottom-right-radius: 8px;
+}
+
+ExpandSettingCard #scrollWidget {
+    border: none;
+    background-color: transparent;
+}
+
+ExpandSettingCard QLabel#titleLabel {
+    font: 14px --FontFamilies;
+    color: white;
+    padding: 0;
+    background: transparent;
+    border: none;
+}
+
+ExpandSettingCard QLabel#contentLabel {
+    font: 11px --FontFamilies;
+    color: rgb(208, 208, 208);
+    padding: 0;
+    background: transparent;
+    border: none;
+}

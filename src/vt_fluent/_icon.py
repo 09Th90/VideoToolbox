@@ -252,12 +252,14 @@ def drawIcon(icon, painter, rect, state=QIcon.Off, **attributes):
         else:
             # 复用引擎（主题感知 + 态透明度由引擎处理）
             engine = FluentIconEngine(icon)
-            engine.paint(painter, QRect(rect).toRect(), QIcon.Normal, state)
+            r = rect.toRect() if hasattr(rect, "toRect") else QRect(rect)
+            engine.paint(painter, r, QIcon.Normal, state)
     elif isinstance(icon, Icon):
         drawIcon(icon.fluentIcon, painter, rect, state, **attributes)
     else:
         icon = QIcon(icon)
-        icon.paint(painter, QRectF(rect).toRect(), Qt.AlignCenter, state=state)
+        r = rect.toRect() if hasattr(rect, "toRect") else QRect(rect)
+        icon.paint(painter, r, Qt.AlignCenter, state=state)
 
 
 class Action(QAction):
