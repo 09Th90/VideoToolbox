@@ -145,6 +145,7 @@ from core.shared import (  # shared 域公开函数（DOMAIN_MAP「shared」全�
     ai_plan_risks, ai_save_config, ai_last_auto_notes, ai_test_connection,
     ai_test_asr, clean_path, proxy_group_now, proxy_node_delays,
     pick_best_proxy_node, proxy_lock_acquire, proxy_lock_release,
+    proxy_lock_status, proxy_ctl_base, proxy_egress_ip, proxy_note_eof,
     # 注：data_root_info/set_data_root/prepare_runtime_env/sync_env_into/
     # engine_ui_brand_patch 五个 DOMAIN_MAP-shared 符号的函数体仍在本文件
     # 下方（依赖 asr/calibrate 未拆域），随 A2/A3 再搬；届时从这里补名，
@@ -154,7 +155,8 @@ from core.download import (  # download 域公开函数（DOMAIN_MAP「download�
     ensure_ytdlp, ensure_ffmpeg, ensure_mpv_dll,
     extract_url, extract_web_url, ytdlp_sub_langs,
     ytdlp_prefer_hls, ytdlp_part_leftovers, ytdlp_error_retryable,
-    ytdlp_err_brief, ytdlp_cookie_args,
+    ytdlp_err_brief, ytdlp_error_needs_reextract, ytdlp_dl_args,
+    ytdlp_concurrent_fragments, ytdlp_cookie_args,
     cookie_mode, cookie_browser, cookie_file, cookies_file_status,
     browser_cookie_probe, cookie_load_failure_reason,
     browser_user_data_dir, browser_exe_path, browser_app_bound_enabled,
@@ -190,6 +192,10 @@ from core.asr import (  # asr 域公开函数（DOMAIN_MAP「asr」A2b 部分）
 from core.shared import (  # shared 收口四符号（DOMAIN_MAP「shared」A2b 部分）
     prepare_runtime_env, data_root_info, set_data_root, engine_ui_brand_patch,
 )
+from core.translate import (  # translate 域公开函数（DOMAIN_MAP「translate」全集）
+    vc_translate_route_patch,
+)
+from core.translate import *  # noqa: F401,F403 —— translate 域私有与常量
 from core.shared import (  # 私有名（* 不导出下划线开头，必须显式列）
     _AI_LAST_AUTO_NOTES, _LOG_ERR_WORDS, _LOG_WARN_WORDS, _append_log,
     _vc_log, _mihomo_log, _is_self_exe, _VC_LEGACY_DIRS,
@@ -434,48 +440,6 @@ def set_calib_sync_enabled(flag):
     save_config(cfg)
 # =============================
 
-
-
-def _patch_translator_route(mod, cls_name):
-    """给某个翻译器类的 `__init__` 包一层：构造完 session 后钉死路由。"""
-    cls = getattr(mod, cls_name, None)
-    if cls is None or getattr(cls, "_vt_route_patched", False):
-        return False
-    orig_init = cls.__init__
-
-    def _init(self, *a, **kw):
-        orig_init(self, *a, **kw)
-        try:
-            session = getattr(self, "session", None)
-            if session is not None:
-                session.trust_env = False          # 关键：不读环境/系统代理
-                session.proxies = translate_session_proxies(
-                    getattr(self, "endpoint", ""))
-        except Exception as e:  # noqa: BLE001
-            _vc_log(f"翻译会话路由设置失败（{cls_name}）：{e}")
-
-    cls.__init__ = _init
-    cls._vt_route_patched = True
-    return True
-
-
-def vc_translate_route_patch():
-    """把「翻译请求路由」钉死（幂等运行期补丁，理由见 `translate_session_proxies`）。"""
-    try:
-        import videocaptioner.core.translate.bing_translator as _bt
-        import videocaptioner.core.translate.google_translator as _gt
-    except Exception as e:  # noqa: BLE001
-        _vc_log(f"翻译路由补丁导入失败：{e}")
-        return False
-    done = []
-    if _patch_translator_route(_bt, "BingTranslator"):
-        done.append("微软")
-    if _patch_translator_route(_gt, "GoogleTranslator"):
-        done.append("谷歌")
-    if done:
-        _vc_log("翻译路由补丁已挂：%s 请求显式路由（微软直连 / 谷歌走本地代理，"
-                "不再跟随系统代理）" % "+".join(done))
-    return True
 
 
 # ========== 校准知识同步（v1.12.2：GitHub 整文件通道收集 + 可选本地增量镜像） ==========

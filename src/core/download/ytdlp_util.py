@@ -30,21 +30,49 @@ YTDLP_CHUNK_SIZE = "5M"
 #: HLS/DASH 分片并发数（yt-dlp `-N`，默认 1 = 串行）。分片源提速**最有效**的
 #: 一项：实测 226 片的 HLS 串行下载慢到不可用，并发后是数倍差距。
 #: 别调太高——请求都经本地代理出去，并发过高会加剧代理断连（实测过）。
+#: DOWNLOAD.md 另记：NPE 侧实测「同 IP 对 googlevideo 开 2 条连接即触发限流」，
+#: 所以默认 5 是稳定性优先的折中，需要提速时用 VT_YTDLP_FRAGMENTS 自行调整。
 YTDLP_CONCURRENT_FRAGMENTS = "5"
 
-#: yt-dlp 下载通用参数（提速 + 抗断流）。**下载页与流水线共用同一份**。
-#: · `--socket-timeout`：代理断连时快速失败。此前没设，实测一次
-#:   `Unable to connect to proxy` 让任务**干等了 9 分钟**才报错；
-#: · `--retries/--fragment-retries`：网络抖动重试（分片级重试只重下那一片，
-#:   不像整文件重来）；
-#: · `--retry-sleep exp=1:20`：指数退避（1→20s），避免连续撞风控。
-YTDLP_DL_COMMON_ARGS = [
-    "--socket-timeout", "20",
-    "--retries", "10",
-    "--fragment-retries", "10",
-    "--retry-sleep", "exp=1:20",
-    "--concurrent-fragments", YTDLP_CONCURRENT_FRAGMENTS,
-]
+
+def ytdlp_concurrent_fragments():
+    """分片并发数（可用 ``VT_YTDLP_FRAGMENTS`` 覆盖，取值 1~16）。
+
+    为什么允许覆盖：2026-10-17 完整监控显示 5 并发下 IEPL 节点只有 1.34 MB/s
+    均速，但 CDN 对单 IP 并发敏感（并发过高会触发限流/断连），不存在一个对
+    所有节点都最优的值。固定值必然有一部分用户吃亏，故开放环境变量自行试探。
+    非法值（非数字/越界）静默回落到默认，不抛异常。
+    """
+    v = (os.environ.get("VT_YTDLP_FRAGMENTS") or "").strip()
+    if v.isdigit():
+        n = int(v)
+        if 1 <= n <= 16:
+            return str(n)
+    return YTDLP_CONCURRENT_FRAGMENTS
+
+
+def ytdlp_dl_args():
+    """yt-dlp 下载通用参数表（提速 + 抗断流）。下载页与流水线共用同一份。
+
+    与 ``YTDLP_DL_COMMON_ARGS`` 常量的区别：本函数每次调用都重新生成，
+    以便 ``VT_YTDLP_FRAGMENTS`` 之类环境变量在进程内改动后立即生效
+    常量在 import 时定死，改环境变量要重启进程才认）。
+      · ``--socket-timeout``：代理断连时快速失败。此前没设，实测一次
+        ``Unable to connect to proxy`` 让任务**干等了 9 分钟**才报错；
+      · ``--retries/--fragment-retries``：网络抖动重试（分片级重试只重下那一片，
+        不像整文件重来）；
+      · ``--retry-sleep exp=1:20``：指数退避（1→20s），避免连续撞风控。
+        ⚠ 对 EOF（链接作废）属负资产——直链场景 GUI 会主动结束进程走重新提取，
+        不依赖这里的退避；分片场景退避有价值，故保留。
+      · ``--concurrent-fragments``：见 ``ytdlp_concurrent_fragments()``。
+    """
+    return [
+        "--socket-timeout", "20",
+        "--retries", "10",
+        "--fragment-retries", "10",
+        "--retry-sleep", "exp=1:20",
+        "--concurrent-fragments", ytdlp_concurrent_fragments(),
+    ]
 
 
 def ytdlp_prefer_hls():
@@ -89,6 +117,21 @@ YTDLP_RETRY_HINTS = (
     "Name or service not known", "SSL", "TLS", "giving up",
 )
 
+#: 「重试同一条 URL 没有意义」的错误特征——必须**重新提取**才是有效动作。
+#: videoplayback 直链在签发时把当时的出口 IP 写进了 URL（`ip=` 参数），
+#: 代理一换节点，CDN 就按旧 IP 校验并直接掐断 TLS：表现就是
+#: `Got error: EOF occurred in violation of protocol (_ssl.c:1007). Retrying`
+#: ——重试用的还是那条死链，退避 6→12→24s 纯属白耗，用户看到"一直 Retrying"。
+YTDLP_REEXTRACT_HINTS = (
+    "eof occurred in violation of protocol",   # 本次要解决的主角
+    "_ssl.c",                                   # 上面那行的 Python 出处
+    "remote end closed",
+    "connection closed without response",
+    "http error 403",                           # CDN 按旧 IP 校验不通过
+    "fragment not found",                       # HLS 分片 URL 同因失效
+    "unable to download video data",
+)
+
 
 def ytdlp_error_retryable(text):
     """yt-dlp 输出是否属「可重试」的临时失败（风控 / 网络抖动）。
@@ -107,6 +150,28 @@ def ytdlp_err_brief(text, limit=120):
         if "ERROR" in ln or "error" in ln:
             return ln[:limit]
     return lines[-1][:limit] if lines else "未知错误"
+
+
+def ytdlp_error_needs_reextract(text):
+    """yt-dlp 输出是否属于「链接本身已失效、必须重新提取」的失败。
+
+    与 ``ytdlp_error_retryable`` 的分工：后者判「是不是临时故障、值不值得
+    原地再试一次」；本函数判「再试同一条 URL 是不是纯属浪费」。
+    EOF / TLS 断连在 YouTube 上几乎都是出口 IP 变了——直链绑定了签发时的
+    IP，CDN 直接掐连接（403 同理）。这类失败唯一有效的动作是**重新提取**，
+    拿到绑定新 IP 的新链接；原地重试只会白耗退避时间。
+
+    注意容错：判据全部小写化后比较，且不依赖 "giving up" 这类位于输出末尾、
+    可能因缓冲问题缺失的行——只要出现核心特征就判定成立。
+    """
+    low = str(text or "").lower()
+    if not low:
+        return False
+    if not any(k in low for k in YTDLP_REEXTRACT_HINTS):
+        return False
+    # 二次确认：output 里的 Retrying 计数行本身不构成证据（它只是转述错误），
+    # 必须有真正的 ERROR/WARNING 行佐证，否则空文本误判。
+    return "error" in low or "warning" in low
 
 
 def fetch_info_json(ytdlp, url, attempts=4, log=None, wait_base=5,
@@ -164,15 +229,29 @@ def fetch_info_json(ytdlp, url, attempts=4, log=None, wait_base=5,
             _unregister()
             return None
         proc = None
+        out_f = err_f = None
         try:
             # v1.16.5 修复：此前无 timeout——yt-dlp 在网络挂起（半开连接 /
             # 站点不响应）时会无限期干等，GUI 表现即「提取画质」永远转圈。
             # 180s 覆盖慢速站点首包 + 站点侧风控延迟的实测上限。
             # v1.19.1：改 Popen + 轮询，取消标志一置位立刻杀整棵进程树。
+            # ⚠ v2.3.2 修复 PIPE 死锁：原先 stdout/stderr 用 subprocess.PIPE，
+            # 而下面的轮询循环只 poll() 不读管道 —— `-J` 对长视频输出的 JSON
+            # （实测 7.6h 直播录像达 660KB）写满 Windows 管道缓冲后，yt-dlp
+            # 阻塞在 write 永不退出 → 每次必然 180s 超时（把 stdout 重定向到
+            # 文件则同一命令 24s 成功，即此因）。改写到临时文件、结束再读。
+            out_f = tempfile.TemporaryFile()
+            err_f = tempfile.TemporaryFile()
             proc = popen_process([ytdlp, "-J", "--no-playlist", *cookie_args,
                                   url, *proxy_args],
-                                 stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                                 stdout=out_f, stderr=err_f)
         except Exception:  # noqa: BLE001
+            for _f in (out_f, err_f):
+                if _f is not None:
+                    try:
+                        _f.close()
+                    except Exception:  # noqa: BLE001
+                        pass
             _unregister()
             raise
         if register:
@@ -183,16 +262,13 @@ def fetch_info_json(ytdlp, url, attempts=4, log=None, wait_base=5,
         deadline = time.time() + 180
         out_b = err_b = b""
         timed_out = False
+        cancelled = False
         try:
             while True:
                 if _cancelled():
+                    cancelled = True
                     kill_process_tree(proc)
-                    try:
-                        proc.communicate(timeout=5)
-                    except Exception:  # noqa: BLE001
-                        pass
-                    _unregister()
-                    return None
+                    break
                 if proc.poll() is not None:
                     break
                 if time.time() > deadline:
@@ -201,11 +277,21 @@ def fetch_info_json(ytdlp, url, attempts=4, log=None, wait_base=5,
                     break
                 time.sleep(0.15)
             try:
-                out_b, err_b = proc.communicate(timeout=5)
+                out_f.seek(0)
+                out_b = out_f.read()
+                err_f.seek(0)
+                err_b = err_f.read()
             except Exception:  # noqa: BLE001
                 out_b, err_b = b"", b""
         finally:
+            for _f in (out_f, err_f):
+                try:
+                    _f.close()
+                except Exception:  # noqa: BLE001
+                    pass
             _unregister()
+        if cancelled:
+            return None
         if timed_out:
             _log(f"[信息] 提取超时（180s，{i + 1}/{attempts}）")
             if i == attempts - 1:
@@ -444,12 +530,14 @@ def download_mode(url=None):
 __all__ = [
     "YTDLP_CHUNK_SIZE",
     "YTDLP_CONCURRENT_FRAGMENTS",
-    "YTDLP_DL_COMMON_ARGS",
+    "ytdlp_concurrent_fragments",
+    "ytdlp_dl_args",
     "YTDLP_RETRY_HINTS",
     "ytdlp_prefer_hls",
     "ytdlp_part_leftovers",
     "ytdlp_error_retryable",
     "ytdlp_err_brief",
+    "ytdlp_error_needs_reextract",
     "fetch_info_json",
     "parse_qualities",
     "save_info_json",

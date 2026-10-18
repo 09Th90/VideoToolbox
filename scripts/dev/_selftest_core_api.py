@@ -73,13 +73,26 @@ DOMAIN_MAP = {
         # 已随代理节点锁定家族搬入 shared（yt-dlp/翻译共用）。此处追认移域。
         "proxy_group_now", "proxy_node_delays", "pick_best_proxy_node",
         "proxy_lock_acquire", "proxy_lock_release",
+        # 2026-10-17 通用化（换设备/换系统仍可用）新增：控制口发现与诊断族。
+        # proxy_note_eof 把「EOF 是链接作废、正在重新提取」说给用户听；
+        # proxy_lock_status/ctl_base/egress_ip 供 GUI 与 CLI 一次说清现状。
+        "proxy_lock_status", "proxy_ctl_base", "proxy_egress_ip",
+        "proxy_note_eof",
     ],
     "download": [
         "ensure_ytdlp", "ensure_ffmpeg", "ensure_mpv_dll",
         "format_size", "format_time", "open_folder",
         "extract_url", "extract_web_url", "ytdlp_sub_langs",
         "ytdlp_prefer_hls", "ytdlp_part_leftovers", "ytdlp_error_retryable",
-        "ytdlp_err_brief", "ytdlp_cookie_args",
+        "ytdlp_err_brief",
+        # 2026-10-17：EOF/TLS 断连属「链接作废、必须重新提取」，与上面的
+        # retryable（值不值得原地再试）分工不同——单独判定。
+        "ytdlp_error_needs_reextract",
+        # 2026-10-17 监控后新增：分片并发可调（VT_YTDLP_FRAGMENTS 覆盖）。
+        # ytdlp_dl_args 取代码里 YTDLP_DL_COMMON_ARGS 常量的位置——常量改为
+        # 函数是为了让环境变量改动即时生效，不必重启进程。
+        "ytdlp_concurrent_fragments", "ytdlp_dl_args",
+        "ytdlp_cookie_args",
         "cookie_mode", "cookie_browser", "cookie_file", "cookies_file_status",
         "browser_cookie_probe", "cookie_load_failure_reason",
         "browser_user_data_dir", "browser_exe_path", "browser_app_bound_enabled",
@@ -131,6 +144,7 @@ DOMAIN_MAP = {
 SPLIT_STATUS = {d: "pending" for d in DOMAIN_MAP}
 SPLIT_STATUS["download"] = "done"  # v2.3.1 A1：56 符号 + 15 常量全量搬入
 SPLIT_STATUS["asr"] = "done"       # v2.3.1 A2：31 符号全量搬入（A2a+A2b）
+SPLIT_STATUS["translate"] = "done"  # v2.3.1 A3-1：1 符号（route_patch，含 10-17 双重保险增强）
 
 #: 常量基线只快照这些类型（dict/set 等运行期缓存会变，不钉）
 _CONST_TYPES = (str, int, float, bool, tuple, list, frozenset)

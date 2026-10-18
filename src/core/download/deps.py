@@ -31,10 +31,12 @@ def _download(url, dest, label, use_proxy=True):
     except Exception as e:
         if not use_proxy:
             raise
-        print(f"[setup] 直连失败（{e}），启用内置代理重试 ...")
-        proxy = ensure_builtin_proxy()
+        print(f"[setup] 直连失败（{e}），改用代理重试 ...")
+        # 2026-10-16：改走统一代理链路（系统代理优先；内置 mihomo 默认已下线）
+        _pa = ytdlp_proxy_args()
+        proxy = _pa[1] if _pa else ""
         if not proxy:
-            print("[setup] 内置代理不可用，下载失败")
+            print("[setup] 无可用代理（系统代理未开启且内置代理已停用），下载失败")
             raise
         opener = urllib.request.build_opener(
             urllib.request.ProxyHandler({"http": proxy, "https": proxy}))

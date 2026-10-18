@@ -74,6 +74,17 @@ def worker_subprocess_env():
     env["MODELSCOPE_CACHE"] = os.path.join(CACHE_DIR, "modelscope")
     env["XDG_CONFIG_HOME"] = os.path.join(CACHE_DIR, "xdg-config")
     env["XDG_DATA_HOME"] = os.path.join(CACHE_DIR, "xdg-data")
+    # v1.19.2：**剥掉标准代理环境变量**。requests / httpx 默认会读
+    # https_proxy/http_proxy/ALL_PROXY 并静默套在所有请求上——而 IDE 注入的
+    # 127.0.0.1:<随机端口> 往往只对特定流量生效（实测对微软翻译、moonshot
+    # 等国内站点一律不通），于是「调用方以为在直连、实际走了坏代理」。
+    # 2026-10-17 用户遇到的「252/252 segments failed」即此形态。
+    # 本项目的代理都是**显式**传递的（yt-dlp 走 --proxy、AI/翻译走
+    # translate_session_proxies/http_proxies_for），不依赖环境变量，
+    # 因此剥掉是安全的；显式 VT_YTDLP_PROXY 是我们的通道，保留。
+    for _k in ("https_proxy", "HTTPS_PROXY", "http_proxy", "HTTP_PROXY",
+               "ALL_PROXY", "all_proxy"):
+        env.pop(_k, None)
     return env
 # =============================
 
