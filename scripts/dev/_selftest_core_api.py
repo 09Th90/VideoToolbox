@@ -198,10 +198,17 @@ def _public_symbols():
 
 
 def _module_constants():
-    """AST 提取模块级大写常量（限定类型），返回 {名: repr}。"""
+    """模块级大写常量 {名: repr}。
+
+    v2.3.1 A 区自查升级：拆分后 facade 无顶层赋值——原逻辑（只扫 facade
+    AST）导致 core 全树 164 个常量里 95 个不在基线内（CONFIG_PATH/
+    MIHOMO_API/URL_RE/_PROXY_LOCK 等关键路径常量裸奔）。现改为
+    **facade AST + core/**/*.py 顶层大写赋值名并集**（值仍运行时
+    getattr 求真，见 _collect_live）。
+    """
+    out = {}
     with open(MONOLITH, encoding="utf-8") as f:
         tree = ast.parse(f.read(), MONOLITH)
-    out = {}
     for node in tree.body:
         if isinstance(node, ast.Assign):
             for t in node.targets:
@@ -212,6 +219,23 @@ def _module_constants():
                         continue
                     if isinstance(val, _CONST_TYPES):
                         out[t.id] = repr(val)
+    # core 全树顶层常量名（路径/缓存/锁/URL 等拆分后落在子模块的）
+    for dirpath, _dirs, files in os.walk(CORE):
+        if "__pycache__" in dirpath:
+            continue
+        for fname in files:
+            if not fname.endswith(".py"):
+                continue
+            try:
+                sub = ast.parse(open(os.path.join(dirpath, fname),
+                                     encoding="utf-8").read())
+            except (OSError, SyntaxError):
+                continue
+            for node in sub.body:
+                if isinstance(node, ast.Assign):
+                    for t in node.targets:
+                        if isinstance(t, ast.Name) and t.id.isupper()                                 and not t.id.startswith("__"):
+                            out.setdefault(t.id, "")
     return out
 
 
@@ -245,9 +269,21 @@ def _collect_live():
     if os.path.isfile(GOLDEN):
         names |= set(_load_golden().get("constants", {}))
     consts = {}
+    import _thread as _th
     for name in sorted(names):
         got = getattr(vt, name, None)
-        consts[name] = repr(got) if got is not None else "<MISSING>"
+        if got is None:
+            consts[name] = "<MISSING>"
+            continue
+        if isinstance(got, _th.LockType):
+            continue  # 锁对象 repr 含内存地址，逐进程不稳，不纳入基线
+        if isinstance(got, (set, frozenset)):
+            try:
+                consts[name] = "SORTED-SET " + repr(sorted(got))
+            except TypeError:
+                consts[name] = "UNORDERED-SET"
+            continue
+        consts[name] = repr(got)
     return sigs, consts
 
 

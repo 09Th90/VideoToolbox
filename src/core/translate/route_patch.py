@@ -115,4 +115,5 @@ def vc_translate_route_patch():
 
 __all__ = [
     "vc_translate_route_patch",
+    "_patch_translator_route",
 ]

@@ -251,4 +251,5 @@ __all__ = [
     "calib_ai_run",
     "calib_sync_enabled",
     "set_calib_sync_enabled",
+    "_calib_event_sink",
 ]

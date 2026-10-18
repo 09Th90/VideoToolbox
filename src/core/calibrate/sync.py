@@ -757,4 +757,5 @@ __all__ = [
     "_dict_entries",
     "_entity_fields",
     "_registry_conflicts",
+    "_SYNC_CONN_CACHE",
 ]

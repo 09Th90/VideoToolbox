@@ -278,7 +278,7 @@ hiddenimports += collect_submodules('vt_engine_ui')
 # v2.3.1（拆分工程）：自研核心域包 `core`（shared/download/asr/translate/
 #   calibrate/pipeline）。facade video_toolbox.py 以 `from core.<域> import *`
 #   显式再导出，静态分析能跟到各域 __init__ 层；但域内部模块（如
-#   core/download/ytdlp_chain）与 vt_engine_ui 同理靠 collect_submodules
+#   core/download/ytdlp_util）与 vt_engine_ui 同理靠 collect_submodules
 #   递归收全。⚠ 同 vt_engine_ui 先例：spec 解析期 import core 需要 SRC_DIR
 #   在 sys.path（上面已显式补），空骨架阶段收空列表属预期，拆到某域时自动生效。
 hiddenimports += collect_submodules('core')
