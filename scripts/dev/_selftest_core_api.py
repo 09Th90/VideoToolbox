@@ -60,7 +60,7 @@ DOMAIN_MAP = {
         "vc_settings_path", "apply_global_llm_to_engine",
         "data_root_info", "set_data_root", "prepare_runtime_env",
         "load_config", "save_config", "get_saved_download_dir",
-        "set_saved_download_dir", "sync_env_into", "engine_ui_brand_patch",
+        "set_saved_download_dir", "engine_ui_brand_patch",
         "ai_mod", "ai_detect_language", "ai_load_config", "ai_match_settings",
         "ai_plan_risk", "ai_plan_risks", "ai_save_config", "ai_last_auto_notes",
         "ai_test_connection", "ai_test_asr",
@@ -133,6 +133,9 @@ DOMAIN_MAP = {
         "sync_calib_to_github", "sync_calib_push_local",
         "sync_calib_on_startup", "sync_calib_on_exit",
         "sync_voiceprint_on_startup", "sync_voiceprint_on_exit",
+        # sync_env_into：A3-2 追认自 shared 移入（与同步家族物理同段，
+        # 出身子进程同步环境注入）。施工图追认现实，同 clean_path 先例。
+        "sync_env_into",
     ],
     "pipeline": [
         "main", "srt_time_to_ms", "ms_to_srt_time", "normalize_rolling_srt",
@@ -145,6 +148,7 @@ SPLIT_STATUS = {d: "pending" for d in DOMAIN_MAP}
 SPLIT_STATUS["download"] = "done"  # v2.3.1 A1：56 符号 + 15 常量全量搬入
 SPLIT_STATUS["asr"] = "done"       # v2.3.1 A2：31 符号全量搬入（A2a+A2b）
 SPLIT_STATUS["translate"] = "done"  # v2.3.1 A3-1：1 符号（route_patch，含 10-17 双重保险增强）
+SPLIT_STATUS["calibrate"] = "done"   # v2.3.1 A3-2：16 符号 + sync_env_into 追认移域（shared→calibrate）
 
 #: 常量基线只快照这些类型（dict/set 等运行期缓存会变，不钉）
 _CONST_TYPES = (str, int, float, bool, tuple, list, frozenset)
