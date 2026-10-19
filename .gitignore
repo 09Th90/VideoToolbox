@@ -92,6 +92,12 @@ build/test_calib*
 config/
 src/config/
 
+# GitHub Actions 工作流（2026-10-19）：本地推送凭据是 OAuth App token，**没有
+# `workflow` scope**，GitHub 会拒绝创建/更新 workflow 文件（remote rejected）。
+# 文件本体保留在工作区 `.github/workflows/ci.yml`（内容已定稿），等凭据补上
+# workflow scope 后删掉本行即可入库。见提交 chore(ci) 对应说明。
+.github/workflows/
+
 # 历史归档：仅 history/ 下分类后的源码快照、开发脚本、发布留档、文档入库；
 # 以下大体积/日志/截图类留档只保留在本机，不进 git（dist/、_installer_check/
 # 已由对应通用规则覆盖）
