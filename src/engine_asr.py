@@ -1,4 +1,4 @@
-# @version 2.3.1
+# @version 2.4.0
 """ASR 链路（自研，替代 videocaptioner.core.asr 的转写执行部分）。
 
 P2 接缝：把第三方引擎的 ASR 执行链迁到本项目自有代码——``WhisperAPI``
@@ -159,7 +159,21 @@ def set_ffmpeg(path):
 
 
 def _find_ffmpeg():
-    """定位 ffmpeg：注入值 → 环境变量 → PATH。找不到返回 ``None``。"""
+    """定位 ffmpeg：注入值 → 环境变量 → PATH 注入（tools 目录）→ PATH。
+
+    ⚠⚠ 本文件此前有**两个**同名顶层 `_find_ffmpeg`（约 L161 与 L773），后者
+    遮蔽前者，且后者 `from engine_paths import _find_tool` —— 该符号在
+    engine_paths 里根本不存在，一被调用就是 ImportError。于是：
+      · 前半那个支持 `set_ffmpeg()` 注入与环境变量的实现成了死代码；
+      · 真正生效的实现会在「pydub 缺失时的 ffmpeg 切块兜底」路径上直接崩
+        （该路径正处于 `except ImportError: pass` 之后，异常会继续往外抛）。
+    2026-10-17 由 `scripts/dev/_selftest_proxy_lock.py` 的 AST 同名定义检查
+    抓出并合并为这一个实现。
+
+    引擎侧 ffmpeg 由 `engine_paths` 把 tools 目录**注入 PATH** 命中
+    （见其 bin_path 约定），所以 `shutil.which` 已覆盖「用工具箱自带的二进制」
+    这一层，无需单独拼路径。
+    """
     if _FFMPEG:
         return _FFMPEG
     import shutil
@@ -768,11 +782,6 @@ def _audio_duration_and_cut(audio_path: str, file_binary: bytes):
                 pass
 
     return total_ms, cut_f
-
-
-def _find_ffmpeg():
-    from engine_paths import _find_tool
-    return _find_tool("ffmpeg")
 
 
 def _ffprobe_duration_ms(ffmpeg, audio_path):

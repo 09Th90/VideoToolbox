@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.3.1
+# @version 2.4.0
 """视频预览弹窗（可选能力，惰性代理到引擎实现）。
 
 本 UI 层不重写视频预览控件：它依赖 ``vlc`` + qfluentwidgets 多媒体播放条（均为

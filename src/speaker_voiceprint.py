@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.3.1
+# @version 2.4.0
 """主播声纹：本地声纹录入 + 字幕筛选（无 Qt，可脱离界面单测）。
 
 把「只出主播的字幕」做成本地**后处理**：
@@ -371,12 +371,13 @@ def download_model(progress=None, timeout=300, force=False,
         px = None
         try:
             import video_toolbox as _e
-            px = _e.ensure_builtin_proxy()
+            _pa = _e.ytdlp_proxy_args()
+            px = _pa[1] if _pa else None
         except Exception:  # noqa: BLE001
             px = None
         if not px:
             raise VoiceprintError(
-                "下载失败（%s：%s）；内置代理也不可用。可手动下载（官方或镜像）"
+                "下载失败（%s：%s）；系统代理与内置代理均不可用。可手动下载（官方或镜像）"
                 "后放到 %s\n镜像地址：%s"
                 % (last[0] if last else "直连",
                    str(last[1])[:120] if last else "未知", MODEL_DIR,

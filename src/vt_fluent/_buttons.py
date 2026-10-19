@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.3.1
+# @version 2.4.0
 """vt_fluent 按钮族（自研，替代 qfluentwidgets.components.widgets.button）。
 
 行为契约（对齐上游 1.11.3）：
@@ -27,14 +27,24 @@ from ._anim import TranslateYAnimation
 from ._icon import (Action, FluentIcon, FluentIconBase, Icon, drawIcon, isDarkTheme,
                     toQIcon)
 from ._theme import (Theme, ThemeColor, autoFallbackThemeColor, FluentStyleSheet,
-                     isDarkTheme as _isd, setFont, themeColor)
+                     setFont, themeColor)
 
 
 def _menu_exec(menu, pos, ani_type=None):
-    """鸭子类型弹菜单：RoundMenu（B2）收 aniType，QMenu 只收 pos。"""
+    """鸭子类型弹菜单：RoundMenu（含子类）走 flyout，QMenu 只收 pos。
+
+    ⚠ RoundMenu 子类必须用非绑定调用 ``RoundMenu.exec(menu, ...)``：
+    PySide6 会把子类实例的 ``menu.exec(pos, aniType=...)`` 派发到 C++
+    QMenu.exec 并抛 AttributeError（详见 _menu.show_menu 的 docstring）。
+    函数级 import 避开 _menu ↔ _buttons 的循环导入。
+    """
+    from ._menu import RoundMenu
+    if isinstance(menu, RoundMenu):
+        RoundMenu.exec(menu, pos, aniType=ani_type)
+        return
     try:
         menu.exec(pos, aniType=ani_type)
-    except TypeError:
+    except (TypeError, AttributeError):
         menu.exec(pos)
 
 
@@ -145,7 +155,15 @@ class PushButton(QPushButton):
         x = 12 + (self.width() - mw) // 2 if mw > 0 else 12
         if self.isRightToLeft():
             x = self.width() - w - x
-        self._drawIcon(self._icon, painter, QRectF(x, y, w, h))
+        try:
+            self._drawIcon(self._icon, painter, QRectF(x, y, w, h))
+        finally:
+            # 显式收尾：PySide6 的 QPainter 在 GC 前不会 end()，子类
+            # (CommandButton) 紧接着再开一个 painter 会撞「A paint device
+            # can only be painted by one painter at a time」而**静默**画不出
+            # 东西。用 finally 兜住 _drawIcon 抛异常的情况，免得 painter
+            # 泄漏到下一次 paint 把所有后续自绘一起废掉。
+            painter.end()
 
 
 class PrimaryPushButton(PushButton):
@@ -469,7 +487,10 @@ class ToolButton(QToolButton):
         w, h = self.iconSize().width(), self.iconSize().height()
         y = (self.height() - h) / 2
         x = (self.width() - w) / 2
-        self._drawIcon(self._icon, painter, QRectF(x, y, w, h))
+        try:
+            self._drawIcon(self._icon, painter, QRectF(x, y, w, h))
+        finally:
+            painter.end()   # 同上：给后续自绘留出干净的 paint device
 
 
 class TransparentToolButton(ToolButton):

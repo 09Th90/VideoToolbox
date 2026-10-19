@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.3.1
+# @version 2.4.0
 """字幕编辑页的媒体后端：libmpv 播放器封装 + ffmpeg 波形峰值提取。
 
 与界面分离，便于单独调试（本模块只依赖 PySide6 的信号机制，不建任何窗口）。
@@ -20,7 +20,7 @@ import tempfile
 import threading
 import time
 
-from PySide6.QtCore import QObject, QTimer, Signal
+from PySide6.QtCore import QObject, QTimer, Qt, Signal
 
 # =============================================================
 # 0. libmpv 延迟加载（失败不炸主程序，只在编辑页给出可读提示）
@@ -293,6 +293,20 @@ class MpvPlayer(QObject):
             self.loaded.emit(False, err)
             return False
         try:
+            # ⚠ 必须在 winId() **之前**设：mpv 要的是**这个宿主自己**的 HWND。
+            #   不设此属性时，Qt 会把宿主的**整条祖先链**（导航条 / 标题栏 /
+            #   页面）一并提升成原生子窗口——实测一次 winId() 就多出 21 个
+            #   `Qt6xxxQWindowIcon` 子窗口。后果有二：
+            #     ① 它们从窗口最边缘铺开、盖住缩放热区（_ResizeHitFilter 的
+            #        整段说明就是为这个打的补丁）；
+            #     ② 窗口移动 / 最大化 / DPI 变化后，原生子窗口可能残留一份
+            #        「导航副本」鬼影——2026-10-18 用户截图：首页内容区中间
+            #        浮出一条 148px 宽、全高的导航面板（与左侧真导航逐像素
+            #        相同），且切换页面、重绘都消不掉（原生窗口不在 Qt 的
+            #        重绘管辖内）。
+            #   设了本属性后只有宿主自身变原生（mpv 照常嵌入），祖先保持
+            #   alien widget 由 Qt 合成，鬼影与边框遮挡一并消失。
+            widget.setAttribute(Qt.WA_DontCreateNativeAncestors, True)
             hwnd = int(widget.winId())
             self.player = mod.MPV(
                 wid=str(hwnd),

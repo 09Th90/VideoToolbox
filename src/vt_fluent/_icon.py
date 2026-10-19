@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.3.1
+# @version 2.4.0
 """vt_fluent 图标引擎（自研，替代 qfluentwidgets.common.icon 的 SVG 图标体系）。
 
 与 qfluentwidgets 1.11.3 FluentIcon 的行为契约：
@@ -221,10 +221,15 @@ FluentIcon = Enum("FluentIcon", MEMBERS, type=FluentIconBase)
 
 
 class Icon(QIcon):
-    """带 fluentIcon 溯源信息的 QIcon。"""
+    """带 fluentIcon 溯源信息的 QIcon。
+
+    ⚠ 必须用 FluentIconEngine 构造：`QIcon(path)` 走的是 Qt 资源路径
+    （`:/vt_fluent/images/...`），本项目图标是内嵌 SVG、没有 .qrc，构造出来
+    恒为空图标（曾导致菜单/命令条图标全部消失）。
+    """
 
     def __init__(self, fluentIcon):
-        super().__init__(fluentIcon.path())
+        super().__init__(FluentIconEngine(fluentIcon))
         self.fluentIcon = fluentIcon
 
 

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.3.1
+# @version 2.4.0
 """vt_fluent 主题引擎（自研，替代 qfluentwidgets.common.config / style_sheet / font）。
 
 定位：Fluent 风格主题层的单一权威。上层控件（_buttons/_inputs/_display/...）
@@ -467,6 +467,116 @@ class ThemeColor(Enum):
 
 
 # ---------------------------------------------------------------------- #
+# 设计令牌（QSS 库色板单点）
+# ---------------------------------------------------------------------- #
+#: 设计令牌表 —— 新增控件域与增量演进的**唯一**取色入口。
+#:
+#: 历史：light/dark.qss 的存量规则是 B0-B2 逐值对照基准（224 项 parity
+#: 已验证），**保持原文本**；本表面向**新增域**（滚动条/进度条/Tab/树/
+#: 原生提示与菜单/卡片/滚动区）及今后一切增量——新规则一律写 `--Token`
+#: 占位符，色值只在此处登记，明暗两档键集一致（键缺失时 renderQss 按
+#: safe_substitute 静默跳过，但自检会拦）。
+DESIGN_TOKENS = {
+    Theme.LIGHT: {
+        # 文字
+        "TextPrimary": "black",
+        "TextSecondary": "rgb(96, 96, 96)",
+        "TextPlaceholder": "rgba(0, 0, 0, 0.6063)",
+        "TextPressed": "rgba(0, 0, 0, 0.63)",
+        "TextDisabled": "rgba(0, 0, 0, 0.36)",
+        "TextDisabledWeak": "rgba(0, 0, 0, 0.36)",
+        "TextOnAccentDisabled": "rgba(255, 255, 255, 0.43)",
+        # 控件填充
+        "CtrlFill": "rgba(255, 255, 255, 0.7)",
+        "CtrlFillHover": "rgba(249, 249, 249, 0.5)",
+        "CtrlFillPressed": "rgba(249, 249, 249, 0.3)",
+        "CtrlFillDisabled": "rgba(249, 249, 249, 0.3)",
+        "AccentFillDisabled": "rgb(52, 52, 52)",
+        "InputFillFocus": "white",
+        # 描边
+        "StrokeCtrl": "rgba(0, 0, 0, 0.073)",
+        "StrokeCtrlBottom": "rgba(0, 0, 0, 0.183)",
+        "StrokeCtrlTop": "rgba(0, 0, 0, 0.073)",
+        "StrokeDisabled": "rgba(0, 0, 0, 0.06)",
+        "StrokeInput": "rgba(0, 0, 0, 13)",
+        "StrokeInputBottom": "rgba(0, 0, 0, 100)",
+        "StrokeMenu": "rgba(0, 0, 0, 0.1)",
+        "StrokeToolTip": "rgba(0, 0, 0, 0.06)",
+        "StrokeTable": "rgba(0, 0, 0, 21)",
+        "StrokeSolidWeak": "rgb(229, 229, 229)",
+        # 弱填充（悬停/按压的 subtle 底）
+        "FillSubtle": "rgba(0, 0, 0, 0.0373)",
+        "FillSubtleActive": "rgba(0, 0, 0, 0.0241)",
+        "FillSubtleHover": "rgba(0, 0, 0, 9)",
+        "FillSubtlePressed": "rgba(0, 0, 0, 6)",
+        "SegmentedFill": "rgba(0, 0, 0, 0.0241)",
+        "SegmentedStroke": "rgba(0, 0, 0, 0.0578)",
+        # 实底表面
+        "SurfaceSolid": "rgb(249, 249, 249)",
+        "DialogFill": "white",
+        "DialogFooterFill": "rgb(243, 243, 243)",
+        # 专用域
+        "SliderGroove": "rgba(0, 0, 0, 100)",
+        "ScrollHandle": "rgba(0, 0, 0, 0.35)",
+        "ScrollHandleHover": "rgba(0, 0, 0, 0.5)",
+        "TrackFill": "rgba(0, 0, 0, 0.0837)",
+        "SplitterFill": "transparent",
+    },
+    Theme.DARK: {
+        # 文字
+        "TextPrimary": "white",
+        "TextSecondary": "rgb(208, 208, 208)",
+        "TextPlaceholder": "rgba(255, 255, 255, 0.6063)",
+        "TextPressed": "rgba(255, 255, 255, 0.786)",
+        "TextDisabled": "rgba(255, 255, 255, 0.3628)",
+        "TextDisabledWeak": "rgba(255, 255, 255, 0.36)",
+        "TextOnAccentDisabled": "rgba(255, 255, 255, 0.43)",
+        # 控件填充
+        "CtrlFill": "rgba(255, 255, 255, 0.0605)",
+        "CtrlFillHover": "rgba(255, 255, 255, 0.0837)",
+        "CtrlFillPressed": "rgba(255, 255, 255, 0.0326)",
+        "CtrlFillDisabled": "rgba(255, 255, 255, 0.0419)",
+        "AccentFillDisabled": "rgb(52, 52, 52)",
+        "InputFillFocus": "rgb(31, 31, 31)",
+        # 描边
+        "StrokeCtrl": "rgba(255, 255, 255, 0.053)",
+        "StrokeCtrlBottom": "rgba(255, 255, 255, 0.053)",
+        "StrokeCtrlTop": "rgba(255, 255, 255, 0.08)",
+        "StrokeDisabled": "rgba(255, 255, 255, 0.0698)",
+        "StrokeInput": "rgba(255, 255, 255, 0.08)",
+        "StrokeInputBottom": "rgba(255, 255, 255, 0.5442)",
+        "StrokeMenu": "rgba(255, 255, 255, 0.1)",
+        "StrokeToolTip": "rgb(28, 28, 28)",
+        "StrokeTable": "rgba(255, 255, 255, 21)",
+        "StrokeSolidWeak": "rgb(29, 29, 29)",
+        # 弱填充
+        "FillSubtle": "rgba(255, 255, 255, 0.08)",
+        "FillSubtleActive": "rgba(255, 255, 255, 0.06)",
+        "FillSubtleHover": "rgba(255, 255, 255, 9)",
+        "FillSubtlePressed": "rgba(255, 255, 255, 6)",
+        "SegmentedFill": "rgba(0, 0, 0, 0.1)",
+        "SegmentedStroke": "rgba(255, 255, 255, 0.08)",
+        # 实底表面
+        "SurfaceSolid": "rgb(43, 43, 43)",
+        "DialogFill": "rgb(43, 43, 43)",
+        "DialogFooterFill": "rgb(32, 32, 32)",
+        # 专用域
+        "SliderGroove": "rgb(158, 159, 159)",
+        "ScrollHandle": "rgba(255, 255, 255, 0.35)",
+        "ScrollHandleHover": "rgba(255, 255, 255, 0.5)",
+        "TrackFill": "rgba(255, 255, 255, 0.0837)",
+        "SplitterFill": "transparent",
+    },
+}
+
+
+def designTokens(theme=None):
+    """取指定主题的设计令牌字典（缺省当前主题；未知主题回浅色档）。"""
+    theme = qconfig.theme if theme is None else theme
+    return DESIGN_TOKENS.get(theme, DESIGN_TOKENS[Theme.LIGHT])
+
+
+# ---------------------------------------------------------------------- #
 # QSS 模板替换
 # ---------------------------------------------------------------------- #
 class QssTemplate(Template):
@@ -482,12 +592,21 @@ def applyThemeColor(qss: str):
     return template.safe_substitute(mappings)
 
 
-def renderQss(qss: str):
-    """替换主题色与字体清单（--FontFamilies → 'Segoe UI','Microsoft YaHei',...）。"""
+def renderQss(qss: str, theme=None):
+    """渲染 QSS：设计令牌 + 主题色七档 + 字体清单全量替换。
+
+    · ``--Token``          ← DESIGN_TOKENS[theme]（缺省/AUTO 取当前主题）
+    · ``--ThemeColorXxx``  ← ThemeColor 七档运行期派生（跟随 qconfig 主题）
+    · ``--FontFamilies``   ← 'Segoe UI','Microsoft YaHei',...
+    对不含占位符的文本输出逐字节不变（theme 自检的兼容前提）。
+    """
+    if theme is None or theme == Theme.AUTO:
+        theme = qconfig.theme
     template = QssTemplate(qss)
     mappings = {c.value: c.name() for c in ThemeColor._member_map_.values()}
     mappings["FontFamilies"] = ",".join(
         [f"'{i}'" for i in qconfig.get(qconfig.fontFamilies)])
+    mappings.update(designTokens(theme))
     return template.safe_substitute(mappings)
 
 
@@ -721,10 +840,10 @@ def getStyleSheetFromFile(file: Union[str, QFile]):
 
 
 def getStyleSheet(source, theme=Theme.AUTO):
-    """取渲染后的 QSS（模板替换后）。"""
+    """取渲染后的 QSS（模板 + 设计令牌替换后）。"""
     if isinstance(source, str):
         source = StyleSheetFile(source)
-    return renderQss(source.content(theme))
+    return renderQss(source.content(theme), theme)
 
 
 def setStyleSheet(widget: QWidget, source, theme=Theme.AUTO, register=True):
@@ -748,6 +867,22 @@ def addStyleSheet(widget: QWidget, source, theme=Theme.AUTO, register=True):
         qss = widget.styleSheet() + "\n" + getStyleSheet(source, theme)
     if qss.rstrip() != widget.styleSheet().rstrip():
         widget.setStyleSheet(qss)
+
+
+#: app 级 QSS（原生顶层控件兜底：QToolTip/QMenu/QMessageBox）。
+#: 这些是独立的顶层窗口，不在任何业务控件的样式表作用子树内，
+#: 只能套在 QApplication 上才生效（见 applyAppStyleSheet）。
+_APP_QSS_FILE = os.path.join(_QSS_DIR, "app.qss")
+
+
+def applyAppStyleSheet(app: QApplication, theme=Theme.AUTO):
+    """把原生顶层控件兜底 QSS 套到 QApplication（并注册进管理器）。
+
+    覆盖：QToolTip（全局工具提示——宿主 27 处 setToolTip 的观感统一，
+    深色主题下不再是白底黑字）、原生 QMenu/QMessageBox 兜底。
+    注册进 styleSheetManager 后，主题/主题色切换时自动重应用。
+    """
+    setStyleSheet(app, StyleSheetFile(_APP_QSS_FILE), theme)
 
 
 def updateStyleSheet(lazy=False):

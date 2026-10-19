@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.3.1
+# @version 2.4.0
 """vt_fluent 窗口与导航（自研，替代 qfluentwidgets.window + navigation）。
 
 行为契约（对齐上游 1.11.3）：
@@ -14,22 +14,35 @@
   （图标 16×16@11.5,10、文字 @44、选中指示条 3×16 圆角 1.5、
   悬停底 rgba(c,c,c,6/10)、按压 0.7 透明度）。
 
-自研口径：不依赖 PySideSix-Frameless-Window——缩放/拖动/最大化用
-Windows 原生命中测试（WM_NCHITTEST）与标题栏鼠标事件直接实现。
+自研口径：不依赖 PySideSix-Frameless-Window——窗口层在代码层照抄 2.3.0
+一直在用的两段上游实现（qframelesswindow 的边缘命中/NCCALCSIZE +
+qfluentwidgets 的 Win11 Snap 命中），见 FramelessWindow.nativeEvent。
 """
 
 import ctypes
 import sys
 
-from PySide6.QtCore import QEvent, QMargins, QPoint, QRect, QRectF, QSize, Qt, Signal
-from PySide6.QtGui import (QColor, QCursor, QFont, QIcon, QPainter, QPen)
-from PySide6.QtWidgets import (QApplication, QFrame, QHBoxLayout, QLabel, QScrollArea,
-                               QSizePolicy, QStackedWidget, QVBoxLayout, QWidget)
+from PySide6.QtCore import (QEvent, QMargins, QPoint, QRect, QRectF, QSize,
+                            Qt, Signal)
+from PySide6.QtGui import (QColor, QCursor, QFont, QIcon, QPainter, QPen,
+                           QMouseEvent)
+from PySide6.QtWidgets import (QAbstractScrollArea, QApplication, QFrame,
+                               QHBoxLayout, QLabel, QScrollArea, QSizePolicy,
+                               QStackedWidget, QVBoxLayout, QWidget)
 
 from ._anim import BackgroundAnimationWidget
 from ._icon import FluentIcon, drawIcon, toQIcon
 from ._theme import (FluentStyleSheet, autoFallbackThemeColor, isDarkTheme, qconfig,
                      setFont)
+
+if sys.platform == "win32":
+    from ctypes import wintypes
+
+    class _NCCALCSIZE_PARAMS(ctypes.Structure):
+        """照抄 qframelesswindow c_structures.NCCALCSIZE_PARAMS（lppos 不访问）。"""
+        _fields_ = [("rgrc", wintypes.RECT * 3), ("lppos", ctypes.c_void_p)]
+
+    _LPNCCALCSIZE_PARAMS = ctypes.POINTER(_NCCALCSIZE_PARAMS)
 
 
 def _nav_position():
@@ -41,89 +54,340 @@ def _nav_position():
 # ---------------------------------------------------------------------- #
 # Mica / 无边框窗口
 # ---------------------------------------------------------------------- #
+class _Margins(ctypes.Structure):
+    """DWM 框架扩展边距（照抄 qframelesswindow c_structures.MARGINS）。"""
+    _fields_ = [("cxLeftWidth", ctypes.c_int), ("cxRightWidth", ctypes.c_int),
+                ("cyTopHeight", ctypes.c_int), ("cyBottomHeight", ctypes.c_int)]
+
+
+class _AccentPolicy(ctypes.Structure):
+    """Windows 合成强调策略（照抄 qframelesswindow WINDOWCOMPOSITIONATTRIB）。"""
+    _fields_ = [("AccentState", ctypes.c_int), ("AccentFlags", ctypes.c_int),
+                ("GradientColor", ctypes.c_uint), ("AnimationId", ctypes.c_int)]
+
+
+class _WinCompAttrData(ctypes.Structure):
+    _fields_ = [("Attribute", ctypes.c_int), ("Data", ctypes.c_void_p),
+                ("SizeOfData", ctypes.c_size_t)]
+
+
+#: WCA_ACCENT_POLICY=19；ACCENT_ENABLE_HOSTBACKDROP=5（Mica 宿主背板）
+_WCA_ACCENT_POLICY = 19
+_ACCENT_ENABLE_HOSTBACKDROP = 5
+_ACCENT_DISABLED = 0
+#: DWMWA_SYSTEMBACKDROP_TYPE=38 的取值
+_DWMSBT_MAINWINDOW = 2
+_DWMSBT_NONE = 1
+_DWMWA_SYSTEMBACKDROP_TYPE = 38
+_DWMWA_USE_IMMERSIVE_DARK_MODE = 20
+
+
+def _set_window_composition(hwnd, accent_state: int) -> bool:
+    """SetWindowCompositionAttribute(WCA_ACCENT_POLICY, accent_state)。
+
+    照抄 qframelesswindow 的做法。该函数未在 user32.h 公开导出，部分系统
+    拿不到——取不到就静默跳过（Mica 降级为实底，不影响其它功能）。
+    """
+    try:
+        u = ctypes.windll.user32
+        fn = getattr(u, "SetWindowCompositionAttribute", None)
+        if fn is None:
+            return False
+        policy = _AccentPolicy(accent_state, 0, 0, 0)
+        data = _WinCompAttrData(_WCA_ACCENT_POLICY,
+                                ctypes.cast(ctypes.pointer(policy),
+                                            ctypes.c_void_p),
+                                ctypes.sizeof(policy))
+        fn(ctypes.c_void_p(int(hwnd)), ctypes.byref(data))
+        return True
+    except Exception:  # noqa: BLE001
+        return False
+
+
 def _set_mica(hwnd, dark: bool) -> bool:
-    """Windows 11 Mica 系统背景（DWMWA_SYSTEMBACKDROP_TYPE=38）。"""
+    """Windows 11 Mica 系统背景 —— 代码层照抄 qframelesswindow.setMicaEffect。
+
+    上游三段链路缺一不可（缺任一则背板不显示）：
+      ① `DwmExtendFrameIntoClientArea(整窗 MARGINS)` —— 让 DWM 在整窗背后
+         绘制系统背板；
+      ② `SetWindowCompositionAttribute(WCA_ACCENT_POLICY,
+         ACCENT_ENABLE_HOSTBACKDROP)` —— 启用宿主背板；
+      ③ `DwmSetWindowAttribute(DWMWA_SYSTEMBACKDROP_TYPE, MAINWINDOW)`。
+    另设 `DWMWA_USE_IMMERSIVE_DARK_MODE` 让标题栏跟随深浅。
+
+    ⚠️ 关键：**绝不使用 Qt 的 `WA_TranslucentBackground`**。上游 Windows 平台
+    从不设置它（只在 macOS 分支设置）。实测它会引入 `WS_EX_LAYERED` 扩展样式
+    = 分层窗口，系统的鼠标命中按**逐像素 alpha** 判定；而 Mica 生效时 Qt 层
+    背景是全透明（材质由 DWM 画），于是内容区/导航栏所有点的 alpha=0，鼠标
+    **直接穿透到底层窗口**（用户实测「点击会直接穿过程序」）。DWM 背板机制
+    不需要分层窗口，去掉后 EXSTYLE 回到 0x100，命中恢复正常。
+    """
     if sys.platform != "win32":
         return False
     try:
         dwm = ctypes.windll.dwmapi
-        backdrop = ctypes.c_int(2)  # DWMSBT_MAINWINDOW (Mica)
-        dwm.DwmSetWindowAttribute(hwnd, 38, ctypes.byref(backdrop),
-                                  ctypes.sizeof(backdrop))
+        # ① 框架扩展到整窗 —— ⚠️ **四个方向都要扩**。
+        #    上游只扩左右 `(0xFFFFFF, 0xFFFFFF, 0, 0)`，上下为 0，于是 DWM
+        #    认为**垂直方向没有框架**：系统在垂直方向不认原生缩放，拖上下边缘
+        #    只会整体移动。用户实测「底部向上调整无效」「顶部向下只会向下移动」
+        #    「只要放大就无法缩小」正是**垂直方向失去缩放**的典型表现。
+        #    这里四向均用 -1（DWM 约定的"扩展到整个窗口"）。
+        dwm.DwmExtendFrameIntoClientArea(
+            ctypes.c_void_p(int(hwnd)),
+            ctypes.byref(_Margins(-1, -1, -1, -1)))
+        # ② 宿主背板
+        _set_window_composition(hwnd, _ACCENT_ENABLE_HOSTBACKDROP)
+        # ③ 背板类型 = Mica(MAINWINDOW)
+        backdrop = ctypes.c_int(_DWMSBT_MAINWINDOW)
+        dwm.DwmSetWindowAttribute(ctypes.c_void_p(int(hwnd)),
+                                  _DWMWA_SYSTEMBACKDROP_TYPE,
+                                  ctypes.byref(backdrop), ctypes.sizeof(backdrop))
         # 深色标题栏（Win10 1903+ / Win11）
         dark_mode = ctypes.c_int(1 if dark else 0)
-        dwm.DwmSetWindowAttribute(hwnd, 20, ctypes.byref(dark_mode),
-                                  ctypes.sizeof(dark_mode))
+        dwm.DwmSetWindowAttribute(ctypes.c_void_p(int(hwnd)),
+                                  _DWMWA_USE_IMMERSIVE_DARK_MODE,
+                                  ctypes.byref(dark_mode), ctypes.sizeof(dark_mode))
         return True
     except Exception:
         return False
 
 
 def _remove_backdrop(hwnd) -> bool:
+    """关闭系统背板（照抄上游 removeBackgroundEffect + SYSTEMBACKDROP_TYPE）。"""
     if sys.platform != "win32":
         return False
     try:
         dwm = ctypes.windll.dwmapi
-        none = ctypes.c_int(1)  # DWMSBT_NONE
-        dwm.DwmSetWindowAttribute(hwnd, 38, ctypes.byref(none),
-                                  ctypes.sizeof(none))
+        _set_window_composition(hwnd, _ACCENT_DISABLED)
+        none = ctypes.c_int(_DWMSBT_NONE)
+        dwm.DwmSetWindowAttribute(ctypes.c_void_p(int(hwnd)),
+                                  _DWMWA_SYSTEMBACKDROP_TYPE,
+                                  ctypes.byref(none), ctypes.sizeof(none))
         return True
     except Exception:
         return False
 
 
 class FramelessWindow(QWidget):
-    """无边框窗口基类（原生命中测试缩放 + 标题栏拖动）。"""
+    """无边框窗口基类（原生命中测试缩放 + 标题栏拖动）。
 
-    BORDER_WIDTH = 6
-    #: WM_NCHITTEST 返回码
-    _HTLEFT, _HTRIGHT, _HTTOP = 10, 11, 12
-    _HTTOPLEFT, _HTTOPRIGHT = 13, 14
-    _HTBOTTOM, _HTBOTTOMLEFT, _HTBOTTOMRIGHT = 15, 16, 17
+    窗口层实现照抄 2.3.0 实际使用的上游链路（代码层照抄，不 import 上游）：
+      · qframelesswindow `WindowsFramelessWindowBase`：flags 保留式设置 +
+        `addWindowAnimation` 补样式位 + nativeEvent（WM_NCHITTEST 边缘命中 /
+        WM_NCCALCSIZE 客户区=整窗、最大化缩边）；
+      · qfluentwidgets `frameless_window.FramelessWindow`：nativeEvent 的
+        HTMAXBUTTON（Win11 Snap 布局面板）与 NCLBUTTONDOWN 按钮转发。
+    """
+
+    #: 边缘命中带宽（物理像素）——照抄上游 WindowsFramelessWindowBase.BORDER_WIDTH
+    BORDER_WIDTH = 5
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setWindowFlags(Qt.FramelessWindowHint | Qt.Window)
-        self.setAttribute(Qt.WA_TranslucentBackground)
+        # ⚠️ 照抄上游 qframelesswindow（2.3.0 一直在用的可用实现）：
+        #    **保留**原有 windowFlags，只「或」上 FramelessWindowHint。
+        #    绝不能写成 setWindowFlags(FramelessWindowHint | Window)——那会把
+        #    顶层窗口默认携带的 WindowSystemMenuHint / WindowMinimizeButtonHint
+        #    / WindowMaximizeButtonHint / WindowCloseButtonHint（0xf000）一并
+        #    丢掉：实测 flags 从上游的 0x800f801 掉成 0x801，系统于是不认本
+        #    窗口有最大化按钮——Snap 布局面板不弹、拖到屏幕边缘也不贴靠。
+        stay_on_top = (Qt.WindowStaysOnTopHint
+                       if self.windowFlags() & Qt.WindowStaysOnTopHint else 0)
+        self.setWindowFlags(self.windowFlags()
+                            | Qt.FramelessWindowHint | stay_on_top)
+        # ⚠️ **不设** Qt.WA_TranslucentBackground（照抄上游 Windows 分支）：
+        #    该属性会引入 WS_EX_LAYERED 扩展样式（分层窗口），系统鼠标命中
+        #    改按逐像素 alpha 判定；Mica 生效时 Qt 层背景全透明（材质由 DWM
+        #    画），于是整窗 alpha=0、鼠标点击**直接穿透到底层窗口**（用户实测
+        #    「无法被选中，点击会直接穿过程序」）。DWM 背板不需要分层窗口。
+        #    上游 qframelesswindow 只在 macOS 分支设该属性，Windows 不设。
         self.titleBar = None
+        self._isResizeEnabled = True
+        self._apply_native_resize_style()
 
     def setTitleBar(self, titleBar):
         self.titleBar = titleBar
         titleBar.raise_()
 
+    def showEvent(self, e):
+        super().showEvent(e)
+        self._apply_native_resize_style()
+
+    def _apply_native_resize_style(self):
+        """补回系统「可缩放」样式位 —— Windows 贴靠/定位（Snap）的前提。
+
+        Qt 的 `FramelessWindowHint` 会把窗口样式剥掉一大截：实测
+        `GetWindowLong(GWL_STYLE)` 里 WS_THICKFRAME / WS_MAXIMIZEBOX /
+        WS_CAPTION / WS_SYSMENU **全部缺失**。于是系统不把本窗口当成可缩放
+        窗口——拖到屏幕边缘不贴靠、选了 Snap 布局也不生效（用户实测
+        "程序不能激活 win 的定位"）。这里只补**样式位**，外观照旧无边框
+        （由 nativeEvent 里的 WM_NCCALCSIZE 保持），与上游 qframelesswindow
+        的 `addWindowAnimation` 同款做法。
+        """
+        if sys.platform != "win32" or getattr(self, "_vt_style_fixed", False):
+            return
+        try:
+            import ctypes
+            u = ctypes.windll.user32
+            gwl_style = -16
+            ws_minimizebox, ws_maximizebox = 0x00020000, 0x00010000
+            ws_caption, ws_thickframe = 0x00C00000, 0x00040000
+            #: ⚠️ 照抄上游 `WindowsWindowEffect.addWindowAnimation`：**只加位**。
+            #: 实测上游窗口同样带 WS_POPUP（GWL_STYLE 0x96cf0008）却一直正常
+            #: 工作，所以 POPUP 并非症结——上一轮「清 WS_POPUP」是错的方向，
+            #: 已按上游原样退回。代码走位组合与上游逐位一致。
+            swp_framechanged, swp_nomove, swp_nosize = 0x0020, 0x0002, 0x0001
+            hwnd = int(self.winId())
+            style = u.GetWindowLongW(hwnd, gwl_style)
+            u.SetWindowLongW(
+                hwnd, gwl_style,
+                style | ws_minimizebox | ws_maximizebox
+                | ws_caption | ws_thickframe)
+            # 改完样式必须走一次 FRAMECHANGED，系统才会按新样式重算边框
+            u.SetWindowPos(hwnd, 0, 0, 0, 0, 0,
+                           swp_framechanged | swp_nomove | swp_nosize)
+            self._vt_style_fixed = True
+        except Exception:  # noqa: BLE001
+            pass
+
+    def _isHoverMaxBtn(self):
+        """照抄 qfluentwidgets.FramelessWindow._isHoverMaxBtn。"""
+        if self.titleBar is None:
+            return False
+        maxBtn = getattr(self.titleBar, "maxBtn", None)
+        if maxBtn is None:
+            return False
+        pos = QCursor.pos() - self.geometry().topLeft() - self.titleBar.pos()
+        return self.titleBar.childAt(pos) is maxBtn
+
+    @staticmethod
+    def _resizeBorderThickness(hwnd, horizontal=True):
+        """照抄 qframelesswindow win32_utils.getResizeBorderThickness。"""
+        try:
+            build = sys.getwindowsversion().build
+        except Exception:  # noqa: BLE001
+            build = 0
+        result = ctypes.c_int(0)
+        if build >= 22000:
+            # Win11：问 DWM 可见边框厚度（DWMWA_VISIBLE_FRAME_BORDER_THICKNESS）
+            ctypes.windll.dwmapi.DwmGetWindowAttribute(
+                int(hwnd), 34, ctypes.byref(result), ctypes.sizeof(result))
+        else:
+            # SM_CXSIZEFRAME=32 / SM_CYSIZEFRAME=33 / SM_CXPADDEDBORDER=92
+            u = ctypes.windll.user32
+            result.value = (u.GetSystemMetrics(32 if horizontal else 33)
+                            + u.GetSystemMetrics(92))
+        return result.value
+
     def nativeEvent(self, eventType, message):
-        if sys.platform == "win32" and not self.isMaximized():
-            try:
-                from ctypes import wintypes
-                msg = wintypes.MSG.from_address(int(message))
-                if msg.message == 0x0084:  # WM_NCHITTEST
-                    x = ctypes.c_short(msg.lParam & 0xFFFF).value
-                    y = ctypes.c_short((msg.lParam >> 16) & 0xFFFF).value
-                    pos = self.mapFromGlobal(QPoint(x, y))
-                    bw = self.BORDER_WIDTH
-                    w, h = self.width(), self.height()
-                    on_left = pos.x() < bw
-                    on_right = pos.x() >= w - bw
-                    on_top = pos.y() < bw
-                    on_bottom = pos.y() >= h - bw
-                    if on_top and on_left:
-                        return True, self._HTTOPLEFT
-                    if on_top and on_right:
-                        return True, self._HTTOPRIGHT
-                    if on_bottom and on_left:
-                        return True, self._HTBOTTOMLEFT
-                    if on_bottom and on_right:
-                        return True, self._HTBOTTOMRIGHT
-                    if on_left:
-                        return True, self._HTLEFT
-                    if on_right:
-                        return True, self._HTRIGHT
-                    if on_top:
-                        return True, self._HTTOP
-                    if on_bottom:
-                        return True, self._HTBOTTOM
-            except Exception:
-                pass
+        """窗口消息处理 —— 代码层照抄 2.3.0 实际使用的上游两段实现。
+
+        段① 照抄 qfluentwidgets/components/widgets/frameless_window.py：
+            WM_NCHITTEST 悬停最大化按钮 → 返回 HTMAXBUTTON（Win11 悬停弹
+            「Snap 布局」面板的必要条件，自绘按钮系统认不出来）；点击时
+            把 WM_NCLBUTTONDOWN 合成鼠标事件转发给自绘按钮。
+        段② 照抄 qframelesswindow/windows/__init__.py nativeEvent：
+            WM_NCHITTEST 边缘 8 向命中 → 系统原生缩放循环；WM_NCCALCSIZE
+            客户区=整窗（无边框外观）+ 最大化时四边缩进缩放边框厚度。
+        上游自动隐藏任务栏的极端场景处理（Taskbar.isAutoHide）从略——
+        不影响缩放/贴靠/Snap 三个主效果。
+
+        ⚠ 说明：真实鼠标的 WM_NCHITTEST 由系统直接调窗口过程，**主窗口**
+        这层能收到（点落在 mpv 嵌入提升出的原生子窗口上时收不到——那是
+        宿主 _ResizeHitFilter 的职责，见 video_toolbox_qt.py v1.13.6）。
+        """
+        if sys.platform != "win32":
+            return super().nativeEvent(eventType, message)
+        try:
+            import win32api
+            import win32con
+            import win32gui
+            msg = wintypes.MSG.from_address(int(message))
+            if not msg.hWnd:
+                return super().nativeEvent(eventType, message)
+
+            # ---- 段①：Win11 Snap（照抄 qfluentwidgets） -------------------
+            if msg.message == win32con.WM_NCHITTEST and self._isResizeEnabled:
+                if self._isHoverMaxBtn():
+                    self.titleBar.maxBtn.isHover = True
+                    self.titleBar.maxBtn.update()
+                    return True, win32con.HTMAXBUTTON
+            elif msg.message in (0x2A2, win32con.WM_MOUSELEAVE):
+                # 0x2A2=WM_NCMOUSELEAVE：离开标题栏时复位按钮 hover 态
+                maxBtn = getattr(self.titleBar, "maxBtn", None)
+                if maxBtn is not None:
+                    maxBtn.isHover = False
+                    maxBtn.update()
+            elif (msg.message in (win32con.WM_NCLBUTTONDOWN,
+                                  win32con.WM_NCLBUTTONDBLCLK)
+                  and self._isHoverMaxBtn()):
+                e = QMouseEvent(QEvent.MouseButtonPress, QPoint(),
+                                Qt.LeftButton, Qt.LeftButton, Qt.NoModifier)
+                QApplication.sendEvent(self.titleBar.maxBtn, e)
+                return True, 0
+            elif (msg.message in (win32con.WM_NCLBUTTONUP,
+                                  win32con.WM_NCRBUTTONUP)
+                  and self._isHoverMaxBtn()):
+                e = QMouseEvent(QEvent.MouseButtonRelease, QPoint(),
+                                Qt.LeftButton, Qt.LeftButton, Qt.NoModifier)
+                QApplication.sendEvent(self.titleBar.maxBtn, e)
+
+            # ---- 段②：边缘缩放 + 客户区布局（照抄 qframelesswindow） -------
+            if msg.message == win32con.WM_NCHITTEST and self._isResizeEnabled:
+                xPos, yPos = win32gui.ScreenToClient(
+                    msg.hWnd, win32api.GetCursorPos())
+                clientRect = win32gui.GetClientRect(msg.hWnd)
+
+                w = clientRect[2] - clientRect[0]
+                h = clientRect[3] - clientRect[1]
+
+                # 最大化/全屏时边宽归零（上游 fix #98），否则会误判边缘
+                bw = 0 if self.isMaximized() or self.isFullScreen() \
+                    else self.BORDER_WIDTH
+                lx = xPos < bw  # left
+                rx = xPos > w - bw  # right
+                ty = yPos < bw  # top
+                by = yPos > h - bw  # bottom
+                if lx and ty:
+                    return True, win32con.HTTOPLEFT
+                elif rx and by:
+                    return True, win32con.HTBOTTOMRIGHT
+                elif rx and ty:
+                    return True, win32con.HTTOPRIGHT
+                elif lx and by:
+                    return True, win32con.HTBOTTOMLEFT
+                elif ty:
+                    return True, win32con.HTTOP
+                elif by:
+                    return True, win32con.HTBOTTOM
+                elif lx:
+                    return True, win32con.HTLEFT
+                elif rx:
+                    return True, win32con.HTRIGHT
+            elif msg.message == win32con.WM_NCCALCSIZE:
+                if msg.wParam:
+                    rect = ctypes.cast(
+                        msg.lParam, _LPNCCALCSIZE_PARAMS).contents.rgrc[0]
+                else:
+                    rect = ctypes.cast(
+                        msg.lParam, wintypes.LPRECT).contents
+
+                # 最大化时把客户区四边缩进系统缩放边框厚度，避免内容
+                # 被屏幕边缘裁掉（照抄上游；此处相当于上游
+                # win_utils.isMaximized/isFullScreen 的 Qt 等价判断）
+                if self.isMaximized() and not self.isFullScreen():
+                    ty = self._resizeBorderThickness(msg.hWnd, False)
+                    rect.top += ty
+                    rect.bottom -= ty
+
+                    tx = self._resizeBorderThickness(msg.hWnd, True)
+                    rect.left += tx
+                    rect.right -= tx
+
+                result = 0 if not msg.wParam else win32con.WVR_REDRAW
+                return True, result
+        except Exception:  # noqa: BLE001
+            pass
         return super().nativeEvent(eventType, message)
 
 
@@ -363,6 +627,19 @@ class NavigationInterface(QWidget):
         self.scrollArea.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self.scrollArea.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
         self.scrollArea.setFrameShape(QFrame.NoFrame)
+        # ⚠ 导航栏必须随主题：QScrollArea 的 viewport 默认 autoFillBackground=True，
+        # 按 QPalette.Base 自填充（浅色主题即 #efefef 浅灰白），深色主题下会留
+        # 一整块浅底——导航栏与标题栏左侧都发白（用户实测）。这里关掉自动填充
+        # 并把 viewport 背景置透明，让导航栏透出窗口底（Mica / 主题底色）。
+        # 选择器限定为 QScrollArea，避免级联到导航项子控件。
+        self.scrollArea.setStyleSheet(
+            "QScrollArea { background: transparent; border: none; }")
+        self.scrollArea.viewport().setAutoFillBackground(False)
+        # ⚠ 真正的发白源头：Qt 的 QScrollArea.setWidget() 会把**内容控件**的
+        # autoFillBackground 由 False 改成 True（实测确认），于是 scrollWidget
+        # 按 palette Window(#efefef) 自填充整块导航栏。必须在 setWidget 之后
+        # 显式关掉，导航栏才透出窗口底。
+        self.scrollWidget.setAutoFillBackground(False)
 
         self.scrollLayout.setContentsMargins(4, 8, 4, 8)
         self.scrollLayout.setSpacing(4)
@@ -377,7 +654,11 @@ class NavigationInterface(QWidget):
         self.returnButton.move(4, 4)
         self.returnButton.show()
 
-        self.vBoxLayout.setContentsMargins(0, 0, 0, 0)
+        # ⚠ 顶部必须让出标题栏高度（48）：FluentWindow 的标题栏从 x=46 起且
+        # **半透明**，展开态导航项（宽 312）会伸进标题栏区域，被半透明标题栏
+        # 透出、与标题 logo 挤在一起（用户实测"顶部样式错误"）。上游同款结构
+        # 顶部还排了 return/menu 两个工具按钮，这里预留标题栏高度即可对齐。
+        self.vBoxLayout.setContentsMargins(0, 48, 0, 0)
         self.vBoxLayout.setSpacing(0)
         self.vBoxLayout.addWidget(self.scrollArea)
 
@@ -553,7 +834,6 @@ class StackedWidget(QFrame):
         return self.view.indexOf(widget)
 
     def setCurrentWidget(self, widget, popOut=True):
-        from PySide6.QtWidgets import QAbstractScrollArea
         if isinstance(widget, QAbstractScrollArea):
             widget.verticalScrollBar().setValue(0)
         self.view.setCurrentWidget(widget)
@@ -694,7 +974,31 @@ class FluentTitleBar(QWidget):
         if e.button() == Qt.LeftButton:
             self._dragPos = e.globalPosition().toPoint() - self.window.frameGeometry().topLeft()
 
+    def _startSystemMove(self):
+        """照抄上游 qframelesswindow `win32_utils.MoveResize.startSystemMove`。
+
+        `ReleaseCapture()` + `SendMessage(WM_SYSCOMMAND, SC_MOVE | HTCAPTION)`
+        —— 把窗口拖动的控制权交给**系统移动循环**。这是 Win11 贴靠
+        （拖到屏幕边缘自动吸附 / 半屏 / Win+方向键布局）生效的前提：系统只在
+        它自己的移动循环里做边缘吸附探测。原先用 `self.window.move()` 纯 Qt
+        自绘拖动，不进系统循环，所以「贴边未反馈」（用户实测）。
+        SendMessage 会阻塞到拖动结束（系统模态循环），与上游行为一致。
+        """
+        import win32api
+        import win32con
+        import win32gui
+        win32gui.ReleaseCapture()
+        win32api.SendMessage(int(self.window.winId()), win32con.WM_SYSCOMMAND,
+                             win32con.SC_MOVE | win32con.HTCAPTION, 0)
+
     def mouseMoveEvent(self, e):
+        if sys.platform == "win32":
+            try:
+                self._startSystemMove()
+                return
+            except Exception:  # noqa: BLE001
+                pass
+        # 非 Windows 平台（或系统调用失败）维持 Qt 自绘拖动
         if self._dragPos is None or self.window.isMaximized():
             return
         self.window.move(e.globalPosition().toPoint() - self._dragPos)
@@ -707,12 +1011,16 @@ class FluentTitleBar(QWidget):
             self._toggleMaximized()
 
     def paintEvent(self, e):
-        painter = QPainter(self)
-        painter.setRenderHints(QPainter.Antialiasing)
-        painter.setPen(Qt.NoPen)
-        painter.setBrush(QColor(255, 255, 255, 8) if isDarkTheme()
-                         else QColor(0, 0, 0, 4))
-        painter.drawRect(self.rect())
+        """标题栏**不叠任何底色** —— 照抄上游 fluent_window.qss：
+
+            FluentTitleBar, SplitTitleBar { background-color: transparent; }
+
+        原实现叠了 rgba(255,255,255,8)（深色）/ rgba(0,0,0,4)（浅色），
+        使标题栏比左侧「导航栏顶部 48px 出让区」（透明、直接透出窗口底）
+        亮一档，顶部一整条出现**左深右浅的色带** —— 用户实测「顶部样式不统一」。
+        这里不画即透明，整条统一透出 FluentWindow 的底色。
+        """
+        pass
 
 
 class FluentWindow(BackgroundAnimationWidget, FramelessWindow):
@@ -756,10 +1064,19 @@ class FluentWindow(BackgroundAnimationWidget, FramelessWindow):
 
     # ---- 背景 / Mica --------------------------------------------------- #
     def _normalBackgroundColor(self):
-        if not self.isMicaEffectEnabled():
-            return (self._darkBackgroundColor if isDarkTheme()
-                    else self._lightBackgroundColor)
-        return QColor(0, 0, 0, 0)
+        """窗口底色 —— 恒为**实色**，绝不返回全透明。
+
+        ⚠️ 实测（深色主题逐点像素采样）：本机 DWM Mica 背板给出的是**浅色**
+        （#f3f3f3），而窗口在去掉 WA_TranslucentBackground 后是非分层窗口，
+        `paintEvent` 画全透明等于 Qt 不画底色 → 导航栏 / 底部 / 标题栏整片
+        露出浅色背板，即用户实测的「深色主题左边和底部依旧是白色」。
+        故不再走「透明让背板透出」，恒返回主题实色：深色 #202020、浅色
+        #f0f4f9 —— 任何未被子控件覆盖的区域都保证是主题色。
+        Mica 仍照常设置（被实色盖住）；将来若背板能正确输出深色可再恢复
+        透明分支。
+        """
+        return (self._darkBackgroundColor if isDarkTheme()
+                else self._lightBackgroundColor)
 
     def setCustomBackgroundColor(self, light, dark):
         self._lightBackgroundColor = QColor(light)
@@ -861,7 +1178,21 @@ class FluentWindow(BackgroundAnimationWidget, FramelessWindow):
         self.titleBar.move(46, 0)
         self.titleBar.resize(self.width() - 46, self.titleBar.height())
         self.titleBar.raise_()
-        self.navigationInterface.setFixedHeight(self.height())
+        # ⚠️ 这里**不能**写 `navigationInterface.setFixedHeight(self.height())`
+        # （上游原样如此，本项目删除）：导航栏就在本窗口的 hBoxLayout 里，
+        # 垂直策略 Preferred 会随窗口自动拉伸铺满，这行纯属冗余；而
+        # setFixedHeight 会把导航栏的**最小高度**钉成当前窗口高度——窗口
+        # 布局的最小高度从此等于「上一次的窗口高度」，于是：
+        #   ① 用户拖小窗口 → 布局最小高度还是旧值 → 若此刻发生布局激活，
+        #      SetDefaultConstraint 按旧高度把窗口**撑回**，缩小被吞；
+        #   ② 放大后再也缩不回去（最小高度被撑到放大后的值）；
+        #   ③ 拖上边缘向下 = 缩小高度，被钉住后系统退化为「只移动窗口」。
+        # 实测触发条件（2026-10-18）：停在「语音转录」分段时，页内多个
+        # word-wrap 标签随宽度重排 → LayoutRequest 上传到窗口布局 → 激活
+        # → 高度弹回缩小前的值（1180x664 缩到 880x620，秒回 880x664；
+        # 放大到 950 后再缩，钉在 950）。换到「字幕翻译」等只拉伸、不重排
+        # 的页面则完全正常——与用户实测「换一个页面，缩放功能就正常」
+        # 逐字吻合。导航栏该多高由布局说了算，不该由这行代码替窗口记尺寸。
 
     def setWindowTitle(self, title: str):
         super().setWindowTitle(title)

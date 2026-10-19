@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.3.1
+# @version 2.4.0
 """自研「设置」页（对齐引擎 SettingInterface 的原始结构）。
 
 本类**忠实复现引擎设置页的原始控件树**（同名分组/卡片、同顺序、同标题、同样式
@@ -273,11 +273,23 @@ class SettingInterface(ScrollArea):
 
     def __createTranslateServiceCards(self):
         cfg = _seams.cfg
+        # ⚠ texts 必须给全：ComboBoxSettingCard 把 texts 与 configItem.options
+        # **按位配对**（zip），构造时少传一项会整体错位、当前值直接 KeyError。
+        # 「LLM 大模型翻译」的移除只能构造完后 removeItem（见下）。
         self.translatorServiceCard = ComboBoxSettingCard(
             cfg.translator_service, FIF.ROBOT, self.tr("翻译服务"), self.tr("选择翻译服务"),
             texts=[s.value for s in cfg.translator_service.validator.options],
             parent=self.translate_serviceGroup)
         self.translatorServiceCard.comboBox.setMinimumWidth(150)
+        # v1.12.0 起字幕翻译板块仅机翻；v2.3.1：把「LLM 大模型翻译」从下拉里
+        # 摘掉——此前只靠宿主窗口事后 removeItem（还找错了卡片属性名，从未
+        # 生效），用户在下拉里选到它就会把翻译接进全局 AI。
+        _llm_value = _seams.entities.TranslatorServiceEnum.OPENAI.value
+        _combo = self.translatorServiceCard.comboBox
+        for _i in range(_combo.count()):
+            if _combo.itemText(_i) == _llm_value:
+                _combo.removeItem(_i)
+                break
         self.needReflectTranslateCard = SwitchSettingCard(
             FIF.EDIT, self.tr("需要反思翻译"),
             self.tr("启用反思翻译可以提高翻译质量，但耗费更多时间和token"),

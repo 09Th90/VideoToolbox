@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.3.1
+# @version 2.4.0
 """自研「字幕翻译」页（含 ``SubtitleTableModel`` / ``PromptDialog``）。
 
 视觉与引擎字幕页对齐；把补丁 ⑨ 的「按声纹筛选」按钮 + 筛选前表格回写内建为
@@ -411,7 +411,14 @@ class SubtitleInterface(QWidget):
         self.start_button.setEnabled(True)
         self.cancel_button.hide()
         self.progress_bar.error()
-        InfoBar.error(self.tr("优化失败"), self.tr(error),
+        # v2.3.1：一次「开始」可能跑优化 + 翻译两步，失败不一定来自优化——
+        # 标题跟着内容走，别让翻译失败顶着一顶「优化失败」的帽子
+        # （用户报「优化失败 Translation failed」时的第一困惑就是这个）。
+        _msg = str(error)
+        _title = (self.tr("翻译失败")
+                  if ("译" in _msg or "Translation" in _msg)
+                  else self.tr("优化失败"))
+        InfoBar.error(_title, self.tr(_msg),
                       duration=_seams.constants.INFOBAR_DURATION_ERROR, parent=self)
 
     def on_subtitle_optimization_progress(self, value: int, status: str) -> None:

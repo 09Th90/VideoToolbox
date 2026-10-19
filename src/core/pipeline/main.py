@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.3.1
+# @version 2.4.0
 """CLI 模式主入口（v2.3.1 拆分工程 · 自 video_toolbox.py 原样搬入）。
 
 pipeline 是编排层：横向依赖 download 域（extract_url/download_mode/merge_mode）

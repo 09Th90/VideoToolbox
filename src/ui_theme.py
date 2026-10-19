@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.3.1
+# @version 2.4.0
 """界面美化：主题感知的全局视觉体系 + 每个导航板块自定义背景图。
 
 两块能力，配置都持久化在 `data/ui_custom.json`（engine.DATA_DIR 下），

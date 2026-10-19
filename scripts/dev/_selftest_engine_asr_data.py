@@ -1,4 +1,4 @@
-# @version 2.3.1
+# @version 2.4.0
 """自检：engine_asr_data 与第三方引擎 asr_data 的逐行为兼容性。
 
 P1 接缝验收脚本（第二个）。判定口径同 ``_selftest_engine_entities.py``：

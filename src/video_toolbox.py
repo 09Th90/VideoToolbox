@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# @version 2.3.1
+# @version 2.4.0
 """
 视频工具箱 v1.12.0（单文件整合版）
 ==================================================
@@ -193,7 +193,7 @@ from core.shared import (  # shared 收口四符号（DOMAIN_MAP「shared」A2b 
     prepare_runtime_env, data_root_info, set_data_root, engine_ui_brand_patch,
 )
 from core.translate import (  # translate 域公开函数（DOMAIN_MAP「translate」全集）
-    vc_translate_route_patch,
+    vc_translate_route_patch, vc_translate_no_llm_patch,
 )
 from core.translate import *  # noqa: F401,F403 —— translate 域私有与常量
 from core.calibrate import (  # calibrate 域公开函数（DOMAIN_MAP「calibrate」全集）

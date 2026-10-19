@@ -604,3 +604,56 @@ ExpandSettingCard QLabel#contentLabel {
     background: transparent;
     border: none;
 }
+
+/* ======================================================================
+ * 扩展域色板（深色档）——令牌引用，值见 _theme.DESIGN_TOKENS[Theme.DARK]
+ * ====================================================================== */
+
+/* ---- 滚动条 ------------------------------------------------------------ */
+QScrollBar::handle {
+    background-color: --ScrollHandle;
+}
+
+QScrollBar::handle:hover {
+    background-color: --ScrollHandleHover;
+}
+
+QScrollBar::handle:pressed {
+    background-color: --ScrollHandleHover;
+}
+
+/* ---- 进度条 ------------------------------------------------------------ */
+QProgressBar {
+    background-color: --TrackFill;
+    color: --TextPrimary;
+}
+
+/* ---- Tab 页签：自编规则已移除（上游 tab_view.qss 只针对 Fluent 的
+        `TabBar` 类；自编 `QTabBar` 选择器会改变宿主原生 QTabWidget 外观） -- */
+
+/* ---- 分隔器 ------------------------------------------------------------ */
+QSplitter::handle:hover {
+    background-color: --FillSubtleHover;
+}
+
+/* ---- 表角按钮（照抄上游 table_view.qss；否则深色下左上角露白块） ------ */
+QTableCornerButton::section {
+    background-color: transparent;
+    border: 1px solid rgba(255, 255, 255, 21);
+}
+
+/* ---- 窗口级底色（照抄上游 fluent_window.qss dark） ------------------- */
+FluentWindow {
+    background-color: transparent;
+}
+
+StackedWidget {
+    border: 1px solid rgba(0, 0, 0, 0.18);
+    border-right: none;
+    border-bottom: none;
+    background-color: rgba(255, 255, 255, 0.0314);
+}
+
+StackedWidget[isTransparent=true] {
+    background-color: transparent;
+}

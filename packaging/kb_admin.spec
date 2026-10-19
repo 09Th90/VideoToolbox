@@ -1,5 +1,5 @@
 # -*- mode: python ; coding: utf-8 -*-
-# @version 2.3.1
+# @version 2.4.0
 
 
 a = Analysis(

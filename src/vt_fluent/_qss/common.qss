@@ -214,6 +214,7 @@ SegmentedItem[isSelected=true], SegmentedToolItem[isSelected=true] {
 
 /* ---- 表格 / 列表结构（行选中由 delegate 自绘） ----------------------- */
 QTableView {
+    background: transparent;
     outline: none;
     border: none;
     selection-background-color: transparent;
@@ -261,6 +262,7 @@ QHeaderView::section:checked {
 }
 
 ListView, ListWidget {
+    background: transparent;
     outline: none;
     border: none;
     selection-background-color: transparent;
@@ -334,4 +336,116 @@ MenuActionListWidget::item {
 
 #checkableListWidget::item {
     padding-left: 36px;
+}
+
+/* ======================================================================
+ * 扩展域（QSS 库完整化）：滚动条 / 进度条 / Tab / 分隔器 / 滚动区基座
+ *
+ * 颜色一律走 --Token 占位符，值在 _theme.DESIGN_TOKENS（明暗单点登记）。
+ * 覆盖面按项目真实控件划定：QListWidget/QTreeWidget 原生规则**刻意不写**
+ * （宿主零实例；且类型选择器会连带匹配自研 ListWidget 子类，与既有
+ * `ListView/ListWidget` 规则产生同特异性顺序竞争，引入覆盖风险）。
+ * ====================================================================== */
+
+/* ---- 滚动条（SmoothScrollBar 与原生 QScrollBar 实例共用） ------------ */
+QScrollBar:vertical {
+    background: transparent;
+    width: 12px;
+    margin: 2px;
+    outline: none;
+}
+
+QScrollBar::handle:vertical {
+    border-radius: 3px;
+    min-height: 30px;
+}
+
+QScrollBar:horizontal {
+    background: transparent;
+    height: 12px;
+    margin: 2px;
+    outline: none;
+}
+
+QScrollBar::handle:horizontal {
+    border-radius: 3px;
+    min-width: 30px;
+}
+
+/* Fluent 滚动条无箭头按钮：行按钮与翻页底全部隐藏 */
+QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical,
+QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {
+    height: 0px;
+    width: 0px;
+}
+
+QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical,
+QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal {
+    background: transparent;
+}
+
+/* ---- 进度条（原生 QProgressBar 实例；自研 ProgressBar 全自绘为惰性） -- */
+QProgressBar {
+    border: none;
+    border-radius: 4px;
+    text-align: center;
+    outline: none;
+}
+
+QProgressBar::chunk {
+    border-radius: 4px;
+    background-color: --ThemeColorPrimary;
+}
+
+/* ⚠️ 已移除自编的 Tab 规则（QTabWidget::pane / QTabBar / QTabBar::tab）：
+   上游 tab_view.qss 只对 Fluent 的 `TabBar` 类生效，自编的 `QTabBar`
+   选择器会改变宿主**原生 QTabWidget** 的外观，与上游行为不符。 */
+
+/* ---- 分隔器（QSplitter 手柄） ----------------------------------------- */
+QSplitter::handle:horizontal {
+    width: 3px;
+}
+
+QSplitter::handle:vertical {
+    height: 3px;
+}
+
+QSplitter::handle {
+    background-color: --SplitterFill;
+    border: none;
+    border-radius: 1px;
+}
+
+/* ---- 滚动区基座（透明化：页面底色由窗口/页面容器自管） ----------------- *
+ * 第二层选择器精确命中「viewport 的直接子代」= setWidget() 装入的内容
+ * 控件——QScrollArea.setWidget 会把它强制 autoFillBackground=True（按
+ * QPalette.Window 自填充浅色底，即深色主题「发白」缺陷的根因），QSS
+ * 规则可压过 palette 填充，使容器层透明、内容卡片自管底色。 */
+QScrollArea {
+    background: transparent;
+    border: none;
+}
+
+/* ⚠️ 已移除 `QScrollArea > QWidget > QWidget { background: transparent; }`：
+   实测该第二层选择器会连带清掉「滚动区内容容器」（含设置页卡片组）的底色，
+   是深色主题「发白」的候选元凶之一。现只透明化 QScrollArea 自身，
+   底色交由窗口 / StackedWidget 承担（见文件末的窗口级规则）。 */
+
+/* ---- 窗口 / 内容容器结构（照抄上游 fluent_window.qss） ---------------- */
+StackedWidget {
+    border-right: none;
+    border-bottom: none;
+    border-top-left-radius: 10px;
+}
+
+StackedWidget[isTransparent=true] {
+    border: none;
+}
+
+NavigationInterface {
+    background-color: transparent;
+}
+
+FluentTitleBar {
+    background-color: transparent;
 }

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.3.1
+# @version 2.4.0
 """vt_fluent 输入族（自研，替代 qfluentwidgets 输入类控件）。
 
 行为契约（对齐上游 1.11.3）：
@@ -15,9 +15,9 @@
 · SwitchButton：滑块指示器（42×22，120ms 位移动画）+ 开关文字；
 · Slider：自绘凹槽 + 圆点把手（22×22，100ms 半径动画）、点击定位。
 
-弹层降级说明（B1→B2 过渡）：下拉/补全/右键菜单默认 QMenu 兜底；
-B2 的 _menu.py（RoundMenu/flyout）落地后，_buttons._menu_exec 的鸭子类型
-自动识别并走 flyout 动画路径，控件侧零改动。
+弹层形态（B2 起）：下拉（ComboBoxMenu）/补全（CompleterMenu）/右键菜单
+均已升级为 RoundMenu flyout（comboListWidget/completerListWidget objectName
+供 QSS 选中态挂靠）；外部传入的 QMenu 由 _buttons._menu_exec 鸭子类型兼容。
 """
 
 from enum import Enum
@@ -25,14 +25,17 @@ from enum import Enum
 from PySide6.QtCore import (QEvent, QPoint, QPropertyAnimation, QRectF, QSize,
                             Qt, QTimer, Signal, Property)
 from PySide6.QtGui import QColor, QIcon, QPainter, QPainterPath
+from PySide6.QtGui import QAction
 from PySide6.QtWidgets import (QApplication, QCheckBox, QCompleter, QDoubleSpinBox,
-                               QHBoxLayout, QLabel, QLineEdit, QMenu, QPlainTextEdit,
+                               QHBoxLayout, QLabel, QLineEdit, QPlainTextEdit,
                                QPushButton, QSizePolicy, QSlider, QSpinBox,
                                QStyle, QStyleOptionButton, QTextEdit,
                                QToolButton, QVBoxLayout, QWidget)
 
 from ._anim import TranslateYAnimation, SmoothScrollDelegate, singledispatchmethod
-from ._buttons import ToolButton, TransparentToolButton, _menu_exec, _menu_width_fit
+from ._buttons import ToolButton, TransparentToolButton, _menu_exec, \
+                     _menu_width_fit
+from ._menu import MenuAnimationType, RoundMenu
 from ._icon import ExtraIcon, FluentIcon, drawIcon, toQIcon
 from ._theme import (FluentStyleSheet, ThemeColor, autoFallbackThemeColor,
                      fallbackThemeColor, isDarkTheme, setFont, setCustomStyleSheet,
@@ -109,13 +112,39 @@ class LineEditButton(QToolButton):
             drawIcon(self._icon, painter, rect, fill="#656565")
 
 
+def _undo_available(widget) -> bool:
+    """撤销可用态：QLineEdit 有 isUndoAvailable()，QTextEdit/QPlainTextEdit 无。
+
+    多行编辑只能用 undoAvailable 信号反馈的末态，这里退化为「有文档修改记录
+    或文档自带撤销栈」判断；取不到时按可用处理（禁用项比误禁更烦人）。
+    """
+    fn = getattr(widget, "isUndoAvailable", None)
+    if callable(fn):
+        return fn()
+    doc = getattr(widget, "document", None)
+    if callable(doc):
+        return doc().isUndoAvailable()
+    return True
+
+
+def _redo_available(widget) -> bool:
+    """重做可用态（同上：仅 QLineEdit 提供 isRedoAvailable）。"""
+    fn = getattr(widget, "isRedoAvailable", None)
+    if callable(fn):
+        return fn()
+    doc = getattr(widget, "document", None)
+    if callable(doc):
+        return doc().isRedoAvailable()
+    return True
+
+
 def _edit_context_menu(widget):
-    """标准编辑右键菜单（B1 的 QMenu 兜底；B2 可换 RoundMenu 版）。
+    """标准编辑右键菜单（RoundMenu 圆角弹层，行编辑/多行编辑共用）。
 
     行编辑与多行编辑共用：撤销/重做/剪切/复制/粘贴/删除/全选，
     各项可用态按控件当前状态初始化。
     """
-    menu = QMenu(widget)
+    menu = RoundMenu("", widget)
 
     def _add(text, slot, enabled, shortcut=None):
         act = menu.addAction(text)
@@ -125,8 +154,8 @@ def _edit_context_menu(widget):
             act.setShortcut(shortcut)
         return act
 
-    _add(widget.tr("撤销"), widget.undo, widget.isUndoAvailable(), "Ctrl+Z")
-    _add(widget.tr("重做"), widget.redo, widget.isRedoAvailable(), "Ctrl+Y")
+    _add(widget.tr("撤销"), widget.undo, _undo_available(widget), "Ctrl+Z")
+    _add(widget.tr("重做"), widget.redo, _redo_available(widget), "Ctrl+Y")
     menu.addSeparator()
     readonly = widget.isReadOnly()
     has_sel = widget.textCursor().hasSelection() if hasattr(widget, "textCursor") \
@@ -147,11 +176,11 @@ def _edit_context_menu(widget):
     return menu
 
 
-class _CompleterMenu(QMenu):
-    """补全弹层（B1 的 QMenu 兜底；B2 可换 CompleterMenu(RoundMenu) 版）。
+class _CompleterMenu(RoundMenu):
+    """补全弹层（对齐上游 CompleterMenu：RoundMenu + completerListWidget）。
 
-    接口对齐上游 CompleterMenu 的使用面：setCompletion(model, column) /
-    popup(pos) / activated(str)。
+    接口对齐上游使用面：setCompletion(model, column) / popup(pos) /
+    activated(str)。
     """
 
     activated = Signal(str)
@@ -159,24 +188,33 @@ class _CompleterMenu(QMenu):
     def __init__(self, lineEdit, parent=None):
         super().__init__(parent)
         self._lineEdit = lineEdit
+        self.view.setObjectName("completerListWidget")
         self.triggered.connect(self._onTriggered)
 
     def setCompletion(self, model, column=0):
-        self.clear()
+        texts = []
         for row in range(model.rowCount()):
             idx = model.index(row, column)
             text = idx.data(Qt.DisplayRole)
             if text:
-                self.addAction(str(text))
+                texts.append(str(text))
+        # 先清空旧项再重填（菜单复用：LineEdit 每次输入都会刷新）
+        for action in self.actions():
+            self.removeAction(action)
+        for text in texts:
+            self.addAction(text)
 
     def setItems(self, items):
-        self.clear()
         for text in items:
             self.addAction(text)
 
-    def setMaxVisibleItems(self, num):
-        # QMenu 超长自动滚动；记录供 B2 的 RoundMenu 路径使用
-        self._maxVisibleItems = num
+    def popup(self, pos):
+        self.exec(pos, aniType=MenuAnimationType.FADE_IN_DROP_DOWN)
+
+    # ⚠ PySide6 specificity：子类必须自带 exec 定义，否则调用被派发到
+    # C++ QMenu.exec 抛 AttributeError（详见 _menu.show_menu）。
+    def exec(self, pos, ani=True, aniType=MenuAnimationType.FADE_IN_DROP_DOWN):
+        RoundMenu.exec(self, pos, aniType=aniType)
 
     def _onTriggered(self, action):
         self.activated.emit(action.text())
@@ -382,6 +420,8 @@ class PasswordLineEdit(LineEdit):
 
     def setViewPasswordButtonVisible(self, isVisible: bool):
         self.viewButton.setVisible(isVisible)
+        # 重算右边距，否则隐藏后仍留 30px 空白
+        self.setClearButtonEnabled(self._isClearButtonEnabled)
 
     def eventFilter(self, obj, e):
         if obj is not self.viewButton or not self.isEnabled():
@@ -438,8 +478,24 @@ class ComboItem:
         self.isEnabled = isEnabled
 
 
-class _ComboBoxMenu(QMenu):
-    """下拉弹层（B1 的 QMenu 兜底；B2 可换 ComboBoxMenu(RoundMenu) 版）。"""
+class _ComboBoxMenu(RoundMenu):
+    """下拉弹层（对齐上游 ComboBoxMenu：RoundMenu + comboListWidget 契规）。
+
+    * view.objectName='comboListWidget'（QSS 选中态/圆角规则挂靠）；
+    * itemHeight 33、视口上下留白跟随上游；
+    * view 暴露 width/heightForAnimation/adjustSize 供 ComboBox 判向。
+    """
+
+    def __init__(self, parent=None):
+        super().__init__("", parent)
+        self.view.setObjectName("comboListWidget")
+        self.view.setViewportMargins(0, 2, 0, 6)
+        self.view.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+        self.setItemHeight(33)
+
+    # ⚠ PySide6 specificity：子类必须自带 exec 定义（见 _menu.show_menu）
+    def exec(self, pos, ani=True, aniType=MenuAnimationType.DROP_DOWN):
+        RoundMenu.exec(self, pos, aniType=aniType)
 
 
 class ComboBoxBase:
@@ -615,26 +671,45 @@ class ComboBoxBase:
     def _showComboMenu(self):
         if not self.items:
             return
+
         menu = self._createComboMenu()
         for item in self.items:
-            action = menu.addAction(toQIcon(item.icon) if item.icon else QIcon(),
-                                    item.text)
+            action = QAction(toQIcon(item.icon) if item.icon else QIcon(),
+                             item.text)
             action.setEnabled(item.isEnabled)
-        _menu_width_fit(menu, self)
-        menu.setMinimumWidth(self.width())
-        if self.currentIndex() >= 0 and self.items:
-            menu.setActiveAction(menu.actions()[self.currentIndex()])
-        menu.triggered.connect(self._onMenuTriggered)
-        menu.aboutToHide.connect(self._onDropMenuClosed)
-        self.dropMenu = menu
-        x = -menu.sizeHint().width() // 2 + self.width() // 2
-        pos = self.mapToGlobal(QPoint(x, self.height()))
-        _menu_exec(menu, pos)
+            menu.addAction(action)
 
-    def _onMenuTriggered(self, action):
-        index = self.findText(action.text())
-        if index >= 0:
-            self._onItemClicked(index)
+        # 点击项 → 下标（lstrip 去掉图标对齐用的前导空格）
+        menu.view.itemClicked.connect(
+            lambda i: self._onItemClicked(self.findText(i.text().lstrip())))
+
+        if menu.view.width() < self.width():
+            menu.view.setMinimumWidth(self.width())
+            menu.adjustSize()
+
+        menu.setMaxVisibleItems(self.maxVisibleItems())
+        menu.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose)
+        menu.closedSignal.connect(self._onDropMenuClosed)
+        self.dropMenu = menu
+
+        # 选中项（默认动作）
+        if self.currentIndex() >= 0 and self.items:
+            menu.setDefaultAction(menu.actions()[self.currentIndex()])
+
+        # 上下空间判定：下方够就下拉，否则上拉
+        x = (-menu.width() // 2 + menu.layout().contentsMargins().left()
+             + self.width() // 2)
+        pd = self.mapToGlobal(QPoint(x, self.height()))
+        hd = menu.view.heightForAnimation(pd, MenuAnimationType.DROP_DOWN)
+        pu = self.mapToGlobal(QPoint(x, 0))
+        hu = menu.view.heightForAnimation(pu, MenuAnimationType.PULL_UP)
+
+        if hd >= hu:
+            menu.view.adjustSize(pd, MenuAnimationType.DROP_DOWN)
+            RoundMenu.exec(menu, pd, aniType=MenuAnimationType.DROP_DOWN)
+        else:
+            menu.view.adjustSize(pu, MenuAnimationType.PULL_UP)
+            RoundMenu.exec(menu, pu, aniType=MenuAnimationType.PULL_UP)
 
     def _toggleComboMenu(self):
         if self.dropMenu:
@@ -1522,12 +1597,12 @@ class SliderHandle(QWidget):
         painter.drawEllipse(self.rect().adjusted(1, 1, -1, -1))
 
         # 内圈（主题色）
-        painter.setPen(Qt.NoPen)
+        # ⚠ 对齐上游：半径**直接取 radius**（hover 5→6 时内圈变大、按下 4 时变小）。
+        # 原写法 `c = 11 - r` 方向反了——hover/按下时内圈反而缩小，且中途
+        # `setPen(Qt.NoPen)` 抹掉了上游内圈保留的描边（实测"把手样式不对"）。
         painter.setBrush(autoFallbackThemeColor(self.lightHandleColor,
                                                 self.darkHandleColor))
-        r = self.radius
-        c = 11 - r  # 外径 22/2=11 减半径
-        painter.drawEllipse(self.rect().center(), c, c)
+        painter.drawEllipse(self.rect().center(), self.radius, self.radius)
 
 
 class Slider(QSlider):
@@ -1575,11 +1650,19 @@ class Slider(QSlider):
             self.setMinimumWidth(22)
 
     def mousePressEvent(self, e):
+        # ⚠ 只响应左键（右键按下不应改值）
+        if e.button() != Qt.LeftButton:
+            return
         self._pressedPos = e.pos()
         self.setValue(self._posToValue(e.pos()))
         self.clicked.emit(self.value())
 
     def mouseMoveEvent(self, e):
+        # ⚠ 只在**按住左键**时才改值。原实现无条件 setValue：一旦松手后
+        # （或鼠标 grab 未按预期归还时）仍收到 move 事件，把手就会继续跟着
+        # 鼠标走——用户实测"拖到某个位置停不下、一直跟着移动"。
+        if not (e.buttons() & Qt.LeftButton):
+            return
         self.setValue(self._posToValue(e.pos()))
         self._pressedPos = e.pos()
         self.sliderMoved.emit(self.value())

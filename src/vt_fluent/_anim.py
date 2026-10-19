@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.3.1
+# @version 2.4.0
 """vt_fluent 动画辅助（自研，替代 qfluentwidgets.common.animation + smooth_scroll）。
 
 服务 B1 控件族：卡片背景色过渡（BackgroundAnimationWidget）、凸起阴影
@@ -141,7 +141,7 @@ class BackgroundColorObject(QObject):
     def setBackgroundColor(self, color):
         self._backgroundColor = color
 
-    backgroundColor = property(getBackgroundColor, setBackgroundColor)
+    backgroundColor = Property(QColor, getBackgroundColor, setBackgroundColor)
 
 
 class BackgroundAnimationWidget:
@@ -511,7 +511,7 @@ class SmoothScrollDelegate(QObject):
     """给滚动区挂平滑滚动：滚轮事件转动画、滚动条换 SmoothScrollBar、
     视图（item view）切 ScrollPerPixel、水平条策略订死。"""
 
-    def __init__(self, parent: QAbstractScrollArea, useAni=False):
+    def __init__(self, parent: QAbstractScrollArea, useAni=True):
         super().__init__(parent)
         self.useAni = useAni
         self.vScrollBar = SmoothScrollBar(Qt.Vertical, parent)
@@ -526,32 +526,39 @@ class SmoothScrollDelegate(QObject):
                 "QScrollBar:horizontal{height: 0px}")
 
         parent.viewport().installEventFilter(self)
-        parent.setVerticalScrollBarPolicy = self.setVerticalScrollBarPolicy
-        parent.setHorizontalScrollBarPolicy = self.setHorizontalScrollBarPolicy
-
-    def setVerticalScrollBarPolicy(self, policy):
-        # ⚠ 必须直接调 QAbstractScrollArea 的方法：super(QAbstractScrollArea,
-        # widget) 会跳过 QAbstractScrollArea 自身，落到 QFrame 上（无此方法）。
-        QAbstractScrollArea.setVerticalScrollBarPolicy(
-            self.parent(), Qt.ScrollBarAlwaysOff)
-
-    def setHorizontalScrollBarPolicy(self, policy):
-        QAbstractScrollArea.setHorizontalScrollBarPolicy(
-            self.parent(), Qt.ScrollBarAlwaysOff)
 
     def eventFilter(self, obj, e):
         if e.type() == QEvent.Wheel:
+            # ⚠ 必须驱动**区域自身的滚动条**（parent.verticalScrollBar()）：
+            # 早期版本驱动的是本类自建的游离 SmoothScrollBar，区域根本不动，
+            # 滚轮等于被吞掉（B1 遗留 bug，2026-10-18 自查修复）。
             if e.angleDelta().y() != 0:
-                target = self._wheelTarget(self.vScrollBar, e.angleDelta().y())
-                self.vScrollBar.setValue(target)
-                e.accept()
-                return True
-            if e.angleDelta().x() != 0:
-                target = self._wheelTarget(self.hScrollBar, e.angleDelta().x())
-                self.hScrollBar.setValue(target)
-                e.accept()
-                return True
+                if self._wheelScroll(self.parent().verticalScrollBar(),
+                                     e.angleDelta().y()):
+                    e.accept()
+                    return True
+            elif e.angleDelta().x() != 0:
+                if self._wheelScroll(self.parent().horizontalScrollBar(),
+                                     e.angleDelta().x()):
+                    e.accept()
+                    return True
         return super().eventFilter(obj, e)
+
+    def _wheelScroll(self, bar, delta: int) -> bool:
+        """滚轮 → 区域滚动条动画（OutCubic 300ms）；到界返回 False 放行。"""
+        target = self._wheelTarget(bar, delta)
+        if target == bar.value():
+            return False
+        if not self.useAni:
+            bar.setValue(target)
+            return True
+        ani = QPropertyAnimation(bar, b"value", self)
+        ani.setStartValue(bar.value())
+        ani.setEndValue(target)
+        ani.setDuration(300)
+        ani.setEasingCurve(QEasingCurve.OutCubic)
+        ani.start(QPropertyAnimation.DeleteWhenStopped)
+        return True
 
     @staticmethod
     def _wheelTarget(bar, delta):

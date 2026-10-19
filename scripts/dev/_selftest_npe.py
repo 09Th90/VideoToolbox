@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.3.1
+# @version 2.4.0
 """NPE（NewPipe Extractor）后端冒烟测试：解析 → 选流 → ffmpeg 实际下载。
 
 用法：

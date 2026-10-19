@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.3.1
+# @version 2.4.0
 """vt_fluent 控件族 parity 探针（B1 门：几何 + 态色与 qfluentwidgets 逐项对照）。
 
 同一进程内加载 qfluentwidgets（对照基准）与 vt_fluent（自研），离屏
@@ -36,6 +36,20 @@ def _cmp(label, a, b):
 
 def _color(c):
     return None if c is None else c.name()
+
+
+def _check(label, cond, detail=""):
+    global checked
+    checked += 1
+    if not cond:
+        fails.append(f"{label}: {detail}")
+
+
+def _pump(ms=200):
+    from PySide6.QtCore import QEventLoop, QTimer
+    loop = QEventLoop()
+    QTimer.singleShot(ms, loop.quit)
+    loop.exec()
 
 
 def main():
@@ -203,6 +217,77 @@ def main():
              _color(v_sl.handle.darkHandleColor))
 
     both_themes(slider_colors)
+
+    # ---- 6. 自查守卫（2026-10-18 审计发现的回归点） -------------------- #
+    import ast as _ast
+    import re as _re
+
+    # 6a. vt_fluent 内部引用的 FluentIcon 必须都在内嵌 ART 里
+    #     （缺一个 → 该处画空白，且异常被 Qt 吞掉，肉眼才发现）
+    vt_dir = os.path.join(ROOT, "src", "vt_fluent")
+    used_icons = set()
+    for fn in os.listdir(vt_dir):
+        if not fn.endswith(".py"):
+            continue
+        tree = _ast.parse(open(os.path.join(vt_dir, fn), encoding="utf-8").read())
+        for n in _ast.walk(tree):
+            if (isinstance(n, _ast.Attribute) and isinstance(n.value, _ast.Name)
+                    and n.value.id == "FluentIcon"):
+                used_icons.add(n.attr)
+    art_src = open(os.path.join(vt_dir, "_icons_data.py"), encoding="utf-8").read()
+    art = set(_re.findall(r"^    '([A-Z_0-9]+)':", art_src, _re.M))
+    _check("Icons.internalRefsInART", not (used_icons - art),
+           f"缺 {sorted(used_icons - art)}")
+
+    # 6b. Action 图标非空 + 菜单项图标非空（曾因 Icon(path) 恒空而全灭）
+    from PySide6.QtCore import Qt
+    from PySide6.QtGui import QImage
+    act = vt.Action(vt.FluentIcon.SAVE, "保存")
+    _check("Action.icon.notNull", not act.icon().isNull())
+    menu = vt.RoundMenu("m")
+    menu.addAction(act)
+    _check("Menu.item.icon.notNull", not menu.view.item(0).icon().isNull())
+    img = QImage(120, 40, QImage.Format_ARGB32)
+    img.fill(Qt.transparent)
+    menu.view.viewport().render(img)
+    painted = sum(1 for x in range(min(30, img.width()))
+                  for y in range(min(16, img.height()))
+                  if img.pixelColor(x, y).alpha() > 40)
+    _check("Menu.item.icon.painted", painted > 20, f"pixels={painted}")
+
+    # 6c. 滚轮必须驱动区域自身滚动条（曾驱动游离 bar → 滚轮失效）
+    from PySide6.QtGui import QWheelEvent
+    from PySide6.QtCore import QPoint as _QP, QPointF as _QPF
+    sa = vt.ScrollArea()
+    inner = QWidget()
+    inner.setMinimumHeight(2000)
+    sa.setWidget(inner)
+    sa.resize(300, 300)
+    sa.show()
+    _pump(80)
+    ev = QWheelEvent(_QPF(10, 10), _QPF(10, 10), _QP(0, 0), _QP(0, -120),
+                     Qt.NoButton, Qt.NoModifier, Qt.NoScrollPhase, False)
+    QApplication.sendEvent(sa.viewport(), ev)
+    _pump(400)
+    _check("ScrollArea.wheelWorks", sa.verticalScrollBar().value() > 0,
+           f"value={sa.verticalScrollBar().value()}")
+
+    # 6d. SegmentedWidget 选中块随项移动（曾在布局完成前恒停在 x=0）
+    seg = vt.SegmentedWidget()
+    seg.resize(600, 40)
+    seg.addItem("a", "A")
+    seg.addItem("b", "B")
+    seg.show()
+    _pump(120)
+    seg.setCurrentItem("b")
+    _pump(300)
+    img2 = QImage(600, 40, QImage.Format_ARGB32)
+    img2.fill(Qt.transparent)
+    seg.render(img2)
+    ca = img2.pixelColor(150, 6)
+    cb = img2.pixelColor(450, 6)
+    _check("Segmented.blockFollows", cb.alpha() > ca.alpha(),
+           f"a={ca.getRgb()} b={cb.getRgb()}")
 
     print("=" * 56)
     if fails:

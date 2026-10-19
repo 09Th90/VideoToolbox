@@ -1,4 +1,4 @@
-# @version 2.3.1
+# @version 2.4.0
 """引擎实体定义（自研，替代 videocaptioner.core.entities）。
 
 P1 接缝之一：把 `videocaptioner.core.entities` 的公开面迁到本项目自有模块，

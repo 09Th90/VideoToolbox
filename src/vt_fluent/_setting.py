@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.3.1
+# @version 2.4.0
 """vt_fluent 设置卡族（自研，替代 qfluentwidgets 的 settings 包）。
 
 行为契约（对齐上游 1.11.3）：
@@ -319,16 +319,42 @@ class ComboBoxSettingCard(SettingCard):
         for text, option in zip(texts, configItem.options):
             self.comboBox.addItem(text, userData=option)
 
-        self.comboBox.setCurrentText(self.optionToText[qconfig.get(configItem)])
+        # ⚠ 当前值可能**不在选项里**，而且可能是**另一个类**的枚举成员：
+        #   本项目同时存在 `engine_entities.TranslatorServiceEnum` 与
+        #   `videocaptioner.core.entities.TranslatorServiceEnum` 两个同名类，
+        #   跨类枚举的 `==` / hash 恒不相等（已多次踩坑，见
+        #   video_toolbox_qt.py v2.3.1 的同类注释）。旧写法
+        #   `self.optionToText[qconfig.get(configItem)]` 直接查字典 → 取不到就
+        #   抛 `KeyError(<TranslatorServiceEnum.GOOGLE: '谷歌翻译'>)`，整张
+        #   设置卡构造失败、连累整个「设置」页回退引擎 UI（用户 2026-10-18
+        #   日志实证：自研 SettingInterface 构造失败，回退引擎）。现在先精确
+        #   匹配、再按 `.value` 值兜底，绝不因为一个历史值炸整页。
+        self.comboBox.setCurrentText(self._textFor(qconfig.get(configItem)))
         self.comboBox.currentIndexChanged.connect(self._onCurrentIndexChanged)
         configItem.valueChanged.connect(self.setValue)
+
+    def _textFor(self, value) -> str:
+        """把配置值映射成下拉文案：精确匹配 → `.value` 值匹配 → 首项兜底。"""
+        if value in self.optionToText:
+            return self.optionToText[value]
+        raw = getattr(value, "value", value)
+        for option, text in self.optionToText.items():
+            if getattr(option, "value", option) == raw:
+                return text
+        return next(iter(self.optionToText.values()), "")
 
     def _onCurrentIndexChanged(self, index: int):
         qconfig.set(self.configItem, self.comboBox.itemData(index))
 
     def setValue(self, value):
         if value not in self.optionToText:
-            return
+            # 跨类枚举 / 历史值：按 .value 落到同类选项上再写回
+            raw = getattr(value, "value", value)
+            hit = next((o for o in self.optionToText
+                        if getattr(o, "value", o) == raw), None)
+            if hit is None:
+                return
+            value = hit
         self.comboBox.setCurrentText(self.optionToText[value])
         qconfig.set(self.configItem, value)
 
@@ -754,6 +780,8 @@ class CustomColorSettingCard(ExpandGroupSettingCard):
         self.defaultRadioButton.setChecked(isDefault)
         self.customRadioButton.setChecked(not isDefault)
         self.customColorWidget.setVisible(not isDefault)
+        # 行显示/隐藏改变 sizeHint，展开态需同步高度
+        self._adjustViewSize()
 
 
 class ExpandLayout(QLayout):

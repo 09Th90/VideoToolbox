@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.3.1
+# @version 2.4.0
 """vt_fluent 展示族（自研，替代 qfluentwidgets 展示类控件）。
 
 行为契约（对齐上游 1.11.3）：
@@ -18,7 +18,9 @@
 行编辑单元格编辑器复用 vt_fluent._inputs.LineEdit（createEditor 内建）。
 """
 
-from PySide6.QtCore import QEasingCurve, QEvent, QModelIndex, QPoint, QPropertyAnimation, QRectF, QSize, Qt, Signal, Property
+from PySide6.QtCore import (QEasingCurve, QEvent, QMargins, QModelIndex, QPoint,
+                            QPropertyAnimation, QRectF, QSize, Qt, Signal,
+                            Property)
 from PySide6.QtGui import QBrush, QColor, QFont, QPainter, QPalette, QPen
 from PySide6.QtWidgets import (QAbstractItemView, QApplication, QFrame, QHBoxLayout,
                                QHeaderView, QLabel, QListView, QListWidget, QMenu,
@@ -543,12 +545,14 @@ class SegmentedWidget(Pivot):
     def setCurrentItem(self, routeKey: str):
         if routeKey not in self.items or routeKey == self.currentRouteKey():
             return
+        # 起点取**旧选中项的真实 x**（_slideX 可能是布局完成前的旧值 0）
+        oldItem = self.currentItem()
+        start = oldItem.x() if oldItem is not None else self._slideX
         item = self.items[routeKey]
-        start = self._slideX
         end = item.x()
         self._currentRouteKey = routeKey
         self.slideAni.stop()
-        self.slideAni.setStartValue(start)
+        self.slideAni.setStartValue(float(start))
         self.slideAni.setEndValue(float(end))
         self.slideAni.start()
         for k, it in self.items.items():
@@ -587,14 +591,20 @@ class SegmentedWidget(Pivot):
             painter.setBrush(QColor(255, 255, 255, 179))
 
         item = self.currentItem()
-        rect = item.rect().adjusted(1, 1, -1, -1).translated(int(self._slideX), 0)
+        # 静止态直接用布局真值 item.x()；仅动画期间用插值 _slideX
+        # （布局完成前 _slideX 可能仍是 0，会导致选中块停在左上角）
+        if self.slideAni.state() == QPropertyAnimation.Running:
+            base = int(self._slideX)
+        else:
+            base = item.x()
+        rect = item.rect().adjusted(1, 1, -1, -1).translated(base, 0)
         painter.drawRoundedRect(rect, 5, 5)
 
         # 底部指示器
         painter.setPen(Qt.NoPen)
         painter.setBrush(autoFallbackThemeColor(self.lightIndicatorColor,
                                                 self.darkIndicatorColor))
-        x = int(self.currentItem().width() / 2 - 8 + self._slideX)
+        x = int(item.width() / 2 - 8 + base)
         painter.drawRoundedRect(QRectF(x, self.height() - 3.5, 16, 3), 1.5, 1.5)
 
 
@@ -826,7 +836,6 @@ class TableItemDelegate(QStyledItemDelegate):
                 self.pressedRow = -1
 
     def sizeHint(self, option, index):
-        from PySide6.QtCore import QMargins
         size = super().sizeHint(option, index)
         return size.grownBy(QMargins(0, self.margin, 0, self.margin))
 

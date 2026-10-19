@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# @version 2.3.1
+# @version 2.4.0
 """视频工具箱 GUI v1.11.0 —— Fluent 矢量界面
 ====================================================================
 界面形态（v1.10.0 起，原 tkinter 界面退役）：
@@ -83,6 +83,7 @@ import threading
 import time
 import traceback
 import unicodedata
+from collections import deque
 from datetime import datetime
 
 
@@ -193,7 +194,7 @@ except Exception as _e:  # noqa: BLE001
     except Exception:  # noqa: BLE001
         pass
 
-VERSION = "2.3.1"
+VERSION = "2.4.0"
 
 # 全格式媒体/字幕/文档扩展名（v1.13.0）：
 #   视频：常见容器 + av1 / h264 / h265 / x264 等裸流与更多封装；
@@ -1199,6 +1200,35 @@ class DownloadPage(QWidget):
     #: 取消专用返回码：强杀子进程后 proc.wait() 的返回码不固定（Windows 上常是
     #: -9/1），统一收敛成这个值再投给 dl_done，主线程据此标记「已取消」。
     RC_CANCELLED = -9
+    #: 直链失效专用返回码：EOF / TLS 断连 / 403 意味着**已签发的链接本身作废**，
+    #: 原地重试同一条 URL 是纯浪费（它仍绑定旧的出口 IP）。收敛成这个值，
+    #: 让上层直接走「重新提取」而不是退避重试。
+    #: 对应 engine.ytdlp_error_needs_reextract() 的判定。
+    RC_REEXTRACT = -10
+
+    #: 直链失效时最多重新提取几次。直链绑定签发时的出口 IP，代理一换节点旧链
+    #: 全部作废，重新提取是唯一出路；但节点若持续抖动，反复提取也只是空耗，
+    #: 到量就转普通失败，交给换源 / 第二引擎兜底。
+    REEXTRACT_MAX = 2
+    #: yt-dlp 输出只保留**尾部**这么多行供错误判定。
+    #: HLS 源每片输出一行 `Downloading fragment N/M`——1069 片的下载就是
+    #: 2138+ 行，直播存档能到上万行。全量累积既吃内存（多任务并行时叠加），
+    #: 又让 `"\n".join(lines)` 每次重试都重拼一遍。错误判定（retryable /
+    #: needs_reextract / err_brief）只看尾部，用环形缓冲即可。
+    DL_LINES_KEEP = 600
+    #: 下载输出里的 TLS EOF 特征（与 ytdlp_util.YTDLP_REEXTRACT_HINTS 同源，
+    #: 这里只取用户最常看到的形态，用于在下载过程中提前给出 explanation）。
+    _EOF_MARKS = ("EOF occurred in violation of protocol", "_ssl.c")
+    #: 同一任务的同一类 EOF 只报一次：Retrying (1/10)…(10/10) 会重复刷屏。
+    _EOF_HINTED = {}
+    #: 单个任务内因 EOF **主动结束下载**的次数上限。
+    #: EOF 说明已签发的链接作废，而 yt-dlp 自己的 `--retries` +
+    #: `--retry-sleep exp=1:20`（最长 20s）会白耗数分钟才轮到上层重新提取
+    #: （2026-10-17 监控实录：任务停滞 210MB 逾 10 分钟即此机制）。
+    #: 主动结束可把这段等待压到 0；仍留上限，防止节点持续故障时无限循环。
+    EOF_REEXTRACT_MAX = 2
+    #: 各任务已发生的 EOF 主动结束次数（task_id -> int）；on_dl_done 回收。
+    _EOF_KILLS = {}
 
     def _is_cancelled(self, task_id):
         evt = self._cancel_events.get(task_id)
@@ -1346,7 +1376,7 @@ class DownloadPage(QWidget):
                 self.app.q.put(("dl_log", task_id,
                                 f"[策略] 直链单条服务能力有限（数十 MB 即失效），"
                                 f"改用 HLS 分片源 {alt}（分片并发 "
-                                f"{engine.YTDLP_CONCURRENT_FRAGMENTS}）"))
+                                f"{engine.ytdlp_concurrent_fragments()}）"))
             # --http-chunk-size 是必须的：YouTube 自 2026-09 起对 videoplayback
             # 直链强制要求 Range 请求，yt-dlp 默认的整体 GET 一律 403 ——
             # 表现为"下载几秒/几十 MB 后失败"，看着像风控其实是缺 Range。
@@ -1355,7 +1385,7 @@ class DownloadPage(QWidget):
                     "--ffmpeg-location", os.path.dirname(ffmpeg_path),
                     "--newline", "--no-playlist",
                     "--http-chunk-size", self.DL_CHUNK_SIZE,
-                    *engine.YTDLP_DL_COMMON_ARGS,
+                    *engine.ytdlp_dl_args(),
                     "--write-thumbnail", "--convert-thumbnails", "jpg",
                     *proxy_args,
                     *engine.ytdlp_cookie_args(),
@@ -1370,6 +1400,27 @@ class DownloadPage(QWidget):
                                           "（多为 CDN 链接过期），改用链接重新提取"))
                 self.app.q.put(("dl_progress", task_id, 0.0))
                 rc = self._fallback_download(task_id, ytdlp, url, opts)
+            if rc == self.RC_REEXTRACT and not self._is_cancelled(task_id):
+                # v1.19.2：EOF/TLS 断连 = 链接作废，重新提取是唯一有效动作。
+                # 但可能反复失效（节点一直在换、IP 反复被判风控）→ 给有限次数；
+                # **耗尽后必须转成普通失败**，让下面的换源 / NPE 兜底继续接手。
+                # （自检发现：此前直接把 RC_REEXTRACT 一路带到底，两个兜底的
+                # 判定条件都含 `rc != RC_REEXTRACT`，于是全部被跳过、直接判负。）
+                reext = 0
+                while rc == self.RC_REEXTRACT and not self._is_cancelled(task_id):
+                    reext += 1
+                    if reext > self.REEXTRACT_MAX:
+                        self.app.q.put(("sys_log",
+                                        f"[任务 {task_id}] 已连续重新提取 "
+                                        f"{self.REEXTRACT_MAX} 次仍未成功，"
+                                        "改用其它下载源继续尝试"))
+                        rc = 1
+                        break
+                    self.app.q.put(("sys_log",
+                                    f"[任务 {task_id}] 下载链接已失效，重新提取新链接"
+                                    f"（第 {reext}/{self.REEXTRACT_MAX} 次）"))
+                    self.app.q.put(("dl_progress", task_id, 0.0))
+                    rc = self._fallback_download(task_id, ytdlp, url, opts)
             if rc != 0 and not self._is_cancelled(task_id):
                 # 换另一个源兜底：HLS 优先时退回直链，直链优先时改走 HLS。
                 # （直链被限 403/中途断流时，HLS 每片独立请求，实测能下完 1080p）
@@ -1693,6 +1744,34 @@ class DownloadPage(QWidget):
         else:
             self.app.q.put(("dl_log", task_id, "[打包] 该视频无可用封面，已跳过封面步骤"))
 
+    @staticmethod
+    def _eof_mark(line):
+        """行内命中 EOF 特征时返回归一化标记（用于去重），否则空串。"""
+        if not line:
+            return ""
+        for mk in DownloadPage._EOF_MARKS:
+            if mk in line:
+                # 归一到 "eof" 一族：不同行文本（Retrying 1/10 vs 10/10）不重复报
+                return "eof"
+        return ""
+
+    @staticmethod
+    def _eof_is_fatal(line):
+        """EOF 是否属于「整条链接作废」（而非单片失效）——决定要不要主动结束。
+
+        yt-dlp 的 EOF 有两种形态：
+          · 直链：``unable to download video data: Got error: EOF...``
+            整条 videoplayback 失效，它自己的 ``--retries`` 重试的是同一条
+            死链，纯属白等 → **应该主动结束**，交给上层重新提取；
+          · 分片：``[hlsnative] Downloading fragment 42/500: Got error: EOF...``
+            交给 ``--fragment-retries`` 逐片重下更有效（只重那一片，已下完的
+            分片进度不丢）→ **不该杀**，杀了反而丢掉已有进度。
+        判据取错误行自身的关键词。
+        """
+        low = (line or "").lower()
+        return not any(k in low for k in
+                       ("fragment", "hlsnative", "m3u8", "frag", "dash"))
+
     def _run_ytdlp(self, cmd, task_id):
         try:
             # 按字节读取、逐行智能解码（兼容 yt-dlp 输出 UTF-8/GBK；CJK 多字节
@@ -1705,7 +1784,9 @@ class DownloadPage(QWidget):
         # v1.19.0：登记当前子进程——取消按钮据此直接 kill；同一任务先后启动的
         # 多个进程（主源/兜底/字幕）只会登记最后一个，旧的早已 wait 完毕。
         self._procs[task_id] = proc
-        lines = []
+        # 环形缓冲：只留尾部（见 DL_LINES_KEEP 注释）。多任务并行 × 长视频时
+        # 全量累积会让 GUI 进程内存持续上涨且不回落。
+        lines = deque(maxlen=self.DL_LINES_KEEP)
         pct_re = re.compile(r"\[download\]\s+([\d.]+)%")
         frag_re = re.compile(r"\[download\]\s+Downloading fragment (\d+)/(\d+)")
         try:
@@ -1737,14 +1818,46 @@ class DownloadPage(QWidget):
                     # WARNING 透出：跳片（fragment not found / missing）之类警告
                     # 一旦被过滤，"静默缺片"就完全不可见。
                     self.app.q.put(("dl_log", task_id, line))
+                m2 = self._eof_mark(line)
+                if m2:
+                    # 2026-10-17：EOF/TLS 断连是**链接作废**，不是抖动。
+                    # 用户原来只看到 "Retrying (1/10)…(10/10)" 然后任务失败，
+                    # 完全不知道为什么。这里用 proxy_note_eof() 判明根因
+                    # （出口 IP 变了？节点没锁？还是纯线路抖动），
+                    # 并直接告诉用户接下来会重新提取 —— 同一错误只报一次。
+                    if DownloadPage._EOF_HINTED.get(task_id) != m2:
+                        DownloadPage._EOF_HINTED[task_id] = m2
+                        self.app.q.put(("dl_log", task_id,
+                                        engine.proxy_note_eof(line), "err"))
+                    # 整链作废（直链场景）时主动结束：yt-dlp 会拿同一条死链
+                    # 重试 --retries 次、每次还要退避最多 20s，白等数分钟；
+                    # 杀掉进程让上层立刻走「重新提取」，拿到绑定新 IP 的新链接。
+                    # 分片场景不杀（fragment-retries 逐片重下更有效，且不丢进度）。
+                    if self._eof_is_fatal(line):
+                        n = DownloadPage._EOF_KILLS.get(task_id, 0)
+                        if n < self.EOF_REEXTRACT_MAX:
+                            DownloadPage._EOF_KILLS[task_id] = n + 1
+                            self.app.q.put((
+                                "dl_log", task_id,
+                                "[策略] 下载链接已失效（出口 IP 已变更），原地重试无效"
+                                " —— 主动结束并重新提取新链接"
+                                f"（第 {n + 1}/{self.EOF_REEXTRACT_MAX} 次）", "err"))
+                            engine.kill_process_tree(proc)
+                            break
             return proc.wait(), lines
         finally:
             self._procs.pop(task_id, None)
 
     def _run_ytdlp_with_retry(self, cmd, task_id, attempts=4):
-        """带风控重试：判定复用引擎 `ytdlp_error_retryable`（三处同一口径）。"""
+        """带风控重试：判定复用引擎 `ytdlp_error_retryable`（三处同一口径）。
+
+        v1.19.2：新增 EOF/TLS 断连的**短路**。这类失败说明已签发的链接本身
+        作废（videoplayback 直链绑定了签发时的出口 IP，代理一换节点 CDN 就
+        掐连接），原地重试是纯浪费。判定成立就直接返回 ``RC_REEXTRACT``，
+        由上层拿去重新提取新链接，不再等 6→12→24s 的退避。
+        """
         wait = 6
-        rc, lines = 1, []
+        rc, lines = 1, deque(maxlen=self.DL_LINES_KEEP)
         for i in range(attempts):
             if self._is_cancelled(task_id):
                 # v1.19.0：取消后立即退出重试，不再白等退避。
@@ -1755,8 +1868,15 @@ class DownloadPage(QWidget):
             if self._is_cancelled(task_id):
                 return self.RC_CANCELLED
             joined = "\n".join(lines)
-            # 412/403/429、"Sign in to confirm" 等一律可重试：YouTube 直链失效
-            # 或节点 IP 被判风控都会回 403，换一次提取（新直链）往往就过了；
+            # v1.19.2：直链失效优先于风控重试——它重试同一条 URL 100% 失败。
+            if engine.ytdlp_error_needs_reextract(joined):
+                self.app.q.put(("sys_log",
+                                f"[任务 {task_id}] 下载链接已失效"
+                                f"（{engine.ytdlp_err_brief(joined)}）"
+                                "，正在重新提取新链接…"))
+                return self.RC_REEXTRACT
+            # 412/403/429、"Sign in" 等一律可重试：YouTube 直链失效或节点
+            # IP 被判风控都会回 403，换一次提取（新直链）往往就过了；
             # 只有参数类错误才直接放弃。
             if not engine.ytdlp_error_retryable(joined):
                 return rc
@@ -1802,6 +1922,8 @@ class DownloadPage(QWidget):
         self.log.line(f"[任务 {task_id}] {text}", level)
 
     def on_dl_done(self, task_id, rc, folder):
+        DownloadPage._EOF_HINTED.pop(task_id, None)   # 回收 EOF 去重标记
+        DownloadPage._EOF_KILLS.pop(task_id, None)   # 回收 EOF 主动结束计数
         self._cancel_events.pop(task_id, None)  # v1.19.0：回收取消标志
         self._procs.pop(task_id, None)
         item = self.tasks.get(task_id)
@@ -1905,7 +2027,12 @@ class LibraryPage(QWidget):
         area = ScrollArea(self)
         area.setWidgetResizable(True)
         area.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        # ⚠ 与 ScrollPage 一致：viewport 与内容控件**两层**都要透明化。
+        # QScrollArea 的 viewport 与 setWidget 后的内容控件 autoFillBackground
+        # 默认为 True，会按调色板把卡片网格区填成浅灰白（深色主题下发白）。
+        area.setStyleSheet("QScrollArea{background:transparent;border:none;}")
         self.holder = QWidget()
+        self.holder.setStyleSheet("QWidget{background:transparent;}")
         self.grid = QGridLayout(self.holder)
         self.grid.setContentsMargins(2, 2, 2, 2)
         self.grid.setSpacing(12)
@@ -4633,16 +4760,28 @@ class SettingsPage(QWidget):
             # v1.12.0：字幕翻译板块全面去 AI（仅机翻）——从翻译服务下拉框
             # 移除「LLM 大模型翻译」选项；若引擎 QConfig 当前正选着 LLM，
             # 一并改回「微软翻译」，保证 combo 移除该项后仍有合法选中值。
+            # v2.3.1 修两处实测失效（用户报翻译失败文案让查 API key 时发现）：
+            # ① 跨类枚举相等恒为 False——``engine_entities.TranslatorServiceEnum``
+            #    与 ``videocaptioner.core.entities.TranslatorServiceEnum`` 是两个
+            #    类，``==`` 永不成立，旧比较/旧 set 全是死代码（且 set 传异类枚举
+            #    还会被 OptionsValidator 拒）。现在一律按**值**比较、用**引擎枚举
+            #    成员**赋值；
+            # ② 卡片属性名两个设置界面都叫 ``translatorServiceCard``，旧代码找的
+            #    ``translateServiceCard`` 不存在——「LLM 大模型翻译」选项因此从来
+            #    没被移除过，用户在下拉里选它就会把翻译接进全局 AI。
             try:
-                from engine_entities import TranslatorServiceEnum as _TSE
+                from videocaptioner.core.entities import (
+                    TranslatorServiceEnum as _ETE)
                 from videocaptioner.ui.common.config import cfg as _vcfg
-                if _vcfg.get(_vcfg.translator_service) == _TSE.OPENAI:
-                    _vcfg.set(_vcfg.translator_service, _TSE.BING)
-                ts_card = getattr(setting, "translateServiceCard", None)
+                _cur_ts = _vcfg.get(_vcfg.translator_service)
+                if getattr(_cur_ts, "value", _cur_ts) == _ETE.OPENAI.value:
+                    _vcfg.set(_vcfg.translator_service, _ETE.BING)
+                ts_card = (getattr(setting, "translatorServiceCard", None)
+                           or getattr(setting, "translateServiceCard", None))
                 _combo = getattr(ts_card, "comboBox", None) if ts_card else None
                 if _combo is not None:
                     for _i in range(_combo.count()):
-                        if _combo.itemText(_i) == "LLM 大模型翻译":
+                        if _combo.itemText(_i) == _ETE.OPENAI.value:
                             _combo.removeItem(_i)
                             break
             except Exception:
@@ -8637,8 +8776,20 @@ class _ResizeHitFilter(QAbstractNativeEventFilter):
 
     def nativeEventFilter(self, eventType, message):
         try:
-            if eventType not in (b"windows_generic_MSG",
-                                 b"windows_dispatcher_MSG"):
+            # ⚠ eventType 在不同绑定/版本下可能是 str、bytes 或 QByteArray：
+            #   原写法只与 bytes 比较，实测在 PySide6 下判定为不匹配 →
+            #   整个 filter 立即 return，边缘热区失效，只剩 FramelessWindow
+            #   nativeEvent 里的 BORDER_WIDTH（5 **物理**像素，@dpr2 仅 2.5
+            #   逻辑像素）——鼠标几乎点不中，表现为用户反馈的
+            #   「界面上下只能扩大、不能缩小」。这里做兼容归一化。
+            et = eventType
+            if isinstance(et, (bytes, bytearray)):
+                et = et.decode("ascii", "ignore")
+            elif hasattr(et, "data"):
+                et = bytes(et.data()).decode("ascii", "ignore")
+            elif not isinstance(et, str):
+                et = str(et)
+            if et not in ("windows_generic_MSG", "windows_dispatcher_MSG"):
                 return False, 0
             win = self._window
             if win is None or not win.isVisible():
@@ -8671,6 +8822,20 @@ class _ResizeHitFilter(QAbstractNativeEventFilter):
             # 携带的坐标在系统连发命中测试时并不一致。
             sx = ctypes.c_short(msg.lParam & 0xFFFF).value
             sy = ctypes.c_short((msg.lParam >> 16) & 0xFFFF).value
+            # Win11「Snap 布局」：最大化按钮那一点必须回 HTMAXBUTTON，系统才会
+            # 在悬停时弹出「选择布局」面板。按钮是自绘的（FluentTitleBarButton），
+            # 系统本来认不出来，只能靠这一层告诉它。⚠ 与边缘同理：消息发给
+            # 子窗口时回 HTTRANSPARENT，让系统继续往下找到主窗口再定夺。
+            mb = getattr(getattr(win, "titleBar", None), "maxBtn", None)
+            if mb is not None and mb.isVisible():
+                tl = mb.mapToGlobal(mb.rect().topLeft())
+                br = mb.mapToGlobal(mb.rect().bottomRight())
+                tlx, tly = int(tl.x() * dpr), int(tl.y() * dpr)
+                brx, bry = int(br.x() * dpr), int(br.y() * dpr)
+                if tlx <= sx <= brx and tly <= sy <= bry:
+                    if msg.hWnd != hwnd:
+                        return True, win32con.HTTRANSPARENT
+                    return True, win32con.HTMAXBUTTON
             left = sx < rect[0] + bw
             right = sx > rect[2] - bw
             top = sy < rect[1] + bw
@@ -9499,11 +9664,16 @@ class MainWindow(FluentWindow):
         #    等于把这个错误尺寸固化下来 —— 用户看到的窗口则贴满屏幕，
         #    左右边缘与屏幕边缘重合，鼠标够不着，正是"左右、对角依旧无法"
         #    "只能拉顶部"。
+        # 窗口宽高比**跟随屏幕**（16:9 屏→16:9、16:10 屏→16:10、16:9 以下同），
+        # 不再锁定固定 GOLDEN_RATIO —— 用户实测「比例只兼容 16:9，不兼容 16:10」：
+        # 固定 1.618 的窗口在 16:10 屏上与屏幕比例错位（窗口看着偏扁/偏方），
+        # 且竖直方向利用不足。这里取屏幕可用区的宽高比作为窗口比例。
+        ratio = (avail.height() / avail.width()) if avail.width() else 1.0
         w = min(self.DEFAULT_WIDTH, max_w)
-        h = int(round(w / GOLDEN_RATIO))
+        h = int(round(w * ratio))
         if h > max_h:
             h = max_h
-            w = int(round(h * GOLDEN_RATIO))
+            w = int(round(h / ratio))
         w = max(w, self.minimumWidth())
         h = max(h, self.minimumHeight())
         self.resize(w, h)
@@ -10110,6 +10280,25 @@ def main():
     # 2) 重定向引擎的路径常量（否则它会写 %LOCALAPPDATA%，即 C 盘）；
     # 3) 把临时目录指向数据根目录，避免中间产物落系统 Temp。
     engine.prepare_runtime_env()
+    # v1.19.2：翻译服务归一（引擎 QConfig 残留 OPENAI 时改回微软）。
+    # 「字幕翻译」自 v1.12.0 起全面去 AI，但 QConfig 里还可能留着 OPENAI：
+    # 一旦真按 LLM 走，会同时踩两个坑——① LLMTranslator 没有 requests
+    # session，翻译路由补丁覆盖不到它，只能跟着 https_proxy 环境变量乱窜；
+    # ② 推理模型（kimi-k2.6 等）的思考链会吃光 max_tokens，译文全空，
+    # 表现为「252/252 segments failed (100%)」。
+    # ⚠ 此前这段归一只在 SettingsPage._ensure_engine_setting 里跑——用户
+    # 不打开设置页就不执行，等于没有。故启动时补一次（幂等，代价一次读配置）。
+    # v2.3.1：旧代码用 engine_entities 的枚举与 QConfig 里的引擎枚举比较，
+    # 跨类枚举相等恒为 False——这段归一从来没生效过。改为按值比较 + 用引擎
+    # 枚举成员赋值（异类枚举过不了 OptionsValidator）。
+    try:
+        from videocaptioner.core.entities import TranslatorServiceEnum as _ETE
+        from videocaptioner.ui.common.config import cfg as _vcfg
+        _cur_ts = _vcfg.get(_vcfg.translator_service)
+        if getattr(_cur_ts, "value", _cur_ts) == _ETE.OPENAI.value:
+            _vcfg.set(_vcfg.translator_service, _ETE.BING)
+    except Exception:
+        pass
     # 未捕获异常兜底：装上后 Qt 槽里的异常只记日志 + 提示，不会再让进程 abort
     install_crash_guard()
     # 启动即拉取最新校准知识并入本地（v1.10.7 多用户收敛的「拉」半程；
@@ -10120,9 +10309,8 @@ def main():
     # logs\vp_sync.log
     threading.Thread(target=engine.sync_voiceprint_on_startup, daemon=True).start()
     configure_qt_plugins()
-    # 矢量化：高分屏按逻辑像素缩放、图标/文字按矢量渲染，避免放大后发虚
-    QApplication.setAttribute(Qt.AA_EnableHighDpiScaling, True)
-    QApplication.setAttribute(Qt.AA_UseHighDpiPixmaps, True)
+    # 矢量化：高分屏缩放与矢量图标在 Qt6 已默认启用（AA_EnableHighDpiScaling /
+    # AA_UseHighDpiPixmaps 已废弃，无需再设置）
     # 缩放比不取整：125% / 150% 等非整数倍率下按实际比例换算，
     # 否则 Qt 会把 1.25 四舍五入成 1.0 或 2.0，不同显示器间表现不一致
     try:
@@ -10131,6 +10319,11 @@ def main():
     except Exception:
         pass
     app = QApplication(sys.argv)
+    # QSS 库 app 级兜底（v2.3.1）：QToolTip/QMenu/QMessageBox 是独立顶层
+    # 窗口，套在业务控件子树上的样式表管不到——这里在 QApplication 级
+    # 应用 vt_fluent 的兜底 QSS（令牌化，主题/主题色切换自动重应用）。
+    from vt_fluent import applyAppStyleSheet
+    applyAppStyleSheet(app)
     # Qt 兼容补丁（2026-10-14）：必须在任何 SpinBox 被创建（MainWindow 构造）
     # **之前**打上。自带运行期探测：没复现出问题就什么都不做。
     qt_compat.install_spinbox_fix()

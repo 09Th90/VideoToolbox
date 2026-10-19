@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.3.1
+# @version 2.4.0
 """vt_fluent 菜单族（自研，替代 qfluentwidgets.components.widgets.menu/command_bar）。
 
 行为契约（对齐上游 1.11.3）：
@@ -21,8 +21,9 @@ from enum import Enum
 from PySide6.QtCore import (QEasingCurve, QEvent, QModelIndex, QObject, QPoint,
                             QParallelAnimationGroup, QPropertyAnimation, QRect,
                             QRectF, QSize, Qt, QTimer, Signal)
-from PySide6.QtGui import (QColor, QCursor, QFontMetrics, QHoverEvent, QIcon,
-                           QKeySequence, QPainter, QPen, QPixmap, QRegion)
+from PySide6.QtGui import (QAction, QColor, QCursor, QFontMetrics, QHoverEvent,
+                           QIcon, QKeySequence, QPainter, QPen, QPixmap,
+                           QRegion)
 from PySide6.QtWidgets import (QApplication, QFrame, QGraphicsDropShadowEffect,
                                QHBoxLayout, QListWidget, QListWidgetItem, QMenu,
                                QStyle, QStyledItemDelegate, QStyleFactory,
@@ -39,6 +40,19 @@ def getCurrentScreenGeometry():
     """当前鼠标所在屏幕的可用几何（对齐上游 common.screen）。"""
     screen = QApplication.screenAt(QCursor.pos()) or QApplication.primaryScreen()
     return screen.availableGeometry()
+
+
+def show_menu(menu, pos, ani_type=None):
+    """显示 RoundMenu（含子类）——**必须走本助手**。
+
+    ⚠⚠ PySide6  specificity：RoundMenu 直实例的 ``menu.exec(pos, aniType=...)``
+    走的确实是 Python 重载；但 **RoundMenu 子类**（ComboBoxMenu/CompleterMenu
+    及任何第三方子类）的同名调用会被 shiboken 派发到 C++ ``QMenu.exec``，
+    抛 ``AttributeError: QMenu.exec(): unsupported keyword 'aniType'``
+    （PyQt 无此问题，上游 ComboBoxMenu 正是子类——本端口独有的坑）。
+    用非绑定调用 ``RoundMenu.exec(menu, pos, aniType=...)`` 绕过。
+    """
+    RoundMenu.exec(menu, pos, aniType=(ani_type or MenuAnimationType.DROP_DOWN))
 
 
 class MenuAnimationType(Enum):
@@ -390,13 +404,13 @@ class RoundMenu(QMenu):
         self.adjustSize()
 
     def _createItemIcon(self, w):
+        # ⚠ 不要包 FluentIconEngine：w.icon() 已是 QIcon（FluentIconBase.icon()
+        # 返回的正是主题感知引擎），再包一层会抛错并被静默吞成空图标。
         hasIcon = self._hasItemIcon()
-        try:
-            icon = QIcon(FluentIconEngine(w.icon()))
-        except Exception:
-            icon = QIcon()
+        icon = w.icon()
 
-        if hasIcon and w.icon().isNull():
+        if hasIcon and icon.isNull():
+            # 本项无图标、其他项有：留透明占位保持文字左对齐
             pixmap = QPixmap(self.view.iconSize())
             pixmap.fill(Qt.transparent)
             icon = QIcon(pixmap)
@@ -406,9 +420,15 @@ class RoundMenu(QMenu):
 
     # ---- 增删 ---------------------------------------------------------- #
     def addAction(self, action):
+        # ⚠ QMenu.addAction 有 str / QIcon,str / QAction 三重载，PySide6 会
+        # 按实参类型分派绕过本类；文本重载必须在此显式拦截并包成 QAction，
+        # 否则列表里混进 str，后续 _hasItemIcon 取 .icon() 直接 AttributeError。
+        if isinstance(action, str):
+            action = QAction(action, self)
         item = self._createActionItem(action)
         self.view.addItem(item)
         self.adjustSize()
+        return action
 
     def insertAction(self, before, action):
         if before not in self._actions:
@@ -616,6 +636,7 @@ class RoundMenu(QMenu):
             self._hideMenu(False)
 
     def exec(self, pos, ani=True, aniType=MenuAnimationType.DROP_DOWN):
+        # ⚠ 子类实例请走 show_menu()（PySide6 派发缺陷见其 docstring）
         self.aniManager = MenuAnimationManager.make(self, aniType)
         self.aniManager.exec(pos)
         self.show()
@@ -847,6 +868,15 @@ class CommandButton(TransparentToggleToolButton):
         return self.toolButtonStyle() in (Qt.ToolButtonIconOnly,
                                           Qt.ToolButtonFollowStyle)
 
+    def _drawIcon(self, icon, painter, rect, state=QIcon.Off):
+        """屏蔽 ToolButton.paintEvent 的「图标居中」绘制。
+
+        上游 CommandButton 同样把它置空：图标位置由本类 paintEvent 按
+        toolButtonStyle 决定（图文模式在左 11px，纯图标才居中）。少了这一层，
+        ToolButton 的居中图标会直接压在文字上（「打开文件」实测重叠 4.5px）。
+        """
+        pass
+
     def text(self):
         return self._text
 
@@ -892,22 +922,26 @@ class CommandButton(TransparentToggleToolButton):
         style = self.toolButtonStyle()
         iw, ih = self.iconSize().width(), self.iconSize().height()
 
-        if self.isIconOnly():
-            y = (self.height() - ih) / 2
-            x = (self.width() - iw) / 2
-            self._drawIcon(self._icon, painter, QRectF(x, y, iw, ih))
-        elif style == Qt.ToolButtonTextOnly:
+        if self._icon is not None:
+            if self.isIconOnly():
+                y = (self.height() - ih) / 2
+                x = (self.width() - iw) / 2
+                super()._drawIcon(self._icon, painter, QRectF(x, y, iw, ih))
+            elif style == Qt.ToolButtonTextBesideIcon:
+                y = (self.height() - ih) / 2
+                super()._drawIcon(self._icon, painter, QRectF(11, y, iw, ih))
+        if style == Qt.ToolButtonTextOnly:
             painter.drawText(self.rect(), Qt.AlignCenter, self.text())
         elif style == Qt.ToolButtonTextBesideIcon:
-            y = (self.height() - ih) / 2
-            self._drawIcon(self._icon, painter, QRectF(11, y, iw, ih))
             rect = QRectF(26, 0, self.width() - 26, self.height())
             painter.drawText(rect, Qt.AlignCenter, self.text())
         elif style == Qt.ToolButtonTextUnderIcon:
-            x = (self.width() - iw) / 2
-            self._drawIcon(self._icon, painter, QRectF(x, 9, iw, ih))
+            if self._icon is not None:
+                x = (self.width() - iw) / 2
+                super()._drawIcon(self._icon, painter, QRectF(x, 9, iw, ih))
             rect = QRectF(0, ih + 13, self.width(), self.height() - ih - 13)
             painter.drawText(rect, Qt.AlignHCenter | Qt.AlignTop, self.text())
+        painter.end()
 
 
 class MoreActionsButton(CommandButton):

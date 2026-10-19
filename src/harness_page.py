@@ -1,4 +1,4 @@
-# @version 2.3.1
+# @version 2.4.0
 """「AI 托管」页 —— 首页任务框输入**纯文本**时的落点（harness 接入的界面壳）。
 
 边界（与 harness_bridge 的分工）
@@ -86,7 +86,12 @@ class HarnessPage(ScrollArea):
         self._running = False
 
         view = QWidget(self)
+        # ⚠ 与其余滚动页一致：viewport 与内容控件**两层**透明化。ScrollArea 的
+        # viewport 与 setWidget 后的内容控件 autoFillBackground 默认为 True，
+        # 不处理会在深色主题下按调色板把页面背景填成浅灰白。
+        view.setStyleSheet("QWidget{background:transparent;}")
         self.setWidget(view)
+        self.setStyleSheet("QScrollArea{background:transparent;border:none;}")
         outer = QVBoxLayout(view)
         outer.setContentsMargins(24, 24, 24, 24)
         outer.setSpacing(16)

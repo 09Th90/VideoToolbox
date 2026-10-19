@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.3.1
+# @version 2.4.0
 """vt_fluent——自研 Fluent 风格 QSS 主题库（替代 qfluentwidgets 的迁移目标）。
 
 结构（对应《核心拆分与QSS主题迁移方案.md》§3.2）：
@@ -59,6 +59,7 @@ from ._theme import (Theme, QConfig, qconfig, ConfigItem, ConfigValidator,
                      styleSheetManager, FluentStyleSheet, getStyleSheetFromFile,
                      getStyleSheet, setStyleSheet, setCustomStyleSheet,
                      addStyleSheet, updateStyleSheet, setTheme, toggleTheme,
+                     applyAppStyleSheet, DESIGN_TOKENS, designTokens,
                      setThemeColor, themeColor, theme, isDarkTheme,
                      isDarkThemeMode, updateDynamicStyle, setFontFamilies,
                      fontFamilies, getFont, setFont, QT_VERSION)
@@ -129,6 +130,7 @@ __all__ = [
     "DirtyStyleSheetWatcher", "StyleSheetManager", "styleSheetManager",
     "FluentStyleSheet", "getStyleSheetFromFile", "getStyleSheet",
     "setStyleSheet", "setCustomStyleSheet", "addStyleSheet",
+    "applyAppStyleSheet", "DESIGN_TOKENS", "designTokens",
     "updateStyleSheet", "setTheme", "toggleTheme", "setThemeColor",
     "themeColor", "theme", "isDarkTheme", "isDarkThemeMode",
     "updateDynamicStyle", "setFontFamilies", "fontFamilies", "getFont",

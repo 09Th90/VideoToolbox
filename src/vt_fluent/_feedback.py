@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.3.1
+# @version 2.4.0
 """vt_fluent 反馈族（自研，替代 qfluentwidgets 的 info_bar / dialog_box）。
 
 行为契约（对齐上游 1.11.3）：
@@ -279,7 +279,8 @@ class InfoBar(QFrame):
         if self.duration >= 0:
             QTimer.singleShot(self.duration, self._fadeOut)
 
-        if self.position is not None:
+        if (self.position is not None
+                and self.position != _InfoBarPosition.NONE):
             InfoBarManager.make(self.position).add(self)
 
         if self.parent():

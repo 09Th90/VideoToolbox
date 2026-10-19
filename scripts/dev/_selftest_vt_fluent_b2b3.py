@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.3.1
+# @version 2.4.0
 """vt_fluent B2/B3 可用性测试（几何对照 + 功能冒烟）。
 
 两部分：
@@ -196,6 +196,32 @@ def main():
     win.navigationInterface.setExpandWidth(180)
     _check("Nav.setExpandWidth", win.navigationInterface.width() == 180,
            str(win.navigationInterface.width()))
+
+    # ---- 3. 自查守卫（2026-10-18 审计） -------------------------------- #
+    # InfoBarPosition.NONE 不进位置管理器（曾 KeyError 被 Qt 吞掉）
+    from vt_fluent._feedback import InfoBarManager
+    host2 = QWidget()
+    host2.resize(800, 600)
+    host2.show()
+    nb = vt.InfoBar.success("n", "n", parent=host2, duration=-1,
+                            position=vt.InfoBarPosition.NONE)
+    _pump(150)
+    managed = any(nb in bars for bars in InfoBarManager.managers and
+                  [] or [])
+    _check("InfoBar.NONE.noManager", vt.InfoBarPosition.NONE
+           not in InfoBarManager.managers,
+           "NONE 不应注册管理器")
+    nb.close()
+
+    # CommandBar 溢出：隐藏项存在时 more 按钮必须显示（isHidden False）
+    bar = vt.CommandBar()
+    bar.resize(200, 34)
+    for i in range(20):
+        bar.addAction(vt.Action("动作%d" % i))
+    bar.updateGeometry()
+    _check("CommandBar.overflow.moreVisible",
+           bool(bar._hiddenWidgets) and not bar.moreButton.isHidden(),
+           f"hidden={len(bar._hiddenWidgets)} moreHidden={bar.moreButton.isHidden()}")
 
     print("=" * 56)
     if fails:

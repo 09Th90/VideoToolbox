@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.3.1
+# @version 2.4.0
 """AI 校准 Agent —— Agent 级字幕术语校准（v1.11.0；v1.16.0 并发与提示词优化）。
 
 定位
@@ -125,6 +125,50 @@ MODE_NAME = {
 RULE_TEXT_BUDGET = 14000
 #: 单条例外：过短的错形（如单字母）容易误替换，直接不进规则
 MIN_WRONG_LEN = 2
+
+# ============================ 对象级优化（2026-10-19 部署） ============================
+# 三个接入点，全部带降级（包缺失 / 导入失败 / 单点异常 -> 退回原行为）：
+#   A 作品隔离   —— 终末地片源不再吃到「Mizuki -> 水月」这类跨作品专名
+#   B 外文名降级 —— en/ja/ko 不再进「错形」列表（只作锚点，防止「水木茂 -> 水月茂」）
+#   C tag 佐证   —— 原始标题并入佐证池（作品名只出现在标题的片子不再被判幻觉）
+# 一键回退：环境变量 VT_CALIB_OPT=0
+OPT_ENABLED = os.environ.get("VT_CALIB_OPT", "1") not in ("0", "false", "False")
+
+try:
+    from calib_entity.opt import kb_scope as _opt_scope
+    from calib_entity.opt import source_guard as _opt_guard
+except Exception:                                    # noqa: BLE001
+    _opt_scope = None
+    _opt_guard = None
+
+#: 参与跨作品隔离的 category 前缀（只隔离专名类；术语类不隔离）
+_OPT_STRICT_PREFIX = ("角色", "干员", "构造体", "共鸣者", "地名", "地区",
+                      "势力", "组织", "人物", "地点", "阵营")
+
+
+def _opt_is_strict(category: str) -> bool:
+    c = category or ""
+    return any(c.startswith(p) or ("/" + p) in c for p in _OPT_STRICT_PREFIX)
+
+
+def _opt_work_of(category: str) -> str:
+    if _opt_scope is None:
+        return ""
+    try:
+        return _opt_scope.work_of(category)
+    except Exception:                                # noqa: BLE001
+        return ""
+
+
+def _opt_infer_work(src: str = "", title: str = "") -> str:
+    """从文件名/标题推断作品；只有置信度 high 才采信（避免误隔离）。"""
+    if not OPT_ENABLED or _opt_guard is None:
+        return ""
+    try:
+        rep = _opt_guard.infer_mode(title=title or "", filename=src or "")
+        return rep["work"] if rep.get("confidence") == "high" else ""
+    except Exception:                                # noqa: BLE001
+        return ""
 
 
 def _app_dir():
@@ -361,20 +405,46 @@ def _protect_ref_lines(src_path: str, base_path: str) -> int:
 
 
 # ============================ 知识库 → 规则 ============================
-def build_rules(entities, mode_key: str):
+def build_rules(entities, mode_key: str, work: str = "",
+                include_names: bool = False):
     """把对象级实体展开为 (错形 → 官方名) 规则与负向排除规则。
 
-    返回 (rules, excludes, canonicals)：
+    返回 (rules, excludes, canonicals, stats)：
       rules      [(wrong, canonical)]，按 wrong 长度降序（长优先，避免短错形
                  先替换把长错形切碎）；
       excludes   [(wrong, 正则字符串)]  命中参考行时回滚（脚本 exclude 语义）；
-      canonicals 全部官方名集合（宽松校验用）。
+      canonicals 全部官方名集合（宽松校验用）；
+      stats      {"dropped_work": 跨作品拦下的实体数,
+                  "names_dropped": 未进错形表的外文名条数}
+
+    2026-10-19 两处行为修正：
+      · ``work`` 非空时按作品隔离专名类实体（角色/地名/势力…）：终末地片源
+        不再把明日方舟的「Mizuki -> 水月」喂给模型；术语类不隔离（同 IP 通名通用）。
+      · ``include_names`` 默认 False：``en/ja/ko`` 是**官方外文名**，不是错形。
+        把它们塞进错形表会让模型把中文行里的正常译名替换掉
+        （实测：``Mizuki -> 水月`` 导致「水木茂」被改成「水月茂」）。
     """
     picked = [e for e in entities if mode_key in (e.get("modes") or [])]
     # 模式键在知识库里没有对应实体（如战双走侧车表）时退化为全量，
     # 保证规则不为空；变体本身多为跨模式通用的机翻错形。
     if len(picked) < 10:
         picked = list(entities)
+
+    stats = {"dropped_work": 0, "names_dropped": 0}
+    if work and _opt_scope is not None:
+        kept = []
+        for e in picked:
+            cat = e.get("category") or ""
+            ew = _opt_work_of(cat)
+            if ew and ew != work and _opt_is_strict(cat):
+                stats["dropped_work"] += 1
+                continue
+            kept.append(e)
+        if len(kept) >= 10:            # 过滤后太小说明 work 判错，放弃隔离
+            picked = kept
+        else:
+            stats["dropped_work"] = 0
+
     rules, excludes, canonicals = {}, {}, set()
     for e in picked:
         canon = str(e.get("canonical") or "").strip()
@@ -383,21 +453,34 @@ def build_rules(entities, mode_key: str):
         canonicals.add(canon)
         wrongs = list(e.get("variants") or [])
         wrongs += [w for _rx, w in (e.get("ctx") or [])]
-        for alt in (e.get("en"), e.get("ja"), e.get("ko")):
-            alt = str(alt or "").strip()
-            if alt:
-                wrongs.append(alt)
+        if include_names:
+            for alt in (e.get("en"), e.get("ja"), e.get("ko")):
+                alt = str(alt or "").strip()
+                if alt:
+                    wrongs.append(alt)
+        else:
+            stats["names_dropped"] += sum(
+                1 for alt in (e.get("en"), e.get("ja"), e.get("ko"))
+                if str(alt or "").strip())
         for w in wrongs:
             w = str(w or "").strip()
             if not w or w == canon or len(w) < MIN_WRONG_LEN:
                 continue
             rules.setdefault(w, canon)
-        for w, rx in (e.get("exclude") or []):
-            w = str(w or "").strip()
+        # exclude 有两种来源格式：脚本 kb-export 用 dict
+        # {"variant","ref_regex"}，calib_entity 导出用「正则字符串」列表。
+        for item in (e.get("exclude") or []):
+            if isinstance(item, dict):
+                w = str(item.get("variant") or "").strip()
+                rx = str(item.get("ref_regex") or "")
+            elif isinstance(item, (list, tuple)) and len(item) == 2:
+                w, rx = str(item[0] or "").strip(), str(item[1] or "")
+            else:
+                w, rx = "", str(item or "")
             if w:
-                excludes.setdefault(w, str(rx or ""))
+                excludes.setdefault(w, rx)
     items = sorted(rules.items(), key=lambda kv: (-len(kv[0]), kv[0]))
-    return items, sorted(excludes.items(), key=lambda kv: -len(kv[0])), canonicals
+    return items, sorted(excludes.items(), key=lambda kv: -len(kv[0])), canonicals, stats
 
 
 def select_rules(rules, cues, budget: int = RULE_TEXT_BUDGET):
@@ -1108,6 +1191,144 @@ def _log_do(log, msg, level="dim"):
     except TypeError:
         log(msg)
 
+#: 端点限流错误分类与可操作提示（2026-10-15 实测 Moonshot kimi-k2.6：
+#: 组织级 TPD 1,500,000 已满 + max RPM: 3 ⇒ 每块必 429、重问后按无改动跳过，
+#: 整轮白跑 30 分钟才中止，且报错文案指向「端点与模型不匹配」，完全指错方向）。
+_QUOTA_TPD = ("tpd", "token per day", "tokens per day", "每日", "日额度")
+_QUOTA_RPM = ("rpm", "requests per minute", "每分钟请求", "分钟级限流")
+_QUOTA_ANY = ("rate limit", "rate_limit", "quota", "insufficient",
+               "exceeded", "额度", "限流", "余额", "balance")
+
+#: 最近一次端点异常文本（块调用失败处写入，主流程据此分诊限流）。
+_LAST_ENDPOINT_ERROR = [""]
+
+
+def _quota_error_kind(msg):
+    """把异常文本归到端点限流类别：tpd / rpm / quota / ''（''＝非限流）。"""
+    s = (msg or "").lower()
+    if not s:
+        return ""
+    if "429" not in s and "rate limit" not in s and not any(
+            k in s for k in _QUOTA_ANY):
+        return ""
+    if any(k in s for k in _QUOTA_TPD):
+        return "tpd"
+    if any(k in s for k in _QUOTA_RPM):
+        return "rpm"
+    return "quota"
+
+
+def _quota_hint(kind, msg=""):
+    """端点限流的可操作处置文案（按类别分诊，必给一个动作）。"""
+    tail = ("；原始报错：" + msg[:200]) if msg else ""
+    if kind == "tpd":
+        return ("端点**每日 token 额度（TPD）已用尽**" + tail +
+                "。处置：① 等额度按天重置后重跑（实测同一账号 30 分钟内不恢复）；"
+                "② 或换端点/密钥（设置页 → 全局 AI → 自动匹配 + 测试接口）；"
+                "③ 额度紧张时把「AI 校准」并发路数降到 1、单次最大输出调小。"
+                "⚠ 小请求（<1k token）可能仍能通，**别拿它当接口正常的判据**，"
+                "要用 ≥6k token 的探针试。")
+    if kind == "rpm":
+        return ("端点**每分钟请求数（RPM）已打满**" + tail +
+                "。处置：把「AI 校准」的并发路数降到 1 并放慢重试节奏，"
+                "或换端点/密钥；受影响的块会按无改动跳过，可「再次校准」补跑。")
+    return ("端点疑似**限流/额度不足**" + tail +
+            "。处置：设置页 → 全局 AI → 自动匹配 + 测试接口，确认密钥类型与端点"
+            "匹配（火山 Token Plan 的 Key 只能配 /api/plan/v3 地址，按量 Key "
+            "才配 /api/v3）；仍不通就换端点。")
+
+
+def _adopt_official_terms(src: str, out: str, items, python: str, script: str,
+                          log, cancel) -> list:
+    """把片源档案第四节的「官方中文核对」落到产物上（2026-10-19）。
+
+    背景：报告一直能给出「操作员 -> 干员（把握：高）」，但只写进 markdown，
+    从不改产物——识别与执行两条通道断裂。这里补上最后一步。
+
+    采纳条件（**全部**满足，否则跳过）：
+      · 把握 = 高；
+      · 目标是中文（英文目标如 `Eso` 不落盘）；
+      · 错形 2~8 字（长句改写不属于名词级校准）；
+      · 错形确实出现在产物里。
+
+    应用后立刻重跑脚本 verify；不通过则整批回滚，产物回到调用前状态。
+    """
+    try:
+        from calib_entity.opt import adopt as _adopt
+    except Exception:                                # noqa: BLE001
+        return []
+    try:
+        body = open(out, "rb").read().decode("utf-8-sig", errors="replace")
+    except OSError:
+        return []
+
+    cand, skipped = [], 0
+    for it in (items or []):
+        if not isinstance(it, dict):
+            continue
+        term = str(it.get("term") or "").strip()
+        official = str(it.get("official") or "").strip()
+        conf = str(it.get("confidence") or "").strip()
+        ok = (conf in ("高", "high", "HIGH")
+              and term and official and term != official
+              and re.search(r"[\u4e00-\u9fff]", official)
+              and 2 <= len(term) <= 8
+              and term in body)
+        if not ok:
+            skipped += 1
+            continue
+        cand.append((term, official))
+
+    if not cand:
+        if skipped:
+            _log_do(log, f"  · 官方核对：{skipped} 条不满足采纳条件"
+                         f"（把握/中文目标/长度/片中未出现）")
+        return []
+
+    seen, pairs = set(), []
+    for t, o in sorted(cand, key=lambda x: -len(x[0])):     # 长键优先
+        if t not in seen:
+            seen.add(t)
+            pairs.append((t, o))
+
+    backup = out + ".preopt"
+    try:
+        shutil.copy2(out, backup)
+        res = _adopt.apply_srt(out, pairs, out_path=out)
+        rc, text = run_script(python, script, ["verify", src, out], log, cancel)
+        if rc != 0 or "VERIFY OK" not in text:
+            shutil.move(backup, out)
+            _log_do(log, "  ✗ 官方核对采纳后 verify 未通过，已回滚", "err")
+            return []
+        os.remove(backup)
+        _log_do(log, f"  ✓ 官方核对采纳 {res['changed']} 处（规则 {len(pairs)} 条）", "ok")
+        return [{"term": t, "official": o} for t, o in pairs]
+    except CalibCancelled:
+        if os.path.exists(backup):
+            shutil.move(backup, out)
+        raise
+    except Exception as e:                           # noqa: BLE001
+        if os.path.exists(backup):
+            shutil.move(backup, out)
+        _log_do(log, f"  ⚠ 官方核对采纳失败已回滚：{e}", "err")
+        return []
+
+
+def _append_adopt_section(report: str, adopted: list) -> None:
+    """在报告末尾追加「已采纳」明细（可追溯：哪几条真正改了产物）。"""
+    if not report or not adopted:
+        return
+    try:
+        with open(report, "a", encoding="utf-8", newline="") as f:
+            f.write("\n## 七、已采纳的官方核对（本轮已改产物）\n\n")
+            f.write("| 错形 | 官方名 |\n| --- | --- |\n")
+            for it in adopted:
+                f.write(f"| {it.get('term','')} | {it.get('official','')} |\n")
+            f.write("\n> 仅采纳「把握=高 + 中文目标 + 2~8 字 + 片中确实出现」的条目，"
+                    "应用后已重跑 verify（结构未变）。\n")
+    except OSError:
+        pass
+
 
 def calibrate(src: str, out: str = None, report: str = None, mode_flag: str = "",
               fix_en: bool = False, script: str = None, python: str = None,
@@ -1123,6 +1344,7 @@ def calibrate(src: str, out: str = None, report: str = None, mode_flag: str = ""
               web=None,
               media=None,
               context_tokens: int = 1000000,
+              preflight: bool = False,
               think_rounds: int = 0,
               chat_for_member=None,
               cluster=None,
@@ -1151,6 +1373,10 @@ def calibrate(src: str, out: str = None, report: str = None, mode_flag: str = ""
                       None = 脚本默认（cwd 下的 subtitle_learned_kb.json）。
                       **自检必须显式传临时库**，否则测试数据会写进真实知识库。
     context_tokens    v1.15.4：可用**上下文预算**（默认 1M token）。片源档案按
+    preflight         v1.16.2：跑之前先用一个小请求探端点。**只拦限流类失败**
+                      （TPD/RPM/额度），其余异常照旧逐块重试——省掉「每块都 429、
+                      跑半小时整轮白费」。默认 False（保持既有自测行为），
+                      calib_ai_run 显式传 True。
                       它的 1/4 折算采样上限 ⇒ 默认等于全量投喂字幕；输出额度
                       （max_tokens）默认 65536，端点不接受时会自动减半重试。
     web               2026-09-20：calib_web_agent.make_tools() 产物（含
@@ -1181,6 +1407,7 @@ def calibrate(src: str, out: str = None, report: str = None, mode_flag: str = ""
     """
     t0 = time.time()
     log = log or (lambda m, level="dim": None)
+    _LAST_ENDPOINT_ERROR[0] = ""
     if chat is None:
         raise ValueError("calibrate 需要注入 chat(prompt, system, max_tokens) 回调")
     if style not in CALIB_STYLES:
@@ -1223,6 +1450,27 @@ def calibrate(src: str, out: str = None, report: str = None, mode_flag: str = ""
               "think_rounds": int(think_rounds or 0),
               "cluster": {},
               "orig_title": ""}
+    # ---------- 0. 端点预检（v1.16.2）----------
+    # 只查「限流/额度」这一类：跑起来才知道的问题，跑之前用一个小请求先探一下，
+    # 省掉「每块都 429、跑 30 分钟后整轮白费」。其它失败（思考链耗尽、偶发抽风）
+    # 不拦截——那正是逐块重问/二分要兜的情况。
+    if preflight:
+        try:
+            chat("回复两个字：正常", max_tokens=1024)
+        except Exception as _e:  # noqa: BLE001
+            _k = _quota_error_kind(str(_e))
+            if _k:
+                _LAST_ENDPOINT_ERROR[0] = str(_e)[:300]
+                _hint = _quota_hint(_k, str(_e))
+                _log_do(log, "✗ 端点预检：探测请求被限流，本轮在写盘前中止", "err")
+                _log_do(log, "  · " + _hint, "err")
+                result["error"] = _hint
+                result["preflight"] = _k
+                return result
+            _log_do(log, "  · 端点预检未通过（非限流类，按逐块重试继续）："
+                         + str(_e)[:120], "dim")
+        else:
+            _log_do(log, "  · 端点预检通过", "dim")
     # 原始标题（v1.16.1）：显式传入优先，否则自动探测（不联网、失败给空串）
     try:
         result["orig_title"] = (str(orig_title).strip() if orig_title
@@ -1313,9 +1561,15 @@ def calibrate(src: str, out: str = None, report: str = None, mode_flag: str = ""
                 entities = json.loads(_read_text(kb_json))
             except ValueError:
                 entities = []
-        rules, excludes, canonicals = build_rules(entities, mode_key)
+        rules, excludes, canonicals, _rstats = build_rules(
+            entities, mode_key,
+            work=_opt_infer_work(src),
+            include_names=not OPT_ENABLED)
         _log_do(log, f"  → 实体 {len(entities)} 个 → 规则 {len(rules)} 条，"
                      f"官方名 {len(canonicals)} 个，排除 {len(excludes)} 条", "ok")
+        if OPT_ENABLED and (_rstats.get("dropped_work") or _rstats.get("names_dropped")):
+            _log_do(log, f"  · 对象级优化：作品隔离拦下 {_rstats['dropped_work']} 个跨作品专名实体；"
+                         f"{_rstats['names_dropped']} 条外文名降级为锚点（不进错形表）", "ok")
 
         # ---------- 4. 自主分块（长片源回退句子边界）+ 规则筛选 ----------
         _tick()
@@ -1603,6 +1857,16 @@ def calibrate(src: str, out: str = None, report: str = None, mode_flag: str = ""
                 _save_ckpt(idx)        # 每块落盘：长片源中断后可续跑
                 _log_do(log, f"  → 累计采纳 {len(accepted)} 处，拒绝 {len(rejected)} 处",
                         "ok" if accepted else "dim")
+                # 连续两块被端点限流 ⇒ 剩余块注定同样失败，立刻收手
+                # （2026-10-15 实测：不早停会白烧 30 分钟额度才到既有中止条件）
+                if failed_blocks >= 2 and _quota_error_kind(_LAST_ENDPOINT_ERROR[0]):
+                    _k = _quota_error_kind(_LAST_ENDPOINT_ERROR[0])
+                    _hint = _quota_hint(_k, _LAST_ENDPOINT_ERROR[0])
+                    _log_do(log, "  ✗ 连续两块被端点限流，本轮中止（避免白烧额度）", "err")
+                    _log_do(log, "  · " + _hint, "err")
+                    result["error"] = _hint
+                    result["quota_aborted"] = True
+                    return result
 
         # ---------- 停止条件（异常分支）：多数块拿不到可信结果 → 本轮不可信 ----------
         # Harness 设计要点：不能等模型「自报完成」就照常产出；接口持续故障时，
@@ -1612,7 +1876,10 @@ def calibrate(src: str, out: str = None, report: str = None, mode_flag: str = ""
         # 或反过来），而不是真的网络故障——所以先指向设置页的「自动匹配」。
         if failed_blocks and (failed_blocks == n_chunks
  or (failed_blocks >= 3 and failed_blocks * 3 >= n_chunks)):
-            result["error"] = (
+            _k0 = _quota_error_kind(_LAST_ENDPOINT_ERROR[0])
+            _qh = (("【端点限流】" + _quota_hint(_k0, _LAST_ENDPOINT_ERROR[0])
+                    + "\n\n") if _k0 else "")
+            result["error"] = (_qh +
                 f"AI 接口持续异常：{failed_blocks}/{n_chunks} 块经重试仍未取得有效结果，"
                 f"本轮校准不可信，已在合并写盘前中止（未生成输出）。"
                 f"处置：打开「设置 → 全局 AI」点一次「自动匹配」（程序会按接口地址"
@@ -1728,6 +1995,22 @@ def calibrate(src: str, out: str = None, report: str = None, mode_flag: str = ""
             _log_do(log, "  片源档案已取消（字幕结果不受影响）", "err")
         except Exception as e:  # noqa: BLE001
             _log_do(log, f"  ⚠ 片源档案异常（不影响校准结果）：{e}", "err")
+        # ---------- 9b. 官方核对采纳（对象级优化，2026-10-19）----------
+        # 放在「片源档案」之后、学习沉淀之前：报告已产出高把握条目，这里落盘；
+        # 应用后立即重跑 verify，不通过整批回滚。失败不影响已校验通过的校准结果。
+        if OPT_ENABLED and isinstance(result.get("meta"), dict):
+            try:
+                _adopted = _adopt_official_terms(
+                    src, out, result["meta"].get("official_terms") or [],
+                    python, script, log, cancel)
+                if _adopted:
+                    result["meta"]["_adopted"] = _adopted
+                    result["adopt_changes"] = len(_adopted)
+            except CalibCancelled:
+                raise
+            except Exception as e:                   # noqa: BLE001
+                _log_do(log, f"  ⚠ 官方核对采纳异常（不影响校准结果）：{e}", "err")
+
         if result["accepted"] or result["script_changes"]:
             try:
                 _tick()
@@ -1740,6 +2023,7 @@ def calibrate(src: str, out: str = None, report: str = None, mode_flag: str = ""
 
         # 报告
         _write_report(report, src, out, mode_flag, round_no, result, rules)
+        _append_adopt_section(report, (result.get("meta") or {}).get("_adopted") or [])
         result["ok"] = True
         result["seconds"] = round(time.time() - t0, 1)
         _log_do(log, f"AI 校准完成（第 {round_no} 轮）：脚本 {result['script_changes']} 处"
@@ -1838,6 +2122,7 @@ def _ask_block(chat, mode_flag, rules_txt, chunk, round_no, max_tokens, log, tic
             raw = chat(prompt, system, max_tokens=max_tokens)
     except Exception as e:  # noqa: BLE001
         err = str(e)[:120]
+        _LAST_ENDPOINT_ERROR[0] = str(e)[:300]
         _log_do(log, f"  ! 该块调用失败：{err}", "err")
     # ---- 工具环：模型请求工具 → 执行 → 证据回填再问 ----
     # 两类工具（联网查证 / 音画证据）可混合出现在同一轮；web 与 media 各自
@@ -2518,6 +2803,12 @@ def build_meta(chat, mode_flag, src, cues, accepted, log, round_no=1,
         # 再按优先级重排并补足到 META_TAG_COUNT 个。
         hay_zh = " ".join(zh for _n, zh, _e in cues)
         hay_en = " ".join((en or "") for _n, _zh, en in cues).lower()
+        if OPT_ENABLED and orig_title:
+            # 作品名往往只出现在标题里（正片一次不提）。不并入佐证池的话，
+            # 「终末地 / 明日方舟」会被 `_tag_attested` 判成幻觉剔除，
+            # 最终 10 个 tag 里一个作品名都不剩（2026-10-19 终末地 Si 片实测）。
+            hay_zh = (hay_zh + " " + str(orig_title)).strip()
+            hay_en = (hay_en + " " + str(orig_title).lower()).strip()
         tags = _build_tags([str(t) for t in (obj.get("tags") or []) if str(t).strip()],
                            hay_zh, hay_en, META_TAG_COUNT, log)
         meta = {

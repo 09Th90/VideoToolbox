@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.3.1
+# @version 2.4.0
 """AI 校准 Agent 自检（离线，不联网、不调用真实 LLM）。
 
 覆盖：
@@ -159,7 +159,7 @@ def test_rules_and_validate():
                                                  "--out", kb], print)
         check("kb-export 成功", rc == 0 and os.path.isfile(kb))
         ents = ag.json.loads(ag._read_text(kb))
-        rules, excludes, canonicals = ag.build_rules(ents, "bi")
+        rules, excludes, canonicals, _st = ag.build_rules(ents, "bi")
         check("规则数 > 200", len(rules) > 200, f"got {len(rules)}")
         check("官方名集合非空", len(canonicals) > 50, f"got {len(canonicals)}")
         # 合法：错形 → 官方名
@@ -241,7 +241,7 @@ def test_end_to_end(use_baseline):
             f.write(SRT)
         kb = os.path.join(d, "kb.json")
         ag.run_script(PYTHON, SCRIPT, ["kb-export", "--json", "--out", kb], print)
-        rules, _ex, _cn = ag.build_rules(ag.json.loads(ag._read_text(kb)), "bi")
+        rules, _ex, _cn, _st = ag.build_rules(ag.json.loads(ag._read_text(kb)), "bi")
         logs = []
         res = ag.calibrate(
             src, out=os.path.join(d, "ep.calib.srt"),
@@ -559,7 +559,7 @@ def test_concurrency_equivalence():
             f.write(rows)
         kb = os.path.join(d, "kb.json")
         ag.run_script(PYTHON, SCRIPT, ["kb-export", "--json", "--out", kb], print)
-        rules, _ex, _cn = ag.build_rules(ag.json.loads(ag._read_text(kb)), "bi")
+        rules, _ex, _cn, _st = ag.build_rules(ag.json.loads(ag._read_text(kb)), "bi")
 
         def run(conc, tag):
             return ag.calibrate(
@@ -605,7 +605,7 @@ def test_ckpt_resume():
             f.write(rows)
         kb = os.path.join(d, "kb.json")
         ag.run_script(PYTHON, SCRIPT, ["kb-export", "--json", "--out", kb], print)
-        rules, _ex, _cn = ag.build_rules(ag.json.loads(ag._read_text(kb)), "bi")
+        rules, _ex, _cn, _st = ag.build_rules(ag.json.loads(ag._read_text(kb)), "bi")
 
         calls = {"n": 0, "nums": set()}
         base_chat = _fake_chat_factory(rules)
@@ -664,7 +664,7 @@ def test_meta_dossier():
             f.write(SRT)
         kb = os.path.join(d, "kb.json")
         ag.run_script(PYTHON, SCRIPT, ["kb-export", "--json", "--out", kb], print)
-        rules, _ex, _cn = ag.build_rules(ag.json.loads(ag._read_text(kb)), "bi")
+        rules, _ex, _cn, _st = ag.build_rules(ag.json.loads(ag._read_text(kb)), "bi")
         base_chat = _fake_chat_factory(rules)
 
         meta_json = ag.json.dumps({
@@ -965,7 +965,7 @@ def test_cluster():
             f.write(rows)
         kb = os.path.join(d, "kb.json")
         ag.run_script(PYTHON, SCRIPT, ["kb-export", "--json", "--out", kb], print)
-        rules, _ex, _cn = ag.build_rules(ag.json.loads(ag._read_text(kb)), "bi")
+        rules, _ex, _cn, _st = ag.build_rules(ag.json.loads(ag._read_text(kb)), "bi")
         propose = _fake_chat_factory(rules)
         members = [{"name": "提议A", "role": "calibrate"},
                    {"name": "提议B", "role": "calibrate"},

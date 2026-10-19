@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.3.1
+# @version 2.4.0
 """NewPipe Extractor 后端 —— 视频工具箱的 YouTube 第二解析引擎。
 
 为什么要这个模块
@@ -27,6 +27,7 @@ import json
 import os
 import shutil
 import subprocess
+import tempfile
 import time
 from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, wait
 
@@ -195,10 +196,22 @@ def _probe_once(url: str, proxy: str = "", cookie: str = "", cookie_file: str = 
             except Exception:  # noqa: BLE001
                 pass
 
+    out_f = err_f = None
     try:
-        proc = subprocess.Popen(cmd, stdout=subprocess.PIPE,
-                                stderr=subprocess.PIPE)
+        # v2.3.2 修复 PIPE 死锁（与 ytdlp_util.fetch_info_json 同源）：
+        # 原先 stdout/stderr 用 subprocess.PIPE，而轮询循环只 poll() 不读管道，
+        # NPE 输出的 JSON（实测 35KB）写满管道缓冲后 Java 进程阻塞在 write →
+        # 必然「NPE 解析超时」。改写到临时文件、轮询结束再读。
+        out_f = tempfile.TemporaryFile()
+        err_f = tempfile.TemporaryFile()
+        proc = subprocess.Popen(cmd, stdout=out_f, stderr=err_f)
     except Exception as e:  # noqa: BLE001
+        for _f in (out_f, err_f):
+            if _f is not None:
+                try:
+                    _f.close()
+                except Exception:  # noqa: BLE001
+                    pass
         _unregister()
         return {"ok": False, "errorType": "spawn", "error": str(e)}
     if register:
@@ -207,27 +220,40 @@ def _probe_once(url: str, proxy: str = "", cookie: str = "", cookie_file: str = 
         except Exception:  # noqa: BLE001
             pass
     deadline = time.time() + timeout + 25
+    cancelled = False
+    timed_out = False
+    out_b = err_b = b""
     try:
         while True:
             if cancel is not None and cancel.is_set():
+                cancelled = True
                 _kill_tree(proc)
-                try:
-                    proc.communicate(timeout=5)
-                except Exception:  # noqa: BLE001
-                    pass
-                return {"ok": False, "errorType": "cancelled", "error": "已取消"}
+                break
             if proc.poll() is not None:
                 break
             if time.time() > deadline:
+                timed_out = True
                 _kill_tree(proc)
-                return {"ok": False, "errorType": "network", "error": "NPE 解析超时"}
+                break
             time.sleep(0.15)
         try:
-            out_b, err_b = proc.communicate(timeout=5)
+            out_f.seek(0)
+            out_b = out_f.read()
+            err_f.seek(0)
+            err_b = err_f.read()
         except Exception:  # noqa: BLE001
             out_b, err_b = b"", b""
     finally:
+        for _f in (out_f, err_f):
+            try:
+                _f.close()
+            except Exception:  # noqa: BLE001
+                pass
         _unregister()
+    if cancelled:
+        return {"ok": False, "errorType": "cancelled", "error": "已取消"}
+    if timed_out:
+        return {"ok": False, "errorType": "network", "error": "NPE 解析超时"}
 
     out = _decode(out_b or b"")
     for line in reversed(out.splitlines()):
