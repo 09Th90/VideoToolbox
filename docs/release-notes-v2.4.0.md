@@ -13,7 +13,7 @@
 SHA-256 校验：
 
 ```
-__SHA256_PLACEHOLDER__  VideoToolbox_OnlineSetup_v2.4.0.exe
+a0d25ad49c19b671d4462c0b8b52a815ac812f3d889bfdc2dbf0c2d89660b76e  VideoToolbox_OnlineSetup_v2.4.0.exe
 ```
 
 **本版没有离线安装包。** onefile 单体打包后超过 1 GB，已超出可维护的分发体积；
