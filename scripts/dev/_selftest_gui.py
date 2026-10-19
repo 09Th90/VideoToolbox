@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# @version 2.4.0
+# @version 2.4.1
 """界面自检（v1.10.4 Fluent 界面）：验证窗口与各页面可构建、导航宽度自适应、
 设置页统一入口、字幕处理环境就绪。
 
@@ -837,8 +837,9 @@ def main():
     # v2.1.0：「首页」（任务创建提升为首页）已挂进堆叠 —— 共 8 页。
     # 注意：v2.1.0 的 home_page 改动落在工作树（迁移前就存在），此处期望值
     # 同步从 7 改为 8，否则会误报成 PySide6 迁移回归。
-    # 「AI 托管」页是**条件挂载**（harness 已部署才挂），所以 8/9 都对——
-    # 写死 8 会在装了 harness 的机器上误报（2026-10-14 实测踩到）。
+    # 「AI 托管」页是**条件挂载**：harness 适配层（harness_bridge）导入成功即
+    # 挂（v2.4.x 起不再要求 harness 本体就绪，缺 harness 时页面展示「部署引导」
+    # 卡），所以 8/9 都对——写死 8 会在导入了适配层的环境上误报。
     _stacked = win.stackedWidget.count()
     check("堆叠页数量为 8（AI 托管页可用时 9）", _stacked in (8, 9),
           f"count={_stacked}")

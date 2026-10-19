@@ -1,4 +1,4 @@
-# @version 2.4.0
+# @version 2.4.1
 """harness_bridge 离线自检（不启动 harness、不联网、可反复跑）。
 
 覆盖：路径解析（默认/env/配置三级）、probe 状态机、web_alive 语义
@@ -118,6 +118,11 @@ def main():
         os.environ.clear()
         os.environ.update(old_env)
         hb._cache["probe"] = None
+
+    # ---------- ⑥ 部署文档路径解析（回归：doc_path 曾被 *args 拆成单字符） ----------
+    dp = hb.doc_path()
+    check("doc_path 解析为真实存在的部署文档", os.path.isfile(dp), dp)
+    check("doc_path 未被拆成单字符路径", ("\\A\\I" not in dp) and dp.endswith(".md"), dp)
 
     print("\n通过 %d / %d" % (len(PASS), len(PASS) + len(FAIL)))
     if FAIL:

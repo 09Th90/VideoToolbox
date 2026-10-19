@@ -1,4 +1,4 @@
-# @version 2.4.0
+# @version 2.4.1
 """「AI 托管」页 —— 首页任务框输入**纯文本**时的落点（harness 接入的界面壳）。
 
 边界（与 harness_bridge 的分工）
@@ -6,8 +6,11 @@
 * 本页只做界面：状态展示、任务输入、流式输出、控制台入口；
 * 所有 harness 交互（探测 / 配置同步 / 起进程 / 读回显）都在
   ``harness_bridge``（无 Qt）里，本页不碰 harness 的任何细节；
-* harness 未部署 / 未装依赖 / 未构建时，宿主（video_toolbox_qt）**不会创建
-  本页、不会挂导航项**——用户侧完全感知不到，既有功能零影响。
+* harness 未部署 / 未装依赖 / 未构建 / 缺 node / 配置关闭时，宿主仍会创建
+  本页并挂「AI 托管」导航项（适配层导入成功即创建），但本页在「状态」下方
+  展示「部署引导」卡（fix_hint 处置步骤 + 可复制命令 + 部署文档入口），并
+  禁用任务 / 控制台按钮，直到 ``probe()`` 返回 ``ready``。安装版（刻意不含
+  harness 原件）也能直接看到怎么补齐，而不是只报一个错误。
 
 为什么单独成模块（与 auto_vision_page 同样的理由）：主文件里的页面共享
 ``ScrollPage`` / ``card()``，独立成模块会反向 import 主文件形成循环导入。
@@ -16,6 +19,7 @@
 from __future__ import annotations
 
 import os
+import webbrowser
 
 from PySide6.QtCore import QObject, Qt, QThread, Signal
 from PySide6.QtGui import QFont
@@ -122,6 +126,29 @@ class HarnessPage(ScrollArea):
         lay.addWidget(self.url_label)
         outer.addWidget(card)
 
+        # ---------- ①⅔ 部署引导（仅未就绪时出现） ----------
+        # 未部署 / 未装依赖 / 未构建 / 缺 node / 被禁用时，给一份可直接照做的
+        # 处置步骤 + 可一键复制的命令 + 部署文档入口；ready 时整卡隐藏。
+        self._fix_card, fix_lay = _card(view, "AI 托管 · 部署引导")
+        self._fix_text = QPlainTextEdit(view)
+        self._fix_text.setFont(_MONO)
+        self._fix_text.setReadOnly(True)
+        self._fix_text.setFixedHeight(220)
+        self._fix_text.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        self._fix_text.setPlainText("")
+        fix_lay.addWidget(self._fix_text)
+        fix_row = QHBoxLayout()
+        self._fix_copy_btn = PushButton(FIF.COPY, "复制命令", view)
+        self._fix_copy_btn.clicked.connect(self._on_copy_fix)
+        self._fix_doc_btn = PushButton(FIF.DOCUMENT, "查看部署文档", view)
+        self._fix_doc_btn.clicked.connect(self._on_open_doc)
+        fix_row.addWidget(self._fix_copy_btn)
+        fix_row.addWidget(self._fix_doc_btn)
+        fix_row.addStretch(1)
+        fix_lay.addLayout(fix_row)
+        self._fix_card.setVisible(False)
+        outer.addWidget(self._fix_card)
+
         # ---------- ② 任务 ----------
         card, lay = _card(view, "任务（与首页任务框同一个入口）")
         tip = CaptionLabel(
@@ -162,11 +189,52 @@ class HarnessPage(ScrollArea):
         self.state_label.setText(
             "harness：%s\n· %s\n· 部署目录：%s\n· 运行期数据：%s"
             % (p["state"], p["detail"], p["dir"], hb.dsh_home()))
+        self._update_fix_card(p)
         if hb.web_alive():
             self.url_label.setText("控制台：%s" % hb.web_console_url())
         else:
             self.url_label.setText("控制台未启动（打开可能需要 1～3 分钟冷启动）")
         self._refresh_sync_label()
+
+    def _update_fix_card(self, p: dict):
+        """未就绪时显示处置引导；ready 时隐藏整卡，并解锁任务/控制台按钮。"""
+        ready = (p["state"] == "ready")
+        # 未就绪时禁用任务 / 控制台按钮，避免空点报错（引导卡已说明怎么做）
+        self.console_btn.setEnabled(ready)
+        self.stop_btn.setEnabled(ready)
+        self.run_btn.setEnabled(ready)
+        if ready:
+            self._fix_card.setVisible(False)
+            return
+        self._fix_card.setVisible(True)
+        hint = hb.fix_hint(p["state"], p)
+        self._fix_text.setPlainText(hint or hb.status_text())
+        cmds = hb.fix_commands(p["state"], p)
+        self._fix_copy_btn.setEnabled(bool(cmds))
+        self._fix_doc_btn.setEnabled(os.path.isfile(hb.doc_path()))
+
+    def _on_copy_fix(self):
+        p = hb.probe(force=True)
+        cmds = hb.fix_commands(p["state"], p)
+        if not cmds:
+            return
+        clip = QApplication.clipboard()
+        if clip is not None:
+            clip.setText(cmds)
+            InfoBar.success("已复制", "部署命令已复制到剪贴板",
+                            duration=2500, position=InfoBarPosition.TOP, parent=self)
+
+    def _on_open_doc(self):
+        doc = hb.doc_path()
+        if not os.path.isfile(doc):
+            InfoBar.warning("文档缺失", "未找到部署文档：%s" % doc,
+                            duration=4000, position=InfoBarPosition.TOP, parent=self)
+            return
+        try:
+            webbrowser.open("file:///" + doc.replace("\\", "/"))
+        except Exception as e:  # noqa: BLE001
+            InfoBar.error("打开失败", str(e)[:200],
+                          duration=4000, position=InfoBarPosition.TOP, parent=self)
 
     def _refresh_sync_label(self):
         """只刷「设置」页 AI 配置摘要（不碰探测/控制台探针，可安全频发）。"""

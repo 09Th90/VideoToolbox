@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# @version 2.4.0
+# @version 2.4.1
 """视频工具箱 GUI v1.11.0 —— Fluent 矢量界面
 ====================================================================
 界面形态（v1.10.0 起，原 tkinter 界面退役）：
@@ -194,7 +194,7 @@ except Exception as _e:  # noqa: BLE001
     except Exception:  # noqa: BLE001
         pass
 
-VERSION = "2.4.0"
+VERSION = "2.4.1"
 
 # 全格式媒体/字幕/文档扩展名（v1.13.0）：
 #   视频：常见容器 + av1 / h264 / h265 / x264 等裸流与更多封装；
@@ -9086,12 +9086,15 @@ class MainWindow(FluentWindow):
         self.subtitle_edit_page = SubtitleEditPage(self, self)
         self.pipeline_page = PipelinePage(self, self)
         self.settings_page = SettingsPage(self, self)
-        # v2.1.0：AI 托管页——**仅当 harness 部署就绪时才创建**。harness 不在场
-        # （没部署 / 没装依赖 / 配置关闭）时 self.harness_page 保持 None，
-        # 导航里连「AI 托管」这一项都不出现，既有界面与交互零变化。
+        # v2.4.x：AI 托管页在 harness **适配层可用**（模块成功导入）时就创建，
+        # 不再要求 harness 本体就绪。harness 未部署 / 未装依赖 / 未构建 / 缺
+        # node / 配置关闭时，页面照常出现，但在「状态」下展示「部署引导」卡
+        # （fix_hint 处置步骤 + 可复制命令 + 部署文档入口），让用户照着补齐；
+        # 任务 / 控制台按钮在就绪前禁用，避免空点报错。这样安装版（刻意不含
+        # 2.2GB 的 harness 原件）也能直接看到怎么补齐，而不是只报一个错误。
         self.harness_page = None
         try:
-            if _HARNESS_IMPORT_OK and harness_bridge.available():
+            if _HARNESS_IMPORT_OK:
                 self.harness_page = _harness_page_mod.HarnessPage(self, self)
         except Exception as e:  # noqa: BLE001
             self.harness_page = None

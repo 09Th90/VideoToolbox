@@ -1,4 +1,4 @@
-# @version 2.4.0
+# @version 2.4.1
 """deepseek-harness 适配层——工具箱**单向适配** harness 的唯一入口。
 
 设计契约（用户 2026-10-14 拍板）
@@ -313,6 +313,137 @@ def probe(force: bool = False) -> dict:
 
 def available() -> bool:
     return probe()["state"] == "ready"
+
+
+#: 每个非 ready 状态的处置引导（界面「怎么修」卡片 + 复制命令按钮用）。
+#  写在这里而不是页面里，是为了让 CLI / 日志 / 界面拿到**同一份**口径；
+#  页面只负责排版，不含任何 harness 细节（模块边界见 harness_page docstring）。
+_DEPLOY_DOC = "docs/AI托管_部署与排障.md"
+
+
+def _quoted(p: str) -> str:
+    """命令行里安全包围路径（含空格/中文时必加引号）。"""
+    return '"%s"' % p if (" " in p or "\t" in p) else p
+
+
+def fix_hint(state: str, probe_result: "dict | None" = None) -> str:
+    """给定探测状态，返回给人看的处置步骤（多行纯文本）。
+
+    ``ready`` / 未知状态返回空串——调用方据此隐藏「怎么修」区块。
+    """
+    p = probe_result or probe()
+    base = p.get("dir") or harness_dir()
+    node_need = "Node.js >= 22.19"
+
+    if state == "missing":
+        frozen = getattr(sys, "frozen", False)
+        head = (
+            "harness 引擎本体**没有随安装包分发**（官方第三方原件、体积约 2.2 GB，"
+            "刻意不进安装包），安装版 exe 所在目录下自然没有 harness 文件夹。"
+            if frozen else
+            "harness 部署目录不存在。"
+        )
+        # 安装版与源码版给出的上手路径不同：后者仓库里通常已经有一份可直接拷
+        return "\n".join([
+            head,
+            "",
+            "解决（二选一）：",
+            "  A. 从已有部署处整目录复制（最快，含依赖与构建产物，拷完即用）",
+            "  B. 干净安装：下载官方源码 zip 解压到下面这个目录，再装依赖并构建",
+            "",
+            "预期目录：%s" % base,
+            "",
+            "方式 B 的命令（在该目录的父目录执行）：",
+            "  mkdir %s" % _quoted(base),
+            "  cd %s" % _quoted(base),
+            "  # 把官方源码 zip 内容解压覆盖到这里（应有 package.json）",
+            "  pnpm install --ignore-scripts",
+            "  pnpm run build",
+            "",
+            "前置：%s，且在 PATH 中可执行（装依赖时加 LEFTHOOK=0，"
+            "否则会污染工具箱仓库的 git hooks）。" % node_need,
+        ])
+
+    if state == "no_node":
+        return "\n".join([
+            "harness 需要 %s，但 PATH、tools 目录、harness 目录旁都没找到 node。" % node_need,
+            "",
+            "解决：安装 Node.js 后重试，或把 node.exe 放到下列任一位置：",
+            "  · tools\\node\\node.exe（在线安装形态由下载依赖向导拉取）",
+            "  · harness 目录旁边",
+            "  然后点「重新检测」。",
+        ])
+
+    if state == "not_installed":
+        return "\n".join([
+            "harness 源码在，但依赖没装（%s\\node_modules 不存在）。" % base,
+            "",
+            "解决：",
+            "  cd %s" % _quoted(base),
+            "  LEFTHOOK=0 pnpm install --ignore-scripts",
+            "",
+            "装完点「重新检测」。",
+        ])
+
+    if state == "no_launcher":
+        return "\n".join([
+            "依赖装了，但既没有构建产物、也没有 tsx，起不来。",
+            "",
+            "解决：",
+            "  cd %s" % _quoted(base),
+            "  pnpm run build",
+            "",
+            "不想构建也可以在 harness 根装一个 tsx（源码模式运行，会更慢）。",
+        ])
+
+    if state == "disabled":
+        return "\n".join([
+            "已在配置里关闭 AI 托管接入。",
+            "",
+            "解决：删除配置项 enabled=false（或把它改 true）后点「重新检测」：",
+            "  %s" % _config_path(),
+        ])
+
+    return ""
+
+
+#: 界面「复制命令」按钮给出的、针对 missing / not_installed / no_launcher 的
+#: 可直接粘贴的命令串（按当前状态取，避免给用户一堆用不上的步骤）。
+def fix_commands(state: str, probe_result: "dict | None" = None) -> str:
+    p = probe_result or probe()
+    base = p.get("dir") or harness_dir()
+    if state == "missing":
+        return "\r\n".join([
+            'mkdir "%s"' % base,
+            'cd /d "%s"' % base,
+            "# 解压官方源码 zip 到此处（含 package.json）",
+            "set LEFTHOOK=0",
+            "pnpm install --ignore-scripts",
+            "pnpm run build",
+        ])
+    if state == "not_installed":
+        return "\r\n".join([
+            'cd /d "%s"' % base,
+            "set LEFTHOOK=0",
+            "pnpm install --ignore-scripts",
+        ])
+    if state == "no_launcher":
+        return "\r\n".join([
+            'cd /d "%s"' % base,
+            "pnpm run build",
+        ])
+    return ""
+
+
+def doc_path() -> str:
+    """部署排障文档在磁盘上的路径（可能不存在，调用方要先判断）。
+
+    注意：``_DEPLOY_DOC`` 是单条相对路径，必须作为**一个参数**传给
+    ``os.path.join``——若写成 ``*rel`` 会把字符串拆成单个字符逐个拼接，
+    中文路径会整个被切碎（``D:\\A\\I\\托\\管…``）。
+    """
+    rel = _DEPLOY_DOC.replace("/", os.sep)
+    return os.path.join(app_root(), rel)
 
 
 def status_text() -> str:
