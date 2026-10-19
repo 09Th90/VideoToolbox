@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.3.0
+# @version 2.3.1
 """字幕校准统一脚本（唯一入口，可复用，每次校准任务优先调用本脚本）
 # 2026-10-14 二次校准 + 脚本升级：《【字幕】All You Should Know in Arknights Next Update!
 #   .en-谷歌翻译.srt》（132 cue，CRLF 无 BOM，谷翻「中文2行+英文2行」，detect=bi，走 --ak）。
@@ -253,6 +253,7 @@ B. 流水线子命令（原各项目分散脚本 extract_cues/split_segs/merge_r
         # ⚠ 这是校准**之前**的结构层：会重排序号、重算时间轴，verify 不再适用；
         #   不带 --out 只出报告（退出码 1＝有候选）；带 --out 才应用显式开启的操作。
         #   英文套话/复读超 7 次/纯填充短行/语言切换噪音只观测不自动丢（FineSub 口径）。
+  python subtitle_calib_merged.py audit <校准后.srt> [--mode bi] [--out 报告.md]  # 名词漏校三扫
   python subtitle_calib_merged.py kb-export [--json] [--out 路径]           # 导出对象级知识库（MD/JSON，投喂用）
   python subtitle_calib_merged.py kb-lookup <词>                            # 按任意形态反查实体全部知识
   python subtitle_calib_merged.py kb-lint                                   # 对象级体检（跨实体冲突/级联/冗余）
@@ -463,6 +464,9 @@ BILINGUAL_TERMS = {
     # --- 2026-09-01 "This is the most I've ever cried over a game"(鸣潮) 校对沉淀 ---
     "西罗诺德": "鸣式",                                            # Thronodian（英文 asr 变体误音译 -> 官方名 鸣式）
     "伊梅思": "爱弥斯",                                            # Imeth/Immeth（asr 变体 -> 爱弥斯）
+    # --- 2026-10-16 鸣潮同人番组「二回目のエイメス潮汐任務」二次校准（名词漏校/漏译修正）---
+    "埃姆斯": "爱弥斯", "海姆斯": "爱弥斯", "Emes": "爱弥斯",       # Aemeath/爱弥斯（标题「エイメス潮汐任務」）ASR 音译残留：译文 Emes/海姆斯/埃姆斯 三种写法统一回官方名 爱弥斯
+    "石头调整任务": "潮汐任务", "石钻任务": "潮汐任务",             # 調石任務 为 潮汐任務(chōseki) 同音 ASR 误识，bing 按字面直译错；依标题「潮汐任務」订正
     "拉海洛伊": "拉海洛",                                          # Lahai-Roi（2026-09-09 依官方对照表/wiki 修正：官方中文=拉海洛，原误统一为"拉海罗伊"）
     "拉海罗伊": "拉海洛",                                          # 同上：旧沉淀目标"拉海罗伊"收敛回官方名（长键"拉海洛伊"先行）
     "西吉鲁姆": "辛吉勒姆",                                        # Sigilum（asr 变体，官方中文 辛吉勒姆，2026-09-10 依官方3.1内容说明/鸣潮助手修正）
@@ -633,6 +637,8 @@ BILINGUAL_TERMS = {
     "银林": "吟霖",
     # resonator 机翻"共振器"（学习库已有"谐振器->共鸣者" confirmed，同类补齐，#541 漏校）：
     "共振器": "共鸣者",
+    "共振者": "共鸣者",                                             # 共振≠共鸣 错字变体（#827 resonator->共振者）
+    "王峰堡": "玄方城", "王方堡": "玄方城",                       # Schwanfong Hold 机翻错形（#976/#1258/#1333/#1189；不碰"王方"本人）
     # Lupa ASR 错形"露巴"（参考行 Luba，#2579 漏校；"露巴"非常用词裸键安全）：
     "露巴": "露帕",
     # Wuthering Waves ASR "Weathering wave" 谷翻"耐候波浪"（#2787；"耐候波浪"裸键安全）：
@@ -1507,7 +1513,11 @@ CONTEXT_MAP = [
     (r"\bArk Knights\b", "方舟骑士", "明日方舟"),
     (r"\bArknights\b", "方舟骑士团", "明日方舟"),     # 双保险：EN 行拼写正确时中文行仍是机翻拆名
     (r"\bArknights\b", "方舟骑士", "明日方舟"),
+    (r"\bArc Knights\b", "弧骑士", "明日方舟"),       # #495 Arc Knights(=Arknights 误读成 Arc) 弧骑士→明日方舟；须置于通用 Knights 规则之前，否则会被咬成《弧明日方舟》畸形
     (r"\bKnights\b", "骑士", "明日方舟"),             # 名字跨 cue 被拆成 方舟/骑士 时后半补全（#886）
+    (r"\bDragon Guard\b", "龙卫", "龙背上的骑兵"),       # #223/#252 Dragon Guard=ASR 误听 Drakengard(龙背上的骑兵)；龙卫→龙背上的骑兵（须英文佐证，防误伤普通词）
+    (r"\bDragon Guard\b", "龙之守卫", "龙背上的骑兵"),   # #238/#252 同上，龙之守卫→龙背上的骑兵
+    (r"\bStellar Blade\b", "星刃", "剑星"),             # #279/#284/#308 Stellar Blade 官方中文 剑星（星刃为早期海报译名，非现用官方名）
     (r"\bKamura\b|\bKitamura\b", "由加村", "北村"),   # Yuka Kitamura 官方中文 北村（友香）
     (r"\bKamura\b|\bKitamura\b", "卡村", "北村"),     # Kamura 为 Kitamura 的 ASR 误听（片内 #258/#709/#736 作 Kitamura）
     (r"\bRatio Ultima\b", "比率终极", "Ratio Ultima"),     # 曲名保留英文（wiki 曲名 RATIO ULTIMA，无官方中文）
@@ -1717,10 +1727,7 @@ CONTEXT_MAP = [
     (r"\bsimultaneous release\b", "释放", "发布"),  # #267 simultaneous release=同步发布
     (r"\bpoor showing\b", "这场比赛", "这次展示"),  # #144 poor showing=这次展示很差（showing 比赛义错位）
     (r"\bdiscus- ?discussions?\b", "Discus讨论", "讨论"),  # #56 ASR 口吃残片 discus- discussions，清残留
-    (r"\bArc Knights\b", "弧骑士", "明日方舟"),       # #495 Arc Knights(=Arknights 误读成 Arc) 弧骑士→明日方舟；须置于通用 Knights 规则之前，否则会被咬成《弧明日方舟》畸形
-    (r"\bDragon Guard\b", "龙卫", "龙背上的骑兵"),       # #223/#252 Dragon Guard=ASR 误听 Drakengard(龙背上的骑兵)；龙卫→龙背上的骑兵（须英文佐证，防误伤普通词）
-    (r"\bDragon Guard\b", "龙之守卫", "龙背上的骑兵"),   # #238/#252 同上，龙之守卫→龙背上的骑兵
-    (r"\bStellar Blade\b", "星刃", "剑星"),             # #279/#284/#308 Stellar Blade 官方中文 剑星（星刃为早期海报译名，非现用官方名）
+    # --- 2026-10-16 3.7 Epilogue reaction 二次校准沉淀（英文佐证，防误伤普通词）---
     (r"\bnexus\b", "核心", "梦枢天罗"),          # #1719 "within the nexus"->核心（#835 proliferation core 正确，故须佐証）
     (r"\bcapsule\b", "舱体", "文明之匣"),        # #169/#183/#326/#393/#1297 全为 capsule，与其余 cue 的文明之匣一致
     (r"\bSentinel\b", "守护者", "岁主"),         # #602/#1747 sentinel->守护者（岁主为本片既定译法）
@@ -2792,6 +2799,9 @@ KO_TERMS = {
     '第一新月共振者': '初代心月的共鸣者',
     # —— 被选择的人性(선택된 사람의 마음，最后一个情匣的情感，谷翻"被选中的人之心") ——
     '被选中的人之心': '被选择的人性',
+    # —— 2026-10-18 免费烂游戏实况（역대급 무료 막장게임，66 cue，微软翻译）沉淀 ——
+    #   全中文行 cue（无谚文参考行）里的机翻未翻残留繁体字形；"我開"孤立出现，
+    #   裸键跨片误伤率≈0（含谚文行走 KO_ASR 层，不会进本表替换路径）。
     '我開': '我开',
 }
 
@@ -2928,6 +2938,7 @@ ENDFIELD_TERMS = {
     #      与 GLOSSARY.md（管理人=管理员/干员/侦察/卡池、萨卡兹/萨科塔/罗德岛 等约定）
     "五菱": "武陵",
     "武林": "武陵",
+    "乌岭": "武陵", "乌灵": "武陵",        # Wuling（武陵城/雪凇幽梦区域）；MS 英译中把 Wuling 误作 乌岭/乌灵
     "索幸": "所幸",
     # 终末地评论/反应片源常见 ASR 错词 -> 公认游戏名（2026-08-30 评论片沉淀）
     "安菲尔德": "终末地",              # Anfield
@@ -3033,6 +3044,7 @@ ENDFIELD_TERMS = {
     "操作员故事": "干员故事",
     # Paralica=佩丽卡（终末地工业监督，官方）；中文行音译变体统一
     "帕拉利卡": "佩丽卡",
+    "佩莉卡": "佩丽卡", "佩利卡": "佩丽卡",  # Perlica（终末地工业监督，官方代号「佩丽卡」）；MS 英译中误形（佩莉/佩利）
     # Wuwang ASR 误听 -> 武陵（雪凇幽梦新增区域 官方中文）
     "武王": "武陵",
     # Samiverg=萨米维格（提弗洛斯之子，官方故事名）；萨米尔维格/萨米沃格 中文行音译变体统一
@@ -3070,6 +3082,7 @@ ENDFIELD_TERMS = {
     "吉尔伯特": "洁尔佩塔",
     "阿德莉亚": "艾尔黛拉",
     "奈法尔": "聂菲斯", "内弗雷": "聂菲斯", "奈弗里": "聂菲斯", "内弗里": "聂菲斯",
+    "涅斐雷斯": "聂菲斯", "涅法雷斯": "聂菲斯",  # Nefarith（第二章反派之一）；MS 英译中把 Neferes/Neferuist 误作 涅斐雷斯
     "塔汉": "大潘",
     "恩德明": "管理员",
     "阿金特": "明河", "阿尔君": "明河",
@@ -3264,6 +3277,24 @@ ENDFIELD_BI_TERMS = {
     # —— 角色 ——
     "瓦勒林": "华法琳", "沃拉林": "华法琳", "Warerin": "华法琳",   # Warfarin
     "普利卡": "佩丽卡",                      # Perlica（终末地工业监督）
+    # —— 2026-10-17 沉淀：MASSIVE 1.6 PATCH DAY（英文 reaction，7238 cue，en-微软翻译）——
+    #   Perlica 英文误留：Plica/Pilica/Pleica -> 佩丽卡（森空岛WIKI/百度百科统一代号）
+    "Plica": "佩丽卡", "Pilica": "佩丽卡", "Pleica": "佩丽卡",
+    #   Rhodes Island 英文误留：Roads( 岛) -> 罗德岛
+    "Roads 岛": "罗德岛", "Roads岛": "罗德岛", "Roads": "罗德岛",
+    #   Originium -> 源石（Arknights 矿物，MT 误留英文）
+    "Originium": "源石",
+    #   Arknights 英文误留：Arc Knights / Arc Knight -> 明日方舟
+    "Arc Knights": "明日方舟", "Arc Knight": "明日方舟", "Arc骑士": "明日方舟骑士",
+    # —— 2026-10-17 二校沉淀：同上片（MASSIVE 1.6 PATCH DAY，en-微软翻译）——
+    #   Ember（六星干员，官方中文=余烬，百度百科 + wiki.gg 双重确认）英文整词留英文 -> 余烬
+    "Ember": "余烬",
+    #   大小写敏感漏网：小写 originium 未被大写 Originium 规则覆盖 -> 源石
+    "originium": "源石",
+    #   Endfield ASR 误听 Enterfield -> 终末地（与 Enfield / 恩菲尔德 同族归一）
+    "Enterfield": "终末地",
+    #   Perlica ASR 误听 Perlla -> 佩丽卡（与 Plica / Pilica / Pleica 同族归一）
+    "Perlla": "佩丽卡",
     # —— 2026-10-09 沉淀：《BANGER ALERT, ARKNIGHTS: ENDFIELD 1.6 IS A BLAST!》
     #    1.6「丹青渡」前瞻直播英文 reaction 片（762 cue，英文主播评论机翻 + 官方中文直播 ASR）。
     #    官方依据：终末地官网/TapTap 官方论坛 1.6 前瞻总结、新浪前瞻直播汇总、NGA 危机合约攻略。
@@ -3835,6 +3866,26 @@ ENDFIELD_KO_TERMS = {
     "切帕特": "察帕特",
     # —— 星门：스타게이트 = 官方「星门」（谷翻"星际之门"，非官方直译）——
     "星际之门": "星门",
+    # —— 干员：펠리카(Perlica/Felica)=佩丽卡（2026-10-17 二次校准沉淀）——
+    #   森空岛WIKI/百度百科/ACGwiki/萌娘百科统一代号「佩丽卡」，韩文 펠리카、英文 Perlica。
+    #   本片谷翻把同一角色混作「菲丽卡/帕莉卡/佩利卡」三形，统一为官方「佩丽卡」。
+    #   （佩利卡本身即官方形，无需映射；仅需纠「菲丽卡/帕莉卡」两误形）
+    "菲丽卡": "佩丽卡", "帕莉卡": "佩丽卡",
+    # —— 星球：탈로스 2 = 塔卫二（Talos-II；2026-10-17 二次校准沉淀）——
+    #   与既有长键「塔洛斯2号」互补，覆盖裸「塔洛斯2」（谷翻"塔洛斯2的所有原始技术"等）
+    "塔洛斯2": "塔卫二",
+    # —— 组织：로도스 아일랜드 = 罗德岛（Rhodes Island；2026-10-17 二次校准沉淀）——
+    #   谷翻把 로도스 아일랜드 拆成「罗德斯·艾伦」(아일랜드→艾伦) 与「罗德斯爱尔兰」(→爱尔兰)，
+    #   两形皆为罗德岛误译；先放长键精确修整句，再备裸键「罗德斯」兜底其它片源。
+    "罗德斯·艾伦": "罗德岛", "罗德斯爱尔兰": "罗德岛", "罗德斯": "罗德岛",
+    # —— 干员：리노(Liino)=梨诺（2026-10-17 沉淀）——
+    #   森空岛WIKI/百度百科/萌娘百科统一代号「梨诺」（外文名 Liino / 리노；"菈梵朵玛的晨星"偶像）。
+    #   本片谷翻把同一角色混作「利诺/雷诺/Lino/Reno」四形，统一为官方「梨诺」。
+    "利诺": "梨诺", "雷诺": "梨诺", "Lino": "梨诺", "Reno": "梨诺",
+    # —— 漏译修复（2026-10-17 二次校准沉淀）——
+    #   티브로스 / 티프로 = 提弗洛斯（Typhoeus）的韩文变体，MT 误把专名当英文残留为
+    #   Tibros / Tibro / Tipro；아이돌 = 偶像（idol），MT 误留 Ildol。
+    "Tibros": "提弗洛斯", "Tibro": "提弗洛斯", "Tipro": "提弗洛斯", "Ildol": "偶像",
 }
 
 # =============================================================
@@ -5244,6 +5295,12 @@ KO_CONTEXT = [
     # —— 以下专名未能从官方资料证实，按发音/语境稳定译法，待懂日语者复核（2026-10-10）——
     (r"상승\s?씨", "崛起先生", "上胜先生"),         # VTuber 二次共鸣传闻的来源（#55）
     (r"안과\s?같은\s?타입", "内饰", "安"),           # #110 与"安"是同一类型
+    # —— 2026-10-18 免费烂游戏实况（역대급 무료 막장게임，66 cue，微软翻译）：조비 译名统一 ——
+    #   조비 疑为免费恐怖游戏 Jollibee's 吉祥物（졸리비）的 ASR 缩略，无官方中文名，
+    #   按音译统一为"乔比"（微软翻译先后出"乔维/曹弼"两种形态）；韩语行 조비 锚定，
+    #   조비 非韩语固有词，跨片误伤率≈0。
+    (r"조비", "乔维", "乔比"),
+    (r"조비", "曹弼", "乔比"),
 ]
 _KO_CONTEXT_COMPILED = [(re.compile(rx), wrong, right) for rx, wrong, right in KO_CONTEXT]
 
@@ -6286,8 +6343,12 @@ ENTITIES = [
                # --- 日文原形 ---
                "ダーニャ", "ダニア", "でにゃ",
            ),
-           ctx=((r"\bDa\b", "爸爸"), (r"\bDa\b", "Da"), (r"\bDa\b", "达的"),
-                (r"\bDa\b", "达。"), (r"\bmy wife\b", "娜娜"),
+           # 锚定 \bDa\b 收窄（2026-10-16 音乐反应片踩坑）：原 \bDa\b 大小写不敏感，
+           # 会命中人声「da da」哼唱（参考行 da da. What is that song?），把
+           # 达达。误并成 达达妮娅。加 负向前后顾：(?<!\bda\s) 排除前置 "da "、
+           # (?!\s*da\b) 排除后置 " da"，两道都过才认作达妮娅昵称 Da（如 Da is / Da, / (Da)）。
+           ctx=((r"(?<!\bda\s)\bDa\b(?!\s*da\b)", "爸爸"), (r"(?<!\bda\s)\bDa\b(?!\s*da\b)", "Da"), (r"(?<!\bda\s)\bDa\b(?!\s*da\b)", "达的"),
+                (r"(?<!\bda\s)\bDa\b(?!\s*da\b)", "达。"), (r"\bmy wife\b", "娜娜"),
                 (r"\bTenna\b", "特纳"), (r"\bDia\b", "迪亚"), (r"\bDia\b", "Dia"),
                 (r"\bDenia\b", "达妮娅"), (r"\bDenia\b", "丹妮娅"),
                 # "迪娜"=Denia/Dena 谷翻音近，通用译名易误伤他片，只走参考行 \bDena\b/\bDenia\b 佐证
@@ -8993,6 +9054,133 @@ for _songs, _modes, _label in (
                                     "按'单语保留原语言'处理，勿臆造译名。"))
 
 
+# ============================================================
+# 2026-10-15 《A Complete Crashout Regarding Wuthering Waves》精校沉淀
+#   （英文原声·谷歌机翻双语，6934 cue，bi 模式。机械遍 650 处之外仍有 500+
+#     名词漏校，靠新增的 `audit` 子命令「三扫」收口后逐条回填；官方名经
+#     库洛官网 mc.kurogames.com / 百度百科 / 萌娘百科核验。）
+#   戒律：**常用词一律走 ctx 参考行锚定，绝不裸键**——本片谷翻把同一个专名
+#     译成 10~20 种形态，其中大量是正常词（波浪/浪花/风化/天气/风浪/断裂/
+#     裂隙/帝国/紫水晶/欣/疤…），裸键会满片误伤；生僻音译组合才收无条件变体。
+#   ⚠ 另一条硬约束：ctx 是**按列表顺序逐条全量替换**，因此
+#     ① 短键必须排在长键之后（罗伯特 先于 罗伯）；
+#     ② 同一行可能被多条规则命中的常用词（波浪/浪花/风化/风浪/天气）**一律不收**，
+#        否则「风化的波浪」会被替换两次变成「鸣潮的鸣潮」。
+#     这类残留交给 `audit` 子命令扫 3 兜底（参考行有 Weathering 而中文行缺 鸣潮）。
+#   ⚠ 刻意不收：裸「疤」（#3117「伤痕身上有疤吗」是字面义）。
+# ============================================================
+_WW_ANCHOR = r"Weathering|Wuthering|Wintering|Withering|Wooa|Wua|Wuar|WOA"
+_FRACT_ANCHOR = r"Fractus|fracters|Fractsidus"
+_GINSHI_ANCHOR = r"Ginshi|Jinhsi|Ginhi|Jinshi"
+
+for _c, _en, _v, _ctx, _cat, _note in (
+    ("鸣潮", "Wuthering Waves", (),
+     tuple((_WW_ANCHOR, w) for w in (
+         "抵御波浪", "风浪风浪", "风浪风暴", "风浪之风", "风浪风霜", "风浪风云",
+         "风化之浪", "风化之夜", "风化之道", "风化之路", "天气之子", "天气游戏",
+         "天气现象", "凋零")),
+     "作品/游戏",
+     "谷翻把 Weathering Waves 译成 20+ 形态（抵御波浪 / 风浪风浪 / 天气之子 …），"
+     "全部靠参考行锚定。收的都是多字成词形，不收裸 波浪/浪花/风化/风浪/天气。"),
+    ("漂泊者", "Rover", (),
+     ((r"\brover", "月球车"), (r"\brover", "流浪车"),
+      (r"\brover", "罗伯特"), (r"\brover", "罗伯")),
+     "角色/鸣潮",
+     "本片谷翻又把 Rover 译成 月球车 / 流浪车 / 罗伯特 / 罗伯（原表只收 探测车）。"
+     "「罗伯特」是常见人名、「罗伯」过短，一律靠 rover 参考行锚定；"
+     "罗伯特 必须排在 罗伯 之前，否则会被截成「漂泊特」。"),
+    ("残星会", "Fractsidus", (),
+     tuple((_FRACT_ANCHOR, w) for w in
+           ("弗拉克图斯", "裂形体", "裂隙", "断裂")),
+     "势力/组织·鸣潮",
+     "本片谷翻把 Fractus 又译成 裂隙 / 断裂 / 裂形体 / 弗拉克图斯。"
+     "「裂隙 / 断裂」是常用词，一律靠参考行锚定，长键在前。"),
+    ("伤痕", "Scar", (),
+     ((r"\bScar\b", "伤疤"), (r"\bScar\b", "斯卡"), (r"\bScar\b", "刀疤")),
+     "角色/鸣潮/残星会",
+     "⚠ Scar 官方中文名 = 伤痕（百度百科「残星会」：核心成员会监伤痕、弗洛洛、"
+     "克里斯托弗）。原表只收「疤痕」；本片又出现 伤疤 / 斯卡 / 刀疤。"
+     "**绝不收裸「疤」**：#3117「你觉得伤痕身上有疤吗」里第二个「疤」是字面义。"),
+    ("心月狐", "Hsin the Moon Fox", (), ((r"\bHin\b", "欣"),),
+     "角色/岁主·鸣潮",
+     "本片 ASR 把 Hsin 截成 Hin，谷翻作「欣」（#988/#1867/#2630/#2632/#2839）。"
+     "「欣」是常用字，仅 \\bHin\\b 参考行锚定才改。"),
+    ("木禺", "Muyu", (), ((r"Muyu|Amuyu", "阿梦优"),),
+     "角色/鸣潮",
+     "本片谷翻把 Amuyu 译成「阿梦优」（#3440），与既有 8 形同类，靠参考行锚定。"),
+    ("爱弥斯", "Aemeath", (), ((r"\bAmethy\b|Aemeath", "紫水晶"),),
+     "角色/鸣潮",
+     "本片 ASR 把 Aemeath 截成 Amethy，谷翻按字面译成「紫水晶」（#1999 "
+     "Where's my Amethy?）。常用词，靠参考行锚定。"),
+    ("今汐", "Jinhsi", (),
+     tuple((_GINSHI_ANCHOR, w) for w in ("银司", "银石", "银士", "银时")),
+     "角色/鸣潮/今州",
+     "本片 ASR 把 Jinhsi/Ginshi 译成 银司 / 银石 / 银士 / 银时（#5609/#5610/"
+     "#5615/#5617/#5630/#5635）。「银时」是《银魂》人名，必须参考行锚定。"),
+    ("尤诺", "Juno", ("露诺",), (), "角色/鸣潮",
+     "本片谷翻音译「露诺」（#1152/#1726/#1839），生僻组合，无条件变体安全。"),
+    ("卡提希娅", "Cartethyia", ("卡尔蒂娅",), (), "角色/鸣潮",
+     "本片又出「卡尔蒂娅」（#2529），与既有 卡尔蒂亚/卡蒂亚/卡蒂娅 同类。"),
+    ("千咲", "Chisa", ("奇泽",), (), "角色/鸣潮",
+     "本片 ASR 把 Chisa 译成「奇泽」（#6738 My personal bias puts Chiser "
+     "above her），生僻组合，无条件变体安全。"),
+    ("赞妮", "Zani", ("扎尼",), (), "角色/鸣潮",
+     "本片谷翻音译「扎尼」（#5765 unlike Phoebe and Zany），生僻组合。"),
+    ("守岸人", "The Shorekeeper", ("肖基普",), (), "角色/鸣潮",
+     "本片 Shawkeeper 又被音译成「肖基普」（#5754），与既有「肖基珀」同类。"),
+    ("嘉贝莉娜", "Galbrena", ("加尔布里纳", "加尔比娜", "格布林"), (), "角色/鸣潮",
+     "本片 Galbrena 又出 加尔布里纳 / 加尔比娜 / 格布林（#1123/#1503/#4197），"
+     "与既有 加尔布丽娜 / 吉尔布丽娜 同类，均为生僻长键。"),
+    ("七丘", "Septimont", ("塞普提蒙", "塞普顿"), (), "地名/鸣潮",
+     "本片谷翻音译 塞普提蒙 / 塞普顿（#394/#397/#1398/#1630），"
+     "与既有 塞普蒂蒙 / 塞普蒂蒙特 同类。官方：库洛 2.4「全新区域：七丘」。"),
+    ("拉海洛", "Lahai-Roi", ("拉哈罗伊",), (), "地名/鸣潮",
+     "本片谷翻音译「拉哈罗伊」（#574/#648/#2884/#2890），生僻长键安全。"),
+    ("黎那汐塔", "Rinascita", ("雷奈亚",), (), "地名/鸣潮",
+     "本片 ASR 把 Rinascita 念成 Renaia，谷翻「雷奈亚」（#3596），生僻组合。"),
+    ("库洛", "Kuro Games", ("Curro Games", "Kurame"), (), "公司/鸣潮",
+     "本片 ASR 又出 Curro Games / Kurame（#5270/#1931/#653），长键安全。"
+     "「Ko」两字母过短，不收录。"),
+    ("腾讯", "Tencent", ("Tensent", "Tenset"), (), "公司",
+     "本片 ASR 把 Tencent 念成 Tensent / Tenset（#47/#4927），长键安全。"),
+    ("战双帕弥什", "Punishing Gray Raven", ("Weathering Grave Raven",), (),
+     "作品/游戏",
+     "本片 #41 谷翻把 PGR 混成「Weathering Grave Raven」。⚠ 不设 Raven 的 ctx："
+     "#55「惩罚灰Raven」里「惩罚灰」也会被替换，两次叠加成「惩罚灰战双帕弥什」垃圾串；"
+     "该条交人工/侧车。"),
+    ("边狱巴士", "Limbus Company", ("林布斯公司", "林布连"), (), "作品/游戏",
+     "本片谷翻译成「林布斯公司 / 林布连」（#452/#3848）。"
+     "⚠ 官方中文名为《边狱公司》，本表沿用项目既有 canonical「边狱巴士」，"
+     "两者指同一作品，勿重复登记为新实体。"),
+    ("终末地", "Arknights: Endfield", ("Enfield",), (), "作品/游戏",
+     "本片把《明日方舟：终末地》说成 Enfield（#452），生僻长键安全。"),
+    ("声骸", "Echo", (), ((r"\bechoes?\b", "回响"),), "术语/鸣潮",
+     "本片谷翻把 echoes 直译「回响」（#3596），原表只收「回声」。"),
+    ("残象", "Tacet Discord", (),
+     ((r"[Dd]iscord monsters?", "Discord怪物"),), "术语/鸣潮",
+     "本片谷翻把 Tacet Discord 直译「Discord怪物」（#3601/#3606），靠参考行锚定。"),
+    ("利维亚坦", "Leviathan", (), ((r"Leviathan", "利维坦"),), "角色/鸣潮",
+     "本片谷翻按通用译名作「利维坦」（#3000/#3004），鸣潮官方名为利维亚坦。"),
+    ("英白拉多", "Imperator", (), ((r"Empera|Imperator", "帝国"),), "角色/鸣潮",
+     "本片 #1392/#1813 谷翻把 Imperator/Emphera 译成「帝国 / Empirata」，"
+     "「帝国」是常用词，靠参考行锚定。"),
+    ("吟霖", "Yinlin", (), ((r"\bYin\b", "尹氏"),), "角色/鸣潮",
+     "本片 #5610 谷翻把 Yin 译成「尹氏」（the jiggle. Yin's），靠参考行锚定。"),
+    ("异环", "Neverness to Everness", ("NTE",), (), "作品/游戏",
+     "库洛发行商作品 NTE = 《异环》（官方中文名）。"),
+    ("边缘行者", "Edgerunners", ("Edge Runners", "Edgeunners", "Edge 跑者",
+                                 "边缘跑者"), (), "作品/动画",
+     "本片 #2725/#6024/#6035/#6039 提到《赛博朋克：边缘行者》，"
+     "谷翻作 Edge 跑者 / 边缘跑者 / Edgeunners，统一为官方译名。"),
+    ("使命召唤", "Call of Duty", ("COD",), (), "作品/游戏",
+     "本片 #2174「傻乎乎的COD后果」，COD 即 Call of Duty 官方中文名。"),
+    ("少女前线", "Girls' Frontline", ("女孩前线",), (), "作品/游戏",
+     "本片 #3842/#3843 谷翻把 Girls' Frontline 直译「女孩前线」。"),
+):
+    ENTITIES.append(Entity(_c, modes=("bi",), en=_en, variants=_v, ctx=_ctx,
+                           category=_cat, note=_note))
+
+
 def _register_entities(entities=ENTITIES):
     """把 ENTITIES 投影进扁平表，并重建正则缓存（import 时执行一次）。
 
@@ -9108,6 +9296,315 @@ def _kb_view():
         if e0.note:
             e["note"] = (e["note"] + "；" + e0.note) if e["note"] else e0.note
     return kb
+
+
+#: audit 扫 1 白名单：中文行里出现这些拉丁串属正常（抽卡分级术语、中文语境通用外来词），
+#: 不算「未翻译残留」；其余一律进候选交人工裁决。
+_AUDIT_LATIN_OK = re.compile(
+    r"^(?:"
+    r"[A-FS]\+?|S\d+(?:\s*R\d+)?|SR\d+(?:\s*R\d+)?|SSS|SSR|EX|UR|"
+    r"YouTube|YouTuber|VOD|Xbox|NPC|MVP|PNG|JPG|DNA|OK|PC|PS5|HP|DPS|UI|AI|"
+    r"bug|Boss|Incel|Discord|Gacha|gacha|NTE"
+    r")$", re.I)
+
+#: 从 ctx 参考行正则里抠「纯外文字面量」时要剥掉的正则噪声。
+_AUDIT_RX_NOISE = re.compile(
+    r"\\[bBsSdDwWzZ]|\(\?:|\(\?!|\(\?=|[\r\n\t()\[\]{}+*?^$|.\\:]")
+#: 常见英文虚词/普通词：从正则里抠出来也绝不作为锚点，避免扫 3 噪声。
+_AUDIT_STOP = {
+    "the", "and", "for", "are", "was", "were", "with", "that", "this", "you",
+    "your", "his", "her", "its", "they", "them", "she", "him", "not", "but",
+    "all", "any", "can", "will", "would", "could", "should", "have", "has",
+    "had", "from", "into", "over", "out", "one", "two", "way", "ways", "wave",
+    "waves", "thing", "things", "stuff", "people", "man", "men", "woman",
+    "girl", "boy", "time", "day", "life", "world", "game", "story", "good",
+    "bad", "big", "new", "old", "more", "most", "much", "many", "some",
+    "only", "just", "like", "love", "hate", "want", "need", "get", "got",
+    "going", "come", "came", "see", "look", "know", "think", "say", "said",
+    "tell", "make", "made", "take", "give", "find", "feel", "keep", "let",
+    "put", "turn", "play", "work", "call", "ask", "try", "use", "move",
+    "live", "right", "left", "same", "other", "another", "there", "here",
+    "what", "when", "where", "why", "how", "who", "because", "about",
+    "after", "before", "again", "still", "even", "very", "really", "back",
+    "first", "last", "next", "name", "part", "side", "hand", "head", "end",
+    "now", "then", "than", "too", "also", "being", "been", "does", "did",
+    "space", "character", "release", "beginning", "norm", "pull", "anger",
+    "able", "poor", "little", "ions", "sick", "aura", "shin", "meth",
+    "line", "form", "type", "kind", "sort", "case", "point", "place",
+    "team", "group", "level", "order", "power", "light", "dark", "fire",
+    "water", "earth", "wind", "sound", "voice", "song", "music", "art",
+    "meta", "plot", "start", "main", "nothing", "eggs", "creep", "well",
+    "chosen", "telling", "maintain", "gameplay", "setting", "legend",
+    "moon", "war", "sun", "star", "sky", "sea", "land", "king", "queen",
+    "lord", "lady", "god", "angel", "demon", "dragon", "tiger", "wolf",
+    "guardian", "guard", "solar", "solaris", "festival", "lang", "alto",
+}
+
+
+def _iter_cue_triples(src):
+    """SRT → (版式, [(序号, 中文行, 参考行)])；mono 版式的参考行为空串。"""
+    raw = open(src, "rb").read()
+    norm = _decode_any(raw).replace("\r\n", "\n").replace("\r", "\n")
+    lines = norm.split("\n")
+    layout = _detect_layout(lines)
+    out, i, n = [], 0, len(lines)
+    while i < n:
+        s = lines[i].strip()
+        if s.isdigit() and (i == 0 or lines[i - 1].strip() == ""):
+            j = i + 1
+            if j < n and "-->" in lines[j]:
+                kk = j + 1
+                while kk < n and lines[kk].strip() != "":
+                    kk += 1
+                texts = lines[j + 1:kk]
+                if texts:
+                    if layout == "mono":
+                        out.append((s, "\n".join(texts), ""))
+                    else:
+                        zh = "\n".join(texts[:-1]) if len(texts) > 1 else texts[0]
+                        out.append((s, zh, texts[-1]))
+                i = kk
+                continue
+        i += 1
+    return layout, out
+
+
+def _audit_names(en, ja, ko):
+    """官方外文名（en/ja/ko）拆成可锚定片段（≥3 字符、纯外文）。"""
+    pool = []
+    for nm in (en, ja, ko):
+        if not nm:
+            continue
+        for part in re.split(r"[/,;]", nm):
+            part = part.strip()
+            if len(part) < 3 or not re.match(r"^[A-Za-z][A-Za-z' \-\.]*$", part):
+                continue
+            pool.append(part)
+    return pool
+
+
+def _audit_ctx_literals(rx, variants_lc=()):
+    """把一条 ctx 参考行正则拆成可用于锚定的**专名型**外文字面量。
+
+    例：`\\brover` → rover（"Rover" 是该实体的已知错形）；`Fractus|fracters`
+    → Fractus / fracters（首字母大写）。
+
+    ⚠ 只认「像专名」的字面量：首字母大写，或本来就是该实体 variants 里的错形。
+    否则 bi 模式那张跨片源共用的 CONTEXT_MAP 会把 gameplay / plot / nothing /
+    start 这类常用词锚点全带进来，实测扫 3 从 ~60 条虚高到 986 条。
+    """
+    out = []
+    for part in str(rx).split("|"):
+        s = _AUDIT_RX_NOISE.sub(" ", part)
+        for tok in s.split():
+            t = tok.strip("'\"-")
+            if len(t) < 3 or not re.match(r"^[A-Za-z][A-Za-z'\-]*$", t):
+                continue
+            low = t.lower()
+            if low in _AUDIT_STOP:
+                continue
+            if not (t[0].isupper() or low in variants_lc):
+                continue
+            out.append(t)
+    return out
+
+
+def _audit_mode_scope(mode):
+    """按模式取「生效的」错形表与参考行锚点。
+
+    ⚠ 必须**按模式**取：`_kb_view()` 会把各模式的 ctx/变体合并成一个对象，
+    直接拿来扫会把别的片源的规则（如某模式的 space→虚质空间）当成漏校。
+    返回 (错形→官方名 字典, [(锚点字面量, 官方名)])。
+    """
+    g = globals()
+    wrong2right = {}
+    anchors = []
+    variants_lc = {}          # canonical -> {小写变体}，用于判定 ctx 字面量像不像专名
+    ctx_by_canon = {}         # canonical -> [参考行正则]
+
+    def _reg_variant(canon, w):
+        if w:
+            variants_lc.setdefault(canon, set()).add(str(w).lower())
+
+    # ---- 第一遍：错形表 + 变体 + 外文名锚点 ----
+    tname = _MODE_TERM_TABLE.get(mode)
+    for wrong, right in (g.get(tname) or {}).items():
+        if wrong and right and wrong != right:
+            wrong2right.setdefault(wrong, right)
+            _reg_variant(right, wrong)
+    for e in ENTITIES:
+        if mode and mode not in e.modes:
+            continue
+        for w in e.variants:
+            if w and w != e.canonical:
+                wrong2right.setdefault(w, e.canonical)
+                _reg_variant(e.canonical, w)
+        for rx, w in e.ctx:
+            if w:
+                wrong2right.setdefault(w, e.canonical)
+            ctx_by_canon.setdefault(e.canonical, []).append(rx)
+        for nm in _audit_names(e.en, e.ja, e.ko):
+            anchors.append((nm, e.canonical))
+
+    # ---- 第二遍：ctx 参考行锚点（需先知道该实体的变体集合）----
+    cname = _MODE_CTX_TABLE.get(mode)
+    for item in (g.get(cname) or []):
+        rx, wrong, right = (list(item) + [None, None])[:3]
+        if not right:
+            continue
+        if wrong:
+            wrong2right.setdefault(wrong, right)
+            _reg_variant(right, wrong)
+        ctx_by_canon.setdefault(right, []).append(rx)
+    for canon, rxs in ctx_by_canon.items():
+        vl = variants_lc.get(canon, set())
+        for rx in rxs:
+            for lit in _audit_ctx_literals(rx, vl):
+                anchors.append((lit, canon))
+    return wrong2right, anchors
+
+
+def _audit_build_alt(pairs, boundary=True):
+    """[(匹配串, 载荷)] → 一次性交替正则（长键优先）+ 索引。
+
+    boundary=True 时整体加拉丁词边界：锚点全是纯外文串，不加边界会把
+    「Shin」命中到「China」这类子串上，凭空多出噪声。
+    """
+    idx = {}
+    for key, payload in pairs:
+        idx.setdefault(key, []).append(payload)
+    keys = sorted(idx, key=len, reverse=True)
+    if not keys:
+        return None, idx
+    body = "|".join(re.escape(k) for k in keys)
+    rx = re.compile((r"(?<![A-Za-z0-9])(?:" + body + r")(?![A-Za-z0-9])")
+                    if boundary else body)
+    return rx, idx
+
+
+def _cmd_audit(src, mode="bi", out=None, as_json=False, limit=300, loose=False):
+    """audit：校准后成品的「名词漏校三扫」（机械遍 / AI 校准之后的收口体检）。
+
+    扫 1  拉丁残留      —— 中文行里白名单外的英文/罗马字（分级字母、通用外来词不计）。
+    扫 2  错形残留      —— 本模式生效的「无条件变体 / ctx 条件错形」命中中文行、
+                           官方名却不在该行；且参考行佐证该实体（命中专名型锚点）。
+                           这类可直接采纳。`--loose` 追加「无佐证」的低置信项
+                           （错形表里混有常用词作锚点，噪声大，必须人工过筛）。
+    扫 3  同词族一致性  —— 参考行命中锚点、中文行却没有对应官方名。反向核查查不出这类
+                           （每种错形都不是「官方名缺失」），是漏校的主力来源。
+
+    退出码：1＝有候选（可当门禁），0＝干净。
+    """
+    if not os.path.isfile(src):
+        print(f"文件不存在：{src}")
+        return 1
+    layout, cues = _iter_cue_triples(src)
+    wrong2right, anchor_pairs = _audit_mode_scope(mode)
+
+    # ---- 扫 1：拉丁残留 ----
+    s1 = []
+    for num, zh, _ref in cues:
+        bad = [t for t in re.findall(r"[A-Za-z][A-Za-z'\-\.]*", zh)
+               if not _AUDIT_LATIN_OK.match(t)]
+        if bad:
+            s1.append((num, zh, "、".join(dict.fromkeys(bad))))
+
+    # 参考行锚点 → 本 cue 应出现的官方名（一次正则；供扫 2 定置信、扫 3 找缺口）
+    arx, aidx = _audit_build_alt(anchor_pairs)
+
+    # ---- 扫 2 / 扫 3 ----
+    wrx, widx = _audit_build_alt(
+        [(w, c) for w, c in wrong2right.items() if len(w) >= 2 and w not in c],
+        boundary=False)
+    s2_hi, s2_lo, s3 = [], [], []
+    for num, zh, ref in cues:
+        ref_targets = {}
+        if ref and arx is not None:
+            for m in arx.finditer(ref):
+                grp = aidx[m.group(0)]
+                # 同一锚点常挂多个官方名（如 Sentinel → 岁主 / 锁暝 / 前任岁主）。
+                # 只要其中任意一个已经出现在中文行，就说明这条已校准，全部放过。
+                if any(c in zh for c in grp):
+                    continue
+                for canon in grp:
+                    ref_targets.setdefault(canon, m.group(0))
+        if wrx is not None:
+            for m in wrx.finditer(zh):
+                for canon in widx[m.group(0)]:
+                    if canon in zh:
+                        continue
+                    rec = (num, zh, m.group(0), canon)
+                    (s2_hi if canon in ref_targets else s2_lo).append(rec)
+        for canon, lit in ref_targets.items():
+            if canon and canon not in zh:
+                s3.append((num, zh, lit, canon))
+
+    dirty = bool(s1 or s2_hi or s3)
+
+    if as_json:
+        import json
+        print(json.dumps({
+            "src": src, "layout": layout, "mode": mode, "cues": len(cues),
+            "wrong_forms": len(wrong2right), "anchors": len(set(anchor_pairs)),
+            "latin_residue": [{"num": n, "zh": z, "tokens": t} for n, z, t in s1],
+            "variant_residue_high": [{"num": n, "zh": z, "wrong": w, "official": c}
+                                     for n, z, w, c in s2_hi],
+            "variant_residue_low": [{"num": n, "zh": z, "wrong": w, "official": c}
+                                    for n, z, w, c in s2_lo],
+            "family_gap": [{"num": n, "zh": z, "anchor": lit, "official": c}
+                           for n, z, lit, c in s3],
+        }, ensure_ascii=False, indent=2))
+        return 1 if dirty else 0
+
+    L = [f"名词漏校三扫：{src}",
+         f"  版式 {layout} | 模式 {mode} | cue {len(cues)} | "
+         f"本模式错形 {len(wrong2right)} 条 / 参考行锚点 {len(set(anchor_pairs))} 条",
+         "",
+         f"扫 1  拉丁残留              {len(s1)} 处",
+         f"扫 2  错形残留（已佐证）    {len(s2_hi)} 处",
+         f"扫 2  错形残留（未佐证）    {len(s2_lo)} 处"
+         + ("" if loose else "（用 --loose 展开；错形表含常用词锚点，噪声大）"),
+         f"扫 3  同词族一致性          {len(s3)} 处",
+         ""]
+    if s1:
+        L.append("【扫 1】中文行白名单外的拉丁串：")
+        for num, zh, tok in s1[:limit]:
+            L.append(f"  #{num} [{tok}] {zh}")
+        if len(s1) > limit:
+            L.append(f"  … 另有 {len(s1) - limit} 处")
+        L.append("")
+    if s2_hi:
+        L.append("【扫 2】错形 → 官方名（参考行已佐证，可直接采纳）：")
+        for num, zh, w, c in s2_hi[:limit]:
+            L.append(f"  #{num} {w} → {c} | {zh}")
+        if len(s2_hi) > limit:
+            L.append(f"  … 另有 {len(s2_hi) - limit} 处")
+        L.append("")
+    if loose and s2_lo:
+        L.append("【扫 2·未佐证】错形 → 官方名（慎改）：")
+        for num, zh, w, c in s2_lo[:limit]:
+            L.append(f"  #{num} {w} → {c} | {zh}")
+        if len(s2_lo) > limit:
+            L.append(f"  … 另有 {len(s2_lo) - limit} 处")
+        L.append("")
+    if s3:
+        L.append("【扫 3】参考行命中锚点、中文行缺官方名：")
+        for num, zh, lit, c in s3[:limit]:
+            L.append(f"  #{num} [{lit}] 应为「{c}」| {zh}")
+        if len(s3) > limit:
+            L.append(f"  … 另有 {len(s3) - limit} 处")
+        L.append("")
+    if not dirty:
+        L.append("三扫全过：无高置信漏校候选。")
+    text = "\n".join(L)
+    if out:
+        with open(out, "w", encoding="utf-8", newline="") as f:
+            f.write(text + "\n")
+        print(f"三扫报告已写入：{out}")
+        print("\n".join(text.split("\n")[:9]))
+    else:
+        print(text)
+    return 1 if dirty else 0
 
 
 def _cmd_kb_export(out=None, as_json=False):
@@ -11241,7 +11738,8 @@ def main_argv():
                    "stabilize",
                    "kb-export", "kb-lookup", "kb-lint",
                    "learn", "learned-show", "learned-promote", "learned-reject",
-                   "kb-sync", "kb-push", "detect-mode", "detectmode"):
+                   "kb-sync", "kb-push", "detect-mode", "detectmode",
+                   "audit"):
             # length 用退出码当门禁（超限 1），其余子命令返回 None -> 0
             sys.exit(_dispatch_subcommand(sub, argv[1:]) or 0)
 
@@ -11444,6 +11942,8 @@ def _dispatch_subcommand(sub, args):
             opts[a[2:]] = args[i + 1]; i += 2
         elif a == "--json":
             opts["json"] = True; i += 1
+        elif a == "--loose":
+            opts["loose"] = True; i += 1
         elif a == "--entities":
             opts["entities"] = True; i += 1
         elif a in ("--kb", "--mode", "--learned") and i + 1 < len(args):
@@ -11534,6 +12034,15 @@ def _dispatch_subcommand(sub, args):
                               bool(opts.get("split", True)))
     elif sub in ("terms-check", "termscheck", "terms"):
         _cmd_terms_check(pos)
+    elif sub == "audit":
+        if not pos:
+            print("用法: audit <校准后.srt> [--mode bi] [--out 报告.md] [--json] [--loose]")
+            print("      名词漏校三扫：拉丁残留 / 知识库错形残留 / 同词族一致性。")
+            print("      退出码 1＝有候选（可当门禁），0＝干净。")
+            return 1
+        return _cmd_audit(pos[0], opts.get("mode", "bi"), opts.get("out"),
+                          bool(opts.get("json")), loose=bool(opts.get("loose")))
+
     elif sub == "kb-export":
         _cmd_kb_export(opts.get("out"), as_json=bool(opts.get("json")))
     elif sub == "kb-lookup":
@@ -12098,6 +12607,7 @@ def _sync_apply(applied):
         f.write(json_dumps({"schema": 1, "entries": keyed}) + "\n")
     g = globals()
     n_terms = n_ctx = n_kb = 0
+    _kb_pending.clear()
     for key, e in applied.items():
         table, mode, k, v = key[0], key[1], e["key"], e["value"]
         if table == "ENTITIES_VARIANT":
@@ -12133,35 +12643,121 @@ def _sync_apply(applied):
                     exc[k] = (v, tuple(rxs))
                 n_ctx += 1
         elif table == "LEARNED_CANDIDATE":
-            n_kb += _sync_apply_learned_candidate(mode, k, v, e)
+            _kb_pending.append((mode, k, v, e))
+    if _kb_pending:
+        n_kb = _sync_apply_learned_batch(_kb_pending)
     if n_terms or n_ctx:
         _rebuild_context_caches()
     _sync_log(f"应用 {len(applied)} 条（terms {n_terms} / ctx {n_ctx} / 学习库 {n_kb}）")
     return n_terms + n_ctx + n_kb
 
 
-def _sync_apply_learned_candidate(mode, wrong, right, e):
-    """LEARNED_CANDIDATE -> 学习库 confirmed 候选（键 "模式|错形"，自然对接
-    校准运行时的 learned 注入）。"""
-    ev = e.get("evidence") or {}
+#: 本批待写入学习库的候选（``_sync_apply`` 收集，循环结束后**一次**落盘）。
+_kb_pending = []
+
+
+def _learned_kb_backup(kb_path, keep=5):
+    """学习库落盘前备份（``<name>.bak_YYYYmmdd_HHMMSS``，只留最近 keep 份）。
+
+    为什么要备份（2026-10-19）：同步通道 ``_sync_apply_learned_batch`` 会
+    把远端条目**写进用户真实的学习库**，而它由 ``main_argv`` 里那次
+    ``_sync_maybe_auto()`` 触发——也就是「用户只是跑了一次校准」就会改
+    全局学习库。实测当日一次校准就让 300+ 条候选的 first/last 变成今天。
+    没有备份时，一次误同步就是不可逆的数据改写。
+    """
+    if not (kb_path and os.path.isfile(kb_path)):
+        return ""
+    import datetime as _dt
+    import glob as _glob
+    import shutil as _shutil
+    stamp = _dt.datetime.now().strftime("%Y%m%d_%H%M%S")
+    dst = f"{kb_path}.bak_{stamp}"
+    if os.path.exists(dst):
+        return dst
+    try:
+        _shutil.copy2(kb_path, dst)
+    except OSError:
+        return ""
+    # 只留最近 keep 份：按文件名里的时间戳排序（同秒并列时保留靠后的）
+    olds = sorted(_glob.glob(f"{kb_path}.bak_*"))
+    for p in olds[:-keep] if len(olds) > keep else []:
+        try:
+            os.remove(p)
+        except OSError:
+            pass
+    return dst
+
+
+def _sync_apply_learned_batch(pending):
+    """一批 LEARNED_CANDIDATE 增量**一次性**写入学习库，返回实际变更条数。
+
+    与逐条写入的区别（都改了，逐条是原来那版）：
+      1. **只落盘一次**：原来 ``_sync_apply`` 循环里每条都 ``_load`` + ``_save``
+         整个 JSON（数百条约等于反复重写 100KB 文件）；
+      2. **未变更条目不重建**：原来命中同一条目时也整体重建 dict，
+         ``first/last`` 被刷成今天——这在数据上是「改写了历史」，用户完全
+         看不出来（实测一次校准把 312 条 first/last 全刷成当日）；
+      3. **写盘前备份**（见 :func:`_learned_kb_backup`）；
+      4. **日志可追溯**：把本批真正写进去的键记一行（原来只有条数）。
+    """
+    if not pending:
+        return 0
     kb_path = (os.environ.get("VT_SYNC_KB") or "").strip() or LEARNED_KB_DEFAULT
     kb = _load_learned_kb(kb_path)
-    k = f"{mode}|{wrong}"
-    c = kb["candidates"].get(k)
-    if c is not None and (c.get("status") == "rejected"
-                          or (c.get("right") and c["right"] != right)):
-        return 0                        # 本地已有裁决/冲突，不覆盖
     import datetime as _dt
     today = _dt.date.today().isoformat()
-    c = {"wrong": wrong, "right": right, "mode": mode,
-         "count": int(ev.get("count") or 1), "uncorrected": 0,
-         "status": "confirmed", "cues": list(ev.get("cues") or [])[:20],
-         "samples": [], "ref_tokens": {}, "unc_ref_tokens": {},
-         "first": today, "last": today, "alts": {},
-         "sync": True}
-    kb["candidates"][k] = c
-    _save_learned_kb(kb, kb_path)
-    return 1
+    changed = []
+    skipped = 0
+    for mode, wrong, right, e in pending:
+        ev = (e or {}).get("evidence") or {}
+        k = f"{mode}|{wrong}"
+        old = kb["candidates"].get(k)
+        if old is not None and (
+                old.get("status") == "rejected"
+                or (old.get("right") and old["right"] != right)):
+            skipped += 1            # 本地已有裁决/冲突：不覆盖
+            continue
+        new_count = int(ev.get("count") or 1)
+        new_cues = list(ev.get("cues") or [])[:20]
+        if old is not None:
+            # 值没变就不动（保留 first/last 与累计证据）
+            if old.get("right") == right and old.get("status") == "confirmed" \
+                    and int(old.get("count") or 0) >= new_count:
+                continue
+            merged_cues = list(dict.fromkeys(list(old.get("cues") or []) + new_cues))
+            old.update({
+                "right": right,
+                "count": max(int(old.get("count") or 0), new_count),
+                "cues": merged_cues[:20],
+                "status": "confirmed",
+                "last": today,
+                "sync": True,
+            })
+            changed.append(k)
+            continue
+        kb["candidates"][k] = {
+            "wrong": wrong, "right": right, "mode": mode,
+            "count": new_count, "uncorrected": 0,
+            "status": "confirmed", "cues": new_cues,
+            "samples": [], "ref_tokens": {}, "unc_ref_tokens": {},
+            "first": today, "last": today, "alts": {},
+            "sync": True,
+        }
+        changed.append(k)
+    if changed:
+        bak = _learned_kb_backup(kb_path)
+        _save_learned_kb(kb, kb_path)
+        head = "、".join(changed[:5]) + ("…" if len(changed) > 5 else "")
+        _sync_log(
+            f"学习库写入 {len(changed)} 条（{head}）"
+            + (f"；备份 {os.path.basename(bak)}" if bak else "")
+            + (f"；跳过 {skipped} 条（本地已裁决/目标冲突）" if skipped else ""))
+    return len(changed)
+
+
+def _sync_apply_learned_candidate(mode, wrong, right, e):
+    """单条入口（保留兼容）：转调批量版。"""
+    return _sync_apply_learned_batch([(mode, wrong, right, e)])
 
 
 def _sync_write_conflicts(conflicts):

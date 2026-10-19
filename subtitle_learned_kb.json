@@ -1,20 +1,73 @@
 {
  "version": 1,
  "candidates": {
-  "bi|给了他一个": {
-   "wrong": "给了他一个",
-   "right": "给了她",
+  "bi|银琳": {
+   "wrong": "银琳",
+   "right": "吟霖",
    "mode": "bi",
-   "count": 2,
+   "count": 5,
    "uncorrected": 0,
    "status": "confirmed",
    "cues": [
-    258
+    128,
+    129,
+    133,
+    135,
+    138
    ],
-   "samples": [],
-   "ref_tokens": {},
+   "samples": [
+    [
+     "就在",
+     "要进来的时候",
+     "就在",
+     "要进来的时候"
+    ],
+    [
+     "肯定是",
+     "要去的时候",
+     "肯定是",
+     "要去的时候"
+    ],
+    [
+     "是的。如果",
+     "出现在",
+     "是的。如果",
+     "出现在"
+    ],
+    [
+     "爱",
+     "。她是我的第一个限量版，",
+     "爱",
+     "。她是我的第一个限量版，"
+    ],
+    [
+     "很确定",
+     "是我的第一个",
+     "很确定",
+     "是我的第一个"
+    ]
+   ],
+   "ref_tokens": {
+    "going": 2,
+    "This": 1,
+    "Yinlin's": 2,
+    "come": 1,
+    "when": 2,
+    "definitely": 1,
+    "Yeah": 1,
+    "What": 1,
+    "appears": 1,
+    "Yinlin": 3,
+    "limited": 1,
+    "She's": 1,
+    "love": 1,
+    "first": 2,
+    "was": 1,
+    "sure": 1,
+    "Pretty": 1
+   },
    "unc_ref_tokens": {},
-   "first": "2026-10-10",
+   "first": "2026-10-19",
    "last": "2026-10-19",
    "alts": {},
    "sync": true
@@ -34,24 +87,6 @@
    "unc_ref_tokens": {},
    "first": "2026-10-10",
    "last": "2026-10-19",
-   "alts": {},
-   "sync": true
-  },
-  "bi|停留": {
-   "wrong": "停留",
-   "right": "保持",
-   "mode": "bi",
-   "count": 2,
-   "uncorrected": 0,
-   "status": "rejected",
-   "cues": [
-    272
-   ],
-   "samples": [],
-   "ref_tokens": {},
-   "unc_ref_tokens": {},
-   "first": "2026-10-10",
-   "last": "2026-10-15",
    "alts": {},
    "sync": true
   },
@@ -287,7 +322,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-02",
-   "last": "2026-10-14",
+   "last": "2026-10-19",
    "alts": {},
    "sync": true
   },
@@ -1419,7 +1454,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-02",
-   "last": "2026-10-14",
+   "last": "2026-10-19",
    "alts": {},
    "sync": true
   },
@@ -1727,7 +1762,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-02",
-   "last": "2026-10-14",
+   "last": "2026-10-19",
    "alts": {},
    "sync": true
   },
@@ -1903,30 +1938,30 @@
     ]
    ],
    "ref_tokens": {
-    "Sushin": 292149825595516,
-    "Sushi": 333885514966304,
-    "sushi": 417356893707880,
-    "lead": 166942757483152,
-    "Arbiter": 166942757483152,
-    "will": 166942757483152,
-    "Focus": 208678446853940,
-    "ground": 208678446853940,
-    "Sushi's": 83471378741576,
-    "clearance": 41735689370788,
-    "from": 41735689370788,
-    "the": 125207068112364,
-    "comes": 41735689370788,
-    "power": 41735689370788,
-    "could": 41735689370788,
-    "reclaimed": 41735689370788,
-    "inevitable": 41735689370788,
-    "Susheen": 41735689370788,
-    "sushin": 41735689370788,
-    "pop": 41735689370788
+    "Sushin": 584299651191032,
+    "Sushi": 667771029932608,
+    "sushi": 834713787415760,
+    "lead": 333885514966304,
+    "Arbiter": 333885514966304,
+    "will": 333885514966304,
+    "Focus": 417356893707880,
+    "ground": 417356893707880,
+    "Sushi's": 166942757483152,
+    "clearance": 83471378741576,
+    "from": 83471378741576,
+    "the": 250414136224728,
+    "comes": 83471378741576,
+    "power": 83471378741576,
+    "could": 83471378741576,
+    "reclaimed": 83471378741576,
+    "inevitable": 83471378741576,
+    "Susheen": 83471378741576,
+    "sushin": 83471378741576,
+    "pop": 83471378741576
    },
    "unc_ref_tokens": {},
    "first": "2026-10-02",
-   "last": "2026-10-14",
+   "last": "2026-10-19",
    "alts": {},
    "sync": true
   },
@@ -2233,7 +2268,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-05",
-   "last": "2026-10-14",
+   "last": "2026-10-19",
    "alts": {},
    "sync": true
   },
@@ -3769,7 +3804,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-07",
-   "last": "2026-10-14",
+   "last": "2026-10-19",
    "alts": {},
    "sync": true
   },
@@ -3925,7 +3960,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-07",
-   "last": "2026-10-14",
+   "last": "2026-10-19",
    "alts": {},
    "sync": true
   },
@@ -5268,24 +5303,6 @@
    "alts": {},
    "sync": true
   },
-  "bi|想要的是": {
-   "wrong": "想要的是",
-   "right": "想要借",
-   "mode": "bi",
-   "count": 2,
-   "uncorrected": 0,
-   "status": "rejected",
-   "cues": [
-    2
-   ],
-   "samples": [],
-   "ref_tokens": {},
-   "unc_ref_tokens": {},
-   "first": "2026-10-10",
-   "last": "2026-10-15",
-   "alts": {},
-   "sync": true
-  },
   "bi|仅有的": {
    "wrong": "仅有的",
    "right": "我只",
@@ -5517,24 +5534,6 @@
    "unc_ref_tokens": {},
    "first": "2026-10-10",
    "last": "2026-10-19",
-   "alts": {},
-   "sync": true
-  },
-  "bi|应得的": {
-   "wrong": "应得的",
-   "right": "不配拥有",
-   "mode": "bi",
-   "count": 2,
-   "uncorrected": 0,
-   "status": "rejected",
-   "cues": [
-    119
-   ],
-   "samples": [],
-   "ref_tokens": {},
-   "unc_ref_tokens": {},
-   "first": "2026-10-10",
-   "last": "2026-10-15",
    "alts": {},
    "sync": true
   },
@@ -5826,24 +5825,6 @@
    "alts": {},
    "sync": true
   },
-  "bi|我遇到的角色": {
-   "wrong": "我遇到的角色",
-   "right": "我逐渐",
-   "mode": "bi",
-   "count": 2,
-   "uncorrected": 0,
-   "status": "rejected",
-   "cues": [
-    262
-   ],
-   "samples": [],
-   "ref_tokens": {},
-   "unc_ref_tokens": {},
-   "first": "2026-10-10",
-   "last": "2026-10-15",
-   "alts": {},
-   "sync": true
-  },
   "bi|障碍。  这使得": {
    "wrong": "障碍。  这使得",
    "right": "障碍。  这让",
@@ -5894,7 +5875,7 @@
    "ref_tokens": {},
    "unc_ref_tokens": {},
    "first": "2026-10-10",
-   "last": "2026-10-14",
+   "last": "2026-10-19",
    "alts": {},
    "sync": true
   },
@@ -6258,24 +6239,6 @@
    "alts": {},
    "sync": true
   },
-  "bi|重要人物": {
-   "wrong": "重要人物",
-   "right": "自我怀疑，",
-   "mode": "bi",
-   "count": 2,
-   "uncorrected": 0,
-   "status": "rejected",
-   "cues": [
-    257
-   ],
-   "samples": [],
-   "ref_tokens": {},
-   "unc_ref_tokens": {},
-   "first": "2026-10-10",
-   "last": "2026-10-15",
-   "alts": {},
-   "sync": true
-  },
   "bi|漫游者。  她做": {
    "wrong": "漫游者。  她做",
    "right": "漂泊者。  她做",
@@ -6597,6 +6560,114 @@
    "unc_ref_tokens": {},
    "first": "2026-10-10",
    "last": "2026-10-19",
+   "alts": {},
+   "sync": true
+  },
+  "bi|给了他一个": {
+   "wrong": "给了他一个",
+   "right": "给了她",
+   "mode": "bi",
+   "count": 2,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    258
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-10-10",
+   "last": "2026-10-19",
+   "alts": {},
+   "sync": true
+  },
+  "bi|停留": {
+   "wrong": "停留",
+   "right": "保持",
+   "mode": "bi",
+   "count": 2,
+   "uncorrected": 0,
+   "status": "rejected",
+   "cues": [
+    272
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-10-10",
+   "last": "2026-10-15",
+   "alts": {},
+   "sync": true
+  },
+  "bi|想要的是": {
+   "wrong": "想要的是",
+   "right": "想要借",
+   "mode": "bi",
+   "count": 2,
+   "uncorrected": 0,
+   "status": "rejected",
+   "cues": [
+    2
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-10-10",
+   "last": "2026-10-15",
+   "alts": {},
+   "sync": true
+  },
+  "bi|应得的": {
+   "wrong": "应得的",
+   "right": "不配拥有",
+   "mode": "bi",
+   "count": 2,
+   "uncorrected": 0,
+   "status": "rejected",
+   "cues": [
+    119
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-10-10",
+   "last": "2026-10-15",
+   "alts": {},
+   "sync": true
+  },
+  "bi|我遇到的角色": {
+   "wrong": "我遇到的角色",
+   "right": "我逐渐",
+   "mode": "bi",
+   "count": 2,
+   "uncorrected": 0,
+   "status": "rejected",
+   "cues": [
+    262
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-10-10",
+   "last": "2026-10-15",
+   "alts": {},
+   "sync": true
+  },
+  "bi|重要人物": {
+   "wrong": "重要人物",
+   "right": "自我怀疑，",
+   "mode": "bi",
+   "count": 2,
+   "uncorrected": 0,
+   "status": "rejected",
+   "cues": [
+    257
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-10-10",
+   "last": "2026-10-15",
    "alts": {},
    "sync": true
   },
@@ -15161,77 +15232,6 @@
    "unc_ref_tokens": {},
    "first": "2026-10-10",
    "last": "2026-10-12",
-   "alts": {},
-   "sync": true
-  },
-  "bi|银琳": {
-   "wrong": "银琳",
-   "right": "吟霖",
-   "mode": "bi",
-   "count": 5,
-   "uncorrected": 0,
-   "status": "confirmed",
-   "cues": [
-    128,
-    129,
-    133,
-    135,
-    138
-   ],
-   "samples": [
-    [
-     "就在",
-     "要进来的时候",
-     "就在",
-     "要进来的时候"
-    ],
-    [
-     "肯定是",
-     "要去的时候",
-     "肯定是",
-     "要去的时候"
-    ],
-    [
-     "是的。如果",
-     "出现在",
-     "是的。如果",
-     "出现在"
-    ],
-    [
-     "爱",
-     "。她是我的第一个限量版，",
-     "爱",
-     "。她是我的第一个限量版，"
-    ],
-    [
-     "很确定",
-     "是我的第一个",
-     "很确定",
-     "是我的第一个"
-    ]
-   ],
-   "ref_tokens": {
-    "going": 2,
-    "This": 1,
-    "Yinlin's": 2,
-    "come": 1,
-    "when": 2,
-    "definitely": 1,
-    "Yeah": 1,
-    "What": 1,
-    "appears": 1,
-    "Yinlin": 3,
-    "limited": 1,
-    "She's": 1,
-    "love": 1,
-    "first": 2,
-    "was": 1,
-    "sure": 1,
-    "Pretty": 1
-   },
-   "unc_ref_tokens": {},
-   "first": "2026-10-19",
-   "last": "2026-10-19",
    "alts": {},
    "sync": true
   }
