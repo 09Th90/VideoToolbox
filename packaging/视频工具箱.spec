@@ -1,6 +1,6 @@
 # -*- mode: python ; coding: utf-8 -*-
-# @version 2.3.1
-"""视频工具箱 v2.3.1 —— PyInstaller 打包配置
+# @version 2.4.0
+"""视频工具箱 v2.4.0 —— PyInstaller 打包配置
 v2.1.0（2026-10-14）：PyQt5 → PySide6 迁移（docs/PySide6迁移方案书）。本 spec 的
         实质改动只有三处：① _DROP_BINARIES 的 QML 三件套从 Qt5 名改成 Qt6 名
         （Qt6Qml/Qt6Quick/Qt6QmlModels/Qt6QmlMeta/Qt6QmlWorkerScript.dll）；
@@ -282,6 +282,23 @@ hiddenimports += collect_submodules('vt_engine_ui')
 #   递归收全。⚠ 同 vt_engine_ui 先例：spec 解析期 import core 需要 SRC_DIR
 #   在 sys.path（上面已显式补），空骨架阶段收空列表属预期，拆到某域时自动生效。
 hiddenimports += collect_submodules('core')
+
+# v2.3.2（对象级优化，2026-10-19）：`calib_entity` 在 calib_ai_agent 里是
+#   **函数体内延迟导入**（`from calib_entity.opt import kb_scope`），静态分析
+#   跟不到；不声明的话打包后自动降级为旧行为——功能静默消失、且日志里看不出来
+#   （try/except 只吞异常）。同 vt_engine_ui 先例：先补 SRC_DIR 再收集。
+#   只依赖标准库，不会把 subtitle_calib_merged 拖进 PYZ。
+hiddenimports += collect_submodules('calib_entity')
+
+# v2.4.0（2026-10-19）：自研并行引擎 `vt_engine`（config / entities / 执行 /
+#   编排 / threads 五层，31 个模块）。当前**尚未接入主程序**（只被
+#   scripts/dev/_selftest_vt_engine.py 引用），主程序不 import 它，PyInstaller
+#   静态分析因此收不到。这里显式收集有两个理由：
+#     ① 它随源码入库，安装版应与仓库一致——否则「源码有、安装版没有」，
+#        未来 _seams 切换到它时会出现只在新装的机器上才复现的 ImportError；
+#     ② 只依赖标准库与 PySide6（已随包），增量约 1 MB，代价可忽略。
+#   ⚠ 接入主程序后本行仍需保留（改为 collect_submodules 之外无需再动）。
+hiddenimports += collect_submodules('vt_engine')
 if os.path.isdir(online_release_dir):
     datas += [(os.path.join(online_release_dir, f),
                os.path.join('online_release', f))

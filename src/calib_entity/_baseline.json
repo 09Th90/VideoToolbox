@@ -1,0 +1,8 @@
+{
+  "note": "工作树实测基线（2026-10-18）。安装版/其它环境无此文件时，自检改跑结构不变式并打印实际值。",
+  "objects": 1773,
+  "dup_canonical": 47,
+  "dup_extra_entries": 109,
+  "longkey_order": 38,
+  "multi_target": 17
+}

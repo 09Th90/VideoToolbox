@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.3.1
+# @version 2.4.0
 """自研「语音转录」页（含 ``VideoInfoCard``）。
 
 视觉与引擎转录页对齐；把原本运行期打在引擎类上的转录补丁**内建为显式逻辑**：
@@ -637,10 +637,38 @@ class TranscriptionInterface(QWidget):
                 f"{self.tr('音频文件')} ({audio_formats})")
 
     def update_info(self, file_path):
+        # 连续拖入多个文件时 update_info 会被反复调用（拖放 / set_task 两条路径）。
+        # 旧实现直接覆盖 self.video_info_thread：上一个线程失去唯一引用却被 Qt
+        # 内部持有，仍在跑的同时脱离管理；其 finished 仍连到
+        # video_info_card.update_info，晚到的旧结果会把新文件的画面信息覆盖掉。
+        # 这里先让旧线程收尾（断开信号 → 等它自己结束），再启动新的。
+        self._stop_video_info_thread()
         self.video_info_thread = _seams.threads.VideoInfoThread(file_path)
         self.video_info_thread.finished.connect(self.video_info_card.update_info)
         self.video_info_thread.error.connect(self._on_video_info_error)
         self.video_info_thread.start()
+
+    def _stop_video_info_thread(self):
+        """停掉在跑的探测线程并断开信号；任何异常都不影响后续启动。"""
+        th = getattr(self, "video_info_thread", None)
+        if th is None:
+            return
+        try:
+            for sig in ("finished", "error"):
+                try:
+                    getattr(th, sig).disconnect()
+                except (RuntimeError, TypeError):
+                    pass        # 未连接 / 对象已删
+            if th.isRunning():
+                th.quit()
+                # 探测含 ffprobe + 截帧，给足收尾时间；超时也不阻塞界面
+                if not th.wait(2000):
+                    th.terminate()
+                    th.wait(500)
+        except Exception:       # noqa: BLE001
+            pass
+        finally:
+            self.video_info_thread = None
 
     def _on_video_info_error(self, error_msg):
         self.is_processing = False

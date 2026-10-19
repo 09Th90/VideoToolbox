@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.3.1
+# @version 2.4.0
 """自检：engine_task_factory 与引擎（已打补丁）TaskFactory 的**逐字段**兼容性。
 
 P2 尾部 / 档 B 接缝验收脚本。判定口径不是「能 import / 能构造」，而是：在**同一
@@ -99,15 +99,30 @@ def _inprocess(mode: str) -> int:
     SUB = os.path.join(tempfile.gettempdir(), "vt_tf_sample.srt")
 
     # ---- ASR 覆盖状态：通过替换 video_toolbox 的助手函数模拟（两工厂同源调用）----
+    # ⚠ 必须**同时**替换 core.asr.engine_config 里的同名全局名（2026-10-19 假红教训）：
+    #   · 引擎侧补丁 vc_asr_patch_apply 的闭包在 engine_config 模块作用域求值
+    #     `asr_local_override` / `ai_mod` / `ai_load_config`，绑定的是**该模块的全局名**；
+    #   · 自研 engine_task_factory 走 `_engine_helpers()` → video_toolbox 模块属性。
+    #   只替换 vt.* 时引擎侧仍读真实配置 ⇒ 两侧输入不同 ⇒ 大量伪差异
+    #   （实测差异全是 faster_whisper_model / transcribe_language，即覆盖逻辑本身）。
+    import core.asr.engine_config as _ec
+
+    _dual = (vt, _ec)   # 需要同步打桩的模块
+
     def set_asr(mode_kind, label=""):
         if mode_kind == "none":
-            vt.asr_local_override = lambda ai_cfg=None: None
+            for m in _dual:
+                m.asr_local_override = lambda ai_cfg=None: None
             vt.ai_load_config = lambda: {}
+            _ec.ai_load_config = lambda: {}
         elif mode_kind == "local":
-            vt.asr_local_override = lambda ai_cfg=None: ("my-custom-model", "/my/model/dir")
+            for m in _dual:
+                m.asr_local_override = lambda ai_cfg=None: ("my-custom-model", "/my/model/dir")
             vt.ai_load_config = lambda: {}
+            _ec.ai_load_config = lambda: {}
         elif mode_kind == "lang":
-            vt.asr_local_override = lambda ai_cfg=None: None
+            for m in _dual:
+                m.asr_local_override = lambda ai_cfg=None: None
             # 让 ai_mod().asr_config(...) 返回带 language_label 的 dict
             class _AI:
                 def asr_config(self, c):
@@ -115,11 +130,16 @@ def _inprocess(mode: str) -> int:
                 def asr_language_code(self, l):
                     return "zh"
             vt.ai_mod = lambda: _AI()
+            _ec.ai_mod = lambda: _AI()
             vt.ai_load_config = lambda: {}
+            _ec.ai_load_config = lambda: {}
 
-    _orig_ai_mod = vt.ai_mod
-    _orig_ai_load = vt.ai_load_config
-    _orig_ovr = vt.asr_local_override
+    _saved = [(m, m.ai_mod, m.ai_load_config, m.asr_local_override) for m in _dual]
+
+    # 自证：桩是否真的打到两侧（防止再次出现「只改 vt」的静默假红）
+    def _stub_effective():
+        return (vt.asr_local_override is not _saved[0][3]
+                and _ec.asr_local_override is not _saved[1][3])
 
     try:
         # ================= create_transcribe_task =================
@@ -130,6 +150,8 @@ def _inprocess(mode: str) -> int:
                     cfg.set(cfg.need_split, split)
                     for asr in ("none", "local", "lang"):
                         set_asr(asr, label="日本語" if asr == "lang" else "")
+                        if not _stub_effective():
+                            diffs.append("桩未生效[t=%s]：vt/engine_config 覆盖不同步" % asr)
                         tag = "transcribe[%s,nnt=%s,split=%s,asr=%s]" % (tm.name, nnt, split, asr)
                         cmp(tag,
                             Eng.create_transcribe_task(FILE, need_next_task=nnt, task_id="T1"),
@@ -160,9 +182,10 @@ def _inprocess(mode: str) -> int:
                     Eng.create_synthesis_task(FILE, SUB, need_next_task=False, task_id="Y1"),
                     Self.create_synthesis_task(FILE, SUB, need_next_task=False, task_id="Y1"))
     finally:
-        vt.ai_mod = _orig_ai_mod
-        vt.ai_load_config = _orig_ai_load
-        vt.asr_local_override = _orig_ovr
+        for m, _am, _al, _ov in _saved:
+            m.ai_mod = _am
+            m.ai_load_config = _al
+            m.asr_local_override = _ov
 
     if mode == "negative":
         # 负向：必须**抓到**至少一处差异，否则说明比对形同虚设

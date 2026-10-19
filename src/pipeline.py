@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.3.1
+# @version 2.4.0
 """视频全流程流水线（引擎侧，v1.14.0 新增）：事件驱动的阶段状态机。
 
 链接任务：填入链接 → 下载(原片+字幕+封面+信息) → 字幕翻译(谷歌) →
@@ -804,7 +804,12 @@ def _download_link_run(job, ctx):
                 "--ffmpeg-location", os.path.dirname(ffmpeg),
                 "--newline", "--no-playlist",
                 "--http-chunk-size", engine.YTDLP_CHUNK_SIZE,
-                *engine.YTDLP_DL_COMMON_ARGS,
+                # ⚠ 必须用函数 ytdlp_dl_args()：A3-1 拆分把原常量
+                #   YTDLP_DL_COMMON_ARGS 改成了「每次调用重新生成」的函数
+                #   （吃 VT_YTDLP_FRAGMENTS 运行期覆盖）。旧常量已不存在，
+                #   写成 engine.YTDLP_DL_COMMON_ARGS 会让链接任务下载阶段
+                #   必抛 AttributeError（_selftest_core_api 已加防回归断言）。
+                *engine.ytdlp_dl_args(),
                 "--write-thumbnail", "--convert-thumbnails", "jpg",
                 *proxy_args,
                 *engine.ytdlp_cookie_args(log=ctx.log),

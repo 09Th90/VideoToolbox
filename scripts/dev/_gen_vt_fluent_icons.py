@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.3.1
+# @version 2.4.0
 """vt_fluent 图标数据再生成工具（dev 期，不进随包）。
 
 两件事：
@@ -22,6 +22,24 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(os.path.dirname(HERE))
 sys.path.insert(0, os.path.join(ROOT, "tools", "python", "Lib", "site-packages"))
 
+
+def _current_version():
+    """从主界面源码读当前 VERSION，作为生成文件里的 @version 标记。
+
+    ⚠ 旧实现把这行写死成 "2.3.1"：每次发布改号后若重跑本脚本，生成的
+    `_icons_data.py` 会被写回旧版本号，`stamp_versions.py` 再跑一遍才补回来，
+    中间窗口期里清单与实际不一致（2026-10-19 发布 v2.4.0 时发现）。
+    """
+    p = os.path.join(ROOT, "src", "video_toolbox_qt.py")
+    try:
+        with open(p, encoding="utf-8") as f:
+            m = re.search(r'VERSION\s*=\s*"([\d.]+)"', f.read())
+        if m:
+            return m.group(1)
+    except OSError:
+        pass
+    return "0.0.0"
+
 from PySide6.QtCore import QFile
 
 REF_DIR = os.path.join(ROOT, "data", "tmp", "qss_ref")
@@ -39,6 +57,8 @@ USED = sorted({
     "FEEDBACK", "DEVELOPER_TOOLS", "CONSTRACT", "CODE", "CARE_RIGHT_SOLID",
     "CARE_LEFT_SOLID", "CAMERA", "BRUSH", "BROOM", "ADD", "ACCEPT",
     "MICROPHONE", "ARROW_DOWN",
+    # B2/B3 控件族自绘引用（自查补：缺一个就画空白）
+    "CHEVRON_RIGHT", "FULL_SCREEN", "MINIMIZE", "MORE", "RETURN", "VIEW",
 })
 
 #: FluentIcon 使用面之外的、控件族自绘需要的图标。
@@ -124,7 +144,7 @@ def main():
 
     lines = [
         "# -*- coding: utf-8 -*-",
-        "# @version 2.3.1",
+        "# @version " + _current_version(),
         '"""vt_fluent 图标数据（自动生成区，勿手改）。',
         "",
         "· ART：使用面涉及的 FluentIcon SVG（黑变体单份，fill 运行期按主题替换）。",

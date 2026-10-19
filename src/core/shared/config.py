@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.3.1
+# @version 2.4.0
 """设置持久化（config.json：数据根内，只读时回退程序目录）（v2.3.1 拆分工程 · 自 video_toolbox.py 原样搬入）。
 
 本模块是 src/core/shared/ 的组成部分；域间依赖规则见 core/__init__.py。
@@ -9,6 +9,7 @@ from core.shared.paths import DEFAULT_DOWNLOAD_DIR, clean_path
 
 import json
 import os
+import shutil
 
 from core.shared.paths import APP_DIR, CONFIG_PATH, DATA_DIR
 
@@ -30,7 +31,15 @@ def _fallback_config_path():
 
 # ========== 设置持久化 ==========
 def load_config():
-    for path in (CONFIG_PATH, _fallback_config_path()):
+    # 顺序：正式文件 → 上一份可用副本（.bak）→ 回退路径。
+    # .bak 由 _atomic_write_json 维护，只在原文件可解析时才更新，
+    # 因此它是「最后一次写入成功」的可靠快照；正式文件被外部截断/损坏时
+    # 靠它把用户设置找回来，而不是返回空 dict 让全部设置消失。
+    fb = _fallback_config_path()
+    paths = [CONFIG_PATH, CONFIG_PATH + ".bak"]
+    if os.path.abspath(fb) != os.path.abspath(CONFIG_PATH):
+        paths += [fb, fb + ".bak"]
+    for path in paths:
         try:
             with open(path, "r", encoding="utf-8") as f:
                 cfg = json.load(f)
@@ -42,7 +51,18 @@ def load_config():
 
 
 def save_config(cfg):
-    """写入配置；脚本目录只读时自动改写到用户本地目录，保证「长期固定」不失效"""
+    """写入配置（原子写 + 保留上一份可用副本）。
+
+    直接 ``open(path, "w")`` 覆写有两个致命问题：
+      1. 写入过程不是原子的——进程被强杀 / 断电 / 磁盘满时，磁盘上会留下
+         **截断的 JSON**。``load_config`` 遇到解析失败会 continue 到回退路径，
+         而两条路径指向同一个文件，最终返回 ``{}``：**用户全部设置一次性丢失**
+         （实测 302 个键 → 0）。
+      2. 没有任何可回滚的副本。
+    因此改为「写同目录临时文件 → flush+fsync → os.replace 原子替换」，
+    替换前把旧文件复制成 ``config.json.bak``（替换成功后才覆盖，损坏的那份
+    永远不会成为新的 .bak）。
+    """
     candidates = [CONFIG_PATH]
     fb = _fallback_config_path()
     if os.path.abspath(fb) != os.path.abspath(CONFIG_PATH):
@@ -50,12 +70,33 @@ def save_config(cfg):
     for path in candidates:
         try:
             os.makedirs(os.path.dirname(path), exist_ok=True)
-            with open(path, "w", encoding="utf-8") as f:
-                json.dump(cfg, f, ensure_ascii=False, indent=2)
+            _atomic_write_json(path, cfg)
             return True
         except Exception:
             continue
     return False
+
+
+def _atomic_write_json(path, cfg):
+    """原子写 JSON：临时文件 → fsync → os.replace；旧文件先备份成 .bak。"""
+    tmp = path + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
+        json.dump(cfg, f, ensure_ascii=False, indent=2)
+        f.flush()
+        try:
+            os.fsync(f.fileno())     # 断电也不留半截
+        except (OSError, AttributeError):
+            pass
+    # 旧文件备份：只在旧文件**可解析**时才覆盖 .bak，保证 .bak 永远是好的
+    try:
+        if os.path.isfile(path):
+            with open(path, "r", encoding="utf-8") as old:
+                _ok = isinstance(json.load(old), dict)
+            if _ok:
+                shutil.copyfile(path, path + ".bak")
+    except Exception:  # noqa: BLE001
+        pass
+    os.replace(tmp, path)            # Windows/POSIX 均保证原子性
 
 
 def get_saved_download_dir():

@@ -1,0 +1,87 @@
+/* vt_fluent app 级 QSS —— 原生**顶层窗口**控件兜底。
+ *
+ * QToolTip / QMenu(右键与上下文菜单) / QMessageBox 是独立顶层窗口，
+ * 不在任何业务控件的样式表作用子树内——这些规则只能经
+ * _theme.applyAppStyleSheet(QApplication 实例) 套在 app 上才生效；
+ * 注册进 styleSheetManager 后，主题/主题色切换自动重应用。
+ *
+ * 取舍：QMessageBox 按钮为原生 QPushButton，此处给 Fluent 基础态
+ * （统一周框 --StrokeCtrl，不做明暗双线——兜底层从简，Fluent 类
+ * 按钮在控件自身样式表里有完整态矩阵）。颜色全部走 --Token。
+ */
+
+/* ---- 全局工具提示（宿主 27 处 setToolTip 的观感统一） ------------------ */
+QToolTip {
+    background-color: --SurfaceSolid;
+    color: --TextPrimary;
+    border: 1px solid --StrokeToolTip;
+    border-radius: 4px;
+    padding: 5px 8px;
+    outline: none;
+}
+
+/* ---- 原生 QMenu 兜底（自研 RoundMenu 有自己的完整样式） ---------------- */
+QMenu {
+    background-color: --SurfaceSolid;
+    border: 1px solid --StrokeMenu;
+    border-radius: 8px;
+    padding: 6px;
+    outline: none;
+}
+
+QMenu::item {
+    padding: 6px 24px 6px 12px;
+    border-radius: 5px;
+    color: --TextPrimary;
+    background: transparent;
+}
+
+QMenu::item:selected {
+    background-color: --FillSubtle;
+    color: --TextPrimary;
+}
+
+QMenu::item:disabled {
+    color: --TextDisabled;
+}
+
+QMenu::separator {
+    height: 1px;
+    background-color: --StrokeTable;
+    margin: 4px 8px;
+}
+
+/* ---- 原生 QMessageBox 兜底 ---------------------------------------------- */
+QMessageBox {
+    background-color: --DialogFill;
+}
+
+QMessageBox QLabel {
+    background: transparent;
+    color: --TextPrimary;
+    border: none;
+}
+
+QMessageBox QPushButton {
+    background: --CtrlFill;
+    border: 1px solid --StrokeCtrl;
+    border-radius: 5px;
+    padding: 5px 16px 6px 16px;
+    color: --TextPrimary;
+    outline: none;
+}
+
+QMessageBox QPushButton:hover {
+    background: --CtrlFillHover;
+}
+
+QMessageBox QPushButton:pressed {
+    color: --TextPressed;
+    background: --CtrlFillPressed;
+}
+
+QMessageBox QPushButton:disabled {
+    color: --TextDisabled;
+    background: --CtrlFillDisabled;
+    border: 1px solid --StrokeDisabled;
+}

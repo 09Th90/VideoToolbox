@@ -1,4 +1,4 @@
-# @version 2.3.1
+# @version 2.4.0
 # Python caches
 __pycache__/
 *.pyc
@@ -86,6 +86,11 @@ build/ai_test/
 installer_online/
 # 校准功能本地自测样例（临时文件，不入库）
 build/test_calib*
+
+# qfluentwidgets 运行期主题配置（首次运行自动生成，记录 ThemeColor/ThemeMode；
+# 2026-10-19 补：根目录与 src 下各生成一份，曾以未跟踪状态长期滞留工作区）
+config/
+src/config/
 
 # 历史归档：仅 history/ 下分类后的源码快照、开发脚本、发布留档、文档入库；
 # 以下大体积/日志/截图类留档只保留在本机，不进 git（dist/、_installer_check/

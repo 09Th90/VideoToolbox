@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.3.1
+# @version 2.4.0
 """核心单体拆分 · 接口契约测试（**先立测试，再动刀**）。
 
 为什么需要（v2.3.1 → 拆分工程）：
@@ -125,7 +125,7 @@ DOMAIN_MAP = {
         "vc_enforce_runtime_cfg", "vc_migrate_legacy_data", "vc_legacy_leftovers",
     ],
     "translate": [
-        "vc_translate_route_patch",
+        "vc_translate_route_patch", "vc_translate_no_llm_patch",
     ],
     "calibrate": [
         "calib_ai_chat", "calib_web_proxy", "calib_ai_run",
@@ -147,7 +147,7 @@ DOMAIN_MAP = {
 SPLIT_STATUS = {d: "pending" for d in DOMAIN_MAP}
 SPLIT_STATUS["download"] = "done"  # v2.3.1 A1：56 符号 + 15 常量全量搬入
 SPLIT_STATUS["asr"] = "done"       # v2.3.1 A2：31 符号全量搬入（A2a+A2b）
-SPLIT_STATUS["translate"] = "done"  # v2.3.1 A3-1：1 符号（route_patch，含 10-17 双重保险增强）
+SPLIT_STATUS["translate"] = "done"  # v2.3.1 A3-1：2 符号（route_patch，含 10-17 双重保险增强 + 10-18 翻译去 AI 补丁）
 SPLIT_STATUS["calibrate"] = "done"   # v2.3.1 A3-2：16 符号 + sync_env_into 追认移域（shared→calibrate）
 SPLIT_STATUS["pipeline"] = "done"    # v2.3.1 A3-3：4 符号（rolling 3 + main 编排层）
 SPLIT_STATUS["shared"] = "done"     # v2.3.1 A3-4：55 符号（含用户 10-17/18 新增 7 个）全量在册
@@ -172,6 +172,10 @@ BEHAVIOR_CASES = [
 
 #: core 引擎层禁止出现的 GUI 依赖（负向桩：引擎层混入 Qt = hiddenimports 静默失效病）
 _GUI_FORBIDDEN = ("qfluentwidgets", "PySide6", "PyQt5", "PyQt6")
+
+#: 代码里「把 facade 当 engine 用」的固定别名。只有这些名字的属性读会被
+#: 属性存在性桩检查（``engine.X`` / ``video_toolbox.X``），避免误伤普通局部变量。
+_ENGINE_ALIASES = ("engine", "video_toolbox")
 
 
 def _public_symbols():
@@ -361,6 +365,224 @@ def _core_files():
     return sorted(out)
 
 
+def check_engine_attr_exists(fails):
+    """负向桩：``engine.<name>`` / ``video_toolbox.<name>`` 必须真的存在。
+
+    为什么需要（2026-10-19 实测踩到）：A3-1 拆 translate 域时把常量
+    ``YTDLP_DL_COMMON_ARGS`` 重构成函数 ``ytdlp_dl_args()``，GUI 下载页改了，
+    但 ``pipeline.py`` 与 ``agent_cli.py`` 两处调用点漏改。结果链接任务下载
+    阶段必抛 ``AttributeError``（下载全链 failed、CLI download 100% 失败），
+    而当时 **全部自测都是绿的**——因为基线只断言「已登记的符号存在」，
+    从不检查「代码引用了不存在的符号」。这条桩补的正是那个盲区。
+
+    只查 ``模块名.属性`` 形式的**属性读**，且模块名限定在
+    ``_ENGINE_ALIASES``（本仓库把 facade 当 engine 用的固定那几个别名）。
+    函数体内才用到的延迟属性同样要查——AttributeError 不看场合。
+
+    **形参/局部变量遮蔽**要排除：``calib_entity.shadow`` 的 ``engine`` 是形参、
+    ``vt_fluent._icon`` 的 ``engine`` 是 ``FluentIconEngine`` 局部变量，它们
+    同样叫 engine 但不是 facade。判据：该名字在同一层作用域里被赋过值
+    （Store）或当过形参，就不算 facade 别名。
+    """
+    import importlib
+    try:
+        facade = importlib.import_module("video_toolbox")
+    except Exception as e:  # noqa: BLE001
+        fails.append(f"engine 属性桩：video_toolbox 导入失败：{e}")
+        return 0
+    have = set(dir(facade))
+    n = 0
+    for path in _scan_files():
+        n += 1
+        try:
+            with open(path, encoding="utf-8") as f:
+                src = f.read()
+            tree = ast.parse(src, path)
+        except (SyntaxError, OSError):
+            continue
+        rel = os.path.relpath(path, ROOT)
+        global_aliases = _module_aliases(tree)
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Attribute):
+                continue
+            if not isinstance(node.ctx, ast.Load):
+                continue
+            base = node.value
+            if not (isinstance(base, ast.Name) and base.id in _ENGINE_ALIASES):
+                continue
+            if node.attr.startswith("__"):
+                continue
+            if node.attr in have:
+                continue
+            if _alias_shadowed(tree, base.id, node):
+                continue
+            fails.append(
+                f"引擎符号不存在: {rel}:{node.lineno} -> {base.id}.{node.attr}")
+        del global_aliases
+    return n
+
+
+def _module_aliases(tree):
+    """模块级真正 import 了 facade 的别名（``import video_toolbox as engine``）。"""
+    out = set()
+    for node in tree.body:
+        if isinstance(node, ast.Import):
+            for a in node.names:
+                if a.name == "video_toolbox" and a.asname:
+                    out.add(a.asname)
+    return out
+
+
+def _bindings_in_scope(scope_node):
+    """一个作用域（模块/函数/类）内**自己**绑定的名字，不含嵌套作用域。
+
+    ⚠ 必须排除 ``import video_toolbox as engine`` 本身：那条语句正是
+    「这个 engine 就是 facade」的**证据**，把它算成绑定的话，全项目所有
+    ``engine.X`` 都会被判成遮蔽，桩直接哑掉（实测踩过——模块级绑定表里
+    出现 'engine'，导致合成源码自检与真实扫描双双漏检）。
+    """
+    names = set()
+
+    # 函数/lambda 自身的参数属于**本作用域**（调用方查的就是本作用域）。
+    # ⚠ 但外层作用域收集时**不能**把子函数的参数算进来（见下面 visit 的 continue）。
+    if isinstance(scope_node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+        names.update(_all_args(scope_node.args))
+    elif isinstance(scope_node, ast.Lambda):
+        names.update(_all_args(scope_node.args))
+
+    def visit(node):
+        for child in ast.iter_child_nodes(node):
+            if isinstance(child, (ast.Import, ast.ImportFrom)):
+                for a in child.names:
+                    if isinstance(child, ast.Import) and a.name == "video_toolbox":
+                        continue        # 别名导入 = facade 证据，不算遮蔽
+                    names.add(a.asname or a.name.split(".")[0])
+                continue
+            if isinstance(child, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                names.add(child.name)           # 只登记函数名
+                continue                        # ⚠ 必须 continue：进函数体就穿透了
+                                                #   ⚠ 也**不能**登记形参——形参只属于
+                                                #   函数自身作用域，登记到外层就把
+                                                #   同名的模块级别名抹掉了（实测踩过）
+            if isinstance(child, ast.ClassDef):
+                names.add(child.name)
+                continue                        # ⚠ 同上，不进类体
+            if isinstance(child, ast.Lambda):
+                continue                        # ⚠ lambda 名与形参都不属于外层
+            if isinstance(child, ast.Name) \
+                    and isinstance(child.ctx, (ast.Store, ast.Del)):
+                names.add(child.id)
+            elif isinstance(child, ast.ExceptHandler) and child.name:
+                names.add(child.name)
+            elif isinstance(child, (ast.Global, ast.Nonlocal)):
+                names.update(child.names)
+            elif isinstance(child, (ast.FunctionDef, ast.AsyncFunctionDef,
+                                   ast.ClassDef, ast.Lambda)):
+                continue        # 兜底：作用域节点一律不进（上面的分支已 continue）
+            visit(child)
+
+    visit(scope_node)
+    return names
+
+
+def _all_args(args):
+    return [a.arg for a in (list(args.args) + list(args.posonlyargs)
+                            + list(args.kwonlyargs))]
+
+
+def _enclosing_scopes(tree, ref_node):
+    """按**行号区间**返回包含 ref_node 的作用域节点，由内到外（不含 Module）。"""
+    def span(n):
+        start = getattr(n, "lineno", 0)
+        end = getattr(n, "end_lineno", start)
+        return start, end
+
+    line = getattr(ref_node, "lineno", 0)
+    out = []
+    for node in ast.walk(tree):
+        if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef,
+                                 ast.ClassDef, ast.Lambda)):
+            continue
+        a, b = span(node)
+        if a <= line <= b:
+            out.append((b - a, node))
+    out.sort(key=lambda t: t[0])            # 区间小的更内层，排前面
+    return [n for _w, n in out]
+
+
+def _alias_shadowed(tree, name, ref_node=None):
+    """该名字在 ``ref_node`` 所处的**作用域链**上是否被绑过（= 不是 facade 别名）。
+
+    ⚠ 四个坑（全部实测踩过，逐条修过来的）：
+      1. 只看模块级不够——``def f(engine)`` 的形参、函数内
+         ``engine = FluentIconEngine(...)`` 的局部量，也都叫 engine；
+      2. 用 ``ast.walk`` 收集会**穿透**嵌套作用域，把子函数的形参算成
+         模块级绑定 → 顶层真引用逃检（合成源码自检第一次红）；
+      3. 「任一作用域有绑定就整文件放行」也不行——同文件里另有一个
+         ``def f(engine)`` 会把顶层真引用一起放过（第二次红）；
+      4. 内层遮蔽必须能查到——用 ast.walk 找「哪个子作用域包含引用点」
+         会取到最外层那个，内层 ``def f(engine)`` 永远漏（第三次红）。
+         改用**行号区间**判断包含关系，最稳。
+    """
+    if ref_node is None:
+        return name in _bindings_in_scope(tree)
+    if name in _bindings_in_scope(tree):        # 模块级
+        return True
+    for scope in _enclosing_scopes(tree, ref_node):
+        if name in _bindings_in_scope(scope):
+            return True
+    return False
+
+
+def check_engine_attr_stub_selfcheck(fails):
+    """桩自检：合成一段源码跑桩的核心判据，必须能报出陈旧名、不误报形参。
+
+    为什么用合成源码而不是扫真实文件：真实文件修好后就没有陈旧名了，
+    拿它当哨兵会在修好那一刻变成假红。合成源码既能证明桩「抓得到」，
+    也能证明桩「不误伤」，且永远稳定。
+    """
+    have = set()
+    import importlib
+    try:
+        have = set(dir(importlib.import_module("video_toolbox")))
+    except Exception:  # noqa: BLE001
+        return
+    stale = "YTDLP_DL_COMMON_ARGS"
+    if stale in have:
+        return  # 陈旧名被恢复成真名了，无需自检
+    synthetic = (
+        "import video_toolbox as engine\n"
+        f"x = engine.{stale}\n"          # 必须被抓
+        "def f(engine):\n"
+        "    return engine.whatever\n"    # 形参遮蔽：不抓
+    )
+    tree = ast.parse(synthetic)
+    hits = []
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Attribute) and isinstance(node.ctx, ast.Load) \
+                and isinstance(node.value, ast.Name) \
+                and node.value.id in _ENGINE_ALIASES \
+                and node.attr not in have \
+                and not _alias_shadowed(tree, node.value.id, node):
+            hits.append(node.attr)
+    if stale not in hits:
+        fails.append(f"引擎属性桩自检失败：合成源码里的 {stale} 没被检出")
+    if "whatever" in hits:
+        fails.append("引擎属性桩自检失败：把形参 engine 误判成 facade 别名")
+
+
+def _scan_files():
+    """被桩扫描的源文件：src/**/*.py + 根目录校准脚本（跳过自测/探针）。"""
+    out = []
+    for dirpath, _dirs, files in os.walk(SRC):
+        if "__pycache__" in dirpath:
+            continue
+        for f in files:
+            if f.endswith(".py") and not f.startswith(("_selftest", "_probe", "_demo")):
+                out.append(os.path.join(dirpath, f))
+    return sorted(out)
+
+
 def check_core_gui_free(fails):
     """负向桩：core 引擎层**模块顶层**禁止 import Qt/qfluentwidgets。
 
@@ -392,6 +614,49 @@ def check_core_gui_free(fails):
                     fails.append(
                         f"core 引擎层禁 GUI 依赖: {os.path.basename(path)} -> {m}")
     return n
+
+
+def check_config_atomic(fails):
+    """配置文件必须原子写 + 有 .bak 回滚（2026-10-19 修复项）。
+
+    旧 ``save_config`` 直接 ``open(CONFIG_PATH, "w")`` 覆写：进程被强杀 /
+    断电 / 磁盘满时磁盘上留下**截断 JSON**，而 ``load_config`` 两条候选路径
+    指向同一个文件，解析失败即 return {}——用户全部设置一次性消失
+    （实测 302 键 → 0）。这里钉两条结构性要求，防止回退：
+      1. ``save_config`` 体内出现 ``os.replace``（原子替换）；
+      2. ``load_config`` 的候选路径包含 ``.bak``（可回滚）。
+    运行时行为另由 data/tmp 下的验收脚本覆盖，这里只做源码级把关。
+    """
+    path = os.path.join(SRC, "core", "shared", "config.py")
+    if not os.path.isfile(path):
+        fails.append("config.py 缺失，无法校验原子写")
+        return
+    try:
+        with open(path, encoding="utf-8") as f:
+            src = f.read()
+        tree = ast.parse(src, path)
+    except (SyntaxError, OSError) as e:
+        fails.append(f"config.py 解析失败: {e}")
+        return
+    bodies = {}
+    for node in ast.walk(tree):
+        if isinstance(node, ast.FunctionDef) and node.name in (
+                "save_config", "load_config", "_atomic_write_json"):
+            bodies[node.name] = ast.get_source_segment(src, node) or ""
+    if "_atomic_write_json" not in bodies:
+        fails.append("config.py 缺 _atomic_write_json（原子写入口被删）")
+    # save_config 必须**真的调用**原子写入口；只留函数不调用是「假原子」——
+    # 曾出现注入非原子写后 os.replace 仍在 _atomic_write_json 里、断言漏判。
+    seg = bodies.get("save_config", "")
+    if seg and "_atomic_write_json(" not in seg:
+        fails.append("save_config 未调用 _atomic_write_json（退化为非原子覆写）")
+    for fn in ("save_config", "_atomic_write_json"):
+        seg = bodies.get(fn, "")
+        if seg and "os.replace" not in seg:
+            fails.append(f"{fn} 未使用 os.replace（退化为非原子覆写）")
+    seg = bodies.get("load_config", "")
+    if seg and '".bak"' not in seg and "'.bak'" not in seg:
+        fails.append("load_config 未回落到 .bak（配置损坏将丢失全部设置）")
 
 
 def check_domain_progress(fails):
@@ -443,7 +708,12 @@ def main():
     print(f"[BEHAVIOR] 行为抽查 {len(BEHAVIOR_CASES)} 项")
     nfiles = check_core_gui_free(fails)
     print(f"[NEG-CORE] core 引擎层禁 GUI 扫描（{nfiles} 文件）")
+    nattr = check_engine_attr_exists(fails)
+    check_engine_attr_stub_selfcheck(fails)
+    print(f"[ATTR] 引擎符号存在性扫描（{nattr} 文件，"
+          f"别名 {list(_ENGINE_ALIASES)}）")
     ndone = check_domain_progress(fails)
+    check_config_atomic(fails)
     print(f"[PROGRESS] 域完成 {ndone}/{len(SPLIT_STATUS)}"
           f"（pending: {[d for d, s in SPLIT_STATUS.items() if s != 'done']}）")
     print("=" * 56)

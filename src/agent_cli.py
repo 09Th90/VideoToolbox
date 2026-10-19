@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.3.1
+# @version 2.4.0
 """agent_cli —— 视频工具箱「第三方 Agent 接入」统一命令行入口（v1.0.0）。
 
 定位与边界
@@ -38,6 +38,11 @@
 * calibrate   subprocess 透传根目录 ``subtitle_calib_merged.py``（术语/规则校准，
               参数表与该脚本完全同源；cwd=程序根，学习库落根目录）
 * stabilize   同上透传（该脚本内建子命令）
+* audit       同上透传 ``audit`` 子命令——**校准完成后的收口体检**：
+               扫 1 拉丁残留（白名单外的英文/罗马字）、扫 2 知识库错形残留
+               （变体/条件错形命中中文行而官方名不在该行）、
+               扫 3 同词族一致性（参考行命中锚点而中文行缺官方名）。
+               退出码 1＝有候选，可直接当 CI 门禁。
 * compose     软封装走 ``subtitle_compose.build_command``；硬烧录/带独立音轨走
               ``video_toolbox.merge_pair``
 """
@@ -352,6 +357,12 @@ def cmd_download(args) -> int:
             "--merge-output-format", "mp4",
             "--ffmpeg-location", os.path.dirname(ffmpeg_path),
             "--newline", "--no-playlist",
+            # 与下载页/流水线共用同一份提速+抗断流参数（--concurrent-fragments 5、
+            # --socket-timeout/--retries/--fragment-retries/--retry-sleep）。
+            # 此前 CLI 未采用 → 分片串行下载，实测长视频仅 ~300KB/s。
+            # ⚠ 用函数而非常量：A3-1 拆分已把 YTDLP_DL_COMMON_ARGS 改为
+            #   ytdlp_dl_args()，旧名不存在（引旧名必 AttributeError）。
+            *engine.ytdlp_dl_args(),
             "-o", engine.output_template(out_dir),
             *cookie_args, *proxy_args, url]
     _say(args, "[2/3] 开始下载：%s" % title)
@@ -605,6 +616,18 @@ def cmd_stabilize(args) -> int:
     return _run_calib_passthrough(args, "stabilize", args.input + args.extra)
 
 
+def cmd_audit(args) -> int:
+    """名词漏校三扫：`audit <校准后.srt> [--mode bi] [--out 报告.md] [--json] [--loose]`。
+
+    透传 subtitle_calib_merged.py 的 audit 子命令：拉丁残留 / 知识库错形残留 /
+    同词族一致性。退出码 1＝有候选（可当门禁）。
+    """
+    if not args.input:
+        return _fail(args, "缺少输入字幕（用法：audit <校准后.srt> [--mode bi] "
+                           "[--out 报告.md] [--json] [--loose]）")
+    return _run_calib_passthrough(args, "audit", args.input + args.extra)
+
+
 # ============================================================
 # compose：字幕合成
 # ============================================================
@@ -754,6 +777,11 @@ def build_parser() -> argparse.ArgumentParser:
                        help="cue 稳定化（透传 subtitle_calib_merged.py 的 stabilize 子命令）")
     s.set_defaults(fn=cmd_stabilize, input=[], extra=[])
 
+    s = sub.add_parser("audit", parents=[common],
+                       help="名词漏校三扫（透传 subtitle_calib_merged.py 的 audit 子命令；"
+                            "拉丁残留 / 错形残留 / 同词族一致性，退出码 1＝有候选）")
+    s.set_defaults(fn=cmd_audit, input=[], extra=[])
+
     s = sub.add_parser("compose", parents=[common],
                        help="字幕合成：软封装（copy）/ 硬烧录 / 带独立音轨合并")
     s.add_argument("video", help="视频文件")
@@ -777,7 +805,7 @@ def main(argv=None) -> int:
     # 先把「这两个子命令之后的所有参数」原样截下，只解析全局项与子命令名。
     passthrough = None
     for i, a in enumerate(argv):
-        if a in ("calibrate", "stabilize"):
+        if a in ("calibrate", "stabilize", "audit"):
             passthrough = argv[i + 1:]
             argv = argv[:i + 1]
             break

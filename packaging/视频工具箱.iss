@@ -1,11 +1,11 @@
-; @version 2.3.1
+; @version 2.4.0
 ; ============================================================================
-; 视频工具箱 v2.3.1 —— Inno Setup 安装包脚本
+; 视频工具箱 v2.4.0 —— Inno Setup 安装包脚本
 ; 构建前提：已用打包环境 C:\bld\qt_build 执行 pyinstaller 视频工具箱.spec
 ;           （2026-10-14 起该环境为 PySide6 6.12.0 + PySide6-Fluent-Widgets
 ;           1.11.3；此前为 PyQt5 5.15.11 + PyQt-Fluent-Widgets 1.8.4），
 ;           产物位于 dist\视频工具箱.exe
-; 编译：ISCC.exe 视频工具箱.iss  →  installer\视频工具箱_Setup_v2.3.1.exe
+; 编译：ISCC.exe 视频工具箱.iss  →  installer\视频工具箱_Setup_v2.4.0.exe
 ; v1.18.0：① 新增主播声纹（exe 侧已由 spec hiddenimports 内嵌），[Files]
 ;         补装 src\speaker_voiceprint.py / speaker_voiceprint_page.py /
 ;         subtitle_editor_core.py 源码副本，使安装版也能按开发版说明书的 CLI
@@ -89,7 +89,7 @@
 ; ============================================================================ 
 
 #define MyAppName "视频工具箱"
-#define MyAppVersion "2.3.1"
+#define MyAppVersion "2.4.0"
 #define MyAppPublisher "VideoToolbox"
 #define MyAppExeName "视频工具箱.exe"
 
@@ -273,6 +273,23 @@ Source: "..\src\qt_compat.py"; DestDir: "{app}\src"; Flags: ignoreversion
 Source: "..\src\harness_bridge.py"; DestDir: "{app}\src"; Flags: ignoreversion
 Source: "..\src\harness_page.py"; DestDir: "{app}\src"; Flags: ignoreversion
 Source: "..\src\视频工具箱.bat"; DestDir: "{app}\src"; Flags: ignoreversion
+; ============================================================================
+; v2.4.0 补漏（2026-10-19）：**自研包目录**此前整体缺席安装清单
+;   v2.3.x 把单体拆成 `core\` 六域（asr/calibrate/download/pipeline/shared/
+;   translate）后，`src\video_toolbox.py` 退化为纯 facade，模块级执行
+;   `from core.asr import *` 等 15 条；`src\video_toolbox_qt.py` 模块级
+;   `import vt_fluent`。而本文件一直是**逐文件**列举，包目录一个都没列
+;   ⇒ 安装版「脚本方式运行」在 import 阶段直接 ModuleNotFoundError，连 GUI
+;   都起不来。exe 侧靠 spec 的 collect_submodules 存活，所以只测 exe 时
+;   完全看不出来（check_iss_sources 的闭包也因清单里没有 core 而不报）。
+;   ⇒ 包目录一律用 recursesubdirs 整目录收，新增子模块无需再改本文件。
+;   Excludes 必须带 __pycache__：曾把本机 3.13 生成的 .pyc 打进包。
+; ============================================================================
+Source: "..\src\core\*"; DestDir: "{app}\src\core"; Flags: ignoreversion recursesubdirs createallsubdirs; Excludes: "*.pyc,__pycache__"
+Source: "..\src\vt_fluent\*"; DestDir: "{app}\src\vt_fluent"; Flags: ignoreversion recursesubdirs createallsubdirs; Excludes: "*.pyc,__pycache__"
+Source: "..\src\vt_engine_ui\*"; DestDir: "{app}\src\vt_engine_ui"; Flags: ignoreversion recursesubdirs createallsubdirs; Excludes: "*.pyc,__pycache__"
+Source: "..\src\vt_engine\*"; DestDir: "{app}\src\vt_engine"; Flags: ignoreversion recursesubdirs createallsubdirs; Excludes: "*.pyc,__pycache__"
+Source: "..\src\calib_entity\*"; DestDir: "{app}\src\calib_entity"; Flags: ignoreversion recursesubdirs createallsubdirs; Excludes: "*.pyc,__pycache__"
 ; 文档资料统一归入 docs\
 Source: "..\docs\使用说明.txt"; DestDir: "{app}\docs"; Flags: ignoreversion
 Source: "..\docs\界面预览.png"; DestDir: "{app}\docs"; Flags: ignoreversion

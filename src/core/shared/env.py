@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.3.1
+# @version 2.4.0
 """程序运行时环境总准备（数据目录迁移 / 引擎重定向 / 全链补丁挂载）（v2.3.1 拆分工程 · 自 video_toolbox.py 原样搬入）。
 
 v2.3.1 拆分工程；域间依赖规则见 core/__init__.py。
@@ -59,6 +59,15 @@ def prepare_runtime_env():
         vc_translate_route_patch()
     except Exception:
         pass
+    # v2.3.1：字幕翻译全面去 AI（用户报「527/527 segments failed，请检查
+    # API key」——机翻没有密钥，文案却让用户查密钥；且设置下拉里残留的
+    # 「LLM 大模型翻译」真会把翻译接进全局 AI）。经 video_toolbox facade
+    # 引入（shared 域不准直接依赖 translate 域，与路由补丁同一路径）。
+    try:
+        from video_toolbox import vc_translate_no_llm_patch
+        vc_translate_no_llm_patch()
+    except Exception:
+        pass
     # v1.16.2：ASR 协议分发补丁也在这里挂一次。此前它只挂在 GUI 的
     # 「转录 UI 补丁」里（video_toolbox_qt.py 启动时调），一旦那条路径提前
     # 失败（引擎 UI 模块导入异常等），协议分发就整体不生效 —— 表现为
@@ -91,6 +100,92 @@ def prepare_runtime_env():
         tempfile.tempdir = TMP_DIR
     except OSError:
         pass
+    try:
+        _cleanup_mei_leftovers()
+    except Exception:
+        pass
+
+
+# PyInstaller onefile 每次启动把打包内容解到 %TEMP%\_MEIxxxxxx，正常退出由
+# 运行时自己删。但程序被强杀 / 崩溃 / 子进程继承句柄未释放时残留会永久留下，
+# 且因为本程序把 TEMP 重定向到了 data/tmp（见上），残留集中砸在 data/tmp：
+# 实测 29 个 _MEI 目录占 754MB。这里启动时做一次保守清理。
+_MEI_KEEP_DAYS = 7
+
+
+def _cleanup_mei_leftovers(tmp_dir=None, keep_days=_MEI_KEEP_DAYS):
+    """删除 tmp_dir 下过期（mtime 早于 keep_days 天）的 PyInstaller `_MEI*` 残留目录。
+
+    保守原则：
+      - 当前进程正在用的 `sys._MEIPASS` 恒不删（路径比对 + 目录名双重判定）；
+      - 判定依据是目录 **mtime**（_MEIPASS 解包会写入文件，mtime≈启动时刻）；
+        mtime 读取失败一律按"不过期"处理，宁可留不误删；
+      - 只删除以 `_MEI` 开头的目录，不碰任何文件与其它目录；
+      - 单个目录删除失败静默跳过，不影响其它目录与调用方。
+    返回 (删除数量, 释放字节数)，供自测断言。
+    """
+    import sys
+    import time
+
+    root = tmp_dir or TMP_DIR
+    if not root or not os.path.isdir(root):
+        return 0, 0
+    # 当前进程的 _MEIPASS 必须排除：onefile 主进程正在用它
+    protected = set()
+    mei = getattr(sys, "_MEIPASS", None)
+    if mei:
+        try:
+            protected.add(os.path.normcase(os.path.abspath(mei)))
+        except OSError:
+            pass
+        protected.add(os.path.normcase(os.path.basename(mei)))
+
+    deadline = time.time() - max(0, int(keep_days)) * 86400
+    removed = freed = 0
+    try:
+        entries = list(os.scandir(root))
+    except OSError:
+        return 0, 0
+    for ent in entries:
+        try:
+            if not ent.name.startswith("_MEI") or not ent.is_dir():
+                continue
+            if os.path.normcase(os.path.abspath(ent.path)) in protected:
+                continue
+            if os.path.normcase(ent.name) in protected:
+                continue
+            try:
+                mtime = ent.stat().st_mtime
+            except OSError:
+                continue          # 拿不到时间就不动
+            if mtime > deadline:
+                continue          # 未过期（含当前进程刚解出的那份）
+            size = _dir_size(ent.path)
+            shutil.rmtree(ent.path, ignore_errors=True)
+            if not os.path.isdir(ent.path):
+                removed += 1
+                freed += size
+        except Exception:
+            continue
+    if removed:
+        try:
+            _vc_log("清理 PyInstaller 临时残留: %d 个目录 / %.1f MB"
+                    % (removed, freed / 1048576.0))
+        except Exception:
+            pass
+    return removed, freed
+
+
+def _dir_size(path):
+    """递归统计目录字节数（失败静默，仅用于日志展示）。"""
+    total = 0
+    for base, _dirs, files in os.walk(path):
+        for name in files:
+            try:
+                total += os.path.getsize(os.path.join(base, name))
+            except OSError:
+                pass
+    return total
 
 
 def data_root_info():
@@ -183,4 +278,5 @@ __all__ = [
     "prepare_runtime_env",
     "data_root_info",
     "set_data_root",
+    "_cleanup_mei_leftovers",
 ]
