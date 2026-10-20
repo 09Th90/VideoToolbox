@@ -836,6 +836,34 @@ BILINGUAL_TERMS = {
     "Hiyuki": "绯雪", "N'vora": "恩沃拉",
     "Sig Gria": "西格莉卡", "Ziggria": "西格莉卡", "saggria": "西格莉卡",
     "Dennia": "达妮娅", "Shortkeeper": "守岸人", "fraodus": "残星会",
+    # --- 2026-10-20 Kiri Ahri 洛杉矶演唱会周边开箱片（3531 cue）沉淀 ---
+    # 仅收本片实测、且非普通英文词的 ASR 连读形；普通词（cheese=千咲、ameth=a mess、
+    #   cardi=card/Cartethyia 两义）一律不裸进表，走逐 cue 侧车。
+    "Shorkeeper": "守岸人", "shorkeeper": "守岸人",
+    # Camalias 复数须先于 Camalia 命中，否则残留"椿s"；Camelia 为同片异形；
+    # 同句连写的 "Camelia Camalia" 用长键折叠，避免产出"椿 椿"
+    "Camelia Camalia": "椿", "Camelia camalia": "椿",
+    "Camalias": "椿", "camalias": "椿", "Camelia": "椿", "camelia": "椿",
+    "Camalia": "椿", "camalia": "椿",
+    "Sigiball": "西格莉卡", "sigiball": "西格莉卡",
+    "Gingshi": "今汐", "gingshi": "今汐",
+    # 2026-10-20 第三轮（官方名核查）补充：非鸣潮 IP 与 WuWa EP 名。
+    #   Nikke=《胜利女神：妮姬》/妮姬；RED ASH 官方活动名「RED ASH 不熄之红」；
+    #   Elegg/Eluge=伊莱格；Grave=格拉维；Uma Musume=赛马娘；NieR=《尼尔》；
+    #   LIFA=西格莉卡 EP《L!!!!ght》；Segreae=西格莉卡。
+    #   未入表（普通词/歧义，全部走逐 cue 侧车）：红帽→小红帽（裸键会误伤普通"红帽"）、
+    #   Bon Voyage→《远航星的告别》（法语常用语）、Peacock→孔雀剧院（流媒体同名）、
+    #   Coron→库洛（人名歧义）、Jen→今汐（常见英文名）、Libby→莉莉（常见英文名）。
+    "Nikke": "妮姬", "Nikk": "妮姬", "nikk": "妮姬",
+    "Red Ash": "RED ASH",
+    "Elegg": "伊莱格", "Eluge": "伊莱格", "eluge": "伊莱格",
+    "Grave": "格拉维",
+    "Uma Musume": "赛马娘",
+    "NieR": "《尼尔》", "Nier": "《尼尔》",
+    "LIFA": "《L!!!!ght》",
+    "Segreae": "西格莉卡", "segreeae": "西格莉卡", "《Segreae》": "西格莉卡",
+    "Crypto.com 体育馆": "Crypto.com 球馆",
+    "tab 出去": "切出去",
     # --- 2026-09-15 Opera Singer Reacts 鸣潮清宵/景燃 EP（二次校准沉淀）---
     # 古琴：清宵 EP《尘外客》官方 credit「古琴：翟忻来」（Guqin: Xinlai Di），**不是古筝**；
     #   博主口中的 guqin 被 ASR 听成 Cuchen / cooeng / coogen，谷翻作"库根/库恩/气"。
