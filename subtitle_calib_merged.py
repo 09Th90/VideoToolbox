@@ -1,6 +1,9 @@
 # -*- coding: utf-8 -*-
 # @version 2.4.1
 """字幕校准统一脚本（唯一入口，可复用，每次校准任务优先调用本脚本）
+# 2026-10-20 二次校准（3.7 后日谈《璇心如月寄尘情》reaction，2073 cue）：
+#   官方中文新 NPC=璇情（修正旧沉淀「玄方清/玄方庆」）；补 Swan Ching->璇情 回滚、
+#   玄方守望者/墟心/心 vs 心月狐 等英文锚定规则；详见两表末尾 2026-10-20 注释块。
 # 2026-10-14 二次校准 + 脚本升级：《【字幕】All You Should Know in Arknights Next Update!
 #   .en-谷歌翻译.srt》（132 cue，CRLF 无 BOM，谷翻「中文2行+英文2行」，detect=bi，走 --ak）。
 #   ① process 的 ak 分支改造：旧实现只改每 cue 首中文行、ctx 锚点只取末行英文 →
@@ -374,7 +377,7 @@ BILINGUAL_TERMS = {
     "男爵勋爵": "巴伦阁下",                                        # Lord Baron
 
     # --- 2026-08-29 并入：srt_calibrator.py CHINESE_TERM_FIXES ---
-    "泰莎不和谐": "残象不和谐",                                    # Tacet Discord 整词优先
+    "泰莎不和谐": "残象",                                          # Tacet Discord 整词优先（勿留中间形态，2026-10-20 修）
     "泰莎": "残象",                                                # Tessa -> Tacet -> 残象
     "吉恩": "忌炎",                                                # Jiyan
     "金戈市政厅": "今州市政厅",                                    # Jinzhou City Hall（长词优先）
@@ -692,7 +695,7 @@ BILINGUAL_TERMS = {
     "Shawkeeper": "守岸人", "肖战守护者": "守岸人", "岸边管理员": "守岸人",
     "海岸警卫队": "守岸人", "海岸守护者": "守岸人", "做空者": "守岸人", "岸守": "守岸人",
     # 残象（Tacet Discord）变体
-    "塔塞特人": "残象", "塔塞特": "残象", "Tacet 不和": "残象不和谐",
+    "塔塞特人": "残象", "塔塞特": "残象", "Tacet 不和": "残象",
     # 泰缇斯（Tethys 系统，守岸人辅助的运算核心）
     "Tethus": "泰缇斯", "teth系统": "泰缇斯系统",
     # 执花（Bloombearer，黑海岸成员称号）
@@ -1120,12 +1123,36 @@ BILINGUAL_TERMS = {
     "H arem": "后宫烂活", "后宫慢速": "后宫烂活",                  # harem slop（#860/861/3404）
     "Gl acio": "冷凝",                                             # Glacio 官方属性=冷凝（#751/753）
     "Day of Def eat": "胜利之日",                                  # Day of Defeat（#4034/4039）
+    # --- 2026-10-20 3.7 后日谈《璇心如月寄尘情》reaction 二次校准沉淀（官方中文：璇情）---
+    #   官方依据：3.7 奇谭任务「璇心如月寄尘情」攻略（9game/233/18183）明确新 NPC=璇情。
+    #   ⚠ 修正旧沉淀：2026-10-16 块曾把 Schwanqing 记作「玄方清」；实际官方名为「璇情」。
+    #   长键先行：「施万庆/施万清」必须先于裸键「施万」->玄方 命中，否则会产「玄方庆」。
+    "施万庆": "璇情", "施万清": "璇情",
+    "玄方庆": "璇情", "玄方清": "璇情",
+    #   辛月狐 -> 心月狐：整名替换必须先于 ctx 的「辛」「月狐」短键，否则叠成 心月狐心月狐
+    "辛月狐": "心月狐",
+    "tacet不和谐": "残象", "tacet 不和谐": "残象",
+    "tacet不和": "残象", "tacet 不和": "残象",
+    "施万姐姐": "璇情姐姐", "玄方姐姐": "璇情姐姐",
+    "施万·辛格": "璇情·辛格", "玄方·辛格": "璇情·辛格",
+    #   上级替换的常见级联/叠字（本片基线 report 实际出现；均非通用中文词，可安全裸键）
+    "云云梭": "云梭",
+    "心月狐心月狐": "心月狐",
+    "玄方城 Hold": "玄方城", "玄方城Hold": "玄方城",
+    "领领域": "领域",
+    "时空梦枢天罗": "梦枢天罗",
+    "残象不和谐": "残象",   # 兼作旧键「泰莎/塔塞特/Tacet 不和」的收敛兜底
+    #   长键先行，防止短键先跑留下「时空/云」前缀：云班车/云航天飞机->云梭
+    #   （「时空枢纽」属可独立成词的通用短语，不入裸键，改走 CONTEXT_MAP 的 Nexus 锚定）
+    "云班车": "云梭", "云航天飞机": "云梭",
 }
 
 # 保留英文不译的专名（仅提示，不替换）
 KEEP_EN = {"Crywolf"}
 
 # 上下文相关替换：仅当 参考行 命中该英文正则时才把中文里的错误形式替换掉（仅双语模式）
+# 2026-10-20 3.7 后日谈：Schwanqing/Swan Ching 的英文锚点（旧规则目标曾误沉淀为「玄方清」）
+_XQ_RX = r"\bSchwanqing\b|\bSchwan\s*Ching\b|\bSwan\s*Ching\b|\bSchwan\s*ching\b|\bSwanching\b"
 CONTEXT_MAP = [
     # (英文正则, 仅当英文行匹配时才把中文里的某错误形式替换为正确形式)
     (r"\bScar\b", "疤痕", "伤痕"),
@@ -1455,7 +1482,7 @@ CONTEXT_MAP = [
     (r"\bWhere is Mu\b", "穆", "木禺"),            # #882
     # 残象(Tacet) ASR 变体（泰泰特/tacid话语）
     (r"\btacet\b", "泰泰特", "残象"),              # #1045
-    (r"\btacid\b", "冷漠的话语", "残象不和谐"),      # #278 These tacid discourses
+    (r"\btacid\b", "冷漠的话语", "残象"),            # #278 These tacid discourses（2026-10-20 直归残象，勿留中间形态）
     # 咎庭(Censure Court) 变体（中心球场/中央法院/中央法庭）
     (r"(?:centric|centure|centra|censure)[\s-]?courts?", "中心球场", "咎庭"),   # #248
     (r"(?:centric|centure|centra|censure)[\s-]?courts?", "中央法院", "咎庭"),   # #263/#280
@@ -1757,6 +1784,40 @@ CONTEXT_MAP = [
     (r"\bSilent Street\b", "沉默街807号", "Silent Street 807"),     # #279 先吃带"号"的整形，防中英粘连
     (r"\bSilent Street\b", "沉默街", "Silent Street"),              # #279 Stellar Blade 曲名直译，同上
     (r"\bTitan Lost\b", "泰坦：失落", "Titan Lost"),                # #365 FF16 曲名直译，同上（不带冒号的"失落"不收）
+    # --- 2026-10-20 3.7 后日谈《璇心如月寄尘情》reaction 二次校准沉淀（英文佐证，防误伤通用词）---
+    #   官方依据同上；旧条目 (r"\bSchwanqing\b", "天清", "玄方清") 目标有误，本块在其后回滚为璇情。
+    #   Swan Ching 曾被裸键 "Ching"->清宵 误咬成「清宵」，须拉回「璇情」。
+    (_XQ_RX, "玄方清", "璇情"),
+    (_XQ_RX, "玄方 清宵", "璇情"),
+    (_XQ_RX, "玄方清宵", "璇情"),
+    (_XQ_RX, "清宵", "璇情"),
+    (_XQ_RX, "Swan 璇情", "璇情"),
+    (_XQ_RX, "Swan璇情", "璇情"),
+    #   天鹅=swan 是通用词，只在英文确指人名（Schwan 整词，或整行 Swan/Swan Ching）时才改
+    (r"\bSchwan\b", "天鹅", "璇情"),
+    (r"(?i)^\s*Swan[,.!?]?\s*$|\bSwan\s+Ching\b", "天鹅", "璇情"),
+    #   Schwanfang Wardens=玄方守望者；基线把 Wardens 误映射成守岸人
+    (r"\bSchwanfang\s+Wardens\b", "守岸人", "守望者"),
+    (r"\bSchwanfang\s+Wardens\b", "天鹅坊", "玄方"),
+    #   Heart of Ruin=墟心（3.7 墟心域）；修基线「废墟之心/毁灭之心」
+    (r"\bheart of ruin\b|\bHeart of Ruin\b", "废墟之心", "墟心"),
+    (r"\bheart of ruin\b|\bHeart of Ruin\b", "毁灭之心", "墟心"),
+    #   新任岁主「心」(Hsin) vs 原岁主「心月狐」：new/current day Sheen 指心
+    (r"\bnew\s+sheen\b|\bcurrent\s+day\s+sheen\b", "新的心月狐", "新的心"),
+    (r"\bnew\s+sheen\b|\bcurrent\s+day\s+sheen\b", "如今的心月狐", "如今的心"),
+    (r"\bnew\s+sheen\b|\bcurrent\s+day\s+sheen\b", "现在的心月狐", "现在的心"),
+    #   Schwangfong Hold 的「玄方城要塞/玄方要塞」在本片统一为玄方城；不碰其他片的要塞用法
+    (r"\bSchwangfong(?:\s+Hold)?\b|\bSchwanfong(?:\s+Hold)?\b|\bSchwanfang\b|\bShwang\s*Fong\b", "玄方城要塞", "玄方城"),
+    (r"\bSchwangfong(?:\s+Hold)?\b|\bSchwanfong(?:\s+Hold)?\b|\bSchwanfang\b|\bShwang\s*Fong\b", "玄方要塞", "玄方城"),
+    #   「尚方/尚方堡」= Shwang Fong(玄方城) 同音残留；尚方宝剑等历史词不在英文锚点内，安全
+    (r"\bShwang\s*Fong\b|\bSchwangfong\b|\bSchwanfong\b", "尚方堡", "玄方城"),
+    (r"\bShwang\s*Fong\b|\bSchwangfong\b|\bSchwanfong\b", "尚方", "玄方城"),
+    #   级联兜底（长键短键同长度时，中间形态可能落在短键之后，故在 term pass 后再收一次）
+    (r"\bShin\b|\bSheen\b|\bMoon\s*Fox\b|\bMoonf\s*Fox\b", "心月狐心月狐", "心月狐"),
+    (r"\bNexus\b", "时空枢纽", "梦枢天罗"),
+    (r"\bNexus\b", "时空梦枢天罗", "梦枢天罗"),
+    (r"\btacet discord\b|\btacid\b", "残象不和谐", "残象"),
+    (r"cloud shuttle", "云云梭", "云梭"),
 ]
 
 # =============================================================
@@ -4170,20 +4231,31 @@ ENDFIELD_BI_CONTEXT = [
     (r"lady (?:su|sue|s|sa)\b|\bsa'?s\b|our lady", "夫人先生", "祀"),
     # —— 缘缘庄（1.6「烟火生缘」乡间客栈）：主播读中文「缘缘庄」，ASR 只抓到「庄」→
     #   Djang / D Jang / Djong / Di Jang；"X Manor" 被谷翻硬作 严府/萨庄/雅虎庄园/
-    #   什叶庄园/苏府。⚠「姜饼/迪江」是通用词或地名形近，只在英文行确有 Djang 时收。——
-    (r"d\s?jang|djong|\bmanor\b", "D章", "缘缘庄"),
-    (r"d\s?jang|djong", "姜饼", "缘缘庄"),
+    #   什叶庄园/苏府。⚠「姜饼/迪江」是通用词或地名形近，只在英文行确有 Djang 时收。
+    #   ⚠ 2026-10-20 复查更正：**Djang/Djong/Di Jang/DJ/Jung 一律是「帝江号」(O.M.V. Dijiang)**
+    #     ——读「帝江 dìjiāng」，ASR 只抓走后二字；主播说 "your headquarter / routine inspection
+    #     / the cabins of D Jung / go back to DJ" 全是陆行舰语境。上表 3984 起已有 D章/迪正/Django
+    #     →帝江号 的既有规则，此处**只补姜饼/迪江两个新错形**，切勿改成缘缘庄（本轮曾误判）。
+    #     "X Manor"（严府/萨庄/雅虎庄园/什叶庄园/苏府）才是**缘缘庄**。——
+    (r"djang|d\s?jang|djong", "姜饼", "帝江号"),
+    (r"dijiang|d\s?jang|djong|di\s?jang", "迪江", "帝江号"),
     (r"\bmanor\b", "严府", "缘缘庄"),
     (r"\bmanor\b", "萨庄", "缘缘庄"),
     (r"\bmanor\b", "雅虎庄园", "缘缘庄"),
     (r"\bmanor\b", "什叶庄园", "缘缘庄"),
     (r"\bmanor\b", "苏府", "缘缘庄"),
-    (r"di\s?jang|djong|d\s?jang", "迪江", "缘缘庄"),
     # —— 碾骨（Bone Crushers）：谷翻按字面作「骨碎者」，非官方词 ——
     (r"bone\s?crusher", "骨碎者", "碾骨"),
     # —— 四号谷地：谷翻把 "Valley 4 / Valley Four" 作「谷地4」「愚人谷」(Fool 误听) ——
     (r"valley\s?[4f]", "谷地4", "四号谷地"),
     (r"valley\s?[4f]", "愚人谷", "四号谷地"),
+    # —— 次级协议核心：ASR 把 sub-PAC 连写成 subPAC，裸 \bPAC\b 边界不命中 ——
+    (r"sub\s?pac", "子PAC", "次级协议核心"),
+    # —— 裂地者 (Landbreaker)：谷翻按字面作「开垦者」，通用词故必须英文锚定 ——
+    (r"land\s?break", "开垦者", "裂地者"),
+    # —— 墨魉 (weregeists/weargeists，与「墨魂 ink spirits」是两种东西)：
+    #    第一轮曾按音译臆造「畏灵」(#734)，官方简中作**墨魉**（zmd 分类:裂地者 / 气窗和墨魉）。——
+    (r"we?r?e?geists?", "畏灵", "墨魉"),
 ]
 
 # =============================================================
