@@ -1,4 +1,4 @@
-<!-- @version 2.4.0 -->
+<!-- @version 2.4.1 -->
 <h1 align="center">视频工具箱 · VideoToolbox</h1>
 
 <p align="center">
@@ -44,7 +44,7 @@
 | **字幕处理** | 给视频生成字幕、翻译字幕、校准专有名词、把字幕烧进画面或封装进视频 |
 | **字幕编辑** | 在软件里一边放视频一边拖字幕的时间轴，把字幕和画面对齐 |
 | **流水线** | 粘贴一个链接，下载→翻译→校准→打包全自动跑完；也可以盯住一个文件夹自动处理 |
-| **自动化** | B 站自动投稿：保存投稿模板（标题/简介/标签/分区/话题），投稿表单可从视频目录的 `视频信息.txt` 一键读取；执行在后台线程跑，失败自动留整屏截图 |
+| **自动化** | B 站自动投稿：保存投稿模板（标题/简介/标签/分区/话题），投稿表单可从视频目录的 `视频信息.txt` 一键读取；执行在后台线程跑，失败自动留整屏截图。首次使用前，需先在「自动化」页把 10 张必需投稿模板采集完（页内有向导） |
 | **AI 托管** | 内置 AI 托管（harness）：常驻技能包自动部署到各 Agent 约定位置，程序目录当工作区打开即接入 |
 | **设置** | 填 AI 密钥、语音识别服务、下载目录、界面主题等（全软件唯一的设置入口） |
 
@@ -120,7 +120,7 @@ Device Guard 或应用控制策略的电脑会拦住它。这种情况可改用�
 git clone https://github.com/09Th90/VideoToolbox.git
 cd VideoToolbox
 pip install -r requirements.txt
-python -m playwright install chromium   # 可选：Cookie 导出 / B 站投稿才需要
+python -m playwright install chromium   # 可选：仅 Cookie 导出功能需要（B 站投稿走内置视觉引擎驱动本机浏览器，不需要 playwright）
 python src/video_toolbox_qt.py
 ```
 
