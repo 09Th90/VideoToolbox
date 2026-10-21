@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.4.0
+# @version 2.4.1
 """程序运行时环境总准备（数据目录迁移 / 引擎重定向 / 全链补丁挂载）（v2.3.1 拆分工程 · 自 video_toolbox.py 原样搬入）。
 
 v2.3.1 拆分工程；域间依赖规则见 core/__init__.py。
@@ -28,80 +28,78 @@ def prepare_runtime_env():
     1. 迁移字幕引擎在 C 盘的历史数据到数据根目录；
     2. 重定向字幕引擎的路径常量为数据根目录；
     3. 兜底确保临时目录指向数据根目录（不落系统 Temp）。
-    在导入 videocaptioner *之前* 调用；GUI 启动与自检都会走这里。
+    在导入 videocaptioner *之前*调用；GUI 启动与自检都会走这里。
+
+    2026-10-20 启动专项：每步前后留痕 logs/startup.log，供定位 frozen
+    环境下哪一步被 _MEI 新文件的 AV 扫描拖慢（开发态全步合计 <0.2s，
+    旧 frozen 构建实测 3.05s，劣化全在文件 I/O）。
     """
+    import time as _t
+    _t0 = _t.perf_counter()
+
+    def _step(name, fn):
+        try:
+            fn()
+        except Exception:
+            pass
+        _vc_log_step(f"prepare[{name}] {_t.perf_counter() - _t0:.2f}s")
+
     # 必须最先：任何 videocaptioner 导入之前替换 diskcache.Cache
-    try:
+    def _s0():
         from core.asr.runtime_patches import vc_lazy_cache_patch
         vc_lazy_cache_patch()
-    except Exception:
-        pass
+    _step("lazy_cache", _s0)
+    # openai 惰性桩（2026-10-20）：引擎 UI 构建链顶层 `from openai import
+    # OpenAI` 会整包拉入 openai（≈4.4s），而多数用户不走 OpenAI 通道。
+    # 必须在任何 videocaptioner 导入之前装。
+    def _s1():
+        from core.asr.runtime_patches import vc_lazy_openai_patch
+        vc_lazy_openai_patch()
+    _step("lazy_openai", _s1)
     # ⚠️ 顺序不可调换：路径重定向必须早于任何会导入 videocaptioner 的补丁。
     # v1.14.1 的 pydub 补丁内部 `from videocaptioner.core.asr import whisper_cpp`
     # 会触发引擎 config 导入、把路径常量固化成 AppData 默认值；一旦它先跑，
     # vc_redirect_paths() 的「已导入即跳过」守卫就会放行，导致重定向整体失效
     # ——表现为资源/日志/缓存落回 C 盘、随包 assets 与 ffmpeg 定位全丢
     # （_selftest_vc 11 项失败即由此暴露）。
-    try:
-        vc_redirect_paths()
-    except Exception:
-        pass
+    _step("redirect_paths", vc_redirect_paths)
     # v1.14.1：转录时 pydub 裸调 ffprobe/ffmpeg 闪黑窗 → 子进程默认隐藏窗口
-    try:
+    def _s3():
         from core.asr.voiceprint import vc_pydub_nowindow_patch
         vc_pydub_nowindow_patch()
-    except Exception:
-        pass
-    # v1.16.2：翻译请求路由钉死（微软直连 / 谷歌走本地代理）。引擎翻译器默认
-    # 跟随系统代理，mihomo 一挂连直连就能用的微软翻译也会被带崩 → 全段失败。
-    try:
-        from video_toolbox import vc_translate_route_patch
-        vc_translate_route_patch()
-    except Exception:
-        pass
-    # v2.3.1：字幕翻译全面去 AI（用户报「527/527 segments failed，请检查
-    # API key」——机翻没有密钥，文案却让用户查密钥；且设置下拉里残留的
-    # 「LLM 大模型翻译」真会把翻译接进全局 AI）。经 video_toolbox facade
-    # 引入（shared 域不准直接依赖 translate 域，与路由补丁同一路径）。
-    try:
-        from video_toolbox import vc_translate_no_llm_patch
-        vc_translate_no_llm_patch()
-    except Exception:
-        pass
-    # v1.16.2：ASR 协议分发补丁也在这里挂一次。此前它只挂在 GUI 的
-    # 「转录 UI 补丁」里（video_toolbox_qt.py 启动时调），一旦那条路径提前
-    # 失败（引擎 UI 模块导入异常等），协议分发就整体不生效 —— 表现为
-    # qwen-audio-3.0-asr-flash 被按 openai 协议打，直接 404 Api not found。
-    try:
-        from core.asr.patches import vc_asr_protocol_patch
-        vc_asr_protocol_patch()
-    except Exception:
-        pass
+    _step("pydub_nowindow", _s3)
+    # 翻译两补丁（路由钉死 + 去 AI）**不在这里装**（2026-10-20 启动优化）：
+    # 它们要导入 videocaptioner.core.translate 链（冷缓存 ≈2s），而首个翻译
+    # 任务最早也要用户点下按钮之后——改由 ensure_translate_patches() 在
+    # 引擎预热线程末尾（模块已热，≈0）或 agent_cli 翻译命令开头装。
+    # ASR 协议分发补丁**不在这里装**（2026-10-20 启动优化）：它要导入
+    # videocaptioner.core.asr 链（冷缓存实测 1.55s），而转录必然晚于引擎
+    # 界面就绪——改由预热线程末尾（模块已热）与 agent_cli transcribe 入口装。
     # 标准流统一 UTF-8 容错，避免 GBK 控制台打印生僻字/Emoji 时崩溃
-    try:
-        configure_stdio_utf8()
-    except Exception:
-        pass
-    try:
+    _step("stdio_utf8", configure_stdio_utf8)
+    def _s5():
         from core.asr.runtime_patches import vc_migrate_legacy_data
         vc_migrate_legacy_data()
-    except Exception:
-        pass
-    try:
+    _step("migrate_legacy", _s5)
+    def _s6():
         # 引擎界面读盘前规整 settings.json：路径收进软件文件夹 + 注入全局 LLM
         from core.asr.runtime_patches import vc_prepare_settings_file
         vc_prepare_settings_file()
-    except Exception:
-        pass
-    try:
+    _step("prepare_settings", _s6)
+    def _s7():
         os.makedirs(TMP_DIR, exist_ok=True)
         os.environ["TEMP"] = TMP_DIR
         os.environ["TMP"] = TMP_DIR
         tempfile.tempdir = TMP_DIR
-    except OSError:
-        pass
+    _step("tmp_redirect", _s7)
+    _step("cleanup_mei", _cleanup_mei_leftovers)
+
+
+def _vc_log_step(msg):
+    """prepare_runtime_env 的分步留痕（best-effort，写 logs/startup.log）。"""
     try:
-        _cleanup_mei_leftovers()
+        from core.shared.log import _append_log
+        _append_log("startup.log", msg, dedup=False)
     except Exception:
         pass
 

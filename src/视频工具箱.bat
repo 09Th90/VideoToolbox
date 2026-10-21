@@ -21,12 +21,37 @@ set "ROOT=%~dp0.."
 set "PY=%ROOT%\tools\python\python.exe"
 if not exist "%PY%" set "PY=%LOCALAPPDATA%\Programs\Python\Python312\python.exe"
 
-rem ---- 1) purge stale bytecode -------------------------------------------
-rem Python decides whether a .pyc is fresh by comparing mtimes. That is usually
-rem enough, but it silently fails when the clock moved backwards, when files
-rem were copied from another machine, or when an editor preserves mtime. Twenty
-rem files recompile in well under a second, so just drop the cache every time.
+rem ---- 1) purge stale bytecode (selective) --------------------------------
+rem Python invalidates a .pyc by comparing mtimes, which is usually enough,
+rem but it silently fails when the clock moved backwards, when files were
+rem copied from another machine, or when an editor preserves mtime. Dropping
+rem the whole cache every start made 35+ modules recompile each launch
+rem (~0.1-0.3s), so now only entries whose source is newer or gone are
+rem deleted; the rest stay warm. File timestamps are same-length on this
+rem locale (yyyy/MM/dd HH:mm, zero-padded), so a GTR string compare detects
+rem "source newer than the .pyc" safely; minute-precision ties are kept
+rem (Python still validates the mtime+size embedded in the .pyc header).
+rem Force the old full purge with:  VideoToolbox.bat purgeall
+setlocal enabledelayedexpansion
+set "_PURGEALL="
+if /i "%~1"=="purgeall" (
+    set "_PURGEALL=1"
+    shift
+)
+if defined _PURGEALL goto nukeall
+if exist "%SRC%__pycache__\*.pyc" for %%c in ("%SRC%__pycache__\*.pyc") do (
+    set "n=%%~nc"
+    set "n=!n:.cpython-312=!"
+    if not exist "%SRC%!n!.py" (
+        del "%%c" 2>nul
+    ) else (
+        for %%p in ("%SRC%!n!.py") do if "%%~tp" GTR "%%~tc" del "%%c" 2>nul
+    )
+)
+goto purgedone
+:nukeall
 if exist "%SRC%__pycache__" rd /s /q "%SRC%__pycache__" 2>nul
+:purgedone
 
 rem ---- 2) say which snapshot is being launched ----------------------------
 for %%t in ("%SRC%video_toolbox_qt.py") do echo [launcher] video_toolbox_qt.py  modified %%~tt

@@ -22,6 +22,7 @@
 import json
 import os
 import sys
+from collections import OrderedDict
 from copy import deepcopy
 from enum import Enum
 from pathlib import Path
@@ -287,8 +288,14 @@ class QConfig(QObject):
     themeChangedFinished = Signal()
     themeColorChanged = Signal(QColor)
 
+    # ⚠ 默认档与上游 qfluentwidgets（LIGHT）**有意偏离**：对齐业务主题源
+    # ui_theme._default_cfg()["theme"]="dark"（src/ui_theme.py）。否则任何
+    # 绕过 apply_startup_theme 的入口（GUI 探针/单测/独立页面构造）会落到
+    # LIGHT，与 ui_theme 轨读到的用户配置（默认 dark）错位——2026-10-20
+    # 复现：探针裸构造页面时 qconfig=LIGHT 而 ui_custom=dark，浅档 QSS 与
+    # 深色 UICard token 混搭（「页面一半深一半浅」）。
     themeMode = OptionsConfigItem(
-        "QFluentWidgets", "ThemeMode", Theme.LIGHT, OptionsValidator(Theme),
+        "QFluentWidgets", "ThemeMode", Theme.DARK, OptionsValidator(Theme),
         EnumSerializer(Theme))
     themeColor = ColorConfigItem("QFluentWidgets", "ThemeColor", "#009faa")
     fontFamilies = ConfigItem(
@@ -298,7 +305,9 @@ class QConfig(QObject):
     def __init__(self):
         super().__init__()
         self.file = Path("config/config.json")
-        self._theme = Theme.LIGHT
+        # 与 themeMode 默认档一致（DARK，对齐 ui_theme._default_cfg；理由见
+        # themeMode 定义处注释）。
+        self._theme = Theme.DARK
         self._cfg = self
 
     def get(self, item):
@@ -599,15 +608,207 @@ def renderQss(qss: str, theme=None):
     · ``--ThemeColorXxx``  ← ThemeColor 七档运行期派生（跟随 qconfig 主题）
     · ``--FontFamilies``   ← 'Segoe UI','Microsoft YaHei',...
     对不含占位符的文本输出逐字节不变（theme 自检的兼容前提）。
+
+    2026-10-20 性能优化：渲染结果 memo（LRU 128）。输出只取决于
+    (qss 文本, 主题档, themeColor, 字体清单) 四元组——同一份合并 QSS 在
+    一轮 updateStyleSheet 里会被几百个控件各求一次，memo 后每次改色/切档
+    只做一次 29KB 级 safe_substitute，其余全是 O(1) 命中。
+    键里带上 qss 本体强引用，顺带防 hash 碰撞误用。
     """
     if theme is None or theme == Theme.AUTO:
         theme = qconfig.theme
+    if os.environ.get("VT_QSS_NOCACHE"):
+        # 逃生开关：整体关停 memo（含对照基准，行为回到优化前）
+        fonts = tuple(qconfig.get(qconfig.fontFamilies))
+        template = QssTemplate(qss)
+        mappings = {c.value: c.name() for c in ThemeColor._member_map_.values()}
+        mappings["FontFamilies"] = ",".join([f"'{i}'" for i in fonts])
+        mappings.update(designTokens(theme))
+        return template.safe_substitute(mappings)
+    fonts = tuple(qconfig.get(qconfig.fontFamilies))
+    key = (qss, theme, qconfig.get(qconfig.themeColor).name(), fonts)
+    hit = _RENDER_CACHE.get(key)
+    if hit is not None:
+        _RENDER_CACHE.move_to_end(key)
+        return hit
     template = QssTemplate(qss)
     mappings = {c.value: c.name() for c in ThemeColor._member_map_.values()}
-    mappings["FontFamilies"] = ",".join(
-        [f"'{i}'" for i in qconfig.get(qconfig.fontFamilies)])
+    mappings["FontFamilies"] = ",".join([f"'{i}'" for i in fonts])
     mappings.update(designTokens(theme))
-    return template.safe_substitute(mappings)
+    out = template.safe_substitute(mappings)
+    _RENDER_CACHE[key] = out
+    if len(_RENDER_CACHE) > 128:
+        _RENDER_CACHE.popitem(last=False)
+    return out
+
+
+#: renderQss 渲染结果 memo（键含 qss 本体，命中即 O(1)；见 renderQss docstring）
+_RENDER_CACHE: "OrderedDict[tuple, str]" = OrderedDict()
+
+# ---------------------------------------------------------------------- #
+# 选择器感知的 QSS 切片（2026-10-20 性能优化）
+# ---------------------------------------------------------------------- #
+#: 全量合并 QSS ~29KB，历史上每个控件都挂全量：setStyleSheet 的解析与
+#: unpolish/polish 级联全量计费（实测容器一发 ~42ms、注册面 2233 个控件）。
+#: 本模块按选择器类名给每个控件只发它**可能命中**的规则子集。
+#:
+#: 优先级安全性（关键论证）：一条规则能匹配控件 W，当且仅当其最右简单
+#: 选择器命中 W——右端是类 C 则 C ∈ W 的 MRO（类命中），右端是 #id 则
+#: id == W 的 objectName（ID 命中），右端是 `*`/裸伪态则恒发。因此**所
+#: 有能匹配 W 的规则都落在 W 自己的切片里**，跨族后代选择器（如
+#: `SettingCard QPushButton`）不会从「自有层」降级到「祖先层」，Qt 的
+#: 「自有层优先」规则不会改变既有特异性裁决；切不中的规则本就不应用于
+#: W（或由其目标控件/祖先层各自携带）。
+#:
+#: VT_QSS_FULL=1 整体关停（回退全量行为，排障/对照用）。
+#: 原生子控件类——QScrollBar/QHeaderView/QAbstractItemView/QWidget 等是
+#: Qt **原生子控件**（滚动条、表头、下拉视图、滚动视口），自身不进样式表
+#: 注册表、类名也不在注册祖先的 MRO 里，全量时代靠「人人满载」经 Qt 级联
+#: 获得样式。切片后给**每个**注册控件的切片补充「右端类属于该集合」的
+#: 规则（如 `QScrollBar::add-line {height:0}`、`QComboBox
+#: QAbstractItemView`），保持这些原生子控件的观感与全量时代一致。
+_NATIVE_CHILD_CLASSES = frozenset({
+    "QScrollBar", "QHeaderView", "QAbstractItemView", "QWidget",
+    "QSlider", "QGraphicsView", "QGraphicsScene",
+})
+#: 可能承载上述原生子控件的「容器」类——只有它们需要这份补充规则；
+#: 按钮/标签/卡片等叶子控件不需要（缩小切片、降低 polish 成本）。
+_NATIVE_HOST_CLASSES = frozenset({
+    "QAbstractScrollArea", "QAbstractItemView", "QScrollArea", "QTextEdit",
+    "QPlainTextEdit", "QGraphicsView", "QComboBox", "QFontComboBox",
+    "QTableView", "QTreeView", "QListView", "QListWidget", "QTableWidget",
+    "QTreeWidget", "QTabWidget", "QSplitter",
+})
+_SLICE_CACHE = {}        # (path, theme, 类名, objectName) -> 切片文本
+_CLASS_KEY_CACHE = {}    # type -> (类名, MRO 类名集)
+_QSS_INDEX_CACHE = {}    # (path, theme) -> (parsed_rules, 全部类名集)
+
+
+def _split_qss_rules(text):
+    """把合并 QSS 拆成 [(selector, block), ...]（去注释；本库 QSS 无嵌套块）。"""
+    import re
+    text = re.sub(r"/\*.*?\*/", " ", text, flags=re.S)
+    rules = []
+    pos, n = 0, len(text)
+    while pos < n:
+        brace = text.find("{", pos)
+        if brace < 0:
+            break
+        close = text.find("}", brace)
+        if close < 0:
+            break
+        sel = text[pos:brace].strip()
+        if sel:
+            rules.append((sel, text[brace + 1:close]))
+        pos = close + 1
+    return rules
+
+
+def _rule_tokens(sel):
+    """选择器里的类名集合（大写开头标识符）与 #id 集合。"""
+    import re
+    classes = frozenset(t for t in re.findall(r"[A-Za-z_][A-Za-z0-9_]*", sel)
+                        if t[:1].isupper())
+    ids = frozenset(re.findall(r"#([A-Za-z_][A-Za-z0-9_]*)", sel))
+    return classes, ids
+
+
+def _widget_class_key(widget):
+    cls = type(widget)
+    key = _CLASS_KEY_CACHE.get(cls)
+    if key is None:
+        names = frozenset(c.__name__ for c in cls.__mro__)
+        key = (cls.__name__, names)
+        _CLASS_KEY_CACHE[cls] = key
+    return key
+
+
+def _rightmost_class(sel):
+    """选择器最右简单选择器里的类名（原生子控件补充集判定用）。"""
+    tail = sel.replace(">", " ").replace("+", " ").split()[-1] if sel else ""
+    classes, _ = _rule_tokens(tail)
+    for c in classes:
+        return c
+    return ""
+
+
+def _qss_index(source, theme):
+    """(path, theme) → (解析后的规则表, 全部类名集)；解析只做一次。"""
+    path = source.path(theme)
+    key = (path, theme)
+    hit = _QSS_INDEX_CACHE.get(key)
+    if hit is None:
+        parsed = []
+        all_classes = set()
+        for sel, block in _split_qss_rules(source.content(theme)):
+            classes, ids = _rule_tokens(sel)
+            parsed.append((sel, block, classes, ids, _rightmost_class(sel)))
+            all_classes |= classes
+        hit = _QSS_INDEX_CACHE[key] = (parsed, frozenset(all_classes))
+    return hit
+
+
+def sliced_qss(source, widget, theme=Theme.AUTO):
+    """source 全量内容按 widget 类系切片（带缓存）；语义见模块注释。"""
+    if os.environ.get("VT_QSS_FULL"):
+        return source.content(theme)
+    if not isinstance(widget, QWidget):
+        # 非控件载体（如 QApplication 上的 app.qss）：全量
+        return source.content(theme)
+    if theme is None or theme == Theme.AUTO:
+        theme = qconfig.theme
+    try:
+        path = source.path(theme)
+    except Exception:
+        return source.content(theme)
+    parsed, all_classes = _qss_index(source, theme)
+    cls_name, names = _widget_class_key(widget)
+    objname = widget.objectName() or ""
+    ck = (path, theme, cls_name, objname)
+    hit = _SLICE_CACHE.get(ck)
+    if hit is not None:
+        return hit
+    is_host = bool(names & _NATIVE_HOST_CLASSES)
+    if names & all_classes or objname:
+        parts = [f"{sel} {{{block}}}"
+                 for sel, block, classes, ids, rightmost in parsed
+                 if (classes & names)
+                 or (ids and objname in ids)
+                 or (is_host and rightmost in _NATIVE_CHILD_CLASSES)  # 容器补充
+                 or (not classes and not ids)]      # `*`/裸伪态：恒发
+        out = "\n".join(parts)
+    else:
+        out = ""                    # 类系与整份 QSS 无交集：无规则可命中
+    _SLICE_CACHE[ck] = out
+    return out
+
+
+def _iter_sheet_sources(source):
+    """递归展平 compose（addStyleSheet 会 legit 累积多源；展平后逐个渲染）。"""
+    if isinstance(source, StyleSheetCompose):
+        out = []
+        for s in source.sources:
+            out.extend(_iter_sheet_sources(s))
+        return out
+    return [source]
+
+
+def render_for_widget(widget, source, theme=Theme.AUTO):
+    """按控件类系切片渲染（setStyleSheet/updateStyleSheet 统一入口）。
+
+    文件类源（FluentStyleSheet/StyleSheetFile）走切片；CustomStyleSheet
+    是逐控件动态属性，原样拼接在尾部（与 StyleSheetCompose 同序）。
+    """
+    if theme is None or theme == Theme.AUTO:
+        theme = qconfig.theme
+    parts = []
+    for s in _iter_sheet_sources(source):
+        if isinstance(s, CustomStyleSheet):
+            parts.append(s.content(theme))
+        else:
+            parts.append(sliced_qss(s, widget, theme))
+    text = "\n".join(p for p in parts if p)
+    return renderQss(text, theme)
 
 
 # ---------------------------------------------------------------------- #
@@ -791,7 +992,13 @@ class DirtyStyleSheetWatcher(QObject):
             return super().eventFilter(obj, e)
         obj.setProperty("dirty-qss", False)
         if obj in styleSheetManager.widgets:
-            obj.setStyleSheet(getStyleSheet(styleSheetManager.source(obj)))
+            try:
+                obj.setStyleSheet(
+                    render_for_widget(obj, styleSheetManager.source(obj)))
+            except Exception:
+                # 补刷失败：保留脏标记等下一次 Paint 重试，不把异常抛进
+                # Qt 的事件系统（会打断该控件的后续事件处理）。
+                obj.setProperty("dirty-qss", True)
         return super().eventFilter(obj, e)
 
 
@@ -829,13 +1036,39 @@ class StyleSheetManager(QObject):
 styleSheetManager = StyleSheetManager()
 
 
+#: QSS 文件内容缓存（键 = (abspath, mtime_ns, size)；2026-10-20 性能优化）。
+#: 改色/切档时每个注册控件都会来取同一份合并 QSS——不缓存意味着几百个
+#: 控件 × 2 次读盘 + UTF-8 解码反复发生。mtime_ns 粒度天然支持开发期改
+#: qss 即时生效；VT_QSS_NOCACHE=1 可整体关停（排障/基准对照）。
+_QSS_FILE_CACHE = {}
+
+
 def getStyleSheetFromFile(file: Union[str, QFile]):
-    """读 QSS 文件内容（UTF-8）。"""
+    """读 QSS 文件内容（UTF-8；带 mtime 粒度的内容缓存）。"""
+    if os.environ.get("VT_QSS_NOCACHE"):
+        f = QFile(file) if not isinstance(file, QFile) else file
+        if not f.open(QFile.ReadOnly):
+            return ""
+        qss = str(f.readAll(), encoding="utf-8")
+        f.close()
+        return qss
+    path = file if isinstance(file, str) else file.fileName()
+    try:
+        st = os.stat(path)
+        key = (os.path.abspath(path), st.st_mtime_ns, st.st_size)
+    except OSError:
+        key = None
+    if key is not None:
+        hit = _QSS_FILE_CACHE.get(key)
+        if hit is not None:
+            return hit
     f = QFile(file) if not isinstance(file, QFile) else file
     if not f.open(QFile.ReadOnly):
         return ""
     qss = str(f.readAll(), encoding="utf-8")
     f.close()
+    if key is not None:
+        _QSS_FILE_CACHE[key] = qss
     return qss
 
 
@@ -850,7 +1083,7 @@ def setStyleSheet(widget: QWidget, source, theme=Theme.AUTO, register=True):
     """设控件样式表并按需注册（注册后主题切换自动重应用）。"""
     if register:
         styleSheetManager.register(source, widget)
-    widget.setStyleSheet(getStyleSheet(source, theme))
+    widget.setStyleSheet(render_for_widget(widget, source, theme))
 
 
 def setCustomStyleSheet(widget: QWidget, lightQss: str, darkQss: str):
@@ -862,9 +1095,9 @@ def addStyleSheet(widget: QWidget, source, theme=Theme.AUTO, register=True):
     """在既有样式表上追加一段。"""
     if register:
         styleSheetManager.register(source, widget, reset=False)
-        qss = getStyleSheet(styleSheetManager.source(widget), theme)
+        qss = render_for_widget(widget, styleSheetManager.source(widget), theme)
     else:
-        qss = widget.styleSheet() + "\n" + getStyleSheet(source, theme)
+        qss = widget.styleSheet() + "\n" + render_for_widget(widget, source, theme)
     if qss.rstrip() != widget.styleSheet().rstrip():
         widget.setStyleSheet(qss)
 
@@ -886,16 +1119,51 @@ def applyAppStyleSheet(app: QApplication, theme=Theme.AUTO):
 
 
 def updateStyleSheet(lazy=False):
-    """主题切换后重应用全部已注册控件的样式表。"""
+    """主题切换后重应用全部已注册控件的样式表。
+
+    2026-10-20 性能优化：渲染结果与组件文本都相同就不再 setStyleSheet（Qt 的
+    setStyleSheet 会触发重新解析 + unpolish/polish 级联，同值调用纯属
+    浪费）。配合 renderQss memo，一轮全量更新的 Python 侧成本从
+    「控件数 × (读盘 + 29KB 替换)」降为「1 次替换 + 控件数次字符串比较」。
+    """
     removes = []
     for widget, file in list(styleSheetManager.items()):
         try:
-            if not (lazy and widget.visibleRegion().isNull()):
-                setStyleSheet(widget, file, qconfig.theme)
+            if not isinstance(widget, QWidget):
+                # app.qss 挂在 QApplication 上：**不随主题切换重设**——一次
+                # app 级 setStyleSheet 会触发全应用 re-polish（实测 3~13s，
+                # 与内容大小无关）。其规则已由 ui_theme 的逐控件表覆盖。
+                continue
+            # ⚠ QApplication（app.qss 的载体）没有 visibleRegion()，lazy 判定
+            # 必须先确认是 QWidget——否则 AttributeError 会打断整个循环
+            # （只有 RuntimeError 被捕获），导致部分控件漏刷（2026-10-20 修）。
+            invisible = (lazy and isinstance(widget, QWidget)
+                         and widget.visibleRegion().isNull())
+            if not invisible:
+                new = render_for_widget(widget, file, qconfig.theme)
+                if new != widget.styleSheet():
+                    widget.setStyleSheet(new)
             else:
-                styleSheetManager.register(file, widget)
+                # ⚠ 不要再 register(file, widget)：控件本就来自注册表，而
+                # register 的 reset 语义会把旧 compose 再包一层——每切一次
+                # 档套娃深一层（2026-10-20 实测：嵌套后取不到 path、切片
+                # 回退全量、join 成本累积，切档 43s→17s 的主要残余来源）。
+                # 打脏标记即可：DirtyStyleSheetWatcher 首绘前会用现有
+                # styleSheetManager.source(obj) 补齐。
                 widget.setProperty("dirty-qss", True)
-        except RuntimeError:
+                # 必须主动排一次重绘（2026-10-20 复现实锤）：Qt 的绘制缓存
+                # 在「外观无变化」时直接 blit 后备存储、不发 Paint——隐藏页
+                # /滚动区外控件切档后因此永远等不到 DirtyStyleSheetWatcher
+                # 的补齐（用户症状：「切主题后颜色不统一，鼠标点一下才好」，
+                # 实测切档后 670/705 个注册控件停旧档、切页 pump 无补救）。
+                # update() 让 Qt 标记需重绘：可见控件下帧即 Paint，隐藏控件
+                # 到显示时补绘 → watcher 在首绘前把新档 QSS 补上。
+                widget.update()
+        except Exception:
+            # 单控件渲染/设置失败不中断全局刷新（曾只捕 RuntimeError：
+            # 一个坏控件（如 render 抛 ValueError）会让后续控件既没刷新
+            # 也没打 dirty 标记，只能等一次偶然的鼠标交互才补救——
+            # 2026-10-20 复现：注入异常后 setTheme 直接穿透到调用方）。
             removes.append(widget)
     for widget in removes:
         styleSheetManager.deregister(widget)
@@ -913,6 +1181,19 @@ def setThemeColor(color, save=False, lazy=False):
     color = QColor(color)
     qconfig.set(qconfig.themeColor, color, save=save)
     updateStyleSheet(lazy)
+
+
+def repolish(widget: QWidget):
+    """动态属性变更后重算 QSS（动态属性不会自动触发重算）。
+
+    替代 setStyle(QApplication.style())：后者会把控件的 style 指针替换成
+    app 的 QStyleSheetStyle，主题/全局样式重建后属性选择器规则可能失效
+    （按钮 hasIcon 的 36px 图标位就是这么丢的）。
+    """
+    widget.style().unpolish(widget)
+    widget.style().polish(widget)
+    widget.updateGeometry()
+    widget.update()
 
 
 def updateDynamicStyle(widget: QWidget):

@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>字幕术语校准 · 视频工具箱招牌功能</title>
+<meta name="description" content="视频工具箱的招牌功能：用 3237 条内置术语底表与 AI 证据校验，把机器翻译翻错的专有名词改对，且保证时间轴一个字节不动。">
+<link rel="icon" type="image/png" href="assets/img/favicon.png">
+<link rel="stylesheet" href="assets/css/style.css">
+<script src="assets/js/main.js"></script>
+</head>
+<body>
+
+<header class="site-header">
+  <div class="container header-inner">
+    <a class="brand" href="index.html">
+      <img src="assets/img/icon-256.png" alt="视频工具箱图标">
+      <span>视频工具箱</span>
+      <span class="ver">v2.4.0</span>
+    </a>
+    <nav class="main-nav" aria-label="主导航">
+      <a href="index.html">首页</a>
+      <a href="features.html">功能</a>
+      <a href="calibration.html" class="active">字幕校准</a>
+      <a href="quickstart.html">快速开始</a>
+      <a href="faq.html">常见问题</a>
+    </nav>
+    <div class="header-actions">
+      <button class="icon-btn" data-theme-toggle aria-label="切换主题">
+        <svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
+        <svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:none"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+      </button>
+      <a class="btn btn-accent btn-sm" href="https://github.com/09Th90/VideoToolbox/releases/latest" target="_blank" rel="noopener">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12m0 0 4-4m-4 4-4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>
+        下载
+      </a>
+      <button class="icon-btn nav-toggle" data-nav-toggle aria-label="打开菜单">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+      </button>
+    </div>
+  </div>
+</header>
+
+<main>
+
+<section class="page-hero">
+  <div class="container">
+    <span class="eyebrow">招牌功能</span>
+    <h1>字幕术语校准</h1>
+    <p>机器翻译最容易翻错的就是专有名词——人名、地名、技能名、道具名。一部动画里主角名字被翻成三种写法，看着非常出戏。字幕校准就是专门解决这个的。</p>
+  </div>
+</section>
+
+<!-- 术语底表 -->
+<section class="section" style="padding-top:26px">
+  <div class="container">
+    <div class="section-head reveal">
+      <div class="kicker">内置词表</div>
+      <h2>3237 条中英日韩对照术语底表</h2>
+      <p>四套游戏名词底表按去重并集计共 3237 条，同一条目可能同时出现在多张表里；另有日语、韩语、塞尔达等专用词表。</p>
+    </div>
+    <div class="stats reveal">
+      <div class="stat"><div class="n">1685</div><div class="l">鸣潮</div></div>
+      <div class="stat"><div class="n">1030</div><div class="l">终末地</div></div>
+      <div class="stat"><div class="n">453</div><div class="l">明日方舟</div></div>
+      <div class="stat"><div class="n">69</div><div class="l">战双帕弥什</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- 基本用法 -->
+<section class="section" style="padding-top:10px">
+  <div class="container two-col">
+    <div class="reveal">
+      <div class="section-head" style="margin-bottom:22px">
+        <div class="kicker">基本用法</div>
+        <h2>三步跑完一次校准</h2>
+      </div>
+      <div class="steps">
+        <div class="step"><h4>选一个 .srt 文件</h4><p>在「字幕处理」页切到「字幕校准」分段，选择要校准的字幕。</p></div>
+        <div class="step"><h4>选片源模式</h4><p>共 12 项，决定启用哪些词表与规则（见右侧列表）。</p></div>
+        <div class="step"><h4>点「开始校准」</h4><p>默认输出同目录的「原名.calib.srt」，重名自动加序号，<strong>绝不覆盖你的原字幕</strong>。</p></div>
+      </div>
+      <div class="callout" style="margin-top:18px">
+        <span class="ci"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 8h.01M12 11v5"/></svg></span>
+        <div><strong>可选项：</strong>修正英文 / 参考行（仅双语模式）；生成改动对照报告（同名 <code>.md</code>，写清每处改了什么、依据是什么）；仅统计命中——先看看会改哪些词，不写文件。</div>
+      </div>
+    </div>
+    <div class="reveal">
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>片源模式（12 项）</th></tr></thead>
+          <tbody>
+            <tr><td>中英双语（默认）</td></tr>
+            <tr><td>日语原声 · 鸣潮</td></tr>
+            <tr><td>日语原声 · 终末地</td></tr>
+            <tr><td>韩语原声 · 鸣潮</td></tr>
+            <tr><td>明日方舟</td></tr>
+            <tr><td>明日方舟 · 韩语</td></tr>
+            <tr><td>终末地</td></tr>
+            <tr><td>中文行专属</td></tr>
+            <tr><td>战双帕弥什</td></tr>
+            <tr><td>战双英文原声</td></tr>
+            <tr><td>综合手游 OST</td></tr>
+            <tr><td>音乐点评</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 保证 -->
+<section class="section" style="padding-top:10px">
+  <div class="container">
+    <div class="card reveal" style="padding:30px">
+      <div class="two-col" style="gap:36px;align-items:center">
+        <div>
+          <h3 style="margin-top:0;font-size:20px">它保证不动什么</h3>
+          <p style="color:var(--text-2);font-size:15px;margin:0">
+            序号、时间轴、空行、换行符、BOM <strong>一个字节都不改</strong>，只替换中文行里的术语。
+            也就是说校准完的字幕和原字幕在播放器里的表现完全一致，只有文字变了。
+          </p>
+        </div>
+        <div class="table-wrap" style="box-shadow:none">
+          <table>
+            <tbody>
+              <tr><td style="width:50%">序号 / 时间轴</td><td>原样保留</td></tr>
+              <tr><td>空行 / 换行符 / BOM</td><td>原样保留</td></tr>
+              <tr><td>原字幕文件</td><td>绝不覆盖，另存 <code>*.calib.srt</code></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- AI 校准 -->
+<section class="section" style="padding-top:10px">
+  <div class="container">
+    <div class="section-head reveal">
+      <div class="kicker">AI 校准（推荐）</div>
+      <h2>不只是跑一遍机械术语表</h2>
+      <p>打开「AI 校准」开关后，AI 会逐块复核术语表没覆盖到的疑似错形。整条流水线九步，每一步都有约束：</p>
+    </div>
+    <div class="steps reveal">
+      <div class="step"><h4>先跑一遍术语脚本</h4><p>官方术语表命中的部分必定正确，作为兜底。</p></div>
+      <div class="step"><h4>抽出字幕表、剥掉时间轴</h4><p>AI 只看到文字，从结构上就碰不到时间轴。</p></div>
+      <div class="step"><h4>载入知识库并自行分块</h4><p>块读不完会自动折半重试。</p></div>
+      <div class="step"><h4>逐块让 AI 复校</h4><p>按设置的校准风格（术语级 / 整句重写）处理。</p></div>
+      <div class="step"><h4>证据校验（关键一步）</h4><p>每处改动必须能被知识库或联网查证解释，解释不了的一律拒绝。行数变化、整句改写、无依据的改动全部拒绝并写进报告——<strong>AI 不允许自由改写句子</strong>，防止把你的字幕改得面目全非。</p></div>
+      <div class="step"><h4>按边界合并回填</h4><p>把通过校验的改动按原边界写回字幕结构。</p></div>
+      <div class="step"><h4>独立校验</h4><p>再断言一遍结构与原字幕完全一致。</p></div>
+      <div class="step"><h4>片源档案</h4><p>报告恒定输出：原始标题 → 参考它改写出的新中文标题 + 10 个中文标签（取自字幕内容），另附官方核对结果与脚本沉淀建议。原始标题取自字幕同目录的 <code>视频信息.txt</code>，取不到则退回视频文件名。</p></div>
+    </div>
+    <div class="two-col" style="margin-top:26px;gap:16px">
+      <div class="callout reveal">
+        <span class="ci"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 8h.01M12 11v5"/></svg></span>
+        <div><strong>联网查证：</strong>知识库里没收录的疑似错形，AI 可以发起联网搜索、抓取官方资料页面，把查到的内容当作<strong>只读证据</strong>再下结论。查证结果仍要过证据校验，AI 不能凭搜索结果自由发挥；网络出问题时自动降级，不打断校准。</div>
+      </div>
+      <div class="callout reveal">
+        <span class="ci"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/></svg></span>
+        <div><strong>再次校准：</strong>以上一轮输出为输入再跑一遍，专挑残留错形，输出 <code>*.calib.r2.srt</code>、<code>*.calib.r3.srt</code>……可以连续点，直到满意为止。没配 AI 或接口不可用时关掉开关，纯脚本校准一样能用。</div>
+      </div>
+    </div>
+    <div class="callout reveal" style="margin-top:16px">
+      <span class="ci"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 3h9l4 4v14H6z"/><path d="M9 12h7M9 16h5"/></svg></span>
+      <div><strong>报告怎么看：</strong>勾选「生成改动对照报告」会写一个同名 <code>.md</code>，里面有每处改动的序号、原文、校准后、依据，以及<strong>被拒绝的 AI 提议和拒绝原因</strong>（方便人工复核）。标 ⚠ 的是知识库还没收录的疑似新错形，可以后续沉淀进知识库。</div>
+    </div>
+  </div>
+</section>
+
+<!-- 知识同步 -->
+<section class="section" style="padding-top:10px">
+  <div class="container">
+    <div class="section-head reveal">
+      <div class="kicker">校准知识同步</div>
+      <h2>知识库在用户之间持续积累</h2>
+      <p>不同用户沉淀出的校准成果（术语表、实体、上下文规则）会在用户之间共享，最终收敛成全体内容的并集。</p>
+    </div>
+    <div class="card-grid" style="grid-template-columns:repeat(3,1fr)">
+      <div class="card reveal">
+        <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12m0 0 4-4m-4 4-4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg></div>
+        <h3>更新无感</h3>
+        <p>启动时后台自动执行，也可在设置页点「立即更新」；上传在退出软件时后台完成，界面上没有上传按钮。</p>
+      </div>
+      <div class="card reveal">
+        <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7h10M4 12h16M4 17h7"/><circle cx="18" cy="7" r="2"/><circle cx="14" cy="17" r="2"/></svg></div>
+        <h3>合并是确定性的</h3>
+        <p>本地缺失的直接采用远程，双方各自新增的都能并进来；同一处双方改成不同内容时保留本地并记冲突日志。</p>
+      </div>
+      <div class="card reveal">
+        <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg></div>
+        <h3>不会互相覆盖</h3>
+        <p>多用户之间不会互相覆盖。不想同步的话，在设置页关掉「启用自动同步」即可，日志在 <code>logs\calib_sync.log</code>。</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CTA -->
+<section class="section" style="padding-top:10px">
+  <div class="container">
+    <div class="cta-band reveal">
+      <div>
+        <h2>试试把机翻字幕改对</h2>
+        <p>纯脚本校准不需要任何配置；开 AI 校准只需在设置里填一次 OpenAI 兼容的密钥。</p>
+      </div>
+      <div style="display:flex;gap:12px;flex-wrap:wrap">
+        <a class="btn btn-accent" href="https://github.com/09Th90/VideoToolbox/releases/latest" target="_blank" rel="noopener">下载 v2.4.0</a>
+        <a class="btn btn-ghost" href="quickstart.html">首次配置指南</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<footer class="site-footer">
+  <div class="container">
+    <div class="footer-grid">
+      <div class="footer-brand">
+        <a class="brand" href="index.html">
+          <img src="assets/img/icon-256.png" alt="">
+          <span>视频工具箱</span>
+        </a>
+        <p>把「找视频 → 下下来 → 弄出字幕 → 修好字幕 → 装回视频」装进一个 Windows 窗口的开源桌面软件。</p>
+      </div>
+      <div>
+        <h5>本站</h5>
+        <a href="features.html">功能详解</a>
+        <a href="calibration.html">字幕校准</a>
+        <a href="quickstart.html">快速开始</a>
+        <a href="faq.html">常见问题</a>
+      </div>
+      <div>
+        <h5>项目</h5>
+        <a href="https://github.com/09Th90/VideoToolbox" target="_blank" rel="noopener">GitHub 仓库</a>
+        <a href="https://github.com/09Th90/VideoToolbox/releases" target="_blank" rel="noopener">发布与下载</a>
+        <a href="https://github.com/09Th90/VideoToolbox/issues" target="_blank" rel="noopener">问题反馈</a>
+        <a href="https://space.bilibili.com/507185588" target="_blank" rel="noopener">作者主页（B 站）</a>
+      </div>
+      <div>
+        <h5>随软件文档</h5>
+        <a href="../程序说明书(用户版).md">程序说明书（用户版）</a>
+        <a href="../程序说明书(开发版).md">程序说明书（开发版）</a>
+        <a href="../第三方组件来源与许可声明.txt">第三方组件许可声明</a>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <span>© <span data-year>2026</span> 视频工具箱 · 源码按 CC BY-SA 4.0 发布</span>
+      <span>随安装包分发的组合作品（含 GPL-3.0 组件）整体按 GPL-3.0 提供</span>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>

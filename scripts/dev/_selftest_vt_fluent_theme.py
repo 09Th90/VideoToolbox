@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.4.0
+# @version 2.4.1
 """vt_fluent 主题层 parity 探针（B0 门：深浅色令牌与 qfluentwidgets 逐值对照）。
 
 同一进程内加载 qfluentwidgets（对照基准）与 vt_fluent（自研），逐项比对：
@@ -114,8 +114,16 @@ def main():
             return x.value if isinstance(x, Enum) else (
                 x.name() if hasattr(x, "name") and not isinstance(x, str) else x)
 
-        _cmp(f"qconfig.{q_item_name}.defaultValue",
-             _norm(q_item.defaultValue), _norm(v_item.defaultValue))
+        if q_item_name == "themeMode":
+            # ⚠ 有据偏离（2026-10-20）：vt_fluent 默认档 Theme.DARK，与上游
+            # qfluentwidgets 的 LIGHT 不等——对齐业务主题源 ui_theme
+            # _default_cfg()["theme"]="dark"，防未初始化入口双轨错位。
+            # 断言改为「必须是 Dark」而非与上游 parity。
+            vd = _norm(v_item.defaultValue)
+            _cmp("qconfig.themeMode.defaultValue == Dark(有据偏离)", vd, "Dark")
+        else:
+            _cmp(f"qconfig.{q_item_name}.defaultValue",
+                 _norm(q_item.defaultValue), _norm(v_item.defaultValue))
 
     # ---- 4. setFont / getFont ------------------------------------------- #
     # ⚠ Qt 6.12 起 setWeight 只收 QFont.Weight 枚举；int 权重上游直接崩，

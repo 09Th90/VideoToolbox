@@ -344,7 +344,13 @@ a = Analysis(
     excludes=['torch', 'torchaudio', 'torchvision', 'gradio', 'gradio_client',
               'transformers', 'faster_whisper', 'playwright',
               'pandas', 'matplotlib', 'scipy', 'pytest', 'cv2', 'webview',
-              'pyautogui'],
+              'pyautogui',
+              # ⚠⚠ 2026-10-19：**构建机 PYTHONPATH 上的 sitecustomize 会被
+              #   PyInstaller 当普通模块收进 PYZ**。本次打出来的 v2.4.1 安装包
+              #   里就混进了 Agent 沙箱的「安全删除」shim（把 os.remove /
+              #   shutil.rmtree 改成送回收站，默认启用），既污染用户机器又会
+              #   在批量删除时挂住。这两个名字永远不该进包，显式剔掉。
+              'sitecustomize', 'usercustomize'],
     noarchive=False,
 )
 pyz = PYZ(a.pure)
@@ -357,7 +363,32 @@ pyz = PYZ(a.pure)
 #     Qt6 命名同步改名，见下方长注释）
 _DROP_BINARIES = ('opengl32sw.dll', 'hf_xet', '_avif',
                   'qt6qml.dll', 'qt6quick.dll', 'qt6qmlmodels.dll',
-                  'qt6qmlmeta.dll', 'qt6qmlworkerscript.dll')
+                  'qt6qmlmeta.dll', 'qt6qmlworkerscript.dll',
+                  # 2026-10-20 启动专项（<5s）：**零引用大文件**摘除。
+                  #   src/ 与 tools\python\...\videocaptioner\ 全量 grep
+                  #   `QtMultimedia|QMediaPlayer|QCamera|QAudio|QtPrint|
+                  #   QtPdf|QPdf|QPrinter` → 零命中；本项目与引擎都是
+                  #   纯 QtWidgets 栈（mpv 走 libmpv-2.dll，不经过
+                  #   QtMultimedia）。这些 DLL/插件是 PyInstaller 的 PySide6
+                  #   hook 按发行版整体带入的死重，onefile 每次启动都要
+                  #   解压 + 过三套杀毒（360 / 联想 / Defender），纯付之东流。
+                  #   · avcodec-63.dll(13.5M) + avformat-63(2.7M) +
+                  #     swscale-10(1.2M) + avutil-61(1.1M) + swresample-7(0.2M)
+                  #     = QtMultimedia 的 FFmpeg 族 ≈18.7M
+                  #   · Qt6Multimedia(1.3M) + QtMultimediaWidgets(0.2M)
+                  #   · Qt6Pdf.dll(4.4M)   —— 无打印/PDF 需求
+                  #   · Qt6VirtualKeyboard(0.4M) —— 桌面端输入法场景用不到
+                  #   · plugins/multimedia/ffmpegmediaplugin +
+                  #     windowsmediaplugin(1.0M)
+                  #   · qtiff(0.95M)——封面/字幕图片只有 jpg/png/webp
+                  #   · qdirect2d(1.0M)——qwindows 才是主平台插件
+                  #   合计 ≈28M / 16 个文件，解包与 AV 扫描同步受益。
+                  'qt6multimedia.dll', 'qt6multimediawidgets.dll',
+                  'qt6virtualkeyboard.dll', 'qt6pdf.dll',
+                  'avcodec-', 'avformat-', 'avutil-', 'swscale-',
+                  'swresample-',
+                  'ffmpegmediaplugin', 'windowsmediaplugin',
+                  'qtiff', 'qdirect2d')
 # ⚠⚠ v1.18.0 追加 QML 三件套的原因（**不是为了省体积，是被硬限逼的**）：
 #   在线安装器要把组件仓库发布到 gh-pages，而 **GitHub 单文件硬限 100 MiB**。
 #   本轮 exe 因引入 onnxruntime 涨到 106,281,428 字节 ⇒ `1.18.0content.7z`
@@ -380,6 +411,15 @@ _DROP_BINARIES = ('opengl32sw.dll', 'hf_xet', '_avif',
 a.binaries = [b for b in a.binaries
               if not any(d in os.path.basename(b[0]).lower() or d in b[0].lower()
                          for d in _DROP_BINARIES)]
+
+# ⚠⚠ 2026-10-20 教训（先记后改）：曾在此过滤全部 *.dist-info + setuptools
+#   （想省 ~77 个文件的解包与杀毒耗时 ≈0.4s），结果 **v2.4.1 构建③的引擎
+#   预热线程 import=fail**——click/fsspec/httpx2/huggingface_hub/pydantic 等
+#   多个包在 import 期用 importlib.metadata 读自己的版本/入口点，dist-info
+#   一缺就 PackageNotFoundError，整条引擎导入链断掉，界面改走主线程同步
+#   导入（冻结 ~10s）。dist-info 是**运行期依赖**，不是纯元数据——本过滤
+#   已整体回滚。要省这里的时间，正确方向是减少「真的没人 import」的包，
+#   而不是砍元数据。
 
 # ⚠⚠⚠ v1.18.2 修：**旧版 Qt 目录里的 MSVC runtime 会顶掉 onnxruntime 的新版**
 #   现象：安装版点「录入声纹」报

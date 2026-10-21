@@ -817,8 +817,23 @@ def main():
     import ui_theme
 
     app = QApplication.instance() or QApplication(sys.argv)
-    gui.setTheme(gui.Theme.DARK)
+    # 2026-10-20：从半初始化（只 setTheme(Theme.DARK)，缺 setThemeColor /
+    # plain accent 钩子 / app QSS / 读 ui_custom.json）改为与 main() 完全
+    # 一致的启动主题初始化——此前自检渲染环境与真实程序双轨错位。
+    ui_theme.apply_startup_theme(app)
     win = gui.MainWindow([])
+    # 2026-10-20：「自动化」页改为惰性构造（首帧后约 1.5s 由 _build_auto_page
+    # 补齐），自检里显式 ensure——下面几组 auto_page 断言需要现成页面。
+    win._build_auto_page()
+    # 2026-10-20：引擎界面改为**异步构建**（预热线程导入 + 主线程构建，
+    # 首帧不再阻塞）。自检里显式等待就绪，否则下面依赖 sub._engine 的
+    # 断言会读到 None（曾致 _QApp 未绑定崩溃）。
+    _sub = win.subtitle_page
+    for _w in range(80):                    # 最多 20s
+        if getattr(_sub, "_engine", None) is not None:
+            break
+        app.processEvents()
+        time.sleep(0.25)
 
     # v1.13.0：页面合并为 5 个导航页；v1.14.0：新增「流水线」页（共 6 个）
     pages = [win.download_page, win.library_page, win.subtitle_page,
@@ -982,6 +997,10 @@ def main():
     try:
         with open(_srt, "w", encoding="utf-8") as f:
             f.write("1\n00:00:01,000 --> 00:00:02,000\nhello\n")
+        # v2.1.0 路由：停在「首页/字幕处理」时拖字幕会按类型进工作台
+        # （双语→校准、单语→翻译），**不**去字幕编辑页。本用例测的是
+        # 「其它页面 → 字幕编辑」这条路径，先切到视频库。
+        win.switchTo(win.library_page)
         win._handle_dropped_files([_srt])
         drop_ok = win.subtitle_edit_page.sub_path == _srt
     except Exception:
@@ -1102,6 +1121,7 @@ def main():
     #   `_tr_why` 留着上一组用例的旧值 → 看起来像断言失败，实则根本没跑。
     #   这里显式轮询等待，就绪后再取 subtitle_optimization_interface；
     #   超时/缺失则记 SKIP 而非 FAIL，别把环境问题伪装成代码回归。
+    from PySide6.QtWidgets import QApplication as _QApp
     _tr_ok, _tr_skip, _tr_why = False, False, "no engine"
     for _w in range(60):                     # 最多等 15s
         if getattr(sub, "_engine", None) is not None:

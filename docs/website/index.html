@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>视频工具箱 · 从一条链接到一份能看的成品字幕</title>
+<meta name="description" content="视频工具箱是一个 Windows 桌面软件：下载、转录、翻译、字幕术语校准、合成封装，九个功能页一站式走完。开源，免安装门槛。">
+<link rel="icon" type="image/png" href="assets/img/favicon.png">
+<link rel="stylesheet" href="assets/css/style.css">
+<script src="assets/js/main.js"></script>
+</head>
+<body>
+
+<header class="site-header">
+  <div class="container header-inner">
+    <a class="brand" href="index.html">
+      <img src="assets/img/icon-256.png" alt="视频工具箱图标">
+      <span>视频工具箱</span>
+      <span class="ver">v2.4.0</span>
+    </a>
+    <nav class="main-nav" aria-label="主导航">
+      <a href="index.html" class="active">首页</a>
+      <a href="features.html">功能</a>
+      <a href="calibration.html">字幕校准</a>
+      <a href="quickstart.html">快速开始</a>
+      <a href="faq.html">常见问题</a>
+    </nav>
+    <div class="header-actions">
+      <button class="icon-btn" data-theme-toggle aria-label="切换主题">
+        <svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
+        <svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:none"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+      </button>
+      <a class="btn btn-subtle btn-sm" href="https://github.com/09Th90/VideoToolbox" target="_blank" rel="noopener">
+        <svg viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>
+        GitHub
+      </a>
+      <a class="btn btn-accent btn-sm" href="https://github.com/09Th90/VideoToolbox/releases/latest" target="_blank" rel="noopener">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12m0 0 4-4m-4 4-4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>
+        下载
+      </a>
+      <button class="icon-btn nav-toggle" data-nav-toggle aria-label="打开菜单">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+      </button>
+    </div>
+  </div>
+</header>
+
+<main>
+
+<!-- ============ Hero ============ -->
+<section class="hero">
+  <div class="container hero-grid">
+    <div>
+      <span class="eyebrow">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8"/></svg>
+        Windows 桌面软件 · 开源
+      </span>
+      <h1>从一条链接，<br>到一份<span class="hl">能看的成品字幕</span></h1>
+      <p class="lead">
+        找视频 → 下下来 → 弄出字幕 → 修好字幕 → 装回视频。视频工具箱把这整条流程装进一个
+        Windows 窗口，九个功能页一站式走完，不用在好几个软件之间来回倒腾。
+        不用装 Python，不用配环境变量，双击图标就能用。
+      </p>
+      <div class="hero-cta">
+        <a class="btn btn-accent" href="https://github.com/09Th90/VideoToolbox/releases/latest" target="_blank" rel="noopener">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12m0 0 4-4m-4 4-4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>
+          下载 v2.4.0
+        </a>
+        <a class="btn btn-subtle" href="features.html">看看九个功能页</a>
+      </div>
+      <div class="hero-meta">
+        <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8"/></svg>仅 Windows</span>
+        <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3 4 7v6c0 4.4 3.4 7.4 8 8 4.6-.6 8-3.6 8-8V7z"/></svg>在线安装器约 12 MB</span>
+        <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M9 12l2 2 4-4"/></svg>CC BY-SA 4.0 开源</span>
+      </div>
+    </div>
+
+    <!-- 应用窗口模拟 -->
+    <div class="app-mock" aria-hidden="true">
+      <div class="mock-titlebar">
+        <img src="assets/img/icon-256.png" alt="">
+        <span class="t">视频工具箱 v2.4.0</span>
+        <span class="mock-dots"><i></i><i></i><i></i></span>
+      </div>
+      <div class="mock-body">
+        <div class="mock-nav">
+          <div class="item on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/></svg>首页</div>
+          <div class="item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12m0 0 4-4m-4 4-4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>视频处理</div>
+          <div class="item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>视频库</div>
+          <div class="item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M7 10h10M7 14h6"/></svg>字幕处理</div>
+          <div class="item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h3l2-5 3 10 2-6 2 3h6"/></svg>字幕编辑</div>
+          <div class="item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="5" cy="6" r="2.2"/><circle cx="19" cy="6" r="2.2"/><circle cx="12" cy="18" r="2.2"/><path d="M7 7.5 10.5 16M17 7.5 13.5 16M7.2 6h9.6"/></svg>流水线</div>
+          <div class="item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="8" width="14" height="10" rx="2"/><path d="M12 8V5M9 13h.01M15 13h.01"/></svg>AI 托管</div>
+          <div class="item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1 7 17M17 7l2.1-2.1"/></svg>设置</div>
+        </div>
+        <div class="mock-main">
+          <h4>工作台</h4>
+          <div class="sub">拖文件、粘链接，或直接打字让 AI 干活</div>
+          <div class="mock-input"><span class="caret"></span>把 downloads 里最新的视频转成字幕…</div>
+          <div class="mock-cards">
+            <div class="mock-card"><div class="k">3237</div><div class="l">术语底表条目</div></div>
+            <div class="mock-card"><div class="k">12</div><div class="l">片源校准模式</div></div>
+            <div class="mock-card"><div class="k">11</div><div class="l">ASR 协议</div></div>
+          </div>
+          <div class="mock-bar">
+            <div class="row"><span>流水线 · 第 3 集 校准中</span><span>68%</span></div>
+            <div class="track"><div class="fill"></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 功能概览 ============ -->
+<section class="section" id="features">
+  <div class="container">
+    <div class="section-head reveal">
+      <div class="kicker">九个功能页</div>
+      <h2>一个窗口，走完全部流程</h2>
+      <p>左边导航栏切换页面。除了需要 AI 的功能要先填一次密钥，其余全部开箱即用。</p>
+    </div>
+    <div class="card-grid">
+      <div class="card reveal">
+        <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/></svg></div>
+        <h3>首页 · 工作台</h3>
+        <p>一键创建下载 / 转录 / 翻译任务，直达最近进度；输入框还能直接打字，把整件事交给 AI 托管。</p>
+      </div>
+      <div class="card reveal">
+        <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12m0 0 4-4m-4 4-4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg></div>
+        <h3>视频处理</h3>
+        <p>从 YouTube、B 站等站点下载视频（含字幕、封面、信息），也能把分开下载的画面和声音合成一个文件。</p>
+        <span class="tag">并行下载 · 音画合并</span>
+      </div>
+      <div class="card reveal">
+        <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg></div>
+        <h3>视频库</h3>
+        <p>把某个文件夹里的视频扫出来，缩略图卡片浏览、显示时长与大小，单击就播、右键开目录。</p>
+      </div>
+      <div class="card reveal">
+        <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M7 10h10M7 14h6"/></svg></div>
+        <h3>字幕处理</h3>
+        <p>给视频生成字幕、翻译字幕、校准专有名词、把字幕烧进画面或封装成软字幕，自研引擎页内完成。</p>
+        <span class="tag">招牌功能所在</span>
+      </div>
+      <div class="card reveal">
+        <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h3l2-5 3 10 2-6 2 3h6"/></svg></div>
+        <h3>字幕编辑</h3>
+        <p>一边放视频一边拖波形上的字幕块对轴，<code>.srt</code> / <code>.ass</code> 双格式导出，撤销 100 步防手滑。</p>
+      </div>
+      <div class="card reveal">
+        <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="5" cy="6" r="2.2"/><circle cx="19" cy="6" r="2.2"/><circle cx="12" cy="18" r="2.2"/><path d="M7 7.5 10.5 16M17 7.5 13.5 16M7.2 6h9.6"/></svg></div>
+        <h3>流水线</h3>
+        <p>粘贴一个链接，下载 → 翻译 → 校准 → 打包全自动跑完；也可以盯住一个文件夹，新视频自动接管。</p>
+        <span class="tag">并发 1~8 · 断点续跑</span>
+      </div>
+      <div class="card reveal">
+        <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 16V4m0 0-4 4m4-4 4 4"/><path d="M4 20h16"/></svg></div>
+        <h3>自动化</h3>
+        <p>B 站自动投稿：保存投稿模板（标题 / 简介 / 标签 / 分区 / 话题），后台执行，失败自动留整屏截图。</p>
+      </div>
+      <div class="card reveal">
+        <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="8" width="14" height="10" rx="2"/><path d="M12 8V5M9 13h.01M15 13h.01"/></svg></div>
+        <h3>AI 托管</h3>
+        <p>内置 AI 托管：输入一句话，AI 自己读文件、跑工具把事办完；工作目录就是程序根目录。</p>
+        <span class="tag">v2.1.0 起</span>
+      </div>
+      <div class="card reveal">
+        <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1 7 17M17 7l2.1-2.1"/></svg></div>
+        <h3>设置</h3>
+        <p>全软件唯一设置入口：AI 密钥、语音识别服务、下载目录、数据根目录、主题与缩放，一页排开。</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 数据带 ============ -->
+<section class="section" style="padding-top:0">
+  <div class="container">
+    <div class="stats reveal">
+      <div class="stat"><div class="n">3237</div><div class="l">内置术语底表条目<br>鸣潮 · 终末地 · 方舟 · 战双</div></div>
+      <div class="stat"><div class="n">12</div><div class="l">片源校准模式<br>中英 / 日语 / 韩语原声等</div></div>
+      <div class="stat"><div class="n">11</div><div class="l">ASR 转录协议<br>自动识别，含百炼 / Gemini 等</div></div>
+      <div class="stat"><div class="n">0<small> 字节</small></div><div class="l">校准改动的结构差异<br>时间轴 / 序号 / 换行原样</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 招牌功能 ============ -->
+<section class="section" style="padding-top:8px">
+  <div class="container two-col">
+    <div class="reveal">
+      <div class="section-head" style="margin-bottom:22px">
+        <div class="kicker">招牌功能</div>
+        <h2>字幕术语校准：专治机翻翻错专有名词</h2>
+        <p>
+          机器翻译最容易翻错的就是专有名词——人名、地名、技能名、道具名。一部动画里主角名字
+          被翻成三种写法，看着非常出戏。字幕校准拿内置术语底表逐条替换，还可以开 AI 逐块复核
+          术语表没覆盖到的疑似错形。
+        </p>
+      </div>
+      <p style="color:var(--text-2);font-size:15px;margin:0 0 22px">
+        AI 校准不允许自由改写句子：每处改动必须能被知识库或联网查证解释，解释不了的一律拒绝并写进报告。
+        校准知识库还会在用户之间持续积累、自动同步。
+      </p>
+      <a class="btn btn-subtle" href="calibration.html">
+        了解校准的完整机制
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14m-6-6 6 6-6 6"/></svg>
+      </a>
+    </div>
+    <div class="card reveal" style="padding:26px">
+      <h3 style="margin-top:0">它保证不动什么</h3>
+      <p style="margin-bottom:16px">校准只替换中文行里的术语，其余一个字节都不改——校准完的字幕在播放器里的表现和原字幕完全一致，只有文字变了。</p>
+      <div class="table-wrap" style="box-shadow:none">
+        <table>
+          <tbody>
+            <tr><td>序号</td><td>原样保留</td></tr>
+            <tr><td>时间轴</td><td>原样保留</td></tr>
+            <tr><td>空行 / 换行符</td><td>原样保留</td></tr>
+            <tr><td>BOM 与源编码</td><td>原样保留</td></tr>
+            <tr><td>你的原字幕文件</td><td>绝不覆盖，另存 <code>*.calib.srt</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 省心细节 ============ -->
+<section class="section" style="padding-top:8px">
+  <div class="container">
+    <div class="section-head reveal">
+      <div class="kicker">工程细节</div>
+      <h2>不给你添麻烦的设计</h2>
+    </div>
+    <div class="card-grid" style="grid-template-columns:repeat(4,1fr)">
+      <div class="card reveal">
+        <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg></div>
+        <h3>绿色便携</h3>
+        <p>配置、下载、缓存、日志全在软件目录，不写 C 盘；整个文件夹拷走就等于搬家。</p>
+      </div>
+      <div class="card reveal">
+        <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3 4 7v6c0 4.4 3.4 7.4 8 8 4.6-.6 8-3.6 8-8V7z"/><path d="M9 12l2 2 4-4"/></svg></div>
+        <h3>零门槛安装</h3>
+        <p>不需要管理员权限、不弹 UAC，安装向导全程简体中文，装完即用。</p>
+      </div>
+      <div class="card reveal">
+        <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/></svg></div>
+        <h3>断了能接着跑</h3>
+        <p>流水线状态实时存盘，重启后已完成阶段自动跳过；单任务失败不拖累队列。</p>
+      </div>
+      <div class="card reveal">
+        <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg></div>
+        <h3>密钥只留本机</h3>
+        <p>AI 密钥只存本机 <code>data\ai_config.json</code>，不随软件分发、不上传到任何地方。</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ CTA ============ -->
+<section class="section" style="padding-top:10px">
+  <div class="container">
+    <div class="cta-band reveal">
+      <div>
+        <h2>把整条流程装进你的电脑</h2>
+        <p>在线安装器约 12 MB，安装时自动拉取约 127 MB 组件；完全断网的环境可按源码方式运行。</p>
+      </div>
+      <div style="display:flex;gap:12px;flex-wrap:wrap">
+        <a class="btn btn-accent" href="https://github.com/09Th90/VideoToolbox/releases/latest" target="_blank" rel="noopener">下载 v2.4.0</a>
+        <a class="btn btn-ghost" href="quickstart.html">安装与首次配置</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<footer class="site-footer">
+  <div class="container">
+    <div class="footer-grid">
+      <div class="footer-brand">
+        <a class="brand" href="index.html">
+          <img src="assets/img/icon-256.png" alt="">
+          <span>视频工具箱</span>
+        </a>
+        <p>把「找视频 → 下下来 → 弄出字幕 → 修好字幕 → 装回视频」装进一个 Windows 窗口的开源桌面软件。</p>
+      </div>
+      <div>
+        <h5>本站</h5>
+        <a href="features.html">功能详解</a>
+        <a href="calibration.html">字幕校准</a>
+        <a href="quickstart.html">快速开始</a>
+        <a href="faq.html">常见问题</a>
+      </div>
+      <div>
+        <h5>项目</h5>
+        <a href="https://github.com/09Th90/VideoToolbox" target="_blank" rel="noopener">GitHub 仓库</a>
+        <a href="https://github.com/09Th90/VideoToolbox/releases" target="_blank" rel="noopener">发布与下载</a>
+        <a href="https://github.com/09Th90/VideoToolbox/issues" target="_blank" rel="noopener">问题反馈</a>
+        <a href="https://space.bilibili.com/507185588" target="_blank" rel="noopener">作者主页（B 站）</a>
+      </div>
+      <div>
+        <h5>随软件文档</h5>
+        <a href="../程序说明书(用户版).md">程序说明书（用户版）</a>
+        <a href="../程序说明书(开发版).md">程序说明书（开发版）</a>
+        <a href="../第三方组件来源与许可声明.txt">第三方组件许可声明</a>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <span>© <span data-year>2026</span> 视频工具箱 · 源码按 CC BY-SA 4.0 发布</span>
+      <span>随安装包分发的组合作品（含 GPL-3.0 组件）整体按 GPL-3.0 提供</span>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>

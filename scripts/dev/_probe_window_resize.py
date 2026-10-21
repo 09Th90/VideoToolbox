@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.4.0
+# @version 2.4.1
 """窗口缩放回归探针：「页面把窗口最小尺寸钉住」类缺陷的守门人。
 
 病史（同一签名咬过三次，用户原话依次演进）：
@@ -27,6 +27,7 @@
 跑法：VT_NO_SYNC=1 tools\\python\\python.exe scripts\\dev\\_probe_window_resize.py
 """
 import os
+import shutil
 import sys
 import time
 
@@ -34,7 +35,7 @@ os.environ.setdefault("QT_QPA_PLATFORM", "windows")
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 SRC = os.path.join(ROOT, "src")
 sys.path.insert(0, SRC)
-os.environ.setdefault("VT_DATA_ROOT", os.path.join(ROOT, "data", "tmp", "_resize_probe_data"))
+os.environ.setdefault("VT_DATA_ROOT", os.path.join(ROOT, "build", "_resize_probe_data"))
 os.environ["VT_NO_SYNC"] = "1"
 
 from PySide6.QtWidgets import QApplication  # noqa: E402
@@ -59,6 +60,18 @@ def build_transcribing_window():
     """建窗 → 等工作台构建 → 切到「语音转录」分段。"""
     import video_toolbox_qt as vt
     app = QApplication.instance() or QApplication(sys.argv)
+    # 种子主题配置 + 启动主题初始化（2026-10-20 修复）：与 main() 一致，
+    # 防 qconfig 停代码默认档与 ui_theme 轨错位渲染。
+    _real_cfg = os.path.join(ROOT, "data", "ui_custom.json")
+    _iso_cfg = os.path.join(os.environ["VT_DATA_ROOT"], "data", "ui_custom.json")
+    if os.path.isfile(_real_cfg) and not os.path.isfile(_iso_cfg):
+        os.makedirs(os.path.dirname(_iso_cfg), exist_ok=True)
+        shutil.copy2(_real_cfg, _iso_cfg)
+    import ui_theme
+    ui_theme.apply_startup_theme(app)
+    from vt_fluent import isDarkTheme, qconfig
+    check("0 主题双轨同档", qconfig.theme == ui_theme.qtheme()
+          and isDarkTheme() == ui_theme.is_dark())
     win = vt.MainWindow([])
     win.show()
     pump(app, 400)

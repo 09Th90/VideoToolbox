@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.4.0
+# @version 2.4.1
 """v2.1.0 首页改造实机探针（需在能跑 Qt 的桌面执行）。
 
 验证三件事：
@@ -13,9 +13,11 @@
 每项都**先看真值再看结论**，且失败时打印上下文，不靠"看着没问题"下判断。
 """
 import os
+import shutil
 import sys
 
 os.environ.setdefault("QT_QPA_PLATFORM", "windows")
+os.environ["VT_NO_SYNC"] = "1"
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 SRC = os.path.join(ROOT, "src")
 sys.path.insert(0, SRC)
@@ -46,6 +48,18 @@ def main():
     import video_toolbox_qt as vt
 
     app = QApplication.instance() or QApplication(sys.argv)
+    # 种子主题配置 + 启动主题初始化（2026-10-20 修复）：与 main() 一致，
+    # 防 qconfig 停代码默认档与 ui_theme 轨错位渲染。
+    _real_cfg = os.path.join(ROOT, "data", "ui_custom.json")
+    _iso_cfg = os.path.join(os.environ["VT_DATA_ROOT"], "data", "ui_custom.json")
+    if os.path.isfile(_real_cfg) and not os.path.isfile(_iso_cfg):
+        os.makedirs(os.path.dirname(_iso_cfg), exist_ok=True)
+        shutil.copy2(_real_cfg, _iso_cfg)
+    import ui_theme
+    ui_theme.apply_startup_theme(app)
+    from vt_fluent import isDarkTheme, qconfig
+    check("0 主题双轨同档", qconfig.theme == ui_theme.qtheme()
+          and isDarkTheme() == ui_theme.is_dark())
     win = vt.MainWindow([])
     win.resize(1180, 729)
     win.show()

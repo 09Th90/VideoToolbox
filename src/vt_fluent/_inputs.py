@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.4.0
+# @version 2.4.1
 """vt_fluent 输入族（自研，替代 qfluentwidgets 输入类控件）。
 
 行为契约（对齐上游 1.11.3）：
@@ -26,7 +26,7 @@ from PySide6.QtCore import (QEvent, QPoint, QPropertyAnimation, QRectF, QSize,
                             Qt, QTimer, Signal, Property)
 from PySide6.QtGui import QColor, QIcon, QPainter, QPainterPath
 from PySide6.QtGui import QAction
-from PySide6.QtWidgets import (QApplication, QCheckBox, QCompleter, QDoubleSpinBox,
+from PySide6.QtWidgets import (QCheckBox, QCompleter, QDoubleSpinBox,
                                QHBoxLayout, QLabel, QLineEdit, QPlainTextEdit,
                                QPushButton, QSizePolicy, QSlider, QSpinBox,
                                QStyle, QStyleOptionButton, QTextEdit,
@@ -38,9 +38,9 @@ from ._buttons import ToolButton, TransparentToolButton, _menu_exec, \
 from ._menu import MenuAnimationType, RoundMenu
 from ._icon import ExtraIcon, FluentIcon, drawIcon, toQIcon
 from ._theme import (FluentStyleSheet, ThemeColor, autoFallbackThemeColor,
-                     fallbackThemeColor, isDarkTheme, setFont, setCustomStyleSheet,
-                     themeColor, updateDynamicStyle, validColor,
-                     FluentSystemColor)
+                     fallbackThemeColor, isDarkTheme, repolish, setFont,
+                     setCustomStyleSheet, themeColor, updateDynamicStyle,
+                     validColor, FluentSystemColor)
 
 #: 数字框步进图标（上游 SpinIcon.UP/DOWN 等价物，EXTRA_ART 取字）
 SPIN_UP = ExtraIcon("images_spin_box_Up")
@@ -775,7 +775,7 @@ class ComboBox(QPushButton, ComboBoxBase):
         if self.property("isPlaceholderText") == isPlaceholder:
             return
         self.setProperty("isPlaceholderText", isPlaceholder)
-        self.setStyle(QApplication.style())
+        repolish(self)
 
     def mouseReleaseEvent(self, e):
         super().mouseReleaseEvent(e)
@@ -1008,7 +1008,7 @@ class SpinBoxBase:
 
     def setSymbolVisible(self, isVisible: bool):
         self.setProperty("symbolVisible", isVisible)
-        self.setStyle(QApplication.style())
+        repolish(self)
 
     def setCustomFocusedBorderColor(self, light, dark):
         self.lightFocusedBorderColor = QColor(light)

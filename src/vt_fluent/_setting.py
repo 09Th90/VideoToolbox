@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.4.0
+# @version 2.4.1
 """vt_fluent 设置卡族（自研，替代 qfluentwidgets 的 settings 包）。
 
 行为契约（对齐上游 1.11.3）：
@@ -22,7 +22,7 @@ from enum import Enum
 from PySide6.QtCore import (QEasingCurve, QEvent, QPoint, QPropertyAnimation,
                             Property, QRect, QRectF, QSize, Qt, Signal)
 from PySide6.QtGui import QColor, QFont, QIcon, QPainter, QPainterPath
-from PySide6.QtWidgets import (QAbstractButton, QApplication, QButtonGroup, QColorDialog,
+from PySide6.QtWidgets import (QAbstractButton, QButtonGroup, QColorDialog,
                                QFrame, QHBoxLayout, QLabel, QLayout, QPushButton,
                                QScrollArea, QSizePolicy, QToolButton, QVBoxLayout,
                                QWidget)
@@ -31,7 +31,7 @@ from ._buttons import HyperlinkButton, RadioButton, TransparentToolButton
 from ._icon import FluentIcon, FluentIconBase, drawIcon
 from ._inputs import (ComboBox, IndicatorPosition, Slider, SwitchButton)
 from ._theme import (ColorConfigItem, FluentStyleSheet, OptionsConfigItem,
-                     RangeConfigItem, isDarkTheme, qconfig, setFont)
+                     RangeConfigItem, isDarkTheme, qconfig, repolish, setFont)
 
 #: 颜色选择按钮默认尺寸（对齐上游 ColorPickerButton）
 COLOR_BUTTON_SIZE = QSize(96, 32)
@@ -575,7 +575,7 @@ class ExpandSettingCard(QScrollArea):
 
         self.isExpand = isExpand
         self.setProperty("isExpand", isExpand)
-        self.setStyle(QApplication.style())
+        repolish(self)
 
         if isExpand:
             h = self.viewLayout.sizeHint().height()

@@ -53,7 +53,7 @@
 import json
 import os
 
-from PySide6.QtCore import QPointF, QRectF, Qt
+from PySide6.QtCore import QEvent, QObject, QPointF, QRectF, Qt
 from PySide6.QtGui import (QColor, QLinearGradient, QPainter, QPalette, QPen,
                            QPolygonF, QPixmap)
 from PySide6.QtWidgets import (QApplication, QGraphicsBlurEffect, QGraphicsScene,
@@ -165,10 +165,18 @@ _THEME_MODES = ("dark", "light", "auto")
 # 运行期状态
 #: 已注册的页面 {key: QWidget}（paintEvent 已被覆盖的页面）
 _REG = {}
+#: 轻注册页面 {id: QWidget}——只参与 refresh 重绘，不挂背景/遮罩。
+#: 用于 _REG 之外的页面（首页/自动化页/AI 托管页）：它们的 UICard 是
+#: 绘制时现取 token 的，切主题后若不 update 就停在旧色，要等 hover/点击
+#: 才换（2026-10-20 复现：用户反馈「切主题后点一下颜色才统一」）。
+_REPAINT_ONLY = {}
 #: QPixmap 缓存 {path: (mtime, QPixmap)}——避免每次重绘都读盘
 _PIX_CACHE = {}
 #: 模糊图缓存 {(path, mtime): QPixmap}
 _BLUR_CACHE = {}
+#: 首帧后需补模糊重绘的页面（2026-10-20：首帧先画原图 + 暗化遮罩，
+#: 模糊图在下一轮事件循环算好再重绘——背景有遮罩，过渡不可感）。
+_BLUR_DEFERRED = set()
 #: 小图形（箭头/勾）缓存 {(kind, color, size): QSS 用的 url 片段}
 _ICON_CACHE = {}
 #: 内存中的配置副本（懒加载；写穿到磁盘）
@@ -354,23 +362,287 @@ def get_accent():
     return _load_cfg()["accent"]
 
 
+def _apply_app_qss(app):
+    """应用全局 QSS；内容没变就跳过（2026-10-20 性能优化）。
+
+    app.setStyleSheet() 是应用级整份替换——任何一次调用都会让 Qt 全应用
+    失效样式缓存并重刷控件树。同值调用（重复设同一份 QSS）纯属浪费，
+    先与 app.styleSheet() 比对再决定是否真设。
+    """
+    if app is None:
+        return
+    try:
+        qss = build_app_qss()
+        if qss != app.styleSheet():
+            app.setStyleSheet(qss)
+    except Exception:
+        pass
+
+
+#: 参与「主题色逐控件覆盖」的普通 Qt 控件类（惰性导入）。
+#: vt_fluent 自绘控件不在此列——它们的 accent 经 ThemeColor 七档派生 +
+#: styleSheetManager 的 lazy 链路生效（见 vt_fluent/_theme.py）。
+_PLAIN_ACCENT_CLASSES = None
+
+
+def _plain_accent_classes():
+    global _PLAIN_ACCENT_CLASSES
+    if _PLAIN_ACCENT_CLASSES is None:
+        from PySide6.QtWidgets import (QComboBox, QDoubleSpinBox, QLineEdit,
+                                       QPlainTextEdit, QProgressBar,
+                                       QSpinBox, QTextEdit)
+        _PLAIN_ACCENT_CLASSES = (QLineEdit, QTextEdit, QPlainTextEdit,
+                                 QSpinBox, QDoubleSpinBox, QComboBox,
+                                 QProgressBar)
+    return _PLAIN_ACCENT_CLASSES
+
+
+#: build_app_qss + app.qss 的规则按「选择器里出现的类名」索引（缓存）。
+_PLAIN_RULE_INDEX = {}
+#: 逐控件最终表缓存：键 = (类名, objectName, accent, 深浅, groups)。
+_PLAIN_QT_CACHE = {}
+
+
+def _split_rules_simple(text):
+    """QSS 文本 → [(selector, block)]（去注释；本库 QSS 无嵌套块）。"""
+    import re
+    text = re.sub(r"/\*.*?\*/", " ", text, flags=re.S)
+    rules, pos, n = [], 0, len(text)
+    while pos < n:
+        b = text.find("{", pos)
+        if b < 0:
+            break
+        c = text.find("}", b)
+        if c < 0:
+            break
+        sel = text[pos:b].strip()
+        if sel:
+            rules.append((sel, text[b + 1:c]))
+        pos = c + 1
+    return rules
+
+
+def _selector_classes(sel):
+    import re
+    return {t for t in re.findall(r"[A-Za-z_][A-Za-z0-9_]*", sel)
+            if t[:1].isupper()}
+
+
+def _plain_rule_index():
+    """把「普通 Qt 控件的全局 QSS」按类名索引（build_app_qss + app.qss）。
+
+    2026-10-20：app 级样式表一旦内容变化，Qt 会对**全部**控件重刷
+    （实测单发 3~13s 且与内容大小无关），所以主题切换不能再碰 app 级表。
+    这里把两份全局表的规则按「选择器里出现过的类名」拆开，交给逐控件
+    小表机制（_PlainAccentFilter / refresh_plain_accent）分发。
+    """
+    key = (get_accent(), is_dark(),
+           os.environ.get("VT_UI_QSS_GROUPS", "").strip())
+    hit = _PLAIN_RULE_INDEX.get(key)
+    if hit is not None:
+        return hit
+    texts = [build_app_qss()]
+    try:
+        from vt_fluent._theme import _QSS_DIR
+        app_qss = os.path.join(_QSS_DIR, "app.qss")
+        if os.path.isfile(app_qss):
+            with open(app_qss, encoding="utf-8") as f:
+                texts.append(f.read())
+    except Exception:
+        pass
+    index = {}
+    for text in texts:
+        for sel, block in _split_rules_simple(text):
+            for cls in _selector_classes(sel):
+                index.setdefault(cls, []).append("%s {%s}" % (sel, block))
+    _PLAIN_RULE_INDEX[key] = index
+    return index
+
+
+def plain_accent_qss(widget):
+    """普通 Qt 控件的完整样式表（原 app 级全局 QSS 的逐控件化）。
+
+    组成 = 全局表里与该控件类系相关的规则（build_app_qss + app.qss）
+         + 合并 QSS 的类系切片（**放最后**：同特异性下后者胜，保住
+           「fluent 规则优先于 plain 全局规则」的既有裁决顺序）。
+
+    返回 None = 不适用（已由 vt_fluent 管理 / 无相关规则）。
+    """
+    try:
+        from vt_fluent import styleSheetManager as _ssm
+        if widget in _ssm.widgets:
+            return None                      # 自绘控件：走 fluent lazy 链
+    except Exception:
+        pass
+    from PySide6.QtWidgets import QWidget as _QW
+    if not isinstance(widget, _QW):
+        return None
+    cls_names = tuple(c.__name__ for c in type(widget).__mro__)
+    objname = widget.objectName() or ""
+    ck = (cls_names, objname, get_accent(), is_dark(),
+          os.environ.get("VT_UI_QSS_GROUPS", "").strip())
+    hit = _PLAIN_QT_CACHE.get(ck)
+    if hit is not None:
+        return hit or None
+    index = _plain_rule_index()
+    plain = []
+    for cls in cls_names:
+        plain.extend(index.get(cls, ()))
+    try:
+        from vt_fluent import FluentStyleSheet
+        from vt_fluent._theme import sliced_qss
+        merged = sliced_qss(FluentStyleSheet.LABEL, widget)
+    except Exception:
+        merged = ""
+    parts = []
+    if plain:
+        parts.append("\n".join(plain))
+    if merged:
+        parts.append(merged)
+    raw = "\n".join(parts)
+    if not raw:
+        _PLAIN_QT_CACHE[ck] = ""
+        return None
+    # ⚠ 必须走 renderQss：app.qss / 合并切片的规则里是 --Token /
+    # --ThemeColorXxx / --FontFamilies 模板占位符，直接 setStyleSheet 会
+    # 让 Qt 拿到无效值（2026-10-20 视觉回归根因）。build_app_qss 部分
+    # 已是真值，safe_substitute 对其无操作。
+    try:
+        from vt_fluent._theme import renderQss as _render
+        out = _render(raw)
+    except Exception:
+        out = raw
+    _PLAIN_QT_CACHE[ck] = out
+    return out or None
+
+
+def _set_plain_accent(widget, qss):
+    """给控件装主题色小表（同值跳过；只接管空白或自己设过的表）。"""
+    prev = widget.property("vt-accent-qss")
+    if prev is not None:
+        if qss == prev:
+            return False
+        widget.setProperty("vt-accent-qss", qss)
+        widget.setStyleSheet(qss)
+        return True
+    if widget.styleSheet():
+        return False                  # 有别人设的表，不碰
+    widget.setProperty("vt-accent-qss", qss)
+    widget.setStyleSheet(qss)
+    return True
+
+
+def refresh_plain_accent(app=None):
+    """把主题色覆盖表同步到全部普通 Qt 控件（accent / 主题档变更后调用）。
+
+    小表逐控件设置（含不可见控件——隐藏控件 setStyleSheet 不触发绘制），
+    实测全量一遍 ~30ms；对比 app.setStyleSheet 全局重刷 ~355ms。
+    新控件由 _PlainAccentFilter 在 Polish（首绘前）时兜底。
+    """
+    app = app or QApplication.instance()
+    if app is None:
+        return 0
+    n = 0
+    for w in app.allWidgets():
+        try:
+            qss = plain_accent_qss(w)
+            if qss and _set_plain_accent(w, qss):
+                n += 1
+        except Exception:
+            continue                   # C++ 对象已删等，跳过
+    return n
+
+
+#: 钩子类级预筛（2026-10-20）：type -> 是否可能与 plain/合并规则相交。
+#: Polish 事件每个控件都会来一次（构造期实测 3.3 万次），先做一次 O(1)
+#: 类名判定，绝大多数无关控件直接放行。
+_FILTER_CLASS_RELEVANT = {}
+
+
+def _qss_index_merged():
+    """合并 QSS 的全部类名（按当前主题取一次）。"""
+    from vt_fluent import FluentStyleSheet, qconfig as _qc
+    from vt_fluent._theme import _qss_index
+    _parsed, all_classes = _qss_index(FluentStyleSheet.LABEL, _qc.theme)
+    return _parsed, all_classes
+
+
+def _filter_relevant(obj):
+    cls = type(obj)
+    hit = _FILTER_CLASS_RELEVANT.get(cls)
+    if hit is not None:
+        return hit
+    try:
+        names = {c.__name__ for c in cls.__mro__}
+        idx = _plain_rule_index()
+        _parsed, merged_names = _qss_index_merged()
+        hit = bool(names & (set(idx) | set(merged_names)))
+    except Exception:
+        hit = True
+    _FILTER_CLASS_RELEVANT[cls] = hit
+    return hit
+
+
+class _PlainAccentFilter(QObject):
+    """新普通 Qt 控件 Polish 时补主题色小表（app 级全局事件过滤器，单例）。
+
+    QEvent.Polish 在控件**首绘之前**派发——此刻补表，第一帧即新主题色。
+    已装过的同值小表不会重复设置（_set_plain_accent 同值跳过）。
+    """
+
+    def eventFilter(self, obj, e):
+        if e.type() == QEvent.Type.Polish and isinstance(obj, QWidget):
+            # 注：曾试过类级预筛（_filter_relevant），实测构造期 33k 次调用
+            # 累计 0.51s，净亏——绝大多数 Polish 都落在目标类上，预筛本身
+            # 反而成了额外开销。保持直接调用（2026-10-20 实测结论）。
+            try:
+                qss = plain_accent_qss(obj)
+                if qss:
+                    _set_plain_accent(obj, qss)
+            except Exception:
+                pass
+        return False
+
+
+def install_plain_accent_hook(app):
+    """挂全局 Polish 钩子 + 首轮逐控件同步（幂等，启动时调一次）。"""
+    if os.environ.get("VT_UI_PLAIN_QT_OFF"):
+        return                          # 对照/排障：完全不装逐控件机制
+    if app is None or getattr(app, "_vt_plain_accent_hook", False):
+        return
+    try:
+        app.installEventFilter(_PlainAccentFilter(app))
+        app._vt_plain_accent_hook = True
+        refresh_plain_accent(app)
+    except Exception:
+        pass
+
+
 def set_accent(hexcolor):
     """设置主题色：立即 setThemeColor + 重应用全局 QSS + 持久化。"""
     c = QColor(str(hexcolor).strip())
     if not c.isValid():
         return
     hexcolor = c.name().upper()
+    if hexcolor == get_accent().upper():
+        return                      # 同色：免整条重刷链（连点同一色板）
     _load_cfg()["accent"] = hexcolor
     _save_cfg()
     try:
         from vt_fluent import setThemeColor
-        setThemeColor(QColor(hexcolor))
+        # lazy=True：只同步重刷「当前可见」控件的样式表；不可见页的控件打
+        # dirty-qss 脏标记，等切到该页首次 paint 时由 DirtyStyleSheetWatcher
+        # 补齐（事件过滤器先于绘制执行，不会出现旧样式帧）。稳态注册面
+        # 几百个控件里大部分在压栈页里——全量重刷实测 ~800ms/次，lazy 后
+        # ~5ms（见 scripts/dev/_bench_theme.py 实测）。
+        setThemeColor(QColor(hexcolor), lazy=True)
     except Exception:
         pass
     try:
-        app = QApplication.instance()
-        if app is not None:
-            app.setStyleSheet(build_app_qss())
+        if os.environ.get("VT_UI_PLAIN_QT_FULL"):
+            _apply_app_qss(QApplication.instance())   # 逃生：旧的全量行为
+        else:
+            refresh_plain_accent(QApplication.instance())
     except Exception:
         pass
     refresh()
@@ -456,6 +728,11 @@ def set_theme_mode(mode):
     旧实现只 setTheme + 刷新页面背景——导航条/标题栏切了浅色，卡片、
     输入框、背景遮罩还停在深色 token 上，就是「浅色页面里一半深一半浅」
     的根源。现在切档后重生成 QSS（UICard/遮罩走 paintEvent 自然取新色）。
+
+    2026-10-20：setTheme 走 lazy=True——全量重刷在真实界面（注册面
+    ~2233 控件）实测 43s（=「切主题直接卡死」），lazy 只同步当前可见
+    控件、不可见页打 dirty-qss 由 DirtyStyleSheetWatcher 首绘前补齐，
+    切档降到亚秒级。
     """
     if mode not in _THEME_MODES:
         return
@@ -463,13 +740,17 @@ def set_theme_mode(mode):
     _save_cfg()
     try:
         from vt_fluent import setTheme
-        setTheme(qtheme())
+        setTheme(qtheme(), lazy=True)
     except Exception:
         pass
     try:
-        app = QApplication.instance()
-        if app is not None:
-            app.setStyleSheet(build_app_qss())
+        if os.environ.get("VT_UI_PLAIN_QT_FULL"):
+            _apply_app_qss(QApplication.instance())   # 逃生：旧的全量行为
+        else:
+            # 2026-10-20：不再重设 app 级全局 QSS——一次 app.setStyleSheet
+            # 会全应用 re-polish（实测 3~13s，与内容大小无关）。全局规则已
+            # 逐控件化（plain_accent_qss），这里只做逐控件同步。
+            refresh_plain_accent(QApplication.instance())
     except Exception:
         pass
     _fire_theme_hooks()
@@ -502,15 +783,28 @@ def apply_startup_theme(app):
     已注册控件并深度重绘（否则只有 fluent 组件跟着变，我们的 QSS/卡片
     停在旧外观上）。信号挂接失败只影响 auto 跟随，不影响启动。
     """
+    import time as _t
+    _t0 = _t.perf_counter()
+
+    def _note(tag):
+        try:
+            engine._append_log("startup.log", f"theme[{tag}] {_t.perf_counter()-_t0:.2f}s", dedup=False)
+        except Exception:
+            pass
+
     from vt_fluent import setTheme, setThemeColor
     setTheme(qtheme())
+    _note("setTheme")
     setThemeColor(QColor(get_accent()))
+    _note("setThemeColor")
+    install_plain_accent_hook(app)
+    _note("accent_hook")
     try:
         from vt_fluent import qconfig
 
         def _on_theme_changed(*_):
             try:
-                app.setStyleSheet(build_app_qss())
+                refresh_plain_accent(app)
             except Exception:
                 pass
             _fire_theme_hooks()
@@ -521,8 +815,12 @@ def apply_startup_theme(app):
         pass
     if os.environ.get("VT_NO_UI_QSS"):
         return
+    # ⚠ 必须在这里同步设置（2026-10-20 实测反证：延后到首帧之后时树已建满，
+    # 一次全应用 re-polish 要 8.7s；apply_startup_theme 在 MainWindow 之前
+    # 调用，此刻树是空的，代价≈0）。
     try:
-        app.setStyleSheet(build_app_qss())
+        _apply_app_qss(app)
+        _note("apply_app_qss")
     except Exception:
         pass
 
@@ -604,6 +902,11 @@ def _icon_path(kind, color, size=10):
 # ---------------------------------------------------------------------- #
 # 全局 QSS
 # ---------------------------------------------------------------------- #
+#: build_app_qss 结果缓存（键 = (accent, 深浅, VT_UI_QSS_GROUPS)；
+#: 切档/改色之外字符串不变，重复构建纯属浪费——2026-10-20 性能优化）。
+_APP_QSS_CACHE = {}
+
+
 def build_app_qss():
     """全局 QSS：按当前主题 token 生成（深色深底浅字，浅色白底深字）。
 
@@ -616,8 +919,12 @@ def build_app_qss():
     规则组：line / textedit / spin / combo / check / menu / misc / scroll。
     """
     accent = get_accent()
-    t = tokens()
     only = os.environ.get("VT_UI_QSS_GROUPS", "").strip()
+    _ck = (accent, is_dark(), only)
+    hit = _APP_QSS_CACHE.get(_ck)
+    if hit is not None:
+        return hit
+    t = tokens()
     allow = ({s.strip() for s in only.split(",") if s.strip()}
              if only else {"line", "textedit", "spin", "combo", "check",
                            "menu", "misc", "scroll"})
@@ -798,7 +1105,9 @@ QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal {{
     background: transparent;
 }}
 """)
-    return "".join(parts)
+    out = "".join(parts)
+    _APP_QSS_CACHE[_ck] = out
+    return out
 
 
 # ---------------------------------------------------------------------- #
@@ -956,7 +1265,13 @@ def _pixmap_for(path):
 
 
 def _blurred_pixmap(path, pm):
-    """预模糊（QGraphicsBlurEffect 渲染一次、按 (路径, mtime) 缓存）。"""
+    """预模糊（QGraphicsBlurEffect 渲染一次、按 (路径, mtime) 缓存）。
+
+    2026-10-20：降采样模糊——背景图之上还有暗化/渐变遮罩，1/4 分辨率
+    模糊视觉无损但渲染快一个数量级（实测 2560×1440 截图全分辨率模糊
+    单张就要数秒，是首帧 26s 的主要构成之一）。绘制端 cover 缩放会
+    放大回原尺寸（painter 已开 SmoothPixmapTransform）。
+    """
     try:
         mtime = os.path.getmtime(path)
     except OSError:
@@ -965,12 +1280,20 @@ def _blurred_pixmap(path, pm):
     if hit is not None:
         return hit
     try:
-        out = QPixmap(pm.size())
+        if os.environ.get("VT_UI_BLUR_FULL"):
+            small = pm                    # 对照：全分辨率模糊（旧行为）
+        else:
+            sw = max(1, pm.width() // 4)
+            sh = max(1, pm.height() // 4)
+            small = pm.scaled(sw, sh, Qt.IgnoreAspectRatio,
+                              Qt.SmoothTransformation)
+        out = QPixmap(small.size())
         out.fill(Qt.transparent)
         scene = QGraphicsScene()
-        item = scene.addPixmap(pm)
+        item = scene.addPixmap(small)
         eff = QGraphicsBlurEffect()
-        eff.setBlurRadius(BLUR_RADIUS)
+        eff.setBlurRadius(BLUR_RADIUS if os.environ.get("VT_UI_BLUR_FULL")
+                          else max(2, BLUR_RADIUS // 4))
         eff.setBlurHints(QGraphicsBlurEffect.QualityHint)
         item.setGraphicsEffect(eff)
         p = QPainter(out)
@@ -991,6 +1314,30 @@ def _draw_cover(painter, w, h, pm):
     dw, dh = iw * scale, ih * scale
     painter.drawPixmap(QRectF((w - dw) / 2.0, (h - dh) / 2.0, dw, dh),
                        pm, QRectF(0, 0, iw, ih))
+
+
+def _defer_blur(page, path, pm):
+    """把背景模糊延后到下一轮事件循环，算完请求重绘（2026-10-20 启动优化）。"""
+    try:
+        pid = id(page)
+        if pid in _BLUR_DEFERRED:
+            return
+        _BLUR_DEFERRED.add(pid)
+
+        def _do():
+            try:
+                _blurred_pixmap(path, pm)
+            finally:
+                _BLUR_DEFERRED.discard(pid)
+                try:
+                    page.update()
+                except RuntimeError:
+                    pass
+
+        from PySide6.QtCore import QTimer as _QT
+        _QT.singleShot(0, _do)
+    except Exception:
+        pass
 
 
 def _paint_background(page, key):
@@ -1023,7 +1370,15 @@ def _paint_background(page, key):
         p.fillRect(0, 0, w, h, QColor(*t["page_base"]))
         if pm is not None:
             if get_blur():
-                pm = _blurred_pixmap(path, pm)
+                try:
+                    _mt = os.path.getmtime(path)
+                except OSError:
+                    _mt = None
+                cached = _BLUR_CACHE.get((path, _mt)) if _mt is not None else None
+                if cached is not None:
+                    pm = cached
+                else:
+                    _defer_blur(page, path, pm)   # 首帧不等模糊
             _draw_cover(p, w, h, pm)
             alpha = int(round(get_dim() / 100.0 * 255))
             if alpha > 0:
@@ -1063,6 +1418,18 @@ def install_page_background(page, key):
     page.paintEvent = _paint_event
 
 
+def register_repaint(page):
+    """轻注册页面：切主题 refresh 时重绘它，但不挂背景/遮罩（产品面不扩大）。
+
+    用于 _REG（六导航页，install_for_window）之外的页面：首页、自动化页
+    （_LazyPageShell 惰性构造，install_for_window 时还是 None）、AI 托管页
+    （条件挂载）。这些页里的 UICard 三态底色是 paintEvent 现取 token 的，
+    漏 update 就停在旧档。
+    """
+    if page is not None:
+        _REPAINT_ONLY[id(page)] = page
+
+
 def install_for_window(window):
     """一次性给六个导航页挂上背景能力（MainWindow 构造尾部调用一次）。"""
     pairs = [
@@ -1075,6 +1442,11 @@ def install_for_window(window):
     ]
     for key, page in pairs:
         install_page_background(page, key)
+    # _REG 之外的页面轻注册（此刻可能还是 None 的惰性页，由 refresh 的
+    # allWidgets 兜底扫描覆盖；这里能取到的先显式登记）。
+    register_repaint(getattr(window, "home_page", None))
+    register_repaint(getattr(window, "harness_page", None))
+    register_repaint(getattr(window, "auto_page", None))
     refresh()
 
 
@@ -1096,6 +1468,34 @@ def refresh(deep=False):
                     child.update()
                 except Exception:
                     pass
+    # 轻注册页（_REG 之外的首页/自动化/AI 托管）同样重刷
+    for page in list(_REPAINT_ONLY.values()):
+        try:
+            page.update()
+        except Exception:
+            pass
+        if deep:
+            for child in page.findChildren(QWidget):
+                try:
+                    child.update()
+                except Exception:
+                    pass
+    if deep:
+        # 兜底：任何未被显式注册的页面里漏网的 UICard（未来新页忘了注册、
+        # 或 _LazyPageShell 惰性构造晚于 install_for_window），按实例扫一遍
+        # 全窗口。isinstance 判定几千个控件约 1ms，切档是低频操作，可接受。
+        try:
+            from PySide6.QtWidgets import QApplication as _QApp
+            app = _QApp.instance()
+            if app is not None:
+                for w in app.allWidgets():
+                    if isinstance(w, UICard):
+                        try:
+                            w.update()
+                        except Exception:
+                            pass
+        except Exception:
+            pass
 
 
 # ---------------------------------------------------------------------- #

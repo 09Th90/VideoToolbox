@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.4.0
+# @version 2.4.1
 """vt_fluent 展示族（自研，替代 qfluentwidgets 展示类控件）。
 
 行为契约（对齐上游 1.11.3）：
@@ -33,7 +33,7 @@ from ._anim import (BackgroundAnimationWidget, DropShadowAnimation,
 from ._buttons import PushButton
 from ._inputs import CHECK_ACCEPT, CHECK_PARTIAL, LineEdit
 from ._theme import (FluentStyleSheet, autoFallbackThemeColor, getFont, isDarkTheme,
-                     qconfig, setCustomStyleSheet, setFont, themeColor)
+                     qconfig, repolish, setCustomStyleSheet, setFont, themeColor)
 
 #: 表格行指示条/复选框的复选图标（上游 CheckBoxIcon 等价物）
 _CHECK_ICONS = (CHECK_ACCEPT, CHECK_PARTIAL)
@@ -358,7 +358,7 @@ class PivotItem(PushButton):
             return
         self.isSelected = isSelected
         self.setProperty("isSelected", isSelected)
-        self.setStyle(QApplication.style())
+        repolish(self)
         self.update()
 
 
@@ -515,6 +515,14 @@ class Pivot(QWidget):
         painter.drawRoundedRect(self.slideAni.geometry, 1.5, 1.5)
 
 
+class SegmentedItem(PivotItem):
+    """分段控件项（比 PivotItem 紧凑：14px 字 + QSS 的 3/6px 上下内边距）。"""
+
+    def _postInit(self):
+        super()._postInit()
+        setFont(self, 14)
+
+
 class SegmentedWidget(Pivot):
     """分段控件（对齐上游 SegmentedWidget：选中背景块 + 底部指示器）。
 
@@ -536,7 +544,7 @@ class SegmentedWidget(Pivot):
                    icon=None):
         if routeKey in self.items:
             return
-        item = PivotItem(text, self)
+        item = SegmentedItem(text, self)
         if icon:
             item.setIcon(icon)
         self.insertWidget(index, routeKey, item, onClick)

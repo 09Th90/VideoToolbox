@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.4.0
+# @version 2.4.1
 """vc 引擎运行期补丁（lazy-cache 宿主缓存接驳 / settings 预备 / 运行时强制 / 历史数据迁移与残留检测）（v2.3.1 拆分工程 · 自 video_toolbox.py 原样搬入）。
 
 v2.3.1 拆分工程；域间依赖规则见 core/__init__.py。
@@ -77,6 +77,55 @@ def _vt_cache_hub():
         except (AttributeError, TypeError):
             pass
     return hub
+
+
+def vc_lazy_openai_patch():
+    """openai 惰性化（2026-10-20 启动优化）。
+
+    openai 3.11 有 1500+ 子模块，本机导入实测 ≈4.4s；而引擎 UI 构建链
+    （home_interface → core.llm → check_llm / whisper_api）在模块顶层
+    ``from openai import OpenAI`` 就把它整包拉进来——只为界面能打开，而
+    绝大多数用户根本不用 OpenAI 通道。这里把 ``sys.modules["openai"]``
+    换成惰性桩：import 零成本，``OpenAI(...)`` 首次实例化（或任何属性
+    访问）时才导入真包。
+
+    安全性：引擎侧全部是 ``from openai import OpenAI`` 与裸 ``import
+    openai``（异常类等属性都在运行期访问），**无子模块导入**
+    （无 ``import openai.xxx``）⇒ 桩可透明替换。真包首次导入后桩仍留在
+    sys.modules，属性访问一律转发给真模块。
+    """
+    import sys as _sys
+    import types as _types
+    import importlib as _importlib
+    if "openai" in _sys.modules:
+        return True
+    state = {}
+
+    class _LazyOpenAI(_types.ModuleType):
+        def __getattr__(self, name):
+            if name.startswith("__") and name.endswith("__"):
+                raise AttributeError(name)
+            real = state.get("real")
+            if real is None:
+                _sys.modules.pop("openai", None)
+                try:
+                    real = _importlib.import_module("openai")
+                finally:
+                    _sys.modules["openai"] = self
+                state["real"] = real
+            if name == "OpenAI":
+                def _factory(*a, **k):
+                    return real.OpenAI(*a, **k)
+                return _factory
+            if name == "AsyncOpenAI":
+                def _afactory(*a, **k):
+                    return real.AsyncOpenAI(*a, **k)
+                return _afactory
+            return getattr(real, name)
+
+    _sys.modules["openai"] = _LazyOpenAI("openai")
+    _vc_log("openai 已惰性化（首次使用 OpenAI 通道时才导入真包）")
+    return True
 
 
 def vc_prepare_settings_file():
@@ -175,6 +224,27 @@ def vc_migrate_legacy_data():
     目标已存在同名项时不覆盖（保留新位置的数据）。返回迁移的条目数。
     """
     dst_root = vc_data_dir()
+    # 2026-10-20 启动优化：legacy 树是**冻结的历史数据**，迁移完成后没必要
+    # 每次启动整棵扫描（`_merge_into` 逐文件 stat，冷缓存实测 2.16s）。
+    # 用「legacy 目录指纹」做戳，未变化直接返回。
+    stamp_path = os.path.join(dst_root, ".vt_legacy_migrated")
+    fp_s = None
+    try:
+        from core.shared.runtime import _VC_LEGACY_DIRS as _LD
+        fp = []
+        for _d in _LD:
+            if os.path.isdir(_d):
+                _st = os.stat(_d)
+                fp.append((_d, _st.st_mtime_ns, len(os.listdir(_d))))
+        fp_s = repr(sorted(fp))
+        try:
+            with open(stamp_path, encoding="utf-8") as _f:
+                if _f.read().strip() == fp_s:
+                    return 0          # 已迁移且 legacy 未变：跳过整轮扫描
+        except OSError:
+            pass
+    except Exception:  # noqa: BLE001
+        fp_s = None
     # 需要搬运的数据项名（白名单，避免搬进无关文件）
     DATA_ITEMS = ("settings.json", "logs", "cache", "models", "resource",
                   "work-dir", "cli", "llm_requests.jsonl")
@@ -251,6 +321,12 @@ def vc_migrate_legacy_data():
             continue
         _merge(legacy)
         _prune_empty(legacy)
+    if fp_s is not None:
+        try:
+            with open(stamp_path, "w", encoding="utf-8") as _f:
+                _f.write(fp_s)
+        except OSError:
+            pass
     return moved
 
 

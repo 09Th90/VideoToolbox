@@ -171,7 +171,14 @@ from subtitle_overlay import SubtitleStage
 from subtitle_compose import ComposeDialog
 # 自动化页（v1.16.0）：视觉自动化 demo，参考 MAA 的「抓帧→识别→声明式任务→点击」。
 # 单独成模块（自带卡片/滚动壳），因此**不反向 import 本文件**，无循环导入。
-import auto_vision_page
+# 2026-10-20 启动优化：该模块顶层拖入 numpy/PIL/视觉引擎（实测合计 ≈364ms），
+# 却只服务「自动化」一个导航页——改为惰性加载，首帧后约 1.5s 才构造页面
+# （导航项随之晚现，NAV_TEXTS 静态文案不变所以导航宽度无感），
+# 构造入口见 MainWindow._build_auto_page。
+def _load_auto_vision_page():
+    """惰性导入 auto_vision_page，返回其页面类（重依赖只在这里付一次）。"""
+    import auto_vision_page
+    return auto_vision_page.AutoVisionPage
 # 程序更新（v2.0.0）：与自研在线安装器（packaging\online_release）之间的
 # 接线层——只做检测/决策/自替换委托，下载逻辑复用安装器侧已验证的实现。
 # 该模块对「在线发布组件缺失」是**静默降级**（返回 None 能力），所以
@@ -328,6 +335,88 @@ def make_task_creation_drop_handler(tc):
 # 安全兜底：自研 UI 不可导入或构造抛异常时，自动回退到引擎 UI，界面永不因替换打不开。
 # 排障/对照：设环境变量 VT_ENGINE_UI=engine 强制走引擎旧路径。
 _ENGINE_UI_DECISION = None
+
+#: 模块级引擎 UI 预热（2026-10-20 第三波）：在 main() 的 prepare 之后、建窗之前
+#: 就起线程导入引擎 UI 树——原先由 SubtitlePage.prewarm 在首帧后才起，导入
+#: （隔离实测 2.85s，真实环境因与主线程抢 GIL 达 14s）几乎全落在窗口出现之后。
+_ENGINE_PREWARM = {"thread": None, "ok": False, "done": False, "t0": 0.0}
+
+
+def _engine_prewarm_done():
+    """引擎预热是否已完成（供延迟项判断能否开跑）。"""
+    return bool(_ENGINE_PREWARM["done"])
+
+
+def _engine_prewarm_work():
+    """后台导入引擎 UI 树（分步埋点，便于下一轮按真实数据优化）。"""
+    t0 = time.perf_counter()
+    _ENGINE_PREWARM["t0"] = t0
+    ok = False
+    try:
+        try:
+            engine.vc_asr_patch_apply()      # 本地独立 ASR 的模型覆盖补丁（后端）
+        except Exception:  # noqa: BLE001
+            pass
+        _home_cls, _setting_cls, is_self, _err = _resolve_engine_ui()
+        _perf_note(f"prewarm[resolve] {time.perf_counter() - t0:.2f}s")
+        if is_self:
+            import vt_engine_ui  # noqa: F401
+            _perf_note(f"prewarm[import vt_engine_ui] {time.perf_counter() - t0:.2f}s")
+            from vt_engine_ui import _seams
+            _ = _seams.cfg
+            _perf_note(f"prewarm[cfg] {time.perf_counter() - t0:.2f}s")
+            _ = _seams.entities
+            _perf_note(f"prewarm[entities] {time.perf_counter() - t0:.2f}s")
+            # ASR 协议分发补丁：同样放在这里（引擎 ASR 链已热）。此前在
+            # prepare_runtime_env 里装，冷缓存要 1.55s 压在建窗前。
+            try:
+                from core.asr.patches import vc_asr_protocol_patch
+                vc_asr_protocol_patch()
+                _perf_note(f"prewarm[asr protocol] {time.perf_counter() - t0:.2f}s")
+            except Exception:  # noqa: BLE001
+                pass
+            # 翻译两补丁在这里装（引擎模块已热，代价≈0）；必须在首个翻译
+            # 任务之前——GUI 翻译由用户点击触发，远晚于此。
+            try:
+                from core.translate.route_patch import ensure_translate_patches
+                ensure_translate_patches()
+                _perf_note(f"prewarm[translate patches] {time.perf_counter() - t0:.2f}s")
+            except Exception:  # noqa: BLE001
+                pass
+            ok = True
+        else:
+            try:
+                engine.engine_ui_brand_patch()
+            except Exception:  # noqa: BLE001
+                pass
+            import videocaptioner.ui.view.home_interface  # noqa: F401
+            ok = True
+    except Exception as _e:  # noqa: BLE001
+        ok = False
+        # 2026-10-20：失败必须留痕——静默 ok=False 会让调用方退回主线程
+        # 同步导入（frozen 下冻结界面 ~10s），而日志里只有一行 import=fail，
+        # 根因（哪个 import 抛的）永远查不到。
+        try:
+            import traceback as _tb
+            _perf_note("prewarm 线程异常: "
+                       + _tb.format_exc().replace("\n", " | ")[:1500])
+        except Exception:
+            pass
+    _ENGINE_PREWARM["ok"] = ok
+    _ENGINE_PREWARM["done"] = True
+    _perf_note(f"prewarm 线程：import={'ok' if ok else 'fail'} "
+               f"{time.perf_counter() - t0:.2f}s")
+
+
+def _start_engine_prewarm():
+    """启动（幂等）模块级引擎预热线程。"""
+    if _ENGINE_PREWARM["thread"] is not None:
+        return _ENGINE_PREWARM["thread"]
+    t = threading.Thread(target=_engine_prewarm_work, daemon=True,
+                         name="vc-prewarm")
+    _ENGINE_PREWARM["thread"] = t
+    t.start()
+    return t
 
 
 def _resolve_engine_ui():
@@ -3060,7 +3149,18 @@ class SubtitlePage(QWidget):
 
         # ——「字幕校准」独立内容页：不进入任何宿主导航，待引擎工作台
         #    构建完成后并入其分段（见 _build_engine） ——
-        self.calib_page = CalibPage(self.app, self)  # v1.14.2 修复：app 必须传主窗口（消息队列 q 挂在主窗口上；此前传 SubtitlePage 导致 AI 校准线程投递日志即抛 AttributeError 而死，校准等于没跑）
+        # 2026-10-20 启动 <5s 专项：CalibPage 构造改惰性（真实平台实测
+        # 211ms，只服务引擎工作台的一个分段，而工作台本身就在首帧后构建）。
+        # app 必须传主窗口（消息队列 q 挂在主窗口上；此前传 SubtitlePage
+        # 导致 AI 校准线程投递日志即抛 AttributeError 而死，校准等于没跑）。
+        self._calib_page = None
+
+    @property
+    def calib_page(self):
+        """「字幕校准」页——惰性构造（首次取用才建，幂等）。"""
+        if self._calib_page is None:
+            self._calib_page = CalibPage(self.app, self)
+        return self._calib_page
 
     # ---------- 预热（消除首次进入卡顿） ----------
     def prewarm(self):
@@ -3080,52 +3180,26 @@ class SubtitlePage(QWidget):
         """
         if self._built or self._prewarming:
             return
+        _perf_note("prewarm() 被调用（起线程）")
         self._prewarming = True
-
-        def _work():
-            t0 = time.perf_counter()
-            try:
-                engine.vc_asr_patch_apply()      # 本地独立 ASR 的模型覆盖补丁（后端）
-            except Exception:  # noqa: BLE001
-                pass
-            # v1.12.0：翻译板块已全面去 AI（仅机翻），不再挂 LLM 回退兜底
-            # v1.21.0（P3）：按解析结果预热——自研路径预热 vt_engine_ui 与后端，
-            # 引擎路径沿用原预热（品牌补丁 + 引擎 home 模块导入树）。
-            ok = False
-            try:
-                _home_cls, _setting_cls, is_self, _err = _resolve_engine_ui()
-                if is_self:
-                    import vt_engine_ui  # noqa: F401
-                    from vt_engine_ui import _seams
-                    _ = _seams.cfg          # 预热后端配置读盘
-                    _ = _seams.entities
-                    ok = True
-                else:
-                    try:
-                        engine.engine_ui_brand_patch()
-                    except Exception:  # noqa: BLE001
-                        pass
-                    import videocaptioner.ui.view.home_interface  # noqa: F401
-                    ok = True
-            except Exception:  # noqa: BLE001
-                ok = False
-            self._prewarm_ready = ok
-            _perf_note(f"prewarm 线程：import={'ok' if ok else 'fail'} "
-                       f"{time.perf_counter() - t0:.2f}s")
-
-        t = threading.Thread(target=_work, daemon=True, name="vc-prewarm")
-        t.start()
-        self._prewarm_thread = t
+        # 2026-10-20 第三波：统一走**模块级**预热线程（幂等）。本方法可能
+        # 先于 main() 的 _defer_after_show 到达（QTimer 注册顺序），所以这里
+        # 自己负责起线程——但绝不另起第二份导入：实测两个预热线程互抢 GIL，
+        # 导入从 3.0s 劣化到 19.97s。
+        self._prewarm_thread = _start_engine_prewarm()
         # 轮询等待后台 import 结束，然后回主线程建界面（不阻塞事件循环）
         QTimer.singleShot(200, self._wait_prewarm)
 
     def _wait_prewarm(self):
         t = getattr(self, "_prewarm_thread", None)
-        if t is not None and t.is_alive():
+        _alive = bool(t is not None and t.is_alive())
+        _perf_note(f"_wait_prewarm 轮询 alive={_alive}")
+        if _alive:
             QTimer.singleShot(200, self._wait_prewarm)
             return
         if self._built:
             return
+        self._prewarm_ready = bool(_ENGINE_PREWARM["ok"])
         self._build_now("正在准备字幕引擎界面 …")
 
     # ---------- 构建 ----------
@@ -3455,6 +3529,8 @@ class SubtitlePage(QWidget):
         if self._built:
             return
         self._built = True
+        # 引擎工作台可能含 SpinBox：补丁必须先于它存在（幂等，通常早已装好）
+        _install_spinbox_fix_once()
         t0 = time.perf_counter()
         if busy_text:
             self.state_label.setText(busy_text)
@@ -3489,15 +3565,28 @@ class SubtitlePage(QWidget):
             self.window().refresh_nav_width()
         except Exception:
             pass
+        # 引擎界面刚并入主树：把普通 Qt 控件的主题色小表预热一遍（否则用户
+        # 第一次点主题色要现场扫全树 ~1.8s，之后才是 150ms 级）。首帧后再跑，
+        # 不占构建关键路径。
+        try:
+            from PySide6.QtCore import QTimer as _QT
+            _QT.singleShot(300, lambda: ui_theme.refresh_plain_accent())
+        except Exception:
+            pass
 
     def showEvent(self, event):
-        """首次显示时才加载引擎界面（内嵌 QWidget，随主题自动配色）。"""
+        """首次显示时才加载引擎界面（内嵌 QWidget，随主题自动配色）。
+
+        2026-10-20：**不在主线程同步导入**引擎 UI 树（openai 6.2s +
+        qfluentwidgets 2.8s + ASR 链，合计 ≈14s，整窗冻死）。改为起预热
+        线程、显示占位文案，由 _wait_prewarm 在后台导入完成后回主线程构建
+        ——界面全程可响应，用户可先去别的页。
+        """
         super().showEvent(event)
         if self._built:
             return
-        # 预热尚未完成时也直接建（用户已点进来，等不了）；import 缓存已热，
-        # 即便预热线程还在跑，主线程这里也只是等 import 锁，比冷启动快
-        self._build_now("正在准备字幕引擎界面 …")
+        self.state_label.setText("正在准备字幕引擎界面 …")
+        self.ensure_built()
 
     def ensure_built(self):
         """确保工作台已构建（幂等）——供首页在启动时提前触发。
@@ -3505,12 +3594,19 @@ class SubtitlePage(QWidget):
         v2.1.0：任务创建成为应用默认落地页，构建时机从「用户点进本页」
         提前到「首页首次显示」。预热线程仍在跑时不等它（:meth:`_wait_prewarm`
         会在预热结束后自行构建），直接返回即可。
+
+        2026-10-20 第四波（启动 <5s 专项）：**绝不在 show() 的同步路径里
+        起导入线程**。原实现经 HomePage.showEvent → ensure_built → prewarm()
+        在 window.show() 内部就把 CPU 密集的引擎导入线程拉起来，首帧 paint
+        （posted 事件）随后在事件循环里与导入线程抢 GIL——实测窗口可见
+        从亚秒劣化到 10s 级（整链 25.8s 的直接根因）。改为只挂号
+        singleShot(0)：show() 返回、首帧 paint 落定之后才起线程。
         """
         if self._built:
             return
         if self._prewarming:
             return          # 预热线程在跑，_wait_prewarm 会接手
-        self._build_now("正在准备字幕引擎界面 …")
+        QTimer.singleShot(0, self.prewarm)
 
     def open_settings(self):
         """跳到唯一的全局设置页，并定位到字幕引擎参数区。
@@ -5572,10 +5668,12 @@ class SettingsPage(QWidget):
             self.data_leftover.hide()
 
     def _on_theme_changed(self, idx):
-        try:
-            setTheme([Theme.DARK, Theme.LIGHT, Theme.AUTO][idx])
-        except Exception:
-            pass
+        # 主题档切换单链走 ui_theme.set_theme_mode（其内部已 setTheme(qtheme)
+        # + lazy 刷新 + plain accent 逐控件同步 + 深度重绘）。不要再裸调
+        # setTheme——① 无 lazy 的全量刷新在满注册面（~2233 控件）实测 43s；
+        # ② updateStyleSheet 历史只捕 RuntimeError，一个坏控件会中断全局
+        # 刷新，其余控件既没刷新也没打 dirty（2026-10-20 复现实锤：切档后
+        # 670/705 个注册控件停旧档，只能等偶然的鼠标交互补救）。
         # 持久化主题档（深色/浅色/跟随系统），重启保持（v1.13.x 界面美化）
         try:
             ui_theme.set_theme_mode(["dark", "light", "auto"][idx])
@@ -8977,6 +9075,7 @@ class HomePage(QWidget):
         这个时机必须提前，否则启动后停在首页看到的是一行占位字。
         """
         super().showEvent(event)
+        _perf_note("HomePage.showEvent 首次显示")
         if self._task_creation is not None:
             return
         try:
@@ -8994,6 +9093,82 @@ class HomePage(QWidget):
                 event.ignore()
         except Exception:  # noqa: BLE001
             event.ignore()
+
+
+#: SpinBox 兼容补丁的一次性安装状态（见 _install_spinbox_fix_once）
+_SPINBOX_FIX_STATE = {"done": False}
+
+
+def _install_spinbox_fix_once():
+    """SpinBox 兼容补丁的一次性安装（幂等）。
+
+    探测函数本身会建一个真 SpinBox 跑一轮布局（≈0.6s，含一次性 QStyle
+    初始化），因此**不能留在启动关键路径上**。调用时机：
+      ① 惰性页外壳 ensure() 构造真身前（首帧后，样式已初始化，≈10ms）；
+      ② 引擎工作台 _build_now 前；
+      ③ main() 首帧后的 singleShot(0)（兜底：任何遗漏的构造路径）。
+    """
+    if _SPINBOX_FIX_STATE["done"]:
+        return
+    _SPINBOX_FIX_STATE["done"] = True
+    try:
+        import qt_compat
+        qt_compat.install_spinbox_fix()
+    except Exception:
+        pass
+
+
+class _LazyPageShell(QWidget):
+    """惰性页外壳（2026-10-20 启动 <5s 专项）。
+
+    导航项与堆叠索引在 MainWindow 构造时就用**外壳**占好（导航顺序、
+    switchTo、page_by_key、事件过滤器全部不变），真身推迟到「首次被
+    显示」或「首次被取用属性」时才构造——启动关键路径上只付一个空
+    QWidget 的代价。实测三个重页（视频处理 1.2s / 设置 0.3s /
+    字幕编辑 0.2s，真实平台）构造期从首帧前挪到首帧后。
+
+    属性转发（``__getattr__``）：``window.download_page.url_edit`` 之类
+    既有调用点零改动——首次取用即触发构造并转发到真身。外壳自身属性
+    （real/_win/_builder）在实例字典里，不会进入转发路径。
+    """
+
+    def __init__(self, win, builder, name, objname):
+        super().__init__()
+        self._win = win
+        self._builder = builder
+        self._shell_name = name
+        # objectName 必须与真身一致：qfluentwidgets 拿它当 routeKey，
+        # 导航/截图/自检都按名字找页
+        self.setObjectName(objname)
+        self.real = None
+        lay = QVBoxLayout(self)
+        lay.setContentsMargins(0, 0, 0, 0)
+
+    def ensure(self):
+        """构造真身（幂等）并挂进外壳；返回真身。"""
+        if self.real is None:
+            _install_spinbox_fix_once()   # 补丁必须先于任何 SpinBox 存在
+            self.real = self._builder()
+            self.layout().addWidget(self.real)
+            try:
+                # 事件过滤器补挂真身（外壳在建窗时已挂过一份）
+                self._win.installEventFilter(self.real)
+            except Exception:
+                pass
+        return self.real
+
+    def showEvent(self, event):
+        super().showEvent(event)
+        self.ensure()
+
+    def __getattr__(self, name):
+        # ⚠ 仅当外壳自身（含 Qt 基类）没有该属性时才走到这里。
+        #   以 dunder 开头的名字直接抛 AttributeError——PySide6 内部
+        #   探测（__deepcopy__/__getstate__ 等）不该触发整页构造。
+        if name.startswith("__") and name.endswith("__"):
+            raise AttributeError(name)
+        real = self.ensure()
+        return getattr(real, name)
 
 
 class MainWindow(FluentWindow):
@@ -9080,12 +9255,20 @@ class MainWindow(FluentWindow):
             pass
 
         self.home_page = HomePage(self, self)
-        self.download_page = DownloadPage(self, self)
-        self.library_page = LibraryPage(self, self)
+        # 2026-10-20 启动 <5s 专项：三个重页改**外壳占位**（导航项与堆叠
+        # 索引照常占好，真身首帧后按需构造）。视频库/流水线本身构造仅
+        # 10~30ms，保持常驻；字幕处理页承载引擎工作台与校准页，也常驻。
+        self.download_page = _LazyPageShell(
+            self, lambda: DownloadPage(self, self), "视频处理", "DownloadPage")
+        self.library_page = _LazyPageShell(
+            self, lambda: LibraryPage(self, self), "视频库", "LibraryPage")
         self.subtitle_page = SubtitlePage(self, self)
-        self.subtitle_edit_page = SubtitleEditPage(self, self)
-        self.pipeline_page = PipelinePage(self, self)
-        self.settings_page = SettingsPage(self, self)
+        self.subtitle_edit_page = _LazyPageShell(
+            self, lambda: SubtitleEditPage(self, self), "字幕编辑", "SubtitleEditPage")
+        self.pipeline_page = _LazyPageShell(
+            self, lambda: PipelinePage(self, self), "流水线", "PipelinePage")
+        self.settings_page = _LazyPageShell(
+            self, lambda: SettingsPage(self, self), "设置", "SettingsPage")
         # v2.4.x：AI 托管页在 harness **适配层可用**（模块成功导入）时就创建，
         # 不再要求 harness 本体就绪。harness 未部署 / 未装依赖 / 未构建 / 缺
         # node / 配置关闭时，页面照常出现，但在「状态」下展示「部署引导」卡
@@ -9101,14 +9284,17 @@ class MainWindow(FluentWindow):
             _perf_note(f"AI 托管页创建失败（不影响既有功能）：{e}")
         # 自动化页：B 站自动投稿（v1.17.x 起页面精简为投稿专用）。
         # 页面类在 auto_vision_page 里，自带卡片壳，不依赖本文件的 ScrollPage/card()。
-        self.auto_page = auto_vision_page.AutoVisionPage(self, self)
+        # 2026-10-20：惰性构造——重依赖（numpy/PIL/视觉引擎 ≈364ms）移出启动
+        # 关键路径，首帧后 1.5s 由 _build_auto_page() 补齐页面与导航项；构造失败
+        # 时该页缺席（与 AI 托管页的条件挂载同一模式），不影响其余功能。
+        self.auto_page = None
         # 被合并的子板块：仍挂到宿主页的堆叠里，保留快捷引用便于消息路由/自检
-        self.merge_page = self.download_page.merge_page
-        self.calib_page = self.subtitle_page.calib_page
+        # （2026-10-20 起 download_page 是惰性外壳，merge_page 随之改惰性属性，
+        #  避免启动期为了拿这个引用把整个下载页建出来）
+        # calib_page 同为惰性属性（SubtitlePage 上，构造期不再建校准页）
         for page in (self.home_page, self.download_page, self.library_page,
                      self.subtitle_page,
                      self.subtitle_edit_page, self.pipeline_page,
-                     self.auto_page,
                      self.settings_page):
             page.installEventFilter(self)
 
@@ -9120,7 +9306,7 @@ class MainWindow(FluentWindow):
         self.addSubInterface(self.subtitle_page, FIF.FONT, "字幕处理")
         self.addSubInterface(self.subtitle_edit_page, FIF.CUT, "字幕编辑")
         self.addSubInterface(self.pipeline_page, FIF.SYNC, "流水线")
-        self.addSubInterface(self.auto_page, FIF.ROBOT, "自动化")
+        # 「自动化」页惰性挂载：由 _build_auto_page() 在首帧后补齐导航项
         if self.harness_page is not None:
             self.addSubInterface(self.harness_page, FIF.IOT, "AI 托管")
         self.addSubInterface(self.settings_page, FIF.SETTING, "设置",
@@ -9170,7 +9356,10 @@ class MainWindow(FluentWindow):
         # → subtitle_page.ensure_built() 就绪后换上（先显示占位文案）。
         self.switchTo(self.home_page)
         self._apply_argv(argv or [])
-        QTimer.singleShot(400, self.library_page.auto_load)
+        # ⚠ library_page 是惰性外壳：auto_load 的取值必须包 lambda 延后到
+        # 触发时——直接传 bound method 会在 singleShot **注册时**就求值，
+        # 把整个视频库页在建窗期建出来（惰性白做）。
+        QTimer.singleShot(400, lambda: self.library_page.auto_load())
         QTimer.singleShot(120, self._pump)
         # 流水线：延后启动，避开首屏与字幕引擎预热（v1.14.0）
         self.pipeline_registry = None
@@ -9181,6 +9370,10 @@ class MainWindow(FluentWindow):
         # 「字幕处理」时通常已是现成控件。v1.11.0 起由 900ms 提前到首帧后立即，
         # 配合 diskcache 延迟化，最坏情况下（刚启动就点进去）的等待已降到亚秒级。
         QTimer.singleShot(0, self.subtitle_page.prewarm)
+        # 「自动化」页惰性构造：避开首屏的 numpy/PIL/视觉引擎导入链
+        # （≈364ms）。1.5s 后触发，但**引擎预热未完成时顺延**（两者都是
+        # CPU/导入密集，同时跑会互相拖慢——2026-10-20 第三波）。
+        QTimer.singleShot(1500, self._maybe_build_auto_page)
         # 主屏 DPI 变化（改缩放比/换主屏）时重新计算导航宽度。
         # 注意必须用 QApplication 实例的信号：PySide6 里类的同名属性是未绑定的
         # Signal 描述符，直接 .connect 会抛 AttributeError。
@@ -9448,13 +9641,15 @@ class MainWindow(FluentWindow):
         for page in (self.download_page, self.library_page, self.subtitle_page,
                      self.subtitle_edit_page, self.pipeline_page,
                      self.settings_page):
+            # 惰性外壳：已构造的用真身，没构造的空外壳无可重排（跳过即可）
+            real = getattr(page, "real", None) or page
             try:
-                page.updateGeometry()
-                for sub in (getattr(page, "dl_tab", None),
-                            getattr(page, "work_tab", None)):
+                real.updateGeometry()
+                for sub in (getattr(real, "dl_tab", None),
+                            getattr(real, "work_tab", None)):
                     if sub is not None:
                         sub.updateGeometry()
-                for area in page.findChildren(QWidget):
+                for area in real.findChildren(QWidget):
                     if getattr(area, "widgetResizable", False):
                         try:
                             area.widget().updateGeometry()
@@ -9469,6 +9664,21 @@ class MainWindow(FluentWindow):
                 cur.updateGeometry()
         except Exception:
             pass
+
+    # ---------- 惰性页快捷引用 ----------
+    @property
+    def merge_page(self):
+        """「音画合并」子板块（挂在下载页里）——惰性：首次取用才建下载页。
+
+        2026-10-20 启动专项：download_page 改外壳后，这个快捷引用不能
+        再在 __init__ 里取值（那会把整页建出来），改成惰性属性。
+        """
+        return self.download_page.merge_page
+
+    @property
+    def calib_page(self):
+        """「字幕校准」页（挂在字幕处理页里）——惰性：首次取用才建。"""
+        return self.subtitle_page.calib_page
 
     # ---------- 首页 / 返回箭头 ----------
     def goto_home(self):
@@ -9930,6 +10140,34 @@ class MainWindow(FluentWindow):
         QTimer.singleShot(0, _clamp)
         QTimer.singleShot(300, _clamp)
 
+    def _maybe_build_auto_page(self, attempt=0):
+        """预热未完成时顺延自动化页构造（最多等 12s，超时照常构造）。"""
+        if not _engine_prewarm_done() and attempt < 30:
+            QTimer.singleShot(400, lambda: self._maybe_build_auto_page(attempt + 1))
+            return
+        self._build_auto_page()
+
+    def _build_auto_page(self):
+        """惰性构造「自动化」页并挂上导航（2026-10-20 启动优化）。
+
+        调用方：__init__ 里排的 QTimer.singleShot(1500)、main() 的
+        VT_SHOT_TAB=auto 截图路径、GUI 自检脚本。已构造过则直接返回。
+        失败时 auto_page 保持 None（该页缺席，与 AI 托管页条件挂载同一模式）。
+        """
+        if self.auto_page is not None:
+            return self.auto_page
+        try:
+            cls = _load_auto_vision_page()
+            self.auto_page = cls(self, self)      # (app, parent) 均为 MainWindow
+            self.auto_page.installEventFilter(self)
+            self.addSubInterface(self.auto_page, FIF.ROBOT, "自动化")
+            self._apply_nav_width()
+            _perf_note("自动化页惰性构造完成")
+        except Exception as e:  # noqa: BLE001 —— 自动化页起不来绝不影响主程序
+            self.auto_page = None
+            _perf_note(f"自动化页构造失败（不影响既有功能）：{e}")
+        return self.auto_page
+
     def page_by_key(self, key):
         """按键取页面：download/library/subtitle/edit/settings 为导航页；
         merge/calib 定位到宿主页并切到对应子板块（供截图/外部跳转）。"""
@@ -10278,32 +10516,34 @@ def _apply_app_icon(app):
 
 
 def main():
+    _T0 = time.perf_counter()   # 全链路计时起点，各阶段痕迹写 logs/startup.log
+    # GIL 切换间隔压到 1ms（默认 5ms）：后台线程（校准/声纹同步、引擎预热）
+    # 与主线程抢 GIL 时，主线程每次获得 GIL 的最长等待从 5ms 降到 1ms——
+    # 首帧 paint 的 Python 回调动辄几百次，累计差距就是「窗口秒现」与
+    # 「窗口 10s 级才现」的区别（2026-10-20 启动专项实测）。
+    try:
+        sys.setswitchinterval(0.001)
+    except Exception:
+        pass
     # 运行期环境准备（v1.10.6）：必须在任何 videocaptioner 导入之前执行——
     # 1) 把字幕引擎在系统盘的历史数据迁移到数据根目录；
     # 2) 重定向引擎的路径常量（否则它会写 %LOCALAPPDATA%，即 C 盘）；
     # 3) 把临时目录指向数据根目录，避免中间产物落系统 Temp。
     engine.prepare_runtime_env()
-    # v1.19.2：翻译服务归一（引擎 QConfig 残留 OPENAI 时改回微软）。
-    # 「字幕翻译」自 v1.12.0 起全面去 AI，但 QConfig 里还可能留着 OPENAI：
-    # 一旦真按 LLM 走，会同时踩两个坑——① LLMTranslator 没有 requests
-    # session，翻译路由补丁覆盖不到它，只能跟着 https_proxy 环境变量乱窜；
-    # ② 推理模型（kimi-k2.6 等）的思考链会吃光 max_tokens，译文全空，
-    # 表现为「252/252 segments failed (100%)」。
-    # ⚠ 此前这段归一只在 SettingsPage._ensure_engine_setting 里跑——用户
-    # 不打开设置页就不执行，等于没有。故启动时补一次（幂等，代价一次读配置）。
-    # v2.3.1：旧代码用 engine_entities 的枚举与 QConfig 里的引擎枚举比较，
-    # 跨类枚举相等恒为 False——这段归一从来没生效过。改为按值比较 + 用引擎
-    # 枚举成员赋值（异类枚举过不了 OptionsValidator）。
-    try:
-        from videocaptioner.core.entities import TranslatorServiceEnum as _ETE
-        from videocaptioner.ui.common.config import cfg as _vcfg
-        _cur_ts = _vcfg.get(_vcfg.translator_service)
-        if getattr(_cur_ts, "value", _cur_ts) == _ETE.OPENAI.value:
-            _vcfg.set(_vcfg.translator_service, _ETE.BING)
-    except Exception:
-        pass
+    _perf_note(f"[T+{time.perf_counter()-_T0:6.3f}s] prepare_runtime_env 完成")
+    # 翻译服务归一**不在这里重复做**（2026-10-20 性能优化）：JSON 层的
+    # 「LLM 大模型翻译 → 微软翻译」归一已由上面的 prepare_runtime_env() 经
+    # vc_prepare_settings_file()（core/asr/runtime_patches.py）先行完成，
+    # 引擎界面首帧后才在预热线程里读盘，拿到的就是归一后的值。
+    # 早先这里还要逐个 import videocaptioner 的 core.entities 与
+    # ui.common.config 做内存态归一——后者导入链实测 6.3s（整库拖入），
+    # 而内存态在启动时根本还没加载，纯属白付；设置页懒加载路径
+    # （SettingsPage._ensure_engine_setting）另留着同款兜底。
     # 未捕获异常兜底：装上后 Qt 槽里的异常只记日志 + 提示，不会再让进程 abort
     install_crash_guard()
+    # 引擎 UI 树预热**不能在建窗前起**（2026-10-20 实测：与建窗抢 GIL，
+    # 首帧从 0.1s 劣化到 9.9s）——改到首帧之后、主线程空闲时启动，
+    # 见 show() 后的 _defer_after_show。
     # 启动即拉取最新校准知识并入本地（v1.10.7 多用户收敛的「拉」半程；
     # 后台 daemon 线程，失败静默记 logs/calib_sync.log）
     threading.Thread(target=engine.sync_calib_on_startup, daemon=True).start()
@@ -10312,6 +10552,7 @@ def main():
     # logs\vp_sync.log
     threading.Thread(target=engine.sync_voiceprint_on_startup, daemon=True).start()
     configure_qt_plugins()
+    _perf_note(f"[T+{time.perf_counter()-_T0:6.3f}s] 后台同步线程已启动")
     # 矢量化：高分屏缩放与矢量图标在 Qt6 已默认启用（AA_EnableHighDpiScaling /
     # AA_UseHighDpiPixmaps 已废弃，无需再设置）
     # 缩放比不取整：125% / 150% 等非整数倍率下按实际比例换算，
@@ -10322,18 +10563,47 @@ def main():
     except Exception:
         pass
     app = QApplication(sys.argv)
+    _perf_note(f"[T+{time.perf_counter()-_T0:6.3f}s] QApplication 就绪")
+    # 基底样式（2026-10-20 启动 <5s 专项）：Windows 11 原生样式由**插件**
+    # 提供，首个控件 polish 时初始化实测 ≈0.8s（开发态）/ ≈1.5s（frozen，
+    # 插件 DLL 从 _MEI 新文件读取 + 三套杀毒扫描），是启动最大单块。
+    # 内置样式（Fusion / windowsvista）只要 ≈24ms——本应用控件观感由
+    # vt_fluent 的 QSS（QStyleSheetStyle 包裹基底）主导，基底只影响
+    # QSS 未覆盖的原生子控件与原生对话框。
+    #   默认 fusion（快）；VT_BASE_STYLE=windows11 可恢复原生观感。
+    try:
+        from PySide6.QtWidgets import QStyleFactory as _QSF
+        _bs = (os.environ.get("VT_BASE_STYLE") or "fusion").strip().lower()
+        if _bs in ("windows11", "default"):
+            pass                      # 显式要原生：什么都不做（Qt 默认）
+        elif _bs in ("fusion", "windowsvista", "windows", "macintosh"):
+            app.setStyle(_QSF.create(_bs))
+    except Exception:
+        pass
     # QSS 库 app 级兜底（v2.3.1）：QToolTip/QMenu/QMessageBox 是独立顶层
     # 窗口，套在业务控件子树上的样式表管不到——这里在 QApplication 级
     # 应用 vt_fluent 的兜底 QSS（令牌化，主题/主题色切换自动重应用）。
+    # ⚠ 必须在 MainWindow 构造**之前**设置（2026-10-20 实测反证：放到首帧
+    # 之后时树已建满，一次全应用 re-polish 要 8.7s；此刻树是空的，代价≈0）。
     from vt_fluent import applyAppStyleSheet
     applyAppStyleSheet(app)
-    # Qt 兼容补丁（2026-10-14）：必须在任何 SpinBox 被创建（MainWindow 构造）
-    # **之前**打上。自带运行期探测：没复现出问题就什么都不做。
-    qt_compat.install_spinbox_fix()
+    # Qt 兼容补丁（2026-10-14）：必须在任何 SpinBox 被创建之前打上。
+    # 2026-10-20 启动专项：探测函数会建一个真 SpinBox 并跑一轮布局
+    # （实测 0.6s，其中含一次性 QStyle 初始化）——原先压在建窗前的关键
+    # 路径上。现在**三个重页惰性化**之后，首帧前不存在任何 SpinBox，
+    # 探测改到首帧后的 singleShot(0) 里跑（排在引擎预热的 singleShot(0)
+    # 之前）；外壳 ensure() 与引擎工作台构建前也会兜底调一次（幂等），
+    # 任何路径上「先建 SpinBox、后打补丁」都不会发生。
     # 应用图标（v2.1.0）：挂在 QApplication 上，**所有**窗口（含各对话框、
     # 日志查看器、以及引擎回退路径自己起的那些）都跟着有图标——挂到
     # MainWindow 上只管主窗口，对话框会是空白图标。
-    _apply_app_icon(app)
+    # 2026-10-20：主窗口先 setWindowIcon（见建窗处），app 级图标延后到首帧后。
+    try:
+        _icon_path = engine.app_icon_path()
+        if _icon_path:
+            app.setWindowIcon(QIcon(_icon_path))
+    except Exception:
+        pass
     # 单实例守卫（v1.13.4）：两个实例会各自持有一份内存配置并写穿同一个
     # data\ 目录（ui_custom.json / config.json…），表现为「设置过一会儿自动
     # 复原」「这边改了那边不生效」——正是多窗口交叠写入的典型症状。
@@ -10341,7 +10611,9 @@ def main():
     _single_lock = QLockFile(os.path.join(engine.DATA_DIR,
                                           "videotoolbox.single.lock"))
     _single_lock.setStaleLockTime(0)
-    if not _single_lock.tryLock(200):
+    # 50ms 足够——真正被占用时 QLockFile 会按锁内 PID 判活，超时后走提示分支；
+    # 200ms 只是白等（2026-10-20 启动优化）。
+    if not _single_lock.tryLock(50):
         QMessageBox.information(
             None, "视频工具箱已在运行",
             "检测到另一个视频工具箱窗口正在运行，本次启动已取消。\n\n"
@@ -10353,12 +10625,18 @@ def main():
     # 界面美化（v1.13.x）：主题档/主题色读自 data/ui_custom.json（设置页可改），
     # 全局 QSS（输入框/菜单/工具提示/滚动条/进度条）在这里一并挂上
     ui_theme.apply_startup_theme(app)
+    _perf_note(f"[T+{time.perf_counter()-_T0:6.3f}s] 启动主题应用完成")
     app.setFont(QFont("Microsoft YaHei UI", 9))   # 9pt 紧凑正文，高分屏随缩放走
     window = MainWindow(sys.argv[1:])
+    _perf_note(f"[T+{time.perf_counter()-_T0:6.3f}s] MainWindow 构造完成")
+    _perf_note(f"[T+{time.perf_counter()-_T0:6.3f}s] fit_to_screen 开始")
     window.fit_to_screen()
+    _perf_note(f"[T+{time.perf_counter()-_T0:6.3f}s] fit_to_screen 完成")
 
     shot_tab = os.environ.get("VT_SHOT_TAB")
     if shot_tab:
+        if shot_tab == "auto":
+            window._build_auto_page()   # 惰性页：截图/外部跳转必须同步就位
         page = window.page_by_key(shot_tab)
         if page:
             QTimer.singleShot(700, lambda: window.switchTo(page))
@@ -10416,10 +10694,41 @@ def main():
     # logs\vp_sync.log，不阻塞退出）
     app.aboutToQuit.connect(engine.sync_voiceprint_on_exit)
     # 释放 libmpv：不释放的话进程退出后 onefile 的 _MEI*** 临时目录删不掉
-    app.aboutToQuit.connect(window.subtitle_edit_page.shutdown)
+    # （2026-10-20：字幕编辑页改惰性外壳，这里只在**真构造过**时才调，
+    #  避免为了接这一条线在启动期把整页建出来）
+    def _shutdown_subtitle_edit():
+        page = getattr(window, "subtitle_edit_page", None)
+        real = getattr(page, "real", None)
+        if real is not None:
+            try:
+                real.shutdown()
+            except Exception:
+                pass
+    app.aboutToQuit.connect(_shutdown_subtitle_edit)
 
     window.show()
+    _perf_note(f"[T+{time.perf_counter()-_T0:6.3f}s] show() 返回")
     window.raise_()
+    _perf_note(f"[T+{time.perf_counter()-_T0:6.3f}s] raise_() 返回")
+    _perf_note(f"[T+{time.perf_counter()-_T0:6.3f}s] 窗口首帧可见")
+
+    # 首帧后再补：app 级兜底 QSS + app 级图标（2026-10-20 启动优化）。
+    # 两者都不影响主窗口首帧外观（主窗口已有自己的图标与逐控件样式表）。
+    # SpinBox 兼容补丁的兜底安装也排在这里（0ms 定时器，先于引擎预热
+    # 的那个 singleShot(0) 注册 → 先 fire；探测自身的 0.6s 由此移出
+    # 启动关键路径）。
+    QTimer.singleShot(0, _install_spinbox_fix_once)
+
+    def _defer_after_show():
+        # 只补 app 级图标（轻）并起引擎预热（首帧后主线程空闲时导入才快）。
+        # app 级 QSS 不在这里做——建窗后再设要全量 re-polish（实测 8.7s），
+        # 已在建窗前设置完毕。
+        try:
+            _apply_app_icon(app)
+        except Exception:  # noqa: BLE001
+            pass
+        _start_engine_prewarm()
+    QTimer.singleShot(0, _defer_after_show)
 
     # 启动自动检测更新（v2.0.0）：延迟 1.5s 起步，先让首屏渲染完再发网络
     # 请求；且由更新模块自己按 12 小时节流 + 用户拒绝记录决定要不要真查。
@@ -10430,7 +10739,11 @@ def main():
     if not (os.environ.get("VT_GUI_SELFTEST")
             or os.environ.get("VT_SHOT_FILE")
             or os.environ.get("VT_NO_UPDATE_CHECK")):
-        def _auto_update():
+        def _auto_update(attempt=0):
+            # 预热未完成就顺延（网络请求 + 引擎导入同时抢 GIL 会拖慢任务框就绪）
+            if not _engine_prewarm_done() and attempt < 25:
+                QTimer.singleShot(400, lambda: _auto_update(attempt + 1))
+                return
             try:
                 window.settings_page.auto_check_update()
             except Exception:  # noqa: BLE001 —— 更新功能绝不影响主流程

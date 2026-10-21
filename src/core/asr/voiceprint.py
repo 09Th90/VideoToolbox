@@ -8,6 +8,7 @@ v2.3.1 拆分工程；域间依赖规则见 core/__init__.py。
 import subprocess
 
 import os
+import sys
 
 from core.shared.log import _vc_log
 
@@ -20,50 +21,61 @@ def vc_pydub_nowindow_patch():
     AudioSegment.from_file()——pydub 内部裸调 ffprobe/ffmpeg 且不带
     CREATE_NO_WINDOW，GUI 进程下每次转录开始都会闪出黑色控制台窗口
     （分块导出 mp3、whisper_cpp 的 CLI 子进程同理）。引擎与 pydub 本体
-    都不改：把 pydub / whisper_cpp 模块命名空间里的 subprocess 换成
-    「默认补 CREATE_NO_WINDOW」的 shim，只影响这几个调用点。
+    都不改，只动 subprocess 的班长方式。
+
+    2026-10-20 性能优化：原实现靠**预先导入** pydub / whisper_cpp 两棵
+    模块树做引用交换补丁，其中 whisper_cpp 一溜的引擎 ASR 链实测
+    ≈2.6s，全压在启动关键路径上（prepare_runtime_env）。改为**全局
+    Popen shim**：补丁之后导入/发起的一切 subprocess.Popen（含
+    run/check_output 等内部转发）默认补 CREATE_NO_WINDOW——pydub.utils
+    的 `from subprocess import Popen`、whisper_cpp 的属性式调用都天然
+    覆盖，启动期不再需要预先导入任何重模块。已导入过的老模块仍按老
+    办法补一次引用交换（属性仍指向原 Popen 时才补）。显式传了
+    creationflags / startupinfo 的调用方不受影响。
     """
     if os.name != "nt":
         return True
     if getattr(subprocess, "_vt_nowindow", False):
         return True
     try:
-        import types
         orig = subprocess.Popen
+        if not getattr(orig, "_vt_nowindow_wrapped", False):
+            # ⚠ 必须是**类**而不是函数：标准库 `asyncio.windows_utils` 里有
+            # `class Popen(subprocess.Popen)`，把 Popen 换成函数会让它继承
+            # 失败（TypeError: function() argument 'code' must be code, not
+            # str），进而 openai/asyncio 导入链整体崩掉（2026-10-20 实测：
+            # 引擎预热 import=fail 的根因）。
+            class _VTPopen(orig):          # noqa: N801 —— 与 Popen 同名语义
+                _vt_nowindow_wrapped = True
 
-        def _popen(*args, **kwargs):
-            try:
-                if not kwargs.get("creationflags"):
-                    kwargs["creationflags"] = subprocess.CREATE_NO_WINDOW
-            except Exception:
-                pass
-            return orig(*args, **kwargs)
+                def __init__(self, *args, **kwargs):
+                    try:
+                        if not kwargs.get("creationflags") \
+                                and not kwargs.get("startupinfo"):
+                            kwargs["creationflags"] = subprocess.CREATE_NO_WINDOW
+                    except Exception:
+                        pass
+                    super().__init__(*args, **kwargs)
 
-        shim = types.ModuleType("subprocess_vt_nowindow_shim")
-        shim.__dict__.update(subprocess.__dict__)
-        shim.Popen = _popen
-        patched = []
-        try:
-            import pydub.audio_segment as _pas
-            _pas.subprocess = shim
-            patched.append("pydub.audio_segment")
-        except Exception:
-            pass
-        try:
-            import pydub.utils as _pu          # from subprocess import Popen
-            _pu.Popen = _popen
-            patched.append("pydub.utils")
-        except Exception:
-            pass
-        try:
-            from videocaptioner.core.asr import whisper_cpp as _wc
-            _wc.subprocess = shim
-            patched.append("whisper_cpp")
-        except Exception:
-            pass
+            subprocess.Popen = _VTPopen
         subprocess._vt_nowindow = True
         subprocess._vt_nowindow_orig = orig
-        _vc_log("黑窗隐藏补丁已挂：Popen shim → " + ", ".join(patched))
+        # 补丁前已导入的模块：引用仍指向原 Popen 的才补交换（未导入的
+        # 后续天然吃到全局 shim，无需也不该在此触发重导入）。
+        patched = []
+        mod = sys.modules.get("pydub.audio_segment")
+        if mod is not None and getattr(mod, "subprocess", None) is subprocess:
+            mod.subprocess = subprocess
+            patched.append("pydub.audio_segment")
+        mod = sys.modules.get("pydub.utils")
+        if mod is not None and getattr(mod, "Popen", None) is orig:
+            mod.Popen = subprocess.Popen
+            patched.append("pydub.utils")
+        if patched:
+            _vc_log("黑窗隐藏补丁已挂（全局 Popen shim；已加载模块补交换）："
+                    + ", ".join(patched))
+        else:
+            _vc_log("黑窗隐藏补丁已挂：全局 Popen shim（后续导入默认无窗）")
         return True
     except Exception as e:  # noqa: BLE001
         _vc_log(f"黑窗隐藏补丁失败：{e}")

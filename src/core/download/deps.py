@@ -12,7 +12,6 @@ from core.shared.proxy import ensure_builtin_proxy
 import os
 import shutil
 import sys
-import urllib.request
 import zipfile
 
 from core.shared.paths import (DENO_MIRROR_URL, DENO_PATH, DENO_URL,
@@ -24,6 +23,7 @@ from core.shared.runtime import vc_bundled_resource_dir
 
 def _download(url, dest, label, use_proxy=True):
     """下载文件；直连失败时自动启用内置代理重试（GitHub/HuggingFace 等开源库场景）。"""
+    import urllib.request          # 惰性：引导下载才需要，启动路径不付 ≈76ms
     print(f"[setup] 正在下载 {label} ...")
     try:
         urllib.request.urlretrieve(url, dest)

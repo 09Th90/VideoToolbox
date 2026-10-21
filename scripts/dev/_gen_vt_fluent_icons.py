@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.4.0
+# @version 2.4.1
 """vt_fluent 图标数据再生成工具（dev 期，不进随包）。
 
 两件事：
@@ -59,6 +59,9 @@ USED = sorted({
     "MICROPHONE", "ARROW_DOWN",
     # B2/B3 控件族自绘引用（自查补：缺一个就画空白）
     "CHEVRON_RIGHT", "FULL_SCREEN", "MINIMIZE", "MORE", "RETURN", "VIEW",
+    # v2.4.1「AI 托管」页部署引导卡的「复制命令」按钮（harness_page.py）。
+    # ⚠ 漏登记的症状：按钮 paintEvent 每次重绘抛 RuntimeError，错误气泡刷屏。
+    "COPY",
 })
 
 #: FluentIcon 使用面之外的、控件族自绘需要的图标。

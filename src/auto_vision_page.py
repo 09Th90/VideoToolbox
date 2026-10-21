@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# @version 2.4.0
+# @version 2.4.1
 """「自动化」页 —— B 站自动投稿（v1.17.x 起精简为投稿专用）
 ====================================================================
 页面只做一件事：用内置视觉引擎（`auto_vision_core`）驱动用户自己已登录
@@ -33,7 +33,8 @@ from PIL import Image
 from PySide6.QtCore import Qt, QRect, QThread, Signal
 from PySide6.QtGui import QColor, QFont, QImage, QPainter, QPen, QPixmap
 from PySide6.QtWidgets import (QApplication, QFileDialog, QHBoxLayout, QLabel,
-                             QPlainTextEdit, QSizePolicy, QVBoxLayout, QWidget)
+                             QMessageBox, QPlainTextEdit, QSizePolicy,
+                             QVBoxLayout, QWidget)
 
 from vt_fluent import (CaptionLabel, ComboBox, FluentIcon as FIF,
                             InfoBar, InfoBarPosition, LineEdit,
@@ -225,18 +226,19 @@ class BiliUploadWorker(QThread):
     staged = Signal(str, str)          # (node_name, 阶段文案)
     done = Signal(dict)
 
-    def __init__(self, task, win, dry_run, data_dir, parent=None):
+    def __init__(self, task, win, dry_run, data_dir, parent=None, force=False):
         super().__init__(parent)
         self.task = task
         self.win = win
         self.dry_run = dry_run
         self.data_dir = data_dir
+        self.force = force
 
     def run(self):  # noqa: D102 - QThread 入口
         try:
             res = bu.run_submission(
                 task=self.task, win=self.win, dry_run=self.dry_run,
-                data_dir=self.data_dir,
+                data_dir=self.data_dir, force=self.force,
                 on_log=self.logged.emit,
                 on_stage=lambda n, l: self.staged.emit(n, l))
         except Exception as exc:  # noqa: BLE001
@@ -307,14 +309,15 @@ class AutoVisionPage(QWidget):
         self.btn_shot = PrimaryPushButton("抓帧", icon=FIF.CAMERA)
         self.btn_shot.clicked.connect(self.take_shot)
         self.pw_switch = SwitchButton()
-        self.pw_switch.setOnText("兜底")
-        self.pw_switch.setOffText("兜底")
+        self.pw_switch.setOnText("屏幕抓取")
+        self.pw_switch.setOffText("屏幕抓取")
         self.pw_switch.setChecked(False)
         lay.addWidget(_row(self.win_combo, btn_refresh, self.btn_shot,
-                           CaptionLabel("PrintWindow"), self.pw_switch))
+                           CaptionLabel("屏幕抓取"), self.pw_switch))
         lay.addWidget(_row(CaptionLabel(
-            "提示：目标窗口不要被别的窗口完全盖住——抓帧走的是屏幕拷贝；"
-            "被遮挡时可打开「兜底」改用 PrintWindow（对 GPU 渲染的窗口可能全黑）。")))
+            "提示：抓帧默认走 PrintWindow，无视遮挡——窗口被别的窗口盖住也能"
+            "抓到完整画面；仅当抓到的画面全黑（个别 GPU 渲染窗口）时，"
+            "才需要打开「屏幕抓取」改用屏幕拷贝（被遮挡会缺内容）。")))
         self.shot_view = ShotView()
         self.shot_view.selectionChanged.connect(self._on_selection)
         lay.addWidget(self.shot_view)
@@ -336,6 +339,8 @@ class AutoVisionPage(QWidget):
 
         self.refresh_windows()
         self._bili_refresh_tpl_combo()
+        self.bili_tpl_combo.currentIndexChanged.connect(self._bili_tpl_hint)
+        self._bili_tpl_hint()
         return box
 
     # -- 窗口 / 抓帧 -- #
@@ -366,8 +371,11 @@ class AutoVisionPage(QWidget):
             _tip("warning", "提示", "先在上面的下拉框里选一个目标窗口", self)
             return
         try:
+            # "auto" = PrintWindow 优先（无视遮挡），无效帧自动回退屏幕拷贝；
+            # 开关打开 = 强制屏幕拷贝（被遮挡会缺内容，仅全黑窗口时用）
+            strategy = False if self.pw_switch.isChecked() else "auto"
             frame, origin, cost = av.capture_window(
-                win, use_printwindow=self.pw_switch.isChecked())
+                win, use_printwindow=strategy)
         except Exception as exc:  # noqa: BLE001
             _tip("error", "抓帧失败", f"{type(exc).__name__}: {exc}", self)
             return
@@ -406,9 +414,17 @@ class AutoVisionPage(QWidget):
         self.bili_tpl_status.setText(
             f"模板目录：{tdir}\n"
             f"已采集 {total - len(miss_all)}/{total} 张；必需还差 {len(miss)} 张"
-            + (f"：{'、'.join(m['label'] for m in miss)}" if miss else "（已齐）")
+            + (f"：{'、'.join(m['label'] for m in miss)}" if miss
+               else "（已齐）✅ 必需模板已齐，可去下方「B 站投稿任务」开始投稿")
             + "。采集方法：在上面选中投稿页窗口 → 抓帧 → 在预览上框出该元素 → "
               "点「把框选存为该模板」。")
+
+    def _bili_tpl_hint(self):
+        """采集下拉选中项时，在帧状态行展示该项的采集要点（hint）。"""
+        item = self._bili_cur_tpl()
+        if item is None:
+            return
+        self.capture_status.setText(f"采集要点：{item['hint']}")
 
     def _bili_cur_tpl(self):
         key = self.bili_tpl_combo.currentData()
@@ -675,20 +691,55 @@ class AutoVisionPage(QWidget):
             return
         dry = self.bili_dry.isChecked()
         missing = bu.missing_templates(DATA_DIR)
+        force = False
+        if missing and not self._confirm_missing_templates(missing):
+            return
         if missing:
-            self._log("⚠ 还差必需模板：" + "、".join(m["label"] for m in missing)
+            force = True
+            self._log("⚠ 仍要硬跑：还差必需模板 "
+                      + "、".join(m["label"] for m in missing)
                       + "（对应步骤会走熔断分支）")
         self._log("=" * 46)
         self._log(f"开始投稿（{'演练：不会真点鼠标/键盘' if dry else '⚠ 真跑模式'}）")
         self.bili_progress.setValue(0)
         self.bili_stage.setText("启动中…")
         self.btn_bili_run.setEnabled(False)
-        worker = BiliUploadWorker(task, win, dry, DATA_DIR, self)
+        worker = BiliUploadWorker(task, win, dry, DATA_DIR, self, force=force)
         worker.logged.connect(self._log)
         worker.staged.connect(self._on_bili_stage)
         worker.done.connect(self._on_bili_done)
         self._bili_worker = worker
         worker.start()
+
+    def _confirm_missing_templates(self, missing):
+        """必需模板未采齐：弹窗拦默认路径，返回 True = 放行硬跑。
+
+        选型：① qfluentwidgets 的 MessageBox 传 parent 会退化成主子控件
+        （主文件 ConfirmDialog 注释有定论）；② ConfirmDialog 在主文件里，
+        本模块反向 import 会成环（模块头约定）；③ QMessageBox 是系统真顶层
+        窗口，本页无 mpv 原生子窗口，多按钮用法与主文件一致。
+        """
+        names = "、".join(m["label"] for m in missing)
+        box = QMessageBox(self)
+        box.setIcon(QMessageBox.Warning)
+        box.setWindowTitle("投稿模板未采集")
+        box.setText(
+            f"还差 {len(missing)} 张必需模板：{names}。\n\n"
+            "没有模板时投稿会在第一步熔断失败。建议先在上面"
+            "「目标窗口 · 模板采集」卡片里采集（选窗口 → 抓帧 → "
+            "框选 → 保存，约 5 分钟）。")
+        go = box.addButton("去采集模板", QMessageBox.AcceptRole)
+        force = box.addButton("仍要硬跑", QMessageBox.DestructiveRole)
+        box.addButton("取消", QMessageBox.RejectRole)
+        box.exec()
+        clicked = box.clickedButton()
+        if clicked is go:
+            self.area.ensureWidgetVisible(self.shot_view)
+            self.shot_view.setFocus()
+            _tip("info", "开始采集",
+                 "在预览上框选元素后，选「采集模板」下拉里的对应项保存", self)
+            return False
+        return clicked is force        # 只有「仍要硬跑」放行
 
     def _on_bili_stage(self, _node, label):
         self.bili_stage.setText(f"当前阶段：{label}")
@@ -706,10 +757,19 @@ class AutoVisionPage(QWidget):
             self.bili_stage.setText("✅ 流程完成（演练模式下未真正提交）")
             _tip("success", "投稿流程完成", "演练模式未真点；确认后可关掉演练再跑", self)
         else:
+            miss = res.get("missing") or []
+            if miss:
+                hint = (f"：缺模板 {len(miss)} 张"
+                        f"（{'、'.join(m['label'] for m in miss)}），请先采集")
+            elif failed == "FailNoPage":
+                hint = ("：模板在位但没匹配到上传入口，确认浏览器在 B 站投稿页、"
+                        "已登录、窗口未被遮挡")
+            else:
+                hint = ""
             self.bili_stage.setText(
-                f"❌ 未完成（停在中途：{failed or '未到达终点'}）"
+                f"❌ 未完成（停在中途：{failed or '未到达终点'}）{hint}"
                 + (f"；失败截图：{res.get('screenshot')}"
                    if res.get("screenshot") else ""))
             _tip("warning", "投稿未完成",
-                 f"停在中途：{failed or '未到达终点'}（详见日志）", self)
+                 f"停在中途：{failed or '未到达终点'}{hint}", self)
         self._bili_refresh_tpl_combo()

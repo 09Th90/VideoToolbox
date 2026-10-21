@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.4.0
+# @version 2.4.1
 """下载开源依赖（不参与安装包构建，一律从网上拉取）。
 
 所有第三方开源组件都由本脚本在安装后/运行时从官方开源地址下载到 tools/ 目录：
@@ -60,7 +60,11 @@ DENO_ZIP = ("https://github.com/denoland/deno/releases/latest/download/"
 # 无论以何种方式部署（用户自行放置/后续下载），node 缺失都会卡在
 # harness_bridge.probe() 的 no_node。src/harness_bridge._node_exe() 会从
 # tools/node.exe 找到它。nodejs.org 官方分发国内可直连。
-NODE_VERSION = "22.14.0"
+#: ⚠ 必须 ≥ 22.19（harness/package.json 的 engines: `^22.19.0 || >=24.0.0`）。
+#  22.14 这类低版本会让 harness CLI **静默退出**（exit 0、无输出），
+#  界面只报「harness 没有产出最终答复」。改版本号时与
+#  src/harness_bridge.py 的 `_NODE_MIN_TEXT` 保持一致。
+NODE_VERSION = "22.23.3"
 NODE_ZIP = f"https://nodejs.org/dist/v{NODE_VERSION}/node-v{NODE_VERSION}-win-x64.zip"
 
 # libmpv（LGPL 构建）：字幕编辑页的视频播放后端（打轴要用它做精确 seek 与逐帧）。

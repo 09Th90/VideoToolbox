@@ -21,7 +21,7 @@ from __future__ import annotations
 import os
 import webbrowser
 
-from PySide6.QtCore import QObject, Qt, QThread, Signal
+from PySide6.QtCore import QObject, Qt, QThread, QTimer, Signal
 from PySide6.QtGui import QFont
 from PySide6.QtWidgets import (QApplication, QHBoxLayout, QLabel,
                              QPlainTextEdit, QSizePolicy, QVBoxLayout, QWidget)
@@ -52,6 +52,23 @@ class _TaskWorker(QObject):
         r = hb.run_task(self._text, timeout=self._timeout,
                         on_reasoning=self.reasoning.emit)
         self.finished.emit(r)
+
+
+class _ProbeWorker(QObject):
+    """状态探测后台化（2026-10-20 启动优化）。
+
+    ``hb.probe(force=True)`` 与 ``hb.web_alive()`` 都是阻塞调用——后者是
+    一次本地 HTTP 探测，harness 未启动时也要 ~2s 才返回。构造期同步跑会把
+    首帧直接拖死（实测 MainWindow 构造里占 2.06s）。改为线程执行，结果经
+    信号回主线程落地。
+    """
+
+    done = Signal(dict)
+
+    def run(self):
+        p = hb.probe(force=True)
+        alive = hb.web_alive()
+        self.done.emit({"p": p, "alive": alive})
 
 
 def _card(parent, title=None):
@@ -88,6 +105,9 @@ class HarnessPage(ScrollArea):
         self._thread = None
         self._worker = None
         self._running = False
+        self._probe_thread = None
+        self._probe_worker = None
+        self._probe_done_once = False
 
         view = QWidget(self)
         # ⚠ 与其余滚动页一致：viewport 与内容控件**两层**透明化。ScrollArea 的
@@ -181,16 +201,41 @@ class HarnessPage(ScrollArea):
         outer.addWidget(card)
         outer.addStretch(1)
 
-        self.refresh_status()
+        # ⚠ 不在构造期同步探测（probe + web_alive 是阻塞调用，harness 未
+        # 启动时一次 ~2s）——首帧后由 showEvent 触发第一次后台探测，
+        # 期间状态卡显示「检测中 …」。
+        QTimer.singleShot(0, self.refresh_status)
+
+    def showEvent(self, e):
+        super().showEvent(e)
+        # 用户切到本页时补一次探测（页面在后台被构造、探测结果可能已过期）
+        if not self._probe_done_once:
+            return
+        QTimer.singleShot(0, self.refresh_status)
 
     # ---------------- 状态 ----------------
     def refresh_status(self):
-        p = hb.probe(force=True)
+        """启动一次后台状态探测（线程化；连点「重新检测」不会冻结界面）。"""
+        if self._probe_thread is not None and self._probe_thread.isRunning():
+            return
+        self.state_label.setText("检测中 …")
+        self._probe_thread = QThread(self)
+        self._probe_worker = _ProbeWorker()
+        self._probe_worker.moveToThread(self._probe_thread)
+        self._probe_thread.started.connect(self._probe_worker.run)
+        self._probe_worker.done.connect(self._on_probe_done)
+        self._probe_worker.done.connect(self._probe_thread.quit)
+        self._probe_thread.start()
+
+    def _on_probe_done(self, r: dict):
+        self._probe_done_once = True
+        p = r.get("p") or {}
         self.state_label.setText(
             "harness：%s\n· %s\n· 部署目录：%s\n· 运行期数据：%s"
-            % (p["state"], p["detail"], p["dir"], hb.dsh_home()))
+            % (p.get("state", "?"), p.get("detail", ""), p.get("dir", ""),
+               hb.dsh_home()))
         self._update_fix_card(p)
-        if hb.web_alive():
+        if r.get("alive"):
             self.url_label.setText("控制台：%s" % hb.web_console_url())
         else:
             self.url_label.setText("控制台未启动（打开可能需要 1～3 分钟冷启动）")

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.4.0
+# @version 2.4.1
 """vt_fluent QSS 库完整性自检（令牌 / 载体 / 渲染 / app 级兜底）。
 
 检查项：
@@ -13,6 +13,9 @@
                        --ThemeColorXxx/--FontFamilies 兼容不变
   5. 实测应用       —— 全量 QSS setStyleSheet 到 QWidget 无异常；
                        主题切换重渲染走通（light→dark 令牌值翻转）
+  5b. 注册面档位一致 —— 控件注册后切主题，生效 QSS 必须等于当前档渲染
+                       （updateStyleSheet 同值跳过/lazy 漏刷的库级防线，
+                       2026-10-20「切主题后点一下才统一」修复配套）
   6. 透明化基座     —— QScrollArea 规则存在于渲染产物（发白缺陷的库级防线）
 
 用法（程序根为 cwd）：
@@ -162,6 +165,30 @@ def main():
     else:
         _bad("主题切换重渲染", "令牌值未随主题翻转")
     setTheme(Theme.LIGHT)  # 还原
+
+    # ---- 5b. 注册面档位一致（切主题漏刷的库级防线） ----------------------- #
+    # 控件注册后切主题，每个控件的生效 QSS 必须等于当前档渲染结果。
+    # 历史上 updateStyleSheet 的同值跳过/lazy 漏刷会让控件停旧档——
+    # 用户观感「切主题后鼠标点一下颜色才统一」（2026-10-20 修复）。
+    # 注：offscreen 下控件未显示，走全量刷新路径；隐藏控件的 lazy 路径
+    # 由 _probe_theme_switch_guard.py（真窗口）覆盖，两者互补。
+    from vt_fluent import (BodyLabel, CaptionLabel, LineEdit, PushButton,
+                           styleSheetManager)
+    from vt_fluent._theme import render_for_widget
+    probes = [CaptionLabel("caption"), BodyLabel("body"), PushButton("btn"),
+              LineEdit()]
+    for t in (Theme.DARK, Theme.LIGHT):
+        setTheme(t)
+        mismatch = []
+        for w in probes:
+            exp = render_for_widget(w, styleSheetManager.source(w))
+            if exp.rstrip() != (w.styleSheet() or "").rstrip():
+                mismatch.append(type(w).__name__)
+        if mismatch:
+            _bad(f"注册面档位一致[{t.name}]", str(mismatch))
+        else:
+            _ok(f"注册面档位一致[{t.name}]")
+    setTheme(Theme.DARK)  # 还原
 
     # ---- 6. 透明化基座（QScrollArea 发白缺陷的库级防线） ------------------- #
     area = QScrollArea()

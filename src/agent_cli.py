@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.4.0
+# @version 2.4.1
 """agent_cli —— 视频工具箱「第三方 Agent 接入」统一命令行入口（v1.0.0）。
 
 定位与边界
@@ -390,6 +390,12 @@ def cmd_transcribe(args) -> int:
         return _fail(args, "文件不存在：%s" % src)
 
     # ① 同步「设置」页 ASR 配置进引擎 settings（与 GUI「保存并应用」同款）
+    # ASR 协议分发补丁（2026-10-20 起不在 prepare_runtime_env 里装）
+    try:
+        from core.asr.patches import vc_asr_protocol_patch
+        vc_asr_protocol_patch()
+    except Exception:  # noqa: BLE001
+        pass
     ok, detail = engine.apply_asr_to_engine()
     if not ok:
         return _fail(args, "ASR 配置未就绪：%s（请先在「设置 → ASR 语音识别」配置）"
@@ -478,6 +484,13 @@ def _lang_code(v: str):
 # translate：字幕翻译（免认证端点）
 # ============================================================
 def cmd_translate(args) -> int:
+    # 翻译两补丁（路由钉死 + 去 AI）：CLI 路径不经 GUI 预热，这里显式装一次
+    # （幂等；2026-10-20 起不再在 prepare_runtime_env 里装）。
+    try:
+        from core.translate.route_patch import ensure_translate_patches
+        ensure_translate_patches()
+    except Exception:  # noqa: BLE001
+        pass
     from engine_asr_data import ASRData      # noqa: PLC0415
     from engine_translate import make_translator  # noqa: PLC0415
     src = os.path.abspath(args.file)

@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>功能详解 · 视频工具箱</title>
+<meta name="description" content="视频工具箱九个功能页的逐项说明：视频下载与音画合并、视频库、字幕处理、字幕编辑对轴、流水线、B 站投稿、AI 托管与设置。">
+<link rel="icon" type="image/png" href="assets/img/favicon.png">
+<link rel="stylesheet" href="assets/css/style.css">
+<script src="assets/js/main.js"></script>
+</head>
+<body>
+
+<header class="site-header">
+  <div class="container header-inner">
+    <a class="brand" href="index.html">
+      <img src="assets/img/icon-256.png" alt="视频工具箱图标">
+      <span>视频工具箱</span>
+      <span class="ver">v2.4.0</span>
+    </a>
+    <nav class="main-nav" aria-label="主导航">
+      <a href="index.html">首页</a>
+      <a href="features.html" class="active">功能</a>
+      <a href="calibration.html">字幕校准</a>
+      <a href="quickstart.html">快速开始</a>
+      <a href="faq.html">常见问题</a>
+    </nav>
+    <div class="header-actions">
+      <button class="icon-btn" data-theme-toggle aria-label="切换主题">
+        <svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
+        <svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:none"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+      </button>
+      <a class="btn btn-accent btn-sm" href="https://github.com/09Th90/VideoToolbox/releases/latest" target="_blank" rel="noopener">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12m0 0 4-4m-4 4-4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>
+        下载
+      </a>
+      <button class="icon-btn nav-toggle" data-nav-toggle aria-label="打开菜单">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+      </button>
+    </div>
+  </div>
+</header>
+
+<main>
+
+<section class="page-hero">
+  <div class="container">
+    <h1>九个功能页，逐项说明</h1>
+    <p>从左边的导航栏切换页面。这一页讲清楚每个页面能干什么、怎么用、有哪些值得知道的细节。</p>
+  </div>
+</section>
+
+<section class="section" style="padding-top:16px">
+  <div class="container doc-layout">
+
+    <aside class="doc-toc">
+      <div class="t">本页目录</div>
+      <a href="#home">首页 · 工作台</a>
+      <a href="#download">视频处理 · 下载</a>
+      <a href="#merge">视频处理 · 音画合并</a>
+      <a href="#library">视频库</a>
+      <a href="#subtitle">字幕处理</a>
+      <a href="#editor">字幕编辑</a>
+      <a href="#pipeline">流水线</a>
+      <a href="#upload">自动化 · B 站投稿</a>
+      <a href="#harness">AI 托管</a>
+      <a href="#settings">设置</a>
+    </aside>
+
+    <div>
+
+      <!-- 首页 -->
+      <section id="home" class="reveal" style="margin-bottom:44px">
+        <h3 class="block-title">首页 · 工作台</h3>
+        <p style="color:var(--text-2);font-size:15px">
+          打开软件的第一页。顶部任务框支持三种输入：拖文件、粘链接、直接打字。
+          打字的内容会交给 AI 托管执行（部署了 AI 引擎时），比如「把 <code>data\downloads</code> 里最新的视频转成字幕」。
+          下方直达最近的任务进度，一键创建下载 / 转录 / 翻译任务。
+        </p>
+      </section>
+
+      <!-- 下载 -->
+      <section id="download" class="reveal" style="margin-bottom:44px">
+        <h3 class="block-title">视频处理 · 视频下载</h3>
+        <div class="steps">
+          <div class="step"><h4>粘贴链接</h4><p>支持 YouTube、B 站等 yt-dlp 支持的站点。</p></div>
+          <div class="step"><h4>选保存位置</h4><p>选一次就长期记住，下次打开自动填回；就算文件夹暂时不在（外接硬盘没插），记忆也不会丢。</p></div>
+          <div class="step"><h4>检测画质</h4><p>自动列出 720p 及以上档位：同一分辨率只留文件最大的，有 60fps 就只留 60fps，省得在十几个选项里纠结。</p></div>
+          <div class="step"><h4>加入并行下载</h4><p>任务进入列表，可同时挂好几个；默认一并下载博主上传字幕与自动生成字幕，转成 <code>.srt</code>，支持中英日韩西法德等多语言。</p></div>
+        </div>
+        <p style="color:var(--text-2);font-size:14.5px;margin:18px 0 12px">每个视频自动打包成独立文件夹，文件夹名就是视频标题：</p>
+<pre>某视频标题\
+  ├─ 某视频标题.mp4    视频本体（音频始终取最高质量）
+  ├─ 封面.jpg          封面图，统一等比补边到 1280x720，不拉伸
+  ├─ 视频信息.txt      标题 / 简介 / 链接 / 博主主页 / 画质 / 下载时间
+  └─ *.srt             字幕（如果勾了下载字幕）</pre>
+        <div class="callout" style="margin-top:14px">
+          <span class="ci"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 8h.01M12 11v5"/></svg></span>
+          <div>几个贴心细节：<strong>同名视频不覆盖</strong>（自动改叫「标题 (2)」）；<code>视频信息.txt</code> 用 UTF-8 with BOM，记事本打开不乱码；标题非法字符自动替换、超长截断到 80 字；下载完成自动打开文件夹；字幕拉取失败不影响视频本体。</div>
+        </div>
+      </section>
+
+      <!-- 合并 -->
+      <section id="merge" class="reveal" style="margin-bottom:44px">
+        <h3 class="block-title">视频处理 · 音画合并</h3>
+        <p style="color:var(--text-2);font-size:15px;margin-bottom:16px">有些站点把画面和声音分成两个文件下（如 <code>.mp4</code> 画面 + <code>.m4a</code> 声音），需要合成一个才能正常看。分两种模式：</p>
+        <div class="two-col" style="gap:16px">
+          <div class="card" style="padding:20px">
+            <h3 style="font-size:15.5px">自动配对</h3>
+            <p>选输入文件夹 → 「扫描配对」按文件名和时长自动配成一对 → 「开始合成」，结果输出到「合成结果」文件夹。适合成批处理下载下来的文件。</p>
+          </div>
+          <div class="card" style="padding:20px">
+            <h3 style="font-size:15.5px">手动合并</h3>
+            <p>把视频和音频从资源管理器直接拖进来（拖到任意槽位或页面空白处都会自动归位），字幕可选 <code>.srt</code> / <code>.ass</code>。结果叫 <code>原视频名_merged.mp4</code>，同名不覆盖。</p>
+          </div>
+        </div>
+        <p style="color:var(--text-2);font-size:14.5px;margin-top:14px">
+          手动合并更「抗造」：音频先实测编码，AAC 直接封装、其它格式自动转 AAC；视频先直接封装，装不进 mp4（如 vp9 / av1）会自动改 H.264 重编码再试一次。<code>.m4a</code> 直接封装不转码、不损失音质；<code>.srt</code> 作为软字幕挂进去，播放器里可开关。
+        </p>
+      </section>
+
+      <!-- 视频库 -->
+      <section id="library" class="reveal" style="margin-bottom:44px">
+        <h3 class="block-title">视频库</h3>
+        <ul style="color:var(--text-2);font-size:15px;padding-left:22px;margin:0">
+          <li>默认显示下载页记住的保存位置，可换文件夹或「同步下载目录」跟随下载页；</li>
+          <li>点「刷新」才扫描——<strong>打开软件时不会自动扫</strong>，免得误扫几万文件的大目录卡住；</li>
+          <li>递归扫描子文件夹，卡片名显示「文件夹名 \ 文件名」，并显示时长与文件大小；</li>
+          <li>单击卡片直接播放，右键打开所在文件夹；</li>
+          <li>缩略图缓存在 <code>data\thumb_cache</code>，缓存名含完整路径指纹，不同文件夹下的同名视频不会串图。</li>
+        </ul>
+      </section>
+
+      <!-- 字幕处理 -->
+      <section id="subtitle" class="reveal" style="margin-bottom:44px">
+        <h3 class="block-title">字幕处理</h3>
+        <p style="color:var(--text-2);font-size:15px;margin-bottom:16px">
+          内置自研字幕处理引擎，页内直接用、不弹独立窗口。顶部分段标签：
+          <strong>任务创建 / 语音转录 / 字幕翻译 / 字幕校准 / 字幕视频合成</strong>。
+          把视频拖进来或粘贴链接，按需走转录 → 翻译 → 校准 → 合成几步。
+          字幕优化与配音依赖大模型，需先在设置填 AI 配置；不填只是这两项用不了，转录翻译照常。
+        </p>
+        <div class="callout warn">
+          <span class="ci"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3 2 20h20z"/><path d="M12 10v4M12 17h.01"/></svg></span>
+          <div><strong>关于免费翻译服务：</strong>微软翻译的取 token 端点官方已 404、谷歌翻译在国内通常不可达，这是端点侧的问题。整批失败时软件会自动改用微软翻译重试一次；译文缺失会明确报错且不生成文件，不会产出内容还是原文的「假翻译」。想要稳定质量，建议直接用大模型翻译。</div>
+        </div>
+        <p style="color:var(--text-2);font-size:14.5px;margin-top:14px">
+          「字幕视频合成」分段可以把字幕<strong>硬烧录</strong>进画面，或封装成可开关的软字幕 / MKV。配置、日志、模型缓存、任务产物统一放在软件文件夹 <code>data\</code> 下，不往 C 盘写东西。
+        </p>
+      </section>
+
+      <!-- 字幕编辑 -->
+      <section id="editor" class="reveal" style="margin-bottom:44px">
+        <h3 class="block-title">字幕编辑 · 看着画面对轴</h3>
+        <p style="color:var(--text-2);font-size:15px;margin-bottom:16px">
+          下载来的字幕时间轴常常不准。这一页左边放视频、右边字幕表、下半区是波形时间轴——
+          <strong>直接拖波形上的字幕块就能改时间</strong>，不用在播放器和文本编辑器之间来回切。
+          首次使用需装一次播放组件 libmpv（约 40 MB，出于许可与体积不随安装包分发）；没装也不会崩，字幕表的查看编辑照常。
+        </p>
+        <div class="table-wrap" style="margin-bottom:16px">
+          <table>
+            <thead><tr><th style="width:180px">按键</th><th>作用</th></tr></thead>
+            <tbody>
+              <tr><td><code>空格</code></td><td>播放 / 暂停</td></tr>
+              <tr><td><code>,</code> <code>.</code></td><td>后退 / 前进一帧（<code>←</code> <code>→</code> 同效）</td></tr>
+              <tr><td><code>Shift+←/→</code></td><td>选中字幕整体前移 / 后移 100ms</td></tr>
+              <tr><td><code>Alt+←/→</code></td><td>前移 / 后移 1 秒</td></tr>
+              <tr><td><code>[</code> <code>]</code></td><td>把选中条目的起点 / 终点设为播放头当前位置</td></tr>
+              <tr><td><code>Ctrl+K</code></td><td>在播放头处切分</td></tr>
+              <tr><td><code>Ctrl+Z</code> / <code>Ctrl+Y</code></td><td>撤销 / 重做</td></tr>
+              <tr><td><code>Ctrl+=</code> <code>-</code> <code>0</code></td><td>时间轴放大 / 缩小 / 缩放到整轨</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <ul style="color:var(--text-2);font-size:14.5px;padding-left:22px;margin:0 0 14px">
+          <li><strong>撤销 100 步</strong>，拖动改时间也算一步——拖之前先存快照，撤销能精确回到「拖动前」；</li>
+          <li><strong>保存时自动备份</strong>：目标文件已存在且无同名 <code>.bak</code> 时先备份一份；</li>
+          <li>切分或取边界若会让某条字幕短于一帧（40ms），操作被拒绝，不写坏数据；</li>
+          <li><strong>内嵌字幕</strong>：把当前字幕（含未保存改动）作为 mov_text 软字幕轨挂进 mp4，流复制不重编码，几秒完成、画质零损失；</li>
+          <li><strong>字幕层</strong>：画面上叠透明预览层随播放实时渲染，所见即所得。</li>
+        </ul>
+      </section>
+
+      <!-- 流水线 -->
+      <section id="pipeline" class="reveal" style="margin-bottom:44px">
+        <h3 class="block-title">流水线 · 一条链接全自动跑完</h3>
+        <p style="color:var(--text-2);font-size:15px;margin-bottom:14px">
+          粘贴链接，剩下全自动：下载（原片 + 字幕 + 封面 + 信息）→ 翻译 → 字幕校准 → AI 二次校准 → 成品打包。
+          也可以盯住一个文件夹：新出现的视频自动接管，判断下载完成后走同一条链，中间还能自动做音画合并。
+          并发任务数 1~8 可调（默认 3），一个在下载时另一个可以同时在校准。
+        </p>
+        <div class="card-grid" style="grid-template-columns:repeat(2,1fr);gap:14px">
+          <div class="card" style="padding:18px"><h3 style="font-size:15px">断了能接着跑</h3><p>任务状态实时存盘，重启后已完成阶段自动跳过、进行中的归位重跑。</p></div>
+          <div class="card" style="padding:18px"><h3 style="font-size:15px">失败被隔离</h3><p>一个任务失败不拖累队列里的其他任务。</p></div>
+          <div class="card" style="padding:18px"><h3 style="font-size:15px">输入没变就不重跑</h3><p>产物带输入指纹，同样的输入不会重复劳动。</p></div>
+          <div class="card" style="padding:18px"><h3 style="font-size:15px">存量文件不动</h3><p>只接管新出现的文件，之前放在那里的不会被莫名改动。</p></div>
+        </div>
+      </section>
+
+      <!-- 投稿 -->
+      <section id="upload" class="reveal" style="margin-bottom:44px">
+        <h3 class="block-title">自动化 · B 站投稿</h3>
+        <p style="color:var(--text-2);font-size:15px">
+          保存投稿模板（标题 / 简介 / 标签 / 分区 / 话题），投稿表单可从视频目录的 <code>视频信息.txt</code> 一键读取；
+          执行在后台线程跑，失败自动留整屏截图方便排查。
+        </p>
+      </section>
+
+      <!-- AI 托管 -->
+      <section id="harness" class="reveal" style="margin-bottom:44px">
+        <h3 class="block-title">AI 托管 · 让 AI 替你操作整个软件</h3>
+        <div class="callout" style="margin-bottom:14px">
+          <span class="ci"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 8h.01M12 11v5"/></svg></span>
+          <div>本节功能<strong>只有在部署了 AI 引擎后才会出现</strong>。没部署时导航栏里没有「AI 托管」这一项，软件其它一切照旧。</div>
+        </div>
+        <ul style="color:var(--text-2);font-size:15px;padding-left:22px;margin:0">
+          <li>首页输入框直接打字，回车后跳到「AI 托管」页，AI 自己读文件、运行内部工具把事办完；</li>
+          <li><strong>模型和密钥不用另配</strong>——用的就是「设置 → 全局 AI」那一套，改了设置下一次托管自动生效；</li>
+          <li>AI 的工作目录就是程序根目录，能读写文件、执行程序；高危操作（删文件、改配置）会先问你；</li>
+          <li>每次任务的完整记录存在 <code>data\harness-home\transcripts\</code>，可随时翻看；</li>
+          <li>想人工指挥：点「打开交互控制台」，在浏览器里打开完整的对话式控制台。</li>
+        </ul>
+      </section>
+
+      <!-- 设置 -->
+      <section id="settings" class="reveal">
+        <h3 class="block-title">设置 · 全软件唯一入口</h3>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th style="width:190px">分组</th><th>内容</th></tr></thead>
+            <tbody>
+              <tr><td>目录</td><td>下载目录、数据根目录（可整体搬家）、引擎工作目录（只读，固定不落 C 盘）</td></tr>
+              <tr><td>全局 AI</td><td>一套 OpenAI 兼容配置（密钥 / 接口地址 / 文本模型 / 视觉模型），全软件共用；「测试接口」验证后「保存并应用」立即生效</td></tr>
+              <tr><td>ASR 语音识别</td><td>自有 ASR 服务（OpenAI 兼容接口）或本地独立模型；协议留「自动识别」即可，支持 11 种协议</td></tr>
+              <tr><td>AI 校准</td><td>思考模式与强度、分块大小、token 预算、校准风格（术语级 / 整句重写）、联网查证轮次、Agent 集群（多智能体协作）</td></tr>
+              <tr><td>校准知识同步</td><td>自动同步开关与「立即更新」；上传在退出软件时后台完成，界面上没有上传按钮</td></tr>
+              <tr><td>界面</td><td>深色 / 浅色 / 跟随系统三档主题、8 种预设主题色、界面缩放 100%–200%、云母特效、分板块背景图</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+    </div>
+  </div>
+</section>
+
+</main>
+
+<footer class="site-footer">
+  <div class="container">
+    <div class="footer-grid">
+      <div class="footer-brand">
+        <a class="brand" href="index.html">
+          <img src="assets/img/icon-256.png" alt="">
+          <span>视频工具箱</span>
+        </a>
+        <p>把「找视频 → 下下来 → 弄出字幕 → 修好字幕 → 装回视频」装进一个 Windows 窗口的开源桌面软件。</p>
+      </div>
+      <div>
+        <h5>本站</h5>
+        <a href="features.html">功能详解</a>
+        <a href="calibration.html">字幕校准</a>
+        <a href="quickstart.html">快速开始</a>
+        <a href="faq.html">常见问题</a>
+      </div>
+      <div>
+        <h5>项目</h5>
+        <a href="https://github.com/09Th90/VideoToolbox" target="_blank" rel="noopener">GitHub 仓库</a>
+        <a href="https://github.com/09Th90/VideoToolbox/releases" target="_blank" rel="noopener">发布与下载</a>
+        <a href="https://github.com/09Th90/VideoToolbox/issues" target="_blank" rel="noopener">问题反馈</a>
+        <a href="https://space.bilibili.com/507185588" target="_blank" rel="noopener">作者主页（B 站）</a>
+      </div>
+      <div>
+        <h5>随软件文档</h5>
+        <a href="../程序说明书(用户版).md">程序说明书（用户版）</a>
+        <a href="../程序说明书(开发版).md">程序说明书（开发版）</a>
+        <a href="../第三方组件来源与许可声明.txt">第三方组件许可声明</a>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <span>© <span data-year>2026</span> 视频工具箱 · 源码按 CC BY-SA 4.0 发布</span>
+      <span>随安装包分发的组合作品（含 GPL-3.0 组件）整体按 GPL-3.0 提供</span>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>

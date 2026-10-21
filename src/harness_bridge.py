@@ -56,7 +56,6 @@ import subprocess
 import sys
 import threading
 import time
-import urllib.request
 import webbrowser
 from pathlib import Path
 
@@ -1147,6 +1146,7 @@ def _save_transcript(text: str, result: dict) -> None:
 # ---------------------------------------------------------------- 交互控制台
 def _no_proxy_opener():
     """绕过环境变量里的 http_proxy——探针目标是本机 127.0.0.1。"""
+    import urllib.request          # 惰性：仅探活/控制台路径需要
     return urllib.request.build_opener(urllib.request.ProxyHandler({}))
 
 
@@ -1186,6 +1186,7 @@ def web_alive() -> bool:
     只有连接被拒 / 超时才算没起来。必须绕代理——目标是本机回环。
     """
     try:
+        import urllib.error        # 与 _no_proxy_opener 的 request 惰性导入配套
         with _no_proxy_opener().open(web_url(), timeout=3) as r:
             return r.status < 500
     except urllib.error.HTTPError:

@@ -147,6 +147,7 @@ def _mihomo_api(path, method="GET", body=None, timeout=10):
     """调用 mihomo 控制端口 RESTful API；失败返回 None。"""
     import json as _json
     import urllib.parse
+    import urllib.request          # 显式补齐：早期靠别处 import 的属性副作用
     url = MIHOMO_API + path
     data = None
     if body is not None:

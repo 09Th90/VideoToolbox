@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# @version 2.4.0
+# @version 2.4.1
 """B 站自动投稿 —— 用内置 MAA 视觉引擎驱动（不碰目标进程内存、不注入脚本）。
 
 定位
@@ -105,14 +105,18 @@ def screenshot_dir(data_dir):
     return os.path.join(data_dir, SCREENSHOT_SUBDIR)
 
 
-def missing_templates(data_dir, include_optional=False):
-    """返回尚未采集的模板项（列表）。`include_optional` 为 False 时忽略可选模板。"""
-    tdir = template_dir(data_dir)
+def missing_templates(data_dir, include_optional=False, tdir=None):
+    """返回尚未采集的模板项（列表）。`include_optional` 为 False 时忽略可选模板。
+
+    `tdir` 可覆盖模板目录本身——`run_submission(template_dir_override=...)`
+    覆盖目录时，缺没缺模板必须按覆盖后的目录判，不能按 data_dir 判。
+    """
+    d = tdir or template_dir(data_dir)
     out = []
     for item in TEMPLATE_MANIFEST:
         if item.get("optional") and not include_optional:
             continue
-        if not os.path.isfile(os.path.join(tdir, item["file"])):
+        if not os.path.isfile(os.path.join(d, item["file"])):
             out.append(item)
     return out
 
@@ -286,11 +290,16 @@ def _node(algorithm="None", action="None", **kw):
     return d
 
 
-def build_pipeline(task=None, upload_wait_seconds=None):
+def build_pipeline(task=None, upload_wait_seconds=None,
+                   entry_template_missing=False):
     """构造投稿管线（dict）。任务字段以 `{{变量}}` 注入，便于界面直接展示。
 
     节点名与阶段文案见 `STAGES`。标签/话题按个数动态展开成「输入 → 回车」
     节点，保证每个标签都被 B 站标签框单独接纳。
+
+    :param entry_template_missing: True 时首节点模板（01_upload_entry.png）
+        未采集——CheckPage 熔断改指 `FailNoTemplate`（模板缺失），否则维持
+        `FailNoPage`（模板在位但没匹配上）。
     """
     t = {**default_task(), **(task or {})}
     v = default_vars(t)
@@ -306,7 +315,9 @@ def build_pipeline(task=None, upload_wait_seconds=None):
         "CheckPage": _node("TemplateMatch", "Log",
                            template="01_upload_entry.png", threshold=0.75,
                            note="确认当前就在投稿页（能看到「上传视频」入口）",
-                           next=["UploadEntry"], exceededNext=["FailNoPage"],
+                           next=["UploadEntry"],
+                           exceededNext=(["FailNoTemplate"] if entry_template_missing
+                                         else ["FailNoPage"]),
                            maxTimes=2),
         "UploadEntry": _node("TemplateMatch", "ClickSelf",
                              template="01_upload_entry.png", threshold=0.75,
@@ -445,8 +456,15 @@ def build_pipeline(task=None, upload_wait_seconds=None):
     # —— 终点 ——
     p["Done"] = _node("None", "Log", note="✅ 投稿流程完成", next=[], maxTimes=1)
     p["FailNoPage"] = _node("None", "Log",
-                            note="❌ 没找到上传入口：请确认浏览器已打开投稿页且已登录",
+                            note="❌ 没找到上传入口（模板 01 在位但未匹配）："
+                                 "请确认浏览器已打开 B 站投稿页、已登录、"
+                                 "且窗口没被别的窗口挡住",
                             next=[], maxTimes=1)
+    p["FailNoTemplate"] = _node("None", "Log",
+                                note="❌ 投稿模板未采集：请先在「目标窗口 · 模板采集」"
+                                     "把 10 张必需模板采集完（data/auto_vision/bili/），"
+                                     "再重新开始",
+                                next=[], maxTimes=1)
     p["FailUpload"] = _node("None", "Log",
                             note="❌ 等待上传完成超时：检查网络/文件大小，或调大等待上限",
                             next=[], maxTimes=1)
@@ -488,7 +506,8 @@ STAGES = {
 }
 
 #: 失败终点节点名
-FAIL_NODES = ("FailNoPage", "FailUpload", "FailZone", "FailSubmit")
+FAIL_NODES = ("FailNoPage", "FailNoTemplate", "FailUpload", "FailZone",
+              "FailSubmit")
 
 
 def pipeline_text(task=None):
@@ -610,7 +629,7 @@ def frame_provider(win):
 
 def run_submission(*, task, win, dry_run=True, data_dir,
                    on_log=None, on_stage=None, template_dir_override=None,
-                   screenshot_on_fail=True):
+                   screenshot_on_fail=True, force=False):
     """跑一次完整投稿流程。
 
     :param task: 投稿任务（见 `default_task`）
@@ -620,15 +639,24 @@ def run_submission(*, task, win, dry_run=True, data_dir,
     :param on_log: 日志回调 on_log(str)
     :param on_stage: 阶段回调 on_stage(node_name, label)
     :param template_dir_override: 覆盖模板目录（默认 data/auto_vision/bili）
+    :param force: True = 跳过模板预检照跑（用户在界面上选择「仍要硬跑」时），
+        熔断归因改由管线内 `FailNoTemplate` 节点承担。
     :returns: dict(ok, reached, failed_at, steps, screenshot, missing)
     """
     log = on_log or (lambda *_a: None)
     tdir = template_dir_override or template_dir(data_dir)
 
-    missing = missing_templates(data_dir)
+    missing = missing_templates(data_dir, tdir=tdir)
+    if missing and not force:
+        log("⛔ 模板未采集，本次不开跑（必失败）：缺 "
+            + "、".join(m["label"] for m in missing))
+        log("  → 打开「自动化」页 →「目标窗口 · 模板采集」：选投稿页窗口 → "
+            "抓帧 → 框选对应元素 → 把框选存为该模板")
+        return {"ok": False, "reached": [], "failed_at": "FailNoTemplate",
+                "steps": [], "screenshot": None, "missing": missing}
     if missing:
-        log("⚠ 缺少模板：" + "、".join(m["label"] for m in missing))
-        log("  → 请先在「采集模板」里把这几张截出来，否则对应步骤会走熔断分支")
+        log("⚠ 仍缺模板：" + "、".join(m["label"] for m in missing)
+            + "（已选择硬跑；对应步骤会走熔断分支）")
 
     def _on_stage(node_name):
         """节点 → 阶段文案（界面进度展示）；异常只忽略，不打断投稿。"""
@@ -639,7 +667,8 @@ def run_submission(*, task, win, dry_run=True, data_dir,
         except Exception:  # noqa: BLE001
             pass
 
-    pipeline = build_pipeline(task)
+    entry_missing = any(m["key"] == "upload_entry" for m in missing)
+    pipeline = build_pipeline(task, entry_template_missing=entry_missing)
     vars_ = default_vars(task)
     runner = av.PipelineRunner(frame_provider, tdir, on_log=log, vars=vars_,
                                on_stage=_on_stage)

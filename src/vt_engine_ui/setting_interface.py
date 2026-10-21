@@ -382,7 +382,10 @@ class SettingInterface(ScrollArea):
             lambda: self.window().switchTo(self.window().subtitleStyleInterface))
         self.cacheEnabledCard.checkedChanged.connect(self.__onCacheEnabledChanged)
         self.themeCard.optionChanged.connect(lambda ci: setTheme(cfg.get(ci)))
-        self.themeColorCard.colorChanged.connect(setThemeColor)
+        # lazy=True：不可见控件脏标记延迟补齐（避免整窗全量重刷卡顿，
+        # 理由见 ui_theme.set_accent；2026-10-20 实测全量 ~800ms → lazy ~5ms）
+        self.themeColorCard.colorChanged.connect(
+            lambda c: setThemeColor(c, lazy=True))
         self.feedbackCard.clicked.connect(
             lambda: QDesktopServices.openUrl(QUrl(_seams.vc_config.FEEDBACK_URL)))
         self.aboutCard.clicked.connect(self.checkUpdate)

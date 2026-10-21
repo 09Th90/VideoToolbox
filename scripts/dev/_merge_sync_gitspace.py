@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
-# @version 2.4.0
+# @version 2.4.1
 """仓库更新的 git 空间条目级合并（不碰工作区）。
 
-背景：本地 main 领先 10 commit，origin/main 有 4 个另一实例的校准知识同步
-commit，两个同步文件真实分叉。合并必须：
+背景：本地 main 与 origin/main（另一实例的校准知识同步提交）在两个同步文件上
+真实分叉（origin/main 侧由同步通道自动推送，数量不定）。合并必须：
   1. 用 calib_merge_core 的 merge_calib_script / merge_learned_kb 做条目级
      三方合并（与 App 退出前 _pull_and_merge 同口径，避免 git 文本三方合并
      在 EOL/条目顺序上制造噪声）；
@@ -20,6 +20,7 @@ commit，两个同步文件真实分叉。合并必须：
 import os
 import subprocess
 import sys
+import time
 
 ROOT = r"D:\Agent Work\软件开发\视频工具箱"
 sys.path.insert(0, os.path.join(ROOT, "src"))
@@ -27,7 +28,6 @@ import calib_merge_core as mmc  # noqa: E402
 
 CALIB = "subtitle_calib_merged.py"
 KB = "subtitle_learned_kb.json"
-JSONL = "vp_inbox/3377a8c1-3a57-4815-88b1-beea66f7e359/2026-10-12T145925.339+0000-a8eb.jsonl"
 BASE_SNAPSHOT = os.path.join(ROOT, "data", "calib_sync_base.py")
 SCRATCH = os.path.join(ROOT, "data", "tmp", "_merge_gitspace")
 
@@ -43,6 +43,20 @@ def show(ref):
     return p.stdout
 
 
+def list_remote_jsonls():
+    """动态枚举 origin/main 上 vp_inbox/ 下的全部 jsonl 同步收件记录。
+
+    2026-10-21 起改为动态：收件 jsonl 按视频指纹分子目录存放，同步通道每次
+    可能新增，硬编码单条路径会静默丢掉其余记录（2026-10-13 踩坑：丢 vp_inbox
+    增量导致声纹数量不对）。
+    """
+    p = git("ls-tree", "-r", "--name-only", "origin/main", "--", "vp_inbox/")
+    if p.returncode != 0:
+        raise SystemExit("ls-tree vp_inbox failed: " + p.stderr.decode("utf-8", "replace"))
+    paths = [l for l in p.stdout.decode("utf-8", "replace").splitlines() if l.strip()]
+    return paths
+
+
 def to_crlf(text):
     return text.replace("\r\n", "\n").replace("\n", "\r\n").encode("utf-8")
 
@@ -52,14 +66,19 @@ def compute():
     rep = []
     local_calib = show("HEAD:" + CALIB).decode("utf-8")
     remote_calib = show("origin/main:" + CALIB).decode("utf-8")
-    base_git = show("5c978b1:" + CALIB).decode("utf-8")  # 真正的共同祖先
+    mb = git("merge-base", "HEAD", "origin/main")
+    if mb.returncode != 0:
+        raise SystemExit("merge-base failed: " + mb.stderr.decode("utf-8", "replace"))
+    merge_base = mb.stdout.decode().strip()
+    base_git = show(merge_base + ":" + CALIB).decode("utf-8")  # 真正的共同祖先（动态）
     base_snap = ""
     if os.path.isfile(BASE_SNAPSHOT):
         with open(BASE_SNAPSHOT, "rb") as f:
             base_snap = f.read().decode("utf-8")
 
     results = {}
-    for tag, base in (("git-base(5c978b1)", base_git), ("snapshot(calib_sync_base)", base_snap)):
+    tag_git = "git-base(%s)" % merge_base[:8]
+    for tag, base in ((tag_git, base_git), ("snapshot(calib_sync_base)", base_snap)):
         merged, added, conflicts = mmc.merge_calib_script(local_calib, remote_calib, base)
         compile(merged, CALIB, "exec")  # 双保险
         results[tag] = merged
@@ -67,8 +86,8 @@ def compute():
                    % (tag, added, len(conflicts), len(local_calib), len(merged)))
         for c in conflicts:
             rep.append("        conflict: " + c)
-    calib_merged = results["git-base(5c978b1)"]
-    if results["git-base(5c978b1)"] != results["snapshot(calib_sync_base)"]:
+    calib_merged = results[tag_git]
+    if results[tag_git] != results["snapshot(calib_sync_base)"]:
         rep.append("[calib] 两个 base 结果不同！详见 data/tmp/_merge_gitspace/ 下产物")
         os.makedirs(SCRATCH, exist_ok=True)
         for tag, txt in results.items():
@@ -117,11 +136,19 @@ def main():
 
     calib_sha = hash_object(calib_bytes)
     kb_sha = hash_object(kb_bytes)
-    jp = git("rev-parse", "origin/main:" + JSONL)
-    if jp.returncode != 0:
-        raise SystemExit("jsonl blob missing: " + jp.stderr.decode("utf-8", "replace"))
-    jsonl_sha = jp.stdout.decode().strip()
-    print("blobs: calib=%s kb=%s jsonl=%s" % (calib_sha[:8], kb_sha[:8], jsonl_sha[:8]))
+    jsonl_paths = list_remote_jsonls()
+    if not jsonl_paths:
+        raise SystemExit("vp_inbox 为空：同步通道未产生 jsonl，需人工核查后重跑")
+    jsonl_shas = []
+    for _jp_path in jsonl_paths:
+        jp = git("rev-parse", "origin/main:" + _jp_path)
+        if jp.returncode != 0:
+            raise SystemExit("jsonl blob missing: %s (%s)"
+                             % (_jp_path, jp.stderr.decode("utf-8", "replace")))
+        jsonl_shas.append(jp.stdout.decode().strip())
+    print("blobs: calib=%s kb=%s jsonl=%d 条：%s"
+          % (calib_sha[:8], kb_sha[:8], len(jsonl_shas),
+             " ".join(s[:8] for s in jsonl_shas)))
 
     # 工作区状态记录（不阻塞）：合并只读 HEAD/origin/main blob，与工作区无关；
     # 但事后刷新工作区 calib 副本前要确认它没被并发会话改写。
@@ -140,9 +167,9 @@ def main():
                        capture_output=True)
     if r.returncode != 0:
         raise SystemExit("read-tree failed: " + r.stderr.decode("utf-8", "replace"))
-    for mode, sha, path in (("100644", calib_sha, CALIB),
-                            ("100644", kb_sha, KB),
-                            ("100644", jsonl_sha, JSONL)):
+    entries = [("100644", calib_sha, CALIB), ("100644", kb_sha, KB)]
+    entries += [("100644", _s, _p) for _p, _s in zip(jsonl_paths, jsonl_shas)]
+    for mode, sha, path in entries:
         r = subprocess.run(["git", "update-index", "--add", "--cacheinfo",
                             "%s,%s,%s" % (mode, sha, path)],
                            cwd=ROOT, env=env, capture_output=True)
@@ -162,7 +189,9 @@ def main():
     #   ① 三个目标路径都在合并树里、且 blob 与预期一致；
     #   ② 合并树相对 origin/main 没有任何删除。
     # 任一不满足直接 SystemExit，绝不动 main。
-    for path, sha in ((JSONL, jsonl_sha), (CALIB, calib_sha), (KB, kb_sha)):
+    guard = [(_p, _s) for _p, _s in zip(jsonl_paths, jsonl_shas)]
+    guard += [(CALIB, calib_sha), (KB, kb_sha)]
+    for path, sha in guard:
         p = git("rev-parse", "%s:%s" % (tree, path))
         got = p.stdout.decode().strip()
         if p.returncode != 0 or got != sha:
@@ -175,19 +204,20 @@ def main():
                          + "\n  ".join(deleted))
     print("护栏 OK：目标路径齐全且合并树无任何删除（origin/main -> %s）" % tree[:8])
 
-    msg = ("merge: 合并 origin/main 4 个校准知识同步 commit 到 dev 2.0.0\n"
+    cp = git("rev-list", "--count", "HEAD..origin/main")
+    remote_n = cp.stdout.decode().strip() if cp.returncode == 0 else "?"
+    msg = ("merge: 合并 origin/main %s 个校准知识同步 commit（%s）\n"
            "\n"
-           "origin/main 领先的 9f0c4ba/354cbe3/575c671/a5f4dea（另一实例 2026-10-12\n"
-           "11:11~23:15 推送）与本地 10 个提交在两个同步文件上真实分叉。\n"
-           "\n"
-           "用 calib_merge_core 条目级三方合并（与 App 退出前 _pull_and_merge 同口径）：\n"
-           "- subtitle_calib_merged.py：本地 2.0.0 内容全保留，远端新增条目并入，\n"
-           "  CRLF blob 风格不变；\n"
+           "origin/main 领先的 %s 个 chore(calib) 提交（同步通道自动推送）与本地提交\n"
+           "在两个同步文件上真实分叉。用 calib_merge_core 条目级三方合并\n"
+           "（与 App 退出前 _pull_and_merge 同口径）：\n"
+           "- subtitle_calib_merged.py：本地内容全保留，远端新增条目并入，CRLF 风格不变；\n"
            "- subtitle_learned_kb.json：候选级并集；\n"
-           "- vp_inbox/3377a8c1-…-a8eb.jsonl 声纹同步收件记录（来自 575c671）随合并引入。\n"
+           "- vp_inbox/ 下 %d 条 jsonl 声纹同步收件记录随合并引入。\n"
            "\n"
-           "全程 git 空间操作未读写工作区：并发会话正在改写学习库（未提交），\n"
-           "其改动原样保留在工作区。")
+           "全程 git 空间操作未读写工作区：并发会话可能正在改写学习库（未提交），\n"
+           "其改动原样保留在工作区，合并后由 _merge_sync_files.py 条目级刷新。"
+           % (remote_n, time.strftime("%Y-%m-%d"), remote_n, len(jsonl_shas)))
     r = subprocess.run(["git", "commit-tree", tree, "-p", "HEAD", "-p", "origin/main",
                         "-m", msg], cwd=ROOT, capture_output=True)
     if r.returncode != 0:

@@ -114,7 +114,6 @@ import glob
 import shutil
 import base64
 import subprocess
-import urllib.request
 import zipfile
 import re
 import time
@@ -193,7 +192,7 @@ from core.shared import (  # shared 收口四符号（DOMAIN_MAP「shared」A2b 
     prepare_runtime_env, data_root_info, set_data_root, engine_ui_brand_patch,
 )
 from core.translate import (  # translate 域公开函数（DOMAIN_MAP「translate」全集）
-    vc_translate_route_patch, vc_translate_no_llm_patch,
+    vc_translate_route_patch, vc_translate_no_llm_patch, ensure_translate_patches,
 )
 from core.translate import *  # noqa: F401,F403 —— translate 域私有与常量
 from core.calibrate import (  # calibrate 域公开函数（DOMAIN_MAP「calibrate」全集）

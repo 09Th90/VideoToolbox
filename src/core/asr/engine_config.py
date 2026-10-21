@@ -6,6 +6,7 @@ v2.3.1 拆分工程；域间依赖规则见 core/__init__.py。
 """
 import json
 import os
+import sys
 
 from core.shared.ai import ai_load_config, ai_mod
 from core.shared.paths import DATA_DIR
@@ -89,35 +90,40 @@ def apply_asr_to_engine(ai_cfg=None):
         if changed:
             _vc_write_settings(data)
         # 内存态同步（引擎界面/QConfig 已加载时免重启生效）
-        try:
-            from videocaptioner.ui.common.config import cfg as _cfg
-            from engine_entities import (FasterWhisperModelEnum,
-                                         TranscribeModelEnum)
-            _cfg.set(_cfg.transcribe_model,
-                     TranscribeModelEnum.FASTER_WHISPER if ac["mode"] == "local"
-                     else TranscribeModelEnum.WHISPER_API)
-            if ac["mode"] == "service":
-                if ac["base_url"]:
-                    _cfg.set(_cfg.whisper_api_base, ac["base_url"])
-                if ac["api_key"]:
-                    _cfg.set(_cfg.whisper_api_key, ac["api_key"])
-                if ac["model"]:
-                    _cfg.set(_cfg.whisper_api_model, ac["model"])
-                if ac["prompt"]:
-                    _cfg.set(_cfg.whisper_api_prompt, ac["prompt"])
-            elif ac["local_model"] in FW_MODEL_ENUM:
-                for m in FasterWhisperModelEnum:
-                    if m.value == ac["local_model"]:
-                        _cfg.set(_cfg.faster_whisper_model, m)
-                        break
-            # 识别语言内存同步（与 settings.json 写入同口径：仅显式语言）
-            _lang_label = str(ac.get("language_label") or "").strip()
-            if _lang_label and _lang_label != "自动检测":
-                from engine_entities import TranscribeLanguageEnum
-                _cfg.set(_cfg.transcribe_language,
-                         TranscribeLanguageEnum(_lang_label))
-        except Exception:
-            pass
+        # ⚠ 仅在引擎配置**已加载**时才做：没加载时为同步而导入它只会白付
+        # ~1s（qfluentwidgets 整库，冷缓存 ~6s），而此后引擎首次读盘拿到
+        # 的就是我们刚写的 settings.json——启动路径上的这段同步纯属重复。
+        # 引擎界面构建后的 vc_enforce_runtime_cfg() 会再跑一次做真同步。
+        if "videocaptioner.ui.common.config" in sys.modules:
+            try:
+                from videocaptioner.ui.common.config import cfg as _cfg
+                from engine_entities import (FasterWhisperModelEnum,
+                                             TranscribeModelEnum)
+                _cfg.set(_cfg.transcribe_model,
+                         TranscribeModelEnum.FASTER_WHISPER if ac["mode"] == "local"
+                         else TranscribeModelEnum.WHISPER_API)
+                if ac["mode"] == "service":
+                    if ac["base_url"]:
+                        _cfg.set(_cfg.whisper_api_base, ac["base_url"])
+                    if ac["api_key"]:
+                        _cfg.set(_cfg.whisper_api_key, ac["api_key"])
+                    if ac["model"]:
+                        _cfg.set(_cfg.whisper_api_model, ac["model"])
+                    if ac["prompt"]:
+                        _cfg.set(_cfg.whisper_api_prompt, ac["prompt"])
+                elif ac["local_model"] in FW_MODEL_ENUM:
+                    for m in FasterWhisperModelEnum:
+                        if m.value == ac["local_model"]:
+                            _cfg.set(_cfg.faster_whisper_model, m)
+                            break
+                # 识别语言内存同步（与 settings.json 写入同口径：仅显式语言）
+                _lang_label = str(ac.get("language_label") or "").strip()
+                if _lang_label and _lang_label != "自动检测":
+                    from engine_entities import TranscribeLanguageEnum
+                    _cfg.set(_cfg.transcribe_language,
+                             TranscribeLanguageEnum(_lang_label))
+            except Exception:
+                pass
         detail = (f"转录模型 → {'FasterWhisper（本地独立模型）' if ac['mode'] == 'local' else 'Whisper [API]（自有 ASR 服务）'}"
                   + (f"；识别语言 → {ac.get('language_label')}"
                      if str(ac.get("language_label") or "").strip()

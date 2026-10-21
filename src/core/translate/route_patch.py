@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.4.0
+# @version 2.4.1
 """翻译请求路由补丁（v2.3.1 拆分工程 · 自 video_toolbox.py 原样搬入）。
 
 2026-10-17 增强（用户在途）：双重保险——除 __init__ 外再包一层
@@ -542,8 +542,43 @@ def vc_translate_no_llm_patch():
     return True
 
 
+#: 补丁只装一次（线程安全）；2026-10-20 起从 prepare_runtime_env 移到
+#: 预热线程末尾/翻译入口，把 ≈0.7-2s 的引擎翻译模块导入移出启动关键路径。
+_PATCH_LOCK = None
+_PATCH_DONE = False
+
+
+def ensure_translate_patches():
+    """确保「翻译路由钉死 + 去 AI」两补丁已挂（幂等、线程安全）。
+
+    调用点：预热线程末尾（引擎模块已热，代价≈0）、agent_cli 翻译命令开头。
+    补丁必须早于**第一个翻译任务**——GUI 里翻译由用户点击触发，预热线程
+    在首帧后 1~3s 就装好了，远早于任何点击。
+    """
+    global _PATCH_LOCK, _PATCH_DONE
+    if _PATCH_DONE:
+        return True
+    import threading
+    if _PATCH_LOCK is None:
+        _PATCH_LOCK = threading.Lock()
+    with _PATCH_LOCK:
+        if _PATCH_DONE:
+            return True
+        try:
+            vc_translate_route_patch()
+        except Exception:  # noqa: BLE001
+            pass
+        try:
+            vc_translate_no_llm_patch()
+        except Exception:  # noqa: BLE001
+            pass
+        _PATCH_DONE = True
+    return True
+
+
 __all__ = [
     "vc_translate_route_patch",
     "vc_translate_no_llm_patch",
+    "ensure_translate_patches",
     "_patch_translator_route",
 ]

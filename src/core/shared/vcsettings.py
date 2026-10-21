@@ -9,6 +9,7 @@ import os
 from core.shared.textio import read_text_any
 
 import json
+import sys
 
 from core.shared.ai import ai_load_config
 from core.shared.paths import DATA_DIR
@@ -103,11 +104,14 @@ def apply_global_llm_to_engine(ai_cfg=None):
                     wiped = True
             if wiped:
                 _vc_write_settings(data)
-            try:
-                from videocaptioner.ui.common.config import cfg as _cfg
-                _cfg.set(_cfg.openai_api_key, "")
-            except Exception:
-                pass
+            # 内存态同步仅在引擎配置已加载时做（未加载时导入它白付 ~1s，
+            # 而引擎此后首次读盘拿到的就是刚写的 settings.json）。
+            if "videocaptioner.ui.common.config" in sys.modules:
+                try:
+                    from videocaptioner.ui.common.config import cfg as _cfg
+                    _cfg.set(_cfg.openai_api_key, "")
+                except Exception:
+                    pass
             return True, "AI 已关闭，未写入引擎 LLM 槽"
         base = str(ai.get("base_url") or "").strip()
         key = str(ai.get("api_key") or "").strip()
@@ -121,18 +125,20 @@ def apply_global_llm_to_engine(ai_cfg=None):
             llm["OpenAI_Model"] = model
         _vc_write_settings(data)
         # 内存态同步（引擎界面已构建、QConfig 已导入时）
-        try:
-            from videocaptioner.ui.common.config import cfg as _cfg
-            from engine_entities import LLMServiceEnum
-            if base:
-                _cfg.set(_cfg.openai_api_base, base)
-            if key:
-                _cfg.set(_cfg.openai_api_key, key)
-            if model:
-                _cfg.set(_cfg.openai_model, model)
-            _cfg.set(_cfg.llm_service, LLMServiceEnum.OPENAI)
-        except Exception:
-            pass
+        # ⚠ 同上：只在已加载时才同步，未加载时导入纯属白付时间。
+        if "videocaptioner.ui.common.config" in sys.modules:
+            try:
+                from videocaptioner.ui.common.config import cfg as _cfg
+                from engine_entities import LLMServiceEnum
+                if base:
+                    _cfg.set(_cfg.openai_api_base, base)
+                if key:
+                    _cfg.set(_cfg.openai_api_key, key)
+                if model:
+                    _cfg.set(_cfg.openai_model, model)
+                _cfg.set(_cfg.llm_service, LLMServiceEnum.OPENAI)
+            except Exception:
+                pass
         return True, "ok"
     except Exception as e:  # noqa: BLE001
         return False, str(e)

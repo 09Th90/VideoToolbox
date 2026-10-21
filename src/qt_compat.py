@@ -1,5 +1,5 @@
 # coding: utf-8
-# @version 2.4.0
+# @version 2.4.1
 """Qt / qfluentwidgets 运行期兼容补丁。
 
 只放「上游有回归、且当前没有可升级版本」的针对性修补。每个补丁都必须自带
@@ -66,6 +66,7 @@ def install_spinbox_fix():
     返回是否真的打了补丁（False = 环境没这问题，或补丁已打过）。
     """
     try:
+        from PySide6.QtCore import QRect
         from PySide6.QtWidgets import QAbstractSpinBox, QStyle
         from vt_fluent import SpinBoxBase
     except Exception:  # noqa: BLE001
@@ -87,22 +88,28 @@ def install_spinbox_fix():
         le = self.lineEdit()
         if le is None:
             return
-        margins = hbox.contentsMargins()
         spacing = hbox.spacing()
         if spacing < 0:
             spacing = self.style().pixelMetric(
                 QStyle.PM_LayoutHorizontalSpacing)
-        # 右侧按钮区按**实际可见**的按钮算：Inline 档是两个 31px，Compact 档
-        # 是一个 26px；只读时全部隐藏 → 编辑框铺满整行。
-        right = margins.right()
-        for name in ("upButton", "downButton", "compactSpinButton"):
-            btn = getattr(self, name, None)
-            if btn is not None and btn.isVisible():
-                right += btn.width() + spacing
-        left = margins.left() + _SPIN_EDIT_LEFT_INSET
-        rect = self.rect().adjusted(left, margins.top(), -right,
-                                    -margins.bottom())
-        if rect.width() > 0 and le.geometry() != rect:
+        # 右侧边界取**最左可见按钮的左沿**：布局边距会被 QSS/DPI 改动，
+        # 从按钮实际几何反推比累加 margins 稳定（Inline 档两按钮、Compact
+        # 档一按钮；只读时全隐藏 → 编辑框铺满整行）。
+        xs = [btn.geometry().x()
+              for name in ("upButton", "downButton", "compactSpinButton")
+              if (btn := getattr(self, name, None)) is not None
+              and btn.isVisible()
+              and 0 < btn.geometry().x() < self.width()]
+        if xs:
+            right_x = min(xs) - spacing
+        else:
+            right_x = self.width() - _SPIN_EDIT_LEFT_INSET
+        # 垂直方向 QSS padding 为 0：编辑框填满整个内高（只留 1px 边框），
+        # 不能再用布局边距——否则高 DPI/主题重算后文字会被挤到框底或框顶。
+        rect = QRect(_SPIN_EDIT_LEFT_INSET, 1,
+                     max(1, right_x - _SPIN_EDIT_LEFT_INSET),
+                     max(1, self.height() - 2))
+        if le.geometry() != rect:
             le.setGeometry(rect)
 
     def _resizeEvent(self, e):

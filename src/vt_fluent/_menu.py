@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.4.0
+# @version 2.4.1
 """vt_fluent 菜单族（自研，替代 qfluentwidgets.components.widgets.menu/command_bar）。
 
 行为契约（对齐上游 1.11.3）：
@@ -713,8 +713,23 @@ class MenuAnimationManager(QObject):
             return Manager
         return wrapper
 
+    #: 旧上游 API 用字符串动画名；移植期调用点曾直接透传，这里统一归一化，
+    #: 避免再出现 `ValueError: 'drop-down' is an invalid menu animation type`。
+    _ALIASES = {
+        "none": MenuAnimationType.NONE,
+        "drop-down": MenuAnimationType.DROP_DOWN,
+        "pull-up": MenuAnimationType.PULL_UP,
+        "fade-in-drop-down": MenuAnimationType.FADE_IN_DROP_DOWN,
+        "fade-in-pull-up": MenuAnimationType.FADE_IN_PULL_UP,
+    }
+
     @classmethod
     def make(cls, menu, aniType):
+        if aniType is None:
+            aniType = MenuAnimationType.DROP_DOWN
+        elif isinstance(aniType, str):
+            aniType = cls._ALIASES.get(
+                aniType.strip().lower().replace("_", "-"))
         if aniType not in cls.managers:
             raise ValueError("`%s` is an invalid menu animation type." % aniType)
         return cls.managers[aniType](menu)

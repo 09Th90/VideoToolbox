@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# @version 2.4.0
+# @version 2.4.1
 """视觉自动化引擎 —— 参考 MAA（MaaAssistantArknights）的四段设计
 ====================================================================
 MAA 的本质是一个「游戏 UI 的视觉状态机机器人」，完全站在玩家位置看屏幕、
@@ -156,13 +156,17 @@ def window_info(hwnd):
         return None
 
 
-def capture_window(win, use_printwindow=False):
-    """抓取窗口**客户区**画面。
+def capture_window(win, use_printwindow="auto"):
+    """抓取窗口**客户区**画面（默认无视遮挡）。
 
     参数
       win              WindowInfo
-      use_printwindow  True 时走 PrintWindow（可抓被遮挡的窗口，但对
-                       GPU 加速渲染的窗口常得到全黑，故默认走屏幕抓取）
+      use_printwindow  抓帧策略（v2.4.2 起默认自动择优）：
+                       "auto" = 先 PrintWindow（无视遮挡，窗口被盖住也能
+                         抓到完整画面），帧无效（纯黑/近似纯色/尺寸异常）
+                         时自动回退 ImageGrab 屏幕拷贝；
+                       True   = 强制 PrintWindow，失败不回退；
+                       False  = 强制 ImageGrab 屏幕拷贝（受遮挡影响）。
 
     返回 `(frame, origin, cost_ms)`
       frame   np.ndarray, 形状 (H, W, 3), dtype=uint8, RGB
@@ -174,13 +178,16 @@ def capture_window(win, use_printwindow=False):
     w, h = max(1, r - l), max(1, b - t)
 
     frame = None
-    if use_printwindow and _HAS_WIN32:
-        try:
-            frame = _print_window(win.hwnd, w, h)
-        except Exception:  # noqa: BLE001
-            frame = None
+    if use_printwindow is True or use_printwindow == "auto":
+        if _HAS_WIN32:
+            try:
+                frame = _print_window_client(win)
+            except Exception:  # noqa: BLE001
+                frame = None
+        if frame is not None and not _frame_ok(frame):
+            frame = None        # 纯黑/无效帧（GPU 窗口常见）→ 触发回退
 
-    if frame is None:
+    if frame is None and use_printwindow is not True:
         # all_screens=True：多屏 / 副屏在负坐标时也能抓到
         img = ImageGrab.grab(bbox=(l, t, r, b), all_screens=True)
         frame = np.asarray(img.convert("RGB"), dtype=np.uint8)
@@ -188,25 +195,69 @@ def capture_window(win, use_printwindow=False):
     return frame, (l, t), (time.time() - t0) * 1000.0
 
 
+def _frame_ok(frame):
+    """帧有效性校验：防 PrintWindow 对 GPU 渲染窗口返回全黑/近似纯色。
+
+    判据是「内容方差」而非亮度——暗色主题页面 mean 也可能很低，但 std 大；
+    全黑/无效帧 std≈0。尺寸下限防抓到 0 宽高的退化位图。
+    """
+    if frame is None:
+        return False
+    if frame.ndim != 3 or frame.shape[0] < 8 or frame.shape[1] < 8:
+        return False
+    return bool(frame.std() > 2.0)
+
+
 def _print_window(hwnd, w, h):
-    """PrintWindow 抓帧（被遮挡窗口的兜底；GPU 窗口可能全黑）。"""
-    hwnd_dc = win32gui.GetWindowDC(hwnd)
-    mfc_dc = win32ui.CreateDCFromHandle(hwnd_dc)
-    save_dc = mfc_dc.CreateCompatibleDC()
-    bmp = win32ui.CreateBitmap()
-    bmp.CreateCompatibleBitmap(mfc_dc, w, h)
-    save_dc.SelectObject(bmp)
-    # PW_CLIENTONLY(1) | PW_RENDERFULLCONTENT(2)
-    ctypes.windll.user32.PrintWindow(hwnd, save_dc.GetSafeHdc(), 3)
-    info = bmp.GetInfo()
-    buf = bmp.GetBitmapBits(True)
-    arr = np.frombuffer(buf, dtype=np.uint8)
-    arr = arr.reshape((info["bmHeight"], info["bmWidth"], 4))[:, :, :3][:, :, ::-1]
-    win32gui.DeleteObject(bmp.GetHandle())
-    save_dc.DeleteDC()
-    mfc_dc.DeleteDC()
-    win32gui.ReleaseDC(hwnd, hwnd_dc)
-    return np.ascontiguousarray(arr, dtype=np.uint8)
+    """PrintWindow 抓帧（整窗尺寸调用方自定；返回 None 表示失败）。
+
+    flag = PW_CLIENTONLY(1) | PW_RENDERFULLCONTENT(2)：RenderFullContent
+    对 DirectComposition 合成窗口（Win10 1903+）才有意义。
+    """
+    try:
+        hwnd_dc = win32gui.GetWindowDC(hwnd)
+        mfc_dc = win32ui.CreateDCFromHandle(hwnd_dc)
+        save_dc = mfc_dc.CreateCompatibleDC()
+        bmp = win32ui.CreateBitmap()
+        bmp.CreateCompatibleBitmap(mfc_dc, w, h)
+        save_dc.SelectObject(bmp)
+        ctypes.windll.user32.PrintWindow(hwnd, save_dc.GetSafeHdc(), 3)
+        info = bmp.GetInfo()
+        buf = bmp.GetBitmapBits(True)
+        arr = np.frombuffer(buf, dtype=np.uint8)
+        arr = arr.reshape((info["bmHeight"], info["bmWidth"], 4))[:, :, :3][:, :, ::-1]
+        win32gui.DeleteObject(bmp.GetHandle())
+        save_dc.DeleteDC()
+        mfc_dc.DeleteDC()
+        win32gui.ReleaseDC(hwnd, hwnd_dc)
+        return np.ascontiguousarray(arr, dtype=np.uint8)
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def _print_window_client(win):
+    """PrintWindow 抓**客户区**（无视遮挡；GPU 窗口可能全黑/无效）。
+
+    ⚠ Chromium 系浏览器（Edge/Chrome）对 PW_CLIENTONLY 支持不完整：
+    实测抓到的帧**含非客户区**（标题栏/地址栏/标签页），若按客户区尺寸
+    建位图会整体错位约百像素、底部被截断。故按**窗口完整尺寸**抓取，
+    再按 client_rect 相对窗口 rect 的偏移裁出客户区。
+    """
+    l, t, r, b = win.rect                  # 窗口 rect（含非客户区）
+    cl, ct, cr, cb = win.client_rect
+    W, H = max(1, r - l), max(1, b - t)
+    cw, ch = max(1, cr - cl), max(1, cb - ct)
+    frame = _print_window(win.hwnd, W, H)
+    if frame is None:
+        return None
+    dx, dy = cl - l, ct - t                # 客户区在窗口帧内的偏移
+    x0 = max(0, min(dx, frame.shape[1] - 1))
+    y0 = max(0, min(dy, frame.shape[0] - 1))
+    x1 = min(frame.shape[1], x0 + cw)
+    y1 = min(frame.shape[0], y0 + ch)
+    if x1 - x0 < 8 or y1 - y0 < 8:
+        return None                        # 裁剪后过小 → 视为无效
+    return np.ascontiguousarray(frame[y0:y1, x0:x1], dtype=np.uint8)
 
 
 # ---------------------------------------------------------------------- #

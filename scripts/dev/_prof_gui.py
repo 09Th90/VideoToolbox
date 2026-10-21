@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.4.0
+# @version 2.4.1
 """真实 GUI 启动/进入字幕处理页的耗时剖析（不联网、不写自检文件）。
 
 用法：
@@ -129,6 +129,10 @@ def main():
     except Exception:
         pass
     app = QApplication(sys.argv)
+    # ⚠ 性能剖析专用：此处**有意**用固定档位（DARK + 固定 accent），不随
+    # data/ui_custom.json 漂移——否则换台机器/换个用户配置，计时基线就不可比。
+    # 注意这与真实 main() 的 ui_theme.apply_startup_theme(app)（按用户配置
+    # 初始化双轨）不是一条路径；本脚本不断言色彩，只测构建耗时，故保留。
     setTheme(Theme.DARK)
     setThemeColor("#2F8D63")
     app.setFont(QFont("Microsoft YaHei UI", 9))

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.4.0
+# @version 2.4.1
 """vt_fluent 按钮族（自研，替代 qfluentwidgets.components.widgets.button）。
 
 行为契约（对齐上游 1.11.3）：
@@ -21,7 +21,7 @@ from ._anim import singledispatchmethod
 
 from PySide6.QtCore import QPoint, QRectF, QSize, Qt, QUrl, Property, Signal
 from PySide6.QtGui import QColor, QDesktopServices, QIcon, QPainter, QPainterPath
-from PySide6.QtWidgets import QApplication, QHBoxLayout, QPushButton, QRadioButton, QSizePolicy, QToolButton, QWidget
+from PySide6.QtWidgets import QHBoxLayout, QPushButton, QRadioButton, QSizePolicy, QToolButton, QWidget
 
 from ._anim import TranslateYAnimation
 from ._icon import (Action, FluentIcon, FluentIconBase, Icon, drawIcon, isDarkTheme,
@@ -102,13 +102,25 @@ class PushButton(QPushButton):
         pass
 
     def setIcon(self, icon):
-        if icon is None or (isinstance(icon, QIcon) and icon.isNull()):
-            self.setProperty("hasIcon", False)
-        else:
-            self.setProperty("hasIcon", True)
-        self.setStyle(QApplication.style())
+        has_icon = not (icon is None
+                        or (isinstance(icon, QIcon) and icon.isNull()))
         self._icon = icon or QIcon()
+        if self.property("hasIcon") != has_icon:
+            self.setProperty("hasIcon", has_icon)
+            self._repolish()
         self.update()
+
+    def _repolish(self):
+        """动态属性变更后重算 QSS（动态属性不会自动触发重算）。
+
+        ⚠ 不要用 setStyle(QApplication.style())：它会把控件的 style 指针
+        换成 app 的 QStyleSheetStyle，主题/全局样式重建后
+        [hasIcon=true] 规则可能不再命中，padding-left 退回 12px，
+        自绘图标就会压在文字上。
+        """
+        self.style().unpolish(self)
+        self.style().polish(self)
+        self.updateGeometry()
 
     def icon(self):
         return toQIcon(self._icon)
@@ -552,18 +564,21 @@ class DropDownButtonBase:
         _menu_width_fit(menu, self)
         x = -menu.width() // 2 + self.width() // 2
         pos = self.mapToGlobal(QPoint(x, self.height()))
+        # 枚举在 _menu 里定义；函数内导入避开 _menu ↔ _buttons 循环依赖
+        from ._menu import MenuAnimationType
         # 上方空间不足时上拉；RoundMenu 有 heightForAnimation 时用精确判定，
         # QMenu 兜底直接向下弹
         try:
-            hd = menu.view.heightForAnimation(pos, "drop-down")
+            hd = menu.view.heightForAnimation(pos, MenuAnimationType.DROP_DOWN)
             pu = self.mapToGlobal(QPoint(x, 0))
-            hu = menu.view.heightForAnimation(pu, "pull-up")
+            hu = menu.view.heightForAnimation(pu, MenuAnimationType.PULL_UP)
         except Exception:
             hd, hu = 0, 0
         if hd >= hu:
-            _menu_exec(menu, pos, "drop-down")
+            _menu_exec(menu, pos, MenuAnimationType.DROP_DOWN)
         else:
-            _menu_exec(menu, self.mapToGlobal(QPoint(x, 0)), "pull-up")
+            _menu_exec(menu, self.mapToGlobal(QPoint(x, 0)),
+                       MenuAnimationType.PULL_UP)
 
     def _hideMenu(self):
         if self.menu():
