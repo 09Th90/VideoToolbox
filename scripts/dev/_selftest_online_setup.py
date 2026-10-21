@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# @version 2.4.1
+# @version 2.5.0
 """自研「在线引导安装器」离线自检（不联网、不依赖任何第三方库）。
 
 覆盖 packaging/online_release/ 的五个模块：

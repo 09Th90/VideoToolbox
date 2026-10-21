@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.4.1
+# @version 2.5.0
 """转录 UI 补丁（下拉收敛「默认/ASR」+ 独立转录完成回填「字幕翻译」）（v2.3.1 拆分工程 · 自 video_toolbox.py 原样搬入）。
 
 v2.3.1 拆分工程；域间依赖规则见 core/__init__.py。

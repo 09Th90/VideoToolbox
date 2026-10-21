@@ -1,4 +1,4 @@
-# @version 2.4.1
+# @version 2.5.0
 """转录线程（自研，替代 videocaptioner.ui.thread.transcript_thread）。"""
 
 from __future__ import annotations

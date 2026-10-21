@@ -1,4 +1,4 @@
-# @version 2.4.1
+# @version 2.5.0
 """PyQt5 → PySide6 可行性验证结论（实测，2026-10-13）。
 
 隔离环境：E:\\vt_pyside6_probe\\venv（Python 3.12.10）

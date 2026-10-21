@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.4.1
+# @version 2.5.0
 """calib_media_agent 音画证据 harness 自检（离线；ASR 走本地 mock 服务器）。
 
 覆盖：asr_url 归一化 / 协议门控 / ffmpeg 裁音频与抽帧（lavfi 合成媒体）/

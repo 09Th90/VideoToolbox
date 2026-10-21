@@ -1,4 +1,4 @@
-# @version 2.4.1
+# @version 2.5.0
 """任务工厂（自研，替代 videocaptioner.ui.task_factory.TaskFactory）。
 
 以自研设置层（``vt_engine.config.cfg``）+ 自研数据类

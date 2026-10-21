@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# @version 2.4.1
+# @version 2.5.0
 """语法门禁：对仓库里所有**受 git 跟踪**的 .py 做 AST 解析。
 
 为什么不直接用 `python -m compileall src tools scripts`

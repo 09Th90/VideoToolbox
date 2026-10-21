@@ -1,4 +1,4 @@
-# @version 2.4.1
+# @version 2.5.0
 """字幕 LLM 后处理（自研，替代引擎的 SubtitleOptimizer / SubtitleSplitter）。
 
 两项能力，均走项目自有 AI 单通道（``vt_engine.llm_client.chat``）：

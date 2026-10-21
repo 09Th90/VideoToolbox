@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.4.1
+# @version 2.5.0
 """自研任务工厂（P2 尾部 · 档 B：接管 ``videocaptioner.ui.task_factory``）。
 
 以**自研代码**重建 ``TaskFactory`` 的构造算法（输出路径命名、按 LLM 服务选配置、

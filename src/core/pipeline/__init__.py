@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.4.1
+# @version 2.5.0
 """流水线域（core/pipeline）：CLI 编排入口 + 下载字幕滚动重叠整理。
 
 子模块：

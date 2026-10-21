@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.4.1
+# @version 2.5.0
 """vt_fluent B2/B3 可用性测试（几何对照 + 功能冒烟）。
 
 两部分：

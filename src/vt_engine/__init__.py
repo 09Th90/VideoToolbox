@@ -1,4 +1,4 @@
-# @version 2.4.1
+# @version 2.5.0
 """vt_engine —— 完整运行引擎（并行开发线，替代 videocaptioner 内嵌引擎）。
 
 定位

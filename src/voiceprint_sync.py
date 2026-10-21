@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.4.1
+# @version 2.5.0
 """主播声纹模板的多用户同步（**独立通道**，与字幕校准知识同步互不干涉）。
 
 为什么单独一套而不并进 `subtitle_calib_merged.py` 的 kb-sync 通道：
