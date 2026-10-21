@@ -1,4 +1,4 @@
-# @version 2.4.0
+# @version 2.4.1
 """设置层（自研，替代 videocaptioner.ui.common.config 的 qconfig 单例）。
 
 P2 最后阻塞项：引擎的 ``ui.common.config`` 是**载荷性单例**——模块级

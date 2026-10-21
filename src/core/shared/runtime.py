@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.4.0
+# @version 2.4.1
 """内置运行时与字幕引擎（videocaptioner）环境探测/资源接驳（v2.3.1 拆分工程 · 自 video_toolbox.py 原样搬入）。
 
 本模块是 src/core/shared/ 的组成部分；域间依赖规则见 core/__init__.py。

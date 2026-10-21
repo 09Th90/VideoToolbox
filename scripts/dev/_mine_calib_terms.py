@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.4.0
+# @version 2.4.1
 """从校准临时文件（fix / calib TSV）里挖「可复用的错形→正形」，并与 KB 查重。
 
 背景：这些 TSV 是 subfix 的逐句修复记录（num\\t旧行\\t新行），已应用到成品 SRT。

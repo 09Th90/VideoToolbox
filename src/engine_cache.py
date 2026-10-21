@@ -1,4 +1,4 @@
-# @version 2.4.0
+# @version 2.4.1
 """引擎磁盘缓存（自研，替代 videocaptioner.core.utils.cache）。
 
 P1 接缝之一：引擎在 ``core/utils/cache.py`` **模块级**创建 5 个 diskcache

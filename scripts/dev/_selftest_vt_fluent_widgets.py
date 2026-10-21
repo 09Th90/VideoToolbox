@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.4.0
+# @version 2.4.1
 """vt_fluent 控件族 parity 探针（B1 门：几何 + 态色与 qfluentwidgets 逐项对照）。
 
 同一进程内加载 qfluentwidgets（对照基准）与 vt_fluent（自研），离屏

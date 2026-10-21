@@ -1,4 +1,4 @@
-# @version 2.4.0
+# @version 2.4.1
 """Qt 线程层（自研，替代 videocaptioner.ui.thread.* 五个线程）。
 
 信号契约与引擎线程逐一对应（``vt_engine_ui`` 各页按名访问）：

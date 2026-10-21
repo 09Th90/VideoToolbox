@@ -1,4 +1,4 @@
-# @version 2.4.0
+# @version 2.4.1
 """字幕线程（自研，替代 videocaptioner.ui.thread.subtitle_thread 的两个线程）。
 
 信号契约与引擎逐一对应；执行体是 ``vt_engine.pipeline.process_subtitle``

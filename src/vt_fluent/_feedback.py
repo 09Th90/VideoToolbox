@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.4.0
+# @version 2.4.1
 """vt_fluent 反馈族（自研，替代 qfluentwidgets 的 info_bar / dialog_box）。
 
 行为契约（对齐上游 1.11.3）：

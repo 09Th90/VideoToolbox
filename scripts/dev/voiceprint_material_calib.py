@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.4.0
+# @version 2.4.1
 """主播声纹 · 素材体检判据标定（决定 `speaker_voiceprint.QUALITY_*` 门槛取多少）
 
 用途：`assess_material` 的告警门槛不是拍的，是按**真实素材实测值**定的。本脚本

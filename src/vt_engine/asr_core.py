@@ -1,4 +1,4 @@
-# @version 2.4.0
+# @version 2.4.1
 """ASR 执行链收口（复用自研接缝模块 ``engine_asr``）。
 
 ``WhisperAPI``（OpenAI 兼容客户端）、``BaseASR``（CRC32 + 磁盘缓存 +

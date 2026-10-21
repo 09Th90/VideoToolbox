@@ -1,4 +1,4 @@
-# @version 2.4.0
+# @version 2.4.1
 """机翻翻译器收口（复用自研接缝模块 ``engine_translate``）。
 
 微软 / 谷歌 / DeepLx 三个免费端点的自研实现：会话显式直连

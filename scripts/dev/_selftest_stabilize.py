@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.4.0
+# @version 2.4.1
 """calib_stabilize 自检（离线，不联网、不起 ffmpeg 子进程以外的外部依赖）。
 
 覆盖：套话语速幽灵丢弃 / 正常语速套话观测 / 英文套话观测 / 复读丢弃 /

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# @version 2.4.0
+# @version 2.4.1
 """代理引导链路回归自测（2026-10-12 修复 _mihomo_api 重名遮蔽后用）。
 
 背景：`src/video_toolbox.py` 曾有两个同名 `_mihomo_api`（全路径风格 /
