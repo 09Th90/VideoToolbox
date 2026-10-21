@@ -6152,6 +6152,7 @@ _MODE_CTX_TABLE = {
     "bi": "CONTEXT_MAP", "ja": "JA_CONTEXT", "jpe": "JA_ENDFIELD_CONTEXT",
     "akko": "AK_KO_CONTEXT", "ko": "KO_CONTEXT", "ak": "AK_CONTEXT",
     "endoko": "ENDFIELD_KO_CONTEXT",
+    "endobi": "ENDFIELD_BI_CONTEXT",
 }
 _MODE_NAMES = {
     "bi": "中英双语", "ja": "日语原声·鸣潮", "jpe": "日语原声·终末地",
