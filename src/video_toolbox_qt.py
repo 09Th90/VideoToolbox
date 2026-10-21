@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# @version 2.5.0
+# @version 2.5.1
 """视频工具箱 GUI v1.11.0 —— Fluent 矢量界面
 ====================================================================
 界面形态（v1.10.0 起，原 tkinter 界面退役）：
@@ -81,6 +81,15 @@ import subprocess
 import sys
 import threading
 import time
+
+# 启动计时起点（2026-10-21 启动调度专项）：
+# main() 里的 _T0 只能覆盖 QApplication 之后的链路，本文件第 130 行起的顶层
+# import 树（PySide6 / vt_fluent / video_toolbox / subtitle_editor…）实测
+# ≈0.7s（源码态），全部落在计时盲区里——用户体感的「双击到能点」与日志数字
+# 对不上，根因就在这。这里在任何重 import **之前**落一个起点，main() 首行
+# 把差值写进 logs\startup.log（[BOOT+x.xxx s] 行）。
+_BOOT_T0 = time.perf_counter()
+
 import traceback
 import unicodedata
 from collections import deque
@@ -201,7 +210,7 @@ except Exception as _e:  # noqa: BLE001
     except Exception:  # noqa: BLE001
         pass
 
-VERSION = "2.5.0"
+VERSION = "2.5.1"
 
 # 全格式媒体/字幕/文档扩展名（v1.13.0）：
 #   视频：常见容器 + av1 / h264 / h265 / x264 等裸流与更多封装；
@@ -339,7 +348,13 @@ _ENGINE_UI_DECISION = None
 #: 模块级引擎 UI 预热（2026-10-20 第三波）：在 main() 的 prepare 之后、建窗之前
 #: 就起线程导入引擎 UI 树——原先由 SubtitlePage.prewarm 在首帧后才起，导入
 #: （隔离实测 2.85s，真实环境因与主线程抢 GIL 达 14s）几乎全落在窗口出现之后。
-_ENGINE_PREWARM = {"thread": None, "ok": False, "done": False, "t0": 0.0}
+_ENGINE_PREWARM = {"thread": None, "ok": False, "done": False, "t0": 0.0,
+                   #: 界面侧模块（vt_engine_ui + 四个子界面）是否已导入完毕。
+                   #: 与 done 分开：done 等整条预热（含后端补丁）结束，ui_ready
+                   #: 一到就能构建界面——2026-10-21 实测后端补丁里的
+                   #: ``videocaptioner.ui.task_factory`` 导入要 4.26s，没必要
+                   #: 让首页任务框陪着等。
+                   "ui_ready": False}
 
 
 def _engine_prewarm_done():
@@ -351,17 +366,41 @@ def _engine_prewarm_work():
     """后台导入引擎 UI 树（分步埋点，便于下一轮按真实数据优化）。"""
     t0 = time.perf_counter()
     _ENGINE_PREWARM["t0"] = t0
+    # 2026-10-21：先让首帧绘制落定再开跑。预热是纯 Python 的 CPU 密集导入，
+    # 与首帧 paint 抢 GIL 会把「窗口可见」从亚秒级拖到秒级（历史实测 9.9s）。
+    time.sleep(0.35)
+    # 预热期间把 GIL 切换间隔再压细一档（1ms → 0.5ms）：主线程（事件循环、
+    # 点击、重绘）能更频繁地拿回 GIL。代价是预热本身略慢，但用户体感优先
+    # ——这正是「窗口出来了却点不动」的根源。结束/异常都恢复原值。
+    try:
+        sys.setswitchinterval(0.0005)
+    except Exception:  # noqa: BLE001
+        pass
     ok = False
     try:
-        try:
-            engine.vc_asr_patch_apply()      # 本地独立 ASR 的模型覆盖补丁（后端）
-        except Exception:  # noqa: BLE001
-            pass
+        # 2026-10-21：`vc_asr_patch_apply()` **从开头移到末尾**。它内部
+        # `from videocaptioner.ui import task_factory` 实测 **4.26s**（引擎
+        # 后端任务工厂，含 asr_data 链），却与界面构建毫无关系——挡在
+        # UI 导入之前，等于让首页任务框白等 4 秒。它只在「创建转录任务」
+        # 时才被用到，用户点转录远晚于首帧。
         _home_cls, _setting_cls, is_self, _err = _resolve_engine_ui()
         _perf_note(f"prewarm[resolve] {time.perf_counter() - t0:.2f}s")
         if is_self:
             import vt_engine_ui  # noqa: F401
             _perf_note(f"prewarm[import vt_engine_ui] {time.perf_counter() - t0:.2f}s")
+            # ⚠⚠ 2026-10-21（启动调度专项，本轮最大发现）：
+            #   ``vt_engine_ui/__init__`` 是**惰性导出**——`import vt_engine_ui`
+            #   只加载包壳，四个子界面模块要等主线程构造 HomeInterface 时才
+            #   首次导入。实测 `TranscriptionInterface` 首次导入+构造 **7.86s**
+            #   （含 openai/httpx 等链），整段压在主线程上：UI 心跳探针实测
+            #   **单次占用 3391ms**，正是用户说的「窗口出来了但点不动」。
+            #   这里在**后台线程**预先把四个子界面模块全部导入，主线程构建
+            #   就退化成纯构造（全热时 HomeInterface 仅 0.20s）。
+            from vt_engine_ui import (  # noqa: F401
+                home_interface, task_creation_interface,
+                transcription_interface, subtitle_interface,
+                video_synthesis_interface)
+            _perf_note(f"prewarm[import 子界面] {time.perf_counter() - t0:.2f}s")
             from vt_engine_ui import _seams
             _ = _seams.cfg
             _perf_note(f"prewarm[cfg] {time.perf_counter() - t0:.2f}s")
@@ -375,12 +414,25 @@ def _engine_prewarm_work():
                 _perf_note(f"prewarm[asr protocol] {time.perf_counter() - t0:.2f}s")
             except Exception:  # noqa: BLE001
                 pass
+            # ⚠ 放行主线程构建的时机：**必须**在 asr protocol 补丁之后。
+            #   `_build_engine` 里还会幂等地再调一次 vc_asr_protocol_patch()，
+            #   若此刻预热线程正首次导入 core.asr.patches，主线程会卡在
+            #   import 锁上——放到这里，主线程拿到的是已装好的补丁（零等待）。
+            _ENGINE_PREWARM["ui_ready"] = True
+            _perf_note(f"prewarm[ui_ready] {time.perf_counter() - t0:.2f}s")
             # 翻译两补丁在这里装（引擎模块已热，代价≈0）；必须在首个翻译
             # 任务之前——GUI 翻译由用户点击触发，远晚于此。
             try:
                 from core.translate.route_patch import ensure_translate_patches
                 ensure_translate_patches()
                 _perf_note(f"prewarm[translate patches] {time.perf_counter() - t0:.2f}s")
+            except Exception:  # noqa: BLE001
+                pass
+            # 后端 ASR 补丁放在最后（见本段开头注释：它要 4.26s 导入引擎
+            # 任务工厂，与界面无关）。此时首页通常已构建完成。
+            try:
+                engine.vc_asr_patch_apply()
+                _perf_note(f"prewarm[asr 后端补丁] {time.perf_counter() - t0:.2f}s")
             except Exception:  # noqa: BLE001
                 pass
             ok = True
@@ -402,6 +454,12 @@ def _engine_prewarm_work():
                        + _tb.format_exc().replace("\n", " | ")[:1500])
         except Exception:
             pass
+    # 恢复全局 GIL 切换间隔（见函数开头），再标记完成——顺序不能反：
+    # 探针看到 done=True 时主线程可能立刻开始构建界面。
+    try:
+        sys.setswitchinterval(0.001)
+    except Exception:  # noqa: BLE001
+        pass
     _ENGINE_PREWARM["ok"] = ok
     _ENGINE_PREWARM["done"] = True
     _perf_note(f"prewarm 线程：import={'ok' if ok else 'fail'} "
@@ -416,7 +474,59 @@ def _start_engine_prewarm():
                          name="vc-prewarm")
     _ENGINE_PREWARM["thread"] = t
     t.start()
+    # ⚠ 2026-10-21 实测**不要**调 _lower_thread_priority：
+    #   降到 BELOW_NORMAL 后，机器上有其它进程（校准同步线程、用户自己的
+    #   应用）抢 CPU 时，预热线程被 OS 严重饿死——实测导入从 1.97s 劣化到
+    #   **8.05s**，首页占位文案要挂 8 秒。GIL 争用本来就已由 main() 的
+    #   setswitchinterval(0.001) 压到 1ms 粒度，不需要再动线程优先级。
+    #   （函数保留作应急开关，需要时可手动调用。）
     return t
+
+
+def _engine_prewarm_probe():
+    """启动调度器的「界面可构建」探针任务。
+
+    返回 False = 还要等，调度器 64ms 后再问；返回 True = 可以构建了。
+    比原先的 200ms 自轮询好在两点：① 不再每轮写一行 startup.log（实测
+    1.97s 内写 9–10 行真实文件 IO）；② 完成瞬间就能被调度器感知，引擎界面
+    的构建不会被固定 200ms 栅格拖后。
+
+    ⚠ 判据是 ``ui_ready``（界面模块导入完毕）而不是 ``done``（整条预热结束）：
+      后端 ASR 补丁要额外 4.26s，界面没必要陪等（2026-10-21）。
+      线程已结束也算就绪（失败时不能让首页永远停在占位文案上）。
+    """
+    if _ENGINE_PREWARM["ui_ready"]:
+        return True
+    t = _ENGINE_PREWARM["thread"]
+    return not (t is not None and t.is_alive())
+
+
+def _lower_thread_priority(t, level=-1):
+    """把后台预热线程降到 BELOW_NORMAL（Windows）。
+
+    为什么做：预热线程是 CPU 密集的纯 Python 导入，会持续抢 GIL。GIL 本身是
+    协作式释放（切换间隔已由 main() 的 ``setswitchinterval(0.001)`` 压到 1ms），
+    降线程优先级**不会**缩短主线程单次等待，但能减少「后台线程长期占核、
+    主线程被 OS 调度挤出」的概率——作用在那 2s 导入窗口，属中等偏小改善。
+
+    ``level=-1`` 即 THREAD_PRIORITY_BELOW_NORMAL；失败全程静默（非 Windows、
+    线程已退出、无权限都只是「没优化」，绝不影响启动）。
+    """
+    if os.name != "nt" or t is None or t.ident is None:
+        return False
+    try:
+        import ctypes
+        k32 = ctypes.windll.kernel32
+        # THREAD_SET_INFORMATION = 0x0020
+        h = k32.OpenThread(0x0020, False, int(t.ident))
+        if not h:
+            return False
+        try:
+            return bool(k32.SetThreadPriority(h, int(level)))
+        finally:
+            k32.CloseHandle(h)
+    except Exception:  # noqa: BLE001
+        return False
 
 
 def _resolve_engine_ui():
@@ -501,6 +611,11 @@ def fmt_hms(seconds):
 # 静态检查见 src/check_names.py，自检里已加断言防回归。
 CRASH_LOG = os.path.join(engine.LOGS_DIR, "crash.log")
 
+#: faulthandler 状态（见 _install_faulthandler）。「fh」必须全局持有——
+#: faulthandler.enable() 只记住底层 FILE*，Python 侧 file 对象被 GC 回收后
+#: 句柄关闭，崩溃时静默写不出任何东西。
+_FAULT_STATE = {"fh": None, "on": False}
+
 
 def _crash_log_write(kind, exc_type, exc, tb, thread_name=""):
     """把 traceback 落盘 + 打到 stderr（best-effort，本身绝不抛）。"""
@@ -535,6 +650,41 @@ def _crash_toast(title, text):
         pass
 
 
+def _install_faulthandler():
+    """原生崩溃（access violation / stack overflow）栈落盘。
+
+    为什么必须有（2026-10-21）：`sys.excepthook` / `threading.excepthook` 只接
+    **Python 层**异常。而 PySide6 里最常见的致命故障——C++ 对象已析构、Python
+    侧仍持有引用；动画/定时器回调打到已删除的控件；跨线程碰 GUI——都以
+    **Windows 原生崩溃**结束进程：用户看到「python 已停止运行」，而
+    logs\\crash.log 里一行都没有，事后完全无从下手（本轮排查即卡在这里）。
+
+    faulthandler 装的是 C 层 handler，段错误发生瞬间把**所有线程**的 Python
+    栈写进文件（含崩溃线程），是唯一能拿到现场的通道。
+
+    ⚠ 输出追加进**已有的** logs\\crash.log，不新建文件；VT_NO_FAULT=1 可关。
+    """
+    if _FAULT_STATE["on"] or os.environ.get("VT_NO_FAULT"):
+        return False
+    try:
+        import faulthandler
+        os.makedirs(engine.LOGS_DIR, exist_ok=True)
+        # buffering=1（行缓冲）：崩溃瞬间的写入尽量不丢。
+        fh = open(CRASH_LOG, "a", encoding="utf-8", buffering=1)
+        fh.write(f"\n===== {datetime.now():%Y-%m-%d %H:%M:%S} "
+                 f"[faulthandler] 已启用（原生崩溃栈写在本段之后） =====\n")
+        fh.flush()
+        faulthandler.enable(file=fh, all_threads=True)
+        # ⚠ 必须全局持有：enable() 只记住底层 FILE*，Python 侧 file 对象一旦被
+        #   GC 回收，句柄随之关闭 → 崩溃时写不出任何东西，而且**不报错**。
+        #   这是 faulthandler 最常见的静默失效方式。
+        _FAULT_STATE["fh"] = fh
+        _FAULT_STATE["on"] = True
+        return True
+    except Exception:  # noqa: BLE001 —— 诊断设施失败绝不能影响启动
+        return False
+
+
 def install_crash_guard():
     """装上未捕获异常钩子（main() 里、创建 QApplication 之前调用）。"""
     def _hook(exc_type, exc, tb):
@@ -555,6 +705,8 @@ def install_crash_guard():
 
     sys.excepthook = _hook
     threading.excepthook = _thread_hook
+    # 原生崩溃是另一条通道（Python 钩子抓不到），单独装。
+    _install_faulthandler()
 
 
 # ========== 导航宽度（按最长项文字自适应） ==========
@@ -604,6 +756,182 @@ def _perf_note(msg):
         engine._append_log("startup.log", msg, dedup=False)
     except Exception:  # noqa: BLE001
         pass
+
+
+# ========== 首帧后后台任务调度（2026-10-21 启动调度专项） ==========
+# 问题（实测）：窗口首帧 T+1.005s 之后，主线程被一串互相不让出的
+# ``QTimer.singleShot`` 占住——SpinBox 兼容探测 ≈0.6s、引擎预热线程抢 GIL
+# 1.97s、全树刷主题色 ≈1.8s、库页/自动化页/流水线各自建控件。用户在这 1–5s
+# 里点导航「没反应」，体感就是卡死。
+#
+# 本调度器把首帧后的**全部**后台任务收进一个队列，按三个原则跑：
+#   ① 单帧预算（默认 60ms）：一次 tick 内累计超预算就停，下一轮继续——
+#      保证事件循环随时能回去处理点击；
+#   ② 用户输入感知：鼠标/键盘一动，450ms 内暂停后台任务（用户在用就不打扰）；
+#      连续操作超 8s 强制放行一次，避免任务被永久饿死；
+#   ③ 依赖 + 插队：预热完成前不建引擎界面；用户主动点进字幕页时 run_now 插队。
+#
+# ⚠ 不并入常驻的 ``_pump``（120ms 消息泵）——那是业务消息通道，语义不同。
+class _StartupScheduler(QObject):
+    """单定时器驱动的启动任务队列（见上方设计说明）。"""
+
+    def __init__(self, app, budget_ms=60.0, idle_ms=450.0):
+        super().__init__(app)
+        self._tasks = []
+        self._by_name = {}
+        try:
+            self._budget = float(os.environ.get("VT_SCHED_BUDGET") or budget_ms)
+        except (TypeError, ValueError):
+            self._budget = float(budget_ms)
+        self._idle_ms = float(idle_ms)
+        self._trace = bool(os.environ.get("VT_SCHED_TRACE"))
+        self._last_input = 0.0
+        self._starve_since = 0.0
+        self._t0 = time.perf_counter()
+        self._timer = QTimer(self)
+        self._timer.setSingleShot(True)
+        self._timer.timeout.connect(self._tick)
+        # 只记录输入时间戳，恒 return False（绝不吞事件）
+        try:
+            app.installEventFilter(self)
+        except Exception:  # noqa: BLE001
+            pass
+
+    # ---------- 注册与触发 ----------
+    def add(self, name, fn, delay_ms=0, priority=50, depends_on=(),
+            budget_ms=None, retry_ms=64):
+        """登记一个任务。``fn`` 返回 False 表示「本轮没做完，保留待重试」，
+        会在 ``retry_ms`` 之后再问一次（见 _tick 里的 due 重置）。"""
+        if name in self._by_name:
+            return self._by_name[name]
+        t = {"name": name, "fn": fn,
+             "due": self._t0 + max(0.0, float(delay_ms)) / 1000.0,
+             "prio": int(priority), "deps": tuple(depends_on or ()),
+             "budget": budget_ms, "retry": max(0.0, float(retry_ms)) / 1000.0,
+             "done": False}
+        self._tasks.append(t)
+        self._by_name[name] = t
+        self._arm(0)
+        return t
+
+    def mark_done(self, name):
+        t = self._by_name.get(name)
+        if t is not None:
+            t["done"] = True
+            self._arm(0)
+
+    def run_now(self, name, priority=0):
+        """用户主动触发：插队 + 忽略输入静默期。"""
+        t = self._by_name.get(name)
+        if t is None or t["done"]:
+            return False
+        t["prio"] = int(priority)
+        t["due"] = 0.0
+        self._last_input = 0.0
+        self._arm(0)
+        return True
+
+    # ---------- 事件与驱动 ----------
+    def eventFilter(self, obj, e):
+        try:
+            if e.type() in (QEvent.MouseButtonPress, QEvent.MouseButtonRelease,
+                            QEvent.MouseButtonDblClick, QEvent.KeyPress,
+                            QEvent.Wheel):
+                self._last_input = time.perf_counter()
+        except Exception:  # noqa: BLE001
+            pass
+        return False
+
+    def _arm(self, ms):
+        try:
+            self._timer.start(max(0, int(ms)))
+        except Exception:  # noqa: BLE001 —— 定时器在退出流程中可能已失效
+            pass
+
+    def _blocked(self, t):
+        for d in t["deps"]:
+            dep = self._by_name.get(d)
+            if dep is not None and not dep["done"]:
+                return True
+        return False
+
+    def _next_delay_ms(self):
+        now = time.perf_counter()
+        pend = [t for t in self._tasks if not t["done"]]
+        if not pend:
+            return 0
+        wait = 500.0
+        for t in pend:
+            if self._blocked(t):
+                wait = min(wait, 64.0)      # 依赖未满足：低频轮询
+            else:
+                wait = min(wait, max(0.0, (t["due"] - now) * 1000.0))
+        return wait
+
+    def _tick(self):
+        now = time.perf_counter()
+        if not any(not t["done"] for t in self._tasks):
+            return
+        # 用户正在操作 → 让出。连续操作超 8s 则强制放行一轮（防饥饿）。
+        if (now - self._last_input) * 1000.0 < self._idle_ms:
+            if not self._starve_since:
+                self._starve_since = now
+            if now - self._starve_since < 8.0:
+                self._arm(64)
+                return
+        self._starve_since = 0.0
+        spent = 0.0
+        while True:
+            now = time.perf_counter()
+            ready = [t for t in self._tasks
+                     if not t["done"] and now >= t["due"] and not self._blocked(t)]
+            if not ready:
+                break
+            t = min(ready, key=lambda x: x["prio"])
+            cap = t["budget"] if t["budget"] is not None else self._budget
+            if spent >= cap:
+                break
+            t_start = time.perf_counter()
+            ok = True
+            try:
+                ok = t["fn"]()
+            except Exception as e:  # noqa: BLE001 —— 单个任务失败不拖垮启动
+                _perf_note(f"sched[{t['name']}] 失败：{e}")
+            t["done"] = ok is not False
+            cost = (time.perf_counter() - t_start) * 1000.0
+            spent += cost
+            if not t["done"]:
+                # ⚠ 未完成的任务必须把 due 推到未来：否则它一直「已到期」，
+                #   _next_delay_ms 返回 0 → 每个事件循环都跑一次 tick，变成
+                #   隐形的 CPU 忙等（首版实测即此，prewarm_done 每轮重入）。
+                t["due"] = time.perf_counter() + t["retry"]
+            if self._trace and t["done"]:
+                _perf_note(f"sched[{t['name']}] {cost:.1f}ms")
+            if cost >= 8.0:
+                break          # 重任务之后强制让出一帧，先让界面喘口气
+        self._arm(self._next_delay_ms())
+
+
+#: 调度器单例（main() 里 QApplication 之后创建；见 _defer）。
+_SCHED = {"inst": None}
+
+
+def _defer(name, fn, delay_ms=0, priority=50, depends_on=(), budget_ms=None):
+    """把首帧后的后台任务交给调度器；调度器不在场时退回 singleShot 兜底。
+
+    ⚠ ``fn`` 若是 bound method，退回路径必须包一层 ``lambda:`` —— 直接把
+    bound method 传给 ``QTimer.singleShot`` 会在**注册时**就求值，惰性页会被
+    提前构造出来（历史踩坑）。
+    """
+    s = _SCHED["inst"]
+    if s is not None:
+        return s.add(name, fn, delay_ms, priority, depends_on, budget_ms)
+    try:
+        QTimer.singleShot(max(0, int(delay_ms)), lambda: fn())
+    except Exception:  # noqa: BLE001
+        pass
+    return None
+
 
 
 # ========== 通用控件 ==========
@@ -3187,14 +3515,32 @@ class SubtitlePage(QWidget):
         # 自己负责起线程——但绝不另起第二份导入：实测两个预热线程互抢 GIL，
         # 导入从 3.0s 劣化到 19.97s。
         self._prewarm_thread = _start_engine_prewarm()
-        # 轮询等待后台 import 结束，然后回主线程建界面（不阻塞事件循环）
-        QTimer.singleShot(200, self._wait_prewarm)
+        # 2026-10-21（启动调度专项）：不再 200ms 自轮询。交给调度器：
+        #   · prewarm_done —— 探针任务，线程未结束就返回 False，64ms 后重问；
+        #   · build_engine —— 依赖 prewarm_done，满足后回主线程构建，
+        #     单帧预算 400ms（实测 HomeInterface 0.13s + 引擎界面 0.26s）。
+        # 好处：完成瞬间即被感知（不再被 200ms 栅格拖后），且不再每轮写日志。
+        _defer("prewarm_done", _engine_prewarm_probe, 0, 3, budget_ms=1)
+        _defer("build_engine", self._build_when_ready, 0, 30,
+               depends_on=("prewarm_done",), budget_ms=400)
+
+    def _build_when_ready(self):
+        """预热结束后的主线程构建（调度器任务体，见 prewarm）。"""
+        if self._built:
+            return True
+        # 界面模块已就绪即可构建（后端 ASR 补丁可能还在跑，见 ui_ready 说明）
+        self._prewarm_ready = bool(_ENGINE_PREWARM["ok"]
+                                   or _ENGINE_PREWARM["ui_ready"])
+        self._build_now("正在准备字幕引擎界面 …")
+        return True
 
     def _wait_prewarm(self):
+        """旧版 200ms 自轮询（2026-10-21 起由调度器的 prewarm_done 接管）。
+
+        保留仅作兼容兜底：外部脚本/自检若显式调用仍能工作。
+        """
         t = getattr(self, "_prewarm_thread", None)
-        _alive = bool(t is not None and t.is_alive())
-        _perf_note(f"_wait_prewarm 轮询 alive={_alive}")
-        if _alive:
+        if t is not None and t.is_alive():
             QTimer.singleShot(200, self._wait_prewarm)
             return
         if self._built:
@@ -3565,14 +3911,18 @@ class SubtitlePage(QWidget):
             self.window().refresh_nav_width()
         except Exception:
             pass
-        # 引擎界面刚并入主树：把普通 Qt 控件的主题色小表预热一遍（否则用户
-        # 第一次点主题色要现场扫全树 ~1.8s，之后才是 150ms 级）。首帧后再跑，
-        # 不占构建关键路径。
-        try:
-            from PySide6.QtCore import QTimer as _QT
-            _QT.singleShot(300, lambda: ui_theme.refresh_plain_accent())
-        except Exception:
-            pass
+        # 引擎界面刚并入主树。
+        # 2026-10-21（启动调度专项）：这里原本挂一个「空闲时分片扫全树、预热
+        # 主题色小表」的任务（更早是 singleShot(300) 一次性全量，首次 ≈1.8s）。
+        # 实测**两头都不划算**：
+        #   · 分片版每片 200 个控件在冷缓存下仍要 200ms+，连跑 10 余轮 →
+        #     UI 心跳探针在首帧后 3–6s 持续报「主线程被占用」，正是用户说的
+        #     「刚进来点不动」；
+        #   · 而它想预热的东西其实**已经被预热了**——`_PlainAccentFilter`
+        #     在每次 Polish（首绘前）就算过 plain_accent_qss，缓存本就是热的，
+        #     用户第一次改主题色不会再有 1.8s。
+        # 故直接移除，不再启动期扫全树。改主题色时 set_accent() 里的全量刷新
+        # 仍在（缓存热态 ~30ms），语义不变。
 
     def showEvent(self, event):
         """首次显示时才加载引擎界面（内嵌 QWidget，随主题自动配色）。
@@ -3605,8 +3955,14 @@ class SubtitlePage(QWidget):
         if self._built:
             return
         if self._prewarming:
-            return          # 预热线程在跑，_wait_prewarm 会接手
-        QTimer.singleShot(0, self.prewarm)
+            # 预热线程在跑：用户可能已经点进本页 → 把相关任务插到队首，
+            # 预热一结束立刻构建（而不是排在库页/自动化页后面）。
+            s = _SCHED["inst"]
+            if s is not None:
+                s.run_now("prewarm_done", priority=0)
+                s.run_now("build_engine", priority=0)
+            return
+        _defer("prewarm_kick", self.prewarm, 0, 5, budget_ms=5)
 
     def open_settings(self):
         """跳到唯一的全局设置页，并定位到字幕引擎参数区。
@@ -9141,8 +9497,25 @@ class _LazyPageShell(QWidget):
         # 导航/截图/自检都按名字找页
         self.setObjectName(objname)
         self.real = None
+        #: 真身建好后才执行的回调（见 defer）。2026-10-21 加：流水线在启动时
+        #: 只是「把 pipe 接上」，不该为此把整页建出来（实测 3.82s）。
+        self._pending = []
         lay = QVBoxLayout(self)
         lay.setContentsMargins(0, 0, 0, 0)
+
+    def defer(self, fn):
+        """登记「真身建好后执行」的回调；真身已存在则立即执行。
+
+        与直接取属性（``shell.attach(...)``）的区别：后者经 ``__getattr__``
+        会**立刻构造整页**，把按需加载变成启动期开销。
+        """
+        if self.real is not None:
+            try:
+                fn(self.real)
+            except Exception:  # noqa: BLE001
+                pass
+            return
+        self._pending.append(fn)
 
     def ensure(self):
         """构造真身（幂等）并挂进外壳；返回真身。"""
@@ -9155,6 +9528,12 @@ class _LazyPageShell(QWidget):
                 self._win.installEventFilter(self.real)
             except Exception:
                 pass
+            pending, self._pending = self._pending, []
+            for fn in pending:
+                try:
+                    fn(self.real)
+                except Exception:  # noqa: BLE001
+                    pass
         return self.real
 
     def showEvent(self, event):
@@ -9169,6 +9548,18 @@ class _LazyPageShell(QWidget):
             raise AttributeError(name)
         real = self.ensure()
         return getattr(real, name)
+
+
+def _lazy_real(page):
+    """取惰性外壳的真身；**没建过就返回 None**（绝不触发构造）。
+
+    与直接 ``shell.attach(...)`` 的区别：后者经 ``__getattr__`` 会立刻把整页
+    建出来。后台消息（流水线日志/状态）到达时只该更新**已存在**的界面，
+    不该为了投递一条日志而付出建页的代价。
+    """
+    if isinstance(page, _LazyPageShell):
+        return page.real
+    return page
 
 
 class MainWindow(FluentWindow):
@@ -9203,6 +9594,9 @@ class MainWindow(FluentWindow):
     DEFAULT_WIDTH = 1180
 
     def __init__(self, argv=None):
+        # 建窗分段计时（2026-10-21）：MainWindow 构造实测 1.0–3.9s 波动，
+        # 是首帧前最大的不确定项。这几行埋点定位到具体页/步骤，别再靠猜。
+        _mt = time.perf_counter()
         # 跨屏拖拽状态必须在 super().__init__() 之前建立：窗口构造过程中
         # Qt 就会派发 moveEvent，届时 moveEvent 会读这些属性
         self._last_screen = None
@@ -9212,6 +9606,21 @@ class MainWindow(FluentWindow):
         self._settle_pending = False  # 跨屏收敛是否已排队（防抖，只跑一轮）
         self._settle_tries = 0        # 拖拽中延后收敛的重试次数（有上限）
         super().__init__()
+        _perf_note("mw[super] %.2fs" % (time.perf_counter() - _mt))
+        # 切断"页面 → 堆叠 → 窗口"的最小尺寸传导链（2026-10-21 前移）。
+        # ⚠ 必须在**第一次 addSubInterface 之前**设置：QStackedWidget.addWidget
+        #   会重新计算自身 sizeHint/minimumSize（取所有页的最大值），而页里
+        #   控件越多越贵。cProfile 实测 12 次 addWidget 累计 **1.49s**，就是
+        #   这笔尺寸计算。提前把策略设为 Ignored 后，addWidget 不再递归量页。
+        #   原位置（addSubInterface 之后）的同一段保留为幂等兜底。
+        try:
+            self.stackedWidget.setMinimumSize(0, 0)
+            _sp = self.stackedWidget.sizePolicy()
+            _sp.setHorizontalPolicy(QSizePolicy.Ignored)
+            _sp.setVerticalPolicy(QSizePolicy.Ignored)
+            self.stackedWidget.setSizePolicy(_sp)
+        except Exception:  # noqa: BLE001
+            pass
         self.q = queue.Queue()
         self.setWindowTitle(f"视频工具箱 v{VERSION}")
         # 应用图标（v2.1.0）：main() 已挂在 QApplication 上了，这里再显式给
@@ -9255,6 +9664,7 @@ class MainWindow(FluentWindow):
             pass
 
         self.home_page = HomePage(self, self)
+        _perf_note("mw[HomePage] %.2fs" % (time.perf_counter() - _mt))
         # 2026-10-20 启动 <5s 专项：三个重页改**外壳占位**（导航项与堆叠
         # 索引照常占好，真身首帧后按需构造）。视频库/流水线本身构造仅
         # 10~30ms，保持常驻；字幕处理页承载引擎工作台与校准页，也常驻。
@@ -9263,6 +9673,7 @@ class MainWindow(FluentWindow):
         self.library_page = _LazyPageShell(
             self, lambda: LibraryPage(self, self), "视频库", "LibraryPage")
         self.subtitle_page = SubtitlePage(self, self)
+        _perf_note("mw[SubtitlePage] %.2fs" % (time.perf_counter() - _mt))
         self.subtitle_edit_page = _LazyPageShell(
             self, lambda: SubtitleEditPage(self, self), "字幕编辑", "SubtitleEditPage")
         self.pipeline_page = _LazyPageShell(
@@ -9275,13 +9686,13 @@ class MainWindow(FluentWindow):
         # （fix_hint 处置步骤 + 可复制命令 + 部署文档入口），让用户照着补齐；
         # 任务 / 控制台按钮在就绪前禁用，避免空点报错。这样安装版（刻意不含
         # 2.2GB 的 harness 原件）也能直接看到怎么补齐，而不是只报一个错误。
+        # 2026-10-21（启动调度专项）：AI 托管页构造实测 **1.31s**（harness 适配层
+        # 探测 + 30 余张卡片的 QSS 首渲染），而它不是启动必经路径。改为首帧后
+        # 惰性构造（与「自动化」页同一模式）：导航项随之晚现，NAV_TEXTS 是静态
+        # 文案，导航宽度不受影响。
         self.harness_page = None
-        try:
-            if _HARNESS_IMPORT_OK:
-                self.harness_page = _harness_page_mod.HarnessPage(self, self)
-        except Exception as e:  # noqa: BLE001
-            self.harness_page = None
-            _perf_note(f"AI 托管页创建失败（不影响既有功能）：{e}")
+        _defer("harness_page", self._build_harness_page, 2500, 85, budget_ms=900)
+        _perf_note("mw[harness] %.2fs" % (time.perf_counter() - _mt))
         # 自动化页：B 站自动投稿（v1.17.x 起页面精简为投稿专用）。
         # 页面类在 auto_vision_page 里，自带卡片壳，不依赖本文件的 ScrollPage/card()。
         # 2026-10-20：惰性构造——重依赖（numpy/PIL/视觉引擎 ≈364ms）移出启动
@@ -9306,11 +9717,11 @@ class MainWindow(FluentWindow):
         self.addSubInterface(self.subtitle_page, FIF.FONT, "字幕处理")
         self.addSubInterface(self.subtitle_edit_page, FIF.CUT, "字幕编辑")
         self.addSubInterface(self.pipeline_page, FIF.SYNC, "流水线")
-        # 「自动化」页惰性挂载：由 _build_auto_page() 在首帧后补齐导航项
-        if self.harness_page is not None:
-            self.addSubInterface(self.harness_page, FIF.IOT, "AI 托管")
+        # 「自动化」与「AI 托管」两页都是**首帧后惰性挂载**：各自的导航项由
+        # _build_auto_page() / _build_harness_page() 补齐（2026-10-21）。
         self.addSubInterface(self.settings_page, FIF.SETTING, "设置",
                              position=NavigationItemPosition.BOTTOM)
+        _perf_note("mw[addSubInterface] %.2fs" % (time.perf_counter() - _mt))
         # v2.1.0：导航面板顶部的返回箭头 → 固定跳首页（见 _setup_home_button）
         self._setup_home_button()
         # 窗口标题跟随当前页。v2.1.0 起「返回」键不再走 qrouter.pop
@@ -9332,10 +9743,11 @@ class MainWindow(FluentWindow):
         # 侧边导航常驻展开（默认窄条只有图标），宽度按最长项自适应
         self.navigationInterface.setCollapsible(False)
         self._apply_nav_width()
+        _perf_note("mw[nav_width] %.2fs" % (time.perf_counter() - _mt))
         # 首帧后 + 字体度量就绪后再各收敛一次：任何时刻导航宽度都是
         # 「最长项文字 + 2 个字符」，不会出现「启动时一个宽度、稍后另一个宽度」
-        QTimer.singleShot(0, self._apply_nav_width)
-        QTimer.singleShot(400, self._apply_nav_width)
+        _defer("nav_width_0", self._apply_nav_width, 0, 25, budget_ms=20)
+        _defer("nav_width_400", self._apply_nav_width, 400, 40, budget_ms=20)
 
         # 切断"页面 → 堆叠 → 窗口"的最小尺寸传导链。
         # QStackedWidget 的最小尺寸取**所有页面**的最大值，页面里只要有内容
@@ -9357,23 +9769,27 @@ class MainWindow(FluentWindow):
         self.switchTo(self.home_page)
         self._apply_argv(argv or [])
         # ⚠ library_page 是惰性外壳：auto_load 的取值必须包 lambda 延后到
-        # 触发时——直接传 bound method 会在 singleShot **注册时**就求值，
+        # 触发时——直接传 bound method 会在**注册时**就求值，
         # 把整个视频库页在建窗期建出来（惰性白做）。
-        QTimer.singleShot(400, lambda: self.library_page.auto_load())
+        _defer("lib_auto_load", lambda: self.library_page.auto_load(),
+               400, 60, budget_ms=400)
+        # ⚠ _pump 是 120ms 常驻业务消息泵（跨线程队列），语义与启动调度不同，
+        #   不并入调度器，保持原样。
         QTimer.singleShot(120, self._pump)
         # 流水线：延后启动，避开首屏与字幕引擎预热（v1.14.0）
         self.pipeline_registry = None
         self.pipeline = None
-        QTimer.singleShot(2500, self._start_pipeline)
+        _defer("start_pipeline", self._start_pipeline, 2500, 80, budget_ms=300)
         # 字幕引擎界面后台预热：主窗口首帧之后立刻开始导入依赖（预热本身只起
         # 一个后台线程，不占主线程），导入完成即回主线程建界面，用户真正点进
         # 「字幕处理」时通常已是现成控件。v1.11.0 起由 900ms 提前到首帧后立即，
         # 配合 diskcache 延迟化，最坏情况下（刚启动就点进去）的等待已降到亚秒级。
-        QTimer.singleShot(0, self.subtitle_page.prewarm)
+        _defer("prewarm_kick", self.subtitle_page.prewarm, 0, 5, budget_ms=5)
         # 「自动化」页惰性构造：避开首屏的 numpy/PIL/视觉引擎导入链
-        # （≈364ms）。1.5s 后触发，但**引擎预热未完成时顺延**（两者都是
-        # CPU/导入密集，同时跑会互相拖慢——2026-10-20 第三波）。
-        QTimer.singleShot(1500, self._maybe_build_auto_page)
+        # （≈364ms）。改由调度器按「预热完成」依赖触发——不再自己 400ms 轮询
+        # 顺延，两条链的先后关系交给调度器统一裁决。
+        _defer("auto_page", self._build_auto_page, 1500, 70,
+               depends_on=("prewarm_done",), budget_ms=500)
         # 主屏 DPI 变化（改缩放比/换主屏）时重新计算导航宽度。
         # 注意必须用 QApplication 实例的信号：PySide6 里类的同名属性是未绑定的
         # Signal 描述符，直接 .connect 会抛 AttributeError。
@@ -10140,6 +10556,30 @@ class MainWindow(FluentWindow):
         QTimer.singleShot(0, _clamp)
         QTimer.singleShot(300, _clamp)
 
+    def _build_harness_page(self):
+        """惰性构造「AI 托管」页并挂上导航（2026-10-21 启动调度专项）。
+
+        构造实测 1.31s（harness 适配层探测 + 30 余张卡片 QSS 首渲染），原本压在
+        首帧前的建窗关键路径上。改为首帧后由调度器在**用户空闲**时构建——
+        用户正在操作时调度器会自动推迟，所以不会出现「刚进来就卡一下」。
+        失败时 harness_page 保持 None（该页缺席，与自动化页同一模式）。
+        """
+        if self.harness_page is not None:
+            return True
+        if not _HARNESS_IMPORT_OK:
+            return True
+        try:
+            t0 = time.perf_counter()
+            self.harness_page = _harness_page_mod.HarnessPage(self, self)
+            self.addSubInterface(self.harness_page, FIF.IOT, "AI 托管")
+            self._apply_nav_width()
+            _perf_note("AI 托管页惰性构造完成：%.2fs"
+                       % (time.perf_counter() - t0))
+        except Exception as e:  # noqa: BLE001 —— 起不来绝不影响主程序
+            self.harness_page = None
+            _perf_note(f"AI 托管页创建失败（不影响既有功能）：{e}")
+        return True
+
     def _maybe_build_auto_page(self, attempt=0):
         """预热未完成时顺延自动化页构造（最多等 12s，超时照常构造）。"""
         if not _engine_prewarm_done() and attempt < 30:
@@ -10193,19 +10633,53 @@ class MainWindow(FluentWindow):
 
         registry 监视「上次使用的下载目录 + data\\downloads」，变更事件接给
         VT_NO_PIPELINE=1 可完全关闭目录感知（自检/排障用）。
+
+        2026-10-21（启动调度专项）：``MediaRegistry.start()`` 内部的首次
+        ``refresh()`` 是**同步**的 ``os.walk`` + 逐文件 ``os.stat``。下载目录
+        大时实测把主线程卡住 **6.18s**——这是「窗口出来了但点不动」的**最大
+        单块**（比 SpinBox 探测 + 主题色全树刷新加起来还长），而且它排在
+        2.5s 定时器上，正好落在用户刚想操作的时候。
+
+        改法：首扫丢后台线程（纯文件 IO，内部有锁保护），扫完往 app.q 投
+        ``pipe_ready``，主线程再 ``start()``——此刻 refresh 已命中缓存，只剩
+        watcher / QTimer 装配（毫秒级）。⚠ 不能把整个 ``start()`` 丢后台：
+        它要创建 QTimer，QTimer 必须在有事件循环的主线程创建。
         """
         if os.environ.get("VT_NO_PIPELINE"):
             return
         try:
+            t0 = time.perf_counter()
             reg = mreg.MediaRegistry(use_watcher=True)
+            _perf_note("pipeline[registry 构造] %.2fs"
+                       % (time.perf_counter() - t0))
             pipe = pl.Pipeline(reg, log=lambda m: self.q.put(("pipe_log", str(m))))
+            _perf_note("pipeline[Pipeline 构造] %.2fs"
+                       % (time.perf_counter() - t0))
             pipe.add_listener(lambda p: self.q.put(("pipe_state", p)))
             reg.add_listener(pipe.on_files_changed)
-            reg.start()
             self.pipeline_registry = reg
             self.pipeline = pipe
-            self.pipeline_page.attach(pipe)
-            pipe.manual_evaluate()              # 启动即补一次评估
+            # ⚠ 流水线页是惰性外壳：直接 `self.pipeline_page.attach(...)` 会经
+            #   ``__getattr__`` **立刻构造整页**——实测 3.82s（QSS 冷缓存 +
+            #   TabPage/LogView/SpinBox 组合），比首扫本身慢一个数量级，正是
+            #   「刚进入点不动」的最大单块。改为登记延迟绑定：用户首次打开
+            #   该页时才接上（defer 在 ensure() 之后执行）。
+            self.pipeline_page.defer(lambda page: page.attach(pipe))
+            _perf_note("pipeline[页 defer] %.2fs"
+                       % (time.perf_counter() - t0))
+            t0 = time.perf_counter()
+
+            def _boot():
+                try:
+                    reg.refresh()          # 纯文件 IO，MediaRegistry 内部有锁
+                except Exception:  # noqa: BLE001
+                    pass
+                _perf_note("pipeline[首扫] %.2fs（后台线程）"
+                           % (time.perf_counter() - t0))
+                self.q.put(("pipe_ready", None))
+
+            threading.Thread(target=_boot, daemon=True,
+                             name="pipeline-boot").start()
         except Exception:  # noqa: BLE001 - 流水线起不来绝不能影响主程序
             self._log_error(traceback.format_exc())
 
@@ -10429,9 +10903,22 @@ class MainWindow(FluentWindow):
                 # (rc, out, result, 任务代号)
                 cal.on_cal_done(*args)
             elif kind == "pipe_log":
-                self.pipeline_page.log.line(args[0], "dim")
+                page = _lazy_real(self.pipeline_page)
+                if page is not None:
+                    page.log.line(args[0], "dim")
             elif kind == "pipe_state":
-                self.pipeline_page.on_state(args[0])
+                page = _lazy_real(self.pipeline_page)
+                if page is not None:
+                    page.on_state(args[0])
+            elif kind == "pipe_ready":
+                # 首扫已在后台完成（见 _start_pipeline）→ 回主线程装配
+                # watcher + QTimer，并补一次评估。此刻 refresh() 命中缓存，
+                # 主线程只付毫秒级代价。
+                try:
+                    self.pipeline_registry.start()
+                    self.pipeline.manual_evaluate()
+                except Exception:  # noqa: BLE001
+                    self._log_error(traceback.format_exc())
         except Exception as e:
             import traceback
             self._log_error(traceback.format_exc())
@@ -10517,6 +11004,23 @@ def _apply_app_icon(app):
 
 def main():
     _T0 = time.perf_counter()   # 全链路计时起点，各阶段痕迹写 logs/startup.log
+    # 顶层 import 盲区（2026-10-21 启动调度专项）：_BOOT_T0 落在本文件第 83 行
+    # 的 import 之间，覆盖 PySide6 / vt_fluent / video_toolbox 等全部重导入。
+    # 没有这一行时，「双击到窗口可见」的真实总时长永远无法从日志还原——
+    # 日志里的 T+1.0s 只是 main() 之后的那一段。
+    _boot = _T0 - _BOOT_T0
+    _unpack = ""
+    _mp = getattr(sys, "_MEIPASS", None)
+    if _mp:
+        # frozen（onefile）才有：_MEIPASS 目录创建时刻 → 现在的墙钟差，
+        # 近似 bootloader 解包 + 杀软扫描耗时（源码态跳过）。
+        try:
+            _unpack = ("，_MEIPASS 解包后墙钟 %.3fs"
+                       % (time.time() - os.path.getctime(_mp)))
+        except OSError:
+            pass
+    _perf_note(f"[BOOT+{_boot:6.3f}s] 顶层 import 完成"
+               f"（frozen={bool(getattr(sys, 'frozen', False))}{_unpack}）")
     # GIL 切换间隔压到 1ms（默认 5ms）：后台线程（校准/声纹同步、引擎预热）
     # 与主线程抢 GIL 时，主线程每次获得 GIL 的最长等待从 5ms 降到 1ms——
     # 首帧 paint 的 Python 回调动辄几百次，累计差距就是「窗口秒现」与
@@ -10563,6 +11067,11 @@ def main():
     except Exception:
         pass
     app = QApplication(sys.argv)
+    # 启动任务调度器（2026-10-21）：必须早于 MainWindow 构造——建窗期与首帧后
+    # 注册的后台任务都走它。timer 挂在 app 上，生命周期覆盖全进程。
+    # VT_NO_SCHED=1 关闭调度器（退回逐个 singleShot），仅用于性能对照测量。
+    if not os.environ.get("VT_NO_SCHED"):
+        _SCHED["inst"] = _StartupScheduler(app)
     _perf_note(f"[T+{time.perf_counter()-_T0:6.3f}s] QApplication 就绪")
     # 基底样式（2026-10-20 启动 <5s 专项）：Windows 11 原生样式由**插件**
     # 提供，首个控件 polish 时初始化实测 ≈0.8s（开发态）/ ≈1.5s（frozen，
@@ -10708,27 +11217,58 @@ def main():
 
     window.show()
     _perf_note(f"[T+{time.perf_counter()-_T0:6.3f}s] show() 返回")
+
+    # UI 心跳探针（2026-10-21，仅 VT_SCHED_TRACE=1）：每 50ms 记一次时间，
+    # 实际间隔 - 50ms ≈ 主线程被占用的时长。这是「点不动」的直接量化指标
+    # ——用户点击时若主线程正卡在某个同步块里，事件就要排队等这么久。
+    if os.environ.get("VT_SCHED_TRACE"):
+        _hb = {"t": time.perf_counter(), "max": 0.0, "stop": False}
+
+        def _beat():
+            # ⚠ 退出路径（aboutToQuit 里的派生/清理）可能阻塞数秒甚至十几秒
+            #   （网络慢时实测 19s），那不是用户体感，必须停掉心跳。两个判据
+            #   都用：stop 由 aboutToQuit 槽置位，closingDown() 覆盖槽顺序
+            #   在前的场景。
+            try:
+                if _hb["stop"] or QApplication.closingDown():
+                    return
+            except Exception:  # noqa: BLE001
+                if _hb["stop"]:
+                    return
+            now = time.perf_counter()
+            gap = (now - _hb["t"]) * 1000.0
+            if gap > _hb["max"]:
+                _hb["max"] = gap
+                if gap >= 150.0:
+                    _perf_note(f"ui[心跳] 主线程被占用 {gap:.0f}ms"
+                               f"（T+{now - _T0:.2f}s）")
+            _hb["t"] = now
+            QTimer.singleShot(50, _beat)
+
+        # ⚠ 退出路径（aboutToQuit 里的同步派生/清理）动辄数秒，必须停掉心跳，
+        #   否则会报一条误导性的「主线程被占用 3xxx ms」——那不是用户体感。
+        try:
+            app.aboutToQuit.connect(lambda *_: _hb.__setitem__("stop", True))
+        except Exception:  # noqa: BLE001
+            pass
+        QTimer.singleShot(50, _beat)
     window.raise_()
     _perf_note(f"[T+{time.perf_counter()-_T0:6.3f}s] raise_() 返回")
     _perf_note(f"[T+{time.perf_counter()-_T0:6.3f}s] 窗口首帧可见")
 
-    # 首帧后再补：app 级兜底 QSS + app 级图标（2026-10-20 启动优化）。
-    # 两者都不影响主窗口首帧外观（主窗口已有自己的图标与逐控件样式表）。
-    # SpinBox 兼容补丁的兜底安装也排在这里（0ms 定时器，先于引擎预热
-    # 的那个 singleShot(0) 注册 → 先 fire；探测自身的 0.6s 由此移出
-    # 启动关键路径）。
-    QTimer.singleShot(0, _install_spinbox_fix_once)
-
-    def _defer_after_show():
-        # 只补 app 级图标（轻）并起引擎预热（首帧后主线程空闲时导入才快）。
-        # app 级 QSS 不在这里做——建窗后再设要全量 re-polish（实测 8.7s），
-        # 已在建窗前设置完毕。
-        try:
-            _apply_app_icon(app)
-        except Exception:  # noqa: BLE001
-            pass
-        _start_engine_prewarm()
-    QTimer.singleShot(0, _defer_after_show)
+    # 首帧后再补：app 级图标 + SpinBox 兜底安装（2026-10-20 启动优化）。
+    # 2026-10-21（启动调度专项）：原来这里是三个 singleShot(0) 在同一轮事件
+    # 循环里连发——SpinBox 探测 ≈0.6s 直接顶在首帧后面，用户「一点就卡」。
+    # 现在全部改走调度器：
+    #   · app_icon    —— 40ms 预算，很轻；
+    #   · spinbox_fix —— 建真 SpinBox 跑一轮布局 ≈0.6s，**solo 预算 900ms**，
+    #     并延后到 800ms：此时首帧已稳定；任何真正需要它的路径
+    #     （_build_now / 惰性页 ensure）都会自己幂等兜底调用，不会漏。
+    # ⚠ 引擎预热不在这里注册：MainWindow.__init__ 已登记 ``prewarm_kick``
+    #   → subtitle_page.prewarm()（它除了起线程还要登记 build_engine 任务，
+    #   同名任务在调度器里是幂等的，此处重复注册会被忽略）。
+    _defer("app_icon", lambda: _apply_app_icon(app), 0, 20, budget_ms=40)
+    _defer("spinbox_fix", _install_spinbox_fix_once, 800, 10, budget_ms=900)
 
     # 启动自动检测更新（v2.0.0）：延迟 1.5s 起步，先让首屏渲染完再发网络
     # 请求；且由更新模块自己按 12 小时节流 + 用户拒绝记录决定要不要真查。
@@ -10739,16 +11279,15 @@ def main():
     if not (os.environ.get("VT_GUI_SELFTEST")
             or os.environ.get("VT_SHOT_FILE")
             or os.environ.get("VT_NO_UPDATE_CHECK")):
-        def _auto_update(attempt=0):
-            # 预热未完成就顺延（网络请求 + 引擎导入同时抢 GIL 会拖慢任务框就绪）
-            if not _engine_prewarm_done() and attempt < 25:
-                QTimer.singleShot(400, lambda: _auto_update(attempt + 1))
-                return
+        def _auto_update():
             try:
                 window.settings_page.auto_check_update()
             except Exception:  # noqa: BLE001 —— 更新功能绝不影响主流程
                 pass
-        QTimer.singleShot(1500, _auto_update)
+        # 2026-10-21：顺延逻辑交给调度器的依赖（prewarm_done），不再自己
+        # 400ms 轮询 25 次——网络请求与引擎导入同时抢 GIL 会拖慢任务框就绪。
+        _defer("auto_update", _auto_update, 1500, 90,
+               depends_on=("prewarm_done",), budget_ms=100)
 
     return app.exec_()
 

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.5.0
+# @version 2.5.1
 """ASR 全协议适配自检（离线：全部 mock requests，不联网、不消耗额度）。
 
 覆盖：协议自动识别（两侧规则一致性）、实时模型守卫、六条协议的请求构造、
@@ -58,7 +58,8 @@ def _unpk(pair):
 
 
 
-OUT = r"C:\bld\_asr_proto_test"
+OUT = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
+    os.path.abspath(__file__)))), "data", "tmp", "dev_out", "_asr_proto_test")
 os.makedirs(OUT, exist_ok=True)
 LINES, FAILS = [], []
 

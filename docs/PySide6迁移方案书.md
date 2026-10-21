@@ -1,4 +1,4 @@
-<!-- @version 2.5.0 -->
+<!-- @version 2.5.1 -->
 # PyQt5 → PySide6 迁移方案书
 
 > 版本：v1.0　|　编制日期：2026-10-14
@@ -126,7 +126,7 @@ PySide6: site-packages/PySide6/plugins/platforms/       （扁平，无 Qt5/ 层
 ### 阶段 0：环境落地　✅ 已执行（2026-10-14）
 在正式环境装PySide6 + PySide6-Fluent-Widgets[full]。
 
-⚠️ **两侧必须同步**：`C:\bld\qt_build`（打包环境）与 `tools\python`（运行副本）。
+⚠️ **两侧必须同步**：`D:\Agent Work\_bld\qt_build`（打包环境）与 `tools\python`（运行副本）。
 只装一侧会重演「源码模式正常、打包后 ImportError」的老问题。
 
 **验收**：`python -c "import PySide6, qfluentwidgets"` 两侧都通过。
@@ -201,7 +201,7 @@ PySide6: site-packages/PySide6/plugins/platforms/       （扁平，无 Qt5/ 层
 
 1. **是否现在就推进**阶段 0/1（装环境 + 机械替换）？—— **是，已推进**。
 2. **双环境切换策略**：采用「先 `tools\python` 验证、GUI 全绿后再动
-   `C:\bld\qt_build`（阶段 3 前装）」的保守顺序；PyQt5 两侧均保留未卸。
+   `D:\Agent Work\_bld\qt_build`（阶段 3 前装）」的保守顺序；PyQt5 两侧均保留未卸。
 3. **qfluentwidgets 商用许可**：仍待作者按软件用途自行判断——PySide6-Fluent-
    Widgets 依旧 GPLv3，已在许可声明中显著标注（商用需另购，与迁移无关）。
 
@@ -213,7 +213,7 @@ PySide6: site-packages/PySide6/plugins/platforms/       （扁平，无 Qt5/ 层
 
 | 环境 | 有 PyQt5 | 有 PySide6 |
 |---|---|---|
-| `C:\bld\qt_build`（打包） | ✅ | ✅（2026-10-14 已装） |
+| `D:\Agent Work\_bld\qt_build`（打包） | ✅ | ✅（2026-10-14 已装） |
 | `E:\vt_pyside6_probe\venv`（隔离） | ❌ | ✅ |
 
 ⇒ 代码层回滚：`git checkout backup/pyside6-migration -- <文件>`，或直接从

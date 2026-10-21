@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# @version 2.5.0
+# @version 2.5.1
 """声纹模板多用户同步自检（离线：临时目录模拟两个客户端 + 一个共享哑存储根）。
 
 覆盖 `src/voiceprint_sync.py`（独立通道）与产生端 `src/speaker_voiceprint.py`
@@ -46,7 +46,9 @@ os.environ.pop("VT_NO_VP_SYNC", None)
 import voiceprint_sync as V          # noqa: E402
 import speaker_voiceprint as SV      # noqa: E402
 
-OUT = r"C:\bld\_vp_sync_test"
+#: 自检输出落仓库 data/tmp/dev_out/（2026-10-21 自 C:\bld 迁回仓库内）
+OUT = os.path.join(os.path.dirname(os.path.dirname(HERE)), "data", "tmp",
+                   "dev_out", "_vp_sync_test")
 LINES, FAILS = [], []
 
 

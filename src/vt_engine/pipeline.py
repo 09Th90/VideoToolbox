@@ -1,4 +1,4 @@
-# @version 2.5.0
+# @version 2.5.1
 """端到端编排（自研，替代引擎 TranscriptThread / SubtitleThread 的执行体）。
 
 无 Qt 依赖：全部能力以普通函数 + ``callback(progress, message)`` 暴露，

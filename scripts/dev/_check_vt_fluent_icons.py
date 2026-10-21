@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.5.0
+# @version 2.5.1
 """检查 src 里引用的 FluentIcon 成员是否都在 _icons_data.ART 中（防再犯 COPY 缺项）。"""
 import ast
 import os

@@ -1,4 +1,4 @@
-# @version 2.5.0
+# @version 2.5.1
 """知识注入安全化：外文官方名不该当「错形」。
 
 主程序 ``calib_ai_agent.build_rules()``（第 386-389 行）有这一段：

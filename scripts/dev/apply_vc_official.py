@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.5.0
+# @version 2.5.1
 r"""把官方 VideoCaptioner 新版的两类实现套用到内置引擎（幂等，可重复执行）。
 
 来源：E:\\VideoCaptioner（官方安装版）。相关内容已归档进本仓库 docs\\ 下，
@@ -14,7 +14,7 @@ data\\tmp\\vc_official_backup_<时间戳>\\。
 
 用法（在 src 目录）：
     python apply_vc_official.py [--check]
-    python apply_vc_official.py --engine-root C:\bld\qt_build\Lib\site-packages\videocaptioner
+    python apply_vc_official.py --engine-root D:\Agent Work\_bld\qt_build\Lib\site-packages\videocaptioner
   --check        只对比不写入，打印将要变化的文件。
   --engine-root  目标引擎包目录；默认 tools\python\Lib\site-packages\videocaptioner。
 
@@ -25,7 +25,7 @@ data\\tmp\\vc_official_backup_<时间戳>\\。
    都按打包解释器的 sys.path 收集），所以只套用运行副本时，引擎侧的修复只在源码
    模式生效、**进不了安装包**（表现为「改了 bug，装完还是老样子」）。
    打包前必须对打包环境再跑一次本脚本，例如：
-    python src\apply_vc_official.py --engine-root C:\bld\qt_build\Lib\site-packages\videocaptioner
+    python src\apply_vc_official.py --engine-root D:\Agent Work\_bld\qt_build\Lib\site-packages\videocaptioner
    同理，qfluentwidgets 等被就地打补丁的第三方包也要保持两边一致。
 """
 import argparse

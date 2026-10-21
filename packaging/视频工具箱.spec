@@ -1,6 +1,6 @@
 # -*- mode: python ; coding: utf-8 -*-
-# @version 2.5.0
-"""视频工具箱 v2.5.0 —— PyInstaller 打包配置
+# @version 2.5.1
+"""视频工具箱 v2.5.1 —— PyInstaller 打包配置
 v2.1.0（2026-10-14）：PyQt5 → PySide6 迁移（docs/PySide6迁移方案书）。本 spec 的
         实质改动只有三处：① _DROP_BINARIES 的 QML 三件套从 Qt5 名改成 Qt6 名
         （Qt6Qml/Qt6Quick/Qt6QmlModels/Qt6QmlMeta/Qt6QmlWorkerScript.dll）；
@@ -304,6 +304,16 @@ if os.path.isdir(online_release_dir):
                os.path.join('online_release', f))
               for f in sorted(os.listdir(online_release_dir))
               if f.endswith('.py')]
+
+# v2.5.1 修复：vt_fluent 自研主题的 QSS 皮肤（安装版 UI 与开发版不一致的根因）
+# _theme.py:818 _QSS_DIR 由 __file__ 推导，onefile 下锚定 _MEIPASS/vt_fluent/_qss，
+# 不显式收集则运行期打开失败静默返回空表——自绘控件族（按钮/输入框/开关/滑杆/
+# 卡片/导航/InfoBar/对话框）整体退化为 Fusion 原生观感，且无任何日志告警。
+_QSS_SRC = os.path.join(SRC_DIR, 'vt_fluent', '_qss')
+if not os.path.isdir(_QSS_SRC):
+    raise SystemExit('缺少 vt_fluent/_qss：%s（QSS 皮肤漏打包，安装版将退化为原生样式）' % _QSS_SRC)
+datas += [(os.path.join(_QSS_SRC, f), os.path.join('vt_fluent', '_qss', f))
+          for f in sorted(os.listdir(_QSS_SRC)) if f.endswith('.qss')]
 
 # ---------------------------------------------------------------------------
 # 应用图标（v2.1.0）

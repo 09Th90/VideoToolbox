@@ -1,4 +1,4 @@
-# @version 2.5.0
+# @version 2.5.1
 """引擎路径契约（自研，替代 videocaptioner.config 的路径部分）。
 
 P1 接缝之一：``videocaptioner.config`` 在 **import 期**就固化一批路径常量

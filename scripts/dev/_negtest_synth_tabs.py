@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.5.0
+# @version 2.5.1
 """负向验证：v2.1.0「去掉字幕视频合成 + 剩下三个平铺」。
 
 正向检查全过不说明检查有效。这里把源码**故意改坏**三处，确认探针真的会报FAIL：
@@ -18,7 +18,7 @@ import sys
 import tempfile
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-PY = r"C:\bld\qt_build\Scripts\python.exe"
+PY = r"D:\Agent Work\_bld\qt_build\Scripts\python.exe"
 
 SELF = os.path.join(ROOT, "src", "vt_engine_ui", "home_interface.py")
 HOST = os.path.join(ROOT, "src", "video_toolbox_qt.py")

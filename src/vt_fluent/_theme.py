@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.5.0
+# @version 2.5.1
 """vt_fluent 主题引擎（自研，替代 qfluentwidgets.common.config / style_sheet / font）。
 
 定位：Fluent 风格主题层的单一权威。上层控件（_buttons/_inputs/_display/...）
@@ -1043,11 +1043,30 @@ styleSheetManager = StyleSheetManager()
 _QSS_FILE_CACHE = {}
 
 
+def _qss_warn(file):
+    """QSS 读取失败告警（仅 frozen 生效；VT_QSS_WARN=0 关闭）。
+
+    v2.5.1 修复「安装版 UI 退化」时加：spec datas 漏收 _qss 曾让
+    getStyleSheetFromFile 在安装版静默返回空表、自绘控件族整体失去
+    皮肤且无任何日志。此后再出现同类回归，startup.log 会留下 [W] 行。
+    """
+    if not getattr(sys, 'frozen', False) or os.environ.get('VT_QSS_WARN', '1') == '0':
+        return
+    try:
+        path = file if isinstance(file, str) else file.fileName()
+        from core.shared.log import _append_log
+        _append_log('startup.log',
+                    '[W] QSS 读取失败（spec datas 漏收 _qss？）: %s' % path)
+    except Exception:
+        pass
+
+
 def getStyleSheetFromFile(file: Union[str, QFile]):
     """读 QSS 文件内容（UTF-8；带 mtime 粒度的内容缓存）。"""
     if os.environ.get("VT_QSS_NOCACHE"):
         f = QFile(file) if not isinstance(file, QFile) else file
         if not f.open(QFile.ReadOnly):
+            _qss_warn(file)
             return ""
         qss = str(f.readAll(), encoding="utf-8")
         f.close()
@@ -1064,6 +1083,7 @@ def getStyleSheetFromFile(file: Union[str, QFile]):
             return hit
     f = QFile(file) if not isinstance(file, QFile) else file
     if not f.open(QFile.ReadOnly):
+        _qss_warn(file)
         return ""
     qss = str(f.readAll(), encoding="utf-8")
     f.close()

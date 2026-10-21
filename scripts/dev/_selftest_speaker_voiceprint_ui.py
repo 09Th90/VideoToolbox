@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# @version 2.5.0
+# @version 2.5.1
 """主播声纹 · 界面流程自检（离屏，跑真实线程 + 真实模型）
 
 覆盖「录入卡」与「多选器」的完整交互链路：
@@ -45,7 +45,7 @@ sys.path.insert(0, SRC)
 sys.path.insert(0, SITE)
 
 #: 演示素材（三人交替的合成 mp4）；不存在则只跑不依赖模型的断言
-MEDIA = r"C:\bld\sv_ref\e2e\multi.mp4"
+MEDIA = r"D:\Agent Work\_bld\sv_ref\e2e\multi.mp4"
 FAILS = []
 
 

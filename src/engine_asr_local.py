@@ -1,4 +1,4 @@
-# @version 2.5.0
+# @version 2.5.1
 """本地 ASR（自研，替代 videocaptioner.core.asr.faster_whisper）。
 
 P2 接缝配套模块：``faster-whisper``（MIT 组件）保留，但**执行链**改由本

@@ -1,4 +1,4 @@
-# @version 2.5.0
+# @version 2.5.1
 """运行期常量（自研，替代 videocaptioner.core.constant 的可观察取值）。
 
 只收**运行期可观察**的常量：提示时长来自引擎界面的 InfoBar 行为，

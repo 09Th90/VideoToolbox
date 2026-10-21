@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.5.0
+# @version 2.5.1
 """验证 vt_version_index 修复后的关键语义（2026-10-13 审查反例回归）。"""
 import sys
 

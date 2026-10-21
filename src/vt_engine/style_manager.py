@@ -1,4 +1,4 @@
-# @version 2.5.0
+# @version 2.5.1
 """字幕样式管理（自研，替代 videocaptioner.core.subtitle.style_manager）。
 
 可观察契约（用户样式文件与 ffmpeg 渲染都依赖它，必须逐字节一致）：

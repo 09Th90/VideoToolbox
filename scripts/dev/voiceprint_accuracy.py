@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# @version 2.5.0
+# @version 2.5.1
 """主播声纹 · 准确性基准（真实语音语料：3 位说话人 × 录入/测试样本）
 
 用 C:\\bld\\sv_ref\\wavs 的 15 段真实人声，量化「改造前 vs 改造后」的准确性：
@@ -42,7 +42,7 @@ import speaker_voiceprint as SV  # noqa: E402
 
 #: 语料目录（sherpa-onnx speaker 测试集：fangjun / leijun / liudehua 三位说话人，
 #: 每人 2~3 段录入样本（*-sr-*）与 2~3 段测试样本（*-test-sr-*），16k 单声道）
-CORPUS = r"C:\bld\sv_ref\wavs"
+CORPUS = r"D:\Agent Work\_bld\sv_ref\wavs"
 SR = SV.SAMPLE_RATE
 
 

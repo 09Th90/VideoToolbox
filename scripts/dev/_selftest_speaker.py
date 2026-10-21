@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# @version 2.5.0
+# @version 2.5.1
 """说话人（diarization / separation）链路自检（离线，不联网）。
 
 覆盖 v1.15.9 新增能力：
@@ -35,7 +35,8 @@ os.environ.setdefault(
     "QT_QPA_PLATFORM_PLUGIN_PATH",
     os.path.join(engine.EMBEDDED_SITE_PACKAGES, "PySide6", "plugins"))
 
-OUT = r"C:\bld\_speaker_test"
+OUT = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
+    os.path.abspath(__file__)))), "data", "tmp", "dev_out", "_speaker_test")
 LINES, FAILS = [], []
 
 

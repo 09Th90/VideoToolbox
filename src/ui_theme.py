@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.5.0
+# @version 2.5.1
 """界面美化：主题感知的全局视觉体系 + 每个导航板块自定义背景图。
 
 两块能力，配置都持久化在 `data/ui_custom.json`（engine.DATA_DIR 下），
@@ -448,8 +448,15 @@ def _plain_rule_index():
         if os.path.isfile(app_qss):
             with open(app_qss, encoding="utf-8") as f:
                 texts.append(f.read())
-    except Exception:
-        pass
+        else:
+            engine._append_log("startup.log",
+                               "[W] QSS 文件缺失: %s" % app_qss, dedup=False)
+    except Exception as e:
+        try:
+            engine._append_log("startup.log",
+                               "[W] QSS 读取失败: %s" % e, dedup=False)
+        except Exception:
+            pass
     index = {}
     for text in texts:
         for sel, block in _split_rules_simple(text):
@@ -532,18 +539,32 @@ def _set_plain_accent(widget, qss):
     return True
 
 
-def refresh_plain_accent(app=None):
-    """把主题色覆盖表同步到全部普通 Qt 控件（accent / 主题档变更后调用）。
+def refresh_plain_accent(app=None, root=None):
+    """把主题色覆盖表同步到普通 Qt 控件（accent / 主题档变更后调用）。
+
+    ``root`` 非空时只遍历该控件子树（含 root 自身）——引擎工作台并入主树后
+    用它做局部刷新，避免每次全应用扫描。缺省仍是 ``app.allWidgets()``，
+    向后兼容既有调用点。
 
     小表逐控件设置（含不可见控件——隐藏控件 setStyleSheet 不触发绘制），
     实测全量一遍 ~30ms；对比 app.setStyleSheet 全局重刷 ~355ms。
     新控件由 _PlainAccentFilter 在 Polish（首绘前）时兜底。
+
+    ⚠ 「~30ms」是 QSS 渲染缓存**已热**时。首次冷缓存（引擎界面刚并入主树）
+      实测 ≈1.8s——那条路径必须走下面的 :func:`refresh_plain_accent_sliced`。
     """
     app = app or QApplication.instance()
     if app is None:
         return 0
+    if root is not None:
+        try:
+            widgets = [root] + root.findChildren(QWidget)
+        except (RuntimeError, AttributeError):
+            return 0
+    else:
+        widgets = app.allWidgets()
     n = 0
-    for w in app.allWidgets():
+    for w in widgets:
         try:
             qss = plain_accent_qss(w)
             if qss and _set_plain_accent(w, qss):
@@ -551,6 +572,50 @@ def refresh_plain_accent(app=None):
         except Exception:
             continue                   # C++ 对象已删等，跳过
     return n
+
+
+#: 分片刷新进度（见 refresh_plain_accent_sliced）。挂模块级而非控件上——
+#: 主题色刷新是全局行为，同一时刻只应有一轮扫描在跑。
+_ACCENT_SLICE = {"widgets": None, "i": 0}
+
+
+def refresh_plain_accent_sliced(root=None, chunk=200):
+    """分片版全量刷新：每轮最多处理 ``chunk`` 个控件。
+
+    返回 ``True`` = 扫完了；``False`` = 还有剩余，**调用方下一轮再来**。
+    设计给启动调度器用（``_defer`` 的任务体返回 False 会被保留重试）。
+
+    为什么需要（2026-10-21）：引擎界面并入主树后首次全量刷新实测 ≈1.8s
+    （`plain_accent_qss` 的 renderQss 缓存是冷的）。一次性扫完就是一次 1.8s
+    的主线程冻结——正是用户说的「刚进入卡死」。分片后每轮 ≈30ms，配合调度器
+    「用户一动鼠标就暂停」，这段预热彻底从体感里消失。
+    """
+    app = QApplication.instance()
+    if app is None:
+        return True
+    st = _ACCENT_SLICE
+    if st["widgets"] is None:
+        try:
+            st["widgets"] = ([root] + root.findChildren(QWidget)
+                             if root is not None else list(app.allWidgets()))
+        except (RuntimeError, AttributeError):
+            st["widgets"] = []
+        st["i"] = 0
+    ws = st["widgets"]
+    end = min(len(ws), st["i"] + max(1, int(chunk)))
+    for w in ws[st["i"]:end]:
+        try:
+            qss = plain_accent_qss(w)
+            if qss:
+                _set_plain_accent(w, qss)
+        except Exception:
+            continue                   # C++ 对象已删等，跳过
+    st["i"] = end
+    if end >= len(ws):
+        st["widgets"] = None
+        st["i"] = 0
+        return True
+    return False
 
 
 #: 钩子类级预筛（2026-10-20）：type -> 是否可能与 plain/合并规则相交。

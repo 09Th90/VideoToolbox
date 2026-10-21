@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.5.0
+# @version 2.5.1
 """vt_fluent 反馈族（自研，替代 qfluentwidgets 的 info_bar / dialog_box）。
 
 行为契约（对齐上游 1.11.3）：
@@ -591,6 +591,24 @@ class MaskDialogBase(QDialog):
             "background: rgba(%d, %d, %d, %d)" % (
                 color.red(), color.green(), color.blue(), color.alpha()))
 
+    def _safe_clear_effect(self):
+        """动画结束清掉 effect（2026-10-21 加固）。
+
+        InfoBar 是会自动关闭的浮层，动画 200ms 后回调；若用户提前关窗/切页
+        导致它被销毁，原 ``lambda: self.setGraphicsEffect(None)`` 会在已析构的
+        C++ 对象上调用——轻则 RuntimeError 刷日志，重则在绘制路径段错误。
+        """
+        try:
+            from ._anim import _alive
+            if not _alive(self):
+                return
+        except Exception:  # noqa: BLE001
+            pass
+        try:
+            self.setGraphicsEffect(None)
+        except RuntimeError:
+            pass
+
     def showEvent(self, e):
         opacityEffect = QGraphicsOpacityEffect(self)
         self.setGraphicsEffect(opacityEffect)
@@ -599,19 +617,25 @@ class MaskDialogBase(QDialog):
         opacityAni.setEndValue(1)
         opacityAni.setDuration(200)
         opacityAni.setEasingCurve(QEasingCurve.InSine)
-        opacityAni.finished.connect(lambda: self.setGraphicsEffect(None))
+        # ⚠ 回调一律 lambda *_:（PySide6 会带参传），且必须走存活判定
+        opacityAni.finished.connect(lambda *_: self._safe_clear_effect())
         opacityAni.start()
         super().showEvent(e)
 
     def done(self, code):
-        self.widget.setGraphicsEffect(None)
+        try:
+            from ._anim import _alive
+            if _alive(self.widget):
+                self.widget.setGraphicsEffect(None)
+        except Exception:  # noqa: BLE001
+            pass
         opacityEffect = QGraphicsOpacityEffect(self)
         self.setGraphicsEffect(opacityEffect)
         opacityAni = QPropertyAnimation(opacityEffect, b"opacity", self)
         opacityAni.setStartValue(1)
         opacityAni.setEndValue(0)
         opacityAni.setDuration(100)
-        opacityAni.finished.connect(lambda: self._onDone(code))
+        opacityAni.finished.connect(lambda *_: self._onDone(code))
         opacityAni.start()
 
     def _onDone(self, code):

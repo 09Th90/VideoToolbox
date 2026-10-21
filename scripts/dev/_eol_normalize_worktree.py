@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.5.0
+# @version 2.5.1
 """把 5c978b1..HEAD 改动文件的工作区副本行尾归一化为 CRLF。
 
 背景：autocrlf=true 下 blob 统一存 LF，checkout 出来是 CRLF；工具直写会把

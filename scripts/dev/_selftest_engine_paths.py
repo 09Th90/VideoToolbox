@@ -1,4 +1,4 @@
-# @version 2.5.0
+# @version 2.5.1
 """自检：engine_paths 的路径不变量 + 对第三方 config 的属性覆盖率。
 
 P1-B1 config 接缝验收脚本。

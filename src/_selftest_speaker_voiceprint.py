@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# @version 2.5.0
+# @version 2.5.1
 """主播声纹链路自检（离线，不联网、不依赖 ffmpeg）。
 
 覆盖 src/speaker_voiceprint.py：
@@ -48,7 +48,9 @@ os.environ.setdefault("VT_NO_VP_SYNC", "1")
 
 import speaker_voiceprint as SV  # noqa: E402
 
-OUT = r"C:\bld\_speaker_vp_test"
+#: 自检输出落仓库 data/tmp/dev_out/（2026-10-21 自 C:\bld 迁回仓库内）
+OUT = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                   "data", "tmp", "dev_out", "_speaker_vp_test")
 LINES, FAILS = [], []
 
 

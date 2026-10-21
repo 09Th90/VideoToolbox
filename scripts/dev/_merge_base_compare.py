@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.5.0
+# @version 2.5.1
 """三路合并对比：git-base / snapshot-base / 无base(全量并集)。
 
 无 base 时会采纳所有「本地没有」的远端条目（含本地可能有意删掉的），

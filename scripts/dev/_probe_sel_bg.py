@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.5.0
+# @version 2.5.1
 """探针：QTableWidgetItem 的 BackgroundRole 到底怎么才算"清干净"。
 
 背景：qfluentwidgets 的 TableItemDelegate.paint() 里

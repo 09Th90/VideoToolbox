@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.5.0
+# @version 2.5.1
 """vt_fluent 动画辅助（自研，替代 qfluentwidgets.common.animation + smooth_scroll）。
 
 服务 B1 控件族：卡片背景色过渡（BackgroundAnimationWidget）、凸起阴影
@@ -16,6 +16,29 @@ from PySide6.QtCore import (QEasingCurve, QEvent, QObject, QParallelAnimationGro
 from PySide6.QtGui import QColor, QEnterEvent, QMouseEvent
 from PySide6.QtWidgets import (QAbstractItemView, QAbstractScrollArea, QGraphicsDropShadowEffect,
                                QLineEdit, QListView, QScrollBar, QWidget)
+
+
+def _alive(obj):
+    """Qt 包装对象对应的 C++ 实例是否还活着（2026-10-21）。
+
+    PySide6 里控件被 ``deleteLater()`` 或父控件销毁后，Python 侧的包装对象
+    仍在（还被信号/动画回调引用），但底层 C++ 已析构——此时调任何 Qt 方法
+    都抛 ``RuntimeError``，而在**绘制/动画回调**里甚至会直接段错误（用户看到
+    的「python 已停止运行」，crash.log 里一行都没有）。
+
+    所有「回调里操作可能已销毁控件」的地方都必须先过这一关。
+    """
+    if obj is None:
+        return False
+    try:
+        from shiboken6 import isValid
+        return bool(isValid(obj))
+    except Exception:  # noqa: BLE001 —— 没装 shiboken6 时退化探测
+        try:
+            obj.objectName()
+            return True
+        except RuntimeError:
+            return False
 
 
 def createBezierCurve(x1, y1, x2, y2):
@@ -266,23 +289,51 @@ class DropShadowAnimation(QPropertyAnimation):
         return self.shadowEffect
 
     def eventFilter(self, obj, e):
-        if obj is self.parent() and self.parent().isEnabled():
+        parent = self.parent()
+        if not _alive(parent):
+            return False
+        if obj is parent and parent.isEnabled():
             if e.type() == QEvent.Enter:
                 if self.state() != QPropertyAnimation.Running:
-                    self.parent().setGraphicsEffect(self._createShadowEffect())
+                    parent.setGraphicsEffect(self._createShadowEffect())
                 self.setEndValue(self.hoverColor)
                 self.start()
             elif e.type() in (QEvent.Leave, QEvent.MouseButtonPress):
-                if self.parent().graphicsEffect():
-                    self.finished.connect(self._onAniFinished)
+                if parent.graphicsEffect():
+                    # 2026-10-21：**先断再连**。原实现每次 Leave 都 connect 一次，
+                    # 快速悬停/点击会重复连接 → _onAniFinished 被多次调用 →
+                    # 第二次 disconnect() 在无连接时抛 RuntimeError；而若此刻控件
+                    # 已销毁，异常路径会升级成原生崩溃（用户报的「点击后 py 已停止
+                    # 运行」正是这条：悬停阴影 + 点击 = 高频 Leave）。
+                    self._bind_finished()
                     self.setEndValue(self.normalColor)
                     self.start()
         return super().eventFilter(obj, e)
 
+    def _bind_finished(self):
+        """幂等绑定 finished → _onAniFinished（重复调用不会叠加连接）。"""
+        try:
+            self.finished.disconnect(self._onAniFinished)
+        except (RuntimeError, TypeError):
+            pass
+        try:
+            self.finished.connect(self._onAniFinished)
+        except (RuntimeError, TypeError):
+            pass
+
     def _onAniFinished(self):
-        self.finished.disconnect()
+        # 只断自己那条连接（原实现 disconnect() 断全部，会顺带摘掉别人的回调）
+        try:
+            self.finished.disconnect(self._onAniFinished)
+        except (RuntimeError, TypeError):
+            pass
         self.shadowEffect = None
-        self.parent().setGraphicsEffect(None)
+        parent = self.parent()
+        if _alive(parent):
+            try:
+                parent.setGraphicsEffect(None)
+            except RuntimeError:
+                pass
 
 
 # ---------------------------------------------------------------------- #

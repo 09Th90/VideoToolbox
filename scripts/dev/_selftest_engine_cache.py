@@ -1,4 +1,4 @@
-# @version 2.5.0
+# @version 2.5.1
 """自检：engine_cache 的惰性语义 + 缓存键与引擎逐字节一致。
 
 P1-B2 cache 接缝验收脚本。
