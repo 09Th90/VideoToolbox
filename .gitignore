@@ -91,6 +91,9 @@ build/test_calib*
 # 2026-10-19 补：根目录与 src 下各生成一份，曾以未跟踪状态长期滞留工作区）
 config/
 src/config/
+# 例外：在线安装器的 IFW 配置模板是发布资产（apply_version 会改版本号），
+# 上面的 config/ 无前导斜杠会误伤 packaging/installer_src/config/，2026-10-21 补
+!packaging/installer_src/config/
 
 # GitHub Actions 工作流（2026-10-19）：本地推送凭据是 OAuth App token，**没有
 # `workflow` scope**，GitHub 会拒绝创建/更新 workflow 文件（remote rejected）。

@@ -141,9 +141,11 @@ def verify_embedded_sources(exe: Path, expect_first: str) -> None:
     if expect_first and found[0] != expect_first:
         sys.exit(f"自检失败：exe 主源为 {found[0]!r}，与 config 预期 "
                  f"{expect_first!r} 不一致，请检查是否误用了 --repo-url")
-    if "github.io" not in found[0]:
-        print("   [warn] 主源不是 GitHub Pages 官方源——"
-              "仅调试/局域网部署才应如此，发布前请去掉 --repo-url 重新生成！")
+    if ("github.io" not in found[0]
+            and "releases/download/repo-latest" not in found[0]):
+        print("   [warn] 主源既不是 GitHub Release repo-latest 通道也不是 "
+              "GitHub Pages——仅调试/局域网部署才应如此，发布前请去掉 "
+              "--repo-url 重新生成！")
 
 
 def main():

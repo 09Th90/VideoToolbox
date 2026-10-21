@@ -2,8 +2,17 @@
 <!-- @version 2.5.1 -->
 <!--
   视频工具箱 在线安装器配置（Qt Installer Framework 4.7）
-  - Repository Url 指向 GitHub Pages 上的组件仓库（由 deploy_installer_ghpages.py
-    把 installer_repository/ 发布到 gh-pages 分支并启用 Pages）；
+  - ⚠ 在线安装通道当前**暂不可用**（2026-10-21 排查结论）：
+    ① gh-pages 源自 v1.19.1 停更——组件 content.7z 超 GitHub 100MB 单文件
+       硬限（git push 被 pre-receive hook 拒绝），该通道已废弃；
+    ② 改指 GitHub Release repo-latest 亦不可行——Release 资产名会把 "/"
+       规范化为 "."，IFW 按「包名/版本+归档」拼出的斜杠 URL 一律 404
+       （斜杠 URL 与点号资产名无法互达，已实测）。
+    发布通道现状：**已装用户升级走程序内置更新器**（检查 repo-latest 的
+    schema-2 manifest，102MB 级 app.zip 已验证可传可下）；**新用户首发用
+    离线安装包**（installer\视频工具箱_Setup_v<版本>.exe）。
+    下方 Url 保留 gh-pages 原值仅为占位；恢复在线通道需先解决 100MB 限制
+    （候选：拆多个 <100MB 的 IFW package，或迁对象存储/COS）。
   - 本机调试可临时改回 http://127.0.0.1:8123 并运行
     python installer_src/repo_server.py；局域网部署用 build_online_installer.py
     的 repo-url 参数重写后重新生成安装器。
@@ -35,11 +44,12 @@
             · 内网 / 本机安装请用 installer_src\install_local_repo.py 一键秒装，
               或在「设置」页取消官方源、勾选下面的«本机/局域网源»。 -->
     <RemoteRepositories>
-        <!-- ① 官方源（GitHub Pages）。保持第一个，默认启用，行为与旧版一致。 -->
+        <!-- ① 官方源占位（gh-pages，已停更，详见文件头说明）：联网安装暂不可用，
+             新装机请用离线安装包，已装机升级用程序内置更新器。 -->
         <Repository>
             <Url>https://09th90.github.io/VideoToolbox/</Url>
             <Enabled>1</Enabled>
-            <DisplayName>官方源（GitHub Pages · 海外）</DisplayName>
+            <DisplayName>官方源（暂不可用 · 见文件头说明）</DisplayName>
         </Repository>
         <!-- ② 本机 / 局域网自建源（默认关闭：外网机器不可达时会被跳过，不影响安装）。
              用法：先 python installer_src\repo_server.py 8123，再在安装器「设置」页
