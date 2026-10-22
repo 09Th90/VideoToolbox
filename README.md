@@ -8,6 +8,7 @@
 
 <p align="center">
   <a href="https://github.com/09Th90/VideoToolbox/releases/latest"><img src="https://img.shields.io/github/v/release/09Th90/VideoToolbox?label=release&color=blue" alt="Release"></a>
+  <a href="https://github.com/09Th90/VideoToolbox/actions/workflows/ci.yml"><img src="https://github.com/09Th90/VideoToolbox/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <img src="https://img.shields.io/badge/platform-Windows-0078D4" alt="Platform">
   <img src="https://img.shields.io/badge/license-CC%20BY--SA%204.0-lightgrey" alt="License">
 </p>
@@ -204,13 +205,13 @@ scripts/dev/                开发期自检脚本
 | --- | --- | --- |
 | 无代码签名 | 签名证书需付费购买 | 少数开启 Device Guard / 应用控制策略的电脑会拦截 exe |
 | 安装包较大 | 离线包约 1.0 GB | 首次下载耗时；已装用户走增量更新 |
-| 未做 GUI 自动化测试 | 自检脚本只做语法、文档一致性、密钥扫描 | 升级前建议先备份 `data/` 目录 |
+| 未做 GUI 自动化测试 | CI 只做语法、文档一致性、密钥扫描 | 升级前建议先备份 `data/` 目录 |
 | 组件走国际链路 | 托管在 GitHub Releases | 国内直连速度取决于你的网络 |
 
 已具备的工程约束：`scripts/dev/check_syntax.py`（全部受跟踪 `.py` 的语法解析）、
 `scripts/dev/check_doc_drift.py`（README / LICENSE 与代码事实的一致性）、
-`scripts/dev/check_secrets.py`（密钥扫描）与 `pre-commit` / `pre-push` 钩子，
-本地一条命令即可跑，把文档漂移和密钥泄露挡在提交之前。
+`scripts/dev/check_secrets.py`（密钥扫描）与 `pre-commit` / `pre-push` 钩子；
+`.github/workflows/ci.yml` 在每次推送时自动跑这三项，把文档漂移和密钥泄露挡在提交之前。
 
 ---
 

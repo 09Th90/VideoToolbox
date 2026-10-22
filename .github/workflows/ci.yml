@@ -1,0 +1,47 @@
+name: CI
+
+# 只做三件低成本、高价值的事：
+#   1. 所有受跟踪的 .py 能过 AST 解析（防手滑提交半截文件）
+#   2. README / LICENSE 与代码事实一致（防文档漂移）
+#   3. 已跟踪文件里没有明文 API Key（2026-10-22 泄露事件后补）
+# 不做导入冒烟：本项目依赖 PySide6 + Windows API，装齐依赖再跑 import
+# 需要数分钟且极易受模型文件缺失干扰，收益比不划算。等拆包完成后再补。
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    name: 语法与文档一致性
+    runs-on: ubuntu-latest
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 准备 Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: 语法解析（受 git 跟踪的 .py）
+        run: python scripts/dev/check_syntax.py
+
+      - name: 文档漂移检查
+        run: python scripts/dev/check_doc_drift.py --ci
+
+      # 服务端唯一一道密钥门禁。GitHub 自带的 secret scanning 只认各厂商
+      # 公开格式，sk-sp- 这类私有前缀不会告警（2026-10-15 事故正是如此）。
+      # 只扫工作区已跟踪文件；全历史扫描在本地 pre-push 钩子里做，避免
+      # 每次 CI 都重扫 600+ 提交、4500+ blob。
+      - name: 密钥扫描（已跟踪文件）
+        run: python scripts/dev/check_secrets.py
