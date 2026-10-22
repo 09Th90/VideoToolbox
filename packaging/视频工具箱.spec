@@ -1,6 +1,6 @@
 # -*- mode: python ; coding: utf-8 -*-
-# @version 2.5.2
-"""视频工具箱 v2.5.2 —— PyInstaller 打包配置
+# @version 2.5.3
+"""视频工具箱 v2.5.3 —— PyInstaller 打包配置
 v2.1.0（2026-10-14）：PyQt5 → PySide6 迁移（docs/PySide6迁移方案书）。本 spec 的
         实质改动只有三处：① _DROP_BINARIES 的 QML 三件套从 Qt5 名改成 Qt6 名
         （Qt6Qml/Qt6Quick/Qt6QmlModels/Qt6QmlMeta/Qt6QmlWorkerScript.dll）；
@@ -312,8 +312,13 @@ if os.path.isdir(online_release_dir):
 _QSS_SRC = os.path.join(SRC_DIR, 'vt_fluent', '_qss')
 if not os.path.isdir(_QSS_SRC):
     raise SystemExit('缺少 vt_fluent/_qss：%s（QSS 皮肤漏打包，安装版将退化为原生样式）' % _QSS_SRC)
-datas += [(os.path.join(_QSS_SRC, f), os.path.join('vt_fluent', '_qss', f))
-          for f in sorted(os.listdir(_QSS_SRC)) if f.endswith('.qss')]
+# ⚠ datas 的第二个元素是**目标目录**，不是目标文件路径：
+#   传 `vt_fluent/_qss/app.qss` 会被 PyInstaller 打成
+#   `vt_fluent/_qss/app.qss/app.qss`，冻结后按 `_qss/app.qss` 读取必失败
+#   （2026-10-22 实测：安装版 QSS 全丢，UI 退化为原生样式，构建却显示成功）。
+_QSS_FILES = [f for f in sorted(os.listdir(_QSS_SRC)) if f.endswith('.qss')]
+datas += [(os.path.join(_QSS_SRC, f), os.path.join('vt_fluent', '_qss'))
+          for f in _QSS_FILES]
 
 # ---------------------------------------------------------------------------
 # 应用图标（v2.1.0）
@@ -363,6 +368,23 @@ a = Analysis(
               'sitecustomize', 'usercustomize'],
     noarchive=False,
 )
+
+# 构建期硬校验：QSS 的 datas 目标必须恰好是 `vt_fluent/_qss/<name>.qss`。
+# 这段专治「datas 第二项写成完整文件路径」——症状是 exe 里出现
+# `app.qss/app.qss`，安装版启动时四个 QSS 全部读取失败、UI 退化为原生样式，
+# 而 PyInstaller 仍返回成功，只靠肉眼看构建日志根本发现不了。
+_qss_want = {os.path.normcase(os.path.normpath(
+                 os.path.join('vt_fluent', '_qss', f))) for f in _QSS_FILES}
+# PyInstaller 的 TOC 元组是 (目标名, 源路径, 类型)；目标名在 d[0]。
+_qss_actual = {os.path.normcase(os.path.normpath(str(d[0])))
+               for d in a.datas if str(d[0]).lower().endswith('.qss')}
+_qss_missing = _qss_want - _qss_actual
+if _qss_missing:
+    raise SystemExit(
+        'QSS datas 目标路径错误：缺少 %s（实际 %s）。datas 第二项必须是目录 '
+        'vt_fluent/_qss，不能写成完整文件路径。'
+        % (sorted(_qss_missing), sorted(_qss_actual)))
+
 pyz = PYZ(a.pure)
 
 # 瘦身：剔除明确用不到的大体积二进制，把单文件 exe 压回 GitHub 100MB 硬限制内

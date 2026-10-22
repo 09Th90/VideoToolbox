@@ -1,4 +1,4 @@
-# @version 2.5.2
+# @version 2.5.3
 """日志器（自研，替代 videocaptioner.core.utils.logger.setup_logger）。
 
 可观察契约：``setup_logger(name)`` 返回可用 ``logging.Logger``，

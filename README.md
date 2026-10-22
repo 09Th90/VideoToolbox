@@ -1,4 +1,4 @@
-<!-- @version 2.5.2 -->
+<!-- @version 2.5.3 -->
 <h1 align="center">视频工具箱 · VideoToolbox</h1>
 
 <p align="center">
@@ -77,13 +77,13 @@
 
 | 安装包 | 体积 | 说明 |
 | --- | --- | --- |
-| **离线安装包** `VideoToolbox_Setup_v2.5.2.exe` | 约 1.0 GB | 新用户首选。一次下载，装完不依赖网络 |
+| **离线安装包** `VideoToolbox_Setup_v2.5.3.exe` | 约 1.0 GB | 新用户首选。一次下载，装完不依赖网络 |
 
 > 附件名用英文，是因为 GitHub Releases 会把非 ASCII 文件名截断
 > （历史版本 v1.12.0 的 Setup 包在下载页显示成了 `_Setup_v1.12.0.exe`）。
 > 安装后程序名仍是中文。
 
-> 最新发布：[v2.5.2](https://github.com/09Th90/VideoToolbox/releases/tag/v2.5.2)。
+> 最新发布：[v2.5.3](https://github.com/09Th90/VideoToolbox/releases/tag/v2.5.3)。
 > 发布产物与源码版本严格对应，**README 不再预告尚未构建的产物**。
 
 > **已经装了旧版本？** 不用重下整个安装包：打开程序 → 设置 → 检查更新，

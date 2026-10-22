@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.5.2
+# @version 2.5.3
 """AI 校准入口（calib_ai_chat / calib_web_proxy / calib_ai_run）+ 同步开关。
 
 v2.3.1 拆分工程 · 自 video_toolbox.py 原样搬入。

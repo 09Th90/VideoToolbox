@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.5.2
+# @version 2.5.3
 """视频工具箱 · 自研下载引擎（无第三方依赖，可被打进引导安装器单独分发）。
 
 ====================================================================
@@ -68,7 +68,7 @@ LOCAL_PROXY_PORT = 7897
 #: 整体 sha256 不符时的整文件重下次数（续传状态里的坏块只能这样救）。
 RESHUFFLE_TRIES = 1
 
-_UA = "VideoToolbox-downloader/2.5.2"
+_UA = "VideoToolbox-downloader/2.5.3"
 
 
 class Canceled(Exception):

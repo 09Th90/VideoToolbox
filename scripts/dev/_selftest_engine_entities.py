@@ -1,4 +1,4 @@
-# @version 2.5.2
+# @version 2.5.3
 """自检：engine_entities 与第三方引擎 entities 的逐值兼容性。
 
 P1 接缝验收脚本。判定口径不是「能 import」而是**逐值一致**——

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.5.2
+# @version 2.5.3
 """自检：engine_task_factory 与引擎（已打补丁）TaskFactory 的**逐字段**兼容性。
 
 P2 尾部 / 档 B 接缝验收脚本。判定口径不是「能 import / 能构造」，而是：在**同一

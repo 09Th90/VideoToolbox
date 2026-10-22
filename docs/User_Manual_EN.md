@@ -1,7 +1,7 @@
-<!-- @version 2.5.2 -->
+<!-- @version 2.5.3 -->
 # Video Toolbox — User Manual
 
-> Applies to: v2.5.2 | Last updated: 2026-10-08
+> Applies to: v2.5.3 | Last updated: 2026-10-08
 > This manual is written for **people who use the software** — it only covers "how to get things done after opening the app."
 > For source-code structure, packaging, release procedures, and self-test scripts, see the Developer Manual (`程序说明书(开发版).md`) in the same folder.
 
@@ -50,7 +50,7 @@ There are six function pages, switched from the navigation bar on the left:
 
 | Installer | Size | Best for |
 | --- | --- | --- |
-| **Offline installer** `VideoToolbox_Setup_v2.5.2.exe` | ~1.0 GB | Most people. One download; no internet needed during installation |
+| **Offline installer** `VideoToolbox_Setup_v2.5.3.exe` | ~1.0 GB | Most people. One download; no internet needed during installation |
 
 > The offline installer is hosted on GitHub Releases (overseas). A direct connection from mainland China is often slow. **The slow part is that international link — it's not a software problem.**
 >

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.5.2
+# @version 2.5.3
 """ASCII 路径驱动 Inno Setup 编译离线安装包（2026-10-21 收编进仓库）。
 
 原驱动为仓库外脚本 ``C:\\bld\\_build_iss_now2.py``；ISCC 与构建链 C 盘依赖

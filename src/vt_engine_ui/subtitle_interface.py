@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.5.2
+# @version 2.5.3
 """自研「字幕翻译」页（含 ``SubtitleTableModel`` / ``PromptDialog``）。
 
 视觉与引擎字幕页对齐；把补丁 ⑨ 的「按声纹筛选」按钮 + 筛选前表格回写内建为

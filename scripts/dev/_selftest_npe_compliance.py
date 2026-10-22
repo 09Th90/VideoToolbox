@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.5.2
+# @version 2.5.3
 """P4 合规确证自检：NewPipe Extractor（GPL-3.0）的随包分发义务是否被完整履行。
 
 为什么要有这个
