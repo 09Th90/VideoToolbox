@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.5.3
+# @version 2.5.4
 """链接识别与提取（.url/txt/分享文案 → URL；yt-dlp 字幕语言参数）（v2.3.1 拆分工程 · 自 video_toolbox.py 原样搬入）。
 
 core/download 域：yt-dlp 全链 / cookie / NPE / 媒体合并；依赖规则见 core/__init__.py。

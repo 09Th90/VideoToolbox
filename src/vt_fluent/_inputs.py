@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.5.3
+# @version 2.5.4
 """vt_fluent 输入族（自研，替代 qfluentwidgets 输入类控件）。
 
 行为契约（对齐上游 1.11.3）：

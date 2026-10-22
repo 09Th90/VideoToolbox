@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.5.3
+# @version 2.5.4
 """subflow 自检：SRT/mosp 往返、知识库导出解析、任务状态机与烧录链路。
 
 按项目自检惯例（内置 Python 运行）：

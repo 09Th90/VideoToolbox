@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.5.3
+# @version 2.5.4
 """vt_fluent 图标渲染 parity 探针（B0 门：图标与 qfluentwidgets 渲染对照）。
 
 同一进程内对 59 个使用面图标 × 明暗两档 × 多尺寸，比对两侧渲染像素：

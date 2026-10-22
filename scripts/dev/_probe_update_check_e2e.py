@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.5.3
+# @version 2.5.4
 """End-to-end: vt_update_check.check_update against a local file:// repo.
 
 复现用户截图场景（开发版 v2.0.0 运行、安装目录是空的、远端最新

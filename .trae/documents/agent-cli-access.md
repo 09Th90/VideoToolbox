@@ -1,4 +1,4 @@
-<!-- @version 2.5.3 -->
+<!-- @version 2.5.4 -->
 # 计划：第三方 Agent 接入工具箱（统一 CLI + SKILL.md）
 
 ## Context

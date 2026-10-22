@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.5.3
+# @version 2.5.4
 """检查 onefile exe 内 QSS 的打包路径是否与运行期读取路径一致。
 
 2026-10-22 实测事故：spec datas 把目标写成完整文件路径，exe 里出现

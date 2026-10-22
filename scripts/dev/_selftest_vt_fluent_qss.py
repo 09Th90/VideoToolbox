@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.5.3
+# @version 2.5.4
 """vt_fluent QSS 库完整性自检（令牌 / 载体 / 渲染 / app 级兜底）。
 
 检查项：

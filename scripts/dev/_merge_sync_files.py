@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.5.3
+# @version 2.5.4
 """把本地两个同步文件（校准脚本 / 学习库）与 origin/main 做一次应用同口径合并。
 
 用 src/calib_merge_core.py 的 merge_calib_script / merge_learned_kb ——

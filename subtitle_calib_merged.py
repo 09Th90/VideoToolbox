@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.5.3
+# @version 2.5.4
 """字幕校准统一脚本（唯一入口，可复用，每次校准任务优先调用本脚本）
 # 2026-10-21 术语沉淀：《Our Proxy can't be this CUTE! | Arknights: Endfield Operator
 #   Story: Si》（59 cue，CRLF 无 BOM，中英双语；Serenade 译制，走 --endobi）。

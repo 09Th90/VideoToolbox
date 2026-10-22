@@ -1,4 +1,4 @@
-# @version 2.5.3
+# @version 2.5.4
 """引擎实体与任务数据类（自研，替代 videocaptioner.core.entities 的公开面）。
 
 枚举部分复用已接线的自研接缝模块 ``engine_entities``（取值是
