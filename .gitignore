@@ -95,11 +95,10 @@ src/config/
 # 上面的 config/ 无前导斜杠会误伤 packaging/installer_src/config/，2026-10-21 补
 !packaging/installer_src/config/
 
-# GitHub Actions 工作流（2026-10-19）：本地推送凭据是 OAuth App token，**没有
-# `workflow` scope**，GitHub 会拒绝创建/更新 workflow 文件（remote rejected）。
-# 文件本体保留在工作区 `.github/workflows/ci.yml`（内容已定稿），等凭据补上
-# workflow scope 后删掉本行即可入库。见提交 chore(ci) 对应说明。
-.github/workflows/
+# GitHub Actions 工作流（2026-10-19 起被忽略，2026-10-22 解除）：
+# 当时本地推送凭据是 OAuth App token，**没有 `workflow` scope**，GitHub 会
+# 拒绝创建/更新 workflow 文件。密钥泄露事件后补上 scope 并让 ci.yml 入库，
+# 使密钥扫描在服务端生效。规则已移除，保留本段作历史记录。
 
 # 历史归档：仅 history/ 下分类后的源码快照、开发脚本、发布留档、文档入库；
 # 以下大体积/日志/截图类留档只保留在本机，不进 git（dist/、_installer_check/
@@ -235,3 +234,13 @@ subtitle_calib_merged.py.bak_*
 # 升级 = 整目录替换；不进 git（含 node_modules/构建产物）。
 # 部署/升级步骤见 docs/AI托管_部署与排障.md 与 scripts/dev/deploy_harness.ps1
 /harness/
+
+# ---- 安全（2026-10-22 密钥泄露事件后补）----
+# UI 基线快照的临时/中间产物：只允许正式文件入库。
+scripts/dev/_golden/*.tmp.json
+scripts/dev/_golden/*.bak
+scripts/dev/_golden/*.orig
+# 凭据独立文件（只读、按需读取）。data/ 整目录已忽略，此处显式列出以明示意：
+# 任何脚本都不得把它复制进快照/打包产物/文档。
+data/credentials.json
+data/credentials.json.tmp

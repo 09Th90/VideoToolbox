@@ -314,7 +314,7 @@
            ],
            "hid": false,
            "ss": "LineEdit, TextEdit, PlainTextEdit, TextBrowser { color: black; background-color: rgba(255, 255, 255, 0.7); border: 1px solid rgba(0, 0, 0, 13); border-bottom: 1px solid rgba(0, 0, 0, 100); border-radius: 5px; padding: 0px 10px; selection-background-color: #fb4747; } TextEdit, PlainTextEdit, TextBrowser { padding: 2px 3px 2px 8px; } LineEdit:hover, TextEdit:hover, PlainTextEdit:hover, TextBrowser:hover { background-color: rgba(249, 249, 249, 0.5); border: 1px solid rgba(0, 0, 0, 13); border-bottom: 1px solid rgba(0, 0, 0, 100); } LineEdit:focus { border-bottom: 1px solid rgba(0, 0, 0, 13); background-color: white; } TextEdit:focus, PlainTextEdit:focus, TextBrowser:focus { border-bottom: 1px solid #ef4444; background-color: white; } LineEdit:disabled, TextEdit:disabled, PlainTextEdit:disabled, TextBrowser:disabled { color: rgba(0, 0, 0, 92); background-color: rgba(249, 249, 249, 0.3); border: 1px solid rgba(0, 0, 0, 13); border-bottom: 1px solid rgba(0, 0, 0, 13); } #lineEditButton { background-color: transparent; border-radius: 4px; margin: 0; } #lineEditButton:hover { background-color: rgba(0, 0, 0, 9); } #lineEditButton:pressed { background-color: rgba(0, 0, 0, 6); }",
-           "txt": "sk-sp-H.DPPRYL.hllp.MEUCIHhFAaPLWxhJOJORdFu4e3cQsqgAeF1cJCrx7alQCST0AiEA15lxt3m4kS3NUgFvnY_levLkhvopsc0-8VpiE_Y-blE",
+           "txt": "<redacted:1e9b1c24>",
            "ph": "sk-",
            "lay": {
             "type": "QHBoxLayout",
@@ -770,7 +770,7 @@
            ],
            "hid": false,
            "ss": "LineEdit, TextEdit, PlainTextEdit, TextBrowser { color: black; background-color: rgba(255, 255, 255, 0.7); border: 1px solid rgba(0, 0, 0, 13); border-bottom: 1px solid rgba(0, 0, 0, 100); border-radius: 5px; padding: 0px 10px; selection-background-color: #fb4747; } TextEdit, PlainTextEdit, TextBrowser { padding: 2px 3px 2px 8px; } LineEdit:hover, TextEdit:hover, PlainTextEdit:hover, TextBrowser:hover { background-color: rgba(249, 249, 249, 0.5); border: 1px solid rgba(0, 0, 0, 13); border-bottom: 1px solid rgba(0, 0, 0, 100); } LineEdit:focus { border-bottom: 1px solid rgba(0, 0, 0, 13); background-color: white; } TextEdit:focus, PlainTextEdit:focus, TextBrowser:focus { border-bottom: 1px solid #ef4444; background-color: white; } LineEdit:disabled, TextEdit:disabled, PlainTextEdit:disabled, TextBrowser:disabled { color: rgba(0, 0, 0, 92); background-color: rgba(249, 249, 249, 0.3); border: 1px solid rgba(0, 0, 0, 13); border-bottom: 1px solid rgba(0, 0, 0, 13); } #lineEditButton { background-color: transparent; border-radius: 4px; margin: 0; } #lineEditButton:hover { background-color: rgba(0, 0, 0, 9); } #lineEditButton:pressed { background-color: rgba(0, 0, 0, 6); }",
-           "txt": "sk-iZXQF3yajqSU61w8dLyJYteFDDtU81iwpHLihqdm4teNfHSO",
+           "txt": "<redacted:ed85b506>",
            "ph": "sk-",
            "lay": {
             "type": "QHBoxLayout",
@@ -4267,7 +4267,7 @@
             30
            ],
            "hid": false,
-           "txt": "D:/Agent Work/软件开发/视频工具箱/data/VideoCaptioner/work-dir"
+           "txt": "<root>/data/VideoCaptioner/work-dir"
           },
           {
            "cls": "QPushButton",

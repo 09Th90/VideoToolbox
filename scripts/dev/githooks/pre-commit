@@ -1,0 +1,21 @@
+#!/bin/sh
+# 提交前密钥门禁（2026-10-22 安全整改）
+#
+# 启用：git config core.hooksPath scripts/dev/githooks
+# 临时跳过：VT_SKIP_SECRET_SCAN=1 git commit ...
+#
+# 为什么需要：GitHub 的 secret scanning 只认各厂商公开格式，对 sk-sp- 这类
+# 私有前缀不告警；2026-10-15 的两把密钥就是这么进的 public 仓库。
+cd "$(git rev-parse --show-toplevel)" || exit 1
+[ "$VT_SKIP_SECRET_SCAN" = "1" ] && exit 0
+
+PY="tools/python/python.exe"
+[ -x "$PY" ] || PY=python
+
+"$PY" scripts/dev/check_secrets.py --staged || {
+    echo "" >&2
+    echo "[pre-commit] 提交被拦截：检出疑似密钥。" >&2
+    echo "  确认是假值 → 加入 scripts/dev/check_secrets.py 的 ALLOWLIST 并注明出处" >&2
+    echo "  确有需要   → VT_SKIP_SECRET_SCAN=1 git commit ..." >&2
+    exit 1
+}

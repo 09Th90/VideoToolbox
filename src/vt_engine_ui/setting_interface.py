@@ -431,6 +431,14 @@ class SettingInterface(ScrollArea):
             return
         api_base = service_config["api_base"].lineEdit.text() if service_config["api_base"] else ""
         api_key = service_config["api_key"].lineEdit.text() if service_config["api_key"] else ""
+        # 2026-10-22：密钥不再回填到控件（会进 UI 快照），控件为空时回退到
+        # 独立凭据文件里的值，否则「检查连接」会拿空 Key 直接 401。
+        if not api_key:
+            try:
+                from core.shared.ai import ai_load_config
+                api_key = str(ai_load_config().get("api_key") or "")
+            except Exception:  # noqa: BLE001
+                api_key = ""
         model = service_config["model"].comboBox.currentText() if service_config["model"] else ""
         self.checkLLMConnectionCard.button.setEnabled(False)
         self.checkLLMConnectionCard.button.setText(self.tr("正在检查..."))

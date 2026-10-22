@@ -25,7 +25,15 @@
   python scripts/dev/vt_ui_golden.py diff   out/home_golden.json out/home_self.json
   （setting 同理：engine_setting / self_setting）
   python scripts/dev/vt_ui_golden.py all    out/     # 一键跑完 home+setting 并给结论
+  python scripts/dev/vt_ui_golden.py scrub  a.json b.json
+                                                    # 对已有快照做值级脱敏（无需 Qt）
+
+安全（2026-10-22）：采集侧对 text/placeholderText/windowTitle 统一过
+``_redact()``，密钥类值落盘前替换为 ``<redacted:sha256前8位>``，本机绝对
+路径归一为 ``<root>``；``_dump`` 写盘前还有一道门禁，残留疑似密钥直接
+``SystemExit``。改这里之前请先读 _redact 上方的事故说明。
 """
+import hashlib
 import json
 import os
 import re
@@ -53,6 +61,89 @@ IGNORE_ATTRS_BY_PATH_RE = {
 }
 _IGNORE_COMPILED = [(re.compile(p), keys)
                     for p, keys in IGNORE_ATTRS_BY_PATH_RE.items()]
+
+# ---------------------------------------------------------------------------
+# 密钥脱敏（2026-10-22 安全整改）
+#
+# 事故背景：本脚本把**所有** QLineEdit 的 text() 原样写进快照，设置页
+# 「API Key」输入框因此以明文进了 setting_golden.json / setting_self.json，
+# 并随 v2.3.1 提交到 public 仓库暴露 6 天半。采集侧不设防是根因，
+# 比对侧过滤救不了已落盘的文件。
+#
+# 为什么占位符用「内容哈希」而不是固定常量：
+#   _flatten() 把 txt 拼进节点路径键（见下），而 diff() 用 dict 化路径
+#   （重名互相覆盖）。若把不同明文都抹成同一个 "***"，两个不同文本的兄弟
+#   节点会塌成同一路径，一方被删/错位时另一方可顶替 → diff 假绿。
+#   哈希保证「同明文同占位、异明文异占位」，且**无随机盐**，所以
+#   golden 侧与 self 侧对同一输入必然得到同一结果，不会假红。
+# ---------------------------------------------------------------------------
+
+#: 敏感值模式。顺序有意义：长规则在前，避免被短规则截断。
+SECRET_PATTERNS = (
+    r"sk-sp-[A-Za-z0-9_.\-]{20,}",          # 阿里百炼 Token Plan（含 . 分隔）
+    r"sk-[A-Za-z0-9_\-]{24,}",              # OpenAI / Moonshot / DeepSeek 系
+    r"github_pat_[A-Za-z0-9_]{40,}",        # GitHub fine-grained PAT
+    r"gh[pousr]_[A-Za-z0-9]{30,}",          # GitHub 经典 PAT
+    r"AKIA[0-9A-Z]{16}",                    # AWS Access Key ID
+    r"hf_[A-Za-z0-9]{30,}",                 # HuggingFace
+    r"AIza[0-9A-Za-z_\-]{35}",              # Google API Key
+    r"-----BEGIN [A-Z ]*PRIVATE KEY-----",  # 私钥头
+)
+_SECRET_RE = re.compile("|".join("(?:%s)" % p for p in SECRET_PATTERNS))
+
+#: 本机绝对根路径（快照里会以 txt 形式出现，属附带泄露）。
+_ROOT_HINTS = re.compile(
+    r"[A-Za-z]:[\\/][^\"\\/]*[\\/]软件开发[\\/]视频工具箱"
+    r"|[A-Za-z]:[\\/]Agent Work[\\/][^\"\\/]*[\\/]视频工具箱")
+
+#: 参与脱敏的节点属性键（与 serialize() 采集的三个字段一致）。
+_REDACT_KEYS = ("txt", "ph", "wt")
+
+_REDACT_HITS = [0]
+
+
+def _redact(s):
+    """把疑似密钥替换为 ``<redacted:sha256前8位>``，并归一化本机根路径。"""
+    if not isinstance(s, str) or not s:
+        return s
+
+    def _sub(m):
+        _REDACT_HITS[0] += 1
+        return "<redacted:%s>" % hashlib.sha256(
+            m.group(0).encode("utf-8")).hexdigest()[:8]
+
+    out = _SECRET_RE.sub(_sub, s)
+    out = _ROOT_HINTS.sub("<root>", out)
+    return out
+
+
+def _count_secrets(node):
+    """递归统计仍能命中密钥模式的字符串数（落盘门禁用）。"""
+    if isinstance(node, dict):
+        return sum(_count_secrets(v) for v in node.values())
+    if isinstance(node, list):
+        return sum(_count_secrets(v) for v in node)
+    if isinstance(node, str):
+        return len(_SECRET_RE.findall(node))
+    return 0
+
+
+def _redact_tree(node):
+    """原地脱敏一棵已序列化的快照树，返回改动处数。"""
+    n = 0
+    if isinstance(node, dict):
+        for k, v in node.items():
+            if k in _REDACT_KEYS and isinstance(v, str):
+                nv = _redact(v)
+                if nv != v:
+                    node[k] = nv
+                    n += 1
+            else:
+                n += _redact_tree(v)
+    elif isinstance(node, list):
+        for v in node:
+            n += _redact_tree(v)
+    return n
 
 
 def _norm_ws(s):
@@ -124,7 +215,8 @@ def serialize(w, depth=0, max_depth=60):
             if callable(fn):
                 v = fn()
                 if isinstance(v, str) and v:
-                    node[key] = v
+                    # 采集侧脱敏（2026-10-22）：密钥/本机路径不落盘。
+                    node[key] = _redact(v)
         except Exception:
             pass
     icn = _icon_name(w)
@@ -565,6 +657,13 @@ def _dump(builder, out):
     _KEEP.append(w)
     _mk_app().processEvents()          # 走完事件循环，让布局稳定下来
     tree = serialize(w)
+    # 落盘门禁（2026-10-22）：serialize() 已逐字段脱敏，这里再兜一道。
+    # 宁可直接失败，也不能把疑似密钥写进快照——文件一旦入库就收不回来。
+    _left = _count_secrets(tree)
+    if _left:
+        raise SystemExit(
+            "ABORT: 快照仍含 %d 处疑似密钥，拒绝写盘（检查 _redact 规则）"
+            % _left)
     os.makedirs(os.path.dirname(out) or ".", exist_ok=True)
     with open(out, "w", encoding="utf-8") as f:
         json.dump(tree, f, ensure_ascii=False, indent=1)
@@ -576,6 +675,30 @@ def _dump(builder, out):
         print("grab failed:", e)
     print("dumped", out)
     return tree
+
+
+def _scrub(paths):
+    """对**已有**快照做值级脱敏（纯 JSON，不实例化任何 QWidget）。
+
+    为什么需要它：重新跑 ``dump``/``all`` 会构造真实控件树，设置页的
+    QLineEdit 会被 qconfig 回填**当前**密钥——如果脚本脱敏有疏漏，等于把
+    新密钥再泄一次。``scrub`` 只读 JSON、只做正则替换，从根上没有这个风险。
+    """
+    rc = 0
+    for p in paths:
+        with open(p, encoding="utf-8") as f:
+            tree = json.load(f)
+        n = _redact_tree(tree)
+        if n:
+            # 与 _dump 同参数（ensure_ascii=False, indent=1），保证除改动行外
+            # 逐字节不变；CRLF 由默认 newline 还原。
+            with open(p, "w", encoding="utf-8") as f:
+                json.dump(tree, f, ensure_ascii=False, indent=1)
+        left = _count_secrets(tree)
+        print("%s: redacted %d, remaining %d" % (p, n, left))
+        if left:
+            rc = 1
+    return rc
 
 
 def _all(outdir):
@@ -605,6 +728,8 @@ def main():
         return 0
     if cmd == "diff":
         return diff(sys.argv[2], sys.argv[3])
+    if cmd == "scrub":
+        return _scrub(sys.argv[2:])
     if cmd == "all":
         return _all(sys.argv[2] if len(sys.argv) > 2 else "scripts/dev/_golden")
     print("unknown cmd", cmd)

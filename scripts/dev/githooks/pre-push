@@ -1,0 +1,35 @@
+#!/bin/sh
+# 推送前全历史密钥门禁（2026-10-22 安全整改）
+#
+# 与 pre-commit 互补：pre-commit 只看本次暂存内容，挡不住"历史里早就有的"
+# 密钥；这里扫全部 blob，防止把带密钥的旧提交推到远端。
+#
+# 启用：git config core.hooksPath scripts/dev/githooks
+# 临时跳过：VT_SKIP_SECRET_SCAN=1 git push ...
+cd "$(git rev-parse --show-toplevel)" || exit 1
+[ "$VT_SKIP_SECRET_SCAN" = "1" ] && exit 0
+
+PY="tools/python/python.exe"
+[ -x "$PY" ] || PY=python
+
+# 已知的历史残留（2026-10-15 的 8f82721 提交，两把密钥均已吊销）。
+# 只放行这两条**精确**路径，其它任何命中仍然拦截。
+OUT=$("$PY" scripts/dev/check_secrets.py --all 2>&1)
+RC=$?
+if [ "$RC" -eq 0 ]; then
+    exit 0
+fi
+
+UNEXPECTED=$(printf '%s\n' "$OUT" | grep -E "^  " \
+    | grep -v "_golden/setting_golden.json@" \
+    | grep -v "_golden/setting_self.json@")
+if [ -z "$UNEXPECTED" ]; then
+    echo "[pre-push] 仅命中已知历史残留（已吊销的旧密钥），放行。" >&2
+    exit 0
+fi
+
+printf '%s\n' "$OUT" >&2
+echo "" >&2
+echo "[pre-push] 推送被拦截：检出**新的**疑似密钥（非已知历史残留）。" >&2
+echo "  确认是假值 → 加入 ALLOWLIST；确有需要 → VT_SKIP_SECRET_SCAN=1 git push ..." >&2
+exit 1

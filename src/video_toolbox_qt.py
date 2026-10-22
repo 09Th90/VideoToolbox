@@ -4419,8 +4419,12 @@ class SettingsPage(QWidget):
         blay.addWidget(label_row("启用 AI", row(self.ai_enabled, None)))
 
         self.ai_key = PasswordLineEdit(box)
-        self.ai_key.setText(str(ai.get("api_key", "")))
-        self.ai_key.setPlaceholderText("API Key")
+        # 2026-10-22 安全整改：密钥**不再 setText 回填**——控件文本会进 UI 基线
+        # 快照与截图（v2.3.1 泄露事故的直接原因）。凭据存独立只读文件
+        # data/credentials.json，这里只反映「是否已配置」。
+        self.ai_key.setPlaceholderText(
+            "已配置（存于独立凭据文件；留空则保持不变）"
+            if str(ai.get("api_key") or "") else "API Key")
         blay.addWidget(srow("密钥", self.ai_key))
 
         self.ai_base = LineEdit(box)
@@ -4538,8 +4542,10 @@ class SettingsPage(QWidget):
             "完整端点粘进来也行，如 .../paas/v4/audio/transcriptions，会自动削尾）")
         slay.addWidget(srow("ASR 接口地址", self.asr_base))
         self.asr_key = PasswordLineEdit(self.asr_service_widget)
-        self.asr_key.setText(str(ai.get("asr_api_key", "")))
-        self.asr_key.setPlaceholderText("ASR 服务 API Key")
+        # 同上：不回填明文，只给状态提示。
+        self.asr_key.setPlaceholderText(
+            "已配置（存于独立凭据文件；留空则保持不变）"
+            if str(ai.get("asr_api_key") or "") else "ASR 服务 API Key")
         slay.addWidget(srow("ASR 密钥", self.asr_key))
         self.asr_model = LineEdit(self.asr_service_widget)
         self.asr_model.setText(str(ai.get("asr_model", "")))
@@ -4914,10 +4920,14 @@ class SettingsPage(QWidget):
             w.setEnabled(self.calib_thinking_switch.isChecked())
 
     def _collect_ai(self):
+        # 2026-10-22：密钥控件不再回填明文，所以「输入框为空」= 用户没改，
+        # 必须沿用当前凭据值，否则保存会把密钥清空（下游 apply_global_llm_
+        # to_engine 也会拿到空 Key，字幕引擎当场 401）。
+        _cur = engine.ai_load_config()
         return {
             "enabled": self.ai_enabled.isChecked(),
             # 全局 AI 单通道（工具箱 / 字幕引擎 / AI 校准共用）
-            "api_key": self.ai_key.text().strip(),
+            "api_key": self.ai_key.text().strip() or str(_cur.get("api_key") or ""),
             "base_url": self.ai_base.text().strip(),
             "model": self.ai_model.text().strip(),
             "vision_model": self.ai_vision.text().strip(),
@@ -4925,7 +4935,7 @@ class SettingsPage(QWidget):
             "asr_mode": "local" if self.asr_mode_combo.currentIndex() == 1
                         else "service",
             "asr_base_url": self.asr_base.text().strip(),
-            "asr_api_key": self.asr_key.text().strip(),
+            "asr_api_key": self.asr_key.text().strip() or str(_cur.get("asr_api_key") or ""),
             "asr_model": self.asr_model.text().strip(),
             "asr_prompt": self.asr_prompt.text().strip(),
             "asr_protocol": self.ASR_PROTO_KEYS[
@@ -5031,10 +5041,21 @@ class SettingsPage(QWidget):
             pass
 
     def _reload_ai_fields(self):
-        """把落盘后的 AI 配置回填到界面输入框（自动匹配纠正后调用）。"""
+        """把落盘后的 AI 配置回填到界面输入框（自动匹配纠正后调用）。
+
+        2026-10-22 安全整改：密钥字段**一律不回填**（控件文本会进 UI 快照），
+        只刷新「已配置」占位提示；非敏感字段照旧回填。
+        """
         ai = engine.ai_load_config()
-        for wid, key in ((getattr(self, "ai_key", None), "api_key"),
-                         (getattr(self, "ai_base", None), "base_url"),
+        if getattr(self, "ai_key", None) is not None:
+            try:
+                self.ai_key.clear()
+                self.ai_key.setPlaceholderText(
+                    "已配置（存于独立凭据文件；留空则保持不变）"
+                    if str(ai.get("api_key") or "") else "API Key")
+            except Exception:  # noqa: BLE001
+                pass
+        for wid, key in ((getattr(self, "ai_base", None), "base_url"),
                          (getattr(self, "ai_model", None), "model"),
                          (getattr(self, "ai_vision", None), "vision_model")):
             if wid is None:

@@ -87,6 +87,21 @@ def _resolve_data_dir() -> Path:
 DATA_DIR = _resolve_data_dir()
 CONFIG_PATH = DATA_DIR / "ai_config.json"
 
+# 凭据独立存储（2026-10-22 安全整改）：密钥不再写进 ai_config.json，
+# 改存 data/credentials.json（只读、按需读取、不参与配置树）。
+# 这里兼容两种加载方式：同目录 import（常规）与按路径加载（被当独立模块 import 时）。
+try:
+    import credential_store as _cred
+except ImportError:  # pragma: no cover —— 兜底：按路径加载
+    import importlib.util as _ilu
+    _cred_spec = _ilu.spec_from_file_location(
+        "vt_credential_store", str(Path(__file__).resolve().parent / "credential_store.py"))
+    _cred = _ilu.module_from_spec(_cred_spec)
+    _cred_spec.loader.exec_module(_cred)
+
+#: 需要从配置文件里剥离、改存凭据文件的字段。
+SECRET_FIELDS = getattr(_cred, "SECRET_FIELDS", ("api_key", "asr_api_key"))
+
 # 缓存目录重定向：本模块也会被主程序以**独立进程**加载（VT_DATA_ROOT 已注入），
 # 这里同步改写 XDG / HuggingFace 缓存位置，避免本地 faster-whisper 权重按
 # XDG 默认规则落回 %USERPROFILE%\.cache（C 盘）。用 setdefault —— 主程序
@@ -274,13 +289,56 @@ def load_config() -> dict:
             pass
     if _FORCE_DISABLED:
         cfg["enabled"] = False
+    # ---- 密钥从独立凭据文件读取（2026-10-22 安全整改）----
+    # 旧版把密钥存在 ai_config.json，这里做一次性迁移：凭据文件里没有而
+    # 旧配置里有值时，搬到凭据文件，并立即重写配置把明文抹掉。
+    _secret_migrated = False
+    for _f in SECRET_FIELDS:
+        _v = _cred.get(_f, "")
+        if _v:
+            cfg[_f] = _v
+            continue
+        _legacy = str(cfg.get(_f) or "")
+        if _legacy:
+            try:
+                _cred.set(_f, _legacy)
+                cfg[_f] = _legacy
+                _secret_migrated = True
+            except (OSError, ValueError):
+                cfg[_f] = _legacy
+        else:
+            cfg[_f] = ""
+    if _secret_migrated:
+        try:
+            save_config(cfg)          # 重写后 ai_config.json 不再含明文
+        except OSError:
+            pass
     return cfg
 
 
 def save_config(cfg: dict) -> None:
+    """写配置。
+
+    2026-10-22 起密钥**不再落进 ai_config.json**：``api_key`` /
+    ``asr_api_key`` 被剥离出来写进独立凭据文件（``data/credentials.json``，
+    只读）。这样配置树、UI 快照、harness 同步链路都看不到明文。
+    """
+    data = dict(cfg)
+    secrets = {}
+    for f in SECRET_FIELDS:
+        if f in data:
+            secrets[f] = str(data.pop(f) or "")
     DATA_DIR.mkdir(parents=True, exist_ok=True)
-    CONFIG_PATH.write_text(json.dumps(cfg, ensure_ascii=False, indent=2),
+    CONFIG_PATH.write_text(json.dumps(data, ensure_ascii=False, indent=2),
                            encoding="utf-8")
+    # 空值语义 = 「用户没改」而非「清空」：设置页不再回填明文，留空保存时
+    # 必须保留原凭据。要清除请显式调 credential_store.delete(name)。
+    for f, v in secrets.items():
+        if v:
+            try:
+                _cred.set(f, v)
+            except (OSError, ValueError):
+                pass
 
 
 # 运行期开关（--no-ai 用），不影响配置文件

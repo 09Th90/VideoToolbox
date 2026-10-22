@@ -942,9 +942,16 @@ _watch_stop = threading.Event()
 
 
 def _ai_config_paths() -> list:
-    """设置页 AI 配置的全部可能落点（与 ``_read_toolbox_ai`` 同口径）。"""
+    """设置页 AI 配置的全部可能落点（与 ``_read_toolbox_ai`` 同口径）。
+
+    2026-10-22 起密钥改存独立凭据文件 ``credentials.json``（只读、不进
+    ``ai_config.json``），它变化时同样要把 provider 路由与凭据同步给 harness，
+    所以一并纳入监视。
+    """
     return [os.path.join(data_dir(), "ai_config.json"),
-            os.path.join(app_root(), "data", "ai_config.json")]
+            os.path.join(app_root(), "data", "ai_config.json"),
+            os.path.join(data_dir(), "credentials.json"),
+            os.path.join(app_root(), "data", "credentials.json")]
 
 
 def _config_signature() -> tuple:
