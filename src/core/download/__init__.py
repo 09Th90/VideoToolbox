@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.5.1
+# @version 2.5.2
 """下载域（core/download）：yt-dlp 全链（8 阶段可中止）/ NPE fallback /
 cookie 与 CDP 导出 / 信息与画质探测 / 音画合并 / 媒体扫描配对。
 

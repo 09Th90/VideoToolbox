@@ -1,4 +1,4 @@
-<!-- @version 2.5.1 -->
+<!-- @version 2.5.2 -->
 <h1 align="center">视频工具箱 · VideoToolbox</h1>
 
 <p align="center">
@@ -8,7 +8,6 @@
 
 <p align="center">
   <a href="https://github.com/09Th90/VideoToolbox/releases/latest"><img src="https://img.shields.io/github/v/release/09Th90/VideoToolbox?label=release&color=blue" alt="Release"></a>
-  <a href="https://github.com/09Th90/VideoToolbox/actions/workflows/ci.yml"><img src="https://github.com/09Th90/VideoToolbox/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <img src="https://img.shields.io/badge/platform-Windows-0078D4" alt="Platform">
   <img src="https://img.shields.io/badge/license-CC%20BY--SA%204.0-lightgrey" alt="License">
 </p>
@@ -53,8 +52,8 @@
 机器翻译最容易翻错的就是**专有名词**——人名、地名、技能名、道具名。
 一部动画里主角名字被翻成三种写法，看着非常出戏。字幕校准就是专门解决这个的。
 
-- 内置四套游戏名词底表，共 **3237 条**中英日韩对照：
-  鸣潮 1685 · 终末地 1030 · 明日方舟 453 · 战双帕弥什 69
+- 内置四套游戏名词底表，共 **3388 条**中英日韩对照：
+  鸣潮 1768 · 终末地 1098 · 明日方舟 453 · 战双帕弥什 69
   （按去重计，同一条目可能同时出现在多张表里）；
   另有日语、韩语、塞尔达等专用词表；
 - 可开 **AI 校准**，让 AI 逐块复核术语表没覆盖到的疑似错形；
@@ -77,21 +76,21 @@
 
 | 安装包 | 体积 | 说明 |
 | --- | --- | --- |
-| **在线安装器** `VideoToolbox_OnlineSetup_v2.4.0.exe` | 约 12 MB | 当前唯一发布形态。安装时从 GitHub Releases 拉取约 127 MB 组件 |
+| **离线安装包** `VideoToolbox_Setup_v2.5.2.exe` | 约 1.0 GB | 新用户首选。一次下载，装完不依赖网络 |
 
 > 附件名用英文，是因为 GitHub Releases 会把非 ASCII 文件名截断
 > （历史版本 v1.12.0 的 Setup 包在下载页显示成了 `_Setup_v1.12.0.exe`）。
 > 安装后程序名仍是中文。
 
-> 最新发布：[v2.4.0](https://github.com/09Th90/VideoToolbox/releases/tag/v2.4.0)。
+> 最新发布：[v2.5.2](https://github.com/09Th90/VideoToolbox/releases/tag/v2.5.2)。
 > 发布产物与源码版本严格对应，**README 不再预告尚未构建的产物**。
 
-> **离线安装包当前不提供。** onefile 单体打包后体积超过 1 GB，已超出可维护的分发体积，
-> 也不适合放在仓库或 Release 附件里。需要完全离线部署的场合，请按
-> [源码方式](#源码方式) 运行，或自行用 `packaging/` 下的脚本构建。
-> 后续版本会把运行时依赖拆出安装包，届时恢复离线包。
+> **已经装了旧版本？** 不用重下整个安装包：打开程序 → 设置 → 检查更新，
+> 内置更新器会按文件差异增量下载（通常只有几十 MB）。
+> 首次安装或需要完全离线部署，用上面的离线安装包；也可以按
+> [源码方式](#源码方式) 运行。
 
-> 安装器从 GitHub Releases（海外）下载组件，国内直连常常只有几十 KB/s。
+> 离线包托管在 GitHub Releases（海外），国内直连可能较慢。
 > **慢的是这条国际链路，不是软件本身有问题**。
 
 ### 安装
@@ -153,8 +152,9 @@ src/                        主程序与功能模块
   engine_*.py               自研能力模块（ASR / 翻译 / 缓存 / 路径 / 数据模型）
 tools/
   ai_client.py              AI 单通道客户端
+  credential_store.py       AI 密钥独立存储（只读凭据文件）
   newpipe-cli/              NewPipe 兜底解析器（Java 侧封装 + 构建脚本）
-packaging/                  打包脚本（spec / Inno Setup / 在线安装器）
+packaging/                  打包脚本（spec / Inno Setup / 在线更新包）
 docs/                       说明书与第三方许可声明
 scripts/dev/                开发期自检脚本
 ```
@@ -203,13 +203,14 @@ scripts/dev/                开发期自检脚本
 | 限制 | 现状 | 对你的影响 |
 | --- | --- | --- |
 | 无代码签名 | 签名证书需付费购买 | 少数开启 Device Guard / 应用控制策略的电脑会拦截 exe |
-| 无离线安装包 | onefile 打包后超过 1 GB | 完全断网的环境只能用「源码方式」 |
-| 无自动化测试 | 只有 `scripts/dev/` 下的人工自检脚本 | 升级前建议先备份 `data/` 目录 |
+| 安装包较大 | 离线包约 1.0 GB | 首次下载耗时；已装用户走增量更新 |
+| 未做 GUI 自动化测试 | 自检脚本只做语法、文档一致性、密钥扫描 | 升级前建议先备份 `data/` 目录 |
 | 组件走国际链路 | 托管在 GitHub Releases | 国内直连速度取决于你的网络 |
 
-已具备的工程约束：`scripts/dev/check_syntax.py`（全部受跟踪 `.py` 的语法解析）
-与 `scripts/dev/check_doc_drift.py`（README / LICENSE 与代码事实的一致性）随仓库
-提供，本地一条命令即可跑，把文档漂移挡在提交之前。
+已具备的工程约束：`scripts/dev/check_syntax.py`（全部受跟踪 `.py` 的语法解析）、
+`scripts/dev/check_doc_drift.py`（README / LICENSE 与代码事实的一致性）、
+`scripts/dev/check_secrets.py`（密钥扫描）与 `pre-commit` / `pre-push` 钩子，
+本地一条命令即可跑，把文档漂移和密钥泄露挡在提交之前。
 
 ---
 

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.5.1
+# @version 2.5.2
 """在线引导安装器 · 核心逻辑（无 UI，可单测）。
 
 ====================================================================
@@ -92,7 +92,7 @@ FALLBACK_DRIVES = ("D:", "E:", "F:", "C:")
 #: 旧版，装新版本会被直接拒（updater_ok 返回 False）。
 #: v2.2.5 起已纳入 scripts/dev/apply_version.py 的 TARGETS，改号自动同步
 #: （此前是手工项，正是这类漂移的来源）。
-SELF_VERSION = "2.5.1"
+SELF_VERSION = "2.5.2"
 #: 安装目录里的本地清单文件名（记录本次安装的文件级 sha256）
 INSTALLED_NAME = "vt_installed.json"
 #: 下载分块（sha256 等本地 IO 用；网络分块在 vt_dl 里）

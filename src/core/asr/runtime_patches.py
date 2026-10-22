@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.5.1
+# @version 2.5.2
 """vc 引擎运行期补丁（lazy-cache 宿主缓存接驳 / settings 预备 / 运行时强制 / 历史数据迁移与残留检测）（v2.3.1 拆分工程 · 自 video_toolbox.py 原样搬入）。
 
 v2.3.1 拆分工程；域间依赖规则见 core/__init__.py。

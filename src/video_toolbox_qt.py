@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# @version 2.5.1
+# @version 2.5.2
 """视频工具箱 GUI v1.11.0 —— Fluent 矢量界面
 ====================================================================
 界面形态（v1.10.0 起，原 tkinter 界面退役）：
@@ -210,7 +210,7 @@ except Exception as _e:  # noqa: BLE001
     except Exception:  # noqa: BLE001
         pass
 
-VERSION = "2.5.1"
+VERSION = "2.5.2"
 
 # 全格式媒体/字幕/文档扩展名（v1.13.0）：
 #   视频：常见容器 + av1 / h264 / h265 / x264 等裸流与更多封装；

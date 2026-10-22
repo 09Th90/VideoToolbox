@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.5.1
+# @version 2.5.2
 """vt_fluent 动画辅助（自研，替代 qfluentwidgets.common.animation + smooth_scroll）。
 
 服务 B1 控件族：卡片背景色过渡（BackgroundAnimationWidget）、凸起阴影

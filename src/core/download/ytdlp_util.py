@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.5.1
+# @version 2.5.2
 """yt-dlp 参数与信息探测（画质/字幕/格式）、下载模式判定、输出模板（v2.3.1 拆分工程 · 自 video_toolbox.py 原样搬入）。
 
 core/download 域：yt-dlp 全链 / cookie / NPE / 媒体合并；依赖规则见 core/__init__.py。

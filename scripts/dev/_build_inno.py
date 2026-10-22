@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.5.1
+# @version 2.5.2
 """ASCII 路径驱动 Inno Setup 编译离线安装包（2026-10-21 收编进仓库）。
 
 原驱动为仓库外脚本 ``C:\\bld\\_build_iss_now2.py``；ISCC 与构建链 C 盘依赖
@@ -45,6 +45,13 @@ t0 = time.time()
 r = subprocess.run([ISCC, ISS], cwd=ROOT, capture_output=True)
 out = (r.stdout or b"").decode("utf-8", "replace")
 err = (r.stderr or b"").decode("utf-8", "replace")
+log_path = os.path.join(ROOT, "build", "iscc.log")
+os.makedirs(os.path.dirname(log_path), exist_ok=True)
+with open(log_path, "w", encoding="utf-8", newline="") as fh:
+    fh.write(out)
+    if err:
+        fh.write("\n---- stderr ----\n" + err)
+print("ISCC 日志 :", log_path)
 print("== ISCC 退出码 %d，用时 %.1fs ==" % (r.returncode, time.time() - t0))
 
 lines = out.splitlines()

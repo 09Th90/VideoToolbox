@@ -1,4 +1,4 @@
-# @version 2.5.1
+# @version 2.5.2
 """对象规格层：把扁平表 + ENTITIES 折叠成唯一的 ``EntitySpec`` 集合。
 
 与主脚本 ``_kb_view()`` 的差别（也是本层存在的理由）：

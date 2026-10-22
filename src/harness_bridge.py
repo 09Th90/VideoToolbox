@@ -1,4 +1,4 @@
-# @version 2.5.1
+# @version 2.5.2
 """deepseek-harness 适配层——工具箱**单向适配** harness 的唯一入口。
 
 设计契约（用户 2026-10-14 拍板）

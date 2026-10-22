@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.5.1
+# @version 2.5.2
 """批量比对 5c978b1..HEAD 改动文件的 blob 行尾是否发生翻转。
 
 注意事项：

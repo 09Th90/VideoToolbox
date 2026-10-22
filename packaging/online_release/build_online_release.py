@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.5.1
+# @version 2.5.2
 """把「在线更新包」发布成 GitHub Release 的**平铺资产**（替代 IFW 的在线仓库）。
 
 ====================================================================
@@ -97,6 +97,7 @@ PACKAGES = {
     ],
     "tools": [
         ("tools/ai_client.py", "tools/ai_client.py"),
+        ("tools/credential_store.py", "tools/credential_store.py"),
         ("tools/download_open_source_deps.py", "tools/download_open_source_deps.py"),
     ],
 }

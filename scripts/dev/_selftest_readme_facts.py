@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.5.1
+# @version 2.5.2
 """自检：README 里的术语底表条数与导航页清单是否与代码一致。
 
 为什么需要
@@ -42,9 +42,10 @@ GROUPS = {
     "战双帕弥什": ["PGR_EN_TERMS"],
 }
 
-#: 期望 README 里出现的导航页（顺序取自 video_toolbox_qt.addSubInterface）
+#: 期望 README 里出现的导航页（顺序取自 video_toolbox_qt.addSubInterface；
+#: 校验时会把「设置」单独剔除，故这里把它放末尾）
 EXPECT_PAGES = ["首页", "视频处理", "视频库", "字幕处理", "字幕编辑",
-                "流水线", "自动化", "AI 托管", "设置"]
+                "流水线", "AI 托管", "自动化", "设置"]
 
 fails = []
 

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# @version 2.5.1
+# @version 2.5.2
 """自研「在线引导安装器」交叉验证自检（独立于 _selftest_online_setup.py 的深度套件）。
 
 定位：_selftest_online_setup.py 覆盖基础解析与总流程；本套件专啃**并发、故障与

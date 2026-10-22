@@ -1,4 +1,4 @@
-# @version 2.5.1
+# @version 2.5.2
 """翻译类型定义（自研，替代 videocaptioner.core.translate.types 的公开面）。
 
 :class:`TargetLanguage` 的成员取值是**持久化契约**——settings.json 的

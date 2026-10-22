@@ -1,11 +1,11 @@
-; @version 2.5.1
+; @version 2.5.2
 ; ============================================================================
-; 视频工具箱 v2.5.1 —— Inno Setup 安装包脚本
+; 视频工具箱 v2.5.2 —— Inno Setup 安装包脚本
 ; 构建前提：已用打包环境 D:\Agent Work\_bld\qt_build 执行 pyinstaller 视频工具箱.spec
 ;           （2026-10-14 起该环境为 PySide6 6.12.0 + PySide6-Fluent-Widgets
 ;           1.11.3；此前为 PyQt5 5.15.11 + PyQt-Fluent-Widgets 1.8.4），
 ;           产物位于 dist\视频工具箱.exe
-; 编译：ISCC.exe 视频工具箱.iss  →  installer\视频工具箱_Setup_v2.5.1.exe
+; 编译：ISCC.exe 视频工具箱.iss  →  installer\视频工具箱_Setup_v2.5.2.exe
 ; v1.18.0：① 新增主播声纹（exe 侧已由 spec hiddenimports 内嵌），[Files]
 ;         补装 src\speaker_voiceprint.py / speaker_voiceprint_page.py /
 ;         subtitle_editor_core.py 源码副本，使安装版也能按开发版说明书的 CLI
@@ -89,7 +89,7 @@
 ; ============================================================================ 
 
 #define MyAppName "视频工具箱"
-#define MyAppVersion "2.5.1"
+#define MyAppVersion "2.5.2"
 #define MyAppPublisher "VideoToolbox"
 #define MyAppExeName "视频工具箱.exe"
 
@@ -187,6 +187,9 @@ Source: "..\tools\python\*"; DestDir: "{app}\tools\python"; Flags: ignoreversion
 Source: "..\tools\videocaptioner\resource\*"; DestDir: "{app}\tools\videocaptioner\resource"; Flags: ignoreversion recursesubdirs createallsubdirs; Excludes: "*.pyc,__pycache__"
 ; AI 客户端（仅标准库）：字幕/标题语言识别用（v1.10.1 起投稿板块已移除）
 Source: "..\tools\ai_client.py"; DestDir: "{app}\tools"; Flags: ignoreversion
+; 凭据独立存储（2026-10-22 安全整改）：ai_client 按同目录路径加载，缺了会在
+; 首次 AI/ASR 调用时 ImportError，必须随包分发。
+Source: "..\tools\credential_store.py"; DestDir: "{app}\tools"; Flags: ignoreversion
 ; 第二解析引擎 NewPipe Extractor（v1.17.0 补，GPL-3.0）：
 ;   npe_backend.py 源码副本（安装版以 src\ 方式运行时需要；exe 侧由 spec
 ;   hiddenimports 内嵌）+ 编译好的 npe-cli.jar。

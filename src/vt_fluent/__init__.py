@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.5.1
+# @version 2.5.2
 """vt_fluent——自研 Fluent 风格 QSS 主题库（替代 qfluentwidgets 的迁移目标）。
 
 结构（对应《核心拆分与QSS主题迁移方案.md》§3.2）：

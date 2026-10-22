@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.5.1
+# @version 2.5.2
 """vt_fluent 图标数据再生成工具（dev 期，不进随包）。
 
 两件事：

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.5.1
+# @version 2.5.2
 """qfluentwidgets → 自写 QSS 主题（vt_fluent）· 迁移 parity 测试。
 
 为什么需要（v2.3.1 起）：

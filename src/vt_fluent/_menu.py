@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.5.1
+# @version 2.5.2
 """vt_fluent 菜单族（自研，替代 qfluentwidgets.components.widgets.menu/command_bar）。
 
 行为契约（对齐上游 1.11.3）：

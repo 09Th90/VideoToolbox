@@ -1,4 +1,4 @@
-# @version 2.5.1
+# @version 2.5.2
 """ASR 数据模型收口（复用自研接缝模块 ``engine_asr_data``）。
 
 ``ASRData`` / ``ASRDataSeg`` 的字段与导出方法（``to_srt`` / ``to_ass`` /

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.5.1
+# @version 2.5.2
 """ASCII 路径驱动 PyInstaller 打包 onefile exe（2026-10-21 收编进仓库）。
 
 原驱动为仓库外脚本 ``C:\\bld\\_build_vt_170.py``；构建链 C 盘依赖

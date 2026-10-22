@@ -1,7 +1,7 @@
-<!-- @version 2.5.1 -->
+<!-- @version 2.5.2 -->
 # Video Toolbox — User Manual
 
-> Applies to: v2.5.1 | Last updated: 2026-10-08
+> Applies to: v2.5.2 | Last updated: 2026-10-08
 > This manual is written for **people who use the software** — it only covers "how to get things done after opening the app."
 > For source-code structure, packaging, release procedures, and self-test scripts, see the Developer Manual (`程序说明书(开发版).md`) in the same folder.
 
@@ -50,12 +50,11 @@ There are six function pages, switched from the navigation bar on the left:
 
 | Installer | Size | Best for |
 | --- | --- | --- |
-| **Offline installer** `视频工具箱_Setup_v1.15.7.exe` | ~548 MB | Most people. One download; no internet needed during installation |
-| **Online installer** `视频工具箱_在线安装_v1.15.7.exe` | ~32 MB | Small download, but pulls ~104 MB of components from the web during installation |
+| **Offline installer** `VideoToolbox_Setup_v2.5.2.exe` | ~1.0 GB | Most people. One download; no internet needed during installation |
 
-> The online installer downloads components from GitHub Pages (overseas). A direct connection from mainland China is often only a few dozen KB/s. **The slow part is that international link — it's not a software problem.** In that case, switching to the offline installer is the easiest fix.
+> The offline installer is hosted on GitHub Releases (overseas). A direct connection from mainland China is often slow. **The slow part is that international link — it's not a software problem.**
 >
-> If you have a local-network distribution source or a proxy tool, the online installer can also be fast — see the "What to do when the online installer is too slow" section in `使用说明.txt`.
+> Already installed an older version? You don't need to download the whole installer again: open the app → Settings → Check for Updates; the built-in updater downloads only the changed files (usually a few dozen MB).
 
 ### 2.2 Installing and Opening
 
@@ -96,7 +95,7 @@ Compatible services: OpenAI, DeepSeek, Zhipu (GLM), Gemini-compatible endpoints,
 
 After filling in, click **"Test Connection"** (测试接口) to verify connectivity, then **"Save & Apply"** (保存并应用) — the settings take effect immediately and are also written into the subtitle engine automatically, so you don't have to change them again in the engine's own settings.
 
-> **About your API key**: the key is stored only in `data\ai_config.json` on your machine. It is not distributed with the software and is never uploaded anywhere. The software's own source code contains no real keys.
+> **About your API key**: the key is stored in `data\credentials.json` (read-only, separate from the configuration tree) on your machine. It is not distributed with the software and is never uploaded anywhere. The software's own source code contains no real keys. Leaving the key field blank when saving keeps the existing key.
 
 ### 3.1 Do You Need Speech Recognition (ASR)?
 
@@ -434,7 +433,8 @@ To switch back, click "Restore Default" (还原默认).
 ├─ 视频工具箱.exe                 main program (double-click this)
 ├─ data\                         your data (config, downloads, caches)
 │   ├─ config.json               global settings (download dir, data root, sync switch)
-│   ├─ ai_config.json            AI & ASR configuration (contains your keys — don't share)
+│   ├─ ai_config.json            AI & ASR configuration (no plaintext keys)
+│   ├─ credentials.json          AI / ASR credentials (read-only — don't share)
 │   ├─ downloads\                default download directory
 │   ├─ thumb_cache\              Video Library thumbnail cache (deletable; rebuilds automatically)
 │   ├─ waveforms\                waveform cache for the Subtitle Editor (deletable; rebuilds automatically)
@@ -451,7 +451,7 @@ To switch back, click "Restore Default" (还原默认).
 
 **Safe to delete**: `data\thumb_cache\` (thumbnail cache), `data\waveforms\` (waveform cache), `data\tmp\` (temp files), and the logs under `logs\`. All of these rebuild on demand — the first use after deletion is just a bit slower.
 
-**Do not delete**: `data\ai_config.json` (your AI key configuration), `data\config.json` (global settings), anything under `tools\`, and `docs\开源许可_GPL-3.0.txt` (full open-source license text; legally required to be kept).
+**Do not delete**: `data\ai_config.json` (AI configuration), `data\credentials.json` (your AI / ASR keys), `data\config.json` (global settings), anything under `tools\`, and `docs\开源许可_GPL-3.0.txt` (full open-source license text; legally required to be kept).
 
 ### 10.3 Uninstalling
 
@@ -476,8 +476,8 @@ A: The libmpv playback component isn't installed. Run `python tools\download_ope
 **Q: A domestic AI service (e.g. Bailian) won't connect, proxy errors?**
 A: Fixed in v1.15.7 — domestic endpoints are forced to connect directly and are no longer routed by the system proxy to overseas nodes. If you're on an older version, upgrade; the temporary workaround is to disable your proxy tool.
 
-**Q: The online installer downloads extremely slowly?**
-A: The slow part is the international link to GitHub Pages. The easiest fix is the offline installer (~548 MB, one download). With an intranet source or a proxy tool you can also speed it up — see `使用说明.txt` for details.
+**Q: The installer downloads extremely slowly?**
+A: The offline installer is ~1.0 GB and hosted on GitHub Releases (overseas); the slow part is that international link. If you already have an older version installed, you don't need the whole package — use Settings → Check for Updates for an incremental download.
 
 **Q: The downloaded subtitles have inaccurate timing?**
 A: Platforms like YouTube have a "rolling" subtitle format where one entry's end time is extended into the next, showing up as subtitles hanging on screen for a long time (measured overlap rate as high as 84.9%). Newly downloaded subtitles are auto-corrected; for existing old files, sync them manually on the Subtitle Editor page.

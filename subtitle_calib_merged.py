@@ -1,6 +1,31 @@
 # -*- coding: utf-8 -*-
-# @version 2.5.1
+# @version 2.5.2
 """字幕校准统一脚本（唯一入口，可复用，每次校准任务优先调用本脚本）
+# 2026-10-21 术语沉淀：《Our Proxy can't be this CUTE! | Arknights: Endfield Operator
+#   Story: Si》（59 cue，CRLF 无 BOM，中英双语；Serenade 译制，走 --endobi）。
+#   新增 1.6「丹青渡」术语：缘缘庄（Eso/Enishi/Manor）、明山秀水、水墨画（非水木茂漫画）、
+#   阿咬（Bitey/shoe umbrella）、巨兽代理人（Proxy）、管理员（Endmin/caretaker）、
+#   干员档案、爆竹、附赠；ENTITIES 登记祀/缘缘庄/阿咬/巨兽代理人。
+#   术语层命中 15 处；跨 cue 断句（Meizan/Su-chan/第二个找工作的人）与整句误译留逐 cue。
+# 2026-10-21 二次校准 + 术语沉淀：《【字幕】Picking BEST Gacha of 2026 Was NOT Easy....en-谷歌翻译.srt》
+#   （1782 cue，CRLF 无 BOM，中英双语；Fobm4ster 年度抽卡评选，走默认 bi）。
+#   首次全量逐 cue 重写 1740 处（谷翻跨 cue 断句 + 英文专名直译）；二校 18 处（见下）。
+#   关键订正（官方中文依据，2026-10-21 检索）：
+#   · NTE = Neverness to Everness = **《无限大》**（Hotta Studio），不是《异环》；
+#     **Ananta = 《异环》**（网易 Naked Rain）。旧 Entity 把 NTE 登记成《异环》，本次修正，
+#     并修复 REACT_TERMS 中 "Ananta->无限大" 的反向错误。
+#   · Imyth/伊米斯 = **爱弥斯**（鸣潮 3.1 五星，2026-02-06 实装）。
+#   · Nod Cry = **挪德卡莱**（原神 Nod-Krai，谷翻「诺德哭吧/点头哭泣」）。
+#   · Thurnodian/Threnodian = **鸣式**（谷翻音译「瑟诺迪人」）。
+#   · 其他补录：Where Winds Meet=燕云十六声、Path to Nowhere=无期迷途、Trickcal=嘟嘟脸恶作剧、
+#     Horizon Walker=地平线行者、Neural Cloud X=云图计划X、Varsapura=雨雾之都、
+#     Mongil: Star Dive=魔御：STAR DIVE、What in Hell is Bad?=地狱有什么不好。
+#   · 级联修复：裸键「呼啸波->鸣潮」会把「呼啸波浪」咬成「鸣潮浪」，补 4 字长键。
+#   沉淀位置：ENTITIES 追加 12 个 Entity（modes=("bi",)），REACT_TERMS 修正 2 键；
+#   终稿 verify OK、length OK（最宽 25.5/32）、幂等复跑 0 改动。
+#   ⚠ 低置信保留原文（无可靠官方中文/无法确证）：Dive、Memento Star、Stellazzura、
+#     Rose Gauntlet、Sigret、Shinku、Chasing Collider Rider、Chasing Light Rider、
+#     Anima、Meressi、Morpheus、Sword Staff、常晓、穆羽、Renova、Dumdoro、Sticks/Six。
 # 2026-10-21 二次校准 + 术语沉淀：《【字幕】Are Arknights & Endfield On The Rise？
 #   .en-谷歌翻译.srt》（473 cue，CRLF 无 BOM，中英双语；kukkikaze 社区讨论片，走 --endobi）。
 #   首次全量逐 cue 重写 462 处（谷翻跨 cue 断句），二校 6 处（#61 Reddit 子版→Reddit、
@@ -181,7 +206,7 @@ ERROR 占位行回填（谷翻批量失败的高频场景；2026-09-10 3.6 日�
 
 A. 术语校准（REPLACE 入口，唯一通用校准脚本，可复用）:
   python subtitle_calib_merged.py <input.srt> [--out out.srt] [--report diff.md]
-       [--ja|--jpe|--ko|--endo|--endobi|--endoko|--ak|--zho|--pgr|--zel] [--fix-en]
+       [--ja|--jpe|--ko|--endo|--endobi|--endoko|--ak|--zho|--pgr|--zel|--pkm] [--fix-en]
 
   默认模式（中英/双语）：BILINGUAL_TERMS + CONTEXT_MAP + WORD_MAP 统一中文行。
   --ko     韩语原声模式：KO_TERMS 统一中文行术语（OVERRIDES 已删除）。
@@ -220,6 +245,13 @@ A. 术语校准（REPLACE 入口，唯一通用校准脚本，可复用）:
            Mara->魔阴…）。表与其它片源严格隔离：**勿用 --bi 跑崩铁片**（实测会把「骑士们」
            改成「明日方舟们」、把「罪孽」改成「心月狐孽」，13 处里大半是误伤）。
            （第 3.1f/3.1g 节，官方译名检索依据见该表注释）
+  --pkm    宝可梦片源模式（2026-10-21 新增）：POKEMON_TERMS 统一首中文行城镇/作品名
+           （可可镇/角草镇->鹿子镇、空草镇->唐草镇、索努市->三曜市、卡斯特拉城->飞云市、
+           霍德莫市->帆巴市、西鲁市->双龙市、加贡镇/鹿目镇->笼目镇、索纳米镇->海边镇 等）
+           + POKEMON_CONTEXT 用英文参考行锚定歧义词（Black City->黑色市、White Forest->
+           白色森林、Ryan City->雷文市、Kawa Town->金轮镇、walking base->行进贝斯线…）。
+           表与其它片源严格隔离；「瑞安市/石浦市/川镇/黑人/白人/黑城」等正常中文词绝不进裸键。
+           （第 3.1h/3.1i 节，官方城镇名依据见该表注释）
   --fix-en 英文/参考行修正：对 cue 内中文行以外的文本行应用 EN_LINE_TERM_FIXES
            （仅双语模式；默认参考行一字不动）。
   不传 --out 则只做"术语命中统计"，不改写文件。
@@ -1088,7 +1120,9 @@ BILINGUAL_TERMS = {
     "岸上守门员": "守岸人", "岸上守卫": "守岸人",                  # Shorekeeper（#287/298）
     "Card itth ia": "卡提希娅",                                    # Cartethyia（#288）
     "Cam ellia": "椿",                                             # Camellia（#2087/2089/2138）
-    "金时": "今汐",                                                # Jinhsi（#2190）
+    # 2026-10-21 废除裸键 "金时"->"今汐"：会误伤「黄金时代」（Fobm4ster 片 #184 实测
+    # 「黄今汐代」）。今汐统一走 CONTEXT_MAP 英文锚定（\bJinshi\b / \bJinhsi\b），
+    # 短中文裸键不得入表（硬契约第 4 条）。
     "景跑": "忌炎", "Jing ran": "忌炎",                            # Jiyan（#3084/3112）
     "清朝×嚷": "清宵",                                             # Qingxiao（#3317）
     "拉海罗": "拉海洛",                                            # Lahai Roi（"拉海罗伊"长键先行）
@@ -4017,6 +4051,21 @@ ENDFIELD_BI_TERMS = {
     "Warframe": "星际战甲",
     "Love and Deep Space": "恋与深空",
     "TFT": "云顶之弈",
+    # --- 2026-10-21 沉淀：《Our Proxy can't be this CUTE! | Arknights: Endfield
+    #   Operator Story: Si》英文转写反应合集（Serenade 译制，59 cue，--endobi）。
+    #   官方依据：官网干员页（祀/巨兽代理人/宏山科学院）、官方微博「祀：洒扫庭除」、
+    #   B站官方 PV BV1fspq6cEty、Arknights Terra Wiki Bitey（阿咬）、JP 版 PV 字幕
+    #   「明山秀水を独占し」「褒美に爆竹をやろう」「この部屋はオマケじゃ」。
+    #   ⚠ 本片是「日语→英→中」二次转写：术语层只收可复用的非通用错形；跨 cue 断句
+    #     （第二个/找工作的人、Meizan、Su-chan）与整句误译走逐 cue 覆盖，不进表。
+    "操作员文件": "干员档案", "操作员档案": "干员档案",
+    # 不用「服装店老板」：既有短键「老板->Boss」会把它二次咬成「服装店Boss」（terms-check 实测）
+    "服装业主": "服装店主",
+    "鞋伞": "阿咬",
+    "缘缘庄园": "缘缘庄", "圆圆庄园": "缘缘庄",
+    "垄断了名山的供水": "独占明山秀水", "垄断了名山供水": "独占明山秀水",
+    "垄断着名山的供水": "独占着明山秀水", "名山的供水": "明山秀水",
+    "名山供水": "明山秀水",
 }
 
 
@@ -4337,6 +4386,28 @@ ENDFIELD_BI_CONTEXT = [
     (r"\bstar\s?rail\b", "星轨", "星穹铁道"),
     (r"\bgacha\b", "嘎查", "抽卡"),
     (r"reclamation\s+algorithm", "回收算法", "生息演算"),
+    # ---- 2026-10-21 沉淀（同片；错形本身是通用中文词，必须英文参考行佐证）----
+    #  ⚠ 锚点匹配文件里真实存在的 ASR 英文（Eso/Eni/Mizuki Shigeru/famous mountain 等），
+    #    不是纠正后的写法；--endobi 只改首中文行，英文参考行一字不动。
+    (r"\beso\b|yuanyuan\s+manor|enishi", "埃索", "缘缘庄"),
+    (r"\beni\b", "埃尼", "缘缘庄"),
+    (r"yuanyuan\s+manor|enishi|\beso\b", "圆圆庄园", "缘缘庄"),
+    (r"yuanyuan\s+manor|enishi|\beso\b", "缘缘庄园", "缘缘庄"),
+    (r"best\s+inn|yuanyuan\s+manor|enishi|\beso\b", "旅馆", "客栈"),
+    (r"famous\s+mountains?|water\s+supply", "名山的供水", "明山秀水"),
+    (r"famous\s+mountains?|water\s+supply", "名山供水", "明山秀水"),
+    (r"mizuki\s+shigeru|ink\s+wash", "水木茂漫画", "水墨画"),
+    (r"mizuki\s+shigeru|ink\s+wash", "水木茂的漫画", "水墨画"),
+    (r"mizuki\s+shigeru|ink\s+wash", "水木茂", "水墨画"),
+    (r"\bfirecrackers?\b", "鞭炮", "爆竹"),
+    (r"\bcaretaker\b|\bendmin(?:istrator)?\b", "看门人", "管理员"),
+    (r"\bcaretaker\b", "看守人", "管理员"),
+    # 只锚本片实际 ASR 形态，避免普通「第二个人」语境误伤
+    (r"being\s+the\s+second|second\s+person'?s\s+power|feranmut\s+proxy", "第二个人", "代理人"),
+    (r"being\s+the\s+second|second\s+person'?s\s+power|feranmut\s+proxy", "第二人", "代理人"),
+    (r"being\s+the\s+second|second\s+person'?s\s+power|feranmut\s+proxy", "第二个", "代理人"),
+    (r"this\s+room\s+is\s+just\s+a\s+bonus|room\s+is\s+just\s+a\s+bonus", "额外的好处", "附赠"),
+    (r"\bbitey\b|shoe\s+umbrella", "咬咬", "阿咬"),
 ]
 
 # =============================================================
@@ -6272,7 +6343,8 @@ REACT_TERMS = {
     # 处理：extract→逐 cue 对着英文参考行整行重写中文→二次检索官方中文后精修；verify+length 全过。
     # 官方依据（均已检索确认）：
     #   Noticefall / Nodusfall = 米哈游新作《源初之结》（类怪物猎人多人共斗 ARPG，Gamescom 2026 首曝，
-    #     被指像《艾尔登法环》+《怪物猎人》）；Ananta = 网易《无限大》（Naked Rain）；
+    #     被指像《艾尔登法环》+《怪物猎人》）；Ananta = 网易《异环》（Naked Rain，
+    #     与 Hotta Studio 的 NTE《无限大》是两款不同作品，2026-10-21 订正）；
     #   Duet Night Abyss(DNA) = 英雄游戏《二重螺旋》（Pan Studio，被指抄袭 Warframe）；
     #   Mighty = 万敌（崩坏：星穹铁道角色，与 Fate 吉尔伽美什立绘撞车引争议）；
     #   Jane Doe = 简·杜（绝区零）；Uncus/Unctus = Eunectes 森蚺（明日方舟萨尔贡重装，盾+斧+机甲）。
@@ -6281,7 +6353,8 @@ REACT_TERMS = {
     #      "深空之眼"是真实游戏（Aether Gazer）官方名，裸键会误伤正常语境；
     #      它们已通过下方 `REACT_CONTEXT` 参考行佐证机制（英文 \bDNA\b / D Night Abyss 命中才替换）安全入表。
     "Noticefall": "源初之结", "notice fall": "源初之结", "Nodusfall": "源初之结",
-    "Ananta": "无限大",
+    "Neverness to Everness": "无限大", "NTE": "无限大",   # NTE 官方中文《无限大》（长键先行）
+    "Ananta": "异环",                                     # Ananta 官方中文《异环》，勿与 NTE 混
     "Jane Doe": "简·杜",
     "Mighty": "万敌",
     "Uncus": "森蚺", "Unctus": "森蚺",
@@ -6385,6 +6458,62 @@ HSR_CONTEXT = [
 ]
 _HSR_CONTEXT_COMPILED = [(re.compile(rx, re.I), wrong, right)
                          for rx, wrong, right in HSR_CONTEXT if wrong and right]
+
+# =============================================================
+# 3.1h 《宝可梦 黑／白》城镇主题 reaction 片术语表（模式 --pkm，2026-10-21 新增）
+# =============================================================
+# 片源：《Pokémon Fans Were Right: Town Themes are ADDICTIVE》——MarcoMeatball
+#   英语原声 + 谷歌翻译中文，547 cue，每 cue 恰 2 文本行（首中文、次英文参考行），
+#   CRLF、无 BOM。首轮人工逐 cue 复核修正 429 处；本表沉淀可复用的专名规则。
+# 官方依据（2026-10-21 检索 52poke / 百度百科 / Bulbapedia）：
+#   合众城镇：鹿子镇(Nuvema/カノコ) 唐草镇(Accumula/カラクサ) 三曜市(Striaton/サンヨウ)
+#   七宝市(Nacrene/シッポウ) 飞云市(Castelia/ヒウン) 雷文市(Nimbasa/ライモン)
+#   帆巴市(Driftveil/ホドモエ) 吹寄市(Mistralton/フキヨセ) 雪花市(Icirrus/セッカ)
+#   双龙市(Opelucid/ソウリュウ) 笼目镇(Lacunosa/カゴメ) 海边镇(Undella/サザナミ)
+#   金轮镇(Anville/カナワ) 黑色市(Black City) 白色森林(White Forest) 宝可梦联盟。
+# ⚠ 谷翻把日文城镇名按罗马音/字面直译，错形与正常中文词高度重叠：
+#   「瑞安市」是真实城市、「石浦」是真实地名，「川镇」「黑人/白人」「黑城」「白森林」
+#   都可能是正常语义 → 这些**一律走 POKEMON_CONTEXT 英文参考行锚定**，绝不进裸键。
+#   只有明确音译错形（可可镇/角草镇/空草镇/索努市/霍德莫市/西鲁市/加贡镇/鹿目镇/
+#   索纳米镇/漂移面纱/卡斯特拉城/卡斯特拉市/宝可梦黑…）才作为安全裸键。
+POKEMON_TERMS = {
+    # ---- 城镇名：谷翻音译/字面直译 -> 官方中文 ----
+    "可可镇": "鹿子镇", "角草镇": "鹿子镇",          # Kanoko Town（#75/#52 两处 ASR 变体）
+    "空草镇": "唐草镇",                              # Karakusa Town
+    "索努市": "三曜市",                              # Sanyou City
+    "卡斯特拉城": "飞云市", "卡斯特拉市": "飞云市",    # Castelia City（谷翻按 Castella 音译）
+    "霍德莫市": "帆巴市",                            # Hodomoe City
+    "霍德莫伊·志布·萨努·卡库萨": "帆巴、七宝、三曜、唐草",  # #236 四城连读
+    "漂移面纱": "帆巴市",                            # Drift Veil 字面直译（#210）
+    "西鲁市": "双龙市",                              # Souryuu City（Siru/Sour ASR 截断）
+    "加贡镇": "笼目镇", "鹿目镇": "笼目镇",          # Kagome Town（#333 自我纠正两次）
+    "索纳米镇": "海边镇",                            # Sazanami Town
+    "白人代表好": "白色森林",                        # #433 White For Okay 机翻残句
+    # ---- 作品名规范化（官方中文用空格/斜杠）----
+    "宝可梦黑白": "宝可梦 黑／白",
+    "宝可梦黑": "宝可梦 黑",
+    "宝可梦白": "宝可梦 白",
+}
+
+# 3.1i POKEMON_CONTEXT：宝可梦片源的**歧义中文词**锚定表（仅 --pkm 生效）。
+#   结构同 HSR_CONTEXT：(英文参考行正则, 中文错误形式, 中文正确形式)。
+POKEMON_CONTEXT = [
+    (r"\bShipu City\b|\bShipoo City\b", "石浦市", "七宝市"),
+    (r"\bRyan City\b", "瑞安市", "雷文市"),
+    (r"\bKawa Town\b|\bKanawa Town\b", "川镇", "金轮镇"),
+    (r"\bBlack City\b", "黑城", "黑色市"),
+    (r"\bBlack City\b", "黑人", "黑色市"),
+    (r"\bWhite Forest\b", "白森林", "白色森林"),
+    (r"\bWhite Forest\b", "白人", "白色森林"),
+    (r"\bBlack City\b.*\bWhite\b", "白人", "白色森林"),   # #433 两城同句
+    (r"\bcalled Drift\b", "漂移", "Drift"),             # #220 讨论英文名，保留原文
+    (r"\bwalking base\b", "行走底座", "行进贝斯线"),
+    (r"\bwalking base\b", "步行基地", "行进贝斯线"),
+    (r"\bwalking track\b", "步行跑道", "散步曲"),
+    (r"\bA SA city\b|\bSekka [Cc]ity\b", "南非城市", "雪花市"),
+]
+_POKEMON_CONTEXT_COMPILED = [(re.compile(rx, re.I), wrong, right)
+                             for rx, wrong, right in POKEMON_CONTEXT if wrong and right]
 
 # =============================================================
 # 5. 英文参考行修正资产（2026-08-29 并入；原 ERROR 占位行翻译表已于同日删除）
@@ -6850,11 +6979,12 @@ _MODE_TERM_TABLE = {
     "ak": "AK_TERMS", "akko": "AK_KO_TERMS", "zho": "ZH_ONLY_TERMS",
     "pgren": "PGR_EN_TERMS", "react": "REACT_TERMS",
     "endobi": "ENDFIELD_BI_TERMS", "endoko": "ENDFIELD_KO_TERMS",
+    "pkm": "POKEMON_TERMS",
 }
 _MODE_CTX_TABLE = {
     "bi": "CONTEXT_MAP", "ja": "JA_CONTEXT", "jpe": "JA_ENDFIELD_CONTEXT",
     "akko": "AK_KO_CONTEXT", "ko": "KO_CONTEXT", "ak": "AK_CONTEXT",
-    "endoko": "ENDFIELD_KO_CONTEXT",
+    "endoko": "ENDFIELD_KO_CONTEXT", "pkm": "POKEMON_CONTEXT",
     # 2026-10-20 新增：--endobi 此前无语境槽，通用中文词类官方名（枯萎/主管/以太/觉醒/
     #   蚁人/前哨基地…）无处锚定，只能逐 cue；现补 ENDFIELD_BI_CONTEXT 与 endoko 同构。
     #   --endo **不建槽**：单语片源每 cue 仅一行，ref 即该中文行本身，英文锚定永不命中。
@@ -6865,7 +6995,7 @@ _MODE_NAMES = {
     "ko": "韩语原声·鸣潮", "wwoc": "综合手游OST", "endo": "终末地",
     "ak": "明日方舟", "akko": "明日方舟韩语", "zho": "中文行专属",
     "pgren": "战双英文原声", "react": "音乐点评", "endobi": "终末地·中英双语", "fix-en": "英文参考行修正",
-    "endoko": "终末地·韩语原声",
+    "endoko": "终末地·韩语原声", "pkm": "宝可梦城镇主题",
 }
 
 
@@ -9036,6 +9166,26 @@ ENTITIES = [
                 "英文 ASR 听成 'Peng Peng'，谷翻常作'乒乓/Ping Pong'；'特别干员问答'=蓬蓬的"
                 "干员采访栏目。⚠ 裸键'乒乓'危险（真实乒乓球运动语境），只收组合形态，"
                 "单字场景走逐 cue 侧车。"),
+    # --- 2026-10-21 沉淀：终末地 1.6「丹青渡」祀干员叙事反应片（规则见
+    #     ENDFIELD_BI_TERMS / ENDFIELD_BI_CONTEXT 同日注释）---
+    Entity("祀", modes=("endobi",), en="Si", ja="スー",
+           category="角色/终末地1.6",
+           note="六星寒冷辅助，巨兽「岁」的第十三位代理人，缘缘庄掌柜；官方干员叙事"
+                "《祀：洒扫庭除》。英文名 Si，日文名「スー」；ASR 常作 Su/Sue/Lady Sa，"
+                "谷翻作苏姑娘/苏女士/圣母/萨夫人，规则见 ENDFIELD_BI_CONTEXT。"),
+    Entity("缘缘庄", modes=("endobi",), en="Yuanyuan Manor / Enishi Manor",
+           category="地点/终末地1.6",
+           note="1.6「烟火生缘」乡间客栈，位于武陵·祀的画；官方宣传语「缘缘庄，可是"
+                "塔卫二最好的客栈」。英文 ASR 常作 Eso/Enishi/Manor，谷翻作埃索/严府/"
+                "萨庄/雅虎庄园等，规则见 ENDFIELD_BI_CONTEXT。"),
+    Entity("阿咬", modes=("endobi",), en="Bitey",
+           category="生物/终末地1.6",
+           note="墨魉，画家祀取名；官方中文名阿咬（Arknights Terra Wiki Bitey）。"
+                "本片英文 ASR 作 Bitey/shoe umbrella，谷翻作咬咬/鞋伞。"),
+    Entity("巨兽代理人", modes=("endobi",), en="Feranmut Proxy",
+           category="设定/终末地",
+           note="EN 官方称 Si 为 Feranmut Proxy；中文官方称谓巨兽代理人（官网干员页）。"
+                "ASR 常把 Proxy 读成 second person，谷翻作第二个人/第二个。"),
     # ============================================================
     # 2026-10-10《Jadealy REACTS to Every HSIN Trailers – Wuthering Waves》
     #   （鸣潮 3.7「心」全部预告片合集 reaction，中英双语，502 cues）二次校准沉淀。
@@ -9467,7 +9617,7 @@ ENTITIES = [
            note="暗影中队第 11 小队队长（角色 卡蜜儿·裘伊）。中文媒体亦作 Moon 11，保留英文。"),
     Entity("索托亚", modes=("bi",), en="Sotoya", category="势力/国家",
            variants=(),
-           ctx=((r"\bSatoan|\bSotoan|\bSatan", "撒旦"),),
+           ctx=((r"\bSatoan|\bSotoan|\bSatan(?!\s+of\s+(?:gotcha|gacha)\s+companies)", "撒旦"),),
            note="AC8 敌国。主播口播 Satoan/Sotoan（索托亚人），英文 ASR 误作 Satan；"
                 "『撒旦』是常用词，只走参考行 Satan/Sotoan/Satoan 锚定（音频复核 2026-10-14 定案）。"),
     Entity("寇普", modes=("bi",), en="Jan Cope", category="角色",
@@ -9873,8 +10023,13 @@ for _c, _en, _v, _ctx, _cat, _note in (
      "「帝国」是常用词，靠参考行锚定。"),
     ("吟霖", "Yinlin", (), ((r"\bYin\b", "尹氏"),), "角色/鸣潮",
      "本片 #5610 谷翻把 Yin 译成「尹氏」（the jiggle. Yin's），靠参考行锚定。"),
-    ("异环", "Neverness to Everness", ("NTE",), (), "作品/游戏",
-     "库洛发行商作品 NTE = 《异环》（官方中文名）。"),
+    ("无限大", "Neverness to Everness", ("NTE", "Neverness to Everness"), (), "作品/游戏",
+     "NTE = Neverness to Everness = 官方中文《无限大》（Hotta Studio/完美世界）。"
+     "⚠ 2026-10-21 Fobm4ster 年度抽卡评选片订正：旧条目误把 NTE 登记为《异环》；"
+     "《异环》是 Ananta（网易 Naked Rain），两者是不同作品，勿再混用。"),
+    ("异环", "Ananta", ("Ananta",), (), "作品/游戏",
+     "Ananta = 官方中文《异环》（网易 Naked Rain）。与 NTE《无限大》严格区分；"
+     "2026-10-21 由 Fobm4ster 片源校准沉淀。"),
     ("边缘行者", "Edgerunners", ("Edge Runners", "Edgeunners", "Edge 跑者",
                                  "边缘跑者"), (), "作品/动画",
      "本片 #2725/#6024/#6035/#6039 提到《赛博朋克：边缘行者》，"
@@ -9883,6 +10038,41 @@ for _c, _en, _v, _ctx, _cat, _note in (
      "本片 #2174「傻乎乎的COD后果」，COD 即 Call of Duty 官方中文名。"),
     ("少女前线", "Girls' Frontline", ("女孩前线",), (), "作品/游戏",
      "本片 #3842/#3843 谷翻把 Girls' Frontline 直译「女孩前线」。"),
+    # ---- 2026-10-21 Fobm4ster 年度抽卡评选片（1782 cue，谷翻）二校沉淀 ----
+    # 依据：官方账号/百科/台服公告（2026-10-21 检索）。均为生僻长键或英文专名，裸键安全。
+    ("挪德卡莱", "Nod-Krai", ("诺德哭吧", "点头哭泣", "诺德卡莱", "Nod Cry", "Nod Krai"),
+     (), "地点/原神",
+     "原神 6.x 地区 Nod-Krai 官方中文「挪德卡莱」；本片谷翻把 Nod Cry 直译成"
+     "「诺德哭吧/点头哭泣」，#608-#624 已逐条订正。"),
+    ("无期迷途", "Path to Nowhere", ("通往无处之路", "Path to Nowhere"), (), "作品/游戏",
+     "本片 #1498 谷翻把 Path to Nowhere 直译「通往无处之路」，官方中文「无期迷途」。"),
+    ("燕云十六声", "Where Winds Meet", ("Where's Me", "Where Winds Meet"), (), "作品/游戏",
+     "本片 #543 的 Where's Me 是 Where Winds Meet 的 ASR 误听，官方中文「燕云十六声」。"),
+    ("嘟嘟脸恶作剧", "Trickcal: Revive", ("Trickal", "Trickcal", "Trickcal Revive"),
+     (), "作品/游戏",
+     "本片 #383-#386 的 Trickal 即 Epid Games《Trickcal: Revive》，台服官方中文「嘟嘟脸恶作剧」。"),
+    ("地平线行者", "Horizon Walker", ("Horizon Walker",), (), "作品/游戏",
+     "本片 #1621 的 Horizon Walker 官方中文「地平线行者」（韩系回合制 SRPG）。"),
+    ("云图计划X", "Neural Cloud X", ("Neural Cloud X",), (), "作品/游戏",
+     "本片 #1758-#1776 的 Neural Cloud X 属《少女前线：云图计划》系列；"
+     "X 为官方副标未另译，中文行统一「云图计划X」。"),
+    ("雨雾之都", "Varsapura", ("Varsapura", "Varso Pro"), (), "作品/游戏",
+     "米哈游 UE5 新作 Varsapura，2026-06 官方中文名「雨雾之都」；本片 #1685/#1695 已订正。"),
+    ("魔御：STAR DIVE", "Mongil: Star Dive",
+     ("Stardive", "Star Dive", "Mongil", "MONGIL"), (), "作品/游戏",
+     "网石 Netmarble《魔御：STAR DIVE》（MONGIL: STAR DIVE）；本片 2026 年度评选讨论的"
+     "「Stardive」即此作，官方中文见百科/台服公告。"),
+    ("地狱有什么不好", "What in Hell is Bad?",
+     ("What in Hell is Bad?", "What in Hell is Bad"), (), "作品/游戏",
+     "Prettybusy 乙女塔防《What in Hell is Bad?》，中文名「地狱有什么不好」；#1463 已订正。"),
+    ("鸣式", "Threnodian", ("瑟诺迪人", "Thurnodians", "Thurnodian"), (), "术语/鸣潮",
+     "鸣潮世界威胁 Threnodian 官方中文「鸣式」；本片 #982 谷翻音译「瑟诺迪人」，已订正。"),
+    ("爱弥斯", "Aemeath", ("伊米斯", "Imyth"), (), "角色/鸣潮",
+     "鸣潮 3.1 五星共鸣者 爱弥斯（2026-02-06 实装）；本片谷翻音译「伊米斯」/英文残留"
+     " Imyth（ASR 也作 I'm it），已逐条订正。"),
+    ("鸣潮", "Wuthering Waves", ("呼啸波浪", "呼啸波涛"), (), "作品/游戏",
+     "级联修复：裸键「呼啸波->鸣潮」会把「呼啸波浪」咬成「鸣潮浪」（本片基线 9 处）；"
+     "4 字长键先行即可整体归「鸣潮」。"),
 ):
     ENTITIES.append(Entity(_c, modes=("bi",), en=_en, variants=_v, ctx=_ctx,
                            category=_cat, note=_note))
@@ -9940,6 +10130,7 @@ def _rebuild_context_caches():
     global _ENDFIELD_KO_CONTEXT_COMPILED
     global _ENDFIELD_BI_CONTEXT_COMPILED
     global _HSR_CONTEXT_COMPILED
+    global _POKEMON_CONTEXT_COMPILED
     _CONTEXT_COMPILED = [(re.compile(rx, re.I), wrong, right)
                          for rx, wrong, right in CONTEXT_MAP if wrong and right]
     _EXCLUDE_COMPILED = {w: (right, [re.compile(rx, re.I) for rx in rxs])
@@ -9956,6 +10147,8 @@ def _rebuild_context_caches():
                                      for rx, wrong, right in ENDFIELD_BI_CONTEXT]
     _HSR_CONTEXT_COMPILED = [(re.compile(rx, re.I), wrong, right)
                              for rx, wrong, right in HSR_CONTEXT if wrong and right]
+    _POKEMON_CONTEXT_COMPILED = [(re.compile(rx, re.I), wrong, right)
+                                 for rx, wrong, right in POKEMON_CONTEXT if wrong and right]
 
 
 _register_entities()
@@ -10958,6 +11151,8 @@ def process(path, out_path=None, report_path=None, mode="bi",
         terms = ZELDA_TERMS
     elif mode == "hsr":         # 崩坏：星穹铁道片源（2026-10-20 新增）：HSR_TERMS + HSR_CONTEXT，独立于其它片源表
         terms = HSR_TERMS
+    elif mode == "pkm":         # 宝可梦片源（2026-10-21 新增）：POKEMON_TERMS + POKEMON_CONTEXT，独立于其它片源表
+        terms = POKEMON_TERMS
     elif mode == "pgr":
         terms = {}
     else:
@@ -11071,6 +11266,14 @@ def process(path, out_path=None, report_path=None, mode="bi",
                     elif mode == "hsr":       # 崩坏：星穹铁道：HSR_TERMS 统一首中文行 + HSR_CONTEXT 英文参考行佐证
                         new = _replace_report(old, term_pairs, term_chars, hits)
                         for crx, wrong, right in _HSR_CONTEXT_COMPILED:
+                            if wrong in new and crx.search(ref_m):
+                                new = _ctx_replace(new, wrong, right)
+                        if new != old:
+                            rows.append((num, old, new, ref))
+                            out[zh_idx] = new
+                    elif mode == "pkm":       # 宝可梦：POKEMON_TERMS 统一首中文行 + POKEMON_CONTEXT 英文参考行佐证
+                        new = _replace_report(old, term_pairs, term_chars, hits)
+                        for crx, wrong, right in _POKEMON_CONTEXT_COMPILED:
                             if wrong in new and crx.search(ref_m):
                                 new = _ctx_replace(new, wrong, right)
                         if new != old:
@@ -12523,13 +12726,17 @@ def main_argv():
             mode = "zel"; i += 1
         elif a == "--hsr":
             mode = "hsr"; i += 1
+        elif a == "--pkm":
+            mode = "pkm"; i += 1
         elif a == "--fix-en":
             fix_en = True; i += 1
         elif a == "--kb" and i + 1 < len(args):
             learned_kb = args[i + 1]; i += 2
         elif a == "--mode" and i + 1 < len(args):
             m = args[i + 1].lower()
-            if m in ("hsr", "starrail", "star_rail", "honkai_starrail", "honkaistarrail"):
+            if m in ("pkm", "pokemon", "pokémon", "pocket_monsters"):
+                mode = "pkm"
+            elif m in ("hsr", "starrail", "star_rail", "honkai_starrail", "honkaistarrail"):
                 mode = "hsr"
             else:
                 mode = "ja" if m in ("ja", "japanese") else ("ko" if m in ("ko", "korean") else ("ak" if m in ("ak", "arknights") else ("zho" if m in ("zho", "zhonly", "zh_only") else ("endo" if m in ("endo", "endfield") else ("zel" if m in ("zel", "zelda", "legend of zelda", "zelda_direct") else "bi")))))
@@ -12570,7 +12777,8 @@ def main_argv():
              "pgren": "战双帕弥什·英文原声 (PGR_EN_TERMS)",
              "react": "音乐/演唱点评 (REACT_TERMS)",
              "zel": "塞尔达传说 (ZELDA_TERMS)",
-             "hsr": "崩坏：星穹铁道 (HSR_TERMS + HSR_CONTEXT)"}
+             "hsr": "崩坏：星穹铁道 (HSR_TERMS + HSR_CONTEXT)",
+             "pkm": "宝可梦城镇主题 (POKEMON_TERMS + POKEMON_CONTEXT)"}
     extra = (" + 英文行修正(--fix-en)" if fix_en else "")
     print("模式:", names[mode] + extra)
     if learned_kb:

@@ -2365,7 +2365,7 @@
    "mode": "bi",
    "count": 9,
    "uncorrected": 0,
-   "status": "confirmed",
+   "status": "rejected",
    "cues": [
     40,
     444,
@@ -2383,7 +2383,8 @@
    "first": "2026-10-05",
    "last": "2026-10-19",
    "alts": {},
-   "sync": true
+   "sync": true,
+   "rejected_reason": "2026-10-21 裸键误伤 Shinku（Fobm4ster 片 #492：Shinku->心月狐ku）。Shin 是常用英文短键，禁用；心月狐统一走 CONTEXT_MAP 英文锚定 \bShin\b（word boundary 不咬 Shinku）。"
   },
   "bi|兵部": {
    "wrong": "兵部",
