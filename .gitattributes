@@ -25,3 +25,7 @@
 # 文本文件沿用仓库既有的 core.autocrlf 策略，此处**不**加 text=auto。
 # 原因：项目里 CRLF/LF 混存是历史事实，强制归一化会让几十个文件整体重写，
 # 淹没真实改动。要动行尾请单独提一个只改行尾的提交。
+
+# Git 钩子必须以 LF 检出（2026-10-22）：shebang 后带 \r 会让 sh 报
+# "bad interpreter: /bin/sh^M"，钩子静默失效。
+scripts/dev/githooks/* text eol=lf
