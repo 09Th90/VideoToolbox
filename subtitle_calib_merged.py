@@ -1,6 +1,46 @@
 # -*- coding: utf-8 -*-
 # @version 2.5.4
 """字幕校准统一脚本（唯一入口，可复用，每次校准任务优先调用本脚本）
+# 2026-10-22 二次校准 + 脚本订正：《Gacha Games Have A Villain Problem》（1261 cue，
+#   CRLF 无 BOM，英语原声 + 谷歌翻译，detect=bi）。
+#   二校漏校/错名订正（官方中文依据，2026-10-22 检索）：
+#   · Lee Heng / Lee = 《边狱公司》第八章角色 **雷横**（非「李恒/李」；原片 ASR 拆写）。
+#   · Axia 不是角色名：#858 "He had Axia and your sinners" = "had it out with you and
+#     your sinners"；#898 "Ricardo and Axia" 结合前文 Ahab 语境判为 **Ahab/亚哈**。
+#   · 官方名：路易·圭亚贝伦（Louis Guiabern，ASR Luis Guayabero）、来古士（Lygus，
+#     ASR Logos）、翁法罗斯（Amphoreus，ASR Am Farious/Amforius）、博识尊（Nous）、
+#     冥火大公（Duke Inferno）、幻胧（Phantylia，ASR Fontaine/Fontainlia）、亚哈、
+#     里卡多、黄泉（Acheron，谷翻「阿刻隆」）。
+#   脚本订正（本片基线 report 暴露的误伤）：
+#   · 裸键 Knights->明日方舟 误伤 Batman: Arkham Knights（#61）→ 加负向后顾。
+#   · conduct->指挥 误伤 conducted an online survey（#238）→ survey/research 语境回滚。
+#   · Angel->安吉尔 误伤频道名 50/50 Angel（#66）→ 参考行 50/50 Angel 回滚。
+#   · 项目 canonical「边狱巴士」订正为官方名 **《边狱公司》**，ENTITIES/ENDFIELD_BI_TERMS 同步。
+#   沉淀：ENTITIES 新增 边狱公司/雷横/亚哈/里卡多/来古士/翁法罗斯/博识尊/冥火大公/幻胧/
+#     黄泉/路易·圭亚贝伦/金属脸/修尔克/丹邦/菲奥伦/莱恩/莫纳德/机神兵；BILINGUAL_TERMS
+#     收 方丹利亚/公爵的舞会地狱/绝对的身体/掠夺者领主/阿姆·法瑞厄斯/阿刻隆 等本片错形。
+#   ⚠ 低置信保留原文：Mirth（#1086 按语境推为 worth，已改「值了」，存疑）、
+#     Magica Bell（#87 无法确证）、Mayasabau（#237 论文作者）、we're big / simple time /
+#     love band / evil something swim（源英文 ASR 乱码）。
+# 2026-10-22 二校 + 术语沉淀：《MUSICIAN DISCOVERS Wuthering Waves' INSANE OST!》
+#   （490 cue，CRLF 无 BOM，英语原声 + 谷歌翻译，detect=bi；首校 296 条整行重写、
+#   净 295 处；二校 2 处专名订正）。
+#   官方中文依据（2026-10-22 检索：B站鸣潮先约电台 / 萌娘百科 / Genius / 百度百科）：
+#   · Against the Tide = 《逆潮》（EP2.4 卡提希娅角色曲；Forts 演唱，
+#     Obadiah Brown-Beach 词曲/编曲/吉他，Hexany Audio 混音母带）。
+#   · Ode to Hsin and Moon = 《心月辞·长相望》（EP3.7 心/心月狐；苏诗丁演唱，
+#     金大洲制作/作曲；英文版 Endless Yearning）。
+#   · One More Wish = 《愿》（EP3.3 绯雪；Miku Nakamura 曲，雷雨心中文演唱）。
+#   · Eisodus = 《定玄》（3.5 玄方区域主题曲；黄霄雲演唱，杨秉音作曲，申名利作词）。
+#   二校订正：#113「奥巴代亚·布朗」→ Obadiah Brown-Beach（官方 credit 全名）；
+#     #156「Persona音乐」→《女神异闻录》音乐（首校把谷翻已正确的译名回退成英文，已恢复）。
+#   沉淀：BILINGUAL_TERMS/REACT_TERMS 收 Obadiah 变体与 Persona音乐 组合键；
+#     ENTITIES 登记「心月辞·长相望」「Forts」「Obadiah Brown-Beach」；_MUSIC_WW 补「定玄（Eisodus）」。
+#   ⚠ 低置信保留原文：Koshka（疑为上传频道名）、Gosha（疑为人名）、Route/Two（观众名）、
+#     Lyn/Jamie（艺人名）——公开资料无法确证，按戒律不动。
+#   学习库：否决 `bi|融合 -> 热熔`（通用词裸键；本片 #355「genre incorporations」被误改，
+#     该规则原始样本「modern fusion」本身更像音乐流派融合而非鸣潮热熔）；
+#     备份见工作目录 subtitle_learned_kb.backup-20261022.json。
 # 2026-10-21 术语沉淀：《Our Proxy can't be this CUTE! | Arknights: Endfield Operator
 #   Story: Si》（59 cue，CRLF 无 BOM，中英双语；Serenade 译制，走 --endobi）。
 #   新增 1.6「丹青渡」术语：缘缘庄（Eso/Enishi/Manor）、明山秀水、水墨画（非水木茂漫画）、
@@ -845,10 +885,25 @@ BILINGUAL_TERMS = {
     "Flaming Sakura": "灼樱", "flaming Sakura": "灼樱",
     # 陆·赫斯(Luuk Herssen，星炬学院共鸣医疗科主执校医)：英文 ASR 常作 Luke/Luuk
     "Luke": "陆·赫斯", "Luuk": "陆·赫斯", "卢克": "陆·赫斯",
+    # 2026-10-22 Tenha 鸣潮全 EP reaction 片（2015 cue）补录：ASR 整名 Luke Carson / Luke Hson。
+    #   必须长键先行，否则短键 "卢克"/"Luke" 命中后留下「陆·赫斯·卡森 / 陆·赫斯·赫森」残尾
+    #   （本片 #1343/#1394 基线实测）。“陆·赫斯·卡森”键同时保证二次运行幂等。
+    "Luke Carson": "陆·赫斯", "Luke Hson": "陆·赫斯",
+    "Luuk Herssen": "陆·赫斯", "Luuk Herrsen": "陆·赫斯",
+    "卢克·卡森": "陆·赫斯", "卢克·赫森": "陆·赫斯",
+    "陆·赫斯·卡森": "陆·赫斯", "陆·赫斯·赫森": "陆·赫斯",
     # 琳奈(Linny/Lenna，星炬学院预科班学生)：ASR 变体 Lenny/Linny/Lenise；中文机翻"莱妮丝/林尼/莱尼"
     "Linny": "琳奈", "Lenny": "琳奈", "Lenise": "琳奈", "林尼": "琳奈", "莱尼": "琳奈", "莱妮丝": "琳奈",
     # 莫宁(Mornye，深空联合研究院学者/星炬学院教授)：ASR 变体 Mouier/Mor
     "Mouier": "莫宁", "Mornye": "莫宁", "莫尔教授": "莫宁教授", "穆耶教授": "莫宁教授",
+    # --- 2026-10-22 Tenha 鸣潮全 EP reaction 片补录（均为非词专名/ASR 整名，裸键安全）---
+    #   Suisui=穗穗、Canellilla=坎特蕾拉、Carthais=卡提希娅、Loopa=露帕、Pearlova=弗洛洛；
+    #   “卡内利亚”为谷翻对 Cantarella 的音译错形（本片 #350）。
+    #   Galena(方铅矿)/Galina(加琳娜)/Bourne(伯恩)/Brand(品牌)/Gian(吉安) 是常用词，
+    #   一律走下方 CONTEXT_MAP 参考行锚定，绝不裸键。
+    "Suisui": "穗穗", "Canellilla": "坎特蕾拉", "Canelilla": "坎特蕾拉",
+    "Carthais": "卡提希娅", "Loopa": "露帕", "Pearlova": "弗洛洛",
+    "卡内利亚": "坎特蕾拉",
     # 西格莉卡(Sigrika，星炬学院学生/罗伊符文共鸣者)：ASR 变体 Skiprika/Skip Raa
     "Skiprika": "西格莉卡", "Skip Raa": "西格莉卡", "斯基普里卡": "西格莉卡",
     # 铃(Suzu)：绯雪共鸣能力「预求身」的引子，官方中文=铃；ASR 作 sudsu
@@ -979,6 +1034,14 @@ BILINGUAL_TERMS = {
     # 溯心(Susheen) / 锁暝(Swarming) 英文残留（出现在中文行 = 未译专名）
     "Sushi": "溯心", "Sushin": "溯心", "Susheen": "溯心",             # #4171/#4172
     "Suing": "锁暝", "Swaming": "锁暝",                               # #4771
+    # --- 2026-10-22 3.7 Hsin reaction 二次校准沉淀（官方中文依据：ENTITIES + 3.7 剧情）---
+    #   解形煞(Form Renders) / 玄翎雀(Xuanling Bird) / 十重契(锁暝异能) 官方中文名；
+    #   旧译「形态渲染(器)」「玄方林鸟」「山陵鸟」「十封印」为谷翻/ASR 直译残留。
+    "形态渲染器": "解形煞", "形态渲染": "解形煞",
+    "玄方林鸟": "玄翎雀", "山陵鸟": "玄翎雀",
+    "十封印": "十重契",
+    #   务安面纱/玄元境域/稷廷 中文错形（同片英译残留）
+    "梦州帷": "务安面纱", "玄方领域": "玄元境域",
     # 务安面纱(Muan Veil，梦枢天罗内静修处) 英文/机翻残留
     "Monguan Veil": "务安面纱", "Monuan Veil": "务安面纱", "莫努安面纱": "务安面纱",
     # 朝月会(Waking Moon Festival) 机翻直译残留；「醒月」非通用中文词，可安全收表
@@ -1023,8 +1086,8 @@ BILINGUAL_TERMS = {
     # 秧秧(Yangyang) / 同宁(Tonging)
     "林秧秧": "秧秧", "童宁": "同宁", "通宁": "同宁",
     # 稷廷(Court of Savante) 机翻变体
-    "桑特宫廷": "稷廷宫廷", "萨万特法院": "稷廷宫廷", "萨万特宫廷": "稷廷宫廷",
-    "桑特法院": "稷廷宫廷", "萨万特": "稷廷",
+    "桑特宫廷": "稷廷", "萨万特法院": "稷廷", "萨万特宫廷": "稷廷",
+    "桑特法院": "稷廷", "萨万特": "稷廷",
     # 玄翎雀(Shenling，岁主信使) / 玄朱锁(Vermillion lock)
     "神铃": "玄翎雀",
     # "朱锁->玄朱锁" 不入表：terms-check 报 7 处二次命中（"朱红锁/Vermillion lock" 已产出"玄朱锁"，
@@ -1219,6 +1282,29 @@ BILINGUAL_TERMS = {
     #   长键先行，防止短键先跑留下「时空/云」前缀：云班车/云航天飞机->云梭
     #   （「时空枢纽」属可独立成词的通用短语，不入裸键，改走 CONTEXT_MAP 的 Nexus 锚定）
     "云班车": "云梭", "云航天飞机": "云梭",
+    # --- 2026-10-22 RBGTalk《MUSICIAN DISCOVERS Wuthering Waves' INSANE OST!》二校 ---
+    #   官方 credit（B站《鸣潮》先约电台 EP2.4 卡提希娅《Against the Tide（逆潮）》）：
+    #   作曲/作词/编曲/吉他=Obadiah Brown-Beach。谷翻「奥巴代亚·布朗」是音译残留；
+    #   长键先于短键，防止短键把「-比奇」叠成残尾。
+    #   Persona 只收「音乐」组合，避免误伤 Persona 3 Reload 等作品名（AK_TERMS 已有裸键）。
+    "奥巴代亚·布朗-比奇": "Obadiah Brown-Beach",
+    "奥巴代亚·布朗": "Obadiah Brown-Beach",
+    "奥巴代亚布朗": "Obadiah Brown-Beach",
+    "Persona音乐": "《女神异闻录》音乐",
+    "Persona 音乐": "《女神异闻录》音乐",
+    # --- 2026-10-22 Gacha Games Have A Villain Problem 二校沉淀 ---
+    #   生僻长键；「枫丹」因与《原神》枫丹同形不入表（#650 幻胧走逐 cue）。
+    #   边狱公司：官方名订正（旧 canonical「边狱巴士」见 ENTITIES 同步修正）。
+    "边狱巴士": "边狱公司",
+    "林布斯公司": "边狱公司", "林布连": "边狱公司",
+    "方丹利亚": "幻胧",                       # Phantylia（#950；ASR Fontainlia）
+    "公爵的舞会地狱": "冥火大公",              # Duke Inferno（#950）
+    "绝对的身体": "借来的身体",                # A borrowed body（#651）
+    "掠夺者领主": "绝灭大君",                  # Lord Ravager（#651）
+    "阿姆·法瑞厄斯": "翁法罗斯",              # Amphoreus（#954）
+    "阿刻隆": "黄泉",                          # Acheron（#668）
+    "崩坏星穹铁道": "《崩坏：星穹铁道》",
+    "《崩坏星穹铁道》": "《崩坏：星穹铁道》",
 }
 
 # 保留英文不译的专名（仅提示，不替换）
@@ -1231,6 +1317,10 @@ CONTEXT_MAP = [
     # (英文正则, 仅当英文行匹配时才把中文里的某错误形式替换为正确形式)
     (r"\bScar\b", "疤痕", "伤痕"),
     (r"\bDena\n?Denia\n?Denu\b", None, None),  # 占位示例，无实际用途
+    # --- 2026-10-22 Gacha Games Have A Villain Problem 二校（官方名）---
+    # 李恒->雷横 已由 ENTITIES 的无条件变体覆盖，不再重复 context 规则。
+    (r"\bLogos\b", "Logos", "来古士"),           # #974/#978/#992 星铁翁法罗斯管理员（ASR 作 Logos）
+    (r"\bNous\b", "诺斯", "博识尊"),             # #957 智识星神 Nous
     # --- 2026-08-29 鸣潮 3.6 片源：需参考行佐证的替换 ---
     (r"\bSentinel\b", "哨兵", "岁主"),           # Sentinel 官方译名 岁主
     (r"\bSentinel\b", "月狐岁主心", "岁主心月狐"),  # 语序调整（须在 哨兵->岁主 之后）
@@ -1482,7 +1572,10 @@ CONTEXT_MAP = [
     # 2026-10-05 3.7 reaction 片补录：Ching Sha/Ching Shia/独立 Ching 的谷翻错形
     (r"\bChing\w*", "清莎", "清宵"),
     (r"\bChing\w*", "青石", "清宵"),               # #6593 Ching Shia（"青石"为常用词，须 Ching 佐证）
-    (r"\bChing\b", "青", "清宵"),                  # #1015 Suming and Ching 独立简称
+    # ⚠ 2026-10-22 反例：Tenha EP reaction 片 #1077 主播模仿中文韵脚 "ching, right?"，
+    #   中文行"是青，对吧？"被本条改成"是清宵"。角色简称必为大写，故改用大小写敏感正则；
+    #   原 #1015 "Suming and Ching"（大写）仍命中。
+    (r"(?-i:\bChing\b)", "青", "清宵"),             # #1015 Suming and Ching 独立简称
     (r"\bChing\b", "程", "清宵"),                  # #6503 呼语 Ching,（程为常用字，须独立 Ching 佐证）
     # 景燃(Jingran) 2026-10-05 补录
     (r"\bChingan\b|\bJingran\b", "钦安", "景燃"),   # #6776 Chingan（与下句 Jingron 同指一人）
@@ -1597,7 +1690,19 @@ CONTEXT_MAP = [
     (r"\bJingjo\b", "靖州", "今州"),                # #410
     (r"\bJing ?Joe\b", "荆乔", "今州"),             # #536
     # 安吉尔（Angel=官方角色名；参考行为 Angel 时才改，防神话"天使"误伤）
+    #   ⚠ 2026-10-22 反例：Tenha EP reaction 片歌词 "angel consumes"（#945）、
+    #   独立成行的 ">> Angel"（#1854）就是天使，被本条误改成"安吉尔"。
+    #   歌词语境由 EXCLUDE_CONTEXT 的“天使”负例回滚（见 EXCLUDE_CONTEXT 2026-10-22 段）。
     (r"\bAngel\b", "天使", "安吉尔"),               # #719/#954
+    # --- 2026-10-22 Tenha 鸣潮全 EP reaction 片（2015 cue）：普通词被谷翻直译的角色名 ---
+    #   全部为常用词，必须参考行锚定；本片实测各 1 处。
+    (r"\bGian\b", "吉安", "忌炎"),                  # #51 Gian as their first banner（1.0 首池）
+    (r"\bpulling for brand\b", "品牌", "布兰特"),   # #346 not pulling for brand
+    (r"\bBrand's personality\b", "布兰德", "布兰特"),
+    (r"\bGalena\b", "方铅矿", "嘉贝莉娜"),          # #1017 Galena one（矿物名被直译）
+    (r"\bGalina\b", "加琳娜", "嘉贝莉娜"),          # #936 this one's for Galina
+    (r"\bBourne\b", "伯恩", "莫宁"),                # #1237 And Bourne（Mornye ASR 变体）
+    (r"\bCarthais\b", "迦太", "卡提希娅"),          # #591 Carthais（被当成迦太基截断）
     # 克里斯托弗（Christopho*/Christophoro 变体）
     (r"Christopho", "克里斯托弗罗", "克里斯托弗"),
     # 今汐（Ginshi≈Jinhsi 今汐，主播口音；存疑待人工复核）
@@ -1625,7 +1730,9 @@ CONTEXT_MAP = [
     (r"\bArknights\b", "方舟骑士团", "明日方舟"),     # 双保险：EN 行拼写正确时中文行仍是机翻拆名
     (r"\bArknights\b", "方舟骑士", "明日方舟"),
     (r"\bArc Knights\b", "弧骑士", "明日方舟"),       # #495 Arc Knights(=Arknights 误读成 Arc) 弧骑士→明日方舟；须置于通用 Knights 规则之前，否则会被咬成《弧明日方舟》畸形
-    (r"\bKnights\b", "骑士", "明日方舟"),             # 名字跨 cue 被拆成 方舟/骑士 时后半补全（#886）
+    # 2026-10-22 反例：Batman: Arkham Knights 的「骑士」被本条改成「明日方舟」
+    #   （Gacha Games Have A Villain Problem #61），负向后顾排除 Arkham 前缀。
+    (r"(?<!Arkham )\bKnights\b", "骑士", "明日方舟"),  # 名字跨 cue 被拆成 方舟/骑士 时后半补全（#886）
     (r"\bDragon Guard\b", "龙卫", "龙背上的骑兵"),       # #223/#252 Dragon Guard=ASR 误听 Drakengard(龙背上的骑兵)；龙卫→龙背上的骑兵（须英文佐证，防误伤普通词）
     (r"\bDragon Guard\b", "龙之守卫", "龙背上的骑兵"),   # #238/#252 同上，龙之守卫→龙背上的骑兵
     (r"\bStellar Blade\b", "星刃", "剑星"),             # #279/#284/#308 Stellar Blade 官方中文 剑星（星刃为早期海报译名，非现用官方名）
@@ -1842,7 +1949,9 @@ CONTEXT_MAP = [
     (r"\bnexus\b", "核心", "梦枢天罗"),          # #1719 "within the nexus"->核心（#835 proliferation core 正确，故须佐証）
     (r"\bcapsule\b", "舱体", "文明之匣"),        # #169/#183/#326/#393/#1297 全为 capsule，与其余 cue 的文明之匣一致
     (r"\bSentinel\b", "守护者", "岁主"),         # #602/#1747 sentinel->守护者（岁主为本片既定译法）
-    (r"\bSusheen\b", "溯心", "心月狐"),          # #788/#789 Susheen(=Sheen)误读->溯心，应为心月狐
+    # 2026-10-22 撤销：Susheen/Sushin 是 3.7 独立角色「溯心」（ENTITIES canonical），
+    #   不是 Sheen 的误读。旧规则会把正确的「溯心」二次改成「心月狐」，本片实测大面积误伤。
+    # (r"\bSusheen\b", "溯心", "心月狐"),
     (r"\bSchwanqing\b", "天清", "玄方清"),       # #1046/#1275 Schwanqing->天清（玄方清 形近错字）
     (r"\bShin\b", "信", "心月狐"),               # #692 Shin(=Sheen)机翻单字->信，应为心月狐（信为常见字，须佐証）
     # --- 2026-10-20 谷翻「游戏音乐 WTF reaction」片沉淀（MarcoMeatball，582cue）---
@@ -1962,7 +2071,20 @@ _CONTEXT_COMPILED = [(re.compile(rx, re.I), wrong, right)
 # 结构：{wrong: (right, (排除正则...))}，right 用于回滚（须与所在术语表的 value 一致）。
 # 比无条件替换更精准，不依赖人工负例注释。新增歧义词时按此结构追加。
 EXCLUDE_CONTEXT = {
+    # --- 2026-10-22 Tenha 鸣潮全 EP reaction 片负例 ---
+    # ① \bAngel\b=安吉尔 的负例：歌词里的“天使”。本片 #945 "angel consumes"、
+    #    #1854 独立成行 ">> Angel" 都被基线误改成“安吉尔”，歌词语境回滚。
+    "天使": ("安吉尔", (r"\bangel consumes\b", r"^\s*>>?\s*angel\s*$",
+                        r"\b50\s*/\s*50\s*angel\b")),   # 2026-10-22 #66 频道名 50/50 Angel
     "帐篷": ("十连", (r"\bwritten tent\b",)),                              # 语言讨论语境 tent=text 误听
+    # --- 2026-10-22 Gacha Games Have A Villain Problem 基线误伤 ---
+    # #61 Batman: Arkham Knights 的「骑士」被学习库 bi|骑士（confirmed）改成「明日方舟」；
+    #   CONTEXT_MAP 的负向后顾管不到学习库注入，这里按参考行回滚。
+    "骑士": ("明日方舟", (r"\bArkham Knights?\b",)),
+    # #238 conducted an online survey 被 conduct->指挥 改成「指挥了在线调查」；
+    #   调查/研究/访谈语境回滚（音乐语境 conduct=指挥 的规则保持不变）。
+    "进行": ("指挥", (r"\bconduct(?:s|ed|ing)?\b[^\n]*\b(?:survey|research|study|interview|investigation|experiment)s?\b",)),
+    "行为": ("指挥", (r"\bconduct(?:s|ed|ing)?\b[^\n]*\b(?:survey|research|study|interview|investigation|experiment)s?\b",)),
     # --- 2026-09-08 NO ONE CAN CONTROL THEMSELVES! 负例沉淀 ---
     # #1049 "In short, Fong Hold has weathered..."——In short 本就是"简而言之"，
     # 参考行命中 in short 时回滚，防 \bshort\b=短片 规则误伤。
@@ -3906,11 +4028,11 @@ ENDFIELD_BI_TERMS = {
     "Silver Palace": "银宫",                   # Elementa Games 维多利亚风开放世界抽卡 RPG，无官方中文名，建议《银宫》
     "Delver": "密境行者",                       # Delver of the Cryptic
     "Rooted Realm": "根脉奇境", "根系领域": "根脉奇境",
-    # 边狱巴士（Limbus Company）及其联动梗
-    "Limbus": "边狱巴士", "limbbus": "边狱巴士",
-    "林布斯": "边狱巴士", "林布": "边狱巴士",
-    "golden bough": "金枝", "golden bows": "金枝",   # 边狱巴士核心道具；ASR 常把 bough 写成 bow
-    "金色鞠躬": "金枝", "金色弓": "金枝", "金弓": "金枝",  # 金枝的机翻/ASR 错形（仅边狱巴士联动语境）
+    # 边狱公司（Limbus Company）及其联动梗；2026-10-22 官方名由「边狱巴士」订正
+    "Limbus": "边狱公司", "limbbus": "边狱公司",
+    "林布斯": "边狱公司", "林布": "边狱公司",
+    "golden bough": "金枝", "golden bows": "金枝",   # 边狱公司核心道具；ASR 常把 bough 写成 bow
+    "金色鞠躬": "金枝", "金色弓": "金枝", "金弓": "金枝",  # 金枝的机翻/ASR 错形（仅边狱公司联动语境）
     "Rioshu": "良秀", "利奥舒": "良秀",          # 罪人 Ryōshū
     "Otus": "奥提斯", "奥图斯": "奥提斯",        # 罪人 Outis
     # 角色（官方译名）
@@ -6358,6 +6480,12 @@ REACT_TERMS = {
     "Jane Doe": "简·杜",
     "Mighty": "万敌",
     "Uncus": "森蚺", "Unctus": "森蚺",
+    # ---- 2026-10-22 鸣潮 OST reaction 二校（官方 credit 全名 / Persona 中文化）----
+    "奥巴代亚·布朗-比奇": "Obadiah Brown-Beach",
+    "奥巴代亚·布朗": "Obadiah Brown-Beach",
+    "奥巴代亚布朗": "Obadiah Brown-Beach",
+    "Persona音乐": "《女神异闻录》音乐",
+    "Persona 音乐": "《女神异闻录》音乐",
 }
 # 用法：python subtitle_calib_merged.py --react <input.srt> --out out.srt
 #   --react 与游戏模式互斥；仅套用 REACT_TERMS 统一首中文行（不动英文/参考行）。
@@ -7228,7 +7356,10 @@ ENTITIES = [
     Entity("娜波摩", modes=("bi",), en="Naborr",
            category="角色/残星会会长分身",
            variants=("Neavor", "Naborr"),
-           ctx=((r"\bNvidia\b", "英伟达"), (r"\bNvidia\b", "Nvidia")),
+           # ⚠ 2026-10-22 删除 (r"\bNvidia\b", "Nvidia")：Tenha 鸣潮全 EP reaction 片 #1643
+           #   中文行原样 "Nvidia" 是主播谈角色性别（"要是他没有那个“他”"），被误改成娜波摩。
+           #   仅保留“英伟达”译形锚定；裸 Nvidia 不再自动归娜波摩。
+           ctx=((r"\bNvidia\b", "英伟达"),),
            note="残星会会长分身（百度百科/fandom：会长斯瓦茨洛的伪装之一），化名潜入星炬学院；"
                 "3.3 幕间追逐环节敌人=娜波摩人偶。"
                 "本片 ASR 乱形：#312/315 Nvidia(机翻'英伟达')靠参考行佐证归 娜波摩——"
@@ -7465,7 +7596,7 @@ ENTITIES = [
            variants=("万相分型", "万象分形", "万相份形", "万像分形"),
            note="心月狐（心）3.7 官方异能名（前瞻直播/角色演示）。"),
     Entity("十重契", modes=("bi",), category="异能/锁暝",
-           variants=("十重器", "十重起", "十重气", "石重契"),
+           variants=("十重器", "十重起", "十重气", "石重契", "十封印"),
            ctx=((r"\bSuoming\b", "十重契"), (r"\bResonance\b", "十重契")),
            note="锁暝 3.7 官方异能名（前瞻直播/角色演示）。"
                 "戒律：'十重契'字面通用度低但仍走 Suoming/Resonance 锚定，防误伤'十重契约'等长句。"),
@@ -8854,7 +8985,7 @@ ENTITIES = [
                 "防误伤），只收生僻的 Intendant/intendence 英文残留。"),
     Entity("稷廷", modes=("bi",), en="Court of Savantae",
            category="势力/组织·鸣潮3.7",
-           variants=("萨凡特宫廷", "Court of Savante", "Savante", "Sante", "Cante"),
+           variants=("萨凡特宫廷", "桑特宫廷", "Court of Savante", "Savante", "Sante", "Cante"),
            note="旧时代机巧科研组织，官方中文=稷廷（韩语模式 직정->稷廷 已沉淀）。"
                 "ASR 变体 Court of Savante/Sante/Cante；谷翻'萨凡特宫廷'生僻组合裸键安全。"),
     Entity("军策府", modes=("bi",), en="Ministry of War",
@@ -8898,13 +9029,14 @@ ENTITIES = [
                 "canonical'天人'本身无错形裸键。"),
     Entity("解形煞", modes=("bi",), en="Form Renders",
            category="敌人/术语·鸣潮3.7",
-           variants=("形态渲染器", "forenders"),
+           variants=("形态渲染器", "形态渲染", "forenders"),
            note="玄方篇敌对存在，官方中文=解形煞。ASR 把 Form Renders 咬成 for renters/"
-                "forenders；谷翻按字面出'形态渲染器'（render=渲染）生僻组合裸键安全；"
+                "forenders；谷翻按字面出'形态渲染器/形态渲染'（render=渲染）生僻组合裸键安全；"
                 "英文残留 forenders 生僻裸键，'form renders/for renters' 歧义不裸键。"),
     Entity("玄翎雀", modes=("bi",), en="Xuanling Bird",
            category="生物/传说·鸣潮3.7",
-           variants=("Shrening Bird", "Shrenling", "Schwanling", "shrening 鸟", "Shrening 鸟"),
+           variants=("Shrening Bird", "Shrenling", "Schwanling", "shrening 鸟", "Shrening 鸟",
+                     "玄方林鸟", "山陵鸟"),
            note="玄方城传说灵鸟（叼子以身开城门），官方中文=玄翎雀（ko 模式 혈령작->玄翎雀 已沉淀）。"
                 "ASR 把 Xuanling 咬成 Shrening/Shrenling/Schwanling；谷翻残留'shrening 鸟'。"
                 "英文错形均生僻，裸键安全。"),
@@ -9419,7 +9551,9 @@ ENTITIES = [
     Entity("心月狐", modes=("bi",), en="Shin",
            category="角色/岁主·鸣潮3.7",
            ctx=((r"\bSin\b", "辛"), (r"\bSin\b", "罪恶"), (r"\bSin\b", "罪"),
-                (r"\bShing\b", "成"),
+                # 2026-10-22 反例：Tenha EP reaction 片 #1949 歌词 "shing."（拟声，小写）
+                # 被本条改成“成→心月狐”；角色 ASR 必为大写 Shing，故改大小写敏感。
+                (r"(?-i:\bShing\b)", "成"),
                 (r"\bSeen\b", "Seen"), (r"\bShuin\b", "修院")),
            note="本片补录：ASR 把 Shin 听成 Sin/Shing/Seen/Shuin，谷翻一律按常用词直译"
                 "（Sin->辛/罪/罪恶、Shing->成、Shuin->修院、Seen 整词留英文）。"
@@ -9741,6 +9875,24 @@ ENTITIES = [
            ctx=((r"\bAmia\b", "阿米娅"),),
            note="Crashout 片补漏：Aemeath(/ˈiːmɪθ/) 被 ASR 成 Amia，谷翻'阿米娅'1处（#2711）。"
                 "'阿米娅'=Arknights 阿米娅常用译名，绝不裸键，仅 Amia 佐证才改。"),
+    # --- 2026-10-22 RBGTalk 鸣潮 OST reaction 二校 ---
+    #   官方依据：B站《鸣潮》先约电台 EP2.4/EP3.7 发布文案 + Genius 歌词页
+    #   （Ode to Hsin and Moon: Endless Yearning）+ 百度百科「定玄」。
+    Entity("心月辞·长相望", modes=("bi", "react"),
+           en="Ode to Hsin and Moon: Endless Yearning",
+           category="曲目/鸣潮3.7·心 EP",
+           note="3.7 心《心月辞》EP 收录曲，官方中文《心月辞·长相望》（英 Ode to Hsin and Moon: "
+                "Endless Yearning）；苏诗丁演唱，金大洲制作/作曲，吴姝霆/SmileL 作词。"
+                "片源正文未直呼曲名，仅用于片源档案/标题/tag 与 AI 跨语识别。"),
+    Entity("Forts", modes=("bi", "react"), en="Forts",
+           category="音乐人/演唱",
+           note="《逆潮》（Against the Tide）官方演唱者（EP2.4 卡提希娅角色曲）；"
+                "官方 credit 保留英文名，不音译。片源 cue112 主播读 credit 时点名。"),
+    Entity("Obadiah Brown-Beach", modes=("bi", "react"), en="Obadiah Brown-Beach",
+           category="音乐人/作曲",
+           note="《逆潮》官方词曲/编曲/吉他（EP2.4 卡提希娅角色曲，B站先约电台发布文案）；"
+                "官方 credit 保留英文全名。谷翻音译「奥巴代亚·布朗」，BILINGUAL_TERMS/"
+                "REACT_TERMS 已收变体。"),
 ]
 
 
@@ -9793,6 +9945,9 @@ _MUSIC_WW = [                       # 鸣潮 · 先约电台 EP（角色印象�
     ("坠入虚无（Decensus Ad Nihilum）", "Decensus Ad Nihilum", "", ""),
     ("直到下次再见（Dasvidaniya）", "Dasvidaniya", "", ""),
     ("愿（One More Wish）", "One More Wish", "", ""),
+    # 2026-10-22 补：3.5 玄方区域主题曲，黄霄雲演唱（官方中文《定玄》，英 Eisodus；
+    #   杨秉音作曲、申名利作词）。
+    ("定玄（Eisodus）", "Eisodus", "", ""),
     ("Replay（重映）", "Replay", "", ""),
     ("待春归", "", "", ""),
     # --- 飞行雪绒 EP / 特辑 / 周年 ---
@@ -10005,10 +10160,11 @@ for _c, _en, _v, _ctx, _cat, _note in (
      "本片 #41 谷翻把 PGR 混成「Weathering Grave Raven」。⚠ 不设 Raven 的 ctx："
      "#55「惩罚灰Raven」里「惩罚灰」也会被替换，两次叠加成「惩罚灰战双帕弥什」垃圾串；"
      "该条交人工/侧车。"),
-    ("边狱巴士", "Limbus Company", ("林布斯公司", "林布连"), (), "作品/游戏",
+    ("边狱公司", "Limbus Company",
+     ("边狱巴士", "林布斯公司", "林布连", "林布斯", "林布", "Lim Bus"), (), "作品/游戏",
+     "官方中文《边狱公司》（2026-10-22 订正旧 canonical「边狱巴士」）；"
      "本片谷翻译成「林布斯公司 / 林布连」（#452/#3848）。"
-     "⚠ 官方中文名为《边狱公司》，本表沿用项目既有 canonical「边狱巴士」，"
-     "两者指同一作品，勿重复登记为新实体。"),
+     "「边狱巴士」为巴士部门/俗称，保留为变体，勿再作为 canonical。"),
     ("终末地", "Arknights: Endfield", ("Enfield",), (), "作品/游戏",
      "本片把《明日方舟：终末地》说成 Enfield（#452），生僻长键安全。"),
     ("声骸", "Echo", (), ((r"\bechoes?\b", "回响"),), "术语/鸣潮",
@@ -10073,6 +10229,39 @@ for _c, _en, _v, _ctx, _cat, _note in (
     ("鸣潮", "Wuthering Waves", ("呼啸波浪", "呼啸波涛"), (), "作品/游戏",
      "级联修复：裸键「呼啸波->鸣潮」会把「呼啸波浪」咬成「鸣潮浪」（本片基线 9 处）；"
      "4 字长键先行即可整体归「鸣潮」。"),
+    # --- 2026-10-22《Gacha Games Have A Villain Problem》二校（官方中文，检索确认）---
+    ("雷横", "Lei Heng", ("Lee Heng", "李恒"), (), "角色/边狱公司",
+     "《边狱公司》第八章「不思观望」角色，拇指指挥官/东部十刃；官方中文雷横。"
+     "本片 #1085/#1091 谷翻作「李恒/李」，英文参考行 ASR 作 Lee Heng/Lee。"),
+    ("亚哈", "Ahab", (), (), "角色/边狱公司",
+     "《边狱公司》第五章「定义为恶」BOSS，官方中文亚哈；本片 #16/#352/#1221。"),
+    ("里卡多", "Ricardo", (), (), "角色/边狱公司",
+     "《边狱公司》拇指「大兄弟」，官方中文里卡多；本片 #848 起。"),
+    ("来古士", "Lygus", (), ((r"\bLogos\b", "Logos"),), "角色/崩坏：星穹铁道",
+     "翁法罗斯管理员/天才俱乐部第一席分身，官方中文来古士；"
+     "本片 ASR 作 Logos（#974/#978/#992），靠参考行锚定。"),
+    ("翁法罗斯", "Amphoreus", ("Am Farious", "Amforius"), (), "地名/崩坏：星穹铁道",
+     "《崩坏：星穹铁道》3.x 主舞台，官方中文翁法罗斯；本片 ASR 作 Am Farious/Amforius。"),
+    ("博识尊", "Nous", (), ((r"\bNous\b", "诺斯"),), "角色/崩坏：星穹铁道",
+     "智识星神，官方中文博识尊；本片 #957 谷翻作「诺斯」。"),
+    ("冥火大公", "Duke Inferno", (), (), "角色/崩坏：星穹铁道",
+     "永火官邸首领，官方中文冥火大公；本片 #950 谷翻「公爵的舞会地狱」。"),
+    ("幻胧", "Phantylia", (), (), "角色/崩坏：星穹铁道",
+     "绝灭大君·幻胧，官方中文幻胧；本片 ASR 作 Fontaine/Fontainlia（#650/#950），"
+     "与《原神》枫丹同形，故不设裸变体，走逐 cue。"),
+    ("黄泉", "Acheron", (), (), "角色/崩坏：星穹铁道",
+     "官方中文黄泉；本片 #668 谷翻音译「阿刻隆」。"),
+    ("路易·圭亚贝伦", "Louis Guiabern", ("Luis Guayabero",), (), "角色/暗喻幻想",
+     "《暗喻幻想：ReFantazio》反派，官方中文路易·圭亚贝伦（17173/中文维基）；"
+     "本片 ASR 作 Luis Guayabero（#533）。"),
+    ("金属脸", "Metal Face", (), (), "角色/异度神剑",
+     "《异度神剑》机神兵，官方中文金属脸；本片 #441/#487/#491。"),
+    ("修尔克", "Shulk", (), (), "角色/异度神剑", "《异度神剑》主角，官方中文修尔克。"),
+    ("丹邦", "Dunban", (), (), "角色/异度神剑", "《异度神剑》角色，官方中文丹邦。"),
+    ("菲奥伦", "Fiora", (), (), "角色/异度神剑", "《异度神剑》角色，官方中文菲奥伦。"),
+    ("莱恩", "Reyn", (), (), "角色/异度神剑", "《异度神剑》角色，官方中文莱恩。"),
+    ("莫纳德", "Monado", (), (), "武器/异度神剑", "《异度神剑》神剑，官方中文莫纳德。"),
+    ("机神兵", "Mechon", (), (), "种族/异度神剑", "《异度神剑》敌方种族，官方中文机神兵。"),
 ):
     ENTITIES.append(Entity(_c, modes=("bi",), en=_en, variants=_v, ctx=_ctx,
                            category=_cat, note=_note))
