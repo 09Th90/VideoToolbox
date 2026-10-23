@@ -1,6 +1,13 @@
 # -*- coding: utf-8 -*-
-# @version 2.5.4
+# @version 2.6.0
 """字幕校准统一脚本（唯一入口，可复用，每次校准任务优先调用本脚本）
+# 2026-10-23 校准模块优化（语言定位 + subfix 加固）：
+#   · process/verify/extract/compare/subfix 改为按字符集识别中文行/参考行，
+#     兼容「英文在上、中文在下」的双语片源；此前固定取首文本行，会把英文
+#     参考行当成中文内容改写（实测 raRR0DIU65s #303）。
+#   · --endo 只改中文行，不再污染英文参考行；AI 参考行保护回归测试同步更新。
+#   · subfix 拒绝空 new 与纯标记行覆盖，新增缺失 cue 检测与 --strict 门禁；
+#     输出覆盖源文件时自动写 .bak 备份。
 # 2026-10-22 二次校准 + 脚本订正：《Gacha Games Have A Villain Problem》（1261 cue，
 #   CRLF 无 BOM，英语原声 + 谷歌翻译，detect=bi）。
 #   二校漏校/错名订正（官方中文依据，2026-10-22 检索）：
@@ -384,6 +391,7 @@ D. 增量同步通道（v1.12.1 起：本脚本只保留用户侧两个动作，
 import io
 import os
 import re
+import shutil
 import sys
 import unicodedata
 
@@ -2001,6 +2009,10 @@ CONTEXT_MAP = [
     (r"\bNexus\b", "时空梦枢天罗", "梦枢天罗"),
     (r"\btacet discord\b|\btacid\b", "残象不和谐", "残象"),
     (r"cloud shuttle", "云云梭", "云梭"),
+    # --- 2026-10-23 鸣潮 2.0 OST reaction（EchoBoy 音效段）---
+    #   ping pong delay = 乒乓延迟；谷翻作「乒乓球」，按英文锚定纠正，
+    #   不再依赖 ENTITIES「终末地蓬蓬」的裸变体（该实体已收窄到 endo/endobi）。
+    (r"\bping[- ]?pong\b", "乒乓球", "乒乓延迟"),
 ]
 
 # =============================================================
@@ -7896,19 +7908,21 @@ ENTITIES = [
                 "与千咲(Chisa)无关，该 ctx 本就不该存在。"
                 "ASR 音近错形：'千咲'易咬成'千啸/千筱/千晓/千霄/千宵/牵笑/芊笑/千效/千校/千肖'；"
                 "英文侧 Chisa 易咬成 Chissa/Chiasa/Chisaa/Chiisa。"),
-    Entity("尤诺", modes=("bi",), en="Juno",
+    Entity("尤诺", modes=("bi",), en="Iuno",
            category="角色",
            variants=(
                # --- 中文同音/音近（yóu nuò）---
                "由诺", "犹诺", "油诺", "尤那", "尤娜", "尤糯",
                "尤洛", "尤珞", "游诺", "柚诺", "佑诺",
-               # --- 英文 ASR 音近（Juno）---
+               # --- 英文 ASR 音近（Iuno / Juno / Yuno）---
                "Juno", "Juno's", "Juno`s", "Junno", "Juno!",
                "Jueno", "Juneau", "Junoe", "Junoo", "Juno ",
+               "Iuno", "Iuno's", "Yuno", "Yuno's",
            ),
-           note="鸣潮角色（3.7 复刻池'漫于盈缺时轴'）。官方中文'尤诺'，英文 Juno。"
+           note="鸣潮角色（3.7 复刻池'漫于盈缺时轴'）。官方中文'尤诺'，英文 Iuno"
+                "（萌娘百科/百度百科均作 Iuno；名字源自罗马 Juno，游戏拼写为 Iuno，勿写 Juno）。"
                 "ASR 音近错形：'尤诺'易咬成'由诺/犹诺/油诺/尤那/尤娜/尤糯/尤洛/尤珞/游诺/柚诺/佑诺'；"
-                "英文侧 Juno 易咬成 Junno/Jueno/Juneau/Junoe/Junoo。"),
+                "英文侧 Iuno 易咬成 Juno/Junno/Jueno/Juneau/Junoe/Junoo/Yuno。"),
     Entity("清宵", modes=("bi",), en="Qingxiao", ja="セイショウ",
            category="角色/鸣潮3.6",
            variants=(
@@ -9289,7 +9303,7 @@ ENTITIES = [
                 "官方知识库作'拉环朵玛自由市'，两者并存，反应片字幕取 wiki 全条目写法"
                 "菈梵朵玛）。⚠ 裸键 'La Fant' 不入表（法语冠词误伤风险），只收完整形态；"
                 "主播语境常说 La Fantome=夏日度假城市，与泰拉汐斯塔对应。"),
-    Entity("终末地蓬蓬", modes=("bi", "endo"), en="Peng Peng / Endfield Pengpeng",
+    Entity("终末地蓬蓬", modes=("endo", "endobi"), en="Peng Peng / Endfield Pengpeng",
            category="官号/终末地",
            variants=("蓬蓬干员", "Peng peng", "Peng Peng", "乒乓球", "乒乓",
                     "Ping Pong", "Pingpong"),
@@ -9297,7 +9311,9 @@ ENTITIES = [
                 "发干员采访问答（'蓬蓬采访'系列）、EP下架公告、前瞻精华等幕后内容。"
                 "英文 ASR 听成 'Peng Peng'，谷翻常作'乒乓/Ping Pong'；'特别干员问答'=蓬蓬的"
                 "干员采访栏目。⚠ 裸键'乒乓'危险（真实乒乓球运动语境），只收组合形态，"
-                "单字场景走逐 cue 侧车。"),
+                "单字场景走逐 cue 侧车。2026-10-23 收窄到 endo/endobi：bi 模式下"
+                "'ping pong' 被谷翻作'乒乓球'，曾误改成'终末地蓬蓬'（鸣潮 OST reaction 片"
+                "#174，EchoBoy 乒乓延迟）；该语境改由 CONTEXT_MAP 锚定'乒乓延迟'。"),
     # --- 2026-10-21 沉淀：终末地 1.6「丹青渡」祀干员叙事反应片（规则见
     #     ENDFIELD_BI_TERMS / ENDFIELD_BI_CONTEXT 同日注释）---
     Entity("祀", modes=("endobi",), en="Si", ja="スー",
@@ -9838,9 +9854,10 @@ ENTITIES = [
     Entity("嘉贝莉娜", modes=("bi",),
            variants=("加尔布丽娜", "吉尔布丽娜"),
            note="Crashout 片补漏：Galbrena 谷翻音译二形（#966/2276/6862 等），生僻长键裸键安全。"),
-    Entity("尤诺", modes=("bi",), en="Juno",
+    Entity("尤诺", modes=("bi",), en="Iuno",
            variants=("卢诺", "Luno", "Lunos"),
-           note="Crashout 片补漏：官方图鉴复核 尤诺=Juno（英配 Ella Boyes）。"
+           note="Crashout 片补漏：官方英文名 Iuno（英配 Ella Boyes；萌娘百科/百度百科"
+                "均作 Iuno，源自罗马 Juno 的拼写变体，勿写成 Juno）。"
                 "主播念 Luno/Juno 混杂，谷翻'卢诺'10处、英文残留 Luno/Lunos（#871/6574）。"
                 "'Luno 系'拼写生僻裸键安全；'露玛'等其余形本片未出现，不臆造。"),
     Entity("赞妮", modes=("bi",), en="Zani",
@@ -9967,6 +9984,13 @@ _MUSIC_WW = [                       # 鸣潮 · 先约电台 EP（角色印象�
     ("Dawnbreaker", "Dawnbreaker", "", ""),
     ("Deadline Disco（极限迪斯科）", "Deadline Disco", "", ""),
 ]
+_MUSIC_WW_BGM = [                   # 鸣潮 · 黎那汐塔 OST（纯音乐 BGM；官方中文名已核实）
+    # 2026-10-23：鸣潮 2.0 reaction 片沉淀。出处：《鸣潮》黎那汐塔篇 OST Vol.1
+    #   《幻昼狂想》（2025-01-03）曲目表，QQ音乐/酷狗/Apple Music 三源一致。
+    #   日/韩无独立官方名，留空勿臆造（多语戒律）。
+    ("故风吟游之地", "Where Wind Whispers", "", ""),   # 拂风水畔 BGM
+    ("微风吹拂的村庄", "Wind-kissed Haven", "", ""),    # 埃格拉镇 BGM
+]
 _MUSIC_AK = [                       # 明日方舟 · 塞壬唱片（人声曲；多数无官方中文，保留英文）
     ("Grown-up's Paradise", "Grown-up's Paradise", "", ""),
     ("铁花飞", "TIE HUA FEI", "", ""),
@@ -10065,6 +10089,13 @@ for _songs, _modes, _label in (
                                note="有歌词（人声）歌曲。空字段=该语种无独立官方名，"
                                     "按'单语保留原语言'处理，勿臆造译名。"))
 
+# 纯音乐 BGM 单独注册（上表 note 明确写「人声」，混入会失真）
+for _c, _en, _ja, _ko in _MUSIC_WW_BGM:
+    ENTITIES.append(Entity(_c, modes=("bi", "react"), en=_en, ja=_ja, ko=_ko,
+                           category="曲目/鸣潮·黎那汐塔 OST",
+                           note="纯音乐 BGM（无人声）。官方中文名经黎那汐塔篇 OST Vol.1"
+                                "《幻昼狂想》曲目表核实；日/韩无独立官方名，留空勿臆造。"))
+
 
 # ============================================================
 # 2026-10-15 《A Complete Crashout Regarding Wuthering Waves》精校沉淀
@@ -10129,7 +10160,7 @@ for _c, _en, _v, _ctx, _cat, _note in (
      "角色/鸣潮/今州",
      "本片 ASR 把 Jinhsi/Ginshi 译成 银司 / 银石 / 银士 / 银时（#5609/#5610/"
      "#5615/#5617/#5630/#5635）。「银时」是《银魂》人名，必须参考行锚定。"),
-    ("尤诺", "Juno", ("露诺",), (), "角色/鸣潮",
+    ("尤诺", "Iuno", ("露诺",), (), "角色/鸣潮",
      "本片谷翻音译「露诺」（#1152/#1726/#1839），生僻组合，无条件变体安全。"),
     ("卡提希娅", "Cartethyia", ("卡尔蒂娅",), (), "角色/鸣潮",
      "本片又出「卡尔蒂娅」（#2529），与既有 卡尔蒂亚/卡蒂亚/卡蒂娅 同类。"),
@@ -11235,6 +11266,9 @@ def _cmd_learned_reject(word, kb_path=LEARNED_KB_DEFAULT, mode=None):
 # 通用校准函数（按模式逐行原位替换，保持格式一字不变）
 # =============================================================
 _KO_HANGUL = re.compile(r"[\uac00-\ud7a3\u3130-\u318f]")   # 谚文判据：含谚文的文本行=韩语参考行
+_KANA = re.compile(r"[\u3040-\u30ff]")                       # 假名判据：含假名的文本行=日语参考行（2026-10-23）
+_MARKER_ONLY = re.compile(r"^(?:>>\s*)?(?:\[[^\]]+\]\s*)+$")  # 纯标记行（>> [音乐] / [笑声]）
+_ZH_PUNCT = re.compile(r"[，。！？；：、“”‘’（）《》【】…—]")  # 中文标点：纯拉丁中文行的兜底判据
 _CJK = re.compile(r"[\u4e00-\u9fff]")                        # 汉字判据：含汉字的文本行=中文行（2026-10-14，ak 全中文行覆盖用）
 
 
@@ -11405,8 +11439,12 @@ def process(path, out_path=None, report_path=None, mode="bi",
                     kk += 1
                 if kk - 1 >= j + 1:            # 存在文本行
                     num = int(s)
-                    zh_idx = j + 1
-                    ref = lines[kk - 1]
+                    # 2026-10-23：按语言定位中文行/参考行，兼容「英文在上、中文在下」
+                    # 的双语片源。此前固定取首文本行，会把英文参考行当中文改。
+                    text_tis = list(range(j + 1, kk))
+                    zh_pos, ref_pos = _split_cue_text([lines[ti] for ti in text_tis])
+                    zh_idx = text_tis[zh_pos[0]] if zh_pos else j + 1
+                    ref = lines[text_tis[ref_pos[-1]]] if ref_pos else lines[kk - 1]
                     if mode != "endo" and kk - 1 == j + 1:
                         # 单文本行 cue：该行即参考行（无独立中文行）。
                         # 例外（2026-10-12）：--ko 纯韩语片源（韩国主播直播 ASR，每 cue
@@ -11425,17 +11463,21 @@ def process(path, out_path=None, report_path=None, mode="bi",
                                 out[j + 1] = new
                         i = kk
                         continue
+                    if not zh_pos:
+                        # 多文本行且无法识别中文行（全拉丁/全参考行）：绝不写参考行
+                        i = kk
+                        continue
                     old = lines[zh_idx]
                     if fix_en and mode == "bi":  # --fix-en：修正英文/参考行术语（仅双语模式）
-                        for ti in range(j + 2, kk):
+                        for ti in [text_tis[p] for p in ref_pos]:
                             eold = out[ti]
                             e1 = _ref_for_match(eold)     # 先修 ASR 断词/粘连，再修术语
                             enew = _replace_report(e1, enfix_pairs, enfix_chars, hits)
                             if enew != eold:
                                 rows.append((num, eold, enew, eold))
                                 out[ti] = enew
-                        if kk - 1 > zh_idx:      # 上下文匹配/ERROR 翻译改用修正后参考行
-                            ref = out[kk - 1]
+                        if ref_pos:               # 上下文匹配/ERROR 翻译改用修正后参考行
+                            ref = " ".join(out[text_tis[p]] for p in ref_pos)
                     # 锚定匹配用参考行（断词/误听容错）：输出仍用 ref，结构零改动
                     ref_m = _ref_for_match(ref)
                     if mode == "pgr" and pgr_override and str(num) in pgr_override:
@@ -11550,8 +11592,8 @@ def process(path, out_path=None, report_path=None, mode="bi",
                         #   现按"含汉字=中文行"划分：中文行全部过术语表+ctx；锚点=全部英文行拼接后规整空白
                         #   （ASR 行尾空格会把 "gavial alter" 变双空格，跨行佐证正则漏命中——本片 #56 加维尔即此因）。
                         #   英文/参考行一律不动，结构零改动原则不变。
-                        ak_zh = [_ti for _ti in range(j + 1, kk) if _CJK.search(lines[_ti])]
-                        ak_en = [_ti for _ti in range(j + 1, kk) if not _CJK.search(lines[_ti])]
+                        ak_zh = [text_tis[p] for p in zh_pos]
+                        ak_en = [text_tis[p] for p in ref_pos]
                         if ak_zh and ak_en:
                             ak_anchor = re.sub(r"\s+", " ",
                                                _ref_for_match(" ".join(lines[_ti] for _ti in ak_en)))
@@ -11597,8 +11639,10 @@ def process(path, out_path=None, report_path=None, mode="bi",
                         if new != old:
                             rows.append((num, old, new, ref))
                             out[zh_idx] = new
-                    elif mode == "endo":       # 终末地模式：ENDFIELD_TERMS 统一全部文本行
-                        for ti in range(j + 1, kk):
+                    elif mode == "endo":       # 终末地模式：ENDFIELD_TERMS 统一全部中文行
+                        # 2026-10-23：改为只改中文行；单语终末地片源等价于原“全部文本行”，
+                        # 双语片源不会再误改英文参考行（应改用 --endobi）。
+                        for ti in [text_tis[p] for p in zh_pos]:
                             lold = lines[ti]
                             new = _replace_report(lold, term_pairs, term_chars, hits)
                             if new != lold:
@@ -11671,6 +11715,40 @@ def _is_chinese_dominant(s):
     return han >= 1 and han > hangul + kana and han >= lat
 
 
+def _is_chinese_line(s):
+    """行级中文判据（2026-10-23）：含汉字，且不含假名/谚文。
+
+    与 _is_chinese_dominant 的区别：不要求汉字数≥拉丁字母数，避免
+    「Shin 胜过 Swirling。不过第二段」这类中文+大量英文专名的行被误判
+    为参考行，进而把英文行当成中文行改写。
+    """
+    return bool(_CJK.search(s)) and not _KANA.search(s) and not _KO_HANGUL.search(s)
+
+
+def _split_cue_text(texts):
+    """按语言把 cue 的文本行拆成 (中文行下标, 参考行下标)。
+
+    2026-10-23：校准脚本原先假定「首文本行=中文、末行=参考」，遇到
+    英文在上的双语片源会把英文当中文改。这里改为按字符集判定，
+    与行序无关：含假名/谚文的一律视为参考行；其余含汉字的视为中文行；
+    标记行（如 >> [音乐]）因含汉字归入中文行，交由调用方保护。
+    """
+    zh, ref = [], []
+    for i, text in enumerate(texts):
+        if _is_chinese_line(text):
+            zh.append(i)
+        else:
+            ref.append(i)
+    if not zh:
+        # 纯拉丁中文行（如「Nvidia RTS Spark。」「Exorder。」）没有汉字，
+        # 用中文标点兜底；只有恰好一行命中时才采用，避免误判英文参考行。
+        punct = [i for i, text in enumerate(texts) if _ZH_PUNCT.search(text)]
+        if len(punct) == 1:
+            zh = punct
+            ref = [i for i in range(len(texts)) if i not in zh]
+    return zh, ref
+
+
 def _iter_cue_text_blocks(lines):
     """遍历已 norm（\\n 分行）的 SRT 行，逐 cue 产出其文本行 list（不含序号/时间轴/空行）。"""
     i, n = 0, len(lines)
@@ -11701,7 +11779,7 @@ def _detect_layout(lines):
         return "bi"
     total = len(blocks)
     single = sum(1 for t in blocks if len(t) == 1)
-    last_zh = sum(1 for t in blocks if _is_chinese_dominant(t[-1]))
+    last_zh = sum(1 for t in blocks if _is_chinese_line(t[-1]))
     r_single = single / total
     r_zh_last = last_zh / total
     if r_single >= 0.95 or (r_single >= 0.80 and r_zh_last >= 0.98):
@@ -11732,12 +11810,17 @@ def _cmd_extract(src, out):
                 if not texts:
                     i = kk; continue
                 esc = lambda x: x.replace("\\", "\\\\").replace("\u0009", " ").replace("\n", "\\n")
-                if layout == "mono":
-                    zh = "\\n".join(esc(t) for t in texts)
+                zh_pos, ref_pos = _split_cue_text(texts)
+                if layout == "mono" or (zh_pos and not ref_pos):
+                    zh = "\\n".join(esc(texts[i]) for i in (zh_pos or range(len(texts))))
                     en = ""
+                elif zh_pos:
+                    # 按语言定位，兼容英文在上/中文在下与中文在上两种版式
+                    zh = "\\n".join(esc(texts[i]) for i in zh_pos)
+                    en = "\\n".join(esc(texts[i]) for i in ref_pos)
                 else:
-                    zh = "\\n".join(esc(t) for t in texts[:-1]) if len(texts) > 1 else esc(texts[0])
-                    en = esc(texts[-1])
+                    zh = esc(texts[0])
+                    en = esc(texts[-1]) if len(texts) > 1 else ""
                 recs.append((s, zh, en))
                 i = kk
                 continue
@@ -12504,7 +12587,9 @@ def _cmd_verify(src, out):
                     while kk < n and lines[kk].strip() != "":
                         kk += 1
                     if kk - 1 >= j + 1:
-                        cues.append((int(s), lines[j], lines[j + 1], lines[kk - 1]))
+                        # 2026-10-23：保留全部文本行，按语言比对中文/参考行，
+                        # 不再只看首行与末行（多行 cue 的中段参考行此前漏检）。
+                        cues.append((int(s), lines[j], lines[j + 1:kk]))
                     i = kk
                     continue
             i += 1
@@ -12520,16 +12605,22 @@ def _cmd_verify(src, out):
     if slay == "mono":
         assert snlines == onlines, f"TOTAL LINE COUNT CHANGED! {snlines} vs {onlines}"
     ts = e = z = 0
-    for (n1, t1, z1, e1), (n2, t2, z2, e2) in zip(s, o):
+    for (n1, t1, texts1), (n2, t2, texts2) in zip(s, o):
         assert n1 == n2, f"num mismatch {n1}"
         ts += t1 != t2
-        z += z1 != z2
+        assert len(texts1) == len(texts2), f"text line count changed at cue {n1}"
         if slay == "bi":
-            e += e1 != e2
+            zh1, ref1 = _split_cue_text(texts1)
+            zh2, ref2 = _split_cue_text(texts2)
+            assert zh1 == zh2 and ref1 == ref2, f"language layout changed at cue {n1}"
+            z += sum(texts1[i] != texts2[i] for i in zh1)
+            e += sum(texts1[i] != texts2[i] for i in ref1)
+        else:
+            z += sum(a != b for a, b in zip(texts1, texts2))
     assert ts == 0, "TIMESTAMPS CHANGED!"
     if slay == "bi":
-        assert e == 0, "REFERENCE (last) LINES CHANGED!"
-        print(f"timestamp diffs: {ts} | reference diffs: {e} | content(first) diffs: {z}")
+        assert e == 0, "REFERENCE LINES CHANGED!"
+        print(f"timestamp diffs: {ts} | reference diffs: {e} | content(zh) diffs: {z}")
         print("VERIFY OK[bi]：仅中文内容行变化，序号/时间轴/参考行/CRLF/BOM 全部一致")
     else:
         print(f"timestamp diffs: {ts} | total lines: {snlines} (unchanged) | text diffs: {z}")
@@ -12552,8 +12643,18 @@ def _cmd_compare(src, out, tsv):
                     while kk < n and lines[kk].strip() != "":
                         kk += 1
                     if kk - 1 >= j + 1:
-                        ref = "" if layout == "mono" else lines[kk - 1]
-                        cues.append((int(s), lines[j + 1], ref))
+                        texts = lines[j + 1:kk]
+                        zh_pos, ref_pos = _split_cue_text(texts)
+                        if layout == "mono":
+                            z = " ".join(texts)
+                            ref = ""
+                        elif zh_pos:
+                            z = " ".join(texts[i] for i in zh_pos)
+                            ref = " ".join(texts[i] for i in ref_pos)
+                        else:
+                            z = texts[0]
+                            ref = texts[-1] if len(texts) > 1 else ""
+                        cues.append((int(s), z, ref))
                     i = kk
                     continue
             i += 1
@@ -12723,10 +12824,12 @@ def _load_subfix_tsv(path):
     return rules
 
 
-def _cmd_subfix(src, fixtsv, out, compare=None, side=None, single=False):
-    """subfix：按 num<TAB>old<TAB>new 逐 cue 修正“首中文行”，其余结构（序号/时间轴/
+def _cmd_subfix(src, fixtsv, out, compare=None, side=None, single=False, strict=False):
+    """subfix：按 num<TAB>old<TAB>new 逐 cue 修正“中文行”，其余结构（序号/时间轴/
     空行/换行/BOM/参考行）一字不动。等价于原先各项目手写的 fix.py，统一沉淀为一个子命令。
     old 为空串 -> 整行覆盖（ERROR 补译）。未命中的规则会打印 [MISS] 以便自查。
+    2026-10-23：按语言定位中文行（兼容英文在上/中文在下）；拒绝空 new 与纯标记行覆盖；
+    --strict 时存在 MISS / 空文案 / 越界或缺失序号则返回 1，可当门禁。
     --single：纯中文行片（每 cue 仅 1 个文本行、无参考行，如英文原声谷歌机翻单语 SRT），
               此时修正唯一文本行；默认仅处理“中文行+参考行”的双语 cue，单文本行整块跳过。"""
     rules = _load_subfix_tsv(fixtsv)
@@ -12735,7 +12838,8 @@ def _cmd_subfix(src, fixtsv, out, compare=None, side=None, single=False):
     crlf = b"\r\n" in raw
     lines = _decode_any(raw).replace("\r\n", "\n").replace("\r", "\n").split("\n")
     out_lines = list(lines)
-    applied, miss, rows = 0, [], []
+    applied, miss, rows, invalid = 0, [], [], []
+    seen_nums = set()
     i, n = 0, len(lines)
     while i < n:
         s = lines[i].strip()
@@ -12747,20 +12851,43 @@ def _cmd_subfix(src, fixtsv, out, compare=None, side=None, single=False):
                     kk += 1
                 has_text = kk - 1 >= j + 1
                 multi_line = kk - 1 > j + 1      # 双语片：中文行 + 参考行
+                if has_text:
+                    seen_nums.add(s)
                 if has_text and (multi_line or single) and s in rules:
-                    zh_idx = j + 1
+                    texts = lines[j + 1:kk]
+                    zh_pos, ref_pos = _split_cue_text(texts)
+                    if zh_pos:
+                        target = zh_pos[0]
+                    elif single:
+                        target = 0
+                    else:
+                        # 双语 cue 没有中文行（仅英文/参考行）：拒绝写参考行
+                        i = kk
+                        continue
+                    zh_idx = j + 1 + target
                     old_line = lines[zh_idx]
                     new_line = old_line
+                    cue_ok = True
                     for old, new in rules[s]:
+                        if not new.strip():
+                            invalid.append((s, old, "空 new：会删除中文行"))
+                            cue_ok = False
+                            continue
                         if old == "":
-                            new_line = new
+                            cand = new
                         elif old in new_line:
-                            new_line = new_line.replace(old, new)
+                            cand = new_line.replace(old, new)
                         else:
                             miss.append((s, old))
-                    if new_line != old_line:
+                            continue
+                        if _MARKER_ONLY.match(old_line.strip()) and cand.strip() != old_line.strip():
+                            invalid.append((s, old, "覆盖纯标记行"))
+                            cue_ok = False
+                            continue
+                        new_line = cand
+                    if cue_ok and new_line != old_line and new_line.strip():
                         out_lines[zh_idx] = new_line
-                        ref = lines[kk - 1] if multi_line else old_line
+                        ref = " ".join(lines[j + 1 + p] for p in ref_pos) if ref_pos else old_line
                         rows.append((s, old_line, new_line, ref))
                         applied += 1
                 i = kk
@@ -12769,12 +12896,29 @@ def _cmd_subfix(src, fixtsv, out, compare=None, side=None, single=False):
     body = "\n".join(out_lines)
     if crlf:
         body = body.replace("\n", "\r\n")
+    if os.path.abspath(out) == os.path.abspath(src):
+        bak = out + ".bak"
+        if not os.path.exists(bak):
+            shutil.copyfile(src, bak)
+            print("已备份原文件:", bak)
     with open(out, "w", encoding="utf-8", newline="") as f:
         f.write(("\ufeff" if bom else "") + body)
     total = sum(len(v) for v in rules.values())
-    print(f"subfix：规则 {total} 条 / 命中 {applied} cue" + (f" / 未命中 {len(miss)}" if miss else ""))
+    missing_nums = sorted(set(rules) - seen_nums, key=int)
+    extra = []
+    if miss:
+        extra.append(f"未命中 {len(miss)}")
+    if invalid:
+        extra.append(f"无效 {len(invalid)}")
+    if missing_nums:
+        extra.append(f"缺失 cue {len(missing_nums)}")
+    print(f"subfix：规则 {total} 条 / 命中 {applied} cue" + (f" / {' / '.join(extra)}" if extra else ""))
     for num, old in miss:
         print(f"  [MISS] #{num}: {old!r}")
+    for num, old, why in invalid:
+        print(f"  [INVALID] #{num}: {old!r}（{why}）")
+    if missing_nums:
+        print(f"  [MISSING CUE] {missing_nums}")
     if compare:
         with open(compare, "w", encoding="utf-8", newline="") as f:
             f.write("序号\t原文中文(机翻)\t校准后中文\t参考行\n")
@@ -12788,6 +12932,10 @@ def _cmd_subfix(src, fixtsv, out, compare=None, side=None, single=False):
                 f.write(f"{num}\t{nw}\n")
         print("侧车覆盖表:", side)
     print("写入:", out)
+    if strict and (miss or invalid or missing_nums):
+        print("STRICT FAIL：存在 MISS/无效规则/缺失 cue，未通过门禁")
+        return 1
+    return 0
 
 
 def _check_term_hazards(mapping):
@@ -13147,9 +13295,9 @@ def _dispatch_subcommand(sub, args):
         return _cmd_rewrap(pos[0], opts.get("out"), opts.get("width"), opts.get("report"))
     elif sub == "subfix":
         if len(pos) < 2 or "out" not in opts:
-            print("用法: subfix <src.srt> <fix.tsv> --out out.srt [--compare tsv] [--side tsv] [--single]"); return
-        _cmd_subfix(pos[0], pos[1], opts["out"], opts.get("compare"), opts.get("side"),
-                    single=bool(opts.get("single")))
+            print("用法: subfix <src.srt> <fix.tsv> --out out.srt [--compare tsv] [--side tsv] [--single] [--strict]"); return
+        return _cmd_subfix(pos[0], pos[1], opts["out"], opts.get("compare"), opts.get("side"),
+                           single=bool(opts.get("single")), strict=bool(opts.get("strict")))
     elif sub == "length":
         if not pos:
             print("用法: length <a.srt> [b.srt ...] [--all]"); return 0
