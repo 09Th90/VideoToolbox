@@ -1313,6 +1313,12 @@ BILINGUAL_TERMS = {
     "阿刻隆": "黄泉",                          # Acheron（#668）
     "崩坏星穹铁道": "《崩坏：星穹铁道》",
     "《崩坏星穹铁道》": "《崩坏：星穹铁道》",
+    # --- 2026-10-23 Journey Well'ed（Juno 的鸣潮 3.1 拉海洛实况）二校沉淀 ---
+    #   鸣式 / 拉海洛 / 爱弥斯 的 ASR 变体，均为唯一串、无级联风险。
+    #   ⚠ 阿列夫->阿列夫一 绝不进扁平表（扁平表无哨兵，已存在的「阿列夫一」会被咬成「阿列夫一一」），只走 CONTEXT_MAP。
+    "Fernodian": "鸣式", "tenonian": "鸣式", "Thronodium": "鸣式",   # Threnodian 误听（与 Frenodian/Threnodian 可共存）
+    "highroys": "拉海洛",                                            # the highroys people（#1001）
+    "Amth": "爱弥斯",                                                # Aemeath 截断（#275）
 }
 
 # 保留英文不译的专名（仅提示，不替换）
@@ -2013,6 +2019,11 @@ CONTEXT_MAP = [
     #   ping pong delay = 乒乓延迟；谷翻作「乒乓球」，按英文锚定纠正，
     #   不再依赖 ENTITIES「终末地蓬蓬」的裸变体（该实体已收窄到 endo/endobi）。
     (r"\bping[- ]?pong\b", "乒乓球", "乒乓延迟"),
+    # --- 2026-10-23 Journey Well'ed（Juno 的鸣潮 3.1 拉海洛实况）二校沉淀 ---
+    #   均为「参考行锚定 + 中文错形」；_ctx_replace 对 wrong⊂right 有 \x00 哨兵保护。
+    (r"\bMorier\b", "莫里尔", "莫宁"),        # Professor Morier = 莫宁教授（Mornye 的 ASR 变体）
+    (r"\bsynchronous\b", "同步者", "适格者"),  # synchronist 的 ASR 变体（旧锚点只认 synchronist，本片 #178 漏校）
+    (r"\bAlf\b", "阿列夫", "阿列夫一"),        # 半截名补全（#1205/#1210/#1214/#1260）；既有「阿列夫一」由哨兵保护
 ]
 
 # =============================================================
@@ -4542,6 +4553,14 @@ ENDFIELD_BI_CONTEXT = [
     (r"being\s+the\s+second|second\s+person'?s\s+power|feranmut\s+proxy", "第二个", "代理人"),
     (r"this\s+room\s+is\s+just\s+a\s+bonus|room\s+is\s+just\s+a\s+bonus", "额外的好处", "附赠"),
     (r"\bbitey\b|shoe\s+umbrella", "咬咬", "阿咬"),
+    # --- 2026-10-23 二校沉淀：《Si is Genuinely BUSTED》（kukkikaze，87 cue，--endobi）---
+    #   ASR 把干员 Si 写成裸拉丁 S，谷翻原样保留成「S是/S就/S 需要」。
+    #   ⚠ 不可写成裸键 "S"->"祀"：str.replace 会把同 cue 的 Boss 咬成 Bo祀；
+    #     故按「S+后续中文」组合形锚定，替换目标带附加成分（扁平三元组，非 Entity.ctx）。
+    (r"\bS\b", "S是", "祀是"),
+    (r"\bS\b", "S就", "祀就"),
+    (r"\bS\b", "S 需要", "祀需要"),
+    (r"\bS\b", "S需要", "祀需要"),
 ]
 
 # =============================================================
@@ -9320,7 +9339,7 @@ ENTITIES = [
            category="角色/终末地1.6",
            note="六星寒冷辅助，巨兽「岁」的第十三位代理人，缘缘庄掌柜；官方干员叙事"
                 "《祀：洒扫庭除》。英文名 Si，日文名「スー」；ASR 常作 Su/Sue/Lady Sa，"
-                "谷翻作苏姑娘/苏女士/圣母/萨夫人，规则见 ENDFIELD_BI_CONTEXT。"),
+                "谷翻作苏姑娘/苏女士/圣母/萨夫人，规则见 ENDFIELD_BI_CONTEXT。⚠ 裸 S 走 ENDFIELD_BI_CONTEXT 的「S+中文」组合形（S是/S就/S 需要），不可写成裸键 S——str.replace 会把同 cue 的 Boss 咬成 Bo祀。"),
     Entity("缘缘庄", modes=("endobi",), en="Yuanyuan Manor / Enishi Manor",
            category="地点/终末地1.6",
            note="1.6「烟火生缘」乡间客栈，位于武陵·祀的画；官方宣传语「缘缘庄，可是"
@@ -9334,6 +9353,19 @@ ENTITIES = [
            category="设定/终末地",
            note="EN 官方称 Si 为 Feranmut Proxy；中文官方称谓巨兽代理人（官网干员页）。"
                 "ASR 常把 Proxy 读成 second person，谷翻作第二个人/第二个。"),
+    # --- 2026-10-23 二校沉淀：《Si is Genuinely BUSTED》（kukkikaze，87 cue，--endobi）---
+    #   名词漏校：dungeon 全被谷翻直译「地牢」；速腾/墨锯 为 ASR 误听 + 车型误译。
+    #   官方依据：终末地高难玩法「危机合约」（官网 news/2659，自选指标 4 波次）、
+    #   可重复挑战内容社区通称「副本」；祀核心机制「墨魂」（Ink Spirit）。
+    Entity("副本", modes=("endobi",), en="Dungeon", category="玩法/终末地",
+           ctx=((r"\bdungeons?\b", "地牢"),),
+           note="终末地可重复挑战内容的中文通称「副本」；谷翻一律直译「地牢」。「地牢」是通用词（奇幻地牢），只走英文 dungeon 锚定。"),
+    Entity("速通", modes=("endobi",), en="Speedrun", category="术语",
+           ctx=((r"\bspeed\s?(?:run|un)s?\b", "速腾"),),
+           note="speedrun 被谷翻按大众车型译成「速腾」；「速腾」是真实车名，只走英文锚定。"),
+    Entity("墨魂", modes=("endobi",), en="Ink Spirit", category="机制/祀",
+           ctx=((r"\bink\s?saw\b", "墨锯"),),
+           note="祀核心机制「墨魂」（Ink Spirit）；ASR 把 ink soul 听成 ink saw，谷翻作「墨锯」。⚠ 裸键「灵魂」已于 2026-10-20 撤除，仍只走英文锚定。"),
     # ============================================================
     # 2026-10-10《Jadealy REACTS to Every HSIN Trailers – Wuthering Waves》
     #   （鸣潮 3.7「心」全部预告片合集 reaction，中英双语，502 cues）二次校准沉淀。
@@ -9910,6 +9942,16 @@ ENTITIES = [
            note="《逆潮》官方词曲/编曲/吉他（EP2.4 卡提希娅角色曲，B站先约电台发布文案）；"
                 "官方 credit 保留英文全名。谷翻音译「奥巴代亚·布朗」，BILINGUAL_TERMS/"
                 "REACT_TERMS 已收变体。"),
+    # --- 2026-10-23 Journey Well'ed（Juno 的鸣潮 3.1 拉海洛实况）二校沉淀 ---
+    Entity("辛吉勒姆", modes=("bi",), en="Sigillum", category="BOSS/鸣潮3.1",
+           variants=("siblum",),
+           note="3.1 主线 BOSS。siblum 为本片 ASR 变体；既有扁平键 西吉鲁姆->辛吉勒姆 同目标，勿重复收。"),
+    Entity("电子幽灵", modes=("bi",), en="Digital Ghost", category="设定/鸣潮3.1",
+           variants=("数字幽灵", "网络幽灵", "digital ghost", "cyber ghost"),
+           note="爱弥斯 3.1 形态，官方作「电子幽灵」；机翻常作 数字幽灵/网络幽灵（本片 #872/#1522）。"),
+    Entity("声痕", modes=("bi",), en="Tacet Mark", category="设定/鸣潮",
+           variants=("tacent mark",),
+           note="共鸣者身上的声痕（Tacet Mark）；tacent 为 Tacet 的 ASR 拼写（本片 #1190）。"),
 ]
 
 
