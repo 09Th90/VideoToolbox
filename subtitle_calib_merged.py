@@ -1,6 +1,59 @@
 # -*- coding: utf-8 -*-
 # @version 2.6.0
 """字幕校准统一脚本（唯一入口，可复用，每次校准任务优先调用本脚本）
+# 2026-10-24 二校 + 术语沉淀：《Time for PEAK ... To The New World Concert》（3541 cue，
+#   CRLF 无 BOM，英语原声 + 谷歌翻译，detect=bi；Yena 首次观看《鸣潮》「致予新世界」演唱会）。
+#   官方中文依据（2026-10-24 检索）：RUNNING FOR YOUR LIFE=《无所遁藏》（露帕主题曲，Grabbitz）；
+#   Unwritten in the Stars=《若能触及群星》（莫宁角色曲）；Mourn/Mor=莫宁 Mornye；
+#   Chiaona/Chiaakona/Chakona=Ciaccona=夏空；Light=《L!!!!ght》（西格莉卡）；
+#   Dawnbreaker 官方连写、Deadline Disco=《极限迪斯科》、Waking of a World 无官方中文名。
+#   r2 修正 28 处：为你的/为我的生命奔跑→无所遁藏、Unwritten→若能触及群星、
+#   Mourn→莫宁、Chiaona→夏空、Light→L!!!!ght、Dawn Breaker→Dawnbreaker、
+#   Deadline Disco→极限迪斯科、世界觉醒→Waking of a World、远航星→远航星的告别。
+#   沉淀：BILINGUAL_TERMS 收上述书名号/专名安全键（不做通用词裸键）；
+#   CONTEXT_MAP 用参考行 \bMourn\b 锚定《Mourn》/哀悼歌/Mor 的歌→莫宁；
+#   _MUSIC_WW 补《拉海洛之心》《小小奇迹》《远航星的告别》；
+#   ENTITIES 夏空 variants 补 Chiaona/Chiaakona/Chakona，莫宁 variants 补 Mourn。
+#   ⚠ 低置信保留原文：Chillan、Gia、Nami Pon、QB、Hiroy（#3483 纯拉丁跨 cue 残片）、
+#   To the Name the Smarter、Salvation、God Games、Cruel Games。
+#   自检：py_compile OK；terms-check BILINGUAL_TERMS 无二次命中（CONTEXT_MAP 仅 9 处既有提示）；
+#   原始源 dry-run 107 处，新增规则命中《世界觉醒》/Mourn/Chiaona/Chiaakona/Dawn Breaker 等预期 cue。
+# 2026-10-24 二校 + 术语沉淀：《I went to the Wuthering Waves concert alone》（578 cue，
+#   CRLF 无 BOM，英语原声 + 谷歌翻译，detect=bi；zKodla 的新加坡《致予新世界》音乐会 vlog）。
+#   官方中文依据（2026-10-24 检索）：巡演官方名《致予新世界》（To the New World），
+#   新加坡站 2026-09-26 Esplanade Theatre=滨海艺术中心剧院；安可 Encore、露帕 Lupa、
+#   百胜站 Bras Basah（新加坡地铁环线 CC2）。
+#   二校修正：#535 西班牙戏剧领域->滨海艺术中心剧院；#510 通往新的->致予新（跨 cue 拼成官方巡演名）；
+#   #247/248 去我家看->在我家见到什么样的人；#282 直接去->径直走向我；
+#   #329/330 感觉不到/结束->感受不到/尽头；#425 Connor 我帮你洗鞋->Kai 我看你的直播
+#   （同场景 #392 "Hey, Ka, I watch your streams" 的 ASR 推断）。
+#   沉淀：BILINGUAL_TERMS 收 Weathering Waves/Wave、浇水波浪、水浪经历、安科尔、Ankor、Anoro、
+#   卢帕、Zikatla、铜巴萨站、西班牙戏剧领域；CONTEXT_MAP 收参考行 Ankor/Anoro/Anchor 锚定
+#   锚点/锚->安可、Bras Basah/brass basa 铜巴萨站->百胜站。裸键「水浪/锚点/锚」不入扁平表。
+#   ⚠ 低置信保留原文：#63（ASR 乱码 gini）、#96 Daniel、#492 Shower roast、#522 asteroid、
+#   #525 willies、#575 Sin（官方 3.7 角色展示名为「心」，但此处指代无法确证）。
+# 2026-10-24 二校 + 术语沉淀：《TINY BUT MIGHTY｜Suoming Wuthering Waves Resonator & Combat
+#   Showcase REACTION》（165 cue，英语原声 + 谷歌翻译，bi）。官方依据：TapTap《鸣潮》共鸣者
+#   「锁暝」PV | 契阔 CV 表（2026-10-20：锁暝/蛇菰/九契）、3.7 版本说明、百度百科「锁暝」。
+#   核心修正：Balanar/Belenor=Balanophora=蛇菰（非「巴拉纳福」）；PV 中文名「契阔」；
+#   官方台词「此道，孤身难行，所以......且再陪我多走一程吧。」；She's killed sensible→她杀过岁主。
+#   沉淀：BILINGUAL_TERMS 收 Balanar/Belenor/Balanophora/巴拉纳尔/贝勒诺尔/斯瓦米总监/斯瓦米州监，
+#   并修正 Bal an oph ora→蛇菰；CONTEXT_MAP 收暖化/沈/循环中断/崩溃六倍/金属遮阳篷/督导挥棒/
+#   孤独的胜利/按比例/缓解/她杀了理智的人/明白了，游戏；ENTITIES 新增「蛇菰」bi 实体。
+#   ⚠ 低置信保留原文：#23 Ruuba（无官方名）、#81 盲眼守望者（直译）、#87 shut up/show up、
+#   #69-72 strong enough 断句（官方中文未公开）。
+# 2026-10-24 二校：《Jadealy Thinks These Suoming Trailers Deserve a Separate Quest》
+#   （293 cue，英语原声 + 谷歌翻译，bi）。官方依据：TapTap「锁暝」PV｜契阔 CV 表、
+#   3.7 版本说明、萌娘百科「残星会」、官方 PV 台词「此道，孤身难行，所以……且再陪我多走一程吧。」
+#   二校修正（r1 212 处 → r2 214 处）：#50/#55/#127 巴拉纳福→**蛇菰**
+#   （An offer/an aphora/Offer a crawl = Balanophora 的 ASR 形，非 Balanafor）；
+#   #213/214、#241/242 按官方 PV 台词统一为「且再陪我／多走一程吧」。
+#   沉淀：CONTEXT_MAP 收 An offer/an aphora/Offer a crawl→蛇菰、Fraxus overseer→残星会会监、
+#   the evil Yasma→恶瘴、Metal canopy full unleash→铁伞如盖、Seal evil reign/rain→封印邪恶的统治；
+#   BILINGUAL_TERMS 收弗拉克萨斯→残星会、在登登锁暝方面/意图锁暝→州监锁暝；
+#   ENTITIES 蛇菰 variants 补 an aphora。
+#   ⚠ 低置信保留：Montiny（未确证 Mortefi/莫特斐）、Thundering peace（无官中）、
+#   Keep swimming（无官方台词）、comrad（ASR 不可辨）、#119 >> A（纯标记行）。
 # 2026-10-23 校准模块优化（语言定位 + subfix 加固）：
 #   · process/verify/extract/compare/subfix 改为按字符集识别中文行/参考行，
 #     兼容「英文在上、中文在下」的双语片源；此前固定取首文本行，会把英文
@@ -468,6 +521,18 @@ BILINGUAL_TERMS = {
     "战狼": "Crywolf",                                             # 保留英文专名
     "男爵勋爵": "巴伦阁下",                                        # Lord Baron
 
+    # --- 2026-10-24 《致予新世界》音乐会 reaction 二校（官方中文名）---
+    # 曲名（书名号键，避免误伤普通语义）；依据见文件头 docstring。
+    "《为你的生命奔跑》": "《无所遁藏》", "《为我的生命奔跑》": "《无所遁藏》",
+    "《Unwritten》（未书写）": "《若能触及群星》", "《Unwritten》": "《若能触及群星》",
+    "《Light》": "《L!!!!ght》",
+    "《Dawn Breaker》": "《Dawnbreaker》", "Dawn Breaker": "Dawnbreaker",
+    "《Deadline Disco》": "《极限迪斯科》",
+    "《世界觉醒》": "《Waking of a World》",
+    "《远航星》": "《远航星的告别》",
+    # 夏空（Ciaccona）的英文 ASR 变体；同族 Shakona 已由 CONTEXT_MAP 处理。
+    "Chiaona": "夏空", "Chiaakona": "夏空", "Chakona": "夏空",
+
     # --- 2026-08-29 并入：srt_calibrator.py CHINESE_TERM_FIXES ---
     "泰莎不和谐": "残象",                                          # Tacet Discord 整词优先（勿留中间形态，2026-10-20 修）
     "泰莎": "残象",                                                # Tessa -> Tacet -> 残象
@@ -579,8 +644,8 @@ BILINGUAL_TERMS = {
     # --- 2026-09-01 同一鸣潮片源二次精修(fixin round2) 补充沉淀 ---
     "狄奥德": "鸣式",                                              # Theodian（asr 变体 -> 鸣式）
     "Exoriders": "隧者", "Exorider": "隧者",                       # Exostrider 复/单数变体（中文残留英文时统一为官方名 隧者）
-    "舰队雪花": "弗利特·斯诺芙", "雪绒舰队": "弗利特·斯诺芙",      # Fleet Snowfl(uff)（VTuber 名，音译统一）
-    "舰队雪绒": "弗利特·斯诺芙", "舰队雪绒花": "弗利特·斯诺芙",     # 长词优先；裸"雪绒/雪花/雪绒花"是普通词勿在此改
+    "舰队雪花": "飞行雪绒", "雪绒舰队": "飞行雪绒",              # Fleet Snowfluff = 飞行雪绒（爱弥斯歌手化名，2026-10-24 依萌娘百科/Apple Music《飞行雪绒》EP 修正旧音译）
+    "舰队雪绒": "飞行雪绒", "舰队雪绒花": "飞行雪绒",             # 长词优先；裸"雪绒/雪花/雪绒花"是普通词勿在此改
     # --- 2026-09-04 THIS_IS_CRAZY_Hsin（Suoming Gameplay Reaction，鸣潮 3.6）校准新增 ---
     "苏明": "锁暝", "苏凌": "锁暝", "苏舒明": "锁暝",              # Suoming 锁暝（3.6 共鸣者，ASR 音译残留）
     "Suming": "锁暝", "Suling": "锁暝", "Schuming": "锁暝", "Summit": "锁暝",
@@ -629,8 +694,9 @@ BILINGUAL_TERMS = {
     "拉希罗伊": "拉海洛", "拉希罗": "拉海洛",
     "莱艾·罗伊": "拉海洛", "莱伊·罗伊": "拉海洛",
     "La Hairoy": "拉海洛", "La Hyroy": "拉海洛", "La Hyro": "拉海洛",
-    # 弗利特·斯诺芙(Fleet Snowfluff) 英文残留（长键先行）
-    "Fleet Snowfluff": "弗利特·斯诺芙", "Fleet Snowfl": "弗利特·斯诺芙",
+    # 飞行雪绒(Fleet Snowfluff) 英文残留（长键先行；2026-10-24 修正旧音译"弗利特·斯诺芙"）
+    "Fleet Snowfluff's": "飞行雪绒的", "Fleet Snowflow's": "飞行雪绒的",
+    "Fleet Snowfluff": "飞行雪绒", "Fleet Snowflow": "飞行雪绒", "Fleet Snowfl": "飞行雪绒",
     # 其它专名/术语
     "Syncrate": "同步率", "Solaris": "索拉里斯",
     "Strider Gate": "隧门", "Stridergate": "隧门",
@@ -683,7 +749,8 @@ BILINGUAL_TERMS = {
     "海罗伊": "拉海洛",                                            # Lahai-Roi 缺"拉"前缀截断（#18628/21408/25153/25543；长键"拉海罗伊"先行不冲突）
     "Thrronodian": "鸣式", "Thrronodians": "鸣式",                 # Threnodian 双r ASR 变体（含复数）
     # --- 2026-09-10 二次校准（依官方中文检索修正）新增 ---
-    "虚空风暴": "虚质风暴", "虚空风暴潮": "虚质风暴潮",             # Void Storm 官方中文=虚质风暴（拉海洛灾难，依官方剧情文本）
+    "虚空风暴潮": "虚质磁暴", "虚质风暴潮": "虚质磁暴",             # 长键先行；官方词条=虚质磁暴（2026-10-24 依萌娘百科/官方剧情文本修正旧目标"虚质风暴"）
+    "虚空风暴": "虚质磁暴", "虚质风暴": "虚质磁暴",                 # Voidstorm 官方中文=虚质磁暴（拉海洛区域性海蚀现象）
     "星游学园": "星炬学院",                                         # Star Tour Academy = 星炬学院 ASR 变体（#15214）
     "Laai Roy": "拉海洛",                                           # Lahai-Roi ASR 变体（#4278 Laai Roy is my responsibility）
     # --- 2026-10-12 WuWa 3.3 Story Reaction（I must save Aemeath!，10653 cue）二次校准沉淀 ---
@@ -726,7 +793,7 @@ BILINGUAL_TERMS = {
     "隧者游侠": "隧者",
     # Strider Gate 纯音译组合（"斯特赖德门"明确组合可裸键；裸"斯特赖德"走 ctx 防人名误伤）
     "斯特赖德门": "隧门",
-    "舰队雪毛": "弗利特·斯诺芙",                                    # Fleet Snowfluff（#18043）
+    "舰队雪毛": "飞行雪绒",                                          # Fleet Snowfluff（#18043；2026-10-24 修正旧音译）
     # --- 2026-10-12 WUWA CONCERT WATCHPARTY REACTION（演唱会观看派对反应片，3470 cue）校准新增 ---
     # Lahai-Roi 谷翻"拉伊鲁瓦/拉·伊鲁瓦"形：长键须先于"鲁瓦->漂泊者"（Rover ASR 变体键），
     # 否则"拉伊鲁瓦"被咬出"拉伊漂泊者"畸形（#392/2752/2753 实测）：
@@ -878,7 +945,7 @@ BILINGUAL_TERMS = {
     # 漂泊者(Rover) ASR 变体 Wover
     "Wover": "漂泊者", "沃弗": "漂泊者",
     # 库洛(Kuro Games) 英文残留
-    "Kuro games": "库洛", "Curo Games": "库洛", "Kuro Games": "库洛",   # 大写 G 形（谷翻整词未译，2026-10-11 音乐会反应片 cue5/1375）
+    "Kuro games": "库洛游戏", "Curo Games": "库洛游戏", "Kuro Games": "库洛游戏",   # 公司全名（2026-10-24 补"游戏"；旧目标"库洛"会留下简称）
     "Kuro系列": "库洛系列",                                              # 同上（cue1340）
     # 艾尔登法环(Elden Ring) ASR 误听"长老戒指/elder ring"
     "长老戒指": "艾尔登法环", "elder ring": "艾尔登法环",
@@ -1171,7 +1238,28 @@ BILINGUAL_TERMS = {
     # --- 其余拉丁残留（长键，无通用词歧义）---
     "Tyr Ant": "暴君", "glo om": "阴郁", "REM": "疏忽",
     "M uyu": "牧羽", "Par agon": "帕尔阿贡", "Bal anafor": "巴拉纳福",
-    "Bal ana": "巴拉纳福", "Bal an oph ora": "巴拉诺弗拉",
+    # --- 2026-10-24 鸣潮 3.7 锁暝 PV「契阔」reaction 二校（英文原声 + 谷翻，165 cue）---
+    #   官方依据：TapTap《鸣潮》共鸣者「锁暝」PV | 契阔 CV 表（2026-10-20：蛇菰：卢晓彤）、
+    #   3.7 剧情（蛇菰=残星会女会监 / 谛天鉴州监，刺杀心月狐本体）、百度百科「锁暝」。
+    #   蛇菰=Balanophora；Balanar/Belenor 是 ASR 漏音节形。⚠ 巴拉纳福 是另一形
+    #   Balanafor 的旧译（上一条），不可把本片 Balanar/Belenor 映射成它。
+    "Balanar": "蛇菰", "Belenor": "蛇菰", "Balanophora": "蛇菰",
+    "巴拉纳尔": "蛇菰", "贝勒诺尔": "蛇菰",
+    "Bal ana": "巴拉纳福",                       # 旧键保留：Bal anafor/Bal ana 是另一实体
+    "Bal an oph ora": "蛇菰",                    # 修正旧键「巴拉诺弗拉」：官方中文=蛇菰
+    # --- 2026-10-24 《Jadealy｜Suoming Trailers》（293 cue）二校补录 ---
+    #   长键安全：均为音译专名/基线半成品收口，无通用词歧义。
+    "弗拉克萨斯": "残星会",                       # Fraxus，本片 #39/#53
+    #   ⚠ 必须用源形态「游泳」：BILINGUAL_TERMS 先于 CONTEXT_MAP 执行，
+    #   写中间形「登登锁暝/意图锁暝」不会命中（实测 #48/#145 未收口）。
+    "在登登游泳方面": "，州监锁暝",                 # #145 Dendon swimming=Intendant Suoming
+    "意图游泳": "州监锁暝",                       # #48 Intended swimming 的源形态
+    "在登登锁暝方面": "，州监锁暝",                 # 中间形兜底
+    "意图锁暝": "州监锁暝",                       # 中间形兜底
+    #   ⚠ 「亚斯玛」不入扁平表：裸键会得到「邪恶的恶瘴」，走 CONTEXT_MAP 整段替换。
+    #   Intendant Swamy = 州监锁暝（Swamy 是 Suoming 的 ASR 误听；长键先行，
+    #   避免既有 ctx Intendant->总监->州监 留下「斯瓦米州监」残形）
+    "斯瓦米总监": "州监锁暝", "斯瓦米州监": "州监锁暝",
     "S assy Ab ird": "萨西·艾伯德", "Saf ar": "萨法尔",
     "Tats": "塔茨", "Y asuri ice": "雅苏里", "Fr ax idus": "残星会",
     "Sim ul ac rum": "梦枢天罗", "Arb iter": "仲裁者",
@@ -1319,6 +1407,18 @@ BILINGUAL_TERMS = {
     "Fernodian": "鸣式", "tenonian": "鸣式", "Thronodium": "鸣式",   # Threnodian 误听（与 Frenodian/Threnodian 可共存）
     "highroys": "拉海洛",                                            # the highroys people（#1001）
     "Amth": "爱弥斯",                                                # Aemeath 截断（#275）
+    # --- 2026-10-24 鸣潮新加坡音乐会 vlog（zKodla，578 cue）二校沉淀 ---
+    #   官方依据：巡演《致予新世界》、安可 Encore、露帕 Lupa、百胜站 Bras Basah。
+    #   英文键均区分大小写（_replace_report 用 str.replace），不会误伤普通 anchor。
+    #   裸键「水浪」「锚点」「锚」是普通词，只走下面的 CONTEXT_MAP 参考行锚定。
+    "Weathering Waves": "鸣潮", "Weathering Wave": "鸣潮",   # ASR "Wu"->"Weathering"
+    "浇水波浪": "鸣潮",                                      # Watering Waves 谷翻直译
+    "水浪经历": "鸣潮经历",                                  # watery wave 谷翻（长键，避免裸「水浪」误伤）
+    "安科尔": "安可", "Ankor": "安可", "Anoro": "安可",       # Encore 角色（#536/#547/#551）
+    "卢帕": "露帕",                                          # Lupa（#544/#572；非 ko 实体可复用）
+    "Zikatla": "zKodla",                                     # 主播名 ASR（频道 @Kodla）
+    "铜巴萨站": "百胜站",                                    # Bras Basah 地铁站（#55）
+    "西班牙戏剧领域": "滨海艺术中心剧院",                     # Esplanade Theatre 误译（#535）
 }
 
 # 保留英文不译的专名（仅提示，不替换）
@@ -1330,6 +1430,11 @@ _XQ_RX = r"\bSchwanqing\b|\bSchwan\s*Ching\b|\bSwan\s*Ching\b|\bSchwan\s*ching\b
 CONTEXT_MAP = [
     # (英文正则, 仅当英文行匹配时才把中文里的某错误形式替换为正确形式)
     (r"\bScar\b", "疤痕", "伤痕"),
+    # 2026-10-24 《致予新世界》二校：Mourn 是英文普通词，必须靠参考行锚定，
+    # 才能安全落到角色莫宁（Mornye）；裸键「哀悼/Mor」不入扁平表。
+    (r"\bMourn\b", "《Mourn》", "《莫宁》"),
+    (r"\bMourn\b", "哀悼歌", "莫宁的歌"),
+    (r"\bMourn\b", "Mor 的歌", "莫宁的歌"),
     (r"\bDena\n?Denia\n?Denu\b", None, None),  # 占位示例，无实际用途
     # --- 2026-10-22 Gacha Games Have A Villain Problem 二校（官方名）---
     # 李恒->雷横 已由 ENTITIES 的无条件变体覆盖，不再重复 context 规则。
@@ -1411,6 +1516,38 @@ CONTEXT_MAP = [
     #   Affairs），谷翻按哈利波特梗译成"魔法部"；Ministry of War=军策府/兵部 不含"魔法部"不受影响
     (r"\bShranong\b|\bSchwanfong\b", "施拉农", "玄方城"),
     (r"\b[Mm]inistr(?:y|ies)\b", "魔法部", "谛天鉴"),
+    # --- 2026-10-24 鸣潮 3.7 锁暝 PV「契阔」reaction 二校（英文原声 + 谷翻，165 cue）---
+    #   官方依据：TapTap 官方 PV「契阔」CV 表（锁暝/蛇菰/九契）、3.7 版本说明、百度百科「锁暝」。
+    #   以下错形均为通用中文词/短语，禁止裸键，全部靠英文参考行锚定。
+    #   已有规则复用、不重复：Intendant->州监、Ministry->谛天鉴、苏明->锁暝、swimming/Swarming->锁暝。
+    (r"\bThe warming is coming out\b", "暖化", "锁暝"),    # #1 Suoming 被听成 the warming
+    (r"\bher and Shen\b", "沈", "心月狐"),                  # #13 Shen = Hsin = 心月狐
+    (r"\bCycle sever\b", "循环中断", "斩断轮回"),           # #15 招式名意译
+    (r"\bSix fold collapse\b", "崩溃六倍", "六重崩解"),     # #22 招式名意译
+    (r"\bMetal canopy, full ambush\b", "金属遮阳篷，全面伏击", "铁伞如盖，伏击尽出"),  # #11
+    (r"\bIntendant swing\b", "督导挥棒", "州监挥伞"),       # #25 Intendant=州监
+    (r"\bAll alone victory\b", "孤独的胜利", "孤身取胜"),   # #100
+    (r"\bscale that\b", "把它按比例来衡量", "爬上那玩意儿"),  # #88 scale=攀爬
+    (r"\brelieving that day\b", "那天的缓解", "重温那一天"),  # #89 reliving 误听
+    (r"\bShe's killed sensible\b", "她杀了理智的人", "她杀过岁主"),  # #65 sensible=Sentinel
+    (r"\bgotcha games\b", "明白了，游戏", "抽卡游戏"),       # #109 gotcha=gacha
+    # --- 2026-10-24 《Jadealy｜Suoming Trailers》二校（293 cue，英语原声 + 谷翻，bi）---
+    #   官方依据：TapTap「锁暝」PV｜契阔 CV 表（锁暝/蛇菰/九契）、3.7 版本说明、
+    #   萌娘百科「残星会」、官方 PV 台词「此道，孤身难行，所以……且再陪我多走一程吧。」
+    #   蛇菰=Balanophora：An offer / an aphora / Offer a crawl 都是 ASR 形，**不是「巴拉纳福」**
+    #   （巴拉纳福是另一形 Balanafor 的旧译）。以下错形均为通用中文/短语，禁止裸键。
+    (r"\bAn offer\b", "一种从根部爬行的提议", "蛇菰，在根须间爬行"),
+    (r"\ban aphora\b", "一股恐惧从根部爬行", "蛇菰在根须间爬行"),
+    (r"\bOffer a crawl\b", "提供一条穿越蛇群的爬行", "蛇菰，在蛇群间爬行"),
+    #   已有规则复用、不重复：Intendant->州监、swimming->锁暝、Metal canopy, full ambush->铁伞如盖。
+    (r"\bMetal canopy,? full unleash\b", "金属罩全面展开", "铁伞如盖，全面展开"),
+    (r"\bSeal evil (?:reign|rain)\b", "封印恶雨", "封印邪恶的统治"),
+    (r"\bSeal evil (?:reign|rain)\b", "封印邪恶统治", "封印邪恶的统治"),
+    (r"\bFraxus overseer\b", "残星会监督者", "残星会会监"),   # Fraxus=残星会；overseer=会监
+    (r"\bthe evil Yasma\b", "邪恶的亚斯玛", "恶瘴"),          # Yasma=Evil Miasma ASR
+    #   ⚠ 不沉淀：#157 Keep swimming（无官方台词，直译）、#37/38 tacet mark（本片跨 cue 拆词，
+    #   走 subfix）、#145 Dendon swimming（整句特化）、#41 Thundering peace（低置信）、
+    #   P word / pulling / aura farm（主播梗或有近似规则）。
     (r"\balt\b|\balult\b|\balted\b|\balsated\b", "替代音", "变身形态"),   # alt=alternate form 变身形态
     (r"\balt\b|\balult\b|\balted\b|\balsated\b", "替代项", "变身"),
     (r"\balt\b|\balult\b|\balted\b|\balsated\b", "替代品", "变身形态"),
@@ -2024,6 +2161,20 @@ CONTEXT_MAP = [
     (r"\bMorier\b", "莫里尔", "莫宁"),        # Professor Morier = 莫宁教授（Mornye 的 ASR 变体）
     (r"\bsynchronous\b", "同步者", "适格者"),  # synchronist 的 ASR 变体（旧锚点只认 synchronist，本片 #178 漏校）
     (r"\bAlf\b", "阿列夫", "阿列夫一"),        # 半截名补全（#1205/#1210/#1214/#1260）；既有「阿列夫一」由哨兵保护
+    # --- 2026-10-24 Journey Well'ed 二校补漏（官方中文再核）---
+    #   官方依据：萌娘百科「虚质磁暴」「飞行雪绒」、官方角色档案「星炬学院拉贝尔学部」、
+    #   官方 3.1 内容说明。以下均为通用中文词/英文 ASR 误听，必须英文锚定，禁止裸键。
+    (r"\bRebel College\b", "星炬学院", "拉贝尔学部"),       # 本片 #101-102：Rebel College=拉贝尔学部，非上位机构
+    (r"\bKako home\b", "卡可家", "回家"),                  # #690 Kako=back 的 ASR 误听
+    (r"\bShawinger'?s cat\b", "Shawinger 的猫", "薛定谔的猫"),  # #815 Schrödinger's cat
+    (r"\bAidious\b", "Aidious", "观众"),                    # #1090 audience 误听
+    (r"\bInsane (?:lord )?lore drop\b", "疯了一样的掉率", "这剧情爆料太猛了"),  # #396 lore drop≠掉率（整句覆盖，防"疯了一样的剧情爆料"）
+    (r"\b(?:Curl|Kuro|Curo) [Gg]ames\b", "抽卡游戏", "库洛游戏"),  # #175 Curl games=Kuro Games；抽卡游戏是通用词，只走英文锚定
+    (r"\bSave her\b", "存档", "救她"),                      # #269 Save her≠存档
+    (r"\bI am Ian, the Academy star\b", "我是伊恩", "我是爱弥斯"),  # #771 Ian=Aemeath 误听；Ian 是常见名，只走窄锚定
+    (r"\breactor (?:core|drive)\b", "反应堆核心", "炉芯"),    # #189/#492/#1226/#1308 reactor=炉芯
+    (r"\breactor (?:core|drive)\b", "反应堆", "炉芯"),
+    (r"\breactor (?:core|drive)\b", "核心", "炉芯"),
     # --- 2026-10-24 沉淀 wuwa_explore_tales 侧车 11 条中的通用规则 ---
     #   其余 5 条（月狐罪 ctx 级联 / 阳光玲 / 库洛空格等）属错位或一次性整行，仍按侧车处理。
     (r"\bMid\s*na\b|\bMidna\b", "米达妮娅", "米德娜"),          # #152 Midna 是塞尔达角色，勿套鸣潮达妮娅
@@ -2032,6 +2183,17 @@ CONTEXT_MAP = [
     (r"\bSentinel\b", "守护者", "岁主"),                         # #2788 Sentinel 被误译守护者
     (r"\bRes\s*on\s*ator\b", "岁主 Res", "岁主共鸣者"),           # #2307 跨行断词（长键先行）
     (r"\bRes\s*on\s*ator\b", "雷斯", "共鸣者"),                  # #2788/#2307 Res on ator 断词
+    # --- 2026-10-24 鸣潮新加坡音乐会 vlog（zKodla）二校沉淀 ---
+    #   参考行 Ankor/Anoro/Anchor 才把中文「锚点/锚」还原成角色安可。
+    #   ⚠ 不用单字「锚」规则：会把「抛锚」咬成「抛安可」（本片 #510 实测），改用具体短语。
+    (r"\bAnkor\b|\bAnoro?\b|\bAnchor\b", "锚点", "安可"),      # #541/#549/#571
+    (r"\bAnkor\b|\bAnoro?\b|\bAnchor\b", "抛锚", "安可"),      # #510/#554（整词，防「抛安可」）
+    (r"\bAnkor\b|\bAnoro?\b|\bAnchor\b", "那个锚", "那个安可"), # #551
+    (r"\bAnkor\b|\bAnoro?\b|\bAnchor\b", "像锚一样", "像安可一样"),  # #553
+    (r"\banor\b", "Anor", "安可"),                             # #545 参考行 anor 的英文残留
+    (r"\bBras Basah\b|\bbrass basa\b", "铜巴萨站", "百胜站"),   # #55 新加坡地铁 CC2
+    # 既有规则的精确回滚（本片实测误伤）：
+    (r"\bback Daniel\b", "达妮娅", "Daniel"),                   # #96 工作人员 Daniel≠Dennia
 ]
 
 # =============================================================
@@ -2184,7 +2346,14 @@ EXCLUDE_CONTEXT = {
     # ⑨ "满的" -> 全部 的负例：**"满满的爱"被子串咬伤**（2026-10-12 演唱会反应片）。
     #    #2925 "so love" 谷翻"满满的爱"、#3696 "lots of love" 同理：学习库"满的->全部"
     #    子串命中"满满【的】爱"，咬出畸形"满全部爱"。参考行命中 so love/lots of love 即回滚。
-    "满的": ("全部", (r"\bso love\b", r"\blots of love\b")),
+    "满的": ("全部", (r"\bso love\b", r"\blots of love\b", r"\bfull of longing\b")),
+    # --- 2026-10-24 Journey Well'ed 二校负例 ---
+    # 学习库 bi|溪流(confirmed) 把游戏台词 stream=溪流改成直播；参考行 taint this stream 回滚。
+    "溪流": ("直播", (r"\btaint this stream\b", r"\bwith that curse\b")),
+    # seal=封印 规则误伤雪原动物海豹（#676/#677）；comforting/kill 语境回滚。
+    "海豹": ("封印", (r"\bcomforting the seals?\b", r"\bkill a seal\b")),
+    # 尤诺 Entity 的 Juno 裸变体误伤主播 Juno Umezono；参考行 Juno Umezono/Amazon 回滚。
+    "Juno Umezono": ("尤诺Umezono", (r"\bJuno\s+(?:Umezono|Amazon)\b", r"@JunoUmezono\b")),
     # ⑩ "莱昂" -> 伺夜(Vigil，明日方舟) 的负例：**其他游戏联动角色里昂（Leon）**。
     #    2026-10-12 演唱会反应片 #996/#1008 主播聊某游戏摩托车联动皮肤 "the Leon and ADA
     #    skin"（里昂×艾达），伺夜 Entity 的 \bLeon\b 锚定误伤成"伺夜"。ref 同时命中
@@ -3830,7 +3999,9 @@ ENDFIELD_BI_TERMS = {
     "电击护卫": "电气近卫",                  # electro-guard（明河职业分支；endo 表已有电动护卫→电气近卫）
     "冷冻支援": "寒冷辅助", "冷冻支持": "寒冷辅助",   # cryo support（祀定位）
     # 战斗片高频机翻词（战斗语境零歧义）
-    "损害": "伤害", "乘数": "倍率", "罢工": "猛击",   # damage / multiplier / strike
+    "损害": "伤害", "乘数": "倍率",   # damage / multiplier
+    # 2026-10-24 撤除裸键「罢工→猛击」：#28「strike at the」是 BOSS 语音残句，被误改成「猛击」；
+    # 「罢工」是通用词，改由 crush 英文锚定（见 ENDFIELD_BI_CONTEXT），语音残句逐 cue 处理。
     "球队": "队伍", "老板": "Boss",                  # team / boss
     "堆叠": "层数", "堆栈": "层数",                  # stacks（名词）
     "损伤": "伤害",                                  # damage（与"损害"并列）
@@ -4238,6 +4409,9 @@ ENDFIELD_BI_CONTEXT = [
     (r"\bcrush(?:ed|es|ing)?\b", "崩溃", "猛击"),
     (r"\bcrush(?:ed|es|ing)?\b", "坠毁", "猛击"),
     (r"\bcrush(?:ed|es|ing)?\b", "坠机", "猛击"),
+    # 2026-10-24：撤除裸键后，仅在该 cue 英文确有 crush 时才把「罢工」收回猛击；
+    #   "strike at the" 等语音残句不再被误改（#28 成品为「斩向那」，留逐 cue）。
+    (r"\bcrush(?:ed|es|ing)?\b", "罢工", "猛击"),
     # —— 侵蚀 (Blight)：「枯萎」是通用词（鸣潮 Withering 也译枯萎），须英文行佐证 ——
     (r"\b(?:the\s+)?blight\b", "枯萎", "侵蚀"),
     # —— 超域 (Æther)：「以太」是物理/化学/加密货币通用词 ——
@@ -7411,9 +7585,10 @@ ENTITIES = [
                 "#286 机翻'黛西迪亚'/ASR'Dasidia'统一。"),
     Entity("莫宁", modes=("bi",), en="Mornye",
            category="角色",
-           variants=("Monier", "莫尼尔"),
+           variants=("Monier", "莫尼尔", "Mourn"),
            note="星炬学院隧者工学部教授/深空联合研究院工程师（百度百科·琳奈词条）。"
-                "Mouier/Mor 变体已在扁平表；本片 #169 Professor Monier、#184 Professor Mona(侧车)。"),
+                "Mouier/Mor 变体已在扁平表；本片 #169 Professor Monier、#184 Professor Mona(侧车)。"
+                "2026-10-24 补 Mourn（角色曲《若能触及群星》段落 ASR）。"),
     Entity("西格莉卡", modes=("bi",), en="Sigrika",
            category="角色",
            variants=("Sriraka", "Skrika", "Sigrika"),
@@ -7434,9 +7609,10 @@ ENTITIES = [
                 "'Linn\\'s'(#736) 为所有格 ASR 残留。"),
     Entity("拉贝尔学部", modes=("bi",), en="Labell College",
            category="地点/星炬学院学部",
-           variants=("Rebel Collegeg", "拉贝尔学院"),
-           note="星炬学院学部（官方知识库：'经拉贝尔学部判断其频率……'）。"
-                "#31 机翻'Rebel Collegeg'音译残留。"),
+           variants=("Rebel Collegeg", "Rebel College", "拉贝尔学院"),
+           note="星炬学院学部（官方知识库：'经拉贝尔学部判断其频率……'；官方角色档案："
+                "'爱弥斯，星炬学院拉贝尔学部的隧者适格者'）。Rebel College 为 Labell College "
+                "ASR 变体；2026-10-24 补无尾 g 形，勿归入上位机构『星炬学院』。"),
     Entity("老婆", modes=("bi",), category="术语",
            variants=("waifuss",),
            note="waifu 复数 ASR 形 waifuss(#43)；'收集 waifuss'=收集老婆。"
@@ -8062,8 +8238,9 @@ ENTITIES = [
                 "字幕若出现机翻中文应还原为英文，ja/ko 留空。"
                 "来源：萌娘百科「Give Me Something」、17173 报道。"),
     Entity("夏空", modes=("bi",), en="Ciaccona",
-           category="角色/鸣潮", variants=("沙科纳",),
-           note="补 r3 '沙科纳'->夏空（#1683，Shakona 谷翻）。既有 西科纳/萨库娜 保留。"),
+           category="角色/鸣潮", variants=("沙科纳", "Chiaona", "Chiaakona", "Chakona"),
+           note="补 r3 '沙科纳'->夏空（#1683，Shakona 谷翻）。既有 西科纳/萨库娜 保留。"
+                "2026-10-24 补英文 ASR 形 Chiaona/Chiaakona/Chakona（Ciaccona 的连读）。"),
     Entity("鸣潮", modes=("bi", "react"), en="Wuthering Waves", ja="鳴潮", ko="명조",
            category="作品/游戏",
            variants=("鸣潮涛",
@@ -8245,7 +8422,7 @@ ENTITIES = [
            note="学习库固化(#2315/2325/5263/5866/6580/12255)：mirage 机翻'幻界'归蜃境。"),
     Entity("爱弥斯", modes=("bi",),
            category="角色/鸣潮2.x",
-           variants=("艾姆斯",),
+           variants=("艾姆斯", "Amus"),
            note="学习库固化(#1644/1645/4470)：Amess 音译残留；'伊梅'(Imeth)走学习库 ctx。"),
     # ===== 2026-10-01 韩语原声·鸣潮 reaction 片（《명조》B站初体验，577 cue）沉淀 =====
     # 官方译名来源：百度百科 / 鸣潮WIKI(BWIKI) / 灰机wiki / Fandom / 萌娘百科《鸣潮/译名对照表》/ namu.wiki。
@@ -9083,7 +9260,7 @@ ENTITIES = [
                 "英文错形均生僻，裸键安全。"),
     Entity("恶瘴", modes=("bi",), en="Evil Miasma",
            category="术语/灾厄·鸣潮3.7",
-           variants=("邪恶瘴气", "Evil Miasma", "evil Miasma"),
+           variants=("邪恶瘴气", "邪恶的瘴气", "Evil Miasma", "evil Miasma"),
            note="华亭故乡灾厄（官方档案'故乡「恶瘴」之厄'），官方中文=恶瘴（ko 模式 악장->恶瘴 已沉淀）。"
                 "谷翻'邪恶瘴气'生僻组合裸键安全；戒律：'Miasma' 单独歧义（瘴气普通词）不裸键，"
                 "只收带 Evil 词组。"),
@@ -9179,6 +9356,14 @@ ENTITIES = [
            ctx=((r"\bSwing\b", "Swing"), (r"\bSwinging\b", "Swinging")),
            note="英文残留补录：Suoming→Smain（ASR）；'Swing/Swinging' 是常用英文词，"
                 "只走 ctx 参考行锚定。"),
+    Entity("蛇菰", modes=("bi",), en="Balanophora",
+           category="角色/鸣潮3.7",
+           variants=("Balanar", "Belenor", "Balanophora", "巴拉纳尔", "贝勒诺尔",
+                     "巴拉诺弗拉", "Bambee", "蛇骨", "an aphora"),
+           note="官方中文=蛇菰（TapTap《共鸣者「锁暝」PV | 契阔》CV 表 2026-10-20："
+                "蛇菰：卢晓彤）；3.7 剧情：残星会女会监、谛天鉴州监，刺杀心月狐本体。"
+                "Balanar/Belenor 是 Balanophora 的 ASR 漏音节形；"
+                "⚠ 巴拉纳福是另一形 Balanafor 的旧译，勿混。"),
     Entity("玄翎雀", modes=("bi",), en="Xuanling Bird",
            category="生物/鸣潮3.7",
            variants=("Shenling", "Schwrenling"),
@@ -9374,6 +9559,46 @@ ENTITIES = [
     Entity("墨魂", modes=("endobi",), en="Ink Spirit", category="机制/祀",
            ctx=((r"\bink\s?saw\b", "墨锯"),),
            note="祀核心机制「墨魂」（Ink Spirit）；ASR 把 ink soul 听成 ink saw，谷翻作「墨锯」。⚠ 裸键「灵魂」已于 2026-10-20 撤除，仍只走英文锚定。"),
+    # --- 2026-10-24 二次校准补充（同一片源；用户要求官方中文逐句复核 + 回灌脚本）---
+    #   官方依据：官网干员页（别礼 Last Rite / 诀 Arcane）、蚀刻章列表（技能提升奖章）、
+    #   「战争回响 - 异想赛季」轮换（重伤之围 + 易伤区域）。
+    #   只收可复用规则；pro→BOSS / low CC→低难度危机合约 / bed→剑锋 / razor structure
+    #   属本片一次性 ASR 残句，按硬契约第 4 条不进表，保留逐 cue 覆盖。
+    Entity("别礼", modes=("endobi",), en="Last Rite", category="角色/终末地",
+           variants=("Last Rite",),
+           ctx=((r"believe in (?:last\b|last\s+rite\b)", "最后"),
+                (r"believe in (?:last\b|last\s+rite\b)", "这套")),
+           note="Last Rite 官方中文=别礼。ASR 把 Last Rite 听成 last，谷翻按普通词译「最后/这套」；"
+                "「最后」是通用词，只在 believe in last 语境锚定，绝不收裸键 last。"),
+    Entity("诀", modes=("endobi",), en="Arcane", category="角色/终末地",
+           ctx=((r"i think a king|a king should go first", "国王"),),
+           note="Arcane 官方中文=诀。本片 ASR 把 Arcane 听成 a king，谷翻译「国王」；"
+                "「国王」是通用词，只在 I think a king / A king should go first 语境锚定；"
+                "既有的 arcan(e|a)->奥术 ctx 保留。"),
+    Entity("技能提升奖章", modes=("endobi",), en="Skill Medal", category="蚀刻章/终末地",
+           variants=("技能勋章", "技能奖章", "技能提升勋章"),
+           note="官方蚀刻章名「技能提升奖章」（升满 20 个专精的技能类奖章）；"
+                "机翻/口语常作技能勋章/技能奖章，均为特定错形，可进裸键。"),
+    Entity("危机合约", modes=("endobi",), en="Crisis Drill / Crisis Contract",
+           category="玩法/终末地",
+           ctx=((r"crisis\s+drill|crisis\s+contract", "危机演习"),),
+           note="终末地官方高难玩法「危机合约」；本片 ASR 作 crisis drill，谷翻译「危机演习」。"
+                "「危机演习」是特定错形，但仍以英文 crisis drill/contract 锚定，避免泛化。"),
+    Entity("易伤区域", modes=("endobi",), en="Vulnerability Zone",
+           category="机制/重伤之围",
+           ctx=((r"ink\s?saw.{0,40}\bring\b", "环内"),
+                (r"ink\s?saw.{0,40}\bring\b", "圈内"),
+                (r"ink\s?saw.{0,40}\bring\b", "圈里")),
+           note="「重伤之围」场地机制：易伤区域使敌人受到的伤害逐渐增加。"
+                "ASR「ink saw in the ring」指墨魂在易伤区域内；ring 是通用词，只在 ink saw 语境锚定。"),
+    Entity("重伤之围", modes=("endobi",), en="Grievously Besieged",
+           category="关卡/战争回响",
+           note="「战争回响 - 异想赛季」轮换关卡；Grievously Besieged 官方中文=重伤之围。"
+                "本片 6:12 段落即该关卡；纯元数据，无错形规则。"),
+    Entity("聂菲斯", modes=("endobi",), en="Nefarith", category="BOSS/终末地",
+           note="危境再现「危境祸影」BOSS；官方中文=聂菲斯。本片 0:00 段落。纯元数据，无错形规则。"),
+    Entity("幽林之怒", modes=("endobi",), en="Gloomwald's Rage", category="BOSS/终末地",
+           note="1.5「雪凇幽梦」区域 BOSS；官方中文=幽林之怒。本片 3:07 段落。纯元数据，无错形规则。"),
     # ============================================================
     # 2026-10-10《Jadealy REACTS to Every HSIN Trailers – Wuthering Waves》
     #   （鸣潮 3.7「心」全部预告片合集 reaction，中英双语，502 cues）二次校准沉淀。
@@ -9895,7 +10120,7 @@ ENTITIES = [
            variants=("加尔布丽娜", "吉尔布丽娜"),
            note="Crashout 片补漏：Galbrena 谷翻音译二形（#966/2276/6862 等），生僻长键裸键安全。"),
     Entity("尤诺", modes=("bi",), en="Iuno",
-           variants=("卢诺", "Luno", "Lunos"),
+           variants=("卢诺", "Luno", "Lunos", "Youo"),
            note="Crashout 片补漏：官方英文名 Iuno（英配 Ella Boyes；萌娘百科/百度百科"
                 "均作 Iuno，源自罗马 Juno 的拼写变体，勿写成 Juno）。"
                 "主播念 Luno/Juno 混杂，谷翻'卢诺'10处、英文残留 Luno/Lunos（#871/6574）。"
@@ -9960,6 +10185,19 @@ ENTITIES = [
     Entity("声痕", modes=("bi",), en="Tacet Mark", category="设定/鸣潮",
            variants=("tacent mark",),
            note="共鸣者身上的声痕（Tacet Mark）；tacent 为 Tacet 的 ASR 拼写（本片 #1190）。"),
+    Entity("飞行雪绒", modes=("bi",), en="Fleet Snowfluff", ja="フリート・スノーフラッフ",
+           category="角色/歌手/鸣潮3.1",
+           note="爱弥斯发布歌曲所用化名，官方中文「飞行雪绒」，英文 Fleet Snowfluff"
+                "（萌娘百科/Apple Music《飞行雪绒》EP/Bangumi 别名表）；日文 フリート・スノーフラッフ。"
+                "旧音译「弗利特·斯诺芙」已于 2026-10-24 修正。"),
+    Entity("虚质磁暴", modes=("bi",), en="Voidstorm",
+           category="地点/现象/鸣潮3.1",
+           note="拉海洛区域性海蚀现象，官方中文「虚质磁暴」（萌娘百科/官方剧情文本）；"
+                "旧译「虚质风暴」已于 2026-10-24 收敛。"),
+    Entity("炉芯", modes=("bi",), en="Reactor Core",
+           category="术语/鸣潮3.1",
+           note="隧者动力核心，官方中文「炉芯」；机翻常作反应堆核心/反应堆。"
+                "「核心」是通用词，只走英文 reactor 锚定（见 CONTEXT_MAP 2026-10-24 块），不入裸键。"),
 ]
 
 
@@ -9979,6 +10217,10 @@ _MUSIC_WW = [                       # 鸣潮 · 先约电台 EP（角色印象�
     # --- EP0 / 公测 EP ---
     ("Saving Light", "Saving Light", "", ""),
     ("Waking of a World", "Waking of a World", "", ""),
+    # --- 2026-10-24 《致予新世界》演唱会二校补目（官方中文名）---
+    ("拉海洛之心", "Heart of Laoy", "", ""),
+    ("小小奇迹", "A Small Miracle", "", ""),
+    ("远航星的告别", "Bon Voyage", "", ""),
     # --- EP1.x ---
     ("往岁乘霄", "Thawing Fates", "過ぎし乗霄山の歳月", "승소산의 메아리"),
     ("月华如愿", "", "", ""),
