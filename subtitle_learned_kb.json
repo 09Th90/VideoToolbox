@@ -15227,6 +15227,24 @@
    "last": "2026-10-19",
    "alts": {},
    "sync": true
+  },
+  "bi|心月狐的一部分": {
+   "wrong": "心月狐的一部分",
+   "right": "罪的一部分",
+   "mode": "bi",
+   "count": 2,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    2598
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-10-24",
+   "last": "2026-10-24",
+   "alts": {},
+   "sync": true
   }
  }
 }
