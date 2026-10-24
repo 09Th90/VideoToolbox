@@ -1,4 +1,4 @@
-# @version 2.6.0
+# @version 2.7.0
 """视频信息线程（自研，替代 videocaptioner.ui.thread.video_info_thread）。"""
 
 from __future__ import annotations

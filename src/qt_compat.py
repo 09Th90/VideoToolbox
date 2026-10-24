@@ -1,5 +1,5 @@
 # coding: utf-8
-# @version 2.6.0
+# @version 2.7.0
 """Qt / qfluentwidgets 运行期兼容补丁。
 
 只放「上游有回归、且当前没有可升级版本」的针对性修补。每个补丁都必须自带

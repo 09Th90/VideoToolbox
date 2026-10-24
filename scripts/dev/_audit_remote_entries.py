@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.6.0
+# @version 2.7.0
 """全表审计：origin/main 相对 HEAD 在 AST 条目层面是否真有缺失。
 
 逐张模块级表（Dict/List）比对：

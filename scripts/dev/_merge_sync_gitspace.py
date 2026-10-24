@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.6.0
+# @version 2.7.0
 """仓库更新的 git 空间条目级合并（不碰工作区）。
 
 背景：本地 main 与 origin/main（另一实例的校准知识同步提交）在两个同步文件上

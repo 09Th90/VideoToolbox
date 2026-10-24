@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.6.0
+# @version 2.7.0
 """ASCII 路径驱动 PyInstaller 打包（2026-10-21 收编进仓库）。
 
 默认 **onedir**：`dist\\视频工具箱\\视频工具箱.exe` + `_internal\\`。

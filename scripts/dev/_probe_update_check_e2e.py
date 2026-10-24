@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.6.0
+# @version 2.7.0
 """End-to-end: vt_update_check.check_update against a local file:// repo.
 
 覆盖：源码模式（默认）、安装版四种版本方向、安装记录陈旧自动校正、

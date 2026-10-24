@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+# @version 2.7.0
 """calib_core 并行包自检（不部署、不修改生产单文件）。
 
 覆盖：
@@ -11,6 +12,7 @@
 用法（在程序根执行）：
     PYTHONPATH=src tools\\python\\python.exe scripts\\dev\\_selftest_calib_core.py
 """
+import argparse
 import ast
 import contextlib
 import hashlib
@@ -494,8 +496,16 @@ def test_import_and_docs(ref, pkg):
 # ---------------------------------------------------------------- main
 
 def main():
+    global REF_SCRIPT
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--ref", default="",
+                    help="候选单文件路径；默认仓库根 subtitle_calib_merged.py")
+    args = ap.parse_args()
+    if args.ref:
+        REF_SCRIPT = os.path.abspath(args.ref)
     print("calib_core 并行包自检")
     print("根目录:", ROOT)
+    print("参照脚本:", REF_SCRIPT)
     t0 = time.perf_counter()
     ref = load_ref()
     pkg = load_pkg()

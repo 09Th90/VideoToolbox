@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.6.0
+# @version 2.7.0
 """vt_fluent 主题层 parity 探针（B0 门：深浅色令牌与 qfluentwidgets 逐值对照）。
 
 同一进程内加载 qfluentwidgets（对照基准）与 vt_fluent（自研），逐项比对：

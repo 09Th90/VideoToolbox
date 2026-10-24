@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.6.0
+# @version 2.7.0
 """安装包实测验证：把离线安装器装到暂存目录，逐项核对「源码 → 安装产物」闭环。
 
 用法：
@@ -161,7 +161,7 @@ def main():
     print("\n== 4) 静态资产 ==")
     for rel in ["docs\\使用说明.txt", "docs\\开源许可_GPL-3.0.txt",
                 "docs\\第三方组件来源与许可声明.txt", "tools\\ai_client.py",
-                "subtitle_calib_merged.py"]:
+                "subtitle_calib_merged.py", "src\\calib_core\\__init__.py"]:
         p = os.path.join(dest, *rel.split("\\"))
         ok = os.path.isfile(p)
         print("   %s %s" % ("[OK]" if ok else "[缺]", rel))

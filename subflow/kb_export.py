@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.6.0
+# @version 2.7.0
 """知识库统一导出器（方案书阶段 3）：finesub 知识库主库 → 各工具，严格单向。
 
 主库形态：SubFlow 根 knowledge/rendered/ 下的 markdown 副本（finesub

@@ -1,4 +1,4 @@
-# @version 2.6.0
+# @version 2.7.0
 """vt_engine 导入引导：把程序 src 目录放上 ``sys.path``。
 
 本包（``vt_engine``）是「完整运行引擎」的并行开发载体，内部复用本项目

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.6.0
+# @version 2.7.0
 """增量同步通道
 
 源：subtitle_calib_merged.py L13651-L14529 @ 97d7d463（2026-10-24 冻结快照）

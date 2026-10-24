@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.6.0
+# @version 2.7.0
 """极简未定义名扫描（无 pyflakes 时的兜底）。
 
 对 vt_engine_ui 每个模块：收集模块级全局名 + 每个函数内的局部绑定，找出函数体内

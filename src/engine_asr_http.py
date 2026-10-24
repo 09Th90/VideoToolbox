@@ -1,4 +1,4 @@
-# @version 2.6.0
+# @version 2.7.0
 """OpenAI 兼容 ASR 的 HTTP 传输层（自研）。
 
 P2 接缝配套模块：``engine_asr.WhisperAPI`` 只管协议语义（字段、缓存键、

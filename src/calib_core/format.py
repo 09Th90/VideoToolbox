@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.6.0
+# @version 2.7.0
 """行宽、重排、口播风格与 cue 稳定化
 
 源：subtitle_calib_merged.py L12310-L12747 @ 97d7d463（2026-10-24 冻结快照）
@@ -436,11 +436,11 @@ def _cmd_flow(src, out=None, fix_style=False):
 def _cmd_stabilize(src, out=None, report=None, drop=True, merge=True, split=True):
     """stabilize：SRT cue 级稳定化（幻觉丢弃 / 碎片合并 / 超长拆分）。"""
     here = os.path.dirname(os.path.abspath(__file__))
-    src_dir = os.path.dirname(here)          # src/calib_core -> src
-    root_dir = os.path.dirname(src_dir)      # src -> 程序根
-    for _p in (root_dir, src_dir):
-        if _p not in sys.path:
-            sys.path.insert(0, _p)
+    # 兼容三种布局：包内 src/calib_core、根 monolith、data/tmp 下的候选
+    for _base in (here, os.path.dirname(here), os.path.dirname(os.path.dirname(here))):
+        for _p in (_base, os.path.join(_base, "src")):
+            if _p and _p not in sys.path:
+                sys.path.insert(0, _p)
     try:
         import calib_stabilize as _st
     except ImportError as e:

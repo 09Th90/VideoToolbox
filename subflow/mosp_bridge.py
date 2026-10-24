@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.6.0
+# @version 2.7.0
 """SRT 与 MAW 字幕工程（.mosp）互转——subflow「人工校对」环节的交接桥。
 
 规范依据 moys-asr-workflow 仓库 JSON_SCHEMA.md（moy.asr.project.v1）：

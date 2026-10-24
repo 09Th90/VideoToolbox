@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.6.0
+# @version 2.7.0
 """学习库与 learn/learned-*
 
 源：subtitle_calib_merged.py L11185-L11554 @ 97d7d463（2026-10-24 冻结快照）

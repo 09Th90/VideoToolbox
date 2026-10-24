@@ -1,4 +1,4 @@
-<!-- @version 2.6.0 -->
+<!-- @version 2.7.0 -->
 <h1 align="center">视频工具箱 · VideoToolbox</h1>
 
 <p align="center">

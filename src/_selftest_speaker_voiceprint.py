@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# @version 2.6.0
+# @version 2.7.0
 """主播声纹链路自检（离线，不联网、不依赖 ffmpeg）。
 
 覆盖 src/speaker_voiceprint.py：

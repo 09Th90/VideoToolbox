@@ -1,4 +1,4 @@
-# @version 2.6.0
+# @version 2.7.0
 """磁盘缓存收口（复用自研接缝模块 ``engine_cache``）。
 
 :class:`CacheHub` 持有 5 类缓存的惰性工厂（llm / asr / tts / translate /

@@ -1,4 +1,4 @@
-# @version 2.6.0
+# @version 2.7.0
 <#
 .SYNOPSIS
     一键部署 / 升级 AI 托管引擎（deepseek-harness）到 <程序根>\harness。

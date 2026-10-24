@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.6.0
+# @version 2.7.0
 """CLI 参数解析与子命令分发
 
 源：subtitle_calib_merged.py L13295-L13650 @ 97d7d463（2026-10-24 冻结快照）

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.6.0
+# @version 2.7.0
 """文本解码与语言/行类型判定
 
 源：subtitle_calib_merged.py L1-L12060 @ 97d7d463（2026-10-24 冻结快照）
