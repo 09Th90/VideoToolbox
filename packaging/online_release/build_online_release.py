@@ -203,6 +203,9 @@ def build_package(pkg, items, out_dir, volume_max):
                 print("   !! 源不存在：%s" % src)
                 sys.exit(2)
             for ap, zn in iter_files(src, dest_rel):
+                # 本机图标草稿只留工作区，不进任何发布包（离线 iss 也未收）
+                if pkg == "docs" and Path(zn).name.startswith("icon_draft"):
+                    continue
                 low = zn.lower()
                 if any(b in low for b in FORBIDDEN):
                     # 命中即退出（与"源不存在"同级）：被跳过的文件既不进 zip
