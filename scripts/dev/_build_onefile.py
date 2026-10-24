@@ -1,6 +1,9 @@
 # -*- coding: utf-8 -*-
-# @version 2.5.4
-"""ASCII 路径驱动 PyInstaller 打包 onefile exe（2026-10-21 收编进仓库）。
+# @version 2.6.0
+"""ASCII 路径驱动 PyInstaller 打包（2026-10-21 收编进仓库）。
+
+默认 **onedir**：`dist\\视频工具箱\\视频工具箱.exe` + `_internal\\`。
+传 `--mode onefile` 可回退单文件便携版（启动需解包，速度慢）。
 
 原驱动为仓库外脚本 ``C:\\bld\\_build_vt_170.py``；构建链 C 盘依赖
 （``C:\\vt_build`` junction / ``C:\\bld\\qt_build`` venv）整体迁移至 D 盘
@@ -55,6 +58,19 @@ except Exception as e:  # noqa: BLE001
     print("!! 打包环境缺 onnxruntime：", e)
     raise SystemExit(2)
 
+MODE = "onedir"
+_args = sys.argv[1:]
+for _i, _a in enumerate(_args):
+    if _a == "--mode" and _i + 1 < len(_args):
+        MODE = _args[_i + 1].strip().lower()
+    elif _a.startswith("--mode="):
+        MODE = _a.split("=", 1)[1].strip().lower()
+if MODE not in ("onedir", "onefile"):
+    print("!! --mode 只能是 onedir / onefile：", MODE)
+    raise SystemExit(2)
+os.environ["VT_BUILD_MODE"] = MODE
+print("构建模式  :", MODE)
+
 sys.argv = [
     "pyinstaller", spec,
     "--noconfirm",
@@ -77,4 +93,8 @@ for f in sorted(os.listdir(out)):
             f, os.path.getsize(p),
             time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(os.path.getmtime(p)))))
     else:
-        print("   [dir] " + f)
+        main_exe = os.path.join(p, "视频工具箱.exe")
+        n_files = sum(len(fs) for _r, _d, fs in os.walk(p))
+        print("   [dir] %-33s %d files, exe=%s"
+              % (f, n_files,
+                 os.path.getsize(main_exe) if os.path.isfile(main_exe) else "MISSING"))

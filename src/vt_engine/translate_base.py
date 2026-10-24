@@ -1,4 +1,4 @@
-# @version 2.5.4
+# @version 2.6.0
 """翻译编排（自研，替代 videocaptioner.core.translate.base.BaseTranslator）。
 
 把「分块 → 线程池并发 → 缓存 → 失败兜底 → 落盘前断言」这套**可观察

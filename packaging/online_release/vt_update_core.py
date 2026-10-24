@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.5.4
+# @version 2.6.0
 """在线引导安装器 · 核心逻辑（无 UI，可单测）。
 
 ====================================================================
@@ -60,6 +60,7 @@ manifest 结构：
 import hashlib
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -92,7 +93,7 @@ FALLBACK_DRIVES = ("D:", "E:", "F:", "C:")
 #: 旧版，装新版本会被直接拒（updater_ok 返回 False）。
 #: v2.2.5 起已纳入 scripts/dev/apply_version.py 的 TARGETS，改号自动同步
 #: （此前是手工项，正是这类漂移的来源）。
-SELF_VERSION = "2.5.4"
+SELF_VERSION = "2.6.0"
 #: 安装目录里的本地清单文件名（记录本次安装的文件级 sha256）
 INSTALLED_NAME = "vt_installed.json"
 #: 下载分块（sha256 等本地 IO 用；网络分块在 vt_dl 里）
@@ -401,6 +402,21 @@ def installed_path(install_dir):
     return os.path.join(install_dir, INSTALLED_NAME)
 
 
+def read_app_version(install_dir):
+    """读安装目录里源码的 VERSION（在线安装的 code 包包含 src/）。
+
+    用于识别 vt_installed.json 陈旧：Inno 覆盖安装不会刷新该记录，
+    记录版本可能落后于目录实际文件。读不到返回 ""（旧版/精简安装）。
+    """
+    p = os.path.join(install_dir, "src", "video_toolbox_qt.py")
+    try:
+        with open(p, "r", encoding="utf-8", errors="ignore") as fh:
+            m = re.search(r'^VERSION\s*=\s*"([\d.]+)"', fh.read(), re.M)
+        return m.group(1) if m else ""
+    except OSError:
+        return ""
+
+
 def read_installed(install_dir):
     """读本地安装清单；不存在/损坏返回 None。
 
@@ -438,7 +454,7 @@ def write_installed(install_dir, manifest):
     return p
 
 
-def local_inventory(install_dir, manifest, log=None):
+def local_inventory(install_dir, manifest, log=None, trust_record=True):
     """取本地文件真相：{rel: sha256 或 None（缺失/待下）} + 本地版本号。
 
     以**磁盘**为基准，installed.json 只用来走快路径：
@@ -451,6 +467,10 @@ def local_inventory(install_dir, manifest, log=None):
       · installed 记录与远端清单本来就不同的文件直接判「待下」，
         不必哈希（反正要重下）。
 
+    trust_record=False：安装记录版本与目录实际版本不一致（典型是
+    Inno 覆盖安装没刷新 vt_installed.json），旧 sha 不可信，全部现场哈希。
+    本地版本号优先取目录里的 src/VERSION，其次才是记录版本。
+
     mtime 快路径是保守的：只有「安装后没被碰过」才免哈希；
     时钟被故意拨乱只会让更多文件走全哈希，不会放过真变化。
     """
@@ -461,9 +481,13 @@ def local_inventory(install_dir, manifest, log=None):
     files = manifest.get("files") or {}
     inst = read_installed(install_dir)
     inst_files = (inst or {}).get("files") or {}
-    local_ver = (inst or {}).get("version", "")
+    disk_ver = read_app_version(install_dir)
+    local_ver = disk_ver or (inst or {}).get("version", "")
+    if not trust_record:
+        inst_files = {}
+        say("安装记录与目录实际版本不一致，忽略旧 sha 快路径，按磁盘实算")
     written_ts = 0.0
-    if inst:
+    if inst and trust_record:
         try:
             written_ts = time.mktime(time.strptime(
                 inst.get("written", ""), "%Y-%m-%d %H:%M:%S"))
@@ -509,11 +533,16 @@ def plan_update(manifest, install_dir, log=None):
         full           是否退化为全量（schema 1 无 files，或映射失败）
         remove         发布侧声明应删除的路径列表
         orphans        本地装过、目标版本不要的文件（**降级**时才有）
-        local_version  识别到的本地版本（无清单时为 ''）
+        local_version  识别到的本地版本（目录 src/VERSION 优先，其次记录）
+        record_stale   vt_installed.json 版本与目录实际版本是否不一致
+        disk_version   目录 src/VERSION（读不到为 ''）
+        record_version vt_installed.json 里的版本（无记录为 ''）
 
     ⚠ `orphans` 只在降级 / 跨版本切换时非空。升级时目标清单只会比本地
     多（或改），不会"少"，所以它是空表——它的存在就是为了让
     「升 / 降 / 重装」三种方向共用同一套计划逻辑。
+    ⚠ 记录版本与目录实际版本不一致时，旧记录的 sha 不可信：全部现场
+    哈希，且本轮不做孤儿清理（避免按旧记录误删）。
     """
     def say(msg):
         if log:
@@ -523,14 +552,32 @@ def plan_update(manifest, install_dir, log=None):
     files = manifest.get("files") or {}
     remove = manifest.get("remove") or []
 
+    inst = read_installed(install_dir)
+    record_ver = (inst or {}).get("version", "") or ""
+    disk_ver = read_app_version(install_dir)
+    record_stale = bool(record_ver and disk_ver
+                        and ver_tuple(record_ver) != ver_tuple(disk_ver))
+    if record_stale:
+        say("安装记录 v%s 与目录源码 v%s 不一致，按磁盘实算"
+            % (record_ver, disk_ver))
+
+    def with_meta(local_ver):
+        return {"record_stale": record_stale,
+                "disk_version": disk_ver,
+                "record_version": record_ver,
+                "local_version": local_ver or disk_ver or record_ver}
+
     if not files:
         # schema 1：没有文件级清单，只能全量（也因此算不出孤儿，不敢删）
         total = sum(int(a.get("size") or 0) for a in assets)
-        return {"need": assets, "changed": [], "download_bytes": total,
-                "skip_bytes": 0, "full": True, "remove": remove,
-                "orphans": [], "local_version": ""}
+        out = {"need": assets, "changed": [], "download_bytes": total,
+               "skip_bytes": 0, "full": True, "remove": remove,
+               "orphans": []}
+        out.update(with_meta(""))
+        return out
 
-    local, local_ver = local_inventory(install_dir, manifest, log=log)
+    local, local_ver = local_inventory(install_dir, manifest, log=log,
+                                       trust_record=not record_stale)
     say("本地版本 v%s，核对 %d 个文件" % (local_ver or "?", len(local)))
 
     changed = [rel for rel, meta in files.items()
@@ -543,20 +590,24 @@ def plan_update(manifest, install_dir, log=None):
         say("有 %d 个变化包不在资产列表中（%s），本次按全量处理"
             % (len(missing_pkg), ", ".join(missing_pkg[:3])))
         total = sum(int(a.get("size") or 0) for a in assets)
-        return {"need": assets, "changed": changed, "download_bytes": total,
-                "skip_bytes": 0, "full": True, "remove": remove,
-                "orphans": plan_orphans(install_dir, manifest, log=log),
-                "local_version": local_ver}
+        out = {"need": assets, "changed": changed, "download_bytes": total,
+               "skip_bytes": 0, "full": True, "remove": remove,
+               "orphans": ([] if record_stale
+                           else plan_orphans(install_dir, manifest, log=log))}
+        out.update(with_meta(local_ver))
+        return out
 
     need = [by_name[p] for p in pkgs]
     need_names = set(pkgs)
     dl = sum(int(a.get("size") or 0) for a in need)
     skip = sum(int(meta.get("size") or 0) for rel, meta in files.items()
                if (meta.get("pkg") or "base") not in need_names)
-    orphans = plan_orphans(install_dir, manifest, log=log)
-    return {"need": need, "changed": changed, "download_bytes": dl,
-            "skip_bytes": skip, "full": False, "remove": remove,
-            "orphans": orphans, "local_version": local_ver}
+    orphans = [] if record_stale else plan_orphans(install_dir, manifest, log=log)
+    out = {"need": need, "changed": changed, "download_bytes": dl,
+           "skip_bytes": skip, "full": False, "remove": remove,
+           "orphans": orphans}
+    out.update(with_meta(local_ver))
+    return out
 
 
 # ------------------------------------------------------------------ 下载（分卷 + 引擎）
@@ -887,6 +938,9 @@ def detect_install_dir():
       **键名里不可能出现 "videotoolbox"**——必须逐键读 DisplayName 匹配。
       曾经的 bug：只匹配键名，导致自定义安装目录的用户被误判为「未安装」，
       更新会落到 D:\\VideoToolbox（或提示全新安装），装出第二份来。
+    ⚠ 注册表会累积历史键（本机 20+ 条）和测试安装键，不能拿「枚举到的
+      第一个」当主安装。候选按「有 vt_installed.json」→「默认目录且有
+      主 exe」→「有主 exe」排序，同级保留注册表顺序。
     """
     if os.name != "nt":
         return ""
@@ -908,6 +962,8 @@ def detect_install_dir():
         except OSError:
             return ""
 
+    cands = []
+    seen = set()
     for root in roots:
         for hive in (winreg.HKEY_LOCAL_MACHINE, winreg.HKEY_CURRENT_USER):
             try:
@@ -926,11 +982,24 @@ def detect_install_dir():
                                     continue
                                 loc = _qv(sk, "InstallLocation")
                                 if loc and os.path.isdir(loc):
-                                    return loc
+                                    loc = os.path.abspath(loc)
+                                    if loc not in seen:
+                                        seen.add(loc)
+                                        cands.append(loc)
                         except OSError:
                             continue
             except OSError:
                 continue
+    if cands:
+        def _rank(p):
+            has_record = os.path.isfile(os.path.join(p, INSTALLED_NAME))
+            has_exe = os.path.isfile(os.path.join(p, "视频工具箱.exe"))
+            is_default = (os.path.normcase(os.path.abspath(p))
+                          == os.path.normcase(os.path.abspath(DEFAULT_DIR)))
+            return (0 if has_record else 1,
+                    0 if (is_default and has_exe) else 1,
+                    0 if has_exe else 1)
+        return sorted(cands, key=_rank)[0]
     # 兜底一：既定的默认位置（D:\VideoToolbox）确实存在 —— 用它
     if os.path.isdir(DEFAULT_DIR):
         return DEFAULT_DIR

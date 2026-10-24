@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.5.4
+# @version 2.6.0
 """YouTube cookie 通道（游客 cookie / 浏览器直读 / CDP 导出，反风控）（v2.3.1 拆分工程 · 自 video_toolbox.py 原样搬入）。
 
 core/download 域：yt-dlp 全链 / cookie / NPE / 媒体合并；依赖规则见 core/__init__.py。

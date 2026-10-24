@@ -1,4 +1,4 @@
-# @version 2.5.4
+# @version 2.6.0
 """自检：engine_entities 与第三方引擎 entities 的逐值兼容性。
 
 P1 接缝验收脚本。判定口径不是「能 import」而是**逐值一致**——
@@ -50,7 +50,7 @@ def _run(code, extra_env=None):
     if extra_env:
         env.update(extra_env)
     p = subprocess.run([PYPARSE, "-c", code], env=env,
-                       capture_output=True, text=True)
+                       capture_output=True, text=True, encoding="utf-8", errors="replace")
     return p.returncode, p.stdout + p.stderr
 
 
@@ -131,7 +131,7 @@ def negative():
         )
         import subprocess as sp
         r = sp.run([PYPARSE, "-c", code], env={**os.environ, **env},
-                   capture_output=True, text=True)
+                   capture_output=True, text=True, encoding="utf-8", errors="replace")
         if r.returncode == 3:
             print("OK   负向：污染取值被成功检出（检查有效）")
             return True

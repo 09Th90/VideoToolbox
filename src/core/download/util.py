@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.5.4
+# @version 2.6.0
 """下载域通用小函数（格式化/命名/产物文件 write_info_txt/封面）（v2.3.1 拆分工程 · 自 video_toolbox.py 原样搬入）。
 
 core/download 域：yt-dlp 全链 / cookie / NPE / 媒体合并；依赖规则见 core/__init__.py。

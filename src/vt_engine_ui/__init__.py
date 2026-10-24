@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.5.4
+# @version 2.6.0
 """自研字幕引擎工作台 UI 视觉层（P3 / 档 C）。
 
 本包以**自研代码**重建视频工具箱内嵌的字幕工作台界面，视觉与交互与既有引擎界面
@@ -38,25 +38,47 @@ __all__ = [
 
 _ERR = None
 
+#: 公开名 → (子模块, 属性名)。**必须惰性**：首页只需要 TaskCreationInterface，
+#: 包导入时若立即拉入 home_interface，就会连带 transcription/subtitle 两个重页，
+#: 把「窗口已出现、首页还在转圈」拖到 6～18 秒（2026-10-23 启动专项）。
+_LAZY_EXPORTS = {
+    "HomeInterface": (".home_interface", "HomeInterface"),
+    "SettingInterface": (".setting_interface", "SettingInterface"),
+    "TaskCreationInterface": (".task_creation_interface", "TaskCreationInterface"),
+    "TranscriptionInterface": (".transcription_interface", "TranscriptionInterface"),
+    "SubtitleInterface": (".subtitle_interface", "SubtitleInterface"),
+    "VideoSynthesisInterface": (".video_synthesis_interface",
+                                "VideoSynthesisInterface"),
+    "TranscriptionSettingCard": (".components", "TranscriptionSettingCard"),
+    "TranscriptionSettingDialog": (".components", "TranscriptionSettingDialog"),
+    "SubtitleSettingDialog": (".subtitle_setting_dialog", "SubtitleSettingDialog"),
+    "MyVideoWidget": (".my_video_widget", "MyVideoWidget"),
+}
+
+
+def __getattr__(name):
+    target = _LAZY_EXPORTS.get(name)
+    if target is None:
+        raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+    from importlib import import_module
+    mod = import_module(target[0], __name__)
+    value = getattr(mod, target[1])
+    globals()[name] = value
+    return value
+
 
 def _import_all():
-    from .home_interface import HomeInterface
-    from .setting_interface import SettingInterface
-    from .task_creation_interface import TaskCreationInterface
-    from .transcription_interface import TranscriptionInterface
-    from .subtitle_interface import SubtitleInterface
-    from .video_synthesis_interface import VideoSynthesisInterface
-    from .components import TranscriptionSettingCard, TranscriptionSettingDialog
-    from .subtitle_setting_dialog import SubtitleSettingDialog
-    from .my_video_widget import MyVideoWidget
-    return (HomeInterface, SettingInterface, TaskCreationInterface,
-            TranscriptionInterface, SubtitleInterface, VideoSynthesisInterface,
-            TranscriptionSettingCard, TranscriptionSettingDialog,
-            SubtitleSettingDialog, MyVideoWidget)
+    from importlib import import_module
+    return tuple(getattr(import_module(mod, __name__), attr)
+                 for mod, attr in _LAZY_EXPORTS.values())
 
 
 def self_ui_available() -> bool:
-    """自研 UI 是否可导入（不实例化，仅静态可用性）——供宿主选择/兜底。"""
+    """自研 UI 是否**完整**可用（不实例化，仅静态可用性）——供后台预热/兜底。
+
+    ⚠ 会导入全部子界面与后端配置，只能在预热线程调用；首页走
+    ``TaskCreationInterface`` 直载，绝不能经过这里。
+    """
     global _ERR
     try:
         _import_all()
@@ -72,12 +94,3 @@ def self_ui_available() -> bool:
 
 def self_ui_error():
     return _ERR
-
-
-# 便捷直接导入（失败时不阻断包导入，由 self_ui_available() 报告原因）
-try:  # pragma: no cover
-    (HomeInterface, SettingInterface, TaskCreationInterface, TranscriptionInterface,
-     SubtitleInterface, VideoSynthesisInterface, TranscriptionSettingCard,
-     TranscriptionSettingDialog, SubtitleSettingDialog, MyVideoWidget) = _import_all()
-except Exception as _e:  # noqa: BLE001
-    _ERR = f"{type(_e).__name__}: {_e}"

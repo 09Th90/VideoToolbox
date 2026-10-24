@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.5.4
+# @version 2.6.0
 """安装包实测验证：把离线安装器装到暂存目录，逐项核对「源码 → 安装产物」闭环。
 
 用法：
@@ -9,7 +9,7 @@
 
 校验项
 ------
-1. 主程序 exe：字节级 md5/size 与 dist\\视频工具箱.exe 全等（证明装的是刚构建的版本）
+1. 主程序 exe：字节级 md5/size 与 dist\\视频工具箱\\视频工具箱.exe 全等（证明装的是刚构建的版本）
 2. src 模块闭包：AST 传递闭包里每个自研模块都在 {app}\\src 下（与
    check_iss_sources.py 同一套闭包，互为镜像）
 3. src\\ 方式运行导入冒烟：用**安装目录自带**的 tools\\python 跑
@@ -25,7 +25,7 @@ import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 PROJ_SRC = os.path.join(ROOT, "src")
-PROJ_DIST = os.path.join(ROOT, "dist", "视频工具箱.exe")
+PROJ_DIST = os.path.join(ROOT, "dist", "视频工具箱", "视频工具箱.exe")
 
 
 def md5(p):
@@ -98,12 +98,24 @@ def main():
         a, b = md5(exe), md5(PROJ_DIST)
         same = a == b
         print("   %s  %d 字节  md5=%s" % (exe, os.path.getsize(exe), a))
-        print("   仓库 dist\\视频工具箱.exe md5=%s  →  %s"
+        print("   仓库 dist\\视频工具箱\\视频工具箱.exe md5=%s  →  %s"
               % (b, "一致" if same else "不一致"))
         if not same:
             fails.append("主程序 exe 与 dist 不一致")
     else:
         fails.append("安装目录或 dist 缺主程序 exe")
+
+    print("\n== 1b) onedir 运行库 ==")
+    internal = os.path.join(dest, "_internal")
+    if os.path.isdir(internal):
+        n = sum(len(fs) for _r, _d, fs in os.walk(internal))
+        print("   _internal: %d 个文件" % n)
+        for rel in ("PySide6/Qt6Core.dll", "vt_fluent/_qss/app.qss"):
+            p = os.path.join(internal, rel.replace("/", os.sep))
+            if not os.path.isfile(p):
+                fails.append("_internal 缺少 %s" % rel)
+    else:
+        fails.append("安装目录缺 _internal（onedir 运行库）")
 
     print("\n== 2) src 模块闭包 ==")
     mods = sorted(closure())

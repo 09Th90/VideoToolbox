@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.5.4
+# @version 2.6.0
 """agent_cli —— 视频工具箱「第三方 Agent 接入」统一命令行入口（v1.0.0）。
 
 定位与边界
@@ -703,10 +703,28 @@ def cmd_compose(args) -> int:
                         "output": out, "mode": args.mode})
 
 
+def cmd_bili_submit(args):
+    """B 站后台自动投稿（透传 bili_auto_submit：UIA 定位 + PostMessage 输入）。"""
+    import bili_auto_submit as bas
+    argv = []
+    material = getattr(args, "material", "")
+    if material:
+        argv.append(material)
+    for flag in ("probe", "dry_run", "edit"):
+        if getattr(args, flag, False):
+            argv.append("--" + flag.replace("_", "-"))
+    for name in ("only", "visibility", "topic", "cover", "subtitle"):
+        val = getattr(args, name, "")
+        if val:
+            argv += ["--" + name, str(val)]
+    if getattr(args, "as_json", False):
+        argv.append("--json")
+    return bas.main(argv)
+
+
 # ============================================================
 # argparse 装配
-# ============================================================
-#: 全局选项的「子命令级副本」：Agent 写成 ``status --json``（选项在后）是本能，
+# ============================================================#: 全局选项的「子命令级副本」：Agent 写成 ``status --json``（选项在后）是本能，
 #: 两种位置都必须认。default=SUPPRESS 保证未提供时不会用 False/"" 覆盖全局值。
 common = argparse.ArgumentParser(add_help=False)
 common.add_argument("--json", dest="as_json", action="store_true",
@@ -804,6 +822,20 @@ def build_parser() -> argparse.ArgumentParser:
                    help="soft=软封装不重编码（默认）；burn=硬烧录（ASS，重编码）；mkv=封装进 MKV")
     s.add_argument("--out", default="", help="输出文件（默认 data\\agent_out\\<时间戳>\\<名>.composed.mp4）")
     s.set_defaults(fn=cmd_compose)
+
+    s = sub.add_parser("bili-submit", parents=[common],
+                       help="B 站后台自动投稿（UI Automation 定位 + 后台输入；素材目录内含投稿信息.txt）")
+    s.add_argument("material", nargs="?", default="", help="素材目录")
+    s.add_argument("--probe", action="store_true", help="只输出当前页面 UIA 结构")
+    s.add_argument("--dry-run", action="store_true", help="填完但不点立即投稿")
+    s.add_argument("--edit", action="store_true", help="修复当前编辑页（不新上传视频）")
+    s.add_argument("--only", default="", help="只跑阶段：basic,chapters,cover,topic,subtitle,visibility")
+    s.add_argument("--visibility", choices=["self", "public"], default="self",
+                   help="可见范围（默认 self=仅自己可见）")
+    s.add_argument("--topic", default="", help="覆盖参与话题")
+    s.add_argument("--cover", default="", help="覆盖封面图片")
+    s.add_argument("--subtitle", default="", help="覆盖 SRT 字幕")
+    s.set_defaults(fn=cmd_bili_submit)
 
     # epilog 里的反斜杠路径保持原样
     for a in (p, *[a for a in sub.choices.values()]):

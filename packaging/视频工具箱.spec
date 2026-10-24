@@ -1,6 +1,6 @@
 # -*- mode: python ; coding: utf-8 -*-
-# @version 2.5.4
-"""视频工具箱 v2.5.4 —— PyInstaller 打包配置
+# @version 2.6.0
+"""视频工具箱 v2.6.0 —— PyInstaller 打包配置
 v2.1.0（2026-10-14）：PyQt5 → PySide6 迁移（docs/PySide6迁移方案书）。本 spec 的
         实质改动只有三处：① _DROP_BINARIES 的 QML 三件套从 Qt5 名改成 Qt6 名
         （Qt6Qml/Qt6Quick/Qt6QmlModels/Qt6QmlMeta/Qt6QmlWorkerScript.dll）；
@@ -501,26 +501,61 @@ for _i, _e in enumerate(a.binaries):
         _patched += 1
 print('[fix] PySide6/shiboken6 目录旧 MSVC runtime 已改指向根目录新版：%d 个' % _patched)
 
-exe = EXE(
-    pyz,
-    a.scripts,
-    a.binaries,
-    a.datas,
-    [],
-    name='视频工具箱',
-    # v2.1.0：exe 文件自身的图标（资源管理器 / 任务栏 / 快捷方式）。
-    # 见上方 APP_ICON 段注释——运行期 setWindowIcon 管不到这一段。
-    icon=APP_ICON,
-    debug=False,
-    bootloader_ignore_signals=False,
-    strip=False,
-    upx=True,
-    upx_exclude=[],
-    runtime_tmpdir=None,
-    console=False,
-    disable_windowed_traceback=False,
-    argv_emulation=False,
-    target_arch=None,
-    codesign_identity=None,
-    entitlements_file=None,
-)
+# 2026-10-23 启动专项：默认 onedir。onefile 每次启动都要把 186MB/502 文件
+# 解包到 %TEMP%\_MEI*（稳态 2.4～3.7s、冷启 5.5s），是“秒进”的结构性障碍。
+# onedir 直接安装 `视频工具箱.exe + _internal\`，exe 启动不再解包。
+# 需要便携单文件时：VT_BUILD_MODE=onefile。
+_BUILD_MODE = (os.environ.get("VT_BUILD_MODE") or "onedir").strip().lower()
+if _BUILD_MODE == "onefile":
+    exe = EXE(
+        pyz,
+        a.scripts,
+        a.binaries,
+        a.datas,
+        [],
+        name='视频工具箱',
+        # v2.1.0：exe 文件自身的图标（资源管理器 / 任务栏 / 快捷方式）。
+        # 见上方 APP_ICON 段注释——运行期 setWindowIcon 管不到这一段。
+        icon=APP_ICON,
+        debug=False,
+        bootloader_ignore_signals=False,
+        strip=False,
+        upx=True,
+        upx_exclude=[],
+        runtime_tmpdir=None,
+        console=False,
+        disable_windowed_traceback=False,
+        argv_emulation=False,
+        target_arch=None,
+        codesign_identity=None,
+        entitlements_file=None,
+    )
+else:
+    exe = EXE(
+        pyz,
+        a.scripts,
+        [],
+        exclude_binaries=True,
+        name='视频工具箱',
+        icon=APP_ICON,
+        debug=False,
+        bootloader_ignore_signals=False,
+        strip=False,
+        upx=True,
+        upx_exclude=[],
+        console=False,
+        disable_windowed_traceback=False,
+        argv_emulation=False,
+        target_arch=None,
+        codesign_identity=None,
+        entitlements_file=None,
+    )
+    coll = COLLECT(
+        exe,
+        a.binaries,
+        a.datas,
+        strip=False,
+        upx=True,
+        upx_exclude=[],
+        name='视频工具箱',
+    )

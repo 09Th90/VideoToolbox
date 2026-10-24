@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.5.4
+# @version 2.6.0
 """vt_fluent 窗口与导航（自研，替代 qfluentwidgets.window + navigation）。
 
 行为契约（对齐上游 1.11.3）：
@@ -43,6 +43,82 @@ if sys.platform == "win32":
         _fields_ = [("rgrc", wintypes.RECT * 3), ("lppos", ctypes.c_void_p)]
 
     _LPNCCALCSIZE_PARAMS = ctypes.POINTER(_NCCALCSIZE_PARAMS)
+
+    # ---- 自动隐藏任务栏 ------------------------------------------------
+    #: 让出带宽（物理像素）——照抄上游 qframelesswindow
+    #: Taskbar.AUTO_HIDE_THICKNESS（Windows Terminal 同款取值）。
+    _AUTO_HIDE_THICKNESS = 2
+    _ABM_GETSTATE = 4
+    _ABS_AUTOHIDE = 1
+    _ABM_GETAUTOHIDEBAREX = 11
+    _MONITOR_DEFAULTTONEAREST = 2
+    _EDGE_LEFT, _EDGE_TOP, _EDGE_RIGHT, _EDGE_BOTTOM = 0, 1, 2, 3
+
+    class _APPBARDATA(ctypes.Structure):
+        """照抄 qframelesswindow win32_utils.APPBARDATA。"""
+        _fields_ = [("cbSize", wintypes.DWORD),
+                    ("hWnd", wintypes.HWND),
+                    ("uCallbackMessage", wintypes.UINT),
+                    ("uEdge", wintypes.UINT),
+                    ("rc", wintypes.RECT),
+                    ("lParam", wintypes.LPARAM)]
+
+    class _MONITORINFO(ctypes.Structure):
+        _fields_ = [("cbSize", wintypes.DWORD),
+                    ("rcMonitor", wintypes.RECT),
+                    ("rcWork", wintypes.RECT),
+                    ("dwFlags", wintypes.DWORD)]
+
+    def _monitor_rects(hwnd):
+        """窗口所在显示器的 (rcMonitor, rcWork)，物理像素；失败返回 None。"""
+        try:
+            u = ctypes.windll.user32
+            u.MonitorFromWindow.restype = ctypes.c_void_p
+            u.MonitorFromWindow.argtypes = [wintypes.HWND, wintypes.DWORD]
+            u.GetMonitorInfoW.argtypes = [ctypes.c_void_p,
+                                          ctypes.POINTER(_MONITORINFO)]
+            hmon = u.MonitorFromWindow(wintypes.HWND(int(hwnd)),
+                                       _MONITOR_DEFAULTTONEAREST)
+            if not hmon:
+                return None
+            mi = _MONITORINFO()
+            mi.cbSize = ctypes.sizeof(_MONITORINFO)
+            if not u.GetMonitorInfoW(hmon, ctypes.byref(mi)):
+                return None
+            return mi.rcMonitor, mi.rcWork
+        except Exception:  # noqa: BLE001
+            return None
+
+    def _autohide_taskbar_edge(hwnd):
+        """窗口所在显示器上自动隐藏任务栏的边缘；无则 None。
+
+        ABM_GETAUTOHIDEBAREX 按「显示器矩形 + 边缘」查询，多屏下能准确定位
+        任务栏所在屏；ABM_GETTASKBARPOS 只报主屏，副屏会误判。
+        """
+        try:
+            shell32 = ctypes.windll.shell32
+            shell32.SHAppBarMessage.restype = ctypes.c_size_t
+            abd = _APPBARDATA()
+            abd.cbSize = ctypes.sizeof(_APPBARDATA)
+            # 上游用 == ABS_AUTOHIDE，state=3（自动隐藏 + 置顶）时会漏判
+            if not (shell32.SHAppBarMessage(_ABM_GETSTATE, ctypes.byref(abd))
+                    & _ABS_AUTOHIDE):
+                return None
+            rects = _monitor_rects(hwnd)
+            if rects is None:
+                return None
+            rc_monitor = rects[0]
+            for edge in (_EDGE_LEFT, _EDGE_TOP, _EDGE_RIGHT, _EDGE_BOTTOM):
+                abd = _APPBARDATA()
+                abd.cbSize = ctypes.sizeof(_APPBARDATA)
+                abd.uEdge = edge
+                abd.rc = rc_monitor
+                if shell32.SHAppBarMessage(_ABM_GETAUTOHIDEBAREX,
+                                           ctypes.byref(abd)):
+                    return edge
+        except Exception:  # noqa: BLE001
+            return None
+        return None
 
 
 def _nav_position():
@@ -289,8 +365,8 @@ class FramelessWindow(QWidget):
         段② 照抄 qframelesswindow/windows/__init__.py nativeEvent：
             WM_NCHITTEST 边缘 8 向命中 → 系统原生缩放循环；WM_NCCALCSIZE
             客户区=整窗（无边框外观）+ 最大化时四边缩进缩放边框厚度。
-        上游自动隐藏任务栏的极端场景处理（Taskbar.isAutoHide）从略——
-        不影响缩放/贴靠/Snap 三个主效果。
+        自动隐藏任务栏的让位补偿照抄上游（Taskbar.isAutoHide），见下方
+        WM_NCCALCSIZE 分支——最大化铺满全屏时保留任务栏唤出热区。
 
         ⚠ 说明：真实鼠标的 WM_NCHITTEST 由系统直接调窗口过程，**主窗口**
         这层能收到（点落在 mpv 嵌入提升出的原生子窗口上时收不到——那是
@@ -372,17 +448,49 @@ class FramelessWindow(QWidget):
                     rect = ctypes.cast(
                         msg.lParam, wintypes.LPRECT).contents
 
+                hwnd = int(msg.hWnd)
+                # IsZoomed 取系统实时状态：首次最大化的 NCCALCSIZE 消息链里
+                # Qt 的 isMaximized() 可能尚未更新，会漏掉本轮调整。
+                is_max = bool(ctypes.windll.user32.IsZoomed(
+                    wintypes.HWND(hwnd)))
+                is_full = self.isFullScreen()
+
                 # 最大化时把客户区四边缩进系统缩放边框厚度，避免内容
                 # 被屏幕边缘裁掉（照抄上游；此处相当于上游
                 # win_utils.isMaximized/isFullScreen 的 Qt 等价判断）
-                if self.isMaximized() and not self.isFullScreen():
-                    ty = self._resizeBorderThickness(msg.hWnd, False)
+                if is_max and not is_full:
+                    ty = self._resizeBorderThickness(hwnd, False)
                     rect.top += ty
                     rect.bottom -= ty
 
-                    tx = self._resizeBorderThickness(msg.hWnd, True)
+                    tx = self._resizeBorderThickness(hwnd, True)
                     rect.left += tx
                     rect.right -= tx
+
+                    # WS_THICKFRAME 会让系统给的最大化矩形向屏外扩出边框
+                    # 宽度，只缩 DWM 边框厚度不足以回到屏内；以显示器工作区
+                    # 钳制，普通任务栏（非自动隐藏）时也不会遮挡任务栏。
+                    rects = _monitor_rects(hwnd)
+                    if rects is not None:
+                        work = rects[1]
+                        rect.left = max(rect.left, work.left)
+                        rect.top = max(rect.top, work.top)
+                        rect.right = min(rect.right, work.right)
+                        rect.bottom = min(rect.bottom, work.bottom)
+
+                # 自动隐藏任务栏时工作区=整屏，客户区铺满会让 Shell 把窗口
+                # 当全屏应用并压制任务栏唤出。在任务栏所在边缘让出 2 物理
+                # 像素恢复唤出热区（上游同款做法，修正其 LEFT/TOP 分支笔误）。
+                if is_max or is_full:
+                    edge = _autohide_taskbar_edge(hwnd)
+                    if edge == _EDGE_LEFT:
+                        rect.left += _AUTO_HIDE_THICKNESS
+                    elif edge == _EDGE_TOP:
+                        rect.top += _AUTO_HIDE_THICKNESS
+                    elif edge == _EDGE_RIGHT:
+                        rect.right -= _AUTO_HIDE_THICKNESS
+                    elif edge == _EDGE_BOTTOM:
+                        rect.bottom -= _AUTO_HIDE_THICKNESS
 
                 result = 0 if not msg.wParam else win32con.WVR_REDRAW
                 return True, result

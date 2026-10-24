@@ -1,4 +1,4 @@
-# @version 2.5.4
+# @version 2.6.0
 """自检：engine_translate 的离线契约 + 与引擎逐行为交叉 + 联网探测。
 
 P1-B4 翻译接缝验收脚本。三组，缺一不可：
@@ -42,7 +42,7 @@ def _run(code):
     env = dict(os.environ)
     env["PYTHONPATH"] = SRC + os.pathsep + env.get("PYTHONPATH", "")
     p = subprocess.run([PYPARSE, "-c", code], env=env,
-                       capture_output=True, text=True)
+                       capture_output=True, text=True, encoding="utf-8", errors="replace")
     return p.returncode, p.stdout + p.stderr
 
 
@@ -343,7 +343,7 @@ def negative():
             "sys.exit(0 if all(i.translated_text == ERROR_MARK for i in c) else 3)\n"
         )
         r = subprocess.run([PYPARSE, "-c", code], env={**os.environ, **env},
-                           capture_output=True, text=True)
+                           capture_output=True, text=True, encoding="utf-8", errors="replace")
         if r.returncode == 3:
             print("OK   负向①：失败回落成原文被成功检出")
         else:
@@ -385,7 +385,7 @@ def negative():
             "sys.exit(0 if c[0].translated_text == ERROR_MARK else 3)\n"
         )
         r2 = subprocess.run([PYPARSE, "-c", code2], env={**os.environ, **env},
-                            capture_output=True, text=True)
+                            capture_output=True, text=True, encoding="utf-8", errors="replace")
         if r2.returncode == 3:
             print("OK   负向②：谷歌短路失效被成功检出")
         else:

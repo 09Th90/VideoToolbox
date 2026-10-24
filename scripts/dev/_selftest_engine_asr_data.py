@@ -1,4 +1,4 @@
-# @version 2.5.4
+# @version 2.6.0
 """自检：engine_asr_data 与第三方引擎 asr_data 的逐行为兼容性。
 
 P1 接缝验收脚本（第二个）。判定口径同 ``_selftest_engine_entities.py``：
@@ -301,7 +301,7 @@ def _run_probe(mode, src_override=None, allow_fail=False):
     paths = (src_override + os.pathsep + SRC) if src_override else SRC
     env["PYTHONPATH"] = paths + os.pathsep + env.get("PYTHONPATH", "")
     p = subprocess.run([PYPARSE, "-c", PROBE, mode], env=env,
-                       capture_output=True, text=True)
+                       capture_output=True, text=True, encoding="utf-8", errors="replace")
     if p.returncode != 0:
         if allow_fail:
             return None  # 污染导致 probe 崩在用例上，同样视为「被检出」

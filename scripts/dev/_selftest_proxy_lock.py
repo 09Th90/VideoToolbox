@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.5.4
+# @version 2.6.0
 """代理节点锁定 + EOF 自愈链路自测（2026-10-17）。
 
 覆盖对象：``core/shared/proxy.py`` 的锁定家族与

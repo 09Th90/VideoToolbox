@@ -1,4 +1,4 @@
-# @version 2.5.4
+# @version 2.6.0
 """自检：engine_cache 的惰性语义 + 缓存键与引擎逐字节一致。
 
 P1-B2 cache 接缝验收脚本。
@@ -46,7 +46,7 @@ def _run(code):
     env = dict(os.environ)
     env["PYTHONPATH"] = SRC + os.pathsep + env.get("PYTHONPATH", "")
     p = subprocess.run([PYPARSE, "-c", code], env=env,
-                       capture_output=True, text=True)
+                       capture_output=True, text=True, encoding="utf-8", errors="replace")
     return p.returncode, p.stdout + p.stderr
 
 
@@ -343,7 +343,7 @@ def negative():
             "sys.exit(0 if mine({'b':2,'a':1}) == theirs({'b':2,'a':1}) else 3)\n"
         )
         r = subprocess.run([PYPARSE, "-c", code], env={**os.environ, **env},
-                           capture_output=True, text=True)
+                           capture_output=True, text=True, encoding="utf-8", errors="replace")
         if r.returncode == 3:
             print("OK   负向①：键算法被污染后成功检出")
         else:
@@ -373,7 +373,7 @@ def negative():
             "sys.exit(3 if os.path.exists(d) else 0)\n"
         )
         r2 = subprocess.run([PYPARSE, "-c", code2], env={**os.environ, **env},
-                            capture_output=True, text=True)
+                            capture_output=True, text=True, encoding="utf-8", errors="replace")
         if r2.returncode == 3:
             print("OK   负向②：构造即建库被成功检出")
         else:

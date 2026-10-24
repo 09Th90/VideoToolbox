@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.5.4
+# @version 2.6.0
 """视频工具箱 · 主程序侧「检查更新」与自更新（v2.0.0 起）。
 
 定位
@@ -55,8 +55,9 @@ _HERE = os.path.dirname(os.path.abspath(__file__))
 #: 主程序自身版本。与 src\video_toolbox_qt.py 的 VERSION 同源；
 #: 这里独立存一份是因为更新逻辑必须在**不 import Qt** 的前提下可用
 #: （子进程脚本、自检都要能读）。
-#: ⚠ 改版本号时须一并改——scripts/dev/apply_version.py 覆盖不到这里。
-SELF_VERSION = "2.5.0"
+#: 已纳入 scripts/dev/apply_version.py 的同步清单；GUI 启动后还会用
+#: video_toolbox_qt.VERSION 再覆盖一次，保证运行时版本永远与界面一致。
+SELF_VERSION = "2.6.0"
 
 #: 远端清单与版本索引（与安装器默认值一致，固定 tag repo-latest）
 DEFAULT_MANIFEST_URL = ("https://github.com/09Th90/VideoToolbox/releases/"
@@ -207,6 +208,19 @@ def _vnewer(a, b):
         return False
 
 
+def _same_ver(a, b):
+    """两个版本号是否等价（缺位补 0）；解析不了退回字符串比较。"""
+    if not a or not b:
+        return False
+    mods = load_core()
+    if mods:
+        try:
+            return mods[0].ver_tuple(a) == mods[0].ver_tuple(b)
+        except Exception:  # noqa: BLE001
+            pass
+    return str(a).strip() == str(b).strip()
+
+
 def _wrap(text, width=30):
     """把一行文本折成不超过 width 个字符的若干行。
 
@@ -266,16 +280,19 @@ class CheckResult(object):
         install_dir  目标安装目录
         full      是否为全新安装（本地什么都没装）
         manifest  解析到的清单原文（更新时要用）
-        baseline_ver  版本对比基准：**已装版本与当前运行的程序版本里
-                      较新的那个**。本地没装时退回 SELF_VERSION——
-                      否则开发版 v2.0.0 面对远端 v1.19.0 会被提示成
-                      「发现新版本」，而它其实比运行中的程序还旧。
+        baseline_ver  版本对比基准 = **当前运行的程序版本**（GUI 启动后
+                      等于 video_toolbox_qt.VERSION）。安装记录只用于
+                      增量比对，不再参与新旧方向判断。
+        record_ver    安装目录 vt_installed.json 里的版本（仅显示/诊断；
+                      与目录实际版本不一致时会被自动校正）。
+        source_mode   True 表示源码运行模式：只报告版本，不探测安装目录、
+                      不提供安装（以本地开发版为准）。
     """
 
     __slots__ = ("ok", "err", "update", "local_ver", "remote_ver",
                  "download_bytes", "packages", "changed", "orphans",
                  "install_dir", "full", "manifest", "entry",
-                 "baseline_ver")
+                 "baseline_ver", "record_ver", "source_mode")
 
     def __init__(self):
         self.ok = False
@@ -292,52 +309,73 @@ class CheckResult(object):
         self.manifest = None
         self.entry = None
         self.baseline_ver = SELF_VERSION
+        self.record_ver = ""
+        self.source_mode = False
 
     def summary(self):
         """给日志/界面用的一行摘要。"""
         if not self.ok:
             return "检查失败：" + self.err
+        if self.source_mode:
+            s = "源码运行模式：本地开发版 %s" % _v(self.baseline_ver)
+            if self.remote_ver:
+                s += "，远端 %s" % _v(self.remote_ver)
+            return s
         if not self.update:
-            if self.local_ver == _NO_VER:
+            if not self.remote_ver and self.local_ver == _NO_VER:
                 return "远端暂无可安装的组件"
-            return "当前已是最新版本 %s" % _v(self.local_ver)
+            return "当前已是最新版本 %s" % _v(
+                self.baseline_ver or self.local_ver)
         return "%s %s（当前 %s），需下载 %s" % (
             self.action_label(), _v(self.remote_ver),
             _v(self.baseline_ver), _human(self.download_bytes))
 
     def action_label(self):
-        """确认框标题用的动作短语：区分 全新安装 / 升级 / 降级。
+        """确认框标题用的动作短语：区分 全新安装 / 升级 / 降级 / 修复。
 
         ⚠ 曾经一律弹「发现新版本」（本地未安装时 downgrade() 恒为
         False），于是开发版 v2.0.0 面对远端 v1.19.0 也被告知「发现
         新版本」——比运行中的程序还旧的版本不可能是新版本。方向必须
-        拿 baseline_ver（当前运行版本参与比较）来判。
+        拿 baseline_ver（当前运行版本参与比较）来判；同版本但文件有
+        差异时叫「修复安装」，不叫「发现新版本」。
         """
+        if self.source_mode:
+            return "源码运行模式"
         down = self.downgrade()
         if self.full:
             return "安装较旧版本" if down else "全新安装"
+        if _same_ver(self.remote_ver, self.baseline_ver):
+            return "修复安装"
         return "回滚到旧版本" if down else "发现新版本"
 
     def detail_lines(self):
         """确认对话框里的多行说明（已按显示宽度折好行，不会截断）。"""
         if not self.ok:
             return _wrap(self.err)
+        if self.source_mode:
+            lines = ["当前版本：%s（源码运行）" % _v(self.baseline_ver)]
+            if self.remote_ver:
+                lines.append("远端最新：%s" % _v(self.remote_ver))
+            lines.append("源码运行模式以本地开发版为准，不自动安装更新。")
+            return wrap_lines(lines)
         if not load_core():
             return ["更新组件未随程序分发，无法展示更新详情"]
         lines = []
-        # 当前版本：本地已装优先；正在运行的程序更新时并列说明——别让
-        # 「设置页写着 v2.0.0、弹窗写着 v未安装」这种自相矛盾再出现
-        if self.local_ver == _NO_VER:
-            lines.append("当前版本：%s（正在运行 %s）"
-                         % (_NO_VER, _v(SELF_VERSION)))
-        elif _vnewer(SELF_VERSION, self.local_ver):
-            lines.append("当前版本：%s（正在运行 %s）"
-                         % (_v(self.local_ver), _v(SELF_VERSION)))
+        # 当前版本统一取运行版本（与设置页同源）；安装记录只作补充说明，
+        # 不再让「设置页 v2.5.4、弹窗 v2.5.3」这种自相矛盾出现。
+        cur = self.baseline_ver or SELF_VERSION
+        if self.record_ver and not _same_ver(self.record_ver, cur):
+            lines.append("当前版本：%s（安装目录记录 %s）"
+                         % (_v(cur), _v(self.record_ver)))
         else:
-            lines.append("当前版本：%s" % _v(self.local_ver))
-        if self.downgrade():
+            lines.append("当前版本：%s" % _v(cur))
+        down = self.downgrade()
+        if _same_ver(self.remote_ver, cur):
+            lines.append("目标版本：%s（与当前相同，将修复不一致文件）"
+                         % _v(self.remote_ver))
+        elif down:
             lines.append("目标版本：%s（低于当前 %s，属降级）"
-                         % (_v(self.remote_ver), _v(self.baseline_ver)))
+                         % (_v(self.remote_ver), _v(cur)))
         else:
             lines.append("最新版本：%s" % _v(self.remote_ver))
         lines.append("需要下载：%s" % _human(self.download_bytes))
@@ -350,13 +388,18 @@ class CheckResult(object):
             lines.append("本地未检测到已安装版本，将执行全新安装")
         if self.orphans:
             lines.append("注意：本次会清理 %d 个旧版本残留文件" % self.orphans)
-        if self.downgrade():
+        if down:
             lines.append("")
             lines.append("确认后将替换为较旧的版本，数据与配置不受影响。")
         lines.append("")
         lines.append("更新将在你确认后开始，下载期间可随时取消。")
         lines.append("更新完成后需要重启程序。")
         return wrap_lines(lines)
+
+    def remote_differs(self):
+        """远端版本是否与当前运行版本不同（源码模式提示用）。"""
+        return bool(self.remote_ver) and not _same_ver(
+            self.remote_ver, self.baseline_ver)
 
     def downgrade(self):
         """目标版本是否低于当前基准版本（= 降级/回滚）。"""
@@ -398,7 +441,7 @@ def _human(n):
 
 
 def check_update(install_dir="", want="latest", manifest_url=None,
-                 index_url=None, base_url=None, log=None):
+                 index_url=None, base_url=None, log=None, source_mode=None):
     """检查是否有可安装的新版本。返回 CheckResult。
 
     参数：
@@ -410,6 +453,8 @@ def check_update(install_dir="", want="latest", manifest_url=None,
                       manifest —— 本地验证与离线场景一律 404（镜像兜底
                       也救不回来）。传本地目录（file:///…）即可整条链路离线跑通。
         log          日志回调
+        source_mode  None=按是否打包自动判断；True/False 可强制（探针用）。
+                      源码模式只报告版本，不探测安装目录、不执行安装。
 
     ⚠ 本函数**不下载任何东西**，只读 manifest（几百字节到几十 KB）。
     """
@@ -434,6 +479,24 @@ def check_update(install_dir="", want="latest", manifest_url=None,
         res.err = str(e)
         return res
 
+    res.manifest = m
+    res.entry = entry
+    res.remote_ver = m.get("version") or ""
+    res.baseline_ver = SELF_VERSION
+    if source_mode is None:
+        source_mode = not getattr(sys, "frozen", False)
+    res.source_mode = bool(source_mode)
+    if res.source_mode:
+        # 源码运行没有可替换的程序本体：以本地开发版为准，只报告版本，
+        # 不探测安装目录（避免把 D:\VideoToolbox 的记录当成当前版本）。
+        res.local_ver = SELF_VERSION
+        res.full = False
+        res.install_dir = ""
+        res.ok = True
+        res.update = False
+        say(res.summary())
+        return res
+
     d = (install_dir or "").strip()
     if not d:
         try:
@@ -441,9 +504,29 @@ def check_update(install_dir="", want="latest", manifest_url=None,
         except Exception:  # noqa: BLE001
             d = ""
     res.install_dir = d
-    res.manifest = m
-    res.entry = entry
-    res.remote_ver = m.get("version") or ""
+
+    # 安装记录可能被 Inno 覆盖安装留在旧版本；目录里的 src/ 才是实际文件版本。
+    inst_ver = ""
+    disk_ver = ""
+    try:
+        inst_ver = (core.read_installed(d) or {}).get("version", "") or ""
+        if hasattr(core, "read_app_version"):
+            disk_ver = core.read_app_version(d)
+    except Exception:  # noqa: BLE001
+        pass
+    local_known = disk_ver or inst_ver
+    record_stale = bool(inst_ver and disk_ver
+                        and not _same_ver(inst_ver, disk_ver))
+    res.record_ver = inst_ver
+
+    # 同版本且记录与目录一致：没有新旧可言，直接短路，不做全量哈希。
+    if _same_ver(res.remote_ver, res.baseline_ver) and not record_stale:
+        res.local_ver = local_known or _NO_VER
+        res.full = res.local_ver == _NO_VER
+        res.ok = True
+        res.update = False
+        say(res.summary())
+        return res
 
     try:
         plan = core.plan_update(m, d, log=log)
@@ -451,16 +534,8 @@ def check_update(install_dir="", want="latest", manifest_url=None,
         res.err = "比对本地文件失败：%s" % e
         return res
 
-    res.local_ver = plan.get("local_version") or _NO_VER
+    res.local_ver = (plan.get("local_version") or local_known or _NO_VER)
     res.full = res.local_ver == _NO_VER
-    # 版本对比基准 = 已装版本与**当前运行的程序版本**里较新的那个：
-    # 1) 本地没装 → 退回 SELF_VERSION（安装方向要与运行版本比，不能
-    #    拿空目录比，否则永远「全新安装」、永远「发现新版本」）；
-    # 2) 运行的是开发版（高于已装/高于远端发布版）→ 以运行版本为准，
-    #    检测方向判「降级」而不是「发现新版本」。
-    res.baseline_ver = res.local_ver
-    if res.local_ver == _NO_VER or _vnewer(SELF_VERSION, res.local_ver):
-        res.baseline_ver = SELF_VERSION
     res.download_bytes = int(plan.get("download_bytes") or 0)
     res.changed = len(plan.get("changed") or [])
     res.orphans = len(plan.get("orphans") or [])
@@ -468,8 +543,23 @@ def check_update(install_dir="", want="latest", manifest_url=None,
                     _human(int(a.get("size") or 0)))
                     for a in (plan.get("need") or [])]
     res.ok = True
-    # 有包要下、或有残留要清，才算「有更新」
-    res.update = bool(plan.get("need")) or bool(plan.get("orphans"))
+    # 有包要下、有残留要清、或有发布侧声明删除的文件，才算「有更新」
+    res.update = (bool(plan.get("need")) or bool(plan.get("orphans"))
+                  or bool(plan.get("remove")))
+    # 记录版本与目录实际版本不一致、且磁盘已与远端完全一致时，安全回写
+    # 安装记录（Inno 覆盖安装不会刷新 vt_installed.json）。
+    if (plan.get("record_stale") and res.remote_ver
+            and _same_ver(res.remote_ver, plan.get("disk_version"))
+            and not plan.get("changed") and not plan.get("orphans")
+            and not plan.get("remove")):
+        try:
+            core.write_installed(d, m)
+            res.local_ver = res.remote_ver
+            res.record_ver = res.remote_ver
+            say("已校正安装记录：v%s → v%s"
+                % (plan.get("record_version") or "?", res.remote_ver))
+        except Exception as e:  # noqa: BLE001
+            say("安装记录校正失败：%s" % e)
     say(res.summary())
     return res
 

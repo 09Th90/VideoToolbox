@@ -1,4 +1,4 @@
-# @version 2.5.4
+# @version 2.6.0
 """自检：engine_asr 与第三方引擎 ASR 链路的逐行为兼容性。
 
 P2 接缝验收脚本。ASR 是**唯一会产生费用且会产出最终字幕**的链路，因此判据
@@ -51,7 +51,7 @@ def _run(code, extra_env=None):
     if extra_env:
         env.update(extra_env)
     p = subprocess.run([PYPARSE, "-c", code], env=env,
-                       capture_output=True, text=True)
+                       capture_output=True, text=True, encoding="utf-8", errors="replace")
     return p.returncode, p.stdout + p.stderr
 
 
@@ -574,7 +574,7 @@ def negative():
             "sys.exit(3 if bad else 0)\n"
         )
         r = subprocess.run([PYPARSE, "-c", code], env={**os.environ, **env},
-                           capture_output=True, text=True)
+                           capture_output=True, text=True, encoding="utf-8", errors="replace")
         if r.returncode == 3:
             print("OK   负向①：重叠提取被破坏后成功检出")
         else:
@@ -606,7 +606,7 @@ def negative():
             "sys.exit(0 if w._get_key().startswith(w.crc32_hex) else 3)\n"
         )
         r2 = subprocess.run([PYPARSE, "-c", code2], env={**os.environ, **env},
-                            capture_output=True, text=True)
+                            capture_output=True, text=True, encoding="utf-8", errors="replace")
         if r2.returncode == 3:
             print("OK   负向②：缓存键丢 crc 前缀被成功检出")
         else:

@@ -1,4 +1,4 @@
-# @version 2.5.4
+# @version 2.6.0
 """任务上下文（自研，替代 videocaptioner.core.llm.context 的公开面）。
 
 ``generate_task_id`` 的格式是 8 位 hex（``uuid4().hex[:8]``）——任务 ID

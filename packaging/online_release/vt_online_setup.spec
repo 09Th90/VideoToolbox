@@ -1,5 +1,5 @@
 # -*- mode: python ; coding: utf-8 -*-
-# @version 2.5.4
+# @version 2.6.0
 """视频工具箱 · 在线引导安装器 —— PyInstaller 打包配置。
 
 产物：单文件 exe，`视频工具箱_在线安装_v<版本>.exe`（输出到 installer_online\\）。

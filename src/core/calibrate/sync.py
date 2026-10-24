@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.5.4
+# @version 2.6.0
 """校准知识/声纹模板多用户同步（GitHub 整文件通道 + 本地增量镜像）。
 
 v2.3.1 拆分工程 · 自 video_toolbox.py 原样搬入。

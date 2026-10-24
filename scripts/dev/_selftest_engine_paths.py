@@ -1,4 +1,4 @@
-# @version 2.5.4
+# @version 2.6.0
 """自检：engine_paths 的路径不变量 + 对第三方 config 的属性覆盖率。
 
 P1-B1 config 接缝验收脚本。
@@ -58,7 +58,7 @@ def _run(code, extra_env=None, cwd=None):
     if extra_env:
         env.update(extra_env)
     p = subprocess.run([PYPARSE, "-c", code], env=env, cwd=cwd,
-                       capture_output=True, text=True)
+                       capture_output=True, text=True, encoding="utf-8", errors="replace")
     return p.returncode, p.stdout + p.stderr
 
 
@@ -318,7 +318,7 @@ def negative():
             [tmp, SRC] + ([os.environ["PYTHONPATH"]]
                           if os.environ.get("PYTHONPATH") else []))
         r = subprocess.run([PYPARSE, "-c", code], env={**os.environ, **env},
-                           capture_output=True, text=True)
+                           capture_output=True, text=True, encoding="utf-8", errors="replace")
         if r.returncode == 3:
             print("OK   负向①：cache_path 污染到系统盘被成功检出")
         else:
@@ -341,7 +341,7 @@ def negative():
             "sys.exit(0 if 'CACHE_PATH' in p.apply_to(F()) else 3)\n"
         )
         r2 = subprocess.run([PYPARSE, "-c", code2], env={**os.environ, **env},
-                            capture_output=True, text=True)
+                            capture_output=True, text=True, encoding="utf-8", errors="replace")
         if r2.returncode == 3:
             print("OK   负向②：删掉属性后覆盖率检查成功检出")
         else:

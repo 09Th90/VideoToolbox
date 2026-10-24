@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.5.4
+# @version 2.6.0
 """审计 Inno 编译日志：核对「该进包的文件都进了、不该进的一个没进」。
 
 用法：
@@ -99,7 +99,7 @@ def main(argv):
         print(__doc__)
         return 2
     # 默认必进项：主程序 + 上一轮补装的 4 个 src 模块
-    expect = [r"dist\视频工具箱.exe",
+    expect = [r"dist\视频工具箱\视频工具箱.exe",
               r"src\vt_update_check.py",
               r"src\auto_vision_core.py",
               r"src\bili_upload.py",

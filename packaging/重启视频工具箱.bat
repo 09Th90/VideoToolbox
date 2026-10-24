@@ -1,5 +1,5 @@
 @echo off
-rem @version 2.5.4
+rem @version 2.6.0
 rem ============================================================
 rem  Restart Video Toolbox so that the edits in src\ take effect.
 rem

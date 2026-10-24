@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.5.4
+# @version 2.6.0
 """为仓库内**自研的当前版本文件**打版本号标记，并生成《文件版本清单》。
 
 背景（v1.12.1）：仅靠文件名无法判断一份文件属于哪一版——同名不同内容的情况
@@ -87,6 +87,18 @@ RUNTIME_FILES = {
 }
 RUNTIME_PREFIX = ("inbox/", "outbox/")
 
+#: 由 harness_bridge 常量生成的技能包文件——必须与常量逐字节同源，不打标
+#: （打标会让 _selftest_agent_cli 的「静态文件与 bridge 常量同源」失败）
+GENERATED_FILES = {
+    "AGENTS.md",
+    "CLAUDE.md",
+    "SKILL.md",
+    ".claude/skills/video-toolbox/SKILL.md",
+    ".agents/skills/video-toolbox/SKILL.md",
+    ".workbuddy/skills/video-toolbox/SKILL.md",
+    ".trae/rules/project_rules.md",
+}
+
 #: 二进制 / 无注释语法的自研文件——属于当前版本但无法打标
 NO_MARKER_EXT = {".png", ".jpg", ".jpeg", ".exe", ".7z", ".ico", ".zip"}
 NO_MARKER_REASON = {
@@ -150,6 +162,8 @@ def insert_index(lines, rel):
 
 def stamp_one(rel, version, check=False):
     """返回 (状态, 说明)。状态: 'ok' 已改 / 'same' 已是最新 / 'skip' 不可打标。"""
+    if rel in GENERATED_FILES:
+        return "skip", "由 harness_bridge 常量生成，保持逐字节同源"
     path = os.path.join(ROOT, *rel.split("/"))
     want = marker_line(rel, version)
     if want is None:
@@ -189,6 +203,7 @@ SKIP_REASON = {
     "第三方/合规原件": "不适用：第三方/合规原件，刻意保持逐字节原样",
     "历史归档": "不适用：历史归档（早期版本快照，非当前版本）",
     "运行期数据/占位": "不适用：运行期生成，不入版本管理",
+    "生成文件（bridge 常量）": "不适用：由 harness_bridge 常量生成，保持逐字节同源",
 }
 
 
@@ -196,6 +211,8 @@ def classify(rel):
     """返回 (类别, 是否应为当前版本代码)。"""
     if rel.startswith(HISTORY_PREFIX) or rel in HISTORY_FILES:
         return "历史归档", False
+    if rel in GENERATED_FILES:
+        return "生成文件（bridge 常量）", False
     if (rel in THIRD_PARTY or rel.startswith(THIRD_PARTY_PREFIX)
             or _is_third_party_by_name(rel)):
         return "第三方/合规原件", False
@@ -275,7 +292,8 @@ def git_blob_hashes(rels):
 
 
 def build_manifest(version, stamp_results):
-    rows = {"当前版本": [], "第三方/合规原件": [], "历史归档": [], "运行期数据/占位": []}
+    rows = {"当前版本": [], "生成文件（bridge 常量）": [], "第三方/合规原件": [],
+            "历史归档": [], "运行期数据/占位": []}
     rels = [r for r in sorted(tracked_files()) if r != MANIFEST]
     blobs = git_blob_hashes(rels)
     for rel in rels:
@@ -308,10 +326,13 @@ def build_manifest(version, stamp_results):
     out.append("分类说明：**当前版本**＝构成 v%s 的自研代码/脚本/配置/文档；"
                "**第三方/合规原件**＝上游或法律原件，刻意保持逐字节原样"
                "（prompts 会被当提示词投给 LLM，插注释会污染）；"
+               "**生成文件（bridge 常量）**＝由 harness_bridge 常量生成，"
+               "必须与常量逐字节同源，故不打标；"
                "**历史归档**＝早期版本快照，本就不属当前版本；"
                "**运行期数据/占位**＝程序运行时生成，不入版本管理。" % version)
     out.append("")
-    order = ["当前版本", "第三方/合规原件", "历史归档", "运行期数据/占位"]
+    order = ["当前版本", "生成文件（bridge 常量）", "第三方/合规原件",
+             "历史归档", "运行期数据/占位"]
     total = 0
     for cat in order:
         items = rows[cat]

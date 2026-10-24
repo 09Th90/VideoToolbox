@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.5.4
+# @version 2.6.0
 """Measure update-dialog label geometry: every detail line must fit the
 informativeText label's width (the old bug clipped lines mid-glyph)."""
 import os
@@ -32,15 +32,21 @@ def chk(name, cond, extra=""):
         print("  FAIL  %s   %s" % (name, extra))
 
 
+def text_px(fm, text):
+    """PySide6 6.x 移除了 QFontMetrics.width，改用 horizontalAdvance。"""
+    if hasattr(fm, "horizontalAdvance"):
+        return fm.horizontalAdvance(text)
+    return fm.width(text)
+
+
 def mk(local, remote, full=None, dl=104239406, changed=0, orphans=0):
     r = u.CheckResult()
     r.ok = True
     r.local_ver = local
+    r.record_ver = local if local != "未安装" else ""
     r.remote_ver = remote
     r.full = (local == "未安装") if full is None else full
-    r.baseline_ver = (local if local != "未安装" else u.SELF_VERSION)
-    if local == "未安装" or u._vnewer(u.SELF_VERSION, local):
-        r.baseline_ver = u.SELF_VERSION
+    r.baseline_ver = u.SELF_VERSION
     r.download_bytes = dl
     r.packages = [("base", u._human(dl))]
     r.changed = changed
@@ -86,7 +92,7 @@ def measure(name, r):
           % (name, label, lw, len(lines)))
     worst = 0
     for ln in lines:
-        px = fm.width(ln) if ln else 0
+        px = text_px(fm, ln) if ln else 0
         worst = max(worst, px)
         flag = "" if px <= lw else "  <== 超宽被裁"
         print("   %4dpx / %dpx  %s%s" % (px, lw, ln, flag))
@@ -98,7 +104,7 @@ def measure(name, r):
         "标签高 %d < 需要 %d" % (info.height(), need_h))
 
 
-print("== 与截图同场景：开发版 2.0.0 运行、本地未安装、远端 1.19.0 ==")
+print("== 模拟安装版：本地未安装、远端 1.19.0（低于运行版本）==")
 measure("screenshot-case", mk("未安装", "1.19.0"))
 print("\n== 普通升级（SELF 压到 1.18.0 复现发布版用户）==")
 _real = u.SELF_VERSION
@@ -106,7 +112,7 @@ u.SELF_VERSION = "1.18.0"
 measure("normal-upgrade", mk("1.18.0", "1.19.0", full=False, changed=12))
 u.SELF_VERSION = _real
 print("\n== 全新安装（远端比运行版本新）==")
-measure("fresh-newer", mk("未安装", "2.1.0"))
+measure("fresh-newer", mk("未安装", "99.0.0"))
 print("\n== 回滚（已装 2.0.0 → 远端 1.19.0）==")
 measure("rollback", mk("2.0.0", "1.19.0", full=False, orphans=3))
 

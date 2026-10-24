@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# @version 2.5.4
+# @version 2.6.0
 """自研「在线引导安装器」交叉验证自检（独立于 _selftest_online_setup.py 的深度套件）。
 
 定位：_selftest_online_setup.py 覆盖基础解析与总流程；本套件专啃**并发、故障与
@@ -891,6 +891,13 @@ def t_conventions(tmp):
     check("SELF_VERSION 与源码 VERSION 一致",
           core.SELF_VERSION == src_ver,
           "SELF_VERSION=%s 源码=%s" % (core.SELF_VERSION, src_ver))
+    # 主程序更新检查器另有一份独立常量（无 Qt 子进程要读）；它漂移会直接
+    # 让更新弹窗的「当前版本」与设置页不一致。
+    upd_ver = re.search(r'SELF_VERSION\s*=\s*"([\d.]+)"',
+                        open(os.path.join(ROOT, "src", "vt_update_check.py"),
+                             encoding="utf-8").read()).group(1)
+    check("更新检查器 SELF_VERSION 与源码 VERSION 一致",
+          upd_ver == src_ver, "vt_update_check=%s 源码=%s" % (upd_ver, src_ver))
     check("下载 UA 含当前主次版本",
           "/%s.%s" % tuple(src_ver.split(".")[:2]) in vt_dl._UA,
           "%s vs 源码 %s" % (vt_dl._UA, src_ver))

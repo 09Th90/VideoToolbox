@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.5.4
+# @version 2.6.0
 """AI 校准 Agent —— Agent 级字幕术语校准（v1.11.0；v1.16.0 并发与提示词优化）。
 
 定位
@@ -299,25 +299,58 @@ def _write_text(path: str, text: str) -> None:
 
 
 # ============================ SRT 解析 / 回填 ============================
+_KANA = re.compile(r"[\u3040-\u30ff]")
+_HANGUL = re.compile(r"[\uac00-\ud7a3\u3130-\u318f]")
+_ZH_PUNCT = re.compile(r"[，。！？；：、“”‘’（）《》【】…—]")
+
+
+def _split_text_lines(texts):
+    """按语言把 cue 文本行拆成 (中文下标, 参考下标)，与行序无关。
+
+    2026-10-23：AI 校准原先把「末行=参考、其余=中文」，英文在上的双语片源
+    会把英文当中文送去改写、把中文当参考行保护。这里按字符集识别，兼容
+    中文在上/英文在上两种版式；纯拉丁中文行用中文标点兜底。
+    """
+    zh, ref = [], []
+    for i, text in enumerate(texts):
+        if _HANGUL.search(text) or _KANA.search(text):
+            ref.append(i)
+        elif re.search(r"[\u4e00-\u9fff]", text):
+            zh.append(i)
+        else:
+            ref.append(i)
+    if not zh:
+        punct = [i for i, text in enumerate(texts) if _ZH_PUNCT.search(text)]
+        if len(punct) == 1:
+            zh = punct
+            ref = [i for i in range(len(texts)) if i not in zh]
+    return zh, ref
+
+
 class Cue:
     """一条字幕：序号、时间轴行、文本行区间（含参考行）、中文行区间。"""
 
-    __slots__ = ("num", "time_line", "zh_lines", "ref_line", "start", "end")
+    __slots__ = ("num", "time_line", "zh_lines", "ref_line", "start", "end",
+                 "ref_lines", "zh_indices", "ref_indices")
 
-    def __init__(self, num, time_line, zh_lines, ref_line, start, end):
+    def __init__(self, num, time_line, zh_lines, ref_line, start, end,
+                 ref_lines=None, zh_indices=None, ref_indices=None):
         self.num = num              # 序号（字符串，原样保留）
         self.time_line = time_line  # 时间轴行（原样，绝不改写）
         self.zh_lines = zh_lines    # 中文行列表（可能多行；单文本行 cue 为空）
         self.ref_line = ref_line    # 参考行（通常英文；原样保留）
-        self.start = start          # 文本起始行索引（中文行第一行）
-        self.end = end              # 文本结束行索引（不含参考行）
+        self.start = start          # 文本区间首行索引
+        self.end = end              # 文本区间末行索引 + 1（exclusive）
+        self.ref_lines = ref_lines if ref_lines is not None else ([ref_line] if ref_line else [])
+        self.zh_indices = zh_indices or []
+        self.ref_indices = ref_indices or []
 
 
 def parse_srt(path: str):
     """解析 SRT，返回 (lines, cues, crlf, bom)。
 
-    只做结构识别，不改动任何字符；中文行 = 文本行里除最后一行以外的所有行
-    （与 subtitle_calib_merged 的约定一致：单文本行 cue 视为无中文行，不覆盖）。
+    只做结构识别，不改动任何字符；中文行/参考行按字符集识别，兼容中文在上
+    与英文在上两种双语版式（单文本行 cue 仍视为无中文行，不覆盖）。
     """
     raw = open(path, "rb").read()
     crlf = b"\r\n" in raw
@@ -336,8 +369,22 @@ def parse_srt(path: str):
                     kk += 1
                 texts = lines[j + 1:kk]
                 if texts:
-                    cues.append(Cue(s, lines[j], texts[:-1], texts[-1],
-                                    j + 1, kk - 1))
+                    if len(texts) == 1:
+                        # 保持旧约定：单文本行 cue 视为无中文行，不覆盖
+                        zh_pos, ref_pos = [], [0]
+                    else:
+                        zh_pos, ref_pos = _split_text_lines(texts)
+                        if not zh_pos:
+                            # 全参考行（纯英文等）：不猜中文，整块原样保留
+                            zh_pos, ref_pos = [], list(range(len(texts)))
+                    zh_lines = [texts[t] for t in zh_pos]
+                    ref_lines = [texts[t] for t in ref_pos]
+                    zh_indices = [j + 1 + t for t in zh_pos]
+                    ref_indices = [j + 1 + t for t in ref_pos]
+                    first = min(zh_indices + ref_indices)
+                    last = max(zh_indices + ref_indices) + 1
+                    cues.append(Cue(s, lines[j], zh_lines, " ".join(ref_lines),
+                                    first, last, ref_lines, zh_indices, ref_indices))
                     i = kk
                     continue
         i += 1
@@ -355,8 +402,12 @@ def rebuild_srt(lines, cues, mapping: dict, crlf: bool, bom: bool) -> str:
     for cue in cues:
         out_lines.extend(lines[prev:cue.start])
         new = mapping.get(cue.num)
-        if cue.zh_lines and new is not None:
-            out_lines.extend(new.split("\n"))
+        new_lines = new.split("\n") if new is not None else []
+        if cue.zh_indices and new is not None and len(new_lines) == len(cue.zh_indices):
+            # 按原行位置回填中文行，参考行保持原位（兼容英文在上/中文在上）
+            zh_map = dict(zip(cue.zh_indices, new_lines))
+            for idx in range(cue.start, cue.end):
+                out_lines.append(zh_map.get(idx, lines[idx]))
         else:
             out_lines.extend(lines[cue.start:cue.end])
         prev = cue.end
@@ -370,32 +421,29 @@ def rebuild_srt(lines, cues, mapping: dict, crlf: bool, bom: bool) -> str:
 def _protect_ref_lines(src_path: str, base_path: str) -> int:
     """基线后参考行保护：把 base 里每条 cue 的参考行强制还原为 src 的原样。
 
-    起因（2026-09-18《NIKKE Player Reacts to Typhoeus》终末地反应片实操沉淀）：
-    `--endo` 等「统一全部文本行」模式在脚本里是 `for ti in range(j+1, kk)`，
-    会连英文参考行一起替换（如参考行 `Typhon`→`提弗洛斯`）；而第 [8/8] 步 verify
-    硬断言「英文行 0 改动」，于是整轮校准必然以「校验未通过」中止——人工流程正是
-    靠避开 `--endo`、改走 `subfix` 逐 cue 侧车只改中文行来绕开它。
-
-    本函数在基线跑完后立即按 cue 序号对齐、把参考行还原成原始 src 的样子，机械保证
-    「参考行永不改写」这条契约，不再依赖脚本模式的行为。对本就只改中文行的模式
-    （bi/term 等）是 no-op（参考行本就一致，restored=0）。中文行 / 时间轴 / 序号 /
-    换行 / BOM 一律不动。
+    2026-09-18《NIKKE Player Reacts to Typhoeus》沉淀；2026-10-23 起脚本
+    `--endo` 已改为按语言只改中文行，不再污染英文参考行。本函数仍作为
+    基线/上轮产物的兜底：按 cue 序号与参考行下标逐一还原，机械保证
+    「参考行永不改写」这条契约，不依赖脚本模式的行为。对本就只改中文行的
+    模式（bi/term 等）是 no-op（参考行本就一致，restored=0）。中文行 /
+    时间轴 / 序号 / 换行 / BOM 一律不动。
 
     返回被还原的参考行数。
     """
     _sl, src_cues, _sc, _sb = parse_srt(src_path)
     _bl, base_cues, base_crlf, base_bom = parse_srt(base_path)
-    src_ref = {c.num: c.ref_line for c in src_cues}   # cue 编号可能不连续，按序号索引
+    src_ref = {c.num: c.ref_lines for c in src_cues}   # cue 编号可能不连续，按序号索引
     out = list(_bl)
     restored = 0
     for c in base_cues:
-        want = src_ref.get(c.num)
-        if want is None:
+        want_lines = src_ref.get(c.num)
+        if not want_lines or len(want_lines) != len(c.ref_indices):
             continue
-        ref_idx = c.end                # 参考行恒在文本区间末行 = lines[kk-1] = c.end
-        if 0 <= ref_idx < len(out) and out[ref_idx] != want:
-            out[ref_idx] = want
-            restored += 1
+        for pos, ref_idx in enumerate(c.ref_indices):
+            want = want_lines[pos]
+            if 0 <= ref_idx < len(out) and out[ref_idx] != want:
+                out[ref_idx] = want
+                restored += 1
     if restored:
         body = "\n".join(out)
         if base_crlf:

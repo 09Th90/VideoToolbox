@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.5.4
+# @version 2.6.0
 """路径与数据根（运行期产物一律落数据根，不回写系统盘）（v2.3.1 拆分工程 · 自 video_toolbox.py 原样搬入）。
 
 本模块是 src/core/shared/ 的组成部分；域间依赖规则见 core/__init__.py。
@@ -79,6 +79,9 @@ def app_icon_path():
     meipass = getattr(sys, "_MEIPASS", None)
     if meipass:
         candidates.append(os.path.join(meipass, "assets", "app_icon.ico"))
+    # PyInstaller 6 onedir：datas 落在 {app}\_internal\，而 _MEIPASS 可能
+    # 指向应用根（而不是 _internal）。两条都查，避免图标静默消失。
+    candidates.append(os.path.join(APP_DIR, "_internal", "assets", "app_icon.ico"))
     candidates.append(os.path.join(APP_DIR, "assets", "app_icon.ico"))
     candidates.append(
         os.path.join(os.path.dirname(APP_DIR), "assets", "app_icon.ico"))

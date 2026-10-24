@@ -1,11 +1,11 @@
-; @version 2.5.4
+; @version 2.6.0
 ; ============================================================================
-; 视频工具箱 v2.5.4 —— Inno Setup 安装包脚本
+; 视频工具箱 v2.6.0 —— Inno Setup 安装包脚本
 ; 构建前提：已用打包环境 D:\Agent Work\_bld\qt_build 执行 pyinstaller 视频工具箱.spec
 ;           （2026-10-14 起该环境为 PySide6 6.12.0 + PySide6-Fluent-Widgets
 ;           1.11.3；此前为 PyQt5 5.15.11 + PyQt-Fluent-Widgets 1.8.4），
 ;           产物位于 dist\视频工具箱.exe
-; 编译：ISCC.exe 视频工具箱.iss  →  installer\视频工具箱_Setup_v2.5.4.exe
+; 编译：ISCC.exe 视频工具箱.iss  →  installer\视频工具箱_Setup_v2.6.0.exe
 ; v1.18.0：① 新增主播声纹（exe 侧已由 spec hiddenimports 内嵌），[Files]
 ;         补装 src\speaker_voiceprint.py / speaker_voiceprint_page.py /
 ;         subtitle_editor_core.py 源码副本，使安装版也能按开发版说明书的 CLI
@@ -89,7 +89,7 @@
 ; ============================================================================ 
 
 #define MyAppName "视频工具箱"
-#define MyAppVersion "2.5.4"
+#define MyAppVersion "2.6.0"
 #define MyAppPublisher "VideoToolbox"
 #define MyAppExeName "视频工具箱.exe"
 
@@ -141,8 +141,12 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{
 [Files]
 ; —— 采用"白名单"逐条列举：凡未在此处出现的目录（data 用户数据、logs 日志、
 ;    字幕引擎用户配置）都不会进入安装包，从源头杜绝账号凭据被分发。 ——
-; 主程序（PyInstaller 单文件 exe）——安装后程序目录顶层唯一可执行文件
-Source: "..\dist\视频工具箱.exe"; DestDir: "{app}"; Flags: ignoreversion
+; 主程序（PyInstaller onedir）——exe 在顶层，依赖在 {app}\_internal\
+; 2026-10-23 启动专项：由 onefile 改为 onedir，去掉每次启动 2.4～5.5s 的解包。
+; ⚠ 只收 exe 与 _internal：构建目录里可能残留测试生成的 data\、logs\，
+;   不能整目录通配，否则会把本机运行数据打进安装包。
+Source: "..\dist\视频工具箱\视频工具箱.exe"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\dist\视频工具箱\_internal\*"; DestDir: "{app}\_internal"; Flags: ignoreversion recursesubdirs createallsubdirs
 ; v2.1.0：应用图标。装到 {app}\assets\ 供两处用——
 ;   ① [Icons] 的 IconFilename（快捷方式不继承目标 exe 图标，必须有实体文件）；
 ;   ② 兜底运行期窗口图标（冻结态实际读 _MEIPASS，这份是双保险）。
@@ -331,7 +335,9 @@ Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChang
 
 [InstallDelete]
 ; 升级安装时清理旧版本遗留（v1.10.2 起引擎已内嵌进 exe，这些不再需要）；
-; data\、logs\ 等用户数据不受影响
+; data\、logs\ 等用户数据不受影响。
+; onedir：先清掉旧的 _internal，避免上一版删掉的模块/DLL 残留。
+Type: filesandordirs; Name: "{app}\_internal"
 Type: filesandordirs; Name: "{app}\tools\uploader_src"
 Type: filesandordirs; Name: "{app}\tools\ms-playwright"
 ; ⚠️ v1.18.0：**不要**再删 {app}\tools\asr_model —— 该目录已改为**主播声纹

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.5.4
+# @version 2.6.0
 """Verify update dialog text/version-direction fixes (no network)."""
 import os
 import sys
@@ -24,16 +24,15 @@ def chk(name, cond, extra=""):
         print("  FAIL  %s   %s" % (name, extra))
 
 
-def mk(local, remote, full=None, **kw):
+def mk(local, remote, full=None, record=None, **kw):
     r = u.CheckResult()
     r.ok = True
     r.local_ver = local
     r.remote_ver = remote
     r.full = (local == "未安装") if full is None else full
-    if local == "未安装" or u._vnewer(u.SELF_VERSION, local):
-        r.baseline_ver = u.SELF_VERSION
-    else:
-        r.baseline_ver = local
+    r.baseline_ver = u.SELF_VERSION
+    r.record_ver = (record if record is not None
+                    else (local if local != "未安装" else ""))
     r.download_bytes = kw.get("dl", 104239406)
     r.packages = kw.get("pkgs", [("base", u._human(104239406))])
     r.changed = kw.get("changed", 0)
@@ -51,16 +50,19 @@ chk("真实版本号带 v", u._v("1.19.0") == "v1.19.0", u._v("1.19.0"))
 chk("未安装不带 v", u._v("未安装") == "未安装", u._v("未安装"))
 chk("空值不带 v", u._v("") == "未安装", u._v(""))
 
-print("\n== scenario A: dev run (2.0.0), nothing installed, remote 1.19.0 ==")
+print("\n== scenario A: 安装版空目录、远端 1.19.0（低于运行版本）==")
 r = mk("未安装", "1.19.0")
 chk("判降级", r.downgrade() is True)
-chk("动作短语=安装较旧版本", r.action_label() == "安装较旧版本", r.action_label())
+chk("动作短语=安装较旧版本", r.action_label() == "安装较旧版本",
+    r.action_label())
 lines = r.detail_lines()
 text = "\n".join(lines)
 chk("无 'v未安装' 拼接事故", "v未安装" not in text and "v v" not in text, text)
-chk("说明含『未安装（正在运行 v2.0.0）』",
-    any("未安装（正在运行 v2.0.0）" in ln for ln in lines), lines[:2])
+chk("首行为当前运行版本", lines[0] == "当前版本：v%s" % u.SELF_VERSION,
+    lines[0])
 chk("标出低于当前版本", any("低于当前" in ln for ln in lines), lines[:3])
+chk("说明将全新安装", any("本地未检测到已安装版本" in ln for ln in lines),
+    lines[:4])
 chk("所有行不超 30 列", all(width_of(ln) <= 30.0 for ln in lines),
     [ln for ln in lines if width_of(ln) > 30.0])
 chk("无空 excised 行", all(ln.strip() for ln in lines if ln != ""), lines)
@@ -68,19 +70,20 @@ print("   detail_lines ->")
 for ln in lines:
     print("     | %s" % ln)
 
-print("\n== scenario B: fresh install, remote newer than running ==")
-r = mk("未安装", "2.1.0")
+print("\n== scenario B: 全新安装，remote newer than running ==")
+r = mk("未安装", "99.0.0")
 chk("不判降级", r.downgrade() is False)
 chk("动作短语=全新安装", r.action_label() == "全新安装", r.action_label())
 
 print("\n== scenario C: normal upgrade (installed 1.18.0, remote 1.19.0) ==")
-# 发布版视角：当前运行版本 = 已装版本 = 1.18.0（本仓库是 2.0.0 开发
+# 发布版视角：当前运行版本 = 已装版本 = 1.18.0（本仓库是 2.5.4 开发
 # 形态，须把 SELF_VERSION 压低才能复现普通用户的升级场景）
 _real_self = u.SELF_VERSION
 u.SELF_VERSION = "1.18.0"
 r = mk("1.18.0", "1.19.0", full=False, changed=12)
 chk("不判降级", r.downgrade() is False)
-chk("动作短语=发现新版本", r.action_label() == "发现新版本", r.action_label())
+chk("动作短语=发现新版本", r.action_label() == "发现新版本",
+    r.action_label())
 lines = r.detail_lines()
 chk("首行『当前版本：v1.18.0』", lines[0] == "当前版本：v1.18.0", lines[0])
 chk("第二行『最新版本：v1.19.0』", lines[1] == "最新版本：v1.19.0", lines[1])
@@ -90,22 +93,54 @@ u.SELF_VERSION = _real_self
 print("\n== scenario D: rollback (installed 2.0.0, remote 1.19.0) ==")
 r = mk("2.0.0", "1.19.0", full=False, orphans=3)
 chk("判降级", r.downgrade() is True)
-chk("动作短语=回滚到旧版本", r.action_label() == "回滚到旧版本", r.action_label())
+chk("动作短语=回滚到旧版本", r.action_label() == "回滚到旧版本",
+    r.action_label())
 lines = r.detail_lines()
-chk("首行即 v2.0.0", lines[0] == "当前版本：v2.0.0", lines[0])
+chk("首行当前运行版本并附安装记录",
+    lines[0] == "当前版本：v%s（安装目录记录 v2.0.0）" % u.SELF_VERSION,
+    lines[0])
 chk("含残留清理提示", any("3 个旧版本残留" in ln for ln in lines), lines)
 
-print("\n== scenario E: installed 1.18.0, dev run 2.0.0, remote 1.19.0 ==")
+print("\n== scenario E: installed 1.18.0, dev run newer, remote 1.19.0 ==")
 r = mk("1.18.0", "1.19.0", full=False)
 chk("基准取运行版本（判降级）", r.downgrade() is True)
 lines = r.detail_lines()
-chk("并列说明运行版本",
-    lines[0] == "当前版本：v1.18.0（正在运行 v2.0.0）", lines[0])
+chk("首行当前运行版本并附安装记录",
+    lines[0] == "当前版本：v%s（安装目录记录 v1.18.0）" % u.SELF_VERSION,
+    lines[0])
+
+print("\n== scenario F: source mode ==")
+r = u.CheckResult()
+r.ok = True
+r.source_mode = True
+r.baseline_ver = u.SELF_VERSION
+r.local_ver = u.SELF_VERSION
+r.remote_ver = "99.0.0"
+chk("summary 标明源码运行模式", r.summary().startswith("源码运行模式"),
+    r.summary())
+chk("动作短语=源码运行模式", r.action_label() == "源码运行模式",
+    r.action_label())
+lines = r.detail_lines()
+chk("首行源码运行标注",
+    lines[0] == "当前版本：v%s（源码运行）" % u.SELF_VERSION, lines[0])
+chk("说明不自动安装", any("不自动安装" in ln for ln in lines), lines)
+
+print("\n== scenario G: same version, stale record (repair install) ==")
+r = mk("2.5.4", "2.5.4", full=False, record="2.5.3", changed=3)
+chk("动作短语=修复安装", r.action_label() == "修复安装", r.action_label())
+lines = r.detail_lines()
+chk("首行带安装记录版本",
+    lines[0] == "当前版本：v2.5.4（安装目录记录 v2.5.3）", lines[0])
+chk("第二行标修复",
+    lines[1] == "目标版本：v2.5.4（与当前相同，将修复不一致文件）",
+    lines[1])
 
 print("\n== summary / no-update ==")
 r = mk("1.19.0", "1.19.0", full=False)
 r.update = False
 chk("已是最新文案无 v未安装", "v未安装" not in r.summary(), r.summary())
+chk("已是最新用运行版本", r.summary() == "当前已是最新版本 v%s"
+    % u.SELF_VERSION, r.summary())
 r2 = u.CheckResult()
 r2.ok = True
 r2.update = False

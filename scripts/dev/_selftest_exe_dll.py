@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.5.4
+# @version 2.6.0
 r"""自检：exe 内的 onnxruntime 能否在**模拟 _MEIPASS 布局**下真正 import。
 
 ======================================================================
@@ -43,7 +43,7 @@ import tempfile
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(os.path.dirname(HERE))
 
-DEFAULT_EXE = os.path.join(ROOT, "dist", "视频工具箱.exe")
+DEFAULT_EXE = os.path.join(ROOT, "dist", "视频工具箱", "视频工具箱.exe")
 
 PROBE = '''\
 import os, sys
@@ -132,6 +132,33 @@ def check_msvc_conflict(exe: str) -> int:
     return len(bad)
 
 
+def check_msvc_conflict_dir(internal: str) -> int:
+    """onedir：直接比较 _internal 根与 _internal/PySide6 下的同名 MSVC DLL。"""
+    pat = re.compile(r"^(msvcp140|msvcp140_1|vcruntime140|vcruntime140_1)\.dll$",
+                     re.I)
+    root, qtbin = {}, {}
+    for base, bucket in ((internal, root),
+                         (os.path.join(internal, "PySide6"), qtbin)):
+        if not os.path.isdir(base):
+            continue
+        for n in os.listdir(base):
+            if pat.match(n):
+                with open(os.path.join(base, n), "rb") as fh:
+                    bucket[n.lower()] = file_version(fh.read())
+    print("  MSVC runtime 版本：")
+    for bn in sorted(set(root) | set(qtbin)):
+        print("    %-20s 根目录=%-16s PySide6=%s"
+              % (bn, root.get(bn, "—"), qtbin.get(bn, "—")))
+    bad = []
+    for bn, qv in qtbin.items():
+        rv = root.get(bn)
+        if rv and qv != rv:
+            bad.append("%s：PySide6(%s) 比根目录(%s)旧" % (bn, qv, rv))
+    for msg in bad:
+        print("  [FAIL] " + msg)
+    return len(bad)
+
+
 def main() -> int:
     exe = sys.argv[1] if len(sys.argv) > 1 else DEFAULT_EXE
     if not os.path.isfile(exe):
@@ -139,17 +166,26 @@ def main() -> int:
         return 2
 
     print("exe：", exe)
-    print()
-    print("[1] MSVC runtime 冲突检查（静态）")
-    conflicts = check_msvc_conflict(exe)
+    internal = os.path.join(os.path.dirname(os.path.abspath(exe)), "_internal")
+    onedir = os.path.isdir(internal)
 
     print()
-    print("[2] 模拟 _MEIPASS 布局实跑 import（动态，唯一权威判据）")
-    mei = tempfile.mkdtemp(prefix="_selftest_dll_")
+    print("[1] MSVC runtime 冲突检查（静态）")
+    conflicts = (check_msvc_conflict_dir(internal) if onedir
+                 else check_msvc_conflict(exe))
+
+    print()
+    print("[2] %s实跑 import（动态，唯一权威判据）"
+          % ("onedir _internal " if onedir else "模拟 _MEIPASS 布局"))
+    tmp = tempfile.mkdtemp(prefix="_selftest_dll_")
+    mei = internal if onedir else tmp
     try:
-        n = build_mei(exe, mei)
-        print("    解出 %d 个文件" % n)
-        probe = os.path.join(mei, "_probe.py")
+        if onedir:
+            print("    _internal：%s" % internal)
+        else:
+            n = build_mei(exe, mei)
+            print("    解出 %d 个文件" % n)
+        probe = os.path.join(tmp, "_probe.py")
         with open(probe, "w", encoding="utf-8") as f:
             f.write(PROBE)
         import subprocess
@@ -159,11 +195,11 @@ def main() -> int:
         print("    " + out)
         ok = out.startswith("OK")
         if not ok:
-            print("    [FAIL] exe 内 onnxruntime 无法加载 —— "
+            print("    [FAIL] 包内 onnxruntime 无法加载 —— "
                   "检查 PySide6 目录是否夹带旧 MSVC runtime")
     finally:
         import shutil
-        shutil.rmtree(mei, ignore_errors=True)
+        shutil.rmtree(tmp, ignore_errors=True)
 
     print()
     if conflicts or not ok:

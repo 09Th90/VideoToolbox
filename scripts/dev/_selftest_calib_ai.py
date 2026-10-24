@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.5.4
+# @version 2.6.0
 """AI 校准 Agent 自检（离线，不联网、不调用真实 LLM）。
 
 覆盖：
@@ -95,8 +95,8 @@ SRT_RW = (
 )
 
 
-#: --endo 全文本行模式会连英文参考行一起替换（Typhon→提弗洛斯），
-#: 用于验证参考行保护（2026-09-18 终末地反应片实操沉淀）。
+#: --endo 用于单语终末地片源；2026-10-23 起按语言只改中文行，
+#: 英文参考行必须保留（此前会连 Typhon 一起替换，靠 _protect_ref_lines 补救）。
 SRT_ENDO = (
     "1\r\n"
     "00:00:01,000 --> 00:00:02,000\r\n"
@@ -149,6 +149,26 @@ def test_parse_rebuild():
         check("输出与源文件行数一致（结构未增删）",
               _out_bytes.count(b"\n") == bom_src.count(b"\n"),
               f"{_out_bytes.count(b'\\n')} vs {bom_src.count(b'\\n')}")
+
+        # 2026-10-23：英文在上、中文在下的双语片源（translate 的默认版式）
+        en_src = os.path.join(d, "en_first.srt")
+        with open(en_src, "w", encoding="utf-8", newline="") as f:
+            f.write(
+                "1\r\n00:00:01,000 --> 00:00:02,000\r\n"
+                "Carty appears\r\n卡西亚登场\r\n\r\n"
+                "2\r\n00:00:03,000 --> 00:00:04,500\r\n"
+                "Carty and the girl\r\n少女与卡西亚\r\n"
+            )
+        el, ec, ecrlf, ebom = ag.parse_srt(en_src)
+        check("英文在上：中文行识别", ec[0].zh_lines == ["卡西亚登场"], str(ec[0].zh_lines))
+        check("英文在上：参考行识别", ec[0].ref_line == "Carty appears", repr(ec[0].ref_line))
+        eout = os.path.join(d, "en_first.out.srt")
+        with open(eout, "w", encoding="utf-8", newline="") as f:
+            f.write(ag.rebuild_srt(el, ec, {"1": "卡提希娅登场"}, ecrlf, ebom))
+        _el, eoc, _, _ = ag.parse_srt(eout)
+        check("英文在上：回填只改中文行、英文参考行原样",
+              eoc[0].zh_lines == ["卡提希娅登场"] and eoc[0].ref_line == "Carty appears",
+              f"{eoc[0].zh_lines!r} / {eoc[0].ref_line!r}")
 
 
 def test_rules_and_validate():
@@ -382,11 +402,12 @@ def test_ref_line_protection():
         ag.run_script(PYTHON, SCRIPT, [src, "--endo", "--out", polluted], print)
         _l, pcues, _c, _b = ag.parse_srt(polluted)
         ref2 = next(c.ref_line for c in pcues if c.num == "2")
-        check("--endo 确实污染了英文参考行（Typhon 被替换）",
-              "Typhon" not in ref2, repr(ref2))
-        # 2) _protect_ref_lines 把参考行还原成原始 src 的样子
+        # 2026-10-23：--endo 改为按语言只改中文行，不应再污染英文参考行。
+        check("--endo 不污染英文参考行（Typhon 保留）",
+              "Typhon" in ref2, repr(ref2))
+        # 2) 参考行既未被污染，_protect_ref_lines 应为空操作
         n = ag._protect_ref_lines(src, polluted)
-        check("参考行保护还原了被改的参考行", n >= 1, f"restored={n}")
+        check("参考行保护无需还原（--endo 已按语言隔离）", n == 0, f"restored={n}")
         _l2, pcues2, _c2, _b2 = ag.parse_srt(polluted)
         ref2b = next(c.ref_line for c in pcues2 if c.num == "2")
         check("还原后英文参考行与原始一致",

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# @version 2.5.4
+# @version 2.6.0
 """视频工具箱 GUI v1.11.0 —— Fluent 矢量界面
 ====================================================================
 界面形态（v1.10.0 起，原 tkinter 界面退役）：
@@ -89,6 +89,49 @@ import time
 # 对不上，根因就在这。这里在任何重 import **之前**落一个起点，main() 首行
 # 把差值写进 logs\startup.log（[BOOT+x.xxx s] 行）。
 _BOOT_T0 = time.perf_counter()
+
+
+def _process_age_seconds():
+    """进程真实存活秒数（Windows GetProcessTimes；失败返回 None）。
+
+    ``_BOOT_T0`` 只能覆盖本文件导入之后的链路，解释器启动、site 初始化、
+    onefile 解包都落在盲区。启动日志用这个值把「双击→窗口/首页」补全。
+    """
+    if os.name != "nt":
+        return None
+    try:
+        import ctypes
+        from ctypes import wintypes
+        k32 = ctypes.windll.kernel32
+        k32.GetCurrentProcess.restype = wintypes.HANDLE
+        k32.GetProcessTimes.argtypes = [
+            wintypes.HANDLE,
+            ctypes.POINTER(wintypes.FILETIME),
+            ctypes.POINTER(wintypes.FILETIME),
+            ctypes.POINTER(wintypes.FILETIME),
+            ctypes.POINTER(wintypes.FILETIME),
+        ]
+        k32.GetProcessTimes.restype = wintypes.BOOL
+        k32.GetSystemTimeAsFileTime.argtypes = [
+            ctypes.POINTER(wintypes.FILETIME)]
+        created = wintypes.FILETIME()
+        exited = wintypes.FILETIME()
+        kernel = wintypes.FILETIME()
+        user = wintypes.FILETIME()
+        if not k32.GetProcessTimes(k32.GetCurrentProcess(),
+                                   ctypes.byref(created),
+                                   ctypes.byref(exited),
+                                   ctypes.byref(kernel),
+                                   ctypes.byref(user)):
+            return None
+        now = wintypes.FILETIME()
+        k32.GetSystemTimeAsFileTime(ctypes.byref(now))
+        c = (int(created.dwHighDateTime) << 32) | int(created.dwLowDateTime)
+        n = (int(now.dwHighDateTime) << 32) | int(now.dwLowDateTime)
+        return max(0.0, (n - c) / 10_000_000.0)
+    except Exception:  # noqa: BLE001
+        return None
+
 
 import traceback
 import unicodedata
@@ -210,7 +253,10 @@ except Exception as _e:  # noqa: BLE001
     except Exception:  # noqa: BLE001
         pass
 
-VERSION = "2.5.4"
+VERSION = "2.6.0"
+# 更新检查同时服务源码运行与安装版：以界面显示的 VERSION 为唯一运行版本，
+# 避免 vt_update_check 里的独立常量再次漂移。
+vt_update_check.SELF_VERSION = VERSION
 
 # 全格式媒体/字幕/文档扩展名（v1.13.0）：
 #   视频：常见容器 + av1 / h264 / h265 / x264 等裸流与更多封装；
@@ -1131,6 +1177,20 @@ def expand_h(widget, minimum=160):
     except Exception:
         pass
     return widget
+
+
+def fit_spin(spin, width, align=Qt.AlignRight | Qt.AlignVCenter):
+    """数值框统一宽度与文字位置：固定宽度 + 数字右对齐。
+
+    SpinBox 的右侧步进按钮占固定宽度，框太窄时编辑区会被压到只剩光标；
+    数值右对齐后数字贴近按钮，长文本（如「关闭（不限）」）也不容易被裁。
+    """
+    spin.setFixedWidth(width)
+    try:
+        spin.setAlignment(align)
+    except Exception:  # noqa: BLE001
+        pass
+    return spin
 
 
 def fit_caption(label):
@@ -3435,6 +3495,8 @@ class SubtitlePage(QWidget):
         self._built = False
         self._prewarming = False
         self._prewarm_ready = False
+        # 首页在预热完成前就收下文件时，先记在这里，工作台建好后再分派。
+        self._pending_dispatch = None
 
         outer = QVBoxLayout(self)
         outer.setContentsMargins(0, 0, 0, 0)
@@ -3671,10 +3733,7 @@ class SubtitlePage(QWidget):
             pass
         tc = getattr(home, "task_creation_interface", None)
         if tc is not None:
-            for attr in ("info_label", "donate_button"):
-                w = getattr(tc, attr, None)
-                if w is not None:
-                    w.hide()
+            self.wire_task_creation(tc, lambda: home)
             # v2.1.0：「任务创建」已提为应用首页 ⇒ 工作台**构建时就永久摘除**
             # 该分段——**不能**依赖 adopt 的时机或成败（用户实机出现过分段
             # 仍在的情况，原因难追，必须结构性保证）。摘掉后 tc 成为孤儿
@@ -3705,42 +3764,6 @@ class SubtitlePage(QWidget):
                     home.pivot.setCurrentItem(_first.objectName())
             except Exception as e:  # noqa: BLE001
                 _perf_note(f"工作台摘除任务创建分段失败：{e}")
-            # v1.16.3：任务创建的跳转**按文件类型分派**。引擎原本把它写死成
-            # 「一律跳语音转录」，拖字幕进来也会被当音视频去转录。
-            #   · 视频 / 音频            → 语音转录；
-            #   · 单语字幕（无中文对照）  → 字幕翻译；
-            #   · 双语字幕（中英对照）    → 字幕校准。
-            try:
-                tc.finished.disconnect(home.switch_to_transcription)
-            except Exception:  # noqa: BLE001
-                pass
-            tc.finished.connect(
-                lambda fp: self._dispatch_created_task(home, fp))
-            # v1.16.4：任务创建页原本只收音视频，拖 .srt 会弹「格式错误」。
-            # 字幕本就是本工作台的合法输入，这里放宽接收（见工厂函数说明）。
-            try:
-                tc.dropEvent = make_task_creation_drop_handler(tc)
-            except Exception as e:  # noqa: BLE001
-                _perf_note(f"任务创建页字幕接收补丁失败：{e}")
-            # v2.1.0：识别到网页链接 → 跳「视频处理 / 视频下载」。
-            # 自研路径有 url_detected 信号；引擎回退路径没有（那边仍走
-            # VideoDownloadThread），用 hasattr 分流即可，两条路径都不炸。
-            try:
-                sig = getattr(tc, "url_detected", None)
-                if sig is not None:
-                    sig.connect(self.app.goto_video_download)
-            except Exception as e:  # noqa: BLE001
-                _perf_note(f"任务创建页链接跳转接线失败：{e}")
-            # v2.1.0：harness 就绪时，首页任务框输入**纯文本**（非文件、
-            # 非链接）→ AI 托管。信号只有 harness 在场时才会真的发出来
-            # （TaskCreationInterface.process 里判过 available()），所以
-            # 这条线对「没有 harness」的用户是完全的空操作。
-            try:
-                sig = getattr(tc, "ai_requested", None)
-                if sig is not None:
-                    sig.connect(self._on_ai_requested)
-            except Exception as e:  # noqa: BLE001
-                _perf_note(f"任务创建页 AI 托管接线失败：{e}")
         # v1.13.0：把「字幕校准」并入引擎工作台分段，排在工作台「字幕翻译」
         # 之后（用户要求：校准并入「字幕翻译排」）。只加引擎界面 + 分段项，
         # 不改动引擎本体的处理流程。
@@ -3775,6 +3798,65 @@ class SubtitlePage(QWidget):
         self._engine_home = home
         return home
 
+    def wire_task_creation(self, tc, home_getter=None):
+        """给「任务创建」控件做实例整形 + 信号接线（幂等）。
+
+        首页在预热之前就构造独立的 TaskCreationInterface（见
+        ``HomePage.ensure_task_creation``），因此接线不能再只放在
+        ``_build_engine`` 里；这里成为唯一入口。``home_getter`` 延迟解析
+        工作台实例——首页早期它可能还是 None。
+        """
+        if tc is None or getattr(tc, "_vt_wired", False):
+            return
+        try:
+            tc._vt_wired = True
+        except Exception:  # noqa: BLE001
+            pass
+        for attr in ("info_label", "donate_button"):
+            w = getattr(tc, attr, None)
+            if w is not None:
+                w.hide()
+
+        def _home():
+            try:
+                return home_getter() if callable(home_getter) else None
+            except Exception:  # noqa: BLE001
+                return None
+
+        # 工作台的 HomeInterface 构造时把 finished 接到了 switch_to_transcription；
+        # 首页接管后必须断开，改走宿主自己的类型分派。
+        try:
+            home = _home()
+            if home is not None:
+                tc.finished.disconnect(home.switch_to_transcription)
+        except Exception:  # noqa: BLE001
+            pass
+        try:
+            tc.finished.connect(
+                lambda fp: self._dispatch_created_task(_home(), fp))
+        except Exception as e:  # noqa: BLE001
+            _perf_note(f"任务创建页分派接线失败：{e}")
+        # v1.16.4：任务创建页原本只收音视频，拖 .srt 会弹「格式错误」。
+        # 字幕本就是本工作台的合法输入，这里放宽接收（见工厂函数说明）。
+        try:
+            tc.dropEvent = make_task_creation_drop_handler(tc)
+        except Exception as e:  # noqa: BLE001
+            _perf_note(f"任务创建页字幕接收补丁失败：{e}")
+        # v2.1.0：识别到网页链接 → 跳「视频处理 / 视频下载」。
+        try:
+            sig = getattr(tc, "url_detected", None)
+            if sig is not None:
+                sig.connect(self.app.goto_video_download)
+        except Exception as e:  # noqa: BLE001
+            _perf_note(f"任务创建页链接跳转接线失败：{e}")
+        # v2.1.0：harness 就绪时，纯文本输入 → AI 托管。
+        try:
+            sig = getattr(tc, "ai_requested", None)
+            if sig is not None:
+                sig.connect(self._on_ai_requested)
+        except Exception as e:  # noqa: BLE001
+            _perf_note(f"任务创建页 AI 托管接线失败：{e}")
+
     def _on_ai_requested(self, text):
         """首页任务框识别到「纯文本」→ 交给 AI 托管页执行（v2.1.0）。
 
@@ -3801,6 +3883,20 @@ class SubtitlePage(QWidget):
         窗口还停在首页，用户看到的是"点了没反应"。
         """
         path = str(file_path or "")
+        if home is None:
+            home = getattr(self, "_engine_home", None)
+        if home is None:
+            # 首页任务框现在先于引擎预热就绪（2026-10-23 启动专项）。
+            # 此时用户已经给了文件：切到字幕处理页显示占位，等工作台构建完
+            # 再自动续跑，绝不在主线程同步等 6～18 秒的导入。
+            self._pending_dispatch = path
+            self._reveal_workbench()
+            try:
+                self.state_label.setText("正在准备字幕引擎，就绪后自动继续 …")
+            except Exception:  # noqa: BLE001
+                pass
+            self.ensure_built()
+            return
         ext = os.path.splitext(path)[1].lower()
         self._reveal_workbench()
         if ext not in SUBTITLE_EXTS:
@@ -3892,6 +3988,12 @@ class SubtitlePage(QWidget):
             hp = getattr(win, "home_page", None)
             if hp is not None:
                 hp.adopt(self._engine)
+                # 首页若已在预热前建好任务框，工作台自带的那个就是孤儿：
+                # 它已从分段/堆叠摘除，这里直接销毁，避免重复信号源。
+                orphan = getattr(self._engine, "task_creation_interface", None)
+                if (orphan is not None and hp.task_creation is not None
+                        and orphan is not hp.task_creation):
+                    orphan.deleteLater()
         except Exception as e:  # noqa: BLE001
             _perf_note(f"任务创建页移交首页失败：{e}")
         # 引擎 QConfig 已随 HomeInterface 导入并读盘，再做一次运行期兜底：
@@ -3906,6 +4008,12 @@ class SubtitlePage(QWidget):
         self.foot.hide()
         _perf_note(f"字幕引擎界面构建完成：{time.perf_counter() - t0:.2f}s"
                    f"（预热 {'已就绪' if self._prewarm_ready else '未完成'}）")
+        # 首页在预热前收下的文件：等界面真正并入主树后再续跑分派。
+        pending = self._pending_dispatch
+        self._pending_dispatch = None
+        if pending:
+            QTimer.singleShot(
+                0, lambda p=pending: self._dispatch_created_task(self._engine, p))
         # 引擎界面（自带字体）进来后，导航宽度重新按宿主的统一口径收敛一次
         try:
             self.window().refresh_nav_width()
@@ -4729,7 +4837,7 @@ class SettingsPage(QWidget):
             "走上方「全局 AI」同一套配置")
         ai = engine.ai_load_config()
 
-        def _spin(value, lo, hi, step=1):
+        def _spin(value, lo, hi, step=1, width=200):
             s = SpinBox(box)
             s.setRange(lo, hi)
             s.setSingleStep(step)
@@ -4740,6 +4848,7 @@ class SettingsPage(QWidget):
             except (TypeError, ValueError):
                 v = lo
             s.setValue(min(max(v, lo), hi))
+            fit_spin(s, width)
             return s
 
         self.calib_cues = _spin(ai.get("calib_chunk_cues") or 400, 20, 1000, 10)
@@ -4773,39 +4882,46 @@ class SettingsPage(QWidget):
 
         # —— 输入 / 输出预算（参考图二的「输入 / 输出」双列 + 快捷档位）——
         self.calib_context = _spin(ai.get("calib_context_tokens") or 1000000,
-                                   32768, 1048576, 32768)
+                                   32768, 1048576, 32768, width=300)
         # 上限 1M（v1.16.1）：随「输出」档位一起提到 1M。DeepSeek 官方 384K，
         # 超出的额度由请求侧「减半自愈」在支持的大额度端点全额下发、小端点自动降级。
         self.calib_tokens = _spin(ai.get("calib_max_tokens") or 65536,
-                                  1024, 1048576, 1024)
-        for w in (self.calib_context, self.calib_tokens):
-            expand_h(w, minimum=120)
+                                  1024, 1048576, 1024, width=300)
         in_col, out_col = QWidget(box), QWidget(box)
         # 档位起点（v1.16.1）：输入 128K 起、输出 256K 起——小额度已无意义
         # （推理模型思考链会吃光输出额度），只留大额度快捷档。
+        # 两列固定 300px、按钮等宽铺满：数值框不再撑满半列，数字右对齐后
+        # 与步进按钮相邻；880px 最小窗口下 300+16+300 正好放下。
         chips_all = []
-        for holder, lbl, spin, presets in (
+        for holder, lbl, spin, presets, chip_w in (
                 (in_col, "输入（上下文预算）", self.calib_context,
                  ((131072, "128K"), (262144, "256K"), (524288, "512K"),
-                  (1048576, "1M"))),
+                  (1048576, "1M")), 72),
                 (out_col, "输出（单次上限）", self.calib_tokens,
-                 ((262144, "256K"), (524288, "512K"), (1048576, "1M")))):
+                 ((262144, "256K"), (524288, "512K"), (1048576, "1M")), 97)):
+            holder.setFixedWidth(300)
             cl = QVBoxLayout(holder)
             cl.setContentsMargins(0, 0, 0, 0)
             cl.setSpacing(4)
             cl.addWidget(BodyLabel(lbl, holder))
             cl.addWidget(spin)
             chips = []
+            chip_row = QWidget(holder)
+            chl = QHBoxLayout(chip_row)
+            chl.setContentsMargins(0, 0, 0, 0)
+            chl.setSpacing(4)
             for val, text in presets:
                 b = PushButton(text, holder)
                 b.setFixedHeight(26)
+                b.setFixedWidth(chip_w)
                 b.clicked.connect(lambda _c=False, s=spin, v=val: s.setValue(v))
                 chips.append(b)
+                chl.addWidget(b)
             chips_all.append((lbl, chips))
-            cl.addWidget(row(*chips, spacing=4))
+            cl.addWidget(chip_row)
         # 快捷档按钮留存引用（供自检断言档位起点；见 _selftest_gui）
         self.calib_preset_chips = dict(chips_all)
-        blay.addWidget(row(in_col, out_col, spacing=16))
+        blay.addWidget(row(in_col, out_col, None, spacing=16))
 
         # 校准风格（2026-09-14）：术语级＝只替换名词；整句重写＝理顺机翻腔与断句
         self.calib_style_combo = ComboBox(box)
@@ -4837,7 +4953,7 @@ class SettingsPage(QWidget):
         # 思考轮次上限（v1.16.1）：每块「思考 → 联网查证 → 再思考」的往返轮数。
         # 0 = 关闭（不限，内部另有 32 轮安全上限兜底防死循环）。
         self.calib_think_rounds = _spin(int(ai.get("calib_think_rounds") or 0),
-                                        0, 64, 1)
+                                        0, 64, 1, width=200)
         self.calib_think_rounds.setSpecialValueText("关闭（不限）")
         self.calib_think_rounds.setToolTip(
             "每块「思考 → 联网查证 → 再思考」的往返轮数上限：\n"
@@ -4875,7 +4991,7 @@ class SettingsPage(QWidget):
         self.calib_cluster_edit.setFixedHeight(96)
         ccl.addWidget(self.calib_cluster_edit)
         self.calib_cluster_rounds = _spin(int(ai.get("calib_cluster_rounds") or 1),
-                                          1, 5, 1)
+                                          1, 5, 1, width=200)
         self.calib_cluster_rounds.setToolTip(
             "评审-整改协作轮数：被评审驳回的改动会带着理由回喂提议 Agent 整改，\n"
             "最多往返这么多轮；用尽后仍被驳回的改动直接丢弃（写进报告）。")
@@ -5192,6 +5308,14 @@ class SettingsPage(QWidget):
         """
         if self._engine_built:
             return self._engine_setting
+        # 预热期间不要在主线程 import 整棵引擎 UI——那会卡在 Python import
+        # 锁上数秒（用户刚启动就点“设置”时的典型卡死）。等后台预热结束再建。
+        if not _ENGINE_PREWARM["ui_ready"] and _SCHED["inst"] is not None:
+            _start_engine_prewarm()
+            _defer("prewarm_done", _engine_prewarm_probe, 0, 3, budget_ms=1)
+            _defer("engine_setting", self._ensure_engine_setting, 0, 20,
+                   depends_on=("prewarm_done",), budget_ms=900)
+            return None
         self._engine_built = True
         try:
             from PySide6.QtWidgets import QFrame
@@ -5475,8 +5599,9 @@ class SettingsPage(QWidget):
         box, blay = card(
             "程序更新",
             "检查视频工具箱是否有新版本并在本机直接更新（任意版本之间"
-            "可升可降；升/降以当前运行版本为基准判断）；启动时也会"
-            "自动检查一次，仅在有真正的新版本时提示，全程不打扰日常使用")
+            "可升可降；升/降以当前运行版本为基准判断）；源码运行模式下"
+            "以本地开发版为准，不自动安装。启动时也会自动检查一次，"
+            "仅在有真正的新版本时提示，全程不打扰日常使用")
         self.upd_ver_label = BodyLabel("当前版本 v%s" % VERSION, box)
         blay.addWidget(row(self.upd_ver_label, None))
 
@@ -5519,25 +5644,29 @@ class SettingsPage(QWidget):
                           position=InfoBarPosition.BOTTOM_RIGHT, parent=self)
             return
         r = result
-        vt_update_check.note_auto_checked(r.remote_ver, r.update)
         if not r.ok:
             InfoBar.warning("检查更新失败", r.err[:300], duration=6000,
                             position=InfoBarPosition.BOTTOM_RIGHT, parent=self)
             return
+        if getattr(r, "source_mode", False):
+            # 源码运行没有可替换的程序本体：以本地开发版为准，不写自动
+            # 检查状态、也不弹更新确认框。
+            msg = "以本地开发版 v%s 为准" % r.baseline_ver
+            if r.remote_differs():
+                if r.downgrade():
+                    msg += "；远端 v%s（低于本地）" % r.remote_ver
+                else:
+                    msg += "；远端 v%s 可用，请手动更新源码" % r.remote_ver
+            InfoBar.info("源码运行模式", msg, duration=6000,
+                         position=InfoBarPosition.BOTTOM_RIGHT, parent=self)
+            return
+        vt_update_check.note_auto_checked(r.remote_ver, r.update)
         if not r.update:
-            # 基准版本 = 已装版本优先、否则当前运行版本；本地没装时
-            # 别说「v未安装 已是最新」，那是拼接事故
-            cur = r.local_ver if r.local_ver != "未安装" else r.baseline_ver
-            InfoBar.success("已是最新", "当前 v%s 已是最新版本" % cur,
+            InfoBar.success("已是最新", "当前 v%s 已是最新版本" % r.baseline_ver,
                             duration=4000,
                             position=InfoBarPosition.BOTTOM_RIGHT, parent=self)
             return
-        if vt_update_check.user_declined(r.remote_ver):
-            InfoBar.info("有新版本",
-                         "v%s 可用（已忽略，不再提示）" % r.remote_ver,
-                         duration=5000,
-                         position=InfoBarPosition.BOTTOM_RIGHT, parent=self)
-            return
+        # 手动检查不受「以后再说」影响：用户主动点了就给结果。
         self._confirm_update(r)
 
     def _confirm_update(self, r):
@@ -5641,10 +5770,13 @@ class SettingsPage(QWidget):
     def auto_check_update(self):
         """启动后静默检测一次（供 main() 调用；不是设置页方法）。
 
+        · 源码运行模式：以本地开发版为准，启动时不请求远端；
         · 有节流：距上次询问不足 12 小时不重复发请求；
         · 用户拒绝过的同一版本不再提示；
         · 失败完全静默——更新功能不可用不该在启动时打扰用户。
         """
+        if not getattr(sys, "frozen", False):
+            return
         try:
             if not vt_update_check.should_auto_check():
                 return
@@ -5661,13 +5793,14 @@ class SettingsPage(QWidget):
                 pass
             return
         r = result
+        if getattr(r, "source_mode", False):
+            return
         vt_update_check.note_auto_checked(r.remote_ver, r.update)
         if not r.update or vt_update_check.user_declined(r.remote_ver):
             return
-        if r.downgrade():
-            # 目标版本比当前运行的程序还旧：启动时别拿「发现新版本」扰民
-            # （典型场景：开发版 v2.0.0 vs 远端最新发布 v1.19.0）。
-            # 确实想回滚的用户会自己去设置页点「检查更新」。
+        if r.downgrade() or not r.remote_differs():
+            # 远端比当前旧（回滚）、或同版本只存在安装记录/文件差异：
+            # 启动时别拿「发现新版本」扰民。想修复的用户会去设置页手动检查。
             return
         InfoBar.info("发现新版本",
                      "v%s 可用（当前 v%s），可在设置页点「检查更新」立即升级"
@@ -6800,7 +6933,7 @@ class PipelinePage(QWidget):
         self.workers_spin = SpinBox(self)
         self.workers_spin.setRange(pl.MIN_WORKERS, pl.MAX_WORKERS)
         self.workers_spin.setValue(pl.DEFAULT_WORKERS)
-        self.workers_spin.setFixedWidth(110)
+        fit_spin(self.workers_spin, 150)
         self.workers_spin.valueChanged.connect(self._on_workers)
         box, lay = card("自动流水线")
         lay.addWidget(row(BodyLabel("自动执行后续阶段", self), self.auto_switch, None))
@@ -9389,6 +9522,61 @@ class HomePage(QWidget):
         self.state_label.setAlignment(Qt.AlignCenter)
         self.state_label.setStyleSheet("font-size: 14px; color: #888888;")
         self.host_lay.addWidget(self.state_label)
+        # 首帧后立刻用“任务创建页单件”替换占位，不再等工作台整树预热。
+        # 必须先于 MainWindow 的 prewarm_kick 注册（依赖名缺失会被当成
+        # 未阻塞而提前开跑）。
+        _defer("home_ui", self.ensure_task_creation, 0, 0, budget_ms=600)
+
+    # ---------- 启动专项：预热前先给出可用的任务创建框 ----------
+    def ensure_task_creation(self):
+        """直接构造 TaskCreationInterface，不等 HomeInterface/引擎预热。
+
+        首页只需要这一个控件；以前要等整个工作台（4 个子界面 + videocaptioner
+        配置链）建完才 adopt，实测 6～18s。这里走 ``task_creation_interface``
+        子模块直载，不触碰 ``home_interface``/transcription/subtitle。
+        失败/强制引擎 UI 时退回旧的 ensure_built 路径。
+        """
+        if self._task_creation is not None:
+            return True
+        mode = (os.environ.get("VT_ENGINE_UI", "self") or "self").strip().lower()
+        if mode == "engine":
+            try:
+                self.app.subtitle_page.ensure_built()
+            except Exception:  # noqa: BLE001
+                pass
+            return True
+        try:
+            from vt_engine_ui.task_creation_interface import TaskCreationInterface
+            tc = TaskCreationInterface(self.host)
+            self.app.subtitle_page.wire_task_creation(
+                tc, lambda: getattr(self.app.subtitle_page, "_engine_home", None))
+            lay = self.host_lay
+            while lay.count():
+                item = lay.takeAt(0)
+                w = item.widget()
+                if w is not None:
+                    w.setParent(None)
+            tc.setParent(self.host)
+            lay.addWidget(tc)
+            tc.show()
+            self._task_creation = tc
+            self.state_label = None
+            QTimer.singleShot(0, self._log_home_ready)
+            return True
+        except Exception as e:  # noqa: BLE001
+            _perf_note(f"首页直载任务创建页失败，回退旧路径：{e}")
+            try:
+                self.app.subtitle_page.ensure_built()
+            except Exception:  # noqa: BLE001
+                pass
+            return True
+
+    def _log_home_ready(self):
+        age = _process_age_seconds()
+        if age is None:
+            _perf_note("[HOME] 首页任务创建控件已就绪")
+        else:
+            _perf_note(f"[HOME] 首页任务创建可交互（进程启动后 {age:.3f}s）")
 
     # ---------- 装载真正的任务创建控件 ----------
     def adopt(self, home, widget=None):
@@ -9405,6 +9593,7 @@ class HomePage(QWidget):
         if widget is None or self._task_creation is not None:
             return
         try:
+            self.app.subtitle_page.wire_task_creation(widget, lambda: home)
             try:
                 home.pivot.removeWidget("TaskCreationInterface")
             except Exception:  # noqa: BLE001
@@ -9446,19 +9635,15 @@ class HomePage(QWidget):
         return self._task_creation
 
     def showEvent(self, event):
-        """首次显示时确保工作台在构建——否则首页会一直停在占位文案上。
-
-        工作台原本是「用户点进字幕处理页才构建」，首页成了默认落地页之后
-        这个时机必须提前，否则启动后停在首页看到的是一行占位字。
-        """
+        """首次显示时优先把任务创建框装上；不再同步触发整树预热。"""
         super().showEvent(event)
         _perf_note("HomePage.showEvent 首次显示")
         if self._task_creation is not None:
             return
-        try:
-            self.app.subtitle_page.ensure_built()
-        except Exception as e:  # noqa: BLE001
-            _perf_note(f"首页触发工作台构建失败：{e}")
+        s = _SCHED["inst"]
+        if s is not None and s.run_now("home_ui", 0):
+            return
+        QTimer.singleShot(0, self.ensure_task_creation)
 
     def dragEnterEvent(self, event):
         # 首页由「任务创建」控件本体收拖放（它 setAcceptDrops(True)）；
@@ -9712,7 +9897,9 @@ class MainWindow(FluentWindow):
         # 惰性构造（与「自动化」页同一模式）：导航项随之晚现，NAV_TEXTS 是静态
         # 文案，导航宽度不受影响。
         self.harness_page = None
-        _defer("harness_page", self._build_harness_page, 2500, 85, budget_ms=900)
+        self._pending_ai_text = ""
+        _defer("harness_page", self._build_harness_page, 4000, 85,
+               depends_on=("home_ui",), budget_ms=900)
         _perf_note("mw[harness] %.2fs" % (time.perf_counter() - _mt))
         # 自动化页：B 站自动投稿（v1.17.x 起页面精简为投稿专用）。
         # 页面类在 auto_vision_page 里，自带卡片壳，不依赖本文件的 ScrollPage/card()。
@@ -9793,24 +9980,26 @@ class MainWindow(FluentWindow):
         # 触发时——直接传 bound method 会在**注册时**就求值，
         # 把整个视频库页在建窗期建出来（惰性白做）。
         _defer("lib_auto_load", lambda: self.library_page.auto_load(),
-               400, 60, budget_ms=400)
+               1500, 60, depends_on=("home_ui",), budget_ms=400)
         # ⚠ _pump 是 120ms 常驻业务消息泵（跨线程队列），语义与启动调度不同，
         #   不并入调度器，保持原样。
         QTimer.singleShot(120, self._pump)
         # 流水线：延后启动，避开首屏与字幕引擎预热（v1.14.0）
         self.pipeline_registry = None
         self.pipeline = None
-        _defer("start_pipeline", self._start_pipeline, 2500, 80, budget_ms=300)
+        _defer("start_pipeline", self._start_pipeline, 4000, 80,
+               depends_on=("home_ui",), budget_ms=300)
         # 字幕引擎界面后台预热：主窗口首帧之后立刻开始导入依赖（预热本身只起
         # 一个后台线程，不占主线程），导入完成即回主线程建界面，用户真正点进
         # 「字幕处理」时通常已是现成控件。v1.11.0 起由 900ms 提前到首帧后立即，
         # 配合 diskcache 延迟化，最坏情况下（刚启动就点进去）的等待已降到亚秒级。
-        _defer("prewarm_kick", self.subtitle_page.prewarm, 0, 5, budget_ms=5)
+        _defer("prewarm_kick", self.subtitle_page.prewarm, 800, 5,
+               depends_on=("home_ui",), budget_ms=5)
         # 「自动化」页惰性构造：避开首屏的 numpy/PIL/视觉引擎导入链
         # （≈364ms）。改由调度器按「预热完成」依赖触发——不再自己 400ms 轮询
         # 顺延，两条链的先后关系交给调度器统一裁决。
-        _defer("auto_page", self._build_auto_page, 1500, 70,
-               depends_on=("prewarm_done",), budget_ms=500)
+        _defer("auto_page", self._build_auto_page, 6000, 70,
+               depends_on=("home_ui", "prewarm_done"), budget_ms=500)
         # 主屏 DPI 变化（改缩放比/换主屏）时重新计算导航宽度。
         # 注意必须用 QApplication 实例的信号：PySide6 里类的同名属性是未绑定的
         # Signal 描述符，直接 .connect 会抛 AttributeError。
@@ -10169,6 +10358,14 @@ class MainWindow(FluentWindow):
         """
         page = getattr(self, "harness_page", None)
         if page is None:
+            # 首页任务框现在先于 AI 托管页（4s）就绪；用户若在页面建好前
+            # 就输入纯文本，先记住内容并插队构建，建好后自动续跑。
+            self._pending_ai_text = text
+            _defer("harness_page", self._build_harness_page, 0, 0,
+                   budget_ms=1200)
+            s = _SCHED["inst"]
+            if s is not None:
+                s.run_now("harness_page", 0)
             return
         try:
             self.switchTo(page)
@@ -10599,6 +10796,10 @@ class MainWindow(FluentWindow):
         except Exception as e:  # noqa: BLE001 —— 起不来绝不影响主程序
             self.harness_page = None
             _perf_note(f"AI 托管页创建失败（不影响既有功能）：{e}")
+        pending = getattr(self, "_pending_ai_text", "")
+        if pending and self.harness_page is not None:
+            self._pending_ai_text = ""
+            QTimer.singleShot(0, lambda t=pending: self.goto_ai_console(t))
         return True
 
     def _maybe_build_auto_page(self, attempt=0):
@@ -11023,18 +11224,52 @@ def _apply_app_icon(app):
             pass
 
 
+def _start_startup_sync_threads():
+    """首页就绪后再起校准/声纹同步线程（失败静默，各自记日志）。"""
+    # 启动即拉取最新校准知识并入本地（v1.10.7 多用户收敛的「拉」半程）
+    threading.Thread(target=engine.sync_calib_on_startup, daemon=True).start()
+    # 声纹模板同步是独立通道（src\voiceprint_sync.py）
+    threading.Thread(target=engine.sync_voiceprint_on_startup, daemon=True).start()
+    _perf_note("后台同步线程已启动（首页就绪后延迟）")
+
+
+def _ensure_hidden_stdio():
+    """pythonw 下 stdout/stderr 为 None：给 print/异常一个安全的落点。"""
+    try:
+        if sys.stdout is None:
+            sys.stdout = open(os.devnull, "w", encoding="utf-8")
+    except Exception:  # noqa: BLE001
+        pass
+    if sys.stderr is not None:
+        return
+    try:
+        os.makedirs(engine.LOGS_DIR, exist_ok=True)
+        fh = open(os.path.join(engine.LOGS_DIR, "launcher_stderr.log"),
+                  "a", encoding="utf-8", buffering=1)
+        fh.write("\n--- launcher start %s ---\n"
+                 % datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+        sys.stderr = fh
+    except Exception:  # noqa: BLE001
+        try:
+            sys.stderr = open(os.devnull, "w", encoding="utf-8")
+        except Exception:  # noqa: BLE001
+            pass
+
+
 def main():
     _T0 = time.perf_counter()   # 全链路计时起点，各阶段痕迹写 logs/startup.log
+    _ensure_hidden_stdio()
     # 顶层 import 盲区（2026-10-21 启动调度专项）：_BOOT_T0 落在本文件第 83 行
     # 的 import 之间，覆盖 PySide6 / vt_fluent / video_toolbox 等全部重导入。
     # 没有这一行时，「双击到窗口可见」的真实总时长永远无法从日志还原——
     # 日志里的 T+1.0s 只是 main() 之后的那一段。
     _boot = _T0 - _BOOT_T0
+    _proc_age = _process_age_seconds()
     _unpack = ""
     _mp = getattr(sys, "_MEIPASS", None)
-    if _mp:
-        # frozen（onefile）才有：_MEIPASS 目录创建时刻 → 现在的墙钟差，
-        # 近似 bootloader 解包 + 杀软扫描耗时（源码态跳过）。
+    # 只有 onefile 的 _MEI* 临时解包目录才有「解包墙钟」语义；onedir 的
+    # _MEIPASS 指向安装目录，ctime 可能是几个月前，误报成启动耗时。
+    if _mp and os.path.basename(os.path.normpath(_mp)).lower().startswith("_mei"):
         try:
             _unpack = ("，_MEIPASS 解包后墙钟 %.3fs"
                        % (time.time() - os.path.getctime(_mp)))
@@ -11042,6 +11277,8 @@ def main():
             pass
     _perf_note(f"[BOOT+{_boot:6.3f}s] 顶层 import 完成"
                f"（frozen={bool(getattr(sys, 'frozen', False))}{_unpack}）")
+    if _proc_age is not None:
+        _perf_note(f"[PROC] 进程创建→main {_proc_age:.3f}s")
     # GIL 切换间隔压到 1ms（默认 5ms）：后台线程（校准/声纹同步、引擎预热）
     # 与主线程抢 GIL 时，主线程每次获得 GIL 的最长等待从 5ms 降到 1ms——
     # 首帧 paint 的 Python 回调动辄几百次，累计差距就是「窗口秒现」与
@@ -11071,13 +11308,13 @@ def main():
     # 见 show() 后的 _defer_after_show。
     # 启动即拉取最新校准知识并入本地（v1.10.7 多用户收敛的「拉」半程；
     # 后台 daemon 线程，失败静默记 logs/calib_sync.log）
-    threading.Thread(target=engine.sync_calib_on_startup, daemon=True).start()
+    # 2026-10-23 起改为首页就绪后由 _defer("startup_sync") 启动。
     # 声纹模板同步是**独立通道**（src\voiceprint_sync.py，与校准知识同步互不
     # 干涉：不共用子进程/日志/状态目录），单独一条后台线程，失败静默记
     # logs\vp_sync.log
-    threading.Thread(target=engine.sync_voiceprint_on_startup, daemon=True).start()
     configure_qt_plugins()
-    _perf_note(f"[T+{time.perf_counter()-_T0:6.3f}s] 后台同步线程已启动")
+    _perf_note(f"[T+{time.perf_counter()-_T0:6.3f}s] 启动任务已登记"
+               "（后台同步延后）")
     # 矢量化：高分屏缩放与矢量图标在 Qt6 已默认启用（AA_EnableHighDpiScaling /
     # AA_UseHighDpiPixmaps 已废弃，无需再设置）
     # 缩放比不取整：125% / 150% 等非整数倍率下按实际比例换算，
@@ -11088,6 +11325,31 @@ def main():
     except Exception:
         pass
     app = QApplication(sys.argv)
+    # 启动画面：onedir 冷缓存/杀软扫描仍可能有 1～2s 无界面期，先给即时反馈。
+    # 不读大图（QPixmap 现画），自检/截图/显式关闭时跳过。
+    splash = None
+    if not (os.environ.get("VT_NO_SPLASH")
+            or os.environ.get("VT_GUI_SELFTEST")
+            or os.environ.get("VT_SHOT_FILE")):
+        try:
+            from PySide6.QtWidgets import QSplashScreen
+            _pm = QPixmap(460, 240)
+            _pm.fill(QColor("#1F6F4F"))
+            _pt = QPainter(_pm)
+            _pt.setPen(QColor("#FFFFFF"))
+            _pt.setFont(QFont("Microsoft YaHei UI", 20, QFont.Bold))
+            _pt.drawText(_pm.rect().adjusted(0, 48, 0, 0),
+                         Qt.AlignHCenter | Qt.AlignTop, "视频工具箱")
+            _pt.setPen(QColor("#E6F4EC"))
+            _pt.setFont(QFont("Microsoft YaHei UI", 10))
+            _pt.drawText(_pm.rect().adjusted(0, 112, 0, 0),
+                         Qt.AlignHCenter | Qt.AlignTop, "正在启动 …")
+            _pt.end()
+            splash = QSplashScreen(_pm)
+            splash.show()
+            app.processEvents()
+        except Exception:  # noqa: BLE001
+            splash = None
     # 启动任务调度器（2026-10-21）：必须早于 MainWindow 构造——建窗期与首帧后
     # 注册的后台任务都走它。timer 挂在 app 上，生命周期覆盖全进程。
     # VT_NO_SCHED=1 关闭调度器（退回逐个 singleShot），仅用于性能对照测量。
@@ -11150,7 +11412,7 @@ def main():
             "同时运行两个实例会互相覆盖配置（例如「界面美化」的设置会被"
             "另一边的旧值写回，看起来像\"自动复原\"）。\n\n"
             "请改用已打开的窗口；若找不到它，可先在任务管理器结束旧的"
-            " python.exe 再启动。")
+            " python.exe / pythonw.exe 再启动。")
         return
     # 界面美化（v1.13.x）：主题档/主题色读自 data/ui_custom.json（设置页可改），
     # 全局 QSS（输入框/菜单/工具提示/滚动条/进度条）在这里一并挂上
@@ -11237,6 +11499,11 @@ def main():
     app.aboutToQuit.connect(_shutdown_subtitle_edit)
 
     window.show()
+    if splash is not None:
+        try:
+            splash.finish(window)
+        except Exception:  # noqa: BLE001
+            pass
     _perf_note(f"[T+{time.perf_counter()-_T0:6.3f}s] show() 返回")
 
     # UI 心跳探针（2026-10-21，仅 VT_SCHED_TRACE=1）：每 50ms 记一次时间，
@@ -11289,7 +11556,15 @@ def main():
     #   → subtitle_page.prewarm()（它除了起线程还要登记 build_engine 任务，
     #   同名任务在调度器里是幂等的，此处重复注册会被忽略）。
     _defer("app_icon", lambda: _apply_app_icon(app), 0, 20, budget_ms=40)
-    _defer("spinbox_fix", _install_spinbox_fix_once, 800, 10, budget_ms=900)
+    _defer("spinbox_fix", _install_spinbox_fix_once, 2000, 10,
+           depends_on=("home_ui",), budget_ms=900)
+    # 校准/声纹同步：首页可交互后再跑，避免 curl/gh/子进程与首屏抢资源。
+    _defer("startup_sync", _start_startup_sync_threads, 3500, 95,
+           depends_on=("home_ui",), budget_ms=1)
+    # 技能包（AGENTS.md / SKILL.md 等 9 处）也从 import 期挪到这里。
+    if harness_bridge is not None:
+        _defer("agent_assets", harness_bridge.ensure_agent_assets, 3000, 90,
+               depends_on=("home_ui",), budget_ms=200)
 
     # 启动自动检测更新（v2.0.0）：延迟 1.5s 起步，先让首屏渲染完再发网络
     # 请求；且由更新模块自己按 12 小时节流 + 用户拒绝记录决定要不要真查。

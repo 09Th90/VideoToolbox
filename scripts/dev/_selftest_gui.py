@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# @version 2.5.4
+# @version 2.6.0
 """界面自检（v1.10.4 Fluent 界面）：验证窗口与各页面可构建、导航宽度自适应、
 设置页统一入口、字幕处理环境就绪。
 
@@ -90,7 +90,9 @@ def _prepare_called_before_vc():
         i = src.find("def main()")
         if i < 0:
             return False
-        seg = src[i:i + 500]
+        # v2.6.0 启动段增加了 setswitchinterval/性能注释，500 字符窗口会截断；
+        # 只要求 prepare 出现在 configure 之前，窗口放宽到 6000 字符。
+        seg = src[i:i + 6000]
         a = seg.find("engine.prepare_runtime_env()")
         b = seg.find("configure_qt_plugins()")
         return a != -1 and (b == -1 or a < b)
@@ -272,6 +274,18 @@ def _qt_main_uses(fn_src_frag):
                    encoding="utf-8").read()
         i = src.find("def main()")
         return i >= 0 and fn_src_frag in src[i:i + 2000]
+    except OSError:
+        return False
+
+
+def _qt_startup_sync_ok():
+    """校准知识同步是否仍由启动链后台拉取（v2.6.0 改为首页就绪后延迟）。"""
+    try:
+        src = open(os.path.join(_SRC, "video_toolbox_qt.py"),
+                   encoding="utf-8").read()
+        i = src.find("def _start_startup_sync_threads")
+        return (i >= 0 and "sync_calib_on_startup" in src[i:i + 800]
+                and '_defer("startup_sync", _start_startup_sync_threads' in src)
     except OSError:
         return False
 
@@ -810,7 +824,7 @@ def main():
     print("  界面自检：Fluent 窗口 + 五个页面 + 页内分段 + 导航宽度 + 设置入口")
     print("=" * 62)
 
-    from PySide6.QtCore import QTimer
+    from PySide6.QtCore import Qt, QTimer
     from PySide6.QtGui import QFontMetrics
     from PySide6.QtWidgets import QApplication
     import video_toolbox_qt as gui
@@ -1507,8 +1521,7 @@ def main():
     check("上传全自动、界面只有更新（无手动上传按钮 / 无 push_now 入口）",
           "sync_calib_push_now" not in _qt_main_uses_src()
           and "_push_now" not in _qt_main_uses_src())
-    check("GUI 启动即后台拉取最新校准知识",
-          _qt_main_uses("sync_calib_on_startup"))
+    check("GUI 启动即后台拉取最新校准知识", _qt_startup_sync_ok())
     check("条目级三方合并：并入/采纳/冲突保留/幂等/注册守门", _merge_script_cases())
     check("学习库合并：新增/否决就高/冲突标记/count 取大", _merge_kb_cases())
 
@@ -1743,6 +1756,46 @@ def main():
           and sp.calib_think_rounds.value() == 0
           and sp.calib_think_rounds.maximum() >= 8,
           f"{sp.calib_think_rounds.value()}/{sp.calib_think_rounds.maximum()}")
+    # 2026-10-23：数值框文字位置——统一宽度 + 右对齐；思考轮次特值不能被裁
+    _want_align = int(Qt.AlignRight | Qt.AlignVCenter)
+    _spin_specs = (
+        ("calib_cues", 200), ("calib_chars", 200),
+        ("calib_think_rounds", 200), ("calib_cluster_rounds", 200),
+        ("calib_context", 300), ("calib_tokens", 300))
+    _spin_bad = []
+    for _name, _want_w in _spin_specs:
+        _w = getattr(sp, _name, None)
+        _le = _w.lineEdit() if _w is not None else None
+        if (_w is None or _w.minimumWidth() != _want_w
+                or _w.maximumWidth() != _want_w
+                or int(_w.alignment()) != _want_align
+                or _le is None or int(_le.alignment()) != _want_align):
+            _spin_bad.append(
+                "%s=%r" % (_name, None if _w is None else
+                           (_w.minimumWidth(), _w.maximumWidth(),
+                            int(_w.alignment()),
+                            None if _le is None else int(_le.alignment()))))
+    check("数值框统一宽度并右对齐", not _spin_bad, "; ".join(_spin_bad))
+    _round_adv = sp.calib_think_rounds.fontMetrics().horizontalAdvance(
+        "关闭（不限）")
+    check("思考轮次特值留足显示宽度",
+          _round_adv + 100 <= sp.calib_think_rounds.minimumWidth(),
+          f"字宽 {_round_adv} / 框宽 {sp.calib_think_rounds.minimumWidth()}")
+    _in_btns = sp.calib_preset_chips["输入（上下文预算）"]
+    _out_btns = sp.calib_preset_chips["输出（单次上限）"]
+    check("输入档位按钮等宽 72",
+          all(b.minimumWidth() == b.maximumWidth() == 72 for b in _in_btns),
+          [b.minimumWidth() for b in _in_btns])
+    check("输出档位按钮等宽 97",
+          all(b.minimumWidth() == b.maximumWidth() == 97 for b in _out_btns),
+          [b.minimumWidth() for b in _out_btns])
+    _ws = getattr(getattr(win, "pipeline_page", None), "workers_spin", None)
+    check("并发任务数数值框 150 且右对齐",
+          _ws is not None
+          and _ws.minimumWidth() == _ws.maximumWidth() == 150
+          and int(_ws.alignment()) == _want_align,
+          None if _ws is None else
+          (_ws.minimumWidth(), _ws.maximumWidth(), int(_ws.alignment())))
     _cluster_ok = (hasattr(sp, "calib_cluster_switch")
                    and hasattr(sp, "calib_cluster_edit")
                    and callable(getattr(sp, "_sync_calib_cluster_visible", None)))

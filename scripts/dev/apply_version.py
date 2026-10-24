@@ -1,12 +1,12 @@
 # -*- coding: utf-8 -*-
-# @version 2.5.4
+# @version 2.6.0
 """一键同步版本号（幂等）：所有「当前版本」标记处一次改到位。
 
 背景：发布前改版本号历史上要手工同步 spec / iss / 在线安装器三件套 / qt VERSION /
 文档首行等近十处，漏一处就会出现「安装包名对、关于页版本旧」之类的不一致。
 本脚本把这份清单固化下来，只替换**当前版本标记**，不动变更历史里出现的旧版本号。
 
-改完 11 处「当前版本标记」后，会自动调用同目录的 stamp_versions.py，为所有自研
+改完所有「当前版本标记」后，会自动调用同目录的 stamp_versions.py，为所有自研
 当前版本文件重打首行 `@version <新版本>` 标记并重生成《文件版本清单》（v1.12.1 起）。
 
 用法（任意目录）：
@@ -48,6 +48,9 @@ TARGETS = [
     # **硬门槛**（不一致会把已装用户拒之门外），vt_dl._UA 的主次版本则决定
     # 服务端能否按版本分流。两处均由 _selftest_online_xval.py 的口径断言兜底。
     (r"packaging\online_release\vt_update_core.py", 'SELF_VERSION = "{v}"', 1),
+    # 2026-10-23 补：主程序更新检查器也有一份 SELF_VERSION（无 Qt 子进程要读），
+    # 此前不在清单里，2.5.0 一路滞留到 2.5.4，更新弹窗「当前版本」因此比设置页旧。
+    (r"src\vt_update_check.py", 'SELF_VERSION = "{v}"', 1),
     (r"packaging\online_release\vt_dl.py", "VideoToolbox-downloader/{v}", 1),
 ]
 
@@ -60,7 +63,7 @@ def _current_version():
 
 
 def _stale_version(new):
-    """探测 12 个同步点里「还停留在哪个旧版本」。
+    """探测所有同步点里「还停留在哪个旧版本」。
 
     ⚠ 光靠 `old == new` 判断要不要改是不够的：VERSION 可能被手改过，
     于是出现「VERSION=新、同步点=旧」的错位，此时 `old == new` 会短路、
@@ -103,7 +106,7 @@ def main():
     ap.add_argument("--force", action="store_true", help=(
         "即使「当前版本 == 目标版本」也照样对齐同步点。"
         "⚠ 2026-10-10 事故：有人手改了 src\\video_toolbox_qt.py 的 VERSION 到 1.19.0，"
-        "而 12 个同步点还停在 1.18.3；此时本脚本因 old==new 直接短路，"
+        "而同步点还停在 1.18.3；此时本脚本因 old==new 直接短路，"
         "于是「VERSION=1.19.0 + spec/iss/config.xml=1.18.3」的错位状态**无法用本脚本修复**。"
         "遇到这种错位就用 --force（会自动探测停在哪个旧版，也可用 --stale 显式指定）。"))
     ap.add_argument("--stale", default="",

@@ -1,4 +1,4 @@
-# @version 2.5.4
+# @version 2.6.0
 """ASR 链路（自研，替代 videocaptioner.core.asr 的转写执行部分）。
 
 P2 接缝：把第三方引擎的 ASR 执行链迁到本项目自有代码——``WhisperAPI``

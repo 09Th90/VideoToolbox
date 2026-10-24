@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.5.4
+# @version 2.6.0
 """把「在线更新包」发布成 GitHub Release 的**平铺资产**（替代 IFW 的在线仓库）。
 
 ====================================================================
@@ -75,7 +75,7 @@ DEFAULT_TAG = "repo-latest"
 #: 发布包划分。**按变更频率分层，而不是按目录分类**——同一层内的文件
 #: 必须"同生共死"，否则会把不变的文件拖进变更层，白白多下。
 #:
-#:   app   主程序 exe（PyInstaller onefile，内嵌全部依赖）   每次迭代必变 ~104MB
+#:   app   主程序 exe + _internal（PyInstaller onedir）    每次迭代必变 ~104MB
 #:   code  自研源码 + 校准脚本                               每次迭代必变 ~2MB
 #:   docs  文档（含 GPL-3.0 合规声明）                        偶尔变
 #:   tools 工具脚本                                          偶尔变
@@ -85,8 +85,12 @@ DEFAULT_TAG = "repo-latest"
 #: ⚠ 并集必须与 installer_src/build_online_installer.py 的 COMPONENTS
 #:   一致——脚本启动时会比对，防止两条发布路线文件清单漂移。
 PACKAGES = {
+    # 2026-10-23 起主程序为 onedir：exe + _internal 一起进 app 包；
+    # manifest schema 2 的 files 直接包含 _internal/**，无需改协议。
+    # ⚠ 不要映射整个 dist/视频工具箱（里面可能有测试生成的 data/logs）。
     "app": [
-        ("dist/视频工具箱.exe", "视频工具箱.exe"),
+        ("dist/视频工具箱/视频工具箱.exe", "视频工具箱.exe"),
+        ("dist/视频工具箱/_internal", "_internal"),
     ],
     "code": [
         ("src", "src"),
@@ -106,8 +110,8 @@ PACKAGES = {
 FORBIDDEN = ("github_proxy.yaml", "mihomo", "runtime.yaml", "cache.db",
              "config.yaml", "uploader_profile")
 
-#: 超过这个大小就改用「存储」而非「压缩」——主程序 exe 是 PyInstaller onefile，
-#: 内部已 zlib 压缩，deflate 再压一次只会白费 CPU（实测收益 0.06%）。
+#: 超过这个大小就改用「存储」而非「压缩」——onedir 的 exe/DLL 本身已是压缩
+#: 形态，deflate 再压一次只会白费 CPU（实测收益 0.06%）。
 STORE_OVER = 8 * 1024 * 1024
 
 #: 单卷上限（字节）。GitHub 单资产硬限 2GB，留 25% 余量给 CDN/重试抖动；
@@ -247,7 +251,7 @@ def build_package(pkg, items, out_dir, volume_max):
 
 
 _PKG_DESC = {
-    "app": "主程序（PyInstaller onefile，内嵌全部运行时依赖）",
+    "app": "主程序（PyInstaller onedir：exe + _internal 运行时）",
     "code": "自研源码与字幕校准脚本（日常迭代主要变这一层）",
     "docs": "文档与第三方组件许可声明",
     "tools": "工具脚本（AI 客户端、开源依赖下载器）",

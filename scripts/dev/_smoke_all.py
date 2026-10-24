@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# @version 2.5.4
+# @version 2.6.0
 """全功能引擎层冒烟测试（v1.15.8 审查用）。
 
 分组覆盖（--only A,C / --skip B 选组）：
@@ -289,8 +289,12 @@ if want("H"):
         check("H", "内置代理异常", False, repr(e)[:120])
     try:
         cargs = engine.ytdlp_cookie_args()
-        check("H", "游客 cookie 参数", bool(cargs) and os.path.isfile(cargs[1]),
-              str(cargs))
+        cookie_ok = bool(cargs) and (
+            (cargs[0] == "--cookies" and len(cargs) > 1
+             and os.path.isfile(cargs[1]))
+            or (cargs[0] == "--cookies-from-browser" and len(cargs) > 1)
+        )
+        check("H", "游客 cookie 参数", cookie_ok, str(cargs))
     except Exception as e:  # noqa: BLE001
         check("H", "游客 cookie 异常", False, repr(e)[:120])
     try:
