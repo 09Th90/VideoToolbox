@@ -1,4 +1,4 @@
-# @version 2.5.4
+# @version 2.6.0
 # Python caches
 __pycache__/
 *.pyc
@@ -244,3 +244,6 @@ scripts/dev/_golden/*.orig
 # 任何脚本都不得把它复制进快照/打包产物/文档。
 data/credentials.json
 data/credentials.json.tmp
+
+# 图标草稿：仅本机留存，不入库（2026-10-24 工作区清理）
+docs/icon_draft*.png
