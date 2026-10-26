@@ -6216,6 +6216,22 @@ ENDFIELD_BI_CONTEXT = [
     (r"\bS\b", "S就", "祀就"),
     (r"\bS\b", "S 需要", "祀需要"),
     (r"\bS\b", "S需要", "祀需要"),
+    # --- 2026-10-26 二校沉淀：终末地 1.6「未来版本前瞻」reaction（115 cue，--endobi）---
+    #   官方依据：官方中配《塔卫二：一号简报》、1.6 特别节目未来前瞻、
+    #   1.7 前瞻摘要（B站 BV1fTpP6YEjn / BV1mPpA62E87）；画面 3:20 GOLDEN BRANCH、
+    #   9:40 Games of Wonder、9:55 Shattered Protocol。锚点一律匹配本片真实英文 ASR；
+    #   通用中文词只走英文锚定，不进裸键。
+    (r"golden\s+branch", "金枝", "金绒树"),          # Golden Branch=金绒树；勿碰 golden bough→金枝（边狱）
+    (r"array\s+technology", "数组科技", "阵列科技"),
+    (r"array\s+technology", "阵列技术", "阵列科技"),
+    (r"recording\s+equipment", "录音设备", "明晦炉"),
+    (r"central\s+island", "中央岛", "接下来的故事中"),
+    (r"\bcustoms\b", "海关", "风土人情"),
+    (r"\bplayers\b", "球员", "玩家"),
+    (r"games?\s+of\s+wonder|recreation\s+of\s+cards", "卡牌游戏", "妙趣游乐"),
+    (r"mutant\s+materials?", "突变材料", "变异材料"),
+    (r"sustained\s+array", "持续阵法", "持阵法"),
+    (r"xirang\s+gas", "息壤之气", "息壤气"),
 ]
 
 
@@ -7593,6 +7609,18 @@ ENTITIES = [
     Entity('重伤之围', modes=('endobi',), en='Grievously Besieged', ja='', ko='', category='关卡/战争回响', variants=(), ctx=(), exclude=(), note='「战争回响 - 异想赛季」轮换关卡；Grievously Besieged 官方中文=重伤之围。本片 6:12 段落即该关卡；纯元数据，无错形规则。'),
     Entity('聂菲斯', modes=('endobi',), en='Nefarith', ja='', ko='', category='BOSS/终末地', variants=(), ctx=(), exclude=(), note='危境再现「危境祸影」BOSS；官方中文=聂菲斯。本片 0:00 段落。纯元数据，无错形规则。'),
     Entity('幽林之怒', modes=('endobi',), en="Gloomwald's Rage", ja='', ko='', category='BOSS/终末地', variants=(), ctx=(), exclude=(), note='1.5「雪凇幽梦」区域 BOSS；官方中文=幽林之怒。本片 3:07 段落。纯元数据，无错形规则。'),
+    Entity('金绒树', modes=('endo', 'endobi'), en='Golden Branch', ja='', ko='', category='地点/终末地1.7', variants=('金流苏',), ctx=(), exclude=(), note='白垩洲巨型树木，官方中配「金绒树」；英文 UI GOLDEN BRANCH。⚠ 不与边狱公司「金枝」（golden bough）共用裸键；金枝只在 golden branch 英文锚定下改。'),
+    Entity('明晦炉', modes=('endo', 'endobi'), en='', ja='', ko='', category='设施/终末地1.7', variants=('明晖炉', '明慧炉'), ctx=(), exclude=(), note='1.7 阵列科技设施，官方中文口径「明晦炉」（脚本既有；B站基建总结写「明晖炉」，按变体处理）。官方英文名未公布，en 留空。'),
+    Entity('明晦赤铜矿', modes=('endo', 'endobi'), en='', ja='', ko='', category='资源/终末地1.7', variants=('明晖赤铜矿',), ctx=(), exclude=(), note='明晦炉随机转化产物（B站基建总结写「明晖赤铜矿」）；与明晦炉同字符口径，待官方 UI 最终核实。'),
+    Entity('息壤气', modes=('endo', 'endobi'), en='', ja='', ko='', category='资源/终末地', variants=(), ctx=(), exclude=(), note='明晦炉接入后激活阵法的气体资源；官方中文「息壤气」。纯元数据，无错形规则。'),
+    Entity('持阵法', modes=('endo', 'endobi'), en='Sustained Array', ja='', ko='', category='机制/终末地1.7', variants=(), ctx=(), exclude=(), note='明晦炉 5×5 区域周期执行的阵法；官方中文「持阵法」。不收裸「持阵」（通用词）。'),
+    Entity('集成核心区域', modes=('endo', 'endobi'), en='Integrated Core Area', ja='', ko='', category='地点/终末地1.7', variants=(), ctx=(), exclude=(), note='1.7 新开放、与武陵城同级的集成核心地块；官方中文「集成核心区域」。⚠ 不收「集成核心区」短变体：它是正确名的子串，直接替换会产出「区域域」。'),
+    Entity('妙趣游乐', modes=('endo', 'endobi'), en='Games of Wonder', ja='', ko='', category='玩法/终末地1.7', variants=('妙趣横乐',), ctx=(), exclude=(), note='1.7 新打牌/联机玩法；画面英文 Games of Wonder，官方中文「妙趣游乐」。⚠ 勿改作「妙趣横乐」。'),
+    Entity('破碎协议', modes=('endo', 'endobi'), en='Shattered Protocol', ja='', ko='', category='玩法/终末地1.7', variants=(), ctx=(), exclude=(), note='高随机性大型肉鸽玩法；画面英文 Shattered Protocol，官方中文「破碎协议」。本片 SRT 的 RoC strategy 即此模式（不是妙趣游乐）。'),
+    Entity('致幻孢子', modes=('endo', 'endobi'), en='', ja='', ko='', category='设定/终末地1.7', variants=(), ctx=(), exclude=(), note='蘑境幻境来源；官方中配「致幻孢子」。纯元数据，无错形规则。'),
+    Entity('蜜饼', modes=('endo', 'endobi'), en='', ja='', ko='', category='食物/终末地', variants=(), ctx=(), exclude=(), note='小刻最爱的食物；官方中配「蜜饼」。纯元数据，无错形规则。'),
+    Entity('泰拉之海', modes=('endo', 'endobi'), en='', ja='', ko='', category='地名/终末地', variants=('泰拉的海洋',), ctx=(), exclude=(), note='《塔卫二：一号简报》旁白的海域概念，脚本既有官方口径「泰拉之海」；B站文字「泰拉的海洋」作为变体归一。'),
+    Entity('南大洋', modes=('endo', 'endobi'), en='Southern Ocean', ja='', ko='', category='地名/终末地', variants=(), ctx=(), exclude=(), note='《塔卫二：一号简报》南方海域；官方中文「南大洋」。纯元数据，无错形规则。'),
     Entity('心', modes=('bi',), en='Hsin / Shin', ja='', ko='', category='角色/岁主·鸣潮3.7', variants=('心月狐骨',), ctx=(('\\btwo shins?\\b|\\bshins?\\b', '小腿'), ('\\bChin\\b', '下巴')), exclude=(), note='3.7 五星导电音感仪、梦州岁主、梦州文明引导者，官方角色名单字「心」（CV 菊花花）；「心月狐」为岁主全称/狐狸形态称谓（旧实体保留，二者勿互删）。谷翻把 Shin 错拆成「心月狐骨」（cue332/335，绝无歧义，裸键->心）；two shins 按 shin(胫骨) 译「小腿」、Chin 按 chin(下巴) 译「下巴」，均极常用词，只走参考行 shin/Chin 锚定改「心」，绝不裸键（\\bChin\\b 词边界不会咬进 Chinshi 等串）。⚠ 旧 ctx 有 Shin->心月狐（错形 申/辛/胫），与本条（错形 小腿/下巴->心）错形不同可共存；人工精修按语境在「心/心月狐」间取舍。'),
     Entity('角', modes=('bi',), en='Jue / JER / Jerame', ja='', ko='', category='角色/岁主·鸣潮3.7', variants=('杰拉姆',), ctx=(('\\bJer\\b', '杰尔'), ('\\bJouer\\b', '乔尔'), ('\\b2A\\b', '2A')), exclude=(), note='梦州另一位说话岁主「角」（英 Jue/Jué，CV 黄莺）。ASR 把 Jue 咬成 JER/Jerame，谷翻音译「杰拉姆」（cue246/251，生僻裸键->角）；JER 为英文行呼语残留（默认不改英文行）。旧实体 ctx（Jue 锚定 朱->角）保留。'),
     Entity('梦州', modes=('bi',), en='Mengzhou / Mongol', ja='', ko='', category='地名/鸣潮3.7', variants=('蒙古人',), ctx=(), exclude=(), note='ASR 把 Mengzhou 咬成 mongol，谷翻作「蒙古人」（cue420「将梦州沐浴在银光之中」）；鸣潮 bi 片源内出现即梦州，沿 Mongo/Mango/MJO->梦州 先例裸键（真实蒙古族语境不属鸣潮片；只收「蒙古人」，单「蒙古」过短不收）。'),
