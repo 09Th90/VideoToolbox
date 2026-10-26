@@ -7946,6 +7946,7 @@ ENTITIES = [
     Entity('莫纳德', modes=('bi',), en='Monado', ja='', ko='', category='武器/异度神剑', variants=(), ctx=(), exclude=(), note='《异度神剑》神剑，官方中文莫纳德。'),
     Entity('机神兵', modes=('bi',), en='Mechon', ja='', ko='', category='种族/异度神剑', variants=(), ctx=(), exclude=(), note='《异度神剑》敌方种族，官方中文机神兵。'),
     Entity('第十章「凝视之下」', modes=('limbus',), en='Canto X: The Gaze Bearing', ja='', ko='', category='章节/边狱巴士', variants=(), ctx=(), exclude=(), note='本作无官方中文；零协/社区译名「凝视之下」；本片仅称 Canto 10。'),
+    Entity('默尔索', modes=('limbus',), en='Meursault', ja='', ko='', category='角色/边狱巴士', variants=(), ctx=(), exclude=(), note='Canto X 主线聚焦罪人；本片未点名，仅登记。'),
     Entity('赤红之神', modes=('limbus',), en='The Crimson God', ja='', ko='', category='BOSS/边狱巴士', variants=(), ctx=(), exclude=(), note='Canto X Part 3；[Adulthood] 社区有「成熟/完熟」两派写法；本片未点名，仅登记。'),
 ]
 
