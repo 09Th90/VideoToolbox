@@ -543,6 +543,11 @@ BILINGUAL_TERMS = {
     "Hiyuki": "绯雪", "N'vora": "恩沃拉",
     "Sig Gria": "西格莉卡", "Ziggria": "西格莉卡", "saggria": "西格莉卡",
     "Dennia": "达妮娅", "Shortkeeper": "守岸人", "fraodus": "残星会",
+    # --- 2026-10-27 3.X 巡演/EP 二次校准补漏 ---
+    "哀声鸷沼泽": "怨鸟泽", "whining Ajax's meer": "怨鸟泽",
+    "巴耶特林地": "浮光林", "残象领域": "无音区",
+    "新世界上海场": "「致予新世界」上海场",
+    "Heart of Laoy": "「拉海洛」之心",
     # --- 2026-10-20 Kiri Ahri 洛杉矶演唱会周边开箱片（3531 cue）沉淀 ---
     # 仅收本片实测、且非普通英文词的 ASR 连读形；普通词（cheese=千咲、ameth=a mess、
     #   cardi=card/Cartethyia 两义）一律不裸进表，走逐 cue 侧车。
@@ -1905,6 +1910,10 @@ CONTEXT_MAP = [
     (r"Nightmare Before", "Nightmare", "《圣诞夜惊魂》"),
     (r"for your name, Arkan Knights", "阿尔坎骑士", "Arkan Knights"),
     (r"for your name, Arkan Knights", "阿尔坎明日方舟", "Arkan Knights"),
+    # --- 2026-10-27 3.X 巡演/EP 二次校准补漏 ---
+    (r"\b(?:Solless|soul ?skin)\b", "小皮肤", "日灵"),
+    (r"\bAlissium\b", "极乐", "向彼方行"),
+    (r"\bAlissium\b", "伊利西姆", "向彼方行"),
 ]
 
 
@@ -2120,6 +2129,27 @@ WUWA_MISSING_CHECK = [
      "Jinzhou 官方中文=今州"),
     (r"\bLeviathan\b", ("利维亚坦",),
      "Leviathan 官方中文=利维亚坦"),
+    # --- 2026-10-27 3.X 巡演/EP 二次校准补漏 ---
+    (r"\b(?:Sun|Day)\s+Spirits?\b", ("日灵",),
+     "Sun Spirit 官方中文=日灵"),
+    (r"\bAlissium\b", ("向彼方行",),
+     "Alissium=《鸣潮：向彼方行》；勿裸收 Elysium（明日方舟极境）"),
+    (r"\b(?:Whining Aix'?s Mire|whining Ajax'?s meer)\b", ("怨鸟泽",),
+     "Whining Aix's Mire 官方中文=怨鸟泽"),
+    (r"\bMt?\.?\s*Firmament\b", ("乘霄山",),
+     "Mt. Firmament 官方中文=乘霄山"),
+    (r"\b(?:Heliotic|Heliodic|Heliotix)\s+Six\b", ("秘日六席",),
+     "Heliotic Six 官方中文=秘日六席"),
+    (r"\bRoya\b", ("罗伊族",),
+     "Roya 官方中文=罗伊族（低置信，需语境）"),
+    (r"\bTo the New World\b", ("致予新世界",),
+     "To the New World 官方中文=「致予新世界」"),
+    (r"\bDecensus Ad Nihilum\b", ("坠入虚无",),
+     "Decensus Ad Nihilum 官方中文=坠入虚无"),
+    (r"\bDasvidaniya\b", ("直到下次再见",),
+     "Dasvidaniya 官方中文=直到下次再见"),
+    (r"\bL!!!!ght\b", ("L!!!!ght",),
+     "L!!!!ght 官方名保留英文"),
 ]
 
 
@@ -7796,6 +7826,10 @@ ENTITIES = [
     Entity('阿博拉', modes=('bi',), en='Abora', ja='', ko='', category='生物/鸣潮', variants=('Abora', '阿波拉'), ctx=(('\\bAbora\\b', '阿波拉'),), exclude=(), note='鸣潮索诺拉活动背景中的生物阿博拉（Abora）。'),
     Entity('秘日六席', modes=('bi', 'react'), en='Heliotix Six', ja='', ko='', category='设定/鸣潮', variants=('Heliotix Six', 'Heliotic Six', 'Helionic Six', 'Heliodic Six', '赫利奥六号'), ctx=(), exclude=(), note='罗伊族长老团，官方中文=秘日六席；扁平表已有赫利奥六号等中文错形。'),
     Entity('罗伊族', modes=('bi', 'react'), en='Roya', ja='', ko='', category='种族/鸣潮', variants=('Roya',), ctx=(), exclude=(), note='鸣潮罗伊族（Roya）；西格莉卡所属种族。'),
+    Entity('日灵', modes=('bi',), en='Sun Spirit', ja='', ko='', category='生物/鸣潮', variants=('Sun Spirit', 'Day Spirit', 'Solless', 'soul skin'), ctx=(('\\b(?:Solless|soul ?skin)\\b', '小皮肤'),), exclude=(), note='罗伊族圣地浮光林的生灵，官方中文=日灵；ASR Solless/soul skin 需按语境归此。'),
+    Entity('向彼方行', modes=('bi',), en='Alissium', ja='', ko='', category='动画/鸣潮', variants=('Alissium',), ctx=(('\\bAlissium\\b', '极乐'), ('\\bAlissium\\b', '伊利西姆')), exclude=(), note='《鸣潮：向彼方行》/Wuthering Waves: Elysium。戒律：不裸收 Elysium（明日方舟极境），只走 Alissium 或动画语境。'),
+    Entity('怨鸟泽', modes=('bi',), en="Whining Aix's Mire", ja='', ko='', category='地名/鸣潮', variants=("Whining Aix's Mire", "whining Ajax's meer", '哀声鸷沼泽'), ctx=(), exclude=(), note='灯灯剧情发生地，官方中文=怨鸟泽；不是哀声鸷沼泽。'),
+    Entity('乘霄山', modes=('bi',), en='Mt. Firmament', ja='', ko='', category='地名/鸣潮', variants=('Mt. Firmament', 'Mount Firmament', '天穹山'), ctx=(), exclude=(), note='官方中文=乘霄山，不是天穹山。'),
     Entity('天空海', modes=('ja',), en='', ja='天空海', ko='', category='术语/鸣潮', variants=(), ctx=(('天空会|天空海', '天空会'),), exclude=(), note="鸣潮现象名，官方中文=天空海（包裹覆盖整个索拉里斯天空的特殊现象，灰机wiki）。日语 天空海(てんくうかい) 被 ASR 咬成同音的 天空会(てんくうかい)，谷翻照抄'天空会'。"),
     Entity('秧秧', modes=('ja',), en='', ja='やんやん', ko='', category='角色/鸣潮/今州', variants=(), ctx=(('やんやん|ヤんやん|にゃんやん', '燕燕'), ('やんやん|ヤんやん|にゃんやん', '延雅'), ('やんやん|ヤんやん|にゃんやん', '燕'), ('やんやん|ヤんやん|にゃんやん', '妮艳')), exclude=(), note="鸣潮 4★ 今州共鸣者。日语昵称=やんやん；谷翻音译成 燕燕/延雅/Nyanyan/ヤ。'燕燕'为正常中文词，只走日语行锚定 ctx（本片主播也昵称其为'鹿'）。"),
     Entity('今州', modes=('ja',), en='', ja='今州', ko='', category='地名/鸣潮', variants=(), ctx=(('今週場|今州城', '本周的场外'), ('今週場|今州城', '本周场'), ('今週場|今州城', '今周场'), ('今週場|今州城', '今正场'), ('今週(?!場)(?!って|だった|に|は|の|も|から|まで)|今州', '本周'), ('今週(?!場)(?!って|だった|に|は|の|も|から|まで)|今州', '这周'), ('今週(?!場)(?!って|だった|に|は|の|も|から|まで)|今州', '纳迦')), exclude=(), note="瑝珑六州之一（今州）。日语 今州(きんしゅう) 被 ASR 咬成同音的 今週(こんしゅう)，谷翻一律按'本周'处理（'本周的场外活动'=今州城）。'今週場'=今州城。戒律：本周/这周是正常中文词，只走日语行锚定 ctx。2026-10-12 收紧：今週って/今週だった 等 = 现实'这周'（如 3連休 闲聊），非今州（索拉逐星舞台 S2 同视片 cue5/cue639 实测误改），加负向后顾排除。"),
@@ -8075,7 +8109,8 @@ ENTITIES = [
     Entity('拙皮', modes=('bi', 'react'), en='Drippy', ja='', ko='', category='角色/二之国', variants=(), ctx=(), exclude=(), note='《二之国：白色圣灰的女王》官方中文妖精名；2026-10-27 #1524/#1525。'),
     Entity('致新世界（Saving Light）', modes=('bi', 'react'), en='Saving Light', ja='', ko='', category='曲目/鸣潮·先约电台', variants=(), ctx=(), exclude=(), note="有歌词（人声）歌曲。空字段=该语种无独立官方名，按'单语保留原语言'处理，勿臆造译名。"),
     Entity('Waking of a World', modes=('bi', 'react'), en='Waking of a World', ja='', ko='', category='曲目/鸣潮·先约电台', variants=(), ctx=(), exclude=(), note="有歌词（人声）歌曲。空字段=该语种无独立官方名，按'单语保留原语言'处理，勿臆造译名。"),
-    Entity('拉海洛之心', modes=('bi', 'react'), en='Heart of Laoy', ja='', ko='', category='曲目/鸣潮·先约电台', variants=(), ctx=(), exclude=(), note="有歌词（人声）歌曲。空字段=该语种无独立官方名，按'单语保留原语言'处理，勿臆造译名。"),
+    Entity('「拉海洛」之心', modes=('bi', 'react'), en='Heart of Lahai-Roi', ja='', ko='', category='曲目/鸣潮·先约电台', variants=(), ctx=(), exclude=(), note="有歌词（人声）歌曲。空字段=该语种无独立官方名，按'单语保留原语言'处理，勿臆造译名。"),
+    Entity('致予新世界', modes=('bi', 'react'), en='To the New World', ja='', ko='', category='曲目/鸣潮·先约电台', variants=(), ctx=(), exclude=(), note="有歌词（人声）歌曲。空字段=该语种无独立官方名，按'单语保留原语言'处理，勿臆造译名。"),
     Entity('小小奇迹', modes=('bi', 'react'), en='A Small Miracle', ja='', ko='', category='曲目/鸣潮·先约电台', variants=(), ctx=(), exclude=(), note="有歌词（人声）歌曲。空字段=该语种无独立官方名，按'单语保留原语言'处理，勿臆造译名。"),
     Entity('远航星的告别', modes=('bi', 'react'), en='Bon Voyage', ja='', ko='', category='曲目/鸣潮·先约电台', variants=(), ctx=(), exclude=(), note="有歌词（人声）歌曲。空字段=该语种无独立官方名，按'单语保留原语言'处理，勿臆造译名。"),
     Entity('往岁乘霄', modes=('bi', 'react'), en='Thawing Fates', ja='過ぎし乗霄山の歳月', ko='승소산의 메아리', category='曲目/鸣潮·先约电台', variants=(), ctx=(), exclude=(), note="有歌词（人声）歌曲。空字段=该语种无独立官方名，按'单语保留原语言'处理，勿臆造译名。"),
