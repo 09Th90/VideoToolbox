@@ -1032,6 +1032,14 @@ BILINGUAL_TERMS = {
     "乌玛·米苏姆": "赛马娘", "乌姆·米苏姆": "赛马娘",
     "Dimma 2": "花雨旋律",
     "Demo 1 and Demo 2": "《古树旋律》和《花雨旋律》",
+    # --- 2026-10-27 鸣潮 5h47 巡演/EP 二次校准（BILINGUAL）---
+    # 依据：Roya=罗伊族；Blade Runner=《银翼杀手》；First and Last Gift=《最初和最后的礼物》；
+    #       Itasha Coffee 产品名 Driving Me Nuts。
+    "罗伊人": "罗伊族",
+    "Bladeunner": "《银翼杀手》",
+    "Blade Runner": "《银翼杀手》",
+    "《First and Last Gift》": "《最初和最后的礼物》",
+    "Drive Immune Nuts": "Driving Me Nuts",
 }
 
 
@@ -1914,6 +1922,13 @@ CONTEXT_MAP = [
     (r"\b(?:Solless|soul ?skin)\b", "小皮肤", "日灵"),
     (r"\bAlissium\b", "极乐", "向彼方行"),
     (r"\bAlissium\b", "伊利西姆", "向彼方行"),
+    # --- 2026-10-27 鸣潮 5h47 巡演/EP 二次校准（CONTEXT）---
+    (r"\bSeptimont?\b", "Septimon", "七丘"),
+    (r"\bSeptimo\b", "Septimo", "七丘"),
+    (r"\bJing\b.*\boutshines\b|\boutshines\b.*\bJing\b", "Jing", "景燃"),
+    (r"\bEncor\b.*\barea\b|\barea\b.*\bEncor\b", "Encor", "安可"),
+    (r"\bchat\.\s*Blade\b", "Blade", "《银翼杀手》"),
+    (r"\bThat's (?:just )?Blade\b|\bBlade correct\b", "Blade", "《刀锋战士》"),
 ]
 
 
@@ -2150,6 +2165,15 @@ WUWA_MISSING_CHECK = [
      "Dasvidaniya 官方中文=直到下次再见"),
     (r"\bL!!!!ght\b", ("L!!!!ght",),
      "L!!!!ght 官方名保留英文"),
+    # --- 2026-10-27 鸣潮 5h47 巡演/EP 二次校准（MISSING）---
+    (r"\bRover\b", ("漂泊者",), "Rover 官方中文=漂泊者"),
+    (r"\b(?:Nikke|NIKKE)\b", ("妮姬",), "NIKKE 官方中文=胜利女神：妮姬/妮姬"),
+    (r"\b(?:Septimont?|Septimo)\b", ("七丘",), "Septimont 官方中文=七丘"),
+    (r"\b(?:Bladeunner|Blade Runner)\b", ("银翼杀手",), "Blade Runner 官方中文=银翼杀手"),
+    (r"\bEncor\b", ("安可",), "Encore 官方中文=安可"),
+    (r"\bFirst and Last Gift\b", ("最初和最后的礼物",), "3.3 达妮娅曲官方名"),
+    (r"\bDrive Immune Nuts\b", ("Driving Me Nuts",), "Itasha Coffee 产品名"),
+    (r"\b(?:Jingron|Jing)\b", ("景燃",), "Jingron=景燃；Jing 仅 outshines 语境"),
 ]
 
 
