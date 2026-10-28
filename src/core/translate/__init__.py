@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.7.0
+# @version 2.8.0
 """翻译域（core/translate）：翻译请求路由补丁。
 
 子模块：

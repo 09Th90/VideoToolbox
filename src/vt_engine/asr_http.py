@@ -1,4 +1,4 @@
-# @version 2.7.0
+# @version 2.8.0
 """ASR HTTP 传输层收口（复用自研接缝模块 ``engine_asr_http``）。
 
 multipart 上传与错误语义（``AsrHttpError`` 带 status/body）已可用本地假

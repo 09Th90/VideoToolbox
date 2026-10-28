@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.7.0
+# @version 2.8.0
 """calib_core 并行模块包：对外保持与原单文件一致的符号面。
 
 本轮只并行开发；根目录 subtitle_calib_merged.py 仍是生产入口。

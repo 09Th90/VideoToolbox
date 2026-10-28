@@ -1,4 +1,4 @@
-# @version 2.7.0
+# @version 2.8.0
 """LLM 客户端（自研，替代 videocaptioner.core.llm.client 的公开面）。
 
 单通道原则（v1.12.0 起全项目一致）：一套 base_url / api_key / model，

@@ -1,7 +1,7 @@
-<!-- @version 2.7.0 -->
+<!-- @version 2.8.0 -->
 # Video Toolbox — User Manual
 
-Applies to: v2.7.0
+Applies to: v2.8.0
 
 > For end users. No Python setup is required for the installed build.
 > Developer-facing details are in `docs/程序说明书(开发版).md`.
@@ -77,8 +77,8 @@ the first frame (AI Harness only appears when its runtime is available).
 
 | Package | Best for | Notes |
 | --- | --- | --- |
-| `VideoToolbox_Setup_v2.6.0.exe` | New users, offline deployment | About 1.0GB |
-| `VideoToolbox_OnlineSetup_v2.6.0.exe` | Existing users with good network | Downloads only missing files |
+| `VideoToolbox_Setup_v2.8.0.exe` | New users, offline deployment | About 1.0GB |
+| `VideoToolbox_OnlineSetup_v2.8.0.exe` | Existing users with good network | Downloads only missing files |
 | Source mode | Running the latest code | Python 3.12 required, see section 15 |
 
 Already installed? Open **设置 → 程序更新 → 检查更新**. The updater downloads only

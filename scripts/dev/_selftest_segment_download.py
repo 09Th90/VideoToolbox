@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+# @version 2.8.0
 """P2 回归：分段/断点/校验下载器 + deps._download 原子替换（本地 fixture，无外网）。"""
 from __future__ import annotations
 

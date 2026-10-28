@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.7.0
+# @version 2.8.0
 """无参运行时打印的用法文档（源文件模块 docstring 快照）。"""
 
 # 2026-10-25 《How Did You Join Arknights or Endfield?》校准沉淀：

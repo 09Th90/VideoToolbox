@@ -1,4 +1,4 @@
-# @version 2.7.0
+# @version 2.8.0
 """视频下载线程（自研最小实现，替代 videocaptioner.ui.thread.video_download_thread）。
 
 契约：``finished(str)`` / ``progress(int, str)`` / ``error(str)``，

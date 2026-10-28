@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.7.0
+# @version 2.8.0
 """结构体检、比较、漏译、扫描与 subfix
 
 源：subtitle_calib_merged.py L12795-L13481 @ 97d7d463（2026-10-24 冻结快照）

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.7.0
+# @version 2.8.0
 """SRT 解析、抽段、切分、配对与合并
 
 源：subtitle_calib_merged.py L12061-L13070 @ 97d7d463（2026-10-24 冻结快照）

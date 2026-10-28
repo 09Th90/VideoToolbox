@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.7.0
+# @version 2.8.0
 """术语表注册表、实体投影与上下文缓存
 
 源：subtitle_calib_merged.py L2198-L10667 @ 97d7d463（2026-10-24 冻结快照）

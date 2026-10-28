@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.7.0
+# @version 2.8.0
 """agent_cli —— 视频工具箱「第三方 Agent 接入」统一命令行入口（v1.0.0）。
 
 定位与边界

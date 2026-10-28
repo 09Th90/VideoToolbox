@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.7.0
+# @version 2.8.0
 """vt_fluent 设置卡族（自研，替代 qfluentwidgets 的 settings 包）。
 
 行为契约（对齐上游 1.11.3）：

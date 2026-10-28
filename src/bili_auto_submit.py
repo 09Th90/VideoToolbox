@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# @version 2.7.0
+# @version 2.8.0
 """B 站投稿 · 后台通用自动化（UIA 定位 + PostMessage 输入 + 系统文件对话框）。
 
 设计约束（用户口径）：

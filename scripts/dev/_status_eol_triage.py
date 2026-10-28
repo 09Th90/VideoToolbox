@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.7.0
+# @version 2.8.0
 """核对 git status 报 M 的文件是真差异还是 autocrlf 幻影。
 
 判据：`git hash-object <path>`（走 clean 过滤）与 HEAD blob 比对。

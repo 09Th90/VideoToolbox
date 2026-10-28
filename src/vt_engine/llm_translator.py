@@ -1,4 +1,4 @@
-# @version 2.7.0
+# @version 2.8.0
 """LLM 字幕翻译器（自研，替代 videocaptioner.core.translate.llm_translator）。
 
 行为契约（对着引擎 llm_translator 的可观察行为逐条固化）：

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.7.0
+# @version 2.8.0
 """共享底座域（core/shared）：被多域共用的基础设施。
 
 子模块与职责：

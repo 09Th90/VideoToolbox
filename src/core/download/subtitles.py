@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+# @version 2.8.0
 """字幕拉取/补拉/归一化（core/download 内部模块）。"""
 from __future__ import annotations
 

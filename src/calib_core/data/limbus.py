@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.7.0
+# @version 2.8.0
 """边狱巴士（Limbus Company）片源术语/语境表（--limbus，2026-10-26 新增）
 
 片源：《Music Composer Reacts - Canto X Boss 3 Battle Theme (Limbus Company)》

@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+# @version 2.8.0
 """P3b offscreen GUI 队列回归（不启动真实下载线程）。"""
 from __future__ import annotations
 

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.7.0
+# @version 2.8.0
 """转录域（core/asr）：ASR 全协议适配 + vc 引擎转录补丁。
 
 子模块：

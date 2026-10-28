@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.7.0
+# @version 2.8.0
 """NewPipe Extractor 后端 —— 视频工具箱的 YouTube 第二解析引擎。
 
 为什么要这个模块

@@ -1,4 +1,4 @@
-<!-- @version 2.7.0 -->
+<!-- @version 2.8.0 -->
 <h1 align="center">视频工具箱 · VideoToolbox</h1>
 
 <p align="center">
@@ -78,13 +78,13 @@
 
 | 安装包 | 体积 | 说明 |
 | --- | --- | --- |
-| **离线安装包** `VideoToolbox_Setup_v2.6.0.exe` | 约 1.0 GB | 新用户首选。一次下载，装完不依赖网络 |
+| **离线安装包** `VideoToolbox_Setup_v2.8.0.exe` | 约 1.0 GB | 新用户首选。一次下载，装完不依赖网络 |
 
 > 附件名用英文，是因为 GitHub Releases 会把非 ASCII 文件名截断
 > （历史版本 v1.12.0 的 Setup 包在下载页显示成了 `_Setup_v1.12.0.exe`）。
 > 安装后程序名仍是中文。
 
-> 最新发布：[v2.6.0](https://github.com/09Th90/VideoToolbox/releases/tag/v2.6.0)。
+> 最新发布：[v2.8.0](https://github.com/09Th90/VideoToolbox/releases/tag/v2.8.0)。
 > 发布产物与源码版本严格对应，**README 不再预告尚未构建的产物**。
 > 本版安装形态为 onedir，安装目录会包含 `_internal\` 依赖目录。
 
@@ -223,7 +223,7 @@ scripts/dev/                开发期自检脚本
 - [`docs/程序说明书(开发版).md`](docs/程序说明书(开发版).md) —— 面向开发者，讲源码结构、打包发布、自检脚本
 - [`docs/User_Manual_EN.md`](docs/User_Manual_EN.md) —— English user manual
 - [`docs/使用说明.txt`](docs/使用说明.txt) —— 安装包内随附的纯文本速查
-- [`docs/release-notes-v2.6.0.md`](docs/release-notes-v2.6.0.md) —— 本版发布说明
+- [`docs/release-notes-v2.8.0.md`](docs/release-notes-v2.8.0.md) —— 本版发布说明
 - [`docs/引擎自研化替换规格.md`](docs/引擎自研化替换规格.md) —— 能力自研化路线与验收标准
 
 ---
