@@ -1334,6 +1334,19 @@ class _CancelledEarly(Exception):
     """
 
 
+class _GuiJobRunner:
+    """把 DownloadPage._run_ytdlp 适配成 core job 的 YtdlpRunner。"""
+
+    def __init__(self, page, task_id):
+        self.page = page
+        self.task_id = task_id
+
+    def run(self, cmd, *, phase="download"):
+        from core.download.job import RunResult
+        rc, lines = self.page._run_ytdlp(list(cmd), self.task_id, phase)
+        return RunResult(int(rc), tuple(lines))
+
+
 class DownloadPage(QWidget):
     """单个链接反复添加；每个下载任务独立线程，互不阻塞。
 
@@ -1365,6 +1378,27 @@ class DownloadPage(QWidget):
         # task_id → 当前正在跑的 yt-dlp/ffmpeg 子进程（取消时直接强杀）。
         self._cancel_events = {}
         self._procs = {}
+        self._queue_mode = False
+        self.dl_queue = None
+        self._pause_events = {}
+        self._run_ids = {}
+        self._last_stats = {}
+        self._max_syncing = False
+        self._completed_dirs = set()
+        self._cleaned_cancelled = set()
+        try:
+            from core.download.job import download_orchestrator
+            from core.download.scheduler import DownloadQueue, queue_mode_enabled
+            if (download_orchestrator(default="job") == "job"
+                    and queue_mode_enabled(default=True)):
+                self._queue_mode = True
+                self.dl_queue = DownloadQueue(
+                    max_concurrent=self._load_max_concurrent(),
+                    on_event=self._on_queue_event,
+                )
+        except Exception:
+            self._queue_mode = False
+            self.dl_queue = None
 
         outer = QVBoxLayout(self)
         outer.setContentsMargins(0, 0, 0, 0)
@@ -1450,23 +1484,31 @@ class DownloadPage(QWidget):
         self.task_table.setBorderVisible(True)
         self.task_table.setBorderRadius(8)
         self.task_table.setWordWrap(False)
-        self.task_table.setColumnCount(6)
+        self.task_table.setColumnCount(8)
         self.task_table.setHorizontalHeaderLabels(
-            ["任务", "链接", "画质", "进度", "状态", "保存位置"])
+            ["任务", "链接", "画质", "进度", "速度", "剩余", "状态", "保存位置"])
         self.task_table.verticalHeader().hide()
         self.task_table.setMinimumHeight(130)
         self.task_table.setEditTriggers(QAbstractItemView.NoEditTriggers)
         self.task_table.setSelectionBehavior(QAbstractItemView.SelectRows)
-        for i, w in enumerate((56, 250, 76, 76, 76, 260)):
+        for i, w in enumerate((56, 220, 66, 66, 78, 70, 70, 240)):
             self.task_table.setColumnWidth(i, w)
-        self.task_table.horizontalHeader().setSectionResizeMode(5, QHeaderView.Stretch)
+        self.task_table.horizontalHeader().setSectionResizeMode(7, QHeaderView.Stretch)
         self.task_table.itemSelectionChanged.connect(self.on_task_select)
         box, lay = card("并行下载任务", "点击任务行可查看对应进度")
         # v1.19.0：选中一行后点「取消选中任务」即可中止该下载。
+        self.pause_btn = PushButton(FIF.PAUSE, "暂停", self)
+        self.pause_btn.setEnabled(False)
+        self.pause_btn.clicked.connect(self.pause_selected_task)
         self.cancel_btn = PushButton(FIF.CANCEL, "取消选中任务", self)
         self.cancel_btn.setEnabled(False)
         self.cancel_btn.clicked.connect(self.cancel_selected_task)
-        lay.addWidget(row(None, self.cancel_btn))
+        lay.addWidget(row(None, self.pause_btn, self.cancel_btn))
+        self.max_spin = SpinBox(self)
+        self.max_spin.setRange(1, 6)
+        self.max_spin.setValue(self._load_max_concurrent())
+        self.max_spin.valueChanged.connect(self._on_max_concurrent_changed)
+        lay.addWidget(row(CaptionLabel("下载并发上限", self), self.max_spin))
         lay.addWidget(self.task_table)
         self.vbox.addWidget(box)
 
@@ -1569,6 +1611,41 @@ class DownloadPage(QWidget):
                 pass
             self.info_json_path = None
 
+    @staticmethod
+    def _load_max_concurrent():
+        try:
+            n = int(engine.load_config().get("download_max_concurrent", 2))
+        except Exception:
+            n = 2
+        return max(1, min(6, n))
+
+    @staticmethod
+    def _save_max_concurrent(value):
+        try:
+            cfg = engine.load_config()
+            cfg["download_max_concurrent"] = max(1, min(6, int(value)))
+            engine.save_config(cfg)
+        except Exception:
+            pass
+
+    def _on_max_concurrent_changed(self, value):
+        if self._max_syncing:
+            return
+        self.apply_max_concurrent(value, save=True)
+
+    def apply_max_concurrent(self, value, save=True):
+        n = max(1, min(6, int(value)))
+        if save:
+            self._save_max_concurrent(n)
+        self._max_syncing = True
+        try:
+            self.max_spin.setValue(n)
+        finally:
+            self._max_syncing = False
+        if self.dl_queue is not None:
+            self.dl_queue.set_max_concurrent(n)
+        self.log.line(f"[队列] 并发上限已改为 {n}（调低不会打断正在下载的任务）", "dim")
+
     def start_download(self):
         url = engine.clean_path(self.url_edit.text())
         if not url.lower().startswith("http"):
@@ -1585,9 +1662,8 @@ class DownloadPage(QWidget):
             self._warn("请选择一档画质")
             return
         for item in self.tasks.values():
-            if item["url"] == url and item["status"] == "下载中":
-            # 同一链接不重复加入
-                self._info("这个视频正在下载中，无需重复添加")
+            if item["url"] == url and item.get("status") in ("下载中", "排队中", "暂停中", "已暂停"):
+                self._info("这个视频已在队列中，无需重复添加")
                 return
 
         dest = engine.clean_path(self.dest_edit.text()) or engine.DEFAULT_DOWNLOAD_DIR
@@ -1619,11 +1695,44 @@ class DownloadPage(QWidget):
         task_id = f"T{self.task_seq}"
         with_subs = self.sub_switch.isChecked()
         self.tasks[task_id] = {
-            "url": url, "quality": f"{height}p", "pct": 0.0, "status": "下载中",
+            "url": url, "quality": f"{height}p", "pct": 0.0, "status": "排队中",
             "dest": dest, "folder": task_folder, "with_subs": with_subs,
+            "fid": str(fid), "height": height, "quality_label": f"{height}p",
+            "info_json_path": task_info, "meta": meta, "resume_info": "",
+            "state": "queued", "state_rev": 0, "speed": 0.0, "eta": -1.0,
         }
         self._cancel_events[task_id] = threading.Event()
-        self._add_task_row(task_id, url, f"{height}p", "0.0%", "下载中", task_folder)
+        self._pause_events[task_id] = threading.Event()
+
+        if self._queue_mode and self.dl_queue is not None:
+            existing = self.dl_queue.find_active(url, str(fid))
+            if existing is not None:
+                self.tasks.pop(task_id, None)
+                self._cancel_events.pop(task_id, None)
+                self._pause_events.pop(task_id, None)
+                try:
+                    os.rmdir(task_folder)
+                except OSError:
+                    pass
+                r = self._row_of.get(existing.task_id)
+                if r is not None:
+                    self.task_table.selectRow(r)
+                self._info("这个视频已在队列中，无需重复添加")
+                return
+            self.dl_queue.add(task_id, url, str(fid))
+            self._add_task_row(task_id, url, f"{height}p", "0.0%", "—", "—",
+                               "排队中", task_folder)
+            self.active_task = task_id
+            self.prog.setValue(0)
+            self.pct_label.setText("排队中")
+            sub_note = "（含字幕）" if with_subs else ""
+            self.log.line(f"[任务 {task_id}] {height}p 已加入队列{sub_note} → {task_folder}", "dim")
+            self.log.line("[提示] 达到并发上限后会等待槽位；可继续检测并添加下一个视频", "dim")
+            return
+
+        self.tasks[task_id]["status"] = "下载中"
+        self._add_task_row(task_id, url, f"{height}p", "0.0%", "—", "—",
+                           "下载中", task_folder)
         self.active_task = task_id
         self.prog.setValue(0)
         self.pct_label.setText("0.0%")
@@ -1632,14 +1741,16 @@ class DownloadPage(QWidget):
         self.log.line("[提示] 该任务已在后台运行，可以继续检测并添加下一个视频", "dim")
         threading.Thread(
             target=self._download_worker,
-            args=(task_id, url, fid, task_folder, with_subs, task_info, meta, f"{height}p"),
+            args=(task_id, url, fid, task_folder, with_subs, task_info, meta,
+                  f"{height}p"),
             daemon=True).start()
 
     # ---------- 任务表 ----------
-    def _add_task_row(self, task_id, url, quality, pct, status, dest):
+    def _add_task_row(self, task_id, url, quality, pct, speed, eta, status, dest):
         r = self.task_table.rowCount()
         self.task_table.insertRow(r)
-        for c, text in enumerate((task_id, self._display_url(url), quality, pct, status, dest)):
+        values = (task_id, self._display_url(url), quality, pct, speed, eta, status, dest)
+        for c, text in enumerate(values):
             item = QTableWidgetItem(str(text))
             item.setToolTip(str(text))
             self.task_table.setItem(r, c, item)
@@ -1656,10 +1767,233 @@ class DownloadPage(QWidget):
             self.task_table.setItem(r, col, item)
         item.setText(str(text))
 
+    @staticmethod
+    def _queue_state_text(state):
+        return {
+            "queued": "排队中", "downloading": "下载中", "pausing": "暂停中",
+            "paused": "已暂停", "cancelling": "取消中", "cancelled": "已取消",
+            "completed": "完成", "failed": "失败",
+        }.get(getattr(state, "value", str(state)), str(state))
+
+    def _on_queue_event(self, ev):
+        self.app.q.put(("dl_queue_event", ev))
+
+    def on_queue_event(self, ev):
+        if not self._queue_mode or self.dl_queue is None:
+            return
+        from core.download.scheduler import TaskState
+        item = self.tasks.get(ev.task_id)
+        if ev.kind == "run":
+            task = self.dl_queue.get_task(ev.task_id)
+            if (task is None or task.state != TaskState.DOWNLOADING
+                    or task.run_id != ev.run_id):
+                self.dl_queue.worker_stopped(
+                    ev.task_id, ev.run_id,
+                    cancelled=bool(task and task.state == TaskState.CANCELLING),
+                    paused=bool(task and task.state == TaskState.PAUSING),
+                    error="not started")
+                return
+            self._start_task_worker(ev.task_id, ev.run_id)
+            return
+        if item is None:
+            return
+        if ev.kind == "state":
+            if ev.revision < int(item.get("state_rev", 0)):
+                return
+            item["state_rev"] = ev.revision
+            item["state"] = ev.state.value
+            item["status"] = self._queue_state_text(ev.state)
+            self._set_cell(ev.task_id, 6, item["status"])
+            if ev.task_id == self.active_task:
+                self.pct_label.setText(item["status"])
+            self._sync_task_buttons()
+        elif ev.kind == "progress":
+            self._apply_queue_progress(ev)
+        elif ev.kind == "finished":
+            self._on_queue_finished(ev)
+
+    def _apply_queue_progress(self, ev):
+        item = self.tasks.get(ev.task_id)
+        if item is None:
+            return
+        item["pct"] = ev.progress
+        item["speed"] = ev.speed
+        item["eta"] = ev.eta
+        self._set_cell(ev.task_id, 3, f"{ev.progress:.1f}%")
+        self._set_cell(ev.task_id, 4, engine.format_size(ev.speed) + "/s" if ev.speed else "—")
+        self._set_cell(ev.task_id, 5, engine.format_time(ev.eta) if ev.eta and ev.eta > 0 else "—")
+        if ev.task_id == self.active_task:
+            self.prog.setValue(int(ev.progress))
+            self.pct_label.setText(f"{ev.progress:.1f}%")
+
+    def _drop_info_file(self, item):
+        path = item.get("info_json_path") or ""
+        if path and os.path.isfile(path):
+            try:
+                os.remove(path)
+            except OSError:
+                pass
+        item["info_json_path"] = ""
+
+    def _on_queue_finished(self, ev):
+        item = self.tasks.get(ev.task_id)
+        if item is None or self.dl_queue is None:
+            return
+        from core.download.scheduler import TaskState
+        if ev.state == TaskState.COMPLETED:
+            item["state"] = "completed"
+            item["status"] = "完成"
+            item["pct"] = 100.0
+            self._set_cell(ev.task_id, 3, "100%")
+            self._set_cell(ev.task_id, 6, "完成")
+            self._set_cell(ev.task_id, 7, item.get("folder", ""))
+            self._drop_info_file(item)
+            item["resume_info"] = ""
+            self._completed_dirs.add(item.get("dest") or os.path.dirname(item.get("folder", "")))
+            self._finish_queue_maps(ev.task_id)
+            self.log.line(f"[任务 {ev.task_id}] [完成] 已打包到独立文件夹: {item.get('folder','')}", "ok")
+            if ev.task_id == self.active_task:
+                self.prog.setValue(100)
+                self.pct_label.setText("完成")
+            if self.dl_queue.is_idle():
+                self._refresh_after_idle(ev.task_id)
+        elif ev.state == TaskState.CANCELLED:
+            item["state"] = "cancelled"
+            item["status"] = "已取消"
+            self._set_cell(ev.task_id, 3, "—")
+            self._set_cell(ev.task_id, 6, "已取消")
+            self._drop_info_file(item)
+            item["resume_info"] = ""
+            self._cleanup_cancelled_once(item)
+            self.log.line(f"[任务 {ev.task_id}] [已取消] 未完成的部分已清理", "err")
+            self._finish_queue_maps(ev.task_id)
+        elif ev.state == TaskState.PAUSED:
+            item["state"] = "paused"
+            item["status"] = "已暂停"
+            self._set_cell(ev.task_id, 6, "已暂停")
+            self.log.line(f"[任务 {ev.task_id}] [已暂停] 分片已保留，可点击继续；HLS 恢复时可能从当前源重下", "dim")
+            self._procs.pop(ev.task_id, None)
+            self._run_ids.pop(ev.task_id, None)
+            self._last_stats.pop(ev.task_id, None)
+        else:
+            item["state"] = "failed"
+            item["status"] = "失败"
+            self._set_cell(ev.task_id, 3, "—")
+            self._set_cell(ev.task_id, 6, "失败")
+            self._drop_info_file(item)
+            self.log.line(f"[任务 {ev.task_id}] [错误] 下载失败：{ev.error or '未知错误'}", "err")
+            self._finish_queue_maps(ev.task_id)
+        self._sync_task_buttons()
+
+    def _cleanup_cancelled_once(self, item):
+        tid = [k for k, v in self.tasks.items() if v is item]
+        if not tid or tid[0] in self._cleaned_cancelled:
+            return
+        self._cleaned_cancelled.add(tid[0])
+        folder = item.get("folder", "")
+        if folder:
+            self._cleanup_cancelled(tid[0], folder)
+
+    def _finish_queue_maps(self, task_id):
+        DownloadPage._EOF_HINTED.pop(task_id, None)
+        DownloadPage._EOF_KILLS.pop(task_id, None)
+        self._cancel_events.pop(task_id, None)
+        self._pause_events.pop(task_id, None)
+        self._procs.pop(task_id, None)
+        self._run_ids.pop(task_id, None)
+        self._last_stats.pop(task_id, None)
+
+    def _refresh_after_idle(self, task_id):
+        root = ""
+        if self._completed_dirs:
+            root = sorted(self._completed_dirs)[-1]
+            self._completed_dirs.clear()
+        if root:
+            self.app.library_page.set_dir(root)
+            self.app.library_page.refresh()
+        if task_id == self.active_task:
+            item = self.tasks.get(task_id)
+            if item and item.get("folder"):
+                engine.open_folder(item["folder"])
+
+    def _start_task_worker(self, task_id, run_id):
+        item = self.tasks.get(task_id)
+        if not item:
+            self.dl_queue.worker_stopped(task_id, run_id, error="task missing")
+            return
+        self._run_ids[task_id] = run_id
+        self._last_stats[task_id] = (0.0, -1.0)
+        self._cancel_events.setdefault(task_id, threading.Event()).clear()
+        self._pause_events.setdefault(task_id, threading.Event()).clear()
+        item["state"] = "downloading"
+        item["status"] = "下载中"
+        self._set_cell(task_id, 6, "下载中")
+        threading.Thread(
+            target=self._download_worker,
+            args=(task_id, item["url"], item.get("fid", ""), item["folder"],
+                  item.get("with_subs", False), item.get("info_json_path", ""),
+                  item.get("meta"), item.get("quality_label", ""),
+                  run_id, item.get("resume_info", "")),
+            daemon=True,
+        ).start()
+
+    def _sync_task_buttons(self):
+        if not self._queue_mode:
+            return
+        item = self.tasks.get(self.active_task)
+        if item is None:
+            self.pause_btn.setEnabled(False)
+            self.cancel_btn.setEnabled(False)
+            return
+        state = item.get("state")
+        self.pause_btn.setEnabled(state in ("queued", "downloading", "paused"))
+        if state == "paused":
+            self.pause_btn.setText("继续")
+            self.pause_btn.setIcon(FIF.PLAY)
+        else:
+            self.pause_btn.setText("暂停")
+            self.pause_btn.setIcon(FIF.PAUSE)
+        self.cancel_btn.setEnabled(state in ("queued", "downloading", "pausing", "paused"))
+
+    def _selected_task_id(self):
+        rows = self.task_table.selectionModel().selectedRows()
+        if not rows:
+            return ""
+        r = rows[0].row()
+        for tid, rr in self._row_of.items():
+            if rr == r:
+                return tid
+        return ""
+
+    def pause_selected_task(self):
+        if not self._queue_mode or self.dl_queue is None:
+            self._info("当前是旧下载模式，不支持暂停")
+            return
+        tid = self._selected_task_id()
+        item = self.tasks.get(tid)
+        if not item:
+            self._warn("请先选中任务")
+            return
+        state = item.get("state")
+        if state == "paused":
+            self._pause_events.setdefault(tid, threading.Event()).clear()
+            self.dl_queue.resume(tid)
+            self.log.line(f"[任务 {tid}] 已继续，重新排队", "dim")
+        elif state in ("queued", "downloading"):
+            self._pause_events.setdefault(tid, threading.Event()).set()
+            proc = self._procs.get(tid)
+            if proc is not None:
+                engine.kill_process_tree(proc)
+            self.dl_queue.pause(tid)
+            self.log.line(f"[任务 {tid}] 已请求暂停，等待当前进程退出并保留分片", "dim")
+        else:
+            self._info(f"任务 {tid} 当前状态为 {item.get('status')}，无需暂停")
+
     def on_task_select(self):
         rows = self.task_table.selectionModel().selectedRows()
         if not rows:
             self.cancel_btn.setEnabled(False)
+            self.pause_btn.setEnabled(False)
             return
         r = rows[0].row()
         for tid, rr in self._row_of.items():
@@ -1667,16 +2001,21 @@ class DownloadPage(QWidget):
                 self.active_task = tid
                 item = self.tasks.get(tid)
                 if item:
-                    self.prog.setValue(int(item["pct"]))
+                    self.prog.setValue(int(item.get("pct", 0)))
                     self.pct_label.setText(
-                        f"{item['pct']:.1f}%" if item["status"] == "下载中" else item["status"])
-                    self.cancel_btn.setEnabled(item["status"] == "下载中")
+                        f"{item['pct']:.1f}%" if item.get("status") == "下载中" else item.get("status", ""))
+                    if self._queue_mode:
+                        self._sync_task_buttons()
+                    else:
+                        self.pause_btn.setEnabled(False)
+                        self.cancel_btn.setEnabled(item["status"] == "下载中")
                 break
 
     # ---------- 下载中止（v1.19.0） ----------
     #: 取消专用返回码：强杀子进程后 proc.wait() 的返回码不固定（Windows 上常是
     #: -9/1），统一收敛成这个值再投给 dl_done，主线程据此标记「已取消」。
     RC_CANCELLED = -9
+    RC_PAUSED = -11
     #: 直链失效专用返回码：EOF / TLS 断连 / 403 意味着**已签发的链接本身作废**，
     #: 原地重试同一条 URL 是纯浪费（它仍绑定旧的出口 IP）。收敛成这个值，
     #: 让上层直接走「重新提取」而不是退避重试。
@@ -1734,6 +2073,16 @@ class DownloadPage(QWidget):
         item = self.tasks.get(tid)
         if not item:
             return
+        if self._queue_mode and self.dl_queue is not None:
+            evt = self._cancel_events.get(tid)
+            if evt:
+                evt.set()
+            proc = self._procs.get(tid)
+            if proc is not None:
+                engine.kill_process_tree(proc)
+            self.dl_queue.cancel(tid)
+            self.log.line(f"[任务 {tid}] 已请求取消，正在停止下载并清理临时文件 ...", "err")
+            return
         if item["status"] != "下载中":
             self._info(f"任务 {tid} 已结束（{item['status']}），无需取消")
             return
@@ -1749,7 +2098,8 @@ class DownloadPage(QWidget):
         # 队列里还有几条进度消息在泵，就会被 on_dl_progress 立刻改回
         # 「下载中」——用户看到的就是「点了取消，状态又跳回去了」。
         item["status"] = "取消中"
-        self._set_cell(tid, 4, "取消中")
+        self._set_cell(tid, 4, "—")
+        self._set_cell(tid, 6, "取消中")
         self.cancel_btn.setEnabled(False)
         self.log.line(f"[任务 {tid}] 已请求取消，正在停止下载并清理临时文件 ...", "err")
 
@@ -1762,7 +2112,9 @@ class DownloadPage(QWidget):
             names = []
         for name in names:
             low = name.lower()
-            if low.endswith((".part", ".ytdlp", ".npe_v.mp4", ".npe_a.m4a",
+            if low.endswith((".part", ".ytdlp", ".vtdl.resume.json",
+                             ".vtdl.json", ".vtdl.single", ".vtdl.assembling",
+                             ".npe_v.mp4", ".npe_a.m4a",
                              ".npe_v.m4v", ".npe_a.mp4", ".npe_v.webm",
                              ".npe_a.webm", ".npe_v.mp2t", ".npe_a.mp2t")):
                 try:
@@ -1816,8 +2168,81 @@ class DownloadPage(QWidget):
                 cancel=evt,
                 register=lambda p: self._register_proc(task_id, p))
 
+    def _download_worker_job(self, task_id, url, fid, folder, with_subs=False,
+                             info_json_path=None, meta=None, quality_label="",
+                             run_id=0, resume_info=""):
+        """P1b：走 core.download.job；旧 _download_worker 保留为 legacy。"""
+        from core.download.job import (
+            DownloadJob, JobHooks, run_download_job,
+        )
+        evt = self._cancel_events.get(task_id)
+        pause_evt = self._pause_events.get(task_id)
+        source_info = resume_info or info_json_path or ""
+        try:
+            def log(m, lv="dim"):
+                if lv == "sys":
+                    self.app.q.put(("sys_log", f"[任务 {task_id}] {m}"))
+                else:
+                    self.app.q.put(("dl_log", task_id, m, lv))
+
+            def extract(_ytdlp, _url):
+                return self._fetch_info_for_task(
+                    task_id, _ytdlp, _url,
+                    lambda m: self.app.q.put(("sys_log", f"[任务 {task_id}] {m}")))
+
+            def make_cover(ff, f):
+                return engine.make_cover_1280x720(
+                    ff, f, cancel=evt,
+                    register=lambda p: self._register_proc(task_id, p))
+
+            hooks = JobHooks(
+                run=_GuiJobRunner(self, task_id),
+                cancel=evt,
+                pause=pause_evt,
+                log=log,
+                progress=lambda p: self.app.q.put(("dl_progress", task_id, p)),
+                register=lambda p: self._register_proc(task_id, p),
+                extract=extract,
+                detect_language=engine.ai_detect_language,
+                make_cover=make_cover,
+                write_info=engine.write_info_txt,
+                normalize_srt=engine.normalize_rolling_srt,
+            )
+            spec = DownloadJob(
+                url=url, folder=folder, meta=meta,
+                info_json_path=source_info,
+                format_id=fid, quality_label=quality_label,
+                with_subs=with_subs, sub_langs=self.SUB_LANGS,
+                lock_proxy=True,
+            )
+            result = run_download_job(spec, hooks)
+            if result.cancelled:
+                rc = self.RC_CANCELLED
+            elif result.paused:
+                rc = self.RC_PAUSED
+            elif result.ok:
+                rc = 0
+            else:
+                rc = 1
+            self.app.q.put(("dl_done", task_id, rc, result.folder or folder,
+                            run_id, result.resume_info))
+        except Exception as e:  # noqa: BLE001
+            self.app.q.put(("dl_done", task_id, 1, f"出错: {e}", run_id, ""))
+        finally:
+            if info_json_path and info_json_path != source_info:
+                try:
+                    os.remove(info_json_path)
+                except OSError:
+                    pass
+
     def _download_worker(self, task_id, url, fid, folder, with_subs=False,
-                         info_json_path=None, meta=None, quality_label=""):
+                         info_json_path=None, meta=None, quality_label="",
+                         run_id=0, resume_info=""):
+        from core.download.job import download_orchestrator
+        if download_orchestrator(default="job") == "job":
+            return self._download_worker_job(
+                task_id, url, fid, folder, with_subs,
+                info_json_path, meta, quality_label, run_id, resume_info)
         try:
             # 下载期间钉住出口节点：直链在签发时绑定了当时的出口 IP，
             # 中途换节点会让所有已签发分片瞬间失效（EOF/_ssl.c:1007）。
@@ -2249,7 +2674,7 @@ class DownloadPage(QWidget):
         return not any(k in low for k in
                        ("fragment", "hlsnative", "m3u8", "frag", "dash"))
 
-    def _run_ytdlp(self, cmd, task_id):
+    def _run_ytdlp(self, cmd, task_id, phase="download"):
         try:
             # 按字节读取、逐行智能解码（兼容 yt-dlp 输出 UTF-8/GBK；CJK 多字节
             # 不会跨越 0x0A 换行，故按行解码不会切断字符）
@@ -2266,8 +2691,19 @@ class DownloadPage(QWidget):
         lines = deque(maxlen=self.DL_LINES_KEEP)
         pct_re = re.compile(r"\[download\]\s+([\d.]+)%")
         frag_re = re.compile(r"\[download\]\s+Downloading fragment (\d+)/(\d+)")
+        speed_re = re.compile(r"at\s+([\d.]+)\s*([KMGT]?i?B)/s")
+        eta_re = re.compile(r"ETA\s+(\d+):(\d+)")
+        run_id = self._run_ids.get(task_id, 0)
+        units = {"B": 1, "KiB": 1024, "MiB": 1024 ** 2, "GiB": 1024 ** 3, "TiB": 1024 ** 4}
         try:
             for raw in proc.stdout:
+                if (phase == "download" and self._pause_events.get(task_id) is not None
+                        and self._pause_events[task_id].is_set() and proc.poll() is None):
+                    try:
+                        proc.kill()
+                    except Exception:  # noqa: BLE001
+                        pass
+                    break
                 if self._is_cancelled(task_id) and proc.poll() is None:
                     # 取消路径之一（另一路是 cancel_selected_task 直接 kill）：
                     # 读流循环里发现取消标志就主动杀，避免卡在慢速连接上。
@@ -2280,7 +2716,21 @@ class DownloadPage(QWidget):
                 lines.append(line)
                 m = pct_re.search(line)
                 if m:
-                    self.app.q.put(("dl_progress", task_id, float(m.group(1))))
+                    speed, eta = 0.0, -1.0
+                    sm = speed_re.search(line)
+                    if sm:
+                        try:
+                            speed = float(sm.group(1)) * units.get(sm.group(2), 1)
+                        except ValueError:
+                            speed = 0.0
+                    em = eta_re.search(line)
+                    if em:
+                        try:
+                            eta = int(em.group(1)) * 60 + int(em.group(2))
+                        except ValueError:
+                            eta = -1.0
+                    self.app.q.put(("dl_progress", task_id, float(m.group(1)),
+                                    run_id, speed, eta))
                     continue
                 m = frag_re.search(line)
                 if m:
@@ -2372,7 +2822,11 @@ class DownloadPage(QWidget):
         return rc
 
     # ---------- 主线程更新 ----------
-    def on_dl_progress(self, task_id, pct):
+    def on_dl_progress(self, task_id, pct, run_id=0, speed=0.0, eta=-1.0):
+        if self._queue_mode and self.dl_queue is not None:
+            rid = run_id or self._run_ids.get(task_id, 0)
+            self.dl_queue.progress(task_id, rid, pct, speed, eta)
+            return
         item = self.tasks.get(task_id)
         if not item:
             return
@@ -2383,7 +2837,9 @@ class DownloadPage(QWidget):
             return
         item["pct"] = pct
         self._set_cell(task_id, 3, f"{pct:.1f}%")
-        self._set_cell(task_id, 4, "下载中")
+        self._set_cell(task_id, 4, engine.format_size(speed) + "/s" if speed else "—")
+        self._set_cell(task_id, 5, engine.format_time(eta) if eta and eta > 0 else "—")
+        self._set_cell(task_id, 6, "下载中")
         if task_id == self.active_task:
             self.prog.setValue(int(pct))
             self.pct_label.setText(f"{pct:.1f}%")
@@ -2391,14 +2847,33 @@ class DownloadPage(QWidget):
         if n:
             self.pct_label.setToolTip(f"并行下载中：{n} 个任务")
 
-    def on_dl_log(self, task_id, text, level="dim"):
+    def on_dl_log(self, task_id, text, level="dim", run_id=0):
         # v1.19.1：已取消/已收尾的任务不再继续刷屏（子进程被杀前吐的最后几行）。
         item = self.tasks.get(task_id)
+        if self._queue_mode:
+            if item is None or item.get("status") in ("已取消", "完成", "失败", "已暂停"):
+                return
+            if run_id and run_id != self._run_ids.get(task_id, 0):
+                return
+            self.log.line(f"[任务 {task_id}] {text}", level)
+            return
         if item and item["status"] in ("已取消", "完成", "失败"):
             return
         self.log.line(f"[任务 {task_id}] {text}", level)
 
-    def on_dl_done(self, task_id, rc, folder):
+    def on_dl_done(self, task_id, rc, folder, run_id=0, resume_info=""):
+        if self._queue_mode and self.dl_queue is not None:
+            item = self.tasks.get(task_id)
+            if item is not None and resume_info:
+                item["resume_info"] = resume_info
+            self.dl_queue.worker_stopped(
+                task_id, run_id or self._run_ids.get(task_id, 0),
+                completed=(rc == 0),
+                paused=(rc == self.RC_PAUSED),
+                cancelled=(rc == self.RC_CANCELLED),
+                error="" if rc == 0 else "下载失败",
+            )
+            return
         DownloadPage._EOF_HINTED.pop(task_id, None)   # 回收 EOF 去重标记
         DownloadPage._EOF_KILLS.pop(task_id, None)   # 回收 EOF 主动结束计数
         self._cancel_events.pop(task_id, None)  # v1.19.0：回收取消标志
@@ -2408,7 +2883,7 @@ class DownloadPage(QWidget):
             if item:
                 item["status"] = "已取消"
             self._set_cell(task_id, 3, "—")
-            self._set_cell(task_id, 4, "已取消")
+            self._set_cell(task_id, 6, "已取消")
             if task_id == self.active_task:
                 self.pct_label.setText("已取消")
                 self.cancel_btn.setEnabled(False)
@@ -2419,9 +2894,9 @@ class DownloadPage(QWidget):
             item["pct"] = 100.0 if rc == 0 else item["pct"]
             item["status"] = "完成" if rc == 0 else "失败"
         self._set_cell(task_id, 3, "100%" if rc == 0 else "—")
-        self._set_cell(task_id, 4, "完成" if rc == 0 else "失败")
+        self._set_cell(task_id, 6, "完成" if rc == 0 else "失败")
         if rc == 0:
-            self._set_cell(task_id, 5, folder)
+            self._set_cell(task_id, 7, folder)
         if task_id == self.active_task:
             if rc == 0:
                 self.prog.setValue(100)
@@ -2444,7 +2919,26 @@ class DownloadPage(QWidget):
             self.log.line(f"[任务 {task_id}] [错误] 下载失败，请查看上方日志"
                           "（多为站点风控或网络问题）", "err")
 
+    def shutdown(self):
+        if self.dl_queue is not None:
+            for tid in list(self.tasks):
+                evt = self._cancel_events.get(tid)
+                if evt is not None:
+                    evt.set()
+                proc = self._procs.get(tid)
+                if proc is not None:
+                    try:
+                        engine.kill_process_tree(proc)
+                    except Exception:
+                        pass
+            try:
+                self.dl_queue.cancel_all()
+            except Exception:
+                pass
+
     def active_count(self):
+        if self._queue_mode and self.dl_queue is not None:
+            return self.dl_queue.active_count()
         return sum(1 for item in self.tasks.values()
                    if item["status"] in ("下载中", "取消中"))
 
@@ -4230,6 +4724,12 @@ class SettingsPage(QWidget):
         browse.clicked.connect(self._browse_dir)
         blay.addWidget(srow("下载目录", self.dir_edit, browse))
 
+        self.dl_max_spin = SpinBox(box)
+        self.dl_max_spin.setRange(1, 6)
+        self.dl_max_spin.setValue(DownloadPage._load_max_concurrent())
+        self.dl_max_spin.valueChanged.connect(self._on_dl_max_changed)
+        blay.addWidget(srow("下载并发上限", self.dl_max_spin))
+
         root, is_default, src = engine.data_root_info()
         self.data_edit = LineEdit(box)
         self.data_edit.setText(root)
@@ -4506,14 +5006,6 @@ class SettingsPage(QWidget):
                       "deepgram", "elevenlabs", "gemini",
                       "volcengine", "assemblyai", "dashscope_realtime",
                       "dashscope_native", "dashscope_filetrans")
-    #: 识别语言下拉（2026-10-12）：与引擎 TranscribeLanguageEnum 逐字对齐的
-    #: 常用子集（前 12 项中文标签 + 常用英文标签）。**新增项必须先在引擎枚举里
-    #: 存在**——写进引擎 settings.json 的标签解析不了会静默回落默认值；
-    #: 自检 _selftest_asr_language.py 钉住「本表 ⊆ 引擎枚举」。
-    ASR_LANG_LABELS = ("自动检测", "中文", "英语", "日本語", "韩语", "粤语",
-                       "法语", "德语", "西班牙语", "俄语", "葡萄牙语",
-                       "土耳其语", "Italian", "Polish", "Dutch", "Arabic",
-                       "Indonesian", "Thai", "Vietnamese")
 
     def _build_ai_card(self):
         box, blay = card(
@@ -4617,26 +5109,13 @@ class SettingsPage(QWidget):
         self.asr_mode_combo.currentIndexChanged.connect(self._sync_asr_visible)
         blay.addWidget(label_row("转录模型来源", self.asr_mode_combo))
 
-        # 识别语言（2026-10-12）：服务 / 本地两种模式都生效。默认「自动检测」
-        # 不写引擎配置（沿用引擎自己的取值）；指定后强制按该语言识别，并写进
-        # 引擎转录配置（settings.json + 内存态 + 任务创建兜底三层）。
-        self.asr_lang_combo = ComboBox(box)
-        _langs = list(self.ASR_LANG_LABELS)
-        _saved_lang = str(ai.get("asr_language") or "").strip() or "自动检测"
-        if _saved_lang not in _langs:
-            # 历史上存过下拉之外的标签（如更早版本/手改配置）：插回列表，
-            # 保证界面显示的就是真值，保存时不会把它悄悄换成「自动检测」。
-            _langs.insert(1, _saved_lang)
-        self.asr_lang_combo.addItems(_langs)
-        self.asr_lang_combo.setCurrentText(_saved_lang)
-        self.asr_lang_combo.setMaxVisibleItems(8)
-        self.asr_lang_combo.setToolTip(
-            "音视频中说话的语言，服务与本地模型都生效。\n"
-            "· 自动检测（默认）：交给识别端按内容自行判断，不覆盖引擎设置；\n"
-            "· 指定语言：强制按该语言识别——多语言混夹 / 短片段素材上更准，\n"
-            "  但**选错会明显拉低识别率**（如对日语音频强制中文会输出乱码）；\n"
-            "· 没有把握就留「自动检测」。")
-        blay.addWidget(label_row("识别语言", self.asr_lang_combo))
+        # 识别语言（2026-10-25 迁到「语音转录」页命令栏）：这里不再提供下拉，
+        # 只留去向提示；保存设置时保留转录页写入的现值（见 _collect_ai）。
+        lang_hint = fit_caption(CaptionLabel(
+            "识别语言已移到「语音转录」页顶部命令栏，随选随用，无需在这里保存",
+            box))
+        lang_hint.setTextColor("#8a8a8a", "#9a9a9a")
+        blay.addWidget(lang_hint)
 
         # —— 服务模式 ——
         self.asr_service_widget = QWidget(box)
@@ -4772,7 +5251,6 @@ class SettingsPage(QWidget):
             w.textChanged.connect(self._mark_ai_dirty)
         self.asr_base.textChanged.connect(self._sync_plan_warn)
         self.asr_mode_combo.currentIndexChanged.connect(self._mark_ai_dirty)
-        self.asr_lang_combo.currentIndexChanged.connect(self._mark_ai_dirty)
         self.asr_proto_combo.currentIndexChanged.connect(self._mark_ai_dirty)
         self.asr_diarize_switch.checkedChanged.connect(self._mark_ai_dirty)
         self.asr_separate_switch.checkedChanged.connect(self._mark_ai_dirty)
@@ -5063,8 +5541,10 @@ class SettingsPage(QWidget):
             "asr_diarize": self.asr_diarize_switch.isChecked(),
             # 语音分离：重叠语音分离 / 剔除歌声（接口占位，尚未内置模型）
             "asr_separate": self.asr_separate_switch.isChecked(),
-            # 识别语言（2026-10-12）：引擎枚举标签；「自动检测」= 不强制
-            "asr_language": self.asr_lang_combo.currentText(),
+            # 识别语言（2026-10-25 移到转录页命令栏）：设置页不再提供下拉，
+            # 只保留磁盘现值，避免在这里保存其他字段时把转录页选的语言重置。
+            "asr_language": (str(_cur.get("asr_language") or "自动检测").strip()
+                             or "自动检测"),
             # AI 校准（v1.12.0：通道选择随双通道合并一并移除）
             "calib_chunk_cues": self.calib_cues.value(),
             "calib_max_chars": self.calib_chars.value(),
@@ -6120,6 +6600,21 @@ class SettingsPage(QWidget):
     # ------------------------------------------------------------------ #
     # 槽函数
     # ------------------------------------------------------------------ #
+    def _on_dl_max_changed(self, value):
+        n = max(1, min(6, int(value)))
+        try:
+            cfg = engine.load_config()
+            cfg["download_max_concurrent"] = n
+            engine.save_config(cfg)
+        except Exception:
+            pass
+        try:
+            dp = _lazy_real(getattr(self.app, "download_page", None))
+            if dp is not None:
+                dp.apply_max_concurrent(n, save=False)
+        except Exception:
+            pass
+
     def _on_dir_changed(self):
         path = self.dir_edit.text().strip()
         if path:
@@ -6241,6 +6736,7 @@ class CalibPage(QWidget):
         ("战双英文原声（--pgren）", "--pgren"),
         ("综合手游OST（--wwoc）", "--wwoc"),
         ("音乐点评（--react）", "--react"),
+        ("边狱巴士（--limbus）", "--limbus"),
     ]
 
     def __init__(self, app, parent=None):
@@ -10874,7 +11370,7 @@ class MainWindow(FluentWindow):
             reg = mreg.MediaRegistry(use_watcher=True)
             _perf_note("pipeline[registry 构造] %.2fs"
                        % (time.perf_counter() - t0))
-            pipe = pl.Pipeline(reg, log=lambda m: self.q.put(("pipe_log", str(m))))
+            pipe = pl.Pipeline(reg)
             _perf_note("pipeline[Pipeline 构造] %.2fs"
                        % (time.perf_counter() - t0))
             pipe.add_listener(lambda p: self.q.put(("pipe_state", p)))
@@ -10906,6 +11402,12 @@ class MainWindow(FluentWindow):
             self._log_error(traceback.format_exc())
 
     def closeEvent(self, e):
+        try:
+            dp = _lazy_real(getattr(self, "download_page", None))
+            if dp is not None:
+                dp.shutdown()
+        except Exception:  # noqa: BLE001
+            pass
         try:
             if getattr(self, "pipeline_registry", None) is not None:
                 self.pipeline_registry.stop()
@@ -11089,11 +11591,13 @@ class MainWindow(FluentWindow):
             elif kind == "sys_log":
                 dl.log.line(args[0], "dim")
             elif kind == "dl_progress":
-                dl.on_dl_progress(args[0], args[1])
+                dl.on_dl_progress(*args)
             elif kind == "dl_log":
-                dl.on_dl_log(args[0], args[1], args[2] if len(args) > 2 else "dim")
+                dl.on_dl_log(*args)
             elif kind == "dl_done":
-                dl.on_dl_done(args[0], args[1], args[2])
+                dl.on_dl_done(*args)
+            elif kind == "dl_queue_event":
+                dl.on_queue_event(args[0])
             elif kind == "lib_scan_done":
                 lib.on_scan_done(args[0], args[1])
             elif kind == "lib_thumb":
@@ -11124,10 +11628,6 @@ class MainWindow(FluentWindow):
             elif kind == "cal_done":
                 # (rc, out, result, 任务代号)
                 cal.on_cal_done(*args)
-            elif kind == "pipe_log":
-                page = _lazy_real(self.pipeline_page)
-                if page is not None:
-                    page.log.line(args[0], "dim")
             elif kind == "pipe_state":
                 page = _lazy_real(self.pipeline_page)
                 if page is not None:

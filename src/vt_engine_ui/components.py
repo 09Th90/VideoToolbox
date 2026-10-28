@@ -10,8 +10,8 @@
     的既定语义），故本卡只构建 ``empty_widget``，并把补丁 ④ 的提示语 + 声纹录入
     卡内建其中；``whisper_*_widget`` / ``faster_whisper_widget`` 保留为 None 以
     兼容任何遗留属性访问。
-  · ``TranscriptionSettingDialog`` —— 转录设置弹窗，内建补丁 ⑦ 的「主播声纹」
-    多选器。
+  · ``TranscriptionSettingDialog`` —— 声纹设置弹窗，内建补丁 ⑦ 的「主播声纹」
+    多选器（输出格式已于 2026-10-25 迁到转录页命令栏）。
 """
 from __future__ import annotations
 
@@ -22,13 +22,11 @@ from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import QCompleter, QStackedWidget, QVBoxLayout, QWidget
 from vt_fluent import (
     BodyLabel,
-    ComboBoxSettingCard,
     EditableComboBox,
     LineEdit,
     MessageBoxBase,
     SettingCard,
 )
-from vt_fluent import FluentIcon as FIF
 from vt_fluent import ConfigItem, qconfig
 
 from . import _seams
@@ -165,26 +163,14 @@ class TranscriptionSettingCard(QWidget):
 
 
 # --------------------------------------------------------------------------
-# 转录设置弹窗（内建声纹多选）
+# 声纹设置弹窗（内建声纹多选）
 # --------------------------------------------------------------------------
 class TranscriptionSettingDialog(MessageBoxBase):
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.titleLabel = BodyLabel(self.tr("转录设置"), self)
-
-        ent = _seams.entities
-        cfg = _seams.cfg
-        self.output_format_card = ComboBoxSettingCard(
-            cfg.transcribe_output_format,
-            FIF.SAVE,
-            self.tr("输出格式"),
-            self.tr("选择转录字幕的输出格式"),
-            texts=[fmt.value for fmt in ent.TranscribeOutputFormatEnum],
-            parent=self,
-        )
+        self.titleLabel = BodyLabel(self.tr("声纹设置"), self)
 
         self.viewLayout.addWidget(self.titleLabel)
-        self.viewLayout.addWidget(self.output_format_card)
         self.viewLayout.setSpacing(10)
 
         # 补丁 ⑦（内建）：主播声纹多选
@@ -194,7 +180,7 @@ class TranscriptionSettingDialog(MessageBoxBase):
         except Exception as e:  # noqa: BLE001
             _seams.vc_log(f"声纹多选器挂载失败：{e}")
 
-        self.setWindowTitle(self.tr("转录设置"))
+        self.setWindowTitle(self.tr("声纹设置"))
         self.widget.setMinimumWidth(380)
         self.yesButton.hide()
         self.cancelButton.setText(self.tr("关闭"))

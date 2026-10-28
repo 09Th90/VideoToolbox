@@ -218,7 +218,8 @@ The page has three sections: transcription, translation and calibration.
 
 1. Choose an audio/video file.
 2. Choose the model source (Settings ASR config or a temporary ASR choice).
-3. Language defaults to auto-detect; specifying it is usually more reliable.
+3. Choose the recognition language and output format in the command bar;
+   language defaults to auto-detect, and specifying it is usually more reliable.
 4. Enable speaker diarization if needed.
 5. Start and get an SRT.
 
@@ -405,8 +406,9 @@ In page order:
 1. **目录**: download directory, data root, engine work directory.
 2. **下载 Cookie（反风控）**: auto/browser/cookies.txt/guest; 8 browsers.
 3. **全局 AI**: enable, key, base URL, text/vision model, test, save.
-4. **ASR 语音识别**: service/local, language, URL/key/model/prompt/protocol,
-   diarization, voice separation placeholder, test, save.
+4. **ASR 语音识别**: service/local, URL/key/model/prompt/protocol,
+   diarization, voice separation placeholder, test, save (recognition language
+   is selected in the Transcription command bar).
 5. **AI 校准**: chunk size, character budget, thinking mode/strength, context,
    output limit, style, web verification, A/V evidence, rounds, cluster,
    collaboration.

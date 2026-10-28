@@ -2,12 +2,12 @@
 # @version 2.7.0
 """ASCII 路径驱动 Inno Setup 编译离线安装包（2026-10-21 收编进仓库）。
 
-原驱动为仓库外脚本 ``C:\\bld\\_build_iss_now2.py``；ISCC 与构建链 C 盘依赖
-迁移至 D 盘（``D:\\Agent Work\\_bld``）后随本脚本收编。
+原驱动为仓库外脚本 ``C:\\bld\\_build_iss_now2.py``；ISCC 与构建链位于 C 盘
+（``C:\\bld``），2026-10-25 自 D 盘回退。
 
 用法::
 
-    D:\\Agent Work\\_bld\\qt_build\\Scripts\\python.exe scripts\\dev\\_build_inno.py
+    C:\\bld\\qt_build\\Scripts\\python.exe scripts\\dev\\_build_inno.py
 
 注意：cwd 留在仓库根。iss 内相对 Source 路径 ``..\\src\\...`` 相对 **iss 所在
 目录**解析（不受 cwd 影响），OutputDir 等相对路径以 cwd 为准。ISCC 本身对
@@ -17,8 +17,8 @@ import os
 import subprocess
 import time
 
-#: 构建环境新家（D 盘，2026-10-21 自 C:\\bld 迁出）
-BLD = r"D:\Agent Work\_bld"
+#: 构建环境（C 盘，2026-10-25 自 D 盘回退）
+BLD = r"C:\bld"
 
 ISCC = os.path.join(BLD, "is6", "ISCC.exe")
 #: 仓库根 = 本脚本所在 scripts/dev/ 的上两级（跟仓库走，不写死中文绝对路径）

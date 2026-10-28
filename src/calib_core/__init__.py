@@ -5,14 +5,15 @@
 本轮只并行开发；根目录 subtitle_calib_merged.py 仍是生产入口。
 """
 
-from .data.bilingual import BILINGUAL_TERMS, CONTEXT_MAP, EXCLUDE_CONTEXT, KEEP_EN, WORD_MAP, _XQ_RX
+from .data.bilingual import BILINGUAL_TERMS, CONTEXT_MAP, EXCLUDE_CONTEXT, FFRS_CONTEXT, FFRS_TERMS, KEEP_EN, WORD_MAP, _XQ_RX
 from .data.ja import JA_CONTEXT, JA_ENDFIELD_CONTEXT, JA_ENDFIELD_TERMS, JA_TERMS, RETIRED_JA_KEYS
 from .data.ko import KO_ASR_CONTEXT, KO_ASR_TERMS, KO_CONTEXT, KO_TERMS, RETIRED_KO_KEYS
+from .data.limbus import LIMBUS_CONTEXT, LIMBUS_TERMS
 from .data.endfield import ENDFIELD_AUTO_MARKERS, ENDFIELD_BI_CONTEXT, ENDFIELD_BI_TERMS, ENDFIELD_KO_CONTEXT, ENDFIELD_KO_TERMS, ENDFIELD_MISSING_CHECK, ENDFIELD_TERMS
-from .data.ark import AK_CONTEXT, AK_KO_CONTEXT, AK_KO_TERMS, AK_TERMS, PGR_EN_TERMS, WWOC_TERMS, _SEONJEONG_ANCHOR
+from .data.ark import AK_CONTEXT, AK_KO_CONTEXT, AK_KO_TERMS, AK_MISSING_CHECK, AK_TERMS, PGR_EN_TERMS, WWOC_CONTEXT, WWOC_TERMS, _SEONJEONG_ANCHOR
 from .data.misc import EN_ASR_SPLIT_FIXES, EN_LINE_TERM_FIXES, HSR_CONTEXT, HSR_TERMS, MERGE_FIXES, POKEMON_CONTEXT, POKEMON_TERMS, REACT_CONTEXT, REACT_TERMS, ZELDA_TERMS, ZH_ONLY_TERMS, _ASR_COMMON_WORDS, _ASR_SPLIT_SUFFIXES
 from .data.modes import AK_INFO, AK_KO_INFO, ENDO_INFO, KO_INFO, PGR_INFO, PGR_OVERRIDES_SRC, WWOC_INFO, ZHO_INFO, _MODE_CTX_TABLE, _MODE_NAMES, _MODE_TERM_TABLE
-from .data.music import _FRACT_ANCHOR, _GINSHI_ANCHOR, _MUSIC_AK, _MUSIC_ENDO, _MUSIC_WW, _MUSIC_WW_BGM, _WW_ANCHOR
+from .data.music import _FRACT_ANCHOR, _GINSHI_ANCHOR, _MUSIC_AK, _MUSIC_ENDO, _MUSIC_LIMBUS, _MUSIC_WW, _MUSIC_WW_BGM, _WW_ANCHOR
 from .data.entities_base import Entity
 from .data.entities_part1 import ENTITIES_PART1
 from .data.entities_part2 import ENTITIES_PART2
@@ -20,7 +21,7 @@ from .data.entities import ENTITIES
 from .text import TEXT_ENCODINGS, _CJK, _KANA, _KO_HANGUL, _MARKER_ONLY, _ZH_PUNCT, _decode_any, _is_chinese_dominant, _is_chinese_line, _iter_cue_text_blocks, _script_counts, _split_cue_text
 from .replace import _compile_map, _ctx_replace, _replace_report, apply_map
 from .asr import _KNOWN_EN_CACHE, _KNOWN_EN_MIN_LEN, _SPLIT_FIX_CACHE, _known_en_tokens, _ref_for_match, _rejoin_known, _scan_split_line, _split_fix_pairs
-from .state import CTX_TABLES, TABLES, _AK_CONTEXT_COMPILED, _AK_KO_CONTEXT_COMPILED, _CONTEXT_COMPILED, _ENDFIELD_BI_CONTEXT_COMPILED, _ENDFIELD_KO_CONTEXT_COMPILED, _EXCLUDE_COMPILED, _HSR_CONTEXT_COMPILED, _JA_CONTEXT_COMPILED, _JA_ENDFIELD_CONTEXT_COMPILED, _KO_ASR_CONTEXT_COMPILED, _KO_CONTEXT_COMPILED, _POKEMON_CONTEXT_COMPILED, _REACT_CONTEXT_COMPILED, _rebuild_context_caches, _register_entities
+from .state import CTX_TABLES, TABLES, _AK_CONTEXT_COMPILED, _AK_KO_CONTEXT_COMPILED, _CONTEXT_COMPILED, _ENDFIELD_BI_CONTEXT_COMPILED, _ENDFIELD_KO_CONTEXT_COMPILED, _EXCLUDE_COMPILED, _FFRS_CONTEXT_COMPILED, _HSR_CONTEXT_COMPILED, _JA_CONTEXT_COMPILED, _JA_ENDFIELD_CONTEXT_COMPILED, _KO_ASR_CONTEXT_COMPILED, _KO_CONTEXT_COMPILED, _LIMBUS_CONTEXT_COMPILED, _POKEMON_CONTEXT_COMPILED, _REACT_CONTEXT_COMPILED, _WWOC_CONTEXT_COMPILED, _rebuild_context_caches, _register_entities
 from .engine import _load_override_tsv, process
 from .modes import detect_source_mode, endfield_auto_markers
 from .srt import _cmd_extract, _cmd_merge, _cmd_pair, _cmd_split, _cue_first_text_map, _detect_layout, _iter_cue_lines, _iter_ref_lines, _load_calib_records
@@ -38,6 +39,7 @@ __all__ = [
     'AK_KO_CONTEXT',
     'AK_KO_INFO',
     'AK_KO_TERMS',
+    'AK_MISSING_CHECK',
     'AK_TERMS',
     'BILINGUAL_TERMS',
     'CONTEXT_MAP',
@@ -93,6 +95,7 @@ __all__ = [
     'USAGE_DOC',
     'WORD_MAP',
     'WWOC_INFO',
+    'WWOC_CONTEXT',
     'WWOC_TERMS',
     'ZELDA_TERMS',
     'ZHO_INFO',
@@ -126,10 +129,12 @@ __all__ = [
     '_MODE_TERM_TABLE',
     '_MUSIC_AK',
     '_MUSIC_ENDO',
+    '_MUSIC_LIMBUS',
     '_MUSIC_WW',
     '_MUSIC_WW_BGM',
     '_POKEMON_CONTEXT_COMPILED',
     '_REACT_CONTEXT_COMPILED',
+    '_WWOC_CONTEXT_COMPILED',
     '_REWRAP_ABBREV',
     '_REWRAP_ABSORB',
     '_REWRAP_CLOSERS',
@@ -254,6 +259,12 @@ __all__ = [
     '_sync_write_baseline',
     '_sync_write_conflicts',
     '_sync_write_jsonl',
+    'LIMBUS_CONTEXT',
+    'LIMBUS_TERMS',
+    '_LIMBUS_CONTEXT_COMPILED',
+    'FFRS_CONTEXT',
+    'FFRS_TERMS',
+    '_FFRS_CONTEXT_COMPILED',
     'apply_map',
     'char_width',
     'detect_source_mode',

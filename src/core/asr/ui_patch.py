@@ -33,7 +33,9 @@ def vc_transcribe_ui_patch():
     try:
         from videocaptioner.ui.view import transcription_interface as ti
         from videocaptioner.ui.components import transcription_setting_card as tsc
-        from engine_entities import TranscribeModelEnum
+        # 必须用引擎枚举类：cfg 的 OptionsValidator 按类校验，项目自建的同名
+        # 枚举 set() 会被静默拒绝（2026-10-28 实测，见 engine_config 同款注释）。
+        from videocaptioner.core.entities import TranscribeModelEnum
         from videocaptioner.ui.common.config import cfg as _cfg
         from vt_fluent import (Action, BodyLabel, FluentIcon, InfoBar,
                                InfoBarPosition, PushButton, RoundMenu)

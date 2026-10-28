@@ -42,7 +42,7 @@ import speaker_voiceprint as SV  # noqa: E402
 
 #: 语料目录（sherpa-onnx speaker 测试集：fangjun / leijun / liudehua 三位说话人，
 #: 每人 2~3 段录入样本（*-sr-*）与 2~3 段测试样本（*-test-sr-*），16k 单声道）
-CORPUS = r"D:\Agent Work\_bld\sv_ref\wavs"
+CORPUS = r"C:\bld\sv_ref\wavs"
 SR = SV.SAMPLE_RATE
 
 

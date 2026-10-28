@@ -18,7 +18,7 @@ import sys
 import tempfile
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-PY = r"D:\Agent Work\_bld\qt_build\Scripts\python.exe"
+PY = r"C:\bld\qt_build\Scripts\python.exe"
 
 SELF = os.path.join(ROOT, "src", "vt_engine_ui", "home_interface.py")
 HOST = os.path.join(ROOT, "src", "video_toolbox_qt.py")

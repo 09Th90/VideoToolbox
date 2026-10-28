@@ -37,6 +37,8 @@ ENDFIELD_TERMS = {
     # 终末地官方英文名 Typhoeus（中文行常残留英文/ASR听成 Typhon）；
     # 注意：明日方舟本体同角色叫"提丰"(Typhon)，在 AK_TERMS 中；终末地"再旅者"形态官方名=提弗洛斯。
     "Typhon": "提弗洛斯", "Typhoeus": "提弗洛斯",
+    # 2026-10-26：《How Endfield SOLVES Powercreep...》ASR 多形 → 提弗洛斯
+    "德福伊乌斯": "提弗洛斯", "德福斯": "提弗洛斯", "托亚斯": "提弗洛斯",
     "普切纳": "噗切娜",
     "普奇娜": "噗切娜",
     "普希娜": "噗切娜",
@@ -58,7 +60,7 @@ ENDFIELD_TERMS = {
     #      与 GLOSSARY.md（管理人=管理员/干员/侦察/卡池、萨卡兹/萨科塔/罗德岛 等约定）
     "五菱": "武陵",
     "武林": "武陵",
-    "乌岭": "武陵", "乌灵": "武陵",        # Wuling（武陵城/雪凇幽梦区域）；MS 英译中把 Wuling 误作 乌岭/乌灵
+    "乌岭": "武陵", "乌灵": "武陵", "乌林": "武陵",  # Wuling（武陵城/雪凇幽梦区域）；MS 英译中把 Wuling 误作 乌岭/乌灵/乌林
     "索幸": "所幸",
     # 终末地评论/反应片源常见 ASR 错词 -> 公认游戏名（2026-08-30 评论片沉淀）
     "安菲尔德": "终末地",              # Anfield
@@ -200,7 +202,9 @@ ENDFIELD_TERMS = {
     "列瓦汀": "莱万汀", "莱瓦廷": "莱万汀",
     "伊冯娜": "伊冯",
     "最后一个右手": "别礼",
-    "吉尔伯特": "洁尔佩塔",
+    "吉尔伯特": "洁尔佩塔", "吉尔伯塔": "洁尔佩塔", "吉尔贝塔": "洁尔佩塔",
+    "扎希": "赛希", "泽希": "赛希",
+    "斯拉瓦塔内": "莱万汀",
     "阿德莉亚": "艾尔黛拉",
     "奈法尔": "聂菲斯", "内弗雷": "聂菲斯", "奈弗里": "聂菲斯", "内弗里": "聂菲斯",
     "涅斐雷斯": "聂菲斯", "涅法雷斯": "聂菲斯",  # Nefarith（第二章反派之一）；MS 英译中把 Neferes/Neferuist 误作 涅斐雷斯
@@ -380,6 +384,13 @@ ENDFIELD_MISSING_CHECK = [
     #    祀一段战技 briefly paralyzes 官方为「定身」（令目标无法行动）；麻痹/定身均算已译，仅抓整词漏译。
     (r"\bparalyz(?:e|es|ed|ing)\b", ("定身", "麻痹"),
      "定身(paralyze，祀一段战技短暂定身敌人；与 immobilize 同义)"),
+    # --- 2026-10-28 endo_glossary.tsv 并入（只体检不改写）---
+    # 通用词/低置信条目做裸键会误伤，只按英文参考行体检。
+    (r"\bBand\s+Accord\b", ("环带公约",), "Band Accord 官方中文=环带公约（endo_glossary.tsv:14）"),
+    (r"\bGloomwald\b", ("幽林之怒",), "Gloomwald 官方中文=幽林之怒（endo_glossary.tsv:39）；低置信"),
+    (r"\bBellhop\b", ("贝尔博斯",), "Bellhop 官方中文=贝尔博斯（endo_glossary.tsv:57）"),
+    (r"\bBehemoth\b", ("贝莫斯",), "Behemoth 官方中文=贝莫斯（endo_glossary.tsv:58）"),
+    (r"\bMonument\b", ("影拓丰碑",), "Monument 官方中文=影拓丰碑（endo_glossary.tsv:81）"),
 ]
 
 
@@ -543,6 +554,10 @@ ENDFIELD_BI_TERMS = {
     "氟石": "萤石",                      # Fluorite
     "佩里利卡": "佩丽卡",                # Perlica ASR 拖音错形
     "斑疹伤寒": "提弗洛斯",              # Typhoeus（ASR Typhus；1.5 雪林登场，终末地官网定名提弗洛斯）
+    # 2026-10-26：《How Endfield SOLVES Powercreep...》ASR 多形（Defous/Defoius/Toyas/Tofo/TFOS）
+    "Defous": "提弗洛斯", "Defoius": "提弗洛斯", "Toyas": "提弗洛斯",
+    "Tofo": "提弗洛斯", "TFOS": "提弗洛斯",
+    "德福伊乌斯": "提弗洛斯", "德福斯": "提弗洛斯", "托亚斯": "提弗洛斯",
     "唐唐": "汤汤",                      # Tang Tang（清波寨大当家）
     "恩德曼": "管理员",                  # Endministrator / Admin 的 ASR
     "米纳尔": "瑕光", "梅拉尔": "瑕光",  # Blemishine skin 的 ASR 漂移
@@ -554,6 +569,8 @@ ENDFIELD_BI_TERMS = {
     "身体守卫": "物理近卫", "电护罩": "电气近卫", "电动护罩": "电气近卫",  # guard=近卫（物理/电气）
     "六星祭坛": "六星异格", "银灰祭坛": "银灰异格", "SPalter": "SP异格",  # alter 被误听成 altar
     "五星级": "五星", "四星级": "四星", "四颗星": "四星", "五颗星": "五星",  # 干员稀有度
+    "四星单位": "四星干员", "五星单位": "五星干员", "六星单位": "六星干员",  # unit=干员
+    "四星级单位": "四星干员", "五星级单位": "五星干员", "六星级单位": "六星干员",  # 长键先于裸「四星级」
     "成虫": "成年",                      # adult 被机翻成昆虫学「成虫」
     "Gotacha": "抽卡", "OpenW世界": "开放世界",
     # —— 2026-10-09 四次沉淀：《What Is Arknights: Endfield Cooking?》第二轮全片逐句中英通读
@@ -614,8 +631,10 @@ ENDFIELD_BI_TERMS = {
     "Argent的流媒体": "明河",
     "阿伦": "诀", "阿尔肯": "诀",
     "西娅": "祀", "西习": "祀", "习习": "祀", "Sis": "祀",
-    "吉尔伯特": "洁尔佩塔",
-    "列瓦汀": "莱万汀", "莱瓦廷": "莱万汀",
+    "吉尔伯特": "洁尔佩塔", "吉尔伯塔": "洁尔佩塔", "吉尔贝塔": "洁尔佩塔",
+    "扎希": "赛希", "泽希": "赛希", "Xaihi": "赛希", "Zahi": "赛希",
+    "列瓦汀": "莱万汀", "莱瓦廷": "莱万汀", "斯拉瓦塔内": "莱万汀", "莱万汀塔内": "莱万汀",
+    "熔岩塔内": "莱万汀",
     "列瓦泰因": "莱万汀", "拉瓦泰因": "莱万汀", "左浮酸": "莱万汀",
     "伊冯娜": "伊冯", "伊本": "伊冯", "伊邦": "伊冯",
     "Ivonne": "伊冯", "Ivon": "伊冯", "Yvonne": "伊冯",
@@ -639,6 +658,7 @@ ENDFIELD_BI_TERMS = {
     # 2026-10-24 撤除裸键「罢工→猛击」：#28「strike at the」是 BOSS 语音残句，被误改成「猛击」；
     # 「罢工」是通用词，改由 crush 英文锚定（见 ENDFIELD_BI_CONTEXT），语音残句逐 cue 处理。
     "球队": "队伍", "老板": "Boss",                  # team / boss
+    "堆叠数": "层数", "堆栈数": "层数",              # 长键先于裸「堆叠/堆栈」，防「层数数」
     "堆叠": "层数", "堆栈": "层数",                  # stacks（名词）
     "损伤": "伤害",                                  # damage（与"损害"并列）
     "电音": "电磁附着", "电光": "电磁附着", "电能": "电磁附着",
@@ -666,6 +686,7 @@ ENDFIELD_BI_TERMS = {
     #    内容与 .en 版完全相同，官方译名口径一致；下列为该引擎特有的零歧义碎形/硬翻长键。
     # 角色 / 专名（英文碎形 + 中文硬翻）
     "Le Bat ane": "莱万汀", "Le bat ine": "莱万汀",
+    "Lavane": "莱万汀", "Lavatane": "莱万汀", "Lava Tane": "莱万汀", "Slavatane": "莱万汀",
     "Neph ary th": "聂菲斯", "尼弗斯": "聂菲斯",
     "Yv onne": "伊冯",
     "Last Bite": "别礼",
@@ -1026,6 +1047,68 @@ ENDFIELD_BI_TERMS = {
     "垄断了名山的供水": "独占明山秀水", "垄断了名山供水": "独占明山秀水",
     "垄断着名山的供水": "独占着明山秀水", "名山的供水": "明山秀水",
     "名山供水": "明山秀水",
+    # --- 2026-10-26 二校沉淀：《How Endfield SOLVES Powercreep With Every New Character》
+    #   （MooseOnCaffeine，英语原声 + 谷歌翻译，388 cue，--endobi）。
+    #   官方依据：endfield.wiki.gg cnname（Si/祀、Arcane/诀、Laevatain/莱万汀、Yvonne/伊冯、
+    #   Last Rite/别礼、Rossi/洛茜、Xaihi/赛希、Fluorite/萤石、Gilberta/洁尔佩塔、
+    #   Typhoeus/提弗洛斯）；B站 zmd 1.6 祀攻略（河山共影/成竹在胸/谁都不许扫兴/乘兴起笔、笔意/墨魂）。
+    #   ⚠ 只收 ASR 变体/音译错形；「最后/唐/风险/卡池」等通用词一律走 ENDFIELD_BI_CONTEXT 英文锚定。
+    # --- 2026-10-28 endo_glossary.tsv 并入（73 行→本表 48 条；行号=原表行号，原表已归档）---
+    # 依据：终末地官方中文（EN/ASR 误拼 → 官方中文）。只收专名/单义音译名；
+    #   通用词与低置信条目（Band Accord/Gloomwald/Bellhop/Behemoth/Monument）
+    #   走 ENDFIELD_MISSING_CHECK 只体检不改写。Mon3tr 为恒等映射，未收。
+    # 世界/组织
+    "Arknights": "明日方舟",                              # endo:10
+    "Ark Knights": "明日方舟",                            # endo:5
+    "Arknight Endfield": "明日方舟：终末地",              # endo:4
+    "Endfield": "终末地",                                 # endo:6
+    "Endfield Industries": "终末地工业",                  # endo:9
+    "Rhodes Island": "罗德岛",                            # endo:11
+    "Landship": "陆行舰",                                 # endo:12
+    "Civilization Band": "文明环带",                      # endo:13
+    "Sarkaz": "萨卡兹",                                   # endo:15
+    "Endministrator": "管理员",                           # endo:16
+    "Witching Hour": "巫术时刻",                          # endo:17
+    # 地名
+    "Talos": "塔罗斯",                                    # endo:19
+    "Talos-II": "塔卫二",                                 # endo:20
+    "Talos2": "塔卫二",                                   # endo:22
+    "Sami": "萨米",                                       # endo:23
+    "Samiverg": "萨米维格",                               # endo:24
+    "Samiverger": "萨米维格",                             # endo:25
+    "Samiwerg": "萨米维格",                               # endo:26
+    "Chalk Zone": "白垩洲",                               # endo:32
+    "Wuling": "武陵",                                     # endo:33
+    "Wuwang": "武陵",                                     # endo:34
+    "Cedar Forest": "雪松林",                             # endo:35
+    "Suiming": "遂明",                                    # endo:36
+    "Suiming City": "遂明城",                             # endo:37
+    "Yinglung Pass": "应龙关",                            # endo:38
+    # 名词/机制
+    "Feranmut": "巨兽",                                   # endo:42
+    "Ferramute": "巨兽",                                  # endo:43
+    "Originium Slug": "源石虫",                           # endo:44
+    "Originium Slugs": "源石虫",                          # endo:45
+    "Beast Lord": "兽主",                                 # endo:46
+    "Oroberyl": "嵌晶玉",                                 # endo:75
+    "Cosmic Gate": "星门",                                # endo:77
+    "Integrated Strategies": "集成战略",                  # endo:78
+    "Deep Blue Test": "浸蓝测试作战",                     # endo:80
+    # 角色
+    "Perlica": "佩丽卡",                                  # endo:51
+    "Paralica": "佩丽卡",                                 # endo:52
+    "Amaro": "安玛",                                      # endo:53
+    "Amma": "安玛",                                       # endo:54
+    "Anma": "安玛",                                       # endo:55
+    "Andre": "安德烈",                                    # endo:56
+    "Agelus": "阿格罗斯",                                 # endo:59
+    "Zowan": "庄方宜",                                    # endo:63
+    "Warfarin": "华法琳",                                 # endo:64
+    "Wisadel": "维什戴尔",                                # endo:65
+    "Wizard": "维什戴尔",                                 # endo:66
+    "Surtr": "史尔特尔",                                  # endo:67
+    "Ceobe": "刻俄柏",                                    # endo:68
+    "Alleikhreos": "阿莱克琉斯",                          # endo:73
 }
 
 
@@ -1097,6 +1180,7 @@ ENDFIELD_BI_CONTEXT = [
     (r"lady (?:su|sue|s)\b|\bsu'?s\b|\bsue\b|\bsu\b", "SU", "祀"),
     (r"lady (?:su|sue|s)\b|\bsu'?s\b|\bsue\b|\bsu\b", "Sue", "祀"),
     (r"lady (?:su|sue|s)\b|\bsu'?s\b|\bsue\b|\bsu\b", "Su", "祀"),
+    (r"lady (?:su|sue|s)\b|\bsu'?s\b|\bsue\b|\bsu\b", "苏", "祀"),
     # —— 诀 (Arcane，六星自然术师)：被当元素词直译成「奥术」 ——
     (r"\barcan(?:e|a)\b", "奥术", "诀"),
     # —— 昼雪 (Snowshine)：意译形极散（雪影/雪花/雪公主/雪光），全部锚定 ——
@@ -1107,7 +1191,7 @@ ENDFIELD_BI_CONTEXT = [
     (r"\bsnowshine\b", "雪沙", "昼雪"),
     (r"\bsnowshine\b", "Snowshine", "昼雪"),
     # —— 莱万汀 (Laevatain)：ASR 只留下 "lava"，直译成「熔岩」 ——
-    (r"\blava\b|lava\s?t(?:ain|ne)", "熔岩", "莱万汀"),
+    (r"\blava\b|lava\s?t(?:ain|ne)|lavane|lavatane|lava\s?tane", "熔岩", "莱万汀"),
     # —— 汤汤 (Tangtang)：ASR 把 Tang 听成 tank，于是「坦克唐/唐坦克/坦克」 ——
     (r"tank\s?tang|tang\s?tank|\btank\b", "坦克唐", "汤汤"),
     (r"tank\s?tang|tang\s?tank|\btank\b", "唐坦克", "汤汤"),
@@ -1380,6 +1464,53 @@ ENDFIELD_BI_CONTEXT = [
     (r"\bS\b", "S就", "祀就"),
     (r"\bS\b", "S 需要", "祀需要"),
     (r"\bS\b", "S需要", "祀需要"),
+    # --- 2026-10-26 二校沉淀：终末地 1.6「未来版本前瞻」reaction（115 cue，--endobi）---
+    #   官方依据：官方中配《塔卫二：一号简报》、1.6 特别节目未来前瞻、
+    #   1.7 前瞻摘要（B站 BV1fTpP6YEjn / BV1mPpA62E87）；画面 3:20 GOLDEN BRANCH、
+    #   9:40 Games of Wonder、9:55 Shattered Protocol。锚点一律匹配本片真实英文 ASR；
+    #   通用中文词只走英文锚定，不进裸键。
+    (r"golden\s+branch", "金枝", "金绒树"),          # Golden Branch=金绒树；勿碰 golden bough→金枝（边狱）
+    (r"array\s+technology", "数组科技", "阵列科技"),
+    (r"array\s+technology", "阵列技术", "阵列科技"),
+    (r"recording\s+equipment", "录音设备", "明晦炉"),
+    (r"central\s+island", "中央岛", "接下来的故事中"),
+    (r"\bcustoms\b", "海关", "风土人情"),
+    (r"\bplayers\b", "球员", "玩家"),
+    (r"games?\s+of\s+wonder|recreation\s+of\s+cards", "卡牌游戏", "妙趣游乐"),
+    (r"mutant\s+materials?", "突变材料", "变异材料"),
+    (r"sustained\s+array", "持续阵法", "持阵法"),
+    (r"xirang\s+gas", "息壤之气", "息壤气"),
+    # --- 2026-10-26 二校沉淀：《How Endfield SOLVES Powercreep With Every New Character》
+    #   英语原声 + 谷翻，388 cue，--endobi。锚点匹配文件里实际 ASR 英文；
+    #   通用中文错形（最后/唐/固化/放大器/风险/出柜）只在此锚定，禁入裸键。
+    (r"(?-i:\bSil\b)", "Sil", "祀"),
+    (r"(?-i:\bSil\b)", "出柜", "实装"),
+    (r"(?-i:\bLast\s+(?:Rite|Right|Ride|Strikes?|Strit|Two)\b)", "拉斯特·赖特", "别礼"),
+    (r"(?-i:\bLast\s+(?:Rite|Right|Ride|Strikes?|Strit|Two)\b)", "拉斯特", "别礼"),
+    (r"(?-i:\bLast\s+(?:Rite|Right|Ride|Strikes?|Strit|Two)\b)", "最后一击", "别礼"),
+    (r"(?-i:\bLast\s+(?:Rite|Right|Ride|Strikes?|Strit|Two)\b)", "最后两个", "别礼"),
+    (r"(?-i:\bLast\s+(?:Rite|Right|Ride|Strikes?|Strit|Two)\b)", "最后斯特里特", "别礼"),
+    (r"(?-i:\bLast\b)", "拉斯特", "别礼"),
+    (r"\b(?:force[d]?|four|4)\s*stacks?\b", "力叠加", "四层"),
+    (r"\b(?:force[d]?|four|4)\s*stacks?\b", "力堆叠", "四层"),
+    (r"\b(?:force[d]?|four|4)\s*stacks?\b", "力层数", "四层"),
+    (r"\b(?:force[d]?|four|4)\s*stacks?\b", "某种力", "四层"),
+    (r"\bsolidif(?:y|ies|ied|ying|ication)\b", "凝固化", "凝固"),
+    (r"\bsolidif(?:y|ies|ied|ying|ication)\b", "固化", "凝固"),
+    (r"melting flame", "融化的火焰", "熔火"),
+    (r"melting flame", "融化火焰", "熔火"),
+    (r"melting flame", "熔化的火焰", "熔火"),
+    (r"arts?\s?amp(?:lif\w*)?\b", "艺术放大器", "法术增幅"),
+    (r"arts?\s?amp(?:lif\w*)?\b", "艺术音箱", "法术增幅"),
+    (r"arts?\s?amp(?:lif\w*)?\b", "放大器", "法术增幅"),
+    (r"artful intent", "巧妙意图", "笔意"),
+    (r"(?-i:\bTang\b|\bTong\b)", "唐", "汤汤"),
+    (r"\brisk(?: points?)?\b", "风险点数", "危机合约等级"),
+    (r"\brisk(?: points?)?\b", "风险等级", "危机合约等级"),
+    (r"\brisk(?: points?)?\b", "风险是", "危机合约等级"),
+    (r"\brisk(?: points?)?\b", "风险超过", "超过危机合约等级"),
+    (r"\bFOD\b|\bfodder\b", "FOD敌人", "杂兵"),
+    (r"\bFOD\b|\bfodder\b", "FOD 敌人", "杂兵"),
 ]
 
 

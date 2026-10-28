@@ -80,6 +80,10 @@ def main_argv():
             mode = "pgren"; i += 1
         elif a == "--react":
             mode = "react"; i += 1
+        elif a == "--limbus":
+            mode = "limbus"; i += 1
+        elif a == "--ffrs":
+            mode = "ffrs"; i += 1
         elif a == "--zel":
             mode = "zel"; i += 1
         elif a == "--hsr":
@@ -92,7 +96,11 @@ def main_argv():
             learned_kb = args[i + 1]; i += 2
         elif a == "--mode" and i + 1 < len(args):
             m = args[i + 1].lower()
-            if m in ("pkm", "pokemon", "pokémon", "pocket_monsters"):
+            if m in ("limbus", "limbuscompany", "边狱巴士"):
+                mode = "limbus"
+            elif m in ("ffrs", "ffresonance", "finalfantasyresonance", "共鸣"):
+                mode = "ffrs"
+            elif m in ("pkm", "pokemon", "pokémon", "pocket_monsters"):
                 mode = "pkm"
             elif m in ("hsr", "starrail", "star_rail", "honkai_starrail", "honkaistarrail"):
                 mode = "hsr"
@@ -136,6 +144,8 @@ def main_argv():
              "react": "音乐/演唱点评 (REACT_TERMS)",
              "zel": "塞尔达传说 (ZELDA_TERMS)",
              "hsr": "崩坏：星穹铁道 (HSR_TERMS + HSR_CONTEXT)",
+             "limbus": "边狱巴士 (LIMBUS_TERMS + LIMBUS_CONTEXT)",
+             "ffrs": "最终幻想：共鸣 (FFRS_TERMS + FFRS_CONTEXT)",
              "pkm": "宝可梦城镇主题 (POKEMON_TERMS + POKEMON_CONTEXT)"}
     extra = (" + 英文行修正(--fix-en)" if fix_en else "")
     print("模式:", names[mode] + extra)
@@ -240,8 +250,9 @@ def _dispatch_subcommand(sub, args):
         return _cmd_scan_split(pos, opts.get("min", 1))
     elif sub == "missing":
         if len(pos) < 2:
-            print("用法: missing <英文参考.srt> <中文.srt> [--mode endo] [--file 映射.tsv] [--window 1] [--quiet]")
+            print("用法: missing <英文参考.srt> <中文.srt> [--mode endo|wuwa] [--file 映射.tsv] [--window 1] [--quiet]")
             print("      漏译体检：英文 cue 有术语而中文 cue 无对应词 → 报疑似漏译（只读，命中退出码 1）")
+            print("      --mode wuwa：鸣潮专名表（守岸人/鸣式/残象/残星会/岁主/阿布/新联邦）")
             print("      --window 1：邻接 cue 已译即不算漏译（战斗词跨 cue 断行时用，避免误报）")
             return
         return _cmd_missing(pos[0], pos[1], opts.get("mode"), opts.get("file"),

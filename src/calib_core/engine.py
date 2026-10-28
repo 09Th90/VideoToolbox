@@ -12,15 +12,16 @@ import sys
 import unicodedata
 from .asr import _ref_for_match
 from .data.ark import AK_KO_TERMS, AK_TERMS, PGR_EN_TERMS, WWOC_TERMS
-from .data.bilingual import BILINGUAL_TERMS, WORD_MAP
+from .data.bilingual import BILINGUAL_TERMS, FFRS_TERMS, WORD_MAP
 from .data.endfield import ENDFIELD_BI_TERMS, ENDFIELD_KO_TERMS, ENDFIELD_TERMS
 from .data.ja import JA_ENDFIELD_TERMS, JA_TERMS, RETIRED_JA_KEYS
 from .data.ko import KO_ASR_TERMS, KO_TERMS, RETIRED_KO_KEYS
+from .data.limbus import LIMBUS_TERMS
 from .data.misc import EN_LINE_TERM_FIXES, HSR_TERMS, POKEMON_TERMS, REACT_TERMS, ZELDA_TERMS, ZH_ONLY_TERMS
 from .learn import _learned_terms_for_mode
 from .modes import endfield_auto_markers
 from .replace import _compile_map, _ctx_replace, _replace_report
-from .state import _AK_CONTEXT_COMPILED, _AK_KO_CONTEXT_COMPILED, _CONTEXT_COMPILED, _ENDFIELD_BI_CONTEXT_COMPILED, _ENDFIELD_KO_CONTEXT_COMPILED, _EXCLUDE_COMPILED, _HSR_CONTEXT_COMPILED, _JA_CONTEXT_COMPILED, _JA_ENDFIELD_CONTEXT_COMPILED, _KO_ASR_CONTEXT_COMPILED, _KO_CONTEXT_COMPILED, _POKEMON_CONTEXT_COMPILED, _REACT_CONTEXT_COMPILED
+from .state import _AK_CONTEXT_COMPILED, _AK_KO_CONTEXT_COMPILED, _CONTEXT_COMPILED, _ENDFIELD_BI_CONTEXT_COMPILED, _ENDFIELD_KO_CONTEXT_COMPILED, _EXCLUDE_COMPILED, _FFRS_CONTEXT_COMPILED, _HSR_CONTEXT_COMPILED, _JA_CONTEXT_COMPILED, _JA_ENDFIELD_CONTEXT_COMPILED, _KO_ASR_CONTEXT_COMPILED, _KO_CONTEXT_COMPILED, _LIMBUS_CONTEXT_COMPILED, _POKEMON_CONTEXT_COMPILED, _REACT_CONTEXT_COMPILED, _WWOC_CONTEXT_COMPILED
 from .text import _KO_HANGUL, _decode_any, _split_cue_text
 
 
@@ -85,6 +86,10 @@ def process(path, out_path=None, report_path=None, mode="bi",
         terms = HSR_TERMS
     elif mode == "pkm":         # 宝可梦片源（2026-10-21 新增）：POKEMON_TERMS + POKEMON_CONTEXT，独立于其它片源表
         terms = POKEMON_TERMS
+    elif mode == "limbus":      # 边狱巴士片源（2026-10-26 新增）：LIMBUS_TERMS + LIMBUS_CONTEXT，独立于其它片源表
+        terms = LIMBUS_TERMS
+    elif mode == "ffrs":        # 最终幻想：共鸣（2026-10-28 新增）：FFRS_TERMS + FFRS_CONTEXT
+        terms = FFRS_TERMS
     elif mode == "pgr":
         terms = {}
     else:
@@ -219,6 +224,22 @@ def process(path, out_path=None, report_path=None, mode="bi",
                         if new != old:
                             rows.append((num, old, new, ref))
                             out[zh_idx] = new
+                    elif mode == "limbus":    # 边狱巴士：LIMBUS_TERMS 统一首中文行 + LIMBUS_CONTEXT 英文参考行佐证
+                        new = _replace_report(old, term_pairs, term_chars, hits)
+                        for crx, wrong, right in _LIMBUS_CONTEXT_COMPILED:
+                            if wrong in new and crx.search(ref_m):
+                                new = _ctx_replace(new, wrong, right)
+                        if new != old:
+                            rows.append((num, old, new, ref))
+                            out[zh_idx] = new
+                    elif mode == "ffrs":      # 最终幻想：共鸣：FFRS_TERMS + FFRS_CONTEXT 英文参考行佐证
+                        new = _replace_report(old, term_pairs, term_chars, hits)
+                        for crx, wrong, right in _FFRS_CONTEXT_COMPILED:
+                            if wrong in new and crx.search(ref_m):
+                                new = _ctx_replace(new, wrong, right)
+                        if new != old:
+                            rows.append((num, old, new, ref))
+                            out[zh_idx] = new
                     elif mode == "ko":       # 韩语原声·鸣潮：KO_TERMS + KO_CONTEXT 校准**全部中文行**
                         # 2026-10-06 修复（梦州 4장4막 二次校准定位的根因）：谷翻反应片每 cue
                         #   常见「中文 2 行 + 谚文 2 行」结构。旧实现只改首文本行、锚点只取末行
@@ -262,7 +283,15 @@ def process(path, out_path=None, report_path=None, mode="bi",
                             if new != lold:
                                 rows.append((num, lold, new, ref))
                                 out[ti] = new
-                    elif mode in ("wwoc", "pgren", "zel"):  # 综合游戏/战双英文原声/塞尔达：统一首中文行术语（不动参考行）
+                    elif mode == "wwoc":      # 综合手游 OST 世界杯：术语表 + 参考行佐证的歧义错形
+                        new = _replace_report(old, term_pairs, term_chars, hits)
+                        for crx, wrong, right in _WWOC_CONTEXT_COMPILED:
+                            if wrong in new and crx.search(ref_m):
+                                new = _ctx_replace(new, wrong, right)
+                        if new != old:
+                            rows.append((num, old, new, ref))
+                            out[zh_idx] = new
+                    elif mode in ("pgren", "zel"):  # 战双英文原声/塞尔达：统一首中文行术语（不动参考行）
                         new = _replace_report(old, term_pairs, term_chars, hits)
                         if new != old:
                             rows.append((num, old, new, ref))

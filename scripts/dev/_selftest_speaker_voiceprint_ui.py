@@ -45,7 +45,7 @@ sys.path.insert(0, SRC)
 sys.path.insert(0, SITE)
 
 #: 演示素材（三人交替的合成 mp4）；不存在则只跑不依赖模型的断言
-MEDIA = r"D:\Agent Work\_bld\sv_ref\e2e\multi.mp4"
+MEDIA = r"C:\bld\sv_ref\e2e\multi.mp4"
 FAILS = []
 
 

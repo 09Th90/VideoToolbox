@@ -682,8 +682,11 @@ def _create_asr_instance(audio_path: str, config):
     """按 ``transcribe_model`` 构造（带分块包装的）ASR 实例。"""
     from engine_entities import TranscribeModelEnum
     model = config.transcribe_model
+    # 任务可能来自 videocaptioner 的 TaskFactory（另一套同名枚举），
+    # 跨类 == 恒为 False；这里统一按枚举值比较，兼容两套任务对象。
+    model_value = getattr(model, "value", model)
 
-    if model == TranscribeModelEnum.WHISPER_API:
+    if model_value == TranscribeModelEnum.WHISPER_API.value:
         kwargs = {
             "use_cache": True,
             "need_word_time_stamp": config.need_word_time_stamp,
@@ -696,7 +699,7 @@ def _create_asr_instance(audio_path: str, config):
         return ChunkedASR(asr_class=WhisperAPI, audio_path=audio_path,
                           asr_kwargs=kwargs)
 
-    if model == TranscribeModelEnum.FASTER_WHISPER:
+    if model_value == TranscribeModelEnum.FASTER_WHISPER.value:
         from engine_asr_local import FasterWhisperASR
         kwargs = {
             "use_cache": True,

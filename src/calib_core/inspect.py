@@ -11,6 +11,8 @@ import shutil
 import sys
 import unicodedata
 from .asr import _scan_split_line
+from .data.ark import AK_MISSING_CHECK
+from .data.bilingual import WUWA_MISSING_CHECK
 from .data.endfield import ENDFIELD_MISSING_CHECK
 from .format import is_line_too_long, line_width
 from .srt import _cue_first_text_map, _detect_layout, _iter_ref_lines, _load_calib_records
@@ -190,11 +192,16 @@ def _cmd_compare(src, out, tsv):
 
 
 def _load_missing_rules(mode=None, file=None):
-    """漏译体检规则：--mode endo 取内置 ENDFIELD_MISSING_CHECK；--file 追加 TSV
+    """漏译体检规则：--mode endo 取内置 ENDFIELD_MISSING_CHECK；--mode wuwa 取
+    鸣潮专名表 WUWA_MISSING_CHECK；--mode ak 取明日方舟 AK_MISSING_CHECK；--file 追加 TSV
     （每行：英文正则<TAB>中文必现词1|词2[<TAB>说明]，# 开头注释）。"""
     rules = []
     if mode in ("endo", "endobi", "endoko", "jpe"):
         rules.extend(ENDFIELD_MISSING_CHECK)
+    if mode in ("wuwa", "wuwa-bi", "ww"):
+        rules.extend(WUWA_MISSING_CHECK)
+    if mode == "ak":
+        rules.extend(AK_MISSING_CHECK)
     if file:
         raw = open(file, "rb").read()
         for ln in _decode_any(raw).splitlines():

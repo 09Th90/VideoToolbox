@@ -97,8 +97,13 @@ def apply_asr_to_engine(ai_cfg=None):
         if "videocaptioner.ui.common.config" in sys.modules:
             try:
                 from videocaptioner.ui.common.config import cfg as _cfg
-                from engine_entities import (FasterWhisperModelEnum,
-                                             TranscribeModelEnum)
+                # ⚠ 必须用**引擎自己的**枚举类：cfg 的 OptionsValidator 按类
+                # 校验，项目自建的 engine_entities.TranscribeModelEnum 虽同名
+                # 同值，但 set() 会被静默拒绝（2026-10-28 实测：settings.json
+                # 已写 Whisper API，内存仍是 B 接口，转录继续走 bcut 必失败）。
+                from videocaptioner.core.entities import (
+                    FasterWhisperModelEnum, TranscribeLanguageEnum,
+                    TranscribeModelEnum)
                 _cfg.set(_cfg.transcribe_model,
                          TranscribeModelEnum.FASTER_WHISPER if ac["mode"] == "local"
                          else TranscribeModelEnum.WHISPER_API)
@@ -119,11 +124,16 @@ def apply_asr_to_engine(ai_cfg=None):
                 # 识别语言内存同步（与 settings.json 写入同口径：仅显式语言）
                 _lang_label = str(ac.get("language_label") or "").strip()
                 if _lang_label and _lang_label != "自动检测":
-                    from engine_entities import TranscribeLanguageEnum
                     _cfg.set(_cfg.transcribe_language,
                              TranscribeLanguageEnum(_lang_label))
-            except Exception:
-                pass
+            except Exception as e:  # noqa: BLE001
+                # 内存同步失败会让「磁盘已切 ASR、界面/任务仍是 B」长期隐身，
+                # 必须留痕而不是静默。
+                try:
+                    from core.shared.log import _vc_log
+                    _vc_log(f"ASR 内存同步失败（界面/任务可能仍用旧模型）：{e}")
+                except Exception:
+                    pass
         detail = (f"转录模型 → {'FasterWhisper（本地独立模型）' if ac['mode'] == 'local' else 'Whisper [API]（自有 ASR 服务）'}"
                   + (f"；识别语言 → {ac.get('language_label')}"
                      if str(ac.get("language_label") or "").strip()

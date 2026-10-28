@@ -22,6 +22,10 @@ from typing import Dict, Iterable, List, Optional, Sequence, Tuple
 #: 作品 -> (模式, 标题/文件名关键词, 台词特征词)
 #: 顺序敏感：终末地必须排在明日方舟之前（标题里两者会同时出现）。
 WORK_RULES: Tuple[Tuple[str, str, Tuple[str, ...], Tuple[str, ...]], ...] = (
+    # 2026-10-26 新增：边狱巴士（Limbus Company）音乐 reaction
+    ("边狱巴士", "limbus",
+     ("limbus company", "limbus", "边狱巴士", "边狱公司"),
+     ("limbus", "边狱巴士", "边狱公司")),
     ("终末地", "endobi",
      ("endfield", "终末地", "arknights: endfield", "arknights： endfield"),
      ("endfield", "终末地", "终末地工业")),

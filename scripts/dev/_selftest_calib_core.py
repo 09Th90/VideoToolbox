@@ -4,7 +4,7 @@
 
 覆盖：
   1. 静态契约：表/上下文/ENTITIES/缓存与生产单文件逐项相等；
-  2. 17 个校准模式：out/report/rows/hits/stdout 逐字节一致；
+  2. 19 个校准模式：out/report/rows/hits/stdout 逐字节一致；
   3. 格式边界：CRLF/BOM/英文在上/单行韩语/无末尾空行；
   4. 28 个子命令：rc/stdout/stderr/产物一致；
   5. 导入无写盘、无参用法文档、缓存原地重建、性能记录。
@@ -188,10 +188,10 @@ def test_static(ref, pkg):
     check("缓存重建可还原", len(engine._CONTEXT_COMPILED) == before)
 
 
-# ---------------------------------------------------------------- 2. 17 模式
+# ---------------------------------------------------------------- 2. 19 模式
 
 MODES = ["bi", "ko", "ja", "jpe", "wwoc", "ak", "akko", "zho", "endo",
-         "endobi", "endoko", "pgr", "pgren", "react", "zel", "hsr", "pkm"]
+         "endobi", "endoko", "pgr", "pgren", "react", "zel", "hsr", "pkm", "limbus", "ffrs"]
 REFS = {"ja": "テストの文", "jpe": "テストの文", "ko": "테스트 문장",
         "akko": "테스트 문장", "endoko": "테스트 문장"}
 
@@ -235,7 +235,7 @@ def run_process(ref, pkg, src, mode, **kw):
 
 
 def test_modes(ref, pkg):
-    section("2. 17 模式")
+    section("2. 19 模式")
     with tempfile.TemporaryDirectory(prefix="calib_selftest_modes_") as d:
         for mode in MODES:
             src = os.path.join(d, mode + ".srt")
@@ -267,6 +267,71 @@ def test_modes(ref, pkg):
         ]) + "\r\n").encode("utf-8"))
         a, b, o1, o2, r1, r2, s1, s2 = run_process(ref, pkg, src, "bi", learned_kb=kbp)
         check("learned_kb 注入", o1 == o2 and r1 == r2 and a[0] == b[0] and a[1] == b[1])
+
+
+def test_wwoc_context(ref, pkg):
+    section("2b. WWOC_CONTEXT")
+    with tempfile.TemporaryDirectory(prefix="calib_selftest_wwoc_") as d:
+        src = os.path.join(d, "wwoc.srt")
+        body = "\r\n".join([
+            "1", "00:00:01,000 --> 00:00:03,000", "十字军", "크루세이더의 노래",
+            "", "2", "00:00:03,000 --> 00:00:05,000", "涟漪", "잔물결이란 노래",
+            "", "3", "00:00:05,000 --> 00:00:07,000", "反向", "리버스 노래",
+            "", "4", "00:00:07,000 --> 00:00:09,000", "《Alice Fiction》", "앨리스 픽션 노래",
+            "",
+        ])
+        open(src, "wb").write(body.encode("utf-8"))
+        a, b, o1, o2, r1, r2, s1, s2 = run_process(ref, pkg, src, "wwoc")
+        txt = o2.decode("utf-8")
+        check("wwoc ctx 输出一致", o1 == o2 and a[0] == b[0] and a[1] == b[1])
+        check("wwoc 十字军锚定", "克鲁赛德战记" in txt)
+        check("wwoc 涟漪锚定", "轻涟" in txt)
+        check("wwoc 反向锚定", "重返未来：1999" in txt)
+        check("wwoc 官方英文名", "《漂眇群像》" in txt)
+        check("wwoc 参考行不变",
+              "크루세이더의 노래" in txt and "잔물결이란 노래" in txt
+              and "리버스 노래" in txt and "앨리스 픽션 노래" in txt)
+
+
+def test_ko_lotte_terms(ref, pkg):
+    section("2c. KO 乐天影院联动术语")
+    cases = [
+        ("这就是明祖和乐天影业的周边", "명조와 롯데 시네마의 굿즈", "这就是鸣潮和乐天影院的周边"),
+        ("有一群狐狸。这是", "여우의 별자리가 있습니다", "有心月狐。这是"),
+        ("世明先生，你做了很多", "많이 하셨네, 세명 씨", "锁暝，你做了很多"),
+        ("这是钥匙帽", "키캡", "这是键帽"),
+        ("这是石板", "슬레이트", "这是场记板"),
+        ("接下来是标清版本", "SD 버전", "接下来是SD版"),
+        ("这是Cambaggage套装", "캠베지 세트", "这是画布套装"),
+        ("这是一套金属徽章", "금속 핀배찌 세트", "这是金属徽章套装"),
+        ("特殊待遇", "특전", "特典"),
+        ("20个自助机", "매점", "20个影院卖场"),
+        ("三个人同行", "세 명이 동행", "三个人同行"),
+        ("这是心的剧情", "여우의 별자리 이야기", "这是心的剧情"),
+        ("这是心的周边", "여우의 별자리 굿즈", "这是心月狐的周边"),
+        ("杜加姆身后还有一顶帽子", "두감님 뒤에 모자도 있습니다", "锁暝身后还有一顶帽子"),
+        ("Cinema Now 世界塔的预订", "시네마 이제 월드 타워에 예매를", "乐天影院 世界塔的预订"),
+        ("这就是盒子。哦，是个框架", "박스입니다. 오, 액자인데 불", "这就是盒子。哦，是个灯箱"),
+        ("这是画布套装。自由与自由", "캠베지 세트입니다. LD와 LD", "这是画布套装。LD版"),
+        ("是杯子。就这样。其心和", "컵임. 됐다. 그 여의 별자리와", "是杯子。就这样。心月狐和"),
+        ("接下来是锁暝。哦，宝贝", "다음에는 쇠명. 오, 인형", "接下来是锁暝。哦，毛绒"),
+        ("三人应要求。示意图。", "요망에 세 명. 도해. 각각 다른", "锁暝。示意图。"),
+    ]
+    with tempfile.TemporaryDirectory(prefix="calib_selftest_ko_lotte_") as d:
+        src = os.path.join(d, "ko_lotte.srt")
+        lines = []
+        for i, (zh, ko, _) in enumerate(cases, 1):
+            lines += [str(i), "00:00:01,000 --> 00:00:03,000", zh, ko, ""]
+        open(src, "wb").write(("\r\n".join(lines) + "\r\n").encode("utf-8"))
+        a, b, o1, o2, r1, r2, s1, s2 = run_process(ref, pkg, src, "ko")
+        check("ko 乐天术语输出一致",
+              o1 == o2 and r1 == r2 and a[0] == b[0] and a[1] == b[1])
+        out = o2.decode("utf-8").split("\r\n")
+        for i, (_, _, expected) in enumerate(cases):
+            actual = out[5 * i + 2]
+            check(f"ko 乐天术语 #{i + 1}", actual == expected, f"{actual!r} != {expected!r}")
+        check("ko 乐天术语负例·三个人", out[5 * 10 + 2] == "三个人同行")
+        check("ko 乐天术语负例·剧情心", out[5 * 11 + 2] == "这是心的剧情")
 
 
 # ---------------------------------------------------------------- 3. 格式边界
@@ -512,6 +577,8 @@ def main():
     print(f"导入耗时：{time.perf_counter() - t0:.2f}s")
     test_static(ref, pkg)
     test_modes(ref, pkg)
+    test_wwoc_context(ref, pkg)
+    test_ko_lotte_terms(ref, pkg)
     test_format(ref, pkg)
     test_cli(ref, pkg)
     test_import_and_docs(ref, pkg)

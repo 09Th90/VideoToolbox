@@ -11,9 +11,9 @@ import shutil
 import sys
 import unicodedata
 from .data.ark import (AK_CONTEXT, AK_KO_CONTEXT, AK_KO_TERMS, AK_TERMS,
-                       PGR_EN_TERMS, WWOC_TERMS)
+                       PGR_EN_TERMS, WWOC_CONTEXT, WWOC_TERMS)
 from .data.bilingual import (BILINGUAL_TERMS, CONTEXT_MAP, EXCLUDE_CONTEXT,
-                             WORD_MAP)
+                             FFRS_CONTEXT, FFRS_TERMS, WORD_MAP)
 from .data.endfield import (ENDFIELD_BI_CONTEXT, ENDFIELD_BI_TERMS,
                             ENDFIELD_KO_CONTEXT, ENDFIELD_KO_TERMS,
                             ENDFIELD_TERMS)
@@ -21,6 +21,7 @@ from .data.entities import ENTITIES
 from .data.ja import (JA_CONTEXT, JA_ENDFIELD_CONTEXT, JA_ENDFIELD_TERMS,
                       JA_TERMS)
 from .data.ko import (KO_ASR_CONTEXT, KO_ASR_TERMS, KO_CONTEXT, KO_TERMS)
+from .data.limbus import LIMBUS_CONTEXT, LIMBUS_TERMS
 from .data.misc import (EN_LINE_TERM_FIXES, HSR_CONTEXT, HSR_TERMS,
                         POKEMON_CONTEXT, POKEMON_TERMS, REACT_CONTEXT,
                         REACT_TERMS, ZELDA_TERMS, ZH_ONLY_TERMS)
@@ -48,6 +49,8 @@ TABLES = {
     "POKEMON_TERMS": POKEMON_TERMS,
     "EN_LINE_TERM_FIXES": EN_LINE_TERM_FIXES,
     "ZELDA_TERMS": ZELDA_TERMS,
+    "LIMBUS_TERMS": LIMBUS_TERMS,
+    "FFRS_TERMS": FFRS_TERMS,
 }
 
 # 上下文表注册表：包含未接入 _MODE_CTX_TABLE 的 REACT/HSR/KO_ASR 三张。
@@ -64,6 +67,9 @@ CTX_TABLES = {
     "REACT_CONTEXT": REACT_CONTEXT,
     "HSR_CONTEXT": HSR_CONTEXT,
     "POKEMON_CONTEXT": POKEMON_CONTEXT,
+    "WWOC_CONTEXT": WWOC_CONTEXT,
+    "LIMBUS_CONTEXT": LIMBUS_CONTEXT,
+    "FFRS_CONTEXT": FFRS_CONTEXT,
 }
 
 
@@ -145,11 +151,20 @@ _KO_ASR_CONTEXT_COMPILED = [(re.compile(rx), wrong, right) for rx, wrong, right 
 _REACT_CONTEXT_COMPILED = [(re.compile(rx, re.I), wrong, right)
                            for rx, wrong, right in REACT_CONTEXT if wrong and right]
 
+_LIMBUS_CONTEXT_COMPILED = [(re.compile(rx, re.I), wrong, right)
+                             for rx, wrong, right in LIMBUS_CONTEXT if wrong and right]
+
+_FFRS_CONTEXT_COMPILED = [(re.compile(rx, re.I), wrong, right)
+                          for rx, wrong, right in FFRS_CONTEXT if wrong and right]
+
 _HSR_CONTEXT_COMPILED = [(re.compile(rx, re.I), wrong, right)
                          for rx, wrong, right in HSR_CONTEXT if wrong and right]
 
 _POKEMON_CONTEXT_COMPILED = [(re.compile(rx, re.I), wrong, right)
                              for rx, wrong, right in POKEMON_CONTEXT if wrong and right]
+
+_WWOC_CONTEXT_COMPILED = [(re.compile(rx, re.I), wrong, right)
+                          for rx, wrong, right in WWOC_CONTEXT if wrong and right]
 
 
 
@@ -223,8 +238,14 @@ def _rebuild_context_caches():
                                         for rx, wrong, right in ENDFIELD_BI_CONTEXT]
     _HSR_CONTEXT_COMPILED[:] = [(re.compile(rx, re.I), wrong, right)
                                 for rx, wrong, right in HSR_CONTEXT if wrong and right]
+    _LIMBUS_CONTEXT_COMPILED[:] = [(re.compile(rx, re.I), wrong, right)
+                                   for rx, wrong, right in LIMBUS_CONTEXT if wrong and right]
+    _FFRS_CONTEXT_COMPILED[:] = [(re.compile(rx, re.I), wrong, right)
+                                 for rx, wrong, right in FFRS_CONTEXT if wrong and right]
     _POKEMON_CONTEXT_COMPILED[:] = [(re.compile(rx, re.I), wrong, right)
                                     for rx, wrong, right in POKEMON_CONTEXT if wrong and right]
+    _WWOC_CONTEXT_COMPILED[:] = [(re.compile(rx, re.I), wrong, right)
+                                 for rx, wrong, right in WWOC_CONTEXT if wrong and right]
 
 
 

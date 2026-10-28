@@ -70,6 +70,7 @@ def _refresh_guest_cookies():
     任何失败都不能阻塞下载主流程）。
     """
     import http.cookiejar
+    import urllib.request
     # 必须经 ytdlp_proxy_args() 拿代理：它会启动/复用内置 mihomo 并填充缓存，
     # 直接读 _PROXY_CACHE 在首次调用时永远是 None（缓存还没人填过）
     proxy_args = ytdlp_proxy_args()

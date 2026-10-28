@@ -32,7 +32,7 @@ os.environ.setdefault("VT_NO_SYNC", "1")
 
 DATA_FILES = [
     # ko 依赖 ark 的 _SEONJEONG_ANCHOR，顺序不能按字母排
-    "bilingual", "ja", "ark", "ko", "endfield", "misc", "modes",
+    "bilingual", "ja", "ark", "ko", "endfield", "misc", "limbus", "modes",
 ]
 LOGIC_FILES = [
     "text", "replace", "asr", "state", "engine", "modes", "srt",
@@ -174,13 +174,13 @@ def ast_compat(text):
         "BILINGUAL_TERMS", "CONTEXT_MAP", "EXCLUDE_CONTEXT", "WORD_MAP",
         "EN_LINE_TERM_FIXES", "JA_TERMS", "JA_CONTEXT", "JA_ENDFIELD_TERMS",
         "JA_ENDFIELD_CONTEXT", "KO_TERMS", "KO_CONTEXT", "KO_ASR_TERMS",
-        "KO_ASR_CONTEXT", "WWOC_TERMS", "PGR_EN_TERMS", "ENDFIELD_TERMS",
+        "KO_ASR_CONTEXT", "WWOC_TERMS", "WWOC_CONTEXT", "PGR_EN_TERMS", "ENDFIELD_TERMS",
         "ENDFIELD_BI_TERMS", "ENDFIELD_BI_CONTEXT", "ENDFIELD_KO_TERMS",
         "ENDFIELD_KO_CONTEXT", "AK_TERMS", "AK_CONTEXT", "AK_KO_TERMS",
         "AK_KO_CONTEXT", "ZH_ONLY_TERMS", "REACT_TERMS", "REACT_CONTEXT",
         "HSR_TERMS", "HSR_CONTEXT", "POKEMON_TERMS", "POKEMON_CONTEXT",
         "ZELDA_TERMS", "EN_ASR_SPLIT_FIXES", "_MODE_TERM_TABLE",
-        "_MODE_CTX_TABLE",
+        "_MODE_CTX_TABLE", "LIMBUS_TERMS", "LIMBUS_CONTEXT",
     }
     missing = sorted(required - set(tables))
     if entities is None:

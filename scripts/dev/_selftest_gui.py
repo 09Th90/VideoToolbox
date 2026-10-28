@@ -992,7 +992,8 @@ def main():
             os.environ["VT_NO_CALIB_SYNC"] = _kill
 
     check("下载页含任务表/画质列表/日志",
-          win.download_page.task_table.columnCount() == 6
+          win.download_page.task_table.columnCount() == 8
+          and win.download_page.task_table.horizontalHeaderItem(4).text() == "速度"
           and win.download_page.qlist.count() == 0
           and bool(win.download_page.log.text))
     check("音画合并页含配对表", win.merge_page.table.columnCount() == 5)

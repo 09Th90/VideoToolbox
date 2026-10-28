@@ -17,10 +17,13 @@
   ③-B 陈旧「处理中」自愈：``dropEvent`` / ``_on_file_select`` 前，若标记为真但无
      运行中的转录线程，则清标记并复位卡片按钮，再照常放行。
 
-对外契约（``command_bar`` / ``model_button`` / ``model_menu`` / ``video_info_card``
-/ ``transcription_setting_card`` / ``is_processing`` / ``finished`` / ``set_task``
-/ ``process`` / ``dropEvent`` / ``_on_file_select`` / ``_on_transcript_finished``
-/ ``on_transcription_model_changed`` / ``_setup_command_bar``）与引擎同名同义。
+对外契约（``command_bar`` / ``model_button`` / ``model_menu`` / ``asr_lang_button``
+/ ``asr_lang_menu`` / ``output_format_button`` / ``output_format_menu``
+/ ``video_info_card`` / ``transcription_setting_card`` / ``is_processing``
+/ ``finished`` / ``set_task`` / ``process`` / ``dropEvent`` / ``_on_file_select``
+/ ``_on_transcript_finished`` / ``on_transcription_model_changed``
+/ ``on_asr_language_changed`` / ``on_output_format_changed``
+/ ``_setup_command_bar``）与引擎同名同义。
 """
 from __future__ import annotations
 
@@ -246,10 +249,31 @@ class VideoInfoCard(CardWidget):
                 self.tr("警告"), self.tr("没有可用的字幕文件夹"),
                 duration=_seams.constants.INFOBAR_DURATION_WARNING, parent=self)
 
+    def _ensure_asr_selected(self):
+        """已配置 ASR 时不要停在「默认」——B 接口（bcut）已不可用。
+
+        转录页的「默认」会把模型写成 B 接口，任务随后走必剪 API 必失败
+        （2026-10-28 实测 ``task/result`` 固定 412）。这里在建任务前把界面
+        与配置一起切到 ASR，保持按钮显示与实际使用的模型一致。
+        """
+        try:
+            ui = self.transcription_interface
+            if ui.model_button.text() != _seams.TM_DISPLAY_DEFAULT:
+                return
+            ac = _seams.ai_mod().asr_config(_seams.ai_load_config())
+            ready = (bool(ac.get("local_model") or ac.get("local_model_dir"))
+                     if ac.get("mode") == "local"
+                     else bool(ac.get("base_url") and ac.get("api_key")))
+            if ready:
+                ui.on_transcription_model_changed(_seams.TM_DISPLAY_ASR)
+        except Exception as e:  # noqa: BLE001
+            _seams.vc_log(f"自动切换 ASR 失败：{e}")
+
     def start_transcription(self, need_create_task=True):
         self.transcription_interface.is_processing = True
         self.start_button.setEnabled(False)
         if need_create_task:
+            self._ensure_asr_selected()
             self.task = _seams.TaskFactory.create_transcribe_task(self.video_info.file_path)
         if not self.task:
             return
@@ -306,6 +330,15 @@ class VideoInfoCard(CardWidget):
 class TranscriptionInterface(QWidget):
     finished = Signal(str, str)
 
+    #: 识别语言下拉（2026-10-25 从设置页迁来）：与引擎 TranscribeLanguageEnum
+    #: 逐字对齐的常用子集。**新增项必须先在引擎枚举里存在**——写进 settings.json
+    #: 的标签解析不了会静默回落默认值；自检 _selftest_asr_language.py 钉住
+    #: 「本表 ⊆ 引擎枚举」。
+    ASR_LANG_LABELS = ("自动检测", "中文", "英语", "日本語", "韩语", "粤语",
+                       "法语", "德语", "西班牙语", "俄语", "葡萄牙语",
+                       "土耳其语", "Italian", "Polish", "Dutch", "Arabic",
+                       "Indonesian", "Thai", "Vietnamese")
+
     def __init__(self, parent: Optional[QWidget] = None):
         super().__init__(parent)
         self.setAttribute(Qt.WA_StyledBackground, True)
@@ -353,10 +386,62 @@ class TranscriptionInterface(QWidget):
         ])
         self.model_button.setMenu(self.model_menu)
         self.command_bar.addWidget(self.model_button)
-        self.command_bar.addSeparator()
 
-        self.command_bar.addAction(
-            Action(FluentIcon.SETTING, "", triggered=self._show_output_settings))
+        # 识别语言（2026-10-25 从 设置 → ASR 语音识别 迁来）：随选随用，
+        # 保存 ai_config（任务创建时的覆盖来源）+ 直接写引擎语言（输出文件名 /
+        # 引擎内存态），不走 apply_asr_to_engine——那会把转录模型强制切成 ASR。
+        saved_lang = self._saved_language()
+        self.asr_lang_menu = RoundMenu(parent=self)
+        self.asr_lang_menu.setMaxVisibleItems(10)
+        _langs = list(self.ASR_LANG_LABELS)
+        if saved_lang not in _langs:
+            # 历史上存过下拉之外的标签（更早版本 / 手改配置）：插回列表，
+            # 保证按钮显示的就是真值。
+            _langs.insert(1, saved_lang)
+        for label in _langs:
+            action = Action(label)
+            action.triggered.connect(
+                lambda checked=False, value=label:
+                self.on_asr_language_changed(value))
+            self.asr_lang_menu.addAction(action)
+
+        self.asr_lang_button = TransparentDropDownPushButton(
+            self.tr("语言：") + saved_lang, self, FluentIcon.LANGUAGE)
+        self.asr_lang_button.setFixedHeight(34)
+        self.asr_lang_button.setMinimumWidth(180)
+        self.asr_lang_button.setToolTip(
+            "音视频中说话的语言，下一次转录生效。\n"
+            "· 自动检测（默认）：交给识别端按内容自行判断，并把引擎语言复位为自动；\n"
+            "· 指定语言：多语言混夹 / 短片段素材上更准，但**选错会明显拉低识别率**；\n"
+            "· 没有把握就留「自动检测」。")
+        self.asr_lang_button.setMenu(self.asr_lang_menu)
+        self.command_bar.addWidget(self.asr_lang_button)
+
+        # 输出格式（2026-10-25 从齿轮弹窗迁来）：写引擎配置，下一次转录生效。
+        self.output_format_menu = RoundMenu(parent=self)
+        for fmt in _seams.entities.TranscribeOutputFormatEnum:
+            action = Action(fmt.value)
+            action.triggered.connect(
+                lambda checked=False, value=fmt:
+                self.on_output_format_changed(value))
+            self.output_format_menu.addAction(action)
+
+        self.output_format_button = TransparentDropDownPushButton(
+            self.tr("格式：") + self._current_output_format(),
+            self, FluentIcon.SAVE)
+        self.output_format_button.setFixedHeight(34)
+        self.output_format_button.setMinimumWidth(110)
+        self.output_format_button.setToolTip(
+            "转录字幕的输出格式，下一次转录生效。\n"
+            "TXT 只导出纯文本，不会自动装载到「字幕翻译」。")
+        self.output_format_button.setMenu(self.output_format_menu)
+        self.command_bar.addWidget(self.output_format_button)
+
+        self.command_bar.addSeparator()
+        gear = Action(FluentIcon.SETTING, "",
+                      triggered=self._show_voiceprint_settings)
+        gear.setToolTip(self.tr("声纹设置"))
+        self.command_bar.addAction(gear)
         self.main_layout.addWidget(self.command_bar)
 
     def _setup_signals(self) -> None:
@@ -368,13 +453,93 @@ class TranscriptionInterface(QWidget):
         _seams.signal_bus.transcription_model_changed.connect(
             self.on_transcription_model_changed)
 
-    def _show_output_settings(self):
+    def _show_voiceprint_settings(self):
         dialog = TranscriptionSettingDialog(self.window())
         dialog.exec_()
 
     def _set_value(self) -> None:
         model_name = _seams.cfg.get(_seams.cfg.transcribe_model).value
         self.on_transcription_model_changed(model_name)
+        self._sync_engine_language()
+
+    # ---------------- 识别语言 / 输出格式（2026-10-25） ----------------
+    def _saved_language(self) -> str:
+        try:
+            label = str(
+                _seams.ai_load_config().get("asr_language") or "").strip()
+        except Exception:  # noqa: BLE001
+            label = ""
+        return label or "自动检测"
+
+    def _current_output_format(self) -> str:
+        try:
+            fmt = _seams.cfg.get(_seams.cfg.transcribe_output_format)
+            return getattr(fmt, "value", str(fmt))
+        except Exception:  # noqa: BLE001
+            return "SRT"
+
+    def _sync_engine_language(self) -> None:
+        """把 ai_config 里的显式语言对齐进引擎配置。
+
+        只补显式语言，不在启动时把「自动检测」强写回引擎——后者可能覆盖
+        用户在引擎/命令行里手动设过的取值。用户主动点「自动检测」时才复位。
+        """
+        label = self._saved_language()
+        if label == "自动检测":
+            return
+        try:
+            lang = _seams.entities.TranscribeLanguageEnum(label)
+            if _seams.cfg.get(_seams.cfg.transcribe_language) != lang:
+                _seams.cfg.set(_seams.cfg.transcribe_language, lang)
+        except Exception as e:  # noqa: BLE001
+            _seams.vc_log(f"识别语言对齐引擎失败（{label}）：{e}")
+
+    def on_asr_language_changed(self, label: str) -> None:
+        label = str(label or "").strip() or "自动检测"
+        try:
+            cfg = dict(_seams.ai_load_config())
+            cfg["asr_language"] = label
+            # 必须传完整配置：save_config 是整 dict 覆写，残缺 dict 会清空其余项。
+            _seams.ai_mod().save_config(cfg)
+        except Exception as e:  # noqa: BLE001
+            InfoBar.error(
+                self.tr("识别语言未保存"), str(e)[:300],
+                duration=_seams.constants.INFOBAR_DURATION_ERROR,
+                parent=self.window())
+            self.asr_lang_button.setText(
+                self.tr("语言：") + self._saved_language())
+            return
+
+        # ⚠ 不能走 apply_asr_to_engine：它会把 TranscribeModel 强制切成
+        # WhisperAPI / FasterWhisper，用户停在「默认」时会被悄悄切走。
+        try:
+            _seams.cfg.set(
+                _seams.cfg.transcribe_language,
+                _seams.entities.TranscribeLanguageEnum(label))
+        except Exception as e:  # noqa: BLE001
+            _seams.vc_log(f"识别语言写入引擎配置失败（{label}）：{e}")
+            if label == "自动检测":
+                InfoBar.warning(
+                    self.tr("语言未完全生效"),
+                    self.tr("已保存「自动检测」，但引擎语言复位失败；"
+                            "请到设置页「ASR 语音识别」保存一次配置"),
+                    duration=_seams.constants.INFOBAR_DURATION_WARNING,
+                    parent=self.window())
+        self.asr_lang_button.setText(self.tr("语言：") + label)
+
+    def on_output_format_changed(self, fmt) -> None:
+        try:
+            _seams.cfg.set(_seams.cfg.transcribe_output_format, fmt)
+        except Exception as e:  # noqa: BLE001
+            InfoBar.error(
+                self.tr("输出格式未保存"), str(e)[:300],
+                duration=_seams.constants.INFOBAR_DURATION_ERROR,
+                parent=self.window())
+            self.output_format_button.setText(
+                self.tr("格式：") + self._current_output_format())
+            return
+        self.output_format_button.setText(
+            self.tr("格式：") + getattr(fmt, "value", str(fmt)))
 
     # ---------------- 补丁 ②：显示名 ↔ 引擎枚举 ----------------
     def on_transcription_model_changed(self, model_name: str):

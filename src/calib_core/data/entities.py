@@ -13,7 +13,7 @@ import unicodedata
 from .entities_base import Entity
 from .entities_part1 import ENTITIES_PART1
 from .entities_part2 import ENTITIES_PART2
-from .music import _FRACT_ANCHOR, _GINSHI_ANCHOR, _MUSIC_AK, _MUSIC_ENDO, _MUSIC_WW, _MUSIC_WW_BGM, _WW_ANCHOR
+from .music import _FRACT_ANCHOR, _GINSHI_ANCHOR, _MUSIC_AK, _MUSIC_ENDO, _MUSIC_LIMBUS, _MUSIC_WW, _MUSIC_WW_BGM, _WW_ANCHOR
 
 ENTITIES = list(ENTITIES_PART1) + list(ENTITIES_PART2)
 
@@ -26,6 +26,13 @@ for _songs, _modes, _label in (
                                category=f"曲目/{_label}",
                                note="有歌词（人声）歌曲。空字段=该语种无独立官方名，"
                                     "按'单语保留原语言'处理，勿臆造译名。"))
+
+
+# 边狱巴士 OST：官方仅英/日/韩，曲名保留英文；无 variants，只作多语元数据。
+for _c, _en, _ja, _ko in _MUSIC_LIMBUS:
+    ENTITIES.append(Entity(_c, modes=("limbus", "react"), en=_en, ja=_ja, ko=_ko,
+                           category="曲目/边狱巴士",
+                           note="官方仅英/日/韩；曲名保留英文，勿臆造中文译名。"))
 
 
 # 纯音乐 BGM 单独注册（上表 note 明确写「人声」，混入会失真）
@@ -89,7 +96,7 @@ for _c, _en, _v, _ctx, _cat, _note in (
      "above her），生僻组合，无条件变体安全。"),
     ("赞妮", "Zani", ("扎尼",), (), "角色/鸣潮",
      "本片谷翻音译「扎尼」（#5765 unlike Phoebe and Zany），生僻组合。"),
-    ("守岸人", "The Shorekeeper", ("肖基普",), (), "角色/鸣潮",
+    ("守岸人", "The Shorekeeper", ("肖基普", "肖里珀"), (), "角色/鸣潮",
      "本片 Shawkeeper 又被音译成「肖基普」（#5754），与既有「肖基珀」同类。"),
     ("嘉贝莉娜", "Galbrena", ("加尔布里纳", "加尔比娜", "格布林"), (), "角色/鸣潮",
      "本片 Galbrena 又出 加尔布里纳 / 加尔比娜 / 格布林（#1123/#1503/#4197），"
@@ -113,9 +120,10 @@ for _c, _en, _v, _ctx, _cat, _note in (
      "该条交人工/侧车。"),
     ("边狱公司", "Limbus Company",
      ("边狱巴士", "林布斯公司", "林布连", "林布斯", "林布", "Lim Bus"), (), "作品/游戏",
-     "官方中文《边狱公司》（2026-10-22 订正旧 canonical「边狱巴士」）；"
+     "本作无官方中文；游戏常用名《边狱巴士》，游戏内组织名《边狱公司》。"
      "本片谷翻译成「林布斯公司 / 林布连」（#452/#3848）。"
-     "「边狱巴士」为巴士部门/俗称，保留为变体，勿再作为 canonical。"),
+     "「边狱巴士」保留为变体；本条 canonical 用于既有 bi/ak 模式，"
+     "新 --limbus 模式以边狱巴士为准（见 data/limbus.py）。"),
     ("终末地", "Arknights: Endfield", ("Enfield",), (), "作品/游戏",
      "本片把《明日方舟：终末地》说成 Enfield（#452），生僻长键安全。"),
     ("声骸", "Echo", (), ((r"\bechoes?\b", "回响"),), "术语/鸣潮",
@@ -130,13 +138,13 @@ for _c, _en, _v, _ctx, _cat, _note in (
      "「帝国」是常用词，靠参考行锚定。"),
     ("吟霖", "Yinlin", (), ((r"\bYin\b", "尹氏"),), "角色/鸣潮",
      "本片 #5610 谷翻把 Yin 译成「尹氏」（the jiggle. Yin's），靠参考行锚定。"),
-    ("无限大", "Neverness to Everness", ("NTE", "Neverness to Everness"), (), "作品/游戏",
-     "NTE = Neverness to Everness = 官方中文《无限大》（Hotta Studio/完美世界）。"
-     "⚠ 2026-10-21 Fobm4ster 年度抽卡评选片订正：旧条目误把 NTE 登记为《异环》；"
-     "《异环》是 Ananta（网易 Naked Rain），两者是不同作品，勿再混用。"),
-    ("异环", "Ananta", ("Ananta",), (), "作品/游戏",
-     "Ananta = 官方中文《异环》（网易 Naked Rain）。与 NTE《无限大》严格区分；"
-     "2026-10-21 由 Fobm4ster 片源校准沉淀。"),
+    ("异环", "Neverness to Everness", ("NTE", "Neverness to Everness"), (), "作品/游戏",
+     "NTE = Neverness to Everness = 官方中文《异环》（Hotta Studio/完美世界）。"
+     "2026-10-26 官方站/维基复核：NTE《异环》与 Ananta《无限大》是两款不同作品；"
+     "旧条目（2026-10-21）把两者写反，已纠正。"),
+    ("无限大", "Ananta", ("Ananta",), (), "作品/游戏",
+     "Ananta = 官方中文《无限大》（网易 Naked Rain，官网 ananta.163.com）。"
+     "与 NTE《异环》严格区分；2026-10-26 复核纠正。"),
     ("边缘行者", "Edgerunners", ("Edge Runners", "Edgeunners", "Edge 跑者",
                                  "边缘跑者"), (), "作品/动画",
      "本片 #2725/#6024/#6035/#6039 提到《赛博朋克：边缘行者》，"
@@ -216,4 +224,20 @@ for _c, _en, _v, _ctx, _cat, _note in (
 ):
     ENTITIES.append(Entity(_c, modes=("bi",), en=_en, variants=_v, ctx=_ctx,
                            category=_cat, note=_note))
+
+
+# 边狱巴士：章节/BOSS/角色仅作元数据（本片未点名，不参与替换）
+ENTITIES.append(Entity("第十章「凝视之下」", modes=("limbus",),
+                       en="Canto X: The Gaze Bearing",
+                       category="章节/边狱巴士",
+                       note="本作无官方中文；零协/社区译名「凝视之下」；本片仅称 Canto 10。"))
+ENTITIES.append(Entity("默尔索", modes=("limbus",),
+                       en="Meursault",
+                       category="角色/边狱巴士",
+                       note="Canto X 主线聚焦罪人；本片未点名，仅登记。"))
+ENTITIES.append(Entity("赤红之神", modes=("limbus",),
+                       en="The Crimson God",
+                       category="BOSS/边狱巴士",
+                       note="Canto X Part 3；[Adulthood] 社区有「成熟/完熟」两派写法；"
+                            "本片未点名，仅登记。"))
 

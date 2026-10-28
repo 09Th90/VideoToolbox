@@ -27,10 +27,11 @@ import unicodedata
 # ============================================================
 _MUSIC_WW = [                       # 鸣潮 · 先约电台 EP（角色印象曲）+ 单曲
     # --- EP0 / 公测 EP ---
-    ("Saving Light", "Saving Light", "", ""),
+    ("致新世界（Saving Light）", "Saving Light", "", ""),
     ("Waking of a World", "Waking of a World", "", ""),
     # --- 2026-10-24 《致予新世界》演唱会二校补目（官方中文名）---
-    ("拉海洛之心", "Heart of Laoy", "", ""),
+    ("「拉海洛」之心", "Heart of Lahai-Roi", "", ""),
+    ("致予新世界", "To the New World", "", ""),
     ("小小奇迹", "A Small Miracle", "", ""),
     ("远航星的告别", "Bon Voyage", "", ""),
     # --- EP1.x ---
@@ -63,6 +64,10 @@ _MUSIC_WW = [                       # 鸣潮 · 先约电台 EP（角色印象�
     ("纸飞机", "", "", ""),
     ("Thawing Light（融光）", "Thawing Light", "", ""),
     ("L!!!!ght", "L!!!!ght", "", ""),
+    # --- 2026-10-27 鸣潮演唱会/3.3 片二次校准补登 ---
+    ("当飞鸟划过天空", "", "", ""),
+    ("愿戴荣光坠入天渊", "", "", ""),
+    ("星炬不熄", "", "", ""),
     ("坠入虚无（Decensus Ad Nihilum）", "Decensus Ad Nihilum", "", ""),
     ("直到下次再见（Dasvidaniya）", "Dasvidaniya", "", ""),
     ("愿（One More Wish）", "One More Wish", "", ""),
@@ -185,6 +190,21 @@ _MUSIC_ENDO = [                     # 终末地 · 铁痕电台-MSR（人声曲�
     ("反引力悬浮", "", "", ""),
     ("夕流", "", "", ""),
     ("编织光流", "For Your Name", "", ""),
+]
+
+
+# ============================================================
+# 边狱巴士（Limbus Company）OST（2026-10-26 新增）
+# 本作无官方中文；以下为 Project Moon / Studio EIM 正式发行的英文曲名。
+# 单语保留原语言；ja/ko 留空，严禁臆造中文译名。
+# ============================================================
+_MUSIC_LIMBUS = [
+    ("Canto X Boss 3 Battle Theme", "Canto X Boss 3 Battle Theme", "", ""),
+    ("Canto X Boss 2 Battle Theme", "Canto X Boss 2 Battle Theme", "", ""),
+    ("Canto X Boss 1 Battle Theme", "Canto X Boss 1 Battle Theme", "", ""),
+    ("Canto X Boss 5 Battle Theme", "Canto X Boss 5 Battle Theme", "", ""),
+    ("Canto X Battle Theme C", "Canto X Battle Theme C", "", ""),
+    ("Canto IX Boss 10 Battle Theme", "Canto IX Boss 10 Battle Theme", "", ""),
 ]
 
 

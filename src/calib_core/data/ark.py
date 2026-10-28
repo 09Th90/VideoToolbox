@@ -13,6 +13,10 @@ import unicodedata
 
 
 # 二次元手游 OST 世界杯：游戏名/专名中文统一（错误形式 -> 正确形式，出现即改）
+# 2026-10-25 二次校准沉淀（片源：《반타쿠 버튜버의 서브컬쳐 게임 OST 월드컵 128강!!》，
+#   6199 cue，韩语原声 + 谷翻；官方中文依据：各作品官网/官方中文服公告 + 萌娘百科/GameKee。
+#   戒律：Red / Trigger / Star Seed / 十字军 / 德州 / 家具 等短词或通用词**绝不进裸键**，
+#   只能走下方 WWOC_CONTEXT 的参考行锚定；英文长键（Silver and Blood 等）可进本表。
 WWOC_TERMS = {
     # 游戏名跨段统一（妮姬/胜利女神 为 NIKKE 的旧译/意译，统一为英文专名）
     "妮姬（NIKKE）": "NIKKE",
@@ -23,14 +27,116 @@ WWOC_TERMS = {
     "禅心在世（ZenExistence）": "绝区零",
     "禅心在世(ZenExistence)": "绝区零",
     "禅心在世": "绝区零",
-    "蓝档案": "蔚蓝档案",
+    # “蓝档案”是“蔚蓝档案”的子串，不能进裸键（会把正确形叠成“蔚蔚蓝档案”）；
+    # 改由 WWOC_CONTEXT 参考行锚定。
+    "NIKKE耐克": "NIKKE",
+    "胜利女神耐克": "NIKKE",
+    "胜利者耐克": "NIKKE",
+    "林布斯公司": "边狱公司",
     # 综合游戏中文本地化（韩语原声常见音译/残留英文 -> 官方中文）
     "원신": "原神",
     "붕괴": "崩坏",
     "명일방주": "明日方舟",
     "젠레스 존 제로": "绝区零",
     "젠존재": "绝区零",
+    # --- 2026-10-25 官方中文名（英/中错形 -> 官方中文）---
+    "Alice Fiction": "漂眇群像",              # Alice fiction 漂眇群像
+    "Silver and Blood": "银与血",
+    "Silver and blood": "银与血",
+    "Lost Sword": "失落之剑",
+    "Eversoul": "永恒灵魂",
+    "World Flipper": "弹射世界",
+    "Starseed: Asnia Trigger": "星链计划：未来少女",
+    "Starseed:Asnia Trigger": "星链计划：未来少女",
+    "Asnia Trigger": "星链计划：未来少女",
+    "Red: Pride of Eden": "红色：伊甸园的骄傲",
+    "Heaven Burns Red": "炽焰天穹",
+    "Limbus Company": "边狱公司",
+    "CounterSide": "异界事务所",
+    "King's Raid": "王之逆袭",
+    "Crusaders Quest": "克鲁赛德战记",
+    "Tower of Fantasy": "幻塔",
+    "Punishing: Gray Raven": "战双帕弥什",
+    "Punishing Gray Raven": "战双帕弥什",
+    "Neural Cloud": "云图计划",
+    "Brown Dust 2": "棕色尘埃2",
+    "Brown Dust": "棕色尘埃",
+    "Dead by Daylight": "黎明杀机",
+    "Jujutsu Kaisen": "咒术回战",
+    "Umamusume": "赛马娘",
+    "Arknights": "明日方舟",
+    "Wuthering Waves": "鸣潮",
+    "Genshin Impact": "原神",
+    "Honkai: Star Rail": "崩坏：星穹铁道",
+    "Honkai Star Rail": "崩坏：星穹铁道",
+    "Zenless Zone Zero": "绝区零",
+    "Reverse: 1999": "重返未来：1999",
+    "Reverse 1999": "重返未来：1999",
+    "Epic Seven": "第七史诗",
+    "Girls' Frontline": "少女前线",
+    "Shadowverse: Worlds Beyond": "影之诗：超凡世界",
+    "Persona 5: The Phantom X": "女神异闻录：夜幕魅影",
+    "Persona 5 The Phantom X": "女神异闻录：夜幕魅影",
+    "La vaguelette": "轻涟",
+    # --- 2026-10-25 r3 精校（同一 OST 世界杯片源，6199 cue）---
+    "Aether Gazer": "深空之眼",
+    "Ether Gazer": "深空之眼",
+    "Archeland": "阿彻兰",
+    "Billie Eilish": "比莉·艾利什",
+    "Blue Rose": "BLUE ROSE",
+    "Sdorica": "万象物语",
+    "Sudorica": "万象物语",
+    "Everool": "永恒灵魂",
+    # 安全中文错形（非通用词，可裸键）
+    "林布斯": "边狱公司",
+    "国王的突袭": "王之逆袭",
+    "神经云": "云图计划",
+    "幻想之塔": "幻塔",
+    "奉艺学园2": "崩坏学园2",
+    "少年前线": "少女前线",
+    "明一芳秀": "明日方舟",
+    "德瓦德": "黎明杀机",
+    "咒术大战": "咒术回战",
 }
+
+# 综合手游 OST 世界杯·参考行锚定（正则, 错形, 正确形）
+# 2026-10-25：多游戏片源的歧义错形必须由参考行韩语/英语佐证，避免通用词误伤。
+WWOC_CONTEXT = [
+    (r"크루세이더|Crusader", "十字军", "克鲁赛德战记"),
+    (r"퍼니싱", "家具", "战双帕弥什"),
+    (r"킹스레이드", "国王的突袭", "王之逆袭"),
+    (r"리버스", "反向", "重返未来：1999"),
+    (r"리버스", "反转", "重返未来：1999"),
+    (r"발로란트", "勇敢", "无畏契约"),
+    (r"붕계학원", "奉艺学园", "崩坏学园2"),
+    (r"림버스", "林布斯", "边狱公司"),
+    (r"카운터사이드", "计数器", "异界事务所"),
+    (r"뉴럴 클라우드", "神经云", "云图计划"),
+    (r"타워 오브 판타지", "幻想之塔", "幻塔"),
+    (r"블루 아카이브|Blue Archive", "蓝色档案", "蔚蓝档案"),
+    (r"소녀전선", "少年前线", "少女前线"),
+    (r"명일방주", "明一芳秀", "明日方舟"),
+    (r"젠레스", "禅心在世", "绝区零"),
+    (r"명조", "明祖", "鸣潮"),
+    (r"명조", "明朝", "鸣潮"),
+    (r"붕괴", "崩溃", "崩坏"),
+    (r"니케", "耐克", "NIKKE"),
+    (r"덕후|덕공|덕구", "德州人", "宅友"),
+    (r"덕후|덕공|덕구", "德州", "宅友"),
+    (r"도트", "点图片", "像素图"),
+    (r"스타시드", "Star Seed", "星链计划：未来少女"),
+    (r"스타시드", "StarSeed", "星链计划：未来少女"),
+    (r"아스니아 트리거|Asnia Trigger", "Asnia Trigger", "星链计划：未来少女"),
+    (r"레드라는 게임", "《Red》", "红色：伊甸园的骄傲"),
+    (r"레드도", "Red 也", "《红色：伊甸园的骄傲》也"),
+    (r"잔물결", "涟漪", "轻涟"),
+    # 2026-10-25 r3 精校：通用词/短词继续走参考行锚定
+    (r"페르소나", "Persona", "女神异闻录"),
+    (r"아델", "Adele", "阿黛尔"),
+    (r"헤이즈|헤즈", "Hez", "Heize"),
+    (r"소녀산", "少女山", "少女前线"),
+    (r"레드 후드", "Red Hood", "小红帽"),
+]
 
 
 # 3.3 战双帕弥什·英文原声（中英双语片源，2026-09-11 沉淀）
@@ -91,7 +197,7 @@ PGR_EN_TERMS = {
 AK_TERMS = {
     # --- 本片机翻英文残留 -> 官方中文 ---
     "AK": "明日方舟", "Ark Knights": "明日方舟", "Arknights": "明日方舟",
-    "sanity": "理智", "LMD": "龙门币", "XP": "经验", "exp": "经验",
+    "sanity": "理智", "LMD": "龙门币", "exp": "经验",
     # 角色/阵营（本片 ASR 变体 -> 官方中文）
     "Kelsey": "凯尔希", "Kelip": "凯尔希", "Kelit": "凯尔希", "Kelty": "凯尔希",
     "Amya": "阿米娅", "Wang": "W", "Wong": "W",
@@ -117,8 +223,8 @@ AK_TERMS = {
     "Typhon": "提丰", "T-Phone": "提丰", "T-phone": "提丰",  # 提丰=明日方舟本体六星狙击；T-Phone/T-phone 为韩语 티폰 机翻形（源自 Endfield 评论片，归 ak）
     "操作员": "干员",
     # 玩法模式
-    "RA": "生息演算", "Reclamation": "生息演算",
-    "CC": "危机合约", "Contingency": "危机合约",
+    "Reclamation": "生息演算",
+    "Contingency": "危机合约",
     "SSS": "保全派驻", "IS-6": "集成战略", "IS6": "集成战略",
     "IS-5": "集成战略", "IS-2": "集成战略", "IS-3": "集成战略",
     "Annihilation": "剿灭", "annihilation": "剿灭",
@@ -214,6 +320,90 @@ AK_TERMS = {
     "穆穆": "缪尔赛思",                # 2026-10-14 二轮回改：Muelsyse 官方=缪尔赛思（旧目标"缪缪"是昵称非官方）
     "穆缪": "缪尔赛思",                # ASR 变体穆缪 同改；"缪缪"本身是合法昵称，不收裸键
     "模块": "模组",                    # 明日方舟 module 官方=模组（--ak 模式隔离，编程语境不入）
+    # --- 2026-10-25 沉淀：《THESE ARKNIGHTS CN 7.5 ANNIVERSARY OPERATORS ARE UNREAL》 ---
+    #   官方中文依据（2026-10-24 检索）：塔露拉/冻河/国度/奥尔佳/镜匠/行铃；
+    #   将雪投火、卫戍协议「规程·序列I」、危机合约#6「弹雨作战」、
+    #   沉沦者的黑流树海·内容拓展II、梦城堡、墨菲斯。
+    #   只收 ASR/机翻错形；正确形不入表；国度为普通词，不设裸变体。
+    "动合": "冻河", "动核": "冻河", "冻和": "冻河", "冻核": "冻河",
+    "塔罗拉": "塔露拉", "优斯塔露拉": "塔露拉",
+    "中间寻访": "中坚寻访", "中间干员": "中坚干员",
+    "中间市场": "中坚寻访", "中间甄选": "中坚甄选",
+    "修度伤害": "灼燃损伤",
+    "ending five": "第五结局",       # CJK+CJK 重复参考行无外文锚点，用长键兜底
+    # --- 2026-10-28 ark_glossary.tsv 并入（128 行→本表 67 条；行号=原表行号，原表已归档）---
+    # 依据：明日方舟官方中文（EN/ASR 误拼 → 官方中文）。只收专名/单义音译名；
+    #   通用词（Terra/Operator/Reunion/Yan）走 AK_MISSING_CHECK 只体检不改写。
+    "Originium": "源石",                                  # ark:12
+    "Oripathy": "矿石病",                                 # ark:13
+    "Sanity": "理智",                                     # ark:17（小写 sanity 已在表）
+    "EXP": "经验",                                        # ark:19（小写 exp 已在表）
+    "Elite": "精英化",                                    # ark:22（小写 elite 已在表）
+    "Module": "模组",                                     # ark:25（小写 module 已在表）
+    "Mystic Caster": "秘术师",                            # ark:28
+    "Contingency Contract": "危机合约",                   # ark:30
+    "Integrated Strategies": "集成战略",                  # ark:32
+    "Reclamation Algorithm": "生息演算",                  # ark:38
+    "Sankta": "萨科塔",                                   # ark:62
+    "Sarkaz": "萨卡兹",                                   # ark:63
+    "Reverse 1999": "重返未来：1999",                     # ark:133
+    # 地名/国家
+    "Rhodes Island": "罗德岛",                            # ark:10
+    "Kazdel": "卡兹戴尔",                                 # ark:42
+    "Lungmen": "龙门",                                    # ark:43
+    "Chernobog": "切尔诺伯格",                            # ark:44
+    "Ursus": "乌萨斯",                                    # ark:46
+    "Victoria": "维多利亚",                               # ark:47
+    "Kazimierz": "卡西米尔",                              # ark:49
+    "Leithanien": "莱塔尼亚",                             # ark:50
+    "Siracusa": "叙拉古",                                 # ark:51
+    "Iberia": "伊比利亚",                                 # ark:53
+    "Ægir": "阿戈尔",                                     # ark:54
+    "Rim Billiton": "雷姆必拓",                           # ark:55
+    "Bolívar": "玻利瓦尔",                                # ark:56
+    "Sargon": "萨尔贡",                                   # ark:57
+    "Minos": "米诺斯",                                    # ark:58
+    "Karlan": "谢拉格",                                   # ark:59
+    "Londinium": "伦蒂尼姆",                              # ark:60
+    # 组织/阵营
+    "Abyssal Hunters": "深海猎人",                        # ark:65
+    "Penguin Logistics": "企鹅物流",                      # ark:66
+    "Rhine Lab": "莱茵生命",                              # ark:67
+    "Black Steel": "黑钢国际",                            # ark:68
+    "Babel": "巴别塔",                                    # ark:69
+    # 角色
+    "Amiya": "阿米娅",                                    # ark:71
+    "Kal'tsit": "凯尔希",                                 # ark:74
+    "Kaltsit": "凯尔希",                                  # ark:75
+    "Lappland": "拉普兰德",                               # ark:78
+    "Vulcan": "火神",                                     # ark:82
+    "Saria": "塞雷娅",                                    # ark:83
+    "Sussurlo": "苏苏洛",                                 # ark:92
+    "Purestream": "清流",                                 # ark:93
+    "Wisadel": "维什戴尔",                                # ark:98
+    "Nearl": "临光",                                      # ark:99
+    "Ch'en": "陈",                                        # ark:101
+    "Texas": "德克萨斯",                                  # ark:102
+    "Exusiai": "能天使",                                  # ark:103
+    "Siege": "推进之王",                                  # ark:104
+    "Zima": "凛冬",                                       # ark:105
+    "Ifrit": "伊芙利特",                                  # ark:106
+    "Eyjafjalla": "艾雅法拉",                             # ark:107
+    "Shining": "闪灵",                                    # ark:108
+    "Nightingale": "夜莺",                                # ark:109
+    "Skadi": "斯卡蒂",                                    # ark:110
+    "Specter": "幽灵鲨",                                  # ark:111
+    "Mudrock": "泥岩",                                    # ark:112
+    "Rosmontis": "迷迭香",                                # ark:113
+    "Ascalon": "阿斯卡纶",                                # ark:114
+    "Patriot": "爱国者",                                  # ark:116
+    "FrostNova": "霜星",                                  # ark:118
+    "Faust": "浮士德",                                    # ark:119
+    "Mephisto": "梅菲斯特",                               # ark:120
+    "Surtr": "史尔特尔",                                  # ark:121
+    "Blemishine": "瑕光",                                 # ark:122
+    "Degenbrecher": "锏",                                 # ark:124
+    "Muelsyse": "缪尔赛思",                               # ark:128
 }
 
 # =============================================================
@@ -224,6 +414,8 @@ AK_TERMS = {
 # 戒律：错形必须是**正常中文词**（字面义误译），且能由参考行唯一佐证；
 #   非词错形（音译残留/英文残留）仍走 AK_TERMS 裸键，不入本表。
 #   整句语序问题（断句跨 cue、修饰语错位）本表无解，仍走 subfix。
+#   注意：CJK+CJK 重复行（参考行也是中文）没有外文参考，ctx 规则不生效；
+#   这类错形走 AK_TERMS 长键或逐 cue subfix（如 ending five / cc）。
 # 用法：python subtitle_calib_merged.py <in.srt> --ak --out out.srt
 # =============================================================
 AK_CONTEXT = [
@@ -308,6 +500,35 @@ AK_CONTEXT = [
     (r"\bstages\b", "这些阶段", "这些关卡"),        # #65 In these stages
     (r"\bstages\b", "章节阶段", "章节关卡"),        # #103 this episode stages
     (r"\bbenablers?\b", "纵容者", "启动器"),        # #47 corrosion enabler
+    # --- 2026-10-25 沉淀：7.5 周年前瞻 reaction（官方中文 + 英文参考行锚定）---
+    #   戒律：错形是普通中文词/短英文，必须由参考行唯一佐证；不恢复 XP/RA/CC 裸键。
+    (r"\bTexas (?:out|alter)\b", "德克萨斯州", "缄默德克萨斯"),  # #176/#179 Texas out=Texas alter
+    (r"(?i)\bCNY? banner\b", "新年横幅", "国服卡池"),              # #184 ASR 把 CN 听成 CNY
+    (r"\bglobal (?:race|range) skill\b", "全球比赛技能", "全图攻击技能"),  # #82 global race=range
+    (r"\bglobal range\b", "全局范围", "全图范围"),                 # #161
+    (r"\bannihilation\b", "湮灭", "剿灭"),                         # #435 Annihilation=剿灭
+    (r"\bStrong\s*hold\b|\bStrong hole\b", "强洞", "据点"),        # #429 Stronghold
+    (r"\bending five\b", "ending five", "第五结局"),               # #446 IS ending five
+    (r"\bfoul beast\b", "邪恶的野兽", "污秽兽"),                   # #283 Terra Fact
+    (r"\bXP\b", "XP", "经验"),                                     # 仅独立 XP；不再命中 EXP
+    (r"\bRA\b", "RA", "生息演算"),                                 # 仅独立 RA；不再命中 SSHELLEOPERATE
+    (r"(?i)\bcc\b", "cc", "危机合约"),                             # 仅独立 cc；不再命中 GUCCIGUCCI
+    (r"(?i)\bcc\b", "CC", "危机合约"),
+]
+
+# =============================================================
+# 3.1d AK_MISSING_CHECK：明日方舟**漏译体检**规则（只报不改）。
+#   2026-10-28 由 ark_glossary.tsv 并入（原表已归档）。英语里同时是普通词的官方专名
+#   （Terra/Operator/Reunion/Yan）绝不进 AK_TERMS 裸键，只能在此按英文参考行体检，
+#   命中后由人工判断是否逐 cue 修。与 ENDFIELD_MISSING_CHECK / WUWA_MISSING_CHECK 同构，
+#   由 `--mode ak` 的 verify/lint 装载（见 inspect._load_missing_rules）。
+#   XP/RA/CC 已有 AK_CONTEXT 条目，不在此重复。
+# =============================================================
+AK_MISSING_CHECK = [
+    (r"\bTerra\b", ("泰拉",), "Terra 官方中文=泰拉（ark_glossary.tsv:11）"),
+    (r"\bOperator\b", ("干员",), "Operator 官方中文=干员（ark_glossary.tsv:14）"),
+    (r"\bReunion\b", ("整合运动",), "Reunion 官方中文=整合运动（ark_glossary.tsv:45）"),
+    (r"\bYan\b", ("炎",), "Yan 官方中文=炎（ark_glossary.tsv:48）；单字低置信，命中请人工确认"),
 ]
 
 AK_KO_TERMS = {

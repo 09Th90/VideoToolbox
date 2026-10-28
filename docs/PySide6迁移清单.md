@@ -147,7 +147,7 @@ PySide6-Fluent-Widgets 1.11.3），探针 `build/_probe_pyside6.py` **15 项全�
 
 - **本软件是否属于「商业用途」**——这决定 `qfluentwidgets` 的 GPLv3 条款是否
   适用。若属商用，界面组件库需要向作者购买许可（与换不换 PySide6 无关）。
-- 现有打包环境 `D:\Agent Work\_bld\qt_build` 与 `tools\python` 都装着 PyQt5，切换时
+- 现有打包环境 `C:\bld\qt_build` 与 `tools\python` 都装着 PyQt5，切换时
   **两侧必须同步**，否则会重演「源码模式正常、打包后失败」。
 - `docs/第三方组件来源与许可声明.txt` 需补 PyQt5 与 qfluentwidgets 两条
   （见三之二第 3 点）。

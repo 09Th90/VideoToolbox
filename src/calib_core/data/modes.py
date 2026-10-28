@@ -146,16 +146,27 @@ _MODE_TERM_TABLE = {
     "pgren": "PGR_EN_TERMS", "react": "REACT_TERMS",
     "endobi": "ENDFIELD_BI_TERMS", "endoko": "ENDFIELD_KO_TERMS",
     "pkm": "POKEMON_TERMS",
+    # 2026-10-26 新增：边狱巴士（Limbus Company）音乐 reaction 片源
+    "limbus": "LIMBUS_TERMS",
+    # 2026-10-28 新增：最终幻想：共鸣（FFRS）HD-2D 实况片源
+    "ffrs": "FFRS_TERMS",
 }
 
 _MODE_CTX_TABLE = {
     "bi": "CONTEXT_MAP", "ja": "JA_CONTEXT", "jpe": "JA_ENDFIELD_CONTEXT",
     "akko": "AK_KO_CONTEXT", "ko": "KO_CONTEXT", "ak": "AK_CONTEXT",
     "endoko": "ENDFIELD_KO_CONTEXT", "pkm": "POKEMON_CONTEXT",
+    # 2026-10-25 新增：--wwoc 此前无语境槽，多游戏韩语片的歧义错形
+    #   （十字军/家具/反向/德州/Star Seed 等）只能逐 cue；现补 WWOC_CONTEXT。
+    "wwoc": "WWOC_CONTEXT",
     # 2026-10-20 新增：--endobi 此前无语境槽，通用中文词类官方名（枯萎/主管/以太/觉醒/
     #   蚁人/前哨基地…）无处锚定，只能逐 cue；现补 ENDFIELD_BI_CONTEXT 与 endoko 同构。
     #   --endo **不建槽**：单语片源每 cue 仅一行，ref 即该中文行本身，英文锚定永不命中。
     "endobi": "ENDFIELD_BI_CONTEXT",
+    # 2026-10-26 新增：边狱巴士音乐 reaction；Boss/Canto/乐理术语靠英文参考行锚定
+    "limbus": "LIMBUS_CONTEXT",
+    # 2026-10-28 新增：最终幻想：共鸣；Visions/Stagger/Rain/Terra 等歧义词靠英文参考行锚定
+    "ffrs": "FFRS_CONTEXT",
 }
 
 _MODE_NAMES = {
@@ -164,5 +175,7 @@ _MODE_NAMES = {
     "ak": "明日方舟", "akko": "明日方舟韩语", "zho": "中文行专属",
     "pgren": "战双英文原声", "react": "音乐点评", "endobi": "终末地·中英双语", "fix-en": "英文参考行修正",
     "endoko": "终末地·韩语原声", "pkm": "宝可梦城镇主题",
+    "limbus": "边狱巴士",
+    "ffrs": "最终幻想：共鸣",
 }
 

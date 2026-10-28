@@ -11,8 +11,8 @@
     就 ImportError。本脚本在**打包环境**下跑，就能在打包前把这类缺口挑出来。
 
 用法（**必须用打包环境的解释器**，否则测的是运行副本、结论无效）：
-    C:\\bld\\qt_build\\Scripts\\python.exe src\\check_deps.py
-    python src\\check_deps.py --list          # 顺便打印全部顶层模块
+    C:\\bld\\qt_build\\Scripts\\python.exe scripts\\dev\\check_deps.py
+    python scripts\\dev\\check_deps.py --list   # 顺便打印全部顶层模块
 返回码：0 = 闭合；1 = 有缺失。
 """
 import argparse
@@ -35,6 +35,8 @@ SOFT_OK = {
     "vlc",        # 引擎的 VLC 播放后端，本工具箱走 libmpv，不依赖它
     "playwright", # CDP 连已装浏览器（sync_playwright 函数内延迟 import + 降级
                   # 提示）；v1.10.1 起浏览器引擎不随包分发，缺库属预期
+    "ai_client",  # 随包 tools\ai_client.py（iss 与在线 tools 包分发），不进 PYZ；
+                  # vt_engine.llm_client 函数体内延迟 import + tools 路径回退
 }
 
 

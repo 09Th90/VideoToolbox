@@ -25,8 +25,34 @@ from __future__ import annotations
 
 import datetime
 import importlib
+import os
+import zlib
 from pathlib import Path
 from typing import Optional
+
+#: Windows 传统路径上限 260；预留 12 字符给系统临时后缀/分隔符。
+_WIN_PATH_BUDGET = 248
+
+
+def _short_name(name: str, root_dir: str, repeats: int = 1,
+                extra: int = 40) -> str:
+    """把名称收敛到不触发 Windows MAX_PATH 的长度（确定性哈希后缀）。
+
+    ``root_dir`` 是产物所在根目录；``repeats`` 是该名称在完整路径里出现的
+    次数（转录任务同时用作 work-dir 子目录名与文件名，故为 2）；``extra``
+    是其余固定片段（``\\subtitle\\【原始字幕】``、模型名、语言、扩展名）的
+    保守长度。超限时截断并追加 crc32 后缀——同一视频始终映射到同一名字。
+    """
+    text = str(name or "")
+    try:
+        root_len = len(os.path.abspath(str(root_dir)))
+    except Exception:  # noqa: BLE001
+        root_len = 80
+    limit = max(24, (_WIN_PATH_BUDGET - root_len - extra) // max(1, repeats))
+    if len(text) <= limit:
+        return text
+    digest = format(zlib.crc32(text.encode("utf-8")) & 0xFFFFFFFF, "08x")
+    return text[:limit - 9] + "-" + digest
 
 
 def _mod(name: str):
@@ -49,6 +75,51 @@ def _engine_helpers():
     """video_toolbox 里的 ASR 覆盖/配置助手（本项目自研）。"""
     m = _mod("video_toolbox")
     return m
+
+
+def _asr_ready():
+    """全局 ASR 是否已配置完整（service 要地址+密钥，local 要模型/目录）。"""
+    try:
+        from core.shared.ai import ai_load_config, ai_mod
+        ac = ai_mod().asr_config(ai_load_config())
+        if ac.get("mode") == "local":
+            return bool(ac.get("local_model") or ac.get("local_model_dir"))
+        return bool(ac.get("base_url") and ac.get("api_key"))
+    except Exception:  # noqa: BLE001
+        return False
+
+
+def _prefer_asr_model():
+    """B 接口已不可用时，已配置 ASR 就把转录模型切到 ASR。
+
+    2026-10-28：必剪 bcut 的 ``task/result`` 现固定回 HTTP 412，B 接口
+    实际不可用；而转录页「默认」会把模型留在 B，任务照旧走 bcut 必然失败。
+    这里在**建任务前**兜底：当前模型是 B/J/WhisperCpp 这类免费/历史通道、
+    且全局 ASR 配置完整时，调 ``apply_asr_to_engine`` 切到 ASR。
+
+    用户显式选 Whisper [API] / FasterWhisper 时不动——那是已经指向 ASR
+    的取值，覆盖只会打乱本地模型选择。
+    """
+    try:
+        cfg = _cfg()
+        ent = _entities()
+        cur = cfg.get(cfg.transcribe_model)
+        if cur in (ent.TranscribeModelEnum.WHISPER_API,
+                   ent.TranscribeModelEnum.FASTER_WHISPER):
+            return
+        if not _asr_ready():
+            return
+        from core.asr.engine_config import apply_asr_to_engine
+        ok, detail = apply_asr_to_engine()
+        try:
+            from core.shared.log import _vc_log
+            _vc_log("转录模型为「%s」，已按全局 ASR 配置改用 ASR%s"
+                    % (getattr(cur, "value", cur),
+                       "" if ok else "失败：" + str(detail)[:200]))
+        except Exception:  # noqa: BLE001
+            pass
+    except Exception:  # noqa: BLE001
+        pass
 
 
 class TaskFactory:
@@ -86,11 +157,16 @@ class TaskFactory:
         need_next_task: bool = False,
         task_id: Optional[str] = None,
     ):
+        _prefer_asr_model()
         cfg = _cfg()
         ent = _entities()
-        file_name = Path(file_path).stem
+        stem = Path(file_path).stem
 
         if need_next_task:
+            # work-dir 子目录名与文件名都会用这段 stem，各算一次长度；
+            # 长标题（>60 字）不收敛会让完整路径越过 260，产物写得出但读不回。
+            file_name = _short_name(stem, cfg.work_dir.value,
+                                    repeats=2, extra=60)
             need_word_time_stamp = cfg.need_split.value
             output_path = str(
                 Path(cfg.work_dir.value)
@@ -99,6 +175,8 @@ class TaskFactory:
                 / f"【原始字幕】{file_name}-{cfg.transcribe_model.value.value}-{cfg.transcribe_language.value.value}.srt"
             )
         else:
+            file_name = _short_name(stem, Path(file_path).parent,
+                                    repeats=1, extra=10)
             need_word_time_stamp = False
             output_path = str(Path(file_path).parent / f"{file_name}.srt")
 
@@ -180,6 +258,8 @@ class TaskFactory:
         output_name = (
             Path(file_path).stem.replace("【原始字幕】", "").replace("【下载字幕】", "")
         )
+        output_name = _short_name(output_name, Path(file_path).parent,
+                                  repeats=1, extra=50)
         suffix = f"-{cfg.translator_service.value.value}" if cfg.need_translate.value else ""
         if need_next_task:
             output_path = str(Path(file_path).parent / f"【样式字幕】{output_name}{suffix}.ass")

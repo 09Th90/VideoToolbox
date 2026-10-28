@@ -106,6 +106,8 @@ src/config/
 history/build/
 history/logs/
 history/data/
+# 工作区清理归档（scripts/dev/_cleanup_workspace.py 的 rename 目标），整目录不入库
+/history/
 
 # 打包中间产物 / 超限二进制：走 GitHub Releases 或在线仓库分发，不进 git
 dist/
@@ -176,6 +178,10 @@ _selftest_pipeline_result.txt
 
 # 运行期备份与扫描数据缓存（不入库）
 *.bak_20*
+# 连字符型日期备份（如 subtitle_calib_merged.py.bak-20261025），上面两条都覆盖不到
+*.bak-20*
+# yt-dlp 直调残留（-J 被当成输出文件名，内容通常是一个 PID/数字）
+/-J
 standalone/bili_version_scan/*.xlsx
 standalone/bili_version_scan/raw*.json
 standalone/bili_version_scan/games.json

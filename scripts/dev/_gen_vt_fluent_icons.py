@@ -49,7 +49,7 @@ OUT = os.path.join(ROOT, "src", "vt_fluent", "_icons_data.py")
 USED = sorted({
     "SYNC", "FOLDER", "SAVE", "ROBOT", "DOCUMENT", "LINK", "LANGUAGE", "FONT",
     "DELETE", "UPDATE", "SEARCH", "DOWNLOAD", "CANCEL", "VIDEO", "SETTING",
-    "PLAY", "EDIT", "TILES", "SPEED_HIGH", "SEND", "PLAY_SOLID", "MEDIA",
+    "PLAY", "EDIT", "TILES", "SPEED_HIGH", "SEND", "PLAY_SOLID", "PAUSE", "MEDIA",
     "HISTORY", "FOLDER_ADD", "FINGERPRINT", "CUT", "CONNECT", "CLOSE",
     "CERTIFICATE", "ALIGNMENT", "HOME", "ZOOM", "SAVE_AS", "RIGHT_ARROW",
     "PAUSE_BOLD", "PASTE", "PALETTE", "PAGE_RIGHT", "PAGE_LEFT", "MOVIE",

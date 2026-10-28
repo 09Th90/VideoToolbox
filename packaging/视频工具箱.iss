@@ -1,7 +1,7 @@
 ; @version 2.7.0
 ; ============================================================================
 ; 视频工具箱 v2.7.0 —— Inno Setup 安装包脚本
-; 构建前提：已用打包环境 D:\Agent Work\_bld\qt_build 执行 pyinstaller 视频工具箱.spec
+; 构建前提：已用打包环境 C:\bld\qt_build 执行 pyinstaller 视频工具箱.spec
 ;           （2026-10-14 起该环境为 PySide6 6.12.0 + PySide6-Fluent-Widgets
 ;           1.11.3；此前为 PyQt5 5.15.11 + PyQt-Fluent-Widgets 1.8.4），
 ;           产物位于 dist\视频工具箱.exe

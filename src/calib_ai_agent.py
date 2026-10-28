@@ -111,7 +111,7 @@ MODE_KEY = {
     "": "bi", "--ja": "ja", "--jpe": "jpe", "--ko": "ko", "--ak": "ak",
     "--akko": "akko", "--endo": "endo", "--zho": "zho", "--pgr": "pgr",
     "--pgren": "pgren", "--wwoc": "wwoc", "--react": "react",
-    "--endobi": "endobi", "--endoko": "endoko",
+    "--endobi": "endobi", "--endoko": "endoko", "--limbus": "limbus",
 }
 MODE_NAME = {
     "": "中英双语", "--ja": "日语原声·鸣潮", "--jpe": "日语原声·终末地",
@@ -119,6 +119,7 @@ MODE_NAME = {
     "--endo": "终末地", "--zho": "中文行专属", "--pgr": "战双帕弥什",
     "--pgren": "战双英文原声", "--wwoc": "综合手游OST", "--react": "音乐点评",
     "--endobi": "终末地·中英双语", "--endoko": "终末地·韩语原声",
+    "--limbus": "边狱巴士",
 }
 
 #: 知识库规则展开时的字符上限（喂给模型的精简子集；校验仍用全量规则）
@@ -223,7 +224,7 @@ STYLE_NAME = {"term": "术语级（只替换名词）", "rewrite": "整句重写
 #: 是否把参考行一并喂给模型（双语/多语片源建议 True；比原文长不了多少，
 #: 却能把它从「盲替换」变成「有据改写」。None = 由片源模式决定）
 INCLUDE_REF_MODES = ("", "--ja", "--jpe", "--ko", "--ak", "--akko", "--endo",
-                     "--pgren", "--wwoc", "--react", "--endobi", "--endoko")
+                     "--pgren", "--wwoc", "--react", "--endobi", "--endoko", "--limbus")
 
 #: 单行显示宽度上限（汉字当量；与 subtitle_calib_merged 的 MAX_LINE_ZH 同判据：
 #: 东亚 W/F/A 宽字符计 1.0、半角计 0.5，故「32 汉字」等价于「64 英文字符」）
@@ -2520,6 +2521,7 @@ _TAG_WORK_ALIASES = {
     "明日方舟": ["明日方舟", "arknights", "ark nights"],
     "战双帕弥什": ["战双帕弥什", "punishing gray raven", "punishing", "gray raven", "pgr"],
     "终末地": ["终末地", "明日方舟终末地", "endfield"],
+    "边狱巴士": ["边狱巴士", "边狱公司", "limbus company", "limbus", "边狱"],
     "无限大": ["无限大", "ananta", "project mugen", "mugen"],
     "源初之结": ["源初之结", "noticefall", "nodusfall"],
     "二重螺旋": ["二重螺旋", "duet night abyss", "duet night"],
@@ -2558,15 +2560,21 @@ _TAG_COMPANY_ALIASES = {
     "鹰角网络": ["鹰角网络", "鹰角", "hypergryph"],
     "腾讯": ["腾讯", "tencent"],
     "网易": ["网易", "netease"],
+    "Everything Fantasy": ["everything fantasy", "everythingfantasy", "cory"],
+    "Project Moon": ["project moon", "projectmoon", "月亮计划", "月计"],
+    "Studio EIM": ["studio eim", "eim"],
 }
 #: ② B 站二游区高频体裁/主题词（v1.17.1：按 16636 条实测标签覆盖率重排；用于补足，无需佐证）
 _TAG_GENRE_ORDER = [
+    # 2026-10-26：音乐 reaction/OST 分析片常用体裁前置
+    "游戏音乐", "音乐分析", "Reaction",
     "二次元", "游戏杂谈", "搞笑", "剧情", "教程攻略", "二游", "动作游戏",
     "手机游戏", "抽卡", "氪金", "游戏设计", "游戏推荐", "游戏鉴赏家",
     "游戏测评", "游戏吐槽", "手游情报", "抄袭",
 ]
 #: ② 可接受的体裁/内容类型词全集（命中即 tier2，免佐证——这类词不指向具体作品）
 _TAG_GENRE_OK = set(_TAG_GENRE_ORDER) | {
+    "作曲家",
     "杂谈", "锐评", "吐槽", "盘点", "考据", "游戏实况", "游戏解说",
     "实况解说", "单机游戏", "网络游戏", "手游", "游戏", "RPG",
     "开放世界", "卡牌游戏", "塔防", "策略游戏", "独立游戏",

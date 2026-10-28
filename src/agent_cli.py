@@ -65,7 +65,8 @@ VERSION = "1.0.0"
 
 #: 校准脚本支持的语言旗标（与 subtitle_calib_merged.main_argv 同步，2026-10-15）
 CALIB_MODE_FLAGS = ("--ja", "--jpe", "--ko", "--wwoc", "--ak", "--akko",
-                    "--zho", "--endo", "--endobi", "--fix-en")
+                    "--zho", "--endo", "--endobi", "--fix-en", "--limbus",
+                    "--ffrs")
 
 
 # ============================================================
@@ -324,7 +325,75 @@ def _rate(txt):
 # ============================================================
 # download：yt-dlp 下载
 # ============================================================
+def _cmd_download_job(args) -> int:
+    """P1：统一 job 层；旧 cmd_download 保留为 legacy。"""
+    engine = _engine()
+    from core.download.job import (
+        DownloadJob, JobHooks, StreamingRunner,
+        download_orchestrator, run_download_job,
+    )
+    ytdlp = engine.ensure_ytdlp()
+    ffmpeg_path, _ = engine.ensure_ffmpeg()
+    url = args.url
+    _say(args, "[1/3] 提取视频信息 …")
+    try:
+        raw = engine.fetch_info_json(ytdlp, url, log=lambda m: _say(args, str(m)))
+    except Exception as e:  # noqa: BLE001
+        return _fail(args, "提取视频信息失败：%s" % e)
+    if not raw:
+        return _fail(args, "提取视频信息失败（网络/风控），详见上方日志")
+    try:
+        meta = json.loads(raw)
+    except ValueError:
+        meta = {}
+    title = (meta.get("title") or "video").strip()
+    duration = _to_float(meta.get("duration"))
+    out_dir = os.path.abspath(args.dir) if args.dir else os.path.join(
+        engine.DATA_DIR, "downloads", "agent",
+        re.sub(r'[\\/:*?"<>|]+', "_", title)[:80] or "video")
+    os.makedirs(out_dir, exist_ok=True)
+
+    def say_line(line):
+        _say(args, str(line))
+
+    def extract(_ytdlp, _url):
+        return engine.fetch_info_json(
+            _ytdlp, _url, log=lambda m: _say(args, str(m)))
+
+    hooks = JobHooks(
+        run=StreamingRunner(say_line),
+        log=lambda m, lv="dim": _say(args, str(m)),
+        extract=extract,
+        detect_language=engine.ai_detect_language,
+        make_cover=lambda ff, folder: engine.make_cover_1280x720(ff, folder),
+        write_info=engine.write_info_txt,
+        normalize_srt=engine.normalize_rolling_srt,
+    )
+    spec = DownloadJob(
+        url=url, folder=out_dir, meta=meta, raw_info=raw,
+        max_height=int(getattr(args, "height", 0) or 0),
+        with_subs=bool(getattr(args, "subs", False)),
+        lock_proxy=True,
+    )
+    _say(args, "[2/3] 开始下载：%s" % title)
+    result = run_download_job(spec, hooks)
+    if not result.ok:
+        return _fail(args, result.error or "视频下载失败",
+                     title=result.title or title, dir=result.folder or out_dir)
+    files = [os.path.join(out_dir, n) for n in sorted(os.listdir(out_dir))
+             if os.path.isfile(os.path.join(out_dir, n))]
+    videos = [f for f in files if f.lower().endswith((".mp4", ".mkv", ".webm"))]
+    _say(args, "[3/3] 下载完成")
+    return _emit(args, {"ok": True, "title": result.title or title,
+                        "duration_sec": duration, "dir": result.folder or out_dir,
+                        "video": result.video or (videos[0] if videos else ""),
+                        "n_files": len(files)})
+
+
 def cmd_download(args) -> int:
+    from core.download.job import download_orchestrator
+    if download_orchestrator(default="job") == "job":
+        return _cmd_download_job(args)
     engine = _engine()
     ytdlp = engine.ensure_ytdlp()
     ffmpeg_path, _ = engine.ensure_ffmpeg()
@@ -388,6 +457,13 @@ def cmd_transcribe(args) -> int:
     src = os.path.abspath(args.file)
     if not os.path.isfile(src):
         return _fail(args, "文件不存在：%s" % src)
+
+    # 引擎路径/配置重定向必须早于 videocaptioner 读盘：否则 cfg 会读
+    # AppData 默认 settings，转录模型回落成 BIJIAN（与设置页不一致）。
+    try:
+        engine.prepare_runtime_env()
+    except Exception:  # noqa: BLE001 - 环境准备失败仍按原报错暴露
+        pass
 
     # ① 同步「设置」页 ASR 配置进引擎 settings（与 GUI「保存并应用」同款）
     # ASR 协议分发补丁（2026-10-20 起不在 prepare_runtime_env 里装）
@@ -779,6 +855,8 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--dir", default="", help="输出目录（默认 data\\downloads\\agent\\<标题>\\）")
     s.add_argument("--height", type=int, default=0,
                    help="限制最大分辨率高度（如 1080；0=不限制）")
+    s.add_argument("--subs", action="store_true",
+                   help="同时下载字幕（job 编排模式下生效）")
     s.set_defaults(fn=cmd_download)
 
     s = sub.add_parser("transcribe", parents=[common],

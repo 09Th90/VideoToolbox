@@ -194,10 +194,12 @@ ENTITIES_PART1 = [
                 "2026-09-14 / 2026-09-23 《What's wrong with Denia's voice》"
                 "(鸣潮3.3「自星海尽处回响」第三章幕间《在熔解的夜空下》Reaction) 沉淀。"
                 "官方中文核对：达妮娅(萌娘/灰机/BWIKI)，全名达斯维达尼亚(先约电台EP《直到下次再见》)，"
-                "中配戈昕宇/日配伊藤美来，PV《人类伪装指南》。"),
+                "中配戈昕宇/日配伊藤美来，PV《人类伪装指南》。"
+                "2026-10-27 ABRAXAS 片 ASR `Donnie`→谷翻「唐尼」；Donnie 为常见西名，"
+                "只做本片 sidecar，不入全局 ctx/裸键。"),
     Entity("陆·赫斯", modes=("bi",), en="Luuk Herssen",
            category="角色/星炬学院校医",
-           variants=("路克",),
+           variants=("路克", "Luke Herson", "卢克·赫尔森"),
            ctx=((r"Harrison", "老哈里森博士"),),
            note="星炬学院共鸣医疗科主执校医（百度百科/网易，英文 Luuk Herssen）。"
                 "主播口音 ASR 常作 Dr. Luke/Dr. Harrison Senior(Herssen Senior 误听)："
@@ -233,9 +235,12 @@ ENTITIES_PART1 = [
     Entity("莫宁", modes=("bi",), en="Mornye",
            category="角色",
            variants=("Monier", "莫尼尔", "Mourn"),
+           ctx=((r"\bMour\b", "莫尔"), (r"\bMou\b", "穆")),
            note="星炬学院隧者工学部教授/深空联合研究院工程师（百度百科·琳奈词条）。"
                 "Mouier/Mor 变体已在扁平表；本片 #169 Professor Monier、#184 Professor Mona(侧车)。"
-                "2026-10-24 补 Mourn（角色曲《若能触及群星》段落 ASR）。"),
+                "2026-10-24 补 Mourn（角色曲《若能触及群星》段落 ASR）。"
+                "2026-10-27 ABRAXAS 片 ASR `Mona`→谷翻「莫娜」；与《原神》莫娜冲突，"
+                "只做本片 sidecar，绝不入全局键。"),
     Entity("西格莉卡", modes=("bi",), en="Sigrika",
            category="角色",
            variants=("Sriraka", "Skrika", "Sigrika"),
@@ -247,8 +252,9 @@ ENTITIES_PART1 = [
                 "（'尖叫'通用词绝不入裸键）。2026-09-23 沉淀。"),
     Entity("残星会", modes=("bi",), en="Fractsidus",
            category="势力",
-           variants=("Fracidus",),
-           note="本片 #554 Fraidus'/Fracidus' door ASR 变体。"),
+           variants=("Fracidus", "Fraidus", "Fraid", "Fractus", "fractus", "弗拉杜斯"),
+           note="本片 #554 Fraidus'/Fracidus' door ASR 变体。2026-10-25 4.0 片补 Fraidus/Fraid/"
+                "Fractus/弗拉杜斯，中文行统一归残星会。"),
     Entity("琳奈", modes=("bi",), en="Linny / Lenna",
            category="角色",
            variants=("Linn",),
@@ -260,6 +266,22 @@ ENTITIES_PART1 = [
            note="星炬学院学部（官方知识库：'经拉贝尔学部判断其频率……'；官方角色档案："
                 "'爱弥斯，星炬学院拉贝尔学部的隧者适格者'）。Rebel College 为 Labell College "
                 "ASR 变体；2026-10-24 补无尾 g 形，勿归入上位机构『星炬学院』。"),
+    Entity("天槎", modes=("bi",), en="Sky Ark",
+           category="地点/鸣潮3.1",
+           variants=("Skyark", "天空方舟"),
+           note="稷廷研发的科研空间站，官方中文=天槎（天槎空间站），3.1 剧情《远航星》空间站段。"
+                "ASR/谷翻变体 Sky Ark/Skyark/天空方舟；2026-10-27 3.1 精校实证"
+                "（官方 3.1 内容说明/攻略/剧情文本）。旧扁平键 skyarch->天弧 已改回天槎。"),
+    Entity("联运椎骨", modes=("bi",), en="Starward Riseway",
+           category="地点/鸣潮3.1",
+           variants=("Starwood Riseway", "星木驰道", "星木栈道", "喜达屋的起始道"),
+           note="拉海洛区域，官方中文=联运椎骨（官方 3.0 区域名 Starward Riseway）；"
+                "ASR Starwood Riseway、谷翻'喜达屋的起始道'；2026-10-27 3.1 精校实证。"),
+    Entity("浮光林", modes=("bi",), en="Bjartr Woods",
+           category="地点/鸣潮3.1",
+           variants=("Bart Woods", "巴特伍兹", "巴特·伍兹"),
+           note="拉海洛区域，官方中文=浮光林（官方 3.0 区域名 Bjartr Woods）；"
+                "ASR Bart Woods、谷翻'巴特·伍兹'；2026-10-27 3.1 精校实证。"),
     Entity("老婆", modes=("bi",), category="术语",
            variants=("waifuss",),
            note="waifu 复数 ASR 形 waifuss(#43)；'收集 waifuss'=收集老婆。"
@@ -928,10 +950,13 @@ ENTITIES_PART1 = [
            category="角色/鸣潮", variants=("罗蒂亚",),
            note="补 r3 '罗蒂亚'->洛可可（#1212，Roccia 谷翻音译）。非正常中文词，裸键安全。"),
     Entity("守岸人", modes=("bi",), en="The Shorekeeper",
-           category="角色/鸣潮", variants=("肖尔基珀",),
-           ctx=((r"[Ss]horekeeper", "岸上看守"),),
+           category="角色/鸣潮", variants=("肖尔基珀", "肖特克守门员"),
+           ctx=((r"[Ss]horekeeper", "岸上看守"),
+                (r"\bShorekeeper\b|\bShortke\b", "岸上管理员"),
+                (r"\bShorekeeper\b|\bShortke\b", "肖特克守门员")),
            note="补 r3：肖尔基珀(#1037，非正常词裸键安全)；岸上看守(#325/961，正常短语，"
-                "须 Shorekeeper 佐证才改)。既有 短守/Shawkeeper/岸边管理员/空头/短手 保留。"),
+                "须 Shorekeeper 佐证才改)。2026-10-25 4.0 片补 岸上管理员/肖特克守门员；"
+                "既有 短守/Shawkeeper/岸边管理员/空头/短手 保留。"),
     Entity("共鸣者", modes=("bi",), en="Resonator",
            category="术语/鸣潮",
            ctx=((r"[Rr]esonator", "共振腔"), (r"[Rr]esonator", "共鸣腔")),
@@ -979,7 +1004,9 @@ ENTITIES_PART1 = [
            category="角色/鸣潮",
            variants=("杨阳",),
            note="学习库固化(#388/402/570/1512/1844/2796/4689/4692 多片实测)："
-                "'杨阳'为 Yangyang 音近错形。"),
+                "'杨阳'为 Yangyang 音近错形。"
+                "2026-10-27 ABRAXAS 片 ASR `Yinyang`→谷翻「阴阳」；阴阳为通用词，"
+                "只做本片 sidecar，不入全局键。"),
     Entity("坎特蕾拉", modes=("bi",), en="Cantarella",
            category="角色/鸣潮",
            variants=("卡内雷拉", "卡内拉"),
@@ -1069,8 +1096,9 @@ ENTITIES_PART1 = [
            note="学习库固化(#2315/2325/5263/5866/6580/12255)：mirage 机翻'幻界'归蜃境。"),
     Entity("爱弥斯", modes=("bi",),
            category="角色/鸣潮2.x",
-           variants=("艾姆斯", "Amus"),
-           note="学习库固化(#1644/1645/4470)：Amess 音译残留；'伊梅'(Imeth)走学习库 ctx。"),
+           variants=("艾姆斯", "Amus", "Amoth", "Amth"),
+           note="学习库固化(#1644/1645/4470)：Amess 音译残留；'伊梅'(Imeth)走学习库 ctx。"
+                "2026-10-25 4.0 片补 Amoth/Amth（ASR 形）。"),
     # ===== 2026-10-01 韩语原声·鸣潮 reaction 片（《명조》B站初体验，577 cue）沉淀 =====
     # 官方译名来源：百度百科 / 鸣潮WIKI(BWIKI) / 灰机wiki / Fandom / 萌娘百科《鸣潮/译名对照表》/ namu.wiki。
     # 戒律：官方中文名做 canonical；非正常中文词进 variants（无条件改）；
@@ -1484,5 +1512,148 @@ ENTITIES_PART1 = [
                 "十字星状声痕（灰机wiki）。日语 ASR 作 無音/無恩ク/無恩音，谷翻按字面译成"
                 "'沉默/寂静'（本片 cue 83/84/109/290/294/301/308 全是该术语）。"
                 "戒律：沉默/寂静是正常中文词，只走日语行锚定 ctx。"),
+
+    # --- 2026-10-25 鸣潮 4.0 新联邦 reaction 片（474 cue）二校沉淀 ---
+    # 官方中文依据：百度百科「新联邦」「星炬学院」「无归的谬误」「阿布」、
+    # 萌娘百科「爱弥斯」「伊冯」、鸣潮译名对照表（Sonoro Sphere / Tacet Mark）。
+    Entity("新联邦", modes=("bi", "react"), en="New Federation",
+           category="地区/鸣潮4.0",
+           variants=("新灌溉",),
+           ctx=((r"\bFederation\b", "联邦"), (r"\bNew\s*$", "New")),
+           note="新联邦，鸣潮 4.0 新地区；官方中文=新联邦。谷翻「新灌溉」/「联邦」/残留 New "
+                "均靠参考行锚定归此；裸「联邦」是通用词，不入扁平表。"),
+    Entity("星炬学院", modes=("bi", "react"), en="Startorch Academy",
+           category="势力/学院·鸣潮",
+           variants=("星火学院", "星游学园", "星游学院", "罗伊斯塔尔学院"),
+           ctx=((r"\bAcademy\b", "学院"),),
+           note="官方中文=星炬学院（Startorch Academy）；学院 President=校长洛瑟菈。"
+                "Academy 参考行锚定「学院」；EXCLUDE_CONTEXT 已排除 Academy Awards 等通用语境。"),
+    Entity("索诺拉", modes=("bi", "react"), en="Sonoro Sphere",
+           category="术语/鸣潮",
+           variants=("Sonaro 球体", "Sonoro 球体", "Somnoire", "Som Noir", "Somnir", "Somnoir"),
+           ctx=((r"\bSon(?:oro|aro)\s+spheres?\b", "球体"),),
+           note="回音能量富集形成的超自然空间，官方中文=索诺拉（又称声之领域；Sonoro Sphere）。"
+                "谷翻「Sonaro 球体」归此；「球体」通用词只走参考行锚定。"),
+    Entity("无归的谬误", modes=("bi", "react"), en="Fallacy of No Return",
+           category="敌人/声骸·鸣潮",
+           variants=("回报的谬误", "归来的谬误"),
+           note="泰缇斯系统构筑的最终防卫程序，官方中文=无归的谬误（Fallacy of No Return）。"
+                "本片 ASR「fallacy of return」漏 No，谷翻「回报的谬误」归此。"),
+    Entity("阿布拉克萨斯", modes=("bi", "react"), en="Abraxas",
+           category="角色/鸣潮",
+           variants=("Abrais", "A Brais", "A Braxis", "Arais",
+                     "阿布拉伊斯", "阿布雷斯", "一个brais", "布拉克西斯人", "布拉克西斯"),
+           ctx=((r"\b[Bb]raxis\b", "Braxis"),),
+           note="阿布全名（Abraxas）；3.7 角色阿布的真名。本片 ASR Abrais/A Brais/A Braxis/Arais "
+                "与谷翻「阿布拉伊斯/一个brais/布拉克西斯人」统一归此；昵称「阿布」另见 Entity(阿布)。"),
+    Entity("莉莉", modes=("bi", "react"), en="Lily",
+           category="角色/鸣潮3.8",
+           note="3.8 衍射角色，官方中文=莉莉；本片 #333-336 提及，未实装。"),
+    Entity("长离", modes=("bi", "react"), en="Changli",
+           category="角色/鸣潮",
+           variants=("Chang Lee",),
+           ctx=((r"\bChang\s+Lee\b", "张李"),),
+           note="今州角色，官方中文=长离（Changli）。本片 ASR「Chang Lee」，谷翻「张李」；"
+                "中置信保留，若画面/音频另有指代则回退。"),
+    Entity("伊冯", modes=("bi", "react"), en="Yvonne",
+           category="角色/终末地",
+           variants=("Ivonne", "Ivon", "伊冯娜"),
+           note="《明日方舟：终末地》角色，官方中文=伊冯（Yvonne）。本片 #350 以「Ivonne」作对比；"
+                "bi 模式补录，避免跨游戏片源残留音译。"),
+    # ==== 2026-10-27 鸣潮 4.0 Lore Trailer《超越者》reaction 二次校准沉淀 ====
+    # ASR 把官方英文专名听成常用词，谷翻再按字面直译；以下变体只在中文行残留英文串时
+    # 无条件替换，字面错译（店主/塞罗诺德人/被动不和谐…）一律靠英文参考行锚定的 ctx 改。
+    Entity("守岸人", modes=("bi", "react"), en="The Shorekeeper",
+           category="角色/鸣潮",
+           variants=("Shopkeeper",),
+           ctx=((r"\b(?:Shopkeeper|Shorekeeper|Shortkeeper)\b", "店主"),
+                (r"\b(?:Shopkeeper|Shorekeeper|Shortkeeper)\b", "掌柜")),
+           note="4.0 预告 reaction #47/49/72/121：ASR 把 Shorekeeper 听成 Shopkeeper，"
+                "谷翻字面「店主/掌柜」；两词是通用词，只走英文参考行锚定，不进扁平表。"),
+    Entity("鸣式", modes=("bi", "react"), en="Threnodian",
+           category="术语/鸣潮",
+           variants=("Theronodian", "Thernodian"),
+           ctx=((r"\b(?:Theronodian|Thernodian|Threnodian)\b", "塞罗诺德人"),
+                (r"\b(?:Theronodian|Thernodian|Threnodian)\b", "塞罗诺迪安"),
+                (r"\b(?:Theronodian|Thernodian|Threnodian)\b", "瑟诺迪亚人"),
+                (r"\b(?:Theronodian|Thernodian|Threnodian)\b", "特诺迪安")),
+           note="4.0 预告 reaction #151/152/180/185：ASR Theronodian/Thernodian，谷翻"
+                "「塞罗诺德人/塞罗诺迪安/瑟诺迪亚人/特诺迪安」；旧元组已有瑟诺迪人/Thurnodian。"),
+    Entity("残象", modes=("bi", "react"), en="Tacet Discord",
+           category="术语/鸣潮",
+           variants=("passive discord",),
+           ctx=((r"\b(?:passive|tacet|tacid|taca)\s+discords?\b", "被动不和谐"),
+                (r"\b(?:passive|tacet|tacid|taca)\s+discords?\b", "被动不和")),
+           note="4.0 预告 reaction #48：ASR 把 Tacet Discord 听成 passive discord，"
+                "谷翻「被动不和谐的大事」；通用短语只走英文锚定。"),
+    Entity("残星会", modes=("bi", "react"), en="Fractsidus",
+           category="势力/鸣潮",
+           variants=("Fractious",),
+           ctx=((r"\b(?:Fractious|Fractsidus)\b", "脾气暴躁"),),
+           note="4.0 预告 reaction #140/141：ASR Fractious（Fractsidus 误听），谷翻「脾气暴躁」；"
+                "既有 Fraidus/Fractus/Fracidus 变体保留。"),
+    Entity("岁主", modes=("bi", "react"), en="Sentinel",
+           category="术语/鸣潮",
+           variants=("Sentinels",),
+           note="鸣潮官方术语 Sentinel=岁主；扁平表已有 Sentinel->岁主、哨兵->岁主。"
+                "补 Entity 供 audit 同词族扫描（4.0 预告 #119/149/181/185）。"),
+    Entity("角", modes=("bi", "react"), en="Jue",
+           category="角色/鸣潮",
+           ctx=((r"\bJua\b", "朱阿"), (r"\bJua\b", "胡阿"),
+                (r"\bJewel\s*A\b", "宝石A")),
+           note="今州岁主「角」，官方英文 Jué（扁平表已有 哨兵 Chuy/Ju'e -> 岁主·角）。"
+                "4.0 预告 reaction #44/45/119：ASR Jua/Jewel A，谷翻「胡阿/宝石A」；"
+                "Jua 不入裸键（防咬 Juan），只走 \\bJua\\b 锚定。"),
+    # --- 2026-10-27 Kiri Ahri 鸣潮演唱会/3.3 片二次校准沉淀 ---
+    Entity("露米", modes=("bi",), en="Lumi",
+           category="角色/鸣潮",
+           variants=("Lumi", "卢米"),
+           ctx=((r"\bLumi\b", "卢米"),),
+           note="鸣潮 3.x 索诺拉活动物流队长露米（Lumi）；官方中文=露米。"),
+    Entity("埃露西亚", modes=("bi",), en="Elucia",
+           category="角色/鸣潮",
+           variants=("Elucia", "埃露西娅", "埃卢西亚"),
+           note="鸣潮 3.x 索诺拉活动角色埃露西亚（Elucia）；音译以官方中文为准。"),
+    Entity("唐唐", modes=("bi",), en="Tang Tang",
+           category="角色/鸣潮",
+           variants=("Tang Tang", "Tanhoo"),
+           note="鸣潮索诺拉活动物流队员唐唐（Tang Tang）；勿与终末地汤汤混淆，不入扁平表。"),
+    Entity("吱吱", modes=("bi",), en="Squeaky",
+           category="角色/鸣潮",
+           variants=("Squeaky", "斯奎基"),
+           ctx=((r"\bSqueaky\b", "斯奎基"),),
+           note="鸣潮索诺拉活动中的小老鼠伙伴吱吱（Squeaky）。"),
+    Entity("阿博拉", modes=("bi",), en="Abora",
+           category="生物/鸣潮",
+           variants=("Abora", "阿波拉"),
+           ctx=((r"\bAbora\b", "阿波拉"),),
+           note="鸣潮索诺拉活动背景中的生物阿博拉（Abora）。"),
+    Entity("秘日六席", modes=("bi", "react"), en="Heliotix Six",
+           category="设定/鸣潮",
+           variants=("Heliotix Six", "Heliotic Six", "Helionic Six", "Heliodic Six", "赫利奥六号"),
+           note="罗伊族长老团，官方中文=秘日六席；扁平表已有赫利奥六号等中文错形。"),
+    Entity("罗伊族", modes=("bi", "react"), en="Roya",
+           category="种族/鸣潮",
+           variants=("Roya",),
+           note="鸣潮罗伊族（Roya）；西格莉卡所属种族。"),
+    # --- 2026-10-27 3.X 巡演/EP 二次校准补漏 ---
+    Entity("日灵", modes=("bi",), en="Sun Spirit",
+           category="生物/鸣潮",
+           variants=("Sun Spirit", "Day Spirit", "Solless", "soul skin"),
+           ctx=((r"\b(?:Solless|soul ?skin)\b", "小皮肤"),),
+           note="罗伊族圣地浮光林的生灵，官方中文=日灵；ASR Solless/soul skin 需按语境归此。"),
+    Entity("向彼方行", modes=("bi",), en="Alissium",
+           category="动画/鸣潮",
+           variants=("Alissium",),
+           ctx=((r"\bAlissium\b", "极乐"), (r"\bAlissium\b", "伊利西姆")),
+           note="《鸣潮：向彼方行》/Wuthering Waves: Elysium。戒律：不裸收 Elysium（明日方舟极境），只走 Alissium 或动画语境。"),
+    Entity("怨鸟泽", modes=("bi",), en="Whining Aix's Mire",
+           category="地名/鸣潮",
+           variants=("Whining Aix's Mire", "whining Ajax's meer", "哀声鸷沼泽"),
+           note="灯灯剧情发生地，官方中文=怨鸟泽；不是哀声鸷沼泽。"),
+    Entity("乘霄山", modes=("bi",), en="Mt. Firmament",
+           category="地名/鸣潮",
+           variants=("Mt. Firmament", "Mount Firmament", "天穹山"),
+           note="官方中文=乘霄山，不是天穹山。"),
 ]
 

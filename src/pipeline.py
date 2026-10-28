@@ -2,8 +2,9 @@
 # @version 2.7.0
 """视频全流程流水线（引擎侧，v1.14.0 新增）：事件驱动的阶段状态机。
 
-链接任务：填入链接 → 下载(原片+字幕+封面+信息) → 字幕翻译(谷歌) →
-          字幕校准(脚本基线) → 二次校准(AI 续跑) → 成品输出(写回原文件夹)
+链接任务：填入链接 → 下载(原片+字幕+封面+信息) → 无字幕时语音转录 →
+          字幕翻译(必应优先，谷歌兜底) → 字幕校准(脚本基线) →
+          二次校准(AI 续跑) → 成品输出(写回原文件夹)
 目录任务：下载目录里出现文件 → 下载完成判定 → (可选)智能合并 → 同上
 
 调度原则
@@ -66,21 +67,24 @@ STABLE_SECS = 2.0
 #: 校准脚本（与「字幕校准」页同一个，不另造）
 CALIB_SCRIPT = os.path.join(engine.APP_DIR, "subtitle_calib_merged.py")
 
-STAGE_DOWNLOAD, STAGE_MERGE, STAGE_TRANSLATE = "download", "merge", "translate"
-STAGE_CALIB1, STAGE_CALIB2, STAGE_PACKAGE = "calib1", "calib2", "package"
-STAGE_ORDER = [STAGE_DOWNLOAD, STAGE_MERGE, STAGE_TRANSLATE,
+STAGE_DOWNLOAD, STAGE_MERGE, STAGE_TRANSCRIBE = "download", "merge", "transcribe"
+STAGE_TRANSLATE, STAGE_CALIB1, STAGE_CALIB2 = "translate", "calib1", "calib2"
+STAGE_PACKAGE = "package"
+STAGE_ORDER = [STAGE_DOWNLOAD, STAGE_MERGE, STAGE_TRANSCRIBE, STAGE_TRANSLATE,
                STAGE_CALIB1, STAGE_CALIB2, STAGE_PACKAGE]
 STAGE_LABELS = {STAGE_DOWNLOAD: "下载完成", STAGE_MERGE: "智能合并",
-                STAGE_TRANSLATE: "字幕翻译", STAGE_CALIB1: "字幕校准",
-                STAGE_CALIB2: "二次校准", STAGE_PACKAGE: "成品输出"}
+                STAGE_TRANSCRIBE: "语音转录", STAGE_TRANSLATE: "字幕翻译",
+                STAGE_CALIB1: "字幕校准", STAGE_CALIB2: "二次校准",
+                STAGE_PACKAGE: "成品输出"}
 #: 点击圆点跳转的功能页（MainWindow.page_by_key 的 key）
 STAGE_JUMP = {STAGE_DOWNLOAD: "download", STAGE_MERGE: "merge",
-              STAGE_TRANSLATE: "subtitle", STAGE_CALIB1: "calib",
-              STAGE_CALIB2: "calib", STAGE_PACKAGE: "library"}
+              STAGE_TRANSCRIBE: "subtitle", STAGE_TRANSLATE: "subtitle",
+              STAGE_CALIB1: "calib", STAGE_CALIB2: "calib",
+              STAGE_PACKAGE: "library"}
 
 #: 两条任务链：链接任务（用户填链接 → 全自动）与目录任务（下载目录里出现的文件）
-CHAIN_LINK = [STAGE_DOWNLOAD, STAGE_TRANSLATE, STAGE_CALIB1,
-              STAGE_CALIB2, STAGE_PACKAGE]
+CHAIN_LINK = [STAGE_DOWNLOAD, STAGE_TRANSCRIBE, STAGE_TRANSLATE,
+              STAGE_CALIB1, STAGE_CALIB2, STAGE_PACKAGE]
 CHAIN_WATCH = [STAGE_DOWNLOAD, STAGE_MERGE, STAGE_TRANSLATE,
                STAGE_CALIB1, STAGE_CALIB2, STAGE_PACKAGE]
 
@@ -301,24 +305,76 @@ def _stage_download_run(job, ctx):
     return v
 
 
+#: 语音转录串行锁：本地/服务 ASR 同时跑多个容易打满显存/带宽
+_ASR_LOCK = threading.Lock()
+#: 视频是否自带音轨的探测缓存（path,size,mtime_ns → bool）
+_AUDIO_CACHE = {}
+
+
+def _video_has_audio(path):
+    """视频容器里是否已有音频流（带缓存）。
+
+    `probe_audio_codec` 失败返回空串——探测失败一律按“没有”处理，保持
+    “缺音轨就等 m4a”的保守行为（自检 case_missing_audio_then_ready 钉住）。
+    """
+    try:
+        st = os.stat(path)
+        key = (os.path.abspath(path), st.st_size, st.st_mtime_ns)
+    except (OSError, TypeError, ValueError):
+        return False
+    hit = _AUDIO_CACHE.get(key)
+    if hit is not None:
+        return hit
+    try:
+        _ffmpeg, ffprobe = engine.ensure_ffmpeg()
+        codec = engine.probe_audio_codec(path, ffprobe)
+    except Exception:  # noqa: BLE001
+        codec = ""
+    if len(_AUDIO_CACHE) > 512:
+        _AUDIO_CACHE.clear()
+    _AUDIO_CACHE[key] = bool(codec)
+    return bool(codec)
+
+
 def _stage_merge_ready(job, registry):
-    """智能合并：配对逻辑一律走 registry.find_pairs() → engine.smart_pair()。"""
+    """智能合并：有独立音轨配对就用；视频已自带音轨则无需合并。
+
+    真正无音轨的视频仍保持 WAITING 等 m4a；同目录里存在未配对的 m4a/weba
+    时也不抢跑，留给配对/人工处理。
+    """
     if not job.video:
         return False
     # v1.18.0：不再只放行 .mp4。smart_pair/scan_media 已支持 mkv/webm/mov…
     # （见 engine.MERGE_VIDEO_EXTS），这里跟着放行，否则流水线仍会漏掉 webm。
     if os.path.splitext(job.video)[1].lower() not in engine.MERGE_VIDEO_EXTS:
         return False          # 配对侧不认的容器（如裸 .264 / .h264 流）
-    for p in registry.find_pairs():
+    pairs = registry.find_pairs()
+    for p in pairs:
         if _same_path(p[0], job.video):
             job.pair = p
             return True
-    return False
+    job.pair = None
+    if not _video_has_audio(job.video):
+        return False
+    # 有独立音轨文件但没配对上：不要因为视频自带音轨就直接跳过合并
+    vdir = os.path.dirname(os.path.abspath(job.video))
+    paired = {os.path.normcase(p[1]) for p in pairs if p[1]}
+    for audio in registry.files(exts={".m4a", ".weba"}):
+        if (os.path.dirname(os.path.abspath(audio)) == vdir
+                and os.path.normcase(audio) not in paired):
+            return False
+    return True
 
 
 def _stage_merge_run(job, ctx):
-    pair = job.pair or (None,)
-    mp4, audio, atype, _mtype, _diff, sub, stype = (list(pair) + [None] * 7)[:7]
+    if not job.pair:
+        # 视频已自带音轨：不需要 ffmpeg，直接视为“合并完成”
+        if _video_has_audio(job.video):
+            ctx.log("[智能合并] 视频已自带音轨，无需合并")
+            return job.video
+        raise RuntimeError("配对信息缺失（文件可能已被移走）")
+    mp4, audio, atype, _mtype, _diff, sub, stype = (
+        list(job.pair) + [None] * 7)[:7]
     if not mp4 or not audio:
         raise RuntimeError("配对信息缺失（文件可能已被移走）")
     ffmpeg, _ffprobe = ctx.ffmpeg()
@@ -334,6 +390,98 @@ def _stage_merge_run(job, ctx):
     ctx.log(f"[智能合并] {os.path.basename(final_out)} "
             f"（{engine.format_size(os.path.getsize(final_out))}）")
     return final_out
+
+
+def _stage_transcribe_ready(job, registry):
+    """链接任务下载后没有字幕时自动语音转录；已有字幕则跳过。"""
+    if not job.video or not os.path.isfile(job.video):
+        return False
+    return not (_pick_source_srt(job) or job.srt())
+
+
+def _run_transcribe_cli(job, out_path, ctx):
+    """调用统一 CLI 转录（agent_cli transcribe），返回产物路径。"""
+    py = engine.system_python()
+    cli = os.path.join(engine.APP_DIR, "src", "agent_cli.py")
+    if not py or not os.path.isfile(py):
+        raise RuntimeError("找不到可用的 Python 运行时")
+    if not os.path.isfile(cli):
+        raise RuntimeError("找不到 agent_cli.py：" + cli)
+    args = [py, "-u", cli, "transcribe", job.video, "--out", out_path]
+    env = engine.worker_subprocess_env()
+    env.update({"PYTHONIOENCODING": "utf-8", "PYTHONUTF8": "1",
+                "PYTHONUNBUFFERED": "1"})
+    ctx.log("[转录] " + " ".join(f'"{a}"' if " " in a else a for a in args))
+    proc = engine.popen_process(
+        args, cwd=engine.APP_DIR, stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT, text=True, encoding="utf-8",
+        errors="replace", bufsize=1, env=env)
+    lines = []
+    tmp_audio = os.path.splitext(out_path)[0] + ".tmpaudio.m4a"
+
+    def _drain():
+        try:
+            for raw in proc.stdout:
+                line = raw.rstrip()
+                if not line:
+                    continue
+                # qfluentwidgets 导入横幅不属于转录日志，别混进错误详情
+                if ("QFluentWidgets Pro is now released" in line
+                        or line.startswith("Click https://qfluentwidgets.com")):
+                    continue
+                lines.append(line)
+                del lines[:-16]
+                if line.startswith(("ok:", "source:", "output:", "language:")):
+                    continue
+                ctx.log("  " + line)
+        except Exception:  # noqa: BLE001 - 管道被提前关闭/进程退出
+            pass
+
+    reader = threading.Thread(target=_drain, daemon=True, name="asr-log")
+    reader.start()
+    try:
+        rc = proc.wait()
+        # 子进程可能已退出，但它的后代仍占着 stdout 管道；不能无限等 EOF
+        reader.join(2.0)
+    finally:
+        try:
+            os.remove(tmp_audio)
+        except OSError:
+            pass
+    if rc != 0 or not os.path.isfile(out_path) or os.path.getsize(out_path) <= 0:
+        err = next((l.split(":", 1)[1].strip() for l in reversed(lines)
+                    if l.startswith("error:")), "")
+        detail = err or " | ".join(lines[-4:]) or f"退出码 {rc}"
+        raise RuntimeError(f"语音转录失败（退出码 {rc}）：{detail[:300]}")
+    return out_path
+
+
+def _stage_transcribe_run(job, ctx):
+    if not job.video or not os.path.isfile(job.video):
+        raise RuntimeError("找不到待转录的视频")
+    if _pick_source_srt(job) or job.srt():
+        raise SkipStage("已有字幕，无需转录")
+    work = ctx.work_dir(job)
+    asr_out = os.path.join(work, f"{_safe_name(job.name)}.asr.srt")
+    if not _reusable(asr_out, [job.video]):
+        if not _ASR_LOCK.acquire(blocking=False):
+            ctx.log("[转录] 等待前面的转录任务结束…")
+            _ASR_LOCK.acquire()
+        try:
+            _run_transcribe_cli(job, asr_out, ctx)
+            _mark_reusable(asr_out, [job.video])
+        finally:
+            _ASR_LOCK.release()
+    dest_dir = job.dir or os.path.dirname(job.video)
+    dst = os.path.join(
+        dest_dir, os.path.splitext(os.path.basename(job.video))[0] + ".srt")
+    if os.path.isfile(dst) and os.path.getsize(dst) > 0:
+        ctx.log(f"[转录] 已有字幕，沿用 {os.path.basename(dst)}")
+        return dst
+    shutil.copy2(asr_out, dst)
+    ctx.log(f"[转录] 已生成 {os.path.basename(dst)}"
+            f"（{engine.format_size(os.path.getsize(dst))}）")
+    return dst
 
 
 def _stage_translate_ready(job, registry):
@@ -534,6 +682,9 @@ STAGES = [
              _stage_download_ready, _stage_download_run, STAGE_JUMP[STAGE_DOWNLOAD]),
     StageDef(STAGE_MERGE, STAGE_LABELS[STAGE_MERGE],
              _stage_merge_ready, _stage_merge_run, STAGE_JUMP[STAGE_MERGE]),
+    StageDef(STAGE_TRANSCRIBE, STAGE_LABELS[STAGE_TRANSCRIBE],
+             _stage_transcribe_ready, _stage_transcribe_run,
+             STAGE_JUMP[STAGE_TRANSCRIBE], optional=True),
     StageDef(STAGE_TRANSLATE, STAGE_LABELS[STAGE_TRANSLATE],
              _stage_translate_ready, _stage_translate_run, STAGE_JUMP[STAGE_TRANSLATE],
              optional=True),
@@ -624,6 +775,8 @@ class Job:
                 return f"失败：{label}"
             if self.state(k) == READY:
                 return f"待执行：{STAGE_LABELS.get(k, k)}"
+        if self.state(STAGE_DOWNLOAD) == DONE and not self.video:
+            return "素材缺失（原视频已不在下载目录）"
         return "已完成" if self.all_done() else "等待文件"
 
     def to_dict(self):
@@ -642,16 +795,22 @@ class Job:
                   data.get("dir") or "", data.get("video") or "", kind=kind)
         job.url = str(data.get("url") or "")
         chain = data.get("chain") or (CHAIN_LINK if kind == "link" else CHAIN_WATCH)
-        # 旧版状态迁移：transcribe→translate、calib→calib1（旧 transcribe/calib2 无产物即丢）
+        # 旧版状态迁移：calib→calib1；链接链补齐 transcribe（目录链仍不转录）
         migrated = []
         for k in chain:
             if k == "transcribe":
+                if kind == "link" and k not in migrated:
+                    migrated.append(k)
                 continue
             if k == "calib":
                 k = STAGE_CALIB1
             if k not in migrated and k in STAGE_ORDER:
                 migrated.append(k)
-        job.chain = migrated or list(CHAIN_WATCH)
+        if kind == "link" and STAGE_TRANSCRIBE not in migrated:
+            pos = migrated.index(STAGE_DOWNLOAD) + 1 if STAGE_DOWNLOAD in migrated else 0
+            migrated.insert(pos, STAGE_TRANSCRIBE)
+        job.chain = migrated or list(
+            CHAIN_LINK if kind == "link" else CHAIN_WATCH)
         job.stages = {k: {"state": WAITING, "error": "", "reason": "",
                           "out": "", "ts": 0.0} for k in job.chain}
         job.files = {k: list(v) for k, v in (data.get("files") or {}).items()}
@@ -665,7 +824,8 @@ class Job:
                     "error": str(st.get("error") or ""),
                     "reason": str(st.get("reason") or ""),
                     "out": str(st.get("out") or ""),
-                    "ts": float(st.get("ts") or 0.0)})
+                    "ts": float(st.get("ts") or 0.0),
+                    "auto_skip": bool(st.get("auto_skip"))})
         return job
 
 
@@ -743,6 +903,64 @@ def _ytdlp_with_retry(ctx, cmd, attempts=4):
     return rc, lines
 
 
+class _PipelineJobRunner:
+    """把 pipeline 现有的逐行 runner 适配成 core job 的 YtdlpRunner。"""
+
+    def __init__(self, ctx):
+        self.ctx = ctx
+
+    def run(self, cmd, *, phase="download"):
+        from core.download.job import RunResult
+        rc, lines = _run_ytdlp(self.ctx, list(cmd))
+        return RunResult(rc, tuple(lines))
+
+
+def _download_link_run_job(job, ctx):
+    """P1：链接任务走统一 job 层；旧实现保留为 legacy。"""
+    from core.download.job import DownloadJob, JobHooks, run_download_job
+    ytdlp = engine.ensure_ytdlp()
+    ffmpeg, _ = ctx.ffmpeg()
+    proxy_args = tuple(engine.ytdlp_proxy_args() or ())
+
+    def on_ready(folder, title, _meta):
+        job.dir = folder
+        if title:
+            job.name = title
+
+    hooks = JobHooks(
+        run=_PipelineJobRunner(ctx),
+        log=lambda m, lv="dim": ctx.log(m),
+        progress=ctx.progress,
+        extract=lambda y, u: engine.fetch_info_json(y, u, log=ctx.log),
+        detect_language=engine.ai_detect_language,
+        make_cover=lambda ff, folder: engine.make_cover_1280x720(ff, folder),
+        write_info=engine.write_info_txt,
+        normalize_srt=engine.normalize_rolling_srt,
+        on_ready=on_ready,
+    )
+    spec = DownloadJob(
+        url=job.url,
+        dest_root=ctx.download_root(),
+        ytdlp=ytdlp,
+        ffmpeg=ffmpeg,
+        proxy_args=proxy_args,
+        with_subs=True,
+        require_video=True,
+        lock_proxy=False,
+    )
+    result = run_download_job(spec, hooks)
+    if not result.ok:
+        raise RuntimeError(result.error or "视频下载失败")
+    job.video = result.video
+    ctx.progress(100.0)
+    try:
+        size = engine.format_size(os.path.getsize(result.video))
+    except OSError:
+        size = "?"
+    ctx.log("[下载完成] %s (%s)" % (os.path.basename(result.video), size))
+    return result.folder
+
+
 def _download_link_run(job, ctx):
     """链接任务：原片 + 字幕 + 封面 + 信息一次性下载到位。
 
@@ -750,6 +968,9 @@ def _download_link_run(job, ctx):
     normalize_rolling_srt / write_info_txt / make_cover_1280x720），只是不带
     画质选择 UI —— 固定取检测到的最高画质（≥720p 的第一档）。
     """
+    from core.download.job import download_orchestrator
+    if download_orchestrator(default="job") == "job":
+        return _download_link_run_job(job, ctx)
     url = job.url
     if not url:
         raise RuntimeError("任务缺少链接")
@@ -1000,6 +1221,39 @@ def _google_translate_lines(lines, target="zh-CN", proxy="", log=None):
     return out
 
 
+def _bing_translate_lines(lines, target="zh-Hans", log=None):
+    """必应（Edge 免认证端点）批量翻译文本行；失败显式抛错，不回落原文。"""
+    import types
+    import engine_translate
+    out = [""] * len(lines)
+    active = [i for i, t in enumerate(lines) if t.strip()]
+    batches, cur, size = [], [], 0
+    for i in active:
+        if cur and (size + len(lines[i]) + 1 > _GT_BATCH_CHARS
+                    or len(cur) >= _GT_BATCH_LINES):
+            batches.append(cur)
+            cur, size = [], 0
+        cur.append(i)
+        size += len(lines[i]) + 1
+    if cur:
+        batches.append(cur)
+    if not batches:
+        return out
+    tr = engine_translate.make_translator("bing", target_language=target)
+    for bi, batch in enumerate(batches):
+        chunk = [types.SimpleNamespace(original_text=lines[i],
+                                       translated_text="")
+                 for i in batch]
+        tr.translate(chunk)
+        if any(d.translated_text == engine_translate.ERROR_MARK for d in chunk):
+            raise RuntimeError(f"必应翻译失败（批次 {bi + 1}/{len(batches)}）")
+        for i, d in zip(batch, chunk):
+            out[i] = (d.translated_text or "").strip()
+        if log and (bi + 1) % 5 == 0:
+            log(f"[翻译] 必应 {bi + 1}/{len(batches)} 批")
+    return out
+
+
 def _normalize_nl(text):
     """坏换行归一：`\\r\\r\\n` / `\\r\\n` / `\\r` → `\\n`。
 
@@ -1073,10 +1327,15 @@ def _translate_srt_file(src, out, ctx):
         raise SkipStage("字幕没有可翻译的正文")
     if _chinese_ratio("\n".join(body_lines)) > 0.3:
         raise SkipStage("字幕已是中文，无需翻译")
-    ctx.log(f"[翻译] 谷歌翻译 {len(body_lines)} 行 "
-            f"（源：{os.path.basename(src)}，目标：zh-CN）")
-    translated = _google_translate_lines(
-        body_lines, target="zh-CN", proxy=ctx.proxy(), log=ctx.log)
+    ctx.log(f"[翻译] 必应翻译 {len(body_lines)} 行 "
+            f"（源：{os.path.basename(src)}，目标：zh-Hans）")
+    try:
+        translated = _bing_translate_lines(
+            body_lines, target="zh-Hans", log=ctx.log)
+    except Exception as e:  # noqa: BLE001 - 必应不可用时保留谷歌兜底
+        ctx.log(f"[翻译] 必应失败（{e}），改用谷歌兜底")
+        translated = _google_translate_lines(
+            body_lines, target="zh-CN", proxy=ctx.proxy(), log=ctx.log)
     for (bi, li), zh in zip(body_idx, translated):
         zh = zh or blocks[bi][li]
         blocks[bi][li] = blocks[bi][li] + "\n" + zh        # 双语：原文+译文
@@ -1769,10 +2028,10 @@ class Pipeline(_Emitter):
                 if os.path.isfile(job.video or ""):
                     seen.add(jid)
                     continue
-                # 只在「本来绑着视频」或「下载阶段失败过」时救——旧版把悬空的
-                # video 清空后没复位阶段状态，所以 video 往往是空的，只看
-                # video 非空会把这类任务全漏掉（实测 12 条一条都救不回）。
-                if not job.video and job.state(STAGE_DOWNLOAD) != FAILED:
+                # 只在「本来绑着视频」「下载失败过」或「下载已完成但视频被移走」
+                # 时救——旧版把悬空的 video 清空后没复位阶段状态，只看 video
+                # 非空会把这类任务全漏掉（实测 12 条一条都救不回）。
+                if not job.video and job.state(STAGE_DOWNLOAD) not in (FAILED, DONE):
                     continue
                 fb = _finished_video_in(job.dir, job.name)
                 if fb and not _same_path(fb, job.video or ""):

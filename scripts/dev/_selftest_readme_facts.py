@@ -33,13 +33,15 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.abspath(os.path.join(HERE, "..", ".."))
 README = os.path.join(ROOT, "README.md")
 
-#: 四个游戏 → 词表变量清单（口径：去重并集）
+#: 六个游戏 → 词表变量清单（口径：去重并集）
 GROUPS = {
     "鸣潮": ["BILINGUAL_TERMS"],
     "终末地": ["ENDFIELD_TERMS", "ENDFIELD_BI_TERMS",
                "JA_ENDFIELD_TERMS", "ENDFIELD_KO_TERMS"],
     "明日方舟": ["AK_TERMS", "AK_KO_TERMS"],
     "战双帕弥什": ["PGR_EN_TERMS"],
+    "边狱巴士": ["LIMBUS_TERMS"],
+    "最终幻想：共鸣": ["FFRS_TERMS"],
 }
 
 #: 期望 README 里出现的导航页（顺序取自 video_toolbox_qt.addSubInterface；

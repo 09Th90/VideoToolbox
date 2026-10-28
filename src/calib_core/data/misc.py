@@ -146,8 +146,8 @@ REACT_TERMS = {
     # 处理：extract→逐 cue 对着英文参考行整行重写中文→二次检索官方中文后精修；verify+length 全过。
     # 官方依据（均已检索确认）：
     #   Noticefall / Nodusfall = 米哈游新作《源初之结》（类怪物猎人多人共斗 ARPG，Gamescom 2026 首曝，
-    #     被指像《艾尔登法环》+《怪物猎人》）；Ananta = 网易《异环》（Naked Rain，
-    #     与 Hotta Studio 的 NTE《无限大》是两款不同作品，2026-10-21 订正）；
+    #     被指像《艾尔登法环》+《怪物猎人》）；Ananta = 网易《无限大》（Naked Rain，
+    #     与 Hotta Studio 的 NTE《异环》是两款不同作品，2026-10-26 官方复核订正）；
     #   Duet Night Abyss(DNA) = 英雄游戏《二重螺旋》（Pan Studio，被指抄袭 Warframe）；
     #   Mighty = 万敌（崩坏：星穹铁道角色，与 Fate 吉尔伽美什立绘撞车引争议）；
     #   Jane Doe = 简·杜（绝区零）；Uncus/Unctus = Eunectes 森蚺（明日方舟萨尔贡重装，盾+斧+机甲）。
@@ -156,8 +156,8 @@ REACT_TERMS = {
     #      "深空之眼"是真实游戏（Aether Gazer）官方名，裸键会误伤正常语境；
     #      它们已通过下方 `REACT_CONTEXT` 参考行佐证机制（英文 \bDNA\b / D Night Abyss 命中才替换）安全入表。
     "Noticefall": "源初之结", "notice fall": "源初之结", "Nodusfall": "源初之结",
-    "Neverness to Everness": "无限大", "NTE": "无限大",   # NTE 官方中文《无限大》（长键先行）
-    "Ananta": "异环",                                     # Ananta 官方中文《异环》，勿与 NTE 混
+    "Neverness to Everness": "异环", "NTE": "异环",       # NTE 官方中文《异环》（长键先行）
+    "Ananta": "无限大",                                   # Ananta 官方中文《无限大》，勿与 NTE 混
     "Jane Doe": "简·杜",
     "Mighty": "万敌",
     "Uncus": "森蚺", "Unctus": "森蚺",
@@ -167,6 +167,16 @@ REACT_TERMS = {
     "奥巴代亚布朗": "Obadiah Brown-Beach",
     "Persona音乐": "《女神异闻录》音乐",
     "Persona 音乐": "《女神异闻录》音乐",
+    # --- 2026-10-27 Back from Vacay 音乐点听（音乐分析/官方名）---
+    "Beer Leos": "柏辽兹", "symphony fantastic": "《幻想交响曲》",
+    "Alzo Sarathustra": "《查拉图斯特拉如是说》", "harps accord": "大键琴",
+    "Heart Seal": "HEARTSTEEL", "Kayla Mena Kyn": "凯恩",
+    "Moonlight Wilderness": "Moonlit Wilderness",
+    "Final Fantasy Residence": "最终幻想：共鸣",
+    "Gundam Rogue Orbit": "GUNDAM 异轨征途",
+    "Mongol Star Dive": "魔御：STAR DIVE", "Mongil Star Dive": "魔御：STAR DIVE",
+    "Silver Palace": "白银之城", "Drippy": "拙皮",
+    "Wizardry Proving Grounds of the Mad Overlord": "巫术：狂王的试炼场",
 }
 
 # 用法：python subtitle_calib_merged.py --react <input.srt> --out out.srt
@@ -187,6 +197,10 @@ REACT_CONTEXT = [
     (r"\bDNA\b", "DNA", "《二重螺旋》"),
     (r"\bDNA\b", "脱氧核糖核酸", "《二重螺旋》"),
     (r"[Dd] ?[Nn]ight ?[Aa]byss", "深空之眼", "《二重螺旋》"),
+    # --- 2026-10-27 Back from Vacay 二次校准 ---
+    (r"Heart Seal|Seal song", "封印之歌", "HEARTSTEEL"),
+    (r"\bMorta\b|\bMohrta\b", "Morta", "默尔塔"),
+    (r"\bNouni\b|\bNi no Kuni\b", "努尼", "二之国"),
 ]
 
 
@@ -415,6 +429,24 @@ EN_LINE_TERM_FIXES = {
     "Thrronodians": "Threnodians", "Thrronodian's": "Threnodian's",
     "Thrronodian'": "Threnodian'", "Thrronodian": "Threnodian",
     "Throdian": "Threnodian", "Trinodian": "Threnodian", "Frenodian": "Threnodian",
+    # --- 2026-10-27 鸣潮 3.1「赠予雪中的你」精校：英文行专名规范化 ---
+    "Exor Strider": "Exostrider", "Exorrider": "Exostrider", "Exorder": "Exostrider",
+    "Exorers": "Exostrider", "Exor Rider": "Exostrider",
+    "Sigilium": "Sigilum", "Sigulum": "Sigilum",
+    "La Hyroy": "Lahai-Roi", "La Hai Roy": "Lahai-Roi", "La Hairoy": "Lahai-Roi",
+    "Laai Roy": "Lahai-Roi", "Leah Hairoy": "Lahai-Roi",
+    "Immethy": "Aemeath", "Imethy": "Aemeath",
+    "Immeth": "Aemeath", "Immoth": "Aemeath", "iMath": "Aemeath",
+    "Alfan": "Aleph-1", "ALF one": "Aleph-1",
+    "Court of Sante": "Court of Savantae", "Cord of Savante": "Court of Savantae",
+    "Rebell College": "Labell College", "Rabelle College": "Labell College",
+    "Navora": "Naborr",
+    "Starwood Riseway": "Starward Riseway",
+    "Bart Woods": "Bjartr Woods",
+    "strattergate": "Strider Gate", "stridergate": "Strider Gate",
+    "tacet mark": "Tacet Mark",
+    "Fleet snowfluff": "Fleet Snowfluff",
+    "ID colors": "Aemeath colors", "little ID": "little Aemeath",
     "Renoians": "Lament",
     # 游戏术语
     "sauna disc": "sono disc",

@@ -5,13 +5,13 @@
 默认 **onedir**：`dist\\视频工具箱\\视频工具箱.exe` + `_internal\\`。
 传 `--mode onefile` 可回退单文件便携版（启动需解包，速度慢）。
 
-原驱动为仓库外脚本 ``C:\\bld\\_build_vt_170.py``；构建链 C 盘依赖
-（``C:\\vt_build`` junction / ``C:\\bld\\qt_build`` venv）整体迁移至 D 盘
-后随本脚本收编，构建入口不再依赖仓库外资产。
+原驱动为仓库外脚本 ``C:\\bld\\_build_vt_170.py``；构建链位于 C 盘
+（``C:\\vt_build`` junction / ``C:\\bld\\qt_build`` venv），2026-10-25 自 D 盘回退，
+构建入口不再依赖仓库外资产。
 
 用法::
 
-    D:\\Agent Work\\_bld\\qt_build\\Scripts\\python.exe scripts\\dev\\_build_onefile.py
+    C:\\bld\\qt_build\\Scripts\\python.exe scripts\\dev\\_build_onefile.py
 
 要点：
 - BUILD_ROOT 必须是 ASCII 路径目录联接（junction）。PyInstaller 的 Qt 钩子在
@@ -26,9 +26,9 @@ import sys
 import time
 
 #: 项目目录的 NTFS 目录联接（ASCII 路径，供 PyInstaller 使用）
-BUILD_ROOT = r"D:\Agent Work\_vt_build"
-#: 构建环境新家（D 盘，2026-10-21 自 C:\\bld 迁出）
-BLD = r"D:\Agent Work\_bld"
+BUILD_ROOT = r"C:\vt_build"
+#: 构建环境（C 盘，2026-10-25 自 D 盘回退）
+BLD = r"C:\bld"
 SPEC_REL = os.path.join("packaging", "视频工具箱.spec")
 
 if not os.path.isdir(BUILD_ROOT):

@@ -60,7 +60,7 @@ check("日本語 → label=日本語 / code=ja",
 ac = engine.ai_mod().asr_config({"asr_language": "自动检测"})
 check("自动检测 → code=''（不下发 language）",
       ac["language_label"] == "自动检测" and ac["language"] == "")
-ac = engine.ai_mod().asr_config({})
+ac = engine.ai_mod().asr_config({"asr_mode": "service"})
 check("缺键 → 按自动检测", ac["language"] == "")
 ac = engine.ai_mod().asr_config({"asr_language": "克林贡语"})
 check("未知标签 → code=''（不猜）", ac["language"] == "")
@@ -78,15 +78,16 @@ try:
           all(LANGUAGES[k] == v for k, v in _codes.items()),
           str({k: (v, LANGUAGES.get(k)) for k, v in _codes.items()
                if LANGUAGES.get(k) != v}))
-    # QT 下拉列表：类属性（SettingsPage），不在引擎导入链上也没关系
-    import video_toolbox_qt as _qt
-    _labels = list(_qt.SettingsPage.ASR_LANG_LABELS)
-    check("QT 下拉 ⊆ 引擎枚举（选错标签引擎解析不了）",
+    # 转录页下拉列表：类属性（TranscriptionInterface）。2026-10-25 从设置页迁来，
+    # 不再依赖 video_toolbox_qt 的 SettingsPage。
+    from vt_engine_ui.transcription_interface import TranscriptionInterface
+    _labels = list(TranscriptionInterface.ASR_LANG_LABELS)
+    check("转录页下拉 ⊆ 引擎枚举（选错标签引擎解析不了）",
           all(l in _enum for l in _labels),
           str([l for l in _labels if l not in _enum]))
-    check("QT 下拉去重", len(_labels) == len(set(_labels)))
-    check("QT 下拉首项为自动检测", _labels[0] == "自动检测")
-    check("QT 下拉每项都有 ISO 码",
+    check("转录页下拉去重", len(_labels) == len(set(_labels)))
+    check("转录页下拉首项为自动检测", _labels[0] == "自动检测")
+    check("转录页下拉每项都有 ISO 码",
           all(l in _codes for l in _labels),
           str([l for l in _labels if l not in _codes]))
 except Exception as e:  # noqa: BLE001

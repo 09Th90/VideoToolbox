@@ -87,11 +87,12 @@ _SYNC_TABLES = ("BILINGUAL_TERMS", "CONTEXT_MAP", "EXCLUDE_CONTEXT",
                 "ENTITIES_VARIANT", "LEARNED_CANDIDATE")
 
 _SYNC_MODES = ("bi", "ja", "jpe", "ko", "ak", "akko", "endo", "endobi",
-               "endoko", "zho", "pgren", "wwoc", "react")
+               "endoko", "zho", "pgren", "wwoc", "react", "limbus")
 
 _SYNC_MODE_CTX_TABLE = {"bi": "CONTEXT_MAP", "ja": "JA_CONTEXT",
                         "jpe": "JA_ENDFIELD_CONTEXT", "akko": "AK_KO_CONTEXT",
-                        "ko": "KO_CONTEXT", "ak": "AK_CONTEXT"}
+                        "ko": "KO_CONTEXT", "ak": "AK_CONTEXT",
+                        "wwoc": "WWOC_CONTEXT", "limbus": "LIMBUS_CONTEXT"}
 
 
 

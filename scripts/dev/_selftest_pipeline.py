@@ -62,7 +62,9 @@ def note(text):
 
 # ---------------------------- mock 区 ----------------------------
 CALLS = {"smart_pair": 0, "merge": 0, "read_text_any": 0, "write_text_utf8": 0,
-         "ytdlp": 0}
+         "ytdlp": 0, "asr": 0}
+#: 需要模拟“视频自带音轨”的文件名集合（其余文件按无音轨处理）
+AUDIO_PROBE = set()
 
 _smart_pair_orig = engine.smart_pair
 _read_orig = engine.read_text_any
@@ -84,6 +86,18 @@ def _mock_write(path, text, *a, **k):
     return _write_orig(path, text, *a, **k)
 
 
+def _mock_probe_audio_codec(path, ffprobe_path):
+    """只给 AUDIO_PROBE 里的文件返回音轨编码；其余按探测失败处理。"""
+    return "opus" if os.path.basename(path) in AUDIO_PROBE else ""
+
+
+def _fake_transcribe_cli(job, out_path, ctx):
+    """替身 ASR：写一份英文 SRT，验证重活不联网。"""
+    CALLS["asr"] += 1
+    put(out_path, text=SRT_EN)
+    return out_path
+
+
 def _fake_merge(mp4, audio, atype, sub, stype, out, ffmpeg, ass_mode="burn"):
     CALLS["merge"] += 1
     os.makedirs(os.path.dirname(out), exist_ok=True)
@@ -98,6 +112,8 @@ engine.write_text_utf8 = _mock_write
 engine.merge_pair = _fake_merge
 engine.ensure_ffmpeg = lambda: ("ffmpeg_mock", "ffprobe_mock")
 engine.get_duration = lambda path, ffprobe: 100.0
+engine.probe_audio_codec = _mock_probe_audio_codec
+pl._run_transcribe_cli = _fake_transcribe_cli
 
 
 # ---------------------------- 工具 ----------------------------
@@ -245,6 +261,27 @@ def case_full_chain(root):
     return pipe
 
 
+def case_watch_embedded_audio(root):
+    """mp4 自带音轨 + 中文字幕、没有 m4a：MERGE 直接完成，不空等音轨。"""
+    d, reg, pipe = make_pipeline(root, name="dl_audio")
+    vdir = os.path.join(d, "视频H")
+    put(os.path.join(vdir, "视频H.mp4"))
+    put(os.path.join(vdir, "视频H.srt"), text=SRT)
+    AUDIO_PROBE.add("视频H.mp4")
+    before = CALLS["merge"]
+    reg.poll_once()
+    pipe.manual_evaluate()
+    ok = wait_until(lambda: state_of(pipe, "视频H", "package") == pl.DONE, 25)
+    check("自带音轨 → MERGE 不等待 m4a",
+          state_of(pipe, "视频H", "merge") == pl.DONE,
+          "merge=" + state_of(pipe, "视频H", "merge"))
+    check("自带音轨 → 不调用 ffmpeg 合并",
+          CALLS["merge"] == before, f"调用 {CALLS['merge'] - before} 次")
+    check("自带音轨 → 后续字幕链跑到 PACKAGE", ok,
+          " / ".join(f"{k}={state_of(pipe, '视频H', k)}" for k in pl.CHAIN_WATCH))
+    reg.stop()
+
+
 def find_job(pipe, name):
     return next((j for j in pipe.job_list() if j["name"] == name), None)
 
@@ -333,12 +370,11 @@ def case_translate_unit(root):
     """翻译函数单测：双语输出、时间轴不动、中文字幕自动跳过、行数对齐兜底。"""
     import types
 
-    def fake_gt(text, target="zh-CN", proxy="", timeout=20):
-        n = text.count("\n") + 1
-        return "\n".join(f"译{i}" for i in range(n))      # 始终按行数返回
+    def fake_bing(lines, target="zh-Hans", log=None):
+        return [f"译{i}" for i in range(len(lines))]      # 始终按行数返回
 
-    orig = pl._gt_request
-    pl._gt_request = fake_gt
+    orig = pl._bing_translate_lines
+    pl._bing_translate_lines = fake_bing
     ctx = types.SimpleNamespace(log=lambda m: None, proxy=lambda: "")
     try:
         src = os.path.join(root, "t_en.srt")
@@ -358,7 +394,37 @@ def case_translate_unit(root):
         except pl.SkipStage as e:
             check("中文字幕 → 主动跳过", "中文" in str(e), str(e))
     finally:
-        pl._gt_request = orig
+        pl._bing_translate_lines = orig
+
+
+def case_state_migration(root):
+    """旧链接链补 transcribe；auto_skip 重启后保留；目录链不插转录。"""
+    legacy = {
+        "id": "link_legacy", "name": "旧任务", "dir": root, "video": "",
+        "kind": "link", "url": "https://example.com/old",
+        "chain": ["download", "translate", "calib1", "calib2", "package"],
+        "stages": {
+            "download": {"state": "done"},
+            "translate": {"state": "skipped", "auto_skip": True,
+                          "reason": "无需执行（输入条件不满足）"},
+        },
+    }
+    job = pl.Job.from_dict(legacy)
+    check("旧链接链自动补 TRANSCRIBE",
+          job.chain == [pl.STAGE_DOWNLOAD, pl.STAGE_TRANSCRIBE,
+                        pl.STAGE_TRANSLATE, pl.STAGE_CALIB1,
+                        pl.STAGE_CALIB2, pl.STAGE_PACKAGE],
+          " / ".join(job.chain))
+    check("auto_skip 重启后保留",
+          job.stages[pl.STAGE_TRANSLATE].get("auto_skip") is True,
+          str(job.stages[pl.STAGE_TRANSLATE]))
+    watch = {"id": "w", "name": "目录任务", "dir": root, "video": "",
+             "kind": "watch",
+             "chain": ["download", "merge", "transcribe", "translate",
+                       "calib1", "calib2", "package"]}
+    jw = pl.Job.from_dict(watch)
+    check("目录链不插 TRANSCRIBE", pl.STAGE_TRANSCRIBE not in jw.chain,
+          " / ".join(jw.chain))
 
 
 def case_link_full(root):
@@ -376,7 +442,14 @@ def case_link_full(root):
     saved_run_ytdlp = pl._run_ytdlp
     engine.get_saved_download_dir = lambda: link_dir
     engine.ensure_ytdlp = lambda: "ytdlp_mock.exe"
-    engine.fetch_info_json = lambda ytdlp, url, **k: json.dumps(INFO_JSON)
+
+    def fake_fetch_info(ytdlp, url, **k):
+        meta = dict(INFO_JSON)
+        if "nosub" in str(url):
+            meta["title"] = "无字幕测试"
+        return json.dumps(meta, ensure_ascii=False)
+
+    engine.fetch_info_json = fake_fetch_info
     engine.ytdlp_proxy_args = lambda: []
     engine.ai_detect_language = lambda t: "en"
     engine.ytdlp_sub_langs = lambda c, d="": "en"
@@ -396,7 +469,8 @@ def case_link_full(root):
         i = list(cmd).index("-o")
         folder = os.path.dirname(str(cmd[i + 1]).replace("%%", "%"))
         if "--write-subs" in cmd:
-            put(os.path.join(folder, "video.en.srt"), text=SRT_EN)
+            if "无字幕" not in folder:      # nosub 链接：模拟站点没有字幕
+                put(os.path.join(folder, "video.en.srt"), text=SRT_EN)
         else:
             put(os.path.join(folder, "video.mp4"))
             put(os.path.join(folder, "video.jpg"))
@@ -404,12 +478,11 @@ def case_link_full(root):
 
     pl._run_ytdlp = fake_run_ytdlp
 
-    def fake_gt(text, target="zh-CN", proxy="", timeout=20):
-        n = text.count("\n") + 1
-        return "\n".join(f"译{i}" for i in range(n))
+    def fake_bing(lines, target="zh-Hans", log=None):
+        return [f"译{i}" for i in range(len(lines))]
 
-    saved_gt = pl._gt_request
-    pl._gt_request = fake_gt
+    saved_bing = pl._bing_translate_lines
+    pl._bing_translate_lines = fake_bing
 
     def fake_calib_ai_run(src, out=None, **k):
         put(out, text=SRT)
@@ -501,11 +574,33 @@ def case_link_full(root):
         check("二次校准后打包完成（成品引用最终 srt）",
               wait_until(lambda: job_state("v=v2", "package") == pl.DONE, 40),
               "package=" + job_state("v=v2", "package"))
+        check("有字幕的链接 → 语音转录 SKIPPED",
+              job_state("v=abc", "transcribe") == pl.SKIPPED,
+              job_state("v=abc", "transcribe"))
+
+        # ---- 无字幕链接 → 自动语音转录后继续 ----
+        pipe.add_link("https://example.com/watch?v=nosub")
+        ok = wait_until(lambda: job_state("v=nosub", "package") == pl.DONE, 40)
+        check("无字幕链接 → 语音转录完成",
+              job_state("v=nosub", "transcribe") == pl.DONE,
+              job_state("v=nosub", "transcribe"))
+        check("无字幕链接 → 转录后全链完成", ok,
+              " / ".join(f"{k}={job_state('v=nosub', k)}"
+                         for k in pl.CHAIN_LINK))
+        jl4 = [j for j in pipe.job_list()
+               if j.get("kind") == "link"
+               and str(j.get("url", "")).endswith("v=nosub")]
+        vdir4 = (jl4[0].get("dir") or "") if jl4 else ""
+        deliver4 = os.path.join(vdir4, "【字幕】无字幕测试-谷歌翻译.srt")
+        check("无字幕链接 → 交付字幕存在", os.path.isfile(deliver4),
+              deliver4 if os.path.isfile(deliver4) else "(未生成)")
+        check("无字幕链接 → ASR 已调用", CALLS["asr"] >= 1,
+              f"调用 {CALLS['asr']} 次")
     finally:
         for name, fn in saved.items():
             setattr(engine, name, fn)
         pl._run_ytdlp = saved_run_ytdlp
-        pl._gt_request = saved_gt
+        pl._bing_translate_lines = saved_bing
         if saved_set_cfg is not None:
             pl.Pipeline._set_cfg = saved_set_cfg
         reg.stop()
@@ -746,9 +841,11 @@ def main():
     import traceback
     for fn in (lambda: case_missing_audio_then_ready(root),
                lambda: case_full_chain(root),
+               lambda: case_watch_embedded_audio(root),
                lambda: case_failure_isolation(root, None),
                lambda: case_bootstrap_no_ignite(root),
                lambda: case_translate_unit(root),
+               lambda: case_state_migration(root),
                lambda: case_link_full(root),
                lambda: case_persistence(root),
                lambda: case_auto_off(root),
