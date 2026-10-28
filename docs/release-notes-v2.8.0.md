@@ -49,11 +49,15 @@
 - 修复游客 cookie 抓取缺少 `urllib.request` 导入，导致该兜底通道静默失效。
 - 修复下载队列重复添加同一链接、暂停后状态回弹等队列状态问题。
 - 修复校准帮助未列出 `--limbus` / `--ffrs` 及部分历史旗标说明的问题。
+- 修复离线安装包的 `src\` 源码副本缺少 `engine_translate.py`，脚本方式运行
+  流水线/CLI 翻译会 ImportError 的问题。
+- 同步内置引擎的微软/谷歌翻译器到最新修复（长文本拆批、超限截断告警、
+  失败条目按批标记），避免安装版沿用旧实现。
 
 ## 验证
 
 - `check_syntax`、`check_names`（180 个 src 模块）、`check_secrets`、
-  `check_doc_drift --ci`、`check_deps` 通过。
+  `check_doc_drift --ci`、`check_iss_sources`（19/19）、`check_deps` 通过。
 - 下载链：`_selftest_download_job` 11/11、`download_queue` 27/27、
   `download_pause` 7/7、`segment_download` 15/15、`download_cancel` 29/0、
   GUI 队列 10/10。
@@ -61,6 +65,8 @@
   在线更新链（xval / versions / setup）自检通过。
 - `build_calib_monolith.py --check`：单文件与 `calib_core` 源码一致。
 - 桌面 GUI 自检：171 项 PASS / 0 FAIL。
+- 离线安装包构建成功（Inno 编译 436.8s，1,016,541,969 B）；
+  在线安装器 12 MB；`_selftest_exe_dll` 通过。
 
 ## 下载
 
@@ -69,11 +75,11 @@
 | `VideoToolbox_Setup_v2.8.0.exe` | 约 1.0 GB | 离线安装包，新用户首选 |
 | `VideoToolbox_OnlineSetup_v2.8.0.exe` | 约 12 MB | 在线安装器，只下载缺失文件 |
 
-SHA-256 校验（构建后回填）：
+SHA-256 校验：
 
 ```
-（待回填）  VideoToolbox_Setup_v2.8.0.exe
-（待回填）  VideoToolbox_OnlineSetup_v2.8.0.exe
+3e69e2e6ba1414daeb5dad5d36ae8e6a60cc6da7c770c34f07034811db42dff4  VideoToolbox_Setup_v2.8.0.exe
+c9d9c6299c071b39dfb67e71bb214a8e4fefa0c71b1e6736adf3b0c3ec8da3a7  VideoToolbox_OnlineSetup_v2.8.0.exe
 ```
 
 已装旧版：打开程序 → 设置 → 程序更新 → 检查更新。更新失败时改用离线包

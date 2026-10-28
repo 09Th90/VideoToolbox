@@ -78,6 +78,9 @@ logs/uploader/
 
 # 构建残留（编译日志、界面截图、版本备份、旧 exe）
 build/compile_*.log
+build/iscc.log
+build/vt_online_setup/
+build/build_*.log
 build/*.png
 build/backup_*/
 build/legacy/

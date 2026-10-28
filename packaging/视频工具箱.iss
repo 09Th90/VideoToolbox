@@ -219,6 +219,10 @@ Source: "..\src\video_toolbox_qt.py"; DestDir: "{app}\src"; Flags: ignoreversion
 ;   ⇒ **凡是视频工具箱_qt.py 里模块级 import 的自研模块，都必须在此列出。**
 Source: "..\src\media_registry.py"; DestDir: "{app}\src"; Flags: ignoreversion
 Source: "..\src\pipeline.py"; DestDir: "{app}\src"; Flags: ignoreversion
+; 2026-10-28 补漏：engine_translate 是 pipeline / agent_cli 函数体内延迟 import 的
+;   自研翻译器（P1 翻译接缝），exe 侧由 spec hiddenimports 内嵌；此处补源码副本，
+;   保证安装版 src\ 方式运行流水线/CLI 翻译时不会 ImportError。
+Source: "..\src\engine_translate.py"; DestDir: "{app}\src"; Flags: ignoreversion
 ; ⚠ v1.18.2 同批补漏：这几个同样是 video_toolbox_qt.py 的**模块级**依赖
 ;   （ast 扫 col_offset==0 的 import 得出，缺任一个都会 ImportError）。
 ;   ui_theme —— qfluentwidgets 主题；subtitle_editor —— 字幕编辑页主模块；
