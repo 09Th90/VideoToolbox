@@ -376,7 +376,9 @@ BILINGUAL_TERMS = {
     "Shawkeeper": "守岸人", "肖战守护者": "守岸人", "岸边管理员": "守岸人",
     "海岸警卫队": "守岸人", "海岸守护者": "守岸人", "做空者": "守岸人", "岸守": "守岸人",
     # 残象（Tacet Discord）变体
-    "塔塞特人": "残象", "塔塞特": "残象", "Tacet 不和": "残象",
+    # 2026-10-28：裸键「塔塞特」会把 tacet mark 咬成「残象标记」，删除并补长键
+    # 「塔塞特标记」→声痕（《INSANE LORE DROPS》737 cue #73 实证）。
+    "塔塞特人": "残象", "塔塞特标记": "声痕", "Tacet 不和": "残象",
     # 泰缇斯（Tethys 系统，守岸人辅助的运算核心）
     "Tethus": "泰缇斯", "teth系统": "泰缇斯系统",
     # 执花（Bloombearer，黑海岸成员称号）
@@ -1000,9 +1002,11 @@ BILINGUAL_TERMS = {
     "伊什梅尔": "伊什麦尔",
     "以实玛利": "伊什麦尔",
     # --- 2026-10-27 鸣潮「索诺拉」活动 / Kiri Ahri 演唱会片二次校准沉淀 ---
-    # Somnoire/Som Noir/Somnir/Somnoir 均指官方「索诺拉」；抓包玩家/书呆子是 gacha
-    # ASR 误译的限定长键，不影响技术语境「抓包」。
-    "Somnoire": "索诺拉", "Som Noir": "索诺拉", "Somnir": "索诺拉", "Somnoir": "索诺拉",
+    # 2026-10-30 修正：官方译名对照「心之集域 = Somnoire」，索诺拉是 Sonoro Sphere；
+    #   原映射把梦境领域改成了另一个活动名（Jadealy TRANSCENDO 片 #635 实证）。
+    "Somnoire": "心之集域", "Som Noir": "心之集域", "Somnir": "心之集域", "Somnoir": "心之集域",
+    "Sonoro Sphere": "索诺拉", "Sonoro Spheres": "索诺拉",
+    # 抓包玩家/书呆子是 gacha ASR 误译的限定长键，不影响技术语境「抓包」。
     "抓包玩家": "抽卡玩家", "抓包书呆子": "抽卡书呆子",
     # --- 2026-10-27 《Back from Vacay! Music Listening Stream》二次校准沉淀 ---
     # 片源 2794 cue，英语原声 + 谷翻；官方依据见脚本技能卡与本片 -校准-r2说明.md。
@@ -1084,6 +1088,37 @@ BILINGUAL_TERMS = {
     "Glacio": "冷凝",                                     # wuwa:92
     "Electro": "导电",                                    # wuwa:93
     "Aero": "气动",                                       # wuwa:94
+    # --- 2026-10-28 《索拉逐星舞台 第二季》reaction 片（774 cue，英语原声+谷翻，bi）---
+    #   官方依据：B站官方节目 BV1DzpG6CEEH 节目单 + 官方角色名 + 抽帧目视
+    #   （Startorch Kindergarten / Battle of The Mascot / 罗伊冰原片尾 credit）。
+    #   仅收唯一长键；通用词/短名一律走下方 CONTEXT_MAP 参考行锚定。
+    "皇家霜地的救世主": "罗伊冰原的小小救世主",   # #434 官方节目名 Savior from Royal Frostland
+    "超级环球师": "超级露帕",                     # #348 Super Looper 谷翻音译错形
+    "卢瓦法": "露帕",                             # #216 Loofa's 谷翻音译
+    "游侠踢": "隧者这一脚",                       # #521 Strider=隧者（片尾 credit：LahaiRoi-Human Glazer Exostrider）
+    "流浪者队": "漂泊者",                         # #5 Rovers 复数，既有 \bRover\b 锚不命中
+    "Lufa": "露帕",                               # #221 中文行残留拉丁
+    "Loofa": "露帕", "Loofa's": "露帕",            # 未来中文行残留拉丁
+    "Super Looper": "超级露帕",
+    # --- 2026-10-28 《INSANE LORE DROPS…TRANSCENDO》reaction 片（737 cue，英语原声+谷翻，bi）---
+    #   官方依据：世界观 PV「超验 TRANSCENDO」官方中文；瑝珑岁主「角」/梦州「心月狐」/
+    #   泰缇斯系统/索诺拉/黎那汐塔/无归的谬误。只收实测错形，通用词走 CONTEXT_MAP。
+    "索姆诺尔": "心之集域",                     # somnoir 旧译形（#496/#518）；2026-10-30 由「索诺拉」修正
+    "岸守者": "守岸人",                         # 裸键「岸守」叠出的残形（#439）
+    "守岸人者": "守岸人",                       # 上一条替换后的机械残形，兜底
+    "巴拉纳夫拉": "蛇菰", "巴拉诺尔瓦": "蛇菰", "贝拉纳弗拉": "蛇菰",  # Balanophora ASR 三形（#159/#162/#171）
+    "克里斯托福罗": "克里斯托弗",               # Cristoforo 谷翻音译（#188）
+    "克罗诺迪安": "鸣式",                       # Threnodian 音译（#505）
+    "theodians": "鸣式", "cronodian": "鸣式",   # 中文行残留拉丁（#542/#505）
+    "Slayer 3": "索拉里斯-3",                   # Solaris 3 的 ASR 形（#336）
+    "Solaris 3": "索拉里斯-3",                  # 统一官方写法（长键先行）
+    "Hangla": "瑝珑",                           # 中文行残留拉丁（#640）
+    # --- 2026-10-30 Jadealy《TRANSCENDO》reaction 片二次校准沉淀 ---
+    # 只收官方长键/专名；通用词一律走 CONTEXT_MAP 参考行锚定（见下方同名日期块）。
+    "Tacetite": "黑石", "tacetite": "黑石",      # 官方专有名词：黑石=Tacetite
+    "White Tower": "纯白之塔",                  # 官方：纯白之塔（鸣式）
+    "Luuk Herssen": "陆·赫斯",                  # 官方全名 LUUK HERSSEN
+    "祖尼": "赞妮", "祖妮": "赞妮", "赞尼": "赞妮",  # Zani 的 ASR 变体（本片 #358-#362）
 }
 
 
@@ -1099,8 +1134,9 @@ CONTEXT_MAP = [
     # (英文正则, 仅当英文行匹配时才把中文里的某错误形式替换为正确形式)
     # --- 2026-10-27 Kiri Ahri 鸣潮演唱会/3.3 片二次校准沉淀 ---
     # Somnoire 类英文锚定：本片谷翻把 somnoir 译成「睡眠」，只在英文行命中时纠正。
-    (r"\bSomnoire\b|\bSom\s*Noir\b|\bSomnoir\b|\bSomnir\b", "睡眠", "索诺拉"),
-    (r"\bSomnoire\b|\bSom\s*Noir\b|\bSomnoir\b|\bSomnir\b", "索姆尼尔", "索诺拉"),
+    # 2026-10-30 修正目标：Somnoire=心之集域（官方译名对照），不是「索诺拉」。
+    (r"\bSomnoire\b|\bSom\s*Noir\b|\bSomnoir\b|\bSomnir\b", "睡眠", "心之集域"),
+    (r"\bSomnoire\b|\bSom\s*Noir\b|\bSomnoir\b|\bSomnir\b", "索姆尼尔", "心之集域"),
     # gacha/gotcha ASR 被谷翻成「抓包」；只在英文行命中时纠正。
     (r"\bgot?cha\b|\bgacha\b", "抓包", "抽卡"),
     # coffee addict 被谷翻成「复制者」；只在英文行命中时纠正。
@@ -1527,7 +1563,7 @@ CONTEXT_MAP = [
     (r"\bCanerella\b", "卡内雷拉", "坎特蕾拉"),     # #317
     (r"\bCanellilla\b", "卡内利拉", "坎特蕾拉"),    # #574
     (r"\bContella\b", "康特拉", "坎特蕾拉"),        # #657/#660
-    (r"\bCartilla\b", "卡提拉", "坎特蕾拉"),        # #768
+    (r"\bCartilla\b", "卡提拉", "卡提希娅"),        # #768；Cartilla≈Cartethyia（卡提希娅），非 Cantarella（2026-10-30 修正）
     (r"\bCarti\b", "卡蒂", "坎特蕾拉"),             # #774/#801/#818
     (r"\bCterella\b", "克特雷拉", "坎特蕾拉"),      # #309
     # 莫塔里家族（Montelli=珂莱塔·莫塔里的家族，官方译名 莫塔里）
@@ -1660,6 +1696,9 @@ CONTEXT_MAP = [
     (r"\bintendants?\b|\bintendance\b", "总督", "州监"),   # #2788/#2879/#2921/#2933
     (r"\bintendants?\b|\bintendance\b", "管家", "州监"),   # #690
     (r"\bintendants?\b|\bintendance\b", "管理员", "州监"),
+    # 2026-10-30：「管理者/总管」原本是学习库裸键，改为英文锚定（裸键会误伤「岸管家→岸州监」）
+    (r"\bintendants?\b|\bintendance\b", "管理者", "州监"),
+    (r"\bintendants?\b|\bintendance\b", "总管", "州监"),
     # 朝月会(Waking Moon Festival)：中秋节是通用节日名，必须英文锚定
     (r"\bMoon Festival\b|\bWaking Moon\b|\bwaking moon\b", "中秋节", "朝月会"),   # #814
     # 封印(seal)：seal 被直译成"海豹"（动物名）
@@ -1973,6 +2012,57 @@ CONTEXT_MAP = [
     (r"\bEncor\b.*\barea\b|\barea\b.*\bEncor\b", "Encor", "安可"),
     (r"\bchat\.\s*Blade\b", "Blade", "《银翼杀手》"),
     (r"\bThat's (?:just )?Blade\b|\bBlade correct\b", "Blade", "《刀锋战士》"),
+    # --- 2026-10-28 《索拉逐星舞台 第二季》reaction 片（同一片源）---
+    #   错形均为通用中文词/短名，全部参考行锚定；已排除与既有 Chisa/千纱、Yuki/雪、
+    #   Rover/流浪者 的重复。Daniela 旧注“=丹妮拉，非同一人，勿收”，本片只加
+    #   “Daniela the teacher”窄锚（#141/#164 抽帧确认幼儿园老师是达妮娅）。
+    (r"\bSolar Stage\b|\bSolar story stage\b", "太阳阶段", "索拉逐星舞台"),      # #592
+    (r"\bSolar Stage\b|\bSolar story stage\b", "太阳故事阶段", "索拉逐星舞台"),  # #751
+    (r"\bBecoming taboo\b", "变成禁忌", "渐成禁忌"),                              # #239 官方节目名
+    (r"\bSavior from Royal Frostland\b", "皇家霜地", "罗伊冰原"),                 # #434
+    (r"\bSavior from Royal Frostland\b", "皇家冰原", "罗伊冰原"),
+    (r"\bthe new world live tour\b", "新世界巡演", "「致予新世界」巡演"),          # #581 官方节目名
+    (r"\bLooping June\b|\bLupin June\b", "循环六月", "Loop in June"),             # #693/#704 官方曲名
+    (r"\bLooper\b", "环形人", "露帕"),                                            # #33
+    (r"\bLooper\b", "环形者", "露帕"),                                            # #33
+    (r"\bLooper\b", "环形灯塔", "露帕"),                                          # #38
+    (r"\bLoofa\b", "丝瓜络", "露帕"),                                             # #215
+    (r"\bLupo\b", "卢波", "露帕"),                                                # #362
+    (r"\bLupus world\b", "狼疮", "露帕"),                                         # #408 Lupus=Lupa's ASR
+    (r"\bCarlotta\b", "卡洛塔", "珂莱塔"),                                        # #673
+    (r"\bBrent\b", "布伦特", "布兰特"),                                           # #223/#224
+    (r"\bDaniela the teacher\b", "丹妮拉", "达妮娅"),                             # #141 窄锚
+    (r"\bMori\b", "森", "莫宁"),                                                  # #160 抽帧推断（星炬学院教授）
+    (r"\bCamellia\b", "山椿地区", "《Camellia》"),                                # #284 长形先行（此处 Camellia 是曲名，非角色椿）
+    (r"\bCamellia\b", "山椿", "椿"),                                              # #411/#415/#712/#742
+    (r"\bDenia Kindergarten\b", "达妮娅幼儿园", "星炬幼儿园"),                    # #706 官方节目名 Startorch Kindergarten
+    (r"\bStrider\b", "游侠", "隧者"),                                             # #521 中文“游侠踢”
+    (r"\bYuno\b", "优诺", "尤诺"),                                                # “优诺”是品牌词，禁裸键
+    (r"\bRovers\b", "流浪者", "漂泊者"),                                          # #5 复数形
+    # --- 2026-10-28 《INSANE LORE DROPS…TRANSCENDO》737 cue ---
+    #   通用词/短名一律参考行锚定（定论/洛娃/雷纳/泰图斯）。
+    (r"\btheodians?\b|\bThrodian\b", "定论", "鸣式"),                            # #542
+    (r"\bLova\b", "洛娃", "弗洛洛"),                                              # #155/#158
+    (r"\bRena\b", "雷纳", "黎那汐塔"),                                            # #450
+    (r"\bTeeta\b|\bTeta\b|\bTethus\b|\bTethys\b", "泰图斯", "泰缇斯"),            # #579
+    # --- 2026-10-30 Jadealy《TRANSCENDO》reaction 片二次校准沉淀 ---
+    #   Somnoire=心之集域：旧规则已把部分成品改成「索诺拉」，此处按英文行兜底回滚。
+    (r"\bSomnoire\b|\bSom\s*Noir\b|\bSomnoir\b|\bSomnir\b", "索诺拉", "心之集域"),
+    #   黑石=Tacetite：谷翻把 tacetite 译成「菱镁石/菱镁矿」。
+    (r"\btacetites?\b|\btacetides?\b", "菱镁石", "黑石"),
+    (r"\btacetites?\b|\btacetides?\b", "菱镁矿", "黑石"),
+    #   残象=Tacet Discord：谷翻把 tacet discourse 译成「残象话语」。
+    (r"\btacet\s+discourses?\b", "残象话语", "残象"),
+    #   声痕=Tacet Mark：ASR 把 tet marks 听成「春节标记」。
+    (r"\btet\s+marks?\b|\btac[ei]t\s+marks?\b", "春节标记", "声痕"),
+    (r"\btet\s+marks?\b|\btac[ei]t\s+marks?\b", "新年标记", "声痕"),
+    #   纯白之塔=White Tower（鸣式）；「白塔」是通用词，只在英文行命中时纠正。
+    (r"\bWhite Tower\b", "白塔", "纯白之塔"),
+    (r"\bWhite Tower\b", "白色之塔", "纯白之塔"),
+    #   会监=Overseer（残星会五会监）；监工/监督者/监督员 均为通用词，只在英文行命中时纠正。
+    (r"\boverseers?\b", "监工", "会监"),
+    (r"\boverseers?\b", "监督者", "会监"),
+    (r"\boverseers?\b", "监督员", "会监"),
 ]
 
 

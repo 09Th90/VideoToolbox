@@ -241,3 +241,9 @@ ENTITIES.append(Entity("赤红之神", modes=("limbus",),
                        note="Canto X Part 3；[Adulthood] 社区有「成熟/完熟」两派写法；"
                             "本片未点名，仅登记。"))
 
+
+ENTITIES.append(Entity("超验", modes=("bi", "react"),
+                       en="TRANSCENDO",
+                       category="版本/鸣潮3.8",
+                       note="3.8 世界观 PV 官方中文名「超验 TRANSCENDO」；"
+                            "副标题「闭环重启，潮声再循」；谷翻常作「超越」。"))

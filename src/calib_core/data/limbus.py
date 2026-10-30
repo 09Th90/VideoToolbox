@@ -20,6 +20,9 @@ LIMBUS_TERMS = {
     # 游戏名：社区常用《边狱巴士》；“边狱公司”是游戏内组织，不作裸键
     "炼狱之舞": "边狱巴士",
     "奥林匹斯公司": "边狱巴士",
+    # 2026-10-30 Canto X Boss 3 reaction 片：谷翻把 Limbus 音译成「奥林巴斯」/直接留英文
+    "奥林巴斯公司": "边狱巴士",
+    "Limbo's Company": "边狱巴士",
     "林布斯公司": "边狱巴士",
     "林布连": "边狱巴士",
     "林布斯": "边狱巴士",
@@ -46,6 +49,18 @@ LIMBUS_CONTEXT = [
     (r"\bstring\s+phrase\b", "弦乐短语", "弦乐乐句"),
     (r"\brhythmic\s+pulse\b", "节律脉搏", "节奏脉动"),
     (r"\bcallbacks?\b", "回调", "呼应"),
+    # 2026-10-30 二校（Canto X Boss 3 Battle Theme reaction 片）：习语/术语被谷翻直译
+    (r"\bthis\s+canto\b", "这首诗", "这一章"),
+    (r"\bstring\s+phrase\b", "字符串短语", "弦乐乐句"),
+    (r"\bshort\s+start\s+of\s+strings\b", "短的字符串开头", "弦乐短促的起音"),
+    (r"\bgrand\s+scheme\s+of\s+things\b", "事物的计划", "从大局上看"),
+    # 习语常被 ASR 断在两条 cue 里，补结尾片段变体
+    (r"\bscheme\s+of\s+things\b", "事物的计划", "从大局上看"),
+    (r"\bfor\s+the\s+record\b", "也记录一下", "顺便说一句"),
+    (r"\brecord\s+as\s+well\b", "也记录一下", "顺便说一句"),
+    (r"\bplays?\s+with\s+your\s+expectations\b", "符合你的期望", "玩弄你的预期"),
+    (r"\bboss\s+(?:battle\s+)?themes?\b", "老板主题", "Boss 主题"),
+    (r"\bboss\s*one\b", "一号老板", "第1个Boss"),
     # Boss 编号口播
     (r"\bboss\s*three\b", "老大三号", "第3个Boss"),
     (r"\bboss\s*three\b", "老板三号", "第3个Boss"),

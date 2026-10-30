@@ -1530,16 +1530,17 @@ ENTITIES_PART1 = [
                 "Academy 参考行锚定「学院」；EXCLUDE_CONTEXT 已排除 Academy Awards 等通用语境。"),
     Entity("索诺拉", modes=("bi", "react"), en="Sonoro Sphere",
            category="术语/鸣潮",
-           variants=("Sonaro 球体", "Sonoro 球体", "Somnoire", "Som Noir", "Somnir", "Somnoir"),
+           variants=("Sonaro 球体", "Sonoro 球体"),
            ctx=((r"\bSon(?:oro|aro)\s+spheres?\b", "球体"),),
            note="回音能量富集形成的超自然空间，官方中文=索诺拉（又称声之领域；Sonoro Sphere）。"
-                "谷翻「Sonaro 球体」归此；「球体」通用词只走参考行锚定。"),
+                "谷翻「Sonaro 球体」归此；「球体」通用词只走参考行锚定。"
+                "2026-10-30 修正：Somnoire/Som Noir/Somnir/Somnoir 是官方「心之集域」，已移出本条。"),
     Entity("无归的谬误", modes=("bi", "react"), en="Fallacy of No Return",
            category="敌人/声骸·鸣潮",
            variants=("回报的谬误", "归来的谬误"),
            note="泰缇斯系统构筑的最终防卫程序，官方中文=无归的谬误（Fallacy of No Return）。"
                 "本片 ASR「fallacy of return」漏 No，谷翻「回报的谬误」归此。"),
-    Entity("阿布拉克萨斯", modes=("bi", "react"), en="Abraxas",
+    Entity("阿布拉克萨斯", modes=("bi", "react", "ko"), en="Abraxas",
            category="角色/鸣潮",
            variants=("Abrais", "A Brais", "A Braxis", "Arais",
                      "阿布拉伊斯", "阿布雷斯", "一个brais", "布拉克西斯人", "布拉克西斯"),
