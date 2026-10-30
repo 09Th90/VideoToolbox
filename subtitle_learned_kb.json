@@ -3196,7 +3196,7 @@
    "mode": "bi",
    "count": 2,
    "uncorrected": 0,
-   "status": "confirmed",
+   "status": "rejected",
    "cues": [
     310
    ],
@@ -3215,9 +3215,9 @@
     ]
    ],
    "ref_tokens": {
-    "Intendant": 2,
-    "this": 2,
-    "time": 2
+    "Intendant": 4,
+    "this": 4,
+    "time": 4
    },
    "unc_ref_tokens": {},
    "first": "2026-10-05",
@@ -3975,7 +3975,7 @@
    "mode": "bi",
    "count": 2,
    "uncorrected": 0,
-   "status": "confirmed",
+   "status": "rejected",
    "cues": [
     690
    ],
