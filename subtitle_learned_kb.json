@@ -519,7 +519,7 @@
    "mode": "bi",
    "count": 2,
    "uncorrected": 0,
-   "status": "confirmed",
+   "status": "rejected",
    "cues": [
     199,
     515
@@ -2314,7 +2314,7 @@
    "mode": "bi",
    "count": 2,
    "uncorrected": 0,
-   "status": "confirmed",
+   "status": "rejected",
    "cues": [
     126,
     137
