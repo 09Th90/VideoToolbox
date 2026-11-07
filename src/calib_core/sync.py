@@ -87,12 +87,27 @@ _SYNC_TABLES = ("BILINGUAL_TERMS", "CONTEXT_MAP", "EXCLUDE_CONTEXT",
                 "ENTITIES_VARIANT", "LEARNED_CANDIDATE")
 
 _SYNC_MODES = ("bi", "ja", "jpe", "ko", "ak", "akko", "endo", "endobi",
-               "endoko", "zho", "pgren", "wwoc", "react", "limbus")
+               "endoko", "zho", "pgren", "wwoc", "react", "limbus",
+               # 2026-11-03 新增（战双日语原声片）。
+               # ⚠ 观察留痕：ffrs/pbz/ff14 三个后来加的模式**至今没进这张表**，
+               #   它们的 kb 增量目前同样会被 _sync_validate 拒收——不属本次范围，未动。
+               "pgrja",
+               # 2026-11-03 新增（明日方舟日语原声片）。同上：不进这张表的话，
+               #   kb-push/kb-sync 推来的 akja 条目会被 _sync_validate 判 mode 非法拒收。
+               "akja")
 
 _SYNC_MODE_CTX_TABLE = {"bi": "CONTEXT_MAP", "ja": "JA_CONTEXT",
                         "jpe": "JA_ENDFIELD_CONTEXT", "akko": "AK_KO_CONTEXT",
                         "ko": "KO_CONTEXT", "ak": "AK_CONTEXT",
-                        "wwoc": "WWOC_CONTEXT", "limbus": "LIMBUS_CONTEXT"}
+                        "wwoc": "WWOC_CONTEXT", "limbus": "LIMBUS_CONTEXT",
+                        # 2026-11-03：缺这一行时 --pgrja 的 kb 增量会被 _sync_validate 拒收
+                        #   （校验按「该模式有没有语境槽」判条目能否注入）。
+                        "pgrja": "JA_PGR_CONTEXT",
+                        "akja": "AK_JA_CONTEXT",
+                        # 2026-11-04：--pgren 补语境槽后必须同登记，否则推来的 pgren 锚定条目
+                        #   会被 _sync_validate 按「该模式没有语境槽」判 mode 非法拒收
+                        #   （同 2026-11-03 pgrja 那条坑）。
+                        "pgren": "PGR_EN_CONTEXT"}
 
 
 

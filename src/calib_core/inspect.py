@@ -11,9 +11,11 @@ import shutil
 import sys
 import unicodedata
 from .asr import _scan_split_line
-from .data.ark import AK_MISSING_CHECK
+from .data.ark import AK_MISSING_CHECK, PGR_MISSING_CHECK
 from .data.bilingual import WUWA_MISSING_CHECK
 from .data.endfield import ENDFIELD_MISSING_CHECK
+from .data.ko import KO_MISSING_CHECK
+from .data.pbz import PBZ_MISSING_CHECK
 from .format import is_line_too_long, line_width
 from .srt import _cue_first_text_map, _detect_layout, _iter_ref_lines, _load_calib_records
 from .state import CTX_TABLES, TABLES
@@ -86,11 +88,24 @@ def _cmd_align_audit(src, out, window=5, ratio=1.45, min_ratio=0.45, quiet=False
 
 
 
-def _cmd_verify(src, out):
+_MARKER_PRE = re.compile(r"^>>[ 	]*")
+
+
+def _MARKER_PREFIX(s):
+    """取行首说话人标记（含 `>>` 后的空格/制表符原样），无标记返回空串。"""
+    m = _MARKER_PRE.match(s)
+    return m.group(0) if m else ""
+
+
+def _cmd_verify(src, out, allow_marker_drop=False):
     """verify：校验两个 SRT cue数/序号/时间轴/参考行/换行/BOM 全一致，仅内容文本行变化。
 
     双语片（bi）：额外断言末位参考（英/日/韩）行零变化；
-    单语片（mono）：无参考行，断言 cue数/序号/时间轴/总行数/CRLF/BOM 一致，文本行允许变化。"""
+    单语片（mono）：无参考行，断言 cue数/序号/时间轴/总行数/CRLF/BOM 一致，文本行允许变化。
+
+    2026-11-06：新增说话人标记 `>>` 守恒断言（Day3 实证：漏写前缀是无声丢失）。
+    若某条流水线**刻意**剥离标记（如 Day2 的 strip_marker），显式传 --allow-marker-drop 豁免，
+    默认不放行——豁免必须是主动决定，不能让漂移悄悄过去。"""
     def parse(p):
         raw = open(p, "rb").read()
         crlf = b"\r\n" in raw; bom = raw.startswith(b"\xef\xbb\xbf")
@@ -125,6 +140,7 @@ def _cmd_verify(src, out):
     if slay == "mono":
         assert snlines == onlines, f"TOTAL LINE COUNT CHANGED! {snlines} vs {onlines}"
     ts = e = z = 0
+    mk = []           # 说话人标记（>> 前缀）漂移清单
     for (n1, t1, texts1), (n2, t2, texts2) in zip(s, o):
         assert n1 == n2, f"num mismatch {n1}"
         ts += t1 != t2
@@ -137,11 +153,24 @@ def _cmd_verify(src, out):
             e += sum(texts1[i] != texts2[i] for i in ref1)
         else:
             z += sum(a != b for a, b in zip(texts1, texts2))
+        # 2026-11-06：说话人标记 `>>` 守恒（Day3 沉淀）。反应片有数千行带 `>>`，逐 cue
+        # 整行重写时漏写前缀是**无声丢失**——cue 数、中文行数、参考行全都对得上，旧 verify
+        # 查不出来。判据取「本 cue 内 `>>` 出现次数相等」而非逐行前缀相等：后者会把
+        # "把落在句中的 >> 归位到行首"（Day3 c4460 实证）误判成丢失，而那恰恰是修文字。
+        _c1 = sum(t.count(">>") for t in texts1)
+        _c2 = sum(t.count(">>") for t in texts2)
+        if _c1 != _c2:
+            mk.append((n1, _c1, _c2))
     assert ts == 0, "TIMESTAMPS CHANGED!"
+    if mk and not allow_marker_drop:
+        raise AssertionError("SPEAKER MARKERS CHANGED!（cue 内 >> 计数不等）"
+                             + "，".join(f"#{n}: {a}->{b}" for n, a, b in mk[:10]))
     if slay == "bi":
         assert e == 0, "REFERENCE LINES CHANGED!"
-        print(f"timestamp diffs: {ts} | reference diffs: {e} | content(zh) diffs: {z}")
-        print("VERIFY OK[bi]：仅中文内容行变化，序号/时间轴/参考行/CRLF/BOM 全部一致")
+        print(f"timestamp diffs: {ts} | reference diffs: {e} | marker diffs: {len(mk)} | "
+              f"content(zh) diffs: {z}")
+        print("VERIFY OK[bi]：仅中文内容行变化，序号/时间轴/参考行/说话人标记/CRLF/BOM 全部一致"
+              + ("（>> 标记有 %d 处差异，已由 --allow-marker-drop 豁免）" % len(mk) if mk else ""))
     else:
         print(f"timestamp diffs: {ts} | total lines: {snlines} (unchanged) | text diffs: {z}")
         print("VERIFY OK[mono]：单语片文本行已更新，cue数/序号/时间轴/总行数/CRLF/BOM 全部一致")
@@ -193,8 +222,11 @@ def _cmd_compare(src, out, tsv):
 
 def _load_missing_rules(mode=None, file=None):
     """漏译体检规则：--mode endo 取内置 ENDFIELD_MISSING_CHECK；--mode wuwa 取
-    鸣潮专名表 WUWA_MISSING_CHECK；--mode ak 取明日方舟 AK_MISSING_CHECK；--file 追加 TSV
-    （每行：英文正则<TAB>中文必现词1|词2[<TAB>说明]，# 开头注释）。"""
+    鸣潮专名表 WUWA_MISSING_CHECK；--mode ak 取明日方舟 AK_MISSING_CHECK；
+    --mode pbz 取影之刃零 PBZ_MISSING_CHECK；--mode ko 取韩语原声鸣潮表
+    KO_MISSING_CHECK（正则写**谚文原形**，不是拉丁）；--mode pgren 取战双英文原声表
+    PGR_MISSING_CHECK（正则写拉丁，锚英文参考行）；--file 追加 TSV
+    （每行：参考行正则<TAB>中文必现词1|词2[<TAB>说明]，# 开头注释）。"""
     rules = []
     if mode in ("endo", "endobi", "endoko", "jpe"):
         rules.extend(ENDFIELD_MISSING_CHECK)
@@ -202,6 +234,12 @@ def _load_missing_rules(mode=None, file=None):
         rules.extend(WUWA_MISSING_CHECK)
     if mode == "ak":
         rules.extend(AK_MISSING_CHECK)
+    if mode == "pbz":
+        rules.extend(PBZ_MISSING_CHECK)
+    if mode == "pgren":
+        rules.extend(PGR_MISSING_CHECK)
+    if mode == "ko":
+        rules.extend(KO_MISSING_CHECK)
     if file:
         raw = open(file, "rb").read()
         for ln in _decode_any(raw).splitlines():
@@ -239,19 +277,32 @@ def _cmd_missing(ref, target, mode=None, file=None, quiet=False, window=0):
         return " ".join(tmap[m] for m in order[max(0, k - window):k + window + 1])
 
     compiled = [(re.compile(p, re.I), zhs, p) for p, zhs, _note in rules]
-    hits = []
+    hits, anchored = [], 0
     for n in order:
         en = rmap.get(n, "")
         if not en:
             continue
         zh = zh_around(n)
         for rx, zhs, pat in compiled:
-            if rx.search(en) and not any(z in zh for z in zhs):
+            if not rx.search(en):
+                continue
+            anchored += 1
+            if not any(z in zh for z in zhs):
                 hits.append((n, pat, "/".join(zhs), en.strip().replace("\n", " "),
                              tmap[n].strip().replace("\n", " ")))
+    # 假绿灯拦截：ref 侧一条锚都没命中时，上面的循环会安静地打印「未发现漏译 ✓」。
+    # 对「原文行在上、译文行在下」的双语片源，_cue_first_text_map 取到的是**译文行**，
+    # 于是拿原语正则去匹译文必然 0 命中——体检报告看着全绿，实则一行都没查。
+    if rules and anchored == 0:
+        print("WARN 参考行侧 0 锚命中（规则 %d 条 / ref %d cue）—— 体检没有真正跑起来。"
+              % (len(rules), len(rmap)))
+        print("      双语片请把**原文单语文件**（如 .ko.srt / .ja.srt）作 ref，"
+              "不要把已含译文的 .ko.zh.srt 当参考侧。")
+        return 1
     if not quiet:
         scope = f" / 邻接窗口 ±{window}" if window else " / 严格逐cue"
-        print(f"missing：英文参考 {len(rmap)} cue / 中文 {len(tmap)} cue / 规则 {len(rules)} 条{scope}")
+        print(f"missing：英文参考 {len(rmap)} cue / 中文 {len(tmap)} cue / "
+              f"规则 {len(rules)} 条 / 锚命中 {anchored} cue{scope}")
     if hits:
         print(f"疑似漏译 {len(hits)} 处（英文有术语、中文无对应词）：")
         for n, pat, zhs, en, zh in hits:
@@ -341,6 +392,8 @@ def _cmd_subfix(src, fixtsv, out, compare=None, side=None, single=False, strict=
     old 为空串 -> 整行覆盖（ERROR 补译）。未命中的规则会打印 [MISS] 以便自查。
     2026-10-23：按语言定位中文行（兼容英文在上/中文在下）；拒绝空 new 与纯标记行覆盖；
     --strict 时存在 MISS / 空文案 / 越界或缺失序号则返回 1，可当门禁。
+    2026-11-06：定位不到中文行的规则不再静默跳过——登记为 UNLOCATABLE、打印并在
+    --strict 下计入失败（Day3 实测 4 条此类 cue 曾被当成"已改"，是本轮最贵的隐性坑）。
     --single：纯中文行片（每 cue 仅 1 个文本行、无参考行，如英文原声谷歌机翻单语 SRT），
               此时修正唯一文本行；默认仅处理“中文行+参考行”的双语 cue，单文本行整块跳过。"""
     rules = _load_subfix_tsv(fixtsv)
@@ -350,6 +403,7 @@ def _cmd_subfix(src, fixtsv, out, compare=None, side=None, single=False, strict=
     lines = _decode_any(raw).replace("\r\n", "\n").replace("\r", "\n").split("\n")
     out_lines = list(lines)
     applied, miss, rows, invalid = 0, [], [], []
+    unloc = []          # 规则指向该 cue，但该 cue 定位不到中文行（改了也写不进）
     seen_nums = set()
     i, n = 0, len(lines)
     while i < n:
@@ -372,7 +426,11 @@ def _cmd_subfix(src, fixtsv, out, compare=None, side=None, single=False, strict=
                     elif single:
                         target = 0
                     else:
-                        # 双语 cue 没有中文行（仅英文/参考行）：拒绝写参考行
+                        # 双语 cue 没有中文行（仅英文/参考行）：拒绝写参考行。
+                        # 2026-11-06：必须登记并打印——否则规则被无声吞掉，操作者以为"已改"。
+                        # 实测片源《명조》「띵킹 2」Day3 有 4 条这类 cue（`99%`/`s`/`>> 4`/`>> 6L`，
+                        # 中文行既无汉字也无中文标点），当初整轮只能靠自研断言脚本才发现。
+                        unloc.append((s, lines[j + 1:kk]))
                         i = kk
                         continue
                     zh_idx = j + 1 + target
@@ -423,11 +481,15 @@ def _cmd_subfix(src, fixtsv, out, compare=None, side=None, single=False, strict=
         extra.append(f"无效 {len(invalid)}")
     if missing_nums:
         extra.append(f"缺失 cue {len(missing_nums)}")
+    if unloc:
+        extra.append(f"无中文行 {len(unloc)}")
     print(f"subfix：规则 {total} 条 / 命中 {applied} cue" + (f" / {' / '.join(extra)}" if extra else ""))
     for num, old in miss:
         print(f"  [MISS] #{num}: {old!r}")
     for num, old, why in invalid:
         print(f"  [INVALID] #{num}: {old!r}（{why}）")
+    for num, texts in unloc:
+        print(f"  [UNLOCATABLE] #{num}: 该 cue 定位不到中文行，规则未生效 -> {texts}")
     if missing_nums:
         print(f"  [MISSING CUE] {missing_nums}")
     if compare:
@@ -443,8 +505,8 @@ def _cmd_subfix(src, fixtsv, out, compare=None, side=None, single=False, strict=
                 f.write(f"{num}\t{nw}\n")
         print("侧车覆盖表:", side)
     print("写入:", out)
-    if strict and (miss or invalid or missing_nums):
-        print("STRICT FAIL：存在 MISS/无效规则/缺失 cue，未通过门禁")
+    if strict and (miss or invalid or missing_nums or unloc):
+        print("STRICT FAIL：存在 MISS/无效规则/缺失 cue/无中文行规则，未通过门禁")
         return 1
     return 0
 

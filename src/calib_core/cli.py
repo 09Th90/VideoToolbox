@@ -60,6 +60,10 @@ def main_argv():
             mode = "ja"; i += 1
         elif a == "--jpe":
             mode = "jpe"; i += 1
+        elif a == "--pgrja":
+            mode = "pgrja"; i += 1
+        elif a == "--akja":
+            mode = "akja"; i += 1
         elif a == "--wwoc":
             mode = "wwoc"; i += 1
         elif a == "--ak":
@@ -84,6 +88,10 @@ def main_argv():
             mode = "limbus"; i += 1
         elif a == "--ffrs":
             mode = "ffrs"; i += 1
+        elif a == "--pbz":
+            mode = "pbz"; i += 1
+        elif a == "--ff14":
+            mode = "ff14"; i += 1
         elif a == "--zel":
             mode = "zel"; i += 1
         elif a == "--hsr":
@@ -104,6 +112,17 @@ def main_argv():
                 mode = "pkm"
             elif m in ("hsr", "starrail", "star_rail", "honkai_starrail", "honkaistarrail"):
                 mode = "hsr"
+            elif m in ("pbz", "phantomblade", "phantombladezero", "影之刃零", "影之刃"):
+                mode = "pbz"
+            elif m in ("ff14", "ffxiv", "finalfantasy14", "finalfantasixiv",
+                       "最终幻想14", "最终幻想xiv", "银海之天舟"):
+                mode = "ff14"
+            elif m in ("akja", "ak_ja", "arknights_ja", "arknightsja",
+                       "明日方舟日语", "日语原声明日方舟"):
+                # ⚠ 必须排在下面那条三元链**之前**：三元链里是 `m in ("ak","arknights")`
+                #   的精确成员判断，"akja" 不会命中它，而是直接掉到默认 "bi"（英语双语通道），
+                #   表现为"旗标传了但规则完全不对"。
+                mode = "akja"
             else:
                 mode = "ja" if m in ("ja", "japanese") else ("ko" if m in ("ko", "korean") else ("ak" if m in ("ak", "arknights") else ("zho" if m in ("zho", "zhonly", "zh_only") else ("endo" if m in ("endo", "endfield") else ("zel" if m in ("zel", "zelda", "legend of zelda", "zelda_direct") else "bi")))))
             i += 2
@@ -132,21 +151,29 @@ def main_argv():
              "ko": "韩语原声 (KO_TERMS)",
              "ja": "日语原声 (JA_TERMS + JA_CONTEXT)",
              "jpe": "日语原声·终末地 (JA_ENDFIELD_TERMS + JA_ENDFIELD_CONTEXT)",
+             # 2026-11-03 新增。故意**不进 info 字典**：本模式没有内置片源，
+             #   进了 info 会出现「无片源文件也能一键重跑」的假入口。
+             "pgrja": "日语原声·战双 (JA_PGR_TERMS + JA_PGR_CONTEXT)",
              "wwoc": "综合手游OST世界杯 (WWOC_TERMS)",
              "ak": "明日方舟本体 (AK_TERMS + AK_CONTEXT)",
              "akko": "明日方舟韩语原声 (AK_KO_TERMS + AK_KO_CONTEXT)",
+             # 2026-11-03 新增。与 pgrja 同规：**不进 info 字典**（无内置片源，
+             #   进了会出现「无片源文件也能一键重跑」的假入口）。
+             "akja": "日语原声·明日方舟 (AK_TERMS ∪ AK_JA_TERMS + AK_JA_CONTEXT)",
              "zho": "中文行专属 (ZH_ONLY_TERMS)",
              "endo": "终末地 (ENDFIELD_TERMS)",
              "endobi": "终末地·中英双语 (ENDFIELD_BI_TERMS)",
              "endoko": "终末地·韩语原声 (ENDFIELD_KO_TERMS)",
              "pgr": "战双帕弥什 (PGR 侧车整行覆盖, {} 条)".format(len(pgr_override) if pgr_override else 0),
-             "pgren": "战双帕弥什·英文原声 (PGR_EN_TERMS)",
+             "pgren": "战双帕弥什·英文原声 (PGR_EN_TERMS + PGR_EN_CONTEXT)",
              "react": "音乐/演唱点评 (REACT_TERMS)",
              "zel": "塞尔达传说 (ZELDA_TERMS)",
              "hsr": "崩坏：星穹铁道 (HSR_TERMS + HSR_CONTEXT)",
              "limbus": "边狱巴士 (LIMBUS_TERMS + LIMBUS_CONTEXT)",
              "ffrs": "最终幻想：共鸣 (FFRS_TERMS + FFRS_CONTEXT)",
-             "pkm": "宝可梦城镇主题 (POKEMON_TERMS + POKEMON_CONTEXT)"}
+             "pbz": "影之刃零 (PBZ_TERMS + PBZ_CONTEXT)",
+             "pkm": "宝可梦城镇主题 (POKEMON_TERMS + POKEMON_CONTEXT)",
+             "ff14": "最终幻想14 (FF14_TERMS + FF14_CONTEXT)"}
     extra = (" + 英文行修正(--fix-en)" if fix_en else "")
     print("模式:", names[mode] + extra)
     if learned_kb:
@@ -177,6 +204,8 @@ def _dispatch_subcommand(sub, args):
             opts["quiet"] = True; i += 1
         elif a == "--strict":
             opts["strict"] = True; i += 1
+        elif a == "--allow-marker-drop":
+            opts["allow_marker_drop"] = True; i += 1
         elif a == "--window" and i + 1 < len(args):
             opts["window"] = int(args[i + 1]); i += 2
         elif a == "--ratio" and i + 1 < len(args):
@@ -234,8 +263,8 @@ def _dispatch_subcommand(sub, args):
                                 opts.get("quiet", False), opts.get("strict", False))
     elif sub == "verify":
         if len(pos) < 2:
-            print("用法: verify <src.srt> <out.srt>"); return
-        _cmd_verify(pos[0], pos[1])
+            print("用法: verify <src.srt> <out.srt> [--allow-marker-drop]"); return
+        _cmd_verify(pos[0], pos[1], bool(opts.get("allow_marker_drop")))
     elif sub == "compare":
         if len(pos) < 3:
             print("用法: compare <src.srt> <out.srt> <对照.tsv>"); return

@@ -201,6 +201,14 @@ REACT_CONTEXT = [
     (r"Heart Seal|Seal song", "封印之歌", "HEARTSTEEL"),
     (r"\bMorta\b|\bMohrta\b", "Morta", "默尔塔"),
     (r"\bNouni\b|\bNi no Kuni\b", "努尼", "二之国"),
+    # --- 2026-11-03 终末地 1.4「向渊行」鼓手演绎片（The8BitDrummer，127 cue，--react 基线 0 命中）---
+    # 官方曲目 credit 证实阿莱克琉斯战曲的人声是**拉丁语 + 英语嘶吼**（拉丁词取自维吉尔
+    #   《埃涅阿斯纪》VII："Flectere si nequeo superos, Acheronta movebo"）⇒ 声乐语境下
+    #   shrieking 应作「嘶吼」，谷翻按日常义出「尖叫」。「尖叫」是常用词，禁裸键（硬契约第 4 条），
+    #   只按英文参考行 shriek 锚定；替换后量词/句式无需联动，故这条是"语法自洽"的锚定。
+    # ⚠ 同片 `big bat`↔`big beat`（ASR 近音，#24）**刻意不入表**：裸换会留下
+    #   「一只大重拍」这类量词错配，句子仍不通——属句级问题，按戒律留逐 cue 侧车整行重写。
+    (r"shriek", "尖叫", "嘶吼"),
 ]
 
 
@@ -475,6 +483,94 @@ EN_LINE_TERM_FIXES = {
     # 证据：arknights.wiki.gg/wiki/Episode_14/OST（Arknights / Yuka Kitamura）
     "Ark Knights": "Arknights",                            # ASR 误拆
     "Kamura": "Kitamura",                                  # 作曲家 Yuka Kitamura（片内 #258/#709/#736 作 Kitamura）
+    # --- 2026-11-01 《最终幻想14》8.0「银海之天舟」(Evercold) 预告片 reaction 片 ---
+    #   片源：《Final Fantasy XIV's music shouldn't surprise me anymore… (Evercold Trailer
+    #   Reaction)》——英语原声 + 谷歌翻译中文，642 cue，每 cue 恰 2 文本行，CRLF、无 BOM。
+    #   官方中文依据（2026-11-01 检索：国服 8.0 专题站 actff1.web.sdo.com/project/20260425evercold
+    #   ＋ @最终幻想14 官博）：Evercold＝《银海之天舟》（媒体写的《白银的探求者》是日服副标题
+    #   「白銀の探求者」直译，不采）；Dawntrail＝《金曦之遗辉》（《晓月之终途》是 6.0 Endwalker，
+    #   勿混）；Shadowbringers＝「暗影之逆焰」；The traveler＝「巡天者」；伪神／第四世界／
+    #   冰之力／大至日／光之战士／联盟讨伐战 均为官方原文；EVA 联动副本＝「EVANGELION -
+    #   欲望的幽影」(Ghosts of Desire)。《Blinded by Light》**无官方中文名，保留英文**。
+    #   本表只规范英文参考行的 ASR 错形；中文行由逐 cue 覆盖产出（成品与对照表在片源目录）。
+    #   ⚠ 中文侧本片**不跑任何模式 pass**：--bi 的唯一命中是学习库曲名键把 #534
+    #     "the things that he loved"（他曾珍爱的一切）改成"爱过"，纯误伤；本片的真正
+    #     痛点是谷翻跨 cue 断句（平均 10.6 字/条），术语表无从着力。
+    #   ⚠ "Misatoan"→"Misato" 顺带消除了上表短键 "toa"→"TOA" 对本片 #87/#209 的误伤
+    #     （_replace_report 长键降序先行，故 ASR 拖音必须收全长形）。
+    "Ever Cold": "Evercold",                               # ASR 拆词（官方连写 Evercold）
+    "Dawn Trail": "Dawntrail", "Dawntrails": "Dawntrail",   # 7.0 官方英文连写
+    #   ⚠ _ref_for_match 会先用 _rejoin_known 去空格，产出的是**保留原词大小写的驼峰形**
+    #     （"Ever Cold"→"EverCold"），上面两条原形键因此在 --fix-en 阶段已匹配不上；
+    #     须同时收驼峰形（同 2026-10-05 "YangYang"→"Yangyang" 先例）。
+    "EverCold": "Evercold", "DawnTrail": "Dawntrail", "DawnTrails": "Dawntrail",
+    "Fantasy 14": "Fantasy XIV",                            # 官方英文用罗马数字（中文行仍写《最终幻想14》）
+    "Aorsia": "Eorzea",                                     # 艾欧泽亚 ASR 误听（#171）
+    "the liveream": "the Lifestream",                       # 「生命之流」，主播自承忘了 14 里的叫法（#195）
+    "Hamuzu": "Hamauzu",                                    # 滨涡正志 Masashi Hamauzu（FF13 作曲）。
+    #   ⚠ 2026-11-01 二校纠正：本键原写成 "Hamuzu"→"Hamau" 是**错的**——主播说 "played by
+    #   Hamuzu himself" 时指 Hamauzu；FFXIII Piano Collections 的**演奏者是 Aki Kuroda**，
+    #   Hamauzu 只作编曲/作曲。另 8.0 典藏版坐骑 Valhallar Odin 的骑乘 BGM 正是 FF13《閃光》
+    #   ＝Blinded by Light，与本片 #26→#27 的台词顺序完全对上，故 ASR "Vajaller" 定形为 Valhallar。
+    "Vajaller": "Valhallar",                                # 瓦尔哈拉奥丁（#26 ASR 吞音）
+    #   ⚠ 2026-11-01 反查补：本片一轮跑过时把 Hamuzu 替成了 "Hamau"（错值），成品英文行里
+    #     已不存在 "Hamuzu"，故仅加 "Hamuzu"→"Hamauzu" 修不到历史产出；须按行上下文补两条
+    #     组合键。**不要收裸键 "Hamau"**——Hamau 本身是真实存在的钢琴演奏者名，跨片必误伤。
+    "phenomenal. Hamau uh": "phenomenal. Hamauzu uh",
+    "played by Hamau himself": "played by Hamauzu himself",
+    "estinia": "Estinien",                                  # 埃斯蒂尼安（7.0/8.0 角色，#433）
+    "and alpha. That's": "and Alphinaud. That's",           # 阿尔菲诺（组合键，裸 alpha 必误伤）
+    "see the war of light": "see the Warrior of Light",     # 光之战士 ASR 吞音（组合键防咬 war）
+    "that Yoshi P loves": "that Yoshi-P loves",             # 吉田直树昵称官方写法带连字符
+    "FanFest": "Fan Festival",                              # 官方活动名（裸键；本片 #601/#602 两处）
+    "hear Blinded by light": "hear Blinded by Light",       # 曲目名大小写
+    "Vunder": "Wunder",                                     # EVA 新剧场版旗舰 Wunder
+    "Evangelian": "Evangelion",
+    "Misatoan": "Misato",                                   # 葛城美里（ASR 拖音）
+    "Rayanami": "Rei Ayanami",                              # 绫波丽（#204；同片 #150 作 Ray、#216 作 Ry）
+    "mention Ry, unless": "mention Rei, unless",            # 绫波丽 ASR 形（组合键，裸 Ry 必误伤）
+    "mention Ryu.": "mention Rei.",                         # 同上（Ryu 是别处常见人名，不收裸键）
+    "Ry and Shinji": "Rei and Shinji",                      # 绫波丽与真嗣并列（#220）
+    "justosition": "juxtaposition",                         # ASR 造词
+    "has has come": "has come",                             # 行首结巴形——双侧空格键够不到行首
+    #   ⚠ 以下「相邻同词重复」清理键**两侧都带空格**：_replace_report 是纯 str.replace、
+    #     没有词边界（见该函数），裸键会成批咬字——" of of"→"kind offf"（咬 "kind of off"）、
+    #     " and and"→"and+roid"（咬 "and android"）、" is is" 咬 "this is"（本片 22 处）、
+    #     " in in" 咬 "win in"、" less less" 咬 "unless less"、" or or" 咬 "for or"。
+    #     两侧补空格即要求前后都是独立词，这些形态不再成立。
+    #     跨片实测：19 个既有双语片 699 处命中、token 变形 0（判据＝结果 token 须为原 token
+    #     子序列且不产生新 token）。代价是**行尾/句末的重复够不着**（后面没有空格可匹配），
+    #     那种形态按片走上面的上下文组合键。
+    #     有意不收：'da da da'（#476 拟声唱段）、'something something'（"诸如此类"有语义）、
+    #     'my my'/'we we'（感叹用法或跨行结巴，收益低于风险）。
+    " and and ": " and ", " the the ": " the ", " of of ": " of ", " a a ": " a ",
+    " I I ": " I ", " it it ": " it ", " It's it's ": " It's ",
+    " that that ": " that ", " this this ": " this ", " but but ": " but ",
+    " in in ": " in ", " are are ": " are ", " these these ": " these ",
+    " really really ": " really ", " or or ": " or ", " So so ": " So ",
+    " just just ": " just ", " very very ": " very ", " where where ": " where ",
+    " has has ": " has ", " they they ": " they ", " less less ": " less ",
+    " from from ": " from ", " is is ": " is ",
+    " and and and ": " and ", " the the the ": " the ", " of of of ": " of ",
+    " a a a ": " a ", " is is is ": " is ", " I I I ": " I ",
+    #   本片（2026-11-01）行尾/句末重复，按片补上下文组合键：
+    "Then also these these": "Then also these",
+    "is uh really really": "is uh really",
+    "very reminiscent of of": "very reminiscent of",
+    "know, know of of": "know, know of",
+    "you know that that": "you know that",
+    "about this is the the": "about this is the",
+    "you know they they": "you know they",
+    "less of the the": "less of the",
+    "sharing this this": "sharing this",
+    "feels like a a": "feels like a",
+    #   同行尾/标点紧邻形（" I I" 后面是缩写或大写时才够得着的）：
+    " Nice nice ": " Nice ", " he he's ": " he's ", " I I've ": " I've ",
+    " I was I was ": " I was ",
+    "heft of of of": "heft of",
+    "really imp impressed by": "really impressed by",   # ASR 断词+结巴混合
+    "of re reset tonal": "of re-reset tonal",           # re-reset 被 ASR 拆开
+    "that blind blinded by": "that blinded by",
 }
 
 
@@ -673,4 +769,87 @@ _ASR_COMMON_WORDS = frozenset((
     "second", "third", "fourth", "fifth", "chapter", "version", "update",
     "stream", "beautiful", "people", "song", "best", "ever", "thing", "things",
 ))
+
+
+# =============================================================
+# 5.10 《最终幻想14》（FF14 / FFXIV）片源术语表（模式 --ff14，2026-11-01 新增）
+# =============================================================
+# 片源：《Final Fantasy XIV's music shouldn't surprise me anymore… (Evercold Trailer
+#   Reaction)》——博主 MarcoMeatball 逐段点评 8.0「银海之天舟」完整预告片/开场CG 的配乐，
+#   英语原声 + 谷歌翻译中文，642 cue，每 cue 恰 2 文本行，CRLF、无 BOM。
+# 立表理由（照 HSR 3.1f 先例）：工具箱此前**没有任何 FF14 资产**（--ffrs 是《最终幻想：
+#   共鸣》，非 FF14），实测 `--react` 命中 1、`--bi` 命中 1，且那唯一命中还是**误伤**——
+#   学习库曲名键把 #534 "the things that he loved"（他曾珍爱的一切）改成"爱过"。
+#   更严重的是 `--bi` 会把 #68「残酷天使」、#130/#136 EVA「使徒/Angel」、#223「噩梦」
+#   按鸣潮/方舟键改坏（Angel→安吉尔、噩梦→Nightmare 共 5 处），故必须独立建表按模式隔离。
+#   ⇒ **FF14/EVA 片源一律用 --ff14，不要用 --bi。**
+# 官方依据（2026-11-01 检索：国服 8.0 专题站 actff1.web.sdo.com/project/20260425evercold、
+#   @最终幻想14 官博、官方更新笔记、17173 转播官方公告）：
+#   Evercold＝《银海之天舟》（媒体写《白银的探求者》是日服副标题「白銀の探求者」直译，不采）；
+#   Dawntrail＝《金曦之遗辉》（7.0；**《晓月之终途》是 6.0 Endwalker**）；Shadowbringers＝
+#   「暗影之逆焰」（4.0）；the traveler＝「巡天者」；airship＝「飞空艇」；dungeon＝「迷宫」
+#   （类别名「迷宫挑战」）；Reaper＝「钐镰客」（6.0 特职，8.0 典藏版手办即此）；
+#   Collector's Edition＝「典藏版」；Alliance Raid＝「大型任务」（24 人＝「团队任务（24 人）」，
+#   **「联盟讨伐战」未见官方用法**）；Letter from the Producer LIVE＝「制作人来信」；
+#   Limit Break＝「极限技」（FFRS/FF16 才作「极限爆发」）；Estinien＝埃斯蒂尼安、
+#   Alphinaud＝阿尔菲诺、Ixion＝伊克西翁、Eorzea＝艾欧泽亚、光之战士/伪神/第四世界/
+#   冰之力/大至日/管弦乐琴乐谱/魔装盾/坚城卫/迅风猎手/法尔加斯/欲望的幽影/彼岸的星命 均官方；
+#   作曲家 Masashi Hamauzu＝滨涡正志（FF13 作曲，ASR 作 Hamuzu；**不是钢琴演奏者**，
+#   FF13 Piano Collections 演奏者为 Aki Kuroda）；Valhallar Odin＝瓦尔哈拉奥丁（8.0 典藏版
+#   坐骑，骑乘 BGM 即 FF13《閃光》＝Blinded by Light）。
+# 官方中文旁白**无文本版可据**（国服另制中文配音与字幕，台词未以文字公开）⇒ 预告片旁白
+#   只能按英文参考行做「参考译法」，不得宣称官方口径。
+# 【硬契约第 4 条】下面 FF14_TERMS 只收**无正常中文语义的音译专名串**；凡是"飞艇/地牢/
+#   收割者/珍藏版/旅行者/福音派/光之战/现场信件/极限爆发"这类**正常中文词**，一律走
+#   FF14_CONTEXT 用英文参考行锚定（"福音派"是基督教新教派别正规词、"旅行者"是《原神》
+#   主角名，裸键必误伤其它片源）。
+FF14_TERMS = {
+    "瓦贾勒·奥丁": "瓦尔哈拉奥丁",        # Valhallar Odin（#26；长键须在"瓦贾勒"之前命中）
+    "瓦贾勒": "瓦尔哈拉奥丁",             # 同上，单独出现时
+    "埃斯蒂尼亚": "埃斯蒂尼安", "艾斯提尼安": "埃斯蒂尼安",   # Estinien
+    "哈穆祖": "滨涡正志",                 # Hamauzu 音译错形（ASR 作 Hamuzu）
+    "奥尔西亚": "艾欧泽亚",               # Eorzea 的另一音译形
+    "依西恩": "伊克西翁",                 # Ixion 老民间译（官方＝伊克西翁）
+}
+
+# 5.10a FF14_CONTEXT：FF14/EVA 片源的**歧义中文词**锚定表（仅 --ff14 生效）。
+#   结构同 CONTEXT_MAP/HSR_CONTEXT：(英文参考行正则, 中文错误形式, 中文正确形式)。
+#   ⚠ 表按列表顺序逐条执行（不是长键降序），故**同一锚下长的 wrong 必须写在前**，
+#     否则 `黎明` 会先把 `黎明之路` 咬成 `金曦之遗辉之路`。
+FF14_CONTEXT = [
+    # ---- Evercold → 银海之天舟（谷翻按子词直译，实测三形：至冷/极冷/常冷；另会整串保留英文）
+    (r"Ever\s*-?\s*Cold", "Ever Cold", "银海之天舟"),
+    (r"Ever\s*-?\s*Cold", "Evercold", "银海之天舟"),
+    (r"Ever\s*-?\s*Cold", "至冷", "银海之天舟"),
+    (r"Ever\s*-?\s*Cold", "极冷", "银海之天舟"),
+    (r"Ever\s*-?\s*Cold", "常冷", "银海之天舟"),
+    (r"Ever\s*-?\s*Cold", "永冷", "银海之天舟"),
+    # ---- Dawntrail → 金曦之遗辉（实测被拆成"黎明之路/黎明步道/黎明时分+足迹"）
+    #   ⚠ ASR 常把这个词**断在两个 cue**（本片 "…a break during Dawn" / "Trail, but…"），
+    #     此时两行的参考行各只含 Dawn 或 Trail，下面锚 `Dawn\s*-?trail` 都不命中——
+    #     这类跨 cue 断裂只能逐 cue 覆盖，术语表无从着力（本片 #4/#5 即此情形）。
+    (r"Dawn\s*-?trail", "黎明之路", "金曦之遗辉"),
+    (r"Dawn\s*-?trail", "黎明步道", "金曦之遗辉"),
+    (r"Dawn\s*-?trail", "黎明时分", "《金曦之遗辉》"),
+    (r"Dawn\s*-?trail", "黎明", "金曦之遗辉"),
+    # ---- 官方系统/内容类目名
+    (r"airships?", "飞艇", "飞空艇"),
+    (r"dungeons?", "地牢", "迷宫"),
+    (r"\bReaper\b", "收割者", "钐镰客"),
+    (r"Collector'?s", "珍藏版", "典藏版"),
+    (r"Collector'?s", "收藏版", "典藏版"),
+    (r"alliance raids?", "联盟突袭", "大型任务"),
+    (r"alliance raids?", "联盟讨伐战", "大型任务"),
+    (r"live letter|Letter from the Producer", "现场信件", "制作人来信"),
+    (r"live letter|Letter from the Producer", "直播信", "来信"),
+    (r"warrior of light|\bwar of light", "光之战", "光之战士"),
+    (r"Eorzea|\bAorsia", "奥尔西亚", "艾欧泽亚"),
+    (r"the traveler|The traveler", "旅行者", "巡天者"),
+    (r"Hamuzu|Hamauzu", "哈穆祖", "滨涡正志"),
+    (r"Hamuzu|Hamauzu", "Hamuzu", "滨涡正志"),
+    (r"Shadowbringers", "暗影使者", "暗影之逆焰"),
+    (r"Evangelion|Evangelian", "福音派", "福音战士"),
+    (r"limit\s*break", "极限爆发", "极限技"),
+    (r"false\s*gods?", "假神", "伪神"),
+]
 

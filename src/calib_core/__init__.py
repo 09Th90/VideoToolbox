@@ -6,14 +6,15 @@
 """
 
 from .data.bilingual import BILINGUAL_TERMS, CONTEXT_MAP, EXCLUDE_CONTEXT, FFRS_CONTEXT, FFRS_TERMS, KEEP_EN, WORD_MAP, _XQ_RX
-from .data.ja import JA_CONTEXT, JA_ENDFIELD_CONTEXT, JA_ENDFIELD_TERMS, JA_TERMS, RETIRED_JA_KEYS
+from .data.ja import (JA_CONTEXT, JA_ENDFIELD_CONTEXT, JA_ENDFIELD_TERMS,
+                      JA_PGR_CONTEXT, JA_PGR_TERMS, JA_TERMS, RETIRED_JA_KEYS)
 from .data.ko import KO_ASR_CONTEXT, KO_ASR_TERMS, KO_CONTEXT, KO_TERMS, RETIRED_KO_KEYS
 from .data.limbus import LIMBUS_CONTEXT, LIMBUS_TERMS
 from .data.endfield import ENDFIELD_AUTO_MARKERS, ENDFIELD_BI_CONTEXT, ENDFIELD_BI_TERMS, ENDFIELD_KO_CONTEXT, ENDFIELD_KO_TERMS, ENDFIELD_MISSING_CHECK, ENDFIELD_TERMS
-from .data.ark import AK_CONTEXT, AK_KO_CONTEXT, AK_KO_TERMS, AK_MISSING_CHECK, AK_TERMS, PGR_EN_TERMS, WWOC_CONTEXT, WWOC_TERMS, _SEONJEONG_ANCHOR
+from .data.ark import AK_CONTEXT, AK_KO_CONTEXT, AK_KO_TERMS, AK_MISSING_CHECK, AK_TERMS, PGR_EN_CONTEXT, PGR_EN_TERMS, PGR_MISSING_CHECK, WWOC_CONTEXT, WWOC_TERMS, _SEONJEONG_ANCHOR
 from .data.misc import EN_ASR_SPLIT_FIXES, EN_LINE_TERM_FIXES, HSR_CONTEXT, HSR_TERMS, MERGE_FIXES, POKEMON_CONTEXT, POKEMON_TERMS, REACT_CONTEXT, REACT_TERMS, ZELDA_TERMS, ZH_ONLY_TERMS, _ASR_COMMON_WORDS, _ASR_SPLIT_SUFFIXES
 from .data.modes import AK_INFO, AK_KO_INFO, ENDO_INFO, KO_INFO, PGR_INFO, PGR_OVERRIDES_SRC, WWOC_INFO, ZHO_INFO, _MODE_CTX_TABLE, _MODE_NAMES, _MODE_TERM_TABLE
-from .data.music import _FRACT_ANCHOR, _GINSHI_ANCHOR, _MUSIC_AK, _MUSIC_ENDO, _MUSIC_LIMBUS, _MUSIC_WW, _MUSIC_WW_BGM, _WW_ANCHOR
+from .data.music import _FRACT_ANCHOR, _GINSHI_ANCHOR, _MUSIC_AK, _MUSIC_ENDO, _MUSIC_LIMBUS, _MUSIC_WW, _MUSIC_WW_BGM, _MUSIC_WW_BGM_XF, _WW_ANCHOR
 from .data.entities_base import Entity
 from .data.entities_part1 import ENTITIES_PART1
 from .data.entities_part2 import ENTITIES_PART2
@@ -21,10 +22,10 @@ from .data.entities import ENTITIES
 from .text import TEXT_ENCODINGS, _CJK, _KANA, _KO_HANGUL, _MARKER_ONLY, _ZH_PUNCT, _decode_any, _is_chinese_dominant, _is_chinese_line, _iter_cue_text_blocks, _script_counts, _split_cue_text
 from .replace import _compile_map, _ctx_replace, _replace_report, apply_map
 from .asr import _KNOWN_EN_CACHE, _KNOWN_EN_MIN_LEN, _SPLIT_FIX_CACHE, _known_en_tokens, _ref_for_match, _rejoin_known, _scan_split_line, _split_fix_pairs
-from .state import CTX_TABLES, TABLES, _AK_CONTEXT_COMPILED, _AK_KO_CONTEXT_COMPILED, _CONTEXT_COMPILED, _ENDFIELD_BI_CONTEXT_COMPILED, _ENDFIELD_KO_CONTEXT_COMPILED, _EXCLUDE_COMPILED, _FFRS_CONTEXT_COMPILED, _HSR_CONTEXT_COMPILED, _JA_CONTEXT_COMPILED, _JA_ENDFIELD_CONTEXT_COMPILED, _KO_ASR_CONTEXT_COMPILED, _KO_CONTEXT_COMPILED, _LIMBUS_CONTEXT_COMPILED, _POKEMON_CONTEXT_COMPILED, _REACT_CONTEXT_COMPILED, _WWOC_CONTEXT_COMPILED, _rebuild_context_caches, _register_entities
+from .state import CTX_TABLES, TABLES, _AK_CONTEXT_COMPILED, _AK_KO_CONTEXT_COMPILED, _CONTEXT_COMPILED, _ENDFIELD_BI_CONTEXT_COMPILED, _ENDFIELD_KO_CONTEXT_COMPILED, _EXCLUDE_COMPILED, _FFRS_CONTEXT_COMPILED, _HSR_CONTEXT_COMPILED, _JA_CONTEXT_COMPILED, _JA_ENDFIELD_CONTEXT_COMPILED, _JA_PGR_CONTEXT_COMPILED, _KO_ASR_CONTEXT_COMPILED, _KO_CONTEXT_COMPILED, _LIMBUS_CONTEXT_COMPILED, _POKEMON_CONTEXT_COMPILED, _REACT_CONTEXT_COMPILED, _WWOC_CONTEXT_COMPILED, _rebuild_context_caches, _register_entities
 from .engine import _load_override_tsv, process
 from .modes import detect_source_mode, endfield_auto_markers
-from .srt import _cmd_extract, _cmd_merge, _cmd_pair, _cmd_split, _cue_first_text_map, _detect_layout, _iter_cue_lines, _iter_ref_lines, _load_calib_records
+from .srt import _cmd_extract, _cmd_merge, _cmd_pair, _cmd_split, _cue_first_text_map, _cue_zh_ref, _detect_layout, _iter_cue_lines, _iter_ref_lines, _load_calib_records
 from .format import FILLER_MAP, LEAD_CONJ, LEAD_PUNCT, MAX_LINE_EN, MAX_LINE_WIDTH, MAX_LINE_ZH, STYLE_MAP, _REWRAP_ABBREV, _REWRAP_ABSORB, _REWRAP_CLOSERS, _REWRAP_EN_BREAKS, _REWRAP_OPENERS, _REWRAP_ZH_BREAKS, _SENT_END, _cmd_flow, _cmd_length, _cmd_rewrap, _cmd_stabilize, _rewrap_line, _rewrap_segments, char_width, is_line_too_long, line_width
 from .inspect import _check_term_hazards, _cmd_align_audit, _cmd_compare, _cmd_lint, _cmd_missing, _cmd_scan, _cmd_scan_split, _cmd_subfix, _cmd_terms_check, _cmd_verify, _load_missing_rules, _load_subfix_tsv
 from .kb import _AUDIT_LATIN_OK, _AUDIT_RX_NOISE, _AUDIT_STOP, _audit_build_alt, _audit_ctx_literals, _audit_mode_scope, _audit_names, _cmd_audit, _cmd_kb_export, _cmd_kb_lint, _cmd_kb_lookup, _iter_cue_triples, _kb_view
@@ -65,6 +66,8 @@ __all__ = [
     'JA_CONTEXT',
     'JA_ENDFIELD_CONTEXT',
     'JA_ENDFIELD_TERMS',
+    'JA_PGR_CONTEXT',
+    'JA_PGR_TERMS',
     'JA_TERMS',
     'KEEP_EN',
     'KO_ASR_CONTEXT',
@@ -80,8 +83,10 @@ __all__ = [
     'MAX_LINE_WIDTH',
     'MAX_LINE_ZH',
     'MERGE_FIXES',
+    'PGR_EN_CONTEXT',
     'PGR_EN_TERMS',
     'PGR_INFO',
+    'PGR_MISSING_CHECK',
     'PGR_OVERRIDES_SRC',
     'POKEMON_CONTEXT',
     'POKEMON_TERMS',
@@ -117,6 +122,7 @@ __all__ = [
     '_HSR_CONTEXT_COMPILED',
     '_JA_CONTEXT_COMPILED',
     '_JA_ENDFIELD_CONTEXT_COMPILED',
+    '_JA_PGR_CONTEXT_COMPILED',
     '_KANA',
     '_KNOWN_EN_CACHE',
     '_KNOWN_EN_MIN_LEN',
@@ -132,6 +138,7 @@ __all__ = [
     '_MUSIC_LIMBUS',
     '_MUSIC_WW',
     '_MUSIC_WW_BGM',
+    '_MUSIC_WW_BGM_XF',
     '_POKEMON_CONTEXT_COMPILED',
     '_REACT_CONTEXT_COMPILED',
     '_WWOC_CONTEXT_COMPILED',
@@ -189,6 +196,7 @@ __all__ = [
     '_compile_map',
     '_ctx_replace',
     '_cue_first_text_map',
+    '_cue_zh_ref',
     '_decode_any',
     '_detect_layout',
     '_diff_spans',

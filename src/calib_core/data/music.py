@@ -65,7 +65,9 @@ _MUSIC_WW = [                       # 鸣潮 · 先约电台 EP（角色印象�
     ("Thawing Light（融光）", "Thawing Light", "", ""),
     ("L!!!!ght", "L!!!!ght", "", ""),
     # --- 2026-10-27 鸣潮演唱会/3.3 片二次校准补登 ---
-    ("当飞鸟划过天空", "", "", ""),
+    # 2026-11-07 补 en：《旋律渐叙 Melodic Verses》曲序表官方英文＝When the Bird Glides
+    #   Across the Sky；一轮记的 "Glides In" 是 ASR 截断（本片 #53 主播读的才是全名）。
+    ("当飞鸟划过天空", "When the Bird Glides Across the Sky", "", ""),
     ("愿戴荣光坠入天渊", "", "", ""),
     ("星炬不熄", "", "", ""),
     ("坠入虚无（Decensus Ad Nihilum）", "Decensus Ad Nihilum", "", ""),
@@ -75,7 +77,11 @@ _MUSIC_WW = [                       # 鸣潮 · 先约电台 EP（角色印象�
     #   杨秉音作曲、申名利作词）。
     ("定玄（Eisodus）", "Eisodus", "", ""),
     ("Replay（重映）", "Replay", "", ""),
-    ("待春归", "", "", ""),
+    # 2026-11-04 补 en：穗穗 先约电台 EP3.5 印象曲，官方中文《待春归》（钱润玉演唱）。
+    #   依据：鸣潮官方微博 EP3.5 投稿 + Apple Music 美服单曲条目 6795498274
+    #   （"When Spring Returns" = 鳴潮先約電台 & 錢潤玉），两源交叉一致。
+    #   日/韩无独立官方曲名，留空勿臆造（多语戒律）。
+    ("待春归", "When Spring Returns", "", ""),
     # --- 飞行雪绒 EP / 特辑 / 周年 ---
     ("碎花", "", "", ""),
     ("靛青宇宙", "", "", ""),
@@ -92,6 +98,24 @@ _MUSIC_WW = [                       # 鸣潮 · 先约电台 EP（角色印象�
     ("Beautiful Tomorrow", "Beautiful Tomorrow", "", ""),
     ("Dawnbreaker", "Dawnbreaker", "", ""),
     ("Deadline Disco（极限迪斯科）", "Deadline Disco", "", ""),
+    # --- 2026-11-04 沉淀：SenWarchief《Wuthering Waves Reaction! Character and Area
+    #     Songs, ver 3.5 - 3.7》（574 cue，英语原声 + 谷翻）逐句复核。
+    #     依据：Apple Music 美服/国区同一发行条目交叉（玄方篇 OST Vol.2《云影仙迹》
+    #     6803333112；先约电台锁暝 EP 四语版本），曲名互不直译，逐语查证。 ---
+    #   清宵角色主题曲，玄觞演唱，杨秉音系；日/韩无独立官方名，留空。
+    ("清仙谣", "Clarity of the Transcendent", "", ""),
+    #   锁暝 先约电台 EP3.7 印象曲（中：子弥／英：Lime／日：Hanon／韩：이루리，
+    #   四语各自独立发行；日/韩**曲名**未逐条核实，留空勿臆造）。
+    #   ⚠《契阔》是 3.7 锁暝**角色 PV 标题**（TapTap CV 表），不是曲名，勿混。
+    ("千劫起，一念生", "Oaths Unbent", "", ""),
+    # --- 2026-11-07 鸣潮 OST 6 reaction（Yuuma，331 cue）二校补登 ---
+    #   官方依据：《无名长诗》＝黎那汐塔篇 OST Vol.7（2025-07-05，Apple Music 国区
+    #   1824610259 / TapTap 上架公告，19 曲逐条对齐）；悠忽舞于梦中＝罗蕾莱飞行挑战
+    #   BGM（Shazam/NGA），人声（VISION SOUND credit）；誓约之枷，应许之愿＝英文演唱、
+    #   无官方中文歌词（酷我译文明确标注 AI 生成）。日/韩无独立官方名，留空勿臆造。
+    ("悠忽舞于梦中", "Dancing Through Fantasies", "", ""),
+    ("誓约之枷，应许之愿", "Chains of Oath, Echoes of Promise", "", ""),
+    ("致以无名的抗争者", "Ode to the Nameless Martyr", "", ""),
 ]
 
 _MUSIC_WW_BGM = [                   # 鸣潮 · 黎那汐塔 OST（纯音乐 BGM；官方中文名已核实）
@@ -100,6 +124,25 @@ _MUSIC_WW_BGM = [                   # 鸣潮 · 黎那汐塔 OST（纯音乐 BGM
     #   日/韩无独立官方名，留空勿臆造（多语戒律）。
     ("故风吟游之地", "Where Wind Whispers", "", ""),   # 拂风水畔 BGM
     ("微风吹拂的村庄", "Wind-kissed Haven", "", ""),    # 埃格拉镇 BGM
+    # 2026-11-07 补：黎那汐塔篇 OST Vol.7《无名长诗》曲16（Apple Music 国区 1824610259）。
+    #   credit 仅 Gokou；全辑演唱名单（jkinss/Thena A/Tarokiki/Patrick King/馬場崇）无其名
+    #   ⇒ 判器乐。同辑曲1《致以无名的抗争者》有 Thena A/Tarokiki/VISION SOUND 主唱，
+    #   故该曲仍留人声表，勿混。
+    ("泪焰终响", "A Clash of Water and Fire", "", ""),
+]
+
+# 2026-11-04 新建：**玄方篇** OST 器乐（3.5-3.7）。
+#   为什么不并进 `_MUSIC_WW_BGM`：那张表的注册循环（entities.py）把
+#   category 与 note 写死成「黎那汐塔 OST / 经黎那汐塔篇 OST Vol.1《幻昼狂想》核实」，
+#   玄方曲目塞进去就会挂上**错误出处**，且 kb-lint 查不出来。
+#   依据：Apple Music 美服/国区同一条目交叉 ——
+#     Vol.1《万声弥新》(Myriad Notes Ever New, 6789678123) 含《踏玄方》Into Xuanfang（JINGYAN, 3:07）；
+#     Vol.3《朝月听尘》(6817719530) 含《溪山入梦》The Dreaming Vale（jkinss, 4:12，碟1-1）；
+#     美服 Vol.3 名《Songs for the Waking Moon》(6817719939)，同轨同长同作曲。
+#   日/韩无独立官方名，留空勿臆造。
+_MUSIC_WW_BGM_XF = [                # 鸣潮 · 玄方篇 OST（纯音乐；官方中文名已核实）
+    ("踏玄方", "Into Xuanfang", "", ""),      # 玄方区域曲（ASR 常听成 "Into the wild fire"）
+    ("溪山入梦", "The Dreaming Vale", "", ""),  # 梦州区域曲（ASR 常把 Vale 听成 "Veil"）
 ]
 
 _MUSIC_AK = [                       # 明日方舟 · 塞壬唱片（人声曲；多数无官方中文，保留英文）
@@ -190,6 +233,37 @@ _MUSIC_ENDO = [                     # 终末地 · 铁痕电台-MSR（人声曲�
     ("反引力悬浮", "", "", ""),
     ("夕流", "", "", ""),
     ("编织光流", "For Your Name", "", ""),
+    # 2026-11-06《HEAVY FLOW!! Argent Flow Trailer & EP REACTION》二次校准新增。
+    #   官方依据：微博「干员明河专属单曲《逐星河》MV现已公开」曲目表＝逐星河 /
+    #   逐星河 (English Ver.) / 逐星河 (Instrumental)；专辑介绍「夜幕漫漫，星河长明。
+    #   循心之所守，逐星河而去。」。英文官方名取自 UP 主双语标题
+    #   "EP - Argent Flow [The Starry Flow Winds On] English / Chinese"，
+    #   即同一曲的 EN 名（同 "编织光流/For Your Name" 先例）。日/韩无独立官方名 ⇒ 留空。
+    ("逐星河", "The Starry Flow Winds On", "", ""),
+]
+
+
+# ============================================================
+# 终末地 1.4「向渊行」OST · 阿莱克琉斯（千夫长）战曲分段（2026-11-03 新增）
+# 曲名**只有拉丁文官方名、无官方简体中文** ⇒ 按"单语保留原语言"处理，ja/ko 留空，
+# 严禁臆造中文译名（同 _MUSIC_LIMBUS 的先例）。
+# 依据（逐条可点验）：TapTap 官方动态 moment/831623591383533608 的「向渊行」OST 曲目表、
+#   官方微博 5326333804282930（2026-07-30 上架，30 首）、musicbrainz release
+#   5c10e8d8-941a-410e-a8d3-01c6d0eda9e9；署名 **铁痕电台-MSR & Crywolf & YMIR**。
+# 官方分段顺序＝序章 / 一阶段 / 阶段转换 / 二阶段 / 尾声（下表同序）。
+# ⇒ 推论（判据级）：音乐 reaction 片里 "HE HAS ANOTHER PHASE" / "it was like a
+#   multi-part" 这类**分段感叹是可信的**，可直接按官方阶段数校；但曲名未在字幕中
+#   出现时不强行插入，本表只作 kb-export 的跨语识别元数据（音乐实体不带 variants）。
+# ⚠ 人声侧的拉丁词取自维吉尔《埃涅阿斯纪》VII "Flectere si nequeo superos,
+#   Acheronta movebo"，并含英语嘶吼唱腔 ⇒ shrieking 归「嘶吼」而非「尖叫」，
+#   该条已落 REACT_CONTEXT（misc.py）。
+# ============================================================
+_MUSIC_ENDO_BOSS = [
+    ("ADELPHOCLAST", "ADELPHOCLAST", "", ""),
+    ("ACHERON", "ACHERON", "", ""),
+    ("ABYSSUS, ABYSSUM, INVOCAT", "ABYSSUS, ABYSSUM, INVOCAT", "", ""),
+    ("REAPER", "REAPER", "", ""),
+    ("AMARANTHUS CAUDATUS", "AMARANTHUS CAUDATUS", "", ""),
 ]
 
 

@@ -11,7 +11,7 @@ import shutil
 import sys
 import unicodedata
 from .data.misc import MERGE_FIXES
-from .text import _decode_any, _is_chinese_line, _iter_cue_text_blocks, _split_cue_text
+from .text import _CJK, _decode_any, _is_chinese_line, _iter_cue_text_blocks, _split_cue_text
 
 
 
@@ -32,6 +32,24 @@ def _detect_layout(lines):
     if r_single >= 0.95 or (r_single >= 0.80 and r_zh_last >= 0.98):
         return "mono"
     return "bi"
+
+
+
+def _cue_zh_ref(texts):
+    """把 cue 的文本行按版式分成 (中文行下标, 参考行下标)。
+
+    2026-11-02：旧实现各处硬编码「首行=中文、末行=参考行」，遇到英文 ASR 在上、
+    谷翻中文在下的片源会把中文当参考行、把英文当内容行——merge 会把新中文写进英文行，
+    align-audit 则恒比未改动的英文行（串位查不出来）。
+
+    这里**不无条件**改用字符集判定：`_is_chinese_line` 认汉字，而日语片源里的
+    「[音楽]」这类全汉字假名标记行会被判成中文行，位置约定反而是对的。故只在
+    「首行一个汉字都没有、末行却有汉字」这一英文在上版式的充分特征下才改按字符集判定，
+    其余一律沿用位置约定，保证既有片源逐字节零漂移。
+    """
+    if len(texts) >= 2 and not _CJK.search(texts[0]) and _CJK.search(texts[-1]):
+        return _split_cue_text(texts)
+    return list(range(len(texts) - 1)), [len(texts) - 1]
 
 
 
@@ -224,12 +242,18 @@ def _cmd_merge(src, calib_src, out, compare=None, side=None, apply_fix=False):
                     en_by_num[num] = ""
                     orig_zh[num] = "\n".join(texts)
                 else:
-                    # 双语片：中文行区间 [j+1, kk-1)，末行 kk-1 为不可改动的参考行；
-                    # 单文本行 cue 无中文行（st==ed），重建时原样保留、绝不覆盖参考行。
-                    t_st, t_ed = j + 1, kk - 1
-                    has_target = len(texts) >= 2
-                    en_by_num[num] = texts[-1]
-                    orig_zh[num] = "\n".join(texts[:-1])
+                    # 双语片：中文行区间按版式判定（英文在上时取第 2 行），区间外的文本行为
+                    # 不可改动的参考行；判不出中文行的 cue 整块原样保留、绝不覆盖参考行。
+                    zh_pos, ref_pos = _cue_zh_ref(texts)
+                    if not zh_pos:
+                        t_st, t_ed, has_target = j + 1, j + 1, False
+                        en_by_num[num] = "\n".join(texts)
+                        orig_zh[num] = ""
+                    else:
+                        t_st, t_ed = j + 1 + zh_pos[0], j + 2 + zh_pos[-1]
+                        has_target = True
+                        en_by_num[num] = "\n".join(texts[i] for i in ref_pos)
+                        orig_zh[num] = "\n".join(texts[i] for i in zh_pos)
                 spans.append((t_st, t_ed, num, has_target))
                 i = kk
                 continue
@@ -273,7 +297,8 @@ def _cmd_merge(src, calib_src, out, compare=None, side=None, apply_fix=False):
 def _iter_cue_lines(path):
     """产出 (序号, 内容行列表, 参考行)。与 process()/subfix 同一套块判据。
 
-    双语片（bi）：内容行=除末行外文本行，参考行=末行；
+    双语片（bi）：内容行=按语言判出的中文行（与行序无关，英文在上也取中文），
+                  参考行=其余文本行；
     单语片（mono）：全部文本行都是内容行，参考行为 None（length 等据此跳过参考行检查）。"""
     raw = open(path, "rb").read()
     lines = _decode_any(raw).replace("\r\n", "\n").replace("\r", "\n").split("\n")
@@ -292,7 +317,8 @@ def _iter_cue_lines(path):
                     if layout == "mono":
                         yield s, texts, None
                     else:
-                        yield s, texts[:-1], texts[-1]
+                        zh_pos, ref_pos = _cue_zh_ref(texts)
+                        yield s, [texts[i] for i in zh_pos], ("\n".join(texts[i] for i in ref_pos) or None)
                 i = kk
                 continue
         i += 1
@@ -324,7 +350,10 @@ def _iter_cue_lines(path):
 # =============================================================
 
 def _cue_first_text_map(path):
-    """读 SRT -> {序号: 首个内容行}。与 process/merge 同一套块判据。"""
+    """读 SRT -> {序号: 首个内容行}。与 process/merge 同一套块判据。
+
+    2026-11-02：内容行按语言判定（英文在上时取第 2 行而非第 1 行），否则
+    align-audit 会拿未改动的英文参考行做比对，串位永远查不出来（假绿灯）。"""
     out = {}
     raw = open(path, "rb").read()
     lines = _decode_any(raw).replace("\r\n", "\n").replace("\r", "\n").split("\n")
@@ -339,7 +368,8 @@ def _cue_first_text_map(path):
                     kk += 1
                 texts = lines[j + 1:kk]
                 if texts:
-                    out[int(s)] = texts[0]
+                    zh_pos, _ = _cue_zh_ref(texts)
+                    out[int(s)] = texts[zh_pos[0]] if zh_pos else texts[0]
                 i = kk
                 continue
         i += 1

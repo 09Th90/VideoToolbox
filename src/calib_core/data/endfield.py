@@ -412,6 +412,12 @@ ENDFIELD_BI_TERMS = {
     "塔洛斯": "塔罗斯",                      # 单指气态巨行星 Talos（非塔卫二）
     "Talos 2": "塔卫二", "Talos II": "塔卫二",
     # —— 组织 / 阵营 ——
+    # 2026-11-01《How Did You Join Arknights or Endfield?》（英文原声+微软翻译，3700 cue）：
+    #   ASR 把 "AK, Endfield" 连读成 AKfield/AKMfield，微软翻译保留拉丁尾巴 → 「明日方舟field」。
+    #   必须比 AK/明日方舟 先命中（_replace_report 按长键降序逐条 replace），故在此显式登记复合键。
+    "AKMfield": "明日方舟和终末地", "AKfield": "明日方舟和终末地",
+    "Aklands": "明日方舟",           # "AK's" 的 ASR 连读形（#1460/#2560），非常规词，可作裸键
+    "阿拉斯卡": "明日方舟",           # AK→阿拉斯加/阿拉斯卡（#1806）；阿拉斯卡非既用译名
     "恩菲尔德": "终末地",                    # Enfield = Endfield（终末地工业）
     "Enfield": "终末地",
     "道路岛": "罗德岛", "路兹岛": "罗德岛", "公路岛": "罗德岛", "路岛": "罗德岛",
@@ -1109,6 +1115,24 @@ ENDFIELD_BI_TERMS = {
     "Surtr": "史尔特尔",                                  # endo:67
     "Ceobe": "刻俄柏",                                    # endo:68
     "Alleikhreos": "阿莱克琉斯",                          # endo:73
+    # —— 2026-11-06 沉淀：《HEAVY FLOW!! Argent Flow Trailer & EP REACTION｜Arknights：Endfield》
+    #    EmiMatcha 英文 reaction（174 cue，英文原声 + 微软翻译中英双语，--endobi，二次校准）。
+    #    官方依据：干员叙事[明河：归客] p01【中】(BV1Dwx26mEb9) 屏上烧录字幕逐帧核对、
+    #    官方微博「明河EP - 逐星河」曲目表、官方干员演示文案（炎国禁军／靖天都尉夜明河／怒骊）。
+    #    ⚠ 本片中文行**不含任何拉丁残留**（实测纯拉丁串只有 YouTube/Kick 等正当词），
+    #      故一律不建拉丁键（"The Starry Flow Winds On"/"Yan clan"/"Emmy Matcha" 只出现在
+    #      英文参考行，裸拉丁键永不命中——同 2026-11-02「体检项不是规则」判例）；只收中文错形。
+    # 曲名《逐星河》：微软翻译把官方 EN 名意译进中文行；长键先跑，短键否则产「逐星河着」尾巴
+    "星光流淌着": "《逐星河》", "星光流淌": "逐星河",
+    # 预告标题连读形："Endfield on Argent(Flow)" 被拆成「恩菲尔德在银河」
+    #   ⚠ 禁建裸键「银河」——本表 634 行既有 "银河流"->明河，二次咬合会产「明河」叠字
+    "方舟骑士的恩菲尔德在银河": "《明日方舟：终末地》的明河篇",
+    "恩菲尔德在银河": "终末地的明河",
+    # 主播名：ASR 听成 Emmy Matcha，微软翻译落成音译「艾米·马查」（真实 ID 见片源 视频信息.txt）
+    "艾米·马查": "EmiMatcha",
+    # 阵营：官方中文＝炎国（明河＝炎国禁军）；裸 Yan 禁入（Yangyang/Yang 含子串 Yan，
+    #   会把「秧秧」咬成「炎国g」），且 "Yan clan" 只在英文行 ⇒ 只收中文错形「燕氏」
+    "燕氏": "炎国",
 }
 
 
@@ -1511,6 +1535,17 @@ ENDFIELD_BI_CONTEXT = [
     (r"\brisk(?: points?)?\b", "风险超过", "超过危机合约等级"),
     (r"\bFOD\b|\bfodder\b", "FOD敌人", "杂兵"),
     (r"\bFOD\b|\bfodder\b", "FOD 敌人", "杂兵"),
+    # —— 2026-11-06 沉淀：《HEAVY FLOW!! Argent Flow Trailer & EP REACTION》（174 cue，--endobi，二次校准）
+    #    本组错形本身全是**通用中文词**（民调/豆浆/英国/撕/老姑娘/不用问/不知疲倦），按硬契约第 4 条
+    #    禁入裸键表，只在英文参考行确有该词时收回官方写法。官方依据同上（明河：归客【中】屏上字幕）。
+    (r"\bpolls?\b|\bpulls?\b", "民调", "抽卡"),                    # #173 "good luck on your polls"＝pulls
+    (r"\bsoy(?:a)?\b|\bsauce\b", "豆浆", "酱油"),                   # #45 官方字幕「给你装点新酿的酱油」
+    (r"generat\w*\s+titl\w*", "生成标题", "自动生成字幕"),            # #31 "I don't want YouTube generating titles"
+    (r"english (?:one|version)", "英国的那张", "英文版"),             # #156 "the English one"＝英文版，非英国
+    (r"tore it up", "把它撕了", "把场子炸翻了"),                     # #6/#38 "they tore it up"＝表现炸裂
+    (r"old girl", "老姑娘", "老伙计"),                             # #72 官方字幕「走吧，老伙计。」
+    (r"ask me twice|need to ask me", "不用问我", "不用劝我"),          # #39 "don't need to ask me twice"
+    (r"\bno rest\b", "没有休息", "无休"),                           # #65 官方字幕「无休！」（wrong 取**源侧**形态「没有休息」，不是人工成品的「不知疲倦」）
 ]
 
 

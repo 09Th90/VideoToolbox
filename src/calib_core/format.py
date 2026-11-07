@@ -10,7 +10,7 @@ import re
 import shutil
 import sys
 import unicodedata
-from .srt import _detect_layout, _iter_cue_lines
+from .srt import _cue_zh_ref, _detect_layout, _iter_cue_lines
 from .text import _decode_any
 
 
@@ -335,7 +335,13 @@ def _cmd_flow(src, out=None, fix_style=False):
                         # 单语片：唯一文本行即目标（区间含该行），纳入体检/修复。
                         spans.append((j + 1, kk, s, True))
                     else:
-                        spans.append((j + 1, kk - 1, s, len(texts) >= 2))
+                        # 2026-11-02：中文行区间改走 _cue_zh_ref（英文在上的片源此前会把
+                        # 英文行当中文行体检，--out 时直接改写英文参考行）。
+                        zh_pos, _ = _cue_zh_ref(texts)
+                        if zh_pos:
+                            spans.append((j + 1 + zh_pos[0], j + 2 + zh_pos[-1], s, True))
+                        else:
+                            spans.append((j + 1, j + 1, s, False))
                 i = kk
                 continue
         i += 1

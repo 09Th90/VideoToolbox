@@ -14,7 +14,7 @@ from .data.bilingual import EXCLUDE_CONTEXT
 from .data.entities import ENTITIES
 from .data.modes import _MODE_CTX_TABLE, _MODE_NAMES, _MODE_TERM_TABLE
 from .state import CTX_TABLES, TABLES
-from .srt import _detect_layout
+from .srt import _cue_zh_ref, _detect_layout
 from .text import _decode_any
 
 
@@ -78,7 +78,24 @@ _AUDIT_LATIN_OK = re.compile(
     r"^(?:"
     r"[A-FS]\+?|S\d+(?:\s*R\d+)?|SR\d+(?:\s*R\d+)?|SSS|SSR|EX|UR|"
     r"YouTube|YouTuber|VOD|Xbox|NPC|MVP|PNG|JPG|DNA|OK|PC|PS5|HP|DPS|UI|AI|"
-    r"bug|Boss|Incel|Discord|Gacha|gacha|NTE"
+    r"bug|Boss|Incel|Discord|Gacha|gacha|NTE|"
+    # 2026-11-01《How Did You Join Arknights or Endfield?》：已裁决「保留英文原形」的
+    #   主播/频道/平台名，与无第二佐证、按戒律不强判的 ASR 连读专名（见该片 gloss.md 待裁决表）。
+    #   加进白名单是为了让扫 1 只报「真该改却没改」的漏译，不再淹死在合法英文里。
+    r"Kukki|Billy|Kiara|Kara|Felix|Zephron|Reddit|Twitter|Steam|VTuber|OSU|"
+    r"Ardia|Aedia|Preminix|Premik|Reconventor|Escalan|Rosotis|Rozotis|Celer|"
+    r"Ryden|Sed|Oka|Hoy|Waring|Lland|Calcul|Yosta|Catcher|Aba|CVT|HSI|ZC|GI|"
+    r"WW|GFL|OJK|ZMA|NFL|GA|TCG|IP|RPG|API|meta|based|ED|war|Roy|"
+    # 2026-11-02《명조》Day 2「띵킹 2」韩语直播片（5773 cue）：已裁决「查无官方中文 ⇒ 保留
+    #   原语言」的选手/队伍/栏目/品牌 ID，逐条出处见 _calib_mingchao_day2/gloss.md §3、§3b。
+    #   只收本片实测高频且人工确认过的；低频孤例继续报警，交由后续片源再判，避免把白名单
+    #   写成"什么都合法"从而丧失扫 1 的检测力。
+    #   ⚠ 另有一批看着像漏译、实为**已定官方中文**的形（Chisa=千咲、Moni=莫宁、Linne=琳奈、
+    #     Kartisia=卡提希娅）**故意不入白名单**——它们该被扫 1 报出来，改错才是正确行为。
+    r"Thinking|Lucky|AMS|Akriyoung|Akri|Madlife|Mangmang|Sangdeok|Sangdong|"
+    r"Sangdang|Sangdo|Sang|Myung|Myungdeok|Heena|Tabi|Hioki|Hiki|Rokki|"
+    r"Junseo|Nickyong|Lingyong|Seollim|Minimelon|Denian|Gwanjongdae|"
+    r"Chzzk|Aegis|PTST|Venus|Coupang|Naver|What|Day(?:\s*\d+)?|Team|Tier"
     r")$", re.I)
 
 
@@ -138,8 +155,11 @@ def _iter_cue_triples(src):
                     if layout == "mono":
                         out.append((s, "\n".join(texts), ""))
                     else:
-                        zh = "\n".join(texts[:-1]) if len(texts) > 1 else texts[0]
-                        out.append((s, zh, texts[-1]))
+                        # 2026-11-02：中文行改走 _cue_zh_ref。旧逻辑写死「除末行外都是中文」，
+                        # 遇到英文在上的双语片源会把中/英两列整体互换，audit 报的全是乱账。
+                        zh_pos, ref_pos = _cue_zh_ref(texts)
+                        out.append((s, "\n".join(texts[i] for i in zh_pos) or texts[0],
+                                    "\n".join(texts[i] for i in ref_pos)))
                 i = kk
                 continue
         i += 1

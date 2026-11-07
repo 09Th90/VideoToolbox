@@ -10,8 +10,9 @@ import re
 import shutil
 import sys
 import unicodedata
-from .data.ark import (AK_CONTEXT, AK_KO_CONTEXT, AK_KO_TERMS, AK_TERMS,
-                       PGR_EN_TERMS, WWOC_CONTEXT, WWOC_TERMS)
+from .data.ark import (AK_CONTEXT, AK_JA_CONTEXT, AK_JA_TERMS, AK_KO_CONTEXT,
+                       AK_KO_TERMS, AK_TERMS, PGR_EN_CONTEXT, PGR_EN_TERMS,
+                       WWOC_CONTEXT, WWOC_TERMS)
 from .data.bilingual import (BILINGUAL_TERMS, CONTEXT_MAP, EXCLUDE_CONTEXT,
                              FFRS_CONTEXT, FFRS_TERMS, WORD_MAP)
 from .data.endfield import (ENDFIELD_BI_CONTEXT, ENDFIELD_BI_TERMS,
@@ -19,12 +20,14 @@ from .data.endfield import (ENDFIELD_BI_CONTEXT, ENDFIELD_BI_TERMS,
                             ENDFIELD_TERMS)
 from .data.entities import ENTITIES
 from .data.ja import (JA_CONTEXT, JA_ENDFIELD_CONTEXT, JA_ENDFIELD_TERMS,
-                      JA_TERMS)
+                      JA_PGR_CONTEXT, JA_PGR_TERMS, JA_TERMS)
 from .data.ko import (KO_ASR_CONTEXT, KO_ASR_TERMS, KO_CONTEXT, KO_TERMS)
 from .data.limbus import LIMBUS_CONTEXT, LIMBUS_TERMS
-from .data.misc import (EN_LINE_TERM_FIXES, HSR_CONTEXT, HSR_TERMS,
+from .data.misc import (EN_LINE_TERM_FIXES, FF14_CONTEXT, FF14_TERMS,
+                        HSR_CONTEXT, HSR_TERMS,
                         POKEMON_CONTEXT, POKEMON_TERMS, REACT_CONTEXT,
                         REACT_TERMS, ZELDA_TERMS, ZH_ONLY_TERMS)
+from .data.pbz import PBZ_CONTEXT, PBZ_TERMS
 from .data.modes import _MODE_CTX_TABLE, _MODE_TERM_TABLE
 
 
@@ -34,6 +37,7 @@ TABLES = {
     "WORD_MAP": WORD_MAP,
     "JA_TERMS": JA_TERMS,
     "JA_ENDFIELD_TERMS": JA_ENDFIELD_TERMS,
+    "JA_PGR_TERMS": JA_PGR_TERMS,
     "WWOC_TERMS": WWOC_TERMS,
     "KO_TERMS": KO_TERMS,
     "PGR_EN_TERMS": PGR_EN_TERMS,
@@ -51,6 +55,11 @@ TABLES = {
     "ZELDA_TERMS": ZELDA_TERMS,
     "LIMBUS_TERMS": LIMBUS_TERMS,
     "FFRS_TERMS": FFRS_TERMS,
+    "PBZ_TERMS": PBZ_TERMS,
+    # 2026-11-01 新增：最终幻想14 片源表
+    "FF14_TERMS": FF14_TERMS,
+    # 2026-11-03 新增：明日方舟日语原声片源表（engine 的 --akja 用 AK_TERMS ∪ 本表）
+    "AK_JA_TERMS": AK_JA_TERMS,
 }
 
 # 上下文表注册表：包含未接入 _MODE_CTX_TABLE 的 REACT/HSR/KO_ASR 三张。
@@ -60,6 +69,7 @@ CTX_TABLES = {
     "ENDFIELD_KO_CONTEXT": ENDFIELD_KO_CONTEXT,
     "JA_CONTEXT": JA_CONTEXT,
     "JA_ENDFIELD_CONTEXT": JA_ENDFIELD_CONTEXT,
+    "JA_PGR_CONTEXT": JA_PGR_CONTEXT,
     "AK_CONTEXT": AK_CONTEXT,
     "AK_KO_CONTEXT": AK_KO_CONTEXT,
     "KO_CONTEXT": KO_CONTEXT,
@@ -70,6 +80,13 @@ CTX_TABLES = {
     "WWOC_CONTEXT": WWOC_CONTEXT,
     "LIMBUS_CONTEXT": LIMBUS_CONTEXT,
     "FFRS_CONTEXT": FFRS_CONTEXT,
+    "PBZ_CONTEXT": PBZ_CONTEXT,
+    # 2026-11-01 新增：最终幻想14 歧义中文词锚定表
+    "FF14_CONTEXT": FF14_CONTEXT,
+    # 2026-11-03 新增：明日方舟日语原声锚定表（正常中文词禁裸键，全靠日语参考行佐证）
+    "AK_JA_CONTEXT": AK_JA_CONTEXT,
+    # 2026-11-04 新增：战双英文原声锚定表（余辉/光伏/丝带/克洛伊 全是正常中文词，禁裸键）
+    "PGR_EN_CONTEXT": PGR_EN_CONTEXT,
 }
 
 
@@ -140,7 +157,15 @@ _JA_CONTEXT_COMPILED = [(re.compile(rx), wrong, right) for rx, wrong, right in J
 
 _JA_ENDFIELD_CONTEXT_COMPILED = [(re.compile(rx), wrong, right) for rx, wrong, right in JA_ENDFIELD_CONTEXT]
 
+# --pgrja 语境预编译：锚点是日语原文（片假名/旧字体），加 re.I 无意义且会放宽匹配面，
+#   与 _JA_CONTEXT_COMPILED / _JA_ENDFIELD_CONTEXT_COMPILED 同规（都不带 re.I）。
+_JA_PGR_CONTEXT_COMPILED = [(re.compile(rx), wrong, right) for rx, wrong, right in JA_PGR_CONTEXT]
+
 _AK_CONTEXT_COMPILED = [(re.compile(rx, re.I), wrong, right) for rx, wrong, right in AK_CONTEXT]
+
+# --akja 语境预编译：锚点是日语原文（片假名或日服旧字体汉字），与 _JA_CONTEXT_COMPILED /
+#   _JA_PGR_CONTEXT_COMPILED 同规**不带 re.I**（加 re.I 无意义，且会放宽汉字锚点的匹配面）。
+_AK_JA_CONTEXT_COMPILED = [(re.compile(rx), wrong, right) for rx, wrong, right in AK_JA_CONTEXT]
 
 _AK_KO_CONTEXT_COMPILED = [(re.compile(rx), wrong, right) for rx, wrong, right in AK_KO_CONTEXT]
 
@@ -165,6 +190,17 @@ _POKEMON_CONTEXT_COMPILED = [(re.compile(rx, re.I), wrong, right)
 
 _WWOC_CONTEXT_COMPILED = [(re.compile(rx, re.I), wrong, right)
                           for rx, wrong, right in WWOC_CONTEXT if wrong and right]
+
+_PBZ_CONTEXT_COMPILED = [(re.compile(rx, re.I), wrong, right)
+                         for rx, wrong, right in PBZ_CONTEXT if wrong and right]
+
+_FF14_CONTEXT_COMPILED = [(re.compile(rx, re.I), wrong, right)
+                          for rx, wrong, right in FF14_CONTEXT if wrong and right]
+
+# 2026-11-04 --pgren 语境预编译：锚点是拉丁（after glow / PV / ribbon / Chloe），
+#   与 _WWOC/_PBZ/_FF14 同规**带 re.I**（ASR 大小写不稳）。
+_PGR_EN_CONTEXT_COMPILED = [(re.compile(rx, re.I), wrong, right)
+                             for rx, wrong, right in PGR_EN_CONTEXT if wrong and right]
 
 
 
@@ -229,9 +265,15 @@ def _rebuild_context_caches():
     _JA_CONTEXT_COMPILED[:] = [(re.compile(rx), wrong, right) for rx, wrong, right in JA_CONTEXT]
     _JA_ENDFIELD_CONTEXT_COMPILED[:] = [(re.compile(rx), wrong, right)
                                         for rx, wrong, right in JA_ENDFIELD_CONTEXT]
+    _JA_PGR_CONTEXT_COMPILED[:] = [(re.compile(rx), wrong, right)
+                                   for rx, wrong, right in JA_PGR_CONTEXT]
     _AK_KO_CONTEXT_COMPILED[:] = [(re.compile(rx), wrong, right) for rx, wrong, right in AK_KO_CONTEXT]
     _KO_CONTEXT_COMPILED[:] = [(re.compile(rx), wrong, right) for rx, wrong, right in KO_CONTEXT]
     _AK_CONTEXT_COMPILED[:] = [(re.compile(rx, re.I), wrong, right) for rx, wrong, right in AK_CONTEXT]
+    # 2026-11-03：缺这行时 --akja 的 ctx 只在首启生效，kb 运行期注入的新锚定条目会静默失效
+    #   （engine 在 import 时已持有该 list 的引用，必须原地重建而非重新绑定）。
+    _AK_JA_CONTEXT_COMPILED[:] = [(re.compile(rx), wrong, right)
+                                  for rx, wrong, right in AK_JA_CONTEXT]
     _ENDFIELD_KO_CONTEXT_COMPILED[:] = [(re.compile(rx), wrong, right)
                                         for rx, wrong, right in ENDFIELD_KO_CONTEXT]
     _ENDFIELD_BI_CONTEXT_COMPILED[:] = [(re.compile(rx, re.I), wrong, right)
@@ -246,6 +288,13 @@ def _rebuild_context_caches():
                                     for rx, wrong, right in POKEMON_CONTEXT if wrong and right]
     _WWOC_CONTEXT_COMPILED[:] = [(re.compile(rx, re.I), wrong, right)
                                  for rx, wrong, right in WWOC_CONTEXT if wrong and right]
+    _PBZ_CONTEXT_COMPILED[:] = [(re.compile(rx, re.I), wrong, right)
+                                for rx, wrong, right in PBZ_CONTEXT if wrong and right]
+    _FF14_CONTEXT_COMPILED[:] = [(re.compile(rx, re.I), wrong, right)
+                                 for rx, wrong, right in FF14_CONTEXT if wrong and right]
+    # 2026-11-04：同 _AK_JA_CONTEXT_COMPILED 的教训——不原地重建，kb 运行期注入的新锚条目会静默失效
+    _PGR_EN_CONTEXT_COMPILED[:] = [(re.compile(rx, re.I), wrong, right)
+                                   for rx, wrong, right in PGR_EN_CONTEXT if wrong and right]
 
 
 

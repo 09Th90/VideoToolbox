@@ -179,6 +179,9 @@ LEARN_AUTOCONFIRM_DENY = frozenset({
     "三和", "京城", "典范", "帕拉贡", "太恶心了", "海岸守护者", "金龙", "蒙祖",
     "做了很多",            # 2026-10-12 WuWa3.3 反应片：本义短语裸键（I do a lot of），
                            # 历史 confirmed 曾把 "我做了很多探索" 误改为 "我做得更探索"
+    "皇帝",                # 2026-11-02 EP17 反应片：bi|皇帝→英白拉多 曾以 confirmed 注入 bi 趟，
+                           # 把方舟片里字面读作 "Was that just Emperor over there?" 改成鸣潮专名。
+                           # 存量条目已 learned-reject；此处补名单，防今后再次自动跃迁 confirmed。
 })
 
 

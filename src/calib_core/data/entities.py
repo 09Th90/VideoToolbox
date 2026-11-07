@@ -13,7 +13,9 @@ import unicodedata
 from .entities_base import Entity
 from .entities_part1 import ENTITIES_PART1
 from .entities_part2 import ENTITIES_PART2
-from .music import _FRACT_ANCHOR, _GINSHI_ANCHOR, _MUSIC_AK, _MUSIC_ENDO, _MUSIC_LIMBUS, _MUSIC_WW, _MUSIC_WW_BGM, _WW_ANCHOR
+from .music import (_FRACT_ANCHOR, _GINSHI_ANCHOR, _MUSIC_AK, _MUSIC_ENDO,
+                    _MUSIC_ENDO_BOSS, _MUSIC_LIMBUS, _MUSIC_WW, _MUSIC_WW_BGM,
+                    _MUSIC_WW_BGM_XF, _WW_ANCHOR)
 
 ENTITIES = list(ENTITIES_PART1) + list(ENTITIES_PART2)
 
@@ -35,12 +37,53 @@ for _c, _en, _ja, _ko in _MUSIC_LIMBUS:
                            note="官方仅英/日/韩；曲名保留英文，勿臆造中文译名。"))
 
 
+# 终末地 1.4「向渊行」OST · 阿莱克琉斯战曲 5 段（2026-11-03）：无官方简中 ⇒ 曲名保留拉丁原文，
+# 无 variants，只作跨语元数据（同 _MUSIC_LIMBUS 先例）。
+for _c, _en, _ja, _ko in _MUSIC_ENDO_BOSS:
+    ENTITIES.append(Entity(_c, modes=("endo", "endobi", "react"), en=_en, ja=_ja, ko=_ko,
+                           category="曲目/终末地·向渊行OST",
+                           note="终末地 1.4「向渊行」最终 BOSS 阿莱克琉斯（千夫长）战曲的官方分段曲名；"
+                                "**无官方简体中文**，保留拉丁原文，勿臆造译名。"
+                                "官方 credit＝铁痕电台-MSR & Crywolf & YMIR；"
+                                "分段顺序＝序章／一阶段／阶段转换／二阶段／尾声。"))
+
+
+# 同一 OST credit 的两位音乐人（2026-11-03）：无官方简中，只登记跨语知识，不建替换键。
+ENTITIES.append(Entity("Crywolf", modes=("react", "endobi"), en="Crywolf",
+                       category="音乐人/终末地·铁痕电台",
+                       note="终末地「向渊行」OST 阿莱克琉斯战曲署名人之一（铁痕电台-MSR & Crywolf & "
+                            "YMIR），另为《明日方舟》作有 Somniomancer [null set]（众生行记 OST 曲7）。"
+                            "无官方简体中文名 ⇒ 保留拉丁原名不译。中文错形 冷狼/哭狼/克雷沃尔夫/"
+                            "梦巫师克雷沃尔夫 已由 REACT_TERMS 裸键覆盖，本条**不重复建键**。"))
+ENTITIES.append(Entity("YMIR", modes=("react", "endobi"), en="YMIR",
+                       category="音乐人/终末地·铁痕电台",
+                       note="终末地「向渊行」OST 阿莱克琉斯战曲署名人之一。此前全库只在 misc.py 注释里"
+                            "出现、无任何条目（grep 实测 0 命中），本次补齐为可检索实体。"
+                            "无官方简体中文名 ⇒ 保留拉丁原名。**不建替换键**：其 ASR 形「希米尔/埃米尔」"
+                            "属通用中文词组合，按 2026-09-14 戒律只能逐 cue 侧车，入表必误伤。"))
+
+
 # 纯音乐 BGM 单独注册（上表 note 明确写「人声」，混入会失真）
 for _c, _en, _ja, _ko in _MUSIC_WW_BGM:
     ENTITIES.append(Entity(_c, modes=("bi", "react"), en=_en, ja=_ja, ko=_ko,
                            category="曲目/鸣潮·黎那汐塔 OST",
                            note="纯音乐 BGM（无人声）。官方中文名经黎那汐塔篇 OST Vol.1"
-                                "《幻昼狂想》曲目表核实；日/韩无独立官方名，留空勿臆造。"))
+                                "《幻昼狂想》/ Vol.7《无名长诗》曲目表核实（Apple Music 国区"
+                                " 1824610259）；日/韩无独立官方名，留空勿臆造。"))
+
+
+# 2026-11-04：**玄方篇**（3.5-3.7）OST 器乐单独注册。
+#   与上面 `_MUSIC_WW_BGM` 分开的原因：那张表的 category/note 出处写死为黎那汐塔 Vol.1
+#   《幻昼狂想》，混入即挂错出处。出处依据 Apple Music 美服/国区同条目交叉。
+for _c, _en, _ja, _ko in _MUSIC_WW_BGM_XF:
+    ENTITIES.append(Entity(_c, modes=("bi", "react"), en=_en, ja=_ja, ko=_ko,
+                           category="曲目/鸣潮·玄方篇 OST",
+                           note="纯音乐（无人声）。官方中文名经玄方篇 OST Vol.1《万声弥新》/"
+                                "Vol.2《云影仙迹》/Vol.3《朝月听尘》曲目表核实（Apple Music 国区"
+                                " 6789678123 / 6803333112 / 6817719530）；日/韩无独立官方名，"
+                                "留空勿臆造。ASR 常形：Into Xuanfang→'Into the wild fire'、"
+                                "The Dreaming Vale→'Dreaming Veil'。"
+                                "**⚠《契阔》是 3.7 锁暝角色 PV 标题（TapTap CV 表），不是曲名。**"))
 
 
 for _c, _en, _v, _ctx, _cat, _note in (
@@ -126,8 +169,17 @@ for _c, _en, _v, _ctx, _cat, _note in (
      "新 --limbus 模式以边狱巴士为准（见 data/limbus.py）。"),
     ("终末地", "Arknights: Endfield", ("Enfield",), (), "作品/游戏",
      "本片把《明日方舟：终末地》说成 Enfield（#452），生僻长键安全。"),
-    ("声骸", "Echo", (), ((r"\bechoes?\b", "回响"),), "术语/鸣潮",
-     "本片谷翻把 echoes 直译「回响」（#3596），原表只收「回声」。"),
+    # 2026-11-07 修单数漏校：原 ctx 正则 \bechoes?\b 只匹配 "echoe/echoes"，
+    #   **不匹配单数 "echo"**（实测 re.search(r'\bechoes?\b','Echo skill DPS.') == False），
+    #   故本片 cue432「回响技能DPS」/ cue481「老回声回声的改造」两处单数 Echo 全漏校。
+    #   改为 \becho(?:es)?\b 覆盖单复数；wrong 侧补「回声」以覆盖 ASR 叠词行。
+    #   ⚠ 只动 ctx、不动 variants ⇒ 避开 state.py 的投影冲突 SystemExit；
+    #   bilingual.py 侧的双 lookahead 锚（要求养成语境词）**保持不动**，
+    #   ⇒ 历史片源命中面不变，仅新增单数 Echo 命中（须走历史片源逐字节回归）。
+    ("声骸", "Echo", (), ((r"\becho(?:es)?\b", "回响"), (r"\becho(?:es)?\b", "回声")), "术语/鸣潮",
+     "本片谷翻把 echoes 直译「回响」（#3596），原表只收「回声」。"
+     "2026-11-07 补单数：\bechoes?\b 不匹配单数 echo，故 #432/#481 漏校，"
+     "改为 \becho(?:es)?\b 覆盖单复数；wrong 侧新增「回声」以覆盖 ASR 叠词行。"),
     ("残象", "Tacet Discord", (),
      ((r"[Dd]iscord monsters?", "Discord怪物"),), "术语/鸣潮",
      "本片谷翻把 Tacet Discord 直译「Discord怪物」（#3601/#3606），靠参考行锚定。"),
@@ -247,3 +299,363 @@ ENTITIES.append(Entity("超验", modes=("bi", "react"),
                        category="版本/鸣潮3.8",
                        note="3.8 世界观 PV 官方中文名「超验 TRANSCENDO」；"
                             "副标题「闭环重启，潮声再循」；谷翻常作「超越」。"))
+
+# ===== 影之刃零（Phantom Blade Zero，--pbz，2026-10-30） =====
+# 官方依据：灵游坊 pbz.s-game.com / 官方公开角色（魂/左殇/魔渊/虚空/圣母娘娘）/
+# 甄子丹饰魔渊（2026-08 官方 State of Play）；醉剑为官方武器名。
+ENTITIES.append(Entity("《影之刃零》", modes=("pbz",), en="Phantom Blade Zero",
+                       category="作品/影之刃零",
+                       variants=("幽灵传说", "刀锋零号", "幻影之刃"),
+                       ctx=((r"\bPhantom\s+Blade\b", "幽灵传说"),),
+                       note="灵游坊官方中文《影之刃零》；谷翻把 Phantom Blade Zero "
+                            "逐词直译成「幽灵传说」「刀锋零号」。"))
+ENTITIES.append(Entity("魂", modes=("pbz",), en="Soul",
+                       category="角色/影之刃零",
+                       ctx=((r"\bSoul\b", "索尔"),),
+                       note="主角魂（Soul）；谷翻按人名音译成「索尔」。"))
+ENTITIES.append(Entity("左殇", modes=("pbz",), en="Zol Shang",
+                       category="角色/影之刃零",
+                       variants=("佐尔尚",),
+                       note="官方公开角色左殇；谷翻音译「佐尔尚」。"))
+ENTITIES.append(Entity("地狱行者", modes=("pbz",), en="Hell Walker",
+                       category="难度/影之刃零",
+                       note="Hellwalker 困难模式；本片标题 [Hellwalker] 所指。"))
+ENTITIES.append(Entity("杀气", modes=("pbz",), en="shachi / Sha Qi",
+                       category="资源/影之刃零",
+                       variants=("沙奇",),
+                       ctx=((r"\bsha?chi\b", "沙池"),),
+                       note="核心资源杀气（shachi）；谷翻音译「沙奇/沙池」。"))
+ENTITIES.append(Entity("架势", modes=("pbz",), en="posture / stagger",
+                       category="系统/影之刃零",
+                       ctx=((r"\bposture\b", "姿势"), (r"\bstagger\b", "硬直")),
+                       note="posture/stagger 统一译作「架势」；「姿势/硬直」为通用词，只走参考行锚定。"))
+ENTITIES.append(Entity("血肉雕刻师", modes=("pbz",), en="Flesh Sculptor",
+                       category="敌人/影之刃零",
+                       variants=("肉体雕刻师",),
+                       note="Flesh Sculptor；谷翻把 flesh 译成「肉体」。"))
+ENTITIES.append(Entity("血肉莉莉", modes=("pbz",), en="Flesh Lily",
+                       category="敌人/影之刃零",
+                       variants=("肉体莉莉", "肉身莉莉"),
+                       note="Flesh Lily；花名场景亦作「血肉百合」。"))
+ENTITIES.append(Entity("魔渊", modes=("pbz",), en="Demon Abyss",
+                       category="角色/影之刃零",
+                       variants=("恶魔深渊", "魔之深渊"),
+                       note="甄子丹饰演的隐藏 BOSS、主角魂生父、暗魔天堡末代堡主。"))
+ENTITIES.append(Entity("甄子丹", modes=("pbz",), en="Donnie Yen",
+                       category="演员/影之刃零",
+                       variants=("甄敦",),
+                       ctx=((r"\bDonn", "唐尼"),),
+                       note="Donnie Yen 饰魔渊；谷翻作「甄敦/唐尼」。"))
+ENTITIES.append(Entity("彼岸花", modes=("pbz",), en="spider lily",
+                       category="植物/影之刃零",
+                       variants=("蜘蛛百合",),
+                       note="spider lily=彼岸花；谷翻直译「蜘蛛百合」。"))
+ENTITIES.append(Entity("天命", modes=("pbz",), en="the Mandate",
+                       category="势力/影之刃零",
+                       ctx=((r"\bmandate\b", "授权"),),
+                       note="设定势力 the mandate=天命；谷翻作「授权」。"))
+ENTITIES.append(Entity("组织", modes=("pbz",), en="the Order",
+                       category="势力/影之刃零",
+                       ctx=((r"\bthe\s+order\b", "教团"),),
+                       note="主角所属 the Order=组织；谷翻作「教团」。"))
+ENTITIES.append(Entity("香囊", modes=("pbz",), en="sachet",
+                       category="道具/影之刃零",
+                       ctx=((r"\bsachet?\b", "香槟"),),
+                       note="sachet=香囊；谷翻误作「香槟」。"))
+ENTITIES.append(Entity("回声", modes=("pbz",), en="echoes of the past",
+                       category="系统/影之刃零",
+                       ctx=((r"\bechoes?\s+of\s+the\s+past\b", "声骸"),),
+                       note="echoes of the past=过去的回声；鸣潮词表曾把「回声」误改成「声骸」。"))
+ENTITIES.append(Entity("影守卫", modes=("pbz",), en="Shadow Warden",
+                       category="NPC/影之刃零",
+                       ctx=((r"\bwarden\b", "典狱长"),),
+                       note="Shadow Warden=影守卫；谷翻作「典狱长」。"))
+# =============================================================
+# 2026-10-31 明日方舟 × 韵律源点（Arcaea）联动 reaction（DREAM COLLAB!）
+#   官方依据：Arcaea 中文名「韵律源点」（2026-02-13 官方公告）；Kou=红、Titi=缇缇、
+#   Liino=梨诺、Kal'tsit alter=凯尔希·思衡托、Specter alter=归溟幽灵鲨；
+#   CC 曲目 Operation Basepoint=起源行动、Operation Blade=利刃行动、Operation Pyrite=黄铁行动、
+#   Operation Dawnseeker=寻昼行动；All hail Savior!、ManiFesto:、冲破穹顶（理想城OST）。
+#   普通词/短名只走 ctx；带括号曲名不做英文裸键。危机合约已有 endobi 实体，ak 侧只留 AK_TERMS 键。
+# =============================================================
+ENTITIES.append(Entity("韵律源点", modes=("ak",), en="Arcaea", ja="アーケア", ko="아르케아",
+                       category="作品/音游",
+                       variants=("Arcaea", "Arcea", "阿尔凯亚", "阿尔西亚"),
+                       ctx=((r"\bArcaea\b", "阿卡亚"),),
+                       note="Arcaea 官方中文名「韵律源点」（2026-02-13 官方公告）；阿卡亚/阿尔凯亚/阿尔西亚 为谷翻/ASR 变体。"))
+ENTITIES.append(Entity("终末地", modes=("ak",), en="Endfield",
+                       category="作品/明日方舟：终末地",
+                       variants=("Endfield", "恩德菲尔德"),
+                       note="Endfield 官方中文《明日方舟：终末地》；Enfieldy/Endfieldy 为形容词，已在 AK_TERMS 单独映射「终末地风格」。"))
+ENTITIES.append(Entity("红", modes=("ak",), en="Kou",
+                       category="角色/韵律源点",
+                       ctx=((r"\bCoal\b", "煤炭"), (r"\bCoal\b", "煤"), (r"\bKou\b", "寇")),
+                       note="Arcaea 搭档 Kou 官方中文「红」；Coal 为 ASR 误听，只走 ctx；成片可显示「红（Kou）」以便与方舟干员红区分。"))
+ENTITIES.append(Entity("缇缇", modes=("ak",), en="Titi",
+                       category="干员/明日方舟",
+                       variants=("Titi",),
+                       ctx=((r"\bTT\b", "TT"),),
+                       note="PRTS：缇缇 Titi，2026-01-09 实装；TT 为 ASR 缩写，只走 ctx。"))
+ENTITIES.append(Entity("梨诺", modes=("ak",), en="Liino",
+                       category="干员/终末地",
+                       ctx=((r"\bLinus'?\b", "Linus"), (r"\bLinus'?\b", "利诺")),
+                       note="终末地六星干员梨诺 Liino（2026-08-09 实装）；Linus 为 ASR 误听，只走 ctx；成片可显示「梨诺（Liino）」。"))
+ENTITIES.append(Entity("凯尔希·思衡托", modes=("ak",), en="Kal'tsit alter",
+                       category="干员/异格",
+                       variants=("Kal'tsit alter", "Kal'tsit Alter", "Kaltsit alter"),
+                       note="凯尔希异格官方名「凯尔希·思衡托」（官方公告/周边）。"))
+ENTITIES.append(Entity("归溟幽灵鲨", modes=("ak",), en="Specter alter",
+                       category="干员/异格",
+                       variants=("Specter alter",),
+                       ctx=((r"\bspecter alter\b", "幽灵鲨异格"),),
+                       note="幽灵鲨异格官方名「归溟幽灵鲨」；幽灵鲨异格只走 ctx。"))
+ENTITIES.append(Entity("佩佩", modes=("ak",), en="Pepe",
+                       category="干员/明日方舟",
+                       variants=("Pepe",),
+                       ctx=((r"\bPepper'?s?\b", "Pepper"), (r"\bPepper'?s?\b", "佩珀")),
+                       note="Pepe 官方中文「佩佩」；Pepper 为 ASR 误听，只走 ctx。"))
+ENTITIES.append(Entity("嘉维尔", modes=("ak",), en="Gavial",
+                       category="干员/明日方舟",
+                       variants=("Gavial",),
+                       note="Gavial 官方中文「嘉维尔」；alter 形由 AK_CONTEXT 的百炼嘉维尔规则处理。"))
+ENTITIES.append(Entity("阿米娅", modes=("ak",), en="Amiya",
+                       category="干员/明日方舟",
+                       variants=("Amiya",),
+                       note="Amiya 官方中文「阿米娅」。"))
+ENTITIES.append(Entity("重启锚点", modes=("ak",), en="Relaunch Anchor",
+                       category="玩法/生息演算",
+                       variants=("Relaunch Anchor", "relaunch anchor"),
+                       note="生息演算模式官方中文「重启锚点」。⚠ 2026-11-02 复核：EP17「相变临界」"
+                            "官网公告（ak.hypergryph.com/news/3046）与 PRTS/BWIKI 本章系统名清单里"
+                            "**查无「生息演算·重启锚点」这一本章项**，此前把它记作本章系统名属误，"
+                            "待复核；本条只保留生息演算自身口径，不再关联 EP17。"))
+ENTITIES.append(Entity("定向寻访卡池", modes=("ak",), en="Orienteering banner",
+                       category="卡池",
+                       variants=("Orienteering banner", "Orienteering Banner"),
+                       note="Orienteering banner 官方卡池「定向寻访」。"))
+ENTITIES.append(Entity("音弧", modes=("ak",), en="arcs",
+                       category="术语/玩法",
+                       ctx=((r"(?<!mobile )\bapps?\b", "应用程序"), (r"\barcs?\b", "弧线")),
+                       note="Arcaea 蓝线官方中文「音弧」；应用程序/弧线只走 ctx；mobile apps 不在此列。"))
+ENTITIES.append(Entity("海猫", modes=("ak",), en="Lowlight",
+                       category="作者/鹰角网络",
+                       ctx=((r"\bLow Light\b", "Low Light"), (r"\bLowlight\b", "Lowlight")),
+                       note="鹰角网络联合创始人海猫（Lowlight）；英文形只走 ctx；显示可带（Lowlight）。"))
+ENTITIES.append(Entity("Kukki", modes=("ak",), en="Kukki",
+                       category="主播",
+                       ctx=((r"how could you not name", "库奇"), (r"how could you not name", "Cookie")),
+                       note="主播 kukkikaze 昵称 Kukki；Cookie/库奇 为 ASR/机翻形，只走 ctx。"))
+ENTITIES.append(Entity("《Operation Dawnseeker》（寻昼行动）", modes=("ak",), en="Operation Dawnseeker",
+                       category="曲目/危机合约",
+                       variants=("Don't Seeker", "Dont Seeker"),
+                       ctx=((r"\bDon'?t Seeker\b", "不要寻找者"), (r"\bDon'?t Seeker\b", "别寻找者")),
+                       note="危机合约#8 寻昼行动主题曲，官方曲名 Operation Dawnseeker。"))
+ENTITIES.append(Entity("《Operation Basepoint》（起源行动）", modes=("ak",), en="Operation Basepoint",
+                       category="曲目/危机合约",
+                       variants=("Base Point",),
+                       ctx=((r"\bBase Point\b", "基点"), (r"\bBase Point\b", "基点行动")),
+                       note="危机合约#12 起源行动主题曲，官方曲名 Operation Basepoint。"))
+ENTITIES.append(Entity("《Operation Pyrite》（黄铁行动）", modes=("ak",), en="Operation Pyrite",
+                       category="曲目/危机合约",
+                       ctx=((r"\bPyrite\b", "黄铁矿"),),
+                       note="危机合约#1 黄铁行动主题曲，官方曲名 Operation Pyrite；黄铁矿只走 ctx。"))
+ENTITIES.append(Entity("《Operation Blade》（利刃行动）", modes=("ak",), en="Operation Blade",
+                       category="曲目/危机合约",
+                       ctx=((r"\bPlay,\s*Pyrite\b", "播放"), (r"\bPlay,\s*Pyrite\b", "Play")),
+                       note="危机合约#2 利刃行动主题曲，官方曲名 Operation Blade；ASR 把 Blade 听成 Play，只走 ctx。"))
+ENTITIES.append(Entity("《All hail Savior!》", modes=("ak",), en="All hail Savior!",
+                       category="曲目/嘉维尔EP",
+                       variants=("All Hail the Savior",),
+                       ctx=((r"\bAll Hail the Savior\b", "万岁"), (r"\bAll Hail the Savior\b", "救主")),
+                       note="百炼嘉维尔 EP，官方曲名 All hail Savior!（h 小写、带感叹号）。"))
+ENTITIES.append(Entity("《ManiFesto:》", modes=("ak",), en="ManiFesto:",
+                       category="曲目/音律联觉",
+                       variants=("Manifesto",),
+                       ctx=((r"\bManifesto\b", "宣言"),),
+                       note="音律联觉 Hip-Hop 主题曲，官方曲名 ManiFesto:（含冒号）。"))
+ENTITIES.append(Entity("Cry of Dawn", modes=("ak",), en="Cry of Dawn",
+                       category="曲目/待考",
+                       ctx=((r"\bCry of Dawn\b", "黎明之声"),),
+                       note="本片低置信曲名，未检索到官方中文；保留英文，不臆造译名。"))
+ENTITIES.append(Entity("《冲破穹顶》", modes=("ak",), en="Breakthrough the Dome",
+                       category="曲目/理想城OST",
+                       variants=("Breakthrough the Dome",),
+                       ctx=((r"\bBreakthrough the Dome\b", "突破穹顶"),),
+                       note="《理想城：长夏狂欢季OST》，官方中文曲名《冲破穹顶》。"))
+ENTITIES.append(Entity("《Radiant》", modes=("ak",), en="Radiant",
+                       category="曲目/临光EP",
+                       ctx=((r"\bRadiant\b", "光辉灿烂"), (r"\bRadiant\b", "光辉")),
+                       note="耀骑士临光 EP，官方曲名 Radiant；无官方中文，保留英文。"))
+ENTITIES.append(Entity("《Granite Gate》", modes=("ak",), en="Granite Gate",
+                       category="曲目/明日方舟",
+                       ctx=((r"\bGranite Gate\b", "花岗岩之门"),),
+                       note="无官方中文，保留英文。"))
+ENTITIES.append(Entity("《System Malfunction》", modes=("ak",), en="System Malfunction",
+                       category="曲目/明日方舟",
+                       ctx=((r"\bSystem Malfunction\b", "系统故障"),),
+                       note="无官方中文，保留英文。"))
+ENTITIES.append(Entity("《Awaken》", modes=("ak",), en="Awaken",
+                       category="曲目/幽灵鲨EP",
+                       ctx=((r"\bAwaken\b", "觉醒"),),
+                       note="归溟幽灵鲨 EP，官方曲名 Awaken；觉醒只走 ctx。"))
+ENTITIES.append(Entity("《Mystic Light Quest》", modes=("ak",), en="Mystic Light Quest",
+                       category="曲目/佩佩EP",
+                       ctx=((r"\bMystic Light Quest\b", "神秘之光之旅"),),
+                       note="佩佩 EP，官方曲名 Mystic Light Quest；无官方中文，保留英文。"))
+ENTITIES.append(Entity("《理想城》", modes=("ak",), en="Ideal City",
+                       category="活动/明日方舟",
+                       variants=("Ideal City",),
+                       note="官方活动「理想城：长夏狂欢季」；曲目语境用《理想城》。"))
+ENTITIES.append(Entity("《崩坏3》", modes=("ak",), en="Honkai Impact 3rd",
+                       category="作品",
+                       variants=("Honkai Impacted",),
+                       ctx=((r"\bHonkai Impact(?:ed)?\b", "《崩坏》"),),
+                       note="官方中文《崩坏3》；Honkai Impacted 为 ASR 变体；与 ko 实体「崩坏3」区分。"))
+ENTITIES.append(Entity("《命运2》", modes=("ak",), en="Destiny 2",
+                       category="作品",
+                       variants=("Destiny 2",),
+                       ctx=((r"\bDestiny 2\b", "《命运 2》"),),
+                       note="官方中文《命运2》。"))
+ENTITIES.append(Entity("《星之海洋》", modes=("ak",), en="Star Ocean",
+                       category="作品",
+                       variants=("Star Ocean",),
+                       note="官方中文《星之海洋》。"))
+
+# ══ 2026-11-02 沉淀：《명조》 Day 1 팀장이 되었어요「띵킹 2」（7554 cue，韩语原声+机翻中文，--ko）══
+#   根因（本轮最值钱的一条）：维里奈/散华/莫宁/千咲/椿/珂莱塔 这些官中名**只登记在 bi（或 ja）行**，
+#   而 `_register_entities` 严格按 `e.modes` 投影（variants→_MODE_TERM_TABLE[m]、ctx→_MODE_CTX_TABLE[m]）
+#   ⇒ `--ko` 通路一个字都不产出，于是韩语片整批漏校。同 2026-11-01「隧者/星炬学院只在 bi 登记故
+#   --ja 不生效」漏校型。凡新增官中名，**按语种逐条检查 modes 是否覆盖到实际片源模式**。
+#   官方依据（逐条可点验）：
+#     维里奈 ＝ 벨리나（百度百科/萌娘百科「维里奈」外文名 韩：벨리나；韩 CV 강새봄）
+#     散华   ＝ 산화（百度百科「散华」外文名；⚠ 산화 在韩语同时是「氧化」，谷翻必出错）
+#     莫宁   ＝ 모니에（百度百科「莫宁」外文名 Mornye/モーニエ/모니에；韩 CV 오로아）
+#     千咲   ＝ 치사（维基百科「鸣潮角色列表」千咲（Chisa，치사），本名朽叶千咲，星炬学院）
+#     椿     ＝ 카멜리아（Wuthering Waves Fandom「Camellya」Other Languages 官方形 + 维基角色列表）
+#     珂莱塔 ＝ 카를로타（Carlotta Montelli，萌娘百科「鸣潮/译名对照表」；⚠ 维基角色列表把
+#                Carlotta 的韩文写成 카멜리아 是笔误，与 椿 同形，故 珂莱塔 只按 카를로타 记知识）
+#     共鸣链 ＝ 官方系统名（百度百科「鸣潮」养成节：每位角色 6 层共鸣链节点，重复角色转化为
+#                该角色共鸣链回音频段）
+ENTITIES.append(Entity("维里奈", modes=("ko",), en="Verina", ko="벨리나",
+                       category="角色/鸣潮",
+                       variants=("贝琳娜",),
+                       note="ko 侧补登（2026-11-02）：谷翻把 벨리나 直译成音译「贝琳娜」，本片 12 处"
+                            "（#1541-1545/7114/7148/7158/7161）。'贝琳娜'是唯一音译串、不是通用词，"
+                            "可作裸键；bi 侧既有 维丽娜/Verina 不动。"))
+ENTITIES.append(Entity("散华", modes=("ko",), en="Sanhua", ko="산화",
+                       category="角色/鸣潮",
+                       ctx=((r"산화", "氧化"), (r"산화", "散花"),),
+                       note="ko 侧补登（2026-11-02）：韩服官方名 산화 与韩语「氧化」同形，谷翻必出"
+                            "「氧化」（本片 #1544「维里奈？还有散华」被翻成「怎么还氧化了」）。"
+                            "戒律：'氧化'是正常词，**绝不裸键**，只走 산화 谚文锚定。"))
+ENTITIES.append(Entity("莫宁", modes=("ko",), en="Mornye", ko="모니에",
+                       category="角色/鸣潮3.0",
+                       ctx=((r"모니에|모니", "莫尼"), (r"모니", "气槽"), (r"모니", "钱"),),
+                       note="ko 侧补登（2026-11-02）：모니에(莫宁) ASR 缩成 모니/모닝，谷翻按字面出"
+                            "「莫尼/气槽/钱」（本片 #198/199/652/6883/7221）。锚定串取 모니，"
+                            "不含 머니(money)，故不会咬正常'钱'。'钱/气槽'皆为通用词，禁裸键。"))
+ENTITIES.append(Entity("千咲", modes=("ko",), en="Chisa", ko="치사",
+                       category="角色/星炬学院",
+                       ctx=((r"치사", "智沙"), (r"치사", "千佐渡"), (r"치사", "奇萨"),),
+                       note="ko 侧补登（2026-11-02）：치사(千咲) 与形容词 치사하다(卑鄙/寒酸) 同形，"
+                            "错形侧只收音译串并按 치사 锚定（本片 #390/392/4904）。bi 侧已有 奇莎/奇萨"
+                            "裸键与 Chisha(炽霞) 回滚锚，勿混——Chisha=炽霞，Chisa=千咲。"))
+ENTITIES.append(Entity("椿", modes=("ko",), en="Camellya", ko="카멜리아",
+                       category="角色/黑海岸",
+                       ctx=((r"카멜레|카멜리아", "山茶花"), (r"카멜레|카멜리아", "茶花"),),
+                       note="ko 侧补登（2026-11-02）：官方韩文形 카멜리아 被谷翻按花名直译成"
+                            "「茶花/山茶花」（本片 #2116-2118/#3547/#3560）。'茶花'是通用词禁裸键；"
+                            "ctx 里长形 山茶花 必须排在 茶花 之前（KO_CONTEXT 按列表顺序执行）。"
+                            "2026-10-13 已有 카멜레언/카멜탈/카메/카밀타 系键，本条只补 카멜리아 "
+                            "花名直译这一条产出路径。"))
+ENTITIES.append(Entity("珂莱塔", modes=("ko",), en="Carlotta", ko="카를로타",
+                       category="角色/黎那汐塔",
+                       note="ko 侧知识登记（2026-11-02）：本片 #6946 谷翻整句吞掉角色名、#7153 残留"
+                            "拉丁 'Carlta'，属句级漏译/ASR 断词，**不建替换键**（'卡露塔'等音译形未"
+                            "在本片实测，凭猜测入表违反沉淀纪律）。官方韩文形=카를로타。"))
+ENTITIES.append(Entity("共鸣链", modes=("ko",), en="Resonance Chain", ko="돌파",
+                       category="术语/鸣潮养成",
+                       ctx=((r"체인", "机制"), (r"영체인", "灵体"), (r"영체인", "五链"),
+                            (r"6체인", "六人链条"),),
+                       note="官方系统名（百度百科「鸣潮」养成节：每位角色 6 层共鸣链节点）。"
+                            "韩服口播有两种写法：돌파（汉字词'突破'）与 체인（chain 音译），"
+                            "主播常混用，故 체인->共鸣链 走锚定（'机制'是通用词，绝不裸键）。"
+                            "⚠ **禁止** '突破->共鸣链' 裸键或锚定：韩服 돌파 同时是「等级突破/闯关」，"
+                            "两义同形，任何锚定都会咬掉等级突破语境。本片 16 处（#169/172/175/177/181/"
+                            "1459/1561/2656/2657/2760/2831/2856/6066/7520）按上下文逐 cue 判，"
+                            "链义判据=同句出现 여섯 개/重复角色/N돌/N체인 这类链数词；"
+                            "闯关·等级突破语境一律保留。영체인=**零链**（영=0），"
+                            "本片曾被谷翻成'灵体/五链'（#2321/#3623）。"))
+
+# =============================================================
+# 2026-11-02 EP17「相变临界」预告片反应片二校沉淀（The Special K Experience，394 cue，
+#   英文 ASR 在上 + 谷翻中文在下，链 bi→ak）。依据：官网公告 ak.hypergryph.com/news/3046、
+#   PRTS「相变临界」词条正文、游戏内「共享终端」线索原文。
+#   ⚠ 「扩 ak」一律用**同 canonical 的第二条 Entity（modes=("ak",)）**实现，不改原 bi 条目
+#     的 modes：_register_entities 逐 modes 投影（state.py:191），整条搬过去会把 bi 侧
+#     variants 里的高危常用词（如 凯尔特）一并灌进 AK_TERMS——而 ak 分支 2026-11-02 之前
+#     根本没有 EXCLUDE 回滚层，误伤无从撤销。
+ENTITIES.append(Entity("Mon3tr", modes=("ak",), en="Mon3tr",
+                       category="召唤物/凯尔希",
+                       ctx=((r"\bcalluse?s?\b", "愈伤组织"),),
+                       note="凯尔希的召唤物，官方书写 **Mon3tr**（首字母大写、3 代 i）：游戏内线索原文"
+                            "`◀ Mon3tr的线索`「一枚方解石-Mon3tr的线索」。**不设恒等 variants（Mon3tr）**"
+                            "——恒等映射不收（同 endfield.py 既有约定）；小写错形由 AK_TERMS 的"
+                            "`mon3tr→Mon3tr` 大小写敏感裸键兜。⚠ **`怪物` 不入表**：2026-11-02 跨片实测，"
+                            "旧《How Did You Join Arknights or Endfield?》#3346 \"the monster reset\" 是通用"
+                            "怪物义，被 怪物->Mon3tr 锚定误改；怪物是常用词且英文侧无稳定专名特征，"
+                            "按戒律只逐 cue 判（本片 EP17 的 14 处已在 _calib_arkch17 侧车改定）。"
+                            "愈伤组织=callus 是罕见形、碰撞面为零，保留锚定。"))
+ENTITIES.append(Entity("可露希尔", modes=("ak",), en="Closure",
+                       category="干员/明日方舟",
+                       ctx=((r"\bclosures?\b", "关闭"),),
+                       note="Closure 官方中文「可露希尔」（6★ 先锋·战术家，官网 3046）。本片谷翻把"
+                            "「Closure is playable」整片译成「关闭」（#335/#338 等）。「关闭」是超常用词"
+                            "只走 ctx；大写裸键已在 AK_TERMS:301，小写 closure=克洛丝 是旧片抽卡语境"
+                            "沉淀（AK_TERMS:212），str.replace 大小写敏感，两者不冲突。"))
+ENTITIES.append(Entity("重装", modes=("ak",), en="Defender",
+                       category="职业/明日方舟",
+                       ctx=((r"\bdefenders?\b", "后卫"),),
+                       note="Defender 是职业名「重装」（裂响＝重装·本源铁卫），谷翻作「后卫」。"
+                            "「后卫」是体育常用词，禁裸键，只按英文行锚定。"))
+ENTITIES.append(Entity("博士", modes=("ak",), en="Doctor",
+                       category="称谓/明日方舟",
+                       ctx=((r"\bdoctors?\b", "医生"),),
+                       note="Arknights 的 Doctor 官方称谓「博士」，谷翻常作「医生」（本片 #17 "
+                            "\"All right, the doctor.\"，音频复核确为 doctor）。「医生」是常用词，"
+                            "禁裸键；与既有 medic→医疗干员 不冲突。"))
+ENTITIES.append(Entity("相变临界", modes=("ak",), en="Critical Phase Transition",
+                       category="章节/明日方舟",
+                       variants=("临界相变",),
+                       note="主题曲 EP17 官方简中章名「相变临界」（官网 3046「主题曲EP17【相变临界】」、"
+                            "PRTS 相变临界词条）；谷翻按词序直译成「临界相变」是错形。4 字专名、"
+                            "非常用词，可裸键。"))
+ENTITIES.append(Entity("裂响", modes=("ak",), en="Crackborne",
+                       category="干员/明日方舟",
+                       variants=("Crackborne", "Crackborn", "Crackorn", "克拉科恩"),
+                       note="5★ 重装·本源铁卫「裂响」（官网 3046；本名瑭雅·艾利卢耶娃）。"
+                            "「五星守护者」的说法为误，官方分支是本源铁卫。ASR 常作 Crackorn，"
+                            "谷翻音译「克拉科恩」（本片 #145）；「克拉克伯恩」已在 AK_TERMS:304，"
+                            "同目标幂等不重复登记。"))
+ENTITIES.append(Entity("乌萨斯", modes=("ak",), en="Ursus",
+                       category="势力/明日方舟",
+                       variants=("Ursus", "乌尔苏斯"),
+                       note="Ursus 官方「乌萨斯」，EP17 舞台（泽尔格勒＝乌萨斯卫星城）。"
+                            "官方 PV 旁白 `乌萨斯。我将为你带来，「永恒的春天」。` 直接确证英文 ASR 的"
+                            "「Ersus」即 Ursus——但 **Ersus 不入表**（音近形低置信，逐 cue 判，"
+                            "见 _calib_arkch17/r2/gloss2.md 第 3 节）。"))
+ENTITIES.append(Entity("凯尔希", modes=("ak",), en="Kal'tsit",
+                       category="干员/明日方舟",
+                       variants=("Cowset", "Calitha", "凯尔西", "凯尔茨"),
+                       note="凯尔希（Kal'tsit）扩 ak，只搬安全形：Cowset/Calitha 是本片 ASR 实测变形"
+                            "（英文社区把凯尔希昵称为 Cow，谷翻/ASR 拆成 cowset/cows/cowit/calcite），"
+                            "凯尔西/凯尔茨 是非正常中文词。⚠ **`凯尔特` 绝不写进本条 variants**——"
+                            "它只在 bi 条目里由 EXCLUDE_CONTEXT 的 \\bCeltic\\b 负例兜住。"
+                            "Kelsey/Kelip/Kelit/Kelty 与 卡尔·赛/卡尔·塞 已在 AK_TERMS，同目标幂等；"
+                            "Cal/Calit/Calip/Cow/Kyle 一律不入表（短拉丁键会咬 Calcite，Kyle 是真人姓名）。"))
+ENTITIES.append(Entity("卡池", modes=("ak",), en="banner",
+                       category="术语/明日方舟",
+                       ctx=((r"\bbanners?\b", "横幅"), (r"\bbanners?\b", "旗帜")),
+                       note="banner→卡池 扩 ak：AK_TERMS 已有裸键 banner，本条只补 ctx——"
+                            "谷翻把 banner 译成「横幅/旗帜」的中文错形此前只有 bi 趟能修，"
+                            "纯 --ak 片源会漏（本片 #32/#68/#69/#160/#162/#307/#339 共 7 处）。"))
