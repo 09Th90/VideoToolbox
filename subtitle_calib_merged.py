@@ -237,6 +237,15 @@ BILINGUAL_TERMS = {
     # --- 同片三次校准补充（Resonator/Lament/Astrite/Crownless 等鸣潮官方词 + ASR 变体）---
     "风化波": "鸣潮",                                              # Weathering Wave 系列
     "路虎": "漂泊者", "漫游车": "漂泊者",                          # Rover 被译成汽车品牌/火星车
+    # --- 2026-11-08 Jadealy《鸣潮》3.8 前瞻 Reaction 片二校回灌 ---
+    #   键一律取中文行实际形态、整串唯一且非通用词；官方依据写行尾（T1=片内官中台词 cue）。
+    "海浪版": "《鸣潮》版本",                    # T1 #43「欢迎来到《鸣潮》3 .」；wuth ering waves version
+    "Mother ing Waves": "《鸣潮》",             # T1 #43；Wuthering Waves 的 ASR 误听残形
+    "VU VA": "鸣潮",                            # T1 #43；WuWa 的 ASR 误听残形
+    "wuva livest ream": "鸣潮直播",             # T1 #44「8版本前瞻通讯」；WuWa livestream
+    "火星车头": "漂泊者头",                     # T1 #42/#50「漂泊者」；rover head
+    "Brand t": "布兰特",                        # T2 Brant=布兰特（bilingual.py:1096）；ASR 断词
+    "卢伊拉": "洛瑟菈",                         # T2 Lucilla=洛瑟菈（bilingual.py:450）
     "同步员": "同步者",                                            # synchronist 统一
     "异能跨步者": "隧者", "跨行者": "隧者",                  # exor strider 机翻/简写
     # 2026-09-22 补：Exostrider 的**子词直译**机翻形态（Exo=外骨骼 + strider=行者/跨步者）。
@@ -1780,6 +1789,9 @@ CONTEXT_MAP = [
     (r"\bGian\b", "吉安", "忌炎"),                  # #51 Gian as their first banner（1.0 首池）
     (r"\bpulling for brand\b", "品牌", "布兰特"),   # #346 not pulling for brand
     (r"\bBrand's personality\b", "布兰德", "布兰特"),
+    # 2026-11-08 Jadealy 3.8：Brand 是 Brant 的常见 ASR 形（#407/#434）。
+    #   (?!\s+person) 排除「brand person」主播梗（#665/#666 中文「品牌人」）；通用词不建裸键。
+    (r"\bBrand\b(?!\s+person)", "布兰德", "布兰特"),
     (r"\bGalena\b", "方铅矿", "嘉贝莉娜"),          # #1017 Galena one（矿物名被直译）
     (r"\bGalina\b", "加琳娜", "嘉贝莉娜"),          # #936 this one's for Galina
     (r"\bBourne\b", "伯恩", "莫宁"),                # #1237 And Bourne（Mornye ASR 变体）
@@ -1955,6 +1967,17 @@ CONTEXT_MAP = [
     (r"\bChong Li\b", "重力", "长离"),                                 # Chong Li=长离 ASR（#286；"重力"通用词不进裸键）
     (r"\bHi\s?y?uki\b|\bHi\s?[Uu]ki\b", "浮喜", "绯雪"),               # Hiyuki=绯雪（#284）
     (r"\bHi\s?y?uki\b|\bHi\s?[Uu]ki\b", "宇基", "绯雪"),               # （#232）
+    # --- 2026-11-08 Jadealy《鸣潮》3.8 前瞻片深度二校：Yuki 族拉丁 ASR 残形 → 绯雪 ---
+    #   官中依据：萌娘百科译名对照表 Hiyuki=绯雪；官微「绯雪特别定制『月沉霜』」（3.8 服饰）。
+    #   学习库 bi|由纪→绯雪 只处理中文「由纪」；残留的 Y uki / Yuki / Fy uka 由下列
+    #   英文锚定三元组收口（长错形先行；一律不建裸键，避免跨片误伤）。
+    #   ⚠ EXCLUDE_CONTEXT["由纪"] 已反转为「非 Yuki 语境才回滚」，不会回滚本组替换
+    #     （engine.py 触发条件为 wrong in old，本组 old 不含「由纪」）。
+    #   ⚠ CONTEXT_MAP 是 AST 字面量表（standalone/kb_admin.py 用 literal_eval 读），
+    #     正则必须逐条写全，不可抽成变量。
+    (r"\bYuki\b|\bY\s*u\s*ki\b|\bFy\s*u\s*ka\b|\bHi\s?y?uki\b", "Y uki", "绯雪"),
+    (r"\bYuki\b|\bY\s*u\s*ki\b|\bFy\s*u\s*ka\b|\bHi\s?y?uki\b", "Yuki", "绯雪"),
+    (r"\bYuki\b|\bY\s*u\s*ki\b|\bFy\s*u\s*ka\b|\bHi\s?y?uki\b", "Fy uka", "绯雪"),
     (r"\bpers ?im ?mons\b", "人鱼", "柿子"),                           # persimmons（#2299）
     (r"\bsc ?all ?ions\b", "离子", "葱花"),                            # scallions（#2456）
     (r"\bno rate\b", "没有命运", "没有概率公示"),                      # no rate->no fate ASR（#2431）
@@ -2222,6 +2245,12 @@ CONTEXT_MAP = [
     # 只锚 Lili + 中文错形，不并入 Lily 的「百合」锚，避免复用「光百合」负例语义。
     (r"\bLili\b", "丽丽", "莉莉"),
     (r"\bLili\b", "莉丽", "莉莉"),
+    # 2026-11-08 Jadealy 3.8：#39 "Lilies for Lily." 是「花 + 角色」双关。
+    #   \bLily\b 锚会把「百合给百合」双改成「莉莉给莉莉」；EXCLUDE 的全行回滚
+    #   又会把人工精确修好的「百合给莉莉」一并退回（历史铁律：负例非逐词回滚）。
+    #   故改用幂等收口条：源形与终稿经锚后都到「莉莉给莉莉」，再统一收成「百合给莉莉」，
+    #   保证「成品再跑一遍 = 0 改动」。
+    (r"\blilies\s+for\s+lily\b", "莉莉给莉莉", "百合给莉莉"),
     # --- 2026-10-27 Back from Vacay 二次校准：歧义/短键走参考行锚定 ---
     (r"\bMorta\b|\bMohrta\b", "Morta", "默尔塔"),
     (r"\bWua\b", "Wua", "鸣潮"),
@@ -2607,11 +2636,26 @@ CONTEXT_MAP = [
 # 结构：{wrong: (right, (排除正则...))}，right 用于回滚（须与所在术语表的 value 一致）。
 # 比无条件替换更精准，不依赖人工负例注释。新增歧义词时按此结构追加。
 EXCLUDE_CONTEXT = {
+    # --- 2026-11-08 Jadealy 3.8 片深度二校：由纪→绯雪 正向归正（一校误判已纠正）---
+    #   一校把「由纪→绯雪」判为跨片误伤，按参考行含 Yuki 就回滚；实测本片 Yuki/Y uki/Fy uka
+    #   均指官中「绯雪」（萌娘百科译名对照表 Hiyuki=绯雪；官微「绯雪特别定制『月沉霜』」；
+    #   T1 #363「飞雪的活动换取/将开启」与 #364「又是由纪」呼应；#663-723 绯雪服饰展示段）。
+    #   现改为「参考行**不含** Yuki 族锚点才回滚」：本片 Yuki 语境让学习库 confirmed 裸键
+    #   bi|由纪→绯雪 正常生效；其它片非 Yuki 语境的真名「由纪」仍原样保留，零跨片误伤。
+    #   ⚠ 表达「整行不含 X」必须用 ^ 行首否定环视；re.search 下 (?!.*X) 会从 X 之后的位置误匹配。
+    "由纪": ("绯雪", (r"^(?!.*(?:\bYuki\b|\bY\s*u\s*ki\b|\bFy\s*u\s*ka\b|\bHi\s?y?uki\b))",)),
+    #   bi|快捷方式→快捷径 把正常词改造成生造词，按 shortcuts / exposition 参考行回滚。
+    "快捷方式": ("快捷径", (r"\bshortcuts?\b", r"\bexposition\b")),
+    #   T1 官中台词 #363 原文即「飞雪的活动换取」：Entity("绯雪") 的 variants 含「飞雪」，
+    #   无条件裸键会改坏官方一手台词。按官中参考行回滚，T1 优先；不收紧 Entity 本体，
+    #   以免影响其他片里「飞雪」作为 ASR 错形的正常归正。
+    "飞雪": ("绯雪", (r"飞雪的活动换取",)),
     # --- 2026-11-08 鸣潮 3.8 Lily 前瞻片：列车乘客≠明日方舟干员「异客」 ---
     # Entity("异客") 的 ctx 只有裸 passenger，且 _CONTEXT_COMPILED 用 re.I；
     # 交通语境回滚为「乘客」，不收紧 Entity 本体，避免影响明日方舟正常 Passenger 命中。
     "乘客": ("异客", (
         r"\b(?:train|trains|railway|rail|station|platform|lounge|coach|bus|flight|airline|airport|subway|metro|taxi|ferry|cruise)\b",
+        r"\ball\s+kinds\s+of\s+passengers\b",   # 2026-11-08 Jadealy #190：泛指列车乘客，非干员
     )),
     # --- 2026-10-22 Tenha 鸣潮全 EP reaction 片负例 ---
     # ① \bAngel\b=安吉尔 的负例：歌词里的“天使”。本片 #945 "angel consumes"、
@@ -2675,6 +2719,12 @@ EXCLUDE_CONTEXT = {
         r"\blily\s+blooms?\b",
         r"\bdreamlands?\b",
         r"\blily\s+pedals?\b",
+        # 2026-11-08 Jadealy 3.8：#281 "a field of lily purple cloud." 是官方百合花田意象，
+        #   非共鸣者莉莉；命中则回滚（该 cue 终稿与源同形，回滚后幂等 0 改动）。
+        #   #39 "Lilies for Lily." 双关句不在此列：全行回滚会吃掉人工精确修好的第二个「莉莉」，
+        #   改由 CONTEXT_MAP 的「幂等收口条」处理（见 3.8 Lily 段）。
+        r"\bfield\s+of\s+lily\b",
+        r"\blily\s+purple\b",
     )),
     # 2026-11-04：①号负例的姊妹条——\bSuisei\b -> 穗穗 的负例：**hololive 星街すいせい**。
     #   Suisei 这个罗马字在 VTuber 语境里首先是星街彗星（Hoshimachi Suisei），
@@ -3251,6 +3301,21 @@ JA_TERMS = {
     # 普通词/常见音译（优诺/优野/中本聪/前农民/小笠/七个…）一律走 JA_CONTEXT 日语锚定；
     # 此处只收正常中文里不会出现的非词错形。
     "祝典": "庆典",
+    # ===== 2026-11-08 二校回灌：《昨夜群星》3章5幕 日语实况（2937 cue，基线 527 处）=====
+    # 依据：官方依据.md S1~S8 / L1~L3 定名裁决表；.zcode 对照表(截至3.6)；gloss.md Gxx；
+    #       联网核查结论.md（SUCCESS 0 / PARTIAL 3 / 官方定名佐证 22 词）；memory/2026-11-08.md。
+    # 戒律：只收正常中文不会出现的非词音译错形；通用词/拉丁残留/同锚多义一律走 JA_CONTEXT
+    #       日语锚定（_doc.py 硬契约第 4 条）。已与 L24-132 逐键去重。
+    "阿美斯": "爱弥斯", "阿米斯": "爱弥斯", "伊米斯": "爱弥斯",   # G05 エイミース=Aemeath
+    "达尼娅": "达妮娅", "丹雅": "达妮娅", "丹妮亚": "达妮娅",     # G06 ダーニャ=Denia
+    "拉尼娅": "达妮娅", "达尼奥": "达妮娅", "丹尼尼亚": "达妮娅", # G06 #786 二校实测残留
+    "洛瑟拉": "洛瑟菈",                                            # G07 ルシラー=Lucilla
+    "日纪": "绯雪", "桧雪": "绯雪",                                # G08 ひゆき=Hiyuki
+    "阿列夫一1": "阿列夫一",                                        # G13 长键先行防级联
+    "克里斯托弗罗": "克里斯托弗",                                   # G24 Cristoforo
+    "弗罗巴": "弗洛洛",                                            # G25 フローヴァ=Phrolova
+    "芦之原": "苇原", "足之原": "苇原",                            # G28 葦ノ原
+    "隧錨": "隧锚",                                                # G17 繁简统一
 }
 
 
@@ -3659,6 +3724,56 @@ JA_CONTEXT = [
     #   Karaoke Songs Arrive Wednesday, November 11」；日文「ジョイサウンド」）。
     #   ⇒ 官方写法是全大写 JOYSOUND（无空格），本片谷翻留「Joy Sound」⇒ 订正。——
     (r"ジョイサウンド|JOYSOUND", "Joy Sound", "JOYSOUND"),
+    # ===== 2026-11-08 二校回灌（同批）：全部日语参考行锚定，长形在前，禁裸键 =====
+    # 依据同上；本批错形均为通用词 / 拉丁残留 / 同锚多义，故一律 (日语锚, 中文错形, 正确形)。
+    # —— 西格莉卡 Sigrika（对照表 L105 シグリカ；二校实测 5 处 Shigurika/Shigurumi 漏校）——
+    (r"しぐり|シグリカ", "Shigurika", "西格莉卡"),
+    (r"しぐり|シグリカ", "Shigurumi", "西格莉卡"),
+    # —— 达妮娅 Denia（#719 ダーニはどこ；#591 ダニ=蜱虫为通用词，必锚）——
+    (r"ダーニ(?:ャ|は|にゃ)", "达尼", "达妮娅"),
+    (r"ダニにゃ|ダニ(?:は|が|を)", "蜱虫", "达妮娅"),
+    # —— 推測共鳴者（#1682 日文汉字照抄，补系词）——
+    (r"推測共鳴者", "推测共鸣者", "推测是共鸣者"),
+    # —— 罗伊族 Roya Tribe（对照表 L181 ロイ人；#1763 罗伊一族衍字）——
+    (r"ロイ一族", "罗伊一族", "罗伊族"),
+    # —— 隧者 Exostrider（官方 ja 名 エクソストライダー；G04 拉丁/机翻残留族）——
+    (r"エクソストライダー|エクソスライダー|エクソライダー|エクソスライナー", "Exo Strider", "隧者"),
+    (r"エクソストライダー|エクソスライダー|エクソライダー|エクソスライナー", "Exoslider", "隧者"),
+    (r"エクソストライダー|エクソスライダー|エクソライダー|エクソスライナー", "Exostliner", "隧者"),
+    (r"エクソストライダー|エクソスライダー|エクソライダー|エクソスライナー", "exo 滑块", "隧者"),
+    (r"エクソストライダー|エクソスライダー|エクソライダー|エクソスライナー", "外行者", "隧者"),
+    (r"エクソストライダー|エクソスライダー|エクソライダー|エクソスライナー", "隧者s", "隧者"),
+    # —— 爱弥斯 Aemeath（G05 拉丁残留）——
+    (r"エイミース|エイムス|エメス", "Amis", "爱弥斯"),
+    # —— 共鸣者 Resonator（G10 通用词必锚）——
+    (r"共鳴者", "共鸣器", "共鸣者"),
+    # —— 鸣式 / 阿列夫一（G12/G13）——
+    (r"名式|鳴式", "名称公式", "鸣式"),
+    (r"名式|鳴式", "内式", "鸣式"),
+    (r"名式|鳴式", "明式", "鸣式"),
+    (r"アルフ|アレフ", "Alf 1", "阿列夫一"),
+    # —— 星炬学院 Startorch Academy（G14）——
+    (r"スタート学園|スタートーチ", "Start Academy", "星炬学院"),
+    # —— 隧门 Strider Gate（G16；长形先行，锚只打ストライダーゲート）——
+    (r"ストライダーゲート", "迈行者之门", "隧门"),
+    (r"ストライダーゲート", "跨行者之门", "隧门"),
+    (r"ストライダーゲート", "行者之门", "隧门"),
+    (r"ストライダーゲート", "Strider Gate", "隧门"),
+    # —— 虚质 / 虚质空间（G18/G19）——
+    (r"ボイドマター|Void Matter", "虚空物质", "虚质"),
+    (r"ボイドスペース|Void Space", "虚空空间", "虚质空间"),
+    # —— 残星会 Fractsides（G20 长形先行；禁「果苷/苷/残星会苷」短键级联坏串）——
+    (r"フラクトシデス|フラクトシ", "鸟果糖苷", "残星会"),
+    (r"フラクトシデス|フラクトシ", "Fractoshi", "残星会"),
+    (r"フラクトシデス|フラクトシ", "Praktosites", "残星会"),
+    # —— 伤痕 Scar（G09 通用词必锚）——
+    (r"スカー", "刀疤", "伤痕"),
+    # —— 会长 / 副会长（G30；锚打組織長，副形先行）——
+    (r"副組織長", "副组织长", "副会长"),
+    (r"組織長", "组织主任", "会长"),
+    # ⚠ 拒绝登记：「果苷/苷/残星会苷/残星会oshi/残星会des」短键级联坏串、
+    #   「光伏发电→PV」纯拉丁化（破坏 verify 版式）、K01-K07 低置信、K08 观众昵称、
+    #   以及只在 fix.tsv 落地的整句精修，详见 回灌清单_r2.md。
 ]
 
 
