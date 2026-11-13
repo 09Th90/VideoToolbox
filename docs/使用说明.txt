@@ -6,7 +6,7 @@
 
 零、安装与首次启动
 ------------------
-· 离线包 VideoToolbox_Setup_v2.8.0.exe，约 1.0GB；在线安装器只下载缺失文件。
+· 离线包 VideoToolbox_Setup_v2.9.0.exe，约 1.0GB；在线安装器只下载缺失文件。
 · 默认安装到 D:\VideoToolbox，可以改；不需要管理员权限。
 · v2.6.0 起为 onedir 形态：安装目录含 视频工具箱.exe 和 _internal\，
   不要只复制 exe。

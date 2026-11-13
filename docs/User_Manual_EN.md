@@ -77,8 +77,8 @@ the first frame (AI Harness only appears when its runtime is available).
 
 | Package | Best for | Notes |
 | --- | --- | --- |
-| `VideoToolbox_Setup_v2.8.0.exe` | New users, offline deployment | About 1.0GB |
-| `VideoToolbox_OnlineSetup_v2.8.0.exe` | Existing users with good network | Downloads only missing files |
+| `VideoToolbox_Setup_v2.9.0.exe` | New users, offline deployment | About 1.0GB |
+| `VideoToolbox_OnlineSetup_v2.9.0.exe` | Existing users with good network | Downloads only missing files |
 | Source mode | Running the latest code | Python 3.12 required, see section 15 |
 
 Already installed? Open **设置 → 程序更新 → 检查更新**. The updater downloads only

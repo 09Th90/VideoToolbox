@@ -1605,6 +1605,25 @@ ENTITIES_PART2 = [
     Entity("浮游放逐舱", modes=("ak",), category="技能实体/明日方舟",
            note="克莱门莎 S2「风暴潮」召唤物：推开累计重量≤8 的任意敌人（含 Boss），附带漩涡（每秒侵蚀损伤，固定值不受防御影响）。"
                 "「放逐舱」短键会咬自身产出「浮游浮游放逐舱」，不入裸键，逐 cue 处理。"),
+    # --- 2026-11-13 明日方舟《The Existential Philosophy of Arknights》二次精校沉淀 ---
+    #   官方依据：PRTS 普瑞赛斯/科西切/费德里科页；主线14章凯尔希「内化宇宙」；
+    #   7-18 爱国者台词；加缪《西西弗神话》通行中译。仅 --ak，避免污染其他片源。
+    Entity("普瑞赛斯", modes=("ak",), en="Priestess", category="角色/明日方舟",
+           variants=("普利赛斯", "普莉塞斯", "普瑞赛丝"),
+           ctx=((r"(?i)\bPriestess\b", "女祭司"),),
+           note="源石创造者之一，博士的同僚；官方中文=普瑞赛斯。'女祭司'是 priestess 的机翻直译，"
+                "只在英文参考行命中 Priestess 时替换（裸键会误伤宗教语境）。"),
+    Entity("预言家", modes=("ak",), en="Oracle", category="角色/明日方舟",
+           ctx=((r"(?i)\bOracle\b", "神谕者"), (r"(?i)\bOracle\b", "先知")),
+           note="博士前身份；官方中文=预言家（非神谕者）。'先知'是普通词，仅在 Oracle 佐证时替换。"),
+    Entity("科西切", modes=("ak",), en="Koschei", category="角色/明日方舟",
+           variants=("科谢伊", "科西杰", "科希切"),
+           note="'不死的黑蛇'；官方中文=科西切（Koschei the Deathless Black Snake）。"
+                "三种音译均为低频专名错形，可裸键。"),
+    Entity("费德里科", modes=("ak",), en="Federico", category="角色/明日方舟",
+           ctx=((r"(?i)\bFederico\b", "费德里克"), (r"(?i)\b(?:Federico|Frederico)\b", "弗雷德里克")),
+           note="拉特兰执行者，全名费德里科·吉亚洛；官方中文=费德里科。"
+                "'费德里克/弗雷德里克'是常见西名音译，只走英文参考行锚定。"),
     # --- 2026-10-25 多游戏音乐 Tier List（2747 cue）二次校准沉淀 ---
     # 片源：英语原声 + 谷翻，17 款作品、103 条分章；官方中文依据：
     #   庄方宜 endo_glossary.tsv:62；少女前线官方无「1」；

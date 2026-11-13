@@ -182,13 +182,15 @@ Source: "..\tools\mpv\libmpv-2.dll"; DestDir: "{app}\tools\mpv"; Flags: ignoreve
 ; 内嵌 Python 运行时（字幕处理引擎运行时及其依赖随包分发，开箱可用）；
 ; 排除字节码缓存瘦身
 Source: "..\tools\python\*"; DestDir: "{app}\tools\python"; Flags: ignoreversion recursesubdirs createallsubdirs; Excludes: "*.pyc,__pycache__"
-; 2026-11-09：本地 ASR 权重随包分发（large-v3 2.9 GiB + small.en 464 MiB）。
-;   ⚠ 只放 {app}\tools\asr_model\faster-whisper\ **盘路径**：src\asr_local_paths.py
-;   的 resolve_tools_dir 按 {app}\tools 定位，并禁止按 _MEIPASS / %TEMP% 推导；
+; 2026-11-13：本地 ASR 权重不再随包分发（用户口径「有这个功能即可」）。
+;   faster-whisper 功能代码与依赖仍由 spec hiddenimports 内置；权重由用户自备，
+;   放到 {app}\tools\asr_model\faster-whisper\ 盘路径，或在
+;   「设置 → ASR → 本地独立模型」指定目录。src\asr_local_paths.py 的
+;   resolve_tools_dir 按 {app}\tools 定位，禁止按 _MEIPASS / %TEMP% 推导；
 ;   改成 PyInstaller datas 会解包到 _MEIPASS，运行时读不到（硬约束）。
+;   缺权重时 engine_asr_local 明确报错，绝不静默切回云端。
 ;   ⚠ 同目录 {app}\tools\asr_model\ 根下的声纹 .onnx 仍按既有口径按需下载、
-;   不进包（见 spec:220 与下方 [InstallDelete] 注释），本条只覆盖 faster-whisper 子目录。
-Source: "..\tools\asr_model\faster-whisper\*"; DestDir: "{app}\tools\asr_model\faster-whisper"; Flags: ignoreversion recursesubdirs createallsubdirs
+;   不进包（见 spec:220 与下方 [InstallDelete] 注释）。
 ; 字幕引擎纯代码 wheel 不含 resource（界面图片/字体/默认字幕样式/多语言）。
 ; 这些静态资源随包分发，内嵌引擎才能离线自包含、真正成为程序一部分（v1.10.8）。
 ; ⚠️ 2026-10-12 曾误判「资源已内嵌进主程序 exe」而归档停发，实际 exe 并不含

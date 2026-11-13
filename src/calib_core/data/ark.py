@@ -747,6 +747,15 @@ AK_TERMS = {
     "原始警卫": "本源近卫",    # primal guard 谷翻变体（原始守卫已有，#3）
     "IS模式": "集成战略",      # IS mode（#105/133）；长键安全，产出不含自身
     "sp成本": "技力消耗",      # sp cost（#90）；SP=技力
+    # --- 2026-11-13 二次精校沉淀：《The Existential Philosophy of Arknights》（560 cue，英声+微软翻，--ak）---
+    #   官方依据：PRTS 普瑞赛斯/科西切/费德里科页；主线14章凯尔希「内化宇宙」；
+    #   7-18 爱国者「厄运与惨剧·事在人为·幼小的魔王」；加缪《西西弗神话》通行中译。
+    #   原则：仅收「正常中文绝不会连写」的专名错形；女祭司/神谕者/舞台 等普通词一律走 AK_CONTEXT。
+    "同化宇宙": "内化宇宙",          # 官方=内化宇宙（源石内部的信息之海），非"同化宇宙"
+    "普利赛斯": "普瑞赛斯", "普莉塞斯": "普瑞赛斯", "普瑞赛丝": "普瑞赛斯",
+    "科谢伊": "科西切", "科西杰": "科西切", "科希切": "科西切",
+    "幼小君王": "幼小魔王",          # 7-18 爱国者官方台词「幼小的魔王啊」
+    "凯尔西尔": "凯尔希", "凯尔希尔": "凯尔希",  # Kelsier ASR 变体（Kal'tsit）；长键先行，防"凯尔西"短键咬成"凯尔希尔"
 }
 
 # =============================================================
@@ -789,7 +798,7 @@ AK_CONTEXT = [
     (r"(?<!damage )\bpotential\b", "潜力", "潜能"),   # #54 potential=明日方舟"潜能"；2026-11-11 二校排除 damage potential（伤害潜力，Clementia VS 片 #97 误伤根因；锚点经空白规整，定宽 lookbehind 可用）
     (r"\bspecter alter\b", "幽灵变形", "归溟幽灵鲨"),  # #55 Specter alter 官方=归溟幽灵鲨
     (r"\bgavial alter\b", "加维尔", "百炼嘉维尔"),  # #56 Gavial alter 官方=百炼嘉维尔
-    (r"\bspark\b", "火花", "黄票兑换"),             # #55 spark cost=黄票兑换消耗
+    (r"\bspark\s+cost\b", "火花", "黄票兑换"),      # #55 spark cost=黄票兑换消耗；2026-11-13 收窄：裸 spark（火花）会误伤剧情文本
     (r"\brate up\b", "卡率提升", "概率提升"),       # #53 rate up
     (r"\benablers?\b", "纵容者", "损伤拐"),        # #47 enabler；2026-11-11 统一口径 启动器→损伤拐（社区通用语，参考件全片用此）
     (r"\benablers?\b", "推动者", "损伤拐"),        # 2026-11-11 谷翻"元素推动者/实际推动者"
@@ -969,6 +978,23 @@ AK_CONTEXT = [
     (r"\bgranny\b", "奶奶", "号角"),      # #135-136 Granny=Horn 官方名号角
     #   2026-11-10 二校（同片）：trailer 机翻固定错译「拖车」——裸键不入（通用性强，2026-11-08 戒律），锚参考行才改。
     (r"\btrailers?\b", "拖车", "预告片"),      # #52/#56 this trailer
+    # --- 2026-11-13 二次精校沉淀（同片）：官方台词/哲学引文的措辞收紧 ---
+    #   实体（普瑞赛斯/预言家/科西切/费德里科）已登记在 entities_part2.py 同日块，此处不重复。
+    (r"(?i)\bAssimilator Universe\b|\bAssimilated Universe\b", "同化宇宙", "内化宇宙"),
+    (r"\blittle king of Sarkaz\b", "幼小君王", "幼小魔王"),
+    (r"\b(?:it is|it's) all in our hands\b", "一切都在我们手中", "事在人为"),
+    (r"\bI have seen war and tragedy\b", "战争与惨剧", "厄运与惨剧"),
+    (r"\bthe actor and his setting\b", "舞台", "背景"),   # 加缪：演员与其背景的离异
+    (r"\bbetween actor and setting\b", "舞台", "背景"),
+    (r"\bfill a man['’]s\b", "填满一个人的", "充实一颗"),  # 加缪：足以充实一颗人心
+    (r"\bAll too human\b", "太人性了", "太人性的"),          # 尼采书名《人性的，太人性的》
+    # --- 2026-11-13 回归补漏：本片机翻基线高频错形（均为普通词，故只走参考行锚定）---
+    (r"\bTerra\b", "地球", "泰拉"),
+    (r"\bReunion\b", "留尼汪号", "整合运动"),
+    (r"\bReunion\b", "留尼汪", "整合运动"),                  # Reunion 被当成法属留尼汪
+    (r"(?i)\bCatastrophes?\b", "灾难", "天灾"),
+    (r"(?i)\bprecursors?\b", "前驱体", "前文明"),
+    (r"(?i)\bTheresa\b", "特蕾莎", "特蕾西娅"),
 ]
 
 # =============================================================
@@ -984,6 +1010,12 @@ AK_MISSING_CHECK = [
     (r"\bOperator\b", ("干员",), "Operator 官方中文=干员（ark_glossary.tsv:14）"),
     (r"\bReunion\b", ("整合运动",), "Reunion 官方中文=整合运动（ark_glossary.tsv:45）"),
     (r"\bYan\b", ("炎",), "Yan 官方中文=炎（ark_glossary.tsv:48）；单字低置信，命中请人工确认"),
+    # 2026-11-13 二次精校补：哲学/主线高频专名的漏校体检（只报不改）
+    (r"(?i)\bPriestess\b", ("普瑞赛斯",), "Priestess 官方中文=普瑞赛斯（PRTS）"),
+    (r"(?i)\bOracle\b", ("预言家",), "Oracle 官方中文=预言家（非神谕者）"),
+    (r"(?i)\bKoschei\b", ("科西切",), "Koschei 官方中文=科西切（不死的黑蛇）"),
+    (r"(?i)\bFederico\b", ("费德里科",), "Federico 官方中文=费德里科"),
+    (r"\bAssimilator Universe\b", ("内化宇宙",), "Assimilator Universe 官方中文=内化宇宙"),
 ]
 
 AK_KO_TERMS = {

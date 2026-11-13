@@ -247,6 +247,11 @@ subtitle_calib_merged.py.bak_*
 # 部署/升级步骤见 docs/AI托管_部署与排障.md 与 scripts/dev/deploy_harness.ps1
 /harness/
 
+# IDE 会话计划 / 第三方部署备份 / 图像草稿（均未跟踪，防 git add -A 误提交）
+/.zcode/
+/harness.bak-*/
+/vibe_images/
+
 # ---- 安全（2026-10-22 密钥泄露事件后补）----
 # UI 基线快照的临时/中间产物：只允许正式文件入库。
 scripts/dev/_golden/*.tmp.json

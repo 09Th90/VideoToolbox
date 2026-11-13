@@ -4868,6 +4868,15 @@ AK_TERMS = {
     "原始警卫": "本源近卫",    # primal guard 谷翻变体（原始守卫已有，#3）
     "IS模式": "集成战略",      # IS mode（#105/133）；长键安全，产出不含自身
     "sp成本": "技力消耗",      # sp cost（#90）；SP=技力
+    # --- 2026-11-13 二次精校沉淀：《The Existential Philosophy of Arknights》（560 cue，英声+微软翻，--ak）---
+    #   官方依据：PRTS 普瑞赛斯/科西切/费德里科页；主线14章凯尔希「内化宇宙」；
+    #   7-18 爱国者「厄运与惨剧·事在人为·幼小的魔王」；加缪《西西弗神话》通行中译。
+    #   原则：仅收「正常中文绝不会连写」的专名错形；女祭司/神谕者/舞台 等普通词一律走 AK_CONTEXT。
+    "同化宇宙": "内化宇宙",          # 官方=内化宇宙（源石内部的信息之海），非"同化宇宙"
+    "普利赛斯": "普瑞赛斯", "普莉塞斯": "普瑞赛斯", "普瑞赛丝": "普瑞赛斯",
+    "科谢伊": "科西切", "科西杰": "科西切", "科希切": "科西切",
+    "幼小君王": "幼小魔王",          # 7-18 爱国者官方台词「幼小的魔王啊」
+    "凯尔西尔": "凯尔希", "凯尔希尔": "凯尔希",  # Kelsier ASR 变体（Kal'tsit）；长键先行，防"凯尔西"短键咬成"凯尔希尔"
 }
 
 # =============================================================
@@ -4910,7 +4919,7 @@ AK_CONTEXT = [
     (r"(?<!damage )\bpotential\b", "潜力", "潜能"),   # #54 potential=明日方舟"潜能"；2026-11-11 二校排除 damage potential（伤害潜力，Clementia VS 片 #97 误伤根因；锚点经空白规整，定宽 lookbehind 可用）
     (r"\bspecter alter\b", "幽灵变形", "归溟幽灵鲨"),  # #55 Specter alter 官方=归溟幽灵鲨
     (r"\bgavial alter\b", "加维尔", "百炼嘉维尔"),  # #56 Gavial alter 官方=百炼嘉维尔
-    (r"\bspark\b", "火花", "黄票兑换"),             # #55 spark cost=黄票兑换消耗
+    (r"\bspark\s+cost\b", "火花", "黄票兑换"),      # #55 spark cost=黄票兑换消耗；2026-11-13 收窄：裸 spark（火花）会误伤剧情文本
     (r"\brate up\b", "卡率提升", "概率提升"),       # #53 rate up
     (r"\benablers?\b", "纵容者", "损伤拐"),        # #47 enabler；2026-11-11 统一口径 启动器→损伤拐（社区通用语，参考件全片用此）
     (r"\benablers?\b", "推动者", "损伤拐"),        # 2026-11-11 谷翻"元素推动者/实际推动者"
@@ -5090,6 +5099,23 @@ AK_CONTEXT = [
     (r"\bgranny\b", "奶奶", "号角"),      # #135-136 Granny=Horn 官方名号角
     #   2026-11-10 二校（同片）：trailer 机翻固定错译「拖车」——裸键不入（通用性强，2026-11-08 戒律），锚参考行才改。
     (r"\btrailers?\b", "拖车", "预告片"),      # #52/#56 this trailer
+    # --- 2026-11-13 二次精校沉淀（同片）：官方台词/哲学引文的措辞收紧 ---
+    #   实体（普瑞赛斯/预言家/科西切/费德里科）已登记在 entities_part2.py 同日块，此处不重复。
+    (r"(?i)\bAssimilator Universe\b|\bAssimilated Universe\b", "同化宇宙", "内化宇宙"),
+    (r"\blittle king of Sarkaz\b", "幼小君王", "幼小魔王"),
+    (r"\b(?:it is|it's) all in our hands\b", "一切都在我们手中", "事在人为"),
+    (r"\bI have seen war and tragedy\b", "战争与惨剧", "厄运与惨剧"),
+    (r"\bthe actor and his setting\b", "舞台", "背景"),   # 加缪：演员与其背景的离异
+    (r"\bbetween actor and setting\b", "舞台", "背景"),
+    (r"\bfill a man['’]s\b", "填满一个人的", "充实一颗"),  # 加缪：足以充实一颗人心
+    (r"\bAll too human\b", "太人性了", "太人性的"),          # 尼采书名《人性的，太人性的》
+    # --- 2026-11-13 回归补漏：本片机翻基线高频错形（均为普通词，故只走参考行锚定）---
+    (r"\bTerra\b", "地球", "泰拉"),
+    (r"\bReunion\b", "留尼汪号", "整合运动"),
+    (r"\bReunion\b", "留尼汪", "整合运动"),                  # Reunion 被当成法属留尼汪
+    (r"(?i)\bCatastrophes?\b", "灾难", "天灾"),
+    (r"(?i)\bprecursors?\b", "前驱体", "前文明"),
+    (r"(?i)\bTheresa\b", "特蕾莎", "特蕾西娅"),
 ]
 
 # =============================================================
@@ -5105,6 +5131,12 @@ AK_MISSING_CHECK = [
     (r"\bOperator\b", ("干员",), "Operator 官方中文=干员（ark_glossary.tsv:14）"),
     (r"\bReunion\b", ("整合运动",), "Reunion 官方中文=整合运动（ark_glossary.tsv:45）"),
     (r"\bYan\b", ("炎",), "Yan 官方中文=炎（ark_glossary.tsv:48）；单字低置信，命中请人工确认"),
+    # 2026-11-13 二次精校补：哲学/主线高频专名的漏校体检（只报不改）
+    (r"(?i)\bPriestess\b", ("普瑞赛斯",), "Priestess 官方中文=普瑞赛斯（PRTS）"),
+    (r"(?i)\bOracle\b", ("预言家",), "Oracle 官方中文=预言家（非神谕者）"),
+    (r"(?i)\bKoschei\b", ("科西切",), "Koschei 官方中文=科西切（不死的黑蛇）"),
+    (r"(?i)\bFederico\b", ("费德里科",), "Federico 官方中文=费德里科"),
+    (r"\bAssimilator Universe\b", ("内化宇宙",), "Assimilator Universe 官方中文=内化宇宙"),
 ]
 
 AK_KO_TERMS = {
@@ -11524,6 +11556,10 @@ ENTITIES = [
     Entity('伯塔尼', modes=('ak',), en='Botani', ja='', ko='', category='干员/明日方舟', variants=(), ctx=(), exclude=(), note='5★ 辅助·巫役（侵蚀），SideStory「人们，我们」活动赠送（2026.4.7），首位侵蚀损伤核心干员；乌萨斯学生自治团；天赋「背弃沉默」，技能「谐波破坏」「静域回声」。PRTS 2026-11-11 核实。'),
     Entity('余', modes=('ak',), en='Yu', ja='', ko='', category='干员/明日方舟', variants=(), ctx=(), exclude=(), note='6★ 重装·本源铁卫（灼燃），限定，2025.1.22 春节「炽吾生平」；灼燃损伤拐，S3「灶里乾坤」火墙拐。PRTS 2026-11-11 核实。单字官方名，不设裸键（会误伤），仅元数据供跨语识别。英语 ASR 常把 Yu 听成 you（《Should You Save for Talulah?》#20「bobbing or you」/#95「someone like You」），需人工按灼燃拐语境判余，禁 you→余 全局键。'),
     Entity('浮游放逐舱', modes=('ak',), en='', ja='', ko='', category='技能实体/明日方舟', variants=(), ctx=(), exclude=(), note='克莱门莎 S2「风暴潮」召唤物：推开累计重量≤8 的任意敌人（含 Boss），附带漩涡（每秒侵蚀损伤，固定值不受防御影响）。「放逐舱」短键会咬自身产出「浮游浮游放逐舱」，不入裸键，逐 cue 处理。'),
+    Entity('普瑞赛斯', modes=('ak',), en='Priestess', ja='', ko='', category='角色/明日方舟', variants=('普利赛斯', '普莉塞斯', '普瑞赛丝'), ctx=(('(?i)\\bPriestess\\b', '女祭司'),), exclude=(), note="源石创造者之一，博士的同僚；官方中文=普瑞赛斯。'女祭司'是 priestess 的机翻直译，只在英文参考行命中 Priestess 时替换（裸键会误伤宗教语境）。"),
+    Entity('预言家', modes=('ak',), en='Oracle', ja='', ko='', category='角色/明日方舟', variants=(), ctx=(('(?i)\\bOracle\\b', '神谕者'), ('(?i)\\bOracle\\b', '先知')), exclude=(), note="博士前身份；官方中文=预言家（非神谕者）。'先知'是普通词，仅在 Oracle 佐证时替换。"),
+    Entity('科西切', modes=('ak',), en='Koschei', ja='', ko='', category='角色/明日方舟', variants=('科谢伊', '科西杰', '科希切'), ctx=(), exclude=(), note="'不死的黑蛇'；官方中文=科西切（Koschei the Deathless Black Snake）。三种音译均为低频专名错形，可裸键。"),
+    Entity('费德里科', modes=('ak',), en='Federico', ja='', ko='', category='角色/明日方舟', variants=(), ctx=(('(?i)\\bFederico\\b', '费德里克'), ('(?i)\\b(?:Federico|Frederico)\\b', '弗雷德里克')), exclude=(), note="拉特兰执行者，全名费德里科·吉亚洛；官方中文=费德里科。'费德里克/弗雷德里克'是常见西名音译，只走英文参考行锚定。"),
     Entity('庄方宜', modes=('jpe', 'react'), en='Zhuang Fangyi', ja='', ko='', category='角色/终末地', variants=('Zhuang Fang Yi', 'Zhuang Fangyi', 'Zhuang FangYi', '庄芳怡'), ctx=(), exclude=(), note='终末地角色；endo_glossary.tsv:62；2026-10-25 二校 #1672；2026-10-26 四校 #1693 ASR Fungi=Fangyi（不设裸键）。'),
     Entity('少女前线', modes=('react',), en="Girls' Frontline", ja='', ko='', category='作品/游戏', variants=('少女前线1',), ctx=(), exclude=(), note='官方无「1」；GFL1 是视频分章标识；2026-10-25 二校 #1640。'),
     Entity('TRUE FIREPOWER', modes=('react',), en='TRUE FIREPOWER', ja='', ko='', category='曲目/NIKKE', variants=('True Fire Power', 'True Firepower', 'True Fire power'), ctx=(), exclude=(), note='NIKKE 曲名官方全大写；无官方中文，保留英文；视频信息 02:38。'),
