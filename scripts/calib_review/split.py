@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# @version 2.8.0
+# @version 2.9.0
 """把 all.tsv 切成等量批次，供并行精校。"""
 import os
-R = r"I:\Agent Work\软件开发\视频工具箱\review"
+
+#: 脚本位于 <程序根>/scripts/calib_review/，与 extract.py 用同一个 data/tmp/ 产物目录
+APP_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+R = os.path.join(APP_ROOT, 'data', 'tmp', 'calib_review')
 lines = open(os.path.join(R, 'all.tsv'), encoding='utf-8').read().rstrip('\n').split('\n')
 N = 12
 size = -(-len(lines) // N)

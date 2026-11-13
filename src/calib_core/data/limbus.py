@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.8.0
+# @version 2.9.0
 """边狱巴士（Limbus Company）片源术语/语境表（--limbus，2026-10-26 新增）
 
 片源：《Music Composer Reacts - Canto X Boss 3 Battle Theme (Limbus Company)》
@@ -14,6 +14,13 @@
 
 硬契约：本表只收可安全全局替换的长键/专名；「边狱公司／老大／字符串／大剧院／
 结束生命／男声合唱团」等正常中文词不收裸键，避免误伤剧情/其它语境。
+
+2026-11-10 二校沉淀（《This Is Gacha Worldbuilding at Its Peak》，1004 cue）：
+  本片是 Arknights × Limbus 混合 reaction，新增的《废墟图书馆》《脑叶公司》、
+  R/F/G/J/K/M/N/P/T/U/W 公司、后巷/收尾人/色彩收尾人/帮派/妖精/翼/跃迁列车/
+  月光石/概念焚化炉 等条目，按项目约定追加在 data/entities_part2.py 的
+  「2026-11-10 二校沉淀」段（modes=("limbus",)），由 _register_entities 投影回本表；
+  本文件不作为重复登记点。Limbus 无官方简中，仍按零协/社区口径。
 """
 
 LIMBUS_TERMS = {

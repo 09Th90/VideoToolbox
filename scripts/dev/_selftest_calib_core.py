@@ -1,11 +1,13 @@
 # -*- coding: utf-8 -*-
-# @version 2.8.0
+# @version 2.9.0
 """calib_core 并行包自检（不部署、不修改生产单文件）。
 
 覆盖：
   1. 静态契约：表/上下文/ENTITIES/缓存与生产单文件逐项相等；
-  2. 19 个校准模式：out/report/rows/hits/stdout 逐字节一致；
+  2. 23 个校准模式：out/report/rows/hits/stdout 逐字节一致；
   3. 格式边界：CRLF/BOM/英文在上/单行韩语/无末尾空行；
+     3b. 英文在上版式的取行与 merge/length/flow/align-audit/audit 五条通路；
+     3c. EP17 相变临界术语沉淀 + ak 分支 EXCLUDE 回滚层（含凯尔特/Cow·Calcite 负例）；
   4. 28 个子命令：rc/stdout/stderr/产物一致；
   5. 导入无写盘、无参用法文档、缓存原地重建、性能记录。
 
@@ -20,6 +22,7 @@ import importlib.util
 import io
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -134,7 +137,7 @@ def test_static(ref, pkg):
 
     caches = [
         "_CONTEXT_COMPILED", "_EXCLUDE_COMPILED", "_JA_CONTEXT_COMPILED",
-        "_JA_ENDFIELD_CONTEXT_COMPILED", "_AK_CONTEXT_COMPILED",
+        "_JA_ENDFIELD_CONTEXT_COMPILED", "_JA_PGR_CONTEXT_COMPILED", "_AK_CONTEXT_COMPILED",
         "_AK_KO_CONTEXT_COMPILED", "_KO_CONTEXT_COMPILED",
         "_KO_ASR_CONTEXT_COMPILED", "_REACT_CONTEXT_COMPILED",
         "_HSR_CONTEXT_COMPILED", "_POKEMON_CONTEXT_COMPILED",
@@ -188,11 +191,19 @@ def test_static(ref, pkg):
     check("缓存重建可还原", len(engine._CONTEXT_COMPILED) == before)
 
 
-# ---------------------------------------------------------------- 2. 19 模式
+# ---------------------------------------------------------------- 2. 23 模式
 
 MODES = ["bi", "ko", "ja", "jpe", "wwoc", "ak", "akko", "zho", "endo",
-         "endobi", "endoko", "pgr", "pgren", "react", "zel", "hsr", "pkm", "limbus", "ffrs"]
-REFS = {"ja": "テストの文", "jpe": "テストの文", "ko": "테스트 문장",
+         "endobi", "endoko", "pgr", "pgren", "react", "zel", "hsr", "pkm", "limbus", "ffrs",
+         # 2026-11-01：pbz 是 2026-10-30 加模式时漏同步的一项，连同新增的 ff14 一起补齐
+         "pbz", "ff14",
+         # 2026-11-03 新增：战双日语原声（--pgrja）
+         "pgrja",
+         # 2026-11-03 新增：明日方舟日语原声（--akja）
+         "akja"]
+REFS = {"ja": "テストの文", "jpe": "テストの文", "pgrja": "テストの文",
+        "akja": "テストの文",
+        "ko": "테스트 문장",
         "akko": "테스트 문장", "endoko": "테스트 문장"}
 
 
@@ -211,7 +222,9 @@ def mode_srt(ref, mode):
         body = [f"{z}测试", "第二行中文", en, "second english line"]
     elif mode in ("akko", "endoko"):
         body = [f"{z}测试", "테스트 문장"]
-    elif mode in ("ja", "jpe"):
+    elif mode in ("ja", "jpe", "pgrja", "akja"):
+        # 日语原声片：参考行是日语，ctx 锚点打在日语行上。
+        # ⚠ 别让 pgrja/akja 落到 else 的英文样例分支——那样 ctx 永不命中，等于测空转。
         body = [f"{z}测试", "テストの文"]
     elif mode == "endo":
         body = [f"{z}测试"]
@@ -235,7 +248,7 @@ def run_process(ref, pkg, src, mode, **kw):
 
 
 def test_modes(ref, pkg):
-    section("2. 19 模式")
+    section("2. 23 模式")
     with tempfile.TemporaryDirectory(prefix="calib_selftest_modes_") as d:
         for mode in MODES:
             src = os.path.join(d, mode + ".srt")
@@ -291,6 +304,62 @@ def test_wwoc_context(ref, pkg):
         check("wwoc 参考行不变",
               "크루세이더의 노래" in txt and "잔물결이란 노래" in txt
               and "리버스 노래" in txt and "앨리스 픽션 노래" in txt)
+
+
+def test_akja_context(ref, pkg):
+    section("2d. AKJA（日语原声·明日方舟）正例")
+    # 这一节补的是 --pgrja 当初没做的「正例」环节：只测「生成物 vs 包」一致性的 test_modes
+    # 查不出两类静默灾难 —— engine 漏 terms 分支会拿鸣潮 BILINGUAL_TERMS 改方舟片，
+    # 漏 cue 分派分支会掉进 bi 的 else。故这里同时断言**替换确实发生**与**无关语境不替换**。
+    with tempfile.TemporaryDirectory(prefix="calib_selftest_akja_") as d:
+        src = os.path.join(d, "akja.srt")
+        body = "\r\n".join([
+            # 1) ctx 命中：天灾 <- スカージ（正常中文词，只能锚定，禁裸键）
+            "1", "00:00:01,000 --> 00:00:03,000", "哦，天灾也有一定的威慑力", "あ、スカージも威嚇があるね",
+            "",
+            # 2) ctx 不得越界：中文同样有"天灾"，但参考行没有スカージ ⇒ 必须原样
+            "2", "00:00:03,000 --> 00:00:05,000", "这场天灾真可怕", "この天災は恐ろしい",
+            "",
+            # 3) 纯汉字日语参考行（本片 61 条靶区，#78 型）：ref_pos 为空时锚点回落末文本行，
+            #    且**第二行必须逐字节不变**（ak 分支做不到这一点，故 akja 照 jpe 形状）
+            "3", "00:00:05,000 --> 00:00:07,000", "四四章", "四四章",
+            "",
+            # 4) 合并表生效：AK_TERMS 的通用方舟错形（凯尔西）在 --akja 下也必须命中
+            "4", "00:00:07,000 --> 00:00:09,000", "凯尔西来了", "ケルシーが来た",
+            "",
+            # 5) AK_JA_TERMS 的日语向裸键（片假名音译串）
+            "5", "00:00:09,000 --> 00:00:11,000", "那是苏卡吉，苏卡吉在哪", "あれ、スカジはどこですか",
+            "",
+            # 6) **尾巴类**：AK_TERMS 的裸键 Pepe->佩佩 会咬住 ASR 形 "Pepei" 产「佩佩i」
+            #    （#2219 参考行「本当にまだペーペイだからさ」）⇒ ctx 必须把尾巴收回拉丁原形
+            "6", "00:00:11,000 --> 00:00:13,000", "真的还是Pepei，嗯，一切", "本当にまだペーペイだからさ",
+            "",
+        ])
+        open(src, "wb").write(body.encode("utf-8"))
+        a, b, o1, o2, r1, r2, s1, s2 = run_process(ref, pkg, src, "akja")
+        txt = o2.decode("utf-8")
+        check("akja 生成物与包输出逐字节一致", o1 == o2 and r1 == r2 and s1 == s2)
+        check("akja ctx 锚定生效（天灾->斯卡蒂）", "斯卡蒂也有一定的威慑力" in txt)
+        check("akja ctx 不越界（无スカージ锚点的天灾保留）", "这场天灾真可怕" in txt)
+        check("akja 纯汉字参考行锚定生效（四四章->4-4 章）", "4-4 章" in txt)
+        check("akja 纯汉字参考行第二行逐字节不动",
+              txt.count("四四章") == 1 and "テスト" not in txt)
+        check("akja 合并 AK_TERMS 生效（凯尔西->凯尔希）", "凯尔希来了" in txt)
+        check("akja 日语向裸键生效（苏卡吉->斯卡蒂）",
+              "那是斯卡蒂，斯卡蒂在哪" in txt)
+        check("akja 尾巴不得留在产物（佩佩i 必须被收口）", "佩佩i" not in txt)
+        check("akja 尾巴收回拉丁原形（查无证件不校名）",
+              "真的还是Pepei，嗯，一切" in txt)
+        check("akja 确实产出了替换（rows>0，防空转）", len(a[0]) >= 4)
+        # str 模式默认带 re.UNICODE(32)，判据只能是「没开 IGNORECASE」，不是 flags==0
+        check("akja ctx 不带 re.I（锚点是假名/日服汉字）",
+              all(not (p.flags & re.IGNORECASE)
+                  for p, _w, _r in ref._AK_JA_CONTEXT_COMPILED))
+        check("akja 两张表都在注册表里",
+              "AK_JA_TERMS" in ref.TABLES and "AK_JA_CONTEXT" in ref.CTX_TABLES)
+        check("akja 模式投影目标已登记",
+              ref._MODE_TERM_TABLE.get("akja") == "AK_JA_TERMS"
+              and ref._MODE_CTX_TABLE.get("akja") == "AK_JA_CONTEXT")
 
 
 def test_ko_lotte_terms(ref, pkg):
@@ -373,6 +442,155 @@ def test_format(ref, pkg):
                   and "VERIFY OK" in v1.getvalue())
 
 
+# ------------------------------------------------------ 3b. 英文在上版式（2026-11-02）
+
+EN_FIRST_SRT = (
+    "1\r\n00:00:01,000 --> 00:00:03,000\r\n"
+    "Ark Knights is coming\r\n方舟骑士要来了\r\n\r\n"
+    "2\r\n00:00:04,000 --> 00:00:06,000\r\n"
+    "The doctor will smile\r\n医生会笑的\r\n\r\n"
+    "3\r\n00:00:07,000 --> 00:00:09,000\r\n"
+    "[音乐]\r\n[音楽]\r\n"
+)
+EN_FIRST_CALIB = "1\t明日方舟要来了\n2\t博士会笑的\n"
+
+
+def _srt_blocks(text):
+    return [b.replace("\r", "").split("\n") for b in re.split(r"\r?\n\r?\n+", text.strip())]
+
+
+def test_en_first_layout(ref, pkg):
+    """英文 ASR 在上、谷翻中文在下的片源：取行 / 回填 / 体检三条通路都要落在中文行。
+
+    回归动机：merge/length/flow/align-audit/audit 曾硬编码「末行=参考行」，在这类
+    片源上会把新中文写进英文行、把英文行当内容行体检（串位恒查不出、假绿灯）。
+    同时守住反向约束：「[音楽]」这类全汉字的日语参考行仍须按位置约定处理，
+    否则日语片源的参考行会被当成中文行整块覆盖。
+    """
+    section("3b. 英文在上版式")
+    for tag, m in (("单文件", ref), ("分包", pkg)):
+        check(f"取行 英文在上 {tag}", m._cue_zh_ref(["Hello", "你好"]) == ([1], [0]))
+        check(f"取行 中文在上 {tag}", m._cue_zh_ref(["你好", "Hello"]) == ([0], [1]))
+        check(f"取行 全汉字参考行仍按位置 {tag}",
+              m._cue_zh_ref(["[音乐]", "[音楽]"]) == ([0], [1]))
+        with tempfile.TemporaryDirectory(prefix="calib_selftest_enf_") as d:
+            src = os.path.join(d, "en_first.srt")
+            open(src, "wb").write(EN_FIRST_SRT.encode("utf-8"))
+            tab = os.path.join(d, "calib.tsv")
+            open(tab, "wb").write(EN_FIRST_CALIB.encode("utf-8"))
+            out = os.path.join(d, "merged.srt")
+            buf = io.StringIO()
+            with contextlib.redirect_stdout(buf):
+                m._cmd_merge(src, tab, out)
+            got = _srt_blocks(open(out, "rb").read().decode("utf-8"))
+            check(f"merge 只回填中文行 {tag}",
+                  got[0][2] == "Ark Knights is coming" and got[0][3] == "明日方舟要来了"
+                  and got[1][3] == "博士会笑的"
+                  and got[2][2] == "[音乐]" and got[2][3] == "[音楽]")
+            buf = io.StringIO()
+            with contextlib.redirect_stdout(buf):
+                m._cmd_verify(src, out)
+            check(f"verify 参考行零改动 {tag}",
+                  "VERIFY OK" in buf.getvalue() and "reference diffs: 0" in buf.getvalue())
+            rows = {num: zh for num, zh, _r in m._iter_cue_lines(out)}
+            check(f"length 内容行是中文行 {tag}",
+                  rows.get("1") == ["明日方舟要来了"] and rows.get("3") == ["[音乐]"])
+            first = m._cue_first_text_map(out)
+            check(f"align-audit 内容映射取中文行 {tag}",
+                  first[1] == "明日方舟要来了" and first[3] == "[音乐]")
+            _layout, triples = m._iter_cue_triples(out)
+            check(f"audit 中英两列不互换 {tag}",
+                  triples[0] == ("1", "明日方舟要来了", "Ark Knights is coming"))
+            flowed = os.path.join(d, "flowed.srt")
+            buf = io.StringIO()
+            with contextlib.redirect_stdout(buf):
+                m._cmd_flow(src, flowed)
+            a, b = _srt_blocks(open(src, "rb").read().decode("utf-8")), \
+                _srt_blocks(open(flowed, "rb").read().decode("utf-8"))
+            check(f"flow --out 不动英文参考行 {tag}", len(a) == len(b)
+                  and all(x[2] == y[2] for x, y in zip(a, b)))
+
+
+# ------------------------------------------------ 3c. EP17 术语与 ak 排除层（2026-11-02）
+
+# (中文行, 英文参考行, 期望中文行, 说明) —— 版式与 EP17 反应片一致：英文在上、中文在下
+_AK_POSITIVE = [
+    ("新的 mon3tr 吗", "is that like the new monster", "新的 Mon3tr 吗",
+     "AK_TERMS 大小写敏感裸键 mon3tr->Mon3tr"),
+    ("等等，关闭是不是可以实装了", "wait is playable closure finally", "等等，可露希尔是不是可以实装了",
+     "关闭 只按 closure 英文锚定"),
+    ("后卫吧", "defender, huh", "重装吧",
+     "后卫 只按 defender 锚定"),
+    ("好吧，医生", "All right, the doctor", "好吧，博士",
+     "医生 只按 doctor 锚定"),
+    ("所以连怪物都有全新皮肤", "so even Monster got a brand new skin", "所以连怪物都有全新皮肤",
+     "怪物 **不入表**：跨片实测 \"the monster reset\" 是通用怪物义，锚定过宽会误伤"),
+    ("那是愈伤组织的造型", "that's the callus design", "那是Mon3tr的造型",
+     "愈伤组织=callus 罕见形，保留锚定"),
+    ("称为临界相变", "is called Critical Phase Transition", "称为相变临界",
+     "EP17 官方章名裸键"),
+    ("克拉科恩是个疯狂的家伙", "Crackborn's a crazy one", "裂响是个疯狂的家伙",
+     "Crackborn/克拉科恩 -> 裂响"),
+]
+_AK_NEGATIVE = [
+    ("凯尔特神话很美", "Celtic mythology is beautiful", "凯尔特神话很美",
+     "凯尔特 绝不进 ak：AK_TERMS 无此键，bi 侧才由 EXCLUDE 兜"),
+    ("Cow 真的回来了，还有 Calcite", "so cow really is back", "Cow 真的回来了，还有 Calcite",
+     "短拉丁键 Cow/Cal 不入表，不得咬 Calcite"),
+    ("直播感谢 Enfield Arcane 的支持", "shoutout to Enfield Arcane", "直播感谢 Enfield Arcane 的支持",
+     "ak 分支新增 EXCLUDE 回滚层：参考行命中负例即撤销"),
+]
+_AK_POSITIVE_ONLY = [
+    ("感谢 Enfield", "endfield is coming soon", "感谢 终末地",
+     "ak EXCLUDE 层的正向对照（无负例则照常替换）"),
+]
+
+
+def _ak_srt(cases):
+    out = []
+    for i, (zh, en, _exp, _note) in enumerate(cases, 1):
+        out += [str(i), "00:00:%02d,000 --> 00:00:%02d,000" % (i, i + 2), en, zh, ""]
+    return "\r\n".join(out).rstrip() + "\r\n"
+
+
+def _ak_zh_lines(raw):
+    txt = raw.decode("utf-8-sig")
+    return [b.replace("\r", "").split("\n")[3]
+            for b in re.split(r"\r?\n\r?\n+", txt.strip())]
+
+
+def test_ak_ep17_terms(ref, pkg):
+    """EP17「相变临界」二校沉淀的术语与层序断言（含两条防误伤负例）。
+
+    回归动机：① 官方书写是 Mon3tr，小写形要能机械修回；② 关闭/后卫/医生/怪物 这类常用中文词
+    只能靠英文参考行锚定；③ ak 分支 2026-11-02 才补上 EXCLUDE 回滚层，必须有一正一负两条证明；
+    ④ 「凯尔特」「Cow/Cal」绝不能进 AK_TERMS，否则 bi 侧靠 EXCLUDE 兜住的误伤会在 ak 片复发。
+    """
+    section("3c. EP17 术语与 ak 排除层")
+    pos = _AK_POSITIVE + _AK_NEGATIVE + _AK_POSITIVE_ONLY
+    for tag, m in (("单文件", ref), ("分包", pkg)):
+        with tempfile.TemporaryDirectory(prefix="calib_selftest_ep17_") as d:
+            src = os.path.join(d, "ep17.srt")
+            open(src, "wb").write(_ak_srt(pos).encode("utf-8"))
+            buf = io.StringIO()
+            with contextlib.redirect_stdout(buf):
+                m.process(src, os.path.join(d, "out.srt"), os.path.join(d, "out.md"),
+                          mode="ak")
+            got = _ak_zh_lines(open(os.path.join(d, "out.srt"), "rb").read())
+            for i, (zh, en, exp, note) in enumerate(pos):
+                check(f"EP17 ak {note} {tag}", i < len(got) and got[i] == exp,
+                      "cue %d 输入 %r 期望 %r 实得 %r（参考行 %r）" % (i + 1, zh, exp,
+                                                            got[i:i + 1], en))
+
+    # 参照/分包必须逐字节一致（与其余模式断言同口径）
+    with tempfile.TemporaryDirectory(prefix="calib_selftest_ep17_x_") as d:
+        src = os.path.join(d, "ep17.srt")
+        open(src, "wb").write(_ak_srt(pos).encode("utf-8"))
+        a, b, o1, o2, r1, r2, s1, s2 = run_process(ref, pkg, src, "ak")
+        check("EP17 ak 单文件与分包一致",
+              o1 == o2 and r1 == r2 and a[0] == b[0] and a[1] == b[1] and s1 == s2)
+
+
 # ---------------------------------------------------------------- 4. 28 子命令
 
 CLI_BASE = (
@@ -395,6 +613,13 @@ CLI_FIXTURES = {
     "fix.tsv": "4\t这是普通句子\t这是校准后的句子\n",
     "calib.tsv": "4\t这是校准后的句子\n",
     "plain.txt": "这是纯文本\n第二行\n",
+    # 韩语原声片源：ref 是**纯韩单语**（每 cue 一行谚文），target 是「韩行在上、中文在下」双语
+    "ko_ref.srt": ("1\r\n00:00:01,000 --> 00:00:03,000\r\n에코 세팅 확인했습니다\r\n\r\n"
+                   "2\r\n00:00:04,000 --> 00:00:06,000\r\n치사 3돌입니다\r\n\r\n"
+                   "3\r\n00:00:07,000 --> 00:00:09,000\r\n너는 치사하고 속상해\r\n"),
+    "ko_zh.srt": ("1\r\n00:00:01,000 --> 00:00:03,000\r\n에코 세팅 확인했습니다\r\n回声设置已确认\r\n\r\n"
+                  "2\r\n00:00:04,000 --> 00:00:06,000\r\n치사 3돌입니다\r\nChisa 是 3 突\r\n\r\n"
+                  "3\r\n00:00:07,000 --> 00:00:09,000\r\n너는 치사하고 속상해\r\n你真小气，难受\r\n"),
     "learned_seed.json": json.dumps({"version": 1, "candidates": {}}, ensure_ascii=False),
 }
 CLI_ENV = {
@@ -491,6 +716,9 @@ CLI_CASES = [
     ("scan", ["scan", "cues.tsv", "--min", "1"], ()),
     ("scan-split", ["scan-split", "base.srt", "--min", "1"], ()),
     ("missing", ["missing", "ref_en.srt", "zh.srt", "--mode", "endo"], ()),
+    # 韩语原声：漏译体检走纯韩 ref；再单列一条「误拿双语文件当参考侧」的护栏用例
+    ("missing-ko", ["missing", "ko_ref.srt", "ko_zh.srt", "--mode", "ko", "--window", "1"], ()),
+    ("missing-ko-guard", ["missing", "ko_zh.srt", "ko_zh.srt", "--mode", "ko"], ()),
     ("lint", ["lint", "cues.tsv", "calib.tsv"], ()),
     ("subfix", ["subfix", "base.srt", "fix.tsv", "--out", "subfixed.srt"], ("subfixed.srt",)),
     ("terms-check", ["terms-check"], ()),
@@ -523,6 +751,13 @@ def test_cli(ref, pkg):
         skip = case[3] if len(case) > 3 else ()
         kb_path = case[4] if len(case) > 4 else None
         check(f"子命令 {name}", _cli_case(name, args, outputs, skip, kb_path))
+    # 上面全是「单体 vs 真源」一致性对照，测不出两版一起坏；护栏的返回码单独断言一次。
+    with tempfile.TemporaryDirectory(prefix="calib_guard_") as d:
+        _prepare_cli(d)
+        rc, out, err = _run_cli("pkg", ["missing", "ko_zh.srt", "ko_zh.srt", "--mode", "ko"], d, {})
+        txt = (out + err).decode("utf-8", "replace")
+        check("missing --mode ko 假绿灯护栏返回码", rc == 1 and "WARN" in txt,
+              f"rc={rc} out={txt[:160]!r}")
 
 
 # ---------------------------------------------------------------- 5. 导入/文档/性能
@@ -558,6 +793,64 @@ def test_import_and_docs(ref, pkg):
         print(f"  性能：process 单次 {t2 - t1:.3f}s（仅供参考）")
 
 
+# ---------------------------------------------------------------- 6. 鸣潮 3.8 二校回灌
+
+def test_wuwa38_regressions(ref, pkg):
+    section("6. 鸣潮 3.8 二校回灌")
+    cases = [
+        ("乘客们，欢迎乘坐列车", "Welcome to our train, passengers.", "乘客们，欢迎乘坐列车"),
+        ("乘客，请保持警惕", "Passenger, stay alert.", "异客，请保持警惕"),
+        ("这只是个隐喻", "This is just a metaphor.", "这只是个隐喻"),
+        ("隐喻：ReFantazio", "Metaphor: ReFantazio", "《暗喻幻想》：ReFantazio"),
+        ("丽丽，你好", "Lili, hello.", "莉莉，你好"),
+        ("莉丽，你好", "Lili, hello.", "莉莉，你好"),
+        ("转校进入第二索拉里斯学院", "transfer to Second Solaris Academy", "转校进入第二索拉学院"),
+        ("雪平贵飞的衣服", "Hiyuki's outfit", "绯雪的衣服"),
+        ("每日抽卡", "daily gacha in another game", "每日抽卡"),
+        ("每日抽卡", "daily gacha in Wuthering Waves with Lily", "每日唤取"),
+        # --- 2026-11-08 Jadealy《鸣潮》3.8 前瞻片：ASR 残形 + 误伤负例回归 ---
+        ("我们还是要看海浪版", "wuth ering waves version", "我们还是要看《鸣潮》版本"),
+        ("Mother ing Waves 服装展示", "Mother ing Waves outfit showcase.", "《鸣潮》 服装展示"),
+        ("看起来就像我习惯的VU VA", "It looks like the VU VA", "看起来就像我习惯的鸣潮"),
+        ("它给了火星车头", "It is giving rover head.", "它给了漂泊者头"),
+        ("先不谈 Brand t 的笑话", "jokes aside about Brand t", "先不谈 布兰特 的笑话"),
+        ("它是卢伊拉设计的", "Luc illa designed it", "它是洛瑟菈设计的"),
+        ("百合给百合", "Lilies for Lily.", "百合给莉莉"),
+        ("百合给莉莉", "Lilies for Lily.", "百合给莉莉"),   # 幂等收口：成品再跑一遍不变
+        ("一片百合紫云的田野", "a field of lily purple cloud.", "一片百合紫云的田野"),
+        ("第一阶段百合", "First phase Lily.", "第一阶段莉莉"),
+        ("天哪，又是由纪", "Oh my gosh Yuki again.", "天哪，又是绯雪"),
+        # --- 2026-11-08 深度二校：一校把「由纪→绯雪」误判为跨片误伤，本轮纠正 ---
+        ("我非常喜欢由纪", "I love Yuki so much.", "我非常喜欢绯雪"),
+        ("杀死真正的由纪", "Kill real Yuki.", "杀死真正的绯雪"),
+        ("我喜欢Y uki，我有S 6 Yuki", "我喜欢Y uki，我有S 6 Yuki", "我喜欢绯雪，我有S 6 绯雪"),
+        ("我很高兴我已经拥有 S 6 Yuki", "I ' m so glad I already have S 6 Yuki.", "我很高兴我已经拥有 S 6 绯雪"),
+        ("Fy uka 皮肤是必须的", "Fy uka skin is a must.", "绯雪 皮肤是必须的"),
+        ("Y uki，我美丽的女王", "Y uki, my beautiful gorgeous queen.", "绯雪，我美丽的女王"),
+        ("由纪今天很开心", "My friend came today.", "由纪今天很开心"),  # 非 Yuki 语境：反向负例仍回滚，零跨片误伤
+        ("展览位置展览快捷方式", "Ex position exposition shortcuts.", "展览位置展览快捷方式"),
+        ("他们会遇到各种各样的乘客", "They will meet all kinds of passengers,", "他们会遇到各种各样的乘客"),
+    ]
+    with tempfile.TemporaryDirectory(prefix="calib_wuwa38_") as d:
+        src = os.path.join(d, "in.srt")
+        blocks = []
+        for i, (zh, en, _) in enumerate(cases, 1):
+            blocks.append(f"{i}\r\n00:00:{i:02d},000 --> 00:00:{i + 1:02d},000\r\n{zh}\r\n{en}")
+        open(src, "wb").write("\r\n\r\n".join(blocks).encode("utf-8") + b"\r\n")
+        for label, mod in (("pkg", pkg), ("ref", ref)):
+            out = os.path.join(d, f"{label}.srt")
+            mod.process(src, out, None, mode="bi")
+            text = open(out, encoding="utf-8").read().replace("\r\n", "\n")
+            got = []
+            for block in text.split("\n\n"):
+                parts = [x for x in block.split("\n") if x.strip()]
+                if len(parts) >= 4:
+                    got.append(parts[2])
+            check(f"{label} 鸣潮3.8回灌条数", len(got) == len(cases), f"{len(got)}/{len(cases)}")
+            for i, ((zh, en, want), actual) in enumerate(zip(cases, got), 1):
+                check(f"{label} #{i} {zh}", actual == want, f"got={actual!r} want={want!r}")
+
+
 # ---------------------------------------------------------------- main
 
 def main():
@@ -578,8 +871,12 @@ def main():
     test_static(ref, pkg)
     test_modes(ref, pkg)
     test_wwoc_context(ref, pkg)
+    test_akja_context(ref, pkg)
     test_ko_lotte_terms(ref, pkg)
     test_format(ref, pkg)
+    test_en_first_layout(ref, pkg)
+    test_ak_ep17_terms(ref, pkg)
+    test_wuwa38_regressions(ref, pkg)
     test_cli(ref, pkg)
     test_import_and_docs(ref, pkg)
     print(f"\nPASS {_passed} / FAIL {len(_failed)}")

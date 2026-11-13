@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.8.0
+# @version 2.9.0
 """ASR 服务模式全协议适配（协议推断/守卫 + 各服务商 submit + 词级聚合）（v2.3.1 拆分工程 · 自 video_toolbox.py 原样搬入）。
 
 core/asr 域：ASR 全协议适配 + vc 转录补丁；依赖规则见 core/__init__.py。
@@ -481,20 +481,32 @@ def asr_examples(cfg=None):
     if proto == "local":
         _lang = str(ac.get("language") or "").strip()
         return {
-            "protocol": "local", "title": "本地 faster-whisper（不联网）",
-            "env": {},
+            "protocol": "local", "title": "本地 faster-whisper（内置直连 · 完全离线）",
+            "env": {"HF_HUB_OFFLINE": "1"},
             "curl": "（本地模式不涉及 HTTP，没有 curl 示例）",
             "python": "\n".join([
+                "import os",
                 "from faster_whisper import WhisperModel",
                 "",
-                "model = WhisperModel(%r, device=\"auto\")   # 或模型目录" % (model or "large-v3"),
+                "os.environ.setdefault(\"HF_HUB_OFFLINE\", \"1\")",
+                "# 权重随包在 {app}\\tools\\asr_model\\faster-whisper\\<模型名>",
+                "model_dir = r\"<工具箱目录>\\tools\\asr_model\\faster-whisper\\%s\""
+                % (model or "large-v3"),
+                "try:  # GPU 优先；缺 cuBLAS/cuDNN 时程序会自动降级",
+                "    model = WhisperModel(model_dir, device=\"cuda\",",
+                "                         compute_type=\"float16\", local_files_only=True)",
+                "except Exception:",
+                "    model = WhisperModel(model_dir, device=\"cpu\",",
+                "                         compute_type=\"int8\", local_files_only=True)",
                 "segments, info = model.transcribe(\"audio.mp3\", %s)"
                 % (("language=%r" % _lang) if _lang else "language=None  # 自动检测"),
                 "print(\"\".join(s.text for s in segments))",
             ]),
-            "notes": notes + ["本地模型在本程序的「设置 → ASR 语音识别 → 本地独立模型」里配。"]
-                    + (["识别语言已固定为 %s（%r）。" % (ac.get("language_label"), _lang)]
-                       if _lang else []),
+            "notes": notes + [
+                "本地模型在本程序的「设置 → ASR 语音识别 → 本地独立模型」里配；"
+                "目录留空即自动定位工具箱内模型，无需下载 faster-whisper-xxl 程序。",
+            ] + (["识别语言已固定为 %s（%r）。" % (ac.get("language_label"), _lang)]
+                 if _lang else []),
         }
 
     # ⚠️ 只给变量名与说明，**不把密钥明文写进可复制文本**（方便安全地

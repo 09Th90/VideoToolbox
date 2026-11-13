@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.8.0
+# @version 2.9.0
 """术语/实体数据表
 
 源：subtitle_calib_merged.py L7369-L8839 @ 97d7d463（2026-10-24 冻结快照）
@@ -187,7 +187,9 @@ ENTITIES_PART1 = [
                 (r"\bDenia\b", "达妮娅"), (r"\bDenia\b", "丹妮娅"),
                 # "迪娜"=Denia/Dena 谷翻音近，通用译名易误伤他片，只走参考行 \bDena\b/\bDenia\b 佐证
                 #   （2026-09-23 达妮娅3.3幕间二次校准沉淀，#8/117/613/625/682/731）
-                (r"\bDena\b", "迪娜"), (r"\bDenia\b", "迪娜")),
+                (r"\bDena\b", "迪娜"), (r"\bDenia\b", "迪娜"),
+                # 2026-11-12 韩语反应片：谚文参考行锚定（bi 片中文在上、韩语在下）
+                (r"데니아|대니아", "德尼娅"), (r"데니아|대니아", "德妮亚")),
            note="星炬学院虚质科学部学生，3.3 新五星（百度百科/萌娘百科/官方档案确认）。"
                 "昵称 Denny/Dennia 机翻'丹尼/丹妮娅'亦归此；"
                 "Daniela=丹妮拉 是另一人，勿收。真名达斯维达尼亚。"
@@ -267,8 +269,11 @@ ENTITIES_PART1 = [
     Entity("琳奈", modes=("bi",), en="Linny / Lenna",
            category="角色",
            variants=("Linn",),
+           ctx=((r"린내|린네", "林内"), (r"린내|린네", "林奈"), (r"린내|린네", "Linne")),
            note="星炬学院预科班学生（百度百科）。扁平表已有 Linny/Lenny/林尼/莱妮丝；"
-                "'Linn\\'s'(#736) 为所有格 ASR 残留。"),
+                "'Linn\\'s'(#736) 为所有格 ASR 残留。"
+                "2026-11-12 韩语反应片补谚文锚：린내=린네 的常见 ASR 变体（收音 -e/-ae 混听），"
+                "错形「林内/林奈」只在该锚命中时归琳奈。"),
     Entity("拉贝尔学部", modes=("bi",), en="Labell College",
            category="地点/星炬学院学部",
            variants=("Rebel Collegeg", "Rebel College", "拉贝尔学院"),
@@ -316,6 +321,24 @@ ENTITIES_PART1 = [
                 " / The Pilgrimage / Faith Enlightenment / The Birth / Underneath the Sanctuary"
                 " / Somniomancer [null set]，均无官方中文名，保留英文）。本片#146 口播曲目，"
                 "机翻'圣徒的旅程'归此。戒律：活动名官方中文=『众生行记』，曲目名勿意译。"),
+    # --- 2026-11-08 《TOP 5 Arknights OST!! | The Masses' Travels OST reaction》二校沉淀 ---
+    Entity("众生行记", modes=("ak", "bi"), en="The Masses' Travels",
+           category="活动/作品",
+           variants=("弥撒旅行",),
+           note="《明日方舟》六周年 SideStory（2025-05-01 CN），英文名 The Masses' Travels，"
+                "为『The Blessed Movement』系列第三作。谷翻把 Masses 译成弥撒→'弥撒旅行'归此。"
+                "OST 7 曲无官方中文名，保留英文（见 music.py _MUSIC_AK）。"),
+    Entity("音律联觉", modes=("ak", "bi"), en="Ambience Synesthesia",
+           category="演出/活动",
+           variants=("氛围和麻醉",),
+           note="《明日方舟》官方线下音乐会，中文官方名=音律联觉（AMBIENCE SYNESTHESIA）。"
+                "谷翻把 Synesthesia 译成麻醉→'氛围和麻醉'归此变体；"
+                "ASR 形 Amusement Synesthesia/Woo 亦常见，靠本实体识别。"),
+    Entity("塑心", modes=("ak", "bi"), en="Virtuosa", ja="ヴィルトゥオーサ",
+           category="干员/拉特兰",
+           note="六星辅助·巫役，本名阿尔图罗·吉亚洛（Arturia Giallo），拉特兰出身流浪音乐家。"
+                "官方干员代号=塑心（PRTS/官网）。ASR/谷翻常作 Virtua Rosa/Virtue Rose，"
+                "逐 cue 重写时统一回'塑心'；无变体键（拉丁错形多样，裸键不安全）。"),
     Entity("火焰纹章 风花雪月", modes=("ak",), en="Fire Emblem: Three Houses",
            category="作品",
            variants=("火焰纹章三宫",),
@@ -345,10 +368,10 @@ ENTITIES_PART1 = [
                # --- 中文同音/音近（jǐng rán）ASR 高频错形 ---
                "静然", "晶隆", "丁然", "井燃", "镜燃", "警燃",
                "景然", "景冉", "景染", "景焱", "景燃 ", "憬燃",
-               "景澜", "景兰", "京燃", "惊燃", "净燃", "劲燃",
+               "景澜", "景兰", "靖格兰", "京燃", "惊燃", "净燃", "劲燃",
                # --- 英文 ASR 音近（Jingran）---
                "Jingran", "Jing Ran", "Jingrang", "Jingrong", "Jingron",
-               "Jinran", "Jingram", "Jingrn", "Jingrana", "Jingan",
+               "Jinran", "Jing Gran", "Jingram", "Jingrn", "Jingrana", "Jingan",
                "Jing-Ran", "Jingrran", "Jinglan",
                "Jing Ran!", "Jingran's", "Jingran`s",
            ),
@@ -1004,7 +1027,10 @@ ENTITIES_PART1 = [
                 "不能用 Entity.ctx（会强制替换成 canonical），已改走 CONTEXT_MAP 原生三元组。"),
     Entity("嘉贝莉娜", modes=("bi",), en="Galbrena",
            category="角色/鸣潮", variants=("加尔雷娜",),
-           note="补 r3 '加尔雷娜'->嘉贝莉娜（#29，Galrena 谷翻）。官方名 嘉贝莉娜。"),
+           note="补 r3 '加尔雷娜'->嘉贝莉娜（#29，Galrena 谷翻）。官方名 嘉贝莉娜。"
+                "2026-11-11 莉莉 PV 片 #58：YouTube ASR 'Gom Rena'、本地 small.en 'gombrana'、"
+                "large-v3 'Galbrena' 语音收敛于此（中置信）；但「谈到梦境」语义与嘉贝莉娜（火焰猎魔）"
+                "不符，疑主播联想/口误——高碰撞 ASR 名只留痕不入裸键/ctx，逐 cue 按语境取舍。"),
     Entity("秋水", modes=("bi",), en="Aalto",
            category="角色/鸣潮",
            ctx=((r"\bAlto\b|\bAalto\b", "阿尔托"),),
@@ -1196,9 +1222,11 @@ ENTITIES_PART1 = [
                 "⚠ 负向前瞻 (?!터) 排掉 모니터=monitor（显示器），它是正常词且同样以 모니 起头。"),
     Entity("琳奈", modes=("ko",), en="Linny / Lenna", ko="린네",
            category="角色/鸣潮3.0",
-           ctx=(("린네", "Linne"), ("린네", "林内")),
+           ctx=(("린네", "Linne"), ("린내", "Linne"), ("린네", "林内"), ("린내", "林内"),
+                ("린내", "林奈")),
            note="星炬学院预科班学生琳奈（百度百科），韩服 린네；bi 侧实体无 ko 字段，"
-                "故 --ko 从不产出。2026-11-02 与莫宁同批实证（#2682/3005「린네 모니의 조합」）。"),
+                "故 --ko 从不产出。2026-11-02 与莫宁同批实证（#2682/3005「린네 모니의 조합」）。"
+                "2026-11-12 补 린내：韩语收音 -e/-ae 混听的常见 ASR 变体（莉莉 PV 片 #357 实证）。"),
     Entity("妮姬", modes=("ko",), en="NIKKE", ko="니케",
            category="作品",
            variants=("尼肯", "尼凯", "妮凯"),
@@ -1360,8 +1388,8 @@ ENTITIES_PART1 = [
                 (r"Matterhorn|Metahorn|Metal\s*Horn", "梅塔霍恩")),
            note="4★ 近卫，卡兰贸易的厨师。ASR 常作 Metahorn/Metal Horn；谷翻产出'金属角'(字面)/'梅塔霍恩'(音译)。"),
     Entity("月见夜", modes=("bi",), en="Midnight", category="角色/明日方舟",
-           ctx=((r"\bMidnight\b", "午夜"),),
-           note="3★ 近卫。'午夜'是正常中文词，只走 ctx。"),
+           ctx=((r"(?<!of )\bMidnight\b(?!\s+to\b)", "午夜"),),
+           note="3★ 近卫。'午夜'是正常中文词，只走 ctx。2026-11-13 鸣潮莉莉 3.8 反应片判例：主播口语 'midnight to you know reflect' / 'stroke of midnight' 是普通午夜，前置 (?<!of ) 加 (?!\\s+to\\b) 排除，防跨片把「午夜」吃成干员名。"),
     Entity("梓兰", modes=("bi",), en="Orchid", category="角色/明日方舟",
            ctx=((r"\bOrchid\b", "兰花"), (r"\bOrchid\b", "兰华")),
            note="3★ 术师。'兰花'是正常中文词（orchid 花名），只走 ctx。"),
@@ -1655,7 +1683,32 @@ ENTITIES_PART1 = [
                 "与谷翻「阿布拉伊斯/一个brais/布拉克西斯人」统一归此；昵称「阿布」另见 Entity(阿布)。"),
     Entity("莉莉", modes=("bi", "react"), en="Lily",
            category="角色/鸣潮3.8",
-           note="3.8 衍射角色，官方中文=莉莉；本片 #333-336 提及，未实装。"),
+           note="3.8 五星·衍射·佩枪·治疗，官方中文=莉莉；调香师→心理疗愈师，所属新联邦联邦城，"
+                "异能绮梦织香（Dream Weaving），角色 PV《忘记恐惧》（Forget Fear，2026-11-10）。"
+                "⚠ Dr. Lily 官方中配=莉莉医生（非莉莉博士）：B 站官方 PV p1【中】（BV1VmW46bEfC）"
+                "large-v3 中文 ASR 实证「战士们需要你，莉莉医生」「您将作为一名优秀的医生为联邦城服务」；"
+                "谷翻「莉莉博士」靠英文参考行 Dr. Lily 锚定归莉莉医生。官方台词另含「联邦城向你致意感谢」"
+                "「您的精神状态是合格的」「不会有事的，不会的」「至少这样……我能救下一个人。」；"
+                "2026-11-13 二次 ASR 补证：「您成功阻止了一名士兵死亡」「我所做的只是稳定了你的伤势」"
+                "「她是战士，现在她该回到前线了」「（那么告诉我，）你/您为什么停下了呢」（您/你两读，韩语片判「您」）。"
+                "旧前瞻片 #333-336 提及未实装；3.8（2026-11-12）已上线。"),
+    # --- 2026-11-11 鸣潮 3.8 莉莉 PV《忘记恐惧》reaction 片（LightfulWings，80 cue）沉淀 ---
+    # 官方依据：官方微博「档案公开 | 绮梦织香——莉莉」、PV《忘记恐惧》（B 站 2026-11-10）、
+    #   百度百科/游侠/17173「联邦城共鸣者战争」；本地 faster-whisper 音频实证主播口播。
+    Entity("联邦城", modes=("bi", "react"), en="Federated Cities",
+           category="地区/鸣潮3.8",
+           ctx=((r"\b[Ff]eder(?:ated|al)\s+[Cc]ities\b", "联邦城市"),),
+           note="莉莉所属新联邦的城市，官方档案「联邦城共鸣者战争」；官方中文=联邦城。"
+                "谷翻「联邦城市」靠英文参考行 federated/federal cities 锚定归此；"
+                "裸「联邦城市」是通用组合，不入扁平表（区别于 Entity 新联邦 New Federation）。"),
+    Entity("忘记恐惧", modes=("bi", "react"), en="Forget Fear",
+           category="PV/鸣潮3.8",
+           note="莉莉角色 PV 官方中文名《忘记恐惧》（Forget Fear，2026-11-10 公开，17 分钟短片）。"
+                "核心台词「至少这样……我能救下一个人。」；谷翻多已正确，登记供跨语识别。"),
+    Entity("绮梦织香", modes=("bi", "react"), en="Dream Weaving",
+           category="异能/鸣潮3.8",
+           note="莉莉异能力官方中文=绮梦织香（英文 Dream Weaving）；调香编织幻梦疗愈精神创伤。"
+                "谷翻 dream weaver 作「织梦者」属描述义，保留；登记官方异能名供跨语识别。"),
     Entity("长离", modes=("bi", "react"), en="Changli",
            category="角色/鸣潮",
            variants=("Chang Lee",),

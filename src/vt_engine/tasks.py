@@ -1,4 +1,4 @@
-# @version 2.8.0
+# @version 2.9.0
 """任务工厂（自研，替代 videocaptioner.ui.task_factory.TaskFactory）。
 
 以自研设置层（``vt_engine.config.cfg``）+ 自研数据类
@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import datetime
 import importlib
+import os
 from pathlib import Path
 from typing import Optional
 
@@ -41,6 +42,29 @@ def _mod(name: str):
 
 def _model_path():
     return default_engine_paths().model_path
+
+
+#: 应用自己加在字幕产物名前的标记（叠加时只保留一层）
+_APP_PREFIXES = ("【字幕】", "【样式字幕】")
+
+
+def _strip_app_prefixes(stem: str) -> str:
+    s = str(stem or "").replace("【原始字幕】", "").replace("【下载字幕】", "")
+    while True:
+        for p in _APP_PREFIXES:
+            if s.startswith(p):
+                s = s[len(p):]
+                break
+        else:
+            return s
+
+
+def _same_path(a, b) -> bool:
+    try:
+        return os.path.normcase(os.path.abspath(str(a))) == \
+            os.path.normcase(os.path.abspath(str(b)))
+    except (OSError, TypeError, ValueError):
+        return False
 
 
 def _ai_mod():
@@ -206,17 +230,20 @@ class TaskFactory:
                              need_next_task: bool = False,
                              task_id: Optional[str] = None):
         cfg = _cfg
-        output_name = (
-            Path(file_path).stem.replace("【原始字幕】", "")
-            .replace("【下载字幕】", ""))
+        src_stem = Path(file_path).stem
         suffix = f"-{cfg.translator_service.value.value}" \
             if cfg.need_translate.value else ""
-        if need_next_task:
-            output_path = str(Path(file_path).parent /
-                              f"【样式字幕】{output_name}{suffix}.ass")
-        else:
-            output_path = str(Path(file_path).parent /
-                              f"【字幕】{output_name}{suffix}.srt")
+
+        def _path_for(stem: str) -> Path:
+            if need_next_task:
+                return Path(file_path).parent / f"【样式字幕】{stem}{suffix}.ass"
+            return Path(file_path).parent / f"【字幕】{stem}{suffix}.srt"
+
+        dst = _path_for(_strip_app_prefixes(src_stem) or src_stem)
+        if _same_path(dst, file_path):
+            # 去重后与输入同名 → 退回原名，不覆盖用户的原文件
+            dst = _path_for(src_stem)
+        output_path = str(dst)
 
         current_service = cfg.llm_service.value
         LLM = ent.LLMServiceEnum

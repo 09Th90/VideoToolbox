@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# @version 2.8.0
+# @version 2.9.0
 """主播声纹链路自检（离线，不联网、不依赖 ffmpeg）。
 
 覆盖 src/speaker_voiceprint.py：
@@ -352,6 +352,113 @@ def main():
               SV.delete_template("主播甲") and SV.load_selection() == ["嘉宾丙"],
               SV.load_selection())
         check("删除不存在的模板返回 False", SV.delete_template("查无此人") is False)
+    finally:
+        SV.TEMPLATE_DIR, SV.SELECTION_PATH = old_tpl_dir, old_sel
+        shutil.rmtree(tmpdir, ignore_errors=True)
+
+    # ---------------- 4b2) 「筛不筛」开关与门禁 ----------------
+    # 2026-11-03 事故：全局 `enabled` 名单跨会话残留，转录完成后的挂载点只看
+    # 它，于是 3856 条字幕被 10-30 留下的陌生声纹就地筛成 22 条。修复把
+    # 「筛谁」（enabled）与「筛不筛」（auto_filter，默认关）分家。
+    say("\n== 4b2) 声纹「筛不筛」开关与自动门禁 ==")
+    tmpdir = tempfile.mkdtemp(prefix="vt_vp_auto_")
+    old_tpl_dir, old_sel = SV.TEMPLATE_DIR, SV.SELECTION_PATH
+    SV.TEMPLATE_DIR = tmpdir
+    SV.SELECTION_PATH = os.path.join(tmpdir, "selection.json")
+    try:
+        for i, n in enumerate(("主播甲", "主播乙")):
+            e = np.zeros(SV.EMB_DIM, dtype=np.float32)
+            e[i] = 1.0
+            SV.save_template(n, e)
+
+        check("字段缺失 = 不自动筛（残留名单升级后立刻变安全）",
+              SV.load_auto_filter() is False)
+        check("文件不存在时也是 False", SV.load_auto_filter() is False)
+
+        check("save_auto_filter(True) 读回 True",
+              SV.save_auto_filter(True) is True and SV.load_auto_filter() is True)
+        # 本轮最关键的回归钉：save_selection 若退回整份重写，用户齿轮里勾一下
+        # 模板就会把开关静默抹掉，整个「本次显式开关」形同虚设。
+        SV.save_selection(["主播甲", "主播乙"])
+        check("勾选名单不会抹掉 auto_filter（save_selection 必须读-改-写）",
+              SV.load_auto_filter() is True,
+              open(SV.SELECTION_PATH, encoding="utf-8").read())
+        check("名单与开关两个键同时存活",
+              SV.load_selection() == ["主播甲", "主播乙"]
+              and SV.load_auto_filter() is True)
+
+        SV.save_auto_filter(False)
+        check("save_auto_filter(False) 读回 False", SV.load_auto_filter() is False)
+        # 手改出非法类型：宁可当作「关」，不能让一句脏 JSON 换来整片误杀
+        with open(SV.SELECTION_PATH, "w", encoding="utf-8") as fh:
+            fh.write('{"enabled": ["主播甲"], "auto_filter": "yes"}')
+        check("auto_filter 是非法类型时按 False 处理",
+              SV.load_auto_filter() is False)
+        with open(SV.SELECTION_PATH, "w", encoding="utf-8") as fh:
+            fh.write("{ 这不是 JSON")
+        check("selection.json 坏了 → 名单空 + 不自动筛",
+              SV.load_selection() == [] and SV.load_auto_filter() is False)
+
+        # 门禁：开关 ∧ 名单，两者缺一不可
+        import core.asr.voiceprint as VPI
+
+        def _gate():
+            return VPI.voiceprint_auto_names()
+
+        SV.save_selection(["主播甲"])
+        SV.save_auto_filter(False)
+        check("名单非空但开关关 → 门禁不筛（事故的真实形态）", _gate() == [], _gate())
+        SV.save_selection([])
+        SV.save_auto_filter(True)
+        check("开关开但名单空 → 门禁不筛", _gate() == [], _gate())
+        SV.save_selection(["主播甲", "主播乙"])
+        check("开关开且名单非空 → 门禁给出名单",
+              _gate() == ["主播甲", "主播乙"], _gate())
+        check("门禁与「筛谁」读数互不干扰（enabled 仍照常给手动入口用）",
+              VPI.voiceprint_enabled_names() == ["主播甲", "主播乙"])
+        SV.save_auto_filter(True)
+        SV.save_selection([])
+        check("tooltip 三态：开但没勾声音 → 说清「不筛」",
+              "还没勾选声音" in VPI.voiceprint_auto_tooltip(),
+              VPI.voiceprint_auto_tooltip())
+        SV.save_selection(["主播甲"])
+        check("tooltip 三态：开且已勾 → 报名字与熔断线",
+              "主播甲" in VPI.voiceprint_auto_tooltip()
+              and "熔断" in VPI.voiceprint_auto_tooltip(),
+              VPI.voiceprint_auto_tooltip())
+        SV.save_auto_filter(False)
+        check("tooltip 三态：关（默认）→ 明说不会动字幕",
+              "已关闭" in VPI.voiceprint_auto_tooltip()
+              and "**不会**动字幕" in VPI.voiceprint_auto_tooltip(),
+              VPI.voiceprint_auto_tooltip())
+
+        # 结果提示：熔断态与成功态的说法（四处入口共用这一份文案）
+        kind, title, _c, _ms = VPI.voiceprint_result_notice(
+            {"aborted": True, "templates": ["主播甲"], "kept_total": 22,
+             "total": 3856, "keep_ratio": 0.0057, "min_keep_ratio": 0.05,
+             "kept_path": "D:/x/片_疑似误杀.srt", "report": "D:/x/片.报告.txt",
+             "backup": None})
+        check("熔断态 = warning「疑似误杀：已停止覆盖字幕」并说清成品未改动",
+              kind == "warning" and title == "疑似误杀：已停止覆盖字幕"
+              and "22/3856" in _c and "片_疑似误杀.srt" in _c, _c)
+        kind2, title2, content2, _ = VPI.voiceprint_result_notice(
+            {"aborted": False, "templates": ["主播甲"], "kept_total": 900,
+             "total": 1000, "review": 3, "drop": 100, "keep_ratio": 0.9,
+             "min_keep_ratio": 0.05, "backup": "D:/x/片_未筛选.srt",
+             "report": "D:/x/片.报告.txt"})
+        check("成功态仍是 success 且报出备份文件名",
+              kind2 == "success" and title2 == "声纹筛选完成"
+              and "片_未筛选.srt" in content2, content2)
+        check("备份被回收（backup=None）时说法退化成「全文仍在原字幕文件里」",
+              "仍在原字幕文件里" in VPI.voiceprint_result_notice(
+                  {"aborted": True, "templates": ["甲"], "kept_total": 1,
+                   "total": 4000, "keep_ratio": 0.0002, "min_keep_ratio": 0.05,
+                   "kept_path": None, "report": None, "backup": None})[2])
+        check("error 态优先于其它分支",
+              VPI.voiceprint_result_notice({"error": "boom",
+                                            "aborted": True})[0] == "error")
+        check("res=None（模型没下载）仍是「未执行」",
+              VPI.voiceprint_result_notice(None)[1] == "声纹筛选未执行")
     finally:
         SV.TEMPLATE_DIR, SV.SELECTION_PATH = old_tpl_dir, old_sel
         shutil.rmtree(tmpdir, ignore_errors=True)
@@ -1058,6 +1165,183 @@ def main():
         check("回归：相似度 0.390 的官方旁白被判 drop（旧阈值会误判 review 保留）",
               [st for _, st, _ in vd_narr] == ["keep", "drop", "keep", "drop"],
               [st for _, st, _ in vd_narr])
+
+        # ---------- 7a2) 误杀熔断：保留率过低时**不覆盖成品** ----------
+        # 事故原样复刻：3856 条 → 22 条（0.57%），就地覆盖把全文只剩下了备份。
+        # 熔断必须在 decide() 之后、写盘之前拦（音频解码+提纹是最贵的一步，
+        # 不能靠"先试算一遍再决定要不要重跑"）。
+        say("\n== 7a2) 误杀熔断（保留率低于线时不覆盖成品）==")
+        import hashlib
+
+        def _mk_srt(n_host, n_other):
+            """造一份 SRT：前 n_host 条挂「说话人1」，其余挂「说话人2」。"""
+            lines = []
+            for i in range(n_host + n_other):
+                who = "说话人1" if i < n_host else "说话人2"
+                lines.append("%d\n00:%02d:%02d,000 --> 00:%02d:%02d,500\n"
+                             "[%s] 第%d句" % (i + 1, i // 60, i % 60,
+                                              i // 60, i % 60, who, i + 1))
+            return "\n\n".join(lines) + "\n"
+
+        srt30 = _mk_srt(1, 39)                         # 主播 1/40 = 2.5%
+        srt30_path = os.path.join(tmpdir, "big.srt")
+        with open(srt30_path, "w", encoding="utf-8-sig", newline="\r\n") as fh:
+            fh.write(srt30)
+        ok_path = os.path.join(tmpdir, "ok_src.srt")
+        with open(ok_path, "w", encoding="utf-8-sig", newline="\r\n") as fh:
+            fh.write(_mk_srt(10, 20))                  # 主播 10/30 = 33%
+        out30 = os.path.join(tmpdir, "big_out.srt")
+        sc_kill = {"说话人1": {"score": 1.0, "n": 1, "seconds": 1.5},
+                   "说话人2": {"score": 0.05, "n": 39, "seconds": 50.0}}
+        sc_all = {"说话人1": {"score": 0.05, "n": 1, "seconds": 1.5},
+                  "说话人2": {"score": 0.05, "n": 39, "seconds": 50.0}}
+        sc_ok = {"说话人1": {"score": 1.0, "n": 10, "seconds": 15.0},
+                 "说话人2": {"score": 0.05, "n": 20, "seconds": 30.0}}
+        old_sbs2 = SV.score_by_speaker
+        SV.score_by_speaker = lambda *a, **k: sc_kill
+        try:
+            before = (os.path.getsize(srt30_path),
+                      hashlib.sha1(open(srt30_path, "rb").read()).hexdigest())
+            rk = SV.filter_srt("fake.mp4", srt30_path, {"embedding": tpl},
+                               out_path=out30, encoder=enc)
+            check("熔断触发（保留率 1/40=2.5% < 5%）",
+                  rk["aborted"] is True and rk["kept_total"] == 1, rk)
+            check("熔断时**成品一个字没动**（size+sha1 与调用前一致）",
+                  os.path.getsize(srt30_path) == before[0]
+                  and hashlib.sha1(open(srt30_path, "rb").read()).hexdigest()
+                  == before[1])
+            check("熔断时不碰 out_path，候选另存 _疑似误杀.srt",
+                  rk["kept_path"] and rk["kept_path"].endswith("big_out_疑似误杀.srt")
+                  and os.path.isfile(rk["kept_path"])
+                  and not os.path.isfile(out30), rk["kept_path"])
+            cand = open(rk["kept_path"], "rb").read()
+            check("候选产物规格同正常产物（BOM/CRLF/时间轴原样）",
+                  cand.startswith(b"\xef\xbb\xbf") and b"\r\n" in cand
+                  and b"00:00:00,000 --> 00:00:00,500" in cand, cand[:60])
+            rep30 = os.path.splitext(out30)[0] + ".报告.txt"
+            check("熔断时报告仍然产出", os.path.isfile(rep30), rep30)
+            rtext = open(rep30, encoding="utf-8").read()
+            check("报告写明「熔断未覆盖」与保留率",
+                  "熔断未覆盖" in rtext and "2.50%" in rtext, rtext[:200])
+            rbak = os.path.join(tmpdir, "big_未筛选.srt")
+            SV.filter_srt("fake.mp4", srt30_path, {"embedding": tpl},
+                          out_path=out30, encoder=enc, in_place_backup=rbak)
+            check("报告带上调用方传入的全文备份名",
+                  "全文备份" in open(rep30, encoding="utf-8").read()
+                  and "big_未筛选.srt" in open(rep30, encoding="utf-8").read())
+            first_cand = rk["kept_path"]
+            rk2 = SV.filter_srt("fake.mp4", srt30_path, {"embedding": tpl},
+                                 out_path=out30, encoder=enc)
+            check("已有 _疑似误杀.srt 时加序号，不覆盖上一份",
+                  rk2["kept_path"] != first_cand
+                  and os.path.isfile(first_cand),
+                  (first_cand, rk2["kept_path"]))
+
+            r0 = SV.filter_srt("fake.mp4", srt30_path, {"embedding": tpl},
+                               out_path=out30, encoder=enc, min_keep_ratio=0.0)
+            check("min_keep_ratio=0 关闭熔断，照写 out_path",
+                  r0["aborted"] is False and os.path.isfile(out30), r0)
+
+            sc_kill_old = sc_kill
+            SV.score_by_speaker = lambda *a, **k: sc_all
+            rz = SV.filter_srt("fake.mp4", srt30_path, {"embedding": tpl},
+                               out_path=os.path.join(tmpdir, "zero.srt"),
+                               encoder=enc)
+            check("一条都不保留：熔断且**不写出 0 条候选**",
+                  rz["aborted"] is True and rz["kept_total"] == 0
+                  and rz["kept_path"] is None
+                  and not os.path.isfile(os.path.join(tmpdir, "zero.srt")), rz)
+            SV.score_by_speaker = lambda *a, **k: sc_kill_old
+
+            # 合法场景不许被误伤：保留 10/30 = 33% 远在熔断线之上
+            SV.score_by_speaker = lambda *a, **k: sc_ok
+            rok = SV.filter_srt("fake.mp4", ok_path, {"embedding": tpl},
+                                 out_path=os.path.join(tmpdir, "ok.srt"),
+                                 encoder=enc)
+            check("保留率 33% 的正常工作不触熔断",
+                  rok["aborted"] is False and rok["kept_total"] == 10, rok)
+            SV.score_by_speaker = lambda *a, **k: sc_kill
+
+            check("出厂熔断线 = 0.05（低于它判为模板不匹配）",
+                  SV.DEFAULT_MIN_KEEP_RATIO == 0.05, SV.DEFAULT_MIN_KEEP_RATIO)
+        finally:
+            SV.score_by_speaker = old_sbs2
+
+        # ---------- 7a3) 执行体的备份语义（熔断回收 / 上次留下的绝不删） ----------
+        say("\n== 7a3) 声纹执行体备份语义 ==")
+        import core.asr.voiceprint as VPI2
+        old_mp, old_fs = SV.model_present, SV.filter_srt
+        old_ls = SV.load_selection
+        try:
+            SV.model_present = lambda: True
+            mdir = os.path.join(tmpdir, "bk")
+            os.makedirs(mdir, exist_ok=True)
+            sub = os.path.join(mdir, "a.srt")
+            med = os.path.join(mdir, "a.mp4")
+            bkp = os.path.join(mdir, "a_未筛选.srt")
+            open(med, "wb").write(b"x")
+            open(sub, "w", encoding="utf-8").write("全文\n")
+
+            def _fake_abort(*_pos, out_path=None, **_kw):
+                # 模拟熔断：候选另存，成品（= out_path）不动
+                cand = os.path.splitext(out_path)[0] + "_疑似误杀.srt"
+                open(cand, "w", encoding="utf-8").write("候选\n")
+                return {"total": 4000, "keep": 1, "review": 0, "drop": 3999,
+                        "kept_total": 1, "keep_ratio": 0.00025,
+                        "min_keep_ratio": 0.05, "aborted": True,
+                        "kept_path": cand, "templates": ["甲"], "speakers": {}}
+
+            SV.filter_srt = _fake_abort
+            rb = VPI2.voiceprint_filter_subtitle(sub, med)
+            check("熔断 + 本次自建备份 + 与成品逐字节相同 → 备份被回收",
+                  rb["backup"] is None and not os.path.isfile(bkp), rb["backup"])
+            check("熔断时成品仍是全文（未被 fake 改动）",
+                  open(sub, encoding="utf-8").read() == "全文\n")
+
+            open(bkp, "w", encoding="utf-8").write("上次留下的全文\n")
+            rb2 = VPI2.voiceprint_filter_subtitle(sub, med)
+            check("备份是上次运行留下的 → 绝不删除（可能是全文唯一副本）",
+                  os.path.isfile(bkp)
+                  and open(bkp, encoding="utf-8").read() == "上次留下的全文\n",
+                  rb2["backup"])
+
+            def _fake_ok(*_pos, out_path=None, **_kw):
+                open(out_path, "w", encoding="utf-8").write("筛过\n")
+                return {"total": 4, "keep": 3, "review": 1, "drop": 0,
+                        "kept_total": 4, "keep_ratio": 1.0,
+                        "min_keep_ratio": 0.05, "aborted": False,
+                        "kept_path": out_path, "templates": ["甲"],
+                        "speakers": {}}
+
+            SV.filter_srt = _fake_ok
+            open(sub, "w", encoding="utf-8").write("全文2\n")
+            os.remove(bkp)
+            ro = VPI2.voiceprint_filter_subtitle(sub, med)
+            check("未熔断：先备份再覆盖（行为与旧版一致）",
+                  os.path.isfile(bkp)
+                  and open(bkp, encoding="utf-8").read() == "全文2\n"
+                  and open(sub, encoding="utf-8").read() == "筛过\n", ro["backup"])
+
+            # names 由门禁传入后，执行体不再二次读全局名单（防转录中途改勾选）
+            seen = {}
+
+            def _fake_names(*pos, out_path=None, **_kw):
+                seen["template"] = pos[2] if len(pos) > 2 else None
+                open(out_path, "w", encoding="utf-8").write("x\n")
+                return {"total": 1, "keep": 1, "review": 0, "drop": 0,
+                        "kept_total": 1, "keep_ratio": 1.0,
+                        "min_keep_ratio": 0.05, "aborted": False,
+                        "kept_path": out_path, "templates": list(seen["template"] or []),
+                        "speakers": {}}
+
+            SV.filter_srt = _fake_names
+            SV.load_selection = lambda: ["不该被读的名字"]
+            VPI2.voiceprint_filter_subtitle(sub, med, names=["显式传入"])
+            check("显式 names 生效（不再读全局名单）",
+                  seen.get("template") == ["显式传入"], seen)
+        finally:
+            SV.model_present, SV.filter_srt = old_mp, old_fs
+            SV.load_selection = old_ls
     finally:
         SV.read_pcm = old_read_pcm
         shutil.rmtree(tmpdir, ignore_errors=True)

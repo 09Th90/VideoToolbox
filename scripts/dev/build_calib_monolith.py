@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.8.0
+# @version 2.9.0
 """从 src/calib_core 生成单文件 subtitle_calib_merged.py。
 
 生成物必须兼容：
@@ -32,7 +32,7 @@ os.environ.setdefault("VT_NO_SYNC", "1")
 
 DATA_FILES = [
     # ko 依赖 ark 的 _SEONJEONG_ANCHOR，顺序不能按字母排
-    "bilingual", "ja", "ark", "ko", "endfield", "misc", "limbus", "modes",
+    "bilingual", "ja", "ark", "ko", "endfield", "misc", "limbus", "pbz", "modes",
 ]
 LOGIC_FILES = [
     "text", "replace", "asr", "state", "engine", "modes", "srt",

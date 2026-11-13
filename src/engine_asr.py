@@ -1,4 +1,4 @@
-# @version 2.8.0
+# @version 2.9.0
 """ASR 链路（自研，替代 videocaptioner.core.asr 的转写执行部分）。
 
 P2 接缝：把第三方引擎的 ASR 执行链迁到本项目自有代码——``WhisperAPI``
@@ -705,15 +705,22 @@ def _create_asr_instance(audio_path: str, config):
             "use_cache": True,
             "need_word_time_stamp": config.need_word_time_stamp,
             "language": config.transcribe_language,
+            # ⚠ asr_local_override() / vc_asr_patch_apply() 会把模型名覆盖成
+            # 普通字符串（枚举外的自定义模型名/目录名也走这条链），旧代码直接
+            # 取 .value 必然 AttributeError —— 本地模式从未跑通的原因之一。
+            # 统一按「有 .value 就取 .value，否则用原值」兼容枚举与字符串两套。
             "whisper_model": (
-                config.faster_whisper_model.value
+                getattr(config.faster_whisper_model, "value",
+                        config.faster_whisper_model)
                 if config.faster_whisper_model else "base"),
             "model_dir": config.faster_whisper_model_dir or "",
-            "device": config.faster_whisper_device,
+            "device": getattr(config.faster_whisper_device, "value",
+                              config.faster_whisper_device),
             "vad_filter": config.faster_whisper_vad_filter,
             "vad_threshold": config.faster_whisper_vad_threshold,
             "vad_method": (
-                config.faster_whisper_vad_method.value
+                getattr(config.faster_whisper_vad_method, "value",
+                        config.faster_whisper_vad_method)
                 if config.faster_whisper_vad_method else ""),
             "ff_mdx_kim2": config.faster_whisper_ff_mdx_kim2,
             "one_word": config.faster_whisper_one_word,

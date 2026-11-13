@@ -1,4 +1,4 @@
-# @version 2.8.0
+# @version 2.9.0
 """设置层（自研，替代 videocaptioner.ui.common.config 的 qconfig 单例）。
 
 P2 最后阻塞项：引擎的 ``ui.common.config`` 是**载荷性单例**——模块级
@@ -174,8 +174,9 @@ class Config:
         "Whisper", "WhisperModel", WhisperModelEnum.TINY)
 
     # ------------------- FasterWhisper 配置 -------------------
-    faster_whisper_program = ConfigItem(
-        "FasterWhisper", "Program", "faster-whisper-xxl.exe")
+    # 内置 faster_whisper.WhisperModel 直连后不再依赖外部 exe；Program 保留为
+    # 兼容字段（settings.json 持久化契约，键名/组名不能动），默认空 = 非必需项。
+    faster_whisper_program = ConfigItem("FasterWhisper", "Program", "")
     faster_whisper_model = OptionsConfigItem(
         "FasterWhisper", "Model", FasterWhisperModelEnum.TINY)
     faster_whisper_model_dir = ConfigItem("FasterWhisper", "ModelDir", "")

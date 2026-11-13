@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.8.0
+# @version 2.9.0
 """自研任务工厂（P2 尾部 · 档 B：接管 ``videocaptioner.ui.task_factory``）。
 
 以**自研代码**重建 ``TaskFactory`` 的构造算法（输出路径命名、按 LLM 服务选配置、
@@ -20,6 +20,10 @@
 
 约束：所有 ``videocaptioner`` / ``video_toolbox`` 导入均**惰性**，import 本模块
 不触发引擎导入树。
+
+有意分歧：字幕产物命名会先剥掉应用自己的前缀（``【字幕】`` / ``【样式字幕】``），
+避免拿已带前缀的字幕再翻译时叠成 ``【字幕】【字幕】…``；引擎工厂没有这一步。
+因此「逐字段一致」只对**不带前缀**的输入成立。
 """
 from __future__ import annotations
 
@@ -32,6 +36,31 @@ from typing import Optional
 
 #: Windows 传统路径上限 260；预留 12 字符给系统临时后缀/分隔符。
 _WIN_PATH_BUDGET = 248
+
+
+#: 应用自己加在字幕产物名前的标记。拿这种产物再翻译时输入名已带前缀，
+#: 若仍无条件再拼一个就会叠成 ``【字幕】【字幕】…``（2026-10-30 实测）。
+_APP_PREFIXES = ("【字幕】", "【样式字幕】")
+
+
+def _strip_app_prefixes(stem: str) -> str:
+    """剥掉应用自己的字幕前缀（前导、可叠加），并保留原有「任意位置」语义。"""
+    s = str(stem or "").replace("【原始字幕】", "").replace("【下载字幕】", "")
+    while True:
+        for p in _APP_PREFIXES:
+            if s.startswith(p):
+                s = s[len(p):]
+                break
+        else:
+            return s
+
+
+def _same_path(a, b) -> bool:
+    try:
+        return os.path.normcase(os.path.abspath(str(a))) == \
+            os.path.normcase(os.path.abspath(str(b)))
+    except (OSError, TypeError, ValueError):
+        return False
 
 
 def _short_name(name: str, root_dir: str, repeats: int = 1,
@@ -255,16 +284,21 @@ class TaskFactory:
     ):
         cfg = _cfg()
         ent = _entities()
-        output_name = (
-            Path(file_path).stem.replace("【原始字幕】", "").replace("【下载字幕】", "")
-        )
-        output_name = _short_name(output_name, Path(file_path).parent,
-                                  repeats=1, extra=50)
+        src_stem = Path(file_path).stem
         suffix = f"-{cfg.translator_service.value.value}" if cfg.need_translate.value else ""
-        if need_next_task:
-            output_path = str(Path(file_path).parent / f"【样式字幕】{output_name}{suffix}.ass")
-        else:
-            output_path = str(Path(file_path).parent / f"【字幕】{output_name}{suffix}.srt")
+
+        def _path_for(stem: str) -> Path:
+            stem = _short_name(stem, Path(file_path).parent, repeats=1, extra=50)
+            if need_next_task:
+                return Path(file_path).parent / f"【样式字幕】{stem}{suffix}.ass"
+            return Path(file_path).parent / f"【字幕】{stem}{suffix}.srt"
+
+        dst = _path_for(_strip_app_prefixes(src_stem) or src_stem)
+        if _same_path(dst, file_path):
+            # 去重后与输入同名（只优化不翻译、输入已带前缀）→ 退回原名，
+            # 宁可名字难看也不覆盖用户的原文件。
+            dst = _path_for(src_stem)
+        output_path = str(dst)
 
         current_service = cfg.llm_service.value
         LLM = ent.LLMServiceEnum

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.8.0
+# @version 2.9.0
 """自研 UI 契约静态校验（P3）。
 
 在**无法实例化 Qt**（本机 QApplication 挂起）的前提下，用 AST 静态校验：
@@ -57,6 +57,10 @@ CONTRACT = {
             "on_output_format_changed", "_on_transcript_finished",
             "_on_file_select", "update_info", "set_task", "process",
             "dropEvent", "dragEnterEvent", "closeEvent", "_vt_heal_stale",
+            # 转录页「声纹筛选」开关（本次任务显式开启，默认关）：控件与
+            # 两个槽——宿主/自检都按名字碰它们，丢了就是静默退回「全局名单
+            # 自动筛」的老行为。
+            "vp_auto_switch", "refresh_vp_auto_switch", "_on_vp_auto_changed",
         },
         "VideoInfoCard": {
             "finished", "start_button", "open_folder_button", "progress_ring",

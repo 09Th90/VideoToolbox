@@ -1,4 +1,4 @@
-# @version 2.8.0
+# @version 2.9.0
 """翻译工厂与机翻回落（自研，替代引擎 subtitle_thread 的两个模块级函数）。
 
 可观察行为：
@@ -56,6 +56,10 @@ MACHINE_FALLBACK = {
 }
 
 #: 各服务的 batch 收敛值（引擎 TranslatorFactory 行为）。
+#: ⚠ 谷歌不在此列生效：它的 ``_translate_chunk`` 走
+#: :mod:`core.translate.gtx_batch`，按「条数 ∧ 编码字节」自行分组（25 条/6000
+#: 字节），刻意不读 ``batch_num``——``batch_size`` 是用户配置项，不该兼当端点
+#: 载荷参数（用户调到 100 会让进度一跳 3%、「停止」更钝）。
 _BATCH_BY_SERVICE = {
     TranslatorServiceEnum.GOOGLE: 5,
     TranslatorServiceEnum.BING: 10,

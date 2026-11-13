@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# @version 2.8.0
+# @version 2.9.0
 """split -> batch_XX.tsv ; merge -> zh_map.json ; apply -> r3.srt ; verify -> 结构断言
 源文件结构：3908 条 x 4 行 + 3907 空行 = 19539 行，CRLF，无 BOM。"""
 import os, re, sys, glob, json
 
-ROOT = r"I:\Agent Work\软件开发\视频工具箱\review"
+#: 脚本位于 <程序根>/scripts/calib_review/，中间产物落进 gitignore 的 data/tmp/ 下
+APP_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+ROOT = os.path.join(APP_ROOT, 'data', 'tmp', 'calib_review')
 SRC = r"D:\原片\Reacting to ALL the resonator showcases - Wuthering Waves\【字幕】Reacting to ALL the resonator showcases - Wuthering Waves.en-谷歌翻译.calib.r2.srt"
 DST = r"D:\原片\Reacting to ALL the resonator showcases - Wuthering Waves\【字幕】Reacting to ALL the resonator showcases - Wuthering Waves.en-谷歌翻译.calib.r3.srt"
 TIME_RE = re.compile(r'\d\d:\d\d:\d\d,\d\d\d --> \d\d:\d\d:\d\d,\d\d\d$')

@@ -1,8 +1,12 @@
 # -*- coding: utf-8 -*-
-# @version 2.8.0
-"""calib_core 并行模块包：对外保持与原单文件一致的符号面。
+# @version 2.9.0
+"""calib_core 校准引擎包：对外保持与原单文件一致的符号面。
 
-本轮只并行开发；根目录 subtitle_calib_merged.py 仍是生产入口。
+双轨（2026-11-09）：CLI 与 GUI 运行时直连本包（agent_cli 同进程调用
+calib_core.cli.main_argv；GUI 走 python -m calib_core）；根目录
+subtitle_calib_merged.py 是 scripts/dev/build_calib_monolith.py 从本包生成的
+完整单文件，供知识同步链、自检工具与外部 D:/原片/ 工作流读取。
+改 src/calib_core/data/*.py 等真源后须重新生成并跑 --check。
 """
 
 from .data.bilingual import BILINGUAL_TERMS, CONTEXT_MAP, EXCLUDE_CONTEXT, FFRS_CONTEXT, FFRS_TERMS, KEEP_EN, WORD_MAP, _XQ_RX

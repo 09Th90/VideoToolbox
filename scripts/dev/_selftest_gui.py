@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# @version 2.8.0
+# @version 2.9.0
 """界面自检（v1.10.4 Fluent 界面）：验证窗口与各页面可构建、导航宽度自适应、
 设置页统一入口、字幕处理环境就绪。
 
@@ -556,9 +556,18 @@ def _merge_core_module_ok():
         import calib_merge_core as core
     except Exception:
         return False
+    # 门禁回归（2026-11-10）：两个实体同 variant 不同 canonical，必须识别为冲突
+    probe = ('_MODE_TERM_TABLE = {"bi": "A_TERMS"}\nA_TERMS = {}\n'
+             'ENTITIES = [Entity("A", modes=("bi",), variants=("v",)), '
+             'Entity("B", modes=("bi",), variants=("v",))]\n')
+    try:
+        caught = bool(core._registry_conflicts(probe))
+    except Exception:
+        caught = False
     return (core.merge_calib_script is engine.merge_calib_script
             and core.merge_learned_kb is engine.merge_learned_kb
             and callable(core._registry_conflicts)
+            and caught
             # 纯函数模块不允许偷偷建目录/联网
             and "import requests" not in dir(core))
 
@@ -1173,15 +1182,20 @@ def main():
                 #   后台**筛选路径（v1.18.0 ⑥），跳转被推迟到 `_handoff` 回调里，
                 #   同步断言必然测不到。本组测的是「回填 + 跳转」，故隔离掉。
                 #   ⚠ 补丁里的 `_on_transcript_finished` 是闭包，引用的是**模块
-                #   全局** `voiceprint_enabled_names`，所以必须替换 engine 上的名字
-                #   （替换 sub._engine 上的属性无效）。
+                #   全局**门禁函数，所以必须替换 engine 上的名字（替换 sub._engine
+                #   上的属性无效）。挂载点已从 `voiceprint_enabled_names` 改读
+                #   `voiceprint_auto_names`（开关 ∧ 名单），两个都要打掉：只打一
+                #   个的话，本机转录页开关一旦是开的，隔离就静默失效了。
                 _old_vp = engine.voiceprint_enabled_names
+                _old_auto = engine.voiceprint_auto_names
                 try:
                     engine.voiceprint_enabled_names = lambda: []
+                    engine.voiceprint_auto_names = lambda: []
                     sub._engine.transcription_interface \
                         ._on_transcript_finished(_ft)
                 finally:
                     engine.voiceprint_enabled_names = _old_vp
+                    engine.voiceprint_auto_names = _old_auto
                 _cur = sub._engine.stackedWidget.currentWidget()
                 _tr_ok = (os.path.abspath(_si.subtitle_path or "")
                           == os.path.abspath(_tr_srt)
@@ -1200,6 +1214,38 @@ def main():
                       ignore_errors=True)
     except Exception:  # noqa: BLE001
         pass
+    # ---- 转录页「声纹筛选」开关（本次任务显式开启，默认关）----
+    # 以前「筛不筛」等价于「全局名单非空」，一次勾选永久生效；现在必须
+    # 开关 ∧ 名单同时成立。本组钉住开关控件本身与它的落盘往返。
+    _vp_sw_ok, _vp_sw_why = False, "no engine"
+    if sub._engine is not None:
+        try:
+            import speaker_voiceprint as _SV
+            _ti2 = sub._engine.transcription_interface
+            _sw = getattr(_ti2, "vp_auto_switch", None)
+            _saved = _SV.load_auto_filter()
+            try:
+                _SV.save_auto_filter(False)
+                _ti2.refresh_vp_auto_switch()
+                _c1 = _sw is not None and _sw.isChecked() is False
+                _sw.setChecked(True)                     # 触发 checkedChanged
+                _c2 = _SV.load_auto_filter() is True
+                # 齿轮里勾一下模板也不能把开关抹掉
+                _SV.save_selection(_SV.load_selection())
+                _c3 = _SV.load_auto_filter() is True
+                _SV.save_auto_filter(False)
+                _ti2.refresh_vp_auto_switch()
+                _c4 = _sw.isChecked() is False           # 重建/刷新读回落盘真值
+                _vp_sw_ok = _c1 and _c2 and _c3 and _c4
+                _vp_sw_why = "init_off=%s toggle=%s pick_kept=%s refresh=%s" % (
+                    _c1, _c2, _c3, _c4)
+            finally:
+                _SV.save_auto_filter(_saved)
+                _ti2.refresh_vp_auto_switch()
+        except Exception as e:  # noqa: BLE001
+            _vp_sw_ok, _vp_sw_why = False, f"exc={e}"
+    check("转录页声纹开关：默认关、点击落盘、刷新读回、勾选名单不抹掉它",
+          _vp_sw_ok, _vp_sw_why)
     # ---- v1.15.7：回填成功分支提前 return 曾漏掉 is_processing 复位，
     #      表现是「字幕已输出却提示正在处理中、拖不进新视频」（回归）----
     _tr2_ok, _tr2_why = False, "no engine"

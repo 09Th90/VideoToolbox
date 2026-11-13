@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.8.0
+# @version 2.9.0
 """自检：engine_task_factory 与引擎（已打补丁）TaskFactory 的**逐字段**兼容性。
 
 P2 尾部 / 档 B 接缝验收脚本。判定口径不是「能 import / 能构造」，而是：在**同一
@@ -13,6 +13,8 @@ cfg 状态 + 同一 ASR 覆盖状态**下，自研工厂产出的任务对象与
       × need_split × need_translate × use_subtitle_style × ASR 覆盖（无 / 本地模型 /
       显式语言）等状态，逐字段比对 create_transcribe_task / create_subtitle_task /
       create_synthesis_task。
+命名：另有一段只断言自研工厂的字幕产物去重（带【字幕】前缀的输入不再叠层，
+      与输入同名时退让）——这是有意与引擎不同的行为，不参与上面的逐字段比对。
 负向：故意污染自研工厂的一个字段，确认本检查**确实能抓到**（防「绿屏假象」）。
 
 用法
@@ -181,6 +183,34 @@ def _inprocess(mode: str) -> int:
                 cmp(tag,
                     Eng.create_synthesis_task(FILE, SUB, need_next_task=False, task_id="Y1"),
                     Self.create_synthesis_task(FILE, SUB, need_next_task=False, task_id="Y1"))
+
+        # ================= 字幕产物命名去重（自研有意与引擎不同） =================
+        # 输入名已带应用自己的【字幕】前缀时，输出只保留一层；去重后若与
+        # 输入同名（只优化不翻译）则退回原名，绝不覆盖原文件。引擎工厂没有
+        # 这层归一，故本段只断言自研结果、不参与逐字段比对。
+        cfg.set(cfg.translator_service, ent.TranslatorServiceEnum.GOOGLE)
+        cfg.set(cfg.need_translate, True)
+
+        def _out_name(stem, nnt=False):
+            p = os.path.join(tempfile.gettempdir(), stem)
+            return os.path.basename(
+                Self.create_subtitle_task(p, None, need_next_task=nnt).output_path)
+
+        for stem, nnt, want in (
+            ("【字幕】X.srt", False, "【字幕】X-谷歌翻译.srt"),
+            ("【字幕】【字幕】X.srt", False, "【字幕】X-谷歌翻译.srt"),
+            ("【样式字幕】X.ass", False, "【字幕】X-谷歌翻译.srt"),
+            ("X.srt", False, "【字幕】X-谷歌翻译.srt"),
+            ("【字幕】X.srt", True, "【样式字幕】X-谷歌翻译.ass"),
+        ):
+            got = _out_name(stem, nnt)
+            if got != want:
+                diffs.append("命名去重[%s,nnt=%s] :: 期望 %r 实际 %r"
+                             % (stem, nnt, want, got))
+        cfg.set(cfg.need_translate, False)
+        got = _out_name("【字幕】X.srt")
+        if got != "【字幕】【字幕】X.srt":
+            diffs.append("命名去重[不翻译] :: 期望退让原名，实际 %r" % got)
     finally:
         for m, _am, _al, _ov in _saved:
             m.ai_mod = _am

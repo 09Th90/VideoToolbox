@@ -1,4 +1,4 @@
-# @version 2.8.0
+# @version 2.9.0
 """deepseek-harness 适配层——工具箱**单向适配** harness 的唯一入口。
 
 设计契约（用户 2026-10-14 拍板）
@@ -846,7 +846,9 @@ tools\python\python.exe src\agent_cli.py <子命令> [参数] --json
 
 `download` → `transcribe --lang <源语言>` → `translate` → `calibrate` → `compose`。
 
-## 校准旗标速查（与 subtitle_calib_merged.py 完全同源）
+## 校准旗标速查（与 src/calib_core 完全同源）
+
+> 双轨（2026-11-09）：`agent_cli` / GUI 运行时直连 `src/calib_core`；根目录 `subtitle_calib_merged.py` 为生成物，供知识同步链与外部 `D:/原片/` 工作流读取。改真源后须重新生成并跑 `build_calib_monolith.py --check`。
 
 | 片源 | 旗标 |
 |---|---|

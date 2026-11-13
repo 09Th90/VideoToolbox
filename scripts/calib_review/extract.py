@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# @version 2.8.0
+# @version 2.9.0
 """结构体检 + 导出审阅用清单（编号 / 中文行 / 英文行）。"""
 import re, os, collections
 
+#: 脚本位于 <程序根>/scripts/calib_review/，产物落进 gitignore 的 data/tmp/ 下
+APP_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 SRC = r"D:\原片\Reacting to ALL the resonator showcases - Wuthering Waves\【字幕】Reacting to ALL the resonator showcases - Wuthering Waves.en-谷歌翻译.calib.r2.srt"
-OUT = r"I:\Agent Work\软件开发\视频工具箱\review"
+OUT = os.path.join(APP_ROOT, "data", "tmp", "calib_review")
 os.makedirs(OUT, exist_ok=True)
 
 raw = open(SRC, 'rb').read()

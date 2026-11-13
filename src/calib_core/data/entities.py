@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.8.0
+# @version 2.9.0
 """术语/实体数据表
 
 源：subtitle_calib_merged.py L10374-L10590 @ 97d7d463（2026-10-24 冻结快照）
@@ -22,7 +22,7 @@ ENTITIES = list(ENTITIES_PART1) + list(ENTITIES_PART2)
 for _songs, _modes, _label in (
         (_MUSIC_WW, ("bi", "react"), "鸣潮·先约电台"),
         (_MUSIC_AK, ("ak", "react"), "明日方舟·塞壬唱片"),
-        (_MUSIC_ENDO, ("endo", "react"), "终末地·铁痕电台")):
+        (_MUSIC_ENDO, ("endo", "endobi", "react"), "终末地·铁痕电台")):
     for _c, _en, _ja, _ko in _songs:
         ENTITIES.append(Entity(_c, modes=_modes, en=_en, ja=_ja, ko=_ko,
                                category=f"曲目/{_label}",
@@ -49,12 +49,13 @@ for _c, _en, _ja, _ko in _MUSIC_ENDO_BOSS:
 
 
 # 同一 OST credit 的两位音乐人（2026-11-03）：无官方简中，只登记跨语知识，不建替换键。
-ENTITIES.append(Entity("Crywolf", modes=("react", "endobi"), en="Crywolf",
+ENTITIES.append(Entity("Crywolf", modes=("react", "endobi", "ak"), en="Crywolf",
                        category="音乐人/终末地·铁痕电台",
                        note="终末地「向渊行」OST 阿莱克琉斯战曲署名人之一（铁痕电台-MSR & Crywolf & "
                             "YMIR），另为《明日方舟》作有 Somniomancer [null set]（众生行记 OST 曲7）。"
                             "无官方简体中文名 ⇒ 保留拉丁原名不译。中文错形 冷狼/哭狼/克雷沃尔夫/"
-                            "梦巫师克雷沃尔夫 已由 REACT_TERMS 裸键覆盖，本条**不重复建键**。"))
+                            "梦巫师克雷沃尔夫 已由 REACT_TERMS 裸键覆盖，本条**不重复建键**。"
+                            "2026-11-08：ak 模式补 '狼来了' 参考行锚定（AK_CONTEXT，Cry wolf 命中才替换）。"))
 ENTITIES.append(Entity("YMIR", modes=("react", "endobi"), en="YMIR",
                        category="音乐人/终末地·铁痕电台",
                        note="终末地「向渊行」OST 阿莱克琉斯战曲署名人之一。此前全库只在 misc.py 注释里"
@@ -659,3 +660,87 @@ ENTITIES.append(Entity("卡池", modes=("ak",), en="banner",
                        note="banner→卡池 扩 ak：AK_TERMS 已有裸键 banner，本条只补 ctx——"
                             "谷翻把 banner 译成「横幅/旗帜」的中文错形此前只有 bi 趟能修，"
                             "纯 --ak 片源会漏（本片 #32/#68/#69/#160/#162/#307/#339 共 7 处）。"))
+
+
+# ══ 2026-11-12 沉淀：《명일방주 종합 PV 월드컵》r2 二校（4946 cue，--akko）══
+#   官方依据：鹰角官网活动公告（长夜临光复刻 / 一周年【苦难摇篮】/ 2023 感谢庆典
+#   【崔林特尔梅之金】/ 主线「局部坏死」预热）、《明日方舟：终末地》官网、
+#   PRTS 泰拉词库 + arknights.wiki.gg 中英日韩对照表。
+#   铁律：下列错形均为常用中文词或 ASR 音译，一律只走 ctx（韩语参考行锚定），
+#   绝不入 AK_KO_TERMS 裸键；명빵(명방+빵 面包谐音梗)、명주/Landfield/Wispon/
+#   APASS/신선 等待考项不收；句子级机翻幻觉（著名的地方/著名房间/公共领域/
+#   人很有名 等）走 subfix 侧车，不进 KB。
+#   ⚠ 联网点验纠正：Zwillingstürme im Herbst 官方中文为「崔林特尔梅之金」，
+#   不是「之秋」（韩语 가을 不对应官方中文名）；本片字幕 0 命中，仅登记备查。
+#   ⚠ 니어라이트 = SideStory「长夜临光」，与干员「临光」(니어) 不是同一对象。
+ENTITIES.append(Entity("长夜临光", modes=("akko",), en="Near Light", ko="니어라이트",
+                       category="活动/明日方舟",
+                       ctx=((r"니어\s*라이트|니어라이트", "近光"),),
+                       note="鹰角官网 [活动预告]SideStory「长夜临光」复刻即将开启；"
+                            "韩语 니어라이트=Near Light，谷翻作「近光/近光线」。"))
+ENTITIES.append(Entity("孤星", modes=("akko",), en="Lone Trail", ko="론트레일",
+                       category="活动/明日方舟",
+                       ctx=((r"론트레일", "孤独的踪迹"), (r"론트레일", "孤独的小径")),
+                       note="官方 SideStory「孤星」= Lone Trail；韩语 론트레일 音译被"
+                            "谷翻作「孤独的踪迹/孤独的小径」。现有 AK_KO_CONTEXT 已收 Lone Trail 拉丁形。"))
+ENTITIES.append(Entity("愚人号", modes=("akko",), en="Stultifera Navis", ko="스툴티페라비스",
+                       category="活动/明日方舟",
+                       ctx=((r"스툴티페라비스|스틀페라비스", "Stultiferavis"),),
+                       note="官方 SideStory「愚人号」= Stultifera Navis（机核考据）；"
+                            "补拉丁音译残留 Stultiferavis。现有 스툴티페라 规则已覆盖"
+                            "凳子自卸车/油菜花/斯图尔蒂费拉 等中文错形。"))
+ENTITIES.append(Entity("苦难摇篮", modes=("akko",), ko="고난의 요람",
+                       category="章节/明日方舟",
+                       ctx=((r"고난의\s*(?:요람|여람)", "苦难的摇篮"),
+                            (r"고난의\s*(?:요람|여람)", "苦难的开始")),
+                       note="鹰角官网一周年庆典公告「主线第七章节【苦难摇篮】开放」；"
+                            "여람 为 요람 口播/ASR 变体。⚠ 普通词「고난=苦难」不是专名，"
+                            "必须靠 고난의 요람 全形锚定，不可全局替换。"))
+ENTITIES.append(Entity("终末地", modes=("akko",), en="Endfield", ko="엔드필드",
+                       category="作品/明日方舟：终末地",
+                       ctx=((r"엔드필드|엔더필드|핸드필드|엔필|엔드필더", "安德菲尔德"),
+                            (r"엔드필드|엔더필드|핸드필드|엔필|엔드필더", "恩菲尔多"),
+                            (r"엔드필드|엔더필드|핸드필드|엔필|엔드필더", "端野"),
+                            (r"엔드필드|엔더필드|핸드필드|엔필|엔드필더", "末场"),
+                            (r"엔드필더", "终点")),
+                       note="官方《明日方舟：终末地》(endfield.hypergryph.com)。"
+                            "安德菲尔德/恩菲尔多 为 ASR 音译，端野/末场/终点 为 end·field 直译；"
+                            "全部靠韩语行锚定，避免误伤其他片源的「末场/终点」。"))
+ENTITIES.append(Entity("塔露拉", modes=("akko",), en="Talulah", ko="탈롤라",
+                       category="角色/明日方舟",
+                       ctx=((r"탈롤라|탈로라|탈룰러", "塔洛尔"),
+                            (r"탈롤라|탈로라|탈룰러", "Talola")),
+                       note="官方对照表 塔露拉/Talulah/탈로라；一校已改 塔罗拉/塔卢拉，"
+                            "r2 补「塔洛尔」「Talola」两处漏网。"))
+ENTITIES.append(Entity("罗德岛", modes=("akko",), en="Rhodes Island", ko="로도스 아일랜드",
+                       category="组织/明日方舟",
+                       ctx=((r"로도스|로돠스|루도스|로더스", "Rhodes Aland"),
+                            (r"루도스|로더스", "鲁多斯岛"),
+                            (r"로도스|로돠스|루도스|로더스", "罗德")),
+                       note="官方对照表 罗德岛/Rhodes Island/로도스 아일랜드。"
+                            "wrong「罗德」⊂right「罗德岛」，靠 _ctx_replace 哨兵保护既有正确形；"
+                            "AK_KO_CONTEXT 已有 罗多顿岛→罗德岛，此处补拉丁/音译/漏字形。"))
+ENTITIES.append(Entity("拉普兰德", modes=("akko",), en="Lappland", ko="라플란드",
+                       category="角色/明日方舟",
+                       ctx=((r"라플런드|라플랜드", "拉普兰"),),
+                       note="官方对照表 拉普兰德/Lappland/라플란드。现有 AK_KO_CONTEXT 锚点"
+                            "라플란드|라플란 不覆盖口播变体 라플런드/라플랜드，此处补锚定；"
+                            "wrong⊂right 走哨兵，既有「拉普兰德」不被再咬。"))
+ENTITIES.append(Entity("明日方舟", modes=("akko",), en="Arknights", ko="명일방주",
+                       category="作品/明日方舟",
+                       ctx=((r"명방|명일\s*방주", "Myungbang"),
+                            (r"명일\s*방주", "明日之战")),
+                       note="官方对照表 明日方舟/Arknights/명일방주；韩语缩略 명방。"
+                            "⚠ 명빵 是「명방+빵(面包)」谐音梗，字形不同不会被本锚点命中，"
+                            "一校有意保留，禁止改成「明日方舟」。"))
+ENTITIES.append(Entity("干员", modes=("akko",), en="Operator", ko="오퍼레이터",
+                       category="术语/明日方舟",
+                       ctx=((r"후방\s*지원\s*오퍼레이터", "后方支援人员"),),
+                       note="官方术语「干员」；一校 decisions.md 已归一 操作员/运营商/接线员/运算符，"
+                            "r2 补「后方支援人员」漏网。用完整词锚定，不改裸「人员」。"))
+ENTITIES.append(Entity("边狱巴士", modes=("akko",), en="Limbus Company", ko="림버스",
+                       category="作品/联动",
+                       ctx=((r"림버스", "边缘"),),
+                       note="一校 --akko 既定口径「边狱巴士」（decisions.md 明定保留，"
+                            "联网点验显示「边狱公司」亦为通行名，属口径变更非漏校）。"
+                            "机翻把 림버스 音近词误作「边缘」，靠韩语行锚定。"))

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.8.0
+# @version 2.9.0
 """自研工作台首页（分段控件 + 堆叠页组合）。
 
 忠实复现引擎 ``HomeInterface`` 的组合结构与信号连线（``pivot`` / ``stackedWidget``
@@ -81,9 +81,12 @@ class HomeInterface(QWidget):
 
     def switch_to_subtitle_optimization(self, file_path, video_path):
         # 补丁 ⑧（内建）：任务创建路径的声纹筛选，筛完再切换
-        if _seams.voiceprint_enabled_names() and self._start_voiceprint_filter(
+        # 门禁 = 转录页「声纹筛选」开关 ∧ 已启用名单（与独立转录那条一致）
+        vp_names = _seams.voiceprint_auto_names()
+        if vp_names and self._start_voiceprint_filter(
                 file_path, video_path,
-                lambda: self._do_switch_to_subtitle(file_path, video_path)):
+                lambda: self._do_switch_to_subtitle(file_path, video_path),
+                vp_names):
             return
         self._do_switch_to_subtitle(file_path, video_path)
 
@@ -95,8 +98,11 @@ class HomeInterface(QWidget):
         self.stackedWidget.setCurrentWidget(self.subtitle_optimization_interface)
         self.pivot.setCurrentItem("SubtitleInterface")
 
-    def _start_voiceprint_filter(self, out, media, then) -> bool:
-        """后台声纹筛选，完成后回调 then()；返回是否已接管流程。"""
+    def _start_voiceprint_filter(self, out, media, then, names=None) -> bool:
+        """后台声纹筛选，完成后回调 then()；返回是否已接管流程。
+
+        `names`：过完门禁的名单（自动路径必传）；省略＝按已启用名单筛。
+        """
         try:
             parent = self.window() or self
             bar = InfoBar.info("正在按声纹筛选", "只保留主播台词，请稍候（长片约需半分钟）…",
@@ -110,7 +116,8 @@ class HomeInterface(QWidget):
 
             def run(self):
                 try:
-                    r = _seams.voiceprint_filter_subtitle(out, media)
+                    r = _seams.voiceprint_filter_subtitle(out, media,
+                                                          names=names)
                 except Exception as e:  # noqa: BLE001
                     _seams.vc_log(f"声纹筛选失败：{e}")
                     r = {"error": str(e)}
@@ -123,23 +130,14 @@ class HomeInterface(QWidget):
             except Exception:  # noqa: BLE001
                 pass
             try:
-                import os
-                if isinstance(res, dict) and res.get("error"):
-                    InfoBar.error("声纹筛选失败", str(res["error"])[:200] + "\n字幕已保留未筛选版本",
-                                  duration=9000, position=InfoBarPosition.BOTTOM, parent=parent)
-                elif res is None:
-                    InfoBar.warning("声纹筛选未执行",
-                                    "声纹模型还没下载：到「语音转录 → 主播声纹」点「下载模型」",
-                                    duration=8000, position=InfoBarPosition.BOTTOM, parent=parent)
-                else:
-                    InfoBar.success(
-                        "声纹筛选完成",
-                        "保留 %d 条（其中存疑 %d）/ 丢弃 %d；原件已备份为「%s」"
-                        % (res["kept_total"], res["review"], res["drop"],
-                           os.path.basename(res.get("backup") or "")),
-                        duration=9000, position=InfoBarPosition.BOTTOM, parent=parent)
+                # 文案与判定（含**熔断未覆盖**态）统一取 core 层，四处入口共用
+                kind, title, content, ms = _seams.voiceprint_result_notice(res)
+                getattr(InfoBar, kind)(title, content, duration=ms,
+                                       position=InfoBarPosition.BOTTOM,
+                                       parent=parent)
             except Exception:  # noqa: BLE001
                 pass
+            # 熔断也照样切换：成品没被改动，全文正是用户要的东西
             try:
                 then()
             except Exception as e:  # noqa: BLE001

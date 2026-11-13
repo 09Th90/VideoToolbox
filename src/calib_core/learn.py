@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.8.0
+# @version 2.9.0
 """学习库与 learn/learned-*
 
 源：subtitle_calib_merged.py L11185-L11554 @ 97d7d463（2026-10-24 冻结快照）
@@ -313,12 +313,29 @@ def _cmd_learn(src, calib, kb_path=LEARNED_KB_DEFAULT, mode="bi"):
 
 
 
+# 2026-11-09 学习库注入黑名单（WuWa 3.8 REACTION 片三轮回灌实测）：confirmed 裸键
+# 跨片污染的人工裁定登记处——按「无证据不改」只收**本片实测改坏成品**的键；学习库文件
+# 本身不动（留待 learned-reject 人工裁决），此处仅在注入层跳过。注意：跳过后打印的
+# "confirmed 规则 N 条"会比库内实数少，属预期。实测学习库 bi 模式 <=3 汉字且无
+# ref_tokens/ctx_regex 的 confirmed 裸键共 87 条（光泽/溪流/拖车/满的/爱过/班车…），
+# 自动判据会误杀「明朝→鸣潮」「由纪→绯雪」类好规则，故只能逐条人工登记，宁缺毋滥。
+KB_INJECT_BLOCKLIST = {
+    "bi|光泽",   # →心月狐（count 21、ref_tokens 空、2026-10-05~19 单片样本泛化）：
+                 #   本片 #617「其他一切看起来都缺乏光泽」→「缺乏心月狐」、#490「夜晚流转的
+                 #   光泽」→「夜晚流转的心月狐」产出病句；心月狐非鸣潮共鸣者（wiki 无条目）。
+                 #   即 concert-reaction-calib 记忆所述「单 cue 样本泛化的普通词规则跨片污染」再现。
+}
+
+
 def _learned_terms_for_mode(kb_path, mode):
-    """校准运行时注入：confirmed 且属本模式的学习规则 -> {扩展错形: 扩展正形}。"""
+    """校准运行时注入：confirmed 且属本模式的学习规则 -> {扩展错形: 扩展正形}。
+    2026-11-09 起按 KB_INJECT_BLOCKLIST 跳过人工裁定的危险裸键（见该清单注释）。"""
     kb = _load_learned_kb(kb_path)
     out = {}
     for c in kb["candidates"].values():
         if c["mode"] == mode and c["status"] == "confirmed" and not c.get("conflict"):
+            if "{}|{}".format(c["mode"], c["wrong"]) in KB_INJECT_BLOCKLIST:
+                continue
             w, r = _learn_extended(c)
             out[w] = r
     return out

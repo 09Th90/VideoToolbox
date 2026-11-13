@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.8.0
+# @version 2.9.0
 """术语/实体数据表
 
 源：subtitle_calib_merged.py L10202-L10409 @ 97d7d463（2026-10-24 冻结快照）
@@ -187,7 +187,15 @@ _MUSIC_AK = [                       # 明日方舟 · 塞壬唱片（人声曲�
     ("Revealing", "Revealing", "", ""),
     ("The After", "The After", "", ""),
     ("Sentenced", "Sentenced", "", ""),
-    ("Somniomancer (Null Set)", "Somniomancer (Null Set)", "", ""),
+    # 众生行记OST（2025-05-04 塞壬唱片，7 首均无官方中文名，单语保留英文原题；
+    # 2026-11-08 补：此前只有 Somniomancer，另 6 首缺失）
+    ("Touch of the Law", "Touch of the Law", "", ""),
+    ("Halo Universalization", "Halo Universalization", "", ""),
+    ("The Pilgrimage", "The Pilgrimage", "", ""),
+    ("Faith Enlightenment", "Faith Enlightenment", "", ""),
+    ("The Birth", "The Birth", "", ""),
+    ("Underneath the Sanctuary", "Underneath the Sanctuary", "", ""),
+    ("Somniomancer [null set]", "Somniomancer [null set]", "", ""),
     ("Dormant Craving", "Dormant Craving", "", ""),
     ("A Sweet Rendez-vous", "A Sweet Rendez-vous", "", ""),
     ("碧い瞳の中に（in your blue eyes）", "in your blue eyes", "碧い瞳の中に", ""),
@@ -216,6 +224,9 @@ _MUSIC_AK = [                       # 明日方舟 · 塞壬唱片（人声曲�
     ("次生预案", "", "", ""),
     ("无忧梦呓", "", "", ""),
     ("促融共竞", "", "", ""),
+    # 2026-11-08 Arknights × Arcaea 联动歌单（kukkikaze）：危机合约#5 光谱行动 / #8 寻昼行动 OST
+    ("Operation Spectrum Battle Theme", "Operation Spectrum Battle Theme", "", ""),
+    ("Fading Sky", "Fading Sky", "", ""),
 ]
 
 _MUSIC_ENDO = [                     # 终末地 · 铁痕电台-MSR（人声曲；曲名多为中文，保留原语言）
@@ -240,6 +251,12 @@ _MUSIC_ENDO = [                     # 终末地 · 铁痕电台-MSR（人声曲�
     #   "EP - Argent Flow [The Starry Flow Winds On] English / Chinese"，
     #   即同一曲的 EN 名（同 "编织光流/For Your Name" 先例）。日/韩无独立官方名 ⇒ 留空。
     ("逐星河", "The Starry Flow Winds On", "", ""),
+    # 2026-11-12《Contingency Contract: Indigo OST - CC#β2》Roguenjosh Plays 二校新增：
+    #   1.6 危机合约「浸蓝」人声 OST 主题曲，feat. Essenger（feat. 署名写注不入曲名，
+    #   同逐星河先例）。本片 cue 18-37 唱词即此曲。未查到官方中文名 ⇒ 保留原语言
+    #   （戒律②），ja/ko 留空。另曲 "Indigo Agitation"（Nhato）为 lobby/战斗动态
+    #   器乐曲 ⇒ 按戒律（只收有人声演唱的歌）不入本表。
+    ("Upending the Seas", "Upending the Seas", "", ""),
 ]
 
 

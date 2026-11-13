@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# @version 2.8.0
+# @version 2.9.0
 """视频工具箱 GUI v1.11.0 —— Fluent 矢量界面
 ====================================================================
 界面形态（v1.10.0 起，原 tkinter 界面退役）：
@@ -253,7 +253,7 @@ except Exception as _e:  # noqa: BLE001
     except Exception:  # noqa: BLE001
         pass
 
-VERSION = "2.8.0"
+VERSION = "2.9.0"
 # 更新检查同时服务源码运行与安装版：以界面显示的 VERSION 为唯一运行版本，
 # 避免 vt_update_check 里的独立常量再次漂移。
 vt_update_check.SELF_VERSION = VERSION
@@ -4420,7 +4420,8 @@ class SubtitlePage(QWidget):
         本来就允许）；task_id 沿用 home 当前的，保持同一条任务链。
         """
         try:
-            from videocaptioner.ui.task_factory import TaskFactory
+            # 走自研工厂：命名会剥掉应用自己的【字幕】前缀，避免叠成双层
+            from engine_task_factory import TaskFactory
             task = TaskFactory.create_subtitle_task(
                 sub_path, None, need_next_task=True,
                 task_id=getattr(home, "_current_task_id", "") or "")
@@ -5202,11 +5203,17 @@ class SettingsPage(QWidget):
         llay.setSpacing(8)
         self.asr_local_model = LineEdit(self.asr_local_widget)
         self.asr_local_model.setText(str(ai.get("asr_local_model", "")))
-        self.asr_local_model.setPlaceholderText("模型名，如 large-v3、large-v3-turbo 或自训练模型目录名")
+        self.asr_local_model.setPlaceholderText(
+            "模型名：工具箱已内置 large-v3 / small.en，也可填自训练模型目录名")
+        self.asr_local_model.setToolTip(
+            "内置 faster_whisper.WhisperModel 直连，无需下载 faster-whisper-xxl 等外部程序；\n"
+            "模型目录留空时自动定位 tools\\asr_model\\faster-whisper\\<模型名>；\n"
+            "GPU 缺少 cuBLAS/cuDNN 时自动降级 CPU int8（日志可查），不会静默切回云端。")
         llay.addWidget(srow("本地模型名", self.asr_local_model))
         self.asr_local_dir = LineEdit(self.asr_local_widget)
         self.asr_local_dir.setText(str(ai.get("asr_local_model_dir", "")))
-        self.asr_local_dir.setPlaceholderText("留空 = 用软件 data\\VideoCaptioner\\models")
+        self.asr_local_dir.setPlaceholderText(
+            "留空 = 自动定位 tools\\asr_model\\faster-whisper\\<模型名>")
         self.asr_local_browse = PushButton(FIF.FOLDER, "浏览…", self.asr_local_widget)
         self.asr_local_browse.clicked.connect(
             lambda: self._browse_into(self.asr_local_dir, "选择 ASR 模型目录"))
@@ -5233,8 +5240,8 @@ class SettingsPage(QWidget):
         self.asr_hint = fit_caption(CaptionLabel(
             "服务模式：转录下拉选「ASR」即由自有服务识别；协议全适配"
             "（OpenAI 兼容 / Azure / 阿里云百炼 / Deepgram / ElevenLabs / "
-            "Gemini，默认自动识别）；本地模式：选「ASR」即用 faster-whisper "
-            "本地模型/目录", box))
+            "Gemini，默认自动识别）；本地模式：内置 faster-whisper 直连，"
+            "无需外部 exe，GPU 不可用时自动降级 CPU", box))
         self.asr_hint.setTextColor("#8a8a8a", "#9a9a9a")
         blay.addWidget(self.asr_hint)
         # ASR 侧的套餐端点风险提示（同「全局 AI」卡片口径：允许接入、只提示）
@@ -5264,8 +5271,9 @@ class SettingsPage(QWidget):
         self.asr_service_widget.setVisible(not local)
         self.asr_local_widget.setVisible(local)
         self.asr_hint.setText(
-            "本地模式：转录下拉选「ASR」即用本地 faster-whisper，"
-            "优先用上面填写的模型名与目录；目录留空则用内置 models 目录"
+            "本地模式：转录下拉选「ASR」即用内置 faster-whisper 直连（无需外部 exe）；"
+            "优先用上面填写的模型名与目录，目录留空自动定位工具箱内 "
+            "large-v3 / small.en；GPU 缺 cuBLAS 时自动降级 CPU int8"
             if local else
             "服务模式：转录下拉选「ASR」即由自有 ASR 服务识别；协议可选"
             "自动识别 / OpenAI 兼容 / Azure / 阿里百炼，无时间戳响应自动"
@@ -6725,6 +6733,7 @@ class CalibPage(QWidget):
         ("中英双语（默认，BILINGUAL_TERMS）", ""),
         ("日语原声·鸣潮（--ja）", "--ja"),
         ("日语原声·终末地（--jpe）", "--jpe"),
+        ("日语原声·战双（--pgrja）", "--pgrja"),
         ("韩语原声·鸣潮（--ko）", "--ko"),
         ("明日方舟（--ak）", "--ak"),
         ("明日方舟·韩语（--akko）", "--akko"),
@@ -6766,7 +6775,7 @@ class CalibPage(QWidget):
         self.vbox = self.shell.content_lay
         self.vbox.setSpacing(12)
         self.vbox.addWidget(tab_caption(
-            "调用统一校准脚本 subtitle_calib_merged.py 做名词级术语校准；"
+            "调用 calib_core 校准引擎做名词级术语校准（根目录单文件为生成物/同步载体）；"
             "序号 / 时间轴 / 空行 / 换行 / BOM 一字不动", self.view))
 
         if not os.path.isfile(self._script):
@@ -6971,9 +6980,10 @@ class CalibPage(QWidget):
                 InfoBar.info("提示", "校准任务进行中，请稍候", duration=3000,
                              position=InfoBarPosition.BOTTOM_RIGHT, parent=self)
                 return
+        # 双轨（2026-11-08）：脚本模式直连 calib_core，不再依赖根目录单文件；
+        # 生成物缺失只提示不阻断（AI 校准链仍读单文件，其检查保留在 _start_ai）。
         if not os.path.isfile(self._script):
-            MessageBox("错误", f"校准脚本缺失：{self._script}", self).exec()
-            return
+            self.log.line("[提示] 根目录单文件生成物缺失（不影响脚本校准，仅影响外部同步/交付）", "dim")
         src = engine.clean_path(self.in_edit.text())
         if not src or not os.path.isfile(src):
             InfoBar.warning("提示", "请先选择一个 .srt 字幕文件", duration=3000,
@@ -6992,7 +7002,8 @@ class CalibPage(QWidget):
                 out = os.path.splitext(src)[0] + ".calib.srt"
             out = self._unique(out)
 
-        args = [engine.system_python(), self._script, src]
+        # 双轨：运行时直连 src/calib_core；进程隔离与轮询/取消/心跳契约不变。
+        args = [engine.system_python(), "-m", "calib_core", src]
         if out:
             args += ["--out", out]
             if self.report_switch.isChecked():
@@ -7184,7 +7195,11 @@ class CalibPage(QWidget):
 
     def _worker(self, gen, args, out):
         try:
-            env = dict(os.environ, PYTHONIOENCODING="utf-8")
+            # -m calib_core 需要 <根>/src 在模块搜索路径；保留既有 PYTHONPATH。
+            _src_dir = os.path.join(engine.APP_DIR, "src")
+            _old_pp = os.environ.get("PYTHONPATH", "")
+            env = dict(os.environ, PYTHONIOENCODING="utf-8",
+                       PYTHONPATH=_src_dir + (os.pathsep + _old_pp if _old_pp else ""))
             proc = engine.popen_process(args, cwd=os.path.dirname(self._script),
                                         stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                                         text=True, encoding="utf-8", errors="replace",

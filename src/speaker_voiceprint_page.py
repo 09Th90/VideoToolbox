@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# @version 2.8.0
+# @version 2.9.0
 """主播声纹 · 界面组件（v1.18.0）
 ====================================================================
 两个组件，供 `video_toolbox.py::vc_transcribe_ui_patch()` 挂进引擎界面：
@@ -437,8 +437,9 @@ class VoiceprintPicker(QWidget):
         head.addWidget(btn_re)
         root.addLayout(head)
 
-        self.hint = CaptionLabel("勾选要保留的声音；不勾选则不做筛选\n"
-                                 "多选 = 并集：任一匹配即保留", self)
+        self.hint = CaptionLabel("勾选要保留的声音（多选 = 并集）\n"
+                                 "这里只决定**筛谁**；转录完成后筛不筛，由转录页"
+                                 "的「声纹筛选」开关决定（默认关）", self)
         self.hint.setWordWrap(True)
         self.hint.setStyleSheet("color: #8a8a8a;")
         root.addWidget(self.hint)
@@ -453,6 +454,22 @@ class VoiceprintPicker(QWidget):
         self.status.setWordWrap(True)
         self.status.setStyleSheet("color: #8a8a8a;")
         root.addWidget(self.status)
+
+    def _status_text(self):
+        """状态行：把「筛谁」和「筛不筛」分开说清楚。
+
+        勾选名单是**跨会话长期有效**的全局状态，而转录完成后要不要自动筛，
+        另由转录页的「声纹筛选」开关决定——以前两者混为一谈，一份残留名单
+        把整片字幕筛没了（2026-11-03：3856 条 → 22 条）。
+        """
+        try:
+            auto = "开" if SV.load_auto_filter() else "关"
+        except Exception:  # noqa: BLE001
+            auto = "关"
+        n = len(SV.load_selection())
+        return ("已勾选 %d 个声音（转录页「声纹筛选」开关：%s）" % (n, auto)
+                if n else
+                "没勾选声音，转录页开关（%s）开着也不筛" % auto)
 
     def refresh(self):
         for w in self._boxes:
@@ -491,7 +508,7 @@ class VoiceprintPicker(QWidget):
             cb.blockSignals(False)
             self.box_lay.addWidget(cb)
             self._boxes.append(cb)
-        self.status.setText("已启用 %d 个" % len(SV.load_selection()))
+        self.status.setText(self._status_text())
 
     # ---------------- 动作 ----------------
     def selected(self):
@@ -507,10 +524,11 @@ class VoiceprintPicker(QWidget):
         return out
 
     def _on_toggle(self, _state=0):
-        keep = SV.save_selection(self.selected())
-        self.status.setText("已启用 %d 个" % len(keep)
-                            if keep else "未启用（不做声纹筛选）")
-        self.changed.emit(keep)
+        SV.save_selection(self.selected())
+        # 只改 `enabled`；转录页开关（`auto_filter`）由 save_selection 的
+        # 读-改-写保住，不能被这次勾选顺带抹掉。
+        self.status.setText(self._status_text())
+        self.changed.emit(SV.load_selection())
 
     def _clear(self):
         for cb in self._boxes:
@@ -519,5 +537,5 @@ class VoiceprintPicker(QWidget):
                 cb.setChecked(False)
                 cb.blockSignals(False)
         SV.save_selection([])
-        self.status.setText("未启用（不做声纹筛选）")
+        self.status.setText(self._status_text())
         self.changed.emit([])

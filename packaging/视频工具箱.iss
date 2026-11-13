@@ -1,11 +1,11 @@
-; @version 2.8.0
+; @version 2.9.0
 ; ============================================================================
-; 视频工具箱 v2.8.0 —— Inno Setup 安装包脚本
+; 视频工具箱 v2.9.0 —— Inno Setup 安装包脚本
 ; 构建前提：已用打包环境 C:\bld\qt_build 执行 pyinstaller 视频工具箱.spec
 ;           （2026-10-14 起该环境为 PySide6 6.12.0 + PySide6-Fluent-Widgets
 ;           1.11.3；此前为 PyQt5 5.15.11 + PyQt-Fluent-Widgets 1.8.4），
 ;           产物位于 dist\视频工具箱.exe
-; 编译：ISCC.exe 视频工具箱.iss  →  installer\视频工具箱_Setup_v2.8.0.exe
+; 编译：ISCC.exe 视频工具箱.iss  →  installer\视频工具箱_Setup_v2.9.0.exe
 ; v1.18.0：① 新增主播声纹（exe 侧已由 spec hiddenimports 内嵌），[Files]
 ;         补装 src\speaker_voiceprint.py / speaker_voiceprint_page.py /
 ;         subtitle_editor_core.py 源码副本，使安装版也能按开发版说明书的 CLI
@@ -89,7 +89,7 @@
 ; ============================================================================ 
 
 #define MyAppName "视频工具箱"
-#define MyAppVersion "2.8.0"
+#define MyAppVersion "2.9.0"
 #define MyAppPublisher "VideoToolbox"
 #define MyAppExeName "视频工具箱.exe"
 
@@ -182,6 +182,13 @@ Source: "..\tools\mpv\libmpv-2.dll"; DestDir: "{app}\tools\mpv"; Flags: ignoreve
 ; 内嵌 Python 运行时（字幕处理引擎运行时及其依赖随包分发，开箱可用）；
 ; 排除字节码缓存瘦身
 Source: "..\tools\python\*"; DestDir: "{app}\tools\python"; Flags: ignoreversion recursesubdirs createallsubdirs; Excludes: "*.pyc,__pycache__"
+; 2026-11-09：本地 ASR 权重随包分发（large-v3 2.9 GiB + small.en 464 MiB）。
+;   ⚠ 只放 {app}\tools\asr_model\faster-whisper\ **盘路径**：src\asr_local_paths.py
+;   的 resolve_tools_dir 按 {app}\tools 定位，并禁止按 _MEIPASS / %TEMP% 推导；
+;   改成 PyInstaller datas 会解包到 _MEIPASS，运行时读不到（硬约束）。
+;   ⚠ 同目录 {app}\tools\asr_model\ 根下的声纹 .onnx 仍按既有口径按需下载、
+;   不进包（见 spec:220 与下方 [InstallDelete] 注释），本条只覆盖 faster-whisper 子目录。
+Source: "..\tools\asr_model\faster-whisper\*"; DestDir: "{app}\tools\asr_model\faster-whisper"; Flags: ignoreversion recursesubdirs createallsubdirs
 ; 字幕引擎纯代码 wheel 不含 resource（界面图片/字体/默认字幕样式/多语言）。
 ; 这些静态资源随包分发，内嵌引擎才能离线自包含、真正成为程序一部分（v1.10.8）。
 ; ⚠️ 2026-10-12 曾误判「资源已内嵌进主程序 exe」而归档停发，实际 exe 并不含
@@ -223,6 +230,16 @@ Source: "..\src\pipeline.py"; DestDir: "{app}\src"; Flags: ignoreversion
 ;   自研翻译器（P1 翻译接缝），exe 侧由 spec hiddenimports 内嵌；此处补源码副本，
 ;   保证安装版 src\ 方式运行流水线/CLI 翻译时不会 ImportError。
 Source: "..\src\engine_translate.py"; DestDir: "{app}\src"; Flags: ignoreversion
+; 2026-11-09（本地 ASR 全链修复）：补齐本轮三处源码副本。安装版随包分发
+;   src\视频工具箱.bat，它用 tools\python\python.exe 按源码跑
+;   src\video_toolbox_qt.py（:205 import video_toolbox facade）；另外 agent_cli.py
+;   :516/527 与 vt_engine\asr_core.py:17 直接 import engine_asr。用户切到本地
+;   转录时 engine_asr._create_asr_instance 延迟 import engine_asr_local，后者
+;   顶层 import asr_local_paths —— 缺任一条，安装版「src\ 方式运行」的本地转录
+;   就 ImportError。exe 侧由 spec hiddenimports / PYZ 覆盖，这里是 {app}\src 副本。
+Source: "..\src\engine_asr.py"; DestDir: "{app}\src"; Flags: ignoreversion
+Source: "..\src\engine_asr_local.py"; DestDir: "{app}\src"; Flags: ignoreversion
+Source: "..\src\asr_local_paths.py"; DestDir: "{app}\src"; Flags: ignoreversion
 ; ⚠ v1.18.2 同批补漏：这几个同样是 video_toolbox_qt.py 的**模块级**依赖
 ;   （ast 扫 col_offset==0 的 import 得出，缺任一个都会 ImportError）。
 ;   ui_theme —— qfluentwidgets 主题；subtitle_editor —— 字幕编辑页主模块；

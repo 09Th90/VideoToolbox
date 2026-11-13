@@ -1,17 +1,19 @@
-# @version 2.8.0
+# @version 2.9.0
 """自检：engine_translate 的离线契约 + 与引擎逐行为交叉 + 联网探测。
 
 P1-B4 翻译接缝验收脚本。三组，缺一不可：
 
 **A. 离线契约**（不需要网络）
    批量顺序一一对应、失败标 ``ERROR``（**不得**回落成原文）、空 chunk 不发请求、
-   缓存键构造形式、目标语言代码解析、谷歌端点在不可达网络下**短路不发请求**。
+   缓存键构造形式、目标语言代码解析、谷歌批量（一次请求带多个 ``q``、结果
+   1:1 对齐、失败标 ``ERROR``、探测真发请求而非硬编码结论）。
 
 **B. 与引擎交叉**（需要第三方包，比对行为而非源码）
    同构造参数下缓存键、与引擎 ``generate_cache_key`` 同源、失败标记一致。
 
 **C. 联网探测**（默认跳过，加 ``--net`` 才跑）
-   微软端点直连实测。谷歌在代理环境下多半不可用——只记录不判失败。
+   微软端点直连实测。谷歌经本地代理可用，但代理开不开不由本脚本控制，
+   判失败会在离线机器上假红——所以只记录不判失败。
 
 结构
 ----
@@ -143,19 +145,47 @@ chk("英文标签变体", BingTranslator(target_language=TL("English"))._target_
 chk("未映射回落默认", BingTranslator(target_language=TL("不存在的语言"))._target_lang_code() == "zh-Hans")
 chk("DeepLx 大写码", DeepLxTranslator(target_language=TL("英语"))._target_lang_code() == "EN")
 
-# ── 6. 谷歌端点短路：不可达网络下**不发请求** ──
+# ── 6. 谷歌：批量发请求 + 失败必须标 ERROR ──
+# 2026-11-01 起不再是「本机不可达 ⇒ 直接短路不发请求」：dict-chrome-ex 端点经
+# 本地代理可用。旧断言「不真发请求」在新现实下会**永远通过**（假绿），故改为
+# 校验「失败标 ERROR」「探测真发请求」「一次请求带多个 q 且 1:1 对齐」。
 gt = GoogleTranslator(target_language=TL("简体中文"))
 sent = []
 class SpySession:
+    def get(self, *a, **k):
+        sent.append(k.get("params")); raise RuntimeError("端点不可达")
     def post(self, *a, **k):
-        sent.append(a); raise AssertionError("谷歌不可用时不应发请求")
+        raise RuntimeError("端点不可达")
 gt.session = SpySession()
 c3 = mk(["hello"])
 gt.translate(c3)
-chk("谷歌翻译不真发请求", not sent, str(sent))
 chk("谷歌失败标 ERROR", all(i.translated_text == ERROR_MARK for i in c3))
-ok, why = gt.probe()
-chk("谷歌探测直接判不可用", ok is False, why)
+chk("谷歌探测真发请求（不再硬编码不可用）", gt.probe()[0] is False and bool(sent),
+    "发了 %d 次请求" % len(sent))
+
+class EchoSession:
+    def __init__(self):
+        self.calls = []
+    def get(self, endpoint, params=None, headers=None, timeout=None, **k):
+        items = (list(params.items()) if isinstance(params, dict)
+                 else list(params or []))
+        qs = [v for key, v in items if key == "q"]
+        self.calls.append(qs)
+        class R:
+            status_code = 200
+            text = ""
+            def json(self):
+                return [["译【%s】" % t, "en"] for t in qs]
+        return R()
+g2 = GoogleTranslator(target_language=TL("简体中文"))
+g2.session = EchoSession()
+c4 = mk(["a", "b", "c"])
+g2.translate(c4)
+sizes = [len(q) for q in g2.session.calls]
+chk("谷歌一次请求带 3 个 q（批量）", sizes == [3], str(sizes))
+chk("谷歌批量结果 1:1 对齐",
+    [i.translated_text for i in c4] == ["译【a】", "译【b】", "译【c】"],
+    str([i.translated_text for i in c4]))
 
 # ── 7. 工厂按标签/简码构造 ──
 chk("标签→微软", isinstance(make_translator("微软翻译"), BingTranslator))
@@ -282,7 +312,7 @@ if ok:
     ok2, why2 = probe_translator_cached("微软翻译", target_language=TL("英语"))
     chk("缓存探测一致", ok2 == ok, "%s vs %s" % (ok2, ok))
 
-# 谷歌：本机网络不可用，只记录不判失败
+# 谷歌：经本地代理可用，但代理是否开着不由本脚本控制 → 只记录不判失败
 gok, gwhy = probe_translator("谷歌翻译")
 print("     谷歌探测:", gok, gwhy)
 
@@ -350,10 +380,11 @@ def negative():
             print("FAIL 负向①：污染后仍判通过 —— ERROR 检查形同虚设")
             ok = False
 
-        # ② 污染谷歌短路：把它变成「静默返回、译文留空」
+        # ② 污染谷歌批量层的结果回收：把它变成「静默返回、译文留空」。
         #    ⚠ 检查口径必须是「译文是否被标 ERROR」，**不是**「有没有发请求」——
-        #    污染后同样不发请求，用发请求做判据会永远「通过」＝ 假绿。
-        anchor2 = '        return _mark_error(chunk, "谷歌端点在本机网络下不可用")'
+        #    2026-11-01 谷歌改为 dict-chrome-ex 批量（不再是「不可用端点直接短路」），
+        #    用发请求做判据会永远「通过」＝ 假绿。
+        anchor2 = '        return self._client().translate_chunk(chunk)'
         if anchor2 not in txt:
             print("负向②：未找到注入点，跳过（不代表检查无效）")
             return False
@@ -376,8 +407,10 @@ def negative():
             "    translated_text: str = ''\n"
             "    index: int = 0\n"
             "class S:\n"
+            "    def get(self, *a, **k):\n"
+            "        raise RuntimeError('端点不可达')\n"
             "    def post(self, *a, **k):\n"
-            "        raise AssertionError('不可用端点不应发请求')\n"
+            "        raise RuntimeError('端点不可达')\n"
             "g = GoogleTranslator(target_language=TL('英语'))\n"
             "g.session = S()\n"
             "c = [Item('hello')]\n"
@@ -387,9 +420,9 @@ def negative():
         r2 = subprocess.run([PYPARSE, "-c", code2], env={**os.environ, **env},
                             capture_output=True, text=True, encoding="utf-8", errors="replace")
         if r2.returncode == 3:
-            print("OK   负向②：谷歌短路失效被成功检出")
+            print("OK   负向②：谷歌失败未标 ERROR 被成功检出")
         else:
-            print("FAIL 负向②：短路检查形同虚设")
+            print("FAIL 负向②：ERROR 标记检查形同虚设（污染后仍判通过）")
             ok = False
         return ok
     finally:

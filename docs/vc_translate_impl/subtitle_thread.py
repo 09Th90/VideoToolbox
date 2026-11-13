@@ -119,7 +119,11 @@ def translate_with_machine_fallback(
             translator = create_translator_from_config(config, custom_prompt, callback)
             if on_translator:
                 on_translator(translator)
-            return translator.translate_subtitle(asr_data)
+            asr_data = translator.translate_subtitle(asr_data)
+            # 2026-10-30：实际生效的服务要留给调用方——输出文件名在建任务时
+            # 就固定成「-谷歌翻译」，回退到微软后名字对不上，用户会误判译文来源。
+            config._vt_effective_service = fallback
+            return asr_data
         finally:
             config.translator_service = service
 
@@ -145,6 +149,26 @@ class SubtitleThread(QThread):
 
     def set_custom_prompt_text(self, text: str):
         self.custom_prompt_text = text
+
+    def _retarget_output(self, requested, effective) -> None:
+        """机翻回退后让输出文件名跟随实际生效的服务。
+
+        后缀在建任务时就固定成「-谷歌翻译」；实际是微软翻译翻的，名字对不上
+        会让用户和后续校准误判译文来源（2026-10-30 实测）。
+        """
+        path = str(getattr(self.task, "output_path", "") or "")
+        if not path or requested is None or effective is None:
+            return
+        p = Path(path)
+        tail = "-" + requested.value
+        if not p.stem.endswith(tail):
+            return
+        new_path = p.with_name(
+            p.stem[:-len(tail)] + "-" + effective.value + p.suffix)
+        self.task.output_path = str(new_path)
+        logger.info(
+            "「%s」回退到「%s」，输出文件随实际服务改名：%s",
+            requested.value, effective.value, new_path.name)
 
     def _setup_llm_config(self) -> SubtitleConfig:
         """验证 LLM 配置并设置环境变量，返回 SubtitleConfig"""
@@ -290,6 +314,9 @@ class SubtitleThread(QThread):
 
                 # v1.15.1：首选机翻不通（境内直连 Google 必失败）时自动换另一个
                 # 免密钥机翻重跑，避免整条链路只剩一条报错。
+                _requested_service = subtitle_config.translator_service
+                # 清掉上一次（同一 config 可能被选中行重翻用过）的残留记录
+                subtitle_config._vt_effective_service = None
                 asr_data = translate_with_machine_fallback(
                     subtitle_config,
                     custom_prompt,
@@ -298,6 +325,11 @@ class SubtitleThread(QThread):
                     progress=lambda msg: self.progress.emit(0, msg),
                     on_translator=lambda t: setattr(self, "translator", t),
                 )
+                _effective_service = getattr(
+                    subtitle_config, "_vt_effective_service", None)
+                if (_effective_service is not None
+                        and _effective_service != _requested_service):
+                    self._retarget_output(_requested_service, _effective_service)
 
                 # 移除末尾标点符号
                 asr_data.remove_punctuation()

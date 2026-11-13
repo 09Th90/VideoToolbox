@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.8.0
+# @version 2.9.0
 """翻译请求路由补丁（v2.3.1 拆分工程 · 自 video_toolbox.py 原样搬入）。
 
 2026-10-17 增强（用户在途）：双重保险——除 __init__ 外再包一层
@@ -427,6 +427,168 @@ def _patch_mt_failure_message():
     return True
 
 
+#: 定向补翻的轮次与每轮前的等待（秒）：缺失的成因就是端点超时/限流，
+#: 串行 + 间隔比并发猛打更可能一次补干净。
+_REPAIR_ROUNDS = 2
+_REPAIR_WAITS = (1.0, 2.0)
+#: 补翻的单请求条数：与谷歌批量上限同量级（补翻轮也吃批量）；微软线自己在
+#: ``_translate_chunk`` 内按字符预算再拆批，所以这个数对它只是上限。
+#: 一批再超时也只带走这几条，不会把整轮补翻打没。
+_REPAIR_BATCH_ITEMS = 25
+
+
+def _repair_missing_translations(self, translated_list) -> int:
+    """对「整片翻完后仍没拿到译文」的条目定向补翻，返回补回条数。
+
+    2026-11-01 17:57 实测：3376 条字幕，谷歌差 6 条、回退的微软差 10 条
+    （一个批次 read timeout 就把整批打成 ERROR），v1.15.1 的全有全无门禁
+    于是把 6 分钟成果整片丢弃——界面留下一条红色满格 + 「100% 处理字幕」。
+    缺失集中在个别批次，重发那几批的成本只有整片的千分之几，所以先补翻；
+    补不齐再让门禁按**剩余**缺失数报错（数字会比重跑前小）。
+
+    调用方负责吞异常，本函数自身不抛（补翻失败不能让原报错消失）。
+    """
+    if not getattr(self, "is_running", True):
+        return 0
+    missing = [d for d in translated_list
+               if not self._valid_translated_text(getattr(d, "translated_text", ""))]
+    if not missing:
+        return 0
+
+    total = len(translated_list)
+    fixed_total = 0
+    for rnd in range(1, _REPAIR_ROUNDS + 1):
+        time.sleep(_REPAIR_WAITS[min(rnd - 1, len(_REPAIR_WAITS) - 1)])
+        fixed = {}
+        for i in range(0, len(missing), _REPAIR_BATCH_ITEMS):
+            if not getattr(self, "is_running", True):
+                break
+            batch = missing[i:i + _REPAIR_BATCH_ITEMS]
+            try:
+                result = self._safe_translate_chunk(batch)
+            except Exception as e:  # noqa: BLE001
+                _vc_log("补翻批次失败（#%s 起 %d 条）：%s"
+                        % (getattr(batch[0], "index", "?"), len(batch), str(e)[:100]))
+                continue
+            for d in (result or []):
+                text = getattr(d, "translated_text", "")
+                if self._valid_translated_text(text):
+                    fixed[getattr(d, "index", None)] = text
+        applied = 0
+        for d in missing:
+            text = fixed.get(getattr(d, "index", None))
+            if text is not None:
+                d.translated_text = text
+                applied += 1
+        fixed_total += applied
+        _vc_log("缺失译文定向补翻第 %d 轮：%d/%d 条补回（全片 %d 条）"
+                % (rnd, applied, len(missing), total))
+        missing = [d for d in missing
+                   if not self._valid_translated_text(getattr(d, "translated_text", ""))]
+        if not missing:
+            return fixed_total
+    return fixed_total
+
+
+def _patch_google_batch():
+    """引擎线 ``GoogleTranslator``：逐条 GET → 重复 ``q`` 参数批量。
+
+    2026-11-01 实测：3376 条字幕 GUI 跑 6.5 分钟（17:50:36→17:56:45）。根因不是
+    网络，是引擎一条一次请求、再叠加模块级 ``_gtx_throttle`` 把跨线程间隔钳到
+    ≥0.12s（进程级串行）——10 线程实测只有 5.8 行/秒，``thread_num`` 调多大都没用。
+    该端点支持重复 ``q`` 批量且 1:1 保序（实测 6 轮 10/25/40 条零错位），每条仍
+    独立翻译故**不改变译文质量**。25 条/批后 3376 条约 135 请求，预计 25~40 秒。
+
+    三个覆写点：
+      · ``_split_chunks``：**忽略 ``self.batch_num``**——``batch_size`` 是用户配置项，
+        不该兼当端点载荷参数（用户调到 100 会让进度一跳 3%、「停止」更钝）。
+        改按「条数 ∧ 编码字节」分组，让请求粒度＝缓存粒度＝进度粒度，白拿引擎的
+        缓存/进度/失败记账。代价：分组一变，谷歌线 7 天旧缓存键全部作废。
+      · ``_translate_chunk``：一组一次请求，失败逐级降级（详见 gtx_batch 模块头）。
+      · ``translate_subtitle``：收尾打一行汇总（含 429/超限/形状/错位计数），
+        治引擎 ``_request_text`` 非 200 时**静默 return None**、上层只剩
+        「Cannot extract translation」的排障黑洞。
+
+    ``_gtx_throttle`` 的 0.12s **保持不动**（复用引擎那把钟）：批量后 135 请求
+    × 0.12s = 16s 地板，已不是瓶颈，调小只会增加 429 风险。``_preflight``
+    仍走引擎单条实现，快速失败语义不变。
+    """
+    import videocaptioner.core.translate.google_translator as _gm
+    cls = _gm.GoogleTranslator
+    if getattr(cls, "_vt_gtx_batch_patched", False):
+        return False
+
+    from core.translate.gtx_batch import GtxBatchClient, clip_to_url_bytes
+
+    def _client(self, fresh=False):
+        if fresh or getattr(self, "_vt_gtx_client", None) is None:
+            self._vt_gtx_client = GtxBatchClient(
+                self.session, self.endpoint, self.headers,
+                self._target_lang_code(), timeout=getattr(self, "timeout", 20),
+                throttle=_gm._gtx_throttle, label="引擎线")
+        return self._vt_gtx_client
+
+    def _texts_of(datas):
+        """与 :meth:`_translate_chunk` 完全同款的下标→文本映射（分组必须确定）。"""
+        return [clip_to_url_bytes(getattr(d, "original_text", "") or "")[0]
+                for d in datas]
+
+    orig_split = cls._split_chunks
+
+    def _split_chunks(self, translate_data_list):
+        try:
+            groups = _client(self).group(_texts_of(translate_data_list))
+            return [[translate_data_list[i] for i in g] for g in groups]
+        except Exception as e:  # noqa: BLE001
+            _vc_log(f"谷歌批量分组失败（退回引擎定长切块）：{e}")
+            return orig_split(self, translate_data_list)
+
+    def _translate_chunk(self, subtitle_chunk):
+        return _client(self).translate_chunk(subtitle_chunk)
+
+    orig_translate = cls.translate_subtitle
+
+    def _translate_subtitle(self, subtitle_data):
+        c = _client(self, fresh=True)   # 每次翻译一份新统计
+        try:
+            return orig_translate(self, subtitle_data)
+        finally:
+            c.summary(c.stats["hit"], c.stats["items"])
+
+    cls._split_chunks = _split_chunks
+    cls._translate_chunk = _translate_chunk
+    cls.translate_subtitle = _translate_subtitle
+    cls._vt_gtx_batch_patched = True
+    return True
+
+
+def _patch_missing_retranslate():
+    """``BaseTranslator._parallel_translate``：翻完整片后补翻缺失条目。
+
+    挂载顺序在 ``_patch_mt_failure_message`` **之后**，所以本补丁在它内层：
+    整片失败率 ≥50% 时 ``orig_parallel`` 直接抛 RuntimeError，那种情况是端点
+    整体不可用，逐条补翻没意义——异常原样穿到外层改文案，再交给
+    「自动改用别的服务重试」那条链。
+    """
+    from videocaptioner.core.translate.base import BaseTranslator
+    if getattr(BaseTranslator, "_vt_repair_patched", False):
+        return False
+    orig_parallel = BaseTranslator._parallel_translate
+
+    def _parallel_translate(self, chunks):
+        translated = orig_parallel(self, chunks)
+        try:
+            if _is_mt_translator(self):
+                _repair_missing_translations(self, translated)
+        except Exception as e:  # noqa: BLE001
+            _vc_log(f"缺失译文补翻异常（跳过，按原结果继续）：{e}")
+        return translated
+
+    BaseTranslator._parallel_translate = _parallel_translate
+    BaseTranslator._vt_repair_patched = True
+    return True
+
+
 def _patch_machine_fallback_retry():
     """整条机翻链失败后自动重试一次（治「网络瞬断把整批打成 ERROR」）。
 
@@ -519,8 +681,11 @@ def vc_translate_no_llm_patch():
       3. 机翻整批失败的文案去掉「Check your API key」误导，改为
          「纯机翻、不涉及 AI 密钥、请检查网络/代理或更换服务」。
 
-    另附两项稳定性/可观测性补丁（同属本条用户报告）：
+    另附四项稳定性/可观测性补丁（同属本条用户报告）：
       · 机翻整批失败**自动重试一次**（治网络瞬断）；
+      · 谷歌**批量请求**（一条一次 GET + 0.12s 进程级串行 → 25 条/请求，
+        3376 条从 6.5 分钟压到 25~40 秒）；
+      · 整片翻完后**只补翻缺失条目**（治个别批次超时把整片打成失败）；
       · 引擎翻译日志桥到 logs\\vc_fallback.log（源码态引擎日志不落盘）。
 
     与设置页下拉移除「LLM 大模型翻译」（video_toolbox_qt.py）互补：
@@ -528,7 +693,9 @@ def vc_translate_no_llm_patch():
     """
     done = []
     for fn in (_heal_corrupt_caches, _patch_create_translator, _patch_need_llm,
-               _patch_mt_failure_message, _patch_machine_fallback_retry,
+               _patch_mt_failure_message, _patch_google_batch,
+               _patch_missing_retranslate,
+               _patch_machine_fallback_retry,
                _patch_engine_translate_log, _patch_translate_cache_safety):
         try:
             if fn():
@@ -538,6 +705,7 @@ def vc_translate_no_llm_patch():
     if done:
         _vc_log("翻译去 AI 补丁已挂：字幕翻译仅机翻（微软/谷歌/DeepLx），"
                 "LLM 翻译配置按微软翻译接管，机翻报错文案不再提示查 API key，"
+                "谷歌批量请求（25 条/请求），缺失条目定向补翻，"
                 "整批失败自动重试一次，缓存损坏自动重建/降级")
     return True
 

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.8.0
+# @version 2.9.0
 """主播声纹：本地声纹录入 + 字幕筛选（无 Qt，可脱离界面单测）。
 
 把「只出主播的字幕」做成本地**后处理**：
@@ -76,6 +76,11 @@ kaldi 兼容 fbank，不引入任何新的第三方包。
 对应「一档节目有两位主播 / 常驻嘉宾也算」这类场景。启用名单单独落
 `data/voiceprint/selection.json`（**刻意不写进 `data/ai_config.json`**——
 那个文件由设置页 `_collect_ai()` 整份重写，未进 schema 的键会被静默丢弃）。
+里面两个键各管一半：`enabled`＝**筛谁**（`load_selection`），`auto_filter`＝
+**筛不筛**（`load_auto_filter`，转录页的「声纹筛选」开关，默认关）。以前只有
+前者，等于「某次勾过一下就永久自动筛」——2026-11-03 一份 3856 条的日语片被
+10-30 残留的陌生声纹筛到只剩 22 条就是这么来的，所以现在还配了
+`DEFAULT_MIN_KEEP_RATIO` 误杀熔断兜底。
 
 多用户共享：模板的录入/重录/删除会经 `voiceprint_sync`（**独立通道**，与
 字幕校准知识同步互不干涉）排进待传队列，由引擎启动/退出同步或
@@ -212,6 +217,13 @@ DEFAULT_THRESHOLD = 0.55
 #: 存疑区被**保留**，用户看到的就是「依旧多人混合输出」（164 秒旁白没筛掉）。
 #: 教训：存疑区要**窄**且**贴着决策边界**，不能一路宽到"看起来还行"。
 DEFAULT_LOW = 0.45
+
+#: 「误杀熔断线」：筛选后保留比例低于它就**不覆盖成品字幕**。
+#: 依据：模板与说话人不匹配时是断崖式的（2026-11-03 实测：日语片 3856 条被
+#: 陌生声纹筛到只剩 22 条 = 0.57%，全片最高簇相似度仅 0.590 且落在存疑区）。
+#: 而「主播只说了全片不到 5% 的话」这种合法场景极窄；且默认 `keep_review=True`
+#: 时 NaN/存疑都算保留，「音频读不出」会退化成 100% 保留，不会误触本线。
+DEFAULT_MIN_KEEP_RATIO = 0.05
 
 # ---------------------------------------------------------------- 预处理常量
 #: RMS 归一化目标电平（-20 dBFS）。语音录音的典型工作电平；语音峰值/RMS
@@ -920,35 +932,81 @@ def list_templates():
 #: 那个文件由设置页 `_collect_ai()` 按 UI 控件整份重写，未进 schema 的键会被
 #: 静默丢弃（见 ai_client.DEFAULT_CONFIG 的约定）。声纹选择不属于 AI 设置页，
 #: 单独落一份小文件最省事、也不会被覆盖。
+#: 这份文件里住两个键：`enabled`＝**筛谁**（勾选的模板）、`auto_filter`＝
+#: **筛不筛**（转录页的「声纹筛选」开关，默认关）。以前只有前者，于是「用户
+#: 某次勾过一下就永久自动筛」——2026-11-03 一份 3856 条的日语片被 10-30 残留
+#: 的陌生声纹筛到只剩 22 条，就是这么来的。
 SELECTION_PATH = os.path.join(TEMPLATE_DIR, "selection.json")
+
+
+def _load_selection_obj():
+    """整份读回 selection.json；读不出或不是对象返回 None。"""
+    try:
+        with open(SELECTION_PATH, encoding="utf-8") as fh:
+            obj = json.load(fh)
+    except (OSError, ValueError):
+        return None
+    return obj if isinstance(obj, dict) else None
 
 
 def load_selection():
     """读「已启用的声纹」名单，自动剔除已被删除的模板。"""
-    try:
-        with open(SELECTION_PATH, encoding="utf-8") as fh:
-            obj = json.load(fh)
-        names = [str(x) for x in (obj.get("enabled") or [])]
-    except (OSError, ValueError):
+    obj = _load_selection_obj()
+    if not obj:
         return []
+    names = [str(x) for x in (obj.get("enabled") or [])]
     have = set(list_templates())
     return [n for n in names if n in have]
 
 
 def save_selection(names):
-    """写「已启用的声纹」名单；返回实际落盘的名单（已过滤不存在的模板）。"""
+    """写「已启用的声纹」名单；返回实际落盘的名单（已过滤不存在的模板）。
+
+    ⚠ **必须读-改-写**：同一份文件里还住着 `auto_filter`（转录页开关），
+    整份重写会顺着 `VoiceprintPicker` 的「勾选即落盘」把用户刚拨的开关静默抹
+    回默认值——与上面注释警告过的 `_collect_ai()` 是同一类坑。未知键一律原样
+    保留，别按 schema 重建。
+    """
     have = set(list_templates())
     keep = []
     for n in names or []:
         n = str(n)
         if n in have and n not in keep:
             keep.append(n)
+    obj = _load_selection_obj() or {}
+    obj["enabled"] = keep
+    obj["updated"] = time.strftime("%Y-%m-%d %H:%M:%S")
     os.makedirs(TEMPLATE_DIR, exist_ok=True)
     with open(SELECTION_PATH, "w", encoding="utf-8") as fh:
-        json.dump({"enabled": keep,
-                   "updated": time.strftime("%Y-%m-%d %H:%M:%S")},
-                  fh, ensure_ascii=False, indent=1)
+        json.dump(obj, fh, ensure_ascii=False, indent=1)
     return keep
+
+
+def load_auto_filter():
+    """转录页「声纹筛选」开关：为真才在转录完成后自动筛。
+
+    字段缺失 / 文件读不出 / 值不是 `true` 一律返回 **False**（安全默认）。
+    「宁可不筛」：多筛一次用户能拿回全文，误杀一次是把 3856 条砍到 22 条。
+    """
+    obj = _load_selection_obj()
+    if not obj:
+        return False
+    return obj.get("auto_filter") is True
+
+
+def save_auto_filter(enabled):
+    """写「声纹筛选」开关，返回落盘后的布尔值。
+
+    读-改-写，只动 `auto_filter`。与退出线程 `voiceprint_sync._unselect`
+    各自「读完立刻写」，最坏丢一次点击，不会污染模板数据——最后写者胜出。
+    """
+    obj = _load_selection_obj() or {}
+    obj["auto_filter"] = bool(enabled)
+    obj["updated"] = time.strftime("%Y-%m-%d %H:%M:%S")
+    os.makedirs(TEMPLATE_DIR, exist_ok=True)
+    with open(SELECTION_PATH, "w", encoding="utf-8") as fh:
+        json.dump(obj, fh, ensure_ascii=False, indent=1)
+    return obj["auto_filter"]
 
 
 def delete_template(name):
@@ -2214,9 +2272,21 @@ def decide(cues, speaker_scores, threshold=DEFAULT_THRESHOLD,
     return out
 
 
+def _suspect_path(out_path):
+    """熔断候选的落点名：`<stem>_疑似误杀.srt`；已存在则加序号，不覆盖上一份。"""
+    stem, ext = os.path.splitext(out_path)
+    p = "%s_疑似误杀%s" % (stem, ext)
+    i = 0
+    while os.path.exists(p):
+        i += 1
+        p = "%s_疑似误杀_%d%s" % (stem, i, ext)
+    return p
+
+
 def filter_srt(src, srt_path, template, threshold=DEFAULT_THRESHOLD,
                low=DEFAULT_LOW, out_path=None, encoder=None,
-               keep_review=True, report=True, progress=None):
+               keep_review=True, report=True, progress=None, *,
+               min_keep_ratio=DEFAULT_MIN_KEEP_RATIO, in_place_backup=None):
     """端到端：音频 + SRT -> 只保留主播的 SRT。
 
     `template` 支持单个模板 dict / 模板名，或**模板名列表**（多声纹取并集：
@@ -2224,6 +2294,15 @@ def filter_srt(src, srt_path, template, threshold=DEFAULT_THRESHOLD,
 
     `progress(text)` 可选：在阶段边界回调一句人话（解码 / 提取 / 写盘），
     供界面显示状态——18 分钟的片子要跑一两分钟，没反馈用户会以为卡死。
+
+    `min_keep_ratio`：**误杀熔断线**。保留比例低于它就判定「模板与本片声音不
+    匹配」，**绝不碰 `out_path`**，改写候选到 `<stem>_疑似误杀.srt`，返回 dict
+    里标 `aborted=True`。传 0 关闭。判定放在 `decide()` 之后、写盘之前——音频
+    解码 + 声纹提取 + 聚类才是最贵的一步（1~2 分钟），熔断绝不能靠「先试算一遍
+    再决定要不要重跑」。
+
+    `in_place_backup`：调用方准备的全文备份路径，**只用于把名字写进报告**，
+    本函数不创建它（见 `core.asr.voiceprint.voiceprint_filter_subtitle`）。
     """
     def _say(msg):
         if progress:
@@ -2275,24 +2354,38 @@ def filter_srt(src, srt_path, template, threshold=DEFAULT_THRESHOLD,
     n_review = sum(1 for _, st, _ in verdict if st == "review")
     n_drop = sum(1 for _, st, _ in verdict if st == "drop")
 
-    if out_path:
-        d = secore.SubtitleDoc(cues=list(kept), newline=doc.newline,
-                               has_bom=doc.has_bom)
-        with open(out_path, "wb") as fh:
-            fh.write(d.to_bytes())
+    total = len(cues)
+    ratio = (len(kept) / float(total)) if total else 0.0
+    floor = float(min_keep_ratio or 0.0)
+    aborted = floor > 0.0 and ratio < floor
 
-    res = {"out": out_path, "total": len(cues), "keep": n_keep,
+    res = {"out": out_path, "total": total, "keep": n_keep,
            "review": n_review, "drop": n_drop,
            "kept_total": len(kept), "speakers": spk_scores,
            "threshold": threshold, "low": low,
            "local_clusters": local_clusters,
-           "templates": [n for n, _e in tpls]}
+           "templates": [n for n, _e in tpls],
+           "keep_ratio": ratio, "min_keep_ratio": floor,
+           "aborted": aborted, "kept_path": None}
+
+    if out_path:
+        # 熔断时 out_path（通常就是原字幕本身）一个字节都不碰，候选另存。
+        # 判定此时已经做完，换的只是目的地——不存在「再跑一遍音频」。
+        target = _suspect_path(out_path) if aborted else out_path
+        if kept:
+            d = secore.SubtitleDoc(cues=list(kept), newline=doc.newline,
+                                   has_bom=doc.has_bom)
+            with open(target, "wb") as fh:
+                fh.write(d.to_bytes())
+            res["kept_path"] = target
+        res["out"] = res["kept_path"]
+
     if report and out_path:
-        _write_report(out_path, res, verdict)
+        _write_report(out_path, res, verdict, in_place_backup=in_place_backup)
     return res
 
 
-def _write_report(out_path, res, verdict):
+def _write_report(out_path, res, verdict, in_place_backup=None):
     """在产物旁写一份 txt 复核报告：每个说话人得分 + 被丢弃的条目。"""
     lines = ["主播声纹筛选报告",
              "  来源字幕 : %s" % os.path.basename(out_path),
@@ -2305,8 +2398,20 @@ def _write_report(out_path, res, verdict):
              "  分组依据 : %s"
              % ("字幕的 [说话人N] 标签"
                 if not res.get("local_clusters")
-                else "本地声纹聚类（%d 簇）" % res["local_clusters"]),
-             "", "各组得分（按相似度降序）："]
+                else "本地声纹聚类（%d 簇）" % res["local_clusters"])]
+    if res.get("aborted"):
+        lines.append("  ⚠ 熔断未覆盖 : 保留率 %.2f%% < 熔断线 %.2f%%，判为「模板与"
+                     "本片声音不匹配」——成品字幕「%s」一个字节都没改%s"
+                     % (res["keep_ratio"] * 100.0,
+                        res["min_keep_ratio"] * 100.0,
+                        os.path.basename(out_path),
+                        ("；筛出的 %d 条已另存「%s」"
+                         % (res["kept_total"],
+                            os.path.basename(res.get("kept_path") or "")))
+                        if res.get("kept_path") else ""))
+        if in_place_backup:
+            lines.append("  全文备份   : %s" % os.path.basename(in_place_backup))
+    lines += ["", "各组得分（按相似度降序）："]
     for spk, info in sorted(res["speakers"].items(),
                             key=lambda kv: -(kv[1]["score"] if kv[1]["score"] == kv[1]["score"] else -9)):
         label = spk or "(无标签)"
@@ -2483,11 +2588,21 @@ def _main(argv=None):
     p3.add_argument("--out", default=None)
     p3.add_argument("--strict", action="store_true",
                     help="存疑区也丢弃（默认保留并标记）")
+    p3.add_argument("--min-keep-ratio", type=float, default=DEFAULT_MIN_KEEP_RATIO,
+                    help="误杀熔断线：保留率低于它就不写产物（另存 _疑似误杀.srt），"
+                         "默认 %.2f；0 = 关闭" % DEFAULT_MIN_KEEP_RATIO)
+    p3.add_argument("--force", action="store_true",
+                    help="关闭误杀熔断，保留率再低也照写（等价 --min-keep-ratio 0）")
 
     p4 = sub.add_parser("list", help="列出已录入的声纹模板（x = 已启用）")
 
     p5 = sub.add_parser("use", help="设置启用的声纹（多选用逗号分隔）")
     p5.add_argument("names", help="声纹名，逗号分隔；传空串表示都不启用")
+
+    p5b = sub.add_parser("auto",
+                         help="转录页「声纹筛选」开关（筛不筛）：on / off / status")
+    p5b.add_argument("state", choices=("on", "off", "status"), nargs="?",
+                     default="status")
 
     p6 = sub.add_parser("delete", help="删除一个声纹模板")
     p6.add_argument("name")
@@ -2511,13 +2626,22 @@ def _main(argv=None):
             print("（还没有录入任何声纹；先跑 enroll）")
         for n in names:
             print("  [%s] %s" % ("x" if n in sel else " ", n))
-        print("\n带 x 的为「已启用」（转录后会自动筛选）。改启用名单："
-              "use <名字,名字>")
+        print("\n带 x 的为「已启用」＝**筛谁**；转录完成后筛不筛，另由转录页"
+              "「声纹筛选」开关决定（当前：%s）。改启用名单：use <名字,名字>；"
+              "改自动开关：auto on|off"
+              % ("已打开" if load_auto_filter() else "已关闭（默认，不会自动筛）"))
         return 0
     if args.cmd == "use":
         keep = save_selection([x.strip() for x in str(args.names).split(",")
                                if x.strip()])
         print("已启用 %d 个声纹：%s" % (len(keep), "、".join(keep) or "（空 = 不筛选）"))
+        return 0
+    if args.cmd == "auto":
+        if args.state in ("on", "off"):
+            save_auto_filter(args.state == "on")
+        print("转录页「声纹筛选」开关：%s"
+              % ("已打开（转录完成后按已启用名单筛）"
+                 if load_auto_filter() else "已关闭（转录完成后不动字幕）"))
         return 0
     if args.cmd == "delete":
         ok = delete_template(args.name)
@@ -2647,9 +2771,20 @@ def _main(argv=None):
         return 0
     out = args.out or os.path.splitext(args.srt)[0] + "_主播.srt"
     res = filter_srt(args.src, args.srt, tpls, args.threshold, args.low,
-                     out_path=out, encoder=enc, keep_review=not args.strict)
-    print("\n保留 %d / 存疑 %d / 丢弃 %d  ->  %s"
-          % (res["keep"], res["review"], res["drop"], out))
+                     out_path=out, encoder=enc, keep_review=not args.strict,
+                     min_keep_ratio=0.0 if args.force else args.min_keep_ratio)
+    print("\n保留 %d / 存疑 %d / 丢弃 %d（保留率 %.2f%%）"
+          % (res["keep"], res["review"], res["drop"], res["keep_ratio"] * 100.0))
+    if res["aborted"]:
+        print("⚠ 熔断：保留率 %.2f%% 低于熔断线 %.2f%%，判为模板与本片声音不匹配，"
+              "**未写「%s」**%s"
+              % (res["keep_ratio"] * 100.0, res["min_keep_ratio"] * 100.0, out,
+                 ("；候选另存「%s」" % res["kept_path"])
+                 if res.get("kept_path") else ""))
+        print("  确认这就是想要的结果再加 --force")
+        return 3
+    print("  -> %s" % (res.get("kept_path")
+                       or "（一条都没保留，未写出产物）"))
     return 0
 
 

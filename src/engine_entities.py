@@ -1,4 +1,4 @@
-# @version 2.8.0
+# @version 2.9.0
 """引擎实体定义（自研，替代 videocaptioner.core.entities）。
 
 P1 接缝之一：把 `videocaptioner.core.entities` 的公开面迁到本项目自有模块，
@@ -182,6 +182,9 @@ class FasterWhisperModelEnum(Enum):
     LARGE_V2 = "large-v2"
     LARGE_V3 = "large-v3"
     LARGE_V3_TURBO = "large-v3-turbo"
+    #: 工具箱内随包的英文专用模型（本轮搬移新增；不改动任何既有取值，
+    #: 不影响 settings.json 里已有模型值的反构造）。
+    SMALL_EN = "small.en"
 
 
 class LLMServiceEnum(Enum):

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.8.0
+# @version 2.9.0
 """视频全流程流水线（引擎侧，v1.14.0 新增）：事件驱动的阶段状态机。
 
 链接任务：填入链接 → 下载(原片+字幕+封面+信息) → 无字幕时语音转录 →
@@ -99,7 +99,16 @@ MIN_WORKERS, MAX_WORKERS = 1, 8
 
 
 class SkipStage(Exception):
-    """阶段主动跳过（记录 reason，状态置 SKIPPED，不算失败）。"""
+    """阶段主动跳过（记录 reason，状态置 SKIPPED，不算失败）。
+
+    no_content=True：因「这份字幕没有正文可处理」而跳过（空字幕 / 纯音乐无人声
+    的转录产物）。任务终态据此把「已完成」改判「已跳过」——否则一条从头空到
+    尾的链路的会被 all_done() 认成成功。
+    """
+
+    def __init__(self, reason, no_content=False):
+        super().__init__(reason)
+        self.no_content = bool(no_content)
 
 
 def _safe_name(text, fallback="job"):
@@ -271,7 +280,33 @@ def _heal_skippable_calib2(job):
         return
     st.update({"state": SKIPPED, "error": "",
                "reason": "无需二次校准：字幕没有可校准的中文行",
-               "auto_skip": False})
+               "auto_skip": False, "no_content": True})
+
+
+def _heal_no_content(job):
+    """把「空字幕却记 done」的历史阶段复位为「已跳过」（无内容型）。
+
+    纯音乐 / 无人声片子的转录产物是 0 字节 srt：旧版 calib1 照跑脚本产出一个
+    空文件、package 照写一个 2 字节的 `【字幕】xxx.srt`，两段都记 DONE，任务
+    列表显示「已完成」——实际一条字幕都没有。新版执行体已改为 SkipStage，
+    这里把历史状态按**数据条件**复位（直接看产物有没有 cue，不认 reason
+    字符串：旧 JSON 里根本没有 no_content 键）。
+    """
+    for key, reason in ((STAGE_CALIB1, "字幕为空，无内容可校准"),
+                        (STAGE_PACKAGE, "无字幕内容可交付")):
+        st = job.stages.get(key) or {}
+        if st.get("state") != DONE:
+            continue
+        out = str(st.get("out") or "")
+        if not out.lower().endswith(".srt") or not os.path.isfile(out):
+            continue
+        try:
+            if _parse_srt_cues(engine.read_text_any(out)):
+                continue          # 有正文：那是真完成，一个字节都不碰
+        except Exception:  # noqa: BLE001 - 读不动就维持原状，别猜
+            continue
+        st.update({"state": SKIPPED, "error": "", "reason": reason,
+                   "auto_skip": False, "no_content": True})
 
 
 def _stage_download_ready(job, registry):
@@ -492,7 +527,7 @@ def _stage_translate_ready(job, registry):
 def _stage_translate_run(job, ctx):
     src = _pick_source_srt(job)
     if not src:
-        raise SkipStage("没有可翻译的字幕（下载阶段未取到字幕）")
+        raise SkipStage("没有可翻译的字幕（下载阶段未取到字幕）", no_content=True)
     out = os.path.join(ctx.work_dir(job), f"{_safe_name(job.name)}.zh.srt")
     if _reusable(out, [src]):
         return out
@@ -508,6 +543,10 @@ def _stage_calib1_run(job, ctx):
     src = _pick_source_srt(job) or job.srt()
     if not src or not os.path.isfile(src):
         raise RuntimeError("找不到待校准的 srt")
+    # 空字幕（纯音乐 / 无人声片子的转录产物）没有可校准的正文：跳过而不是
+    # 跑一遍脚本再产出一个空文件标 done（与 _translate_srt_file 同款判空）。
+    if not _parse_srt_cues(engine.read_text_any(src)):
+        raise SkipStage("字幕为空，无内容可校准", no_content=True)
     work = ctx.work_dir(job)
     out = os.path.join(work, f"{_safe_name(job.name)}.calib.srt")
     if not os.path.isfile(CALIB_SCRIPT):
@@ -563,7 +602,7 @@ def _stage_calib2_run(job, ctx):
         # 「cue 表为空」= 这份字幕没有可校准的中文行（纯韩文/英文轨等），
         # 属**数据条件不满足**而非故障 → 跳过，别把整条任务染红。
         if "cue 表为空" in err:
-            raise SkipStage(f"无需二次校准：{err}")
+            raise SkipStage(f"无需二次校准：{err}", no_content=True)
         raise RuntimeError(f"AI 二次校准失败：{err[:160]}")
     _mark_reusable(out, [src])
     return out
@@ -648,14 +687,15 @@ def _stage_package_run(job, ctx):
             ctx.log(f"[成品输出] 合并视频 → {os.path.basename(dst_video)}")
     srt = job.srt()
     out_path = dest_dir
-    if srt and os.path.isfile(srt):
+    if srt and os.path.isfile(srt) and _parse_srt_cues(engine.read_text_any(srt)):
         dst_srt = os.path.join(dest_dir, _deliver_srt_name(job))
         if not os.path.exists(dst_srt):
             engine.write_text_utf8(dst_srt, _to_translate_on_top(engine.read_text_any(srt)))
         ctx.log(f"[成品输出] 字幕 → {os.path.basename(dst_srt)}")
         out_path = dst_srt
     else:
-        ctx.log("[成品输出] 没有可用字幕，仅确认视频在原文件夹")
+        # 空字幕（纯音乐 / 无人声）不再产出 2 字节的 `【字幕】xxx.srt` 交付物
+        ctx.log("[成品输出] 没有可用字幕（无文件或无正文），仅确认视频在原文件夹")
     ctx.log(f"[成品输出] → {dest_dir}")
     return out_path
 
@@ -777,7 +817,16 @@ class Job:
                 return f"待执行：{STAGE_LABELS.get(k, k)}"
         if self.state(STAGE_DOWNLOAD) == DONE and not self.video:
             return "素材缺失（原视频已不在下载目录）"
-        return "已完成" if self.all_done() else "等待文件"
+        if not self.all_done():
+            return "等待文件"
+        # 「无内容」型跳过（空字幕 / 纯音乐无人声）走到终态不算完成：全链都跑过
+        # 但一个字幕条目都没产出，标「已完成」会让人以为交付了字幕。
+        # 「字幕已是中文」「已有字幕，无需转录」等正常跳过不带 no_content，不受影响。
+        for k in self.chain:
+            st = self.stages.get(k) or {}
+            if st.get("state") == SKIPPED and st.get("no_content"):
+                return "已跳过：" + (st.get("reason") or "无内容可处理")
+        return "已完成"
 
     def to_dict(self):
         return {"id": self.id, "name": self.name, "dir": self.dir,
@@ -825,7 +874,8 @@ class Job:
                     "reason": str(st.get("reason") or ""),
                     "out": str(st.get("out") or ""),
                     "ts": float(st.get("ts") or 0.0),
-                    "auto_skip": bool(st.get("auto_skip"))})
+                    "auto_skip": bool(st.get("auto_skip")),
+                    "no_content": bool(st.get("no_content"))})
         return job
 
 
@@ -1324,7 +1374,7 @@ def _translate_srt_file(src, out, ctx):
             body_idx.append((bi, li))
             body_lines.append(line)
     if not body_lines:
-        raise SkipStage("字幕没有可翻译的正文")
+        raise SkipStage("字幕没有可翻译的正文", no_content=True)
     if _chinese_ratio("\n".join(body_lines)) > 0.3:
         raise SkipStage("字幕已是中文，无需翻译")
     ctx.log(f"[翻译] 必应翻译 {len(body_lines)} 行 "
@@ -1891,6 +1941,7 @@ class Pipeline(_Emitter):
                 st["reason"] = str(e)
                 # 执行体主动判定「无需执行」→ 不属可复活类（否则 ready 恒真会死循环）
                 st["auto_skip"] = False
+                st["no_content"] = bool(getattr(e, "no_content", False))
                 st["ts"] = time.time()
             self._log(f"[跳过] {job.name} → {sd.label}：{e}")
         except Exception as e:  # noqa: BLE001
@@ -2044,8 +2095,10 @@ class Pipeline(_Emitter):
                     # ——它当时确实下载失败了，不能因为文件不在了就洗成"没发生过"。
                     job.video = ""
             # 历史「cue 表为空」失败 → 按数据条件不满足复位为已跳过
+            # 历史「空字幕记 done」→ 复位为无内容型已跳过（任务终态随之改「已跳过」）
             for job in self.jobs.values():
                 _heal_skippable_calib2(job)
+                _heal_no_content(job)
             self._first_sync_done = True
 
     # ---------- 对外查询 ----------

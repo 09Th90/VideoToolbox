@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# @version 2.8.0
+# @version 2.9.0
 """
 视频工具箱 v1.12.0（单文件整合版）
 ==================================================
@@ -183,7 +183,9 @@ from core.asr import (  # asr 域公开函数（DOMAIN_MAP「asr」A2a 部分）
 from core.asr import *  # noqa: F401,F403 —— asr 域常量与私有函数（_asr_*_submit/_infer_asr_protocol 等，* 经 __all__ 全量导出）
 from core.asr import (  # asr 域公开函数（DOMAIN_MAP「asr」A2b 部分）
     asr_local_override, apply_asr_to_engine, vc_asr_patch_apply,
-    vc_pydub_nowindow_patch, voiceprint_enabled_names,
+    vc_pydub_nowindow_patch, voiceprint_enabled_names, voiceprint_auto_names,
+    voiceprint_auto_filter_enabled, voiceprint_set_auto_filter,
+    voiceprint_auto_tooltip, voiceprint_result_notice,
     voiceprint_filter_subtitle, vc_transcribe_ui_patch, vc_lazy_cache_patch,
     vc_prepare_settings_file, vc_enforce_runtime_cfg, vc_migrate_legacy_data,
     vc_legacy_leftovers,

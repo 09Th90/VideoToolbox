@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.8.0
+# @version 2.9.0
 """自研「字幕翻译」页（含 ``SubtitleTableModel`` / ``PromptDialog``）。
 
 视觉与引擎字幕页对齐；把补丁 ⑨ 的「按声纹筛选」按钮 + 筛选前表格回写内建为
@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import tempfile
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
@@ -353,11 +354,8 @@ class SubtitleInterface(QWidget):
     def update_info(self, task) -> None:
         if not self.task:
             return
-        original_subtitle_save_path = Path(str(self.task.subtitle_path))
-        asr_data = _seams.ASRData.from_subtitle_file(str(original_subtitle_save_path))
-        self.model._data = asr_data.to_json()
-        self.model.layoutChanged.emit()
-        self.status_label.setText(self.tr("已加载文件"))
+        # 走与拖拽/文件选择同一条装载路径：判空与状态措辞只留一处实现
+        self.load_subtitle_file(str(self.task.subtitle_path))
 
     def start_subtitle_optimization(self, need_create_task: bool = True) -> None:
         const = _seams.constants
@@ -418,8 +416,29 @@ class SubtitleInterface(QWidget):
         _title = (self.tr("翻译失败")
                   if ("译" in _msg or "Translation" in _msg)
                   else self.tr("优化失败"))
+        self.status_label.setText(self._failure_status_text(_msg, _title))
         InfoBar.error(_title, self.tr(_msg),
                       duration=_seams.constants.INFOBAR_DURATION_ERROR, parent=self)
+
+    def _failure_status_text(self, error: str, prefix: str) -> str:
+        """失败态下把报错压成一行常驻状态文案。
+
+        线程在 ``error.emit`` 之后补发的 ``progress(100, "字幕处理失败")``
+        会被 ``_opt_active`` 挡掉（防红色错误态被满格完成态覆盖），副作用是
+        状态栏一直留着最后一条正常进度「100% 处理字幕」——红色满格配这句话，
+        用户读到的意思是「跑完了但不动」，实际是「失败了」。10 秒后 InfoBar
+        消失，这个误导就永久留在屏幕上（2026-11-01 用户报「卡在 100%」）。
+        """
+        _msg = " ".join(str(error or "").split())
+        if "中断" in _msg:
+            return self.tr("{0}：已中断，未生成文件").format(prefix)
+        m = re.search(r"(\d+)\s*/\s*(\d+)\s*条", _msg)
+        if m:
+            return self.tr("{0}：{1}/{2} 条未拿到译文，未生成文件").format(
+                prefix, m.group(1), m.group(2))
+        if not _msg:
+            return prefix
+        return self.tr("{0}：{1}").format(prefix, _msg[:90])
 
     def on_subtitle_optimization_progress(self, value: int, status: str) -> None:
         # 终态后到来的进度不回弹：引擎 SubtitleThread 在 except 分支先
@@ -498,12 +517,16 @@ class SubtitleInterface(QWidget):
             target_dir = str(Path(self.task.subtitle_path).parent)
         _seams.platform_utils.open_folder(target_dir)
 
-    def load_subtitle_file(self, file_path: str) -> None:
+    def load_subtitle_file(self, file_path: str) -> int:
+        """装载字幕并返回条目数（0 = 文件里一条字幕都没有，调用方据此措辞）。"""
         self.subtitle_path = file_path
         asr_data = _seams.ASRData.from_subtitle_file(file_path)
         self.model._data = asr_data.to_json()
         self.model.layoutChanged.emit()
-        self.status_label.setText(self.tr("已加载文件"))
+        self.status_label.setText(
+            self.tr("已加载文件") if self.model._data
+            else self.tr("字幕为空（0 条）"))
+        return len(self.model._data)
 
     def dragEnterEvent(self, event: QDragEnterEvent) -> None:
         event.accept() if event.mimeData().hasUrls() else event.ignore()
@@ -518,11 +541,21 @@ class SubtitleInterface(QWidget):
                 continue
             file_ext = os.path.splitext(file_path)[1][1:].lower()
             if file_ext in supported:
-                self.load_subtitle_file(file_path)
-                InfoBar.success(
-                    self.tr("导入成功"), self.tr("成功导入") + os.path.basename(file_path),
-                    duration=const.INFOBAR_DURATION_SUCCESS,
-                    position=InfoBarPosition.BOTTOM, parent=self)
+                n = self.load_subtitle_file(file_path)
+                if n:
+                    InfoBar.success(
+                        self.tr("导入成功"), self.tr("成功导入") + os.path.basename(file_path),
+                        duration=const.INFOBAR_DURATION_SUCCESS,
+                        position=InfoBarPosition.BOTTOM, parent=self)
+                else:
+                    # 空字幕（纯音乐/无人声片子的转录产物）表格必然 0 行，报
+                    # 「导入成功」只会让人以为是渲染坏了（2026-11-06 用户报障）。
+                    InfoBar.warning(
+                        self.tr("字幕为空"),
+                        self.tr("已读取 ") + os.path.basename(file_path)
+                        + self.tr("，但没有任何字幕条目（这段视频可能没有语音内容）"),
+                        duration=const.INFOBAR_DURATION_WARNING,
+                        position=InfoBarPosition.BOTTOM, parent=self)
                 break
             else:
                 InfoBar.error(
@@ -665,7 +698,8 @@ class SubtitleInterface(QWidget):
         self._opt_active = False
         self.start_button.setEnabled(True)
         self.progress_bar.error()
-        self.status_label.setText(self.tr("重新翻译失败"))
+        self.status_label.setText(
+            self._failure_status_text(error, self.tr("重新翻译失败")))
         InfoBar.error(self.tr("翻译失败"), error,
                       duration=_seams.constants.INFOBAR_DURATION_ERROR, parent=self)
 
@@ -753,20 +787,12 @@ class SubtitleInterface(QWidget):
             except Exception:  # noqa: BLE001
                 pass
             try:
-                if isinstance(res, dict) and res.get("error"):
-                    InfoBar.error("声纹筛选失败", str(res["error"])[:200] + "\n字幕已保留未筛选版本",
-                                  duration=9000, position=InfoBarPosition.BOTTOM, parent=parent)
-                elif res is None:
-                    InfoBar.warning("声纹筛选未执行",
-                                    "声纹模型还没下载：到「语音转录 → 主播声纹」点「下载模型」",
-                                    duration=8000, position=InfoBarPosition.BOTTOM, parent=parent)
-                else:
-                    InfoBar.success(
-                        "声纹筛选完成",
-                        "保留 %d 条（其中存疑 %d）/ 丢弃 %d；原件已备份为「%s」"
-                        % (res["kept_total"], res["review"], res["drop"],
-                           os.path.basename(res.get("backup") or "")),
-                        duration=9000, position=InfoBarPosition.BOTTOM, parent=parent)
+                # 文案与判定（含**熔断未覆盖**态）统一取 core 层，四处入口共用。
+                # 手动入口同样吃熔断护栏：它覆盖的是同一个文件，风险同源。
+                kind, title, content, ms = _seams.voiceprint_result_notice(res)
+                getattr(InfoBar, kind)(title, content, duration=ms,
+                                       position=InfoBarPosition.BOTTOM,
+                                       parent=parent)
             except Exception:  # noqa: BLE001
                 pass
             try:

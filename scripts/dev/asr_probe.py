@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.8.0
+# @version 2.9.0
 """音频复核法 · 通用探针（2026-10-07 沉淀自终末地「塔卫二：一号简报」反应片校准）
 
 用途：字幕与英文参考行都不可信时，用**原片音频**定案。
@@ -29,7 +29,17 @@ NATIVE_PATH = "/api/v1/services/aigc/multimodal-generation/generation"
 
 def load_cfg(path=None):
     with open(path or os.path.join(ROOT, "data", "ai_config.json"), encoding="utf-8") as f:
-        return json.load(f)
+        cfg = json.load(f)
+    # 2026-11-02：密钥已迁进 data/credentials.json（credential_store），ai_config.json 里
+    # 不再留 asr_api_key；此处缺失时回落到凭据存储，否则探针一律 HTTP 401 InvalidApiKey。
+    if not cfg.get("asr_api_key"):
+        sys.path.insert(0, os.path.join(ROOT, "tools"))
+        try:
+            import credential_store
+            cfg["asr_api_key"] = credential_store.get("asr_api_key")
+        except Exception as exc:  # 读不到照旧走空串，让 HTTP 401 自己说明原因
+            print("credential_store 回落失败:", exc)
+    return cfg
 
 
 def native_url(base):

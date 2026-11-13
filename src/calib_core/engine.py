@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.8.0
+# @version 2.9.0
 """校准主引擎 process()
 
 源：subtitle_calib_merged.py L11610-L11977 @ 97d7d463（2026-10-24 冻结快照）
@@ -45,7 +45,7 @@ def _load_override_tsv(path):
 
 
 def process(path, out_path=None, report_path=None, mode="bi",
-            fix_en=False, pgr_override=None, learned_kb=None):
+            fix_en=False, pgr_override=None, learned_kb=None, bi_override=None):
     """对 SRT 校准。返回 (改动行rows, 术语命中hits)。
       mode="bi"   双语模式：BILINGUAL_TERMS + CONTEXT_MAP + WORD_MAP 改首中文行。
       mode="ko"   韩语模式：KO_TERMS 统一中文行术语。
@@ -338,6 +338,13 @@ def process(path, out_path=None, report_path=None, mode="bi",
                         for crx, wrong, right in _PGR_EN_CONTEXT_COMPILED:
                             if wrong in new and crx.search(ref_m):
                                 new = _ctx_replace(new, wrong, right)
+                        # 2026-11-09：pgren 补「负向排除回滚」，与 bi/ak 分支同构。
+                        #   动机：既有裸键「皮肤→涂装」把 EN 'Dark skin'(肤色) 改成「黑涂装」；
+                        #   EXCLUDE_CONTEXT 此前只在 bi/ak 生效，pgren 片无从回滚。
+                        for wrong, (right, rxs) in _EXCLUDE_COMPILED.items():
+                            if wrong in old and wrong not in new and any(rx.search(ref_m) for rx in rxs):
+                                new = new.replace(right, wrong)
+                                hits.pop(wrong, None)
                         if new != old:
                             rows.append((num, old, new, ref))
                             out[zh_idx] = new
@@ -466,20 +473,28 @@ def process(path, out_path=None, report_path=None, mode="bi",
                                 rows.append((num, lold, new, ref))
                                 out[ti] = new
                     else:                      # 双语模式：统一每个 cue 的首中文行
-                        new = _replace_report(old, term_pairs, term_chars, hits)
-                        for crx, wrong, right in _CONTEXT_COMPILED:
-                            if wrong in new and crx.search(ref_m):
-                                new = _ctx_replace(new, wrong, right)
-                        # 负向排除（EXCLUDE_CONTEXT）：高歧义词被替换后，若参考行命中
-                        # 排除正则（如 thank you/written tent 语境），回滚该替换并从命中统计移除
-                        for wrong, (right, rxs) in _EXCLUDE_COMPILED.items():
-                            if wrong in old and wrong not in new and any(rx.search(ref_m) for rx in rxs):
-                                new = new.replace(right, wrong)
-                                hits.pop(wrong, None)
-                        new = _replace_report(new, word_pairs, word_chars, {})  # WORD_MAP 命中不计入统计
-                        if new != old:
-                            rows.append((num, old, new, ref))
-                            out[zh_idx] = new
+                        if bi_override and str(num) in bi_override:
+                            # 逐 cue 侧车整行覆盖（高歧义、规则无法精确处理的一次性 cue，
+                            # 如 cue255/2389）：直接用终稿，不叠加术语表，零跨片风险
+                            new = bi_override[str(num)]
+                            if new != old:
+                                rows.append((num, old, new, ref))
+                                out[zh_idx] = new
+                        else:
+                            new = _replace_report(old, term_pairs, term_chars, hits)
+                            for crx, wrong, right in _CONTEXT_COMPILED:
+                                if wrong in new and crx.search(ref_m):
+                                    new = _ctx_replace(new, wrong, right)
+                            # 负向排除（EXCLUDE_CONTEXT）：高歧义词被替换后，若参考行命中
+                            # 排除正则（如 thank you/written tent 语境），回滚该替换并从命中统计移除
+                            for wrong, (right, rxs) in _EXCLUDE_COMPILED.items():
+                                if wrong in old and wrong not in new and any(rx.search(ref_m) for rx in rxs):
+                                    new = new.replace(right, wrong)
+                                    hits.pop(wrong, None)
+                            new = _replace_report(new, word_pairs, word_chars, {})  # WORD_MAP 命中不计入统计
+                            if new != old:
+                                rows.append((num, old, new, ref))
+                                out[zh_idx] = new
                 i = kk
                 continue
         i += 1

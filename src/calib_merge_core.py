@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# @version 2.8.0
+# @version 2.9.0
 """校准知识条目级合并核心（纯函数，零副作用）。
 
 ============================================================
@@ -94,7 +94,11 @@ def _registry_conflicts(src):
     """静态复算脚本 _register_entities 的注册冲突检查（同变体不同目标）。
 
     合并器绝不制造这种冲突——它会 raise SystemExit 让整个校准脚本起不来。
-    返回冲突描述列表（空列表 = 通过）。"""
+    返回冲突描述列表（空列表 = 通过）。
+
+    2026-11-10：从「只比对静态表」升级为复算运行期投影（先注册实体的 variants
+    也会写入表），修实体间同变体不同目标漏检——合并器曾因此写出起不来的脚本。
+    """
     try:
         tree = _ast.parse(src)
     except SyntaxError:
@@ -116,16 +120,28 @@ def _registry_conflicts(src):
                         if c is not None:
                             entities.append((c, modes, variants))
     mode_table = tables.get("_MODE_TERM_TABLE") or {}
+    # 与 state._register_entities（state.py:207-238）同构：先复制静态表，
+    # 再按 ENTITIES 顺序把 variants 投影进去，先查后 setdefault。
+    projected = {}
+
+    def _projected(tname):
+        if tname not in projected:
+            base = tables.get(tname)
+            projected[tname] = dict(base) if isinstance(base, dict) else None
+        return projected[tname]
+
     bad = []
     for canonical, modes, variants in entities:
         for m in modes:
             tname = mode_table.get(m)
-            tbl = tables.get(tname) if tname else None
+            tbl = _projected(tname) if tname else None
             if not isinstance(tbl, dict):
                 continue
             for v in variants:
                 if v in tbl and tbl[v] != canonical:
                     bad.append(f"{v!r}->{tbl[v]!r} 与实体 {canonical!r} 冲突")
+                else:
+                    tbl.setdefault(v, canonical)
     return bad
 
 

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.8.0
+# @version 2.9.0
 """核心单体拆分 · 接口契约测试（**先立测试，再动刀**）。
 
 为什么需要（v2.3.1 → 拆分工程）：
@@ -113,6 +113,9 @@ DOMAIN_MAP = {
     "asr": [
         "asr_local_override", "apply_asr_to_engine", "vc_asr_patch_apply",
         "vc_pydub_nowindow_patch", "voiceprint_enabled_names",
+        "voiceprint_auto_names", "voiceprint_auto_filter_enabled",
+        "voiceprint_set_auto_filter", "voiceprint_auto_tooltip",
+        "voiceprint_result_notice",
         "voiceprint_filter_subtitle", "vc_transcribe_ui_patch",
         "is_realtime_asr_family", "is_dashscope_native_asr",
         "asr_model_hard_guard", "asr_strip_endpoint_tail", "asr_protocol_fix",
@@ -126,6 +129,7 @@ DOMAIN_MAP = {
     ],
     "translate": [
         "vc_translate_route_patch", "vc_translate_no_llm_patch",
+        "ensure_translate_patches",
     ],
     "calibrate": [
         "calib_ai_chat", "calib_web_proxy", "calib_ai_run",

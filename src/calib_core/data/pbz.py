@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.8.0
+# @version 2.9.0
 """影之刃零（Phantom Blade Zero）片源术语/语境表（--pbz，2026-10-30 新增）
 
 片源：《[Hellwalker] Phantom Blade Zero!!! pt2》（MarcoMeatball，英语原声 + 谷歌翻译，

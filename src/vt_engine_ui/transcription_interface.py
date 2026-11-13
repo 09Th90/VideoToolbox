@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.8.0
+# @version 2.9.0
 """自研「语音转录」页（含 ``VideoInfoCard``）。
 
 视觉与引擎转录页对齐；把原本运行期打在引擎类上的转录补丁**内建为显式逻辑**：
@@ -55,6 +55,7 @@ from vt_fluent import (
     ProgressRing,
     PushButton,
     RoundMenu,
+    SwitchButton,
     TransparentDropDownPushButton,
     setFont,
 )
@@ -442,7 +443,60 @@ class TranscriptionInterface(QWidget):
                       triggered=self._show_voiceprint_settings)
         gear.setToolTip(self.tr("声纹设置"))
         self.command_bar.addAction(gear)
+        self._mount_vp_auto_switch()
         self.main_layout.addWidget(self.command_bar)
+
+    def _mount_vp_auto_switch(self):
+        """命令栏的「声纹筛选」开关（**默认关**）——本次任务要不要筛。
+
+        `selection.enabled`（齿轮里勾选的名单）从此只回答「筛谁」，不再单独
+        构成自动执行的理由：2026-11-03 一份 3856 条的日语片被 10-30 残留的
+        陌生声纹筛到只剩 22 条，就是因为没有这一层。与引擎补丁
+        `core/asr/ui_patch.py` 对称挂载（`vt_ui_golden` 逐节点比对）。
+        """
+        try:
+            sw = SwitchButton(self.tr("声纹筛选"), self.command_bar)
+            sw.setChecked(_seams.voiceprint_auto_filter_enabled())
+            sw.setToolTip(_seams.voiceprint_auto_tooltip())
+            sw.setFixedHeight(34)
+            sw.checkedChanged.connect(self._on_vp_auto_changed)
+            self.command_bar.addWidget(sw)
+            self.vp_auto_switch = sw
+        except Exception as e:  # noqa: BLE001
+            _seams.vc_log(f"转录页声纹开关挂载失败：{e}")
+
+    def _on_vp_auto_changed(self, checked=False):
+        """开关落盘 + 刷新文案；不弹 InfoBar（用户刚点完，无需确认音）。"""
+        sw = getattr(self, "vp_auto_switch", None)
+        try:
+            _seams.voiceprint_set_auto_filter(
+                bool(sw.isChecked()) if sw is not None else bool(checked))
+            if sw is not None:
+                sw.setToolTip(_seams.voiceprint_auto_tooltip())
+            _seams.vc_log("用户%s转录页「声纹筛选」开关"
+                          % ("打开" if (sw is not None and sw.isChecked())
+                             else "关闭"))
+        except Exception as e:  # noqa: BLE001
+            _seams.vc_log(f"声纹自动筛选开关写入失败：{e}")
+
+    def refresh_vp_auto_switch(self):
+        """齿轮弹窗关掉后同步一次：勾选变了，开关文案里的名单也要跟着变。"""
+        sw = getattr(self, "vp_auto_switch", None)
+        if sw is None:
+            return
+        try:
+            sw.blockSignals(True)
+            sw.setChecked(_seams.voiceprint_auto_filter_enabled())
+            sw.setToolTip(_seams.voiceprint_auto_tooltip())
+            sw.blockSignals(False)
+        except Exception as e:  # noqa: BLE001
+            sw.blockSignals(False)
+            _seams.vc_log(f"声纹开关状态刷新失败：{e}")
+
+    def _show_voiceprint_settings(self):
+        dialog = TranscriptionSettingDialog(self.window())
+        dialog.exec_()
+        self.refresh_vp_auto_switch()
 
     def _setup_signals(self) -> None:
         self.video_info_card.finished.connect(self._on_transcript_finished)
@@ -662,7 +716,12 @@ class TranscriptionInterface(QWidget):
             pass
         return None
 
-    def _start_voiceprint_filter(self, iface, out, media, then) -> bool:
+    def _start_voiceprint_filter(self, iface, out, media, then, names=None) -> bool:
+        """后台筛选，完成后回调 `then()`。
+
+        `names`：自动路径传挂载点过完门禁的那一份名单（转录这几十秒里用户可能
+        改了勾选）；省略＝按已启用名单筛（手动「按声纹筛选」按钮）。
+        """
         parent = self._home_of(iface) or iface.window()
         try:
             bar = InfoBar.info(
@@ -676,7 +735,8 @@ class TranscriptionInterface(QWidget):
 
             def run(self):
                 try:
-                    r = _seams.voiceprint_filter_subtitle(out, media)
+                    r = _seams.voiceprint_filter_subtitle(out, media,
+                                                          names=names)
                 except Exception as e:  # noqa: BLE001
                     _seams.vc_log(f"声纹筛选失败：{e}")
                     r = {"error": str(e)}
@@ -689,25 +749,14 @@ class TranscriptionInterface(QWidget):
             except Exception:  # noqa: BLE001
                 pass
             try:
-                if isinstance(res, dict) and res.get("error"):
-                    InfoBar.error(
-                        "声纹筛选失败",
-                        str(res["error"])[:200] + "\n字幕已保留未筛选版本",
-                        duration=9000, position=InfoBarPosition.BOTTOM, parent=parent)
-                elif res is None:
-                    InfoBar.warning(
-                        "声纹筛选未执行",
-                        "声纹模型还没下载：到「语音转录 → 主播声纹」点「下载模型」",
-                        duration=8000, position=InfoBarPosition.BOTTOM, parent=parent)
-                else:
-                    InfoBar.success(
-                        "声纹筛选完成",
-                        "保留 %d 条（其中存疑 %d）/ 丢弃 %d；原件已备份为「%s」"
-                        % (res["kept_total"], res["review"], res["drop"],
-                           os.path.basename(res.get("backup") or "")),
-                        duration=9000, position=InfoBarPosition.BOTTOM, parent=parent)
+                # 文案与判定（含**熔断未覆盖**态）统一取 core 层，四处入口共用
+                kind, title, content, ms = _seams.voiceprint_result_notice(res)
+                getattr(InfoBar, kind)(title, content, duration=ms,
+                                       position=InfoBarPosition.BOTTOM,
+                                       parent=parent)
             except Exception:  # noqa: BLE001
                 pass
+            # 熔断也照样回填：成品没被改动，全文正是用户要的东西
             try:
                 then()
             except Exception as e:  # noqa: BLE001
@@ -741,6 +790,16 @@ class TranscriptionInterface(QWidget):
                     sub.set_task(st)
                     home.stackedWidget.setCurrentWidget(sub)
                     home.pivot.setCurrentItem("SubtitleInterface")
+                    # 纯音乐/无人声的片子转录出来是空 srt，`_produced_subtitle`
+                    # 只看文件存在就照样弹「已装载」——表格 0 行配上成功提示，
+                    # 用户读到的是「渲染坏了」。判据用装载后的模型条目数。
+                    if not getattr(sub.model, "_data", None):
+                        _seams.vc_log(f"独立转录完成 → 字幕为空，无可装载内容：{out}")
+                        InfoBar.warning(
+                            "转录完成",
+                            "未识别到任何语音内容，生成的字幕为空（0 条）",
+                            duration=5000, position=InfoBarPosition.BOTTOM, parent=home)
+                        return True
                     _seams.vc_log(f"独立转录完成 → 已装载「字幕翻译」：{out}")
                     InfoBar.success(
                         "转录完成",
@@ -748,8 +807,12 @@ class TranscriptionInterface(QWidget):
                         duration=5000, position=InfoBarPosition.BOTTOM, parent=home)
                     return True
 
-                if out and _seams.voiceprint_enabled_names():
-                    if self._start_voiceprint_filter(self, out, media, _handoff):
+                # 门禁 = 转录页「声纹筛选」开关 ∧ 已启用名单；只看名单等于
+                # 「某次勾过就永久自动筛」（2026-11-03 误杀 3834/3856 条）
+                vp_names = _seams.voiceprint_auto_names() if out else []
+                if vp_names:
+                    if self._start_voiceprint_filter(self, out, media, _handoff,
+                                                    vp_names):
                         return
                 if _handoff():
                     return
@@ -847,6 +910,18 @@ class TranscriptionInterface(QWidget):
         self.update_info(self.task.file_path)
 
     def process(self):
+        # 事前把「这次转录完会按声纹筛」说出来：以前这件事是静默发生的（只看
+        # 一份跨会话残留的全局名单），用户根本不知道字幕会被就地改写。
+        try:
+            vp_names = _seams.voiceprint_auto_names()
+            if vp_names:
+                InfoBar.info(
+                    "转录完成后将按声纹筛选",
+                    "按「%s」保留其台词（转录页「声纹筛选」开关可关）"
+                    % "、".join(vp_names),
+                    duration=4000, position=InfoBarPosition.BOTTOM, parent=self)
+        except Exception as e:  # noqa: BLE001
+            _seams.vc_log(f"声纹筛选事前提示未发：{e}")
         self.is_processing = True
         self.video_info_card.start_transcription(need_create_task=False)
 

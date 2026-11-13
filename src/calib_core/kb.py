@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.8.0
+# @version 2.9.0
 """对象级知识库 audit/export/lookup/lint
 
 源：subtitle_calib_merged.py L10668-L11184 @ 97d7d463（2026-10-24 冻结快照）
@@ -283,7 +283,7 @@ def _audit_build_alt(pairs, boundary=True):
 
 
 
-def _cmd_audit(src, mode="bi", out=None, as_json=False, limit=300, loose=False):
+def _cmd_audit(src, mode="bi", out=None, as_json=False, limit=300, loose=False, window=0):
     """audit：校准后成品的「名词漏校三扫」（机械遍 / AI 校准之后的收口体检）。
 
     扫 1  拉丁残留      —— 中文行里白名单外的英文/罗马字（分级字母、通用外来词不计）。
@@ -294,6 +294,11 @@ def _cmd_audit(src, mode="bi", out=None, as_json=False, limit=300, loose=False):
     扫 3  同词族一致性  —— 参考行命中锚点、中文行却没有对应官方名。反向核查查不出这类
                            （每种错形都不是「官方名缺失」），是漏校的主力来源。
 
+    window：扫 2/3 判「官方名是否已译」时向前后各看 N 条中文行（默认 0＝严格逐 cue，旧行为）。
+            2026-11-09 新增：ASR 常把专名跨 cue 切断（'a member of Vanessa's' / 'Egret squad.'），
+            官方名落在邻接条时逐 cue 判定会**误报漏校**。机制与 missing 的 zh_around 同规。
+            ⚠ 只放宽「已译」判定，不改扫 1，也不改报告里展示的中文行文本。
+
     退出码：1＝有候选（可当门禁），0＝干净。
     """
     if not os.path.isfile(src):
@@ -301,6 +306,16 @@ def _cmd_audit(src, mode="bi", out=None, as_json=False, limit=300, loose=False):
         return 1
     layout, cues = _iter_cue_triples(src)
     wrong2right, anchor_pairs = _audit_mode_scope(mode)
+
+    order = sorted(n for n, _z, _r in cues)
+    pos = {n: k for k, n in enumerate(order)}
+    zmap = {n: z for n, z, _r in cues}
+
+    def zh_around(n, zh):
+        if window <= 0:
+            return zh
+        k = pos[n]
+        return " ".join(zmap[m] for m in order[max(0, k - window):k + window + 1])
 
     # ---- 扫 1：拉丁残留 ----
     s1 = []
@@ -319,13 +334,14 @@ def _cmd_audit(src, mode="bi", out=None, as_json=False, limit=300, loose=False):
         boundary=False)
     s2_hi, s2_lo, s3 = [], [], []
     for num, zh, ref in cues:
+        zhw = zh_around(num, zh)
         ref_targets = {}
         if ref and arx is not None:
             for m in arx.finditer(ref):
                 grp = aidx[m.group(0)]
                 # 同一锚点常挂多个官方名（如 Sentinel → 岁主 / 锁暝 / 前任岁主）。
                 # 只要其中任意一个已经出现在中文行，就说明这条已校准，全部放过。
-                if any(c in zh for c in grp):
+                if any(c in zhw for c in grp):
                     continue
                 for canon in grp:
                     ref_targets.setdefault(canon, m.group(0))
@@ -337,7 +353,7 @@ def _cmd_audit(src, mode="bi", out=None, as_json=False, limit=300, loose=False):
                     rec = (num, zh, m.group(0), canon)
                     (s2_hi if canon in ref_targets else s2_lo).append(rec)
         for canon, lit in ref_targets.items():
-            if canon and canon not in zh:
+            if canon and canon not in zhw:
                 s3.append((num, zh, lit, canon))
 
     dirty = bool(s1 or s2_hi or s3)

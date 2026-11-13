@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.8.0
+# @version 2.9.0
 """自研字幕工作台 UI 的**后端接缝层**（single adapter）。
 
 本包（``vt_engine_ui``）只负责「UI 视觉层」——即规格文档 P3 / 档 C 的自研化。
@@ -25,7 +25,10 @@ from typing import Any, Optional
 __all__ = [
     "cfg", "signal_bus", "TaskFactory", "entities", "constants", "vc_config",
     "platform_utils", "subtitle_style", "translate_types", "ASRData", "threads",
-    "apply_asr_to_engine", "voiceprint_enabled_names", "voiceprint_filter_subtitle",
+    "apply_asr_to_engine", "voiceprint_enabled_names", "voiceprint_auto_names",
+    "voiceprint_auto_filter_enabled", "voiceprint_set_auto_filter",
+    "voiceprint_auto_tooltip", "voiceprint_result_notice",
+    "voiceprint_filter_subtitle",
     "ai_mod", "ai_load_config", "vc_log", "extract_web_url",
     "TM_DISPLAY_DEFAULT", "TM_DISPLAY_ASR",
     "VoiceprintEnrollCard", "VoiceprintPicker",
@@ -184,8 +187,31 @@ def voiceprint_enabled_names():
     return _bk.engine_mod.voiceprint_enabled_names()
 
 
-def voiceprint_filter_subtitle(srt_path, media_path, progress=None):
-    return _bk.engine_mod.voiceprint_filter_subtitle(srt_path, media_path, progress)
+def voiceprint_auto_names():
+    return _bk.engine_mod.voiceprint_auto_names()
+
+
+def voiceprint_auto_filter_enabled():
+    return _bk.engine_mod.voiceprint_auto_filter_enabled()
+
+
+def voiceprint_set_auto_filter(enabled):
+    return _bk.engine_mod.voiceprint_set_auto_filter(enabled)
+
+
+def voiceprint_auto_tooltip():
+    return _bk.engine_mod.voiceprint_auto_tooltip()
+
+
+def voiceprint_result_notice(res):
+    return _bk.engine_mod.voiceprint_result_notice(res)
+
+
+def voiceprint_filter_subtitle(srt_path, media_path, progress=None, *,
+                               names=None, min_keep_ratio=None):
+    return _bk.engine_mod.voiceprint_filter_subtitle(
+        srt_path, media_path, progress, names=names,
+        min_keep_ratio=min_keep_ratio)
 
 
 def ai_mod():

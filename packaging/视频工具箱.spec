@@ -1,6 +1,6 @@
 # -*- mode: python ; coding: utf-8 -*-
-# @version 2.8.0
-"""视频工具箱 v2.8.0 —— PyInstaller 打包配置
+# @version 2.9.0
+"""视频工具箱 v2.9.0 —— PyInstaller 打包配置
 v2.1.0（2026-10-14）：PyQt5 → PySide6 迁移（docs/PySide6迁移方案书）。本 spec 的
         实质改动只有三处：① _DROP_BINARIES 的 QML 三件套从 Qt5 名改成 Qt6 名
         （Qt6Qml/Qt6Quick/Qt6QmlModels/Qt6QmlMeta/Qt6QmlWorkerScript.dll）；
@@ -147,6 +147,25 @@ hiddenimports += ['engine_translate']
 #   engine_asr_local 依赖 GPUtil（可选增强，try-import），不必显式声明。
 hiddenimports += ['engine_asr', 'engine_asr_http', 'engine_asr_local']
 
+# 2026-11-09（本地 ASR 全链修复 · 发布配置补漏）：faster_whisper 现在是
+#   **主进程**内置直连（src\engine_asr_local.py 函数体内
+#   `from faster_whisper import WhisperModel` 与
+#   `from faster_whisper.vad import VadOptions`），不再是 tools\python 子进程
+#   里的外部 CLI。excludes 优先级高于 hiddenimports，故下方剔单里的
+#   'faster_whisper' 必须一并摘掉（见 excludes 注释），否则装机版本地转录
+#   必 ImportError —— QA 109/109 只在源码运行态验证，装机版不受益。
+#   ctranslate2 是推理后端，huggingface_hub / tokenizers / av 分别是权重解析、
+#   分词与音频解码依赖。onnxruntime 已在上方声明（VAD/声纹共用），此处不重复；
+#   numpy 已在「字幕引擎运行时依赖」行声明，按本发布清单再列一次
+#   （PyInstaller TOC 对重复 hiddenimports 去重，无副作用）。
+hiddenimports += [
+    'faster_whisper', 'faster_whisper.vad', 'faster_whisper.transcribe',
+    'faster_whisper.audio', 'faster_whisper.feature_extractor',
+    'faster_whisper.tokenizer', 'faster_whisper.utils',
+    'ctranslate2', 'huggingface_hub', 'tokenizers', 'av', 'numpy',
+    'asr_local_paths',
+]
+
 # 2026-10-13（P2 尾部 / 档 B）：自研任务工厂 engine_task_factory —— 接管
 #   videocaptioner.ui.task_factory 的构造逻辑，内建 vc_asr_patch_apply 的本地模型/
 #   显式语言覆盖。由 vt_engine_ui._seams 在**属性访问时惰性 import**（且有引擎回退），
@@ -290,6 +309,11 @@ hiddenimports += collect_submodules('core')
 #   只依赖标准库，不会把 subtitle_calib_merged 拖进 PYZ。
 hiddenimports += collect_submodules('calib_entity')
 
+# 2026-11-08（双轨）：CLI/GUI 运行时直连 src/calib_core，冻结包必须递归收全包。
+#   同 vt_engine_ui 先例：SRC_DIR 已在上方塞进 sys.path，spec 解析期可枚举子模块；
+#   calib_core/__init__.py 全量 re-export，只 import 顶层即可，不拖入单文件生成物。
+hiddenimports += collect_submodules('calib_core')
+
 # v2.4.0（2026-10-19）：自研并行引擎 `vt_engine`（config / entities / 执行 /
 #   编排 / threads 五层，31 个模块）。当前**尚未接入主程序**（只被
 #   scripts/dev/_selftest_vt_engine.py 引用），主程序不 import 它，PyInstaller
@@ -354,10 +378,16 @@ a = Analysis(
     runtime_hooks=[],
     # ⚠ v1.18.0：'onnxruntime' **已从剔单里摘掉**（声纹筛选要它，见上方注释）。
     #   excludes 优先级高于 hiddenimports，留着它等于白声明。
-    #   'faster_whisper' 仍剔除——它跑在 tools\python 的**内嵌解释器**里
-    #   （字幕引擎子进程），不占 exe 体积；同理 torch 系列一律不进。
+    # ⚠ 2026-11-09（本地 ASR 全链修复 · 发布配置补漏）：'faster_whisper'
+    #   **也已从剔单里摘掉**。旧口径「它跑在 tools\python 的内嵌解释器里
+    #   （字幕引擎子进程）」是外部 CLI 时代的假设；现在本地转录是
+    #   **主进程内置 WhisperModel 直连**（src\engine_asr_local.py 函数体内
+    #   `from faster_whisper import WhisperModel` 与
+    #   `from faster_whisper.vad import VadOptions`），而 engine_asr_local
+    #   早在 spec:148 就进了 hiddenimports ⇒ 不摘剔单，装机版本地转录必 ImportError。
+    #   torch 系列仍是纯排除项（本程序不依赖），一律不进包。
     excludes=['torch', 'torchaudio', 'torchvision', 'gradio', 'gradio_client',
-              'transformers', 'faster_whisper', 'playwright',
+              'transformers', 'playwright',
               'pandas', 'matplotlib', 'scipy', 'pytest', 'cv2', 'webview',
               'pyautogui',
               # ⚠⚠ 2026-10-19：**构建机 PYTHONPATH 上的 sitecustomize 会被

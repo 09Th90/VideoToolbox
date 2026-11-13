@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.8.0
+# @version 2.9.0
 """AI 校准 Agent —— Agent 级字幕术语校准（v1.11.0；v1.16.0 并发与提示词优化）。
 
 定位
@@ -112,6 +112,8 @@ MODE_KEY = {
     "--akko": "akko", "--endo": "endo", "--zho": "zho", "--pgr": "pgr",
     "--pgren": "pgren", "--wwoc": "wwoc", "--react": "react",
     "--endobi": "endobi", "--endoko": "endoko", "--limbus": "limbus",
+    "--pbz": "pbz", "--pgrja": "pgrja",
+    "--akja": "akja",                                   # 2026-11-03 新增：日语原声·明日方舟
 }
 MODE_NAME = {
     "": "中英双语", "--ja": "日语原声·鸣潮", "--jpe": "日语原声·终末地",
@@ -119,7 +121,9 @@ MODE_NAME = {
     "--endo": "终末地", "--zho": "中文行专属", "--pgr": "战双帕弥什",
     "--pgren": "战双英文原声", "--wwoc": "综合手游OST", "--react": "音乐点评",
     "--endobi": "终末地·中英双语", "--endoko": "终末地·韩语原声",
-    "--limbus": "边狱巴士",
+    "--limbus": "边狱巴士", "--pbz": "影之刃零",
+    "--pgrja": "日语原声·战双",
+    "--akja": "日语原声·明日方舟",
 }
 
 #: 知识库规则展开时的字符上限（喂给模型的精简子集；校验仍用全量规则）
@@ -223,8 +227,12 @@ STYLE_NAME = {"term": "术语级（只替换名词）", "rewrite": "整句重写
 
 #: 是否把参考行一并喂给模型（双语/多语片源建议 True；比原文长不了多少，
 #: 却能把它从「盲替换」变成「有据改写」。None = 由片源模式决定）
-INCLUDE_REF_MODES = ("", "--ja", "--jpe", "--ko", "--ak", "--akko", "--endo",
-                     "--pgren", "--wwoc", "--react", "--endobi", "--endoko", "--limbus")
+INCLUDE_REF_MODES = ("", "--ja", "--jpe", "--pgrja", "--ko", "--ak", "--akko", "--endo",
+                     "--pgren", "--wwoc", "--react", "--endobi", "--endoko", "--limbus",
+                     "--pbz",
+                     # 2026-11-03 新增：漏这一项时 --akja 走 AI 校准**不会把日语参考行喂给模型**，
+                     #   有据改写退化成盲替换（本片最强判据直接丢掉），且不会报任何错。
+                     "--akja")
 
 #: 单行显示宽度上限（汉字当量；与 subtitle_calib_merged 的 MAX_LINE_ZH 同判据：
 #: 东亚 W/F/A 宽字符计 1.0、半角计 0.5，故「32 汉字」等价于「64 英文字符」）

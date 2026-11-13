@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.8.0
+# @version 2.9.0
 """CLI 参数解析与子命令分发
 
 源：subtitle_calib_merged.py L13295-L13650 @ 97d7d463（2026-10-24 冻结快照）
@@ -23,8 +23,34 @@ from .sync import _cmd_kb_push, _cmd_kb_sync, _sync_inject_all, _sync_maybe_auto
 
 
 
-def main_argv():
-    argv = sys.argv[1:]
+def _relax_stdio_errors():
+    """把 stdout/stderr 的编码错误策略降为 replace（只降 errors，不改 encoding）。
+
+    2026-11-10：cp936 控制台/管道下，print 到非 GBK 字符（⚠/✓/☄/谚文）会抛
+    UnicodeEncodeError 直接崩掉入口。只降错误策略是刻意的：GBK 消费方仍按原
+    编码读中文，不可表示字符退化为 '?'；换成 utf-8 会让继承 stdout 的
+    agent_cli.py:720 等消费方整段乱码。
+    """
+    for name in ("stdout", "stderr"):
+        stream = getattr(sys, name, None)
+        reconf = getattr(stream, "reconfigure", None)
+        if stream is None or not callable(reconf):
+            continue                      # pythonw(None) / redirect_stdout(StringIO)
+        try:
+            reconf(errors="replace")
+        except (TypeError, ValueError, OSError):
+            pass
+
+
+
+def main_argv(argv=None):
+    """argv=None 时读 sys.argv[1:]；调用方可显式注入参数列表。
+
+    显式注入用于 CLI/GUI 同进程直连（不修改全局 sys.argv，避免污染其它线程）。
+    无参调用保持原有命令行行为；子命令仍按惯例抛 SystemExit，由调用方决定退出码。
+    """
+    _relax_stdio_errors()
+    argv = list(sys.argv[1:] if argv is None else argv)
     if argv and not argv[0].startswith("-"):
         sub = argv[0]
         if sub in ("extract", "split", "pair", "merge", "verify", "compare", "scan", "lint",
@@ -43,6 +69,7 @@ def main_argv():
     mode = "bi"
     fix_en = False
     learned_kb = None
+    bi_override_path = None
 
     if argv and not argv[0].startswith("-"):
         src = argv[0]
@@ -102,6 +129,8 @@ def main_argv():
             fix_en = True; i += 1
         elif a == "--kb" and i + 1 < len(args):
             learned_kb = args[i + 1]; i += 2
+        elif a == "--bi-override" and i + 1 < len(args):
+            bi_override_path = args[i + 1]; i += 2
         elif a == "--mode" and i + 1 < len(args):
             m = args[i + 1].lower()
             if m in ("limbus", "limbuscompany", "边狱巴士"):
@@ -142,11 +171,16 @@ def main_argv():
     if learned_kb is None and os.path.exists(LEARNED_KB_DEFAULT):
         learned_kb = LEARNED_KB_DEFAULT
     pgr_override = _load_override_tsv(PGR_OVERRIDES_SRC) if mode == "pgr" else None
+    # bi 逐 cue 侧车：环境变量 VT_BI_OVERRIDE 指向 TSV（序号<TAB>终稿整行），仅对列出的 cue 生效
+    bi_override = None
+    _bi_ov_src = (bi_override_path or os.environ.get("VT_BI_OVERRIDE", "")).strip()
+    if _bi_ov_src:
+        bi_override = _load_override_tsv(_bi_ov_src)
     _sync_maybe_auto()          # v1.11.0：校准入口自动拉取+应用增量（幂等，失败静默降级）
     _sync_inject_all()          # 兜底：applied.json 生效条目注入本地表
     rows, hits = process(src, out_path, report_path, mode=mode,
                          fix_en=fix_en, pgr_override=pgr_override,
-                         learned_kb=learned_kb)
+                         learned_kb=learned_kb, bi_override=bi_override)
     names = {"bi": "中英双语 (BILINGUAL_TERMS + CONTEXT_MAP + WORD_MAP)",
              "ko": "韩语原声 (KO_TERMS)",
              "ja": "日语原声 (JA_TERMS + JA_CONTEXT)",
@@ -322,12 +356,15 @@ def _dispatch_subcommand(sub, args):
         _cmd_terms_check(pos)
     elif sub == "audit":
         if not pos:
-            print("用法: audit <校准后.srt> [--mode bi] [--out 报告.md] [--json] [--loose]")
+            print("用法: audit <校准后.srt> [--mode bi] [--out 报告.md] [--json] [--loose] [--window N]")
             print("      名词漏校三扫：拉丁残留 / 知识库错形残留 / 同词族一致性。")
+            print("      --window N：扫2/3 判「官方名是否已译」时向前后各看 N 条（默认0＝严格逐 cue），")
+            print("                 用于消除 ASR 把专名跨 cue 切断造成的误报。")
             print("      退出码 1＝有候选（可当门禁），0＝干净。")
             return 1
         return _cmd_audit(pos[0], opts.get("mode", "bi"), opts.get("out"),
-                          bool(opts.get("json")), loose=bool(opts.get("loose")))
+                          bool(opts.get("json")), loose=bool(opts.get("loose")),
+                          window=int(opts.get("window", 0)))
 
     elif sub == "kb-export":
         _cmd_kb_export(opts.get("out"), as_json=bool(opts.get("json")))

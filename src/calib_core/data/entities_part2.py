@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.8.0
+# @version 2.9.0
 """术语/实体数据表
 
 源：subtitle_calib_merged.py L8840-L10200 @ 97d7d463（2026-10-24 冻结快照）
@@ -530,7 +530,7 @@ ENTITIES_PART2 = [
            category="角色/岁主·鸣潮3.7",
            variants=("Jue",),
            ctx=((r"\bJue\b", "朱"), (r"\bJer\b", "杰尔"),
-                (r"\bJouer\b", "乔尔"), (r"\b2A\b", "2A")),
+                (r"\bJouer\b", "乔尔"), (r"^(?!.*\b2B\b).*\b2A\b", "2A")),
            note="今州岁主，官方中文=角（单字）。⚠ 高风险术语：canonical'角'与错形'朱'均极常用，"
                 "'朱'（姓氏/红色）只走参考行 \\bJue\\b 强锚定才改，绝不裸键；英文残留 Jue 生僻裸键。"
                 "ASR 变体 Ju 太短歧义，本轮不收。"
@@ -923,7 +923,7 @@ ENTITIES_PART2 = [
            category="角色/岁主·鸣潮3.7",
            variants=("杰拉姆",),
            ctx=((r"\bJer\b", "杰尔"), (r"\bJouer\b", "乔尔"),
-                (r"\b2A\b", "2A")),
+                (r"^(?!.*\b2B\b).*\b2A\b", "2A")),
            note="梦州另一位说话岁主「角」（英 Jue/Jué，CV 黄莺）。ASR 把 Jue 咬成 JER/Jerame，"
                 "谷翻音译「杰拉姆」（cue246/251，生僻裸键->角）；JER 为英文行呼语残留"
                 "（默认不改英文行）。旧实体 ctx（Jue 锚定 朱->角）保留。"),
@@ -1100,7 +1100,12 @@ ENTITIES_PART2 = [
                 "⚠ '守护者'是 Guardian 的正确中文且 cue35 'Shin's Guardian' 取『心的守护者』"
                 "关系义（指心月狐），不入规则、留人工 pair 在守护者/岁主间取舍；Watcher 语境"
                 "的'守望者'见 EXCLUDE_CONTEXT 负向排除（不得归守岸人 Shorekeeper），"
-                "'监视者->守望者'挂 CONTEXT_MAP。"),
+                "'监视者->守望者'挂 CONTEXT_MAP。"
+                "⚠ 2026-11-11 莉莉 PV 片（LightfulWings，80 cue）#71/#74：YouTube ASR 把 Shorekeeper "
+                "听成 'Reliable Keeper'/'reliable Guardian'，本地 ASR 实证为 surekeeper=守岸人；"
+                "本条 Guardian→岁主 ctx 会把「可靠的监护人」误改成「可靠的岁主」。凡参考行作 "
+                "reliable Guardian/Reliable Keeper（带 reliable）且语境为『想救所有人却救不了』者，"
+                "归守岸人而非岁主——高碰撞，逐 cue 回退，不加全局回滚规则以免伤 3.7 岁主锚。"),
     Entity("心之集域", modes=("bi",), en="dream realm / dream realms / Somnoire",
            category="地点/鸣潮",
            ctx=((r"\bdream realms?\b", "梦境领域"),
@@ -1387,8 +1392,8 @@ ENTITIES_PART2 = [
                 "裸短语有字面义，只走参考行整短语锚定。"),
     Entity("Nightmare", modes=("bi",), en="Nightmare", category="作品/曲目",
            variants=(),
-           ctx=((r"\bNightmare\b(?!\s+Before\b)", "噩梦"),),
-           note="AC8 曲目 57（Moon 11 女声独唱）。『噩梦』是常用词，只走参考行 Nightmare 锚定；《圣诞夜惊魂》片名用负向前瞻排除。"),
+           ctx=((r"(?<!my )\bNightmare\b(?!\s+Before\b)", "噩梦"),),
+           note="AC8 曲目 57（Moon 11 女声独唱）。『噩梦』是常用词，只走参考行 Nightmare 锚定；《圣诞夜惊魂》片名用负向前瞻排除。2026-11-13 鸣潮莉莉 3.8 反应片判例：PV 台词 \"My nightmare.\" 是普通词，前置 (?<!my ) 排除（lookbehind 必须放在 \\b 之前才检查命中起点左侧），防跨片吃掉「我的噩梦」。"),
     Entity("Paint It Blue", modes=("bi",), en="Paint It Blue", category="作品/曲目",
            variants=("Painted Blue",),
            note="⭐ 音频复核定案（2026-10-14）：原字幕 Painted Blue 系 ASR 误听，实为 Paint it blue。"),
@@ -1540,9 +1545,11 @@ ENTITIES_PART2 = [
                 "天赋「绝不妥协」「我即火焰」，技能「照霎白夜」「阂断骤雪」「日冕重烈」；"
                 "第二天赋留下「足迹」，三技能召唤「簇火」。"),
     Entity("冻河", modes=("ak",), en="Toska", category="干员/明日方舟7.5",
-           variants=("动合", "动核", "冻和", "冻核"),
-           note="6★ 辅助·游击手；英文代号 Toska；天赋「夜的哑然」「雪的印痕」，"
-                "技能「一无所有之人」「意欲呼啸之心」「踽踽独行之春」；核心=触发型效果。"),
+           variants=("动合", "动核", "冻核", "Fyodor", "费奥多尔"),
+           ctx=((r"\b(?:Toska|Fyodor|taka)\b", "冻和"),),
+           note="6★ 辅助·游击手；英文代号 Toska，本名费奥多尔（Fyodor，官方微博 #冻河# #费奥多尔#）；"
+                "天赋「夜的哑然」「雪的印痕」，技能「一无所有之人」「意欲呼啸之心」「踽踽独行之春」；核心=触发型效果（技力拐）。"
+                "2026-11-11：裸键「冻和」咬「冰冻和眩晕」→「冰冻河眩晕」，改 ctx 锚定；补 Fyodor/费奥多尔→冻河。"),
     Entity("国度", modes=("ak",), category="干员/明日方舟7.5",
            note="6★ 特种·伏击客，赠送；天赋「国度」，技能「停步」「受戮」「无人的国度」；"
                 "国度为普通词，不设裸变体，仅按上下文逐 cue 处理。"),
@@ -1568,6 +1575,36 @@ ENTITIES_PART2 = [
            note="卫戍协议「规程·序列I」，11/8 常驻。"),
     Entity("弹雨作战", modes=("ak",), category="玩法/危机合约/明日方舟7.5",
            note="危机合约#6「弹雨作战」。"),
+    # --- 2026-11-11 明日方舟《Should You Save for Talulah?》新干员（仅元数据，错形键在 ark.py 2026-11-11 块）---
+    Entity("克莱门莎", modes=("ak",), en="Clementia", category="干员/明日方舟",
+           note="6★ 近卫·本源近卫（侵蚀），2026.10.9「昨日海」；天赋「生死定夺」（暴击，目标防御低于初始值时概率提升）"
+                "「习得性防御」（前方物理/法术减伤30%，对海怪提高）；技能「冲蚀」「风暴潮」「与海为敌」；"
+                "S2 召唤「浮游放逐舱」（累计重量≤8 可推任意敌人，含 Boss）并留下漩涡（每秒侵蚀损伤，固定值）；"
+                "S3 弹药 10 发，侵蚀爆发触发时核爆（3 次物理+元素伤害）；主播戏称 Hydro mommy/水系妈妈、water Changli/水系长离。"
+                "官名依据 PRTS 2026-11-11 二校核实（稀有度字段 0 起始，5=6★）。"),
+    Entity("妮芙", modes=("ak",), en="Nymph", category="干员/明日方舟",
+           note="6★ 术师·本源术师（凋亡损伤），2024.7；S2 上恐惧，恐惧体系首选。"),
+    Entity("烛煌", modes=("ak",), en="Blaze the Igniting Spark", category="干员/明日方舟",
+           note="6★ 术师·本源术师（灼燃），2025 春节，煌异格；弹药机制，S3 高频多段灼燃输出。"),
+    Entity("酒神", modes=("ak",), en="Tragodia", category="干员/明日方舟",
+           note="6★ 辅助·巫役（神经损伤），傀影异格，本名卢西恩，2025.6.5 标准寻访；维多利亚。"),
+    Entity("波卜", modes=("ak",), en="Bobbing", category="干员/明日方舟",
+           note="5★ 辅助·巫役（灼燃），本名埃利西奥，2024.10「追迹日落以西」；灼燃远程拐，"
+                "天赋「焦点诱导」，S2「此路不通」。谷翻「摇摆」走 ark.py ctx 锚定。"),
+    Entity("霍尔海雅", modes=("ak",), en="Ho'olheyak", category="干员/明日方舟",
+           note="6★ 术师；萨尔贡梅兰德基金会。AK_JA_TERMS 已有霍尔海亚→霍尔海雅，2026-11-11 补 --ak 侧。"),
+    # --- 2026-11-11 《Clementia VS Potential Woman》新实体（仅元数据；错形键在 ark.py 同日块）---
+    Entity("伯塔尼", modes=("ak",), en="Botani", category="干员/明日方舟",
+           note="5★ 辅助·巫役（侵蚀），SideStory「人们，我们」活动赠送（2026.4.7），首位侵蚀损伤核心干员；"
+                "乌萨斯学生自治团；天赋「背弃沉默」，技能「谐波破坏」「静域回声」。PRTS 2026-11-11 核实。"),
+    Entity("余", modes=("ak",), en="Yu", category="干员/明日方舟",
+           note="6★ 重装·本源铁卫（灼燃），限定，2025.1.22 春节「炽吾生平」；灼燃损伤拐，S3「灶里乾坤」火墙拐。"
+                "PRTS 2026-11-11 核实。单字官方名，不设裸键（会误伤），仅元数据供跨语识别。"
+                "英语 ASR 常把 Yu 听成 you（《Should You Save for Talulah?》#20「bobbing or you」/#95「someone like You」），"
+                "需人工按灼燃拐语境判余，禁 you→余 全局键。"),
+    Entity("浮游放逐舱", modes=("ak",), category="技能实体/明日方舟",
+           note="克莱门莎 S2「风暴潮」召唤物：推开累计重量≤8 的任意敌人（含 Boss），附带漩涡（每秒侵蚀损伤，固定值不受防御影响）。"
+                "「放逐舱」短键会咬自身产出「浮游浮游放逐舱」，不入裸键，逐 cue 处理。"),
     # --- 2026-10-25 多游戏音乐 Tier List（2747 cue）二次校准沉淀 ---
     # 片源：英语原声 + 谷翻，17 款作品、103 条分章；官方中文依据：
     #   庄方宜 endo_glossary.tsv:62；少女前线官方无「1」；
@@ -2546,5 +2583,435 @@ ENTITIES_PART2 = [
                 "作曲·编曲 DALCEXY，混音·母带 Bloop Studio，吉他 欧阳瑞声，监制 Grass/DALCEXY，"
                 "出品 战双帕弥什。⚠ 日文版存在但**日文曲名未公布 ⇒ ja 留空不臆造**"
                 "（2026-09-22 戒律 2：只有单一语种官方名的不翻译、保留原语言）。"),
+
+    # ============================================================
+    # 2026-11-09 《【Punishing: Gray Raven】A Comet's Afterglow ☄️ !pgr #ad》
+    #   （姫宮りえ / Phase Connect，4667 cue，4:05:34 赞助直播 reaction，英语原声 + 谷翻中文，
+    #     中文在上/英文参考行在下，CRLF 无 BOM，--pgren）
+    #   一手出处：App Store 官方英文 4.9 更新公告 × TapTap/微博官方中文公告**逐项对齐**
+    #   （版本名/角色/武器/意识/辅助机/涂装/活动名六项以上一一对应，反向锁定英→官中）：
+    #     A Comet's Afterglow=流光抛诸寰宇、Leia: Fortunaster=莱亚·祈星、
+    #     Edges of the Twisted Ribbon=扭曲缎带的边陲、Mousme=莫斯梅、Vulpecula=聆璃、
+    #     Brilliant Instant=揽光一瞬、Cradled Moonfrost=霜尘拥月、Ishmael: Parhelion=伊什梅尔·幻日、
+    #     Vera: Geiravor=薇拉·灼惘、Nanami: Startrail=七实·芒星之迹、Beauty Sefirah=美丽质点。
+    #   世界观官中（App Store 官方简介原文）：Corrupted=感染体、Construct=构造体、
+    #     Commandant=指挥官、Babylonia=空中花园、Memory=意识、Coating=涂装、CUB=辅助机、
+    #     Ascendant=升格者、Gray Raven=灰鸦小队、Egret Squad=清庭白鹭小队、Strike Hawk=突击鹰小队。
+    #   ⚠ 全部只挂 pgren：感染体/空中花园/意识/构造体 等错形在别的游戏片里各有归属，
+    #     进跨游戏兜底表即污染（同 2026-11-04 约定）。
+    # ============================================================
+    Entity("感染体", modes=("pgren",), en="Corrupted", category="世界观/战双帕弥什",
+           ctx=((r"\bcorrupted\b", "腐化者"),
+                (r"\bcorrupted\b", "腐化"),
+                (r"\bcorrupted\b", "腐败者")),
+           note="PGR 官方中文=**感染体**（App Store 官方简介与中文公告对齐）。本片英文参考行 "
+                "corrupt* 出现 50 次，是最高频漏校项；谷翻落成「腐化/腐化者/腐败者」。"
+                "⚠ 三者全是通用中文词（腐化=道德败坏、腐败者=贪腐者），**禁 variants**，走英文行锚定。"
+                "⚠ **ctx 按列表顺序执行（engine.py 的 pgren 分支非长键降序）**，故「腐化者」必须排在"
+                "「腐化」之前，否则产出「感染体者」叠字。"
+                "⚠ 锚定只在**本 cue 参考行**含 corrupted 时生效；本片 #2470/#2491/#2583/#3047/#3056 "
+                "的 corrupted 落在邻接 cue（ASR 跨条断句），机械 pass 抓不到，属预期，由逐 cue 收口。"
+                "corrupted hordes→感染体潮/群，the corrupted→感染体。"),
+    Entity("空中花园", modes=("pgren",), en="Babylonia", category="地点/战双帕弥什",
+           variants=("巴比伦尼亚",),
+           ctx=((r"\bBabylonia\b", "巴比伦"),),
+           note="PGR 空间站 Babylonia 官方中文=**空中花园**，不是「巴比伦尼亚/巴比伦」。"
+                "本片 4 处（#357/#1878/#2001/#2012）参考行均明写 Babylonia，铁证。"
+                "⚠ 「巴比伦尼亚」是专名音译串、非通用词 ⇒ 收 variants（无条件）；"
+                "裸「巴比伦」是真实历史地名（本片 #1620-1752 主播正在聊奥斯曼/君士坦丁堡历史，"
+                "但那段参考行无 Babylonia）⇒ **禁裸键**，走英文锚定。"
+                "⚠ 长键「巴比伦尼亚」在 TERMS 阶段先替换，ctx 的短键「巴比伦」 afterwards 找不到它，"
+                "故不会产出「空中花园尼亚」；顺序反了就会（TERMS 先于 CTX 是 engine 的既定次序）。"),
+    Entity("凡妮莎", modes=("pgren",), en="Vanessa", category="角色/战双帕弥什",
+           ctx=((r"\bVanessa\b", "瓦妮莎"),),
+           note="清庭白鹭小队指挥官。官方中文=**凡妮莎**（4.9 公告与莱亚·祈星档案对齐）。"
+                "本片参考行 Vanessa 出现 37 次，谷翻落成「瓦妮莎」12 处。"
+                "⚠ 「瓦妮莎」是常见真实人名音译串 ⇒ 按 2026-11-04「克洛伊」判例**禁 variants**，"
+                "走 \\bVanessa\\b 英文行锚定。"),
+    Entity("清庭白鹭小队", modes=("pgren",), en="Egret Squad", category="组织/战双帕弥什",
+           ctx=((r"\bEgret\b", "白鹭队"),),
+           note="4.9 新机体的所属小队：指挥官**凡妮莎**，队员**莱亚·祈星**、**忒修**(Theseus)、"
+                "**邦比娜塔**(Bambinata)。官方中文=清庭白鹭小队（BWIKI 世界观/突击鹰小队页 + "
+                "莱亚·祈星官方台词「清庭白鹭小队莱亚，向您致意」）。"
+                "⚠ 「白鹭」是真实鸟名 ⇒ **禁裸键**，只收复合错形「白鹭队」并锚 \\bEgret\\b。"
+                "⚠ 替换结果「清庭白鹭小队」不含连续子串「白鹭队」（中间有「小」），无叠字风险。"
+                "本片 #3571/#3572 跨 cue 断句：'a member of Vanessa's' / 'Egret squad.'，"
+                "锚只在后一条命中，前一条需逐 cue。"),
+    Entity("突击鹰小队", modes=("pgren",), en="Strike Hawk", category="组织/战双帕弥什",
+           ctx=((r"\bstrike (?:hawk|clock)\b", "打击鹰"),
+                (r"\bstrike (?:hawk|clock)\b", "击钟")),
+           note="PGR 执行部队下属小队，官方中文=**突击鹰小队**（BWIKI 世界观页）。"
+                "本片 #2765 参考行明写 'strike hawk to provide support.'，谷翻落「打击鹰」；"
+                "#2698 ASR 把 Strike Hawk 听成 'Strike clock'，谷翻据此直译「击钟」——"
+                "两种错形同指一个小队，故锚同时收 hawk|clock。"
+                "⚠ 「击钟」是通用动宾串（敲钟）、「打击」是高频通用词 ⇒ **禁裸键**，只收"
+                "「打击鹰」「击钟」两个完整错形并锚英文行。长形「打击鹰」在前。"
+                "⚠ #2816-2818 英文是 'strike. Strike what?' —— 主播拿 strike 这个词开玩笑，"
+                "参考行无 hawk/clock ⇒ 锚不命中，正确保留「打击」，不要逐 cue 改成小队名。"
+                "⚠ #2915/#2916 把 Strike Hawk 拆成两条（'redirecting Strike. Strike up.' / 'Sport,'），"
+                "锚不命中，属跨 cue 碎片，逐 cue 收口。"),
+    Entity("帕弥什病毒", modes=("pgren",), en="Punishing Virus", category="世界观/战双帕弥什",
+           variants=("惩罚性病毒", "惩罚病毒"),
+           note="PGR 世界观核心：the Punishing (virus) 官方中文=**帕弥什病毒**（游戏名即由此而来）。"
+                "本片参考行 'punishing virus' 出现 11 次，谷翻直译「惩罚性病毒」8 处 / 「惩罚病毒」3 处。"
+                "⚠ 裸「惩罚」绝不进表（ark.py 3.3a 戒律①：punishment=惩罚 是本义）；"
+                "这里收的是**完整复合错形**「惩罚性病毒」「惩罚病毒」，非通用词，故可作 variants"
+                "（同既有「惩罚性灰乌鸦」判例）。"
+                "⚠ 两键互不为子串（惩罚性病毒 含「性」，惩罚病毒 不含），长键降序无叠字；"
+                "替换结果「帕弥什病毒」不含任一错形，幂等。"),
+    Entity("升格者", modes=("pgren",), en="Ascendant", category="世界观/战双帕弥什",
+           ctx=((r"\bascendant\b", "上升者"),),
+           note="PGR 官方中文=**升格者**（ Ascendant，代行者/升格网络体系）。本片 #2712 "
+                "'ascendant is pulling the strings.' 谷翻落「上升者」。"
+                "⚠ 「上升者」是通用中文词 ⇒ **禁裸键**，锚 \\bascendant\\b。"
+                "⚠ 形容词 ascendant（占优势的）在本作语境罕见，若日后误伤需收窄锚定。"),
+    Entity("莫斯梅", modes=("pgren",), en="Mousme", category="意识/战双帕弥什",
+           note="4.9「流光抛诸寰宇」新增 6★意识，莱亚·祈星 专属。官方英文公告 Mousme × "
+                "中文公告「莫斯梅」逐项对齐确证。⚠ 本片参考行零命中、无实测错形 ⇒ "
+                "**仅登记元数据、不带 variants/ctx**（同 2026-09-22 音乐实体判例：无实测错形不造键），"
+                "供 kb-export / AI Agent 跨语识别。⚠ 官中是「莫斯梅」，不要按日文「娘」义臆造「少女」。"),
+    Entity("聆璃", modes=("pgren",), en="Vulpecula", category="辅助机/战双帕弥什",
+           note="4.9 新增辅助机（CUB），莱亚·祈星 配套。官方英文公告 Vulpecula（狐狸座）× "
+                "中文公告「聆璃」逐项对齐确证。⚠ 本片参考行零命中、无实测错形 ⇒ "
+                "**仅登记元数据、不带 variants/ctx**。⚠ 官中是「聆璃」，**不是**星座直译「狐狸座」，"
+                "也不是「 vulpecula 」音译；CUB 官方中文=辅助机。"),
+    Entity("邦比娜塔", modes=("pgren",), en="Bambinata", category="角色/战双帕弥什",
+           variants=("阿米纳塔",),
+           note="官方机体全名「邦比娜塔·琉璃」：A 级进攻型构造体，机体编号 **BPM-11**，武器螳螂刃"
+                "「静谧人形之声」，2022-08「未语庭言」版本上线，属**清庭白鹭小队**（指挥官凡妮莎）。"
+                "出处：维基百科《战双帕弥什角色列表》直接给出「邦比娜塔（バンビナータ，**Bambinata**）」"
+                "+ BWIKI 世界观/邦比娜塔 + 萌娘百科导航「清庭白鹭小队（凡妮莎·忒修·邦比娜塔）」三源一致。"
+                "⚠ **本片头号隐性漏校**：谷翻按 ASR 噪声直译成「阿米纳塔」9 处，参考行分别是 "
+                "Aminata / Vamada / Babinatada / Bab / Ainatada / Amada / Babinada / Baminata —— "
+                "一簇变体同指一人。判据＝①三处以上变体以 Baminata/Babinada 最接近 Bambinata；"
+                "②该角色全程与凡妮莎/莱亚同框，正是清庭白鹭小队 roster；③BWIKI 载邦比娜塔出自"
+                "**黑野**福利院、被黑野研究员收养成为凡妮莎的「妹妹」，与本片 #3569-3571"
+                "（Mio Kurono / 黑野澪 / 凡妮莎）的黑野线完全吻合。"
+                "⚠ 「阿米纳塔」是完整音译串非通用词 ⇒ 可作 variants（同「阿德利德→阿德莱德」判例）。"),
+    Entity("阿西莫夫", modes=("pgren",), en="Asimov", category="角色/战双帕弥什",
+           variants=("Asimov", "Asimoth", "阿斯莫斯", "阿斯玛"),
+           note="**科学理事会现任负责人（首席技官）**、空中花园议会一员，主管科技事务，助手洛莎，CV 马正阳。"
+                "出处：BWIKI 世界观/阿西莫夫 + 萌娘百科导航「科学理事会 阿西莫夫」。"
+                "⚠ 本片 #1902/#1935/#1972 已正确作「阿西莫夫」，而 #2055/#2073/#2641 却保留拉丁"
+                "（Asimoth / Asma / Asimov）—— 正是「同一专名多种写法，出现次数少的那个是异形」判例。"
+                "⚠ 片内铁证：#2073 'Nicola pats Asma on the shoulder' 与 BWIKI 载「雷文治事件后阿西莫夫被"
+                "**尼科拉**调用、远程对露西亚做意识海手术」的人物关系吻合。"
+                "⚠⚠ **短形 `Asma` 禁入 variants**：它是 `plasma`（等离子体）的子串，而 `_replace_report` "
+                "是裸 str.replace 无词边界，会产出「pl阿西莫夫」。本片 #4259 参考行就有 plasma"
+                "（中文行恰好无拉丁才没炸）⇒ 拉丁 `Asma` 只逐 cue 处理，不入表。"
+                "⚠ 但其中文音译形「**阿斯玛**」可安全入表（汉字串不是 plasma 的子串）——本片 #2073 "
+                "原始谷翻正是「尼古拉拍拍阿斯玛的肩膀」，与拉丁形 `Asma` 是同一错形的两条产出路径"
+                "（同 2026-09-22 Exostrider 判例：沉淀必须覆盖音译/简写/子词直译全部路径）。"
+                "⚠ 收的是完整形 Asimov / Asimoth / 阿斯莫斯 / 阿斯玛，互不为子串，替换结果不含任一错形，幂等。"),
+    Entity("尼科拉", modes=("pgren",), en="Nicola", category="角色/战双帕弥什",
+           ctx=((r"\bNicol", "尼古拉斯"),
+                (r"\bNicol", "尼古拉")),
+           note="**指挥中心**成员（与哈桑/希尔达/赛利卡同列），官方中文=**尼科拉**不是「尼古拉」。"
+                "出处：萌娘百科战双导航「指挥中心 哈桑·尼科拉·希尔达·赛利卡」（多页面一致）"
+                "+ BWIKI 阿西莫夫页对话原文「尼科拉：你……对保护构造体的意识这件事情好像有些特别的执着」。"
+                "本片谷翻一律落成通用俄式音译「尼古拉」29 处（参考行 Nicola 18 / Nicolola 1 / Nicole 1）。"
+                "⚠ 「尼古拉」是通用人名音译串（尼古拉·特斯拉）⇒ **禁裸键**，锚英文参考行。"
+                "⚠⚠ **锚 `\\bNicol` 天然不匹配 `Nicholas`**（Nic**h**olas vs Nic**o**la，第4字符 h≠o）"
+                "⇒ 本片 #1595/#1596/#1598 的历史炼金术士 **Nicolas Flamel**（Nicholas Lamel / Palamel，"
+                "谷翻作「尼古拉斯·拉梅尔/帕拉梅尔」）**不会被误伤**，这是本轮实测确认的安全边界。"
+                "⚠ 长形「尼古拉斯」必须排在「尼古拉」前（ctx 按列表顺序执行），否则产出「尼科拉斯」。"
+                "⚠ 代价：#2522 'Under Nicholas's orders' / #2540 'Commander Nicholas' 实为 Nicola 的 "
+                "ASR 变体（与 #2921 'Following Nicola's orders' / #3025 'Commander Nicola' 同句式同角色），"
+                "但锚不命中 ⇒ 保守漏放，由逐 cue 收口。**不要为此把锚放宽到 \\bNichol\\b**，那会炸 Flamel。"),
+
+    # =============================================================
+    # 2026-11-10 二校沉淀：《This Is Gacha Worldbuilding at Its Peak》
+    #   SmugSlav reaction，英语原声 + 谷歌翻译；1004 cue，中文在上/英文参考在下。
+    #   依据：Arknights 官方中文（references/Arknights_Lore_Terminology_EN_CN_JP_KR.md）；
+    #         Limbus 无官方简中，沿用项目既定零协/社区口径（游戏名《边狱巴士》）。
+    #   约定：拉丁/生僻错形走 variants；正常中文词（恐怖/圣人/午睡/修复/翅膀…）
+    #         走 ctx 锚英文参考行，避免裸键误伤其它片源。
+    #   ⚠ ctx 按 ENTITIES 顺序追加，专名/长短语实体必须排在通用词实体之前。
+    # =============================================================
+    # --- Arknights：国家/种族/灾害/源石技艺 ---
+    Entity("泰拉", modes=("ak",), en="Terra", category="世界观/明日方舟",
+           ctx=((r"\bterror\b", "恐怖"),),
+           note="片内 ASR 反复把 Terra 听成 terror，谷翻全译「恐怖」；"
+                "#129/#527/#557 按此归一。#438 terrorist France 为整句错位，走 subfix。"),
+    Entity("伊比利亚", modes=("ak",), en="Iberia", category="国家/明日方舟",
+           variants=("Earia",), ctx=((r"\bpast\s+IA\b", "IA"),),
+           note="本片 ASR 把 Iberia 拼作 Earia（#221/#240/#243）与 IA（#227）。"
+                "#221 的 Leair=Liberi 见黎博利条。"),
+    Entity("黎博利", modes=("ak",), en="Liberi", category="种族/明日方舟",
+           variants=("Leair",),
+           note="拉特兰主要种族之一；本片 #221 'Leair from Earia' 谷翻保留拉丁。"),
+    Entity("萨科塔", modes=("ak",), en="Sankta", category="种族/明日方舟",
+           ctx=((r"\bsanctum\b", "圣所"), (r"\bSanctas?\b", "圣人")),
+           note="本片 #211 sanctum、#216/#221 Sanctas 被谷翻成「圣所/圣人」；"
+                "Sankta 裸键已在 AK_TERMS（ark.py:622），此处只补普通中文词锚定。"),
+    Entity("叙拉古", modes=("ak",), en="Siracusa", category="国家/明日方舟",
+           variants=("Sierrausa", "Sirusa", "塞拉卢萨", "西鲁莎"),
+           ctx=((r"\bSyracuse\b", "锡拉丘兹"),),
+           note="本片 ASR 变体：Sierrausa(#199/#200/#205)、Sirusa(#174)、"
+                "Syracuse(#346)；谷翻音译塞拉卢萨/西鲁莎/锡拉丘兹。"),
+    Entity("汐斯塔", modes=("ak",), en="Siesta", category="城邦/明日方舟",
+           ctx=((r"\bSiesta\b", "午睡"), (r"\bSiesta\b", "午休")),
+           note="独立城邦汐斯塔；本片 #251/#265 谷翻按普通词译「午睡/午休」。"),
+    Entity("萨尔贡", modes=("ak",), en="Sargon", category="国家/明日方舟",
+           variants=("Zargon",),
+           note="本片 #121 ASR 把 Sargon 拼作 Zargon，中文行保留拉丁。"),
+    Entity("萨卡兹", modes=("ak",), en="Sarkaz", category="种族/明日方舟",
+           ctx=((r"\bsarcas\b", "讽刺"),),
+           note="本片 #543 'wars with the sarcas' 谷翻成「讽刺」；"
+                "#364 'Sarcos royal court' 是萨卡兹王庭，走 subfix 整句。"),
+    Entity("乌萨斯", modes=("ak",), en="Ursus", category="国家/明日方舟",
+           variants=("Ersus", "埃尔苏斯"),
+           note="本片 #403/#405 ASR 把 Ursus 拼作 Ersus，谷翻音译「埃尔苏斯」。"),
+    Entity("高卢帝国", modes=("ak",), en="Gaul", category="国家/明日方舟",
+           variants=("加尔帝国",),
+           note="本片 #409 'Empire of Gal' 谷翻「加尔帝国」；替换后保留「帝国」二字。"),
+    Entity("卡西米尔", modes=("ak",), en="Kazimierz", category="国家/明日方舟",
+           ctx=((r"\bKashmir\b", "克什米尔"),),
+           note="本片 #351 'invade Kashmir' 谷翻按现实克什米尔；明日方舟官方=卡西米尔。"),
+    Entity("鹰角", modes=("ak",), en="Hypergryph", category="公司/明日方舟",
+           variants=("Hypergraph",),
+           note="《This Is Gacha Worldbuilding at Its Peak》#558 ASR 把 Hypergryph 拼作 Hypergraph，"
+                "中文行保留拉丁。canonical 用既有 AK_TERMS 的「鹰角」（短形式），"
+                "不写「鹰角网络」以免与 Hypergryph→鹰角 产生双目标冲突；"
+                "endobi 侧的「鹰角网络」见本文件 2026-11-01 条目。"),
+    Entity("矿石病", modes=("ak",), en="Oripathy", category="设定/明日方舟",
+           ctx=((r"\brock\s+cancer\b", "岩癌"), (r"\brock\s+cancer\b", "岩石癌"),
+                (r"the more cancer you get", "癌症")),
+           note="本片 #375/#379 谷翻「岩癌/岩石癌」，#927 直接「癌症」；"
+                "#272 现实语境 'nuclear bombs, cancer' 保留不动。"),
+    Entity("天灾信使", modes=("ak",), en="Catastrophe Messenger", category="设定/明日方舟",
+           ctx=((r"\bcatastrophe\s+messengers?\b", "灾难使者"),),
+           note="本片 #393 'catastrophe messengers' 谷翻「灾难使者」。"),
+    Entity("天灾", modes=("ak",), en="Catastrophe", category="设定/明日方舟",
+           ctx=((r"\bcatastroph\w*\b", "灾难"), (r"\bdisaster\b", "灾难")),
+           note="本片 #368/#380/#390 谷翻「灾难」；明日方舟官方=天灾。"),
+    Entity("源石技艺", modes=("ak",), en="Originium Arts", category="设定/明日方舟",
+           ctx=((r"\borigin\s+arts\b", "艺术"), (r"\bsong\s+of\s+arts\b", "艺术"),
+                (r"\bcomplex\s+arts\b", "艺术"), (r"\bbest\s+arts\b", "艺术")),
+           note="本片 #154/#163/#331/#332/#343 把 Arts 当普通「艺术」；"
+                "#147 explored arts / #564 art books 是字面艺术，保留。"),
+    Entity("移动城市", modes=("ak",), en="Nomadic City", category="设定/明日方舟",
+           ctx=((r"\bnomatic\s+platforms\b", "nomatic"),),
+           note="本片 #382 'nomatic platforms' 谷翻保留拉丁；官方=移动城市。"),
+    Entity("四皇会战", modes=("ak",), en="Battle of the Four Emperors", category="历史事件/明日方舟",
+           variants=("四人之战", "四皇之战"),
+           ctx=((r"\bfour\s+emperors\b", "皇帝们"),),
+           note="本片 #313/#419 作「四人之战」、#404/#434 作「四皇之战」、"
+                "#314/#420 拆成「皇帝们」；统一四皇会战。"),
+    Entity("世界观构建", modes=("ak", "limbus"), en="world building", category="术语/通用",
+           variants=("世界建筑", "世界建设", "世界大厦"),
+           ctx=((r"\bworld\s+building\b", "建筑"),),
+           note="本片主题词，一校 11 处已归一但只落侧车；二校回灌。"
+                "#37/#41/#977 的 world 在上一 cue、building 在本 cue，走 subfix。"),
+    Entity("设定", modes=("ak",), en="lore", category="术语/通用",
+           ctx=((r"\blore\b", "传说"),),
+           note="lore=世界观设定，不是「传说」；一校 #75/#134/#266/#558 已归一，二校回灌。"),
+    Entity("服务型游戏", modes=("ak", "limbus"), en="live service game", category="术语/通用",
+           variants=("现场服务游戏",),
+           note="一校 #28 已归一，二校回灌。"),
+    Entity("服务型", modes=("ak", "limbus"), en="live service", category="术语/通用",
+           ctx=((r"\blive\s+service\b", "生活服务"),),
+           note="一校 #31 已归一，二校回灌。"),
+    Entity("奇点", modes=("limbus",), en="Singularity", category="设定/边狱巴士",
+           ctx=((r"\bsingularity\b", "独特之处"), (r"\bsingularity\b", "奇异性")),
+           note="一校 #661/#709/#824 已归一，二校回灌。"),
+    Entity("滑铁卢", modes=("ak",), en="Battle of Waterloo", category="现实典故",
+           ctx=((r"\bwateroo\b", "沃特卢"),),
+           note="本片 #435 ASR 'wateroo'，谷翻「沃特卢」；中文行已有「战役」，"
+                "故 canonical 只作「滑铁卢」，避免产出「滑铁卢战役战役」。"),
+    Entity("源石", modes=("ak",), en="Originium", category="设定/明日方舟",
+           ctx=((r"\boriginian\b", "原产地"),),
+           note="本片 #563 'originian' 谷翻「原产地」；明日方舟官方=源石。"),
+
+    # --- Limbus Company：作品/都市/公司/核心术语 ---
+    Entity("废墟图书馆", modes=("limbus",), en="Library of Ruina", category="作品/边狱巴士",
+           variants=("Library of Verona", "瑞纳图书馆", "维罗纳图书馆"),
+           ctx=((r"\bRena\b", "瑞纳"), (r"\bRunna\b", "润娜"), (r"\bruna\b", "runa")),
+           note="本片 #587 Library of Verona、#632 瑞纳图书馆、#658 润娜、"
+                "#668 runa、#791 Rena；统一官方中文《废墟图书馆》。"),
+    Entity("脑叶公司", modes=("limbus",), en="Lobotomy Corporation", category="作品/边狱巴士",
+           variants=("Labbotomy Corp", "Labon Corporation", "Labon 公司",
+                     "Lob Corp", "Lock Corp", "Lock 公司"),
+           note="本片 #630 Labbotomy Corp、#650 Labon Corporation、#665 Lob Corp、"
+                "#668 Lock Corp；统一《脑叶公司》。#665/#668 的所属格/跨 cue 走 subfix。"),
+    Entity("R公司", modes=("limbus",), en="R Corp", category="公司/边狱巴士",
+           variants=("Arcore",),
+           ctx=((r"\bArp\b", "Arp"),),
+           note="R公司奇点=克隆；本片 #650 Arcore、#658/#661 Arp。"
+                "Arp 裸键有误伤风险，只在参考行命中时替换。"),
+    Entity("F公司", modes=("limbus",), en="F Corp", category="公司/边狱巴士",
+           variants=("FC Corp", "FC 公司"),
+           ctx=((r"\bFC\b", "FC"),),
+           note="本片 #706/#707 'FC Corp' 跨 cue 拆成 FC + 公司；"
+                "妖精（Fairy）见妖精条。"),
+    Entity("G公司", modes=("limbus",), en="G Corp", category="公司/边狱巴士",
+           variants=("GC Corp", "GC公司", "GC 公司"),
+           note="本片 #709/#714 GC Corp/GC公司；旧型G公司昆虫强化。"),
+    Entity("J公司", modes=("limbus",), en="J Corp", category="公司/边狱巴士",
+           variants=("JC Corp",),
+           note="本片 #716 JC Corp；概念层面锁定/窃取。"),
+    Entity("K公司", modes=("limbus",), en="K Corp", category="公司/边狱巴士",
+           variants=("KC Corp", "KC Corps", "KC 公司", "KC军团"),
+           note="本片 #719 KC Corps、#763/#768 KC Corp/KC 公司；治愈安瓿。"),
+    Entity("M公司", modes=("limbus",), en="M Corp", category="公司/边狱巴士",
+           variants=("MC Corp",),
+           ctx=((r"\bMC\s+Corp\b", "三菱商事公司"),),
+           note="本片 #720 谷翻把 MC Corp 当成三菱商事；官方/社区=M公司。"),
+    Entity("N公司", modes=("limbus",), en="N Corp", category="公司/边狱巴士",
+           variants=("Encorp",),
+           ctx=((r"\bEncorp\b", "安科普"),),
+           note="本片 #729 Encorp 谷翻「安科普」；N公司=罐头体验。"),
+    Entity("P公司", modes=("limbus",), en="P Corp", category="公司/边狱巴士",
+           variants=("PC Corp", "PC公司"),
+           ctx=((r"\bPissorp\b", "皮索普"),),
+           note="本片 #735 PC Corp、#739 Pissorp 谷翻「皮索普」。"),
+    Entity("T公司", modes=("limbus",), en="T Corp", category="公司/边狱巴士",
+           variants=("TC Corp", "TCP"),
+           ctx=((r"\bTorp\b", "托普罐头"), (r"\bTorp\b", "托普")),
+           note="本片 #600/#737 Torp、#605/#823 TCP、#822/#826/#845 TC Corp；"
+                "T公司=时间控制。"),
+    Entity("U公司", modes=("limbus",), en="U Corp", category="公司/边狱巴士",
+           ctx=((r"\bUK\s+is\s+known\b", "英国"),),
+           note="本片 #739 'UK is known for their ability to keep food in stasis' "
+                "谷翻「英国」；此 UK=U Corp，只在锚定句替换。"),
+    Entity("W公司", modes=("limbus",), en="W Corp", category="公司/边狱巴士",
+           variants=("WC Corp", "WC公司"),
+           ctx=((r"\bWC\b", "卫生间"),),
+           note="本片 #750 谷翻把 WC 当卫生间；#771/#776/#808/#837/#821 WC Corp；"
+                "W公司=跃迁列车。"),
+    Entity("后巷", modes=("limbus",), en="Backstreets", category="设定/边狱巴士",
+           ctx=((r"\bback\s+streets\b", "背部街道"),),
+           note="本片 #593/#594 'back streets' 被拆行，谷翻「背部街道」；走 subfix 整句。"),
+    Entity("色彩收尾人", modes=("limbus",), en="Color Fixer", category="设定/边狱巴士",
+           ctx=((r"\bcolored\s+fixers?\b", "彩色固定剂"),),
+           note="本片 #833 'colored fixers' 谷翻「彩色固定剂」；社区标准=色彩收尾人。"),
+    Entity("收尾人", modes=("limbus",), en="Fixer", category="设定/边狱巴士",
+           ctx=((r"\bfixers?\b", "修复方法"), (r"\bfixers?\b", "修复了"),
+                (r"\bfixes?\b", "修复")),
+           note="本片 #880/#884 谷翻把 Fixer/fixes 当「修复方法/修复了」；"
+                "#833 colored fixers 另见色彩收尾人。"),
+    Entity("帮派", modes=("limbus",), en="Syndicate", category="设定/边狱巴士",
+           ctx=((r"\bsyndicates?\b", "辛迪加"),),
+           note="本片 #869/#882 'syndicates' 谷翻音译「辛迪加」；社区标准=帮派。"),
+    Entity("妖精", modes=("limbus",), en="Fairy", category="设定/边狱巴士",
+           ctx=((r"\bfair(?:y|ies)\b", "仙女"),),
+           note="本片 #707 F公司 Fairy 谷翻「仙女」；社区标准=妖精。"),
+    Entity("翼", modes=("limbus",), en="Wing", category="设定/边狱巴士",
+           ctx=((r"\bthese\s+wings\b", "翅膀"), (r"\brival\s+wing\b", "机翼"),
+                (r"\bcausing\s+the\s+wing\b", "机翼"), (r"\bother\s+wings\b", "翅膀"),
+                (r"\bother\s+wings\b", "翼队"), (r"\ba\s+wing\s+fell\b", "翅膀")),
+           note="本片 #705/#758/#760/#767/#772/#773 把 Wing 译成翅膀/机翼/翼队；"
+                "#212 halos and wings 是字面翅膀，不锚定。"),
+    Entity("跃迁列车", modes=("limbus",), en="Warp Train", category="设定/边狱巴士",
+           ctx=((r"\bwarp\s+trains?\b", "经纱"), (r"\bwarp\s+trains?\b", "扭曲"),
+                (r"\bwork\s+trains?\b", "工作列车")),
+           note="本片 #777/#778/#803/#816 把 warp train 译成扭曲/经纱/工作列车；"
+                "跨 cue 的「火车」走 subfix。"),
+    Entity("月光石", modes=("limbus",), en="Moonlight Stone", category="设定/边狱巴士",
+           variants=("月光石头",),
+           note="本片 #722/#723 Moonlight Stone 被拆成「月光/石头」；走 subfix 整句。"),
+    Entity("概念焚化炉", modes=("limbus",), en="Concept Incinerator", category="设定/边狱巴士",
+           ctx=((r"\bconcept\s+incinerator\b", "焚化炉的概念"),),
+           note="本片 #898 'concept incinerator' 谷翻「焚化炉的概念」；官方/社区=概念焚化炉。"),
+    Entity("L公司", modes=("limbus",), en="L Corp", category="公司/边狱巴士",
+           ctx=((r"\bElor\b", "埃洛尔"),),
+           note="本片 #842 'They got energy from Elor' 谷翻「埃洛尔」；Elor=L Corp。"),
+    Entity("边狱巴士", modes=("limbus",), en="Limbus Company", category="作品/游戏",
+           variants=("Limba's company", "Limba 公司", "Limbbus Company", "Lumus Company"),
+           ctx=((r"\bLimba\b", "Limba"),),
+           note="本片 #599 'until Limba's' 谷翻保留 Limba；"
+                "游戏名统一《边狱巴士》，游戏内组织名另作《边狱公司》。"),
+    Entity("月亮计划", modes=("limbus",), en="Project Moon", category="公司/边狱巴士",
+           variants=("月球计划",),
+           note="本片 #568/#572/#628/#702/#704/#848/#891 把 Project Moon 直译「月球计划」；"
+                "中文社区通行「月亮计划」（无官方简中）。"),
+    Entity("莱塔尼亚", modes=("ak",), en="Leithanien", category="国家/明日方舟",
+           variants=("Lar Night",),
+           note="本片 #143 ASR 把 Lethania 听成 Lar Night，中文行保留拉丁；"
+                "官方中文=莱塔尼亚。"),
+    Entity("明日方舟维基百科", modes=("ak",), en="Arknights Wikipedia", category="站点/明日方舟",
+           variants=("arknet 维基百科",),
+           note="本片 #422 'arknet Wikipedia' 谷翻保留 arknet；指明日方舟 Wiki。"),
+    Entity("明日方舟", modes=("ak",), en="Arknights", category="作品/游戏",
+           ctx=((r"\bArcNet\b", "ArcNet"),),
+           note="本片 #473 'if they get interested in ArcNet' 的 ArcNet 是 Arknights 的 ASR 变体；"
+                "只在参考行命中 ArcNet 时替换，避免误伤其它片源的专名。"),
+    # ============================================================
+    # 2026-11-10 鸣潮 3.5 Story（I'M BACK ON WUTHERING WAVES，Gigguk）
+    #   二校沉淀：本片残留的 ASR/谷翻错形。官方依据：
+    #   BWIKI「设定拾遗/秧秧」「角色/秧秧」「名词注释/玄翎雀」、
+    #   3.5 第四章·第二幕「玄翎振骸定澜音」、首页/探索报告。
+    #   戒律：生僻拉丁/中文错形可进 variants；常用词走 ctx 英文锚定。
+    # ============================================================
+    Entity("今州", modes=("bi",), en="Jinzhou", category="地名/鸣潮",
+           variants=("Jino",),
+           note="本片 #996/#1036/#1351/#1631/#1967 等 ASR 把 Jingo 写成 Jino，谷翻保留拉丁；"
+                "官方中文=今州。"),
+    Entity("梦州", modes=("bi",), en="Mengzhou", category="地名/鸣潮",
+           variants=("Moonjo", "Mongj", "Mong Jojo"),
+           note="本片 #1020/#12008/#15338 等 ASR 变体；官方中文=梦州。"),
+    Entity("玄方城", modes=("bi",), en="Schwanfong Hold", category="地名/鸣潮",
+           variants=("Shwangfong", "Shwang", "Halt"),
+           ctx=((r"\bSchwan\w*\b|\bSwan\w*\b", "天鹅方"),
+                (r"\bSchwan\w*\b|\bSwan\w*\b", "天鹅房"),
+                (r"\bSchwan\w*\b|\bSwan\w*\b", "天鹅坊")),
+           note="本片 #3009 天鹅方、#7978 天鹅房、#2560 天鹅坊、#1024 Shwang Thong、"
+                "#1039 Halt 等；官方中文=玄方城（梦州·玄方地界）。"
+                "⚠ 天鹅* 是通用词，只在英文行出现 Schwan/Swan 时锚定。"),
+    Entity("炽霞", modes=("bi",), en="Chixia", category="角色/鸣潮",
+           variants=("Chisia", "Chushia", "Chija", "Juicia"),
+           note="本片 #1014/#1016/#1205/#1228 等 ASR 变体；官方中文=炽霞。"),
+    Entity("凌阳", modes=("bi",), en="Lingyang", category="角色/鸣潮",
+           variants=("Leangu", "Leangui"),
+           note="本片 #2111/#2175/#2579/#4661 等 ASR 变体；官方中文=凌阳。"),
+    Entity("华胥院", modes=("bi",), en="Huashu Academy", category="地点/鸣潮3.5",
+           variants=("Hashu Academy", "哈树星炬学院", "胡阿什学院"),
+           note="本片 #1689/#1889/#4676 等；官方中文=华胥院（3.5 玄方地界机构），"
+                "不是星炬学院。"),
+    Entity("星炬学院", modes=("bi",), en="Startorch Academy", category="地点/鸣潮",
+           variants=("Starch Academy", "Star Tour Academy", "淀粉星炬学院"),
+           note="本片 #316/#585/#1489 等谷翻错形；官方中文=星炬学院（拉海洛）。"),
+    Entity("玄翎雀", modes=("bi",), en="Xuanling Bird", category="生物/鸣潮3.5",
+           variants=("天鹅灵鸟", "Lling"),
+           note="本片 #2650/#2755/#5926/#5936 等；官方中文=玄翎雀。"
+                "旧表 shling鸟->天鹅灵鸟 已改。"),
+    Entity("天工部", modes=("bi",), en="Skyworks", category="势力/鸣潮",
+           variants=("Skyworks", "Skywatch", "Skywards", "斯凯沃斯", "天工坊"),
+           note="本片 #2933/#3940/#3958/#4114/#2949 等；官方中文=天工部（玄方城机关工业）。"),
+    Entity("军策府", modes=("bi",), en="Ministry of War", category="势力/鸣潮",
+           ctx=((r"\bMinistry of War\b", "部委"),),
+           note="本片 #1590/#3164/#5605；官方中文=军策府。"
+                "⚠ 发展部=Ministry of Development，英文为 Development 时不得改。"),
+    Entity("渊城", modes=("bi",), en="Yuan Fortress", category="地点/鸣潮",
+           variants=("元要塞", "袁堡垒"),
+           note="本片 #2851/#3069/#4734 等；官方中文=渊城（云渊之役要塞）。"),
+    Entity("瑝珑", modes=("bi",), en="Huanglong", category="国家/鸣潮",
+           variants=("恒龙", "洪龙", "宏龙"),
+           note="本片 #305/#588/#595 等；官方中文=瑝珑。"),
+    Entity("方壶西峰", modes=("bi",), en="Western Fong Peaks", category="地点/鸣潮3.5",
+           variants=("方擎西峰", "西玄峰", "西芳峰"),
+           ctx=((r"\bWestern\s+(?:Fong|Fang)\s+Peaks?\b", "西方峰"),),
+           note="本片 #2926/#2932/#2995 等；官方写法=方壶西峰（BWIKI 首页/探索报告）。"
+                "⚠ 旧表 target 方擎西峰 为误写，已改；西方峰 只在英文锚定。"),
+    Entity("玄幽东岳", modes=("bi",), en="Eastern Xuan Peaks", category="地点/鸣潮3.5",
+           variants=("东天鹅峰", "东玄方山峰"),
+           ctx=((r"\bEastern\s+(?:Xuan|Sh\s*uan|Swan)\s+Peaks?\b", "东玄峰"),),
+           note="本片 #1818/#3923 等；官方写法=玄幽东岳（BWIKI 探索报告）。"),
+    Entity("无相燹主", modes=("bi",), en="Ovathrax", category="敌人/鸣潮",
+           variants=("Overthrax", "Ovathrax"),
+           note="本片 #333/#3042；官方中文=无相燹主。"),
+    Entity("角", modes=("bi",), en="Jue", category="角色/岁主",
+           variants=("Jouer", "Jer"),
+           ctx=((r"\bJouer\b", "Play"),),
+           note="本片 #1033/#1094/#3532；官方中文=角。Play 是谷翻把 Jouer 当法语“玩”的错译。"),
+    Entity("心", modes=("bi",), en="Hsin", category="角色/岁主",
+           ctx=((r"\bmoonfox sentinel,?\s*Chin\b", "Chin"),),
+           note="本片 #1035；官方中文=心（岁主分出的情感模块）。"),
+    Entity("穗穗", modes=("bi",), en="Suisui", category="角色/鸣潮",
+           ctx=((r"\bSui\b", "隋"),),
+           note="本片 #1107/#1109；官方中文=穗穗。"),
+    Entity("散华", modes=("bi",), en="Sanhua", category="角色/鸣潮",
+           ctx=((r"\bSana\b|\bSanhua\b", "萨娜"), (r"\bSan\b", "桑")),
+           note="本片 #950/#970；官方中文=散华。"),
 ]
 

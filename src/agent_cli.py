@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.8.0
+# @version 2.9.0
 """agent_cli —— 视频工具箱「第三方 Agent 接入」统一命令行入口（v1.0.0）。
 
 定位与边界
@@ -49,6 +49,7 @@
 from __future__ import annotations
 
 import argparse
+import contextlib
 import json
 import os
 import re
@@ -64,9 +65,10 @@ CALIB_SCRIPT = os.path.join(APP_ROOT, "subtitle_calib_merged.py")
 VERSION = "1.0.0"
 
 #: 校准脚本支持的语言旗标（与 subtitle_calib_merged.main_argv 同步，2026-10-15）
-CALIB_MODE_FLAGS = ("--ja", "--jpe", "--ko", "--wwoc", "--ak", "--akko",
+CALIB_MODE_FLAGS = ("--ja", "--jpe", "--pgrja", "--ko", "--wwoc", "--ak", "--akko",
+                    "--akja",                                   # 2026-11-03 新增：日语原声·明日方舟
                     "--zho", "--endo", "--endobi", "--fix-en", "--limbus",
-                    "--ffrs")
+                    "--ffrs", "--pbz")
 
 
 # ============================================================
@@ -666,18 +668,56 @@ def _lang_label(v: str):
 # calibrate / stabilize：透传 subtitle_calib_merged.py
 # ============================================================
 def _run_calib_passthrough(args, sub: str | None, extra: list) -> int:
-    """透传给根目录校准统一脚本（subprocess 隔离；exit code 原样返回）。"""
+    """校准子命令：优先同进程直连 calib_core 包；VT_CALIB_SUBPROCESS=1 回退单文件。
+
+    双轨（2026-11-08）：根目录 subtitle_calib_merged.py 是构建产物，仍供
+    知识同步链、自检工具与外部 D:\\原片\\ 工作流读取；运行时不再依赖它。
+    """
+    argv = ([sub] if sub else []) + list(extra)
+
+    if os.environ.get("VT_CALIB_SUBPROCESS") != "1":
+        # agent_cli.py 位于 <根>/src，sys.path[0] 天然可见 calib_core；
+        # 被 import 为 src.agent_cli 时补一次路径，仍失败则回退旧通路。
+        src_dir = os.path.join(APP_ROOT, "src")
+        if src_dir not in sys.path:
+            sys.path.insert(0, src_dir)
+        try:
+            from calib_core.cli import main_argv as _calib_main  # noqa: PLC0415
+        except ImportError as e:
+            _say(args, "[信息] calib_core 不可用（%s），回退单文件 subprocess" % e)
+        else:
+            _say(args, "[信息] " + " ".join(argv))
+
+            def _invoke():
+                try:
+                    rc = _calib_main(argv)
+                except SystemExit as ex:      # 子命令按惯例 sys.exit(rc)
+                    rc = ex.code
+                return 0 if rc is None else (rc if isinstance(rc, int) else 1)
+
+            # --json 时 stdout 只能有最终 JSON；校准过程输出转到 stderr。
+            if getattr(args, "as_json", False):
+                with contextlib.redirect_stdout(sys.stderr):
+                    rc = _invoke()
+            else:
+                rc = _invoke()
+            if getattr(args, "as_json", False):
+                print(json.dumps({"ok": rc == 0,
+                                  "script": "calib_core.cli.main_argv",
+                                  "exit_code": rc}, ensure_ascii=False, indent=2))
+            return rc
+
+    # —— 回退：原 subprocess 通路（单文件仍随包分发）——
     if not os.path.isfile(CALIB_SCRIPT):
         return _fail(args, "校准脚本不存在：%s" % CALIB_SCRIPT)
-    argv = [sys.executable, CALIB_SCRIPT]
+    cmd = [sys.executable, CALIB_SCRIPT]
     if sub:
-        argv.append(sub)
-    argv.extend(extra)
+        cmd.append(sub)
+    cmd.extend(extra)
     _say(args, "[信息] %s" % " ".join(os.path.relpath(a, APP_ROOT)
                                       if os.path.isabs(a) and a.startswith(APP_ROOT)
-                                      else a for a in argv[1:]))
-    # 不捕获输出：校准进度/报告直接过终端；--json 时也要透传 exit code
-    proc = subprocess.run(argv, cwd=APP_ROOT)
+                                      else a for a in cmd[1:]))
+    proc = subprocess.run(cmd, cwd=APP_ROOT)
     if getattr(args, "as_json", False):
         print(json.dumps({"ok": proc.returncode == 0,
                           "script": os.path.relpath(CALIB_SCRIPT, APP_ROOT),

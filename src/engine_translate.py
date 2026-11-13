@@ -1,4 +1,4 @@
-# @version 2.8.0
+# @version 2.9.0
 """字幕机翻（自研，替代 videocaptioner.core.translate.* 翻译器实现）。
 
 P1 接缝之一：把第三方引擎的三个免费翻译器（微软 / 谷歌 / DeepLx）的公开
@@ -31,9 +31,12 @@ P1 接缝之一：把第三方引擎的三个免费翻译器（微软 / 谷歌 /
 ------------------------------------------
 * 微软：``POST https://edge.microsoft.com/translate/translatetext?to=<lang>&api-version=3.0``，
   body 为 JSON 字符串数组，**直连可用**（不读系统代理）。
-* 谷歌：``translate.googleapis.com/translate_a/single`` 在本机网络下**不可用**
-  （历史实测 421；规格第二节亦已记载「此路径本就不通」）。因此谷歌翻译器
-  默认直接判定不可用、不发请求，避免每个字幕块白等一个超时。
+* 谷歌：``translate.googleapis.com/translate_a/single``（含 ``client=gtx``）在本机
+  网络下**不可用**——2026-11-01 实测返回 429 + /sorry/ 验证码页。可用的是 Chrome
+  内置翻译那个同源端点：``translate_a/t?client=dict-chrome-ex&sl=auto&tl=<lang>``，
+  境内**必须经本地代理**（``translate_session_proxies`` 已给出路由），且支持重复
+  ``q`` 参数批量、响应与请求 1:1 保序（实测 100 条/请求仍可用）。详见
+  :mod:`core.translate.gtx_batch` 的字节预算与降级说明。
 * DeepLx：``POST https://api.deeplx.org/translate``，请求 ``{"text": [...]}``、
   取 ``translations``；公开实例不稳定，失败按 ``ERROR`` 标记交上层兜底。
 
@@ -178,8 +181,8 @@ class BaseSubtitleTranslator:
     def probe(self, sample="ok"):
         """探测端点可用性。返回 ``(是否可用, 说明)``。
 
-        ``direct_ok=False`` 的实现（谷歌）直接短路返回，不发请求——本机网络
-        下该端点必然失败，发请求只会让每个字幕块白等一个超时。
+        ``direct_ok=False`` 的实现直接短路返回、不发请求——用于「本机网络下
+        必然失败」的端点，避免每个字幕块白等一个超时。
         """
         if not self.direct_ok:
             return False, "该端点在本机网络下不可用（已跳过探测）"
@@ -252,15 +255,25 @@ class BingTranslator(BaseSubtitleTranslator):
 
 
 class GoogleTranslator(BaseSubtitleTranslator):
-    """谷歌翻译（本机网络下不可用，默认短路）。
+    """谷歌翻译（``dict-chrome-ex`` 端点，经本地代理，支持重复 ``q`` 批量）。
 
-    历史实测：``translate.googleapis.com/translate_a/single`` 在本机返回
-    421。保留实现是为了兼容「网络可用」的其他部署环境，但 ``direct_ok``
-    为 False ⇒ 探测与实际翻译都直接短路，不浪费时间在不通的端点上。
+    2026-11-01 修正：本类此前挂在 ``translate_a/single``，``direct_ok`` 写成
+    False、``probe()`` **硬编码**返回「不可用（421，历史实测）」——连探测都没做，
+    所以 ``agent_cli translate --engine google`` 与自动流水线选谷歌必然秒失败。
+    实测现状：``translate_a/single?client=gtx`` 确实死了（HTTP 429 + /sorry/ 验证
+    码页），但 Chrome 内置翻译用的 ``translate_a/t?client=dict-chrome-ex`` 经本地
+    代理返回 200，且支持重复 ``q`` 参数批量、响应与请求 1:1 保序。
+
+    请求实现与降级阶梯全部复用 :mod:`core.translate.gtx_batch`——GUI 走的引擎线
+    （``route_patch._patch_google_batch``）与这里必须同一份逻辑，否则两条线行为
+    分叉：GUI 快、命令行慢，或反过来。
     """
 
-    endpoint = "https://translate.googleapis.com/translate_a/single"
-    direct_ok = False
+    endpoint = "https://translate.googleapis.com/translate_a/t"
+    #: 语义是「值得真探一次」而非「可直连」：境内不可直连，但经本地代理可用，
+    #: 会话已按 :func:`core.shared.proxy.translate_session_proxies` 路由。
+    direct_ok = True
+    timeout = 10
 
     lang_map = {
         "简体中文": "zh-CN", "繁体中文": "zh-TW", "英语": "en",
@@ -271,12 +284,52 @@ class GoogleTranslator(BaseSubtitleTranslator):
         "Russian": "ru",
     }
 
-    def _translate_chunk(self, chunk):
-        # 端点不可用 ⇒ 全部标失败，交上层兜底（LLM / 提示换服务）
-        return _mark_error(chunk, "谷歌端点在本机网络下不可用")
+    @staticmethod
+    def _default_headers():
+        # 只认普通 Chrome UA：基类那套 microsoft 的 Origin/Referer 是 Edge 翻译
+        # 端点的调用方站点，带过来只会让请求形状不像浏览器。
+        return {
+            "User-Agent": ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                           "AppleWebKit/537.36 (KHTML, like Gecko) "
+                           "Chrome/131.0.0.0 Safari/537.36"),
+        }
 
-    def probe(self, sample="ok"):
-        return False, "该端点在本机网络下不可用（421，历史实测）"
+    @staticmethod
+    def _make_session():
+        import requests
+
+        from core.shared.proxy import translate_session_proxies
+        s = requests.Session()
+        # 谷歌在境内不可直连，必须走本地代理；同时 trust_env=False 让它只认这里
+        # 显式算出来的路由，不被环境变量里那个可能不通的系统代理带崩。
+        s.trust_env = False
+        s.proxies = translate_session_proxies(
+            "https://translate.googleapis.com/translate_a/t")
+        return s
+
+    def _client(self):
+        from core.translate.gtx_batch import GtxBatchClient
+        c = getattr(self, "_vt_gtx_client", None)
+        if c is None:
+            c = GtxBatchClient(self.session, self.endpoint, self.headers,
+                               self._target_lang_code(), timeout=self.timeout,
+                               label="自研线")
+            self._vt_gtx_client = c
+        return c
+
+    def _translate_chunk(self, chunk):
+        return self._client().translate_chunk(chunk)
+
+    def probe(self, sample="hello"):
+        """真实探测：短文本 + 走代理探一次，别再用硬编码结论把用户挡在门外。"""
+        try:
+            got = self._client().translate_texts([sample])
+        except Exception as e:  # noqa: BLE001
+            return False, "%s: %s" % (type(e).__name__, str(e)[:80])
+        if got and got[0]:
+            return True, "HTTP 200"
+        return False, ("端点经本地代理仍无有效译文（检查代理是否开着，"
+                       "或在「字幕处理 → 设置 → 翻译服务」改用微软翻译）")
 
 
 class DeepLxTranslator(BaseSubtitleTranslator):

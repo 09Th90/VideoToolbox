@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# @version 2.8.0
+# @version 2.9.0
 """主播声纹 · 界面流程自检（离屏，跑真实线程 + 真实模型）
 
 覆盖「录入卡」与「多选器」的完整交互链路：
@@ -168,6 +168,41 @@ def main():
     finally:
         SV.TEMPLATE_DIR, SV.SELECTION_PATH = old_dir, old_sel
         shutil.rmtree(tmp, ignore_errors=True)
+
+    # ---------------- 勾选名单不得抹掉「声纹筛选」开关 ----------------
+    # `VoiceprintPicker` 是勾选即落盘，走 `save_selection`；它以前整份重写
+    # {"enabled","updated"}，会把转录页开关（auto_filter）静默抹回默认值——
+    # 那一来「本次显式开关」形同虚设。本节无条件跑（不依赖素材/模型）。
+    print("\n== 勾选名单与开关共存 ==")
+    tmp2 = tempfile.mkdtemp(prefix="vt_vp_ui_auto_")
+    old_dir, old_sel = SV.TEMPLATE_DIR, SV.SELECTION_PATH
+    SV.TEMPLATE_DIR = tmp2
+    SV.SELECTION_PATH = os.path.join(tmp2, "selection.json")
+    try:
+        import numpy as np
+        e = np.zeros(SV.EMB_DIM, dtype=np.float32)
+        e[0] = 1.0
+        SV.save_template("主播UI", e)
+        pick2 = P.VoiceprintPicker()
+        pick2.refresh()
+        check("开关默认关（字段缺失）", SV.load_auto_filter() is False)
+        SV.save_auto_filter(True)
+        for c in pick2._boxes:
+            if isinstance(c, P.CheckBox):
+                c.setChecked(True)          # _on_toggle → save_selection
+        check("勾选模板后开关仍为开（save_selection 读-改-写）",
+              SV.load_auto_filter() is True
+              and SV.load_selection() == ["主播UI"],
+              open(SV.SELECTION_PATH, encoding="utf-8").read())
+        check("状态行同时说清「筛谁」与「筛不筛」",
+              "开关" in pick2.status.text() and "主播UI" not in pick2.status.text()
+              and "1 个" in pick2.status.text(), pick2.status.text())
+        pick2._clear()
+        check("清空名单也不会抹掉开关", SV.load_auto_filter() is True
+              and SV.load_selection() == [])
+    finally:
+        SV.TEMPLATE_DIR, SV.SELECTION_PATH = old_dir, old_sel
+        shutil.rmtree(tmp2, ignore_errors=True)
 
     print("\n结果：%s" % ("全部通过" if not FAILS
                         else "%d 项失败 %s" % (len(FAILS), FAILS)))

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.8.0
+# @version 2.9.0
 """转录 UI 补丁（下拉收敛「默认/ASR」+ 独立转录完成回填「字幕翻译」）（v2.3.1 拆分工程 · 自 video_toolbox.py 原样搬入）。
 
 v2.3.1 拆分工程；域间依赖规则见 core/__init__.py。
@@ -7,7 +7,12 @@ v2.3.1 拆分工程；域间依赖规则见 core/__init__.py。
 
 from core.asr.engine_config import apply_asr_to_engine
 from core.asr.patches import vc_asr_protocol_patch
-from core.asr.voiceprint import (TM_DISPLAY_ASR, TM_DISPLAY_DEFAULT, voiceprint_enabled_names, voiceprint_filter_subtitle)
+from core.asr.voiceprint import (
+    TM_DISPLAY_ASR, TM_DISPLAY_DEFAULT, voiceprint_enabled_names,
+    voiceprint_auto_names, voiceprint_auto_tooltip,
+    voiceprint_auto_filter_enabled, voiceprint_set_auto_filter,
+    voiceprint_result_notice, voiceprint_filter_subtitle,
+)
 from core.shared.ai import ai_load_config, ai_mod
 from core.shared.log import _vc_log
 
@@ -38,7 +43,8 @@ def vc_transcribe_ui_patch():
         from videocaptioner.core.entities import TranscribeModelEnum
         from videocaptioner.ui.common.config import cfg as _cfg
         from vt_fluent import (Action, BodyLabel, FluentIcon, InfoBar,
-                               InfoBarPosition, PushButton, RoundMenu)
+                               InfoBarPosition, PushButton, RoundMenu,
+                               SwitchButton)
         from PySide6.QtWidgets import QVBoxLayout as _QVBox
     except Exception as e:  # noqa: BLE001
         _vc_log(f"转录 UI 补丁导入失败：{e}")
@@ -80,8 +86,39 @@ def vc_transcribe_ui_patch():
     # ① 命令栏菜单：只留「默认 / ASR」
     orig_setup_bar = ti.TranscriptionInterface._setup_command_bar
 
+    def _mount_vp_auto_switch(self):
+        """转录页命令栏的「声纹筛选」开关（默认关）。
+
+        与自研侧 `vt_engine_ui/transcription_interface.py` **对称挂载**：
+        `scripts/dev/vt_ui_golden.py` 把「引擎 UI + 类补丁」当 golden 与自研 UI
+        做控件树逐节点比对，只在一侧加会让发布门禁直接变红。
+        状态与文案都取 core 层（`voiceprint_*`），两侧不会各说各话。
+        """
+        try:
+            sw = SwitchButton("声纹筛选", self.command_bar)
+            sw.setChecked(voiceprint_auto_filter_enabled())
+            sw.setToolTip(voiceprint_auto_tooltip())
+            sw.setFixedHeight(34)
+            sw.checkedChanged.connect(
+                lambda checked=False, s=sw, i=self: _vp_auto_changed(s, i))
+            self.command_bar.addWidget(sw)
+            self.vp_auto_switch = sw
+        except Exception as e:  # noqa: BLE001
+            _vc_log(f"转录页声纹开关挂载失败：{e}")
+
+    def _vp_auto_changed(sw, iface):
+        """开关落盘 + 刷新文案；**不弹 InfoBar**（用户刚点完，无需确认音）。"""
+        try:
+            voiceprint_set_auto_filter(sw.isChecked())
+            sw.setToolTip(voiceprint_auto_tooltip())
+            _vc_log("用户%s转录页「声纹筛选」开关"
+                    % ("打开" if sw.isChecked() else "关闭"))
+        except Exception as e:  # noqa: BLE001
+            _vc_log(f"声纹自动筛选开关写入失败：{e}")
+
     def _setup_command_bar(self):
         orig_setup_bar(self)
+        _mount_vp_auto_switch(self)
         try:
             menu = RoundMenu(parent=self)
             menu.addActions([
@@ -215,9 +252,12 @@ def vc_transcribe_ui_patch():
             pass
         return None
 
-    def _start_voiceprint_filter(iface, out, media, then):
+    def _start_voiceprint_filter(iface, out, media, then, names=None):
         """后台跑声纹筛选，完成后回调 `then()`；返回是否已接管流程。
 
+        `names`：要套用的声纹名单。自动路径**必须**传挂载点已经过门禁的那一份
+        （`voiceprint_auto_names()`），别让 worker 再去读一次全局名单——转录这
+        几十秒里用户可能已经改了勾选；省略（手动按钮）则按已启用名单筛。
         ⚠ 用 QThread 而非同步调用：实测 18 分钟素材「解码 + 提 275 段声纹 +
         聚类打分」约 27 秒，同步跑会把界面冻住（用户会以为卡死）。
         ⚠ worker 必须挂在 iface 上防 GC——局部变量出作用域就被回收，线程会被
@@ -247,7 +287,7 @@ def vc_transcribe_ui_patch():
 
             def run(self):
                 try:
-                    r = voiceprint_filter_subtitle(out, media)
+                    r = voiceprint_filter_subtitle(out, media, names=names)
                 except Exception as e:  # noqa: BLE001
                     _vc_log(f"声纹筛选失败：{e}")
                     r = {"error": str(e)}
@@ -260,25 +300,12 @@ def vc_transcribe_ui_patch():
             except Exception:  # noqa: BLE001
                 pass
             try:
-                if isinstance(res, dict) and res.get("error"):
-                    InfoBar.error("声纹筛选失败",
-                                  str(res["error"])[:200] + "\n字幕已保留未筛选版本",
-                                  duration=9000,
-                                  position=InfoBarPosition.BOTTOM, parent=parent)
-                elif res is None:
-                    InfoBar.warning(
-                        "声纹筛选未执行",
-                        "声纹模型还没下载：到「语音转录 → 主播声纹」点「下载模型」",
-                        duration=8000,
-                        position=InfoBarPosition.BOTTOM, parent=parent)
-                else:
-                    InfoBar.success(
-                        "声纹筛选完成",
-                        "保留 %d 条（其中存疑 %d）/ 丢弃 %d；原件已备份为「%s」"
-                        % (res["kept_total"], res["review"], res["drop"],
-                           os.path.basename(res.get("backup") or "")),
-                        duration=9000,
-                        position=InfoBarPosition.BOTTOM, parent=parent)
+                # 文案与判定统一由 core 层给（四处入口共用），这里只负责选对
+                # InfoBar 类型；熔断态照样调 `then()`——用户要的是全文进翻译页。
+                kind, title, content, ms = voiceprint_result_notice(res)
+                getattr(InfoBar, kind)(title, content, duration=ms,
+                                       position=InfoBarPosition.BOTTOM,
+                                       parent=parent)
             except Exception:  # noqa: BLE001
                 pass
             try:
@@ -368,6 +395,17 @@ def vc_transcribe_ui_patch():
                     # 切到「字幕翻译」并让分段控件同步高亮（原生跳转同款两连）
                     home.stackedWidget.setCurrentWidget(sub)
                     home.pivot.setCurrentItem("SubtitleInterface")
+                    # 空字幕（纯音乐/无人声）不配「已装载」成功提示：表格 0 行
+                    # 会被读成渲染故障。判据用装载后的模型条目数（引擎表格同款 _data）。
+                    if not getattr(sub.model, "_data", None):
+                        _vc_log(f"独立转录完成 → 字幕为空，无可装载内容：{out}")
+                        InfoBar.warning(
+                            "转录完成",
+                            "未识别到任何语音内容，生成的字幕为空（0 条）",
+                            duration=5000,
+                            position=InfoBarPosition.BOTTOM,
+                            parent=home)
+                        return True
                     _vc_log(f"独立转录完成 → 已装载「字幕翻译」：{out}")
                     InfoBar.success(
                         "转录完成",
@@ -377,12 +415,17 @@ def vc_transcribe_ui_patch():
                         parent=home)
                     return True
 
-                # ⑥ 主播声纹（v1.18.0）：启用了声纹就先筛，**筛完再回填字幕翻译**
-                #    ——顺序不能反：字幕翻译要拿筛过的字幕，否则翻译出来还是多人。
+                # ⑥ 主播声纹（v1.18.0）：**转录页开关为开**且选了声音才筛，
+                #    筛完再回填字幕翻译——顺序不能反：字幕翻译要拿筛过的字幕，
+                #    否则翻译出来还是多人。
                 #    ⚠ 必须走后台线程：18 分钟的片子解码+提声纹要二三十秒，同步跑
                 #    会把主线程（也就是整个界面）冻住。
-                if out and voiceprint_enabled_names():
-                    if _start_voiceprint_filter(self, out, media, _handoff):
+                #    门禁读 `voiceprint_auto_names()`（开关 ∧ 名单），以前只看全局
+                #    名单 = 某次勾过就永久自动筛（2026-11-03 误杀 3834 条）。
+                vp_names = voiceprint_auto_names() if out else []
+                if vp_names:
+                    if _start_voiceprint_filter(self, out, media, _handoff,
+                                                vp_names):
                         return
                 if _handoff():
                     return
@@ -498,9 +541,12 @@ def vc_transcribe_ui_patch():
         _orig_switch_sub = _VT_HOME.switch_to_subtitle_optimization
 
         def _switch_sub(self, file_path, video_path):
-            if voiceprint_enabled_names() and _start_voiceprint_filter(
+            # 门禁同转录完成那条：开关 ∧ 名单，筛完再切换（详见补丁⑥注释）
+            vp_names = voiceprint_auto_names()
+            if vp_names and _start_voiceprint_filter(
                     self, file_path, video_path,
-                    lambda: _orig_switch_sub(self, file_path, video_path)):
+                    lambda: _orig_switch_sub(self, file_path, video_path),
+                    vp_names):
                 return
             return _orig_switch_sub(self, file_path, video_path)
 

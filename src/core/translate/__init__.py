@@ -1,11 +1,14 @@
 # -*- coding: utf-8 -*-
-# @version 2.8.0
+# @version 2.9.0
 """翻译域（core/translate）：翻译请求路由补丁。
 
 子模块：
   · ``route_patch``  `vc_translate_route_patch`（把翻译请求路由钉死——
     微软直连 / 谷歌走本地代理，不跟随系统代理；v2.3.1 起含
     2026-10-17 双重保险：`__init__` 与 `translate_subtitle` 双侧包补丁）
+  · ``gtx_batch``  谷歌 ``dict-chrome-ex`` 端点的批量请求层（重复 ``q`` 参数、
+    编码字节预算、逐级降级）。引擎线（GUI）与自研线（CLI/流水线）共用同一份，
+    两条线行为不得分叉。
 
 翻译主链在 ``engine_translate``（引擎层）与 ``pipeline``（CLI 编排），
 本域只收单体里残存的翻译胶水。
