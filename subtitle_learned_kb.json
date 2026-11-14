@@ -15248,6 +15248,66 @@
    "last": "2026-10-24",
    "alts": {},
    "sync": true
+  },
+  "ko|执行董事的名字": {
+   "wrong": "执行董事的名字",
+   "right": "专武的名字",
+   "mode": "ko",
+   "count": 2,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    184,
+    185
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-11-14",
+   "last": "2026-11-14",
+   "alts": {},
+   "sync": true
+  },
+  "ko|和弦": {
+   "wrong": "和弦",
+   "right": "合鸣",
+   "mode": "ko",
+   "count": 5,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    136,
+    155,
+    182
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-11-14",
+   "last": "2026-11-14",
+   "alts": {},
+   "sync": true
+  },
+  "ko|车间": {
+   "wrong": "车间",
+   "right": "工坊",
+   "mode": "ko",
+   "count": 5,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    175,
+    176,
+    566,
+    568
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-11-14",
+   "last": "2026-11-14",
+   "alts": {},
+   "sync": true
   }
  }
 }
