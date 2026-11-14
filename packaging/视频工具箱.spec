@@ -1,6 +1,8 @@
 # -*- mode: python ; coding: utf-8 -*-
-# @version 2.9.0
+# @version 2.9.1
 """视频工具箱 v2.9.0 —— PyInstaller 打包配置
+⚠ 源码已升到 v2.9.1（启动卡顿修复），但本版**未重新打包**：dist\ 与 installer\
+   仍是 v2.9.0 产物，故本文件版本描述保持 2.9.0；下次重出包时再统一改。
 v2.1.0（2026-10-14）：PyQt5 → PySide6 迁移（docs/PySide6迁移方案书）。本 spec 的
         实质改动只有三处：① _DROP_BINARIES 的 QML 三件套从 Qt5 名改成 Qt6 名
         （Qt6Qml/Qt6Quick/Qt6QmlModels/Qt6QmlMeta/Qt6QmlWorkerScript.dll）；

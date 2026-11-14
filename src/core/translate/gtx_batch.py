@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.9.0
+# @version 2.9.1
 """谷歌 ``dict-chrome-ex`` 端点的批量请求层（引擎线 / 自研线共用）。
 
 为什么需要这一层

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.9.0
+# @version 2.9.1
 """术语/实体数据表
 
 源：subtitle_calib_merged.py L6542-L7171 @ 97d7d463（2026-10-24 冻结快照）
@@ -571,6 +571,16 @@ EN_LINE_TERM_FIXES = {
     "really imp impressed by": "really impressed by",   # ASR 断词+结巴混合
     "of re reset tonal": "of re-reset tonal",           # re-reset 被 ASR 拆开
     "that blind blinded by": "that blinded by",
+    # --- 2026-11-13 鸣潮 3.8 莉莉 reaction 片 r3：英文参考行 ASR 规范 ---
+    "harpsacord": "harpsichord",                            # 羽管键琴 ASR 错拼
+    "liilt": "lilt",                                        # 轻快感 ASR 拖音
+    "Confederated Cities": "Federated Cities",              # 联邦城专名误听
+    "Confederated City": "Federated City",
+    "Mongjo": "Mengzhou",                                   # 梦州 ASR 形
+    "gotacha": "gacha",                                     # 抽卡 ASR 形
+    "Surviving Luchm": "Surviving Lucem",                   # 《战双帕弥什》模式名
+    "Old Langine": "Auld Lang Syne",                        # 《友谊地久天长》ASR 形
+    "Violet Evergardarden": "Violet Evergarden",            # 《紫罗兰永恒花园》ASR 形
 }
 
 

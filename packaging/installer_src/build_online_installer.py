@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.9.0
+# @version 2.9.1
 """构建「视频工具箱」Qt Installer Framework 在线安装器。
 
 流程（对应在线安装架构）：

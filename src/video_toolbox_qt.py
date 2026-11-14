@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# @version 2.9.0
+# @version 2.9.1
 """视频工具箱 GUI v1.11.0 —— Fluent 矢量界面
 ====================================================================
 界面形态（v1.10.0 起，原 tkinter 界面退役）：
@@ -253,7 +253,7 @@ except Exception as _e:  # noqa: BLE001
     except Exception:  # noqa: BLE001
         pass
 
-VERSION = "2.9.0"
+VERSION = "2.9.1"
 # 更新检查同时服务源码运行与安装版：以界面显示的 VERSION 为唯一运行版本，
 # 避免 vt_update_check 里的独立常量再次漂移。
 vt_update_check.SELF_VERSION = VERSION
@@ -953,6 +953,11 @@ class _StartupScheduler(QObject):
                 t["due"] = time.perf_counter() + t["retry"]
             if self._trace and t["done"]:
                 _perf_note(f"sched[{t['name']}] {cost:.1f}ms")
+            if cost > max(50.0, cap) * 2.0:
+                # 任务体内不可切分时 budget 只能事后记账——这段就是用户手里
+                # 那一下「点不动」的真实时长。留个直接证据，别再靠猜。
+                _perf_note(f"sched[{t['name']}] 超预算 {cost:.0f}ms"
+                           f"（budget={cap:.0f}ms，任务体内不可切分）")
             if cost >= 8.0:
                 break          # 重任务之后强制让出一帧，先让界面喘口气
         self._arm(self._next_delay_ms())
@@ -4047,6 +4052,26 @@ class SubtitlePage(QWidget):
         return self._calib_page
 
     # ---------- 预热（消除首次进入卡顿） ----------
+    def prewarm_import_only(self):
+        """只预热 import，**不登记界面构建**（2026-11-14 启动修复）。
+
+        启动期不再自动建工作台（见 MainWindow.__init__ 中 prewarm 那段的说明），
+        但可以趁用户还没点进来，把引擎模块的 import 在后台线程先做掉。import
+        不碰主线程（只抢 GIL，且 main() 已把切换间隔压到 1ms），用户首次进入
+        「字幕处理」时只需付纯构造的代价（热态实测 0.36s）。
+
+        与 :meth:`prewarm` 的区别：这里**不登记** ``prewarm_done`` /
+        ``build_engine``，界面构建仍然只在页面真正显示时发生。
+        """
+        if self._built:
+            return
+        # 已因用户进入页面而起了预热线程：不要重复记日志，也不要另起一份
+        # （两个预热线程互抢 GIL，实测导入会从 3s 劣化到 20s）。
+        if _ENGINE_PREWARM["thread"] is not None:
+            return
+        _perf_note("prewarm_import_only() 被调用（起线程，不建界面）")
+        self._prewarm_thread = _start_engine_prewarm()
+
     def prewarm(self):
         """空闲时预导入引擎模块。
 
@@ -4468,13 +4493,55 @@ class SubtitlePage(QWidget):
         self._built = True
         # 引擎工作台可能含 SpinBox：补丁必须先于它存在（幂等，通常早已装好）
         _install_spinbox_fix_once()
-        t0 = time.perf_counter()
+        self._build_t0 = time.perf_counter()
         if busy_text:
             self.state_label.setText(busy_text)
-        self._engine = self._build_engine()
+            # 2026-11-14：先把「正在准备…」推到屏幕上再进构建。整段构建实测可达
+            # 30s 级且全程占着主线程，没有这一步用户只会看到上一个页面的残帧，
+            # 体感是「点进来先死一下」。
+            try:
+                QApplication.processEvents()
+            except Exception:  # noqa: BLE001
+                pass
+        # 2026-11-14：构建拆成三段，段与段之间回一次事件循环。
+        # 冷缓存下整段实测可达 33–42s（logs\startup.log 2026-11-12/11-14），
+        # 一段做完期间窗口会被系统判成「未响应」；分段后每次连续占用短一截，
+        # 用户也还能在间隙里切回别的页面。热态下三段合计仍是 0.6s 量级。
+        self.state_label.setText("正在准备字幕引擎界面 …（1/3 构建控件）")
+        QTimer.singleShot(0, self._build_stage_engine)
+
+    def _build_stage_engine(self):
+        """第 1/3 段：构造引擎工作台（HomeInterface + 整形）。"""
+        t0 = self._build_t0
+        try:
+            self._engine = self._build_engine()
+        except Exception as e:  # noqa: BLE001
+            _perf_note(f"工作台构建异常：{e}")
+            self._engine = None
+        _perf_note("工作台[1/3 构建控件] %.2fs（返回 %s）"
+                   % (time.perf_counter() - t0,
+                      "None" if self._engine is None else "ok"))
         if self._engine is None:
+            self.state_label.setText("字幕引擎加载失败，详见 logs\\startup.log")
             return
-        self.host_lay.addWidget(self._engine)
+        self.state_label.setText("正在准备字幕引擎界面 …（2/3 并入页面）")
+        QTimer.singleShot(0, self._build_stage_mount)
+
+    def _build_stage_mount(self):
+        """第 2/3 段：把工作台塞进宿主布局（首次 polish/布局最贵的一段）。"""
+        t0 = self._build_t0
+        try:
+            self.host_lay.addWidget(self._engine)
+        except Exception as e:  # noqa: BLE001
+            _perf_note(f"工作台装箱失败：{e}")
+            return
+        _perf_note("工作台[2/3 并入页面] %.2fs" % (time.perf_counter() - t0))
+        self.state_label.setText("正在准备字幕引擎界面 …（3/3 收尾）")
+        QTimer.singleShot(0, self._build_stage_adopt)
+
+    def _build_stage_adopt(self):
+        """第 3/3 段：任务创建移交首页、运行期配置、状态行、导航收敛。"""
+        t0 = self._build_t0
         # v2.1.0：任务创建分段已提升为应用首页（见 HomePage）。把它从工作台
         # 摘出来交给首页——**必须在 addWidget 到本页之后**，否则首页先拿到
         # 控件、工作台随后又把同一个控件 addWidget 一次，Qt 只会保留最后一次。
@@ -4501,8 +4568,6 @@ class SubtitlePage(QWidget):
         # v1.12.0：引擎就绪后收起底部状态行（打开设置/许可走导航栏），
         # 把页面高度全部让给工作台（调整页面比例）
         self.foot.hide()
-        _perf_note(f"字幕引擎界面构建完成：{time.perf_counter() - t0:.2f}s"
-                   f"（预热 {'已就绪' if self._prewarm_ready else '未完成'}）")
         # 首页在预热前收下的文件：等界面真正并入主树后再续跑分派。
         pending = self._pending_dispatch
         self._pending_dispatch = None
@@ -4514,6 +4579,10 @@ class SubtitlePage(QWidget):
             self.window().refresh_nav_width()
         except Exception:
             pass
+        _perf_note(f"字幕引擎界面构建完成：{time.perf_counter() - t0:.2f}s"
+                   f"（预热 {'已就绪' if self._prewarm_ready else '未完成'}，"
+                   f"三段构建）")
+
         # 引擎界面刚并入主树。
         # 2026-10-21（启动调度专项）：这里原本挂一个「空闲时分片扫全树、预热
         # 主题色小表」的任务（更早是 singleShot(300) 一次性全量，首次 ≈1.8s）。
@@ -10409,15 +10478,35 @@ class MainWindow(FluentWindow):
         # 文案，导航宽度不受影响。
         self.harness_page = None
         self._pending_ai_text = ""
-        _defer("harness_page", self._build_harness_page, 4000, 85,
-               depends_on=("home_ui",), budget_ms=900)
+        # AI 托管页改为**纯按需**（2026-11-14 启动修复）：启动时只挂一个惰性
+        # 外壳与导航项（≈0ms），用户第一次点「AI 托管」才构造真身（实测
+        # 0.34–1.31s：harness 适配层探测 + 30 余张卡片 QSS 首渲染）。原先排在
+        # 启动后 4s 自己建，也是「启动后自己先忙一阵」的一部分。
+        if _HARNESS_IMPORT_OK:
+            try:
+                self.harness_page = _LazyPageShell(
+                    self, self._make_harness_page, "AI 托管", "HarnessPage")
+                self.addSubInterface(self.harness_page, FIF.IOT, "AI 托管")
+            except Exception as e:  # noqa: BLE001
+                self.harness_page = None
+                _perf_note(f"AI 托管页导航挂载失败（不影响既有功能）：{e}")
         _perf_note("mw[harness] %.2fs" % (time.perf_counter() - _mt))
         # 自动化页：B 站自动投稿（v1.17.x 起页面精简为投稿专用）。
         # 页面类在 auto_vision_page 里，自带卡片壳，不依赖本文件的 ScrollPage/card()。
-        # 2026-10-20：惰性构造——重依赖（numpy/PIL/视觉引擎 ≈364ms）移出启动
-        # 关键路径，首帧后 1.5s 由 _build_auto_page() 补齐页面与导航项；构造失败
-        # 时该页缺席（与 AI 托管页的条件挂载同一模式），不影响其余功能。
+        # ⚠ 启动期不再自动构造（2026-11-14 启动修复第二轮）。实测冷态构造
+        # **52.6s**（logs\startup.log 2026-11-14 19:54：`sched[auto_page]
+        # 52604.9ms`，心跳报主线程被占用 54.5s）——比字幕工作台那次更长，
+        # 因为视觉引擎/numpy/PIL 的首次导入全压在主线程。原先排在启动后 20s
+        # 自己建，是「启动后先忙一阵」的第二大来源。
+        # 改成与 AI 托管页同一模式：启动只挂惰性外壳与导航项，点开才建真身。
         self.auto_page = None
+        try:
+            self.auto_page = _LazyPageShell(
+                self, self._make_auto_page, "自动化", "AutoVisionPage")
+            self.addSubInterface(self.auto_page, FIF.ROBOT, "自动化")
+        except Exception as e:  # noqa: BLE001
+            self.auto_page = None
+            _perf_note(f"自动化页导航挂载失败（不影响既有功能）：{e}")
         # 被合并的子板块：仍挂到宿主页的堆叠里，保留快捷引用便于消息路由/自检
         # （2026-10-20 起 download_page 是惰性外壳，merge_page 随之改惰性属性，
         #  避免启动期为了拿这个引用把整个下载页建出来）
@@ -10487,11 +10576,11 @@ class MainWindow(FluentWindow):
         # → subtitle_page.ensure_built() 就绪后换上（先显示占位文案）。
         self.switchTo(self.home_page)
         self._apply_argv(argv or [])
-        # ⚠ library_page 是惰性外壳：auto_load 的取值必须包 lambda 延后到
-        # 触发时——直接传 bound method 会在**注册时**就求值，
-        # 把整个视频库页在建窗期建出来（惰性白做）。
-        _defer("lib_auto_load", lambda: self.library_page.auto_load(),
-               1500, 60, depends_on=("home_ui",), budget_ms=400)
+        # 视频库首扫改为「真身建好后再跑」：`_LazyPageShell.defer` 只在用户
+        # 第一次打开视频库页、真身构造完成时才执行回调。原先排在启动后
+        # 1500ms 自动触发 `auto_load()`，等于启动 1.5 秒后自己去建整页再扫盘，
+        # 也是「启动后自己先忙一阵」的一部分（2026-11-14 启动修复）。
+        self.library_page.defer(lambda page: page.auto_load())
         # ⚠ _pump 是 120ms 常驻业务消息泵（跨线程队列），语义与启动调度不同，
         #   不并入调度器，保持原样。
         QTimer.singleShot(120, self._pump)
@@ -10500,17 +10589,28 @@ class MainWindow(FluentWindow):
         self.pipeline = None
         _defer("start_pipeline", self._start_pipeline, 4000, 80,
                depends_on=("home_ui",), budget_ms=300)
-        # 字幕引擎界面后台预热：主窗口首帧之后立刻开始导入依赖（预热本身只起
-        # 一个后台线程，不占主线程），导入完成即回主线程建界面，用户真正点进
-        # 「字幕处理」时通常已是现成控件。v1.11.0 起由 900ms 提前到首帧后立即，
-        # 配合 diskcache 延迟化，最坏情况下（刚启动就点进去）的等待已降到亚秒级。
-        _defer("prewarm_kick", self.subtitle_page.prewarm, 800, 5,
-               depends_on=("home_ui",), budget_ms=5)
-        # 「自动化」页惰性构造：避开首屏的 numpy/PIL/视觉引擎导入链
-        # （≈364ms）。改由调度器按「预热完成」依赖触发——不再自己 400ms 轮询
-        # 顺延，两条链的先后关系交给调度器统一裁决。
-        _defer("auto_page", self._build_auto_page, 6000, 70,
-               depends_on=("home_ui", "prewarm_done"), budget_ms=500)
+        # ⚠ 启动期**不再**自动给「字幕处理」页预热/建工作台（2026-11-14 启动修复）。
+        # 原先这里排着 800ms 的 prewarm_kick：后台线程导入完就回主线程建整个引擎
+        # 工作台。日志（logs\startup.log，2026-11-14 19:37 那次）实测：窗口
+        # T+2.43s 就可见，但紧接着这次构建把主线程独占 **33.18s**
+        # （HomeInterface 构造 7.49s + 工作台整形/装箱 25.7s），期间界面完全
+        # 点不动；后面的启动任务全部排队，直到 T+75s「自动化」页才收尾——
+        # 正是用户说的「启动后自己先忙一阵，过一会儿才恢复」。
+        # 现在改成纯按需：只有用户真的进入「字幕处理」页（或拖入文件触发分派，
+        # 见 _dispatch_created_task 的 _pending_dispatch 兜底）才走
+        # showEvent → ensure_built → prewarm。首页任务创建不依赖工作台
+        # （HomePage.ensure_task_creation 直接构造 TaskCreationInterface），
+        # 启动期没有任何「必须提前建它」的理由。
+        #
+        # 「自动化」页已改为惰性外壳（见 __init__ 里的说明），启动后不再自己
+        # 构造——原先这里排的 20s auto_page 任务已删除。
+        # 后台 import 预热：只把引擎模块的 import 在后台线程先做掉（不碰
+        # 主线程、**不建界面**），延后到 30s——实测 10s 起线程时，后台 import
+        # 会在 T+13s 附近引发一次约 700ms 的 GIL 争用，放在用户刚启动的操作
+        # 窗口里不划算。用户首次进入「字幕处理」时只需付纯构造的代价
+        # （热态实测 0.36s）；冷态由页面上的占位文案接住（见 _build_now 分段）。
+        _defer("prewarm_import", self.subtitle_page.prewarm_import_only,
+               30000, 95, depends_on=("home_ui",), budget_ms=5)
         # 主屏 DPI 变化（改缩放比/换主屏）时重新计算导航宽度。
         # 注意必须用 QApplication 实例的信号：PySide6 里类的同名属性是未绑定的
         # Signal 描述符，直接 .connect 会抛 AttributeError。
@@ -11285,30 +11385,39 @@ class MainWindow(FluentWindow):
         QTimer.singleShot(0, _clamp)
         QTimer.singleShot(300, _clamp)
 
-    def _build_harness_page(self):
-        """惰性构造「AI 托管」页并挂上导航（2026-10-21 启动调度专项）。
+    def _make_harness_page(self):
+        """构造「AI 托管」页真身（`_LazyPageShell` 的 builder）。
 
-        构造实测 1.31s（harness 适配层探测 + 30 余张卡片 QSS 首渲染），原本压在
-        首帧前的建窗关键路径上。改为首帧后由调度器在**用户空闲**时构建——
-        用户正在操作时调度器会自动推迟，所以不会出现「刚进来就卡一下」。
-        失败时 harness_page 保持 None（该页缺席，与自动化页同一模式）。
+        2026-11-14 启动修复：构造实测 0.34–1.31s（harness 适配层探测 + 30 余张
+        卡片 QSS 首渲染），启动期不再自己建，等用户第一次点开该页。
         """
-        if self.harness_page is not None:
+        t0 = time.perf_counter()
+        page = _harness_page_mod.HarnessPage(self, self)
+        _perf_note("AI 托管页惰性构造完成：%.2fs"
+                   % (time.perf_counter() - t0))
+        return page
+
+    def _build_harness_page(self):
+        """确保「AI 托管」页可用（幂等）——按需路径的唯一入口。
+
+        外壳模式下等价于 ``harness_page.ensure()``；真身已存在时直接取。
+        保留这个方法名，是因为 ``goto_ai_console`` / 截图 / 自检都从这里进。
+        失败时该页缺席（导航项仍在，点开得到空白外壳），不影响其余功能。
+        """
+        page = getattr(self, "harness_page", None)
+        if page is None:
             return True
-        if not _HARNESS_IMPORT_OK:
+        if isinstance(page, _LazyPageShell):
+            try:
+                page.ensure()
+            except Exception as e:  # noqa: BLE001
+                _perf_note(f"AI 托管页创建失败（不影响既有功能）：{e}")
+                return True
+            page = page.real
+        if page is None:
             return True
-        try:
-            t0 = time.perf_counter()
-            self.harness_page = _harness_page_mod.HarnessPage(self, self)
-            self.addSubInterface(self.harness_page, FIF.IOT, "AI 托管")
-            self._apply_nav_width()
-            _perf_note("AI 托管页惰性构造完成：%.2fs"
-                       % (time.perf_counter() - t0))
-        except Exception as e:  # noqa: BLE001 —— 起不来绝不影响主程序
-            self.harness_page = None
-            _perf_note(f"AI 托管页创建失败（不影响既有功能）：{e}")
         pending = getattr(self, "_pending_ai_text", "")
-        if pending and self.harness_page is not None:
+        if pending:
             self._pending_ai_text = ""
             QTimer.singleShot(0, lambda t=pending: self.goto_ai_console(t))
         return True
@@ -11320,26 +11429,53 @@ class MainWindow(FluentWindow):
             return
         self._build_auto_page()
 
-    def _build_auto_page(self):
-        """惰性构造「自动化」页并挂上导航（2026-10-20 启动优化）。
+    def _make_auto_page(self):
+        """构造「自动化」页真身（`_LazyPageShell` 的 builder）。
 
-        调用方：__init__ 里排的 QTimer.singleShot(1500)、main() 的
-        VT_SHOT_TAB=auto 截图路径、GUI 自检脚本。已构造过则直接返回。
-        失败时 auto_page 保持 None（该页缺席，与 AI 托管页条件挂载同一模式）。
+        2026-11-14：冷态实测 52.6s（视觉引擎/numpy/PIL 首次导入），因此必须是
+        惰性 builder，绝不能出现在启动路径上。构造失败时返回一个占位控件——
+        外壳的 ``layout().addWidget()`` 不接受 None。
         """
-        if self.auto_page is not None:
-            return self.auto_page
+        t0 = time.perf_counter()
         try:
             cls = _load_auto_vision_page()
-            self.auto_page = cls(self, self)      # (app, parent) 均为 MainWindow
-            self.auto_page.installEventFilter(self)
-            self.addSubInterface(self.auto_page, FIF.ROBOT, "自动化")
-            self._apply_nav_width()
-            _perf_note("自动化页惰性构造完成")
-        except Exception as e:  # noqa: BLE001 —— 自动化页起不来绝不影响主程序
-            self.auto_page = None
+            page = cls(self, self)      # (app, parent) 均为 MainWindow
+            try:
+                page.installEventFilter(self)
+            except Exception:  # noqa: BLE001
+                pass
+            _perf_note("自动化页惰性构造完成：%.2fs"
+                       % (time.perf_counter() - t0))
+            return page
+        except Exception as e:  # noqa: BLE001 —— 起不来绝不影响主程序
             _perf_note(f"自动化页构造失败（不影响既有功能）：{e}")
-        return self.auto_page
+            ph = QWidget(self)
+            lay = QVBoxLayout(ph)
+            lay.setContentsMargins(30, 30, 30, 30)
+            lb = BodyLabel("「自动化」页当前不可用（视觉引擎未就绪），"
+                           "详见 logs\\startup.log", ph)
+            lb.setAlignment(Qt.AlignCenter)
+            lay.addWidget(lb)
+            return ph
+
+    def _build_auto_page(self):
+        """确保「自动化」页可用（幂等）——按需路径的唯一入口。
+
+        外壳模式下等价于 ``auto_page.ensure()``；真身已存在时直接返回。
+        保留方法名，是因为 main() 的 `VT_SHOT_TAB=auto` 截图路径与 GUI 自检
+        都从这里进。失败时返回占位控件（见 :meth:`_make_auto_page`）。
+        """
+        page = getattr(self, "auto_page", None)
+        if page is None:
+            return None
+        if isinstance(page, _LazyPageShell):
+            try:
+                page.ensure()
+            except Exception as e:  # noqa: BLE001
+                _perf_note(f"自动化页构造失败（不影响既有功能）：{e}")
+                return page.real
+            return page.real
+        return page
 
     def page_by_key(self, key):
         """按键取页面：download/library/subtitle/edit/settings 为导航页；
@@ -12074,7 +12210,11 @@ def main():
     _defer("spinbox_fix", _install_spinbox_fix_once, 2000, 10,
            depends_on=("home_ui",), budget_ms=900)
     # 校准/声纹同步：首页可交互后再跑，避免 curl/gh/子进程与首屏抢资源。
-    _defer("startup_sync", _start_startup_sync_threads, 3500, 95,
+    # 2026-11-14：由 3.5s → 9s → **25s**。实测 9s 起线程时，两条后台同步会在
+    # T+13s / T+14s 各引发一次约 600–720ms 的 GIL 争用（网络请求与解析在主线程
+    # 抢解释器锁），正好落在用户刚启动、开始操作的窗口里。同步晚一点没有功能
+    # 影响，放到 25s 后并与 30s 的 import 预热错开。
+    _defer("startup_sync", _start_startup_sync_threads, 25000, 95,
            depends_on=("home_ui",), budget_ms=1)
     # 技能包（AGENTS.md / SKILL.md 等 9 处）也从 import 期挪到这里。
     if harness_bridge is not None:

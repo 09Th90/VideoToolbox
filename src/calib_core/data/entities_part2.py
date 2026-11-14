@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.9.0
+# @version 2.9.1
 """术语/实体数据表
 
 源：subtitle_calib_merged.py L8840-L10200 @ 97d7d463（2026-10-24 冻结快照）
@@ -1174,9 +1174,11 @@ ENTITIES_PART2 = [
            category="角色/鸣潮3.7",
            variants=("斯沃明", "Suwamin", "Suvamin", "Slonmin", "Slongming",
                      "Somin", "So Min", "Swimin"),
-           ctx=((r"\bSwaming\b", "游水"), (r"\bSwinging\b", "摇摆")),
+           ctx=((r"(?-i:\bSwaming\b)", "游水"), (r"(?-i:\bSwinging\b)", "摇摆")),
            note="本片补录：Swaming 的谷翻音译'斯沃明'（生僻裸键）；ASR 形 Swaming->谷翻"
                 "'游水'、Swinging->'摇摆'（均常用词，只走参考行锚定）。"
+                "2026-11-13 二校：两个锚改大小写敏感，普通小写 swinging（#685 They're swinging "
+                "and everything）不再被咬成锁暝。"
                 "2026-11-06《I Played 300 Days》微软翻译通道扩：Suwamin/Suvamin/Slonmin/"
                 "Slongming/Somin/So Min/Swimin 皆 Suoming 的 ASR 音译残留（生僻串，"
                 "裸键安全；So Min 含空格由表键长降序先于 Somin 咬合）。"),
@@ -1392,8 +1394,8 @@ ENTITIES_PART2 = [
                 "裸短语有字面义，只走参考行整短语锚定。"),
     Entity("Nightmare", modes=("bi",), en="Nightmare", category="作品/曲目",
            variants=(),
-           ctx=((r"(?<!my )\bNightmare\b(?!\s+Before\b)", "噩梦"),),
-           note="AC8 曲目 57（Moon 11 女声独唱）。『噩梦』是常用词，只走参考行 Nightmare 锚定；《圣诞夜惊魂》片名用负向前瞻排除。2026-11-13 鸣潮莉莉 3.8 反应片判例：PV 台词 \"My nightmare.\" 是普通词，前置 (?<!my ) 排除（lookbehind 必须放在 \\b 之前才检查命中起点左侧），防跨片吃掉「我的噩梦」。"),
+           ctx=((r"(?-i:(?<!my )\bNightmare\b(?!\s+Before\b))", "噩梦"),),
+           note="AC8 曲目 57（Moon 11 女声独唱）。『噩梦』是常用词，只走参考行 Nightmare 锚定；《圣诞夜惊魂》片名用负向前瞻排除。2026-11-13 鸣潮莉莉 3.8 反应片判例：PV 台词 \"My nightmare.\" 是普通词，前置 (?<!my ) 排除（lookbehind 必须放在 \\b 之前才检查命中起点左侧），防跨片吃掉「我的噩梦」；二校再加 (?-i)，小写 nightmare 一律不命中。"),
     Entity("Paint It Blue", modes=("bi",), en="Paint It Blue", category="作品/曲目",
            variants=("Painted Blue",),
            note="⭐ 音频复核定案（2026-10-14）：原字幕 Painted Blue 系 ASR 误听，实为 Paint it blue。"),

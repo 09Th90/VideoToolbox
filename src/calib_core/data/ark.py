@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.9.0
+# @version 2.9.1
 """术语/实体数据表
 
 源：subtitle_calib_merged.py L2818-L5275 @ 97d7d463（2026-10-24 冻结快照）
@@ -756,6 +756,13 @@ AK_TERMS = {
     "科谢伊": "科西切", "科西杰": "科西切", "科希切": "科西切",
     "幼小君王": "幼小魔王",          # 7-18 爱国者官方台词「幼小的魔王啊」
     "凯尔西尔": "凯尔希", "凯尔希尔": "凯尔希",  # Kelsier ASR 变体（Kal'tsit）；长键先行，防"凯尔西"短键咬成"凯尔希尔"
+    # --- 2026-11-13 《I GREATLY Underestimated Arknights》二校回灌（--ak 通路补齐）---
+    #   本片英文 ASR 错形，均已按官方中文核对；长键先行，短键不新增（裸 Roads 属通用词，留在 endobi 表）。
+    "Arkanites": "明日方舟",                        # #261；Arknights 的 ASR 变体
+    "Ron's Island": "罗德岛",                      # #250；Rhodes Island 的 ASR 形
+    "Roads Island": "罗德岛",                       # #236/#243/#256（endobi 表既有同键，两通路各跑各的）
+    "Aripathy": "矿石病",                           # #310；Oripathy 的 ASR 形
+    #   注：#235 "a cure foripathy" 是 for+oripathy 连读，若收 "foripathy" 会产出病句「cure 矿石病」，故不收。
 }
 
 # =============================================================
@@ -984,8 +991,12 @@ AK_CONTEXT = [
     (r"\blittle king of Sarkaz\b", "幼小君王", "幼小魔王"),
     (r"\b(?:it is|it's) all in our hands\b", "一切都在我们手中", "事在人为"),
     (r"\bI have seen war and tragedy\b", "战争与惨剧", "厄运与惨剧"),
+    (r"\bI have seen war and tragedy\b", "战争与悲剧", "厄运与惨剧"),   # 2026-11-13 二校补：本片实际中文行作“战争与悲剧”，原错形只收“战争与惨剧”漏命中（#365）
     (r"\bthe actor and his setting\b", "舞台", "背景"),   # 加缪：演员与其背景的离异
     (r"\bbetween actor and setting\b", "舞台", "背景"),
+    (r"(?i)\bactors? in the setting\b", "舞台上的演员", "背景中的演员"),   # 2026-11-13 二校：#117 actors in the setting，长键先行
+    (r"(?i)\bactors? in the setting\b", "舞台中的演员", "背景中的演员"),
+    (r"(?i)\bactors? in the setting\b", "舞台", "背景"),              # 兜底：其余“舞台”错形
     (r"\bfill a man['’]s\b", "填满一个人的", "充实一颗"),  # 加缪：足以充实一颗人心
     (r"\bAll too human\b", "太人性了", "太人性的"),          # 尼采书名《人性的，太人性的》
     # --- 2026-11-13 回归补漏：本片机翻基线高频错形（均为普通词，故只走参考行锚定）---

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.9.0
+# @version 2.9.1
 """calib_core 并行包自检（不部署、不修改生产单文件）。
 
 覆盖：

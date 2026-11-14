@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.9.0
+# @version 2.9.1
 """术语/实体数据表
 
 源：subtitle_calib_merged.py L7369-L8839 @ 97d7d463（2026-10-24 冻结快照）
@@ -21,11 +21,14 @@ from .entities_base import Entity
 ENTITIES_PART1 = [
     Entity("漂泊者", modes=("bi",), en="Rover", ja="漂泊者", ko="방랑자",
            category="角色",
-           variants=("罗弗", "罗孚", "罗浮", "路虎", "漫游车",
+           variants=("罗弗", "罗孚", "罗浮",
                      "Rover", "Ruva", "Ruver", "鲁瓦", "鲁弗", "Wover", "沃弗"),
            ctx=((r"\brover\b", "漫游者"),),
            note="鸣潮主角。'鲁瓦'长键须先于'鲁瓦扬->罗伊'(罗伊古文明)处理，防误伤；"
-                "主播昵称'弗罗弗'(Frover)由 CONTEXT_MAP 兜底，防'罗弗'键子串误伤。"),
+                "主播昵称'弗罗弗'(Frover)由 CONTEXT_MAP 兜底，防'罗弗'键子串误伤。"
+                "2026-11-13 二校：删除 variants 中的「路虎/漫游车」——它们是普通词/汽车品牌，"
+                "会把 electro rover（电动漫游车）误咬成漂泊者；Rover 改走 CONTEXT_MAP "
+                "(?<![Ee]lectro )\\bRover\\b 参考行锚定。"),
     Entity("心月狐", modes=("bi",), en="Sheen / Hsin", ja="シン",
            category="角色/岁主",
            variants=(
@@ -1033,8 +1036,12 @@ ENTITIES_PART1 = [
                 "不符，疑主播联想/口误——高碰撞 ASR 名只留痕不入裸键/ctx，逐 cue 按语境取舍。"),
     Entity("秋水", modes=("bi",), en="Aalto",
            category="角色/鸣潮",
-           ctx=((r"\bAlto\b|\bAalto\b", "阿尔托"),),
+           ctx=((r"\bAlto\b|\bAalto\b", "阿尔托"),
+                (r"\bAlto\b|\bAalto\b", "Alto"),
+                (r"\bAlto\b|\bAalto\b", "Aalto")),
            note="补 r3 '阿尔托'->秋水（#64 'next up, Alto' 谷翻）。'阿尔托'常见西名绝不裸键。"
+                "2026-11-13 二校补：中文行直接残留拉丁 Alto/Aalto（#97/#178）也归秋水，"
+                "仍由参考行 Aalto/Alto 锚定。"
                 "⚠ 历史片源结论（2026-09-09 注释）称 Aalto=阿尔托 不改——那是 TCG 讨论片语境；"
                 "本片'next up, Alto'为角色章节报幕，官方中文=秋水（2026-09-24 官方图鉴复核）。"),
     Entity("散华", modes=("bi",), en="Sanhua",
@@ -1214,12 +1221,15 @@ ENTITIES_PART1 = [
                 "另注：bi 侧的 Chisha=炽霞(Chixia) 回滚规则与本条无关，勿混。"),
     Entity("莫宁", modes=("ko",), en="Mornye", ko="모니",
            category="角色/鸣潮3.0",
-           ctx=((r"모니(?!터|다)", "Monie"), (r"모니(?!터|다)", "Mony"), (r"모니(?!터|다)", "Moni"),
-                (r"모니(?!터|다)", "莫妮"), (r"모니(?!터|다)", "莫尼")),
+           ctx=((r"모니(?!터|다|카|하)", "Monie"), (r"모니(?!터|다|카|하)", "Mony"),
+                (r"모니(?!터|다|카|하)", "Moni"),
+                (r"모니(?!터|다|카|하)", "莫妮"), (r"모니(?!터|다|카|하)", "莫尼")),
            note="星炬学院隧者工学部教授莫宁（百度百科·琳奈词条），韩服多作 모니에，"
                 "口播/ASR 常缩成短形 **모니**（bi 侧实体 ko 字段留的是 모니에，锚匹配不到短形）。"
                 "2026-11-02 实证 #2394/2682/3005/3232/3437。"
-                "⚠ 负向前瞻 (?!터) 排掉 모니터=monitor（显示器），它是正常词且同样以 모니 起头。"),
+                "⚠ 负向前瞻 (?!터) 排掉 모니터=monitor（显示器），它是正常词且同样以 모니 起头；"
+                "2026-11-14 二校补 (?!카|하)：하모니카/모니카=口琴与莫妮卡（3.8 四章五幕片 cue 1862 "
+                "实测被咬成「莫宁卡」后回滚，同片 11 处口琴假阳性一并消除）。"),
     Entity("琳奈", modes=("ko",), en="Linny / Lenna", ko="린네",
            category="角色/鸣潮3.0",
            ctx=(("린네", "Linne"), ("린내", "Linne"), ("린네", "林内"), ("린내", "林内"),
@@ -1388,8 +1398,8 @@ ENTITIES_PART1 = [
                 (r"Matterhorn|Metahorn|Metal\s*Horn", "梅塔霍恩")),
            note="4★ 近卫，卡兰贸易的厨师。ASR 常作 Metahorn/Metal Horn；谷翻产出'金属角'(字面)/'梅塔霍恩'(音译)。"),
     Entity("月见夜", modes=("bi",), en="Midnight", category="角色/明日方舟",
-           ctx=((r"(?<!of )\bMidnight\b(?!\s+to\b)", "午夜"),),
-           note="3★ 近卫。'午夜'是正常中文词，只走 ctx。2026-11-13 鸣潮莉莉 3.8 反应片判例：主播口语 'midnight to you know reflect' / 'stroke of midnight' 是普通午夜，前置 (?<!of ) 加 (?!\\s+to\\b) 排除，防跨片把「午夜」吃成干员名。"),
+           ctx=((r"(?-i:(?<!of )\bMidnight\b(?!\s+to\b)(?!\s+(?:podcast|snack|stroke|mass|hour|show|movie|train|shift)\b))", "午夜"),),
+           note="3★ 近卫。'午夜'是正常中文词，只走 ctx。2026-11-13 鸣潮莉莉 3.8 反应片判例：主播口语 'midnight to you know reflect' / 'stroke of midnight' 是普通午夜，前置 (?<!of ) 加 (?!\\s+to\\b) 排除；二校再加 (?-i) 与 podcast/snack/stroke 等负例，小写 midnight 一律不命中。"),
     Entity("梓兰", modes=("bi",), en="Orchid", category="角色/明日方舟",
            ctx=((r"\bOrchid\b", "兰花"), (r"\bOrchid\b", "兰华")),
            note="3★ 术师。'兰花'是正常中文词（orchid 花名），只走 ctx。"),
@@ -1412,8 +1422,11 @@ ENTITIES_PART1 = [
            ctx=((r"\bMinimalist\b", "极简主义"),),
            note="'极简主义'是正常中文词，只走 ctx。"),
     Entity("伺夜", modes=("bi",), en="Vigil", category="角色/明日方舟",
-           ctx=((r"\bVigil\b", "维吉尔"), (r"Leontuzzo|Leon Tuzo|\bLeon\b", "莱昂")),
-           note="本名=莱昂图索·贝洛内（Leontuzzo Bellone），别号'莱昂'（黑手党少爷）。ASR 常把 Leontuzzo 咬成 "
+           ctx=((r"\bVigil\b", "维吉尔"), (r"Leontuzzo|Leon Tuzo", "莱昂")),
+           note="2026-11-13 二校：去掉裸 \\bLeon\\b 锚——鸣潮 3.8 的 Leon 是独立角色，"
+                "本片 #1686「莱昂终于可以安息了」被裸锚误改成「伺夜」；只在明日方舟 "
+                "Leontuzzo/Leon Tuzo 全名语境才归伺夜。"
+                "本名=莱昂图索·贝洛内（Leontuzzo Bellone），别号'莱昂'（黑手党少爷）。ASR 常把 Leontuzzo 咬成 "
                 "Leon Tuzo、'莱昂'被机翻保留；'维吉尔'是常见音译名（Virgil），均走 ctx。"),
     Entity("车尔尼", modes=("bi",), en="Czerny", category="角色/明日方舟",
            variants=("Chney",),
@@ -1653,9 +1666,12 @@ ENTITIES_PART1 = [
     Entity("新联邦", modes=("bi", "react"), en="New Federation",
            category="地区/鸣潮4.0",
            variants=("新灌溉",),
-           ctx=((r"\bFederation\b", "联邦"), (r"\bNew\s*$", "New")),
+           ctx=((r"\bNew\s*$", "New"),),
            note="新联邦，鸣潮 4.0 新地区；官方中文=新联邦。谷翻「新灌溉」/「联邦」/残留 New "
-                "均靠参考行锚定归此；裸「联邦」是通用词，不入扁平表。"),
+                "均靠参考行锚定归此；裸「联邦」是通用词，不入扁平表。"
+                "2026-11-13 二校：删除 \\bFederation\\b→「联邦」的 ctx——它会把"
+                "「联邦城」（Federated Cities）子串咬成「新联邦城」；改由 CONTEXT_MAP "
+                "New Federation（参考行不含 Federated Cities）收「联邦」→新联邦。"),
     Entity("星炬学院", modes=("bi", "react"), en="Startorch Academy",
            category="势力/学院·鸣潮",
            variants=("星火学院", "星游学园", "星游学院", "罗伊斯塔尔学院"),
@@ -1815,5 +1831,32 @@ ENTITIES_PART1 = [
            category="地名/鸣潮",
            variants=("Mt. Firmament", "Mount Firmament", "天穹山"),
            note="官方中文=乘霄山，不是天穹山。"),
+    # --- 2026-11-13 鸣潮 3.8「旧梦凋零的百合」莉莉 reaction 片（11369 cue）二校回灌 ---
+    Entity("灵魂列车", modes=("bi", "react", "ko"), en="Soul Train",
+           category="场景/鸣潮3.8",
+           variants=("Spirit Train",),
+           ctx=((r"\bSpirit\s+Train\b", "精神列车"),),
+           note="3.8 版本核心场景，官方中文=灵魂列车（前瞻通讯逐字）；"
+                "韩语片已有 스피릿 트레인→灵魂列车，本片补英文参考行锚定。"),
+    Entity("予以明日的花束", modes=("bi", "ko"), en="A Bouquet for Tomorrow",
+           category="任务/鸣潮3.8",
+           variants=("Bouquet for Tomorrow",),
+           ctx=((r"\bBouquet\s+for\s+Tomorrow\b", "明日之花"),
+                (r"\bBouquet\s+for\s+Tomorrow\b", "给明天的花束")),
+           note="潮汐任务第四章第五幕官方中文=「予以明日的花束」；"
+                "任务名不入扁平表裸键，只走参考行锚定。"),
+    Entity("旧梦凋零的百合", modes=("bi", "ko"), en="Lilies in a Dying Dream",
+           category="版本名/鸣潮3.8",
+           variants=("The Withered Lama",),
+           ctx=((r"\bThe\s+Withered\s+Lama\b", "枯萎喇嘛"),),
+           note="3.8 版本官方中文名「旧梦凋零的百合」（2026-11-12 上线）；"
+                "Lily 在版本名/花义语境下由 EXCLUDE_CONTEXT 回滚，不归角色莉莉。"),
+    Entity("安魂", modes=("bi", "react"), en="Lullaby",
+           category="武器/鸣潮3.8",
+           note="莉莉专属五星佩枪官方中文=安魂（英文 Lullaby）；"
+                "字面「摇篮曲」语境保留（本片 #11245 判例），只登记供跨语识别。"),
+    Entity("巴利诺拉", modes=("bi",), en="Balinaphora",
+           category="地点/鸣潮",
+           note="鸣潮地名 Balinaphora，官方中文=巴利诺拉；ASR 音译族不入裸键。"),
 ]
 

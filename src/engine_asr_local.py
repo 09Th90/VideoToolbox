@@ -1,4 +1,4 @@
-# @version 2.9.0
+# @version 2.9.1
 """本地 ASR（内置 faster-whisper 直连，替代外部 CLI 版）。
 
 v2.8.1 BugFix（本轮）

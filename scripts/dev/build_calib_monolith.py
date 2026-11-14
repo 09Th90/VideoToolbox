@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.9.0
+# @version 2.9.1
 """从 src/calib_core 生成单文件 subtitle_calib_merged.py。
 
 生成物必须兼容：
