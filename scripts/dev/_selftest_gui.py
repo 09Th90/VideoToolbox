@@ -390,6 +390,32 @@ def _workbench_src():
         return ""
 
 
+def _settings_src():
+    """设置页源码（2026-11-15 阶段③已拆到 vt_app/settings_page.py）。"""
+    try:
+        return open(os.path.join(_SRC, "vt_app", "settings_page.py"),
+                    encoding="utf-8").read()
+    except OSError:
+        return ""
+
+
+def _shell_src():
+    """壳层源码拼接（设置页 + 主窗口 + 入口）。
+
+    阶段③壳层拆分：设置页 → vt_app/settings_page.py，主窗口 →
+    vt_app/main_window.py，入口 main() 留守 video_toolbox_qt.py。跨文件
+    断言（云母接线等）用本拼接；文件缺失按空串处理。
+    """
+    parts = [_settings_src()]
+    try:
+        parts.append(open(os.path.join(_SRC, "vt_app", "main_window.py"),
+                          encoding="utf-8").read())
+    except OSError:
+        pass
+    parts.append(_qt_src())
+    return "\n".join(parts)
+
+
 def _export_button_ok():
     """属性面板右上角「导出」按钮已接线，且导出支持 SRT / 带样式 ASS。
 
@@ -674,7 +700,7 @@ def _ai_client_data_dir_ok():
 def _unified_settings_source_ok():
     """源码层面：唯一全局设置页——无分段/独立对话框，隐藏引擎重复分组，
     且内嵌引擎区已消除双层滚动视口（内层无滚条/无边距、高度跟随内容）。"""
-    s = _qt_src()
+    s = _settings_src()
     # v1.13.0：SegmentedWidget 已用于「视频下载/字幕处理」页内分段，这里只校验
     # 设置页自身不分段（其对象无 seg/tool_seg/engine_seg，见下方实例断言）且
     # 没有独立引擎设置对话框。
@@ -1322,11 +1348,11 @@ def main():
     # ---- v1.14.1 安全整改：「网络代理」卡片已移除（节点凭据严禁随包分发）----
     check("设置页无「网络代理」入口（卡片与文案已清除）",
           not hasattr(sp, "proxy_edit") and not hasattr(sp, "proxy_hint")
-          and "def _build_proxy_card" not in _qt_main_uses_src())
+          and "def _build_proxy_card" not in _settings_src())
     check("代理兜底仍为静默后台行为（ensure_builtin_proxy 在位）",
           callable(getattr(engine, "ensure_builtin_proxy", None)))
     # ---- v1.13.x：界面美化（背景图 / 暗化 / 模糊 / 云母）----
-    _QT_SRC = _qt_main_uses_src()
+    _QT_SRC = _shell_src()
     ui_mica_ok = (callable(getattr(ui_theme, "get_mica", None))
                   and callable(getattr(ui_theme, "set_mica", None))
                   and isinstance(ui_theme.get_mica(), bool))
