@@ -381,6 +381,15 @@ def _edit_src():
         return ""
 
 
+def _workbench_src():
+    """字幕工作台页源码（2026-11-15 阶段③已拆到 features/workbench/page.py）。"""
+    try:
+        return open(os.path.join(_SRC, "features", "workbench", "page.py"),
+                    encoding="utf-8").read()
+    except OSError:
+        return ""
+
+
 def _export_button_ok():
     """属性面板右上角「导出」按钮已接线，且导出支持 SRT / 带样式 ASS。
 
@@ -1937,7 +1946,8 @@ def main():
           _machine_translate_only_ok())
     check("预热只导入 home_interface（设置界面按需懒加载）",
           "videocaptioner.ui.view.setting_interface" not in
-          _qt_src()[_qt_src().find("def prewarm"):_qt_src().find("def _wait_prewarm")])
+          _workbench_src()[_workbench_src().find("def prewarm"):
+                           _workbench_src().find("def _wait_prewarm")])
     check("字幕编辑页右上角「导出」已接线（SRT / 带样式 ASS，且不动当前文件关联）",
           _export_button_ok())
     check("字幕编辑页可加载 ASS/SSA（Dialogue 解析 + 保存按扩展名写回 ASS）",
