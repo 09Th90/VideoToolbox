@@ -52,6 +52,23 @@ import time
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 
+
+def _find_app_root():
+    """源码态程序根：从本文件向上找 AGENTS.md 标记（≤6 级）。
+
+    2026-11-15 模块独立文件夹：真身可能在 src/vt_app/ 等任意深度，
+    旧「固定上两级」失效。找不到回落旧算法。
+    """
+    d = os.path.dirname(os.path.abspath(__file__))
+    for _ in range(6):
+        if os.path.isfile(os.path.join(d, "AGENTS.md")):
+            return d
+        parent = os.path.dirname(d)
+        if parent == d:
+            break
+        d = parent
+    return os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
 #: 主程序自身版本。与 src\video_toolbox_qt.py 的 VERSION 同源；
 #: 这里独立存一份是因为更新逻辑必须在**不 import Qt** 的前提下可用
 #: （子进程脚本、自检都要能读）。
@@ -81,6 +98,7 @@ def _locate_orel():
     import 直接成功，本函数不会被调用。仅开发期需要找。
     """
     cands = [
+        os.path.join(_find_app_root(), "packaging", "online_release"),
         os.path.join(os.path.dirname(_HERE), "packaging", "online_release"),
         os.path.join(_HERE, "online_release"),
     ]

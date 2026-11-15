@@ -107,11 +107,21 @@ def resolve_tools_dir(explicit: Optional[str] = None) -> str:
     except Exception:  # noqa: BLE001
         pass
 
-    # ④ 兜底：frozen 锚 exe 目录；源码锚本文件上两级；再向上逐级找 tools
+    # ④ 兜底：frozen 锚 exe 目录；源码向上找 AGENTS.md 标记（模块独立文件夹后
+    #    本文件深度不固定，2026-11-15）；再向上逐级找 tools
     if getattr(sys, "frozen", False):
         app = os.path.dirname(os.path.abspath(sys.executable))
     else:
         app = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        d = os.path.dirname(os.path.abspath(__file__))
+        for _ in range(6):
+            if os.path.isfile(os.path.join(d, "AGENTS.md")):
+                app = d
+                break
+            parent = os.path.dirname(d)
+            if parent == d:
+                break
+            d = parent
     cur = app
     for _ in range(5):
         cand = os.path.join(cur, "tools")

@@ -177,9 +177,21 @@ def _opt_infer_work(src: str = "", title: str = "") -> str:
 
 
 def _app_dir():
-    """程序根目录：打包后 = exe 所在目录，源码模式 = src 的上级。"""
+    """程序根目录：打包后 = exe 所在目录，源码模式向上找 AGENTS.md 标记。
+
+    2026-11-15 模块独立文件夹：真身可能在 src/features/calibrate/ 等任意深度，
+    旧「固定上两级」失效（≤6 级标记查找，找不到回落旧算法）。
+    """
     if getattr(sys, "frozen", False):
         return os.path.dirname(os.path.abspath(sys.executable))
+    d = os.path.dirname(os.path.abspath(__file__))
+    for _ in range(6):
+        if os.path.isfile(os.path.join(d, "AGENTS.md")):
+            return d
+        parent = os.path.dirname(d)
+        if parent == d:
+            break
+        d = parent
     return os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
@@ -1469,8 +1481,7 @@ def calibrate(src: str, out: str = None, report: str = None, mode_flag: str = ""
         raise ValueError("calibrate 需要注入 chat(prompt, system, max_tokens) 回调")
     if style not in CALIB_STYLES:
         style = "term"
-    script = script or os.path.join(
-        os.path.dirname(os.path.dirname(os.path.abspath(__file__))), SCRIPT_NAME)
+    script = script or os.path.join(_app_dir(), SCRIPT_NAME)
     if not os.path.isfile(script):
         return {"ok": False, "error": f"校准脚本缺失：{script}"}
     if not python or _is_self_exe(python):              # 兜底：内嵌运行时 → 系统 python

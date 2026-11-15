@@ -31,7 +31,25 @@ import tempfile
 import time
 from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, wait
 
-APP_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+def _find_app_root():
+    """源码态程序根：从本文件向上找 AGENTS.md 标记（≤6 级）。
+
+    2026-11-15 模块独立文件夹：真身可能在 src/features/download/ 等任意深度，
+    旧「固定上两级」失效。本模块禁 import facade（core.download.npe → npe_backend
+    会循环），故用标记查找而非 engine.APP_DIR。找不到回落旧算法。
+    """
+    d = os.path.dirname(os.path.abspath(__file__))
+    for _ in range(6):
+        if os.path.isfile(os.path.join(d, "AGENTS.md")):
+            return d
+        parent = os.path.dirname(d)
+        if parent == d:
+            break
+        d = parent
+    return os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+
+APP_DIR = _find_app_root()
 JAR_PATH = os.path.join(APP_DIR, "tools", "newpipe-cli", "dist", "npe-cli.jar")
 
 #: 便携 JRE 位置（未来随安装包分发时放这里；现在没有则回落到系统 java）

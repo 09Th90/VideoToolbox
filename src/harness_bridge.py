@@ -88,15 +88,33 @@ _sync_write_lock = threading.Lock()
 
 
 # ---------------------------------------------------------------- 路径解析
+def _find_app_root() -> str:
+    """源码态程序根：从本文件向上找 AGENTS.md 标记（≤6 级）。
+
+    2026-11-15 模块独立文件夹：真身可能在 src/features/harness/ 等任意深度，
+    旧「固定上两级」失效。AGENTS.md 是仓库根跟踪标记，安装版 {app} 也由
+    ensure_agent_assets 物化。找不到时回落旧算法（兜底，不抛）。
+    """
+    d = os.path.dirname(os.path.abspath(__file__))
+    for _ in range(6):
+        if os.path.isfile(os.path.join(d, "AGENTS.md")):
+            return d
+        parent = os.path.dirname(d)
+        if parent == d:
+            break
+        d = parent
+    return os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+
 def app_root() -> str:
     """程序根目录（与引擎 ``video_toolbox.APP_DIR`` 同口径）。
 
-    冻结运行（PyInstaller）取 exe 所在目录；源码运行取本文件上两级
-    （``<根>\\src\\harness_bridge.py`` → ``<根>``）。
+    冻结运行（PyInstaller）取 exe 所在目录；源码运行向上找 AGENTS.md 标记
+    （模块独立文件夹后本文件深度不固定，见 _find_app_root）。
     """
     if getattr(sys, "frozen", False):
         return os.path.dirname(os.path.abspath(sys.executable))
-    return os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    return _find_app_root()
 
 
 def _resolve_data_root() -> str:
