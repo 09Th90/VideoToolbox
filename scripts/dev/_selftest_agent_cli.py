@@ -122,7 +122,7 @@ def main() -> int:
 
     # 8 —— 技能包
     sys.path.insert(0, SRC)
-    import harness_bridge as hb  # noqa: PLC0415
+    import features.harness.harness_bridge as hb  # noqa: PLC0415
     import pathlib
     root_p = pathlib.Path(ROOT)
     same = ((root_p / "AGENTS.md").read_text(encoding="utf-8") == hb._AGENTS_MD_TEXT

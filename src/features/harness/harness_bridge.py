@@ -103,7 +103,8 @@ def _find_app_root() -> str:
         if parent == d:
             break
         d = parent
-    return os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    return os.path.dirname(os.path.dirname(os.path.dirname(
+        os.path.dirname(os.path.abspath(__file__)))))
 
 
 def app_root() -> str:

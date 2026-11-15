@@ -21,7 +21,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(os.path.dirname(HERE))
 sys.path.insert(0, os.path.join(ROOT, "src"))
 
-import harness_bridge as hb  # noqa: E402
+import features.harness.harness_bridge as hb  # noqa: E402
 
 PASS, FAIL = [], []
 

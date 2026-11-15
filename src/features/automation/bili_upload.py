@@ -32,7 +32,7 @@ import os
 import re
 import time
 
-import auto_vision_core as av
+import features.automation.auto_vision_core as av
 from PIL import Image
 
 #: B 站投稿页（用户浏览器里需已登录）

@@ -42,8 +42,8 @@ from vt_fluent import (CaptionLabel, ComboBox, FluentIcon as FIF,
                             ScrollArea, StrongBodyLabel, SubtitleLabel,
                             SwitchButton, TextEdit)
 
-import auto_vision_core as av
-import bili_upload as bu
+import features.automation.auto_vision_core as av
+import features.automation.bili_upload as bu
 import ui_theme
 
 #: 程序数据目录（模板 / 失败截图都落在这里）；取不到就退到临时目录

@@ -262,8 +262,8 @@ from features.workbench.page import (SubtitlePage,
 # ``harness_bridge.available()`` 为真时才创建并挂导航。import 本身依旧兜底，
 # 确保任何意外都不会拖垮既有功能。
 try:
-    import harness_bridge
-    import harness_page as _harness_page_mod
+    import features.harness.harness_bridge as harness_bridge
+    import features.harness.harness_page as _harness_page_mod
     _HARNESS_IMPORT_OK = True
 except Exception as _e:  # noqa: BLE001
     harness_bridge = None

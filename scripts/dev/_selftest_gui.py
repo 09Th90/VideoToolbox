@@ -962,8 +962,8 @@ def main():
           f" leftover={[a for a in _removed if hasattr(win.auto_page, a)]}")
     # v1.17.0：自动化页新增「B 站投稿」卡片（引擎补动作 + 声明式投稿管线 + 模板采集）
     try:
-        import auto_vision_core as _av
-        import bili_upload as _bu
+        import features.automation.auto_vision_core as _av
+        import features.automation.bili_upload as _bu
         _bili_fields = ("win_combo", "shot_view", "bili_video", "bili_title",
                         "bili_tags", "bili_zone", "bili_zone_combo",
                         "bili_tpl_combo", "btn_bili_run", "bili_dry",

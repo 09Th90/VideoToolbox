@@ -72,7 +72,7 @@
  "qfluentwidgets::BodyLabel": {
   "count": 9,
   "files": [
-   "src/harness_page.py",
+   "src/features/harness/harness_page.py",
    "src/features/voiceprint/speaker_voiceprint_page.py",
    "src/video_toolbox.py",
    "src/video_toolbox_qt.py",
@@ -86,8 +86,8 @@
  "qfluentwidgets::CaptionLabel": {
   "count": 4,
   "files": [
-   "src/auto_vision_page.py",
-   "src/harness_page.py",
+   "src/features/automation/auto_vision_page.py",
+   "src/features/harness/harness_page.py",
    "src/features/voiceprint/speaker_voiceprint_page.py",
    "src/video_toolbox_qt.py"
   ]
@@ -95,7 +95,7 @@
  "qfluentwidgets::CardWidget": {
   "count": 4,
   "files": [
-   "src/harness_page.py",
+   "src/features/harness/harness_page.py",
    "src/ui_theme.py",
    "src/video_toolbox_qt.py",
    "src/vt_engine_ui/transcription_interface.py"
@@ -110,7 +110,7 @@
  "qfluentwidgets::ComboBox": {
   "count": 2,
   "files": [
-   "src/auto_vision_page.py",
+   "src/features/automation/auto_vision_page.py",
    "src/video_toolbox_qt.py"
   ]
  },
@@ -155,8 +155,8 @@
  "qfluentwidgets::FluentIcon": {
   "count": 12,
   "files": [
-   "src/auto_vision_page.py",
-   "src/harness_page.py",
+   "src/features/automation/auto_vision_page.py",
+   "src/features/harness/harness_page.py",
    "src/features/voiceprint/speaker_voiceprint_page.py",
    "src/video_toolbox.py",
    "src/video_toolbox_qt.py",
@@ -195,8 +195,8 @@
  "qfluentwidgets::InfoBar": {
   "count": 10,
   "files": [
-   "src/auto_vision_page.py",
-   "src/harness_page.py",
+   "src/features/automation/auto_vision_page.py",
+   "src/features/harness/harness_page.py",
    "src/subtitle_compose.py",
    "src/video_toolbox.py",
    "src/video_toolbox_qt.py",
@@ -210,8 +210,8 @@
  "qfluentwidgets::InfoBarPosition": {
   "count": 9,
   "files": [
-   "src/auto_vision_page.py",
-   "src/harness_page.py",
+   "src/features/automation/auto_vision_page.py",
+   "src/features/harness/harness_page.py",
    "src/subtitle_compose.py",
    "src/video_toolbox.py",
    "src/video_toolbox_qt.py",
@@ -224,7 +224,7 @@
  "qfluentwidgets::LineEdit": {
   "count": 5,
   "files": [
-   "src/auto_vision_page.py",
+   "src/features/automation/auto_vision_page.py",
    "src/features/voiceprint/speaker_voiceprint_page.py",
    "src/video_toolbox_qt.py",
    "src/vt_engine_ui/components.py",
@@ -278,14 +278,14 @@
  "qfluentwidgets::PlainTextEdit": {
   "count": 1,
   "files": [
-   "src/harness_page.py"
+   "src/features/harness/harness_page.py"
   ]
  },
  "qfluentwidgets::PrimaryPushButton": {
   "count": 7,
   "files": [
-   "src/auto_vision_page.py",
-   "src/harness_page.py",
+   "src/features/automation/auto_vision_page.py",
+   "src/features/harness/harness_page.py",
    "src/features/voiceprint/speaker_voiceprint_page.py",
    "src/subtitle_compose.py",
    "src/video_toolbox_qt.py",
@@ -302,7 +302,7 @@
  "qfluentwidgets::ProgressBar": {
   "count": 6,
   "files": [
-   "src/auto_vision_page.py",
+   "src/features/automation/auto_vision_page.py",
    "src/features/voiceprint/speaker_voiceprint_page.py",
    "src/subtitle_compose.py",
    "src/video_toolbox_qt.py",
@@ -319,8 +319,8 @@
  "qfluentwidgets::PushButton": {
   "count": 9,
   "files": [
-   "src/auto_vision_page.py",
-   "src/harness_page.py",
+   "src/features/automation/auto_vision_page.py",
+   "src/features/harness/harness_page.py",
    "src/features/voiceprint/speaker_voiceprint_page.py",
    "src/subtitle_compose.py",
    "src/video_toolbox.py",
@@ -359,8 +359,8 @@
  "qfluentwidgets::ScrollArea": {
   "count": 4,
   "files": [
-   "src/auto_vision_page.py",
-   "src/harness_page.py",
+   "src/features/automation/auto_vision_page.py",
+   "src/features/harness/harness_page.py",
    "src/video_toolbox_qt.py",
    "src/vt_engine_ui/setting_interface.py"
   ]
@@ -408,8 +408,8 @@
  "qfluentwidgets::StrongBodyLabel": {
   "count": 4,
   "files": [
-   "src/auto_vision_page.py",
-   "src/harness_page.py",
+   "src/features/automation/auto_vision_page.py",
+   "src/features/harness/harness_page.py",
    "src/features/voiceprint/speaker_voiceprint_page.py",
    "src/video_toolbox_qt.py"
   ]
@@ -417,14 +417,14 @@
  "qfluentwidgets::SubtitleLabel": {
   "count": 2,
   "files": [
-   "src/auto_vision_page.py",
+   "src/features/automation/auto_vision_page.py",
    "src/video_toolbox_qt.py"
   ]
  },
  "qfluentwidgets::SwitchButton": {
   "count": 2,
   "files": [
-   "src/auto_vision_page.py",
+   "src/features/automation/auto_vision_page.py",
    "src/video_toolbox_qt.py"
   ]
  },
@@ -450,8 +450,8 @@
  "qfluentwidgets::TextEdit": {
   "count": 5,
   "files": [
-   "src/auto_vision_page.py",
-   "src/harness_page.py",
+   "src/features/automation/auto_vision_page.py",
+   "src/features/harness/harness_page.py",
    "src/video_toolbox_qt.py",
    "src/vt_engine_ui/subtitle_interface.py",
    "src/vt_engine_ui/task_creation_interface.py"
@@ -467,7 +467,7 @@
  "qfluentwidgets::TitleLabel": {
   "count": 2,
   "files": [
-   "src/harness_page.py",
+   "src/features/harness/harness_page.py",
    "src/video_toolbox_qt.py"
   ]
  },

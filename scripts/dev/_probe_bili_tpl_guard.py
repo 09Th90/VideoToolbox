@@ -46,8 +46,8 @@ def main():
 
     import numpy as np
     from PIL import Image
-    import auto_vision_page as avp
-    import bili_upload as bu
+    import features.automation.auto_vision_page as avp
+    import features.automation.bili_upload as bu
 
     # 负向锚点必须真实：每次运行先清空隔离数据目录，确保场景 1-3 面对
     # 的是「真实缺模板」现场（上次运行遗留的模板会让缺模板场景假绿）。

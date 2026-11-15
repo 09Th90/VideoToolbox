@@ -31,7 +31,7 @@ from vt_fluent import (BodyLabel, CaptionLabel, CardWidget,
                             PlainTextEdit, PrimaryPushButton, PushButton,
                             ScrollArea, StrongBodyLabel, TextEdit, TitleLabel)
 
-import harness_bridge as hb
+import features.harness.harness_bridge as hb
 
 #: 等宽字体（输出区）；取不到 Courier New 时 Qt 自动回退
 _MONO = QFont("Courier New", 10)

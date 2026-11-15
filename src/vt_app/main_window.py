@@ -46,8 +46,8 @@ from vt_app.settings_page import SettingsPage
 # ``harness_bridge.available()`` 为真时才创建并挂导航。import 本身依旧兜底，
 # 确保任何意外都不会拖垮既有功能。
 try:
-    import harness_bridge
-    import harness_page as _harness_page_mod
+    import features.harness.harness_bridge as harness_bridge
+    import features.harness.harness_page as _harness_page_mod
     _HARNESS_IMPORT_OK = True
 except Exception as _e:  # noqa: BLE001
     harness_bridge = None
@@ -61,7 +61,7 @@ except Exception as _e:  # noqa: BLE001
 
 def _load_auto_vision_page():
     """惰性导入 auto_vision_page，返回其页面类（重依赖只在这里付一次）。"""
-    import auto_vision_page
+    import features.automation.auto_vision_page as auto_vision_page
     return auto_vision_page.AutoVisionPage
 
 

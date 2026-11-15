@@ -7,7 +7,7 @@ from features._cli import common
 
 def cmd_bili_submit(args):
     """B 站后台自动投稿（透传 bili_auto_submit：UIA 定位 + PostMessage 输入）。"""
-    import bili_auto_submit as bas
+    import features.automation.bili_auto_submit as bas
     argv = []
     material = getattr(args, "material", "")
     if material:

@@ -6,7 +6,7 @@ FEATURE = FeatureSpec(
     id="harness",
     title="AI 托管",
     summary="DeepSeek harness 适配（node 子进程），技能包物化与配置同步",
-    backend="harness_bridge",
+    backend="features.harness.harness_bridge",
     requires=("node",),
     services={},
     # builder 在 harness 适配层不可用时抛异常 → 注册表挂载跳过（导航缺席），

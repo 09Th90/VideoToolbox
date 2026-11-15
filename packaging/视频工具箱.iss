@@ -258,7 +258,7 @@ Source: "..\src\ui_theme.py"; DestDir: "{app}\src"; Flags: ignoreversion
 ; subtitle_editor_media.py 已迁入 src\features\subtitle_edit\，由 features 整目录行自动收集
 ; subtitle_compose.py 已迁入 src\features\compose\，由 features 整目录行自动收集
 ; subtitle_overlay.py 已迁入 src\features\subtitle_edit\，由 features 整目录行自动收集
-Source: "..\src\auto_vision_page.py"; DestDir: "{app}\src"; Flags: ignoreversion
+; auto_vision_page.py 已迁入 src\features\automation\，由 features 整目录行自动收集
 ; v1.11.0：新增源码——合并核心、AI 校准 Agent、官方实现一键套用脚本
 ; calib_merge_core.py 已迁入 src\features\calibrate\，由 features 整目录行自动收集
 ; calib_ai_agent.py 已迁入 src\features\calibrate\，由 features 整目录行自动收集
@@ -291,8 +291,8 @@ Source: "..\src\vt_update_check.py"; DestDir: "{app}\src"; Flags: ignoreversion
 ;   **模块级** import（auto_vision_page 又在 video_toolbox_qt.py 顶层导入）。
 ;   原检查只查 video_toolbox_qt.py 的**直接** import，这一层够不着 ⇒ 漏装。
 ;   缺了它俩，「自动化」页面一开就 ImportError。
-Source: "..\src\auto_vision_core.py"; DestDir: "{app}\src"; Flags: ignoreversion
-Source: "..\src\bili_upload.py"; DestDir: "{app}\src"; Flags: ignoreversion
+; auto_vision_core.py 已迁入 src\features\automation\，由 features 整目录行自动收集
+; bili_upload.py 已迁入 src\features\automation\，由 features 整目录行自动收集
 ; calib_media_agent 是 engine 里「AI 校准的音画证据」工具，
 ; video_toolbox.py:5465 函数体内延迟 import（开启 calib_media_enabled 才走），
 ;   exe 侧静默降级 ⇒ 与 calib_web_agent 同类，iss + spec 都要显式列出。
@@ -303,8 +303,8 @@ Source: "..\src\bili_upload.py"; DestDir: "{app}\src"; Flags: ignoreversion
 ;   harness_bridge / harness_page 在 try: 里模块级 import（能力缺失时降级），
 ;   缺了「AI 托管」页整体消失 ⇒ 按静默降级档一并随包。
 Source: "..\src\qt_compat.py"; DestDir: "{app}\src"; Flags: ignoreversion
-Source: "..\src\harness_bridge.py"; DestDir: "{app}\src"; Flags: ignoreversion
-Source: "..\src\harness_page.py"; DestDir: "{app}\src"; Flags: ignoreversion
+; harness_bridge.py 已迁入 src\features\harness\，由 features 整目录行自动收集
+; harness_page.py 已迁入 src\features\harness\，由 features 整目录行自动收集
 Source: "..\src\视频工具箱.bat"; DestDir: "{app}\src"; Flags: ignoreversion
 ; 2026-11-15（功能解耦）补历史缺口 + 新模块：
 ;   agent_cli.py —— 统一 CLI 入口（pipeline.py:440 与 selftest 按路径 subprocess

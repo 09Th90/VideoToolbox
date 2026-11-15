@@ -101,8 +101,8 @@ def main(argv):
     # 默认必进项：主程序 + 上一轮补装的 4 个 src 模块
     expect = [r"dist\视频工具箱\视频工具箱.exe",
               r"src\vt_update_check.py",
-              r"src\auto_vision_core.py",
-              r"src\bili_upload.py",
+              r"src\features\automation\auto_vision_core.py",
+              r"src\features\automation\bili_upload.py",
               r"src\features\calibrate\calib_media_agent.py"]
     if len(argv) > 2:
         expect = argv[2:]

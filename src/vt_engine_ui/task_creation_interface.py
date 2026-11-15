@@ -57,7 +57,7 @@ def _harness_ready() -> bool:
     原因导入失败，这里也只返回 False——任务创建页的行为与从前完全一致。
     """
     try:
-        import harness_bridge
+        import features.harness.harness_bridge as harness_bridge
         return harness_bridge.available()
     except Exception:  # noqa: BLE001
         return False

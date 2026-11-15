@@ -11,9 +11,9 @@
     不写死投稿页坐标；滚动也是按控件矩形判断方向。
 
 用法：
-  tools\\python\\python.exe src\\bili_auto_submit.py "<素材目录>" [--dry-run]
-  tools\\python\\python.exe src\\bili_auto_submit.py "<素材目录>" --visibility self
-  tools\\python\\python.exe src\\bili_auto_submit.py --probe
+  tools\\python\\python.exe src\\features\\automation\\bili_auto_submit.py "<素材目录>" [--dry-run]
+  tools\\python\\python.exe src\\features\\automation\\bili_auto_submit.py "<素材目录>" --visibility self
+  tools\\python\\python.exe src\\features\\automation\\bili_auto_submit.py --probe
 """
 
 import argparse
@@ -33,7 +33,7 @@ for _stream in (sys.stdout, sys.stderr):
     except Exception:  # noqa: BLE001
         pass
 sys.path.insert(0, os.path.join(ROOT, "src"))
-import auto_vision_core as av  # noqa: E402
+import features.automation.auto_vision_core as av  # noqa: E402
 from PIL import Image  # noqa: E402
 
 try:
