@@ -1869,7 +1869,7 @@
    "mode": "bi",
    "count": 2,
    "uncorrected": 0,
-   "status": "confirmed",
+   "status": "rejected",
    "cues": [
     680,
     1827
@@ -15306,6 +15306,893 @@
    "unc_ref_tokens": {},
    "first": "2026-11-14",
    "last": "2026-11-14",
+   "alts": {},
+   "sync": true
+  },
+  "bi|好好取样": {
+   "wrong": "好好取样",
+   "right": "去仔细地品尝吧。",
+   "mode": "bi",
+   "count": 2,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    183,
+    370
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-11-15",
+   "last": "2026-11-15",
+   "alts": {},
+   "sync": true
+  },
+  "bi|联邦": {
+   "wrong": "联邦",
+   "right": "Federal",
+   "mode": "bi",
+   "count": 2,
+   "uncorrected": 0,
+   "status": "rejected",
+   "cues": [
+    21,
+    525
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-11-15",
+   "last": "2026-11-15",
+   "alts": {},
+   "sync": true
+  },
+  "bi|>> 我有这个。": {
+   "wrong": ">> 我有这个。",
+   "right": ">> 我，跟着我。",
+   "mode": "bi",
+   "count": 2,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    187,
+    373
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-11-15",
+   "last": "2026-11-15",
+   "alts": {},
+   "sync": true
+  },
+  "bi|剪掉它": {
+   "wrong": "剪掉它",
+   "right": "轻轻一切。",
+   "mode": "bi",
+   "count": 2,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    173,
+    338
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-11-15",
+   "last": "2026-11-15",
+   "alts": {},
+   "sync": true
+  },
+  "bi|>> 菲萨拉斯的首领是否把我": {
+   "wrong": ">> 菲萨拉斯的首领是否把我",
+   "right": ">> 菲萨烈家主是否把我",
+   "mode": "bi",
+   "count": 2,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    190,
+    388
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-11-15",
+   "last": "2026-11-15",
+   "alts": {},
+   "sync": true
+  },
+  "bi|你必须毫不退缩地吞咽下": {
+   "wrong": "你必须毫不退缩地吞咽下",
+   "right": "你必须毫不改色地吞咽下",
+   "mode": "bi",
+   "count": 2,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    168,
+    328
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-11-15",
+   "last": "2026-11-15",
+   "alts": {},
+   "sync": true
+  },
+  "bi|你必须毫不退缩地吞咽": {
+   "wrong": "你必须毫不退缩地吞咽",
+   "right": "你都得面不退缩地吞咽",
+   "mode": "bi",
+   "count": 2,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    168,
+    328
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-11-15",
+   "last": "2026-11-15",
+   "alts": {},
+   "sync": true
+  },
+  "bi|一切都在等待着您": {
+   "wrong": "一切都在等待着您",
+   "right": "一切。",
+   "mode": "bi",
+   "count": 2,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    184,
+    371
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-11-15",
+   "last": "2026-11-15",
+   "alts": {},
+   "sync": true
+  },
+  "bi|的让步。请务": {
+   "wrong": "的让步。请务",
+   "right": "的诚意。请务",
+   "mode": "bi",
+   "count": 2,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    193,
+    392
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-11-15",
+   "last": "2026-11-15",
+   "alts": {},
+   "sync": true
+  },
+  "bi|旧的方式现在已经远远落后于你了": {
+   "wrong": "旧的方式现在已经远远落后于你了",
+   "right": "旧时代早就过去了",
+   "mode": "bi",
+   "count": 2,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    196,
+    396
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-11-15",
+   "last": "2026-11-15",
+   "alts": {},
+   "sync": true
+  },
+  "bi|提供十分之一也是很棒的": {
+   "wrong": "提供十分之一也是很棒的",
+   "right": "提供十分之一成，",
+   "mode": "bi",
+   "count": 2,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    192,
+    391
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-11-15",
+   "last": "2026-11-15",
+   "alts": {},
+   "sync": true
+  },
+  "bi|仍然缺乏冷静和优雅": {
+   "wrong": "仍然缺乏冷静和优雅",
+   "right": "还是不够稳重，不够优雅",
+   "mode": "bi",
+   "count": 2,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    174,
+    349
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-11-15",
+   "last": "2026-11-15",
+   "alts": {},
+   "sync": true
+  },
+  "bi|是时候吸取教训了": {
+   "wrong": "是时候吸取教训了",
+   "right": "是时候吸取教教你。",
+   "mode": "bi",
+   "count": 2,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    195,
+    395
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-11-15",
+   "last": "2026-11-15",
+   "alts": {},
+   "sync": true
+  },
+  "bi|>> 哪怕提供十分之一也是": {
+   "wrong": ">> 哪怕提供十分之一也是",
+   "right": ">> 哪怕只让出一也是",
+   "mode": "bi",
+   "count": 2,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    192,
+    391
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-11-15",
+   "last": "2026-11-15",
+   "alts": {},
+   "sync": true
+  },
+  "bi|>> 是时候吸取教训了": {
+   "wrong": ">> 是时候吸取教训了",
+   "right": ">> 看来今天必须好好教训了",
+   "mode": "bi",
+   "count": 2,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    195,
+    395
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-11-15",
+   "last": "2026-11-15",
+   "alts": {},
+   "sync": true
+  },
+  "bi|恐怕我们必须解决这个问题": {
+   "wrong": "恐怕我们必须解决这个问题",
+   "right": "恐怕还得再好好努力一下。",
+   "mode": "bi",
+   "count": 2,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    175,
+    350
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-11-15",
+   "last": "2026-11-15",
+   "alts": {},
+   "sync": true
+  },
+  "bi|在餐桌上，沉默": {
+   "wrong": "在餐桌上，沉默",
+   "right": "在餐时，沉默",
+   "mode": "bi",
+   "count": 2,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    166,
+    326
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-11-15",
+   "last": "2026-11-15",
+   "alts": {},
+   "sync": true
+  },
+  "bi|优雅。无论供应什么": {
+   "wrong": "优雅。无论供应什么",
+   "right": "优雅。无论端上来什么",
+   "mode": "bi",
+   "count": 2,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    167,
+    327
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-11-15",
+   "last": "2026-11-15",
+   "alts": {},
+   "sync": true
+  },
+  "bi|末日已经来": {
+   "wrong": "末日已经来",
+   "right": "终结已经来",
+   "mode": "bi",
+   "count": 5,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    638,
+    1155,
+    1203,
+    1239,
+    1267
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-11-15",
+   "last": "2026-11-15",
+   "alts": {},
+   "sync": true
+  },
+  "bi|>> 稍后见": {
+   "wrong": ">> 稍后见",
+   "right": ">> 回头见",
+   "mode": "bi",
+   "count": 2,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    870,
+    932
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-11-15",
+   "last": "2026-11-15",
+   "alts": {},
+   "sync": true
+  },
+  "bi|Carta": {
+   "wrong": "Carta",
+   "right": "卡提",
+   "mode": "bi",
+   "count": 2,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    1077,
+    1917
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-11-15",
+   "last": "2026-11-15",
+   "alts": {},
+   "sync": true
+  },
+  "bi|你不过是海浪上的泡沫": {
+   "wrong": "你不过是海浪上的泡沫",
+   "right": "只配成为浪上的泡沫",
+   "mode": "bi",
+   "count": 2,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    207,
+    415
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-11-15",
+   "last": "2026-11-15",
+   "alts": {},
+   "sync": true
+  },
+  "bi|弗鲁里斯": {
+   "wrong": "弗鲁里斯",
+   "right": "芙露德莉斯",
+   "mode": "bi",
+   "count": 3,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    1744,
+    1769,
+    1798
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-11-15",
+   "last": "2026-11-15",
+   "alts": {},
+   "sync": true
+  },
+  "bi|不战而屈人之兵": {
+   "wrong": "不战而屈人之兵",
+   "right": "不战而降。",
+   "mode": "bi",
+   "count": 2,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    1954,
+    1974
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-11-15",
+   "last": "2026-11-15",
+   "alts": {},
+   "sync": true
+  },
+  "bi|不意味着我们不能重塑": {
+   "wrong": "不意味着我们不能重塑",
+   "right": "不代表我们不能重塑",
+   "mode": "bi",
+   "count": 2,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    1556,
+    1611
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-11-15",
+   "last": "2026-11-15",
+   "alts": {},
+   "sync": true
+  },
+  "bi|>> 共振时刻": {
+   "wrong": ">> 共振时刻",
+   "right": ">> 共鸣一刻",
+   "mode": "bi",
+   "count": 3,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    682,
+    1167,
+    1662
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-11-15",
+   "last": "2026-11-15",
+   "alts": {},
+   "sync": true
+  },
+  "bi|，罗弗": {
+   "wrong": "，罗弗",
+   "right": "，漂泊者。",
+   "mode": "bi",
+   "count": 2,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    1465,
+    1469
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-11-15",
+   "last": "2026-11-15",
+   "alts": {},
+   "sync": true
+  },
+  "bi|检查一": {
+   "wrong": "检查一",
+   "right": "确认一",
+   "mode": "bi",
+   "count": 3,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    354,
+    902,
+    2005
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-11-15",
+   "last": "2026-11-15",
+   "alts": {},
+   "sync": true
+  },
+  "bi|共鸣瞬间": {
+   "wrong": "共鸣瞬间",
+   "right": "共鸣一刻。",
+   "mode": "bi",
+   "count": 3,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    1190,
+    1207,
+    1259
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-11-15",
+   "last": "2026-11-15",
+   "alts": {},
+   "sync": true
+  },
+  "bi|守门员。": {
+   "wrong": "守门员。",
+   "right": "守岸人。",
+   "mode": "bi",
+   "count": 2,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    1097,
+    1478
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-11-15",
+   "last": "2026-11-15",
+   "alts": {},
+   "sync": true
+  },
+  "bi|提供什么，都必须吞下去": {
+   "wrong": "提供什么，都必须吞下去",
+   "right": "提供什么，都得",
+   "mode": "bi",
+   "count": 2,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    201,
+    400
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-11-15",
+   "last": "2026-11-15",
+   "alts": {},
+   "sync": true
+  },
+  "bi|以前一样。我会处理的": {
+   "wrong": "以前一样。我会处理的",
+   "right": "以前一样。我。",
+   "mode": "bi",
+   "count": 2,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    625,
+    660
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-11-15",
+   "last": "2026-11-15",
+   "alts": {},
+   "sync": true
+  },
+  "bi|抗的浪潮": {
+   "wrong": "抗的浪潮",
+   "right": "抗之潮",
+   "mode": "bi",
+   "count": 2,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    1965,
+    1975
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-11-15",
+   "last": "2026-11-15",
+   "alts": {},
+   "sync": true
+  },
+  "bi|我来处理": {
+   "wrong": "我来处理",
+   "right": "我来。",
+   "mode": "bi",
+   "count": 2,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    663,
+    1277
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-11-15",
+   "last": "2026-11-15",
+   "alts": {},
+   "sync": true
+  },
+  "bi|直至解职": {
+   "wrong": "直至解职",
+   "right": "直到卸下职",
+   "mode": "bi",
+   "count": 3,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    1068,
+    1164,
+    1385
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-11-15",
+   "last": "2026-11-15",
+   "alts": {},
+   "sync": true
+  },
+  "bi|泰然自若": {
+   "wrong": "泰然自若",
+   "right": ">> 从容咽下。",
+   "mode": "bi",
+   "count": 2,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    202,
+    401
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-11-15",
+   "last": "2026-11-15",
+   "alts": {},
+   "sync": true
+  },
+  "bi|>> 仲裁员,": {
+   "wrong": ">> 仲裁员,",
+   "right": ">> 御者，",
+   "mode": "bi",
+   "count": 3,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    1687,
+    1704,
+    1836
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-11-15",
+   "last": "2026-11-15",
+   "alts": {},
+   "sync": true
+  },
+  "bi|真正的幸福少女": {
+   "wrong": "真正的幸福少女",
+   "right": "真正的圣女",
+   "mode": "bi",
+   "count": 2,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    901,
+    1548
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-11-15",
+   "last": "2026-11-15",
+   "alts": {},
+   "sync": true
+  },
+  "bi|>> 希望这会有所帮助": {
+   "wrong": ">> 希望这会有所帮助",
+   "right": ">> 希望这能帮助",
+   "mode": "bi",
+   "count": 5,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    635,
+    955,
+    1168,
+    1187,
+    1664
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-11-15",
+   "last": "2026-11-15",
+   "alts": {},
+   "sync": true
+  },
+  "bi|寻深​​渊的深处": {
+   "wrong": "寻深​​渊的深处",
+   "right": "寻深​​渊的底部，",
+   "mode": "bi",
+   "count": 2,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    205,
+    413
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-11-15",
+   "last": "2026-11-15",
+   "alts": {},
+   "sync": true
+  },
+  "bi|探寻大海的心脏": {
+   "wrong": "探寻大海的心脏",
+   "right": "妄图揣摩幽海的心脏",
+   "mode": "bi",
+   "count": 2,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    206,
+    414
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-11-15",
+   "last": "2026-11-15",
+   "alts": {},
+   "sync": true
+  },
+  "bi|彻底溶解": {
+   "wrong": "彻底溶解",
+   "right": "彻底消融殆尽。",
+   "mode": "bi",
+   "count": 2,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    209,
+    417
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-11-15",
+   "last": "2026-11-15",
+   "alts": {},
+   "sync": true
+  },
+  "bi|因此，": {
+   "wrong": "因此，",
+   "right": "所以，",
+   "mode": "bi",
+   "count": 2,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    972,
+    1743
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-11-15",
+   "last": "2026-11-15",
+   "alts": {},
+   "sync": true
+  },
+  "bi|受祝福的少女": {
+   "wrong": "受祝福的少女",
+   "right": "圣女",
+   "mode": "bi",
+   "count": 2,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    1523,
+    1550
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-11-15",
+   "last": "2026-11-15",
+   "alts": {},
+   "sync": true
+  },
+  "bi|Flur Deise": {
+   "wrong": "Flur Deise",
+   "right": "芙露德莉斯",
+   "mode": "bi",
+   "count": 2,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    1739,
+    1788
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-11-15",
+   "last": "2026-11-15",
+   "alts": {},
+   "sync": true
+  },
+  "bi|从阴影中发起攻击": {
+   "wrong": "从阴影中发起攻击",
+   "right": "从阴影中出击",
+   "mode": "bi",
+   "count": 3,
+   "uncorrected": 0,
+   "status": "confirmed",
+   "cues": [
+    1210,
+    1269,
+    1667
+   ],
+   "samples": [],
+   "ref_tokens": {},
+   "unc_ref_tokens": {},
+   "first": "2026-11-15",
+   "last": "2026-11-15",
    "alts": {},
    "sync": true
   }
