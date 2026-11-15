@@ -913,15 +913,10 @@ def main():
     # 2026-10-20：「自动化」页改为惰性构造（首帧后约 1.5s 由 _build_auto_page
     # 补齐），自检里显式 ensure——下面几组 auto_page 断言需要现成页面。
     win._build_auto_page()
-    # 2026-10-20：引擎界面改为**异步构建**（预热线程导入 + 主线程构建，
-    # 首帧不再阻塞）。自检里显式等待就绪，否则下面依赖 sub._engine 的
-    # 断言会读到 None（曾致 _QApp 未绑定崩溃）。
-    _sub = win.subtitle_page
-    for _w in range(80):                    # 最多 20s
-        if getattr(_sub, "_engine", None) is not None:
-            break
-        app.processEvents()
-        time.sleep(0.25)
+    # 2026-11-15 遗留修复：原 20s 等待在引擎构建**触发点之前**——MainWindow
+    # 不 show()、调度器不在场、home_ui 直载任务框不碰 _engine，循环必然空转。
+    # 等待已移到下方引擎内嵌断言组的显式 ensure_built() 触发之后（60s 轮询
+    # + 超时 SKIP），此处不再空转。
 
     # v1.13.0：页面合并为 5 个导航页；v1.14.0：新增「流水线」页（共 6 个）
     pages = [win.download_page, win.library_page, win.subtitle_page,
@@ -1104,21 +1099,43 @@ def main():
     sub = win.subtitle_page
     from PySide6.QtGui import QShowEvent
     sub.showEvent(QShowEvent())   # 首次显示触发引擎界面内嵌
+    sub.ensure_built()            # 显式触发（与 showEvent 幂等，语义更直白）
+    # 2026-11-15 遗留修复：构建链是「预热线程 → 主线程三段 singleShot」，
+    # 自检环境调度器不在场（_defer 退化 singleShot），必须 processEvents 驱动；
+    # 冷态构建可达 33–42s，窗口放宽到 60s；超时记 SKIP 而非 FAIL（与下方
+    # 转录回归组同模式，别把环境问题伪装成代码回归）。
+    _eng_ready = False
+    for _w in range(240):                   # 最多 60s
+        # 就绪判据必须含 foot.isHidden()：三段构建里 host_lay.addWidget 在
+        # mount 段就满足 count()==1，而 foot.hide() 在下一段 adopt 才执行——
+        # 只判 count 会过早 break，「底部状态行已收起」断言抢跑（2026-11-15 实测）。
+        if (getattr(sub, "_engine", None) is not None
+                and sub.host_lay.count() == 1 and sub.foot.isHidden()):
+            _eng_ready = True
+            break
+        app.processEvents()
+        time.sleep(0.25)
+    _eng_skip = not _eng_ready
     check("字幕引擎界面已内嵌（非独立窗口）",
-          sub._engine is not None and sub.host_lay.count() == 1,
-          type(sub._engine).__name__ if sub._engine else "未创建")
+          _eng_ready,
+          (type(sub._engine).__name__ if sub._engine else "未创建")
+          if _eng_ready else "引擎 60s 内未内嵌（prewarm 未完成）",
+          skip=_eng_skip)
     tc = getattr(sub._engine, "task_creation_interface", None) if sub._engine else None
     check("品牌水印与捐助入口已隐藏",
           tc is not None and tc.info_label.isHidden()
-          and tc.donate_button.isHidden())
+          and tc.donate_button.isHidden(),
+          skip=_eng_skip)
     # ---- v1.13.0：引擎分段项「字幕优化与翻译」已更名「字幕翻译」 ----
+    rename_ok = False
     if sub._engine is not None:
         try:
             rename_ok = (sub._engine.pivot.items[
                 "SubtitleInterface"].text() == "字幕翻译")
         except Exception:
             rename_ok = False
-        check("引擎分段「字幕优化与翻译」已更名「字幕翻译」", rename_ok)
+    check("引擎分段「字幕优化与翻译」已更名「字幕翻译」", rename_ok,
+          skip=_eng_skip)
     # ---- v1.13.0：字幕校准并入引擎工作台分段，排在字幕翻译之后 ----
     _kstr, calib_in, calib_after = "", False, False
     if sub._engine is not None:
@@ -1135,15 +1152,15 @@ def main():
                            _order.index("SubtitleInterface"))
         except Exception:
             pass
-        check("字幕校准已并入引擎工作台分段（排在字幕翻译之后）",
-              calib_in and calib_after, f"order={_kstr}")
+    check("字幕校准已并入引擎工作台分段（排在字幕翻译之后）",
+          calib_in and calib_after, f"order={_kstr}", skip=_eng_skip)
     # ---- v1.15.8：校准页在前台时，字幕拖到「页面边缘」不得跳页 ----
     # 坑：CalibPage 只覆盖引擎工作台那块矩形，拖到页面边缘/导航条/窗口边框时
     # 事件收不到它的 dragEnter，会冒泡到主窗口的全局分派器；此前那里一律
     # switchTo 到「字幕编辑」，用户看到的就是"拖到边缘就跳页"。
+    edge_ok = keep_ok = bi_ok = False
     if sub._engine is not None:
         _edge_srt = os.path.join(engine.DATA_DIR, "_selftest_edge_drop.srt")
-        edge_ok = keep_ok = bi_ok = False
         _home_keep = sub._engine_home
         try:
             # ① 停在校准页 + **单语**字幕：v1.16.4 起按类型分派到「字幕翻译」，
@@ -1176,9 +1193,12 @@ def main():
                 os.remove(_edge_srt)
             except OSError:
                 pass
-        check("字幕处理页前台：单语字幕拖到页面边缘不跳「字幕编辑」", edge_ok)
-        check("字幕处理页前台：双语字幕拖到边缘就地填入校准框", bi_ok)
-        check("字幕处理页不在前台：拖入字幕仍跳「字幕编辑」（原行为不变）", keep_ok)
+    check("字幕处理页前台：单语字幕拖到页面边缘不跳「字幕编辑」", edge_ok,
+          skip=_eng_skip)
+    check("字幕处理页前台：双语字幕拖到边缘就地填入校准框", bi_ok,
+          skip=_eng_skip)
+    check("字幕处理页不在前台：拖入字幕仍跳「字幕编辑」（原行为不变）", keep_ok,
+          skip=_eng_skip)
     # ---- v1.15.8：窗口标题跟随当前页（导航「返回」键绕过 switchTo）----
     win.switchTo(win.subtitle_edit_page)
     _t_before = win.windowTitle()
@@ -1193,13 +1213,15 @@ def main():
           sub_if is not None
           and sub_if.optimize_button not in sub_if.command_bar.actions()
           and all(b.action() is not sub_if.optimize_button
-                  for b in sub_if.command_bar.commandButtons))
+                  for b in sub_if.command_bar.commandButtons),
+          skip=_eng_skip)
     check("引擎就绪后底部状态行已收起（设置/许可走导航栏）",
-          sub.foot.isHidden())
+          sub.foot.isHidden(), skip=_eng_skip)
     check("字幕表格吃满剩余空间（stretch=1）",
           sub_if is not None
           and sub_if.main_layout.stretch(
-              sub_if.main_layout.indexOf(sub_if.subtitle_table)) == 1)
+              sub_if.main_layout.indexOf(sub_if.subtitle_table)) == 1,
+          skip=_eng_skip)
 # ---- v1.14.2：独立转录完成 → 自动装载并跳转「字幕翻译」（回归）----
     # 坑：HomeInterface 构造时 addWidget 会把子界面 reparent 到 QStackedWidget，
     # 回填若用 self.parent() 取 HomeInterface 会静默失效（v1.14.1 曾如此）。

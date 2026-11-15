@@ -58,9 +58,52 @@ IGNORE_CLASSES = {
 #: "哪天多插一个页就静默失效"的雷。
 IGNORE_ATTRS_BY_PATH_RE = {
     r"/TaskCreationInterface#TaskCreationInterface\[\d+\]/LineEdit$": ("ph",),
+    # ---- 2026-11-15 遗留修复·残差定性豁免（38 条 changed 全量定性后加入）----
+    # 定性依据：dump 态引擎轨用上游 qfluentwidgets 控件、自研轨用 vt_fluent 复刻
+    # 控件，两套 QSS 生成器的**声明集**天然不同（E独有48/S独有5 之类）；真实
+    # 运行时引擎页也套 vt_fluent 全局 QSS，此差异不在产品中出现。视觉等价由
+    # 基线截图（png）人工核验。结构（cls/obj/txt/hid）与其余属性仍严格比对。
+    # 分段控件族：上游 PivotItem padding/margin 体系 vs vt_fluent 自绘声明
+    r"/SegmentedWidget(?:\[\d+\])?(?:/|$)": ("ss",),
+    r"/SegmentedItem": ("ss",),
+    # 转录页 CommandBar 子件：ss 为生成器差；geo Δx=322 是**有意新增**的
+    # 语言/格式下拉（858374c，已节点豁免）把后续兄弟整体右移的连带偏移
+    r"/CommandBar\[\d+\]/[^/]+$": ("ss", "geo"),
+    # VideoInfoCard 体系（PillPushButton/提示 BodyLabel/打开文件夹/开始转录）
+    r"/VideoInfoCard\[\d+\]/": ("ss",),
+    # 设置卡容器（Switch/ComboBox/Range/Hyperlink SettingCard）：上游卡片边框/
+    # 主题色声明 vs vt_fluent 卡片声明
+    r"/(?:SwitchSettingCard|ComboBoxSettingCard|RangeSettingCard|HyperlinkCard)(?:\[\d+\])?$": ("ss",),
+    # SwitchButton 族（含 Indicator/On/Off QLabel）：ss 为生成器差；geo 为
+    # vt_fluent SwitchButton 设计宽度差（宽 24~25px → Indicator 偏移 34~58px）
+    r"/SwitchButton(?:\[\d+\])?(?:/|$)": ("ss", "geo"),
+    # ComboBox / HyperlinkButton：生成器声明集差
+    r"/ComboBox(?:#[^/]+)?(?:\"[^\"]*\")?(?:\[\d+\])?(?:/|$)": ("ss",),
+    r"/HyperlinkButton": ("ss",),
 }
 _IGNORE_COMPILED = [(re.compile(p), keys)
                     for p, keys in IGNORE_ATTRS_BY_PATH_RE.items()]
+
+#: 节点级豁免（2026-11-15 遗留修复）：_flatten 跳过匹配节点及其子树，
+#: **不占 sibling 下标**（与隐藏节点同语义）——自研侧有意新增的节点会把
+#: 后续兄弟整体顺移，只豁免属性保不住结构对齐。
+#: 纪律：只豁免**已定性为有意差异**的节点；无法定性的残差必须报告，禁止静默豁免。
+_IGNORE_NODE_PATHS = [
+    # ⚠ 叶子节点的 key 尾部**没有** [n] 下标（下标由父层拼进孩子 path 前缀，
+    #   见 _flatten）——正则不得要求尾部 [\d+]，否则永不命中（2026-11-15 实测修复）。
+    (r'TransparentDropDownPushButton"语言：[^"]*"',
+     "vt_engine_ui 2026-10-28（858374c）识别语言迁到转录页 CommandBar（有意新增）"),
+    (r'TransparentDropDownPushButton"格式：[^"]*"',
+     "vt_engine_ui 2026-10-28（858374c）输出格式迁到转录页 CommandBar（有意新增）"),
+    (r'^/SettingInterface.*?/SmoothScrollBar(?:\[\d+\])?(?:/|$)',
+     "自研设置页多出的可见 SmoothScrollBar（引擎侧 policy=Off 被 forceHidden，"
+     "vt_fluent 无此补丁故可见；滚动附属件，不影响卡片结构）"),
+]
+_IGNORE_NODE_COMPILED = [(re.compile(p), why) for p, why in _IGNORE_NODE_PATHS]
+
+#: 几何容差（逻辑像素）：两套实现的布局微噪音（Pivot 高 31→33、y 47→49 等，
+#: 2026-11-15 重采集实测 ±1~2px）。超过容差仍判差异。
+_GEO_TOL = 2
 
 # ---------------------------------------------------------------------------
 # 密钥脱敏（2026-10-22 安全整改）
@@ -243,7 +286,7 @@ def serialize(w, depth=0, max_depth=60):
 
 
 def _flatten(node, path, out, in_hidden=False):
-    """展平控件树。
+    """展平控件树。返回 True 表示本节点被豁免（父层据此不让它占 sibling 下标）。
 
     ``in_hidden``：祖先是否已隐藏。**隐藏节点及其整棵子树不计入比对**——
     宿主 ``_build_engine`` 有意把「字幕视频合成」页从堆叠页摘掉并 ``hide()``，
@@ -252,13 +295,16 @@ def _flatten(node, path, out, in_hidden=False):
     """
     hidden = in_hidden or bool(node.get("hid"))
     if hidden:
-        return
+        return False
     label = node.get("cls", "?")
     if node.get("obj"):
         label += "#" + node["obj"]
     if node.get("txt"):
         label += '"%s"' % node["txt"]
     cur = path + "/" + label
+    # 节点级豁免：有意新增的节点不参与比对、不占 sibling 下标（见 _IGNORE_NODE_PATHS）
+    if any(rx.search(cur) for rx, _why in _IGNORE_NODE_COMPILED):
+        return True
     summary = {k: node[k] for k in ("geo", "hid", "ss", "ph", "icon", "lay", "wt")
                if k in node}
     summary.pop("hid", None)      # 已按可见性过滤，无需再比
@@ -268,12 +314,15 @@ def _flatten(node, path, out, in_hidden=False):
     # ``vc_transcribe_ui_patch`` 构造期建 2 个 model_menu，自研页内建 1 个）。
     # 若让隐藏节点占号，后面所有可见兄弟的下标都会整体错位——同一段代码
     # 菜单数一变，比对就从 7/6 恶化成 63/63。
+    # 豁免子节点同理不占号（2026-11-15 修复：旧实现 return 后父层仍 idx+=1，
+    # 豁免形同虚设——自研侧 CommandBar 多出的语言/格式下拉把后续兄弟整体顺移）。
     idx = 0
     for k in node.get("kids", []):
         if k.get("hid"):
             continue
-        _flatten(k, "%s[%d]" % (cur, idx), out, hidden)
-        idx += 1
+        if not _flatten(k, "%s[%d]" % (cur, idx), out, hidden):
+            idx += 1
+    return False
 
 
 def _drop_ignored_attrs(path, summary):
@@ -286,6 +335,43 @@ def _drop_ignored_attrs(path, summary):
         if rx.search(path):
             return {k: v for k, v in summary.items() if k not in keys}
     return summary
+
+
+def _norm_ss(ss):
+    """QSS 声明集归一（2026-11-15 遗留修复）。
+
+    两套 QSS 生成器的选择器措辞不同（``QLabel{...}`` vs ``SettingCard QLabel{...}``），
+    但声明集一致即视觉效果等价。这里只比「声明的多重集」，忽略选择器作用域
+    措辞差；声明本身不同（颜色/字号/边距真差异）仍会判 DIFFERS。
+    """
+    decls = []
+    for block in (ss or "").split("}"):
+        _, _, body = block.partition("{")
+        for d in body.split(";"):
+            d = d.strip()
+            if d:
+                decls.append(d)
+    return tuple(sorted(decls))
+
+
+def _summaries_equal(sa, sb):
+    """属性级比对：geo 带 ±_GEO_TOL 容差、ss 按声明集归一，其余严格相等。"""
+    if set(sa) != set(sb):
+        return False
+    for k in sa:
+        va, vb = sa[k], sb[k]
+        if k == "geo" and isinstance(va, list) and isinstance(vb, list) \
+                and len(va) == len(vb) == 4:
+            if all(abs(a - b) <= _GEO_TOL for a, b in zip(va, vb)):
+                continue
+            return False
+        if k == "ss":
+            if _norm_ss(va) == _norm_ss(vb):
+                continue
+            return False
+        if va != vb:
+            return False
+    return True
 
 
 def diff(a_path, b_path):
@@ -302,7 +388,8 @@ def diff(a_path, b_path):
     kb = [p for p, _ in fb]
     only_a = [k for k in ka if k not in db]
     only_b = [k for k in kb if k not in da]
-    changed = [(k, da[k], db[k]) for k in ka if k in db and da[k] != db[k]]
+    changed = [(k, da[k], db[k]) for k in ka
+               if k in db and not _summaries_equal(da[k], db[k])]
     print("golden(engine)=%d  actual(self)=%d" % (len(ka), len(kb)))
     print("only-engine=%d  only-self=%d  changed=%d"
           % (len(only_a), len(only_b), len(changed)))
@@ -576,7 +663,41 @@ def _prepare_backend():
     sys.path.insert(0, os.path.join(os.getcwd(), "src"))
     import video_toolbox as engine
     engine.prepare_runtime_env()
+    _align_theme()
     return engine
+
+
+def _align_theme():
+    """2026-11-15 遗留修复：dump 前把两套配置轨显式对齐到同一主题。
+
+    此前脚本不控制主题：引擎轨（videocaptioner qconfig）读
+    data/videocaptioner/settings.json 的 ThemeMode=Auto 跟随系统，自研轨
+    （vt_fluent）硬编码默认 DARK——两侧各听各的轨，采集的 ss/截图随系统
+    主题漂移、不可复现（setting 曾出现引擎侧 light vs 自研侧 dark 混采）。
+    这里统一钉到 LIGHT（save=False 不污染用户配置），主题不再是 diff 变量。
+
+    主题色同理（2026-11-15 二次修复）：引擎轨磁盘 ThemeColor 可能被用户改成
+    任意色（实测 #ffef4444 红），自研轨是品牌青 #009faa——只钉 ThemeMode 不钉
+    ThemeColor 会让全部 QSS 颜色属性成为 diff 噪音。两轨钉同一字面量。
+    ⚠ 自研轨 config/config.json **不在** _dump 快照恢复范围，setThemeColor
+    必须显式 save=False，否则污染仓库根配置且无人恢复。
+    """
+    from PySide6.QtGui import QColor as _QColor
+    _color = _QColor("#009faa")
+    try:
+        from videocaptioner.ui.common.config import cfg as _vc_cfg
+        from videocaptioner.ui.common.config import qconfig as _vc_qconfig
+        from qfluentwidgets import Theme as _UpTheme
+        _vc_qconfig.set(_vc_cfg.themeMode, _UpTheme.LIGHT, save=False)
+        _vc_qconfig.set(_vc_cfg.themeColor, _color, save=False)
+    except Exception as _e:  # noqa: BLE001
+        print("[theme] 引擎轨对齐失败（忽略）: %s" % _e)
+    try:
+        import vt_fluent
+        vt_fluent.setTheme(vt_fluent.Theme.LIGHT, save=False)
+        vt_fluent.setThemeColor(_color, save=False)
+    except Exception as _e:  # noqa: BLE001
+        print("[theme] 自研轨对齐失败（忽略）: %s" % _e)
 
 
 def build_engine_home():
@@ -645,6 +766,34 @@ BUILDERS = {
 
 
 def _dump(builder, out):
+    """dump 包装：settings.json 快照/恢复（2026-11-15 遗留修复）。
+
+    _align_theme 的 qconfig.set(save=False) 只防自己写盘，防不住同进程后续
+    任何 cfg.set(save=True) 触发 QConfig.save() 全量写盘把 Light 带落盘
+    （实测 data/videocaptioner/settings.json 的 ThemeMode Auto→Light 被污染）。
+    dump 前快照原文件、dump 后原样恢复，保证用户配置零污染。
+    """
+    sys.path.insert(0, os.path.join(os.getcwd(), "src"))
+    import video_toolbox as _engine
+    _settings = os.path.join(_engine.vc_data_dir(), "settings.json")
+    _snap = None
+    try:
+        with open(_settings, "rb") as f:
+            _snap = f.read()
+    except OSError:
+        pass
+    try:
+        return _dump_impl(builder, out)
+    finally:
+        if _snap is not None:
+            try:
+                with open(_settings, "wb") as f:
+                    f.write(_snap)
+            except OSError as e:
+                print("[settings] 恢复失败: %s" % e)
+
+
+def _dump_impl(builder, out):
     w = BUILDERS[builder]()
     # widget 必须**在整个 dump 期间保持强引用**：局部变量一旦被回收，
     # 底层 C++ 对象可能随之析构，后续 serialize/grab 会拿到已删除对象。
