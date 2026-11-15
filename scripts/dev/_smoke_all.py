@@ -358,14 +358,14 @@ if want("I"):
 if want("J"):
     group("J. 源码脚本语法（py_compile 全量）")
     bad = []
-    pys = [p for p in glob.glob(os.path.join(SRC, "*.py"))
+    pys = [p for p in glob.glob(os.path.join(SRC, "**", "*.py"), recursive=True)
            if ".bak" not in os.path.basename(p)]
     for p in pys:
         try:
             py_compile.compile(p, doraise=True)
         except Exception as e:  # noqa: BLE001
             bad.append(f"{os.path.basename(p)}: {e}")
-    check("J", f"src/*.py 语法（{len(pys)} 个）", not bad, "; ".join(bad)[:200])
+    check("J", f"src/**.py 语法（{len(pys)} 个）", not bad, "; ".join(bad)[:200])
 
 # ============ 汇总 ============
 print("\n" + "=" * 60, flush=True)

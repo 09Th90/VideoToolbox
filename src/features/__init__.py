@@ -5,6 +5,8 @@
 * 本 ``__init__`` **零副作用**：发现只发生在首次 ``registry()`` 调用时。
 * 依赖红线：适配器（feature.py / cli.py）模块级禁 Qt；页面（page.py）只经
   vt_app 基建 + 注册表服务，禁止反向 import GUI 入口。
+* 模块位置（2026-11-15 模块独立文件夹）：功能专属实现一律放各功能包内；
+  src 顶层只留入口/壳层/共享接缝六件，禁止新增顶层域模块。
 """
 from ._registry import (CliCommand, FeatureRegistry, FeatureSpec, FeatureStatus,
                         FeatureUnavailable, GuiSpec, resolve)

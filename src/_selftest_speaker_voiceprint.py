@@ -3,7 +3,7 @@
 # @version 2.9.1
 """主播声纹链路自检（离线，不联网、不依赖 ffmpeg）。
 
-覆盖 src/speaker_voiceprint.py：
+覆盖 src/features/voiceprint/speaker_voiceprint.py：
   · kaldi 兼容 fbank 的形状 / 有限性 / 黄金值（防实现回归）
   · 余弦相似度边界（含 NaN 与零向量）
   · 声纹模板落盘 -> 读回 往返
@@ -41,7 +41,7 @@ import numpy as np
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 os.environ.setdefault("VT_NO_PIPELINE", "1")
 os.environ.setdefault("VT_NO_SYNC", "1")
-# 声纹同步是**独立通道**（src/voiceprint_sync.py，开关 VT_NO_VP_SYNC，与上面
+# 声纹同步是**独立通道**（src/features/voiceprint/voiceprint_sync.py，开关 VT_NO_VP_SYNC，与上面
 # 的 VT_NO_SYNC 互不影响）：自检里录入/删除模板会触发排队列，必须单独关掉，
 # 否则会往真实的 data/vp_sync/voiceprint_pending.jsonl 里写测试条目。
 os.environ.setdefault("VT_NO_VP_SYNC", "1")

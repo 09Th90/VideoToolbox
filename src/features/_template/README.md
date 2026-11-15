@@ -20,6 +20,10 @@
 - 功能间互相调用一律 `from features import registry; registry().service("<fid>", "<name>")`，
   禁止跨功能直接 import 后端。
 - 后端模块缺失/损坏时，注册表只把本功能标记为不可用，**不得影响程序启动**。
+- **实现模块放功能文件夹内**：功能专属后端/引擎/页面一律放本包
+  （`src/features/<id>/`），禁止新增 src 顶层域模块；仅共享接缝
+  （engine_asr_data/engine_entities/engine_cache/engine_paths/engine_task_factory/
+  subtitle_editor_core）留顶层。
 
 ## 验证
 

@@ -3,7 +3,7 @@
 # @version 2.9.1
 """声纹模板多用户同步自检（离线：临时目录模拟两个客户端 + 一个共享哑存储根）。
 
-覆盖 `src/voiceprint_sync.py`（独立通道）与产生端 `src/speaker_voiceprint.py`
+覆盖 `src/features/voiceprint/voiceprint_sync.py`（独立通道）与产生端 `src/features/voiceprint/speaker_voiceprint.py`
 的挂接：
   · 条目 schema 校验、id 幂等（同作者同名同内容必同 id）
   · 确定性合并 `merge()`：取代链 / 同名 alive 条目**全保留**（折叠输入）/
