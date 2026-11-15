@@ -496,7 +496,7 @@ def vc_transcribe_ui_patch():
             tip.setWordWrap(True)   # 窄窗口下不换行会被裁掉右半句
             lay.addWidget(tip)
             try:
-                from speaker_voiceprint_page import VoiceprintEnrollCard
+                from features.voiceprint.speaker_voiceprint_page import VoiceprintEnrollCard
                 self.vt_voiceprint_card = VoiceprintEnrollCard(self.empty_widget)
                 lay.addWidget(self.vt_voiceprint_card)
             except Exception as e:  # noqa: BLE001
@@ -512,7 +512,7 @@ def vc_transcribe_ui_patch():
     try:
         from videocaptioner.ui.components.TranscriptionSettingDialog import (
             TranscriptionSettingDialog as _VTSettingDialog)
-        from speaker_voiceprint_page import VoiceprintPicker
+        from features.voiceprint.speaker_voiceprint_page import VoiceprintPicker
 
         _orig_dlg_init = _VTSettingDialog.__init__
 

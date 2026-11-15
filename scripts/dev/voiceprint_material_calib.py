@@ -36,7 +36,7 @@ ROOT = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                     "..", ".."))
 sys.path.insert(0, os.path.join(ROOT, "src"))
 
-import speaker_voiceprint as SV  # noqa: E402
+import features.voiceprint.speaker_voiceprint as SV  # noqa: E402
 
 WIN = SV.AUTO_SCAN_WIN_SEC
 

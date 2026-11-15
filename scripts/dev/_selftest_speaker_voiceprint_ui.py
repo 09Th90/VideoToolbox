@@ -63,8 +63,8 @@ def main():
     from PySide6.QtCore import QEventLoop, QTimer
     from PySide6.QtWidgets import QApplication, QLabel
 
-    import speaker_voiceprint as SV
-    import speaker_voiceprint_page as P
+    import features.voiceprint.speaker_voiceprint as SV
+    import features.voiceprint.speaker_voiceprint_page as P
 
     app = QApplication.instance() or QApplication([])
 

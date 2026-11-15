@@ -262,11 +262,11 @@ def self_subtitle_layout(layout):
 # 声纹组件（本项目自研页；缺失时抛异常，调用方 try 兜底）
 # --------------------------------------------------------------------------
 def VoiceprintEnrollCard(parent=None):
-    return _mod("speaker_voiceprint_page").VoiceprintEnrollCard(parent)
+    return _mod("features.voiceprint.speaker_voiceprint_page").VoiceprintEnrollCard(parent)
 
 
 def VoiceprintPicker(parent=None):
-    return _mod("speaker_voiceprint_page").VoiceprintPicker(parent)
+    return _mod("features.voiceprint.speaker_voiceprint_page").VoiceprintPicker(parent)
 
 
 # --------------------------------------------------------------------------

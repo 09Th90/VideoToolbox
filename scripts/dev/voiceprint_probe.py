@@ -35,7 +35,7 @@ ROOT = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                     "..", ".."))
 sys.path.insert(0, os.path.join(ROOT, "src"))
 
-import speaker_voiceprint as SV  # noqa: E402
+import features.voiceprint.speaker_voiceprint as SV  # noqa: E402
 
 #: 分离度判定门槛（按「排序后最大空档」衡量）
 GAP_GOOD = 0.15

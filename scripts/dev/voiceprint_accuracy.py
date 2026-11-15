@@ -38,7 +38,7 @@ os.environ.setdefault("VT_NO_PIPELINE", "1")
 os.environ.setdefault("VT_NO_SYNC", "1")
 os.environ.setdefault("VT_NO_VP_SYNC", "1")
 
-import speaker_voiceprint as SV  # noqa: E402
+import features.voiceprint.speaker_voiceprint as SV  # noqa: E402
 
 #: 语料目录（sherpa-onnx speaker 测试集：fangjun / leijun / liudehua 三位说话人，
 #: 每人 2~3 段录入样本（*-sr-*）与 2~3 段测试样本（*-test-sr-*），16k 单声道）
@@ -259,7 +259,7 @@ def scenario_c(enc, corpus, snr_db=25.0):
 
 def scenario_d(enc, corpus):
     """D. 多用户数据迭代：甲乙各传同一主播的一段 -> 折叠合并后是否更准。"""
-    import voiceprint_sync as V
+    import features.voiceprint.voiceprint_sync as V
     spk = next((s for s in sorted(corpus) if len(corpus[s]["enroll"]) >= 2), None)
     if spk is None:
         print("\n== D. 多用户迭代（跳过：语料无 ≥2 段录入样本的说话人）==")

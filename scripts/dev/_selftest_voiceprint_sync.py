@@ -43,8 +43,8 @@ os.environ.setdefault("VT_NO_SYNC", "1")
 # 声纹通道要**显式打开**（本自检就是测它）；真实数据目录靠下面的重定向隔离
 os.environ.pop("VT_NO_VP_SYNC", None)
 
-import voiceprint_sync as V          # noqa: E402
-import speaker_voiceprint as SV      # noqa: E402
+import features.voiceprint.voiceprint_sync as V  # noqa: E402
+import features.voiceprint.speaker_voiceprint as SV  # noqa: E402
 
 #: 自检输出落仓库 data/tmp/dev_out/（2026-10-21 自 C:\bld 迁回仓库内）
 OUT = os.path.join(os.path.dirname(os.path.dirname(HERE)), "data", "tmp",

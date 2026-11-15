@@ -484,7 +484,7 @@ def sync_calib_on_exit():
 # ---------- 声纹模板同步（独立通道；与上面的校准知识同步互不干涉） ----------
 # 数据形态、生命周期与责任边界都不同（192 维向量 / 重录与删除是常态 / 无基线
 # 概念），故自成一套：schema、确定性合并、落地裁决、待传队列、状态目录与 CLI
-# 全在 src\voiceprint_sync.py，只共用哑存储根的 vp_inbox\ 子目录作传输
+# 全在 src\features\voiceprint\voiceprint_sync.py，只共用哑存储根的 vp_inbox\ 子目录作传输
 # （校准通道只枚举 inbox\，两边永远看不到对方的条目）。
 # 用户侧开关沿用同一个「校准同步」设置项（避免设置页多一个语义重叠的开关），
 # 另有独立环境变量 VT_NO_VP_SYNC 可单独关停声纹通道。
@@ -641,7 +641,7 @@ def sync_voiceprint_on_startup(force=False):
             _gh_pull_vp_inbox(_cfg, _gh_token(_cfg))
         except Exception as _e:  # noqa: BLE001
             _vp_sync_log(f"声纹收件箱拉取异常（忽略）: {_e}")
-        import voiceprint_sync as _vps
+        import features.voiceprint.voiceprint_sync as _vps
         if not _vps.enabled():
             return False, "声纹同步已单独禁用（VT_NO_VP_SYNC）"
         # ⚠⚠ 在「拉取收件箱」之后、「合并落地」之前，把**待传队列冲刷一遍**
@@ -680,7 +680,7 @@ def sync_voiceprint_on_exit():
     try:
         if os.environ.get("VT_NO_CALIB_SYNC") or not calib_sync_enabled():
             return
-        import voiceprint_sync as _vps
+        import features.voiceprint.voiceprint_sync as _vps
         if not _vps.enabled():
             return
         n = _vps.push(quiet=True)

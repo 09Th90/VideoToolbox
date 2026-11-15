@@ -46,7 +46,7 @@ os.environ.setdefault("VT_NO_SYNC", "1")
 # 否则会往真实的 data/vp_sync/voiceprint_pending.jsonl 里写测试条目。
 os.environ.setdefault("VT_NO_VP_SYNC", "1")
 
-import speaker_voiceprint as SV  # noqa: E402
+import features.voiceprint.speaker_voiceprint as SV  # noqa: E402
 
 #: 自检输出落仓库 data/tmp/dev_out/（2026-10-21 自 C:\bld 迁回仓库内）
 OUT = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
@@ -1501,7 +1501,7 @@ def main():
     #     · 其余                     ⇒ 他人同步
     try:
         import json as _json
-        import voiceprint_sync as vps
+        import features.voiceprint.voiceprint_sync as vps
         _me = "abcd1234-0000-0000-0000-000000000000"
         _other = "ffff9999-0000-0000-0000-000000000000"
         _tmp = tempfile.mkdtemp(prefix="vp_status_")

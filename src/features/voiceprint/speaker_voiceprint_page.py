@@ -36,7 +36,7 @@ from vt_fluent import (BodyLabel, CaptionLabel, CheckBox, LineEdit,
                             SpinBox, StrongBodyLabel, ToolButton,
                             FluentIcon as FIF)
 
-import speaker_voiceprint as SV
+import features.voiceprint.speaker_voiceprint as SV
 
 #: 常见音视频后缀（文件对话框过滤用）
 MEDIA_FILTER = ("音视频文件 (*.mp4 *.mkv *.mov *.flv *.webm *.ts *.m4v *.avi "

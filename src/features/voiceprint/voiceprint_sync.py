@@ -70,10 +70,10 @@
            ⚠ 代价：删除者自己的片段无法从合并向量里剔除，属已知限制。
 
 用法：
-    python src/voiceprint_sync.py sync      # 推待传 + 拉取 + 合并 + 落地（幂等）
-    python src/voiceprint_sync.py push      # 只把待传队列发出去
-    python src/voiceprint_sync.py backfill  # 把本机老模板（v1.19.0 前录入）补进队列并推送
-    python src/voiceprint_sync.py status    # 看本机/远端/冲突概况
+    python src/features/voiceprint/voiceprint_sync.py sync      # 推待传 + 拉取 + 合并 + 落地（幂等）
+    python src/features/voiceprint/voiceprint_sync.py push      # 只把待传队列发出去
+    python src/features/voiceprint/voiceprint_sync.py backfill  # 把本机老模板（v1.19.0 前录入）补进队列并推送
+    python src/features/voiceprint/voiceprint_sync.py status    # 看本机/远端/冲突概况
 引擎侧由 video_toolbox.sync_voiceprint_on_startup / _on_exit 自动调用。
 全链路只 json.load，禁止 eval/exec；任何失败都静默降级，绝不影响录入与转录。
 """
@@ -107,6 +107,24 @@ SYNC_MARK_KEYS = ("sync", "sync_id", "sync_author", "sync_ts", "fold_key")
 
 
 # ---------------------------------------------------------------- 路径解析
+def _find_app_root():
+    """程序根：向上找 AGENTS.md 标记（≤6 级）；回落按新深度（四级）推。
+
+    2026-11-15 模块独立文件夹：真身在 src/features/voiceprint/，
+    旧「固定上两级」失效。本模块纯标准库、独立跑，不 import speaker_voiceprint。
+    """
+    d = os.path.dirname(os.path.abspath(__file__))
+    for _ in range(6):
+        if os.path.isfile(os.path.join(d, "AGENTS.md")):
+            return d
+        parent = os.path.dirname(d)
+        if parent == d:
+            break
+        d = parent
+    return os.path.dirname(os.path.dirname(os.path.dirname(
+        os.path.dirname(os.path.abspath(__file__)))))
+
+
 def _data_dir():
     """**数据目录**（= 引擎 `DATA_DIR`，即 `<数据根>\\data`）。
 
@@ -127,7 +145,7 @@ def _data_dir():
     r = (os.environ.get("VT_DATA_ROOT") or "").strip().strip('"')
     if r:
         return os.path.join(os.path.abspath(r), "data")
-    d = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    d = _find_app_root()
     for _ in range(5):
         if os.path.isdir(os.path.join(d, "data")):
             return os.path.join(d, "data")
@@ -135,8 +153,7 @@ def _data_dir():
         if p == d:
             break
         d = p
-    return os.path.join(os.path.dirname(os.path.dirname(
-        os.path.abspath(__file__))), "data")
+    return os.path.join(_find_app_root(), "data")
 
 
 def data_dir():
@@ -1074,5 +1091,5 @@ def _main(argv):
 
 
 if __name__ == "__main__":
-    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    sys.path.insert(0, os.path.join(_find_app_root(), "src"))
     raise SystemExit(_main(sys.argv[1:]))

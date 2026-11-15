@@ -48,7 +48,7 @@ print("  main 上现有 vp_inbox 文件数：%d（修复前应为 0）" % n_main
 
 # ---------- 2. 造一条声纹增量 ----------
 print("\n== 2. 造一条本地声纹增量 ==")
-import voiceprint_sync as vps  # noqa: E402
+import features.voiceprint.voiceprint_sync as vps  # noqa: E402
 
 name = "_selftest_主播_%s" % time.strftime("%H%M%S")
 emb = [0.01 * (i % 17) for i in range(192)]

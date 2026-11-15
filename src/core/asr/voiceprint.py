@@ -95,7 +95,7 @@ def voiceprint_enabled_names():
     说明用户勾过声音，不代表这次转录要筛，见 `voiceprint_auto_names()`。
     """
     try:
-        import speaker_voiceprint as _sv
+        import features.voiceprint.speaker_voiceprint as _sv
         return _sv.load_selection()
     except Exception as e:  # noqa: BLE001
         _vc_log(f"读取声纹启用名单失败：{e}")
@@ -114,7 +114,7 @@ def voiceprint_auto_names():
     而且筛选是就地覆盖，产物随后又被送进翻译，污染一路扩散。
     """
     try:
-        import speaker_voiceprint as _sv
+        import features.voiceprint.speaker_voiceprint as _sv
         if not _sv.load_auto_filter():
             return []
         return _sv.load_selection()
@@ -126,7 +126,7 @@ def voiceprint_auto_names():
 def voiceprint_auto_filter_enabled():
     """转录页「声纹筛选」开关的状态（**筛不筛**，与「筛谁」的名单是两回事）。"""
     try:
-        import speaker_voiceprint as _sv
+        import features.voiceprint.speaker_voiceprint as _sv
         return bool(_sv.load_auto_filter())
     except Exception as e:  # noqa: BLE001
         _vc_log(f"读取声纹自动筛选开关失败：{e}")
@@ -136,7 +136,7 @@ def voiceprint_auto_filter_enabled():
 def voiceprint_set_auto_filter(enabled):
     """落盘转录页「声纹筛选」开关，返回落盘后的布尔值。"""
     try:
-        import speaker_voiceprint as _sv
+        import features.voiceprint.speaker_voiceprint as _sv
         return _sv.save_auto_filter(bool(enabled))
     except Exception as e:  # noqa: BLE001
         _vc_log(f"写入声纹自动筛选开关失败：{e}")
@@ -150,7 +150,7 @@ def voiceprint_auto_tooltip():
     一份迟早会互相打架（也与 `vt_ui_golden` 的控件树等价性同理）。
     """
     try:
-        import speaker_voiceprint as _sv
+        import features.voiceprint.speaker_voiceprint as _sv
         floor = _sv.DEFAULT_MIN_KEEP_RATIO
     except Exception:  # noqa: BLE001
         floor = 0.05
@@ -246,7 +246,7 @@ def voiceprint_filter_subtitle(srt_path, media_path, progress=None, *,
     唯一副本。**任何异常都不吞**——由调用方记日志，绝不留半截产物。
     """
     import shutil
-    import speaker_voiceprint as sv
+    import features.voiceprint.speaker_voiceprint as sv
 
     if names is None:
         names = sv.load_selection()

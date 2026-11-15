@@ -313,7 +313,7 @@ def main():
     #   顶格 pass 会把方法体打断成 IndentationError ⇒ 模块 import 失败、
     #   卡片根本不构造（vp_found=0），探针失明而不是测到"未隐藏"。
     old = "        self.list_box.hide()"
-    bak = patch(os.path.join(ROOT, "src", "speaker_voiceprint_page.py"),
+    bak = patch(os.path.join(ROOT, "src", "features", "voiceprint", "speaker_voiceprint_page.py"),
                 old, "        pass  # negtest", "N5-vp")
     try:
         r = run_probe()
@@ -321,7 +321,7 @@ def main():
         # 找不到卡片本身也是失败（探针失明 = 假绿风险）
         results["N5"] = (r["vp_found"] == 1 and r["vp_list_visible"] == 1)
     finally:
-        restore(os.path.join(ROOT, "src", "speaker_voiceprint_page.py"), bak)
+        restore(os.path.join(ROOT, "src", "features", "voiceprint", "speaker_voiceprint_page.py"), bak)
 
     print("=" * 56)
     bad = [k for k, v in results.items() if not v]

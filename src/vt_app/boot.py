@@ -250,7 +250,7 @@ def _start_startup_sync_threads():
     """首页就绪后再起校准/声纹同步线程（失败静默，各自记日志）。"""
     # 启动即拉取最新校准知识并入本地（v1.10.7 多用户收敛的「拉」半程）
     threading.Thread(target=engine.sync_calib_on_startup, daemon=True).start()
-    # 声纹模板同步是独立通道（src\voiceprint_sync.py）
+    # 声纹模板同步是独立通道（src\features\voiceprint\voiceprint_sync.py）
     threading.Thread(target=engine.sync_voiceprint_on_startup, daemon=True).start()
     _perf_note("后台同步线程已启动（首页就绪后延迟）")
 

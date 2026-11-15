@@ -370,7 +370,7 @@ def main():
     # 启动即拉取最新校准知识并入本地（v1.10.7 多用户收敛的「拉」半程；
     # 后台 daemon 线程，失败静默记 logs/calib_sync.log）
     # 2026-10-23 起改为首页就绪后由 _defer("startup_sync") 启动。
-    # 声纹模板同步是**独立通道**（src\voiceprint_sync.py，与校准知识同步互不
+    # 声纹模板同步是**独立通道**（src\features\voiceprint\voiceprint_sync.py，与校准知识同步互不
     # 干涉：不共用子进程/日志/状态目录），单独一条后台线程，失败静默记
     # logs\vp_sync.log
     configure_qt_plugins()

@@ -1307,7 +1307,7 @@ def main():
     _vp_sw_ok, _vp_sw_why = False, "no engine"
     if sub._engine is not None:
         try:
-            import speaker_voiceprint as _SV
+            import features.voiceprint.speaker_voiceprint as _SV
             _ti2 = sub._engine.transcription_interface
             _sw = getattr(_ti2, "vp_auto_switch", None)
             _saved = _SV.load_auto_filter()

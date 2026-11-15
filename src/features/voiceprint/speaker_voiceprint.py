@@ -19,22 +19,22 @@ kaldi 兼容 fbank，不引入任何新的第三方包。
 用法（命令行，便于脱离界面验证）：
     # **推荐**：自动选段录入（全片扫描 → 主说话人 → 频谱门控排 BGM → 分箱取 12 段
     # → 录完当场做素材体检 + 库内混淆检查；体检判为 risky 时退出码 3）
-    python speaker_voiceprint.py enroll --src 视频.mp4 --name 主播 --auto
+    python src/features/voiceprint/speaker_voiceprint.py enroll --src 视频.mp4 --name 主播 --auto
     # 手工选段（已知哪一段干净时更快）：
-    python speaker_voiceprint.py enroll --src 视频.mp4 --start 12 --dur 20 --name 主播
+    python src/features/voiceprint/speaker_voiceprint.py enroll --src 视频.mp4 --start 12 --dur 20 --name 主播
     # 多片段录入（先做同人一致性校验，再取均值，模板更稳）：
-    python speaker_voiceprint.py enroll --src 视频.mp4 --start 12 --dur 20 --name 主播 \
+    python src/features/voiceprint/speaker_voiceprint.py enroll --src 视频.mp4 --start 12 --dur 20 --name 主播 \
                                         --clip "另一段.mp4,30,15" --clip "另一段.mp4,90,10"
     # 追加到已有同名声纹（扩充校准，不覆盖；--auto 同样支持）：
-    python speaker_voiceprint.py enroll --src 视频.mp4 --start 200 --dur 15 \
+    python src/features/voiceprint/speaker_voiceprint.py enroll --src 视频.mp4 --start 200 --dur 15 \
                                         --name 主播 --append
-    python speaker_voiceprint.py assess --src 视频.mp4 [--name 主播]   # 素材体检（不落盘）
-    python speaker_voiceprint.py audit                              # 声纹库体检 + 混淆矩阵
-    python speaker_voiceprint.py list                     # 列出已录入（x = 已启用）
-    python speaker_voiceprint.py use 主播,嘉宾            # 启用多个声纹（并集）
-    python speaker_voiceprint.py delete 主播
-    python speaker_voiceprint.py score  --src 视频.mp4 --srt 字幕.srt --name 主播,嘉宾
-    python speaker_voiceprint.py filter --src 视频.mp4 --srt 字幕.srt --name 主播,嘉宾 \
+    python src/features/voiceprint/speaker_voiceprint.py assess --src 视频.mp4 [--name 主播]   # 素材体检（不落盘）
+    python src/features/voiceprint/speaker_voiceprint.py audit                              # 声纹库体检 + 混淆矩阵
+    python src/features/voiceprint/speaker_voiceprint.py list                     # 列出已录入（x = 已启用）
+    python src/features/voiceprint/speaker_voiceprint.py use 主播,嘉宾            # 启用多个声纹（并集）
+    python src/features/voiceprint/speaker_voiceprint.py delete 主播
+    python src/features/voiceprint/speaker_voiceprint.py score  --src 视频.mp4 --srt 字幕.srt --name 主播,嘉宾
+    python src/features/voiceprint/speaker_voiceprint.py filter --src 视频.mp4 --srt 字幕.srt --name 主播,嘉宾 \
                                         --threshold 0.5 --out 主播.srt
 
 提特征前会做两道预处理（见 `trim_silence` / `normalize_rms`）：
@@ -84,13 +84,13 @@ kaldi 兼容 fbank，不引入任何新的第三方包。
 
 多用户共享：模板的录入/重录/删除会经 `voiceprint_sync`（**独立通道**，与
 字幕校准知识同步互不干涉）排进待传队列，由引擎启动/退出同步或
-`python src/voiceprint_sync.py sync` 与其它客户端收敛。**不同用户上传同一
+`python src/features/voiceprint/voiceprint_sync.py sync` 与其它客户端收敛。**不同用户上传同一
 主播的声纹会做「数据迭代」**：同名 alive 条目按向量加权并集折叠
 （`fold_leaves`：mix 叶子按 fp 去重、加权求和归一，同人守卫 0.55 挡住
 异名同录的脏数据），每份上传都是并集的一份子——声纹库越用越准。
 本机也可以随时**追加**同一主播的新片段（`enroll --append`）扩充校准，
 与远端折叠走同一条数学路径。`selection.json` 是本地偏好，刻意不同步。
-详见 `src/voiceprint_sync.py` 模块文档。
+详见 `src/features/voiceprint/voiceprint_sync.py` 模块文档。
 """
 import argparse
 import json
@@ -103,7 +103,28 @@ import wave
 
 import numpy as np
 
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+def _find_app_root():
+    """源码态程序根：从本文件向上找 AGENTS.md 标记（≤6 级）。
+
+    2026-11-15 模块独立文件夹：真身在 src/features/voiceprint/，
+    旧「固定上两级」失效；找不到回落按新深度（四级）推。
+    """
+    d = os.path.dirname(os.path.abspath(__file__))
+    for _ in range(6):
+        if os.path.isfile(os.path.join(d, "AGENTS.md")):
+            return d
+        parent = os.path.dirname(d)
+        if parent == d:
+            break
+        d = parent
+    return os.path.dirname(os.path.dirname(os.path.dirname(
+        os.path.dirname(os.path.abspath(__file__)))))
+
+
+_APP_ROOT = _find_app_root()
+_SRC_ROOT = os.path.join(_APP_ROOT, "src")
+if _SRC_ROOT not in sys.path:
+    sys.path.insert(0, _SRC_ROOT)
 import subtitle_editor_core as secore  # noqa: E402
 
 # ---------------------------------------------------------------- 路径 / 常量
@@ -140,7 +161,7 @@ def _resolve_dirs():
     if getattr(sys, "frozen", False):
         app = os.path.dirname(os.path.abspath(sys.executable))
     else:
-        app = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        app = _APP_ROOT
     tools = os.path.join(app, "tools")
     if not os.path.isdir(tools):        # 直接跑构建产物时向上找（同引擎口径）
         d = app
@@ -841,13 +862,13 @@ def template_path(name):
 def _vp_sync_queue(kind, name, obj=None, prev_id=None, embedding=None):
     """把录入/删除排进**声纹同步**待传队列（best-effort，绝不影响主流程）。
 
-    声纹同步是独立通道（`src/voiceprint_sync.py`，数据落 `data/vp_sync/` 与
+    声纹同步是独立通道（`src/features/voiceprint/voiceprint_sync.py`，数据落 `data/vp_sync/` 与
     远端 `vp_inbox/`），与字幕校准知识同步（`subtitle_calib_merged` 的
     kb-sync / kb-push）**互不干涉**。队列由引擎启动/退出同步或
-    `python src/voiceprint_sync.py sync|push` 冲刷；`VT_NO_VP_SYNC=1` 可单独关停。
+    `python src/features/voiceprint/voiceprint_sync.py sync|push` 冲刷；`VT_NO_VP_SYNC=1` 可单独关停。
     """
     try:
-        import voiceprint_sync as _vps
+        import features.voiceprint.voiceprint_sync as _vps
         if kind == "upsert":
             _vps.queue_upsert(name, obj, prev_id)
         else:
@@ -874,7 +895,7 @@ def _vp_prev_sync(p):
     if pid:
         return pid, emb
     try:
-        import voiceprint_sync as _vps
+        import features.voiceprint.voiceprint_sync as _vps
         name = os.path.splitext(os.path.basename(p))[0]
         return _vps.own_entry_id(name, prev), emb
     except Exception:  # noqa: BLE001
@@ -1040,7 +1061,7 @@ def _mean_unit(vecs):
 def _local_author():
     """本机 client_id 前 8 位（叶子的来源标注；同步不可用时为空串）。"""
     try:
-        import voiceprint_sync as _vps
+        import features.voiceprint.voiceprint_sync as _vps
         return str(_vps.config()["client_id"])[:8]
     except Exception:  # noqa: BLE001
         return ""
@@ -1050,7 +1071,7 @@ def _embedding_fp(v):
     """向量指纹（与 voiceprint_sync.embedding_fp 同口径；其不可用时本地复刻）。"""
     import hashlib
     try:
-        import voiceprint_sync as _vps
+        import features.voiceprint.voiceprint_sync as _vps
         return _vps.embedding_fp(v)
     except Exception:  # noqa: BLE001
         pass
@@ -1130,7 +1151,7 @@ def enroll_pcm(clips, name="主播", encoder=None, source=None, base=None, **met
                "clips": leaf["n"], "mix": [leaf],
                "sources": [leaf["author"]] if leaf["author"] else []}
     else:
-        import voiceprint_sync as _vps
+        import features.voiceprint.voiceprint_sync as _vps
         old_leaves = _vps.template_leaves(_plain_template(base))
         if not old_leaves:
             raise VoiceprintError("已有声纹「%s」内容为空，无法追加" % name)

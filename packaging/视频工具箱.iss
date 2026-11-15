@@ -271,15 +271,15 @@ Source: "..\src\auto_vision_page.py"; DestDir: "{app}\src"; Flags: ignoreversion
 Source: "..\scripts\dev\apply_vc_official.py"; DestDir: "{app}\src"; Flags: ignoreversion
 ; v1.18.0：主播声纹（exe 侧已由 spec hiddenimports 内嵌，此处补源码副本，
 ;          使安装版也能按开发版说明书里的 CLI 用法跑
-;          `python src\speaker_voiceprint.py enroll/score/filter`）。
+;          `python src\features\voiceprint\speaker_voiceprint.py enroll/score/filter`）。
 ;          subtitle_editor_core 是它的 SRT 读写底座（纯标准库，无三方依赖）。
-Source: "..\src\speaker_voiceprint.py"; DestDir: "{app}\src"; Flags: ignoreversion
-Source: "..\src\speaker_voiceprint_page.py"; DestDir: "{app}\src"; Flags: ignoreversion
+; speaker_voiceprint.py 已迁入 src\features\voiceprint\，由 features 整目录行自动收集
+; speaker_voiceprint_page.py 已迁入 src\features\voiceprint\，由 features 整目录行自动收集
 ; voiceprint_sync 是声纹模板的多用户同步通道（纯标准库，**独立于**校准知识同步）：
 ; speaker_voiceprint 在录入/删除时延迟 import 它排队列，引擎启动/退出同步也直接调
 ; 它——不装进包，安装版一录入声纹就 ImportError。（exe 侧由 spec 的静态分析自动
 ; 收进 PYZ，这里补的是 {app}\src 下的源码副本，供 CLI 与 tools\python 子进程用。）
-Source: "..\src\voiceprint_sync.py"; DestDir: "{app}\src"; Flags: ignoreversion
+; voiceprint_sync.py 已迁入 src\features\voiceprint\，由 features 整目录行自动收集
 Source: "..\src\subtitle_editor_core.py"; DestDir: "{app}\src"; Flags: ignoreversion
 ; v2.0.0 补漏：vt_update_check 是 video_toolbox_qt.py:173 的**模块级** import
 ; （`import vt_update_check`），主程序「检查更新 / 在线更新」全链路入口。
