@@ -372,18 +372,27 @@ def _props_src():
         return ""
 
 
+def _edit_src():
+    """字幕编辑页源码（2026-11-15 阶段③已拆到 features/subtitle_edit/page.py）。"""
+    try:
+        return open(os.path.join(_SRC, "features", "subtitle_edit", "page.py"),
+                    encoding="utf-8").read()
+    except OSError:
+        return ""
+
+
 def _export_button_ok():
     """属性面板右上角「导出」按钮已接线，且导出支持 SRT / 带样式 ASS。
 
     两段源码分开看：
       · `subtitle_editor.py` —— 标题行要有「导出」按钮，点击要 emit 信号；
-      · `video_toolbox_qt.py` —— 页面把信号连到 `export_subtitle`，后者必须
+      · `features/subtitle_edit/page.py` —— 页面把信号连到 `export_subtitle`，后者必须
         同时有 ASS 分支（`render_ass`，把样式字典一起带走）与 SRT 分支，
         且**不得**改 `sub_path` / `dirty`——导出不是另存为，不能顺手把当前
         文件的关联换掉（这是导出最容易出错的一处语义）。
     """
     props = _props_src()
-    qt = _qt_src()
+    qt = _edit_src()
     i = qt.find("def export_subtitle")
     body = qt[i:i + 4000] if i >= 0 else ""
     return ("export_requested = Signal()" in props
@@ -427,7 +436,7 @@ def _ass_load_ok():
     srt = "1\n00:00:01,000 --> 00:00:02,000\n正文 dialogue: 一词\n"
     n2, _sk2 = _se.SubtitleDoc().parse(srt)
     ok_srt = n2 == 1 and _se._looks_like_ass(srt) is False
-    qt = _qt_src()
+    qt = _edit_src()
     i = qt.find("def _write")
     body = qt[i:i + 1600] if i >= 0 else ""
     ok_write = (i >= 0
@@ -464,7 +473,7 @@ def _align_grid_ok():
             and panel.align_btns[8].isChecked()
             and emitted[-1].get("pos_x", "x") is None
             and emitted[-1].get("pos_y", "y") is None)
-    qt = _qt_src()
+    qt = _edit_src()
     ok_wired = ("stage.command_requested.connect(self._on_stage_command)"
                 in qt and "def _on_stage_command" in qt)
     i = qt.find("def select_all_cues")
