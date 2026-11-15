@@ -6,13 +6,13 @@ FEATURE = FeatureSpec(
     id="split",
     title="视频切片",
     summary="按时间点/时长拆段，copy→MKV→H.264 三级回退，逐段校验可播放",
-    backend="video_split",
+    backend="features.split.video_split",
     requires=("ffmpeg", "ffprobe"),
     services={
-        "probe_media": "video_split:probe_media",
-        "plan_split": "video_split:plan_split",
-        "split_video": "video_split:split_video",
-        "hms": "video_split:hms",
+        "probe_media": "features.split.video_split:probe_media",
+        "plan_split": "features.split.video_split:plan_split",
+        "split_video": "features.split.video_split:split_video",
+        "hms": "features.split.video_split:hms",
         "build_page": "features.split.page:build_page",
     },
     cli=(CliCommand(

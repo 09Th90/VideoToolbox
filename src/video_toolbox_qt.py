@@ -164,8 +164,8 @@ from vt_fluent import (BodyLabel, CardWidget, CaptionLabel,
 
 import video_toolbox as engine
 # 视频切片（v2.10.0）：纯标准库模块（解析 / 切分 / 逐段校验），GUI 与 CLI 共用。
-# 与 subtitle_compose 同思路——独立成模块、不反向 import 本文件，无循环导入。
-import video_split as vsplit
+# 2026-11-15 模块独立文件夹：真身迁入 features/split/，此处兼容再导出。
+import features.split.video_split as vsplit
 # yt-dlp 单轨/合并临时文件识别与清理（私有 helper，facade 不导出）：
 # 下载成功后补删 .fNNN / .temp 残留，避免片源目录多出无音轨大文件。
 from core.download.ytdlp_util import (

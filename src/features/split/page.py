@@ -19,7 +19,7 @@ from vt_fluent import (ComboBox, FluentIcon as FIF, InfoBar, InfoBarPosition,
                        TableWidget, TextEdit)
 
 import video_toolbox as engine
-import video_split as vsplit
+import features.split.video_split as vsplit
 
 from vt_app.widgets import (LogView, TabPage, _MergeDropSlot, card,
                             label_row, row, srow, tab_caption)

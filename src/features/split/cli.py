@@ -13,7 +13,7 @@ def cmd_split(args) -> int:
     `split <file> --points "00:00:00,01:00:00"` 或 `split <file> --durations "1h,1h"`。
     与 GUI「视频处理 → 视频切片」共用 src\\video_split.py，行为完全一致。
     """
-    import video_split as vsp  # noqa: PLC0415 —— 与 GUI 同源的纯标准库模块
+    import features.split.video_split as vsp  # noqa: PLC0415 —— 与 GUI 同源的纯标准库模块
 
     engine = _engine()
     src = os.path.abspath(args.file)

@@ -309,11 +309,11 @@ Source: "..\src\视频工具箱.bat"; DestDir: "{app}\src"; Flags: ignoreversion
 ; 2026-11-15（功能解耦）补历史缺口 + 新模块：
 ;   agent_cli.py —— 统一 CLI 入口（pipeline.py:440 与 selftest 按路径 subprocess
 ;   调用），此前不在任何打包清单里，安装版「src\ 方式运行」没有 CLI；
-;   video_split.py —— 切片核心（GUI SplitPage 与 CLI split 共用，纯标准库）；
 ;   subtitle_compose_core.py —— 合成纯函数（CLI handler 延迟 import，exe 侧已进
 ;   spec hiddenimports）。
+;   video_split.py 已迁入 src\features\split\（模块独立文件夹），由下方 features
+;   整目录行自动收集，不再单列。
 Source: "..\src\agent_cli.py"; DestDir: "{app}\src"; Flags: ignoreversion
-Source: "..\src\video_split.py"; DestDir: "{app}\src"; Flags: ignoreversion
 Source: "..\src\subtitle_compose_core.py"; DestDir: "{app}\src"; Flags: ignoreversion
 ; ============================================================================
 ; v2.4.0 补漏（2026-10-19）：**自研包目录**此前整体缺席安装清单
