@@ -306,6 +306,15 @@ Source: "..\src\qt_compat.py"; DestDir: "{app}\src"; Flags: ignoreversion
 Source: "..\src\harness_bridge.py"; DestDir: "{app}\src"; Flags: ignoreversion
 Source: "..\src\harness_page.py"; DestDir: "{app}\src"; Flags: ignoreversion
 Source: "..\src\视频工具箱.bat"; DestDir: "{app}\src"; Flags: ignoreversion
+; 2026-11-15（功能解耦）补历史缺口 + 新模块：
+;   agent_cli.py —— 统一 CLI 入口（pipeline.py:440 与 selftest 按路径 subprocess
+;   调用），此前不在任何打包清单里，安装版「src\ 方式运行」没有 CLI；
+;   video_split.py —— 切片核心（GUI SplitPage 与 CLI split 共用，纯标准库）；
+;   subtitle_compose_core.py —— 合成纯函数（CLI handler 延迟 import，exe 侧已进
+;   spec hiddenimports）。
+Source: "..\src\agent_cli.py"; DestDir: "{app}\src"; Flags: ignoreversion
+Source: "..\src\video_split.py"; DestDir: "{app}\src"; Flags: ignoreversion
+Source: "..\src\subtitle_compose_core.py"; DestDir: "{app}\src"; Flags: ignoreversion
 ; ============================================================================
 ; v2.4.0 补漏（2026-10-19）：**自研包目录**此前整体缺席安装清单
 ;   v2.3.x 把单体拆成 `core\` 六域（asr/calibrate/download/pipeline/shared/
@@ -324,6 +333,9 @@ Source: "..\src\vt_engine_ui\*"; DestDir: "{app}\src\vt_engine_ui"; Flags: ignor
 Source: "..\src\vt_engine\*"; DestDir: "{app}\src\vt_engine"; Flags: ignoreversion recursesubdirs createallsubdirs; Excludes: "*.pyc,__pycache__"
 Source: "..\src\calib_entity\*"; DestDir: "{app}\src\calib_entity"; Flags: ignoreversion recursesubdirs createallsubdirs; Excludes: "*.pyc,__pycache__"
 Source: "..\src\calib_core\*"; DestDir: "{app}\src\calib_core"; Flags: ignoreversion recursesubdirs createallsubdirs; Excludes: "*.pyc,__pycache__"
+; 2026-11-15（功能解耦）：功能层 features\（注册表 + 各功能包）。整目录收 ⇒
+;   后续新增功能包自动入包，无需再改本文件（与 spec collect_submodules('features') 对应）。
+Source: "..\src\features\*"; DestDir: "{app}\src\features"; Flags: ignoreversion recursesubdirs createallsubdirs; Excludes: "*.pyc,__pycache__"
 ; 文档资料统一归入 docs\
 Source: "..\docs\使用说明.txt"; DestDir: "{app}\docs"; Flags: ignoreversion
 Source: "..\docs\界面预览.png"; DestDir: "{app}\docs"; Flags: ignoreversion

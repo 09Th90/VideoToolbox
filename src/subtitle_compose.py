@@ -23,11 +23,12 @@
 容器，音视频字节级原样搬过去，几秒就完；音视频时间轴与源文件**完全一致**，
 字幕按自己的时间轴对上即可——正是这里要的效果。
 
-命令拼装、进度解析、对齐体检都是纯函数（不 import 本项目其它模块），便于
-`_selftest_*` 直接单测；只有对话框才碰 Qt。
+命令拼装 / 进度解析 / 默认输出名是纯函数，2026-11-15 功能解耦时下沉到
+subtitle_compose_core.py（无 Qt，CLI 软封装路径独立使用，不再拖 PySide6）；
+本模块再导出旧名，调用方零改动。对齐体检依赖编辑页核心，留在本文件。
+只有对话框才碰 Qt。
 """
 import os
-import re
 import subprocess
 import sys
 import tempfile
@@ -45,96 +46,17 @@ import subtitle_editor_core as secore
 _NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0) if sys.platform == "win32" else 0
 
 # =============================================================
-# 0. 纯函数：命令行拼装 / 进度解析 / 对齐体检（可单测）
+# 0. 纯函数已下沉 subtitle_compose_core（2026-11-15 功能解耦）
 # =============================================================
-#: 容器 -> 字幕编码。mp4 系只吃 mov_text；mkv 用原生 srt，兼容性最好
-SOFT_CODECS = {
-    ".mp4": "mov_text",
-    ".m4v": "mov_text",
-    ".mov": "mov_text",
-    ".mkv": "srt",
-}
+# 再导出旧名：GUI / CLI / selftest 调用方零改动。
+from subtitle_compose_core import (SOFT_CODECS, build_command,  # noqa: F401
+                                   default_output, parse_progress)
 
 OUTPUT_FILTER = ("MP4 视频 (*.mp4);;Matroska 字幕友好 (*.mkv);;所有文件 (*.*)")
 
 VIDEO_FILTER = ("视频文件 (*.mp4 *.mkv *.mov *.avi *.flv *.ts *.webm);;"
                 "所有文件 (*.*)")
 SUB_FILTER = "字幕文件 (*.srt *.ass);;所有文件 (*.*)"
-
-
-def build_command(ffmpeg, video, subtitle, output):
-    """拼出「内嵌字幕」的 ffmpeg 参数表（list，不经过 shell）。
-
-    返回 `(argv, 错误信息)`；错误信息非空时应直接提示用户，不要启动进程。
-    音视频一律 `copy`、只多一条字幕轨——所以这个操作**不重新编码**。
-    """
-    for label, p in (("视频", video), ("字幕", subtitle)):
-        if not p or not os.path.isfile(p):
-            return None, "%s文件不存在：%s" % (label, p or "(空)")
-    if not output:
-        return None, "没有指定输出文件"
-
-    ext = os.path.splitext(output)[1].lower()
-    codec = SOFT_CODECS.get(ext)
-    if codec is None:
-        return None, "只支持 .mp4 / .mkv 输出（当前 %s）" % (ext or "无扩展名")
-
-    out_dir = os.path.dirname(os.path.abspath(output))
-    if out_dir and not os.path.isdir(out_dir):
-        return None, "输出目录不存在：%s" % out_dir
-
-    # `-y` 是无条件覆盖，别让用户一不小心把原片写没了
-    if os.path.abspath(output) == os.path.abspath(video):
-        return None, "输出文件不能就是原视频本身，换个文件名"
-
-    return [
-        ffmpeg, "-y", "-hide_banner",
-        # GUI 调 ffmpeg 的常规护身符：免得它去读一个永远不产出数据的 stdin 句柄
-        "-nostdin",
-        "-i", video,
-        # 进度走 stdout；`-progress` 的字段名骗人，解析见 parse_progress
-        "-progress", "pipe:1", "-nostats",
-        "-i", subtitle,
-        "-map", "0:v:0", "-map", "0:a?", "-map", "1:0",
-        "-c:v", "copy", "-c:a", "copy", "-c:s", codec,
-        "-metadata:s:s:0", "language=chi",
-        output,
-    ], ""
-
-
-_KEY_RE = re.compile(r"^([A-Za-z_]+)=(.*)$")
-
-
-def parse_progress(line, total_ms):
-    """解析一行 `-progress` 输出；返回 0-100 的整数，或 None（不是进度行）。
-
-    注意：`out_time_ms` 的**单位其实是微秒**——ffmpeg 这个字段名是历史遗留的
-    坑，按毫秒算会得到 1000 倍的速度。上限压到 99，100 只由 `progress=end`
-    给出。内嵌只用 copy，通常几秒结束，进度可能直接跳到 100，属正常。
-    """
-    m = _KEY_RE.match((line or "").strip())
-    if not m:
-        return None
-    key, val = m.group(1), m.group(2).strip()
-    if key == "progress":
-        return 100 if val == "end" else None
-    if key in ("out_time_ms", "out_time_us"):
-        if not total_ms:
-            return None
-        try:
-            us = int(float(val))
-        except (TypeError, ValueError):
-            return None
-        if us < 0:
-            us = 0
-        return min(99, int(us / 1000.0 * 100.0 / float(total_ms)))
-    return None
-
-
-def default_output(video):
-    """默认输出名：`<视频名>_内嵌字幕.mp4`。"""
-    stem = os.path.splitext(video or "output")[0]
-    return stem + "_内嵌字幕.mp4"
 
 
 def check_alignment(cues, video_ms):

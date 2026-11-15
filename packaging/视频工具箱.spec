@@ -325,6 +325,17 @@ hiddenimports += collect_submodules('calib_core')
 #     ② 只依赖标准库与 PySide6（已随包），增量约 1 MB，代价可忽略。
 #   ⚠ 接入主程序后本行仍需保留（改为 collect_submodules 之外无需再动）。
 hiddenimports += collect_submodules('vt_engine')
+
+# 2026-11-15（功能解耦）：功能层 `features`（注册表 + 16 个功能包）。
+#   agent_cli 子命令经注册表惰性 resolve("module:func") 装配、GUI 页经
+#   gui.builder 惰性构造，静态分析都跟踪不到——同 vt_engine_ui 先例递归收全包
+#   （SRC_DIR 已在上方塞进 sys.path）。**新增功能包自动入包，无需再改本文件。**
+hiddenimports += collect_submodules('features')
+# 同批补历史缺口（此前三个名字在 spec 里零声明）：
+#   agent_cli —— 统一 CLI 入口（pipeline.py:440 / selftest 按路径 subprocess 调用）；
+#   video_split —— 切片核心（GUI SplitPage 与 CLI split 共用，纯标准库）；
+#   subtitle_compose_core —— 合成纯函数（CLI handler 函数体内延迟 import）。
+hiddenimports += ['agent_cli', 'video_split', 'subtitle_compose_core']
 if os.path.isdir(online_release_dir):
     datas += [(os.path.join(online_release_dir, f),
                os.path.join('online_release', f))
