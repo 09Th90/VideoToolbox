@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """automation 功能清单。GUI 侧 auto_vision_page 已在外部模块（阶段③注册挂载）。"""
-from features._registry import CliCommand, FeatureSpec
+from features._registry import CliCommand, FeatureSpec, GuiSpec
 
 FEATURE = FeatureSpec(
     id="automation",
@@ -13,5 +13,8 @@ FEATURE = FeatureSpec(
         name="bili-submit",
         help="B 站后台自动投稿（UI Automation 定位 + 后台输入；素材目录内含投稿信息.txt）",
         setup="features.automation.cli:setup_bili_submit"),),
+    gui=GuiSpec(nav="自动化", builder="video_toolbox_qt:_build_auto_page_entry",
+                position="bottom", order=90, object_name="AutoVisionPage",
+                icon="ROBOT", attr="auto_page"),
     order=90,
 )

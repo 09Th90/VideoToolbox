@@ -8,6 +8,7 @@ FEATURE = FeatureSpec(
     summary="视频 + 独立音轨合并（merge_pair，可选字幕硬烧/封装）",
     backend="core.download.media",
     requires=("ffmpeg",),
-    services={"merge_pair": "core.download.media:merge_pair"},
+    services={"merge_pair": "core.download.media:merge_pair",
+              "build_page": "features.merge.page:build_page"},
     order=31,
 )

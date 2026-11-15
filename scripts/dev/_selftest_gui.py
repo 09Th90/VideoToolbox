@@ -279,12 +279,17 @@ def _qt_main_uses(fn_src_frag):
 
 
 def _qt_startup_sync_ok():
-    """校准知识同步是否仍由启动链后台拉取（v2.6.0 改为首页就绪后延迟）。"""
+    """校准知识同步是否仍由启动链后台拉取（v2.6.0 改为首页就绪后延迟）。
+
+    2026-11-15 功能解耦：函数本体下沉 vt_app/boot.py，_defer 注册仍在入口 main()。
+    """
     try:
         src = open(os.path.join(_SRC, "video_toolbox_qt.py"),
                    encoding="utf-8").read()
-        i = src.find("def _start_startup_sync_threads")
-        return (i >= 0 and "sync_calib_on_startup" in src[i:i + 800]
+        boot = open(os.path.join(_SRC, "vt_app", "boot.py"),
+                    encoding="utf-8").read()
+        i = boot.find("def _start_startup_sync_threads")
+        return (i >= 0 and "sync_calib_on_startup" in boot[i:i + 800]
                 and '_defer("startup_sync", _start_startup_sync_threads' in src)
     except OSError:
         return False
@@ -526,27 +531,43 @@ def _no_undefined_names():
         return False, "check_names 不可用"
     here = _SRC
     bad = []
-    for f in sorted(os.listdir(here)):
-        if not f.endswith(".py") or f.startswith("__"):
-            continue
+    # 2026-11-15 功能解耦：顶层 *.py 之外，新增的 vt_app/ 与 features/
+    # 两个自研包也纳入扫描（其余第三方/引擎包不扫，避免误报）。
+    targets = [os.path.join(here, f) for f in sorted(os.listdir(here))
+               if f.endswith(".py") and not f.startswith("__")]
+    for sub in ("vt_app", "features"):
+        for dirpath, dirnames, files in os.walk(os.path.join(here, sub)):
+            dirnames[:] = [d for d in dirnames if d != "__pycache__"]
+            targets += [os.path.join(dirpath, f) for f in sorted(files)
+                        if f.endswith(".py") and not f.startswith("__")]
+    for path in targets:
+        rel = os.path.relpath(path, here)
         try:
-            with open(os.path.join(here, f), encoding="utf-8") as fh:
-                probs = check_names.scan_source(fh.read(), f)
+            with open(path, encoding="utf-8") as fh:
+                probs = check_names.scan_source(fh.read(), rel)
         except OSError:
             continue
         if probs:
-            bad.append(f)
+            bad.append(rel)
     return (not bad), "、".join(bad)
 
 
 def _crash_guard_ok():
-    """未捕获异常兜底是否定义并在 main() 里、QApplication 之前装上。"""
+    """未捕获异常兜底是否定义并在 main() 里、QApplication 之前装上。
+
+    2026-11-15 功能解耦：实现下沉 vt_app/boot.py，安装调用仍在入口 main()。
+    """
     src = _qt_src()
+    try:
+        boot = open(os.path.join(_SRC, "vt_app", "boot.py"),
+                    encoding="utf-8").read()
+    except OSError:
+        boot = ""
     call = src.find("install_crash_guard()")
     app = src.find("app = QApplication(sys.argv)")
-    return ("def install_crash_guard()" in src
-            and "sys.excepthook = _hook" in src
-            and "threading.excepthook = _thread_hook" in src
+    return ("def install_crash_guard()" in boot
+            and "sys.excepthook = _hook" in boot
+            and "threading.excepthook = _thread_hook" in boot
             and 0 <= call < app)
 
 

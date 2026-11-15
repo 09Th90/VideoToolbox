@@ -13,6 +13,7 @@ FEATURE = FeatureSpec(
         "plan_split": "video_split:plan_split",
         "split_video": "video_split:split_video",
         "hms": "video_split:hms",
+        "build_page": "features.split.page:build_page",
     },
     cli=(CliCommand(
         name="split",

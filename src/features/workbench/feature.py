@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """workbench 功能清单。GUI「字幕处理」页；依赖 transcribe/translate 服务。"""
-from features._registry import FeatureSpec
+from features._registry import FeatureSpec, GuiSpec
 
 FEATURE = FeatureSpec(
     id="workbench",
@@ -9,5 +9,11 @@ FEATURE = FeatureSpec(
     backend="vt_engine_ui",
     requires=("qt",),
     services={},
+    # 常驻真身（lazy=False）：首页任务创建/启动期 prewarm_import 都直接取
+    # subtitle_page 属性，惰性化会改变启动行为——保持与旧硬编码一致。
+    gui=GuiSpec(nav="字幕处理", builder="video_toolbox_qt:_build_subtitle_page",
+                position="top", order=40, object_name="SubtitlePage",
+                icon="FONT", attr="subtitle_page", lazy=False, sep_before=True,
+                messages=("cal_",)),
     order=40,
 )

@@ -331,6 +331,11 @@ hiddenimports += collect_submodules('vt_engine')
 #   gui.builder 惰性构造，静态分析都跟踪不到——同 vt_engine_ui 先例递归收全包
 #   （SRC_DIR 已在上方塞进 sys.path）。**新增功能包自动入包，无需再改本文件。**
 hiddenimports += collect_submodules('features')
+# 2026-11-15（功能解耦阶段②）：GUI 壳基础设施包 `vt_app`（boot/widgets/
+#   scheduler/lazy_shell/engine_ui/win_resize/bus）。入口视频工具箱_qt.py
+#   模块级 import 它，静态分析本可跟到；但页面拆出后 features/*/page.py
+#   也会惰性引用，照先例递归收全，一次到位。
+hiddenimports += collect_submodules('vt_app')
 # 同批补历史缺口（此前三个名字在 spec 里零声明）：
 #   agent_cli —— 统一 CLI 入口（pipeline.py:440 / selftest 按路径 subprocess 调用）；
 #   video_split —— 切片核心（GUI SplitPage 与 CLI split 共用，纯标准库）；

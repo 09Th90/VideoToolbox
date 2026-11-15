@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """subtitle_edit 功能清单。GUI「字幕编辑」页；内嵌字幕对话框 ComposeDialog 属本功能。"""
-from features._registry import FeatureSpec
+from features._registry import FeatureSpec, GuiSpec
 
 FEATURE = FeatureSpec(
     id="subtitle_edit",
@@ -9,5 +9,9 @@ FEATURE = FeatureSpec(
     backend="subtitle_editor_core",
     requires=("qt", "mpv"),
     services={},
+    gui=GuiSpec(nav="字幕编辑",
+                builder="video_toolbox_qt:_build_subtitle_edit_page",
+                position="top", order=50, object_name="SubtitleEditPage",
+                icon="CUT", attr="subtitle_edit_page"),
     order=50,
 )

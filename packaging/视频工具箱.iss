@@ -336,6 +336,8 @@ Source: "..\src\calib_core\*"; DestDir: "{app}\src\calib_core"; Flags: ignorever
 ; 2026-11-15（功能解耦）：功能层 features\（注册表 + 各功能包）。整目录收 ⇒
 ;   后续新增功能包自动入包，无需再改本文件（与 spec collect_submodules('features') 对应）。
 Source: "..\src\features\*"; DestDir: "{app}\src\features"; Flags: ignoreversion recursesubdirs createallsubdirs; Excludes: "*.pyc,__pycache__"
+; 2026-11-15（功能解耦阶段②）：GUI 壳基础设施 vt_app\（从单体下沉的基建）。
+Source: "..\src\vt_app\*"; DestDir: "{app}\src\vt_app"; Flags: ignoreversion recursesubdirs createallsubdirs; Excludes: "*.pyc,__pycache__"
 ; 文档资料统一归入 docs\
 Source: "..\docs\使用说明.txt"; DestDir: "{app}\docs"; Flags: ignoreversion
 Source: "..\docs\界面预览.png"; DestDir: "{app}\docs"; Flags: ignoreversion

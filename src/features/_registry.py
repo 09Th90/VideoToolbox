@@ -56,7 +56,10 @@ class GuiSpec:
     """一个功能页的挂载声明（阶段② MainWindow 注册表驱动挂载时消费）。
 
     builder 指向 ``func(app) -> QWidget``；position: top=主列表 / bottom=导航底部；
-    messages 为该页订阅的消息前缀（bus 契约，页面拆出时逐个认领）。
+    messages 为该页订阅的消息前缀（bus 契约，页面拆出时逐个认领）；
+    icon 为 vt_fluent.FluentIcon 的属性名；attr 为 MainWindow 上的属性名
+    （兼容旧代码 self.download_page 等引用）；lazy=False 表示常驻真身
+    （如字幕工作台，启动期即构造）；sep_before=True 在该页前插导航分隔线。
     """
     nav: str
     builder: str               # "module:func"
@@ -64,6 +67,10 @@ class GuiSpec:
     order: int = 100
     object_name: str = ""
     messages: tuple = ()
+    icon: str = ""
+    attr: str = ""
+    lazy: bool = True
+    sep_before: bool = False
 
 
 @dataclass(frozen=True)

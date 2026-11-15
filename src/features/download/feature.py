@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """download 功能清单。后端 core.download.job（v2.3.1 已拆好的域包）。"""
-from features._registry import CliCommand, FeatureSpec
+from features._registry import CliCommand, FeatureSpec, GuiSpec
 
 FEATURE = FeatureSpec(
     id="download",
@@ -16,5 +16,9 @@ FEATURE = FeatureSpec(
         name="download",
         help="下载视频（yt-dlp，自动代理+游客 cookie，合并 mp4）",
         setup="features.download.cli:setup_download"),),
+    gui=GuiSpec(nav="视频处理", builder="video_toolbox_qt:_build_download_page",
+                position="top", order=20, object_name="DownloadPage",
+                icon="DOWNLOAD", attr="download_page",
+                messages=("detect_done", "sys_log", "dl_")),
     order=30,
 )
