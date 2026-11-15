@@ -1853,7 +1853,9 @@ CONTEXT_MAP = [
     (r"\bshuttles?\b", "航天飞机", "云梭"),         # #631
     (r"\bshuttles?\b", "班车", "云梭"),             # #487/#491
     # 残响(reverberations) 其它变体
-    (r"reverberations?\b", "回响", "残响"),          # #523/#869 死者的残响
+    # 2026-11-15 二校删除无条件规则「回响→残响」：鸣潮 2.2「共鸣者的频率回响」
+    #   （reverberations could still carry traces）属正常词义，残响并非官方术语；
+    #   旧片「死者的残响」若确需保留，应另建含 dead/fallen 的参考行锚定规则。
     (r"\blingering sessions\b", "挥之不去的会话", "挥之不去的残响"),   # #526
     # 常见机翻错词（参考行佐证）
     # ⚠ 2026-10-13 废除 (r"\bpsycho\b", "心理", "疯子")：WuWa Exploration Quests 片
@@ -1980,7 +1982,8 @@ CONTEXT_MAP = [
     # --- 2026-09-09 I_Was_Wrong_Completely_About_Wuthering_Waves 校准新增 ---
     # 椿（Camellya）机翻变体"变色龙"，仅英文行佐证 Chameleia/Chamellia 时改（防普通词误伤）
     (r"\bChameleia\b|\bChamellia\b", "变色龙", "椿"),
-    (r"[Ss]howcase", "展示会", "展示"),
+    # 2026-11-15 二校删除「展示会→展示」：展示会本身是正确中文（#291 showcase 语境），
+    #   降级规则只会把正确形改错。
     (r"[Ss]creen ?time", "屏幕时间", "镜头时间"),
     # --- 2026-10-04 修正：洛瑟菈（Lucilla）的「总统→校长」必须走本表原生三元组 ---
     #   原挂在 Entity("洛瑟菈").ctx 里写成 (r"\bPresident\b", "总统")，而 Entity.ctx
@@ -2287,10 +2290,10 @@ CONTEXT_MAP = [
     # --- 2026-10-24 鸣潮新加坡音乐会 vlog（zKodla）二校沉淀 ---
     #   参考行 Ankor/Anoro/Anchor 才把中文「锚点/锚」还原成角色安可。
     #   ⚠ 不用单字「锚」规则：会把「抛锚」咬成「抛安可」（本片 #510 实测），改用具体短语。
-    (r"\bAnkor\b|\bAnoro?\b|\bAnchor\b", "锚点", "安可"),      # #541/#549/#571
-    (r"\bAnkor\b|\bAnoro?\b|\bAnchor\b", "抛锚", "安可"),      # #510/#554（整词，防「抛安可」）
-    (r"\bAnkor\b|\bAnoro?\b|\bAnchor\b", "那个锚", "那个安可"), # #551
-    (r"\bAnkor\b|\bAnoro?\b|\bAnchor\b", "像锚一样", "像安可一样"),  # #553
+    (r"\bAnkor\b|\bAnoro?\b", "锚点", "安可"),      # #541/#549/#571
+    (r"\bAnkor\b|\bAnoro?\b", "抛锚", "安可"),      # #510/#554（整词，防「抛安可」）
+    (r"\bAnkor\b|\bAnoro?\b", "那个锚", "那个安可"), # #551
+    (r"\bAnkor\b|\bAnoro?\b", "像锚一样", "像安可一样"),  # #553
     (r"\banor\b", "Anor", "安可"),                             # #545 参考行 anor 的英文残留
     (r"\bBras Basah\b|\bbrass basa\b", "铜巴萨站", "百胜站"),   # #55 新加坡地铁 CC2
     # 既有规则的精确回滚（本片实测误伤）：
@@ -3242,10 +3245,13 @@ EXCLUDE_CONTEXT = {
     #    子串命中"满满【的】爱"，咬出畸形"满全部爱"。参考行命中 so love/lots of love 即回滚。
     #    2026-11-06《I Played 300 Days》二校补：**"不【满的】声音"同被咬坏**（#102
     #    "很多不满的声音"→"很多不全部声音"，参考行 disgruntled）。"不满"表情绪者一律回滚。
+    #    2026-11-15 二校补：鸣潮 #24「满满的信任」（Loads of trust）同被子串咬成
+    #    「满全部信任」，参考行 loads of 一律回滚。
     "满的": ("全部", (r"\bso love\b", r"\blots of love\b", r"\bfull of longing\b",
                     r"\bupset\b", r"\bfullest\b", r"\bcompass\b", r"\bfull\s+shot\b",
                     r"\bfull love\b", r"\bso full\b", r"\bdisgruntled\b",
-                    r"\bdis(?:a)?satisf\w+\b", r"\bunhappy\b", r"\bnot\s+satisfied\b")),
+                    r"\bdis(?:a)?satisf\w+\b", r"\bunhappy\b", r"\bnot\s+satisfied\b",
+                    r"\bloads of\b")),
     # --- 2026-10-27 演唱会/3.3 片：普通 nightmare 不应被 AC8 曲目 Nightmare 实体吃掉；
     #   RV/烧烤语境的 trailer 不是电影宣传片。
     "噩梦": ("Nightmare", (r"\bnightmare\s+loop\b", r"\bthat nightmare\.", r"^nightmare\.$",
@@ -11778,7 +11784,7 @@ ENTITIES = [
     Entity('守岸人', modes=('bi',), en='The Shorekeeper', ja='', ko='', category='角色/鸣潮', variants=('肖尔基珀', '肖特克守门员'), ctx=(('[Ss]horekeeper', '岸上看守'), ('\\bShorekeeper\\b|\\bShortke\\b', '岸上管理员'), ('\\bShorekeeper\\b|\\bShortke\\b', '肖特克守门员')), exclude=(), note='补 r3：肖尔基珀(#1037，非正常词裸键安全)；岸上看守(#325/961，正常短语，须 Shorekeeper 佐证才改)。2026-10-25 4.0 片补 岸上管理员/肖特克守门员；既有 短守/Shawkeeper/岸边管理员/空头/短手 保留。'),
     Entity('共鸣者', modes=('bi',), en='Resonator', ja='', ko='', category='术语/鸣潮', variants=(), ctx=(('[Rr]esonator', '共振腔'), ('[Rr]esonator', '共鸣腔')), exclude=(), note="补 r3（走 ctx 锚定，正常词不裸进表）：共振腔(#6)/共鸣腔(#169/549/553)->共鸣者。既有 CONTEXT '谐振器'->共鸣者 保留。⚠ 展示会/屏幕时间 的目标词（展示/镜头时间）≠本实体 canonical（共鸣者），不能用 Entity.ctx（会强制替换成 canonical），已改走 CONTEXT_MAP 原生三元组。"),
     Entity('嘉贝莉娜', modes=('bi',), en='Galbrena', ja='', ko='', category='角色/鸣潮', variants=('加尔雷娜',), ctx=(), exclude=(), note="补 r3 '加尔雷娜'->嘉贝莉娜（#29，Galrena 谷翻）。官方名 嘉贝莉娜。2026-11-11 莉莉 PV 片 #58：YouTube ASR 'Gom Rena'、本地 small.en 'gombrana'、large-v3 'Galbrena' 语音收敛于此（中置信）；但「谈到梦境」语义与嘉贝莉娜（火焰猎魔）不符，疑主播联想/口误——高碰撞 ASR 名只留痕不入裸键/ctx，逐 cue 按语境取舍。"),
-    Entity('秋水', modes=('bi',), en='Aalto', ja='', ko='', category='角色/鸣潮', variants=(), ctx=(('\\bAlto\\b|\\bAalto\\b', '阿尔托'), ('\\bAlto\\b|\\bAalto\\b', 'Alto'), ('\\bAlto\\b|\\bAalto\\b', 'Aalto')), exclude=(), note="补 r3 '阿尔托'->秋水（#64 'next up, Alto' 谷翻）。'阿尔托'常见西名绝不裸键。2026-11-13 二校补：中文行直接残留拉丁 Alto/Aalto（#97/#178）也归秋水，仍由参考行 Aalto/Alto 锚定。⚠ 历史片源结论（2026-09-09 注释）称 Aalto=阿尔托 不改——那是 TCG 讨论片语境；本片'next up, Alto'为角色章节报幕，官方中文=秋水（2026-09-24 官方图鉴复核）。"),
+    Entity('秋水', modes=('bi',), en='Aalto', ja='', ko='', category='角色/鸣潮', variants=(), ctx=(('\\bAalto\\b', '阿尔托'), ('\\bAalto\\b', 'Alto'), ('\\bAalto\\b', 'Aalto')), exclude=(), note="补 r3 '阿尔托'->秋水（#64 'next up, Alto' 谷翻）。'阿尔托'常见西名绝不裸键。2026-11-13 二校补：中文行直接残留拉丁 Alto/Aalto（#97/#178）也归秋水，仍由参考行锚定。⚠ 2026-11-15 二校收窄：参考正则剔除裸 \\bAlto\\b（Alto 是音乐声部/常见人名，鸣潮 #24「like Alto」指主播友人，被误改成秋水）；只保留官方英文 Aalto。⚠ 历史片源结论（2026-09-09 注释）称 Aalto=阿尔托 不改——那是 TCG 讨论片语境；本片'next up, Alto'为角色章节报幕，官方中文=秋水（2026-09-24 官方图鉴复核）。"),
     Entity('散华', modes=('bi',), en='Sanhua', ja='', ko='', category='角色/鸣潮', variants=('三和',), ctx=(('\\bSana\\b|\\bSanhua\\b', '萨那'),), exclude=(), note="补 r3 '萨那'->散华（#5 开场 'from Sana to Ching Xiao'）。'萨那'也门城市绝不裸键。"),
     Entity('卡提希娅', modes=('bi',), en='Cartethyia', ja='', ko='', category='角色/鸣潮', variants=('卡蒂拉',), ctx=(), exclude=(), note="补 r3 '卡蒂拉'->卡提希娅（#1694/1784，Cartilla 谷翻）。与既有 CONTEXT '卡提拉'->坎特蕾拉(TCG 片) 为不同错形键，不冲突。"),
     Entity('吟霖', modes=('bi',), en='Yinlin', ja='', ko='음림', category='角色/鸣潮', variants=('Eumrim', '尤姆林'), ctx=(), exclude=(), note='学习库固化(#971/972/975/3521-3524，2026-09-20~25 两片实测)：Eumrim=韩服名음림(Eumlim) ASR 残留；尤姆林=音近错形。'),
@@ -11846,7 +11852,7 @@ ENTITIES = [
     Entity('月见夜', modes=('bi',), en='Midnight', ja='', ko='', category='角色/明日方舟', variants=(), ctx=(('(?-i:(?<!of )\\bMidnight\\b(?!\\s+to\\b)(?!\\s+(?:podcast|snack|stroke|mass|hour|show|movie|train|shift)\\b))', '午夜'),), exclude=(), note="3★ 近卫。'午夜'是正常中文词，只走 ctx。2026-11-13 鸣潮莉莉 3.8 反应片判例：主播口语 'midnight to you know reflect' / 'stroke of midnight' 是普通午夜，前置 (?<!of ) 加 (?!\\s+to\\b) 排除；二校再加 (?-i) 与 podcast/snack/stroke 等负例，小写 midnight 一律不命中。"),
     Entity('梓兰', modes=('bi',), en='Orchid', ja='', ko='', category='角色/明日方舟', variants=(), ctx=(('\\bOrchid\\b', '兰花'), ('\\bOrchid\\b', '兰华')), exclude=(), note="3★ 术师。'兰花'是正常中文词（orchid 花名），只走 ctx。"),
     Entity('送葬人', modes=('bi',), en='Executor', ja='', ko='', category='角色/明日方舟', variants=(), ctx=(('\\bExecutor\\b', '遗嘱执行人'),), exclude=(), note="6★ 狙击。谷翻按字面译成'遗嘱执行人'，走 ctx。"),
-    Entity('棘刺', modes=('bi',), en='Thorns', ja='', ko='', category='角色/明日方舟', variants=(), ctx=(('\\bThorns\\b', '荆棘'),), exclude=(), note="6★ 近卫。'荆棘'是正常中文词，只走 ctx。"),
+    Entity('棘刺', modes=('bi',), en='Thorns', ja='', ko='', category='角色/明日方舟', variants=(), ctx=(('(?-i:\\bThorns\\b)', '荆棘'),), exclude=(), note="6★ 近卫。'荆棘'是正常中文词，只走 ctx。2026-11-15 二校：ctx 改用 (?-i:) 强制区分大小写——_CONTEXT_COMPILED 带 re.I，裸 \\bThorns\\b 会把鸣潮「烧掉左边的荆棘」（incinerate the thorns on the left）误改成棘刺。"),
     Entity('逻各斯', modes=('bi',), en='Logos', ja='', ko='', category='角色/明日方舟', variants=(), ctx=(('\\bLogos\\b', '标志'), ('\\bLogos\\b', '罗各斯')), exclude=(), note="罗德岛精英干员。'标志'是正常中文词（logos=标识），只走 ctx。"),
     Entity('隐现', modes=('bi',), en='Insider', ja='', ko='', category='角色/明日方舟', variants=(), ctx=(('\\bInsider\\b', '内幕'),), exclude=(), note="'内幕'是正常中文词，只走 ctx。"),
     Entity('白铁', modes=('bi',), en='Stainless', ja='', ko='', category='角色/明日方舟', variants=(), ctx=(('\\bStainless\\b', '不锈钢'),), exclude=(), note="'不锈钢'是正常中文词，只走 ctx。"),
@@ -11928,6 +11934,17 @@ ENTITIES = [
     Entity('旧梦凋零的百合', modes=('bi', 'ko'), en='Lilies in a Dying Dream', ja='', ko='', category='版本名/鸣潮3.8', variants=('The Withered Lama',), ctx=(('\\bThe\\s+Withered\\s+Lama\\b', '枯萎喇嘛'),), exclude=(), note='3.8 版本官方中文名「旧梦凋零的百合」（2026-11-12 上线）；Lily 在版本名/花义语境下由 EXCLUDE_CONTEXT 回滚，不归角色莉莉。'),
     Entity('安魂', modes=('bi', 'react'), en='Lullaby', ja='', ko='', category='武器/鸣潮3.8', variants=(), ctx=(), exclude=(), note='莉莉专属五星佩枪官方中文=安魂（英文 Lullaby）；字面「摇篮曲」语境保留（本片 #11245 判例），只登记供跨语识别。'),
     Entity('巴利诺拉', modes=('bi',), en='Balinaphora', ja='', ko='', category='地点/鸣潮', variants=(), ctx=(), exclude=(), note='鸣潮地名 Balinaphora，官方中文=巴利诺拉；ASR 音译族不入裸键。'),
+    Entity('芙露德莉斯', modes=('bi', 'react'), en='Fleurdelys', ja='', ko='', category='角色/鸣潮2.2', variants=('弗洛德莉斯', '芙洛德莉斯', '弗勒德莉斯', '芙蕾德莉斯', '弗鲁里斯', '弗鲁里', '弗鲁德莉斯', '芙露德丽丝'), ctx=(('\\b(?:Fleurdelys|Fluriss|Fluries|Flirtilis|Flur\\s+Deise|Flare\\s+Deise)\\b', '伊莉丝'), ('\\b(?:Fleurdelys|Fluriss|Fluries|Flirtilis|Flur\\s+Deise|Flare\\s+Deise)\\b', '弗鲁里斯'), ('\\b(?:Fleurdelys|Flissa|Flatterise)\\b', '弗洛德里斯')), exclude=(), note='2.2 主线第四幕：英白拉多与利维亚坦融合后，以返回舱制造的个体，官方中文=芙露德莉斯（Fleurdelys）。与「卡提希娅」是同一角色的两种身份：卡提希娅为圣女本体，芙露德莉斯为岁主/鸣式共鸣体，二者禁互相替换。⚠ 与残星会成员「芙露德莉丝」（Frudelis，entities_part2 既有实体）仅差末字「丝/斯」，二者绝非同一人：绝不可把「芙露德莉丝」并作本实体变体，否则会把残星会角色改错。英文 ASR 变体 Fluriss/Fluries/Flirtilis/Flur Deise/Flissa 只走参考行锚定；Elise 亦是误听形，但属常见人名，不裸键。'),
+    Entity('提尔芬', modes=('bi', 'react'), en='Tyrvine', ja='', ko='', category='武器/鸣潮2.2', variants=('提尔文', '蒂尔芬', '图尔文', '特尔芬', '缇尔芬'), ctx=(('\\b(?:Tyrvine|Turven|Turvin)\\b', '提尔文'), ('\\b(?:Tyrvine|Turven|Turvin)\\b', '图尔文'), ('\\b(?:Tyrvine|Turven|Turvin)\\b', '蒂尔芬')), exclude=(), note='神权剑「提尔芬」：岁主英白拉多封存部分力量、用以选定圣女共鸣者的共鸣仪具；官方英文 Tyrvine。ASR Turven/Turvin，谷翻「提尔文/图尔文/蒂尔芬」。'),
+    Entity('奥特尔', modes=('bi', 'react'), en='Haultir', ja='', ko='', category='武器/鸣潮2.2', variants=('哈尔提尔', '豪尔提尔', '奥提尔', '霍尔提尔'), ctx=(('\\b(?:Haultir|Haltier)\\b', '哈尔提尔'), ('\\b(?:Haultir|Haltier)\\b', '豪尔提尔')), exclude=(), note='人权剑「奥特尔」；官方英文 Haultir。ASR Haltier/Halt here，谷翻「哈尔提尔/豪尔提尔」。'),
+    Entity('赫格利', modes=('bi', 'react'), en='Hogness', ja='', ko='', category='武器/鸣潮2.2', variants=('霍格尼斯', '霍格内斯', '霍格利', '赫格尼斯'), ctx=(('\\b(?:Hogness|Hognis)\\b', '霍格尼斯'), ('\\b(?:Hogness|Hognis)\\b', '霍格内斯')), exclude=(), note='异权剑「赫格利」；官方英文 Hogness。ASR Hognis，谷翻「霍格尼斯/霍格内斯」。'),
+    Entity('盖希诺姆', modes=('bi', 'react'), en='Gahenum', ja='', ko='', category='地区/鸣潮2.2', variants=('加亨努姆', '盖赫努姆', '加亨努'), ctx=(('\\bGahenum\\b', '加亨努姆'), ('\\bGhanim\\b', '加亨努姆')), exclude=(), note='2.2 地名「盖希诺姆」；官方英文 Gahenum。ASR Ghanim，谷翻「加亨努姆」；Gem 为常用词（宝石义），不建键、不替换。'),
+    Entity('翡萨烈', modes=('bi', 'react'), en='Fisalia', ja='', ko='', category='势力/鸣潮2.2', variants=('菲萨莉亚', '菲萨利亚', '菲萨拉斯', '维塞拉斯', '法塞利亚'), ctx=(('\\b(?:Fisalia|Fisalas|Fisalias)\\b', '菲萨莉亚'), ('\\b(?:Fisalia|Fisalas|Fisalias)\\b', '菲萨利亚'), ('\\b(?:Viselas|Facelius|Facilia)\\b', '维塞拉斯')), exclude=(), note='黎那汐塔三大家族之一、信奉岁主英白拉多的「翡萨烈家族」，第36任家主为坎特蕾拉·翡萨烈；官方英文 Fisalia。ASR Fisalas/Viselas/Facelius，谷翻「菲萨莉亚/维塞拉斯」。'),
+    Entity('翼鳐', modes=('bi', 'react'), en='Wingray', ja='', ko='', category='生物/鸣潮2.2', variants=('翼雷', '飞翼鳐', '翅鳐', '风鳐'), ctx=(('\\bWingray\\b|\\bWing\\s+ray\\b', '翼雷'),), exclude=(), note='2.2 拉古那空中生物「翼鳐」；官方英文 Wingray。ASR Wing ray，谷翻「翼雷」。'),
+    Entity('重力校准器', modes=('bi', 'react'), en='Gravity Calibrator', ja='', ko='', category='装置/鸣潮2.2', variants=('重力校准仪', '重力标定器', '重力校正器'), ctx=(('\\bGravity\\s+Calibrator\\b', '重力校准仪'), ('\\bGravity\\s+Calibrator\\b', '重力标定器')), exclude=(), note='2.2 阿维纽林神学院装置「重力校准器」；官方英文 Gravity Calibrator。'),
+    Entity('圣女', modes=('bi', 'react'), en='Blessed Maiden', ja='', ko='', category='称谓/鸣潮', variants=('受祝福的少女', '蒙福少女', '有福的少女'), ctx=(('\\bBlessed\\s+Maiden\\b', '受祝福的少女'), ('\\bBlessed\\s+Maiden\\b', '有福的少女')), exclude=(), note='鸣潮官方称谓 Blessed Maiden=圣女（黎那汐塔岁主共鸣者的称号）；「少女」为通用词，不裸键，只走参考行锚定。'),
+    Entity('二次共鸣', modes=('bi', 'react'), en='Second Awakening', ja='', ko='', category='术语/鸣潮', variants=('第二次共鸣',), ctx=(('\\bSecond\\s+Awakening\\b', '第二次觉醒'), ('\\bSecond\\s+Awakening\\b', '二次觉醒')), exclude=(), note='官方术语 second awakening=二次共鸣（英白拉多设定：通过二次共鸣打破「一个个体同一时间只能有一位共鸣者」的铁律）。「第二次觉醒」在别片可能是正确译法，故不裸键、只走参考行锚定。'),
+    Entity('圣女试炼', modes=('bi', 'react'), en='Divine Trials', ja='', ko='', category='术语/鸣潮2.2', variants=('神启试炼',), ctx=(('\\bDivine\\s+Trials?\\b', '神圣试炼'), ('\\bDivine\\s+Trials?\\b', '圣女考验')), exclude=(), note='翡萨烈家族每年筛选圣女候选人的「圣女试炼」，官方英文 divine trials；「神圣试炼」为通用短语，只走参考行锚定。'),
     Entity('天空海', modes=('ja',), en='', ja='天空海', ko='', category='术语/鸣潮', variants=(), ctx=(('天空会|天空海', '天空会'),), exclude=(), note="鸣潮现象名，官方中文=天空海（包裹覆盖整个索拉里斯天空的特殊现象，灰机wiki）。日语 天空海(てんくうかい) 被 ASR 咬成同音的 天空会(てんくうかい)，谷翻照抄'天空会'。"),
     Entity('秧秧', modes=('ja',), en='', ja='やんやん', ko='', category='角色/鸣潮/今州', variants=(), ctx=(('やんやん|ヤんやん|にゃんやん', '燕燕'), ('やんやん|ヤんやん|にゃんやん', '延雅'), ('やんやん|ヤんやん|にゃんやん', '燕'), ('やんやん|ヤんやん|にゃんやん', '妮艳'), ('やや|ヤヤ|やんやん', '丫丫')), exclude=(), note="鸣潮 4★ 今州共鸣者。日语昵称=やんやん；谷翻音译成 燕燕/延雅/Nyanyan/ヤ。'燕燕'为正常中文词，只走日语行锚定 ctx（本片主播也昵称其为'鹿'）。"),
     Entity('今州', modes=('ja',), en='', ja='今州', ko='', category='地名/鸣潮', variants=(), ctx=(('今週場|今州城', '本周的场外'), ('今週場|今州城', '本周场'), ('今週場|今州城', '今周场'), ('今週場|今州城', '今正场'), ('今週(?!場)(?!って|だった|に|は|の|も|から|まで|末|中|や|、|。|$)|今州', '本周'), ('今週(?!場)(?!って|だった|に|は|の|も|から|まで|末|中|や|、|。|$)|今州', '这周'), ('今週(?!場)(?!って|だった|に|は|の|も|から|まで|末|中|や|、|。|$)|今州', '纳迦')), exclude=(), note="瑝珑六州之一（今州）。日语 今州(きんしゅう) 被 ASR 咬成同音的 今週(こんしゅう)，谷翻一律按'本周'处理（'本周的场外活动'=今州城）。'今週場'=今州城。戒律：本周/这周是正常中文词，只走日语行锚定 ctx。2026-10-12 收紧：今週って/今週だった 等 = 现实'这周'（如 3連休 闲聊），非今州（索拉逐星舞台 S2 同视片 cue5/cue639 实测误改），加负向后顾排除。"),
