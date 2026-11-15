@@ -28,8 +28,11 @@ def main():
         return 1
     root = os.environ.get("VIDEO_TOOLBOX_ROOT") or os.getcwd()
     cred_path = os.path.join(root, "data", "credentials.json")
-    if not os.path.isfile(cred_path):  # 全局技能场景：cwd 不在工具箱根
-        cred_path = r"D:\Agent Work\软件开发\视频工具箱\data\credentials.json"
+    if not os.path.isfile(cred_path):  # 全局技能场景：cwd 不在工具箱根 →
+        # 按脚本位置推程序根（<root>/.agents/skills/decision-model/，上三级）
+        _here = os.path.dirname(os.path.abspath(__file__))
+        cred_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
+            _here))), "data", "credentials.json")
     try:
         payload = json.load(open(args[0], encoding="utf-8"))
         cred = json.load(open(cred_path, encoding="utf-8"))

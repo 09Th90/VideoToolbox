@@ -23,6 +23,11 @@
 | `calibrate <srt> [--endo\|--endobi\|--ak\|--ja\|--ko\|--layout…]` | 术语校准（只改文字不动时间轴） |
 | `stabilize <srt>` | cue 稳定化 |
 | `compose <video> <sub> [--mode soft\|burn\|mkv]` | 字幕合成 |
+| `audit <srt>` | 校准后漏校三扫（退出码 1＝有候选） |
+| `split <video> --points "…" \| --durations "…"` | 视频切片（逐段校验可播放） |
+| `bili-submit [素材目录] [--dry-run]` | B 站后台自动投稿（UIA 后台输入） |
+
+> 源码布局（v3.0.0）：功能实现在 `src\features\<id>\`；`src\` 顶层只留入口/壳层/共享接缝。
 
 ## 「翻译然后校准」标准流程
 

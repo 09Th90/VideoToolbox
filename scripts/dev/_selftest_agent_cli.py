@@ -71,7 +71,8 @@ def main() -> int:
     r = run_cli(["--help"])
     check("CLI --help", r.returncode == 0 and "子命令" in r.stdout)
     for sub in ("status", "info", "download", "transcribe", "translate",
-                "calibrate", "stabilize", "compose"):
+                "calibrate", "stabilize", "audit", "compose", "split",
+                "bili-submit"):
         r = run_cli([sub, "--help"])
         check("子命令 --help: %s" % sub, r.returncode == 0)
 
@@ -126,6 +127,7 @@ def main() -> int:
     import pathlib
     root_p = pathlib.Path(ROOT)
     same = ((root_p / "AGENTS.md").read_text(encoding="utf-8") == hb._AGENTS_MD_TEXT
+            and (root_p / "CLAUDE.md").read_text(encoding="utf-8") == hb._AGENTS_MD_TEXT
             and (root_p / "SKILL.md").read_text(encoding="utf-8") == hb._SKILL_MD_TEXT
             and (root_p / ".claude/skills/video-toolbox/SKILL.md")
             .read_text(encoding="utf-8") == hb._SKILL_MD_TEXT
@@ -145,10 +147,20 @@ def main() -> int:
           os.path.isfile(os.path.join(home, "AGENTS.md"))
           and os.path.isfile(os.path.join(home, "skills", "video-toolbox",
                                           "SKILL.md")))
+    check("DSH_HOME 技能包内容同源",
+          pathlib.Path(home, "AGENTS.md").read_text(encoding="utf-8") == hb._AGENTS_MD_TEXT
+          and pathlib.Path(home, "skills", "video-toolbox", "SKILL.md")
+          .read_text(encoding="utf-8") == hb._SKILL_MD_TEXT)
     skill_text = (root_p / "SKILL.md").read_text(encoding="utf-8")
     check("SKILL.md frontmatter 合规",
           skill_text.startswith("---\n") and "\nname: video-toolbox\n" in skill_text
           and "\ndescription: " in skill_text)
+    # 能力表必须覆盖注册表全部子命令（2026-11-15：audit/split/bili-submit 曾漏文档）
+    from features import registry as _registry  # noqa: PLC0415
+    _names = {c.name for s in _registry().specs().values() for c in (s.cli or ())}
+    _missing = [n for n in sorted(_names) if ("`%s" % n) not in hb._SKILL_MD_TEXT]
+    check("能力表覆盖全部注册子命令", not _missing,
+          "缺=%s 全=%s" % (_missing, sorted(_names)))
 
     # 9 —— compose --help（不实跑）
     r = run_cli(["compose", "--help"])

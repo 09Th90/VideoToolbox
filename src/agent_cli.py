@@ -31,8 +31,8 @@
 * AI 参数一律读 ``data\\ai_config.json``（设置页唯一落点），本 CLI 不设
   密钥参数，避免密钥泄进 shell history。
 * 产物默认落 ``<数据根>\\data\\agent_out\\<时间戳>\\``，各子命令 ``--out`` 可覆盖。
-* 退出码：0 成功；1 失败；``calibrate`` / ``stabilize`` 原样透传
-  ``subtitle_calib_merged.py`` 的退出码（length 子命令用退出码当门禁）。
+* 退出码：0 成功；1 失败；``calibrate`` / ``stabilize`` / ``audit`` 原样保留
+  校准退出码（length 子命令用退出码当门禁）。
 
 子命令与引擎复用点（都已验证无 Qt 可调）
 ----------------------------------------
@@ -43,16 +43,20 @@
 * transcribe  ``apply_asr_to_engine`` 同步 ASR 槽 → ``engine_asr.set_ffmpeg``
               → ``engine_asr.transcribe``（视频先用 ffmpeg 抽 m4a）
 * translate   ``engine_translate.make_translator``（bing/google/deeplx 免认证端点）
-* calibrate   subprocess 透传根目录 ``subtitle_calib_merged.py``（术语/规则校准，
-              参数表与该脚本完全同源；cwd=程序根，学习库落根目录）
-* stabilize   同上透传（该脚本内建子命令）
-* audit       同上透传 ``audit`` 子命令——**校准完成后的收口体检**：
+* calibrate   同进程直连 ``calib_core.cli.main_argv``（术语/规则校准，参数表与
+              根脚本完全同源；``VT_CALIB_SUBPROCESS=1`` 或导入失败时回退
+              subprocess 透传根目录 ``subtitle_calib_merged.py``；cwd=程序根，
+              学习库落根目录）
+* stabilize   同上（calib_core 内建子命令）
+* audit       同上 ``audit`` 子命令——**校准完成后的收口体检**：
                扫 1 拉丁残留（白名单外的英文/罗马字）、扫 2 知识库错形残留
                （变体/条件错形命中中文行而官方名不在该行）、
                扫 3 同词族一致性（参考行命中锚点而中文行缺官方名）。
                退出码 1＝有候选，可直接当 CI 门禁。
 * compose     软封装走 ``subtitle_compose_core.build_command``（纯函数无 Qt）；
               硬烧录/带独立音轨走 ``video_toolbox.merge_pair``
+* split       视频切片（``features.split.video_split``：时间点/时长拆分，逐段校验）
+* bili-submit B 站后台自动投稿（``features.automation.bili_auto_submit``：UIA + PostMessage）
 """
 from __future__ import annotations
 

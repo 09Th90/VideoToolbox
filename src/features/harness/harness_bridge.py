@@ -805,6 +805,11 @@ _AGENTS_MD_TEXT = r"""# 视频工具箱 · Agent 常驻指令
 | `calibrate <srt> [--endo\|--endobi\|--ak\|--ja\|--ko\|--layout…]` | 术语校准（只改文字不动时间轴） |
 | `stabilize <srt>` | cue 稳定化 |
 | `compose <video> <sub> [--mode soft\|burn\|mkv]` | 字幕合成 |
+| `audit <srt>` | 校准后漏校三扫（退出码 1＝有候选） |
+| `split <video> --points "…" \| --durations "…"` | 视频切片（逐段校验可播放） |
+| `bili-submit [素材目录] [--dry-run]` | B 站后台自动投稿（UIA 后台输入） |
+
+> 源码布局（v3.0.0）：功能实现在 `src\features\<id>\`；`src\` 顶层只留入口/壳层/共享接缝。
 
 ## 「翻译然后校准」标准流程
 
@@ -839,6 +844,12 @@ tools\python\python.exe src\agent_cli.py <子命令> [参数] --json
 - AI 模型/密钥/接口地址读 `data\ai_config.json`（「设置」页配置），CLI 不设密钥参数。
 - 失败时 JSON 的 `error` 字段就是原因，据此换方案，不要原样重试。
 
+## 源码布局（v3.0.0 模块独立文件夹）
+
+- 功能实现都在 `src\features\<id>\`（16 个功能包，如 split/translate/compose/transcribe/subtitle_edit/library/pipeline/download/calibrate/voiceprint/automation/harness）；每包＝feature.py 清单 + cli.py 子命令 + page.py 页面 + 实现模块。
+- `src\` 顶层只留入口（video_toolbox_qt/agent_cli/video_toolbox）、壳层（ui_theme/qt_compat/vt_update_check）、共享接缝（engine_asr_data/engine_entities/engine_cache/engine_paths/engine_task_factory/subtitle_editor_core）。
+- 确需查源码按功能包精准 grep；**禁止新增顶层功能域模块**。完整约定见 docs/程序说明书(开发版).md §2.7。
+
 ## 能力表（直接调用，别自己搓）
 
 | 子命令 | 干什么 | 示例 |
@@ -849,8 +860,11 @@ tools\python\python.exe src\agent_cli.py <子命令> [参数] --json
 | `transcribe <file> [--lang ja] [--out x.srt]` | 音视频 → SRT（引擎 ASR 全链；模型/密钥读设置页 ASR 槽） | `transcribe ep01.mp4 --lang ja` |
 | `translate <srt> [--to zh-Hans] [--engine bing]` | → 中文双语 SRT（原文在上、译文在下，时间轴不动） | `translate ep01.en.srt --engine bing` |
 | `calibrate <srt> [旗标] [--out F] [--report R]` | 术语校准（只改文字，不动时间轴/序号/空行/换行/BOM） | `calibrate ep01.zh.srt --endobi` |
-| `stabilize <srt> [--out F]` | cue 稳定化（透传同脚本 stabilize 子命令） | `stabilize ep01.srt` |
+| `stabilize <srt> [--out F]` | cue 稳定化（同进程直连 calib_core；`VT_CALIB_SUBPROCESS=1` 回退根脚本透传） | `stabilize ep01.srt` |
 | `compose <video> <sub> [--mode soft\|burn\|mkv] [--audio x.m4a] [--out F]` | 字幕合成（soft=软封装不重编码；burn=ASS 硬烧；mkv=封装） | `compose ep01.mp4 ep01.srt --mode burn` |
+| `audit <srt> [--out R]` | 校准后漏校三扫（拉丁残留/知识库错形残留/同词族一致性；退出码 1＝有候选，可当门禁） | `audit ep01.zh.srt` |
+| `split <video> --points "…" \| --durations "…" [--mode copy\|auto\|encode] [--verify quick\|full] [--out D]` | 视频切片：按时间点（HH:MM:SS）或时长（xHyMzS）拆多段，逐段校验可播放 | `split ep01.mp4 --durations "1h,1h"` |
+| `bili-submit [素材目录] [--probe\|--dry-run\|--edit] [--only basic,chapters,…] [--visibility self\|public]` | B 站后台自动投稿（UIA 定位 + PostMessage 后台输入；素材目录含投稿信息.txt） | `bili-submit data\素材 --dry-run` |
 
 ## 标准配方
 
@@ -888,10 +902,21 @@ tools\python\python.exe src\agent_cli.py <子命令> [参数] --json
 
 - 谷歌免费端点（translate.googleapis.com gtx）本机 429/421；必应 edge 端点（`--engine bing`）直连可用、顺序一一对应。
 - 机翻专有名词必然不准（如 Arknights Endfield → "恩德菲尔德"）——校准步骤就是干这个的，不要手工逐条改。
-- 校准脚本透传时退出码原样保留（`length` 子命令用退出码当门禁）；`data\subtitle_learned_kb.json` 是学习库，校准跑完会更新其中的日期书签，属正常现象。
+- 校准/稳定化/漏校审计默认同进程直连 `src\calib_core`（`VT_CALIB_SUBPROCESS=1` 回退根脚本透传），退出码原样保留（`length` 子命令用退出码当门禁）；`data\subtitle_learned_kb.json` 是学习库，校准跑完会更新其中的日期书签，属正常现象。
 - 一次性脚本放 `data\tmp\`；脚本内取程序根用 `os.getcwd()`（harness/agent 的 cwd 就是程序根），**不要**用 `__file__` 相对推导（放 `data\tmp\` 下会算错）。
 - `harness\` 是只读第三方部署，禁止改动；`src\` 是工具箱源码，可读可改。
 - 路径在程序根之外没关系（托管 agent 有 danger-full-access），但读大文件前先 `info` 看规模。
+
+## 独立 CLI（统一入口之外）
+
+```bash
+tools\python\python.exe src\features\voiceprint\speaker_voiceprint.py enroll --src 视频.mp4 --name 主播 --auto
+tools\python\python.exe src\features\voiceprint\speaker_voiceprint.py list|assess|audit|score|filter …
+tools\python\python.exe src\features\voiceprint\voiceprint_sync.py sync|push|backfill|status
+```
+
+- 声纹录入/素材体检/打分/筛选与多用户模板同步不在统一 CLI，走上面的独立脚本（cwd=程序根）。
+- B 站投稿与视频切片已入统一 CLI（`bili-submit` / `split`），优先统一入口。
 
 ## 数据目录布局
 
@@ -1030,7 +1055,7 @@ PROMPT_PREFIX_DEFAULT = (
     "- **统一 CLI 入口（优先用它，不要自己重新实现）**："
     "tools\\python\\python.exe src\\agent_cli.py <子命令> --json，"
     "子命令 status/info/download/transcribe/translate/calibrate/stabilize/"
-    "compose；完整技能卡见程序根 SKILL.md。\n"
+    "audit/compose/split/bili-submit；完整技能卡见程序根 SKILL.md。\n"
     "- **思考过程（reasoning）与最终汇报一律使用简体中文**，不要用英文思考。\n"
     "- 完成后用简体中文汇报：做了什么、关键产物路径、失败原因（如有）。\n\n"
     "【用户任务】\n"
