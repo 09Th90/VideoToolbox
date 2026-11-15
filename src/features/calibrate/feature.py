@@ -12,7 +12,8 @@ FEATURE = FeatureSpec(
     summary="术语校准（只改文字不动时间轴）/ cue 稳定化 / 名词漏校三扫",
     backend="calib_core",
     requires=(),
-    services={"main_argv": "calib_core.cli:main_argv"},
+    services={"main_argv": "calib_core.cli:main_argv",
+              "build_page": "features.calibrate.page:build_page"},
     cli=(
         CliCommand(name="calibrate",
                    help="字幕术语校准（透传 subtitle_calib_merged.py，只改文字不动时间轴）",
