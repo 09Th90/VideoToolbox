@@ -25,8 +25,8 @@ from vt_fluent import (BodyLabel, FluentIcon as FIF, FluentWindow, InfoBar,
 
 import video_toolbox as engine
 import ui_theme
-import media_registry as mreg
-import pipeline as pl
+import features.library.media_registry as mreg
+import features.pipeline.pipeline as pl
 
 from features import registry as _registry_fn, resolve as _feature_resolve
 from features._media import AUDIO_EXTS, SUBTITLE_EXTS, VIDEO_EXTS

@@ -26,9 +26,9 @@ from vt_fluent import (CaptionLabel, ComboBox, FluentIcon as FIF, InfoBar,
 
 import video_toolbox as engine
 import subtitle_editor_core as secore
-from subtitle_editor import CueTable, SubtitlePropsPanel, WaveformTimeline
-from subtitle_editor_media import MpvPlayer, WaveformCache
-from subtitle_overlay import SubtitleStage
+from features.subtitle_edit.subtitle_editor import CueTable, SubtitlePropsPanel, WaveformTimeline
+from features.subtitle_edit.subtitle_editor_media import MpvPlayer, WaveformCache
+from features.subtitle_edit.subtitle_overlay import SubtitleStage
 from features.compose.subtitle_compose import ComposeDialog
 
 from vt_app.widgets import ScrollPage, fit_caption

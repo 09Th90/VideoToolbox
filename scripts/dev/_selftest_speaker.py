@@ -178,7 +178,7 @@ def main():
     say("\n== 6) 预览层 SubtitleStage 分色 ==")
     try:
         from PySide6.QtWidgets import QApplication, QWidget
-        import subtitle_overlay as so
+        import features.subtitle_edit.subtitle_overlay as so
         app = QApplication.instance() or QApplication([])
         host = QWidget()
         stage = so.SubtitleStage(host, None, lambda: None)

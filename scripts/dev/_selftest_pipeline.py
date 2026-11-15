@@ -32,8 +32,8 @@ from PySide6.QtCore import QCoreApplication, QTimer         # noqa: E402
 app = QCoreApplication.instance() or QCoreApplication(sys.argv)
 
 import video_toolbox as engine                             # noqa: E402
-import media_registry as mreg                              # noqa: E402
-import pipeline as pl                                      # noqa: E402
+import features.library.media_registry as mreg            # noqa: E402
+import features.pipeline.pipeline as pl                    # noqa: E402
 
 RESULT_PATH = os.path.join(ROOT, "_selftest_pipeline_result.txt")
 LINES = []
@@ -763,7 +763,8 @@ def case_clear_jobs(root):
 
 def case_code_review():
     """代码审查：后台代码不得 import Qt 控件类；不得私自 open() 写文本。"""
-    for fname in ("media_registry.py", "pipeline.py"):
+    for fname in (os.path.join("features", "library", "media_registry.py"),
+                  os.path.join("features", "pipeline", "pipeline.py")):
         path = os.path.join(SRC, fname) if os.path.isfile(os.path.join(SRC, fname)) \
             else os.path.join(HERE, fname)
         if not os.path.isfile(path):
@@ -798,7 +799,7 @@ def case_cli_import(root):
         f"sys.path.insert(0, {SRC!r})\n"
         f"sys.path.insert(0, {HERE!r})\n"
         "import video_toolbox as engine\n"
-        "import media_registry as mreg, pipeline as pl\n"
+        "import features.library.media_registry as mreg, features.pipeline.pipeline as pl\n"
         "engine.ensure_ffmpeg = lambda: ('ff','ff')\n"
         "engine.get_duration = lambda p, f: 100.0\n"
         "engine.merge_pair = lambda mp4, a, at, s, st, out, ff, ass_mode='burn': "

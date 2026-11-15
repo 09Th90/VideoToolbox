@@ -17,7 +17,7 @@ from vt_fluent import (BodyLabel, CaptionLabel, FluentIcon as FIF, InfoBar,
                        SpinBox, StrongBodyLabel, SwitchButton, ToolButton)
 
 import video_toolbox as engine
-import pipeline as pl
+import features.pipeline.pipeline as pl
 
 from vt_app.widgets import (LogView, TabPage, card, expand_h, fit_caption,
                             fit_spin, row, tab_caption)

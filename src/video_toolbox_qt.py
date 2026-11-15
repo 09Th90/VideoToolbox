@@ -174,8 +174,8 @@ from core.download.ytdlp_util import (
 )
 # 流水线（v1.14.0）：目录感知 + 阶段调度。两个模块都是引擎侧（无 Qt 控件依赖），
 # UI 只订阅它们抛出的状态，跨线程一律走 app.q。
-import media_registry as mreg
-import pipeline as pl
+import features.library.media_registry as mreg
+import features.pipeline.pipeline as pl
 # 界面美化：各导航板块自定义背景图（配置持久化在 data/ui_custom.json）
 import ui_theme
 # Qt 兼容补丁（2026-10-14）：Qt 6.12.0 的 QStyleSheetStyle 回归会让
@@ -186,9 +186,9 @@ import qt_compat
 # 「页面反向 import 入口会循环」的障碍已消除——阶段③逐页拆到
 # features/<id>/page.py（只经 vt_app 基建 + 注册表服务取能力）。
 import subtitle_editor_core as secore
-from subtitle_editor import CueTable, SubtitlePropsPanel, WaveformTimeline
-from subtitle_editor_media import MpvPlayer, WaveformCache
-from subtitle_overlay import SubtitleStage
+from features.subtitle_edit.subtitle_editor import CueTable, SubtitlePropsPanel, WaveformTimeline
+from features.subtitle_edit.subtitle_editor_media import MpvPlayer, WaveformCache
+from features.subtitle_edit.subtitle_overlay import SubtitleStage
 # 内嵌字幕对话框（原引擎工作台「字幕视频合成」那一段，v1.13.x 挪到这里）
 from features.compose.subtitle_compose import ComposeDialog
 # 自动化页（v1.16.0）：视觉自动化 demo，参考 MAA 的「抓帧→识别→声明式任务→点击」。

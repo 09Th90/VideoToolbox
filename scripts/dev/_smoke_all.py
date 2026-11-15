@@ -117,7 +117,7 @@ if want("B"):
     try:
         r = run([py, "-c",
                  "import sys; sys.path.insert(0, r'D:/VideoToolbox/src'); "
-                 "from subtitle_editor_media import load_mpv; "
+                 "from features.subtitle_edit.subtitle_editor_media import load_mpv; "
                  "mod, err = load_mpv(r'D:/VideoToolbox/tools/mpv'); "
                  "print('ok') if mod else print(err)"], timeout=150)
         check("B", "import mpv（经 load_mpv 真实路径）",

@@ -6,7 +6,7 @@ FEATURE = FeatureSpec(
     id="library",
     title="视频库",
     summary="媒体文件注册/类型表/目录监视，下载产物自动入库",
-    backend="media_registry",
+    backend="features.library.media_registry",
     requires=(),
     services={"build_page": "features.library.page:build_page"},
     gui=GuiSpec(nav="视频库", builder="features.library.page:build_page",

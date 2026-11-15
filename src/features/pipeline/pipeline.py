@@ -53,7 +53,7 @@ except Exception:  # noqa: BLE001
         return None
 
 import video_toolbox as engine
-from media_registry import KIND_BY_EXT as _KIND_BY_EXT
+from features.library.media_registry import KIND_BY_EXT as _KIND_BY_EXT
 
 # ---------- 状态与常量 ----------
 WAITING, READY, RUNNING, DONE, FAILED, SKIPPED = (

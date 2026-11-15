@@ -6,7 +6,7 @@ FEATURE = FeatureSpec(
     id="pipeline",
     title="流水线",
     summary="目录感知一条龙：download→merge→transcribe→translate→calib1→calib2→package",
-    backend="pipeline",
+    backend="features.pipeline.pipeline",
     requires=("ffmpeg", "ytdlp", "asr", "network"),
     services={"build_page": "features.pipeline.page:build_page"},
     gui=GuiSpec(nav="流水线", builder="features.pipeline.page:build_page",

@@ -229,8 +229,8 @@ Source: "..\src\video_toolbox_qt.py"; DestDir: "{app}\src"; Flags: ignoreversion
 ;   28/28 全绿也照样漏（2026-10-09 实测：安装版 media_registry.py 比仓库
 ;   少 2 行、无 MERGE_VIDEO_EXTS，多容器配对在脚本方式下静默失效）。
 ;   ⇒ **凡是视频工具箱_qt.py 里模块级 import 的自研模块，都必须在此列出。**
-Source: "..\src\media_registry.py"; DestDir: "{app}\src"; Flags: ignoreversion
-Source: "..\src\pipeline.py"; DestDir: "{app}\src"; Flags: ignoreversion
+; media_registry.py 已迁入 src\features\library\，由 features 整目录行自动收集
+; pipeline.py 已迁入 src\features\pipeline\，由 features 整目录行自动收集
 ; 2026-10-28 补漏：engine_translate 是 pipeline / agent_cli 函数体内延迟 import 的
 ;   自研翻译器（P1 翻译接缝），exe 侧由 spec hiddenimports 内嵌；此处补源码副本，
 ;   保证安装版 src\ 方式运行流水线/CLI 翻译时不会 ImportError。
@@ -254,10 +254,10 @@ Source: "..\src\pipeline.py"; DestDir: "{app}\src"; Flags: ignoreversion
 ;   exe 侧都由 spec hiddenimports / PyInstaller 静态分析覆盖，iss 补的是
 ;   **脚本方式运行**（开发版说明书里的 `python src\video_toolbox_qt.py`）。
 Source: "..\src\ui_theme.py"; DestDir: "{app}\src"; Flags: ignoreversion
-Source: "..\src\subtitle_editor.py"; DestDir: "{app}\src"; Flags: ignoreversion
-Source: "..\src\subtitle_editor_media.py"; DestDir: "{app}\src"; Flags: ignoreversion
+; subtitle_editor.py 已迁入 src\features\subtitle_edit\，由 features 整目录行自动收集
+; subtitle_editor_media.py 已迁入 src\features\subtitle_edit\，由 features 整目录行自动收集
 ; subtitle_compose.py 已迁入 src\features\compose\，由 features 整目录行自动收集
-Source: "..\src\subtitle_overlay.py"; DestDir: "{app}\src"; Flags: ignoreversion
+; subtitle_overlay.py 已迁入 src\features\subtitle_edit\，由 features 整目录行自动收集
 Source: "..\src\auto_vision_page.py"; DestDir: "{app}\src"; Flags: ignoreversion
 ; v1.11.0：新增源码——合并核心、AI 校准 Agent、官方实现一键套用脚本
 Source: "..\src\calib_merge_core.py"; DestDir: "{app}\src"; Flags: ignoreversion

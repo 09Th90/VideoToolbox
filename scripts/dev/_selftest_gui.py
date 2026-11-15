@@ -366,7 +366,7 @@ def _qt_src():
 def _props_src():
     """字幕编辑页的属性面板源码文本（`subtitle_editor.py`）。"""
     try:
-        return open(os.path.join(_SRC, "subtitle_editor.py"),
+        return open(os.path.join(_SRC, "features", "subtitle_edit", "subtitle_editor.py"),
                     encoding="utf-8").read()
     except OSError:
         return ""
@@ -493,7 +493,7 @@ def _align_grid_ok():
     try:
         from PySide6.QtWidgets import QApplication
         import subtitle_editor_core as _se
-        from subtitle_editor import SubtitlePropsPanel
+        from features.subtitle_edit.subtitle_editor import SubtitlePropsPanel
     except Exception:  # noqa: BLE001
         return False
     panel = SubtitlePropsPanel()
@@ -556,7 +556,7 @@ def _align_grid_ok():
 def _overlay_src():
     """字幕覆盖层源码文本（`subtitle_overlay.py`）。"""
     try:
-        return open(os.path.join(_SRC, "subtitle_overlay.py"),
+        return open(os.path.join(_SRC, "features", "subtitle_edit", "subtitle_overlay.py"),
                     encoding="utf-8").read()
     except OSError:
         return ""
