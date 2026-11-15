@@ -11,12 +11,13 @@ FEATURE = FeatureSpec(
     services={
         "run_download_job": "core.download.job:run_download_job",
         "download_orchestrator": "core.download.job:download_orchestrator",
+        "build_page": "features.download.page:build_page",
     },
     cli=(CliCommand(
         name="download",
         help="下载视频（yt-dlp，自动代理+游客 cookie，合并 mp4）",
         setup="features.download.cli:setup_download"),),
-    gui=GuiSpec(nav="视频处理", builder="video_toolbox_qt:_build_download_page",
+    gui=GuiSpec(nav="视频处理", builder="features.download.page:build_page",
                 position="top", order=20, object_name="DownloadPage",
                 icon="DOWNLOAD", attr="download_page",
                 messages=("detect_done", "sys_log", "dl_")),
