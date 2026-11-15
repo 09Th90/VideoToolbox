@@ -12,7 +12,7 @@ FEATURE = FeatureSpec(
     # builder 在 harness 适配层不可用时抛异常 → 注册表挂载跳过（导航缺席），
     # 与旧 _HARNESS_IMPORT_OK 分支行为一致；harness 本体未部署时页面照建、
     # 显示部署引导卡（降级模式②，页面内处置）。
-    gui=GuiSpec(nav="AI 托管", builder="video_toolbox_qt:_build_harness_page_entry",
+    gui=GuiSpec(nav="AI 托管", builder="vt_app.main_window:_build_harness_page_entry",
                 position="bottom", order=80, object_name="HarnessPage",
                 icon="IOT", attr="harness_page"),
     order=80,

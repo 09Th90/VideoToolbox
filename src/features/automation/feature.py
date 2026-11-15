@@ -13,7 +13,7 @@ FEATURE = FeatureSpec(
         name="bili-submit",
         help="B 站后台自动投稿（UI Automation 定位 + 后台输入；素材目录内含投稿信息.txt）",
         setup="features.automation.cli:setup_bili_submit"),),
-    gui=GuiSpec(nav="自动化", builder="video_toolbox_qt:_build_auto_page_entry",
+    gui=GuiSpec(nav="自动化", builder="vt_app.main_window:_build_auto_page_entry",
                 position="bottom", order=90, object_name="AutoVisionPage",
                 icon="ROBOT", attr="auto_page"),
     order=90,
