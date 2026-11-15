@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+# @version 3.0.0
 """subtitle_edit 功能清单。GUI「字幕编辑」页；内嵌字幕对话框 ComposeDialog 属本功能。"""
 from features._registry import FeatureSpec, GuiSpec
 

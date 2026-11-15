@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+# @version 3.0.0
 """音画合并页（2026-11-15 功能解耦阶段③：从 video_toolbox_qt.py 拆出，逐字同源）。
 
 * 只经 vt_app 基建 + engine 门面（merge_pair/scan_media/smart_pair 等）；

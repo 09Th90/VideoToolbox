@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.9.1
+# @version 3.0.0
 """python -m calib_core 入口。"""
 
 from .cli import main_argv

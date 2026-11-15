@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+# @version 3.0.0
 """CLI 子命令模板。模块级只许标准库 + features._cli；后端在 handler 内惰性 import。"""
 from __future__ import annotations
 

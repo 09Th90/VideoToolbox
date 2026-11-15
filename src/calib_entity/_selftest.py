@@ -1,4 +1,4 @@
-# @version 2.9.1
+# @version 3.0.0
 """并行包自检（正向 + 负向）。
 
 运行：``tools\\python\\python.exe calib_entity/_selftest.py``

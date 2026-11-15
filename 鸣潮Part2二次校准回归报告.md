@@ -1,4 +1,4 @@
-<!-- @version 2.9.1 -->
+<!-- @version 3.0.0 -->
 # 鸣潮 Reaction Part 2 字幕二次校准 · 回归报告
 
 - 片源：`Wuthering Waves - First Time Reacting to ALL Resonator & Combat Showcases! Part 2`

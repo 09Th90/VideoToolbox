@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+# @version 3.0.0
 """info 功能清单。ffprobe 探媒体；字幕摘要复用 ASRData（服务表声明）。"""
 from features._registry import CliCommand, FeatureSpec
 

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.9.1
+# @version 3.0.0
 """calib_core 校准引擎包：对外保持与原单文件一致的符号面。
 
 双轨（2026-11-09）：CLI 与 GUI 运行时直连本包（agent_cli 同进程调用

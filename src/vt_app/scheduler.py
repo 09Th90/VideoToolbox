@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+# @version 3.0.0
 """首帧后后台任务调度器（原 video_toolbox_qt.py 同名代码，逐字下沉）。"""
 import os
 import time

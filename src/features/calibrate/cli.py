@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+# @version 3.0.0
 """calibrate / stabilize / audit 子命令（原 agent_cli 透传段，行为不变）。"""
 from __future__ import annotations
 

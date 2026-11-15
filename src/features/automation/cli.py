@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+# @version 3.0.0
 """bili-submit 子命令（原 agent_cli.cmd_bili_submit，行为不变）。"""
 from __future__ import annotations
 

@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+# @version 3.0.0
 """视频库页（2026-11-15 功能解耦阶段③：从 video_toolbox_qt.py 拆出，逐字同源）。
 
 * 缩略图缓存常量/助手（LIB_EXTS/THUMB_DIR/CARD_W…/thumb_cache_name/fmt_hms）

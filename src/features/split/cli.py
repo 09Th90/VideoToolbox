@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+# @version 3.0.0
 """split 子命令（原 agent_cli.cmd_split，行为不变）。"""
 from __future__ import annotations
 

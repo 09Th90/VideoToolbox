@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.9.1
+# @version 3.0.0
 """依赖闭合自检：把「自研 src + 内嵌字幕引擎」用到的顶层模块在当前解释器里
 逐个解析，列出**解析不到的第三方模块**。
 
@@ -37,6 +37,9 @@ SOFT_OK = {
                   # 提示）；v1.10.1 起浏览器引擎不随包分发，缺库属预期
     "ai_client",  # 随包 tools\ai_client.py（iss 与在线 tools 包分发），不进 PYZ；
                   # vt_engine.llm_client 函数体内延迟 import + tools 路径回退
+    "calib_stabilize",  # calib_core/format.py 的 monolith/data/tmp 布局裸名回退
+                  # （try/except 第二分支）；主路径 features.calibrate.calib_stabilize
+                  # 由 collect_submodules('features') 收进 PYZ，2026-11-15 模块独立文件夹
 }
 
 

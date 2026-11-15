@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.9.1
+# @version 3.0.0
 """vt_fluent 图标数据（自动生成区，勿手改）。
 
 · ART：使用面涉及的 FluentIcon SVG（黑变体单份，fill 运行期按主题替换）。

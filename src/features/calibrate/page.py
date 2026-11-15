@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+# @version 3.0.0
 """字幕校准页（2026-11-15 功能解耦阶段③：从 video_toolbox_qt.py 拆出，逐字同源）。
 
 * 宿主：字幕工作台（SubtitlePage）经注册表服务 ``calibrate.build_page`` 惰性

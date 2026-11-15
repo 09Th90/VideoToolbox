@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.9.1
+# @version 3.0.0
 """极简 xlsx 写出器（仅用标准库 zipfile），无第三方依赖。
 
 用法：

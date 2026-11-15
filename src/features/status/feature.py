@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+# @version 3.0.0
 """status 功能清单。后端=引擎门面级自检，无独立后端模块。"""
 from features._registry import CliCommand, FeatureSpec
 

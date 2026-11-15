@@ -1,4 +1,4 @@
-# @version 2.9.1
+# @version 3.0.0
 """音视频工具（自研，替代 videocaptioner.core.utils.video_utils 的公开面）。
 
 可观察契约

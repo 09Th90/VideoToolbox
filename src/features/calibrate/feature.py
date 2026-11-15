@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+# @version 3.0.0
 """calibrate 功能清单。三个透传子命令（calibrate/stabilize/audit）同属本功能。
 
 双轨（2026-11-08）：运行时直连 calib_core 包；根目录 subtitle_calib_merged.py
