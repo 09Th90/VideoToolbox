@@ -16,7 +16,7 @@ def cmd_translate(args) -> int:
     except Exception:  # noqa: BLE001
         pass
     from engine_asr_data import ASRData      # noqa: PLC0415
-    from engine_translate import make_translator  # noqa: PLC0415
+    from features.translate.engine_translate import make_translator  # noqa: PLC0415
     src = os.path.abspath(args.file)
     if not os.path.isfile(src):
         return _fail(args, "文件不存在：%s" % src)
@@ -93,7 +93,7 @@ def _lang_label(v: str):
     if v in LANGUAGES or v in LANGUAGES.values():
         return v
     try:
-        import engine_translate as et  # noqa: PLC0415
+        import features.translate.engine_translate as et  # noqa: PLC0415
         probes = getattr(et, "TRANSLATOR_PROBES", {}) or {}
     except Exception:  # noqa: BLE001
         probes = {}

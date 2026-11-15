@@ -190,7 +190,7 @@ from subtitle_editor import CueTable, SubtitlePropsPanel, WaveformTimeline
 from subtitle_editor_media import MpvPlayer, WaveformCache
 from subtitle_overlay import SubtitleStage
 # 内嵌字幕对话框（原引擎工作台「字幕视频合成」那一段，v1.13.x 挪到这里）
-from subtitle_compose import ComposeDialog
+from features.compose.subtitle_compose import ComposeDialog
 # 自动化页（v1.16.0）：视觉自动化 demo，参考 MAA 的「抓帧→识别→声明式任务→点击」。
 # 单独成模块（自带卡片/滚动壳），因此**不反向 import 本文件**，无循环导入。
 # 2026-10-20 启动优化：该模块顶层拖入 numpy/PIL/视觉引擎（实测合计 ≈364ms），

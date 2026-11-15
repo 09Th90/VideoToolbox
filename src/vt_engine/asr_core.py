@@ -14,7 +14,7 @@ from __future__ import annotations
 
 from vt_engine._bootstrap import SRC_DIR  # noqa: F401
 
-from engine_asr import (  # noqa: E402
+from features.transcribe.engine_asr import (  # noqa: E402
     ASRStatus,
     BaseASR,
     ChunkedASR,

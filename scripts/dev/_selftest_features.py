@@ -72,11 +72,17 @@ def main() -> int:
                                  for f in list(specs) + ["不存在的功能"]))
 
     # 2 —— 适配器模块级禁 Qt（AST）
+    # 扫描面＝适配器与包基建（feature.py/cli.py/__init__.py/_registry/_cli/_media）；
+    # GUI 模块（page.py、subtitle_compose.py 等对话框）合法用 Qt，不受此约束
+    # （2026-11-15：subtitle_compose 迁入 features/compose/ 后，旧「只排除
+    # page.py」黑名单误伤 GUI 对话框模块，改为按适配器白名单扫描）。
     qt_roots = {"PySide6", "PyQt5", "PyQt6", "qfluentwidgets", "vt_fluent"}
+    adapter_names = {"feature.py", "cli.py", "__init__.py",
+                     "_registry.py", "_cli.py", "_media.py"}
     bad = []
     for dirpath, _dirs, files in os.walk(os.path.join(SRC, "features")):
         for fn in files:
-            if not fn.endswith(".py") or fn == "page.py":
+            if fn not in adapter_names:
                 continue
             p = os.path.join(dirpath, fn)
             try:
@@ -203,7 +209,7 @@ def main() -> int:
     # 9 —— compose 核心无 Qt
     r = subprocess.run(
         [PY, "-c", "import sys; sys.path.insert(0, r'%s'); "
-         "import subtitle_compose_core; "
+         "import features.compose.subtitle_compose_core; "
          "assert not any(m.startswith('PySide6') for m in sys.modules), 'Qt 泄漏'; "
          "print('PURE')" % SRC],
         capture_output=True, text=True, encoding="utf-8", errors="replace",

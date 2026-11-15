@@ -123,8 +123,8 @@ except Exception as e:
 
 # ── 自研 engine_asr 的同名孪生分支同样跑通（双实现 parity）──
 try:
-    import engine_asr
-    from engine_asr import BaseASR as MyBase, set_cache_hub
+    import features.transcribe.engine_asr as engine_asr
+    from features.transcribe.engine_asr import BaseASR as MyBase, set_cache_hub
     from engine_cache import CacheHub
 
     class _Dummy2(MyBase):

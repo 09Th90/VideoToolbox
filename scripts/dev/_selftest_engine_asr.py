@@ -59,8 +59,8 @@ def _run(code, extra_env=None):
 def positive_contract():
     code = r'''
 import sys, os, zlib, tempfile
-from engine_asr import BaseASR, WhisperAPI, ASRStatus, ASR_CACHE_EXPIRE
-from engine_asr_local import (FasterWhisperASR, HALLUCINATION_KEYWORDS,
+from features.transcribe.engine_asr import BaseASR, WhisperAPI, ASRStatus, ASR_CACHE_EXPIRE
+from features.transcribe.engine_asr_local import (FasterWhisperASR, HALLUCINATION_KEYWORDS,
                               is_rtx_50_series)
 
 fails = []
@@ -166,7 +166,7 @@ SRT = ("1\n00:00:00,000 --> 00:00:01,000\n正常的台词\n\n"
        "4\n00:00:03,000 --> 00:00:04,000\n另一句台词\n")
 class FakeFW(FasterWhisperASR):
     def __init__(self):  # 绕过程序查找（自检不装 faster-whisper）
-        from engine_asr import BaseASR as _B
+        from features.transcribe.engine_asr import BaseASR as _B
         _B.__init__(self, blob, False, False)
         self.model_path="base"; self.model_dir=""; self.faster_whisper_program="fw"
         self.language="zh"; self.device="cpu"; self.output_dir=None
@@ -212,7 +212,7 @@ def positive_merger_parity():
     """分块合并与引擎 ChunkMerger 逐段比对（最关键的一组）。"""
     code = r'''
 import sys
-from engine_asr import ChunkMerger, ChunkedASR, CHUNK_LENGTH_SEC, \
+from features.transcribe.engine_asr import ChunkMerger, ChunkedASR, CHUNK_LENGTH_SEC, \
     CHUNK_OVERLAP_SEC, CHUNK_CONCURRENCY
 from engine_asr_data import ASRData, ASRDataSeg
 
@@ -335,7 +335,7 @@ def positive_http():
     code = r'''
 import sys, json, threading, os, tempfile
 from http.server import BaseHTTPRequestHandler, HTTPServer
-from engine_asr_http import post_transcription, transcription_url, AsrHttpError
+from features.transcribe.engine_asr_http import post_transcription, transcription_url, AsrHttpError
 
 fails = []
 def chk(name, cond, detail=""):
@@ -478,7 +478,7 @@ srv.shutdown()
 # ── 与引擎 WhisperAPI._make_segments 的段转换一致性 ──
 try:
     from videocaptioner.core.asr.whisper_api import WhisperAPI as TheirAPI
-    from engine_asr import WhisperAPI as MineAPI
+    from features.transcribe.engine_asr import WhisperAPI as MineAPI
     import tempfile as tf
     tmp = tf.mkdtemp()
     ap = os.path.join(tmp, "a.mp3")
@@ -522,7 +522,7 @@ def negative():
     import shutil
     import tempfile
     tmp = tempfile.mkdtemp(prefix="vt_asr_neg_")
-    src_file = os.path.join(SRC, "engine_asr.py")
+    src_file = os.path.join(SRC, "features", "transcribe", "engine_asr.py")
     dst = os.path.join(tmp, "engine_asr.py")
     ok = True
     try:

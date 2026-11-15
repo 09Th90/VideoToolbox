@@ -56,7 +56,7 @@ def cmd_compose(args) -> int:
                 "-c:a", "copy", out]
         _say(args, "[信息] 硬烧录字幕（视频重编码 H.264）…")
     else:
-        import subtitle_compose_core  # noqa: PLC0415 —— 纯函数，无 Qt
+        import features.compose.subtitle_compose_core as subtitle_compose_core  # noqa: PLC0415 —— 纯函数，无 Qt
         argv, err = subtitle_compose_core.build_command(ffmpeg_path, video, sub, out)
         if err:
             return _fail(args, err)

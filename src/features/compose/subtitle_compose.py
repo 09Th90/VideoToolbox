@@ -49,7 +49,7 @@ _NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0) if sys.platform == "win3
 # 0. 纯函数已下沉 subtitle_compose_core（2026-11-15 功能解耦）
 # =============================================================
 # 再导出旧名：GUI / CLI / selftest 调用方零改动。
-from subtitle_compose_core import (SOFT_CODECS, build_command,  # noqa: F401
+from features.compose.subtitle_compose_core import (SOFT_CODECS, build_command,  # noqa: F401
                                    default_output, parse_progress)
 
 OUTPUT_FILTER = ("MP4 视频 (*.mp4);;Matroska 字幕友好 (*.mkv);;所有文件 (*.*)")

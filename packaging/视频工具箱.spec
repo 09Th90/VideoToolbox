@@ -140,14 +140,16 @@ hiddenimports += ['engine_cache', 'engine_paths']
 # 2026-10-13：翻译接缝（engine_translate）——自研替代三个免费翻译器的第三方
 #   实现，是本项目**不再持有第三方翻译器源码**的关键（原先靠 docs\vc_translate_impl
 #   的 GPL 副本回写引擎）。仅被自检与将来的接管调用点引用，故显式声明。
-hiddenimports += ['engine_translate']
+# engine_translate 已迁入 features/translate/（2026-11-15 模块独立文件夹），
+# 由 collect_submodules('features') 自动收集
 
 # 2026-10-13：ASR 链路（P2 档 B）—— WhisperAPI / BaseASR / ChunkedASR+ChunkMerger /
 #   transcribe 编排。engine_asr 内对 engine_asr_http / engine_asr_local 都是**函数体内
 #   延迟 import**（前者只在 _submit 里用到、后者只在 local 模式分发时用到），
 #   静态分析跟踪不到；漏声明的表现是「远端转录可用、local 模式 ImportError」。
 #   engine_asr_local 依赖 GPUtil（可选增强，try-import），不必显式声明。
-hiddenimports += ['engine_asr', 'engine_asr_http', 'engine_asr_local']
+# engine_asr/engine_asr_http/engine_asr_local 已迁入 features/transcribe/，
+# 由 collect_submodules('features') 自动收集
 
 # 2026-11-09（本地 ASR 全链修复 · 发布配置补漏）：faster_whisper 现在是
 #   **主进程**内置直连（src\engine_asr_local.py 函数体内
@@ -165,7 +167,6 @@ hiddenimports += [
     'faster_whisper.audio', 'faster_whisper.feature_extractor',
     'faster_whisper.tokenizer', 'faster_whisper.utils',
     'ctranslate2', 'huggingface_hub', 'tokenizers', 'av', 'numpy',
-    'asr_local_paths',
 ]
 
 # 2026-10-13（P2 尾部 / 档 B）：自研任务工厂 engine_task_factory —— 接管
@@ -341,7 +342,8 @@ hiddenimports += collect_submodules('vt_app')
 #   subtitle_compose_core —— 合成纯函数（CLI handler 函数体内延迟 import）。
 #   video_split 已迁入 features/split/（2026-11-15 模块独立文件夹），由上方
 #   collect_submodules('features') 自动收集，不再逐名声明。
-hiddenimports += ['agent_cli', 'subtitle_compose_core']
+# subtitle_compose_core 已迁入 features/compose/，由 collect_submodules('features') 自动收集
+hiddenimports += ['agent_cli']
 if os.path.isdir(online_release_dir):
     datas += [(os.path.join(online_release_dir, f),
                os.path.join('online_release', f))

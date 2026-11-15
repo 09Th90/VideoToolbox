@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from vt_engine._bootstrap import SRC_DIR  # noqa: F401
 
-from engine_translate import (  # noqa: E402
+from features.translate.engine_translate import (  # noqa: E402
     BaseSubtitleTranslator,
     BingTranslator,
     GoogleTranslator,

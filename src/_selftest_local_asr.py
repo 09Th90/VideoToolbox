@@ -37,8 +37,8 @@ os.environ.setdefault("HF_HUB_OFFLINE", "1")
 os.environ.setdefault("HF_HUB_DISABLE_TELEMETRY", "1")
 os.environ.setdefault("VT_SELFTEST", "1")
 
-import asr_local_paths as paths  # noqa: E402
-import engine_asr_local as local  # noqa: E402
+import features.transcribe.asr_local_paths as paths  # noqa: E402
+import features.transcribe.engine_asr_local as local  # noqa: E402
 from engine_asr_data import ASRData  # noqa: E402
 
 RESULTS = []
@@ -143,7 +143,7 @@ def main() -> int:
             "sys.path.insert(0, %r)\n"
             "os.environ.setdefault('HF_HUB_OFFLINE', '1')\n"
             "os.environ.setdefault('HF_HUB_DISABLE_TELEMETRY', '1')\n"
-            "from engine_asr_local import load_local_model\n"
+            "from features.transcribe.engine_asr_local import load_local_model\n"
             "m, d, c = load_local_model(%r, 'cpu')\n"
             "print('SUBPROCESS_LOAD_OK', d, c)\n"
             % (SRC_DIR, os.path.join(root, "large-v3"))
@@ -423,7 +423,7 @@ def main() -> int:
 
     # ---------- T11 引擎分支：字符串模型名覆盖不再崩 ----------
     try:
-        import engine_asr
+        import features.transcribe.engine_asr as engine_asr
         from engine_entities import TranscribeModelEnum
 
         class FakeConfig:

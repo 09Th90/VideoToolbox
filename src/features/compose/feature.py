@@ -6,10 +6,10 @@ FEATURE = FeatureSpec(
     id="compose",
     title="字幕合成",
     summary="软封装（copy 不重编码）/ ASS 硬烧录 / 带独立音轨 merge_pair 合并",
-    backend="subtitle_compose_core",
+    backend="features.compose.subtitle_compose_core",
     requires=("ffmpeg",),
     services={
-        "build_command": "subtitle_compose_core:build_command",
+        "build_command": "features.compose.subtitle_compose_core:build_command",
         "merge_pair": "core.download.media:merge_pair",
     },
     cli=(CliCommand(

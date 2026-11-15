@@ -1274,7 +1274,7 @@ def _google_translate_lines(lines, target="zh-CN", proxy="", log=None):
 def _bing_translate_lines(lines, target="zh-Hans", log=None):
     """必应（Edge 免认证端点）批量翻译文本行；失败显式抛错，不回落原文。"""
     import types
-    import engine_translate
+    import features.translate.engine_translate as engine_translate
     out = [""] * len(lines)
     active = [i for i, t in enumerate(lines) if t.strip()]
     batches, cur, size = [], [], 0

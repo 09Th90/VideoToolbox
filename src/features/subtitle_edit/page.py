@@ -29,7 +29,7 @@ import subtitle_editor_core as secore
 from subtitle_editor import CueTable, SubtitlePropsPanel, WaveformTimeline
 from subtitle_editor_media import MpvPlayer, WaveformCache
 from subtitle_overlay import SubtitleStage
-from subtitle_compose import ComposeDialog
+from features.compose.subtitle_compose import ComposeDialog
 
 from vt_app.widgets import ScrollPage, fit_caption
 from features._media import MEDIA_FILE_FILTER

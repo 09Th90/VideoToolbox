@@ -364,7 +364,7 @@ ok &= all(s.translated_text == "译【row %d】" % i
 ok &= len([x for x in rsizes if x > 1]) >= 3
 
 # D3 自研线同一份实现
-from engine_translate import make_translator
+from features.translate.engine_translate import make_translator
 g = make_translator("google", thread_num=10, batch_num=5,
                     target_language="简体中文")
 g.session = FakeSession()

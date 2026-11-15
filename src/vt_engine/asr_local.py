@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from vt_engine._bootstrap import SRC_DIR  # noqa: F401
 
-from engine_asr_local import (  # noqa: E402
+from features.transcribe.engine_asr_local import (  # noqa: E402
     FasterWhisperASR,
     HALLUCINATION_KEYWORDS,
     is_rtx_50_series,

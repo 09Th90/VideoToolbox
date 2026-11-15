@@ -375,7 +375,7 @@ class WhisperAPI(BaseASR):
     REQUEST_TIMEOUT = 300
 
     def _submit(self) -> dict:
-        from engine_asr_http import post_transcription
+        from features.transcribe.engine_asr_http import post_transcription
         prompt = self.prompt
         # 中文且无提示词时给一句引导，提升简体中文准确率（引擎既有行为）
         if self.language == "zh" and not prompt:
@@ -700,7 +700,7 @@ def _create_asr_instance(audio_path: str, config):
                           asr_kwargs=kwargs)
 
     if model_value == TranscribeModelEnum.FASTER_WHISPER.value:
-        from engine_asr_local import FasterWhisperASR
+        from features.transcribe.engine_asr_local import FasterWhisperASR
         kwargs = {
             "use_cache": True,
             "need_word_time_stamp": config.need_word_time_stamp,

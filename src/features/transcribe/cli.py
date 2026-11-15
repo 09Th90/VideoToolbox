@@ -67,7 +67,7 @@ def cmd_transcribe(args) -> int:
         _say(args, "[信息] 识别语言：%s" % (code or "自动检测"))
 
     # ④ 转录
-    engine_asr = _mod("engine_asr")
+    engine_asr = _mod("features.transcribe.engine_asr")
     engine_asr.set_ffmpeg(ffmpeg_path)
     out_dir = os.path.abspath(args.out) if args.out else _agent_out_dir()
     out_path = out_dir if out_dir.lower().endswith(".srt") else \

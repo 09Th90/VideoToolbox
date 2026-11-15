@@ -56,8 +56,8 @@ import tempfile
 import threading
 from typing import Callable, List, Optional, Tuple
 
-import asr_local_paths
-from engine_asr import BaseASR, ASRStatus
+import features.transcribe.asr_local_paths as asr_local_paths
+from features.transcribe.engine_asr import BaseASR, ASRStatus
 from engine_asr_data import ASRData, ASRDataSeg
 
 __all__ = [

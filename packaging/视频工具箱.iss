@@ -234,7 +234,7 @@ Source: "..\src\pipeline.py"; DestDir: "{app}\src"; Flags: ignoreversion
 ; 2026-10-28 补漏：engine_translate 是 pipeline / agent_cli 函数体内延迟 import 的
 ;   自研翻译器（P1 翻译接缝），exe 侧由 spec hiddenimports 内嵌；此处补源码副本，
 ;   保证安装版 src\ 方式运行流水线/CLI 翻译时不会 ImportError。
-Source: "..\src\engine_translate.py"; DestDir: "{app}\src"; Flags: ignoreversion
+; engine_translate.py 已迁入 src\features\translate\，由 features 整目录行自动收集
 ; 2026-11-09（本地 ASR 全链修复）：补齐本轮三处源码副本。安装版随包分发
 ;   src\视频工具箱.bat，它用 tools\python\python.exe 按源码跑
 ;   src\video_toolbox_qt.py（:205 import video_toolbox facade）；另外 agent_cli.py
@@ -242,9 +242,9 @@ Source: "..\src\engine_translate.py"; DestDir: "{app}\src"; Flags: ignoreversion
 ;   转录时 engine_asr._create_asr_instance 延迟 import engine_asr_local，后者
 ;   顶层 import asr_local_paths —— 缺任一条，安装版「src\ 方式运行」的本地转录
 ;   就 ImportError。exe 侧由 spec hiddenimports / PYZ 覆盖，这里是 {app}\src 副本。
-Source: "..\src\engine_asr.py"; DestDir: "{app}\src"; Flags: ignoreversion
-Source: "..\src\engine_asr_local.py"; DestDir: "{app}\src"; Flags: ignoreversion
-Source: "..\src\asr_local_paths.py"; DestDir: "{app}\src"; Flags: ignoreversion
+; engine_asr.py 已迁入 src\features\transcribe\，由 features 整目录行自动收集
+; engine_asr_local.py 已迁入 src\features\transcribe\，由 features 整目录行自动收集
+; asr_local_paths.py 已迁入 src\features\transcribe\，由 features 整目录行自动收集
 ; ⚠ v1.18.2 同批补漏：这几个同样是 video_toolbox_qt.py 的**模块级**依赖
 ;   （ast 扫 col_offset==0 的 import 得出，缺任一个都会 ImportError）。
 ;   ui_theme —— qfluentwidgets 主题；subtitle_editor —— 字幕编辑页主模块；
@@ -256,7 +256,7 @@ Source: "..\src\asr_local_paths.py"; DestDir: "{app}\src"; Flags: ignoreversion
 Source: "..\src\ui_theme.py"; DestDir: "{app}\src"; Flags: ignoreversion
 Source: "..\src\subtitle_editor.py"; DestDir: "{app}\src"; Flags: ignoreversion
 Source: "..\src\subtitle_editor_media.py"; DestDir: "{app}\src"; Flags: ignoreversion
-Source: "..\src\subtitle_compose.py"; DestDir: "{app}\src"; Flags: ignoreversion
+; subtitle_compose.py 已迁入 src\features\compose\，由 features 整目录行自动收集
 Source: "..\src\subtitle_overlay.py"; DestDir: "{app}\src"; Flags: ignoreversion
 Source: "..\src\auto_vision_page.py"; DestDir: "{app}\src"; Flags: ignoreversion
 ; v1.11.0：新增源码——合并核心、AI 校准 Agent、官方实现一键套用脚本
@@ -314,7 +314,7 @@ Source: "..\src\视频工具箱.bat"; DestDir: "{app}\src"; Flags: ignoreversion
 ;   video_split.py 已迁入 src\features\split\（模块独立文件夹），由下方 features
 ;   整目录行自动收集，不再单列。
 Source: "..\src\agent_cli.py"; DestDir: "{app}\src"; Flags: ignoreversion
-Source: "..\src\subtitle_compose_core.py"; DestDir: "{app}\src"; Flags: ignoreversion
+; subtitle_compose_core.py 已迁入 src\features\compose\，由 features 整目录行自动收集
 ; ============================================================================
 ; v2.4.0 补漏（2026-10-19）：**自研包目录**此前整体缺席安装清单
 ;   v2.3.x 把单体拆成 `core\` 六域（asr/calibrate/download/pipeline/shared/

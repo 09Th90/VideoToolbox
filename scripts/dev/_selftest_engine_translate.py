@@ -53,7 +53,7 @@ def positive_contract():
     code = r'''
 import sys
 from dataclasses import dataclass
-from engine_translate import (BingTranslator, GoogleTranslator,
+from features.translate.engine_translate import (BingTranslator, GoogleTranslator,
                               DeepLxTranslator, BaseSubtitleTranslator,
                               make_translator, ERROR_MARK, MAX_CHARS_PER_ITEM)
 
@@ -220,7 +220,7 @@ def positive_engine_parity():
     code = r'''
 import sys
 from dataclasses import dataclass
-from engine_translate import BingTranslator, ERROR_MARK
+from features.translate.engine_translate import BingTranslator, ERROR_MARK
 from engine_cache import generate_cache_key
 
 fails = []
@@ -277,7 +277,7 @@ def positive_online():
     code = r'''
 import sys
 from dataclasses import dataclass
-from engine_translate import (BingTranslator, probe_translator,
+from features.translate.engine_translate import (BingTranslator, probe_translator,
                               probe_translator_cached, ERROR_MARK)
 
 @dataclass
@@ -330,7 +330,7 @@ def negative():
     import shutil
     import tempfile
     tmp = tempfile.mkdtemp(prefix="vt_tr_neg_")
-    src_file = os.path.join(SRC, "engine_translate.py")
+    src_file = os.path.join(SRC, "features", "translate", "engine_translate.py")
     dst = os.path.join(tmp, "engine_translate.py")
     ok = True
     try:
@@ -358,6 +358,8 @@ def negative():
         code = (
             "import sys\n"
             "from dataclasses import dataclass\n"
+            # 负向子进程裸名 import：PYTHONPATH=tmp+SRC，命中 tmp 污染副本
+            # （2026-11-15 搬迁后仍须裸名——features 路径会绕过副本使污染失效）
             "from engine_translate import BingTranslator, ERROR_MARK\n"
             "@dataclass\n"
             "class TL:\n"

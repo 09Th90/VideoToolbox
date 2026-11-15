@@ -6,11 +6,11 @@ FEATURE = FeatureSpec(
     id="transcribe",
     title="语音转录",
     summary="ASR 转录出 SRT（service/local 双槽，模型/密钥读设置页 ASR 槽）",
-    backend="engine_asr",
+    backend="features.transcribe.engine_asr",
     requires=("ffmpeg", "asr"),
     services={
-        "transcribe": "engine_asr:transcribe",
-        "set_ffmpeg": "engine_asr:set_ffmpeg",
+        "transcribe": "features.transcribe.engine_asr:transcribe",
+        "set_ffmpeg": "features.transcribe.engine_asr:set_ffmpeg",
         "create_transcribe_task": "engine_task_factory:TaskFactory.create_transcribe_task",
     },
     cli=(CliCommand(
