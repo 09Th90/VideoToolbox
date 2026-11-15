@@ -194,7 +194,7 @@ def ast_compat(text):
 
 def merge_compat(old_path, text):
     sys.path.insert(0, SRC)
-    import calib_merge_core as mc
+    import features.calibrate.calib_merge_core as mc
     old = open(old_path, encoding="utf-8").read().replace("\r\n", "\n")
     merged, added, conflicts = mc.merge_calib_script(old, text, old)
     bad = [c for c in conflicts if "解析失败" in c]

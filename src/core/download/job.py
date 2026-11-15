@@ -504,7 +504,7 @@ class _JobRunner:
         if code:
             return code
         try:
-            import npe_backend
+            import features.download.npe_backend as npe_backend
         except Exception as e:  # noqa: BLE001
             self._log("[NPE] 模块导入失败：%s" % e, "err")
             return 1

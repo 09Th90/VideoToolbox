@@ -430,7 +430,7 @@ def _cmd_flow(src, out=None, fix_style=False):
 #
 #   对标 FineSub（downloads/finesub v0.5.1）ASR 稳定化层的 SRT 移植：
 #   丢弃候选 / 碎片合并 / 超长 cue 拆分。库实现与阈值出处见
-#   src\calib_stabilize.py 与 finesub_stabilize_gap_analysis.md。
+#   src\features\calibrate\calib_stabilize.py 与 finesub_stabilize_gap_analysis.md。
 #
 #   与校准铁律的关系：稳定化是校准**之前**的结构层（FineSub 管线里排在
 #   raw SRT 之前），本来就负责时间轴；校准（REPLACE/Agent）仍严守
@@ -448,9 +448,12 @@ def _cmd_stabilize(src, out=None, report=None, drop=True, merge=True, split=True
             if _p and _p not in sys.path:
                 sys.path.insert(0, _p)
     try:
-        import calib_stabilize as _st
-    except ImportError as e:
-        print(f"[错误] 无法导入 src\\calib_stabilize.py：{e}")
-        return 2
+        from features.calibrate import calib_stabilize as _st
+    except ImportError:
+        try:
+            import calib_stabilize as _st  # monolith/data/tmp 布局：同级候选
+        except ImportError as e:
+            print(f"[错误] 无法导入 features/calibrate/calib_stabilize.py：{e}")
+            return 2
     return _st.run(src, out=out, report=report, drop=drop, merge=merge, split=split)
 

@@ -103,7 +103,7 @@ def main(argv):
               r"src\vt_update_check.py",
               r"src\auto_vision_core.py",
               r"src\bili_upload.py",
-              r"src\calib_media_agent.py"]
+              r"src\features\calibrate\calib_media_agent.py"]
     if len(argv) > 2:
         expect = argv[2:]
     return audit(os.path.abspath(argv[1]), expect)

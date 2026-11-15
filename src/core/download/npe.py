@@ -12,7 +12,7 @@ from core.shared.config import load_config
 
 import os
 
-import npe_backend
+import features.download.npe_backend as npe_backend
 
 from core.download.cookies import ytdlp_cookie_args
 from core.shared.proxy import ytdlp_proxy_args
@@ -45,7 +45,7 @@ def npe_engine_mode():
 def npe_available():
     """(是否可用, 说明)。缺 java 或未构建 jar 时返回 False。"""
     try:
-        import npe_backend
+        import features.download.npe_backend as npe_backend
         return npe_backend.is_available()
     except Exception as e:  # noqa: BLE001
         return False, f"NPE 模块不可用：{e}"

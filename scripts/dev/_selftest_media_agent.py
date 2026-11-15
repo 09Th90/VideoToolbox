@@ -22,8 +22,8 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 _VT_ROOT = os.path.dirname(os.path.dirname(HERE))
 FFMPEG = os.path.join(_VT_ROOT, "tools", "ffmpeg.exe")
 sys.path.insert(0, os.path.join(_VT_ROOT, "src"))
-import calib_media_agent as ma  # noqa: E402
-import calib_ai_agent as ag  # noqa: E402
+import features.calibrate.calib_media_agent as ma  # noqa: E402
+import features.calibrate.calib_ai_agent as ag  # noqa: E402
 
 FAIL = []
 

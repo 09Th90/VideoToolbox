@@ -17,7 +17,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 #: 脚本位于 <仓库根>/scripts/dev/ ⇒ 上两层才是仓库根（勿多剥一层）
 _VT_ROOT = os.path.dirname(os.path.dirname(HERE))
 sys.path.insert(0, os.path.join(_VT_ROOT, "src"))
-import calib_stabilize as st  # noqa: E402
+import features.calibrate.calib_stabilize as st  # noqa: E402
 
 FAIL = []
 

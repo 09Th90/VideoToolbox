@@ -312,7 +312,7 @@ def t_cover():
 
 # ---------- 5. NPE probe ----------
 def t_npe():
-    import npe_backend
+    import features.download.npe_backend as npe_backend
     tmp = os.environ["VT_TMP"]
     script = _script(tmp, "fk_npe.py", FAKE_JAVA_BODY)
     # cmd 形如 [java, "-jar", jar, "--url", u, ...] → 丢掉 "-jar jar" 两项
@@ -357,7 +357,8 @@ def t_npe():
 
 # ---------- 6. GUI 源码层 ----------
 def t_gui_source():
-    path = os.path.join(APP_DIR, "src", "video_toolbox_qt.py")
+    # 2026-11-15：下载页 GUI 已拆入 features/download/page.py（薄壳不再含锚点）
+    path = os.path.join(APP_DIR, "src", "features", "download", "page.py")
     with open(path, encoding="utf-8") as f:
         text = f.read()
     check("6a on_dl_progress 对已取消/已收尾任务提前 return（状态不回弹）",

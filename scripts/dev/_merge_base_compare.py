@@ -11,7 +11,7 @@ import sys
 
 ROOT = r"D:\Agent Work\软件开发\视频工具箱"
 sys.path.insert(0, os.path.join(ROOT, "src"))
-import calib_merge_core as mmc  # noqa: E402
+import features.calibrate.calib_merge_core as mmc  # noqa: E402
 
 CALIB = "subtitle_calib_merged.py"
 

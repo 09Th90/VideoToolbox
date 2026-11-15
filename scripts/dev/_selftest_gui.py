@@ -618,7 +618,7 @@ def _crash_guard_ok():
 def _merge_core_module_ok():
     """合并算法抽到 calib_merge_core 纯函数模块，引擎以别名复用同一实现。"""
     try:
-        import calib_merge_core as core
+        import features.calibrate.calib_merge_core as core
     except Exception:
         return False
     # 门禁回归（2026-11-10）：两个实体同 variant 不同 canonical，必须识别为冲突
@@ -1967,7 +1967,7 @@ def main():
           hasattr(sp, "calib_media_switch")
           and engine.ai_mod().DEFAULT_CONFIG.get("calib_media_enabled") is False)
     try:
-        import calib_ai_agent as _agent
+        import features.calibrate.calib_ai_agent as _agent
         agent_ok = (_agent.SCRIPT_NAME == "subtitle_calib_merged.py"
                     and callable(_agent.calibrate)
                     and callable(_agent.rebuild_srt))

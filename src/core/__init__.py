@@ -12,4 +12,7 @@ facade（显式再导出层）。施工图与接口契约见
   · ``download`` / ``asr`` / ``translate`` / ``calibrate`` 只准依赖 ``shared``；
   · ``pipeline`` 可依赖全部（编排层）；
   · 域间横向依赖一律经 ``shared`` 或由 ``pipeline`` 组装。
+  · 跨层例外（2026-11-15 模块独立文件夹）：``download`` / ``calibrate`` 可
+    import ``features.<id>`` 下的功能专属实现（npe_backend / calib_*）——
+    实现已随功能迁入独立文件夹；仍禁 Qt 与其它功能页面。
 """

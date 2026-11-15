@@ -110,7 +110,7 @@ def calib_ai_run(src, out=None, report=None, mode_flag="", fix_en=False,
     抽帧视觉描述），Agent 可对疑似误听与丢弃候选请求证据；无路径或工具装配
     失败按离线继续，行为与旧版完全一致。
     """
-    import calib_ai_agent as _agent
+    import features.calibrate.calib_ai_agent as _agent
     ai = ai_load_config()
     # 设置自动匹配（2026-10-01 v2）：端点↔模型、预算↔模型能力一次算清，
     # 走 ai_client.match_settings() 这一份权威实现（设置页「自动匹配」按钮、
@@ -142,7 +142,7 @@ def calib_ai_run(src, out=None, report=None, mode_flag="", fix_en=False,
     web = None
     if bool(ai.get("calib_web_enabled", False)):
         try:
-            import calib_web_agent as _web
+            import features.calibrate.calib_web_agent as _web
             web = _web.make_tools(proxy=calib_web_proxy, log=log)
         except Exception as e:  # noqa: BLE001
             web = None
@@ -158,7 +158,7 @@ def calib_ai_run(src, out=None, report=None, mode_flag="", fix_en=False,
     media = None
     if bool(ai.get("calib_media_enabled", False)) and media_path:
         try:
-            import calib_media_agent as _media
+            import features.calibrate.calib_media_agent as _media
             _asr = ai_mod().asr_config(ai)
             _asr["protocol"] = ai_mod().resolve_asr_protocol(_asr)
             _ff = ""

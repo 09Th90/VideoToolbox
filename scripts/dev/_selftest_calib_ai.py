@@ -37,7 +37,7 @@ _VT_ROOT = os.path.dirname(os.path.dirname(HERE))
 if os.path.join(_VT_ROOT, "src") not in sys.path:
     sys.path.insert(0, os.path.join(_VT_ROOT, "src"))
 
-import calib_ai_agent as ag  # noqa: E402
+import features.calibrate.calib_ai_agent as ag  # noqa: E402
 
 SCRIPT = os.path.join(_VT_ROOT, ag.SCRIPT_NAME)
 PYTHON = sys.executable
@@ -853,7 +853,7 @@ def test_tag_priority():
 def test_web_tool_loop():
     """联网查证工具环（离线）：请求解析 / 执行回填 / 至多一轮 / 计数统计。"""
     print("\n== 联网查证工具环（离线 mock） ==")
-    import calib_web_agent as web_ag
+    import features.calibrate.calib_web_agent as web_ag
 
     # 1 工具请求识别与边界
     reqs = ag.parse_tool_requests(

@@ -18,7 +18,7 @@ import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, os.path.join(ROOT, "src"))
-import calib_merge_core as mmc  # noqa: E402
+import features.calibrate.calib_merge_core as mmc  # noqa: E402
 
 CALIB = os.path.join(ROOT, "subtitle_calib_merged.py")
 KB = os.path.join(ROOT, "subtitle_learned_kb.json")

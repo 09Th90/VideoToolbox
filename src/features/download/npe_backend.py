@@ -17,7 +17,7 @@ TeamNewPipe 维护）接成**第二个独立解析引擎**。
 
 典型用法
 --------
-    from npe_backend import probe, race_engines
+    from features.download.npe_backend import probe, race_engines
     info = probe(url, proxy="http://127.0.0.1:7897", cookie_file="data/guest_cookies.txt")
     name, info = race_engines(url, proxy=proxy, cookie_file=cf)
 """
@@ -601,7 +601,7 @@ if __name__ == "__main__":
 
     url = sys.argv[1] if len(sys.argv) > 1 else ""
     if not url:
-        print("用法: python npe_backend.py <url> [proxy] [cookie_file]")
+        print("用法: python src/features/download/npe_backend.py <url> [proxy] [cookie_file]")
         raise SystemExit(1)
     px = sys.argv[2] if len(sys.argv) > 2 else ""
     cf = sys.argv[3] if len(sys.argv) > 3 else ""

@@ -699,7 +699,7 @@ def sync_voiceprint_on_exit():
 # 中心化方案）：启动自动拉取 GitHub main 最新校准知识并把其他用户沉淀的
 # 新条目并入本地；退出时先把远程新内容并进来再推送，多用户互不覆盖，
 # 所有人的脚本最终收敛到全体条目的并集。
-from calib_merge_core import (
+from features.calibrate.calib_merge_core import (
     _MERGE_MISSING,
     _ast_module_tables,
     _dict_entries,
@@ -708,7 +708,7 @@ from calib_merge_core import (
     merge_calib_script,
     merge_learned_kb,
 )
-import calib_merge_core as _calib_core
+import features.calibrate.calib_merge_core as _calib_core
 _calib_core._log = _sync_log  # 合并期冲突日志写入 logs/calib_sync.log
 
 __all__ = [

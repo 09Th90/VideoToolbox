@@ -121,7 +121,7 @@ def positive():
         "build.py" in decl or "newpipe-cli" in decl)
 
     # 义务 6：交互方式为子进程调用（不静态链接进 exe）
-    backend = _read(os.path.join(ROOT, "src", "npe_backend.py"))
+    backend = _read(os.path.join(ROOT, "src", "features", "download", "npe_backend.py"))
     chk("Python 侧经子进程调用 jar", '"-jar"' in backend or "'-jar'" in backend)
     chk("自研封装 npe_backend.py 存在", bool(backend))
 

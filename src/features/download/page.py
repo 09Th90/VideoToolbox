@@ -1255,7 +1255,7 @@ class DownloadPage(QWidget):
             self.app.q.put(("dl_progress", task_id, pct))
 
         try:
-            import npe_backend
+            import features.download.npe_backend as npe_backend
         except Exception as e:  # noqa: BLE001
             log(f"[NPE] 模块导入失败：{e}", "err")
             return 1

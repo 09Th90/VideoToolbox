@@ -121,7 +121,8 @@ hiddenimports += collect_submodules('videocaptioner')
 
 # v1.10.8：校准知识条目级合并核心（video_toolbox 顶层 import，静态分析一般能
 # 跟踪到，这里显式声明双保险——退出同步子进程/界面都依赖它）。
-hiddenimports += ['calib_merge_core']
+# calib_merge_core 已迁入 features/calibrate/（2026-11-15 模块独立文件夹），
+# 由 collect_submodules('features') 自动收集
 
 # 2026-10-13：P1 引擎自研化接缝（替代 videocaptioner.core.entities 的枚举与
 #   videocaptioner.core.asr.asr_data 的字幕数据模型）。video_toolbox 里全是
@@ -182,18 +183,18 @@ hiddenimports += ['ui_theme']
 
 # v1.11.0：AI 校准 Agent（延迟导入：engine.calib_ai_run 内部 import，静态分析
 # 发现不了，必须显式声明，否则打包后点「AI 校准」会 ModuleNotFoundError）。
-hiddenimports += ['calib_ai_agent']
+# calib_ai_agent 已迁入 features/calibrate/，由 collect_submodules('features') 自动收集
 
 # 2026-09-20：AI 校准 Agent 的联网查证工具（calib_web_agent，同样是
 # calib_ai_run 内部延迟 import，开启「联网查证」后点校准才会加载）。
-hiddenimports += ['calib_web_agent']
+# calib_web_agent 已迁入 features/calibrate/，由 collect_submodules('features') 自动收集
 
 # 2026-10-12：AI 校准 Agent 的**音画证据**工具（calib_media_agent）。engine
 #   video_toolbox.py:5465 在函数体内 `import calib_media_agent as _media`
 #   （开启「音画证据」开关后点校准才走），静态分析跟踪不到 ⇒ 不声明的话
 #   打包后音画证据永远走降级分支、只返回「证据获取失败」，且**不报错**。
 #   该模块零第三方依赖（ffmpeg 子进程 + urllib multipart POST）。
-hiddenimports += ['calib_media_agent']
+# calib_media_agent 已迁入 features/calibrate/，由 collect_submodules('features') 自动收集
 
 # v1.13.0：字幕编辑页的 libmpv 播放器。python-mpv 绑定（mpv.py，纯标准库、
 # 约 90KB）由 subtitle_editor_media.load_mpv() 延迟导入，静态分析发现不了。
@@ -211,7 +212,7 @@ hiddenimports += ['mpv']
 #   ⚠️ 只内嵌 **Python 模块**；npe-cli.jar（GPL-3.0，约 3.8MB）与 java 运行时
 #   都不进 exe——jar 由 视频工具箱.iss 铺到 {app}\tools\newpipe-cli\dist\，
 #   java 由用户自备 JDK 17+（见 npe_backend.find_java 与 docs\组件来源声明）。
-hiddenimports += ['npe_backend']
+# npe_backend 已迁入 features/download/，由 collect_submodules('features') 自动收集
 
 # v1.18.0：主播声纹（本地声纹筛选，只出主播字幕）。**必须显式声明**——
 #   video_toolbox.vc_transcribe_ui_patch() 的两个补丁体里都是

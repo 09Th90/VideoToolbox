@@ -216,7 +216,7 @@ Source: "..\tools\credential_store.py"; DestDir: "{app}\tools"; Flags: ignorever
 ;      yt-dlp 主链与 NPE 兜底会自动关闭该分支，不影响其它功能。
 ;   ⚠️ 未随包分发便携 JRE（tools\jre）——java 需用户自行安装 JDK 17+ 或设
 ;      VT_JAVA 环境变量；这是刻意取舍，见 npe_backend.find_java() 注释。
-Source: "..\src\npe_backend.py"; DestDir: "{app}\src"; Flags: ignoreversion
+; npe_backend.py 已迁入 src\features\download\，由 features 整目录行自动收集
 Source: "..\tools\newpipe-cli\dist\npe-cli.jar"; DestDir: "{app}\tools\newpipe-cli\dist"; Flags: ignoreversion nocompression
 ; 源代码 / 脚本启动器统一归入 src\（供脚本方式运行与查阅）
 Source: "..\src\video_toolbox.py"; DestDir: "{app}\src"; Flags: ignoreversion
@@ -260,12 +260,12 @@ Source: "..\src\ui_theme.py"; DestDir: "{app}\src"; Flags: ignoreversion
 ; subtitle_overlay.py 已迁入 src\features\subtitle_edit\，由 features 整目录行自动收集
 Source: "..\src\auto_vision_page.py"; DestDir: "{app}\src"; Flags: ignoreversion
 ; v1.11.0：新增源码——合并核心、AI 校准 Agent、官方实现一键套用脚本
-Source: "..\src\calib_merge_core.py"; DestDir: "{app}\src"; Flags: ignoreversion
-Source: "..\src\calib_ai_agent.py"; DestDir: "{app}\src"; Flags: ignoreversion
+; calib_merge_core.py 已迁入 src\features\calibrate\，由 features 整目录行自动收集
+; calib_ai_agent.py 已迁入 src\features\calibrate\，由 features 整目录行自动收集
 ; 2026-09-20：AI 校准 Agent 的联网查证工具（calib_ai_run 内延迟 import；
 ;             exe 侧已由 spec hiddenimports 内嵌，此处补齐源码副本，
 ;             使 src\ 方式运行时「联网查证」同样可用）
-Source: "..\src\calib_web_agent.py"; DestDir: "{app}\src"; Flags: ignoreversion
+; calib_web_agent.py 已迁入 src\features\calibrate\，由 features 整目录行自动收集
 ; 2026-10-08：文件功能分类后，apply_vc_official.py 已移至 scripts\dev\
 ; （它是打包前套用官方实现的开发脚本，非运行时依赖，见 src\video_toolbox_qt.py:37）
 Source: "..\scripts\dev\apply_vc_official.py"; DestDir: "{app}\src"; Flags: ignoreversion
@@ -296,7 +296,7 @@ Source: "..\src\bili_upload.py"; DestDir: "{app}\src"; Flags: ignoreversion
 ; calib_media_agent 是 engine 里「AI 校准的音画证据」工具，
 ; video_toolbox.py:5465 函数体内延迟 import（开启 calib_media_enabled 才走），
 ;   exe 侧静默降级 ⇒ 与 calib_web_agent 同类，iss + spec 都要显式列出。
-Source: "..\src\calib_media_agent.py"; DestDir: "{app}\src"; Flags: ignoreversion
+; calib_media_agent.py 已迁入 src\features\calibrate\，由 features 整目录行自动收集
 ; v2.2.5 同批补漏（AST 闭包复查，与上一批同类）：
 ;   qt_compat 是 video_toolbox_qt.py 163 行的**模块级** import（Qt 6.12
 ;   SpinBox 回归补丁），缺了 src\ 方式直接起不来 ⇒ 必报错档。

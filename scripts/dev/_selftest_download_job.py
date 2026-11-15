@@ -266,8 +266,15 @@ def scenario_npe():
         (1, ("HTTP Error 500",)),  # fallback URL
     ])
     hooks, pack, cover, logs, progress, extract = make_hooks(runner, folder)
-    old_mod = sys.modules.get("npe_backend")
-    sys.modules["npe_backend"] = FakeNpe
+    # `import a.b as x` 经父包属性绑定：core/download/npe.py 模块级 import 已把
+    # 真模块挂上 features.download.npe_backend 属性，仅替 sys.modules 会被绕过，
+    # 须连父包属性一起替（2026-11-15 批4 搬迁后适配）
+    import features.download as _fd_pkg
+    _missing = object()
+    old_attr = getattr(_fd_pkg, "npe_backend", _missing)
+    _fd_pkg.npe_backend = FakeNpe
+    old_mod = sys.modules.get("features.download.npe_backend")
+    sys.modules["features.download.npe_backend"] = FakeNpe
     old_mode = jobmod.npe_engine_mode
     old_proxy = jobmod.npe_proxy_url
     old_cookie = jobmod.npe_cookie_file
@@ -283,9 +290,13 @@ def scenario_npe():
         jobmod.npe_proxy_url = old_proxy
         jobmod.npe_cookie_file = old_cookie
         if old_mod is None:
-            sys.modules.pop("npe_backend", None)
+            sys.modules.pop("features.download.npe_backend", None)
         else:
-            sys.modules["npe_backend"] = old_mod
+            sys.modules["features.download.npe_backend"] = old_mod
+        if old_attr is _missing:
+            delattr(_fd_pkg, "npe_backend")
+        else:
+            _fd_pkg.npe_backend = old_attr
     check("NPE fallback", res.ok and res.video.endswith("npe.mp4")
           and res.source == "npe", f"source={res.source} err={res.error}")
 
