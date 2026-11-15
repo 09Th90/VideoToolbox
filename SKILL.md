@@ -32,6 +32,7 @@ tools\python\python.exe src\agent_cli.py <子命令> [参数] --json
 | `calibrate <srt> [旗标] [--out F] [--report R]` | 术语校准（只改文字，不动时间轴/序号/空行/换行/BOM） | `calibrate ep01.zh.srt --endobi` |
 | `stabilize <srt> [--out F]` | cue 稳定化（透传同脚本 stabilize 子命令） | `stabilize ep01.srt` |
 | `compose <video> <sub> [--mode soft\|burn\|mkv] [--audio x.m4a] [--out F]` | 字幕合成（soft=软封装不重编码；burn=ASS 硬烧；mkv=封装） | `compose ep01.mp4 ep01.srt --mode burn` |
+| `split <video> --points "…" \| --durations "…" [--mode copy\|auto\|encode] [--verify quick\|full] [--out D]` | 视频切片：按时间点（HH:MM:SS）或时长（xHyMzS）拆成多段，逐段校验可播放 | `split ep01.mp4 --durations "1h,1h"` |
 
 ## 标准配方
 

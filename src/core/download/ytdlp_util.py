@@ -104,6 +104,79 @@ def ytdlp_part_leftovers(folder):
         pass
     return out
 
+
+def _is_track_file(name):
+    """文件名是否是 yt-dlp 的单轨/合并临时文件。
+
+    ``xxx.f270.mp4`` / ``xxx.f251-2.webm`` / ``xxx.temp.mp4`` 都是合并前的
+    素材，不是成品。yt-dlp 合并成功后本应删除源轨，但 Windows 上遇到占用
+    （杀软扫描/其它进程正在读）会删除失败——``ytdlp_part_leftovers`` 只认
+    ``.part/.ytdl``，接不住这类残留，需要单独识别。
+    """
+    stem = os.path.splitext(str(name or ""))[0]
+    return bool(re.search(r"\.f\d+(?:-\d+)?$", stem, re.IGNORECASE)
+                or re.search(r"\.temp$", stem, re.IGNORECASE))
+
+
+def _strip_track_suffix(stem):
+    """去掉单轨/临时后缀：``xxx.f251-2`` / ``xxx.temp`` → ``xxx``。"""
+    s = re.sub(r"\.temp$", "", str(stem or ""), flags=re.IGNORECASE)
+    return re.sub(r"\.f\d+(?:-\d+)?$", "", s, flags=re.IGNORECASE)
+
+
+def _finished_video(folder, video_exts=(".mp4", ".mkv", ".webm")):
+    """目录里体积最大的**成品**视频（排除 yt-dlp 单轨/临时文件）。
+
+    与旧的“最大视频文件”逻辑一致，只是不再把 ``.fNNN/.temp`` 中间产物算
+    进来——否则合并完成前/清理失败时会把无音轨的单轨当成任务视频。
+    """
+    best, best_size = "", -1
+    try:
+        names = os.listdir(folder)
+    except OSError:
+        return ""
+    for name in names:
+        if _is_track_file(name):
+            continue
+        if not name.lower().endswith(tuple(video_exts)):
+            continue
+        path = os.path.join(folder, name)
+        try:
+            if not os.path.isfile(path):
+                continue
+            size = os.path.getsize(path)
+        except OSError:
+            continue
+        if size > best_size:
+            best, best_size = path, size
+    return best
+
+
+def _track_leftovers(folder, final_video=""):
+    """与成品同名的 yt-dlp 单轨/合并临时残留。
+
+    只有给了成品路径、且残留去掉后缀后与成品主干完全相同才返回——避免
+    误删同目录里其它视频的轨道文件。``final_video`` 为空时返回 []，绝不猜。
+    """
+    if not folder or not final_video:
+        return []
+    final_stem = os.path.splitext(os.path.basename(final_video))[0].lower()
+    out = []
+    try:
+        names = os.listdir(folder)
+    except OSError:
+        return []
+    for name in names:
+        if not _is_track_file(name):
+            continue
+        stem = os.path.splitext(name)[0]
+        if _strip_track_suffix(stem).lower() != final_stem:
+            continue
+        path = os.path.join(folder, name)
+        if os.path.isfile(path):
+            out.append(path)
+    return out
+
 #: yt-dlp 可重试错误关键词（风控 / 网络抖动）。**下载页、流水线、信息提取三处
 #: 共用同一份判定** —— 此前各写各的，流水线只认 412，遇到 403/429 直接放弃，
 #: 而 YouTube 直链失效正好回 403（"下载失败但手动重试又能成"的由来）。

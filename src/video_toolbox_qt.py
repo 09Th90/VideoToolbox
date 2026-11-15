@@ -203,6 +203,15 @@ from vt_fluent import (BodyLabel, CardWidget, CaptionLabel,
                        Theme, TitleLabel, ToolButton, setTheme, setThemeColor)
 
 import video_toolbox as engine
+# 视频切片（v2.10.0）：纯标准库模块（解析 / 切分 / 逐段校验），GUI 与 CLI 共用。
+# 与 subtitle_compose 同思路——独立成模块、不反向 import 本文件，无循环导入。
+import video_split as vsplit
+# yt-dlp 单轨/合并临时文件识别与清理（私有 helper，facade 不导出）：
+# 下载成功后补删 .fNNN / .temp 残留，避免片源目录多出无音轨大文件。
+from core.download.ytdlp_util import (
+    _finished_video as _dl_finished_video,
+    _track_leftovers as _dl_track_leftovers,
+)
 # 流水线（v1.14.0）：目录感知 + 阶段调度。两个模块都是引擎侧（无 Qt 控件依赖），
 # UI 只订阅它们抛出的状态，跨线程一律走 app.q。
 import media_registry as mreg
@@ -1356,7 +1365,7 @@ class DownloadPage(QWidget):
     """单个链接反复添加；每个下载任务独立线程，互不阻塞。
 
     v1.13.0：原「音视频合并」板块更名为「音画合并」并并入本页——
-    页内用 SegmentedWidget 分段切换「视频下载 / 音画合并」两个子板块，
+    页内用 SegmentedWidget 分段切换「视频下载 / 音画合并 / 视频切片」三个子板块（三等分），
     参考字幕处理页的「一页多板块」形态。
     """
 
@@ -1525,11 +1534,19 @@ class DownloadPage(QWidget):
         self.merge_page = MergePage(self.app, self)  # v1.14.2 修复：app 必须传主窗口（消息队列 q 挂在主窗口上，传本页会导致合并线程投递日志即抛 AttributeError 而死）
         self.stack.addWidget(self.merge_page)
 
+        # —— 子板块 3：视频切片（v2.10.0：与「视频下载」「音画合并」三等分并排） ——
+        self.split_page = SplitPage(self.app, self)
+        self.stack.addWidget(self.split_page)
+
         # —— 分段联动 ——
+        # v2.10.0：三项（视频下载 / 音画合并 / 视频切片）——SegmentedWidget 每项
+        # 固定 stretch=1，铺满整行后正好三等分（见上方长注释）。
         self.seg.addItem("download", "视频下载",
                          onClick=lambda: self.stack.setCurrentIndex(0))
         self.seg.addItem("merge", "音画合并",
                          onClick=lambda: self.stack.setCurrentIndex(1))
+        self.seg.addItem("split", "视频切片",
+                         onClick=lambda: self.stack.setCurrentIndex(2))
         self.seg.setCurrentItem("download")
         self.switch_tab = lambda i: self.stack.setCurrentIndex(i)
 
@@ -2360,6 +2377,26 @@ class DownloadPage(QWidget):
                             os.remove(_p)
                         except OSError:
                             pass
+                # yt-dlp 合并后没删掉的单轨源文件（xxx.f270.mp4 / xxx.temp.mp4）：
+                # 只在成品存在且体积不异常时清，避免误删仍在用的源轨。
+                _final = _dl_finished_video(folder)
+                if _final:
+                    try:
+                        _final_size = os.path.getsize(_final)
+                    except OSError:
+                        _final_size = 0
+                    _removed_tracks = 0
+                    for _p in _dl_track_leftovers(folder, _final):
+                        try:
+                            if _final_size and os.path.getsize(_p) <= _final_size * 1.2:
+                                os.remove(_p)
+                                _removed_tracks += 1
+                        except OSError:
+                            pass
+                    if _removed_tracks:
+                        self.app.q.put(("dl_log", task_id,
+                                        f"[清理] 已删除 {_removed_tracks} "
+                                        "个 yt-dlp 单轨残留"))
                 self._pack_task(task_id, ffmpeg_path, folder, meta, quality_label)
                 if with_subs and not self._is_cancelled(task_id):
                     self._fetch_subtitles(task_id, ytdlp, url, folder,
@@ -3967,6 +4004,251 @@ class MergePage(QWidget):
             return True
         self.mv_log.line("[拖入] 未识别出音视频 / 字幕文件", "err")
         return False
+
+
+# ========== 视频切片（v2.10.0：视频处理页的第三个子板块） ==========
+class SplitPage(TabPage):
+    """视频切片：按「时间点」或「时长」把一条视频拆成多段。
+
+    · 两种输入语法（程序自动识别，同一份输入里不许混用）：
+        - 时间点 `00:00:00, 01:00:00, 02:00:00`（HH:MM:SS；也接受 MM:SS）
+        - 时长   `1h, 1h` / `1h30m` / `90m` / `45s`（也接受 时/分/秒）
+    · 「解析预览」先出段表（序号 / 起点 / 终点 / 时长），确认后再真切；
+    · 三种模式：无损快切（copy，秒级）/ 自动（快切校验不过就重编码）/ 精确重编码；
+    · 每段产出都过「有视频流 + 时长对得上 + 片头片尾解码抽检」——保证拆出来的
+      每个视频都能正常播放；不兼容 mp4 的源（vp8/opus 等）自动改 MKV 无损封装。
+
+    线程模型与其它页一致：后台线程只往 app.q 投消息，主线程 _pump 回来刷新控件。
+    """
+
+    SPEC_MODES = {"自动识别（时间点 / 时长）": "auto",
+                  "时间点（HH:MM:SS）": "points",
+                  "时长（xHyMzS）": "durations"}
+    RUN_MODES = {"无损快切（推荐，秒级完成）": "copy",
+                 "自动（快切校验不过就重编码）": "auto",
+                 "精确重编码（切点严格对齐，慢）": "encode"}
+
+    def __init__(self, app, parent=None):
+        super().__init__(parent)
+        self.app = app
+        self.setObjectName("SplitPage")
+        self.busy = False
+        self._plan = None
+        self._cancel = None
+
+        v = self.content_lay
+        v.setSpacing(12)
+        v.addWidget(tab_caption(
+            "按时间点（HH:MM:SS）或时长（xHyMzS）拆成多段；默认无损快切，逐段校验可播", self))
+
+        # —— 源视频 ——
+        self.src_slot = _MergeDropSlot(
+            "源视频（必填）", "拖入要切片的视频，或点击这里选择", VIDEO_EXTS,
+            self.pick_video, self)
+        box, lay = card("源视频", "mp4 / mkv / webm / mov 等；点槽位可重新选择")
+        lay.addWidget(self.src_slot)
+        v.addWidget(box)
+
+        # —— 切片参数 ——
+        self.kind_combo = ComboBox(self)
+        self.kind_combo.addItems(list(self.SPEC_MODES))
+        self.spec_edit = TextEdit(self)
+        self.spec_edit.setPlaceholderText(
+            "时间点：00:00:00, 01:00:00, 02:00:00\n"
+            "或时长：1h, 1h（也支持 1h30m / 90m / 45s）")
+        self.spec_edit.setMinimumHeight(84)
+        self.spec_edit.setMaximumHeight(120)
+        self.plan_btn = PushButton(FIF.SEARCH, "解析预览", self)
+        self.plan_btn.clicked.connect(self.parse_preview)
+        self.plan_table = TableWidget(self)
+        self.plan_table.setBorderVisible(True)
+        self.plan_table.setBorderRadius(8)
+        self.plan_table.setWordWrap(False)
+        self.plan_table.setColumnCount(4)
+        self.plan_table.setHorizontalHeaderLabels(["序号", "起点", "终点", "时长"])
+        self.plan_table.verticalHeader().hide()
+        self.plan_table.setEditTriggers(QAbstractItemView.NoEditTriggers)
+        self.plan_table.setSelectionBehavior(QAbstractItemView.SelectRows)
+        for i, w in enumerate((60, 130, 130, 130)):
+            self.plan_table.setColumnWidth(i, w)
+        self.plan_table.horizontalHeader().setSectionResizeMode(3, QHeaderView.Stretch)
+        self.plan_table.setMinimumHeight(150)
+        box, lay = card("切片参数", "同一份输入里别混用两种语法；每段最少 1 秒")
+        lay.addWidget(label_row("输入方式", self.kind_combo))
+        lay.addWidget(self.spec_edit)
+        lay.addWidget(row(None, self.plan_btn))
+        lay.addWidget(self.plan_table)
+        v.addWidget(box)
+
+        # —— 输出 ——
+        self.out_edit = LineEdit(self)
+        self.out_edit.setPlaceholderText("留空则输出到「视频所在文件夹\\切片」")
+        out_browse = PushButton(FIF.FOLDER, "浏览…", self)
+        out_browse.clicked.connect(self._pick_out)
+        self.mode_combo = ComboBox(self)
+        self.mode_combo.addItems(list(self.RUN_MODES))
+        box, lay = card("输出", "无损快切切点会对齐到关键帧（相邻段可能差/重叠 ≤1 个 GOP）；"
+                                "要严格对齐请选精确重编码")
+        lay.addWidget(srow("输出文件夹", self.out_edit))
+        lay.addWidget(out_browse, 0, Qt.AlignLeft)
+        lay.addWidget(label_row("切分模式", self.mode_combo))
+        v.addWidget(box)
+
+        # —— 执行 ——
+        self.prog = ProgressBar(self)
+        self.cancel_btn = PushButton(FIF.CANCEL, "中止", self)
+        self.cancel_btn.setEnabled(False)
+        self.cancel_btn.clicked.connect(self.cancel_split)
+        self.start_btn = PrimaryPushButton(FIF.CUT, "开始切片", self)
+        self.start_btn.clicked.connect(self.start_split)
+        v.addWidget(row(self.prog, self.cancel_btn, self.start_btn))
+        self.log = LogView("切片日志", 120, self)
+        v.addWidget(self.log)
+        v.addStretch(1)
+
+    # ---------- 选择 ----------
+    def pick_video(self):
+        start = os.path.dirname(self.src_slot.path() or "") or engine.APP_DIR
+        path, _ = QFileDialog.getOpenFileName(self, "选择要切片的视频", start,
+                                              VIDEO_FILE_FILTER)
+        if not path:
+            return
+        self.src_slot.set_path(engine.clean_path(path))
+        self._plan = None
+        self.plan_table.setRowCount(0)
+        self.log.line("[选择] %s" % os.path.basename(path), "dim")
+
+    def _pick_out(self):
+        d = QFileDialog.getExistingDirectory(
+            self, "选择输出文件夹", self.out_edit.text() or engine.APP_DIR)
+        if d:
+            self.out_edit.setText(engine.clean_path(d))
+
+    # ---------- 解析 ----------
+    def _build_plan(self):
+        """探测源 + 解析输入 → (plan, info)。解析失败抛 vsplit.SplitError。"""
+        src = self.src_slot.path()
+        if not src or not os.path.isfile(src):
+            raise vsplit.SplitError("请先选择要切片的视频")
+        _, ffprobe_path = engine.ensure_ffmpeg()
+        info = vsplit.probe_media(ffprobe_path, src)
+        kind = self.SPEC_MODES.get(self.kind_combo.currentText(), "auto")
+        plan = vsplit.plan_split(info["duration"], self.spec_edit.toPlainText(), kind)
+        return plan, info
+
+    def parse_preview(self):
+        try:
+            plan, info = self._build_plan()
+        except vsplit.SplitError as e:
+            self._plan = None
+            self.plan_table.setRowCount(0)
+            self.log.line("[X] %s" % e, "err")
+            InfoBar.warning("解析失败", str(e), duration=4000,
+                            position=InfoBarPosition.BOTTOM_RIGHT, parent=self)
+            return
+        self._plan = plan
+        self._render_plan(plan)
+        self.log.line("[解析] 片长 %s（%s），%s → %d 段"
+                      % (vsplit.hms(info["duration"]),
+                         "%dx%d" % (info["width"], info["height"])
+                         if info["width"] else info["vcodec"],
+                         "时间点" if plan["kind"] == "points" else "时长",
+                         len(plan["segments"])), "ok")
+        for w in plan.get("warnings") or []:
+            self.log.line("[信息] %s" % w, "dim")
+
+    def _render_plan(self, plan):
+        segs = plan["segments"]
+        self.plan_table.setRowCount(len(segs))
+        for r, s in enumerate(segs):
+            for c, text in enumerate((str(s["index"]),
+                                      vsplit.hms(s["start"], True),
+                                      vsplit.hms(s["end"], True),
+                                      vsplit.hms(s["dur"], True))):
+                self.plan_table.setItem(r, c, QTableWidgetItem(text))
+
+    # ---------- 执行 ----------
+    def start_split(self):
+        if self.busy:
+            return
+        try:
+            plan, _info = self._build_plan()      # 每次开跑都重算，避免沿用改过输入的旧方案
+        except vsplit.SplitError as e:
+            self.log.line("[X] %s" % e, "err")
+            InfoBar.warning("无法开始", str(e), duration=4000,
+                            position=InfoBarPosition.BOTTOM_RIGHT, parent=self)
+            return
+        src = self.src_slot.path()
+        out_dir = (engine.clean_path(self.out_edit.text())
+                   or os.path.join(os.path.dirname(src), "切片"))
+        mode = self.RUN_MODES.get(self.mode_combo.currentText(), "copy")
+        self._plan = plan
+        self._render_plan(plan)
+        self.busy = True
+        self.start_btn.setEnabled(False)
+        self.plan_btn.setEnabled(False)
+        self.cancel_btn.setEnabled(True)
+        self.prog.setValue(0)
+        self._cancel = threading.Event()
+        self.log.line("[开始] %s → %s（%d 段，%s）"
+                      % (os.path.basename(src), out_dir, len(plan["segments"]),
+                         self.mode_combo.currentText()), "dim")
+        for w in plan.get("warnings") or []:
+            self.log.line("[信息] %s" % w, "dim")
+        threading.Thread(target=self._worker,
+                         args=(src, plan["segments"], out_dir, mode),
+                         daemon=True).start()
+
+    def _worker(self, src, segments, out_dir, mode):
+        try:
+            ffmpeg_path, ffprobe_path = engine.ensure_ffmpeg()
+            res = vsplit.split_video(src, segments, out_dir, mode=mode,
+                                     ffmpeg=ffmpeg_path, ffprobe=ffprobe_path,
+                                     on_event=self._on_event, cancel=self._cancel)
+        except Exception as e:  # noqa: BLE001
+            res = {"ok": False, "error": str(e)[:300], "outputs": [],
+                   "failed": [], "out_dir": out_dir}
+        self.app.q.put(("sp_done", res))
+
+    def _on_event(self, kind, payload=None):
+        """切片线程 → 主线程消息（只投递，不碰控件）。"""
+        if kind == "log":
+            text, level = (payload if isinstance(payload, tuple) else (payload, "dim"))
+            self.app.q.put(("sp_log", text, level))
+        elif kind == "progress":
+            self.app.q.put(("sp_progress", float(payload or 0)))
+
+    def cancel_split(self):
+        if self._cancel is not None:
+            self._cancel.set()
+            self.log.line("[信息] 已请求中止，当前段结束后停止…", "dim")
+            self.cancel_btn.setEnabled(False)
+
+    def on_done(self, res):
+        self.busy = False
+        self._cancel = None
+        self.start_btn.setEnabled(True)
+        self.plan_btn.setEnabled(True)
+        self.cancel_btn.setEnabled(False)
+        res = res or {}
+        if res.get("ok"):
+            self.prog.setValue(100)
+            self.log.line("[完成] %s" % vsplit.summarize(res), "ok")
+            try:
+                engine.open_folder(res.get("out_dir") or "")
+            except Exception:  # noqa: BLE001
+                pass
+            InfoBar.success("切片完成", vsplit.summarize(res), duration=5000,
+                            position=InfoBarPosition.BOTTOM_RIGHT, parent=self)
+        else:
+            self.prog.setValue(0)
+            err = res.get("error") or "未知错误"
+            self.log.line("[X] 切片失败：%s" % err, "err")
+            for o in res.get("outputs") or []:
+                self.log.line("[完成] %s（已校验可播）" % os.path.basename(o["path"]),
+                              "ok")
+            InfoBar.error("切片失败", str(err)[:200], duration=6000,
+                          position=InfoBarPosition.BOTTOM_RIGHT, parent=self)
 
 
 # ========== 字幕处理（内嵌第三方字幕引擎） ==========
@@ -10486,10 +10768,9 @@ class MainWindow(FluentWindow):
             try:
                 self.harness_page = _LazyPageShell(
                     self, self._make_harness_page, "AI 托管", "HarnessPage")
-                self.addSubInterface(self.harness_page, FIF.IOT, "AI 托管")
             except Exception as e:  # noqa: BLE001
                 self.harness_page = None
-                _perf_note(f"AI 托管页导航挂载失败（不影响既有功能）：{e}")
+                _perf_note(f"AI 托管页惰性外壳创建失败（不影响既有功能）：{e}")
         _perf_note("mw[harness] %.2fs" % (time.perf_counter() - _mt))
         # 自动化页：B 站自动投稿（v1.17.x 起页面精简为投稿专用）。
         # 页面类在 auto_vision_page 里，自带卡片壳，不依赖本文件的 ScrollPage/card()。
@@ -10498,15 +10779,15 @@ class MainWindow(FluentWindow):
         # 52604.9ms`，心跳报主线程被占用 54.5s）——比字幕工作台那次更长，
         # 因为视觉引擎/numpy/PIL 的首次导入全压在主线程。原先排在启动后 20s
         # 自己建，是「启动后先忙一阵」的第二大来源。
-        # 改成与 AI 托管页同一模式：启动只挂惰性外壳与导航项，点开才建真身。
+        # 改成与 AI 托管页同一模式：启动只挂惰性外壳（导航项延后到底部），
+        # 点开才建真身。
         self.auto_page = None
         try:
             self.auto_page = _LazyPageShell(
                 self, self._make_auto_page, "自动化", "AutoVisionPage")
-            self.addSubInterface(self.auto_page, FIF.ROBOT, "自动化")
         except Exception as e:  # noqa: BLE001
             self.auto_page = None
-            _perf_note(f"自动化页导航挂载失败（不影响既有功能）：{e}")
+            _perf_note(f"自动化页惰性外壳创建失败（不影响既有功能）：{e}")
         # 被合并的子板块：仍挂到宿主页的堆叠里，保留快捷引用便于消息路由/自检
         # （2026-10-20 起 download_page 是惰性外壳，merge_page 随之改惰性属性，
         #  避免启动期为了拿这个引用把整个下载页建出来）
@@ -10525,8 +10806,14 @@ class MainWindow(FluentWindow):
         self.addSubInterface(self.subtitle_page, FIF.FONT, "字幕处理")
         self.addSubInterface(self.subtitle_edit_page, FIF.CUT, "字幕编辑")
         self.addSubInterface(self.pipeline_page, FIF.SYNC, "流水线")
-        # 「自动化」与「AI 托管」两页都是**首帧后惰性挂载**：各自的导航项由
-        # _build_auto_page() / _build_harness_page() 补齐（2026-10-21）。
+        # 「AI 托管」「自动化」是辅助页：固定到导航底部（设置上方），
+        # 主列表只保留日常创作/处理流程。两页仍按需惰性构造，这里只挂导航项。
+        if self.harness_page is not None:
+            self.addSubInterface(self.harness_page, FIF.IOT, "AI 托管",
+                                 position=NavigationItemPosition.BOTTOM)
+        if self.auto_page is not None:
+            self.addSubInterface(self.auto_page, FIF.ROBOT, "自动化",
+                                 position=NavigationItemPosition.BOTTOM)
         self.addSubInterface(self.settings_page, FIF.SETTING, "设置",
                              position=NavigationItemPosition.BOTTOM)
         _perf_note("mw[addSubInterface] %.2fs" % (time.perf_counter() - _mt))
@@ -11771,6 +12058,12 @@ class MainWindow(FluentWindow):
                 mg.mv_progress.setValue(int(args[0]))
             elif kind == "mvm_done":
                 mg.on_mvm_done(args[0], args[1])
+            elif kind == "sp_log":
+                dl.split_page.log.line(args[0], args[1] if len(args) > 1 else "dim")
+            elif kind == "sp_progress":
+                dl.split_page.prog.setValue(int(args[0]))
+            elif kind == "sp_done":
+                dl.split_page.on_done(args[0])
             elif kind == "cal_log":
                 # (文本, 级别, 任务代号)：旧线程残留消息丢弃；有效消息刷新心跳
                 if len(args) < 3 or args[2] == cal._gen:

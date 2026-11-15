@@ -31,6 +31,7 @@ from core.download.util import (
     sanitize_folder_name, unique_folder, write_info_txt,
 )
 from core.download.ytdlp_util import (
+    _finished_video, _track_leftovers,
     YTDLP_CHUNK_SIZE, fetch_info_json, hls_alt_format,
     output_template, save_info_json, ytdlp_concurrent_fragments,
     ytdlp_cookie_args, ytdlp_dl_args, ytdlp_err_brief,
@@ -553,23 +554,9 @@ class _JobRunner:
         return 0
 
     def _find_video(self) -> str:
-        best = ""
-        best_size = -1
-        try:
-            names = os.listdir(self._folder)
-        except OSError:
-            return ""
-        for name in names:
-            if not name.lower().endswith(tuple(self.job.video_exts)):
-                continue
-            path = os.path.join(self._folder, name)
-            try:
-                size = os.path.getsize(path)
-            except OSError:
-                continue
-            if size > best_size:
-                best, best_size = path, size
-        return best
+        # 排除 yt-dlp 的单轨/合并临时文件：下载成功时成品才是任务视频，
+        # .f270.mp4 这类无音轨中间产物不能顶替（旧逻辑只看“最大视频文件”）。
+        return _finished_video(self._folder, tuple(self.job.video_exts))
 
     def _pack(self) -> None:
         data = self._meta if isinstance(self._meta, dict) else {}
@@ -629,6 +616,28 @@ class _JobRunner:
                 os.remove(path)
             except OSError:
                 pass
+        # yt-dlp 合并后本应自删单轨源文件；在 Windows 上删除失败（占用/扫描）
+        # 时会留下 xxx.f270.mp4 这类无音轨残留。这里按“与成品同名”补一次，
+        # 体积护栏防止成品异常偏小时误删源轨。
+        removed_tracks = 0
+        final = self._find_video()
+        if final:
+            try:
+                final_size = os.path.getsize(final)
+            except OSError:
+                final_size = 0
+            for path in _track_leftovers(self._folder, final):
+                try:
+                    track_size = os.path.getsize(path)
+                    # TS→MP4 容器开销约 5%，留 1.2 倍余量；成品偏小说明合并
+                    # 可能不完整，宁可不删，保留源轨可恢复。
+                    if final_size and track_size <= final_size * 1.2:
+                        os.remove(path)
+                        removed_tracks += 1
+                except OSError:
+                    pass
+        if removed_tracks:
+            self._log("[清理] 已删除 %d 个 yt-dlp 单轨残留" % removed_tracks)
         try:
             for name in os.listdir(self._folder):
                 if name.lower().endswith((".vtdl.json", ".vtdl.single", ".vtdl.assembling",
