@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.0.0
+# @version 3.1.0
 """全局设置页（2026-11-15 功能解耦阶段③：从 video_toolbox_qt.py 拆出，逐字同源）。
 
 壳层页面（非可选功能）：全程序唯一全局设置——目录 / 下载 Cookie / 全局 AI /
@@ -537,6 +537,17 @@ class SettingsPage(QWidget):
             box))
         self.ai_hint.setTextColor("#8a8a8a", "#9a9a9a")
         blay.addWidget(self.ai_hint)
+        self.ai_jev_switch = SwitchButton(box)
+        self.ai_jev_switch.setChecked(str(ai.get("decision_mode") or "shadow") != "off")
+        self.ai_jev_switch.setToolTip(
+            "仅在全局 AI 地址为百炼 Token Plan 专属域名时调用 "
+            "decision-model-preview；只给声纹存疑和校准采纳项追加影子复核证据，"
+            "不改写字幕。普通百炼、火山方舟及其他端点均不会请求。")
+        blay.addWidget(label_row("Jev 影子决策", row(self.ai_jev_switch, None)))
+        self.ai_jev_hint = fit_caption(CaptionLabel("", box))
+        blay.addWidget(self.ai_jev_hint)
+        self.ai_jev_switch.checkedChanged.connect(self._mark_ai_dirty)
+        self.ai_jev_switch.checkedChanged.connect(self._sync_plan_warn)
         # 订阅套餐端点风险提示（2026-10-05 产品口径：**允许接入，只做提示**）——
         # 套餐条款普遍禁止自动化/批量非交互调用，而本软件的转录与字幕校准正是
         # 批量调用；能不能用、会不会被判违规由服务商定，风险用户自负。此处常驻
@@ -766,6 +777,27 @@ class SettingsPage(QWidget):
                 label.show()
             else:
                 label.hide()
+        jev_hint = getattr(self, "ai_jev_hint", None)
+        if jev_hint is not None:
+            switch = getattr(self, "ai_jev_switch", None)
+            if switch is not None and not switch.isChecked():
+                text = "Jev 已关闭，不会发起结构化决策请求。"
+            else:
+                from core.shared.decision import decision_mod
+                current = engine.ai_load_config()
+                key_ready = bool(self.ai_key.text().strip()
+                                 or str(current.get("api_key") or "").strip())
+                token_plan = decision_mod().is_aliyun_token_plan(self.ai_base.text())
+                if not token_plan:
+                    text = "Jev 已开启，但当前不是百炼 Token Plan 专属端点，不会调用。"
+                elif not key_ready:
+                    text = "Jev 地址符合，但全局 AI 密钥未配置，不会调用。"
+                elif not self.ai_enabled.isChecked():
+                    text = "Jev 地址与密钥符合，但全局 AI 已禁用，不会调用。"
+                else:
+                    text = ("当前满足 Jev 激活条件；保存后将影子复核声纹存疑与"
+                            "校准采纳项，不改写字幕。")
+            jev_hint.setText(text)
 
     def _browse_into(self, edit, title):
         p = QFileDialog.getExistingDirectory(self, title, edit.text() or engine.APP_DIR)
@@ -996,6 +1028,8 @@ class SettingsPage(QWidget):
             "base_url": self.ai_base.text().strip(),
             "model": self.ai_model.text().strip(),
             "vision_model": self.ai_vision.text().strip(),
+            # Jev 仅作影子复核；真正激活还要通过百炼 Token Plan 端点门控。
+            "decision_mode": ("shadow" if self.ai_jev_switch.isChecked() else "off"),
             # ASR：独立 ASR 模型
             "asr_mode": "local" if self.asr_mode_combo.currentIndex() == 1
                         else "service",

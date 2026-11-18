@@ -1,7 +1,7 @@
-<!-- @version 3.0.0 -->
+<!-- @version 3.1.0 -->
 # Video Toolbox — User Manual
 
-Applies to: v3.0.0
+Applies to: v3.1.0
 
 > For end users. No Python setup is required for the installed build.
 > Developer-facing details are in `docs/程序说明书(开发版).md`.

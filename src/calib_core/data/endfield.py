@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.0.0
+# @version 3.1.0
 """术语/实体数据表
 
 源：subtitle_calib_merged.py L3380-L4908 @ 97d7d463（2026-10-24 冻结快照）
@@ -391,6 +391,49 @@ ENDFIELD_MISSING_CHECK = [
     (r"\bBellhop\b", ("贝尔博斯",), "Bellhop 官方中文=贝尔博斯（endo_glossary.tsv:57）"),
     (r"\bBehemoth\b", ("贝莫斯",), "Behemoth 官方中文=贝莫斯（endo_glossary.tsv:58）"),
     (r"\bMonument\b", ("影拓丰碑",), "Monument 官方中文=影拓丰碑（endo_glossary.tsv:81）"),
+    # --- 2026-11-15 《What Makes Endfield So Visually Unique?》（SmugSlav reaction，706 cue）
+    #     二校沉淀：系统/势力/干员名体检（官中经官网+Wiki 取证；DWST/UWST 混拼=同一组织）。
+    (r"\bUWST\b|\bDWST\b", ("联盟工团",),
+     "United Workers' Syndicate of Talos-II=联盟工团；四号谷地运营方、最大工矿机械制造商"),
+    (r"\bTang\s?Tang\b|\bTangtang\b", ("汤汤",),
+     "6★冰系清波寨大当家汤汤（阮湯湯）；TapTap 攻略「唐糖」系误写，勿采"),
+    (r"\bYvonn?e?\b", ("伊冯",),
+     "6★限定冰系伊冯（特种技术部门）"),
+    (r"\bFluorite\b", ("萤石",),
+     "辅助干员萤石（寒冷+自然双附着）；勿作化学名「氟石」"),
+    (r"\bArcane\b", ("诀",),
+     "6★自然术师诀（李织烟，应龙特勤队队长）；arcane 普通词义慎报"),
+    (r"\bBaker\b", ("贝克",),
+     "游戏内干员即时通讯应用贝克（Baker）"),
+    (r"\bProtorig\b|\bPROTORIG\b", ("协议源石",),
+     "Protocol-Originium=协议源石；干员腕表装置即其存储终端"),
+    (r"\bEchoes\s+of\s+War\b", ("战争回响",),
+     "赛季制常驻挑战玩法战争回响（勿作战争的回声）"),
+    (r"\bNorth\s+Wuling\s+Exclusion\s+Zone\b", ("北部禁区",),
+     "1.4 武陵第 7 区域，简中官名北部禁区（日文=武陵北部封鎖区域）"),
+    (r"\bForest\s+Snow\s+Zone\b|\bSnow\s+Zone\b", ("雪松林",),
+     "1.5「雪凇幽梦」武陵雪原林地雪松林"),
+    # —— 2026-11-16 《Is This What Endfield's Endgame Should Be About?》二校沉淀 ——
+    #   本片 1013 cue；下列均为英文参考行有、中文行可能整词吞掉的高置信术语。
+    #   官方依据：官网 news/2659（指标/指标总计/密钥指标/指标集）、官网 news/6094
+    #   （危机合约 浸蓝测试作战/战争回响/影拓丰碑）、官网 operator 页（干员名）。
+    #   注：Umbral/Humble Monument 已由上方 \bMonument\b 覆盖，不重复登记。
+    (r"\bContingency\s+Contract\b", ("危机合约",),
+     "危机合约(Contingency Contract)；勿作风险代理合同/应急合同"),
+    (r"\bkeystones?\b", ("密钥指标",),
+     "密钥指标(keystone)；锁闭指标需先选对应密钥指标解锁"),
+    (r"\bcriteri(?:a|on)\b", ("指标",),
+     "危机合约指标(criteria)；勿作标准/分数"),
+    (r"\bprestige\b", ("指标总计",),
+     "指标总计(prestige)；所选指标等级之和，勿作声望/威望"),
+    (r"\bShattered\s+Protocol\b", ("破碎协议",),
+     "破碎协议(Shattered Protocol)；官方/准官方定名"),
+    (r"\bmeta\s+teams?\b", ("环境队",),
+     "环境队(meta team)；社区口径，非官方定名，仅作检索词"),
+    (r"\bplayer\s+agency\b", ("自主权",),
+     "玩家自主权(player agency)；勿作代理机构"),
+    (r"\bArts\s+Intensity\b", ("源石技艺强度",),
+     "源石技艺强度(Arts Intensity)；勿作艺术强度"),
 ]
 
 
@@ -767,7 +810,9 @@ ENDFIELD_BI_TERMS = {
     "大招模仿者": "终结技", "大招模仿": "终结技", "大招": "终结技",
     "多边线钳": "倍率", "多口钳": "倍率",
     "操作符组合": "干员连携", "操作符": "干员",
-    "身体对抗": "物理", "轮换": "循环", "头目": "Boss",
+    # ⚠ 2026-11-16 撤下原裸键「轮换→循环」：本片 #99/#131/#157/#190 的 rotation 全是
+    #   关卡/首领轮换，裸键会把正确「轮换」误改成「循环」；战斗循环语境改走逐 cue。
+    "身体对抗": "物理", "头目": "Boss",
     # 仍走逐 cue 的歧义词（不入裸键）：姐姐(sis=祀/陈千语 须按语境)、奥术(诀 vs 术法强度)、
     #   实体/体检(physical carry)、弱点(vulnerability)、叠加(须带元素前缀)、雷击(thunder引爆 vs electro伤害)、
     #   天啊/刷我的gach(gacha)、交锋(paralyze=定身)、拱门/Arch/艺术风格队伍(architectural=各种队伍)。
@@ -1140,6 +1185,38 @@ ENDFIELD_BI_TERMS = {
     # 阵营：官方中文＝炎国（明河＝炎国禁军）；裸 Yan 禁入（Yangyang/Yang 含子串 Yan，
     #   会把「秧秧」咬成「炎国g」），且 "Yan clan" 只在英文行 ⇒ 只收中文错形「燕氏」
     "燕氏": "炎国",
+    # ═══════════════════════════════════════════════════════════════
+    # 2026-11-16 沉淀：《Is This What Endfield's Endgame Should Be About?》
+    #   英文原声 + 谷歌翻译双语（1013 cue，--endobi，二次人工校准）。
+    #   官方依据：终末地官网 operator 页（Estella=埃特拉 / Wulfgard=狼卫 /
+    #   Typhoeus=提弗洛斯 / Arcane=诀 / Si=祀）；官网 news/2659（指标/指标总计/
+    #   锁闭指标/密钥指标/指标集）；官网 news/6094（危机合约 浸蓝测试作战 /
+    #   战争回响 / 影拓丰碑）；NGA 危机合约#2 截图（环境：锁闭 / 环境：沉寂）。
+    #   ⚠ 只收本片实证过的拉丁残留与中文唯一错形；criteria/risk/prestige 等
+    #     通用词一律走 ENDFIELD_BI_CONTEXT 英文锚定，禁裸键。
+    # 玩法/活动（官方名；长键先行，复数形先于单数形）
+    "Umbral Monuments": "影拓丰碑", "Umbral Monument": "影拓丰碑",
+    "Humble Monuments": "影拓丰碑", "Humble Monument": "影拓丰碑",  # Umbral 的 ASR 误听
+    "Shattered Protocol": "破碎协议",
+    "Echoes of War": "战争回响",
+    # 机制/数值
+    "Arts Intensity": "源石技艺强度",
+    # 干员（官网 operator 页中英对照）
+    "Typhius": "提弗洛斯",                  # Typhoeus 的 ASR 形
+    "Wulfgard": "狼卫", "Wolfguard": "狼卫",  # 与 Pogranichnik=骏卫 严格区分
+    "Estella": "埃特拉",                    # 勿与 Ardelia=艾尔黛拉 混；ASR 裸形 Stella 走下方英文锚定
+    # 中文唯一错形（非通用词，可作裸键）
+    "Emergency Contracts": "危机合约", "Emergency Contract": "危机合约",
+    "应急合同": "危机合约",
+    "本影纪念碑": "影拓丰碑", "暗影纪念碑": "影拓丰碑", "谦卑纪念碑": "影拓丰碑",
+    "伤寒杆菌": "提弗洛斯",                 # Typhoeus 被按 typhus 医疗义直译
+    "破碎的协议": "破碎协议",
+    # --- 2026-11-17 三校沉淀（同片续校）：BOSS 名音译错形 ---
+    #   ⚠ 阿拉·克雷奥斯**不挂 Entity**：既有 Entity canonical 是官方全称「阿莱克琉斯，千夫长」，
+    #     投影会产出全称；本片语境用简称（英文 ASR 仅 Ala Krayos），且「阿拉·克雷奥斯，千夫长」
+    #     会被咬成「阿莱克琉斯，千夫长，千夫长」。既有 "Alleikhreos"->阿莱克琉斯（本表 1169 行）
+    #     同款先例。其余三条（三位一体/聂菲斯/阮一）canonical 本身就是完整名，走 Entity 投影。
+    "阿拉·克雷奥斯": "阿莱克琉斯", "阿拉克雷奥斯": "阿莱克琉斯",
 }
 
 
@@ -1243,6 +1320,41 @@ ENDFIELD_BI_CONTEXT = [
     (r"dj\s?jang|d\s?jung|djang|django|dijiang", "D中号", "帝江号"),
     (r"djang|django", "Django", "帝江号"),
     (r"djang", "Djang", "帝江号"),
+    # ═══════════════════════════════════════════════════════════════
+    # 2026-11-16 沉淀：《Is This What Endfield's Endgame Should Be About?》
+    #   英文原声 + 谷歌翻译双语（1013 cue，--endobi，二次人工校准）。
+    #   官方依据同 ENDFIELD_BI_TERMS 本轮块；通用词只按英文参考行锚定。
+    #   ⚠ risk 禁裸键：本片 Hades 热度语境仍作「风险」，CC 的 risk 逐 cue 判；
+    #     下列只收 criteria/prestige/keystone 等有英文锚点的通用错形。
+    # —— 危机合约指标层 ——
+    (r"\bcriteri(?:a|on)\b", "标准", "指标"),
+    (r"\bcriteri(?:a|on)\b", "分数", "指标"),
+    (r"\bprestige\b", "声望", "指标总计"),
+    (r"\bprestige\b", "威望", "指标总计"),
+    (r"\bkeystones?\b", "基石", "密钥指标"),
+    (r"\bkeystones?\b", "关键石", "密钥指标"),
+    # —— 社区口径：meta team=环境队（非官方定名，仅检索词）——
+    (r"\bmeta\s+teams?\b", "元团队", "环境队"),
+    (r"\bmeta\s+teams?\b", "元队", "环境队"),
+    # —— 玩家自主权 ——
+    (r"\bplayer\s+agency\b", "代理机构", "自主权"),
+    # —— 附着（infliction/affliction）：医疗词感染/痛苦 ——
+    (r"\binflictions?\b|\bafflictions?\b", "感染", "附着"),
+    (r"\binflictions?\b|\bafflictions?\b", "痛苦", "附着"),
+    # —— Estella / Stella：裸 Stella 会咬 Estella/Stellar，仅英文词边界锚定 ——
+    (r"\bstella\b", "斯特拉", "埃特拉"),
+    (r"\bstella\b", "史黛拉", "埃特拉"),
+    (r"\bstella\b", "Stella", "埃特拉"),
+    # —— 影拓丰碑：Humble/Umbral 的「本影/暗影/谦卑」变体；
+    #    精确形「本影纪念碑/暗影纪念碑/谦卑纪念碑」已在 ENDFIELD_BI_TERMS 无条件覆盖，
+    #    此处只收会先被通用规则咬坏的「碑/丰碑」变体，且必须插在下方
+    #    \bmonument\b「纪念碑→丰碑」之前，否则会被提前改成「本影丰碑」。
+    (r"\bmonument\b", "本影碑", "影拓丰碑"),
+    (r"\bmonument\b", "本影丰碑", "影拓丰碑"),
+    (r"\bmonument\b", "暗影碑", "影拓丰碑"),
+    (r"\bmonument\b", "暗影丰碑", "影拓丰碑"),
+    (r"\bmonument\b", "谦卑碑", "影拓丰碑"),
+    (r"\bmonument\b", "谦卑丰碑", "影拓丰碑"),
     # —— 影拓丰碑 (常驻玩法)：EN "Umbral Monument"，monument 直译成「纪念碑」，
     #    Umbra(l) 音译形散（翁布雷尔/乌姆布瑞尔/安比尔/安布雷尔/伞形） ——
     (r"\bmonument\b", "翁布雷尔纪念碑", "影拓丰碑"),
@@ -1356,6 +1468,7 @@ ENDFIELD_BI_CONTEXT = [
     # —— 影拓丰碑：Umbra(l) 的英文残留形 ——
     (r"umbr", "Umbrell", "影拓丰碑"),
     (r"umbr", "Umbro", "影拓丰碑"),
+    (r"umbr", "Umbral", "影拓丰碑"),  # 长形先于 Umbra：否则 Umbra 裸键把 Umbral 咬成「影拓丰碑l」
     (r"umbr", "Umbra", "影拓丰碑"),
     # —— 鹰角：中文行残留 Hypergri（Hypergraph 被截断的 ASR 形）——
     (r"hypergri", "Hypergri", "鹰角"),

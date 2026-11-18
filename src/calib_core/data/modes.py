@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.9.1
+# @version 3.1.0
 """术语/实体数据表
 
 源：subtitle_calib_merged.py L2797-L7340 @ 97d7d463（2026-10-24 冻结快照）
@@ -54,6 +54,25 @@ PGR_INFO = {
 }
 
 PGR_OVERRIDES_SRC = r"g:\SOLO工作\pgr_rhythm_rough\pgr_overrides.tsv"   # 序号<TAB>校准后中文
+
+
+# 3.3 鸣潮 3.8 主线「予以明日的花束」莉莉实况片 —— 双语逐 cue 侧车整行覆盖
+# 用法：python subtitle_calib_merged.py --wuwa38
+#   等价于 <src> --mode bi --bi-override <sidecar>：规则先跑，侧车命中即整行覆盖（不叠加术语表）。
+#   侧车只收「规则层改不出来」的逐句改动（官方名/上下文润色），规则层负责可泛化错形。
+WW38_INFO = {
+    "src": r"D:\原片\I Cried So Much... Wuthering Waves 3.8 Main Story Playthrough\【字幕】I Cried So Much... Wuthering Waves 3.8 Main Story Playthrough-微软翻译.srt",
+    "dst": r"D:\原片\I Cried So Much... Wuthering Waves 3.8 Main Story Playthrough\【字幕】I Cried So Much... Wuthering Waves 3.8 Main Story Playthrough-微软翻译_校准_v2.srt",
+}
+WW38_OVERRIDES_SRC = r"D:\Agent Work\软件开发\视频工具箱\data\calib_sidecars\ww38_lily_main_bi_override.tsv"
+
+# 3.8 鸣潮 3.8 主线「予以明日的花束」Jadealy 反应片 —— 双语逐 cue 侧车整行覆盖
+# 用法：python subtitle_calib_merged.py --wuwa38j
+WW38_J_INFO = {
+    "src": r"D:\原片\I Lost Count of How Many Times I Cried Wuthering Waves 3.8 Main Quest Reaction\【字幕】I Lost Count of How Many Times I Cried ｜ Wuthering Waves 3.8 Main Quest Reaction.en-谷歌翻译.srt",
+    "dst": r"D:\原片\I Lost Count of How Many Times I Cried Wuthering Waves 3.8 Main Quest Reaction\【字幕】I Lost Count of How Many Times I Cried ｜ Wuthering Waves 3.8 Main Quest Reaction.en-谷歌翻译_calibrated.r2.srt",
+}
+WW38_J_OVERRIDES_SRC = r"D:\Agent Work\软件开发\视频工具箱\data\calib_sidecars\ww38_jadealy_main_bi_override.tsv"
 
 
 
@@ -154,6 +173,12 @@ _MODE_TERM_TABLE = {
     "pbz": "PBZ_TERMS",
     # 2026-11-01 新增：最终幻想14（FFXIV）英语原声+谷翻 reaction 片源
     "ff14": "FF14_TERMS",
+    # 2026-11-15 新增：星之救援者（Star Savior）英语原声+谷翻评测片源
+    "ssv": "SSV_TERMS",
+    # 2026-11-18 新增：Arcaea × 明日方舟联动直播（英语 ASR + 微软翻译）
+    "arcak": "ARCAK_TERMS",
+    # 2026-11-18 新增：TGA 2026 游戏大奖直播（英语原声 + 微软翻译）
+    "tga26": "TGA_TERMS",
     # 2026-11-03 新增：战双帕弥什**日语原声**片源（联动朗读直播）。
     #   与既有 `pgren`（战双**英文**原声）互斥：那条通道的参考行是英语，本条是日语。
     "pgrja": "JA_PGR_TERMS",
@@ -194,6 +219,17 @@ _MODE_CTX_TABLE = {
     # 2026-11-04 新增：--pgren 的语境槽。余辉/光伏/丝带/克洛伊 这类**正常中文词**的官方名
     #   （「流光抛诸寰宇」/PV/缎带/库洛）只能靠英文参考行锚定，禁走裸键。
     "pgren": "PGR_EN_CONTEXT",
+    # 2026-11-15 新增：--ssv 的语境槽。尼克/脉搏/烧灼/天井 这类**通用人名词/通用中文词**
+    #   的官方名（妮姬/星光石/烧伤/保底）只能靠英文参考行锚定，禁走裸键。
+    "ssv": "SSV_CONTEXT",
+    # 2026-11-18 新增：--arcak 的语境槽。医生/操作员/老板/光谱/叛徒/光辉/奇点/活着/弧线
+    #   这类**普通中文词**的官方名（博士/干员/Boss/Spectrum/Renegade/Radiant/Singularity/
+    #   Alive/音弧）只能靠英文参考行锚定，禁走裸键。
+    "arcak": "ARCAK_CONTEXT",
+    # 2026-11-18 新增：--tga26 的语境槽。Karen/武者/轨道站/我的学术/伊代/莱/居所/
+    #   马拉松/共振/安魂曲/王牌/优生学 这类**普通中文词/人名**的官方名只能靠英文
+    #   参考行锚定，禁走裸键。
+    "tga26": "TGA_CONTEXT",
 }
 
 _MODE_NAMES = {
@@ -208,5 +244,8 @@ _MODE_NAMES = {
     "ff14": "最终幻想14",
     "pgrja": "日语原声·战双",
     "akja": "日语原声·明日方舟",
+    "ssv": "星之救援者",
+    "arcak": "Arcaea×明日方舟",
+    "tga26": "TGA 2026 游戏大奖",
 }
 

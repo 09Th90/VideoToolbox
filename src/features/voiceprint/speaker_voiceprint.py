@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.0.0
+# @version 3.1.0
 """主播声纹：本地声纹录入 + 字幕筛选（无 Qt，可脱离界面单测）。
 
 把「只出主播的字幕」做成本地**后处理**：
@@ -1028,6 +1028,26 @@ def save_auto_filter(enabled):
     with open(SELECTION_PATH, "w", encoding="utf-8") as fh:
         json.dump(obj, fh, ensure_ascii=False, indent=1)
     return obj["auto_filter"]
+
+
+def load_filter_mode():
+    """声纹筛选策略：缺省/脏值一律 recall，只有显式 precision 才精准优先。"""
+    obj = _load_selection_obj() or {}
+    return "precision" if obj.get("filter_mode") == "precision" else "recall"
+
+
+def save_filter_mode(mode):
+    """读-改-写筛选策略，保留 enabled / auto_filter 及未来扩展键。"""
+    mode = str(mode or "").strip().lower()
+    if mode not in ("recall", "precision"):
+        raise VoiceprintError("筛选模式应为 recall / precision")
+    obj = _load_selection_obj() or {}
+    obj["filter_mode"] = mode
+    obj["updated"] = time.strftime("%Y-%m-%d %H:%M:%S")
+    os.makedirs(TEMPLATE_DIR, exist_ok=True)
+    with open(SELECTION_PATH, "w", encoding="utf-8") as fh:
+        json.dump(obj, fh, ensure_ascii=False, indent=1)
+    return mode
 
 
 def delete_template(name):
@@ -2171,33 +2191,53 @@ def cluster_cues(pcm, cues, encoder=None, sample_rate=SAMPLE_RATE,
         members.append([idx])
         cents.append(v.copy())
 
-    # 第 2 遍：近重复簇合并 → 重算簇心 → 整体重指派（含歧义拒分）；
-    # 两轮兜住「合并改变格局后又有 cue 可落回」的边角。全程确定顺序。
+    # 第 2 遍：近重复簇合并 → 重算并**冻结**簇心 → 全体 cue 整体重指派。
+    # 被拒分的 cue 不强行塞进种子簇，而是在彼此之间重新贪心立簇；下一轮再以
+    # 更新后的完整簇集合重算/合并。这样既让合并结果真正生效，也保留歧义拒分。
     for _round in range(2):
         _merge_close(members,
                      lambda ms: [_centroid_of(m) if m else None for m in ms])
-        new_mem = []
-        new_cents = []
-        lab = {}
+        seed_mem = [m for m in members if m]
+        frozen_cents = [_centroid_of(m) for m in seed_mem]
+        new_mem = [[] for _m in seed_mem]
+        outliers = []
         for idx, _dur in order:
             if idx not in vecs:
                 continue
             v = vecs[idx]
-            sims = [float(np.dot(v, c)) for c in new_cents]
+            sims = [float(np.dot(v, c)) for c in frozen_cents]
+            if sims:
+                ok, best = _pick(sims, threshold)
+            else:
+                ok, best = False, -1
+            if ok:
+                new_mem[best].append(idx)
+            else:
+                outliers.append(idx)
+
+        # 离群 cue 只与离群簇比较；冻结种子簇在本轮不被新到 cue 拖动。
+        out_mem = []
+        out_cents = []
+        for idx in outliers:
+            v = vecs[idx]
+            sims = [float(np.dot(v, c)) for c in out_cents]
             if sims:
                 ok, best = _pick(sims, threshold)
             else:
                 ok, best = False, -1
             if not ok:
-                best = len(new_mem)
-                new_mem.append([])
-            lab[idx] = best
-            new_mem[best].append(idx)
-            if len(new_mem[best]) == 1:
-                new_cents.append(v.copy())
-            else:
-                new_cents[best] = _centroid_of(new_mem[best])
-        members = new_mem
+                best = len(out_mem)
+                out_mem.append([])
+                out_cents.append(v.copy())
+            out_mem[best].append(idx)
+            if len(out_mem[best]) > 1:
+                out_cents[best] = _centroid_of(out_mem[best])
+        members = [m for m in new_mem + out_mem if m]
+
+    lab = {}
+    for lb, mem in enumerate(members):
+        for idx in mem:
+            lab[idx] = lb
 
     # 簇号按 cue 出现顺序紧凑编号
     remap = {}
@@ -2293,6 +2333,103 @@ def decide(cues, speaker_scores, threshold=DEFAULT_THRESHOLD,
     return out
 
 
+def _state_for_score(score, threshold, low):
+    """与 decide() 完全一致的三分支，供二次判定复用同一阈值口径。"""
+    if score != score:
+        return "review"
+    if score >= threshold:
+        return "keep"
+    if score < low:
+        return "drop"
+    return "review"
+
+
+def _refine_review_decisions(pcm, cues, template, verdict, labels, local_scores,
+                             encoder=None, threshold=DEFAULT_THRESHOLD,
+                             low=DEFAULT_LOW, sample_rate=SAMPLE_RATE):
+    """只对初次判为 review 的 cue 做逐条兜底，并返回可审计决策明细。
+
+    逐 cue 兜底仍使用原 threshold/low，不另造阈值。过短且无法独立提取向量的
+    cue，只有前后邻居同属一个有效本地簇时才借用该簇分；其余无法判定的一律
+    保留 review，不因精准模式或二次判定而静默误删。
+    """
+    enc = encoder or VoiceprintEncoder()
+    labels = list(labels or [-1] * len(cues))
+    local_scores = local_scores or {}
+    rows = []
+    for i, (c, st, sc) in enumerate(verdict):
+        spk = str(getattr(c, "speaker", "") or "")
+        source = ("asr_cluster" if spk else
+                  "local_cluster" if labels[i] >= 0 else "unassigned")
+        reason = ""
+        if st == "review":
+            if sc == sc:
+                info = local_scores.get(str(labels[i])) if labels[i] >= 0 else None
+                reason = ("cluster_ambiguous"
+                          if info is not None and int(info.get("n") or 0) <= 1
+                          else "borderline")
+            else:
+                dur = max(0.0, (c.end - c.start) / 1000.0)
+                reason = "too_short" if dur < CLUSTER_MIN_SECONDS else "audio_missing"
+        rows.append({"cue": c, "state": st, "score": sc, "source": source,
+                     "reason": reason, "speaker": spk, "cluster": labels[i]})
+
+    pending = [i for i, row in enumerate(rows) if row["state"] == "review"]
+    fallback = {}
+    if pending:
+        try:
+            got = score_by_cue(pcm, [cues[i] for i in pending], template, enc,
+                               sample_rate=sample_rate)
+            fallback = dict(zip(pending, got))
+        except VoiceprintError:
+            fallback = {}
+        for i in pending:
+            sc = fallback.get(i, float("nan"))
+            if sc != sc:
+                continue
+            row = rows[i]
+            row["score"] = sc
+            row["state"] = _state_for_score(sc, threshold, low)
+            row["source"] = "cue_fallback"
+            row["reason"] = "borderline" if row["state"] == "review" else ""
+
+    # 短句上下文兜底必须在逐 cue 尝试之后，且只处理仍无有效分数的 review。
+    for i in pending:
+        row = rows[i]
+        c = row["cue"]
+        dur = max(0.0, (c.end - c.start) / 1000.0)
+        if (row["state"] != "review" or row["score"] == row["score"]
+                or dur >= CLUSTER_MIN_SECONDS or i <= 0 or i + 1 >= len(cues)):
+            continue
+        lb = labels[i - 1]
+        if lb < 0 or labels[i + 1] != lb:
+            continue
+        info = local_scores.get(str(lb))
+        sc = info.get("score", float("nan")) if info else float("nan")
+        if sc != sc:
+            continue
+        row["score"] = sc
+        row["state"] = _state_for_score(sc, threshold, low)
+        row["source"] = "short_context"
+        row["cluster"] = lb
+        row["reason"] = "borderline" if row["state"] == "review" else ""
+
+    refined = [(row["cue"], row["state"], row["score"]) for row in rows]
+    details = []
+    for i, row in enumerate(rows):
+        c = row["cue"]
+        sc = row["score"]
+        details.append({
+            "num": getattr(c, "num", i + 1) or i + 1,
+            "start": int(c.start), "end": int(c.end),
+            "duration_ms": max(0, int(c.end - c.start)),
+            "state": row["state"], "score": sc if sc == sc else None,
+            "source": row["source"], "reason": row["reason"],
+            "speaker": row["speaker"], "cluster": row["cluster"],
+        })
+    return refined, details
+
+
 def _suspect_path(out_path):
     """熔断候选的落点名：`<stem>_疑似误杀.srt`；已存在则加序号，不覆盖上一份。"""
     stem, ext = os.path.splitext(out_path)
@@ -2304,10 +2441,22 @@ def _suspect_path(out_path):
     return p
 
 
+def _review_path(out_path):
+    """精准模式存疑字幕：`<stem>_待复核.srt`；已存在则加序号。"""
+    stem, ext = os.path.splitext(out_path)
+    p = "%s_待复核%s" % (stem, ext)
+    i = 0
+    while os.path.exists(p):
+        i += 1
+        p = "%s_待复核_%d%s" % (stem, i, ext)
+    return p
+
+
 def filter_srt(src, srt_path, template, threshold=DEFAULT_THRESHOLD,
                low=DEFAULT_LOW, out_path=None, encoder=None,
                keep_review=True, report=True, progress=None, *,
-               min_keep_ratio=DEFAULT_MIN_KEEP_RATIO, in_place_backup=None):
+               min_keep_ratio=DEFAULT_MIN_KEEP_RATIO, in_place_backup=None,
+               mode="recall", decision_client=None):
     """端到端：音频 + SRT -> 只保留主播的 SRT。
 
     `template` 支持单个模板 dict / 模板名，或**模板名列表**（多声纹取并集：
@@ -2335,6 +2484,12 @@ def filter_srt(src, srt_path, template, threshold=DEFAULT_THRESHOLD,
     tpls = _as_template_list(template)
     if not tpls:
         raise VoiceprintError("没有可用的声纹模板（先 enroll 录入）")
+    mode = str(mode or "recall").strip().lower()
+    if mode not in ("recall", "precision"):
+        raise VoiceprintError("未知筛选模式：%s（应为 recall / precision）" % mode)
+    # keep_review=False 是旧 API；映射为精准模式以保持调用方语义。
+    effective_mode = "precision" if mode == "precision" or not keep_review else "recall"
+    keep_review = effective_mode == "recall"
     # ⚠ 走 `load_file` 而非「open 后 encode」：前者直接吃字节，能如实判定
     #   BOM 与源换行（CRLF/LF）；后者先被 utf-8-sig 吃掉 BOM，写出来就没了。
     #   项目一贯要求「BOM / 换行一字不动」，产物风格应当与源字幕一致。
@@ -2350,6 +2505,8 @@ def filter_srt(src, srt_path, template, threshold=DEFAULT_THRESHOLD,
     enc = encoder or VoiceprintEncoder()
     n_labeled = sum(1 for c in cues if str(getattr(c, "speaker", "") or ""))
     local_clusters = 0
+    labels = [-1] * len(cues)
+    local_scores = {}
     if n_labeled:
         # 有 `[说话人N]`：直接用 ASR 分离的结果（比我们聚的更可信）
         spk_scores = score_by_speaker(pcm, cues, tpls, enc)
@@ -2359,6 +2516,7 @@ def filter_srt(src, srt_path, template, threshold=DEFAULT_THRESHOLD,
             labels, _ = cluster_cues(pcm, cues, enc)
             local_clusters = len({x for x in labels if x >= 0})
             extra = score_clusters(pcm, cues, labels, tpls, enc)
+            local_scores = extra
             for k, v in extra.items():
                 spk_scores.setdefault("簇" + k, v)
             cue_scores = _labels_to_cue_scores(cues, labels, extra)
@@ -2367,25 +2525,40 @@ def filter_srt(src, srt_path, template, threshold=DEFAULT_THRESHOLD,
         labels, _sizes = cluster_cues(pcm, cues, enc)
         local_clusters = len({x for x in labels if x >= 0})
         spk_scores = score_clusters(pcm, cues, labels, tpls, enc)
+        local_scores = spk_scores
         cue_scores = _labels_to_cue_scores(cues, labels, spk_scores)
 
     verdict = decide(cues, spk_scores, threshold, low, cue_scores)
+    verdict, decisions = _refine_review_decisions(
+        pcm, cues, tpls, verdict, labels, local_scores, enc,
+        threshold=threshold, low=low, sample_rate=SAMPLE_RATE)
+    from features.voiceprint.voiceprint_decision import apply_shadow
+    decision = apply_shadow(verdict, decisions, decision_client,
+                            threshold=threshold, low=low, progress=_say)
     kept = [c for c, st, _ in verdict if st == "keep" or (keep_review and st == "review")]
     n_keep = sum(1 for _, st, _ in verdict if st == "keep")
     n_review = sum(1 for _, st, _ in verdict if st == "review")
     n_drop = sum(1 for _, st, _ in verdict if st == "drop")
+    review_cues = [c for c, st, _ in verdict if st == "review"]
 
     total = len(cues)
     ratio = (len(kept) / float(total)) if total else 0.0
     floor = float(min_keep_ratio or 0.0)
     aborted = floor > 0.0 and ratio < floor
 
+    reason_counts = {}
+    for d in decisions:
+        if d["state"] == "review" and d["reason"]:
+            reason_counts[d["reason"]] = reason_counts.get(d["reason"], 0) + 1
     res = {"out": out_path, "total": total, "keep": n_keep,
            "review": n_review, "drop": n_drop,
            "kept_total": len(kept), "speakers": spk_scores,
            "threshold": threshold, "low": low,
            "local_clusters": local_clusters,
            "templates": [n for n, _e in tpls],
+           "mode": effective_mode, "review_path": None,
+           "decisions": decisions, "decision": decision,
+           "review_reasons": reason_counts,
            "keep_ratio": ratio, "min_keep_ratio": floor,
            "aborted": aborted, "kept_path": None}
 
@@ -2401,18 +2574,38 @@ def filter_srt(src, srt_path, template, threshold=DEFAULT_THRESHOLD,
             res["kept_path"] = target
         res["out"] = res["kept_path"]
 
+    if effective_mode == "precision" and out_path and review_cues:
+        review_path = _review_path(out_path)
+        review_doc = secore.SubtitleDoc(cues=list(review_cues), newline=doc.newline,
+                                        has_bom=doc.has_bom)
+        with open(review_path, "wb") as fh:
+            fh.write(review_doc.to_bytes())
+        res["review_path"] = review_path
+
     if report and out_path:
         _write_report(out_path, res, verdict, in_place_backup=in_place_backup)
     return res
 
 
+def _report_ts(ms):
+    ms = max(0, int(ms))
+    h, rem = divmod(ms, 3600000)
+    m, rem = divmod(rem, 60000)
+    s, ms = divmod(rem, 1000)
+    return "%02d:%02d:%02d,%03d" % (h, m, s, ms)
+
+
 def _write_report(out_path, res, verdict, in_place_backup=None):
-    """在产物旁写一份 txt 复核报告：每个说话人得分 + 被丢弃的条目。"""
+    """在产物旁写 txt：组得分、模式、存疑原因及存疑/丢弃 cue 证据。"""
+    mode = res.get("mode") or "recall"
+    mode_text = ("召回优先（存疑进入正式 SRT）" if mode == "recall"
+                 else "精准优先（正式 SRT 仅 keep，存疑另存）")
     lines = ["主播声纹筛选报告",
              "  来源字幕 : %s" % os.path.basename(out_path),
              "  声纹模板 : %s（%d 个，并集）"
              % ("、".join(res.get("templates") or []) or "-",
                 len(res.get("templates") or [])),
+             "  筛选模式 : %s" % mode_text,
              "  阈值     : keep>=%.2f / drop<%.2f" % (res["threshold"], res["low"]),
              "  cue 总数 : %d -> 保留 %d（其中存疑 %d）/ 丢弃 %d"
              % (res["total"], res["kept_total"], res["review"], res["drop"]),
@@ -2420,6 +2613,28 @@ def _write_report(out_path, res, verdict, in_place_backup=None):
              % ("字幕的 [说话人N] 标签"
                 if not res.get("local_clusters")
                 else "本地声纹聚类（%d 簇）" % res["local_clusters"])]
+    if res.get("review_path"):
+        lines.append("  待复核SRT : %s" % os.path.basename(res["review_path"]))
+    if res.get("review_reasons"):
+        lines.append("  存疑原因 : %s" % "、".join(
+            "%s %d 条" % (k, v) for k, v in sorted(res["review_reasons"].items())))
+    decision = res.get("decision") or {}
+    if decision:
+        lines += ["", "Jev 结构化影子路由（只分级，不改变本地 verdict）：",
+                  "  激活=%s；模式=%s；最终存疑=%d；选中=%d；成功=%d；超预算=%d"
+                  % ("是" if decision.get("active") else "否",
+                     decision.get("mode") or "-", decision.get("review_total", 0),
+                     decision.get("selected", 0), decision.get("evaluated", 0),
+                     decision.get("truncated", 0))]
+        if not decision.get("active"):
+            lines.append("  未激活原因：%s" % (decision.get("reason") or "-"))
+        if decision.get("routes"):
+            lines.append("  路由分布：%s" % "、".join(
+                "%s %d 条" % (k, v) for k, v in sorted(decision["routes"].items())))
+        for err in decision.get("errors") or []:
+            lines.append("  降级：起始 #%s，%d 条，%s"
+                         % (err.get("first_num"), err.get("count", 0),
+                            err.get("error") or "-"))
     if res.get("aborted"):
         lines.append("  ⚠ 熔断未覆盖 : 保留率 %.2f%% < 熔断线 %.2f%%，判为「模板与"
                      "本片声音不匹配」——成品字幕「%s」一个字节都没改%s"
@@ -2438,18 +2653,50 @@ def _write_report(out_path, res, verdict, in_place_backup=None):
         label = spk or "(无标签)"
         if label.isdigit():                      # 本地聚类：0/1/2 -> 簇 0/1/2
             label = "簇 " + label
-        mark = "<= 判为主播" if info["score"] >= res["threshold"] else (
-            "存疑" if info["score"] >= res["low"] else "丢弃")
-        if info.get("best") and info["score"] >= res["low"]:
+        sc = info["score"]
+        if sc != sc:
+            mark = "存疑（无有效分数）"
+        else:
+            mark = "<= 判为主播" if sc >= res["threshold"] else (
+                "存疑" if sc >= res["low"] else "丢弃")
+        if info.get("best") and sc == sc and sc >= res["low"]:
             mark += "（像「%s」）" % info["best"]
         lines.append("  %-12s 相似度 %.3f  %d 条 / %.1f 秒  %s"
-                     % (label, info["score"], info["n"], info["seconds"], mark))
-    dropped = [(c, sc) for c, st, sc in verdict if st == "drop"]
-    if dropped:
-        lines += ["", "被丢弃的 %d 条：" % len(dropped)]
-        for c, sc in dropped[:200]:
-            txt = str(getattr(c, "text", "") or "").replace("\n", " ")[:40]
-            lines.append("  [%s] %.3f  %s" % (getattr(c, "speaker", "") or "-", sc, txt))
+                     % (label, sc, info["n"], info["seconds"], mark))
+
+    details = res.get("decisions") or [{} for _ in verdict]
+    rows = [(i, c, sc, details[i] if i < len(details) else {})
+            for i, (c, _st, sc) in enumerate(verdict)]
+
+    def _section(title, selected):
+        if not selected:
+            return
+        lines.extend(["", "%s（共 %d 条，最多展开 200 条）：" % (title, len(selected))])
+        for i, c, sc, d in selected[:200]:
+            speaker = d.get("speaker") or str(getattr(c, "speaker", "") or "")
+            cluster = d.get("cluster", -1)
+            group = speaker or ("簇 %s" % cluster if cluster >= 0 else "-")
+            score = "%.3f" % sc if sc == sc else "—"
+            lines.append(
+                "  #%s [%s --> %s] score=%s source=%s reason=%s group=%s"
+                % (d.get("num", i + 1), _report_ts(c.start), _report_ts(c.end),
+                   score, d.get("source") or "-", d.get("reason") or "-", group))
+            jev = d.get("jev") or {}
+            if jev.get("status") == "ok":
+                lines.append("    Jev shadow: choice=%s confidence=%.3f probabilities=%s"
+                             % (jev.get("choice"), float(jev.get("confidence") or 0.0),
+                                json.dumps(jev.get("probabilities") or {},
+                                           ensure_ascii=False, sort_keys=True)))
+            elif jev:
+                lines.append("    Jev shadow degraded: %s" % (jev.get("reason") or "-"))
+            txt = str(getattr(c, "text", "") or "").replace("\n", " ")
+            lines.append("    %s" % txt)
+        if len(selected) > 200:
+            lines.append("  … 其余 %d 条未展开；本条数已计入上方总数。"
+                         % (len(selected) - 200))
+
+    _section("存疑待复核条目", [r for r, (_c, st, _sc) in zip(rows, verdict) if st == "review"])
+    _section("被丢弃条目", [r for r, (_c, st, _sc) in zip(rows, verdict) if st == "drop"])
     p = os.path.splitext(out_path)[0] + ".报告.txt"
     with open(p, "w", encoding="utf-8") as fh:
         fh.write("\n".join(lines) + "\n")
@@ -2607,8 +2854,11 @@ def _main(argv=None):
     p3.add_argument("--threshold", type=float, default=DEFAULT_THRESHOLD)
     p3.add_argument("--low", type=float, default=DEFAULT_LOW)
     p3.add_argument("--out", default=None)
+    p3.add_argument("--mode", choices=("recall", "precision"), default="recall",
+                    help="recall=存疑保留（默认）；precision=正式 SRT 仅 keep，"
+                         "存疑另存 _待复核.srt")
     p3.add_argument("--strict", action="store_true",
-                    help="存疑区也丢弃（默认保留并标记）")
+                    help="旧参数：等价 --mode precision，存疑另存待复核")
     p3.add_argument("--min-keep-ratio", type=float, default=DEFAULT_MIN_KEEP_RATIO,
                     help="误杀熔断线：保留率低于它就不写产物（另存 _疑似误杀.srt），"
                          "默认 %.2f；0 = 关闭" % DEFAULT_MIN_KEEP_RATIO)
@@ -2791,11 +3041,16 @@ def _main(argv=None):
     if args.cmd == "score":
         return 0
     out = args.out or os.path.splitext(args.srt)[0] + "_主播.srt"
+    from core.shared.decision import decision_client
     res = filter_srt(args.src, args.srt, tpls, args.threshold, args.low,
                      out_path=out, encoder=enc, keep_review=not args.strict,
-                     min_keep_ratio=0.0 if args.force else args.min_keep_ratio)
+                     min_keep_ratio=0.0 if args.force else args.min_keep_ratio,
+                     mode=args.mode, decision_client=decision_client())
     print("\n保留 %d / 存疑 %d / 丢弃 %d（保留率 %.2f%%）"
           % (res["keep"], res["review"], res["drop"], res["keep_ratio"] * 100.0))
+    if res.get("review_path"):
+        print("存疑 %d 条未混入正式字幕，已另存：%s"
+              % (res["review"], res["review_path"]))
     if res["aborted"]:
         print("⚠ 熔断：保留率 %.2f%% 低于熔断线 %.2f%%，判为模板与本片声音不匹配，"
               "**未写「%s」**%s"

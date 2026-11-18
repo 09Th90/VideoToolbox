@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.0.0
+# @version 3.1.0
 """vt_fluent 图标引擎（自研，替代 qfluentwidgets.common.icon 的 SVG 图标体系）。
 
 与 qfluentwidgets 1.11.3 FluentIcon 的行为契约：

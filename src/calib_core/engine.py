@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.9.1
+# @version 3.1.0
 """校准主引擎 process()
 
 源：subtitle_calib_merged.py L11610-L11977 @ 97d7d463（2026-10-24 冻结快照）
@@ -11,6 +11,7 @@ import shutil
 import sys
 import unicodedata
 from .asr import _ref_for_match
+from .data.arcak import ARCAK_TERMS
 from .data.ark import AK_JA_TERMS, AK_KO_TERMS, AK_TERMS, PGR_EN_TERMS, WWOC_TERMS
 from .data.bilingual import BILINGUAL_TERMS, FFRS_TERMS, WORD_MAP
 from .data.endfield import ENDFIELD_BI_TERMS, ENDFIELD_KO_TERMS, ENDFIELD_TERMS
@@ -19,10 +20,12 @@ from .data.ko import KO_ASR_TERMS, KO_TERMS, RETIRED_KO_KEYS
 from .data.limbus import LIMBUS_TERMS
 from .data.misc import EN_LINE_TERM_FIXES, FF14_TERMS, HSR_TERMS, POKEMON_TERMS, REACT_TERMS, ZELDA_TERMS, ZH_ONLY_TERMS
 from .data.pbz import PBZ_TERMS
+from .data.ssv import SSV_TERMS
+from .data.tga import TGA_TERMS
 from .learn import _learned_terms_for_mode
 from .modes import endfield_auto_markers
 from .replace import _compile_map, _ctx_replace, _replace_report
-from .state import _AK_CONTEXT_COMPILED, _AK_KO_CONTEXT_COMPILED, _CONTEXT_COMPILED, _ENDFIELD_BI_CONTEXT_COMPILED, _ENDFIELD_KO_CONTEXT_COMPILED, _EXCLUDE_COMPILED, _FFRS_CONTEXT_COMPILED, _HSR_CONTEXT_COMPILED, _JA_CONTEXT_COMPILED, _JA_ENDFIELD_CONTEXT_COMPILED, _JA_PGR_CONTEXT_COMPILED, _KO_ASR_CONTEXT_COMPILED, _KO_CONTEXT_COMPILED, _LIMBUS_CONTEXT_COMPILED, _PBZ_CONTEXT_COMPILED, _FF14_CONTEXT_COMPILED, _POKEMON_CONTEXT_COMPILED, _PGR_EN_CONTEXT_COMPILED, _REACT_CONTEXT_COMPILED, _WWOC_CONTEXT_COMPILED, _AK_JA_CONTEXT_COMPILED
+from .state import _AK_CONTEXT_COMPILED, _AK_KO_CONTEXT_COMPILED, _ARCAK_CONTEXT_COMPILED, _CONTEXT_COMPILED, _ENDFIELD_BI_CONTEXT_COMPILED, _ENDFIELD_KO_CONTEXT_COMPILED, _EXCLUDE_COMPILED, _FFRS_CONTEXT_COMPILED, _HSR_CONTEXT_COMPILED, _JA_CONTEXT_COMPILED, _JA_ENDFIELD_CONTEXT_COMPILED, _JA_PGR_CONTEXT_COMPILED, _KO_ASR_CONTEXT_COMPILED, _KO_CONTEXT_COMPILED, _LIMBUS_CONTEXT_COMPILED, _PBZ_CONTEXT_COMPILED, _FF14_CONTEXT_COMPILED, _POKEMON_CONTEXT_COMPILED, _PGR_EN_CONTEXT_COMPILED, _REACT_CONTEXT_COMPILED, _WWOC_CONTEXT_COMPILED, _AK_JA_CONTEXT_COMPILED, _SSV_CONTEXT_COMPILED, _TGA_CONTEXT_COMPILED
 from .text import _KO_HANGUL, _decode_any, _split_cue_text
 
 
@@ -114,6 +117,12 @@ def process(path, out_path=None, report_path=None, mode="bi",
         terms = PBZ_TERMS
     elif mode == "ff14":        # 最终幻想14（2026-11-01 新增）：FF14_TERMS + FF14_CONTEXT，
         terms = FF14_TERMS      #   与 --bi 严格隔离（bi 键会把「残酷天使/使徒/噩梦」改坏）
+    elif mode == "ssv":         # 星之救援者（2026-11-15 新增）：SSV_TERMS + SSV_CONTEXT
+        terms = SSV_TERMS
+    elif mode == "tga26":       # TGA 2026 游戏大奖直播（2026-11-18 新增）：TGA_TERMS + TGA_CONTEXT
+        terms = TGA_TERMS
+    elif mode == "arcak":       # Arcaea×明日方舟联动直播（2026-11-18 新增）：ARCAK_TERMS + ARCAK_CONTEXT
+        terms = ARCAK_TERMS
     elif mode == "pgr":
         terms = {}
     else:
@@ -202,7 +211,16 @@ def process(path, out_path=None, report_path=None, mode="bi",
                         i = kk
                         continue
                     if not zh_pos:
-                        # 多文本行且无法识别中文行（全拉丁/全参考行）：绝不写参考行
+                        # 多文本行且无法识别中文行（全拉丁/全参考行）：绝不写参考行。
+                        # 例外（2026-11-15 鸣潮 3.8）：侧车显式指定的 cue 允许整行覆盖——
+                        #   本片 12 条原行是英文残片（'t / Apist / 引号 / Meta / iPhone），
+                        #   人工终稿已改成中文，若不特判会被这里整块跳过，复跑永远对不上。
+                        if mode == "bi" and bi_override and str(num) in bi_override:
+                            old0 = lines[zh_idx]
+                            new = bi_override[str(num)]
+                            if new != old0:
+                                rows.append((num, old0, new, ref))
+                                out[zh_idx] = new
                         i = kk
                         continue
                     old = lines[zh_idx]
@@ -275,6 +293,22 @@ def process(path, out_path=None, report_path=None, mode="bi",
                     elif mode == "pbz":       # 影之刃零：PBZ_TERMS + PBZ_CONTEXT 英文参考行佐证
                         new = _replace_report(old, term_pairs, term_chars, hits)
                         for crx, wrong, right in _PBZ_CONTEXT_COMPILED:
+                            if wrong in new and crx.search(ref_m):
+                                new = _ctx_replace(new, wrong, right)
+                        if new != old:
+                            rows.append((num, old, new, ref))
+                            out[zh_idx] = new
+                    elif mode == "ssv":       # 星之救援者：SSV_TERMS + SSV_CONTEXT 英文参考行佐证
+                        new = _replace_report(old, term_pairs, term_chars, hits)
+                        for crx, wrong, right in _SSV_CONTEXT_COMPILED:
+                            if wrong in new and crx.search(ref_m):
+                                new = _ctx_replace(new, wrong, right)
+                        if new != old:
+                            rows.append((num, old, new, ref))
+                            out[zh_idx] = new
+                    elif mode == "tga26":     # TGA 2026 游戏大奖直播：TGA_TERMS + TGA_CONTEXT 英文参考行佐证
+                        new = _replace_report(old, term_pairs, term_chars, hits)
+                        for crx, wrong, right in _TGA_CONTEXT_COMPILED:
                             if wrong in new and crx.search(ref_m):
                                 new = _ctx_replace(new, wrong, right)
                         if new != old:
@@ -431,6 +465,36 @@ def process(path, out_path=None, report_path=None, mode="bi",
                                     rows.append((num, lold, new, ref))
                                     out[_ti] = new
                         elif ak_zh:             # 无参考行的纯中文 cue：退回首中文行口径
+                            new = _replace_report(old, term_pairs, term_chars, hits)
+                            if new != old:
+                                rows.append((num, old, new, ref))
+                                out[zh_idx] = new
+                    elif mode == "arcak":       # Arcaea×明日方舟联动直播：ARCAK_TERMS + ARCAK_CONTEXT
+                        # 2026-11-18 新增。与 --ak 同构（改全部中文行、锚点=全部英文行拼接、
+                        #   消费 EXCLUDE 回滚），但走独立表：AK_TERMS 里的
+                        #   Arcaea→韵律源点 / Radiant→《Radiant》与本片「Arcaea 侧保留英文」
+                        #   口径冲突，不能合并。
+                        arcak_zh = [text_tis[p] for p in zh_pos]
+                        arcak_en = [text_tis[p] for p in ref_pos]
+                        if arcak_zh and arcak_en:
+                            arcak_anchor = re.sub(
+                                r"\s+", " ",
+                                _ref_for_match(" ".join(lines[_ti] for _ti in arcak_en)))
+                            for _ti in arcak_zh:
+                                lold = lines[_ti]
+                                new = _replace_report(lold, term_pairs, term_chars, hits)
+                                for crx, wrong, right in _ARCAK_CONTEXT_COMPILED:
+                                    if wrong in new and crx.search(arcak_anchor):
+                                        new = _ctx_replace(new, wrong, right)
+                                for wrong, (right, rxs) in _EXCLUDE_COMPILED.items():
+                                    if wrong in lold and wrong not in new \
+                                            and any(rx.search(arcak_anchor) for rx in rxs):
+                                        new = new.replace(right, wrong)
+                                        hits.pop(wrong, None)
+                                if new != lold:
+                                    rows.append((num, lold, new, ref))
+                                    out[_ti] = new
+                        elif arcak_zh:          # 无参考行的纯中文 cue：退回首中文行口径
                             new = _replace_report(old, term_pairs, term_chars, hits)
                             if new != old:
                                 rows.append((num, old, new, ref))

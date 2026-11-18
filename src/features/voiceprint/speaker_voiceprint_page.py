@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# @version 3.0.0
+# @version 3.1.0
 """主播声纹 · 界面组件（v1.18.0）
 ====================================================================
 两个组件，供 `video_toolbox.py::vc_transcribe_ui_patch()` 挂进引擎界面：
@@ -31,7 +31,7 @@ import os
 from PySide6.QtCore import QThread, Signal
 from PySide6.QtWidgets import QFileDialog, QHBoxLayout, QVBoxLayout, QWidget
 
-from vt_fluent import (BodyLabel, CaptionLabel, CheckBox, LineEdit,
+from vt_fluent import (BodyLabel, CaptionLabel, CheckBox, ComboBox, LineEdit,
                             PrimaryPushButton, ProgressBar, PushButton,
                             SpinBox, StrongBodyLabel, ToolButton,
                             FluentIcon as FIF)
@@ -444,6 +444,22 @@ class VoiceprintPicker(QWidget):
         self.hint.setStyleSheet("color: #8a8a8a;")
         root.addWidget(self.hint)
 
+        mode_row = QHBoxLayout()
+        mode_row.setSpacing(8)
+        mode_row.addWidget(BodyLabel("筛选策略", self))
+        self.mode_combo = ComboBox(self)
+        self.mode_combo.addItems(["召回优先：存疑保留在正式字幕",
+                                  "精准优先：存疑另存待复核字幕"])
+        self.mode_combo.setCurrentIndex(
+            1 if SV.load_filter_mode() == "precision" else 0)
+        self.mode_combo.setToolTip(
+            "召回优先：review 进入正式 SRT（旧行为）。\n"
+            "精准优先：正式 SRT 只含 keep，review 写入不覆盖旧文件的 _待复核.srt。")
+        self.mode_combo.currentIndexChanged.connect(self._on_mode_changed)
+        mode_row.addWidget(self.mode_combo)
+        mode_row.addStretch(1)
+        root.addLayout(mode_row)
+
         self.box_wrap = QWidget(self)
         self.box_lay = QVBoxLayout(self.box_wrap)
         self.box_lay.setContentsMargins(4, 0, 0, 0)
@@ -467,11 +483,17 @@ class VoiceprintPicker(QWidget):
         except Exception:  # noqa: BLE001
             auto = "关"
         n = len(SV.load_selection())
-        return ("已勾选 %d 个声音（转录页「声纹筛选」开关：%s）" % (n, auto)
+        mode = "精准优先" if SV.load_filter_mode() == "precision" else "召回优先"
+        base = ("已勾选 %d 个声音（转录页「声纹筛选」开关：%s）" % (n, auto)
                 if n else
                 "没勾选声音，转录页开关（%s）开着也不筛" % auto)
+        return base + "；策略：" + mode
 
     def refresh(self):
+        self.mode_combo.blockSignals(True)
+        self.mode_combo.setCurrentIndex(
+            1 if SV.load_filter_mode() == "precision" else 0)
+        self.mode_combo.blockSignals(False)
         for w in self._boxes:
             w.setParent(None)
             w.deleteLater()
@@ -511,6 +533,13 @@ class VoiceprintPicker(QWidget):
         self.status.setText(self._status_text())
 
     # ---------------- 动作 ----------------
+    def filter_mode(self):
+        return "precision" if self.mode_combo.currentIndex() == 1 else "recall"
+
+    def _on_mode_changed(self, _index=0):
+        SV.save_filter_mode(self.filter_mode())
+        self.status.setText(self._status_text())
+
     def selected(self):
         """当前勾选的声纹名列表（顺序 = 列表顺序）。
 

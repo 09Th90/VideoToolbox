@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.0.0
+# @version 3.1.0
 """AI 校准 Agent 自检（离线，不联网、不调用真实 LLM）。
 
 覆盖：
@@ -867,9 +867,9 @@ def test_web_tool_loop():
         '[{"tool":"web_search","query":"x"},{"num":"1","new_zh":"y"}]') == [])
     check("空回复/坏 JSON 返回 []", ag.parse_tool_requests("") == []
           and ag.parse_tool_requests("[{broken") == [])
-    check("至多保留 2 个请求", len(ag.parse_tool_requests(
+    check("解析保留全部请求由调用方截断（v2：至多 8 个）", len(ag.parse_tool_requests(
         '[{"tool":"web_search","query":"a"},{"tool":"web_search","query":"b"},'
-        '{"tool":"web_search","query":"c"}]')) == 2)
+        '{"tool":"web_search","query":"c"}]')) == 3)
 
     # 2 run_tools 对未知工具的降级
     calls = []
@@ -936,7 +936,13 @@ def test_web_tool_loop():
         "<br><p>第二条&amp;继续</p></html>")
     check("HTML 剥离去脚本留文本", "卡提希娅" in stripped and "var x" not in stripped,
           stripped)
-    op1 = web_ag._opener(None)
+    from unittest import mock as _mock
+    # 不依赖宿主机恰好配置了系统代理：显式模拟一组系统代理，才能稳定区分
+    # proxy=None（应读取系统值）与 proxy={}（显式直连）。
+    with _mock.patch("urllib.request.getproxies",
+                     return_value={"http": "http://127.0.0.1:7897",
+                                   "https": "http://127.0.0.1:7897"}):
+        op1 = web_ag._opener(None)
     op2 = web_ag._opener({})
     op3 = web_ag._opener({"http": "http://127.0.0.1:7897",
                           "https": "http://127.0.0.1:7897"})

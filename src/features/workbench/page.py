@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.0.0
+# @version 3.1.0
 """字幕工作台页（2026-11-15 功能解耦阶段③：从 video_toolbox_qt.py 拆出，逐字同源）。
 
 * 内嵌字幕引擎工作台（vt_engine_ui 自研优先，videocaptioner 回退），预热三段

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# @version 3.0.0
+# @version 3.1.0
 """主播声纹链路自检（离线，不联网、不依赖 ffmpeg）。
 
 覆盖 src/features/voiceprint/speaker_voiceprint.py：
@@ -386,6 +386,16 @@ def main():
         check("名单与开关两个键同时存活",
               SV.load_selection() == ["主播甲", "主播乙"]
               and SV.load_auto_filter() is True)
+        check("筛选模式缺省为 recall", SV.load_filter_mode() == "recall")
+        SV.save_filter_mode("precision")
+        SV.save_selection(["主播甲"])
+        SV.save_auto_filter(True)
+        check("模式在名单与开关读-改-写后保持",
+              SV.load_filter_mode() == "precision"
+              and SV.load_selection() == ["主播甲"]
+              and SV.load_auto_filter() is True)
+        SV.save_filter_mode("recall")
+        SV.save_selection(["主播甲", "主播乙"])
 
         SV.save_auto_filter(False)
         check("save_auto_filter(False) 读回 False", SV.load_auto_filter() is False)
@@ -1084,6 +1094,18 @@ def main():
           (SV.CLUSTER_THRESHOLD, SV.CLUSTER_ASSIGN_MARGIN,
            SV.CLUSTER_MERGE_THRESHOLD, SV.CLUSTER_LENGTH_WEIGHT))
 
+    # 场景 3（合并后整体重指派）：A/B 初始方向相差 70°，第一遍各自立簇；
+    # 后续成员让两个多 cue 簇心逐渐靠近到 0.6 合并线以上。旧实现从空簇重复
+    # 第一遍，最终仍是 2 簇；正确实现必须采用合并后的冻结簇心，将成员重归为 1 簇。
+    pcm_t3, cues_t3 = _tab_cues(
+        [(0.0, 10.0, 0.10), (11.0, 9.0, 0.70), (21.0, 8.0, 0.30),
+         (30.0, 7.0, 0.50), (38.0, 6.0, 0.20), (45.0, 5.0, 0.40)], 51.0)
+    enc_t3 = TableEncoder({1: _unit(0), 7: _unit(70), 3: _unit(30),
+                           5: _unit(50), 2: _unit(25), 4: _unit(45)})
+    lab_t3, sz_t3 = SV.cluster_cues(pcm_t3, cues_t3, enc_t3)
+    check("近重复簇合并结果用于最终整体重指派",
+          len(sz_t3) == 1 and len(set(lab_t3)) == 1, (lab_t3, sz_t3))
+
     # ---------------- 6) decide() 三分支 ----------------
     say("\n== 6) decide() 判定 ==")
     verdict = SV.decide(cues, sc, threshold=0.5, low=0.35)
@@ -1102,6 +1124,56 @@ def main():
           all(st == "review" for _, st, _ in verdict3),
           [st for _, st, _ in verdict3])
 
+    # 二次判定：只把 review cue 交给逐条打分；有效分按原阈值重路由，
+    # 仍无分的保持原分数/原因，不被兜底静默丢弃。
+    verdict_fb = [(cues[0], "keep", 1.0), (cues[1], "review", float("nan")),
+                  (cues[2], "drop", 0.05), (cues[3], "review", 0.50)]
+    fb_calls = []
+    old_sbc = SV.score_by_cue
+    def _fake_sbc(pcm, subset, template, encoder=None, sample_rate=16000):
+        fb_calls.append(len(subset))
+        return [0.60, float("nan")]
+    SV.score_by_cue = _fake_sbc
+    try:
+        vb, db = SV._refine_review_decisions(
+            pcm, cues, tpl, verdict_fb, [-1] * len(cues), {}, enc,
+            threshold=0.55, low=0.45)
+    finally:
+        SV.score_by_cue = old_sbc
+    check("逐 cue 兜底只处理存疑条目", fb_calls == [2], fb_calls)
+    check("有效逐 cue 分数按原阈值重路由",
+          [st for _, st, _ in vb] == ["keep", "keep", "drop", "review"],
+          [st for _, st, _ in vb])
+    check("决策明细记录 cue_fallback 与 borderline 原因",
+          db[1]["source"] == "cue_fallback" and db[1]["score"] == 0.60
+          and db[3]["reason"] == "borderline", db)
+
+    # 短 cue：逐条打分仍失败时，仅前后邻居同属一个有效本地簇才借分。
+    pcm_t4, cues_t4 = _tab_cues(
+        [(0.0, 1.0, 0.10), (1.5, 0.2, 0.20), (2.0, 1.0, 0.10)], 4.0)
+    v_short = [(cues_t4[0], "keep", 0.80),
+               (cues_t4[1], "review", float("nan")),
+               (cues_t4[2], "keep", 0.80)]
+    SV.score_by_cue = lambda *a, **k: [float("nan")]
+    try:
+        vs, ds = SV._refine_review_decisions(
+            pcm_t4, cues_t4, tpl, v_short, [0, -1, 0],
+            {"0": {"score": 0.80, "n": 2, "seconds": 2.0}}, enc,
+            threshold=0.55, low=0.45)
+        vn, dn = SV._refine_review_decisions(
+            pcm_t4, cues_t4, tpl, v_short, [0, -1, 1],
+            {"0": {"score": 0.80, "n": 1, "seconds": 1.0},
+             "1": {"score": 0.10, "n": 1, "seconds": 1.0}}, enc,
+            threshold=0.55, low=0.45)
+    finally:
+        SV.score_by_cue = old_sbc
+    check("短 cue 前后同簇时可借分并标记 short_context",
+          vs[1][1] == "keep" and vs[1][2] == 0.80
+          and ds[1]["source"] == "short_context", ds[1])
+    check("短 cue 前后不同簇时保持 too_short / review",
+          vn[1][1] == "review" and dn[1]["reason"] == "too_short"
+          and dn[1]["score"] is None, dn[1])
+
     # ---------------- 7) filter_srt 端到端 ----------------
     say("\n== 7) filter_srt 端到端（注入假 PCM / 假编码器）==")
     tmpdir = tempfile.mkdtemp(prefix="vt_vp_e2e_")
@@ -1117,6 +1189,8 @@ def main():
                             encoder=enc)
         check("保留 2 条（说话人1 的两句）", res["kept_total"] == 2, res)
         check("丢弃 2 条", res["drop"] == 2, res)
+        check("默认召回模式且不产生待复核文件",
+              res["mode"] == "recall" and res["review_path"] is None)
         out = open(out_path, encoding="utf-8-sig").read()
         check("产物含主播台词", "大家好我是主播" in out and "今天我们聊点别的" in out)
         check("产物不含嘉宾台词", "我是嘉宾" not in out and "我也来说两句" not in out)
@@ -1137,7 +1211,10 @@ def main():
                "说话人2": {"score": 0.50, "n": 1, "seconds": 1.0},
                "说话人3": {"score": 0.05, "n": 1, "seconds": 1.0}}
         old_sbs = SV.score_by_speaker
+        old_sbc_strict = SV.score_by_cue
         SV.score_by_speaker = lambda *a, **k: sc4
+        # 本组钉的是 keep_review 写出语义，不让二次逐 cue 打分把存疑改判。
+        SV.score_by_cue = lambda *a, **k: [float("nan") for _ in a[1]]
         try:
             res2 = SV.filter_srt("fake.mp4", srt_path, {"embedding": tpl},
                                  out_path=strict_out, encoder=enc,
@@ -1145,8 +1222,33 @@ def main():
                                  keep_review=False)
             check("keep_review=False 时存疑条也被丢弃",
                   res2["kept_total"] == 2 and res2["review"] == 1, res2)
+            check("旧 keep_review=False 映射精准模式并写出待复核 SRT",
+                  res2["mode"] == "precision" and res2["review_path"]
+                  and os.path.isfile(res2["review_path"]), res2["review_path"])
+            review_text = open(res2["review_path"], encoding="utf-8-sig").read()
+            strict_text = open(strict_out, encoding="utf-8-sig").read()
+            check("精准正式 SRT 与待复核 SRT 内容分离",
+                  "我是嘉宾" not in strict_text and "我是嘉宾" in review_text
+                  and "我也来说两句" not in review_text)
+            res2b = SV.filter_srt("fake.mp4", srt_path, {"embedding": tpl},
+                                  out_path=strict_out, encoder=enc,
+                                  threshold=0.55, low=0.45, mode="precision")
+            check("显式 precision 生效且待复核文件不覆盖旧文件",
+                  res2b["mode"] == "precision"
+                  and res2b["review_path"] != res2["review_path"]
+                  and os.path.isfile(res2["review_path"])
+                  and os.path.isfile(res2b["review_path"]),
+                  (res2["review_path"], res2b["review_path"]))
+            strict_report = open(os.path.splitext(strict_out)[0] + ".报告.txt",
+                                 encoding="utf-8").read()
+            check("报告列出模式、存疑时间轴、来源和原因",
+                  "精准优先" in strict_report and "存疑待复核条目" in strict_report
+                  and "00:00:02,500 --> 00:00:03,500" in strict_report
+                  and "source=asr_cluster" in strict_report
+                  and "reason=borderline" in strict_report)
         finally:
             SV.score_by_speaker = old_sbs
+            SV.score_by_cue = old_sbc_strict
 
         # 钉住出厂默认阈值本身：这次调参（0.5→0.55 / 0.35→0.45）是真实素材
         # 踩坑后的决定（游戏官方旁白相似度 0.390 落在旧存疑区里被误保留）。
@@ -1274,6 +1376,9 @@ def main():
         old_ls = SV.load_selection
         try:
             SV.model_present = lambda: True
+            # 不读真实空名单：执行体 names 省略时会读 load_selection，名单为空将
+            # 按设计返回 None，导致本组备份语义尚未执行就先 TypeError。
+            SV.load_selection = lambda: ["甲"]
             mdir = os.path.join(tmpdir, "bk")
             os.makedirs(mdir, exist_ok=True)
             sub = os.path.join(mdir, "a.srt")
@@ -1327,6 +1432,7 @@ def main():
 
             def _fake_names(*pos, out_path=None, **_kw):
                 seen["template"] = pos[2] if len(pos) > 2 else None
+                seen["mode"] = _kw.get("mode")
                 open(out_path, "w", encoding="utf-8").write("x\n")
                 return {"total": 1, "keep": 1, "review": 0, "drop": 0,
                         "kept_total": 1, "keep_ratio": 1.0,
@@ -1339,6 +1445,10 @@ def main():
             VPI2.voiceprint_filter_subtitle(sub, med, names=["显式传入"])
             check("显式 names 生效（不再读全局名单）",
                   seen.get("template") == ["显式传入"], seen)
+            VPI2.voiceprint_filter_subtitle(sub, med, names=["显式传入"],
+                                            mode="precision")
+            check("执行体把精准模式传给 filter_srt",
+                  seen.get("mode") == "precision", seen)
         finally:
             SV.model_present, SV.filter_srt = old_mp, old_fs
             SV.load_selection = old_ls

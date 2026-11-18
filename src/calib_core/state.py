@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.0.0
+# @version 3.1.0
 """术语表注册表、实体投影与上下文缓存
 
 源：subtitle_calib_merged.py L2198-L10667 @ 97d7d463（2026-10-24 冻结快照）
@@ -10,6 +10,7 @@ import re
 import shutil
 import sys
 import unicodedata
+from .data.arcak import ARCAK_CONTEXT, ARCAK_TERMS
 from .data.ark import (AK_CONTEXT, AK_JA_CONTEXT, AK_JA_TERMS, AK_KO_CONTEXT,
                        AK_KO_TERMS, AK_TERMS, PGR_EN_CONTEXT, PGR_EN_TERMS,
                        WWOC_CONTEXT, WWOC_TERMS)
@@ -28,6 +29,8 @@ from .data.misc import (EN_LINE_TERM_FIXES, FF14_CONTEXT, FF14_TERMS,
                         POKEMON_CONTEXT, POKEMON_TERMS, REACT_CONTEXT,
                         REACT_TERMS, ZELDA_TERMS, ZH_ONLY_TERMS)
 from .data.pbz import PBZ_CONTEXT, PBZ_TERMS
+from .data.ssv import SSV_CONTEXT, SSV_TERMS
+from .data.tga import TGA_CONTEXT, TGA_TERMS
 from .data.modes import _MODE_CTX_TABLE, _MODE_TERM_TABLE
 
 
@@ -58,6 +61,12 @@ TABLES = {
     "PBZ_TERMS": PBZ_TERMS,
     # 2026-11-01 新增：最终幻想14 片源表
     "FF14_TERMS": FF14_TERMS,
+    # 2026-11-15 新增：星之救援者（Star Savior）评测片源表
+    "SSV_TERMS": SSV_TERMS,
+    # 2026-11-18 新增：TGA 2026 游戏大奖直播片源表
+    "TGA_TERMS": TGA_TERMS,
+    # 2026-11-18 新增：Arcaea × 明日方舟联动直播片源表
+    "ARCAK_TERMS": ARCAK_TERMS,
     # 2026-11-03 新增：明日方舟日语原声片源表（engine 的 --akja 用 AK_TERMS ∪ 本表）
     "AK_JA_TERMS": AK_JA_TERMS,
 }
@@ -87,6 +96,12 @@ CTX_TABLES = {
     "AK_JA_CONTEXT": AK_JA_CONTEXT,
     # 2026-11-04 新增：战双英文原声锚定表（余辉/光伏/丝带/克洛伊 全是正常中文词，禁裸键）
     "PGR_EN_CONTEXT": PGR_EN_CONTEXT,
+    # 2026-11-15 新增：星之救援者评测片锚定表（尼克/脉搏/烧灼/天井 等通用词，禁裸键）
+    "SSV_CONTEXT": SSV_CONTEXT,
+    # 2026-11-18 新增：TGA 2026 直播片锚定表（Karen/武者/轨道站/马拉松/共振 等普通词，禁裸键）
+    "TGA_CONTEXT": TGA_CONTEXT,
+    # 2026-11-18 新增：Arcaea×方舟直播片锚定表（医生/操作员/老板/光谱/叛徒 等普通词，禁裸键）
+    "ARCAK_CONTEXT": ARCAK_CONTEXT,
 }
 
 
@@ -202,6 +217,21 @@ _FF14_CONTEXT_COMPILED = [(re.compile(rx, re.I), wrong, right)
 _PGR_EN_CONTEXT_COMPILED = [(re.compile(rx, re.I), wrong, right)
                              for rx, wrong, right in PGR_EN_CONTEXT if wrong and right]
 
+# 2026-11-15 --ssv 语境预编译：锚点是拉丁（Nikke / pulse / burn / limit break），
+#   与 _PGR_EN 同规带 re.I。
+_SSV_CONTEXT_COMPILED = [(re.compile(rx, re.I), wrong, right)
+                         for rx, wrong, right in SSV_CONTEXT if wrong and right]
+
+# 2026-11-18 --tga26 语境预编译：锚点是英文 ASR（Cairn/Onimusha/Marathon/Saros），
+#   与 _SSV 同规带 re.I。
+_TGA_CONTEXT_COMPILED = [(re.compile(rx, re.I), wrong, right)
+                         for rx, wrong, right in TGA_CONTEXT if wrong and right]
+
+# 2026-11-18 --arcak 语境预编译：锚点是英文 ASR（doctor/Originium/chart/Renegade），
+#   与 _SSV/_PGR_EN 同规带 re.I（ASR 大小写不稳）。
+_ARCAK_CONTEXT_COMPILED = [(re.compile(rx, re.I), wrong, right)
+                           for rx, wrong, right in ARCAK_CONTEXT if wrong and right]
+
 
 
 def _register_entities(entities=ENTITIES):
@@ -295,6 +325,14 @@ def _rebuild_context_caches():
     # 2026-11-04：同 _AK_JA_CONTEXT_COMPILED 的教训——不原地重建，kb 运行期注入的新锚条目会静默失效
     _PGR_EN_CONTEXT_COMPILED[:] = [(re.compile(rx, re.I), wrong, right)
                                    for rx, wrong, right in PGR_EN_CONTEXT if wrong and right]
+    _SSV_CONTEXT_COMPILED[:] = [(re.compile(rx, re.I), wrong, right)
+                                for rx, wrong, right in SSV_CONTEXT if wrong and right]
+    # 2026-11-18：同 _SSV 的教训——不原地重建，kb 运行期注入的 tga26 锚条目会静默失效
+    _TGA_CONTEXT_COMPILED[:] = [(re.compile(rx, re.I), wrong, right)
+                                for rx, wrong, right in TGA_CONTEXT if wrong and right]
+    # 2026-11-18：同 _SSV 的教训——不原地重建，kb 运行期注入的 arcak 锚条目会静默失效
+    _ARCAK_CONTEXT_COMPILED[:] = [(re.compile(rx, re.I), wrong, right)
+                                  for rx, wrong, right in ARCAK_CONTEXT if wrong and right]
 
 
 

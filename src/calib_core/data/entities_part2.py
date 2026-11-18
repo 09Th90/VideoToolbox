@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.0.0
+# @version 3.1.0
 """术语/实体数据表
 
 源：subtitle_calib_merged.py L8840-L10200 @ 97d7d463（2026-10-24 冻结快照）
@@ -81,7 +81,9 @@ ENTITIES_PART2 = [
                 (r"キーパー|シャーキ|ケートキ|シュアキ", "鲨鱼饲养员"),
                 (r"キーパー|ケートキ|シュアキ", "Keto Keeper"),
                 (r"キーパー|シュアキ", "稳妥守料"), (r"キーパー", "守门员"),
-                (r"キーパー|ゲートキーパー|ゲート守", "守门人"),
+                # 2026-11-17 r3：3.8「予以明日的花束」の白きゲートキーパー=心之集域白猫，
+                # 官方中文「白色守门人」≠守岸人 ⇒ 锚加负例排除「白きゲートキーパー」。
+                (r"(?<!白き)ゲートキーパー|(?<!ゲート)キーパー|ゲート守", "守门人"),
                 (r"ゲート守", "守门的人"), (r"シャキ", "摇晃者"),
                 (r"シャーキ", "沙基")),
            note="鸣潮角色，官方中文=守岸人（Shorekeeper）。谷翻把 ショアキーパー 按字面译成'岸上看守'。"
@@ -833,9 +835,24 @@ ENTITIES_PART2 = [
            note="「战争回响 - 异想赛季」轮换关卡；Grievously Besieged 官方中文=重伤之围。"
                 "本片 6:12 段落即该关卡；纯元数据，无错形规则。"),
     Entity("聂菲斯", modes=("endobi",), en="Nefarith", category="BOSS/终末地",
-           note="危境再现「危境祸影」BOSS；官方中文=聂菲斯。本片 0:00 段落。纯元数据，无错形规则。"),
+           variants=("奈弗雷特",),
+           note="危境再现「危境祸影」BOSS；官方中文=聂菲斯。本片 0:00 段落。"
+                "2026-11-17 本片三校补变体：英文 ASR 拼写 Neferet、谷翻音译「奈弗雷特」。"),
     Entity("幽林之怒", modes=("endobi",), en="Gloomwald's Rage", category="BOSS/终末地",
            note="1.5「雪凇幽梦」区域 BOSS；官方中文=幽林之怒。本片 3:07 段落。纯元数据，无错形规则。"),
+    # --- 2026-11-17 三校沉淀：《Is This What Endfield's Endgame Should Be About?》---
+    #   官方依据：endfield.wiki.gg/wiki/Triaggelos 简中栏「三位一体」、
+    #   /wiki/Ruan_Yi 简中栏「阮一」；本片英文 ASR 分别拼作 Triagolos/Triangulus、Ruani。
+    Entity("三位一体", modes=("endo", "endobi"), en="Triaggelos",
+           category="BOSS/终末地1.7",
+           variants=("特里亚戈洛斯",),
+           note="1.7 起加入影拓丰碑轮换的首领；官方简中=三位一体（内部名 eny_0045_agtrinit）。"
+                "本片谷翻按英文音译成「特里亚戈洛斯」。"),
+    Entity("阮一", modes=("endo", "endobi"), en="Ruan Yi",
+           category="敌人首领/终末地",
+           variants=("鲁阿尼",),
+           note="终末地首领战敌人；官方简中=阮一（warfarin.wiki 敌人表同形）。"
+                "本片英文 ASR 拼写 Ruani，谷翻音译「鲁阿尼」。"),
     # --- 2026-10-26 二校沉淀：终末地 1.6「未来版本前瞻」reaction（115 cue，--endobi）---
     #   官方依据：官方中配《塔卫二：一号简报》、1.6 特别节目未来前瞻、
     #   1.7 前瞻摘要（B站 BV1fTpP6YEjn / BV1mPpA62E87）；画面 3:20 GOLDEN BRANCH、
@@ -958,7 +975,7 @@ ENTITIES_PART2 = [
                 "鸣潮 bi 片源内裸键安全。旧 ctx 已收谐振器/谐振腔->共鸣者，韩语表 공명자->共鸣器 已沉淀。"),
     Entity("寰宇频道", modes=("bi",), en="Insider Channel",
            category="节目/官方栏目·鸣潮",
-           variants=("隐现频道",),
+           variants=("隐现频道", "内幕频道"),
            ctx=((r"\b[Ii]nsider [Cc]hannel\b", "内部频道"),),
            note="官方节目系列名「寰宇频道」（英 Insider Channel），3.7 出特别栏目《朝月惊梦》。"
                 "谷翻作「隐现频道」（cue345，生僻裸键）与「内部频道」（cue382，常用组合，"
@@ -3034,5 +3051,63 @@ ENTITIES_PART2 = [
     Entity("散华", modes=("bi",), en="Sanhua", category="角色/鸣潮",
            ctx=((r"\bSana\b|\bSanhua\b", "萨娜"), (r"\bSan\b", "桑")),
            note="本片 #950/#970；官方中文=散华。"),
+    # --- 2026-11-18 鸣潮 2.0–2.4 展示会/版本预告 reaction 片二校回灌 ---
+    Entity("埃弗拉德金库", modes=("bi", "react"), en="Averardo Vault",
+           category="地点/鸣潮2.0",
+           variants=("阿尔瓦拉多拱顶", "阿尔瓦拉多金库"),
+           ctx=((r"\b(?:Averardo|Alvarado)\s+[Vv]ault\b", "阿尔瓦拉多"),),
+           note="黎那汐塔拉古那的家族金库，官方中文=埃弗拉德金库（灰机 wiki 黎那汐塔页）。"
+                "ASR/机翻作 Alvarado/Alvarado vault，谷翻'阿尔瓦拉多拱顶'；"
+                "整串生僻形裸键安全，裸'阿尔瓦拉多'为西语姓氏，只走 vault 参考行锚定。"),
+    Entity("梦魇声骸", modes=("bi",), en="Nightmare Echo",
+           category="术语/声骸",
+           variants=("噩梦声骸",),
+           note="鸣潮 2.x 声骸类别 Nightmare Echo 官方中文=梦魇声骸；机翻常作'噩梦声骸'。"
+                "整串唯一，裸键安全；单字'噩梦'为常用词不收。"),
+    Entity("专注模式", modes=("bi",), en="Focus Mode",
+           category="系统/鸣潮",
+           ctx=((r"\bFocus\s+[Mm]ode\b", "对焦模式"),),
+           note="游戏 UI 的画质/滤镜辅助功能 Focus Mode，官方中文=专注模式；"
+                "机翻按相机术语作'对焦模式'。'对焦模式'另有摄影本义，只走参考行锚定。"),
+    Entity("伴星故事", modes=("bi",), en="Companion Story",
+           category="系统/鸣潮",
+           ctx=((r"\bCompanion\s+stor(?:y|ies)\b", "伴侣故事"),
+                (r"\bCompanion\s+stor(?:y|ies)\b", "同伴故事")),
+           note="鸣潮角色专属剧情 Companion Story 官方中文=伴星故事（任务入口作'伴星任务'）。"
+                "机翻作'伴侣故事/同伴故事'，均为通用短语，只走 Companion Story 参考行锚定。"),
+    Entity("谕女", modes=("bi",), en="Priestess",
+           category="身份/鸣潮2.4七丘",
+           ctx=((r"(?=.*\bpriestess\b)(?=.*\b(?:Septimont|Septemviri|Agon|lunar eclipse|Lahai|Roya)\b)",
+                 "女祭司"),),
+           note="七丘的预言者官方中文=谕女（灰机 wiki 七丘页：四方殿谕女们的预言已然宣示）。"
+                "机翻作'女祭司'；该词为通用宗教称谓，只在与 Septimont/Agon/lunar eclipse 等同现时锚定。"),
+    # --- 2026-11-18 鸣潮 3.8「予以明日的花束」KydroTV 片二校回灌 ---
+    Entity("哥舒林", modes=("bi", "ja"), en="Geshu Lin",
+           category="角色/鸣潮/今州",
+           variants=("加舒林", "葛舒林", "哥苏林"),
+           note="鸣潮今州前将军哥舒林（Geshu Lin）；谷翻/ASR 常见 加舒林/葛舒林。"
+                "整串生僻形裸键安全；不挂 react，避免主播口播同音误伤。"),
+    Entity("愿您的灵魂不再迷惘", modes=("bi", "ja", "ko"),
+           category="台词/鸣潮3.8",
+           variants=("愿你的灵魂不再游荡", "愿您的灵魂不再游荡", "愿你的灵魂不再迷惘"),
+           note="莉莉在灵魂列车上送别亡魂的口头禅，官方中文=「愿您的灵魂不再迷惘」。"
+                "机翻常作「愿你的灵魂不再游荡」；整句锚定，裸键安全。"),
+    # --- 2026-11-18 明日方舟《The Amiya Dance Is a Breakup Song》二校实体（仅元数据；错形键在 ark.py 同日块）---
+    Entity("疚刃", modes=("ak",), en="Jiuren", category="创作者/明日方舟",
+           note="B 站《明日方舟》二创作者，原视频 BV16Vap6yEGP；官方简介署名 Jiuren（疚刃）。"
+                "ASR/谷翻作 Yoren/Yoden/尤伦/约伦，规则在 ark.py 2026-11-18 块。"),
+    Entity("冰嘘", modes=("ak",), en="Bingxu", category="创作者/明日方舟",
+           note="B 站创作者，原简介署名 Bingxu（冰嘘），BV1opHK6TE8T；ASR 作 Bingxiu/Bing Shoe。"),
+    Entity("JinRey", modes=("ak",), en="JinRey", category="创作者/动画",
+           note="韩国动画师，阿洛娜舞源头；ASR 作 Jin Ray/Jinray。官方简介署名 JinRey。"),
+    Entity("阿洛娜", modes=("ak",), en="Arona", category="角色/蔚蓝档案",
+           note="《蔚蓝档案》向导角色 Arona，国服官网译名「阿洛娜」；维基/民间多作「阿罗娜」。"
+                "错形「阿罗娜」只走 AK_CONTEXT 的 Arona 锚定（禁裸键，避免跨作品误伤）。"),
+    Entity("地球Online", modes=("ak",), en="Earth Online", category="梗/网络",
+           note="中文网络梗「地球Online」（现实生活=平衡稀烂的网游）；错形「地球在线」在 AK_TERMS。"),
+    Entity("鳄鱼叔叔", modes=("ak",), en="Uncle Croc", category="梗/网络",
+           note="地球Online 梗：活了约两亿年、策划动不了的玩家；ASR/谷翻作 Uncle Croc/鳄鱼大叔。"),
+    Entity("陈雪凝", modes=("ak",), en="Chen Xuening", category="歌手",
+           note="《绿色》演唱者（2019 发行）；「春水」系谷翻音译错形，只走 AK_CONTEXT 的 Chun Shui 锚定。"),
 ]
 

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.0.0
+# @version 3.1.0
 """增量同步通道
 
 源：subtitle_calib_merged.py L13651-L14529 @ 97d7d463（2026-10-24 冻结快照）
@@ -94,7 +94,9 @@ _SYNC_MODES = ("bi", "ja", "jpe", "ko", "ak", "akko", "endo", "endobi",
                "pgrja",
                # 2026-11-03 新增（明日方舟日语原声片）。同上：不进这张表的话，
                #   kb-push/kb-sync 推来的 akja 条目会被 _sync_validate 判 mode 非法拒收。
-               "akja")
+               "akja",
+               # 2026-11-18 新增（Arcaea×明日方舟联动直播片）。
+               "arcak")
 
 _SYNC_MODE_CTX_TABLE = {"bi": "CONTEXT_MAP", "ja": "JA_CONTEXT",
                         "jpe": "JA_ENDFIELD_CONTEXT", "akko": "AK_KO_CONTEXT",
@@ -107,7 +109,10 @@ _SYNC_MODE_CTX_TABLE = {"bi": "CONTEXT_MAP", "ja": "JA_CONTEXT",
                         # 2026-11-04：--pgren 补语境槽后必须同登记，否则推来的 pgren 锚定条目
                         #   会被 _sync_validate 按「该模式没有语境槽」判 mode 非法拒收
                         #   （同 2026-11-03 pgrja 那条坑）。
-                        "pgren": "PGR_EN_CONTEXT"}
+                        "pgren": "PGR_EN_CONTEXT",
+                        # 2026-11-18：--arcak 补语境槽后必须同登记，否则推来的
+                        #   arcak 锚定条目会被 _sync_validate 按「该模式没有语境槽」拒收。
+                        "arcak": "ARCAK_CONTEXT"}
 
 
 

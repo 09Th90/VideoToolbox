@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.9.1
+# @version 3.1.0
 """术语/实体数据表
 
 源：subtitle_calib_merged.py L493-L2378 @ 97d7d463（2026-10-24 冻结快照）
@@ -68,7 +68,7 @@ BILINGUAL_TERMS = {
     "静乔": "今州",                                                # Jingjo 音译
     "煌龙": "瑝珑", "煌珑": "瑝珑",                                # Huanglong，官方写法瑝珑（2026-08-29 依 wiki 区域名修正）
     "弗雷杜斯": "残星会",                                          # Fractsidus
-    "弗拉德": "残星会",                                            # Fractsidus 官方英文名（fix_srt.py 曾作 ->Fractus），取官方中文
+    # "弗拉德" 2026-11-18 迁至 CONTEXT_MAP：裸 3 字键会咬穿官方名「埃弗拉德金库」
     "声诺光盘": "声碟",                                            # sono disc（长词优先）
     "声诺": "声碟",                                                # sono
     # --- 2026-08-29 并入：fix_srt.py TERM_FIXES_ZH（中文行里的英文残留名） ---
@@ -613,7 +613,7 @@ BILINGUAL_TERMS = {
     "库根": "古琴", "库恩": "古琴", "Cuchen": "古琴", "cooeng": "古琴", "coogen": "古琴",
     "喉咙歌唱": "呼麦",                                             # throat singing（本片两处）
     "铁匠悟空": "黑神话：悟空",                                      # Blackmith Wukong = Black Myth: Wukong
-    "凋零波浪": "鸣潮", "风化波浪": "鸣潮",                           # Withering/Weathering Waves 机翻残留
+    "凋零波浪": "鸣潮", "风化波浪": "鸣潮", "枯萎波涛": "鸣潮",        # Withering/Weathering Waves 机翻残留
     # --- 2026-09-20 ECHO OPTIMIZATIONS!! Wuthering Waves 3.7 Livestream Reaction（微软翻译前瞻反应片）二次校准沉淀 ---
     # 微软翻译官方前瞻字幕片特性：口播段本身就是中文，痛点是 ASR 同音错形，且"深海/换取/明朝/今夕/
     # 供应者/漂浮者/微型任务/恶障/天宫/灵智异常/林奈/弹切/决心破/玄琴(韩国乐器 가야금)"等误形源自
@@ -1026,6 +1026,22 @@ BILINGUAL_TERMS = {
     "弗拉杜斯": "残星会",
     "Fractus": "残星会", "fractus": "残星会",
 
+    # --- 2026-11-18 鸣潮 4.0《Rover Get's Betrayed By Shorekeeper》reaction 片二校沉淀 ---
+    # 官方依据：守岸人/漂泊者/泰缇斯系统/无归的谬误/残星会/黎那汐塔/青龙/引路石（同片 -精校v2）。
+    # 只收唯一长键；泛词（流浪车/探测车/分流者/雷娜/康乃馨/七个守卫/泰瑟/肖克）走 CONTEXT_MAP 锚定。
+    "肖基珀": "守岸人",                       # Shawkeeper 微软翻译音译（本片 47 处）
+    "肖克守护者": "守岸人",                   # #379 a powerhouse of a reborn shawkeeper
+    "弗拉克图斯": "残星会",                   # Fractsidus 微软翻译音译
+    "弗雷迪乌斯": "残星会",                   # Fraidus 微软翻译音译
+    "没有回报的谬误": "无归的谬误",           # fallacy of no rewards 直译错形
+    "霍克罗克斯": "魂器",                     # hawkerox=Horcrux（哈利·波特）
+    "系绳系统": "泰缇斯系统",                 # tether system 机翻
+    "Azure Dragon": "青龙", "Azer Dragon": "青龙",   # 瑝珑七位岁主合体
+    "Avinoleum": "阿维纽林",                 # 颠倒塔
+    "Waystones": "引路石", "Waystone": "引路石",     # 残星会成员曾为漂泊者的引路石
+    "Rinascita": "黎那汐塔",
+    "Cartera": "卡提希娅",                   # Cartethyia 的 ASR 形
+
     # --- 2026-10-25 《How Did You Join Arknights or Endfield?》首轮+二校沉淀 ---
     # 只收长专名/唯一键；「阿拉斯加」「Aen/Aken」「ZZ」走 CONTEXT_MAP，不做裸键。
     "Arthates": "明日方舟", "阿克兰大": "明日方舟",
@@ -1294,7 +1310,7 @@ BILINGUAL_TERMS = {
     # 只收「整体串唯一、不撞常用词」的系统性错形；裸键 陷阱/小径/隐喻/星轨/哈农/韩龙/
     # 田霏宇/声纳/相扑/帕隆 等按硬契约第 4 条一律不入本表，改走 CONTEXT_MAP 英文锚定。
     "新美联储": "新联邦", "新任美联储": "新联邦", "新的美联储": "新联邦", "新喂养": "新联邦",
-    "索莫尔": "心之集域", "索米尔": "心之集域",       # Somnoire 音译错形（索诺拉/声纳/相扑 走锚定）
+    "索莫尔": "心之集域", "索米尔": "心之集域", "索姆纳尔": "心之集域", "索马尔": "心之集域",  # Somnoire 音译错形
     "幻影之刃": "影之刃零", "幻刃零式": "影之刃零", "幻刃零": "影之刃零", "芬之刃零": "影之刃零",
     "加尔雷纳": "嘉贝莉娜", "Alrena": "嘉贝莉娜", "Galrena": "嘉贝莉娜",
     "雷尼塔": "黎那汐塔",                             # Renita=Rinascita 音译错形
@@ -1342,6 +1358,12 @@ BILINGUAL_TERMS = {
     "Aripathy": "矿石病",                           # #310；同上
     "Hypergri": "鹰角",                             # #353；bi 侧此前只有 AK_CONTEXT 的参考行锚，跑 --bi 命不中
     "由加奈UA": "植田佳奈",                         # #111；谷翻把 Kana UA 译成「由加奈UA」，人名残形（整串唯一）
+    # --- 2026-11-18 鸣潮 2.0–2.4 展示会/版本预告 reaction 片二校回灌 ---
+    #   只收整串唯一的生僻形/非 canonical 目标；常用词（毕业典礼/女祭司等）走 ENTITIES 的 ctx。
+    "卡洛塔夫人": "珂莱塔小姐",                     # Lady Carlotta 谷翻；非 canonical 目标，不能走 Entity.ctx
+    "德拉古纳": "拉古那",                           # Ragunna 谷翻音译（本片 #2354）
+    "拉布纳": "拉古那",                             # Rabuna 谷翻音译（本片 #2082）
+    "蒙泰利": "莫塔里",                             # Montelli 谷翻（既有 蒙特利→莫塔里 同族）
     # --- 2026-11-13 鸣潮 3.8《The Tragic Story of Lily》（11369 cue，英声+谷翻，bi）二次校准回灌 ---
     #   官方依据：3.8 版本「旧梦凋零的百合」、共鸣者莉莉／心理疗愈师、联邦城共鸣者战争、灵魂列车、心之集域。
     #   只收整串唯一的错形；「百合」「摇篮曲」等字面义已在 EXCLUDE_CONTEXT / 本表既有负例中保留。
@@ -1351,6 +1373,16 @@ BILINGUAL_TERMS = {
     "普罗纽斯": "普罗米厄",                         # Pronius/Promus ASR 族（本片 #9494）
     "共鸣者大军": "共鸣者军队",                     # Resonator Army（本片 #776）
     "共鸣者军团": "共鸣者军队",                     # Resonator Army（本片 #11205）
+    # --- 2026-11-16 鸣潮 3.8「予以明日的花束」天月日语实况（3803 cue）二校回灌 ---
+    #   官方依据：库街区 wiki「予以明日的花束」1548 段全分支台词（任务名「予以」非「献给」）。
+    #   只收整串唯一错形；通用词错形（格林/福井/蚊子/鲷鱼/主席/图片/马苏）走 ja.py JA_CONTEXT 日语锚定。
+    "卡桑德拉": "卡瓦莎", "卡珊德拉": "卡瓦莎", "恩多拉": "卡瓦莎",
+    "赫里曼": "赫利曼", "杰迪戴亚": "杰凯德", "杰迪代亚": "杰凯德",
+    "卢西拉": "洛瑟菈", "志古里卡": "西格莉卡", "西古里察": "西格莉卡",
+    "拉贾罗": "拉海洛", "拉海尔": "拉海洛", "黑石玉草": "逆相黑石",
+    "军作府": "军策府", "余干战士": "英勇战死", "克莱达": "暴击",
+    "杰康": "JK", "医疗犯": "医疗班", "纳乔": "鸣潮", "卫星兵": "医护兵",
+    "国家转覆": "国家颠覆",
 }
 
 
@@ -1449,6 +1481,8 @@ CONTEXT_MAP = [
     # --- 2026-08-29 鸣潮 3.6 片源：需参考行佐证的替换 ---
     (r"\bSentinel\b", "哨兵", "岁主"),           # Sentinel 官方译名 岁主
     (r"\bSentinel\b", "月狐岁主心", "岁主心月狐"),  # 语序调整（须在 哨兵->岁主 之后）
+    (r"\bSentinel\b", "守望者", "岁主"),           # 2026-11-18：本片 #257 谷翻作「守望者」
+    (r"\bGusto\b", "古斯托", "奥古斯塔"),          # Gusto=Augusta 昵称（本片 #2582/#2587）
     # ── 2026-11-07 收紧 Sushi 锚（实测：本片 cue51/60/69/164/166 五处真食物寿司被误改成「穗穗」）──
     #   原锚 (r"\bSushi\b","寿司","穗穗") 只看「参考行出现 Sushi」，无法区分
     #   ① 鸣潮共鸣者穗穗(Suisui) 的 ASR 形 ② 直播里真·寿司（food）。
@@ -1850,7 +1884,9 @@ CONTEXT_MAP = [
     (r"\bshuttles?\b", "航天飞机", "云梭"),         # #631
     (r"\bshuttles?\b", "班车", "云梭"),             # #487/#491
     # 残响(reverberations) 其它变体
-    (r"reverberations?\b", "回响", "残响"),          # #523/#869 死者的残响
+    # 2026-11-15 二校删除无条件规则「回响→残响」：鸣潮 2.2「共鸣者的频率回响」
+    #   （reverberations could still carry traces）属正常词义，残响并非官方术语；
+    #   旧片「死者的残响」若确需保留，应另建含 dead/fallen 的参考行锚定规则。
     (r"\blingering sessions\b", "挥之不去的会话", "挥之不去的残响"),   # #526
     # 常见机翻错词（参考行佐证）
     # ⚠ 2026-10-13 废除 (r"\bpsycho\b", "心理", "疯子")：WuWa Exploration Quests 片
@@ -1977,7 +2013,8 @@ CONTEXT_MAP = [
     # --- 2026-09-09 I_Was_Wrong_Completely_About_Wuthering_Waves 校准新增 ---
     # 椿（Camellya）机翻变体"变色龙"，仅英文行佐证 Chameleia/Chamellia 时改（防普通词误伤）
     (r"\bChameleia\b|\bChamellia\b", "变色龙", "椿"),
-    (r"[Ss]howcase", "展示会", "展示"),
+    # 2026-11-15 二校删除「展示会→展示」：展示会本身是正确中文（#291 showcase 语境），
+    #   降级规则只会把正确形改错。
     (r"[Ss]creen ?time", "屏幕时间", "镜头时间"),
     # --- 2026-10-04 修正：洛瑟菈（Lucilla）的「总统→校长」必须走本表原生三元组 ---
     #   原挂在 Entity("洛瑟菈").ctx 里写成 (r"\bPresident\b", "总统")，而 Entity.ctx
@@ -2104,6 +2141,7 @@ CONTEXT_MAP = [
     (r"unt ?angling", "不划船", "解开纠葛"),                           # untangling（#2744）
     (r"rip ?pling", "撕裂着方向", "泛起涟漪"),                         # rippling（#2762）
     (r"\bre ?birth\b", "反叛军", "重生"),                              # rebirth（#2766）
+    (r"aura ?farming", "刷气场", "攒气场"),                            # 2026-11-18：长键先行，防「刷气→攒气场」留下「场」残尾
     (r"aura ?farming", "刷气", "攒气场"),                              # aura farming（#2822）
     (r"got ?cha game", "有魅力的游戏", "抽卡游戏"),                    # gacha game（#2855/2906）
     (r"booty ?cheeks", "超级臀部", "烂透了"),                          # booty cheeks（#2889）
@@ -2284,10 +2322,10 @@ CONTEXT_MAP = [
     # --- 2026-10-24 鸣潮新加坡音乐会 vlog（zKodla）二校沉淀 ---
     #   参考行 Ankor/Anoro/Anchor 才把中文「锚点/锚」还原成角色安可。
     #   ⚠ 不用单字「锚」规则：会把「抛锚」咬成「抛安可」（本片 #510 实测），改用具体短语。
-    (r"\bAnkor\b|\bAnoro?\b|\bAnchor\b", "锚点", "安可"),      # #541/#549/#571
-    (r"\bAnkor\b|\bAnoro?\b|\bAnchor\b", "抛锚", "安可"),      # #510/#554（整词，防「抛安可」）
-    (r"\bAnkor\b|\bAnoro?\b|\bAnchor\b", "那个锚", "那个安可"), # #551
-    (r"\bAnkor\b|\bAnoro?\b|\bAnchor\b", "像锚一样", "像安可一样"),  # #553
+    (r"\bAnkor\b|\bAnoro?\b", "锚点", "安可"),      # #541/#549/#571
+    (r"\bAnkor\b|\bAnoro?\b", "抛锚", "安可"),      # #510/#554（整词，防「抛安可」）
+    (r"\bAnkor\b|\bAnoro?\b", "那个锚", "那个安可"), # #551
+    (r"\bAnkor\b|\bAnoro?\b", "像锚一样", "像安可一样"),  # #553
     (r"\banor\b", "Anor", "安可"),                             # #545 参考行 anor 的英文残留
     (r"\bBras Basah\b|\bbrass basa\b", "铜巴萨站", "百胜站"),   # #55 新加坡地铁 CC2
     # 既有规则的精确回滚（本片实测误伤）：
@@ -2342,7 +2380,14 @@ CONTEXT_MAP = [
     (r"\bFederation\b(?!.*\b(?:Federated|Confederated)\s+Cities?\b)(?!.*\bmany\s+other\b)", "联邦", "新联邦"),
     (r"\bFederation\b", "新的新联邦", "新联邦"),   # #355 原文「新的联邦」被通用规则叠成「新的新联邦」
     (r"\bNew\s*$", "New", "新联邦"),
-    (r"\bAcademy\b", "学院", "星炬学院"),
+    # 2026-11-15 3.8 二校：「sort of this academy」/「that tragic academy」是主播与歌手
+    #   聊音乐学院的泛称，非星炬学院（本片 #2059/#2195）；因 right 含 wrong（星炬学院⊃学院），
+    #   EXCLUDE 的 replace 回滚会被叠字保护挡掉，故在正向锚上加定长负向后顾。
+    (r"(?<!sort\sof\sthis\s)(?<!that\stragic\s)\bAcademy\b", "学院", "星炬学院"),
+    # 兜底：若上游仍按大小写不敏感命中，按精确短语把产物「星炬学院」回退为泛称「学院」
+    #   （本片 #2059「sort of this academy」/#2195「that tragic academy」）。
+    (r"\bsort\s+of\s+this\s+academy\b", "星炬学院", "学院"),
+    (r"\bthat\s+tragic\s+academy\b", "星炬学院", "学院"),
     (r"\bShorekeeper\b|\bShortke\b", "岸上管理员", "守岸人"),
     (r"\bShortke\b", "肖特克守门员", "守岸人"),
     (r"\bChang\s+Lee\b", "张李", "长离"),
@@ -2824,14 +2869,17 @@ CONTEXT_MAP = [
     (r"Oh, Meta\.", "元", "梅塔"),
     (r"Meta's back\b", "元", "梅塔"),
     (r"thank you, Meta\b", "元", "梅塔"),
-    # 淘金者(Gold runner)：本片谷翻高频误作「金牌选手/金行者」，官方/片内统一=淘金者。
-    (r"\b(?:gold\s*runners?|goldrunner)\b", "金牌选手", "淘金者"),
-    (r"\b(?:gold\s*runners?|goldrunner)\b", "金行者", "淘金者"),
-    (r"\b(?:gold\s*runners?|goldrunner)\b", "Gold Runners", "淘金者"),
-    # 格里姆(Grim)：人名（死神/钢琴家），只在参考行大写 Grim 时纠正；
+    # 淘金客(Gold runner)：谷翻高频误作「金牌选手/金行者」；官方中文＝「淘金客」
+    #   （3.8 官中剧情文本「自称是来自新联邦的淘金客」+ 本片 CN 语音 ASR 5 处互证）。
+    (r"\b(?:gold\s*runners?|goldrunner)\b", "金牌选手", "淘金客"),
+    (r"\b(?:gold\s*runners?|goldrunner)\b", "金行者", "淘金客"),
+    (r"\b(?:gold\s*runners?|goldrunner)\b", "Gold Runners", "淘金客"),
+    (r"\b(?:gold\s*runners?|goldrunner)\b", "淘金者", "淘金客"),
+    # 格里姆(Grim)：人名（死神/钢琴家），官方中文＝格姆；旧库曾误记「格里姆」，
+    #   3.8 主线「予以明日的花束」实测官中与 CN 语音均作「格姆」，本轮把目标值一并回改。
     #   小写 grim=严峻/残酷 不动（#4755 grim story 判例）。
-    (r"(?-i:\bGrim\b)", "严峻", "格里姆"),
-    (r"(?-i:\bGrim\b)", "格瑞姆", "格里姆"),
+    (r"(?-i:\bGrim\b)", "严峻", "格姆"),
+    (r"(?-i:\bGrim\b)", "格瑞姆", "格姆"),
     # 心之集域(Somnoire)：ASR 变体 Samoa/SOA ma 被谷翻成「萨摩亚/SOA 的妈妈」。
     (r"\b(?:Somnoire|Somoir|Samoir|Samour|Somnir|Sonoir|Sonor)\b", "萨摩亚", "心之集域"),
     (r"\bbeyond the Samoa\b", "萨摩亚", "心之集域"),
@@ -2890,6 +2938,8 @@ CONTEXT_MAP = [
     #   谷翻同一人三写：杰达迪亚 / 耶多底亚 / Jedodia，本片 #23/#28/#77。
     (r"\bJed(?:ad|od)ia(?:h)?\b", "杰达迪亚", "杰凯德"),
     (r"\bJed(?:ad|od)ia(?:h)?\b", "耶多底亚", "杰凯德"),
+    (r"\bJed(?:ad|od)ia(?:h)?\b", "杰迪亚", "杰凯德"),
+    (r"\bJed(?:ad|od)ia(?:h)?\b", "杰多迪亚", "杰凯德"),
     #   Somnoire 官方=心之集域（地名，不带书名号）。
     (r"\bSomnoire\b", "《心之集域》", "心之集域"),
     #   Liam=利亚姆（本片 #1142 谷翻整段拉丁未译）。
@@ -2939,10 +2989,11 @@ CONTEXT_MAP = [
     (r"\bSomoir\b", "《回忆录》", "心之集域"),
     (r"\bSonoir\s+cats\b", "两只索诺猫", "两只心之集域的猫"),
     (r"\bSomnoir by chance\b", "偶然的机会", "心之集域，碰巧"),
-    # 淘金者：本片另有「金牌跑者 / 黄金赛跑者 / 战争黄金赛跑者」三种意译（既有表只收金牌选手/金行者）。
-    (r"\bgold\s*runners?\b", "金牌跑者", "淘金者"),
-    (r"\bgold\s*runners?\b", "黄金赛跑者", "淘金者"),
-    (r"\bWar gold runners\b", "战争黄金赛跑者", "战场淘金者"),
+    # 淘金客：官方中文＝淘金客（CN 语音 ASR 与官中剧情文本互证）；本片另有「金牌跑者 / 黄金赛跑者 /
+    #   战争黄金赛跑者」三种意译（既有表只收金牌选手/金行者）。
+    (r"\bgold\s*runners?\b", "金牌跑者", "淘金客"),
+    (r"\bgold\s*runners?\b", "黄金赛跑者", "淘金客"),
+    (r"\bWar gold runners\b", "战争黄金赛跑者", "战争淘金客"),
     # 杰凯德(Jedodiah)：既有表收「杰达迪亚 / 耶多底亚」，本片还有拉丁括号残留与裸拉丁形。
     (r"\bJed(?:ad|od)ia(?:h)?\b", "耶多底亚 (Jedodiah)", "杰凯德"),
     (r"\bJedadia\b", "Jedadia", "杰凯德"),
@@ -2951,16 +3002,16 @@ CONTEXT_MAP = [
     # 莉莉：谷翻漏译主语（#5491 "has started treating Lily like an"）。
     (r"\btreating Lily like\b", "已经开始像对待一个", "已经开始把莉莉当成一个"),
     # 格里姆：人名形被谷翻成「格林先生」（小写 grim=严峻 不动）。
-    (r"\bMr\.\s*Grim\b", "格林先生", "格里姆先生"),
+    (r"\bMr\.\s*Grim\b", "格林先生", "格姆先生"),
     # pianist 被 ASR 截断成 pyist（#1968 "big shot pyist"）。
     (r"\bbig shot pyist\b", "pyist", "钢琴家"),
     # --- 2026-11-14 回灌第二批：裸跑残留收口（拉丁未译 / 替换后空格 / 重复词）---
     # 参考行锚一律不加前导 \b：_ref_for_match 会把参考行空格压掉，
     #   词首 \b 在 "shes the Somnoir" 这类压实串上会失配（本轮 #5454 实证）。
     (r"Prome(?:us|ius)|Promus", "普罗米斯", "普罗米厄"),
-    (r"gold\s*runner", "Gold Runner", "淘金者"),
-    (r"gold\s*runner", "Goldrunner", "淘金者"),
-    (r"gold\s*runner", "Goldrunner", "淘金者"),
+    (r"gold\s*runner", "Gold Runner", "淘金客"),
+    (r"gold\s*runner", "Goldrunner", "淘金客"),
+    (r"gold\s*runner", "Goldrunner", "淘金客"),
     # Somnoire 六种 ASR 变体的拉丁原样残留（谷翻整段未译）。
     (r"Sonoir", "Sonoir", "心之集域"),
     (r"Sonoir", "索努瓦", "心之集域"),
@@ -2973,20 +3024,24 @@ CONTEXT_MAP = [
     (r"Somnoir cat", "心之集域 猫", "心之集域的猫"),
     (r"tac(?:id|et)\s*marks?", "tacidmark", "声痕"),
     (r"tac(?:id|et)\s*marks?", "tacitmark", "声痕"),
-    (r"Cassandra", "Cassandra", "卡桑德拉"),
+    # Cassandra：官方中文名＝卡瓦莎（CN 语音 ASR 13 处、3.8 官中剧情文本「卡瓦莎指挥官」互证；
+    #   韩/英作 Cassandra）。旧库曾误记「卡桑德拉」，本轮回改。
+    (r"\bCassandra\b", "Cassandra", "卡瓦莎"),
+    (r"\bCassandra\b", "卡桑德拉", "卡瓦莎"),
     (r"\bTDs?\b", "TD", "残象"),
     (r"President\s+Lucil", "总统", "校长"),
     (r"Lucil(?:la)?", "卢西尔", "洛瑟菈"),
+    (r"\bLucil(?:la|le)\b", "卢希尔", "洛瑟菈"),
     (r"Sentinels?", "岁主岁主", "岁主"),
     (r"tac(?:id|et)\s*discords?", "残象 残象", "残象"),
     (r"\bMeta\b", "梅塔 是", "梅塔是"),
     # --- 2026-11-14 回灌第三批：第三轮裸跑残留（拉丁括号 / 错序 / 替换后空格）---
     (r"Jedodiah", "杰凯德 (Jedodiah)", "杰凯德"),
-    (r"goldr\s*runner", "Goldr 跑步者", "淘金者"),
+    (r"goldr\s*runner", "Goldr 跑步者", "淘金客"),
     (r"Samoa", "萨摩亚", "心之集域"),
     (r"Sonor", "Sonor", "心之集域"),
     (r"Somnoir", "索莫诺尔", "心之集域"),
-    (r"War gold runners", "战争淘金者", "战场淘金者"),
+    (r"War gold runners", "战争淘金者", "战争淘金客"),
     (r"President\s*Lucil", "总统", "校长"),
     # 注：不写「 心之集域」「 岁主」「 普罗米厄」这类**前导空格**键——
     #   会把行首「>> 」说话人标记后的空格一起吃掉（本轮 #70/#1215/#3740/#4140 实证）。
@@ -3001,9 +3056,140 @@ CONTEXT_MAP = [
     (r"TDs?", "残象 的", "残象的"),
     (r"Sentinels?", "岁主 的", "岁主的"),
     (r"Prome(?:us|ius)|Promus", "普罗米厄 的", "普罗米厄的"),
-    (r"goldr\s*runner", "一位 淘金者", "一位淘金者"),
+    (r"goldr\s*runner", "一位 淘金者", "一位淘金客"),
     # 「萨摩亚号」（Samoa 泄漏自列车号的谷翻形）须先于裸「萨摩亚」条，否则留下「心之集域号」。
     (r"Samoa", "萨摩亚号", "心之集域"),
+    # --- 2026-11-15 鸣潮 3.8「予以明日的花束」（3163 cue）二次校准回灌 ---
+    #   依据：3.8 官微「联邦第■■战区」增援文件、库街区 3.8 任务文本、官网 3.8 Patch Notes；
+    #   只收本轮逐句复核实证的错形，全部英文参考行锚定，禁裸键。
+    # 格姆（Grimm）：官方中文＝「格姆先生」（3.8 官中剧情文本 + 本片 CN 语音 ASR 16 处互证）；
+    #   旧库曾误记「格里姆」，首轮又沿谷翻旧形改成「格林」，本轮一并回改「格姆」。
+    #   （小写 grim=严峻 由英文锚 \bGrimm?\b 挡住，不动普通词）
+    (r"\bGrimm?\b", "格林", "格姆"),
+    (r"\bGrimm?\b", "格里姆", "格姆"),
+    (r"\bGrimm?\b", "格林先生", "格姆先生"),
+    (r"\bGrimm?\b", "格里姆先生", "格姆先生"),
+    # 御者（Arbiter）：官方中文=御者（2026-10-05 用户裁决），v1 残留「仲裁者」。
+    (r"\b[Aa]rb\s*iter\b", "仲裁者", "御者"),
+    # 声痕（Tacet Mark）：v1 把 mark 直译成「无音标记」。
+    (r"\b[Tt]ac\s*(?:it|et|id)\s+marks?\b", "无音标记", "声痕"),
+    # 共鸣者军队（Resonator Army/Forces）：v1 写「共鸣者部队」。
+    (r"\b[Rr]es\s*on\s*ator\s+[Ff]orces\b", "共鸣者部队", "共鸣者军队"),
+    # 梅塔（Meta）角色义：v1 残留英文名，按 3.8 官中「梅塔」收口。
+    (r"^Oh,?\s*meta\.$", "哦，Meta", "哦，梅塔"),
+    (r"\bmeta\s+is\s+not\s+to\s+be\s+trusted\b", "Meta不可信", "梅塔不可信"),
+    (r"\bThis\s+is\s+Meta\s*'?\s*s\s+show\b", "Meta的表演", "梅塔的表演"),
+    (r"\bdeal\s+with\s+Meta\b", "和Meta的交易", "和梅塔的交易"),
+    (r"\bMeta\s+could\s+have\s+ended\b", "Meta随时都能了结", "梅塔随时都能了结"),
+    (r"\bworking\s+with\s+Meta\b", "和Meta合作", "和梅塔合作"),
+    (r"\bIs\s+Meta\s+a\s+Sentinel\b", "Meta是岁主", "梅塔是岁主"),
+    (r"\bMeta\s+is\s+probably\s+even\s+above\b", "Meta可能还凌驾于", "梅塔可能还凌驾于"),
+    (r"\bMeta\s+also\s+said\s+the\s+current\b", "Meta也说现任", "梅塔也说现任"),
+    # 元叙事（meta）概念义：与「梅塔」同形，靠参考行区分。
+    (r"\bSom\s*me\s+Noir\s+meta\b|\bSomnoire\s+meta\b", "心之集域的Meta", "心之集域的元叙事"),
+    (r"\bThis\s+must\s+be\s+meta\b", "这一定是Meta", "这一定是元叙事"),
+    (r"\bthe\s+meta\s+stuff\b", "Meta的部分", "元叙事的部分"),
+    # 普罗米厄（Prometheus）：官方中文岁主名＝普罗米厄；既有表锚的是 Promeus/Promus，
+    #   漏了最常见的 Prometheus 拼写（本片 #2084 谷翻作「普罗米修斯」）。
+    (r"\bPrometheus\b", "普罗米修斯", "普罗米厄"),
+    # 迷途之站（Station of the Lost）：官方站点名＝迷途之站；谷翻另有「失落者站」。
+    (r"\b[Ss]tation\s+of\s+the\s+[Ll]ost\b", "失落者站", "迷途之站"),
+    # 第五/六战区：数字写法「第5战区 / 第5区」收口（官微 3.8 增援文件＝「联邦第▇▇战区」）。
+    (r"\bfifth\s+(?:war\s+)?(?:zone|sector)\b", "第5战区", "第五战区"),
+    (r"\bfifth\s+(?:war\s+)?(?:zone|sector)\b", "第5区", "第五战区"),
+    (r"\bsixth\s+(?:war\s+)?(?:zone|sector)\b", "第6战区", "第六战区"),
+    (r"\bsixth\s+(?:war\s+)?(?:zone|sector)\b", "第6区", "第六战区"),
+    # 迷失之站→迷途之站（Lost Station，3.8 站点名；术语表定名）。
+    (r"\b[Ss]tation\s+of\s+the\s+[Ll]ost\b", "迷失之站", "迷途之站"),
+    # 阿兹凯尔→阿尔兹凯尔（Ardscale，3.8 地名；术语表暂定音译）。
+    (r"\b[Aa]rds\s*cale\b", "阿兹凯尔", "阿尔兹凯尔"),
+    # 《死亡岛》→《死亡之岛》（Island of the Dead，Böcklin 画作官中名）。
+    (r"\bIsland\s+of\s+the\s+Dead\b", "《死亡岛》", "《死亡之岛》"),
+    # Joyeux Noël 电影官中=《圣诞快乐》（本片 #1015 谷翻保留法语）。
+    (r"\b[Jj]o\s*ie\s+Noel\b", "《Joie Noel》", "《圣诞快乐》"),
+    # 口播句：She's gonna go away from me（#331）。
+    (r"\bgo\s+away\s+from\s+me\b", "她要走了", "她要离开我了"),
+    # I feel none of them（#2245）→「哪一种我都感受不到」。
+    (r"\bI\s+feel\s+none\s+of\s+them\b", "我一种都感觉不到", "哪一种我都感受不到"),
+    # That was a modest paragraph（#844，指乐段）→「朴素的乐段」。
+    (r"\bmodest\s+paragraph\b", "朴素的段落", "朴素的乐段"),
+    # Tethys System 官方中文=泰缇斯系统（BWIKI 守岸人档案正文；v1 漏「缇」作泰斯系统，本片 #437）。
+    (r"\bTeth\s*ys\b", "泰斯系统", "泰缇斯系统"),
+    # 花房（conservatory）：灵魂列车场景官方名=花房；谷翻「音乐学院」是普通词，须英文锚定。
+    (r"\bconservatory\b", "音乐学院", "花房"),
+    # 格姆（Graham）：钢琴家格姆先生的另一 ASR 形 Graham→格雷厄姆（3.8 官中=格姆）。
+    (r"\bGraham\b", "格雷厄姆", "格姆"),
+    (r"\bGraham\b", "格雷厄姆先生", "格姆先生"),
+    # 黑海岸（Black Shores）：ASR Black Short/Black swords→谷翻「黑短/黑剑」（3.8 #155/#74）。
+    (r"\bBlack\s+Shor(?:t|e)s?\b", "黑短", "黑海岸"),
+    (r"\bBlack\s+swords?\b", "黑剑", "黑海岸"),
+    (r"\bBlack\s+Shor(?:t|e)s?\b", "布莱克", "黑海岸"),
+    # 逆相黑石（inverse tacetite）：3.8 专有名词；谷翻「逆物质/菱镁矿」（#199/#200）。
+    (r"\binverse\s+tacetites?\b", "逆物质", "逆相黑石"),
+    (r"\binverse\s+tacetites?\b", "菱镁矿", "逆相黑石"),
+    # --- 2026-11-15 鸣潮 3.8「予以明日的花束」R2 二次校准回灌 ---
+    #   依据：库街区 WIKI 全台词（p1/p2）+ 3.8 官中文本；只收本轮逐句实证、可安全规则化的错形，
+    #   全部英文参考行锚定、wrong 键为片内真实错形。人称/性别、句级重排、编号误听等
+    #   无法跨片安全泛化的改动留在 SRT patch，见 script_sync_gap.md。
+    # 赫利曼（Harriman/Herr iman/Harry Man/Sah ar iman）：3.8 联邦军官；旧库无此条。
+    (r"(?i:\b(?:Harriman|Harry\s+Man|Herr\s+iman|Harr\s+iman|Sah\s+ar\s+iman)\b)", "哈里曼", "赫利曼"),
+    (r"(?i:\b(?:Harriman|Harry\s+Man|Herr\s+iman|Harr\s+iman|Sah\s+ar\s+iman)\b)", "哈利曼", "赫利曼"),
+    (r"(?i:\b(?:Harriman|Harry\s+Man|Herr\s+iman|Harr\s+iman|Sah\s+ar\s+iman)\b)", "Harriman", "赫利曼"),
+    (r"(?i:\b(?:Harriman|Harry\s+Man|Herr\s+iman|Harr\s+iman|Sah\s+ar\s+iman)\b)", "Harry Man", "赫利曼"),
+    # 罗杰特（Roget/Rocket）：3.8 主线角色；只收拉丁残留与整行 Raj，不动「火箭」字面义。
+    #   「Rocket 先生」须先于裸 Rocket，避免留下「罗杰特 先生」空格。
+    (r"\bRocket\b", "Rocket 先生", "罗杰特先生"),
+    (r"\bRocket\b", "Rocket ", "罗杰特"),
+    (r"\bRocket\b", "Rocket", "罗杰特"),
+    (r"\bRaj\b", "Raj 先生", "罗杰特先生"),
+    (r"\bRaj\b", "Raj ", "罗杰特"),
+    (r"^Raj\.$", "Raj", "罗杰特"),
+    # 卡戎（Charon）：黎那汐塔时期的摆渡人；旧库无此条。
+    (r"\bCharon\b", "查尔", "卡戎"),
+    (r"\bCharon\b", "夏隆", "卡戎"),
+    (r"\bCharon\b", "Charon", "卡戎"),
+    # 弗拉希达斯（Fraxidas）：3.8 提及的残象/实验体名；无官方中文，按片内定名音译统一（△）。
+    (r"\bFrax\s*idas\b", " Fr axidas ", "弗拉希达斯"),
+    (r"\bFrax\s*idas\b", " Frax idas ", "弗拉希达斯"),
+    (r"\bFrax\s*idas\b", "Frax idas", "弗拉希达斯"),
+    (r"\bFrax\s*idas\b", "Fr axidas", "弗拉希达斯"),
+    (r"\bFrax\s*idas\b", "Fraxidas", "弗拉希达斯"),
+    # 白色/黑色守门人（Ivory/Ebony Gatekeeper）：官方全称＝白色守门人/黑色守门人；
+    #   片内短名「小白/小黑」已由人工保留，不在此条误改。
+    (r"\bIvory\s+Gate\s*keeper\b", "象牙", "白色守门人"),
+    (r"\bIvory\s+Gate\s*keeper\b", "象牙守门人", "白色守门人"),
+    (r"\bEbony\s+Gate\s*keeper\b", "乌木", "黑色守门人"),
+    (r"\bEbony\s+Gate\s*keeper\b", "乌木守门人", "黑色守门人"),
+    # 医生（Doc/Doctor）：官方中文＝医生；谷翻本片把「Doc」误作「博士」。
+    (r"\bDoc\b", "博士", "医生"),
+    # 漂泊者（Rover）：补小写 ASR 形 rover，旧条只锚大写 \bRover\b，本片 #1566/#1573 漏网。
+    (r"(?i:\brover\b)", "漫游车", "漂泊者"),
+    # 今州（Jinzhou）：谷翻把 Jinzhou 误作「锦州」；本片 #1290/#1306/#1311 实证。
+    (r"\bJin\s*zhou\b", "锦州", "今州"),
+    # 军部（Ministry of War）：3.8 官中统一作「军部」，谷翻直译「军策府」。#988 实证。
+    (r"\bMinistry\s+of\s+War\b", "军策府", "军部"),
+    # 洛瑟菈（Lucilla）：本片前段仍残留「露西拉」4 处，旧条只收卢西尔/卢希尔。
+    (r"\bLucil(?:la|le|a)\b", "露西拉", "洛瑟菈"),
+    (r"\bLucil(?:la|le|a)\b", "卢西拉", "洛瑟菈"),
+    (r"\bLucil(?:la|le|a)\b", "卢克·伊拉。", "洛瑟菈。"),
+    (r"\bLucil(?:la|le|a)\b", "卢克·伊拉", "洛瑟菈"),
+    (r"\bLucil(?:la|le|a)\b", "陆·赫斯·伊拉", "洛瑟菈"),
+    # 声痕（Tacet Mark）：本片 #8194/#8197 谷翻把 tessa mark 音译成「泰莎标记」。
+    (r"\btessa\s+marks?\b", "泰莎标记", "声痕"),
+    (r"\btessa\s+marks?\b", "残象标记", "声痕"),
+    # 梅塔（Meta）：本片 #4920 独立成行「元。」，参考行是小写 meta，按角色名收口。
+    (r"^meta\.$", "元。", "梅塔。"),
+    # --- 2026-11-18 鸣潮 4.0 守岸人 reaction 二校：泛词错形按参考行锚定（禁止裸键）---
+    # 官方依据同 BILINGUAL_TERMS 同日块；英文锚点覆盖本片 ASR 变体。
+    (r"\b(?:Shaw|Shawkeeper)\b", "肖克", "守岸人"),
+    (r"\b(?:Tether|Tethys|Tethus)\b", "泰瑟", "泰缇斯"),        # 泰瑟系统→泰缇斯系统
+    (r"\b(?:Fractsidus|Fractus|Fraidus)\b", "分流者", "残星会"),
+    (r"\b(?:Fractsidus|Fractus|Fraidus)\b", "弗拉德", "残星会"),  # 2026-11-18 裸键迁 ctx，避免咬穿「埃弗拉德金库」
+    (r"\b(?:Rinascita|Rena)\b", "雷娜", "黎那汐塔"),
+    (r"\bincarnation\b", "康乃馨", "化身"),                     # carnation 音近误听
+    (r"\bSentinels?\b", "七个守卫", "七位岁主"),
+    (r"(?<!Range )(?<!Land )(?<!electro )\bRover\b", "流浪车", "漂泊者"),
+    (r"(?<!Range )(?<!Land )(?<!electro )\bRover\b", "探测车", "漂泊者"),
 ]
 
 
@@ -3015,6 +3201,15 @@ CONTEXT_MAP = [
 # 结构：{wrong: (right, (排除正则...))}，right 用于回滚（须与所在术语表的 value 一致）。
 # 比无条件替换更精准，不依赖人工负例注释。新增歧义词时按此结构追加。
 EXCLUDE_CONTEXT = {
+    # --- 2026-11-18 明日方舟《The Amiya Dance Is a Breakup Song》二校：原视频标题保留英文 ---
+    #   AK_TERMS 既有裸键 Amiya→阿米娅 会把中文行里的原视频标题咬成「Chubby 阿米娅 Dance」；
+    #   参考行含完整标题 Chubby Amiya Dance 时回滚（本片 #90 唯一命中）。
+    "Amiya": ("阿米娅", (r"Chubby\s+Amiya\s+Dance",)),
+    # --- 2026-11-18 Kydro 3.8 莉莉主线二校：Cassandra 流行文化梗保留 ---
+    #   剧情人物 Cassandra 官中=卡瓦莎；但主播在《生化危机》发布会梗里说的 Cassandra
+    #   是流行文化人物，不能改。按参考行 Resident Evil/生化危机 回滚。
+    "卡桑德拉": ("卡瓦莎", (r"Resident\s+Evil|生化危机|バイオハザード|레지던트\s*이블",)),
+    "卡珊德拉": ("卡瓦莎", (r"Resident\s+Evil|生化危机|バイオハザード|레지던트\s*이블",)),
     # --- 2026-11-08 Jadealy 3.8 片深度二校：由纪→绯雪 正向归正（一校误判已纠正）---
     #   一校把「由纪→绯雪」判为跨片误伤，按参考行含 Yuki 就回滚；实测本片 Yuki/Y uki/Fy uka
     #   均指官中「绯雪」（萌娘百科译名对照表 Hiyuki=绯雪；官微「绯雪特别定制『月沉霜』」；
@@ -3182,10 +3377,16 @@ EXCLUDE_CONTEXT = {
     #    子串命中"满满【的】爱"，咬出畸形"满全部爱"。参考行命中 so love/lots of love 即回滚。
     #    2026-11-06《I Played 300 Days》二校补：**"不【满的】声音"同被咬坏**（#102
     #    "很多不满的声音"→"很多不全部声音"，参考行 disgruntled）。"不满"表情绪者一律回滚。
+    #    2026-11-15 二校补：鸣潮 #24「满满的信任」（Loads of trust）同被子串咬成
+    #    「满全部信任」，参考行 loads of 一律回滚。
     "满的": ("全部", (r"\bso love\b", r"\blots of love\b", r"\bfull of longing\b",
                     r"\bupset\b", r"\bfullest\b", r"\bcompass\b", r"\bfull\s+shot\b",
                     r"\bfull love\b", r"\bso full\b", r"\bdisgruntled\b",
-                    r"\bdis(?:a)?satisf\w+\b", r"\bunhappy\b", r"\bnot\s+satisfied\b")),
+                    r"\bdis(?:a)?satisf\w+\b", r"\bunhappy\b", r"\bnot\s+satisfied\b",
+                    r"\bloads of\b", r"\bmuch love\b")),   # 2026-11-18：much love→满满的爱，回滚
+    # ⑩ 2026-11-18 鸣潮 2.0–2.4 展示会片：Lux 时装名被裸键「卢克→陆·赫斯」咬成「陆·赫斯斯」。
+    #    参考行命中 Lux 即回滚为「卢克」，保留「卢克斯」。
+    "卢克": ("陆·赫斯", (r"\bLux\b", r"\bLux\s+outfit\b")),
     # --- 2026-10-27 演唱会/3.3 片：普通 nightmare 不应被 AC8 曲目 Nightmare 实体吃掉；
     #   RV/烧烤语境的 trailer 不是电影宣传片。
     "噩梦": ("Nightmare", (r"\bnightmare\s+loop\b", r"\bthat nightmare\.", r"^nightmare\.$",
@@ -3216,7 +3417,11 @@ EXCLUDE_CONTEXT = {
                           # 2026-11-06 根因修复：通用锚 \bAcademy\b 会把「华胥/华溪学院」咬成
                           # 「华溪星炬学院」（实测片源 #62＝白芷卡池段）。凡参考行是 Huaxi/Huaxu/
                           # Huashu Academy 一律回滚，交给 CONTEXT_MAP 的 华溪→华胥 窄锚处理。
-                          r"\bHuax[iu]\s+Academy\b", r"\bHuashu\s+Academy\b")),
+                          r"\bHuax[iu]\s+Academy\b", r"\bHuashu\s+Academy\b",
+                          # 2026-11-15 3.8 二校：主播与歌手聊音乐学院往事的泛称，
+                          # 非星炬学院（本片 #2059/#2195）。
+                          r"\bsort\s+of\s+this\s+academy\b",
+                          r"\bthat\s+tragic\s+academy\b")),
     "联邦": ("新联邦", (r"\bFederation of\b", r"\bRussian Federation\b",
                         r"\bGalactic Federation\b")),
     # --- 2026-10-25 《How Did You Join Arknights or Endfield?》负例 ---
@@ -3307,6 +3512,11 @@ EXCLUDE_CONTEXT = {
         r"\bsoul\s+train\b",
         r"\battention\s+passengers?\b",
         r"\ball\s+kinds\s+of\s+passengers\b",
+        # 2026-11-15 3.8 二校：以下两句是列车上的普通“乘客”，非明日方舟干员「异客」；
+        # 学习库裸键 passenger→异客 在此语境误伤，按参考行回滚（本片 #878/#1023）。
+        # 注意：本块为同名 key 的后定义块，优先生效；勿只改上方 3091 区旧块。
+        r"\byou\s*'?\s*re\s+a\s+passenger\b",
+        r"\bkeeping\s+passengers?\s+safe\b",
     )),  # #1587/#2260/#2282/#2290/#8259 + 2026-11-14 本片 #541 等 9 条
     "天使": ("安吉尔", (r"(?i:\bangel\b)", r"(?i:\bangels\b)")),   # #7288/#8050 字面天使
     "噩梦": ("Nightmare", (
@@ -3317,6 +3527,9 @@ EXCLUDE_CONTEXT = {
     "内幕动画": ("隐现动画", (r"\binsider\s+animation\b",)),          # #4571 insider=内幕
     "枫糖": ("格莉卡枫糖", (r"\bmaple\b", r"\bcereal\b")),           # #6925 加枫糖当麦片
     "联邦": ("新联邦", (r"\bmany\s+other\b", r"\bfederations\b")),   # #854 泛指"其他联邦"
+    # --- 2026-11-18 4.0 reaction：Coast Guard 是守岸人早期英文命名 ---
+    # 本片 #276/#277 中文保留史实表述「海岸警卫队」，不能被裸键「海岸警卫队→守岸人」抹掉。
+    "海岸警卫队": ("守岸人", (r"\bCoast\s+Guard\b",)),
 }
 
 
@@ -3554,6 +3767,52 @@ WUWA_MISSING_CHECK = [
      "Balinaphora 官方中文=巴利诺拉"),
     (r"\b(?:Startorch|Star\s+Tour|Star\s+Torch|Star\s+Touch)\s+Academy\b", ("星炬学院",),
      "Startorch/Star Tour Academy 官方中文=星炬学院（ASR 变体族）"),
+    # --- 2026-11-15 3.8「予以明日的花束」二校：本轮新确认官中名 ---
+    (r"\b[Aa]rb\s*iter\b", ("御者",),
+     "Arbiter 官方中文=御者（2026-10-05 用户裁决；v1 误作仲裁者）"),
+    (r"\b[Tt]ac\s*(?:it|et|id)\s+marks?\b", ("声痕",),
+     "Tacet Mark 官方中文=声痕（v1 误作无音标记）"),
+    (r"\b[Rr]es\s*on\s*ator\s+[Ff]orces\b", ("共鸣者军队",),
+     "Resonator Army/Forces 官方中文=共鸣者军队（v1 误作共鸣者部队）"),
+    (r"\bMusic\s*ian\s+Grimm?\b", ("格里姆",),
+     "Grimm 官方中文=格里姆（Mr. Grimm=格里姆先生）"),
+    (r"\bMeta\s+could\s+have\s+ended\b|\bIs\s+Meta\s+a\s+Sentinel\b", ("梅塔",),
+     "Meta 角色义=梅塔（心之集域所有者）"),
+    (r"\bthe\s+meta\s+stuff\b|\bThis\s+must\s+be\s+meta\b", ("元叙事",),
+     "meta 概念义=元叙事"),
+    (r"\b[Ss]tation\s+of\s+the\s+[Ll]ost\b", ("迷途之站",),
+     "Lost Station 术语表定名=迷途之站（官方汉字待核）"),
+    (r"\b[Aa]rds\s*cale\b", ("阿尔兹凯尔",),
+     "Ardscale 术语表暂定音译=阿尔兹凯尔（官方汉字待核）"),
+    (r"\bTeth\s*ys\b", ("泰缇斯",),
+     "Tethys 官方中文=泰缇斯（BWIKI 守岸人档案正文；旧稿误作泰斯）"),
+    # --- 2026-11-16 《Music Composer Plays Wuthering Waves #24》三校 r3：官中名词体检 ---
+    #   ⚠ 只报不改：裸 \bAlto\b 会咬音乐声部/常见西文人名（秋水 Entity 于 2026-11-15 二校
+    #   已把 ctx 收窄为官方英文 Aalto）。本条仅让 missing --mode wuwa 扫到，命中须结合
+    #   角色名单上下文人工裁决，禁止据此恢复裸键替换。
+    (r"\bAlto\b", ("秋水",),
+     "Alto 疑为 Aalto（官方中文=秋水）的 ASR 漏字母形变；鸣潮 #24 #1490「来黑海岸吧」+ "
+     "#1491「Join us and all my friends like Alto,」+ #1492「安可，还有椿」角色名单语境"
+     "已实证改秋水（灰机 WIKI 秋水页：黑海岸客卿/搭档安可；萌娘百科 英:Aalto；"
+     "官方 PV《鸣潮》共鸣者「秋水」展示PV）。音乐声部/常见人名属误报，只体检不改写"),
+    # --- 2026-11-18 4.0《Rover Get's Betrayed By Shorekeeper》二校：本片专名漏译体检 ---
+    # 只报不改；命中时须结合 window=1 的相邻 cue 判定是否跨行承接。
+    (r"\b(?:Rinascita|Rena)\b", ("黎那汐塔",),
+     "Rinascita 官方中文=黎那汐塔；Rena 为 ASR 形"),
+    (r"\bCartera\b", ("卡提希娅",),
+     "Cartera 为 Cartethyia（官方中文=卡提希娅）的 ASR 形"),
+    (r"\bAvinoleum\b", ("阿维纽林",),
+     "Avinoleum=颠倒塔阿维纽林（官方中文）"),
+    (r"\b(?:Azure|Azer)\s+Dragon\b", ("青龙",),
+     "Azure Dragon=瑝珑七位岁主合体「青龙」"),
+    (r"\bWaystones?\b", ("引路石",),
+     "Waystone 官方中文=引路石（残星会成员曾为漂泊者的引路石）"),
+    (r"\b(?:Tethys|Tethus)\b|\btether\s+system\b", ("泰缇斯",),
+     "Tethys/Tethus/tether system 官方中文=泰缇斯（系统）"),
+    (r"\b[Ff]allacy\s+of\s+[Nn]o\s+(?:[Rr]eturn|[Rr]ewards)\b", ("无归的谬误",),
+     "Fallacy of No Return 官方中文=无归的谬误；No Rewards 为 ASR"),
+    (r"\bCoast\s+Guard\b", ("海岸警卫队", "守岸人"),
+     "Coast Guard 是守岸人早期英文命名；中文可保留史实「海岸警卫队」"),
 ]
 
 

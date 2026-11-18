@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.0.0
+# @version 3.1.0
 """CLI 共享基础设施 —— 数据根 / JSON 信封 / 引擎惰性加载（纯标准库）。
 
 从 agent_cli.py 下沉（2026-11-15 功能解耦）：各功能的 cli.py 共用这一套

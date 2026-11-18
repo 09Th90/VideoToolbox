@@ -1,4 +1,4 @@
-<!-- @version 3.0.0 -->
+<!-- @version 3.1.0 -->
 # 视频工具箱 v2.3.1
 
 > v2.x 系列的第一个正式 Release。此前所有 v2.x 构建只存在于 `repo-latest`

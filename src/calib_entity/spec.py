@@ -1,4 +1,4 @@
-# @version 3.0.0
+# @version 3.1.0
 """对象规格层：把扁平表 + ENTITIES 折叠成唯一的 ``EntitySpec`` 集合。
 
 与主脚本 ``_kb_view()`` 的差别（也是本层存在的理由）：
@@ -29,6 +29,8 @@ from typing import Dict, Iterable, List, Optional, Sequence, Tuple
 # ---------------------------------------------------------------- 引导
 
 ENGINE_MODULE = "subtitle_calib_merged"
+WORK_OVERLAY_FILE = "data/entities/wiki_work_overlay.json"
+WORK_OVERLAY_SCHEMA = "calib-entity-work-overlay/1"
 
 
 def project_root() -> str:
@@ -172,11 +174,59 @@ def _add(seq: List[str], value: str) -> None:
 # ---------------------------------------------------------------- 折叠
 
 
-def build_registry(engine=None) -> Dict[str, EntitySpec]:
+def load_work_overlay(path: Optional[str] = None) -> Dict[str, str]:
+    """读取 Wiki 作品归属覆盖层；文件不存在或损坏时返回空映射。
+
+    覆盖层只保存 ``{canonical: work}``，不改主脚本、不改对象源数据。
+    """
+    path = path or os.path.join(project_root(), WORK_OVERLAY_FILE)
+    if not os.path.isfile(path):
+        return {}
+    try:
+        with open(path, encoding="utf-8") as f:
+            data = json.load(f)
+    except (OSError, ValueError):
+        return {}
+    if not isinstance(data, dict) or data.get("schema") != WORK_OVERLAY_SCHEMA:
+        return {}
+    tags = data.get("tags")
+    if not isinstance(tags, dict):
+        return {}
+    return {str(k): str(v) for k, v in tags.items()
+            if str(k).strip() and str(v).strip()}
+
+
+def apply_work_tags(reg: Dict[str, EntitySpec],
+                    tags: Dict[str, str]) -> Dict[str, EntitySpec]:
+    """把作品名追加到 category；已有作品标注不覆盖。
+
+    ``EntitySpec`` 不可变，因此返回新字典；kind 保持折叠期判定，避免覆盖层
+    把角色/地名误改成其他类别。
+    """
+    if not tags:
+        return reg
+    out: Dict[str, EntitySpec] = {}
+    known = ("终末地", "战双帕弥什", "塞尔达传说", "异环", "边狱巴士",
+             "鸣潮", "明日方舟", "崩坏星穹铁道", "原神", "绝区零")
+    for c, e in reg.items():
+        work = tags.get(c)
+        if not work:
+            out[c] = e
+            continue
+        if e.category and any(w in e.category for w in known):
+            out[c] = e                    # 已有作品归属，以源数据为准
+            continue
+        category = (e.category + "/" if e.category else "作品/") + work
+        out[c] = dataclasses.replace(e, category=category)
+    return out
+
+
+def build_registry(engine=None, *, use_overlay: bool = True) -> Dict[str, EntitySpec]:
     """折叠扁平表 + ENTITIES -> ``{canonical: EntitySpec}``（已去重）。
 
     折叠顺序：无条件变体表 -> 英文行修正表 -> ctx 表 -> exclude 表 -> ENTITIES。
     同一 canonical 的多条 ENTITIES 登记会聚合到同一对象（notes 保留分段）。
+    ``use_overlay=False`` 用于 Wiki 采集前后对照，避免自己把自己算进基线。
     """
     eng = engine or load_engine()
     acc: Dict[str, dict] = {}
@@ -310,6 +360,8 @@ def build_registry(engine=None) -> Dict[str, EntitySpec]:
             sources=tuple(s["sources"]),
             entity_entries=s["entries"],
         )
+    if use_overlay:
+        out = apply_work_tags(out, load_work_overlay())
     return out
 
 

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.0.0
+# @version 3.1.0
 """术语/实体数据表
 
 源：subtitle_calib_merged.py L2818-L5275 @ 97d7d463（2026-10-24 冻结快照）
@@ -763,6 +763,22 @@ AK_TERMS = {
     "Roads Island": "罗德岛",                       # #236/#243/#256（endobi 表既有同键，两通路各跑各的）
     "Aripathy": "矿石病",                           # #310；Oripathy 的 ASR 形
     #   注：#235 "a cure foripathy" 是 for+oripathy 连读，若收 "foripathy" 会产出病句「cure 矿石病」，故不收。
+    # --- 2026-11-18 明日方舟《The Amiya Dance Is a Breakup Song》二校沉淀（204 cue，英声+微软翻，--ak）---
+    #   官方依据：原视频简介 SOURCES & CREDITS（Jiuren 疚刃 BV16Vap6yEGP / Bingxu 冰嘘 BV1opHK6TE8T /
+    #   JinRey 阿洛娜舞源头 / Chen Xuening 陈雪凝《绿色》2019）；蔚蓝档案国服官网「阿洛娜」；
+    #   PRTS 阿米娅；方舟 SideStory「生于黑夜」（Darknights Memoir）。
+    #   戒律：绿色/医生/饲料/基线/骑士/黑暗/冰秀/阿罗娜/春水/要塞2 等普通词禁裸键，一律走 AK_CONTEXT 锚定。
+    "尤伦": "疚刃", "约伦": "疚刃", "Yoren": "疚刃", "Yoden": "疚刃",   # #2/7/8/23/24/99/117/202；ASR/谷翻变体
+    "Bing Shoe": "冰嘘", "Bingxiu": "冰嘘",                            # #60/#177；「冰秀」走 ctx
+    "Jin Ray": "JinRey", "Jinray": "JinRey",                           # #133；官方署名 JinRey
+    "阿梅娅": "阿米娅", "Ameia": "阿米娅",                              # #12/42/63/64；Ameia 系 ASR 错拼
+    "蓝色档案": "蔚蓝档案",                                             # #133/143/185；--ak 通路补齐（KO 表既有）
+    "夸伊修": "快手", "Kuaishou": "快手",                               # #168
+    "崩坏冲击": "崩坏3",                                                # #114；Honkai Impact 变体
+    "Minecraft": "我的世界",                                            # #81
+    "Liusu": "《绿色》",                                                # #95；歌名，禁裸键「绿色」
+    "地球在线": "地球Online",                                           # #147/155
+    "鳄鱼大叔": "鳄鱼叔叔", "Uncle Croc": "鳄鱼叔叔",                    # #153/156/175/180
 }
 
 # =============================================================
@@ -1006,6 +1022,15 @@ AK_CONTEXT = [
     (r"(?i)\bCatastrophes?\b", "灾难", "天灾"),
     (r"(?i)\bprecursors?\b", "前驱体", "前文明"),
     (r"(?i)\bTheresa\b", "特蕾莎", "特蕾西娅"),
+    # --- 2026-11-18 明日方舟《The Amiya Dance Is a Breakup Song》普通词锚定（英文参考行佐证）---
+    #   全部为普通中文词或跨作品歧义词，裸键必误伤；锚点均为本片实测英文形，窄锚优先。
+    (r"\byour (?:whole )?feed\b", "饲料", "信息流"),         # #53 feed=信息流（非投喂）
+    (r"\bhas a baseline\b", "基线", "贝斯线"),               # #125 baseline=贝斯线（音乐双关）
+    (r"\bBingxiu\b", "冰秀", "冰嘘"),                        # #86 creator Bingxiu；冰秀=ice show 普通词
+    (r"\bArona\b", "阿罗娜", "阿洛娜"),                      # #135/#136；国服官方=阿洛娜
+    (r"\bDark\s+Knights?\b", "黑暗骑士", "《生于黑夜》"),     # #110-111；跨 cue 断行只覆盖同 cue 完整形
+    (r"\bChun Shui\b", "春水", "陈雪凝"),                    # #96 歌手名；春水=普通词
+    (r"\bTeam Fortress 2\b", "《要塞2》", "《军团要塞2》"),   # #141-142
 ]
 
 # =============================================================
@@ -1027,6 +1052,14 @@ AK_MISSING_CHECK = [
     (r"(?i)\bKoschei\b", ("科西切",), "Koschei 官方中文=科西切（不死的黑蛇）"),
     (r"(?i)\bFederico\b", ("费德里科",), "Federico 官方中文=费德里科"),
     (r"\bAssimilator Universe\b", ("内化宇宙",), "Assimilator Universe 官方中文=内化宇宙"),
+    # 2026-11-18 《The Amiya Dance Is a Breakup Song》二校补：跨 cue 断行/原视频标题的漏校体检（只报不改）
+    (r"(?i)\bAmiya\b", ("阿米娅",), "Amiya 官方中文=阿米娅；《Chubby Amiya Dance》原标题保留英文属误报"),
+    (r"(?i)\bDarknights?\s+Memoir\b", ("生于黑夜",), "Darknights Memoir=生于黑夜（SideStory）"),
+    (r"(?i)\bBlue\s+Archive\b", ("蔚蓝档案",), "Blue Archive 国服官方=蔚蓝档案"),
+    (r"(?i)\bArona\b", ("阿洛娜",), "Arona 国服官方=阿洛娜（非阿罗娜）"),
+    (r"(?i)\bClementia\b", ("克莱门莎",), "Clementia 官方中文=克莱门莎"),
+    (r"(?i)\bChen\s+Xuening\b", ("陈雪凝",), "《绿色》演唱者陈雪凝"),
+    (r"(?i)\bUncle\s+Croc\b", ("鳄鱼叔叔",), "Uncle Croc=鳄鱼叔叔（地球Online 梗）"),
 ]
 
 AK_KO_TERMS = {

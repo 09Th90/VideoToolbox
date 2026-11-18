@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.0.0
+# @version 3.1.0
 """calib_core 并行包自检（不部署、不修改生产单文件）。
 
 覆盖：
@@ -200,7 +200,9 @@ MODES = ["bi", "ko", "ja", "jpe", "wwoc", "ak", "akko", "zho", "endo",
          # 2026-11-03 新增：战双日语原声（--pgrja）
          "pgrja",
          # 2026-11-03 新增：明日方舟日语原声（--akja）
-         "akja"]
+         "akja",
+         # 2026-11-18 新增：Arcaea×明日方舟联动直播（--arcak）
+         "arcak"]
 REFS = {"ja": "テストの文", "jpe": "テストの文", "pgrja": "テストの文",
         "akja": "テストの文",
         "ko": "테스트 문장",
@@ -360,6 +362,56 @@ def test_akja_context(ref, pkg):
         check("akja 模式投影目标已登记",
               ref._MODE_TERM_TABLE.get("akja") == "AK_JA_TERMS"
               and ref._MODE_CTX_TABLE.get("akja") == "AK_JA_CONTEXT")
+
+
+def test_arcak_context(ref, pkg):
+    section("2e. ARCAK（Arcaea×明日方舟）正例与负例")
+    # 与 akja 同规：断言「替换确实发生」+「无锚点不替换」+「参考行逐字节不变」+ 幂等。
+    with tempfile.TemporaryDirectory(prefix="calib_selftest_arcak_") as d:
+        src = os.path.join(d, "arcak.srt")
+        body = "\r\n".join([
+            # 1) ctx 命中：doctor→博士（正常中文词，禁裸键）
+            "1", "00:00:01,000 --> 00:00:03,000", "医生和阿米娅在甲板上", "the doctor and Amiya stand on deck",
+            "",
+            # 2) ctx 不越界：同样有「医生」，参考行无 doctor ⇒ 必须原样
+            "2", "00:00:03,000 --> 00:00:05,000", "这场医生很吓人", "this is scary",
+            "",
+            # 3) 裸键命中：ASR 误听串 Ark Knights→明日方舟
+            "3", "00:00:05,000 --> 00:00:07,000", "Ark Knights 更新了", "Ark Knights update",
+            "",
+            # 4) 曲名回拉：Renegade 保留英文（用户口径），机翻「叛徒」必须拉回
+            "4", "00:00:07,000 --> 00:00:09,000", "叛徒这首歌太难", "Renegade is too hard",
+            "",
+            # 5) 曲名负例：无 Renegade 锚点的「叛徒」是普通词，必须原样
+            "5", "00:00:09,000 --> 00:00:11,000", "叛徒这个词别乱用", "do not say that word",
+            "",
+            # 6) 音游术语：arcs→音弧（Arcaea 官方中文），普通词只走锚定
+            "6", "00:00:11,000 --> 00:00:13,000", "那段弧线跨度很宽", "the arcs are very wide",
+            "",
+        ])
+        open(src, "wb").write(body.encode("utf-8"))
+        a, b, o1, o2, r1, r2, s1, s2 = run_process(ref, pkg, src, "arcak")
+        txt = o2.decode("utf-8")
+        check("arcak 生成物与包输出逐字节一致", o1 == o2 and r1 == r2 and s1 == s2)
+        check("arcak ctx 锚定生效（doctor→博士）", "博士和阿米娅在甲板上" in txt)
+        check("arcak ctx 不越界（无 doctor 锚点的医生保留）", "这场医生很吓人" in txt)
+        check("arcak 裸键生效（Ark Knights→明日方舟）", "明日方舟 更新了" in txt)
+        check("arcak 曲名回拉（Renegade 保留英文）", "Renegade这首歌太难" in txt)
+        check("arcak 曲名负例（无 Renegade 锚点的叛徒保留）", "叛徒这个词别乱用" in txt)
+        check("arcak 音游术语（arcs→音弧）", "那段音弧跨度很宽" in txt)
+        check("arcak 确实产出替换（rows>0，防空转）", len(a[0]) >= 4)
+        check("arcak ctx 带 re.I（锚点是英文 ASR）",
+              all(p.flags & re.IGNORECASE for p, _w, _r in ref._ARCAK_CONTEXT_COMPILED))
+        check("arcak 两张表都在注册表里",
+              "ARCAK_TERMS" in ref.TABLES and "ARCAK_CONTEXT" in ref.CTX_TABLES)
+        check("arcak 模式投影目标已登记",
+              ref._MODE_TERM_TABLE.get("arcak") == "ARCAK_TERMS"
+              and ref._MODE_CTX_TABLE.get("arcak") == "ARCAK_CONTEXT")
+        # 幂等：对成品再跑一次必须 0 改动（防止表内自咬/二次命中）
+        src2 = os.path.join(d, "arcak_done.srt")
+        open(src2, "wb").write(o2)
+        c = ref.process(src2, None, None, mode="arcak")
+        check("arcak 幂等（成品复跑 0 改动）", len(c[0]) == 0)
 
 
 def test_ko_lotte_terms(ref, pkg):
@@ -632,6 +684,12 @@ CLI_ENV = {
 def _prepare_cli(d):
     for name, text in CLI_FIXTURES.items():
         open(os.path.join(d, name), "wb").write(text.encode("utf-8"))
+    # 2026-11-15：monolith 的 stabilize 走 format.py「同级候选 calib_stabilize.py」
+    # 契约（单文件布局下 features 包不可达，回退 import 同名模块）；布置表此前
+    # 漏拷该文件，导致 stabilize 包/monolith 对比恒 FAIL（rc 1/2）。补齐恢复全绿。
+    _st_src = os.path.join(SRC, "features", "calibrate", "calib_stabilize.py")
+    if os.path.isfile(_st_src):
+        shutil.copyfile(_st_src, os.path.join(d, "calib_stabilize.py"))
     env = dict(os.environ, **CLI_ENV)
     subprocess.run([PY, REF_SCRIPT, "extract", "base.srt", "cues.tsv"],
                    cwd=d, env=env, capture_output=True, timeout=60)
@@ -740,6 +798,8 @@ CLI_CASES = [
      ("learned.json",), (), "learned.json"),
     ("kb-sync", ["kb-sync"], (), ("sync/", "remote/")),
     ("kb-push", ["kb-push", "--learned", "learned.json"], (), ("sync/", "remote/")),
+    # 2026-11-18：--arcak 旗标解析与 --mode 别名一致性（ref/pkg 双跑比对）
+    ("calib-arcak", ["base.srt", "--arcak"], ()),
 ]
 
 
@@ -872,6 +932,7 @@ def main():
     test_modes(ref, pkg)
     test_wwoc_context(ref, pkg)
     test_akja_context(ref, pkg)
+    test_arcak_context(ref, pkg)
     test_ko_lotte_terms(ref, pkg)
     test_format(ref, pkg)
     test_en_first_layout(ref, pkg)

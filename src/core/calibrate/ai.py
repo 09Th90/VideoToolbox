@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.0.0
+# @version 3.1.0
 """AI 校准入口（calib_ai_chat / calib_web_proxy / calib_ai_run）+ 同步开关。
 
 v2.3.1 拆分工程 · 自 video_toolbox.py 原样搬入。
@@ -14,6 +14,7 @@ from core.shared.ai import ai_plan_risks
 import os
 
 from core.shared.ai import ai_load_config, ai_mod
+from core.shared.decision import decision_client
 from core.shared.config import load_config, save_config
 
 
@@ -139,11 +140,27 @@ def calib_ai_run(src, out=None, report=None, mode_flag="", fix_en=False,
         except TypeError:
             log("· " + _r)
     style = style or str(ai.get("calib_style") or "term")
+    # 片源模式 -> 作品名：联网查证据此做「站内优先检索」
+    # （PRTS / BWIKI / 终末地 Wiki / 库街区 / 森空岛，见 calib_web_agent.WORK_SITES）。
+    # 识别不出时为空，Agent 会退回通用 Bing 检索。
+    _MODE_WORK = {
+        "bi": "鸣潮", "ja": "鸣潮", "ko": "鸣潮", "wwoc": "鸣潮", "react": "鸣潮",
+        "jpe": "终末地", "endo": "终末地", "endobi": "终末地", "endoko": "终末地",
+        "ak": "明日方舟", "akko": "明日方舟", "akja": "明日方舟",
+        "pgr": "战双", "pgren": "战双", "pgrja": "战双",
+        "limbus": "边狱巴士",
+    }
     web = None
     if bool(ai.get("calib_web_enabled", False)):
         try:
             import features.calibrate.calib_web_agent as _web
-            web = _web.make_tools(proxy=calib_web_proxy, log=log)
+            _work = _MODE_WORK.get(_agent.MODE_KEY.get(mode_flag, "bi"), "")
+            web = _web.make_tools(proxy=calib_web_proxy, log=log, work=_work)
+            if _work and log:
+                try:
+                    log(f"  · 联网查证预置作品：{_work}", "dim")
+                except TypeError:
+                    log(f"  · 联网查证预置作品：{_work}")
         except Exception as e:  # noqa: BLE001
             web = None
             if log:
@@ -210,7 +227,7 @@ def calib_ai_run(src, out=None, report=None, mode_flag="", fix_en=False,
             python=system_python(), log=log, chat=calib_ai_chat,
             chat_for_member=_member_chat, cluster=cluster,
             think_rounds=int(ai.get("calib_think_rounds") or 0),
-            orig_title=title,
+            orig_title=title, decision_client=decision_client(ai),
             chunk_cues=int(ai.get("calib_chunk_cues") or 400),
             max_chars=int(ai.get("calib_max_chars") or 60000),
             max_tokens=int(ai.get("calib_max_tokens") or 65536),

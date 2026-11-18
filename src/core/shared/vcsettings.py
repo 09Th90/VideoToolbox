@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.0.0
+# @version 3.1.0
 """字幕引擎 settings.json 读写 + 全局 LLM 注入（OpenAI 兼容槽）（v2.3.1 拆分工程 · 自 video_toolbox.py 原样搬入）。
 
 本模块是 src/core/shared/ 的组成部分；域间依赖规则见 core/__init__.py。
@@ -82,6 +82,18 @@ def _vc_force_local_paths(settings):
     return changed
 
 
+def _loaded_engine_cfg():
+    """取已发布的引擎 QConfig；模块尚在导入时返回 None，绝不等待导入锁。
+
+    ``name in sys.modules`` 只表示模块开始导入，不表示 ``cfg`` 已创建。此时再写
+    ``from ... import cfg``，主线程会等待后台预热持有的 per-module import lock；
+    冷缓存/慢盘下窗口会长时间“未响应”。磁盘配置已先原子写入，未完成初始化的
+    模块随后会从新配置建 cfg；已完成初始化的模块则可直接取对象做内存同步。
+    """
+    return getattr(sys.modules.get("videocaptioner.ui.common.config"),
+                   "cfg", None)
+
+
 def apply_global_llm_to_engine(ai_cfg=None):
     """把全局 AI 配置写入引擎的 OpenAI 兼容槽。
 
@@ -104,11 +116,11 @@ def apply_global_llm_to_engine(ai_cfg=None):
                     wiped = True
             if wiped:
                 _vc_write_settings(data)
-            # 内存态同步仅在引擎配置已加载时做（未加载时导入它白付 ~1s，
-            # 而引擎此后首次读盘拿到的就是刚写的 settings.json）。
-            if "videocaptioner.ui.common.config" in sys.modules:
+            # 内存态同步仅在 cfg 已发布时做；导入中的模块不能再次 import，
+            # 否则主线程会等后台预热的导入锁（2026-11-18 启动卡死实证）。
+            _cfg = _loaded_engine_cfg()
+            if _cfg is not None:
                 try:
-                    from videocaptioner.ui.common.config import cfg as _cfg
                     _cfg.set(_cfg.openai_api_key, "")
                 except Exception:
                     pass
@@ -124,19 +136,24 @@ def apply_global_llm_to_engine(ai_cfg=None):
         if model:
             llm["OpenAI_Model"] = model
         _vc_write_settings(data)
-        # 内存态同步（引擎界面已构建、QConfig 已导入时）
-        # ⚠ 同上：只在已加载时才同步，未加载时导入纯属白付时间。
-        if "videocaptioner.ui.common.config" in sys.modules:
+        # 内存态同步仅操作已发布的 cfg。枚举也优先取已加载模块/现值类型，
+        # 不为同步而发起任何 import，避免与后台预热交叉等待导入锁。
+        _cfg = _loaded_engine_cfg()
+        if _cfg is not None:
             try:
-                from videocaptioner.ui.common.config import cfg as _cfg
-                from engine_entities import LLMServiceEnum
                 if base:
                     _cfg.set(_cfg.openai_api_base, base)
                 if key:
                     _cfg.set(_cfg.openai_api_key, key)
                 if model:
                     _cfg.set(_cfg.openai_model, model)
-                _cfg.set(_cfg.llm_service, LLMServiceEnum.OPENAI)
+                _service_enum = getattr(sys.modules.get("engine_entities"),
+                                        "LLMServiceEnum", None)
+                if _service_enum is None:
+                    _service_enum = type(_cfg.get(_cfg.llm_service))
+                _openai = getattr(_service_enum, "OPENAI", None)
+                if _openai is not None:
+                    _cfg.set(_cfg.llm_service, _openai)
             except Exception:
                 pass
         return True, "ok"

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.0.0
+# @version 3.1.0
 """转录体验补丁（黑窗抑制）+ 主播声纹筛选（转录完成后处理）（v2.3.1 拆分工程 · 自 video_toolbox.py 原样搬入）。
 
 v2.3.1 拆分工程；域间依赖规则见 core/__init__.py。
@@ -11,6 +11,7 @@ import os
 import sys
 
 from core.shared.log import _vc_log
+from core.shared.decision import decision_client
 
 # ---------- v1.14.1：转录体验补丁（黑窗 / 下拉收敛 / 完成回填） ----------
 
@@ -200,14 +201,16 @@ def voiceprint_result_notice(res):
                    ("仍在「%s」" % os.path.basename(backup)) if backup
                    else "仍在原字幕文件里"),
                 15000)
-    return ("success", "声纹筛选完成",
-            "保留 %d 条（其中存疑 %d）/ 丢弃 %d，保留率 %.1f%%；"
+    body = ("保留 %d 条（其中存疑 %d）/ 丢弃 %d，保留率 %.1f%%；"
             "原件已备份为「%s」，明细见「%s」"
             % (res["kept_total"], res["review"], res["drop"],
                res.get("keep_ratio", 0.0) * 100.0,
                os.path.basename(res.get("backup") or ""),
-               os.path.basename(res.get("report") or ".报告.txt")),
-            9000)
+               os.path.basename(res.get("report") or ".报告.txt")))
+    if res.get("review_path"):
+        body += ("\n%d 条存疑未混入正式字幕，已另存「%s」"
+                 % (res["review"], os.path.basename(res["review_path"])))
+    return ("success", "声纹筛选完成", body, 9000)
 
 
 def _same_bytes(a, b):
@@ -227,12 +230,14 @@ def _same_bytes(a, b):
 
 
 def voiceprint_filter_subtitle(srt_path, media_path, progress=None, *,
-                               names=None, min_keep_ratio=None):
+                               names=None, min_keep_ratio=None, mode=None):
     """把字幕按声纹筛成只留主播（**就地覆盖**）。
 
     `names` 省略时读已启用名单（手动按钮的行为）；转录完成的自动路径**显式**
     传 `voiceprint_auto_names()` 的结果——顺带消掉「转录跑到一半用户改勾选」
     的竞态。`min_keep_ratio` 省略时用 `speaker_voiceprint` 的出厂熔断线。
+    `mode=precision` 时正式字幕只保留 keep，review 另存 `_待复核.srt`；
+    未显式传 mode 时读取声纹选择器的持久化策略，配置缺省为 recall。
 
     返回结果 dict；返回 `None` 表示「本次不筛」——以下情形都算：
       · 名单为空（用户没打算筛）
@@ -260,12 +265,19 @@ def voiceprint_filter_subtitle(srt_path, media_path, progress=None, *,
         _vc_log(f"声纹筛选跳过：字幕或媒体不存在（{srt_path} / {media_path}）")
         return None
 
+    mode = mode or sv.load_filter_mode()
     backup = os.path.splitext(srt_path)[0] + "_未筛选.srt"
     backup_created = not os.path.isfile(backup)
     if backup_created:
         shutil.copyfile(srt_path, backup)
 
-    kw = {"in_place_backup": backup}
+    try:
+        jev_client = decision_client()
+    except Exception as exc:  # noqa: BLE001 — 决策配置异常不得阻断本地筛选
+        _vc_log(f"Jev 初始化失败，按本地声纹结果继续：{exc}")
+        jev_client = None
+    kw = {"in_place_backup": backup, "mode": mode,
+          "decision_client": jev_client}
     if min_keep_ratio is not None:
         kw["min_keep_ratio"] = min_keep_ratio
     res = sv.filter_srt(media_path, srt_path, names, out_path=srt_path,
@@ -294,6 +306,9 @@ def voiceprint_filter_subtitle(srt_path, media_path, progress=None, *,
                 % ("、".join(names), res["total"], res["kept_total"],
                    res["review"], res["drop"],
                    os.path.basename(res["backup"] or "")))
+    if res.get("review_path"):
+        _vc_log("精准模式：%d 条存疑已另存待复核 %s"
+                % (res["review"], os.path.basename(res["review_path"])))
     return res
 
 

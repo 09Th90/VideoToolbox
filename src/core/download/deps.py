@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.0.0
+# @version 3.1.0
 """下载依赖引导（yt-dlp / ffmpeg / deno / libmpv，首次运行自动落 tools\\）。
 
 P2：依赖下载优先走 Range 分段（core.download.segment），失败回退 urllib 单流。

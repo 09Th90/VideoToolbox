@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.0.0
+# @version 3.1.0
 """calibrate / stabilize / audit 子命令（原 agent_cli 透传段，行为不变）。"""
 from __future__ import annotations
 
@@ -18,7 +18,7 @@ CALIB_SCRIPT = os.path.join(APP_ROOT, "subtitle_calib_merged.py")
 CALIB_MODE_FLAGS = ("--ja", "--jpe", "--pgrja", "--ko", "--wwoc", "--ak", "--akko",
                     "--akja",                                   # 2026-11-03 新增：日语原声·明日方舟
                     "--zho", "--endo", "--endobi", "--fix-en", "--limbus",
-                    "--ffrs", "--pbz")
+                    "--ffrs", "--pbz", "--ssv", "--arcak")      # 2026-11-18 新增：Arcaea×明日方舟联动直播
 
 
 def _run_calib_passthrough(args, sub: str | None, extra: list) -> int:

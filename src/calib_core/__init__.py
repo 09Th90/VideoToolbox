@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.0.0
+# @version 3.1.0
 """calib_core 校准引擎包：对外保持与原单文件一致的符号面。
 
 双轨（2026-11-09）：CLI 与 GUI 运行时直连本包（agent_cli 同进程调用
@@ -9,6 +9,7 @@ subtitle_calib_merged.py 是 scripts/dev/build_calib_monolith.py 从本包生成
 改 src/calib_core/data/*.py 等真源后须重新生成并跑 --check。
 """
 
+from .data.arcak import ARCAK_CONTEXT, ARCAK_MISSING_CHECK, ARCAK_TERMS
 from .data.bilingual import BILINGUAL_TERMS, CONTEXT_MAP, EXCLUDE_CONTEXT, FFRS_CONTEXT, FFRS_TERMS, KEEP_EN, WORD_MAP, _XQ_RX
 from .data.ja import (JA_CONTEXT, JA_ENDFIELD_CONTEXT, JA_ENDFIELD_TERMS,
                       JA_PGR_CONTEXT, JA_PGR_TERMS, JA_TERMS, RETIRED_JA_KEYS)
@@ -26,7 +27,7 @@ from .data.entities import ENTITIES
 from .text import TEXT_ENCODINGS, _CJK, _KANA, _KO_HANGUL, _MARKER_ONLY, _ZH_PUNCT, _decode_any, _is_chinese_dominant, _is_chinese_line, _iter_cue_text_blocks, _script_counts, _split_cue_text
 from .replace import _compile_map, _ctx_replace, _replace_report, apply_map
 from .asr import _KNOWN_EN_CACHE, _KNOWN_EN_MIN_LEN, _SPLIT_FIX_CACHE, _known_en_tokens, _ref_for_match, _rejoin_known, _scan_split_line, _split_fix_pairs
-from .state import CTX_TABLES, TABLES, _AK_CONTEXT_COMPILED, _AK_KO_CONTEXT_COMPILED, _CONTEXT_COMPILED, _ENDFIELD_BI_CONTEXT_COMPILED, _ENDFIELD_KO_CONTEXT_COMPILED, _EXCLUDE_COMPILED, _FFRS_CONTEXT_COMPILED, _HSR_CONTEXT_COMPILED, _JA_CONTEXT_COMPILED, _JA_ENDFIELD_CONTEXT_COMPILED, _JA_PGR_CONTEXT_COMPILED, _KO_ASR_CONTEXT_COMPILED, _KO_CONTEXT_COMPILED, _LIMBUS_CONTEXT_COMPILED, _POKEMON_CONTEXT_COMPILED, _REACT_CONTEXT_COMPILED, _WWOC_CONTEXT_COMPILED, _rebuild_context_caches, _register_entities
+from .state import CTX_TABLES, TABLES, _AK_CONTEXT_COMPILED, _AK_KO_CONTEXT_COMPILED, _ARCAK_CONTEXT_COMPILED, _CONTEXT_COMPILED, _ENDFIELD_BI_CONTEXT_COMPILED, _ENDFIELD_KO_CONTEXT_COMPILED, _EXCLUDE_COMPILED, _FFRS_CONTEXT_COMPILED, _HSR_CONTEXT_COMPILED, _JA_CONTEXT_COMPILED, _JA_ENDFIELD_CONTEXT_COMPILED, _JA_PGR_CONTEXT_COMPILED, _KO_ASR_CONTEXT_COMPILED, _KO_CONTEXT_COMPILED, _LIMBUS_CONTEXT_COMPILED, _POKEMON_CONTEXT_COMPILED, _REACT_CONTEXT_COMPILED, _WWOC_CONTEXT_COMPILED, _rebuild_context_caches, _register_entities
 from .engine import _load_override_tsv, process
 from .modes import detect_source_mode, endfield_auto_markers
 from .srt import _cmd_extract, _cmd_merge, _cmd_pair, _cmd_split, _cue_first_text_map, _cue_zh_ref, _detect_layout, _iter_cue_lines, _iter_ref_lines, _load_calib_records
@@ -46,6 +47,9 @@ __all__ = [
     'AK_KO_TERMS',
     'AK_MISSING_CHECK',
     'AK_TERMS',
+    'ARCAK_CONTEXT',
+    'ARCAK_MISSING_CHECK',
+    'ARCAK_TERMS',
     'BILINGUAL_TERMS',
     'CONTEXT_MAP',
     'CTX_TABLES',

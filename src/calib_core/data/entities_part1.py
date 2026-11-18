@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.9.1
+# @version 3.1.0
 """术语/实体数据表
 
 源：subtitle_calib_merged.py L7369-L8839 @ 97d7d463（2026-10-24 冻结快照）
@@ -411,8 +411,10 @@ ENTITIES_PART1 = [
                 "戒律：裸'Yuki'为常用日名不入全局，只走 \\bYuki\\b 参考行锚定。"),
     Entity("星声", modes=("bi",), en="Astrite",
            category="术语/货币",
-           variants=("星石",),
-           note="鸣潮高级抽卡货币官方中文名=星声（百度百科/fandom）。机翻常误作'星石'。"),
+           variants=("星石", "星陨石", "阿斯特莱特"),
+           ctx=((r"\bAsterites?\b", "星体"),),
+           note="鸣潮高级抽卡货币官方中文名=星声（百度百科/fandom）。机翻常误作'星石'。"
+                "2026-11-18 补星陨石/阿斯特莱特等错形；'星体'为通用词，只走 Asterites 参考行锚定。"),
     Entity("余波珊瑚", modes=("bi",), en="Afterglow Coral",
            category="术语/货币",
            variants=("余辉珊瑚",),
@@ -700,7 +702,7 @@ ENTITIES_PART1 = [
                 "'诺'音近'那/娜/糯/洛/珞/箩/萝/讷'；英文 Liino（双 i）易漏为 Lino 或误作 Rino/Leeno/Lyno。"
                 "戒律：'李娜/莉娜/黎娜'为常见中文人名不入表，防误伤；ctx 处理'丽诺/黎诺/Lino/Rino'等"
                 "英文参考行佐证场景。"),
-    Entity("北部禁区", modes=("endo", "jpe"),
+    Entity("北部禁区", modes=("endo", "jpe"), en="North Wuling Exclusion Zone",
            category="地点/武陵",
            variants=("北部禁地", "北方禁区", "北区禁区", "贝部禁区",
                      "北部金区", "北部仅区", "北部近区", "北部谨区",
@@ -1029,19 +1031,27 @@ ENTITIES_PART1 = [
                 "⚠ 展示会/屏幕时间 的目标词（展示/镜头时间）≠本实体 canonical（共鸣者），"
                 "不能用 Entity.ctx（会强制替换成 canonical），已改走 CONTEXT_MAP 原生三元组。"),
     Entity("嘉贝莉娜", modes=("bi",), en="Galbrena",
-           category="角色/鸣潮", variants=("加尔雷娜",),
+           category="角色/鸣潮", variants=("加尔雷娜", "加尔布拉纳"),
            note="补 r3 '加尔雷娜'->嘉贝莉娜（#29，Galrena 谷翻）。官方名 嘉贝莉娜。"
                 "2026-11-11 莉莉 PV 片 #58：YouTube ASR 'Gom Rena'、本地 small.en 'gombrana'、"
                 "large-v3 'Galbrena' 语音收敛于此（中置信）；但「谈到梦境」语义与嘉贝莉娜（火焰猎魔）"
                 "不符，疑主播联想/口误——高碰撞 ASR 名只留痕不入裸键/ctx，逐 cue 按语境取舍。"),
     Entity("秋水", modes=("bi",), en="Aalto",
            category="角色/鸣潮",
-           ctx=((r"\bAlto\b|\bAalto\b", "阿尔托"),
-                (r"\bAlto\b|\bAalto\b", "Alto"),
-                (r"\bAlto\b|\bAalto\b", "Aalto")),
+           ctx=((r"\bAalto\b", "阿尔托"),
+                (r"\bAalto\b", "Alto"),
+                (r"\bAalto\b", "Aalto")),
            note="补 r3 '阿尔托'->秋水（#64 'next up, Alto' 谷翻）。'阿尔托'常见西名绝不裸键。"
                 "2026-11-13 二校补：中文行直接残留拉丁 Alto/Aalto（#97/#178）也归秋水，"
-                "仍由参考行 Aalto/Alto 锚定。"
+                "仍由参考行锚定。"
+                "⚠ 2026-11-15 二校收窄：参考正则剔除裸 \\bAlto\\b（Alto 是音乐声部/常见人名，"
+                "鸣潮 #24「like Alto」曾判指主播友人而回滚）；只保留官方英文 Aalto。"
+                "✅ 2026-11-16 三校 r3 更正上述语境判定：鸣潮 #24 #1490「来黑海岸吧」+ #1491"
+                "「Join us and all my friends like Alto,」+ #1492「安可，还有椿」构成鸣潮角色名单，"
+                "Alto 实为 Aalto 的 ASR 漏字母形变，中文应作秋水（成品已逐 cue 改定）；"
+                "官方依据 灰机 WIKI 秋水页（黑海岸客卿 / 搭档安可）、萌娘百科 英:Aalto、"
+                "官方 PV《鸣潮》共鸣者「秋水」展示PV。但裸键仍禁用：本片只做一次性补丁，"
+                "脚本侧仅登记 WUWA_MISSING_CHECK 只报不改体检项，ctx/variants 保持不动。"
                 "⚠ 历史片源结论（2026-09-09 注释）称 Aalto=阿尔托 不改——那是 TCG 讨论片语境；"
                 "本片'next up, Alto'为角色章节报幕，官方中文=秋水（2026-09-24 官方图鉴复核）。"),
     Entity("散华", modes=("bi",), en="Sanhua",
@@ -1082,7 +1092,7 @@ ENTITIES_PART1 = [
                 "只做本片 sidecar，不入全局键。"),
     Entity("坎特蕾拉", modes=("bi",), en="Cantarella",
            category="角色/鸣潮",
-           variants=("卡内雷拉", "卡内拉"),
+           variants=("卡内雷拉", "卡内拉", "坎塔雷拉"),
            note="学习库固化(#192/197/1487/2151/2251-2254)：Cantarella 音译残留。"),
     Entity("木禺", modes=("bi",),
            category="角色/鸣潮2.x",
@@ -1325,11 +1335,12 @@ ENTITIES_PART1 = [
            ctx=((r"수호시", "Suhosi"),
                 (r"수호시는", "须星"),
                 (r"수어신에", "单词句"),
-                (r"수신", "接收方"),
-                (r"수신", "接收者"),
                 (r"수호신", "守护灵")),
-           note="수호신/수호시/수어신/수신 = 守护神（岁主/守护神统称）。谷翻残留英文'Suhosi'、"
-                "字面词'须星/单词句/接收方/接收者'，以及同义不同名的'守护灵'（本片统一为官方'守护神'）。"),
+           note="수호신/수호시/수어신 = 守护神（岁主/守护神统称）。谷翻残留英文'Suhosi'、"
+                "字面词'须星/单词句'，以及同义不同名的'守护灵'（本片统一为官方'守护神'）。"
+                "⚠ 2026-11-15 三校：删除 ('수신','接收方')/('수신','接收者') 两条 ctx——"
+                "수신=受信是正常词（3.8 cue 5917「新玄方是接收方」），误配会把正确译文改回「守护神」；"
+                "确属 수호신 ASR 的语境改由 KO_CONTEXT 长锚点（수신이 함정으로/수신의 재림 等）承接。"),
     Entity("心", modes=("ko",), ko="여우의 별자리", category="角色/鸣潮",
            ctx=((r"여우의 별자리", "Fox Constellation"),
                 (r"여우의 별리", "心月狐啊"),
@@ -1407,8 +1418,11 @@ ENTITIES_PART1 = [
            ctx=((r"\bExecutor\b", "遗嘱执行人"),),
            note="6★ 狙击。谷翻按字面译成'遗嘱执行人'，走 ctx。"),
     Entity("棘刺", modes=("bi",), en="Thorns", category="角色/明日方舟",
-           ctx=((r"\bThorns\b", "荆棘"),),
-           note="6★ 近卫。'荆棘'是正常中文词，只走 ctx。"),
+           ctx=((r"(?-i:\bThorns\b)", "荆棘"),),
+           note="6★ 近卫。'荆棘'是正常中文词，只走 ctx。"
+                "2026-11-15 二校：ctx 改用 (?-i:) 强制区分大小写——_CONTEXT_COMPILED 带 re.I，"
+                "裸 \\bThorns\\b 会把鸣潮「烧掉左边的荆棘」（incinerate the thorns on the left）"
+                "误改成棘刺。"),
     Entity("逻各斯", modes=("bi",), en="Logos", category="角色/明日方舟",
            ctx=((r"\bLogos\b", "标志"), (r"\bLogos\b", "罗各斯")),
            note="罗德岛精英干员。'标志'是正常中文词（logos=标识），只走 ctx。"),
@@ -1675,7 +1689,10 @@ ENTITIES_PART1 = [
     Entity("星炬学院", modes=("bi", "react"), en="Startorch Academy",
            category="势力/学院·鸣潮",
            variants=("星火学院", "星游学园", "星游学院", "罗伊斯塔尔学院"),
-           ctx=((r"\bAcademy\b", "学院"),),
+           # 2026-11-15 3.8 二校：泛称「音乐学院」语境回滚（本片 #2059 sort of this academy /
+           #   #2195 that tragic academy）。因目标形「星炬学院」含错形「学院」，CONTEXT_MAP/
+           #   EXCLUDE 的 str.replace 回滚会被叠字保护挡掉，故在实体 ctx 锚上直接加定长负向后顾。
+           ctx=((r"(?<!sort\sof\sthis\s)(?<!that\stragic\s)\bAcademy\b", "学院"),),
            note="官方中文=星炬学院（Startorch Academy）；学院 President=校长洛瑟菈。"
                 "Academy 参考行锚定「学院」；EXCLUDE_CONTEXT 已排除 Academy Awards 等通用语境。"),
     Entity("索诺拉", modes=("bi", "react"), en="Sonoro Sphere",
@@ -1806,11 +1823,12 @@ ENTITIES_PART1 = [
            note="鸣潮索诺拉活动背景中的生物阿博拉（Abora）。"),
     Entity("秘日六席", modes=("bi", "react"), en="Heliotix Six",
            category="设定/鸣潮",
-           variants=("Heliotix Six", "Heliotic Six", "Helionic Six", "Heliodic Six", "赫利奥六号"),
+           variants=("Heliotix Six", "Heliotic Six", "Helionic Six", "Heliodic Six", "赫利奥六号",
+                     "日光六人组", "日光六人"),
            note="罗伊族长老团，官方中文=秘日六席；扁平表已有赫利奥六号等中文错形。"),
     Entity("罗伊族", modes=("bi", "react"), en="Roya",
            category="种族/鸣潮",
-           variants=("Roya",),
+           variants=("Roya", "罗亚人"),
            note="鸣潮罗伊族（Roya）；西格莉卡所属种族。"),
     # --- 2026-10-27 3.X 巡演/EP 二次校准补漏 ---
     Entity("日灵", modes=("bi",), en="Sun Spirit",
@@ -1858,5 +1876,169 @@ ENTITIES_PART1 = [
     Entity("巴利诺拉", modes=("bi",), en="Balinaphora",
            category="地点/鸣潮",
            note="鸣潮地名 Balinaphora，官方中文=巴利诺拉；ASR 音译族不入裸键。"),
+    # ============================================================
+    # 2026-11-15 鸣潮 #24《Music Composer Plays Wuthering Waves》
+    #   2.2 主线「圣者，忤逆者，告死者」二次校准沉淀
+    #   官方中文依据：库街区 WIKI 该章剧情全文（英白拉多/卡提希娅终局对话逐句比对）
+    # ============================================================
+    Entity("芙露德莉斯", modes=("bi", "react"), en="Fleurdelys",
+           category="角色/鸣潮2.2",
+           variants=("弗洛德莉斯", "芙洛德莉斯", "弗勒德莉斯", "芙蕾德莉斯",
+                     "弗鲁里斯", "弗鲁里", "弗鲁德莉斯", "芙露德丽丝", "芙蓉·德·利斯"),
+           ctx=((r"\b(?:Fleurdelys|Fluriss|Fluries|Flirtilis|Flur\s+Deise|Flare\s+Deise)\b",
+                 "伊莉丝"),
+                (r"\b(?:Fleurdelys|Fluriss|Fluries|Flirtilis|Flur\s+Deise|Flare\s+Deise)\b",
+                 "弗鲁里斯"),
+                (r"\b(?:Fleurdelys|Flissa|Flatterise)\b", "弗洛德里斯"),
+                (r"\bFleur\s+de\s+Lys\b", "百合花")),
+           note="2.2 主线第四幕：英白拉多与利维亚坦融合后，以返回舱制造的个体，"
+                "官方中文=芙露德莉斯（Fleurdelys）。与「卡提希娅」是同一角色的两种身份："
+                "卡提希娅为圣女本体，芙露德莉斯为岁主/鸣式共鸣体，二者禁互相替换。"
+                "⚠ 与残星会成员「芙露德莉丝」（Frudelis，entities_part2 既有实体）"
+                "仅差末字「丝/斯」，二者绝非同一人：绝不可把「芙露德莉丝」并作本实体变体，"
+                "否则会把残星会角色改错。英文 ASR 变体 Fluriss/Fluries/Flirtilis/"
+                "Flur Deise/Flissa 只走参考行锚定；Elise 亦是误听形，但属常见人名，不裸键。"),
+    Entity("提尔芬", modes=("bi", "react"), en="Tyrvine",
+           category="武器/鸣潮2.2",
+           variants=("提尔文", "蒂尔芬", "图尔文", "特尔芬", "缇尔芬"),
+           ctx=((r"\b(?:Tyrvine|Turven|Turvin)\b", "提尔文"),
+                (r"\b(?:Tyrvine|Turven|Turvin)\b", "图尔文"),
+                (r"\b(?:Tyrvine|Turven|Turvin)\b", "蒂尔芬")),
+           note="神权剑「提尔芬」：岁主英白拉多封存部分力量、用以选定圣女共鸣者的共鸣仪具；"
+                "官方英文 Tyrvine。ASR Turven/Turvin，谷翻「提尔文/图尔文/蒂尔芬」。"),
+    Entity("奥特尔", modes=("bi", "react"), en="Haultir",
+           category="武器/鸣潮2.2",
+           variants=("哈尔提尔", "豪尔提尔", "奥提尔", "霍尔提尔"),
+           ctx=((r"\b(?:Haultir|Haltier)\b", "哈尔提尔"),
+                (r"\b(?:Haultir|Haltier)\b", "豪尔提尔")),
+           note="人权剑「奥特尔」；官方英文 Haultir。ASR Haltier/Halt here，"
+                "谷翻「哈尔提尔/豪尔提尔」。"),
+    Entity("赫格利", modes=("bi", "react"), en="Hogness",
+           category="武器/鸣潮2.2",
+           variants=("霍格尼斯", "霍格内斯", "霍格利", "赫格尼斯"),
+           ctx=((r"\b(?:Hogness|Hognis)\b", "霍格尼斯"),
+                (r"\b(?:Hogness|Hognis)\b", "霍格内斯")),
+           note="异权剑「赫格利」；官方英文 Hogness。ASR Hognis，谷翻「霍格尼斯/霍格内斯」。"),
+    Entity("盖希诺姆", modes=("bi", "react"), en="Gahenum",
+           category="地区/鸣潮2.2",
+           variants=("加亨努姆", "盖赫努姆", "加亨努"),
+           ctx=((r"\bGahenum\b", "加亨努姆"), (r"\bGhanim\b", "加亨努姆")),
+           note="2.2 地名「盖希诺姆」；官方英文 Gahenum。ASR Ghanim，谷翻「加亨努姆」；"
+                "Gem 为常用词（宝石义），不建键、不替换。"),
+    Entity("翡萨烈", modes=("bi", "react"), en="Fisalia",
+           category="势力/鸣潮2.2",
+           variants=("菲萨莉亚", "菲萨利亚", "菲萨拉斯", "维塞拉斯", "法塞利亚", "菲萨列"),
+           ctx=((r"\b(?:Fisalia|Fisalas|Fisalias)\b", "菲萨莉亚"),
+                (r"\b(?:Fisalia|Fisalas|Fisalias)\b", "菲萨利亚"),
+                (r"\b(?:Viselas|Facelius|Facilia)\b", "维塞拉斯")),
+           note="黎那汐塔三大家族之一、信奉岁主英白拉多的「翡萨烈家族」，"
+                "第36任家主为坎特蕾拉·翡萨烈；官方英文 Fisalia。"
+                "ASR Fisalas/Viselas/Facelius，谷翻「菲萨莉亚/维塞拉斯」。"),
+    Entity("翼鳐", modes=("bi", "react"), en="Wingray",
+           category="生物/鸣潮2.2",
+           variants=("翼雷", "飞翼鳐", "翅鳐", "风鳐"),
+           ctx=((r"\bWingray\b|\bWing\s+ray\b", "翼雷"),),
+           note="2.2 拉古那空中生物「翼鳐」；官方英文 Wingray。ASR Wing ray，谷翻「翼雷」。"),
+    Entity("重力校准器", modes=("bi", "react"), en="Gravity Calibrator",
+           category="装置/鸣潮2.2",
+           variants=("重力校准仪", "重力标定器", "重力校正器"),
+           ctx=((r"\bGravity\s+Calibrator\b", "重力校准仪"),
+                (r"\bGravity\s+Calibrator\b", "重力标定器")),
+           note="2.2 阿维纽林神学院装置「重力校准器」；官方英文 Gravity Calibrator。"),
+    Entity("圣女", modes=("bi", "react"), en="Blessed Maiden",
+           category="称谓/鸣潮",
+           variants=("受祝福的少女", "蒙福少女", "有福的少女"),
+           ctx=((r"\bBlessed\s+Maiden\b", "受祝福的少女"),
+                (r"\bBlessed\s+Maiden\b", "有福的少女")),
+           note="鸣潮官方称谓 Blessed Maiden=圣女（黎那汐塔岁主共鸣者的称号）；"
+                "「少女」为通用词，不裸键，只走参考行锚定。"),
+    Entity("二次共鸣", modes=("bi", "react"), en="Second Awakening",
+           category="术语/鸣潮",
+           variants=("第二次共鸣",),
+           ctx=((r"\bSecond\s+Awakening\b", "第二次觉醒"),
+                (r"\bSecond\s+Awakening\b", "二次觉醒")),
+           note="官方术语 second awakening=二次共鸣（英白拉多设定：通过二次共鸣打破"
+                "「一个个体同一时间只能有一位共鸣者」的铁律）。"
+                "「第二次觉醒」在别片可能是正确译法，故不裸键、只走参考行锚定。"),
+    Entity("圣女试炼", modes=("bi", "react"), en="Divine Trials",
+           category="术语/鸣潮2.2",
+           variants=("神启试炼",),
+           ctx=((r"\bDivine\s+Trials?\b", "神圣试炼"),
+                (r"\bDivine\s+Trials?\b", "圣女考验")),
+           note="翡萨烈家族每年筛选圣女候选人的「圣女试炼」，官方英文 divine trials；"
+                "「神圣试炼」为通用短语，只走参考行锚定。"),
+    # --- 2026-11-15 《What Makes Endfield So Visually Unique?》（SmugSlav reaction，
+    #     正片 @SKYBIRD__，706 cue）二校沉淀：官中以官网/Wiki 检索取证，疑难词
+    #     本地 large-v3 截段音证。DWST/UWST、Baker、Protorig、Arcane、Tang Tang
+    #     全形、Valley 拉丁形、战争回响、北部禁区译形均为本片实证补缺。 ---
+    Entity("联盟工团", modes=("endobi", "endo", "endoko"),
+           en="United Workers' Syndicate of Talos-II (UWST)",
+           category="势力/终末地",
+           variants=("UWST", "DWST"),
+           note="塔卫二全联盟工团；四号谷地即其运营区、全星最大工矿机械制造商。"
+                "本片英文行 DWST/UWST 混拼系同一组织（YouTube ASR 变体），官中=联盟工团。"),
+    Entity("贝克", modes=("endobi", "endo", "endoko"), en="Baker",
+           category="系统/终末地",
+           variants=("Baker",),
+           note="游戏内干员即时通讯应用（in-game messaging app），干员自动分配账号；"
+                "官中=贝克。只收中文行拉丁残留形。"),
+    Entity("协议源石", modes=("endobi", "endo", "endoko"), en="PROTORIG",
+           category="科技/终末地",
+           variants=("Protorig", "PROTORIG", "protorig"),
+           note="Protocol-Originium 合成词：终末地工业核心科技网络，干员腕表装置即其"
+                "存储终端；官中=协议源石。本片 'protorig menu' 即腕表菜单。"),
+    Entity("四号谷地", modes=("endobi", "endo", "endoko"), en="Valley 4 / Valley IV",
+           category="区域/终末地",
+           variants=("Valley 4", "Valley Four", "Valley IV", "Valley-IV", "Valley-4"),
+           note="终末地开篇区域；已有「第四谷/谷地4区」裸键与 valley 上下文锚，"
+                "本批补拉丁全形——谷翻常把 Latin 原样留在中文行。"),
+    Entity("诀", modes=("endobi", "endo", "endoko"), en="Arcane",
+           category="角色/终末地",
+           variants=("Arcane",),
+           note="6★自然术师，本名李织烟，应龙特勤队行动队长，1.4「向渊行」实装；"
+                "本片 'Arcane's leotard' 即其同人语境。官中=诀；「奥术」普通词义不裸键。"),
+    Entity("汤汤", modes=("endobi", "endo", "endoko"), en="Tangtang",
+           category="角色/终末地",
+           variants=("Tang Tang", "Tangtang"),
+           note="6★冰系，清波寨大当家阮湯湯（2026-03-12 实装）；「汤」是姓氏非糖果，"
+                "TapTap 攻略误写「唐糖」勿采。长键先行防既有裸键 Tang 把 'Tang Tang' "
+                "咬成「汤汤 汤汤」。"),
+    Entity("伊冯", modes=("endobi", "endo", "endoko"), en="Yvonne",
+           category="角色/终末地",
+           variants=("Yvon",),
+           note="6★限定冰系（2026-02-24 实装），特种技术部门时尚人设；已有 Yvonne/"
+                "Ivonne/Ivon 键，本片补 Yvon 拼写（长键 Yvonne 先行不互咬）。"),
+    Entity("萤石", modes=("endobi", "endo", "endoko"), en="Fluorite",
+           category="角色/终末地",
+           variants=("Fluorite",),
+           note="辅助干员，寒冷+自然双附着；已有 Florite/氟石 键，本片坐实正确拼写 "
+                "Fluorite（谷翻 'floor item' 系其误听——Karasu-chan 萤石同人图）。"),
+    Entity("战争回响", modes=("endobi", "endo", "endoko"), en="Echoes of War",
+           category="玩法/终末地",
+           variants=("战争的回声", "战争回声", "《战争回声》", "Echoes of War"),
+           note="赛季制常驻挑战玩法（权限等阶 40+）；官中=战争回响，谷翻「战争的回声」。"),
+    Entity("危机合约", modes=("endobi", "endo"), en="Contingency Contract",
+           category="玩法/终末地",
+           variants=("应急合同",),
+           ctx=((r"\bContingency\b", "意外事件"),),
+           note="已有 Contingency Contract/传染性合约/风险代理合同 键，本片补谷翻形"
+                "「应急合同」与「意外事件」参考行锚（CC 在终末地延续，官中不变）。"),
+    Entity("北部禁区", modes=("endobi", "endo", "endoko"), en="North Wuling Exclusion Zone",
+           category="区域/终末地",
+           variants=("北武陵禁区", "武陵北部禁区"),
+           ctx=((r"\bexclusion\s+zone\b", "排除区"), (r"\bexclusion\s+zone\b", "禁区")),
+           note="1.4 武陵第 7 区域，wiki.gg 简中=北部禁区（日文=武陵北部封鎖区域）；"
+                "已有「北部进区」键。锚 exclusion zone 时把谷翻「排除区」与裸「禁区」"
+                "归一——禁区⊂北部禁区走 _ctx_replace 哨兵。"),
+    Entity("雪松林", modes=("endobi",), en="Forest Snow Zone",
+           category="区域/终末地",
+           ctx=((r"forest\s+snow|snow\s+zone", "森林雪区"),),
+           note="1.5「雪凇幽梦」武陵雪原林地（雪降深林活动区）；已有雪风林/Cedar Forest "
+                "键。「雪区」裸错形过短不入，仅锚 forest snow / snow zone。"),
+    Entity("空间式UI", modes=("endobi",), en="spatial UI",
+           category="术语/UI",
+           ctx=((r"\bspatial\b", "特殊UI"),),
+           note="游戏 UI 四分类之一：存在于游戏世界空间但角色不感知（本片杂兵头顶血条例）；"
+                "本片英文行 'special UI' 系 spatial UI 误听（large-v3 音证）。"),
 ]
 

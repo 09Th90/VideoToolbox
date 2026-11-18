@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.0.0
+# @version 3.1.0
 """引擎「转录配置」注入（自有 ASR 服务 / 本地模型 → 引擎 settings.json）（v2.3.1 拆分工程 · 自 video_toolbox.py 原样搬入）。
 
 v2.3.1 拆分工程；域间依赖规则见 core/__init__.py。
@@ -12,6 +12,7 @@ from core.shared.ai import ai_load_config, ai_mod
 from core.shared.paths import DATA_DIR
 from core.shared.vcsettings import (apply_global_llm_to_engine,
                                      vc_settings_path,
+                                     _loaded_engine_cfg,
                                      _vc_read_settings,
                                      _vc_write_settings)
 
@@ -26,6 +27,13 @@ FW_MODEL_ENUM = ("tiny", "base", "small", "medium", "large-v1", "large-v2",
 #: 与 videocaptioner.core.entities.TranscribeModelEnum 的值保持一致
 TM_WHISPER_API = "Whisper [API] ✨"
 TM_FASTER_WHISPER = "FasterWhisper ✨"
+
+
+def _runtime_enum(cfg, public_name, item):
+    """不发起 import 地取得引擎枚举：优先已加载模块，否则用 cfg 现值类型。"""
+    enum = getattr(sys.modules.get("videocaptioner.core.entities"),
+                   public_name, None)
+    return enum if enum is not None else type(cfg.get(item))
 
 
 def asr_local_override(ai_cfg=None):
@@ -89,21 +97,20 @@ def apply_asr_to_engine(ai_cfg=None):
                 changed = True
         if changed:
             _vc_write_settings(data)
-        # 内存态同步（引擎界面/QConfig 已加载时免重启生效）
-        # ⚠ 仅在引擎配置**已加载**时才做：没加载时为同步而导入它只会白付
-        # ~1s（qfluentwidgets 整库，冷缓存 ~6s），而此后引擎首次读盘拿到
-        # 的就是我们刚写的 settings.json——启动路径上的这段同步纯属重复。
-        # 引擎界面构建后的 vc_enforce_runtime_cfg() 会再跑一次做真同步。
-        if "videocaptioner.ui.common.config" in sys.modules:
+        # 内存态同步仅操作已发布的 cfg；``sys.modules`` 里有模块不等于导入
+        # 已完成。此处若再次 from-import，会与后台预热形成导入锁等待（启动保存
+        # 设置时主线程“未响应”的已复现根因），所以枚举也只取已加载对象/现值类型。
+        _cfg = _loaded_engine_cfg()
+        if _cfg is not None:
             try:
-                from videocaptioner.ui.common.config import cfg as _cfg
-                # ⚠ 必须用**引擎自己的**枚举类：cfg 的 OptionsValidator 按类
-                # 校验，项目自建的 engine_entities.TranscribeModelEnum 虽同名
-                # 同值，但 set() 会被静默拒绝（2026-10-28 实测：settings.json
-                # 已写 Whisper API，内存仍是 B 接口，转录继续走 bcut 必失败）。
-                from videocaptioner.core.entities import (
-                    FasterWhisperModelEnum, TranscribeLanguageEnum,
-                    TranscribeModelEnum)
+                # 必须用引擎自己的枚举类：项目自建同名枚举会被 OptionsValidator
+                # 静默拒绝。_runtime_enum 保留该约束，但不触发新 import。
+                TranscribeModelEnum = _runtime_enum(
+                    _cfg, "TranscribeModelEnum", _cfg.transcribe_model)
+                FasterWhisperModelEnum = _runtime_enum(
+                    _cfg, "FasterWhisperModelEnum", _cfg.faster_whisper_model)
+                TranscribeLanguageEnum = _runtime_enum(
+                    _cfg, "TranscribeLanguageEnum", _cfg.transcribe_language)
                 _cfg.set(_cfg.transcribe_model,
                          TranscribeModelEnum.FASTER_WHISPER if ac["mode"] == "local"
                          else TranscribeModelEnum.WHISPER_API)

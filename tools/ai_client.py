@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.0.0
+# @version 3.1.0
 """
 全局 AI 客户端（OpenAI 兼容 · 单通道）。
 
@@ -232,6 +232,12 @@ DEFAULT_CONFIG: dict = {
     #   重转写 / 抽帧视觉描述），佐证疑似误听与丢弃候选。要求：字幕同目录
     #   有同名源媒体（视频或音频）；音频腿需 ASR 配 OpenAI 兼容端点。
     "calib_media_enabled": False,
+    # Jev / System One 结构化影子决策：仅百炼 Token Plan 专属端点激活。
+    # 复用全局 base_url / 独立 api_key；off=关闭，shadow=只留证据不改写业务结果。
+    "decision_mode": "shadow",
+    "decision_timeout": 12,
+    "decision_max_items": 32,
+    "decision_batch_size": 8,
     "max_tokens": 2048,
     "timeout": 90,
     "retries": 3,

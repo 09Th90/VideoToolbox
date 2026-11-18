@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 2.9.1
+# @version 3.1.0
 """CLI 参数解析与子命令分发
 
 源：subtitle_calib_merged.py L13295-L13650 @ 97d7d463（2026-10-24 冻结快照）
@@ -11,7 +11,7 @@ import shutil
 import sys
 import unicodedata
 from ._doc import USAGE_DOC
-from .data.modes import AK_INFO, AK_KO_INFO, ENDO_INFO, KO_INFO, PGR_INFO, PGR_OVERRIDES_SRC, WWOC_INFO, ZHO_INFO
+from .data.modes import AK_INFO, AK_KO_INFO, ENDO_INFO, KO_INFO, PGR_INFO, PGR_OVERRIDES_SRC, WWOC_INFO, WW38_INFO, WW38_OVERRIDES_SRC, WW38_J_INFO, WW38_J_OVERRIDES_SRC, ZHO_INFO
 from .engine import _load_override_tsv, process
 from .format import _cmd_flow, _cmd_length, _cmd_rewrap, _cmd_stabilize
 from .inspect import _cmd_align_audit, _cmd_compare, _cmd_lint, _cmd_missing, _cmd_scan, _cmd_scan_split, _cmd_subfix, _cmd_terms_check, _cmd_verify
@@ -70,6 +70,8 @@ def main_argv(argv=None):
     fix_en = False
     learned_kb = None
     bi_override_path = None
+    wuwa38 = False
+    wuwa38j = False
 
     if argv and not argv[0].startswith("-"):
         src = argv[0]
@@ -119,6 +121,12 @@ def main_argv(argv=None):
             mode = "pbz"; i += 1
         elif a == "--ff14":
             mode = "ff14"; i += 1
+        elif a == "--ssv":
+            mode = "ssv"; i += 1
+        elif a == "--arcak":
+            mode = "arcak"; i += 1
+        elif a == "--tga26":
+            mode = "tga26"; i += 1
         elif a == "--zel":
             mode = "zel"; i += 1
         elif a == "--hsr":
@@ -131,6 +139,12 @@ def main_argv(argv=None):
             learned_kb = args[i + 1]; i += 2
         elif a == "--bi-override" and i + 1 < len(args):
             bi_override_path = args[i + 1]; i += 2
+        elif a == "--wuwa38":
+            # 鸣潮 3.8 主线「予以明日的花束」一键重跑：bi 规则 + 逐 cue 侧车整行覆盖
+            wuwa38 = True; mode = "bi"; i += 1
+        elif a == "--wuwa38j":
+            # 鸣潮 3.8 主线 Jadealy 反应片一键重跑：bi 规则 + 逐 cue 侧车整行覆盖
+            wuwa38j = True; mode = "bi"; i += 1
         elif a == "--mode" and i + 1 < len(args):
             m = args[i + 1].lower()
             if m in ("limbus", "limbuscompany", "边狱巴士"):
@@ -146,6 +160,16 @@ def main_argv(argv=None):
             elif m in ("ff14", "ffxiv", "finalfantasy14", "finalfantasixiv",
                        "最终幻想14", "最终幻想xiv", "银海之天舟"):
                 mode = "ff14"
+            elif m in ("ssv", "starsavior", "star_savior", "星之救援者"):
+                mode = "ssv"
+            elif m in ("arcak", "arcakn", "arcaea_arknights", "arcaea×arknights",
+                       "arcaea明日方舟", "arcaea方舟", "arcaea联动"):
+                # ⚠ 与 akja 同理必须排在下面的三元链之前：三元链里是
+                #   `m in ("ak","arknights")` 精确成员判断，"arcak" 不命中会直接掉回 bi。
+                mode = "arcak"
+            elif m in ("tga26", "tga2026", "tga", "thegameawards",
+                       "gameawards", "游戏大奖", "tga直播"):
+                mode = "tga26"
             elif m in ("akja", "ak_ja", "arknights_ja", "arknightsja",
                        "明日方舟日语", "日语原声明日方舟"):
                 # ⚠ 必须排在下面那条三元链**之前**：三元链里是 `m in ("ak","arknights")`
@@ -159,6 +183,14 @@ def main_argv(argv=None):
             i += 1
 
     info = {"ko": KO_INFO, "ak": AK_INFO, "endo": ENDO_INFO, "pgr": PGR_INFO, "zho": ZHO_INFO, "wwoc": WWOC_INFO, "akko": AK_KO_INFO}.get(mode)
+    if wuwa38:
+        info = WW38_INFO
+        if bi_override_path is None:
+            bi_override_path = WW38_OVERRIDES_SRC
+    if wuwa38j:
+        info = WW38_J_INFO
+        if bi_override_path is None:
+            bi_override_path = WW38_J_OVERRIDES_SRC
     if src is None and info:
         src = info["src"]                       # 一键重跑内置片源
         if out_path is None:
@@ -181,7 +213,8 @@ def main_argv(argv=None):
     rows, hits = process(src, out_path, report_path, mode=mode,
                          fix_en=fix_en, pgr_override=pgr_override,
                          learned_kb=learned_kb, bi_override=bi_override)
-    names = {"bi": "中英双语 (BILINGUAL_TERMS + CONTEXT_MAP + WORD_MAP)",
+    names = {"bi": "中英双语 (BILINGUAL_TERMS + CONTEXT_MAP + WORD_MAP)" + (
+                 " + 3.8 侧车 {} 条".format(len(bi_override) if bi_override else 0) if (wuwa38 or wuwa38j) else ""),
              "ko": "韩语原声 (KO_TERMS)",
              "ja": "日语原声 (JA_TERMS + JA_CONTEXT)",
              "jpe": "日语原声·终末地 (JA_ENDFIELD_TERMS + JA_ENDFIELD_CONTEXT)",
@@ -207,7 +240,13 @@ def main_argv(argv=None):
              "ffrs": "最终幻想：共鸣 (FFRS_TERMS + FFRS_CONTEXT)",
              "pbz": "影之刃零 (PBZ_TERMS + PBZ_CONTEXT)",
              "pkm": "宝可梦城镇主题 (POKEMON_TERMS + POKEMON_CONTEXT)",
-             "ff14": "最终幻想14 (FF14_TERMS + FF14_CONTEXT)"}
+             "ff14": "最终幻想14 (FF14_TERMS + FF14_CONTEXT)",
+             # 2026-11-15 新增。与 pgrja 同规：**不进 info 字典**（无内置片源）。
+             "ssv": "星之救援者 (SSV_TERMS + SSV_CONTEXT)",
+             # 2026-11-18 新增。与 pgrja 同规：**不进 info 字典**（无内置片源）。
+             "arcak": "Arcaea×明日方舟联动直播 (ARCAK_TERMS + ARCAK_CONTEXT)",
+             # 2026-11-18 新增。与 pgrja 同规：**不进 info 字典**（无内置片源）。
+             "tga26": "TGA 2026 游戏大奖 (TGA_TERMS + TGA_CONTEXT)"}
     extra = (" + 英文行修正(--fix-en)" if fix_en else "")
     print("模式:", names[mode] + extra)
     if learned_kb:

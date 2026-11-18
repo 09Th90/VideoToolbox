@@ -1,4 +1,4 @@
-# @version 3.0.0
+# @version 3.1.0
 """抓取四个 wiki 的角色名单，并回填对象库缺失的作品归属。
 
 输出补丁结构（不直接改源文件）::
@@ -183,3 +183,37 @@ def save(payload: dict, path: str) -> str:
         json.dump(payload, f, ensure_ascii=False, indent=2)
         f.write("\n")
     return path
+
+
+def build_work_overlay(payload: dict, min_confidence=("high", "medium")) -> dict:
+    """把 Wiki 补丁收窄成运行时覆盖层：只保留高/中置信、且确属补全的条目。"""
+    tags: Dict[str, str] = {}
+    skipped = {"low": 0, "already_tagged": 0, "bad_patch": 0}
+    for p in payload.get("patches") or []:
+        if not isinstance(p, dict) or p.get("action") != "set-work":
+            skipped["bad_patch"] += 1
+            continue
+        if p.get("confidence") not in min_confidence:
+            skipped["low"] += 1
+            continue
+        if p.get("category"):
+            # 源库已有 category 的条目只做印证，不写入覆盖层，避免改动既有语义。
+            skipped["already_tagged"] += 1
+            continue
+        c, w = str(p.get("id") or "").strip(), str(p.get("work") or "").strip()
+        if not c or not w:
+            skipped["bad_patch"] += 1
+            continue
+        tags[c] = w
+    return {
+        "schema": "calib-entity-work-overlay/1",
+        "generated": _dt.datetime.now().isoformat(timespec="seconds"),
+        "min_confidence": list(min_confidence),
+        "tags": tags,
+        "skipped": skipped,
+        "source": payload.get("generated") or "",
+    }
+
+
+def save_work_overlay(payload: dict, path: str) -> str:
+    return save(payload, path)

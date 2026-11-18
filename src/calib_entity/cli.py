@@ -1,4 +1,4 @@
-# @version 3.0.0
+# @version 3.1.0
 """对象级校准并行包 —— 命令行入口。
 
 用法（cwd = 程序根）：
@@ -275,7 +275,8 @@ def cmd_adopt(args) -> int:
 def cmd_wiki(args) -> int:
     """从四个 wiki 抓角色名单，补全对象库的作品归属。"""
     eng = spec_mod.load_engine()
-    reg = spec_mod.build_registry(eng)
+    # 报告必须测「源库现状」，不能把上一次覆盖层算成 before。
+    reg = spec_mod.build_registry(eng, use_overlay=False)
     data = wiki_fetch.fetch_all(pause=args.pause)
     m = wiki_fetch.match(reg, data)
     rep = wiki_fetch.build_report(reg, data, m["matched"], m["patches"])
@@ -305,6 +306,14 @@ def cmd_wiki(args) -> int:
         }
         wiki_fetch.save(payload, args.out)
         print(f"补丁已写入：{args.out}")
+    if args.apply_tags:
+        overlay = wiki_fetch.build_work_overlay({
+            "generated": rep.get("generated", ""),
+            "patches": m["patches"],
+        })
+        wiki_fetch.save_work_overlay(overlay, args.overlay_out)
+        print(f"作品覆盖层已写入：{args.overlay_out}"
+              f"（{len(overlay['tags'])} 个对象，跳过 {overlay['skipped']}）")
     return 0
 
 
@@ -379,6 +388,9 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--out", default="data/entities/wiki_supplement.json")
     s.add_argument("--limit", type=int, default=15)
     s.add_argument("--pause", type=float, default=0.35)
+    s.add_argument("--apply-tags", action="store_true",
+                   help="把高/中置信补丁写入运行时作品覆盖层（低置信只报告）")
+    s.add_argument("--overlay-out", default="data/entities/wiki_work_overlay.json")
     s.add_argument("--json", action="store_true")
     s.set_defaults(fn=cmd_wiki)
 

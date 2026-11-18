@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.0.0
+# @version 3.1.0
 """结构体检、比较、漏译、扫描与 subfix
 
 源：subtitle_calib_merged.py L12795-L13481 @ 97d7d463（2026-10-24 冻结快照）
@@ -11,11 +11,14 @@ import shutil
 import sys
 import unicodedata
 from .asr import _scan_split_line
+from .data.arcak import ARCAK_MISSING_CHECK
 from .data.ark import AK_MISSING_CHECK, PGR_MISSING_CHECK
 from .data.bilingual import WUWA_MISSING_CHECK
 from .data.endfield import ENDFIELD_MISSING_CHECK
 from .data.ko import KO_MISSING_CHECK
 from .data.pbz import PBZ_MISSING_CHECK
+from .data.ssv import SSV_MISSING_CHECK
+from .data.tga import TGA_MISSING_CHECK
 from .format import is_line_too_long, line_width
 from .srt import _cue_first_text_map, _detect_layout, _iter_ref_lines, _load_calib_records
 from .state import CTX_TABLES, TABLES
@@ -236,6 +239,12 @@ def _load_missing_rules(mode=None, file=None):
         rules.extend(AK_MISSING_CHECK)
     if mode == "pbz":
         rules.extend(PBZ_MISSING_CHECK)
+    if mode == "ssv":
+        rules.extend(SSV_MISSING_CHECK)
+    if mode == "tga26":
+        rules.extend(TGA_MISSING_CHECK)
+    if mode == "arcak":
+        rules.extend(ARCAK_MISSING_CHECK)
     if mode == "pgren":
         rules.extend(PGR_MISSING_CHECK)
     if mode == "ko":

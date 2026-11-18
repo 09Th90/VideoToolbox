@@ -309,7 +309,7 @@
   "voiceprint_auto_names": "()",
   "voiceprint_auto_tooltip": "()",
   "voiceprint_enabled_names": "()",
-  "voiceprint_filter_subtitle": "(srt_path, media_path, progress=None, *, names=None, min_keep_ratio=None)",
+  "voiceprint_filter_subtitle": "(srt_path, media_path, progress=None, *, names=None, min_keep_ratio=None, mode=None)",
   "voiceprint_result_notice": "(res)",
   "voiceprint_set_auto_filter": "(enabled)",
   "worker_subprocess_env": "()",

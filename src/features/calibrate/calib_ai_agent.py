@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.0.0
+# @version 3.1.0
 """AI 校准 Agent —— Agent 级字幕术语校准（v1.11.0；v1.16.0 并发与提示词优化）。
 
 定位
@@ -261,6 +261,19 @@ _SENT_GAP_MS = 800
 #: v1.16.1：每块「思考 → 联网查证 → 再思考」往返轮数的**内部安全上限**。
 #: 配置 `calib_think_rounds`=0（关闭＝不限）时用它兜底，防模型无限往返烧额度。
 HARD_MAX_THINK_ROUNDS = 32
+#: v2（2026-11-18）：单块回填给模型的证据总量上限（字符）。工具轮最多 32 轮，
+#: 不设上限时 evidence 会滚成数万字符，推高上下文成本并稀释关键证据。
+MAX_EVIDENCE_CHARS = 8000
+#: 音画证据预算（音频重转写/抽帧描述通常比网页摘要长）
+MAX_MEDIA_EVIDENCE_CHARS = 6000
+
+
+def _clip_evidence(text: str, limit: int = MAX_EVIDENCE_CHARS) -> str:
+    """证据超预算时保留最近片段（近期轮次通常更接近结论）。"""
+    text = text or ""
+    if len(text) <= limit:
+        return text
+    return "（较早证据已省略）\n" + text[-limit:]
 #: v1.16.1：集群协作里评审成员对「驳回」的判定阈值（多数票制）。
 CLUSTER_REVIEW_SYSTEM = (
     "你是字幕校准流程里的**独立评审智能体**，与提出改动的校准智能体互为制衡。\n"
@@ -826,7 +839,9 @@ def parse_tool_requests(raw: str):
                 req[k] = None
         req["num"] = str(item.get("num") or "").strip()
         reqs.append(req)
-    return reqs[:2]
+    # v2（2026-11-18）：这里不再截断到 2 —— 由调用方 `_ask_block` 截断并
+    # 明确告知模型「其余未执行」，避免模型以为所有请求都已回填。
+    return reqs[:8]
 
 
 #: 音画证据工具名（run_tools 分发用）
@@ -1417,7 +1432,8 @@ def calibrate(src: str, out: str = None, report: str = None, mode_flag: str = ""
               think_rounds: int = 0,
               chat_for_member=None,
               cluster=None,
-              orig_title: str = None) -> dict:
+              orig_title: str = None,
+              decision_client=None) -> dict:
     """Agent 级 AI 校准主流程（详见模块 docstring）。
 
     baseline=True 时先跑术语脚本得到基线（推荐：机械部分零成本且必定正确）；
@@ -2089,6 +2105,10 @@ def calibrate(src: str, out: str = None, report: str = None, mode_flag: str = ""
             except Exception as e:  # noqa: BLE001
                 _log_do(log, f"  ⚠ 学习沉淀异常：{e}", "err")
 
+        # Jev 只复核已通过机械校验的 accepted；绝不回写 accepted 或字幕产物。
+        from features.calibrate.calib_decision import apply_shadow
+        apply_shadow(result, decision_client, log=log)
+
         # 报告
         _write_report(report, src, out, mode_flag, round_no, result, rules)
         _append_adopt_section(report, (result.get("meta") or {}).get("_adopted") or [])
@@ -2199,12 +2219,17 @@ def _ask_block(chat, mode_flag, rules_txt, chunk, round_no, max_tokens, log, tic
     _tr_cap = (think_rounds if (think_rounds and think_rounds > 0)
                else HARD_MAX_THINK_ROUNDS)
     if (web or media) and tool_round < _tr_cap:
-        reqs = parse_tool_requests(raw)
+        all_reqs = parse_tool_requests(raw)
+        reqs = all_reqs[:2]          # 单轮上限 2 个（v2：超出部分明确告知模型）
+        dropped = len(all_reqs) - len(reqs)
         if reqs:
             kinds = "、".join(dict.fromkeys(
                 (r.get("tool") or "?") for r in reqs))
             _log_do(log, f"  ⌕ 模型发起工具请求（{kinds}，{len(reqs)} 个请求，"
                          f"第 {tool_round + 1}/{_tr_cap} 轮）…")
+            if dropped:
+                _log_do(log, f"  · 本次共 {len(all_reqs)} 个请求，"
+                             f"单轮只执行前 2 个，已忽略 {dropped} 个")
             if stats is not None:
                 stats["tool_calls"] = stats.get("tool_calls", 0) + len(reqs)
             # 证据按通道分派回填位：联网结果进 evidence、音画结果进
@@ -2220,15 +2245,22 @@ def _ask_block(chat, mode_flag, rules_txt, chunk, round_no, max_tokens, log, tic
                 sub = [r for r in reqs if (r.get("tool") or "") not in web_kinds]
                 if sub:
                     media_part = run_tools(sub, None, media=media)
+            if dropped:
+                note = (f"\n（注：本轮你请求了 {len(all_reqs)} 个工具，"
+                        f"单轮上限 2 个，其余 {dropped} 个未执行；"
+                        "请基于已回填证据下结论，不要重复请求。）")
+                web_part = (web_part or "") + note
             return _ask_block(chat, mode_flag, rules_txt, chunk, round_no,
                               max_tokens, log, tick, style, with_ref, prev_text,
                               scope_text, attempt, think, "",
                               web=web, media=media,
                               tool_round=tool_round + 1,
-                              evidence=(evidence + "\n\n" + web_part)
-                              if web_part else evidence,
-                              media_evidence=(media_evidence + "\n\n" + media_part)
-                              if media_part else media_evidence,
+                              evidence=(_clip_evidence(evidence + "\n\n" + web_part)
+                                        if web_part else evidence),
+                              media_evidence=(_clip_evidence(
+                                  media_evidence + "\n\n" + media_part,
+                                  MAX_MEDIA_EVIDENCE_CHARS)
+                                  if media_part else media_evidence),
                               stats=stats, think_rounds=think_rounds)
     changes, status = parse_changes(raw)
     if status == "ok":
@@ -3069,4 +3101,40 @@ def _write_report(path, src, out, mode_flag, round_no, result, rules) -> None:
               "并把本轮采纳明细作为 `prev_changes` 传入以防回退。",
               "- 本报告不改变时间轴与格式：SRT 的序号 / 时间轴 / 英文行 / "
               "空行 / 换行 / BOM 均由校验脚本逐条断言。"]
+
+    # 附加节保持旧「六、备注 / 七、官方核对」编号契约，只追加 Jev 证据。
+    decision = result.get("decision") or {}
+    lines += ["", "## 附：Jev 结构化影子复核（不改动已校验字幕）", "",
+              "- 激活：%s；模式：%s；采纳项：%d；选中：%d；Jev 成功：%d；"
+              "本地闸门：%d；超预算：%d"
+              % ("是" if decision.get("active") else "否",
+                 decision.get("mode") or "off", decision.get("accepted_total", 0),
+                 decision.get("selected", 0), decision.get("jev_evaluated",
+                                                           decision.get("evaluated", 0)),
+                 decision.get("gated", 0), decision.get("truncated", 0))]
+    if decision.get("gate_reasons"):
+        lines.append("- 本地闸门原因：%s" % "、".join(
+            "%s=%d" % (k, v) for k, v in decision["gate_reasons"].items()))
+    if not decision.get("active"):
+        lines.append("- 未激活原因：%s" % (decision.get("reason") or "not_configured"))
+    if decision.get("items"):
+        lines += ["", "| 序号 | 结论 | 置信度 | 概率 | 状态 |",
+                  "| --- | --- | --- | --- | --- |"]
+        import json as _json
+        for item in decision["items"]:
+            if item.get("status") == "ok":
+                lines.append("| %s | %s | %.3f | %s | 已记录 |" % (
+                    item.get("num"), item.get("choice"),
+                    float(item.get("confidence") or 0.0),
+                    _json.dumps(item.get("probabilities") or {},
+                                ensure_ascii=False, sort_keys=True).replace("|", "/")))
+            elif item.get("status") == "gated":
+                lines.append("| %s | %s | — | — | 本地闸门：%s |" % (
+                    item.get("num"), item.get("choice"),
+                    str(item.get("gate") or "-").replace("|", "/")))
+            else:
+                lines.append("| %s | — | — | — | 降级：%s |" % (
+                    item.get("num"), str(item.get("reason") or "-").replace("|", "/")))
+    lines.append("> Jev 不生成替换文本；questionable 仅为复核建议，不会撤销本轮采纳项。")
+    lines.append("> 本地证据闸门在 Jev 之前拦截目标冲突/非最小替换；Jev 只复核干净替换。")
     _write_text(path, "\n".join(lines) + "\n")

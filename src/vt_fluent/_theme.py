@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.0.0
+# @version 3.1.0
 """vt_fluent 主题引擎（自研，替代 qfluentwidgets.common.config / style_sheet / font）。
 
 定位：Fluent 风格主题层的单一权威。上层控件（_buttons/_inputs/_display/...）
