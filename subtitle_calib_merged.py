@@ -4571,7 +4571,6 @@ JA_CONTEXT = [
     # ⚠ 拒绝登记：「果苷/苷/残星会苷/残星会oshi/残星会des」短键级联坏串、
     #   「光伏发电→PV」纯拉丁化（破坏 verify 版式）、K01-K07 低置信、K08 观众昵称、
     #   以及只在 fix.tsv 落地的整句精修，详见 回灌清单_r2.md。
-    (r"フラクトシデス|フラクトシ", "果糖苷", "残星会"),   # 2026-11-17 r3：#3266「像是果糖苷似的」整串
 ]
 
 
@@ -10629,27 +10628,6 @@ ENDFIELD_BI_CONTEXT = [
     #    机翻「北巷」为误转写，英文参考行锚定。
     (r"\bindigo\b", "靛蓝", "浸蓝"),
     (r"\bnorthlane\b", "北巷", "Northlane"),
-    (r"\bcriteri(?:a|on)\b", "标准", "指标"),
-    (r"\bcriteri(?:a|on)\b", "分数", "指标"),
-    (r"\bprestige\b", "声望", "指标总计"),
-    (r"\bprestige\b", "威望", "指标总计"),
-    (r"\bkeystones?\b", "基石", "密钥指标"),
-    (r"\bkeystones?\b", "关键石", "密钥指标"),
-    (r"\bmeta\s+teams?\b", "元团队", "环境队"),
-    (r"\bmeta\s+teams?\b", "元队", "环境队"),
-    (r"\bplayer\s+agency\b", "代理机构", "自主权"),
-    (r"\binflictions?\b|\bafflictions?\b", "感染", "附着"),
-    (r"\binflictions?\b|\bafflictions?\b", "痛苦", "附着"),
-    (r"\bstella\b", "斯特拉", "埃特拉"),
-    (r"\bstella\b", "史黛拉", "埃特拉"),
-    (r"\bstella\b", "Stella", "埃特拉"),
-    (r"\bmonument\b", "本影碑", "影拓丰碑"),
-    (r"\bmonument\b", "本影丰碑", "影拓丰碑"),
-    (r"\bmonument\b", "暗影碑", "影拓丰碑"),
-    (r"\bmonument\b", "暗影丰碑", "影拓丰碑"),
-    (r"\bmonument\b", "谦卑碑", "影拓丰碑"),
-    (r"\bmonument\b", "谦卑丰碑", "影拓丰碑"),
-    (r"umbr", "Umbral", "影拓丰碑"),  # 长形先于 Umbra：否则 Umbra 裸键把 Umbral 咬成「影拓丰碑l」
 ]
 
 
@@ -12635,9 +12613,6 @@ _MODE_TERM_TABLE = {
     #   与既有 `ak`（英语原声/中文行通道）互斥：那条参考行是英语，本条是日语。
     #   运行期 engine 用 AK_TERMS ∪ AK_JA_TERMS 合并表，本表只登记**增量**那张。
     "akja": "AK_JA_TERMS",
-    "ssv": "SSV_TERMS",
-    "arcak": "ARCAK_TERMS",
-    "tga26": "TGA_TERMS",
 }
 
 _MODE_CTX_TABLE = {
@@ -12961,7 +12936,7 @@ ENTITIES = [
     Entity('忘记恐惧', modes=('bi', 'react'), en='Forget Fear', ja='', ko='', category='PV/鸣潮3.8', variants=(), ctx=(), exclude=(), note='莉莉角色 PV 官方中文名《忘记恐惧》（Forget Fear，2026-11-10 公开，17 分钟短片）。核心台词「至少这样……我能救下一个人。」；谷翻多已正确，登记供跨语识别。'),
     Entity('绮梦织香', modes=('bi', 'react'), en='Dream Weaving', ja='', ko='', category='异能/鸣潮3.8', variants=(), ctx=(), exclude=(), note='莉莉异能力官方中文=绮梦织香（英文 Dream Weaving）；调香编织幻梦疗愈精神创伤。谷翻 dream weaver 作「织梦者」属描述义，保留；登记官方异能名供跨语识别。'),
     Entity('长离', modes=('bi', 'react'), en='Changli', ja='', ko='', category='角色/鸣潮', variants=('Chang Lee',), ctx=(('\\bChang\\s+Lee\\b', '张李'),), exclude=(), note='今州角色，官方中文=长离（Changli）。本片 ASR「Chang Lee」，谷翻「张李」；中置信保留，若画面/音频另有指代则回退。'),
-    Entity('伊冯', modes=('endobi', 'endo', 'endoko'), en='Yvonne', ja='', ko='', category='角色/终末地', variants=('Yvon',), ctx=(), exclude=(), note='6★限定冰系（2026-02-24 实装），特种技术部门时尚人设；已有 Yvonne/Ivonne/Ivon 键，本片补 Yvon 拼写（长键 Yvonne 先行不互咬）。'),
+    Entity('伊冯', modes=('bi', 'react'), en='Yvonne', ja='', ko='', category='角色/终末地', variants=('Ivonne', 'Ivon', '伊冯娜'), ctx=(), exclude=(), note='《明日方舟：终末地》角色，官方中文=伊冯（Yvonne）。本片 #350 以「Ivonne」作对比；bi 模式补录，避免跨游戏片源残留音译。'),
     Entity('守岸人', modes=('bi', 'react'), en='The Shorekeeper', ja='', ko='', category='角色/鸣潮', variants=('Shopkeeper',), ctx=(('\\b(?:Shopkeeper|Shorekeeper|Shortkeeper)\\b', '店主'), ('\\b(?:Shopkeeper|Shorekeeper|Shortkeeper)\\b', '掌柜')), exclude=(), note='4.0 预告 reaction #47/49/72/121：ASR 把 Shorekeeper 听成 Shopkeeper，谷翻字面「店主/掌柜」；两词是通用词，只走英文参考行锚定，不进扁平表。'),
     Entity('鸣式', modes=('bi', 'react'), en='Threnodian', ja='', ko='', category='术语/鸣潮', variants=('Theronodian', 'Thernodian'), ctx=(('\\b(?:Theronodian|Thernodian|Threnodian)\\b', '塞罗诺德人'), ('\\b(?:Theronodian|Thernodian|Threnodian)\\b', '塞罗诺迪安'), ('\\b(?:Theronodian|Thernodian|Threnodian)\\b', '瑟诺迪亚人'), ('\\b(?:Theronodian|Thernodian|Threnodian)\\b', '特诺迪安')), exclude=(), note='4.0 预告 reaction #151/152/180/185：ASR Theronodian/Thernodian，谷翻「塞罗诺德人/塞罗诺迪安/瑟诺迪亚人/特诺迪安」；旧元组已有瑟诺迪人/Thurnodian。'),
     Entity('残象', modes=('bi', 'react'), en='Tacet Discord', ja='', ko='', category='术语/鸣潮', variants=('passive discord',), ctx=(('\\b(?:passive|tacet|tacid|taca)\\s+discords?\\b', '被动不和谐'), ('\\b(?:passive|tacet|tacid|taca)\\s+discords?\\b', '被动不和')), exclude=(), note='4.0 预告 reaction #48：ASR 把 Tacet Discord 听成 passive discord，谷翻「被动不和谐的大事」；通用短语只走英文锚定。'),
@@ -13306,7 +13281,7 @@ ENTITIES = [
     Entity('会监', modes=('bi',), en='Overseer', ja='', ko='', category='组织/残星会', variants=(), ctx=(), exclude=(), note='残星会五会监；英文 Overseer；谷翻作监工/监督者/监督员，走参考行锚定；2026-10-30 #424/#425/#431/#434/#664。'),
     Entity('尤诺', modes=('ja',), en='Iuno', ja='ユウノ/ユーノ/ユノ', ko='', category='角色/鸣潮2.6七丘', variants=(), ctx=(('ユウ[ノナ]|ユノ|ゆうの', '优诺'), ('ユウ[ノナ]|ユノ|ゆうの', '优野'), ('ユウ[ノナ]|ユノ|ゆうの', '优乃'), ('ユウ[ノナ]|ユノ|ゆうの', '优牛'), ('ユウ[ノナ]|ユノ|ゆうの', '优音'), ('ユウ[ノナ]|ユノ|ゆうの', '尤娜'), ('ユウ[ノナ]|ユノ|ゆうの', '尤那'), ('ユウ[ノナ]|ユノ|ゆうの', '勇乃'), ('ユウ[ノナ]|ユノ|ゆうの', '由乃'), ('ユウ[ノナ]|ユノ|ゆうの', '结野'), ('ユウ[ノナ]|ユノ|ゆうの', '艾尤')), exclude=(), note='鸣潮 2.6 七丘「谕女」尤诺（Iuno，姓氏西比尔；官方档案「月相轮转之间，我以我为锚点」）。ASR ユウノ/ユーノ/ユノ/ユウナ 被谷翻成 优诺/优野/优乃/优牛/优音/尤娜/尤那/勇乃/由乃/结野/艾尤。「优诺」是酸奶品牌、「优野」是日本人名，全部走日语锚定；2026-10-30 #50/#52/#261/#605 等。'),
     Entity('莉莉贝', modes=('ja',), en='', ja='リリベル', ko='', category='角色/鸣潮2.6七丘', variants=(), ctx=(('リリベル.*おばあ', '莉莉贝尔奶奶'), ('リリベル.*おばあ', 'Lilibel奶奶'), ('リリベル.*おばあ', '莉莉贝尔的祖母'), ('リリベル.*おばあ', '莉莉贝的祖母'), ('リリベル', '莉莉贝尔'), ('リリベル', 'Lilibel'), ('リリベル', '莉莉伯')), exclude=(), note='鸣潮 2.6 七丘谕女之首「莉莉贝」婆婆（萌娘百科 NPC 表：莉莉贝 / 谕女之首 / 婆婆 / 七丘桑古伊斯狩原四方殿）。官方中文=莉莉贝（非莉莉贝尔）；谷翻音译 莉莉贝尔/Lilibel/莉莉伯，走日语锚定；2026-10-30 #726/#984/#995 等。'),
-    Entity('谕女', modes=('bi',), en='Priestess', ja='', ko='', category='身份/鸣潮2.4七丘', variants=(), ctx=(('(?=.*\\bpriestess\\b)(?=.*\\b(?:Septimont|Septemviri|Agon|lunar eclipse|Lahai|Roya)\\b)', '女祭司'),), exclude=(), note="七丘的预言者官方中文=谕女（灰机 wiki 七丘页：四方殿谕女们的预言已然宣示）。机翻作'女祭司'；该词为通用宗教称谓，只在与 Septimont/Agon/lunar eclipse 等同现时锚定。"),
+    Entity('谕女', modes=('ja',), en='', ja='諭し/サトシの女', ko='', category='组织/鸣潮2.6七丘', variants=(), ctx=(('サトシの女|さとしの女', '中本聪家族的女性'), ('サトシの女|さとしの女', '中本聪家族'), ('サトシの女|さとしの女', '中本聪的女人'), ('サトシの女|さとしの女', '中本聪女性'), ('サトシの女|さとしの女', '中本聪'), ('サトシの女|さとしの女', '中智的女人'), ('サトシの女|さとしの女', '中智女性'), ('サトシの女|さとしの女', '中智'), ('サトシの女|さとしの女', '聪家的女性'), ('サトシの女|さとしの女', '聪的女人'), ('サトシの女|さとしの女', '聪女'), ('サトシの女|さとしの女', '中本的女人'), ('サトシの女|さとしの女', '中本女性'), ('サトシの女|さとしの女', '小智的女人'), ('サトシの女|さとしの女', '小聪的女人')), exclude=(), note='鸣潮 2.6 七丘「谕女」（七丘的预言家；官方「谕女给出的预言通常具有绝对的效力」）。日语 ASR 把 諭し(さとし) 写成 サトシ，谷翻当成中本聪：中本聪/中智/聪女/中本女性 等 14 形。锚点强制 サトシの女/さとしの女（裸 サトシ 可能是观众名），绝不裸键；2026-10-30 #211/#328/#1361 等。'),
     Entity('四方殿', modes=('ja',), en='', ja='テトラゴン神殿', ko='', category='地点/鸣潮2.6七丘', variants=(), ctx=(('テトラゴン神殿', '四边神庙'), ('テトラゴン神殿', '四边形神殿'), ('テトラゴン神殿', '四角神庙'), ('テトラゴン神殿', '寺庙')), exclude=(), note='鸣潮 2.6 七丘四方殿（官方「四方殿，窥察命运、转述记录预言之所，亦为七丘谕女们的居处」）。日 テトラゴン神殿；谷翻 四边神庙/四边形神殿/四角神庙/寺庙，全部走日语锚定；2026-10-30 #703/#1350/#1805 等。'),
     Entity('元老院', modes=('ja',), en='', ja='元老院/元農院', ko='', category='组织/鸣潮2.6七丘', variants=(), ctx=(('元[老農]院', '前农民'), ('元[老農]院', '参议院')), exclude=(), note='鸣潮 2.6 七丘元老院（与总督奥古斯塔对立）。ASR 元農院 被谷翻成「前农民」（#123），「参议院」为另一误译（#1970）；走日语锚定。'),
     Entity('布里奥', modes=('ja',), en='', ja='ブリオ', ko='', category='角色/鸣潮2.6七丘', variants=(), ctx=(('ブリオ', '布利奥'), ('ブリオ', '布里欧')), exclude=(), note='鸣潮 2.6 第九幕礼官布里奥（官方版本说明：「名为布里奥的礼官邀你重返营地」）。日 ブリオ；2026-10-30 #121/#122/#861。'),
@@ -13844,34 +13819,6 @@ ENTITIES = [
     Entity('明日方舟', modes=('akko',), en='Arknights', ja='', ko='명일방주', category='作品/明日方舟', variants=(), ctx=(('명방|명일\\s*방주', 'Myungbang'), ('명일\\s*방주', '明日之战')), exclude=(), note='官方对照表 明日方舟/Arknights/명일방주；韩语缩略 명방。⚠ 명빵 是「명방+빵(面包)」谐音梗，字形不同不会被本锚点命中，一校有意保留，禁止改成「明日方舟」。'),
     Entity('干员', modes=('akko',), en='Operator', ja='', ko='오퍼레이터', category='术语/明日方舟', variants=(), ctx=(('후방\\s*지원\\s*오퍼레이터', '后方支援人员'),), exclude=(), note='官方术语「干员」；一校 decisions.md 已归一 操作员/运营商/接线员/运算符，r2 补「后方支援人员」漏网。用完整词锚定，不改裸「人员」。'),
     Entity('边狱巴士', modes=('akko',), en='Limbus Company', ja='', ko='림버스', category='作品/联动', variants=(), ctx=(('림버스', '边缘'),), exclude=(), note='一校 --akko 既定口径「边狱巴士」（decisions.md 明定保留，联网点验显示「边狱公司」亦为通行名，属口径变更非漏校）。机翻把 림버스 音近词误作「边缘」，靠韩语行锚定。'),
-    Entity('联盟工团', modes=('endobi', 'endo', 'endoko'), en="United Workers' Syndicate of Talos-II (UWST)", ja='', ko='', category='势力/终末地', variants=('UWST', 'DWST'), ctx=(), exclude=(), note='塔卫二全联盟工团；四号谷地即其运营区、全星最大工矿机械制造商。本片英文行 DWST/UWST 混拼系同一组织（YouTube ASR 变体），官中=联盟工团。'),
-    Entity('贝克', modes=('endobi', 'endo', 'endoko'), en='Baker', ja='', ko='', category='系统/终末地', variants=('Baker',), ctx=(), exclude=(), note='游戏内干员即时通讯应用（in-game messaging app），干员自动分配账号；官中=贝克。只收中文行拉丁残留形。'),
-    Entity('协议源石', modes=('endobi', 'endo', 'endoko'), en='PROTORIG', ja='', ko='', category='科技/终末地', variants=('Protorig', 'PROTORIG', 'protorig'), ctx=(), exclude=(), note="Protocol-Originium 合成词：终末地工业核心科技网络，干员腕表装置即其存储终端；官中=协议源石。本片 'protorig menu' 即腕表菜单。"),
-    Entity('四号谷地', modes=('endobi', 'endo', 'endoko'), en='Valley 4 / Valley IV', ja='', ko='', category='区域/终末地', variants=('Valley 4', 'Valley Four', 'Valley IV', 'Valley-IV', 'Valley-4'), ctx=(), exclude=(), note='终末地开篇区域；已有「第四谷/谷地4区」裸键与 valley 上下文锚，本批补拉丁全形——谷翻常把 Latin 原样留在中文行。'),
-    Entity('汤汤', modes=('endobi', 'endo', 'endoko'), en='Tangtang', ja='', ko='', category='角色/终末地', variants=('Tang Tang', 'Tangtang'), ctx=(), exclude=(), note="6★冰系，清波寨大当家阮湯湯（2026-03-12 实装）；「汤」是姓氏非糖果，TapTap 攻略误写「唐糖」勿采。长键先行防既有裸键 Tang 把 'Tang Tang' 咬成「汤汤 汤汤」。"),
-    Entity('萤石', modes=('endobi', 'endo', 'endoko'), en='Fluorite', ja='', ko='', category='角色/终末地', variants=('Fluorite',), ctx=(), exclude=(), note="辅助干员，寒冷+自然双附着；已有 Florite/氟石 键，本片坐实正确拼写 Fluorite（谷翻 'floor item' 系其误听——Karasu-chan 萤石同人图）。"),
-    Entity('战争回响', modes=('endobi', 'endo', 'endoko'), en='Echoes of War', ja='', ko='', category='玩法/终末地', variants=('战争的回声', '战争回声', '《战争回声》', 'Echoes of War'), ctx=(), exclude=(), note='赛季制常驻挑战玩法（权限等阶 40+）；官中=战争回响，谷翻「战争的回声」。'),
-    Entity('雪松林', modes=('endobi',), en='Forest Snow Zone', ja='', ko='', category='区域/终末地', variants=(), ctx=(('forest\\s+snow|snow\\s+zone', '森林雪区'),), exclude=(), note='1.5「雪凇幽梦」武陵雪原林地（雪降深林活动区）；已有雪风林/Cedar Forest 键。「雪区」裸错形过短不入，仅锚 forest snow / snow zone。'),
-    Entity('空间式UI', modes=('endobi',), en='spatial UI', ja='', ko='', category='术语/UI', variants=(), ctx=(('\\bspatial\\b', '特殊UI'),), exclude=(), note="游戏 UI 四分类之一：存在于游戏世界空间但角色不感知（本片杂兵头顶血条例）；本片英文行 'special UI' 系 spatial UI 误听（large-v3 音证）。"),
-    Entity('卡瓦莎', modes=('ja', 'bi', 'react'), en='Kavasha', ja='カサンドラ', ko='', category='鸣潮/新联邦·第五战区', variants=(), ctx=(), exclude=(), note='3.8「予以明日的花束」第五战区指挥官、利亚姆之母。日语版名カサンドラ与官中「卡瓦莎」不同；谷翻错形 卡桑德拉/卡珊德拉/恩多拉 已由 JA_TERMS/bilingual 裸键覆盖。'),
-    Entity('格姆', modes=('ja', 'bi', 'react'), en='Grim', ja='グリム', ko='', category='鸣潮/灵魂列车·钢琴家', variants=(), ctx=(), exclude=(), note='3.8 列车亡魂钢琴家，曲《脱下蓝色衣装的黎明》献给敌兵友人。「格林」为通用词禁裸键，走 JA_CONTEXT グリム 锚定。'),
-    Entity('梅塔', modes=('ja', 'bi', 'react'), en='Meta', ja='メタ', ko='', category='鸣潮/心之集域·现任主人', variants=(), ctx=(), exclude=(), note='3.8 心之集域现任主人，黑白猫为其仆从；与莉莉交易「精炼」污秽频率。「元/Meta/猫元」为通用词禁裸键，本片窄锚 メジャーちょっとまだ→梅塔 仅覆盖 Major 误留。'),
-    Entity('莉莉·格蕾丝', modes=('ja', 'bi', 'react'), en='Lily Grace', ja='リリー・グレース', ko='', category='鸣潮/调香师·共鸣者', variants=(), ctx=(), exclude=(), note='3.8 主角，联邦城调香师、共鸣者战争受害者，灵魂列车临时列车长；全名莉莉·格蕾丝。「莉莉」为常见名禁裸键；说话人变体「“莉莉”/战争中的莉莉」仅官方标签，字幕无标签不补。'),
-    Entity('三位一体', modes=('endo', 'endobi'), en='Triaggelos', ja='', ko='', category='BOSS/终末地1.7', variants=('特里亚戈洛斯',), ctx=(), exclude=(), note='1.7 起加入影拓丰碑轮换的首领；官方简中=三位一体（内部名 eny_0045_agtrinit）。本片谷翻按英文音译成「特里亚戈洛斯」。'),
-    Entity('阮一', modes=('endo', 'endobi'), en='Ruan Yi', ja='', ko='', category='敌人首领/终末地', variants=('鲁阿尼',), ctx=(), exclude=(), note='终末地首领战敌人；官方简中=阮一（warfarin.wiki 敌人表同形）。本片英文 ASR 拼写 Ruani，谷翻音译「鲁阿尼」。'),
-    Entity('埃弗拉德金库', modes=('bi', 'react'), en='Averardo Vault', ja='', ko='', category='地点/鸣潮2.0', variants=('阿尔瓦拉多拱顶', '阿尔瓦拉多金库'), ctx=(('\\b(?:Averardo|Alvarado)\\s+[Vv]ault\\b', '阿尔瓦拉多'),), exclude=(), note="黎那汐塔拉古那的家族金库，官方中文=埃弗拉德金库（灰机 wiki 黎那汐塔页）。ASR/机翻作 Alvarado/Alvarado vault，谷翻'阿尔瓦拉多拱顶'；整串生僻形裸键安全，裸'阿尔瓦拉多'为西语姓氏，只走 vault 参考行锚定。"),
-    Entity('梦魇声骸', modes=('bi',), en='Nightmare Echo', ja='', ko='', category='术语/声骸', variants=('噩梦声骸',), ctx=(), exclude=(), note="鸣潮 2.x 声骸类别 Nightmare Echo 官方中文=梦魇声骸；机翻常作'噩梦声骸'。整串唯一，裸键安全；单字'噩梦'为常用词不收。"),
-    Entity('专注模式', modes=('bi',), en='Focus Mode', ja='', ko='', category='系统/鸣潮', variants=(), ctx=(('\\bFocus\\s+[Mm]ode\\b', '对焦模式'),), exclude=(), note="游戏 UI 的画质/滤镜辅助功能 Focus Mode，官方中文=专注模式；机翻按相机术语作'对焦模式'。'对焦模式'另有摄影本义，只走参考行锚定。"),
-    Entity('伴星故事', modes=('bi',), en='Companion Story', ja='', ko='', category='系统/鸣潮', variants=(), ctx=(('\\bCompanion\\s+stor(?:y|ies)\\b', '伴侣故事'), ('\\bCompanion\\s+stor(?:y|ies)\\b', '同伴故事')), exclude=(), note="鸣潮角色专属剧情 Companion Story 官方中文=伴星故事（任务入口作'伴星任务'）。机翻作'伴侣故事/同伴故事'，均为通用短语，只走 Companion Story 参考行锚定。"),
-    Entity('哥舒林', modes=('bi', 'ja'), en='Geshu Lin', ja='', ko='', category='角色/鸣潮/今州', variants=('加舒林', '葛舒林', '哥苏林'), ctx=(), exclude=(), note='鸣潮今州前将军哥舒林（Geshu Lin）；谷翻/ASR 常见 加舒林/葛舒林。整串生僻形裸键安全；不挂 react，避免主播口播同音误伤。'),
-    Entity('愿您的灵魂不再迷惘', modes=('bi', 'ja', 'ko'), en='', ja='', ko='', category='台词/鸣潮3.8', variants=('愿你的灵魂不再游荡', '愿您的灵魂不再游荡', '愿你的灵魂不再迷惘'), ctx=(), exclude=(), note='莉莉在灵魂列车上送别亡魂的口头禅，官方中文=「愿您的灵魂不再迷惘」。机翻常作「愿你的灵魂不再游荡」；整句锚定，裸键安全。'),
-    Entity('疚刃', modes=('ak',), en='Jiuren', ja='', ko='', category='创作者/明日方舟', variants=(), ctx=(), exclude=(), note='B 站《明日方舟》二创作者，原视频 BV16Vap6yEGP；官方简介署名 Jiuren（疚刃）。ASR/谷翻作 Yoren/Yoden/尤伦/约伦，规则在 ark.py 2026-11-18 块。'),
-    Entity('冰嘘', modes=('ak',), en='Bingxu', ja='', ko='', category='创作者/明日方舟', variants=(), ctx=(), exclude=(), note='B 站创作者，原简介署名 Bingxu（冰嘘），BV1opHK6TE8T；ASR 作 Bingxiu/Bing Shoe。'),
-    Entity('JinRey', modes=('ak',), en='JinRey', ja='', ko='', category='创作者/动画', variants=(), ctx=(), exclude=(), note='韩国动画师，阿洛娜舞源头；ASR 作 Jin Ray/Jinray。官方简介署名 JinRey。'),
-    Entity('阿洛娜', modes=('ak',), en='Arona', ja='', ko='', category='角色/蔚蓝档案', variants=(), ctx=(), exclude=(), note='《蔚蓝档案》向导角色 Arona，国服官网译名「阿洛娜」；维基/民间多作「阿罗娜」。错形「阿罗娜」只走 AK_CONTEXT 的 Arona 锚定（禁裸键，避免跨作品误伤）。'),
-    Entity('地球Online', modes=('ak',), en='Earth Online', ja='', ko='', category='梗/网络', variants=(), ctx=(), exclude=(), note='中文网络梗「地球Online」（现实生活=平衡稀烂的网游）；错形「地球在线」在 AK_TERMS。'),
-    Entity('鳄鱼叔叔', modes=('ak',), en='Uncle Croc', ja='', ko='', category='梗/网络', variants=(), ctx=(), exclude=(), note='地球Online 梗：活了约两亿年、策划动不了的玩家；ASR/谷翻作 Uncle Croc/鳄鱼大叔。'),
-    Entity('陈雪凝', modes=('ak',), en='Chen Xuening', ja='', ko='', category='歌手', variants=(), ctx=(), exclude=(), note='《绿色》演唱者（2019 发行）；「春水」系谷翻音译错形，只走 AK_CONTEXT 的 Chun Shui 锚定。'),
 ]
 
 # ===== text.py =====
