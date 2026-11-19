@@ -5429,8 +5429,8 @@
    "right": "明日方舟",
    "mode": "bi",
    "count": 6,
-   "uncorrected": 0,
-   "status": "confirmed",
+   "uncorrected": 27,
+   "status": "candidate",
    "cues": [
     6,
     9,
@@ -5441,11 +5441,16 @@
    ],
    "samples": [],
    "ref_tokens": {},
-   "unc_ref_tokens": {},
+   "unc_ref_tokens": {
+    "Aka": 1,
+    "Arth": 1
+   },
    "first": "2026-10-05",
    "last": "2026-10-19",
    "alts": {},
-   "sync": true
+   "sync": true,
+   "demoted": true,
+   "ctx_regex": ""
   },
   "bi|开襟衫": {
    "wrong": "开襟衫",
@@ -6061,7 +6066,7 @@
    "right": "卡缇",
    "mode": "bi",
    "count": 1,
-   "uncorrected": 0,
+   "uncorrected": 5,
    "status": "candidate",
    "cues": [
     70
@@ -6075,14 +6080,17 @@
     ]
    ],
    "ref_tokens": {
-    "Cardi": 21,
-    "shipper": 21,
-    "won't": 21,
-    "him": 21,
-    "inner": 21,
-    "but": 21
+    "Cardi": 42,
+    "shipper": 42,
+    "won't": 42,
+    "him": 42,
+    "inner": 42,
+    "but": 42
    },
-   "unc_ref_tokens": {},
+   "unc_ref_tokens": {
+    "Cheer": 1,
+    "Cardia": 1
+   },
    "first": "2026-10-05",
    "last": "2026-10-05",
    "alts": {},
@@ -6774,7 +6782,7 @@
    "right": "心月狐女士",
    "mode": "bi",
    "count": 1,
-   "uncorrected": 1,
+   "uncorrected": 3,
    "status": "candidate",
    "cues": [
     2008
@@ -6788,11 +6796,11 @@
     ]
    ],
    "ref_tokens": {
-    "calls": 147,
-    "management": 147,
-    "modular": 147,
-    "Lady": 147,
-    "Sheen": 147
+    "calls": 294,
+    "management": 294,
+    "modular": 294,
+    "Lady": 294,
+    "Sheen": 294
    },
    "unc_ref_tokens": {},
    "first": "2026-10-05",
@@ -8450,8 +8458,8 @@
    "right": "黎那汐塔",
    "mode": "bi",
    "count": 2,
-   "uncorrected": 0,
-   "status": "confirmed",
+   "uncorrected": 2,
+   "status": "candidate",
    "cues": [
     754,
     2548
@@ -8462,7 +8470,9 @@
    "first": "2026-10-07",
    "last": "2026-10-19",
    "alts": {},
-   "sync": true
+   "sync": true,
+   "demoted": true,
+   "ctx_regex": ""
   },
   "bi|索罗诺迪安人": {
    "wrong": "索罗诺迪安人",
@@ -14345,8 +14355,8 @@
    "right": "卡提",
    "mode": "bi",
    "count": 2,
-   "uncorrected": 0,
-   "status": "confirmed",
+   "uncorrected": 1,
+   "status": "candidate",
    "cues": [
     1077,
     1917
@@ -14357,7 +14367,9 @@
    "first": "2026-11-15",
    "last": "2026-11-15",
    "alts": {},
-   "sync": true
+   "sync": true,
+   "demoted": true,
+   "ctx_regex": ""
   },
   "bi|你不过是海浪上的泡沫": {
    "wrong": "你不过是海浪上的泡沫",
