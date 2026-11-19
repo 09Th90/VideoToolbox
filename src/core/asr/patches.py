@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.1.0
+# @version 3.1.1
 """vc ASR 补丁（协议注入 / 分块几何 / 非中英占比守卫）（v2.3.1 拆分工程 · 自 video_toolbox.py 原样搬入）。
 
 core/asr 域：ASR 全协议适配 + vc 转录补丁；依赖规则见 core/__init__.py。
@@ -7,6 +7,7 @@ core/asr 域：ASR 全协议适配 + vc 转录补丁；依赖规则见 core/__in
 import time
 
 from core.shared.log import _vc_log
+from core.asr.enum_compat import enum_like
 from core.asr.protocol import (
     ASR_FILETRANS_POLL_MAX, ASR_INLINE_AUDIO_MAX_RAW, ASR_WS_FRAME_BYTES,
     _asr_assemblyai_submit, _asr_azure_submit, _asr_chat_audio_submit,
@@ -162,6 +163,18 @@ def vc_asr_protocol_patch():
         vc_asr_chunk_patch()
     except Exception as e:  # noqa: BLE001
         _vc_log(f"分块补丁挂载失败：{e}")
+    try:
+        vc_asr_local_model_patch()
+    except Exception as e:  # noqa: BLE001
+        _vc_log(f"本地 ASR 模型名补丁挂载失败：{e}")
+    try:
+        vc_asr_print_config_patch()
+    except Exception as e:  # noqa: BLE001
+        _vc_log(f"转录配置打印补丁挂载失败：{e}")
+    try:
+        vc_builtin_asr_error_patch()
+    except Exception as e:  # noqa: BLE001
+        _vc_log(f"内置 ASR 提示补丁挂载失败：{e}")
     return True
 
 
@@ -213,6 +226,198 @@ def vc_asr_chunk_patch():
     _tr._create_whisper_api_asr = _create
     _tr._vt_chunk_patched = True
     _vc_log("ASR 分块补丁已挂：chat_audio 协议块长压到 170s（默认 600s 超上限）")
+    return True
+
+
+def _normalize_local_asr_config(config) -> None:
+    """把引擎转录配置里可能被覆盖成字符串的枚举字段包成双兼容对象。
+
+    覆盖点（本地独立模型链路）：
+      · ``faster_whisper_model`` —— ``asr_local_override`` 写的模型名；
+      · ``faster_whisper_vad_method`` —— 兼容手改/旧任务里的字符串取值；
+      · ``whisper_model`` —— WhisperCpp 分支同样按 ``.value`` 取；
+      · ``transcribe_model`` —— 字符串时按枚举值还原，避免分支派发落空。
+    """
+    if config is None:
+        return
+    try:
+        from videocaptioner.core.entities import TranscribeModelEnum
+        model = getattr(config, "transcribe_model", None)
+        if model is not None and not hasattr(model, "value"):
+            try:
+                config.transcribe_model = TranscribeModelEnum(str(model))
+            except (ValueError, KeyError, TypeError):
+                pass
+    except Exception:  # noqa: BLE001
+        pass
+    for field in ("faster_whisper_model", "whisper_model",
+                  "faster_whisper_vad_method", "output_format"):
+        try:
+            value = getattr(config, field, None)
+            if value is not None and not hasattr(value, "value"):
+                setattr(config, field, enum_like(value))
+        except Exception:  # noqa: BLE001 - 单个字段失败不影响其余字段
+            pass
+
+
+def _friendly_builtin_asr_error(exc):
+    """把内置免费通道（必剪/剪映）的底层异常翻成可操作的提示。
+
+    2026-11-19 第三方反馈：B 接口 task/result 一律 412（风控）、12 小时窗口
+    累计 6 小时额度、J 接口签名服务 403 / submit 1014 system busy——用户
+    只会看到裸 HTTPError，不知道下一步该做什么。这里统一引导到自有 ASR
+    服务；不尝试绕过平台风控（加 Cookie/伪造 Referer 之类一律不做）。
+    """
+    text = str(exc or "")
+    resp = getattr(exc, "response", None)
+    status = getattr(resp, "status_code", None)
+    url = str(getattr(resp, "url", "") or "")
+
+    if "duration limit exceeded" in text:
+        return ("B 接口（必剪）免费额度已用尽：12 小时内累计音频不得超过 6 小时，"
+                "1~2 小时长片两三条即触顶。请改用自有 ASR 服务："
+                "设置 → ASR 语音识别 → 转录模型来源选「服务模式（OpenAI 兼容）」，"
+                "填地址 / 密钥 / 模型。")
+    if "bkfeng.top" in text or ("sign" in url and status in (401, 403, 404)):
+        return ("J 接口（剪映）签名服务已不可用（第三方签名端 403/下线），"
+                "无法再提交任务。请改用自有 ASR 服务"
+                "（设置 → ASR 语音识别 → 服务模式）。")
+    if status == 412 or "412 Client Error" in text:
+        return ("B 接口（必剪）结果端点被整体风控（HTTP 412，与 model_id / "
+                "task_id 无关），当前不可用。请改用自有 ASR 服务"
+                "（设置 → ASR 语音识别 → 服务模式）。")
+    if "1014" in text or "system busy" in text:
+        return ("J 接口（剪映）服务端拒绝（system busy / 1014），接口暂不可用。"
+                "请改用自有 ASR 服务（设置 → ASR 语音识别 → 服务模式）。")
+    if status in (401, 403) and "bilibili" in url:
+        return ("B 接口（必剪）鉴权被拒（HTTP %s），接口当前不可用。"
+                "请改用自有 ASR 服务。" % status)
+    return ""
+
+
+def vc_builtin_asr_error_patch():
+    """内置免费通道的异常提示补丁（幂等，引擎 bcut/jianying 本体不改）。
+
+    B 接口（BcutASR）/ J 接口（JianYingASR）失败时不再把裸 HTTPError /
+    system busy 抛到界面，而是给出「换自有 ASR 服务」的可操作提示。
+    """
+    try:
+        import importlib as _il
+        modules = (_il.import_module("videocaptioner.core.asr.bcut"),
+                   _il.import_module("videocaptioner.core.asr.jianying"))
+    except Exception as e:  # noqa: BLE001
+        _vc_log(f"内置 ASR 提示补丁导入失败：{e}")
+        return False
+
+    def _wrap(cls):
+        if cls is None or getattr(cls, "_vt_err_patched", False):
+            return False
+        orig = cls.run
+
+        def _run(self, *args, **kwargs):
+            try:
+                return orig(self, *args, **kwargs)
+            except Exception as e:  # noqa: BLE001
+                hint = _friendly_builtin_asr_error(e)
+                if hint:
+                    raise RuntimeError(hint) from e
+                raise
+
+        _run.__name__ = "run"
+        _run.__doc__ = getattr(orig, "__doc__", None)
+        cls.run = _run
+        cls._vt_err_patched = True
+        return True
+
+    patched = False
+    for mod, cls_name in ((modules[0], "BcutASR"),
+                          (modules[1], "JianYingASR")):
+        if _wrap(getattr(mod, cls_name, None)):
+            patched = True
+    if patched:
+        _vc_log("内置 ASR 异常提示补丁已挂：B/J 接口失败给出可操作提示")
+    return True
+
+
+def vc_asr_print_config_patch():
+    """引擎 ``TranscribeConfig.print_config()`` 的 str/枚举双兼容（幂等）。
+
+    2026-11-19 第三方完整堆栈：
+    ``transcript_thread.py:27 run`` → ``entities.py:604 print_config`` →
+    ``'str' object has no attribute 'value'``。这条比构造 ASR 更早：
+    转录线程启动第一件事就是打印配置，而 FASTER_WHISPER 分支对
+    ``faster_whisper_model`` / ``faster_whisper_vad_method`` 直接取 ``.value``，
+    本地独立模型名（含枚举外自定义名）是纯字符串，于是线程还没进入
+    ``transcribe`` 就崩了——上一轮只补了 ``_create_asr_instance``，
+    漏了这里，本补丁专门堵这一环。
+    """
+    try:
+        import importlib as _il
+        _ent = _il.import_module("videocaptioner.core.entities")
+    except Exception as e:  # noqa: BLE001
+        _vc_log(f"转录配置打印补丁导入失败：{e}")
+        return False
+    cls = getattr(_ent, "TranscribeConfig", None)
+    if cls is None or not callable(getattr(cls, "print_config", None)):
+        _vc_log("转录配置打印补丁未挂：引擎缺少 TranscribeConfig.print_config")
+        return False
+    if getattr(cls, "_vt_cfg_print_patched", False):
+        return True
+    orig = cls.print_config
+
+    def print_config(self):
+        _normalize_local_asr_config(self)
+        return orig(self)
+
+    print_config.__name__ = "print_config"
+    print_config.__doc__ = getattr(orig, "__doc__", None)
+    cls.print_config = print_config
+    cls._vt_cfg_print_patched = True
+    _vc_log("转录配置打印补丁已挂：print_config 兼容字符串模型名/VAD 方法")
+    return True
+
+
+def vc_asr_local_model_patch():
+    """本地 faster-whisper 模型名兼容补丁（幂等，引擎 transcribe 本体不改）。
+
+    2026-11-18 第三方反馈：本地独立模型转录必弹
+    ``'str' object has no attribute 'value'``。根因是 ``asr_local_override()``
+    把模型名写成纯字符串（``large-v3`` / 枚举外自定义名），而引擎
+    ``transcribe._create_faster_whisper_asr`` 按枚举取
+    ``config.faster_whisper_model.value``。
+
+    这里在 ``_create_asr_instance`` 入口统一归一化配置字段：
+    任务来源无论是我方任务工厂、引擎自带 TaskFactory，还是队列里的旧任务，
+    都不会再把 str 当枚举取值。源头侧另有
+    ``engine_task_factory._apply_asr_override`` 的同类修复（写配置时就兼容）。
+    """
+    try:
+        import importlib as _il
+        _tr = _il.import_module("videocaptioner.core.asr.transcribe")
+    except Exception as e:  # noqa: BLE001
+        _vc_log(f"本地 ASR 模型名补丁导入失败：{e}")
+        return False
+    if getattr(_tr, "_vt_local_model_patched", False):
+        return True
+    # 同一类兼容问题：线程启动第一步的 print_config 也按 .value 取模型名，
+    # 单独调用本补丁时一并挂上，避免「只挂构造入口仍崩」的半吊子状态。
+    try:
+        vc_asr_print_config_patch()
+    except Exception as e:  # noqa: BLE001
+        _vc_log(f"转录配置打印补丁挂载失败：{e}")
+    orig = getattr(_tr, "_create_asr_instance", None)
+    if not callable(orig):
+        _vc_log("本地 ASR 模型名补丁未挂：引擎 transcribe 缺少 _create_asr_instance")
+        return False
+
+    def _create(*args, **kwargs):
+        config = args[1] if len(args) > 1 else kwargs.get("config")
+        _normalize_local_asr_config(config)
+        return orig(*args, **kwargs)
+
+    _tr._create_asr_instance = _create
+    _tr._vt_local_model_patched = True
+    _vc_log("本地 ASR 模型名兼容补丁已挂：字符串模型名按 .value 兼容引擎枚举取值")
     return True
 
 
@@ -284,6 +489,9 @@ def _ts_probe_ok(kind):
 __all__ = [
     "vc_asr_protocol_patch",
     "vc_asr_chunk_patch",
+    "vc_asr_local_model_patch",
+    "vc_asr_print_config_patch",
+    "vc_builtin_asr_error_patch",
     "asr_non_zh_en_ratio",
     # vc_asr_protocol_patch 的翻译服务枚举迁移常量（拆分前在单体顶层，
     # golden 常量基线钉有；facade 经 core.asr.__all__ 再导出）

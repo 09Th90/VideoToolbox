@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.1.0
+# @version 3.1.1
 """download 功能清单。后端 core.download.job（v2.3.1 已拆好的域包）。"""
 from features._registry import CliCommand, FeatureSpec, GuiSpec
 

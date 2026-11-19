@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.1.0
+# @version 3.1.1
 """视频下载页（2026-11-15 功能解耦阶段③：从 video_toolbox_qt.py 拆出，逐字同源）。
 
 * 容器页：「视频下载 / 音画合并 / 视频切片」三个子板块，merge/split 经注册表

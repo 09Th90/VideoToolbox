@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.1.0
+# @version 3.1.1
 """引擎「转录配置」注入（自有 ASR 服务 / 本地模型 → 引擎 settings.json）（v2.3.1 拆分工程 · 自 video_toolbox.py 原样搬入）。
 
 v2.3.1 拆分工程；域间依赖规则见 core/__init__.py。
@@ -15,6 +15,7 @@ from core.shared.vcsettings import (apply_global_llm_to_engine,
                                      _loaded_engine_cfg,
                                      _vc_read_settings,
                                      _vc_write_settings)
+from core.asr.enum_compat import enum_like
 
 # ---------- 引擎「转录配置」：独立 ASR（自有服务 / 本地模型） ----------
 # 引擎的转录模型是枚举项（B 接口 / J 接口 / Whisper [API] ✨ / FasterWhisper ✨），
@@ -177,7 +178,9 @@ def vc_asr_patch_apply():
                 tcfg = getattr(task, "transcribe_config", None)
                 if tcfg is not None:
                     if model:
-                        tcfg.faster_whisper_model = model
+                        # ⚠ 双兼容对象：引擎按 .value 取模型名；裸 str 会让
+                        # 本地 faster-whisper 转录必崩（2026-11-18 反馈）。
+                        tcfg.faster_whisper_model = enum_like(model)
                     if model_dir:
                         tcfg.faster_whisper_model_dir = model_dir
             # 识别语言（2026-10-12）：显式语言时直接写进 TranscribeConfig。

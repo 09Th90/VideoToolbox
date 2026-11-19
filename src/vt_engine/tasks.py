@@ -1,4 +1,4 @@
-# @version 3.1.0
+# @version 3.1.1
 """任务工厂（自研，替代 videocaptioner.ui.task_factory.TaskFactory）。
 
 以自研设置层（``vt_engine.config.cfg``）+ 自研数据类
@@ -106,6 +106,27 @@ def asr_local_override():
     return model, model_dir
 
 
+def _model_name_value(model):
+    """模型名 → 双兼容对象（既能取 ``.value``，又保持字符串语义）。
+
+    本地独立模型名（含枚举外自定义名）是纯字符串；引擎 transcribe 按枚举取
+    ``config.faster_whisper_model.value``，裸 str 会让本地转录必崩
+    （``'str' object has no attribute 'value'``，2026-11-18 第三方反馈）。
+    """
+    try:
+        from core.asr.enum_compat import enum_like
+        return enum_like(model)
+    except Exception:  # noqa: BLE001 - 兜底：绝不让建任务本身失败
+        class _EnumLike(str):
+            __slots__ = ()
+
+            @property
+            def value(self):
+                return str(self)
+
+        return _EnumLike(model)
+
+
 def _asr_language_label() -> str:
     """显式识别语言标签（空/「自动检测」表示不强制）。"""
     mod = _ai_mod()
@@ -208,7 +229,8 @@ class TaskFactory:
                 tcfg = getattr(task, "transcribe_config", None)
                 if tcfg is not None:
                     if model:
-                        tcfg.faster_whisper_model = model
+                        # ⚠ 双兼容对象：引擎按 .value 取模型名（见上方说明）。
+                        tcfg.faster_whisper_model = _model_name_value(model)
                     if model_dir:
                         tcfg.faster_whisper_model_dir = model_dir
             label = _asr_language_label()

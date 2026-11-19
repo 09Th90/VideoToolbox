@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.1.0
+# @version 3.1.1
 """compose 子命令（原 agent_cli.cmd_compose）。
 
 2026-11-15 功能解耦：soft 模式改 import subtitle_compose_core（纯函数、无 Qt），

@@ -1,5 +1,5 @@
 @echo off
-rem @version 3.1.0
+rem @version 3.1.1
 rem Video Toolbox launcher.
 rem
 rem Default: pythonw.exe + start -> the console closes immediately and the

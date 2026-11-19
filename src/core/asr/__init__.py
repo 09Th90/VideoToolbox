@@ -1,12 +1,15 @@
 # -*- coding: utf-8 -*-
-# @version 3.1.0
+# @version 3.1.1
 """转录域（core/asr）：ASR 全协议适配 + vc 引擎转录补丁。
 
 子模块：
   · ``protocol``  协议推断/纠偏/守卫 + 各服务商 submit（OpenAI 兼容/百炼原生/
                   filetrans/实时 WS/Deepgram/ElevenLabs/Gemini/火山/AssemblyAI/
                   Azure）+ 词级时间轴聚合
-  · ``patches``   vc_asr_protocol_patch / vc_asr_chunk_patch / asr_non_zh_en_ratio
+  · ``patches``   vc_asr_protocol_patch / vc_asr_chunk_patch /
+                  vc_asr_local_model_patch / vc_asr_print_config_patch /
+                  vc_builtin_asr_error_patch / asr_non_zh_en_ratio
+  · ``enum_compat``        ASR 配置字段的「枚举 / 字符串」双兼容取值（EnumLike）
   · ``engine_config``      引擎「转录配置」注入（asr_local_override /
                     apply_asr_to_engine / vc_asr_patch_apply）
   · ``voiceprint``         黑窗抑制 + 主播声纹筛选

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.1.0
+# @version 3.1.1
 """本地 ASR 全链自检（可复跑；正向 + **负向**验证）。
 
 覆盖：目录解析优先级、完全离线加载、GPU→CPU 自动降级、缺模型/坏文件报错、
@@ -456,6 +456,55 @@ def main() -> int:
     except Exception as exc:  # noqa: BLE001
         check("T11 FASTER_WHISPER 分支构造不再抛 EnvironmentError", False,
               repr(exc))
+
+    # ---------- T11b 引擎路径：字符串模型名不再 AttributeError ----------
+    # 真实运行走的是引擎线程（videocaptioner.ui.thread.transcript_thread →
+    # videocaptioner.core.asr.transcribe），不是本模块。T11 只验证自研链路，
+    # 2026-11-18 第三方反馈的本地模式必崩正是从这条缝里漏出去的。
+    try:
+        import importlib as _il
+        from core.asr.patches import vc_asr_local_model_patch
+
+        _tr = _il.import_module("videocaptioner.core.asr.transcribe")
+        patched = vc_asr_local_model_patch()
+        from videocaptioner.core.entities import (
+            TranscribeConfig as EngineTC, TranscribeModelEnum as EngineModelEnum)
+
+        # 必须用**真实**引擎 TranscribeConfig：print_config 补丁挂在类上，
+        # 自造假类取不到方法（会把用例本身测成 AttributeError）。
+        cfg_obj = EngineTC(
+            transcribe_model=EngineModelEnum.FASTER_WHISPER,
+            transcribe_language="yue",
+            need_word_time_stamp=False,
+            output_format=None,
+            whisper_model="tiny",
+            faster_whisper_model="large-v3",       # 字符串（补丁覆盖）
+            faster_whisper_model_dir=str(empty_dir),
+            faster_whisper_device="cuda",
+            faster_whisper_vad_filter=True,
+            faster_whisper_vad_threshold=0.4,
+            faster_whisper_vad_method="silero_v4",  # 同样是裸 str
+            faster_whisper_ff_mdx_kim2=False,
+            faster_whisper_one_word=True,
+        )
+        # 真实线程第一行就是 print_config（2026-11-19 第三方堆栈的崩点），
+        # 必须先跑它，再构造实例——两处都要扛住字符串模型名。
+        text = cfg_obj.print_config()
+        check("T11b 引擎 print_config 兼容 str 模型名",
+              patched and "large-v3" in text and "silero_v4" in text,
+              text.splitlines()[0] if text else "")
+        chunked = _tr._create_asr_instance(silence, cfg_obj)
+        check("T11c 引擎路径：str 模型名不再抛 .value",
+              patched
+              and getattr(cfg_obj.faster_whisper_model, "value", None)
+              == "large-v3"
+              and type(chunked).__name__ == "ChunkedASR",
+              "patched=%s model=%r class=%s"
+              % (patched,
+                 getattr(cfg_obj.faster_whisper_model, "value", None),
+                 type(chunked).__name__))
+    except Exception as exc:  # noqa: BLE001
+        check("T11b/T11c 引擎路径：str 模型名全链兼容", False, repr(exc))
 
     # ---------- T12 幻觉过滤 / 音乐标记（行为契约） ----------
     try:

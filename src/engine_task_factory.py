@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.1.0
+# @version 3.1.1
 """自研任务工厂（P2 尾部 · 档 B：接管 ``videocaptioner.ui.task_factory``）。
 
 以**自研代码**重建 ``TaskFactory`` 的构造算法（输出路径命名、按 LLM 服务选配置、
@@ -98,6 +98,32 @@ def _cfg():
 
 def _model_path():
     return _mod("videocaptioner.config").MODEL_PATH
+
+
+def _model_name_value(model):
+    """模型名 → 双兼容对象（既能取 ``.value``，又保持字符串语义）。
+
+    本地独立模型名（``large-v3``，含枚举外的自训练/自定义名）来自
+    ``asr_local_override()``，是**纯字符串**。直接写进
+    ``TranscribeConfig.faster_whisper_model`` 后，引擎
+    ``transcribe._create_faster_whisper_asr`` 会按枚举取
+    ``config.faster_whisper_model.value`` ⇒
+    ``'str' object has no attribute 'value'``（2026-11-18 第三方反馈，
+    本地模式 100% 失败）。包一层 :class:`core.asr.enum_compat.EnumLike`
+    即兼容两套语义，且不改变字符串比较/拼接/日志表现。
+    """
+    try:
+        from core.asr.enum_compat import enum_like
+        return enum_like(model)
+    except Exception:  # noqa: BLE001 - 兜底：绝不让建任务本身失败
+        class _EnumLike(str):
+            __slots__ = ()
+
+            @property
+            def value(self):
+                return str(self)
+
+        return _EnumLike(model)
 
 
 def _engine_helpers():
@@ -255,7 +281,9 @@ class TaskFactory:
                 tcfg = getattr(task, "transcribe_config", None)
                 if tcfg is not None:
                     if model:
-                        tcfg.faster_whisper_model = model
+                        # ⚠ 必须包双兼容对象：引擎按 .value 取模型名（见
+                        # _model_name_value 说明），裸 str 会让本地转录必崩。
+                        tcfg.faster_whisper_model = _model_name_value(model)
                     if model_dir:
                         tcfg.faster_whisper_model_dir = model_dir
             try:

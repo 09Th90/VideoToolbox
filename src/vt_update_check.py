@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.1.0
+# @version 3.1.1
 """视频工具箱 · 主程序侧「检查更新」与自更新（v2.0.0 起）。
 
 定位
@@ -74,7 +74,7 @@ def _find_app_root():
 #: （子进程脚本、自检都要能读）。
 #: 已纳入 scripts/dev/apply_version.py 的同步清单；GUI 启动后还会用
 #: video_toolbox_qt.VERSION 再覆盖一次，保证运行时版本永远与界面一致。
-SELF_VERSION = "3.1.0"
+SELF_VERSION = "3.1.1"
 
 #: 远端清单与版本索引（与安装器默认值一致，固定 tag repo-latest）
 DEFAULT_MANIFEST_URL = ("https://github.com/09Th90/VideoToolbox/releases/"

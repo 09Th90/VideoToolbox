@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.1.0
+# @version 3.1.1
 """status 子命令：环境 / AI 配置自检（原 agent_cli.cmd_status，行为不变）。
 
 2026-11-15 功能解耦：追加 features 可用性总览段（只增字段，向后兼容）。

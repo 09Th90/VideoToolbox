@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.1.0
+# @version 3.1.1
 """Jev / System One 门控、协议与影子不改写自检（全部使用模拟响应，不联网）。"""
 import copy
 import io
