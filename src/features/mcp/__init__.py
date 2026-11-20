@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.1.2
+# @version 3.1.3
 """mcp 功能包：对外 MCP Server（stdio），与 CLI 并列的一等入口。
 
 依赖红线：本包与 mcp_server.py 禁 import CLI 入口层（agent_cli / features.*.cli），

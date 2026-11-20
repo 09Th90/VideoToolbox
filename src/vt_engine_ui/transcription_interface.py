@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.1.2
+# @version 3.1.3
 """自研「语音转录」页（含 ``VideoInfoCard``）。
 
 视觉与引擎转录页对齐；把原本运行期打在引擎类上的转录补丁**内建为显式逻辑**：
@@ -1016,19 +1016,30 @@ class TranscriptionInterface(QWidget):
         event.accept() if event.mimeData().hasUrls() else event.ignore()
 
     def dropEvent(self, event):
+        files = [u.toLocalFile() for u in event.mimeData().urls()]
+        self.import_dropped_files(files)
+
+    def import_dropped_files(self, files):
+        """按路径导入（页内拖放与主窗口全局兜底分派共用同一条路径）。
+
+        全局分派在「语音转录分段在前台」时调这里：拖到分段边缘/导航条等
+        本控件矩形之外的位置，行为与拖在页内完全一致——就地载入待转录，
+        不跳「字幕编辑」。返回 True = 已消费（含处理中拦截/格式错误提示）。
+        """
         self._vt_heal_stale()
         if self.is_processing:
             InfoBar.warning(
                 self.tr("警告"), self.tr("正在处理中，请等待当前任务完成"),
                 duration=_seams.constants.INFOBAR_DURATION_WARNING, parent=self)
-            return
+            return True
         ent = _seams.entities
         supported = ({f.value for f in ent.SupportedVideoFormats}
                      | {f.value for f in ent.SupportedAudioFormats})
-        files = [u.toLocalFile() for u in event.mimeData().urls()]
+        consumed = False
         for file_path in files:
             if not os.path.isfile(file_path):
                 continue
+            consumed = True
             file_ext = os.path.splitext(file_path)[1][1:].lower()
             if file_ext in supported:
                 self.update_info(file_path)
@@ -1040,6 +1051,7 @@ class TranscriptionInterface(QWidget):
                 InfoBar.error(
                     self.tr("格式错误") + file_ext, self.tr("请拖入音频或视频文件"),
                     duration=_seams.constants.INFOBAR_DURATION_ERROR, parent=self)
+        return consumed
 
     def closeEvent(self, event):
         try:

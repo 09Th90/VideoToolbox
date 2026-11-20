@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.1.2
+# @version 3.1.3
 """字幕编辑页的媒体后端：libmpv 播放器封装 + ffmpeg 波形峰值提取。
 
 与界面分离，便于单独调试（本模块只依赖 PySide6 的信号机制，不建任何窗口）。
@@ -310,7 +310,6 @@ class MpvPlayer(QObject):
             hwnd = int(widget.winId())
             self.player = mod.MPV(
                 wid=str(hwnd),
-                osc=False,                      # 控制条自己画
                 input_default_bindings=False,   # 不抢键盘，快捷键由页面统一管
                 input_vo_keyboard=False,
                 hr_seek="yes",                  # 打轴靠它：精确 seek
@@ -326,6 +325,14 @@ class MpvPlayer(QObject):
                 sid="no",
                 log_handler=None,
             )
+            # osc 是 mpv 内置 Lua 脚本的开关：no-Lua 构建里**不存在该选项**
+            # （换 no-Lua 是为修 LuaJIT SEH 0xE24C4A02 逃逸致崩，见
+            # jaseg/python-mpv#305），构造时传会抛 OPTION_NOT_FOUND；
+            # 带 Lua 的旧构建仍要显式关掉（控制条自己画）。故构造后容错设置。
+            try:
+                self.player.osc = False
+            except Exception:  # noqa: BLE001
+                pass
         except Exception as e:  # noqa: BLE001
             self._error = "创建 MPV 实例失败：%s" % e
             self.player = None

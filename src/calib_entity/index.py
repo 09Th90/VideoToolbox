@@ -1,4 +1,4 @@
-# @version 3.1.2
+# @version 3.1.3
 """对象索引层：按模式构建 Aho-Corasick 自动机。
 
 解决两个执行层问题：

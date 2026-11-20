@@ -1,4 +1,4 @@
-<!-- @version 3.1.2 -->
+<!-- @version 3.1.3 -->
 # calib_entity —— 对象级校准（已部署）
 
 > **部署位置**：`src/calib_entity/`（2026-10-19 从根目录迁入）。

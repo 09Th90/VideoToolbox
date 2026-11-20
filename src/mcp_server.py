@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.1.2
+# @version 3.1.3
 """mcp_server —— 视频工具箱 MCP stdio 入口壳（L2，与 CLI 入口同级）。
 
 启动：tools\\python\\python.exe src\\mcp_server.py（stdio 常驻；外部 host 配置

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.1.2
+# @version 3.1.3
 """library 功能清单。GUI「视频库」页；扫盘惰性（用户首次打开才执行）。"""
 from features._registry import FeatureSpec, GuiSpec
 

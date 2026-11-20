@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.1.2
+# @version 3.1.3
 """calibrate 命令编排（原 features/calibrate/cli.py 透传核心，行为不变）。
 
 优先同进程直连 calib_core.cli.main_argv；VT_CALIB_SUBPROCESS=1 或导入失败

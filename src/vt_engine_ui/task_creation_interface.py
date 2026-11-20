@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.1.2
+# @version 3.1.3
 """自研「任务创建」页。
 
 视觉与行为对齐既有引擎工作台的任务创建页，并把原本运行期打上的两处补丁
@@ -409,6 +409,15 @@ class TaskCreationInterface(QWidget):
 
     def dropEvent(self, event):
         files = [u.toLocalFile() for u in event.mimeData().urls()]
+        self.import_dropped_files(files)
+
+    def import_dropped_files(self, files):
+        """按路径导入（页内拖放与主窗口全局兜底分派共用同一条路径）。
+
+        全局分派在「首页/任务创建分段在前台」时调这里：拖到页面空白处、
+        导航条等本控件矩形之外的位置，行为与拖在框内完全一致——就地填
+        输入框，不跳「字幕编辑」。返回 True = 已消费（含格式错误提示）。
+        """
         # 字幕接收（内建，原 make_task_creation_drop_handler）：命中字幕就地收下
         subs = [p for p in files
                 if p and os.path.isfile(p)
@@ -422,8 +431,9 @@ class TaskCreationInterface(QWidget):
                     duration=3000, position=InfoBarPosition.BOTTOM_RIGHT, parent=self)
             except Exception:  # noqa: BLE001
                 pass
-            return
+            return True
         self._drop_media(files)
+        return True
 
     def _drop_media(self, files):
         ent = _seams.entities

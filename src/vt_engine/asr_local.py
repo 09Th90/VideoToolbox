@@ -1,4 +1,4 @@
-# @version 3.1.2
+# @version 3.1.3
 """本地 faster-whisper 收口（复用自研接缝模块 ``engine_asr_local``）。
 
 faster-whisper 是 MIT 组件（保留并登记），作为 local 模式的实现；

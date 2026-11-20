@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.1.2
+# @version 3.1.3
 """视频切片页（2026-11-15 功能解耦阶段③：从 video_toolbox_qt.py 拆出，逐字同源）。
 
 解耦样板页：
@@ -158,6 +158,67 @@ class SplitPage(TabPage):
             self, "选择输出文件夹", self.out_edit.text() or engine.APP_DIR)
         if d:
             self.out_edit.setText(engine.clean_path(d))
+
+    # ---------- 页级拖放（与 MergePage 同模式） ----------
+    # _MergeDropSlot 下沉为共享基建时承诺「拖到槽上」与「拖到页面空白处」
+    # 结果一致（见 widgets.py 注释），靠的是**页级分派**兜底。合并页有这层，
+    # 切片页此前漏了：空白处拖视频一路冒泡到主窗口全局分派 → 跳「字幕编辑」。
+    # 这里补齐：视频就地进源视频槽；非视频 ignore() 放行冒泡，保持原能力。
+    @staticmethod
+    def _drop_paths(e):
+        if not e.mimeData().hasUrls():
+            return []
+        return [u.toLocalFile() for u in e.mimeData().urls()
+                if u.isLocalFile() and u.toLocalFile()]
+
+    def dragEnterEvent(self, e):
+        if self._drop_video(e):
+            e.acceptProposedAction()
+        else:
+            e.ignore()
+
+    def dragMoveEvent(self, e):
+        if self._drop_video(e):
+            e.acceptProposedAction()
+        else:
+            e.ignore()
+
+    def dropEvent(self, e):
+        paths = self._drop_paths(e)
+        if not self._video_of(paths):
+            return                          # 放行冒泡：交主窗口全局分派
+        e.acceptProposedAction()            # 中断冒泡，别跳去字幕编辑
+        self.accept_media(paths)
+
+    def _drop_video(self, e):
+        return bool(self._video_of(self._drop_paths(e)))
+
+    @staticmethod
+    def _video_of(paths):
+        for p in paths or []:
+            p = engine.clean_path(p)
+            if (p and os.path.isfile(p)
+                    and os.path.splitext(p)[1].lower() in VIDEO_EXTS):
+                return p
+        return ""
+
+    def accept_media(self, paths):
+        """视频就地归位到源视频槽；返回 True = 已接收。
+
+        页级 dropEvent 与主窗口兜底分派**共用同一条路径**（同 MergePage
+        .accept_media）：拖到页面边缘 / 顶部导航条 / 窗口边框时本页收不到
+        dragEnter，事件冒泡到主窗口，那里先问一句"切片页在前台吗"，是就
+        调这里，行为与拖在页面正中完全一致。
+        """
+        video = self._video_of(paths)
+        if not video:
+            return False
+        self.src_slot.set_path(video)
+        # 换源即废掉旧预览（与 pick_video 同语义，防止拿旧段表切新视频）
+        self._plan = None
+        self.plan_table.setRowCount(0)
+        self.log.line("[拖入] 视频 %s" % os.path.basename(video), "ok")
+        return True
 
     # ---------- 解析 ----------
     def _build_plan(self):

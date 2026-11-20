@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.1.2
+# @version 3.1.3
 """下载依赖引导（yt-dlp / ffmpeg / deno / libmpv，首次运行自动落 tools\\）。
 
 P2：依赖下载优先走 Range 分段（core.download.segment），失败回退 urllib 单流。
@@ -32,7 +32,10 @@ _GITHUB_HOSTS = frozenset({
     "github.com", "codeload.github.com", "objects.githubusercontent.com",
     "raw.githubusercontent.com", "release-assets.githubusercontent.com",
 })
-_MPV_DLL_SHA256 = "6f059354c5c45b41192cc52d867d94c0044edb48207c4efd2ea1244208c55359"
+#: no-Lua 构建（2026-11-20）：带 LuaJIT 的旧 DLL 在嵌入式场景会以 SEH
+#: 0xE24C4A02 逃逸致崩（jaseg/python-mpv#305），换 -Dlua=disabled 构建。
+#: 旧 SHA 6f059354…（deps-mpv-lgpl-20260914）保留可回滚。
+_MPV_DLL_SHA256 = "8ccd4ce4382a3e46de1185fac60905ee7b099be47919e57c3a0062730a35236c"
 _MIN_YTDLP_SIZE = 1 << 20
 _MIN_DENO_SIZE = 1 << 20
 _MIN_FFMPEG_SIZE = 1 << 20
@@ -308,7 +311,7 @@ def ensure_ffmpeg():
 
 
 MPV_DLL_URL = ("https://github.com/09Th90/VideoToolbox/releases/download/"
-               "deps-mpv-lgpl-20260914/libmpv-2.zip")
+               "deps-mpv-nolua-20261120/libmpv-2.zip")
 
 
 def ensure_mpv_dll(mpv_dir):
@@ -326,7 +329,7 @@ def ensure_mpv_dll(mpv_dir):
     os.makedirs(mpv_dir, exist_ok=True)
     zpath = os.path.join(TOOLS_DIR, "_libmpv.zip")
     try:
-        _download(MPV_DLL_URL, zpath, "libmpv 播放组件（约 39MB，仅首次）",
+        _download(MPV_DLL_URL, zpath, "libmpv 播放组件（约 40MB，仅首次）",
                   mirrors=_githubMirrors(MPV_DLL_URL))
         with zipfile.ZipFile(zpath) as z:
             bad = z.testzip()

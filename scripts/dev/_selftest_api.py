@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.1.2
+# @version 3.1.3
 """_selftest_api —— L1 API 层自检（2026-11-20 三层独立改造）。
 
   1  spec  sanity：11 命令 / 8 可反射命令 35 参数 / calibrate 33 模式旗标

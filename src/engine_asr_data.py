@@ -1,4 +1,4 @@
-# @version 3.1.2
+# @version 3.1.3
 """ASR 字幕数据模型（自研，替代 videocaptioner.core.asr.asr_data）。
 
 P1 接缝之二：把第三方引擎的 ``ASRData`` / ``ASRDataSeg`` 公开面迁到本项目

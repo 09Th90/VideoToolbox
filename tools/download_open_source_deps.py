@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.1.2
+# @version 3.1.3
 """下载开源依赖（不参与安装包构建，一律从网上拉取）。
 
 所有第三方开源组件都由本脚本在安装后/运行时从官方开源地址下载到 tools/ 目录：
@@ -67,18 +67,24 @@ DENO_ZIP = ("https://github.com/denoland/deno/releases/latest/download/"
 NODE_VERSION = "22.23.3"
 NODE_ZIP = f"https://nodejs.org/dist/v{NODE_VERSION}/node-v{NODE_VERSION}-win-x64.zip"
 
-# libmpv（LGPL 构建）：字幕编辑页的视频播放后端（打轴要用它做精确 seek 与逐帧）。
+# libmpv（LGPL + no-Lua 构建）：字幕编辑页的视频播放后端（打轴要用它做精确 seek 与逐帧）。
 # 为什么走自有 release 而不是上游 zhongfly/mpv-winbuild：
 #   ① 上游资产可访问性有波动（实测出现过直连 RemoteDisconnected）；
 #   ② 上游只发 .7z，该包含 **BCJ2 过滤器**，py7zr 解不了，会额外要求用户机器
 #      装 7-Zip；改为分发 zip 后，运行时用 Python 内置 zipfile 即可解压，
 #      零额外依赖（代价是压缩包大 12MB，值得）。
+# 为什么 no-Lua（2026-11-20 换）：上游所有变体（含 LGPL）都静态编入 LuaJIT，
+#   嵌入式场景（Python + Qt）里 mpv 事件线程的 Lua 错误传播以 SEH 0xE24C4A02
+#   逃逸进宿主进程致崩（jaseg/python-mpv#305），load_scripts=False 无效。
+#   自有 fork（09Th90/mpv-winbuild @ f073bc5）在 LGPL 补丁链上追加
+#   -Dlua=disabled -Djavascript=disabled 云端构建。旧 deps-mpv-lgpl-20260914
+#   （SHA 6f059354…）保留可回滚。
 # 许可：LGPL 构建（不含 x264/x265 等 GPL-only 组件），动态链接使用，
 #       不随安装包再分发。
 MPV_ZIP = ("https://github.com/09Th90/VideoToolbox/releases/download/"
-           "deps-mpv-lgpl-20260914/libmpv-2.zip")
-MPV_DLL_SHA256 = "6f059354c5c45b41192cc52d867d94c0044edb48207c4efd2ea1244208c55359"
-MPV_RELEASE_PAGE = "https://github.com/09Th90/VideoToolbox/releases/tag/deps-mpv-lgpl-20260914"
+           "deps-mpv-nolua-20261120/libmpv-2.zip")
+MPV_DLL_SHA256 = "8ccd4ce4382a3e46de1185fac60905ee7b099be47919e57c3a0062730a35236c"
+MPV_RELEASE_PAGE = "https://github.com/09Th90/VideoToolbox/releases/tag/deps-mpv-nolua-20261120"
 
 # 主播声纹模型（3D-Speaker CAM++，中文 16k，输出 192 维，约 27MB）。
 # 用途：本地判定「谁是主播」，把非主播（他人 / BGM / 歌声）从字幕里筛掉——
@@ -267,7 +273,7 @@ def install_mpv() -> None:
     python-mpv 会报 "Cannot find mpv-1.dll / libmpv-2.dll in your system %PATH%"
     —— 那是预期行为，不是安装失败。
     """
-    print("[4/6] libmpv（字幕编辑页播放后端，LGPL，压缩包约 39MB）")
+    print("[4/6] libmpv（字幕编辑页播放后端，LGPL no-Lua，压缩包约 40MB）")
     dst_dir = TOOLS / "mpv"
     dll = dst_dir / "libmpv-2.dll"
     if dll.exists() and dll.stat().st_size > 0:

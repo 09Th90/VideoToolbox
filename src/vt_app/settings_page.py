@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.1.2
+# @version 3.1.3
 """全局设置页（2026-11-15 功能解耦阶段③：从 video_toolbox_qt.py 拆出，逐字同源）。
 
 壳层页面（非可选功能）：全程序唯一全局设置——目录 / 下载 Cookie / 全局 AI /
@@ -1761,8 +1761,12 @@ class SettingsPage(QWidget):
             InfoBar.info("已取消", "更新已取消，程序保持当前版本", duration=4000,
                          position=InfoBarPosition.BOTTOM_RIGHT, parent=self)
             return
+        deferred = (result or {}).get("deferred") or 0
         InfoBar.success("更新已就绪",
-                        "文件已更新完毕，程序将退出并自动重新打开", duration=5000,
+                        "文件已更新完毕，程序将退出并自动重新打开"
+                        + ("（含 %d 个被占用文件，退出后替换）" % deferred
+                           if deferred else ""),
+                        duration=5000,
                         position=InfoBarPosition.BOTTOM_RIGHT, parent=self)
         # 落地后需要替换运行中的 exe：派发脚本，等主进程退出后再换。
         self._schedule_self_replace()

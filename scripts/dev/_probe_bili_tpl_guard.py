@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.1.2
+# @version 3.1.3
 """V2：「自动投稿」模板缺失拦截 / 放行 / 引导 —— GUI 探针（v2.4.2 热修配套）。
 
 VT_DATA_ROOT 隔离（其下无 auto_vision/bili → 真实缺模板场景）；

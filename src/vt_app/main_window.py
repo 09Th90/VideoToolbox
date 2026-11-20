@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.1.2
+# @version 3.1.3
 """主窗口（2026-11-15 功能解耦阶段③：从 video_toolbox_qt.py 拆出，逐字同源）。
 
 壳层编排：FluentWindow + 注册表驱动的功能页挂载 + 消息总线 + 跨屏收敛 +
@@ -1392,6 +1392,45 @@ class MainWindow(FluentWindow):
                 and self.merge_page.accept_media(videos + audios + subs)):
             msgs.append("已载入到音画合并（手动合并）")
             videos, audios, subs = [], [], []
+        # 0.5) 「当前页认领」（全局拖放修复）：视频/音频优先就地交给**当前
+        #    页面自己的输入口**，与 v1.16.4 字幕按当前页分流同一原则——
+        #    拖到页面边缘 / 顶部导航条 / 窗口边框（这些位置页面控件收不到
+        #    dragEnter，事件冒泡到这里）应与拖在页面正中行为一致，而不是
+        #    一律跳「字幕编辑」。认领顺序：首页任务创建框 → 字幕工作台当前
+        #    分段（语音转录）→ 视频切片源视频槽。都没认领才走默认路由。
+        #    全部经 _lazy_real 取真身：绝不为了分派一条拖放去构造惰性页。
+        if videos or audios:
+            media = videos + audios
+            claimed = False
+            try:
+                cur = self.stackedWidget.currentWidget()
+                if cur is self.home_page:
+                    home = _lazy_real(self.home_page)
+                    tc = getattr(home, "task_creation", None)
+                    if tc is not None:
+                        claimed = bool(tc.import_dropped_files(media))
+                        if claimed:
+                            msgs.append("已导入到任务创建：" +
+                                        os.path.basename(media[0]))
+                elif cur is self.subtitle_page:
+                    sp = _lazy_real(self.subtitle_page)
+                    if sp is not None and sp.claim_dropped_media(media):
+                        claimed = True
+                        msgs.append("已载入到语音转录：" +
+                                    os.path.basename(media[0]))
+                elif cur is self.download_page:
+                    dp = _lazy_real(self.download_page)
+                    split = getattr(dp, "split_page", None)
+                    if (split is not None
+                            and dp.stack.currentWidget() is split
+                            and split.accept_media(media)):
+                        claimed = True
+                        msgs.append("已载入到视频切片：" +
+                                    os.path.basename(media[0]))
+            except Exception as e:  # noqa: BLE001
+                _perf_note(f"当前页认领拖放失败：{e}")
+            if claimed:
+                videos, audios = [], []
         # 1) 目录 → 视频库
         if dirs:
             d = dirs[0]
@@ -1414,8 +1453,17 @@ class MainWindow(FluentWindow):
         # 边框时（这些位置任务创建页收不到 dragEnter，事件冒泡到这里）就会
         # 莫名跳页，用户看到的就是"拖到边缘跳字幕编辑"。
         if subs:
-            home = getattr(self.subtitle_page, "_engine_home", None)
-            if home is not None and self._in_subtitle_workbench():
+            wb = _lazy_real(self.subtitle_page)
+            home = getattr(wb, "_engine_home", None)
+            # 引擎构建失败（_built 但无 _engine_home）时不走分派——pending
+            # 永远不会被消费，字幕会凭空丢失；退回默认路由至少能载入。
+            engine_failed = (wb is not None and home is None
+                             and getattr(wb, "_built", False))
+            # 全局拖放修复：去掉 home is not None 守卫——引擎未就绪（冷态）
+            # 时 _dispatch_created_task 自带 pending 路径（切页占位 + 构建完
+            # 自动续跑），此前冷态字幕会落回默认路由跳「字幕编辑」，与
+            # v1.16.4「首页/工作台内字幕按类型分流」的既定行为不一致。
+            if self._in_subtitle_workbench() and not engine_failed:
                 try:
                     self.subtitle_page._dispatch_created_task(home, subs[0])
                     msgs.append("已载入到字幕处理：" + os.path.basename(subs[0]))

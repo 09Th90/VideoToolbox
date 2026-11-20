@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.1.2
+# @version 3.1.3
 """字幕工作台页（2026-11-15 功能解耦阶段③：从 video_toolbox_qt.py 拆出，逐字同源）。
 
 * 内嵌字幕引擎工作台（vt_engine_ui 自研优先，videocaptioner 回退），预热三段
@@ -663,6 +663,44 @@ class SubtitlePage(QWidget):
             return home.stackedWidget.currentWidget() is self.calib_page
         except Exception:  # noqa: BLE001
             return False
+
+    def active_segment(self):
+        """引擎工作台当前在前台的分段控件；未构建返回 None（不触发构建）。"""
+        home = getattr(self, "_engine_home", None)
+        if home is None:
+            return None
+        try:
+            return home.stackedWidget.currentWidget()
+        except Exception:  # noqa: BLE001
+            return None
+
+    def claim_dropped_media(self, paths):
+        """全局兜底分派：本页在前台时按当前分段认领视频/音频。
+
+        与 v1.16.4 字幕按当前页分流同一原则——拖到页面之外（边缘/导航条）
+        应与拖在页内行为一致，而不是一律跳「字幕编辑」：
+          · 语音转录分段 → 就地载入待转录（与页内 dropEvent 同路径）；
+          · 其余分段（字幕翻译/校准等）不认领视频/音频，交回全局默认路由
+            （与各分段自身 dropEvent 对视频的行为一致）。
+        任务创建分段已搬去首页（adopt），由主窗口首页分支处理。
+        返回 True = 已消费。
+        """
+        home = getattr(self, "_engine_home", None)
+        if home is None:
+            return False
+        seg = self.active_segment()
+        if seg is None:
+            return False
+        files = [p for p in (engine.clean_path(x) for x in (paths or []))
+                 if p and os.path.isfile(p)]
+        if not files:
+            return False
+        try:
+            if seg is home.transcription_interface:
+                return bool(home.transcription_interface.import_dropped_files(files))
+        except Exception as e:  # noqa: BLE001
+            _perf_note(f"转录分段认领拖放失败：{e}")
+        return False
 
     def _build_now(self, busy_text):
         if self._built:

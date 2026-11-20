@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.1.2
+# @version 3.1.3
 """核实 origin/main 相对 HEAD 是否真有未合并条目（行集合 / 候选键集合差集）。"""
 import json
 import os

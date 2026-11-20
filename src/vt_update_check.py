@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.1.2
+# @version 3.1.3
 """视频工具箱 · 主程序侧「检查更新」与自更新（v2.0.0 起）。
 
 定位
@@ -74,7 +74,7 @@ def _find_app_root():
 #: （子进程脚本、自检都要能读）。
 #: 已纳入 scripts/dev/apply_version.py 的同步清单；GUI 启动后还会用
 #: video_toolbox_qt.VERSION 再覆盖一次，保证运行时版本永远与界面一致。
-SELF_VERSION = "3.1.2"
+SELF_VERSION = "3.1.3"
 
 #: 远端清单与版本索引（与安装器默认值一致，固定 tag repo-latest）
 DEFAULT_MANIFEST_URL = ("https://github.com/09Th90/VideoToolbox/releases/"
@@ -676,10 +676,14 @@ set "NEW=%(new)s"
 set "OLD=%(old)s"
 set "BACKUP=%(backup)s"
 rem 等主进程彻底退出（onefile 父进程可能比界面进程活得更久）
+rem ⚠ system32 绝对路径：Git Bash PATH 下裸名 timeout/find 会被 GNU
+rem   coreutils 劫持（GNU find 把 /i 当路径遍历整盘挂死批处理）。
 :wait
-timeout /t 1 /nobreak >nul
-tasklist /fi "imagename eq %(image)s" 2>nul | find /i "%(image)s" >nul
+"%(sys32)s\\timeout.exe" /t 1 /nobreak >nul
+"%(sys32)s\\tasklist.exe" /fi "imagename eq %(image)s" 2>nul | "%(sys32)s\\find.exe" /i "%(image)s" >nul
 if not errorlevel 1 goto wait
+rem 被运行中进程锁住的文件（base_library.zip 等）退出后交换（2026-11-20）
+%(pending)s
 if exist "%%TARGET%%" (
     move /y "%%TARGET%%" "%%BACKUP%%" >nul 2>&1
 )
@@ -738,6 +742,16 @@ def schedule_relaunch(done_path=None, dispatch=True):
     except Exception as e:  # noqa: BLE001
         return False, "无法暂存新版本文件（%s）：%s" % (new, e)
 
+    # 被锁文件（base_library.zip 等）的延迟交换行：apply_staging 写进
+    # _vt_pending，这里嵌进退出后批处理，先于 exe 替换与重启执行。
+    pending = ""
+    mods = load_core()
+    if mods:
+        try:
+            pending = "\n".join(
+                mods[0].pending_batch_lines(os.path.dirname(target)))
+        except Exception:  # noqa: BLE001
+            pending = ""
     body = _REPLACE_SCRIPT % {
         "target": target,
         "new": new,
@@ -745,6 +759,9 @@ def schedule_relaunch(done_path=None, dispatch=True):
         "backup": backup,
         "image": os.path.basename(target),
         "done": done,
+        "pending": pending,
+        "sys32": os.path.join(os.environ.get("SystemRoot", r"C:\Windows"),
+                              "system32"),
     }
     try:
         # ⚠ 必须编码成 ANSI/系统代码页：cmd.exe 读 .cmd 时按 OEM 解码，

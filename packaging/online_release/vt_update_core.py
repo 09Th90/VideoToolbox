@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.1.2
+# @version 3.1.3
 """在线引导安装器 · 核心逻辑（无 UI，可单测）。
 
 ====================================================================
@@ -93,7 +93,7 @@ FALLBACK_DRIVES = ("D:", "E:", "F:", "C:")
 #: 旧版，装新版本会被直接拒（updater_ok 返回 False）。
 #: v2.2.5 起已纳入 scripts/dev/apply_version.py 的 TARGETS，改号自动同步
 #: （此前是手工项，正是这类漂移的来源）。
-SELF_VERSION = "3.1.2"
+SELF_VERSION = "3.1.3"
 #: 安装目录里的本地清单文件名（记录本次安装的文件级 sha256）
 INSTALLED_NAME = "vt_installed.json"
 #: 下载分块（sha256 等本地 IO 用；网络分块在 vt_dl 里）
@@ -802,6 +802,13 @@ def apply_staging(staging, install_dir, manifest, pkg_names, log=None):
             except OSError:
                 pass
 
+    #: 被运行中进程独占锁住、本次换不了的文件（rel 列表）。
+    #: ⚠ 「运行中的 exe 可以重命名」只对 exe/已加载 DLL（映像节）成立；
+    #:   base_library.zip 这类被 bootloader 以**无 FILE_SHARE_DELETE** 方式
+    #:   持有的数据文件，rename 会 WinError 32。此前第一遍 rename 直接炸、
+    #:   整体回滚＝主程序进程内自更新永远失败（2026-11-20 用户报障）。
+    #:   现在：被锁文件延迟到主进程退出后由批处理交换（_vt_pending）。
+    deferred = []
     try:
         # 第一遍：全部目标先改名（快，基本不会失败）
         for rel in targets:
@@ -811,10 +818,18 @@ def apply_staging(staging, install_dir, manifest, pkg_names, log=None):
                 if os.path.exists(old):
                     _quiet_remove(old) if os.path.isfile(old) else \
                         shutil.rmtree(old, ignore_errors=True)
-                os.replace(tgt, old)
+                try:
+                    os.replace(tgt, old)
+                except OSError as e:
+                    if getattr(e, "winerror", None) in (32, 5):
+                        deferred.append(rel)
+                        continue
+                    raise
                 renamed.append((tgt, old))
-        # 第二遍：暂存文件落地
+        # 第二遍：暂存文件落地（被锁的跳过，留给退出后批处理）
         for rel in targets:
+            if rel in deferred:
+                continue
             src = os.path.join(staging, rel.replace("/", os.sep))
             tgt = os.path.join(install_dir, rel.replace("/", os.sep))
             os.makedirs(os.path.dirname(tgt), exist_ok=True)
@@ -824,6 +839,16 @@ def apply_staging(staging, install_dir, manifest, pkg_names, log=None):
         say("落地失败，正在回滚：%s" % e)
         rollback()
         raise UpdateError("落地失败（已回滚到旧版本）：%s" % e)
+
+    # 有被锁文件，或存在旧 pending（本次可能已把它们落地）→ reconciling。
+    # 后者不可省：无锁一轮把旧 pending 的 rel 落地后若不作废，退出后批处理
+    # 会拿旧版 pending 把新文件降级回去。
+    if deferred or read_pending(install_dir):
+        _stage_pending(staging, install_dir, deferred, landed, say)
+    if deferred:
+        say("    %d 个文件被运行中的程序占用，将在退出后替换：%s"
+            % (len(deferred), "、".join(os.path.basename(r) for r in deferred[:5])
+               + ("…" if len(deferred) > 5 else "")))
 
     # 成功：清理 .vtold（删不掉无所谓，多是运行中的 exe，下次更新会覆盖）
     for _tgt, old in renamed:
@@ -836,6 +861,126 @@ def apply_staging(staging, install_dir, manifest, pkg_names, log=None):
             pass
     say("已落地 %d 个文件" % len(landed))
     return len(landed)
+
+
+PENDING_DIR = "_vt_pending"
+PENDING_NAME = "pending.txt"
+
+
+def read_pending(install_dir):
+    """读延迟交换清单（rel 列表，正斜杠）。无清单返回 []。"""
+    p = os.path.join(install_dir, PENDING_DIR, PENDING_NAME)
+    try:
+        with open(p, "r", encoding="mbcs", errors="replace") as fh:
+            return [ln.strip().replace("\\", "/") for ln in fh
+                    if ln.strip() and _safe_rel(ln.strip())]
+    except OSError:
+        return []
+
+
+def _stage_pending(staging, install_dir, deferred, landed, say):
+    """把被锁文件的新版暂存进安装目录 _vt_pending，并 reconciling 清单。
+
+    · 暂存区在 %TEMP%，可能被清理；挪到安装目录同卷（rename 瞬时）才稳。
+    · 清单与批处理同编码（mbcs）：cmd 按 OEM 读，中文路径不乱码。
+    · 旧清单里**本次已落地**的 rel 必须作废——否则退出后批处理拿旧版
+      pending 覆盖刚落地的新版，base_library.zip 会被降级回旧版。
+    """
+    pdir = os.path.join(install_dir, PENDING_DIR)
+    old = read_pending(install_dir)
+    landed_rels = {os.path.relpath(p, install_dir).replace(os.sep, "/")
+                   for p in landed}
+    entries = [r for r in old if r not in landed_rels]
+    for rel in deferred:
+        src = os.path.join(staging, rel.replace("/", os.sep))
+        dst = os.path.join(pdir, rel.replace("/", os.sep))
+        os.makedirs(os.path.dirname(dst), exist_ok=True)
+        if os.path.isfile(dst):
+            _quiet_remove(dst)
+        shutil.move(src, dst)
+        if rel not in entries:
+            entries.append(rel)
+    # 本次已落地的 rel：旧 pending 副本作废清掉（deferred 的已被 move 覆盖）
+    for rel in old:
+        if rel in landed_rels:
+            p = os.path.join(pdir, rel.replace("/", os.sep))
+            _quiet_remove(p) if os.path.isfile(p) else \
+                shutil.rmtree(p, ignore_errors=True)
+    if entries:
+        os.makedirs(pdir, exist_ok=True)
+        tmp = os.path.join(pdir, PENDING_NAME + ".tmp")
+        with open(tmp, "w", encoding="mbcs", errors="replace",
+                  newline="\r\n") as fh:
+            fh.write("\n".join(entries) + "\n")
+        os.replace(tmp, os.path.join(pdir, PENDING_NAME))
+    else:
+        _quiet_remove(os.path.join(pdir, PENDING_NAME))
+        shutil.rmtree(pdir, ignore_errors=True)
+
+
+def pending_batch_lines(install_dir):
+    """生成「主进程退出后交换 _vt_pending」的 cmd 行（列表）。
+
+    每行一对 move：目标改名 .vtold 让位 → pending 新版就位；失败还原。
+    全部成功后删 pending 文件与清单。调用方负责等主进程退出的 wait 循环。
+    """
+    lines = []
+    rels = read_pending(install_dir)
+    if not rels:
+        return lines
+    pdir = os.path.join(install_dir, PENDING_DIR)
+    lines.append('set "VT_PEND=%s"' % pdir)
+    for rel in rels:
+        tgt = os.path.join(install_dir, rel.replace("/", os.sep))
+        src = os.path.join(pdir, rel.replace("/", os.sep))
+        old = tgt + OLD_SUFFIX
+        lines.append('if exist "%s" (' % tgt)
+        lines.append('    move /y "%s" "%s" >nul 2>&1' % (tgt, old))
+        lines.append('    move /y "%s" "%s" >nul 2>&1' % (src, tgt))
+        lines.append('    if errorlevel 1 (')
+        lines.append('        if exist "%s" move /y "%s" "%s" >nul 2>&1'
+                     % (old, old, tgt))
+        lines.append('    ) else (')
+        lines.append('        if exist "%s" del /q "%s" >nul 2>&1' % (old, old))
+        lines.append('        if exist "%s" del /q "%s" >nul 2>&1' % (src, src))
+        lines.append('    )')
+        lines.append(')')
+    lines.append('del /q "%s" >nul 2>&1'
+                 % os.path.join(pdir, PENDING_NAME))
+    return lines
+
+
+def write_pending_batch(install_dir, work_dir, image, restart=True,
+                        done=None):
+    """独立等待批处理：等主进程退出 → 交换 pending →（可选）重启。
+
+    供在线安装器路径用（主程序进程内自更新走 schedule_relaunch 的内嵌行）。
+    返回脚本路径；无 pending 返回 ""。
+    """
+    body_lines = pending_batch_lines(install_dir)
+    if not body_lines:
+        return ""
+    stamp = time.strftime("%Y%m%d-%H%M%S")
+    script = os.path.join(work_dir, "finish_pending_%s.cmd" % stamp)
+    done = done or os.path.join(work_dir, "last_pending_result.txt")
+    # ⚠ timeout/tasklist/find 必须走 system32 绝对路径：Git Bash 环境下
+    #   PATH 里 usr/bin 在前，裸名会解析到 GNU coreutils 的 timeout/find——
+    #   GNU find 把 /i 当路径遍历整盘（实测挂死批处理），GNU timeout 不认 /t。
+    sys32 = os.path.join(os.environ.get("SystemRoot", r"C:\Windows"), "system32")
+    head = ["@echo off", "setlocal",
+            ':wait', '"%s\\timeout.exe" /t 1 /nobreak >nul' % sys32,
+            '"%s\\tasklist.exe" /fi "imagename eq %s" 2>nul | '
+            '"%s\\find.exe" /i "%s" >nul' % (sys32, image, sys32, image),
+            'if not errorlevel 1 goto wait']
+    tail = ['echo OK > "%s"' % done]
+    if restart:
+        tail.append('start "" "%s"'
+                    % os.path.join(install_dir, "视频工具箱.exe"))
+    tail.append('exit /b 0')
+    with open(script, "w", encoding="mbcs", errors="replace",
+              newline="\r\n") as fh:
+        fh.write("\n".join(head + body_lines + tail) + "\n")
+    return script
 
 
 def _safe_rel(rel):
@@ -1189,7 +1334,8 @@ def apply_update(manifest, install_dir, work_dir, progress=None, log=None,
             write_installed(install_dir, manifest)
         return {"version": manifest.get("version"), "files": 0,
                 "downloaded": 0, "skipped": plan["skip_bytes"],
-                "seconds": 0.0, "full": False, "dir": install_dir}
+                "seconds": 0.0, "full": False, "dir": install_dir,
+                "deferred": len(read_pending(install_dir))}
 
     need_bytes = plan["download_bytes"]
     # ⚠ 2026-10-13 审查修复：下载/暂存全在 work_dir（TEMP 盘，通常 C:），
@@ -1217,6 +1363,7 @@ def apply_update(manifest, install_dir, work_dir, progress=None, log=None,
     #: schema 2 在循环后由 apply_staging 统一落地。只算后者会让老清单
     #: （schema 1）一路返回 0，UI 上显示"0 个文件"纯属误导。
     n_files = 0
+    n_deferred = 0
 
     for idx, a in enumerate(plan["need"], 1):
         name = a.get("name") or a["file"]
@@ -1268,6 +1415,7 @@ def apply_update(manifest, install_dir, work_dir, progress=None, log=None,
         verify_staging(staging_root, manifest, pkg_names, log=log)
         n_files += apply_staging(staging_root, install_dir, manifest,
                                  pkg_names, log=log)
+        n_deferred = len(read_pending(install_dir))
         shutil.rmtree(staging_root, ignore_errors=True)
         for zp in (os.path.join(work_dir, a["file"]) for a in plan["need"]):
             _quiet_remove(zp)      # 更新成功后清掉下载缓存，不留 100MB 垃圾
@@ -1291,4 +1439,5 @@ def apply_update(manifest, install_dir, work_dir, progress=None, log=None,
     return {"version": manifest.get("version"), "files": n_files,
             "downloaded": downloaded, "skipped": plan["skip_bytes"],
             "seconds": round(time.time() - t0, 1),
-            "full": plan["full"], "dir": install_dir}
+            "full": plan["full"], "dir": install_dir,
+            "deferred": n_deferred}

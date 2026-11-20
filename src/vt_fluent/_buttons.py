@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.1.2
+# @version 3.1.3
 """vt_fluent 按钮族（自研，替代 qfluentwidgets.components.widgets.button）。
 
 行为契约（对齐上游 1.11.3）：

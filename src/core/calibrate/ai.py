@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.1.2
+# @version 3.1.3
 """AI 校准入口（calib_ai_chat / calib_web_proxy / calib_ai_run）+ 同步开关。
 
 v2.3.1 拆分工程 · 自 video_toolbox.py 原样搬入。
@@ -269,4 +269,7 @@ __all__ = [
     "calib_sync_enabled",
     "set_calib_sync_enabled",
     "_calib_event_sink",
+    # 原地改写的接线列表（[:] / clear()，对象身份不变）：engine 别名经
+    # 两级 import * 依赖它，pack 门禁断言已接线（解耦时漏导出致回归）。
+    "_CALIB_EVENT_SINK",
 ]

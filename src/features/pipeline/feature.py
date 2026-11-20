@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.1.2
+# @version 3.1.3
 """pipeline 功能清单。STAGES 声明表自带 optional 降级位，缺功能时阶段自动跳过。"""
 from features._registry import FeatureSpec, GuiSpec
 

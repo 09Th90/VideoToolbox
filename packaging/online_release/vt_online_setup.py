@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.1.2
+# @version 3.1.3
 """视频工具箱 · 在线引导安装器（自研，替代 Qt IFW 在线安装器）。
 
 为什么自研：见 `vt_update_core.py` 顶部长注释 —— IFW 的仓库要求
@@ -41,6 +41,7 @@ v1.20.0 起：
 import argparse
 import os
 import queue
+import subprocess
 import sys
 import threading
 import tkinter as tk
@@ -359,7 +360,8 @@ class SetupApp:
             if self.args.silent:
                 # silent 模式弹 askokcancel 会永久挂起（无人点确定，
                 # root.destroy 只在 done 事件后触发）——改为警告后继续：
-                # apply_staging 靠 rename 语义可覆盖运行中的 exe
+                # exe/已加载 DLL 靠 rename 语义可覆盖；base_library.zip 等
+                # 被锁数据文件延迟到旧进程退出后交换（_vt_pending 批处理）
                 self._log("[warn] 检测到程序正在运行，silent 模式继续安装")
             elif not messagebox.askokcancel(
                     APP_TITLE, "检测到视频工具箱正在运行。\n"
@@ -443,6 +445,37 @@ class SetupApp:
                       % (info.get("version"), info.get("files"),
                          core.human(info.get("downloaded") or 0),
                          info.get("seconds", "?")))
+            d = info.get("dir") or self.var_dir.get()
+            # 被运行中主进程锁住的文件（base_library.zip 等）已暂存
+            # _vt_pending：派发等待批处理，旧进程退出后交换并自动重启。
+            # 此时**不能**再 offer「现在启动」——旧进程还活着，双开会让
+            # 新 exe 读到旧 base_library.zip，版本混装。
+            if info.get("deferred"):
+                script = core.write_pending_batch(
+                    d, self.work_dir, "视频工具箱.exe", restart=True)
+                if script:
+                    try:
+                        subprocess.Popen(
+                            ["cmd", "/c", script],
+                            creationflags=getattr(subprocess,
+                                                  "CREATE_NO_WINDOW", 0),
+                            close_fds=True)
+                        self._log("[延迟] %d 个被占用文件将在旧程序退出后"
+                                  "替换并自动重启" % info["deferred"])
+                    except OSError as e:
+                        self._log("[warn] 派发延迟替换脚本失败：%s" % e)
+                msg = ("更新完成（v%s）。%d 个文件被正在运行的程序占用，"
+                       "请关闭旧程序，替换完成后会自动重新打开。"
+                       % (info.get("version"), info["deferred"]))
+                if self.args.silent:
+                    print("OK v%s %d files %s deferred=%d"
+                          % (info.get("version"), info.get("files"),
+                             core.human(info.get("downloaded") or 0),
+                             info["deferred"]))
+                else:
+                    messagebox.showinfo(APP_TITLE, msg)
+                self.root.after(200, self.root.destroy)
+                return
             if self.args.silent:
                 print("OK v%s %d files %s"
                       % (info.get("version"), info.get("files"),
@@ -452,8 +485,7 @@ class SetupApp:
             if messagebox.askyesno(
                     APP_TITLE, "更新完成（v%s，%d 个文件）。\n\n现在启动视频工具箱？"
                     % (info.get("version"), info.get("files"))):
-                exe = os.path.join(info.get("dir") or self.var_dir.get(),
-                                   "视频工具箱.exe")
+                exe = os.path.join(d, "视频工具箱.exe")
                 if os.path.isfile(exe) and hasattr(os, "startfile"):
                     try:
                         os.startfile(exe)  # noqa: S606
