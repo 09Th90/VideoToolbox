@@ -36,3 +36,7 @@ pywin32==312
 # --- 浏览器自动化（Cookie 导出、B 站投稿）---
 # 装完还需执行：python -m playwright install chromium
 playwright==1.62.0
+
+# --- MCP Server（仅服务端需要；GUI/CLI 运行不 import，惰性加载）---
+# 2026-11-20 三层独立：src\mcp_server.py 对外 stdio 接入；装进 tools\python
+mcp==2.3.0

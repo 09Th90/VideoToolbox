@@ -313,6 +313,11 @@ Source: "..\src\视频工具箱.bat"; DestDir: "{app}\src"; Flags: ignoreversion
 ;   video_split.py 已迁入 src\features\split\（模块独立文件夹），由下方 features
 ;   整目录行自动收集，不再单列。
 Source: "..\src\agent_cli.py"; DestDir: "{app}\src"; Flags: ignoreversion
+; 2026-11-20 三层独立：API 进程入口 + MCP stdio 入口（顶层文件须逐名登记；
+; features\_api 与 features\mcp 由下方 features 整目录行自动收；mcp SDK 随
+; tools\python 整目录行收，gitignore 不入库）
+Source: "..\src\api_worker.py"; DestDir: "{app}\src"; Flags: ignoreversion
+Source: "..\src\mcp_server.py"; DestDir: "{app}\src"; Flags: ignoreversion
 ; subtitle_compose_core.py 已迁入 src\features\compose\，由 features 整目录行自动收集
 ; ============================================================================
 ; v2.4.0 补漏（2026-10-19）：**自研包目录**此前整体缺席安装清单

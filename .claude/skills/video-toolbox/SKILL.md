@@ -94,6 +94,16 @@ tools\python\python.exe src\features\voiceprint\voiceprint_sync.py sync|push|bac
 - 声纹录入/素材体检/打分/筛选与多用户模板同步不在统一 CLI，走上面的独立脚本（cwd=程序根）。
 - B 站投稿与视频切片已入统一 CLI（`bili-submit` / `split`），优先统一入口。
 
+## MCP 接入（与 CLI 并列的第二入口）
+
+```bash
+tools\python\python.exe src\mcp_server.py
+```
+
+- stdio 常驻 Server，外部 MCP host（Claude Desktop/Code、Cursor、Codex、Trae…）直接把「翻译字幕」「切片」当工具调用；10 个 `vt_*` 工具与 CLI 共用 `features\_api` 业务层（参数唯一真源 `_api\spec.py`，门禁 check_schema_parity 强制三方一致）。
+- host 配置用 argv 数组（路径含中文/空格不拼串），cwd=程序根；配置片段与排障见 `docs\MCP接入说明.md`。
+- 长任务（下载/转录/硬烧）当前同步上限 300s，异步任务句柄见 P2 规划；`bili-submit` 暂未上架（桌面依赖 + 外部副作用）。
+
 ## 数据目录布局
 
 ```
