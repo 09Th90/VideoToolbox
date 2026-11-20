@@ -1387,13 +1387,29 @@ def _asr_diarize_flag(val) -> bool:
     return str(val or "").strip().lower() in ("1", "true", "yes", "on")
 
 
+#: 配额/余额耗尽的永久态标记：这类 429 重试不会恢复，退避重试纯属空转
+#: （2026-11-20 实测：insufficient_quota 撞上超时×重试，每块校准白耗 3.5 分钟，
+#: 界面看着像「卡死」）。临时限流（RPM/TPD 速率类）不在此列，仍照旧退避重试。
+_QUOTA_EXHAUSTED_PAT = (
+    "insufficient_quota", "insufficient quota", "exceeded your current quota",
+    "quota exceeded", "insufficient balance", "insufficient_balance",
+    "arrearage", "配额耗尽", "额度耗尽", "配额不足", "余额不足", "欠费",
+)
+
+
 def _is_retryable(status: int | None, detail: str) -> bool:
-    """智谱 1305（访问量过大）/ overloaded / 429 / 5xx 可退避重试。"""
+    """智谱 1305（访问量过大）/ overloaded / 429 / 5xx 可退避重试。
+
+    例外：429 + 配额/余额耗尽属永久态 → 立即失败不重试（calib_ai_agent 有
+    配额分诊与可操作文案，拿到错误即整轮短路，不再逐块空转）。
+    """
     if status is None:                      # 网络错误
         return True
+    d = (detail or "").lower()
+    if status == 429 and any(k in d for k in _QUOTA_EXHAUSTED_PAT):
+        return False
     if status == 429 or status >= 500:
         return True
-    d = (detail or "").lower()
     return "1305" in d or "overloaded" in d or "稍后再试" in d
 
 
@@ -1582,6 +1598,12 @@ class AIClient:
                 except Exception:  # noqa: BLE001
                     pass
                 if not _is_retryable(e.code, detail):
+                    if e.code == 429 and any(
+                            k in detail.lower() for k in _QUOTA_EXHAUSTED_PAT):
+                        raise AIClientError(
+                            "HTTP 429: AI 配额/余额耗尽（永久态，不再重试）：%s"
+                            " —— 处置：充值/等额度重置/换密钥或端点"
+                            "（设置 → 全局 AI → 自动匹配 + 测试接口）" % detail) from e
                     raise AIClientError(f"HTTP {e.code}: {detail}") from e
                 last_err = AIClientError(f"HTTP {e.code}: {detail}")
             except (urllib.error.URLError, TimeoutError, OSError) as e:

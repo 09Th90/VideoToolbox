@@ -386,6 +386,14 @@ def main():
     except Exception:
         pass
     app = QApplication(sys.argv)
+    # 主线程挂起看门狗（2026-11-20）：>5s 没处理消息即 dump 全线程栈到
+    # logs/hang_watchdog.log——设置页 5 秒级 AppHangTransient 无日志可查，
+    # 下次复现直接定位卡住帧。daemon 线程 + 主线程 QTimer 心跳，零界面影响。
+    try:
+        from vt_app.hang_watchdog import start as _start_hang_watchdog
+        app._hang_watchdog_timer = _start_hang_watchdog(engine.APP_DIR)
+    except Exception:  # noqa: BLE001 —— 看门狗失败不拖累启动
+        pass
     # 启动画面：onedir 冷缓存/杀软扫描仍可能有 1～2s 无界面期，先给即时反馈。
     # 不读大图（QPixmap 现画），自检/截图/显式关闭时跳过。
     splash = None
