@@ -1,4 +1,4 @@
-<!-- @version 3.1.3 -->
+<!-- @version 3.1.4 -->
 ---
 name: decision-model
 description: 百炼 Token Plan 决策模型 decision-model-preview 的调用能力。结构化判定（choice/score/noul）直接返回 choice/probabilities/confidence，不生成自然语言，低延迟低 token，用于字幕校准歧义裁决、评论审核、工单分类等判定场景。触发词：决策模型、decision-model、systemone、置信度、歧义裁决、判定分流。

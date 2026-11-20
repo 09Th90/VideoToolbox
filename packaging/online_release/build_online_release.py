@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.1.3
+# @version 3.1.4
 """把「在线更新包」发布成 GitHub Release 的**平铺资产**（替代 IFW 的在线仓库）。
 
 ====================================================================
@@ -103,6 +103,9 @@ PACKAGES = {
         ("tools/ai_client.py", "tools/ai_client.py"),
         ("tools/credential_store.py", "tools/credential_store.py"),
         ("tools/download_open_source_deps.py", "tools/download_open_source_deps.py"),
+        # v3.1.4 补漏：Jev 客户端按 TOOLS_DIR 动态加载，漏发致冻结态设置页
+        # 整页空白（FileNotFoundError）。与 iss / IFW COMPONENTS 三处同步。
+        ("tools/decision_client.py", "tools/decision_client.py"),
     ],
 }
 

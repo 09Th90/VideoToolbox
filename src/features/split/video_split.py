@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# @version 3.1.3
+# @version 3.1.4
 """视频切片核心（V2.10.0 新增）：按「时间点」或「时长」把一个视频拆成多段。
 
 本模块只依赖标准库 + ffmpeg，**不 import 任何 Qt**，因此 GUI（视频处理页的

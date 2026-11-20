@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.1.3
+# @version 3.1.4
 """info 子命令参数壳（L2 CLI）。业务编排在 features/_api/commands/info.py。"""
 from __future__ import annotations
 

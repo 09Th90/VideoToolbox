@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.1.3
+# @version 3.1.4
 """安装目录 vs 仓库：全量字节级一致性核对。
 
 判定：安装目录里「本应随包分发」的文件（iss [Files] 声明的那些），
@@ -26,6 +26,7 @@ ISS = os.path.join(ROOT, "packaging", "视频工具箱.iss")
 DEFAULT_APP = r"D:\VideoToolbox"
 
 SRC_RE = re.compile(r'^\s*Source:\s*"([^"]+)"\s*;\s*DestDir:\s*"\{app\}([^";]*)"')
+EXCL_RE = re.compile(r'Excludes:\s*"([^"]*)"')
 SKIP_DIR_PARTS = ("tools\\python", "tools\\videocaptioner")
 
 
@@ -37,8 +38,19 @@ def sha256(path: str) -> str:
     return h.hexdigest()
 
 
+def _excluded(name: str, pats) -> bool:
+    import fnmatch
+    return any(fnmatch.fnmatch(name, p) for p in pats)
+
+
 def collect_pairs():
-    """从 iss 解析出 (仓库源文件, 安装后相对路径) 列表（只取单文件条目）。"""
+    """从 iss 解析出 (仓库源文件, 安装后相对路径) 列表。
+
+    v3.1.4：通配条目按 Excludes 过滤后 os.walk 展开（此前只比 31 个单文件，
+    _internal / src 子目录 / docs 全盲——decision_client.py 漏发时 31/31
+    假绿）。tools\\python 与 tools\\videocaptioner 仍跳过：运行期会往里
+    写模型/缓存，逐字节比对必假红。
+    """
     base = os.path.dirname(os.path.abspath(ISS))
     out = []
     for raw in io.open(ISS, encoding="utf-8", errors="replace"):
@@ -46,8 +58,30 @@ def collect_pairs():
         if not m:
             continue
         src, destdir = m.group(1), m.group(2)
-        if "*" in src or any(p in src for p in SKIP_DIR_PARTS):
-            continue          # 通配/大目录另算，比对单个文件没意义
+        if any(p in src for p in SKIP_DIR_PARTS):
+            continue
+        dd = destdir.strip("\\").replace("\\", "/")
+        if "*" in src:
+            parts = src.replace("\\", "/").split("/")
+            fixed = []
+            for p in parts:
+                if "*" in p:
+                    break
+                fixed.append(p)
+            walkroot = os.path.normpath(os.path.join(base, *fixed))
+            if not os.path.isdir(walkroot):
+                continue
+            em = EXCL_RE.search(raw)
+            pats = [p for p in (em.group(1).split(",") if em else []) if p]
+            for dirpath, dirnames, filenames in os.walk(walkroot):
+                dirnames[:] = [d for d in dirnames if not _excluded(d, pats)]
+                for fn in filenames:
+                    if _excluded(fn, pats):
+                        continue
+                    full = os.path.join(dirpath, fn)
+                    rel = os.path.relpath(full, walkroot).replace(os.sep, "/")
+                    out.append((full, (dd + "/" + rel) if dd else rel))
+            continue
         repo = os.path.normpath(os.path.join(base, src.replace("\\", os.sep)))
         if not os.path.isfile(repo):
             continue
@@ -55,12 +89,16 @@ def collect_pairs():
         # DestDir 末尾也可能带文件名（如 {app}\src\apply_vc_official.py）：
         # 此时若 basename 与目录名相同，说明它就是文件本身而非目录。
         name = os.path.basename(repo)
-        dd = destdir.strip("\\").replace("\\", os.sep)
         if dd.endswith("/" + name) or dd == name:
             rel = dd                       # DestDir 直接就是文件路径
         else:
             rel = (dd + "/" + name) if dd else name
         out.append((repo, rel))
+    # v3.1.4：exe 与 dist 产物逐字节比对（CArchive 版本指纹只认 VERSION 常量，
+    # 同版本号不同构建抓不到）。dist 不在（未构建）时跳过不报红。
+    dist_exe = os.path.join(ROOT, "dist", "视频工具箱", "视频工具箱.exe")
+    if os.path.isfile(dist_exe):
+        out.append((dist_exe, "视频工具箱.exe"))
     return out
 
 

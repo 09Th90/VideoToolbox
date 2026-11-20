@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.1.3
+# @version 3.1.4
 """构建「视频工具箱」Qt Installer Framework 在线安装器。
 
 流程（对应在线安装架构）：
@@ -43,7 +43,7 @@ REPO = ROOT / "installer_repository"
 CONFIG_OUT = ROOT / "build/ifw_config"
 INSTALLER_OUT = ROOT / "installer"
 
-APP_VERSION = "3.1.3"
+APP_VERSION = "3.1.4"
 EXCLUDES = {"__pycache__", "*.pyc", "*.pyo"}
 
 # 组件 -> 文件来源映射：(源路径, data 内相对位置)
@@ -66,6 +66,8 @@ COMPONENTS = {
         ("tools/ai_client.py", "tools/ai_client.py"),
         ("tools/credential_store.py", "tools/credential_store.py"),
         ("tools/download_open_source_deps.py", "tools/download_open_source_deps.py"),
+        # v3.1.4 补漏：与 iss / 在线 PACKAGES 三处同步（Jev 动态加载客户端）。
+        ("tools/decision_client.py", "tools/decision_client.py"),
     ],
 }
 

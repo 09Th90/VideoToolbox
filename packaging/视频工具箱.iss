@@ -1,13 +1,13 @@
-; @version 3.1.3
+; @version 3.1.4
 ; ============================================================================
-; 视频工具箱 v3.1.3 —— Inno Setup 安装包脚本
+; 视频工具箱 v3.1.4 —— Inno Setup 安装包脚本
 ; v3.0.0（2026-11-15）：功能解耦 + 模块独立文件夹（28 个实现模块归位 features\<id>\），
 ;   重新出包；见 docs\release-notes-v3.0.0.md。
 ; 构建前提：已用打包环境 C:\bld\qt_build 执行 pyinstaller 视频工具箱.spec
 ;           （2026-10-14 起该环境为 PySide6 6.12.0 + PySide6-Fluent-Widgets
 ;           1.11.3；此前为 PyQt5 5.15.11 + PyQt-Fluent-Widgets 1.8.4），
 ;           产物位于 dist\视频工具箱.exe
-; 编译：ISCC.exe 视频工具箱.iss  →  installer\视频工具箱_Setup_v3.1.3.exe
+; 编译：ISCC.exe 视频工具箱.iss  →  installer\视频工具箱_Setup_v3.1.4.exe
 ; v1.18.0：① 新增主播声纹（exe 侧已由 spec hiddenimports 内嵌），[Files]
 ;         补装 src\speaker_voiceprint.py / speaker_voiceprint_page.py /
 ;         subtitle_editor_core.py 源码副本，使安装版也能按开发版说明书的 CLI
@@ -91,7 +91,7 @@
 ; ============================================================================ 
 
 #define MyAppName "视频工具箱"
-#define MyAppVersion "3.1.3"
+#define MyAppVersion "3.1.4"
 #define MyAppPublisher "VideoToolbox"
 #define MyAppExeName "视频工具箱.exe"
 
@@ -205,6 +205,14 @@ Source: "..\tools\ai_client.py"; DestDir: "{app}\tools"; Flags: ignoreversion
 ; 凭据独立存储（2026-10-22 安全整改）：ai_client 按同目录路径加载，缺了会在
 ; 首次 AI/ASR 调用时 ImportError，必须随包分发。
 Source: "..\tools\credential_store.py"; DestDir: "{app}\tools"; Flags: ignoreversion
+; Jev / System One 决策客户端（v3.1.4 补漏）：core/shared/decision.py 按
+;   TOOLS_DIR 动态 spec_from_file_location 加载；漏发曾致冻结态设置页
+;   构造抛 FileNotFoundError＝整页只剩背景。AST 闭包查不到动态加载，
+;   由 check_iss_sources 的动态加载扫描门禁看守。
+Source: "..\tools\decision_client.py"; DestDir: "{app}\tools"; Flags: ignoreversion
+; 开源依赖引导脚本（v3.1.4 补漏）：在线 tools 包早已收录，离线 iss 漏收
+;   致两通道 tools 集合不一致；load_mpv 失败提示里引导用户跑它。
+Source: "..\tools\download_open_source_deps.py"; DestDir: "{app}\tools"; Flags: ignoreversion
 ; 第二解析引擎 NewPipe Extractor（v1.17.0 补，GPL-3.0）：
 ;   npe_backend.py 源码副本（安装版以 src\ 方式运行时需要；exe 侧由 spec
 ;   hiddenimports 内嵌）+ 编译好的 npe-cli.jar。
@@ -280,6 +288,13 @@ Source: "..\scripts\dev\apply_vc_official.py"; DestDir: "{app}\src"; Flags: igno
 ; 收进 PYZ，这里补的是 {app}\src 下的源码副本，供 CLI 与 tools\python 子进程用。）
 ; voiceprint_sync.py 已迁入 src\features\voiceprint\，由 features 整目录行自动收集
 Source: "..\src\subtitle_editor_core.py"; DestDir: "{app}\src"; Flags: ignoreversion
+; v3.1.4 补漏：五个顶层共享接缝模块（exe 侧在 PYZ，这里补 {app}\src 源码
+;   副本）。漏收致离线安装后它们停留旧版，与在线 code 包口径不一致。
+Source: "..\src\engine_asr_data.py"; DestDir: "{app}\src"; Flags: ignoreversion
+Source: "..\src\engine_cache.py"; DestDir: "{app}\src"; Flags: ignoreversion
+Source: "..\src\engine_entities.py"; DestDir: "{app}\src"; Flags: ignoreversion
+Source: "..\src\engine_paths.py"; DestDir: "{app}\src"; Flags: ignoreversion
+Source: "..\src\engine_task_factory.py"; DestDir: "{app}\src"; Flags: ignoreversion
 ; v2.0.0 补漏：vt_update_check 是 video_toolbox_qt.py:173 的**模块级** import
 ; （`import vt_update_check`），主程序「检查更新 / 在线更新」全链路入口。
 ; 缺了它，「脚本方式运行」在 import 阶段直接 ImportError——连 GUI 都起不来，

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.1.3
+# @version 3.1.4
 """校准域（core/calibrate）：AI 校准入口 + 多用户同步（GitHub/本地镜像/声纹）。
 
 子模块：

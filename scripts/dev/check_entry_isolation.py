@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.1.3
+# @version 3.1.4
 """check_entry_isolation —— 三层入口文件独立性门禁（计划书 §3.0 四条硬规则）。
 
 AST 扫 import + 文本扫路径字面量，命中即非零退出（挂打包前检查/CI）：

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.1.3
+# @version 3.1.4
 """全局设置页（2026-11-15 功能解耦阶段③：从 video_toolbox_qt.py 拆出，逐字同源）。
 
 壳层页面（非可选功能）：全程序唯一全局设置——目录 / 下载 Cookie / 全局 AI /
@@ -788,8 +788,19 @@ class SettingsPage(QWidget):
                 current = engine.ai_load_config()
                 key_ready = bool(self.ai_key.text().strip()
                                  or str(current.get("api_key") or "").strip())
-                token_plan = decision_mod().is_aliyun_token_plan(self.ai_base.text())
-                if not token_plan:
+                # v3.1.4：Jev 客户端是可选组件（tools/decision_client.py 按
+                # TOOLS_DIR 动态加载）。曾因发布清单漏该文件，冻结态此处抛
+                # FileNotFoundError 拖垮整页构建＝设置页只剩背景。缺失只降级
+                # 提示，绝不阻断建页（与上方 ai_plan_risk 同口径）。
+                try:
+                    token_plan = decision_mod().is_aliyun_token_plan(
+                        self.ai_base.text())
+                except Exception:  # noqa: BLE001
+                    token_plan = None
+                if token_plan is None:
+                    text = ("Jev 客户端缺失或加载失败（tools/decision_client.py），"
+                            "不会调用；重装或在线更新可补齐。")
+                elif not token_plan:
                     text = "Jev 已开启，但当前不是百炼 Token Plan 专属端点，不会调用。"
                 elif not key_ready:
                     text = "Jev 地址符合，但全局 AI 密钥未配置，不会调用。"

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.1.3
+# @version 3.1.4
 """_selftest_mcp —— MCP Server 端到端自检（SDK client 起 stdio 子进程）。
 
   1  initialize 握手：serverInfo.name = video-toolbox

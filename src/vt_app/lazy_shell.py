@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.1.3
+# @version 3.1.4
 """惰性页外壳（原 video_toolbox_qt.py 同名代码，逐字下沉）。"""
 from PySide6.QtWidgets import QVBoxLayout, QWidget
 
@@ -70,15 +70,31 @@ class _LazyPageShell(QWidget):
         self._pending.append(fn)
 
     def ensure(self):
-        """构造真身（幂等）并挂进外壳；返回真身。"""
+        """构造真身（幂等）并挂进外壳；返回真身。
+
+        v3.1.4：builder 抛异常时不再让外壳保持空布局——空壳会被
+        ui_theme 的实例级 paintEvent 画上背景图，用户看到的就是「整页
+        只剩背景」（设置页曾因缺 tools/decision_client.py 如此）。现在
+        落盘 traceback + 挂占位控件明示失败，对齐自动化页的占位模式。
+        """
         if self.real is None:
             _install_spinbox_fix_once()   # 补丁必须先于任何 SpinBox 存在
-            self.real = self._builder()
+            try:
+                self.real = self._builder()
+            except Exception as e:  # noqa: BLE001
+                self._pending = []      # 占位控件接不了真身回调，弃掉防噪
+                try:
+                    import sys
+                    from vt_app.boot import _crash_log_write
+                    _crash_log_write("页面构建", *sys.exc_info()[:3])
+                except Exception:  # noqa: BLE001
+                    pass
+                self.real = self._build_placeholder(e)
             self.layout().addWidget(self.real)
             try:
                 # 事件过滤器补挂真身（外壳在建窗时已挂过一份）
                 self._win.installEventFilter(self.real)
-            except Exception:
+            except Exception:  # noqa: BLE001
                 pass
             pending, self._pending = self._pending, []
             for fn in pending:
@@ -87,6 +103,25 @@ class _LazyPageShell(QWidget):
                 except Exception:  # noqa: BLE001
                     pass
         return self.real
+
+    def _build_placeholder(self, exc):
+        """构建失败占位页：明示错误与日志位置，绝不静默空白。"""
+        from PySide6.QtCore import Qt
+        from PySide6.QtWidgets import QLabel
+        box = QWidget(self)
+        box.setObjectName(self.objectName() + "_BuildFailed")
+        lay = QVBoxLayout(box)
+        lay.setContentsMargins(32, 32, 32, 32)
+        lbl = QLabel(
+            "「%s」页构建失败：%s\n\n"
+            "详细堆栈见 logs\\crash.log（「页面构建」段）。\n"
+            "多为随包组件缺失或配置损坏：补齐依赖或重装/在线更新后重启程序。"
+            % (self._shell_name, exc), box)
+        lbl.setWordWrap(True)
+        lbl.setAlignment(Qt.AlignTop | Qt.AlignLeft)
+        lay.addWidget(lbl)
+        lay.addStretch(1)
+        return box
 
     def showEvent(self, event):
         super().showEvent(event)

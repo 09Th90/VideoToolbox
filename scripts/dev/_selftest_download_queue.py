@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.1.3
+# @version 3.1.4
 """P3a 回归：纯模型下载队列（无 Qt、无网络）。"""
 from __future__ import annotations
 

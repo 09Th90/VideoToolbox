@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.1.3
+# @version 3.1.4
 """compose 命令编排（原 features/compose/cli.py cmd_compose，行为不变）。
 
 soft 走 subtitle_compose_core（纯函数、无 Qt）；burn 拼 ffmpeg ASS 硬烧；

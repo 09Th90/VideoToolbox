@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.1.3
+# @version 3.1.4
 """校验 视频工具箱.iss 里所有 Source 路径是否真实存在（打包前必做）。
 
 Inno 对缺失 Source 只在编译期报错，且错误信息不便定位；这里提前把
@@ -136,5 +136,50 @@ if qt_present:
               "（闭包内某模块函数体内 import 它，缺了功能静默降级）" % f)
     missing += [(f, "模块级依赖未随包分发") for f in hard_absent]
     missing += [(f, "延迟导入依赖未随包分发") for f in lazy_absent]
+
+# ---------------------------------------------------------------------------
+# v3.1.4 三轮补漏：动态路径加载扫描。AST import 闭包查不到
+#   `importlib.util.spec_from_file_location(os.path.join(TOOLS_DIR, "x.py"))`
+#   这类运行时按路径加载——decision_client.py 就是这样漏发三处清单，
+#   冻结态设置页构造抛 FileNotFoundError＝整页只剩背景，而 iss/在线/IFW
+#   互相一致地漏、check_packages_in_sync 也绿。这里扫 src 全量的
+#   `TOOLS_DIR, "<字面量>"` join，断言三处清单同步声明。
+# ---------------------------------------------------------------------------
+dyn = {}
+for dirpath, dirnames, filenames in os.walk(SRCDIR):
+    dirnames[:] = [d for d in dirnames if d != "__pycache__"]
+    for fn in filenames:
+        if not fn.endswith(".py"):
+            continue
+        p = os.path.join(dirpath, fn)
+        try:
+            txt = open(p, encoding="utf-8").read()
+        except (OSError, UnicodeDecodeError):
+            continue
+        for name in re.findall(r'TOOLS_DIR\s*,\s*"([^"]+)"', txt):
+            # 只看守**动态加载的 .py 源码**；exe/目录类（yt-dlp/gh/mihomo/
+            # mpv/python/videocaptioner）是运行期依赖引导下载管理的，不走
+            # 发布清单三处同步口径。
+            if not name.endswith(".py"):
+                continue
+            dyn.setdefault(name, set()).add(os.path.relpath(p, BASE))
+
+iss_text = open(ISS, encoding="utf-8").read()
+online_text = open(os.path.join(BASE, "packaging", "online_release",
+                                "build_online_release.py"),
+                   encoding="utf-8").read()
+ifw_text = open(os.path.join(BASE, "packaging", "installer_src",
+                             "build_online_installer.py"),
+                encoding="utf-8").read()
+print("TOOLS_DIR 动态加载字面量 = %d 个" % len(dyn))
+for name, refs in sorted(dyn.items()):
+    ok_iss = ("..\\tools\\" + name) in iss_text or ("../tools/" + name) in iss_text
+    ok_on = ('"tools/%s"' % name) in online_text
+    ok_ifw = ('"tools/%s"' % name) in ifw_text
+    if ok_iss and ok_on and ok_ifw:
+        continue
+    print("   [动态加载未三处同步] tools\\%s（iss=%s 在线=%s IFW=%s；引用：%s）"
+          % (name, ok_iss, ok_on, ok_ifw, "、".join(sorted(refs))))
+    missing.append(("tools\\" + name, "动态加载未三处同步分发"))
 
 sys.exit(1 if missing else 0)

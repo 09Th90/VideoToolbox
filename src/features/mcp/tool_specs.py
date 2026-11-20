@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.1.3
+# @version 3.1.4
 """tool_specs —— 从 features._api.spec（参数唯一真源）生成 MCP 工具定义。
 
 **纯数据，不 import mcp SDK / agent_cli / features.*.cli**（SDK 类型转换在
