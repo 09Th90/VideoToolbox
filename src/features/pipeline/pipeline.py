@@ -434,60 +434,28 @@ def _stage_transcribe_ready(job, registry):
     return not (_pick_source_srt(job) or job.srt())
 
 
-def _run_transcribe_cli(job, out_path, ctx):
-    """调用统一 CLI 转录（agent_cli transcribe），返回产物路径。"""
-    py = engine.system_python()
-    cli = os.path.join(engine.APP_DIR, "src", "agent_cli.py")
-    if not py or not os.path.isfile(py):
-        raise RuntimeError("找不到可用的 Python 运行时")
-    if not os.path.isfile(cli):
-        raise RuntimeError("找不到 agent_cli.py：" + cli)
-    args = [py, "-u", cli, "transcribe", job.video, "--out", out_path]
-    env = engine.worker_subprocess_env()
-    env.update({"PYTHONIOENCODING": "utf-8", "PYTHONUTF8": "1",
-                "PYTHONUNBUFFERED": "1"})
-    ctx.log("[转录] " + " ".join(f'"{a}"' if " " in a else a for a in args))
-    proc = engine.popen_process(
-        args, cwd=engine.APP_DIR, stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT, text=True, encoding="utf-8",
-        errors="replace", bufsize=1, env=env)
-    lines = []
+def _run_transcribe_api(job, out_path, ctx):
+    """进程内直连 API 层转录（features._api，2026-11-20 三层独立改造）。
+
+    旧版按路径起子进程调统一 CLI 入口（引擎反向依赖 CLI，已去除）；
+    现走 L1 API——CLI / MCP / 流水线共用同一份编排。日志经 log 回调进
+    ctx.log；失败抛 RuntimeError（摘要 ≤300 字）；tmp_audio 兜底清理。
+    """
+    from features._api import dispatch  # noqa: PLC0415 —— L2 编排 → L1 API
+    ctx.log("[转录] %s → %s" % (job.video, out_path))
     tmp_audio = os.path.splitext(out_path)[0] + ".tmpaudio.m4a"
-
-    def _drain():
-        try:
-            for raw in proc.stdout:
-                line = raw.rstrip()
-                if not line:
-                    continue
-                # qfluentwidgets 导入横幅不属于转录日志，别混进错误详情
-                if ("QFluentWidgets Pro is now released" in line
-                        or line.startswith("Click https://qfluentwidgets.com")):
-                    continue
-                lines.append(line)
-                del lines[:-16]
-                if line.startswith(("ok:", "source:", "output:", "language:")):
-                    continue
-                ctx.log("  " + line)
-        except Exception:  # noqa: BLE001 - 管道被提前关闭/进程退出
-            pass
-
-    reader = threading.Thread(target=_drain, daemon=True, name="asr-log")
-    reader.start()
     try:
-        rc = proc.wait()
-        # 子进程可能已退出，但它的后代仍占着 stdout 管道；不能无限等 EOF
-        reader.join(2.0)
+        payload = dispatch("transcribe", {"file": job.video, "out": out_path},
+                           log=lambda m: ctx.log("  " + str(m)))
     finally:
         try:
             os.remove(tmp_audio)
         except OSError:
             pass
-    if rc != 0 or not os.path.isfile(out_path) or os.path.getsize(out_path) <= 0:
-        err = next((l.split(":", 1)[1].strip() for l in reversed(lines)
-                    if l.startswith("error:")), "")
-        detail = err or " | ".join(lines[-4:]) or f"退出码 {rc}"
-        raise RuntimeError(f"语音转录失败（退出码 {rc}）：{detail[:300]}")
+    if (not payload.get("ok") or not os.path.isfile(out_path)
+            or os.path.getsize(out_path) <= 0):
+        detail = str(payload.get("error") or "未知错误")
+        raise RuntimeError(f"语音转录失败：{detail[:300]}")
     return out_path
 
 
@@ -503,7 +471,7 @@ def _stage_transcribe_run(job, ctx):
             ctx.log("[转录] 等待前面的转录任务结束…")
             _ASR_LOCK.acquire()
         try:
-            _run_transcribe_cli(job, asr_out, ctx)
+            _run_transcribe_api(job, asr_out, ctx)
             _mark_reusable(asr_out, [job.video])
         finally:
             _ASR_LOCK.release()

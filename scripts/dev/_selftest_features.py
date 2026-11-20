@@ -144,20 +144,21 @@ def main() -> int:
         shutil.rmtree(tmp, ignore_errors=True)
 
     # 5 —— JSON 信封：模拟后端异常（ensure_* 缺依赖同款路径）
+    # 2026-11-20 三层独立：compose 编排下沉 _api，_engine 补丁点随迁
     import agent_cli
-    import features.compose.cli as compose_cli
-    saved_engine = compose_cli._engine
+    import features._api.commands.compose as compose_cmd
+    saved_engine = compose_cmd._engine
 
     def _boom():
         raise RuntimeError("模拟依赖缺失（ffmpeg 未就位）")
 
-    compose_cli._engine = _boom
+    compose_cmd._engine = _boom
     buf = io.StringIO()
     try:
         with contextlib.redirect_stdout(buf):
             rc = agent_cli.main(["compose", "a.mp4", "b.srt", "--json"])
     finally:
-        compose_cli._engine = saved_engine
+        compose_cmd._engine = saved_engine
     try:
         d = json.loads(buf.getvalue())
     except ValueError:

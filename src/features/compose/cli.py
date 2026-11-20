@@ -1,75 +1,16 @@
 # -*- coding: utf-8 -*-
 # @version 3.1.2
-"""compose 子命令（原 agent_cli.cmd_compose）。
-
-2026-11-15 功能解耦：soft 模式改 import subtitle_compose_core（纯函数、无 Qt），
-修掉「CLI 合成软字幕却拖着 PySide6+vt_fluent 依赖链」的泄漏点。
-"""
+"""compose 子命令参数壳（L2 CLI）。编排在 features/_api/commands/compose.py。"""
 from __future__ import annotations
 
-import os
-import subprocess
-
-from features._cli import _agent_out_dir, _emit, _engine, _fail, _say, common
+from features._api import dispatch
+from features._cli import _emit, _say, common
 
 
 def cmd_compose(args) -> int:
-    engine = _engine()
-    ffmpeg_path, _ = engine.ensure_ffmpeg()
-    video = os.path.abspath(args.video)
-    sub = os.path.abspath(args.sub)
-    for label, p in (("视频", video), ("字幕", sub)):
-        if not os.path.isfile(p):
-            return _fail(args, "%s文件不存在：%s" % (label, p))
-    audio = os.path.abspath(args.audio) if args.audio else ""
-    if audio and not os.path.isfile(audio):
-        return _fail(args, "音轨文件不存在：%s" % audio)
-    ext = os.path.splitext(sub)[1].lower()
-    out = os.path.abspath(args.out) if args.out else os.path.join(
-        _agent_out_dir(),
-        os.path.splitext(os.path.basename(video))[0] + ".composed.mp4")
-    if os.path.abspath(out) == video:
-        return _fail(args, "输出文件不能就是原视频本身")
-    os.makedirs(os.path.dirname(out) or ".", exist_ok=True)
-
-    # —— 带独立音轨（下载产物合并场景）→ 引擎 merge_pair ——
-    if audio:
-        atype = "m4a" if audio.lower().endswith(".m4a") else "weba"
-        sub_type = "srt" if ext == ".srt" else "ass"
-        _say(args, "[信息] 走引擎 merge_pair（%s 音轨 + %s 字幕，%s）"
-             % (atype, sub_type, "硬烧" if (sub_type == "ass" and
-                                            args.mode != "mkv") else "封装"))
-        engine.merge_pair(video, audio, atype, sub, sub_type, out,
-                          ffmpeg_path,
-                          ass_mode="burn" if args.mode == "burn" else
-                          ("mkv" if out.lower().endswith(".mkv") else "burn"))
-        if not os.path.isfile(out):
-            return _fail(args, "合成失败（merge_pair 未产出文件），详见上方输出")
-        return _emit(args, {"ok": True, "video": video, "subtitle": sub,
-                            "audio": audio, "output": out, "mode": "merge"})
-
-    # —— 无独立音轨：soft（封装软字幕，不重编码）/ burn（ASS 硬烧，重编码）——
-    if args.mode == "burn":
-        sub_clean = sub.replace("\\", "/").replace("'", "\\'")
-        argv = [ffmpeg_path, "-y", "-nostdin", "-i", video,
-                "-vf", "subtitles='%s'" % sub_clean,
-                "-c:v", "libx264", "-crf", "18", "-preset", "fast",
-                "-c:a", "copy", out]
-        _say(args, "[信息] 硬烧录字幕（视频重编码 H.264）…")
-    else:
-        import features.compose.subtitle_compose_core as subtitle_compose_core  # noqa: PLC0415 —— 纯函数，无 Qt
-        argv, err = subtitle_compose_core.build_command(ffmpeg_path, video, sub, out)
-        if err:
-            return _fail(args, err)
-        _say(args, "[信息] 软字幕封装（音视频 copy，不重编码）…")
-    proc = subprocess.run(argv, capture_output=True,
-                          creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
-    if proc.returncode != 0 or not os.path.isfile(out):
-        tail = proc.stderr.decode("utf-8", "replace").strip().splitlines()[-6:]
-        return _fail(args, "ffmpeg 退出码 %s：\n%s"
-                     % (proc.returncode, "\n".join(tail)))
-    return _emit(args, {"ok": True, "video": video, "subtitle": sub,
-                        "output": out, "mode": args.mode})
+    params = {"video": args.video, "sub": args.sub, "audio": args.audio,
+              "mode": args.mode, "out": args.out}
+    return _emit(args, dispatch("compose", params, log=lambda m: _say(args, m)))
 
 
 def setup_compose(sub) -> None:

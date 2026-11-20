@@ -36,6 +36,9 @@ GOLDEN = os.path.join(HERE, "_golden", "cli")
 
 NET_ERR = re.compile(r"10054|10061|Connection|429|421|timed? ?out|网络|代理", re.I)
 
+#: 透传三件的产物断言（堵「空输入打印帮助 rc=0 与真成功同信封」的假通过盲区）
+ARTIFACTS = {"calibrate": ["cal.srt"], "stabilize": ["st.srt"], "audit": ["audit.md"]}
+
 
 def _norm(obj):
     """递归把程序根/夹具绝对路径归一为占位符，消除机器相关差异。"""
@@ -65,6 +68,15 @@ def _fixtures():
     else:
         with open(kb, "w", encoding="utf-8") as f:
             f.write("{}")
+    # stabilize 脏样例：稳定化契约「无候选不写文件」，干净样例无法验证产物落盘；
+    # 超长含标点 cue（拆分候选）+ 相邻碎片（合并候选）确保有改动、必落盘。
+    dirty = os.path.join(FIX, "dirty.srt")
+    with open(dirty, "w", encoding="utf-8", newline="\n") as f:
+        f.write("1\n00:00:01,000 --> 00:00:02,000\n嗯。\n\n"
+                "2\n00:00:02,100 --> 00:00:03,000\n啊。\n\n"
+                "3\n00:00:04,000 --> 00:00:12,000\n"
+                "这是一条非常长的字幕行，里面包含了很多个分句，"
+                "用来触发稳定化层的超长 cue 拆分候选，确保产物落盘断言有效。\n\n")
     mp4 = os.path.join(FIX, "tiny.mp4")
     if not os.path.isfile(mp4):
         sys.path.insert(0, SRC)
@@ -76,10 +88,10 @@ def _fixtures():
              "-c:v", "libx264", "-preset", "ultrafast", "-c:a", "aac",
              "-shortest", mp4],
             capture_output=True, check=True)
-    return srt, kb, mp4
+    return srt, kb, mp4, dirty
 
 
-def _cases(srt, kb, mp4):
+def _cases(srt, kb, mp4, dirty):
     j = lambda *a: list(a) + ["--json"]       # noqa: E731
     return [
         ("status", "full", j("status"), ["features"]),
@@ -90,7 +102,7 @@ def _cases(srt, kb, mp4):
          j("calibrate", srt, "--endobi", "--out", os.path.join(FIX, "cal.srt"),
            "--report", os.path.join(FIX, "cal.tsv"), "--kb", kb), []),
         ("stabilize", "full",
-         j("stabilize", srt, "--out", os.path.join(FIX, "st.srt")), []),
+         j("stabilize", dirty, "--out", os.path.join(FIX, "st.srt")), []),
         ("audit", "full",
          j("audit", srt, "--mode", "bi", "--out", os.path.join(FIX, "audit.md"),
            "--kb", kb), []),
@@ -125,7 +137,9 @@ def _snapshot(case):
         payload = {"_parse_error": r.stdout[:400], "rc": r.returncode,
                    "stderr_tail": r.stderr[-300:]}
     return {"cmd": name, "policy": policy, "ignore_keys": ignore,
-            "payload": _norm(payload), "rc": r.returncode}
+            "payload": _norm(payload), "rc": r.returncode,
+            "artifacts": {n: os.path.isfile(os.path.join(FIX, n))
+                          for n in ARTIFACTS.get(name, [])}}
 
 
 def _compare(old, new):
@@ -145,6 +159,10 @@ def _compare(old, new):
         return ok, "" if ok else "键集/ok 变化：%s → %s" % (sorted(op), sorted(np))
     op = {k: v for k, v in op.items() if k not in old["ignore_keys"]}
     np = {k: v for k, v in np.items() if k not in old["ignore_keys"]}
+    # 产物断言：透传三件必须真落盘（信封同值不等于行为正确）
+    missing = [n for n, ex in new.get("artifacts", {}).items() if not ex]
+    if missing:
+        return False, "产物缺失=%s（信封可能假通过）" % missing
     # 只增字段允许：旧键必须逐项一致，新键放行
     drift = [k for k in op if k not in np or op[k] != np[k]]
     added = [k for k in np if k not in op]
@@ -154,10 +172,10 @@ def _compare(old, new):
 
 def main():
     rebase = "--rebase" in sys.argv
-    srt, kb, mp4 = _fixtures()
+    srt, kb, mp4, dirty = _fixtures()
     os.makedirs(GOLDEN, exist_ok=True)
     fails, notes = [], []
-    for case in _cases(srt, kb, mp4):
+    for case in _cases(srt, kb, mp4, dirty):
         name = case[0]
         path = os.path.join(GOLDEN, name.replace("-", "_") + ".json")
         snap = _snapshot(case)

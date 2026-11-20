@@ -113,7 +113,7 @@ engine.merge_pair = _fake_merge
 engine.ensure_ffmpeg = lambda: ("ffmpeg_mock", "ffprobe_mock")
 engine.get_duration = lambda path, ffprobe: 100.0
 engine.probe_audio_codec = _mock_probe_audio_codec
-pl._run_transcribe_cli = _fake_transcribe_cli
+pl._run_transcribe_api = _fake_transcribe_cli
 
 
 # ---------------------------- 工具 ----------------------------

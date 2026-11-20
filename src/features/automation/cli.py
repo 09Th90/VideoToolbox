@@ -1,28 +1,32 @@
 # -*- coding: utf-8 -*-
 # @version 3.1.2
-"""bili-submit 子命令（原 agent_cli.cmd_bili_submit，行为不变）。"""
+"""bili-submit 子命令参数壳（L2 CLI）。编排在 features/_api/commands/bili_submit.py。
+
+内层非统一信封：_api 以 stream=True Tee 直写 stdout（内容与流式时序不变），
+退出码原样保留；异常经 dispatch 兜底落标准错误信封。
+"""
 from __future__ import annotations
 
-from features._cli import common
+from features._api import dispatch
+from features._cli import _fail, common
 
 
 def cmd_bili_submit(args):
-    """B 站后台自动投稿（透传 bili_auto_submit：UIA 定位 + PostMessage 输入）。"""
-    import features.automation.bili_auto_submit as bas
-    argv = []
-    material = getattr(args, "material", "")
-    if material:
-        argv.append(material)
-    for flag in ("probe", "dry_run", "edit"):
-        if getattr(args, flag, False):
-            argv.append("--" + flag.replace("_", "-"))
-    for name in ("only", "visibility", "topic", "cover", "subtitle"):
-        val = getattr(args, name, "")
-        if val:
-            argv += ["--" + name, str(val)]
-    if getattr(args, "as_json", False):
-        argv.append("--json")
-    return bas.main(argv)
+    params = {"material": getattr(args, "material", ""),
+              "probe": getattr(args, "probe", False),
+              "dry_run": getattr(args, "dry_run", False),
+              "edit": getattr(args, "edit", False),
+              "only": getattr(args, "only", ""),
+              "visibility": getattr(args, "visibility", ""),
+              "topic": getattr(args, "topic", ""),
+              "cover": getattr(args, "cover", ""),
+              "subtitle": getattr(args, "subtitle", ""),
+              "as_json": getattr(args, "as_json", False),
+              "stream": True}
+    payload = dispatch("bili-submit", params)
+    if "exit_code" not in payload:
+        return _fail(args, payload.get("error", "投稿失败"))
+    return payload["exit_code"]
 
 
 def setup_bili_submit(sub) -> None:
