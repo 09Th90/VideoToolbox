@@ -1,7 +1,0 @@
-{
-  "cmd": "bili-submit",
-  "policy": "help",
-  "ignore_keys": [],
-  "text": "usage: agent_cli bili-submit [-h] [--json] [--data-root DATA_ROOT] [--probe]\n                             [--dry-run] [--edit] [--only ONLY]\n                             [--visibility {self,public}] [--topic TOPIC]\n                             [--cover COVER] [--subtitle SUBTITLE]\n                             [material]\n\npositional arguments:\n  material              素材目录\n\noptions:\n  -h, --help            show this help message and exit\n  --json                结构化输出（stdout 只落一个 JSON；日志走 stderr）\n  --data-root DATA_ROOT\n                        数据根目录（默认：VT_DATA_ROOT > data_dir.txt > 程序根）\n  --probe               只输出当前页面 UIA 结构\n  --dry-run             填完但不点立即投稿\n  --edit                修复当前编辑页（不新上传视频）\n  --only ONLY           只跑阶段：basic,chapters,cover,topic,subtitle,visibility\n  --visibility {self,public}\n                        可见范围（默认 self=仅自己可见）\n  --topic TOPIC         覆盖参与话题\n  --cover COVER         覆盖封面图片\n  --subtitle SUBTITLE   覆盖 SRT 字幕\n",
-  "rc": 0
-}

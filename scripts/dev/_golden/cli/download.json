@@ -1,7 +1,0 @@
-{
-  "cmd": "download",
-  "policy": "help",
-  "ignore_keys": [],
-  "text": "usage: agent_cli download [-h] [--json] [--data-root DATA_ROOT] [--dir DIR]\n                          [--height HEIGHT] [--subs]\n                          url\n\npositional arguments:\n  url                   视频链接（YouTube/B站等 yt-dlp 支持的站点）\n\noptions:\n  -h, --help            show this help message and exit\n  --json                结构化输出（stdout 只落一个 JSON；日志走 stderr）\n  --data-root DATA_ROOT\n                        数据根目录（默认：VT_DATA_ROOT > data_dir.txt > 程序根）\n  --dir DIR             输出目录（默认 data\\downloads\\agent\\<标题>\\）\n  --height HEIGHT       限制最大分辨率高度（如 1080；0=不限制）\n  --subs                同时下载字幕（job 编排模式下生效）\n",
-  "rc": 0
-}
