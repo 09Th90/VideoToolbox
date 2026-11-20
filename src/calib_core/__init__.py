@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.1.1
+# @version 3.1.4
 """calib_core 校准引擎包：对外保持与原单文件一致的符号面。
 
 双轨（2026-11-09）：CLI 与 GUI 运行时直连本包（agent_cli 同进程调用
@@ -11,8 +11,8 @@ subtitle_calib_merged.py 是 scripts/dev/build_calib_monolith.py 从本包生成
 
 from .data.arcak import ARCAK_CONTEXT, ARCAK_MISSING_CHECK, ARCAK_TERMS
 from .data.bilingual import BILINGUAL_TERMS, CONTEXT_MAP, EXCLUDE_CONTEXT, FFRS_CONTEXT, FFRS_TERMS, KEEP_EN, WORD_MAP, _XQ_RX
-from .data.ja import (JA_CONTEXT, JA_ENDFIELD_CONTEXT, JA_ENDFIELD_TERMS,
-                      JA_PGR_CONTEXT, JA_PGR_TERMS, JA_TERMS, RETIRED_JA_KEYS)
+from .data.ja import (JA_CONTEXT, JA_ENDFIELD_CONTEXT, JA_ENDFIELD_MISSING_CHECK,
+                      JA_ENDFIELD_TERMS, JA_PGR_CONTEXT, JA_PGR_TERMS, JA_TERMS, RETIRED_JA_KEYS)
 from .data.ko import KO_ASR_CONTEXT, KO_ASR_TERMS, KO_CONTEXT, KO_TERMS, RETIRED_KO_KEYS
 from .data.limbus import LIMBUS_CONTEXT, LIMBUS_TERMS
 from .data.endfield import ENDFIELD_AUTO_MARKERS, ENDFIELD_BI_CONTEXT, ENDFIELD_BI_TERMS, ENDFIELD_KO_CONTEXT, ENDFIELD_KO_TERMS, ENDFIELD_MISSING_CHECK, ENDFIELD_TERMS
@@ -73,6 +73,7 @@ __all__ = [
     'HSR_TERMS',
     'JA_CONTEXT',
     'JA_ENDFIELD_CONTEXT',
+    'JA_ENDFIELD_MISSING_CHECK',
     'JA_ENDFIELD_TERMS',
     'JA_PGR_CONTEXT',
     'JA_PGR_TERMS',

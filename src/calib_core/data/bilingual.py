@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.1.1
+# @version 3.1.4
 """术语/实体数据表
 
 源：subtitle_calib_merged.py L493-L2378 @ 97d7d463（2026-10-24 冻结快照）
@@ -441,6 +441,7 @@ BILINGUAL_TERMS = {
     # 西格莉卡（Sigrika，星炬学院新生/返归者；官方中文依库街区，英文 Sigrika/西格莉卡已有名词表）
     "Sigi": "西格莉卡", "Sigy": "西格莉卡", "Siga": "西格莉卡", "Sigria": "西格莉卡",
     "西吉": "西格莉卡", "锡格利亚": "西格莉卡", "西格利亚": "西格莉卡", "西格琳卡": "西格莉卡",
+    "西格莉亚": "西格莉卡",                                      # 2026-11-19 3.8 完整片实测错形
     # 洛瑟菈（Lucilla，星炬学院校长；官方中文依库街区 wiki/3DM/sina 确认）
     "Lucilla": "洛瑟菈", "露西拉": "洛瑟菈", "卢西拉": "洛瑟菈",
     # --- 2026-10-30 鸣潮 3.5 主线 reaction（8126 cue，英语原声+谷翻）校准沉淀 ---
@@ -1042,6 +1043,35 @@ BILINGUAL_TERMS = {
     "Rinascita": "黎那汐塔",
     "Cartera": "卡提希娅",                   # Cartethyia 的 ASR 形
 
+    # --- 2026-11-19 鸣潮 4.0 前瞻 Drip Marketing reaction 片（732 cue）二校回灌 ---
+    # 官方依据（2026-11-18 官宣）：年度篇章「永明的烬焰」、舞台新联邦；七位新角色官中名与标语：
+    #   安娜「玫瑰与妄欲」/ 爱普利「真实与假象」/ 格尔黛「缄默与锋芒」/ 露希尔「明日与谎言」/
+    #   砂「罪血与净雨」/ 艾娅「幽浮与烂漫」/ 塞谬塞「朽骨与旧梦」；卜灵=近期四星。
+    # 戒律：Anna/April/Karen/Ia 是常用词，只进 WUWA_MISSING_CHECK 体检，禁止在此设裸键。
+    "戈尔迪亚": "格尔黛", "戈尔黛": "格尔黛", "戈迪亚": "格尔黛", "格尔迪亚": "格尔黛",
+    "阿普丽尔": "爱普利", "阿普里尔": "爱普利", "艾普丽尔": "爱普利", "阿普瑞尔": "爱普利",
+    "露琪尔": "露希尔", "卢西尔": "露希尔", "卢琪尔": "露希尔", "露西埃尔": "露希尔",
+    "萨莫西斯": "塞谬塞", "塞摩西斯": "塞谬塞", "萨摩西斯": "塞谬塞", "萨摩塞斯": "塞谬塞",
+    "塞谬赛": "塞谬塞", "塞繆塞": "塞谬塞", "塞缪塞": "塞谬塞",   # 异体字 繆/缪 归正
+    "无音标记": "声痕", "无音痕迹": "声痕", "声痕标记": "声痕",   # Tacet Mark 机翻/叠加
+    "无音领域": "无音区", "残象领域": "无音区", "无音区域": "无音区",  # Tacet Field（场/领域）
+    "阿斯特里特": "星声", "阿斯忒里特": "星声", "星石碎片": "星声",  # Astrite 音译残留（勿收裸"星石"）
+    "Tacet Field": "无音区", "Tacet Fields": "无音区", "tacet field": "无音区",
+    "Tacet Mark": "声痕", "Tacet Marks": "声痕", "tacet mark": "声痕",
+    "tacim mark": "声痕", "tacid mark": "声痕", "tacid marks": "声痕",
+    "Astrite": "星声", "asterite": "星声", "asteris": "星声", "Asteris": "星声",
+    # 七条官方标语错形（唯一长键，安全）
+    "玫瑰与欲望": "玫瑰与妄欲", "玫瑰与渴望": "玫瑰与妄欲",
+    "真实与幻觉": "真实与假象", "真实与错觉": "真实与假象",
+    "沉默与锋芒": "缄默与锋芒", "静默与锋芒": "缄默与锋芒", "沉默和锋芒": "缄默与锋芒",
+    "未来与谎言": "明日与谎言", "明天与谎言": "明日与谎言",
+    "血债与净雨": "罪血与净雨", "血与净雨": "罪血与净雨", "血债与净化雨": "罪血与净雨",
+    "UFO 与闪光": "幽浮与烂漫", "UFO与闪光": "幽浮与烂漫", "幽浮与闪光": "幽浮与烂漫",
+    "骸骨与往事": "朽骨与旧梦", "白骨与旧梦": "朽骨与旧梦", "骸骨与旧梦": "朽骨与旧梦",
+    # 片中主播在讨论/纠正读音，Luciel·Lucilla·Luciela 一律保留拉丁，不设中文换算键。
+    "Shiao": "清宵", "Siao": "清宵",                            # 3.6 清宵 的截断 ASR（本片 #436）
+    "Buling": "卜灵", "Bulling": "卜灵",                        # ⚠ 裸键"欺凌"禁用：普通词会被误伤
+
     # --- 2026-10-25 《How Did You Join Arknights or Endfield?》首轮+二校沉淀 ---
     # 只收长专名/唯一键；「阿拉斯加」「Aen/Aken」「ZZ」走 CONTEXT_MAP，不做裸键。
     "Arthates": "明日方舟", "阿克兰大": "明日方舟",
@@ -1057,6 +1087,7 @@ BILINGUAL_TERMS = {
     # --- 2026-10-25 TRANSCENDO 单文件补丁回灌（源码此前未同步）---
     "X跨步者": "隧者", "额外的跨步者": "隧者",
     "加尔布隆": "嘉贝莉娜",
+    "加尔布琳娜": "嘉贝莉娜", "加尔布丽娜": "嘉贝莉娜", "加尔布莉娜": "嘉贝莉娜",  # 2026-11-19 3.8 完整片 ASR 变体
     "Roachcha": "洛可可",
     "Sonoras": "索诺拉", "Sonora": "索诺拉",
     "索诺拉州": "索诺拉",
@@ -1304,6 +1335,17 @@ BILINGUAL_TERMS = {
     #   留待逐片 --ja 或人工逐 cue（同 2026-11-04「不为单片收窄全局规则」判例）。
     #   ⚠「日光六号/日光式/七永/超月会」等虽含常用字，但作为**整体串**在正常中文里
     #   不会连写（实测全库仅本族错形命中），故留裸键安全；terms-check 已验 0 二次命中。
+
+    # --- 2026-11-19《I Didn't Expect The Wuthering Waves Dating Simulator to be THIS GOOD!》
+    #     3.8「第二索拉：未名之梦」Reaction 二校回灌 ---
+    # 只收整体串唯一、不会撞日常词义的错形；「第二索拉/学院/商店/小姐」等裸词不建键。
+    "第二索拉里学院": "第二索拉学院",                    # 机翻截断形
+    "学院徽章": "学院徽记",                              # school badges 活动货币（官中）
+    "天马地产": "天马集团",                              # Celestial Steed Corp.（天馬グループ）
+    "《我将荣耀地陨落》": "《愿戴荣光坠入天渊》",        # With Glory I Shall Fall 官中曲名
+    "我将荣耀地陨落": "愿戴荣光坠入天渊",
+    "未书写之梦": "未名之梦",                            # Unwritten Dreams 活动名副标题
+    "第二索拉：未书写之梦": "第二索拉：未名之梦",
 
     # --- 2026-11-07《I have NO Idea What to Expect!! Wuthering Waves 3.8 Dev Stream》
     #     英语原声 reaction（MarcoMeatball，2699 cue，bi，CRLF 无 BOM）二次校准回灌 ---
@@ -2575,6 +2617,8 @@ CONTEXT_MAP = [
     # ↑ 菲比官方身份＝见习教士（隐海修会），非「侍僧」（#1763/#1832 实测）。
     (r"\bImperator\b", "大君", "英白拉多"),
     # ↑ Sentinel Imperator＝岁主英白拉多（黎那汐塔的岁主，名词注释）；「大君」是日译腔（#1739）。
+    (r"\bImperator\b", "皇帝", "英白拉多"),
+    # ↑ 2026-11-19 3.8 完整片 cue890 实测「仿佛皇帝会允许…」；官方中文＝英白拉多。
     (r"\bChana\b|\bCiaccona\b", "查娜", "夏空"),
     # ↑ 夏空官方 EP「我们依旧歌唱」，#2284 实测「查娜」。⚠ 不做裸键：查娜是通用音译名。
     (r"\b(?:Kartia|Kartilla|Karthia|Cartethyia)\b", "卡地亚", "卡提希娅"),
@@ -2930,6 +2974,8 @@ CONTEXT_MAP = [
     (r"\bnew\s+federation\b", "新联盟", "新联邦"),
     #   Gingjo=今州 ASR 变体，谷翻意译成「银城」。
     (r"\b(?:Ging\s?Jo\w*|Jingo)\b", "银城", "今州"),
+    #   Ginto/Jingo=今州 ASR 变体，中文侧残留裸「金州」（2026-11-19 3.8 完整片 cue4233 实测）。
+    (r"\b(?:Ginto|Jingo)\b", "金州", "今州"),
     #   Resonator War 官方=共鸣者战争（谷翻作「共鸣者大战」）。
     (r"\bresonator\s+war\b", "共鸣者大战", "共鸣者战争"),
     #   resonator soldier = 共鸣者士兵（谷翻合并成「共鸣战士」）。
@@ -2949,6 +2995,20 @@ CONTEXT_MAP = [
     (r"\bted\s+discords?\b", "特德不和谐", "残象"),
     (r"\btit\s+discords?\b", "山雀不和谐", "残象"),
     (r"\btacit\s+discords?\b", "残象的不和", "残象"),
+    # --- 2026-11-19 鸣潮 4.0 前瞻 reaction 片（732 cue）二校回灌 ---
+    #   只锚唯一幻想名；Karen/April/Anna/Ia 属常用词，不设 ctx（交侧车 + missing 体检裁决）。
+    (r"\bGordia\b", "戈尔迪亚", "格尔黛"),
+    (r"\bGordia\b", "戈迪亚", "格尔黛"),
+    (r"\bGordia\b", "格尔迪亚", "格尔黛"),
+    (r"\bLuciel\b", "露琪尔", "露希尔"),
+    (r"\bLuciel\b", "卢西尔", "露希尔"),
+    (r"\bSamosis\b", "萨莫西斯", "塞谬塞"),
+    (r"\bSamosis\b", "塞摩西斯", "塞谬塞"),
+    (r"\b(?:Buling|Bulling)\b", "欺凌", "卜灵"),   # ASR bullying→Buling；真欺凌语境无 \bBuling\b 锚则不动
+    (r"\bShiao\b", "Shiao", "清宵"),               # 中文行留拉丁时归一（#436）
+    #   ⚠ Tacet Field→无音区 不设 ctx 替换：EN「Tacet field. Tacet discord. Tacet balls.」
+    #      这类并列句里，按 wrong 键替换会把「残象」一起咬成「无音区」（本片 #267 实测）。
+    #      该词形只走 BILINGUAL_TERMS 的英文残留长键 + WUWA_MISSING_CHECK 体检。
     #   列车乘务员（官方 PV 称「列车长」，一般乘务用「乘务员」，不用「服务员」）。
     (r"\bMr\.?\s+Attendant\b", "服务员先生", "乘务员先生"),
     (r"\bresonator\s+army\b", "共鸣者大军", "共鸣者军队"),
@@ -3028,6 +3088,8 @@ CONTEXT_MAP = [
     #   韩/英作 Cassandra）。旧库曾误记「卡桑德拉」，本轮回改。
     (r"\bCassandra\b", "Cassandra", "卡瓦莎"),
     (r"\bCassandra\b", "卡桑德拉", "卡瓦莎"),
+    # Lady Anna：3.8 新联邦拍卖会主人安娜，官方文本「安娜小姐」；机翻作「安娜夫人」。
+    (r"\bLady\s+Anna\b", "安娜夫人", "安娜小姐"),
     (r"\bTDs?\b", "TD", "残象"),
     (r"President\s+Lucil", "总统", "校长"),
     (r"Lucil(?:la)?", "卢西尔", "洛瑟菈"),
@@ -3156,6 +3218,8 @@ CONTEXT_MAP = [
     (r"\bFrax\s*idas\b", "Fraxidas", "弗拉希达斯"),
     # 白色/黑色守门人（Ivory/Ebony Gatekeeper）：官方全称＝白色守门人/黑色守门人；
     #   片内短名「小白/小黑」已由人工保留，不在此条误改。
+    #   2026-11-19 3.8 完整片 cue2609 的组合形「象牙和乌木守门人」须整词先改，避免只改半截。
+    (r"\bIvory\s+and\s+Ebony\s+gatekeepers?\b", "象牙和乌木守门人", "白色和黑色守门人"),
     (r"\bIvory\s+Gate\s*keeper\b", "象牙", "白色守门人"),
     (r"\bIvory\s+Gate\s*keeper\b", "象牙守门人", "白色守门人"),
     (r"\bEbony\s+Gate\s*keeper\b", "乌木", "黑色守门人"),
@@ -3813,6 +3877,58 @@ WUWA_MISSING_CHECK = [
      "Fallacy of No Return 官方中文=无归的谬误；No Rewards 为 ASR"),
     (r"\bCoast\s+Guard\b", ("海岸警卫队", "守岸人"),
      "Coast Guard 是守岸人早期英文命名；中文可保留史实「海岸警卫队」"),
+    # --- 2026-11-19 鸣潮 4.0 前瞻 drip marketing reaction 片（732 cue）二校：官中名词体检 ---
+    # 只报不改。Anna/April/Karen/Ia 是常用英文词，裸键会误伤，必须结合角色名单语境人工裁决。
+    (r"\bTacet\s+(?:Field|Fields)\b|\btacit\s+fields?\b|\btacid\s+fields?\b", ("无音区",),
+     "Tacet Field 官方中文=无音区（与 Tacet Mark=声痕 分层；本片 #265-267 主播先说错再纠正，"
+     "「无音区→声痕」的语感要保留，不可一律归并）"),
+    (r"\b(?:Astrite|Asterite|Asteris|asteris)\b", ("星声",),
+     "Astrite 官方中文=星声（4.0 前瞻页预注册奖励文案，本片 #606-607）"),
+    (r"\bGordia\b", ("格尔黛",), "Gordia 官方中文=格尔黛（4.0，标语「缄默与锋芒」）"),
+    (r"\bLuciel\b", ("露希尔",),
+     "Luciel 官方中文=露希尔（4.0，标语「明日与谎言」）；⚠ 勿与既有 Lucilla=洛瑟菈（3.x 角色）混同"),
+    (r"\bSamosis\b", ("塞谬塞",), "Samosis 官方中文=塞谬塞（4.0，标语「朽骨与旧梦」）"),
+    (r"\b(?:Buling|Bulling)\b", ("卜灵",),
+     "Buling 官方中文=卜灵（近期四星；ASR 常作 bullying，本片 #671-673）"),
+    (r"\bShiao\b", ("清宵",),
+     "Shiao 疑为 3.6 清宵（Ching Shiao）截断 ASR（低置信，命中请人工确认，本片 #436）"),
+    (r"\bIlia\b", ("艾娅", "伊莉娅"),
+     "Ilia 对应 4.0 艾娅（标语「幽浮与烂漫」）；本片 #496-498 主播在猜读音，保留伊莉娅亦属可接受"),
+    (r"\bAnna\b", ("安娜",),
+     "Anna 官方中文=安娜（4.0，标语「玫瑰与妄欲」）；常用名，仅角色名单语境可改"),
+    (r"\bApril\b", ("爱普利",),
+     "April 官方中文=爱普利（4.0，标语「真实与假象」）；常用名/月份，仅角色名单语境可改"),
+    (r"\bKaren\b", ("砂",),
+     "Karen 官方中文=砂（4.0，标语「罪血与净雨」）；常用人名，仅角色名单语境可改，"
+     "本片 #427-429/#441/#627/#689-691 均指该角色"),
+    # 七条官方标语（英文参考行 → 中文须含官中标语原文）
+    (r"\broses?\s+and\s+desires?\b", ("玫瑰与妄欲",), "Anna 标语官方中文=「玫瑰与妄欲」"),
+    (r"\btruth\s+and\s+illusions?\b", ("真实与假象",), "April 标语官方中文=「真实与假象」"),
+    (r"\bsilent\s+and\s+hone+d?\b|\bsilence\s+and\s+sharp(?:ness)?\b", ("缄默与锋芒",),
+     "Gordia 标语官方中文=「缄默与锋芒」（ASR silent and honeed）"),
+    (r"\bfuture\s+and\s+falsehoods?\b", ("明日与谎言",), "Luciel 标语官方中文=「明日与谎言」"),
+    (r"\bblood\s+debts?\b", ("罪血与净雨",), "Karen 标语官方中文=「罪血与净雨」（ASR blood debts in purifying rain）"),
+    (r"\bUFOs?\s+and\s+sparkles\b", ("幽浮与烂漫",), "Ia 标语官方中文=「幽浮与烂漫」"),
+    (r"\bbones?\s+and\s+bygones\b", ("朽骨与旧梦",), "Samosis 标语官方中文=「朽骨与旧梦」（ASR Bones and bygones）"),
+    # --- 2026-11-19 3.8「第二索拉：未名之梦」Reaction 二校：活动专名体检 ---
+    # 只报不改；专名常跨 cue 断行，务必带 --window 1 复核。
+    (r"\b(?:Second\s+Solaris(?:\s+School|\s+Academy)?|Second\s+Coming\s+of\s+Solaris|Sekensolaris(?:\s+School)?)\b",
+     ("第二索拉", "第二索拉学院"),
+     "Second Solaris School/Sekensolaris School 官中=第二索拉学院；活动名=第二索拉：未名之梦"),
+    (r"\bUnwritten\s+Dreams\b", ("未名之梦",),
+     "Unwritten Dreams 活动副标题官中=未名之梦"),
+    (r"\b(?:Cheer\s+Cardia|Chicona|Chieko-na|Chieko\s+na)\b", ("夏空",),
+     "Ciaccona 官中=夏空（管弦乐社社长）；Cheer Cardia/Chicona 为 ASR 形"),
+    (r"\b(?:Rococo|Ruccia|Rochia|Ruijia)\b", ("洛可可",),
+     "Rococo 官中=洛可可（学院商店店员）；Ruccia/Rochia/Ruijia 为 ASR 形"),
+    (r"\b(?:Booling|Bulin|Buling)\b", ("卜灵",),
+     "Buling 官中=卜灵（学校论坛管理员）；Booling/Bulin 为 ASR 形"),
+    (r"\bCelestial\s+Steed(?:\s+Corp\.?)?\b", ("天马集团",),
+     "Celestial Steed Corp. 官中=天马集团（广告牌；日服 天馬グループ）"),
+    (r"\bWith\s+Glory\s+I\s+Shall\s+Fall\b", ("愿戴荣光坠入天渊",),
+     "With Glory I Shall Fall 官中曲名=愿戴荣光坠入天渊（卡提希娅 2.2 EP）"),
+    (r"\bschool\s+badges?\b", ("学院徽记",),
+     "school badges 活动货币官中=学院徽记（非学院徽章）"),
 ]
 
 

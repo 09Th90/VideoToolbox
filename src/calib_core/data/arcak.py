@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.1.1
+# @version 3.1.4
 """Arcaea × 明日方舟 联动直播片源术语/语境表（--arcak，2026-11-18 新增）
 
 片源：《ARCAEA X ARKNIGHTS IS LIVE NOW!》（kukkikaze，英语直播 ASR + 微软翻译，
@@ -29,6 +29,13 @@
   与本片口径冲突的键**不并入**，本模式只用自己的表。
 - 本模式分支消费 EXCLUDE_CONTEXT（与 --ak 同构），但表内键与既有 EXCLUDE
   的 wrong 无交集（terms-check 已验证），不会互相回滚。
+
+2026-11-19 增补：271 cue《Motion Amiya Partner Play｜All Songs Pure Memory》歌词向二校。
+- 本片走 --arcakamiya（本表 + 271 条逐 cue 侧车），不直接跑 --arcak：直播模式的
+  曲名回拉（叛徒/叛逆者→Renegade）会把歌词本义改回英文，属误伤。
+- 可规则化判例：`\bHP\b` 马力→HP（cue 266「9 马力」）、`\bHeat\b` 热量→热
+  （Heat 段机翻名词化时回拉）；ASR「Cannibate」实为「gonna bait」，不得沉淀为
+  「蚕食」——该处由侧车逐句处理。
 """
 
 ARCAK_TERMS = {
@@ -110,6 +117,8 @@ ARCAK_CONTEXT = [
     (r"\barcs?\b", "弧线", "音弧"),                  # cue 714/721（Arcaea 官方中文=音弧）
     (r"\bwhat boss\b", "老板", "Boss"),              # cue 1805
     (r"\bfull combo\b", "全连招", "full combo"),
+    (r"\bHP\b", "马力", "HP"),                       # 2026-11-19 cue 266「9 马力」→9 HP
+    (r"\bHeat\b", "热量", "热"),                     # 2026-11-19 歌词段 Heat 直译回拉
     # ── 曲名：机翻中文→英文原名（用户口径保留英文） ──
     (r"\bRenegade\b", "叛徒", "Renegade"),          # cue 86-90/328/539
     (r"\bRenegade\b", "叛逆者", "Renegade"),        # cue 334/539

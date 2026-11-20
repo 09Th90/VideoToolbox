@@ -1,27 +1,31 @@
 # -*- coding: utf-8 -*-
 # @version 3.1.4
-"""工作区清理：构建产物 / 开发临时文件 / 源码备份。
+"""工作区清理：构建产物 / 开发临时文件 / 旧版安装包 / 源码备份。
 
-安全约束（来自项目约定与 docs/程序说明书(开发版).md）：
-  1. **归档**一律 rename 到 history/_cleanup_<日期>/，不做递归删除；
-  2. **真删**只针对可重建的构建产物与纯残留（构建目录、媒体中间物、__pycache__），
-     走 `--run-delete` 二次确认，默认只打印计划；
-  3. 移动/删除前核对 git 跟踪状态，**任何受控路径一律跳过**；
-  4. 通配规则只允许出现在 SCRATCH_GLOBS 里，且必须以 data/tmp 为根（运行期临时区）。
-  5. __pycache__ 是约定中唯一无条件永久删除的项。
-  6. 显式保留：data/pipeline_work（pipeline_state.json 的 jobs 引用）、data/ 下被代码
-     引用的运行期数据、logs/、harness/、tools/。
-  7. installer/ 与 installer_online/ 是发布实物，check_doc_drift.py 的 ARTIFACT_DIRS
-     会核对 README 承诺的安装包是否真有实物，二者永久保留，不得列入真删；
-     data/backup/ 是 build_calib_monolith.py --baseline 的校准基线，同样原地保留。
-  8. 根目录散落的 agent 工作目录（_calib_*/_clips_*）走「收纳」：rename 进
+安全约束（来自项目约定与 docs/程序说明书(开发版).md；2026-11-20 用户裁决更新）：
+  1. **真删**针对可重建的构建产物、纯残留、确认无用的过程物与旧版安装包，
+     走 `--run-delete` 二次确认，默认只打印计划；连字符日期备份（*.bak-*）仍
+     rename 归档到 history/_cleanup_<日期>/ 留底。
+  2. 移动/删除前核对 git 跟踪状态，**任何受控路径一律跳过**；
+  3. 通配规则限定在 SCRATCH_GLOBS（data/tmp 根）、ROOT_SCRATCH_GLOBS（根目录）、
+     BUILD_SCRATCH_GLOBS（build/ 根）三处，不做全树漫游匹配。
+  4. __pycache__ 无条件永久删除（tools/、harness/ 的缓存除外）。
+  5. 显式保留：data/pipeline_work（pipeline_state.json 的 jobs 引用）、data/ 下被代码
+     引用的运行期数据（含 calib_sidecars/）、logs/、harness/、tools/、.buildvenv/、
+     harness.bak-*/、history/、outbox/、vp_inbox/。
+  6. installer/ 与 installer_online/ **整目录永不真删**；组 7 按版本甄别只删旧版，
+     保留 KEEP_VER 最新版（check_doc_drift.py 核对 README 承诺的安装包实物）；
+     data/backup/ 是 build_calib_monolith.py --baseline 的校准基线，原地保留。
+  7. 根目录散落的 agent 工作目录（_calib_*/_clips_*）走「收纳」：rename 进
      _workspace/<功能模块>/（.gitignore:151 的既定约定），不归档也不删除，
      因为里面的成品 SRT 是重跑同片源时比对的历史基线。
-  9. data/tmp 一级条目按 newest_mtime 判新旧：垃圾（SCRATCH_GLOBS）无条件真删，
-     其余超过 TMP_KEEP_DAYS 的才逐条归档，近几天在制品原地不动。
+  8. data/tmp 一级条目按 newest_mtime 判新旧：垃圾（SCRATCH_GLOBS）无条件真删，
+     其余超过 TMP_KEEP_DAYS 的真删（均为已完成任务的过程物），近几天在制品原地不动。
+  9. 根目录交付文档副本（校准报告/精校 srt）仅在知识已吸收进 calib_core、
+     终稿已另存片源目录时才列入 ROOT_SCRATCH（2026-11-20 逐片核实后加入）。
 
 用法：
-    python _cleanup_workspace.py                归档/收纳 dry-run（含真删计划预览）
+    python _cleanup_workspace.py                dry-run（打印真删/归档/收纳计划）
     python _cleanup_workspace.py --run          执行归档与收纳
     python _cleanup_workspace.py --run --run-delete   同时执行真删
 """
@@ -111,16 +115,23 @@ def scratch_age_reason(path):
 # ---------------------------------------------------------------- 计划
 
 # 组 1：真删 —— 可重建的构建产物（顶层目录，整目录删除）
-# 注意：installer / installer_online 曾被列在这里，实测会连带删掉 2.1GB 已发布
-# 安装包并让 check_doc_drift.py 的「安装包实物」门禁变红，已按约束 7 移除。
+# 注意：installer / installer_online 整目录永不列入（约束 7）；旧版安装包由
+# 组 7 按版本甄别，只删旧版、保留 KEEP_VER 最新版，README 门禁核对最新版实物。
 DELETE_DIRS = [
     "dist",
     "build_ascii",
     "build_ascii_failed_20261028_1259",
     "build/vt_online_setup_dbg",
+    "build/ifw_config",
+    "build/ifw_packages",
+    "build/vt_online_setup",
+    "build/视频工具箱",
+    "build/_bili_probe_data",
     "data/thumb_cache",
     ".cache",
     "vibe_images",
+    "datatmp",
+    "scripts/data",
     "a.txt",
     "b.txt",
 ]
@@ -131,34 +142,84 @@ SCRATCH_GLOBS = [
     ("*", ("*.png", "*.jpg", "*.jpeg", "*.gif", "*.webp",
            "*.mp4", "*.m4a", "*.mp3", "*.wav")),        # 抓帧/预览/音频中间物
     ("*", ("_MEI*",)),                                   # PyInstaller onefile 解包残留
-    ("*", ("segment_selftest",)),                         # 分片下载自检的下载物
+    ("*", ("segment_selftest", "split_test")),            # 分片下载自检的下载物
+    ("*", ("wuwa_38_r2", "lily_38_calib", "lily38_calib",
+           "jadealy38_r2")),                              # 已定稿校准的过程物（知识已吸收，2026-11-20 核实）
     ("*", ("*candidate*.py", "calib_r2.py", "calib_r4.py",
            "subtitle_calib_merged.*.py", "entities_part2.before-r2.py")),
     ("*", ("vtinfo_*.json", "kb_test.json")),             # 媒体探测缓存/词库测试转储
 ]
 
-# 组 3：归档 —— 一次性的开发产物（有溯源价值，rename 保留）
-# 注意：data/backup 已移出（约束 7：build_calib_monolith.py --baseline 的校准基线）
-ARCHIVE_PATHS = [
+# 组 3：真删 —— 根目录一次性残留（2026-11-20 用户裁决：确认无用后全部真删，不再归档）
+#   96=校准对照 TSV 过程物；nul=tasklist 报错误重定向（Windows 保留名，hard_delete 特判）；
+#   -J=yt-dlp 残留；8 个 .bak_20* 备份的内容 git 历史均有；
+#   6 份交付文档：Lily/第二索拉知识已吸收进 calib_core（心之集域/愿戴荣光/天马集团/--wuwasol 实证），
+#   Rover 精校 srt×2 为旧中间版（终稿+说明+发布素材已在 D:\原片\Rover…\，diff 实证）。
+ROOT_SCRATCH = [
+    "96",
+    "nul",
     "-J",
+    "aqtinstall.log",
+    "_selftest_pipeline_result.txt",
     "script_r4.diff",
+    "The Tragic Story of Lily WuWa 3.8 校准报告.md",
+    "鸣潮第二索拉字幕精校说明.md",
+    "鸣潮第二索拉字幕二校说明.md",
+    "【字幕】Rover Get's Betrayed By Shorekeeper In 4.0？!.en-微软翻译-精校.srt",
+    "【字幕】Rover Get's Betrayed By Shorekeeper In 4.0？!.en-微软翻译-精校v2.srt",
+]
+ROOT_SCRATCH_GLOBS = [("", "*.bak_20*")]   # 仅根目录；data/ 下运行期备份不动
+
+# 组 3b：真删 —— build/ 下未跟踪的构建日志与探针残留（受跟踪文件由 has_tracked 闸保护）
+BUILD_SCRATCH_GLOBS = [
+    ("build", "*.log"),
+    ("build", "index_check.json"),
+    ("build", "run_online_release_dns.py"),
+    ("build", "_bili_guard_stage.png"),
 ]
 
 # 组 4：归档 —— 带日期的源码备份（连字符命名，绕过 .gitignore 的 *.bak / *.bak_20*）
+#   不扫 data/：data/backup/ 是校准基线（约束 6），运行期备份也不动；
+#   harness.bak-*/ 是用户裁决保留的第三方部署备份，前缀排除。
 ARCHIVE_GLOBS = [
     ("", "*.bak-*"),
     ("src", "*.bak-*"),
-    ("data", "*.bak-*"),
 ]
+ARCHIVE_SKIP_PREFIXES = ("harness.bak", "data/")
 
-# 组 5：归档 —— data/tmp 清完大件后，只把陈旧的一级条目逐条 rename 归档
-# （根目录沿用组 2 的 SCRATCH_ROOT）
+# 组 5：真删 —— data/tmp 清完垃圾后，陈旧的一级条目（>TMP_KEEP_DAYS）直接删除
+#   （2026-11-20 起由归档改真删：均为已完成校准/修复的过程物，知识已沉淀进 calib_core）
 TMP_KEEP_DAYS = 3            # data/tmp 一级条目保留窗口（在制品不动）
 MEI_MIN_AGE_HOURS = 6        # _MEI* 解包目录低于此年龄视为进程仍在跑
 
 # 组 6：收纳 —— 根目录散落的 agent 工作目录归位到 _workspace/<功能模块>/
 WORKSPACE_ROOT = "_workspace"
 WORKSPACE_BUCKETS = [("_calib_", "calib"), ("_clips_", "clips")]
+
+# 组 6b：归位 —— 误放的参考资产移到代码期望位置（_gen_vt_fluent_icons.py:45 REF_DIR）
+RELOCATE_PATHS = [
+    ("scripts/data/tmp/qss_ref", "data/tmp/qss_ref"),
+]
+
+# 组 7：真删 —— 旧版安装包（保留 KEEP_VER 最新版；installer_repository 为旧版在线仓库整目录删）
+#   升版时同步更新 KEEP_VER；README 的安装包引用也须同步（check_doc_drift 门禁）。
+KEEP_VER = "3.1.4"
+INSTALLER_KEEP_EXTRAS = {"manifest.json", "index.json"}   # installer_online 当前指针文件
+
+
+def old_installer_items():
+    """旧版安装包清单：installer/ 与 installer_online/ 下非 KEEP_VER 的产物。"""
+    hits = []
+    for d in ("installer", "installer_online"):
+        if not os.path.isdir(d):
+            continue
+        for name in sorted(os.listdir(d)):
+            if KEEP_VER in name or name in INSTALLER_KEEP_EXTRAS:
+                continue
+            hits.append(os.path.join(d, name))
+    if os.path.isdir("installer_repository"):
+        hits.append("installer_repository")
+    return hits
 
 
 def expand_globs(pairs):
@@ -209,21 +270,30 @@ def plan():
     for p in expand_globs([(SCRATCH_ROOT, pat) for _b, pats in SCRATCH_GLOBS
                            for pat in pats]):
         add(dels, p, scratch_age_reason(p))
-
-    # 归档：父路径已列出时跳过其子项，避免先移父再移子失败
+    # 父路径已列出时跳过其子项，避免先删父再删子失败/重复计数
     def is_under_any(path, parents):
         p = path.replace("\\", "/")
         return any(p != q and p.startswith(q.rstrip("/") + "/") for q in parents)
 
+    for p in ROOT_SCRATCH + expand_globs(ROOT_SCRATCH_GLOBS) + old_installer_items():
+        add(dels, p)
+    for p in expand_globs(BUILD_SCRATCH_GLOBS):
+        if not is_under_any(p, DELETE_DIRS):
+            add(dels, p)
+
+    del_set = {p for p, _s, _c, _w in dels}
     pick = []
-    for p in ARCHIVE_PATHS + [h for h in expand_globs(ARCHIVE_GLOBS)]:
-        if p not in pick:
-            pick.append(p)
+    for p in expand_globs(ARCHIVE_GLOBS):
+        if p in pick or p in del_set or is_under_any(p, del_set):
+            continue
+        if p.replace("\\", "/").startswith(ARCHIVE_SKIP_PREFIXES):
+            continue
+        pick.append(p)
     pick = [p for p in pick if not is_under_any(p, pick)]
     for p in pick:
         add(arcs, p)
 
-    # data/tmp 陈旧条目逐条归档：垃圾已列入真删（扣掉不重复计数），
+    # data/tmp 陈旧条目真删：垃圾已列入（扣掉不重复计数），
     # 近 TMP_KEEP_DAYS 天的在制品原地保留。
     top = {p.split("/")[2] for p, _s, _c, why in dels if p.startswith(SCRATCH_ROOT + "/")
            and not why and len(p.split("/")) >= 3}
@@ -235,10 +305,10 @@ def plan():
             p = os.path.join(SCRATCH_ROOT, e)
             if (now - newest_mtime(p)) / 86400.0 <= TMP_KEEP_DAYS:
                 continue
-            add(arcs, p)
+            add(dels, p)
 
-    # 收纳：只 move 不删，同样过 git 跟踪校验
-    for src, dst in workspace_relocs():
+    # 收纳/归位：只 move 不删，同样过 git 跟踪校验
+    for src, dst in list(workspace_relocs()) + RELOCATE_PATHS:
         mb, n = size_of(src)
         why = "受 git 跟踪，跳过" if has_tracked(src) else ""
         relocs.append((src, mb, n, why, dst.replace("\\", "/")))
@@ -267,7 +337,7 @@ def relocate_one(src, dst):
 
 
 def hard_delete(path):
-    """真删：先试 shutil；被安全策略拦下时退回 cmd 删除。"""
+    """真删：先试 shutil；失败退回 cmd（\\?\ 前缀兼容 nul 等 Windows 保留名）。"""
     try:
         if os.path.isdir(path):
             shutil.rmtree(path)
@@ -275,10 +345,13 @@ def hard_delete(path):
             os.remove(path)
         return "shutil"
     except Exception:
-        cmd = (["cmd", "/c", "rmdir", "/s", "/q", path] if os.path.isdir(path)
-               else ["cmd", "/c", "del", "/f", "/q", path])
+        # 不用 abspath：nul 等保留名会被 Win32 解析成 \\.\nul 设备路径；
+        # getcwd 拼接保持字面路径，\\?\ 前缀才能绕过名称解析直达文件。
+        unc = "\\\\?\\" + os.path.join(os.getcwd(), path)
+        cmd = (["cmd", "/c", "rmdir", "/s", "/q", unc] if os.path.isdir(path)
+               else ["cmd", "/c", "del", "/f", "/q", unc])
         subprocess.run(cmd, check=True, capture_output=True)
-        return "cmd"
+        return "cmd-unc"
 
 
 def main():
@@ -305,6 +378,15 @@ def main():
                        [(p, mb, n, why) for p, mb, n, why, _dst in relocs])
 
     if not dry:
+        # 收纳/归位先行：qss_ref 须先移走，scripts/data 才能整目录真删
+        for p, _size, _cnt, why, dst in relocs:
+            if why:
+                continue
+            try:
+                real, how = relocate_one(p, dst)
+                print("  RELOCATED %s -> %s (%s)" % (p, real, how))
+            except Exception as e:
+                print("  !! 收纳失败 %s: %r" % (p, e))
         if do_delete:
             for p, _size, _cnt, why in dels:
                 if why:
@@ -323,14 +405,6 @@ def main():
                 print("  MOVED %s -> %s (%s)" % (p, real, how))
             except Exception as e:
                 print("  !! 归档失败 %s: %r" % (p, e))
-        for p, _size, _cnt, why, dst in relocs:
-            if why:
-                continue
-            try:
-                real, how = relocate_one(p, dst)
-                print("  RELOCATED %s -> %s (%s)" % (p, real, how))
-            except Exception as e:
-                print("  !! 收纳失败 %s: %r" % (p, e))
 
     # __pycache__ 永久删除（约定唯一例外）
     # tools/ 是随包分发的 Python 运行时，harness/ 是只读第三方部署，二者的 .pyc 缓存不动。

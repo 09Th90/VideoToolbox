@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.1.1
+# @version 3.1.4
 """校准主引擎 process()
 
 源：subtitle_calib_merged.py L11610-L11977 @ 97d7d463（2026-10-24 冻结快照）
@@ -25,7 +25,7 @@ from .data.tga import TGA_TERMS
 from .learn import _learned_terms_for_mode
 from .modes import endfield_auto_markers
 from .replace import _compile_map, _ctx_replace, _replace_report
-from .state import _AK_CONTEXT_COMPILED, _AK_KO_CONTEXT_COMPILED, _ARCAK_CONTEXT_COMPILED, _CONTEXT_COMPILED, _ENDFIELD_BI_CONTEXT_COMPILED, _ENDFIELD_KO_CONTEXT_COMPILED, _EXCLUDE_COMPILED, _FFRS_CONTEXT_COMPILED, _HSR_CONTEXT_COMPILED, _JA_CONTEXT_COMPILED, _JA_ENDFIELD_CONTEXT_COMPILED, _JA_PGR_CONTEXT_COMPILED, _KO_ASR_CONTEXT_COMPILED, _KO_CONTEXT_COMPILED, _LIMBUS_CONTEXT_COMPILED, _PBZ_CONTEXT_COMPILED, _FF14_CONTEXT_COMPILED, _POKEMON_CONTEXT_COMPILED, _PGR_EN_CONTEXT_COMPILED, _REACT_CONTEXT_COMPILED, _WWOC_CONTEXT_COMPILED, _AK_JA_CONTEXT_COMPILED, _SSV_CONTEXT_COMPILED, _TGA_CONTEXT_COMPILED
+from .state import _AK_CONTEXT_COMPILED, _AK_KO_CONTEXT_COMPILED, _WW40KO_CONTEXT_COMPILED, _ARCAK_CONTEXT_COMPILED, _CONTEXT_COMPILED, _ENDFIELD_BI_CONTEXT_COMPILED, _ENDFIELD_KO_CONTEXT_COMPILED, _WW40KO_CONTEXT_COMPILED, _EXCLUDE_COMPILED, _FFRS_CONTEXT_COMPILED, _HSR_CONTEXT_COMPILED, _JA_CONTEXT_COMPILED, _JA_ENDFIELD_CONTEXT_COMPILED, _JA_PGR_CONTEXT_COMPILED, _KO_ASR_CONTEXT_COMPILED, _KO_CONTEXT_COMPILED, _WW40KO_CONTEXT_COMPILED, _LIMBUS_CONTEXT_COMPILED, _PBZ_CONTEXT_COMPILED, _FF14_CONTEXT_COMPILED, _POKEMON_CONTEXT_COMPILED, _PGR_EN_CONTEXT_COMPILED, _REACT_CONTEXT_COMPILED, _WWOC_CONTEXT_COMPILED, _AK_JA_CONTEXT_COMPILED, _SSV_CONTEXT_COMPILED, _TGA_CONTEXT_COMPILED
 from .text import _KO_HANGUL, _decode_any, _split_cue_text
 
 
@@ -47,11 +47,31 @@ def _load_override_tsv(path):
 
 
 
+def _restore_override_prefix(old, new):
+    """侧车整行覆盖时保留原行的 >> 前缀形态（'>> ' / '>>' / 无前缀）。
+
+    2026-11-19 鸣潮 3.8 终章片（--wuwa38h）：481 条旁白带 >>，侧车不必重复写前缀，
+    由被覆盖行的原形态决定补法；若侧车自带前缀先剥离，避免生成 '>> >> xxx'。
+    """
+    if new.startswith(">> "):
+        new = new[3:]
+    elif new.startswith(">>"):
+        new = new[2:]
+    if old.startswith(">> "):
+        return ">> " + new
+    if old.startswith(">>"):
+        return ">>" + new
+    return new
+
+
 def process(path, out_path=None, report_path=None, mode="bi",
-            fix_en=False, pgr_override=None, learned_kb=None, bi_override=None):
+            fix_en=False, pgr_override=None, learned_kb=None, bi_override=None,
+            bi_override_preserve=False, ko_override=None, ko_override_preserve=False):
     """对 SRT 校准。返回 (改动行rows, 术语命中hits)。
       mode="bi"   双语模式：BILINGUAL_TERMS + CONTEXT_MAP + WORD_MAP 改首中文行。
       mode="ko"   韩语模式：KO_TERMS 统一中文行术语。
+      mode="wuwa40ko" 韩语原声·鸣潮 4.0 新联邦 PV：KO_TERMS + WW40KO_CONTEXT，
+                  命中侧车时整行覆盖（侧车已是终稿，含 >> 前缀）。
       mode="ja"   日语模式：JA_TERMS + JA_CONTEXT（日语参考行佐证）统一中文行术语。
       mode="endo" 终末地模式：ENDFIELD_TERMS 统一全部文本行。
       mode="ak"   明日方舟本体模式：AK_TERMS + AK_CONTEXT（英文参考行佐证）统一**全部**中文行。
@@ -73,7 +93,7 @@ def process(path, out_path=None, report_path=None, mode="bi",
     参考行锚定（CONTEXT/EXCLUDE）一律先经 _ref_for_match 规整（ASR 断词容错），
     但默认输出的参考行保持原样，只有 fix_en=True 才写回。
     """
-    if mode == "ko":
+    if mode in ("ko", "wuwa40ko"):
         terms = KO_TERMS
     elif mode == "ja":
         terms = JA_TERMS
@@ -143,7 +163,7 @@ def process(path, out_path=None, report_path=None, mode="bi",
                       f"（learned-show 查看，人工裁决）")
     # 2026-10-06 危险裸键闸门：RETIRED_KO_KEYS 无论来自静态表、learned_kb 还是
     #   applied.json 注入，一律在编译前剔除（保证"信信→辛夷"等已下线键绝不误伤）。
-    if mode == "ko" and any(k in terms for k in RETIRED_KO_KEYS):
+    if mode in ("ko", "wuwa40ko") and any(k in terms for k in RETIRED_KO_KEYS):
         terms = {k: v for k, v in terms.items() if k not in RETIRED_KO_KEYS}
     # 2026-10-14 日语同款闸门：'笛卡尔' 会在运行期被 applied.json 复活，必须一并剔除，
     #   否则它抢跑 Entity("卡提希娅") 的 ctx（笛卡尔西亚 -> 卡提希娅西亚）。
@@ -198,7 +218,7 @@ def process(path, out_path=None, report_path=None, mode="bi",
                         # 单行韩语）——该行含谚文即应用 KO_ASR 层（韩语错形→官方韩语），
                         # 否则整块跳过，防止把术语替换误写到参考/英文行上。
                         only = lines[j + 1]
-                        if mode == "ko" and _KO_HANGUL.search(only):
+                        if mode in ("ko", "wuwa40ko") and _KO_HANGUL.search(only):
                             if "_ko_asr_pairs" not in dir():
                                 _ko_asr_pairs, _ko_asr_chars = _compile_map(KO_ASR_TERMS)
                             new = _replace_report(only, _ko_asr_pairs, _ko_asr_chars, hits)
@@ -212,15 +232,21 @@ def process(path, out_path=None, report_path=None, mode="bi",
                         continue
                     if not zh_pos:
                         # 多文本行且无法识别中文行（全拉丁/全参考行）：绝不写参考行。
-                        # 例外（2026-11-15 鸣潮 3.8）：侧车显式指定的 cue 允许整行覆盖——
-                        #   本片 12 条原行是英文残片（'t / Apist / 引号 / Meta / iPhone），
+                        # 例外：bi/--wuwa40ko 侧车显式指定的 cue 允许整行覆盖——
+                        #   4.0 韩语片 #8/#241 原行是拉丁残片（Subde / Dream），
                         #   人工终稿已改成中文，若不特判会被这里整块跳过，复跑永远对不上。
-                        if mode == "bi" and bi_override and str(num) in bi_override:
-                            old0 = lines[zh_idx]
-                            new = bi_override[str(num)]
-                            if new != old0:
-                                rows.append((num, old0, new, ref))
-                                out[zh_idx] = new
+                        if mode in ("bi", "wuwa40ko"):
+                            ov = bi_override if mode == "bi" else ko_override
+                            preserve = (bi_override_preserve if mode == "bi"
+                                        else ko_override_preserve)
+                            if ov and str(num) in ov:
+                                old0 = lines[zh_idx]
+                                new = ov[str(num)]
+                                if preserve:
+                                    new = _restore_override_prefix(old0, new)
+                                if new != old0:
+                                    rows.append((num, old0, new, ref))
+                                    out[zh_idx] = new
                         i = kk
                         continue
                     old = lines[zh_idx]
@@ -314,7 +340,7 @@ def process(path, out_path=None, report_path=None, mode="bi",
                         if new != old:
                             rows.append((num, old, new, ref))
                             out[zh_idx] = new
-                    elif mode == "ko":       # 韩语原声·鸣潮：KO_TERMS + KO_CONTEXT 校准**全部中文行**
+                    elif mode in ("ko", "wuwa40ko"):       # 韩语原声·鸣潮：KO_TERMS + KO_CONTEXT/WW40KO_CONTEXT 校准**全部中文行**
                         # 2026-10-06 修复（梦州 4장4막 二次校准定位的根因）：谷翻反应片每 cue
                         #   常见「中文 2 行 + 谚文 2 行」结构。旧实现只改首文本行、锚点只取末行
                         #   谚文 → ①第二中文行整片漏校（该批 112 处残留 111 处在第二行）；
@@ -328,6 +354,19 @@ def process(path, out_path=None, report_path=None, mode="bi",
                         if not zh_tis and kr_tis:
                             # 纯韩语片源（2026-10-12 新增）：每 cue 全部文本行都含谚文
                             # （韩国主播直播 ASR 等），旧表键全是中文错形无法命中。
+                            # 4.0 韩语片 #154 原行两行都是「얜」，人工终稿把首行改成
+                            # 「她」；侧车命中时先整行覆盖首行，再走 KO_ASR/continue。
+                            if (mode == "wuwa40ko" and ko_override
+                                    and str(num) in ko_override):
+                                old0 = lines[kr_tis[0]]
+                                new = ko_override[str(num)]
+                                if ko_override_preserve:
+                                    new = _restore_override_prefix(old0, new)
+                                if new != old0:
+                                    rows.append((num, old0, new, ref))
+                                    out[kr_tis[0]] = new
+                                i = kk
+                                continue
                             # 对韩语行应用 KO_ASR_TERMS(韩语错形→官方韩语) + KO_ASR_CONTEXT
                             # （锚定对象 = 行自身）。双语片源 zh_tis 非空，不进本分支。
                             if "_ko_asr_pairs" not in dir():
@@ -344,16 +383,26 @@ def process(path, out_path=None, report_path=None, mode="bi",
                             i = kk
                             continue
                         kr_all = " ".join(_ref_for_match(lines[ti]) for ti in kr_tis)
+                        ctx_compiled = (_WW40KO_CONTEXT_COMPILED if mode == "wuwa40ko"
+                                        else _KO_CONTEXT_COMPILED)
                         for zi, ti in enumerate(zh_tis):
                             if len(zh_tis) == len(kr_tis):
                                 anchor = _ref_for_match(lines[kr_tis[zi]])   # 逐行配对佐证
                             else:
                                 anchor = kr_all                              # 行数不齐回退拼接
                             lold = lines[ti]
-                            new = _replace_report(lold, term_pairs, term_chars, hits)
-                            for crx, wrong, right in _KO_CONTEXT_COMPILED:
-                                if wrong in new and crx.search(anchor):
-                                    new = _ctx_replace(new, wrong, right)
+                            if (mode == "wuwa40ko" and ko_override
+                                    and zi == 0 and str(num) in ko_override):
+                                # 4.0 侧车：命中即整行覆盖，不叠加术语表（终稿可能刻意保留
+                                #   拉丁名/口语重复/断句）；侧车已是终稿，含原行 >> 前缀。
+                                new = ko_override[str(num)]
+                                if ko_override_preserve:
+                                    new = _restore_override_prefix(lold, new)
+                            else:
+                                new = _replace_report(lold, term_pairs, term_chars, hits)
+                                for crx, wrong, right in ctx_compiled:
+                                    if wrong in new and crx.search(anchor):
+                                        new = _ctx_replace(new, wrong, right)
                             if new != lold:
                                 rows.append((num, lold, new, ref))
                                 out[ti] = new
@@ -482,15 +531,21 @@ def process(path, out_path=None, report_path=None, mode="bi",
                                 _ref_for_match(" ".join(lines[_ti] for _ti in arcak_en)))
                             for _ti in arcak_zh:
                                 lold = lines[_ti]
-                                new = _replace_report(lold, term_pairs, term_chars, hits)
-                                for crx, wrong, right in _ARCAK_CONTEXT_COMPILED:
-                                    if wrong in new and crx.search(arcak_anchor):
-                                        new = _ctx_replace(new, wrong, right)
-                                for wrong, (right, rxs) in _EXCLUDE_COMPILED.items():
-                                    if wrong in lold and wrong not in new \
-                                            and any(rx.search(arcak_anchor) for rx in rxs):
-                                        new = new.replace(right, wrong)
-                                        hits.pop(wrong, None)
+                                if bi_override and str(num) in bi_override and _ti == zh_idx:
+                                    # 2026-11-19：歌词向短片逐 cue 侧车整行覆盖
+                                    # （--arcakamiya）。命中即用终稿，不叠加术语表，
+                                    # 保证侧车与人工成品逐字节一致。
+                                    new = bi_override[str(num)]
+                                else:
+                                    new = _replace_report(lold, term_pairs, term_chars, hits)
+                                    for crx, wrong, right in _ARCAK_CONTEXT_COMPILED:
+                                        if wrong in new and crx.search(arcak_anchor):
+                                            new = _ctx_replace(new, wrong, right)
+                                    for wrong, (right, rxs) in _EXCLUDE_COMPILED.items():
+                                        if wrong in lold and wrong not in new \
+                                                and any(rx.search(arcak_anchor) for rx in rxs):
+                                            new = new.replace(right, wrong)
+                                            hits.pop(wrong, None)
                                 if new != lold:
                                     rows.append((num, lold, new, ref))
                                     out[_ti] = new
@@ -541,6 +596,8 @@ def process(path, out_path=None, report_path=None, mode="bi",
                             # 逐 cue 侧车整行覆盖（高歧义、规则无法精确处理的一次性 cue，
                             # 如 cue255/2389）：直接用终稿，不叠加术语表，零跨片风险
                             new = bi_override[str(num)]
+                            if bi_override_preserve:
+                                new = _restore_override_prefix(old, new)
                             if new != old:
                                 rows.append((num, old, new, ref))
                                 out[zh_idx] = new

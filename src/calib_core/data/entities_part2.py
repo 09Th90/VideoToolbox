@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.1.1
+# @version 3.1.4
 """术语/实体数据表
 
 源：subtitle_calib_merged.py L8840-L10200 @ 97d7d463（2026-10-24 冻结快照）
@@ -3109,5 +3109,43 @@ ENTITIES_PART2 = [
            note="地球Online 梗：活了约两亿年、策划动不了的玩家；ASR/谷翻作 Uncle Croc/鳄鱼大叔。"),
     Entity("陈雪凝", modes=("ak",), en="Chen Xuening", category="歌手",
            note="《绿色》演唱者（2019 发行）；「春水」系谷翻音译错形，只走 AK_CONTEXT 的 Chun Shui 锚定。"),
+    # --- 2026-11-19 终末地 TGA 视频二校（244 cue，--endobi）实体沉淀 ---
+    #   官方依据：TGA 2026 提名名单、Google Play 2026 官方获奖公告、
+    #   endfield.hypergryph.com、arkpedia.net、官方专访（海猫=制作人）。
+    #   只收本片实证的 ASR/机翻错形；通用词（导演/最后/分数）不建裸键，走 ctx 锚定。
+    Entity("怪物猎人：旅人", modes=("endobi", "tga26"), en="Monster Hunter Outlanders",
+           category="作品/游戏",
+           variants=("Monsanto Outlanders", "Monster Hunter Outlanders"),
+           note="TGA 2026 最佳移动游戏提名；官方简中《怪物猎人：旅人》。"
+                "Monsanto Outlanders 为 ASR 把 Monster Hunter 误听成 Monsanto。"),
+    Entity("宝可梦冠军", modes=("endobi", "tga26"), en="Pokemon Champions",
+           category="作品/游戏",
+           variants=("Pokemon Champions", "Pokémon Champions"),
+           note="TGA 2026 最佳移动游戏提名；官方简中《宝可梦冠军》（Pokemon Champions）。"),
+    Entity("侠盗猎车手 VI", modes=("endobi", "tga26"), en="Grand Theft Auto VI",
+           category="作品/游戏",
+           variants=("Grand Theft Auto VI", "GTA VI", "GTA 6"),
+           note="GTA VI 官方简中《侠盗猎车手 VI》；GTA 6/GTA VI 为口语缩写，"
+                "终末地/TGA 双语片源统一为官方全称。Grand Theft Auto 6 保留 TGA_TERMS 既有"
+                "「侠盗猎车手 6」写法，不并入本条，避免变体冲突。"),
+    Entity("风骚律师", modes=("bi", "endobi", "tga26"), en="Better Call Saul",
+           category="作品/影视",
+           variants=("Better Call Saul",),
+           note="《风骚律师》（Better Call Saul）官方简中；本片 #182 实证，长键安全。"),
+    Entity("弹丸论破", modes=("bi", "endobi", "tga26"), en="Danganronpa",
+           category="作品/游戏",
+           variants=("Dangal Rampa", "Danganronpa", "Dangaronpa"),
+           note="《弹丸论破》（Danganronpa）官方简中；Dangal Rampa 为 ASR 误听，"
+                "整串生僻、裸键安全。"),
+    Entity("Arkpedia.net", modes=("ak", "bi", "endobi"), en="Arkpedia",
+           category="网站/明日方舟",
+           variants=("Arcpedia.net", "Arcpedia"),
+           note="Arknights 社区资料站 Arkpedia.net；arcpedia.net 是 Arc Raiders 站点，"
+                "不可混用。Aripedia/Aredia 的旧小写映射仍留在 AK_TERMS，本条只收 Arcpedia 系列。"),
+    Entity("TGA", modes=("endobi", "tga26"), en="The Game Awards",
+           category="奖项/机构",
+           variants=("The Game Awards", "Game Awards"),
+           note="The Game Awards 中文通称 TGA；本片中文行已用 TGA，"
+                "本条只清理未来片源残留英文。"),
 ]
 

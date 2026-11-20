@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.1.1
+# @version 3.1.4
 """术语表注册表、实体投影与上下文缓存
 
 源：subtitle_calib_merged.py L2198-L10667 @ 97d7d463（2026-10-24 冻结快照）
@@ -22,7 +22,7 @@ from .data.endfield import (ENDFIELD_BI_CONTEXT, ENDFIELD_BI_TERMS,
 from .data.entities import ENTITIES
 from .data.ja import (JA_CONTEXT, JA_ENDFIELD_CONTEXT, JA_ENDFIELD_TERMS,
                       JA_PGR_CONTEXT, JA_PGR_TERMS, JA_TERMS)
-from .data.ko import (KO_ASR_CONTEXT, KO_ASR_TERMS, KO_CONTEXT, KO_TERMS)
+from .data.ko import (KO_ASR_CONTEXT, KO_ASR_TERMS, KO_CONTEXT, KO_TERMS, WW40KO_CONTEXT)
 from .data.limbus import LIMBUS_CONTEXT, LIMBUS_TERMS
 from .data.misc import (EN_LINE_TERM_FIXES, FF14_CONTEXT, FF14_TERMS,
                         HSR_CONTEXT, HSR_TERMS,
@@ -43,6 +43,7 @@ TABLES = {
     "JA_PGR_TERMS": JA_PGR_TERMS,
     "WWOC_TERMS": WWOC_TERMS,
     "KO_TERMS": KO_TERMS,
+    "WW40KO_CONTEXT": WW40KO_CONTEXT,
     "PGR_EN_TERMS": PGR_EN_TERMS,
     "ENDFIELD_TERMS": ENDFIELD_TERMS,
     "ENDFIELD_BI_TERMS": ENDFIELD_BI_TERMS,
@@ -82,6 +83,7 @@ CTX_TABLES = {
     "AK_CONTEXT": AK_CONTEXT,
     "AK_KO_CONTEXT": AK_KO_CONTEXT,
     "KO_CONTEXT": KO_CONTEXT,
+    "WW40KO_CONTEXT": WW40KO_CONTEXT,
     "KO_ASR_CONTEXT": KO_ASR_CONTEXT,
     "REACT_CONTEXT": REACT_CONTEXT,
     "HSR_CONTEXT": HSR_CONTEXT,
@@ -185,6 +187,7 @@ _AK_JA_CONTEXT_COMPILED = [(re.compile(rx), wrong, right) for rx, wrong, right i
 _AK_KO_CONTEXT_COMPILED = [(re.compile(rx), wrong, right) for rx, wrong, right in AK_KO_CONTEXT]
 
 _KO_CONTEXT_COMPILED = [(re.compile(rx), wrong, right) for rx, wrong, right in KO_CONTEXT]
+_WW40KO_CONTEXT_COMPILED = [(re.compile(rx), wrong, right) for rx, wrong, right in WW40KO_CONTEXT]
 
 _KO_ASR_CONTEXT_COMPILED = [(re.compile(rx), wrong, right) for rx, wrong, right in KO_ASR_CONTEXT]
 
@@ -299,6 +302,7 @@ def _rebuild_context_caches():
                                    for rx, wrong, right in JA_PGR_CONTEXT]
     _AK_KO_CONTEXT_COMPILED[:] = [(re.compile(rx), wrong, right) for rx, wrong, right in AK_KO_CONTEXT]
     _KO_CONTEXT_COMPILED[:] = [(re.compile(rx), wrong, right) for rx, wrong, right in KO_CONTEXT]
+    _WW40KO_CONTEXT_COMPILED[:] = [(re.compile(rx), wrong, right) for rx, wrong, right in WW40KO_CONTEXT]
     _AK_CONTEXT_COMPILED[:] = [(re.compile(rx, re.I), wrong, right) for rx, wrong, right in AK_CONTEXT]
     # 2026-11-03：缺这行时 --akja 的 ctx 只在首启生效，kb 运行期注入的新锚定条目会静默失效
     #   （engine 在 import 时已持有该 list 的引用，必须原地重建而非重新绑定）。

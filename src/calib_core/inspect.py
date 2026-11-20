@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.1.1
+# @version 3.1.4
 """结构体检、比较、漏译、扫描与 subfix
 
 源：subtitle_calib_merged.py L12795-L13481 @ 97d7d463（2026-10-24 冻结快照）
@@ -15,6 +15,7 @@ from .data.arcak import ARCAK_MISSING_CHECK
 from .data.ark import AK_MISSING_CHECK, PGR_MISSING_CHECK
 from .data.bilingual import WUWA_MISSING_CHECK
 from .data.endfield import ENDFIELD_MISSING_CHECK
+from .data.ja import JA_ENDFIELD_MISSING_CHECK
 from .data.ko import KO_MISSING_CHECK
 from .data.pbz import PBZ_MISSING_CHECK
 from .data.ssv import SSV_MISSING_CHECK
@@ -151,9 +152,19 @@ def _cmd_verify(src, out, allow_marker_drop=False):
         if slay == "bi":
             zh1, ref1 = _split_cue_text(texts1)
             zh2, ref2 = _split_cue_text(texts2)
-            assert zh1 == zh2 and ref1 == ref2, f"language layout changed at cue {n1}"
-            z += sum(texts1[i] != texts2[i] for i in zh1)
-            e += sum(texts1[i] != texts2[i] for i in ref1)
+            if zh1 != zh2 or ref1 != ref2:
+                # 2026-11-19：机翻源把中文槽整行留成纯英文（本片 cue407
+                # “Steed Corp. United Real Today”），补译后该行会由参考侧
+                # 升为中文侧。只放行「首文本行由无汉字变中文、其余参考行
+                # 逐字节不变」的单向补译；其它版式漂移仍按原断言报错。
+                promoted = (not zh1 and len(texts1) >= 2 and zh2 == [0]
+                            and ref2 == list(range(1, len(texts2)))
+                            and all(texts1[i] == texts2[i] for i in range(1, len(texts1))))
+                if promoted:
+                    print(f"note: cue {n1} 参考行补译为中文（源文件该槽未翻译）")
+                assert promoted, f"language layout changed at cue {n1}"
+            z += sum(texts1[i] != texts2[i] for i in zh2)
+            e += sum(texts1[i] != texts2[i] for i in ref2)
         else:
             z += sum(a != b for a, b in zip(texts1, texts2))
         # 2026-11-06：说话人标记 `>>` 守恒（Day3 沉淀）。反应片有数千行带 `>>`，逐 cue
@@ -224,14 +235,19 @@ def _cmd_compare(src, out, tsv):
 
 
 def _load_missing_rules(mode=None, file=None):
-    """漏译体检规则：--mode endo 取内置 ENDFIELD_MISSING_CHECK；--mode wuwa 取
-    鸣潮专名表 WUWA_MISSING_CHECK；--mode ak 取明日方舟 AK_MISSING_CHECK；
-    --mode pbz 取影之刃零 PBZ_MISSING_CHECK；--mode ko 取韩语原声鸣潮表
-    KO_MISSING_CHECK（正则写**谚文原形**，不是拉丁）；--mode pgren 取战双英文原声表
-    PGR_MISSING_CHECK（正则写拉丁，锚英文参考行）；--file 追加 TSV
+    """漏译体检规则：--mode endo 取内置 ENDFIELD_MISSING_CHECK；--mode jpe 取
+    JA_ENDFIELD_MISSING_CHECK（日语正则锚日文参考行）并保留英文表兜底；
+    --mode wuwa 取鸣潮专名表 WUWA_MISSING_CHECK；--mode ak 取明日方舟
+    AK_MISSING_CHECK；--mode pbz 取影之刃零 PBZ_MISSING_CHECK；--mode ko 取韩语原声
+    鸣潮表 KO_MISSING_CHECK（正则写**谚文原形**，不是拉丁）；--mode pgren 取战双英文
+    原声表 PGR_MISSING_CHECK（正则写拉丁，锚英文参考行）；--file 追加 TSV
     （每行：参考行正则<TAB>中文必现词1|词2[<TAB>说明]，# 开头注释）。"""
     rules = []
-    if mode in ("endo", "endobi", "endoko", "jpe"):
+    if mode in ("endo", "endobi", "endoko"):
+        rules.extend(ENDFIELD_MISSING_CHECK)
+    if mode == "jpe":
+        rules.extend(JA_ENDFIELD_MISSING_CHECK)
+        # 兼容旧 jpe 调用：英文表对日文行不会命中，仅多一轮空锚，不产生误报。
         rules.extend(ENDFIELD_MISSING_CHECK)
     if mode in ("wuwa", "wuwa-bi", "ww"):
         rules.extend(WUWA_MISSING_CHECK)

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.1.1
+# @version 3.1.4
 """术语/实体数据表
 
 源：subtitle_calib_merged.py L6542-L7171 @ 97d7d463（2026-10-24 冻结快照）
@@ -177,6 +177,18 @@ REACT_TERMS = {
     "Mongol Star Dive": "魔御：STAR DIVE", "Mongil Star Dive": "魔御：STAR DIVE",
     "Silver Palace": "白银之城", "Drippy": "拙皮",
     "Wizardry Proving Grounds of the Mad Overlord": "巫术：狂王的试炼场",
+    # --- 2026-11-19 游戏音乐点听二校（GTA / Soulframe / 作曲名）---
+    # 官方依据：GTA 官方中文《侠盗猎车手》（Rockstar）；Soulframe 官方简中
+    #   《祖灵战甲》（soulframe.com/zh-hans）；Mick Gordon 采用通用中文名“米克·戈登”。
+    # 长键先行：带《》形式在前，避免已加书名号的中文行出现双书名号。
+    "《GTA 6》": "《侠盗猎车手6》",
+    "《GTA》": "《侠盗猎车手》",
+    "GTA 6": "侠盗猎车手6",
+    "GTA": "侠盗猎车手",
+    "《Soulframe》": "《祖灵战甲》",
+    "Soulframe": "祖灵战甲",
+    "Mick Gordon": "米克·戈登",
+    "soundscape": "声景",
 }
 
 # 用法：python subtitle_calib_merged.py --react <input.srt> --out out.srt

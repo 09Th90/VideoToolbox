@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.1.1
+# @version 3.1.4
 """TGA 2026 游戏大奖直播术语/语境表（--tga26，2026-11-18 新增）
 
 片源：《Big Day... TGA Announcements & Patreon Music Livestream!》
@@ -228,6 +228,10 @@ TGA_TERMS = {
     "Games for Impact": "最具影响力游戏",
     "Best Ongoing Game": "最佳持续运营游戏",
     "Best Community Support": "最佳社区支持",
+    # --- 2026-11-19 终末地 TGA 视频二校 ---
+    #   ASR 把 Where Winds Meet 听成 Wuthering Waves Meet；整串长键先命中，
+    #   避免被 Wuthering Waves→鸣潮 的短键咬成「鸣潮 Meet」。
+    "Wuthering Waves Meet": "燕云十六声",
 }
 
 TGA_CONTEXT = [

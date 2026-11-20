@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.1.1
+# @version 3.1.4
 """术语/实体数据表
 
 源：subtitle_calib_merged.py L2797-L7340 @ 97d7d463（2026-10-24 冻结快照）
@@ -66,6 +66,26 @@ WW38_INFO = {
 }
 WW38_OVERRIDES_SRC = r"D:\Agent Work\软件开发\视频工具箱\data\calib_sidecars\ww38_lily_main_bi_override.tsv"
 
+# 2026-11-19 鸣潮 3.8 主线「予以明日的花束」终章 EmiMatcha Reaction 片（2534 cue）二次校准
+# 用法：python subtitle_calib_merged.py --wuwa38h
+#   与 --wuwa38 同构（bi 规则 + 逐 cue 侧车整行覆盖），区别是侧车覆盖时**保留原行 >> 前缀形态**，
+#   避免本片 481 条旁白/画外音前缀被覆盖抹掉（engine.bi_override_preserve）。
+WW38H_INFO = {
+    "src": r"D:\原片\A HAPPY ENDING ! 3.8 Lily Main Story Quest FINALE REACTION Wuthering Waves\【字幕】A HAPPY ENDING？! 3.8 Lily Main Story Quest FINALE REACTION ｜ Wuthering Waves.en-微软翻译.srt",
+    "dst": r"D:\原片\A HAPPY ENDING ! 3.8 Lily Main Story Quest FINALE REACTION Wuthering Waves\【校准v2】A HAPPY ENDING？! 3.8 Lily Main Story Quest FINALE REACTION ｜ Wuthering Waves.zh-CN.srt",
+}
+WW38H_OVERRIDES_SRC = r"D:\Agent Work\软件开发\视频工具箱\data\calib_sidecars\ww38h_lily_happy_ending_bi_override.tsv"
+
+# 2026-11-19 鸣潮 3.8「literally broke me」Reaction 完整片（7045 cue）二次校准
+# 用法：python subtitle_calib_merged.py --wuwa38b
+#   与 --wuwa38h 同构（bi 规则 + 逐 cue 侧车整行覆盖）；侧车收全片终稿（含 >> 前缀），
+#   供一键重跑与增量校准时对位。
+WW38B_INFO = {
+    "src": r"D:\原片\Wuthering Waves 3.8 literally broke me\【字幕】Wuthering Waves 3.8 literally broke me..en-微软翻译.srt",
+    "dst": r"D:\原片\Wuthering Waves 3.8 literally broke me\【字幕】Wuthering Waves 3.8 literally broke me..zh-Hans-人工校准_v2.srt",
+}
+WW38B_OVERRIDES_SRC = r"D:\Agent Work\软件开发\视频工具箱\data\calib_sidecars\ww38b_literally_broke_me_bi_override.tsv"
+
 # 3.8 鸣潮 3.8 主线「予以明日的花束」Jadealy 反应片 —— 双语逐 cue 侧车整行覆盖
 # 用法：python subtitle_calib_merged.py --wuwa38j
 WW38_J_INFO = {
@@ -73,6 +93,50 @@ WW38_J_INFO = {
     "dst": r"D:\原片\I Lost Count of How Many Times I Cried Wuthering Waves 3.8 Main Quest Reaction\【字幕】I Lost Count of How Many Times I Cried ｜ Wuthering Waves 3.8 Main Quest Reaction.en-谷歌翻译_calibrated.r2.srt",
 }
 WW38_J_OVERRIDES_SRC = r"D:\Agent Work\软件开发\视频工具箱\data\calib_sidecars\ww38_jadealy_main_bi_override.tsv"
+
+
+# 3.9 鸣潮 4.0 前瞻「Drip Marketing」Xlice reaction 片 —— 双语逐 cue 侧车整行覆盖
+# 用法：python subtitle_calib_merged.py --wuwa40
+#   等价于 <src> --mode bi --bi-override <sidecar>；规则层负责可泛化错形（4.0 七角色/术语/标语），
+#   侧车收逐句人工精校（口语衔接、断句、读音讨论处保留拉丁、跨 cue 承接）。
+WW40_INFO = {
+    "src": r"D:\原片\AN INSANE NEW CAST! Xlice Reacts to Wuthering Waves Version 4.X Drip Marketing\【字幕】AN INSANE NEW CAST!？ Xlice Reacts to Wuthering Waves Version 4.X Drip Marketing.en-微软翻译.srt",
+    "dst": r"D:\原片\AN INSANE NEW CAST! Xlice Reacts to Wuthering Waves Version 4.X Drip Marketing\【字幕】AN INSANE NEW CAST!？ Xlice Reacts to Wuthering Waves Version 4.X Drip Marketing.zh校准.r2.srt",
+}
+WW40_OVERRIDES_SRC = r"D:\Agent Work\软件开发\视频工具箱\data\calib_sidecars\ww40_drip_bi_override.tsv"
+
+# 2026-11-19 鸣潮 4.0 新联邦 PV 韩语反应片 —— 韩语原声 + KO_TERMS + WW40KO_CONTEXT
+# 用法：python subtitle_calib_merged.py --wuwa40ko
+#   片源为韩语 ASR + 微软翻译双语（中文在上/韩语参考行在下，349 cue）。
+#   与 --ko 的区别：① 追加 4.0 专用语境（岁主/声痕/瑝珑/残星会/拉海洛）；
+#   ② 侧车 349 条逐 cue 整行覆盖，命中即不叠加术语表；③ 侧车已是终稿，含 >> 前缀。
+WW40KO_INFO = {
+    "src": r"D:\原片\[명조] 신연방 신규 캐릭터 대거 공개!「프로메우스의 품에 깃들어」PV 분석 & 캐릭터 쇼츠 감상\【字幕】[명조] 신연방 신규 캐릭터 대거 공개!「프로메우스의 품에 깃들어」PV 분석 & 캐릭터 쇼츠 감상.ko-微软翻译.srt",
+    "dst": r"D:\原片\[명조] 신연방 신규 캐릭터 대거 공개!「프로메우스의 품에 깃들어」PV 분석 & 캐릭터 쇼츠 감상\【字幕】[명조] 신연방 신규 캐릭터 대거 공개!「프로메우스의 품에 깃들어」PV 분석 & 캐릭터 쇼츠 감상.ko-微软翻译_人工精校_v2.srt",
+}
+WW40KO_OVERRIDES_SRC = r"D:\Agent Work\软件开发\视频工具箱\data\calib_sidecars\ww40ko_newfed_pv_zh.tsv"
+
+# 3.8 鸣潮「第二索拉：未名之梦」Reaction 片 —— 双语逐 cue 侧车整行覆盖
+# 用法：python subtitle_calib_merged.py --wuwasol
+#   二校 1407 cue；侧车为六段人工复核合并后的终稿，供一键重跑与后续增量校准时对位。
+WUSOL_INFO = {
+    "src": r"D:\原片\I Didn't Expect The Wuthering Waves Dating Simulator to be THIS GOOD!\【中文精校】I Didn't Expect The Wuthering Waves Dating Simulator to be THIS GOOD!.srt",
+    "dst": r"D:\原片\I Didn't Expect The Wuthering Waves Dating Simulator to be THIS GOOD!\【中文精校v2】I Didn't Expect The Wuthering Waves Dating Simulator to be THIS GOOD!.srt",
+}
+WUSOL_OVERRIDES_SRC = r"D:\Agent Work\软件开发\视频工具箱\data\calib_sidecars\ww_solaris_bi_override.tsv"
+
+
+# 2026-11-19 Arcaea×明日方舟《Motion Amiya Partner Play｜All Songs Pure Memory》全曲纯享
+#   （271 cue，28m33s，英语 ASR + 微软翻译双语，中文在上/英文参考行在下，CRLF 无 BOM）。
+#   歌词向短片：`--arcak` 的曲名回拉（叛徒/叛逆者→Renegade）会把歌词义改回英文，
+#   故走 `--arcakamiya` = ARCAK 术语表 + 271 条逐 cue 侧车整行覆盖（命中即不叠加术语表）。
+#   用法：python subtitle_calib_merged.py --arcakamiya
+ARCAK_AMIYA_INFO = {
+    "src": r"D:\原片\Arcaea x Arknights Motion Amiya Partner Play All Songs Pure Memory ( )\【字幕】Arcaea x Arknights ｜ Motion Amiya Partner Play ｜ All Songs Pure Memory (？).en-微软翻译.srt",
+    "dst": r"D:\原片\Arcaea x Arknights Motion Amiya Partner Play All Songs Pure Memory ( )\【字幕】Arcaea x Arknights ｜ Motion Amiya Partner Play ｜ All Songs Pure Memory (？)（中文校准版v2）.srt",
+}
+ARCAK_AMIYA_OVERRIDES_SRC = r"D:\Agent Work\软件开发\视频工具箱\data\calib_sidecars\arcak_amiya_motion_zh.tsv"
+
 
 
 
@@ -160,7 +224,7 @@ ZHO_INFO = {
 # 模式 -> 无条件变体表 / 条件变体表（实体注册时的投影目标）
 _MODE_TERM_TABLE = {
     "bi": "BILINGUAL_TERMS", "ja": "JA_TERMS", "jpe": "JA_ENDFIELD_TERMS",
-    "ko": "KO_TERMS", "wwoc": "WWOC_TERMS", "endo": "ENDFIELD_TERMS",
+    "ko": "KO_TERMS", "wuwa40ko": "KO_TERMS", "wwoc": "WWOC_TERMS", "endo": "ENDFIELD_TERMS",
     "ak": "AK_TERMS", "akko": "AK_KO_TERMS", "zho": "ZH_ONLY_TERMS",
     "pgren": "PGR_EN_TERMS", "react": "REACT_TERMS",
     "endobi": "ENDFIELD_BI_TERMS", "endoko": "ENDFIELD_KO_TERMS",
@@ -190,7 +254,7 @@ _MODE_TERM_TABLE = {
 
 _MODE_CTX_TABLE = {
     "bi": "CONTEXT_MAP", "ja": "JA_CONTEXT", "jpe": "JA_ENDFIELD_CONTEXT",
-    "akko": "AK_KO_CONTEXT", "ko": "KO_CONTEXT", "ak": "AK_CONTEXT",
+    "akko": "AK_KO_CONTEXT", "ko": "KO_CONTEXT", "wuwa40ko": "WW40KO_CONTEXT", "ak": "AK_CONTEXT",
     "endoko": "ENDFIELD_KO_CONTEXT", "pkm": "POKEMON_CONTEXT",
     # 2026-10-25 新增：--wwoc 此前无语境槽，多游戏韩语片的歧义错形
     #   （十字军/家具/反向/德州/Star Seed 等）只能逐 cue；现补 WWOC_CONTEXT。
@@ -234,7 +298,7 @@ _MODE_CTX_TABLE = {
 
 _MODE_NAMES = {
     "bi": "中英双语", "ja": "日语原声·鸣潮", "jpe": "日语原声·终末地",
-    "ko": "韩语原声·鸣潮", "wwoc": "综合手游OST", "endo": "终末地",
+    "ko": "韩语原声·鸣潮", "wuwa40ko": "韩语原声·鸣潮 4.0 新联邦 PV", "wwoc": "综合手游OST", "endo": "终末地",
     "ak": "明日方舟", "akko": "明日方舟韩语", "zho": "中文行专属",
     "pgren": "战双英文原声", "react": "音乐点评", "endobi": "终末地·中英双语", "fix-en": "英文参考行修正",
     "endoko": "终末地·韩语原声", "pkm": "宝可梦城镇主题",

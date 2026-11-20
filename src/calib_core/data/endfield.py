@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.1.1
+# @version 3.1.4
 """术语/实体数据表
 
 源：subtitle_calib_merged.py L3380-L4908 @ 97d7d463（2026-10-24 冻结快照）
@@ -434,6 +434,31 @@ ENDFIELD_MISSING_CHECK = [
      "玩家自主权(player agency)；勿作代理机构"),
     (r"\bArts\s+Intensity\b", ("源石技艺强度",),
      "源石技艺强度(Arts Intensity)；勿作艺术强度"),
+    # --- 2026-11-19 终末地 TGA 视频二校（244 cue，--endobi）---
+    #   高置信专名/作品名；只作漏译体检，不参与替换。
+    (r"\bHai\s+Mao\b", ("海猫",),
+     "制作人海猫（Light Zhong）；勿作海毛/导演海毛"),
+    (r"\bMonsanto\s+Outlanders\b|\bMonster\s+Hunter\s+Outlanders\b",
+     ("怪物猎人：旅人",),
+     "TGA 2026 提名；ASR 把 Monster Hunter 听成 Monsanto"),
+    (r"\bWuthering\s+Waves\s+Meet\b|\bWhere\s+Winds\s+Meet\b",
+     ("燕云十六声",),
+     "TGA 2026 提名；ASR 把 Where Winds Meet 听成 Wuthering Waves Meet"),
+    (r"\bNeverness\s+to\s+Everness\b|\bNTE\b", ("异环",),
+     "TGA 2026 提名；官方简中《异环》"),
+    (r"\bPokemon\s+Champions\b|\bPokémon\s+Champions\b", ("宝可梦冠军",),
+     "TGA 2026 提名；官方简中《宝可梦冠军》"),
+    (r"\bGrand\s+Theft\s+Auto\s+(?:VI|6)\b|\bGTA\s*(?:VI|6)\b",
+     ("侠盗猎车手",),
+     "GTA VI 官方简中《侠盗猎车手 VI》；勿保留 GTA 6 缩写"),
+    (r"\bBetter\s+Call\s+Saul\b", ("风骚律师",),
+     "《风骚律师》（Better Call Saul）官方简中"),
+    (r"\bDangal\s+Rampa\b|\bDanganronpa\b", ("弹丸论破",),
+     "《弹丸论破》（Danganronpa）官方简中；Dangal Rampa 为 ASR 误听"),
+    (r"\bAr[ck]pedia(?:\.net)?\b", ("Arkpedia",),
+     "Arknights 社区站 Arkpedia.net；arcpedia.net 是 Arc Raiders 站点"),
+    (r"\bThe\s+Game\s+Awards?\b|\bGame\s+Awards?\b", ("TGA", "游戏大奖"),
+     "The Game Awards 中文通称 TGA"),
 ]
 
 
@@ -1217,6 +1242,19 @@ ENDFIELD_BI_TERMS = {
     #     会被咬成「阿莱克琉斯，千夫长，千夫长」。既有 "Alleikhreos"->阿莱克琉斯（本表 1169 行）
     #     同款先例。其余三条（三位一体/聂菲斯/阮一）canonical 本身就是完整名，走 Entity 投影。
     "阿拉·克雷奥斯": "阿莱克琉斯", "阿拉克雷奥斯": "阿莱克琉斯",
+    # --- 2026-11-19 终末地 TGA 视频二校（244 cue，--endobi）---
+    #   TGA 2026 最佳移动游戏提名名单；ASR 把 Where Winds Meet 听成
+    #   Wuthering Waves Meet（与鸣潮 Wuthering Waves 同形，必须整串长键先命中）。
+    "Wuthering Waves Meet": "燕云十六声",
+    "Where Winds Meet": "燕云十六声",
+    "Neverness to Everness": "异环",
+    "NTE": "异环",
+    # 本片机翻整句错形（均为长键，只在本源可复现；不拆成通用短键）
+    "年度手机游戏。明日方舟": "年度最佳移动游戏。《明日方舟：终末地》",
+    "恩菲尔德有可能赢得手机游戏": "《明日方舟：终末地》有可能拿下 TGA 的",
+    "孟山都《Outlanders》《Wuthering》": "《怪物猎人：旅人》、",
+    "波浪相遇，永无至永恒": "《燕云十六声》、《异环》",
+    "GTA 6获胜": "《侠盗猎车手 VI》赢了",
 }
 
 
@@ -1674,6 +1712,20 @@ ENDFIELD_BI_CONTEXT = [
     #    机翻「北巷」为误转写，英文参考行锚定。
     (r"\bindigo\b", "靛蓝", "浸蓝"),
     (r"\bnorthlane\b", "北巷", "Northlane"),
+    # --- 2026-11-19 终末地 TGA 视频二校（244 cue，--endobi）---
+    #   海猫官方头衔是「制作人」，不是「导演」；只在英文参考行出现 Hai Mao 时锚定，
+    #   避免误伤其他语境中的导演/主任/总监。
+    (r"\bHai\s+Mao\b", "导演", "制作人"),
+    (r"\bHai\s+Mao\b", "主任", "制作人"),
+    (r"\bHai\s+Mao\b", "总监", "制作人"),
+    # GTA VI 的官方简中带空格「侠盗猎车手 VI」；本片机翻写成无空格/缺 VI 两形。
+    # 长键先行，避免短键在已插入空格的成品上二次命中。
+    (r"\bGrand\s+Theft\s+Auto\b|\bGTA\s*(?:VI|6)\b",
+     "《侠盗猎车手VI》", "《侠盗猎车手 VI》"),
+    (r"\bGrand\s+Theft\s+Auto\b|\bGTA\s*(?:VI|6)\b",
+     "侠盗猎车手VI", "《侠盗猎车手 VI》"),
+    (r"\bGrand\s+Theft\s+Auto\b|\bGTA\s*(?:VI|6)\b",
+     "《侠盗猎车手》", "《侠盗猎车手 VI》"),
 ]
 
 

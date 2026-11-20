@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.1.1
+# @version 3.1.4
 """术语/实体数据表
 
 源：subtitle_calib_merged.py L10374-L10590 @ 97d7d463（2026-10-24 冻结快照）
@@ -461,10 +461,12 @@ ENTITIES.append(Entity("音弧", modes=("ak",), en="arcs",
                        category="术语/玩法",
                        ctx=((r"(?<!mobile )\bapps?\b", "应用程序"), (r"\barcs?\b", "弧线")),
                        note="Arcaea 蓝线官方中文「音弧」；应用程序/弧线只走 ctx；mobile apps 不在此列。"))
-ENTITIES.append(Entity("海猫", modes=("ak",), en="Lowlight",
+ENTITIES.append(Entity("海猫", modes=("ak", "endobi", "endo", "tga26"), en="Lowlight",
                        category="作者/鹰角网络",
+                       variants=("Hai Mao", "HaiMao", "海毛"),
                        ctx=((r"\bLow Light\b", "Low Light"), (r"\bLowlight\b", "Lowlight")),
-                       note="鹰角网络联合创始人海猫（Lowlight）；英文形只走 ctx；显示可带（Lowlight）。"))
+                       note="鹰角网络联合创始人海猫（Lowlight）；Hai Mao/HaiMao/海毛 为 ASR/机翻形，"
+                            "2026-11-19 终末地 TGA 视频二校补入；英文形只走 ctx；显示可带（Lowlight）。"))
 ENTITIES.append(Entity("Kukki", modes=("ak",), en="Kukki",
                        category="主播",
                        ctx=((r"how could you not name", "库奇"), (r"how could you not name", "Cookie")),

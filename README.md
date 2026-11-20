@@ -78,13 +78,13 @@
 
 | 安装包 | 体积 | 说明 |
 | --- | --- | --- |
-| **在线安装包** `VideoToolbox_OnlineSetup_v3.1.0.exe` | 约 12 MB | 新用户首选。运行后按文件差异拉取所需组件，装完即可离线使用 |
+| **在线安装包** `VideoToolbox_OnlineSetup_v3.1.4.exe` | 约 12 MB | 新用户首选。运行后按文件差异拉取所需组件，装完即可离线使用 |
 
 > 附件名用英文，是因为 GitHub Releases 会把非 ASCII 文件名截断
 > （历史版本 v1.12.0 的 Setup 包在下载页显示成了 `_Setup_v1.12.0.exe`）。
 > 安装后程序名仍是中文。
 
-> 最新发布：[v3.1.0](https://github.com/09Th90/VideoToolbox/releases/tag/v3.1.0)。
+> 最新发布：[v3.1.4](https://github.com/09Th90/VideoToolbox/releases/tag/v3.1.4)。
 > 发布产物与源码版本严格对应，**README 不再预告尚未构建的产物**。
 > 本版安装形态为 onedir，安装目录会包含 `_internal\` 依赖目录。
 
