@@ -3681,6 +3681,53 @@ WUWA_MISSING_CHECK = [
      "Fallacy of No Return 官方中文=无归的谬误；No Rewards 为 ASR"),
     (r"\bCoast\s+Guard\b", ("海岸警卫队", "守岸人"),
      "Coast Guard 是守岸人早期英文命名；中文可保留史实「海岸警卫队」"),
+    (r"\bTacet\s+(?:Field|Fields)\b|\btacit\s+fields?\b|\btacid\s+fields?\b", ("无音区",),
+     "Tacet Field 官方中文=无音区（与 Tacet Mark=声痕 分层；本片 #265-267 主播先说错再纠正，"
+     "「无音区→声痕」的语感要保留，不可一律归并）"),
+    (r"\b(?:Astrite|Asterite|Asteris|asteris)\b", ("星声",),
+     "Astrite 官方中文=星声（4.0 前瞻页预注册奖励文案，本片 #606-607）"),
+    (r"\bGordia\b", ("格尔黛",), "Gordia 官方中文=格尔黛（4.0，标语「缄默与锋芒」）"),
+    (r"\bLuciel\b", ("露希尔",),
+     "Luciel 官方中文=露希尔（4.0，标语「明日与谎言」）；⚠ 勿与既有 Lucilla=洛瑟菈（3.x 角色）混同"),
+    (r"\bSamosis\b", ("塞谬塞",), "Samosis 官方中文=塞谬塞（4.0，标语「朽骨与旧梦」）"),
+    (r"\b(?:Buling|Bulling)\b", ("卜灵",),
+     "Buling 官方中文=卜灵（近期四星；ASR 常作 bullying，本片 #671-673）"),
+    (r"\bShiao\b", ("清宵",),
+     "Shiao 疑为 3.6 清宵（Ching Shiao）截断 ASR（低置信，命中请人工确认，本片 #436）"),
+    (r"\bIlia\b", ("艾娅", "伊莉娅"),
+     "Ilia 对应 4.0 艾娅（标语「幽浮与烂漫」）；本片 #496-498 主播在猜读音，保留伊莉娅亦属可接受"),
+    (r"\bAnna\b", ("安娜",),
+     "Anna 官方中文=安娜（4.0，标语「玫瑰与妄欲」）；常用名，仅角色名单语境可改"),
+    (r"\bApril\b", ("爱普利",),
+     "April 官方中文=爱普利（4.0，标语「真实与假象」）；常用名/月份，仅角色名单语境可改"),
+    (r"\bKaren\b", ("砂",),
+     "Karen 官方中文=砂（4.0，标语「罪血与净雨」）；常用人名，仅角色名单语境可改，"
+     "本片 #427-429/#441/#627/#689-691 均指该角色"),
+    (r"\broses?\s+and\s+desires?\b", ("玫瑰与妄欲",), "Anna 标语官方中文=「玫瑰与妄欲」"),
+    (r"\btruth\s+and\s+illusions?\b", ("真实与假象",), "April 标语官方中文=「真实与假象」"),
+    (r"\bsilent\s+and\s+hone+d?\b|\bsilence\s+and\s+sharp(?:ness)?\b", ("缄默与锋芒",),
+     "Gordia 标语官方中文=「缄默与锋芒」（ASR silent and honeed）"),
+    (r"\bfuture\s+and\s+falsehoods?\b", ("明日与谎言",), "Luciel 标语官方中文=「明日与谎言」"),
+    (r"\bblood\s+debts?\b", ("罪血与净雨",), "Karen 标语官方中文=「罪血与净雨」（ASR blood debts in purifying rain）"),
+    (r"\bUFOs?\s+and\s+sparkles\b", ("幽浮与烂漫",), "Ia 标语官方中文=「幽浮与烂漫」"),
+    (r"\bbones?\s+and\s+bygones\b", ("朽骨与旧梦",), "Samosis 标语官方中文=「朽骨与旧梦」（ASR Bones and bygones）"),
+    (r"\b(?:Second\s+Solaris(?:\s+School|\s+Academy)?|Second\s+Coming\s+of\s+Solaris|Sekensolaris(?:\s+School)?)\b",
+     ("第二索拉", "第二索拉学院"),
+     "Second Solaris School/Sekensolaris School 官中=第二索拉学院；活动名=第二索拉：未名之梦"),
+    (r"\bUnwritten\s+Dreams\b", ("未名之梦",),
+     "Unwritten Dreams 活动副标题官中=未名之梦"),
+    (r"\b(?:Cheer\s+Cardia|Chicona|Chieko-na|Chieko\s+na)\b", ("夏空",),
+     "Ciaccona 官中=夏空（管弦乐社社长）；Cheer Cardia/Chicona 为 ASR 形"),
+    (r"\b(?:Rococo|Ruccia|Rochia|Ruijia)\b", ("洛可可",),
+     "Rococo 官中=洛可可（学院商店店员）；Ruccia/Rochia/Ruijia 为 ASR 形"),
+    (r"\b(?:Booling|Bulin|Buling)\b", ("卜灵",),
+     "Buling 官中=卜灵（学校论坛管理员）；Booling/Bulin 为 ASR 形"),
+    (r"\bCelestial\s+Steed(?:\s+Corp\.?)?\b", ("天马集团",),
+     "Celestial Steed Corp. 官中=天马集团（广告牌；日服 天馬グループ）"),
+    (r"\bWith\s+Glory\s+I\s+Shall\s+Fall\b", ("愿戴荣光坠入天渊",),
+     "With Glory I Shall Fall 官中曲名=愿戴荣光坠入天渊（卡提希娅 2.2 EP）"),
+    (r"\bschool\s+badges?\b", ("学院徽记",),
+     "school badges 活动货币官中=学院徽记（非学院徽章）"),
 ]
 
 
@@ -4522,6 +4569,16 @@ JA_ENDFIELD_TERMS = {
     # 注：本片 大の字->"大字符"、LINE(线条)->"LINE"、パタパタ->"小嘴"、かよ->"嘉代"
     #     均属逐句误译（裸键是通用中文词），不进表，走 subfix 侧车整行覆盖。
     "泰弗罗斯": "提弗洛斯",   # 2026-09-23 本片再现谷翻音译形「泰弗罗斯」(#33)，并入统一
+    "塔罗牌2": "塔卫二", "塔罗牌Ⅱ": "塔卫二",
+    "塔罗牌2": "塔卫二", "塔罗牌Ⅱ": "塔卫二",
+    "塔洛斯2": "塔卫二", "塔洛斯Ⅱ": "塔卫二",
+    "塔洛斯2": "塔卫二", "塔洛斯Ⅱ": "塔卫二",
+    "塔罗斯2": "塔卫二", "塔罗斯Ⅱ": "塔卫二",
+    "塔罗斯2": "塔卫二", "塔罗斯Ⅱ": "塔卫二",
+    "塔罗牌5": "塔卫五", "塔洛斯5": "塔卫五", "塔罗斯5": "塔卫五",
+    "塔罗牌5": "塔卫五", "塔洛斯5": "塔卫五", "塔罗斯5": "塔卫五",
+    "塔罗牌5": "塔卫五", "塔洛斯5": "塔卫五", "塔罗斯5": "塔卫五",
+    "塔卫5": "塔卫五",
 }
 
 
@@ -4536,6 +4593,39 @@ JA_ENDFIELD_CONTEXT = [
     (r"すご|すげえ|すごい", "惊人的", "好厉害"),      # すごい/すげえ 谷翻系统译成"惊人的"（本片 #36/#55）
     (r"雪", "Yuki", "雪"),
     (r"はあ|はぁ|ふぅ", "叹", "唉"),                  # はあ 拟声谷翻成"叹"，仅在日语行为叹息拟声时改"唉"（防误伤"惊叹/感叹"）
+    (r"はあ|はぁ|ふぅ", "叹。", "唉。"),
+    (r"はあ|はぁ|ふぅ", "叹！", "唉！"),
+    (r"はあ|はぁ|ふぅ", "叹，", "唉，"),
+    (r"オクギ|オク義|オクギー", "奥义小姐", "诀"),
+    (r"オクギ|オク義|オクギー", "奥义先生", "诀"),
+    (r"オクギ|オク義|オクギー", "奥义屋", "诀"),
+    (r"オクギ|オク義|オクギー", "奥吉", "诀"),
+    (r"オクギ|オク義|オクギー", "奥义", "诀"),
+    (r"オクギ|オク義|オクギー", "奥屋", "诀"),
+    (r"オクギ|オク義|オクギー", "神秘", "诀"),
+    (r"オクギ|オク義|オクギー", "谜", "诀"),
+    (r"オクギ|オク義|オクギー", "秘技", "诀"),
+    (r"(?<!ダ)(?<!アルダ)(?<!アルタ)(?<!アル)シル(?!ク|バ|エ|ベ)", "阿达希尔", "祀"),
+    (r"(?<!ダ)(?<!アルダ)(?<!アルタ)(?<!アル)シル(?!ク|バ|エ|ベ)", "希尔", "祀"),
+    (r"(?<!ダ)(?<!アルダ)(?<!アルタ)(?<!アル)シル(?!ク|バ|エ|ベ)", "西尔", "祀"),
+    (r"ネス|ネリス|ネファリス|ネパリス", "聂斯", "聂菲斯"),
+    (r"ネス|ネリス|ネファリス|ネパリス", "聂莉丝", "聂菲斯"),
+    (r"急文明|前文明", "急速文明", "前文明"),
+    (r"急文明|前文明", "快速文明", "前文明"),
+    (r"教約|協約", "教约源石", "协议源石"),
+    (r"教約|協約", "教约原石", "协议源石"),
+    (r"教約|協約", "教约", "协议"),
+    (r"懲域|超域", "懲域", "超域"),
+    (r"懲域|超域", "惩域", "超域"),
+    (r"懲域|超域", "学科领域", "超域"),
+    (r"食営|侵食", "白人食物营地", "侵蚀"),
+    (r"食営|侵食", "食物营地", "侵蚀"),
+    (r"食営|侵食", "餐营", "侵蚀"),
+    (r"食営|侵食", "食营", "侵蚀"),
+    (r"断剣道|談剣堂", "断剑道", "谈剑堂"),
+    (r"断剣道|談剣堂", "断剑拳", "谈剑堂"),
+    (r"天師|天师", "天师杭", "天师桩"),
+    (r"リージン", "李金", "李织烟"),
 ]
 
 
@@ -6716,6 +6806,27 @@ KO_TERMS = {
     '全西战略': '全息战略',
     # 「黄龙→瑝珑」按 bilingual.py 既有判例（同音误写词、禁入裸键）不入表；本片 #14 逐 cue 修正。
     '获得新干': '获得星声',
+    '戈尔迪亚': '格尔黛', '戈尔黛': '格尔黛', '戈迪亚': '格尔黛', '格尔迪亚': '格尔黛',
+    '戈尔迪亚': '格尔黛', '戈尔黛': '格尔黛', '戈迪亚': '格尔黛', '格尔迪亚': '格尔黛',
+    '戈尔迪亚': '格尔黛', '戈尔黛': '格尔黛', '戈迪亚': '格尔黛', '格尔迪亚': '格尔黛',
+    '戈尔迪亚': '格尔黛', '戈尔黛': '格尔黛', '戈迪亚': '格尔黛', '格尔迪亚': '格尔黛',
+    '阿普丽尔': '爱普利', '阿普里尔': '爱普利', '艾普丽尔': '爱普利', '阿普瑞尔': '爱普利',
+    '阿普丽尔': '爱普利', '阿普里尔': '爱普利', '艾普丽尔': '爱普利', '阿普瑞尔': '爱普利',
+    '阿普丽尔': '爱普利', '阿普里尔': '爱普利', '艾普丽尔': '爱普利', '阿普瑞尔': '爱普利',
+    '阿普丽尔': '爱普利', '阿普里尔': '爱普利', '艾普丽尔': '爱普利', '阿普瑞尔': '爱普利',
+    '露琪尔': '露希尔', '卢西尔': '露希尔', '卢琪尔': '露希尔', '露西埃尔': '露希尔',
+    '露琪尔': '露希尔', '卢西尔': '露希尔', '卢琪尔': '露希尔', '露西埃尔': '露希尔',
+    '露琪尔': '露希尔', '卢西尔': '露希尔', '卢琪尔': '露希尔', '露西埃尔': '露希尔',
+    '露琪尔': '露希尔', '卢西尔': '露希尔', '卢琪尔': '露希尔', '露西埃尔': '露希尔',
+    '萨莫西斯': '塞谬塞', '塞摩西斯': '塞谬塞', '萨摩西斯': '塞谬塞', '萨摩塞斯': '塞谬塞',
+    '萨莫西斯': '塞谬塞', '塞摩西斯': '塞谬塞', '萨摩西斯': '塞谬塞', '萨摩塞斯': '塞谬塞',
+    '萨莫西斯': '塞谬塞', '塞摩西斯': '塞谬塞', '萨摩西斯': '塞谬塞', '萨摩塞斯': '塞谬塞',
+    '萨莫西斯': '塞谬塞', '塞摩西斯': '塞谬塞', '萨摩西斯': '塞谬塞', '萨摩塞斯': '塞谬塞',
+    '塞谬赛': '塞谬塞', '塞繆塞': '塞谬塞', '塞缪塞': '塞谬塞', '西穆西斯': '塞谬塞',
+    '塞谬赛': '塞谬塞', '塞繆塞': '塞谬塞', '塞缪塞': '塞谬塞', '西穆西斯': '塞谬塞',
+    '塞谬赛': '塞谬塞', '塞繆塞': '塞谬塞', '塞缪塞': '塞谬塞', '西穆西斯': '塞谬塞',
+    '塞谬赛': '塞谬塞', '塞繆塞': '塞谬塞', '塞缪塞': '塞谬塞', '西穆西斯': '塞谬塞',
+    '煌珑': '瑝珑',
 }
 
 
@@ -8798,6 +8909,12 @@ KO_MISSING_CHECK = [
     (r"신현방", ("新玄方",), "신현방 = 新玄方；错形 申贤邦/申贤方/新联邦"),
     (r"임페라토[르로리]", ("英白拉多",), "임페라토르/임페라토리 = 英白拉多；错形 皇帝"),
     (r"그림의\s?연주", ("格姆",), "그림 = 格姆（3.8 钢琴家）；错形留拉丁 Grim"),
+    (r"고르디아|골디아", ("格尔黛",), "고르디아 = 格尔黛；错形 戈尔迪亚/戈尔黛/戈迪亚/格尔迪亚"),
+    (r"에이프릴", ("爱普利",), "에이프릴 = 爱普利；错形 四月/阿普丽尔/阿普里尔"),
+    (r"루시엘", ("露希尔",), "루시엘 = 露希尔；错形 卢西尔/露琪尔/卢琪尔"),
+    (r"시뮤시스|시뮬시스", ("塞谬塞",), "시뮬시스 = 塞谬塞；错形 西穆西斯/萨莫西斯/塞摩西斯"),
+    (r"성흔", ("声痕",), "성흔 = 声痕；错形 成恩/星云/性痕/圣痕"),
+    (r"라일이로이|라하이로이|라하이\s?로이", ("拉海洛",), "라일이로이 = 拉海洛；错形 莱尔·艾洛伊/拉海罗伊"),
 ]
 
 # ===== data/endfield.py =====
@@ -9224,6 +9341,29 @@ ENDFIELD_MISSING_CHECK = [
      "玩家自主权(player agency)；勿作代理机构"),
     (r"\bArts\s+Intensity\b", ("源石技艺强度",),
      "源石技艺强度(Arts Intensity)；勿作艺术强度"),
+    (r"\bHai\s+Mao\b", ("海猫",),
+     "制作人海猫（Light Zhong）；勿作海毛/导演海毛"),
+    (r"\bMonsanto\s+Outlanders\b|\bMonster\s+Hunter\s+Outlanders\b",
+     ("怪物猎人：旅人",),
+     "TGA 2026 提名；ASR 把 Monster Hunter 听成 Monsanto"),
+    (r"\bWuthering\s+Waves\s+Meet\b|\bWhere\s+Winds\s+Meet\b",
+     ("燕云十六声",),
+     "TGA 2026 提名；ASR 把 Where Winds Meet 听成 Wuthering Waves Meet"),
+    (r"\bNeverness\s+to\s+Everness\b|\bNTE\b", ("异环",),
+     "TGA 2026 提名；官方简中《异环》"),
+    (r"\bPokemon\s+Champions\b|\bPokémon\s+Champions\b", ("宝可梦冠军",),
+     "TGA 2026 提名；官方简中《宝可梦冠军》"),
+    (r"\bGrand\s+Theft\s+Auto\s+(?:VI|6)\b|\bGTA\s*(?:VI|6)\b",
+     ("侠盗猎车手",),
+     "GTA VI 官方简中《侠盗猎车手 VI》；勿保留 GTA 6 缩写"),
+    (r"\bBetter\s+Call\s+Saul\b", ("风骚律师",),
+     "《风骚律师》（Better Call Saul）官方简中"),
+    (r"\bDangal\s+Rampa\b|\bDanganronpa\b", ("弹丸论破",),
+     "《弹丸论破》（Danganronpa）官方简中；Dangal Rampa 为 ASR 误听"),
+    (r"\bAr[ck]pedia(?:\.net)?\b", ("Arkpedia",),
+     "Arknights 社区站 Arkpedia.net；arcpedia.net 是 Arc Raiders 站点"),
+    (r"\bThe\s+Game\s+Awards?\b|\bGame\s+Awards?\b", ("TGA", "游戏大奖"),
+     "The Game Awards 中文通称 TGA"),
 ]
 
 
@@ -10415,6 +10555,15 @@ ENDFIELD_BI_CONTEXT = [
     (r"\bmonument\b", "谦卑碑", "影拓丰碑"),
     (r"\bmonument\b", "谦卑丰碑", "影拓丰碑"),
     (r"umbr", "Umbral", "影拓丰碑"),  # 长形先于 Umbra：否则 Umbra 裸键把 Umbral 咬成「影拓丰碑l」
+    (r"\bHai\s+Mao\b", "导演", "制作人"),
+    (r"\bHai\s+Mao\b", "主任", "制作人"),
+    (r"\bHai\s+Mao\b", "总监", "制作人"),
+    (r"\bGrand\s+Theft\s+Auto\b|\bGTA\s*(?:VI|6)\b",
+     "《侠盗猎车手VI》", "《侠盗猎车手 VI》"),
+    (r"\bGrand\s+Theft\s+Auto\b|\bGTA\s*(?:VI|6)\b",
+     "侠盗猎车手VI", "《侠盗猎车手 VI》"),
+    (r"\bGrand\s+Theft\s+Auto\b|\bGTA\s*(?:VI|6)\b",
+     "《侠盗猎车手》", "《侠盗猎车手 VI》"),
 ]
 
 
@@ -10822,6 +10971,14 @@ REACT_TERMS = {
     "Mongol Star Dive": "魔御：STAR DIVE", "Mongil Star Dive": "魔御：STAR DIVE",
     "Silver Palace": "白银之城", "Drippy": "拙皮",
     "Wizardry Proving Grounds of the Mad Overlord": "巫术：狂王的试炼场",
+    "《GTA 6》": "《侠盗猎车手6》",
+    "《GTA》": "《侠盗猎车手》",
+    "GTA 6": "侠盗猎车手6",
+    "GTA": "侠盗猎车手",
+    "《Soulframe》": "《祖灵战甲》",
+    "Soulframe": "祖灵战甲",
+    "Mick Gordon": "米克·戈登",
+    "soundscape": "声景",
 }
 
 # 用法：python subtitle_calib_merged.py --react <input.srt> --out out.srt
@@ -11913,6 +12070,7 @@ _MODE_TERM_TABLE = {
     "ssv": "SSV_TERMS",
     "arcak": "ARCAK_TERMS",
     "tga26": "TGA_TERMS",
+    "ko": "KO_TERMS", "wuwa40ko": "KO_TERMS", "wwoc": "WWOC_TERMS", "endo": "ENDFIELD_TERMS",
 }
 
 _MODE_CTX_TABLE = {
@@ -11949,6 +12107,7 @@ _MODE_CTX_TABLE = {
     "ssv": "SSV_CONTEXT",
     "arcak": "ARCAK_CONTEXT",
     "tga26": "TGA_CONTEXT",
+    "akko": "AK_KO_CONTEXT", "ko": "KO_CONTEXT", "wuwa40ko": "WW40KO_CONTEXT", "ak": "AK_CONTEXT",
 }
 
 _MODE_NAMES = {
@@ -11966,6 +12125,7 @@ _MODE_NAMES = {
     "ssv": "星之救援者",
     "arcak": "Arcaea×明日方舟",
     "tga26": "TGA 2026 游戏大奖",
+    "ko": "韩语原声·鸣潮", "wuwa40ko": "韩语原声·鸣潮 4.0 新联邦 PV", "wwoc": "综合手游OST", "endo": "终末地",
 }
 
 # ===== data/entities_base.py =====
@@ -13032,7 +13192,7 @@ ENTITIES = [
     Entity('重启锚点', modes=('ak',), en='Relaunch Anchor', ja='', ko='', category='玩法/生息演算', variants=('Relaunch Anchor', 'relaunch anchor'), ctx=(), exclude=(), note='生息演算模式官方中文「重启锚点」。⚠ 2026-11-02 复核：EP17「相变临界」官网公告（ak.hypergryph.com/news/3046）与 PRTS/BWIKI 本章系统名清单里**查无「生息演算·重启锚点」这一本章项**，此前把它记作本章系统名属误，待复核；本条只保留生息演算自身口径，不再关联 EP17。'),
     Entity('定向寻访卡池', modes=('ak',), en='Orienteering banner', ja='', ko='', category='卡池', variants=('Orienteering banner', 'Orienteering Banner'), ctx=(), exclude=(), note='Orienteering banner 官方卡池「定向寻访」。'),
     Entity('音弧', modes=('ak',), en='arcs', ja='', ko='', category='术语/玩法', variants=(), ctx=(('(?<!mobile )\\bapps?\\b', '应用程序'), ('\\barcs?\\b', '弧线')), exclude=(), note='Arcaea 蓝线官方中文「音弧」；应用程序/弧线只走 ctx；mobile apps 不在此列。'),
-    Entity('海猫', modes=('ak',), en='Lowlight', ja='', ko='', category='作者/鹰角网络', variants=(), ctx=(('\\bLow Light\\b', 'Low Light'), ('\\bLowlight\\b', 'Lowlight')), exclude=(), note='鹰角网络联合创始人海猫（Lowlight）；英文形只走 ctx；显示可带（Lowlight）。'),
+    Entity('海猫', modes=('ak', 'endobi', 'endo', 'tga26'), en='Lowlight', ja='', ko='', category='作者/鹰角网络', variants=('Hai Mao', 'HaiMao', '海毛'), ctx=(('\\bLow Light\\b', 'Low Light'), ('\\bLowlight\\b', 'Lowlight')), exclude=(), note='鹰角网络联合创始人海猫（Lowlight）；Hai Mao/HaiMao/海毛 为 ASR/机翻形，2026-11-19 终末地 TGA 视频二校补入；英文形只走 ctx；显示可带（Lowlight）。'),
     Entity('Kukki', modes=('ak',), en='Kukki', ja='', ko='', category='主播', variants=(), ctx=(('how could you not name', '库奇'), ('how could you not name', 'Cookie')), exclude=(), note='主播 kukkikaze 昵称 Kukki；Cookie/库奇 为 ASR/机翻形，只走 ctx。'),
     Entity('《Operation Dawnseeker》（寻昼行动）', modes=('ak',), en='Operation Dawnseeker', ja='', ko='', category='曲目/危机合约', variants=("Don't Seeker", 'Dont Seeker'), ctx=(("\\bDon'?t Seeker\\b", '不要寻找者'), ("\\bDon'?t Seeker\\b", '别寻找者')), exclude=(), note='危机合约#8 寻昼行动主题曲，官方曲名 Operation Dawnseeker。'),
     Entity('《Operation Basepoint》（起源行动）', modes=('ak',), en='Operation Basepoint', ja='', ko='', category='曲目/危机合约', variants=('Base Point',), ctx=(('\\bBase Point\\b', '基点'), ('\\bBase Point\\b', '基点行动')), exclude=(), note='危机合约#12 起源行动主题曲，官方曲名 Operation Basepoint。'),
@@ -13106,6 +13266,13 @@ ENTITIES = [
     Entity('地球Online', modes=('ak',), en='Earth Online', ja='', ko='', category='梗/网络', variants=(), ctx=(), exclude=(), note='中文网络梗「地球Online」（现实生活=平衡稀烂的网游）；错形「地球在线」在 AK_TERMS。'),
     Entity('鳄鱼叔叔', modes=('ak',), en='Uncle Croc', ja='', ko='', category='梗/网络', variants=(), ctx=(), exclude=(), note='地球Online 梗：活了约两亿年、策划动不了的玩家；ASR/谷翻作 Uncle Croc/鳄鱼大叔。'),
     Entity('陈雪凝', modes=('ak',), en='Chen Xuening', ja='', ko='', category='歌手', variants=(), ctx=(), exclude=(), note='《绿色》演唱者（2019 发行）；「春水」系谷翻音译错形，只走 AK_CONTEXT 的 Chun Shui 锚定。'),
+    Entity('怪物猎人：旅人', modes=('endobi', 'tga26'), en='Monster Hunter Outlanders', ja='', ko='', category='作品/游戏', variants=('Monsanto Outlanders', 'Monster Hunter Outlanders'), ctx=(), exclude=(), note='TGA 2026 最佳移动游戏提名；官方简中《怪物猎人：旅人》。Monsanto Outlanders 为 ASR 把 Monster Hunter 误听成 Monsanto。'),
+    Entity('宝可梦冠军', modes=('endobi', 'tga26'), en='Pokemon Champions', ja='', ko='', category='作品/游戏', variants=('Pokemon Champions', 'Pokémon Champions'), ctx=(), exclude=(), note='TGA 2026 最佳移动游戏提名；官方简中《宝可梦冠军》（Pokemon Champions）。'),
+    Entity('侠盗猎车手 VI', modes=('endobi', 'tga26'), en='Grand Theft Auto VI', ja='', ko='', category='作品/游戏', variants=('Grand Theft Auto VI', 'GTA VI', 'GTA 6'), ctx=(), exclude=(), note='GTA VI 官方简中《侠盗猎车手 VI》；GTA 6/GTA VI 为口语缩写，终末地/TGA 双语片源统一为官方全称。Grand Theft Auto 6 保留 TGA_TERMS 既有「侠盗猎车手 6」写法，不并入本条，避免变体冲突。'),
+    Entity('风骚律师', modes=('bi', 'endobi', 'tga26'), en='Better Call Saul', ja='', ko='', category='作品/影视', variants=('Better Call Saul',), ctx=(), exclude=(), note='《风骚律师》（Better Call Saul）官方简中；本片 #182 实证，长键安全。'),
+    Entity('弹丸论破', modes=('bi', 'endobi', 'tga26'), en='Danganronpa', ja='', ko='', category='作品/游戏', variants=('Dangal Rampa', 'Danganronpa', 'Dangaronpa'), ctx=(), exclude=(), note='《弹丸论破》（Danganronpa）官方简中；Dangal Rampa 为 ASR 误听，整串生僻、裸键安全。'),
+    Entity('Arkpedia.net', modes=('ak', 'bi', 'endobi'), en='Arkpedia', ja='', ko='', category='网站/明日方舟', variants=('Arcpedia.net', 'Arcpedia'), ctx=(), exclude=(), note='Arknights 社区资料站 Arkpedia.net；arcpedia.net 是 Arc Raiders 站点，不可混用。Aripedia/Aredia 的旧小写映射仍留在 AK_TERMS，本条只收 Arcpedia 系列。'),
+    Entity('TGA', modes=('endobi', 'tga26'), en='The Game Awards', ja='', ko='', category='奖项/机构', variants=('The Game Awards', 'Game Awards'), ctx=(), exclude=(), note='The Game Awards 中文通称 TGA；本片中文行已用 TGA，本条只清理未来片源残留英文。'),
 ]
 
 # ===== text.py =====
