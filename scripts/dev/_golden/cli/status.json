@@ -1,0 +1,150 @@
+{
+  "cmd": "status",
+  "policy": "full",
+  "ignore_keys": [
+    "features"
+  ],
+  "payload": {
+    "ok": true,
+    "version": "1.0.0",
+    "app_root": "<ROOT>",
+    "data_root": "<ROOT>",
+    "data_dir": "<ROOT>\\data",
+    "python": "<ROOT>\\tools\\python\\python.exe",
+    "tools_dir": "<ROOT>\\tools",
+    "ffmpeg": "ffmpeg.exe",
+    "ffprobe": "ffprobe.exe",
+    "yt_dlp": "yt-dlp.exe",
+    "deno": "deno.exe",
+    "tools_files": [
+      "__pycache__",
+      "ai_client.py",
+      "asr_model",
+      "credential_store.py",
+      "decision_client.py",
+      "deno.exe",
+      "download_open_source_deps.py",
+      "ffmpeg.exe",
+      "ffprobe.exe",
+      "mihomo",
+      "mpv",
+      "ms-playwright",
+      "newpipe-cli",
+      "node.exe",
+      "python",
+      "videocaptioner",
+      "yt-dlp.exe"
+    ],
+    "ai": {
+      "configured": true,
+      "base_url": "https://token-plan.cn-beijing.maas.aliyuncs.com/compatible-mode/v1",
+      "model": "qwen4-max-preview",
+      "vision_model": "qwen4-max-preview",
+      "asr": {
+        "mode": "service",
+        "base_url": "https://token-plan.cn-beijing.maas.aliyuncs.com/compatible-mode/v1",
+        "model": "qwen-audio-3.0-asr-flash",
+        "ready": true
+      }
+    },
+    "features": [
+      {
+        "id": "status",
+        "title": "环境自检",
+        "available": true,
+        "detail": "清单级功能"
+      },
+      {
+        "id": "info",
+        "title": "媒体元信息",
+        "available": true,
+        "detail": "清单级功能"
+      },
+      {
+        "id": "download",
+        "title": "视频下载",
+        "available": true,
+        "detail": "core.download.job"
+      },
+      {
+        "id": "library",
+        "title": "视频库",
+        "available": true,
+        "detail": "features.library.media_registry"
+      },
+      {
+        "id": "merge",
+        "title": "音视频合并",
+        "available": true,
+        "detail": "core.download.media"
+      },
+      {
+        "id": "transcribe",
+        "title": "语音转录",
+        "available": true,
+        "detail": "features.transcribe.engine_asr"
+      },
+      {
+        "id": "workbench",
+        "title": "字幕工作台",
+        "available": true,
+        "detail": "vt_engine_ui"
+      },
+      {
+        "id": "subtitle_edit",
+        "title": "字幕编辑",
+        "available": true,
+        "detail": "subtitle_editor_core"
+      },
+      {
+        "id": "translate",
+        "title": "字幕翻译",
+        "available": true,
+        "detail": "features.translate.engine_translate"
+      },
+      {
+        "id": "calibrate",
+        "title": "字幕校准",
+        "available": true,
+        "detail": "calib_core"
+      },
+      {
+        "id": "pipeline",
+        "title": "流水线",
+        "available": true,
+        "detail": "features.pipeline.pipeline"
+      },
+      {
+        "id": "compose",
+        "title": "字幕合成",
+        "available": true,
+        "detail": "features.compose.subtitle_compose_core"
+      },
+      {
+        "id": "voiceprint",
+        "title": "声纹识别",
+        "available": true,
+        "detail": "features.voiceprint.speaker_voiceprint"
+      },
+      {
+        "id": "harness",
+        "title": "AI 托管",
+        "available": true,
+        "detail": "features.harness.harness_bridge"
+      },
+      {
+        "id": "split",
+        "title": "视频切片",
+        "available": true,
+        "detail": "features.split.video_split"
+      },
+      {
+        "id": "automation",
+        "title": "自动化投稿",
+        "available": true,
+        "detail": "features.automation.bili_auto_submit"
+      }
+    ]
+  },
+  "rc": 0
+}

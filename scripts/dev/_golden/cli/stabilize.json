@@ -1,0 +1,11 @@
+{
+  "cmd": "stabilize",
+  "policy": "full",
+  "ignore_keys": [],
+  "payload": {
+    "ok": true,
+    "script": "calib_core.cli.main_argv",
+    "exit_code": 0
+  },
+  "rc": 0
+}

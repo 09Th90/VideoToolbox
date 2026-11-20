@@ -1,0 +1,7 @@
+{
+  "cmd": "transcribe",
+  "policy": "help",
+  "ignore_keys": [],
+  "text": "usage: agent_cli transcribe [-h] [--json] [--data-root DATA_ROOT]\n                            [--lang LANG] [--out OUT]\n                            file\n\npositional arguments:\n  file                  视频或音频文件\n\noptions:\n  -h, --help            show this help message and exit\n  --json                结构化输出（stdout 只落一个 JSON；日志走 stderr）\n  --data-root DATA_ROOT\n                        数据根目录（默认：VT_DATA_ROOT > data_dir.txt > 程序根）\n  --lang LANG           识别语言：ISO 码或引擎标签（ja/en/zh/日本語…；空=自动检测）\n  --out OUT             输出 .srt 或目录（默认 data\\agent_out\\<时间戳>\\）\n",
+  "rc": 0
+}

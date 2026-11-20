@@ -1,0 +1,16 @@
+{
+  "cmd": "translate",
+  "policy": "structure",
+  "ignore_keys": [],
+  "payload": {
+    "ok": true,
+    "source": "<FIX>\\sample.srt",
+    "output": "<FIX>\\tr.zh.srt",
+    "target": "zh-Hans",
+    "engine": "bing",
+    "n_cues": 3,
+    "n_failed_chunks": 0,
+    "n_failed_lines": 0
+  },
+  "rc": 0
+}
