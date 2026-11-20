@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.1.1
+# @version 3.1.2
 """本地 ASR 全链自检（可复跑；正向 + **负向**验证）。
 
 覆盖：目录解析优先级、完全离线加载、GPU→CPU 自动降级、缺模型/坏文件报错、
@@ -579,6 +579,91 @@ def main() -> int:
             os.environ.pop("HF_HOME", None)
         else:
             os.environ["HF_HOME"] = old_hf
+
+    # ---------- T17 内置通道异常翻译（B/J 接口失效提示） ----------
+    try:
+        from core.asr.patches import _friendly_builtin_asr_error
+
+        class _Resp(object):
+            def __init__(self, status_code, url):
+                self.status_code = status_code
+                self.url = url
+
+        class _Exc(Exception):
+            def __init__(self, text, status_code=None, url=""):
+                super().__init__(text)
+                self.response = (_Resp(status_code, url)
+                                 if status_code else None)
+
+        cases = [
+            ("B 接口 412 风控",
+             _Exc("412 Client Error: Precondition Failed for url: "
+                  "https://member.bilibili.com/x/bcut/rubick-interface/task/result",
+                  412,
+                  "https://member.bilibili.com/x/bcut/rubick-interface/task/result"),
+             "风控"),
+            ("B 接口额度用尽",
+             _Exc("BcutASR duration limit exceeded"), "额度"),
+            ("J 接口签名 403",
+             _Exc("403 Client Error: Forbidden for url: "
+                  "https://asrtools-update.bkfeng.top/sign",
+                  403, "https://asrtools-update.bkfeng.top/sign"),
+             "签名服务"),
+            ("J 接口 system busy/1014",
+             _Exc('{"ret":"1014","errmsg":"system busy"}'), "system busy"),
+            ("无关异常透传（不误报）",
+             _Exc("Connection reset by peer"), ""),
+        ]
+        for name, exc, needle in cases:
+            hint = _friendly_builtin_asr_error(exc)
+            ok = (needle in hint) if needle else (hint == "")
+            check("T17 内置通道异常翻译：%s" % name, ok,
+                  hint or "(空=原样透传)")
+    except Exception as exc:  # noqa: BLE001
+        check("T17 内置通道异常翻译", False, repr(exc))
+
+    # ---------- T18 settings.json 枚举外取值回落（QConfig.load 不中断） ----
+    try:
+        from core.asr.runtime_patches import _vc_sanitize_enum_settings
+
+        data = {
+            "Transcribe": {"TranscribeModel": "FasterWhisper ✨",
+                           "TranscribeLanguage": "火星语",
+                           "OutputFormat": "SRT"},
+            "FasterWhisper": {"Model": "large-v3-ft",  # 枚举外自定义名
+                              "VadMethod": "silero_v4"},
+        }
+        changed = _vc_sanitize_enum_settings(data)
+        check("T18 枚举外取值被回落为合法值",
+              changed
+              and data["FasterWhisper"]["Model"] == "large-v3"
+              and data["Transcribe"]["TranscribeLanguage"] == "自动检测"
+              and data["Transcribe"]["TranscribeModel"] == "FasterWhisper ✨",
+              json.dumps(data, ensure_ascii=False))
+        check("T18b 合法配置不被二次改动",
+              _vc_sanitize_enum_settings(data) is False)
+    except Exception as exc:  # noqa: BLE001
+        check("T18 settings.json 枚举防御", False, repr(exc))
+
+    # ---------- T19 [负向] 测试 ASR 配置：权重文件逐项校验 ----------
+    try:
+        from core.shared.ai import _asr_local_dry_run, ai_mod as _ai_mod
+
+        empty = tempfile.mkdtemp(prefix="vt_fw_empty_", dir=tmp)
+        cfg_bad = {"asr_mode": "local", "asr_local_model": "large-v3",
+                   "asr_local_model_dir": empty, "asr_protocol": "auto"}
+        ok, msg = _ai_mod().asr_test_connection(cfg_bad)
+        check("T19 [负向] 空目录不再被当成就绪",
+              ok is False and all(k in msg for k in
+                                  ("config.json", "tokenizer.json", "vocabulary")),
+              msg.replace("\n", " / "))
+        dry_ok, dry_msg = _asr_local_dry_run(
+            {"local_model": "vt-不存在的模型-xyz", "local_model_dir": empty})
+        check("T19b [负向] 无可用权重的干跑失败且原因可读",
+              dry_ok is False and "未找到" in dry_msg,
+              dry_msg.replace("\n", " / "))
+    except Exception as exc:  # noqa: BLE001
+        check("T19 测试 ASR 配置逐项校验", False, repr(exc))
 
     # ---------- T16 降级日志确实落盘 ----------
     try:

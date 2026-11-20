@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.1.1
+# @version 3.1.2
 """转录体验补丁（黑窗抑制）+ 主播声纹筛选（转录完成后处理）（v2.3.1 拆分工程 · 自 video_toolbox.py 原样搬入）。
 
 v2.3.1 拆分工程；域间依赖规则见 core/__init__.py。
@@ -83,8 +83,10 @@ def vc_pydub_nowindow_patch():
         return False
 
 
-#: 转录下拉显示名：「默认」= 引擎免费接口（B 接口）；「ASR」= 全局 ASR 配置
-TM_DISPLAY_DEFAULT = "默认"
+#: 转录下拉显示名：「默认」= 引擎免费接口（B 接口，2026-11 起已被平台风控，
+#: 任务必失败——文案直接点明，避免用户以为「默认」是稳妥选项）；
+#: 「ASR」= 全局 ASR 配置（自有服务 / 本地模型）。
+TM_DISPLAY_DEFAULT = "默认（必剪已失效）"
 TM_DISPLAY_ASR = "ASR"
 
 

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.1.1
+# @version 3.1.2
 """info 子命令：媒体 / 字幕元信息（原 agent_cli.cmd_info，行为不变）。"""
 from __future__ import annotations
 

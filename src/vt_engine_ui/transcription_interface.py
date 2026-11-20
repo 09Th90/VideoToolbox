@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.1.1
+# @version 3.1.2
 """自研「语音转录」页（含 ``VideoInfoCard``）。
 
 视觉与引擎转录页对齐；把原本运行期打在引擎类上的转录补丁**内建为显式逻辑**：
@@ -250,31 +250,57 @@ class VideoInfoCard(CardWidget):
                 self.tr("警告"), self.tr("没有可用的字幕文件夹"),
                 duration=_seams.constants.INFOBAR_DURATION_WARNING, parent=self)
 
-    def _ensure_asr_selected(self):
+    def _ensure_asr_selected(self) -> bool:
         """已配置 ASR 时不要停在「默认」——B 接口（bcut）已不可用。
 
         转录页的「默认」会把模型写成 B 接口，任务随后走必剪 API 必失败
         （2026-10-28 实测 ``task/result`` 固定 412）。这里在建任务前把界面
         与配置一起切到 ASR，保持按钮显示与实际使用的模型一致。
+
+        返回 ``False`` 表示「停在默认且 ASR 未配置」——此时建任务必失败，
+        调用方应中止并引导去配置（2026-11-19 第三方反馈：等整条音频转码完
+        才看到 412，等于白跑）。
         """
         try:
             ui = self.transcription_interface
             if ui.model_button.text() != _seams.TM_DISPLAY_DEFAULT:
-                return
+                return True
             ac = _seams.ai_mod().asr_config(_seams.ai_load_config())
             ready = (bool(ac.get("local_model") or ac.get("local_model_dir"))
                      if ac.get("mode") == "local"
                      else bool(ac.get("base_url") and ac.get("api_key")))
             if ready:
                 ui.on_transcription_model_changed(_seams.TM_DISPLAY_ASR)
+                return True
+            bar = InfoBar.warning(
+                self.tr("ASR 未配置"),
+                self.tr("转录模型「默认」走必剪接口，而该接口已被平台风控"
+                        "（任务必失败）。请先到 设置 → ASR 语音识别 配置"
+                        "自有服务或本地模型，再回来开始转录。"),
+                duration=-1,
+                parent=self.parent().parent())
+            try:
+                btn = PushButton(self.tr("去配置 ASR"))
+                btn.clicked.connect(self._goto_asr_settings)
+                bar.addWidget(btn)
+            except Exception:  # noqa: BLE001
+                pass
+            return False
         except Exception as e:  # noqa: BLE001
             _seams.vc_log(f"自动切换 ASR 失败：{e}")
+            return True
 
     def start_transcription(self, need_create_task=True):
         self.transcription_interface.is_processing = True
         self.start_button.setEnabled(False)
         if need_create_task:
-            self._ensure_asr_selected()
+            if not self._ensure_asr_selected():
+                # 前置拦截：未配置 ASR 时不建任务（必剪必失败，白等转码）
+                self.transcription_interface.is_processing = False
+                self.start_button.setEnabled(True)
+                self.start_button.setText(self.tr("开始转录"))
+                self.progress_ring.hide()
+                return
             self.task = _seams.TaskFactory.create_transcribe_task(self.video_info.file_path)
         if not self.task:
             return
@@ -297,15 +323,55 @@ class VideoInfoCard(CardWidget):
         self.start_button.setText(message)
         self.progress_ring.setValue(value)
 
+    #: 失败文本命中这些特征时，说明「改配 ASR」就是下一步动作（B/J 失效、
+    #: 本地模型缺权重/枚举崩溃、服务配置错误），错误条额外挂直达按钮。
+    _ASR_FIX_HINTS = ("必剪", "剪映", "bcut", "412", "faster-whisper",
+                      "faster_whisper", "'str' object", "转录服务",
+                      "ASR", "Whisper", "模型")
+
     def on_transcript_error(self, error):
         self.transcription_interface.is_processing = False
         self.start_button.setEnabled(True)
         self.start_button.setText(self.tr("重新转录"))
         self.progress_ring.hide()
-        InfoBar.error(
-            self.tr("转录失败"), self.tr(error),
-            duration=_seams.constants.INFOBAR_DURATION_ERROR,
+        text = str(error or "")
+        _low = text.lower()
+        fixable = any(k.lower() in _low for k in self._ASR_FIX_HINTS)
+        bar = InfoBar.error(
+            self.tr("转录失败"), self.tr(text),
+            # 带操作按钮时常驻，给用户足够时间点击；纯提示保持原时长
+            duration=(-1 if fixable
+                      else _seams.constants.INFOBAR_DURATION_ERROR),
             parent=self.parent().parent())
+        if fixable:
+            try:
+                btn = PushButton(self.tr("去配置 ASR"))
+
+                def _go():
+                    try:
+                        bar.close()
+                    except Exception:  # noqa: BLE001
+                        pass
+                    self._goto_asr_settings()
+
+                btn.clicked.connect(_go)
+                bar.addWidget(btn)
+            except Exception as e:  # noqa: BLE001
+                _seams.vc_log(f"转录失败提示按钮挂载失败：{e}")
+
+    def _goto_asr_settings(self):
+        """跳到设置页「ASR 语音识别」卡片（失败提示条按钮与引导文案共用）。"""
+        try:
+            win = self.window()
+            fn = getattr(win, "open_asr_settings", None)
+            if callable(fn):
+                fn()
+                return
+            sp = getattr(win, "settings_page", None)
+            if sp is not None and hasattr(win, "switchTo"):
+                win.switchTo(sp)
+        except Exception as e:  # noqa: BLE001
+            _seams.vc_log(f"跳转 ASR 设置失败：{e}")
 
     def on_transcript_finished(self, task):
         self.start_button.setEnabled(True)
@@ -923,6 +989,27 @@ class TranscriptionInterface(QWidget):
         except Exception as e:  # noqa: BLE001
             _seams.vc_log(f"声纹筛选事前提示未发：{e}")
         self.is_processing = True
+        # 与「开始转录」同一道前置闸：本入口的 task 是上游（首页/拖入）创建的，
+        # 界面切换 ASR **不会**改它。所以：
+        #   · 停在「默认」且 ASR 未配置 → 中止并引导（必剪必失败）；
+        #   · 已配置 → 切到 ASR 后重建 task，保证真正跑的模型与按钮一致。
+        if self.model_button.text() == _seams.TM_DISPLAY_DEFAULT:
+            if not self.video_info_card._ensure_asr_selected():
+                self.is_processing = False
+                self.video_info_card.reset_ui()
+                return
+            try:
+                if self.task is not None:
+                    old = self.task
+                    new = _seams.TaskFactory.create_transcribe_task(
+                        old.file_path,
+                        need_next_task=bool(getattr(old, "need_next_task", False)),
+                        task_id=getattr(old, "task_id", None))
+                    new.selected_audio_track_index = getattr(
+                        old, "selected_audio_track_index", 0)
+                    self.set_task(new)
+            except Exception as e:  # noqa: BLE001 - 重建失败不阻断（旧 task 仍可跑）
+                _seams.vc_log(f"切换 ASR 后重建转录任务失败：{e}")
         self.video_info_card.start_transcription(need_create_task=False)
 
     def dragEnterEvent(self, event):

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.1.1
+# @version 3.1.2
 """自检：谷歌翻译批量请求层（``core.translate.gtx_batch``，2026-11-01）。
 
 背景

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.1.1
+# @version 3.1.2
 """vc 引擎运行期补丁（lazy-cache 宿主缓存接驳 / settings 预备 / 运行时强制 / 历史数据迁移与残留检测）（v2.3.1 拆分工程 · 自 video_toolbox.py 原样搬入）。
 
 v2.3.1 拆分工程；域间依赖规则见 core/__init__.py。
@@ -128,6 +128,55 @@ def vc_lazy_openai_patch():
     return True
 
 
+def _vc_sanitize_enum_settings(data):
+    """qconfig 读盘前把「枚举外取值」回落成合法值。返回是否有改动。
+
+    为什么必须做：``qfluentwidgets.QConfig.load`` 被 ``@exceptionHandler()``
+    整体包裹，任一配置项反序列化抛异常（``EnumSerializer.deserialize`` 即
+    ``EnumClass(value)``）都会**中断整份配置加载**——后面的配置项全部保持
+    出厂默认，且界面无任何提示。历史 settings.json 里 ``FasterWhisper.Model``
+    被手改/旧版本写成枚举外名字（自定义模型名）时就会踩这颗雷。
+
+    只修 ASR 相关、且**会抛异常**的枚举项；自定义模型名照旧由运行期补丁
+    （``enum_like``）注入，不写盘。
+    """
+    changed = False
+    try:
+        from videocaptioner.core import entities as _E
+    except Exception:  # noqa: BLE001 - 引擎尚未可用时留给后续启动再修
+        return False
+
+    def _fix(section, key, enum_cls, fallback):
+        nonlocal changed
+        sec = data.get(section)
+        if not isinstance(sec, dict) or key not in sec:
+            return
+        value = sec.get(key)
+        try:
+            enum_cls(value)
+            return
+        except (ValueError, TypeError):
+            pass
+        sec[key] = fallback
+        changed = True
+        _vc_log("引擎设置 %s.%s=%r 不在枚举内，已回落到 %r"
+                "（避免整份配置加载中断）" % (section, key, value, fallback))
+
+    _fix("Transcribe", "TranscribeModel", _E.TranscribeModelEnum,
+         _E.TranscribeModelEnum.BIJIAN.value)
+    _fix("Transcribe", "TranscribeLanguage", _E.TranscribeLanguageEnum,
+         _E.TranscribeLanguageEnum.AUTO.value)
+    _fix("Transcribe", "OutputFormat", _E.TranscribeOutputFormatEnum,
+         _E.TranscribeOutputFormatEnum.SRT.value)
+    _fix("Whisper", "WhisperModel", _E.WhisperModelEnum,
+         _E.WhisperModelEnum.TINY.value)
+    _fix("FasterWhisper", "Model", _E.FasterWhisperModelEnum,
+         _E.FasterWhisperModelEnum.LARGE_V3.value)
+    _fix("FasterWhisper", "VadMethod", _E.VadMethodEnum,
+         _E.VadMethodEnum.SILERO_V4.value)
+    return changed
+
+
 def vc_prepare_settings_file():
     """引擎界面导入前规整 settings.json（幂等，在 prepare_runtime_env 调用）。
 
@@ -139,7 +188,9 @@ def vc_prepare_settings_file():
         os.makedirs(vc_data_dir(), exist_ok=True)
         existed = os.path.isfile(vc_settings_path())
         data = _vc_read_settings()
-        changed = _vc_force_local_paths(data)
+        # 枚举外取值先回落（否则 qconfig 读盘会在该项中断，后续配置全丢）
+        changed = _vc_sanitize_enum_settings(data)
+        changed = _vc_force_local_paths(data) or changed
         ai = ai_load_config()
         llm = data.setdefault("LLM", {})
         if not bool(ai.get("enabled", True)):

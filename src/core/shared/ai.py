@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.1.1
+# @version 3.1.2
 """全局 AI / LLM 配置与通道（tools/ai_client.py 加载器 + 配置读写/测试）（v2.3.1 拆分工程 · 自 video_toolbox.py 原样搬入）。
 
 本模块是 src/core/shared/ 的组成部分；域间依赖规则见 core/__init__.py。
@@ -201,10 +201,105 @@ def ai_test_connection(cfg=None, channel="a"):
         return False, str(e)
 
 
-def ai_test_asr(cfg=None):
-    """ASR（语音识别）配置自检：返回 (是否成功, 说明)。"""
+def _asr_local_dry_run(ac):
+    """本地独立模型「干跑」：解析目录 + 构造 ASR 实例（**不加载权重**）。
+
+    为什么需要：2026-11-19 第三方反馈里设置页显示「测试正常」（旧实现只查
+    「目录存在且非空」），点转录却立刻崩在配置字段/模型目录上。设置页测试
+    必须把「目录解析 → 逐项权重体检 → ASR 构造」这条链在**建任务之前**跑一遍；
+    ``WhisperModel`` 初始化会占显存/耗时，仍留给真实任务。
+    """
+    model = str(ac.get("local_model") or "").strip() or "large-v3"
+    explicit = str(ac.get("local_model_dir") or "").strip()
     try:
-        return ai_mod().asr_test_connection(cfg if cfg is not None else ai_load_config())
+        from core.asr.enum_compat import enum_like
+        from features.transcribe import asr_local_paths as paths
+        from features.transcribe.engine_asr import _create_asr_instance
+        from engine_entities import TranscribeModelEnum
+        from vt_engine.entities import TranscribeConfig
+    except Exception as e:  # noqa: BLE001 - 运行环境不完整时不误判配置好坏
+        return True, "（干跑跳过：运行环境未就绪，%s）" % e
+    try:
+        model_dir = paths.resolve_model_dir(model, explicit)
+    except Exception as e:  # noqa: BLE001 - ModelDirNotFound 消息本身可操作
+        return False, str(e)
+    problems, notes = paths.diagnose_model_dir(model_dir)
+    if problems:
+        return False, ("本地模型目录 %s 不可用：%s"
+                       % (model_dir, "；".join(problems)))
+    # 显式目录缺权重时 resolve_model_dir 会按设计**忽略并回退**（引擎会把
+    # model_dir 写死成空目录，不能让它顶掉工具箱真权重）。但用户填的目录
+    # 若真缺文件，必须说清楚「实际用的是哪个」，否则又是一次「测试过了
+    # 却没按我填的跑」的困惑。
+    warnings = []
+    if explicit and os.path.isdir(explicit) \
+            and not paths.is_complete_model_dir(explicit):
+        exp_problems, _ = paths.diagnose_model_dir(explicit)
+        if exp_problems:
+            warnings.append("你填写的目录不完整（%s），已回退到 %s"
+                            % ("；".join(exp_problems), model_dir))
+    import tempfile
+    import wave
+    fd, wav = tempfile.mkstemp(prefix="vt_asr_dry_", suffix=".wav")
+    os.close(fd)
+    try:
+        # 1 秒 16k 单声道静音：ChunkedASR 构造只读音频字节，不加载模型。
+        with wave.open(wav, "wb") as w:
+            w.setnchannels(1)
+            w.setsampwidth(2)
+            w.setframerate(16000)
+            w.writeframes(b"\x00\x00" * 16000)
+        cfg = TranscribeConfig(
+            transcribe_model=TranscribeModelEnum.FASTER_WHISPER,
+            transcribe_language="en",
+            need_word_time_stamp=False,
+            # 与 asr_local_override()/vc_asr_patch_apply() 的真实注入形态一致
+            faster_whisper_model=enum_like(model),
+            faster_whisper_model_dir=model_dir,
+            faster_whisper_device="cuda",
+            faster_whisper_vad_filter=True,
+            faster_whisper_vad_threshold=0.4,
+            faster_whisper_vad_method=enum_like("silero_v4"),
+            faster_whisper_one_word=False,
+        )
+        chunked = _create_asr_instance(wav, cfg)
+        kwargs = getattr(chunked, "asr_kwargs", None) or {}
+        got_model = kwargs.get("whisper_model")
+        got_dir = kwargs.get("model_dir")
+        if str(got_model) != model:
+            return False, ("干跑构造的模型名不一致（期望 %s，实际 %r）"
+                           % (model, got_model))
+        if os.path.abspath(str(got_dir or "")) != os.path.abspath(model_dir):
+            return False, ("干跑构造的模型目录不一致（期望 %s，实际 %r）"
+                           % (model_dir, got_dir))
+        tip = ("；" + "；".join(warnings + notes)) if (warnings or notes) else ""
+        return True, ("本地配置干跑通过：模型 %s，目录 %s（仅构造不加载权重）%s"
+                      % (model, model_dir, tip))
+    except Exception as e:  # noqa: BLE001
+        return False, "本地配置干跑失败：%s" % (e,)
+    finally:
+        try:
+            os.unlink(wav)
+        except OSError:
+            pass
+
+
+def ai_test_asr(cfg=None):
+    """ASR（语音识别）配置自检：返回 (是否成功, 说明)。
+
+    本地模式在 ``asr_test_connection`` 的权重文件逐项校验之后追加干跑
+    （目录解析 + ASR 构造），把「测试正常、转录才崩」提前到设置页暴露。
+    """
+    try:
+        _cfg = cfg if cfg is not None else ai_load_config()
+        ac = ai_mod().asr_config(_cfg)
+        ok, msg = ai_mod().asr_test_connection(_cfg)
+        if not ok or ac.get("mode") != "local":
+            return ok, msg
+        dry_ok, dry_msg = _asr_local_dry_run(ac)
+        if not dry_ok:
+            return False, "%s\n%s" % (msg, dry_msg)
+        return True, "%s\n%s" % (msg, dry_msg)
     except Exception as e:  # noqa: BLE001
         return False, str(e)
 

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.1.1
+# @version 3.1.2
 """本地 faster-whisper 模型目录解析（纯计算、零第三方依赖）。
 
 背景
@@ -35,12 +35,14 @@ __all__ = [
     "FW_REL_DIR",
     "REQUIRED_WEIGHT_FILES",
     "VOCABULARY_NAMES",
+    "OPTIONAL_WEIGHT_FILES",
     "VOICEPRINT_MODEL_NAME",
     "ModelDirNotFound",
     "resolve_tools_dir",
     "model_root",
     "list_available_models",
     "is_complete_model_dir",
+    "diagnose_model_dir",
     "candidate_dirs",
     "resolve_model_dir",
 ]
@@ -51,6 +53,8 @@ FW_REL_DIR = os.path.join("asr_model", "faster-whisper")
 #: ``WhisperModel(目录)`` 能加载的最少文件集合。
 REQUIRED_WEIGHT_FILES = ("config.json", "model.bin", "tokenizer.json")
 VOCABULARY_NAMES = ("vocabulary.json", "vocabulary.txt")
+#: 缺失只提示不阻断（faster-whisper 自带默认预处理参数）。
+OPTIONAL_WEIGHT_FILES = ("preprocessor_config.json",)
 
 #: 声纹模型（同目录，必须原样保留；本模块只读不写）。
 VOICEPRINT_MODEL_NAME = "3dspeaker_speech_campplus_sv_zh-cn_16k-common.onnx"
@@ -161,6 +165,31 @@ def is_complete_model_dir(path: str) -> bool:
                for n in VOCABULARY_NAMES):
         return False
     return True
+
+
+def diagnose_model_dir(path: str) -> Tuple[List[str], List[str]]:
+    """逐项体检模型目录，返回 ``(问题清单, 提示清单)``。
+
+    与 :func:`is_complete_model_dir` 同一判据（必需三件 + 词表二选一），
+    区别是**逐项列出缺失文件名**而不是一句「缺权重」。设置页「测试 ASR
+    配置」直接展示这份清单——2026-11-19 第三方反馈里「测试正常、转录才崩」
+    的根源就是当时只检查「目录存在且非空」。
+    """
+    problems: List[str] = []
+    notes: List[str] = []
+    if not path or not os.path.isdir(path):
+        return ["模型目录不存在：%s" % (path or "(未填)")], notes
+    for name in REQUIRED_WEIGHT_FILES:
+        if not _is_nonempty_file(os.path.join(path, name)):
+            problems.append("缺少必需文件：%s" % name)
+    if not any(_is_nonempty_file(os.path.join(path, n))
+               for n in VOCABULARY_NAMES):
+        problems.append("缺少词表文件：%s 之一"
+                        % " / ".join(VOCABULARY_NAMES))
+    for name in OPTIONAL_WEIGHT_FILES:
+        if not _is_nonempty_file(os.path.join(path, name)):
+            notes.append("可选文件 %s 缺失（通常不影响加载）" % name)
+    return problems, notes
 
 
 def _expand_explicit(model_name: str, explicit_dir: str) -> List[str]:

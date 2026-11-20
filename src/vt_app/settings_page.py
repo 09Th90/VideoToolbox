@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.1.1
+# @version 3.1.2
 """全局设置页（2026-11-15 功能解耦阶段③：从 video_toolbox_qt.py 拆出，逐字同源）。
 
 壳层页面（非可选功能）：全程序唯一全局设置——目录 / 下载 Cookie / 全局 AI /
@@ -574,6 +574,7 @@ class SettingsPage(QWidget):
             "ASR 语音识别（转录配置）",
             "语音转文字用独立 ASR 模型（自有服务或本地模型）；"
             "保存后自动写入引擎「转录配置」")
+        self.asr_card = box
         ai = engine.ai_load_config()
         mode = str(ai.get("asr_mode") or "service").lower()
 
@@ -1248,7 +1249,22 @@ class SettingsPage(QWidget):
                           position=InfoBarPosition.BOTTOM_RIGHT, parent=self)
             return
         ok, msg = result
-        text = str(msg)[:300]
+        text = str(msg)
+        # 本地 ASR 的失败原因是**逐项清单**（缺哪个文件、回退到哪个目录）：
+        # InfoBar 单行会截断成半句，改用对话框完整展示（2026-11-19）。
+        if not ok and ("\n" in text or len(text) > 300):
+            try:
+                dlg = MessageBox(f"{name} 不可用", text[:3000], self.window())
+                try:
+                    dlg.yesButton.setText("知道了")
+                    dlg.cancelButton.hide()
+                except Exception:  # noqa: BLE001
+                    pass
+                dlg.exec_()
+                return
+            except Exception:  # noqa: BLE001 - 弹窗失败仍回退 InfoBar
+                pass
+        text = text[:300]
         if ok and self._is_ai_dirty():
             # 测试用的是界面上的值，转录用的是**已保存**的值 —— 这个错位
             # 最容易被当成"配了却没生效"，所以这里必须说清楚
@@ -1519,6 +1535,18 @@ class SettingsPage(QWidget):
         try:
             if self.shell.area is not None:
                 self.shell.area.ensureWidgetVisible(self.engine_card, 0, 80)
+        except Exception:
+            pass
+
+    def scroll_to_asr(self):
+        """外部调用：定位到「ASR 语音识别」卡片（转录失败提示条用）。"""
+        QTimer.singleShot(0, self._scroll_to_asr_card)
+
+    def _scroll_to_asr_card(self):
+        try:
+            card_w = getattr(self, "asr_card", None)
+            if self.shell.area is not None and card_w is not None:
+                self.shell.area.ensureWidgetVisible(card_w, 0, 80)
         except Exception:
             pass
 

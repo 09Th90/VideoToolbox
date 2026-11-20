@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.1.1
+# @version 3.1.2
 """
 全局 AI 客户端（OpenAI 兼容 · 单通道）。
 
@@ -2216,27 +2216,122 @@ def quick_test(channel: str = "a") -> tuple[bool, str]:
         return False, str(e)
 
 
+def _local_asr_model_root() -> Path:
+    """本地 faster-whisper 权重根（``<程序根>/tools/asr_model/faster-whisper``）。
+
+    与 ``features/transcribe/asr_local_paths.py::model_root()`` 同口径：
+    frozen 锚 exe 同级；源码向上找含 ``tools/ai_client.py`` 的程序根；都失败
+    时用本文件所在目录（ai_client.py 就在 tools 下）。VT_DATA_ROOT 只影响
+    data 配置，不改变随包模型位置（除非显式设在程序根下）。
+    """
+    env = (os.environ.get("VT_DATA_ROOT") or "").strip().strip('"')
+    if env:
+        cand = Path(env) / "tools" / "asr_model" / "faster-whisper"
+        if cand.is_dir():
+            return cand
+    if getattr(sys, "frozen", False):
+        return Path(sys.executable).resolve().parent / "tools" / "asr_model" / "faster-whisper"
+    here = Path(__file__).resolve()
+    for parent in here.parents:
+        if (parent / "tools" / "ai_client.py").is_file():
+            return parent / "tools" / "asr_model" / "faster-whisper"
+    return here.parent / "asr_model" / "faster-whisper"
+
+
+#: ``WhisperModel(目录)`` 能加载的必需文件（与 asr_local_paths 同判据）。
+_FW_REQUIRED_FILES = ("config.json", "model.bin", "tokenizer.json")
+_FW_VOCAB_FILES = ("vocabulary.json", "vocabulary.txt")
+
+
+def _fw_dir_problems(path: str) -> list:
+    """逐项检查 faster-whisper 权重目录，返回问题清单（空 = 完整）。"""
+    try:
+        if not os.path.isdir(path):
+            return ["模型目录不存在：%s" % path]
+        problems = []
+        for name in _FW_REQUIRED_FILES:
+            f = os.path.join(path, name)
+            if not (os.path.isfile(f) and os.path.getsize(f) > 0):
+                problems.append("缺少必需文件：%s" % name)
+        if not any(os.path.isfile(os.path.join(path, n))
+                   and os.path.getsize(os.path.join(path, n)) > 0
+                   for n in _FW_VOCAB_FILES):
+            problems.append("缺少词表文件：%s 之一"
+                            % " / ".join(_FW_VOCAB_FILES))
+        return problems
+    except OSError as e:
+        return ["模型目录检查失败：%s" % e]
+
+
+def _hf_snapshot_dir(model: str) -> str:
+    """可选的 HF 缓存快照目录（与 asr_local_paths 的回退口径一致）。
+
+    搬移后正常不再命中；但老用户可能仍把权重留在 HF 缓存里，运行期
+    ``resolve_model_dir`` 认这条路，测试也必须认，否则会出现
+    「运行能跑、测试报未找到」的假阴性。
+    """
+    try:
+        hf_home = (os.environ.get("HF_HOME") or "").strip()
+        hub = (os.path.join(hf_home, "hub") if hf_home else
+               os.path.join(os.path.expanduser("~"), ".cache",
+                            "huggingface", "hub"))
+        snap = os.path.join(
+            hub, "models--Systran--faster-whisper-%s" % model, "snapshots")
+        if not os.path.isdir(snap):
+            return ""
+        for name in sorted(os.listdir(snap)):
+            cand = os.path.join(snap, name)
+            if os.path.isdir(cand) and not _fw_dir_problems(cand):
+                return cand
+    except OSError:
+        pass
+    return ""
+
+
 def asr_test_connection(cfg: dict | None = None) -> tuple[bool, str]:
     """ASR（语音识别）配置自检：返回 (是否成功, 说明)。
 
     service 模式按协议探测：openai/dashscope 用 GET {base}/models（两者均为
     OpenAI 兼容模型列表）；azure 用 GET 部署根（api-key 头，列出部署）。
-    local 模式：只做本地配置校验（模型名非空、模型目录存在性），不真正加载模型
-    （加载会占用显存/内存且耗时，交给转录任务自身校验）。
+    local 模式：**逐项校验模型目录的权重文件**（config.json / model.bin /
+    tokenizer.json + 词表二选一），不再以「目录非空」视为就绪——2026-11-19
+    第三方反馈正是「设置页测试正常、点转录立刻崩」。真正构造 ASR（不加载
+    权重）的干跑在 src 侧 ``core.shared.ai.ai_test_asr`` 追加，本函数保持
+    零第三方依赖。
     """
     ac = asr_config(cfg)
     if ac["mode"] == "local":
         if not ac["local_model"]:
             return False, "本地模式需要填写模型名（如 large-v3）"
-        d = ac["local_model_dir"]
+        model = ac["local_model"]
+        d = str(ac["local_model_dir"] or "").strip().strip('"')
         if d:
-            if not os.path.isdir(d):
-                return False, f"模型目录不存在：{d}"
-            if not os.listdir(d):
-                return False, f"模型目录为空：{d}"
-            return True, f"本地模型 {ac['local_model']}，目录 {d}（已就绪）"
-        return True, (f"本地模型 {ac['local_model']}（用数据根 models 目录；"
-                      "若模型未下载，请在字幕引擎设置内下载）")
+            problems = _fw_dir_problems(d)
+            if problems:
+                return False, ("本地模型目录不可用（%s）：\n- %s\n"
+                               "请补齐后重试；faster-whisper 权重目录需含 "
+                               "config.json / model.bin / tokenizer.json 与 "
+                               "vocabulary.json（或 vocabulary.txt）。"
+                               % (d, "\n- ".join(problems)))
+            return True, f"本地模型 {model}，目录 {d}（权重文件齐全）"
+        # 目录留空：按工具箱约定定位 <程序根>/tools/asr_model/faster-whisper/<model>
+        root = _local_asr_model_root()
+        cand = str(root / model)
+        if os.path.isdir(cand):
+            problems = _fw_dir_problems(cand)
+            if problems:
+                return False, ("工具箱内模型目录 %s 不完整：\n- %s\n"
+                               "请补齐后重试，或在设置里改用含完整权重的目录。"
+                               % (cand, "\n- ".join(problems)))
+            return True, f"本地模型 {model}，自动定位到 {cand}（权重文件齐全）"
+        hf = _hf_snapshot_dir(model)
+        if hf:
+            return True, (f"本地模型 {model}，自动定位到 HF 缓存 {hf}"
+                          "（权重文件齐全）")
+        return False, ("未找到本地模型「%s」的权重目录。请把模型放到：%s\n"
+                       "（需含 config.json / model.bin / tokenizer.json 与 "
+                       "vocabulary.json 或 vocabulary.txt），或在设置里填一个"
+                       "含完整权重的目录。" % (model, cand))
     if not ac["base_url"]:
         return False, "服务模式需要填写 ASR 接口地址"
     if not ac["api_key"]:

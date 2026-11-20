@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.1.1
+# @version 3.1.2
 """自研字幕工作台 UI 的**后端接缝层**（single adapter）。
 
 本包（``vt_engine_ui``）只负责「UI 视觉层」——即规格文档 P3 / 档 C 的自研化。
@@ -35,8 +35,10 @@ __all__ = [
     "backend_available", "backend_error",
 ]
 
-# 转录下拉的两个显示名（本 UI 自有文案；与 video_toolbox.TM_DISPLAY_* 一致）
-TM_DISPLAY_DEFAULT = "默认"
+# 转录下拉的两个显示名（本 UI 自有文案；与 video_toolbox.TM_DISPLAY_* 一致）。
+# 「默认」直接点明必剪已失效——2026-11 起 B 接口 task/result 被平台风控，
+# 停在该项建任务必失败（voiceprint.py 的权威常量同步维护，改动需两边一致）。
+TM_DISPLAY_DEFAULT = "默认（必剪已失效）"
 TM_DISPLAY_ASR = "ASR"
 
 

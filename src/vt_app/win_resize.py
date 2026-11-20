@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.1.1
+# @version 3.1.2
 """无边框窗口边缘拖拽热区（原 video_toolbox_qt.py 同名代码，逐字下沉）。"""
 from PySide6.QtCore import QAbstractNativeEventFilter
 

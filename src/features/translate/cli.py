@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.1.1
+# @version 3.1.2
 """translate 子命令（原 agent_cli.cmd_translate，行为不变）。"""
 from __future__ import annotations
 

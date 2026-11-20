@@ -79,7 +79,7 @@
   "THUMB_CACHE_DIR": "'D:\\\\Agent Work\\\\软件开发\\\\视频工具箱\\\\data\\\\thumb_cache'",
   "TMP_DIR": "'D:\\\\Agent Work\\\\软件开发\\\\视频工具箱\\\\data\\\\tmp'",
   "TM_DISPLAY_ASR": "'ASR'",
-  "TM_DISPLAY_DEFAULT": "'默认'",
+  "TM_DISPLAY_DEFAULT": "'默认（必剪已失效）'",
   "TM_FASTER_WHISPER": "'FasterWhisper ✨'",
   "TM_WHISPER_API": "'Whisper [API] ✨'",
   "TOOLS_DIR": "'D:\\\\Agent Work\\\\软件开发\\\\视频工具箱\\\\tools'",

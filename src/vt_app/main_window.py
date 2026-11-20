@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.1.1
+# @version 3.1.2
 """主窗口（2026-11-15 功能解耦阶段③：从 video_toolbox_qt.py 拆出，逐字同源）。
 
 壳层编排：FluentWindow + 注册表驱动的功能页挂载 + 消息总线 + 跨屏收敛 +
@@ -1302,6 +1302,11 @@ class MainWindow(FluentWindow):
         """跳到统一设置页的「字幕引擎」分组（供其他页面调用）。"""
         self.switchTo(self.settings_page)
         self.settings_page.scroll_to_engine()
+
+    def open_asr_settings(self):
+        """跳到统一设置页的「ASR 语音识别」卡片（转录失败提示条调用）。"""
+        self.switchTo(self.settings_page)
+        self.settings_page.scroll_to_asr()
 
     def _apply_argv(self, argv):
         """命令行/拖入到程序图标的文件：提取链接填到下载页，或直接分派。

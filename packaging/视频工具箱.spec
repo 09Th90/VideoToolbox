@@ -1,6 +1,6 @@
 # -*- mode: python ; coding: utf-8 -*-
-# @version 3.1.1
-"""视频工具箱 v3.1.1 —— PyInstaller 打包配置
+# @version 3.1.2
+"""视频工具箱 v3.1.2 —— PyInstaller 打包配置
 v3.0.0（2026-11-15）：功能解耦 + 模块独立文件夹（28 个实现模块归位 features/<id>/），
         重新打包；见 docs/release-notes-v3.0.0.md。
 v2.1.0（2026-10-14）：PyQt5 → PySide6 迁移（docs/PySide6迁移方案书）。本 spec 的
