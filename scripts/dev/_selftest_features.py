@@ -40,7 +40,7 @@ PASS, FAIL = [], []
 EXPECTED = {"status", "info", "download", "transcribe", "translate",
             "calibrate", "compose", "split", "automation", "merge",
             "workbench", "pipeline", "library", "subtitle_edit",
-            "voiceprint", "harness"}
+            "voiceprint", "harness", "mcp"}
 
 
 def check(name: str, ok: bool, detail: str = "") -> None:
@@ -64,7 +64,7 @@ def main() -> int:
     reg = registry()
     specs = reg.specs()
     errs = reg.errors()
-    check("注册表发现 16 功能", set(specs) == EXPECTED and not errs,
+    check("注册表发现 17 功能", set(specs) == EXPECTED and not errs,
           "缺=%s 多=%s 错=%s" % (sorted(EXPECTED - set(specs)),
                                 sorted(set(specs) - EXPECTED), errs))
     check("_template 被跳过", "_template" not in specs)

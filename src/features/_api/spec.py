@@ -322,7 +322,7 @@ COMMANDS = (
         help="B 站后台自动投稿（UI Automation 定位 + 后台输入；素材目录内含投稿信息.txt）",
         params=(
             _P("material", "material", "positional", "path", default="",
-               nargs="?", help="素材目录（非 --probe 时实际必填）",
+               nargs="?", help="素材目录",
                source="features/automation/cli.py:31"),
             _P("--probe", "probe", "option", "boolean", default=False,
                action="store_true", help="只输出当前页面 UIA 结构",

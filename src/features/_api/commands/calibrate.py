@@ -79,4 +79,34 @@ def run(params: dict, log) -> dict:
     if not input_list:
         return fail("缺少输入字幕（用法：calibrate <input.srt> [--out F] "
                     "[--report F] [--ja|--ko|--endo|--ak|…]）")
-    return passthrough_run(None, input_list, params.get("extra") or [], log)
+    payload = passthrough_run(None, input_list, params.get("extra") or [], log)
+    if "exit_code" in payload:
+        _enrich(params.get("extra") or [], payload)
+    return payload
+
+
+def _enrich(extra: list, payload: dict) -> None:
+    """只增字段（P1 信封增强，旧字段不动）：mode_name + changes（report TSV 数据行）。"""
+    from features._api.spec import CALIBRATE_MODE_FLAGS  # noqa: PLC0415
+    flag_mode = {m.flag: m.mode for m in CALIBRATE_MODE_FLAGS}
+    mode = None
+    it = iter(extra)
+    for a in it:
+        if a in flag_mode:
+            mode = flag_mode[a]
+        elif a == "--mode":
+            mode = next(it, None)
+    if mode:
+        payload["mode_name"] = mode
+    report = None
+    it = iter(extra)
+    for a in it:
+        if a == "--report":
+            report = next(it, None)
+    if report and os.path.isfile(report):
+        try:
+            with open(report, encoding="utf-8") as f:
+                n = len(f.read().splitlines())
+            payload["changes"] = max(0, n - 1)      # 除表头
+        except OSError:
+            pass

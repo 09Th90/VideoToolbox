@@ -44,6 +44,9 @@ def run(params: dict, log) -> dict:
         target = _Tee()
     else:
         target = buf
-    with contextlib.redirect_stdout(target):
-        rc = bas.main(argv)
+    try:
+        with contextlib.redirect_stdout(target):
+            rc = bas.main(argv)
+    except SystemExit as ex:      # 内层 argparse error 会 sys.exit(2)——归一为信封
+        rc = ex.code if isinstance(ex.code, int) else (0 if ex.code is None else 1)
     return {"ok": rc == 0, "exit_code": rc, "stdout": buf.getvalue()}
