@@ -11,7 +11,7 @@ import shutil
 import sys
 import unicodedata
 from ._doc import USAGE_DOC
-from .data.modes import AK_INFO, AK_KO_INFO, ARCAK_AMIYA_INFO, ARCAK_AMIYA_OVERRIDES_SRC, ENDO_INFO, KO_INFO, PGR_INFO, PGR_OVERRIDES_SRC, WWOC_INFO, WW38_INFO, WW38_OVERRIDES_SRC, WW38B_INFO, WW38B_OVERRIDES_SRC, WW38H_INFO, WW38H_OVERRIDES_SRC, WW38_J_INFO, WW38_J_OVERRIDES_SRC, WW40_INFO, WW40_OVERRIDES_SRC, WW40IGN_INFO, WW40IGN_OVERRIDES_SRC, WW40KO_INFO, WW40KO_OVERRIDES_SRC, WUSOL_INFO, WUSOL_OVERRIDES_SRC, WUWAALL_INFO, WUWAALL_OVERRIDES_SRC, ZHO_INFO
+from .data.modes import AK_INFO, AK_KO_INFO, ARCAK_AMIYA_INFO, ARCAK_AMIYA_OVERRIDES_SRC, ENDO_INFO, KO_INFO, PGR_INFO, PGR_OVERRIDES_SRC, WWOC_INFO, WW38_INFO, WW38_OVERRIDES_SRC, WW38B_INFO, WW38B_OVERRIDES_SRC, WW38H_INFO, WW38H_OVERRIDES_SRC, WW38_J_INFO, WW38_J_OVERRIDES_SRC, WW40_INFO, WW40_OVERRIDES_SRC, WW40IGN_INFO, WW40IGN_OVERRIDES_SRC, WW40KO_INFO, WW40KO_OVERRIDES_SRC, WUSOL_INFO, WUSOL_OVERRIDES_SRC, WUWAALL_INFO, WUWAALL_OVERRIDES_SRC, ZHO_INFO, _MODE_ALIASES, _MODE_FLAGS
 from .engine import _load_override_tsv, process
 from .format import _cmd_flow, _cmd_length, _cmd_rewrap, _cmd_stabilize
 from .inspect import _cmd_align_audit, _cmd_compare, _cmd_lint, _cmd_missing, _cmd_scan, _cmd_scan_split, _cmd_subfix, _cmd_terms_check, _cmd_verify
@@ -91,62 +91,11 @@ def main_argv(argv=None):
             out_path = args[i + 1]; i += 2
         elif a == "--report" and i + 1 < len(args):
             report_path = args[i + 1]; i += 2
-        elif a == "--ko":
-            mode = "ko"; i += 1
-        elif a == "--ja":
-            mode = "ja"; i += 1
-        elif a == "--jpe":
-            mode = "jpe"; i += 1
-        elif a == "--pgrja":
-            mode = "pgrja"; i += 1
-        elif a == "--akja":
-            mode = "akja"; i += 1
-        elif a == "--wwoc":
-            mode = "wwoc"; i += 1
-        elif a == "--ak":
-            mode = "ak"; i += 1
-        elif a == "--akko":
-            mode = "akko"; i += 1
-        elif a == "--zho":
-            mode = "zho"; i += 1
-        elif a == "--endo":
-            mode = "endo"; i += 1
-        elif a == "--endobi":
-            mode = "endobi"; i += 1
-        elif a == "--endoko":
-            mode = "endoko"; i += 1
-        elif a == "--pgr":
-            mode = "pgr"; i += 1
-        elif a == "--pgren":
-            mode = "pgren"; i += 1
-        elif a == "--react":
-            mode = "react"; i += 1
-        elif a == "--limbus":
-            mode = "limbus"; i += 1
-        elif a == "--ffrs":
-            mode = "ffrs"; i += 1
-        elif a == "--pbz":
-            mode = "pbz"; i += 1
-        elif a == "--ff14":
-            mode = "ff14"; i += 1
-        elif a == "--ssv":
-            mode = "ssv"; i += 1
-        elif a == "--arcak":
-            mode = "arcak"; i += 1
+        elif a in _MODE_FLAGS:
+            mode = _MODE_FLAGS[a]; i += 1
         elif a == "--arcakamiya":
             # 2026-11-19 歌词向全曲纯享：arcak 术语表 + 271 条逐 cue 侧车整行覆盖
             arcakamiya = True; mode = "arcak"; i += 1
-        elif a == "--tga26":
-            mode = "tga26"; i += 1
-        elif a == "--gfl2":
-            # 2026-11-21 少前2二周年反应片：GFL2_TERMS + GFL2_CONTEXT
-            mode = "gfl2"; i += 1
-        elif a == "--zel":
-            mode = "zel"; i += 1
-        elif a == "--hsr":
-            mode = "hsr"; i += 1
-        elif a == "--pkm":
-            mode = "pkm"; i += 1
         elif a == "--fix-en":
             fix_en = True; i += 1
         elif a == "--kb" and i + 1 < len(args):
@@ -181,44 +130,9 @@ def main_argv(argv=None):
             # 鸣潮全短片 Reaction《ALL Wuthering Waves Cinematic Shorts》一键重跑：bi 规则 + 636 条侧车整行覆盖
             wuwaall = True; mode = "bi"; i += 1
         elif a == "--mode" and i + 1 < len(args):
-            m = args[i + 1].lower()
-            if m in ("limbus", "limbuscompany", "边狱巴士"):
-                mode = "limbus"
-            elif m in ("ffrs", "ffresonance", "finalfantasyresonance", "共鸣"):
-                mode = "ffrs"
-            elif m in ("pkm", "pokemon", "pokémon", "pocket_monsters"):
-                mode = "pkm"
-            elif m in ("hsr", "starrail", "star_rail", "honkai_starrail", "honkaistarrail"):
-                mode = "hsr"
-            elif m in ("pbz", "phantomblade", "phantombladezero", "影之刃零", "影之刃"):
-                mode = "pbz"
-            elif m in ("ff14", "ffxiv", "finalfantasy14", "finalfantasixiv",
-                       "最终幻想14", "最终幻想xiv", "银海之天舟"):
-                mode = "ff14"
-            elif m in ("ssv", "starsavior", "star_savior", "星之救援者"):
-                mode = "ssv"
-            elif m in ("arcak", "arcakn", "arcaea_arknights", "arcaea×arknights",
-                       "arcaea明日方舟", "arcaea方舟", "arcaea联动"):
-                # ⚠ 与 akja 同理必须排在下面的三元链之前：三元链里是
-                #   `m in ("ak","arknights")` 精确成员判断，"arcak" 不命中会直接掉回 bi。
-                mode = "arcak"
-            elif m in ("tga26", "tga2026", "tga", "thegameawards",
-                       "gameawards", "游戏大奖", "tga直播"):
-                mode = "tga26"
-            elif m in ("wwm", "wherewindsmeet", "where_winds_meet",
-                       "燕云十六声", "燕云", "yanyun"):
-                mode = "wwm"
-            elif m in ("gfl2", "gf2", "exilium", "gfl2exilium",
-                       "少女前线2", "少女前线2：追放", "追放", "少前2"):
-                mode = "gfl2"
-            elif m in ("akja", "ak_ja", "arknights_ja", "arknightsja",
-                       "明日方舟日语", "日语原声明日方舟"):
-                # ⚠ 必须排在下面那条三元链**之前**：三元链里是 `m in ("ak","arknights")`
-                #   的精确成员判断，"akja" 不会命中它，而是直接掉到默认 "bi"（英语双语通道），
-                #   表现为"旗标传了但规则完全不对"。
-                mode = "akja"
-            else:
-                mode = "ja" if m in ("ja", "japanese") else ("ko" if m in ("ko", "korean") else ("ak" if m in ("ak", "arknights") else ("zho" if m in ("zho", "zhonly", "zh_only") else ("endo" if m in ("endo", "endfield") else ("zel" if m in ("zel", "zelda", "legend of zelda", "zelda_direct") else "bi")))))
+            # 别名→模式查表（_MODE_ALIASES 精确沿用原 elif 链+三元兜底；未列出落 bi）。
+            #   扁平 dict 无 elif 顺序问题：arcak/akja 与 ak 别名集互斥，不会掉回 bi。
+            mode = _MODE_ALIASES.get(args[i + 1].lower(), "bi")
             i += 2
         else:
             i += 1

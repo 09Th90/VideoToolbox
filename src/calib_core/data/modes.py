@@ -313,6 +313,44 @@ MODE_REGISTRY = {
     "zho": {"terms": "ZH_ONLY_TERMS", "ctx": None, "project_terms": "ZH_ONLY_TERMS", "project_ctx": None, "name": "中文行专属"},
 }
 
+# 简单模式旗标（--<mode> 直接设 mode）。排除：bi（默认无旗标）、fix-en（--fix-en 布尔）、
+#   wuwa40ko/wuwa40ign（走一键重跑链，需 info+侧车装配）、wwm（原 cli 无 --wwm 简单旗标，
+#   仅经 --mode wwm 别名进入；擅自补旗标会让 --wwm 从「忽略落 bi」漂移成 wwm）。
+_NO_SIMPLE_FLAG = {"bi", "fix-en", "wuwa40ko", "wuwa40ign", "wwm"}
+_MODE_FLAGS = {"--" + m: m for m in MODE_REGISTRY if m not in _NO_SIMPLE_FLAG}
+
+# --mode 别名 → 模式（精确沿用原 elif 链 + 三元兜底的全部别名；未列出的 --mode 值落 bi）。
+#   ⚠ 别名集必须与原链逐字一致：jpe/pgrja/akko/endobi/endoko/pgren/react/wwoc 等
+#     原本就没有 --mode 别名（--mode jpe 会落 bi），不可擅自补全，否则行为漂移。
+_MODE_ALIASES = {
+    # 三元兜底组
+    "ja": "ja", "japanese": "ja",
+    "ko": "ko", "korean": "ko",
+    "ak": "ak", "arknights": "ak",
+    "zho": "zho", "zhonly": "zho", "zh_only": "zho",
+    "endo": "endo", "endfield": "endo",
+    "zel": "zel", "zelda": "zel", "legend of zelda": "zel", "zelda_direct": "zel",
+    # 显式 elif 组
+    "limbus": "limbus", "limbuscompany": "limbus", "边狱巴士": "limbus",
+    "ffrs": "ffrs", "ffresonance": "ffrs", "finalfantasyresonance": "ffrs", "共鸣": "ffrs",
+    "pkm": "pkm", "pokemon": "pkm", "pokémon": "pkm", "pocket_monsters": "pkm",
+    "hsr": "hsr", "starrail": "hsr", "star_rail": "hsr", "honkai_starrail": "hsr", "honkaistarrail": "hsr",
+    "pbz": "pbz", "phantomblade": "pbz", "phantombladezero": "pbz", "影之刃零": "pbz", "影之刃": "pbz",
+    "ff14": "ff14", "ffxiv": "ff14", "finalfantasy14": "ff14", "finalfantasixiv": "ff14",
+    "最终幻想14": "ff14", "最终幻想xiv": "ff14", "银海之天舟": "ff14",
+    "ssv": "ssv", "starsavior": "ssv", "star_savior": "ssv", "星之救援者": "ssv",
+    "arcak": "arcak", "arcakn": "arcak", "arcaea_arknights": "arcak", "arcaea×arknights": "arcak",
+    "arcaea明日方舟": "arcak", "arcaea方舟": "arcak", "arcaea联动": "arcak",
+    "tga26": "tga26", "tga2026": "tga26", "tga": "tga26", "thegameawards": "tga26",
+    "gameawards": "tga26", "游戏大奖": "tga26", "tga直播": "tga26",
+    "wwm": "wwm", "wherewindsmeet": "wwm", "where_winds_meet": "wwm",
+    "燕云十六声": "wwm", "燕云": "wwm", "yanyun": "wwm",
+    "gfl2": "gfl2", "gf2": "gfl2", "exilium": "gfl2", "gfl2exilium": "gfl2",
+    "少女前线2": "gfl2", "少女前线2：追放": "gfl2", "追放": "gfl2", "少前2": "gfl2",
+    "akja": "akja", "ak_ja": "akja", "arknights_ja": "akja", "arknightsja": "akja",
+    "明日方舟日语": "akja", "日语原声明日方舟": "akja",
+}
+
 # 模式 -> 无条件变体表 / 条件变体表（实体注册时的投影目标）
 # ⚠ 字面量顺序被 kb._kb_view 的实体 modes 累积依赖（kb-export/lookup/lint 输出顺序），
 #   不可改为字母序推导；与 MODE_REGISTRY 的 project_terms 由文件末守卫强制一致。

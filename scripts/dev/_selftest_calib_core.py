@@ -811,6 +811,18 @@ def test_cli(ref, pkg):
         skip = case[3] if len(case) > 3 else ()
         kb_path = case[4] if len(case) > 4 else None
         check(f"子命令 {name}", _cli_case(name, args, outputs, skip, kb_path))
+    # 2026-11-21 P2：模式旗标/--mode 别名解析全覆盖（注册表驱动后防漂移，ref/pkg 双跑比对）
+    for flag in sorted(pkg._MODE_FLAGS):
+        check("旗标解析 " + flag, _cli_case("flag" + flag, ["base.srt", flag], ()))
+    for alias in sorted(pkg._MODE_ALIASES):
+        check("别名解析 " + alias, _cli_case("alias" + alias, ["base.srt", "--mode", alias], ()))
+    for name, args in (("edge-jpe", ["base.srt", "--mode", "jpe"]),
+                       ("edge-unknown", ["base.srt", "--mode", "unknownxyz"]),
+                       ("edge-bi-flag", ["base.srt", "--bi"]),
+                       ("edge-ko-bi", ["base.srt", "--ko", "--bi"]),
+                       ("edge-ko-mode-ja", ["base.srt", "--ko", "--mode", "ja"]),
+                       ("edge-mode-upper", ["base.srt", "--mode", "JAPANESE"])):
+        check("边界解析 " + name, _cli_case(name, args, ()))
     # 上面全是「单体 vs 真源」一致性对照，测不出两版一起坏；护栏的返回码单独断言一次。
     with tempfile.TemporaryDirectory(prefix="calib_guard_") as d:
         _prepare_cli(d)
