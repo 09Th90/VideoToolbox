@@ -9,6 +9,14 @@
 # audit 跨游戏误伤不采纳。
 
 USAGE_DOC = '''字幕校准统一脚本（唯一入口，可复用，每次校准任务优先调用本脚本）
+# 2026-11-21 《Star Rail Player REACTS To ALL Wuthering Waves Cinematic Shorts》全短片 reaction 二校
+#   （636 cue，英声+谷歌翻译双语，中文在上/英文参考行在下，CRLF 无 BOM，--wuwaall）：
+#   官方依据：《致新世界》/《今昔》/《狂欢序章》/《转校生》/《拯救》/《寻心》官方题名与 3.x 角色/地名口径。
+#   首轮 481 条重写；二校净改 23 条（片名《致新世界》、岁主「角」、断句归位 #183-184/#198-200/#416-417/#616-617）。
+#   回灌：新增 --wuwaall（侧车 636 条）；BILINGUAL_TERMS 收 岁主角/佩纳科尼/月醒节/柯莱塔/声骇/今洲；
+#     CONTEXT_MAP 收 As Fate Destined/Prologue to the Carnival/Exchange Student/Hissing Trail/Hestia/golden ball/Exostrider/Guardian Ju/Montelli；
+#     WUWA_MISSING_CHECK 增 10 条体检项；engine.process 增 zh_first（跳过语言探测，防 "Jan。" 全角句号误判）。
+#     门禁：--wuwaall 复跑与 v2 逐字节一致（除 dst 名），时间轴 SHA256 53BF214983FC6D90。
 # 2026-11-21 《HOW DOES KURO KEEP DOING THIS?!?》鸣潮 4.0 IGN 实机演示 reaction 二校
 #   （148 cue，英声+微软翻译双语，中文在上/英文参考行在下，CRLF 无 BOM，bi 通路）：
 #   官方依据：4.0 年度篇章「永明的烬焰」、新共鸣者「安娜」「露希尔」、穿戴式机甲「隧铠」、

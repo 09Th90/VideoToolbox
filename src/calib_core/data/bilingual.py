@@ -1507,6 +1507,16 @@ BILINGUAL_TERMS = {
     "unison team": "同奏队", "Unison Team": "同奏队",
     "Jim Rainor": "吉姆·雷诺", "Jim Raynor": "吉姆·雷诺",
     "福尔特": "共鸣回路",
+    # --- 2026-11-21 鸣潮全短片 reaction（636 cue）二校回灌：只收全片唯一、不会命中正常语义的错形 ---
+    #   官方依据：《致新世界》/《今昔》/《狂欢序章》/《转校生》/《拯救》/《寻心》；
+    #   岁主「角」、今州、今汐、忌炎、莫塔里、珂莱塔、声骸、隧者、虚质、心月狐、朝月会、玲珑球。
+    #   戒律：今夕/金州/圣地 等歧义词禁裸键，一律走 CONTEXT_MAP 参考行锚定。
+    "岁主角": "岁主「角」",
+    "佩纳科尼": "匹诺康尼",
+    "月醒节": "朝月会",
+    "柯莱塔": "珂莱塔",
+    "声骇": "声骸",
+    "今洲": "今州",
 }
 
 
@@ -3447,6 +3457,34 @@ CONTEXT_MAP = [
     ("\\bAnthem\\s+javelin\\b", "Anthem 标枪护甲", "《圣歌》的标枪机甲"),
     ("\\bthese\\s+Anthem\\b", "国歌", "《圣歌》"),
     ("\\bjavelin\\s+armou?r\\b", "标枪护甲", "标枪机甲"),
+    # --- 2026-11-21 鸣潮全短片 reaction（636 cue）二校：片名/专名，英文参考行锚定，禁裸键 ---
+    #   As Fate Destined=《今昔》；Prologue to the Carnival=《狂欢序章》；Exchange Student=《转校生》；
+    #   Hissing Trail=《寻心》；Hestia=心月狐（仅鸣潮语境，避免误伤希腊神话）；golden ball=玲珑球。
+    ("\\bAs\\s+Fate\\s+Destined\\b", "《命运注定》", "《今昔》"),
+    ("\\bAs\\s+Fate\\s+Destined\\b", "命运注定", "《今昔》"),
+    ("\\bAs\\s+Fate\\s+Destined\\b", "《命中注定》", "《今昔》"),
+    ("\\bAs\\s+Fate\\s+Destined\\b", "命中注定", "《今昔》"),
+    ("\\bPrologue\\s+to\\s+the\\s+Carnival\\b", "《狂欢节序章》", "《狂欢序章》"),
+    ("\\bPrologue\\s+to\\s+the\\s+Carnival\\b", "狂欢节序章", "《狂欢序章》"),
+    ("\\bPrologue\\s+to\\s+the\\s+Carnival\\b", "《狂欢节序幕》", "《狂欢序章》"),
+    ("\\bPrologue\\s+to\\s+the\\s+Carnival\\b", "狂欢节序幕", "《狂欢序章》"),
+    ("(?=.*\\bExchange\\s+Student\\b)(?=.*\\b(?:short\\s+film|cinematic|trailer|Wuthering)\\b)", "《交换生》", "《转校生》"),
+    ("(?=.*\\bExchange\\s+Student\\b)(?=.*\\b(?:short\\s+film|cinematic|trailer|Wuthering)\\b)", "交换生", "《转校生》"),
+    ("\\bHissing\\s+Trail\\b", "《嘶嘶踪迹》", "《寻心》"),
+    ("\\bHissing\\s+Trail\\b", "嘶嘶踪迹", "《寻心》"),
+    ("\\bHissing\\s+Trail\\b", "《嘶鸣之路》", "《寻心》"),
+    ("\\bHissing\\s+Trail\\b", "嘶鸣之路", "《寻心》"),
+    ("(?=.*\\bHestia\\b)(?=.*\\b(?:Wuthering|Wuwa|Moon|fox|festival|Rinascita)\\b)", "赫斯提亚", "心月狐"),
+    ("(?=.*\\bHestia\\b)(?=.*\\b(?:Wuthering|Wuwa|Moon|fox|festival|Rinascita)\\b)", "赫斯缇雅", "心月狐"),
+    ("\\bMoon\\s+Awakening\\s+Festival\\b", "月醒节", "朝月会"),
+    ("\\bMoon\\s+Awakening\\s+Festival\\b", "月醒祭", "朝月会"),
+    ("\\bTake\\s+this\\s+golden\\s+ball\\b", "金球", "玲珑球"),
+    ("\\bExostrider\\b", "外骨骼", "隧者"),
+    ("\\bGuardian\\s+Ju\\b", "守护者朱", "岁主「角」"),
+    ("\\bGuardian\\s+Ju\\b", "守护者巨", "岁主「角」"),
+    ("\\bMontelli\\b", "蒙泰利", "莫塔里"),
+    ("\\bMontelli\\b", "蒙特利", "莫塔里"),
+    ("(?=.*\\bRescue\\b)(?=.*\\b(?:short\\s+film|cinematic|trailer)\\b)", "救援", "《拯救》"),
 ]
 
 
@@ -4159,6 +4197,27 @@ WUWA_MISSING_CHECK = [
      "With Glory I Shall Fall 官中曲名=愿戴荣光坠入天渊（卡提希娅 2.2 EP）"),
     (r"\bschool\s+badges?\b", ("学院徽记",),
      "school badges 活动货币官中=学院徽记（非学院徽章）"),
+    # --- 2026-11-21 全短片 reaction 二校：片名与 3.x 专名体检项（只报不改）---
+    (r"\bAs\s+Fate\s+Destined\b", ("今昔", "《今昔》"),
+     "《今昔》官方英文题名 As Fate Destined（1.1 动画短片）"),
+    (r"\bPrologue\s+to\s+the\s+Carnival\b", ("狂欢序章", "《狂欢序章》"),
+     "2.0 短片官中=《狂欢序章》"),
+    (r"\bExchange\s+Student\b", ("转校生", "《转校生》"),
+     "3.0 短片官中=《转校生》"),
+    (r"\bHissing\s+Trail\b", ("寻心", "《寻心》"),
+     "3.7 短片官中=《寻心》（心/玉珏/玉玥）"),
+    (r"\bSaving\s+(?:the\s+)?Light\b", ("致新世界", "《致新世界》"),
+     "Saving Light 官中曲名/题名=《致新世界》"),
+    (r"\bHestia\b", ("心月狐",),
+     "心月狐英文常作 Hestia；ASR 亦作 Sheen/Shin（仅鸣潮语境）"),
+    (r"\bGuardian\s+Ju\b", ("岁主「角」", "角"),
+     "岁主「角」（Jue/Ju）；ASR Guardian Ju"),
+    (r"\bMoon\s+Awakening\s+Festival\b", ("朝月会",),
+     "朝月会官中；勿作月醒节"),
+    (r"\bgolden\s+ball\b", ("玲珑球",),
+     "《寻心》信物官中=玲珑球"),
+    (r"\bExostrider\b", ("隧者",),
+     "Exostrider 官中=隧者（3.1《拯救》）"),
 ]
 
 

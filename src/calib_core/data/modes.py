@@ -147,6 +147,18 @@ ARCAK_AMIYA_INFO = {
 }
 ARCAK_AMIYA_OVERRIDES_SRC = r"D:\Agent Work\软件开发\视频工具箱\data\calib_sidecars\arcak_amiya_motion_zh.tsv"
 
+# 2026-11-21 鸣潮全短片 Reaction《Star Rail Player REACTS To ALL Wuthering Waves Cinematic Shorts》
+#   （636 cue，英文 ASR + 谷歌翻译双语，中文在上/英文参考行在下，CRLF 无 BOM）
+#   首轮人工重写 481 条，二校净改 23 条（#29/#173/#183-184/#198-200/#290/#293-294/#310/#327/
+#     #334/#345/#370/#416-417/#438/#459/#488/#520/#616-617）。
+#   用法：python subtitle_calib_merged.py --wuwaall
+#   与 --wuwa38h 同构（bi 规则 + 逐 cue 侧车整行覆盖，无 >> 前缀），侧车收全片终稿 636 条。
+WUWAALL_INFO = {
+    "src": r"D:\原片\Star Rail Player REACTS To ALL Wuthering Waves Cinematic Shorts\【字幕】Star Rail Player REACTS To ALL Wuthering Waves Cinematic Shorts-谷歌翻译.srt",
+    "dst": r"D:\原片\Star Rail Player REACTS To ALL Wuthering Waves Cinematic Shorts\【字幕】Star Rail Player REACTS To ALL Wuthering Waves Cinematic Shorts-谷歌翻译_calibrated_v2.srt",
+}
+WUWAALL_OVERRIDES_SRC = r"D:\Agent Work\软件开发\视频工具箱\data\calib_sidecars\wuwaall_all_shorts_bi_override.tsv"
+
 
 
 
@@ -253,6 +265,8 @@ _MODE_TERM_TABLE = {
     "arcak": "ARCAK_TERMS",
     # 2026-11-21 新增：燕云十六声（Where Winds Meet）实机片源
     "wwm": "WWM_TERMS",
+    # 2026-11-21 新增：少女前线2：追放（GFL2 Exilium）二周年反应片源
+    "gfl2": "GFL2_TERMS",
     # 2026-11-18 新增：TGA 2026 游戏大奖直播（英语原声 + 微软翻译）
     "tga26": "TGA_TERMS",
     # 2026-11-03 新增：战双帕弥什**日语原声**片源（联动朗读直播）。
@@ -304,6 +318,8 @@ _MODE_CTX_TABLE = {
     "arcak": "ARCAK_CONTEXT",
     # 2026-11-21 新增：--wwm 语境槽（老板/头目/副本/地下城/军械库 等通用词只能靠英文参考行锚定）
     "wwm": "WWM_CONTEXT",
+    # 2026-11-21 新增：--gfl2 语境槽（全速前进/改装间 等正常中文词只能靠英文参考行锚定）
+    "gfl2": "GFL2_CONTEXT",
     # 2026-11-18 新增：--tga26 的语境槽。Karen/武者/轨道站/我的学术/伊代/莱/居所/
     #   马拉松/共振/安魂曲/王牌/优生学 这类**普通中文词/人名**的官方名只能靠英文
     #   参考行锚定，禁走裸键。
@@ -326,5 +342,6 @@ _MODE_NAMES = {
     "arcak": "Arcaea×明日方舟",
     "tga26": "TGA 2026 游戏大奖",
     "wwm": "燕云十六声",
+    "gfl2": "少女前线2：追放",
 }
 

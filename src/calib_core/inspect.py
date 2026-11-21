@@ -21,6 +21,7 @@ from .data.pbz import PBZ_MISSING_CHECK
 from .data.ssv import SSV_MISSING_CHECK
 from .data.tga import TGA_MISSING_CHECK
 from .data.wwm import WWM_MISSING_CHECK
+from .data.gfl2 import GFL2_MISSING_CHECK
 from .format import is_line_too_long, line_width
 from .srt import _cue_first_text_map, _detect_layout, _iter_ref_lines, _load_calib_records
 from .state import CTX_TABLES, TABLES
@@ -264,6 +265,8 @@ def _load_missing_rules(mode=None, file=None):
         rules.extend(ARCAK_MISSING_CHECK)
     if mode == "wwm":
         rules.extend(WWM_MISSING_CHECK)
+    if mode == "gfl2":
+        rules.extend(GFL2_MISSING_CHECK)
     if mode == "pgren":
         rules.extend(PGR_MISSING_CHECK)
     if mode == "ko":

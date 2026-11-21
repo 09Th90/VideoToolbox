@@ -33,6 +33,7 @@ from .data.pbz import PBZ_CONTEXT, PBZ_TERMS
 from .data.ssv import SSV_CONTEXT, SSV_TERMS
 from .data.tga import TGA_CONTEXT, TGA_TERMS
 from .data.wwm import WWM_CONTEXT, WWM_TERMS
+from .data.gfl2 import GFL2_CONTEXT, GFL2_TERMS
 from .data.modes import _MODE_CTX_TABLE, _MODE_TERM_TABLE
 
 
@@ -73,6 +74,7 @@ TABLES = {
     "ARCAK_TERMS": ARCAK_TERMS,
     # 2026-11-21 新增：燕云十六声（Where Winds Meet）片源表
     "WWM_TERMS": WWM_TERMS,
+    "GFL2_TERMS": GFL2_TERMS,
     # 2026-11-03 新增：明日方舟日语原声片源表（engine 的 --akja 用 AK_TERMS ∪ 本表）
     "AK_JA_TERMS": AK_JA_TERMS,
 }
@@ -112,6 +114,8 @@ CTX_TABLES = {
     "ARCAK_CONTEXT": ARCAK_CONTEXT,
     # 2026-11-21 新增：燕云十六声锚定表（老板/头目/副本/地下城/军械库 等普通词，禁裸键）
     "WWM_CONTEXT": WWM_CONTEXT,
+    # 2026-11-21 新增：少女前线2锚定表（全速前进/改装间 等正常中文词，禁裸键）
+    "GFL2_CONTEXT": GFL2_CONTEXT,
 }
 
 
@@ -247,6 +251,9 @@ _ARCAK_CONTEXT_COMPILED = [(re.compile(rx, re.I), wrong, right)
 _WWM_CONTEXT_COMPILED = [(re.compile(rx, re.I), wrong, right)
                          for rx, wrong, right in WWM_CONTEXT if wrong and right]
 
+_GFL2_CONTEXT_COMPILED = [(re.compile(rx, re.I), wrong, right)
+                          for rx, wrong, right in GFL2_CONTEXT if wrong and right]
+
 
 
 def _register_entities(entities=ENTITIES):
@@ -353,6 +360,8 @@ def _rebuild_context_caches():
     # 2026-11-21：同 _ARCAK 的教训——不原地重建，wwm 运行期注入会静默失效
     _WWM_CONTEXT_COMPILED[:] = [(re.compile(rx, re.I), wrong, right)
                                 for rx, wrong, right in WWM_CONTEXT if wrong and right]
+    _GFL2_CONTEXT_COMPILED[:] = [(re.compile(rx, re.I), wrong, right)
+                                 for rx, wrong, right in GFL2_CONTEXT if wrong and right]
 
 
 

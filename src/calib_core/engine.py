@@ -23,10 +23,11 @@ from .data.pbz import PBZ_TERMS
 from .data.ssv import SSV_TERMS
 from .data.tga import TGA_TERMS
 from .data.wwm import WWM_TERMS
+from .data.gfl2 import GFL2_TERMS
 from .learn import _learned_terms_for_mode
 from .modes import endfield_auto_markers
 from .replace import _compile_map, _ctx_replace, _replace_report
-from .state import _AK_CONTEXT_COMPILED, _AK_KO_CONTEXT_COMPILED, _WW40IGN_CONTEXT_COMPILED, _WW40KO_CONTEXT_COMPILED, _ARCAK_CONTEXT_COMPILED, _CONTEXT_COMPILED, _ENDFIELD_BI_CONTEXT_COMPILED, _ENDFIELD_KO_CONTEXT_COMPILED, _WW40KO_CONTEXT_COMPILED, _EXCLUDE_COMPILED, _FFRS_CONTEXT_COMPILED, _HSR_CONTEXT_COMPILED, _JA_CONTEXT_COMPILED, _JA_ENDFIELD_CONTEXT_COMPILED, _JA_PGR_CONTEXT_COMPILED, _KO_ASR_CONTEXT_COMPILED, _KO_CONTEXT_COMPILED, _WW40KO_CONTEXT_COMPILED, _LIMBUS_CONTEXT_COMPILED, _PBZ_CONTEXT_COMPILED, _FF14_CONTEXT_COMPILED, _POKEMON_CONTEXT_COMPILED, _PGR_EN_CONTEXT_COMPILED, _REACT_CONTEXT_COMPILED, _WWOC_CONTEXT_COMPILED, _AK_JA_CONTEXT_COMPILED, _SSV_CONTEXT_COMPILED, _TGA_CONTEXT_COMPILED, _WWM_CONTEXT_COMPILED
+from .state import _AK_CONTEXT_COMPILED, _AK_KO_CONTEXT_COMPILED, _WW40IGN_CONTEXT_COMPILED, _WW40KO_CONTEXT_COMPILED, _ARCAK_CONTEXT_COMPILED, _CONTEXT_COMPILED, _ENDFIELD_BI_CONTEXT_COMPILED, _ENDFIELD_KO_CONTEXT_COMPILED, _WW40KO_CONTEXT_COMPILED, _EXCLUDE_COMPILED, _FFRS_CONTEXT_COMPILED, _HSR_CONTEXT_COMPILED, _JA_CONTEXT_COMPILED, _JA_ENDFIELD_CONTEXT_COMPILED, _JA_PGR_CONTEXT_COMPILED, _KO_ASR_CONTEXT_COMPILED, _KO_CONTEXT_COMPILED, _WW40KO_CONTEXT_COMPILED, _LIMBUS_CONTEXT_COMPILED, _PBZ_CONTEXT_COMPILED, _FF14_CONTEXT_COMPILED, _POKEMON_CONTEXT_COMPILED, _PGR_EN_CONTEXT_COMPILED, _REACT_CONTEXT_COMPILED, _WWOC_CONTEXT_COMPILED, _AK_JA_CONTEXT_COMPILED, _SSV_CONTEXT_COMPILED, _TGA_CONTEXT_COMPILED, _WWM_CONTEXT_COMPILED, _GFL2_CONTEXT_COMPILED
 from .text import _KO_HANGUL, _decode_any, _split_cue_text
 
 
@@ -67,8 +68,12 @@ def _restore_override_prefix(old, new):
 
 def process(path, out_path=None, report_path=None, mode="bi",
             fix_en=False, pgr_override=None, learned_kb=None, bi_override=None,
-            bi_override_preserve=False, ko_override=None, ko_override_preserve=False):
+            bi_override_preserve=False, ko_override=None, ko_override_preserve=False,
+            zh_first=False):
     """对 SRT 校准。返回 (改动行rows, 术语命中hits)。
+      zh_first=True 强制「首文本行=中文、其余=参考行」，供版式已知的双语片源
+                  跳过语言探测（2026-11-21 全短片片：英文参考行 "Jan。" 含全角句号，
+                  被 _split_cue_text 的纯拉丁中文行兜底误判成中文，导致侧车写错行）。
       mode="bi"   双语模式：BILINGUAL_TERMS + CONTEXT_MAP + WORD_MAP 改首中文行。
       mode="ko"   韩语模式：KO_TERMS 统一中文行术语。
       mode="wuwa40ko" 韩语原声·鸣潮 4.0 新联邦 PV：KO_TERMS + WW40KO_CONTEXT，
@@ -148,6 +153,8 @@ def process(path, out_path=None, report_path=None, mode="bi",
         terms = ARCAK_TERMS
     elif mode == "wwm":         # 燕云十六声（2026-11-21 新增）：WWM_TERMS + WWM_CONTEXT
         terms = WWM_TERMS
+    elif mode == "gfl2":        # 少女前线2：追放（2026-11-21 新增）：GFL2_TERMS + GFL2_CONTEXT
+        terms = GFL2_TERMS
     elif mode == "pgr":
         terms = {}
     else:
@@ -214,7 +221,10 @@ def process(path, out_path=None, report_path=None, mode="bi",
                     # 2026-10-23：按语言定位中文行/参考行，兼容「英文在上、中文在下」
                     # 的双语片源。此前固定取首文本行，会把英文参考行当中文改。
                     text_tis = list(range(j + 1, kk))
-                    zh_pos, ref_pos = _split_cue_text([lines[ti] for ti in text_tis])
+                    if zh_first and len(text_tis) >= 2:
+                        zh_pos, ref_pos = [0], list(range(1, len(text_tis)))
+                    else:
+                        zh_pos, ref_pos = _split_cue_text([lines[ti] for ti in text_tis])
                     zh_idx = text_tis[zh_pos[0]] if zh_pos else j + 1
                     ref = lines[text_tis[ref_pos[-1]]] if ref_pos else lines[kk - 1]
                     if mode != "endo" and kk - 1 == j + 1:
@@ -580,6 +590,16 @@ def process(path, out_path=None, report_path=None, mode="bi",
                             for crx, wrong, right in _WWM_CONTEXT_COMPILED:
                                 if wrong in new and crx.search(ref_m):
                                     new = _ctx_replace(new, wrong, right)
+                        if new != old:
+                            rows.append((num, old, new, ref))
+                            out[zh_idx] = new
+                    elif mode == "gfl2":        # 少女前线2：追放：GFL2_TERMS + GFL2_CONTEXT 英文参考行佐证
+                        # 2026-11-21：二周年反应片。与 bi 严格隔离，避免「切尔诺贝利→切尔诺伯格」
+                        #   等仅在 gfl2 模式成立的替换污染其它片源。
+                        new = _replace_report(old, term_pairs, term_chars, hits)
+                        for crx, wrong, right in _GFL2_CONTEXT_COMPILED:
+                            if wrong in new and crx.search(ref_m):
+                                new = _ctx_replace(new, wrong, right)
                         if new != old:
                             rows.append((num, old, new, ref))
                             out[zh_idx] = new
