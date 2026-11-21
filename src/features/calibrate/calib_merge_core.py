@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# @version 3.1.4
+# @version 3.1.5
 """校准知识条目级合并核心（纯函数，零副作用）。
 
 ============================================================
@@ -26,10 +26,21 @@ CI / 脚本共同复用的「合并接口」。本模块**只做合并**：
 """
 
 import ast as _ast
+import hashlib as _hashlib
 import json as _json
+import re as _re
+import threading as _threading
+from collections import OrderedDict as _OrderedDict
 
 #: 三方合并中「基线里也没有该键」的哨兵（表示该条目是本地/远程单边新增）
 _MERGE_MISSING = object()
+
+#: _ast_module_tables 的解析结果缓存（键 = 源码 sha256）。合并只读 AST 节点、
+#: 从不改动，故按内容缓存安全；local==base 常见情形可免重复全文件 parse。
+#: 有界 LRU，避免长期运行内存膨胀；parse 本身不持锁（持 GIL 的 C 段在锁外）。
+_TABLES_CACHE = _OrderedDict()
+_TABLES_CACHE_MAX = 8
+_TABLES_LOCK = _threading.Lock()
 
 
 def _log(msg):
@@ -42,7 +53,13 @@ def _log(msg):
 # ---------------------------------------------------------------------------
 def _ast_module_tables(src):
     """解析模块级「名称 = Dict/List 字面量」赋值，返回 {名称: value 节点}。
-    解析失败返回 None。"""
+    解析失败返回 None。按源码 sha256 做有界 LRU 缓存（只读节点，安全）。"""
+    key = _hashlib.sha256(src.encode("utf-8", "surrogatepass")).hexdigest()
+    with _TABLES_LOCK:
+        hit = _TABLES_CACHE.get(key)
+        if hit is not None:
+            _TABLES_CACHE.move_to_end(key)
+            return hit
     try:
         tree = _ast.parse(src)
     except SyntaxError:
@@ -53,7 +70,46 @@ def _ast_module_tables(src):
                 and isinstance(node.targets[0], _ast.Name)
                 and isinstance(node.value, (_ast.Dict, _ast.List))):
             out[node.targets[0].id] = node.value
+    with _TABLES_LOCK:
+        _TABLES_CACHE[key] = out
+        _TABLES_CACHE.move_to_end(key)
+        while len(_TABLES_CACHE) > _TABLES_CACHE_MAX:
+            _TABLES_CACHE.popitem(last=False)
     return out
+
+
+def _source_lines(src):
+    """把源码切成「带行尾终止符」的行表，**整份只切一次**。
+
+    与 CPython ast._splitlines_no_ff 完全同构（保留 \\r\\n / \\n / \\r），
+    供 _source_segment 按节点行号 O(1) 索引——替代 ast.get_source_segment
+    逐节点从位置 0 正则扫到节点行的 O(N×文件大小) 开销。"""
+    splitter = getattr(_ast, "_splitlines_no_ff", None)
+    if splitter is not None:
+        return splitter(src)
+    return [m[0] for m in _re.finditer(r"(.*?(?:\r\n|\n|\r|$))", src)]
+
+
+def _source_segment(lines, node):
+    """从预切行表取节点源码段，逐字节复刻 ast.get_source_segment(padded=False)。
+
+    col_offset / end_col_offset 是 UTF-8 **字节**偏移（含中文注释才正确），
+    故按 .encode()[...].decode() 切片；行表已含终止符，用 ''.join 拼接。
+    位置信息缺失返回 None（与原函数一致，调用方 `or ""` 兜底）。"""
+    try:
+        if node.end_lineno is None or node.end_col_offset is None:
+            return None
+        lineno = node.lineno - 1
+        end_lineno = node.end_lineno - 1
+        col_offset = node.col_offset
+        end_col_offset = node.end_col_offset
+    except AttributeError:
+        return None
+    if end_lineno == lineno:
+        return lines[lineno].encode()[col_offset:end_col_offset].decode()
+    first = lines[lineno].encode()[col_offset:].decode()
+    last = lines[end_lineno].encode()[:end_col_offset].decode()
+    return "".join([first] + lines[lineno + 1:end_lineno] + [last])
 
 
 def _dict_entries(dnode):
@@ -173,6 +229,11 @@ def merge_calib_script(local_src, remote_src, base_src=""):
 
     lines = local_src.split("\n")
     rlines = remote_src.split("\n")
+    # ENTITIES 指纹用「带终止符」的预切行表（整份各切一次），与上面按 \n 切、
+    # 用于行区间替换的 lines/rlines 互不相干。
+    lseg_lines = _source_lines(local_src)
+    rseg_lines = _source_lines(remote_src)
+    bseg_lines = _source_lines(base_src)
     edits = []          # (start0, end0_exclusive, 替换行列表)；start==end 表示插入
     added, conflicts = 0, []
 
@@ -221,17 +282,17 @@ def merge_calib_script(local_src, remote_src, base_src=""):
                 continue
             if name == "ENTITIES":
                 # Entity 调用列表：按 canonical 合并
-                def _canon_map(node, src):
+                def _canon_map(node, seg_lines):
                     out = {}
                     for e in node.elts:
                         if isinstance(e, _ast.Call):
                             c, _m, _v = _entity_fields(e)
                             if c is not None:
-                                out[c] = (e, _ast.get_source_segment(src, e) or "")
+                                out[c] = (e, _source_segment(seg_lines, e) or "")
                     return out
-                lmap_e = _canon_map(lnode, local_src)
-                rmap_e = _canon_map(rnode, remote_src)
-                bmap_e = _canon_map(B[name], base_src) if isinstance(B.get(name), _ast.List) else {}
+                lmap_e = _canon_map(lnode, lseg_lines)
+                rmap_e = _canon_map(rnode, rseg_lines)
+                bmap_e = _canon_map(B[name], bseg_lines) if isinstance(B.get(name), _ast.List) else {}
                 new_rows = []
                 for canon, (enode, rseg) in rmap_e.items():
                     if canon not in lmap_e:

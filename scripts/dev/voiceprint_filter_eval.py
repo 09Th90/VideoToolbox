@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# @version 3.1.4
+# @version 3.1.5
 """真实标注集上的声纹筛选评估（不改媒体、模板或原 SRT）。
 
 Manifest（version=1）：

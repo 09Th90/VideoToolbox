@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# @version 3.1.4
+# @version 3.1.5
 """声纹模板多用户同步自检（离线：临时目录模拟两个客户端 + 一个共享哑存储根）。
 
 覆盖 `src/features/voiceprint/voiceprint_sync.py`（独立通道）与产生端 `src/features/voiceprint/speaker_voiceprint.py`

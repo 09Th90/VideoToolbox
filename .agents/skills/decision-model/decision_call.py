@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.1.4
+# @version 3.1.5
 r"""decision-model-preview 薄调用器（官方 systemone 端点，标准库 only）。
 
 用法：tools\python\python.exe decision_call.py <payload.json> [--base BASE_URL]

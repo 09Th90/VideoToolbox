@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.1.4
+# @version 3.1.5
 """启动诊断 / 崩溃守卫 / 启动期设施（原 video_toolbox_qt.py 同名代码，逐字下沉）。
 
 ⚠ 模块级只 import 标准库 + engine 门面；Qt / vt_fluent 一律函数体内导入——
@@ -248,12 +248,25 @@ def _apply_app_icon(app):
 
 
 def _start_startup_sync_threads():
-    """首页就绪后再起校准/声纹同步线程（失败静默，各自记日志）。"""
-    # 启动即拉取最新校准知识并入本地（v1.10.7 多用户收敛的「拉」半程）
-    threading.Thread(target=engine.sync_calib_on_startup, daemon=True).start()
-    # 声纹模板同步是独立通道（src\features\voiceprint\voiceprint_sync.py）
-    threading.Thread(target=engine.sync_voiceprint_on_startup, daemon=True).start()
-    _perf_note("后台同步线程已启动（首页就绪后延迟）")
+    """首页就绪后再起校准/声纹同步（失败静默，各自记日志）。
+
+    v3.1.5 卡死修复：两条同步由「并行双线程」改为**单线程顺序**（校准→声纹）。
+    声纹 jsonl 全量合并也吃 CPU，与校准合并并行会在启动窗口叠加抢 GIL；顺序
+    执行总耗时不变，但同一时刻只有一个后台 CPU 消费者，峰值占用减半。"""
+    def _run_sequential():
+        # 启动即拉取最新校准知识并入本地（v1.10.7 多用户收敛的「拉」半程）
+        try:
+            engine.sync_calib_on_startup()
+        except Exception:  # noqa: BLE001 - 校准失败不阻断声纹
+            pass
+        # 声纹模板同步是独立通道（src\features\voiceprint\voiceprint_sync.py）
+        try:
+            engine.sync_voiceprint_on_startup()
+        except Exception:  # noqa: BLE001
+            pass
+    threading.Thread(target=_run_sequential, daemon=True,
+                     name="startup-sync").start()
+    _perf_note("后台同步线程已启动（首页就绪后延迟，校准→声纹顺序）")
 
 
 def _ensure_hidden_stdio():

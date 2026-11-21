@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.1.4
+# @version 3.1.5
 """目录感知层（引擎侧，v1.14.0 新增）：监视下载目录，维护文件索引，变更即发信号。
 
 设计要点
@@ -121,7 +121,20 @@ class MediaRegistry(_Emitter):
     """文件索引 + 变更通知。
 
     index: {绝对路径: {path,name,ext,kind,size,mtime,dir}}
+
+    线程模型（v3.1.5 卡死修复）
+    --------------------------
+    * 全量扫描（os.scandir + 逐文件 stat）是重 IO，**绝不持 self._lock 做**，
+      也绝不在主线程同步跑——否则主线程查询/事件循环会被占住或等锁 >5s，
+      触发 hang_watchdog。扫描放后台合并式 worker（_request_scan/_scan_loop）。
+    * refresh()/poll_once() 保留**同步**语义（自检 CLI 与 Pipeline.evaluate
+      的 refresh→snapshot 同步链依赖）：调用线程内完成扫描+索引合并再返回。
+    * Qt 亲和尾部（QFileSystemWatcher 增删路径、发变更通知）经 _scan_tail
+      信号 marshaling 回主线程（跨线程 emit 自动 queued）。
     """
+
+    if _HAS_QT:
+        _scan_tail = Signal(object)   # 后台扫描结果 → 主线程做 watcher/emit 尾部
 
     def __init__(self, dirs=None, poll_interval=POLL_INTERVAL, use_watcher=True,
                  max_depth=SCAN_MAX_DEPTH, excludes=None,
@@ -150,18 +163,29 @@ class MediaRegistry(_Emitter):
         self._watcher = None
         self._timer = None
         self._debounce = None
+        # 后台合并式扫描 worker 状态（锁内登记+启动，与 pipeline._schedule_evaluate 同构）
+        self._scan_pending = False
+        self._scan_force = False
+        self._scan_thread = None
+        # 轮询快路径：上次扫描访问到的目录 mtime 签名 + 是否仍有未落盘文件
+        self._dir_mtime = {}
+        self._has_unsettled = False
+        if _HAS_QT:
+            self._scan_tail.connect(self._on_scan_tail)
+        else:
+            self._scan_tail = None
         if use_watcher and _HAS_QT and QFileSystemWatcher is not None:
             try:
                 self._watcher = QFileSystemWatcher()
                 self._watcher.directoryChanged.connect(self._on_watched)
                 self._watcher.fileChanged.connect(self._on_watched)
                 # 去抖合并：一次任务完成（改名/封面/信息txt/字幕…）会连发多个
-                # directoryChanged，每个都同步全量重扫会把主线程连续占住——
-                # 800ms 内的突发合并为一次重扫。
+                # directoryChanged，每个都全量重扫会把主线程连续占住——
+                # 800ms 内的突发合并为一次**后台**重扫（watcher 触发强制扫描）。
                 self._debounce = QTimer()
                 self._debounce.setSingleShot(True)
                 self._debounce.setInterval(800)
-                self._debounce.timeout.connect(self.refresh)
+                self._debounce.timeout.connect(self._watch_scan)
             except Exception:  # noqa: BLE001
                 self._watcher = None
                 self._debounce = None
@@ -206,28 +230,66 @@ class MediaRegistry(_Emitter):
                     return out[:WATCH_MAX_DIRS]
         return out
 
-    def _iter_files(self):
-        """索引用文件清单（限定深度，跳过隐藏文件与排除目录）。"""
-        for root in self.dirs:
+    def _iter_files(self, dir_mtime_out=None):
+        """索引用文件清单（限定深度，跳过隐藏文件与排除目录），yield (path, stat)。
+
+        用 os.scandir + DirEntry.stat()（结果缓存）替代 os.walk + 独立 os.stat，
+        省一半 syscall；深度/跳过语义与旧 os.walk 版逐条对齐（相对深度 0 起，
+        depth>=max_depth 不再下钻，但该层文件仍产出；不跟随符号链接下钻）。
+        dir_mtime_out 非 None 时顺带记录每个访问目录的 mtime（供轮询快路径）。
+        """
+        with self._lock:
+            dirs = list(self.dirs)
+            excludes = set(self.excludes)
+            max_depth = self.max_depth
+        for root in dirs:
             if not os.path.isdir(root):
                 continue
-            base = root.rstrip(os.sep).count(os.sep)
-            for cur, dirs, files in os.walk(root):
-                depth = cur.rstrip(os.sep).count(os.sep) - base
-                if depth >= self.max_depth:
-                    dirs[:] = []
-                keep = []
-                for d in dirs:
-                    if d.startswith(".") or d in SKIP_DIRS:
-                        continue
-                    if os.path.normcase(os.path.join(cur, d)) in self.excludes:
-                        continue
-                    keep.append(d)
-                dirs[:] = keep
-                for fn in files:
-                    if fn.startswith(".") or fn.endswith(".vt_tmp"):
-                        continue
-                    yield os.path.join(cur, fn)
+            stack = [(root, 0)]
+            while stack:
+                cur, depth = stack.pop()
+                if dir_mtime_out is not None:
+                    try:
+                        # 纳秒精度：整秒截断会漏检「同一秒内新增/删除文件」
+                        dir_mtime_out[cur] = os.stat(cur).st_mtime_ns
+                    except OSError:
+                        pass
+                try:
+                    it = os.scandir(cur)
+                except OSError:
+                    continue
+                with it:
+                    subdirs = []
+                    for entry in it:
+                        name = entry.name
+                        try:
+                            is_dir = entry.is_dir(follow_symlinks=False)
+                        except OSError:
+                            continue
+                        if is_dir:
+                            if depth >= max_depth:
+                                continue
+                            if name.startswith(".") or name in SKIP_DIRS:
+                                continue
+                            if os.path.normcase(entry.path) in excludes:
+                                continue
+                            subdirs.append((entry.path, depth + 1))
+                        else:
+                            # 指向目录的符号链接：os.walk 既不下钻也不当文件，跳过
+                            if entry.is_symlink():
+                                try:
+                                    if entry.is_dir():
+                                        continue
+                                except OSError:
+                                    continue
+                            if name.startswith(".") or name.endswith(".vt_tmp"):
+                                continue
+                            try:
+                                st = entry.stat()
+                            except OSError:
+                                continue
+                            yield entry.path, st
+                    stack.extend(subdirs)
 
     # ---------- 生命周期 ----------
     def start(self):
@@ -235,13 +297,15 @@ class MediaRegistry(_Emitter):
             if self._running:
                 return self
             self._running = True
-        self.refresh()
+        # 不在主线程同步全量扫描：watcher 装配（主线程亲和）+ 后台首扫。
+        # GUI 侧首扫已由 pipeline-boot 线程完成，这里 force=False 命中快路径即跳过。
         self._sync_watch_paths()
+        self._request_scan(force=False)
         if _HAS_QT and QTimer is not None:
             try:
                 self._timer = QTimer()
                 self._timer.setInterval(max(200, int(self.poll_interval * 1000)))
-                self._timer.timeout.connect(self.poll_once)
+                self._timer.timeout.connect(self._poll_tick)
                 self._timer.start()
             except Exception:  # noqa: BLE001 - 无 QCoreApplication 时静默降级
                 self._timer = None
@@ -250,6 +314,7 @@ class MediaRegistry(_Emitter):
     def stop(self):
         with self._lock:
             self._running = False
+            self._scan_pending = False
         try:
             if self._timer is not None:
                 self._timer.stop()
@@ -264,40 +329,124 @@ class MediaRegistry(_Emitter):
                 pass
 
     def _on_watched(self, _path=""):
-        """watch 通道：目录/文件变化 → 置脏，去抖窗口（800ms）后统一重扫。
+        """watch 通道：目录/文件变化 → 去抖窗口（800ms）后统一**后台**重扫。
 
-        主线程回调：refresh 是全量扫描（os.walk + 每文件 stat），突发事件
-        直接重扫会把主线程连续占住（并行下载完成风暴时最明显），先合并。
+        主线程回调只做去抖登记，绝不在此同步全量扫描（突发事件风暴会占住主线程）。
+        watcher 触发意味着确有变化，force=True 绕过快路径。
         """
         if self._debounce is not None:
             self._debounce.start()
         else:
-            self.refresh()
+            self._request_scan(force=True)
+
+    def _watch_scan(self):
+        """去抖 QTimer 到期：强制后台重扫。"""
+        self._request_scan(force=True)
+
+    def _poll_tick(self):
+        """周期 QTimer（主线程）：只登记一次后台扫描，force=False 允许快路径跳过。"""
+        self._request_scan(force=False)
 
     def poll_once(self):
-        """轮询通道：重扫一次并返回变更集合（无 Qt 事件循环时手动驱动）。"""
+        """手动驱动（自检/CLI，无 Qt 事件循环）：**同步**重扫并返回变更集合。"""
         return self.refresh()
 
-    # ---------- 索引 ----------
-    def refresh(self):
-        """重扫目录，返回本次变更的文件路径集合（新增/删除/大小或 mtime 变化）。"""
-        new_index, changed = {}, set()
+    # ---------- 后台合并式扫描 worker ----------
+    def _request_scan(self, force=False):
+        """登记一次待扫描：已有 worker 在跑就合并（force 取或），否则起一个。
+
+        锁内登记+启动（与 pipeline._schedule_evaluate 同构）：pending 先置 True
+        再判线程存活，避免「首次调度/线程刚结束」间隙漏扫或重复起线程。
+        """
         with self._lock:
-            part_dirs = self._scan_part_dirs()
-            for p in self._iter_files():
-                ext = os.path.splitext(p)[1].lower()
-                kind = KIND_BY_EXT.get(ext)
-                if kind is None:
-                    continue
+            self._scan_pending = True
+            self._scan_force = self._scan_force or bool(force)
+            alive = self._scan_thread is not None and self._scan_thread.is_alive()
+            if alive:
+                return
+            self._scan_thread = threading.Thread(target=self._scan_loop,
+                                                 daemon=True, name="media-scan")
+            self._scan_thread.start()
+
+    def _scan_loop(self):
+        try:
+            while True:
+                with self._lock:
+                    if not self._scan_pending:
+                        self._scan_thread = None
+                        return
+                    self._scan_pending = False
+                    force = self._scan_force
+                    self._scan_force = False
                 try:
-                    st = os.stat(p)
+                    self.refresh(force=force)
+                except Exception:  # noqa: BLE001 - 扫描异常不得杀死 worker
+                    pass
+        finally:
+            with self._lock:
+                if self._scan_thread is threading.current_thread():
+                    self._scan_thread = None
+
+    # ---------- 索引 ----------
+    def refresh(self, force=True):
+        """重扫目录，返回本次变更的文件路径集合（新增/删除/大小或 mtime 变化）。
+
+        **同步**完成扫描+索引合并再返回（自检 CLI / Pipeline.evaluate 依赖）。
+        重 IO 在 _collect_index 里**不持锁**执行；仅 _apply_index 短暂持锁合并。
+        force=False 时允许「目录 mtime 未变且全部已落盘」快路径跳过整轮扫描。
+        Qt 亲和尾部（watcher/emit）经 _dispatch_tail marshaling 回主线程。
+        """
+        new_index, part_dirs = self._collect_index(force)
+        if new_index is None:      # 快路径跳过
+            return set()
+        changed = self._apply_index(new_index, part_dirs)
+        self._dispatch_tail(changed)
+        return changed
+
+    def _collect_index(self, force):
+        """纯 IO 扫描（**不持 self._lock** 做 walk/stat），返回 (new_index, part_dirs)。
+
+        force=False 且上次目录 mtime 签名未变且无未落盘文件 → 返回 (None, None) 跳过。
+        快路径只对上次扫到的目录复 stat mtime（不 walk）：任何新增/删除/改名都会
+        改动某个祖先目录 mtime，故签名一致即可安全跳过；仍在下载（未落盘）时不跳过。
+        """
+        with self._lock:
+            dir_mtime = dict(self._dir_mtime)
+            has_unsettled = self._has_unsettled
+        if not force and dir_mtime and not has_unsettled:
+            same = True
+            for d, mt in dir_mtime.items():
+                try:
+                    if os.stat(d).st_mtime_ns != mt:
+                        same = False
+                        break
                 except OSError:
-                    continue
-                sig = (int(st.st_size), int(st.st_mtime))
-                entry = {"path": p, "name": os.path.splitext(os.path.basename(p))[0],
-                         "ext": ext, "kind": kind, "size": sig[0],
-                         "mtime": sig[1], "dir": os.path.dirname(p)}
-                new_index[p] = entry
+                    same = False
+                    break
+            if same:
+                return None, None
+        new_index = {}
+        new_dir_mtime = {}
+        for p, st in self._iter_files(dir_mtime_out=new_dir_mtime):
+            ext = os.path.splitext(p)[1].lower()
+            kind = KIND_BY_EXT.get(ext)
+            if kind is None:
+                continue
+            sig = (int(st.st_size), int(st.st_mtime))
+            new_index[p] = {"path": p, "name": os.path.splitext(os.path.basename(p))[0],
+                            "ext": ext, "kind": kind, "size": sig[0],
+                            "mtime": sig[1], "dir": os.path.dirname(p)}
+        part_dirs = self._scan_part_dirs()
+        with self._lock:
+            self._dir_mtime = new_dir_mtime
+        return new_index, part_dirs
+
+    def _apply_index(self, new_index, part_dirs):
+        """（短暂持锁，无 IO）合并扫描结果：算变更集、维护落盘稳定状态机、交换索引。"""
+        changed = set()
+        with self._lock:
+            for p, entry in new_index.items():
+                sig = (entry["size"], entry["mtime"])
                 # 稳定性：签名变了就重置计时点/计数，没变就累加
                 if self._last_sig.get(p) == sig:
                     self._stable_from.setdefault(p, time.time())
@@ -326,10 +475,29 @@ class MediaRegistry(_Emitter):
             self._last_sig = {p: (e["size"], e["mtime"]) for p, e in new_index.items()}
             if changed:
                 self._pairs_cache = None
-        if changed:
-            self._sync_watch_paths()
-            self._emit_changed(changed)
+            # 仍有未宣告落盘的文件 → 轮询快路径不得跳过（要继续观察下载进度）
+            self._has_unsettled = any(p not in self._announced for p in new_index)
         return changed
+
+    def _dispatch_tail(self, changed):
+        """把 Qt 亲和尾部 marshaling 回主线程：跨线程 emit 自动 queued，主线程则直发。"""
+        if not changed:
+            return
+        if _HAS_QT and self._scan_tail is not None:
+            try:
+                self._scan_tail.emit(changed)
+                return
+            except Exception:  # noqa: BLE001
+                pass
+        self._finish_tail(changed)
+
+    def _on_scan_tail(self, changed):
+        """主线程槽：接收后台扫描结果，做 watcher 同步 + 变更通知。"""
+        self._finish_tail(changed)
+
+    def _finish_tail(self, changed):
+        self._sync_watch_paths()
+        self._emit_changed(changed)
 
     def _sync_watch_paths(self):
         if self._watcher is None:

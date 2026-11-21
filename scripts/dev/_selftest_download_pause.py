@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.1.4
+# @version 3.1.5
 """P3a 回归：job 协作式暂停 / 恢复 / 取消（无 Qt、无网络）。"""
 from __future__ import annotations
 

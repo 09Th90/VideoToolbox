@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.1.4
+# @version 3.1.5
 """主窗口（2026-11-15 功能解耦阶段③：从 video_toolbox_qt.py 拆出，逐字同源）。
 
 壳层编排：FluentWindow + 注册表驱动的功能页挂载 + 消息总线 + 跨屏收敛 +
@@ -323,12 +323,14 @@ class MainWindow(FluentWindow):
         # 「自动化」页已改为惰性外壳（见 __init__ 里的说明），启动后不再自己
         # 构造——原先这里排的 20s auto_page 任务已删除。
         # 后台 import 预热：只把引擎模块的 import 在后台线程先做掉（不碰
-        # 主线程、**不建界面**），延后到 30s——实测 10s 起线程时，后台 import
-        # 会在 T+13s 附近引发一次约 700ms 的 GIL 争用，放在用户刚启动的操作
-        # 窗口里不划算。用户首次进入「字幕处理」时只需付纯构造的代价
-        # （热态实测 0.36s）；冷态由页面上的占位文案接住（见 _build_now 分段）。
+        # 主线程、**不建界面**）。实测 10s 起线程时，后台 import 会在 T+13s
+        # 附近引发一次约 700ms 的 GIL 争用，放在用户刚启动的操作窗口里不划算。
+        # 2026-11-21（v3.1.5 卡死修复）：30s → **75s**，与 45s 的启动同步拉开
+        # 30s 窗口，避免校准/声纹同步与 import 预热同时抢 GIL。用户首次进入
+        # 「字幕处理」时只需付纯构造的代价（热态实测 0.36s）；冷态由页面上的
+        # 占位文案接住（见 _build_now 分段）。showEvent 即时预热路径不受影响。
         _defer("prewarm_import", self.subtitle_page.prewarm_import_only,
-               30000, 95, depends_on=("home_ui",), budget_ms=5)
+               75000, 95, depends_on=("home_ui",), budget_ms=5)
         # 主屏 DPI 变化（改缩放比/换主屏）时重新计算导航宽度。
         # 注意必须用 QApplication 实例的信号：PySide6 里类的同名属性是未绑定的
         # Signal 描述符，直接 .connect 会抛 AttributeError。

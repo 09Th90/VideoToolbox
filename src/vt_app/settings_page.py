@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.1.4
+# @version 3.1.5
 """全局设置页（2026-11-15 功能解耦阶段③：从 video_toolbox_qt.py 拆出，逐字同源）。
 
 壳层页面（非可选功能）：全程序唯一全局设置——目录 / 下载 Cookie / 全局 AI /
@@ -1577,9 +1577,9 @@ class SettingsPage(QWidget):
         blay.addWidget(label_row("启用自动同步（启动自动更新 + 退出后台上传）",
                                  row(self.sync_switch, None)))
 
-        pull_btn = PushButton(FIF.SYNC, "立即更新", box)
-        pull_btn.clicked.connect(self._sync_now)
-        blay.addWidget(row(pull_btn, None))
+        self.sync_pull_btn = PushButton(FIF.SYNC, "立即更新", box)
+        self.sync_pull_btn.clicked.connect(self._sync_now)
+        blay.addWidget(row(self.sync_pull_btn, None))
 
         self.sync_hint = fit_caption(CaptionLabel(
             "只上传校准产生的增量知识、不触碰程序代码；合并确定性幂等，"
@@ -1600,6 +1600,12 @@ class SettingsPage(QWidget):
                           position=InfoBarPosition.BOTTOM_RIGHT, parent=self)
 
     def _sync_now(self):
+        # 重入防护（v3.1.5）：同步进行中置灰按钮，杜绝连点起多个并发同步线程
+        # （与程序更新按钮 _upd_running 同范式；进程级互斥另由 sync._sync_lock 保证）。
+        if getattr(self, "_sync_running", False):
+            return
+        self._sync_running = True
+        self.sync_pull_btn.setEnabled(False)
         InfoBar.info("正在更新", "正在从共享仓库拉取校准知识与声纹模板并合并…",
                      duration=1200,
                      position=InfoBarPosition.BOTTOM_RIGHT, parent=self)
@@ -1836,6 +1842,10 @@ class SettingsPage(QWidget):
                      position=InfoBarPosition.BOTTOM_RIGHT, parent=self)
 
     def _sync_done(self, result, err):
+        # 无论成功/失败都复位重入标志并恢复按钮（顶部复位覆盖 err 早退分支）。
+        self._sync_running = False
+        if getattr(self, "sync_pull_btn", None) is not None:
+            self.sync_pull_btn.setEnabled(True)
         if err is not None:
             InfoBar.error("同步失败", str(err)[:300], duration=6000,
                           position=InfoBarPosition.BOTTOM_RIGHT, parent=self)

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# @version 3.1.4
+# @version 3.1.5
 """视频工具箱 GUI v1.11.0 —— Fluent 矢量界面
 ====================================================================
 界面形态（v1.10.0 起，原 tkinter 界面退役）：
@@ -274,7 +274,7 @@ except Exception as _e:  # noqa: BLE001
     except Exception:  # noqa: BLE001
         pass
 
-VERSION = "3.1.4"
+VERSION = "3.1.5"
 # 更新检查同时服务源码运行与安装版：以界面显示的 VERSION 为唯一运行版本，
 # 避免 vt_update_check 里的独立常量再次漂移。
 vt_update_check.SELF_VERSION = VERSION
@@ -628,11 +628,13 @@ def main():
     _defer("spinbox_fix", _install_spinbox_fix_once, 2000, 10,
            depends_on=("home_ui",), budget_ms=900)
     # 校准/声纹同步：首页可交互后再跑，避免 curl/gh/子进程与首屏抢资源。
-    # 2026-11-14：由 3.5s → 9s → **25s**。实测 9s 起线程时，两条后台同步会在
+    # 2026-11-14：由 3.5s → 9s → 25s。实测 9s 起线程时，两条后台同步会在
     # T+13s / T+14s 各引发一次约 600–720ms 的 GIL 争用（网络请求与解析在主线程
-    # 抢解释器锁），正好落在用户刚启动、开始操作的窗口里。同步晚一点没有功能
-    # 影响，放到 25s 后并与 30s 的 import 预热错开。
-    _defer("startup_sync", _start_startup_sync_threads, 25000, 95,
+    # 抢解释器锁），正好落在用户刚启动、开始操作的窗口里。
+    # 2026-11-21（v3.1.5 卡死修复）：25s → **45s**，与 75s 的 import 预热拉开
+    # 30s 窗口；同步本身已改单线程顺序（boot._start_startup_sync_threads）且
+    # 校准合并加了 sha 前置跳过 + splitlines 索引，CPU 窗口大幅收缩，错峰为兜底。
+    _defer("startup_sync", _start_startup_sync_threads, 45000, 95,
            depends_on=("home_ui",), budget_ms=1)
     # 技能包（AGENTS.md / SKILL.md 等 9 处）也从 import 期挪到这里。
     if harness_bridge is not None:

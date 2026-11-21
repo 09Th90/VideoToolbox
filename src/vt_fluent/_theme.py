@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.1.4
+# @version 3.1.5
 """vt_fluent 主题引擎（自研，替代 qfluentwidgets.common.config / style_sheet / font）。
 
 定位：Fluent 风格主题层的单一权威。上层控件（_buttons/_inputs/_display/...）
@@ -1007,24 +1007,49 @@ class StyleSheetManager(QObject):
 
     def __init__(self):
         self.widgets = weakref.WeakKeyDictionary()
+        # 每控件的两个事件过滤器引用（弱键）：供显式摘除，避免无引用孤儿过滤器。
+        self._watchers = weakref.WeakKeyDictionary()
 
     def register(self, source, widget: QWidget, reset=True):
         if isinstance(source, str):
             source = StyleSheetFile(source)
         if widget not in self.widgets:
-            widget.destroyed.connect(lambda: self.deregister(widget))
-            widget.installEventFilter(CustomStyleSheetWatcher(widget))
-            widget.installEventFilter(DirtyStyleSheetWatcher(widget))
+            # 过滤器父挂到 widget（QObject 父对象）：控件析构时 Qt 自动销毁并摘除。
+            w1 = CustomStyleSheetWatcher(widget)
+            w2 = DirtyStyleSheetWatcher(widget)
+            widget.installEventFilter(w1)
+            widget.installEventFilter(w2)
+            self._watchers[widget] = (w1, w2)
+            # destroyed 回调用弱引用，避免 lambda 强捕获 widget 致其无法回收
+            # （v3.1.5：收敛「无父过滤器 + 强引用滞留」的 access violation 暴露面）。
+            ref = weakref.ref(widget)
+            widget.destroyed.connect(lambda: self._cleanup_dead(ref))
             self.widgets[widget] = StyleSheetCompose([source, CustomStyleSheet(widget)])
         if not reset:
             self.source(widget).add(source)
         else:
             self.widgets[widget] = StyleSheetCompose([source, CustomStyleSheet(widget)])
 
+    def _cleanup_dead(self, ref):
+        """destroyed 回调：控件 C++ 对象正在销毁，**只清注册表，绝不 removeEventFilter**
+        （对垂死控件摘过滤器会访问已释放对象 → access violation）。过滤器本体已父挂
+        到控件，Qt 随控件析构自动销毁并摘除，无需在此手动摘。"""
+        w = ref()
+        if w is not None:
+            self.widgets.pop(w, None)
+            self._watchers.pop(w, None)
+
     def deregister(self, widget: QWidget):
+        """显式注销（控件仍存活时）：先摘过滤器再清表。"""
         if widget not in self.widgets:
             return
-        self.widgets.pop(widget)
+        for w in self._watchers.get(widget, ()):
+            try:
+                widget.removeEventFilter(w)
+            except Exception:  # noqa: BLE001 - 摘除失败不影响清表
+                pass
+        self._watchers.pop(widget, None)
+        self.widgets.pop(widget, None)
 
     def items(self):
         return self.widgets.items()

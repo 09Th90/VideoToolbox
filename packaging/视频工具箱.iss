@@ -1,13 +1,13 @@
-; @version 3.1.4
+; @version 3.1.5
 ; ============================================================================
-; 视频工具箱 v3.1.4 —— Inno Setup 安装包脚本
+; 视频工具箱 v3.1.5 —— Inno Setup 安装包脚本
 ; v3.0.0（2026-11-15）：功能解耦 + 模块独立文件夹（28 个实现模块归位 features\<id>\），
 ;   重新出包；见 docs\release-notes-v3.0.0.md。
 ; 构建前提：已用打包环境 C:\bld\qt_build 执行 pyinstaller 视频工具箱.spec
 ;           （2026-10-14 起该环境为 PySide6 6.12.0 + PySide6-Fluent-Widgets
 ;           1.11.3；此前为 PyQt5 5.15.11 + PyQt-Fluent-Widgets 1.8.4），
 ;           产物位于 dist\视频工具箱.exe
-; 编译：ISCC.exe 视频工具箱.iss  →  installer\视频工具箱_Setup_v3.1.4.exe
+; 编译：ISCC.exe 视频工具箱.iss  →  installer\视频工具箱_Setup_v3.1.5.exe
 ; v1.18.0：① 新增主播声纹（exe 侧已由 spec hiddenimports 内嵌），[Files]
 ;         补装 src\speaker_voiceprint.py / speaker_voiceprint_page.py /
 ;         subtitle_editor_core.py 源码副本，使安装版也能按开发版说明书的 CLI
@@ -91,7 +91,7 @@
 ; ============================================================================ 
 
 #define MyAppName "视频工具箱"
-#define MyAppVersion "3.1.4"
+#define MyAppVersion "3.1.5"
 #define MyAppPublisher "VideoToolbox"
 #define MyAppExeName "视频工具箱.exe"
 

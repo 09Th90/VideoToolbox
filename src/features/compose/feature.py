@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.1.4
+# @version 3.1.5
 """compose 功能清单。CLI soft 模式走 subtitle_compose_core（不再拖 Qt）。"""
 from features._registry import CliCommand, FeatureSpec
 

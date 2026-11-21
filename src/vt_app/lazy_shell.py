@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.1.4
+# @version 3.1.5
 """惰性页外壳（原 video_toolbox_qt.py 同名代码，逐字下沉）。"""
 from PySide6.QtWidgets import QVBoxLayout, QWidget
 

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.1.4
+# @version 3.1.5
 """Range segmented / resumable / checksum downloader (internal core/download module).
 
 Only single-file HTTP(S) resources that support Range. No HLS/DASH, muxing,

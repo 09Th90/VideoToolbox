@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.1.4
+# @version 3.1.5
 """voiceprint 功能清单。GUI speaker_voiceprint_page 已在外部模块（阶段③注册挂载）。"""
 from features._registry import FeatureSpec
 

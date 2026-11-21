@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.1.4
+# @version 3.1.5
 """校准知识/声纹模板多用户同步（GitHub 整文件通道 + 本地增量镜像）。
 
 v2.3.1 拆分工程 · 自 video_toolbox.py 原样搬入。
@@ -8,6 +8,7 @@ A3-2 追认移域，同 clean_path/proxy_* 先例）。
 """
 
 import base64
+import hashlib
 import json
 import subprocess
 import time
@@ -20,6 +21,14 @@ from core.shared.proxy import ensure_builtin_proxy
 from core.calibrate.ai import calib_sync_enabled
 
 import os
+import threading
+import functools
+from contextlib import contextmanager
+
+try:  # win32 跨进程文件锁；非 Windows 降级为仅进程内锁
+    import msvcrt
+except ImportError:  # pragma: no cover
+    msvcrt = None
 
 from core.shared.config import load_config
 from core.shared.paths import APP_DIR, DATA_DIR, LOGS_DIR
@@ -110,6 +119,57 @@ SYNC_KB_REL_PATH = _SYNC_CONN_DEFAULTS["files"][1]
 #: 上次同步成功内容快照 = 条目级三方合并的「公共祖先」（放数据根，不入库不分发）
 CALIB_BASE_SNAPSHOT = os.path.join(DATA_DIR, "calib_sync_base.py")
 CALIB_KB_BASE_SNAPSHOT = os.path.join(DATA_DIR, "calib_sync_kb_base.json")
+#: 上次成功同步的三方输入 sha 状态（v3.1.5 卡死修复）：远端 blob sha + 本地/基线
+#: 内容 sha256。三者与上次完全一致 → 合并结果必相同 → 整轮跳过 AST parse。
+CALIB_SYNC_STATE = os.path.join(DATA_DIR, "calib_sync_state.json")
+
+# ---------- 同步临界区锁（v3.1.5 卡死修复 P1：防并发写坏 2MB 校准库） ----------
+# 三入口（启动自动 boot / 设置页「立即更新」/ 退出子进程）此前无锁无重入防护，
+# 并发读-合并-写会丢更新，主进程退出清理期与退出子进程跨进程竞争同一批文件。
+_SYNC_PROC_LOCK = threading.RLock()
+_SYNC_LOCK_PATH = os.path.join(DATA_DIR, "calib_sync.lock")
+
+
+@contextmanager
+def _sync_lock():
+    """进程内 RLock 串行 + 跨进程文件锁（msvcrt，覆盖退出子进程）。
+
+    可重入：同线程已持锁时不再重复加文件锁（msvcrt 锁不可重入）。文件锁取得
+    失败降级为仅进程内锁——best-effort，绝不因加锁失败阻断同步。"""
+    reentrant = _SYNC_PROC_LOCK._is_owned()
+    with _SYNC_PROC_LOCK:
+        fh = None
+        locked = False
+        if not reentrant and msvcrt is not None:
+            try:
+                fh = open(_SYNC_LOCK_PATH, "a+b")
+                msvcrt.locking(fh.fileno(), msvcrt.LK_LOCK, 1)
+                locked = True
+            except OSError:
+                locked = False
+        try:
+            yield
+        finally:
+            if fh is not None:
+                if locked:
+                    try:
+                        msvcrt.locking(fh.fileno(), msvcrt.LK_UNLCK, 1)
+                    except OSError:
+                        pass
+                try:
+                    fh.close()
+                except OSError:
+                    pass
+
+
+def _synchronized(fn):
+    """给同步顶层入口套 _sync_lock（保持签名；入口彼此不嵌套，无重入死锁）。"""
+    @functools.wraps(fn)
+    def _wrapper(*args, **kwargs):
+        with _sync_lock():
+            return fn(*args, **kwargs)
+    return _wrapper
+
 
 _SYNC_CONN_CACHE = None
 
@@ -252,44 +312,88 @@ def _atomic_write(path, text):
     os.replace(tmp, path)
 
 
+def _sha_text(text):
+    """同步状态用的内容指纹（sha256）；与远端 git blob sha 各自闭环比对。"""
+    return hashlib.sha256((text or "").encode("utf-8", "surrogatepass")).hexdigest()
+
+
+def _load_sync_state():
+    try:
+        txt = read_text_any(CALIB_SYNC_STATE)
+        return json.loads(txt) if txt.strip() else {}
+    except (OSError, ValueError):
+        return {}
+
+
+def _save_sync_state(rel_path, remote_sha, local_sha, base_sha):
+    """记录本次同步的三方输入 sha（best-effort，失败不影响主流程）。"""
+    state = _load_sync_state()
+    state[rel_path] = {"remote_sha": remote_sha,
+                       "local_sha": local_sha, "base_sha": base_sha}
+    try:
+        _atomic_write(CALIB_SYNC_STATE,
+                      json.dumps(state, ensure_ascii=False, indent=1))
+    except OSError:
+        pass
+
+
 def _pull_and_merge(token, rel_path, base_path, cfg):
     """拉远程单文件与本地做条目级三方合并，结果回写本地与基线。返回本地是否有更新。
 
     files 段第一个同步文件视为「校准脚本」（走 merge_calib_script），其余视为
-    「学习库」（走 merge_learned_kb）。任何失败只记日志，绝不阻断启动/退出。"""
+    「学习库」（走 merge_learned_kb）。任何失败只记日志，绝不阻断启动/退出。
+
+    v3.1.5 卡死修复：接住远端 blob sha，与本地/基线内容 sha 一起做前置比对——
+    三方输入与上次成功同步完全一致时整轮跳过（含 AST parse），消除「无人提交
+    却每次启动全量解析 2MB 脚本」的持 GIL 开销。远端 sha 缺失时不跳过（保守）。"""
     is_script = (rel_path == cfg["files"][0])
     local_path = os.path.join(APP_DIR, rel_path)
     local_text = _read_sync_text(local_path)
     base_text = _read_sync_text(base_path)
-    ok, remote_text, _sha = _gh_fetch_file(token, rel_path, cfg)
+    ok, remote_text, remote_sha = _gh_fetch_file(token, rel_path, cfg)
     if not ok:
         _sync_log(f"拉取[{rel_path}]跳过合并：{str(remote_text)[:100]}")
         return False
+    local_sha = _sha_text(local_text)
+    base_sha = _sha_text(base_text)
+    prev = _load_sync_state().get(rel_path) or {}
+    if (remote_sha and prev.get("remote_sha") == remote_sha
+            and prev.get("local_sha") == local_sha
+            and prev.get("base_sha") == base_sha):
+        return False                       # 三方未变 → 合并结果必相同，跳过 parse
     if not local_text.strip():
         _atomic_write(local_path, remote_text)
         _atomic_write(base_path, remote_text)
+        rsha = _sha_text(remote_text)
+        _save_sync_state(rel_path, remote_sha, rsha, rsha)
         _sync_log(f"拉取[{rel_path}]：本地缺失，已采用远程版（{len(remote_text)} 字符）")
         return True
     if remote_text == local_text:
         if base_text != local_text:
             _atomic_write(base_path, local_text)
+        _save_sync_state(rel_path, remote_sha, local_sha, local_sha)
         return False
     if is_script:
         merged, added, conflicts = merge_calib_script(local_text, remote_text, base_text)
     else:
         merged, added, conflicts = merge_learned_kb(local_text, remote_text)
     if merged == local_text:
+        # 无可并入：记录当前三方 sha，输入不变时下次直接跳过重复 parse
+        _save_sync_state(rel_path, remote_sha, local_sha, base_sha)
         if conflicts:
             _sync_log(f"合并[{rel_path}]：无可并入"
                       f"（{'; '.join(str(c) for c in conflicts)[:200]}）")
         return False
     _atomic_write(local_path, merged)
     _atomic_write(base_path, merged)
+    msha = _sha_text(merged)
+    _save_sync_state(rel_path, remote_sha, msha, msha)
     n_conf = len(conflicts) if isinstance(conflicts, list) else conflicts
     _sync_log(f"合并[{rel_path}]：并入 {added} 条，冲突 {n_conf} 条（保留本地）")
     return True
 
 
+@_synchronized
 def sync_calib_to_github(cfg=None):
     """把本地校准脚本与学习库推到 GitHub（推送前先拉远程合并；静默，返回 (ok, 说明)）。"""
     cfg = cfg or _sync_conn()
@@ -387,6 +491,7 @@ def _local_delta_enabled():
         return False
 
 
+@_synchronized
 def sync_calib_push_local():
     """退出子进程内部调用：把学习库新增增量写进本地更新库收件箱（若启用镜像）。"""
     try:
@@ -416,6 +521,7 @@ def _exit_sync_child_script():
             "e.sync_calib_to_github()" % src_dir)
 
 
+@_synchronized
 def sync_calib_on_startup(force=False):
     """更新：从 GitHub 拉全体使用者沉淀并条目级合并进本地；可选叠加本地增量镜像。
 
@@ -625,6 +731,7 @@ def _vp_sync_log(msg):
         pass
 
 
+@_synchronized
 def sync_voiceprint_on_startup(force=False):
     """启动：把其他客户端录入的主播声纹模板拉下来落地（幂等、静默、best-effort）。
 
@@ -671,6 +778,7 @@ def sync_voiceprint_on_startup(force=False):
         return False, str(e)
 
 
+@_synchronized
 def sync_voiceprint_on_exit():
     """退出：把本机录入/重录/删除产生的声纹增量推进通道。
 
