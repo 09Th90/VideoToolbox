@@ -176,83 +176,62 @@ CTX_TABLES = {
 
 # 预编译上下文规则：正则只编译一次，占位规则(wrong/right 为 None)剔除；
 # 应用时先查 wrong 是否出现在中文行，再跑正则，避免无谓匹配。
-_CONTEXT_COMPILED = [(re.compile(rx, re.I), wrong, right)
-                     for rx, wrong, right in CONTEXT_MAP if wrong and right]
+#
+# 2026-11-21 工程重构：各缓存由 _CTX_COMPILE_SPEC 规格表统一驱动（构建+原地重建），
+#   消除逐表复制单行与「漏重建静默失效」事故类。规格 = (缓存名, 源表, re flags, 剔除占位)。
+#   ⚠ 日语/韩语锚点（片假名/旧字体汉字/谚文）**不带 re.I**：加 re.I 无意义且放宽匹配面；
+#     拉丁/英文 ASR 锚点带 re.I（大小写不稳）。_filter=True 剔除 wrong/right 为 None 的占位规则。
+#   ⚠ 缓存名必须保持模块级可见：engine 在 import 时绑定这些 list 的引用，
+#     重建必须原地 [:] 更新（重新绑定会让 kb 运行期注入静默失效）。
+def _compile_ctx(table, flags, drop_placeholder):
+    if drop_placeholder:
+        return [(re.compile(rx, flags), wrong, right)
+                for rx, wrong, right in table if wrong and right]
+    return [(re.compile(rx, flags), wrong, right) for rx, wrong, right in table]
+
+
+_CTX_COMPILE_SPEC = [
+    ("_CONTEXT_COMPILED", CONTEXT_MAP, re.I, True),
+    ("_JA_CONTEXT_COMPILED", JA_CONTEXT, 0, False),
+    ("_JA_ENDFIELD_CONTEXT_COMPILED", JA_ENDFIELD_CONTEXT, 0, False),
+    # --pgrja 锚点是日语原文（片假名/旧字体），不带 re.I
+    ("_JA_PGR_CONTEXT_COMPILED", JA_PGR_CONTEXT, 0, False),
+    ("_AK_CONTEXT_COMPILED", AK_CONTEXT, re.I, False),
+    # --akja 锚点是日语原文（片假名/日服旧字体汉字），不带 re.I
+    ("_AK_JA_CONTEXT_COMPILED", AK_JA_CONTEXT, 0, False),
+    ("_AK_KO_CONTEXT_COMPILED", AK_KO_CONTEXT, 0, False),
+    ("_KO_CONTEXT_COMPILED", KO_CONTEXT, 0, False),
+    ("_WW40KO_CONTEXT_COMPILED", WW40KO_CONTEXT, 0, False),
+    ("_WW40IGN_CONTEXT_COMPILED", WW40IGN_CONTEXT, 0, False),
+    ("_KO_ASR_CONTEXT_COMPILED", KO_ASR_CONTEXT, 0, False),
+    ("_REACT_CONTEXT_COMPILED", REACT_CONTEXT, re.I, True),
+    ("_LIMBUS_CONTEXT_COMPILED", LIMBUS_CONTEXT, re.I, True),
+    ("_FFRS_CONTEXT_COMPILED", FFRS_CONTEXT, re.I, True),
+    ("_HSR_CONTEXT_COMPILED", HSR_CONTEXT, re.I, True),
+    ("_POKEMON_CONTEXT_COMPILED", POKEMON_CONTEXT, re.I, True),
+    ("_WWOC_CONTEXT_COMPILED", WWOC_CONTEXT, re.I, True),
+    ("_PBZ_CONTEXT_COMPILED", PBZ_CONTEXT, re.I, True),
+    ("_FF14_CONTEXT_COMPILED", FF14_CONTEXT, re.I, True),
+    # --pgren 锚点是拉丁（after glow / PV / ribbon / Chloe），带 re.I
+    ("_PGR_EN_CONTEXT_COMPILED", PGR_EN_CONTEXT, re.I, True),
+    # --ssv 锚点是拉丁（Nikke / pulse / burn / limit break），带 re.I
+    ("_SSV_CONTEXT_COMPILED", SSV_CONTEXT, re.I, True),
+    # --tga26 锚点是英文 ASR（Cairn/Onimusha/Marathon/Saros），带 re.I
+    ("_TGA_CONTEXT_COMPILED", TGA_CONTEXT, re.I, True),
+    # --arcak 锚点是英文 ASR（doctor/Originium/chart/Renegade），带 re.I
+    ("_ARCAK_CONTEXT_COMPILED", ARCAK_CONTEXT, re.I, True),
+    ("_WWM_CONTEXT_COMPILED", WWM_CONTEXT, re.I, True),
+    ("_GFL2_CONTEXT_COMPILED", GFL2_CONTEXT, re.I, True),
+    ("_ENDFIELD_KO_CONTEXT_COMPILED", ENDFIELD_KO_CONTEXT, 0, False),
+    ("_ENDFIELD_BI_CONTEXT_COMPILED", ENDFIELD_BI_CONTEXT, re.I, False),
+]
+
+# 初始构建（import 时一次；_register_entities 后再由 _rebuild_context_caches 原地重建）
+for _name, _tbl, _flags, _filt in _CTX_COMPILE_SPEC:
+    globals()[_name] = _compile_ctx(_tbl, _flags, _filt)
 
 _EXCLUDE_COMPILED = {w: (right, [re.compile(rx, re.I) for rx in rxs])
                      for w, (right, rxs) in EXCLUDE_CONTEXT.items()}
-
-_JA_CONTEXT_COMPILED = [(re.compile(rx), wrong, right) for rx, wrong, right in JA_CONTEXT]
-
-_JA_ENDFIELD_CONTEXT_COMPILED = [(re.compile(rx), wrong, right) for rx, wrong, right in JA_ENDFIELD_CONTEXT]
-
-# --pgrja 语境预编译：锚点是日语原文（片假名/旧字体），加 re.I 无意义且会放宽匹配面，
-#   与 _JA_CONTEXT_COMPILED / _JA_ENDFIELD_CONTEXT_COMPILED 同规（都不带 re.I）。
-_JA_PGR_CONTEXT_COMPILED = [(re.compile(rx), wrong, right) for rx, wrong, right in JA_PGR_CONTEXT]
-
-_AK_CONTEXT_COMPILED = [(re.compile(rx, re.I), wrong, right) for rx, wrong, right in AK_CONTEXT]
-
-# --akja 语境预编译：锚点是日语原文（片假名或日服旧字体汉字），与 _JA_CONTEXT_COMPILED /
-#   _JA_PGR_CONTEXT_COMPILED 同规**不带 re.I**（加 re.I 无意义，且会放宽汉字锚点的匹配面）。
-_AK_JA_CONTEXT_COMPILED = [(re.compile(rx), wrong, right) for rx, wrong, right in AK_JA_CONTEXT]
-
-_AK_KO_CONTEXT_COMPILED = [(re.compile(rx), wrong, right) for rx, wrong, right in AK_KO_CONTEXT]
-
-_KO_CONTEXT_COMPILED = [(re.compile(rx), wrong, right) for rx, wrong, right in KO_CONTEXT]
-_WW40KO_CONTEXT_COMPILED = [(re.compile(rx), wrong, right) for rx, wrong, right in WW40KO_CONTEXT]
-_WW40IGN_CONTEXT_COMPILED = [(re.compile(rx), wrong, right) for rx, wrong, right in WW40IGN_CONTEXT]
-
-_KO_ASR_CONTEXT_COMPILED = [(re.compile(rx), wrong, right) for rx, wrong, right in KO_ASR_CONTEXT]
-
-_REACT_CONTEXT_COMPILED = [(re.compile(rx, re.I), wrong, right)
-                           for rx, wrong, right in REACT_CONTEXT if wrong and right]
-
-_LIMBUS_CONTEXT_COMPILED = [(re.compile(rx, re.I), wrong, right)
-                             for rx, wrong, right in LIMBUS_CONTEXT if wrong and right]
-
-_FFRS_CONTEXT_COMPILED = [(re.compile(rx, re.I), wrong, right)
-                          for rx, wrong, right in FFRS_CONTEXT if wrong and right]
-
-_HSR_CONTEXT_COMPILED = [(re.compile(rx, re.I), wrong, right)
-                         for rx, wrong, right in HSR_CONTEXT if wrong and right]
-
-_POKEMON_CONTEXT_COMPILED = [(re.compile(rx, re.I), wrong, right)
-                             for rx, wrong, right in POKEMON_CONTEXT if wrong and right]
-
-_WWOC_CONTEXT_COMPILED = [(re.compile(rx, re.I), wrong, right)
-                          for rx, wrong, right in WWOC_CONTEXT if wrong and right]
-
-_PBZ_CONTEXT_COMPILED = [(re.compile(rx, re.I), wrong, right)
-                         for rx, wrong, right in PBZ_CONTEXT if wrong and right]
-
-_FF14_CONTEXT_COMPILED = [(re.compile(rx, re.I), wrong, right)
-                          for rx, wrong, right in FF14_CONTEXT if wrong and right]
-
-# 2026-11-04 --pgren 语境预编译：锚点是拉丁（after glow / PV / ribbon / Chloe），
-#   与 _WWOC/_PBZ/_FF14 同规**带 re.I**（ASR 大小写不稳）。
-_PGR_EN_CONTEXT_COMPILED = [(re.compile(rx, re.I), wrong, right)
-                             for rx, wrong, right in PGR_EN_CONTEXT if wrong and right]
-
-# 2026-11-15 --ssv 语境预编译：锚点是拉丁（Nikke / pulse / burn / limit break），
-#   与 _PGR_EN 同规带 re.I。
-_SSV_CONTEXT_COMPILED = [(re.compile(rx, re.I), wrong, right)
-                         for rx, wrong, right in SSV_CONTEXT if wrong and right]
-
-# 2026-11-18 --tga26 语境预编译：锚点是英文 ASR（Cairn/Onimusha/Marathon/Saros），
-#   与 _SSV 同规带 re.I。
-_TGA_CONTEXT_COMPILED = [(re.compile(rx, re.I), wrong, right)
-                         for rx, wrong, right in TGA_CONTEXT if wrong and right]
-
-# 2026-11-18 --arcak 语境预编译：锚点是英文 ASR（doctor/Originium/chart/Renegade），
-#   与 _SSV/_PGR_EN 同规带 re.I（ASR 大小写不稳）。
-_ARCAK_CONTEXT_COMPILED = [(re.compile(rx, re.I), wrong, right)
-                           for rx, wrong, right in ARCAK_CONTEXT if wrong and right]
-
-_WWM_CONTEXT_COMPILED = [(re.compile(rx, re.I), wrong, right)
-                         for rx, wrong, right in WWM_CONTEXT if wrong and right]
-
-_GFL2_CONTEXT_COMPILED = [(re.compile(rx, re.I), wrong, right)
-                          for rx, wrong, right in GFL2_CONTEXT if wrong and right]
 
 
 
@@ -291,77 +270,19 @@ def _register_entities(entities=ENTITIES):
 
 
 
-_ENDFIELD_KO_CONTEXT_COMPILED = [
-    (re.compile(rx), wrong, right) for rx, wrong, right in ENDFIELD_KO_CONTEXT
-]
-
-
-_ENDFIELD_BI_CONTEXT_COMPILED = [
-    (re.compile(rx, re.I), wrong, right) for rx, wrong, right in ENDFIELD_BI_CONTEXT
-]
-
-
-
 def _rebuild_context_caches():
     """实体注册可能追加 CONTEXT/EXCLUDE 条目，重建各预编译缓存。
 
     缓存必须原地更新：engine/其他模块在 import 时已持有这些 list/dict 的引用，
-    重新绑定会让 kb-sync 运行期注入静默失效。
+    重新绑定会让 kb-sync 运行期注入静默失效。规格表驱动：新增缓存只要进
+    _CTX_COMPILE_SPEC 即自动纳入构建与重建（消除「漏重建静默失效」事故类）。
     """
-    _CONTEXT_COMPILED[:] = [(re.compile(rx, re.I), wrong, right)
-                            for rx, wrong, right in CONTEXT_MAP if wrong and right]
+    for _name, _tbl, _flags, _filt in _CTX_COMPILE_SPEC:
+        globals()[_name][:] = _compile_ctx(_tbl, _flags, _filt)
     _EXCLUDE_COMPILED.clear()
     _EXCLUDE_COMPILED.update(
         {w: (right, [re.compile(rx, re.I) for rx in rxs])
          for w, (right, rxs) in EXCLUDE_CONTEXT.items()})
-    _JA_CONTEXT_COMPILED[:] = [(re.compile(rx), wrong, right) for rx, wrong, right in JA_CONTEXT]
-    _JA_ENDFIELD_CONTEXT_COMPILED[:] = [(re.compile(rx), wrong, right)
-                                        for rx, wrong, right in JA_ENDFIELD_CONTEXT]
-    _JA_PGR_CONTEXT_COMPILED[:] = [(re.compile(rx), wrong, right)
-                                   for rx, wrong, right in JA_PGR_CONTEXT]
-    _AK_KO_CONTEXT_COMPILED[:] = [(re.compile(rx), wrong, right) for rx, wrong, right in AK_KO_CONTEXT]
-    _KO_CONTEXT_COMPILED[:] = [(re.compile(rx), wrong, right) for rx, wrong, right in KO_CONTEXT]
-    _WW40KO_CONTEXT_COMPILED[:] = [(re.compile(rx), wrong, right) for rx, wrong, right in WW40KO_CONTEXT]
-    _WW40IGN_CONTEXT_COMPILED[:] = [(re.compile(rx), wrong, right) for rx, wrong, right in WW40IGN_CONTEXT]
-    _AK_CONTEXT_COMPILED[:] = [(re.compile(rx, re.I), wrong, right) for rx, wrong, right in AK_CONTEXT]
-    # 2026-11-03：缺这行时 --akja 的 ctx 只在首启生效，kb 运行期注入的新锚定条目会静默失效
-    #   （engine 在 import 时已持有该 list 的引用，必须原地重建而非重新绑定）。
-    _AK_JA_CONTEXT_COMPILED[:] = [(re.compile(rx), wrong, right)
-                                  for rx, wrong, right in AK_JA_CONTEXT]
-    _ENDFIELD_KO_CONTEXT_COMPILED[:] = [(re.compile(rx), wrong, right)
-                                        for rx, wrong, right in ENDFIELD_KO_CONTEXT]
-    _ENDFIELD_BI_CONTEXT_COMPILED[:] = [(re.compile(rx, re.I), wrong, right)
-                                        for rx, wrong, right in ENDFIELD_BI_CONTEXT]
-    _HSR_CONTEXT_COMPILED[:] = [(re.compile(rx, re.I), wrong, right)
-                                for rx, wrong, right in HSR_CONTEXT if wrong and right]
-    _LIMBUS_CONTEXT_COMPILED[:] = [(re.compile(rx, re.I), wrong, right)
-                                   for rx, wrong, right in LIMBUS_CONTEXT if wrong and right]
-    _FFRS_CONTEXT_COMPILED[:] = [(re.compile(rx, re.I), wrong, right)
-                                 for rx, wrong, right in FFRS_CONTEXT if wrong and right]
-    _POKEMON_CONTEXT_COMPILED[:] = [(re.compile(rx, re.I), wrong, right)
-                                    for rx, wrong, right in POKEMON_CONTEXT if wrong and right]
-    _WWOC_CONTEXT_COMPILED[:] = [(re.compile(rx, re.I), wrong, right)
-                                 for rx, wrong, right in WWOC_CONTEXT if wrong and right]
-    _PBZ_CONTEXT_COMPILED[:] = [(re.compile(rx, re.I), wrong, right)
-                                for rx, wrong, right in PBZ_CONTEXT if wrong and right]
-    _FF14_CONTEXT_COMPILED[:] = [(re.compile(rx, re.I), wrong, right)
-                                 for rx, wrong, right in FF14_CONTEXT if wrong and right]
-    # 2026-11-04：同 _AK_JA_CONTEXT_COMPILED 的教训——不原地重建，kb 运行期注入的新锚条目会静默失效
-    _PGR_EN_CONTEXT_COMPILED[:] = [(re.compile(rx, re.I), wrong, right)
-                                   for rx, wrong, right in PGR_EN_CONTEXT if wrong and right]
-    _SSV_CONTEXT_COMPILED[:] = [(re.compile(rx, re.I), wrong, right)
-                                for rx, wrong, right in SSV_CONTEXT if wrong and right]
-    # 2026-11-18：同 _SSV 的教训——不原地重建，kb 运行期注入的 tga26 锚条目会静默失效
-    _TGA_CONTEXT_COMPILED[:] = [(re.compile(rx, re.I), wrong, right)
-                                for rx, wrong, right in TGA_CONTEXT if wrong and right]
-    # 2026-11-18：同 _SSV 的教训——不原地重建，kb 运行期注入的 arcak 锚条目会静默失效
-    _ARCAK_CONTEXT_COMPILED[:] = [(re.compile(rx, re.I), wrong, right)
-                                  for rx, wrong, right in ARCAK_CONTEXT if wrong and right]
-    # 2026-11-21：同 _ARCAK 的教训——不原地重建，wwm 运行期注入会静默失效
-    _WWM_CONTEXT_COMPILED[:] = [(re.compile(rx, re.I), wrong, right)
-                                for rx, wrong, right in WWM_CONTEXT if wrong and right]
-    _GFL2_CONTEXT_COMPILED[:] = [(re.compile(rx, re.I), wrong, right)
-                                 for rx, wrong, right in GFL2_CONTEXT if wrong and right]
 
 
 

@@ -243,7 +243,79 @@ ZHO_INFO = {
 #                                        ENTITIES 元数据完整性
 # =============================================================
 
+# =============================================================
+# 模式注册表（单一真源，2026-11-21 工程重构）
+#   新增一个片源模式 = 新建 data/<mode>.py 词表 + 本表加一条注册。
+#   字段：
+#     terms         引擎术语表名（__AKJA_MERGE__=AK_TERMS∪AK_JA_TERMS，__EMPTY__={}）
+#     ctx           引擎语境表名（None=无语境槽）
+#     project_terms 实体投影术语槽（_MODE_TERM_TABLE 值；None=不投影，如 zel/hsr/pgr）
+#     project_ctx   实体投影语境槽（_MODE_CTX_TABLE 值；None=不投影，如 endo/zho/react）
+#     name          显示名（_MODE_NAMES 值；None=不进显示名表，如 zel/hsr/pgr）
+#   三张投影视图（_MODE_TERM_TABLE/_MODE_CTX_TABLE/_MODE_NAMES）由本表推导；
+#   monolith 生成时由 build_calib_monolith 序列化为字面量（兼容旧 merge core / ast_compat）。
+#   ⚠ project_terms/project_ctx 决定 ENTITIES 投影目标，与引擎 terms/ctx 是两回事：
+#     akja 引擎用合并表但投影只登记增量 AK_JA_TERMS；zel/hsr 引擎有表但无投影槽。
+# =============================================================
+MODE_REGISTRY = {
+    "ak": {"terms": "AK_TERMS", "ctx": "AK_CONTEXT", "project_terms": "AK_TERMS", "project_ctx": "AK_CONTEXT", "name": "明日方舟"},
+    # 2026-11-03 明日方舟日语原声（奈渡ナオト 首播）：引擎 AK_TERMS∪AK_JA_TERMS，投影只登记增量表
+    "akja": {"terms": "__AKJA_MERGE__", "ctx": "AK_JA_CONTEXT", "project_terms": "AK_JA_TERMS", "project_ctx": "AK_JA_CONTEXT", "name": "日语原声·明日方舟"},
+    "akko": {"terms": "AK_KO_TERMS", "ctx": "AK_KO_CONTEXT", "project_terms": "AK_KO_TERMS", "project_ctx": "AK_KO_CONTEXT", "name": "明日方舟韩语"},
+    # 2026-11-18 Arcaea×明日方舟联动直播（英语 ASR + 微软翻译）
+    "arcak": {"terms": "ARCAK_TERMS", "ctx": "ARCAK_CONTEXT", "project_terms": "ARCAK_TERMS", "project_ctx": "ARCAK_CONTEXT", "name": "Arcaea×明日方舟"},
+    "bi": {"terms": "BILINGUAL_TERMS", "ctx": "CONTEXT_MAP", "project_terms": "BILINGUAL_TERMS", "project_ctx": "CONTEXT_MAP", "name": "中英双语"},
+    # endo 单语片每 cue 仅一行，ref 即中文行本身，英文锚定永不命中 → 不建语境槽
+    "endo": {"terms": "ENDFIELD_TERMS", "ctx": None, "project_terms": "ENDFIELD_TERMS", "project_ctx": None, "name": "终末地"},
+    # 2026-10-20 endobi 补语境槽（通用中文词类官方名靠英文参考行锚定）
+    "endobi": {"terms": "ENDFIELD_BI_TERMS", "ctx": "ENDFIELD_BI_CONTEXT", "project_terms": "ENDFIELD_BI_TERMS", "project_ctx": "ENDFIELD_BI_CONTEXT", "name": "终末地·中英双语"},
+    "endoko": {"terms": "ENDFIELD_KO_TERMS", "ctx": "ENDFIELD_KO_CONTEXT", "project_terms": "ENDFIELD_KO_TERMS", "project_ctx": "ENDFIELD_KO_CONTEXT", "name": "终末地·韩语原声"},
+    # 2026-11-01 最终幻想14（FFXIV）英语原声+谷翻 reaction
+    "ff14": {"terms": "FF14_TERMS", "ctx": "FF14_CONTEXT", "project_terms": "FF14_TERMS", "project_ctx": "FF14_CONTEXT", "name": "最终幻想14"},
+    # 2026-10-28 最终幻想：共鸣（FFRS）HD-2D 实况
+    "ffrs": {"terms": "FFRS_TERMS", "ctx": "FFRS_CONTEXT", "project_terms": "FFRS_TERMS", "project_ctx": "FFRS_CONTEXT", "name": "最终幻想：共鸣"},
+    "fix-en": {"terms": None, "ctx": None, "project_terms": None, "project_ctx": None, "name": "英文参考行修正"},
+    # 2026-11-21 少女前线2：追放（GFL2 Exilium）二周年反应片
+    "gfl2": {"terms": "GFL2_TERMS", "ctx": "GFL2_CONTEXT", "project_terms": "GFL2_TERMS", "project_ctx": "GFL2_CONTEXT", "name": "少女前线2：追放"},
+    # 2026-10-20 崩坏：星穹铁道（引擎用 HSR_CONTEXT，但无实体投影槽）
+    "hsr": {"terms": "HSR_TERMS", "ctx": "HSR_CONTEXT", "project_terms": None, "project_ctx": None, "name": None},
+    "ja": {"terms": "JA_TERMS", "ctx": "JA_CONTEXT", "project_terms": "JA_TERMS", "project_ctx": "JA_CONTEXT", "name": "日语原声·鸣潮"},
+    "jpe": {"terms": "JA_ENDFIELD_TERMS", "ctx": "JA_ENDFIELD_CONTEXT", "project_terms": "JA_ENDFIELD_TERMS", "project_ctx": "JA_ENDFIELD_CONTEXT", "name": "日语原声·终末地"},
+    "ko": {"terms": "KO_TERMS", "ctx": "KO_CONTEXT", "project_terms": "KO_TERMS", "project_ctx": "KO_CONTEXT", "name": "韩语原声·鸣潮"},
+    # 2026-10-26 边狱巴士（Limbus Company）音乐 reaction
+    "limbus": {"terms": "LIMBUS_TERMS", "ctx": "LIMBUS_CONTEXT", "project_terms": "LIMBUS_TERMS", "project_ctx": "LIMBUS_CONTEXT", "name": "边狱巴士"},
+    # 2026-10-30 影之刃零（Phantom Blade Zero）英语原声+谷翻实况
+    "pbz": {"terms": "PBZ_TERMS", "ctx": "PBZ_CONTEXT", "project_terms": "PBZ_TERMS", "project_ctx": "PBZ_CONTEXT", "name": "影之刃零"},
+    # pgr 侧车整行覆盖模式：无术语表（引擎 __EMPTY__），无投影槽
+    "pgr": {"terms": "__EMPTY__", "ctx": None, "project_terms": None, "project_ctx": None, "name": None},
+    # 2026-11-04 战双英文原声（余辉/光伏/丝带/克洛伊 全是正常中文词，禁裸键）
+    "pgren": {"terms": "PGR_EN_TERMS", "ctx": "PGR_EN_CONTEXT", "project_terms": "PGR_EN_TERMS", "project_ctx": "PGR_EN_CONTEXT", "name": "战双英文原声"},
+    # 2026-11-03 战双日语原声（联动朗读直播）：参考行日语，与 pgren 互斥
+    "pgrja": {"terms": "JA_PGR_TERMS", "ctx": "JA_PGR_CONTEXT", "project_terms": "JA_PGR_TERMS", "project_ctx": "JA_PGR_CONTEXT", "name": "日语原声·战双"},
+    # 2026-10-21 宝可梦城镇主题
+    "pkm": {"terms": "POKEMON_TERMS", "ctx": "POKEMON_CONTEXT", "project_terms": "POKEMON_TERMS", "project_ctx": "POKEMON_CONTEXT", "name": "宝可梦城镇主题"},
+    # react 引擎用 REACT_CONTEXT，但无实体投影语境槽
+    "react": {"terms": "REACT_TERMS", "ctx": "REACT_CONTEXT", "project_terms": "REACT_TERMS", "project_ctx": None, "name": "音乐点评"},
+    # 2026-11-15 星之救援者（Star Savior）英语原声+谷翻评测
+    "ssv": {"terms": "SSV_TERMS", "ctx": "SSV_CONTEXT", "project_terms": "SSV_TERMS", "project_ctx": "SSV_CONTEXT", "name": "星之救援者"},
+    # 2026-11-18 TGA 2026 游戏大奖直播（英语原声 + 微软翻译）
+    "tga26": {"terms": "TGA_TERMS", "ctx": "TGA_CONTEXT", "project_terms": "TGA_TERMS", "project_ctx": "TGA_CONTEXT", "name": "TGA 2026 游戏大奖"},
+    # 2026-11-21 鸣潮 4.0 IGN 实机演示韩语反应片
+    "wuwa40ign": {"terms": "KO_TERMS", "ctx": "WW40IGN_CONTEXT", "project_terms": "KO_TERMS", "project_ctx": "WW40IGN_CONTEXT", "name": "韩语原声·鸣潮 4.0 IGN 实机"},
+    # 2026-11-19 鸣潮 4.0 新联邦 PV 韩语反应片
+    "wuwa40ko": {"terms": "KO_TERMS", "ctx": "WW40KO_CONTEXT", "project_terms": "KO_TERMS", "project_ctx": "WW40KO_CONTEXT", "name": "韩语原声·鸣潮 4.0 新联邦 PV"},
+    # 2026-11-21 燕云十六声（Where Winds Meet）滹沱实机片
+    "wwm": {"terms": "WWM_TERMS", "ctx": "WWM_CONTEXT", "project_terms": "WWM_TERMS", "project_ctx": "WWM_CONTEXT", "name": "燕云十六声"},
+    # 2026-10-25 wwoc 补语境槽（多游戏韩语片歧义错形）
+    "wwoc": {"terms": "WWOC_TERMS", "ctx": "WWOC_CONTEXT", "project_terms": "WWOC_TERMS", "project_ctx": "WWOC_CONTEXT", "name": "综合手游OST"},
+    # 2026-09-14 塞尔达传说（引擎用 ZELDA_TERMS，无语境槽、无投影槽）
+    "zel": {"terms": "ZELDA_TERMS", "ctx": None, "project_terms": None, "project_ctx": None, "name": None},
+    "zho": {"terms": "ZH_ONLY_TERMS", "ctx": None, "project_terms": "ZH_ONLY_TERMS", "project_ctx": None, "name": "中文行专属"},
+}
+
 # 模式 -> 无条件变体表 / 条件变体表（实体注册时的投影目标）
+# ⚠ 字面量顺序被 kb._kb_view 的实体 modes 累积依赖（kb-export/lookup/lint 输出顺序），
+#   不可改为字母序推导；与 MODE_REGISTRY 的 project_terms 由文件末守卫强制一致。
 _MODE_TERM_TABLE = {
     "bi": "BILINGUAL_TERMS", "ja": "JA_TERMS", "jpe": "JA_ENDFIELD_TERMS",
     "ko": "KO_TERMS", "wuwa40ko": "KO_TERMS", "wuwa40ign": "KO_TERMS", "wwoc": "WWOC_TERMS", "endo": "ENDFIELD_TERMS",
@@ -251,30 +323,17 @@ _MODE_TERM_TABLE = {
     "pgren": "PGR_EN_TERMS", "react": "REACT_TERMS",
     "endobi": "ENDFIELD_BI_TERMS", "endoko": "ENDFIELD_KO_TERMS",
     "pkm": "POKEMON_TERMS",
-    # 2026-10-26 新增：边狱巴士（Limbus Company）音乐 reaction 片源
     "limbus": "LIMBUS_TERMS",
-    # 2026-10-28 新增：最终幻想：共鸣（FFRS）HD-2D 实况片源
     "ffrs": "FFRS_TERMS",
-    # 2026-10-30 新增：影之刃零（Phantom Blade Zero）英语原声+谷翻实况片源
     "pbz": "PBZ_TERMS",
-    # 2026-11-01 新增：最终幻想14（FFXIV）英语原声+谷翻 reaction 片源
     "ff14": "FF14_TERMS",
-    # 2026-11-15 新增：星之救援者（Star Savior）英语原声+谷翻评测片源
     "ssv": "SSV_TERMS",
-    # 2026-11-18 新增：Arcaea × 明日方舟联动直播（英语 ASR + 微软翻译）
     "arcak": "ARCAK_TERMS",
-    # 2026-11-21 新增：燕云十六声（Where Winds Meet）实机片源
     "wwm": "WWM_TERMS",
-    # 2026-11-21 新增：少女前线2：追放（GFL2 Exilium）二周年反应片源
     "gfl2": "GFL2_TERMS",
-    # 2026-11-18 新增：TGA 2026 游戏大奖直播（英语原声 + 微软翻译）
     "tga26": "TGA_TERMS",
-    # 2026-11-03 新增：战双帕弥什**日语原声**片源（联动朗读直播）。
-    #   与既有 `pgren`（战双**英文**原声）互斥：那条通道的参考行是英语，本条是日语。
     "pgrja": "JA_PGR_TERMS",
-    # 2026-11-03 新增：明日方舟**日语原声**片源（奈渡ナオト 首播 reaction）。
-    #   与既有 `ak`（英语原声/中文行通道）互斥：那条参考行是英语，本条是日语。
-    #   运行期 engine 用 AK_TERMS ∪ AK_JA_TERMS 合并表，本表只登记**增量**那张。
+    # akja 引擎用 AK_TERMS∪AK_JA_TERMS 合并表，投影只登记增量那张
     "akja": "AK_JA_TERMS",
 }
 
@@ -282,47 +341,20 @@ _MODE_CTX_TABLE = {
     "bi": "CONTEXT_MAP", "ja": "JA_CONTEXT", "jpe": "JA_ENDFIELD_CONTEXT",
     "akko": "AK_KO_CONTEXT", "ko": "KO_CONTEXT", "wuwa40ko": "WW40KO_CONTEXT", "wuwa40ign": "WW40IGN_CONTEXT", "ak": "AK_CONTEXT",
     "endoko": "ENDFIELD_KO_CONTEXT", "pkm": "POKEMON_CONTEXT",
-    # 2026-10-25 新增：--wwoc 此前无语境槽，多游戏韩语片的歧义错形
-    #   （十字军/家具/反向/德州/Star Seed 等）只能逐 cue；现补 WWOC_CONTEXT。
     "wwoc": "WWOC_CONTEXT",
-    # 2026-10-20 新增：--endobi 此前无语境槽，通用中文词类官方名（枯萎/主管/以太/觉醒/
-    #   蚁人/前哨基地…）无处锚定，只能逐 cue；现补 ENDFIELD_BI_CONTEXT 与 endoko 同构。
-    #   --endo **不建槽**：单语片源每 cue 仅一行，ref 即该中文行本身，英文锚定永不命中。
+    # endo 不建槽：单语片源每 cue 仅一行，ref 即该中文行本身，英文锚定永不命中
     "endobi": "ENDFIELD_BI_CONTEXT",
-    # 2026-10-26 新增：边狱巴士音乐 reaction；Boss/Canto/乐理术语靠英文参考行锚定
     "limbus": "LIMBUS_CONTEXT",
-    # 2026-10-28 新增：最终幻想：共鸣；Visions/Stagger/Rain/Terra 等歧义词靠英文参考行锚定
     "ffrs": "FFRS_CONTEXT",
-    # 2026-10-30 新增：影之刃零；Wooa=武侠/Withering Waves=鸣潮/姿势=架势 等靠英文参考行锚定
     "pbz": "PBZ_CONTEXT",
-    # 2026-11-01 新增：最终幻想14；至冷/黎明/飞艇/地牢/收割者/旅行者/福音派 等
-    #   正常中文词的官方名（银海之天舟/金曦之遗辉/飞空艇/迷宫/钐镰客/巡天者/福音战士）
-    #   全靠英文参考行锚定，禁走裸键。
     "ff14": "FF14_CONTEXT",
-    # 2026-11-03 新增：--pgrja 的语境槽。图层/赤潮/皮肤/空中庭园/瓦妮莎 这类**正常中文词**
-    #   的官方名只能靠日语参考行锚定（裸键会把别的片源改花），故必须建槽。
     "pgrja": "JA_PGR_CONTEXT",
-    # 2026-11-03 新增：--akja 的语境槽。天灾/标志/徽标/喇叭/团聚/医生/模块/小苏打/流星/坐标/
-    #   成本/冰霜新星/深渊猎人 这类**正常中文词**的官方名（斯卡蒂/逻各斯/号角/整合运动/博士/
-    #   模组/重装/陨星/搭配/费用/霜星/深海猎人）只能靠日语参考行锚定，禁走裸键。
     "akja": "AK_JA_CONTEXT",
-    # 2026-11-04 新增：--pgren 的语境槽。余辉/光伏/丝带/克洛伊 这类**正常中文词**的官方名
-    #   （「流光抛诸寰宇」/PV/缎带/库洛）只能靠英文参考行锚定，禁走裸键。
     "pgren": "PGR_EN_CONTEXT",
-    # 2026-11-15 新增：--ssv 的语境槽。尼克/脉搏/烧灼/天井 这类**通用人名词/通用中文词**
-    #   的官方名（妮姬/星光石/烧伤/保底）只能靠英文参考行锚定，禁走裸键。
     "ssv": "SSV_CONTEXT",
-    # 2026-11-18 新增：--arcak 的语境槽。医生/操作员/老板/光谱/叛徒/光辉/奇点/活着/弧线
-    #   这类**普通中文词**的官方名（博士/干员/Boss/Spectrum/Renegade/Radiant/Singularity/
-    #   Alive/音弧）只能靠英文参考行锚定，禁走裸键。
     "arcak": "ARCAK_CONTEXT",
-    # 2026-11-21 新增：--wwm 语境槽（老板/头目/副本/地下城/军械库 等通用词只能靠英文参考行锚定）
     "wwm": "WWM_CONTEXT",
-    # 2026-11-21 新增：--gfl2 语境槽（全速前进/改装间 等正常中文词只能靠英文参考行锚定）
     "gfl2": "GFL2_CONTEXT",
-    # 2026-11-18 新增：--tga26 的语境槽。Karen/武者/轨道站/我的学术/伊代/莱/居所/
-    #   马拉松/共振/安魂曲/王牌/优生学 这类**普通中文词/人名**的官方名只能靠英文
-    #   参考行锚定，禁走裸键。
     "tga26": "TGA_CONTEXT",
 }
 
@@ -344,4 +376,29 @@ _MODE_NAMES = {
     "wwm": "燕云十六声",
     "gfl2": "少女前线2：追放",
 }
+
+
+# =============================================================
+# 一致性守卫：MODE_REGISTRY 是声明真源，三视图是保序字面量镜像。
+#   新增/修改模式时两处必须同步（值相等，顺序无关）；不一致即导入失败，
+#   防止注册表与投影表静默打架。引擎 terms/ctx 与投影 project_* 故意不同
+#   （akja 合并表 vs 增量投影、zel/hsr 有引擎表无投影槽），守卫只校验投影字段。
+# =============================================================
+def _check_registry_consistency():
+    proj_t = {m: e["project_terms"] for m, e in MODE_REGISTRY.items() if e["project_terms"]}
+    proj_c = {m: e["project_ctx"] for m, e in MODE_REGISTRY.items() if e["project_ctx"]}
+    proj_n = {m: e["name"] for m, e in MODE_REGISTRY.items() if e["name"]}
+    for label, proj, view in (("project_terms/_MODE_TERM_TABLE", proj_t, _MODE_TERM_TABLE),
+                              ("project_ctx/_MODE_CTX_TABLE", proj_c, _MODE_CTX_TABLE),
+                              ("name/_MODE_NAMES", proj_n, _MODE_NAMES)):
+        if proj != view:
+            only_reg = sorted(set(proj) - set(view))
+            only_view = sorted(set(view) - set(proj))
+            diff = sorted(k for k in set(proj) & set(view) if proj[k] != view[k])
+            raise SystemExit(
+                f"MODE_REGISTRY 与视图不一致 [{label}]：仅注册表 {only_reg} / "
+                f"仅视图 {only_view} / 值不同 {diff}")
+
+
+_check_registry_consistency()
 
