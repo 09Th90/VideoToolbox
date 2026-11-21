@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.1.5
+# @version 3.1.6
 """《燕云十六声》（Where Winds Meet）片源术语/语境表（--mode wwm，2026-11-21 新增）
 
 片源：《What Is Happening With Where Winds Meet !》（英语原声 + 微软翻译，

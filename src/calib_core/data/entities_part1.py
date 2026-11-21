@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.1.5
+# @version 3.1.6
 """术语/实体数据表
 
 源：subtitle_calib_merged.py L7369-L8839 @ 97d7d463（2026-10-24 冻结快照）

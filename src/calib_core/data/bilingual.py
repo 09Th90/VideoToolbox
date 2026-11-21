@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.1.5
+# @version 3.1.6
 """术语/实体数据表
 
 源：subtitle_calib_merged.py L493-L2378 @ 97d7d463（2026-10-24 冻结快照）
@@ -1490,6 +1490,23 @@ BILINGUAL_TERMS = {
     "滴灌画": "官宣立绘",
     "滴灌艺术": "官宣立绘",
     "滴画画": "官宣立绘",
+    # --- 2026-11-21 鸣潮 4.0《Anna & Lucielle Reveals & 4.0 Gameplay》reaction 二校回灌 ---
+    #   官方依据：4.0 年度篇章「永明的烬焰」/ 穿戴式机甲「隧铠」（EN Mecha Suit，3.0 科考摩托的后继载具）/
+    #   共鸣者「安娜」「露希尔」/ 3.6 共鸣者「锁暝」（EN Swarming，3.8 PV「契阔」）/ 3.7「同奏」模式。
+    #   戒律：老板/替身/专长/国歌/联邦 等常用词禁裸键，一律走 CONTEXT_MAP 参考行锚定；
+    #   本片只收整串唯一的机翻错形（麦加皮肤/标枪队国歌/Gunundevil 等）。
+    "麦加皮肤": "隧铠皮肤", "麦加皮肤。": "隧铠皮肤。",
+    "标枪队国歌": "《圣歌》的标枪机甲",
+    "Saw man 合作": "电锯人联动",
+    "锁暝攻击": "锁暝",   # 「蜂群攻击」被短键先咬后的兜底
+    "Saw man": "电锯人", "Saw Man": "电锯人", "Sawman": "电锯人",
+    "Gunundevil": "枪之恶魔", "Gunvilevil": "枪之恶魔",
+    "Old Federation": "旧联邦", "old Federation": "旧联邦",
+    "旧新联邦": "旧联邦",   # 裸键「联邦→新联邦」叠字兜底（正常已由 Federation 负向后顾拦住）
+    "New Fed": "新联邦", "new fed": "新联邦",
+    "unison team": "同奏队", "Unison Team": "同奏队",
+    "Jim Rainor": "吉姆·雷诺", "Jim Raynor": "吉姆·雷诺",
+    "福尔特": "共鸣回路",
 }
 
 
@@ -2484,7 +2501,9 @@ CONTEXT_MAP = [
     #   加负向前瞻跳过该语境；纯 New Federation 行仍照常收「联邦」→新联邦。
     #   2026-11-13 再补 many other：莉莉片 #854「federation. There are many other
     #   federations like it」是泛指「别的联邦」，不是「新联邦」，同样跳过。
-    (r"\bFederation\b(?!.*\b(?:Federated|Confederated)\s+Cities?\b)(?!.*\bmany\s+other\b)", "联邦", "新联邦"),
+    #   2026-11-21 补定长负向后顾 Old：4.0 片「Old Federation」（旧联邦，时间线限定词）
+    #   会被裸「联邦」规则咬成「旧新联邦」；Python 定长 lookbehind 4 字符可精确排除。
+    (r"(?<!Old\s)\bFederation\b(?!.*\b(?:Federated|Confederated)\s+Cities?\b)(?!.*\bmany\s+other\b)", "联邦", "新联邦"),
     (r"\bFederation\b", "新的新联邦", "新联邦"),   # #355 原文「新的联邦」被通用规则叠成「新的新联邦」
     (r"\bNew\s*$", "New", "新联邦"),
     # 2026-11-15 3.8 二校：「sort of this academy」/「that tragic academy」是主播与歌手
@@ -3384,6 +3403,50 @@ CONTEXT_MAP = [
     ("\\bS6\\b", "S6", "满链"),
     # 星声（Astrite）：本片 #117 ASR 把 astrites 听成 asteroids，机翻作「小行星」。
     ("\\bnot\\s+everyone\\s+has\\s+asteroids?\\b", "小行星", "星声"),
+    # --- 2026-11-21 鸣潮 4.0 Anna & Lucielle 实机 reaction 二校：错形按参考行锚定 ---
+    #   本片机翻把 mecha 听成 Mecca（「麦加皮肤」）；4.0 载具官方中文=隧铠，
+    #   与 3.0「科考摩托」同属版本载具卖点，皮肤口径统一作「隧铠皮肤」。
+    ("\\b(?:mecha|mecca)\\s+skins?\\b", "麦加皮肤", "隧铠皮肤"),
+    ("\\b(?:mecha|mecca)\\s+skins?\\b", "机甲皮肤", "隧铠皮肤"),
+    ("\\bbike\\s+skins?\\b", "自行车皮肤", "摩托皮肤"),
+    # ★ 3.6 共鸣者「锁暝」EN=Swarming：本片 ASR swarming/swaming 被机翻成「蜂群攻击/游泳」，
+    #   不是「召唤流」。既有规则只锚大写 Swarming，补小写与 swaming 变体。
+    ("(?i)\\b(?:swarming|swaming)\\b", "蜂群攻击", "锁暝"),
+    ("(?i)\\b(?:swarming|swaming)\\b", "游泳", "锁暝"),
+    ("(?i)\\b(?:swarming|swaming)\\b", "蜂群", "锁暝"),
+    ("(?i)\\b(?:swarming|swaming)\\b", "锁暝攻击", "锁暝"),   # 短键先咬后的二次收口
+    # unison team = 同奏队（3.7 心月狐「同奏」模式的队伍口径，本片机翻「一支统一的团队」）。
+    ("\\bunison\\s+teams?\\b", "统一的团队", "同奏队"),
+    ("\\bunison\\s+teams?\\b", "合奏队", "同奏队"),
+    # overworld=大世界、mobs=野怪（本片 #76-79「主世界上的暴民」）。
+    ("\\boverworld\\b", "主世界", "大世界"),
+    ("\\bmobs?\\b", "暴民", "野怪"),
+    # field time=站场时间（本片 #198/#199「野外时间」）。
+    ("\\bfield\\s+time\\b", "野外时间", "站场时间"),
+    # Forte 指角色共鸣回路槽（本片 #139「专长」、#171「福尔特」）。
+    ("\\bforte\\b", "专长", "共鸣回路"),
+    # alt=另一形态（本片 #141「替身」）。
+    ("\\bThere's\\s+her\\s+alt\\b", "替身", "另一形态"),
+    # boss 在实机演示里是 BOSS，不是「老板」（#103/#153）。
+    ("\\bthis\\s+boss\\b", "老板", "BOSS"),
+    ("\\bthe\\s+boss\\s+as\\s+well\\b", "老板", "BOSS"),
+    # Chainsaw Man=《电锯人》；Gun Devil=枪之恶魔（#158-160）。
+    ("\\bChainsaw\\b", "链锯", "《电锯人》"),
+    ("\\bGun\\s+Devil\\b", "《枪魔》", "《电锯人》"),
+    ("\\bGun\\s+Devil\\b", "枪魔", "枪之恶魔"),
+    # Old Federation=旧联邦（本片机翻「老联盟」）；Len/Linn=琳奈（3.0 角色，本片 #189/#196）。
+    ("\\bOld\\s+Federation\\b", "老联盟", "旧联邦"),
+    ("\\bOld\\s+Federation\\b", "老联邦", "旧联邦"),
+    ("\\bLen\\s*2\\.0\\b", "Len", "琳奈"),
+    ("\\bLen\\s+combined\\b", "Len", "琳奈"),
+    ("\\bLinn\\b", "琳恩", "琳奈"),
+    # Forte 未译残留（#169）按参考行归位共鸣回路。
+    ("\\bForte\\b", "Forte", "共鸣回路"),
+    # Anthem=《圣歌》；Javelin armor=标枪机甲（#230-235）。
+    ("\\bAnthem\\s+Javelin\\b", "标枪队国歌", "《圣歌》的标枪机甲"),
+    ("\\bAnthem\\s+javelin\\b", "Anthem 标枪护甲", "《圣歌》的标枪机甲"),
+    ("\\bthese\\s+Anthem\\b", "国歌", "《圣歌》"),
+    ("\\bjavelin\\s+armou?r\\b", "标枪护甲", "标枪机甲"),
 ]
 
 
@@ -3395,6 +3458,16 @@ CONTEXT_MAP = [
 # 结构：{wrong: (right, (排除正则...))}，right 用于回滚（须与所在术语表的 value 一致）。
 # 比无条件替换更精准，不依赖人工负例注释。新增歧义词时按此结构追加。
 EXCLUDE_CONTEXT = {
+    # --- 2026-11-21 《3.8 主线·予以明日的花束》韩语生肉二校（7894 cue） ---
+    #   방송 在主播口播里=直播，但列车/报站语境是「广播」；参考行含列车/报站锚点时回滚，
+    #   避免「列车售卖直播」「报站直播」这类硬伤（#794/#1286/#1345/#1930/#3531/#3535/#5981）。
+    "广播": ("直播", (r"열차|안내\s?방송|정차역|도착역|역\s?안내|방송\s?들었|방송을\s?통해|그\s?방송",)),
+    #   수호시 在 3.8 里是「守护城市」的普通短语（#5649），KO_CONTEXT 的「守护城→守护神」
+    #   会把「守护城市」咬成「守护神市」；韩文含 수호시는 사람 时回滚。
+    "守护城": ("守护神", (r"수호시는\s?사람",)),
+    #   별자리→心 是岁主「心」的官中口径；但 하늘의 별자리 是字面「天上的星座」（#5551），
+    #   该语境回滚，保留「天上星座」。
+    "星座": ("心", (r"하늘의\s?별자리",)),
     # --- 2026-11-18 明日方舟《The Amiya Dance Is a Breakup Song》二校：原视频标题保留英文 ---
     #   AK_TERMS 既有裸键 Amiya→阿米娅 会把中文行里的原视频标题咬成「Chubby 阿米娅 Dance」；
     #   参考行含完整标题 Chubby Amiya Dance 时回滚（本片 #90 唯一命中）。
@@ -3749,6 +3822,22 @@ WUWA_MISSING_CHECK = [
      "Abraxas 官方中文=阿布拉克萨斯"),
     (r"\bNew\s+Federation\b", ("新联邦",),
      "New Federation 官方中文=新联邦"),
+    # --- 2026-11-21 《Anna & Lucielle Reveals & 4.0 Gameplay》二校补项 ---
+    (r"\bOld\s+Federation\b", ("旧联邦",),
+     "Old Federation 官方中文=旧联邦（新联邦属地/沙覆下城）；⚠ 裸键「联邦→新联邦」会咬成"
+     "「旧新联邦」，已用 Federation 负向后顾 + 旧新联邦兜底键修正（本片 #35）"),
+    (r"(?i)\b(?:swarming|swaming)\b", ("锁暝",),
+     "Swarming 官方中文=锁暝（3.6 共鸣者，PV「契阔」；ASR swaming/swimming）；不是「召唤流/蜂群」"),
+    (r"\bunison\s+teams?\b", ("同奏队",),
+     "unison team=同奏队（3.7 心月狐「同奏」模式的队伍口径）"),
+    (r"\bForte\b|\bforte\b", ("共鸣回路", "共鸣能力"),
+     "Forte=共鸣能力（Forte Circuit=共鸣回路）；本片指角色共鸣回路槽"),
+    (r"\bGun\s*Devil\b|\bGunundevil\b|\bGunvilevil\b", ("枪之恶魔",),
+     "Gun Devil=枪之恶魔（《电锯人》）；ASR Gunundevil/Gunvilevil"),
+    (r"\bAnthem\s+Javelin\b|\bjavelin\s+armou?r\b", ("《圣歌》", "标枪机甲"),
+     "Anthem=《圣歌》，Javelin armor=标枪机甲"),
+    (r"\b(?:mecha|Mecca)\s+skins?\b", ("隧铠皮肤",),
+     "4.0 载具「隧铠」（EN Mecha Suit）的皮肤；机翻 Mecca 为 mecha 误听"),
     (r"\bSentinels?\b", ("岁主",),
      "Sentinel(s) 官方中文=岁主"),
     # --- 2026-10-27 鸣潮 3.1「赠予雪中的你」精校：补 3.1 官方专名（--mode wuwa）---

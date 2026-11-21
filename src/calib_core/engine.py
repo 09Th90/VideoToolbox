@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.1.5
+# @version 3.1.6
 """校准主引擎 process()
 
 源：subtitle_calib_merged.py L11610-L11977 @ 97d7d463（2026-10-24 冻结快照）
@@ -409,6 +409,14 @@ def process(path, out_path=None, report_path=None, mode="bi",
                                 for crx, wrong, right in ctx_compiled:
                                     if wrong in new and crx.search(anchor):
                                         new = _ctx_replace(new, wrong, right)
+                                # 2026-11-21 3.8 韩语主线二校：ko 分支补负向排除，
+                                #   与 bi/pgren 同构（방송 直播/广播、수호시 守护城/神市、
+                                #   별자리 心/星座 等歧义词按韩文参考行回滚）。
+                                for wrong, (right, rxs) in _EXCLUDE_COMPILED.items():
+                                    if wrong in lold and wrong not in new \
+                                            and any(rx.search(anchor) for rx in rxs):
+                                        new = new.replace(right, wrong)
+                                        hits.pop(wrong, None)
                             if new != lold:
                                 rows.append((num, lold, new, ref))
                                 out[ti] = new

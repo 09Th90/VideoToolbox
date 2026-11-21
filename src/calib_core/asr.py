@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.1.5
+# @version 3.1.6
 """英文 ASR 断词容错与参考行规整
 
 源：subtitle_calib_merged.py L7172-L7271 @ 97d7d463（2026-10-24 冻结快照）
