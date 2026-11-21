@@ -21,6 +21,14 @@ ROOT = os.path.dirname(os.path.dirname(HERE))
 SRC = os.path.join(ROOT, "src")
 sys.path.insert(0, SRC)
 
+# Windows 默认 GBK 控制台打不出 ↔/≠ 等符号会 UnicodeEncodeError（显示崩溃，
+# 非门禁失败）——重配置兜底，门禁语义不变。
+for _s in (sys.stdout, sys.stderr):
+    try:
+        _s.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:  # noqa: BLE001
+        pass
+
 FAILS = []
 
 

@@ -24,6 +24,13 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(os.path.dirname(HERE))
 SRC = os.path.join(ROOT, "src")
 
+# GBK 控制台兜底（与 check_schema_parity 同款，防显示编码崩溃）
+for _s in (sys.stdout, sys.stderr):
+    try:
+        _s.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:  # noqa: BLE001
+        pass
+
 QT_ROOTS = {"PySide6", "PyQt5", "PyQt6", "qfluentwidgets", "vt_fluent"}
 CLI_MODS = {"agent_cli", "features._cli"}
 MCP_MODS = {"mcp", "mcp_server", "features.mcp"}

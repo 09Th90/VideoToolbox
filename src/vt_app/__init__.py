@@ -6,7 +6,8 @@
 启动调度器 / 惰性页外壳 / 消息总线 / 引擎 UI 预热 / 边框热区。
 
 依赖红线：
-* vt_app **不 import 具体功能**（features.*）——注册表由入口注入；
+* vt_app **不 import CLI/MCP 入口层，也不 import features.*.cli**——功能能力
+  经注册表服务/GuiSpec 取（main_window 少量服务级直取为既定接缝）；
 * 页面（features/<id>/page.py）只经本包基建 + 注册表服务取能力，
   禁止反向 import GUI 入口 video_toolbox_qt；
 * 本包代码与原单体逐字同源（行为零变化），调用方经入口再导出名访问。
