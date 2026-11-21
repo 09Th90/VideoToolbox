@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.1.4
+# @version 3.1.5
 """术语表注册表、实体投影与上下文缓存
 
 源：subtitle_calib_merged.py L2198-L10667 @ 97d7d463（2026-10-24 冻结快照）
@@ -22,7 +22,8 @@ from .data.endfield import (ENDFIELD_BI_CONTEXT, ENDFIELD_BI_TERMS,
 from .data.entities import ENTITIES
 from .data.ja import (JA_CONTEXT, JA_ENDFIELD_CONTEXT, JA_ENDFIELD_TERMS,
                       JA_PGR_CONTEXT, JA_PGR_TERMS, JA_TERMS)
-from .data.ko import (KO_ASR_CONTEXT, KO_ASR_TERMS, KO_CONTEXT, KO_TERMS, WW40KO_CONTEXT)
+from .data.ko import (KO_ASR_CONTEXT, KO_ASR_TERMS, KO_CONTEXT, KO_TERMS,
+                      WW40IGN_CONTEXT, WW40KO_CONTEXT)
 from .data.limbus import LIMBUS_CONTEXT, LIMBUS_TERMS
 from .data.misc import (EN_LINE_TERM_FIXES, FF14_CONTEXT, FF14_TERMS,
                         HSR_CONTEXT, HSR_TERMS,
@@ -31,6 +32,7 @@ from .data.misc import (EN_LINE_TERM_FIXES, FF14_CONTEXT, FF14_TERMS,
 from .data.pbz import PBZ_CONTEXT, PBZ_TERMS
 from .data.ssv import SSV_CONTEXT, SSV_TERMS
 from .data.tga import TGA_CONTEXT, TGA_TERMS
+from .data.wwm import WWM_CONTEXT, WWM_TERMS
 from .data.modes import _MODE_CTX_TABLE, _MODE_TERM_TABLE
 
 
@@ -44,6 +46,7 @@ TABLES = {
     "WWOC_TERMS": WWOC_TERMS,
     "KO_TERMS": KO_TERMS,
     "WW40KO_CONTEXT": WW40KO_CONTEXT,
+    "WW40IGN_CONTEXT": WW40IGN_CONTEXT,
     "PGR_EN_TERMS": PGR_EN_TERMS,
     "ENDFIELD_TERMS": ENDFIELD_TERMS,
     "ENDFIELD_BI_TERMS": ENDFIELD_BI_TERMS,
@@ -68,6 +71,8 @@ TABLES = {
     "TGA_TERMS": TGA_TERMS,
     # 2026-11-18 新增：Arcaea × 明日方舟联动直播片源表
     "ARCAK_TERMS": ARCAK_TERMS,
+    # 2026-11-21 新增：燕云十六声（Where Winds Meet）片源表
+    "WWM_TERMS": WWM_TERMS,
     # 2026-11-03 新增：明日方舟日语原声片源表（engine 的 --akja 用 AK_TERMS ∪ 本表）
     "AK_JA_TERMS": AK_JA_TERMS,
 }
@@ -84,6 +89,7 @@ CTX_TABLES = {
     "AK_KO_CONTEXT": AK_KO_CONTEXT,
     "KO_CONTEXT": KO_CONTEXT,
     "WW40KO_CONTEXT": WW40KO_CONTEXT,
+    "WW40IGN_CONTEXT": WW40IGN_CONTEXT,
     "KO_ASR_CONTEXT": KO_ASR_CONTEXT,
     "REACT_CONTEXT": REACT_CONTEXT,
     "HSR_CONTEXT": HSR_CONTEXT,
@@ -104,6 +110,8 @@ CTX_TABLES = {
     "TGA_CONTEXT": TGA_CONTEXT,
     # 2026-11-18 新增：Arcaea×方舟直播片锚定表（医生/操作员/老板/光谱/叛徒 等普通词，禁裸键）
     "ARCAK_CONTEXT": ARCAK_CONTEXT,
+    # 2026-11-21 新增：燕云十六声锚定表（老板/头目/副本/地下城/军械库 等普通词，禁裸键）
+    "WWM_CONTEXT": WWM_CONTEXT,
 }
 
 
@@ -188,6 +196,7 @@ _AK_KO_CONTEXT_COMPILED = [(re.compile(rx), wrong, right) for rx, wrong, right i
 
 _KO_CONTEXT_COMPILED = [(re.compile(rx), wrong, right) for rx, wrong, right in KO_CONTEXT]
 _WW40KO_CONTEXT_COMPILED = [(re.compile(rx), wrong, right) for rx, wrong, right in WW40KO_CONTEXT]
+_WW40IGN_CONTEXT_COMPILED = [(re.compile(rx), wrong, right) for rx, wrong, right in WW40IGN_CONTEXT]
 
 _KO_ASR_CONTEXT_COMPILED = [(re.compile(rx), wrong, right) for rx, wrong, right in KO_ASR_CONTEXT]
 
@@ -234,6 +243,9 @@ _TGA_CONTEXT_COMPILED = [(re.compile(rx, re.I), wrong, right)
 #   与 _SSV/_PGR_EN 同规带 re.I（ASR 大小写不稳）。
 _ARCAK_CONTEXT_COMPILED = [(re.compile(rx, re.I), wrong, right)
                            for rx, wrong, right in ARCAK_CONTEXT if wrong and right]
+
+_WWM_CONTEXT_COMPILED = [(re.compile(rx, re.I), wrong, right)
+                         for rx, wrong, right in WWM_CONTEXT if wrong and right]
 
 
 
@@ -303,6 +315,7 @@ def _rebuild_context_caches():
     _AK_KO_CONTEXT_COMPILED[:] = [(re.compile(rx), wrong, right) for rx, wrong, right in AK_KO_CONTEXT]
     _KO_CONTEXT_COMPILED[:] = [(re.compile(rx), wrong, right) for rx, wrong, right in KO_CONTEXT]
     _WW40KO_CONTEXT_COMPILED[:] = [(re.compile(rx), wrong, right) for rx, wrong, right in WW40KO_CONTEXT]
+    _WW40IGN_CONTEXT_COMPILED[:] = [(re.compile(rx), wrong, right) for rx, wrong, right in WW40IGN_CONTEXT]
     _AK_CONTEXT_COMPILED[:] = [(re.compile(rx, re.I), wrong, right) for rx, wrong, right in AK_CONTEXT]
     # 2026-11-03：缺这行时 --akja 的 ctx 只在首启生效，kb 运行期注入的新锚定条目会静默失效
     #   （engine 在 import 时已持有该 list 的引用，必须原地重建而非重新绑定）。
@@ -337,6 +350,9 @@ def _rebuild_context_caches():
     # 2026-11-18：同 _SSV 的教训——不原地重建，kb 运行期注入的 arcak 锚条目会静默失效
     _ARCAK_CONTEXT_COMPILED[:] = [(re.compile(rx, re.I), wrong, right)
                                   for rx, wrong, right in ARCAK_CONTEXT if wrong and right]
+    # 2026-11-21：同 _ARCAK 的教训——不原地重建，wwm 运行期注入会静默失效
+    _WWM_CONTEXT_COMPILED[:] = [(re.compile(rx, re.I), wrong, right)
+                                for rx, wrong, right in WWM_CONTEXT if wrong and right]
 
 
 

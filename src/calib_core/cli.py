@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.1.4
+# @version 3.1.5
 """CLI 参数解析与子命令分发
 
 源：subtitle_calib_merged.py L13295-L13650 @ 97d7d463（2026-10-24 冻结快照）
@@ -11,7 +11,7 @@ import shutil
 import sys
 import unicodedata
 from ._doc import USAGE_DOC
-from .data.modes import AK_INFO, AK_KO_INFO, ARCAK_AMIYA_INFO, ARCAK_AMIYA_OVERRIDES_SRC, ENDO_INFO, KO_INFO, PGR_INFO, PGR_OVERRIDES_SRC, WWOC_INFO, WW38_INFO, WW38_OVERRIDES_SRC, WW38B_INFO, WW38B_OVERRIDES_SRC, WW38H_INFO, WW38H_OVERRIDES_SRC, WW38_J_INFO, WW38_J_OVERRIDES_SRC, WW40_INFO, WW40_OVERRIDES_SRC, WW40KO_INFO, WW40KO_OVERRIDES_SRC, WUSOL_INFO, WUSOL_OVERRIDES_SRC, ZHO_INFO
+from .data.modes import AK_INFO, AK_KO_INFO, ARCAK_AMIYA_INFO, ARCAK_AMIYA_OVERRIDES_SRC, ENDO_INFO, KO_INFO, PGR_INFO, PGR_OVERRIDES_SRC, WWOC_INFO, WW38_INFO, WW38_OVERRIDES_SRC, WW38B_INFO, WW38B_OVERRIDES_SRC, WW38H_INFO, WW38H_OVERRIDES_SRC, WW38_J_INFO, WW38_J_OVERRIDES_SRC, WW40_INFO, WW40_OVERRIDES_SRC, WW40IGN_INFO, WW40IGN_OVERRIDES_SRC, WW40KO_INFO, WW40KO_OVERRIDES_SRC, WUSOL_INFO, WUSOL_OVERRIDES_SRC, ZHO_INFO
 from .engine import _load_override_tsv, process
 from .format import _cmd_flow, _cmd_length, _cmd_rewrap, _cmd_stabilize
 from .inspect import _cmd_align_audit, _cmd_compare, _cmd_lint, _cmd_missing, _cmd_scan, _cmd_scan_split, _cmd_subfix, _cmd_terms_check, _cmd_verify
@@ -76,6 +76,7 @@ def main_argv(argv=None):
     wuwa38j = False
     wuwa40 = False
     wuwa40ko = False
+    wuwa40ign = False
     wuwasol = False
     arcakamiya = False
 
@@ -166,6 +167,9 @@ def main_argv(argv=None):
         elif a == "--wuwa40ko":
             # 鸣潮 4.0 新联邦 PV 韩语反应片一键重跑：KO_TERMS + WW40KO_CONTEXT + 侧车整行覆盖
             wuwa40ko = True; mode = "wuwa40ko"; i += 1
+        elif a == "--wuwa40ign":
+            # 鸣潮 4.0「永明的烬焰」IGN 实机演示 韩语反应片一键重跑：KO_TERMS + WW40IGN_CONTEXT + 侧车整行覆盖
+            wuwa40ign = True; mode = "wuwa40ign"; i += 1
         elif a == "--wuwasol":
             # 鸣潮 3.8「第二索拉：未名之梦」Reaction 片一键重跑：bi 规则 + 逐 cue 侧车整行覆盖
             wuwasol = True; mode = "bi"; i += 1
@@ -194,6 +198,9 @@ def main_argv(argv=None):
             elif m in ("tga26", "tga2026", "tga", "thegameawards",
                        "gameawards", "游戏大奖", "tga直播"):
                 mode = "tga26"
+            elif m in ("wwm", "wherewindsmeet", "where_winds_meet",
+                       "燕云十六声", "燕云", "yanyun"):
+                mode = "wwm"
             elif m in ("akja", "ak_ja", "arknights_ja", "arknightsja",
                        "明日方舟日语", "日语原声明日方舟"):
                 # ⚠ 必须排在下面那条三元链**之前**：三元链里是 `m in ("ak","arknights")`
@@ -231,6 +238,10 @@ def main_argv(argv=None):
         info = WW40KO_INFO
         if bi_override_path is None:
             bi_override_path = WW40KO_OVERRIDES_SRC
+    if wuwa40ign:
+        info = WW40IGN_INFO
+        if bi_override_path is None:
+            bi_override_path = WW40IGN_OVERRIDES_SRC
     if wuwasol:
         info = WUSOL_INFO
         if bi_override_path is None:
@@ -262,7 +273,7 @@ def main_argv(argv=None):
                          fix_en=fix_en, pgr_override=pgr_override,
                          learned_kb=learned_kb, bi_override=bi_override,
                          bi_override_preserve=wuwa38h,
-                         ko_override=bi_override if wuwa40ko else None,
+                         ko_override=bi_override if (wuwa40ko or wuwa40ign) else None,
                          ko_override_preserve=False)
     names = {"bi": "中英双语 (BILINGUAL_TERMS + CONTEXT_MAP + WORD_MAP)" + (
                  " + 3.8 完整片侧车 {} 条（整行覆盖）".format(len(bi_override) if bi_override else 0) if wuwa38b else
@@ -272,6 +283,8 @@ def main_argv(argv=None):
                  " + 第二索拉侧车 {} 条".format(len(bi_override) if bi_override else 0) if wuwasol else ""),
              "ko": "韩语原声 (KO_TERMS)",
              "wuwa40ko": "韩语原声·鸣潮 4.0 新联邦 PV (KO_TERMS + WW40KO_CONTEXT + 侧车 {} 条)".format(
+                 len(bi_override) if bi_override else 0),
+             "wuwa40ign": "韩语原声·鸣潮 4.0 IGN 实机 (KO_TERMS + WW40IGN_CONTEXT + 侧车 {} 条)".format(
                  len(bi_override) if bi_override else 0),
              "ja": "日语原声 (JA_TERMS + JA_CONTEXT)",
              "jpe": "日语原声·终末地 (JA_ENDFIELD_TERMS + JA_ENDFIELD_CONTEXT)",
@@ -303,7 +316,9 @@ def main_argv(argv=None):
              # 2026-11-18 新增。与 pgrja 同规：**不进 info 字典**（无内置片源）。
              "arcak": "Arcaea×明日方舟联动直播 (ARCAK_TERMS + ARCAK_CONTEXT)",
              # 2026-11-18 新增。与 pgrja 同规：**不进 info 字典**（无内置片源）。
-             "tga26": "TGA 2026 游戏大奖 (TGA_TERMS + TGA_CONTEXT)"}
+             "tga26": "TGA 2026 游戏大奖 (TGA_TERMS + TGA_CONTEXT)",
+             # 2026-11-21 新增：燕云十六声滹沱实机片。与 pgrja 同规：**不进 info 字典**（无内置片源）。
+             "wwm": "燕云十六声 (WWM_TERMS + WWM_CONTEXT)"}
     extra = (" + 英文行修正(--fix-en)" if fix_en else "")
     if arcakamiya:
         names["arcak"] += " + 阿米娅 Partner Play 侧车 {} 条".format(

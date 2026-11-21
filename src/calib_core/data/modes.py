@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.1.4
+# @version 3.1.5
 """术语/实体数据表
 
 源：subtitle_calib_merged.py L2797-L7340 @ 97d7d463（2026-10-24 冻结快照）
@@ -116,6 +116,16 @@ WW40KO_INFO = {
 }
 WW40KO_OVERRIDES_SRC = r"D:\Agent Work\软件开发\视频工具箱\data\calib_sidecars\ww40ko_newfed_pv_zh.tsv"
 
+# 2026-11-21 鸣潮 4.0「永明的烬焰」IGN 独家实机演示 韩语反应片 —— 二次校准 + 逐 cue 侧车整行覆盖
+# 用法：python subtitle_calib_merged.py --wuwa40ign
+#   片源为韩语 ASR + 微软翻译双语（中文在上/韩语参考行在下，162 cue）。
+#   KO_TERMS + WW40IGN_CONTEXT；侧车 162 条为终稿（含 >> 前缀），命中即整行覆盖、不叠加术语表。
+WW40IGN_INFO = {
+    "src": r"D:\原片\명조 초대박 공식 유출 떴다 ㅋㅋㅋㅋㅋㅋㅋㅋㅋㅋㅋㅋㅋㅋ\【字幕】명조 초대박 공식 유출 떴다 ㅋㅋㅋㅋㅋㅋㅋㅋㅋㅋㅋㅋㅋㅋ.ko-微软翻译.calib.srt",
+    "dst": r"D:\原片\명조 초대박 공식 유출 떴다 ㅋㅋㅋㅋㅋㅋㅋㅋㅋㅋㅋㅋㅋㅋ\【字幕】명조 초대박 공식 유출 떴다 ㅋㅋㅋㅋㅋㅋㅋㅋㅋㅋㅋㅋㅋㅋ.ko-微软翻译.calib.精校_v2.srt",
+}
+WW40IGN_OVERRIDES_SRC = r"D:\Agent Work\软件开发\视频工具箱\data\calib_sidecars\ww40ign_ign_preview_zh.tsv"
+
 # 3.8 鸣潮「第二索拉：未名之梦」Reaction 片 —— 双语逐 cue 侧车整行覆盖
 # 用法：python subtitle_calib_merged.py --wuwasol
 #   二校 1407 cue；侧车为六段人工复核合并后的终稿，供一键重跑与后续增量校准时对位。
@@ -224,7 +234,7 @@ ZHO_INFO = {
 # 模式 -> 无条件变体表 / 条件变体表（实体注册时的投影目标）
 _MODE_TERM_TABLE = {
     "bi": "BILINGUAL_TERMS", "ja": "JA_TERMS", "jpe": "JA_ENDFIELD_TERMS",
-    "ko": "KO_TERMS", "wuwa40ko": "KO_TERMS", "wwoc": "WWOC_TERMS", "endo": "ENDFIELD_TERMS",
+    "ko": "KO_TERMS", "wuwa40ko": "KO_TERMS", "wuwa40ign": "KO_TERMS", "wwoc": "WWOC_TERMS", "endo": "ENDFIELD_TERMS",
     "ak": "AK_TERMS", "akko": "AK_KO_TERMS", "zho": "ZH_ONLY_TERMS",
     "pgren": "PGR_EN_TERMS", "react": "REACT_TERMS",
     "endobi": "ENDFIELD_BI_TERMS", "endoko": "ENDFIELD_KO_TERMS",
@@ -241,6 +251,8 @@ _MODE_TERM_TABLE = {
     "ssv": "SSV_TERMS",
     # 2026-11-18 新增：Arcaea × 明日方舟联动直播（英语 ASR + 微软翻译）
     "arcak": "ARCAK_TERMS",
+    # 2026-11-21 新增：燕云十六声（Where Winds Meet）实机片源
+    "wwm": "WWM_TERMS",
     # 2026-11-18 新增：TGA 2026 游戏大奖直播（英语原声 + 微软翻译）
     "tga26": "TGA_TERMS",
     # 2026-11-03 新增：战双帕弥什**日语原声**片源（联动朗读直播）。
@@ -254,7 +266,7 @@ _MODE_TERM_TABLE = {
 
 _MODE_CTX_TABLE = {
     "bi": "CONTEXT_MAP", "ja": "JA_CONTEXT", "jpe": "JA_ENDFIELD_CONTEXT",
-    "akko": "AK_KO_CONTEXT", "ko": "KO_CONTEXT", "wuwa40ko": "WW40KO_CONTEXT", "ak": "AK_CONTEXT",
+    "akko": "AK_KO_CONTEXT", "ko": "KO_CONTEXT", "wuwa40ko": "WW40KO_CONTEXT", "wuwa40ign": "WW40IGN_CONTEXT", "ak": "AK_CONTEXT",
     "endoko": "ENDFIELD_KO_CONTEXT", "pkm": "POKEMON_CONTEXT",
     # 2026-10-25 新增：--wwoc 此前无语境槽，多游戏韩语片的歧义错形
     #   （十字军/家具/反向/德州/Star Seed 等）只能逐 cue；现补 WWOC_CONTEXT。
@@ -290,6 +302,8 @@ _MODE_CTX_TABLE = {
     #   这类**普通中文词**的官方名（博士/干员/Boss/Spectrum/Renegade/Radiant/Singularity/
     #   Alive/音弧）只能靠英文参考行锚定，禁走裸键。
     "arcak": "ARCAK_CONTEXT",
+    # 2026-11-21 新增：--wwm 语境槽（老板/头目/副本/地下城/军械库 等通用词只能靠英文参考行锚定）
+    "wwm": "WWM_CONTEXT",
     # 2026-11-18 新增：--tga26 的语境槽。Karen/武者/轨道站/我的学术/伊代/莱/居所/
     #   马拉松/共振/安魂曲/王牌/优生学 这类**普通中文词/人名**的官方名只能靠英文
     #   参考行锚定，禁走裸键。
@@ -298,7 +312,7 @@ _MODE_CTX_TABLE = {
 
 _MODE_NAMES = {
     "bi": "中英双语", "ja": "日语原声·鸣潮", "jpe": "日语原声·终末地",
-    "ko": "韩语原声·鸣潮", "wuwa40ko": "韩语原声·鸣潮 4.0 新联邦 PV", "wwoc": "综合手游OST", "endo": "终末地",
+    "ko": "韩语原声·鸣潮", "wuwa40ko": "韩语原声·鸣潮 4.0 新联邦 PV", "wuwa40ign": "韩语原声·鸣潮 4.0 IGN 实机", "wwoc": "综合手游OST", "endo": "终末地",
     "ak": "明日方舟", "akko": "明日方舟韩语", "zho": "中文行专属",
     "pgren": "战双英文原声", "react": "音乐点评", "endobi": "终末地·中英双语", "fix-en": "英文参考行修正",
     "endoko": "终末地·韩语原声", "pkm": "宝可梦城镇主题",
@@ -311,5 +325,6 @@ _MODE_NAMES = {
     "ssv": "星之救援者",
     "arcak": "Arcaea×明日方舟",
     "tga26": "TGA 2026 游戏大奖",
+    "wwm": "燕云十六声",
 }
 

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.1.4
+# @version 3.1.5
 """校准主引擎 process()
 
 源：subtitle_calib_merged.py L11610-L11977 @ 97d7d463（2026-10-24 冻结快照）
@@ -22,10 +22,11 @@ from .data.misc import EN_LINE_TERM_FIXES, FF14_TERMS, HSR_TERMS, POKEMON_TERMS,
 from .data.pbz import PBZ_TERMS
 from .data.ssv import SSV_TERMS
 from .data.tga import TGA_TERMS
+from .data.wwm import WWM_TERMS
 from .learn import _learned_terms_for_mode
 from .modes import endfield_auto_markers
 from .replace import _compile_map, _ctx_replace, _replace_report
-from .state import _AK_CONTEXT_COMPILED, _AK_KO_CONTEXT_COMPILED, _WW40KO_CONTEXT_COMPILED, _ARCAK_CONTEXT_COMPILED, _CONTEXT_COMPILED, _ENDFIELD_BI_CONTEXT_COMPILED, _ENDFIELD_KO_CONTEXT_COMPILED, _WW40KO_CONTEXT_COMPILED, _EXCLUDE_COMPILED, _FFRS_CONTEXT_COMPILED, _HSR_CONTEXT_COMPILED, _JA_CONTEXT_COMPILED, _JA_ENDFIELD_CONTEXT_COMPILED, _JA_PGR_CONTEXT_COMPILED, _KO_ASR_CONTEXT_COMPILED, _KO_CONTEXT_COMPILED, _WW40KO_CONTEXT_COMPILED, _LIMBUS_CONTEXT_COMPILED, _PBZ_CONTEXT_COMPILED, _FF14_CONTEXT_COMPILED, _POKEMON_CONTEXT_COMPILED, _PGR_EN_CONTEXT_COMPILED, _REACT_CONTEXT_COMPILED, _WWOC_CONTEXT_COMPILED, _AK_JA_CONTEXT_COMPILED, _SSV_CONTEXT_COMPILED, _TGA_CONTEXT_COMPILED
+from .state import _AK_CONTEXT_COMPILED, _AK_KO_CONTEXT_COMPILED, _WW40IGN_CONTEXT_COMPILED, _WW40KO_CONTEXT_COMPILED, _ARCAK_CONTEXT_COMPILED, _CONTEXT_COMPILED, _ENDFIELD_BI_CONTEXT_COMPILED, _ENDFIELD_KO_CONTEXT_COMPILED, _WW40KO_CONTEXT_COMPILED, _EXCLUDE_COMPILED, _FFRS_CONTEXT_COMPILED, _HSR_CONTEXT_COMPILED, _JA_CONTEXT_COMPILED, _JA_ENDFIELD_CONTEXT_COMPILED, _JA_PGR_CONTEXT_COMPILED, _KO_ASR_CONTEXT_COMPILED, _KO_CONTEXT_COMPILED, _WW40KO_CONTEXT_COMPILED, _LIMBUS_CONTEXT_COMPILED, _PBZ_CONTEXT_COMPILED, _FF14_CONTEXT_COMPILED, _POKEMON_CONTEXT_COMPILED, _PGR_EN_CONTEXT_COMPILED, _REACT_CONTEXT_COMPILED, _WWOC_CONTEXT_COMPILED, _AK_JA_CONTEXT_COMPILED, _SSV_CONTEXT_COMPILED, _TGA_CONTEXT_COMPILED, _WWM_CONTEXT_COMPILED
 from .text import _KO_HANGUL, _decode_any, _split_cue_text
 
 
@@ -72,6 +73,8 @@ def process(path, out_path=None, report_path=None, mode="bi",
       mode="ko"   韩语模式：KO_TERMS 统一中文行术语。
       mode="wuwa40ko" 韩语原声·鸣潮 4.0 新联邦 PV：KO_TERMS + WW40KO_CONTEXT，
                   命中侧车时整行覆盖（侧车已是终稿，含 >> 前缀）。
+      mode="wuwa40ign" 韩语原声·鸣潮 4.0 IGN 实机演示：KO_TERMS + WW40IGN_CONTEXT，
+                  与 wuwa40ko 同构；侧车 162 条为终稿，命中即整行覆盖。
       mode="ja"   日语模式：JA_TERMS + JA_CONTEXT（日语参考行佐证）统一中文行术语。
       mode="endo" 终末地模式：ENDFIELD_TERMS 统一全部文本行。
       mode="ak"   明日方舟本体模式：AK_TERMS + AK_CONTEXT（英文参考行佐证）统一**全部**中文行。
@@ -93,7 +96,7 @@ def process(path, out_path=None, report_path=None, mode="bi",
     参考行锚定（CONTEXT/EXCLUDE）一律先经 _ref_for_match 规整（ASR 断词容错），
     但默认输出的参考行保持原样，只有 fix_en=True 才写回。
     """
-    if mode in ("ko", "wuwa40ko"):
+    if mode in ("ko", "wuwa40ko", "wuwa40ign"):
         terms = KO_TERMS
     elif mode == "ja":
         terms = JA_TERMS
@@ -143,6 +146,8 @@ def process(path, out_path=None, report_path=None, mode="bi",
         terms = TGA_TERMS
     elif mode == "arcak":       # Arcaea×明日方舟联动直播（2026-11-18 新增）：ARCAK_TERMS + ARCAK_CONTEXT
         terms = ARCAK_TERMS
+    elif mode == "wwm":         # 燕云十六声（2026-11-21 新增）：WWM_TERMS + WWM_CONTEXT
+        terms = WWM_TERMS
     elif mode == "pgr":
         terms = {}
     else:
@@ -163,7 +168,7 @@ def process(path, out_path=None, report_path=None, mode="bi",
                       f"（learned-show 查看，人工裁决）")
     # 2026-10-06 危险裸键闸门：RETIRED_KO_KEYS 无论来自静态表、learned_kb 还是
     #   applied.json 注入，一律在编译前剔除（保证"信信→辛夷"等已下线键绝不误伤）。
-    if mode in ("ko", "wuwa40ko") and any(k in terms for k in RETIRED_KO_KEYS):
+    if mode in ("ko", "wuwa40ko", "wuwa40ign") and any(k in terms for k in RETIRED_KO_KEYS):
         terms = {k: v for k, v in terms.items() if k not in RETIRED_KO_KEYS}
     # 2026-10-14 日语同款闸门：'笛卡尔' 会在运行期被 applied.json 复活，必须一并剔除，
     #   否则它抢跑 Entity("卡提希娅") 的 ctx（笛卡尔西亚 -> 卡提希娅西亚）。
@@ -218,7 +223,7 @@ def process(path, out_path=None, report_path=None, mode="bi",
                         # 单行韩语）——该行含谚文即应用 KO_ASR 层（韩语错形→官方韩语），
                         # 否则整块跳过，防止把术语替换误写到参考/英文行上。
                         only = lines[j + 1]
-                        if mode in ("ko", "wuwa40ko") and _KO_HANGUL.search(only):
+                        if mode in ("ko", "wuwa40ko", "wuwa40ign") and _KO_HANGUL.search(only):
                             if "_ko_asr_pairs" not in dir():
                                 _ko_asr_pairs, _ko_asr_chars = _compile_map(KO_ASR_TERMS)
                             new = _replace_report(only, _ko_asr_pairs, _ko_asr_chars, hits)
@@ -235,7 +240,7 @@ def process(path, out_path=None, report_path=None, mode="bi",
                         # 例外：bi/--wuwa40ko 侧车显式指定的 cue 允许整行覆盖——
                         #   4.0 韩语片 #8/#241 原行是拉丁残片（Subde / Dream），
                         #   人工终稿已改成中文，若不特判会被这里整块跳过，复跑永远对不上。
-                        if mode in ("bi", "wuwa40ko"):
+                        if mode in ("bi", "wuwa40ko", "wuwa40ign"):
                             ov = bi_override if mode == "bi" else ko_override
                             preserve = (bi_override_preserve if mode == "bi"
                                         else ko_override_preserve)
@@ -340,7 +345,7 @@ def process(path, out_path=None, report_path=None, mode="bi",
                         if new != old:
                             rows.append((num, old, new, ref))
                             out[zh_idx] = new
-                    elif mode in ("ko", "wuwa40ko"):       # 韩语原声·鸣潮：KO_TERMS + KO_CONTEXT/WW40KO_CONTEXT 校准**全部中文行**
+                    elif mode in ("ko", "wuwa40ko", "wuwa40ign"):       # 韩语原声·鸣潮：KO_TERMS + KO_CONTEXT/WW40KO_CONTEXT 校准**全部中文行**
                         # 2026-10-06 修复（梦州 4장4막 二次校准定位的根因）：谷翻反应片每 cue
                         #   常见「中文 2 行 + 谚文 2 行」结构。旧实现只改首文本行、锚点只取末行
                         #   谚文 → ①第二中文行整片漏校（该批 112 处残留 111 处在第二行）；
@@ -356,7 +361,7 @@ def process(path, out_path=None, report_path=None, mode="bi",
                             # （韩国主播直播 ASR 等），旧表键全是中文错形无法命中。
                             # 4.0 韩语片 #154 原行两行都是「얜」，人工终稿把首行改成
                             # 「她」；侧车命中时先整行覆盖首行，再走 KO_ASR/continue。
-                            if (mode == "wuwa40ko" and ko_override
+                            if (mode in ("wuwa40ko", "wuwa40ign") and ko_override
                                     and str(num) in ko_override):
                                 old0 = lines[kr_tis[0]]
                                 new = ko_override[str(num)]
@@ -383,7 +388,8 @@ def process(path, out_path=None, report_path=None, mode="bi",
                             i = kk
                             continue
                         kr_all = " ".join(_ref_for_match(lines[ti]) for ti in kr_tis)
-                        ctx_compiled = (_WW40KO_CONTEXT_COMPILED if mode == "wuwa40ko"
+                        ctx_compiled = (_WW40IGN_CONTEXT_COMPILED if mode == "wuwa40ign"
+                                        else _WW40KO_CONTEXT_COMPILED if mode == "wuwa40ko"
                                         else _KO_CONTEXT_COMPILED)
                         for zi, ti in enumerate(zh_tis):
                             if len(zh_tis) == len(kr_tis):
@@ -391,7 +397,7 @@ def process(path, out_path=None, report_path=None, mode="bi",
                             else:
                                 anchor = kr_all                              # 行数不齐回退拼接
                             lold = lines[ti]
-                            if (mode == "wuwa40ko" and ko_override
+                            if (mode in ("wuwa40ko", "wuwa40ign") and ko_override
                                     and zi == 0 and str(num) in ko_override):
                                 # 4.0 侧车：命中即整行覆盖，不叠加术语表（终稿可能刻意保留
                                 #   拉丁名/口语重复/断句）；侧车已是终稿，含原行 >> 前缀。
@@ -554,6 +560,21 @@ def process(path, out_path=None, report_path=None, mode="bi",
                             if new != old:
                                 rows.append((num, old, new, ref))
                                 out[zh_idx] = new
+                    elif mode == "wwm":         # 燕云十六声：WWM_TERMS + WWM_CONTEXT 英文参考行佐证
+                        # 2026-11-21：滹沱实机片。侧车命中即整行覆盖（终稿已含 >> 前缀），
+                        #   不叠加术语表；与 bi 严格隔离，避免「小莫→霞末」等专名污染方舟片。
+                        if bi_override and str(num) in bi_override:
+                            new = bi_override[str(num)]
+                            if bi_override_preserve:
+                                new = _restore_override_prefix(old, new)
+                        else:
+                            new = _replace_report(old, term_pairs, term_chars, hits)
+                            for crx, wrong, right in _WWM_CONTEXT_COMPILED:
+                                if wrong in new and crx.search(ref_m):
+                                    new = _ctx_replace(new, wrong, right)
+                        if new != old:
+                            rows.append((num, old, new, ref))
+                            out[zh_idx] = new
                     elif mode == "zho":         # 中文行专属：统一首中文行
                         new = _replace_report(old, term_pairs, term_chars, hits)
                         if new != old:

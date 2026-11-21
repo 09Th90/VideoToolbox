@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.1.4
+# @version 3.1.5
 """术语/实体数据表
 
 源：subtitle_calib_merged.py L7369-L8839 @ 97d7d463（2026-10-24 冻结快照）
@@ -811,7 +811,7 @@ ENTITIES_PART1 = [
                "洛色拉", "洛瑟垃", "洛瑟啦", "洛瑟菈大人",
                "罗瑟菈", "锣瑟菈",
                # --- 英文 ASR 音近（Lucilla）---
-               "Lucila", "Lucilla", "Lucia", "Luciana", "Lucille",
+               "Lucila", "Lucilla", "Luciana",
                "Lusilla", "Lucilla's", "Lucilla`s", "Lu-cilla",
                "Luciela", "Lucillar", "Lucillia",
            ),
@@ -823,7 +823,27 @@ ENTITIES_PART1 = [
                 "会强制替换成 canonical（洛瑟菈），把'总统'改成'洛瑟菈'会得到'洛瑟菈是学院的"
                 "洛瑟菈'；现改挂 CONTEXT_MAP 原生三元组 (President,'总统','校长')。"
                 "ASR 音近错形：'洛瑟菈'易咬成'洛色拉/洛瑟垃/洛瑟啦/罗瑟菈/锣瑟菈'；"
-                "英文侧 Lucilla 易咬成 Lucila/Lucilla/Lucia/Lucille/Lusilla/Luciela。"),
+                "英文侧 Lucilla 易咬成 Lucila/Lusilla/Luciela。"
+                "⚠️ 2026-11-21：移除 variants 的 'Lucille'/'Lucia'——4.0 官方英文 "
+                "Lucielle（官中「露希尔」）的 ASR 常写成 Lucille/Lucia，旧键会把新角色"
+                "误归校长；Lucilla 与 Lucielle 必须分离。"),
+    Entity("露希尔", modes=("bi",), en="Lucielle", ja="ルシェル", ko="루시엘",
+           category="角色/鸣潮4.0",
+           variants=("Lucielle", "Luciel", "Lucille", "Luciella", "Lucella"),
+           ctx=((r"\b(?:Lucielle|Luciel|Lucille|Lucella)\b", "露西尔"),
+                (r"\b(?:Lucielle|Luciel|Lucille|Lucella)\b", "卢西尔"),
+                (r"\b(?:Lucielle|Luciel|Lucille|Lucella)\b", "露琪尔"),
+                (r"\b(?:Lucielle|Luciel|Lucille|Lucella)\b", "卢琪尔"),
+                (r"\b(?:Lucielle|Luciel|Lucille|Lucella)\b", "露西埃尔"),
+                (r"\b(?:Lucielle|Luciel|Lucille|Lucella)\b", "洛瑟菈"),
+                (r"\b(?:Lucielle|Luciel|Lucille|Lucella)\b", "露西拉"),
+                (r"\b(?:Lucielle|Luciel|Lucille|Lucella)\b", "卢西拉")),
+           note="鸣潮 4.0 新共鸣者「露希尔」（官方档案：水牛岩的猫耳淘金客，"
+                "异能力「黑石塑形」，搭档小沧龙；标语「明日与谎言」）。英文 official="
+                "Lucielle，日文 ルシェル，韩文 루시엘。⚠ Lucilla=洛瑟菈（星炬学院校长，"
+                "3.x），二者严格分离；旧表把 Lucille/Lucia 归洛瑟菈，导致 4.0 片误校。"
+                "Lucia 是常用名，只走 CONTEXT_MAP「Anna and Lucia」参考行锚定，"
+                "绝不作 variants/裸键。"),
     Entity("千咲", modes=("bi",), en="Chisa", ja="チサ",
            category="角色/星炬学院",
            variants=(

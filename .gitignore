@@ -1,4 +1,7 @@
 # @version 3.1.5
+# 本地安全扫描产物（mimosa 插件）
+.mimosa/
+
 # Python caches
 __pycache__/
 *.pyc

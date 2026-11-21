@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.1.4
+# @version 3.1.5
 """无参运行时打印的用法文档（源文件模块 docstring 快照）。"""
 
 # 2026-10-25 《How Did You Join Arknights or Endfield?》校准沉淀：
@@ -9,6 +9,14 @@
 # audit 跨游戏误伤不采纳。
 
 USAGE_DOC = '''字幕校准统一脚本（唯一入口，可复用，每次校准任务优先调用本脚本）
+# 2026-11-21 《HOW DOES KURO KEEP DOING THIS?!?》鸣潮 4.0 IGN 实机演示 reaction 二校
+#   （148 cue，英声+微软翻译双语，中文在上/英文参考行在下，CRLF 无 BOM，bi 通路）：
+#   官方依据：4.0 年度篇章「永明的烬焰」、新共鸣者「安娜」「露希尔」、穿戴式机甲「隧铠」、
+#     新地区「新联邦·布法罗山脉」；3.8 与 P3R 联动人格面具「塔纳托斯」。
+#   二校净改 5 条中文行（#9/#10/#28/#63-64）；结构 148 cue / 时间轴 0 差异 / 序号·英文行·空行 0 差异。
+#   回灌：Everbrite→永明、Embers of the Everbrite→永明的烬焰、Len and Mor→琳奈和莫宁、
+#     Mecha Suit→隧铠、Buffalo Mountains→布法罗山脉；Wu/Rena/Thanos/IG 一律走 CONTEXT_MAP
+#     参考行锚定（禁止裸键），Anna 仅进 WUWA_MISSING_CHECK 体检；EN_ASR_SPLIT_FIXES 增 8 条 ASR 修正。
 # 2026-11-19 《A HAPPY ENDING？! 3.8 Lily Main Story Quest FINALE REACTION》二次校准 + 3.8 终章术语/断句修复
 #   （2534 cue，英声+微软翻译双语，中文在上/英文参考行在下，CRLF 无 BOM，--wuwa38h）：
 #   官方依据：库街区 3.8 主线「予以明日的花束」剧情全文（1287 行，角色：台词）+ 既有 canon 译名口径。

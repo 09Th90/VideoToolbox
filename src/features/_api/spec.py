@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.1.4
+# @version 3.1.5
 """_api.spec —— 11 命令参数的**唯一真源**（纯数据，2026-11-20 三层独立）。
 
 MCP inputSchema 从本模块生成；CLI argparse 是受 check_schema_parity.py
@@ -122,6 +122,9 @@ CALIBRATE_MODE_FLAGS = (
     _M("--wuwa40ko", "wuwa40ko", one_click=True, info_const="WW40KO_INFO",
        override_const="WW40KO_OVERRIDES_SRC", ko_override=True,
        source="calib_core/cli.py:166"),
+    _M("--wuwa40ign", "wuwa40ign", one_click=True, info_const="WW40IGN_INFO",
+       override_const="WW40IGN_OVERRIDES_SRC", ko_override=True,
+       source="calib_core/cli.py:168"),
     _M("--wuwasol", "bi", one_click=True, info_const="WUSOL_INFO",
        override_const="WUSOL_OVERRIDES_SRC", source="calib_core/cli.py:169"),
 )

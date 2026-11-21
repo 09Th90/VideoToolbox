@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.1.4
+# @version 3.1.5
 """术语/实体数据表
 
 源：subtitle_calib_merged.py L493-L2378 @ 97d7d463（2026-10-24 冻结快照）
@@ -1425,6 +1425,71 @@ BILINGUAL_TERMS = {
     "军作府": "军策府", "余干战士": "英勇战死", "克莱达": "暴击",
     "杰康": "JK", "医疗犯": "医疗班", "纳乔": "鸣潮", "卫星兵": "医护兵",
     "国家转覆": "国家颠覆",
+    # --- 2026-11-21 鸣潮 4.0《HOW DOES KURO KEEP DOING THIS?!?》IGN 实机演示 reaction 二校回灌 ---
+    #   官方依据：4.0 年度篇章「永明的烬焰」、新共鸣者「安娜」「露希尔」、穿戴式机甲「隧铠」、
+    #   新地区「新联邦·布法罗山脉」；3.8 与 P3R 联动人格面具「塔纳托斯」。
+    #   戒律：Wu/Rena/Thanos/IG 均为常用词或短词，禁止裸键，一律走 CONTEXT_MAP 参考行锚定；
+    #   Anna 同样禁裸键，只进 WUWA_MISSING_CHECK 体检。
+    "Embers of the Everbrite": "永明的烬焰",
+    "embers of the Everbrite": "永明的烬焰",
+    "Embers of Everbrite": "永明的烬焰",
+    "embers of Everbrite": "永明的烬焰",
+    "Everbrite的余烬": "永明的烬焰",
+    "Everbrite 的余烬": "永明的烬焰",
+    "Everbrite": "永明",
+    "Len and Mor": "琳奈和莫宁",
+    "Len和Mor": "琳奈和莫宁",
+    "Len 和Mor": "琳奈和莫宁",
+    "Len和 Mor": "琳奈和莫宁",
+    "Len 和 Mor": "琳奈和莫宁",
+    "Mecha Suit": "隧铠",
+    "Mecha Suits": "隧铠",
+    "mecha suit": "隧铠",
+    "Buffalo Mountains": "布法罗山脉",
+    "Buffalo Mountain": "布法罗山脉",
+    # --- 2026-11-21 二次校准回灌：monolith 既有 4.0/IGN 增量 + 本片新规则 ---
+    "Embers of the Everbright": "永明的烬焰",
+    "embers of the Everbright": "永明的烬焰",
+    "Embers of Everbright": "永明的烬焰",
+    "embers of Everbright": "永明的烬焰",
+    "Everbright": "永明",
+    "Strider Mechsuit": "隧铠",
+    "Strider Mech Suit": "隧铠",
+    "strider mechsuit": "隧铠",
+    "Buffalo Rock": "水牛岩",
+    "Reinita": "黎那汐塔",
+    "Lahari Roy": "拉海洛",
+    "Lahari-Roy": "拉海洛",
+    "LahariRoy": "拉海洛",
+    "Septimon": "七丘",
+    "Sigillum": "辛吉勒姆",
+    "Sidulum": "辛吉勒姆",
+    "Limbus Cup": "边狱公司杯",
+    "Limbus cup": "边狱公司杯",
+    "林布斯杯": "边狱公司杯",
+    "林布斯公司杯": "边狱公司杯",
+    "边狱杯": "边狱公司杯",
+    "SHIN 和 SW": "心和锁暝",
+    "SHIN AND SW": "心和锁暝",
+    "Shin 和 SW": "心和锁暝",
+    "SHIN和SW": "心和锁暝",
+    "心和 SW": "心和锁暝",
+    "asterits": "星声",
+    "Asterits": "星声",
+    "热热熔奏": "热熔同奏",
+    "路易·洛瑟拉": "露希尔",
+    "路易·洛瑟菈": "露希尔",
+    "西勒姆": "塞谬塞",
+    "西鲁姆": "塞谬塞",
+    "Sillum": "塞谬塞",
+    "Simulsys": "塞谬塞",
+    "居所解放": "共鸣解放",
+    "聚变整流器": "热熔音感仪",
+    "滴滤艺术": "官宣立绘",
+    "滴画艺术": "官宣立绘",
+    "滴灌画": "官宣立绘",
+    "滴灌艺术": "官宣立绘",
+    "滴画画": "官宣立绘",
 }
 
 
@@ -3092,8 +3157,8 @@ CONTEXT_MAP = [
     (r"\bLady\s+Anna\b", "安娜夫人", "安娜小姐"),
     (r"\bTDs?\b", "TD", "残象"),
     (r"President\s+Lucil", "总统", "校长"),
-    (r"Lucil(?:la)?", "卢西尔", "洛瑟菈"),
-    (r"\bLucil(?:la|le)\b", "卢希尔", "洛瑟菈"),
+    (r"\bLucil(?:la|a)\b", "卢西尔", "洛瑟菈"),
+    (r"\bLucil(?:la|a)\b", "卢希尔", "洛瑟菈"),
     (r"Sentinels?", "岁主岁主", "岁主"),
     (r"tac(?:id|et)\s*discords?", "残象 残象", "残象"),
     (r"\bMeta\b", "梅塔 是", "梅塔是"),
@@ -3233,11 +3298,11 @@ CONTEXT_MAP = [
     # 军部（Ministry of War）：3.8 官中统一作「军部」，谷翻直译「军策府」。#988 实证。
     (r"\bMinistry\s+of\s+War\b", "军策府", "军部"),
     # 洛瑟菈（Lucilla）：本片前段仍残留「露西拉」4 处，旧条只收卢西尔/卢希尔。
-    (r"\bLucil(?:la|le|a)\b", "露西拉", "洛瑟菈"),
-    (r"\bLucil(?:la|le|a)\b", "卢西拉", "洛瑟菈"),
-    (r"\bLucil(?:la|le|a)\b", "卢克·伊拉。", "洛瑟菈。"),
-    (r"\bLucil(?:la|le|a)\b", "卢克·伊拉", "洛瑟菈"),
-    (r"\bLucil(?:la|le|a)\b", "陆·赫斯·伊拉", "洛瑟菈"),
+    (r"\bLucil(?:la|a)\b", "露西拉", "洛瑟菈"),
+    (r"\bLucil(?:la|a)\b", "卢西拉", "洛瑟菈"),
+    (r"\bLucil(?:la|a)\b", "卢克·伊拉。", "洛瑟菈。"),
+    (r"\bLucil(?:la|a)\b", "卢克·伊拉", "洛瑟菈"),
+    (r"\bLucil(?:la|a)\b", "陆·赫斯·伊拉", "洛瑟菈"),
     # 声痕（Tacet Mark）：本片 #8194/#8197 谷翻把 tessa mark 音译成「泰莎标记」。
     (r"\btessa\s+marks?\b", "泰莎标记", "声痕"),
     (r"\btessa\s+marks?\b", "残象标记", "声痕"),
@@ -3254,6 +3319,71 @@ CONTEXT_MAP = [
     (r"\bSentinels?\b", "七个守卫", "七位岁主"),
     (r"(?<!Range )(?<!Land )(?<!electro )\bRover\b", "流浪车", "漂泊者"),
     (r"(?<!Range )(?<!Land )(?<!electro )\bRover\b", "探测车", "漂泊者"),
+    # --- 2026-11-21 鸣潮 4.0 IGN 实机演示 reaction 二校：常用词/短词按参考行锚定 ---
+    # 注意：锚点用 EN_ASR_SPLIT_FIXES 规整后的 canonical 形（Wu→Kuro / Thanos→Thanatos / IG→IGN），
+    #   不能再写原始 ASR 形，否则 _ref_for_match 先规整会让锚点永远命不中。
+    (r"\bKuro\b(?=\s+was\s+trying)", "吴", "库洛"),
+    (r"\bKuro\b(?=\s+was\s+trying)", "Wu", "库洛"),
+    # Thanos 通常指漫威灭霸；唯与 Persona 3 同现才判为 P3R 人格面具塔纳托斯。
+    (r"\bThanatos\b(?=.*\bPersona\s*3\b)", "灭霸", "塔纳托斯"),
+    # IG 通常指 Instagram；只锚 IGN 订阅语境（规整后原句为 "not subscribed to IGN."）。
+    #   错形带标点收口，避开 terms-check「IG 落在 IGN 内」的叠字隐患。
+    (r"\bI'?m\s+not\s+subscribed\s+to\s+IGN\b", "IG。", "IGN。"),
+    (r"\bI'?m\s+not\s+subscribed\s+to\s+IGN\b", "IG，", "IGN，"),
+    (r"\bI'?m\s+not\s+subscribed\s+to\s+IGN\b", "IG ", "IGN "),
+    # Rena 已有 Rinascita 锚；本片机翻错形为「蕾娜」，补同族（与「雷娜」并存）。
+    (r"\b(?:Rinascita|Rena)\b", "蕾娜", "黎那汐塔"),
+    # 4.0 穿戴式机甲「隧铠」/ 新地区「布法罗山脉」的机翻错形，按英文参考行锚定。
+    (r"\bMecha\s+Suits?\b", "机甲套装", "隧铠"),
+    (r"\bMecha\s+Suits?\b", "机甲服", "隧铠"),
+    (r"\bBuffalo\s+Mountains?\b", "水牛山", "布法罗山脉"),
+    (r"\bBuffalo\s+Mountains?\b", "水牛山脉", "布法罗山脉"),
+    # --- 2026-11-21 二次校准回灌：monolith 既有 4.0/IGN 语境 + 本片新规则 ---
+    ("\\blore\\s+reason\\s+sigil\\b", "有设定依据的印记", "出于设定原因的辛吉勒姆"),
+    ("\\blore\\s+reason\\s+sigil\\b", "设定上说得通的印记", "出于设定原因的辛吉勒姆"),
+    ("\\b(?:Lucielle|Luciel)\\b", "露西尔", "露希尔"),
+    ("\\b(?:Lucielle|Luciel)\\b", "卢西尔", "露希尔"),
+    ("\\bLouis\\s+Lucilla\\b", "路易·洛瑟拉", "露希尔"),
+    ("\\b(?:Simulsys|Sillum|Simul\\s*Sys)\\b", "西勒姆", "塞谬塞"),
+    ("\\b(?:Simulsys|Sillum|Simul\\s*Sys)\\b", "西鲁姆", "塞谬塞"),
+    ("\\b(?:Simulsys|Sillum)\\b", "Sillum", "塞谬塞"),
+    ("\\bfusion\\s+unison\\b", "融合合奏", "热熔同奏"),
+    ("\\bfusion\\s+unison\\b", "融合 unison", "热熔同奏"),
+    ("\\b(?:Tune\\s+)?Rupture\\b", "裂变玩法", "震谐玩法"),
+    ("\\b(?:Tune\\s+)?Rupture\\b", "裂变", "震谐"),
+    ("\\bpistols?\\s+user\\b", "手枪使用者", "佩枪角色"),
+    ("\\bpistols?\\s+user\\b", "用佩枪的", "佩枪角色"),
+    ("\\b(?:broad|brawl)\\s*blade\\b", "打一场刀刃", "长刃"),
+    ("\\bexploration\\b", "到期", "探索"),
+    ("\\bunderwater\\s+expiration\\b", "水下呼气", "水下探索"),
+    ("\\blarer(?:s)?\\b", "拉拉尔", "内鬼"),
+    ("\\blarer(?:s)?\\b", "拉勒", "内鬼"),
+    ("\\blarer(?:s)?\\b", "拉尔", "内鬼"),
+    ("\\bfield\\b", "田野静止器", "场上"),
+    ("\\bnew\\s+federation\\s+cities\\b", "新的联邦城市", "新联邦城市"),
+    ("\\bTatawine\\b", "塔塔温", "塔图因"),
+    ("\\bspeeder\\b", "速行车", "悬浮摩托"),
+    ("\\bAnna\\s+and\\s+Lucia\\b", "安娜和露西亚", "安娜和露希尔"),
+    ("\\bAnna\\s+and\\s+Lucia\\b", "安娜和露琪亚", "安娜和露希尔"),
+    ("\\bAnna\\s+and\\s+Lucia\\b", "安娜和露西娅", "安娜和露希尔"),
+    ("\\bAnna\\s+and\\s+Lucia\\b", "安娜和露西尔", "安娜和露希尔"),
+    ("\\b(?:Lucielle|Luciel|Lucille|Lucella)\\b", "露塞拉", "露希尔"),
+    ("\\b(?:Lucielle|Luciel|Lucille|Lucella)\\b", "卢塞拉", "露希尔"),
+    ("\\b(?:Lucielle|Luciel|Lucille|Lucella)\\b", "卢西奥", "露希尔"),
+    ("\\bLucio\\b(?=[^.]*\\bdrip\\b)", "卢西奥", "露希尔"),
+    ("\\bLucio\\b(?=[^.]*\\badorable\\b)", "卢西奥", "露希尔"),
+    ("\\bperfume\\s+girl\\b", "香水女孩", "调香师女孩"),
+    ("\\b2D\\s+art\\b", "2D艺术", "2D立绘"),
+    ("\\bforce\\s+of\\s+(?:the\\s+)?water\\b", "原力", "水流的力量"),
+    ("\\bwater'?s\\s+force\\b", "原力", "水流的力量"),
+    ("\\bidle\\s+animation\\b", "偶像动画", "待机动作"),
+    # 本片 ASR 把 idle 听成 idol；两条都收。
+    ("\\bidol\\s+animation\\b", "偶像动画", "待机动作"),
+    # 安娜与露希尔的组合技：Lucio 在此片是 Lucielle 的 ASR，不设裸键。
+    ("\\bAnna's?\\s+and\\s+Lucio's?\\b", "卢西奥", "露希尔"),
+    ("\\bS6\\b", "S6", "满链"),
+    # 星声（Astrite）：本片 #117 ASR 把 astrites 听成 asteroids，机翻作「小行星」。
+    ("\\bnot\\s+everyone\\s+has\\s+asteroids?\\b", "小行星", "星声"),
 ]
 
 
@@ -3896,6 +4026,17 @@ WUWA_MISSING_CHECK = [
      "Ilia 对应 4.0 艾娅（标语「幽浮与烂漫」）；本片 #496-498 主播在猜读音，保留伊莉娅亦属可接受"),
     (r"\bAnna\b", ("安娜",),
      "Anna 官方中文=安娜（4.0，标语「玫瑰与妄欲」）；常用名，仅角色名单语境可改"),
+    # --- 2026-11-21 鸣潮 4.0 IGN 实机演示 reaction 二校：新增 4.0 专名体检（只报不改）---
+    (r"\b(?:Everbrite|Embers\s+of\s+(?:the\s+)?Everbrite)\b", ("永明", "永明的烬焰"),
+     "Everbrite 官方中文=永明；4.0 年度篇章=永明的烬焰"),
+    (r"\bMecha\s+Suits?\b", ("隧铠",),
+     "4.0 穿戴式机甲官方中文=隧铠（IGN 实机演示）"),
+    (r"\bBuffalo\s+Mountains?\b", ("布法罗山脉",),
+     "4.0 新联邦地区官方中文=布法罗山脉"),
+    (r"\bLen\s+and\s+Mor\b", ("琳奈", "莫宁"),
+     "Lynae and Mornye 的 ASR 截断形（3.0 开门角色）"),
+    (r"\bThanos\b", ("塔纳托斯",),
+     "Thanos 通常=灭霸；仅 Persona 3 语境=P3R 人格面具塔纳托斯（低置信）"),
     (r"\bApril\b", ("爱普利",),
      "April 官方中文=爱普利（4.0，标语「真实与假象」）；常用名/月份，仅角色名单语境可改"),
     (r"\bKaren\b", ("砂",),

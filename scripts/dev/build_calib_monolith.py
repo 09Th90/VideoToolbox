@@ -32,7 +32,7 @@ os.environ.setdefault("VT_NO_SYNC", "1")
 
 DATA_FILES = [
     # ko 依赖 ark 的 _SEONJEONG_ANCHOR，顺序不能按字母排
-    "bilingual", "ja", "ark", "ko", "endfield", "misc", "limbus", "pbz", "ssv", "arcak", "tga", "modes",
+    "bilingual", "ja", "ark", "ko", "endfield", "misc", "limbus", "pbz", "ssv", "arcak", "tga", "wwm", "modes",
 ]
 LOGIC_FILES = [
     "text", "replace", "asr", "state", "engine", "modes", "srt",

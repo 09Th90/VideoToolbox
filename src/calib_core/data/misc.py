@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.1.4
+# @version 3.1.5
 """术语/实体数据表
 
 源：subtitle_calib_merged.py L6542-L7171 @ 97d7d463（2026-10-24 冻结快照）
@@ -759,6 +759,14 @@ EN_ASR_SPLIT_FIXES = {
     "7 : 3 0, 8 : 4 0": "7:30, 8:40",
     "bigger up nights": "bigger update nights",
     "to the to the damage": "to the damage",
+    # --- 2026-11-21 鸣潮 4.0 IGN 实机演示 reaction 英文 ASR 修正（锚定前规整 + --fix-en 输出）---
+    "Wu was trying": "Kuro was trying",                 # Kuro Games 被 ASR 吞成 Wu
+    "Len and Mor": "Lynae and Mornye",                  # 3.0 开门角色 琳奈/莫宁
+    "Rena a little bit Septimon": "Rinascita a little bit Septimont",
+    "Septimon.": "Septimont.", "Septimon,": "Septimont,",
+    "Thanos, bro, from Persona 3": "Thanatos, bro, from Persona 3",
+    "subscribed to IG.": "subscribed to IGN.",
+    "the lord behind this": "the lore behind this",     # lore 被 ASR 听成 lord
 }
 
 
