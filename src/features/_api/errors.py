@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.1.5
+# @version 3.1.6
 """_api.errors —— 命令信封构造（与 CLI _emit/_fail 的 dict 形态同源）。"""
 from __future__ import annotations
 

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.1.5
+# @version 3.1.6
 """GUI 页模板。本模块只由 gui.builder 惰性构造（CLI 路径永不 import）。
 
 约束：只用 vt_app 基建 + 注册表服务；禁止反向 import video_toolbox_qt。

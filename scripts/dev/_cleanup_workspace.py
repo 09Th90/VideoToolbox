@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.1.5
+# @version 3.1.6
 """工作区清理：构建产物 / 开发临时文件 / 旧版安装包 / 源码备份。
 
 安全约束（来自项目约定与 docs/程序说明书(开发版).md；2026-11-20 用户裁决更新）：
@@ -203,7 +203,7 @@ RELOCATE_PATHS = [
 
 # 组 7：真删 —— 旧版安装包（保留 KEEP_VER 最新版；installer_repository 为旧版在线仓库整目录删）
 #   升版时同步更新 KEEP_VER；README 的安装包引用也须同步（check_doc_drift 门禁）。
-KEEP_VER = "3.1.5"
+KEEP_VER = "3.1.6"
 INSTALLER_KEEP_EXTRAS = {"manifest.json", "index.json"}   # installer_online 当前指针文件
 
 

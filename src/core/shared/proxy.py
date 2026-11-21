@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.1.5
+# @version 3.1.6
 """内置代理（mihomo/ClashMeta）：引导 / 选节点 / 代理参数 / 节点锁定（v2.3.1 拆分工程 · 自 video_toolbox.py 原样搬入）。
 
 本模块是 src/core/shared/ 的组成部分；域间依赖规则见 core/__init__.py。
@@ -132,6 +132,14 @@ def _build_runtime_config():
     ]
     if not cfg.get("rules"):
         cfg["rules"] = ["MATCH,SELECT"]
+    # 出口 IP 回显站必须经代理（2026-11-21）：订阅模板把它们判 DIRECT 时，
+    # _egress_ip 拿到的是本机公网 IP，old==new 恒成立 → 漂移检测形同虚设。
+    # 置顶 DOMAIN-SUFFIX 规则（特异性强，不影响其余分流）。
+    cfg["rules"] = [
+        "DOMAIN-SUFFIX,ipify.org,SELECT",
+        "DOMAIN-SUFFIX,ifconfig.me,SELECT",
+        "DOMAIN-SUFFIX,ipinfo.io,SELECT",
+    ] + list(cfg["rules"])
     try:
         os.makedirs(MIHOMO_DIR, exist_ok=True)
         with open(MIHOMO_RUNTIME_CONFIG, "w", encoding="utf-8") as f:
@@ -288,7 +296,23 @@ def ensure_builtin_proxy():
         if best and _proxy_http_ok(proxy):
             return proxy
         _mihomo_log("复用失败：代理端口活着但节点不可用（订阅可能已过期）")
-        return None
+        # 2026-11-21 通用内核模式：占着 7897 的可能是上一进程拉起的残留内核，
+        # 跑的是旧订阅（节点全死）——不重启它，新订阅永远没机会生效。
+        # 只处理监听本端口的进程（产品自己的常驻 mihomo），结束后走下方
+        # 全新启动路径，用当前 proxy_yaml 重新编译运行配置。
+        if not sys.platform.startswith("win"):
+            return None
+        pid = _port_pid(MIHOMO_PORT)
+        if not pid:
+            return None
+        try:
+            run_process(["taskkill", "/F", "/T", "/PID", str(pid)],
+                        capture_output=True, timeout=15)
+            _mihomo_log("已结束残留 mihomo（PID %s，旧配置节点不可用），"
+                        "按当前订阅重新启动" % pid)
+            time.sleep(1.0)
+        except Exception:  # noqa: BLE001
+            return None
     if not os.path.isfile(MIHOMO_EXE):
         _mihomo_log(f"缺少 mihomo 可执行文件：{MIHOMO_EXE}")
         return None
@@ -573,15 +597,33 @@ def _system_proxy_url():
 
 
 def _builtin_proxy_enabled():
-    """内置 mihomo 是否启用。**默认停用**（2026-10-16 起优先系统代理）。
+    """内置 mihomo「下载专用代理内核」模式是否启用。**默认停用**。
 
-    需要恢复旧行为时设环境变量 `VT_USE_BUILTIN_PROXY=1`。
+    通用机制（2026-11-21，不绑定任何第三方客户端）：启用后下载流量走内置
+    mihomo（固定 7897），其控制口 9098 恒可用 → 出口锁定/防漂移天然成立，
+    无论用户机器上跑的是 FlClash / Clash Verge / v2rayN 还是别的什么。
+    订阅 yaml 由 config 的 proxy_yaml 指向**任意**机场导出文件；内置内核
+    出网校验失败时自动回落系统代理，下载不中断。
+    启用方式二选一：config.json ``use_builtin_proxy: true``（推荐，界面/
+    手改皆可），或环境变量 ``VT_USE_BUILTIN_PROXY=1``。
     """
     v = (os.environ.get("VT_USE_BUILTIN_PROXY") or "").strip().lower()
-    return v in ("1", "true", "yes", "on")
+    if v in ("1", "true", "yes", "on"):
+        return True
+    if v in ("0", "false", "no", "off"):
+        return False
+    try:
+        return bool(load_config().get("use_builtin_proxy"))
+    except Exception:  # noqa: BLE001
+        return False
 
 
-def ytdlp_proxy_args(refresh=False):
+#: 内置内核失败后的重试冷却：节点可能临时全挂（订阅过期/机场故障），
+#: 不能一次失败就进程内永久回落；冷却期内走系统代理，到期再试。
+_BUILTIN_RETRY_COOLDOWN = 300.0
+
+
+def ytdlp_proxy_args(refresh=False, ensure=True):
     """给 yt-dlp 的 `--proxy` 参数表；拿不到代理时返回 []（退回直连）。
 
     为什么下载链路必须带这个：`ensure_builtin_proxy()` 此前只服务于 GitHub
@@ -589,33 +631,46 @@ def ytdlp_proxy_args(refresh=False):
     mihomo 之后，分流仍由 yaml 的 rules 决定（规则没覆盖的域名它自己也走
     直连），所以对 B 站等本来直连的站点没有副作用。
 
-    并发安全：双检锁。此前 N 个任务同时首次取用时，各线程都会看到缓存为空，
-    各自去拉起/等待 mihomo（最坏各等 20s 端口就绪）——多任务同加时集体白等。
+    优先级（2026-11-21 通用内核模式）：
+      ① VT_YTDLP_PROXY 显式覆盖（应急通道，不变）；
+      ② 内置内核模式启用时：内置 mihomo 优先（可锁定出口），校验失败
+         **自动回落系统代理**（下载不中断），失败结果缓存 300s 后重试；
+      ③ 系统代理；④ 直连。
+    ``ensure=False``：不拉起/等待内置内核（最坏 20s+），只用已有缓存——
+    供 UI（proxy_status）与翻译路由调用，避免阻塞主线程；下载链路用默认
+    True。并发安全：双检锁，多任务同加时只拉一次内核。
     """
-    #: 显式覆盖（应急/排查）：`VT_YTDLP_PROXY=http://127.0.0.1:7890` 时直接采用，
+    #: ① 显式覆盖（应急/排查）：`VT_YTDLP_PROXY=http://127.0.0.1:7890` 时直接采用，
     #: 不走内置 mihomo —— 内置实例会中途退出或节点全挂（7897 返回 000/502），
-    #: 而 FlClash(7890) 往往仍可用；长下载被代理中断时用它快速接续。
+    #: 而系统代理往往仍可用；长下载被代理中断时用它快速接续。
     override = (os.environ.get("VT_YTDLP_PROXY") or "").strip()
     if override:
         return ["--proxy", override]
-    #: ② 系统代理优先（2026-10-16 用户要求：内置 mihomo 下线，改用电脑既有代理）
+    #: ② 内置内核模式（通用）：优先于系统代理——只有走内置内核，9098
+    #: 控制口才管得到下载流量（锁第三方客户端的内核管不到系统代理通道）。
+    if _builtin_proxy_enabled():
+        with _PROXY_LOCK:
+            now = time.time()
+            fresh = (not _PROXY_CACHE["checked"]
+                     or now - _PROXY_CACHE.get("at", 0.0) >= _BUILTIN_RETRY_COOLDOWN)
+            if ensure and (refresh or fresh):
+                proxy = None
+                try:
+                    proxy = ensure_builtin_proxy()
+                except Exception as e:  # noqa: BLE001
+                    _mihomo_log(f"ensure_builtin_proxy 异常：{e}")
+                if proxy is None and _PROXY_CACHE.get("proxy"):
+                    _mihomo_log("[代理] 内置内核本轮校验失败，暂时回落系统代理"
+                                "（%ds 后重试）" % int(_BUILTIN_RETRY_COOLDOWN))
+                _PROXY_CACHE.update({"checked": True, "proxy": proxy, "at": now})
+            if _PROXY_CACHE.get("proxy"):
+                return ["--proxy", _PROXY_CACHE["proxy"]]
+        #: 内置不可用 → 回落系统代理（不中断下载；失去锁定保护，日志已留痕）
+    #: ③ 系统代理（2026-10-16 起的默认通道）
     sp = _system_proxy_url()
     if sp:
         return ["--proxy", sp]
-    #: ③ 内置 mihomo（默认停用；VT_USE_BUILTIN_PROXY=1 恢复旧行为）
-    if not _builtin_proxy_enabled():
-        return []
-    with _PROXY_LOCK:
-        if not refresh and _PROXY_CACHE["checked"]:
-            return ["--proxy", _PROXY_CACHE["proxy"]] if _PROXY_CACHE["proxy"] else []
-        proxy = None
-        try:
-            proxy = ensure_builtin_proxy()
-        except Exception as e:  # noqa: BLE001
-            _mihomo_log(f"ensure_builtin_proxy 异常：{e}")
-        _PROXY_CACHE["checked"] = True
-        _PROXY_CACHE["proxy"] = proxy
-        return ["--proxy", proxy] if proxy else []
+    return []
 
 
 # ========== 翻译请求的显式路由（v1.16.2） ==========
@@ -655,7 +710,7 @@ def translate_session_proxies(endpoint):
         return {}
     proxy = ""
     try:
-        args = ytdlp_proxy_args()
+        args = ytdlp_proxy_args(ensure=False)
         proxy = args[1] if args else ""
     except Exception:  # noqa: BLE001
         proxy = ""
@@ -670,7 +725,7 @@ def proxy_status():
     默认停用后，"未安装内置代理组件"更是彻底的误导结论。改为走自动发现，
     且**没有控制口时不出节点名**（避免为显示一个名字触发几秒端口探测、卡界面）。
     """
-    args = ytdlp_proxy_args()
+    args = ytdlp_proxy_args(ensure=False)
     if args:
         now = ""
         if _PROXY_CTL["base"] or (os.environ.get("VT_MIHOMO_API") or "").strip():
@@ -775,9 +830,15 @@ _PROXY_LOCK_STATE = {"orig": None, "count": 0, "base": "", "group": "",
 _PROXY_LOCK_MUTEX = threading.Lock()
 
 #: 控制口发现结果缓存（秒级 TTL：FlClash 可能中途启动/关闭）
-_PROXY_CTL = {"base": "", "checked": 0.0, "source": "", "hits": []}
+#: candidates：最近一轮候选数（供锁定失败文案用，免为拼日志重跑 netstat）
+_PROXY_CTL = {"base": "", "checked": 0.0, "source": "", "hits": [],
+              "candidates": 0}
 _PROXY_CTL_TTL = 60.0
 _PROXY_CTL_MUTEX = threading.Lock()
+
+#: 最近一次「控制口要求密钥」（401/403）的命中提示。403 不再判存活后，
+#: 真实 mihomo 开 secret 的场景靠它给用户留指引（5 分钟内有效）。
+_CTL_SECRET_HINT = {"base": "", "at": 0.0}
 
 #: 系统代理端口 → 该客户端控制口的常见取值（FlClash / Clash Verge / 内置 mihomo）
 _CTL_PORTS_BY_MIXED = {
@@ -794,6 +855,12 @@ _LOCK_GUARD_INTERVAL = 15.0
 _LOCK_GUARD_MAX_FIX = 3
 _GUARD = {"stop": None, "thread": None}
 
+#: EOF 触发补锁定（2026-11-21）：首任务锁定失败后，同波后续任务不再重试
+#: （引用计数直接返回空节点）。但控制口可能中途才出现（用户刚开启客户端
+#: 外部控制、内置内核刚就绪）——EOF 事件正是重试时机。冷却 120s 防风暴。
+_LOCK_RETRY = {"at": 0.0, "busy": False}
+_LOCK_RETRY_COOLDOWN = 120.0
+
 
 #: 端口→PID 反查缓存（5s TTL）：进程监听关系短期内稳定，避免每个候选
 #: 控制口都重跑一次 netstat/lsof。
@@ -801,8 +868,19 @@ _PID_CACHE = {}
 
 
 def _ctl_secret():
-    """控制口密钥（FlClash/Clash Verge 的 external-controller secret）。"""
-    return (os.environ.get("VT_MIHOMO_SECRET") or "").strip()
+    """控制口密钥（任意 mihomo 系客户端的 external-controller secret）。
+
+    通用配置通道（2026-11-21）：环境变量 VT_MIHOMO_SECRET 优先，其次
+    config.json 的 ``mihomo_secret`` 键——用户从任何客户端的「外部控制」
+    设置里复制 secret 填进工具箱配置即可，不必改系统环境变量。
+    """
+    v = (os.environ.get("VT_MIHOMO_SECRET") or "").strip()
+    if v:
+        return v
+    try:
+        return str(load_config().get("mihomo_secret") or "").strip()
+    except Exception:  # noqa: BLE001
+        return ""
 
 
 def _local_listen_ports():
@@ -937,6 +1015,13 @@ def _ctl_alive(base, timeout=1.5):
 
     两步都得过——只查 /version 会把任何返回含 "version" 字段的服务误判成
     控制口（2026-10-17 实测命中过 4096 上的无关服务，随后所有锁定调用全失败）。
+
+    401/403 **不再判存活**（2026-11-21 修复）：旧实现把「需要密钥」异常当
+    命中，导致任何回 403 的无关服务（实录：TapTap.exe 的 17120）都被当成
+    控制口并持久化进 config.json，每轮锁定还拿它当候选。真实 mihomo 开了
+    secret 时设 ``VT_MIHOMO_SECRET``，_ctl_request 会带 Bearer 头，密钥正确
+    则 /version 正常回 200 通过两步验证；没设/设错则不命中，但留密钥提示
+    （_CTL_SECRET_HINT）供界面/日志指引用户。
     """
     try:
         d = _ctl_request(base, "GET", "/version", timeout=timeout)
@@ -946,7 +1031,25 @@ def _ctl_alive(base, timeout=1.5):
         return (isinstance(p, dict) and isinstance(p.get("proxies"), dict)
                 and bool(p.get("proxies")))
     except Exception as e:  # noqa: BLE001
-        return "需要密钥" in str(e)
+        if "需要密钥" in str(e):
+            # 只给「像控制口」的端口留密钥提示（已知映射/兜底表/显式指定/
+            # config 记忆）；全枚举混入的无关服务（TapTap 17120 之类）回 403
+            # 不该污染 secret_needed 状态（2026-11-21 实测误报）。
+            try:
+                port = int(base.rsplit(":", 1)[-1])
+            except ValueError:
+                port = 0
+            plausible = set(_CTL_PORTS_FALLBACK)
+            for v in _CTL_PORTS_BY_MIXED.values():
+                plausible.update(v)
+            try:
+                explicit = (os.environ.get("VT_MIHOMO_API") or "").strip().rstrip("/")
+                cached = str(load_config().get("mihomo_controller") or "").rstrip("/")
+            except Exception:  # noqa: BLE001
+                explicit, cached = "", ""
+            if (port in plausible or base.rstrip("/") in (explicit, cached)):
+                _CTL_SECRET_HINT.update({"base": base, "at": time.time()})
+        return False
 
 
 def _ctl_candidates(explicit=""):
@@ -999,6 +1102,9 @@ def _probe_ctl(explicit=""):
     同域判据：命中端口与当前系统代理端口有已知映射关系的排最前。
     """
     cands = _ctl_candidates(explicit)
+    # 记下候选数供锁定失败文案用——_lock_once 原先为拼日志再跑一遍
+    # _ctl_candidates（第二次 netstat 纯浪费，2026-11-21 诊断 P2）。
+    _PROXY_CTL["candidates"] = len(cands)
     if not cands:
         return "", "", []
     if explicit:
@@ -1069,6 +1175,19 @@ def proxy_ctl_base(refresh=False):
             if str(cfg.get("mihomo_controller", "") or "") != base:
                 cfg["mihomo_controller"] = base
                 save_config(cfg)
+        except Exception:  # noqa: BLE001
+            pass
+    else:
+        # 自愈（2026-11-21）：本轮一个控制口都没探到，说明 config 里的旧记忆
+        # 已失效——很可能是误记的无关端口（17120=TapTap 曾借 403 捷径当选）。
+        # 主动清除，免得它每轮混进候选、拖慢发现还误导排障。
+        try:
+            cfg = load_config()
+            old = str(cfg.get("mihomo_controller", "") or "")
+            if old:
+                cfg.pop("mihomo_controller", None)
+                save_config(cfg)
+                _mihomo_log("[代理] 已清除失效的控制口记忆 %s（复验未通过）" % old)
         except Exception:  # noqa: BLE001
             pass
     return base
@@ -1180,20 +1299,26 @@ def _find_active_group(base=""):
                 "now": str((table.get(PROXY_GROUP) or {}).get("now") or ""),
                 "chain": [], "table": table}
 
-    # ③ 兜底：挑一个 Selector（名字像出口组的优先）
-    sels = [n for n in table
-            if _is_group_name(table, n) and (table[n].get("type") == "Selector")]
+    # ③ 兜底：挑一个可切换组（Selector 优先，其次 Fallback/URLTest 等）。
+    # 2026-11-21：原先只认 Selector——内置内核 runtime 只有 AUTO(url-test)
+    # +SELECT(fallback)，且锁定时 /connections 恒空（先锁后连），①③ 全落空
+    # 导致内置模式下锁定结构性失效。mihomo 对各类型组均可 PUT 钉死。
+    cands = [n for n in table if _is_group_name(table, n)]
+    _type_rank = {"Selector": 0, "Fallback": 1, "URLTest": 2,
+                  "LoadBalance": 3, "Relay": 4}
 
     def _rank(n):
         low = n.lower()
-        for i, kw in enumerate(("select", "选择", "proxy", "代理", "节点", "outbound")):
-            if kw in low:
-                return i
-        return 99
+        kw = 99
+        for i, k in enumerate(("select", "选择", "proxy", "代理", "节点", "outbound")):
+            if k in low:
+                kw = i
+                break
+        return (_type_rank.get((table.get(n) or {}).get("type"), 9), kw)
 
-    if sels:
-        sels.sort(key=_rank)
-        g = sels[0]
+    if cands:
+        cands.sort(key=_rank)
+        g = cands[0]
         return {"group": g,
                 "now": str((table.get(g) or {}).get("now") or ""),
                 "chain": [], "table": table}
@@ -1283,13 +1408,24 @@ def pick_best_proxy_node(group=None, url="https://www.youtube.com/"):
     return min(delays.items(), key=lambda kv: kv[1])[0]
 
 
-def _egress_ip():
+#: 出口 IP 短 TTL 缓存：多任务并发 EOF 时不重复打探测站点。
+#: 10s < 守护间隔 15s，漂移守护每轮仍拿新鲜值；判漂移的关键调用
+#: （proxy_note_eof / 锁定初始化）用 force=True 绕过缓存。
+_EGRESS_IP_CACHE = {"ip": "", "at": 0.0}
+_EGRESS_IP_TTL = 10.0
+
+
+def _egress_ip(force=False):
     """经当前代理取出口 IP（用于判断「是不是换了节点」）；失败返回空串。
 
-    ⚠ timeout 压到 2.5s：本函数会被 ``proxy_note_eof`` 在下载行循环里同步调用，
-    4s×3 个候选最坏要 12s —— 那会连下载日志/进度一起卡住。
-    国内不可达这些站点时快速失败走空，调用方有对应的文案分支。
+    2026-11-21 提速：三 URL 由串行改**并发取首个成功**（最坏 7.5s→2.5s），
+    加 10s 进程内缓存。调用侧 proxy_note_eof 也已移入后台线程，不再阻塞
+    下载读流循环。国内不可达这些站点时快速失败走空，调用方有对应文案分支。
     """
+    now = time.time()
+    if (not force and _EGRESS_IP_CACHE["ip"]
+            and now - _EGRESS_IP_CACHE["at"] < _EGRESS_IP_TTL):
+        return _EGRESS_IP_CACHE["ip"]
     try:
         args = ytdlp_proxy_args()
         proxy = args[1] if args else ""
@@ -1298,24 +1434,43 @@ def _egress_ip():
     if not proxy:
         return ""
     import urllib.request
+    from concurrent.futures import ThreadPoolExecutor, as_completed
     opener = urllib.request.build_opener(
         urllib.request.ProxyHandler({"http": proxy, "https": proxy}))
     opener.addheaders = [("User-Agent", "curl/8")]
-    for url in ("https://api.ipify.org", "https://ifconfig.me/ip",
-                "https://ipinfo.io/ip"):
+
+    def _fetch(url):
         try:
             with opener.open(url, timeout=2.5) as r:
                 ip = r.read(64).decode("utf-8", "replace").strip()
             if ip and len(ip) <= 45 and " " not in ip:
                 return ip
         except Exception:  # noqa: BLE001
-            continue
-    return ""
+            pass
+        return ""
+
+    urls = ("https://api.ipify.org", "https://ifconfig.me/ip",
+            "https://ipinfo.io/ip")
+    ip = ""
+    try:
+        with ThreadPoolExecutor(max_workers=3) as ex:
+            for fut in as_completed([ex.submit(_fetch, u) for u in urls]):
+                ip = fut.result()
+                if ip:
+                    break
+    except Exception:  # noqa: BLE001
+        for url in urls:
+            ip = _fetch(url)
+            if ip:
+                break
+    if ip:
+        _EGRESS_IP_CACHE.update({"ip": ip, "at": time.time()})
+    return ip
 
 
 def proxy_egress_ip():
-    """对外暴露的出口 IP 探测（诊断用）。"""
-    return _egress_ip()
+    """对外暴露的出口 IP 探测（诊断用，强制新鲜值）。"""
+    return _egress_ip(force=True)
 
 
 def _pin_chain(base, table, chain, leaf):
@@ -1328,11 +1483,13 @@ def _pin_chain(base, table, chain, leaf):
     """
     if not chain:
         return "", False
-    # ① 一步钉死：最外层的、直接成员含 leaf 的 Selector
+    # ① 一步钉死：最外层的、直接成员含 leaf 的可切换组
+    # （2026-11-21：不限 Selector——mihomo 对 Fallback/URLTest 亦可 PUT，
+    # 内置内核 runtime 无 Selector，只认它会判「拓扑不支持」）
     for g in reversed(chain):
         if not _is_group_name(table, g):
             continue
-        if (table.get(g) or {}).get("type") != "Selector":
+        if (table.get(g) or {}).get("type") not in _GROUP_TYPES:
             continue
         if leaf in _group_members(table, g):
             try:
@@ -1344,7 +1501,7 @@ def _pin_chain(base, table, chain, leaf):
     pinned_group, ok = "", False
     for i in range(len(chain) - 1, 0, -1):
         g, want = chain[i], chain[i - 1]
-        if (table.get(g) or {}).get("type") != "Selector":
+        if (table.get(g) or {}).get("type") not in _GROUP_TYPES:
             continue
         if want not in _group_members(table, g):
             continue
@@ -1353,9 +1510,9 @@ def _pin_chain(base, table, chain, leaf):
             pinned_group, ok = g, True
         except Exception:  # noqa: BLE001
             continue
-    # ③ 内层若是 Selector，再把它钉到 leaf
+    # ③ 内层若是可切换组，再把它钉到 leaf
     for g in chain:
-        if (table.get(g) or {}).get("type") != "Selector":
+        if (table.get(g) or {}).get("type") not in _GROUP_TYPES:
             continue
         if leaf in _group_members(table, g):
             try:
@@ -1377,14 +1534,19 @@ def _lock_once():
     """首个任务时真正执行锁定。返回锁定的节点名（失败为空串）。"""
     base = proxy_ctl_base(refresh=True)
     if not base:
-        n = len(_ctl_candidates(""))
+        n = int(_PROXY_CTL.get("candidates") or 0)
+        hint = ""
+        if (_CTL_SECRET_HINT["base"]
+                and time.time() - _CTL_SECRET_HINT["at"] < 300):
+            hint = ("另检测到 %s 疑似控制口但要求密钥：设 VT_MIHOMO_SECRET 后重试。"
+                    % _CTL_SECRET_HINT["base"])
         _lock_fail("找不到可用的代理控制口（已试 %d 个候选）。下载期间无法固定出口"
                    "节点，代理中途切换会让已签发的分片 URL 全部失效（表现为 "
                    "EOF/_ssl.c:1007）。若所用客户端支持外部控制（Clash / FlClash / "
                    "Clash Verge 的「外部控制 / External Controller」），开启后设 "
                    "VT_MIHOMO_API=http://127.0.0.1:<端口> 即可启用；"
                    "若设置了 Secret，再加 VT_MIHOMO_SECRET。没有控制口也能正常下载，"
-                   "只是失去防漂移保护" % n)
+                   "只是失去防漂移保护。%s" % (n, hint))
         return ""
     info = _find_active_group(base)
     table, group, now = info.get("table") or {}, info.get("group") or "", info.get("now") or ""
@@ -1424,7 +1586,7 @@ def _lock_once():
     _PROXY_LOCK_STATE.update({
         "base": base, "group": pinned or group, "node": leaf,
         "orig": (pinned or group, now), "fail": 0, "error": "",
-        "egress_ip": _egress_ip(),
+        "egress_ip": _egress_ip(force=True),
     })
     _start_guard()
     hits = list(_PROXY_CTL.get("hits") or [])
@@ -1580,7 +1742,9 @@ def proxy_lock_status():
         "egress_ip": s.get("egress_ip") or "",
         "active_tasks": s.get("count", 0),
         "proxy": proxy,
-        "secret_needed": "需要密钥" in (s.get("error") or ""),
+        "secret_needed": bool("需要密钥" in (s.get("error") or "")
+                              or (_CTL_SECRET_HINT["base"]
+                                  and time.time() - _CTL_SECRET_HINT["at"] < 300)),
         "ctl_hits": list(_PROXY_CTL.get("hits") or []),
         "ctl_source": _PROXY_CTL.get("source") or "",
         "error": s.get("error") or "",
@@ -1596,7 +1760,10 @@ def proxy_note_eof(detail=""):
         old = _PROXY_LOCK_STATE.get("egress_ip") or ""
         node = _PROXY_LOCK_STATE.get("node") or ""
         err = _PROXY_LOCK_STATE.get("error") or ""
-    new = _egress_ip()
+        cnt = _PROXY_LOCK_STATE.get("count", 0)
+    # 判漂移必须拿新鲜值（缓存可能还是漂移前的 IP）；本函数已由调用侧
+    # 移入后台线程，2.5s 探测不再阻塞下载读流循环。
+    new = _egress_ip(force=True)
     if node and old and new and old != new:
         msg = ("检测到 TLS 断连（EOF），出口 IP 已从 %s 变为 %s（锁定节点 %s 失效）"
                "—— 旧分片链接全部作废，正在重新提取新链接" % (old, new, node))
@@ -1610,6 +1777,25 @@ def proxy_note_eof(detail=""):
                "VT_MIHOMO_API（有 Secret 时再加 VT_MIHOMO_SECRET）。"
                "现已改为重新提取链接后重试" % (err or "原因未知"))
     _mihomo_log("[代理锁定] " + msg + (("；原文：" + detail) if detail else ""))
+    # 未锁定且有任务在跑 → 后台补锁定一次（控制口可能中途才可用）。
+    # 本函数已在后台线程，但 _lock_once 最坏十几秒，仍另派线程避免
+    # 拖住 EOF 结论的补发；冷却 + busy 防多任务并发重试风暴。
+    if (not node and cnt > 0 and not _LOCK_RETRY["busy"]
+            and time.time() - _LOCK_RETRY["at"] >= _LOCK_RETRY_COOLDOWN):
+        _LOCK_RETRY.update({"at": time.time(), "busy": True})
+
+        def _retry_lock():
+            try:
+                got = _lock_once()
+                if got:
+                    _mihomo_log("[代理锁定] EOF 触发补锁定成功：%s" % got)
+            except Exception as e:  # noqa: BLE001
+                _mihomo_log("[代理锁定] EOF 补锁定异常：%s" % e)
+            finally:
+                _LOCK_RETRY["busy"] = False
+
+        threading.Thread(target=_retry_lock, daemon=True,
+                         name="proxy-lock-retry").start()
     return msg
 
 

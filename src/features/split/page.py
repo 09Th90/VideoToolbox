@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.1.5
+# @version 3.1.6
 """视频切片页（2026-11-15 功能解耦阶段③：从 video_toolbox_qt.py 拆出，逐字同源）。
 
 解耦样板页：

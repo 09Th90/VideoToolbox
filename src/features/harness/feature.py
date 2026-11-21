@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.1.5
+# @version 3.1.6
 """harness 功能清单。GUI harness_page 已在外部模块；harness 本体未部署时页面显示引导卡。"""
 from features._registry import FeatureSpec, GuiSpec
 

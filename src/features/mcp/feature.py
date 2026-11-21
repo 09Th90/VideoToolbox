@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.1.5
+# @version 3.1.6
 """mcp 功能清单（纯清单，模块级禁 SDK/Qt——status 探针只查 find_spec）。"""
 from __future__ import annotations
 

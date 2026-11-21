@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.1.5
+# @version 3.1.6
 """server —— MCP Server 装配（SDK 惰性 import；仅 mcp_server 启动路径导入本模块）。
 
 用 lowlevel Server + 构造回调直注册 schema（**不用高层签名内省**——

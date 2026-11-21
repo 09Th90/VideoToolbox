@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.1.5
+# @version 3.1.6
 """功能清单模板。复制后：id 改成与目录名一致，按需填 cli/gui/services。"""
 from features._registry import CliCommand, FeatureSpec, GuiSpec
 

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.1.5
+# @version 3.1.6
 """features —— 功能层：每个功能一个独立包，清单注册、惰性加载、错误隔离。
 
 * 契约与注册表实现见 ``_registry.py``；新功能模板见 ``_template/``。

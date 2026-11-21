@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.1.5
+# @version 3.1.6
 """视频下载页（2026-11-15 功能解耦阶段③：从 video_toolbox_qt.py 拆出，逐字同源）。
 
 * 容器页：「视频下载 / 音画合并 / 视频切片」三个子板块，merge/split 经注册表
@@ -29,9 +29,11 @@ from vt_fluent import (BodyLabel, CaptionLabel, FluentIcon as FIF, InfoBar,
                        SegmentedWidget, SpinBox, SwitchButton, TableWidget)
 
 import video_toolbox as engine
+from core.download.util import note_download_dir_owner
 from core.download.ytdlp_util import (
     _finished_video as _dl_finished_video,
     _track_leftovers as _dl_track_leftovers,
+    ytdlp_is_live, ytdlp_live_args, ytdlp_live_flag_unsupported,
 )
 
 from vt_app.boot import _perf_note
@@ -1006,6 +1008,12 @@ class DownloadPage(QWidget):
                 task_id, url, fid, folder, with_subs,
                 info_json_path, meta, quality_label, run_id, resume_info)
         try:
+            # 先解析代理通道（内置内核模式会在此拉起内置 mihomo），再锁出口——
+            # 顺序反了锁定会跑在内核就绪之前，必然失败。
+            proxy_args = engine.ytdlp_proxy_args()
+            if proxy_args:
+                self.app.q.put(("dl_log", task_id,
+                                f"[代理] 下载经本地代理 {proxy_args[1]}"))
             # 下载期间钉住出口节点：直链在签发时绑定了当时的出口 IP，
             # 中途换节点会让所有已签发分片瞬间失效（EOF/_ssl.c:1007）。
             # 多任务并行时内部有引用计数，只有首个任务真正切换、末个任务恢复。
@@ -1014,6 +1022,9 @@ class DownloadPage(QWidget):
                 self.app.q.put(("dl_log", task_id,
                                 f"[代理] 已锁定出口节点 {locked}"
                                 "（避免下载中途换 IP 导致分片失效）"))
+            note_download_dir_owner(
+                os.path.dirname(folder),
+                log=lambda m, lvl="dim": self.app.q.put(("dl_log", task_id, m, lvl)))
             ytdlp = engine.ensure_ytdlp()
             # v1.19.1：引导阶段（首次运行要下 ~170MB ffmpeg）也能被取消。
             # 原先这里连取消标志都不看，用户点了取消还得干等整个下载。
@@ -1024,10 +1035,7 @@ class DownloadPage(QWidget):
                 raise _CancelledEarly()
             # 代理：YouTube 等站点在国内必须经代理才能下载（B 站等本来直连的
             # 站点，代理的 rules 里是 DIRECT，没有副作用）。拿不到代理就直连。
-            proxy_args = engine.ytdlp_proxy_args()
-            if proxy_args:
-                self.app.q.put(("dl_log", task_id,
-                                f"[代理] 下载经本地代理 {proxy_args[1]}"))
+            # （proxy_args 已在函数开头解析——内置内核模式需先于锁定就绪。）
             # 源选择：YouTube 直链（videoplayback）单条服务能力有限——约 5 次
             # 请求 / 数十 MB 即失效回 403，大文件几乎必然失败；实测直链要先白等
             # 十几分钟才切到 HLS（用户看到的"下载过慢"）。HLS 每片独立取、还能
@@ -1050,10 +1058,16 @@ class DownloadPage(QWidget):
                     "--newline", "--no-playlist",
                     "--http-chunk-size", self.DL_CHUNK_SIZE,
                     *engine.ytdlp_dl_args(),
+                    # 直播特化（须跟在 ytdlp_dl_args 之后：-N 取最后出现值）
+                    *ytdlp_live_args(meta),
                     "--write-thumbnail", "--convert-thumbnails", "jpg",
                     *proxy_args,
                     *engine.ytdlp_cookie_args(),
                     "-o", engine.output_template(folder)]
+            if ytdlp_is_live(meta):
+                self.app.q.put(("dl_log", task_id,
+                                "[直播] 直播录制中：从 DVR 头追赶（可快于实时），"
+                                "百分比/速度仅供参考，以分片计数为准"))
             rc = 1
             if not self._is_cancelled(task_id):
                 if info_json_path and os.path.isfile(info_json_path):
@@ -1440,21 +1454,33 @@ class DownloadPage(QWidget):
         return ""
 
     @staticmethod
-    def _eof_is_fatal(line):
+    def _eof_is_fatal(line, frag_context=False):
         """EOF 是否属于「整条链接作废」（而非单片失效）——决定要不要主动结束。
 
-        yt-dlp 的 EOF 有两种形态：
+        yt-dlp 的 EOF 有几种形态，只有**直链**场景才值得主动杀进程：
           · 直链：``unable to download video data: Got error: EOF...``
             整条 videoplayback 失效，它自己的 ``--retries`` 重试的是同一条
             死链，纯属白等 → **应该主动结束**，交给上层重新提取；
           · 分片：``[hlsnative] Downloading fragment 42/500: Got error: EOF...``
             交给 ``--fragment-retries`` 逐片重下更有效（只重那一片，已下完的
             分片进度不丢）→ **不该杀**，杀了反而丢掉已有进度。
-        判据取错误行自身的关键词。
+          · 缩略图/字幕等辅助资源：``WARNING: Unable to download video
+            thumbnail 43: EOF...`` —— 不影响正片 → **不该杀**
+            （2026-11-21 实录：T12 直播出生即被一条缩略图 EOF 误杀，
+            进度清零重爬，形成「下载→杀→重提取」死循环）。
+
+        ``frag_context``：读流循环按**实际出现过分片行**累积的上下文。
+        分片下载的错误行自身常不带 fragment 关键词（只有裸 ``Got error:
+        EOF... Retrying``），单看错误行会把直播/HLS 误判成直链——必须靠
+        上下文区分。分片上下文里一律不杀（含直播）。
         """
         low = (line or "").lower()
-        return not any(k in low for k in
-                       ("fragment", "hlsnative", "m3u8", "frag", "dash"))
+        if any(k in low for k in ("thumbnail", "subtitle", "annotation")):
+            return False
+        if frag_context or any(k in low for k in
+                               ("fragment", "hlsnative", "m3u8", "frag", "dash")):
+            return False
+        return True
 
     def _run_ytdlp(self, cmd, task_id, phase="download"):
         try:
@@ -1475,6 +1501,10 @@ class DownloadPage(QWidget):
         frag_re = re.compile(r"\[download\]\s+Downloading fragment (\d+)/(\d+)")
         speed_re = re.compile(r"at\s+([\d.]+)\s*([KMGT]?i?B)/s")
         eta_re = re.compile(r"ETA\s+(\d+):(\d+)")
+        # 分片上下文：出现过真实分片行即置位（HLS/DASH 分片源、直播）。
+        # EOF 错误行自身常不带 fragment 关键词，靠它区分「直链作废该杀」
+        # 与「分片抖动不该杀」（见 _eof_is_fatal）。
+        saw_frag = False
         run_id = self._run_ids.get(task_id, 0)
         units = {"B": 1, "KiB": 1024, "MiB": 1024 ** 2, "GiB": 1024 ** 3, "TiB": 1024 ** 4}
         try:
@@ -1496,6 +1526,8 @@ class DownloadPage(QWidget):
                     break
                 line = engine.decode_bytes_any(raw).rstrip()
                 lines.append(line)
+                if not saw_frag and ("fragment" in line or "hlsnative" in line):
+                    saw_frag = True
                 m = pct_re.search(line)
                 if m:
                     speed, eta = 0.0, -1.0
@@ -1536,13 +1568,29 @@ class DownloadPage(QWidget):
                     # 并直接告诉用户接下来会重新提取 —— 同一错误只报一次。
                     if DownloadPage._EOF_HINTED.get(task_id) != m2:
                         DownloadPage._EOF_HINTED[task_id] = m2
+                        # 异步核查：proxy_note_eof 内的出口 IP 探测最坏 2.5s，
+                        # 原先在读流循环里同步跑会拖住 stdout 读取，管道积压
+                        # 反过来卡住 yt-dlp 输出（2026-11-21 诊断 P2）。
+                        # 派后台线程，先占位提示、探完经事件队列补发结论。
                         self.app.q.put(("dl_log", task_id,
-                                        engine.proxy_note_eof(line), "err"))
+                                        "[代理] 检测到 TLS 断连（EOF），"
+                                        "正在后台核查出口 IP…", "err"))
+
+                        def _note_eof(line=line, tid=task_id):
+                            try:
+                                msg = engine.proxy_note_eof(line)
+                            except Exception as e:  # noqa: BLE001
+                                msg = "[代理] EOF 根因核查失败：%s" % e
+                            self.app.q.put(("dl_log", tid, msg, "err"))
+
+                        threading.Thread(target=_note_eof, daemon=True,
+                                         name="eof-note-%s" % task_id).start()
                     # 整链作废（直链场景）时主动结束：yt-dlp 会拿同一条死链
                     # 重试 --retries 次、每次还要退避最多 20s，白等数分钟；
                     # 杀掉进程让上层立刻走「重新提取」，拿到绑定新 IP 的新链接。
-                    # 分片场景不杀（fragment-retries 逐片重下更有效，且不丢进度）。
-                    if self._eof_is_fatal(line):
+                    # 分片/直播场景不杀（fragment-retries 逐片重下更有效，且不丢
+                    # 进度）；缩略图等辅助资源失败也不杀（见 _eof_is_fatal）。
+                    if self._eof_is_fatal(line, frag_context=saw_frag):
                         n = DownloadPage._EOF_KILLS.get(task_id, 0)
                         if n < self.EOF_REEXTRACT_MAX:
                             DownloadPage._EOF_KILLS[task_id] = n + 1
@@ -1577,6 +1625,14 @@ class DownloadPage(QWidget):
             if self._is_cancelled(task_id):
                 return self.RC_CANCELLED
             joined = "\n".join(lines)
+            # 直播 --live-from-start 不被该源支持时：剥旗标立即重试一次，
+            # 退回直播边缘跟随（不消耗重新提取配额）。
+            if "--live-from-start" in cmd and ytdlp_live_flag_unsupported(joined):
+                self.app.q.put(("dl_log", task_id,
+                                "[直播] 该源不支持 --live-from-start，"
+                                "退回直播边缘跟随重试"))
+                cmd = [c for c in cmd if c != "--live-from-start"]
+                continue
             # v1.19.2：直链失效优先于风控重试——它重试同一条 URL 100% 失败。
             if engine.ytdlp_error_needs_reextract(joined):
                 self.app.q.put(("sys_log",
@@ -1595,12 +1651,13 @@ class DownloadPage(QWidget):
                                 f"（{engine.ytdlp_err_brief(joined)}），"
                                 f"{wait}s 后重试 ({i + 2}/{attempts}) ..."))
                 # 退避等待改为可取消的短睡眠：取消一到立即返回，不等完整个
-                # 指数退避（最长 48s，原先取消后要白等这么久才真正停下）。
+                # 指数退避。封顶 30s（2026-11-21 诊断 P2：6→12→24→48s 堆叠
+                # 重提取循环，一次抖动空转数分钟）。
                 for _ in range(wait * 2):
                     if self._is_cancelled(task_id):
                         return self.RC_CANCELLED
                     time.sleep(0.5)
-                wait *= 2
+                wait = min(wait * 2, 30)
         return rc
 
     # ---------- 主线程更新 ----------

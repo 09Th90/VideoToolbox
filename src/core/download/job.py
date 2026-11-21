@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.1.5
+# @version 3.1.6
 """统一下载编排（core/download 内部模块）。
 
 core 负责阶段顺序、重试/换源/EOF/NPE/字幕/打包/清理；
@@ -27,7 +27,7 @@ from core.download.npe import (
     npe_cookie_file, npe_engine_mode, npe_proxy_url,
 )
 from core.download.util import (
-    format_size, make_cover_1280x720,
+    format_size, make_cover_1280x720, note_download_dir_owner,
     sanitize_folder_name, unique_folder, write_info_txt,
 )
 from core.download.ytdlp_util import (
@@ -36,6 +36,7 @@ from core.download.ytdlp_util import (
     output_template, save_info_json, ytdlp_concurrent_fragments,
     ytdlp_cookie_args, ytdlp_dl_args, ytdlp_err_brief,
     ytdlp_error_needs_reextract, ytdlp_error_retryable,
+    ytdlp_is_live, ytdlp_live_args, ytdlp_live_flag_unsupported,
     ytdlp_part_leftovers, ytdlp_prefer_hls,
 )
 from core.shared.config import get_saved_download_dir
@@ -270,6 +271,12 @@ class _JobRunner:
             if code:
                 return code, ("已暂停",) if code == RC_PAUSED else ("已取消",)
             joined = "\n".join(lines[-600:])
+            # 直播 --live-from-start 不被该源支持时：剥旗标立即重试一次，
+            # 退回直播边缘跟随（不消耗重新提取配额）。
+            if "--live-from-start" in cmd and ytdlp_live_flag_unsupported(joined):
+                self._log("[直播] 该源不支持 --live-from-start，退回直播边缘跟随重试")
+                cmd = [c for c in cmd if c != "--live-from-start"]
+                continue
             if ytdlp_error_needs_reextract(joined):
                 self._log("[下载] 下载链接已失效，准备重新提取", "err")
                 return RC_REEXTRACT, lines
@@ -282,7 +289,9 @@ class _JobRunner:
                 code = self._sleep_stop(wait)
                 if code:
                     return code, ("已暂停",) if code == RC_PAUSED else ("已取消",)
-                wait *= 2
+                # 退避封顶 30s（2026-11-21 诊断 P2：6→12→24→48s 堆叠重提取
+                # 循环，一次抖动空转数分钟）。
+                wait = min(wait * 2, 30)
         return rc, lines
 
     def _extract(self) -> str:
@@ -382,6 +391,8 @@ class _JobRunner:
             "--newline", "--no-playlist",
             "--http-chunk-size", YTDLP_CHUNK_SIZE,
             *ytdlp_dl_args(),
+            # 直播特化（须跟在 ytdlp_dl_args 之后：-N 取最后出现值）
+            *ytdlp_live_args(self._meta),
             "--write-thumbnail", "--convert-thumbnails", "jpg",
         ]
         if ffmpeg_dir:
@@ -721,6 +732,9 @@ class _JobRunner:
                     raw = self._extract()
             if not self._title:
                 self._title = str((self._meta or {}).get("title") or "video").strip() or "video"
+            if ytdlp_is_live(self._meta):
+                self._log("[直播] 直播录制中：从 DVR 头追赶（可快于实时），"
+                          "百分比/速度仅供参考，以分片计数为准")
             kind = self._stop_kind()
             if kind:
                 return self._result(False, cancelled=kind == "cancel",
@@ -728,6 +742,7 @@ class _JobRunner:
                                     error="已取消" if kind == "cancel" else "已暂停")
             if not self._resolve_folder():
                 return self._result(False, error=self._last_error or "创建下载目录失败")
+            note_download_dir_owner(os.path.dirname(self._folder), log=self._log)
             if raw and not self._info_path:
                 self._info_path = self._save_temp_info(raw)
             fid, height = self._choose_format()

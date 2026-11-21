@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.1.5
+# @version 3.1.6
 """yt-dlp 参数与信息探测（画质/字幕/格式）、下载模式判定、输出模板（v2.3.1 拆分工程 · 自 video_toolbox.py 原样搬入）。
 
 core/download 域：yt-dlp 全链 / cookie / NPE / 媒体合并；依赖规则见 core/__init__.py。
@@ -73,6 +73,50 @@ def ytdlp_dl_args():
         "--retry-sleep", "exp=1:20",
         "--concurrent-fragments", ytdlp_concurrent_fragments(),
     ]
+
+
+#: 直播分片并发：直播边缘的分片边播边出，高并发无意义且加剧同 IP 限流
+#: （见 YTDLP_CONCURRENT_FRAGMENTS 注释）；--live-from-start 的 DVR 追赶片
+#: 虽是静态片可并发提速，2 仍是限流安全折中。
+YTDLP_LIVE_CONCURRENT_FRAGMENTS = "2"
+
+
+def ytdlp_is_live(meta):
+    """info dict 是否表明是**正在直播**的流（is_live 由 yt-dlp -J 给出）。"""
+    return bool((meta or {}).get("is_live"))
+
+
+def ytdlp_live_args(meta):
+    """直播特化参数；非直播返回空列表（参数链零漂移）。
+
+    · ``--live-from-start``：从 DVR 头追赶而非直播边缘跟随。边缘跟随封顶
+      1x 实时（播 3 小时就至少下 3 小时），且断流落后 DVR 窗口后只能跳
+      过期分片空转（2026-11-21 T12 实录：27 分钟净进度≈0）。从头追可快于
+      实时，已下分片也不受 manifest 重定位影响。源不支持时 yt-dlp 报错，
+      上层剥旗标重试（见 ``ytdlp_live_flag_unsupported``）。
+      设 ``VT_YTDLP_LIVE_FROM_START=0`` 可关闭。
+    · ``--concurrent-fragments 2``：直播降并发防限流。**必须拼在
+      ``ytdlp_dl_args()`` 之后**——yt-dlp 的 -N 取最后出现的值。
+    """
+    if not ytdlp_is_live(meta):
+        return []
+    v = (os.environ.get("VT_YTDLP_LIVE_FROM_START") or "1").strip().lower()
+    args = []
+    if v not in ("0", "false", "no", "off"):
+        args.append("--live-from-start")
+    args += ["--concurrent-fragments", YTDLP_LIVE_CONCURRENT_FRAGMENTS]
+    return args
+
+
+def ytdlp_live_flag_unsupported(text):
+    """yt-dlp 输出是否表明 --live-from-start 不被该源/格式支持。
+
+    命中即应剥旗标退回直播边缘跟随重试，而不是当成链接作废去重新提取。
+    """
+    low = str(text or "").lower()
+    if "live-from-start" not in low and "live_from_start" not in low:
+        return False
+    return "error" in low or "warning" in low or "not supported" in low
 
 
 def ytdlp_prefer_hls():
