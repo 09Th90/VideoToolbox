@@ -29,6 +29,7 @@ from .data.modes import MODE_REGISTRY
 from .modes import endfield_auto_markers
 from .replace import _compile_map, _ctx_replace, _replace_report
 from .acindex import ModeIndex, replace_serial_ac
+from .mention import build_maps, cue_scope, term_apply, ctx_apply, exclude_rollback
 from .state import (
     TABLES,
     _AK_CONTEXT_COMPILED, _AK_JA_CONTEXT_COMPILED, _AK_KO_CONTEXT_COMPILED,
@@ -144,27 +145,24 @@ def _first_zh_ctx(mode):
 
 def _calib_first_zh(old, ref_m, ctx_compiled, term_idx, hits,
                     num, ref, out, zh_idx, rows,
-                    exclude=False, bi_override=None, bi_override_preserve=False):
+                    exclude=False, bi_override=None, bi_override_preserve=False,
+                    R=None, skip=None):
     """规则「首中文行」版式：术语替换 + 语境锚定（ref_m）+ 可选 EXCLUDE 回滚 + 可选侧车覆盖。
 
     统一 react/hsr/ff14/pkm/limbus/ffrs/pbz/ssv/tga26/wwoc/pgren/zel/ja/jpe/pgrja/
     akja/akko/wwm/gfl2/zho/endobi/endoko 等模式（仅 ctx 缓存与 exclude/override 旗标不同）。
     侧车命中即整行覆盖（不叠加术语表）；否则术语+ctx，exclude 模式再按参考行回滚高歧义词。
+    M3-4：R/skip 为对象级 scoping（默认 None=完全现状）；启用时 ctx 按对象集 scope、EXCLUDE 预跳过。
     """
     if bi_override and str(num) in bi_override:
         new = bi_override[str(num)]
         if bi_override_preserve:
             new = _restore_override_prefix(old, new)
     else:
-        new = replace_serial_ac(old, term_idx, hits)
-        for crx, wrong, right in ctx_compiled:
-            if wrong in new and crx.search(ref_m):
-                new = _ctx_replace(new, wrong, right)
+        new = term_apply(old, term_idx, hits, skip or frozenset())
+        new, _used, _blk = ctx_apply(new, ctx_compiled, ref_m, R, skip or frozenset())
         if exclude:
-            for wrong, (right, rxs) in _EXCLUDE_COMPILED.items():
-                if wrong in old and wrong not in new and any(rx.search(ref_m) for rx in rxs):
-                    new = new.replace(right, wrong)
-                    hits.pop(wrong, None)
+            new = exclude_rollback(new, old, ref_m, hits, skip)
     if new != old:
         rows.append((num, old, new, ref))
         out[zh_idx] = new
@@ -254,6 +252,8 @@ def process(path, out_path=None, report_path=None, mode="bi",
     # M2 对象索引：AC 预筛串行等价替换（replace_serial_ac 与 _replace_report 逐字节+hits 等价，
     #   级联回退保零漂移）。term_idx 用最终 terms（含学习注入/retired 闸门/片源自适应）。
     term_idx = ModeIndex(mode, terms)
+    # M3-4 对象级 mention 索引（ref en/ja/ko+aliases / zh 合法形∪错形）；scoping 仅多目标 ref 触发。
+    mention_maps = build_maps(mode)
     hits, rows = {}, []
     i, n = 0, len(lines)
     while i < n:
@@ -334,11 +334,14 @@ def process(path, out_path=None, report_path=None, mode="bi",
                             out[zh_idx] = new
                     elif mode in _FIRST_ZH_MODES:
                         # 规则「首中文行」版式统一路径（ctx/exclude/override 由注册表+旗标集驱动）
+                        # M3-4：对象级 scoping（仅多目标 ref 触发；单目标 R=None=完全现状）
+                        _R, _skip = cue_scope(mention_maps, old, ref_m)
                         _calib_first_zh(old, ref_m, _first_zh_ctx(mode), term_idx,
                                         hits, num, ref, out, zh_idx, rows,
                                         exclude=mode in _FIRST_ZH_EXCLUDE,
                                         bi_override=bi_override if mode in _FIRST_ZH_OVERRIDE else None,
-                                        bi_override_preserve=bi_override_preserve)
+                                        bi_override_preserve=bi_override_preserve,
+                                        R=_R, skip=_skip)
                     elif mode in ("ko", "wuwa40ko", "wuwa40ign"):       # 韩语原声·鸣潮：KO_TERMS + KO_CONTEXT/WW40KO_CONTEXT 校准**全部中文行**
                         # 2026-10-06 修复（梦州 4장4막 二次校准定位的根因）：谷翻反应片每 cue
                         #   常见「中文 2 行 + 谚文 2 行」结构。旧实现只改首文本行、锚点只取末行
@@ -399,18 +402,13 @@ def process(path, out_path=None, report_path=None, mode="bi",
                                 if ko_override_preserve:
                                     new = _restore_override_prefix(lold, new)
                             else:
-                                new = replace_serial_ac(lold, term_idx, hits)
-                                for crx, wrong, right in ctx_compiled:
-                                    if wrong in new and crx.search(anchor):
-                                        new = _ctx_replace(new, wrong, right)
-                                # 2026-11-21 3.8 韩语主线二校：ko 分支补负向排除，
-                                #   与 bi/pgren 同构（방송 直播/广播、수호시 守护城/神市、
-                                #   별자리 心/星座 等歧义词按韩文参考行回滚）。
-                                for wrong, (right, rxs) in _EXCLUDE_COMPILED.items():
-                                    if wrong in lold and wrong not in new \
-                                            and any(rx.search(anchor) for rx in rxs):
-                                        new = new.replace(right, wrong)
-                                        hits.pop(wrong, None)
+                                # M3-4：对象级 scoping（仅多目标 ref 触发；单目标=完全现状）
+                                _R, _skip = cue_scope(mention_maps, lold, anchor)
+                                new = term_apply(lold, term_idx, hits, _skip or frozenset())
+                                new, _u, _b = ctx_apply(new, ctx_compiled, anchor, _R, _skip or frozenset())
+                                # ko 负向排除（방송 直播/广播、수호시 守护城/神市、별자리 心/星座
+                                #   等歧义词按韩文参考行回滚）；scoping 启用时 EXCLUDE 预跳过（mention 级）。
+                                new = exclude_rollback(new, lold, anchor, hits, _skip)
                             if new != lold:
                                 rows.append((num, lold, new, ref))
                                 out[ti] = new
@@ -431,18 +429,12 @@ def process(path, out_path=None, report_path=None, mode="bi",
                                                _ref_for_match(" ".join(lines[_ti] for _ti in ak_en)))
                             for _ti in ak_zh:
                                 lold = lines[_ti]
-                                new = replace_serial_ac(lold, term_idx, hits)
-                                for crx, wrong, right in _AK_CONTEXT_COMPILED:
-                                    if wrong in new and crx.search(ak_anchor):
-                                        new = _ctx_replace(new, wrong, right)
-                                # 2026-11-02：ak 分支补「负向排除回滚」，与 bi 分支同一层同构。
-                                #   此前 EXCLUDE 只在 bi 生效，但 --ak 同样会被学习库注入高歧义中文词
-                                #   （EP17 反应片实测：岁主/英白拉多 串档），错了就无从撤销。
-                                for wrong, (right, rxs) in _EXCLUDE_COMPILED.items():
-                                    if wrong in lold and wrong not in new \
-                                            and any(rx.search(ak_anchor) for rx in rxs):
-                                        new = new.replace(right, wrong)
-                                        hits.pop(wrong, None)
+                                # M3-4：对象级 scoping（仅多目标 ref 触发；单目标=完全现状）
+                                _R, _skip = cue_scope(mention_maps, lold, ak_anchor)
+                                new = term_apply(lold, term_idx, hits, _skip or frozenset())
+                                new, _u, _b = ctx_apply(new, _AK_CONTEXT_COMPILED, ak_anchor, _R, _skip or frozenset())
+                                # ak 负向排除回滚（EP17 实测岁主/英白拉多串档）；scoping 启用时预跳过。
+                                new = exclude_rollback(new, lold, ak_anchor, hits, _skip)
                                 if new != lold:
                                     rows.append((num, lold, new, ref))
                                     out[_ti] = new
@@ -470,15 +462,11 @@ def process(path, out_path=None, report_path=None, mode="bi",
                                     # 保证侧车与人工成品逐字节一致。
                                     new = bi_override[str(num)]
                                 else:
-                                    new = replace_serial_ac(lold, term_idx, hits)
-                                    for crx, wrong, right in _ARCAK_CONTEXT_COMPILED:
-                                        if wrong in new and crx.search(arcak_anchor):
-                                            new = _ctx_replace(new, wrong, right)
-                                    for wrong, (right, rxs) in _EXCLUDE_COMPILED.items():
-                                        if wrong in lold and wrong not in new \
-                                                and any(rx.search(arcak_anchor) for rx in rxs):
-                                            new = new.replace(right, wrong)
-                                            hits.pop(wrong, None)
+                                    # M3-4：对象级 scoping（仅多目标 ref 触发；单目标=完全现状）
+                                    _R, _skip = cue_scope(mention_maps, lold, arcak_anchor)
+                                    new = term_apply(lold, term_idx, hits, _skip or frozenset())
+                                    new, _u, _b = ctx_apply(new, _ARCAK_CONTEXT_COMPILED, arcak_anchor, _R, _skip or frozenset())
+                                    new = exclude_rollback(new, lold, arcak_anchor, hits, _skip)
                                 if new != lold:
                                     rows.append((num, lold, new, ref))
                                     out[_ti] = new
@@ -507,16 +495,13 @@ def process(path, out_path=None, report_path=None, mode="bi",
                                 rows.append((num, old, new, ref))
                                 out[zh_idx] = new
                         else:
-                            new = replace_serial_ac(old, term_idx, hits)
-                            for crx, wrong, right in _CONTEXT_COMPILED:
-                                if wrong in new and crx.search(ref_m):
-                                    new = _ctx_replace(new, wrong, right)
-                            # 负向排除（EXCLUDE_CONTEXT）：高歧义词被替换后，若参考行命中
-                            # 排除正则（如 thank you/written tent 语境），回滚该替换并从命中统计移除
-                            for wrong, (right, rxs) in _EXCLUDE_COMPILED.items():
-                                if wrong in old and wrong not in new and any(rx.search(ref_m) for rx in rxs):
-                                    new = new.replace(right, wrong)
-                                    hits.pop(wrong, None)
+                            # M3-4：对象级 scoping（仅多目标 ref 触发；单目标=完全现状）
+                            _R, _skip = cue_scope(mention_maps, old, ref_m)
+                            new = term_apply(old, term_idx, hits, _skip or frozenset())
+                            new, _u, _b = ctx_apply(new, _CONTEXT_COMPILED, ref_m, _R, _skip or frozenset())
+                            # 负向排除（EXCLUDE_CONTEXT）：高歧义词替换后参考行命中排除正则则回滚；
+                            #   scoping 启用时 EXCLUDE 预跳过（mention 级，消除整行倒回误伤）。
+                            new = exclude_rollback(new, old, ref_m, hits, _skip)
                             new = _replace_report(new, word_pairs, word_chars, {})  # WORD_MAP 命中不计入统计
                             if new != old:
                                 rows.append((num, old, new, ref))

@@ -19,11 +19,13 @@ per-cue allow-set 喂 acindex.replay_serial(text, only=...)，将 ctx 正则锚�
 import re
 from collections import defaultdict
 
-from .acindex import Automaton
+from .acindex import Automaton, replace_serial_ac
+from .replace import _ctx_replace
 from .data.entities import ENTITIES
 from .data.modes import _MODE_TERM_TABLE
 from .data.bilingual import BILINGUAL_TERMS
 from . import state
+from .state import _EXCLUDE_COMPILED
 
 SEP = re.compile(r"[/,;，、／|｜]+")
 
@@ -190,3 +192,134 @@ class MentionPairer:
             if zs in wrong_keys:
                 allow.add(zs)
         return allow
+
+
+# ---------------------------------------------------------------- M3-4 对象级 ctx scoping
+# 最小触发门：仅当本 cue ref 存在多目标 mention 才启用对象 scoping；单目标 ref 走与现状
+# 完全相同的代码路径（结构化零漂移）。多目标 tie-break：zh 序次交集恰1→裁决；parent 链
+# （接口预留，生产 parent 数据当前为空）；失败保守回退全 T（只可能少改不可能改错）。
+
+#: 对象 canonical 集合（ctx 规则 right 归属判定；right∈OBJ_CANONS 为对象规则，否则语境规则豁免）
+OBJ_CANONS = frozenset(e.canonical for e in ENTITIES)
+
+#: canonical -> 直接 parent（M3-5 填数；当前生产全空，_parent_tiebreak 永不触发）
+_PARENT_MAP = {}
+
+
+def _parent_tiebreak(T, parent_map=None):
+    """T 中恰一对象 P 使 T\\{P} 沿 parent 链到达 P → 返回 P；否则 None（不盲裁）。"""
+    pm = parent_map if parent_map is not None else _PARENT_MAP
+    if not pm or len(T) < 2:
+        return None
+
+    def reaches(q, p):
+        seen = set()
+        while q and q not in seen:
+            seen.add(q)
+            if q == p:
+                return True
+            q = pm.get(q, "")
+        return q == p
+
+    cands = [p for p in T if all(q == p or reaches(q, p) for q in T if q != p)]
+    return cands[0] if len(cands) == 1 else None
+
+
+def scope_state(M, zh, anchor):
+    """对象级 scoping 触发门 + R 计算。返回 (enabled, R, stats)。
+
+    enabled = anchor 存在多目标 ref mention；enabled=False 时 R=None（完全现状）。
+    R = tie-break 后本 cue 对象集（frozenset）。
+    """
+    st = dict(ref_ms=0, multi=0, resolved_tb1=0, resolved_tb2=0, tb_fail=0)
+    ref_ms = longest_bounded(M["ref_auto"], anchor.lower()) if anchor else []
+    st["ref_ms"] = len(ref_ms)
+    if not any(len(t) > 1 for _, _, _, t in ref_ms):
+        return False, None, st
+    zh_ms = longest_bounded(M["zh_auto"], zh)
+    R = set()
+    for i, (_, _, _, rt) in enumerate(ref_ms):
+        if len(rt) == 1:
+            R |= rt
+            continue
+        st["multi"] += 1
+        T = set(rt)
+        zt = set(zh_ms[i][3]) if i < len(zh_ms) else set()
+        inter = T & zt
+        if len(inter) == 1:                      # 规则1：zh 序次交集裁决
+            R |= inter
+            st["resolved_tb1"] += 1
+            continue
+        par = _parent_tiebreak(T)                # 规则2：parent 链（当前数据为空）
+        if par:
+            R.add(par)
+            st["resolved_tb2"] += 1
+            continue
+        R |= T                                   # 保守回退：全 T 进 R
+        st["tb_fail"] += 1
+    return True, frozenset(R), st
+
+
+def ctx_apply(new, table, anchor, R=None, skip_wrongs=frozenset()):
+    """ctx 循环（现状/scoped 双模）。返回 (new, 应用数, gate 排除数)。
+
+    R=None → 完全现状（gate OFF，逐字节同原循环）。
+    R=frozenset → 对象规则 gate：right∈OBJ_CANONS 且 right∉R → 跳过；语境规则不受限。
+    skip_wrongs → EXCLUDE 预跳过：这些 wrong 键的 ctx 规则跳过。
+    """
+    used = blocked = 0
+    for crx, wrong, right in table:
+        if wrong in skip_wrongs:
+            continue
+        if wrong in new:
+            if R is not None and right in OBJ_CANONS and right not in R:
+                if crx.search(anchor):
+                    blocked += 1
+                continue
+            if crx.search(anchor):
+                new = _ctx_replace(new, wrong, right)
+                used += 1
+    return new, used, blocked
+
+
+def exclude_scan(anchor):
+    """EXCLUDE 预跳过候选键集（仅判 ref 正则；wrong in old 由调用方交集判定）。"""
+    return {w for w, (rt, rxs) in _EXCLUDE_COMPILED.items()
+            if any(rx.search(anchor) for rx in rxs)}
+
+
+def term_apply(old, term_idx, hits, skip_wrongs=frozenset()):
+    """term 层：无跳过→replace_serial_ac（现状）；有跳过→replay_serial 排除键。
+
+    hits 口径与 replace_serial_ac 一致（每键每行计 1）。
+    """
+    if not skip_wrongs:
+        return replace_serial_ac(old, term_idx, hits)
+    only = frozenset(term_idx.terms) - skip_wrongs
+    new, hitseq = term_idx.replay_serial(old, only=only)
+    for k in dict.fromkeys(hitseq):
+        hits[k] = hits.get(k, 0) + 1
+    return new
+
+
+def exclude_rollback(new, old, anchor, hits, skip_wrongs=None):
+    """EXCLUDE 层：skip_wrongs=None→现状整行倒回；预跳过版（非 None）→错误不产生无需倒回。"""
+    if skip_wrongs is not None:
+        return new
+    for wrong, (right, rxs) in _EXCLUDE_COMPILED.items():
+        if wrong in old and wrong not in new and any(rx.search(anchor) for rx in rxs):
+            new = new.replace(right, wrong)
+            hits.pop(wrong, None)
+    return new
+
+
+def cue_scope(M, zh, anchor):
+    """cue 级 scoping 入口：返回 (R, skip_wrongs)。未启用时 (None, None)（完全现状）。
+
+    启用时 R=对象集，skip_wrongs=EXCLUDE 预跳过键（wrong in zh ∩ exclude_scan(anchor)）。
+    """
+    enabled, R, _st = scope_state(M, zh, anchor)
+    if not enabled:
+        return None, None
+    pre = {w for w in _EXCLUDE_COMPILED if w in zh} & exclude_scan(anchor)
+    return R, frozenset(pre)
