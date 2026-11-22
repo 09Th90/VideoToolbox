@@ -27,7 +27,8 @@ class Entity:
     """
 
     def __init__(self, canonical, modes=("bi",), en="", ja="", ko="",
-                 category="", variants=(), ctx=(), exclude=(), note=""):
+                 category="", variants=(), ctx=(), exclude=(), note="",
+                 aliases=(), parent=""):
         self.canonical = canonical
         self.modes = tuple(modes)
         self.en, self.ja, self.ko = en, ja, ko
@@ -36,6 +37,9 @@ class Entity:
         self.ctx = tuple(ctx)
         self.exclude = tuple(exclude)
         self.note = note
+        # M3 对象级消歧元数据（2026-11-22）：默认空，_register_entities 不消费 → 投影零漂移。
+        self.aliases = tuple(aliases)   # 官方简称/别译（与 variants 错形严格分开；audit 扫3 应算「已译」）
+        self.parent = parent            # 复合对象父级 canonical（如 玄元派.parent=玄方），消歧先归父再归子
 
     def __repr__(self):
         return f"Entity({self.canonical!r}, modes={self.modes!r}, variants={len(self.variants)})"

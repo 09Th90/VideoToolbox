@@ -78,6 +78,13 @@ _KIND_PREFIXES: Tuple[Tuple[str, str], ...] = (
     ("乐理", "theory"),
     ("活动", "event"),
     ("版本", "version"),
+    # M3（2026-11-22）补前缀救回「假 unknown」（有 category 但前缀表不认识）：
+    ("地点", "place"), ("地区", "place"), ("区域", "place"), ("国家", "place"),
+    ("干员", "role"), ("敌人", "role"), ("BOSS", "role"), ("NPC", "role"),
+    ("称号", "term"), ("设定", "term"), ("玩法", "term"), ("系统", "term"),
+    ("世界观", "term"), ("生物", "term"), ("种族", "term"),
+    ("武器", "prop"), ("物品", "prop"), ("道具", "prop"),
+    ("音乐人", "person"),
 )
 
 
@@ -200,8 +207,8 @@ def apply_work_tags(reg: Dict[str, EntitySpec],
                     tags: Dict[str, str]) -> Dict[str, EntitySpec]:
     """把作品名追加到 category；已有作品标注不覆盖。
 
-    ``EntitySpec`` 不可变，因此返回新字典；kind 保持折叠期判定，避免覆盖层
-    把角色/地名误改成其他类别。
+    ``EntitySpec`` 不可变，因此返回新字典。category 变更时同步重算 kind（M3：救回
+    overlay 补「作品/」前缀对象的 kind）；角色/地名等既有前缀仍先匹配先得，不会被误改。
     """
     if not tags:
         return reg
@@ -217,7 +224,7 @@ def apply_work_tags(reg: Dict[str, EntitySpec],
             out[c] = e                    # 已有作品归属，以源数据为准
             continue
         category = (e.category + "/" if e.category else "作品/") + work
-        out[c] = dataclasses.replace(e, category=category)
+        out[c] = dataclasses.replace(e, category=category, kind=kind_of(category))
     return out
 
 
@@ -235,7 +242,7 @@ def build_registry(engine=None, *, use_overlay: bool = True) -> Dict[str, Entity
         return acc.setdefault(canonical, {
             "modes": [], "variants": [], "ctx": [], "exclude": [],
             "notes": [], "sources": [], "en": "", "ja": "", "ko": "",
-            "category": "", "parent": "", "entries": 0,
+            "category": "", "parent": "", "aliases": [], "entries": 0,
         })
 
     # 1) 无条件变体表
@@ -305,6 +312,12 @@ def build_registry(engine=None, *, use_overlay: bool = True) -> Dict[str, Entity
                 s["ctx"].append(pair)
         for rx in (e.exclude or ()):
             _add(s["exclude"], str(rx))
+        # M3 对象级元数据：aliases（官方简称，与 variants 错形分开）/ parent（复合对象父级）
+        for a in (getattr(e, "aliases", ()) or ()):
+            _add(s["aliases"], a)
+        par = getattr(e, "parent", "") or ""
+        if par and not s["parent"]:
+            s["parent"] = par
 
     # 6) 收尾：构造不可变规格 + 诊断
     out: Dict[str, EntitySpec] = {}
@@ -350,7 +363,7 @@ def build_registry(engine=None, *, use_overlay: bool = True) -> Dict[str, Entity
             category=s["category"],
             modes=tuple(s["modes"]),
             en=s["en"], ja=s["ja"], ko=s["ko"],
-            aliases=(),                    # 显式别名当前为空，等人工确认 alias_candidate
+            aliases=tuple(s["aliases"]),   # M3：从 Entity.aliases 折叠（默认空；人工确认 alias_candidate 后登记）
             variants=variants,
             ctx=ctx,
             exclude=tuple(s["exclude"]),
