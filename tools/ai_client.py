@@ -238,6 +238,20 @@ DEFAULT_CONFIG: dict = {
     "decision_timeout": 12,
     "decision_max_items": 32,
     "decision_batch_size": 8,
+    # WP3（2026-11-22）：决策通道独立开关/端点/模型/并发——
+    # decision_enabled 出厂 **False**：显式总开关，True 才允许 Jev 发请求
+    # （shadow 仍只留证据不改写业务结果）⇒ 默认零行为变化、零请求。
+    # decision_base_url 留空 = 回落全局 base_url（仍须命中 Token Plan 端点
+    # 白名单，tools/decision_client.DECISION_ENDPOINT_WHITELIST）。
+    # decision_model：决策模型槽（出厂即协议固定值，请求与响应校验以它为准）。
+    # decision_concurrency：单轮并发路数（R0 影子恒 1；assist/auto 预留）。
+    # ⚠️ decision_api_key 不进 DEFAULT_CONFIG（双保险）：即使界面误传该键，
+    #    ai_client.SECRET_FIELDS（getattr 镜像 credential_store.SECRET_FIELDS）
+    #    也会在 save_config 时剥离送 data/credentials.json，绝不落 ai_config.json。
+    "decision_enabled": False,
+    "decision_base_url": "",
+    "decision_model": "decision-model-preview",
+    "decision_concurrency": 1,
     "max_tokens": 2048,
     "timeout": 90,
     "retries": 3,

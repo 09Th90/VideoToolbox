@@ -39,7 +39,12 @@ import sys
 from datetime import datetime
 
 #: 凭据字段白名单。只允许这些键落盘，避免界面误传杂字段。
-SECRET_FIELDS = ("api_key", "asr_api_key")
+#: decision_api_key（2026-11-22 WP3）：Jev/System One 决策通道的**独立**凭据，
+#: 与全局 api_key 分离——凭据来源（decision / global_fallback）随请求进审计
+#: （tools/decision_client.credential_source）。ai_client.SECRET_FIELDS 用
+#: getattr 镜像本元组，save_config 剥离 / load_config 回注自动跟随，无需改
+#: ai_client 的剥离循环。
+SECRET_FIELDS = ("api_key", "asr_api_key", "decision_api_key")
 
 #: 凭据文件版本号（未来结构变更时用于迁移）。
 SCHEMA_VERSION = 1
@@ -164,7 +169,8 @@ def has(name):
 
 
 def status():
-    """全部凭据的配置状态：``{"api_key": bool, "asr_api_key": bool}``。"""
+    """全部凭据的配置状态（布尔字典）：``{"api_key": …, "asr_api_key": …,
+    "decision_api_key": …}``。界面/审计只许用这个，绝不回填明文。"""
     return {k: has(k) for k in SECRET_FIELDS}
 
 
