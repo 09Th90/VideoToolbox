@@ -406,6 +406,18 @@ In page order:
 1. **目录**: download directory, data root, engine work directory.
 2. **下载 Cookie（反风控）**: auto/browser/cookies.txt/guest; 8 browsers.
 3. **全局 AI**: enable, key, base URL, text/vision model, test, save.
+   Inside the same card, **Decision Model (Jev · preview)**, all defaults are
+   the safe state: master switch off (decision_enabled, default False) with
+   one-click rollback to pure local rules; mode dropdown shadow (default,
+   evidence-only) / assist / auto (gated, not active in this version);
+   optional dedicated API key (decision_api_key) stored in the read-only
+   credential file — the UI never echoes or back-fills the plaintext, and an
+   empty field falls back to the global AI key; region endpoint whitelist
+   (global fallback / Beijing / Singapore); a "test decision model" button
+   that runs a local availability precheck plus one tiny probe request and
+   never reveals the key; and a second-voiceprint shadow toggle (default
+   off, evidence-only). Voice separation stays a placeholder on the ASR
+   card, also off by default.
 4. **ASR 语音识别**: service/local, URL/key/model/prompt/protocol,
    diarization, voice separation placeholder, test, save (recognition language
    is selected in the Transcription command bar).

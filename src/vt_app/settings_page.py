@@ -10,6 +10,7 @@ AsrExampleDialog / UpdateProgressDialog。
 消息自订阅（bus「cookie_import_done」）；VERSION 单一来源仍在入口
 video_toolbox_qt.py，本模块经 _version() 懒导入避免循环。
 """
+import json
 import os
 import sys
 import threading
@@ -43,6 +44,122 @@ def _version():
     """版本号单一来源在入口 video_toolbox_qt.py（apply_version 锚点），懒导入避循环。"""
     from video_toolbox_qt import VERSION  # noqa: PLC0415
     return VERSION
+
+
+# ---------------------------------------------------------------------- #
+# 决策模型（Jev / System One）· v3.2.5 WP6 设置页区域
+# ---------------------------------------------------------------------- #
+#: 决策模式下拉：显示名 ↔ 配置键。off 不在下拉里——关闭由 decision_enabled
+#: 总闸表达（保存时 decision_mode 落 "off"），assist/auto 是 WP3 之后才放开的
+#: 门禁档位，当前版本 availability() 会按 unsupported_mode 如实拒活。
+DECISION_MODE_LABELS = ("影子模式 shadow（只留证据，不改字幕）",
+                        "辅助模式 assist（需门禁验证）",
+                        "自动模式 auto（需门禁验证）")
+DECISION_MODE_KEYS = ("shadow", "assist", "auto")
+#: 决策区域端点白名单（显示名 → decision_base_url 落盘值；空串 = 回落全局 AI）。
+#: 域名口径与 tools/decision_client.is_aliyun_token_plan 一致：
+#: 主机名必须形如 token-plan.<region>.maas.aliyuncs.com。
+DECISION_ENDPOINT_LABELS = ("默认（回落全局 AI 接口地址）",
+                            "百炼 Token Plan · 北京",
+                            "百炼 Token Plan · 新加坡")
+DECISION_ENDPOINT_KEYS = (
+    "",
+    "https://token-plan.cn-beijing.maas.aliyuncs.com/compatible-mode/v1",
+    "https://token-plan.ap-southeast-1.maas.aliyuncs.com/compatible-mode/v1",
+)
+#: decision_api_key 在凭据文件 data/credentials.json 里的键名（WP3 会把它
+#: 加进 tools/credential_store.SECRET_FIELDS 白名单；加键之前 get/has 恒空，
+#: 界面 graceful 显示「未配置」，写入被拒时给出等待版本更新的提示）。
+DECISION_SECRET_FIELD = "decision_api_key"
+
+
+_CRED_MOD = None
+
+
+def _credential_store():
+    """凭据存储层（tools/credential_store.py）的加载缝；缺失返回 None。
+
+    与 tools/ai_client.py 同一兼容策略：先常规 import（decision_mod 加载后
+    TOOLS_DIR 已在 sys.path），失败再按文件位置加载。结果缓存单例——自测
+    与 UI 共享同一实例（对 CRED_PATH 的隔离 patch 才能生效）。本模块
+    **只调用**该层的 has/get/set/mask，不改它（SECRET_FIELDS 白名单归 WP3）。
+    """
+    global _CRED_MOD
+    if _CRED_MOD is not None:
+        return _CRED_MOD
+    try:
+        import credential_store  # noqa: PLC0415
+        _CRED_MOD = credential_store
+        return _CRED_MOD
+    except ImportError:
+        pass
+    try:
+        from core.shared.paths import TOOLS_DIR  # noqa: PLC0415
+        import importlib.util
+        path = os.path.join(TOOLS_DIR, "credential_store.py")
+        if not os.path.isfile(path):
+            return None
+        spec = importlib.util.spec_from_file_location(
+            "vt_credential_store_wp6", path)
+        if spec is None or spec.loader is None:
+            return None
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        _CRED_MOD = mod
+        return _CRED_MOD
+    except Exception:  # noqa: BLE001 —— 凭据层缺失只降级，不拖垮建页
+        return None
+
+
+def decision_mode_index(value):
+    """配置里的 decision_mode → 下拉档位；off/未知一律回落 shadow（0）。"""
+    try:
+        return DECISION_MODE_KEYS.index(str(value or "").strip().lower())
+    except ValueError:
+        return 0
+
+
+def decision_collect_mode(enabled, mode_index):
+    """保存时的 decision_mode 归一：总闸关 → "off"；开 → 下拉档位键。
+
+    独立成模块级纯函数，便于脱离 Qt 做默认安全态单测。
+    """
+    if not enabled:
+        return "off"
+    return DECISION_MODE_KEYS[
+        min(max(int(mode_index), 0), len(DECISION_MODE_KEYS) - 1)]
+
+
+def decision_enabled_of(cfg):
+    """decision_enabled 的读取回落：键不存在（WP3 未加）时从 decision_mode 推导。
+
+    推导口径 = 「决策区域默认 shadow/off」：现值 shadow → 总闸显示开（老用户
+    的 Jev 影子不会被设置页保存静默关闭）；现值 off → 显示关。键存在后直接
+    用真值，回落路径自然失效。
+    """
+    cfg = cfg or {}
+    if "decision_enabled" in cfg:
+        return bool(cfg.get("decision_enabled"))
+    return str(cfg.get("decision_mode") or "shadow").strip().lower() != "off"
+
+
+_DECISION_REASON_CN = {
+    "decision_disabled": "决策模型总闸未开启（decision_enabled=False）",
+    "global_ai_disabled": "全局 AI 已禁用",
+    "mode_off": "决策模式为关闭（off）",
+    "unsupported_mode": "当前版本仅支持影子模式（assist/auto 需门禁验证后开放）",
+    "missing_decision_key": "要求独立凭据但决策 API Key 未配置",
+    "missing_api_key": "未配置密钥（决策独立密钥与全局 AI 密钥均为空）",
+    "unsupported_endpoint": "接口地址不是百炼 Token Plan 专属端点",
+    "region_mismatch": "决策密钥声明区域与端点区域不一致",
+    "endpoint_region_untested": "端点区域尚未实测放行（当前仅北京实放行，新加坡预留）",
+    "invalid_endpoint": "接口地址无法解析为 systemone 端点",
+}
+
+
+def decision_reason_cn(reason):
+    """availability() 的 reason → 界面中文；未知原因原样显示（不含凭据）。"""
+    return _DECISION_REASON_CN.get(str(reason or ""), str(reason or "未激活"))
 
 
 class _InnerScrollToContent(QObject):
@@ -608,16 +725,23 @@ class SettingsPage(QWidget):
         self.ai_hint.setTextColor("#8a8a8a", "#9a9a9a")
         blay.addWidget(self.ai_hint)
         self.ai_jev_switch = SwitchButton(box)
-        self.ai_jev_switch.setChecked(str(ai.get("decision_mode") or "shadow") != "off")
+        # v3.2.5 WP6：Jev 开关统一为「决策总闸」的别名——checked 跟随
+        # decision_enabled 现值（WP3 出厂 False），与下方决策区域双向同步；
+        # 保存时 decision_mode 由总闸+模式下拉决定（关 → off）。
+        self.ai_jev_switch.setChecked(decision_enabled_of(ai))
         self.ai_jev_switch.setToolTip(
-            "仅在全局 AI 地址为百炼 Token Plan 专属域名时调用 "
-            "decision-model-preview；只给声纹存疑和校准采纳项追加影子复核证据，"
-            "不改写字幕。普通百炼、火山方舟及其他端点均不会请求。")
+            "决策模型总闸（与下方「决策模型启用」联动，同一开关的两处入口）。\n"
+            "开启后仅在百炼 Token Plan 专属域名调用 decision-model-preview，"
+            "影子复核声纹存疑与校准采纳项，不改写字幕；关闭即零决策请求。")
         blay.addWidget(label_row("Jev 影子决策", row(self.ai_jev_switch, None)))
         self.ai_jev_hint = fit_caption(CaptionLabel("", box))
         blay.addWidget(self.ai_jev_hint)
-        self.ai_jev_switch.checkedChanged.connect(self._mark_ai_dirty)
+        self.ai_jev_switch.checkedChanged.connect(self._on_jev_switch_toggled)
         self.ai_jev_switch.checkedChanged.connect(self._sync_plan_warn)
+        # 决策模型区域（v3.2.5 WP6）：三模式 + 独立凭据 + 区域端点 + 连通性测试
+        # + 前瞻功能影子开关。放在 Jev 提示与套餐风险提示之间，视觉上属于
+        # 「全局 AI」卡的决策子段（参考上方 Jev 影子开关的行范式）。
+        self._build_decision_rows(blay, box, ai)
         # 订阅套餐端点风险提示（2026-10-05 产品口径：**允许接入，只做提示**）——
         # 套餐条款普遍禁止自动化/批量非交互调用，而本软件的转录与字幕校准正是
         # 批量调用；能不能用、会不会被判违规由服务商定，风险用户自负。此处常驻
@@ -860,15 +984,21 @@ class SettingsPage(QWidget):
             else:
                 from core.shared.decision import decision_mod
                 current = engine.ai_load_config()
-                key_ready = bool(self.ai_key.text().strip()
-                                 or str(current.get("api_key") or "").strip())
+                # v3.2.5 WP6：决策区域端点优先于全局地址（decision_base_url
+                # 白名单选中北京/新加坡时按该端点判断激活）。
+                _probe_base = self._decision_base_url_effective()
+                key_ready = bool(
+                    # 决策独立凭据（凭据文件 / 输入框未保存新值）优先，回落全局
+                    self._decision_key_has()
+                    or self.decision_key.text().strip()
+                    or self.ai_key.text().strip()
+                    or str(current.get("api_key") or "").strip())
                 # v3.1.4：Jev 客户端是可选组件（tools/decision_client.py 按
                 # TOOLS_DIR 动态加载）。曾因发布清单漏该文件，冻结态此处抛
                 # FileNotFoundError 拖垮整页构建＝设置页只剩背景。缺失只降级
                 # 提示，绝不阻断建页（与上方 ai_plan_risk 同口径）。
                 try:
-                    token_plan = decision_mod().is_aliyun_token_plan(
-                        self.ai_base.text())
+                    token_plan = decision_mod().is_aliyun_token_plan(_probe_base)
                 except Exception:  # noqa: BLE001
                     token_plan = None
                 if token_plan is None:
@@ -877,13 +1007,371 @@ class SettingsPage(QWidget):
                 elif not token_plan:
                     text = "Jev 已开启，但当前不是百炼 Token Plan 专属端点，不会调用。"
                 elif not key_ready:
-                    text = "Jev 地址符合，但全局 AI 密钥未配置，不会调用。"
+                    text = "Jev 地址符合，但决策独立凭据与全局 AI 密钥均未配置，不会调用。"
                 elif not self.ai_enabled.isChecked():
                     text = "Jev 地址与密钥符合，但全局 AI 已禁用，不会调用。"
+                elif (getattr(self, "decision_mode_combo", None) is not None
+                      and self.decision_mode_combo.currentIndex() > 0):
+                    text = ("地址与凭据满足；当前选择的 assist/auto 模式需门禁验证，"
+                            "本版本仅影子模式（shadow）激活，保存后按未激活处理。")
                 else:
                     text = ("当前满足 Jev 激活条件；保存后将影子复核声纹存疑与"
                             "校准采纳项，不改写字幕。")
             jev_hint.setText(text)
+
+    # ------------------------------------------------------------------ #
+    # 决策模型区域（v3.2.5 WP6）：三模式 / 独立凭据 / 区域端点 / 连通性测试
+    # 与前瞻功能影子开关。默认全影子安全态：decision_enabled 从 decision_mode
+    # 推导（键不存在，WP3 加键后自动生效）、独立凭据只写不回填明文、
+    # 第二音色影子默认 off、语音分离占位默认 off（开关在下方 ASR 卡）。
+    # ------------------------------------------------------------------ #
+    def _decision_key_store(self):
+        """凭据存储层实例（缺失返回 None——凭据能力整体降级为「未配置」）。"""
+        return _credential_store()
+
+    def _decision_key_has(self):
+        """决策独立凭据是否已配置；存储层/白名单键缺失（WP3 未加）→ False。"""
+        try:
+            store = self._decision_key_store()
+            return bool(store and store.has(DECISION_SECRET_FIELD))
+        except Exception:  # noqa: BLE001
+            return False
+
+    def _decision_key_placeholder(self):
+        return ("已配置（存于独立凭据文件；留空则保持不变）"
+                if self._decision_key_has()
+                else "决策模型独立 API Key（留空回落全局 AI 密钥）")
+
+    def _refresh_decision_key_status(self):
+        """独立凭据状态行：只显示 has()/mask() 脱敏结果，绝不回填明文。"""
+        lbl = getattr(self, "decision_key_status", None)
+        if lbl is None:
+            return
+        try:
+            store = self._decision_key_store()
+            masked = (store.mask(DECISION_SECRET_FIELD)
+                      if store is not None else "(未配置)")
+        except Exception:  # noqa: BLE001
+            masked = "(未配置)"
+        if masked == "(未配置)":
+            text = "未配置（调用时回落全局 AI 密钥）"
+        else:
+            text = "已配置：%s" % masked
+        lbl.setText(text)
+
+    def _decision_base_url_effective(self):
+        """决策请求实际使用的接口地址：区域端点（白名单）→ 回落全局 AI 地址。"""
+        combo = getattr(self, "decision_endpoint_combo", None)
+        if combo is not None:
+            idx = min(max(combo.currentIndex(), 0), len(DECISION_ENDPOINT_KEYS) - 1)
+            url = DECISION_ENDPOINT_KEYS[idx]
+            if url:
+                return url
+        base = getattr(self, "ai_base", None)
+        return base.text().strip() if base is not None else ""
+
+    def _build_decision_rows(self, blay, box, ai):
+        """在「全局 AI」卡内构建决策模型子区域（默认安全态，见区域注释）。"""
+        blay.addWidget(StrongBodyLabel("决策模型（Jev · 预览）", box))
+        cap = fit_caption(CaptionLabel(
+            "百炼 System One 结构化决策（decision-model-preview）。总闸默认关闭；"
+            "影子模式只追加复核证据不改字幕；独立凭据与区域端点留空即回落全局 AI。",
+            box))
+        cap.setTextColor("#8a8a8a", "#9a9a9a")
+        blay.addWidget(cap)
+
+        # —— 总闸 + 三模式（默认 shadow；assist/auto 需门禁验证）——
+        self.decision_enabled_switch = SwitchButton(box)
+        self.decision_enabled_switch.setChecked(decision_enabled_of(ai))
+        self.decision_enabled_switch.setToolTip(
+            "决策模型总闸（decision_enabled，默认关闭）。\n"
+            "· 关闭：decision_mode 落 off，零决策请求（一键回退到纯本地规则）；\n"
+            "· 开启：按下拉档位执行；assist/auto 需门禁验证，当前版本\n"
+            "  仅影子模式（shadow）会真正激活。")
+        blay.addWidget(label_row("决策模型启用", row(self.decision_enabled_switch, None)))
+
+        self.decision_mode_combo = ComboBox(box)
+        self.decision_mode_combo.addItems(list(DECISION_MODE_LABELS))
+        self.decision_mode_combo.setCurrentIndex(decision_mode_index(ai.get("decision_mode")))
+        self.decision_mode_combo.setFixedWidth(300)
+        self.decision_mode_combo.setToolTip(
+            "shadow＝影子复核：只给声纹存疑与校准采纳项追加结构化证据，\n"
+            "不改写字幕、不改本地判定（当前默认且唯一激活档）。\n"
+            "assist / auto＝后续开放档位，需通过门禁验证；选择后本版本\n"
+            "按未激活处理（availability 会报 unsupported_mode）。")
+        blay.addWidget(label_row("决策模式", self.decision_mode_combo))
+
+        # —— 独立凭据（只写不回填明文，与全局/ASR 密钥同一安全口径）——
+        self.decision_key = PasswordLineEdit(box)
+        self.decision_key.setPlaceholderText(self._decision_key_placeholder())
+        self.decision_key.setToolTip(
+            "决策模型专用 API Key（decision_api_key），存独立只读凭据文件\n"
+            "data/credentials.json，不进配置树 / UI 快照 / 报告。\n"
+            "留空 = 调用时回落全局 AI 密钥；填写后立即写入凭据文件，\n"
+            "输入框不清回明文。")
+        blay.addWidget(srow("独立凭据（可选）", self.decision_key))
+        self.decision_key_status = fit_caption(CaptionLabel("", box))
+        self.decision_key_status.setTextColor("#8a8a8a", "#9a9a9a")
+        self._refresh_decision_key_status()
+        blay.addWidget(self.decision_key_status)
+
+        # —— 区域端点（白名单；空 = 回落全局 AI 地址）——
+        self.decision_endpoint_combo = ComboBox(box)
+        self.decision_endpoint_combo.addItems(list(DECISION_ENDPOINT_LABELS))
+        _saved_ep = str(ai.get("decision_base_url") or "").strip()
+        self.decision_endpoint_combo.setCurrentIndex(
+            DECISION_ENDPOINT_KEYS.index(_saved_ep)
+            if _saved_ep in DECISION_ENDPOINT_KEYS else 0)
+        self.decision_endpoint_combo.setFixedWidth(300)
+        self.decision_endpoint_combo.setToolTip(
+            "决策请求的区域端点白名单（decision_base_url）。\n"
+            "「默认」= 使用上方全局 AI 接口地址；北京端点当前实测放行，\n"
+            "新加坡为预留档（选择后按 endpoint_region_untested 处理，\n"
+            "实测通过后自动放行）；配置文件里的自定义地址不在白名单内时\n"
+            "这里显示为「默认」，重新选择后按白名单落盘。")
+        blay.addWidget(label_row("区域端点", self.decision_endpoint_combo))
+
+        # —— 连通性测试：本地门控预检 +（通过时）一发最小探测请求 ——
+        self.decision_test_btn = PushButton(FIF.SEND, "测试决策模型", box)
+        self.decision_test_btn.clicked.connect(self.ai_test_decision)
+        blay.addWidget(row(self.decision_test_btn, None))
+        self.decision_test_hint = fit_caption(CaptionLabel("", box))
+        self.decision_test_hint.setTextColor("#8a8a8a", "#9a9a9a")
+        blay.addWidget(self.decision_test_hint)
+
+        # —— 前瞻功能影子开关（默认 off；第二音色 WP2 / 语音分离占位在 ASR 卡）——
+        self.second_voice_switch = SwitchButton(box)
+        self.second_voice_switch.setChecked(False)   # 默认安全态；真值异步回填
+        self.second_voice_switch.setToolTip(
+            "第二音色影子（WP2，默认关闭）：用第二个声纹模型对存疑簇做影子\n"
+            "复打分，只写影子证据不改 verdict，与主筛选互不影响。\n"
+            "需下载第二音色模型并完成预处理对齐；关闭即恢复纯 CAM++ 规则。")
+        blay.addWidget(label_row("第二音色影子（前瞻）", row(self.second_voice_switch, None)))
+        self.second_voice_hint = fit_caption(CaptionLabel("", box))
+        self.second_voice_hint.setTextColor("#8a8a8a", "#9a9a9a")
+        blay.addWidget(self.second_voice_hint)
+
+        # —— 信号：决策区域 ↔ Jev 开关双向同步（blockSignals 防回环）——
+        self.decision_enabled_switch.checkedChanged.connect(
+            self._on_decision_toggled)
+        self.decision_mode_combo.currentIndexChanged.connect(
+            self._on_decision_mode_changed)
+        self.second_voice_switch.checkedChanged.connect(
+            self._on_second_voice_toggled)
+        self.decision_key.textChanged.connect(self._mark_ai_dirty)
+        # 第二音色开关真值异步回填：建页路径不 import ONNX 模型链
+        QTimer.singleShot(50, self._refresh_second_voice_switch)
+
+    def _sync_jev_from_decision(self, *_a):
+        """决策区域变化 → 反写 Jev 开关显示（其语义 = decision_mode != off）。"""
+        switch = getattr(self, "ai_jev_switch", None)
+        en = getattr(self, "decision_enabled_switch", None)
+        combo = getattr(self, "decision_mode_combo", None)
+        if switch is None or en is None or combo is None:
+            return
+        checked = en.isChecked() and combo.currentIndex() >= 0
+        switch.blockSignals(True)
+        switch.setChecked(checked)
+        switch.blockSignals(False)
+
+    def _on_decision_toggled(self, *_a):
+        """决策总闸变化 → 同步 Jev 开关 + 亮「未保存」+ 刷新提示。"""
+        self._sync_jev_from_decision()
+        self._mark_ai_dirty()
+        self._sync_plan_warn()
+
+    def _on_decision_mode_changed(self, *_a):
+        """决策模式变化 → 同步 Jev 开关 + 亮「未保存」+ 刷新提示。"""
+        self._sync_jev_from_decision()
+        self._mark_ai_dirty()
+        self._sync_plan_warn()
+
+    def _on_jev_switch_toggled(self, checked, *_a):
+        """旧 Jev 开关（兼容入口）→ 反写决策总闸与模式下拉（开 = shadow）。"""
+        en = getattr(self, "decision_enabled_switch", None)
+        combo = getattr(self, "decision_mode_combo", None)
+        if en is not None:
+            en.blockSignals(True)
+            en.setChecked(bool(checked))
+            en.blockSignals(False)
+        if combo is not None and checked:
+            combo.blockSignals(True)
+            combo.setCurrentIndex(0)          # 开 → shadow（保持旧语义）
+            combo.blockSignals(False)
+        self._mark_ai_dirty()
+
+    def _refresh_second_voice_switch(self, *_a):
+        """异步回填第二音色影子开关的真值（WP2 配置层已就位，默认 off）。"""
+        switch = getattr(self, "second_voice_switch", None)
+        hint = getattr(self, "second_voice_hint", None)
+        if switch is None:
+            return
+        try:
+            import features.voiceprint.second_voiceprint as SV2  # noqa: PLC0415
+            enabled = bool(SV2.second_voice_enabled())
+            model_ok = bool(SV2.model_present())
+        except Exception:  # noqa: BLE001 —— 影子链路缺失保持默认 off
+            if hint is not None:
+                hint.setText("第二音色影子组件未加载（保持关闭，不影响主筛选）。")
+            return
+        switch.blockSignals(True)
+        switch.setChecked(enabled)
+        switch.blockSignals(False)
+        if hint is not None:
+            hint.setText(
+                "影子输出只写证据不改字幕；当前模型%s"
+                % ("已就绪" if model_ok else "未下载（开启后自动降级为待对齐）"))
+
+    def _on_second_voice_toggled(self, checked, *_a):
+        """第二音色影子开关：即时落盘 selection.json（不走 ai_config 白名单）。"""
+        try:
+            import features.voiceprint.second_voiceprint as SV2  # noqa: PLC0415
+            ok = bool(SV2.save_second_voice_enabled(bool(checked)))
+        except Exception as e:  # noqa: BLE001
+            ok = False
+            InfoBar.error("第二音色影子开关失败", str(e)[:200], duration=5000,
+                          position=InfoBarPosition.BOTTOM_RIGHT, parent=self)
+        if not ok:
+            switch = getattr(self, "second_voice_switch", None)
+            if switch is not None:
+                switch.blockSignals(True)
+                switch.setChecked(not bool(checked))   # 落盘失败回滚显示
+                switch.blockSignals(False)
+        self._refresh_second_voice_switch()
+
+    def _save_decision_key_if_changed(self):
+        """保存时把独立凭据写入凭据文件（只写不回填；WP3 加白名单键后生效）。
+
+        返回提示语（None = 无需提示）。凭据明文只在这里出现一次且立即清空
+        控件文本，不进配置 dict、不进快照、不进任何报告。
+        """
+        edit = getattr(self, "decision_key", None)
+        if edit is None:
+            return None
+        value = edit.text().strip()
+        if not value:
+            return None
+        try:
+            store = self._decision_key_store()
+            if store is None:
+                return "决策独立凭据未写入：凭据存储层缺失（tools/credential_store.py）"
+            store.set(DECISION_SECRET_FIELD, value)
+            edit.clear()
+            self._refresh_decision_key_status()
+            return None
+        except ValueError:
+            # WP3 尚未把 decision_api_key 加进 SECRET_FIELDS 白名单：
+            # 凭据层按设计拒绝未知键——UI 先就位，加键后同一入口自动生效。
+            return ("决策独立凭据暂未生效（等待后续版本把 decision_api_key "
+                    "加入凭据白名单）；当前调用仍回落全局 AI 密钥")
+        except OSError as e:
+            return "决策独立凭据写入失败：%s" % str(e)[:160]
+
+    def _decision_probe_config(self):
+        """组装连通性测试配置（本地 dict；密钥解在最后一步，不落任何日志）。"""
+        current = engine.ai_load_config()
+        cfg = {
+            "enabled": self.ai_enabled.isChecked(),
+            # 总闸随 UI 现值（WP3 门控首位检查 decision_enabled：关 →
+            # decision_disabled，测试按钮如实反馈「总闸未开启」）
+            "decision_enabled": self.decision_enabled_switch.isChecked(),
+            "decision_mode": decision_collect_mode(
+                self.decision_enabled_switch.isChecked(),
+                self.decision_mode_combo.currentIndex()),
+            "base_url": self._decision_base_url_effective(),
+        }
+        # 密钥优先级：凭据文件 decision_api_key → 输入框未保存新值 → 全局密钥。
+        store = self._decision_key_store()
+        key = ""
+        try:
+            if store is not None:
+                key = str(store.get(DECISION_SECRET_FIELD, "") or "")
+        except Exception:  # noqa: BLE001
+            key = ""
+        if not key:
+            edit = getattr(self, "decision_key", None)
+            key = edit.text().strip() if edit is not None else ""
+        if not key:
+            key = str(current.get("api_key") or "")
+        cfg["api_key"] = key
+        return cfg
+
+    @staticmethod
+    def _decision_probe_worker(cfg):
+        """后台探测：availability 预检 →（激活时）一发最小 decide() 请求。
+
+        返回 (ok, 摘要文本)；摘要只含状态/原因/延迟/用量，绝不含密钥。
+        """
+        from core.shared.decision import decision_mod
+
+        def _run():
+            mod = decision_mod()
+            status = mod.availability(cfg)
+            if not status.get("active"):
+                reason = decision_reason_cn(status.get("reason"))
+                detail = str(status.get("detail") or "")
+                return False, "门控未通过：%s%s" % (
+                    reason, ("（%s）" % detail) if detail else "")
+            client = mod.DecisionClient(cfg, cache=False)   # 探测不吃影子缓存
+            questions = {"probe": {
+                "type": "choice",
+                "instructions": "连通性探测：请直接选择任意一个选项。",
+                "criteria": {"ok": "连接正常", "fail": "无法确认"},
+            }}
+            try:
+                envelope = client.decide(
+                    {"schema_version": mod.SCHEMA_VERSION,
+                     "business": "connectivity_probe", "items": []},
+                    questions)
+            except mod.DecisionError as e:
+                # DecisionError 文本来自服务端响应体/网络栈，不含本地密钥
+                return False, "门控通过，但探测请求失败：%s" % str(e)[:220]
+            usage = envelope.get("usage") or {}
+            latency = envelope.get("latency_ms")
+            parts = ["门控通过，探测请求成功"]
+            if latency is not None:
+                parts.append("延迟 %.0f ms" % float(latency))
+            if isinstance(usage, dict) and usage:
+                parts.append("tokens %s" % json.dumps(
+                    usage, ensure_ascii=False, sort_keys=True)[:120])
+            return True, "；".join(parts)
+
+        return _run
+
+    def ai_test_decision(self):
+        """「测试决策模型」按钮：绝不回显密钥，只显示成功/失败 + reason。"""
+        btn = getattr(self, "decision_test_btn", None)
+        if btn is not None and not btn.isEnabled():
+            return
+        cfg = self._decision_probe_config()
+        if btn is not None:
+            btn.setEnabled(False)
+        InfoBar.info("正在测试", "正在预检决策模型门控…", duration=1200,
+                     position=InfoBarPosition.BOTTOM_RIGHT, parent=self)
+        self._run_bg(self._decision_probe_worker(cfg),
+                     lambda r, e: self._ai_test_decision_done(r, e))
+
+    def _ai_test_decision_done(self, r, e):
+        btn = getattr(self, "decision_test_btn", None)
+        if btn is not None:
+            btn.setEnabled(True)
+        hint = getattr(self, "decision_test_hint", None)
+        if e is not None:
+            msg = "测试异常：%s" % str(e)[:220]
+        else:
+            ok, msg = r
+            msg = ("✓ " if ok else "✗ ") + str(msg)[:300]
+        if hint is not None:
+            hint.setText(msg)
+        if e is not None:
+            InfoBar.error("决策模型测试失败", str(e)[:200], duration=5000,
+                          position=InfoBarPosition.BOTTOM_RIGHT, parent=self)
+        elif r and r[0]:
+            InfoBar.success("决策模型连通", str(r[1])[:200], duration=5000,
+                            position=InfoBarPosition.BOTTOM_RIGHT, parent=self)
+        else:
+            InfoBar.warning("决策模型未激活", str(r[1])[:200], duration=8000,
+                            position=InfoBarPosition.BOTTOM_RIGHT, parent=self)
 
     def _browse_into(self, edit, title):
         p = QFileDialog.getExistingDirectory(self, title, edit.text() or engine.APP_DIR)
@@ -1130,7 +1618,17 @@ class SettingsPage(QWidget):
             "model": self.ai_model.text().strip(),
             "vision_model": self.ai_vision.text().strip(),
             # Jev 仅作影子复核；真正激活还要通过百炼 Token Plan 端点门控。
-            "decision_mode": ("shadow" if self.ai_jev_switch.isChecked() else "off"),
+            # v3.2.5 WP6：decision_mode 以决策模型区域为准（总闸关 → off）；
+            # decision_enabled / decision_base_url 是 WP3 的新键——WP3 加进
+            # DEFAULT_CONFIG 白名单前，ai_save_config 会按 schema 过滤掉，
+            # UI 先就位，加键后同一次保存自动落盘。
+            "decision_enabled": self.decision_enabled_switch.isChecked(),
+            "decision_mode": decision_collect_mode(
+                self.decision_enabled_switch.isChecked(),
+                self.decision_mode_combo.currentIndex()),
+            "decision_base_url": DECISION_ENDPOINT_KEYS[
+                min(max(self.decision_endpoint_combo.currentIndex(), 0),
+                    len(DECISION_ENDPOINT_KEYS) - 1)],
             # ASR：独立 ASR 模型
             "asr_mode": "local" if self.asr_mode_combo.currentIndex() == 1
                         else "service",
@@ -1205,6 +1703,15 @@ class SettingsPage(QWidget):
             engine.ai_save_config(self._collect_ai())
             notes = engine.ai_last_auto_notes()
             self._clear_ai_dirty()
+            # v3.2.5 WP6：决策独立凭据（decision_api_key）只写不回填——
+            # 输入框有新值时写入凭据文件并清空明文；WP3 加白名单键前
+            # 会被凭据层拒绝，给等待版本更新的提示（不阻断其余保存）。
+            decision_key_note = self._save_decision_key_if_changed()
+            if decision_key_note:
+                InfoBar.warning("决策独立凭据", decision_key_note[:300],
+                                duration=9000,
+                                position=InfoBarPosition.BOTTOM_RIGHT,
+                                parent=self)
             if notes:
                 # 保存时被自动匹配纠正过：必须回填界面，否则界面显示的还是
                 # 错的值、用户下次又存一遍错的（这正是"设置错误"反复出现的根源）

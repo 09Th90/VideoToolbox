@@ -178,6 +178,51 @@ def voiceprint_auto_tooltip():
             % ("、".join(names), floor * 100.0))
 
 
+#: 阈值来源（WP1 threshold_source）→ 中文；未知/缺失返回空串（graceful 跳过）。
+_THRESHOLD_SOURCE_CN = {
+    "factory": "出厂默认", "template_calib": "模板校准",
+    "global_override": "全局覆盖", "explicit": "显式指定",
+}
+
+
+def _append_shadow_summary(body, res):
+    """把影子层摘要追加到结果提示正文（v3.2.5 WP6 报告渲染增强）。
+
+    只读 res 现有/未来键，**缺失即跳过**——WP1（threshold_source）之外，
+    WP2 的 `second_voice`、WP3 的 `decision` 与影子侧车产物键都还没进 res，
+    键不存在时这里一个字都不加，绝不崩、绝不改现有文案结构。
+    """
+    src_cn = _THRESHOLD_SOURCE_CN.get(str(res.get("threshold_source") or ""), "")
+    if src_cn:
+        body.append("阈值来源：%s" % src_cn)
+    sv = res.get("second_voice")
+    if isinstance(sv, dict) and sv.get("status"):
+        if sv.get("status") == "ok":
+            body.append("第二音色影子：%d 簇 / %d 条存疑已记录（只留证据）"
+                        % (int(sv.get("n_clusters") or 0),
+                           int(sv.get("n_cues") or 0)))
+        elif sv.get("status") == "degraded" and sv.get("reason"):
+            body.append("第二音色影子：degraded（%s）" % sv.get("reason"))
+        # status=off（开关关闭）不占提示行：off 时影子层本就没参与，刷屏无益
+    dec = res.get("decision")
+    if isinstance(dec, dict) and dec:
+        if dec.get("active"):
+            routes = dec.get("routes") or {}
+            route_txt = "、".join("%s %d" % (k, v)
+                                  for k, v in sorted(routes.items())) or "-"
+            body.append("Jev 影子路由：存疑 %d，选中 %d，成功 %d（%s）"
+                        % (int(dec.get("review_total") or 0),
+                           int(dec.get("selected") or 0),
+                           int(dec.get("evaluated") or 0), route_txt))
+        else:
+            body.append("Jev 影子路由未激活（%s）"
+                        % (dec.get("reason") or "-"))
+    for key in ("shadow_sidecar", "sidecar"):
+        p = res.get(key)
+        if p:
+            body.append("影子侧车：%s" % os.path.basename(str(p)))
+
+
 def voiceprint_result_notice(res):
     """把筛选结果翻成一条界面提示：`(级别, 标题, 正文, 时长ms)`。
 
@@ -185,6 +230,9 @@ def voiceprint_result_notice(res):
     **四处入口共用**（自研转录页、任务创建路径、字幕页手动按钮、引擎补丁），
     文案只在这里改一次——以前四份复制粘贴，熔断态要新增就得同时改四处、
     漏一处就出现「同一个结果两个说法」。
+    v3.2.5 WP6：成功态与熔断态末尾追加影子层摘要（阈值来源 / 第二音色影子 /
+    Jev 影子路由 / 影子侧车），键缺失 graceful 跳过；渲染层只读 res，
+    不改任何进程与产物。
     """
     if isinstance(res, dict) and res.get("error"):
         return ("error", "声纹筛选失败",
@@ -192,10 +240,11 @@ def voiceprint_result_notice(res):
     if res is None:
         return ("warning", "声纹筛选未执行",
                 "声纹模型还没下载：到「语音转录 → 主播声纹」点「下载模型」", 8000)
+    shadow = []
+    _append_shadow_summary(shadow, res or {})
     if res.get("aborted"):
         backup = res.get("backup")
-        return ("warning", "疑似误杀：已停止覆盖字幕",
-                "模板「%s」只匹配到 %d/%d 条（保留率 %.2f%%，低于熔断线 %.2f%%），"
+        body = ("模板「%s」只匹配到 %d/%d 条（保留率 %.2f%%，低于熔断线 %.2f%%），"
                 "判为声音不匹配。\n成品字幕未改动；筛出的 %d 条已另存「%s」，"
                 "明细见「%s」。全文%s"
                 % ("、".join(res.get("templates") or []) or "-",
@@ -206,8 +255,10 @@ def voiceprint_result_notice(res):
                    os.path.basename(res.get("kept_path") or "（未写出）"),
                    os.path.basename(res.get("report") or ".报告.txt"),
                    ("仍在「%s」" % os.path.basename(backup)) if backup
-                   else "仍在原字幕文件里"),
-                15000)
+                   else "仍在原字幕文件里"))
+        for line in shadow:
+            body += "\n" + line
+        return ("warning", "疑似误杀：已停止覆盖字幕", body, 15000)
     body = ("保留 %d 条（其中存疑 %d）/ 丢弃 %d，保留率 %.1f%%；"
             "原件已备份为「%s」，明细见「%s」"
             % (res["kept_total"], res["review"], res["drop"],
@@ -217,6 +268,8 @@ def voiceprint_result_notice(res):
     if res.get("review_path"):
         body += ("\n%d 条存疑未混入正式字幕，已另存「%s」"
                  % (res["review"], os.path.basename(res["review_path"])))
+    for line in shadow:
+        body += "\n" + line
     return ("success", "声纹筛选完成", body, 9000)
 
 
