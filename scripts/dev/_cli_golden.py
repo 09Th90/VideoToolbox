@@ -99,7 +99,8 @@ def _cases(srt, kb, mp4, dirty):
         ("translate", "structure",
          j("translate", srt, "--engine", "bing", "--out", os.path.join(FIX, "tr.zh.srt")), []),
         ("calibrate", "full",
-         j("calibrate", srt, "--endobi", "--out", os.path.join(FIX, "cal.srt"),
+         # 2026-11-22 子键化：--endobi 简单旗标已移除，endo-bi 无简单旗标，改走 --mode
+         j("calibrate", srt, "--mode", "endo-bi", "--out", os.path.join(FIX, "cal.srt"),
            "--report", os.path.join(FIX, "cal.tsv"), "--kb", kb), []),
         ("stabilize", "full",
          j("stabilize", dirty, "--out", os.path.join(FIX, "st.srt")), []),

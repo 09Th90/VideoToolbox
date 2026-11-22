@@ -198,22 +198,22 @@ def test_static(ref, pkg):
 
 # ---------------------------------------------------------------- 2. 23 模式
 
-MODES = ["bi", "ko", "ja", "jpe", "wwoc", "ak", "akko", "zho", "endo",
-         "endobi", "endoko", "pgr", "pgren", "react", "zel", "hsr", "pkm", "limbus", "ffrs",
+MODES = ["bi", "wuwa-ko", "wuwa-ja", "endo-ja", "wwoc", "ak", "ak-ko", "zho", "endo",
+         "endo-bi", "endo-ko", "pgr", "pgr-en", "react", "zel", "hsr", "pkm", "limbus", "ffrs",
          # 2026-11-01：pbz 是 2026-10-30 加模式时漏同步的一项，连同新增的 ff14 一起补齐
          "pbz", "ff14",
-         # 2026-11-03 新增：战双日语原声（--pgrja）
-         "pgrja",
-         # 2026-11-03 新增：明日方舟日语原声（--akja）
-         "akja",
-         # 2026-11-18 新增：Arcaea×明日方舟联动直播（--arcak）
-         "arcak",
+         # 2026-11-03 新增：战双日语原声（--pgr-ja）
+         "pgr-ja",
+         # 2026-11-03 新增：明日方舟日语原声（--ak-ja）
+         "ak-ja",
+         # 2026-11-18 新增：Arcaea×明日方舟联动直播（--mode ak-arcaea）
+         "ak-arcaea",
          # 2026-11-21 P3b：补齐首中文行规则模式覆盖（注册表归一后防漂移）
          "ssv", "tga26", "wwm", "gfl2"]
-REFS = {"ja": "テストの文", "jpe": "テストの文", "pgrja": "テストの文",
-        "akja": "テストの文",
-        "ko": "테스트 문장",
-        "akko": "테스트 문장", "endoko": "테스트 문장"}
+REFS = {"wuwa-ja": "テストの文", "endo-ja": "テストの文", "pgr-ja": "テストの文",
+        "ak-ja": "テストの文",
+        "wuwa-ko": "테스트 문장",
+        "ak-ko": "테스트 문장", "endo-ko": "테스트 문장"}
 
 
 def first_key(ref, mode):
@@ -225,15 +225,15 @@ def first_key(ref, mode):
 def mode_srt(ref, mode):
     z = first_key(ref, mode)
     en = "Endpoint sample text"
-    if mode == "ko":
+    if mode == "wuwa-ko":
         body = [f"{z}测试", "테스트 문장", "这是第二行中文", "테스트 문장"]
     elif mode == "ak":
         body = [f"{z}测试", "第二行中文", en, "second english line"]
-    elif mode in ("akko", "endoko"):
+    elif mode in ("ak-ko", "endo-ko"):
         body = [f"{z}测试", "테스트 문장"]
-    elif mode in ("ja", "jpe", "pgrja", "akja"):
+    elif mode in ("wuwa-ja", "endo-ja", "pgr-ja", "ak-ja"):
         # 日语原声片：参考行是日语，ctx 锚点打在日语行上。
-        # ⚠ 别让 pgrja/akja 落到 else 的英文样例分支——那样 ctx 永不命中，等于测空转。
+        # ⚠ 别让 pgr-ja/ak-ja 落到 else 的英文样例分支——那样 ctx 永不命中，等于测空转。
         body = [f"{z}测试", "テストの文"]
     elif mode == "endo":
         body = [f"{z}测试"]
@@ -321,7 +321,7 @@ def test_akja_context(ref, pkg):
     # 查不出两类静默灾难 —— engine 漏 terms 分支会拿鸣潮 BILINGUAL_TERMS 改方舟片，
     # 漏 cue 分派分支会掉进 bi 的 else。故这里同时断言**替换确实发生**与**无关语境不替换**。
     with tempfile.TemporaryDirectory(prefix="calib_selftest_akja_") as d:
-        src = os.path.join(d, "akja.srt")
+        src = os.path.join(d, "ak-ja.srt")
         body = "\r\n".join([
             # 1) ctx 命中：天灾 <- スカージ（正常中文词，只能锚定，禁裸键）
             "1", "00:00:01,000 --> 00:00:03,000", "哦，天灾也有一定的威慑力", "あ、スカージも威嚇があるね",
@@ -345,7 +345,7 @@ def test_akja_context(ref, pkg):
             "",
         ])
         open(src, "wb").write(body.encode("utf-8"))
-        a, b, o1, o2, r1, r2, s1, s2 = run_process(ref, pkg, src, "akja")
+        a, b, o1, o2, r1, r2, s1, s2 = run_process(ref, pkg, src, "ak-ja")
         txt = o2.decode("utf-8")
         check("akja 生成物与包输出逐字节一致", o1 == o2 and r1 == r2 and s1 == s2)
         check("akja ctx 锚定生效（天灾->斯卡蒂）", "斯卡蒂也有一定的威慑力" in txt)
@@ -367,15 +367,15 @@ def test_akja_context(ref, pkg):
         check("akja 两张表都在注册表里",
               "AK_JA_TERMS" in ref.TABLES and "AK_JA_CONTEXT" in ref.CTX_TABLES)
         check("akja 模式投影目标已登记",
-              ref._MODE_TERM_TABLE.get("akja") == "AK_JA_TERMS"
-              and ref._MODE_CTX_TABLE.get("akja") == "AK_JA_CONTEXT")
+              ref._MODE_TERM_TABLE.get("ak-ja") == "AK_JA_TERMS"
+              and ref._MODE_CTX_TABLE.get("ak-ja") == "AK_JA_CONTEXT")
 
 
 def test_arcak_context(ref, pkg):
     section("2e. ARCAK（Arcaea×明日方舟）正例与负例")
     # 与 akja 同规：断言「替换确实发生」+「无锚点不替换」+「参考行逐字节不变」+ 幂等。
     with tempfile.TemporaryDirectory(prefix="calib_selftest_arcak_") as d:
-        src = os.path.join(d, "arcak.srt")
+        src = os.path.join(d, "ak-arcaea.srt")
         body = "\r\n".join([
             # 1) ctx 命中：doctor→博士（正常中文词，禁裸键）
             "1", "00:00:01,000 --> 00:00:03,000", "医生和阿米娅在甲板上", "the doctor and Amiya stand on deck",
@@ -397,7 +397,7 @@ def test_arcak_context(ref, pkg):
             "",
         ])
         open(src, "wb").write(body.encode("utf-8"))
-        a, b, o1, o2, r1, r2, s1, s2 = run_process(ref, pkg, src, "arcak")
+        a, b, o1, o2, r1, r2, s1, s2 = run_process(ref, pkg, src, "ak-arcaea")
         txt = o2.decode("utf-8")
         check("arcak 生成物与包输出逐字节一致", o1 == o2 and r1 == r2 and s1 == s2)
         check("arcak ctx 锚定生效（doctor→博士）", "博士和阿米娅在甲板上" in txt)
@@ -412,12 +412,12 @@ def test_arcak_context(ref, pkg):
         check("arcak 两张表都在注册表里",
               "ARCAK_TERMS" in ref.TABLES and "ARCAK_CONTEXT" in ref.CTX_TABLES)
         check("arcak 模式投影目标已登记",
-              ref._MODE_TERM_TABLE.get("arcak") == "ARCAK_TERMS"
-              and ref._MODE_CTX_TABLE.get("arcak") == "ARCAK_CONTEXT")
+              ref._MODE_TERM_TABLE.get("ak-arcaea") == "ARCAK_TERMS"
+              and ref._MODE_CTX_TABLE.get("ak-arcaea") == "ARCAK_CONTEXT")
         # 幂等：对成品再跑一次必须 0 改动（防止表内自咬/二次命中）
-        src2 = os.path.join(d, "arcak_done.srt")
+        src2 = os.path.join(d, "ak-arcaea_done.srt")
         open(src2, "wb").write(o2)
-        c = ref.process(src2, None, None, mode="arcak")
+        c = ref.process(src2, None, None, mode="ak-arcaea")
         check("arcak 幂等（成品复跑 0 改动）", len(c[0]) == 0)
 
 
@@ -451,7 +451,7 @@ def test_ko_lotte_terms(ref, pkg):
         for i, (zh, ko, _) in enumerate(cases, 1):
             lines += [str(i), "00:00:01,000 --> 00:00:03,000", zh, ko, ""]
         open(src, "wb").write(("\r\n".join(lines) + "\r\n").encode("utf-8"))
-        a, b, o1, o2, r1, r2, s1, s2 = run_process(ref, pkg, src, "ko")
+        a, b, o1, o2, r1, r2, s1, s2 = run_process(ref, pkg, src, "wuwa-ko")
         check("ko 乐天术语输出一致",
               o1 == o2 and r1 == r2 and a[0] == b[0] and a[1] == b[1])
         out = o2.decode("utf-8").split("\r\n")
@@ -480,7 +480,7 @@ def test_format(ref, pkg):
         "1", "00:00:01,000 --> 00:00:03,000", "Some English line", "第一行中文",
         "Another English line", "第二行中文", "", ""])))
     ko_key = next(iter(ref.KO_ASR_TERMS), "테스트")
-    cases.append(("ko_single", "ko", "\r\n".join([
+    cases.append(("ko_single", "wuwa-ko", "\r\n".join([
         "1", "00:00:01,000 --> 00:00:03,000", f"{ko_key} 문장", "", ""])))
     endo_key = next(iter(ref.ENDFIELD_TERMS), "测试")
     cases.append(("endo_mono", "endo", "\r\n".join([
@@ -782,8 +782,8 @@ CLI_CASES = [
     ("scan-split", ["scan-split", "base.srt", "--min", "1"], ()),
     ("missing", ["missing", "ref_en.srt", "zh.srt", "--mode", "endo"], ()),
     # 韩语原声：漏译体检走纯韩 ref；再单列一条「误拿双语文件当参考侧」的护栏用例
-    ("missing-ko", ["missing", "ko_ref.srt", "ko_zh.srt", "--mode", "ko", "--window", "1"], ()),
-    ("missing-ko-guard", ["missing", "ko_zh.srt", "ko_zh.srt", "--mode", "ko"], ()),
+    ("missing-ko", ["missing", "ko_ref.srt", "ko_zh.srt", "--mode", "wuwa-ko", "--window", "1"], ()),
+    ("missing-ko-guard", ["missing", "ko_zh.srt", "ko_zh.srt", "--mode", "wuwa-ko"], ()),
     ("lint", ["lint", "cues.tsv", "calib.tsv"], ()),
     ("subfix", ["subfix", "base.srt", "fix.tsv", "--out", "subfixed.srt"], ("subfixed.srt",)),
     ("terms-check", ["terms-check"], ()),
@@ -805,8 +805,8 @@ CLI_CASES = [
      ("learned.json",), (), "learned.json"),
     ("kb-sync", ["kb-sync"], (), ("sync/", "remote/")),
     ("kb-push", ["kb-push", "--learned", "learned.json"], (), ("sync/", "remote/")),
-    # 2026-11-18：--arcak 旗标解析与 --mode 别名一致性（ref/pkg 双跑比对）
-    ("calib-arcak", ["base.srt", "--arcak"], ()),
+    # 2026-11-22 子键化：--arcak 旗标已移除，改走 --mode ak-arcaea（ref/pkg 双跑比对）
+    ("calib-arcak", ["base.srt", "--mode", "ak-arcaea"], ()),
     # 2026-11-22 M1-A1：一键重跑旗标 stdout 全覆盖。positional src=base.srt 覆盖内置片源
     #   （out_path=None 不写盘、不碰 D:\原片），sidecar 仓库内绝对路径确定性；
     #   冻结「模式:」行含侧车条数与动态后缀。数据驱动归一后必须逐字节不变。
@@ -843,19 +843,19 @@ def test_cli(ref, pkg):
         check("旗标解析 " + flag, _cli_case("flag" + flag, ["base.srt", flag], ()))
     for alias in sorted(pkg._MODE_ALIASES):
         check("别名解析 " + alias, _cli_case("alias" + alias, ["base.srt", "--mode", alias], ()))
-    for name, args in (("edge-jpe", ["base.srt", "--mode", "jpe"]),
+    for name, args in (("edge-endo-ja", ["base.srt", "--mode", "endo-ja"]),
                        ("edge-unknown", ["base.srt", "--mode", "unknownxyz"]),
                        ("edge-bi-flag", ["base.srt", "--bi"]),
-                       ("edge-ko-bi", ["base.srt", "--ko", "--bi"]),
-                       ("edge-ko-mode-ja", ["base.srt", "--ko", "--mode", "ja"]),
+                       ("edge-ko-bi", ["base.srt", "--mode", "wuwa-ko", "--bi"]),
+                       ("edge-ko-mode-ja", ["base.srt", "--mode", "ko", "--mode", "ja"]),
                        ("edge-mode-upper", ["base.srt", "--mode", "JAPANESE"])):
         check("边界解析 " + name, _cli_case(name, args, ()))
     # 上面全是「单体 vs 真源」一致性对照，测不出两版一起坏；护栏的返回码单独断言一次。
     with tempfile.TemporaryDirectory(prefix="calib_guard_") as d:
         _prepare_cli(d)
-        rc, out, err = _run_cli("pkg", ["missing", "ko_zh.srt", "ko_zh.srt", "--mode", "ko"], d, {})
+        rc, out, err = _run_cli("pkg", ["missing", "ko_zh.srt", "ko_zh.srt", "--mode", "wuwa-ko"], d, {})
         txt = (out + err).decode("utf-8", "replace")
-        check("missing --mode ko 假绿灯护栏返回码", rc == 1 and "WARN" in txt,
+        check("missing --mode wuwa-ko 假绿灯护栏返回码", rc == 1 and "WARN" in txt,
               f"rc={rc} out={txt[:160]!r}")
 
 

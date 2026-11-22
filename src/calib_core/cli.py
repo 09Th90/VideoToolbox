@@ -11,7 +11,7 @@ import shutil
 import sys
 import unicodedata
 from ._doc import USAGE_DOC
-from .data.modes import AK_INFO, AK_KO_INFO, ARCAK_AMIYA_INFO, ARCAK_AMIYA_OVERRIDES_SRC, ENDO_INFO, KO_INFO, PGR_INFO, PGR_OVERRIDES_SRC, WWOC_INFO, WW38_INFO, WW38_OVERRIDES_SRC, WW38B_INFO, WW38B_OVERRIDES_SRC, WW38H_INFO, WW38H_OVERRIDES_SRC, WW38_J_INFO, WW38_J_OVERRIDES_SRC, WW40_INFO, WW40_OVERRIDES_SRC, WW40IGN_INFO, WW40IGN_OVERRIDES_SRC, WW40JA_INFO, WW40JA_OVERRIDES_SRC, WW40KO_INFO, WW40KO_OVERRIDES_SRC, WUSOL_INFO, WUSOL_OVERRIDES_SRC, WUWAALL_INFO, WUWAALL_OVERRIDES_SRC, ZHO_INFO, _MODE_ALIASES, _MODE_FLAGS, _RERUN
+from .data.modes import AK_INFO, AK_KO_INFO, ARCAK_AMIYA_INFO, ARCAK_AMIYA_OVERRIDES_SRC, ENDO_INFO, KO_INFO, MODE_REGISTRY, PGR_INFO, PGR_OVERRIDES_SRC, WWOC_INFO, WW38_INFO, WW38_OVERRIDES_SRC, WW38B_INFO, WW38B_OVERRIDES_SRC, WW38H_INFO, WW38H_OVERRIDES_SRC, WW38_J_INFO, WW38_J_OVERRIDES_SRC, WW40_INFO, WW40_OVERRIDES_SRC, WW40IGN_INFO, WW40IGN_OVERRIDES_SRC, WW40JA_INFO, WW40JA_OVERRIDES_SRC, WW40KO_INFO, WW40KO_OVERRIDES_SRC, WUSOL_INFO, WUSOL_OVERRIDES_SRC, WUWAALL_INFO, WUWAALL_OVERRIDES_SRC, ZHO_INFO, _MODE_FLAGS, _RERUN, normalize_mode
 from .engine import _load_override_tsv, process
 from .format import _cmd_flow, _cmd_length, _cmd_rewrap, _cmd_stabilize
 from .inspect import _cmd_align_audit, _cmd_compare, _cmd_lint, _cmd_missing, _cmd_scan, _cmd_scan_split, _cmd_subfix, _cmd_terms_check, _cmd_verify
@@ -94,14 +94,16 @@ def main_argv(argv=None):
         elif a == "--bi-override" and i + 1 < len(args):
             bi_override_path = args[i + 1]; i += 2
         elif a == "--mode" and i + 1 < len(args):
-            # 别名→模式查表（_MODE_ALIASES 精确沿用原 elif 链+三元兜底；未列出落 bi）。
-            #   扁平 dict 无 elif 顺序问题：arcak/akja 与 ak 别名集互斥，不会掉回 bi。
-            mode = _MODE_ALIASES.get(args[i + 1].lower(), "bi")
+            # 2026-11-22 子键化：normalize_mode 归一（旧键 akja/ja/jpe/… 与别名集 → 新
+            #   「游戏-细类」子键，子键 ak-ja 等在 registry 原样返回），未知值落 bi（保旧行为）。
+            _mv = normalize_mode(args[i + 1].lower())
+            mode = _mv if _mv in MODE_REGISTRY else "bi"
             i += 2
         else:
             i += 1
+    mode = normalize_mode(mode)   # 旗标/_RERUN 路径的 mode 已是注册表新键；幂等归一兜底
 
-    info = {"ko": KO_INFO, "ak": AK_INFO, "endo": ENDO_INFO, "pgr": PGR_INFO, "zho": ZHO_INFO, "wwoc": WWOC_INFO, "akko": AK_KO_INFO}.get(mode)
+    info = {"wuwa-ko": KO_INFO, "ak": AK_INFO, "endo": ENDO_INFO, "pgr": PGR_INFO, "zho": ZHO_INFO, "wwoc": WWOC_INFO, "ak-ko": AK_KO_INFO}.get(mode)
     for _rk, _re in _RERUN.items():        # 声明序=装配序
         if _rk in rerun_active:
             info = _re["info"]             # info 最后命中赢
@@ -140,30 +142,30 @@ def main_argv(argv=None):
                  " + 4.0 侧车 {} 条".format(len(bi_override) if bi_override else 0) if "wuwa40" in rerun_active else
                  " + 第二索拉侧车 {} 条".format(len(bi_override) if bi_override else 0) if "wuwasol" in rerun_active else
                  " + 全短片侧车 {} 条（整行覆盖）".format(len(bi_override) if bi_override else 0) if "wuwaall" in rerun_active else ""),
-             "ko": "韩语原声 (KO_TERMS)",
-             "wuwa40ko": "韩语原声·鸣潮 4.0 新联邦 PV (KO_TERMS + WW40KO_CONTEXT + 侧车 {} 条)".format(
+             "wuwa-ko": "鸣潮-韩语 (KO_TERMS)",
+             "wuwa-40ko": "鸣潮-4.0韩语 (KO_TERMS + WW40KO_CONTEXT + 侧车 {} 条)".format(
                  len(bi_override) if bi_override else 0),
-             "wuwa40ign": "韩语原声·鸣潮 4.0 IGN 实机 (KO_TERMS + WW40IGN_CONTEXT + 侧车 {} 条)".format(
+             "wuwa-40ign": "鸣潮-4.0IGN (KO_TERMS + WW40IGN_CONTEXT + 侧车 {} 条)".format(
                  len(bi_override) if bi_override else 0),
-             "ja": "日语原声 (JA_TERMS + JA_CONTEXT)" + (
+             "wuwa-ja": "鸣潮-日语 (JA_TERMS + JA_CONTEXT)" + (
                  " + 4.0 先行映像侧车 {} 条（整行覆盖）".format(len(bi_override) if bi_override else 0)
                  if "wuwa40ja" in rerun_active else ""),
-             "jpe": "日语原声·终末地 (JA_ENDFIELD_TERMS + JA_ENDFIELD_CONTEXT)",
+             "endo-ja": "终末地-日语 (JA_ENDFIELD_TERMS + JA_ENDFIELD_CONTEXT)",
              # 2026-11-03 新增。故意**不进 info 字典**：本模式没有内置片源，
              #   进了 info 会出现「无片源文件也能一键重跑」的假入口。
-             "pgrja": "日语原声·战双 (JA_PGR_TERMS + JA_PGR_CONTEXT)",
+             "pgr-ja": "战双-日语 (JA_PGR_TERMS + JA_PGR_CONTEXT)",
              "wwoc": "综合手游OST世界杯 (WWOC_TERMS)",
              "ak": "明日方舟本体 (AK_TERMS + AK_CONTEXT)",
-             "akko": "明日方舟韩语原声 (AK_KO_TERMS + AK_KO_CONTEXT)",
-             # 2026-11-03 新增。与 pgrja 同规：**不进 info 字典**（无内置片源，
+             "ak-ko": "明日方舟-韩语 (AK_KO_TERMS + AK_KO_CONTEXT)",
+             # 2026-11-03 新增。与 pgr-ja 同规：**不进 info 字典**（无内置片源，
              #   进了会出现「无片源文件也能一键重跑」的假入口）。
-             "akja": "日语原声·明日方舟 (AK_TERMS ∪ AK_JA_TERMS + AK_JA_CONTEXT)",
+             "ak-ja": "明日方舟-日语 (AK_TERMS ∪ AK_JA_TERMS + AK_JA_CONTEXT)",
              "zho": "中文行专属 (ZH_ONLY_TERMS)",
              "endo": "终末地 (ENDFIELD_TERMS)",
-             "endobi": "终末地·中英双语 (ENDFIELD_BI_TERMS)",
-             "endoko": "终末地·韩语原声 (ENDFIELD_KO_TERMS)",
+             "endo-bi": "终末地-双语 (ENDFIELD_BI_TERMS)",
+             "endo-ko": "终末地-韩语 (ENDFIELD_KO_TERMS)",
              "pgr": "战双帕弥什 (PGR 侧车整行覆盖, {} 条)".format(len(pgr_override) if pgr_override else 0),
-             "pgren": "战双帕弥什·英文原声 (PGR_EN_TERMS + PGR_EN_CONTEXT)",
+             "pgr-en": "战双-英文 (PGR_EN_TERMS + PGR_EN_CONTEXT)",
              "react": "音乐/演唱点评 (REACT_TERMS)",
              "zel": "塞尔达传说 (ZELDA_TERMS)",
              "hsr": "崩坏：星穹铁道 (HSR_TERMS + HSR_CONTEXT)",
@@ -172,19 +174,19 @@ def main_argv(argv=None):
              "pbz": "影之刃零 (PBZ_TERMS + PBZ_CONTEXT)",
              "pkm": "宝可梦城镇主题 (POKEMON_TERMS + POKEMON_CONTEXT)",
              "ff14": "最终幻想14 (FF14_TERMS + FF14_CONTEXT)",
-             # 2026-11-15 新增。与 pgrja 同规：**不进 info 字典**（无内置片源）。
+             # 2026-11-15 新增。与 pgr-ja 同规：**不进 info 字典**（无内置片源）。
              "ssv": "星之救援者 (SSV_TERMS + SSV_CONTEXT)",
-             # 2026-11-18 新增。与 pgrja 同规：**不进 info 字典**（无内置片源）。
-             "arcak": "Arcaea×明日方舟联动直播 (ARCAK_TERMS + ARCAK_CONTEXT)",
-             # 2026-11-18 新增。与 pgrja 同规：**不进 info 字典**（无内置片源）。
+             # 2026-11-18 新增。与 pgr-ja 同规：**不进 info 字典**（无内置片源）。
+             "ak-arcaea": "明日方舟-Arcaea (ARCAK_TERMS + ARCAK_CONTEXT)",
+             # 2026-11-18 新增。与 pgr-ja 同规：**不进 info 字典**（无内置片源）。
              "tga26": "TGA 2026 游戏大奖 (TGA_TERMS + TGA_CONTEXT)",
-             # 2026-11-21 新增：燕云十六声滹沱实机片。与 pgrja 同规：**不进 info 字典**（无内置片源）。
+             # 2026-11-21 新增：燕云十六声滹沱实机片。与 pgr-ja 同规：**不进 info 字典**（无内置片源）。
              "wwm": "燕云十六声 (WWM_TERMS + WWM_CONTEXT)",
-             # 2026-11-21 新增：少前2二周年反应片。与 pgrja 同规：**不进 info 字典**（无内置片源）。
+             # 2026-11-21 新增：少前2二周年反应片。与 pgr-ja 同规：**不进 info 字典**（无内置片源）。
              "gfl2": "少女前线2：追放 (GFL2_TERMS + GFL2_CONTEXT)"}
     extra = (" + 英文行修正(--fix-en)" if fix_en else "")
     if "arcakamiya" in rerun_active:
-        names["arcak"] += " + 阿米娅 Partner Play 侧车 {} 条".format(
+        names["ak-arcaea"] += " + 阿米娅 Partner Play 侧车 {} 条".format(
             len(bi_override) if bi_override else 0)
     print("模式:", names[mode] + extra)
     if learned_kb:
@@ -339,7 +341,7 @@ def _dispatch_subcommand(sub, args):
             print("                 用于消除 ASR 把专名跨 cue 切断造成的误报。")
             print("      退出码 1＝有候选（可当门禁），0＝干净。")
             return 1
-        return _cmd_audit(pos[0], opts.get("mode", "bi"), opts.get("out"),
+        return _cmd_audit(pos[0], normalize_mode(opts.get("mode", "bi")), opts.get("out"),
                           bool(opts.get("json")), loose=bool(opts.get("loose")),
                           window=int(opts.get("window", 0)))
 
@@ -354,18 +356,23 @@ def _dispatch_subcommand(sub, args):
     elif sub == "learn":
         if len(pos) < 2:
             print("用法: learn <原始.srt> <人工校准.srt> [--mode bi] [--kb 学习库.json]"); return
+        # 2026-11-22 子键化：--mode 经 normalize_mode 归一（旧键 akja/ja/… 仍可解析，
+        #   落新键入库；normalize_mode 对 None 安全，learned-* 未传 --mode 时保持 None）。
+        _lm = normalize_mode(opts.get("mode", "bi"))
         _cmd_learn(pos[0], pos[1], opts.get("kb", LEARNED_KB_DEFAULT),
-                   mode=opts.get("mode", "bi"))
+                   mode=_lm)
     elif sub == "learned-show":
-        _cmd_learned_show(opts.get("kb", LEARNED_KB_DEFAULT), mode=opts.get("mode"))
+        _cmd_learned_show(opts.get("kb", LEARNED_KB_DEFAULT),
+                          mode=normalize_mode(opts.get("mode")))
     elif sub == "learned-promote":
         _cmd_learned_promote(opts.get("kb", LEARNED_KB_DEFAULT),
-                             mode=opts.get("mode"), entities=bool(opts.get("entities", True)))
+                             mode=normalize_mode(opts.get("mode")),
+                             entities=bool(opts.get("entities", True)))
     elif sub == "learned-reject":
         if not pos:
             print("用法: learned-reject <错形> [--mode bi] [--kb 学习库.json]"); return
         _cmd_learned_reject(pos[0], opts.get("kb", LEARNED_KB_DEFAULT),
-                            mode=opts.get("mode"))
+                            mode=normalize_mode(opts.get("mode")))
     elif sub == "kb-sync":
         _cmd_kb_sync()
     elif sub == "kb-push":

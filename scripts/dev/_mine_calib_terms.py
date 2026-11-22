@@ -19,28 +19,28 @@ ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)
 sys.path.insert(0, ROOT)
 KB_PATH = os.path.join(ROOT, "subtitle_calib_merged.py")
 
-#: (文件, 片源模式) —— 文件名 -> mode
+#: (文件, 片源模式) —— 文件名 -> mode（2026-11-22 子键化：endobi/ko → endo-bi/wuwa-ko）
 FILES = {
-    # 终末地（--endobi / --endo）
-    "fix_endfield_report01.tsv": "endobi",
-    "fix_talos2.tsv": "endobi",
-    "fix_talos2_v2.tsv": "endobi",
-    "fix_talos2_report01_356.tsv": "endobi",
-    "side_calib.tsv": "endobi",
-    "side3.tsv": "endobi",
-    "work_si_argent/fix1.tsv": "endobi",
-    "work_si_argent/fix2.tsv": "endobi",
-    "work_si_argent/fix3.tsv": "endobi",
-    "work_si_argent/fix4.tsv": "endobi",
-    "work_si_argent/calib_v4.tsv": "endobi",
-    # 鸣潮（--ko / bi）
+    # 终末地（endo-bi / endo）
+    "fix_endfield_report01.tsv": "endo-bi",
+    "fix_talos2.tsv": "endo-bi",
+    "fix_talos2_v2.tsv": "endo-bi",
+    "fix_talos2_report01_356.tsv": "endo-bi",
+    "side_calib.tsv": "endo-bi",
+    "side3.tsv": "endo-bi",
+    "work_si_argent/fix1.tsv": "endo-bi",
+    "work_si_argent/fix2.tsv": "endo-bi",
+    "work_si_argent/fix3.tsv": "endo-bi",
+    "work_si_argent/fix4.tsv": "endo-bi",
+    "work_si_argent/calib_v4.tsv": "endo-bi",
+    # 鸣潮（bi）
     "outbox/calib_diff_adhd_reacts_37_final.tsv": "bi",
     "outbox/calib_diff_adhd_reacts_37.tsv": "bi",
     "outbox/calib_diff_adhd_reacts_37_v2.tsv": "bi",
     "outbox/calib_diff_adhd_reacts_37_v3.tsv": "bi",
 }
 for p in glob.glob("work_jadealy/calib_*.tsv"):
-    FILES[p.replace("\\", "/")] = "ko"
+    FILES[p.replace("\\", "/")] = "wuwa-ko"
 
 
 def load_kb_text():

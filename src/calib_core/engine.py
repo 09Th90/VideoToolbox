@@ -25,7 +25,7 @@ from .data.tga import TGA_TERMS
 from .data.wwm import WWM_TERMS
 from .data.gfl2 import GFL2_TERMS
 from .learn import _learned_terms_for_mode
-from .data.modes import MODE_REGISTRY
+from .data.modes import MODE_REGISTRY, normalize_mode
 from .modes import endfield_auto_markers
 from .replace import _compile_map, _ctx_replace, _replace_report
 from .acindex import ModeIndex, replace_serial_ac
@@ -82,7 +82,7 @@ def _restore_override_prefix(old, new):
 
 
 def _resolve_terms(mode):
-    """按注册表解析模式术语表。akja=AK_TERMS∪AK_JA_TERMS 合并表、pgr=空表为特例；
+    """按注册表解析模式术语表。ak-ja=AK_TERMS∪AK_JA_TERMS 合并表、pgr=空表为特例；
     未知模式落 BILINGUAL_TERMS（与原 else 分支一致）。表对象取自 state.TABLES。"""
     spec = MODE_REGISTRY.get(mode)
     tname = spec["terms"] if spec else "BILINGUAL_TERMS"
@@ -101,10 +101,10 @@ def _resolve_terms(mode):
 
 # 版式分发：首中文行模式（规则版式）由注册表自动归类，特例模式单独分支处理。
 #   新增一个「首中文行 + 语境锚定」片源模式 = 注册表加一条（terms/ctx），引擎自动走通用路径。
-_SPECIAL_MODES = {"bi", "pgr", "ko", "wuwa40ko", "wuwa40ign", "ak", "arcak", "endo", "fix-en"}
+_SPECIAL_MODES = {"bi", "pgr", "wuwa-ko", "wuwa-40ko", "wuwa-40ign", "ak", "ak-arcaea", "endo", "fix-en"}
 _FIRST_ZH_MODES = {m for m in MODE_REGISTRY if m not in _SPECIAL_MODES}
-_FIRST_ZH_EXCLUDE = {"pgren"}        # 首中文行模式里消费 EXCLUDE 回滚层的
-_FIRST_ZH_OVERRIDE = {"wwm", "ja"}   # 首中文行模式里支持侧车整行覆盖的（ja：4.0 先行映像全片侧车）
+_FIRST_ZH_EXCLUDE = {"pgr-en"}            # 首中文行模式里消费 EXCLUDE 回滚层的
+_FIRST_ZH_OVERRIDE = {"wwm", "wuwa-ja"}   # 首中文行模式里支持侧车整行覆盖的（wuwa-ja：4.0 先行映像全片侧车）
 
 # 语境表名 → 预编译缓存（与 state._CTX_COMPILE_SPEC 同源；供注册表 ctx 字段查缓存）
 _COMPILED_BY_CTX = {
@@ -149,8 +149,8 @@ def _calib_first_zh(old, ref_m, ctx_compiled, term_idx, hits,
                     R=None, skip=None):
     """规则「首中文行」版式：术语替换 + 语境锚定（ref_m）+ 可选 EXCLUDE 回滚 + 可选侧车覆盖。
 
-    统一 react/hsr/ff14/pkm/limbus/ffrs/pbz/ssv/tga26/wwoc/pgren/zel/ja/jpe/pgrja/
-    akja/akko/wwm/gfl2/zho/endobi/endoko 等模式（仅 ctx 缓存与 exclude/override 旗标不同）。
+    统一 react/hsr/ff14/pkm/limbus/ffrs/pbz/ssv/tga26/wwoc/pgr-en/zel/wuwa-ja/endo-ja/pgr-ja/
+    ak-ja/ak-ko/wwm/gfl2/zho/endo-bi/endo-ko 等模式（仅 ctx 缓存与 exclude/override 旗标不同）。
     侧车命中即整行覆盖（不叠加术语表）；否则术语+ctx，exclude 模式再按参考行回滚高歧义词。
     M3-4：R/skip 为对象级 scoping（默认 None=完全现状）；启用时 ctx 按对象集 scope、EXCLUDE 预跳过。
     """
@@ -177,20 +177,20 @@ def process(path, out_path=None, report_path=None, mode="bi",
                   跳过语言探测（2026-11-21 全短片片：英文参考行 "Jan。" 含全角句号，
                   被 _split_cue_text 的纯拉丁中文行兜底误判成中文，导致侧车写错行）。
       mode="bi"   双语模式：BILINGUAL_TERMS + CONTEXT_MAP + WORD_MAP 改首中文行。
-      mode="ko"   韩语模式：KO_TERMS 统一中文行术语。
-      mode="wuwa40ko" 韩语原声·鸣潮 4.0 新联邦 PV：KO_TERMS + WW40KO_CONTEXT，
+      mode="wuwa-ko"  韩语模式：KO_TERMS 统一中文行术语。
+      mode="wuwa-40ko" 韩语原声·鸣潮 4.0 新联邦 PV：KO_TERMS + WW40KO_CONTEXT，
                   命中侧车时整行覆盖（侧车已是终稿，含 >> 前缀）。
-      mode="wuwa40ign" 韩语原声·鸣潮 4.0 IGN 实机演示：KO_TERMS + WW40IGN_CONTEXT，
-                  与 wuwa40ko 同构；侧车 162 条为终稿，命中即整行覆盖。
-      mode="ja"   日语模式：JA_TERMS + JA_CONTEXT（日语参考行佐证）统一中文行术语。
+      mode="wuwa-40ign" 韩语原声·鸣潮 4.0 IGN 实机演示：KO_TERMS + WW40IGN_CONTEXT，
+                  与 wuwa-40ko 同构；侧车 162 条为终稿，命中即整行覆盖。
+      mode="wuwa-ja"  日语模式：JA_TERMS + JA_CONTEXT（日语参考行佐证）统一中文行术语。
       mode="endo" 终末地模式：ENDFIELD_TERMS 统一全部文本行。
       mode="ak"   明日方舟本体模式：AK_TERMS + AK_CONTEXT（英文参考行佐证）统一**全部**中文行。
                   2026-10-14 起：谷翻片「中文2行+英文2行」结构下逐行校准全部含汉字行，
                   ctx 锚点=该 cue 全部英文行拼接（规整空白）；不含汉字的文本行一律不动。
-      mode="jpe"  日语原声·终末地：JA_ENDFIELD_TERMS + JA_ENDFIELD_CONTEXT（日语行佐证）。
-      mode="pgrja" 日语原声·战双（联动朗读直播片）：JA_PGR_TERMS + JA_PGR_CONTEXT。
+      mode="endo-ja"  日语原声·终末地：JA_ENDFIELD_TERMS + JA_ENDFIELD_CONTEXT（日语行佐证）。
+      mode="pgr-ja" 日语原声·战双（联动朗读直播片）：JA_PGR_TERMS + JA_PGR_CONTEXT。
                   这类片**中文是原文、日语是日服译本**，参考行是日语所以不进 fix_en 允许集。
-      mode="akja" 日语原声·明日方舟：terms = AK_TERMS ∪ AK_JA_TERMS（合并后单次编译、
+      mode="ak-ja" 日语原声·明日方舟：terms = AK_TERMS ∪ AK_JA_TERMS（合并后单次编译、
                   长键降序单遍扫描），只改首中文行，AK_JA_CONTEXT 用**日语参考行**佐证。
                   2026-11-03 新增（奈渡ナオト《明日方舟》首播 3856 cue / 每 cue 恰 2 行）。
                   与 --ak 的分工：AK_TERMS 只收会在**英语原声片**出现的错形；日语向错形
@@ -203,6 +203,9 @@ def process(path, out_path=None, report_path=None, mode="bi",
     参考行锚定（CONTEXT/EXCLUDE）一律先经 _ref_for_match 规整（ASR 断词容错），
     但默认输出的参考行保持原样，只有 fix_en=True 才写回。
     """
+    # 2026-11-22 子键化：入口统一归一（旧键 akja/ja/jpe/… 与别名 → 新「游戏-细类」子键；
+    #   registry 键原样返回，未知键原样透传由下方 else 兜底 bi）。下游所有分支只比较新键。
+    mode = normalize_mode(mode)
     terms = _resolve_terms(mode)
     # 学习系统注入：confirmed 规则并入本模式术语表（与既有键冲突时跳过并告警）
     if learned_kb:
@@ -220,11 +223,11 @@ def process(path, out_path=None, report_path=None, mode="bi",
                       f"（learned-show 查看，人工裁决）")
     # 2026-10-06 危险裸键闸门：RETIRED_KO_KEYS 无论来自静态表、learned_kb 还是
     #   applied.json 注入，一律在编译前剔除（保证"信信→辛夷"等已下线键绝不误伤）。
-    if mode in ("ko", "wuwa40ko", "wuwa40ign") and any(k in terms for k in RETIRED_KO_KEYS):
+    if mode in ("wuwa-ko", "wuwa-40ko", "wuwa-40ign") and any(k in terms for k in RETIRED_KO_KEYS):
         terms = {k: v for k, v in terms.items() if k not in RETIRED_KO_KEYS}
     # 2026-10-14 日语同款闸门：'笛卡尔' 会在运行期被 applied.json 复活，必须一并剔除，
     #   否则它抢跑 Entity("卡提希娅") 的 ctx（笛卡尔西亚 -> 卡提希娅西亚）。
-    if mode == "ja" and any(k in terms for k in RETIRED_JA_KEYS):
+    if mode == "wuwa-ja" and any(k in terms for k in RETIRED_JA_KEYS):
         terms = {k: v for k, v in terms.items() if k not in RETIRED_JA_KEYS}
     # 术语表经 ModeIndex 组装 AC 自动机（term_idx，见下），逐行替换走 replace_serial_ac 预筛串行。
     word_pairs, word_chars = _compile_map(WORD_MAP)
@@ -281,7 +284,7 @@ def process(path, out_path=None, report_path=None, mode="bi",
                         # 单行韩语）——该行含谚文即应用 KO_ASR 层（韩语错形→官方韩语），
                         # 否则整块跳过，防止把术语替换误写到参考/英文行上。
                         only = lines[j + 1]
-                        if mode in ("ko", "wuwa40ko", "wuwa40ign") and _KO_HANGUL.search(only):
+                        if mode in ("wuwa-ko", "wuwa-40ko", "wuwa-40ign") and _KO_HANGUL.search(only):
                             if "_ko_asr_pairs" not in dir():
                                 _ko_asr_pairs, _ko_asr_chars = _compile_map(KO_ASR_TERMS)
                             new = _replace_report(only, _ko_asr_pairs, _ko_asr_chars, hits)
@@ -299,8 +302,8 @@ def process(path, out_path=None, report_path=None, mode="bi",
                         #   4.0 韩语片 #8/#241 原行是拉丁残片（Subde / Dream），
                         #   4.0 日语片 #487/#1012/#1065/#1074 原行是纯拉丁/纯数字（无 CJK，
                         #   识别不出中文行），人工终稿已改成中文，若不特判会被这里整块跳过。
-                        if mode in ("bi", "ja", "wuwa40ko", "wuwa40ign"):
-                            ov = bi_override if mode in ("bi", "ja") else ko_override
+                        if mode in ("bi", "wuwa-ja", "wuwa-40ko", "wuwa-40ign"):
+                            ov = bi_override if mode in ("bi", "wuwa-ja") else ko_override
                             preserve = (bi_override_preserve if mode == "bi"
                                         else ko_override_preserve)
                             if ov and str(num) in ov:
@@ -342,7 +345,7 @@ def process(path, out_path=None, report_path=None, mode="bi",
                                         bi_override=bi_override if mode in _FIRST_ZH_OVERRIDE else None,
                                         bi_override_preserve=bi_override_preserve,
                                         R=_R, skip=_skip)
-                    elif mode in ("ko", "wuwa40ko", "wuwa40ign"):       # 韩语原声·鸣潮：KO_TERMS + KO_CONTEXT/WW40KO_CONTEXT 校准**全部中文行**
+                    elif mode in ("wuwa-ko", "wuwa-40ko", "wuwa-40ign"):       # 韩语原声·鸣潮：KO_TERMS + KO_CONTEXT/WW40KO_CONTEXT 校准**全部中文行**
                         # 2026-10-06 修复（梦州 4장4막 二次校准定位的根因）：谷翻反应片每 cue
                         #   常见「中文 2 行 + 谚文 2 行」结构。旧实现只改首文本行、锚点只取末行
                         #   谚文 → ①第二中文行整片漏校（该批 112 处残留 111 处在第二行）；
@@ -358,7 +361,7 @@ def process(path, out_path=None, report_path=None, mode="bi",
                             # （韩国主播直播 ASR 等），旧表键全是中文错形无法命中。
                             # 4.0 韩语片 #154 原行两行都是「얜」，人工终稿把首行改成
                             # 「她」；侧车命中时先整行覆盖首行，再走 KO_ASR/continue。
-                            if (mode in ("wuwa40ko", "wuwa40ign") and ko_override
+                            if (mode in ("wuwa-40ko", "wuwa-40ign") and ko_override
                                     and str(num) in ko_override):
                                 old0 = lines[kr_tis[0]]
                                 new = ko_override[str(num)]
@@ -385,8 +388,8 @@ def process(path, out_path=None, report_path=None, mode="bi",
                             i = kk
                             continue
                         kr_all = " ".join(_ref_for_match(lines[ti]) for ti in kr_tis)
-                        ctx_compiled = (_WW40IGN_CONTEXT_COMPILED if mode == "wuwa40ign"
-                                        else _WW40KO_CONTEXT_COMPILED if mode == "wuwa40ko"
+                        ctx_compiled = (_WW40IGN_CONTEXT_COMPILED if mode == "wuwa-40ign"
+                                        else _WW40KO_CONTEXT_COMPILED if mode == "wuwa-40ko"
                                         else _KO_CONTEXT_COMPILED)
                         for zi, ti in enumerate(zh_tis):
                             if len(zh_tis) == len(kr_tis):
@@ -394,7 +397,7 @@ def process(path, out_path=None, report_path=None, mode="bi",
                             else:
                                 anchor = kr_all                              # 行数不齐回退拼接
                             lold = lines[ti]
-                            if (mode in ("wuwa40ko", "wuwa40ign") and ko_override
+                            if (mode in ("wuwa-40ko", "wuwa-40ign") and ko_override
                                     and zi == 0 and str(num) in ko_override):
                                 # 4.0 侧车：命中即整行覆盖，不叠加术语表（终稿可能刻意保留
                                 #   拉丁名/口语重复/断句）；侧车已是终稿，含原行 >> 前缀。
@@ -443,7 +446,7 @@ def process(path, out_path=None, report_path=None, mode="bi",
                             if new != old:
                                 rows.append((num, old, new, ref))
                                 out[zh_idx] = new
-                    elif mode == "arcak":       # Arcaea×明日方舟联动直播：ARCAK_TERMS + ARCAK_CONTEXT
+                    elif mode == "ak-arcaea":       # Arcaea×明日方舟联动直播：ARCAK_TERMS + ARCAK_CONTEXT
                         # 2026-11-18 新增。与 --ak 同构（改全部中文行、锚点=全部英文行拼接、
                         #   消费 EXCLUDE 回滚），但走独立表：AK_TERMS 里的
                         #   Arcaea→韵律源点 / Radiant→《Radiant》与本片「Arcaea 侧保留英文」
@@ -477,7 +480,7 @@ def process(path, out_path=None, report_path=None, mode="bi",
                                 out[zh_idx] = new
                     elif mode == "endo":       # 终末地模式：ENDFIELD_TERMS 统一全部中文行
                         # 2026-10-23：改为只改中文行；单语终末地片源等价于原“全部文本行”，
-                        # 双语片源不会再误改英文参考行（应改用 --endobi）。
+                        # 双语片源不会再误改英文参考行（应改用 --mode endo-bi）。
                         for ti in [text_tis[p] for p in zh_pos]:
                             lold = lines[ti]
                             new = replace_serial_ac(lold, term_idx, hits)

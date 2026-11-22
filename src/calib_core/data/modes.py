@@ -256,7 +256,7 @@ ZHO_INFO = {
 # =============================================================
 
 # =============================================================
-# 模式注册表（单一真源，2026-11-21 工程重构）
+# 模式注册表（单一真源，2026-11-21 工程重构；2026-11-22 变体键降级为「游戏-细类」子键）
 #   新增一个片源模式 = 新建 data/<mode>.py 词表 + 本表加一条注册。
 #   字段：
 #     terms         引擎术语表名（__AKJA_MERGE__=AK_TERMS∪AK_JA_TERMS，__EMPTY__={}）
@@ -264,80 +264,106 @@ ZHO_INFO = {
 #     project_terms 实体投影术语槽（_MODE_TERM_TABLE 值；None=不投影，如 zel/hsr/pgr）
 #     project_ctx   实体投影语境槽（_MODE_CTX_TABLE 值；None=不投影，如 endo/zho/react）
 #     name          显示名（_MODE_NAMES 值；None=不进显示名表，如 zel/hsr/pgr）
+#     parent        父游戏 ASCII 键（顶层=None；纯分组/显示字段，引擎不依赖 parent 键存在——
+#                   如 wuwa-ja/wuwa-ko 的 parent="wuwa" 是逻辑组名，registry 并无 wuwa 键）
+#   2026-11-22 重命名（12 个变体校准键 → 父游戏 ASCII 子键「游戏-细类」，纯重命名零行为漂移：
+#     terms/ctx/project_*/表名全部不变；旧键经 _MODE_ALIASES + normalize_mode 兼容归一）：
+#     akja→ak-ja、akko→ak-ko、arcak→ak-arcaea、endobi→endo-bi、endoko→endo-ko、jpe→endo-ja、
+#     ja→wuwa-ja、ko→wuwa-ko、wuwa40ko→wuwa-40ko、wuwa40ign→wuwa-40ign、pgren→pgr-en、pgrja→pgr-ja
 #   三张投影视图（_MODE_TERM_TABLE/_MODE_CTX_TABLE/_MODE_NAMES）由本表推导；
 #   monolith 生成时由 build_calib_monolith 序列化为字面量（兼容旧 merge core / ast_compat）。
 #   ⚠ project_terms/project_ctx 决定 ENTITIES 投影目标，与引擎 terms/ctx 是两回事：
-#     akja 引擎用合并表但投影只登记增量 AK_JA_TERMS；zel/hsr 引擎有表但无投影槽。
+#     ak-ja 引擎用合并表但投影只登记增量 AK_JA_TERMS；zel/hsr 引擎有表但无投影槽。
 # =============================================================
 MODE_REGISTRY = {
-    "ak": {"terms": "AK_TERMS", "ctx": "AK_CONTEXT", "project_terms": "AK_TERMS", "project_ctx": "AK_CONTEXT", "name": "明日方舟"},
+    "ak": {"terms": "AK_TERMS", "ctx": "AK_CONTEXT", "project_terms": "AK_TERMS", "project_ctx": "AK_CONTEXT", "name": "明日方舟", "parent": None},
     # 2026-11-03 明日方舟日语原声（奈渡ナオト 首播）：引擎 AK_TERMS∪AK_JA_TERMS，投影只登记增量表
-    "akja": {"terms": "__AKJA_MERGE__", "ctx": "AK_JA_CONTEXT", "project_terms": "AK_JA_TERMS", "project_ctx": "AK_JA_CONTEXT", "name": "日语原声·明日方舟"},
-    "akko": {"terms": "AK_KO_TERMS", "ctx": "AK_KO_CONTEXT", "project_terms": "AK_KO_TERMS", "project_ctx": "AK_KO_CONTEXT", "name": "明日方舟韩语"},
+    # 2026-11-22 降级子键：akja → ak-ja（parent=ak）
+    "ak-ja": {"terms": "__AKJA_MERGE__", "ctx": "AK_JA_CONTEXT", "project_terms": "AK_JA_TERMS", "project_ctx": "AK_JA_CONTEXT", "name": "明日方舟-日语", "parent": "ak"},
+    "ak-ko": {"terms": "AK_KO_TERMS", "ctx": "AK_KO_CONTEXT", "project_terms": "AK_KO_TERMS", "project_ctx": "AK_KO_CONTEXT", "name": "明日方舟-韩语", "parent": "ak"},
     # 2026-11-18 Arcaea×明日方舟联动直播（英语 ASR + 微软翻译）
-    "arcak": {"terms": "ARCAK_TERMS", "ctx": "ARCAK_CONTEXT", "project_terms": "ARCAK_TERMS", "project_ctx": "ARCAK_CONTEXT", "name": "Arcaea×明日方舟"},
-    "bi": {"terms": "BILINGUAL_TERMS", "ctx": "CONTEXT_MAP", "project_terms": "BILINGUAL_TERMS", "project_ctx": "CONTEXT_MAP", "name": "中英双语"},
+    # 2026-11-22 降级子键：arcak → ak-arcaea（parent=ak）
+    "ak-arcaea": {"terms": "ARCAK_TERMS", "ctx": "ARCAK_CONTEXT", "project_terms": "ARCAK_TERMS", "project_ctx": "ARCAK_CONTEXT", "name": "明日方舟-Arcaea", "parent": "ak"},
+    "bi": {"terms": "BILINGUAL_TERMS", "ctx": "CONTEXT_MAP", "project_terms": "BILINGUAL_TERMS", "project_ctx": "CONTEXT_MAP", "name": "中英双语", "parent": None},
     # endo 单语片每 cue 仅一行，ref 即中文行本身，英文锚定永不命中 → 不建语境槽
-    "endo": {"terms": "ENDFIELD_TERMS", "ctx": None, "project_terms": "ENDFIELD_TERMS", "project_ctx": None, "name": "终末地"},
+    "endo": {"terms": "ENDFIELD_TERMS", "ctx": None, "project_terms": "ENDFIELD_TERMS", "project_ctx": None, "name": "终末地", "parent": None},
     # 2026-10-20 endobi 补语境槽（通用中文词类官方名靠英文参考行锚定）
-    "endobi": {"terms": "ENDFIELD_BI_TERMS", "ctx": "ENDFIELD_BI_CONTEXT", "project_terms": "ENDFIELD_BI_TERMS", "project_ctx": "ENDFIELD_BI_CONTEXT", "name": "终末地·中英双语"},
-    "endoko": {"terms": "ENDFIELD_KO_TERMS", "ctx": "ENDFIELD_KO_CONTEXT", "project_terms": "ENDFIELD_KO_TERMS", "project_ctx": "ENDFIELD_KO_CONTEXT", "name": "终末地·韩语原声"},
+    # 2026-11-22 降级子键：endobi → endo-bi（parent=endo）
+    "endo-bi": {"terms": "ENDFIELD_BI_TERMS", "ctx": "ENDFIELD_BI_CONTEXT", "project_terms": "ENDFIELD_BI_TERMS", "project_ctx": "ENDFIELD_BI_CONTEXT", "name": "终末地-双语", "parent": "endo"},
+    # 2026-11-22 降级子键：endoko → endo-ko（parent=endo）
+    "endo-ko": {"terms": "ENDFIELD_KO_TERMS", "ctx": "ENDFIELD_KO_CONTEXT", "project_terms": "ENDFIELD_KO_TERMS", "project_ctx": "ENDFIELD_KO_CONTEXT", "name": "终末地-韩语", "parent": "endo"},
     # 2026-11-01 最终幻想14（FFXIV）英语原声+谷翻 reaction
-    "ff14": {"terms": "FF14_TERMS", "ctx": "FF14_CONTEXT", "project_terms": "FF14_TERMS", "project_ctx": "FF14_CONTEXT", "name": "最终幻想14"},
+    "ff14": {"terms": "FF14_TERMS", "ctx": "FF14_CONTEXT", "project_terms": "FF14_TERMS", "project_ctx": "FF14_CONTEXT", "name": "最终幻想14", "parent": None},
     # 2026-10-28 最终幻想：共鸣（FFRS）HD-2D 实况
-    "ffrs": {"terms": "FFRS_TERMS", "ctx": "FFRS_CONTEXT", "project_terms": "FFRS_TERMS", "project_ctx": "FFRS_CONTEXT", "name": "最终幻想：共鸣"},
-    "fix-en": {"terms": None, "ctx": None, "project_terms": None, "project_ctx": None, "name": "英文参考行修正"},
+    "ffrs": {"terms": "FFRS_TERMS", "ctx": "FFRS_CONTEXT", "project_terms": "FFRS_TERMS", "project_ctx": "FFRS_CONTEXT", "name": "最终幻想：共鸣", "parent": None},
+    "fix-en": {"terms": None, "ctx": None, "project_terms": None, "project_ctx": None, "name": "英文参考行修正", "parent": None},
     # 2026-11-21 少女前线2：追放（GFL2 Exilium）二周年反应片
-    "gfl2": {"terms": "GFL2_TERMS", "ctx": "GFL2_CONTEXT", "project_terms": "GFL2_TERMS", "project_ctx": "GFL2_CONTEXT", "name": "少女前线2：追放"},
+    "gfl2": {"terms": "GFL2_TERMS", "ctx": "GFL2_CONTEXT", "project_terms": "GFL2_TERMS", "project_ctx": "GFL2_CONTEXT", "name": "少女前线2：追放", "parent": None},
     # 2026-10-20 崩坏：星穹铁道（引擎用 HSR_CONTEXT，但无实体投影槽）
-    "hsr": {"terms": "HSR_TERMS", "ctx": "HSR_CONTEXT", "project_terms": None, "project_ctx": None, "name": None},
-    "ja": {"terms": "JA_TERMS", "ctx": "JA_CONTEXT", "project_terms": "JA_TERMS", "project_ctx": "JA_CONTEXT", "name": "日语原声·鸣潮"},
-    "jpe": {"terms": "JA_ENDFIELD_TERMS", "ctx": "JA_ENDFIELD_CONTEXT", "project_terms": "JA_ENDFIELD_TERMS", "project_ctx": "JA_ENDFIELD_CONTEXT", "name": "日语原声·终末地"},
-    "ko": {"terms": "KO_TERMS", "ctx": "KO_CONTEXT", "project_terms": "KO_TERMS", "project_ctx": "KO_CONTEXT", "name": "韩语原声·鸣潮"},
+    "hsr": {"terms": "HSR_TERMS", "ctx": "HSR_CONTEXT", "project_terms": None, "project_ctx": None, "name": None, "parent": None},
+    # 2026-11-22 降级子键：ja → wuwa-ja（parent=wuwa 为逻辑组名，registry 无 wuwa 键）
+    "wuwa-ja": {"terms": "JA_TERMS", "ctx": "JA_CONTEXT", "project_terms": "JA_TERMS", "project_ctx": "JA_CONTEXT", "name": "鸣潮-日语", "parent": "wuwa"},
+    # 2026-11-22 降级子键：jpe → endo-ja（parent=endo）
+    "endo-ja": {"terms": "JA_ENDFIELD_TERMS", "ctx": "JA_ENDFIELD_CONTEXT", "project_terms": "JA_ENDFIELD_TERMS", "project_ctx": "JA_ENDFIELD_CONTEXT", "name": "终末地-日语", "parent": "endo"},
+    # 2026-11-22 降级子键：ko → wuwa-ko（parent=wuwa 为逻辑组名）
+    "wuwa-ko": {"terms": "KO_TERMS", "ctx": "KO_CONTEXT", "project_terms": "KO_TERMS", "project_ctx": "KO_CONTEXT", "name": "鸣潮-韩语", "parent": "wuwa"},
     # 2026-10-26 边狱巴士（Limbus Company）音乐 reaction
-    "limbus": {"terms": "LIMBUS_TERMS", "ctx": "LIMBUS_CONTEXT", "project_terms": "LIMBUS_TERMS", "project_ctx": "LIMBUS_CONTEXT", "name": "边狱巴士"},
+    "limbus": {"terms": "LIMBUS_TERMS", "ctx": "LIMBUS_CONTEXT", "project_terms": "LIMBUS_TERMS", "project_ctx": "LIMBUS_CONTEXT", "name": "边狱巴士", "parent": None},
     # 2026-10-30 影之刃零（Phantom Blade Zero）英语原声+谷翻实况
-    "pbz": {"terms": "PBZ_TERMS", "ctx": "PBZ_CONTEXT", "project_terms": "PBZ_TERMS", "project_ctx": "PBZ_CONTEXT", "name": "影之刃零"},
+    "pbz": {"terms": "PBZ_TERMS", "ctx": "PBZ_CONTEXT", "project_terms": "PBZ_TERMS", "project_ctx": "PBZ_CONTEXT", "name": "影之刃零", "parent": None},
     # pgr 侧车整行覆盖模式：无术语表（引擎 __EMPTY__），无投影槽
-    "pgr": {"terms": "__EMPTY__", "ctx": None, "project_terms": None, "project_ctx": None, "name": None},
+    "pgr": {"terms": "__EMPTY__", "ctx": None, "project_terms": None, "project_ctx": None, "name": None, "parent": None},
     # 2026-11-04 战双英文原声（余辉/光伏/丝带/克洛伊 全是正常中文词，禁裸键）
-    "pgren": {"terms": "PGR_EN_TERMS", "ctx": "PGR_EN_CONTEXT", "project_terms": "PGR_EN_TERMS", "project_ctx": "PGR_EN_CONTEXT", "name": "战双英文原声"},
-    # 2026-11-03 战双日语原声（联动朗读直播）：参考行日语，与 pgren 互斥
-    "pgrja": {"terms": "JA_PGR_TERMS", "ctx": "JA_PGR_CONTEXT", "project_terms": "JA_PGR_TERMS", "project_ctx": "JA_PGR_CONTEXT", "name": "日语原声·战双"},
+    # 2026-11-22 降级子键：pgren → pgr-en（parent=pgr）
+    "pgr-en": {"terms": "PGR_EN_TERMS", "ctx": "PGR_EN_CONTEXT", "project_terms": "PGR_EN_TERMS", "project_ctx": "PGR_EN_CONTEXT", "name": "战双-英文", "parent": "pgr"},
+    # 2026-11-03 战双日语原声（联动朗读直播）：参考行日语，与 pgr-en 互斥
+    # 2026-11-22 降级子键：pgrja → pgr-ja（parent=pgr）
+    "pgr-ja": {"terms": "JA_PGR_TERMS", "ctx": "JA_PGR_CONTEXT", "project_terms": "JA_PGR_TERMS", "project_ctx": "JA_PGR_CONTEXT", "name": "战双-日语", "parent": "pgr"},
     # 2026-10-21 宝可梦城镇主题
-    "pkm": {"terms": "POKEMON_TERMS", "ctx": "POKEMON_CONTEXT", "project_terms": "POKEMON_TERMS", "project_ctx": "POKEMON_CONTEXT", "name": "宝可梦城镇主题"},
+    "pkm": {"terms": "POKEMON_TERMS", "ctx": "POKEMON_CONTEXT", "project_terms": "POKEMON_TERMS", "project_ctx": "POKEMON_CONTEXT", "name": "宝可梦城镇主题", "parent": None},
     # react 引擎用 REACT_CONTEXT，但无实体投影语境槽
-    "react": {"terms": "REACT_TERMS", "ctx": "REACT_CONTEXT", "project_terms": "REACT_TERMS", "project_ctx": None, "name": "音乐点评"},
+    "react": {"terms": "REACT_TERMS", "ctx": "REACT_CONTEXT", "project_terms": "REACT_TERMS", "project_ctx": None, "name": "音乐点评", "parent": None},
     # 2026-11-15 星之救援者（Star Savior）英语原声+谷翻评测
-    "ssv": {"terms": "SSV_TERMS", "ctx": "SSV_CONTEXT", "project_terms": "SSV_TERMS", "project_ctx": "SSV_CONTEXT", "name": "星之救援者"},
+    "ssv": {"terms": "SSV_TERMS", "ctx": "SSV_CONTEXT", "project_terms": "SSV_TERMS", "project_ctx": "SSV_CONTEXT", "name": "星之救援者", "parent": None},
     # 2026-11-18 TGA 2026 游戏大奖直播（英语原声 + 微软翻译）
-    "tga26": {"terms": "TGA_TERMS", "ctx": "TGA_CONTEXT", "project_terms": "TGA_TERMS", "project_ctx": "TGA_CONTEXT", "name": "TGA 2026 游戏大奖"},
+    "tga26": {"terms": "TGA_TERMS", "ctx": "TGA_CONTEXT", "project_terms": "TGA_TERMS", "project_ctx": "TGA_CONTEXT", "name": "TGA 2026 游戏大奖", "parent": None},
     # 2026-11-21 鸣潮 4.0 IGN 实机演示韩语反应片
-    "wuwa40ign": {"terms": "KO_TERMS", "ctx": "WW40IGN_CONTEXT", "project_terms": "KO_TERMS", "project_ctx": "WW40IGN_CONTEXT", "name": "韩语原声·鸣潮 4.0 IGN 实机"},
+    # 2026-11-22 降级子键：wuwa40ign → wuwa-40ign（parent=wuwa 为逻辑组名）
+    "wuwa-40ign": {"terms": "KO_TERMS", "ctx": "WW40IGN_CONTEXT", "project_terms": "KO_TERMS", "project_ctx": "WW40IGN_CONTEXT", "name": "鸣潮-4.0IGN", "parent": "wuwa"},
     # 2026-11-19 鸣潮 4.0 新联邦 PV 韩语反应片
-    "wuwa40ko": {"terms": "KO_TERMS", "ctx": "WW40KO_CONTEXT", "project_terms": "KO_TERMS", "project_ctx": "WW40KO_CONTEXT", "name": "韩语原声·鸣潮 4.0 新联邦 PV"},
+    # 2026-11-22 降级子键：wuwa40ko → wuwa-40ko（parent=wuwa 为逻辑组名）
+    "wuwa-40ko": {"terms": "KO_TERMS", "ctx": "WW40KO_CONTEXT", "project_terms": "KO_TERMS", "project_ctx": "WW40KO_CONTEXT", "name": "鸣潮-4.0韩语", "parent": "wuwa"},
     # 2026-11-21 燕云十六声（Where Winds Meet）滹沱实机片
-    "wwm": {"terms": "WWM_TERMS", "ctx": "WWM_CONTEXT", "project_terms": "WWM_TERMS", "project_ctx": "WWM_CONTEXT", "name": "燕云十六声"},
+    "wwm": {"terms": "WWM_TERMS", "ctx": "WWM_CONTEXT", "project_terms": "WWM_TERMS", "project_ctx": "WWM_CONTEXT", "name": "燕云十六声", "parent": None},
     # 2026-10-25 wwoc 补语境槽（多游戏韩语片歧义错形）
-    "wwoc": {"terms": "WWOC_TERMS", "ctx": "WWOC_CONTEXT", "project_terms": "WWOC_TERMS", "project_ctx": "WWOC_CONTEXT", "name": "综合手游OST"},
+    "wwoc": {"terms": "WWOC_TERMS", "ctx": "WWOC_CONTEXT", "project_terms": "WWOC_TERMS", "project_ctx": "WWOC_CONTEXT", "name": "综合手游OST", "parent": None},
     # 2026-09-14 塞尔达传说（引擎用 ZELDA_TERMS，无语境槽、无投影槽）
-    "zel": {"terms": "ZELDA_TERMS", "ctx": None, "project_terms": None, "project_ctx": None, "name": None},
-    "zho": {"terms": "ZH_ONLY_TERMS", "ctx": None, "project_terms": "ZH_ONLY_TERMS", "project_ctx": None, "name": "中文行专属"},
+    "zel": {"terms": "ZELDA_TERMS", "ctx": None, "project_terms": None, "project_ctx": None, "name": None, "parent": None},
+    "zho": {"terms": "ZH_ONLY_TERMS", "ctx": None, "project_terms": "ZH_ONLY_TERMS", "project_ctx": None, "name": "中文行专属", "parent": None},
 }
 
 # 简单模式旗标（--<mode> 直接设 mode）。排除：bi（默认无旗标）、fix-en（--fix-en 布尔）、
-#   wuwa40ko/wuwa40ign（走一键重跑链，需 info+侧车装配）、wwm（原 cli 无 --wwm 简单旗标，
-#   仅经 --mode wwm 别名进入；擅自补旗标会让 --wwm 从「忽略落 bi」漂移成 wwm）。
-_NO_SIMPLE_FLAG = {"bi", "fix-en", "wuwa40ko", "wuwa40ign", "wwm"}
+#   12 个「游戏-细类」子键（2026-11-22 变体键降级后不再设顶层简单旗标，原 --ja/--ko/--akja/
+#   --akko/--arcak/--endobi/--endoko/--jpe/--pgren/--pgrja 一并移除，子键经 --mode <子键>/别名进入；
+#   其中 wuwa-40ko/wuwa-40ign 另走一键重跑链，需 info+侧车装配）、
+#   wwm（原 cli 无 --wwm 简单旗标，仅经 --mode wwm 别名进入；擅自补旗标会让 --wwm 从「忽略落 bi」漂移成 wwm）。
+_NO_SIMPLE_FLAG = {"bi", "fix-en", "wwm",
+                   "ak-ja", "ak-ko", "ak-arcaea",
+                   "endo-bi", "endo-ko", "endo-ja",
+                   "wuwa-ja", "wuwa-ko", "wuwa-40ko", "wuwa-40ign",
+                   "pgr-en", "pgr-ja"}
 _MODE_FLAGS = {"--" + m: m for m in MODE_REGISTRY if m not in _NO_SIMPLE_FLAG}
 
 # --mode 别名 → 模式（精确沿用原 elif 链 + 三元兜底的全部别名；未列出的 --mode 值落 bi）。
-#   ⚠ 别名集必须与原链逐字一致：jpe/pgrja/akko/endobi/endoko/pgren/react/wwoc 等
-#     原本就没有 --mode 别名（--mode jpe 会落 bi），不可擅自补全，否则行为漂移。
+#   ⚠ 别名集必须与原链逐字一致：react/wwoc 等原本就没有 --mode 别名，不可擅自补全，否则行为漂移。
+#   2026-11-22 变体键降级：指向被重命名键的别名值同步改新键（ja/japanese→wuwa-ja、ko/korean→wuwa-ko、
+#     akja 组→ak-ja、arcak 组→ak-arcaea）；末段新增「旧顶层键 → 新子键」兼容映射（含原本无
+#     --mode 别名的 jpe/endobi/endoko/akko/pgren/pgrja/wuwa40ko/wuwa40ign，仅作旧键归一入口，
+#     normalize_mode 同源），除此之外不新增任何别名。
 _MODE_ALIASES = {
-    # 三元兜底组
-    "ja": "ja", "japanese": "ja",
-    "ko": "ko", "korean": "ko",
+    # 三元兜底组（值随 2026-11-22 重命名同步改新子键）
+    "ja": "wuwa-ja", "japanese": "wuwa-ja",
+    "ko": "wuwa-ko", "korean": "wuwa-ko",
     "ak": "ak", "arknights": "ak",
     "zho": "zho", "zhonly": "zho", "zh_only": "zho",
     "endo": "endo", "endfield": "endo",
@@ -351,17 +377,33 @@ _MODE_ALIASES = {
     "ff14": "ff14", "ffxiv": "ff14", "finalfantasy14": "ff14", "finalfantasixiv": "ff14",
     "最终幻想14": "ff14", "最终幻想xiv": "ff14", "银海之天舟": "ff14",
     "ssv": "ssv", "starsavior": "ssv", "star_savior": "ssv", "星之救援者": "ssv",
-    "arcak": "arcak", "arcakn": "arcak", "arcaea_arknights": "arcak", "arcaea×arknights": "arcak",
-    "arcaea明日方舟": "arcak", "arcaea方舟": "arcak", "arcaea联动": "arcak",
+    "arcak": "ak-arcaea", "arcakn": "ak-arcaea", "arcaea_arknights": "ak-arcaea", "arcaea×arknights": "ak-arcaea",
+    "arcaea明日方舟": "ak-arcaea", "arcaea方舟": "ak-arcaea", "arcaea联动": "ak-arcaea",
     "tga26": "tga26", "tga2026": "tga26", "tga": "tga26", "thegameawards": "tga26",
     "gameawards": "tga26", "游戏大奖": "tga26", "tga直播": "tga26",
     "wwm": "wwm", "wherewindsmeet": "wwm", "where_winds_meet": "wwm",
     "燕云十六声": "wwm", "燕云": "wwm", "yanyun": "wwm",
     "gfl2": "gfl2", "gf2": "gfl2", "exilium": "gfl2", "gfl2exilium": "gfl2",
     "少女前线2": "gfl2", "少女前线2：追放": "gfl2", "追放": "gfl2", "少前2": "gfl2",
-    "akja": "akja", "ak_ja": "akja", "arknights_ja": "akja", "arknightsja": "akja",
-    "明日方舟日语": "akja", "日语原声明日方舟": "akja",
+    "akja": "ak-ja", "ak_ja": "ak-ja", "arknights_ja": "ak-ja", "arknightsja": "ak-ja",
+    "明日方舟日语": "ak-ja", "日语原声明日方舟": "ak-ja",
+    # 2026-11-22 旧顶层变体键 → 新「游戏-细类」子键（兼容归一映射，供 --mode 旧键与
+    #   normalize_mode / learned 库 / KB 旧键解析；jpe/endobi/endoko/akko/pgren/pgrja/
+    #   wuwa40ko/wuwa40ign 原本无 --mode 别名，此处属旧→新兼容而非补全模式别名）
+    "jpe": "endo-ja", "endobi": "endo-bi", "endoko": "endo-ko",
+    "akko": "ak-ko", "pgren": "pgr-en", "pgrja": "pgr-ja",
+    "wuwa40ko": "wuwa-40ko", "wuwa40ign": "wuwa-40ign",
 }
+
+
+def normalize_mode(m):
+    """模式键归一：registry 键原样返回；旧顶层变体键/既有别名 → 新「游戏-细类」子键。
+
+    供 engine/cli/kb/learn/audit/sync 在消费入口统一归一（旧键 akja/ja/jpe/… 与别名
+    arknights_ja/… 均落新键），保 learned 库/KB 中以旧键沉淀的记录可解析；
+    未知键原样返回（是否落 bi 由消费面决策）。
+    """
+    return m if m in MODE_REGISTRY else _MODE_ALIASES.get(m, m)
 
 # 一键重跑注册表（2026-11-22 M1-A1 数据驱动）。键=旗标名（去 --），**声明序=装配序**。
 #   字段：mode（设的模式）/ info（内置片源 dict）/ overrides（缺省侧车路径）/
@@ -378,73 +420,73 @@ _RERUN = {
     "wuwa38b": {"mode": "bi", "info": WW38B_INFO, "overrides": WW38B_OVERRIDES_SRC},
     "wuwa38j": {"mode": "bi", "info": WW38_J_INFO, "overrides": WW38_J_OVERRIDES_SRC},
     "wuwa40": {"mode": "bi", "info": WW40_INFO, "overrides": WW40_OVERRIDES_SRC},
-    "wuwa40ko": {"mode": "wuwa40ko", "info": WW40KO_INFO, "overrides": WW40KO_OVERRIDES_SRC, "ko": True},
-    "wuwa40ign": {"mode": "wuwa40ign", "info": WW40IGN_INFO, "overrides": WW40IGN_OVERRIDES_SRC, "ko": True},
-    "wuwa40ja": {"mode": "ja", "info": WW40JA_INFO, "overrides": WW40JA_OVERRIDES_SRC},
+    "wuwa40ko": {"mode": "wuwa-40ko", "info": WW40KO_INFO, "overrides": WW40KO_OVERRIDES_SRC, "ko": True},
+    "wuwa40ign": {"mode": "wuwa-40ign", "info": WW40IGN_INFO, "overrides": WW40IGN_OVERRIDES_SRC, "ko": True},
+    "wuwa40ja": {"mode": "wuwa-ja", "info": WW40JA_INFO, "overrides": WW40JA_OVERRIDES_SRC},
     "wuwasol": {"mode": "bi", "info": WUSOL_INFO, "overrides": WUSOL_OVERRIDES_SRC},
     "wuwaall": {"mode": "bi", "info": WUWAALL_INFO, "overrides": WUWAALL_OVERRIDES_SRC, "zh_first": True},
-    "arcakamiya": {"mode": "arcak", "info": ARCAK_AMIYA_INFO, "overrides": ARCAK_AMIYA_OVERRIDES_SRC},
+    "arcakamiya": {"mode": "ak-arcaea", "info": ARCAK_AMIYA_INFO, "overrides": ARCAK_AMIYA_OVERRIDES_SRC},
 }
 
 # 模式 -> 无条件变体表 / 条件变体表（实体注册时的投影目标）
 # ⚠ 字面量顺序被 kb._kb_view 的实体 modes 累积依赖（kb-export/lookup/lint 输出顺序），
 #   不可改为字母序推导；与 MODE_REGISTRY 的 project_terms 由文件末守卫强制一致。
 _MODE_TERM_TABLE = {
-    "bi": "BILINGUAL_TERMS", "ja": "JA_TERMS", "jpe": "JA_ENDFIELD_TERMS",
-    "ko": "KO_TERMS", "wuwa40ko": "KO_TERMS", "wuwa40ign": "KO_TERMS", "wwoc": "WWOC_TERMS", "endo": "ENDFIELD_TERMS",
-    "ak": "AK_TERMS", "akko": "AK_KO_TERMS", "zho": "ZH_ONLY_TERMS",
-    "pgren": "PGR_EN_TERMS", "react": "REACT_TERMS",
-    "endobi": "ENDFIELD_BI_TERMS", "endoko": "ENDFIELD_KO_TERMS",
+    "bi": "BILINGUAL_TERMS", "wuwa-ja": "JA_TERMS", "endo-ja": "JA_ENDFIELD_TERMS",
+    "wuwa-ko": "KO_TERMS", "wuwa-40ko": "KO_TERMS", "wuwa-40ign": "KO_TERMS", "wwoc": "WWOC_TERMS", "endo": "ENDFIELD_TERMS",
+    "ak": "AK_TERMS", "ak-ko": "AK_KO_TERMS", "zho": "ZH_ONLY_TERMS",
+    "pgr-en": "PGR_EN_TERMS", "react": "REACT_TERMS",
+    "endo-bi": "ENDFIELD_BI_TERMS", "endo-ko": "ENDFIELD_KO_TERMS",
     "pkm": "POKEMON_TERMS",
     "limbus": "LIMBUS_TERMS",
     "ffrs": "FFRS_TERMS",
     "pbz": "PBZ_TERMS",
     "ff14": "FF14_TERMS",
     "ssv": "SSV_TERMS",
-    "arcak": "ARCAK_TERMS",
+    "ak-arcaea": "ARCAK_TERMS",
     "wwm": "WWM_TERMS",
     "gfl2": "GFL2_TERMS",
     "tga26": "TGA_TERMS",
-    "pgrja": "JA_PGR_TERMS",
-    # akja 引擎用 AK_TERMS∪AK_JA_TERMS 合并表，投影只登记增量那张
-    "akja": "AK_JA_TERMS",
+    "pgr-ja": "JA_PGR_TERMS",
+    # ak-ja 引擎用 AK_TERMS∪AK_JA_TERMS 合并表，投影只登记增量那张
+    "ak-ja": "AK_JA_TERMS",
 }
 
 _MODE_CTX_TABLE = {
-    "bi": "CONTEXT_MAP", "ja": "JA_CONTEXT", "jpe": "JA_ENDFIELD_CONTEXT",
-    "akko": "AK_KO_CONTEXT", "ko": "KO_CONTEXT", "wuwa40ko": "WW40KO_CONTEXT", "wuwa40ign": "WW40IGN_CONTEXT", "ak": "AK_CONTEXT",
-    "endoko": "ENDFIELD_KO_CONTEXT", "pkm": "POKEMON_CONTEXT",
+    "bi": "CONTEXT_MAP", "wuwa-ja": "JA_CONTEXT", "endo-ja": "JA_ENDFIELD_CONTEXT",
+    "ak-ko": "AK_KO_CONTEXT", "wuwa-ko": "KO_CONTEXT", "wuwa-40ko": "WW40KO_CONTEXT", "wuwa-40ign": "WW40IGN_CONTEXT", "ak": "AK_CONTEXT",
+    "endo-ko": "ENDFIELD_KO_CONTEXT", "pkm": "POKEMON_CONTEXT",
     "wwoc": "WWOC_CONTEXT",
     # endo 不建槽：单语片源每 cue 仅一行，ref 即该中文行本身，英文锚定永不命中
-    "endobi": "ENDFIELD_BI_CONTEXT",
+    "endo-bi": "ENDFIELD_BI_CONTEXT",
     "limbus": "LIMBUS_CONTEXT",
     "ffrs": "FFRS_CONTEXT",
     "pbz": "PBZ_CONTEXT",
     "ff14": "FF14_CONTEXT",
-    "pgrja": "JA_PGR_CONTEXT",
-    "akja": "AK_JA_CONTEXT",
-    "pgren": "PGR_EN_CONTEXT",
+    "pgr-ja": "JA_PGR_CONTEXT",
+    "ak-ja": "AK_JA_CONTEXT",
+    "pgr-en": "PGR_EN_CONTEXT",
     "ssv": "SSV_CONTEXT",
-    "arcak": "ARCAK_CONTEXT",
+    "ak-arcaea": "ARCAK_CONTEXT",
     "wwm": "WWM_CONTEXT",
     "gfl2": "GFL2_CONTEXT",
     "tga26": "TGA_CONTEXT",
 }
 
 _MODE_NAMES = {
-    "bi": "中英双语", "ja": "日语原声·鸣潮", "jpe": "日语原声·终末地",
-    "ko": "韩语原声·鸣潮", "wuwa40ko": "韩语原声·鸣潮 4.0 新联邦 PV", "wuwa40ign": "韩语原声·鸣潮 4.0 IGN 实机", "wwoc": "综合手游OST", "endo": "终末地",
-    "ak": "明日方舟", "akko": "明日方舟韩语", "zho": "中文行专属",
-    "pgren": "战双英文原声", "react": "音乐点评", "endobi": "终末地·中英双语", "fix-en": "英文参考行修正",
-    "endoko": "终末地·韩语原声", "pkm": "宝可梦城镇主题",
+    "bi": "中英双语", "wuwa-ja": "鸣潮-日语", "endo-ja": "终末地-日语",
+    "wuwa-ko": "鸣潮-韩语", "wuwa-40ko": "鸣潮-4.0韩语", "wuwa-40ign": "鸣潮-4.0IGN", "wwoc": "综合手游OST", "endo": "终末地",
+    "ak": "明日方舟", "ak-ko": "明日方舟-韩语", "zho": "中文行专属",
+    "pgr-en": "战双-英文", "react": "音乐点评", "endo-bi": "终末地-双语", "fix-en": "英文参考行修正",
+    "endo-ko": "终末地-韩语", "pkm": "宝可梦城镇主题",
     "limbus": "边狱巴士",
     "ffrs": "最终幻想：共鸣",
     "pbz": "影之刃零",
     "ff14": "最终幻想14",
-    "pgrja": "日语原声·战双",
-    "akja": "日语原声·明日方舟",
+    "pgr-ja": "战双-日语",
+    "ak-ja": "明日方舟-日语",
     "ssv": "星之救援者",
-    "arcak": "Arcaea×明日方舟",
+    "ak-arcaea": "明日方舟-Arcaea",
     "tga26": "TGA 2026 游戏大奖",
     "wwm": "燕云十六声",
     "gfl2": "少女前线2：追放",

@@ -226,8 +226,8 @@ def test_opt() -> None:
     print("\n[E] 优化补丁")
     # --- 片源识别 ---
     r = guard_mod.infer_mode(title="Our Proxy | Arknights: Endfield Operator Story: Si")
-    check("标题含 Endfield -> endobi/high",
-          r["mode"] == "endobi" and r["confidence"] == "high", str(r["mode"]))
+    check("标题含 Endfield -> endo-bi/high",
+          r["mode"] == "endo-bi" and r["confidence"] == "high", str(r["mode"]))
     r = guard_mod.infer_mode(title="Arknights 5th Anniversary Special")
     check("标题只含 Arknights -> ak", r["mode"] == "ak", str(r["mode"]))
     r = guard_mod.infer_mode(title="Suoming Combat Showcase | Wuthering Waves")

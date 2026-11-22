@@ -20,11 +20,15 @@ from features._api.runtime import APP_ROOT
 CALIB_SCRIPT = os.path.join(APP_ROOT, "subtitle_calib_merged.py")
 
 #: 历史兼容再导出（agent_cli.__all__ 冻结）；**参数唯一真源是 _api/spec.py**
-#: （本 tuple 仅 18 项且含非模式旗标，已过期，不作 schema 依据）
-CALIB_MODE_FLAGS = ("--ja", "--jpe", "--pgrja", "--ko", "--wwoc", "--ak", "--akko",
-                    "--akja",                                   # 2026-11-03 新增：日语原声·明日方舟
-                    "--zho", "--endo", "--endobi", "--fix-en", "--limbus",
-                    "--ffrs", "--pbz", "--ssv", "--arcak",
+#: （本 tuple 仅 18 项且含非模式旗标，已过期，不作 schema 依据）。
+#: 2026-11-22 P3d 子键化同步：12 个变体键的顶层简单旗标已随 P1 移除，旧条目
+#: （--ja/--jpe/--pgrja/--ko/--akko/--akja/--endobi/--arcak）改写为「--mode <子键>」
+#: 两 token 等价形态；顶层旗标与一键旗标名不变。
+CALIB_MODE_FLAGS = ("--mode wuwa-ja", "--mode endo-ja", "--mode pgr-ja",
+                    "--mode wuwa-ko", "--wwoc", "--ak", "--mode ak-ko",
+                    "--mode ak-ja",                             # 2026-11-03 新增：日语原声·明日方舟
+                    "--zho", "--endo", "--mode endo-bi", "--fix-en", "--limbus",
+                    "--ffrs", "--pbz", "--ssv", "--mode ak-arcaea",
                     "--arcakamiya")                            # 2026-11-19 新增：歌词向全曲纯享侧车
 
 
@@ -78,7 +82,7 @@ def run(params: dict, log) -> dict:
     input_list = params.get("input") or []
     if not input_list:
         return fail("缺少输入字幕（用法：calibrate <input.srt> [--out F] "
-                    "[--report F] [--ja|--ko|--endo|--ak|…]）")
+                    "[--report F] [--mode <子键>|--ak|--endo|…]）")
     payload = passthrough_run(None, input_list, params.get("extra") or [], log)
     if "exit_code" in payload:
         _enrich(params.get("extra") or [], payload)

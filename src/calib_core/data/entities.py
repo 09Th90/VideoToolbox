@@ -22,7 +22,7 @@ ENTITIES = list(ENTITIES_PART1) + list(ENTITIES_PART2)
 for _songs, _modes, _label in (
         (_MUSIC_WW, ("bi", "react"), "鸣潮·先约电台"),
         (_MUSIC_AK, ("ak", "react"), "明日方舟·塞壬唱片"),
-        (_MUSIC_ENDO, ("endo", "endobi", "react"), "终末地·铁痕电台")):
+        (_MUSIC_ENDO, ("endo", "endo-bi", "react"), "终末地·铁痕电台")):
     for _c, _en, _ja, _ko in _songs:
         ENTITIES.append(Entity(_c, modes=_modes, en=_en, ja=_ja, ko=_ko,
                                category=f"曲目/{_label}",
@@ -40,7 +40,7 @@ for _c, _en, _ja, _ko in _MUSIC_LIMBUS:
 # 终末地 1.4「向渊行」OST · 阿莱克琉斯战曲 5 段（2026-11-03）：无官方简中 ⇒ 曲名保留拉丁原文，
 # 无 variants，只作跨语元数据（同 _MUSIC_LIMBUS 先例）。
 for _c, _en, _ja, _ko in _MUSIC_ENDO_BOSS:
-    ENTITIES.append(Entity(_c, modes=("endo", "endobi", "react"), en=_en, ja=_ja, ko=_ko,
+    ENTITIES.append(Entity(_c, modes=("endo", "endo-bi", "react"), en=_en, ja=_ja, ko=_ko,
                            category="曲目/终末地·向渊行OST",
                            note="终末地 1.4「向渊行」最终 BOSS 阿莱克琉斯（千夫长）战曲的官方分段曲名；"
                                 "**无官方简体中文**，保留拉丁原文，勿臆造译名。"
@@ -49,14 +49,14 @@ for _c, _en, _ja, _ko in _MUSIC_ENDO_BOSS:
 
 
 # 同一 OST credit 的两位音乐人（2026-11-03）：无官方简中，只登记跨语知识，不建替换键。
-ENTITIES.append(Entity("Crywolf", modes=("react", "endobi", "ak"), en="Crywolf",
+ENTITIES.append(Entity("Crywolf", modes=("react", "endo-bi", "ak"), en="Crywolf",
                        category="音乐人/终末地·铁痕电台",
                        note="终末地「向渊行」OST 阿莱克琉斯战曲署名人之一（铁痕电台-MSR & Crywolf & "
                             "YMIR），另为《明日方舟》作有 Somniomancer [null set]（众生行记 OST 曲7）。"
                             "无官方简体中文名 ⇒ 保留拉丁原名不译。中文错形 冷狼/哭狼/克雷沃尔夫/"
                             "梦巫师克雷沃尔夫 已由 REACT_TERMS 裸键覆盖，本条**不重复建键**。"
                             "2026-11-08：ak 模式补 '狼来了' 参考行锚定（AK_CONTEXT，Cry wolf 命中才替换）。"))
-ENTITIES.append(Entity("YMIR", modes=("react", "endobi"), en="YMIR",
+ENTITIES.append(Entity("YMIR", modes=("react", "endo-bi"), en="YMIR",
                        category="音乐人/终末地·铁痕电台",
                        note="终末地「向渊行」OST 阿莱克琉斯战曲署名人之一。此前全库只在 misc.py 注释里"
                             "出现、无任何条目（grep 实测 0 命中），本次补齐为可检索实体。"
@@ -65,19 +65,19 @@ ENTITIES.append(Entity("YMIR", modes=("react", "endobi"), en="YMIR",
 
 # 2026-11-16 鸣潮 3.8「予以明日的花束」天月日语实况二校：只登记跨语知识，不建替换键
 # （替换已由 ja.py JA_TERMS/JA_CONTEXT 与 bilingual.py 覆盖；日语版角色名与官中不同，须按官中为准）。
-ENTITIES.append(Entity("卡瓦莎", modes=("ja", "bi", "react"), en="Kavasha", ja="カサンドラ",
+ENTITIES.append(Entity("卡瓦莎", modes=("wuwa-ja", "bi", "react"), en="Kavasha", ja="カサンドラ",
                        category="鸣潮/新联邦·第五战区",
                        note="3.8「予以明日的花束」第五战区指挥官、利亚姆之母。日语版名カサンドラ与官中「卡瓦莎」"
                             "不同；谷翻错形 卡桑德拉/卡珊德拉/恩多拉 已由 JA_TERMS/bilingual 裸键覆盖。"))
-ENTITIES.append(Entity("格姆", modes=("ja", "bi", "react"), en="Grim", ja="グリム",
+ENTITIES.append(Entity("格姆", modes=("wuwa-ja", "bi", "react"), en="Grim", ja="グリム",
                        category="鸣潮/灵魂列车·钢琴家",
                        note="3.8 列车亡魂钢琴家，曲《脱下蓝色衣装的黎明》献给敌兵友人。「格林」为通用词禁裸键，"
                             "走 JA_CONTEXT グリム 锚定。"))
-ENTITIES.append(Entity("梅塔", modes=("ja", "bi", "react"), en="Meta", ja="メタ",
+ENTITIES.append(Entity("梅塔", modes=("wuwa-ja", "bi", "react"), en="Meta", ja="メタ",
                        category="鸣潮/心之集域·现任主人",
                        note="3.8 心之集域现任主人，黑白猫为其仆从；与莉莉交易「精炼」污秽频率。「元/Meta/猫元」"
                             "为通用词禁裸键，本片窄锚 メジャーちょっとまだ→梅塔 仅覆盖 Major 误留。"))
-ENTITIES.append(Entity("莉莉·格蕾丝", modes=("ja", "bi", "react"), en="Lily Grace", ja="リリー・グレース",
+ENTITIES.append(Entity("莉莉·格蕾丝", modes=("wuwa-ja", "bi", "react"), en="Lily Grace", ja="リリー・グレース",
                        category="鸣潮/调香师·共鸣者",
                        note="3.8 主角，联邦城调香师、共鸣者战争受害者，灵魂列车临时列车长；全名莉莉·格蕾丝。"
                             "「莉莉」为常见名禁裸键；说话人变体「“莉莉”/战争中的莉莉」仅官方标签，字幕无标签不补。"))
@@ -461,7 +461,7 @@ ENTITIES.append(Entity("音弧", modes=("ak",), en="arcs",
                        category="术语/玩法",
                        ctx=((r"(?<!mobile )\bapps?\b", "应用程序"), (r"\barcs?\b", "弧线")),
                        note="Arcaea 蓝线官方中文「音弧」；应用程序/弧线只走 ctx；mobile apps 不在此列。"))
-ENTITIES.append(Entity("海猫", modes=("ak", "endobi", "endo", "tga26"), en="Lowlight",
+ENTITIES.append(Entity("海猫", modes=("ak", "endo-bi", "endo", "tga26"), en="Lowlight",
                        category="作者/鹰角网络",
                        variants=("Hai Mao", "HaiMao", "海毛"),
                        ctx=((r"\bLow Light\b", "Low Light"), (r"\bLowlight\b", "Lowlight")),
@@ -562,31 +562,31 @@ ENTITIES.append(Entity("《星之海洋》", modes=("ak",), en="Star Ocean",
 #                Carlotta 的韩文写成 카멜리아 是笔误，与 椿 同形，故 珂莱塔 只按 카를로타 记知识）
 #     共鸣链 ＝ 官方系统名（百度百科「鸣潮」养成节：每位角色 6 层共鸣链节点，重复角色转化为
 #                该角色共鸣链回音频段）
-ENTITIES.append(Entity("维里奈", modes=("ko",), en="Verina", ko="벨리나",
+ENTITIES.append(Entity("维里奈", modes=("wuwa-ko",), en="Verina", ko="벨리나",
                        category="角色/鸣潮",
                        variants=("贝琳娜",),
                        note="ko 侧补登（2026-11-02）：谷翻把 벨리나 直译成音译「贝琳娜」，本片 12 处"
                             "（#1541-1545/7114/7148/7158/7161）。'贝琳娜'是唯一音译串、不是通用词，"
                             "可作裸键；bi 侧既有 维丽娜/Verina 不动。"))
-ENTITIES.append(Entity("散华", modes=("ko",), en="Sanhua", ko="산화",
+ENTITIES.append(Entity("散华", modes=("wuwa-ko",), en="Sanhua", ko="산화",
                        category="角色/鸣潮",
                        ctx=((r"산화", "氧化"), (r"산화", "散花"),),
                        note="ko 侧补登（2026-11-02）：韩服官方名 산화 与韩语「氧化」同形，谷翻必出"
                             "「氧化」（本片 #1544「维里奈？还有散华」被翻成「怎么还氧化了」）。"
                             "戒律：'氧化'是正常词，**绝不裸键**，只走 산화 谚文锚定。"))
-ENTITIES.append(Entity("莫宁", modes=("ko",), en="Mornye", ko="모니에",
+ENTITIES.append(Entity("莫宁", modes=("wuwa-ko",), en="Mornye", ko="모니에",
                        category="角色/鸣潮3.0",
                        ctx=((r"모니에|모니", "莫尼"), (r"모니", "气槽"), (r"모니", "钱"),),
                        note="ko 侧补登（2026-11-02）：모니에(莫宁) ASR 缩成 모니/모닝，谷翻按字面出"
                             "「莫尼/气槽/钱」（本片 #198/199/652/6883/7221）。锚定串取 모니，"
                             "不含 머니(money)，故不会咬正常'钱'。'钱/气槽'皆为通用词，禁裸键。"))
-ENTITIES.append(Entity("千咲", modes=("ko",), en="Chisa", ko="치사",
+ENTITIES.append(Entity("千咲", modes=("wuwa-ko",), en="Chisa", ko="치사",
                        category="角色/星炬学院",
                        ctx=((r"치사", "智沙"), (r"치사", "千佐渡"), (r"치사", "奇萨"),),
                        note="ko 侧补登（2026-11-02）：치사(千咲) 与形容词 치사하다(卑鄙/寒酸) 同形，"
                             "错形侧只收音译串并按 치사 锚定（本片 #390/392/4904）。bi 侧已有 奇莎/奇萨"
                             "裸键与 Chisha(炽霞) 回滚锚，勿混——Chisha=炽霞，Chisa=千咲。"))
-ENTITIES.append(Entity("椿", modes=("ko",), en="Camellya", ko="카멜리아",
+ENTITIES.append(Entity("椿", modes=("wuwa-ko",), en="Camellya", ko="카멜리아",
                        category="角色/黑海岸",
                        ctx=((r"카멜레|카멜리아", "山茶花"), (r"카멜레|카멜리아", "茶花"),),
                        note="ko 侧补登（2026-11-02）：官方韩文形 카멜리아 被谷翻按花名直译成"
@@ -594,12 +594,12 @@ ENTITIES.append(Entity("椿", modes=("ko",), en="Camellya", ko="카멜리아",
                             "ctx 里长形 山茶花 必须排在 茶花 之前（KO_CONTEXT 按列表顺序执行）。"
                             "2026-10-13 已有 카멜레언/카멜탈/카메/카밀타 系键，本条只补 카멜리아 "
                             "花名直译这一条产出路径。"))
-ENTITIES.append(Entity("珂莱塔", modes=("ko",), en="Carlotta", ko="카를로타",
+ENTITIES.append(Entity("珂莱塔", modes=("wuwa-ko",), en="Carlotta", ko="카를로타",
                        category="角色/黎那汐塔",
                        note="ko 侧知识登记（2026-11-02）：本片 #6946 谷翻整句吞掉角色名、#7153 残留"
                             "拉丁 'Carlta'，属句级漏译/ASR 断词，**不建替换键**（'卡露塔'等音译形未"
                             "在本片实测，凭猜测入表违反沉淀纪律）。官方韩文形=카를로타。"))
-ENTITIES.append(Entity("共鸣链", modes=("ko",), en="Resonance Chain", ko="돌파",
+ENTITIES.append(Entity("共鸣链", modes=("wuwa-ko",), en="Resonance Chain", ko="돌파",
                        category="术语/鸣潮养成",
                        ctx=((r"체인", "机制"), (r"영체인", "灵体"), (r"영체인", "五链"),
                             (r"6체인", "六人链条"),),
@@ -698,30 +698,30 @@ ENTITIES.append(Entity("卡池", modes=("ak",), en="banner",
 #   ⚠ 联网点验纠正：Zwillingstürme im Herbst 官方中文为「崔林特尔梅之金」，
 #   不是「之秋」（韩语 가을 不对应官方中文名）；本片字幕 0 命中，仅登记备查。
 #   ⚠ 니어라이트 = SideStory「长夜临光」，与干员「临光」(니어) 不是同一对象。
-ENTITIES.append(Entity("长夜临光", modes=("akko",), en="Near Light", ko="니어라이트",
+ENTITIES.append(Entity("长夜临光", modes=("ak-ko",), en="Near Light", ko="니어라이트",
                        category="活动/明日方舟",
                        ctx=((r"니어\s*라이트|니어라이트", "近光"),),
                        note="鹰角官网 [活动预告]SideStory「长夜临光」复刻即将开启；"
                             "韩语 니어라이트=Near Light，谷翻作「近光/近光线」。"))
-ENTITIES.append(Entity("孤星", modes=("akko",), en="Lone Trail", ko="론트레일",
+ENTITIES.append(Entity("孤星", modes=("ak-ko",), en="Lone Trail", ko="론트레일",
                        category="活动/明日方舟",
                        ctx=((r"론트레일", "孤独的踪迹"), (r"론트레일", "孤独的小径")),
                        note="官方 SideStory「孤星」= Lone Trail；韩语 론트레일 音译被"
                             "谷翻作「孤独的踪迹/孤独的小径」。现有 AK_KO_CONTEXT 已收 Lone Trail 拉丁形。"))
-ENTITIES.append(Entity("愚人号", modes=("akko",), en="Stultifera Navis", ko="스툴티페라비스",
+ENTITIES.append(Entity("愚人号", modes=("ak-ko",), en="Stultifera Navis", ko="스툴티페라비스",
                        category="活动/明日方舟",
                        ctx=((r"스툴티페라비스|스틀페라비스", "Stultiferavis"),),
                        note="官方 SideStory「愚人号」= Stultifera Navis（机核考据）；"
                             "补拉丁音译残留 Stultiferavis。现有 스툴티페라 规则已覆盖"
                             "凳子自卸车/油菜花/斯图尔蒂费拉 等中文错形。"))
-ENTITIES.append(Entity("苦难摇篮", modes=("akko",), ko="고난의 요람",
+ENTITIES.append(Entity("苦难摇篮", modes=("ak-ko",), ko="고난의 요람",
                        category="章节/明日方舟",
                        ctx=((r"고난의\s*(?:요람|여람)", "苦难的摇篮"),
                             (r"고난의\s*(?:요람|여람)", "苦难的开始")),
                        note="鹰角官网一周年庆典公告「主线第七章节【苦难摇篮】开放」；"
                             "여람 为 요람 口播/ASR 变体。⚠ 普通词「고난=苦难」不是专名，"
                             "必须靠 고난의 요람 全形锚定，不可全局替换。"))
-ENTITIES.append(Entity("终末地", modes=("akko",), en="Endfield", ko="엔드필드",
+ENTITIES.append(Entity("终末地", modes=("ak-ko",), en="Endfield", ko="엔드필드",
                        category="作品/明日方舟：终末地",
                        ctx=((r"엔드필드|엔더필드|핸드필드|엔필|엔드필더", "安德菲尔德"),
                             (r"엔드필드|엔더필드|핸드필드|엔필|엔드필더", "恩菲尔多"),
@@ -731,13 +731,13 @@ ENTITIES.append(Entity("终末地", modes=("akko",), en="Endfield", ko="엔드�
                        note="官方《明日方舟：终末地》(endfield.hypergryph.com)。"
                             "安德菲尔德/恩菲尔多 为 ASR 音译，端野/末场/终点 为 end·field 直译；"
                             "全部靠韩语行锚定，避免误伤其他片源的「末场/终点」。"))
-ENTITIES.append(Entity("塔露拉", modes=("akko",), en="Talulah", ko="탈롤라",
+ENTITIES.append(Entity("塔露拉", modes=("ak-ko",), en="Talulah", ko="탈롤라",
                        category="角色/明日方舟",
                        ctx=((r"탈롤라|탈로라|탈룰러", "塔洛尔"),
                             (r"탈롤라|탈로라|탈룰러", "Talola")),
                        note="官方对照表 塔露拉/Talulah/탈로라；一校已改 塔罗拉/塔卢拉，"
                             "r2 补「塔洛尔」「Talola」两处漏网。"))
-ENTITIES.append(Entity("罗德岛", modes=("akko",), en="Rhodes Island", ko="로도스 아일랜드",
+ENTITIES.append(Entity("罗德岛", modes=("ak-ko",), en="Rhodes Island", ko="로도스 아일랜드",
                        category="组织/明日方舟",
                        ctx=((r"로도스|로돠스|루도스|로더스", "Rhodes Aland"),
                             (r"루도스|로더스", "鲁多斯岛"),
@@ -745,25 +745,25 @@ ENTITIES.append(Entity("罗德岛", modes=("akko",), en="Rhodes Island", ko="로
                        note="官方对照表 罗德岛/Rhodes Island/로도스 아일랜드。"
                             "wrong「罗德」⊂right「罗德岛」，靠 _ctx_replace 哨兵保护既有正确形；"
                             "AK_KO_CONTEXT 已有 罗多顿岛→罗德岛，此处补拉丁/音译/漏字形。"))
-ENTITIES.append(Entity("拉普兰德", modes=("akko",), en="Lappland", ko="라플란드",
+ENTITIES.append(Entity("拉普兰德", modes=("ak-ko",), en="Lappland", ko="라플란드",
                        category="角色/明日方舟",
                        ctx=((r"라플런드|라플랜드", "拉普兰"),),
                        note="官方对照表 拉普兰德/Lappland/라플란드。现有 AK_KO_CONTEXT 锚点"
                             "라플란드|라플란 不覆盖口播变体 라플런드/라플랜드，此处补锚定；"
                             "wrong⊂right 走哨兵，既有「拉普兰德」不被再咬。"))
-ENTITIES.append(Entity("明日方舟", modes=("akko",), en="Arknights", ko="명일방주",
+ENTITIES.append(Entity("明日方舟", modes=("ak-ko",), en="Arknights", ko="명일방주",
                        category="作品/明日方舟",
                        ctx=((r"명방|명일\s*방주", "Myungbang"),
                             (r"명일\s*방주", "明日之战")),
                        note="官方对照表 明日方舟/Arknights/명일방주；韩语缩略 명방。"
                             "⚠ 명빵 是「명방+빵(面包)」谐音梗，字形不同不会被本锚点命中，"
                             "一校有意保留，禁止改成「明日方舟」。"))
-ENTITIES.append(Entity("干员", modes=("akko",), en="Operator", ko="오퍼레이터",
+ENTITIES.append(Entity("干员", modes=("ak-ko",), en="Operator", ko="오퍼레이터",
                        category="术语/明日方舟",
                        ctx=((r"후방\s*지원\s*오퍼레이터", "后方支援人员"),),
                        note="官方术语「干员」；一校 decisions.md 已归一 操作员/运营商/接线员/运算符，"
                             "r2 补「后方支援人员」漏网。用完整词锚定，不改裸「人员」。"))
-ENTITIES.append(Entity("边狱巴士", modes=("akko",), en="Limbus Company", ko="림버스",
+ENTITIES.append(Entity("边狱巴士", modes=("ak-ko",), en="Limbus Company", ko="림버스",
                        category="作品/联动",
                        ctx=((r"림버스", "边缘"),),
                        note="一校 --akko 既定口径「边狱巴士」（decisions.md 明定保留，"

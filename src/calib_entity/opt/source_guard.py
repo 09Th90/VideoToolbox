@@ -19,36 +19,41 @@ import os
 import re
 from typing import Dict, Iterable, List, Optional, Sequence, Tuple
 
+from calib_core.data.modes import normalize_mode
+
 #: 作品 -> (模式, 标题/文件名关键词, 台词特征词)
 #: 顺序敏感：终末地必须排在明日方舟之前（标题里两者会同时出现）。
+#: 2026-11-22 变体键降级：mode 值改「游戏-细类」新子键（终末地双语、战双日/英、
+#:   方舟日语 按 P1 重命名映射同步改新键），相对顺序不变；infer_mode 出口另经
+#:   normalize_mode 兜底。
 WORK_RULES: Tuple[Tuple[str, str, Tuple[str, ...], Tuple[str, ...]], ...] = (
     # 2026-10-26 新增：边狱巴士（Limbus Company）音乐 reaction
     ("边狱巴士", "limbus",
      ("limbus company", "limbus", "边狱巴士", "边狱公司"),
      ("limbus", "边狱巴士", "边狱公司")),
-    ("终末地", "endobi",
+    ("终末地", "endo-bi",
      ("endfield", "终末地", "arknights: endfield", "arknights： endfield"),
      ("endfield", "终末地", "终末地工业")),
     ("鸣潮", "bi",
      ("wuthering waves", "wuwa", "鸣潮"),
      ("wuthering", "鸣潮", "resonator", "tacet")),
     # 2026-11-03 新增：战双帕弥什**日语原声**片（联动剧情朗读直播）。
-    #   ⚠ 必须排在下面那条 ("战双帕弥什","pgren") **之前**：WORK_RULES 是顺序敏感的，
-    #   两条都命中时取先出现的那条 ⇒ 无日语标记的战双片仍落 pgren（英语原声通道），
-    #   有片假名/日服写法的才走 --pgrja。台词特征词一律用**假名/日服汉字形**，
+    #   ⚠ 必须排在下面那条 ("战双帕弥什","pgr-en") **之前**：WORK_RULES 是顺序敏感的，
+    #   两条都命中时取先出现的那条 ⇒ 无日语标记的战双片仍落 pgr-en（英语原声通道），
+    #   有片假名/日服写法的才走 --mode pgr-ja。台词特征词一律用**假名/日服汉字形**，
     #   英语原声片的参考行是拉丁字母，不会误命中。
-    ("战双帕弥什·日语原声", "pgrja",
+    ("战双帕弥什·日语原声", "pgr-ja",
      ("パニグレ", "デート・ア・ライブ", "読むよ", "pngr"),
      ("シェディム", "シェリム", "ドミナ", "レイヤ", "空中庭園", "コラボストーリー")),
-    ("战双帕弥什", "pgren",
+    ("战双帕弥什", "pgr-en",
      ("punishing gray raven", "战双", "pgr"),
      ("punishing", "战双", "construct")),
     # 2026-11-03 新增：明日方舟**日语原声**片（奈渡ナオト 首播 reaction）。
     #   ⚠ 必须排在下面那条 ("明日方舟","ak") **之前**：本表顺序敏感，两条都能命中时取先出现的
-    #   ⇒ 无假名的方舟片（英语原声 reaction）仍走 ak，有片假名/日服写法的才走 --akja。
+    #   ⇒ 无假名的方舟片（英语原声 reaction）仍走 ak，有片假名/日服写法的才走 --mode ak-ja。
     #   标题词用片假名写法（日服标题「アークナイツ」），台词特征词一律假名形，
-    #   英语原声片的参考行是拉丁字母 ⇒ 不会误命中（与 pgrja 同判据）。
-    ("明日方舟·日语原声", "akja",
+    #   英语原声片的参考行是拉丁字母 ⇒ 不会误命中（与 pgr-ja 同判据）。
+    ("明日方舟·日语原声", "ak-ja",
      ("アークナイツ", "アクナイ", "arknights 日本語", "アークナイツ配信"),
      ("ドクター", "オペレーター", "ケルシー", "オリジニウム", "アビサル", "アークナイツ")),
     ("明日方舟", "ak",
@@ -92,7 +97,7 @@ def infer_mode(title: str = "", filename: str = "", lines: Optional[Iterable[str
     返回::
 
         {
-          "mode": "endobi",
+          "mode": "endo-bi",
           "confidence": "high" | "medium" | "low",
           "reasons": ["标题命中 endfield", ...],
           "work": "终末地",
@@ -110,6 +115,7 @@ def infer_mode(title: str = "", filename: str = "", lines: Optional[Iterable[str
 
     scores: Dict[str, dict] = {}
     for work, mode, title_needles, line_needles in WORK_RULES:
+        mode = normalize_mode(mode)       # 2026-11-22 变体键降级：出口归一新键（兜底）
         t_hits = _hit(title, title_needles)
         f_hits = _hit(filename, title_needles)
         l_hits = _hit(blob, line_needles)

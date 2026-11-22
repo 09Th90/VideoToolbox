@@ -4200,9 +4200,7 @@ WUWA_MISSING_CHECK = [
      "With Glory I Shall Fall 官中曲名=愿戴荣光坠入天渊（卡提希娅 2.2 EP）"),
     (r"\bschool\s+badges?\b", ("学院徽记",),
      "school badges 活动货币官中=学院徽记（非学院徽章）"),
-    (r"\bOld\s+Federation\b", ("旧联邦",),
-     "Old Federation 官方中文=旧联邦（新联邦属地/沙覆下城）；⚠ 裸键「联邦→新联邦」会咬成"
-     "「旧新联邦」，已用 Federation 负向后顾 + 旧新联邦兜底键修正（本片 #35）"),
+    # --- 2026-11-21 全短片 reaction 二校：片名与 3.x 专名体检项（只报不改）---
     (r"\bAs\s+Fate\s+Destined\b", ("今昔", "《今昔》"),
      "《今昔》官方英文题名 As Fate Destined（1.1 动画短片）"),
     (r"\bPrologue\s+to\s+the\s+Carnival\b", ("狂欢序章", "《狂欢序章》"),
@@ -4524,10 +4522,6 @@ JA_TERMS = {
     "国家转覆": "国家颠覆",                                        # 国家転覆罪
     # ===== 2026-11-17 r3 三校回灌（同片再校 12 改，官方逐句复核）=====
     "令骸": "令人",                                                # 落ち着く 谷翻错字（令骸→令人）
-    "莫妮耶": "莫宁",                                # モーニエ = Mornye
-    "莫特菲": "莫特斐",                              # モルト = Mortefi（官方作「莫特斐」）
-    "加布蕾娜": "嘉贝莉娜",                          # ガルブレーナ = Galbrena
-    "千纱": "千咲",                                  # ちさ = Chisa（官方作「千咲」）
 }
 
 
@@ -4991,33 +4985,49 @@ JA_CONTEXT = [
     # ⚠ 拒绝登记：「果苷/苷/残星会苷/残星会oshi/残星会des」短键级联坏串、
     #   「光伏发电→PV」纯拉丁化（破坏 verify 版式）、K01-K07 低置信、K08 观众昵称、
     #   以及只在 fix.tsv 落地的整句精修，详见 回灌清单_r2.md。
-    (r"ソラリス学園", "索拉里斯学园", "星炬学院"),     # ソラリス学園 = 星炬学院（4.0 拉海洛校区）
-    (r"スタート学園|スタートーチ学園", "初始学园", "星炬学院"),
+
+    # ══ 2026-11-22 二校回灌：《【鳴潮】Ver4.0の先行映像がやばすぎる！！！》ノタルch 日语反应片
+    #   （120 cue，日语 ASR + 微软翻译；--ja）。官方简中依据：4.0 年度篇章「永明的烬焰」
+    #   官网/官微——隧铠（ストライダーメカスーツ）/ 安娜 / 露希尔（ルシェル）/
+    #   布法罗山脉（バッファロー山脈）/ 新联邦（ネオユニオン）/ 谐度破坏（協和破壊）/
+    #   延奏·变奏（終奏·変奏）/ 声骸（音骸）/ 翱翔（ソアー）/ 科考摩托（エクスペディションバイク）/
+    #   清宵（聖唱，3.6 共鸣者）。
+    #   片源机翻把专名大量落成**通用词/拉丁残留**（蓝色/机甲/伪装/进入比赛/忘恩负义…），
+    #   一律日语参考行锚定、禁裸键；同锚长错形在前（机甲战士→机甲、伪装袭击→伪装）。
+    # ══════════════════════════════════════════════════════════════════════
     (r"Station公式|Station 公式", "官方车站", "PlayStation官方"),
     (r"名朝|鳴潮|名長", "Meicho", "鸣潮"),
+    # カ(鎌) 被机翻留成拉丁 Ka：先长形 Ka-Ka，再裸 Ka
     (r"カ、カ使ってる|カ使ってる", "Ka-Ka", "镰刀"),
     (r"カ、カ使ってる|カ使ってる", "Ka", "镰刀"),
+    # —— 露希尔（4.0 共鸣者；日语 ルシェル / ASR ルシエル）——
     (r"ルシ[ェエ]ル", "卢西尔", "露希尔"),
     (r"ルシ[ェエ]ル", "露塞尔", "露希尔"),
     (r"ルシ[ェエ]ル", "卢切尔", "露希尔"),
     (r"ルシ[ェエ]ル", "卢谢尔", "露希尔"),
     (r"ルシ[ェエ]ル", "Lucelle", "露希尔"),
+    # —— 隧铠（穿戴式机甲；ストライダーメカスーツ）——
     (r"メカスーツ|ストライダーメカスーツ", "Strider Mechasuit", "隧铠"),
     (r"メカスーツ|ストライダーメカスーツ", "Strider Mecha Suit", "隧铠"),
     (r"メカスーツ|ストライダーメカスーツ", "机甲套装", "隧铠"),
     (r"メカスーツ|ストライダーメカスーツ", "机甲战士", "隧铠"),
     (r"メカスーツ|ストライダーメカスーツ", "机甲", "隧铠"),
+    # —— 翱翔(ソアー) / 科考摩托(バイク) ——
     (r"ソワ|ソアー", "Sowa", "翱翔"),
     (r"ソワ|ソアー", "Soar", "翱翔"),
     (r"バイク", "这辆车", "科考摩托"),
+    # —— 清宵（3.6 共鸣者；本片 ASR「聖唱」「青」）——
     (r"聖唱", "圣唱", "清宵"),
     (r"青の操作感", "蓝色", "清宵"),
+    # —— 延奏 / 变奏（終奏 / 変奏）——
     (r"終奏|収走", "进入比赛", "延奏"),
     (r"変装", "伪装袭击", "变奏技能"),
     (r"変装", "伪装", "变奏"),
+    # —— 声骸（音骸；ASR「恩外」）——
     (r"音骸|恩外", "令人忘恩负义的伤害", "声骸伤害"),
     (r"音骸|恩外", "忘恩负义的伤害", "声骸伤害"),
     (r"音骸|恩外", "忘恩负义", "声骸"),
+    # —— 谐度破坏（協和破壊；ASR「共和破壊」「強和」）——
     (r"共和破壊|協和破壊", "共和国的毁灭", "谐度破坏"),
     (r"強和|協和破壊", "强烈的吸引力", "谐度破坏"),
 ]
@@ -5334,6 +5344,10 @@ JA_PGR_CONTEXT = [
     (r"^え、$", "图片", "诶，"),
     # ── 2026-11-17 r3 三校回灌（同片）──
     (r"現れがち", "容易出现幻觉", "这种事倒是经常有"),               # 洛瑟菈段 ASR 碎片机翻病句
+    # ══ 2026-11-22 鸣潮 4.0 先行映像日文实况（1194 cue）二校回灌 ══
+    # 官方依据：4.0 年度篇章「永明的烬焰」官网/官微、库街区角色档案（安娜/露希尔/格尔黛/砂）、
+    #   3.7 千咲、2.7 嘉贝莉娜、黑海岸、星炬学院、隧铠、谐度破坏/协奏能量。
+    # 规则：长错形在前；专名一律日语行窄锚，禁裸键（凯恩/阿尔托/黑秀 等跨作品重名）。
     (r"メカスーツ|ストライダー|ストライナー", "隧铠机甲套装", "隧铠"),
     (r"メカスーツ|ストライダー|ストライナー", "机甲套装", "隧铠"),
     (r"真とサメ", "真和鲨鱼", "心和锁暝"),            # シン(心) と サメ(锁暝) 的 ASR 合写
@@ -9558,10 +9572,7 @@ WW40IGN_CONTEXT = [
     (r"아이언", "铁", "机甲"),
     # —— 加速：가속골 机翻成「加速目标」——
     (r"가속골", "加速目标", "加速"),
-    # —— 热熔漂泊者：용랑자 = 용융(热熔) + 방랑자(漂泊者) 的社区缩写，机翻出 永浪子/龙郎子/龙浪子 ——
-    (r"용랑자|용육\s?랑자|용융\s?랑자", "永浪子", "热熔漂泊者"),
-    (r"용랑자|용육\s?랑자|용융\s?랑자", "龙郎子", "热熔漂泊者"),
-    (r"용랑자|용육\s?랑자|용융\s?랑자", "龙浪子", "热熔漂泊者"),
+    # —— 龙浪子：용랑자 是主播昵称（非官方），机翻出 永浪子/龙郎子 ——
     (r"용랑자", "永浪子", "龙浪子"),
     (r"용랑자", "龙郎子", "龙浪子"),
 ]
@@ -9695,7 +9706,6 @@ KO_MISSING_CHECK = [
     (r"제다(?![이아])", ("杰迪",), "제다 = 杰迪（与 제다이아=杰凯德 区分）"),
     (r"스트레스성\s?장애", ("应激性障碍",), "스트레스성 장애 = 应激性障碍；错形 ST级疾病"),
     (r"10월\s?오일", ("10月5日",), "10월 오일 = 10月5日；错形 十月的油"),
-    (r"용랑자", ("龙浪子",), "용랑자 = 龙浪子（主播昵称，非官方术语）；错形 永浪子"),
 ]
 
 # ===== data/endfield.py =====
@@ -13649,7 +13659,7 @@ ZHO_INFO = {
 # =============================================================
 
 # =============================================================
-# 模式注册表（单一真源，2026-11-21 工程重构）
+# 模式注册表（单一真源，2026-11-21 工程重构；2026-11-22 变体键降级为「游戏-细类」子键）
 #   新增一个片源模式 = 新建 data/<mode>.py 词表 + 本表加一条注册。
 #   字段：
 #     terms         引擎术语表名（__AKJA_MERGE__=AK_TERMS∪AK_JA_TERMS，__EMPTY__={}）
@@ -13657,80 +13667,106 @@ ZHO_INFO = {
 #     project_terms 实体投影术语槽（_MODE_TERM_TABLE 值；None=不投影，如 zel/hsr/pgr）
 #     project_ctx   实体投影语境槽（_MODE_CTX_TABLE 值；None=不投影，如 endo/zho/react）
 #     name          显示名（_MODE_NAMES 值；None=不进显示名表，如 zel/hsr/pgr）
+#     parent        父游戏 ASCII 键（顶层=None；纯分组/显示字段，引擎不依赖 parent 键存在——
+#                   如 wuwa-ja/wuwa-ko 的 parent="wuwa" 是逻辑组名，registry 并无 wuwa 键）
+#   2026-11-22 重命名（12 个变体校准键 → 父游戏 ASCII 子键「游戏-细类」，纯重命名零行为漂移：
+#     terms/ctx/project_*/表名全部不变；旧键经 _MODE_ALIASES + normalize_mode 兼容归一）：
+#     akja→ak-ja、akko→ak-ko、arcak→ak-arcaea、endobi→endo-bi、endoko→endo-ko、jpe→endo-ja、
+#     ja→wuwa-ja、ko→wuwa-ko、wuwa40ko→wuwa-40ko、wuwa40ign→wuwa-40ign、pgren→pgr-en、pgrja→pgr-ja
 #   三张投影视图（_MODE_TERM_TABLE/_MODE_CTX_TABLE/_MODE_NAMES）由本表推导；
 #   monolith 生成时由 build_calib_monolith 序列化为字面量（兼容旧 merge core / ast_compat）。
 #   ⚠ project_terms/project_ctx 决定 ENTITIES 投影目标，与引擎 terms/ctx 是两回事：
-#     akja 引擎用合并表但投影只登记增量 AK_JA_TERMS；zel/hsr 引擎有表但无投影槽。
+#     ak-ja 引擎用合并表但投影只登记增量 AK_JA_TERMS；zel/hsr 引擎有表但无投影槽。
 # =============================================================
 MODE_REGISTRY = {
-    "ak": {"terms": "AK_TERMS", "ctx": "AK_CONTEXT", "project_terms": "AK_TERMS", "project_ctx": "AK_CONTEXT", "name": "明日方舟"},
+    "ak": {"terms": "AK_TERMS", "ctx": "AK_CONTEXT", "project_terms": "AK_TERMS", "project_ctx": "AK_CONTEXT", "name": "明日方舟", "parent": None},
     # 2026-11-03 明日方舟日语原声（奈渡ナオト 首播）：引擎 AK_TERMS∪AK_JA_TERMS，投影只登记增量表
-    "akja": {"terms": "__AKJA_MERGE__", "ctx": "AK_JA_CONTEXT", "project_terms": "AK_JA_TERMS", "project_ctx": "AK_JA_CONTEXT", "name": "日语原声·明日方舟"},
-    "akko": {"terms": "AK_KO_TERMS", "ctx": "AK_KO_CONTEXT", "project_terms": "AK_KO_TERMS", "project_ctx": "AK_KO_CONTEXT", "name": "明日方舟韩语"},
+    # 2026-11-22 降级子键：akja → ak-ja（parent=ak）
+    "ak-ja": {"terms": "__AKJA_MERGE__", "ctx": "AK_JA_CONTEXT", "project_terms": "AK_JA_TERMS", "project_ctx": "AK_JA_CONTEXT", "name": "明日方舟-日语", "parent": "ak"},
+    "ak-ko": {"terms": "AK_KO_TERMS", "ctx": "AK_KO_CONTEXT", "project_terms": "AK_KO_TERMS", "project_ctx": "AK_KO_CONTEXT", "name": "明日方舟-韩语", "parent": "ak"},
     # 2026-11-18 Arcaea×明日方舟联动直播（英语 ASR + 微软翻译）
-    "arcak": {"terms": "ARCAK_TERMS", "ctx": "ARCAK_CONTEXT", "project_terms": "ARCAK_TERMS", "project_ctx": "ARCAK_CONTEXT", "name": "Arcaea×明日方舟"},
-    "bi": {"terms": "BILINGUAL_TERMS", "ctx": "CONTEXT_MAP", "project_terms": "BILINGUAL_TERMS", "project_ctx": "CONTEXT_MAP", "name": "中英双语"},
+    # 2026-11-22 降级子键：arcak → ak-arcaea（parent=ak）
+    "ak-arcaea": {"terms": "ARCAK_TERMS", "ctx": "ARCAK_CONTEXT", "project_terms": "ARCAK_TERMS", "project_ctx": "ARCAK_CONTEXT", "name": "明日方舟-Arcaea", "parent": "ak"},
+    "bi": {"terms": "BILINGUAL_TERMS", "ctx": "CONTEXT_MAP", "project_terms": "BILINGUAL_TERMS", "project_ctx": "CONTEXT_MAP", "name": "中英双语", "parent": None},
     # endo 单语片每 cue 仅一行，ref 即中文行本身，英文锚定永不命中 → 不建语境槽
-    "endo": {"terms": "ENDFIELD_TERMS", "ctx": None, "project_terms": "ENDFIELD_TERMS", "project_ctx": None, "name": "终末地"},
+    "endo": {"terms": "ENDFIELD_TERMS", "ctx": None, "project_terms": "ENDFIELD_TERMS", "project_ctx": None, "name": "终末地", "parent": None},
     # 2026-10-20 endobi 补语境槽（通用中文词类官方名靠英文参考行锚定）
-    "endobi": {"terms": "ENDFIELD_BI_TERMS", "ctx": "ENDFIELD_BI_CONTEXT", "project_terms": "ENDFIELD_BI_TERMS", "project_ctx": "ENDFIELD_BI_CONTEXT", "name": "终末地·中英双语"},
-    "endoko": {"terms": "ENDFIELD_KO_TERMS", "ctx": "ENDFIELD_KO_CONTEXT", "project_terms": "ENDFIELD_KO_TERMS", "project_ctx": "ENDFIELD_KO_CONTEXT", "name": "终末地·韩语原声"},
+    # 2026-11-22 降级子键：endobi → endo-bi（parent=endo）
+    "endo-bi": {"terms": "ENDFIELD_BI_TERMS", "ctx": "ENDFIELD_BI_CONTEXT", "project_terms": "ENDFIELD_BI_TERMS", "project_ctx": "ENDFIELD_BI_CONTEXT", "name": "终末地-双语", "parent": "endo"},
+    # 2026-11-22 降级子键：endoko → endo-ko（parent=endo）
+    "endo-ko": {"terms": "ENDFIELD_KO_TERMS", "ctx": "ENDFIELD_KO_CONTEXT", "project_terms": "ENDFIELD_KO_TERMS", "project_ctx": "ENDFIELD_KO_CONTEXT", "name": "终末地-韩语", "parent": "endo"},
     # 2026-11-01 最终幻想14（FFXIV）英语原声+谷翻 reaction
-    "ff14": {"terms": "FF14_TERMS", "ctx": "FF14_CONTEXT", "project_terms": "FF14_TERMS", "project_ctx": "FF14_CONTEXT", "name": "最终幻想14"},
+    "ff14": {"terms": "FF14_TERMS", "ctx": "FF14_CONTEXT", "project_terms": "FF14_TERMS", "project_ctx": "FF14_CONTEXT", "name": "最终幻想14", "parent": None},
     # 2026-10-28 最终幻想：共鸣（FFRS）HD-2D 实况
-    "ffrs": {"terms": "FFRS_TERMS", "ctx": "FFRS_CONTEXT", "project_terms": "FFRS_TERMS", "project_ctx": "FFRS_CONTEXT", "name": "最终幻想：共鸣"},
-    "fix-en": {"terms": None, "ctx": None, "project_terms": None, "project_ctx": None, "name": "英文参考行修正"},
+    "ffrs": {"terms": "FFRS_TERMS", "ctx": "FFRS_CONTEXT", "project_terms": "FFRS_TERMS", "project_ctx": "FFRS_CONTEXT", "name": "最终幻想：共鸣", "parent": None},
+    "fix-en": {"terms": None, "ctx": None, "project_terms": None, "project_ctx": None, "name": "英文参考行修正", "parent": None},
     # 2026-11-21 少女前线2：追放（GFL2 Exilium）二周年反应片
-    "gfl2": {"terms": "GFL2_TERMS", "ctx": "GFL2_CONTEXT", "project_terms": "GFL2_TERMS", "project_ctx": "GFL2_CONTEXT", "name": "少女前线2：追放"},
+    "gfl2": {"terms": "GFL2_TERMS", "ctx": "GFL2_CONTEXT", "project_terms": "GFL2_TERMS", "project_ctx": "GFL2_CONTEXT", "name": "少女前线2：追放", "parent": None},
     # 2026-10-20 崩坏：星穹铁道（引擎用 HSR_CONTEXT，但无实体投影槽）
-    "hsr": {"terms": "HSR_TERMS", "ctx": "HSR_CONTEXT", "project_terms": None, "project_ctx": None, "name": None},
-    "ja": {"terms": "JA_TERMS", "ctx": "JA_CONTEXT", "project_terms": "JA_TERMS", "project_ctx": "JA_CONTEXT", "name": "日语原声·鸣潮"},
-    "jpe": {"terms": "JA_ENDFIELD_TERMS", "ctx": "JA_ENDFIELD_CONTEXT", "project_terms": "JA_ENDFIELD_TERMS", "project_ctx": "JA_ENDFIELD_CONTEXT", "name": "日语原声·终末地"},
-    "ko": {"terms": "KO_TERMS", "ctx": "KO_CONTEXT", "project_terms": "KO_TERMS", "project_ctx": "KO_CONTEXT", "name": "韩语原声·鸣潮"},
+    "hsr": {"terms": "HSR_TERMS", "ctx": "HSR_CONTEXT", "project_terms": None, "project_ctx": None, "name": None, "parent": None},
+    # 2026-11-22 降级子键：ja → wuwa-ja（parent=wuwa 为逻辑组名，registry 无 wuwa 键）
+    "wuwa-ja": {"terms": "JA_TERMS", "ctx": "JA_CONTEXT", "project_terms": "JA_TERMS", "project_ctx": "JA_CONTEXT", "name": "鸣潮-日语", "parent": "wuwa"},
+    # 2026-11-22 降级子键：jpe → endo-ja（parent=endo）
+    "endo-ja": {"terms": "JA_ENDFIELD_TERMS", "ctx": "JA_ENDFIELD_CONTEXT", "project_terms": "JA_ENDFIELD_TERMS", "project_ctx": "JA_ENDFIELD_CONTEXT", "name": "终末地-日语", "parent": "endo"},
+    # 2026-11-22 降级子键：ko → wuwa-ko（parent=wuwa 为逻辑组名）
+    "wuwa-ko": {"terms": "KO_TERMS", "ctx": "KO_CONTEXT", "project_terms": "KO_TERMS", "project_ctx": "KO_CONTEXT", "name": "鸣潮-韩语", "parent": "wuwa"},
     # 2026-10-26 边狱巴士（Limbus Company）音乐 reaction
-    "limbus": {"terms": "LIMBUS_TERMS", "ctx": "LIMBUS_CONTEXT", "project_terms": "LIMBUS_TERMS", "project_ctx": "LIMBUS_CONTEXT", "name": "边狱巴士"},
+    "limbus": {"terms": "LIMBUS_TERMS", "ctx": "LIMBUS_CONTEXT", "project_terms": "LIMBUS_TERMS", "project_ctx": "LIMBUS_CONTEXT", "name": "边狱巴士", "parent": None},
     # 2026-10-30 影之刃零（Phantom Blade Zero）英语原声+谷翻实况
-    "pbz": {"terms": "PBZ_TERMS", "ctx": "PBZ_CONTEXT", "project_terms": "PBZ_TERMS", "project_ctx": "PBZ_CONTEXT", "name": "影之刃零"},
+    "pbz": {"terms": "PBZ_TERMS", "ctx": "PBZ_CONTEXT", "project_terms": "PBZ_TERMS", "project_ctx": "PBZ_CONTEXT", "name": "影之刃零", "parent": None},
     # pgr 侧车整行覆盖模式：无术语表（引擎 __EMPTY__），无投影槽
-    "pgr": {"terms": "__EMPTY__", "ctx": None, "project_terms": None, "project_ctx": None, "name": None},
+    "pgr": {"terms": "__EMPTY__", "ctx": None, "project_terms": None, "project_ctx": None, "name": None, "parent": None},
     # 2026-11-04 战双英文原声（余辉/光伏/丝带/克洛伊 全是正常中文词，禁裸键）
-    "pgren": {"terms": "PGR_EN_TERMS", "ctx": "PGR_EN_CONTEXT", "project_terms": "PGR_EN_TERMS", "project_ctx": "PGR_EN_CONTEXT", "name": "战双英文原声"},
-    # 2026-11-03 战双日语原声（联动朗读直播）：参考行日语，与 pgren 互斥
-    "pgrja": {"terms": "JA_PGR_TERMS", "ctx": "JA_PGR_CONTEXT", "project_terms": "JA_PGR_TERMS", "project_ctx": "JA_PGR_CONTEXT", "name": "日语原声·战双"},
+    # 2026-11-22 降级子键：pgren → pgr-en（parent=pgr）
+    "pgr-en": {"terms": "PGR_EN_TERMS", "ctx": "PGR_EN_CONTEXT", "project_terms": "PGR_EN_TERMS", "project_ctx": "PGR_EN_CONTEXT", "name": "战双-英文", "parent": "pgr"},
+    # 2026-11-03 战双日语原声（联动朗读直播）：参考行日语，与 pgr-en 互斥
+    # 2026-11-22 降级子键：pgrja → pgr-ja（parent=pgr）
+    "pgr-ja": {"terms": "JA_PGR_TERMS", "ctx": "JA_PGR_CONTEXT", "project_terms": "JA_PGR_TERMS", "project_ctx": "JA_PGR_CONTEXT", "name": "战双-日语", "parent": "pgr"},
     # 2026-10-21 宝可梦城镇主题
-    "pkm": {"terms": "POKEMON_TERMS", "ctx": "POKEMON_CONTEXT", "project_terms": "POKEMON_TERMS", "project_ctx": "POKEMON_CONTEXT", "name": "宝可梦城镇主题"},
+    "pkm": {"terms": "POKEMON_TERMS", "ctx": "POKEMON_CONTEXT", "project_terms": "POKEMON_TERMS", "project_ctx": "POKEMON_CONTEXT", "name": "宝可梦城镇主题", "parent": None},
     # react 引擎用 REACT_CONTEXT，但无实体投影语境槽
-    "react": {"terms": "REACT_TERMS", "ctx": "REACT_CONTEXT", "project_terms": "REACT_TERMS", "project_ctx": None, "name": "音乐点评"},
+    "react": {"terms": "REACT_TERMS", "ctx": "REACT_CONTEXT", "project_terms": "REACT_TERMS", "project_ctx": None, "name": "音乐点评", "parent": None},
     # 2026-11-15 星之救援者（Star Savior）英语原声+谷翻评测
-    "ssv": {"terms": "SSV_TERMS", "ctx": "SSV_CONTEXT", "project_terms": "SSV_TERMS", "project_ctx": "SSV_CONTEXT", "name": "星之救援者"},
+    "ssv": {"terms": "SSV_TERMS", "ctx": "SSV_CONTEXT", "project_terms": "SSV_TERMS", "project_ctx": "SSV_CONTEXT", "name": "星之救援者", "parent": None},
     # 2026-11-18 TGA 2026 游戏大奖直播（英语原声 + 微软翻译）
-    "tga26": {"terms": "TGA_TERMS", "ctx": "TGA_CONTEXT", "project_terms": "TGA_TERMS", "project_ctx": "TGA_CONTEXT", "name": "TGA 2026 游戏大奖"},
+    "tga26": {"terms": "TGA_TERMS", "ctx": "TGA_CONTEXT", "project_terms": "TGA_TERMS", "project_ctx": "TGA_CONTEXT", "name": "TGA 2026 游戏大奖", "parent": None},
     # 2026-11-21 鸣潮 4.0 IGN 实机演示韩语反应片
-    "wuwa40ign": {"terms": "KO_TERMS", "ctx": "WW40IGN_CONTEXT", "project_terms": "KO_TERMS", "project_ctx": "WW40IGN_CONTEXT", "name": "韩语原声·鸣潮 4.0 IGN 实机"},
+    # 2026-11-22 降级子键：wuwa40ign → wuwa-40ign（parent=wuwa 为逻辑组名）
+    "wuwa-40ign": {"terms": "KO_TERMS", "ctx": "WW40IGN_CONTEXT", "project_terms": "KO_TERMS", "project_ctx": "WW40IGN_CONTEXT", "name": "鸣潮-4.0IGN", "parent": "wuwa"},
     # 2026-11-19 鸣潮 4.0 新联邦 PV 韩语反应片
-    "wuwa40ko": {"terms": "KO_TERMS", "ctx": "WW40KO_CONTEXT", "project_terms": "KO_TERMS", "project_ctx": "WW40KO_CONTEXT", "name": "韩语原声·鸣潮 4.0 新联邦 PV"},
+    # 2026-11-22 降级子键：wuwa40ko → wuwa-40ko（parent=wuwa 为逻辑组名）
+    "wuwa-40ko": {"terms": "KO_TERMS", "ctx": "WW40KO_CONTEXT", "project_terms": "KO_TERMS", "project_ctx": "WW40KO_CONTEXT", "name": "鸣潮-4.0韩语", "parent": "wuwa"},
     # 2026-11-21 燕云十六声（Where Winds Meet）滹沱实机片
-    "wwm": {"terms": "WWM_TERMS", "ctx": "WWM_CONTEXT", "project_terms": "WWM_TERMS", "project_ctx": "WWM_CONTEXT", "name": "燕云十六声"},
+    "wwm": {"terms": "WWM_TERMS", "ctx": "WWM_CONTEXT", "project_terms": "WWM_TERMS", "project_ctx": "WWM_CONTEXT", "name": "燕云十六声", "parent": None},
     # 2026-10-25 wwoc 补语境槽（多游戏韩语片歧义错形）
-    "wwoc": {"terms": "WWOC_TERMS", "ctx": "WWOC_CONTEXT", "project_terms": "WWOC_TERMS", "project_ctx": "WWOC_CONTEXT", "name": "综合手游OST"},
+    "wwoc": {"terms": "WWOC_TERMS", "ctx": "WWOC_CONTEXT", "project_terms": "WWOC_TERMS", "project_ctx": "WWOC_CONTEXT", "name": "综合手游OST", "parent": None},
     # 2026-09-14 塞尔达传说（引擎用 ZELDA_TERMS，无语境槽、无投影槽）
-    "zel": {"terms": "ZELDA_TERMS", "ctx": None, "project_terms": None, "project_ctx": None, "name": None},
-    "zho": {"terms": "ZH_ONLY_TERMS", "ctx": None, "project_terms": "ZH_ONLY_TERMS", "project_ctx": None, "name": "中文行专属"},
+    "zel": {"terms": "ZELDA_TERMS", "ctx": None, "project_terms": None, "project_ctx": None, "name": None, "parent": None},
+    "zho": {"terms": "ZH_ONLY_TERMS", "ctx": None, "project_terms": "ZH_ONLY_TERMS", "project_ctx": None, "name": "中文行专属", "parent": None},
 }
 
 # 简单模式旗标（--<mode> 直接设 mode）。排除：bi（默认无旗标）、fix-en（--fix-en 布尔）、
-#   wuwa40ko/wuwa40ign（走一键重跑链，需 info+侧车装配）、wwm（原 cli 无 --wwm 简单旗标，
-#   仅经 --mode wwm 别名进入；擅自补旗标会让 --wwm 从「忽略落 bi」漂移成 wwm）。
-_NO_SIMPLE_FLAG = {"bi", "fix-en", "wuwa40ko", "wuwa40ign", "wwm"}
+#   12 个「游戏-细类」子键（2026-11-22 变体键降级后不再设顶层简单旗标，原 --ja/--ko/--akja/
+#   --akko/--arcak/--endobi/--endoko/--jpe/--pgren/--pgrja 一并移除，子键经 --mode <子键>/别名进入；
+#   其中 wuwa-40ko/wuwa-40ign 另走一键重跑链，需 info+侧车装配）、
+#   wwm（原 cli 无 --wwm 简单旗标，仅经 --mode wwm 别名进入；擅自补旗标会让 --wwm 从「忽略落 bi」漂移成 wwm）。
+_NO_SIMPLE_FLAG = {"bi", "fix-en", "wwm",
+                   "ak-ja", "ak-ko", "ak-arcaea",
+                   "endo-bi", "endo-ko", "endo-ja",
+                   "wuwa-ja", "wuwa-ko", "wuwa-40ko", "wuwa-40ign",
+                   "pgr-en", "pgr-ja"}
 _MODE_FLAGS = {"--" + m: m for m in MODE_REGISTRY if m not in _NO_SIMPLE_FLAG}
 
 # --mode 别名 → 模式（精确沿用原 elif 链 + 三元兜底的全部别名；未列出的 --mode 值落 bi）。
-#   ⚠ 别名集必须与原链逐字一致：jpe/pgrja/akko/endobi/endoko/pgren/react/wwoc 等
-#     原本就没有 --mode 别名（--mode jpe 会落 bi），不可擅自补全，否则行为漂移。
+#   ⚠ 别名集必须与原链逐字一致：react/wwoc 等原本就没有 --mode 别名，不可擅自补全，否则行为漂移。
+#   2026-11-22 变体键降级：指向被重命名键的别名值同步改新键（ja/japanese→wuwa-ja、ko/korean→wuwa-ko、
+#     akja 组→ak-ja、arcak 组→ak-arcaea）；末段新增「旧顶层键 → 新子键」兼容映射（含原本无
+#     --mode 别名的 jpe/endobi/endoko/akko/pgren/pgrja/wuwa40ko/wuwa40ign，仅作旧键归一入口，
+#     normalize_mode 同源），除此之外不新增任何别名。
 _MODE_ALIASES = {
-    # 三元兜底组
-    "ja": "ja", "japanese": "ja",
-    "ko": "ko", "korean": "ko",
+    # 三元兜底组（值随 2026-11-22 重命名同步改新子键）
+    "ja": "wuwa-ja", "japanese": "wuwa-ja",
+    "ko": "wuwa-ko", "korean": "wuwa-ko",
     "ak": "ak", "arknights": "ak",
     "zho": "zho", "zhonly": "zho", "zh_only": "zho",
     "endo": "endo", "endfield": "endo",
@@ -13744,17 +13780,33 @@ _MODE_ALIASES = {
     "ff14": "ff14", "ffxiv": "ff14", "finalfantasy14": "ff14", "finalfantasixiv": "ff14",
     "最终幻想14": "ff14", "最终幻想xiv": "ff14", "银海之天舟": "ff14",
     "ssv": "ssv", "starsavior": "ssv", "star_savior": "ssv", "星之救援者": "ssv",
-    "arcak": "arcak", "arcakn": "arcak", "arcaea_arknights": "arcak", "arcaea×arknights": "arcak",
-    "arcaea明日方舟": "arcak", "arcaea方舟": "arcak", "arcaea联动": "arcak",
+    "arcak": "ak-arcaea", "arcakn": "ak-arcaea", "arcaea_arknights": "ak-arcaea", "arcaea×arknights": "ak-arcaea",
+    "arcaea明日方舟": "ak-arcaea", "arcaea方舟": "ak-arcaea", "arcaea联动": "ak-arcaea",
     "tga26": "tga26", "tga2026": "tga26", "tga": "tga26", "thegameawards": "tga26",
     "gameawards": "tga26", "游戏大奖": "tga26", "tga直播": "tga26",
     "wwm": "wwm", "wherewindsmeet": "wwm", "where_winds_meet": "wwm",
     "燕云十六声": "wwm", "燕云": "wwm", "yanyun": "wwm",
     "gfl2": "gfl2", "gf2": "gfl2", "exilium": "gfl2", "gfl2exilium": "gfl2",
     "少女前线2": "gfl2", "少女前线2：追放": "gfl2", "追放": "gfl2", "少前2": "gfl2",
-    "akja": "akja", "ak_ja": "akja", "arknights_ja": "akja", "arknightsja": "akja",
-    "明日方舟日语": "akja", "日语原声明日方舟": "akja",
+    "akja": "ak-ja", "ak_ja": "ak-ja", "arknights_ja": "ak-ja", "arknightsja": "ak-ja",
+    "明日方舟日语": "ak-ja", "日语原声明日方舟": "ak-ja",
+    # 2026-11-22 旧顶层变体键 → 新「游戏-细类」子键（兼容归一映射，供 --mode 旧键与
+    #   normalize_mode / learned 库 / KB 旧键解析；jpe/endobi/endoko/akko/pgren/pgrja/
+    #   wuwa40ko/wuwa40ign 原本无 --mode 别名，此处属旧→新兼容而非补全模式别名）
+    "jpe": "endo-ja", "endobi": "endo-bi", "endoko": "endo-ko",
+    "akko": "ak-ko", "pgren": "pgr-en", "pgrja": "pgr-ja",
+    "wuwa40ko": "wuwa-40ko", "wuwa40ign": "wuwa-40ign",
 }
+
+
+def normalize_mode(m):
+    """模式键归一：registry 键原样返回；旧顶层变体键/既有别名 → 新「游戏-细类」子键。
+
+    供 engine/cli/kb/learn/audit/sync 在消费入口统一归一（旧键 akja/ja/jpe/… 与别名
+    arknights_ja/… 均落新键），保 learned 库/KB 中以旧键沉淀的记录可解析；
+    未知键原样返回（是否落 bi 由消费面决策）。
+    """
+    return m if m in MODE_REGISTRY else _MODE_ALIASES.get(m, m)
 
 # 一键重跑注册表（2026-11-22 M1-A1 数据驱动）。键=旗标名（去 --），**声明序=装配序**。
 #   字段：mode（设的模式）/ info（内置片源 dict）/ overrides（缺省侧车路径）/
@@ -13771,75 +13823,73 @@ _RERUN = {
     "wuwa38b": {"mode": "bi", "info": WW38B_INFO, "overrides": WW38B_OVERRIDES_SRC},
     "wuwa38j": {"mode": "bi", "info": WW38_J_INFO, "overrides": WW38_J_OVERRIDES_SRC},
     "wuwa40": {"mode": "bi", "info": WW40_INFO, "overrides": WW40_OVERRIDES_SRC},
-    "wuwa40ko": {"mode": "wuwa40ko", "info": WW40KO_INFO, "overrides": WW40KO_OVERRIDES_SRC, "ko": True},
-    "wuwa40ign": {"mode": "wuwa40ign", "info": WW40IGN_INFO, "overrides": WW40IGN_OVERRIDES_SRC, "ko": True},
-    "wuwa40ja": {"mode": "ja", "info": WW40JA_INFO, "overrides": WW40JA_OVERRIDES_SRC},
+    "wuwa40ko": {"mode": "wuwa-40ko", "info": WW40KO_INFO, "overrides": WW40KO_OVERRIDES_SRC, "ko": True},
+    "wuwa40ign": {"mode": "wuwa-40ign", "info": WW40IGN_INFO, "overrides": WW40IGN_OVERRIDES_SRC, "ko": True},
+    "wuwa40ja": {"mode": "wuwa-ja", "info": WW40JA_INFO, "overrides": WW40JA_OVERRIDES_SRC},
     "wuwasol": {"mode": "bi", "info": WUSOL_INFO, "overrides": WUSOL_OVERRIDES_SRC},
     "wuwaall": {"mode": "bi", "info": WUWAALL_INFO, "overrides": WUWAALL_OVERRIDES_SRC, "zh_first": True},
-    "arcakamiya": {"mode": "arcak", "info": ARCAK_AMIYA_INFO, "overrides": ARCAK_AMIYA_OVERRIDES_SRC},
+    "arcakamiya": {"mode": "ak-arcaea", "info": ARCAK_AMIYA_INFO, "overrides": ARCAK_AMIYA_OVERRIDES_SRC},
 }
 
 # 模式 -> 无条件变体表 / 条件变体表（实体注册时的投影目标）
 # ⚠ 字面量顺序被 kb._kb_view 的实体 modes 累积依赖（kb-export/lookup/lint 输出顺序），
 #   不可改为字母序推导；与 MODE_REGISTRY 的 project_terms 由文件末守卫强制一致。
 _MODE_TERM_TABLE = {
-    "bi": "BILINGUAL_TERMS", "ja": "JA_TERMS", "jpe": "JA_ENDFIELD_TERMS",
-    "ko": "KO_TERMS", "wuwa40ko": "KO_TERMS", "wuwa40ign": "KO_TERMS", "wwoc": "WWOC_TERMS", "endo": "ENDFIELD_TERMS",
-    "ak": "AK_TERMS", "akko": "AK_KO_TERMS", "zho": "ZH_ONLY_TERMS",
-    "pgren": "PGR_EN_TERMS", "react": "REACT_TERMS",
-    "endobi": "ENDFIELD_BI_TERMS", "endoko": "ENDFIELD_KO_TERMS",
+    "bi": "BILINGUAL_TERMS", "wuwa-ja": "JA_TERMS", "endo-ja": "JA_ENDFIELD_TERMS",
+    "wuwa-ko": "KO_TERMS", "wuwa-40ko": "KO_TERMS", "wuwa-40ign": "KO_TERMS", "wwoc": "WWOC_TERMS", "endo": "ENDFIELD_TERMS",
+    "ak": "AK_TERMS", "ak-ko": "AK_KO_TERMS", "zho": "ZH_ONLY_TERMS",
+    "pgr-en": "PGR_EN_TERMS", "react": "REACT_TERMS",
+    "endo-bi": "ENDFIELD_BI_TERMS", "endo-ko": "ENDFIELD_KO_TERMS",
     "pkm": "POKEMON_TERMS",
     "limbus": "LIMBUS_TERMS",
     "ffrs": "FFRS_TERMS",
     "pbz": "PBZ_TERMS",
     "ff14": "FF14_TERMS",
     "ssv": "SSV_TERMS",
-    "arcak": "ARCAK_TERMS",
+    "ak-arcaea": "ARCAK_TERMS",
     "wwm": "WWM_TERMS",
     "gfl2": "GFL2_TERMS",
     "tga26": "TGA_TERMS",
-    "pgrja": "JA_PGR_TERMS",
-    # akja 引擎用 AK_TERMS∪AK_JA_TERMS 合并表，投影只登记增量那张
-    "akja": "AK_JA_TERMS",
-    "gfl2": "GFL2_TERMS",
+    "pgr-ja": "JA_PGR_TERMS",
+    # ak-ja 引擎用 AK_TERMS∪AK_JA_TERMS 合并表，投影只登记增量那张
+    "ak-ja": "AK_JA_TERMS",
 }
 
 _MODE_CTX_TABLE = {
-    "bi": "CONTEXT_MAP", "ja": "JA_CONTEXT", "jpe": "JA_ENDFIELD_CONTEXT",
-    "akko": "AK_KO_CONTEXT", "ko": "KO_CONTEXT", "wuwa40ko": "WW40KO_CONTEXT", "wuwa40ign": "WW40IGN_CONTEXT", "ak": "AK_CONTEXT",
-    "endoko": "ENDFIELD_KO_CONTEXT", "pkm": "POKEMON_CONTEXT",
+    "bi": "CONTEXT_MAP", "wuwa-ja": "JA_CONTEXT", "endo-ja": "JA_ENDFIELD_CONTEXT",
+    "ak-ko": "AK_KO_CONTEXT", "wuwa-ko": "KO_CONTEXT", "wuwa-40ko": "WW40KO_CONTEXT", "wuwa-40ign": "WW40IGN_CONTEXT", "ak": "AK_CONTEXT",
+    "endo-ko": "ENDFIELD_KO_CONTEXT", "pkm": "POKEMON_CONTEXT",
     "wwoc": "WWOC_CONTEXT",
     # endo 不建槽：单语片源每 cue 仅一行，ref 即该中文行本身，英文锚定永不命中
-    "endobi": "ENDFIELD_BI_CONTEXT",
+    "endo-bi": "ENDFIELD_BI_CONTEXT",
     "limbus": "LIMBUS_CONTEXT",
     "ffrs": "FFRS_CONTEXT",
     "pbz": "PBZ_CONTEXT",
     "ff14": "FF14_CONTEXT",
-    "pgrja": "JA_PGR_CONTEXT",
-    "akja": "AK_JA_CONTEXT",
-    "pgren": "PGR_EN_CONTEXT",
+    "pgr-ja": "JA_PGR_CONTEXT",
+    "ak-ja": "AK_JA_CONTEXT",
+    "pgr-en": "PGR_EN_CONTEXT",
     "ssv": "SSV_CONTEXT",
-    "arcak": "ARCAK_CONTEXT",
+    "ak-arcaea": "ARCAK_CONTEXT",
     "wwm": "WWM_CONTEXT",
     "gfl2": "GFL2_CONTEXT",
     "tga26": "TGA_CONTEXT",
-    "gfl2": "GFL2_CONTEXT",
 }
 
 _MODE_NAMES = {
-    "bi": "中英双语", "ja": "日语原声·鸣潮", "jpe": "日语原声·终末地",
-    "ko": "韩语原声·鸣潮", "wuwa40ko": "韩语原声·鸣潮 4.0 新联邦 PV", "wuwa40ign": "韩语原声·鸣潮 4.0 IGN 实机", "wwoc": "综合手游OST", "endo": "终末地",
-    "ak": "明日方舟", "akko": "明日方舟韩语", "zho": "中文行专属",
-    "pgren": "战双英文原声", "react": "音乐点评", "endobi": "终末地·中英双语", "fix-en": "英文参考行修正",
-    "endoko": "终末地·韩语原声", "pkm": "宝可梦城镇主题",
+    "bi": "中英双语", "wuwa-ja": "鸣潮-日语", "endo-ja": "终末地-日语",
+    "wuwa-ko": "鸣潮-韩语", "wuwa-40ko": "鸣潮-4.0韩语", "wuwa-40ign": "鸣潮-4.0IGN", "wwoc": "综合手游OST", "endo": "终末地",
+    "ak": "明日方舟", "ak-ko": "明日方舟-韩语", "zho": "中文行专属",
+    "pgr-en": "战双-英文", "react": "音乐点评", "endo-bi": "终末地-双语", "fix-en": "英文参考行修正",
+    "endo-ko": "终末地-韩语", "pkm": "宝可梦城镇主题",
     "limbus": "边狱巴士",
     "ffrs": "最终幻想：共鸣",
     "pbz": "影之刃零",
     "ff14": "最终幻想14",
-    "pgrja": "日语原声·战双",
-    "akja": "日语原声·明日方舟",
+    "pgr-ja": "战双-日语",
+    "ak-ja": "明日方舟-日语",
     "ssv": "星之救援者",
-    "arcak": "Arcaea×明日方舟",
+    "ak-arcaea": "明日方舟-Arcaea",
     "tga26": "TGA 2026 游戏大奖",
     "wwm": "燕云十六声",
     "gfl2": "少女前线2：追放",
@@ -13915,11 +13965,11 @@ class Entity:
 ENTITIES = [
     Entity('漂泊者', modes=('bi',), en='Rover', ja='漂泊者', ko='방랑자', category='角色', variants=('罗弗', '罗孚', '罗浮', 'Rover', 'Ruva', 'Ruver', '鲁瓦', '鲁弗', 'Wover', '沃弗'), ctx=(('\\brover\\b', '漫游者'),), exclude=(), note="鸣潮主角。'鲁瓦'长键须先于'鲁瓦扬->罗伊'(罗伊古文明)处理，防误伤；主播昵称'弗罗弗'(Frover)由 CONTEXT_MAP 兜底，防'罗弗'键子串误伤。2026-11-13 二校：删除 variants 中的「路虎/漫游车」——它们是普通词/汽车品牌，会把 electro rover（电动漫游车）误咬成漂泊者；Rover 改走 CONTEXT_MAP (?<![Ee]lectro )\\bRover\\b 参考行锚定。"),
     Entity('心月狐', modes=('bi',), en='Sheen / Hsin', ja='シン', ko='', category='角色/岁主', variants=('Sheen', '月狐希恩', '希恩', '谢恩', 'Hsin', 'Hsin the Moon Fox', 'Hsin the Moonfox', 'Xhin', 'Hsien', 'Hshin', 'Hsi', "Hsin'", 'hsin', 'HSIN', 'Hsin-sama', 'Hsin sama', 'Lady Hsin', 'Lord Hsin', '心月胡', '心悦狐', '新月狐', '心月孤', '心月弧', '心月湖', '心月葫', '心月蝴', '心月狐岁主', '月狐岁主', '月狐 Sentinel', 'Sentinel Sheen', 'Sheen Sentinel', 'Moon Fox Sheen', 'Moonfox Hsin', '月狐辛', '月狐新', '月狐欣', '月狐馨'), ctx=(('\\bSheen\\b', '辛'), ('\\bSheen\\b', '光泽'), ('\\bSheen\\b', '闪光'), ('\\bSheen\\b', '光辉'), ('(?<![Ss]hu )\\bShin\\b', '申'), ('(?<![Ss]hu )\\bShin\\b', '辛'), ('(?<![Ss]hu )\\bShin\\b', '胫'), ('(?<![Ss]hu )\\bShin\\b', '新'), ('\\bHsin\\b', '欣'), ('\\bHsin\\b', '新'), ('\\bHsin\\b', '馨'), ('\\bHsin\\b', '心'), ('\\bHsin\\b', '辛'), ('(?<![Ss]hu )(?<![Ss]u )(?<![Ss]uxin)\\bXin\\b', '欣'), ('(?<![Ss]hu )(?<![Ss]u )(?<![Ss]uxin)\\bXin\\b', '新'), ('(?<![Ss]hu )(?<![Ss]u )(?<![Ss]uxin)\\bXin\\b', '心'), ('\\bShane\\b', '肖恩'), ('\\bisen\\b', '他伊森'), ('\\bisen\\b', '伊森'), ('\\bLady\\s+Shen\\b', '沉夫人'), ('\\bLady\\s+Shen\\b', '沈夫人'), ('\\bLady\\s+Shen\\b', '申夫人'), ('\\bShen\\b', '沈'), ('\\bMoon Fox\\b', '月狐'), ('\\bMoonfox\\b', '月狐')), exclude=('\\bLand Rover\\b', '\\bDefender\\b'), note="月狐岁主，官方全名 心月狐；独立指代用全名。3.7 双五星之一（2026-09-30 上线）。英文侧 Hsin（官方罗马音）与 Sheen（英文服旧译）并存，ASR 常咬成 Xin/Xhin/Shin/Sin/Hsien/Hshin/Hsi/Shen 等；机翻按字面把 Sheen 译成'光泽/闪光/光辉'，把 Hsin 译成'欣/新/馨/心/辛'，均靠参考行佐证归此。日语片'シ/シン様'归 心（见 JA_TERMS），3.6 片'聖/聖書'=清宵(セイショウ)非心，勿混。2026-09-25《寻心》片：Hsin's 被 ASR 拆成 he isen（谷翻'他伊森'），Lady Hsin 误听 Lady Shen（谷翻'沉夫人'），均 ctx 锚定归此。exclude 防'Land Rover/Defender'等越野车品牌被 Rover 键误伤（漂泊者=Rover）。"),
-    Entity('璇情', modes=('ko',), en='Xuanqing', ja='', ko='선정', category='角色', variants=('宣杰', '宣殿', 'Seonjeon', 'Seonjeong', '宋正成', '宋善', '善善先生', '善善的妹妹', '善善如此说道', '善田先生', '善善', '善贞', '禅那'), ctx=(('선정(?!(적인|적\\b|되|했|하니|할|하겠|한다|되는|순))', '选择'), ('선정(?!(적인|적\\b|되|했|하니|할|하겠|한다|되는|순))', '选型'), ('선정(?!(적인|적\\b|되|했|하니|할|하겠|한다|되는|순))', '选拔'), ('선정(?!(적인|적\\b|되|했|하니|할|하겠|한다|되는|순))', '善')), exclude=(), note='3.7 奇谭任务「璇心如月寄尘情」（韩语 기담 임무「달빛에 빌어보는 선정의 그리움」）新角色；百度百科：心月狐的共鸣者，生活在梦州边陲（后来的玄方地界）的少女，热情活泼又通情达理。韩语名 선정=璇情（璇=선，情=정）。谷翻把该人名按普通词/字面义译成 选择/善/禅那/宣杰/Seonjeon/宋正成 等，故常用词形态只走 ctx，韩语行锚定；선정적인(煽情)/선정되다/선정하다 是动词用法，锚定正则已用否定前查排除（#1015/#2570/#2612 实测）。'),
-    Entity('锁暝', modes=('bi', 'ja'), en='Suoming', ja='サメイ', ko='', category='角色/岁主', variants=('锁瞑', '锁冥', '锁明', '锁名', '锁铭', '锁鸣', '所暝', '所冥', '索暝', '索冥', '琐暝', '琐明', '唢暝', '苏明', '苏凌', '苏舒明', '索明', '水明', 'Suming', 'Suling', 'Schuming', 'Summit', 'Suoming', 'Suo Ming', 'Swoming', 'Suomin', 'Somin', 'SUOMING', 'suoming', 'Suomimg', 'Suorming', 'Souming', 'Suowming', 'Suomming', 'Suomiing', 'Suomng', 'Suomig', 'Suomign', 'Suomingg', 'サメイ', 'サメちゃん', 'サメィ', '鲛美', '鲫美酱', '鲛美酱', '鲇美酱', '萨米酱', '鲨鱼酱', '萨姆酱', '小沙姆', '萨梅伊', '鲛名酱', 'Same酱', 'Sama酱', 'Sammy酱', '萨梅查', '萨梅酱', '东鮫酱', '锁暝岁主', 'Sentinel Suoming', 'Suoming Sentinel'), ctx=(('\\bswimming\\b', '游泳'), ('\\bSuoming\\b', '游泳'), ('\\bswimming\\b', '苏明'), ('\\bSuoming\\b', '锁瞑'), ('\\bSuoming\\b', '锁冥'), ('\\bSuoming\\b', '锁明'), ('\\bSuoming\\b', '锁名'), ('\\bswimming\\b', '锁瞑'), ('\\bSentinel\\b', '锁暝'), ('\\bMoon\\b', '锁暝'), ('\\bSuoming\\b', '索明'), ('\\bSuoming\\b', '水明'), ('サ[めメ]', '贤者酱'), ('サ[めメ]', '贤者'), ('サ[めメ]', '鲨鱼酱'), ('サ[めメ]', '鲨鱼'), ('[3３サ][めメ]', '三梅酱')), exclude=(), note="鸣潮 3.7 双五星之二（2026-09-30 上线），岁主形态，专武'沉冥'。官方中文'锁暝'（目+冥，非'锁瞑'目+瞑）；执掌组织'谛天鉴'，所属'禁锁十契'。英文罗马音 Suoming；ASR 常咬成 Swoming/Suomin/Somin/Suomimg/Suorming/Souming/Suowming；机翻按 swimming 音近误译'游泳/苏明/索明/水明'。日语片昵称 サメイ/サメちゃん（鲨鱼酱/小沙姆），JA_TERMS 已收；本 Entity 聚合 bi+ja 双模式全部散落键，防遗漏。戒律：'游泳'为普通词绝不进 variants，只走 \\bswimming\\b 参考行锚定。"),
+    Entity('璇情', modes=('wuwa-ko',), en='Xuanqing', ja='', ko='선정', category='角色', variants=('宣杰', '宣殿', 'Seonjeon', 'Seonjeong', '宋正成', '宋善', '善善先生', '善善的妹妹', '善善如此说道', '善田先生', '善善', '善贞', '禅那'), ctx=(('선정(?!(적인|적\\b|되|했|하니|할|하겠|한다|되는|순))', '选择'), ('선정(?!(적인|적\\b|되|했|하니|할|하겠|한다|되는|순))', '选型'), ('선정(?!(적인|적\\b|되|했|하니|할|하겠|한다|되는|순))', '选拔'), ('선정(?!(적인|적\\b|되|했|하니|할|하겠|한다|되는|순))', '善')), exclude=(), note='3.7 奇谭任务「璇心如月寄尘情」（韩语 기담 임무「달빛에 빌어보는 선정의 그리움」）新角色；百度百科：心月狐的共鸣者，生活在梦州边陲（后来的玄方地界）的少女，热情活泼又通情达理。韩语名 선정=璇情（璇=선，情=정）。谷翻把该人名按普通词/字面义译成 选择/善/禅那/宣杰/Seonjeon/宋正成 等，故常用词形态只走 ctx，韩语行锚定；선정적인(煽情)/선정되다/선정하다 是动词用法，锚定正则已用否定前查排除（#1015/#2570/#2612 实测）。'),
+    Entity('锁暝', modes=('bi', 'wuwa-ja'), en='Suoming', ja='サメイ', ko='', category='角色/岁主', variants=('锁瞑', '锁冥', '锁明', '锁名', '锁铭', '锁鸣', '所暝', '所冥', '索暝', '索冥', '琐暝', '琐明', '唢暝', '苏明', '苏凌', '苏舒明', '索明', '水明', 'Suming', 'Suling', 'Schuming', 'Summit', 'Suoming', 'Suo Ming', 'Swoming', 'Suomin', 'Somin', 'SUOMING', 'suoming', 'Suomimg', 'Suorming', 'Souming', 'Suowming', 'Suomming', 'Suomiing', 'Suomng', 'Suomig', 'Suomign', 'Suomingg', 'サメイ', 'サメちゃん', 'サメィ', '鲛美', '鲫美酱', '鲛美酱', '鲇美酱', '萨米酱', '鲨鱼酱', '萨姆酱', '小沙姆', '萨梅伊', '鲛名酱', 'Same酱', 'Sama酱', 'Sammy酱', '萨梅查', '萨梅酱', '东鮫酱', '锁暝岁主', 'Sentinel Suoming', 'Suoming Sentinel'), ctx=(('\\bswimming\\b', '游泳'), ('\\bSuoming\\b', '游泳'), ('\\bswimming\\b', '苏明'), ('\\bSuoming\\b', '锁瞑'), ('\\bSuoming\\b', '锁冥'), ('\\bSuoming\\b', '锁明'), ('\\bSuoming\\b', '锁名'), ('\\bswimming\\b', '锁瞑'), ('\\bSentinel\\b', '锁暝'), ('\\bMoon\\b', '锁暝'), ('\\bSuoming\\b', '索明'), ('\\bSuoming\\b', '水明'), ('サ[めメ]', '贤者酱'), ('サ[めメ]', '贤者'), ('サ[めメ]', '鲨鱼酱'), ('サ[めメ]', '鲨鱼'), ('[3３サ][めメ]', '三梅酱')), exclude=(), note="鸣潮 3.7 双五星之二（2026-09-30 上线），岁主形态，专武'沉冥'。官方中文'锁暝'（目+冥，非'锁瞑'目+瞑）；执掌组织'谛天鉴'，所属'禁锁十契'。英文罗马音 Suoming；ASR 常咬成 Swoming/Suomin/Somin/Suomimg/Suorming/Souming/Suowming；机翻按 swimming 音近误译'游泳/苏明/索明/水明'。日语片昵称 サメイ/サメちゃん（鲨鱼酱/小沙姆），JA_TERMS 已收；本 Entity 聚合 bi+ja 双模式全部散落键，防遗漏。戒律：'游泳'为普通词绝不进 variants，只走 \\bswimming\\b 参考行锚定。"),
     Entity('阿列夫一', modes=('bi',), en='ALF1 / Alfan', ja='アルフワン', ko='', category='敌人/鸣式', variants=('阿尔夫', 'ALF1', 'LF1', '阿尔凡', 'Alfan', '阿尔夫一人', '阿尔夫一定', '阿尔法之一', 'ALF one', 'Alf one', 'ALF 1', 'ALF', 'Alf'), ctx=(), exclude=(), note="虚无鸣式/黑洞形象，官方中文=阿列夫一（2026-09-10 依官方访谈/库街区，'阿尔凡'沉淀作废）。键序：ALF one/ALF 1/ALF1 长键先行，防裸'Alf'咬半截。日语片由 JA_CONTEXT 的 /アルフ/ 佐证规则处理。"),
-    Entity('阿达希尔', modes=('jpe',), en='Ardashir', ja='アルダシル', ko='', category='角色', variants=(), ctx=(), exclude=(), note="终末地第二章。戒律：禁用裸键'达希尔'——长键先替换后短键二次命中得'阿阿达希尔'（terms-check 会报）。"),
-    Entity('达妮娅', modes=('bi', 'ja'), en='Denia', ja='ダーニャ', ko='', category='角色', variants=('Dena', 'Denia', '丹妮亚', '塔娜', 'Tana', 'Tenna', '丹雅', '达尼亚酱', '达妮亚', '丹妮娅', '达尼娅', '丹尼亚', '达妮雅', '塔妮娅', '达你娅', '达腻娅', '达妮押', '达妮鸭', '达妮丫', 'Denya', 'Dennia', 'Denny', 'Deniya', 'Danea', 'Dania', "Denia's", 'Denia`s', 'Deina', 'Denaia', 'Deneia', 'Denea', 'Denia!', 'ダーニャ', 'ダニア', 'でにゃ'), ctx=(('(?<!\\bda\\s)\\bDa\\b(?!\\s*da\\b)', '爸爸'), ('(?<!\\bda\\s)\\bDa\\b(?!\\s*da\\b)', 'Da'), ('(?<!\\bda\\s)\\bDa\\b(?!\\s*da\\b)', '达的'), ('(?<!\\bda\\s)\\bDa\\b(?!\\s*da\\b)', '达。'), ('\\bmy wife\\b', '娜娜'), ('\\bTenna\\b', '特纳'), ('\\bDia\\b', '迪亚'), ('\\bDia\\b', 'Dia'), ('\\bDenia\\b', '达妮娅'), ('\\bDenia\\b', '丹妮娅'), ('\\bDena\\b', '迪娜'), ('\\bDenia\\b', '迪娜'), ('데니아|대니아', '德尼娅'), ('데니아|대니아', '德妮亚')), exclude=(), note="星炬学院虚质科学部学生，3.3 新五星（百度百科/萌娘百科/官方档案确认）。昵称 Denny/Dennia 机翻'丹尼/丹妮娅'亦归此；Daniela=丹妮拉 是另一人，勿收。真名达斯维达尼亚。主播昵称 Da(丹)：机翻常按口癖译成'爸爸'(#139/213/461/473/475/599)、残留英文Da/DA(#7/55/654/693/601/607)或咬出'达的'(#51/58)、'达。'(#15)，一律靠参考行 \\bDa\\b 佐证归 达妮娅；裸'爸爸/Da/达的/达。'绝不进全局表。Tenna(#25/26/404)=Denia ASR 乱形（'Tenna is being Tenna'=达妮娅又开始了）；塔娜(Tana #255)亦 Denia；wife Nana 的 Nana=Denia(#30)；Dia/迪亚(#226/322 参考行 Dia)=Denia 昵称。Daniel(#376/378/695) 疑 Denia 乱形，仅侧车，不入全局。迪娜(#8/117/613/625/682/731 参考行 Dena)=谷翻音近，走 ctx 锚定归达妮娅；丹尼亚(尼)补完整形防'达妮娅亚'级联。2026-09-14 / 2026-09-23 《What's wrong with Denia's voice》(鸣潮3.3「自星海尽处回响」第三章幕间《在熔解的夜空下》Reaction) 沉淀。官方中文核对：达妮娅(萌娘/灰机/BWIKI)，全名达斯维达尼亚(先约电台EP《直到下次再见》)，中配戈昕宇/日配伊藤美来，PV《人类伪装指南》。2026-10-27 ABRAXAS 片 ASR `Donnie`→谷翻「唐尼」；Donnie 为常见西名，只做本片 sidecar，不入全局 ctx/裸键。"),
+    Entity('阿达希尔', modes=('endo-ja',), en='Ardashir', ja='アルダシル', ko='', category='角色', variants=(), ctx=(), exclude=(), note="终末地第二章。戒律：禁用裸键'达希尔'——长键先替换后短键二次命中得'阿阿达希尔'（terms-check 会报）。"),
+    Entity('达妮娅', modes=('bi', 'wuwa-ja'), en='Denia', ja='ダーニャ', ko='', category='角色', variants=('Dena', 'Denia', '丹妮亚', '塔娜', 'Tana', 'Tenna', '丹雅', '达尼亚酱', '达妮亚', '丹妮娅', '达尼娅', '丹尼亚', '达妮雅', '塔妮娅', '达你娅', '达腻娅', '达妮押', '达妮鸭', '达妮丫', 'Denya', 'Dennia', 'Denny', 'Deniya', 'Danea', 'Dania', "Denia's", 'Denia`s', 'Deina', 'Denaia', 'Deneia', 'Denea', 'Denia!', 'ダーニャ', 'ダニア', 'でにゃ'), ctx=(('(?<!\\bda\\s)\\bDa\\b(?!\\s*da\\b)', '爸爸'), ('(?<!\\bda\\s)\\bDa\\b(?!\\s*da\\b)', 'Da'), ('(?<!\\bda\\s)\\bDa\\b(?!\\s*da\\b)', '达的'), ('(?<!\\bda\\s)\\bDa\\b(?!\\s*da\\b)', '达。'), ('\\bmy wife\\b', '娜娜'), ('\\bTenna\\b', '特纳'), ('\\bDia\\b', '迪亚'), ('\\bDia\\b', 'Dia'), ('\\bDenia\\b', '达妮娅'), ('\\bDenia\\b', '丹妮娅'), ('\\bDena\\b', '迪娜'), ('\\bDenia\\b', '迪娜'), ('데니아|대니아', '德尼娅'), ('데니아|대니아', '德妮亚')), exclude=(), note="星炬学院虚质科学部学生，3.3 新五星（百度百科/萌娘百科/官方档案确认）。昵称 Denny/Dennia 机翻'丹尼/丹妮娅'亦归此；Daniela=丹妮拉 是另一人，勿收。真名达斯维达尼亚。主播昵称 Da(丹)：机翻常按口癖译成'爸爸'(#139/213/461/473/475/599)、残留英文Da/DA(#7/55/654/693/601/607)或咬出'达的'(#51/58)、'达。'(#15)，一律靠参考行 \\bDa\\b 佐证归 达妮娅；裸'爸爸/Da/达的/达。'绝不进全局表。Tenna(#25/26/404)=Denia ASR 乱形（'Tenna is being Tenna'=达妮娅又开始了）；塔娜(Tana #255)亦 Denia；wife Nana 的 Nana=Denia(#30)；Dia/迪亚(#226/322 参考行 Dia)=Denia 昵称。Daniel(#376/378/695) 疑 Denia 乱形，仅侧车，不入全局。迪娜(#8/117/613/625/682/731 参考行 Dena)=谷翻音近，走 ctx 锚定归达妮娅；丹尼亚(尼)补完整形防'达妮娅亚'级联。2026-09-14 / 2026-09-23 《What's wrong with Denia's voice》(鸣潮3.3「自星海尽处回响」第三章幕间《在熔解的夜空下》Reaction) 沉淀。官方中文核对：达妮娅(萌娘/灰机/BWIKI)，全名达斯维达尼亚(先约电台EP《直到下次再见》)，中配戈昕宇/日配伊藤美来，PV《人类伪装指南》。2026-10-27 ABRAXAS 片 ASR `Donnie`→谷翻「唐尼」；Donnie 为常见西名，只做本片 sidecar，不入全局 ctx/裸键。"),
     Entity('陆·赫斯', modes=('bi',), en='Luuk Herssen', ja='', ko='', category='角色/星炬学院校医', variants=('路克', 'Luke Herson', '卢克·赫尔森'), ctx=(('Harrison', '老哈里森博士'),), exclude=(), note="星炬学院共鸣医疗科主执校医（百度百科/网易，英文 Luuk Herssen）。主播口音 ASR 常作 Dr. Luke/Dr. Harrison Senior(Herssen Senior 误听)：#122'路克'、#211'老哈里森博士'（参考行 Harrison 佐证）。扁平表已有 Luke/Luuk/卢克 英文残留键。2026-09-14 达妮娅片二次校准沉淀。"),
     Entity('娜斯塔霞', modes=('bi',), en='Nastasha / Nastya', ja='', ko='', category='角色', variants=('Nastasha', '娜斯塔莎', '娜斯塔夏'), ctx=(), exclude=(), note="达妮娅挚友（星炬学院学生，三人组之一）。官方中文'娜斯塔霞'（多源：官方知识库/腾讯新闻OCR）。'娜塔莎'为常用译名不进全局，逐 cue 侧车。"),
     Entity('娜波摩', modes=('bi',), en='Naborr', ja='', ko='', category='角色/残星会会长分身', variants=('Neavor', 'Naborr'), ctx=(('\\bNvidia\\b', '英伟达'),), exclude=(), note="残星会会长分身（百度百科/fandom：会长斯瓦茨洛的伪装之一），化名潜入星炬学院；3.3 幕间追逐环节敌人=娜波摩人偶。本片 ASR 乱形：#312/315 Nvidia(机翻'英伟达')靠参考行佐证归 娜波摩——裸'英伟达'绝不进全局表。#381 N'vora doll、#664 means Nora 也指娜波摩，勿与恩沃拉(N'avorora)混——'N'vora'全局键仍归恩沃拉，本片两处侧车覆盖。"),
@@ -13975,16 +14025,16 @@ ENTITIES = [
     Entity('月行水上', modes=('ak',), en='Moonlit Waters', ja='', ko='', category='活动/SideStory', variants=('月行水山', '越行水上', '月形水上', '月行税上', '月形水山', '乐行水上', '月型水上', '月行水尚', '月行水赏', '跃行水上', '越形水上', '月行谁上', '月幸水上', '月行瑞上', '月形水赏', '岳行水上'), ctx=(), exclude=(), note="明日方舟 × P3R 联动 SideStory 活动名（官方中文'月行水上'，2026-09-04 开启）。对应限时寻访=圣城春日学生寻访。ASR 音近错形：'月行'易咬成'越行/乐行/跃行/月形/月型/月幸/岳行'；'水上'易咬成'水山/水尚/水赏/谁上/瑞上'。"),
     Entity('圣城春日学生寻访', modes=('ak',), en='', ja='', ko='', category='活动/限时寻访', variants=('圣城春日生寻访', '圣城春日学生巡访', '圣城春日学生询问', '圣城春日学生训访', '圣城春日学生寻防', '圣城春日学生寻方', '圣城春日学生巡防', '圣成春日学生寻访', '圣城春日学生讯访', '圣城春日学生巡房', '圣城春日学生寻坊', '圣城春瑞学生寻访'), ctx=(), exclude=(), note="明日方舟 × P3R 联动限时寻访（卡池）官方名。'圣城春日'为 P3R 中的私立月光馆学园都市名，'圣城春日学生寻访'=结城理/埃癸斯/岳羽由加莉/虎狼丸联动卡池。ASR 音近错形：'寻访'易咬成'巡访/询问/训访/寻防/寻方/巡防/讯访/巡房/寻坊'；'圣城'易咬成'圣成'；'春日'易咬成'春瑞'。"),
     Entity('女神异闻录3 Reload', modes=('ak',), en='Persona 3 Reload', ja='ペルソナ3 リロード', ko='', category='作品', variants=('女神异闻录3重制版', '女神异闻录3 reload', '女神异闻录3RELOAD', 'Persona3 Reload', 'P3R', '女神異聞錄3 Reload', '女神异闻录三 Reload', '女神异闻录3: Reload', '女神异闻录III Reload', '女神异闻录3R', 'Persona3Reload', '女神异闻3 Reload', '女神异闻录3 重制', '女神异闻录3 Reloaded', '女神异闻录3 reloaded', '女神异闻录3重制', '女神异闻录 3 Reload', 'Persona 3 R'), ctx=(), exclude=(), note="ATLUS 出品 JRPG，2024 年重制版；明日方舟 2026-09-04 联动原作。官方中文'女神异闻录3 Reload'（Reload 保留英文，非'重制版'）。ASR 常见错形：数字'3'被读成'三/III'；'Reload'被咬成'reloaded/重制'；空格丢失'Persona3Reload'。"),
-    Entity('梨诺', modes=('endo', 'jpe'), en='Liino', ja='', ko='', category='干员', variants=('利诺', '莉诺', '梨络', '梨落', '李诺', '里诺', '黎诺', '梨諾', '离诺', '璃诺', '丽诺', '犁诺', '鲤诺', '栗诺', '梨那', '梨娜', '梨糯', '梨洛', '梨珞', '梨箩', '梨萝', '莉糯', '梨讷', '利那', '丽那', '礼诺', '理诺', 'Liino', 'Lino', 'Leeno', 'Lyno', 'Rino', 'Lynor', 'Liinno', 'Liano', 'Linuo', 'Li-Nuo', 'Lieno', 'Linoa', 'Riino', 'Linoe', 'Leano', 'Linao', 'Liinoo', 'Liina'), ctx=(), exclude=(), note="终末地向渊行下半六星辅助干员，官方叙事《梨诺：心与星的焦点》。ASR/机翻常把'梨诺'咬成'利诺/莉诺/李诺/里诺/黎诺/离诺/璃诺/丽诺/犁诺/鲤诺'；'诺'音近'那/娜/糯/洛/珞/箩/萝/讷'；英文 Liino（双 i）易漏为 Lino 或误作 Rino/Leeno/Lyno。戒律：'李娜/莉娜/黎娜'为常见中文人名不入表，防误伤；ctx 处理'丽诺/黎诺/Lino/Rino'等英文参考行佐证场景。"),
-    Entity('北部禁区', modes=('endo', 'jpe'), en='North Wuling Exclusion Zone', ja='', ko='', category='地点/武陵', variants=('北部禁地', '北方禁区', '北区禁区', '贝部禁区', '北部金区', '北部仅区', '北部近区', '北部谨区', '北部浸区', '北部进区', '北部晋区', '北部锦区'), ctx=(), exclude=(), note="终末地向渊行版本开放的武陵新区域（官方名'北部禁区'，与'武陵应龙关'同为新区域）。ASR 音近错形：'北部'易咬成'贝部'；'禁区'易咬成'金区/仅区/近区/谨区/浸区/进区/晋区/锦区'。"),
-    Entity('余晖未却', modes=('endo', 'jpe'), en='', ja='', ko='', category='章节/主线', variants=('余辉未却', '余晖未怯', '余晖未雀', '余晖未确', '余晖未阙', '余辉未怯', '余晖微却', '余晖喂却', '余晖未缺', '鱼晖未却', '余惠未却', '余晖未阕', '余晖为却', '余晖未榷', '余辉未阕'), ctx=(), exclude=(), note="终末地向渊行主线第二章进程VII 官方章节名'余晖未却'（武陵决战篇）。ASR 音近错形：'余晖'易咬成'余辉/鱼晖/余惠'；'未却'易咬成'未怯/未雀/未确/未阙/微却/喂却/未缺/未阕/为却/未榷'。"),
-    Entity('蚀影', modes=('endo', 'jpe'), en='', ja='', ko='', category='敌人系列', variants=('食影', '蚀阴', '蚀穎'), ctx=(('\\bEclipse\\b', '日蚀'), ('\\bShadow\\b', '黑影'), ('\\bEclipsed\\b', '日蚀'), ('\\bUmbral\\b', '暗影'), ('\\bUmbra\\b', '暗影'), ('\\benemy\\b', '蚀影'), ('\\bEclipse enemy\\b', '蚀影')), exclude=(), note="终末地向渊行新敌人系列（官方名'蚀影系列'）。戒律：'蚀影'是特定敌人名，不可裸键映射通用词；日蚀/黑影/暗影等仅在参考行Eclipse/Shadow/Umbral/Umbra/enemy 佐证时归此。"),
-    Entity('相伴庆典', modes=('endo', 'jpe'), en='', ja='', ko='', category='活动/版本', variants=('相伴盛殿', '想伴庆典', '相办庆典', '想办庆典', '乡伴庆典', '香伴庆典', '相伴青典', '相伴清典', '相拌庆典', '相伴庆点', '向伴庆典', '湘伴庆典'), ctx=(), exclude=(), note="终末地向渊行版本官方庆典活动名（1.4 半周年，与向渊行核心章节同步开启）。ASR 音近错形：'相伴'易咬成'想伴/相办/想办/乡伴/香伴/相拌/向伴/湘伴'；'庆典'易咬成'盛殿/青典/清典/庆点'。"),
-    Entity('遥望', modes=('endo', 'jpe'), en='', ja='', ko='', category='武器/六星', variants=(), ctx=(('\\b6-star weapon\\b', '远望'), ('\\bsix-star weapon\\b', '远望'), ('\\bweapon\\b', '遥望远'), ('\\bYao Wang\\b', '遥望'), ('\\blong-range weapon\\b', '远望'), ('\\bfree weapon\\b', '远望'), ('\\b6\\s*★\\s*weapon\\b', '远望'), ('\\bsignature weapon\\b', '远望')), exclude=(), note="终末地向渊行版本赠送的六星武器官方名'遥望'。戒律：'遥望'为普通动词，只走参考行 6-star weapon / weapon / Yao Wang 锚定，机翻'远望/遥望远'等错形归此，绝不作裸键入全局表。"),
-    Entity('嵌晶玉', modes=('endo', 'jpe'), en='', ja='', ko='', category='道具/材料', variants=('嵌晶石', '崁晶玉', '嵌晶钰', '谦晶玉', '欠晶玉', '千晶玉', '浅晶玉', '嵌金玉', '嵌精玉', '嵌晶羽', '嵌晶瑜', '嵌晶御', '嵌晶裕', '嵌晶郁', '歉晶玉'), ctx=(), exclude=(), note="终末地向渊行版本官方道具/材料名'嵌晶玉'（云·终末地相关）。ASR 音近错形：'嵌'易咬成'崁/谦/欠/千/浅/歉'；'晶'易咬成'金/精'；'玉'易咬成'钰/羽/瑜/御/裕/郁'。"),
-    Entity('云·终末地', modes=('endo', 'jpe'), en='Cloud Endfield', ja='', ko='', category='服务/云游戏', variants=('云终末地', '云·末地', '云端终末地', '云·终墨地', '云·终陌地', '云·终没地', '云·中末地', '云·终末底', '云·终末帝', 'CloudEndfield', '云 终末地', '云·終末地'), ctx=(), exclude=(), note="终末地云游戏服务官方名'云·终末地'（向渊行版本同步开启云测试）。ASR 音近错形：'终末'易咬成'终墨/终陌/终没/中末/终末底/终末帝'；英文侧 CloudEndfield（空格丢失）；分隔符'·'易被 ASR 吞掉。"),
-    Entity('阿莱克琉斯，千夫长', modes=('endo', 'jpe'), en='Alleikhreos, Chiliarch', ja='', ko='', category='BOSS', variants=('阿莱克琉斯将军', '阿莱克流斯千夫长', '阿莱克琉斯千人长', '阿莱克鲁斯千夫长', '阿莱克留斯千夫长', '阿莱克硫斯千夫长', '阿莱克柳斯千夫长', '阿莱克琉斯千父长', '阿莱克琉斯前夫长', '阿莱克琉斯千服长', '阿莱克琉斯千付长', '阿莱克琉斯千府长', '阿莱克雷乌斯千夫长', '阿莱克琉斯千妇长', '阿莱克纽斯千夫长', '阿莱克琉斯千夫涨', '阿莱克琉斯千夫章', '阿莱克琉斯千夫长', 'Alektios Chiliarch'), ctx=(), exclude=(), note="终末地向渊行版本 BOSS 官方全称'阿莱克琉斯，千夫长'（1.4 最终 BOSS，'千夫长'=罗马军制 Chiliarch，非'将军/千人长'）。旧表已收'阿莱克琉斯'短键，此处补全头衔。ASR 音近错形：'阿莱克琉斯'易咬成'阿莱克鲁斯/阿莱克留斯/阿莱克硫斯/阿莱克柳斯/阿莱克雷乌斯/阿莱克纽斯'；'千夫长'易咬成'千父长/前夫长/千服长/千付长/千府长/千妇长/千夫涨/千夫章'。⚠ 2026-11-03 证件修正两处：① canonical 补官方全角逗号——一手＝endfield.wiki.gg/wiki/Alleikhreos,_Chiliarch?action=raw 的 `cnname = 阿莱克琉斯，千夫长`，二手＝官方微博「危境情报」原文「阿莱克琉斯，千夫长——基石的造物…」；旧无逗号形与错误 en 'Alektios Chiliarch'（Alektios 系无中生有，官方英文＝Alleikhreos, Chiliarch；阵营 Foundite=造裔）一并降为 variants 兜旧产出。"),
-    Entity('阿莱克琉斯，千夫长', modes=('endobi', 'react'), en='Alleikhreos, Chiliarch', ja='', ko='', category='BOSS', variants=('阿莱克琉斯将军', '阿莱克流斯千夫长', '阿莱克琉斯千人长', '阿莱克鲁斯千夫长', '阿莱克留斯千夫长', '阿莱克硫斯千夫长', '阿莱克柳斯千夫长', '阿莱克琉斯千父长', '阿莱克琉斯前夫长', '阿莱克琉斯千服长', '阿莱克琉斯千付长', '阿莱克琉斯千府长', '阿莱克雷乌斯千夫长', '阿莱克琉斯千妇长', '阿莱克纽斯千夫长', '阿莱克琉斯千夫涨', '阿莱克琉斯千夫章', '阿莱克琉斯千夫长', 'Alektios Chiliarch'), ctx=(), exclude=(), note="endobi/react 第二条（2026-11-03）：把 1.4 最终 BOSS 官中全称投给终末地双语片与音乐 reaction 片两条通路；官方依据与错形清单见上方同 canonical 条目。⚠ **ASR 切碎形 'Elec'/'heroes Elechero's' 不入表**（本片 #2/#3 实测）：跨 cue 断句产生的短碎片＋'电气/英雄'皆通用中文词，按 2026-10-20 已记的不可沉淀边界只能逐 cue 整行重写，塞进表必然误伤。"),
+    Entity('梨诺', modes=('endo', 'endo-ja'), en='Liino', ja='', ko='', category='干员', variants=('利诺', '莉诺', '梨络', '梨落', '李诺', '里诺', '黎诺', '梨諾', '离诺', '璃诺', '丽诺', '犁诺', '鲤诺', '栗诺', '梨那', '梨娜', '梨糯', '梨洛', '梨珞', '梨箩', '梨萝', '莉糯', '梨讷', '利那', '丽那', '礼诺', '理诺', 'Liino', 'Lino', 'Leeno', 'Lyno', 'Rino', 'Lynor', 'Liinno', 'Liano', 'Linuo', 'Li-Nuo', 'Lieno', 'Linoa', 'Riino', 'Linoe', 'Leano', 'Linao', 'Liinoo', 'Liina'), ctx=(), exclude=(), note="终末地向渊行下半六星辅助干员，官方叙事《梨诺：心与星的焦点》。ASR/机翻常把'梨诺'咬成'利诺/莉诺/李诺/里诺/黎诺/离诺/璃诺/丽诺/犁诺/鲤诺'；'诺'音近'那/娜/糯/洛/珞/箩/萝/讷'；英文 Liino（双 i）易漏为 Lino 或误作 Rino/Leeno/Lyno。戒律：'李娜/莉娜/黎娜'为常见中文人名不入表，防误伤；ctx 处理'丽诺/黎诺/Lino/Rino'等英文参考行佐证场景。"),
+    Entity('北部禁区', modes=('endo', 'endo-ja'), en='North Wuling Exclusion Zone', ja='', ko='', category='地点/武陵', variants=('北部禁地', '北方禁区', '北区禁区', '贝部禁区', '北部金区', '北部仅区', '北部近区', '北部谨区', '北部浸区', '北部进区', '北部晋区', '北部锦区'), ctx=(), exclude=(), note="终末地向渊行版本开放的武陵新区域（官方名'北部禁区'，与'武陵应龙关'同为新区域）。ASR 音近错形：'北部'易咬成'贝部'；'禁区'易咬成'金区/仅区/近区/谨区/浸区/进区/晋区/锦区'。"),
+    Entity('余晖未却', modes=('endo', 'endo-ja'), en='', ja='', ko='', category='章节/主线', variants=('余辉未却', '余晖未怯', '余晖未雀', '余晖未确', '余晖未阙', '余辉未怯', '余晖微却', '余晖喂却', '余晖未缺', '鱼晖未却', '余惠未却', '余晖未阕', '余晖为却', '余晖未榷', '余辉未阕'), ctx=(), exclude=(), note="终末地向渊行主线第二章进程VII 官方章节名'余晖未却'（武陵决战篇）。ASR 音近错形：'余晖'易咬成'余辉/鱼晖/余惠'；'未却'易咬成'未怯/未雀/未确/未阙/微却/喂却/未缺/未阕/为却/未榷'。"),
+    Entity('蚀影', modes=('endo', 'endo-ja'), en='', ja='', ko='', category='敌人系列', variants=('食影', '蚀阴', '蚀穎'), ctx=(('\\bEclipse\\b', '日蚀'), ('\\bShadow\\b', '黑影'), ('\\bEclipsed\\b', '日蚀'), ('\\bUmbral\\b', '暗影'), ('\\bUmbra\\b', '暗影'), ('\\benemy\\b', '蚀影'), ('\\bEclipse enemy\\b', '蚀影')), exclude=(), note="终末地向渊行新敌人系列（官方名'蚀影系列'）。戒律：'蚀影'是特定敌人名，不可裸键映射通用词；日蚀/黑影/暗影等仅在参考行Eclipse/Shadow/Umbral/Umbra/enemy 佐证时归此。"),
+    Entity('相伴庆典', modes=('endo', 'endo-ja'), en='', ja='', ko='', category='活动/版本', variants=('相伴盛殿', '想伴庆典', '相办庆典', '想办庆典', '乡伴庆典', '香伴庆典', '相伴青典', '相伴清典', '相拌庆典', '相伴庆点', '向伴庆典', '湘伴庆典'), ctx=(), exclude=(), note="终末地向渊行版本官方庆典活动名（1.4 半周年，与向渊行核心章节同步开启）。ASR 音近错形：'相伴'易咬成'想伴/相办/想办/乡伴/香伴/相拌/向伴/湘伴'；'庆典'易咬成'盛殿/青典/清典/庆点'。"),
+    Entity('遥望', modes=('endo', 'endo-ja'), en='', ja='', ko='', category='武器/六星', variants=(), ctx=(('\\b6-star weapon\\b', '远望'), ('\\bsix-star weapon\\b', '远望'), ('\\bweapon\\b', '遥望远'), ('\\bYao Wang\\b', '遥望'), ('\\blong-range weapon\\b', '远望'), ('\\bfree weapon\\b', '远望'), ('\\b6\\s*★\\s*weapon\\b', '远望'), ('\\bsignature weapon\\b', '远望')), exclude=(), note="终末地向渊行版本赠送的六星武器官方名'遥望'。戒律：'遥望'为普通动词，只走参考行 6-star weapon / weapon / Yao Wang 锚定，机翻'远望/遥望远'等错形归此，绝不作裸键入全局表。"),
+    Entity('嵌晶玉', modes=('endo', 'endo-ja'), en='', ja='', ko='', category='道具/材料', variants=('嵌晶石', '崁晶玉', '嵌晶钰', '谦晶玉', '欠晶玉', '千晶玉', '浅晶玉', '嵌金玉', '嵌精玉', '嵌晶羽', '嵌晶瑜', '嵌晶御', '嵌晶裕', '嵌晶郁', '歉晶玉'), ctx=(), exclude=(), note="终末地向渊行版本官方道具/材料名'嵌晶玉'（云·终末地相关）。ASR 音近错形：'嵌'易咬成'崁/谦/欠/千/浅/歉'；'晶'易咬成'金/精'；'玉'易咬成'钰/羽/瑜/御/裕/郁'。"),
+    Entity('云·终末地', modes=('endo', 'endo-ja'), en='Cloud Endfield', ja='', ko='', category='服务/云游戏', variants=('云终末地', '云·末地', '云端终末地', '云·终墨地', '云·终陌地', '云·终没地', '云·中末地', '云·终末底', '云·终末帝', 'CloudEndfield', '云 终末地', '云·終末地'), ctx=(), exclude=(), note="终末地云游戏服务官方名'云·终末地'（向渊行版本同步开启云测试）。ASR 音近错形：'终末'易咬成'终墨/终陌/终没/中末/终末底/终末帝'；英文侧 CloudEndfield（空格丢失）；分隔符'·'易被 ASR 吞掉。"),
+    Entity('阿莱克琉斯，千夫长', modes=('endo', 'endo-ja'), en='Alleikhreos, Chiliarch', ja='', ko='', category='BOSS', variants=('阿莱克琉斯将军', '阿莱克流斯千夫长', '阿莱克琉斯千人长', '阿莱克鲁斯千夫长', '阿莱克留斯千夫长', '阿莱克硫斯千夫长', '阿莱克柳斯千夫长', '阿莱克琉斯千父长', '阿莱克琉斯前夫长', '阿莱克琉斯千服长', '阿莱克琉斯千付长', '阿莱克琉斯千府长', '阿莱克雷乌斯千夫长', '阿莱克琉斯千妇长', '阿莱克纽斯千夫长', '阿莱克琉斯千夫涨', '阿莱克琉斯千夫章', '阿莱克琉斯千夫长', 'Alektios Chiliarch'), ctx=(), exclude=(), note="终末地向渊行版本 BOSS 官方全称'阿莱克琉斯，千夫长'（1.4 最终 BOSS，'千夫长'=罗马军制 Chiliarch，非'将军/千人长'）。旧表已收'阿莱克琉斯'短键，此处补全头衔。ASR 音近错形：'阿莱克琉斯'易咬成'阿莱克鲁斯/阿莱克留斯/阿莱克硫斯/阿莱克柳斯/阿莱克雷乌斯/阿莱克纽斯'；'千夫长'易咬成'千父长/前夫长/千服长/千付长/千府长/千妇长/千夫涨/千夫章'。⚠ 2026-11-03 证件修正两处：① canonical 补官方全角逗号——一手＝endfield.wiki.gg/wiki/Alleikhreos,_Chiliarch?action=raw 的 `cnname = 阿莱克琉斯，千夫长`，二手＝官方微博「危境情报」原文「阿莱克琉斯，千夫长——基石的造物…」；旧无逗号形与错误 en 'Alektios Chiliarch'（Alektios 系无中生有，官方英文＝Alleikhreos, Chiliarch；阵营 Foundite=造裔）一并降为 variants 兜旧产出。"),
+    Entity('阿莱克琉斯，千夫长', modes=('endo-bi', 'react'), en='Alleikhreos, Chiliarch', ja='', ko='', category='BOSS', variants=('阿莱克琉斯将军', '阿莱克流斯千夫长', '阿莱克琉斯千人长', '阿莱克鲁斯千夫长', '阿莱克留斯千夫长', '阿莱克硫斯千夫长', '阿莱克柳斯千夫长', '阿莱克琉斯千父长', '阿莱克琉斯前夫长', '阿莱克琉斯千服长', '阿莱克琉斯千付长', '阿莱克琉斯千府长', '阿莱克雷乌斯千夫长', '阿莱克琉斯千妇长', '阿莱克纽斯千夫长', '阿莱克琉斯千夫涨', '阿莱克琉斯千夫章', '阿莱克琉斯千夫长', 'Alektios Chiliarch'), ctx=(), exclude=(), note="endobi/react 第二条（2026-11-03）：把 1.4 最终 BOSS 官中全称投给终末地双语片与音乐 reaction 片两条通路；官方依据与错形清单见上方同 canonical 条目。⚠ **ASR 切碎形 'Elec'/'heroes Elechero's' 不入表**（本片 #2/#3 实测）：跨 cue 断句产生的短碎片＋'电气/英雄'皆通用中文词，按 2026-10-20 已记的不可沉淀边界只能逐 cue 整行重写，塞进表必然误伤。"),
     Entity('洛瑟菈', modes=('bi',), en='Lucilla', ja='', ko='', category='角色/星炬学院校长', variants=('Lucilla', '露西拉', '卢西拉', '洛西拉', '洛塞拉', '洛瑟拉', '洛色拉', '洛瑟垃', '洛瑟啦', '洛瑟菈大人', '罗瑟菈', '锣瑟菈', 'Lucila', 'Lucilla', 'Luciana', 'Lusilla', "Lucilla's", 'Lucilla`s', 'Lu-cilla', 'Luciela', 'Lucillar', 'Lucillia'), ctx=(('\\bLucilla\\b', '露西拉'), ('\\bLucilla\\b', '卢西拉'), ('\\bLucilla\\b', '洛瑟菈')), exclude=(), note="星炬学院校长（官方中文'洛瑟菈'，库街区 wiki/3DM/sina 确认）。身份：学院 President=校长，机翻误作'总统'（已有'洛瑟菈总统→洛瑟菈校长'长键兜底）。⚠️ 2026-10-04：原 ctx 里的 (r'\\bPresident\\b','总统') 已移出——Entity.ctx会强制替换成 canonical（洛瑟菈），把'总统'改成'洛瑟菈'会得到'洛瑟菈是学院的洛瑟菈'；现改挂 CONTEXT_MAP 原生三元组 (President,'总统','校长')。ASR 音近错形：'洛瑟菈'易咬成'洛色拉/洛瑟垃/洛瑟啦/罗瑟菈/锣瑟菈'；英文侧 Lucilla 易咬成 Lucila/Lusilla/Luciela。⚠️ 2026-11-21：移除 variants 的 'Lucille'/'Lucia'——4.0 官方英文 Lucielle（官中「露希尔」）的 ASR 常写成 Lucille/Lucia，旧键会把新角色误归校长；Lucilla 与 Lucielle 必须分离。"),
     Entity('露希尔', modes=('bi',), en='Lucielle', ja='ルシェル', ko='루시엘', category='角色/鸣潮4.0', variants=('Lucielle', 'Luciel', 'Lucille', 'Luciella', 'Lucella'), ctx=(('\\b(?:Lucielle|Luciel|Lucille|Lucella)\\b', '露西尔'), ('\\b(?:Lucielle|Luciel|Lucille|Lucella)\\b', '卢西尔'), ('\\b(?:Lucielle|Luciel|Lucille|Lucella)\\b', '露琪尔'), ('\\b(?:Lucielle|Luciel|Lucille|Lucella)\\b', '卢琪尔'), ('\\b(?:Lucielle|Luciel|Lucille|Lucella)\\b', '露西埃尔'), ('\\b(?:Lucielle|Luciel|Lucille|Lucella)\\b', '洛瑟菈'), ('\\b(?:Lucielle|Luciel|Lucille|Lucella)\\b', '露西拉'), ('\\b(?:Lucielle|Luciel|Lucille|Lucella)\\b', '卢西拉')), exclude=(), note='鸣潮 4.0 新共鸣者「露希尔」（官方档案：水牛岩的猫耳淘金客，异能力「黑石塑形」，搭档小沧龙；标语「明日与谎言」）。英文 official=Lucielle，日文 ルシェル，韩文 루시엘。⚠ Lucilla=洛瑟菈（星炬学院校长，3.x），二者严格分离；旧表把 Lucille/Lucia 归洛瑟菈，导致 4.0 片误校。Lucia 是常用名，只走 CONTEXT_MAP「Anna and Lucia」参考行锚定，绝不作 variants/裸键。'),
     Entity('千咲', modes=('bi',), en='Chisa', ja='チサ', ko='', category='角色/星炬学院', variants=('Chisa', 'CHISA', '奇莎', '奇萨', '千笑', '千啸', '千筱', '千晓', '千笑 ', '千霄', '千宵', '牵笑', '芊笑', '千效', '千校', '千肖', 'Chi-san', 'Chisa', 'Chi-sa', 'Chissa', "Chisa's", 'Chisa`s', 'Chiasa', 'Chisaa', 'Chiisa', 'Chisa!'), ctx=(('\\bChisa\\b', '千咲'), ('\\bChisa\\b', '奇莎')), exclude=(), note="星炬学院/解弦之眼角色（官方中文'千咲'，日文 チサ；3.7 复刻池）。英文恰为千咲罗马音 Chisa，ASR 易与 Chisha(炽霞) 混——已有 CONTEXT_MAP (r'\\bChisha\\b', '千咲'→'炽霞') 回滚规则兜底，防误伤。⚠️ 2026-10-04 移除本 Entity 的 (r'\\bChisha\\b','炽霞') ctx：它与上面那条 CONTEXT_MAP 回滚**互逆**且后执行，会把已回滚成'炽霞'的结果又改回'千咲'（实测 '奇莎'+Chisha 得'千咲'，应为'炽霞'）。Chisha=炽霞(Chixia)，与千咲(Chisa)无关，该 ctx 本就不该存在。ASR 音近错形：'千咲'易咬成'千啸/千筱/千晓/千霄/千宵/牵笑/芊笑/千效/千校/千肖'；英文侧 Chisa 易咬成 Chissa/Chiasa/Chisaa/Chiisa。"),
@@ -14034,42 +14084,42 @@ ENTITIES = [
     Entity('玄方城', modes=('bi',), en='', ja='', ko='', category='地点/鸣潮2.x', variants=('施万芬霍尔德', '天鹅芳', '施万夫'), ctx=(), exclude=(), note='学习库固化(#2269/4364-4365/7528/7617/11047)：Schwanfang Hold 音译残留组合；其余 Schw* 系错形（海绵牙/施万芳要塞/万丰控股 等数十条）均为依赖参考行锚定的候选，留学习库 ctx 逐条人工确认，未固化。'),
     Entity('蜃境', modes=('bi',), en='', ja='', ko='', category='地点/术语', variants=('幻界',), ctx=(), exclude=(), note="学习库固化(#2315/2325/5263/5866/6580/12255)：mirage 机翻'幻界'归蜃境。"),
     Entity('爱弥斯', modes=('bi',), en='', ja='', ko='', category='角色/鸣潮2.x', variants=('艾姆斯', 'Amus', 'Amoth', 'Amth'), ctx=(), exclude=(), note="学习库固化(#1644/1645/4470)：Amess 音译残留；'伊梅'(Imeth)走学习库 ctx。2026-10-25 4.0 片补 Amoth/Amth（ASR 形）。"),
-    Entity('露帕', modes=('ko',), en='Lupa', ja='ルパ', ko='루파', category='角色/鸣潮', variants=('鲁帕', '卢帕'), ctx=(('루파', 'Rupa'), ('루파', 'Lupa')), exclude=(), note="鸣潮 2.4 版本（2025-07-03）五星角色，七丘阵营。韩语 루파；谷翻残留'鲁帕/Rupa/Lupa'。英文 Lupa 走 ctx（防误伤拉丁语 lupa=母狼 / 其它语境）。"),
-    Entity('达妮娅', modes=('ko',), en='Denia', ja='ダーニャ', ko='데니아', category='角色/鸣潮', variants=('德尼娅', '德妮亚', '丹妮亚', '达妮亚'), ctx=(), exclude=(), note="鸣潮 3.3 版本五星角色（热熔/音感仪），星炬学院学生。韩语 데니아；谷翻常作'德尼娅'。"),
-    Entity('洛瑟菈', modes=('ko',), en='Lucilla', ja='ルシラ', ko='루실라', category='角色/鸣潮', variants=('露西拉', '卢西拉', '鲁西拉', '洛瑟拉', '罗瑟菈'), ctx=(), exclude=(), note="鸣潮角色（冷凝/记忆宫殿），星炬学院学院长，2026-06 上线。韩语 루실라；谷翻按音译作'露西拉'，官方中文名为'洛瑟菈'。"),
-    Entity('卡提希娅', modes=('ko',), en='Cartethyia', ja='カルテジア', ko='카르티시아', category='角色/鸣潮', variants=('卡迪萨西亚', '卡提西亚', '卡尔提西亚', '卡提希亚'), ctx=(('카르티시아', 'Kartisia'),), exclude=(), note="鸣潮角色（气动），黎那汐塔流浪骑士，原名芙露德莉斯。韩语 카르티시아；ASR 常咬成 카르티샤시아，谷翻'卡迪萨西亚'。2026-11-02 韩语直播片补 ctx：逐 cue 重写时把它转写成拉丁 'Kartisia' 也算残留错形，仅参考行含 카르티시아 时才归正，防误伤他作同名。"),
-    Entity('千咲', modes=('ko',), en='Chisa', ja='', ko='치사', category='角色/星炬学院', variants=(), ctx=(('치사(?!하|니|해|고|적)', 'Chisas'), ('치사(?!하|니|해|고|적)', 'Chisa'), ('치사(?!하|니|해|고|적)', '奇萨'), ('치사(?!하|니|해|고|적)', '奇莎'), ('치사(?!하|니|해|고|적)', '千纱')), exclude=(), note="鸣潮角色千咲（星炬学院/解弦之眼，3.7 复刻池），韩服 치사。⚠ 치사 在韩语同时是普通词（치사하다=小气/卑鄙、치사하다→'致死'义亦常见），故必须谚文锚定 + 负向前瞻排掉 파생형(치사하/치사니/치사해)，绝不作裸键；本片实测两处普通词用法（#177「너는 치사하고」译'你真小气'、#2241「치사니까」译'致死判定'）经逐句核查**不予替换**。2026-11-02 实证 cue #399/518/528/599/601/624/625/1888/2353/2703/2710/2876/2878/2915/3981/4607（阵容与配置播报语境）。另注：bi 侧的 Chisha=炽霞(Chixia) 回滚规则与本条无关，勿混。"),
-    Entity('莫宁', modes=('ko',), en='Mornye', ja='', ko='모니', category='角色/鸣潮3.0', variants=(), ctx=(('모니(?!터|다|카|하)', 'Monie'), ('모니(?!터|다|카|하)', 'Mony'), ('모니(?!터|다|카|하)', 'Moni'), ('모니(?!터|다|카|하)', '莫妮'), ('모니(?!터|다|카|하)', '莫尼')), exclude=(), note='星炬学院隧者工学部教授莫宁（百度百科·琳奈词条），韩服多作 모니에，口播/ASR 常缩成短形 **모니**（bi 侧实体 ko 字段留的是 모니에，锚匹配不到短形）。2026-11-02 实证 #2394/2682/3005/3232/3437。⚠ 负向前瞻 (?!터) 排掉 모니터=monitor（显示器），它是正常词且同样以 모니 起头；2026-11-14 二校补 (?!카|하)：하모니카/모니카=口琴与莫妮卡（3.8 四章五幕片 cue 1862 实测被咬成「莫宁卡」后回滚，同片 11 处口琴假阳性一并消除）。'),
-    Entity('琳奈', modes=('ko',), en='Linny / Lenna', ja='', ko='린네', category='角色/鸣潮3.0', variants=(), ctx=(('린네', 'Linne'), ('린내', 'Linne'), ('린네', '林内'), ('린내', '林内'), ('린내', '林奈')), exclude=(), note='星炬学院预科班学生琳奈（百度百科），韩服 린네；bi 侧实体无 ko 字段，故 --ko 从不产出。2026-11-02 与莫宁同批实证（#2682/3005「린네 모니의 조합」）。2026-11-12 补 린내：韩语收音 -e/-ae 混听的常见 ASR 变体（莉莉 PV 片 #357 实证）。'),
-    Entity('妮姬', modes=('ko',), en='NIKKE', ja='', ko='니케', category='作品', variants=('尼肯', '尼凯', '妮凯'), ctx=(('니케', '耐克'),), exclude=(), note="《胜利女神：妮姬》NIKKE（非鸣潮）。'耐克'是正常中文词(Nike)，仅参考行含 니케 时替换，防误伤运动品牌。"),
-    Entity('星穹铁道', modes=('ko',), en='', ja='', ko='스타레일', category='作品', variants=(), ctx=(('스타\\s*레일', '星轨'),), exclude=(), note="《崩坏：星穹铁道》。'星轨'是正常中文词（另有同名游戏/天文义），仅参考行含 스타레일 时替换。"),
-    Entity('废墟图书馆', modes=('ko',), en='', ja='', ko='라이브러리 오브 루이나', category='作品', variants=('瑞纳图书馆',), ctx=(('루이나', '瑞纳'),), exclude=(), note='《Library of Ruina》官方中文名《废墟图书馆》。韩语 라이브러리 오브 루이나。'),
-    Entity('迷你梅洛', modes=('ko',), en='', ja='', ko='미니멜로', category='主播', variants=(), ctx=(('미니\\s*멜로', '迷你甜瓜'), ('미니\\s*멜로', '迷你旋律'), ('도[서수]관', '小型水管')), exclude=(), note="韩国 VTuber 미니멜로（Minimallow，YouTube 频道 Minimallow's Library）。无官方中文译名（B 站搬运标题直接用韩文原名），本库音译统一为「迷你梅洛」；미니멜로 도서관 = 迷你梅洛图书馆。'迷你甜瓜/迷你旋律'是正常词组，走 ctx。"),
-    Entity('微信', modes=('ko',), en='WeChat', ja='', ko='위체', category='术语', variants=('韦切', 'Wiche', '威切', '魏彻'), ctx=(), exclude=(), note="微信（WeChat）。韩语 위체；谷翻常作'韦切/Wiche'。"),
-    Entity('哔哩哔哩', modes=('ko',), en='', ja='', ko='빌리빌리', category='平台', variants=('比里比里', '比利比利', '哔哩比哩'), ctx=(('빌리빌리', 'Bilibili'), ('빌리빌리', 'bilibili')), exclude=(), note="B站。韩语 빌리빌리；ASR/谷翻常作'比里比里/比利比利'。英文名 Bilibili 走 ctx（防误伤纯英文语境）。"),
-    Entity('直播', modes=('ko',), en='', ja='', ko='방송', category='术语', variants=(), ctx=(('방송', '广播'),), exclude=(), note="韩语 방송=放送/直播。主播场景谷翻直译'广播'，走 ctx 锚定（'广播'是正常词，不入 KO_TERMS）。"),
-    Entity('专武', modes=('ko',), en='', ja='', ko='전무', category='术语', variants=(), ctx=(('전무', '执行董事'),), exclude=(), note="전무=전용무기（专属武器）简称。谷翻按公司职位译成'执行董事'，走 ctx。"),
-    Entity('角色', modes=('ko',), en='', ja='', ko='캐릭터', category='术语', variants=(), ctx=(('캐릭터', '个性'), ('캐릭터', '性格')), exclude=(), note="캐릭터(character) 在游戏语境=角色。谷翻常误作'个性/性格'，走 ctx 锚定。"),
-    Entity('游戏', modes=('ko',), en='', ja='', ko='게임', category='术语', variants=(), ctx=(('게임', '比赛'),), exclude=(), note="게임=游戏。谷翻常误作'比赛'（'我在比赛中很努力'=게임 열심히 해），走 ctx。"),
-    Entity('世界级', modes=('ko',), en='World Class', ja='', ko='월클', category='术语', variants=(), ctx=(('월클', '沃尔克尔'), ('월클', 'Wolklk')), exclude=(), note="韩语网络俚语 월클=World Class（世界级）。谷翻按音译作'沃尔克尔/Wolklk'，走 ctx。"),
-    Entity('Kid Sang', modes=('ko',), en='', ja='', ko='키드상', category='昵称', variants=(), ctx=(('키드\\s*상', '儿童奖'),), exclude=(), note="B站用户昵称 키드상(Kid Sang)。谷翻按字面拆译成'儿童奖'（kid=儿童 / 상=奖），走 ctx。"),
-    Entity('字幕', modes=('ko',), en='', ja='', ko='자막', category='术语', variants=(), ctx=(('자막', '标题'),), exclude=(), note="자막=字幕。谷翻偶把'자막'误作'标题'（同段混用），走 ctx 锚定。"),
-    Entity('账号', modes=('ko',), en='', ja='', ko='아이디', category='术语', variants=(), ctx=(('아이디', '身份证'),), exclude=(), note="아이디=ID/账号。谷翻按字面把 ID 译成'身份证'，直播注册场景全错，走 ctx 锚定。"),
-    Entity('玄方城', modes=('ko',), en='', ja='', ko='현방성', category='地名/鸣潮', variants=(), ctx=(('현방성', '玄方道'), ('현방지계', '玄方系统'), ('현방지계', '现任地方政府'), ('현방지 ', '玄智寺'), ('현방의 권세', '现任政府'), ('현방의 백성', '现在省份'), ('현방 백성', '现任办公室')), exclude=(), note="玄方城（梦州·玄方地界核心）。谷翻对 현방성/현방지계 产出'玄方道/玄方系统/现任政府/现任地方政府/玄智寺/现任办公室/现在省份'等正常中文词，全部走 ctx。"),
-    Entity('守护神', modes=('ko',), en='', ja='', ko='수호신', category='术语/鸣潮', variants=(), ctx=(('수호시', 'Suhosi'), ('수호시는', '须星'), ('수어신에', '单词句'), ('수호신', '守护灵')), exclude=(), note="수호신/수호시/수어신 = 守护神（岁主/守护神统称）。谷翻残留英文'Suhosi'、字面词'须星/单词句'，以及同义不同名的'守护灵'（本片统一为官方'守护神'）。⚠ 2026-11-15 三校：删除 ('수신','接收方')/('수신','接收者') 两条 ctx——수신=受信是正常词（3.8 cue 5917「新玄方是接收方」），误配会把正确译文改回「守护神」；确属 수호신 ASR 的语境改由 KO_CONTEXT 长锚点（수신이 함정으로/수신의 재림 等）承接。"),
-    Entity('心', modes=('ko',), en='', ja='', ko='여우의 별자리', category='角色/鸣潮', variants=(), ctx=(('여우의 별자리', 'Fox Constellation'), ('여우의 별리', '心月狐啊'), ('여호의 별리', '心月狐'), ('심이라고 보는', '模拟市民')), exclude=(), note="「心」= 岁主心月狐分出的情感模块，韩文名 여우의 별자리（狐狸星座）。谷翻残留英文'Fox Constellation'与拆字错形'星座的地板/模拟市民/心月狐啊'，走 ctx。"),
-    Entity('心月狐', modes=('ko',), en='', ja='', ko='심월여우', category='角色/鸣潮', variants=(), ctx=(('심월여우', 'Simwol Fox'), ('수신 심월여우', 'Simwol Fox接收')), exclude=(), note="岁主本体「心月狐」。谷翻偶把 심월여우 直接留英文'Simwol Fox'，走 ctx。"),
-    Entity('本体', modes=('ko',), en='', ja='', ko='본체', category='术语/鸣潮', variants=(), ctx=(('본체', '尸体'), ('본체', '主体')), exclude=(), note="본체=本体（相对 분신 分身）。谷翻把 본체 误作'尸体/主体'，走 ctx。"),
-    Entity('分身', modes=('ko',), en='', ja='', ko='분신', category='术语/鸣潮', variants=(), ctx=(('분신', '克隆体'), ('분신', '另一个身份')), exclude=(), note="분신=分身（心的身份）。谷翻按义近译成'克隆体/另一个身份'，走 ctx。"),
-    Entity('文明之匣', modes=('ko',), en='', ja='', ko='문명의 상자', category='物品/鸣潮', variants=(), ctx=(('문명의 상자', '文明的盒子'), ('문명의 상자', '文明之盒'), ('문명의 상자', '文明的文明之匣')), exclude=(), note="文明之匣（玄方篇核心道具）。谷翻同段混用'文明的盒子/文明之盒/文明的文明之匣'，走 ctx 统一。"),
-    Entity('阿克西翁', modes=('ko',), en='', ja='', ko='액시온', category='势力/鸣潮', variants=(), ctx=(('더 액션', '那场动作戏'),), exclude=(), note="阿克西翁（残星会相关势力）。ASR 把 액시온 咬成 액션(action)，谷翻产出'动作戏'，走 ctx。"),
-    Entity('守岸人', modes=('ko',), en='', ja='', ko='파수인', category='角色/鸣潮', variants=(), ctx=(('파수인', '守夜人'), ('파수인 출시', '《Lookout》')), exclude=(), note="守岸人（鸣潮角色）。谷翻把 파수인 译成'守夜人'、把 출시(上线)误听成英文片名《Lookout》，走 ctx。"),
-    Entity('华亭', modes=('ko',), en='', ja='', ko='화정', category='地名/鸣潮', variants=(), ctx=(('화정', '花亭'), ('화정을 위해', '和谐')), exclude=(), note="梦州华亭（锁暝故乡，官方档案'梦州华亭人'）。谷翻作'花亭/和谐'，走 ctx。"),
-    Entity('恶瘴', modes=('ko',), en='', ja='', ko='악장', category='术语/鸣潮', variants=(), ctx=(('악장', '克长静'), ('악정', '邪恶正义')), exclude=(), note="恶瘴（华亭故乡灾厄，官方档案'故乡「恶瘴」之厄'）。ASR 악장/악정，谷翻作'克长静/邪恶正义'，走 ctx。"),
-    Entity('伏笔', modes=('ko',), en='', ja='', ko='떡밥', category='术语', variants=(), ctx=(('떡밥', '诱饵'),), exclude=(), note="떡밥=伏笔/后续钩子（韩语网络语）。谷翻直译成'诱饵'（钓鱼义），走 ctx 锚定。"),
-    Entity('天人', modes=('ko',), en='', ja='', ko='천인', category='术语/鸣潮', variants=(), ctx=(('천인이 되어', '天上的存在'), ('천인들', '千人'), ('천인들', '天界生物'), ('천인들에게', '天界')), exclude=(), note="천인=天人（玄方/梦州的'天人'群体，与凡人相对）。谷翻作'天上的存在/千人/天界生物/天界'，走 ctx。"),
-    Entity('正贤', modes=('ko',), en='', ja='', ko='정현', category='角色/鸣潮', variants=(), ctx=(('정현', '郑贤'),), exclude=(), note="玄方地界人物 정현（正贤）。谷翻同片混用'正贤/郑贤'，走 ctx 统一为正贤。"),
-    Entity('昭明商会', modes=('ko',), en='', ja='', ko='소명 상인회', category='组织/鸣潮', variants=(), ctx=(('소명 상인회', '锁暝商会'),), exclude=(), note="昭明商会（穗穗任理事的商会，官方百科'担任昭明商会年轻理事'）。ASR 소명 与 쇠명(锁暝) 同音，谷翻把 소명 상인회 误作'锁暝商会'，走 ctx 锚定。"),
+    Entity('露帕', modes=('wuwa-ko',), en='Lupa', ja='ルパ', ko='루파', category='角色/鸣潮', variants=('鲁帕', '卢帕'), ctx=(('루파', 'Rupa'), ('루파', 'Lupa')), exclude=(), note="鸣潮 2.4 版本（2025-07-03）五星角色，七丘阵营。韩语 루파；谷翻残留'鲁帕/Rupa/Lupa'。英文 Lupa 走 ctx（防误伤拉丁语 lupa=母狼 / 其它语境）。"),
+    Entity('达妮娅', modes=('wuwa-ko',), en='Denia', ja='ダーニャ', ko='데니아', category='角色/鸣潮', variants=('德尼娅', '德妮亚', '丹妮亚', '达妮亚'), ctx=(), exclude=(), note="鸣潮 3.3 版本五星角色（热熔/音感仪），星炬学院学生。韩语 데니아；谷翻常作'德尼娅'。"),
+    Entity('洛瑟菈', modes=('wuwa-ko',), en='Lucilla', ja='ルシラ', ko='루실라', category='角色/鸣潮', variants=('露西拉', '卢西拉', '鲁西拉', '洛瑟拉', '罗瑟菈'), ctx=(), exclude=(), note="鸣潮角色（冷凝/记忆宫殿），星炬学院学院长，2026-06 上线。韩语 루실라；谷翻按音译作'露西拉'，官方中文名为'洛瑟菈'。"),
+    Entity('卡提希娅', modes=('wuwa-ko',), en='Cartethyia', ja='カルテジア', ko='카르티시아', category='角色/鸣潮', variants=('卡迪萨西亚', '卡提西亚', '卡尔提西亚', '卡提希亚'), ctx=(('카르티시아', 'Kartisia'),), exclude=(), note="鸣潮角色（气动），黎那汐塔流浪骑士，原名芙露德莉斯。韩语 카르티시아；ASR 常咬成 카르티샤시아，谷翻'卡迪萨西亚'。2026-11-02 韩语直播片补 ctx：逐 cue 重写时把它转写成拉丁 'Kartisia' 也算残留错形，仅参考行含 카르티시아 时才归正，防误伤他作同名。"),
+    Entity('千咲', modes=('wuwa-ko',), en='Chisa', ja='', ko='치사', category='角色/星炬学院', variants=(), ctx=(('치사(?!하|니|해|고|적)', 'Chisas'), ('치사(?!하|니|해|고|적)', 'Chisa'), ('치사(?!하|니|해|고|적)', '奇萨'), ('치사(?!하|니|해|고|적)', '奇莎'), ('치사(?!하|니|해|고|적)', '千纱')), exclude=(), note="鸣潮角色千咲（星炬学院/解弦之眼，3.7 复刻池），韩服 치사。⚠ 치사 在韩语同时是普通词（치사하다=小气/卑鄙、치사하다→'致死'义亦常见），故必须谚文锚定 + 负向前瞻排掉 파생형(치사하/치사니/치사해)，绝不作裸键；本片实测两处普通词用法（#177「너는 치사하고」译'你真小气'、#2241「치사니까」译'致死判定'）经逐句核查**不予替换**。2026-11-02 实证 cue #399/518/528/599/601/624/625/1888/2353/2703/2710/2876/2878/2915/3981/4607（阵容与配置播报语境）。另注：bi 侧的 Chisha=炽霞(Chixia) 回滚规则与本条无关，勿混。"),
+    Entity('莫宁', modes=('wuwa-ko',), en='Mornye', ja='', ko='모니', category='角色/鸣潮3.0', variants=(), ctx=(('모니(?!터|다|카|하)', 'Monie'), ('모니(?!터|다|카|하)', 'Mony'), ('모니(?!터|다|카|하)', 'Moni'), ('모니(?!터|다|카|하)', '莫妮'), ('모니(?!터|다|카|하)', '莫尼')), exclude=(), note='星炬学院隧者工学部教授莫宁（百度百科·琳奈词条），韩服多作 모니에，口播/ASR 常缩成短形 **모니**（bi 侧实体 ko 字段留的是 모니에，锚匹配不到短形）。2026-11-02 实证 #2394/2682/3005/3232/3437。⚠ 负向前瞻 (?!터) 排掉 모니터=monitor（显示器），它是正常词且同样以 모니 起头；2026-11-14 二校补 (?!카|하)：하모니카/모니카=口琴与莫妮卡（3.8 四章五幕片 cue 1862 实测被咬成「莫宁卡」后回滚，同片 11 处口琴假阳性一并消除）。'),
+    Entity('琳奈', modes=('wuwa-ko',), en='Linny / Lenna', ja='', ko='린네', category='角色/鸣潮3.0', variants=(), ctx=(('린네', 'Linne'), ('린내', 'Linne'), ('린네', '林内'), ('린내', '林内'), ('린내', '林奈')), exclude=(), note='星炬学院预科班学生琳奈（百度百科），韩服 린네；bi 侧实体无 ko 字段，故 --ko 从不产出。2026-11-02 与莫宁同批实证（#2682/3005「린네 모니의 조합」）。2026-11-12 补 린내：韩语收音 -e/-ae 混听的常见 ASR 变体（莉莉 PV 片 #357 实证）。'),
+    Entity('妮姬', modes=('wuwa-ko',), en='NIKKE', ja='', ko='니케', category='作品', variants=('尼肯', '尼凯', '妮凯'), ctx=(('니케', '耐克'),), exclude=(), note="《胜利女神：妮姬》NIKKE（非鸣潮）。'耐克'是正常中文词(Nike)，仅参考行含 니케 时替换，防误伤运动品牌。"),
+    Entity('星穹铁道', modes=('wuwa-ko',), en='', ja='', ko='스타레일', category='作品', variants=(), ctx=(('스타\\s*레일', '星轨'),), exclude=(), note="《崩坏：星穹铁道》。'星轨'是正常中文词（另有同名游戏/天文义），仅参考行含 스타레일 时替换。"),
+    Entity('废墟图书馆', modes=('wuwa-ko',), en='', ja='', ko='라이브러리 오브 루이나', category='作品', variants=('瑞纳图书馆',), ctx=(('루이나', '瑞纳'),), exclude=(), note='《Library of Ruina》官方中文名《废墟图书馆》。韩语 라이브러리 오브 루이나。'),
+    Entity('迷你梅洛', modes=('wuwa-ko',), en='', ja='', ko='미니멜로', category='主播', variants=(), ctx=(('미니\\s*멜로', '迷你甜瓜'), ('미니\\s*멜로', '迷你旋律'), ('도[서수]관', '小型水管')), exclude=(), note="韩国 VTuber 미니멜로（Minimallow，YouTube 频道 Minimallow's Library）。无官方中文译名（B 站搬运标题直接用韩文原名），本库音译统一为「迷你梅洛」；미니멜로 도서관 = 迷你梅洛图书馆。'迷你甜瓜/迷你旋律'是正常词组，走 ctx。"),
+    Entity('微信', modes=('wuwa-ko',), en='WeChat', ja='', ko='위체', category='术语', variants=('韦切', 'Wiche', '威切', '魏彻'), ctx=(), exclude=(), note="微信（WeChat）。韩语 위체；谷翻常作'韦切/Wiche'。"),
+    Entity('哔哩哔哩', modes=('wuwa-ko',), en='', ja='', ko='빌리빌리', category='平台', variants=('比里比里', '比利比利', '哔哩比哩'), ctx=(('빌리빌리', 'Bilibili'), ('빌리빌리', 'bilibili')), exclude=(), note="B站。韩语 빌리빌리；ASR/谷翻常作'比里比里/比利比利'。英文名 Bilibili 走 ctx（防误伤纯英文语境）。"),
+    Entity('直播', modes=('wuwa-ko',), en='', ja='', ko='방송', category='术语', variants=(), ctx=(('방송', '广播'),), exclude=(), note="韩语 방송=放送/直播。主播场景谷翻直译'广播'，走 ctx 锚定（'广播'是正常词，不入 KO_TERMS）。"),
+    Entity('专武', modes=('wuwa-ko',), en='', ja='', ko='전무', category='术语', variants=(), ctx=(('전무', '执行董事'),), exclude=(), note="전무=전용무기（专属武器）简称。谷翻按公司职位译成'执行董事'，走 ctx。"),
+    Entity('角色', modes=('wuwa-ko',), en='', ja='', ko='캐릭터', category='术语', variants=(), ctx=(('캐릭터', '个性'), ('캐릭터', '性格')), exclude=(), note="캐릭터(character) 在游戏语境=角色。谷翻常误作'个性/性格'，走 ctx 锚定。"),
+    Entity('游戏', modes=('wuwa-ko',), en='', ja='', ko='게임', category='术语', variants=(), ctx=(('게임', '比赛'),), exclude=(), note="게임=游戏。谷翻常误作'比赛'（'我在比赛中很努力'=게임 열심히 해），走 ctx。"),
+    Entity('世界级', modes=('wuwa-ko',), en='World Class', ja='', ko='월클', category='术语', variants=(), ctx=(('월클', '沃尔克尔'), ('월클', 'Wolklk')), exclude=(), note="韩语网络俚语 월클=World Class（世界级）。谷翻按音译作'沃尔克尔/Wolklk'，走 ctx。"),
+    Entity('Kid Sang', modes=('wuwa-ko',), en='', ja='', ko='키드상', category='昵称', variants=(), ctx=(('키드\\s*상', '儿童奖'),), exclude=(), note="B站用户昵称 키드상(Kid Sang)。谷翻按字面拆译成'儿童奖'（kid=儿童 / 상=奖），走 ctx。"),
+    Entity('字幕', modes=('wuwa-ko',), en='', ja='', ko='자막', category='术语', variants=(), ctx=(('자막', '标题'),), exclude=(), note="자막=字幕。谷翻偶把'자막'误作'标题'（同段混用），走 ctx 锚定。"),
+    Entity('账号', modes=('wuwa-ko',), en='', ja='', ko='아이디', category='术语', variants=(), ctx=(('아이디', '身份证'),), exclude=(), note="아이디=ID/账号。谷翻按字面把 ID 译成'身份证'，直播注册场景全错，走 ctx 锚定。"),
+    Entity('玄方城', modes=('wuwa-ko',), en='', ja='', ko='현방성', category='地名/鸣潮', variants=(), ctx=(('현방성', '玄方道'), ('현방지계', '玄方系统'), ('현방지계', '现任地方政府'), ('현방지 ', '玄智寺'), ('현방의 권세', '现任政府'), ('현방의 백성', '现在省份'), ('현방 백성', '现任办公室')), exclude=(), note="玄方城（梦州·玄方地界核心）。谷翻对 현방성/현방지계 产出'玄方道/玄方系统/现任政府/现任地方政府/玄智寺/现任办公室/现在省份'等正常中文词，全部走 ctx。"),
+    Entity('守护神', modes=('wuwa-ko',), en='', ja='', ko='수호신', category='术语/鸣潮', variants=(), ctx=(('수호시', 'Suhosi'), ('수호시는', '须星'), ('수어신에', '单词句'), ('수호신', '守护灵')), exclude=(), note="수호신/수호시/수어신 = 守护神（岁主/守护神统称）。谷翻残留英文'Suhosi'、字面词'须星/单词句'，以及同义不同名的'守护灵'（本片统一为官方'守护神'）。⚠ 2026-11-15 三校：删除 ('수신','接收方')/('수신','接收者') 两条 ctx——수신=受信是正常词（3.8 cue 5917「新玄方是接收方」），误配会把正确译文改回「守护神」；确属 수호신 ASR 的语境改由 KO_CONTEXT 长锚点（수신이 함정으로/수신의 재림 等）承接。"),
+    Entity('心', modes=('wuwa-ko',), en='', ja='', ko='여우의 별자리', category='角色/鸣潮', variants=(), ctx=(('여우의 별자리', 'Fox Constellation'), ('여우의 별리', '心月狐啊'), ('여호의 별리', '心月狐'), ('심이라고 보는', '模拟市民')), exclude=(), note="「心」= 岁主心月狐分出的情感模块，韩文名 여우의 별자리（狐狸星座）。谷翻残留英文'Fox Constellation'与拆字错形'星座的地板/模拟市民/心月狐啊'，走 ctx。"),
+    Entity('心月狐', modes=('wuwa-ko',), en='', ja='', ko='심월여우', category='角色/鸣潮', variants=(), ctx=(('심월여우', 'Simwol Fox'), ('수신 심월여우', 'Simwol Fox接收')), exclude=(), note="岁主本体「心月狐」。谷翻偶把 심월여우 直接留英文'Simwol Fox'，走 ctx。"),
+    Entity('本体', modes=('wuwa-ko',), en='', ja='', ko='본체', category='术语/鸣潮', variants=(), ctx=(('본체', '尸体'), ('본체', '主体')), exclude=(), note="본체=本体（相对 분신 分身）。谷翻把 본체 误作'尸体/主体'，走 ctx。"),
+    Entity('分身', modes=('wuwa-ko',), en='', ja='', ko='분신', category='术语/鸣潮', variants=(), ctx=(('분신', '克隆体'), ('분신', '另一个身份')), exclude=(), note="분신=分身（心的身份）。谷翻按义近译成'克隆体/另一个身份'，走 ctx。"),
+    Entity('文明之匣', modes=('wuwa-ko',), en='', ja='', ko='문명의 상자', category='物品/鸣潮', variants=(), ctx=(('문명의 상자', '文明的盒子'), ('문명의 상자', '文明之盒'), ('문명의 상자', '文明的文明之匣')), exclude=(), note="文明之匣（玄方篇核心道具）。谷翻同段混用'文明的盒子/文明之盒/文明的文明之匣'，走 ctx 统一。"),
+    Entity('阿克西翁', modes=('wuwa-ko',), en='', ja='', ko='액시온', category='势力/鸣潮', variants=(), ctx=(('더 액션', '那场动作戏'),), exclude=(), note="阿克西翁（残星会相关势力）。ASR 把 액시온 咬成 액션(action)，谷翻产出'动作戏'，走 ctx。"),
+    Entity('守岸人', modes=('wuwa-ko',), en='', ja='', ko='파수인', category='角色/鸣潮', variants=(), ctx=(('파수인', '守夜人'), ('파수인 출시', '《Lookout》')), exclude=(), note="守岸人（鸣潮角色）。谷翻把 파수인 译成'守夜人'、把 출시(上线)误听成英文片名《Lookout》，走 ctx。"),
+    Entity('华亭', modes=('wuwa-ko',), en='', ja='', ko='화정', category='地名/鸣潮', variants=(), ctx=(('화정', '花亭'), ('화정을 위해', '和谐')), exclude=(), note="梦州华亭（锁暝故乡，官方档案'梦州华亭人'）。谷翻作'花亭/和谐'，走 ctx。"),
+    Entity('恶瘴', modes=('wuwa-ko',), en='', ja='', ko='악장', category='术语/鸣潮', variants=(), ctx=(('악장', '克长静'), ('악정', '邪恶正义')), exclude=(), note="恶瘴（华亭故乡灾厄，官方档案'故乡「恶瘴」之厄'）。ASR 악장/악정，谷翻作'克长静/邪恶正义'，走 ctx。"),
+    Entity('伏笔', modes=('wuwa-ko',), en='', ja='', ko='떡밥', category='术语', variants=(), ctx=(('떡밥', '诱饵'),), exclude=(), note="떡밥=伏笔/后续钩子（韩语网络语）。谷翻直译成'诱饵'（钓鱼义），走 ctx 锚定。"),
+    Entity('天人', modes=('wuwa-ko',), en='', ja='', ko='천인', category='术语/鸣潮', variants=(), ctx=(('천인이 되어', '天上的存在'), ('천인들', '千人'), ('천인들', '天界生物'), ('천인들에게', '天界')), exclude=(), note="천인=天人（玄方/梦州的'天人'群体，与凡人相对）。谷翻作'天上的存在/千人/天界生物/天界'，走 ctx。"),
+    Entity('正贤', modes=('wuwa-ko',), en='', ja='', ko='정현', category='角色/鸣潮', variants=(), ctx=(('정현', '郑贤'),), exclude=(), note="玄方地界人物 정현（正贤）。谷翻同片混用'正贤/郑贤'，走 ctx 统一为正贤。"),
+    Entity('昭明商会', modes=('wuwa-ko',), en='', ja='', ko='소명 상인회', category='组织/鸣潮', variants=(), ctx=(('소명 상인회', '锁暝商会'),), exclude=(), note="昭明商会（穗穗任理事的商会，官方百科'担任昭明商会年轻理事'）。ASR 소명 与 쇠명(锁暝) 同音，谷翻把 소명 상인회 误作'锁暝商会'，走 ctx 锚定。"),
     Entity('明日方舟', modes=('bi',), en='Arknights / AK', ja='', ko='', category='作品', variants=(), ctx=(('\\bAK\\b', '阿拉斯加'),), exclude=(), note="谷翻把 'AK' 一律误译成'阿拉斯加'（2026-10-01 明日方舟男干员调查片 4 处）。'阿拉斯加'是正常中文词（Alaska），只走 ctx 由英文参考行锚定，绝不裸键。"),
     Entity('异格', modes=('bi',), en='Alter', ja='', ko='', category='术语/明日方舟', variants=(), ctx=(('\\bAlter\\b', '祭坛'),), exclude=(), note="明日方舟官方术语：Alter（异格干员）。谷翻把 Alter 直译成'祭坛'，走 ctx。"),
     Entity('角峰', modes=('bi',), en='Matterhorn', ja='', ko='', category='角色/明日方舟', variants=(), ctx=(('Matterhorn|Metahorn|Metal\\s*Horn', '金属角'), ('Matterhorn|Metahorn|Metal\\s*Horn', '梅塔霍恩')), exclude=(), note="4★ 近卫，卡兰贸易的厨师。ASR 常作 Metahorn/Metal Horn；谷翻产出'金属角'(字面)/'梅塔霍恩'(音译)。"),
@@ -14118,18 +14168,18 @@ ENTITIES = [
     Entity('银灰', modes=('bi',), en='SilverAsh', ja='', ko='', category='角色/明日方舟', variants=('西尔维娅·阿什', 'Sylvia Ash'), ctx=(('\\bSylve\\b', '西尔维'),), exclude=(), note="6★ 领主近卫（谢拉格军阀）。ASR 常作 Sylvia Ash/Sylve；'西尔维娅·阿什'是音译残留可裸键，'西尔维'走 ctx。"),
     Entity('多索雷斯假日', modes=('bi',), en='Dossoles Holiday', ja='', ko='', category='活动/明日方舟', variants=('多塞勒斯', '多尔斯'), ctx=(('Door?s Holiday|Dors|Doselus', '门'),), exclude=(), note="SideStory 活动。ASR 常作 Dors/Doselus/Doors；'多塞勒斯/多尔斯'是音译残留可裸键，'门'是通用中文词走 ctx。"),
     Entity('安赛尔', modes=('bi',), en='Ansel', ja='', ko='', category='角色/明日方舟', variants=('Anel',), ctx=(), exclude=(), note='3★ 医师医疗（外形清秀）。ASR 常作 Anel（残留英文）。'),
-    Entity('漂泊者', modes=('ja',), en='', ja='漂泊者', ko='', category='角色/主角/鸣潮', variants=('評白者', 'ひ白者'), ctx=(('脅迫者|評白者|表白者|漂白者|白者さん|ひ白者', '表白者'), ('脅迫者|評白者|表白者|漂白者|白者さん|ひ白者', '漂白者'), ('脅迫者|評白者|表白者|漂白者|白者さん|ひ白者', '漂白'), ('脅迫者|評白者|表白者|漂白者|白者さん|ひ白者', '勒索者'), ('脅迫者|評白者|表白者|漂白者|白者さん|ひ白者', '威胁者'), ('脅迫者|評白者|表白者|漂白者|白者さん|ひ白者', '胁迫者'), ('脅迫者|評白者|表白者|漂白者|白者さん|ひ白者', '威吓者'), ('評白者|漂白者', '评白'), ('評白者|漂白者|白者さん', '白物先生'), ('評白者|漂白者|白者さん', '白先生'), ('脅迫者|評白者', '威胁的人'), ('脅迫者|評白者|漂白者', '敲诈者'), ('評白者|漂白者|脅迫者', '解说员'), ('漂[泊白]者', '布利彻'), ('漂[泊白]者', '漂移者'), ('漂[泊白]者|脅迫者', '流浪者'), ('漂[泊白]者|脅迫者', '流浪汉'), ('漂[泊白]者', 'Bleacher'), ('漂[泊白]者', '《死神》'), ('漂[泊白]者', '看台'), ('表白者|標拍者', '认罪者'), ('表白者', '忏悔神父'), ('表白', '坦白'), ('標拍者', 'Hitaka'), ('表者', '代表'), ('脅迫者', '威胁性人物'), ('脅迫者', '威胁'), ('ひ[ょお]?ちゃ', 'Hi-chan'), ('ひ[ょお]?ちゃ', '孝酱'), ('ひ[ょお]?ちゃ', '冰酱'), ('ひ[ょお]?ちゃ', '日央酱'), ('ひ[ょお]?ちゃ', 'Gahi酱'), ('ひ[ょお]?ちゃ', 'Uhi酱')), exclude=(), note="鸣潮主角。日语官方名=漂泊者（ひょうはくしゃ）；ASR 常咬成 脅迫者(きょうはくしゃ)/評白者/表白者/漂白者/ひ白者。谷翻把 脅迫者 按字面译成 勒索者/威胁者/胁迫者。戒律：勒索者/威胁者/胁迫者/白先生/白物先生 都是正常中文词，只走日语行锚定 ctx，绝不进 variants。'百士/百紫' 属白芷（ビクシ），另见该实体。"),
-    Entity('白芷', modes=('ja',), en='', ja='ビャクシ', ko='', category='角色/鸣潮/今州', variants=('ビクシ', 'ビク師', 'ビクシー', 'リクシー', 'ヒャクシ'), ctx=(('ビクシ|ビク師|リクシー|百士', '碧西'), ('ビクシ|ビク師|リクシー|百士', '维克西'), ('ビクシ|ビク師|リクシー|百士', '比克西'), ('ビクシ|ビク師|リクシー|百士', '瑞克西'), ('ビクシ|ビク師|リクシー|百士', '百紫'), ('ビクシ|ビク師|リクシー|百士', '百石'), ('ビクシ|ビク師|リクシー|百士', '白志'), ('ビクシ|ビク師|リクシー|百士', '百志')), exclude=(), note="今州研究员，凝缩属性，武器种=增幅器，所属今州（wiki3.jp/WutheringWaves 确认 JP 名=ビャクシ）。日语 ASR 常作 ビクシ/ビク師/リクシー/百士；谷翻给出 碧西/Bikushi/维克西/比克西/瑞克西/百紫/百石 等不一致音译。'百士'亦见于 '私たち百士の友人'（我们是白芷的朋友）。"),
-    Entity('令尹', modes=('ja',), en='', ja='レイン', ko='', category='职衔/鸣潮/今州', variants=('霊員', 'レ員', '礼員'), ctx=(('レイン|霊員|レ員|礼員', '雷恩'), ('レイン|霊員|レ員|礼員', '玲'), ('レイン|霊員|レ員|礼員', '灵员'), ('レイン|霊員|レ員|礼員', '礼员')), exclude=(), note="今州执政职衔=令尹（れいいん）；3.7 时任令尹=今汐（きんせき）。日语 ASR 咬成 レイン/霊員/レ員/礼員，谷翻音译成 雷恩/玲/河野玲。注：'今師/今石' 属今汐（见下一条），勿与令尹混。"),
-    Entity('今汐', modes=('ja',), en='', ja='今汐', ko='', category='角色/鸣潮/今州', variants=(), ctx=(('今師|今汐', '今石'), ('今師|今汐', '今师')), exclude=(), note="今州令尹。日语 ASR 常作 今師（きんし）；谷翻作 '今石'（'本周的敬拜成员是今石'）。"),
-    Entity('共鸣者', modes=('ja',), en='', ja='共鳴者', ko='', category='术语/鸣潮', variants=(), ctx=(('共鳴者|共鳴', '共振者'), ('共鳴者|共鳴', '共振腔'), ('共鳴者|共鳴', '谐振腔'), ('共鳴者|共鳴', '谐振器'), ('共鳴者|共鳴', '共鸣器'), ('共鳴者|共鳴', '同情者')), exclude=(), note='鸣潮核心术语，官方中文=共鸣者（Resonator）。谷翻对 共鳴者 的固定错译：共振者/共振腔/谐振腔/共鸣器/同情者。均为普通中文词，只走日语行 ctx。'),
-    Entity('残象', modes=('ja',), en='', ja='残像', ko='', category='术语/鸣潮', variants=(), ctx=(('残像|残響', '残像'), ('残像|残響', '残影'), ('残像|残響', '残留影像')), exclude=(), note="鸣潮怪物统称，官方中文=残象（非'残像'；日语官方亦用 残像 但中文行须归一到 残象）。灰机wiki《残象》：'残象能够通过吞噬融合其他客观事物的频率来维持自身稳定'。"),
-    Entity('无音区', modes=('ja',), en='', ja='無音区', ko='', category='术语/鸣潮', variants=(), ctx=(('無音', '沉默'), ('無音', '寂静'), ('無音', '静寂'), ('無音', '无声'), ('無音', '沉寂'), ('無音句', '无音区的短语'), ('無音句', '无音区短语'), ('無音句', '无声的短语'), ('無音ク', '无音区的库'), ('温コ|ムオンク', '温暖的女孩'), ('温コ|ムオンク', '温暖的核心'), ('温コ', '暖核'), ('温コ', '三个温暖'), ('温コ', '温暖'), ('温コ', 'Onko'), ('ムオンク', 'muonku')), exclude=(), note="鸣潮术语，官方中文=无音区（Tacet Field），残象的诞生区域，伴随'倒悬之海'与十字星状声痕（灰机wiki）。日语 ASR 作 無音/無恩ク/無恩音，谷翻按字面译成'沉默/寂静'（本片 cue 83/84/109/290/294/301/308 全是该术语）。戒律：沉默/寂静是正常中文词，只走日语行锚定 ctx。"),
+    Entity('漂泊者', modes=('wuwa-ja',), en='', ja='漂泊者', ko='', category='角色/主角/鸣潮', variants=('評白者', 'ひ白者'), ctx=(('脅迫者|評白者|表白者|漂白者|白者さん|ひ白者', '表白者'), ('脅迫者|評白者|表白者|漂白者|白者さん|ひ白者', '漂白者'), ('脅迫者|評白者|表白者|漂白者|白者さん|ひ白者', '漂白'), ('脅迫者|評白者|表白者|漂白者|白者さん|ひ白者', '勒索者'), ('脅迫者|評白者|表白者|漂白者|白者さん|ひ白者', '威胁者'), ('脅迫者|評白者|表白者|漂白者|白者さん|ひ白者', '胁迫者'), ('脅迫者|評白者|表白者|漂白者|白者さん|ひ白者', '威吓者'), ('評白者|漂白者', '评白'), ('評白者|漂白者|白者さん', '白物先生'), ('評白者|漂白者|白者さん', '白先生'), ('脅迫者|評白者', '威胁的人'), ('脅迫者|評白者|漂白者', '敲诈者'), ('評白者|漂白者|脅迫者', '解说员'), ('漂[泊白]者', '布利彻'), ('漂[泊白]者', '漂移者'), ('漂[泊白]者|脅迫者', '流浪者'), ('漂[泊白]者|脅迫者', '流浪汉'), ('漂[泊白]者', 'Bleacher'), ('漂[泊白]者', '《死神》'), ('漂[泊白]者', '看台'), ('表白者|標拍者', '认罪者'), ('表白者', '忏悔神父'), ('表白', '坦白'), ('標拍者', 'Hitaka'), ('表者', '代表'), ('脅迫者', '威胁性人物'), ('脅迫者', '威胁'), ('ひ[ょお]?ちゃ', 'Hi-chan'), ('ひ[ょお]?ちゃ', '孝酱'), ('ひ[ょお]?ちゃ', '冰酱'), ('ひ[ょお]?ちゃ', '日央酱'), ('ひ[ょお]?ちゃ', 'Gahi酱'), ('ひ[ょお]?ちゃ', 'Uhi酱')), exclude=(), note="鸣潮主角。日语官方名=漂泊者（ひょうはくしゃ）；ASR 常咬成 脅迫者(きょうはくしゃ)/評白者/表白者/漂白者/ひ白者。谷翻把 脅迫者 按字面译成 勒索者/威胁者/胁迫者。戒律：勒索者/威胁者/胁迫者/白先生/白物先生 都是正常中文词，只走日语行锚定 ctx，绝不进 variants。'百士/百紫' 属白芷（ビクシ），另见该实体。"),
+    Entity('白芷', modes=('wuwa-ja',), en='', ja='ビャクシ', ko='', category='角色/鸣潮/今州', variants=('ビクシ', 'ビク師', 'ビクシー', 'リクシー', 'ヒャクシ'), ctx=(('ビクシ|ビク師|リクシー|百士', '碧西'), ('ビクシ|ビク師|リクシー|百士', '维克西'), ('ビクシ|ビク師|リクシー|百士', '比克西'), ('ビクシ|ビク師|リクシー|百士', '瑞克西'), ('ビクシ|ビク師|リクシー|百士', '百紫'), ('ビクシ|ビク師|リクシー|百士', '百石'), ('ビクシ|ビク師|リクシー|百士', '白志'), ('ビクシ|ビク師|リクシー|百士', '百志')), exclude=(), note="今州研究员，凝缩属性，武器种=增幅器，所属今州（wiki3.jp/WutheringWaves 确认 JP 名=ビャクシ）。日语 ASR 常作 ビクシ/ビク師/リクシー/百士；谷翻给出 碧西/Bikushi/维克西/比克西/瑞克西/百紫/百石 等不一致音译。'百士'亦见于 '私たち百士の友人'（我们是白芷的朋友）。"),
+    Entity('令尹', modes=('wuwa-ja',), en='', ja='レイン', ko='', category='职衔/鸣潮/今州', variants=('霊員', 'レ員', '礼員'), ctx=(('レイン|霊員|レ員|礼員', '雷恩'), ('レイン|霊員|レ員|礼員', '玲'), ('レイン|霊員|レ員|礼員', '灵员'), ('レイン|霊員|レ員|礼員', '礼员')), exclude=(), note="今州执政职衔=令尹（れいいん）；3.7 时任令尹=今汐（きんせき）。日语 ASR 咬成 レイン/霊員/レ員/礼員，谷翻音译成 雷恩/玲/河野玲。注：'今師/今石' 属今汐（见下一条），勿与令尹混。"),
+    Entity('今汐', modes=('wuwa-ja',), en='', ja='今汐', ko='', category='角色/鸣潮/今州', variants=(), ctx=(('今師|今汐', '今石'), ('今師|今汐', '今师')), exclude=(), note="今州令尹。日语 ASR 常作 今師（きんし）；谷翻作 '今石'（'本周的敬拜成员是今石'）。"),
+    Entity('共鸣者', modes=('wuwa-ja',), en='', ja='共鳴者', ko='', category='术语/鸣潮', variants=(), ctx=(('共鳴者|共鳴', '共振者'), ('共鳴者|共鳴', '共振腔'), ('共鳴者|共鳴', '谐振腔'), ('共鳴者|共鳴', '谐振器'), ('共鳴者|共鳴', '共鸣器'), ('共鳴者|共鳴', '同情者')), exclude=(), note='鸣潮核心术语，官方中文=共鸣者（Resonator）。谷翻对 共鳴者 的固定错译：共振者/共振腔/谐振腔/共鸣器/同情者。均为普通中文词，只走日语行 ctx。'),
+    Entity('残象', modes=('wuwa-ja',), en='', ja='残像', ko='', category='术语/鸣潮', variants=(), ctx=(('残像|残響', '残像'), ('残像|残響', '残影'), ('残像|残響', '残留影像')), exclude=(), note="鸣潮怪物统称，官方中文=残象（非'残像'；日语官方亦用 残像 但中文行须归一到 残象）。灰机wiki《残象》：'残象能够通过吞噬融合其他客观事物的频率来维持自身稳定'。"),
+    Entity('无音区', modes=('wuwa-ja',), en='', ja='無音区', ko='', category='术语/鸣潮', variants=(), ctx=(('無音', '沉默'), ('無音', '寂静'), ('無音', '静寂'), ('無音', '无声'), ('無音', '沉寂'), ('無音句', '无音区的短语'), ('無音句', '无音区短语'), ('無音句', '无声的短语'), ('無音ク', '无音区的库'), ('温コ|ムオンク', '温暖的女孩'), ('温コ|ムオンク', '温暖的核心'), ('温コ', '暖核'), ('温コ', '三个温暖'), ('温コ', '温暖'), ('温コ', 'Onko'), ('ムオンク', 'muonku')), exclude=(), note="鸣潮术语，官方中文=无音区（Tacet Field），残象的诞生区域，伴随'倒悬之海'与十字星状声痕（灰机wiki）。日语 ASR 作 無音/無恩ク/無恩音，谷翻按字面译成'沉默/寂静'（本片 cue 83/84/109/290/294/301/308 全是该术语）。戒律：沉默/寂静是正常中文词，只走日语行锚定 ctx。"),
     Entity('新联邦', modes=('bi', 'react'), en='New Federation', ja='', ko='', category='地区/鸣潮4.0', variants=('新灌溉',), ctx=(('\\bNew\\s*$', 'New'),), exclude=(), note='新联邦，鸣潮 4.0 新地区；官方中文=新联邦。谷翻「新灌溉」/「联邦」/残留 New 均靠参考行锚定归此；裸「联邦」是通用词，不入扁平表。2026-11-13 二校：删除 \\bFederation\\b→「联邦」的 ctx——它会把「联邦城」（Federated Cities）子串咬成「新联邦城」；改由 CONTEXT_MAP New Federation（参考行不含 Federated Cities）收「联邦」→新联邦。'),
     Entity('星炬学院', modes=('bi', 'react'), en='Startorch Academy', ja='', ko='', category='势力/学院·鸣潮', variants=('星火学院', '星游学园', '星游学院', '罗伊斯塔尔学院'), ctx=(('(?<!sort\\sof\\sthis\\s)(?<!that\\stragic\\s)\\bAcademy\\b', '学院'),), exclude=(), note='官方中文=星炬学院（Startorch Academy）；学院 President=校长洛瑟菈。Academy 参考行锚定「学院」；EXCLUDE_CONTEXT 已排除 Academy Awards 等通用语境。'),
     Entity('索诺拉', modes=('bi', 'react'), en='Sonoro Sphere', ja='', ko='', category='术语/鸣潮', variants=('Sonaro 球体', 'Sonoro 球体'), ctx=(('\\bSon(?:oro|aro)\\s+spheres?\\b', '球体'),), exclude=(), note='回音能量富集形成的超自然空间，官方中文=索诺拉（又称声之领域；Sonoro Sphere）。谷翻「Sonaro 球体」归此；「球体」通用词只走参考行锚定。2026-10-30 修正：Somnoire/Som Noir/Somnir/Somnoir 是官方「心之集域」，已移出本条。'),
     Entity('无归的谬误', modes=('bi', 'react'), en='Fallacy of No Return', ja='', ko='', category='敌人/声骸·鸣潮', variants=('回报的谬误', '归来的谬误'), ctx=(), exclude=(), note='泰缇斯系统构筑的最终防卫程序，官方中文=无归的谬误（Fallacy of No Return）。本片 ASR「fallacy of return」漏 No，谷翻「回报的谬误」归此。'),
-    Entity('阿布拉克萨斯', modes=('bi', 'react', 'ko'), en='Abraxas', ja='', ko='', category='角色/鸣潮', variants=('Abrais', 'A Brais', 'A Braxis', 'Arais', '阿布拉伊斯', '阿布雷斯', '一个brais', '布拉克西斯人', '布拉克西斯'), ctx=(('\\b[Bb]raxis\\b', 'Braxis'),), exclude=(), note='阿布全名（Abraxas）；3.7 角色阿布的真名。本片 ASR Abrais/A Brais/A Braxis/Arais 与谷翻「阿布拉伊斯/一个brais/布拉克西斯人」统一归此；昵称「阿布」另见 Entity(阿布)。'),
+    Entity('阿布拉克萨斯', modes=('bi', 'react', 'wuwa-ko'), en='Abraxas', ja='', ko='', category='角色/鸣潮', variants=('Abrais', 'A Brais', 'A Braxis', 'Arais', '阿布拉伊斯', '阿布雷斯', '一个brais', '布拉克西斯人', '布拉克西斯'), ctx=(('\\b[Bb]raxis\\b', 'Braxis'),), exclude=(), note='阿布全名（Abraxas）；3.7 角色阿布的真名。本片 ASR Abrais/A Brais/A Braxis/Arais 与谷翻「阿布拉伊斯/一个brais/布拉克西斯人」统一归此；昵称「阿布」另见 Entity(阿布)。'),
     Entity('莉莉', modes=('bi', 'react'), en='Lily', ja='', ko='', category='角色/鸣潮3.8', variants=(), ctx=(), exclude=(), note='3.8 五星·衍射·佩枪·治疗，官方中文=莉莉；调香师→心理疗愈师，所属新联邦联邦城，异能绮梦织香（Dream Weaving），角色 PV《忘记恐惧》（Forget Fear，2026-11-10）。⚠ Dr. Lily 官方中配=莉莉医生（非莉莉博士）：B 站官方 PV p1【中】（BV1VmW46bEfC）large-v3 中文 ASR 实证「战士们需要你，莉莉医生」「您将作为一名优秀的医生为联邦城服务」；谷翻「莉莉博士」靠英文参考行 Dr. Lily 锚定归莉莉医生。官方台词另含「联邦城向你致意感谢」「您的精神状态是合格的」「不会有事的，不会的」「至少这样……我能救下一个人。」；2026-11-13 二次 ASR 补证：「您成功阻止了一名士兵死亡」「我所做的只是稳定了你的伤势」「她是战士，现在她该回到前线了」「（那么告诉我，）你/您为什么停下了呢」（您/你两读，韩语片判「您」）。旧前瞻片 #333-336 提及未实装；3.8（2026-11-12）已上线。'),
     Entity('联邦城', modes=('bi', 'react'), en='Federated Cities', ja='', ko='', category='地区/鸣潮3.8', variants=(), ctx=(('\\b[Ff]eder(?:ated|al)\\s+[Cc]ities\\b', '联邦城市'),), exclude=(), note='莉莉所属新联邦的城市，官方档案「联邦城共鸣者战争」；官方中文=联邦城。谷翻「联邦城市」靠英文参考行 federated/federal cities 锚定归此；裸「联邦城市」是通用组合，不入扁平表（区别于 Entity 新联邦 New Federation）。'),
     Entity('忘记恐惧', modes=('bi', 'react'), en='Forget Fear', ja='', ko='', category='PV/鸣潮3.8', variants=(), ctx=(), exclude=(), note='莉莉角色 PV 官方中文名《忘记恐惧》（Forget Fear，2026-11-10 公开，17 分钟短片）。核心台词「至少这样……我能救下一个人。」；谷翻多已正确，登记供跨语识别。'),
@@ -14153,9 +14203,9 @@ ENTITIES = [
     Entity('向彼方行', modes=('bi',), en='Alissium', ja='', ko='', category='动画/鸣潮', variants=('Alissium',), ctx=(('\\bAlissium\\b', '极乐'), ('\\bAlissium\\b', '伊利西姆')), exclude=(), note='《鸣潮：向彼方行》/Wuthering Waves: Elysium。戒律：不裸收 Elysium（明日方舟极境），只走 Alissium 或动画语境。'),
     Entity('怨鸟泽', modes=('bi',), en="Whining Aix's Mire", ja='', ko='', category='地名/鸣潮', variants=("Whining Aix's Mire", "whining Ajax's meer", '哀声鸷沼泽'), ctx=(), exclude=(), note='灯灯剧情发生地，官方中文=怨鸟泽；不是哀声鸷沼泽。'),
     Entity('乘霄山', modes=('bi',), en='Mt. Firmament', ja='', ko='', category='地名/鸣潮', variants=('Mt. Firmament', 'Mount Firmament', '天穹山'), ctx=(), exclude=(), note='官方中文=乘霄山，不是天穹山。'),
-    Entity('灵魂列车', modes=('bi', 'react', 'ko'), en='Soul Train', ja='', ko='', category='场景/鸣潮3.8', variants=('Spirit Train',), ctx=(('\\bSpirit\\s+Train\\b', '精神列车'),), exclude=(), note='3.8 版本核心场景，官方中文=灵魂列车（前瞻通讯逐字）；韩语片已有 스피릿 트레인→灵魂列车，本片补英文参考行锚定。'),
-    Entity('予以明日的花束', modes=('bi', 'ko'), en='A Bouquet for Tomorrow', ja='', ko='', category='任务/鸣潮3.8', variants=('Bouquet for Tomorrow',), ctx=(('\\bBouquet\\s+for\\s+Tomorrow\\b', '明日之花'), ('\\bBouquet\\s+for\\s+Tomorrow\\b', '给明天的花束')), exclude=(), note='潮汐任务第四章第五幕官方中文=「予以明日的花束」；任务名不入扁平表裸键，只走参考行锚定。'),
-    Entity('旧梦凋零的百合', modes=('bi', 'ko'), en='Lilies in a Dying Dream', ja='', ko='', category='版本名/鸣潮3.8', variants=('The Withered Lama',), ctx=(('\\bThe\\s+Withered\\s+Lama\\b', '枯萎喇嘛'),), exclude=(), note='3.8 版本官方中文名「旧梦凋零的百合」（2026-11-12 上线）；Lily 在版本名/花义语境下由 EXCLUDE_CONTEXT 回滚，不归角色莉莉。'),
+    Entity('灵魂列车', modes=('bi', 'react', 'wuwa-ko'), en='Soul Train', ja='', ko='', category='场景/鸣潮3.8', variants=('Spirit Train',), ctx=(('\\bSpirit\\s+Train\\b', '精神列车'),), exclude=(), note='3.8 版本核心场景，官方中文=灵魂列车（前瞻通讯逐字）；韩语片已有 스피릿 트레인→灵魂列车，本片补英文参考行锚定。'),
+    Entity('予以明日的花束', modes=('bi', 'wuwa-ko'), en='A Bouquet for Tomorrow', ja='', ko='', category='任务/鸣潮3.8', variants=('Bouquet for Tomorrow',), ctx=(('\\bBouquet\\s+for\\s+Tomorrow\\b', '明日之花'), ('\\bBouquet\\s+for\\s+Tomorrow\\b', '给明天的花束')), exclude=(), note='潮汐任务第四章第五幕官方中文=「予以明日的花束」；任务名不入扁平表裸键，只走参考行锚定。'),
+    Entity('旧梦凋零的百合', modes=('bi', 'wuwa-ko'), en='Lilies in a Dying Dream', ja='', ko='', category='版本名/鸣潮3.8', variants=('The Withered Lama',), ctx=(('\\bThe\\s+Withered\\s+Lama\\b', '枯萎喇嘛'),), exclude=(), note='3.8 版本官方中文名「旧梦凋零的百合」（2026-11-12 上线）；Lily 在版本名/花义语境下由 EXCLUDE_CONTEXT 回滚，不归角色莉莉。'),
     Entity('安魂', modes=('bi', 'react'), en='Lullaby', ja='', ko='', category='武器/鸣潮3.8', variants=(), ctx=(), exclude=(), note='莉莉专属五星佩枪官方中文=安魂（英文 Lullaby）；字面「摇篮曲」语境保留（本片 #11245 判例），只登记供跨语识别。'),
     Entity('巴利诺拉', modes=('bi',), en='Balinaphora', ja='', ko='', category='地点/鸣潮', variants=(), ctx=(), exclude=(), note='鸣潮地名 Balinaphora，官方中文=巴利诺拉；ASR 音译族不入裸键。'),
     Entity('芙露德莉斯', modes=('bi', 'react'), en='Fleurdelys', ja='', ko='', category='角色/鸣潮2.2', variants=('弗洛德莉斯', '芙洛德莉斯', '弗勒德莉斯', '芙蕾德莉斯', '弗鲁里斯', '弗鲁里', '弗鲁德莉斯', '芙露德丽丝', '芙蓉·德·利斯'), ctx=(('\\b(?:Fleurdelys|Fluriss|Fluries|Flirtilis|Flur\\s+Deise|Flare\\s+Deise)\\b', '伊莉丝'), ('\\b(?:Fleurdelys|Fluriss|Fluries|Flirtilis|Flur\\s+Deise|Flare\\s+Deise)\\b', '弗鲁里斯'), ('\\b(?:Fleurdelys|Flissa|Flatterise)\\b', '弗洛德里斯'), ('\\bFleur\\s+de\\s+Lys\\b', '百合花')), exclude=(), note='2.2 主线第四幕：英白拉多与利维亚坦融合后，以返回舱制造的个体，官方中文=芙露德莉斯（Fleurdelys）。与「卡提希娅」是同一角色的两种身份：卡提希娅为圣女本体，芙露德莉斯为岁主/鸣式共鸣体，二者禁互相替换。⚠ 与残星会成员「芙露德莉丝」（Frudelis，entities_part2 既有实体）仅差末字「丝/斯」，二者绝非同一人：绝不可把「芙露德莉丝」并作本实体变体，否则会把残星会角色改错。英文 ASR 变体 Fluriss/Fluries/Flirtilis/Flur Deise/Flissa 只走参考行锚定；Elise 亦是误听形，但属常见人名，不裸键。'),
@@ -14169,60 +14219,60 @@ ENTITIES = [
     Entity('圣女', modes=('bi', 'react'), en='Blessed Maiden', ja='', ko='', category='称谓/鸣潮', variants=('受祝福的少女', '蒙福少女', '有福的少女'), ctx=(('\\bBlessed\\s+Maiden\\b', '受祝福的少女'), ('\\bBlessed\\s+Maiden\\b', '有福的少女')), exclude=(), note='鸣潮官方称谓 Blessed Maiden=圣女（黎那汐塔岁主共鸣者的称号）；「少女」为通用词，不裸键，只走参考行锚定。'),
     Entity('二次共鸣', modes=('bi', 'react'), en='Second Awakening', ja='', ko='', category='术语/鸣潮', variants=('第二次共鸣',), ctx=(('\\bSecond\\s+Awakening\\b', '第二次觉醒'), ('\\bSecond\\s+Awakening\\b', '二次觉醒')), exclude=(), note='官方术语 second awakening=二次共鸣（英白拉多设定：通过二次共鸣打破「一个个体同一时间只能有一位共鸣者」的铁律）。「第二次觉醒」在别片可能是正确译法，故不裸键、只走参考行锚定。'),
     Entity('圣女试炼', modes=('bi', 'react'), en='Divine Trials', ja='', ko='', category='术语/鸣潮2.2', variants=('神启试炼',), ctx=(('\\bDivine\\s+Trials?\\b', '神圣试炼'), ('\\bDivine\\s+Trials?\\b', '圣女考验')), exclude=(), note='翡萨烈家族每年筛选圣女候选人的「圣女试炼」，官方英文 divine trials；「神圣试炼」为通用短语，只走参考行锚定。'),
-    Entity('联盟工团', modes=('endobi', 'endo', 'endoko'), en="United Workers' Syndicate of Talos-II (UWST)", ja='', ko='', category='势力/终末地', variants=('UWST', 'DWST'), ctx=(), exclude=(), note='塔卫二全联盟工团；四号谷地即其运营区、全星最大工矿机械制造商。本片英文行 DWST/UWST 混拼系同一组织（YouTube ASR 变体），官中=联盟工团。'),
-    Entity('贝克', modes=('endobi', 'endo', 'endoko'), en='Baker', ja='', ko='', category='系统/终末地', variants=('Baker',), ctx=(), exclude=(), note='游戏内干员即时通讯应用（in-game messaging app），干员自动分配账号；官中=贝克。只收中文行拉丁残留形。'),
-    Entity('协议源石', modes=('endobi', 'endo', 'endoko'), en='PROTORIG', ja='', ko='', category='科技/终末地', variants=('Protorig', 'PROTORIG', 'protorig'), ctx=(), exclude=(), note="Protocol-Originium 合成词：终末地工业核心科技网络，干员腕表装置即其存储终端；官中=协议源石。本片 'protorig menu' 即腕表菜单。"),
-    Entity('四号谷地', modes=('endobi', 'endo', 'endoko'), en='Valley 4 / Valley IV', ja='', ko='', category='区域/终末地', variants=('Valley 4', 'Valley Four', 'Valley IV', 'Valley-IV', 'Valley-4'), ctx=(), exclude=(), note='终末地开篇区域；已有「第四谷/谷地4区」裸键与 valley 上下文锚，本批补拉丁全形——谷翻常把 Latin 原样留在中文行。'),
-    Entity('诀', modes=('endobi', 'endo', 'endoko'), en='Arcane', ja='', ko='', category='角色/终末地', variants=('Arcane',), ctx=(), exclude=(), note="6★自然术师，本名李织烟，应龙特勤队行动队长，1.4「向渊行」实装；本片 'Arcane's leotard' 即其同人语境。官中=诀；「奥术」普通词义不裸键。"),
-    Entity('汤汤', modes=('endobi', 'endo', 'endoko'), en='Tangtang', ja='', ko='', category='角色/终末地', variants=('Tang Tang', 'Tangtang'), ctx=(), exclude=(), note="6★冰系，清波寨大当家阮湯湯（2026-03-12 实装）；「汤」是姓氏非糖果，TapTap 攻略误写「唐糖」勿采。长键先行防既有裸键 Tang 把 'Tang Tang' 咬成「汤汤 汤汤」。"),
-    Entity('伊冯', modes=('endobi', 'endo', 'endoko'), en='Yvonne', ja='', ko='', category='角色/终末地', variants=('Yvon',), ctx=(), exclude=(), note='6★限定冰系（2026-02-24 实装），特种技术部门时尚人设；已有 Yvonne/Ivonne/Ivon 键，本片补 Yvon 拼写（长键 Yvonne 先行不互咬）。'),
-    Entity('萤石', modes=('endobi', 'endo', 'endoko'), en='Fluorite', ja='', ko='', category='角色/终末地', variants=('Fluorite',), ctx=(), exclude=(), note="辅助干员，寒冷+自然双附着；已有 Florite/氟石 键，本片坐实正确拼写 Fluorite（谷翻 'floor item' 系其误听——Karasu-chan 萤石同人图）。"),
-    Entity('战争回响', modes=('endobi', 'endo', 'endoko'), en='Echoes of War', ja='', ko='', category='玩法/终末地', variants=('战争的回声', '战争回声', '《战争回声》', 'Echoes of War'), ctx=(), exclude=(), note='赛季制常驻挑战玩法（权限等阶 40+）；官中=战争回响，谷翻「战争的回声」。'),
-    Entity('危机合约', modes=('endobi', 'endo'), en='Contingency Contract', ja='', ko='', category='玩法/终末地', variants=('应急合同',), ctx=(('\\bContingency\\b', '意外事件'),), exclude=(), note='已有 Contingency Contract/传染性合约/风险代理合同 键，本片补谷翻形「应急合同」与「意外事件」参考行锚（CC 在终末地延续，官中不变）。'),
-    Entity('北部禁区', modes=('endobi', 'endo', 'endoko'), en='North Wuling Exclusion Zone', ja='', ko='', category='区域/终末地', variants=('北武陵禁区', '武陵北部禁区'), ctx=(('\\bexclusion\\s+zone\\b', '排除区'), ('\\bexclusion\\s+zone\\b', '禁区')), exclude=(), note='1.4 武陵第 7 区域，wiki.gg 简中=北部禁区（日文=武陵北部封鎖区域）；已有「北部进区」键。锚 exclusion zone 时把谷翻「排除区」与裸「禁区」归一——禁区⊂北部禁区走 _ctx_replace 哨兵。'),
-    Entity('雪松林', modes=('endobi',), en='Forest Snow Zone', ja='', ko='', category='区域/终末地', variants=(), ctx=(('forest\\s+snow|snow\\s+zone', '森林雪区'),), exclude=(), note='1.5「雪凇幽梦」武陵雪原林地（雪降深林活动区）；已有雪风林/Cedar Forest 键。「雪区」裸错形过短不入，仅锚 forest snow / snow zone。'),
-    Entity('空间式UI', modes=('endobi',), en='spatial UI', ja='', ko='', category='术语/UI', variants=(), ctx=(('\\bspatial\\b', '特殊UI'),), exclude=(), note="游戏 UI 四分类之一：存在于游戏世界空间但角色不感知（本片杂兵头顶血条例）；本片英文行 'special UI' 系 spatial UI 误听（large-v3 音证）。"),
-    Entity('天空海', modes=('ja',), en='', ja='天空海', ko='', category='术语/鸣潮', variants=(), ctx=(('天空会|天空海', '天空会'),), exclude=(), note="鸣潮现象名，官方中文=天空海（包裹覆盖整个索拉里斯天空的特殊现象，灰机wiki）。日语 天空海(てんくうかい) 被 ASR 咬成同音的 天空会(てんくうかい)，谷翻照抄'天空会'。"),
-    Entity('秧秧', modes=('ja',), en='', ja='やんやん', ko='', category='角色/鸣潮/今州', variants=(), ctx=(('やんやん|ヤんやん|にゃんやん', '燕燕'), ('やんやん|ヤんやん|にゃんやん', '延雅'), ('やんやん|ヤんやん|にゃんやん', '燕'), ('やんやん|ヤんやん|にゃんやん', '妮艳'), ('やや|ヤヤ|やんやん', '丫丫')), exclude=(), note="鸣潮 4★ 今州共鸣者。日语昵称=やんやん；谷翻音译成 燕燕/延雅/Nyanyan/ヤ。'燕燕'为正常中文词，只走日语行锚定 ctx（本片主播也昵称其为'鹿'）。"),
-    Entity('今州', modes=('ja',), en='', ja='今州', ko='', category='地名/鸣潮', variants=(), ctx=(('今週場|今州城', '本周的场外'), ('今週場|今州城', '本周场'), ('今週場|今州城', '今周场'), ('今週場|今州城', '今正场'), ('今週(?!場)(?!って|だった|に|は|の|も|から|まで|末|中|や|、|。|$)|今州', '本周'), ('今週(?!場)(?!って|だった|に|は|の|も|から|まで|末|中|や|、|。|$)|今州', '这周'), ('今週(?!場)(?!って|だった|に|は|の|も|から|まで|末|中|や|、|。|$)|今州', '纳迦')), exclude=(), note="瑝珑六州之一（今州）。日语 今州(きんしゅう) 被 ASR 咬成同音的 今週(こんしゅう)，谷翻一律按'本周'处理（'本周的场外活动'=今州城）。'今週場'=今州城。戒律：本周/这周是正常中文词，只走日语行锚定 ctx。2026-10-12 收紧：今週って/今週だった 等 = 现实'这周'（如 3連休 闲聊），非今州（索拉逐星舞台 S2 同视片 cue5/cue639 实测误改），加负向后顾排除。"),
-    Entity('瑝珑', modes=('ja',), en='', ja='瑝珑', ko='', category='地名/鸣潮', variants=(), ctx=(), exclude=(), note="鸣潮东方文明国名，'一庭六州'，每州由对应东方七宿的岁主掌管（百度百科/灰机wiki）。日语 瑝珑(こうりゅう) 与 交流(こうりゅう) 同音，ASR 一律作 交流，谷翻译成'交换/交流'。⚠ 本条只登记元数据、不加规则：'交流'在日语里也是常用词，无可靠锚点，贸然替换会误伤；本片逐 cue 侧车处理。"),
-    Entity('鸣潮', modes=('ja',), en='', ja='鳴潮', ko='', category='作品名', variants=(), ctx=(('名長|名朝|鳴潮', '有名的领袖'), ('名長|名朝|鳴潮', '著名领袖'), ('名長|名朝|鳴潮', '纳迦'), ('名長|名朝|鳴潮', '名长'), ('名長|名朝|鳴潮', '著名的领袖'), ('名長|名朝|鳴潮', '直长'), ('名長|名朝|鳴潮', '直永'), ('名長|名朝|鳴潮', '七永')), exclude=(), note="作品名。日语 鳴潮(めいちょう) 被 ASR 咬成同音的 名長(めいちょう)，谷翻直译成'有名的领袖/著名领袖'，或音译'纳迦/名长'。（'纳迦'出现在 cue 1000 '鸣潮的快速传送是世界第一'。）2026-10-14 补 直长/直永/七永（同音再咬字）。"),
-    Entity('数据坞', modes=('ja',), en='', ja='データドッグ', ko='', category='系统/鸣潮', variants=(), ctx=(('データドッ?[ッグ]|データドック', '数据狗'), ('データドッ?[ッグ]|データドック', '数据犬')), exclude=(), note="鸣潮声骸管理系统，官方中文=数据坞（Data Bank）。日语 データドッグ 被谷翻按 dog 直译成'数据狗'。'数据狗'非正常中文词，但仍走 ctx 以防万一。"),
-    Entity('守岸人', modes=('ja',), en='', ja='ショアキーパー', ko='', category='角色/鸣潮', variants=(), ctx=(('ショアキーパー', '岸上看守'), ('ショアキーパー', '岸边看守'), ('ショアキーパー', '海岸看守'), ('キーパー|シャーキ|ショアキ|ケートキ|シュアキ', '守门人Perme-dama'), ('キーパー|シャーキ|ショアキ|ケートキ|シュアキ', 'Perme-dama'), ('キーパー|シャーキ|ケートキ|シュアキ', '鲨鱼守护者'), ('キーパー|シャーキ|ケートキ|シュアキ', '鲨鱼饲养员'), ('キーパー|ケートキ|シュアキ', 'Keto Keeper'), ('キーパー|シュアキ', '稳妥守料'), ('キーパー', '守门员'), ('(?<!白き)ゲートキーパー|(?<!ゲート)キーパー|ゲート守', '守门人'), ('ゲート守', '守门的人'), ('シャキ', '摇晃者'), ('シャーキ', '沙基')), exclude=(), note="鸣潮角色，官方中文=守岸人（Shorekeeper）。谷翻把 ショアキーパー 按字面译成'岸上看守'。2026-11-01 r2 扩：シャキ 系截短与 摇晃者/稳妥守料/守门人/鲨鱼守护者/Keto Keeper/沙基 走锚定；裸键 Shore 会咬 Shorekeeper 故禁用，且 cue 2094 的 ショア 经与 2093/2098 同句互证实为 ブラックショア(黑海岸)，故 Shore 只逐 cue 处理、不入表。"),
-    Entity('杏鲍菇', modes=('ja',), en='', ja='エリンギ', ko='', category='梗/鸣潮', variants=('エリンギ', 'エリンゲ', 'エリング', 'エリンギー'), ctx=(('エリンギ|エリンゲ|エリング', '帝王平菇'), ('エリンギ|エリンゲ|エリング', '埃林格'), ('エリンギ|エリンゲ|エリング', '艾灵'), ('エリンギ|エリンゲ|エリング', '王蚝菇'), ('エリンギ|エリンゲ|エリング', '王菇')), exclude=(), note="主播梗：某残象外形像杏鲍菇（エリンギ），弹幕与主播都以'杏鲍菇'称呼它。谷翻给出 帝王平菇/埃林格/艾灵 等不一致译名，统一为 杏鲍菇。"),
-    Entity('千咲', modes=('ja',), en='', ja='千咲', ko='', category='角色/鸣潮', variants=('チさ', 'ちさ', '地さ', 'チサ'), ctx=(('千咲|チさ|地さ|千崎|ちさ', '千崎'), ('千咲|チさ|地さ|千崎|ちさ', '地咲')), exclude=(), note='鸣潮角色千咲（3.7 复刻）。日语 ASR 作 チさ/ちさ/地さ（じさ/ちさ 混淆），谷翻给出 千崎/地咲 等错形，统一为 千咲。'),
-    Entity('弗洛洛', modes=('ja',), en='', ja='フローヴァ', ko='', category='角色/鸣潮/残星会', variants=(), ctx=(('フローヴァ|フローバ|フロバ|ブローバ|フロー', '弗洛瓦'), ('フローヴァ|フローバ|フロバ|ブローバ|フロー', '弗罗巴'), ('フローヴァ|フローバ|フロバ|ブローバ|フロー', '弗洛巴'), ('フローマ|フロボ', '弗洛拉'), ('フローマ|フロボ', 'Probo')), exclude=(), note="鸣潮 5★（湮灭·音感仪），残星会会监，'游走于生死之间的残星会会监，神秘而危险的指挥家'（百度百科/灰机wiki）。官方 JP 名=**フローヴァ**（AniBase 标注 Furōvu~a）。本片主播想看她的主线剧情、并提到'系着丝带、连武器上都有'，均与其设定吻合。"),
-    Entity('卜灵', modes=('ja',), en='', ja='ボクレイ', ko='', category='角色/鸣潮', variants=('ボクレイ', 'ボクレイー', '卜霊'), ctx=(('ボクレイ|僕レイ|僕霊|牧霊|亡霊', '仆雷'), ('ボクレイ|僕レイ|僕霊|牧霊|亡霊', '仆灵'), ('ボクレイ|僕レイ|僕霊|牧霊|亡霊', '牧灵'), ('ボクレイ|僕レイ|僕霊|牧霊|亡霊', '亡灵'), ('ボクレイ|僕レイ|僕霊|牧霊|亡霊', '博库雷')), exclude=(), note="鸣潮 4★ 治疗/增益辅助（3.7 上半卡池陪跑：卜灵、桃祈、釉瑚）。官方 JP 名=**卜霊（ボクレイ）**（AniBase：'卜灵 (卜霊 (ボクレイ), Bokurei)'）。日语 ASR 常作 僕レイ/僕霊/牧霊/亡霊；谷翻给出 仆雷/仆灵/牧灵/亡灵 等不一致译名。主播也拿'卜(ぼく)↔僕'玩梗（'可以说是仆娘吗'），中文侧保留'仆娘'一词。"),
-    Entity('安全科', modes=('ja',), en='', ja='安全科', ko='', category='组织/鸣潮/华胥研究院', variants=(), ctx=(('安全家|安全化|安全科', '安全家'), ('安全家|安全化|安全科', '安全化')), exclude=(), note="华胥研究院下设科室。莫特斐的官方设定：'**华胥研究院安全科**成员，黑石应用领域专家'（wuthering.gg）。日语 ASR 作 安全家/安全化，谷翻照抄。"),
-    Entity('边庭', modes=('ja',), en='', ja='辺定', ko='', category='地名/鸣潮/今州城', variants=('辺定', '変定'), ctx=(('辺定|変定|边庭', '变定'), ('辺定|変定|边庭', '辨定')), exclude=(), note="今州城内机构。灰机wiki《地区探索报告/今州-今州城》：'一份记载于**边庭**的天工部的报告书'。日语 ASR 作 変定(へんじょう)；本片中是登记中枢信号、令尹为漂泊者安排房间的场所。"),
-    Entity('天工部', modes=('ja',), en='', ja='天工部', ko='', category='组织/鸣潮/今州', variants=(), ctx=(('天校|天工部', '天派'),), exclude=(), note="今州部委之一，受众事台管辖，主司工程建设；下设军武科、防事科（Fandom《天工》）。日语 ASR 作 天校(てんこう)，谷翻按音译作'天派'。"),
-    Entity('北落野', modes=('ja',), en='', ja='北落野', ko='', category='地名/鸣潮/今州', variants=(), ctx=(('北楽|北落野', '北乐平原'), ('北楽|北落野', '北乐原')), exclude=(), note="今州区域之一（今州城/中曲台地/荒石高地/北落野/云陵谷）。日语 ASR 把 北落(ほくらく) 写成同音 北楽，谷翻作'北乐平原'。"),
-    Entity('荒石高地', modes=('ja',), en='', ja='荒石高地', ko='', category='地名/鸣潮/今州', variants=(), ctx=(), exclude=(), note="今州区域之一。本片日语 ASR 作'石崩れのコチ'，谷翻作'科奇'；'石崩れ'→荒石 属**推测**（音形未完全对上），故只登记元数据、不加规则，本片按'乱石崩落的高地'意译处理。"),
-    Entity('桃祈', modes=('ja',), en='', ja='トウキ', ko='', category='角色/鸣潮', variants=(), ctx=(('トウキ|桃祈', '托奇'), ('トウキ|桃祈', '塔奇')), exclude=(), note="鸣潮 4★（3.7 上半卡池陪跑）。日语 ASR 作 トキー/たき；谷翻作'托奇'。本片 cue 1539 的'たき'按同一角色处理（属推测，已标注）。"),
-    Entity('釉瑚', modes=('ja',), en='', ja='ユウゴ', ko='', category='角色/鸣潮', variants=(), ctx=(), exclude=(), note="鸣潮 4★ 冷凝（3.7 上半卡池陪跑）。官方 JP 名=**ユウゴ**（wikiwiki.jp/w-w、AniBase）。本片 cue 1399 'うが4頂' 按'釉瑚4凸'处理，属推测，故只登记元数据、不加规则。"),
-    Entity('莫特斐', modes=('ja',), en='', ja='モルトフィ', ko='', category='角色/鸣潮/今州', variants=(), ctx=(('モルトフィ', '莫托菲'), ('モルトフィ', '莫特菲')), exclude=(), note="鸣潮 4★ 热熔·佩枪，出身新联邦上流阶层，'新联邦最年轻的天才'，以华胥研究院外聘成员身份工作（百度百科/灰机wiki）。谷翻音译作'莫托菲'。"),
-    Entity('卡提希娅', modes=('ja',), en='', ja='カルテジア', ko='', category='角色/鸣潮', variants=(), ctx=(('カルテジア|カテジア', '笛卡尔西亚'), ('カルテジア|カテジア', '卡尔特西亚'), ('カルテジア|カテジア', '卡特吉亚'), ('カルテジア|カテジア', '塔尔提加'), ('カルテジア|カテジア', '卡特迪亚'), ('カルテジア|カテジア|カルデジア', '笛卡尔'), ('カルテジア|カテジア|カルデジア', '卡尔西亚'), ('カルテジア|カテジア|カルデジア', '卡特西亚'), ('カルテジア|カテジア|カルデジア', '卡特齐亚'), ('カルテジア|カテジア|カルデジア', '卡尔德齐亚'), ('カルテジア|カテジア|カルデジア', '卡尔蒂吉亚'), ('カルテジア|カテジア|カルデジア|タルテジア', '塔尔提齐亚'), ('カルテジア|カテジア|カルデジア', 'Cartégia'), ('カルテア|カルテー', 'Cartea'), ('カルテア|カルテー', '卡特酱')), exclude=(), note='鸣潮 5★。日语 カルテジア；谷翻音译残留 笛卡尔西亚/卡尔特西亚/卡特吉亚/塔尔提加。⚠ 2026-10-14：原先 JA_TERMS 里的无条件键「笛卡尔」会抢跑本条 ctx，把「笛卡尔西亚」咬成「卡提希娅西亚」；已撤键、改由本条 ctx 统一收口（笛卡尔/卡尔西亚/卡特西亚/卡特齐亚/卡尔德齐亚/卡尔蒂吉亚/塔尔提齐亚/Cartégia）。'),
-    Entity('夏空', modes=('ja',), en='', ja='シャコンヌ', ko='', category='角色/鸣潮', variants=(), ctx=(('シャコンヌ', '恰空舞'), ('シャコンヌ', '恰空')), exclude=(), note="鸣潮 5★。日语 シャコンヌ（Ciaccona）；谷翻按音乐术语译成'恰空舞'。"),
-    Entity('超频', modes=('ja',), en='', ja='オーバークロック', ko='', category='术语/鸣潮', variants=(), ctx=(), exclude=(), note="鸣潮术语：频率能量异常带来的危险状态（灰机wiki《无音区》提到'超频'）。本片谷翻已正确输出'超频'，仅登记元数据，无替换。"),
-    Entity('延奏', modes=('ja',), en='', ja='延奏スキル', ko='', category='术语/鸣潮', variants=(), ctx=(('収走|収層|延奏', '收走'), ('収走|収層|延奏', '收层'), ('収走|収層|延奏', '跑步技能'), ('収走|収層|延奏', '逃跑'), ('収走|収層|延奏', '收奏')), exclude=(), note="鸣潮技能体系（2026-10-01 二次校准坐实官方用字）：共鸣技能 / 共鸣回路 / 共鸣解放 + 变奏技能（入场）/ 延奏技能（离场）。官方描述：'协奏能量充满时切换共鸣者，离场角色会触发延奏技能'（Fandom《变奏技能》、百度百科《变奏技能》）。日语 ASR 作 収走スキル(しゅうそう)、谷翻译成'跑步技能/逃跑/收走'。⚠ 首轮曾按同音误作'终奏'，已改正。canonical 用'延奏'（不带'技能'），因日语行的'スキル'会由机翻补成'技能'。"),
-    Entity('终奏技能', modes=('ja',), en='', ja='収走スキル', ko='', category='术语/鸣潮', variants=(), ctx=(), exclude=(), note="鸣潮技能体系：共鸣技能/共鸣回路/共鸣解放 + 变奏技能/终奏技能（Outro Skill）。日语 ASR 作 収走スキル(しゅうそう)，谷翻译成'跑步技能/逃跑/收走'。⚠ 本条只登记元数据、不加规则：'终奏/延奏'的官方中文用字尚未坐实，本片按'终奏'处理并留待后续片源验证，勿贸然固化为规则。"),
-    Entity('蜜芽', modes=('ja',), en='Mya', ja='ミア', ko='미아', category='角色/鸣潮2.4七丘', variants=(), ctx=(('ミ[ヤやア]|(?<!お)みや', '宫酱'), ('ミ[ヤやア]|(?<!お)みや', '宫野'), ('ミ[ヤやア]|(?<!お)みや', '野宫'), ('ミ[ヤやア]|(?<!お)みや', '美宫'), ('ミ[ヤやア]|(?<!お)みや', '宫侑'), ('ミ[ヤやア]|(?<!お)みや', '宫宫'), ('ミ[ヤやア]|(?<!お)みや', '米安'), ('ミ[ヤやア]|(?<!お)みや', '米娅'), ('ミ[ヤやア]|(?<!お)みや', '美雅'), ('宮(?!殿)', '宫殿'), ('^\\s*(?!.*宮殿)(?=.*(?:ミ[ヤやア]|(?<!お)みや))', '宫')), exclude=(), note="鸣潮 2.4 七丘·被鸣式寄宿的角斗士（官方英 Mya，日 ミア）。⚠ 裸「宫」绝不可作无条件变体：'地下宫殿'是字面宫殿（本片 #913/#1046）。裸宫用人名判据「整行有ミや且无宮殿」锚定；'宮(?!殿)' 判 宫殿=人名（#184/#192/#455）。"),
-    Entity('七丘', modes=('ja',), en='Septimont', ja='セブン・ヒルズ', ko='', category='地点/鸣潮2.4七丘', variants=(), ctx=(('セブン', '七脚尖'), ('セブン', '七山镇'), ('セブン', '七丘镇'), ('セブン', '七座山丘'), ('セブン', '七休斯'), ('セブン', '七脚'), ('セブン', '七山'), ('セブン', '七杀'), ('セブン', 'Seven Hills'), ('セブン', 'Seven Hill'), ('セブン', 'Semun Hills'), ('セブン', '帕塞文山镇'), ('セブン(?!イレブン)', '7-Eleven'), ('セブン(?!イレブン)', '七个'), ('セムン', 'Semun Hills'), ('セーヒル', '《萨希尔家族》'), ('セーヒル', '萨希尔')), exclude=(), note="鸣潮 2.4 新区域（库洛 2.4 公告「全新区域：七丘」；英 Septimont / 日 セブン・ヒルズ）。谷翻译名极乱：七山/七脚/七休斯/七杀/Seven Hills/Semun Hills/7-Eleven/萨希尔(セーヒルズ)。⚠ 全部走 ctx（锚 セブン），'七山'不裸键（可能是他片真实地名）。"),
-    Entity('黑潮', modes=('ja',), en='The Dark Tide', ja='黒潮', ko='', category='术语/鸣潮2.4七丘', variants=(), ctx=(('黒塩|黒シオ|クロシオ', '黑盐'), ('黒塩|黒シオ|クロシオ', '黑汐'), ('クロシオ', 'Crocio'), ('黒塩|黒シオ', '黑色盐云'), ('黒シオ', '黑西奥格')), exclude=(), note='官方中文=黑潮（英 The Dark Tide / 日 黒潮くろしお）。ASR 把 くろしお 写成 黒塩/黒シオ，谷翻出「黑盐/黑汐/Crocio」（本片 17 处）。'),
-    Entity('鸣式', modes=('ja',), en='Threnodian', ja='鳴式', ko='', category='术语/鸣潮2.4七丘', variants=(), ctx=(('名式|鳴式|明識', '明植'), ('名式|鳴式|明識', '明式'), ('名式|鳴式|明識', '明識'), ('名式|鳴式|明識', '明室'), ('名式|鳴式|明識', '内式'), ('名式|鳴式|明識', '名式'), ('名式|鳴式|明識', '美石'), ('名式|鳴式|明識', '美式'), ('名式|鳴式|明識', '纳西克'), ('名式|鳴式', '名称和公式'), ('名式|鳴式', '名称公式'), ('名式|鳴式', '知名名字')), exclude=(), note="官方中文=鸣式（英 Threnodian / 日 鳴式めいしき）。ASR 把 めいしき 咬成 名式/明識，谷翻出 明植/明式/明室/内式/美石/美式/纳西克（本片 27 处）。⚠ 全部走 ctx：'美式'(美式咖啡)、'明式'(明式家具) 都是真实用词，绝不裸键。"),
-    Entity('拉古那', modes=('ja',), en='Ragunna', ja='ラグーナ', ko='', category='地点/鸣潮2.x', variants=('拉古纳',), ctx=(), exclude=(), note="黎那汐塔地区，官方中文=**拉古那**（萌娘百科译名对照表，非'拉古纳'）。日 ラグーナ。"),
-    Entity('残星会', modes=('ja',), en='Fractsidus', ja='残星組織', ko='', category='势力/鸣潮2.x', variants=(), ctx=(('フラクト|シデス', '弗拉克西德'), ('フラクト|シデス', 'Fractacides'), ('フラクト|シデス', '弗鲁克托西雷斯'), ('フラクト|シデス', '断裂酸'), ('フラクト|シデス', '碎酸'), ('フラクト|シデス', '赛兹'), ('シデス', '《Sides》'), ('シデス', 'Sides'), ('フラクト|シデス', '果糖'), ('フラクト|シデス|ブラクト', '弗鲁克托西斯'), ('フラクト|シデス|ブラクト', '弗拉克塔西德'), ('フラクト|シデス|ブラクト', '弗拉克托西'), ('フラクト|シデス|ブラクト', '断裂灭者'), ('フラクト|シデス|ブラクト', '果实果树'), ('フラクト|シデス|ブラクト', '灭绝罪犯'), ('フラクト|シデス|ブラクト', '分叉酸'), ('フラクト|シデス|ブラクト', '碎片酸'), ('フラクト|シデス|ブラクト', 'fractosi'), ('フラクト|シデス|ブラクト', '分裂城'), ('フラクト|シデス|ブラクト', '果苷念'), ('フラクト|シデス|ブラクト', '断乳石'), ('フラクト|シデス|ブラクト', '骨折'), ('フラクト|シデス|ブラクト', '断裂'), ('フラクト|シデス|ブラクト', '苞叶'), ('フラクト|シデス|ブラクト', 'Fract')), exclude=(), note='官方中文=残星会（英 Fractsidus / 日 残星組織フラクトシデス）。ASR 常截断成 シデス；谷翻出 弗拉克西德/Fractacides/弗鲁克托西雷斯/断裂酸/碎酸/赛兹，并曾把 フラクトシデス 听成 fructose → 译作「果糖」。⚠ 「果糖」是常用词，必须 ctx 锚定。'),
-    Entity('残象', modes=('ja',), en='Tacet Discord', ja='残像', ko='', category='术语/鸣潮', variants=(), ctx=(('残像|残響', '印象'), ('残像|残響', 'Afterimage')), exclude=(), note='官方中文=残象（英 Tacet Discord / 日 残像ざんぞう）。谷翻把 残像 当汉语常用词译成「印象」→ 必须 ctx 锚定，绝不裸键。'),
-    Entity('英白拉多', modes=('ja',), en='Imperator', ja='インペラトル', ko='', category='角色/鸣潮2.x', variants=('imperator', 'impirator', 'インピラトル'), ctx=(('インペラトル', '叶轮'),), exclude=(), note='官方中文=英白拉多（英 Imperator / 日 インペラトル）。谷翻把英文残留 imperator/impirator 直接抄进中文行，生僻裸键安全。'),
-    Entity('黎那汐塔', modes=('ja',), en='Rinascita', ja='リナシータ', ko='', category='地点/鸣潮2.x', variants=('Linashita', 'Linasy', '莉娜西塔', '莉娜·西塔'), ctx=(('リナシー', '莉娜·西格'),), exclude=(), note='官方中文=黎那汐塔（英 Rinascita / 日 リナシータ）。ASR 常截断成 リナシー，谷翻出英文残留 Linashita/Linasy，生僻裸键安全。'),
-    Entity('尤利娅', modes=('ja',), en='', ja='ユリア', ko='', category='角色/鸣潮2.4七丘', variants=('尤莉娅',), ctx=(('ユリア', '百合'),), exclude=(), note='鸣潮 2.4 七丘·**西尔瓦家**家主（保守派，与克里斯托弗交易打捞蜜芽遗体）。官方中文=尤利娅（17173《2.4版本剧情究竟讲了什么》/ 知乎 2.4 评析）。谷翻作 尤莉娅，并曾把 ユリア 译成「百合」（本片 #1904）。⚠ 「百合」是常用词，走 ctx 锚定。'),
-    Entity('克里斯托弗', modes=('ja',), en='Cristoforo', ja='クリストフォロ', ko='', category='角色/鸣潮2.x/残星会', variants=(), ctx=(('クリストフ', '克里斯托弗洛'), ('クリストフ', '克里斯托弗罗'), ('クリストフ', '克里斯托福尔'), ('クリストフ', '克里斯托法罗'), ('クリストフ', '克里斯托福罗'), ('クリストフ', '克里斯托菲罗')), exclude=(), note='鸣潮 2.x 幕后布局者、**残星会会监**兼「不入流的剧作家」（百度百科《克里斯托弗》）。日 クリストフォロ。谷翻给出 6 种音译形（本片 #557/#660/#934/#1095/#1534/#1535）。'),
-    Entity('荣耀之间', modes=('ja',), en='', ja='グローリアベイル', ko='', category='地点/鸣潮2.4七丘', variants=(), ctx=(('グローリア', '格洛丽亚·韦尔'), ('グローリア', '荣耀庄园'), ('グローリア', '荣耀面纱'), ('グローリア', '荣耀镇'), ('グローリア', 'Gloriavale'), ('グローリア', '格洛丽亚')), exclude=(), note='鸣潮 2.4 七丘地标（NGA《黎那汐塔时间线》「蜜芽于七丘大角斗赛获胜后前往**荣耀之间**」；B站「露帕把蜜芽的剑插在荣耀之间」）。日 グローリアベイル/グローリアベール。谷翻译名 5 种：荣耀镇/荣耀庄园/荣耀面纱/格洛丽亚·韦尔/Gloriavale（本片 6 处）。'),
-    Entity('西尔瓦家族', modes=('ja',), en='Silver Family', ja='シルバファミリー', ko='', category='家族/鸣潮2.4七丘', variants=(), ctx=(('シルバファミリー|シルバーファミリー', '席尔瓦家族'), ('シルバファミリー|シルバーファミリー', '银家族'), ('シルバファミリー|シルバーファミリー', '银家')), exclude=(), note="鸣潮 2.4 七丘望族（18183《尤诺》「西尔瓦家家主尤利娅」；B站人物志「西尔瓦家被逐出七丘」）。官方中文=**西尔瓦**（非'席尔瓦'）。⚠ 锚点强制全称 シルバファミリー：`シルバーウィーク`(Silver Week 假期) 与 `シルバーメイク`(银色妆容) 都不是家族，绝不裸键「银」。"),
-    Entity('总督', modes=('ja',), en='Governor', ja='総督', ko='', category='官职/鸣潮2.4七丘', variants=(), ctx=(('総督|相徳|総徳|そうとく', '斋德'), ('総督|相徳|総徳|そうとく', '宗德'), ('総督|相徳|総徳|そうとく', '总德')), exclude=(), note='鸣潮 2.4 七丘执政官（知乎 2.4 剧情评析「看不惯现任**总督**」；现任总督=奥古斯塔）。ASR 把 総督(そうとく) 咬成 相徳/総徳，谷翻出 斋德/宗德/总德/总德府（本片 4 处）。'),
-    Entity('中枢', modes=('ja',), en='Nexus', ja='中数', ko='', category='术语/鸣潮2.4七丘', variants=(), ctx=(('中数', '中间的数字'), ('中数', '中间数字'), ('中数', '大仲苏')), exclude=(), note='七丘/黎那汐塔的设施中枢（17173《主线概览》「你与露帕一同前往**岩间中枢**」）。ASR 把 中枢(ちゅうすう) 咬成同音 中数，谷翻直译成「中间的数字/大仲苏」。⚠ 走 ctx（「数字」是常用词）。'),
-    Entity('特克斯', modes=('ja',), en='Tex', ja='テクス', ko='', category='角色/鸣潮2.4七丘（音译待考）', variants=('北德克萨斯', 'Tex'), ctx=(), exclude=(), note='鸣潮 2.4 七丘剧情人物（当时的**总督之子**，雕像原型）。⚠ 官方中文名**未查证**，沿用谷翻自产音译「特克斯」；「北德克萨斯」（北 Texas）是误译，英文残留 Tex 一并归一。'),
-    Entity('奥古斯塔', modes=('ja',), en='Augusta', ja='オーガスタ', ko='', category='角色/鸣潮2.x', variants=('奥古斯特',), ctx=(('オーガスタ|おおがさ', '小笠'), ('オーガスタ|おおがさ', '大笠')), exclude=(), note='鸣潮 2.x 七丘总督奥古斯塔（18183《尤诺》「向总督奥古斯塔指控」；3.x 实装 5★）。日 オーガスタ。谷翻作「奥古斯特」，官方用字为「奥古斯塔」。2026-10-30 补：ASR おおがさ 被谷翻成 小笠/大笠（#605/#623），走日语锚定。'),
+    Entity('联盟工团', modes=('endo-bi', 'endo', 'endo-ko'), en="United Workers' Syndicate of Talos-II (UWST)", ja='', ko='', category='势力/终末地', variants=('UWST', 'DWST'), ctx=(), exclude=(), note='塔卫二全联盟工团；四号谷地即其运营区、全星最大工矿机械制造商。本片英文行 DWST/UWST 混拼系同一组织（YouTube ASR 变体），官中=联盟工团。'),
+    Entity('贝克', modes=('endo-bi', 'endo', 'endo-ko'), en='Baker', ja='', ko='', category='系统/终末地', variants=('Baker',), ctx=(), exclude=(), note='游戏内干员即时通讯应用（in-game messaging app），干员自动分配账号；官中=贝克。只收中文行拉丁残留形。'),
+    Entity('协议源石', modes=('endo-bi', 'endo', 'endo-ko'), en='PROTORIG', ja='', ko='', category='科技/终末地', variants=('Protorig', 'PROTORIG', 'protorig'), ctx=(), exclude=(), note="Protocol-Originium 合成词：终末地工业核心科技网络，干员腕表装置即其存储终端；官中=协议源石。本片 'protorig menu' 即腕表菜单。"),
+    Entity('四号谷地', modes=('endo-bi', 'endo', 'endo-ko'), en='Valley 4 / Valley IV', ja='', ko='', category='区域/终末地', variants=('Valley 4', 'Valley Four', 'Valley IV', 'Valley-IV', 'Valley-4'), ctx=(), exclude=(), note='终末地开篇区域；已有「第四谷/谷地4区」裸键与 valley 上下文锚，本批补拉丁全形——谷翻常把 Latin 原样留在中文行。'),
+    Entity('诀', modes=('endo-bi', 'endo', 'endo-ko'), en='Arcane', ja='', ko='', category='角色/终末地', variants=('Arcane',), ctx=(), exclude=(), note="6★自然术师，本名李织烟，应龙特勤队行动队长，1.4「向渊行」实装；本片 'Arcane's leotard' 即其同人语境。官中=诀；「奥术」普通词义不裸键。"),
+    Entity('汤汤', modes=('endo-bi', 'endo', 'endo-ko'), en='Tangtang', ja='', ko='', category='角色/终末地', variants=('Tang Tang', 'Tangtang'), ctx=(), exclude=(), note="6★冰系，清波寨大当家阮湯湯（2026-03-12 实装）；「汤」是姓氏非糖果，TapTap 攻略误写「唐糖」勿采。长键先行防既有裸键 Tang 把 'Tang Tang' 咬成「汤汤 汤汤」。"),
+    Entity('伊冯', modes=('endo-bi', 'endo', 'endo-ko'), en='Yvonne', ja='', ko='', category='角色/终末地', variants=('Yvon',), ctx=(), exclude=(), note='6★限定冰系（2026-02-24 实装），特种技术部门时尚人设；已有 Yvonne/Ivonne/Ivon 键，本片补 Yvon 拼写（长键 Yvonne 先行不互咬）。'),
+    Entity('萤石', modes=('endo-bi', 'endo', 'endo-ko'), en='Fluorite', ja='', ko='', category='角色/终末地', variants=('Fluorite',), ctx=(), exclude=(), note="辅助干员，寒冷+自然双附着；已有 Florite/氟石 键，本片坐实正确拼写 Fluorite（谷翻 'floor item' 系其误听——Karasu-chan 萤石同人图）。"),
+    Entity('战争回响', modes=('endo-bi', 'endo', 'endo-ko'), en='Echoes of War', ja='', ko='', category='玩法/终末地', variants=('战争的回声', '战争回声', '《战争回声》', 'Echoes of War'), ctx=(), exclude=(), note='赛季制常驻挑战玩法（权限等阶 40+）；官中=战争回响，谷翻「战争的回声」。'),
+    Entity('危机合约', modes=('endo-bi', 'endo'), en='Contingency Contract', ja='', ko='', category='玩法/终末地', variants=('应急合同',), ctx=(('\\bContingency\\b', '意外事件'),), exclude=(), note='已有 Contingency Contract/传染性合约/风险代理合同 键，本片补谷翻形「应急合同」与「意外事件」参考行锚（CC 在终末地延续，官中不变）。'),
+    Entity('北部禁区', modes=('endo-bi', 'endo', 'endo-ko'), en='North Wuling Exclusion Zone', ja='', ko='', category='区域/终末地', variants=('北武陵禁区', '武陵北部禁区'), ctx=(('\\bexclusion\\s+zone\\b', '排除区'), ('\\bexclusion\\s+zone\\b', '禁区')), exclude=(), note='1.4 武陵第 7 区域，wiki.gg 简中=北部禁区（日文=武陵北部封鎖区域）；已有「北部进区」键。锚 exclusion zone 时把谷翻「排除区」与裸「禁区」归一——禁区⊂北部禁区走 _ctx_replace 哨兵。'),
+    Entity('雪松林', modes=('endo-bi',), en='Forest Snow Zone', ja='', ko='', category='区域/终末地', variants=(), ctx=(('forest\\s+snow|snow\\s+zone', '森林雪区'),), exclude=(), note='1.5「雪凇幽梦」武陵雪原林地（雪降深林活动区）；已有雪风林/Cedar Forest 键。「雪区」裸错形过短不入，仅锚 forest snow / snow zone。'),
+    Entity('空间式UI', modes=('endo-bi',), en='spatial UI', ja='', ko='', category='术语/UI', variants=(), ctx=(('\\bspatial\\b', '特殊UI'),), exclude=(), note="游戏 UI 四分类之一：存在于游戏世界空间但角色不感知（本片杂兵头顶血条例）；本片英文行 'special UI' 系 spatial UI 误听（large-v3 音证）。"),
+    Entity('天空海', modes=('wuwa-ja',), en='', ja='天空海', ko='', category='术语/鸣潮', variants=(), ctx=(('天空会|天空海', '天空会'),), exclude=(), note="鸣潮现象名，官方中文=天空海（包裹覆盖整个索拉里斯天空的特殊现象，灰机wiki）。日语 天空海(てんくうかい) 被 ASR 咬成同音的 天空会(てんくうかい)，谷翻照抄'天空会'。"),
+    Entity('秧秧', modes=('wuwa-ja',), en='', ja='やんやん', ko='', category='角色/鸣潮/今州', variants=(), ctx=(('やんやん|ヤんやん|にゃんやん', '燕燕'), ('やんやん|ヤんやん|にゃんやん', '延雅'), ('やんやん|ヤんやん|にゃんやん', '燕'), ('やんやん|ヤんやん|にゃんやん', '妮艳'), ('やや|ヤヤ|やんやん', '丫丫')), exclude=(), note="鸣潮 4★ 今州共鸣者。日语昵称=やんやん；谷翻音译成 燕燕/延雅/Nyanyan/ヤ。'燕燕'为正常中文词，只走日语行锚定 ctx（本片主播也昵称其为'鹿'）。"),
+    Entity('今州', modes=('wuwa-ja',), en='', ja='今州', ko='', category='地名/鸣潮', variants=(), ctx=(('今週場|今州城', '本周的场外'), ('今週場|今州城', '本周场'), ('今週場|今州城', '今周场'), ('今週場|今州城', '今正场'), ('今週(?!場)(?!って|だった|に|は|の|も|から|まで|末|中|や|、|。|$)|今州', '本周'), ('今週(?!場)(?!って|だった|に|は|の|も|から|まで|末|中|や|、|。|$)|今州', '这周'), ('今週(?!場)(?!って|だった|に|は|の|も|から|まで|末|中|や|、|。|$)|今州', '纳迦')), exclude=(), note="瑝珑六州之一（今州）。日语 今州(きんしゅう) 被 ASR 咬成同音的 今週(こんしゅう)，谷翻一律按'本周'处理（'本周的场外活动'=今州城）。'今週場'=今州城。戒律：本周/这周是正常中文词，只走日语行锚定 ctx。2026-10-12 收紧：今週って/今週だった 等 = 现实'这周'（如 3連休 闲聊），非今州（索拉逐星舞台 S2 同视片 cue5/cue639 实测误改），加负向后顾排除。"),
+    Entity('瑝珑', modes=('wuwa-ja',), en='', ja='瑝珑', ko='', category='地名/鸣潮', variants=(), ctx=(), exclude=(), note="鸣潮东方文明国名，'一庭六州'，每州由对应东方七宿的岁主掌管（百度百科/灰机wiki）。日语 瑝珑(こうりゅう) 与 交流(こうりゅう) 同音，ASR 一律作 交流，谷翻译成'交换/交流'。⚠ 本条只登记元数据、不加规则：'交流'在日语里也是常用词，无可靠锚点，贸然替换会误伤；本片逐 cue 侧车处理。"),
+    Entity('鸣潮', modes=('wuwa-ja',), en='', ja='鳴潮', ko='', category='作品名', variants=(), ctx=(('名長|名朝|鳴潮', '有名的领袖'), ('名長|名朝|鳴潮', '著名领袖'), ('名長|名朝|鳴潮', '纳迦'), ('名長|名朝|鳴潮', '名长'), ('名長|名朝|鳴潮', '著名的领袖'), ('名長|名朝|鳴潮', '直长'), ('名長|名朝|鳴潮', '直永'), ('名長|名朝|鳴潮', '七永')), exclude=(), note="作品名。日语 鳴潮(めいちょう) 被 ASR 咬成同音的 名長(めいちょう)，谷翻直译成'有名的领袖/著名领袖'，或音译'纳迦/名长'。（'纳迦'出现在 cue 1000 '鸣潮的快速传送是世界第一'。）2026-10-14 补 直长/直永/七永（同音再咬字）。"),
+    Entity('数据坞', modes=('wuwa-ja',), en='', ja='データドッグ', ko='', category='系统/鸣潮', variants=(), ctx=(('データドッ?[ッグ]|データドック', '数据狗'), ('データドッ?[ッグ]|データドック', '数据犬')), exclude=(), note="鸣潮声骸管理系统，官方中文=数据坞（Data Bank）。日语 データドッグ 被谷翻按 dog 直译成'数据狗'。'数据狗'非正常中文词，但仍走 ctx 以防万一。"),
+    Entity('守岸人', modes=('wuwa-ja',), en='', ja='ショアキーパー', ko='', category='角色/鸣潮', variants=(), ctx=(('ショアキーパー', '岸上看守'), ('ショアキーパー', '岸边看守'), ('ショアキーパー', '海岸看守'), ('キーパー|シャーキ|ショアキ|ケートキ|シュアキ', '守门人Perme-dama'), ('キーパー|シャーキ|ショアキ|ケートキ|シュアキ', 'Perme-dama'), ('キーパー|シャーキ|ケートキ|シュアキ', '鲨鱼守护者'), ('キーパー|シャーキ|ケートキ|シュアキ', '鲨鱼饲养员'), ('キーパー|ケートキ|シュアキ', 'Keto Keeper'), ('キーパー|シュアキ', '稳妥守料'), ('キーパー', '守门员'), ('(?<!白き)ゲートキーパー|(?<!ゲート)キーパー|ゲート守', '守门人'), ('ゲート守', '守门的人'), ('シャキ', '摇晃者'), ('シャーキ', '沙基')), exclude=(), note="鸣潮角色，官方中文=守岸人（Shorekeeper）。谷翻把 ショアキーパー 按字面译成'岸上看守'。2026-11-01 r2 扩：シャキ 系截短与 摇晃者/稳妥守料/守门人/鲨鱼守护者/Keto Keeper/沙基 走锚定；裸键 Shore 会咬 Shorekeeper 故禁用，且 cue 2094 的 ショア 经与 2093/2098 同句互证实为 ブラックショア(黑海岸)，故 Shore 只逐 cue 处理、不入表。"),
+    Entity('杏鲍菇', modes=('wuwa-ja',), en='', ja='エリンギ', ko='', category='梗/鸣潮', variants=('エリンギ', 'エリンゲ', 'エリング', 'エリンギー'), ctx=(('エリンギ|エリンゲ|エリング', '帝王平菇'), ('エリンギ|エリンゲ|エリング', '埃林格'), ('エリンギ|エリンゲ|エリング', '艾灵'), ('エリンギ|エリンゲ|エリング', '王蚝菇'), ('エリンギ|エリンゲ|エリング', '王菇')), exclude=(), note="主播梗：某残象外形像杏鲍菇（エリンギ），弹幕与主播都以'杏鲍菇'称呼它。谷翻给出 帝王平菇/埃林格/艾灵 等不一致译名，统一为 杏鲍菇。"),
+    Entity('千咲', modes=('wuwa-ja',), en='', ja='千咲', ko='', category='角色/鸣潮', variants=('チさ', 'ちさ', '地さ', 'チサ'), ctx=(('千咲|チさ|地さ|千崎|ちさ', '千崎'), ('千咲|チさ|地さ|千崎|ちさ', '地咲')), exclude=(), note='鸣潮角色千咲（3.7 复刻）。日语 ASR 作 チさ/ちさ/地さ（じさ/ちさ 混淆），谷翻给出 千崎/地咲 等错形，统一为 千咲。'),
+    Entity('弗洛洛', modes=('wuwa-ja',), en='', ja='フローヴァ', ko='', category='角色/鸣潮/残星会', variants=(), ctx=(('フローヴァ|フローバ|フロバ|ブローバ|フロー', '弗洛瓦'), ('フローヴァ|フローバ|フロバ|ブローバ|フロー', '弗罗巴'), ('フローヴァ|フローバ|フロバ|ブローバ|フロー', '弗洛巴'), ('フローマ|フロボ', '弗洛拉'), ('フローマ|フロボ', 'Probo')), exclude=(), note="鸣潮 5★（湮灭·音感仪），残星会会监，'游走于生死之间的残星会会监，神秘而危险的指挥家'（百度百科/灰机wiki）。官方 JP 名=**フローヴァ**（AniBase 标注 Furōvu~a）。本片主播想看她的主线剧情、并提到'系着丝带、连武器上都有'，均与其设定吻合。"),
+    Entity('卜灵', modes=('wuwa-ja',), en='', ja='ボクレイ', ko='', category='角色/鸣潮', variants=('ボクレイ', 'ボクレイー', '卜霊'), ctx=(('ボクレイ|僕レイ|僕霊|牧霊|亡霊', '仆雷'), ('ボクレイ|僕レイ|僕霊|牧霊|亡霊', '仆灵'), ('ボクレイ|僕レイ|僕霊|牧霊|亡霊', '牧灵'), ('ボクレイ|僕レイ|僕霊|牧霊|亡霊', '亡灵'), ('ボクレイ|僕レイ|僕霊|牧霊|亡霊', '博库雷')), exclude=(), note="鸣潮 4★ 治疗/增益辅助（3.7 上半卡池陪跑：卜灵、桃祈、釉瑚）。官方 JP 名=**卜霊（ボクレイ）**（AniBase：'卜灵 (卜霊 (ボクレイ), Bokurei)'）。日语 ASR 常作 僕レイ/僕霊/牧霊/亡霊；谷翻给出 仆雷/仆灵/牧灵/亡灵 等不一致译名。主播也拿'卜(ぼく)↔僕'玩梗（'可以说是仆娘吗'），中文侧保留'仆娘'一词。"),
+    Entity('安全科', modes=('wuwa-ja',), en='', ja='安全科', ko='', category='组织/鸣潮/华胥研究院', variants=(), ctx=(('安全家|安全化|安全科', '安全家'), ('安全家|安全化|安全科', '安全化')), exclude=(), note="华胥研究院下设科室。莫特斐的官方设定：'**华胥研究院安全科**成员，黑石应用领域专家'（wuthering.gg）。日语 ASR 作 安全家/安全化，谷翻照抄。"),
+    Entity('边庭', modes=('wuwa-ja',), en='', ja='辺定', ko='', category='地名/鸣潮/今州城', variants=('辺定', '変定'), ctx=(('辺定|変定|边庭', '变定'), ('辺定|変定|边庭', '辨定')), exclude=(), note="今州城内机构。灰机wiki《地区探索报告/今州-今州城》：'一份记载于**边庭**的天工部的报告书'。日语 ASR 作 変定(へんじょう)；本片中是登记中枢信号、令尹为漂泊者安排房间的场所。"),
+    Entity('天工部', modes=('wuwa-ja',), en='', ja='天工部', ko='', category='组织/鸣潮/今州', variants=(), ctx=(('天校|天工部', '天派'),), exclude=(), note="今州部委之一，受众事台管辖，主司工程建设；下设军武科、防事科（Fandom《天工》）。日语 ASR 作 天校(てんこう)，谷翻按音译作'天派'。"),
+    Entity('北落野', modes=('wuwa-ja',), en='', ja='北落野', ko='', category='地名/鸣潮/今州', variants=(), ctx=(('北楽|北落野', '北乐平原'), ('北楽|北落野', '北乐原')), exclude=(), note="今州区域之一（今州城/中曲台地/荒石高地/北落野/云陵谷）。日语 ASR 把 北落(ほくらく) 写成同音 北楽，谷翻作'北乐平原'。"),
+    Entity('荒石高地', modes=('wuwa-ja',), en='', ja='荒石高地', ko='', category='地名/鸣潮/今州', variants=(), ctx=(), exclude=(), note="今州区域之一。本片日语 ASR 作'石崩れのコチ'，谷翻作'科奇'；'石崩れ'→荒石 属**推测**（音形未完全对上），故只登记元数据、不加规则，本片按'乱石崩落的高地'意译处理。"),
+    Entity('桃祈', modes=('wuwa-ja',), en='', ja='トウキ', ko='', category='角色/鸣潮', variants=(), ctx=(('トウキ|桃祈', '托奇'), ('トウキ|桃祈', '塔奇')), exclude=(), note="鸣潮 4★（3.7 上半卡池陪跑）。日语 ASR 作 トキー/たき；谷翻作'托奇'。本片 cue 1539 的'たき'按同一角色处理（属推测，已标注）。"),
+    Entity('釉瑚', modes=('wuwa-ja',), en='', ja='ユウゴ', ko='', category='角色/鸣潮', variants=(), ctx=(), exclude=(), note="鸣潮 4★ 冷凝（3.7 上半卡池陪跑）。官方 JP 名=**ユウゴ**（wikiwiki.jp/w-w、AniBase）。本片 cue 1399 'うが4頂' 按'釉瑚4凸'处理，属推测，故只登记元数据、不加规则。"),
+    Entity('莫特斐', modes=('wuwa-ja',), en='', ja='モルトフィ', ko='', category='角色/鸣潮/今州', variants=(), ctx=(('モルトフィ', '莫托菲'), ('モルトフィ', '莫特菲')), exclude=(), note="鸣潮 4★ 热熔·佩枪，出身新联邦上流阶层，'新联邦最年轻的天才'，以华胥研究院外聘成员身份工作（百度百科/灰机wiki）。谷翻音译作'莫托菲'。"),
+    Entity('卡提希娅', modes=('wuwa-ja',), en='', ja='カルテジア', ko='', category='角色/鸣潮', variants=(), ctx=(('カルテジア|カテジア', '笛卡尔西亚'), ('カルテジア|カテジア', '卡尔特西亚'), ('カルテジア|カテジア', '卡特吉亚'), ('カルテジア|カテジア', '塔尔提加'), ('カルテジア|カテジア', '卡特迪亚'), ('カルテジア|カテジア|カルデジア', '笛卡尔'), ('カルテジア|カテジア|カルデジア', '卡尔西亚'), ('カルテジア|カテジア|カルデジア', '卡特西亚'), ('カルテジア|カテジア|カルデジア', '卡特齐亚'), ('カルテジア|カテジア|カルデジア', '卡尔德齐亚'), ('カルテジア|カテジア|カルデジア', '卡尔蒂吉亚'), ('カルテジア|カテジア|カルデジア|タルテジア', '塔尔提齐亚'), ('カルテジア|カテジア|カルデジア', 'Cartégia'), ('カルテア|カルテー', 'Cartea'), ('カルテア|カルテー', '卡特酱')), exclude=(), note='鸣潮 5★。日语 カルテジア；谷翻音译残留 笛卡尔西亚/卡尔特西亚/卡特吉亚/塔尔提加。⚠ 2026-10-14：原先 JA_TERMS 里的无条件键「笛卡尔」会抢跑本条 ctx，把「笛卡尔西亚」咬成「卡提希娅西亚」；已撤键、改由本条 ctx 统一收口（笛卡尔/卡尔西亚/卡特西亚/卡特齐亚/卡尔德齐亚/卡尔蒂吉亚/塔尔提齐亚/Cartégia）。'),
+    Entity('夏空', modes=('wuwa-ja',), en='', ja='シャコンヌ', ko='', category='角色/鸣潮', variants=(), ctx=(('シャコンヌ', '恰空舞'), ('シャコンヌ', '恰空')), exclude=(), note="鸣潮 5★。日语 シャコンヌ（Ciaccona）；谷翻按音乐术语译成'恰空舞'。"),
+    Entity('超频', modes=('wuwa-ja',), en='', ja='オーバークロック', ko='', category='术语/鸣潮', variants=(), ctx=(), exclude=(), note="鸣潮术语：频率能量异常带来的危险状态（灰机wiki《无音区》提到'超频'）。本片谷翻已正确输出'超频'，仅登记元数据，无替换。"),
+    Entity('延奏', modes=('wuwa-ja',), en='', ja='延奏スキル', ko='', category='术语/鸣潮', variants=(), ctx=(('収走|収層|延奏', '收走'), ('収走|収層|延奏', '收层'), ('収走|収層|延奏', '跑步技能'), ('収走|収層|延奏', '逃跑'), ('収走|収層|延奏', '收奏')), exclude=(), note="鸣潮技能体系（2026-10-01 二次校准坐实官方用字）：共鸣技能 / 共鸣回路 / 共鸣解放 + 变奏技能（入场）/ 延奏技能（离场）。官方描述：'协奏能量充满时切换共鸣者，离场角色会触发延奏技能'（Fandom《变奏技能》、百度百科《变奏技能》）。日语 ASR 作 収走スキル(しゅうそう)、谷翻译成'跑步技能/逃跑/收走'。⚠ 首轮曾按同音误作'终奏'，已改正。canonical 用'延奏'（不带'技能'），因日语行的'スキル'会由机翻补成'技能'。"),
+    Entity('终奏技能', modes=('wuwa-ja',), en='', ja='収走スキル', ko='', category='术语/鸣潮', variants=(), ctx=(), exclude=(), note="鸣潮技能体系：共鸣技能/共鸣回路/共鸣解放 + 变奏技能/终奏技能（Outro Skill）。日语 ASR 作 収走スキル(しゅうそう)，谷翻译成'跑步技能/逃跑/收走'。⚠ 本条只登记元数据、不加规则：'终奏/延奏'的官方中文用字尚未坐实，本片按'终奏'处理并留待后续片源验证，勿贸然固化为规则。"),
+    Entity('蜜芽', modes=('wuwa-ja',), en='Mya', ja='ミア', ko='미아', category='角色/鸣潮2.4七丘', variants=(), ctx=(('ミ[ヤやア]|(?<!お)みや', '宫酱'), ('ミ[ヤやア]|(?<!お)みや', '宫野'), ('ミ[ヤやア]|(?<!お)みや', '野宫'), ('ミ[ヤやア]|(?<!お)みや', '美宫'), ('ミ[ヤやア]|(?<!お)みや', '宫侑'), ('ミ[ヤやア]|(?<!お)みや', '宫宫'), ('ミ[ヤやア]|(?<!お)みや', '米安'), ('ミ[ヤやア]|(?<!お)みや', '米娅'), ('ミ[ヤやア]|(?<!お)みや', '美雅'), ('宮(?!殿)', '宫殿'), ('^\\s*(?!.*宮殿)(?=.*(?:ミ[ヤやア]|(?<!お)みや))', '宫')), exclude=(), note="鸣潮 2.4 七丘·被鸣式寄宿的角斗士（官方英 Mya，日 ミア）。⚠ 裸「宫」绝不可作无条件变体：'地下宫殿'是字面宫殿（本片 #913/#1046）。裸宫用人名判据「整行有ミや且无宮殿」锚定；'宮(?!殿)' 判 宫殿=人名（#184/#192/#455）。"),
+    Entity('七丘', modes=('wuwa-ja',), en='Septimont', ja='セブン・ヒルズ', ko='', category='地点/鸣潮2.4七丘', variants=(), ctx=(('セブン', '七脚尖'), ('セブン', '七山镇'), ('セブン', '七丘镇'), ('セブン', '七座山丘'), ('セブン', '七休斯'), ('セブン', '七脚'), ('セブン', '七山'), ('セブン', '七杀'), ('セブン', 'Seven Hills'), ('セブン', 'Seven Hill'), ('セブン', 'Semun Hills'), ('セブン', '帕塞文山镇'), ('セブン(?!イレブン)', '7-Eleven'), ('セブン(?!イレブン)', '七个'), ('セムン', 'Semun Hills'), ('セーヒル', '《萨希尔家族》'), ('セーヒル', '萨希尔')), exclude=(), note="鸣潮 2.4 新区域（库洛 2.4 公告「全新区域：七丘」；英 Septimont / 日 セブン・ヒルズ）。谷翻译名极乱：七山/七脚/七休斯/七杀/Seven Hills/Semun Hills/7-Eleven/萨希尔(セーヒルズ)。⚠ 全部走 ctx（锚 セブン），'七山'不裸键（可能是他片真实地名）。"),
+    Entity('黑潮', modes=('wuwa-ja',), en='The Dark Tide', ja='黒潮', ko='', category='术语/鸣潮2.4七丘', variants=(), ctx=(('黒塩|黒シオ|クロシオ', '黑盐'), ('黒塩|黒シオ|クロシオ', '黑汐'), ('クロシオ', 'Crocio'), ('黒塩|黒シオ', '黑色盐云'), ('黒シオ', '黑西奥格')), exclude=(), note='官方中文=黑潮（英 The Dark Tide / 日 黒潮くろしお）。ASR 把 くろしお 写成 黒塩/黒シオ，谷翻出「黑盐/黑汐/Crocio」（本片 17 处）。'),
+    Entity('鸣式', modes=('wuwa-ja',), en='Threnodian', ja='鳴式', ko='', category='术语/鸣潮2.4七丘', variants=(), ctx=(('名式|鳴式|明識', '明植'), ('名式|鳴式|明識', '明式'), ('名式|鳴式|明識', '明識'), ('名式|鳴式|明識', '明室'), ('名式|鳴式|明識', '内式'), ('名式|鳴式|明識', '名式'), ('名式|鳴式|明識', '美石'), ('名式|鳴式|明識', '美式'), ('名式|鳴式|明識', '纳西克'), ('名式|鳴式', '名称和公式'), ('名式|鳴式', '名称公式'), ('名式|鳴式', '知名名字')), exclude=(), note="官方中文=鸣式（英 Threnodian / 日 鳴式めいしき）。ASR 把 めいしき 咬成 名式/明識，谷翻出 明植/明式/明室/内式/美石/美式/纳西克（本片 27 处）。⚠ 全部走 ctx：'美式'(美式咖啡)、'明式'(明式家具) 都是真实用词，绝不裸键。"),
+    Entity('拉古那', modes=('wuwa-ja',), en='Ragunna', ja='ラグーナ', ko='', category='地点/鸣潮2.x', variants=('拉古纳',), ctx=(), exclude=(), note="黎那汐塔地区，官方中文=**拉古那**（萌娘百科译名对照表，非'拉古纳'）。日 ラグーナ。"),
+    Entity('残星会', modes=('wuwa-ja',), en='Fractsidus', ja='残星組織', ko='', category='势力/鸣潮2.x', variants=(), ctx=(('フラクト|シデス', '弗拉克西德'), ('フラクト|シデス', 'Fractacides'), ('フラクト|シデス', '弗鲁克托西雷斯'), ('フラクト|シデス', '断裂酸'), ('フラクト|シデス', '碎酸'), ('フラクト|シデス', '赛兹'), ('シデス', '《Sides》'), ('シデス', 'Sides'), ('フラクト|シデス', '果糖'), ('フラクト|シデス|ブラクト', '弗鲁克托西斯'), ('フラクト|シデス|ブラクト', '弗拉克塔西德'), ('フラクト|シデス|ブラクト', '弗拉克托西'), ('フラクト|シデス|ブラクト', '断裂灭者'), ('フラクト|シデス|ブラクト', '果实果树'), ('フラクト|シデス|ブラクト', '灭绝罪犯'), ('フラクト|シデス|ブラクト', '分叉酸'), ('フラクト|シデス|ブラクト', '碎片酸'), ('フラクト|シデス|ブラクト', 'fractosi'), ('フラクト|シデス|ブラクト', '分裂城'), ('フラクト|シデス|ブラクト', '果苷念'), ('フラクト|シデス|ブラクト', '断乳石'), ('フラクト|シデス|ブラクト', '骨折'), ('フラクト|シデス|ブラクト', '断裂'), ('フラクト|シデス|ブラクト', '苞叶'), ('フラクト|シデス|ブラクト', 'Fract')), exclude=(), note='官方中文=残星会（英 Fractsidus / 日 残星組織フラクトシデス）。ASR 常截断成 シデス；谷翻出 弗拉克西德/Fractacides/弗鲁克托西雷斯/断裂酸/碎酸/赛兹，并曾把 フラクトシデス 听成 fructose → 译作「果糖」。⚠ 「果糖」是常用词，必须 ctx 锚定。'),
+    Entity('残象', modes=('wuwa-ja',), en='Tacet Discord', ja='残像', ko='', category='术语/鸣潮', variants=(), ctx=(('残像|残響', '印象'), ('残像|残響', 'Afterimage')), exclude=(), note='官方中文=残象（英 Tacet Discord / 日 残像ざんぞう）。谷翻把 残像 当汉语常用词译成「印象」→ 必须 ctx 锚定，绝不裸键。'),
+    Entity('英白拉多', modes=('wuwa-ja',), en='Imperator', ja='インペラトル', ko='', category='角色/鸣潮2.x', variants=('imperator', 'impirator', 'インピラトル'), ctx=(('インペラトル', '叶轮'),), exclude=(), note='官方中文=英白拉多（英 Imperator / 日 インペラトル）。谷翻把英文残留 imperator/impirator 直接抄进中文行，生僻裸键安全。'),
+    Entity('黎那汐塔', modes=('wuwa-ja',), en='Rinascita', ja='リナシータ', ko='', category='地点/鸣潮2.x', variants=('Linashita', 'Linasy', '莉娜西塔', '莉娜·西塔'), ctx=(('リナシー', '莉娜·西格'),), exclude=(), note='官方中文=黎那汐塔（英 Rinascita / 日 リナシータ）。ASR 常截断成 リナシー，谷翻出英文残留 Linashita/Linasy，生僻裸键安全。'),
+    Entity('尤利娅', modes=('wuwa-ja',), en='', ja='ユリア', ko='', category='角色/鸣潮2.4七丘', variants=('尤莉娅',), ctx=(('ユリア', '百合'),), exclude=(), note='鸣潮 2.4 七丘·**西尔瓦家**家主（保守派，与克里斯托弗交易打捞蜜芽遗体）。官方中文=尤利娅（17173《2.4版本剧情究竟讲了什么》/ 知乎 2.4 评析）。谷翻作 尤莉娅，并曾把 ユリア 译成「百合」（本片 #1904）。⚠ 「百合」是常用词，走 ctx 锚定。'),
+    Entity('克里斯托弗', modes=('wuwa-ja',), en='Cristoforo', ja='クリストフォロ', ko='', category='角色/鸣潮2.x/残星会', variants=(), ctx=(('クリストフ', '克里斯托弗洛'), ('クリストフ', '克里斯托弗罗'), ('クリストフ', '克里斯托福尔'), ('クリストフ', '克里斯托法罗'), ('クリストフ', '克里斯托福罗'), ('クリストフ', '克里斯托菲罗')), exclude=(), note='鸣潮 2.x 幕后布局者、**残星会会监**兼「不入流的剧作家」（百度百科《克里斯托弗》）。日 クリストフォロ。谷翻给出 6 种音译形（本片 #557/#660/#934/#1095/#1534/#1535）。'),
+    Entity('荣耀之间', modes=('wuwa-ja',), en='', ja='グローリアベイル', ko='', category='地点/鸣潮2.4七丘', variants=(), ctx=(('グローリア', '格洛丽亚·韦尔'), ('グローリア', '荣耀庄园'), ('グローリア', '荣耀面纱'), ('グローリア', '荣耀镇'), ('グローリア', 'Gloriavale'), ('グローリア', '格洛丽亚')), exclude=(), note='鸣潮 2.4 七丘地标（NGA《黎那汐塔时间线》「蜜芽于七丘大角斗赛获胜后前往**荣耀之间**」；B站「露帕把蜜芽的剑插在荣耀之间」）。日 グローリアベイル/グローリアベール。谷翻译名 5 种：荣耀镇/荣耀庄园/荣耀面纱/格洛丽亚·韦尔/Gloriavale（本片 6 处）。'),
+    Entity('西尔瓦家族', modes=('wuwa-ja',), en='Silver Family', ja='シルバファミリー', ko='', category='家族/鸣潮2.4七丘', variants=(), ctx=(('シルバファミリー|シルバーファミリー', '席尔瓦家族'), ('シルバファミリー|シルバーファミリー', '银家族'), ('シルバファミリー|シルバーファミリー', '银家')), exclude=(), note="鸣潮 2.4 七丘望族（18183《尤诺》「西尔瓦家家主尤利娅」；B站人物志「西尔瓦家被逐出七丘」）。官方中文=**西尔瓦**（非'席尔瓦'）。⚠ 锚点强制全称 シルバファミリー：`シルバーウィーク`(Silver Week 假期) 与 `シルバーメイク`(银色妆容) 都不是家族，绝不裸键「银」。"),
+    Entity('总督', modes=('wuwa-ja',), en='Governor', ja='総督', ko='', category='官职/鸣潮2.4七丘', variants=(), ctx=(('総督|相徳|総徳|そうとく', '斋德'), ('総督|相徳|総徳|そうとく', '宗德'), ('総督|相徳|総徳|そうとく', '总德')), exclude=(), note='鸣潮 2.4 七丘执政官（知乎 2.4 剧情评析「看不惯现任**总督**」；现任总督=奥古斯塔）。ASR 把 総督(そうとく) 咬成 相徳/総徳，谷翻出 斋德/宗德/总德/总德府（本片 4 处）。'),
+    Entity('中枢', modes=('wuwa-ja',), en='Nexus', ja='中数', ko='', category='术语/鸣潮2.4七丘', variants=(), ctx=(('中数', '中间的数字'), ('中数', '中间数字'), ('中数', '大仲苏')), exclude=(), note='七丘/黎那汐塔的设施中枢（17173《主线概览》「你与露帕一同前往**岩间中枢**」）。ASR 把 中枢(ちゅうすう) 咬成同音 中数，谷翻直译成「中间的数字/大仲苏」。⚠ 走 ctx（「数字」是常用词）。'),
+    Entity('特克斯', modes=('wuwa-ja',), en='Tex', ja='テクス', ko='', category='角色/鸣潮2.4七丘（音译待考）', variants=('北德克萨斯', 'Tex'), ctx=(), exclude=(), note='鸣潮 2.4 七丘剧情人物（当时的**总督之子**，雕像原型）。⚠ 官方中文名**未查证**，沿用谷翻自产音译「特克斯」；「北德克萨斯」（北 Texas）是误译，英文残留 Tex 一并归一。'),
+    Entity('奥古斯塔', modes=('wuwa-ja',), en='Augusta', ja='オーガスタ', ko='', category='角色/鸣潮2.x', variants=('奥古斯特',), ctx=(('オーガスタ|おおがさ', '小笠'), ('オーガスタ|おおがさ', '大笠')), exclude=(), note='鸣潮 2.x 七丘总督奥古斯塔（18183《尤诺》「向总督奥古斯塔指控」；3.x 实装 5★）。日 オーガスタ。谷翻作「奥古斯特」，官方用字为「奥古斯塔」。2026-10-30 补：ASR おおがさ 被谷翻成 小笠/大笠（#605/#623），走日语锚定。'),
     Entity('玄方', modes=('bi',), en='Xuan / Schwan', ja='', ko='', category='地名/鸣潮3.7', variants=('Schwang', 'Schwan', '施万方', '施旺丰', '施万', '施旺', '方旺'), ctx=(), exclude=(), note="梦州·玄方地界（3.5 上线，3.7 玄方篇收官）。英文服作 Xuan（ASR 常咬成 Schwan/Schwang），谷翻音译残留『施万/施旺/方旺』系（施万方堡/施旺丰堡→玄方城，见 Entity('玄方城')）。⚠ 裸键『施万/施旺』须短于『施万丰/施万夫/施万方堡』等长键，靠长键先行防半截替换。"),
     Entity('溯心', modes=('bi',), en='Suxin', ja='', ko='', category='角色/岁主·鸣潮3.7', variants=('Susheen', 'susheen', 'Sushin', 'Sushun'), ctx=(('\\bSuxin\\b|\\bSusheen\\b|\\bSushin\\b|\\bSushun\\b', '苏珊'), ('\\bSuxin\\b|\\bSusheen\\b|\\bSushin\\b|\\bSushun\\b', '寿司')), exclude=(), note="天罗狐影异变体（3.7 精校报告核心术语表）。ASR 把 Suxin 咬成 Susheen/Sushin/Sushun/Sushi；谷翻按字面出'苏珊'(Susan)/'寿司'(sushi)。戒律：'苏珊/寿司'均常用词，绝不裸键，只走参考行 Suxin/Susheen/Sushin/Sushun 系锚定；⚠ ASR 变体 'Sushi' 与真食物寿司同形，已从佐证正则剔除（2026-10-05 实测'I love eating sushi'被误改成'溯心'）：宁可漏改被咬成 sushi 的溯心，不可误伤食物语境；英文残留 Susheen/Sushin/Sushun 生僻，裸键安全。"),
     Entity('御者', modes=('bi',), en='Arbiter', ja='', ko='', category='称号/术语·鸣潮3.7', variants=('Abiter',), ctx=(('\\bArbiter\\b|\\bAbiter\\b|\\bAlberta\\b', '仲裁者'), ('\\bArbiter\\b|\\bAbiter\\b|\\bAlberta\\b', '仲裁员'), ('\\bArbiter\\b|\\bAbiter\\b|\\bAlberta\\b', '阿尔伯塔')), exclude=(), note="3.7 心对漂泊者的称呼，官方中文=御者（韩语模式 어자->御者 已沉淀）。本轮用户裁决：BILINGUAL_TERMS 旧映射 Arbiter->'仲裁者' 已改 '御者'。ASR 变体 Abiter/Alberta；谷翻出'仲裁者/仲裁员/阿尔伯塔'(Alberta=加拿大省)，均歧义走 ctx；英文残留 Abiter 生僻裸键，Arbiter 裸键已在扁平表(->御者)。"),
@@ -14279,36 +14329,36 @@ ENTITIES = [
     Entity('玄方', modes=('bi',), en='Xuan / Schwan', ja='', ko='', category='地名/鸣潮3.7', variants=(), ctx=(('\\bShenfang\\b', '申方'),), exclude=(), note="英文残留补录（第二部片）：Shenfang 为 Xuanfang/Schwan 的 ASR 音近形，谷翻'申方'，走参考行锚定。"),
     Entity('瑝珑', modes=('bi',), en='Huanglong', ja='', ko='', category='地名/鸣潮', variants=(), ctx=(('\\bHong Lang\\b|\\bHuanglong\\b', '洪朗'),), exclude=(), note="英文残留补录（第二部片 #175）：Hong Lang 为 Huanglong 的 ASR 形，谷翻'洪朗'，走参考行锚定（正则同时容纳修正后 Huanglong）；英文行走 EN_LINE 组合键。"),
     Entity('菈梵朵玛', modes=('bi', 'endo'), en='La Fantoma / La Fantôme', ja='', ko='', category='地名/终末地', variants=('La Fantoma', 'La Fantôme', 'La Fant ome', 'LaFantoma', '拉法尔', '幻想城', '拉环朵玛'), ctx=(), exclude=(), note="终末地塔卫二文明环带滨海度假城市，环塔商会核心城市，'自由市'。官方中文=菈梵朵玛（endfield.wiki.gg 多语对照 Chinese=菈梵朵玛；官方知识库作'拉环朵玛自由市'，两者并存，反应片字幕取 wiki 全条目写法菈梵朵玛）。⚠ 裸键 'La Fant' 不入表（法语冠词误伤风险），只收完整形态；主播语境常说 La Fantome=夏日度假城市，与泰拉汐斯塔对应。"),
-    Entity('终末地蓬蓬', modes=('endo', 'endobi'), en='Peng Peng / Endfield Pengpeng', ja='', ko='', category='官号/终末地', variants=('蓬蓬干员', 'Peng peng', 'Peng Peng', '乒乓球', '乒乓', 'Ping Pong', 'Pingpong'), ctx=(), exclude=(), note="《明日方舟：终末地》官方运营/幕后分享账号（微博/B站/知乎同名'终末地蓬蓬'），发干员采访问答（'蓬蓬采访'系列）、EP下架公告、前瞻精华等幕后内容。英文 ASR 听成 'Peng Peng'，谷翻常作'乒乓/Ping Pong'；'特别干员问答'=蓬蓬的干员采访栏目。⚠ 裸键'乒乓'危险（真实乒乓球运动语境），只收组合形态，单字场景走逐 cue 侧车。2026-10-23 收窄到 endo/endobi：bi 模式下'ping pong' 被谷翻作'乒乓球'，曾误改成'终末地蓬蓬'（鸣潮 OST reaction 片#174，EchoBoy 乒乓延迟）；该语境改由 CONTEXT_MAP 锚定'乒乓延迟'。"),
-    Entity('祀', modes=('endobi',), en='Si', ja='スー', ko='', category='角色/终末地1.6', variants=(), ctx=(), exclude=(), note='六星寒冷辅助，巨兽「岁」的第十三位代理人，缘缘庄掌柜；官方干员叙事《祀：洒扫庭除》。英文名 Si，日文名「スー」；ASR 常作 Su/Sue/Lady Sa，谷翻作苏姑娘/苏女士/圣母/萨夫人，规则见 ENDFIELD_BI_CONTEXT。⚠ 裸 S 走 ENDFIELD_BI_CONTEXT 的「S+中文」组合形（S是/S就/S 需要），不可写成裸键 S——str.replace 会把同 cue 的 Boss 咬成 Bo祀。'),
-    Entity('缘缘庄', modes=('endobi',), en='Yuanyuan Manor / Enishi Manor', ja='', ko='', category='地点/终末地1.6', variants=(), ctx=(), exclude=(), note='1.6「烟火生缘」乡间客栈，位于武陵·祀的画；官方宣传语「缘缘庄，可是塔卫二最好的客栈」。英文 ASR 常作 Eso/Enishi/Manor，谷翻作埃索/严府/萨庄/雅虎庄园等，规则见 ENDFIELD_BI_CONTEXT。'),
-    Entity('阿咬', modes=('endobi',), en='Bitey', ja='', ko='', category='生物/终末地1.6', variants=(), ctx=(), exclude=(), note='墨魉，画家祀取名；官方中文名阿咬（Arknights Terra Wiki Bitey）。本片英文 ASR 作 Bitey/shoe umbrella，谷翻作咬咬/鞋伞。'),
-    Entity('巨兽代理人', modes=('endobi',), en='Feranmut Proxy', ja='', ko='', category='设定/终末地', variants=(), ctx=(), exclude=(), note='EN 官方称 Si 为 Feranmut Proxy；中文官方称谓巨兽代理人（官网干员页）。ASR 常把 Proxy 读成 second person，谷翻作第二个人/第二个。'),
-    Entity('副本', modes=('endobi',), en='Dungeon', ja='', ko='', category='玩法/终末地', variants=(), ctx=(('\\bdungeons?\\b', '地牢'),), exclude=(), note='终末地可重复挑战内容的中文通称「副本」；谷翻一律直译「地牢」。「地牢」是通用词（奇幻地牢），只走英文 dungeon 锚定。'),
-    Entity('速通', modes=('endobi',), en='Speedrun', ja='', ko='', category='术语', variants=(), ctx=(('\\bspeed\\s?(?:run|un)s?\\b', '速腾'),), exclude=(), note='speedrun 被谷翻按大众车型译成「速腾」；「速腾」是真实车名，只走英文锚定。'),
-    Entity('墨魂', modes=('endobi',), en='Ink Spirit', ja='', ko='', category='机制/祀', variants=(), ctx=(('\\bink\\s?saw\\b', '墨锯'),), exclude=(), note='祀核心机制「墨魂」（Ink Spirit）；ASR 把 ink soul 听成 ink saw，谷翻作「墨锯」。⚠ 裸键「灵魂」已于 2026-10-20 撤除，仍只走英文锚定。'),
-    Entity('别礼', modes=('endobi',), en='Last Rite', ja='', ko='', category='角色/终末地', variants=('Last Rite',), ctx=(('believe in (?:last\\b|last\\s+rite\\b)', '最后'), ('believe in (?:last\\b|last\\s+rite\\b)', '这套')), exclude=(), note='Last Rite 官方中文=别礼。ASR 把 Last Rite 听成 last，谷翻按普通词译「最后/这套」；「最后」是通用词，只在 believe in last 语境锚定，绝不收裸键 last。'),
-    Entity('诀', modes=('endobi',), en='Arcane', ja='', ko='', category='角色/终末地', variants=(), ctx=(('i think a king|a king should go first', '国王'),), exclude=(), note='Arcane 官方中文=诀。本片 ASR 把 Arcane 听成 a king，谷翻译「国王」；「国王」是通用词，只在 I think a king / A king should go first 语境锚定；既有的 arcan(e|a)->奥术 ctx 保留。'),
-    Entity('技能提升奖章', modes=('endobi',), en='Skill Medal', ja='', ko='', category='蚀刻章/终末地', variants=('技能勋章', '技能奖章', '技能提升勋章'), ctx=(), exclude=(), note='官方蚀刻章名「技能提升奖章」（升满 20 个专精的技能类奖章）；机翻/口语常作技能勋章/技能奖章，均为特定错形，可进裸键。'),
-    Entity('危机合约', modes=('endobi',), en='Crisis Drill / Crisis Contract', ja='', ko='', category='玩法/终末地', variants=(), ctx=(('crisis\\s+drill|crisis\\s+contract', '危机演习'),), exclude=(), note="终末地官方高难玩法「危机合约」；本片 ASR 作 crisis drill，谷翻译「危机演习」。「危机演习」是特定错形，但仍以英文 crisis drill/contract 锚定，避免泛化。2026-10-25 多游戏 --react 片源（Gacha Tier List）8 处 CC 用侧车改；#2401 NIKKE 段 'Okay, CC' 是反例，不能套用方舟危机合约规则。"),
-    Entity('易伤区域', modes=('endobi',), en='Vulnerability Zone', ja='', ko='', category='机制/重伤之围', variants=(), ctx=(('ink\\s?saw.{0,40}\\bring\\b', '环内'), ('ink\\s?saw.{0,40}\\bring\\b', '圈内'), ('ink\\s?saw.{0,40}\\bring\\b', '圈里')), exclude=(), note='「重伤之围」场地机制：易伤区域使敌人受到的伤害逐渐增加。ASR「ink saw in the ring」指墨魂在易伤区域内；ring 是通用词，只在 ink saw 语境锚定。'),
-    Entity('重伤之围', modes=('endobi',), en='Grievously Besieged', ja='', ko='', category='关卡/战争回响', variants=(), ctx=(), exclude=(), note='「战争回响 - 异想赛季」轮换关卡；Grievously Besieged 官方中文=重伤之围。本片 6:12 段落即该关卡；纯元数据，无错形规则。'),
-    Entity('聂菲斯', modes=('endobi',), en='Nefarith', ja='', ko='', category='BOSS/终末地', variants=('奈弗雷特',), ctx=(), exclude=(), note='危境再现「危境祸影」BOSS；官方中文=聂菲斯。本片 0:00 段落。2026-11-17 本片三校补变体：英文 ASR 拼写 Neferet、谷翻音译「奈弗雷特」。'),
-    Entity('幽林之怒', modes=('endobi',), en="Gloomwald's Rage", ja='', ko='', category='BOSS/终末地', variants=(), ctx=(), exclude=(), note='1.5「雪凇幽梦」区域 BOSS；官方中文=幽林之怒。本片 3:07 段落。纯元数据，无错形规则。'),
-    Entity('三位一体', modes=('endo', 'endobi'), en='Triaggelos', ja='', ko='', category='BOSS/终末地1.7', variants=('特里亚戈洛斯',), ctx=(), exclude=(), note='1.7 起加入影拓丰碑轮换的首领；官方简中=三位一体（内部名 eny_0045_agtrinit）。本片谷翻按英文音译成「特里亚戈洛斯」。'),
-    Entity('阮一', modes=('endo', 'endobi'), en='Ruan Yi', ja='', ko='', category='敌人首领/终末地', variants=('鲁阿尼',), ctx=(), exclude=(), note='终末地首领战敌人；官方简中=阮一（warfarin.wiki 敌人表同形）。本片英文 ASR 拼写 Ruani，谷翻音译「鲁阿尼」。'),
-    Entity('金绒树', modes=('endo', 'endobi'), en='Golden Branch', ja='', ko='', category='地点/终末地1.7', variants=('金流苏',), ctx=(), exclude=(), note='白垩洲巨型树木，官方中配「金绒树」；英文 UI GOLDEN BRANCH。⚠ 不与边狱公司「金枝」（golden bough）共用裸键；金枝只在 golden branch 英文锚定下改。'),
-    Entity('明晦炉', modes=('endo', 'endobi'), en='', ja='', ko='', category='设施/终末地1.7', variants=('明晖炉', '明慧炉'), ctx=(), exclude=(), note='1.7 阵列科技设施，官方中文口径「明晦炉」（脚本既有；B站基建总结写「明晖炉」，按变体处理）。官方英文名未公布，en 留空。'),
-    Entity('明晦赤铜矿', modes=('endo', 'endobi'), en='', ja='', ko='', category='资源/终末地1.7', variants=('明晖赤铜矿',), ctx=(), exclude=(), note='明晦炉随机转化产物（B站基建总结写「明晖赤铜矿」）；与明晦炉同字符口径，待官方 UI 最终核实。'),
-    Entity('息壤气', modes=('endo', 'endobi'), en='', ja='', ko='', category='资源/终末地', variants=(), ctx=(), exclude=(), note='明晦炉接入后激活阵法的气体资源；官方中文「息壤气」。纯元数据，无错形规则。'),
-    Entity('持阵法', modes=('endo', 'endobi'), en='Sustained Array', ja='', ko='', category='机制/终末地1.7', variants=(), ctx=(), exclude=(), note='明晦炉 5×5 区域周期执行的阵法；官方中文「持阵法」。不收裸「持阵」（通用词）。'),
-    Entity('集成核心区域', modes=('endo', 'endobi'), en='Integrated Core Area', ja='', ko='', category='地点/终末地1.7', variants=(), ctx=(), exclude=(), note='1.7 新开放、与武陵城同级的集成核心地块；官方中文「集成核心区域」。⚠ 不收「集成核心区」短变体：它是正确名的子串，直接替换会产出「区域域」。'),
-    Entity('妙趣游乐', modes=('endo', 'endobi'), en='Games of Wonder', ja='', ko='', category='玩法/终末地1.7', variants=('妙趣横乐',), ctx=(), exclude=(), note='1.7 新打牌/联机玩法；画面英文 Games of Wonder，官方中文「妙趣游乐」。⚠ 勿改作「妙趣横乐」。'),
-    Entity('破碎协议', modes=('endo', 'endobi'), en='Shattered Protocol', ja='', ko='', category='玩法/终末地1.7', variants=(), ctx=(), exclude=(), note='高随机性大型肉鸽玩法；画面英文 Shattered Protocol，官方中文「破碎协议」。本片 SRT 的 RoC strategy 即此模式（不是妙趣游乐）。'),
-    Entity('致幻孢子', modes=('endo', 'endobi'), en='', ja='', ko='', category='设定/终末地1.7', variants=(), ctx=(), exclude=(), note='蘑境幻境来源；官方中配「致幻孢子」。纯元数据，无错形规则。'),
-    Entity('蜜饼', modes=('endo', 'endobi'), en='', ja='', ko='', category='食物/终末地', variants=(), ctx=(), exclude=(), note='小刻最爱的食物；官方中配「蜜饼」。纯元数据，无错形规则。'),
-    Entity('泰拉之海', modes=('endo', 'endobi'), en='', ja='', ko='', category='地名/终末地', variants=('泰拉的海洋',), ctx=(), exclude=(), note='《塔卫二：一号简报》旁白的海域概念，脚本既有官方口径「泰拉之海」；B站文字「泰拉的海洋」作为变体归一。'),
-    Entity('南大洋', modes=('endo', 'endobi'), en='Southern Ocean', ja='', ko='', category='地名/终末地', variants=(), ctx=(), exclude=(), note='《塔卫二：一号简报》南方海域；官方中文「南大洋」。纯元数据，无错形规则。'),
+    Entity('终末地蓬蓬', modes=('endo', 'endo-bi'), en='Peng Peng / Endfield Pengpeng', ja='', ko='', category='官号/终末地', variants=('蓬蓬干员', 'Peng peng', 'Peng Peng', '乒乓球', '乒乓', 'Ping Pong', 'Pingpong'), ctx=(), exclude=(), note="《明日方舟：终末地》官方运营/幕后分享账号（微博/B站/知乎同名'终末地蓬蓬'），发干员采访问答（'蓬蓬采访'系列）、EP下架公告、前瞻精华等幕后内容。英文 ASR 听成 'Peng Peng'，谷翻常作'乒乓/Ping Pong'；'特别干员问答'=蓬蓬的干员采访栏目。⚠ 裸键'乒乓'危险（真实乒乓球运动语境），只收组合形态，单字场景走逐 cue 侧车。2026-10-23 收窄到 endo/endobi：bi 模式下'ping pong' 被谷翻作'乒乓球'，曾误改成'终末地蓬蓬'（鸣潮 OST reaction 片#174，EchoBoy 乒乓延迟）；该语境改由 CONTEXT_MAP 锚定'乒乓延迟'。"),
+    Entity('祀', modes=('endo-bi',), en='Si', ja='スー', ko='', category='角色/终末地1.6', variants=(), ctx=(), exclude=(), note='六星寒冷辅助，巨兽「岁」的第十三位代理人，缘缘庄掌柜；官方干员叙事《祀：洒扫庭除》。英文名 Si，日文名「スー」；ASR 常作 Su/Sue/Lady Sa，谷翻作苏姑娘/苏女士/圣母/萨夫人，规则见 ENDFIELD_BI_CONTEXT。⚠ 裸 S 走 ENDFIELD_BI_CONTEXT 的「S+中文」组合形（S是/S就/S 需要），不可写成裸键 S——str.replace 会把同 cue 的 Boss 咬成 Bo祀。'),
+    Entity('缘缘庄', modes=('endo-bi',), en='Yuanyuan Manor / Enishi Manor', ja='', ko='', category='地点/终末地1.6', variants=(), ctx=(), exclude=(), note='1.6「烟火生缘」乡间客栈，位于武陵·祀的画；官方宣传语「缘缘庄，可是塔卫二最好的客栈」。英文 ASR 常作 Eso/Enishi/Manor，谷翻作埃索/严府/萨庄/雅虎庄园等，规则见 ENDFIELD_BI_CONTEXT。'),
+    Entity('阿咬', modes=('endo-bi',), en='Bitey', ja='', ko='', category='生物/终末地1.6', variants=(), ctx=(), exclude=(), note='墨魉，画家祀取名；官方中文名阿咬（Arknights Terra Wiki Bitey）。本片英文 ASR 作 Bitey/shoe umbrella，谷翻作咬咬/鞋伞。'),
+    Entity('巨兽代理人', modes=('endo-bi',), en='Feranmut Proxy', ja='', ko='', category='设定/终末地', variants=(), ctx=(), exclude=(), note='EN 官方称 Si 为 Feranmut Proxy；中文官方称谓巨兽代理人（官网干员页）。ASR 常把 Proxy 读成 second person，谷翻作第二个人/第二个。'),
+    Entity('副本', modes=('endo-bi',), en='Dungeon', ja='', ko='', category='玩法/终末地', variants=(), ctx=(('\\bdungeons?\\b', '地牢'),), exclude=(), note='终末地可重复挑战内容的中文通称「副本」；谷翻一律直译「地牢」。「地牢」是通用词（奇幻地牢），只走英文 dungeon 锚定。'),
+    Entity('速通', modes=('endo-bi',), en='Speedrun', ja='', ko='', category='术语', variants=(), ctx=(('\\bspeed\\s?(?:run|un)s?\\b', '速腾'),), exclude=(), note='speedrun 被谷翻按大众车型译成「速腾」；「速腾」是真实车名，只走英文锚定。'),
+    Entity('墨魂', modes=('endo-bi',), en='Ink Spirit', ja='', ko='', category='机制/祀', variants=(), ctx=(('\\bink\\s?saw\\b', '墨锯'),), exclude=(), note='祀核心机制「墨魂」（Ink Spirit）；ASR 把 ink soul 听成 ink saw，谷翻作「墨锯」。⚠ 裸键「灵魂」已于 2026-10-20 撤除，仍只走英文锚定。'),
+    Entity('别礼', modes=('endo-bi',), en='Last Rite', ja='', ko='', category='角色/终末地', variants=('Last Rite',), ctx=(('believe in (?:last\\b|last\\s+rite\\b)', '最后'), ('believe in (?:last\\b|last\\s+rite\\b)', '这套')), exclude=(), note='Last Rite 官方中文=别礼。ASR 把 Last Rite 听成 last，谷翻按普通词译「最后/这套」；「最后」是通用词，只在 believe in last 语境锚定，绝不收裸键 last。'),
+    Entity('诀', modes=('endo-bi',), en='Arcane', ja='', ko='', category='角色/终末地', variants=(), ctx=(('i think a king|a king should go first', '国王'),), exclude=(), note='Arcane 官方中文=诀。本片 ASR 把 Arcane 听成 a king，谷翻译「国王」；「国王」是通用词，只在 I think a king / A king should go first 语境锚定；既有的 arcan(e|a)->奥术 ctx 保留。'),
+    Entity('技能提升奖章', modes=('endo-bi',), en='Skill Medal', ja='', ko='', category='蚀刻章/终末地', variants=('技能勋章', '技能奖章', '技能提升勋章'), ctx=(), exclude=(), note='官方蚀刻章名「技能提升奖章」（升满 20 个专精的技能类奖章）；机翻/口语常作技能勋章/技能奖章，均为特定错形，可进裸键。'),
+    Entity('危机合约', modes=('endo-bi',), en='Crisis Drill / Crisis Contract', ja='', ko='', category='玩法/终末地', variants=(), ctx=(('crisis\\s+drill|crisis\\s+contract', '危机演习'),), exclude=(), note="终末地官方高难玩法「危机合约」；本片 ASR 作 crisis drill，谷翻译「危机演习」。「危机演习」是特定错形，但仍以英文 crisis drill/contract 锚定，避免泛化。2026-10-25 多游戏 --react 片源（Gacha Tier List）8 处 CC 用侧车改；#2401 NIKKE 段 'Okay, CC' 是反例，不能套用方舟危机合约规则。"),
+    Entity('易伤区域', modes=('endo-bi',), en='Vulnerability Zone', ja='', ko='', category='机制/重伤之围', variants=(), ctx=(('ink\\s?saw.{0,40}\\bring\\b', '环内'), ('ink\\s?saw.{0,40}\\bring\\b', '圈内'), ('ink\\s?saw.{0,40}\\bring\\b', '圈里')), exclude=(), note='「重伤之围」场地机制：易伤区域使敌人受到的伤害逐渐增加。ASR「ink saw in the ring」指墨魂在易伤区域内；ring 是通用词，只在 ink saw 语境锚定。'),
+    Entity('重伤之围', modes=('endo-bi',), en='Grievously Besieged', ja='', ko='', category='关卡/战争回响', variants=(), ctx=(), exclude=(), note='「战争回响 - 异想赛季」轮换关卡；Grievously Besieged 官方中文=重伤之围。本片 6:12 段落即该关卡；纯元数据，无错形规则。'),
+    Entity('聂菲斯', modes=('endo-bi',), en='Nefarith', ja='', ko='', category='BOSS/终末地', variants=('奈弗雷特',), ctx=(), exclude=(), note='危境再现「危境祸影」BOSS；官方中文=聂菲斯。本片 0:00 段落。2026-11-17 本片三校补变体：英文 ASR 拼写 Neferet、谷翻音译「奈弗雷特」。'),
+    Entity('幽林之怒', modes=('endo-bi',), en="Gloomwald's Rage", ja='', ko='', category='BOSS/终末地', variants=(), ctx=(), exclude=(), note='1.5「雪凇幽梦」区域 BOSS；官方中文=幽林之怒。本片 3:07 段落。纯元数据，无错形规则。'),
+    Entity('三位一体', modes=('endo', 'endo-bi'), en='Triaggelos', ja='', ko='', category='BOSS/终末地1.7', variants=('特里亚戈洛斯',), ctx=(), exclude=(), note='1.7 起加入影拓丰碑轮换的首领；官方简中=三位一体（内部名 eny_0045_agtrinit）。本片谷翻按英文音译成「特里亚戈洛斯」。'),
+    Entity('阮一', modes=('endo', 'endo-bi'), en='Ruan Yi', ja='', ko='', category='敌人首领/终末地', variants=('鲁阿尼',), ctx=(), exclude=(), note='终末地首领战敌人；官方简中=阮一（warfarin.wiki 敌人表同形）。本片英文 ASR 拼写 Ruani，谷翻音译「鲁阿尼」。'),
+    Entity('金绒树', modes=('endo', 'endo-bi'), en='Golden Branch', ja='', ko='', category='地点/终末地1.7', variants=('金流苏',), ctx=(), exclude=(), note='白垩洲巨型树木，官方中配「金绒树」；英文 UI GOLDEN BRANCH。⚠ 不与边狱公司「金枝」（golden bough）共用裸键；金枝只在 golden branch 英文锚定下改。'),
+    Entity('明晦炉', modes=('endo', 'endo-bi'), en='', ja='', ko='', category='设施/终末地1.7', variants=('明晖炉', '明慧炉'), ctx=(), exclude=(), note='1.7 阵列科技设施，官方中文口径「明晦炉」（脚本既有；B站基建总结写「明晖炉」，按变体处理）。官方英文名未公布，en 留空。'),
+    Entity('明晦赤铜矿', modes=('endo', 'endo-bi'), en='', ja='', ko='', category='资源/终末地1.7', variants=('明晖赤铜矿',), ctx=(), exclude=(), note='明晦炉随机转化产物（B站基建总结写「明晖赤铜矿」）；与明晦炉同字符口径，待官方 UI 最终核实。'),
+    Entity('息壤气', modes=('endo', 'endo-bi'), en='', ja='', ko='', category='资源/终末地', variants=(), ctx=(), exclude=(), note='明晦炉接入后激活阵法的气体资源；官方中文「息壤气」。纯元数据，无错形规则。'),
+    Entity('持阵法', modes=('endo', 'endo-bi'), en='Sustained Array', ja='', ko='', category='机制/终末地1.7', variants=(), ctx=(), exclude=(), note='明晦炉 5×5 区域周期执行的阵法；官方中文「持阵法」。不收裸「持阵」（通用词）。'),
+    Entity('集成核心区域', modes=('endo', 'endo-bi'), en='Integrated Core Area', ja='', ko='', category='地点/终末地1.7', variants=(), ctx=(), exclude=(), note='1.7 新开放、与武陵城同级的集成核心地块；官方中文「集成核心区域」。⚠ 不收「集成核心区」短变体：它是正确名的子串，直接替换会产出「区域域」。'),
+    Entity('妙趣游乐', modes=('endo', 'endo-bi'), en='Games of Wonder', ja='', ko='', category='玩法/终末地1.7', variants=('妙趣横乐',), ctx=(), exclude=(), note='1.7 新打牌/联机玩法；画面英文 Games of Wonder，官方中文「妙趣游乐」。⚠ 勿改作「妙趣横乐」。'),
+    Entity('破碎协议', modes=('endo', 'endo-bi'), en='Shattered Protocol', ja='', ko='', category='玩法/终末地1.7', variants=(), ctx=(), exclude=(), note='高随机性大型肉鸽玩法；画面英文 Shattered Protocol，官方中文「破碎协议」。本片 SRT 的 RoC strategy 即此模式（不是妙趣游乐）。'),
+    Entity('致幻孢子', modes=('endo', 'endo-bi'), en='', ja='', ko='', category='设定/终末地1.7', variants=(), ctx=(), exclude=(), note='蘑境幻境来源；官方中配「致幻孢子」。纯元数据，无错形规则。'),
+    Entity('蜜饼', modes=('endo', 'endo-bi'), en='', ja='', ko='', category='食物/终末地', variants=(), ctx=(), exclude=(), note='小刻最爱的食物；官方中配「蜜饼」。纯元数据，无错形规则。'),
+    Entity('泰拉之海', modes=('endo', 'endo-bi'), en='', ja='', ko='', category='地名/终末地', variants=('泰拉的海洋',), ctx=(), exclude=(), note='《塔卫二：一号简报》旁白的海域概念，脚本既有官方口径「泰拉之海」；B站文字「泰拉的海洋」作为变体归一。'),
+    Entity('南大洋', modes=('endo', 'endo-bi'), en='Southern Ocean', ja='', ko='', category='地名/终末地', variants=(), ctx=(), exclude=(), note='《塔卫二：一号简报》南方海域；官方中文「南大洋」。纯元数据，无错形规则。'),
     Entity('心', modes=('bi',), en='Hsin / Shin', ja='', ko='', category='角色/岁主·鸣潮3.7', variants=('心月狐骨', 'Sheena', 'Shina'), ctx=(('\\btwo shins?\\b|\\bshins?\\b', '小腿'), ('\\bChin\\b', '下巴')), exclude=(), note='3.7 五星导电音感仪、梦州岁主、梦州文明引导者，官方角色名单字「心」（CV 菊花花）；「心月狐」为岁主全称/狐狸形态称谓（旧实体保留，二者勿互删）。谷翻把 Shin 错拆成「心月狐骨」（cue332/335，绝无歧义，裸键->心）；two shins 按 shin(胫骨) 译「小腿」、Chin 按 chin(下巴) 译「下巴」，均极常用词，只走参考行 shin/Chin 锚定改「心」，绝不裸键（\\bChin\\b 词边界不会咬进 Chinshi 等串）。⚠ 旧 ctx 有 Shin->心月狐（错形 申/辛/胫），与本条（错形 小腿/下巴->心）错形不同可共存；人工精修按语境在「心/心月狐」间取舍。2026-11-06《I Played 300 Days》二校扩 Sheena/Shina 裸键（微软翻译通道 ASR 形；Sheena 亦《最终幻想X-2》主角、Shina 北野武「菊次郎」片常见拼写，**跨游戏片慎用**，鸣潮 bi 片内出现即心）；岁主本体语境仍走 the Moon Fox/Sheen->心月狐。'),
     Entity('角', modes=('bi',), en='Jue / JER / Jerame', ja='', ko='', category='角色/岁主·鸣潮3.7', variants=('杰拉姆',), ctx=(('\\bJer\\b', '杰尔'), ('\\bJouer\\b', '乔尔'), ('^(?!.*\\b2B\\b).*\\b2A\\b', '2A')), exclude=(), note='梦州另一位说话岁主「角」（英 Jue/Jué，CV 黄莺）。ASR 把 Jue 咬成 JER/Jerame，谷翻音译「杰拉姆」（cue246/251，生僻裸键->角）；JER 为英文行呼语残留（默认不改英文行）。旧实体 ctx（Jue 锚定 朱->角）保留。'),
     Entity('梦州', modes=('bi',), en='Mengzhou / Mongol', ja='', ko='', category='地名/鸣潮3.7', variants=('蒙古人',), ctx=(), exclude=(), note='ASR 把 Mengzhou 咬成 mongol，谷翻作「蒙古人」（cue420「将梦州沐浴在银光之中」）；鸣潮 bi 片源内出现即梦州，沿 Mongo/Mango/MJO->梦州 先例裸键（真实蒙古族语境不属鸣潮片；只收「蒙古人」，单「蒙古」过短不收）。'),
@@ -14428,7 +14478,7 @@ ENTITIES = [
     Entity('预言家', modes=('ak',), en='Oracle', ja='', ko='', category='角色/明日方舟', variants=(), ctx=(('(?i)\\bOracle\\b', '神谕者'), ('(?i)\\bOracle\\b', '先知')), exclude=(), note="博士前身份；官方中文=预言家（非神谕者）。'先知'是普通词，仅在 Oracle 佐证时替换。"),
     Entity('科西切', modes=('ak',), en='Koschei', ja='', ko='', category='角色/明日方舟', variants=('科谢伊', '科西杰', '科希切'), ctx=(), exclude=(), note="'不死的黑蛇'；官方中文=科西切（Koschei the Deathless Black Snake）。三种音译均为低频专名错形，可裸键。"),
     Entity('费德里科', modes=('ak',), en='Federico', ja='', ko='', category='角色/明日方舟', variants=(), ctx=(('(?i)\\bFederico\\b', '费德里克'), ('(?i)\\b(?:Federico|Frederico)\\b', '弗雷德里克')), exclude=(), note="拉特兰执行者，全名费德里科·吉亚洛；官方中文=费德里科。'费德里克/弗雷德里克'是常见西名音译，只走英文参考行锚定。"),
-    Entity('庄方宜', modes=('jpe', 'react'), en='Zhuang Fangyi', ja='', ko='', category='角色/终末地', variants=('Zhuang Fang Yi', 'Zhuang Fangyi', 'Zhuang FangYi', '庄芳怡'), ctx=(), exclude=(), note='终末地角色；endo_glossary.tsv:62；2026-10-25 二校 #1672；2026-10-26 四校 #1693 ASR Fungi=Fangyi（不设裸键）。'),
+    Entity('庄方宜', modes=('endo-ja', 'react'), en='Zhuang Fangyi', ja='', ko='', category='角色/终末地', variants=('Zhuang Fang Yi', 'Zhuang Fangyi', 'Zhuang FangYi', '庄芳怡'), ctx=(), exclude=(), note='终末地角色；endo_glossary.tsv:62；2026-10-25 二校 #1672；2026-10-26 四校 #1693 ASR Fungi=Fangyi（不设裸键）。'),
     Entity('少女前线', modes=('react',), en="Girls' Frontline", ja='', ko='', category='作品/游戏', variants=('少女前线1',), ctx=(), exclude=(), note='官方无「1」；GFL1 是视频分章标识；2026-10-25 二校 #1640。'),
     Entity('TRUE FIREPOWER', modes=('react',), en='TRUE FIREPOWER', ja='', ko='', category='曲目/NIKKE', variants=('True Fire Power', 'True Firepower', 'True Fire power'), ctx=(), exclude=(), note='NIKKE 曲名官方全大写；无官方中文，保留英文；视频信息 02:38。'),
     Entity('BATTLEPLAN ARCLIGHT', modes=('react',), en='BATTLEPLAN ARCLIGHT', ja='', ko='', category='曲目/明日方舟', variants=('Battleplan Arclight', 'Battleplan arclight'), ctx=(), exclude=(), note='PRTS 危机合约弧光作战OST；官方全大写；2026-10-25 二校 #2023。'),
@@ -14445,7 +14495,7 @@ ENTITIES = [
     Entity('Sing For The Queen', modes=('react',), en='Sing For The Queen', ja='', ko='', category='曲目/NIKKE', variants=(), ctx=(), exclude=(), note='官方曲名；ASR Hail the Queen 是误记，逐 cue 处理，不设裸键。'),
     Entity('Within Temptation', modes=('react',), en='Within Temptation', ja='', ko='', category='音乐人/乐队', variants=(), ctx=(), exclude=(), note='乐队名保留英文，不加书名号；2026-10-25 二校 #2588/#2603。'),
     Entity('Red Ash', modes=('react',), en='Red Ash', ja='', ko='', category='曲目/NIKKE', variants=(), ctx=(), exclude=(), note='曲名保留英文，中文行加《》；2026-10-25 二校 #210。'),
-    Entity('雪凇幽梦', modes=('endobi',), en='Dreamscape Winter Snow', ja='', ko='', category='版本/终末地', variants=(), ctx=(), exclude=(), note='终末地 1.5 版本名，官方中文；2026-10-25 二校 #1904。'),
+    Entity('雪凇幽梦', modes=('endo-bi',), en='Dreamscape Winter Snow', ja='', ko='', category='版本/终末地', variants=(), ctx=(), exclude=(), note='终末地 1.5 版本名，官方中文；2026-10-25 二校 #1904。'),
     Entity('全球总决赛', modes=('react',), en='Worlds', ja='', ko='', category='赛事/英雄联盟', variants=(), ctx=(), exclude=(), note='Worlds=英雄联盟全球总决赛；2026-10-25 二校 #752/#753；不设裸变体。'),
     Entity('赞颂的回声', modes=('react',), en='Glory Reclaimed', ja='', ko='', category='曲目/重返未来1999', variants=('Glory Reclaimed',), ctx=(), exclude=(), note='R99 官方 EP《赞颂的回声 Glory Reclaimed》；2026-10-25/26 #130/#131/#1252。'),
     Entity('为惑·一', modes=('react',), en='Bewildered Heart I', ja='', ko='', category='曲目/重返未来1999', variants=('Bewildered Heart I', 'Bewildered Heart Ⅰ', 'Bewildered Heart1'), ctx=(), exclude=(), note='R99 中文维基 OST；官方 Ⅰ/Ⅱ 两版，只收带数字变体，不收裸名。'),
@@ -14478,111 +14528,111 @@ ENTITIES = [
     Entity('黑石', modes=('bi',), en='Tacetite', ja='', ko='', category='设定/鸣潮', variants=(), ctx=(), exclude=(), note='官方专有名词：黑石=Tacetite（《鸣潮》专有名词中英对照）；谷翻作菱镁石/菱镁矿，走参考行锚定；2026-10-30 #190/#191/#196。'),
     Entity('纯白之塔', modes=('bi',), en='White Tower', ja='', ko='', category='设定/鸣潮', variants=(), ctx=(), exclude=(), note='鸣式纯白之塔；英文 White Tower；「白塔」为通用词，只走参考行锚定；2026-10-30 #628/#629。'),
     Entity('会监', modes=('bi',), en='Overseer', ja='', ko='', category='组织/残星会', variants=(), ctx=(), exclude=(), note='残星会五会监；英文 Overseer；谷翻作监工/监督者/监督员，走参考行锚定；2026-10-30 #424/#425/#431/#434/#664。'),
-    Entity('尤诺', modes=('ja',), en='Iuno', ja='ユウノ/ユーノ/ユノ', ko='', category='角色/鸣潮2.6七丘', variants=(), ctx=(('ユウ[ノナ]|ユノ|ゆうの', '优诺'), ('ユウ[ノナ]|ユノ|ゆうの', '优野'), ('ユウ[ノナ]|ユノ|ゆうの', '优乃'), ('ユウ[ノナ]|ユノ|ゆうの', '优牛'), ('ユウ[ノナ]|ユノ|ゆうの', '优音'), ('ユウ[ノナ]|ユノ|ゆうの', '尤娜'), ('ユウ[ノナ]|ユノ|ゆうの', '尤那'), ('ユウ[ノナ]|ユノ|ゆうの', '勇乃'), ('ユウ[ノナ]|ユノ|ゆうの', '由乃'), ('ユウ[ノナ]|ユノ|ゆうの', '结野'), ('ユウ[ノナ]|ユノ|ゆうの', '艾尤')), exclude=(), note='鸣潮 2.6 七丘「谕女」尤诺（Iuno，姓氏西比尔；官方档案「月相轮转之间，我以我为锚点」）。ASR ユウノ/ユーノ/ユノ/ユウナ 被谷翻成 优诺/优野/优乃/优牛/优音/尤娜/尤那/勇乃/由乃/结野/艾尤。「优诺」是酸奶品牌、「优野」是日本人名，全部走日语锚定；2026-10-30 #50/#52/#261/#605 等。'),
-    Entity('莉莉贝', modes=('ja',), en='', ja='リリベル', ko='', category='角色/鸣潮2.6七丘', variants=(), ctx=(('リリベル.*おばあ', '莉莉贝尔奶奶'), ('リリベル.*おばあ', 'Lilibel奶奶'), ('リリベル.*おばあ', '莉莉贝尔的祖母'), ('リリベル.*おばあ', '莉莉贝的祖母'), ('リリベル', '莉莉贝尔'), ('リリベル', 'Lilibel'), ('リリベル', '莉莉伯')), exclude=(), note='鸣潮 2.6 七丘谕女之首「莉莉贝」婆婆（萌娘百科 NPC 表：莉莉贝 / 谕女之首 / 婆婆 / 七丘桑古伊斯狩原四方殿）。官方中文=莉莉贝（非莉莉贝尔）；谷翻音译 莉莉贝尔/Lilibel/莉莉伯，走日语锚定；2026-10-30 #726/#984/#995 等。'),
-    Entity('谕女', modes=('ja',), en='', ja='諭し/サトシの女', ko='', category='组织/鸣潮2.6七丘', variants=(), ctx=(('サトシの女|さとしの女', '中本聪家族的女性'), ('サトシの女|さとしの女', '中本聪家族'), ('サトシの女|さとしの女', '中本聪的女人'), ('サトシの女|さとしの女', '中本聪女性'), ('サトシの女|さとしの女', '中本聪'), ('サトシの女|さとしの女', '中智的女人'), ('サトシの女|さとしの女', '中智女性'), ('サトシの女|さとしの女', '中智'), ('サトシの女|さとしの女', '聪家的女性'), ('サトシの女|さとしの女', '聪的女人'), ('サトシの女|さとしの女', '聪女'), ('サトシの女|さとしの女', '中本的女人'), ('サトシの女|さとしの女', '中本女性'), ('サトシの女|さとしの女', '小智的女人'), ('サトシの女|さとしの女', '小聪的女人')), exclude=(), note='鸣潮 2.6 七丘「谕女」（七丘的预言家；官方「谕女给出的预言通常具有绝对的效力」）。日语 ASR 把 諭し(さとし) 写成 サトシ，谷翻当成中本聪：中本聪/中智/聪女/中本女性 等 14 形。锚点强制 サトシの女/さとしの女（裸 サトシ 可能是观众名），绝不裸键；2026-10-30 #211/#328/#1361 等。'),
-    Entity('四方殿', modes=('ja',), en='', ja='テトラゴン神殿', ko='', category='地点/鸣潮2.6七丘', variants=(), ctx=(('テトラゴン神殿', '四边神庙'), ('テトラゴン神殿', '四边形神殿'), ('テトラゴン神殿', '四角神庙'), ('テトラゴン神殿', '寺庙')), exclude=(), note='鸣潮 2.6 七丘四方殿（官方「四方殿，窥察命运、转述记录预言之所，亦为七丘谕女们的居处」）。日 テトラゴン神殿；谷翻 四边神庙/四边形神殿/四角神庙/寺庙，全部走日语锚定；2026-10-30 #703/#1350/#1805 等。'),
-    Entity('元老院', modes=('ja',), en='', ja='元老院/元農院', ko='', category='组织/鸣潮2.6七丘', variants=(), ctx=(('元[老農]院', '前农民'), ('元[老農]院', '参议院')), exclude=(), note='鸣潮 2.6 七丘元老院（与总督奥古斯塔对立）。ASR 元農院 被谷翻成「前农民」（#123），「参议院」为另一误译（#1970）；走日语锚定。'),
-    Entity('布里奥', modes=('ja',), en='', ja='ブリオ', ko='', category='角色/鸣潮2.6七丘', variants=(), ctx=(('ブリオ', '布利奥'), ('ブリオ', '布里欧')), exclude=(), note='鸣潮 2.6 第九幕礼官布里奥（官方版本说明：「名为布里奥的礼官邀你重返营地」）。日 ブリオ；2026-10-30 #121/#122/#861。'),
-    Entity('英雄王', modes=('ja',), en='', ja='英雄王', ko='', category='称号/鸣潮2.6七丘', variants=(), ctx=(('英雄王', '英勇的国王'),), exclude=(), note='鸣潮 2.6 七丘预言中的英雄王（官方「为新诞生的英雄王…所设的庆典」）。谷翻「英勇的国王」走日语锚定；2026-10-30 #2107/#2110/#2112。'),
-    Entity('新王', modes=('ja',), en='', ja='新王/新たな王', ko='', category='称号/鸣潮2.6七丘', variants=(), ctx=(('新王|新たな王', '新国王'),), exclude=(), note='鸣潮 2.6 七丘「新王」（伪作的神王；官方第九幕「神王已死」）。谷翻「新国王」走日语锚定；2026-10-30 #287/#303/#333 等 8 处。'),
-    Entity('月石金枝', modes=('ja',), en='', ja='ルナオーラム', ko='', category='素材/鸣潮2.6', variants=(), ctx=(('ルナオーラム', '露娜·奥拉姆'), ('ルナオーラム', '露娜·奥鲁姆'), ('ルナオーラム', '露娜·欧拉姆'), ('ルナオーラム', '月亮金币')), exclude=(), note='鸣潮 2.6 弓匠剧情素材 ルナオーラム = **月石金枝**（官方剧情原文「想要用你最喜欢的月石金枝来做这把弓」）。谷翻音译 露娜·奥拉姆/露娜·奥鲁姆/露娜·欧拉姆/月亮金币，全部走日语锚定；2026-10-30 #1390/#2192/#2217 等。'),
-    Entity('镯子', modes=('ja',), en='', ja='ブレスレット/腕輪', ko='', category='道具/鸣潮2.6', variants=(), ctx=(('ブレスレット|腕輪', '手链'),), exclude=(), note='鸣潮 2.6 尤诺的镯子（官方剧情「这只镯子，是尤诺的」）。谷翻统一作「手链」，本片按官方改「镯子」；走日语锚定，2026-10-30 #747/#861/#971 等。'),
-    Entity('筹花人', modes=('ja',), en='', ja='花配り/花を配る', ko='', category='称号/鸣潮2.6庆典', variants=(), ctx=(('花配り|花を配る', '发花的人'), ('花配り|花を配る', '分发花瓣的人'), ('花配り|花を配る', '负责发花瓣的人')), exclude=(), note='鸣潮 2.6 庆典角色「筹花人」（官方「邀请你作为本场庆典的筹花人之一，将象征荣耀与凯旋的玫瑰分发给大家」）。谷翻作 发花/分发花瓣；只作元数据与日语锚定，不裸键（「发花」是通用动词）。'),
-    Entity('解离症', modes=('ja',), en='', ja='解離症/脅迫症', ko='', category='术语/鸣潮2.6', variants=(), ctx=(('解離症|脅迫症', '强迫症'),), exclude=(), note='鸣潮 2.6 医生对黑潮侵蚀症状的诊断「解离症」（官方剧情）。ASR/谷翻误作「强迫症」（#930）；走日语锚定，不裸键（强迫症是真实医学词）。'),
-    Entity('忒修特', modes=('ja',), en='', ja='テセウス', ko='', category='角色/鸣潮2.6庆典', variants=(), ctx=(('テセウス', '忒修斯'),), exclude=(), note='鸣潮 2.6 庆典 NPC 忒修特（官方剧情「告诉我和忒修特」）。谷翻作「忒修斯」（希腊神话 Theseus），走日语锚定；2026-10-30 #206。'),
-    Entity('鉴定师', modes=('ko',), en='', ja='', ko='감정사', category='角色/异环', variants=(), ctx=(('감정사', '估价师'), ('감정사', '评估师'), ('감정사', '鉴定员'), ('감정사', '鉴定人')), exclude=(), note='《异环》玩家主控「鉴定师」（Appraiser，官方 App Store 简介＋百度百科；韩语 감정사）。谷翻误作 估价师/评估师/鉴定员/鉴定人；本片 #1581–#2399 共 15 处。'),
-    Entity('曳尔沐', modes=('ko',), en='', ja='', ko='엘림', category='角色/异环1.5', variants=(), ctx=(('엘림', 'Elim'), ('엘림', '以琳'), ('엘림', '以利姆'), ('엘림', '埃琳'), ('엘림', '艾琳')), exclude=(), note='异环 1.5 新 S 级角色「曳尔沐」（Elyms，17173/ali213 通稿；韩语 엘림）。谷翻误作 Elim/以琳/以利姆/埃琳/艾琳；本片 #1633–#2413 共 29 处。「艾琳」是常见人名，只走韩语锚定。'),
-    Entity('EXE', modes=('ko',), en='', ja='', ko='엑/엑세/엑셀', category='角色/异环1.5', variants=(), ctx=(('엑(?!스칼리버|수)', 'Ek'), ('엑(?!스칼리버|수)', 'Excel'), ('엑(?!스칼리버|수)', 'Exega'), ('엑(?!스칼리버|수)', 'Exewa'), ('엑(?!스칼리버|수)', '艾克森')), exclude=(), note='异环 1.5 新 S 级角色「EXE」（17173 通稿；韩语 엑）。谷翻误作 Ek/Excel/Exega/Exewa/艾克森；本片 #1633/#1647/#1944/#1974/#1982/#2023 等。⚠ 汉字「X」在片中亦指 EXE，但 X 亦出现在 UI/XL 等语境，不设裸键，逐条人工处理。'),
-    Entity('海特洛', modes=('ko',), en='', ja='', ko='해태로/헤테로', category='地名/异环', variants=(), ctx=(('해태로|헤테로', '海泰路'), ('해태로|헤테로', '灰太路'), ('해태로|헤테로', '海泰'), ('해태로|헤테로', 'Haitairo'), ('해태로|헤테로', 'Hetero'), ('해태로|헤테로', '异质性')), exclude=(), note='《异环》主舞台「海特洛市」（Hethereau，官方 App Store 简介；韩语 해태로/헤테로）。谷翻误作 海泰路/灰太路/海泰/Haitairo/Hetero/异质性；本片 #1603–#2409。⚠ 2070「海泰物流中心」是跨 cue 断句，术语替换后需整行修正。'),
-    Entity('克莱门学院', modes=('ko',), en='', ja='', ko='클레멘트 아카데미', category='地点/异环', variants=(), ctx=(('클레멘트', '克莱门特学院'),), exclude=(), note='异环地点「克莱门学院」（Clement Academy；韩语 클레멘트 아카데미）。谷翻多一个「特」：克莱门特学院；本片 #1593。'),
-    Entity('娜娜莉', modes=('ko',), en='', ja='', ko='나나리', category='角色/异环', variants=(), ctx=(('나나리', 'Nanari'), ('나나리', '纳纳里'), ('나나리', '娜娜里')), exclude=(), note='异环看板角色「娜娜莉」（Nanally；韩语 나나리）。谷翻误作 Nanari/纳纳里/娜娜里；本片 #1825/#2292/#6391/#6425/#6568/#8055。'),
-    Entity('异象', modes=('ko',), en='', ja='', ko='이상', category='术语/异环', variants=(), ctx=(('이상\\s*(관련|과|이|을|의|리|순례|급|같은|판타지)', '异常'), ('이상\\s*(관련|과|이|을|의|리|순례|급|같은|판타지)', '李尚利')), exclude=(), note='《异环》核心设定「异象」（Anomaly，官方 App Store 简介）。谷翻按普通词译成「异常」或音译「李尚利」；「异常」是通用词，只收 이상+宾语/修饰语的语法组合做锚，不收裸键（이상하다「奇怪」不得命中）。本片 #1641/#1644/#1862 等。'),
-    Entity('异能', modes=('ko',), en='', ja='', ko='이능력', category='术语/异环', variants=(), ctx=(('이능력', '能力'),), exclude=(), note='《异环》异能设定（官方 App Store 简介「异能者」）。韩语 이능력；谷翻常省成「能力」。本片 #1786/#1931/#1944（#1929 的「异质性」由海特洛条目处理）。'),
-    Entity('策划', modes=('ko',), en='', ja='', ko='기획자', category='职位/异环直播', variants=(), ctx=(('기획자', '规划师'), ('기획자', '计划者'), ('기획자', '策划者')), exclude=(), note='异环官方前瞻节目主持头衔「策划」（기획자）。谷翻 规划师/计划者/策划者；本片 #1586/#1590/#1592。'),
-    Entity('方斯', modes=('ko',), en='', ja='', ko='폰즈/폰지', category='术语/异环', variants=(), ctx=(('폰즈|폰지', '庞氏'), ('폰즈|폰지', '橙子'), ('폰즈|폰지', '池塘')), exclude=(), note='《异环》货币「方斯」（Fons；官方社区文案「赚够方斯就收手」；韩语 폰즈）。谷翻误作 庞氏/橙子/池塘；「橙子」是通用词，只走韩语锚定。本片 #2150/#2430/#2432–#2445/#5742。'),
-    Entity('优雅的腐败者', modes=('ko',), en='', ja='', ko='우아한 부패자', category='异象/异环1.5', variants=(), ctx=(('우아한 부패자', '优雅腐败者'),), exclude=(), note='异环 1.5 新异象「优雅的腐败者」（韩语 우아한 부패자；官方简中名待确认，按韩语直译）。谷翻少「的」；本片 #1862/#1866/#2383。'),
-    Entity('明日方舟', modes=('ko',), en='', ja='', ko='명방/명일방주', category='作品/游戏', variants=(), ctx=(('명방|명일방주', '明房'), ('명방|명일방주', '阿明芳'), ('명방|명일방주', '明邦'), ('명방|명일방주', '名室')), exclude=(), note='《明日方舟》（韩语 명일방주/명방）。谷翻误作 明房/阿明芳/明邦/名室；本片 #483/#484/#2551/#4402/#4623。'),
-    Entity('绝区零', modes=('ko',), en='', ja='', ko='젠존재/젠존지/젠존제/젠레스 존 제로', category='作品/游戏', variants=(), ctx=(('젠존', '禅宗'), ('젠존', '善宗寺'), ('젠존', 'Zenjonje')), exclude=(), note='《绝区零》（Zenless Zone Zero；韩语 젠존재/젠존지/젠레스 존 제로）。谷翻误作 禅宗/善宗寺/Zenjonje；本片 #3278/#3373/#3443/#3713/#4166/#4473/#4493。'),
-    Entity('星穹铁道', modes=('ko',), en='', ja='', ko='스타레일', category='作品/游戏', variants=(), ctx=(('스타\\s*레일', 'Starrail'),), exclude=(), note='《崩坏：星穹铁道》（韩语 스타레일）。谷翻 Starrail；「星轨」已有既有 KO_CONTEXT 规则映射到「星穹铁道」。本片 #2670/#3007/#3009/#3051/#3712/#3718/#4531。'),
-    Entity('原神', modes=('ko',), en='', ja='', ko='원신', category='作品/游戏', variants=(), ctx=(('원신', '原神冲击'), ('원신', 'Genshin Impact')), exclude=(), note='《原神》（韩语 원신）。谷翻 原神冲击/Genshin Impact；本片 #3066/#3069/#4638。'),
-    Entity('藿藿', modes=('ko',), en='', ja='', ko='곽향', category='角色/星穹铁道', variants=(), ctx=(('곽향', '郭香'), ('곽향', '夸扬'), ('곽향', '夸赫阳'), ('곽향', '夸香'), ('곽향', 'Kwakhyang'), ('곽향', 'Kwak Hyang')), exclude=(), note='星穹铁道角色「藿藿」（Huohuo；韩语 곽향）。谷翻误作 郭香/夸扬/夸赫阳/夸香/Kwakhyang；本片 #145–#4541 共 18 处。'),
-    Entity('阮·梅', modes=('ko',), en='', ja='', ko='완매', category='角色/星穹铁道', variants=(), ctx=(('완매', '已售完'), ('완매', '已售罄'), ('완매', '售完'), ('완매', '售罄'), ('완매', '卖完了'), ('완매', '完卖')), exclude=(), note='星穹铁道角色「阮·梅」（Ruan Mei；官方写法带间隔号；韩语 완매）。谷翻按字面译成 售完/售罄/卖完了；这些是通用词，只走韩语锚定。本片 14 处。'),
-    Entity('花火', modes=('ko',), en='', ja='', ko='스파클', category='角色/星穹铁道', variants=(), ctx=(('스파클', '闪闪发光'), ('스파클', '闪闪'), ('스파클', '闪光'), ('스파클', '火花')), exclude=(), note='星穹铁道角色「花火」（Sparkle；韩语 스파클）。谷翻误作 闪闪发光/闪闪/闪光/火花；「火花」「闪光」是通用词，只走韩语锚定。本片 #2770–#4541 共 8 处。'),
-    Entity('耀嘉音', modes=('ko',), en='', ja='', ko='아스트라', category='角色/绝区零', variants=(), ctx=(('아스트라', '阿斯特拉'), ('아스트라', 'Astra')), exclude=(), note='绝区零角色「耀嘉音」（Astra Yao；韩语 아스트라）。谷翻音译成 阿斯特拉/Astra；本片 #463–#5423 共 23 处（#463「阿斯特拉耀正」需整行修正）。'),
-    Entity('柚叶', modes=('ko',), en='', ja='', ko='유즈아/유즈/유자', category='角色/绝区零', variants=(), ctx=(('유즈아|유즈|유자', '柚子'), ('유즈아|유즈|유자', '尤祖亚'), ('유즈아|유즈|유자', '尤兹'), ('유즈아|유즈|유자', '尤莎'), ('유즈아|유즈|유자', 'Yuzu')), exclude=(), note='绝区零角色「浮波柚叶」（Yuzuha；韩语 유즈아）。谷翻误作 柚子/尤祖亚/尤兹；「柚子」是水果名，只走韩语锚定。本片 #3291/#3302/#3308/#3342/#3349。'),
-    Entity('露西', modes=('ko',), en='', ja='', ko='루시아', category='角色/绝区零', variants=(), ctx=(('루시아', '露西亚'),), exclude=(), note='绝区零角色「露西」（Lucy；韩语 루시아）。谷翻写成 露西亚；本片 #3340/#3341/#3364/#3366。'),
-    Entity('班尼特', modes=('ko',), en='', ja='', ko='베넷', category='角色/原神', variants=(), ctx=(('베넷', '贝内特'), ('베넷', '贝尼特')), exclude=(), note='原神角色「班尼特」（Bennett；韩语 베넷）。谷翻 贝内特/贝尼特；本片 #2505/#3123。'),
-    Entity('枫原万叶', modes=('ko',), en='', ja='', ko='카즈아', category='角色/原神', variants=(), ctx=(('카즈아', '卡祖亚'), ('카즈아', '卡祖'), ('카즈아', 'Kazua'), ('카즈아', '卡兹阿'), ('카즈아', '风贺')), exclude=(), note='原神角色「枫原万叶」（Kazuha；韩语 카즈아，ASR 掉 하）。谷翻 卡祖亚/卡祖/Kazua；本片 #2561–#4635 共 12 处。'),
-    Entity('知更鸟', modes=('ko',), en='', ja='', ko='로빈', category='角色/星穹铁道', variants=(), ctx=(('로빈', '罗宾'),), exclude=(), note='星穹铁道角色「知更鸟」（Robin；韩语 로빈）。谷翻音译 罗宾；本片 #2911/#3017 等。'),
-    Entity('小红帽', modes=('ko',), en='', ja='', ko='레드후드/레드우드/레두드', category='角色/妮姬', variants=(), ctx=(('레드후드|레드우드|레두드', '红木'), ('레드후드|레드우드|레두드', '红帽'), ('레드후드|레드우드|레두드', '红头罩'), ('레드후드|레드우드|레두드', 'Redud')), exclude=(), note='妮姬「小红帽」（Red Hood；韩语 레드후드/레드우드/레두드）。谷翻误作 红木/红帽/红头罩/Redud；2026-10-30 r2 #3786/#3804/#3949/#4097 等。'),
-    Entity('拉毗', modes=('ko',), en='', ja='', ko='라피', category='角色/妮姬', variants=(), ctx=(('라피', '拉皮'), ('라피', '拉拉菲'), ('라피', '拉菲')), exclude=(), note='妮姬「拉毗」（Rapi；韩语 라피）。谷翻误作 拉皮/拉拉菲/拉菲；「拉菲」是红酒名，只走韩语锚定。2026-10-30 r2 #3480/#3948/#4561。'),
-    Entity('红莲', modes=('ko',), en='', ja='', ko='홍련/흥년', category='角色/妮姬', variants=(), ctx=(('홍련|흥년', '兴莲'), ('홍련|흥년', '香莲')), exclude=(), note='妮姬「红莲」（Scarlet/Hongryeon；韩语 홍련，ASR 常作 흥년）。谷翻误作 兴莲/香莲；2026-10-30 r2 #3869/#3914。'),
-    Entity('红莲：暗影', modes=('ko',), en='', ja='', ko='흑련/흑년', category='角色/妮姬', variants=(), ctx=(('흑련|흑년', '黑莲'),), exclude=(), note='妮姬「红莲：暗影」（Scarlet: Black Shadow；韩语 흑련/흑년）。谷翻误作 黑莲；2026-10-30 r2 #3929。'),
-    Entity('阿妮斯', modes=('ko',), en='', ja='', ko='아니스', category='角色/妮姬', variants=(), ctx=(('아니스', '安妮斯'), ('아니스', '八角茴香')), exclude=(), note='妮姬「阿妮斯」（Anis；韩语 아니스）。谷翻误作 安妮斯/八角茴香；2026-10-30 r2 #3480/#3783/#4028。'),
-    Entity('塞壬', modes=('ko',), en='', ja='', ko='세이렌', category='角色/妮姬', variants=(), ctx=(('세이렌', '警报'), ('세이렌', '警笛'), ('세이렌', '海妖')), exclude=(), note='妮姬「塞壬」（Siren；韩语 세이렌）。谷翻误作 警报/警笛/海妖；2026-10-30 r2 #3778/#3869/#4090。'),
-    Entity('砂金', modes=('ko',), en='', ja='', ko='어벤추린/어벤/출린', category='角色/星穹铁道', variants=(), ctx=(('어벤추린|어벤|출린', '东陵'), ('어벤추린|어벤|출린', '阿文图'), ('어벤추린|어벤|출린', '艾文'), ('어벤추린|어벤|출린', '楚林'), ('어벤추린|어벤|출린', '冒险')), exclude=(), note='星穹铁道「砂金」（Aventurine；韩语 어벤추린，ASR 常作 어벤/출린）。谷翻误作 东陵/阿文图/艾文/楚林/冒险；2026-10-30 r2 #2788/#2895/#2953/#2954。'),
-    Entity('流萤', modes=('ko',), en='', ja='', ko='반디', category='角色/星穹铁道', variants=(), ctx=(('반디', '萤火虫'), ('반디', '班迪'), ('반디', 'Bandi')), exclude=(), note='星穹铁道「流萤」（Firefly；韩语 반디）。谷翻误作 萤火虫/班迪/Bandi；2026-10-30 r2 #2824/#2826。'),
-    Entity('符玄', modes=('ko',), en='', ja='', ko='부연', category='角色/星穹铁道', variants=(), ctx=(('부연', '扶颜'), ('부연', '扶余'), ('부연', '补充')), exclude=(), note='星穹铁道「符玄」（Fu Xuan；韩语 부연）。谷翻误作 扶颜/扶余/补充；「补充」是通用词，只走韩语锚定。2026-10-30 r2 #2721/#2786。'),
-    Entity('白露', modes=('ko',), en='', ja='', ko='백로', category='角色/星穹铁道', variants=(), ctx=(('백로', '白鹭'),), exclude=(), note='星穹铁道「白露」（Bailu；韩语 백로）。谷翻误作 白鹭；2026-10-30 r2 #2740。'),
-    Entity('杰帕德', modes=('ko',), en='', ja='', ko='개파드', category='角色/星穹铁道', variants=(), ctx=(('개파드', '加法德'), ('개파드', '盖帕德')), exclude=(), note='星穹铁道「杰帕德」（Gepard；韩语 개파드）。谷翻误作 加法德/盖帕德；2026-10-30 r2 #2740。'),
-    Entity('灵砂', modes=('ko',), en='', ja='', ko='영사', category='角色/星穹铁道', variants=(), ctx=(('영사', '领事'), ('영사', '英泰')), exclude=(), note='星穹铁道「灵砂」（Lingsha；韩语 영사）。谷翻误作 领事/英泰；「领事」是通用词，只走韩语锚定。2026-10-30 r2 #2924/#2952/#3022。'),
-    Entity('缇宝', modes=('ko',), en='', ja='', ko='트립', category='角色/星穹铁道', variants=(), ctx=(('트립', 'Trip'), ('트립', '行程'), ('트립', '特里维')), exclude=(), note='星穹铁道「缇宝」（Tribbie；韩语 트립）。谷翻误作 Trip/行程/特里维；2026-10-30 r2 #2935/#2942/#2992。'),
-    Entity('万敌', modes=('ko',), en='', ja='', ko='마이데이', category='角色/星穹铁道', variants=(), ctx=(('마이데이', '我的一天'),), exclude=(), note='星穹铁道「万敌」（Mydei；韩语 마이데이）。谷翻直译「我的一天」；2026-10-30 r2 #2946/#2950。'),
-    Entity('遐蝶', modes=('ko',), en='', ja='', ko='카스토리', category='角色/星穹铁道', variants=(), ctx=(('카스토리', '卡斯托里'), ('카스토리', '卡斯托里斯')), exclude=(), note='星穹铁道「遐蝶」（Castorice；韩语 카스토리）。谷翻音译 卡斯托里/卡斯托里斯；2026-10-30 r2 #2950。'),
-    Entity('风堇', modes=('ko',), en='', ja='', ko='히아킨', category='角色/星穹铁道', variants=(), ctx=(('히아킨', '风信子'), ('히아킨', '哈肯')), exclude=(), note='星穹铁道「风堇」（Hyacine；韩语 히아킨）。谷翻误作 风信子/哈肯；「风信子」是花名，只走韩语锚定。2026-10-30 r2 #3023/#3025。'),
-    Entity('大黑塔', modes=('ko',), en='', ja='', ko='더헤르타', category='角色/星穹铁道', variants=(), ctx=(('더헤르타', 'Herta'),), exclude=(), note='星穹铁道「大黑塔」（Herta 的大黑塔形态；韩语 더헤르타）。谷翻留英文 Herta；2026-10-30 r2 #2948。'),
-    Entity('桃金娘', modes=('ko',), en='', ja='', ko='머틀', category='角色/明日方舟', variants=(), ctx=(('머틀', '默特尔'), ('머틀', '香桃木')), exclude=(), note='明日方舟「桃金娘」（Myrtle；韩语 머틀）。谷翻误作 默特尔/香桃木；2026-10-30 r2 #2552。'),
-    Entity('北部玄驹', modes=('ko',), en='', ja='', ko='키타산 블랙/타산 블랙/기타산 블랙', category='角色/赛马娘', variants=(), ctx=(('키타산|타산|기타산', '吉他的黑色'), ('키타산|타산|기타산', '黑人'), ('키타산|타산|기타산', '黑色'), ('키타산|타산|기타산', 'Kitasan Black')), exclude=(), note='赛马娘「北部玄驹」（Kitasan Black；韩语 키타산 블랙）。谷翻误作 吉他的黑色/黑人/黑色/Kitasan Black；「黑色」是通用词，只走韩语锚定。2026-10-30 r2 #4950/#5015/#5187。'),
-    Entity('堂吉诃德', modes=('ko',), en='', ja='', ko='동키', category='角色/边狱公司', variants=(), ctx=(('동키', '驴子'),), exclude=(), note='边狱公司囚人「堂吉诃德」（Don Quixote；韩语 동키）。谷翻按字面作「驴子」；2026-10-30 r2 #884。'),
-    Entity('奥提斯', modes=('ko',), en='', ja='', ko='오티스', category='角色/边狱公司', variants=(), ctx=(('오티스', '奥蒂斯'),), exclude=(), note='边狱公司囚人「奥提斯」（Outis；韩语 오티스）。谷翻误作 奥蒂斯；2026-10-30 r2 #885。'),
-    Entity('蔚蓝档案', modes=('ko',), en='', ja='', ko='블루 아카이브', category='作品/游戏', variants=(), ctx=(('블루\\s*아카이브', '蓝色档案'), ('블루\\s*아카이브', '蓝档案')), exclude=(), note='《蔚蓝档案》（Blue Archive；韩语 블루 아카이브）。谷翻误作 蓝色档案/蓝档案；2026-10-30 r2 #578。'),
-    Entity('边狱公司', modes=('ko',), en='', ja='', ko='림버스 컴퍼니', category='作品/游戏', variants=(), ctx=(('림버스\\s*컴퍼니', '林布斯公司'), ('림버스\\s*컴퍼니', 'Limbus Company')), exclude=(), note='《边狱公司》（Limbus Company；韩语 림버스 컴퍼니）。谷翻误作 林布斯公司/Limbus Company；2026-10-30 r2 #1295/#1464。'),
-    Entity('重返未来：1999', modes=('ko',), en='', ja='', ko='리버스', category='作品/游戏', variants=(), ctx=(('리버스', '逆向'), ('리버스', '里弗斯'), ('리버스', '这辆巴士')), exclude=(), note='《重返未来：1999》（Reverse: 1999；韩语 리버스）。谷翻误作 逆向/里弗斯/这辆巴士；2026-10-30 r2 #4727/#4729/#4731。'),
-    Entity('崩坏3', modes=('ko',), en='', ja='', ko='붕괴드', category='作品/游戏', variants=(), ctx=(('붕괴드', '折叠代码'),), exclude=(), note='《崩坏3》（韩语 붕괴드）。谷翻误作「折叠代码」；2026-10-30 r2 #4669。'),
-    Entity('星铁', modes=('ko',), en='', ja='', ko='스타레', category='作品/游戏', variants=(), ctx=(('스타레', '凝视'),), exclude=(), note='《崩坏：星穹铁道》简称「星铁」（韩语 스타레）。谷翻误作「凝视」；2026-10-30 r2 #4564。'),
-    Entity('斯卡哈', modes=('ko',), en='', ja='', ko='스카사', category='角色/FGO', variants=(), ctx=(('스카사', '斯卡萨'),), exclude=(), note='FGO「斯卡哈」（Scáthach；韩语 스카사）。谷翻误作 斯卡萨；2026-10-30 r2 #5066/#5117。'),
-    Entity('高扬斯卡娅', modes=('ko',), en='', ja='', ko='코얀 스칼', category='角色/FGO', variants=(), ctx=(('코얀\\s*스칼', '科扬斯卡尔'),), exclude=(), note='FGO「高扬斯卡娅」（Koyanskaya；韩语 코얀 스칼）。谷翻音译错位 科扬斯卡尔；2026-10-30 r2 #5139。'),
-    Entity('赛马娘', modes=('ko',), en='', ja='', ko='말딸', category='作品/游戏', variants=(), ctx=(('말딸', '月底'),), exclude=(), note='《赛马娘》（韩语 말딸）。谷翻误作「月底」；2026-10-30 r2 #5031。'),
-    Entity('宝具', modes=('ko',), en='', ja='', ko='필사기', category='术语/FGO', variants=(), ctx=(('필사기', '转录机'), ('필사기', '转录器'), ('필사기', '特杀')), exclude=(), note='FGO「宝具」（필사기）。谷翻误作 转录机/转录器/特杀；2026-10-30 r2 #5053/#5054/#5093。'),
-    Entity('干员', modes=('ko',), en='', ja='', ko='오퍼', category='术语/明日方舟', variants=(), ctx=(('오퍼', '优惠'), ('오퍼', '培训机会')), exclude=(), note='明日方舟「干员」（오퍼）。谷翻误作 优惠/培训机会；2026-10-30 r2 #5195/#5196。'),
-    Entity('关服', modes=('ko',), en='', ja='', ko='섭종', category='术语/通用', variants=(), ctx=(('섭종(?!사)', 'Seopjong'), ('섭종(?!사)', '涉宗寺')), exclude=(), note='「关服/停服」（韩语 섭종）。谷翻留罗马字 Seopjong 或音译涉宗寺；2026-10-30 r2 #2484/#2487/#4131。'),
-    Entity('复刻', modes=('ko',), en='', ja='', ko='복각', category='术语/通用', variants=(), ctx=(('복각', '重印'), ('복각', '转载'), ('복각', '福盖尔')), exclude=(), note='抽卡「复刻」（韩语 복각）。谷翻误作 重印/转载/福盖尔；2026-10-30 r2 #2024/#2624/#4512。'),
-    Entity('常驻', modes=('ko',), en='', ja='', ko='통상', category='术语/通用', variants=(), ctx=(('통상', '这很正常'),), exclude=(), note='抽卡「常驻」（韩语 통상）。谷翻误作「这很正常」；2026-10-30 r2 #3759。'),
-    Entity('保底', modes=('ko',), en='', ja='', ko='천장', category='术语/通用', variants=(), ctx=(('천장', '天花板'), ('천장', '吸顶')), exclude=(), note='抽卡「保底/天井」（韩语 천장）。谷翻误作 天花板/吸顶；2026-10-30 r2 #5197/#5754。'),
-    Entity('0 档', modes=('ko',), en='', ja='', ko='영티어', category='术语/通用', variants=(), ctx=(('영티어', '年轻阶层'), ('영티어', '少年组'), ('영티어', '青年队')), exclude=(), note='强度榜「0 档/T0」（韩语 영티어 = 0티어）。谷翻误作 年轻阶层/少年组/青年队；2026-10-30 r2 #5079/#5111/#5137。'),
-    Entity('终末侠', modes=('ko',), en='', ja='', ko='종말맨', category='主播/昵称', variants=(), ctx=(('종말맨', '末日人'), ('종말맨', '天启人'), ('종말맨', '末世侠')), exclude=(), note='主播圈昵称「终末侠」（韩语 종말맨）。谷翻误作 末日人/天启人/末世侠；2026-10-30 r2 #4324/#4408/#4431/#5210。'),
-    Entity('Raven', modes=('ko',), en='', ja='', ko='레이븐', category='角色/妮姬', variants=(), ctx=(('레이븐', '乌鸦'),), exclude=(), note='妮姬角色「Raven」（韩语 레이븐）。谷翻按字面作「乌鸦」；2026-10-30 r2 #6033/#6536。'),
-    Entity('保时捷', modes=('ko',), en='', ja='', ko='뽀르쉐/보르쉐/포르스', category='术语/通用', variants=(), ctx=(('뽀르쉐|보르쉐|포르스', '罗宋汤'), ('뽀르쉐|보르쉐|포르스', '眼影'), ('뽀르쉐|보르쉐|포르스', '福斯')), exclude=(), note='《异环》载具「保时捷」（韩语 뽀르쉐/보르쉐/포르스）。谷翻误作 罗宋汤/眼影/福斯；2026-10-30 r2 #5493/#5614/#5734/#5749。'),
-    Entity('立绘', modes=('ko',), en='', ja='', ko='일러', category='术语/通用', variants=(), ctx=(('일러', '早点'),), exclude=(), note='游戏术语「立绘」（韩语 일러）。谷翻误作「早点」；2026-10-30 r2 #5647。'),
-    Entity('Smilegate 公司', modes=('ko',), en='', ja='', ko='스마게', category='公司/厂商', variants=(), ctx=(('스마게', '聪明'), ('스마게', '苏马加')), exclude=(), note='Smilegate（韩语 스마게）。谷翻误作 聪明/苏马加；2026-10-30 r2 #4865/#4868。'),
-    Entity('正统', modes=('ko',), en='', ja='', ko='정배', category='术语/通用', variants=(), ctx=(('정배', '正裴'),), exclude=(), note='「正统打法」简称「正统」（韩语 정배）。谷翻误作人名「正裴」；2026-10-30 r2 #5769。'),
-    Entity('停车', modes=('ko',), en='', ja='', ko='주차', category='术语/通用', variants=(), ctx=(('주차', '公园'),), exclude=(), note='「停车」（韩语 주차）。谷翻误作「公园」；2026-10-30 r2 #5830。'),
-    Entity('承认', modes=('ko',), en='', ja='', ko='인종/인정', category='术语/通用', variants=(), ctx=(('인종|인정', '种族'),), exclude=(), note='「承认/认了」（韩语 인정，ASR 作 인종）。谷翻误作「种族」；2026-10-30 r2 #6521。'),
-    Entity('悲鸣', modes=('ja',), en='', ja='悲鳴', ko='', category='术语/鸣潮世界观', variants=(), ctx=(('悲鳴', '尖叫声'), ('悲鳴', '呐喊'), ('悲鳴観測', '尖叫观察'), ('悲鳴', '尖叫')), exclude=(), note="鸣潮世界观词「悲鸣」，日服官网原文即「悲鳴」；谷翻按日语普通词'尖叫'直译。r2 cue 873/874/875/880/881/892/895/906/907/909/1265/1347/1379/1944/1985。戒律：尖叫/呐喊 是正常中文词，只走锚定，且长形在前（ctx 按列表顺序执行）。"),
-    Entity('实例', modes=('ja',), en='Instance', ja='インスタンス', ko='', category='术语/鸣潮4.0', variants=(), ctx=(('インスタンス', '第三次审理'), ('インスタンス', '第三次'), ('インスタンス', '法庭'), ('インスタンス', '例子'), ('インスタンス', '第一次'), ('インスタンス', '第二次')), exclude=(), note='4.0「融合漂泊者/多个漂泊者」讨论里的 インスタンス=实例（第1/第2/第3 インスタンス）。谷翻按字面给 例子/法庭/审理/第N次。r2 cue 1087/1103/1209/1240/1249/1283/1442。戒律：例子/法庭/序数词全是通用词，禁入裸键。'),
-    Entity('想象与心灵的边界', modes=('ja',), en='', ja='', ko='', category='PV台词/鸣潮', variants=(), ctx=(('想像と心の', '想象与心灵教会'), ('想像と心の', '想象与心灵的教堂'), ('想像と心の', '想象力与心灵')), exclude=(), note="世界观PV 旁白「想像と心の境界で僕は取引を守ってるだろう」。境界/教会 同音きょうかい，ASR 多数听成 教会⇒谷翻'教堂/教会'；cue 1727 同行 ASR 作 境界，即片内自证。r2 cue 597/1841/1851/1852/1855/1861/1863/1885/2009。"),
-    Entity('黑海岸', modes=('ja',), en='Black Shores', ja='ブラックショア', ko='', category='组织/鸣潮', variants=(), ctx=(('ブラック', '黑色淋浴'), ('ブラック', '黑名单股份'), ('ブラック', '布莱克郡'), ('ブラック', '布莱克肖尔'), ('ブラック', '黑股票'), ('ブラック', '黑西亚'), ('ブラック', '黑谢亚'), ('ブラック', '黑查尔'), ('ブラック', '黑共享'), ('ブラック', 'BlackShare'), ('ブラック', '黑色秀'), ('ブラック', '《黑人》'), ('ブラックシア|ブラックシュア', '布莱克谢')), exclude=(), note="官方组织=黑海岸。ja.py 已有裸键「黑岸→黑海岸」与 ブラックシア/シュア 的「布莱克谢亚集团→黑海岸组」⇒ 本条**只补 r2 新出现的拆译形**（シャワー淋浴/シェア共享/ストック股票 被按字面直译），cue 1028/1064/1403/1405/1533/1616/1617/1641/1643/1707/1708/2026/2046/2049/2093/2098。⚠ 不收裸「布莱克谢」——会把已正确的「布莱克谢亚集团」咬成'黑海岸亚集团'（扁平表先于 ctx，ja.py:42 笛卡尔前科）；ブラックホール=黑洞（cue 1190/1191/1258/1259 是黑洞，勿并入本条）。"),
-    Entity('岁主', modes=('ja',), en='', ja='サイシャ', ko='', category='术语/鸣潮世界观', variants=(), ctx=(('最主|最種', '赛兽'),), exclude=(), note="梦州岁主（心月狐=首位可玩岁主，百度百科）。ASR 作 最主/最種（さいしゅ）⇒谷翻按字面给'赛兽/主要是'。r2 cue 148/2198。戒律：'主要是' 是超常用串，绝不入表；裸「最主」⊂「最主要」也只走锚定。"),
-    Entity('星炬学院', modes=('ja',), en='Startorch Academy', ja='スタート学園', ko='', category='地点/学院·鸣潮', variants=(), ctx=(('スタート学園', 'Start Academy'),), exclude=(), note="官方中文=星炬学院（英 Startorch Academy，见本文件 bi/react 行）。日服 ASR 把 Startorch 听成 スタート(Start)⇒谷翻直译 'Start Academy'。r2 cue 522/524。依据：官博/TapTap 官方帖「深空联合：星炬学院」。"),
-    Entity('新联邦', modes=('ja',), en='New Federation', ja='ネオユニオン', ko='', category='地区/鸣潮4.0', variants=(), ctx=(('ネオンユニ', '霓虹大学'), ('ネオユニ', '新大学')), exclude=(), note='4.0 新地区=新联邦（bi/react 行已有）。ASR 截短成 ネオユニ/ネオンユニ，谷翻给 新大学/霓虹大学。r2 cue 1577/2098。'),
-    Entity('陆老师', modes=('ja',), en='', ja='りく先生', ko='', category='角色/鸣潮4.0', variants=(), ctx=(('龍ク先生', '龙九老师'), ('でりク先生', 'Deriku博士'), ('緑先生', '绿小姐'), ('り?ク先生', '琉久')), exclude=(), note='暗影中队（Lux Lunae）的陆·赫斯，日语带先生敬称⇒中文按片内既成写法统一「陆老师」（cue 734 原文已是陆老师）。ASR 变体 でりク/龍ク/緑 ⇒ 谷翻给 Deriku博士/龙九老师/绿小姐/琉久。r2 cue 513/729/731/2193。'),
-    Entity('Manmaru', modes=('ja',), en='', ja='まんまる', ko='', category='作者/VTuber', variants=('金丸', '真丸'), ctx=(), exclude=(), note='主播自介「月から来た季節を司る青い鬼神 まんまる」；ASR 听成 こんまる/ままる⇒谷翻给 金丸/真丸/丸。r2 cue 3/4/5/7。⚠ 中文侧不能写假名「まんまる」——首中文行一旦含假名会被 _split_cue_text 判成参考行，双语版式断言直接失败（本次踩过），故 canonical 取频道自述罗马字 Manmaru；单字「丸」风险过大，只逐 cue 处理不入表。另：形容詞 まんまる(圆润) 不是人名（cue 2289 属误命中，勿改）。'),
-    Entity('阿布', modes=('ja',), en='Abby', ja='アブ', ko='', category='角色/鸣潮3.7', variants=(), ctx=(('アブ', '木贼'),), exclude=(), note="3.7 角色阿布（Abby，本文件 bi 行已有）。アブ 被谷翻按日语'虻/木贼'直译成 马蝇/木贼。r2 cue 1348。"),
-    Entity('阿列夫一', modes=('ja',), en='ALF1', ja='アレフ1', ko='', category='敌人/鸣式', variants=(), ctx=(('アレフ1', 'Aleph 1'), ('アレフ1', '阿勒夫 1'), ('アルフ1', 'Alf 1')), exclude=(), note='鸣式 ALF1=阿列夫一（bi 行已有）。谷翻留拉丁 Aleph 1/Alf 1 或另音译 阿勒夫 1。r2 cue 974/1185/1186。'),
-    Entity('爱弥斯', modes=('ja',), en='Aemeath', ja='エイメス', ko='', category='角色/鸣潮', variants=(), ctx=(('エニメス', 'Enimes'),), exclude=(), note='官方中文=爱弥斯。ASR 作 エニメス⇒谷翻留拉丁 Enimes。r2 cue 2080。'),
-    Entity('拉海洛', modes=('ja',), en='Lahai-Roi', ja='ラハイロイ', ko='', category='地区/鸣潮3.x', variants=(), ctx=(('ラハ色イ', '拉哈色'),), exclude=(), note='3.0 地区=拉海洛（Lahai-Roi）。ASR 拆字 ラハ色イ⇒谷翻给 拉哈色。r2 cue 976。'),
-    Entity('隧者', modes=('ja',), en='Exostrider', ja='エクソストライダー', ko='', category='术语/鸣潮', variants=(), ctx=(('エクソス?トライダー', '外骨骼游者'), ('エクサス?トライダー', 'Exustrider'), ('クソストライダー', '该死的游侠'), ('ストライダー', '外骨骼行者'), ('ストライダー', '游侠')), exclude=(), note="「外骨骼行者」等形只登记在 bi 行的 variants，故 --ja 下不产出⇒本行补 ja 锚定。印证'三条产出路径'教训：子词直译(Exo=外骨骼 + strider=行者)最常见却最易漏。r2 cue 587/672/1455/1484/1999。"),
-    Entity('伤痕', modes=('ja',), en='Scar', ja='スカー', ko='', category='角色/鸣潮残星会', variants=(), ctx=(('スカー', '疤痕'),), exclude=(), note="残星会会监 Scar 官方中文=伤痕（2026-10-30 已定）。ASR スカー⇒谷翻按字面'疤痕'。r2 cue 1568。"),
-    Entity('世界观PV', modes=('ja',), en='', ja='', ko='', category='PV类型/鸣潮', variants=(), ctx=(('世界観PV', '世界设定的PV'), ('世界観PV', '设定世界的PV'), ('世界観PV', '世界设定PV'), ('世界観PV', '世界PV'), ('世界観', '世界虚拟')), exclude=(), note="官方宣传物料名=世界观PV（标题与 cue 13/189 同行即 世界観PV）。谷翻拆成 世界设定/设定世界/世界PV，cue 15 更把 観 误作'虚拟'。r2 cue 13/21/83/424/546/548。"),
-    Entity('心', modes=('ja',), en='', ja='シン', ko='', category='角色/鸣潮3.7', variants=(), ctx=(('シ様', '师父'),), exclude=(), note='心月狐自称「心」、梦州岁主（官方演示「共鸣者『心』」/百度百科）。ASR 的 シ様 被谷翻按日语「師匠」误给「师父」。r2 cue 219/459/645/1585/2221。单字 canonical 只作替换目标、不参与匹配，故不入扁平表。'),
-    Entity('阿布拉克萨斯', modes=('ja',), en='Abraxas', ja='アブラクサス', ko='', category='术语/鸣潮', variants=(), ctx=(('アブラクサス', 'Abraxas'),), exclude=(), note='片内两形并存：cue 898 已作「阿布拉克萨斯」、1364 留拉丁 Abraxas ⇒ 取低频异形。官方中文=阿布拉克萨斯。r2 cue 1364。'),
-    Entity('纯白之塔', modes=('ja',), en='White Tower', ja='純白の塔', ko='', category='意象/鸣潮4.0', variants=(), ctx=(('純白[なぬ]?の塔', '纯白塔'), ('純白[なぬ]?の塔', '纯白色的塔')), exclude=(), note='4.0 世界观意象，片内 纯白塔/纯白之塔/纯白色的塔 三形并存（cue 835/1816/1843/1860）⇒ 归多数形。r2 cue 1816。'),
-    Entity('章鱼', modes=('ja',), en='', ja='ダコ', ko='', category='意象/鸣潮PV', variants=(), ctx=(('ダ[コ子]', '警察'), ('ダ[コ子]', '达科'), ('ダ[コ子]', '奥科'), ('ダ[コ子]', '多子'), ('ダ[コ子]', 'Nedako')), exclude=(), note='世界观PV 旁白与解说里的 ダコ（锁暝的章鱼意象，cue 142「ダコは根を借り暗き場所に身を隠す」/cue 299「サめちゃんとね、ダコのこのね、密接な」）。谷翻两条错路：按发音抓 达科/奥科/多子/Nedako，按「逮捕」联想抓成「警察」（cue 296）。戒律：警察/达科 是普通词，只走 ダコ 锚定；r2 cue 142/177/213/245/277/288/296/351。'),
-    Entity('时雨', modes=('ja',), en='', ja='しぐれ', ko='', category='曲目/鸣潮', variants=(), ctx=(('しぐれ', '时车'), ('しぐれ', '时香')), exclude=(), note='片内しぐれにて 多指曲目/PV 名『时雨』（cue 434/437/446/535 已成「时雨」），cue 440 被给成「时车」⇒ 取低频异形归一。cue 53「しぐりかちゃん」是歌手异世界情緒相关，不并入本条（存疑）。r2 cue 440。'),
-    Entity('实机预告', modes=('ja',), en='', ja='', ko='', category='PV类型/鸣潮', variants=(), ctx=(('実践トレーラー', '实用预告片'),), exclude=(), note="実践トレーラー=实机预告（谷翻按 practical 直译成'实用预告片'）。r2 cue 433。"),
-    Entity('会长', modes=('ja',), en='', ja='組織長', ko='', category='职衔/鸣潮', variants=(), ctx=(('組織長', '组织负责人'), ('組織長', '组织首领'), ('組織長', '老板'), ('組織長', '组织领导者'), ('組式長', '组长'), ('庁が', '该机构'), ('長が', '局长')), exclude=(), note='本片讨论的黑海岸会长（ja.py 既有 組織長→会长 裸键）。ASR 截短/换字 ⇒ 谷翻给 组织首领/老板/组长/该机构/局长。r2 cue 410/685/1154/1163/1654/1657/1662/1681/2074/2183/2188/2208/2240。戒律：老板/组长/局长 都是通用词，只走锚定。'),
-    Entity('鹰角网络', modes=('endobi',), en='', ja='', ko='', category='公司/终末地', variants=('海珀格里', 'hyperf'), ctx=(('\\bhyper\\b(?!\\s*(?:grave|monetiz))', 'Hyper'),), exclude=(), note='鹰角网络（Hypergryph）。微软翻译把裸 Hyper 原样留在中文行；海珀格里/hyperf 是 ASR 音译。cue 1342/1347/1655/2069/2367/2500。'),
+    Entity('尤诺', modes=('wuwa-ja',), en='Iuno', ja='ユウノ/ユーノ/ユノ', ko='', category='角色/鸣潮2.6七丘', variants=(), ctx=(('ユウ[ノナ]|ユノ|ゆうの', '优诺'), ('ユウ[ノナ]|ユノ|ゆうの', '优野'), ('ユウ[ノナ]|ユノ|ゆうの', '优乃'), ('ユウ[ノナ]|ユノ|ゆうの', '优牛'), ('ユウ[ノナ]|ユノ|ゆうの', '优音'), ('ユウ[ノナ]|ユノ|ゆうの', '尤娜'), ('ユウ[ノナ]|ユノ|ゆうの', '尤那'), ('ユウ[ノナ]|ユノ|ゆうの', '勇乃'), ('ユウ[ノナ]|ユノ|ゆうの', '由乃'), ('ユウ[ノナ]|ユノ|ゆうの', '结野'), ('ユウ[ノナ]|ユノ|ゆうの', '艾尤')), exclude=(), note='鸣潮 2.6 七丘「谕女」尤诺（Iuno，姓氏西比尔；官方档案「月相轮转之间，我以我为锚点」）。ASR ユウノ/ユーノ/ユノ/ユウナ 被谷翻成 优诺/优野/优乃/优牛/优音/尤娜/尤那/勇乃/由乃/结野/艾尤。「优诺」是酸奶品牌、「优野」是日本人名，全部走日语锚定；2026-10-30 #50/#52/#261/#605 等。'),
+    Entity('莉莉贝', modes=('wuwa-ja',), en='', ja='リリベル', ko='', category='角色/鸣潮2.6七丘', variants=(), ctx=(('リリベル.*おばあ', '莉莉贝尔奶奶'), ('リリベル.*おばあ', 'Lilibel奶奶'), ('リリベル.*おばあ', '莉莉贝尔的祖母'), ('リリベル.*おばあ', '莉莉贝的祖母'), ('リリベル', '莉莉贝尔'), ('リリベル', 'Lilibel'), ('リリベル', '莉莉伯')), exclude=(), note='鸣潮 2.6 七丘谕女之首「莉莉贝」婆婆（萌娘百科 NPC 表：莉莉贝 / 谕女之首 / 婆婆 / 七丘桑古伊斯狩原四方殿）。官方中文=莉莉贝（非莉莉贝尔）；谷翻音译 莉莉贝尔/Lilibel/莉莉伯，走日语锚定；2026-10-30 #726/#984/#995 等。'),
+    Entity('谕女', modes=('wuwa-ja',), en='', ja='諭し/サトシの女', ko='', category='组织/鸣潮2.6七丘', variants=(), ctx=(('サトシの女|さとしの女', '中本聪家族的女性'), ('サトシの女|さとしの女', '中本聪家族'), ('サトシの女|さとしの女', '中本聪的女人'), ('サトシの女|さとしの女', '中本聪女性'), ('サトシの女|さとしの女', '中本聪'), ('サトシの女|さとしの女', '中智的女人'), ('サトシの女|さとしの女', '中智女性'), ('サトシの女|さとしの女', '中智'), ('サトシの女|さとしの女', '聪家的女性'), ('サトシの女|さとしの女', '聪的女人'), ('サトシの女|さとしの女', '聪女'), ('サトシの女|さとしの女', '中本的女人'), ('サトシの女|さとしの女', '中本女性'), ('サトシの女|さとしの女', '小智的女人'), ('サトシの女|さとしの女', '小聪的女人')), exclude=(), note='鸣潮 2.6 七丘「谕女」（七丘的预言家；官方「谕女给出的预言通常具有绝对的效力」）。日语 ASR 把 諭し(さとし) 写成 サトシ，谷翻当成中本聪：中本聪/中智/聪女/中本女性 等 14 形。锚点强制 サトシの女/さとしの女（裸 サトシ 可能是观众名），绝不裸键；2026-10-30 #211/#328/#1361 等。'),
+    Entity('四方殿', modes=('wuwa-ja',), en='', ja='テトラゴン神殿', ko='', category='地点/鸣潮2.6七丘', variants=(), ctx=(('テトラゴン神殿', '四边神庙'), ('テトラゴン神殿', '四边形神殿'), ('テトラゴン神殿', '四角神庙'), ('テトラゴン神殿', '寺庙')), exclude=(), note='鸣潮 2.6 七丘四方殿（官方「四方殿，窥察命运、转述记录预言之所，亦为七丘谕女们的居处」）。日 テトラゴン神殿；谷翻 四边神庙/四边形神殿/四角神庙/寺庙，全部走日语锚定；2026-10-30 #703/#1350/#1805 等。'),
+    Entity('元老院', modes=('wuwa-ja',), en='', ja='元老院/元農院', ko='', category='组织/鸣潮2.6七丘', variants=(), ctx=(('元[老農]院', '前农民'), ('元[老農]院', '参议院')), exclude=(), note='鸣潮 2.6 七丘元老院（与总督奥古斯塔对立）。ASR 元農院 被谷翻成「前农民」（#123），「参议院」为另一误译（#1970）；走日语锚定。'),
+    Entity('布里奥', modes=('wuwa-ja',), en='', ja='ブリオ', ko='', category='角色/鸣潮2.6七丘', variants=(), ctx=(('ブリオ', '布利奥'), ('ブリオ', '布里欧')), exclude=(), note='鸣潮 2.6 第九幕礼官布里奥（官方版本说明：「名为布里奥的礼官邀你重返营地」）。日 ブリオ；2026-10-30 #121/#122/#861。'),
+    Entity('英雄王', modes=('wuwa-ja',), en='', ja='英雄王', ko='', category='称号/鸣潮2.6七丘', variants=(), ctx=(('英雄王', '英勇的国王'),), exclude=(), note='鸣潮 2.6 七丘预言中的英雄王（官方「为新诞生的英雄王…所设的庆典」）。谷翻「英勇的国王」走日语锚定；2026-10-30 #2107/#2110/#2112。'),
+    Entity('新王', modes=('wuwa-ja',), en='', ja='新王/新たな王', ko='', category='称号/鸣潮2.6七丘', variants=(), ctx=(('新王|新たな王', '新国王'),), exclude=(), note='鸣潮 2.6 七丘「新王」（伪作的神王；官方第九幕「神王已死」）。谷翻「新国王」走日语锚定；2026-10-30 #287/#303/#333 等 8 处。'),
+    Entity('月石金枝', modes=('wuwa-ja',), en='', ja='ルナオーラム', ko='', category='素材/鸣潮2.6', variants=(), ctx=(('ルナオーラム', '露娜·奥拉姆'), ('ルナオーラム', '露娜·奥鲁姆'), ('ルナオーラム', '露娜·欧拉姆'), ('ルナオーラム', '月亮金币')), exclude=(), note='鸣潮 2.6 弓匠剧情素材 ルナオーラム = **月石金枝**（官方剧情原文「想要用你最喜欢的月石金枝来做这把弓」）。谷翻音译 露娜·奥拉姆/露娜·奥鲁姆/露娜·欧拉姆/月亮金币，全部走日语锚定；2026-10-30 #1390/#2192/#2217 等。'),
+    Entity('镯子', modes=('wuwa-ja',), en='', ja='ブレスレット/腕輪', ko='', category='道具/鸣潮2.6', variants=(), ctx=(('ブレスレット|腕輪', '手链'),), exclude=(), note='鸣潮 2.6 尤诺的镯子（官方剧情「这只镯子，是尤诺的」）。谷翻统一作「手链」，本片按官方改「镯子」；走日语锚定，2026-10-30 #747/#861/#971 等。'),
+    Entity('筹花人', modes=('wuwa-ja',), en='', ja='花配り/花を配る', ko='', category='称号/鸣潮2.6庆典', variants=(), ctx=(('花配り|花を配る', '发花的人'), ('花配り|花を配る', '分发花瓣的人'), ('花配り|花を配る', '负责发花瓣的人')), exclude=(), note='鸣潮 2.6 庆典角色「筹花人」（官方「邀请你作为本场庆典的筹花人之一，将象征荣耀与凯旋的玫瑰分发给大家」）。谷翻作 发花/分发花瓣；只作元数据与日语锚定，不裸键（「发花」是通用动词）。'),
+    Entity('解离症', modes=('wuwa-ja',), en='', ja='解離症/脅迫症', ko='', category='术语/鸣潮2.6', variants=(), ctx=(('解離症|脅迫症', '强迫症'),), exclude=(), note='鸣潮 2.6 医生对黑潮侵蚀症状的诊断「解离症」（官方剧情）。ASR/谷翻误作「强迫症」（#930）；走日语锚定，不裸键（强迫症是真实医学词）。'),
+    Entity('忒修特', modes=('wuwa-ja',), en='', ja='テセウス', ko='', category='角色/鸣潮2.6庆典', variants=(), ctx=(('テセウス', '忒修斯'),), exclude=(), note='鸣潮 2.6 庆典 NPC 忒修特（官方剧情「告诉我和忒修特」）。谷翻作「忒修斯」（希腊神话 Theseus），走日语锚定；2026-10-30 #206。'),
+    Entity('鉴定师', modes=('wuwa-ko',), en='', ja='', ko='감정사', category='角色/异环', variants=(), ctx=(('감정사', '估价师'), ('감정사', '评估师'), ('감정사', '鉴定员'), ('감정사', '鉴定人')), exclude=(), note='《异环》玩家主控「鉴定师」（Appraiser，官方 App Store 简介＋百度百科；韩语 감정사）。谷翻误作 估价师/评估师/鉴定员/鉴定人；本片 #1581–#2399 共 15 处。'),
+    Entity('曳尔沐', modes=('wuwa-ko',), en='', ja='', ko='엘림', category='角色/异环1.5', variants=(), ctx=(('엘림', 'Elim'), ('엘림', '以琳'), ('엘림', '以利姆'), ('엘림', '埃琳'), ('엘림', '艾琳')), exclude=(), note='异环 1.5 新 S 级角色「曳尔沐」（Elyms，17173/ali213 通稿；韩语 엘림）。谷翻误作 Elim/以琳/以利姆/埃琳/艾琳；本片 #1633–#2413 共 29 处。「艾琳」是常见人名，只走韩语锚定。'),
+    Entity('EXE', modes=('wuwa-ko',), en='', ja='', ko='엑/엑세/엑셀', category='角色/异环1.5', variants=(), ctx=(('엑(?!스칼리버|수)', 'Ek'), ('엑(?!스칼리버|수)', 'Excel'), ('엑(?!스칼리버|수)', 'Exega'), ('엑(?!스칼리버|수)', 'Exewa'), ('엑(?!스칼리버|수)', '艾克森')), exclude=(), note='异环 1.5 新 S 级角色「EXE」（17173 通稿；韩语 엑）。谷翻误作 Ek/Excel/Exega/Exewa/艾克森；本片 #1633/#1647/#1944/#1974/#1982/#2023 等。⚠ 汉字「X」在片中亦指 EXE，但 X 亦出现在 UI/XL 等语境，不设裸键，逐条人工处理。'),
+    Entity('海特洛', modes=('wuwa-ko',), en='', ja='', ko='해태로/헤테로', category='地名/异环', variants=(), ctx=(('해태로|헤테로', '海泰路'), ('해태로|헤테로', '灰太路'), ('해태로|헤테로', '海泰'), ('해태로|헤테로', 'Haitairo'), ('해태로|헤테로', 'Hetero'), ('해태로|헤테로', '异质性')), exclude=(), note='《异环》主舞台「海特洛市」（Hethereau，官方 App Store 简介；韩语 해태로/헤테로）。谷翻误作 海泰路/灰太路/海泰/Haitairo/Hetero/异质性；本片 #1603–#2409。⚠ 2070「海泰物流中心」是跨 cue 断句，术语替换后需整行修正。'),
+    Entity('克莱门学院', modes=('wuwa-ko',), en='', ja='', ko='클레멘트 아카데미', category='地点/异环', variants=(), ctx=(('클레멘트', '克莱门特学院'),), exclude=(), note='异环地点「克莱门学院」（Clement Academy；韩语 클레멘트 아카데미）。谷翻多一个「特」：克莱门特学院；本片 #1593。'),
+    Entity('娜娜莉', modes=('wuwa-ko',), en='', ja='', ko='나나리', category='角色/异环', variants=(), ctx=(('나나리', 'Nanari'), ('나나리', '纳纳里'), ('나나리', '娜娜里')), exclude=(), note='异环看板角色「娜娜莉」（Nanally；韩语 나나리）。谷翻误作 Nanari/纳纳里/娜娜里；本片 #1825/#2292/#6391/#6425/#6568/#8055。'),
+    Entity('异象', modes=('wuwa-ko',), en='', ja='', ko='이상', category='术语/异环', variants=(), ctx=(('이상\\s*(관련|과|이|을|의|리|순례|급|같은|판타지)', '异常'), ('이상\\s*(관련|과|이|을|의|리|순례|급|같은|판타지)', '李尚利')), exclude=(), note='《异环》核心设定「异象」（Anomaly，官方 App Store 简介）。谷翻按普通词译成「异常」或音译「李尚利」；「异常」是通用词，只收 이상+宾语/修饰语的语法组合做锚，不收裸键（이상하다「奇怪」不得命中）。本片 #1641/#1644/#1862 等。'),
+    Entity('异能', modes=('wuwa-ko',), en='', ja='', ko='이능력', category='术语/异环', variants=(), ctx=(('이능력', '能力'),), exclude=(), note='《异环》异能设定（官方 App Store 简介「异能者」）。韩语 이능력；谷翻常省成「能力」。本片 #1786/#1931/#1944（#1929 的「异质性」由海特洛条目处理）。'),
+    Entity('策划', modes=('wuwa-ko',), en='', ja='', ko='기획자', category='职位/异环直播', variants=(), ctx=(('기획자', '规划师'), ('기획자', '计划者'), ('기획자', '策划者')), exclude=(), note='异环官方前瞻节目主持头衔「策划」（기획자）。谷翻 规划师/计划者/策划者；本片 #1586/#1590/#1592。'),
+    Entity('方斯', modes=('wuwa-ko',), en='', ja='', ko='폰즈/폰지', category='术语/异环', variants=(), ctx=(('폰즈|폰지', '庞氏'), ('폰즈|폰지', '橙子'), ('폰즈|폰지', '池塘')), exclude=(), note='《异环》货币「方斯」（Fons；官方社区文案「赚够方斯就收手」；韩语 폰즈）。谷翻误作 庞氏/橙子/池塘；「橙子」是通用词，只走韩语锚定。本片 #2150/#2430/#2432–#2445/#5742。'),
+    Entity('优雅的腐败者', modes=('wuwa-ko',), en='', ja='', ko='우아한 부패자', category='异象/异环1.5', variants=(), ctx=(('우아한 부패자', '优雅腐败者'),), exclude=(), note='异环 1.5 新异象「优雅的腐败者」（韩语 우아한 부패자；官方简中名待确认，按韩语直译）。谷翻少「的」；本片 #1862/#1866/#2383。'),
+    Entity('明日方舟', modes=('wuwa-ko',), en='', ja='', ko='명방/명일방주', category='作品/游戏', variants=(), ctx=(('명방|명일방주', '明房'), ('명방|명일방주', '阿明芳'), ('명방|명일방주', '明邦'), ('명방|명일방주', '名室')), exclude=(), note='《明日方舟》（韩语 명일방주/명방）。谷翻误作 明房/阿明芳/明邦/名室；本片 #483/#484/#2551/#4402/#4623。'),
+    Entity('绝区零', modes=('wuwa-ko',), en='', ja='', ko='젠존재/젠존지/젠존제/젠레스 존 제로', category='作品/游戏', variants=(), ctx=(('젠존', '禅宗'), ('젠존', '善宗寺'), ('젠존', 'Zenjonje')), exclude=(), note='《绝区零》（Zenless Zone Zero；韩语 젠존재/젠존지/젠레스 존 제로）。谷翻误作 禅宗/善宗寺/Zenjonje；本片 #3278/#3373/#3443/#3713/#4166/#4473/#4493。'),
+    Entity('星穹铁道', modes=('wuwa-ko',), en='', ja='', ko='스타레일', category='作品/游戏', variants=(), ctx=(('스타\\s*레일', 'Starrail'),), exclude=(), note='《崩坏：星穹铁道》（韩语 스타레일）。谷翻 Starrail；「星轨」已有既有 KO_CONTEXT 规则映射到「星穹铁道」。本片 #2670/#3007/#3009/#3051/#3712/#3718/#4531。'),
+    Entity('原神', modes=('wuwa-ko',), en='', ja='', ko='원신', category='作品/游戏', variants=(), ctx=(('원신', '原神冲击'), ('원신', 'Genshin Impact')), exclude=(), note='《原神》（韩语 원신）。谷翻 原神冲击/Genshin Impact；本片 #3066/#3069/#4638。'),
+    Entity('藿藿', modes=('wuwa-ko',), en='', ja='', ko='곽향', category='角色/星穹铁道', variants=(), ctx=(('곽향', '郭香'), ('곽향', '夸扬'), ('곽향', '夸赫阳'), ('곽향', '夸香'), ('곽향', 'Kwakhyang'), ('곽향', 'Kwak Hyang')), exclude=(), note='星穹铁道角色「藿藿」（Huohuo；韩语 곽향）。谷翻误作 郭香/夸扬/夸赫阳/夸香/Kwakhyang；本片 #145–#4541 共 18 处。'),
+    Entity('阮·梅', modes=('wuwa-ko',), en='', ja='', ko='완매', category='角色/星穹铁道', variants=(), ctx=(('완매', '已售完'), ('완매', '已售罄'), ('완매', '售完'), ('완매', '售罄'), ('완매', '卖完了'), ('완매', '完卖')), exclude=(), note='星穹铁道角色「阮·梅」（Ruan Mei；官方写法带间隔号；韩语 완매）。谷翻按字面译成 售完/售罄/卖完了；这些是通用词，只走韩语锚定。本片 14 处。'),
+    Entity('花火', modes=('wuwa-ko',), en='', ja='', ko='스파클', category='角色/星穹铁道', variants=(), ctx=(('스파클', '闪闪发光'), ('스파클', '闪闪'), ('스파클', '闪光'), ('스파클', '火花')), exclude=(), note='星穹铁道角色「花火」（Sparkle；韩语 스파클）。谷翻误作 闪闪发光/闪闪/闪光/火花；「火花」「闪光」是通用词，只走韩语锚定。本片 #2770–#4541 共 8 处。'),
+    Entity('耀嘉音', modes=('wuwa-ko',), en='', ja='', ko='아스트라', category='角色/绝区零', variants=(), ctx=(('아스트라', '阿斯特拉'), ('아스트라', 'Astra')), exclude=(), note='绝区零角色「耀嘉音」（Astra Yao；韩语 아스트라）。谷翻音译成 阿斯特拉/Astra；本片 #463–#5423 共 23 处（#463「阿斯特拉耀正」需整行修正）。'),
+    Entity('柚叶', modes=('wuwa-ko',), en='', ja='', ko='유즈아/유즈/유자', category='角色/绝区零', variants=(), ctx=(('유즈아|유즈|유자', '柚子'), ('유즈아|유즈|유자', '尤祖亚'), ('유즈아|유즈|유자', '尤兹'), ('유즈아|유즈|유자', '尤莎'), ('유즈아|유즈|유자', 'Yuzu')), exclude=(), note='绝区零角色「浮波柚叶」（Yuzuha；韩语 유즈아）。谷翻误作 柚子/尤祖亚/尤兹；「柚子」是水果名，只走韩语锚定。本片 #3291/#3302/#3308/#3342/#3349。'),
+    Entity('露西', modes=('wuwa-ko',), en='', ja='', ko='루시아', category='角色/绝区零', variants=(), ctx=(('루시아', '露西亚'),), exclude=(), note='绝区零角色「露西」（Lucy；韩语 루시아）。谷翻写成 露西亚；本片 #3340/#3341/#3364/#3366。'),
+    Entity('班尼特', modes=('wuwa-ko',), en='', ja='', ko='베넷', category='角色/原神', variants=(), ctx=(('베넷', '贝内特'), ('베넷', '贝尼特')), exclude=(), note='原神角色「班尼特」（Bennett；韩语 베넷）。谷翻 贝内特/贝尼特；本片 #2505/#3123。'),
+    Entity('枫原万叶', modes=('wuwa-ko',), en='', ja='', ko='카즈아', category='角色/原神', variants=(), ctx=(('카즈아', '卡祖亚'), ('카즈아', '卡祖'), ('카즈아', 'Kazua'), ('카즈아', '卡兹阿'), ('카즈아', '风贺')), exclude=(), note='原神角色「枫原万叶」（Kazuha；韩语 카즈아，ASR 掉 하）。谷翻 卡祖亚/卡祖/Kazua；本片 #2561–#4635 共 12 处。'),
+    Entity('知更鸟', modes=('wuwa-ko',), en='', ja='', ko='로빈', category='角色/星穹铁道', variants=(), ctx=(('로빈', '罗宾'),), exclude=(), note='星穹铁道角色「知更鸟」（Robin；韩语 로빈）。谷翻音译 罗宾；本片 #2911/#3017 等。'),
+    Entity('小红帽', modes=('wuwa-ko',), en='', ja='', ko='레드후드/레드우드/레두드', category='角色/妮姬', variants=(), ctx=(('레드후드|레드우드|레두드', '红木'), ('레드후드|레드우드|레두드', '红帽'), ('레드후드|레드우드|레두드', '红头罩'), ('레드후드|레드우드|레두드', 'Redud')), exclude=(), note='妮姬「小红帽」（Red Hood；韩语 레드후드/레드우드/레두드）。谷翻误作 红木/红帽/红头罩/Redud；2026-10-30 r2 #3786/#3804/#3949/#4097 等。'),
+    Entity('拉毗', modes=('wuwa-ko',), en='', ja='', ko='라피', category='角色/妮姬', variants=(), ctx=(('라피', '拉皮'), ('라피', '拉拉菲'), ('라피', '拉菲')), exclude=(), note='妮姬「拉毗」（Rapi；韩语 라피）。谷翻误作 拉皮/拉拉菲/拉菲；「拉菲」是红酒名，只走韩语锚定。2026-10-30 r2 #3480/#3948/#4561。'),
+    Entity('红莲', modes=('wuwa-ko',), en='', ja='', ko='홍련/흥년', category='角色/妮姬', variants=(), ctx=(('홍련|흥년', '兴莲'), ('홍련|흥년', '香莲')), exclude=(), note='妮姬「红莲」（Scarlet/Hongryeon；韩语 홍련，ASR 常作 흥년）。谷翻误作 兴莲/香莲；2026-10-30 r2 #3869/#3914。'),
+    Entity('红莲：暗影', modes=('wuwa-ko',), en='', ja='', ko='흑련/흑년', category='角色/妮姬', variants=(), ctx=(('흑련|흑년', '黑莲'),), exclude=(), note='妮姬「红莲：暗影」（Scarlet: Black Shadow；韩语 흑련/흑년）。谷翻误作 黑莲；2026-10-30 r2 #3929。'),
+    Entity('阿妮斯', modes=('wuwa-ko',), en='', ja='', ko='아니스', category='角色/妮姬', variants=(), ctx=(('아니스', '安妮斯'), ('아니스', '八角茴香')), exclude=(), note='妮姬「阿妮斯」（Anis；韩语 아니스）。谷翻误作 安妮斯/八角茴香；2026-10-30 r2 #3480/#3783/#4028。'),
+    Entity('塞壬', modes=('wuwa-ko',), en='', ja='', ko='세이렌', category='角色/妮姬', variants=(), ctx=(('세이렌', '警报'), ('세이렌', '警笛'), ('세이렌', '海妖')), exclude=(), note='妮姬「塞壬」（Siren；韩语 세이렌）。谷翻误作 警报/警笛/海妖；2026-10-30 r2 #3778/#3869/#4090。'),
+    Entity('砂金', modes=('wuwa-ko',), en='', ja='', ko='어벤추린/어벤/출린', category='角色/星穹铁道', variants=(), ctx=(('어벤추린|어벤|출린', '东陵'), ('어벤추린|어벤|출린', '阿文图'), ('어벤추린|어벤|출린', '艾文'), ('어벤추린|어벤|출린', '楚林'), ('어벤추린|어벤|출린', '冒险')), exclude=(), note='星穹铁道「砂金」（Aventurine；韩语 어벤추린，ASR 常作 어벤/출린）。谷翻误作 东陵/阿文图/艾文/楚林/冒险；2026-10-30 r2 #2788/#2895/#2953/#2954。'),
+    Entity('流萤', modes=('wuwa-ko',), en='', ja='', ko='반디', category='角色/星穹铁道', variants=(), ctx=(('반디', '萤火虫'), ('반디', '班迪'), ('반디', 'Bandi')), exclude=(), note='星穹铁道「流萤」（Firefly；韩语 반디）。谷翻误作 萤火虫/班迪/Bandi；2026-10-30 r2 #2824/#2826。'),
+    Entity('符玄', modes=('wuwa-ko',), en='', ja='', ko='부연', category='角色/星穹铁道', variants=(), ctx=(('부연', '扶颜'), ('부연', '扶余'), ('부연', '补充')), exclude=(), note='星穹铁道「符玄」（Fu Xuan；韩语 부연）。谷翻误作 扶颜/扶余/补充；「补充」是通用词，只走韩语锚定。2026-10-30 r2 #2721/#2786。'),
+    Entity('白露', modes=('wuwa-ko',), en='', ja='', ko='백로', category='角色/星穹铁道', variants=(), ctx=(('백로', '白鹭'),), exclude=(), note='星穹铁道「白露」（Bailu；韩语 백로）。谷翻误作 白鹭；2026-10-30 r2 #2740。'),
+    Entity('杰帕德', modes=('wuwa-ko',), en='', ja='', ko='개파드', category='角色/星穹铁道', variants=(), ctx=(('개파드', '加法德'), ('개파드', '盖帕德')), exclude=(), note='星穹铁道「杰帕德」（Gepard；韩语 개파드）。谷翻误作 加法德/盖帕德；2026-10-30 r2 #2740。'),
+    Entity('灵砂', modes=('wuwa-ko',), en='', ja='', ko='영사', category='角色/星穹铁道', variants=(), ctx=(('영사', '领事'), ('영사', '英泰')), exclude=(), note='星穹铁道「灵砂」（Lingsha；韩语 영사）。谷翻误作 领事/英泰；「领事」是通用词，只走韩语锚定。2026-10-30 r2 #2924/#2952/#3022。'),
+    Entity('缇宝', modes=('wuwa-ko',), en='', ja='', ko='트립', category='角色/星穹铁道', variants=(), ctx=(('트립', 'Trip'), ('트립', '行程'), ('트립', '特里维')), exclude=(), note='星穹铁道「缇宝」（Tribbie；韩语 트립）。谷翻误作 Trip/行程/特里维；2026-10-30 r2 #2935/#2942/#2992。'),
+    Entity('万敌', modes=('wuwa-ko',), en='', ja='', ko='마이데이', category='角色/星穹铁道', variants=(), ctx=(('마이데이', '我的一天'),), exclude=(), note='星穹铁道「万敌」（Mydei；韩语 마이데이）。谷翻直译「我的一天」；2026-10-30 r2 #2946/#2950。'),
+    Entity('遐蝶', modes=('wuwa-ko',), en='', ja='', ko='카스토리', category='角色/星穹铁道', variants=(), ctx=(('카스토리', '卡斯托里'), ('카스토리', '卡斯托里斯')), exclude=(), note='星穹铁道「遐蝶」（Castorice；韩语 카스토리）。谷翻音译 卡斯托里/卡斯托里斯；2026-10-30 r2 #2950。'),
+    Entity('风堇', modes=('wuwa-ko',), en='', ja='', ko='히아킨', category='角色/星穹铁道', variants=(), ctx=(('히아킨', '风信子'), ('히아킨', '哈肯')), exclude=(), note='星穹铁道「风堇」（Hyacine；韩语 히아킨）。谷翻误作 风信子/哈肯；「风信子」是花名，只走韩语锚定。2026-10-30 r2 #3023/#3025。'),
+    Entity('大黑塔', modes=('wuwa-ko',), en='', ja='', ko='더헤르타', category='角色/星穹铁道', variants=(), ctx=(('더헤르타', 'Herta'),), exclude=(), note='星穹铁道「大黑塔」（Herta 的大黑塔形态；韩语 더헤르타）。谷翻留英文 Herta；2026-10-30 r2 #2948。'),
+    Entity('桃金娘', modes=('wuwa-ko',), en='', ja='', ko='머틀', category='角色/明日方舟', variants=(), ctx=(('머틀', '默特尔'), ('머틀', '香桃木')), exclude=(), note='明日方舟「桃金娘」（Myrtle；韩语 머틀）。谷翻误作 默特尔/香桃木；2026-10-30 r2 #2552。'),
+    Entity('北部玄驹', modes=('wuwa-ko',), en='', ja='', ko='키타산 블랙/타산 블랙/기타산 블랙', category='角色/赛马娘', variants=(), ctx=(('키타산|타산|기타산', '吉他的黑色'), ('키타산|타산|기타산', '黑人'), ('키타산|타산|기타산', '黑色'), ('키타산|타산|기타산', 'Kitasan Black')), exclude=(), note='赛马娘「北部玄驹」（Kitasan Black；韩语 키타산 블랙）。谷翻误作 吉他的黑色/黑人/黑色/Kitasan Black；「黑色」是通用词，只走韩语锚定。2026-10-30 r2 #4950/#5015/#5187。'),
+    Entity('堂吉诃德', modes=('wuwa-ko',), en='', ja='', ko='동키', category='角色/边狱公司', variants=(), ctx=(('동키', '驴子'),), exclude=(), note='边狱公司囚人「堂吉诃德」（Don Quixote；韩语 동키）。谷翻按字面作「驴子」；2026-10-30 r2 #884。'),
+    Entity('奥提斯', modes=('wuwa-ko',), en='', ja='', ko='오티스', category='角色/边狱公司', variants=(), ctx=(('오티스', '奥蒂斯'),), exclude=(), note='边狱公司囚人「奥提斯」（Outis；韩语 오티스）。谷翻误作 奥蒂斯；2026-10-30 r2 #885。'),
+    Entity('蔚蓝档案', modes=('wuwa-ko',), en='', ja='', ko='블루 아카이브', category='作品/游戏', variants=(), ctx=(('블루\\s*아카이브', '蓝色档案'), ('블루\\s*아카이브', '蓝档案')), exclude=(), note='《蔚蓝档案》（Blue Archive；韩语 블루 아카이브）。谷翻误作 蓝色档案/蓝档案；2026-10-30 r2 #578。'),
+    Entity('边狱公司', modes=('wuwa-ko',), en='', ja='', ko='림버스 컴퍼니', category='作品/游戏', variants=(), ctx=(('림버스\\s*컴퍼니', '林布斯公司'), ('림버스\\s*컴퍼니', 'Limbus Company')), exclude=(), note='《边狱公司》（Limbus Company；韩语 림버스 컴퍼니）。谷翻误作 林布斯公司/Limbus Company；2026-10-30 r2 #1295/#1464。'),
+    Entity('重返未来：1999', modes=('wuwa-ko',), en='', ja='', ko='리버스', category='作品/游戏', variants=(), ctx=(('리버스', '逆向'), ('리버스', '里弗斯'), ('리버스', '这辆巴士')), exclude=(), note='《重返未来：1999》（Reverse: 1999；韩语 리버스）。谷翻误作 逆向/里弗斯/这辆巴士；2026-10-30 r2 #4727/#4729/#4731。'),
+    Entity('崩坏3', modes=('wuwa-ko',), en='', ja='', ko='붕괴드', category='作品/游戏', variants=(), ctx=(('붕괴드', '折叠代码'),), exclude=(), note='《崩坏3》（韩语 붕괴드）。谷翻误作「折叠代码」；2026-10-30 r2 #4669。'),
+    Entity('星铁', modes=('wuwa-ko',), en='', ja='', ko='스타레', category='作品/游戏', variants=(), ctx=(('스타레', '凝视'),), exclude=(), note='《崩坏：星穹铁道》简称「星铁」（韩语 스타레）。谷翻误作「凝视」；2026-10-30 r2 #4564。'),
+    Entity('斯卡哈', modes=('wuwa-ko',), en='', ja='', ko='스카사', category='角色/FGO', variants=(), ctx=(('스카사', '斯卡萨'),), exclude=(), note='FGO「斯卡哈」（Scáthach；韩语 스카사）。谷翻误作 斯卡萨；2026-10-30 r2 #5066/#5117。'),
+    Entity('高扬斯卡娅', modes=('wuwa-ko',), en='', ja='', ko='코얀 스칼', category='角色/FGO', variants=(), ctx=(('코얀\\s*스칼', '科扬斯卡尔'),), exclude=(), note='FGO「高扬斯卡娅」（Koyanskaya；韩语 코얀 스칼）。谷翻音译错位 科扬斯卡尔；2026-10-30 r2 #5139。'),
+    Entity('赛马娘', modes=('wuwa-ko',), en='', ja='', ko='말딸', category='作品/游戏', variants=(), ctx=(('말딸', '月底'),), exclude=(), note='《赛马娘》（韩语 말딸）。谷翻误作「月底」；2026-10-30 r2 #5031。'),
+    Entity('宝具', modes=('wuwa-ko',), en='', ja='', ko='필사기', category='术语/FGO', variants=(), ctx=(('필사기', '转录机'), ('필사기', '转录器'), ('필사기', '特杀')), exclude=(), note='FGO「宝具」（필사기）。谷翻误作 转录机/转录器/特杀；2026-10-30 r2 #5053/#5054/#5093。'),
+    Entity('干员', modes=('wuwa-ko',), en='', ja='', ko='오퍼', category='术语/明日方舟', variants=(), ctx=(('오퍼', '优惠'), ('오퍼', '培训机会')), exclude=(), note='明日方舟「干员」（오퍼）。谷翻误作 优惠/培训机会；2026-10-30 r2 #5195/#5196。'),
+    Entity('关服', modes=('wuwa-ko',), en='', ja='', ko='섭종', category='术语/通用', variants=(), ctx=(('섭종(?!사)', 'Seopjong'), ('섭종(?!사)', '涉宗寺')), exclude=(), note='「关服/停服」（韩语 섭종）。谷翻留罗马字 Seopjong 或音译涉宗寺；2026-10-30 r2 #2484/#2487/#4131。'),
+    Entity('复刻', modes=('wuwa-ko',), en='', ja='', ko='복각', category='术语/通用', variants=(), ctx=(('복각', '重印'), ('복각', '转载'), ('복각', '福盖尔')), exclude=(), note='抽卡「复刻」（韩语 복각）。谷翻误作 重印/转载/福盖尔；2026-10-30 r2 #2024/#2624/#4512。'),
+    Entity('常驻', modes=('wuwa-ko',), en='', ja='', ko='통상', category='术语/通用', variants=(), ctx=(('통상', '这很正常'),), exclude=(), note='抽卡「常驻」（韩语 통상）。谷翻误作「这很正常」；2026-10-30 r2 #3759。'),
+    Entity('保底', modes=('wuwa-ko',), en='', ja='', ko='천장', category='术语/通用', variants=(), ctx=(('천장', '天花板'), ('천장', '吸顶')), exclude=(), note='抽卡「保底/天井」（韩语 천장）。谷翻误作 天花板/吸顶；2026-10-30 r2 #5197/#5754。'),
+    Entity('0 档', modes=('wuwa-ko',), en='', ja='', ko='영티어', category='术语/通用', variants=(), ctx=(('영티어', '年轻阶层'), ('영티어', '少年组'), ('영티어', '青年队')), exclude=(), note='强度榜「0 档/T0」（韩语 영티어 = 0티어）。谷翻误作 年轻阶层/少年组/青年队；2026-10-30 r2 #5079/#5111/#5137。'),
+    Entity('终末侠', modes=('wuwa-ko',), en='', ja='', ko='종말맨', category='主播/昵称', variants=(), ctx=(('종말맨', '末日人'), ('종말맨', '天启人'), ('종말맨', '末世侠')), exclude=(), note='主播圈昵称「终末侠」（韩语 종말맨）。谷翻误作 末日人/天启人/末世侠；2026-10-30 r2 #4324/#4408/#4431/#5210。'),
+    Entity('Raven', modes=('wuwa-ko',), en='', ja='', ko='레이븐', category='角色/妮姬', variants=(), ctx=(('레이븐', '乌鸦'),), exclude=(), note='妮姬角色「Raven」（韩语 레이븐）。谷翻按字面作「乌鸦」；2026-10-30 r2 #6033/#6536。'),
+    Entity('保时捷', modes=('wuwa-ko',), en='', ja='', ko='뽀르쉐/보르쉐/포르스', category='术语/通用', variants=(), ctx=(('뽀르쉐|보르쉐|포르스', '罗宋汤'), ('뽀르쉐|보르쉐|포르스', '眼影'), ('뽀르쉐|보르쉐|포르스', '福斯')), exclude=(), note='《异环》载具「保时捷」（韩语 뽀르쉐/보르쉐/포르스）。谷翻误作 罗宋汤/眼影/福斯；2026-10-30 r2 #5493/#5614/#5734/#5749。'),
+    Entity('立绘', modes=('wuwa-ko',), en='', ja='', ko='일러', category='术语/通用', variants=(), ctx=(('일러', '早点'),), exclude=(), note='游戏术语「立绘」（韩语 일러）。谷翻误作「早点」；2026-10-30 r2 #5647。'),
+    Entity('Smilegate 公司', modes=('wuwa-ko',), en='', ja='', ko='스마게', category='公司/厂商', variants=(), ctx=(('스마게', '聪明'), ('스마게', '苏马加')), exclude=(), note='Smilegate（韩语 스마게）。谷翻误作 聪明/苏马加；2026-10-30 r2 #4865/#4868。'),
+    Entity('正统', modes=('wuwa-ko',), en='', ja='', ko='정배', category='术语/通用', variants=(), ctx=(('정배', '正裴'),), exclude=(), note='「正统打法」简称「正统」（韩语 정배）。谷翻误作人名「正裴」；2026-10-30 r2 #5769。'),
+    Entity('停车', modes=('wuwa-ko',), en='', ja='', ko='주차', category='术语/通用', variants=(), ctx=(('주차', '公园'),), exclude=(), note='「停车」（韩语 주차）。谷翻误作「公园」；2026-10-30 r2 #5830。'),
+    Entity('承认', modes=('wuwa-ko',), en='', ja='', ko='인종/인정', category='术语/通用', variants=(), ctx=(('인종|인정', '种族'),), exclude=(), note='「承认/认了」（韩语 인정，ASR 作 인종）。谷翻误作「种族」；2026-10-30 r2 #6521。'),
+    Entity('悲鸣', modes=('wuwa-ja',), en='', ja='悲鳴', ko='', category='术语/鸣潮世界观', variants=(), ctx=(('悲鳴', '尖叫声'), ('悲鳴', '呐喊'), ('悲鳴観測', '尖叫观察'), ('悲鳴', '尖叫')), exclude=(), note="鸣潮世界观词「悲鸣」，日服官网原文即「悲鳴」；谷翻按日语普通词'尖叫'直译。r2 cue 873/874/875/880/881/892/895/906/907/909/1265/1347/1379/1944/1985。戒律：尖叫/呐喊 是正常中文词，只走锚定，且长形在前（ctx 按列表顺序执行）。"),
+    Entity('实例', modes=('wuwa-ja',), en='Instance', ja='インスタンス', ko='', category='术语/鸣潮4.0', variants=(), ctx=(('インスタンス', '第三次审理'), ('インスタンス', '第三次'), ('インスタンス', '法庭'), ('インスタンス', '例子'), ('インスタンス', '第一次'), ('インスタンス', '第二次')), exclude=(), note='4.0「融合漂泊者/多个漂泊者」讨论里的 インスタンス=实例（第1/第2/第3 インスタンス）。谷翻按字面给 例子/法庭/审理/第N次。r2 cue 1087/1103/1209/1240/1249/1283/1442。戒律：例子/法庭/序数词全是通用词，禁入裸键。'),
+    Entity('想象与心灵的边界', modes=('wuwa-ja',), en='', ja='', ko='', category='PV台词/鸣潮', variants=(), ctx=(('想像と心の', '想象与心灵教会'), ('想像と心の', '想象与心灵的教堂'), ('想像と心の', '想象力与心灵')), exclude=(), note="世界观PV 旁白「想像と心の境界で僕は取引を守ってるだろう」。境界/教会 同音きょうかい，ASR 多数听成 教会⇒谷翻'教堂/教会'；cue 1727 同行 ASR 作 境界，即片内自证。r2 cue 597/1841/1851/1852/1855/1861/1863/1885/2009。"),
+    Entity('黑海岸', modes=('wuwa-ja',), en='Black Shores', ja='ブラックショア', ko='', category='组织/鸣潮', variants=(), ctx=(('ブラック', '黑色淋浴'), ('ブラック', '黑名单股份'), ('ブラック', '布莱克郡'), ('ブラック', '布莱克肖尔'), ('ブラック', '黑股票'), ('ブラック', '黑西亚'), ('ブラック', '黑谢亚'), ('ブラック', '黑查尔'), ('ブラック', '黑共享'), ('ブラック', 'BlackShare'), ('ブラック', '黑色秀'), ('ブラック', '《黑人》'), ('ブラックシア|ブラックシュア', '布莱克谢')), exclude=(), note="官方组织=黑海岸。ja.py 已有裸键「黑岸→黑海岸」与 ブラックシア/シュア 的「布莱克谢亚集团→黑海岸组」⇒ 本条**只补 r2 新出现的拆译形**（シャワー淋浴/シェア共享/ストック股票 被按字面直译），cue 1028/1064/1403/1405/1533/1616/1617/1641/1643/1707/1708/2026/2046/2049/2093/2098。⚠ 不收裸「布莱克谢」——会把已正确的「布莱克谢亚集团」咬成'黑海岸亚集团'（扁平表先于 ctx，ja.py:42 笛卡尔前科）；ブラックホール=黑洞（cue 1190/1191/1258/1259 是黑洞，勿并入本条）。"),
+    Entity('岁主', modes=('wuwa-ja',), en='', ja='サイシャ', ko='', category='术语/鸣潮世界观', variants=(), ctx=(('最主|最種', '赛兽'),), exclude=(), note="梦州岁主（心月狐=首位可玩岁主，百度百科）。ASR 作 最主/最種（さいしゅ）⇒谷翻按字面给'赛兽/主要是'。r2 cue 148/2198。戒律：'主要是' 是超常用串，绝不入表；裸「最主」⊂「最主要」也只走锚定。"),
+    Entity('星炬学院', modes=('wuwa-ja',), en='Startorch Academy', ja='スタート学園', ko='', category='地点/学院·鸣潮', variants=(), ctx=(('スタート学園', 'Start Academy'),), exclude=(), note="官方中文=星炬学院（英 Startorch Academy，见本文件 bi/react 行）。日服 ASR 把 Startorch 听成 スタート(Start)⇒谷翻直译 'Start Academy'。r2 cue 522/524。依据：官博/TapTap 官方帖「深空联合：星炬学院」。"),
+    Entity('新联邦', modes=('wuwa-ja',), en='New Federation', ja='ネオユニオン', ko='', category='地区/鸣潮4.0', variants=(), ctx=(('ネオンユニ', '霓虹大学'), ('ネオユニ', '新大学')), exclude=(), note='4.0 新地区=新联邦（bi/react 行已有）。ASR 截短成 ネオユニ/ネオンユニ，谷翻给 新大学/霓虹大学。r2 cue 1577/2098。'),
+    Entity('陆老师', modes=('wuwa-ja',), en='', ja='りく先生', ko='', category='角色/鸣潮4.0', variants=(), ctx=(('龍ク先生', '龙九老师'), ('でりク先生', 'Deriku博士'), ('緑先生', '绿小姐'), ('り?ク先生', '琉久')), exclude=(), note='暗影中队（Lux Lunae）的陆·赫斯，日语带先生敬称⇒中文按片内既成写法统一「陆老师」（cue 734 原文已是陆老师）。ASR 变体 でりク/龍ク/緑 ⇒ 谷翻给 Deriku博士/龙九老师/绿小姐/琉久。r2 cue 513/729/731/2193。'),
+    Entity('Manmaru', modes=('wuwa-ja',), en='', ja='まんまる', ko='', category='作者/VTuber', variants=('金丸', '真丸'), ctx=(), exclude=(), note='主播自介「月から来た季節を司る青い鬼神 まんまる」；ASR 听成 こんまる/ままる⇒谷翻给 金丸/真丸/丸。r2 cue 3/4/5/7。⚠ 中文侧不能写假名「まんまる」——首中文行一旦含假名会被 _split_cue_text 判成参考行，双语版式断言直接失败（本次踩过），故 canonical 取频道自述罗马字 Manmaru；单字「丸」风险过大，只逐 cue 处理不入表。另：形容詞 まんまる(圆润) 不是人名（cue 2289 属误命中，勿改）。'),
+    Entity('阿布', modes=('wuwa-ja',), en='Abby', ja='アブ', ko='', category='角色/鸣潮3.7', variants=(), ctx=(('アブ', '木贼'),), exclude=(), note="3.7 角色阿布（Abby，本文件 bi 行已有）。アブ 被谷翻按日语'虻/木贼'直译成 马蝇/木贼。r2 cue 1348。"),
+    Entity('阿列夫一', modes=('wuwa-ja',), en='ALF1', ja='アレフ1', ko='', category='敌人/鸣式', variants=(), ctx=(('アレフ1', 'Aleph 1'), ('アレフ1', '阿勒夫 1'), ('アルフ1', 'Alf 1')), exclude=(), note='鸣式 ALF1=阿列夫一（bi 行已有）。谷翻留拉丁 Aleph 1/Alf 1 或另音译 阿勒夫 1。r2 cue 974/1185/1186。'),
+    Entity('爱弥斯', modes=('wuwa-ja',), en='Aemeath', ja='エイメス', ko='', category='角色/鸣潮', variants=(), ctx=(('エニメス', 'Enimes'),), exclude=(), note='官方中文=爱弥斯。ASR 作 エニメス⇒谷翻留拉丁 Enimes。r2 cue 2080。'),
+    Entity('拉海洛', modes=('wuwa-ja',), en='Lahai-Roi', ja='ラハイロイ', ko='', category='地区/鸣潮3.x', variants=(), ctx=(('ラハ色イ', '拉哈色'),), exclude=(), note='3.0 地区=拉海洛（Lahai-Roi）。ASR 拆字 ラハ色イ⇒谷翻给 拉哈色。r2 cue 976。'),
+    Entity('隧者', modes=('wuwa-ja',), en='Exostrider', ja='エクソストライダー', ko='', category='术语/鸣潮', variants=(), ctx=(('エクソス?トライダー', '外骨骼游者'), ('エクサス?トライダー', 'Exustrider'), ('クソストライダー', '该死的游侠'), ('ストライダー', '外骨骼行者'), ('ストライダー', '游侠')), exclude=(), note="「外骨骼行者」等形只登记在 bi 行的 variants，故 --ja 下不产出⇒本行补 ja 锚定。印证'三条产出路径'教训：子词直译(Exo=外骨骼 + strider=行者)最常见却最易漏。r2 cue 587/672/1455/1484/1999。"),
+    Entity('伤痕', modes=('wuwa-ja',), en='Scar', ja='スカー', ko='', category='角色/鸣潮残星会', variants=(), ctx=(('スカー', '疤痕'),), exclude=(), note="残星会会监 Scar 官方中文=伤痕（2026-10-30 已定）。ASR スカー⇒谷翻按字面'疤痕'。r2 cue 1568。"),
+    Entity('世界观PV', modes=('wuwa-ja',), en='', ja='', ko='', category='PV类型/鸣潮', variants=(), ctx=(('世界観PV', '世界设定的PV'), ('世界観PV', '设定世界的PV'), ('世界観PV', '世界设定PV'), ('世界観PV', '世界PV'), ('世界観', '世界虚拟')), exclude=(), note="官方宣传物料名=世界观PV（标题与 cue 13/189 同行即 世界観PV）。谷翻拆成 世界设定/设定世界/世界PV，cue 15 更把 観 误作'虚拟'。r2 cue 13/21/83/424/546/548。"),
+    Entity('心', modes=('wuwa-ja',), en='', ja='シン', ko='', category='角色/鸣潮3.7', variants=(), ctx=(('シ様', '师父'),), exclude=(), note='心月狐自称「心」、梦州岁主（官方演示「共鸣者『心』」/百度百科）。ASR 的 シ様 被谷翻按日语「師匠」误给「师父」。r2 cue 219/459/645/1585/2221。单字 canonical 只作替换目标、不参与匹配，故不入扁平表。'),
+    Entity('阿布拉克萨斯', modes=('wuwa-ja',), en='Abraxas', ja='アブラクサス', ko='', category='术语/鸣潮', variants=(), ctx=(('アブラクサス', 'Abraxas'),), exclude=(), note='片内两形并存：cue 898 已作「阿布拉克萨斯」、1364 留拉丁 Abraxas ⇒ 取低频异形。官方中文=阿布拉克萨斯。r2 cue 1364。'),
+    Entity('纯白之塔', modes=('wuwa-ja',), en='White Tower', ja='純白の塔', ko='', category='意象/鸣潮4.0', variants=(), ctx=(('純白[なぬ]?の塔', '纯白塔'), ('純白[なぬ]?の塔', '纯白色的塔')), exclude=(), note='4.0 世界观意象，片内 纯白塔/纯白之塔/纯白色的塔 三形并存（cue 835/1816/1843/1860）⇒ 归多数形。r2 cue 1816。'),
+    Entity('章鱼', modes=('wuwa-ja',), en='', ja='ダコ', ko='', category='意象/鸣潮PV', variants=(), ctx=(('ダ[コ子]', '警察'), ('ダ[コ子]', '达科'), ('ダ[コ子]', '奥科'), ('ダ[コ子]', '多子'), ('ダ[コ子]', 'Nedako')), exclude=(), note='世界观PV 旁白与解说里的 ダコ（锁暝的章鱼意象，cue 142「ダコは根を借り暗き場所に身を隠す」/cue 299「サめちゃんとね、ダコのこのね、密接な」）。谷翻两条错路：按发音抓 达科/奥科/多子/Nedako，按「逮捕」联想抓成「警察」（cue 296）。戒律：警察/达科 是普通词，只走 ダコ 锚定；r2 cue 142/177/213/245/277/288/296/351。'),
+    Entity('时雨', modes=('wuwa-ja',), en='', ja='しぐれ', ko='', category='曲目/鸣潮', variants=(), ctx=(('しぐれ', '时车'), ('しぐれ', '时香')), exclude=(), note='片内しぐれにて 多指曲目/PV 名『时雨』（cue 434/437/446/535 已成「时雨」），cue 440 被给成「时车」⇒ 取低频异形归一。cue 53「しぐりかちゃん」是歌手异世界情緒相关，不并入本条（存疑）。r2 cue 440。'),
+    Entity('实机预告', modes=('wuwa-ja',), en='', ja='', ko='', category='PV类型/鸣潮', variants=(), ctx=(('実践トレーラー', '实用预告片'),), exclude=(), note="実践トレーラー=实机预告（谷翻按 practical 直译成'实用预告片'）。r2 cue 433。"),
+    Entity('会长', modes=('wuwa-ja',), en='', ja='組織長', ko='', category='职衔/鸣潮', variants=(), ctx=(('組織長', '组织负责人'), ('組織長', '组织首领'), ('組織長', '老板'), ('組織長', '组织领导者'), ('組式長', '组长'), ('庁が', '该机构'), ('長が', '局长')), exclude=(), note='本片讨论的黑海岸会长（ja.py 既有 組織長→会长 裸键）。ASR 截短/换字 ⇒ 谷翻给 组织首领/老板/组长/该机构/局长。r2 cue 410/685/1154/1163/1654/1657/1662/1681/2074/2183/2188/2208/2240。戒律：老板/组长/局长 都是通用词，只走锚定。'),
+    Entity('鹰角网络', modes=('endo-bi',), en='', ja='', ko='', category='公司/终末地', variants=('海珀格里', 'hyperf'), ctx=(('\\bhyper\\b(?!\\s*(?:grave|monetiz))', 'Hyper'),), exclude=(), note='鹰角网络（Hypergryph）。微软翻译把裸 Hyper 原样留在中文行；海珀格里/hyperf 是 ASR 音译。cue 1342/1347/1655/2069/2367/2500。'),
     Entity('静谧田园', modes=('bi',), en='Village in the Shade', ja='', ko='', category='作品/游戏', variants=('荫村', '阴影村庄'), ctx=(), exclude=(), note='NIS America 2026-07-29 恐怖农场模拟。Steam 简中商店页 app/3934250「name: 静谧田园」。谷翻按字面直译成《荫村》；片源 cue 446/447/2941/2942/3003/3040/3065。'),
     Entity('夜回', modes=('bi',), en='Yomawari', ja='', ko='', category='作品/游戏', variants=('Yonowari', '夜廻'), ctx=(), exclude=(), note='Nippon Ichi Software 的恐怖系列。官方简中文案用字「夜回」（Steam 简中页「由『夜回』系列制作团队打造」，三作商店名「夜回三」）。Yonowari 是 ASR 形。cue 3005。'),
     Entity('魔兽世界：无限', modes=('bi',), en='World of Warcraft: Forever', ja='', ko='', category='作品/游戏', variants=('WoW Forever', 'Wow Forever', 'W forever'), ctx=(), exclude=(), note='BlizzCon 2026 公布的暴雪**正式产品（不是私服）**，国际服 11-04、国服 11-05。官方简体形「《魔兽世界》："无限"」见 wow.blizzard.cn/news/20261013/43836_1316404.html；媒体另作《永恒》属非官方。本片 16 处/9 cue。'),
@@ -14596,28 +14646,28 @@ ENTITIES = [
     Entity('吃豆人 吃遍世界', modes=('bi',), en='PAC-MAN WORLD Re-PAC', ja='', ko='', category='作品/游戏', variants=('吃豆人世界', 'Pac-Man World Repack'), ctx=(), exclude=(), note='万代南梦宫官方简中游戏名（bandainamcoent.asia 公告 + Steam app/1859470 字幕简中）；冒险舞台官方简中作「幽灵之岛」，但关卡/曲目名（Ghostly Garden、Haunted Boardwalk）无官中 ⇒ 保留英文。续作官方简中《吃豆人 吃遍世界2》。cue 436/437/1727/1836。'),
     Entity('米歇尔', modes=('bi',), en='Michaela', ja='', ko='', category='作品/角色', variants=('米凯拉',), ctx=(), exclude=(), note='《地下城与勇士》第十使徒，官方简体「米歇尔」（外文名即 Michaela/ミカエラ；dnf.qq.com 官方前瞻「梅尔文·米歇尔攻坚战」）。同段另三个官方简体：大天使米迦勒、第六使徒狄瑞吉（瘟疫）、太初神明雷米迪奥斯。⚠ 「米凯拉」是他作同名角色的通行译形，本条只对 DNF 片源成立，遇到别的 Michaela 需人工裁决。cue 603-625/670/707/721。'),
     Entity('Final Fantasy Resonance', modes=('bi',), en='FINAL FANTASY RESONANCE', ja='', ko='', category='作品/游戏', variants=('最终幻想：共振',), ctx=(), exclude=(), note='SE×LANCARSE 的 HD-2D 作品（2026-10-22 发售，FFBE 第一章重制）。Steam 简中页**名称未译**（store.steampowered.com/app/3259780/?l=schinese「名称: FINAL FANTASY RESONANCE」）⇒ 保留英文。「共振」「新共鸣」都是谷翻按子词直译的误形；《最终幻想：共鸣》仅媒体/台版译名，非官方简中。⚠ 「共振」本身是物理通用词，禁作裸键，故本实体只收 6 字长形。cue 1780/3009/3021/3037。'),
-    Entity('莱亚', modes=('pgren',), en='', ja='', ko='', category='角色/战双帕弥什', variants=('莱娅',), ctx=(), exclude=(), note='官方机体全名「莱亚·祈星」：S 级泛用机体，◇属性/冰 ◇机体类型/破甲型 ◇武器/遣光鞭绳 ◇效应/覆冰，必杀「群星起舞」，属**清庭白鹭小队**（指挥官为凡妮莎）；中配赵灵泽、日配悠木碧。官方台词（预约页逐字）：「锵锵~莱亚大英雄——登场！咳咳……按照淑女的方式，应该说……清庭白鹭小队莱亚，向您致意。」→ 本片 #128「铛铛！」→「锵锵~」、#130「我来啦，莱娅」→「莱亚大英雄——登场！」即取用此句。谷翻把 Leia 写成「莱娅」，同 2026-11-03 日语通道已定的 图层/蕾雅->莱亚。'),
-    Entity('伊什梅尔', modes=('pgren',), en='', ja='', ko='', category='角色/战双帕弥什', variants=('以实玛利',), ctx=(), exclude=(), note="官方机体全名「伊什梅尔·幻日」：**空属性**/**观测者**，武器**钥杖**，漫游·主宰双形态，核心技能「蜃幻浮影」，专属意识「索托斯」，伴生皮肤「御衡圣翼」，五周年「锈夜逐光」2024-11-07 上线，CV 姜英俊。4.9 新增特效涂装「霜尘拥月」——本片 #81 'Ishmael's getting a new coding as well' 即指它。⚠ 官中是「伊什梅**尔**」（梅），旧 BILINGUAL_TERMS 目标形「伊什麦尔」已于同日订正；⚠ 「以实玛利」同时是《边狱巴士》主角官中名，两侧英配同写 Ishmael 无从锚定区分，故本条**只挂 pgren**，边狱片走 --limbus/逐 cue。cue 80/81/151。"),
-    Entity('战双帕弥什', modes=('pgren',), en='', ja='', ko='', category='作品/游戏', variants=('灰乌鸦',), ctx=(), exclude=(), note="Punishing: Gray Raven 官方中文。本条只补「灰乌鸦」短形——ASR 常只带 'Gray Raven' 半截（本片 #43 'Gray Raven a comments a comments'），既有长键「惩罚灰乌鸦」覆盖不到。长键降序执行，短形不会咬长键产出。cue 43。"),
-    Entity('库洛', modes=('pgren',), en='Kuro Games', ja='', ko='', category='公司/战双帕弥什', variants=('九郎',), ctx=(), exclude=(), note="库洛游戏，战双帕弥什/鸣潮 研发方。**ASR 把 Kuro 听成 Chloe**（谷翻落「克洛伊」）是本片头号隐性漏校：#45 'Chloe always cook with the soundtrack' 与 #205 'Kuro cooked. Again.' 同一说话人 + 同一动词 cook，且 #39 'same company for PGR' 紧跟 #40 'right? Yep.' 在谈公司 ⇒ 铁证为库洛。「cook」按社区口径译「发力/杀疯了」，不直译「煮」——同 2026-10-XX 既有判例（'Kuro cooked=库洛杀疯了'里的「煮熟」是普通口语词，不能裸键）。错形「克洛伊」是通用音译串，**禁 variants**，走 PGR_EN_CONTEXT 的 \\bChloe\\b 锚定。cue 39/45/205。"),
-    Entity('指挥官', modes=('pgren',), en='', ja='', ko='', category='称谓/战双帕弥什', variants=(), ctx=(), exclude=(), note="官方对玩家角色的统一称谓（官网公告「欢迎指挥官前往收听」「指挥官想要试试看吗？」）。英配作 Player/Commandant。⚠ **禁把「玩家」设为 variants**：reaction 杂谈里 'players' 大量指真实玩家，裸键必误伤——本片 #33 '>> Player.' 属 PV 台词，逐 cue 改。"),
-    Entity('流光抛诸寰宇', modes=('pgren',), en="A Comet's Afterglow", ja='', ko='', category='作品/版本', variants=(), ctx=(), exclude=(), note="战双帕弥什 4.9 版本名，2026-11-05 开启。本片英文标题与 ASR 的 'a comments (after glow)' 即 'A Comet's' 的误听。⚠ 中文错形「余辉/余晖/一条评论」全是通用词，**禁 variants**，改走 PGR_EN_CONTEXT 的 afterglow / 'a comments' 英文行锚定。cue 43/109。"),
-    Entity('揽光一瞬', modes=('pgren',), en='', ja='', ko='', category='涂装/战双帕弥什', variants=(), ctx=(), exclude=(), note="莱亚·祈星 特效涂装（「流光抛诸寰宇」伴生涂装，11-05 起售）。官方文案逐字：「我要拍咯——3、2、1，茄子！」耀眼的花火在少女指尖流淌，短暂的一瞬过后，只留下鲜明而温馨的回忆，深深印在那张相纸上。→ 本片 #114 'Come and check out my new camera' 的出处。⚠ 英配与官中文案**语义相近而非逐字对应**，故不回写官方整句（2026-11-02 ⑥ 分级纪律）。同系列武器涂装「绯色慕意」（适用武器类型：遣光鞭绳）。"),
-    Entity('霜尘拥月', modes=('pgren',), en='', ja='', ko='', category='涂装/战双帕弥什', variants=(), ctx=(), exclude=(), note="伊什梅尔·幻日 特效涂装，官方归入「游诗歌谣」系列。文案逐字：「在广袤宇宙中，有一颗星，它既不寒冷，也不滚烫。这是一颗尚且年轻、充满希望的星球，正逢来自封冻世界的女王投来一瞥。」同系列武器涂装「银漪曳星」（钥杖）。⚠ 本片 #163-171 的英配独白（'life is as brittle as a frozen bubble…'）主题相近、句式不对应 ⇒ 按英文行意译，不回写官方句。"),
+    Entity('莱亚', modes=('pgr-en',), en='', ja='', ko='', category='角色/战双帕弥什', variants=('莱娅',), ctx=(), exclude=(), note='官方机体全名「莱亚·祈星」：S 级泛用机体，◇属性/冰 ◇机体类型/破甲型 ◇武器/遣光鞭绳 ◇效应/覆冰，必杀「群星起舞」，属**清庭白鹭小队**（指挥官为凡妮莎）；中配赵灵泽、日配悠木碧。官方台词（预约页逐字）：「锵锵~莱亚大英雄——登场！咳咳……按照淑女的方式，应该说……清庭白鹭小队莱亚，向您致意。」→ 本片 #128「铛铛！」→「锵锵~」、#130「我来啦，莱娅」→「莱亚大英雄——登场！」即取用此句。谷翻把 Leia 写成「莱娅」，同 2026-11-03 日语通道已定的 图层/蕾雅->莱亚。'),
+    Entity('伊什梅尔', modes=('pgr-en',), en='', ja='', ko='', category='角色/战双帕弥什', variants=('以实玛利',), ctx=(), exclude=(), note="官方机体全名「伊什梅尔·幻日」：**空属性**/**观测者**，武器**钥杖**，漫游·主宰双形态，核心技能「蜃幻浮影」，专属意识「索托斯」，伴生皮肤「御衡圣翼」，五周年「锈夜逐光」2024-11-07 上线，CV 姜英俊。4.9 新增特效涂装「霜尘拥月」——本片 #81 'Ishmael's getting a new coding as well' 即指它。⚠ 官中是「伊什梅**尔**」（梅），旧 BILINGUAL_TERMS 目标形「伊什麦尔」已于同日订正；⚠ 「以实玛利」同时是《边狱巴士》主角官中名，两侧英配同写 Ishmael 无从锚定区分，故本条**只挂 pgren**，边狱片走 --limbus/逐 cue。cue 80/81/151。"),
+    Entity('战双帕弥什', modes=('pgr-en',), en='', ja='', ko='', category='作品/游戏', variants=('灰乌鸦',), ctx=(), exclude=(), note="Punishing: Gray Raven 官方中文。本条只补「灰乌鸦」短形——ASR 常只带 'Gray Raven' 半截（本片 #43 'Gray Raven a comments a comments'），既有长键「惩罚灰乌鸦」覆盖不到。长键降序执行，短形不会咬长键产出。cue 43。"),
+    Entity('库洛', modes=('pgr-en',), en='Kuro Games', ja='', ko='', category='公司/战双帕弥什', variants=('九郎',), ctx=(), exclude=(), note="库洛游戏，战双帕弥什/鸣潮 研发方。**ASR 把 Kuro 听成 Chloe**（谷翻落「克洛伊」）是本片头号隐性漏校：#45 'Chloe always cook with the soundtrack' 与 #205 'Kuro cooked. Again.' 同一说话人 + 同一动词 cook，且 #39 'same company for PGR' 紧跟 #40 'right? Yep.' 在谈公司 ⇒ 铁证为库洛。「cook」按社区口径译「发力/杀疯了」，不直译「煮」——同 2026-10-XX 既有判例（'Kuro cooked=库洛杀疯了'里的「煮熟」是普通口语词，不能裸键）。错形「克洛伊」是通用音译串，**禁 variants**，走 PGR_EN_CONTEXT 的 \\bChloe\\b 锚定。cue 39/45/205。"),
+    Entity('指挥官', modes=('pgr-en',), en='', ja='', ko='', category='称谓/战双帕弥什', variants=(), ctx=(), exclude=(), note="官方对玩家角色的统一称谓（官网公告「欢迎指挥官前往收听」「指挥官想要试试看吗？」）。英配作 Player/Commandant。⚠ **禁把「玩家」设为 variants**：reaction 杂谈里 'players' 大量指真实玩家，裸键必误伤——本片 #33 '>> Player.' 属 PV 台词，逐 cue 改。"),
+    Entity('流光抛诸寰宇', modes=('pgr-en',), en="A Comet's Afterglow", ja='', ko='', category='作品/版本', variants=(), ctx=(), exclude=(), note="战双帕弥什 4.9 版本名，2026-11-05 开启。本片英文标题与 ASR 的 'a comments (after glow)' 即 'A Comet's' 的误听。⚠ 中文错形「余辉/余晖/一条评论」全是通用词，**禁 variants**，改走 PGR_EN_CONTEXT 的 afterglow / 'a comments' 英文行锚定。cue 43/109。"),
+    Entity('揽光一瞬', modes=('pgr-en',), en='', ja='', ko='', category='涂装/战双帕弥什', variants=(), ctx=(), exclude=(), note="莱亚·祈星 特效涂装（「流光抛诸寰宇」伴生涂装，11-05 起售）。官方文案逐字：「我要拍咯——3、2、1，茄子！」耀眼的花火在少女指尖流淌，短暂的一瞬过后，只留下鲜明而温馨的回忆，深深印在那张相纸上。→ 本片 #114 'Come and check out my new camera' 的出处。⚠ 英配与官中文案**语义相近而非逐字对应**，故不回写官方整句（2026-11-02 ⑥ 分级纪律）。同系列武器涂装「绯色慕意」（适用武器类型：遣光鞭绳）。"),
+    Entity('霜尘拥月', modes=('pgr-en',), en='', ja='', ko='', category='涂装/战双帕弥什', variants=(), ctx=(), exclude=(), note="伊什梅尔·幻日 特效涂装，官方归入「游诗歌谣」系列。文案逐字：「在广袤宇宙中，有一颗星，它既不寒冷，也不滚烫。这是一颗尚且年轻、充满希望的星球，正逢来自封冻世界的女王投来一瞥。」同系列武器涂装「银漪曳星」（钥杖）。⚠ 本片 #163-171 的英配独白（'life is as brittle as a frozen bubble…'）主题相近、句式不对应 ⇒ 按英文行意译，不回写官方句。"),
     Entity('秧秧·玄翎', modes=('bi',), en='Yangyang: Xuanling', ja='', ko='', category='角色/鸣潮3.5', variants=('杨杨玄林',), ctx=(('\\bXuan\\s*[Ll]in\\b|\\bXuanling\\b', '杨杨'),), exclude=(), note="秧秧的新形态（官方英文 Yangyang: Xuanling，bilingual.py:1082 早有该长键）。2026-11-06 All 60 Gacha REACTION：微软翻译把 'Yang Yang Xuan Lin.' 整串落成「杨杨玄林」（#347）——整串非通用词，故收裸键；单「杨杨」是常见人名叠字，只能靠 Xuan Lin 参考行锚定。⚠ 与 Entity('秧秧') 的变体「杨阳」不同字（杨杨≠杨阳），两条互不咬合。其官方初奏=「……好久不见，{PlayerName}。」⇒ 台词中的玩家名占位符中文侧作『漂泊者』，切勿再判成弗洛洛。"),
-    Entity('回旋于微光之上', modes=('pgren',), en='Dance With The Gleam', ja='', ko='', category='曲目/战双帕弥什', variants=(), ctx=(), exclude=(), note='莱亚角色曲，中文版与日文版陆续上架 QQ音乐/网易云/酷狗。署名逐字：演唱 小缘（中/日），作词 Drew(中)/小泉果奈 Kana Koizumi(日)，作曲·编曲 DALCEXY，混音·母带 Bloop Studio，吉他 欧阳瑞声，监制 Grass/DALCEXY，出品 战双帕弥什。⚠ 日文版存在但**日文曲名未公布 ⇒ ja 留空不臆造**（2026-09-22 戒律 2：只有单一语种官方名的不翻译、保留原语言）。'),
-    Entity('感染体', modes=('pgren',), en='Corrupted', ja='', ko='', category='世界观/战双帕弥什', variants=(), ctx=(('\\bcorrupted\\b', '腐化者'), ('\\bcorrupted\\b', '腐化'), ('\\bcorrupted\\b', '腐败者')), exclude=(), note='PGR 官方中文=**感染体**（App Store 官方简介与中文公告对齐）。本片英文参考行 corrupt* 出现 50 次，是最高频漏校项；谷翻落成「腐化/腐化者/腐败者」。⚠ 三者全是通用中文词（腐化=道德败坏、腐败者=贪腐者），**禁 variants**，走英文行锚定。⚠ **ctx 按列表顺序执行（engine.py 的 pgren 分支非长键降序）**，故「腐化者」必须排在「腐化」之前，否则产出「感染体者」叠字。⚠ 锚定只在**本 cue 参考行**含 corrupted 时生效；本片 #2470/#2491/#2583/#3047/#3056 的 corrupted 落在邻接 cue（ASR 跨条断句），机械 pass 抓不到，属预期，由逐 cue 收口。corrupted hordes→感染体潮/群，the corrupted→感染体。'),
-    Entity('空中花园', modes=('pgren',), en='Babylonia', ja='', ko='', category='地点/战双帕弥什', variants=('巴比伦尼亚',), ctx=(('\\bBabylonia\\b', '巴比伦'),), exclude=(), note='PGR 空间站 Babylonia 官方中文=**空中花园**，不是「巴比伦尼亚/巴比伦」。本片 4 处（#357/#1878/#2001/#2012）参考行均明写 Babylonia，铁证。⚠ 「巴比伦尼亚」是专名音译串、非通用词 ⇒ 收 variants（无条件）；裸「巴比伦」是真实历史地名（本片 #1620-1752 主播正在聊奥斯曼/君士坦丁堡历史，但那段参考行无 Babylonia）⇒ **禁裸键**，走英文锚定。⚠ 长键「巴比伦尼亚」在 TERMS 阶段先替换，ctx 的短键「巴比伦」 afterwards 找不到它，故不会产出「空中花园尼亚」；顺序反了就会（TERMS 先于 CTX 是 engine 的既定次序）。'),
-    Entity('凡妮莎', modes=('pgren',), en='Vanessa', ja='', ko='', category='角色/战双帕弥什', variants=(), ctx=(('\\bVanessa\\b', '瓦妮莎'),), exclude=(), note='清庭白鹭小队指挥官。官方中文=**凡妮莎**（4.9 公告与莱亚·祈星档案对齐）。本片参考行 Vanessa 出现 37 次，谷翻落成「瓦妮莎」12 处。⚠ 「瓦妮莎」是常见真实人名音译串 ⇒ 按 2026-11-04「克洛伊」判例**禁 variants**，走 \\bVanessa\\b 英文行锚定。'),
-    Entity('清庭白鹭小队', modes=('pgren',), en='Egret Squad', ja='', ko='', category='组织/战双帕弥什', variants=(), ctx=(('\\bEgret\\b', '白鹭队'),), exclude=(), note="4.9 新机体的所属小队：指挥官**凡妮莎**，队员**莱亚·祈星**、**忒修**(Theseus)、**邦比娜塔**(Bambinata)。官方中文=清庭白鹭小队（BWIKI 世界观/突击鹰小队页 + 莱亚·祈星官方台词「清庭白鹭小队莱亚，向您致意」）。⚠ 「白鹭」是真实鸟名 ⇒ **禁裸键**，只收复合错形「白鹭队」并锚 \\bEgret\\b。⚠ 替换结果「清庭白鹭小队」不含连续子串「白鹭队」（中间有「小」），无叠字风险。本片 #3571/#3572 跨 cue 断句：'a member of Vanessa's' / 'Egret squad.'，锚只在后一条命中，前一条需逐 cue。"),
-    Entity('突击鹰小队', modes=('pgren',), en='Strike Hawk', ja='', ko='', category='组织/战双帕弥什', variants=(), ctx=(('\\bstrike (?:hawk|clock)\\b', '打击鹰'), ('\\bstrike (?:hawk|clock)\\b', '击钟')), exclude=(), note="PGR 执行部队下属小队，官方中文=**突击鹰小队**（BWIKI 世界观页）。本片 #2765 参考行明写 'strike hawk to provide support.'，谷翻落「打击鹰」；#2698 ASR 把 Strike Hawk 听成 'Strike clock'，谷翻据此直译「击钟」——两种错形同指一个小队，故锚同时收 hawk|clock。⚠ 「击钟」是通用动宾串（敲钟）、「打击」是高频通用词 ⇒ **禁裸键**，只收「打击鹰」「击钟」两个完整错形并锚英文行。长形「打击鹰」在前。⚠ #2816-2818 英文是 'strike. Strike what?' —— 主播拿 strike 这个词开玩笑，参考行无 hawk/clock ⇒ 锚不命中，正确保留「打击」，不要逐 cue 改成小队名。⚠ #2915/#2916 把 Strike Hawk 拆成两条（'redirecting Strike. Strike up.' / 'Sport,'），锚不命中，属跨 cue 碎片，逐 cue 收口。"),
-    Entity('帕弥什病毒', modes=('pgren',), en='Punishing Virus', ja='', ko='', category='世界观/战双帕弥什', variants=('惩罚性病毒', '惩罚病毒'), ctx=(), exclude=(), note="PGR 世界观核心：the Punishing (virus) 官方中文=**帕弥什病毒**（游戏名即由此而来）。本片参考行 'punishing virus' 出现 11 次，谷翻直译「惩罚性病毒」8 处 / 「惩罚病毒」3 处。⚠ 裸「惩罚」绝不进表（ark.py 3.3a 戒律①：punishment=惩罚 是本义）；这里收的是**完整复合错形**「惩罚性病毒」「惩罚病毒」，非通用词，故可作 variants（同既有「惩罚性灰乌鸦」判例）。⚠ 两键互不为子串（惩罚性病毒 含「性」，惩罚病毒 不含），长键降序无叠字；替换结果「帕弥什病毒」不含任一错形，幂等。"),
-    Entity('升格者', modes=('pgren',), en='Ascendant', ja='', ko='', category='世界观/战双帕弥什', variants=(), ctx=(('\\bascendant\\b', '上升者'),), exclude=(), note="PGR 官方中文=**升格者**（ Ascendant，代行者/升格网络体系）。本片 #2712 'ascendant is pulling the strings.' 谷翻落「上升者」。⚠ 「上升者」是通用中文词 ⇒ **禁裸键**，锚 \\bascendant\\b。⚠ 形容词 ascendant（占优势的）在本作语境罕见，若日后误伤需收窄锚定。"),
-    Entity('莫斯梅', modes=('pgren',), en='Mousme', ja='', ko='', category='意识/战双帕弥什', variants=(), ctx=(), exclude=(), note='4.9「流光抛诸寰宇」新增 6★意识，莱亚·祈星 专属。官方英文公告 Mousme × 中文公告「莫斯梅」逐项对齐确证。⚠ 本片参考行零命中、无实测错形 ⇒ **仅登记元数据、不带 variants/ctx**（同 2026-09-22 音乐实体判例：无实测错形不造键），供 kb-export / AI Agent 跨语识别。⚠ 官中是「莫斯梅」，不要按日文「娘」义臆造「少女」。'),
-    Entity('聆璃', modes=('pgren',), en='Vulpecula', ja='', ko='', category='辅助机/战双帕弥什', variants=(), ctx=(), exclude=(), note='4.9 新增辅助机（CUB），莱亚·祈星 配套。官方英文公告 Vulpecula（狐狸座）× 中文公告「聆璃」逐项对齐确证。⚠ 本片参考行零命中、无实测错形 ⇒ **仅登记元数据、不带 variants/ctx**。⚠ 官中是「聆璃」，**不是**星座直译「狐狸座」，也不是「 vulpecula 」音译；CUB 官方中文=辅助机。'),
-    Entity('邦比娜塔', modes=('pgren',), en='Bambinata', ja='', ko='', category='角色/战双帕弥什', variants=('阿米纳塔',), ctx=(), exclude=(), note='官方机体全名「邦比娜塔·琉璃」：A 级进攻型构造体，机体编号 **BPM-11**，武器螳螂刃「静谧人形之声」，2022-08「未语庭言」版本上线，属**清庭白鹭小队**（指挥官凡妮莎）。出处：维基百科《战双帕弥什角色列表》直接给出「邦比娜塔（バンビナータ，**Bambinata**）」+ BWIKI 世界观/邦比娜塔 + 萌娘百科导航「清庭白鹭小队（凡妮莎·忒修·邦比娜塔）」三源一致。⚠ **本片头号隐性漏校**：谷翻按 ASR 噪声直译成「阿米纳塔」9 处，参考行分别是 Aminata / Vamada / Babinatada / Bab / Ainatada / Amada / Babinada / Baminata —— 一簇变体同指一人。判据＝①三处以上变体以 Baminata/Babinada 最接近 Bambinata；②该角色全程与凡妮莎/莱亚同框，正是清庭白鹭小队 roster；③BWIKI 载邦比娜塔出自**黑野**福利院、被黑野研究员收养成为凡妮莎的「妹妹」，与本片 #3569-3571（Mio Kurono / 黑野澪 / 凡妮莎）的黑野线完全吻合。⚠ 「阿米纳塔」是完整音译串非通用词 ⇒ 可作 variants（同「阿德利德→阿德莱德」判例）。'),
-    Entity('阿西莫夫', modes=('pgren',), en='Asimov', ja='', ko='', category='角色/战双帕弥什', variants=('Asimov', 'Asimoth', '阿斯莫斯', '阿斯玛'), ctx=(), exclude=(), note="**科学理事会现任负责人（首席技官）**、空中花园议会一员，主管科技事务，助手洛莎，CV 马正阳。出处：BWIKI 世界观/阿西莫夫 + 萌娘百科导航「科学理事会 阿西莫夫」。⚠ 本片 #1902/#1935/#1972 已正确作「阿西莫夫」，而 #2055/#2073/#2641 却保留拉丁（Asimoth / Asma / Asimov）—— 正是「同一专名多种写法，出现次数少的那个是异形」判例。⚠ 片内铁证：#2073 'Nicola pats Asma on the shoulder' 与 BWIKI 载「雷文治事件后阿西莫夫被**尼科拉**调用、远程对露西亚做意识海手术」的人物关系吻合。⚠⚠ **短形 `Asma` 禁入 variants**：它是 `plasma`（等离子体）的子串，而 `_replace_report` 是裸 str.replace 无词边界，会产出「pl阿西莫夫」。本片 #4259 参考行就有 plasma（中文行恰好无拉丁才没炸）⇒ 拉丁 `Asma` 只逐 cue 处理，不入表。⚠ 但其中文音译形「**阿斯玛**」可安全入表（汉字串不是 plasma 的子串）——本片 #2073 原始谷翻正是「尼古拉拍拍阿斯玛的肩膀」，与拉丁形 `Asma` 是同一错形的两条产出路径（同 2026-09-22 Exostrider 判例：沉淀必须覆盖音译/简写/子词直译全部路径）。⚠ 收的是完整形 Asimov / Asimoth / 阿斯莫斯 / 阿斯玛，互不为子串，替换结果不含任一错形，幂等。"),
-    Entity('尼科拉', modes=('pgren',), en='Nicola', ja='', ko='', category='角色/战双帕弥什', variants=(), ctx=(('\\bNicol', '尼古拉斯'), ('\\bNicol', '尼古拉')), exclude=(), note="**指挥中心**成员（与哈桑/希尔达/赛利卡同列），官方中文=**尼科拉**不是「尼古拉」。出处：萌娘百科战双导航「指挥中心 哈桑·尼科拉·希尔达·赛利卡」（多页面一致）+ BWIKI 阿西莫夫页对话原文「尼科拉：你……对保护构造体的意识这件事情好像有些特别的执着」。本片谷翻一律落成通用俄式音译「尼古拉」29 处（参考行 Nicola 18 / Nicolola 1 / Nicole 1）。⚠ 「尼古拉」是通用人名音译串（尼古拉·特斯拉）⇒ **禁裸键**，锚英文参考行。⚠⚠ **锚 `\\bNicol` 天然不匹配 `Nicholas`**（Nic**h**olas vs Nic**o**la，第4字符 h≠o）⇒ 本片 #1595/#1596/#1598 的历史炼金术士 **Nicolas Flamel**（Nicholas Lamel / Palamel，谷翻作「尼古拉斯·拉梅尔/帕拉梅尔」）**不会被误伤**，这是本轮实测确认的安全边界。⚠ 长形「尼古拉斯」必须排在「尼古拉」前（ctx 按列表顺序执行），否则产出「尼科拉斯」。⚠ 代价：#2522 'Under Nicholas's orders' / #2540 'Commander Nicholas' 实为 Nicola 的 ASR 变体（与 #2921 'Following Nicola's orders' / #3025 'Commander Nicola' 同句式同角色），但锚不命中 ⇒ 保守漏放，由逐 cue 收口。**不要为此把锚放宽到 \\bNichol\\b**，那会炸 Flamel。"),
+    Entity('回旋于微光之上', modes=('pgr-en',), en='Dance With The Gleam', ja='', ko='', category='曲目/战双帕弥什', variants=(), ctx=(), exclude=(), note='莱亚角色曲，中文版与日文版陆续上架 QQ音乐/网易云/酷狗。署名逐字：演唱 小缘（中/日），作词 Drew(中)/小泉果奈 Kana Koizumi(日)，作曲·编曲 DALCEXY，混音·母带 Bloop Studio，吉他 欧阳瑞声，监制 Grass/DALCEXY，出品 战双帕弥什。⚠ 日文版存在但**日文曲名未公布 ⇒ ja 留空不臆造**（2026-09-22 戒律 2：只有单一语种官方名的不翻译、保留原语言）。'),
+    Entity('感染体', modes=('pgr-en',), en='Corrupted', ja='', ko='', category='世界观/战双帕弥什', variants=(), ctx=(('\\bcorrupted\\b', '腐化者'), ('\\bcorrupted\\b', '腐化'), ('\\bcorrupted\\b', '腐败者')), exclude=(), note='PGR 官方中文=**感染体**（App Store 官方简介与中文公告对齐）。本片英文参考行 corrupt* 出现 50 次，是最高频漏校项；谷翻落成「腐化/腐化者/腐败者」。⚠ 三者全是通用中文词（腐化=道德败坏、腐败者=贪腐者），**禁 variants**，走英文行锚定。⚠ **ctx 按列表顺序执行（engine.py 的 pgren 分支非长键降序）**，故「腐化者」必须排在「腐化」之前，否则产出「感染体者」叠字。⚠ 锚定只在**本 cue 参考行**含 corrupted 时生效；本片 #2470/#2491/#2583/#3047/#3056 的 corrupted 落在邻接 cue（ASR 跨条断句），机械 pass 抓不到，属预期，由逐 cue 收口。corrupted hordes→感染体潮/群，the corrupted→感染体。'),
+    Entity('空中花园', modes=('pgr-en',), en='Babylonia', ja='', ko='', category='地点/战双帕弥什', variants=('巴比伦尼亚',), ctx=(('\\bBabylonia\\b', '巴比伦'),), exclude=(), note='PGR 空间站 Babylonia 官方中文=**空中花园**，不是「巴比伦尼亚/巴比伦」。本片 4 处（#357/#1878/#2001/#2012）参考行均明写 Babylonia，铁证。⚠ 「巴比伦尼亚」是专名音译串、非通用词 ⇒ 收 variants（无条件）；裸「巴比伦」是真实历史地名（本片 #1620-1752 主播正在聊奥斯曼/君士坦丁堡历史，但那段参考行无 Babylonia）⇒ **禁裸键**，走英文锚定。⚠ 长键「巴比伦尼亚」在 TERMS 阶段先替换，ctx 的短键「巴比伦」 afterwards 找不到它，故不会产出「空中花园尼亚」；顺序反了就会（TERMS 先于 CTX 是 engine 的既定次序）。'),
+    Entity('凡妮莎', modes=('pgr-en',), en='Vanessa', ja='', ko='', category='角色/战双帕弥什', variants=(), ctx=(('\\bVanessa\\b', '瓦妮莎'),), exclude=(), note='清庭白鹭小队指挥官。官方中文=**凡妮莎**（4.9 公告与莱亚·祈星档案对齐）。本片参考行 Vanessa 出现 37 次，谷翻落成「瓦妮莎」12 处。⚠ 「瓦妮莎」是常见真实人名音译串 ⇒ 按 2026-11-04「克洛伊」判例**禁 variants**，走 \\bVanessa\\b 英文行锚定。'),
+    Entity('清庭白鹭小队', modes=('pgr-en',), en='Egret Squad', ja='', ko='', category='组织/战双帕弥什', variants=(), ctx=(('\\bEgret\\b', '白鹭队'),), exclude=(), note="4.9 新机体的所属小队：指挥官**凡妮莎**，队员**莱亚·祈星**、**忒修**(Theseus)、**邦比娜塔**(Bambinata)。官方中文=清庭白鹭小队（BWIKI 世界观/突击鹰小队页 + 莱亚·祈星官方台词「清庭白鹭小队莱亚，向您致意」）。⚠ 「白鹭」是真实鸟名 ⇒ **禁裸键**，只收复合错形「白鹭队」并锚 \\bEgret\\b。⚠ 替换结果「清庭白鹭小队」不含连续子串「白鹭队」（中间有「小」），无叠字风险。本片 #3571/#3572 跨 cue 断句：'a member of Vanessa's' / 'Egret squad.'，锚只在后一条命中，前一条需逐 cue。"),
+    Entity('突击鹰小队', modes=('pgr-en',), en='Strike Hawk', ja='', ko='', category='组织/战双帕弥什', variants=(), ctx=(('\\bstrike (?:hawk|clock)\\b', '打击鹰'), ('\\bstrike (?:hawk|clock)\\b', '击钟')), exclude=(), note="PGR 执行部队下属小队，官方中文=**突击鹰小队**（BWIKI 世界观页）。本片 #2765 参考行明写 'strike hawk to provide support.'，谷翻落「打击鹰」；#2698 ASR 把 Strike Hawk 听成 'Strike clock'，谷翻据此直译「击钟」——两种错形同指一个小队，故锚同时收 hawk|clock。⚠ 「击钟」是通用动宾串（敲钟）、「打击」是高频通用词 ⇒ **禁裸键**，只收「打击鹰」「击钟」两个完整错形并锚英文行。长形「打击鹰」在前。⚠ #2816-2818 英文是 'strike. Strike what?' —— 主播拿 strike 这个词开玩笑，参考行无 hawk/clock ⇒ 锚不命中，正确保留「打击」，不要逐 cue 改成小队名。⚠ #2915/#2916 把 Strike Hawk 拆成两条（'redirecting Strike. Strike up.' / 'Sport,'），锚不命中，属跨 cue 碎片，逐 cue 收口。"),
+    Entity('帕弥什病毒', modes=('pgr-en',), en='Punishing Virus', ja='', ko='', category='世界观/战双帕弥什', variants=('惩罚性病毒', '惩罚病毒'), ctx=(), exclude=(), note="PGR 世界观核心：the Punishing (virus) 官方中文=**帕弥什病毒**（游戏名即由此而来）。本片参考行 'punishing virus' 出现 11 次，谷翻直译「惩罚性病毒」8 处 / 「惩罚病毒」3 处。⚠ 裸「惩罚」绝不进表（ark.py 3.3a 戒律①：punishment=惩罚 是本义）；这里收的是**完整复合错形**「惩罚性病毒」「惩罚病毒」，非通用词，故可作 variants（同既有「惩罚性灰乌鸦」判例）。⚠ 两键互不为子串（惩罚性病毒 含「性」，惩罚病毒 不含），长键降序无叠字；替换结果「帕弥什病毒」不含任一错形，幂等。"),
+    Entity('升格者', modes=('pgr-en',), en='Ascendant', ja='', ko='', category='世界观/战双帕弥什', variants=(), ctx=(('\\bascendant\\b', '上升者'),), exclude=(), note="PGR 官方中文=**升格者**（ Ascendant，代行者/升格网络体系）。本片 #2712 'ascendant is pulling the strings.' 谷翻落「上升者」。⚠ 「上升者」是通用中文词 ⇒ **禁裸键**，锚 \\bascendant\\b。⚠ 形容词 ascendant（占优势的）在本作语境罕见，若日后误伤需收窄锚定。"),
+    Entity('莫斯梅', modes=('pgr-en',), en='Mousme', ja='', ko='', category='意识/战双帕弥什', variants=(), ctx=(), exclude=(), note='4.9「流光抛诸寰宇」新增 6★意识，莱亚·祈星 专属。官方英文公告 Mousme × 中文公告「莫斯梅」逐项对齐确证。⚠ 本片参考行零命中、无实测错形 ⇒ **仅登记元数据、不带 variants/ctx**（同 2026-09-22 音乐实体判例：无实测错形不造键），供 kb-export / AI Agent 跨语识别。⚠ 官中是「莫斯梅」，不要按日文「娘」义臆造「少女」。'),
+    Entity('聆璃', modes=('pgr-en',), en='Vulpecula', ja='', ko='', category='辅助机/战双帕弥什', variants=(), ctx=(), exclude=(), note='4.9 新增辅助机（CUB），莱亚·祈星 配套。官方英文公告 Vulpecula（狐狸座）× 中文公告「聆璃」逐项对齐确证。⚠ 本片参考行零命中、无实测错形 ⇒ **仅登记元数据、不带 variants/ctx**。⚠ 官中是「聆璃」，**不是**星座直译「狐狸座」，也不是「 vulpecula 」音译；CUB 官方中文=辅助机。'),
+    Entity('邦比娜塔', modes=('pgr-en',), en='Bambinata', ja='', ko='', category='角色/战双帕弥什', variants=('阿米纳塔',), ctx=(), exclude=(), note='官方机体全名「邦比娜塔·琉璃」：A 级进攻型构造体，机体编号 **BPM-11**，武器螳螂刃「静谧人形之声」，2022-08「未语庭言」版本上线，属**清庭白鹭小队**（指挥官凡妮莎）。出处：维基百科《战双帕弥什角色列表》直接给出「邦比娜塔（バンビナータ，**Bambinata**）」+ BWIKI 世界观/邦比娜塔 + 萌娘百科导航「清庭白鹭小队（凡妮莎·忒修·邦比娜塔）」三源一致。⚠ **本片头号隐性漏校**：谷翻按 ASR 噪声直译成「阿米纳塔」9 处，参考行分别是 Aminata / Vamada / Babinatada / Bab / Ainatada / Amada / Babinada / Baminata —— 一簇变体同指一人。判据＝①三处以上变体以 Baminata/Babinada 最接近 Bambinata；②该角色全程与凡妮莎/莱亚同框，正是清庭白鹭小队 roster；③BWIKI 载邦比娜塔出自**黑野**福利院、被黑野研究员收养成为凡妮莎的「妹妹」，与本片 #3569-3571（Mio Kurono / 黑野澪 / 凡妮莎）的黑野线完全吻合。⚠ 「阿米纳塔」是完整音译串非通用词 ⇒ 可作 variants（同「阿德利德→阿德莱德」判例）。'),
+    Entity('阿西莫夫', modes=('pgr-en',), en='Asimov', ja='', ko='', category='角色/战双帕弥什', variants=('Asimov', 'Asimoth', '阿斯莫斯', '阿斯玛'), ctx=(), exclude=(), note="**科学理事会现任负责人（首席技官）**、空中花园议会一员，主管科技事务，助手洛莎，CV 马正阳。出处：BWIKI 世界观/阿西莫夫 + 萌娘百科导航「科学理事会 阿西莫夫」。⚠ 本片 #1902/#1935/#1972 已正确作「阿西莫夫」，而 #2055/#2073/#2641 却保留拉丁（Asimoth / Asma / Asimov）—— 正是「同一专名多种写法，出现次数少的那个是异形」判例。⚠ 片内铁证：#2073 'Nicola pats Asma on the shoulder' 与 BWIKI 载「雷文治事件后阿西莫夫被**尼科拉**调用、远程对露西亚做意识海手术」的人物关系吻合。⚠⚠ **短形 `Asma` 禁入 variants**：它是 `plasma`（等离子体）的子串，而 `_replace_report` 是裸 str.replace 无词边界，会产出「pl阿西莫夫」。本片 #4259 参考行就有 plasma（中文行恰好无拉丁才没炸）⇒ 拉丁 `Asma` 只逐 cue 处理，不入表。⚠ 但其中文音译形「**阿斯玛**」可安全入表（汉字串不是 plasma 的子串）——本片 #2073 原始谷翻正是「尼古拉拍拍阿斯玛的肩膀」，与拉丁形 `Asma` 是同一错形的两条产出路径（同 2026-09-22 Exostrider 判例：沉淀必须覆盖音译/简写/子词直译全部路径）。⚠ 收的是完整形 Asimov / Asimoth / 阿斯莫斯 / 阿斯玛，互不为子串，替换结果不含任一错形，幂等。"),
+    Entity('尼科拉', modes=('pgr-en',), en='Nicola', ja='', ko='', category='角色/战双帕弥什', variants=(), ctx=(('\\bNicol', '尼古拉斯'), ('\\bNicol', '尼古拉')), exclude=(), note="**指挥中心**成员（与哈桑/希尔达/赛利卡同列），官方中文=**尼科拉**不是「尼古拉」。出处：萌娘百科战双导航「指挥中心 哈桑·尼科拉·希尔达·赛利卡」（多页面一致）+ BWIKI 阿西莫夫页对话原文「尼科拉：你……对保护构造体的意识这件事情好像有些特别的执着」。本片谷翻一律落成通用俄式音译「尼古拉」29 处（参考行 Nicola 18 / Nicolola 1 / Nicole 1）。⚠ 「尼古拉」是通用人名音译串（尼古拉·特斯拉）⇒ **禁裸键**，锚英文参考行。⚠⚠ **锚 `\\bNicol` 天然不匹配 `Nicholas`**（Nic**h**olas vs Nic**o**la，第4字符 h≠o）⇒ 本片 #1595/#1596/#1598 的历史炼金术士 **Nicolas Flamel**（Nicholas Lamel / Palamel，谷翻作「尼古拉斯·拉梅尔/帕拉梅尔」）**不会被误伤**，这是本轮实测确认的安全边界。⚠ 长形「尼古拉斯」必须排在「尼古拉」前（ctx 按列表顺序执行），否则产出「尼科拉斯」。⚠ 代价：#2522 'Under Nicholas's orders' / #2540 'Commander Nicholas' 实为 Nicola 的 ASR 变体（与 #2921 'Following Nicola's orders' / #3025 'Commander Nicola' 同句式同角色），但锚不命中 ⇒ 保守漏放，由逐 cue 收口。**不要为此把锚放宽到 \\bNichol\\b**，那会炸 Flamel。"),
     Entity('泰拉', modes=('ak',), en='Terra', ja='', ko='', category='世界观/明日方舟', variants=(), ctx=(('\\bterror\\b', '恐怖'),), exclude=(), note='片内 ASR 反复把 Terra 听成 terror，谷翻全译「恐怖」；#129/#527/#557 按此归一。#438 terrorist France 为整句错位，走 subfix。'),
     Entity('伊比利亚', modes=('ak',), en='Iberia', ja='', ko='', category='国家/明日方舟', variants=('Earia',), ctx=(('\\bpast\\s+IA\\b', 'IA'),), exclude=(), note='本片 ASR 把 Iberia 拼作 Earia（#221/#240/#243）与 IA（#227）。#221 的 Leair=Liberi 见黎博利条。'),
     Entity('黎博利', modes=('ak',), en='Liberi', ja='', ko='', category='种族/明日方舟', variants=('Leair',), ctx=(), exclude=(), note="拉特兰主要种族之一；本片 #221 'Leair from Earia' 谷翻保留拉丁。"),
@@ -14695,8 +14745,8 @@ ENTITIES = [
     Entity('专注模式', modes=('bi',), en='Focus Mode', ja='', ko='', category='系统/鸣潮', variants=(), ctx=(('\\bFocus\\s+[Mm]ode\\b', '对焦模式'),), exclude=(), note="游戏 UI 的画质/滤镜辅助功能 Focus Mode，官方中文=专注模式；机翻按相机术语作'对焦模式'。'对焦模式'另有摄影本义，只走参考行锚定。"),
     Entity('伴星故事', modes=('bi',), en='Companion Story', ja='', ko='', category='系统/鸣潮', variants=(), ctx=(('\\bCompanion\\s+stor(?:y|ies)\\b', '伴侣故事'), ('\\bCompanion\\s+stor(?:y|ies)\\b', '同伴故事')), exclude=(), note="鸣潮角色专属剧情 Companion Story 官方中文=伴星故事（任务入口作'伴星任务'）。机翻作'伴侣故事/同伴故事'，均为通用短语，只走 Companion Story 参考行锚定。"),
     Entity('谕女', modes=('bi',), en='Priestess', ja='', ko='', category='身份/鸣潮2.4七丘', variants=(), ctx=(('(?=.*\\bpriestess\\b)(?=.*\\b(?:Septimont|Septemviri|Agon|lunar eclipse|Lahai|Roya)\\b)', '女祭司'),), exclude=(), note="七丘的预言者官方中文=谕女（灰机 wiki 七丘页：四方殿谕女们的预言已然宣示）。机翻作'女祭司'；该词为通用宗教称谓，只在与 Septimont/Agon/lunar eclipse 等同现时锚定。"),
-    Entity('哥舒林', modes=('bi', 'ja'), en='Geshu Lin', ja='', ko='', category='角色/鸣潮/今州', variants=('加舒林', '葛舒林', '哥苏林'), ctx=(), exclude=(), note='鸣潮今州前将军哥舒林（Geshu Lin）；谷翻/ASR 常见 加舒林/葛舒林。整串生僻形裸键安全；不挂 react，避免主播口播同音误伤。'),
-    Entity('愿您的灵魂不再迷惘', modes=('bi', 'ja', 'ko'), en='', ja='', ko='', category='台词/鸣潮3.8', variants=('愿你的灵魂不再游荡', '愿您的灵魂不再游荡', '愿你的灵魂不再迷惘'), ctx=(), exclude=(), note='莉莉在灵魂列车上送别亡魂的口头禅，官方中文=「愿您的灵魂不再迷惘」。机翻常作「愿你的灵魂不再游荡」；整句锚定，裸键安全。'),
+    Entity('哥舒林', modes=('bi', 'wuwa-ja'), en='Geshu Lin', ja='', ko='', category='角色/鸣潮/今州', variants=('加舒林', '葛舒林', '哥苏林'), ctx=(), exclude=(), note='鸣潮今州前将军哥舒林（Geshu Lin）；谷翻/ASR 常见 加舒林/葛舒林。整串生僻形裸键安全；不挂 react，避免主播口播同音误伤。'),
+    Entity('愿您的灵魂不再迷惘', modes=('bi', 'wuwa-ja', 'wuwa-ko'), en='', ja='', ko='', category='台词/鸣潮3.8', variants=('愿你的灵魂不再游荡', '愿您的灵魂不再游荡', '愿你的灵魂不再迷惘'), ctx=(), exclude=(), note='莉莉在灵魂列车上送别亡魂的口头禅，官方中文=「愿您的灵魂不再迷惘」。机翻常作「愿你的灵魂不再游荡」；整句锚定，裸键安全。'),
     Entity('疚刃', modes=('ak',), en='Jiuren', ja='', ko='', category='创作者/明日方舟', variants=(), ctx=(), exclude=(), note='B 站《明日方舟》二创作者，原视频 BV16Vap6yEGP；官方简介署名 Jiuren（疚刃）。ASR/谷翻作 Yoren/Yoden/尤伦/约伦，规则在 ark.py 2026-11-18 块。'),
     Entity('冰嘘', modes=('ak',), en='Bingxu', ja='', ko='', category='创作者/明日方舟', variants=(), ctx=(), exclude=(), note='B 站创作者，原简介署名 Bingxu（冰嘘），BV1opHK6TE8T；ASR 作 Bingxiu/Bing Shoe。'),
     Entity('JinRey', modes=('ak',), en='JinRey', ja='', ko='', category='创作者/动画', variants=(), ctx=(), exclude=(), note='韩国动画师，阿洛娜舞源头；ASR 作 Jin Ray/Jinray。官方简介署名 JinRey。'),
@@ -14704,13 +14754,13 @@ ENTITIES = [
     Entity('地球Online', modes=('ak',), en='Earth Online', ja='', ko='', category='梗/网络', variants=(), ctx=(), exclude=(), note='中文网络梗「地球Online」（现实生活=平衡稀烂的网游）；错形「地球在线」在 AK_TERMS。'),
     Entity('鳄鱼叔叔', modes=('ak',), en='Uncle Croc', ja='', ko='', category='梗/网络', variants=(), ctx=(), exclude=(), note='地球Online 梗：活了约两亿年、策划动不了的玩家；ASR/谷翻作 Uncle Croc/鳄鱼大叔。'),
     Entity('陈雪凝', modes=('ak',), en='Chen Xuening', ja='', ko='', category='歌手', variants=(), ctx=(), exclude=(), note='《绿色》演唱者（2019 发行）；「春水」系谷翻音译错形，只走 AK_CONTEXT 的 Chun Shui 锚定。'),
-    Entity('怪物猎人：旅人', modes=('endobi', 'tga26'), en='Monster Hunter Outlanders', ja='', ko='', category='作品/游戏', variants=('Monsanto Outlanders', 'Monster Hunter Outlanders'), ctx=(), exclude=(), note='TGA 2026 最佳移动游戏提名；官方简中《怪物猎人：旅人》。Monsanto Outlanders 为 ASR 把 Monster Hunter 误听成 Monsanto。'),
-    Entity('宝可梦冠军', modes=('endobi', 'tga26'), en='Pokemon Champions', ja='', ko='', category='作品/游戏', variants=('Pokemon Champions', 'Pokémon Champions'), ctx=(), exclude=(), note='TGA 2026 最佳移动游戏提名；官方简中《宝可梦冠军》（Pokemon Champions）。'),
-    Entity('侠盗猎车手 VI', modes=('endobi', 'tga26'), en='Grand Theft Auto VI', ja='', ko='', category='作品/游戏', variants=('Grand Theft Auto VI', 'GTA VI', 'GTA 6'), ctx=(), exclude=(), note='GTA VI 官方简中《侠盗猎车手 VI》；GTA 6/GTA VI 为口语缩写，终末地/TGA 双语片源统一为官方全称。Grand Theft Auto 6 保留 TGA_TERMS 既有「侠盗猎车手 6」写法，不并入本条，避免变体冲突。'),
-    Entity('风骚律师', modes=('bi', 'endobi', 'tga26'), en='Better Call Saul', ja='', ko='', category='作品/影视', variants=('Better Call Saul',), ctx=(), exclude=(), note='《风骚律师》（Better Call Saul）官方简中；本片 #182 实证，长键安全。'),
-    Entity('弹丸论破', modes=('bi', 'endobi', 'tga26'), en='Danganronpa', ja='', ko='', category='作品/游戏', variants=('Dangal Rampa', 'Danganronpa', 'Dangaronpa'), ctx=(), exclude=(), note='《弹丸论破》（Danganronpa）官方简中；Dangal Rampa 为 ASR 误听，整串生僻、裸键安全。'),
-    Entity('Arkpedia.net', modes=('ak', 'bi', 'endobi'), en='Arkpedia', ja='', ko='', category='网站/明日方舟', variants=('Arcpedia.net', 'Arcpedia'), ctx=(), exclude=(), note='Arknights 社区资料站 Arkpedia.net；arcpedia.net 是 Arc Raiders 站点，不可混用。Aripedia/Aredia 的旧小写映射仍留在 AK_TERMS，本条只收 Arcpedia 系列。'),
-    Entity('TGA', modes=('endobi', 'tga26'), en='The Game Awards', ja='', ko='', category='奖项/机构', variants=('The Game Awards', 'Game Awards'), ctx=(), exclude=(), note='The Game Awards 中文通称 TGA；本片中文行已用 TGA，本条只清理未来片源残留英文。'),
+    Entity('怪物猎人：旅人', modes=('endo-bi', 'tga26'), en='Monster Hunter Outlanders', ja='', ko='', category='作品/游戏', variants=('Monsanto Outlanders', 'Monster Hunter Outlanders'), ctx=(), exclude=(), note='TGA 2026 最佳移动游戏提名；官方简中《怪物猎人：旅人》。Monsanto Outlanders 为 ASR 把 Monster Hunter 误听成 Monsanto。'),
+    Entity('宝可梦冠军', modes=('endo-bi', 'tga26'), en='Pokemon Champions', ja='', ko='', category='作品/游戏', variants=('Pokemon Champions', 'Pokémon Champions'), ctx=(), exclude=(), note='TGA 2026 最佳移动游戏提名；官方简中《宝可梦冠军》（Pokemon Champions）。'),
+    Entity('侠盗猎车手 VI', modes=('endo-bi', 'tga26'), en='Grand Theft Auto VI', ja='', ko='', category='作品/游戏', variants=('Grand Theft Auto VI', 'GTA VI', 'GTA 6'), ctx=(), exclude=(), note='GTA VI 官方简中《侠盗猎车手 VI》；GTA 6/GTA VI 为口语缩写，终末地/TGA 双语片源统一为官方全称。Grand Theft Auto 6 保留 TGA_TERMS 既有「侠盗猎车手 6」写法，不并入本条，避免变体冲突。'),
+    Entity('风骚律师', modes=('bi', 'endo-bi', 'tga26'), en='Better Call Saul', ja='', ko='', category='作品/影视', variants=('Better Call Saul',), ctx=(), exclude=(), note='《风骚律师》（Better Call Saul）官方简中；本片 #182 实证，长键安全。'),
+    Entity('弹丸论破', modes=('bi', 'endo-bi', 'tga26'), en='Danganronpa', ja='', ko='', category='作品/游戏', variants=('Dangal Rampa', 'Danganronpa', 'Dangaronpa'), ctx=(), exclude=(), note='《弹丸论破》（Danganronpa）官方简中；Dangal Rampa 为 ASR 误听，整串生僻、裸键安全。'),
+    Entity('Arkpedia.net', modes=('ak', 'bi', 'endo-bi'), en='Arkpedia', ja='', ko='', category='网站/明日方舟', variants=('Arcpedia.net', 'Arcpedia'), ctx=(), exclude=(), note='Arknights 社区资料站 Arkpedia.net；arcpedia.net 是 Arc Raiders 站点，不可混用。Aripedia/Aredia 的旧小写映射仍留在 AK_TERMS，本条只收 Arcpedia 系列。'),
+    Entity('TGA', modes=('endo-bi', 'tga26'), en='The Game Awards', ja='', ko='', category='奖项/机构', variants=('The Game Awards', 'Game Awards'), ctx=(), exclude=(), note='The Game Awards 中文通称 TGA；本片中文行已用 TGA，本条只清理未来片源残留英文。'),
     Entity('致新世界（Saving Light）', modes=('bi', 'react'), en='Saving Light', ja='', ko='', category='曲目/鸣潮·先约电台', variants=(), ctx=(), exclude=(), note="有歌词（人声）歌曲。空字段=该语种无独立官方名，按'单语保留原语言'处理，勿臆造译名。"),
     Entity('Waking of a World', modes=('bi', 'react'), en='Waking of a World', ja='', ko='', category='曲目/鸣潮·先约电台', variants=(), ctx=(), exclude=(), note="有歌词（人声）歌曲。空字段=该语种无独立官方名，按'单语保留原语言'处理，勿臆造译名。"),
     Entity('「拉海洛」之心', modes=('bi', 'react'), en='Heart of Lahai-Roi', ja='', ko='', category='曲目/鸣潮·先约电台', variants=(), ctx=(), exclude=(), note="有歌词（人声）歌曲。空字段=该语种无独立官方名，按'单语保留原语言'处理，勿臆造译名。"),
@@ -14847,39 +14897,39 @@ ENTITIES = [
     Entity('促融共竞', modes=('ak', 'react'), en='', ja='', ko='', category='曲目/明日方舟·塞壬唱片', variants=(), ctx=(), exclude=(), note="有歌词（人声）歌曲。空字段=该语种无独立官方名，按'单语保留原语言'处理，勿臆造译名。"),
     Entity('Operation Spectrum Battle Theme', modes=('ak', 'react'), en='Operation Spectrum Battle Theme', ja='', ko='', category='曲目/明日方舟·塞壬唱片', variants=(), ctx=(), exclude=(), note="有歌词（人声）歌曲。空字段=该语种无独立官方名，按'单语保留原语言'处理，勿臆造译名。"),
     Entity('Fading Sky', modes=('ak', 'react'), en='Fading Sky', ja='', ko='', category='曲目/明日方舟·塞壬唱片', variants=(), ctx=(), exclude=(), note="有歌词（人声）歌曲。空字段=该语种无独立官方名，按'单语保留原语言'处理，勿臆造译名。"),
-    Entity('宜', modes=('endo', 'endobi', 'react'), en='', ja='', ko='', category='曲目/终末地·铁痕电台', variants=(), ctx=(), exclude=(), note="有歌词（人声）歌曲。空字段=该语种无独立官方名，按'单语保留原语言'处理，勿臆造译名。"),
-    Entity('万象将醒', modes=('endo', 'endobi', 'react'), en='', ja='', ko='', category='曲目/终末地·铁痕电台', variants=(), ctx=(), exclude=(), note="有歌词（人声）歌曲。空字段=该语种无独立官方名，按'单语保留原语言'处理，勿臆造译名。"),
-    Entity('闪焰预兆', modes=('endo', 'endobi', 'react'), en='', ja='', ko='', category='曲目/终末地·铁痕电台', variants=(), ctx=(), exclude=(), note="有歌词（人声）歌曲。空字段=该语种无独立官方名，按'单语保留原语言'处理，勿臆造译名。"),
-    Entity('冷烬', modes=('endo', 'endobi', 'react'), en='', ja='', ko='', category='曲目/终末地·铁痕电台', variants=(), ctx=(), exclude=(), note="有歌词（人声）歌曲。空字段=该语种无独立官方名，按'单语保留原语言'处理，勿臆造译名。"),
-    Entity('日晕', modes=('endo', 'endobi', 'react'), en='', ja='', ko='', category='曲目/终末地·铁痕电台', variants=(), ctx=(), exclude=(), note="有歌词（人声）歌曲。空字段=该语种无独立官方名，按'单语保留原语言'处理，勿臆造译名。"),
-    Entity('折光成像', modes=('endo', 'endobi', 'react'), en='', ja='', ko='', category='曲目/终末地·铁痕电台', variants=(), ctx=(), exclude=(), note="有歌词（人声）歌曲。空字段=该语种无独立官方名，按'单语保留原语言'处理，勿臆造译名。"),
-    Entity('回燃', modes=('endo', 'endobi', 'react'), en='', ja='', ko='', category='曲目/终末地·铁痕电台', variants=(), ctx=(), exclude=(), note="有歌词（人声）歌曲。空字段=该语种无独立官方名，按'单语保留原语言'处理，勿臆造译名。"),
-    Entity('最喜欢的一张', modes=('endo', 'endobi', 'react'), en='', ja='', ko='', category='曲目/终末地·铁痕电台', variants=(), ctx=(), exclude=(), note="有歌词（人声）歌曲。空字段=该语种无独立官方名，按'单语保留原语言'处理，勿臆造译名。"),
-    Entity('造物道别', modes=('endo', 'endobi', 'react'), en='', ja='', ko='', category='曲目/终末地·铁痕电台', variants=(), ctx=(), exclude=(), note="有歌词（人声）歌曲。空字段=该语种无独立官方名，按'单语保留原语言'处理，勿臆造译名。"),
-    Entity('像素绘涂', modes=('endo', 'endobi', 'react'), en='', ja='', ko='', category='曲目/终末地·铁痕电台', variants=(), ctx=(), exclude=(), note="有歌词（人声）歌曲。空字段=该语种无独立官方名，按'单语保留原语言'处理，勿臆造译名。"),
-    Entity('寻觅漫步', modes=('endo', 'endobi', 'react'), en='', ja='', ko='', category='曲目/终末地·铁痕电台', variants=(), ctx=(), exclude=(), note="有歌词（人声）歌曲。空字段=该语种无独立官方名，按'单语保留原语言'处理，勿臆造译名。"),
-    Entity('反引力悬浮', modes=('endo', 'endobi', 'react'), en='', ja='', ko='', category='曲目/终末地·铁痕电台', variants=(), ctx=(), exclude=(), note="有歌词（人声）歌曲。空字段=该语种无独立官方名，按'单语保留原语言'处理，勿臆造译名。"),
-    Entity('夕流', modes=('endo', 'endobi', 'react'), en='', ja='', ko='', category='曲目/终末地·铁痕电台', variants=(), ctx=(), exclude=(), note="有歌词（人声）歌曲。空字段=该语种无独立官方名，按'单语保留原语言'处理，勿臆造译名。"),
-    Entity('编织光流', modes=('endo', 'endobi', 'react'), en='For Your Name', ja='', ko='', category='曲目/终末地·铁痕电台', variants=(), ctx=(), exclude=(), note="有歌词（人声）歌曲。空字段=该语种无独立官方名，按'单语保留原语言'处理，勿臆造译名。"),
-    Entity('逐星河', modes=('endo', 'endobi', 'react'), en='The Starry Flow Winds On', ja='', ko='', category='曲目/终末地·铁痕电台', variants=(), ctx=(), exclude=(), note="有歌词（人声）歌曲。空字段=该语种无独立官方名，按'单语保留原语言'处理，勿臆造译名。"),
-    Entity('Upending the Seas', modes=('endo', 'endobi', 'react'), en='Upending the Seas', ja='', ko='', category='曲目/终末地·铁痕电台', variants=(), ctx=(), exclude=(), note="有歌词（人声）歌曲。空字段=该语种无独立官方名，按'单语保留原语言'处理，勿臆造译名。"),
+    Entity('宜', modes=('endo', 'endo-bi', 'react'), en='', ja='', ko='', category='曲目/终末地·铁痕电台', variants=(), ctx=(), exclude=(), note="有歌词（人声）歌曲。空字段=该语种无独立官方名，按'单语保留原语言'处理，勿臆造译名。"),
+    Entity('万象将醒', modes=('endo', 'endo-bi', 'react'), en='', ja='', ko='', category='曲目/终末地·铁痕电台', variants=(), ctx=(), exclude=(), note="有歌词（人声）歌曲。空字段=该语种无独立官方名，按'单语保留原语言'处理，勿臆造译名。"),
+    Entity('闪焰预兆', modes=('endo', 'endo-bi', 'react'), en='', ja='', ko='', category='曲目/终末地·铁痕电台', variants=(), ctx=(), exclude=(), note="有歌词（人声）歌曲。空字段=该语种无独立官方名，按'单语保留原语言'处理，勿臆造译名。"),
+    Entity('冷烬', modes=('endo', 'endo-bi', 'react'), en='', ja='', ko='', category='曲目/终末地·铁痕电台', variants=(), ctx=(), exclude=(), note="有歌词（人声）歌曲。空字段=该语种无独立官方名，按'单语保留原语言'处理，勿臆造译名。"),
+    Entity('日晕', modes=('endo', 'endo-bi', 'react'), en='', ja='', ko='', category='曲目/终末地·铁痕电台', variants=(), ctx=(), exclude=(), note="有歌词（人声）歌曲。空字段=该语种无独立官方名，按'单语保留原语言'处理，勿臆造译名。"),
+    Entity('折光成像', modes=('endo', 'endo-bi', 'react'), en='', ja='', ko='', category='曲目/终末地·铁痕电台', variants=(), ctx=(), exclude=(), note="有歌词（人声）歌曲。空字段=该语种无独立官方名，按'单语保留原语言'处理，勿臆造译名。"),
+    Entity('回燃', modes=('endo', 'endo-bi', 'react'), en='', ja='', ko='', category='曲目/终末地·铁痕电台', variants=(), ctx=(), exclude=(), note="有歌词（人声）歌曲。空字段=该语种无独立官方名，按'单语保留原语言'处理，勿臆造译名。"),
+    Entity('最喜欢的一张', modes=('endo', 'endo-bi', 'react'), en='', ja='', ko='', category='曲目/终末地·铁痕电台', variants=(), ctx=(), exclude=(), note="有歌词（人声）歌曲。空字段=该语种无独立官方名，按'单语保留原语言'处理，勿臆造译名。"),
+    Entity('造物道别', modes=('endo', 'endo-bi', 'react'), en='', ja='', ko='', category='曲目/终末地·铁痕电台', variants=(), ctx=(), exclude=(), note="有歌词（人声）歌曲。空字段=该语种无独立官方名，按'单语保留原语言'处理，勿臆造译名。"),
+    Entity('像素绘涂', modes=('endo', 'endo-bi', 'react'), en='', ja='', ko='', category='曲目/终末地·铁痕电台', variants=(), ctx=(), exclude=(), note="有歌词（人声）歌曲。空字段=该语种无独立官方名，按'单语保留原语言'处理，勿臆造译名。"),
+    Entity('寻觅漫步', modes=('endo', 'endo-bi', 'react'), en='', ja='', ko='', category='曲目/终末地·铁痕电台', variants=(), ctx=(), exclude=(), note="有歌词（人声）歌曲。空字段=该语种无独立官方名，按'单语保留原语言'处理，勿臆造译名。"),
+    Entity('反引力悬浮', modes=('endo', 'endo-bi', 'react'), en='', ja='', ko='', category='曲目/终末地·铁痕电台', variants=(), ctx=(), exclude=(), note="有歌词（人声）歌曲。空字段=该语种无独立官方名，按'单语保留原语言'处理，勿臆造译名。"),
+    Entity('夕流', modes=('endo', 'endo-bi', 'react'), en='', ja='', ko='', category='曲目/终末地·铁痕电台', variants=(), ctx=(), exclude=(), note="有歌词（人声）歌曲。空字段=该语种无独立官方名，按'单语保留原语言'处理，勿臆造译名。"),
+    Entity('编织光流', modes=('endo', 'endo-bi', 'react'), en='For Your Name', ja='', ko='', category='曲目/终末地·铁痕电台', variants=(), ctx=(), exclude=(), note="有歌词（人声）歌曲。空字段=该语种无独立官方名，按'单语保留原语言'处理，勿臆造译名。"),
+    Entity('逐星河', modes=('endo', 'endo-bi', 'react'), en='The Starry Flow Winds On', ja='', ko='', category='曲目/终末地·铁痕电台', variants=(), ctx=(), exclude=(), note="有歌词（人声）歌曲。空字段=该语种无独立官方名，按'单语保留原语言'处理，勿臆造译名。"),
+    Entity('Upending the Seas', modes=('endo', 'endo-bi', 'react'), en='Upending the Seas', ja='', ko='', category='曲目/终末地·铁痕电台', variants=(), ctx=(), exclude=(), note="有歌词（人声）歌曲。空字段=该语种无独立官方名，按'单语保留原语言'处理，勿臆造译名。"),
     Entity('Canto X Boss 3 Battle Theme', modes=('limbus', 'react'), en='Canto X Boss 3 Battle Theme', ja='', ko='', category='曲目/边狱巴士', variants=(), ctx=(), exclude=(), note='官方仅英/日/韩；曲名保留英文，勿臆造中文译名。'),
     Entity('Canto X Boss 2 Battle Theme', modes=('limbus', 'react'), en='Canto X Boss 2 Battle Theme', ja='', ko='', category='曲目/边狱巴士', variants=(), ctx=(), exclude=(), note='官方仅英/日/韩；曲名保留英文，勿臆造中文译名。'),
     Entity('Canto X Boss 1 Battle Theme', modes=('limbus', 'react'), en='Canto X Boss 1 Battle Theme', ja='', ko='', category='曲目/边狱巴士', variants=(), ctx=(), exclude=(), note='官方仅英/日/韩；曲名保留英文，勿臆造中文译名。'),
     Entity('Canto X Boss 5 Battle Theme', modes=('limbus', 'react'), en='Canto X Boss 5 Battle Theme', ja='', ko='', category='曲目/边狱巴士', variants=(), ctx=(), exclude=(), note='官方仅英/日/韩；曲名保留英文，勿臆造中文译名。'),
     Entity('Canto X Battle Theme C', modes=('limbus', 'react'), en='Canto X Battle Theme C', ja='', ko='', category='曲目/边狱巴士', variants=(), ctx=(), exclude=(), note='官方仅英/日/韩；曲名保留英文，勿臆造中文译名。'),
     Entity('Canto IX Boss 10 Battle Theme', modes=('limbus', 'react'), en='Canto IX Boss 10 Battle Theme', ja='', ko='', category='曲目/边狱巴士', variants=(), ctx=(), exclude=(), note='官方仅英/日/韩；曲名保留英文，勿臆造中文译名。'),
-    Entity('ADELPHOCLAST', modes=('endo', 'endobi', 'react'), en='ADELPHOCLAST', ja='', ko='', category='曲目/终末地·向渊行OST', variants=(), ctx=(), exclude=(), note='终末地 1.4「向渊行」最终 BOSS 阿莱克琉斯（千夫长）战曲的官方分段曲名；**无官方简体中文**，保留拉丁原文，勿臆造译名。官方 credit＝铁痕电台-MSR & Crywolf & YMIR；分段顺序＝序章／一阶段／阶段转换／二阶段／尾声。'),
-    Entity('ACHERON', modes=('endo', 'endobi', 'react'), en='ACHERON', ja='', ko='', category='曲目/终末地·向渊行OST', variants=(), ctx=(), exclude=(), note='终末地 1.4「向渊行」最终 BOSS 阿莱克琉斯（千夫长）战曲的官方分段曲名；**无官方简体中文**，保留拉丁原文，勿臆造译名。官方 credit＝铁痕电台-MSR & Crywolf & YMIR；分段顺序＝序章／一阶段／阶段转换／二阶段／尾声。'),
-    Entity('ABYSSUS, ABYSSUM, INVOCAT', modes=('endo', 'endobi', 'react'), en='ABYSSUS, ABYSSUM, INVOCAT', ja='', ko='', category='曲目/终末地·向渊行OST', variants=(), ctx=(), exclude=(), note='终末地 1.4「向渊行」最终 BOSS 阿莱克琉斯（千夫长）战曲的官方分段曲名；**无官方简体中文**，保留拉丁原文，勿臆造译名。官方 credit＝铁痕电台-MSR & Crywolf & YMIR；分段顺序＝序章／一阶段／阶段转换／二阶段／尾声。'),
-    Entity('REAPER', modes=('endo', 'endobi', 'react'), en='REAPER', ja='', ko='', category='曲目/终末地·向渊行OST', variants=(), ctx=(), exclude=(), note='终末地 1.4「向渊行」最终 BOSS 阿莱克琉斯（千夫长）战曲的官方分段曲名；**无官方简体中文**，保留拉丁原文，勿臆造译名。官方 credit＝铁痕电台-MSR & Crywolf & YMIR；分段顺序＝序章／一阶段／阶段转换／二阶段／尾声。'),
-    Entity('AMARANTHUS CAUDATUS', modes=('endo', 'endobi', 'react'), en='AMARANTHUS CAUDATUS', ja='', ko='', category='曲目/终末地·向渊行OST', variants=(), ctx=(), exclude=(), note='终末地 1.4「向渊行」最终 BOSS 阿莱克琉斯（千夫长）战曲的官方分段曲名；**无官方简体中文**，保留拉丁原文，勿臆造译名。官方 credit＝铁痕电台-MSR & Crywolf & YMIR；分段顺序＝序章／一阶段／阶段转换／二阶段／尾声。'),
-    Entity('Crywolf', modes=('react', 'endobi', 'ak'), en='Crywolf', ja='', ko='', category='音乐人/终末地·铁痕电台', variants=(), ctx=(), exclude=(), note="终末地「向渊行」OST 阿莱克琉斯战曲署名人之一（铁痕电台-MSR & Crywolf & YMIR），另为《明日方舟》作有 Somniomancer [null set]（众生行记 OST 曲7）。无官方简体中文名 ⇒ 保留拉丁原名不译。中文错形 冷狼/哭狼/克雷沃尔夫/梦巫师克雷沃尔夫 已由 REACT_TERMS 裸键覆盖，本条**不重复建键**。2026-11-08：ak 模式补 '狼来了' 参考行锚定（AK_CONTEXT，Cry wolf 命中才替换）。"),
-    Entity('YMIR', modes=('react', 'endobi'), en='YMIR', ja='', ko='', category='音乐人/终末地·铁痕电台', variants=(), ctx=(), exclude=(), note='终末地「向渊行」OST 阿莱克琉斯战曲署名人之一。此前全库只在 misc.py 注释里出现、无任何条目（grep 实测 0 命中），本次补齐为可检索实体。无官方简体中文名 ⇒ 保留拉丁原名。**不建替换键**：其 ASR 形「希米尔/埃米尔」属通用中文词组合，按 2026-09-14 戒律只能逐 cue 侧车，入表必误伤。'),
-    Entity('卡瓦莎', modes=('ja', 'bi', 'react'), en='Kavasha', ja='カサンドラ', ko='', category='鸣潮/新联邦·第五战区', variants=(), ctx=(), exclude=(), note='3.8「予以明日的花束」第五战区指挥官、利亚姆之母。日语版名カサンドラ与官中「卡瓦莎」不同；谷翻错形 卡桑德拉/卡珊德拉/恩多拉 已由 JA_TERMS/bilingual 裸键覆盖。'),
-    Entity('格姆', modes=('ja', 'bi', 'react'), en='Grim', ja='グリム', ko='', category='鸣潮/灵魂列车·钢琴家', variants=(), ctx=(), exclude=(), note='3.8 列车亡魂钢琴家，曲《脱下蓝色衣装的黎明》献给敌兵友人。「格林」为通用词禁裸键，走 JA_CONTEXT グリム 锚定。'),
-    Entity('梅塔', modes=('ja', 'bi', 'react'), en='Meta', ja='メタ', ko='', category='鸣潮/心之集域·现任主人', variants=(), ctx=(), exclude=(), note='3.8 心之集域现任主人，黑白猫为其仆从；与莉莉交易「精炼」污秽频率。「元/Meta/猫元」为通用词禁裸键，本片窄锚 メジャーちょっとまだ→梅塔 仅覆盖 Major 误留。'),
-    Entity('莉莉·格蕾丝', modes=('ja', 'bi', 'react'), en='Lily Grace', ja='リリー・グレース', ko='', category='鸣潮/调香师·共鸣者', variants=(), ctx=(), exclude=(), note='3.8 主角，联邦城调香师、共鸣者战争受害者，灵魂列车临时列车长；全名莉莉·格蕾丝。「莉莉」为常见名禁裸键；说话人变体「“莉莉”/战争中的莉莉」仅官方标签，字幕无标签不补。'),
+    Entity('ADELPHOCLAST', modes=('endo', 'endo-bi', 'react'), en='ADELPHOCLAST', ja='', ko='', category='曲目/终末地·向渊行OST', variants=(), ctx=(), exclude=(), note='终末地 1.4「向渊行」最终 BOSS 阿莱克琉斯（千夫长）战曲的官方分段曲名；**无官方简体中文**，保留拉丁原文，勿臆造译名。官方 credit＝铁痕电台-MSR & Crywolf & YMIR；分段顺序＝序章／一阶段／阶段转换／二阶段／尾声。'),
+    Entity('ACHERON', modes=('endo', 'endo-bi', 'react'), en='ACHERON', ja='', ko='', category='曲目/终末地·向渊行OST', variants=(), ctx=(), exclude=(), note='终末地 1.4「向渊行」最终 BOSS 阿莱克琉斯（千夫长）战曲的官方分段曲名；**无官方简体中文**，保留拉丁原文，勿臆造译名。官方 credit＝铁痕电台-MSR & Crywolf & YMIR；分段顺序＝序章／一阶段／阶段转换／二阶段／尾声。'),
+    Entity('ABYSSUS, ABYSSUM, INVOCAT', modes=('endo', 'endo-bi', 'react'), en='ABYSSUS, ABYSSUM, INVOCAT', ja='', ko='', category='曲目/终末地·向渊行OST', variants=(), ctx=(), exclude=(), note='终末地 1.4「向渊行」最终 BOSS 阿莱克琉斯（千夫长）战曲的官方分段曲名；**无官方简体中文**，保留拉丁原文，勿臆造译名。官方 credit＝铁痕电台-MSR & Crywolf & YMIR；分段顺序＝序章／一阶段／阶段转换／二阶段／尾声。'),
+    Entity('REAPER', modes=('endo', 'endo-bi', 'react'), en='REAPER', ja='', ko='', category='曲目/终末地·向渊行OST', variants=(), ctx=(), exclude=(), note='终末地 1.4「向渊行」最终 BOSS 阿莱克琉斯（千夫长）战曲的官方分段曲名；**无官方简体中文**，保留拉丁原文，勿臆造译名。官方 credit＝铁痕电台-MSR & Crywolf & YMIR；分段顺序＝序章／一阶段／阶段转换／二阶段／尾声。'),
+    Entity('AMARANTHUS CAUDATUS', modes=('endo', 'endo-bi', 'react'), en='AMARANTHUS CAUDATUS', ja='', ko='', category='曲目/终末地·向渊行OST', variants=(), ctx=(), exclude=(), note='终末地 1.4「向渊行」最终 BOSS 阿莱克琉斯（千夫长）战曲的官方分段曲名；**无官方简体中文**，保留拉丁原文，勿臆造译名。官方 credit＝铁痕电台-MSR & Crywolf & YMIR；分段顺序＝序章／一阶段／阶段转换／二阶段／尾声。'),
+    Entity('Crywolf', modes=('react', 'endo-bi', 'ak'), en='Crywolf', ja='', ko='', category='音乐人/终末地·铁痕电台', variants=(), ctx=(), exclude=(), note="终末地「向渊行」OST 阿莱克琉斯战曲署名人之一（铁痕电台-MSR & Crywolf & YMIR），另为《明日方舟》作有 Somniomancer [null set]（众生行记 OST 曲7）。无官方简体中文名 ⇒ 保留拉丁原名不译。中文错形 冷狼/哭狼/克雷沃尔夫/梦巫师克雷沃尔夫 已由 REACT_TERMS 裸键覆盖，本条**不重复建键**。2026-11-08：ak 模式补 '狼来了' 参考行锚定（AK_CONTEXT，Cry wolf 命中才替换）。"),
+    Entity('YMIR', modes=('react', 'endo-bi'), en='YMIR', ja='', ko='', category='音乐人/终末地·铁痕电台', variants=(), ctx=(), exclude=(), note='终末地「向渊行」OST 阿莱克琉斯战曲署名人之一。此前全库只在 misc.py 注释里出现、无任何条目（grep 实测 0 命中），本次补齐为可检索实体。无官方简体中文名 ⇒ 保留拉丁原名。**不建替换键**：其 ASR 形「希米尔/埃米尔」属通用中文词组合，按 2026-09-14 戒律只能逐 cue 侧车，入表必误伤。'),
+    Entity('卡瓦莎', modes=('wuwa-ja', 'bi', 'react'), en='Kavasha', ja='カサンドラ', ko='', category='鸣潮/新联邦·第五战区', variants=(), ctx=(), exclude=(), note='3.8「予以明日的花束」第五战区指挥官、利亚姆之母。日语版名カサンドラ与官中「卡瓦莎」不同；谷翻错形 卡桑德拉/卡珊德拉/恩多拉 已由 JA_TERMS/bilingual 裸键覆盖。'),
+    Entity('格姆', modes=('wuwa-ja', 'bi', 'react'), en='Grim', ja='グリム', ko='', category='鸣潮/灵魂列车·钢琴家', variants=(), ctx=(), exclude=(), note='3.8 列车亡魂钢琴家，曲《脱下蓝色衣装的黎明》献给敌兵友人。「格林」为通用词禁裸键，走 JA_CONTEXT グリム 锚定。'),
+    Entity('梅塔', modes=('wuwa-ja', 'bi', 'react'), en='Meta', ja='メタ', ko='', category='鸣潮/心之集域·现任主人', variants=(), ctx=(), exclude=(), note='3.8 心之集域现任主人，黑白猫为其仆从；与莉莉交易「精炼」污秽频率。「元/Meta/猫元」为通用词禁裸键，本片窄锚 メジャーちょっとまだ→梅塔 仅覆盖 Major 误留。'),
+    Entity('莉莉·格蕾丝', modes=('wuwa-ja', 'bi', 'react'), en='Lily Grace', ja='リリー・グレース', ko='', category='鸣潮/调香师·共鸣者', variants=(), ctx=(), exclude=(), note='3.8 主角，联邦城调香师、共鸣者战争受害者，灵魂列车临时列车长；全名莉莉·格蕾丝。「莉莉」为常见名禁裸键；说话人变体「“莉莉”/战争中的莉莉」仅官方标签，字幕无标签不补。'),
     Entity('故风吟游之地', modes=('bi', 'react'), en='Where Wind Whispers', ja='', ko='', category='曲目/鸣潮·黎那汐塔 OST', variants=(), ctx=(), exclude=(), note='纯音乐 BGM（无人声）。官方中文名经黎那汐塔篇 OST Vol.1《幻昼狂想》/ Vol.7《无名长诗》曲目表核实（Apple Music 国区 1824610259）；日/韩无独立官方名，留空勿臆造。'),
     Entity('微风吹拂的村庄', modes=('bi', 'react'), en='Wind-kissed Haven', ja='', ko='', category='曲目/鸣潮·黎那汐塔 OST', variants=(), ctx=(), exclude=(), note='纯音乐 BGM（无人声）。官方中文名经黎那汐塔篇 OST Vol.1《幻昼狂想》/ Vol.7《无名长诗》曲目表核实（Apple Music 国区 1824610259）；日/韩无独立官方名，留空勿臆造。'),
     Entity('泪焰终响', modes=('bi', 'react'), en='A Clash of Water and Fire', ja='', ko='', category='曲目/鸣潮·黎那汐塔 OST', variants=(), ctx=(), exclude=(), note='纯音乐 BGM（无人声）。官方中文名经黎那汐塔篇 OST Vol.1《幻昼狂想》/ Vol.7《无名长诗》曲目表核实（Apple Music 国区 1824610259）；日/韩无独立官方名，留空勿臆造。'),
@@ -14979,7 +15029,7 @@ ENTITIES = [
     Entity('重启锚点', modes=('ak',), en='Relaunch Anchor', ja='', ko='', category='玩法/生息演算', variants=('Relaunch Anchor', 'relaunch anchor'), ctx=(), exclude=(), note='生息演算模式官方中文「重启锚点」。⚠ 2026-11-02 复核：EP17「相变临界」官网公告（ak.hypergryph.com/news/3046）与 PRTS/BWIKI 本章系统名清单里**查无「生息演算·重启锚点」这一本章项**，此前把它记作本章系统名属误，待复核；本条只保留生息演算自身口径，不再关联 EP17。'),
     Entity('定向寻访卡池', modes=('ak',), en='Orienteering banner', ja='', ko='', category='卡池', variants=('Orienteering banner', 'Orienteering Banner'), ctx=(), exclude=(), note='Orienteering banner 官方卡池「定向寻访」。'),
     Entity('音弧', modes=('ak',), en='arcs', ja='', ko='', category='术语/玩法', variants=(), ctx=(('(?<!mobile )\\bapps?\\b', '应用程序'), ('\\barcs?\\b', '弧线')), exclude=(), note='Arcaea 蓝线官方中文「音弧」；应用程序/弧线只走 ctx；mobile apps 不在此列。'),
-    Entity('海猫', modes=('ak', 'endobi', 'endo', 'tga26'), en='Lowlight', ja='', ko='', category='作者/鹰角网络', variants=('Hai Mao', 'HaiMao', '海毛'), ctx=(('\\bLow Light\\b', 'Low Light'), ('\\bLowlight\\b', 'Lowlight')), exclude=(), note='鹰角网络联合创始人海猫（Lowlight）；Hai Mao/HaiMao/海毛 为 ASR/机翻形，2026-11-19 终末地 TGA 视频二校补入；英文形只走 ctx；显示可带（Lowlight）。'),
+    Entity('海猫', modes=('ak', 'endo-bi', 'endo', 'tga26'), en='Lowlight', ja='', ko='', category='作者/鹰角网络', variants=('Hai Mao', 'HaiMao', '海毛'), ctx=(('\\bLow Light\\b', 'Low Light'), ('\\bLowlight\\b', 'Lowlight')), exclude=(), note='鹰角网络联合创始人海猫（Lowlight）；Hai Mao/HaiMao/海毛 为 ASR/机翻形，2026-11-19 终末地 TGA 视频二校补入；英文形只走 ctx；显示可带（Lowlight）。'),
     Entity('Kukki', modes=('ak',), en='Kukki', ja='', ko='', category='主播', variants=(), ctx=(('how could you not name', '库奇'), ('how could you not name', 'Cookie')), exclude=(), note='主播 kukkikaze 昵称 Kukki；Cookie/库奇 为 ASR/机翻形，只走 ctx。'),
     Entity('《Operation Dawnseeker》（寻昼行动）', modes=('ak',), en='Operation Dawnseeker', ja='', ko='', category='曲目/危机合约', variants=("Don't Seeker", 'Dont Seeker'), ctx=(("\\bDon'?t Seeker\\b", '不要寻找者'), ("\\bDon'?t Seeker\\b", '别寻找者')), exclude=(), note='危机合约#8 寻昼行动主题曲，官方曲名 Operation Dawnseeker。'),
     Entity('《Operation Basepoint》（起源行动）', modes=('ak',), en='Operation Basepoint', ja='', ko='', category='曲目/危机合约', variants=('Base Point',), ctx=(('\\bBase Point\\b', '基点'), ('\\bBase Point\\b', '基点行动')), exclude=(), note='危机合约#12 起源行动主题曲，官方曲名 Operation Basepoint。'),
@@ -14998,13 +15048,13 @@ ENTITIES = [
     Entity('《崩坏3》', modes=('ak',), en='Honkai Impact 3rd', ja='', ko='', category='作品', variants=('Honkai Impacted',), ctx=(('\\bHonkai Impact(?:ed)?\\b', '《崩坏》'),), exclude=(), note='官方中文《崩坏3》；Honkai Impacted 为 ASR 变体；与 ko 实体「崩坏3」区分。'),
     Entity('《命运2》', modes=('ak',), en='Destiny 2', ja='', ko='', category='作品', variants=('Destiny 2',), ctx=(('\\bDestiny 2\\b', '《命运 2》'),), exclude=(), note='官方中文《命运2》。'),
     Entity('《星之海洋》', modes=('ak',), en='Star Ocean', ja='', ko='', category='作品', variants=('Star Ocean',), ctx=(), exclude=(), note='官方中文《星之海洋》。'),
-    Entity('维里奈', modes=('ko',), en='Verina', ja='', ko='벨리나', category='角色/鸣潮', variants=('贝琳娜',), ctx=(), exclude=(), note="ko 侧补登（2026-11-02）：谷翻把 벨리나 直译成音译「贝琳娜」，本片 12 处（#1541-1545/7114/7148/7158/7161）。'贝琳娜'是唯一音译串、不是通用词，可作裸键；bi 侧既有 维丽娜/Verina 不动。"),
-    Entity('散华', modes=('ko',), en='Sanhua', ja='', ko='산화', category='角色/鸣潮', variants=(), ctx=(('산화', '氧化'), ('산화', '散花')), exclude=(), note="ko 侧补登（2026-11-02）：韩服官方名 산화 与韩语「氧化」同形，谷翻必出「氧化」（本片 #1544「维里奈？还有散华」被翻成「怎么还氧化了」）。戒律：'氧化'是正常词，**绝不裸键**，只走 산화 谚文锚定。"),
-    Entity('莫宁', modes=('ko',), en='Mornye', ja='', ko='모니에', category='角色/鸣潮3.0', variants=(), ctx=(('모니에|모니', '莫尼'), ('모니', '气槽'), ('모니', '钱')), exclude=(), note="ko 侧补登（2026-11-02）：모니에(莫宁) ASR 缩成 모니/모닝，谷翻按字面出「莫尼/气槽/钱」（本片 #198/199/652/6883/7221）。锚定串取 모니，不含 머니(money)，故不会咬正常'钱'。'钱/气槽'皆为通用词，禁裸键。"),
-    Entity('千咲', modes=('ko',), en='Chisa', ja='', ko='치사', category='角色/星炬学院', variants=(), ctx=(('치사', '智沙'), ('치사', '千佐渡'), ('치사', '奇萨')), exclude=(), note='ko 侧补登（2026-11-02）：치사(千咲) 与形容词 치사하다(卑鄙/寒酸) 同形，错形侧只收音译串并按 치사 锚定（本片 #390/392/4904）。bi 侧已有 奇莎/奇萨裸键与 Chisha(炽霞) 回滚锚，勿混——Chisha=炽霞，Chisa=千咲。'),
-    Entity('椿', modes=('ko',), en='Camellya', ja='', ko='카멜리아', category='角色/黑海岸', variants=(), ctx=(('카멜레|카멜리아', '山茶花'), ('카멜레|카멜리아', '茶花')), exclude=(), note="ko 侧补登（2026-11-02）：官方韩文形 카멜리아 被谷翻按花名直译成「茶花/山茶花」（本片 #2116-2118/#3547/#3560）。'茶花'是通用词禁裸键；ctx 里长形 山茶花 必须排在 茶花 之前（KO_CONTEXT 按列表顺序执行）。2026-10-13 已有 카멜레언/카멜탈/카메/카밀타 系键，本条只补 카멜리아 花名直译这一条产出路径。"),
-    Entity('珂莱塔', modes=('ko',), en='Carlotta', ja='', ko='카를로타', category='角色/黎那汐塔', variants=(), ctx=(), exclude=(), note="ko 侧知识登记（2026-11-02）：本片 #6946 谷翻整句吞掉角色名、#7153 残留拉丁 'Carlta'，属句级漏译/ASR 断词，**不建替换键**（'卡露塔'等音译形未在本片实测，凭猜测入表违反沉淀纪律）。官方韩文形=카를로타。"),
-    Entity('共鸣链', modes=('ko',), en='Resonance Chain', ja='', ko='돌파', category='术语/鸣潮养成', variants=(), ctx=(('체인', '机制'), ('영체인', '灵体'), ('영체인', '五链'), ('6체인', '六人链条')), exclude=(), note="官方系统名（百度百科「鸣潮」养成节：每位角色 6 层共鸣链节点）。韩服口播有两种写法：돌파（汉字词'突破'）与 체인（chain 音译），主播常混用，故 체인->共鸣链 走锚定（'机制'是通用词，绝不裸键）。⚠ **禁止** '突破->共鸣链' 裸键或锚定：韩服 돌파 同时是「等级突破/闯关」，两义同形，任何锚定都会咬掉等级突破语境。本片 16 处（#169/172/175/177/181/1459/1561/2656/2657/2760/2831/2856/6066/7520）按上下文逐 cue 判，链义判据=同句出现 여섯 개/重复角色/N돌/N체인 这类链数词；闯关·等级突破语境一律保留。영체인=**零链**（영=0），本片曾被谷翻成'灵体/五链'（#2321/#3623）。"),
+    Entity('维里奈', modes=('wuwa-ko',), en='Verina', ja='', ko='벨리나', category='角色/鸣潮', variants=('贝琳娜',), ctx=(), exclude=(), note="ko 侧补登（2026-11-02）：谷翻把 벨리나 直译成音译「贝琳娜」，本片 12 处（#1541-1545/7114/7148/7158/7161）。'贝琳娜'是唯一音译串、不是通用词，可作裸键；bi 侧既有 维丽娜/Verina 不动。"),
+    Entity('散华', modes=('wuwa-ko',), en='Sanhua', ja='', ko='산화', category='角色/鸣潮', variants=(), ctx=(('산화', '氧化'), ('산화', '散花')), exclude=(), note="ko 侧补登（2026-11-02）：韩服官方名 산화 与韩语「氧化」同形，谷翻必出「氧化」（本片 #1544「维里奈？还有散华」被翻成「怎么还氧化了」）。戒律：'氧化'是正常词，**绝不裸键**，只走 산화 谚文锚定。"),
+    Entity('莫宁', modes=('wuwa-ko',), en='Mornye', ja='', ko='모니에', category='角色/鸣潮3.0', variants=(), ctx=(('모니에|모니', '莫尼'), ('모니', '气槽'), ('모니', '钱')), exclude=(), note="ko 侧补登（2026-11-02）：모니에(莫宁) ASR 缩成 모니/모닝，谷翻按字面出「莫尼/气槽/钱」（本片 #198/199/652/6883/7221）。锚定串取 모니，不含 머니(money)，故不会咬正常'钱'。'钱/气槽'皆为通用词，禁裸键。"),
+    Entity('千咲', modes=('wuwa-ko',), en='Chisa', ja='', ko='치사', category='角色/星炬学院', variants=(), ctx=(('치사', '智沙'), ('치사', '千佐渡'), ('치사', '奇萨')), exclude=(), note='ko 侧补登（2026-11-02）：치사(千咲) 与形容词 치사하다(卑鄙/寒酸) 同形，错形侧只收音译串并按 치사 锚定（本片 #390/392/4904）。bi 侧已有 奇莎/奇萨裸键与 Chisha(炽霞) 回滚锚，勿混——Chisha=炽霞，Chisa=千咲。'),
+    Entity('椿', modes=('wuwa-ko',), en='Camellya', ja='', ko='카멜리아', category='角色/黑海岸', variants=(), ctx=(('카멜레|카멜리아', '山茶花'), ('카멜레|카멜리아', '茶花')), exclude=(), note="ko 侧补登（2026-11-02）：官方韩文形 카멜리아 被谷翻按花名直译成「茶花/山茶花」（本片 #2116-2118/#3547/#3560）。'茶花'是通用词禁裸键；ctx 里长形 山茶花 必须排在 茶花 之前（KO_CONTEXT 按列表顺序执行）。2026-10-13 已有 카멜레언/카멜탈/카메/카밀타 系键，本条只补 카멜리아 花名直译这一条产出路径。"),
+    Entity('珂莱塔', modes=('wuwa-ko',), en='Carlotta', ja='', ko='카를로타', category='角色/黎那汐塔', variants=(), ctx=(), exclude=(), note="ko 侧知识登记（2026-11-02）：本片 #6946 谷翻整句吞掉角色名、#7153 残留拉丁 'Carlta'，属句级漏译/ASR 断词，**不建替换键**（'卡露塔'等音译形未在本片实测，凭猜测入表违反沉淀纪律）。官方韩文形=카를로타。"),
+    Entity('共鸣链', modes=('wuwa-ko',), en='Resonance Chain', ja='', ko='돌파', category='术语/鸣潮养成', variants=(), ctx=(('체인', '机制'), ('영체인', '灵体'), ('영체인', '五链'), ('6체인', '六人链条')), exclude=(), note="官方系统名（百度百科「鸣潮」养成节：每位角色 6 层共鸣链节点）。韩服口播有两种写法：돌파（汉字词'突破'）与 체인（chain 音译），主播常混用，故 체인->共鸣链 走锚定（'机制'是通用词，绝不裸键）。⚠ **禁止** '突破->共鸣链' 裸键或锚定：韩服 돌파 同时是「等级突破/闯关」，两义同形，任何锚定都会咬掉等级突破语境。本片 16 处（#169/172/175/177/181/1459/1561/2656/2657/2760/2831/2856/6066/7520）按上下文逐 cue 判，链义判据=同句出现 여섯 개/重复角色/N돌/N체인 这类链数词；闯关·等级突破语境一律保留。영체인=**零链**（영=0），本片曾被谷翻成'灵体/五链'（#2321/#3623）。"),
     Entity('Mon3tr', modes=('ak',), en='Mon3tr', ja='', ko='', category='召唤物/凯尔希', variants=(), ctx=(('\\bcalluse?s?\\b', '愈伤组织'),), exclude=(), note='凯尔希的召唤物，官方书写 **Mon3tr**（首字母大写、3 代 i）：游戏内线索原文`◀ Mon3tr的线索`「一枚方解石-Mon3tr的线索」。**不设恒等 variants（Mon3tr）**——恒等映射不收（同 endfield.py 既有约定）；小写错形由 AK_TERMS 的`mon3tr→Mon3tr` 大小写敏感裸键兜。⚠ **`怪物` 不入表**：2026-11-02 跨片实测，旧《How Did You Join Arknights or Endfield?》#3346 "the monster reset" 是通用怪物义，被 怪物->Mon3tr 锚定误改；怪物是常用词且英文侧无稳定专名特征，按戒律只逐 cue 判（本片 EP17 的 14 处已在 _calib_arkch17 侧车改定）。愈伤组织=callus 是罕见形、碰撞面为零，保留锚定。'),
     Entity('可露希尔', modes=('ak',), en='Closure', ja='', ko='', category='干员/明日方舟', variants=(), ctx=(('\\bclosures?\\b', '关闭'),), exclude=(), note='Closure 官方中文「可露希尔」（6★ 先锋·战术家，官网 3046）。本片谷翻把「Closure is playable」整片译成「关闭」（#335/#338 等）。「关闭」是超常用词只走 ctx；大写裸键已在 AK_TERMS:301，小写 closure=克洛丝 是旧片抽卡语境沉淀（AK_TERMS:212），str.replace 大小写敏感，两者不冲突。'),
     Entity('重装', modes=('ak',), en='Defender', ja='', ko='', category='职业/明日方舟', variants=(), ctx=(('\\bdefenders?\\b', '后卫'),), exclude=(), note='Defender 是职业名「重装」（裂响＝重装·本源铁卫），谷翻作「后卫」。「后卫」是体育常用词，禁裸键，只按英文行锚定。'),
@@ -15014,17 +15064,17 @@ ENTITIES = [
     Entity('乌萨斯', modes=('ak',), en='Ursus', ja='', ko='', category='势力/明日方舟', variants=('Ursus', '乌尔苏斯'), ctx=(), exclude=(), note='Ursus 官方「乌萨斯」，EP17 舞台（泽尔格勒＝乌萨斯卫星城）。官方 PV 旁白 `乌萨斯。我将为你带来，「永恒的春天」。` 直接确证英文 ASR 的「Ersus」即 Ursus——但 **Ersus 不入表**（音近形低置信，逐 cue 判，见 _calib_arkch17/r2/gloss2.md 第 3 节）。'),
     Entity('凯尔希', modes=('ak',), en="Kal'tsit", ja='', ko='', category='干员/明日方舟', variants=('Cowset', 'Calitha', '凯尔西', '凯尔茨'), ctx=(), exclude=(), note="凯尔希（Kal'tsit）扩 ak，只搬安全形：Cowset/Calitha 是本片 ASR 实测变形（英文社区把凯尔希昵称为 Cow，谷翻/ASR 拆成 cowset/cows/cowit/calcite），凯尔西/凯尔茨 是非正常中文词。⚠ **`凯尔特` 绝不写进本条 variants**——它只在 bi 条目里由 EXCLUDE_CONTEXT 的 \\bCeltic\\b 负例兜住。Kelsey/Kelip/Kelit/Kelty 与 卡尔·赛/卡尔·塞 已在 AK_TERMS，同目标幂等；Cal/Calit/Calip/Cow/Kyle 一律不入表（短拉丁键会咬 Calcite，Kyle 是真人姓名）。"),
     Entity('卡池', modes=('ak',), en='banner', ja='', ko='', category='术语/明日方舟', variants=(), ctx=(('\\bbanners?\\b', '横幅'), ('\\bbanners?\\b', '旗帜')), exclude=(), note='banner→卡池 扩 ak：AK_TERMS 已有裸键 banner，本条只补 ctx——谷翻把 banner 译成「横幅/旗帜」的中文错形此前只有 bi 趟能修，纯 --ak 片源会漏（本片 #32/#68/#69/#160/#162/#307/#339 共 7 处）。'),
-    Entity('长夜临光', modes=('akko',), en='Near Light', ja='', ko='니어라이트', category='活动/明日方舟', variants=(), ctx=(('니어\\s*라이트|니어라이트', '近光'),), exclude=(), note='鹰角官网 [活动预告]SideStory「长夜临光」复刻即将开启；韩语 니어라이트=Near Light，谷翻作「近光/近光线」。'),
-    Entity('孤星', modes=('akko',), en='Lone Trail', ja='', ko='론트레일', category='活动/明日方舟', variants=(), ctx=(('론트레일', '孤独的踪迹'), ('론트레일', '孤独的小径')), exclude=(), note='官方 SideStory「孤星」= Lone Trail；韩语 론트레일 音译被谷翻作「孤独的踪迹/孤独的小径」。现有 AK_KO_CONTEXT 已收 Lone Trail 拉丁形。'),
-    Entity('愚人号', modes=('akko',), en='Stultifera Navis', ja='', ko='스툴티페라비스', category='活动/明日方舟', variants=(), ctx=(('스툴티페라비스|스틀페라비스', 'Stultiferavis'),), exclude=(), note='官方 SideStory「愚人号」= Stultifera Navis（机核考据）；补拉丁音译残留 Stultiferavis。现有 스툴티페라 规则已覆盖凳子自卸车/油菜花/斯图尔蒂费拉 等中文错形。'),
-    Entity('苦难摇篮', modes=('akko',), en='', ja='', ko='고난의 요람', category='章节/明日方舟', variants=(), ctx=(('고난의\\s*(?:요람|여람)', '苦难的摇篮'), ('고난의\\s*(?:요람|여람)', '苦难的开始')), exclude=(), note='鹰角官网一周年庆典公告「主线第七章节【苦难摇篮】开放」；여람 为 요람 口播/ASR 变体。⚠ 普通词「고난=苦难」不是专名，必须靠 고난의 요람 全形锚定，不可全局替换。'),
-    Entity('终末地', modes=('akko',), en='Endfield', ja='', ko='엔드필드', category='作品/明日方舟：终末地', variants=(), ctx=(('엔드필드|엔더필드|핸드필드|엔필|엔드필더', '安德菲尔德'), ('엔드필드|엔더필드|핸드필드|엔필|엔드필더', '恩菲尔多'), ('엔드필드|엔더필드|핸드필드|엔필|엔드필더', '端野'), ('엔드필드|엔더필드|핸드필드|엔필|엔드필더', '末场'), ('엔드필더', '终点')), exclude=(), note='官方《明日方舟：终末地》(endfield.hypergryph.com)。安德菲尔德/恩菲尔多 为 ASR 音译，端野/末场/终点 为 end·field 直译；全部靠韩语行锚定，避免误伤其他片源的「末场/终点」。'),
-    Entity('塔露拉', modes=('akko',), en='Talulah', ja='', ko='탈롤라', category='角色/明日方舟', variants=(), ctx=(('탈롤라|탈로라|탈룰러', '塔洛尔'), ('탈롤라|탈로라|탈룰러', 'Talola')), exclude=(), note='官方对照表 塔露拉/Talulah/탈로라；一校已改 塔罗拉/塔卢拉，r2 补「塔洛尔」「Talola」两处漏网。'),
-    Entity('罗德岛', modes=('akko',), en='Rhodes Island', ja='', ko='로도스 아일랜드', category='组织/明日方舟', variants=(), ctx=(('로도스|로돠스|루도스|로더스', 'Rhodes Aland'), ('루도스|로더스', '鲁多斯岛'), ('로도스|로돠스|루도스|로더스', '罗德')), exclude=(), note='官方对照表 罗德岛/Rhodes Island/로도스 아일랜드。wrong「罗德」⊂right「罗德岛」，靠 _ctx_replace 哨兵保护既有正确形；AK_KO_CONTEXT 已有 罗多顿岛→罗德岛，此处补拉丁/音译/漏字形。'),
-    Entity('拉普兰德', modes=('akko',), en='Lappland', ja='', ko='라플란드', category='角色/明日方舟', variants=(), ctx=(('라플런드|라플랜드', '拉普兰'),), exclude=(), note='官方对照表 拉普兰德/Lappland/라플란드。现有 AK_KO_CONTEXT 锚点라플란드|라플란 不覆盖口播变体 라플런드/라플랜드，此处补锚定；wrong⊂right 走哨兵，既有「拉普兰德」不被再咬。'),
-    Entity('明日方舟', modes=('akko',), en='Arknights', ja='', ko='명일방주', category='作品/明日方舟', variants=(), ctx=(('명방|명일\\s*방주', 'Myungbang'), ('명일\\s*방주', '明日之战')), exclude=(), note='官方对照表 明日方舟/Arknights/명일방주；韩语缩略 명방。⚠ 명빵 是「명방+빵(面包)」谐音梗，字形不同不会被本锚点命中，一校有意保留，禁止改成「明日方舟」。'),
-    Entity('干员', modes=('akko',), en='Operator', ja='', ko='오퍼레이터', category='术语/明日方舟', variants=(), ctx=(('후방\\s*지원\\s*오퍼레이터', '后方支援人员'),), exclude=(), note='官方术语「干员」；一校 decisions.md 已归一 操作员/运营商/接线员/运算符，r2 补「后方支援人员」漏网。用完整词锚定，不改裸「人员」。'),
-    Entity('边狱巴士', modes=('akko',), en='Limbus Company', ja='', ko='림버스', category='作品/联动', variants=(), ctx=(('림버스', '边缘'),), exclude=(), note='一校 --akko 既定口径「边狱巴士」（decisions.md 明定保留，联网点验显示「边狱公司」亦为通行名，属口径变更非漏校）。机翻把 림버스 音近词误作「边缘」，靠韩语行锚定。'),
+    Entity('长夜临光', modes=('ak-ko',), en='Near Light', ja='', ko='니어라이트', category='活动/明日方舟', variants=(), ctx=(('니어\\s*라이트|니어라이트', '近光'),), exclude=(), note='鹰角官网 [活动预告]SideStory「长夜临光」复刻即将开启；韩语 니어라이트=Near Light，谷翻作「近光/近光线」。'),
+    Entity('孤星', modes=('ak-ko',), en='Lone Trail', ja='', ko='론트레일', category='活动/明日方舟', variants=(), ctx=(('론트레일', '孤独的踪迹'), ('론트레일', '孤独的小径')), exclude=(), note='官方 SideStory「孤星」= Lone Trail；韩语 론트레일 音译被谷翻作「孤独的踪迹/孤独的小径」。现有 AK_KO_CONTEXT 已收 Lone Trail 拉丁形。'),
+    Entity('愚人号', modes=('ak-ko',), en='Stultifera Navis', ja='', ko='스툴티페라비스', category='活动/明日方舟', variants=(), ctx=(('스툴티페라비스|스틀페라비스', 'Stultiferavis'),), exclude=(), note='官方 SideStory「愚人号」= Stultifera Navis（机核考据）；补拉丁音译残留 Stultiferavis。现有 스툴티페라 规则已覆盖凳子自卸车/油菜花/斯图尔蒂费拉 等中文错形。'),
+    Entity('苦难摇篮', modes=('ak-ko',), en='', ja='', ko='고난의 요람', category='章节/明日方舟', variants=(), ctx=(('고난의\\s*(?:요람|여람)', '苦难的摇篮'), ('고난의\\s*(?:요람|여람)', '苦难的开始')), exclude=(), note='鹰角官网一周年庆典公告「主线第七章节【苦难摇篮】开放」；여람 为 요람 口播/ASR 变体。⚠ 普通词「고난=苦难」不是专名，必须靠 고난의 요람 全形锚定，不可全局替换。'),
+    Entity('终末地', modes=('ak-ko',), en='Endfield', ja='', ko='엔드필드', category='作品/明日方舟：终末地', variants=(), ctx=(('엔드필드|엔더필드|핸드필드|엔필|엔드필더', '安德菲尔德'), ('엔드필드|엔더필드|핸드필드|엔필|엔드필더', '恩菲尔多'), ('엔드필드|엔더필드|핸드필드|엔필|엔드필더', '端野'), ('엔드필드|엔더필드|핸드필드|엔필|엔드필더', '末场'), ('엔드필더', '终点')), exclude=(), note='官方《明日方舟：终末地》(endfield.hypergryph.com)。安德菲尔德/恩菲尔多 为 ASR 音译，端野/末场/终点 为 end·field 直译；全部靠韩语行锚定，避免误伤其他片源的「末场/终点」。'),
+    Entity('塔露拉', modes=('ak-ko',), en='Talulah', ja='', ko='탈롤라', category='角色/明日方舟', variants=(), ctx=(('탈롤라|탈로라|탈룰러', '塔洛尔'), ('탈롤라|탈로라|탈룰러', 'Talola')), exclude=(), note='官方对照表 塔露拉/Talulah/탈로라；一校已改 塔罗拉/塔卢拉，r2 补「塔洛尔」「Talola」两处漏网。'),
+    Entity('罗德岛', modes=('ak-ko',), en='Rhodes Island', ja='', ko='로도스 아일랜드', category='组织/明日方舟', variants=(), ctx=(('로도스|로돠스|루도스|로더스', 'Rhodes Aland'), ('루도스|로더스', '鲁多斯岛'), ('로도스|로돠스|루도스|로더스', '罗德')), exclude=(), note='官方对照表 罗德岛/Rhodes Island/로도스 아일랜드。wrong「罗德」⊂right「罗德岛」，靠 _ctx_replace 哨兵保护既有正确形；AK_KO_CONTEXT 已有 罗多顿岛→罗德岛，此处补拉丁/音译/漏字形。'),
+    Entity('拉普兰德', modes=('ak-ko',), en='Lappland', ja='', ko='라플란드', category='角色/明日方舟', variants=(), ctx=(('라플런드|라플랜드', '拉普兰'),), exclude=(), note='官方对照表 拉普兰德/Lappland/라플란드。现有 AK_KO_CONTEXT 锚点라플란드|라플란 不覆盖口播变体 라플런드/라플랜드，此处补锚定；wrong⊂right 走哨兵，既有「拉普兰德」不被再咬。'),
+    Entity('明日方舟', modes=('ak-ko',), en='Arknights', ja='', ko='명일방주', category='作品/明日方舟', variants=(), ctx=(('명방|명일\\s*방주', 'Myungbang'), ('명일\\s*방주', '明日之战')), exclude=(), note='官方对照表 明日方舟/Arknights/명일방주；韩语缩略 명방。⚠ 명빵 是「명방+빵(面包)」谐音梗，字形不同不会被本锚点命中，一校有意保留，禁止改成「明日方舟」。'),
+    Entity('干员', modes=('ak-ko',), en='Operator', ja='', ko='오퍼레이터', category='术语/明日方舟', variants=(), ctx=(('후방\\s*지원\\s*오퍼레이터', '后方支援人员'),), exclude=(), note='官方术语「干员」；一校 decisions.md 已归一 操作员/运营商/接线员/运算符，r2 补「后方支援人员」漏网。用完整词锚定，不改裸「人员」。'),
+    Entity('边狱巴士', modes=('ak-ko',), en='Limbus Company', ja='', ko='림버스', category='作品/联动', variants=(), ctx=(('림버스', '边缘'),), exclude=(), note='一校 --akko 既定口径「边狱巴士」（decisions.md 明定保留，联网点验显示「边狱公司」亦为通行名，属口径变更非漏校）。机翻把 림버스 音近词误作「边缘」，靠韩语行锚定。'),
 ]
 
 # ===== text.py =====
@@ -16223,7 +16273,7 @@ def _restore_override_prefix(old, new):
 
 
 def _resolve_terms(mode):
-    """按注册表解析模式术语表。akja=AK_TERMS∪AK_JA_TERMS 合并表、pgr=空表为特例；
+    """按注册表解析模式术语表。ak-ja=AK_TERMS∪AK_JA_TERMS 合并表、pgr=空表为特例；
     未知模式落 BILINGUAL_TERMS（与原 else 分支一致）。表对象取自 state.TABLES。"""
     spec = MODE_REGISTRY.get(mode)
     tname = spec["terms"] if spec else "BILINGUAL_TERMS"
@@ -16242,10 +16292,10 @@ def _resolve_terms(mode):
 
 # 版式分发：首中文行模式（规则版式）由注册表自动归类，特例模式单独分支处理。
 #   新增一个「首中文行 + 语境锚定」片源模式 = 注册表加一条（terms/ctx），引擎自动走通用路径。
-_SPECIAL_MODES = {"bi", "pgr", "ko", "wuwa40ko", "wuwa40ign", "ak", "arcak", "endo", "fix-en"}
+_SPECIAL_MODES = {"bi", "pgr", "wuwa-ko", "wuwa-40ko", "wuwa-40ign", "ak", "ak-arcaea", "endo", "fix-en"}
 _FIRST_ZH_MODES = {m for m in MODE_REGISTRY if m not in _SPECIAL_MODES}
-_FIRST_ZH_EXCLUDE = {"pgren"}        # 首中文行模式里消费 EXCLUDE 回滚层的
-_FIRST_ZH_OVERRIDE = {"wwm", "ja"}   # 首中文行模式里支持侧车整行覆盖的（ja：4.0 先行映像全片侧车）
+_FIRST_ZH_EXCLUDE = {"pgr-en"}            # 首中文行模式里消费 EXCLUDE 回滚层的
+_FIRST_ZH_OVERRIDE = {"wwm", "wuwa-ja"}   # 首中文行模式里支持侧车整行覆盖的（wuwa-ja：4.0 先行映像全片侧车）
 
 # 语境表名 → 预编译缓存（与 state._CTX_COMPILE_SPEC 同源；供注册表 ctx 字段查缓存）
 _COMPILED_BY_CTX = {
@@ -16290,8 +16340,8 @@ def _calib_first_zh(old, ref_m, ctx_compiled, term_idx, hits,
                     R=None, skip=None):
     """规则「首中文行」版式：术语替换 + 语境锚定（ref_m）+ 可选 EXCLUDE 回滚 + 可选侧车覆盖。
 
-    统一 react/hsr/ff14/pkm/limbus/ffrs/pbz/ssv/tga26/wwoc/pgren/zel/ja/jpe/pgrja/
-    akja/akko/wwm/gfl2/zho/endobi/endoko 等模式（仅 ctx 缓存与 exclude/override 旗标不同）。
+    统一 react/hsr/ff14/pkm/limbus/ffrs/pbz/ssv/tga26/wwoc/pgr-en/zel/wuwa-ja/endo-ja/pgr-ja/
+    ak-ja/ak-ko/wwm/gfl2/zho/endo-bi/endo-ko 等模式（仅 ctx 缓存与 exclude/override 旗标不同）。
     侧车命中即整行覆盖（不叠加术语表）；否则术语+ctx，exclude 模式再按参考行回滚高歧义词。
     M3-4：R/skip 为对象级 scoping（默认 None=完全现状）；启用时 ctx 按对象集 scope、EXCLUDE 预跳过。
     """
@@ -16318,20 +16368,20 @@ def process(path, out_path=None, report_path=None, mode="bi",
                   跳过语言探测（2026-11-21 全短片片：英文参考行 "Jan。" 含全角句号，
                   被 _split_cue_text 的纯拉丁中文行兜底误判成中文，导致侧车写错行）。
       mode="bi"   双语模式：BILINGUAL_TERMS + CONTEXT_MAP + WORD_MAP 改首中文行。
-      mode="ko"   韩语模式：KO_TERMS 统一中文行术语。
-      mode="wuwa40ko" 韩语原声·鸣潮 4.0 新联邦 PV：KO_TERMS + WW40KO_CONTEXT，
+      mode="wuwa-ko"  韩语模式：KO_TERMS 统一中文行术语。
+      mode="wuwa-40ko" 韩语原声·鸣潮 4.0 新联邦 PV：KO_TERMS + WW40KO_CONTEXT，
                   命中侧车时整行覆盖（侧车已是终稿，含 >> 前缀）。
-      mode="wuwa40ign" 韩语原声·鸣潮 4.0 IGN 实机演示：KO_TERMS + WW40IGN_CONTEXT，
-                  与 wuwa40ko 同构；侧车 162 条为终稿，命中即整行覆盖。
-      mode="ja"   日语模式：JA_TERMS + JA_CONTEXT（日语参考行佐证）统一中文行术语。
+      mode="wuwa-40ign" 韩语原声·鸣潮 4.0 IGN 实机演示：KO_TERMS + WW40IGN_CONTEXT，
+                  与 wuwa-40ko 同构；侧车 162 条为终稿，命中即整行覆盖。
+      mode="wuwa-ja"  日语模式：JA_TERMS + JA_CONTEXT（日语参考行佐证）统一中文行术语。
       mode="endo" 终末地模式：ENDFIELD_TERMS 统一全部文本行。
       mode="ak"   明日方舟本体模式：AK_TERMS + AK_CONTEXT（英文参考行佐证）统一**全部**中文行。
                   2026-10-14 起：谷翻片「中文2行+英文2行」结构下逐行校准全部含汉字行，
                   ctx 锚点=该 cue 全部英文行拼接（规整空白）；不含汉字的文本行一律不动。
-      mode="jpe"  日语原声·终末地：JA_ENDFIELD_TERMS + JA_ENDFIELD_CONTEXT（日语行佐证）。
-      mode="pgrja" 日语原声·战双（联动朗读直播片）：JA_PGR_TERMS + JA_PGR_CONTEXT。
+      mode="endo-ja"  日语原声·终末地：JA_ENDFIELD_TERMS + JA_ENDFIELD_CONTEXT（日语行佐证）。
+      mode="pgr-ja" 日语原声·战双（联动朗读直播片）：JA_PGR_TERMS + JA_PGR_CONTEXT。
                   这类片**中文是原文、日语是日服译本**，参考行是日语所以不进 fix_en 允许集。
-      mode="akja" 日语原声·明日方舟：terms = AK_TERMS ∪ AK_JA_TERMS（合并后单次编译、
+      mode="ak-ja" 日语原声·明日方舟：terms = AK_TERMS ∪ AK_JA_TERMS（合并后单次编译、
                   长键降序单遍扫描），只改首中文行，AK_JA_CONTEXT 用**日语参考行**佐证。
                   2026-11-03 新增（奈渡ナオト《明日方舟》首播 3856 cue / 每 cue 恰 2 行）。
                   与 --ak 的分工：AK_TERMS 只收会在**英语原声片**出现的错形；日语向错形
@@ -16344,6 +16394,9 @@ def process(path, out_path=None, report_path=None, mode="bi",
     参考行锚定（CONTEXT/EXCLUDE）一律先经 _ref_for_match 规整（ASR 断词容错），
     但默认输出的参考行保持原样，只有 fix_en=True 才写回。
     """
+    # 2026-11-22 子键化：入口统一归一（旧键 akja/ja/jpe/… 与别名 → 新「游戏-细类」子键；
+    #   registry 键原样返回，未知键原样透传由下方 else 兜底 bi）。下游所有分支只比较新键。
+    mode = normalize_mode(mode)
     terms = _resolve_terms(mode)
     # 学习系统注入：confirmed 规则并入本模式术语表（与既有键冲突时跳过并告警）
     if learned_kb:
@@ -16361,11 +16414,11 @@ def process(path, out_path=None, report_path=None, mode="bi",
                       f"（learned-show 查看，人工裁决）")
     # 2026-10-06 危险裸键闸门：RETIRED_KO_KEYS 无论来自静态表、learned_kb 还是
     #   applied.json 注入，一律在编译前剔除（保证"信信→辛夷"等已下线键绝不误伤）。
-    if mode in ("ko", "wuwa40ko", "wuwa40ign") and any(k in terms for k in RETIRED_KO_KEYS):
+    if mode in ("wuwa-ko", "wuwa-40ko", "wuwa-40ign") and any(k in terms for k in RETIRED_KO_KEYS):
         terms = {k: v for k, v in terms.items() if k not in RETIRED_KO_KEYS}
     # 2026-10-14 日语同款闸门：'笛卡尔' 会在运行期被 applied.json 复活，必须一并剔除，
     #   否则它抢跑 Entity("卡提希娅") 的 ctx（笛卡尔西亚 -> 卡提希娅西亚）。
-    if mode == "ja" and any(k in terms for k in RETIRED_JA_KEYS):
+    if mode == "wuwa-ja" and any(k in terms for k in RETIRED_JA_KEYS):
         terms = {k: v for k, v in terms.items() if k not in RETIRED_JA_KEYS}
     # 术语表经 ModeIndex 组装 AC 自动机（term_idx，见下），逐行替换走 replace_serial_ac 预筛串行。
     word_pairs, word_chars = _compile_map(WORD_MAP)
@@ -16422,7 +16475,7 @@ def process(path, out_path=None, report_path=None, mode="bi",
                         # 单行韩语）——该行含谚文即应用 KO_ASR 层（韩语错形→官方韩语），
                         # 否则整块跳过，防止把术语替换误写到参考/英文行上。
                         only = lines[j + 1]
-                        if mode in ("ko", "wuwa40ko", "wuwa40ign") and _KO_HANGUL.search(only):
+                        if mode in ("wuwa-ko", "wuwa-40ko", "wuwa-40ign") and _KO_HANGUL.search(only):
                             if "_ko_asr_pairs" not in dir():
                                 _ko_asr_pairs, _ko_asr_chars = _compile_map(KO_ASR_TERMS)
                             new = _replace_report(only, _ko_asr_pairs, _ko_asr_chars, hits)
@@ -16440,8 +16493,8 @@ def process(path, out_path=None, report_path=None, mode="bi",
                         #   4.0 韩语片 #8/#241 原行是拉丁残片（Subde / Dream），
                         #   4.0 日语片 #487/#1012/#1065/#1074 原行是纯拉丁/纯数字（无 CJK，
                         #   识别不出中文行），人工终稿已改成中文，若不特判会被这里整块跳过。
-                        if mode in ("bi", "ja", "wuwa40ko", "wuwa40ign"):
-                            ov = bi_override if mode in ("bi", "ja") else ko_override
+                        if mode in ("bi", "wuwa-ja", "wuwa-40ko", "wuwa-40ign"):
+                            ov = bi_override if mode in ("bi", "wuwa-ja") else ko_override
                             preserve = (bi_override_preserve if mode == "bi"
                                         else ko_override_preserve)
                             if ov and str(num) in ov:
@@ -16483,7 +16536,7 @@ def process(path, out_path=None, report_path=None, mode="bi",
                                         bi_override=bi_override if mode in _FIRST_ZH_OVERRIDE else None,
                                         bi_override_preserve=bi_override_preserve,
                                         R=_R, skip=_skip)
-                    elif mode in ("ko", "wuwa40ko", "wuwa40ign"):       # 韩语原声·鸣潮：KO_TERMS + KO_CONTEXT/WW40KO_CONTEXT 校准**全部中文行**
+                    elif mode in ("wuwa-ko", "wuwa-40ko", "wuwa-40ign"):       # 韩语原声·鸣潮：KO_TERMS + KO_CONTEXT/WW40KO_CONTEXT 校准**全部中文行**
                         # 2026-10-06 修复（梦州 4장4막 二次校准定位的根因）：谷翻反应片每 cue
                         #   常见「中文 2 行 + 谚文 2 行」结构。旧实现只改首文本行、锚点只取末行
                         #   谚文 → ①第二中文行整片漏校（该批 112 处残留 111 处在第二行）；
@@ -16499,7 +16552,7 @@ def process(path, out_path=None, report_path=None, mode="bi",
                             # （韩国主播直播 ASR 等），旧表键全是中文错形无法命中。
                             # 4.0 韩语片 #154 原行两行都是「얜」，人工终稿把首行改成
                             # 「她」；侧车命中时先整行覆盖首行，再走 KO_ASR/continue。
-                            if (mode in ("wuwa40ko", "wuwa40ign") and ko_override
+                            if (mode in ("wuwa-40ko", "wuwa-40ign") and ko_override
                                     and str(num) in ko_override):
                                 old0 = lines[kr_tis[0]]
                                 new = ko_override[str(num)]
@@ -16526,8 +16579,8 @@ def process(path, out_path=None, report_path=None, mode="bi",
                             i = kk
                             continue
                         kr_all = " ".join(_ref_for_match(lines[ti]) for ti in kr_tis)
-                        ctx_compiled = (_WW40IGN_CONTEXT_COMPILED if mode == "wuwa40ign"
-                                        else _WW40KO_CONTEXT_COMPILED if mode == "wuwa40ko"
+                        ctx_compiled = (_WW40IGN_CONTEXT_COMPILED if mode == "wuwa-40ign"
+                                        else _WW40KO_CONTEXT_COMPILED if mode == "wuwa-40ko"
                                         else _KO_CONTEXT_COMPILED)
                         for zi, ti in enumerate(zh_tis):
                             if len(zh_tis) == len(kr_tis):
@@ -16535,7 +16588,7 @@ def process(path, out_path=None, report_path=None, mode="bi",
                             else:
                                 anchor = kr_all                              # 行数不齐回退拼接
                             lold = lines[ti]
-                            if (mode in ("wuwa40ko", "wuwa40ign") and ko_override
+                            if (mode in ("wuwa-40ko", "wuwa-40ign") and ko_override
                                     and zi == 0 and str(num) in ko_override):
                                 # 4.0 侧车：命中即整行覆盖，不叠加术语表（终稿可能刻意保留
                                 #   拉丁名/口语重复/断句）；侧车已是终稿，含原行 >> 前缀。
@@ -16584,7 +16637,7 @@ def process(path, out_path=None, report_path=None, mode="bi",
                             if new != old:
                                 rows.append((num, old, new, ref))
                                 out[zh_idx] = new
-                    elif mode == "arcak":       # Arcaea×明日方舟联动直播：ARCAK_TERMS + ARCAK_CONTEXT
+                    elif mode == "ak-arcaea":       # Arcaea×明日方舟联动直播：ARCAK_TERMS + ARCAK_CONTEXT
                         # 2026-11-18 新增。与 --ak 同构（改全部中文行、锚点=全部英文行拼接、
                         #   消费 EXCLUDE 回滚），但走独立表：AK_TERMS 里的
                         #   Arcaea→韵律源点 / Radiant→《Radiant》与本片「Arcaea 侧保留英文」
@@ -16618,7 +16671,7 @@ def process(path, out_path=None, report_path=None, mode="bi",
                                 out[zh_idx] = new
                     elif mode == "endo":       # 终末地模式：ENDFIELD_TERMS 统一全部中文行
                         # 2026-10-23：改为只改中文行；单语终末地片源等价于原“全部文本行”，
-                        # 双语片源不会再误改英文参考行（应改用 --endobi）。
+                        # 双语片源不会再误改英文参考行（应改用 --mode endo-bi）。
                         for ti in [text_tis[p] for p in zh_pos]:
                             lold = lines[ti]
                             new = replace_serial_ac(lold, term_idx, hits)
@@ -16695,7 +16748,7 @@ def detect_source_mode(path):
         lines = _decode_any(open(path, "rb").read()).split("\n")
     except OSError:
         return "bi"
-    return "endobi" if len(endfield_auto_markers(lines)) >= 2 else "bi"
+    return "endo-bi" if len(endfield_auto_markers(lines)) >= 2 else "bi"
 
 # ===== srt.py =====
 import io
@@ -17750,13 +17803,16 @@ def _cmd_compare(src, out, tsv):
 
 
 # 漏译体检规则表分发（mode → 规则表元组；数据驱动，替代原 if 链）。
-#   jpe 双表（日语表 + 英文兜底，英文表对日文行不命中仅多一轮空锚）；
+#   键=校准模式键（2026-11-22 子键化：endobi/jpe/endoko/arcak/pgren/ko →
+#   endo-bi/endo-ja/endo-ko/ak-arcaea/pgr-en/wuwa-ko；旧键命令行输入由
+#   _load_missing_rules 内 normalize_mode 兼容归一）；
+#   endo-ja 双表（日语表 + 英文兜底，英文表对日文行不命中仅多一轮空锚）；
 #   wuwa/wuwa-bi/ww 是 missing 命令专用别名（非校准模式）。各 mode 条件互斥，元组保序。
 _MISSING_RULES_BY_MODE = {
     "endo": (ENDFIELD_MISSING_CHECK,),
-    "endobi": (ENDFIELD_MISSING_CHECK,),
-    "endoko": (ENDFIELD_MISSING_CHECK,),
-    "jpe": (JA_ENDFIELD_MISSING_CHECK, ENDFIELD_MISSING_CHECK),
+    "endo-bi": (ENDFIELD_MISSING_CHECK,),
+    "endo-ko": (ENDFIELD_MISSING_CHECK,),
+    "endo-ja": (JA_ENDFIELD_MISSING_CHECK, ENDFIELD_MISSING_CHECK),
     "wuwa": (WUWA_MISSING_CHECK,),
     "wuwa-bi": (WUWA_MISSING_CHECK,),
     "ww": (WUWA_MISSING_CHECK,),
@@ -17764,23 +17820,26 @@ _MISSING_RULES_BY_MODE = {
     "pbz": (PBZ_MISSING_CHECK,),
     "ssv": (SSV_MISSING_CHECK,),
     "tga26": (TGA_MISSING_CHECK,),
-    "arcak": (ARCAK_MISSING_CHECK,),
+    "ak-arcaea": (ARCAK_MISSING_CHECK,),
     "wwm": (WWM_MISSING_CHECK,),
     "gfl2": (GFL2_MISSING_CHECK,),
-    "pgren": (PGR_MISSING_CHECK,),
-    "ko": (KO_MISSING_CHECK,),
+    "pgr-en": (PGR_MISSING_CHECK,),
+    "wuwa-ko": (KO_MISSING_CHECK,),
 }
 
 
 def _load_missing_rules(mode=None, file=None):
-    """漏译体检规则：--mode endo 取内置 ENDFIELD_MISSING_CHECK；--mode jpe 取
+    """漏译体检规则：--mode endo 取内置 ENDFIELD_MISSING_CHECK；--mode endo-ja 取
     JA_ENDFIELD_MISSING_CHECK（日语正则锚日文参考行）并保留英文表兜底；
     --mode wuwa 取鸣潮专名表 WUWA_MISSING_CHECK；--mode ak 取明日方舟
-    AK_MISSING_CHECK；--mode pbz 取影之刃零 PBZ_MISSING_CHECK；--mode ko 取韩语原声
-    鸣潮表 KO_MISSING_CHECK（正则写**谚文原形**，不是拉丁）；--mode pgren 取战双英文
-    原声表 PGR_MISSING_CHECK（正则写拉丁，锚英文参考行）；--file 追加 TSV
-    （每行：参考行正则<TAB>中文必现词1|词2[<TAB>说明]，# 开头注释）。"""
+    AK_MISSING_CHECK；--mode pbz 取影之刃零 PBZ_MISSING_CHECK；--mode wuwa-ko 取韩语原声
+    鸣潮表 KO_MISSING_CHECK（正则写**谚文原形**，不是拉丁）；--mode pgr-en 取战双英文
+    原声表 PGR_MISSING_CHECK（正则写拉丁，锚英文参考行）；旧变体键
+    （endobi/jpe/endoko/arcak/pgren/ko 等）经 normalize_mode 归一为新「游戏-细类」子键；
+    --file 追加 TSV（每行：参考行正则<TAB>中文必现词1|词2[<TAB>说明]，# 开头注释）。"""
     rules = []
+    if mode:
+        mode = normalize_mode(mode)
     for tbl in _MISSING_RULES_BY_MODE.get(mode, ()):
         rules.extend(tbl)
     if file:
@@ -18363,8 +18422,11 @@ def _audit_mode_scope(mode):
 
     ⚠ 必须**按模式**取：`_kb_view()` 会把各模式的 ctx/变体合并成一个对象，
     直接拿来扫会把别的片源的规则（如某模式的 space→虚质空间）当成漏校。
+    2026-11-22 变体键降级：入口 normalize_mode——旧顶层变体键与既有别名
+    归一到「游戏-细类」新键后查三视图。
     返回 (错形→官方名 字典, [(锚点字面量, 官方名)])。
     """
+    mode = normalize_mode(mode)
     wrong2right = {}
     anchors = []
     variants_lc = {}          # canonical -> {小写变体}，用于判定 ctx 字面量像不像专名
@@ -18450,6 +18512,7 @@ def _cmd_audit(src, mode="bi", out=None, as_json=False, limit=300, loose=False, 
 
     退出码：1＝有候选（可当门禁），0＝干净。
     """
+    mode = normalize_mode(mode)           # 2026-11-22 变体键降级：旧键/别名归一新键
     if not os.path.isfile(src):
         print(f"文件不存在：{src}")
         return 1
@@ -18942,9 +19005,12 @@ def _learn_update_status(c):
 
 def _cmd_learn(src, calib, kb_path=LEARNED_KB_DEFAULT, mode="bi"):
     """learn：投喂 [原始srt + 人工校准srt] 配对，挖掘候选规则并更新学习库。
-    v1.11.0：收尾自动导出本次新增 confirmed 条目为增量并上传（FR-2）。"""
+    v1.11.0：收尾自动导出本次新增 confirmed 条目为增量并上传（FR-2）。
+    2026-11-22 变体键降级：入口 normalize_mode——新沉淀落「游戏-细类」新键；
+    库内旧键匹配时经 normalize 归一，无需数据迁移。"""
     import datetime
     import copy
+    mode = normalize_mode(mode)
     sc, oc = _parse_cue_pairs(src), _parse_cue_pairs(calib)
     if len(sc) != len(oc):
         print(f"⚠ cue 数不一致（原 {len(sc)} / 校准 {len(oc)}），按序号交集学习")
@@ -18995,8 +19061,9 @@ def _cmd_learn(src, calib, kb_path=LEARNED_KB_DEFAULT, mode="bi"):
             c["last"] = today
             touched.add(k)
     # 第二遍：反例扫描——本模式所有候选（按扩展形态）在原文出现但校准后仍保留 = 未纠正反例
+    # （存量旧键候选经 normalize_mode 归一后同属本模式，一并参与扫描）
     for k, c in cands.items():
-        if c["mode"] != mode or c["status"] == "rejected":
+        if normalize_mode(c["mode"]) != mode or c["status"] == "rejected":
             continue
         w, _r = _learn_extended(c)
         for num, (oz, ref) in smap.items():
@@ -19013,13 +19080,14 @@ def _cmd_learn(src, calib, kb_path=LEARNED_KB_DEFAULT, mode="bi"):
     confirmed = demoted = conflicts = dup_builtin = 0
     for k in list(cands.keys()):
         c = cands[k]
-        if c["mode"] == mode:
+        c_mode = normalize_mode(c["mode"])    # 存量旧键归一为新键
+        if c_mode == mode:
             ew, er = _learn_extended(c)
             if builtin.get(ew) == er or builtin.get(c["wrong"]) == c["right"]:
                 del cands[k]                  # 已进扁平表/实体层，无需学习
                 dup_builtin += 1
                 continue
-        if c["mode"] != mode:
+        if c_mode != mode:
             continue
         if _learn_update_status(c):
             demoted += 1
@@ -19051,12 +19119,16 @@ KB_INJECT_BLOCKLIST = {
 
 def _learned_terms_for_mode(kb_path, mode):
     """校准运行时注入：confirmed 且属本模式的学习规则 -> {扩展错形: 扩展正形}。
-    2026-11-09 起按 KB_INJECT_BLOCKLIST 跳过人工裁定的危险裸键（见该清单注释）。"""
+    2026-11-09 起按 KB_INJECT_BLOCKLIST 跳过人工裁定的危险裸键（见该清单注释）。
+    2026-11-22 变体键降级：mode 与库内候选 mode 均经 normalize_mode 归一，
+    旧键沉淀的 confirmed 规则在对应新键运行时照常注入。"""
+    mode = normalize_mode(mode)
     kb = _load_learned_kb(kb_path)
     out = {}
     for c in kb["candidates"].values():
-        if c["mode"] == mode and c["status"] == "confirmed" and not c.get("conflict"):
-            if "{}|{}".format(c["mode"], c["wrong"]) in KB_INJECT_BLOCKLIST:
+        c_mode = normalize_mode(c["mode"])
+        if c_mode == mode and c["status"] == "confirmed" and not c.get("conflict"):
+            if "{}|{}".format(c_mode, c["wrong"]) in KB_INJECT_BLOCKLIST:
                 continue
             w, r = _learn_extended(c)
             out[w] = r
@@ -19065,9 +19137,11 @@ def _learned_terms_for_mode(kb_path, mode):
 
 
 def _cmd_learned_show(kb_path=LEARNED_KB_DEFAULT, mode=None):
-    """learned-show：查看学习库候选（可按模式过滤）。"""
+    """learned-show：查看学习库候选（可按模式过滤；旧键经 normalize_mode 归一匹配）。"""
+    mode = normalize_mode(mode) if mode else mode
     kb = _load_learned_kb(kb_path)
-    rows = [c for c in kb["candidates"].values() if not mode or c["mode"] == mode]
+    rows = [c for c in kb["candidates"].values()
+            if not mode or normalize_mode(c["mode"]) == mode]
     if not rows:
         print("学习库为空" + (f"（模式 {mode}）" if mode else "")); return
     order = {"confirmed": 0, "candidate": 1, "rejected": 2}
@@ -19090,18 +19164,20 @@ def _cmd_learned_show(kb_path=LEARNED_KB_DEFAULT, mode=None):
 
 def _cmd_learned_promote(kb_path=LEARNED_KB_DEFAULT, mode=None, entities=False):
     """learned-promote：confirmed 规则导出为 Entity 桩代码（--entities），
-    人工审阅后粘贴进第 6 节 ENTITIES，完成 学习成果->对象级知识 的固化。"""
+    人工审阅后粘贴进第 6 节 ENTITIES，完成 学习成果->对象级知识 的固化。
+    2026-11-22 变体键降级：模式过滤与导出桩的 modes 均经 normalize_mode 归一（落新键）。"""
+    mode = normalize_mode(mode) if mode else mode
     kb = _load_learned_kb(kb_path)
     rows = [c for c in kb["candidates"].values()
             if c["status"] == "confirmed" and not c.get("conflict")
-            and (not mode or c["mode"] == mode)]
+            and (not mode or normalize_mode(c["mode"]) == mode)]
     if not rows:
         print("# 无可固化的 confirmed 规则")
     else:
         by_right = {}
         for c in rows:
             w, r = _learn_extended(c)
-            by_right.setdefault((r, c["mode"]), []).append((w, c))
+            by_right.setdefault((r, normalize_mode(c["mode"])), []).append((w, c))
         print("# ---- learned-promote 导出（人工审阅后并入 ENTITIES）----")
         for (right, m), cs in sorted(by_right.items()):
             variants = sorted({w for w, _ in cs}, key=len, reverse=True)
@@ -19113,7 +19189,7 @@ def _cmd_learned_promote(kb_path=LEARNED_KB_DEFAULT, mode=None, entities=False):
                   f"首次 {firsts}。en/ja/ko/category 待人工补全'),")
     sugg = [c for c in kb["candidates"].values()
             if c["status"] == "candidate" and c.get("ctx_regex")
-            and not c.get("conflict") and (not mode or c["mode"] == mode)]
+            and not c.get("conflict") and (not mode or normalize_mode(c["mode"]) == mode)]
     if sugg:
         print("\n# ---- 带反例的候选：建议作为 ctx 条件变体人工确认 ----")
         for c in sugg:
@@ -19125,16 +19201,19 @@ def _cmd_learned_promote(kb_path=LEARNED_KB_DEFAULT, mode=None, entities=False):
 
 def _cmd_learned_reject(word, kb_path=LEARNED_KB_DEFAULT, mode=None):
     """learned-reject <错形>：人工否决候选（永不自动应用，保留证据）。
-    v1.11.0：否决结果以 tombstone 增量通知其它客户端（FR-2）。"""
+    v1.11.0：否决结果以 tombstone 增量通知其它客户端（FR-2）。
+    2026-11-22 变体键降级：模式过滤与 tombstone 通知均经 normalize_mode 归一。"""
+    mode = normalize_mode(mode) if mode else mode
     kb = _load_learned_kb(kb_path)
     hit = 0
     modes = []
     for c in kb["candidates"].values():
-        if c["wrong"] == word and (not mode or c["mode"] == mode):
+        c_mode = normalize_mode(c["mode"])
+        if c["wrong"] == word and (not mode or c_mode == mode):
             c["status"] = "rejected"
             hit += 1
-            if c["mode"] not in modes:
-                modes.append(c["mode"])
+            if c_mode not in modes:
+                modes.append(c_mode)
     if hit:
         _save_learned_kb(kb, kb_path)
         print(f"已否决 {hit} 条候选：{word!r}")
@@ -19178,7 +19257,8 @@ import unicodedata
 #       "op": "upsert|tombstone",
 #       "table": "BILINGUAL_TERMS|CONTEXT_MAP|EXCLUDE_CONTEXT|
 #                ENTITIES_VARIANT|LEARNED_CANDIDATE",
-#       "mode": "bi|ja|jpe|ko|ak|akko|endo|zho|pgren|wwoc|react",
+#       "mode": "bi|wuwa-ja|endo-ja|wuwa-ko|ak|ak-ko|endo|endo-bi|endo-ko|
+#               zho|pgr-en|pgr-ja|ak-ja|ak-arcaea|wwoc|react|…（P3b 子键化）",
 #       "key": 错形, "value": 正形, "supersedes": 被取代条目id|null,
 #       "evidence": {"count":..,"cues":[..],"kb_status":..},
 #       "trust": "maintainer|observed"(可选), "rx": 正则(仅 CONTEXT/EXCLUDE)}
@@ -19220,33 +19300,45 @@ def json_dumps(obj):
 _SYNC_TABLES = ("BILINGUAL_TERMS", "CONTEXT_MAP", "EXCLUDE_CONTEXT",
                 "ENTITIES_VARIANT", "LEARNED_CANDIDATE")
 
-_SYNC_MODES = ("bi", "ja", "jpe", "ko", "ak", "akko", "endo", "endobi",
-               "endoko", "zho", "pgren", "wwoc", "react", "limbus",
-               # 2026-11-03 新增（战双日语原声片）。
+# 2026-11-22 P3b 子键化重命名（旧键→新 ASCII 子键，parent 分组：ak/endo/wuwa/pgr）：
+#   ja→wuwa-ja、jpe→endo-ja、ko→wuwa-ko、akko→ak-ko、endobi→endo-bi、
+#   endoko→endo-ko、pgren→pgr-en、pgrja→pgr-ja、akja→ak-ja、arcak→ak-arcaea；
+#   顶层键（bi/ak/endo/zho/wwoc/react/limbus/pgr）不变。
+_SYNC_MODES = ("bi", "wuwa-ja", "endo-ja", "wuwa-ko", "ak", "ak-ko", "endo",
+               "endo-bi", "endo-ko", "zho", "pgr-en", "wwoc", "react", "limbus",
+               # 2026-11-03 新增（战双日语原声片）→ pgr-ja。
                # ⚠ 观察留痕：ffrs/pbz/ff14 三个后来加的模式**至今没进这张表**，
                #   它们的 kb 增量目前同样会被 _sync_validate 拒收——不属本次范围，未动。
-               "pgrja",
-               # 2026-11-03 新增（明日方舟日语原声片）。同上：不进这张表的话，
-               #   kb-push/kb-sync 推来的 akja 条目会被 _sync_validate 判 mode 非法拒收。
-               "akja",
-               # 2026-11-18 新增（Arcaea×明日方舟联动直播片）。
-               "arcak")
+               "pgr-ja",
+               # 2026-11-03 新增（明日方舟日语原声片）→ ak-ja。同上：不进这张表的话，
+               #   kb-push/kb-sync 推来的条目会被 _sync_validate 判 mode 非法拒收。
+               "ak-ja",
+               # 2026-11-18 新增（Arcaea×明日方舟联动直播片）→ ak-arcaea。
+               "ak-arcaea",
+               # 2026-11-22 补登记（鸣潮 4.0 一键子键）：此前 wuwa40ko/wuwa40ign 与
+               #   ffrs/pbz/ff14 同样缺位，推来的条目会被 _sync_validate 拒收。
+               "wuwa-40ko", "wuwa-40ign")
 
-_SYNC_MODE_CTX_TABLE = {"bi": "CONTEXT_MAP", "ja": "JA_CONTEXT",
-                        "jpe": "JA_ENDFIELD_CONTEXT", "akko": "AK_KO_CONTEXT",
-                        "ko": "KO_CONTEXT", "ak": "AK_CONTEXT",
+_SYNC_MODE_CTX_TABLE = {"bi": "CONTEXT_MAP", "wuwa-ja": "JA_CONTEXT",
+                        "endo-ja": "JA_ENDFIELD_CONTEXT", "ak-ko": "AK_KO_CONTEXT",
+                        "wuwa-ko": "KO_CONTEXT", "ak": "AK_CONTEXT",
                         "wwoc": "WWOC_CONTEXT", "limbus": "LIMBUS_CONTEXT",
-                        # 2026-11-03：缺这一行时 --pgrja 的 kb 增量会被 _sync_validate 拒收
+                        # 2026-11-03：缺这一行时 pgr-ja 的 kb 增量会被 _sync_validate 拒收
                         #   （校验按「该模式有没有语境槽」判条目能否注入）。
-                        "pgrja": "JA_PGR_CONTEXT",
-                        "akja": "AK_JA_CONTEXT",
-                        # 2026-11-04：--pgren 补语境槽后必须同登记，否则推来的 pgren 锚定条目
+                        "pgr-ja": "JA_PGR_CONTEXT",
+                        "ak-ja": "AK_JA_CONTEXT",
+                        # 2026-11-04：pgr-en 补语境槽后必须同登记，否则推来的锚定条目
                         #   会被 _sync_validate 按「该模式没有语境槽」判 mode 非法拒收
-                        #   （同 2026-11-03 pgrja 那条坑）。
-                        "pgren": "PGR_EN_CONTEXT",
-                        # 2026-11-18：--arcak 补语境槽后必须同登记，否则推来的
-                        #   arcak 锚定条目会被 _sync_validate 按「该模式没有语境槽」拒收。
-                        "arcak": "ARCAK_CONTEXT"}
+                        #   （同 2026-11-03 pgr-ja 那条坑）。
+                        "pgr-en": "PGR_EN_CONTEXT",
+                        # 2026-11-18：补语境槽后必须同登记，否则推来的 ak-arcaea
+                        #   锚定条目会被 _sync_validate 按「该模式没有语境槽」拒收。
+                        "ak-arcaea": "ARCAK_CONTEXT",
+                        # 2026-11-22：鸣潮 4.0 一键子键补语境槽（WW40*_CONTEXT 已在
+                        #   state.CTX_TABLES 注册；缺槽时 CONTEXT_MAP 条目会错落
+                        #   CONTEXT_MAP 兜底槽）。
+                        "wuwa-40ko": "WW40KO_CONTEXT",
+                        "wuwa-40ign": "WW40IGN_CONTEXT"}
 
 
 
@@ -19991,8 +20083,10 @@ def _cmd_kb_push(learned=None, file=None):
         for c in kb.get("candidates", {}).values():
             if c.get("status") == "confirmed" and not c.get("conflict"):
                 w, r = _learn_extended(c)
+                # 2026-11-22 子键化：学习库可能沉淀旧键（ko/ja/jpe/…），导出前归一防旧键
+                #   回流成死信（_sync_validate 只认 _SYNC_MODES 新键）。
                 e = _sync_entry(
-                    cfg["client_id"], "LEARNED_CANDIDATE", c.get("mode", "bi"),
+                    cfg["client_id"], "LEARNED_CANDIDATE", normalize_mode(c.get("mode", "bi")),
                     w, r,
                     evidence={"count": c.get("count", 1),
                               "cues": list(c.get("cues") or [])[:20],
@@ -20173,14 +20267,16 @@ def main_argv(argv=None):
         elif a == "--bi-override" and i + 1 < len(args):
             bi_override_path = args[i + 1]; i += 2
         elif a == "--mode" and i + 1 < len(args):
-            # 别名→模式查表（_MODE_ALIASES 精确沿用原 elif 链+三元兜底；未列出落 bi）。
-            #   扁平 dict 无 elif 顺序问题：arcak/akja 与 ak 别名集互斥，不会掉回 bi。
-            mode = _MODE_ALIASES.get(args[i + 1].lower(), "bi")
+            # 2026-11-22 子键化：normalize_mode 归一（旧键 akja/ja/jpe/… 与别名集 → 新
+            #   「游戏-细类」子键，子键 ak-ja 等在 registry 原样返回），未知值落 bi（保旧行为）。
+            _mv = normalize_mode(args[i + 1].lower())
+            mode = _mv if _mv in MODE_REGISTRY else "bi"
             i += 2
         else:
             i += 1
+    mode = normalize_mode(mode)   # 旗标/_RERUN 路径的 mode 已是注册表新键；幂等归一兜底
 
-    info = {"ko": KO_INFO, "ak": AK_INFO, "endo": ENDO_INFO, "pgr": PGR_INFO, "zho": ZHO_INFO, "wwoc": WWOC_INFO, "akko": AK_KO_INFO}.get(mode)
+    info = {"wuwa-ko": KO_INFO, "ak": AK_INFO, "endo": ENDO_INFO, "pgr": PGR_INFO, "zho": ZHO_INFO, "wwoc": WWOC_INFO, "ak-ko": AK_KO_INFO}.get(mode)
     for _rk, _re in _RERUN.items():        # 声明序=装配序
         if _rk in rerun_active:
             info = _re["info"]             # info 最后命中赢
@@ -20219,30 +20315,30 @@ def main_argv(argv=None):
                  " + 4.0 侧车 {} 条".format(len(bi_override) if bi_override else 0) if "wuwa40" in rerun_active else
                  " + 第二索拉侧车 {} 条".format(len(bi_override) if bi_override else 0) if "wuwasol" in rerun_active else
                  " + 全短片侧车 {} 条（整行覆盖）".format(len(bi_override) if bi_override else 0) if "wuwaall" in rerun_active else ""),
-             "ko": "韩语原声 (KO_TERMS)",
-             "wuwa40ko": "韩语原声·鸣潮 4.0 新联邦 PV (KO_TERMS + WW40KO_CONTEXT + 侧车 {} 条)".format(
+             "wuwa-ko": "鸣潮-韩语 (KO_TERMS)",
+             "wuwa-40ko": "鸣潮-4.0韩语 (KO_TERMS + WW40KO_CONTEXT + 侧车 {} 条)".format(
                  len(bi_override) if bi_override else 0),
-             "wuwa40ign": "韩语原声·鸣潮 4.0 IGN 实机 (KO_TERMS + WW40IGN_CONTEXT + 侧车 {} 条)".format(
+             "wuwa-40ign": "鸣潮-4.0IGN (KO_TERMS + WW40IGN_CONTEXT + 侧车 {} 条)".format(
                  len(bi_override) if bi_override else 0),
-             "ja": "日语原声 (JA_TERMS + JA_CONTEXT)" + (
+             "wuwa-ja": "鸣潮-日语 (JA_TERMS + JA_CONTEXT)" + (
                  " + 4.0 先行映像侧车 {} 条（整行覆盖）".format(len(bi_override) if bi_override else 0)
                  if "wuwa40ja" in rerun_active else ""),
-             "jpe": "日语原声·终末地 (JA_ENDFIELD_TERMS + JA_ENDFIELD_CONTEXT)",
+             "endo-ja": "终末地-日语 (JA_ENDFIELD_TERMS + JA_ENDFIELD_CONTEXT)",
              # 2026-11-03 新增。故意**不进 info 字典**：本模式没有内置片源，
              #   进了 info 会出现「无片源文件也能一键重跑」的假入口。
-             "pgrja": "日语原声·战双 (JA_PGR_TERMS + JA_PGR_CONTEXT)",
+             "pgr-ja": "战双-日语 (JA_PGR_TERMS + JA_PGR_CONTEXT)",
              "wwoc": "综合手游OST世界杯 (WWOC_TERMS)",
              "ak": "明日方舟本体 (AK_TERMS + AK_CONTEXT)",
-             "akko": "明日方舟韩语原声 (AK_KO_TERMS + AK_KO_CONTEXT)",
-             # 2026-11-03 新增。与 pgrja 同规：**不进 info 字典**（无内置片源，
+             "ak-ko": "明日方舟-韩语 (AK_KO_TERMS + AK_KO_CONTEXT)",
+             # 2026-11-03 新增。与 pgr-ja 同规：**不进 info 字典**（无内置片源，
              #   进了会出现「无片源文件也能一键重跑」的假入口）。
-             "akja": "日语原声·明日方舟 (AK_TERMS ∪ AK_JA_TERMS + AK_JA_CONTEXT)",
+             "ak-ja": "明日方舟-日语 (AK_TERMS ∪ AK_JA_TERMS + AK_JA_CONTEXT)",
              "zho": "中文行专属 (ZH_ONLY_TERMS)",
              "endo": "终末地 (ENDFIELD_TERMS)",
-             "endobi": "终末地·中英双语 (ENDFIELD_BI_TERMS)",
-             "endoko": "终末地·韩语原声 (ENDFIELD_KO_TERMS)",
+             "endo-bi": "终末地-双语 (ENDFIELD_BI_TERMS)",
+             "endo-ko": "终末地-韩语 (ENDFIELD_KO_TERMS)",
              "pgr": "战双帕弥什 (PGR 侧车整行覆盖, {} 条)".format(len(pgr_override) if pgr_override else 0),
-             "pgren": "战双帕弥什·英文原声 (PGR_EN_TERMS + PGR_EN_CONTEXT)",
+             "pgr-en": "战双-英文 (PGR_EN_TERMS + PGR_EN_CONTEXT)",
              "react": "音乐/演唱点评 (REACT_TERMS)",
              "zel": "塞尔达传说 (ZELDA_TERMS)",
              "hsr": "崩坏：星穹铁道 (HSR_TERMS + HSR_CONTEXT)",
@@ -20251,19 +20347,19 @@ def main_argv(argv=None):
              "pbz": "影之刃零 (PBZ_TERMS + PBZ_CONTEXT)",
              "pkm": "宝可梦城镇主题 (POKEMON_TERMS + POKEMON_CONTEXT)",
              "ff14": "最终幻想14 (FF14_TERMS + FF14_CONTEXT)",
-             # 2026-11-15 新增。与 pgrja 同规：**不进 info 字典**（无内置片源）。
+             # 2026-11-15 新增。与 pgr-ja 同规：**不进 info 字典**（无内置片源）。
              "ssv": "星之救援者 (SSV_TERMS + SSV_CONTEXT)",
-             # 2026-11-18 新增。与 pgrja 同规：**不进 info 字典**（无内置片源）。
-             "arcak": "Arcaea×明日方舟联动直播 (ARCAK_TERMS + ARCAK_CONTEXT)",
-             # 2026-11-18 新增。与 pgrja 同规：**不进 info 字典**（无内置片源）。
+             # 2026-11-18 新增。与 pgr-ja 同规：**不进 info 字典**（无内置片源）。
+             "ak-arcaea": "明日方舟-Arcaea (ARCAK_TERMS + ARCAK_CONTEXT)",
+             # 2026-11-18 新增。与 pgr-ja 同规：**不进 info 字典**（无内置片源）。
              "tga26": "TGA 2026 游戏大奖 (TGA_TERMS + TGA_CONTEXT)",
-             # 2026-11-21 新增：燕云十六声滹沱实机片。与 pgrja 同规：**不进 info 字典**（无内置片源）。
+             # 2026-11-21 新增：燕云十六声滹沱实机片。与 pgr-ja 同规：**不进 info 字典**（无内置片源）。
              "wwm": "燕云十六声 (WWM_TERMS + WWM_CONTEXT)",
-             # 2026-11-21 新增：少前2二周年反应片。与 pgrja 同规：**不进 info 字典**（无内置片源）。
+             # 2026-11-21 新增：少前2二周年反应片。与 pgr-ja 同规：**不进 info 字典**（无内置片源）。
              "gfl2": "少女前线2：追放 (GFL2_TERMS + GFL2_CONTEXT)"}
     extra = (" + 英文行修正(--fix-en)" if fix_en else "")
     if "arcakamiya" in rerun_active:
-        names["arcak"] += " + 阿米娅 Partner Play 侧车 {} 条".format(
+        names["ak-arcaea"] += " + 阿米娅 Partner Play 侧车 {} 条".format(
             len(bi_override) if bi_override else 0)
     print("模式:", names[mode] + extra)
     if learned_kb:
@@ -20418,7 +20514,7 @@ def _dispatch_subcommand(sub, args):
             print("                 用于消除 ASR 把专名跨 cue 切断造成的误报。")
             print("      退出码 1＝有候选（可当门禁），0＝干净。")
             return 1
-        return _cmd_audit(pos[0], opts.get("mode", "bi"), opts.get("out"),
+        return _cmd_audit(pos[0], normalize_mode(opts.get("mode", "bi")), opts.get("out"),
                           bool(opts.get("json")), loose=bool(opts.get("loose")),
                           window=int(opts.get("window", 0)))
 
@@ -20433,18 +20529,23 @@ def _dispatch_subcommand(sub, args):
     elif sub == "learn":
         if len(pos) < 2:
             print("用法: learn <原始.srt> <人工校准.srt> [--mode bi] [--kb 学习库.json]"); return
+        # 2026-11-22 子键化：--mode 经 normalize_mode 归一（旧键 akja/ja/… 仍可解析，
+        #   落新键入库；normalize_mode 对 None 安全，learned-* 未传 --mode 时保持 None）。
+        _lm = normalize_mode(opts.get("mode", "bi"))
         _cmd_learn(pos[0], pos[1], opts.get("kb", LEARNED_KB_DEFAULT),
-                   mode=opts.get("mode", "bi"))
+                   mode=_lm)
     elif sub == "learned-show":
-        _cmd_learned_show(opts.get("kb", LEARNED_KB_DEFAULT), mode=opts.get("mode"))
+        _cmd_learned_show(opts.get("kb", LEARNED_KB_DEFAULT),
+                          mode=normalize_mode(opts.get("mode")))
     elif sub == "learned-promote":
         _cmd_learned_promote(opts.get("kb", LEARNED_KB_DEFAULT),
-                             mode=opts.get("mode"), entities=bool(opts.get("entities", True)))
+                             mode=normalize_mode(opts.get("mode")),
+                             entities=bool(opts.get("entities", True)))
     elif sub == "learned-reject":
         if not pos:
             print("用法: learned-reject <错形> [--mode bi] [--kb 学习库.json]"); return
         _cmd_learned_reject(pos[0], opts.get("kb", LEARNED_KB_DEFAULT),
-                            mode=opts.get("mode"))
+                            mode=normalize_mode(opts.get("mode")))
     elif sub == "kb-sync":
         _cmd_kb_sync()
     elif sub == "kb-push":

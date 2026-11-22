@@ -45,7 +45,7 @@ Agent 的工具与闭环（每一步都进日志）
 
 调用契约
 ========
-    calibrate(src, out=..., report=..., mode_flag="--ko", log=..., chat=...)
+    calibrate(src, out=..., report=..., mode_flag="--mode wuwa-ko", log=..., chat=...)
 
     log(msg, level="dim")                 # 日志回调（GUI 投递到消息队列）
     chat(prompt, system=None, max_tokens=8192) -> str   # LLM 文本回调
@@ -106,25 +106,57 @@ from concurrent.futures import ThreadPoolExecutor
 
 SCRIPT_NAME = "subtitle_calib_merged.py"
 
-#: 界面片源模式参数 → 知识库里的模式键（与脚本 ENTITIES 的 modes 取值一致）
+#: 界面片源模式参数 → 知识库里的模式键（与脚本 ENTITIES 的 modes 取值一致）。
+#: P3b 子键化（2026-11-22）：子键（ak-ja/endo-bi/wuwa-ja/…，含「-」）无顶层
+#: 简单旗标，统一走「--mode <子键>」两 token 通道；顶层模式（--ak/--endo/
+#: --pgr/--zho/…）保留简单旗标。键（旗标形态）与值（模式键）同步重命名。
 MODE_KEY = {
-    "": "bi", "--ja": "ja", "--jpe": "jpe", "--ko": "ko", "--ak": "ak",
-    "--akko": "akko", "--endo": "endo", "--zho": "zho", "--pgr": "pgr",
-    "--pgren": "pgren", "--wwoc": "wwoc", "--react": "react",
-    "--endobi": "endobi", "--endoko": "endoko", "--limbus": "limbus",
-    "--pbz": "pbz", "--pgrja": "pgrja",
-    "--akja": "akja",                                   # 2026-11-03 新增：日语原声·明日方舟
+    "": "bi", "--mode wuwa-ja": "wuwa-ja", "--mode endo-ja": "endo-ja",
+    "--mode wuwa-ko": "wuwa-ko", "--ak": "ak", "--mode ak-ko": "ak-ko",
+    "--endo": "endo", "--zho": "zho", "--pgr": "pgr",
+    "--mode pgr-en": "pgr-en", "--wwoc": "wwoc", "--react": "react",
+    "--mode endo-bi": "endo-bi", "--mode endo-ko": "endo-ko",
+    "--limbus": "limbus", "--pbz": "pbz", "--mode pgr-ja": "pgr-ja",
+    "--mode ak-ja": "ak-ja",                             # 2026-11-03 新增：明日方舟-日语
+    "--mode ak-arcaea": "ak-arcaea",                     # 2026-11-18 新增：明日方舟-Arcaea
+    # 一键重跑旗标（_RERUN 表驱动，flag 名不变、mode 值随 P1 子键化同步）：
+    #   走一键链才装配内置片源+侧车，GUI 不以「--mode wuwa-40ko」裸设这两个模式。
+    "--wuwa40ko": "wuwa-40ko", "--wuwa40ign": "wuwa-40ign",
 }
 MODE_NAME = {
-    "": "中英双语", "--ja": "日语原声·鸣潮", "--jpe": "日语原声·终末地",
-    "--ko": "韩语原声·鸣潮", "--ak": "明日方舟", "--akko": "明日方舟·韩语",
+    "": "中英双语", "--mode wuwa-ja": "鸣潮-日语", "--mode endo-ja": "终末地-日语",
+    "--mode wuwa-ko": "鸣潮-韩语", "--ak": "明日方舟", "--mode ak-ko": "明日方舟-韩语",
     "--endo": "终末地", "--zho": "中文行专属", "--pgr": "战双帕弥什",
-    "--pgren": "战双英文原声", "--wwoc": "综合手游OST", "--react": "音乐点评",
-    "--endobi": "终末地·中英双语", "--endoko": "终末地·韩语原声",
-    "--limbus": "边狱巴士", "--pbz": "影之刃零",
-    "--pgrja": "日语原声·战双",
-    "--akja": "日语原声·明日方舟",
+    "--mode pgr-en": "战双-英文", "--wwoc": "综合手游OST", "--react": "音乐点评",
+    "--mode endo-bi": "终末地-双语", "--mode endo-ko": "终末地-韩语",
+    "--limbus": "边狱巴士", "--pbz": "影之刃零", "--mode pgr-ja": "战双-日语",
+    "--mode ak-ja": "明日方舟-日语", "--mode ak-arcaea": "明日方舟-Arcaea",
+    "--wuwa40ko": "鸣潮-4.0韩语", "--wuwa40ign": "鸣潮-4.0IGN",
 }
+
+
+#: cli 同源的模式键归一（P1 落地：calib_core.data.modes.normalize_mode）。
+#: 导入失败（如独立分发场景）降级为 None，消费侧按原样透传。
+try:
+    from calib_core.data.modes import normalize_mode as _normalize_mode
+except Exception:                                    # noqa: BLE001
+    _normalize_mode = None
+
+
+def _mode_key_of(mode_flag: str) -> str:
+    """旗标形态 → 知识库模式键（MODE_KEY 查表；未知旗标兜底）。
+
+    兜底取旗标本体（而非「bi」）并经 cli 同源 normalize_mode 归一：旧形态
+    旗标与 detect-mode 旧输出键都能归一成新「游戏-细类」子键；registry
+    未知键原样返回（消费面自行决策是否落 bi）。
+    """
+    key = MODE_KEY.get(mode_flag)
+    if key is not None:
+        return key
+    if not mode_flag:
+        return "bi"
+    raw = mode_flag[2:] if mode_flag.startswith("--") else mode_flag
+    return _normalize_mode(raw) if _normalize_mode is not None else raw
 
 #: 知识库规则展开时的字符上限（喂给模型的精简子集；校验仍用全量规则）
 RULE_TEXT_BUDGET = 14000
@@ -239,12 +271,17 @@ STYLE_NAME = {"term": "术语级（只替换名词）", "rewrite": "整句重写
 
 #: 是否把参考行一并喂给模型（双语/多语片源建议 True；比原文长不了多少，
 #: 却能把它从「盲替换」变成「有据改写」。None = 由片源模式决定）
-INCLUDE_REF_MODES = ("", "--ja", "--jpe", "--pgrja", "--ko", "--ak", "--akko", "--endo",
-                     "--pgren", "--wwoc", "--react", "--endobi", "--endoko", "--limbus",
-                     "--pbz",
-                     # 2026-11-03 新增：漏这一项时 --akja 走 AI 校准**不会把日语参考行喂给模型**，
+INCLUDE_REF_MODES = ("", "--mode wuwa-ja", "--mode endo-ja", "--mode pgr-ja",
+                     "--mode wuwa-ko", "--ak", "--mode ak-ko", "--endo",
+                     "--mode pgr-en", "--wwoc", "--react", "--mode endo-bi",
+                     "--mode endo-ko", "--limbus", "--pbz",
+                     # 2026-11-03 新增：漏这一项时 ak-ja 走 AI 校准**不会把日语参考行喂给模型**，
                      #   有据改写退化成盲替换（本片最强判据直接丢掉），且不会报任何错。
-                     "--akja")
+                     "--mode ak-ja")
+
+#: 参考行互斥语义保持（P3b）：上表的旗标形态换算成模式键集合，供 detect-mode
+#: 归一路径按键判成员（顶层/子键旗标形态不同，键集合才是稳定判据）。
+_REF_MODE_KEYS = frozenset(MODE_KEY[f] for f in INCLUDE_REF_MODES if f in MODE_KEY)
 
 #: 单行显示宽度上限（汉字当量；与 subtitle_calib_merged 的 MAX_LINE_ZH 同判据：
 #: 东亚 W/F/A 宽字符计 1.0、半角计 0.5，故「32 汉字」等价于「64 英文字符」）
@@ -1714,8 +1751,12 @@ def calibrate(src: str, out: str = None, report: str = None, mode_flag: str = ""
                 if _ln.strip().startswith("DETECT="):
                     _det = _ln.strip().split("=", 1)[1].strip()
             if _det and _det != "bi":
-                mode_flag = "--" + _det
-                _log_do(log, f"片源自适应：检测到片源模式 {_det} → 自动启用 {mode_flag}", "ok")
+                # P3b 子键化（2026-11-22）：detect-mode 输出的模式键经 cli 同源
+                # normalize_mode 归一成新子键（P1 已落地，旧输出 endobi → endo-bi）；
+                # 子键（含「-」）无顶层简单旗标，统一走 --mode 通道，顶层键仍用简单旗标。
+                _nd = _normalize_mode(_det) if _normalize_mode is not None else _det
+                mode_flag = ("--mode " + _nd) if "-" in _nd else ("--" + _nd)
+                _log_do(log, f"片源自适应：检测到片源模式 {_nd} → 自动启用 {mode_flag}", "ok")
         # ---------- 1. 起点：上一轮结果（可选）或术语脚本基线 ----------
         base = src
         if resume_from and os.path.isfile(resume_from):
@@ -1730,7 +1771,8 @@ def calibrate(src: str, out: str = None, report: str = None, mode_flag: str = ""
             base_md = os.path.join(tmp, "base.md")
             args = [src, "--out", base, "--report", base_md]
             if mode_flag:
-                args.append(mode_flag)
+                # P3b：子键旗标是「--mode <子键>」两 token，按空白拆开透传。
+                args.extend(mode_flag.split())
             if fix_en:
                 args.append("--fix-en")
             rc, text = run_script(python, script, args, log, cancel)
@@ -1776,7 +1818,7 @@ def calibrate(src: str, out: str = None, report: str = None, mode_flag: str = ""
 
         # ---------- 3. 载入知识库 ----------
         _tick()
-        mode_key = MODE_KEY.get(mode_flag, "bi")
+        mode_key = _mode_key_of(mode_flag)
         _log_do(log, f"[3/8] 载入对象级术语知识库（模式 {mode_key}）…")
         kb_json = os.path.join(tmp, "kb.json")
         rc, text = run_script(python, script,
@@ -1819,7 +1861,10 @@ def calibrate(src: str, out: str = None, report: str = None, mode_flag: str = ""
                      f"（其中 {hot_n} 条命中本片中文行）；逐块只注入该块命中的"
                      f"规则（v1.16.0 块级裁剪），校验仍用全量 {len(rules)} 条")
         if include_ref is None:
-            include_ref = mode_flag in INCLUDE_REF_MODES
+            # P3b：旗标形态（--ak vs --mode ak-ja）与模式键双判——detect 归一
+            # 路径产出的旗标形态可能与 INCLUDE_REF_MODES 书写形态不一致。
+            include_ref = (mode_flag in INCLUDE_REF_MODES
+                           or _mode_key_of(mode_flag) in _REF_MODE_KEYS)
         _log_do(log, f"  → 携带参考行：{'是' if include_ref else '否'}"
                      f"；风格 {STYLE_NAME.get(style, style)}"
                      + (f"；注入上轮已确认改动 {len(prev_changes)} 条（禁止回退）"
@@ -2656,7 +2701,7 @@ def _meta_prompt(mode_flag, src, sample_text, accepted, round_no, tag_count,
     accepted_text = "\n".join(
         f"- {str(o)[:40]} → {str(n)[:40]}" for _num, o, n, *_ in accepted[:80]
     ) or "（本轮无改动）"
-    mode_key = MODE_KEY.get(mode_flag, "bi")
+    mode_key = _mode_key_of(mode_flag)
     orig_block = (f"【原始标题（**参考基准**，可改写，不要照抄）】\n{orig_title}\n\n"
                   if orig_title else
                   "【原始标题】\n（未取到——请完全依据下方字幕内容起标题）\n\n")
@@ -3156,7 +3201,7 @@ def run_learn(python, script, src, out, mode_flag, log, cancel=None,
                **自检必须显式传临时库**，否则测试数据会写进真实知识库
                （2026-09-19 踩过：测试用的「卡西亚→卡提希娅」被 confirmed 进真库）。
     """
-    mode_key = MODE_KEY.get(mode_flag, "bi")
+    mode_key = _mode_key_of(mode_flag)
     _log_do(log, f"[学习] 沉淀本轮新错形（learn --mode {mode_key}）…")
     try:
         args = ["learn", src, out, "--mode", mode_key]

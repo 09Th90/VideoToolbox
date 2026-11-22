@@ -23,6 +23,7 @@ from .data.ssv import SSV_MISSING_CHECK
 from .data.tga import TGA_MISSING_CHECK
 from .data.wwm import WWM_MISSING_CHECK
 from .data.gfl2 import GFL2_MISSING_CHECK
+from .data.modes import normalize_mode
 from .format import is_line_too_long, line_width
 from .srt import _cue_first_text_map, _detect_layout, _iter_ref_lines, _load_calib_records
 from .state import CTX_TABLES, TABLES
@@ -229,13 +230,16 @@ def _cmd_compare(src, out, tsv):
 
 
 # 漏译体检规则表分发（mode → 规则表元组；数据驱动，替代原 if 链）。
-#   jpe 双表（日语表 + 英文兜底，英文表对日文行不命中仅多一轮空锚）；
+#   键=校准模式键（2026-11-22 子键化：endobi/jpe/endoko/arcak/pgren/ko →
+#   endo-bi/endo-ja/endo-ko/ak-arcaea/pgr-en/wuwa-ko；旧键命令行输入由
+#   _load_missing_rules 内 normalize_mode 兼容归一）；
+#   endo-ja 双表（日语表 + 英文兜底，英文表对日文行不命中仅多一轮空锚）；
 #   wuwa/wuwa-bi/ww 是 missing 命令专用别名（非校准模式）。各 mode 条件互斥，元组保序。
 _MISSING_RULES_BY_MODE = {
     "endo": (ENDFIELD_MISSING_CHECK,),
-    "endobi": (ENDFIELD_MISSING_CHECK,),
-    "endoko": (ENDFIELD_MISSING_CHECK,),
-    "jpe": (JA_ENDFIELD_MISSING_CHECK, ENDFIELD_MISSING_CHECK),
+    "endo-bi": (ENDFIELD_MISSING_CHECK,),
+    "endo-ko": (ENDFIELD_MISSING_CHECK,),
+    "endo-ja": (JA_ENDFIELD_MISSING_CHECK, ENDFIELD_MISSING_CHECK),
     "wuwa": (WUWA_MISSING_CHECK,),
     "wuwa-bi": (WUWA_MISSING_CHECK,),
     "ww": (WUWA_MISSING_CHECK,),
@@ -243,23 +247,26 @@ _MISSING_RULES_BY_MODE = {
     "pbz": (PBZ_MISSING_CHECK,),
     "ssv": (SSV_MISSING_CHECK,),
     "tga26": (TGA_MISSING_CHECK,),
-    "arcak": (ARCAK_MISSING_CHECK,),
+    "ak-arcaea": (ARCAK_MISSING_CHECK,),
     "wwm": (WWM_MISSING_CHECK,),
     "gfl2": (GFL2_MISSING_CHECK,),
-    "pgren": (PGR_MISSING_CHECK,),
-    "ko": (KO_MISSING_CHECK,),
+    "pgr-en": (PGR_MISSING_CHECK,),
+    "wuwa-ko": (KO_MISSING_CHECK,),
 }
 
 
 def _load_missing_rules(mode=None, file=None):
-    """漏译体检规则：--mode endo 取内置 ENDFIELD_MISSING_CHECK；--mode jpe 取
+    """漏译体检规则：--mode endo 取内置 ENDFIELD_MISSING_CHECK；--mode endo-ja 取
     JA_ENDFIELD_MISSING_CHECK（日语正则锚日文参考行）并保留英文表兜底；
     --mode wuwa 取鸣潮专名表 WUWA_MISSING_CHECK；--mode ak 取明日方舟
-    AK_MISSING_CHECK；--mode pbz 取影之刃零 PBZ_MISSING_CHECK；--mode ko 取韩语原声
-    鸣潮表 KO_MISSING_CHECK（正则写**谚文原形**，不是拉丁）；--mode pgren 取战双英文
-    原声表 PGR_MISSING_CHECK（正则写拉丁，锚英文参考行）；--file 追加 TSV
-    （每行：参考行正则<TAB>中文必现词1|词2[<TAB>说明]，# 开头注释）。"""
+    AK_MISSING_CHECK；--mode pbz 取影之刃零 PBZ_MISSING_CHECK；--mode wuwa-ko 取韩语原声
+    鸣潮表 KO_MISSING_CHECK（正则写**谚文原形**，不是拉丁）；--mode pgr-en 取战双英文
+    原声表 PGR_MISSING_CHECK（正则写拉丁，锚英文参考行）；旧变体键
+    （endobi/jpe/endoko/arcak/pgren/ko 等）经 normalize_mode 归一为新「游戏-细类」子键；
+    --file 追加 TSV（每行：参考行正则<TAB>中文必现词1|词2[<TAB>说明]，# 开头注释）。"""
     rules = []
+    if mode:
+        mode = normalize_mode(mode)
     for tbl in _MISSING_RULES_BY_MODE.get(mode, ()):
         rules.extend(tbl)
     if file:

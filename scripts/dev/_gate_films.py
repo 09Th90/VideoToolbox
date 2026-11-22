@@ -29,12 +29,12 @@ FILMS = [
      r"D:\原片\Star Rail Player REACTS To ALL Wuthering Waves Cinematic Shorts"
      r"\【字幕】Star Rail Player REACTS To ALL Wuthering Waves Cinematic Shorts-谷歌翻译_calibrated_v2.srt",
      None),
-    ("ja-yaba", "ja", "鸣潮 4.0 先行映像日文实况（やばすぎる）",
+    ("ja-yaba", "wuwa-ja", "鸣潮 4.0 先行映像日文实况（やばすぎる）",
      r"D:\原片\【鳴潮】Ver4.0の先行映像がやばすぎる！！！【Wuthering Waves】"
      r"\【字幕】【鳴潮】Ver4.0の先行映像がやばすぎる！！！【Wuthering Waves】.ja-精校.r2.srt",
      r"D:\原片\【鳴潮】Ver4.0の先行映像がやばすぎる！！！【Wuthering Waves】"
      r"\【字幕】【鳴潮】Ver4.0の先行映像がやばすぎる！！！【Wuthering Waves】.ja-精校.srt"),
-    ("ja-wuwa40ja", "ja", "鸣潮 4.0 先行映像日文实况（ぶっ飛んでる）",
+    ("ja-wuwa40ja", "wuwa-ja", "鸣潮 4.0 先行映像日文实况（ぶっ飛んでる）",
      r"D:\原片\【鳴潮】Ver4.0先行映像がぶっ飛んでる【Wuthering Waves】 (2)"
      r"\【字幕】【鳴潮】Ver4.0先行映像がぶっ飛んでる【Wuthering Waves】.ja-微软翻译_calibrated_v2.srt",
      r"D:\原片\【鳴潮】Ver4.0先行映像がぶっ飛んでる【Wuthering Waves】 (2)"

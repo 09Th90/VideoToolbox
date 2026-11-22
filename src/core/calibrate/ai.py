@@ -144,10 +144,10 @@ def calib_ai_run(src, out=None, report=None, mode_flag="", fix_en=False,
     # （PRTS / BWIKI / 终末地 Wiki / 库街区 / 森空岛，见 calib_web_agent.WORK_SITES）。
     # 识别不出时为空，Agent 会退回通用 Bing 检索。
     _MODE_WORK = {
-        "bi": "鸣潮", "ja": "鸣潮", "ko": "鸣潮", "wwoc": "鸣潮", "react": "鸣潮",
-        "jpe": "终末地", "endo": "终末地", "endobi": "终末地", "endoko": "终末地",
-        "ak": "明日方舟", "akko": "明日方舟", "akja": "明日方舟",
-        "pgr": "战双", "pgren": "战双", "pgrja": "战双",
+        "bi": "鸣潮", "wuwa-ja": "鸣潮", "wuwa-ko": "鸣潮", "wwoc": "鸣潮", "react": "鸣潮",
+        "endo-ja": "终末地", "endo": "终末地", "endo-bi": "终末地", "endo-ko": "终末地",
+        "ak": "明日方舟", "ak-ko": "明日方舟", "ak-ja": "明日方舟",
+        "pgr": "战双", "pgr-en": "战双", "pgr-ja": "战双",
         "limbus": "边狱巴士",
     }
     web = None

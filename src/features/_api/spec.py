@@ -32,7 +32,7 @@ class ParamSpec:
 
 @dataclass(frozen=True)
 class ModeFlagSpec:
-    flag: str                      # "--endobi"
+    flag: str                      # "--endo"（顶层旗标）/ "--wuwa38h"（一键旗标）
     mode: str                      # 结果 mode
     one_click: bool = False        # 鸣潮一键重跑（带内置侧车）
     info_const: str = ""
@@ -80,53 +80,58 @@ _P = ParamSpec
 _M = ModeFlagSpec
 _C = ConstraintSpec
 
-#: calibrate 33 个模式旗标（calib_core/cli.py:92-171 逐行核对）
+#: calibrate 模式旗标（2026-11-22 P3b 子键化重构，与 calib_core/data/modes.py 的
+#: _MODE_FLAGS / _RERUN 逐键核对）：
+#:   · 顶层模式保留简单旗标（ak/endo/pgr/zho/wwoc/react/limbus/pbz/ffrs/ff14/
+#:     ssv/tga26/zel/hsr/pkm/gfl2；bi 默认无旗标；wwm 仅经 --mode 别名进入，无旗标）；
+#:   · 12 个「游戏-细类」子键（ak-ja/ak-ko/ak-arcaea/endo-bi/endo-ko/endo-ja/
+#:     wuwa-ja/wuwa-ko/wuwa-40ko/wuwa-40ign/pgr-en/pgr-ja）**无顶层简单旗标**，
+#:     统一经下方 params 里的「--mode <子键>」通道进入；10 个旧变体键的顶层
+#:     简单旗标已随 P1 注册表子键化一并移除，此处不再登记；
+#:   · 一键重跑旗标（_RERUN 表驱动）保留：flag 名不变，mode 值随子键化同步更新。
 CALIBRATE_MODE_FLAGS = (
-    _M("--ko", "ko", source="calib_core/cli.py:92"),
-    _M("--ja", "ja", source="calib_core/cli.py:94"),
-    _M("--jpe", "jpe", source="calib_core/cli.py:96"),
-    _M("--pgrja", "pgrja", source="calib_core/cli.py:98"),
-    _M("--akja", "akja", source="calib_core/cli.py:100"),
-    _M("--wwoc", "wwoc", source="calib_core/cli.py:102"),
-    _M("--ak", "ak", source="calib_core/cli.py:104"),
-    _M("--akko", "akko", source="calib_core/cli.py:106"),
-    _M("--zho", "zho", source="calib_core/cli.py:108"),
-    _M("--endo", "endo", source="calib_core/cli.py:110"),
-    _M("--endobi", "endobi", source="calib_core/cli.py:112"),
-    _M("--endoko", "endoko", source="calib_core/cli.py:114"),
-    _M("--pgr", "pgr", source="calib_core/cli.py:116"),
-    _M("--pgren", "pgren", source="calib_core/cli.py:118"),
-    _M("--react", "react", source="calib_core/cli.py:120"),
-    _M("--limbus", "limbus", source="calib_core/cli.py:122"),
-    _M("--ffrs", "ffrs", source="calib_core/cli.py:124"),
-    _M("--pbz", "pbz", source="calib_core/cli.py:126"),
-    _M("--ff14", "ff14", source="calib_core/cli.py:128"),
-    _M("--ssv", "ssv", source="calib_core/cli.py:130"),
-    _M("--arcak", "arcak", source="calib_core/cli.py:132"),
-    _M("--arcakamiya", "arcak", amiya=True, source="calib_core/cli.py:134"),
-    _M("--tga26", "tga26", source="calib_core/cli.py:137"),
-    _M("--zel", "zel", source="calib_core/cli.py:139"),
-    _M("--hsr", "hsr", source="calib_core/cli.py:141"),
-    _M("--pkm", "pkm", source="calib_core/cli.py:143"),
+    _M("--wwoc", "wwoc", source="calib_core/data/modes.py:_MODE_FLAGS"),
+    _M("--ak", "ak", source="calib_core/data/modes.py:_MODE_FLAGS"),
+    _M("--zho", "zho", source="calib_core/data/modes.py:_MODE_FLAGS"),
+    _M("--endo", "endo", source="calib_core/data/modes.py:_MODE_FLAGS"),
+    _M("--pgr", "pgr", source="calib_core/data/modes.py:_MODE_FLAGS"),
+    _M("--react", "react", source="calib_core/data/modes.py:_MODE_FLAGS"),
+    _M("--limbus", "limbus", source="calib_core/data/modes.py:_MODE_FLAGS"),
+    _M("--ffrs", "ffrs", source="calib_core/data/modes.py:_MODE_FLAGS"),
+    _M("--pbz", "pbz", source="calib_core/data/modes.py:_MODE_FLAGS"),
+    _M("--ff14", "ff14", source="calib_core/data/modes.py:_MODE_FLAGS"),
+    _M("--ssv", "ssv", source="calib_core/data/modes.py:_MODE_FLAGS"),
+    _M("--tga26", "tga26", source="calib_core/data/modes.py:_MODE_FLAGS"),
+    _M("--zel", "zel", source="calib_core/data/modes.py:_MODE_FLAGS"),
+    _M("--hsr", "hsr", source="calib_core/data/modes.py:_MODE_FLAGS"),
+    _M("--pkm", "pkm", source="calib_core/data/modes.py:_MODE_FLAGS"),
+    _M("--gfl2", "gfl2", source="calib_core/data/modes.py:_MODE_FLAGS"),
     _M("--wuwa38", "bi", one_click=True, info_const="WW38_INFO",
-       override_const="WW38_OVERRIDES_SRC", source="calib_core/cli.py:151"),
+       override_const="WW38_OVERRIDES_SRC", source="calib_core/data/modes.py:_RERUN"),
     _M("--wuwa38h", "bi", one_click=True, info_const="WW38H_INFO",
        override_const="WW38H_OVERRIDES_SRC", preserve=True,
-       source="calib_core/cli.py:154"),
+       source="calib_core/data/modes.py:_RERUN"),
     _M("--wuwa38b", "bi", one_click=True, info_const="WW38B_INFO",
-       override_const="WW38B_OVERRIDES_SRC", source="calib_core/cli.py:157"),
+       override_const="WW38B_OVERRIDES_SRC", source="calib_core/data/modes.py:_RERUN"),
     _M("--wuwa38j", "bi", one_click=True, info_const="WW38_J_INFO",
-       override_const="WW38_J_OVERRIDES_SRC", source="calib_core/cli.py:160"),
+       override_const="WW38_J_OVERRIDES_SRC", source="calib_core/data/modes.py:_RERUN"),
     _M("--wuwa40", "bi", one_click=True, info_const="WW40_INFO",
-       override_const="WW40_OVERRIDES_SRC", source="calib_core/cli.py:163"),
-    _M("--wuwa40ko", "wuwa40ko", one_click=True, info_const="WW40KO_INFO",
+       override_const="WW40_OVERRIDES_SRC", source="calib_core/data/modes.py:_RERUN"),
+    _M("--wuwa40ko", "wuwa-40ko", one_click=True, info_const="WW40KO_INFO",
        override_const="WW40KO_OVERRIDES_SRC", ko_override=True,
-       source="calib_core/cli.py:166"),
-    _M("--wuwa40ign", "wuwa40ign", one_click=True, info_const="WW40IGN_INFO",
+       source="calib_core/data/modes.py:_RERUN"),
+    _M("--wuwa40ign", "wuwa-40ign", one_click=True, info_const="WW40IGN_INFO",
        override_const="WW40IGN_OVERRIDES_SRC", ko_override=True,
-       source="calib_core/cli.py:168"),
+       source="calib_core/data/modes.py:_RERUN"),
+    _M("--wuwa40ja", "wuwa-ja", one_click=True, info_const="WW40JA_INFO",
+       override_const="WW40JA_OVERRIDES_SRC",
+       source="calib_core/data/modes.py:_RERUN"),
     _M("--wuwasol", "bi", one_click=True, info_const="WUSOL_INFO",
-       override_const="WUSOL_OVERRIDES_SRC", source="calib_core/cli.py:169"),
+       override_const="WUSOL_OVERRIDES_SRC", source="calib_core/data/modes.py:_RERUN"),
+    _M("--arcakamiya", "ak-arcaea", amiya=True,
+       source="calib_core/data/modes.py:_RERUN"),
+    # ⚠ _RERUN 另有 --wuwaall（mode=bi + zh_first=True）：ModeFlagSpec 暂无
+    #   zh_first 字段，语义表达不了，留待补字段后再登记（不属本次重命名范围）。
 )
 
 COMMANDS = (
@@ -225,8 +230,11 @@ COMMANDS = (
                action="store_true", help="修正英文参考行 ASR 错词",
                source="calib_core/cli.py:145"),
             _P("--mode", "mode", "option", "string", default="bi",
-               help="模式别名通道（bi/ja/ko/ak/endo/…；不能表达全部旗标模式）",
-               source="calib_core/cli.py:172"),),
+               help="模式别名通道（12 个子键 ak-ja/ak-ko/ak-arcaea/endo-bi/endo-ko/"
+                    "endo-ja/wuwa-ja/wuwa-ko/wuwa-40ko/wuwa-40ign/pgr-en/pgr-ja "
+                    "无顶层简单旗标，只能走本通道；顶层键 ak/endo/pgr/zho/… 亦可用；"
+                    "cli 端 normalize_mode 归一旧键与别名）",
+               source="calib_core/cli.py:96-101"),),
         mode_flags=CALIBRATE_MODE_FLAGS,
         passthrough=True, timeout="medium",
         source="features/calibrate/cli.py + calib_core/cli.py:86-207"),

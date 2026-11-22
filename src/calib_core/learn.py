@@ -10,7 +10,7 @@ import re
 import shutil
 import sys
 import unicodedata
-from .data.modes import _MODE_TERM_TABLE
+from .data.modes import _MODE_TERM_TABLE, normalize_mode
 from .state import TABLES
 from .text import _decode_any
 
@@ -219,9 +219,12 @@ def _learn_update_status(c):
 
 def _cmd_learn(src, calib, kb_path=LEARNED_KB_DEFAULT, mode="bi"):
     """learn：投喂 [原始srt + 人工校准srt] 配对，挖掘候选规则并更新学习库。
-    v1.11.0：收尾自动导出本次新增 confirmed 条目为增量并上传（FR-2）。"""
+    v1.11.0：收尾自动导出本次新增 confirmed 条目为增量并上传（FR-2）。
+    2026-11-22 变体键降级：入口 normalize_mode——新沉淀落「游戏-细类」新键；
+    库内旧键匹配时经 normalize 归一，无需数据迁移。"""
     import datetime
     import copy
+    mode = normalize_mode(mode)
     sc, oc = _parse_cue_pairs(src), _parse_cue_pairs(calib)
     if len(sc) != len(oc):
         print(f"⚠ cue 数不一致（原 {len(sc)} / 校准 {len(oc)}），按序号交集学习")
@@ -272,8 +275,9 @@ def _cmd_learn(src, calib, kb_path=LEARNED_KB_DEFAULT, mode="bi"):
             c["last"] = today
             touched.add(k)
     # 第二遍：反例扫描——本模式所有候选（按扩展形态）在原文出现但校准后仍保留 = 未纠正反例
+    # （存量旧键候选经 normalize_mode 归一后同属本模式，一并参与扫描）
     for k, c in cands.items():
-        if c["mode"] != mode or c["status"] == "rejected":
+        if normalize_mode(c["mode"]) != mode or c["status"] == "rejected":
             continue
         w, _r = _learn_extended(c)
         for num, (oz, ref) in smap.items():
@@ -290,13 +294,14 @@ def _cmd_learn(src, calib, kb_path=LEARNED_KB_DEFAULT, mode="bi"):
     confirmed = demoted = conflicts = dup_builtin = 0
     for k in list(cands.keys()):
         c = cands[k]
-        if c["mode"] == mode:
+        c_mode = normalize_mode(c["mode"])    # 存量旧键归一为新键
+        if c_mode == mode:
             ew, er = _learn_extended(c)
             if builtin.get(ew) == er or builtin.get(c["wrong"]) == c["right"]:
                 del cands[k]                  # 已进扁平表/实体层，无需学习
                 dup_builtin += 1
                 continue
-        if c["mode"] != mode:
+        if c_mode != mode:
             continue
         if _learn_update_status(c):
             demoted += 1
@@ -329,12 +334,16 @@ KB_INJECT_BLOCKLIST = {
 
 def _learned_terms_for_mode(kb_path, mode):
     """校准运行时注入：confirmed 且属本模式的学习规则 -> {扩展错形: 扩展正形}。
-    2026-11-09 起按 KB_INJECT_BLOCKLIST 跳过人工裁定的危险裸键（见该清单注释）。"""
+    2026-11-09 起按 KB_INJECT_BLOCKLIST 跳过人工裁定的危险裸键（见该清单注释）。
+    2026-11-22 变体键降级：mode 与库内候选 mode 均经 normalize_mode 归一，
+    旧键沉淀的 confirmed 规则在对应新键运行时照常注入。"""
+    mode = normalize_mode(mode)
     kb = _load_learned_kb(kb_path)
     out = {}
     for c in kb["candidates"].values():
-        if c["mode"] == mode and c["status"] == "confirmed" and not c.get("conflict"):
-            if "{}|{}".format(c["mode"], c["wrong"]) in KB_INJECT_BLOCKLIST:
+        c_mode = normalize_mode(c["mode"])
+        if c_mode == mode and c["status"] == "confirmed" and not c.get("conflict"):
+            if "{}|{}".format(c_mode, c["wrong"]) in KB_INJECT_BLOCKLIST:
                 continue
             w, r = _learn_extended(c)
             out[w] = r
@@ -343,9 +352,11 @@ def _learned_terms_for_mode(kb_path, mode):
 
 
 def _cmd_learned_show(kb_path=LEARNED_KB_DEFAULT, mode=None):
-    """learned-show：查看学习库候选（可按模式过滤）。"""
+    """learned-show：查看学习库候选（可按模式过滤；旧键经 normalize_mode 归一匹配）。"""
+    mode = normalize_mode(mode) if mode else mode
     kb = _load_learned_kb(kb_path)
-    rows = [c for c in kb["candidates"].values() if not mode or c["mode"] == mode]
+    rows = [c for c in kb["candidates"].values()
+            if not mode or normalize_mode(c["mode"]) == mode]
     if not rows:
         print("学习库为空" + (f"（模式 {mode}）" if mode else "")); return
     order = {"confirmed": 0, "candidate": 1, "rejected": 2}
@@ -368,18 +379,20 @@ def _cmd_learned_show(kb_path=LEARNED_KB_DEFAULT, mode=None):
 
 def _cmd_learned_promote(kb_path=LEARNED_KB_DEFAULT, mode=None, entities=False):
     """learned-promote：confirmed 规则导出为 Entity 桩代码（--entities），
-    人工审阅后粘贴进第 6 节 ENTITIES，完成 学习成果->对象级知识 的固化。"""
+    人工审阅后粘贴进第 6 节 ENTITIES，完成 学习成果->对象级知识 的固化。
+    2026-11-22 变体键降级：模式过滤与导出桩的 modes 均经 normalize_mode 归一（落新键）。"""
+    mode = normalize_mode(mode) if mode else mode
     kb = _load_learned_kb(kb_path)
     rows = [c for c in kb["candidates"].values()
             if c["status"] == "confirmed" and not c.get("conflict")
-            and (not mode or c["mode"] == mode)]
+            and (not mode or normalize_mode(c["mode"]) == mode)]
     if not rows:
         print("# 无可固化的 confirmed 规则")
     else:
         by_right = {}
         for c in rows:
             w, r = _learn_extended(c)
-            by_right.setdefault((r, c["mode"]), []).append((w, c))
+            by_right.setdefault((r, normalize_mode(c["mode"])), []).append((w, c))
         print("# ---- learned-promote 导出（人工审阅后并入 ENTITIES）----")
         for (right, m), cs in sorted(by_right.items()):
             variants = sorted({w for w, _ in cs}, key=len, reverse=True)
@@ -391,7 +404,7 @@ def _cmd_learned_promote(kb_path=LEARNED_KB_DEFAULT, mode=None, entities=False):
                   f"首次 {firsts}。en/ja/ko/category 待人工补全'),")
     sugg = [c for c in kb["candidates"].values()
             if c["status"] == "candidate" and c.get("ctx_regex")
-            and not c.get("conflict") and (not mode or c["mode"] == mode)]
+            and not c.get("conflict") and (not mode or normalize_mode(c["mode"]) == mode)]
     if sugg:
         print("\n# ---- 带反例的候选：建议作为 ctx 条件变体人工确认 ----")
         for c in sugg:
@@ -403,16 +416,19 @@ def _cmd_learned_promote(kb_path=LEARNED_KB_DEFAULT, mode=None, entities=False):
 
 def _cmd_learned_reject(word, kb_path=LEARNED_KB_DEFAULT, mode=None):
     """learned-reject <错形>：人工否决候选（永不自动应用，保留证据）。
-    v1.11.0：否决结果以 tombstone 增量通知其它客户端（FR-2）。"""
+    v1.11.0：否决结果以 tombstone 增量通知其它客户端（FR-2）。
+    2026-11-22 变体键降级：模式过滤与 tombstone 通知均经 normalize_mode 归一。"""
+    mode = normalize_mode(mode) if mode else mode
     kb = _load_learned_kb(kb_path)
     hit = 0
     modes = []
     for c in kb["candidates"].values():
-        if c["wrong"] == word and (not mode or c["mode"] == mode):
+        c_mode = normalize_mode(c["mode"])
+        if c["wrong"] == word and (not mode or c_mode == mode):
             c["status"] = "rejected"
             hit += 1
-            if c["mode"] not in modes:
-                modes.append(c["mode"])
+            if c_mode not in modes:
+                modes.append(c_mode)
     if hit:
         _save_learned_kb(kb, kb_path)
         print(f"已否决 {hit} 条候选：{word!r}")

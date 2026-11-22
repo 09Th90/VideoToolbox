@@ -802,7 +802,7 @@ _AGENTS_MD_TEXT = r"""# 视频工具箱 · Agent 常驻指令
 | `download <url> [--height 1080]` | 下载（yt-dlp 全链） |
 | `transcribe <file> [--lang ja] [--out x.srt]` | 音视频 → SRT（引擎 ASR） |
 | `translate <srt> [--engine bing]` | → 中文双语 SRT（原文在上译文在下） |
-| `calibrate <srt> [--endo\|--endobi\|--ak\|--ja\|--ko\|--layout…]` | 术语校准（只改文字不动时间轴） |
+| `calibrate <srt> [--endo\|--ak\|--mode endo-bi\|--mode wuwa-ja\|--layout…]` | 术语校准（只改文字不动时间轴；12 个子键无顶层简单旗标，走 `--mode <子键>`） |
 | `stabilize <srt>` | cue 稳定化 |
 | `compose <video> <sub> [--mode soft\|burn\|mkv]` | 字幕合成 |
 | `audit <srt>` | 校准后漏校三扫（退出码 1＝有候选） |
@@ -813,7 +813,7 @@ _AGENTS_MD_TEXT = r"""# 视频工具箱 · Agent 常驻指令
 
 ## 「翻译然后校准」标准流程
 
-`info` → `translate --engine bing`（谷歌端点本机不可用，别试）→ `calibrate` 按游戏选旗标（终末地双语 `--endobi`、方舟 `--ak`、日语 `--ja`、韩语 `--ko`、鸣潮默认）→ 汇报产物路径与校准改动数。
+`info` → `translate --engine bing`（谷歌端点本机不可用，别试）→ `calibrate` 按游戏选旗标（终末地双语 `--mode endo-bi`、方舟 `--ak`、鸣潮日语 `--mode wuwa-ja`、鸣潮韩语 `--mode wuwa-ko`、鸣潮默认）→ 汇报产物路径与校准改动数。
 
 ## 禁忌
 
@@ -859,7 +859,7 @@ tools\python\python.exe src\agent_cli.py <子命令> [参数] --json
 | `download <url> [--height 1080] [--dir D]` | 下载（yt-dlp 全链：自动代理+游客 cookie+风控重试，合并 mp4） | `download "https://…" --height 1080` |
 | `transcribe <file> [--lang ja] [--out x.srt]` | 音视频 → SRT（引擎 ASR 全链；模型/密钥读设置页 ASR 槽） | `transcribe ep01.mp4 --lang ja` |
 | `translate <srt> [--to zh-Hans] [--engine bing]` | → 中文双语 SRT（原文在上、译文在下，时间轴不动） | `translate ep01.en.srt --engine bing` |
-| `calibrate <srt> [旗标] [--out F] [--report R]` | 术语校准（只改文字，不动时间轴/序号/空行/换行/BOM） | `calibrate ep01.zh.srt --endobi` |
+| `calibrate <srt> [旗标] [--out F] [--report R]` | 术语校准（只改文字，不动时间轴/序号/空行/换行/BOM） | `calibrate ep01.zh.srt --mode endo-bi` |
 | `stabilize <srt> [--out F]` | cue 稳定化（同进程直连 calib_core；`VT_CALIB_SUBPROCESS=1` 回退根脚本透传） | `stabilize ep01.srt` |
 | `compose <video> <sub> [--mode soft\|burn\|mkv] [--audio x.m4a] [--out F]` | 字幕合成（soft=软封装不重编码；burn=ASS 硬烧；mkv=封装） | `compose ep01.mp4 ep01.srt --mode burn` |
 | `audit <srt> [--out R]` | 校准后漏校三扫（拉丁残留/知识库错形残留/同词族一致性；退出码 1＝有候选，可当门禁） | `audit ep01.zh.srt` |
@@ -885,16 +885,26 @@ tools\python\python.exe src\agent_cli.py <子命令> [参数] --json
 
 | 片源 | 旗标 |
 |---|---|
-| 终末地·中英双语（英文参考行不动） | `--endobi` |
-| 终末地·单语 | `--endo` |
-| 明日方舟本体（英语原声+中文） | `--ak` |
-| 日语原声 | `--ja`（含英文参考行用 `--jpe`） |
-| 韩语原声 | `--ko` |
 | 鸣潮（中英/双语，默认模式） | 不加旗标 |
+| 鸣潮-日语 | `--mode wuwa-ja` |
+| 鸣潮-韩语 | `--mode wuwa-ko` |
+| 鸣潮-4.0韩语 / 鸣潮-4.0IGN | `--wuwa40ko` / `--wuwa40ign`（一键旗标，内置侧车） |
+| 终末地（单语） | `--endo` |
+| 终末地-双语（英文参考行不动） | `--mode endo-bi` |
+| 终末地-韩语 | `--mode endo-ko` |
+| 终末地-日语 | `--mode endo-ja` |
+| 明日方舟本体（英语原声+中文） | `--ak` |
+| 明日方舟-日语 | `--mode ak-ja` |
+| 明日方舟-韩语 | `--mode ak-ko` |
+| 明日方舟-Arcaea | `--mode ak-arcaea` |
 | 战双帕弥什 | `--pgr` |
+| 战双-英文 | `--mode pgr-en` |
+| 战双-日语 | `--mode pgr-ja` |
 | 其他 | `--zho` / `--zel` |
 | 长句断行（≥14 字在标点处拆两行） | `--layout` |
 | 修正英文参考行的 ASR 错词 | `--fix-en` |
+
+> 子键化（2026-11-22）：12 个变体校准键降级为「游戏-细类」ASCII 子键，无顶层简单旗标，统一走 `--mode <子键>`；cli 端 `normalize_mode` 兼容归一旧键与别名。
 
 不带 `--out` 时校准只做「术语命中统计」不改文件；带 `--out` 才落盘。`--report` 出 TSV 差异报告。
 

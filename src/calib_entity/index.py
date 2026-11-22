@@ -25,6 +25,8 @@ from __future__ import annotations
 from collections import deque
 from typing import Dict, Iterable, List, Mapping, Optional, Sequence, Set, Tuple
 
+from calib_core.data.modes import normalize_mode
+
 Match = Tuple[int, int, str, str]      # (start, end, surface, target_canonical)
 
 
@@ -168,8 +170,12 @@ class ModeIndex:
 
         ``extra_terms``：片源自适应补充（如 bi 模式并入 ``ENDFIELD_BI_TERMS``）。
         ``aliases``：``(surface, canonical)`` 序列，官方简称；不覆盖已有键。
+
+        2026-11-22 变体键降级：入口 normalize_mode——旧顶层变体键与既有别名
+        归一到「游戏-细类」新键后查引擎 ``_MODE_TERM_TABLE``。
         """
         eng = engine or _engine()
+        mode = normalize_mode(mode)
         tname = getattr(eng, "_MODE_TERM_TABLE", {}).get(mode)
         base: Dict[str, str] = dict(getattr(eng, tname, None) or {}) if tname else {}
         if extra_terms:

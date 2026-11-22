@@ -12,7 +12,7 @@ import re
 import shutil
 import sys
 import unicodedata
-from .data.modes import _MODE_TERM_TABLE
+from .data.modes import _MODE_TERM_TABLE, normalize_mode
 from .replace import _check_term_hazards
 from .learn import LEARNED_KB_DEFAULT, _learn_extended, _load_learned_kb, _save_learned_kb
 from .state import (CTX_TABLES, EXCLUDE_CONTEXT, TABLES,
@@ -44,7 +44,8 @@ from .state import (CTX_TABLES, EXCLUDE_CONTEXT, TABLES,
 #       "op": "upsert|tombstone",
 #       "table": "BILINGUAL_TERMS|CONTEXT_MAP|EXCLUDE_CONTEXT|
 #                ENTITIES_VARIANT|LEARNED_CANDIDATE",
-#       "mode": "bi|ja|jpe|ko|ak|akko|endo|zho|pgren|wwoc|react",
+#       "mode": "bi|wuwa-ja|endo-ja|wuwa-ko|ak|ak-ko|endo|endo-bi|endo-ko|
+#               zho|pgr-en|pgr-ja|ak-ja|ak-arcaea|wwoc|react|…（P3b 子键化）",
 #       "key": 错形, "value": 正形, "supersedes": 被取代条目id|null,
 #       "evidence": {"count":..,"cues":[..],"kb_status":..},
 #       "trust": "maintainer|observed"(可选), "rx": 正则(仅 CONTEXT/EXCLUDE)}
@@ -86,33 +87,45 @@ def json_dumps(obj):
 _SYNC_TABLES = ("BILINGUAL_TERMS", "CONTEXT_MAP", "EXCLUDE_CONTEXT",
                 "ENTITIES_VARIANT", "LEARNED_CANDIDATE")
 
-_SYNC_MODES = ("bi", "ja", "jpe", "ko", "ak", "akko", "endo", "endobi",
-               "endoko", "zho", "pgren", "wwoc", "react", "limbus",
-               # 2026-11-03 新增（战双日语原声片）。
+# 2026-11-22 P3b 子键化重命名（旧键→新 ASCII 子键，parent 分组：ak/endo/wuwa/pgr）：
+#   ja→wuwa-ja、jpe→endo-ja、ko→wuwa-ko、akko→ak-ko、endobi→endo-bi、
+#   endoko→endo-ko、pgren→pgr-en、pgrja→pgr-ja、akja→ak-ja、arcak→ak-arcaea；
+#   顶层键（bi/ak/endo/zho/wwoc/react/limbus/pgr）不变。
+_SYNC_MODES = ("bi", "wuwa-ja", "endo-ja", "wuwa-ko", "ak", "ak-ko", "endo",
+               "endo-bi", "endo-ko", "zho", "pgr-en", "wwoc", "react", "limbus",
+               # 2026-11-03 新增（战双日语原声片）→ pgr-ja。
                # ⚠ 观察留痕：ffrs/pbz/ff14 三个后来加的模式**至今没进这张表**，
                #   它们的 kb 增量目前同样会被 _sync_validate 拒收——不属本次范围，未动。
-               "pgrja",
-               # 2026-11-03 新增（明日方舟日语原声片）。同上：不进这张表的话，
-               #   kb-push/kb-sync 推来的 akja 条目会被 _sync_validate 判 mode 非法拒收。
-               "akja",
-               # 2026-11-18 新增（Arcaea×明日方舟联动直播片）。
-               "arcak")
+               "pgr-ja",
+               # 2026-11-03 新增（明日方舟日语原声片）→ ak-ja。同上：不进这张表的话，
+               #   kb-push/kb-sync 推来的条目会被 _sync_validate 判 mode 非法拒收。
+               "ak-ja",
+               # 2026-11-18 新增（Arcaea×明日方舟联动直播片）→ ak-arcaea。
+               "ak-arcaea",
+               # 2026-11-22 补登记（鸣潮 4.0 一键子键）：此前 wuwa40ko/wuwa40ign 与
+               #   ffrs/pbz/ff14 同样缺位，推来的条目会被 _sync_validate 拒收。
+               "wuwa-40ko", "wuwa-40ign")
 
-_SYNC_MODE_CTX_TABLE = {"bi": "CONTEXT_MAP", "ja": "JA_CONTEXT",
-                        "jpe": "JA_ENDFIELD_CONTEXT", "akko": "AK_KO_CONTEXT",
-                        "ko": "KO_CONTEXT", "ak": "AK_CONTEXT",
+_SYNC_MODE_CTX_TABLE = {"bi": "CONTEXT_MAP", "wuwa-ja": "JA_CONTEXT",
+                        "endo-ja": "JA_ENDFIELD_CONTEXT", "ak-ko": "AK_KO_CONTEXT",
+                        "wuwa-ko": "KO_CONTEXT", "ak": "AK_CONTEXT",
                         "wwoc": "WWOC_CONTEXT", "limbus": "LIMBUS_CONTEXT",
-                        # 2026-11-03：缺这一行时 --pgrja 的 kb 增量会被 _sync_validate 拒收
+                        # 2026-11-03：缺这一行时 pgr-ja 的 kb 增量会被 _sync_validate 拒收
                         #   （校验按「该模式有没有语境槽」判条目能否注入）。
-                        "pgrja": "JA_PGR_CONTEXT",
-                        "akja": "AK_JA_CONTEXT",
-                        # 2026-11-04：--pgren 补语境槽后必须同登记，否则推来的 pgren 锚定条目
+                        "pgr-ja": "JA_PGR_CONTEXT",
+                        "ak-ja": "AK_JA_CONTEXT",
+                        # 2026-11-04：pgr-en 补语境槽后必须同登记，否则推来的锚定条目
                         #   会被 _sync_validate 按「该模式没有语境槽」判 mode 非法拒收
-                        #   （同 2026-11-03 pgrja 那条坑）。
-                        "pgren": "PGR_EN_CONTEXT",
-                        # 2026-11-18：--arcak 补语境槽后必须同登记，否则推来的
-                        #   arcak 锚定条目会被 _sync_validate 按「该模式没有语境槽」拒收。
-                        "arcak": "ARCAK_CONTEXT"}
+                        #   （同 2026-11-03 pgr-ja 那条坑）。
+                        "pgr-en": "PGR_EN_CONTEXT",
+                        # 2026-11-18：补语境槽后必须同登记，否则推来的 ak-arcaea
+                        #   锚定条目会被 _sync_validate 按「该模式没有语境槽」拒收。
+                        "ak-arcaea": "ARCAK_CONTEXT",
+                        # 2026-11-22：鸣潮 4.0 一键子键补语境槽（WW40*_CONTEXT 已在
+                        #   state.CTX_TABLES 注册；缺槽时 CONTEXT_MAP 条目会错落
+                        #   CONTEXT_MAP 兜底槽）。
+                        "wuwa-40ko": "WW40KO_CONTEXT",
+                        "wuwa-40ign": "WW40IGN_CONTEXT"}
 
 
 
@@ -857,8 +870,10 @@ def _cmd_kb_push(learned=None, file=None):
         for c in kb.get("candidates", {}).values():
             if c.get("status") == "confirmed" and not c.get("conflict"):
                 w, r = _learn_extended(c)
+                # 2026-11-22 子键化：学习库可能沉淀旧键（ko/ja/jpe/…），导出前归一防旧键
+                #   回流成死信（_sync_validate 只认 _SYNC_MODES 新键）。
                 e = _sync_entry(
-                    cfg["client_id"], "LEARNED_CANDIDATE", c.get("mode", "bi"),
+                    cfg["client_id"], "LEARNED_CANDIDATE", normalize_mode(c.get("mode", "bi")),
                     w, r,
                     evidence={"count": c.get("count", 1),
                               "cues": list(c.get("cues") or [])[:20],

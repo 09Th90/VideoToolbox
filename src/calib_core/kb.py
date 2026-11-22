@@ -12,7 +12,7 @@ import sys
 import unicodedata
 from .data.bilingual import EXCLUDE_CONTEXT
 from .data.entities import ENTITIES
-from .data.modes import _MODE_CTX_TABLE, _MODE_NAMES, _MODE_TERM_TABLE
+from .data.modes import _MODE_CTX_TABLE, _MODE_NAMES, _MODE_TERM_TABLE, normalize_mode
 from .state import CTX_TABLES, TABLES
 from .srt import _cue_zh_ref, _detect_layout
 from .text import _decode_any
@@ -214,8 +214,11 @@ def _audit_mode_scope(mode):
 
     ⚠ 必须**按模式**取：`_kb_view()` 会把各模式的 ctx/变体合并成一个对象，
     直接拿来扫会把别的片源的规则（如某模式的 space→虚质空间）当成漏校。
+    2026-11-22 变体键降级：入口 normalize_mode——旧顶层变体键与既有别名
+    归一到「游戏-细类」新键后查三视图。
     返回 (错形→官方名 字典, [(锚点字面量, 官方名)])。
     """
+    mode = normalize_mode(mode)
     wrong2right = {}
     anchors = []
     variants_lc = {}          # canonical -> {小写变体}，用于判定 ctx 字面量像不像专名
@@ -301,6 +304,7 @@ def _cmd_audit(src, mode="bi", out=None, as_json=False, limit=300, loose=False, 
 
     退出码：1＝有候选（可当门禁），0＝干净。
     """
+    mode = normalize_mode(mode)           # 2026-11-22 变体键降级：旧键/别名归一新键
     if not os.path.isfile(src):
         print(f"文件不存在：{src}")
         return 1

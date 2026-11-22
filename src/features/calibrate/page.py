@@ -28,20 +28,37 @@ from features._media import SUBTITLE_EXTS
 
 
 class CalibPage(QWidget):
+    # P3b 子键化（2026-11-22）：12 个变体校准键降级为「游戏-细类」ASCII 子键
+    #   （ja→wuwa-ja、jpe→endo-ja、ko→wuwa-ko、akko→ak-ko、akja→ak-ja、arcak→ak-arcaea、
+    #   endobi→endo-bi、endoko→endo-ko、pgren→pgr-en、pgrja→pgr-ja + 新入口
+    #   wuwa-40ko/wuwa-40ign），子键无顶层简单旗标，统一走「--mode <子键>」两 token；
+    #   顶层模式保留简单旗标（--ak/--endo/--pgr/--zho/…）。
+    # 下拉按 parent 分组显示：「── 组名 ──」为不可选分组行（值 None，见 _on_mode_index
+    #   守卫），分组内先顶层键后子键。wuwa-40ko/40ign 走一键重跑旗标（带内置侧车装配，
+    #   裸 --mode 只设模式不装侧车，故不采用）。
     MODES = [
         ("中英双语（默认，BILINGUAL_TERMS）", ""),
-        ("日语原声·鸣潮（--ja）", "--ja"),
-        ("日语原声·终末地（--jpe）", "--jpe"),
-        ("日语原声·战双（--pgrja）", "--pgrja"),
-        ("韩语原声·鸣潮（--ko）", "--ko"),
+        ("── 鸣潮 ──", None),
+        ("鸣潮-日语（--mode wuwa-ja）", "--mode wuwa-ja"),
+        ("鸣潮-韩语（--mode wuwa-ko）", "--mode wuwa-ko"),
+        ("鸣潮-4.0韩语（--wuwa40ko 一键）", "--wuwa40ko"),
+        ("鸣潮-4.0IGN（--wuwa40ign 一键）", "--wuwa40ign"),
+        ("── 明日方舟 ──", None),
         ("明日方舟（--ak）", "--ak"),
-        ("明日方舟·韩语（--akko）", "--akko"),
+        ("明日方舟-日语（--mode ak-ja）", "--mode ak-ja"),
+        ("明日方舟-韩语（--mode ak-ko）", "--mode ak-ko"),
+        ("明日方舟-Arcaea（--mode ak-arcaea）", "--mode ak-arcaea"),
+        ("── 终末地 ──", None),
         ("终末地（--endo）", "--endo"),
-        ("终末地·中英双语（--endobi）", "--endobi"),
-        ("终末地·韩语原声（--endoko）", "--endoko"),
-        ("中文行专属（--zho）", "--zho"),
+        ("终末地-双语（--mode endo-bi）", "--mode endo-bi"),
+        ("终末地-韩语（--mode endo-ko）", "--mode endo-ko"),
+        ("终末地-日语（--mode endo-ja）", "--mode endo-ja"),
+        ("── 战双 ──", None),
         ("战双帕弥什（--pgr）", "--pgr"),
-        ("战双英文原声（--pgren）", "--pgren"),
+        ("战双-英文（--mode pgr-en）", "--mode pgr-en"),
+        ("战双-日语（--mode pgr-ja）", "--mode pgr-ja"),
+        ("── 其他 ──", None),
+        ("中文行专属（--zho）", "--zho"),
         ("综合手游OST（--wwoc）", "--wwoc"),
         ("音乐点评（--react）", "--react"),
         ("边狱巴士（--limbus）", "--limbus"),
@@ -103,6 +120,10 @@ class CalibPage(QWidget):
         self.mode_combo = ComboBox(self)
         self.mode_combo.addItems([m[0] for m in self.MODES])
         self.mode_combo.setCurrentIndex(0)
+        # P3b 分组行守卫：「── 组名 ──」行（值 None）不可选，误选即回退上一个有效模式；
+        #   _mode_idx 始终指向 MODES 中最近的**可选**项（取值处不再信任 currentIndex）。
+        self._mode_idx = 0
+        self.mode_combo.currentIndexChanged.connect(self._on_mode_index)
         self.fix_switch = SwitchButton(self)
         self.report_switch = SwitchButton(self)
         self.report_switch.setChecked(True)
@@ -223,6 +244,16 @@ class CalibPage(QWidget):
         if others:
             QTimer.singleShot(0, lambda ps=others: self.app._handle_dropped_files(ps))
 
+    def _on_mode_index(self, idx):
+        """P3b 分组行守卫：MODES 里值为 None 的行是「── 组名 ──」分组标题，
+        不可作为片源模式。误选时静默回退到上一个有效选择（屏蔽信号防递归）。"""
+        if 0 <= idx < len(self.MODES) and self.MODES[idx][1] is not None:
+            self._mode_idx = idx
+            return
+        self.mode_combo.blockSignals(True)
+        self.mode_combo.setCurrentIndex(self._mode_idx)
+        self.mode_combo.blockSignals(False)
+
     def browse_in(self):
         p, _ = QFileDialog.getOpenFileName(self, "选择字幕文件",
                                            self.in_edit.text() or engine.APP_DIR,
@@ -304,7 +335,7 @@ class CalibPage(QWidget):
             InfoBar.warning("提示", "请先选择一个 .srt 字幕文件", duration=3000,
                             position=InfoBarPosition.BOTTOM_RIGHT, parent=self)
             return
-        mode_flag = self.MODES[self.mode_combo.currentIndex()][1]
+        mode_flag = self.MODES[self._mode_idx][1]          # P3b：分组行守卫跟踪的有效项
         if self.ai_switch.isChecked():
             self._start_ai(src, again=False, mode_flag=mode_flag)
             return
@@ -324,7 +355,8 @@ class CalibPage(QWidget):
             if self.report_switch.isChecked():
                 args += ["--report", os.path.splitext(out)[0] + ".md"]
         if mode_flag:
-            args.append(mode_flag)
+            # P3b：子键旗标是「--mode <子键>」两 token，按空白拆开透传。
+            args.extend(mode_flag.split())
         if self.fix_switch.isChecked():
             args.append("--fix-en")
 
@@ -392,7 +424,7 @@ class CalibPage(QWidget):
                             duration=3000,
                             position=InfoBarPosition.BOTTOM_RIGHT, parent=self)
             return
-        mode_flag = self.MODES[self.mode_combo.currentIndex()][1]
+        mode_flag = self.MODES[self._mode_idx][1]          # P3b：分组行守卫跟踪的有效项
         self._start_ai(self._last_out, again=True, mode_flag=mode_flag)
 
     def _start_ai(self, src, again, mode_flag):

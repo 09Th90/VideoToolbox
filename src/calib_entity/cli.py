@@ -26,6 +26,7 @@ if __package__ in (None, ""):                      # 允许 `python calib_entity
     _PKG_PARENT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     if _PKG_PARENT not in sys.path:
         sys.path.insert(0, _PKG_PARENT)
+    from calib_core.data.modes import normalize_mode
     from calib_entity import index as index_mod
     from calib_entity import lint as lint_mod
     from calib_entity import shadow as shadow_mod
@@ -37,6 +38,7 @@ if __package__ in (None, ""):                      # 允许 `python calib_entity
     from calib_entity.opt import source_guard as guard_mod
     from calib_entity.wiki import fetch as wiki_fetch
 else:
+    from calib_core.data.modes import normalize_mode
     from . import index as index_mod
     from . import lint as lint_mod
     from . import shadow as shadow_mod
@@ -552,6 +554,10 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main(argv=None) -> int:
     args = build_parser().parse_args(argv)
+    # 2026-11-22 变体键降级：--mode 旧键/别名统一归一（index/verify/onepass/scope/
+    # inject/candidates 全部子命令共用此入口；bi 等新键原样透传）
+    if getattr(args, "mode", None):
+        args.mode = normalize_mode(args.mode)
     return args.fn(args)
 
 

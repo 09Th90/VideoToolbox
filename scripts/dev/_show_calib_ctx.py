@@ -8,21 +8,21 @@ import sys
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 FILES = {
-    "fix_endfield_report01.tsv": "endobi",
-    "fix_talos2.tsv": "endobi",
-    "fix_talos2_v2.tsv": "endobi",
-    "fix_talos2_report01_356.tsv": "endobi",
-    "side_calib.tsv": "endobi",
-    "side3.tsv": "endobi",
-    "work_si_argent/fix1.tsv": "endobi",
-    "work_si_argent/fix2.tsv": "endobi",
-    "work_si_argent/fix3.tsv": "endobi",
-    "work_si_argent/fix4.tsv": "endobi",
-    "work_si_argent/calib_v4.tsv": "endobi",
+    "fix_endfield_report01.tsv": "endo-bi",
+    "fix_talos2.tsv": "endo-bi",
+    "fix_talos2_v2.tsv": "endo-bi",
+    "fix_talos2_report01_356.tsv": "endo-bi",
+    "side_calib.tsv": "endo-bi",
+    "side3.tsv": "endo-bi",
+    "work_si_argent/fix1.tsv": "endo-bi",
+    "work_si_argent/fix2.tsv": "endo-bi",
+    "work_si_argent/fix3.tsv": "endo-bi",
+    "work_si_argent/fix4.tsv": "endo-bi",
+    "work_si_argent/calib_v4.tsv": "endo-bi",
     "outbox/calib_diff_adhd_reacts_37_final.tsv": "bi",
 }
 for p in glob.glob(os.path.join(ROOT, "work_jadealy", "calib_*.tsv")):
-    FILES[os.path.relpath(p, ROOT).replace("\\", "/")] = "ko"
+    FILES[os.path.relpath(p, ROOT).replace("\\", "/")] = "wuwa-ko"
 
 
 def main():

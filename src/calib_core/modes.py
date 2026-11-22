@@ -32,5 +32,5 @@ def detect_source_mode(path):
         lines = _decode_any(open(path, "rb").read()).split("\n")
     except OSError:
         return "bi"
-    return "endobi" if len(endfield_auto_markers(lines)) >= 2 else "bi"
+    return "endo-bi" if len(endfield_auto_markers(lines)) >= 2 else "bi"
 
