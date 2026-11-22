@@ -161,6 +161,11 @@ def cmd_onepass(args) -> int:
         print(f"[onepass] 行 {rep['lines']} / 一致 {rep['identical']} / "
               f"差异 {rep['differ']} ({rep['differ_ratio_pct']}%) / "
               f"原因 {rep['reasons']}")
+    if getattr(args, "gate", False):
+        max_differ = getattr(args, "max_differ", 0)
+        ok = rep["differ"] <= max_differ
+        print(f"[onepass --gate] {'PASS' if ok else 'BLOCK'}：分叉 {rep['differ']} / 阈值 {max_differ}")
+        return 0 if ok else 1
     return 0
 
 
@@ -361,6 +366,10 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--limit", type=int, default=0)
     s.add_argument("--json", action="store_true")
     s.add_argument("--out", default="")
+    s.add_argument("--gate", action="store_true",
+                   help="动态门禁：分叉 differ>阈值即退出码 1（M3 受控换义回归护栏）")
+    s.add_argument("--max-differ", type=int, default=0,
+                   help="--gate 允许的最大分叉行数（默认 0=白名单空集起步）")
     s.set_defaults(fn=cmd_onepass)
 
     # --- 优化补丁 -------------------------------------------------
