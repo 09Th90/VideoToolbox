@@ -28,6 +28,7 @@ from .learn import _learned_terms_for_mode
 from .data.modes import MODE_REGISTRY
 from .modes import endfield_auto_markers
 from .replace import _compile_map, _ctx_replace, _replace_report
+from .acindex import ModeIndex, replace_serial_ac
 from .state import (
     TABLES,
     _AK_CONTEXT_COMPILED, _AK_JA_CONTEXT_COMPILED, _AK_KO_CONTEXT_COMPILED,
@@ -141,7 +142,7 @@ def _first_zh_ctx(mode):
     return _COMPILED_BY_CTX.get(MODE_REGISTRY[mode]["ctx"]) or []
 
 
-def _calib_first_zh(old, ref_m, ctx_compiled, term_pairs, term_chars, hits,
+def _calib_first_zh(old, ref_m, ctx_compiled, term_idx, hits,
                     num, ref, out, zh_idx, rows,
                     exclude=False, bi_override=None, bi_override_preserve=False):
     """规则「首中文行」版式：术语替换 + 语境锚定（ref_m）+ 可选 EXCLUDE 回滚 + 可选侧车覆盖。
@@ -155,7 +156,7 @@ def _calib_first_zh(old, ref_m, ctx_compiled, term_pairs, term_chars, hits,
         if bi_override_preserve:
             new = _restore_override_prefix(old, new)
     else:
-        new = _replace_report(old, term_pairs, term_chars, hits)
+        new = replace_serial_ac(old, term_idx, hits)
         for crx, wrong, right in ctx_compiled:
             if wrong in new and crx.search(ref_m):
                 new = _ctx_replace(new, wrong, right)
@@ -227,8 +228,7 @@ def process(path, out_path=None, report_path=None, mode="bi",
     #   否则它抢跑 Entity("卡提希娅") 的 ctx（笛卡尔西亚 -> 卡提希娅西亚）。
     if mode == "ja" and any(k in terms for k in RETIRED_JA_KEYS):
         terms = {k: v for k, v in terms.items() if k not in RETIRED_JA_KEYS}
-    # 术语表只编译一次（长键序 + 键字符集），逐行替换走 _replace_report 单遍扫描
-    term_pairs, term_chars = _compile_map(terms)
+    # 术语表经 ModeIndex 组装 AC 自动机（term_idx，见下），逐行替换走 replace_serial_ac 预筛串行。
     word_pairs, word_chars = _compile_map(WORD_MAP)
     enfix_pairs, enfix_chars = _compile_map(EN_LINE_TERM_FIXES)
 
@@ -248,10 +248,12 @@ def process(path, out_path=None, report_path=None, mode="bi",
             for _w, _r in ENDFIELD_BI_TERMS.items():
                 _merged.setdefault(_w, _r)
             terms = _merged
-            term_pairs, term_chars = _compile_map(terms)
             print("片源自适应：检测到终末地双语片源（特征词 %d 个：%s）→ 已并入 ENDFIELD_BI_TERMS"
                   % (len(_mk), "、".join(_mk[:6])))
 
+    # M2 对象索引：AC 预筛串行等价替换（replace_serial_ac 与 _replace_report 逐字节+hits 等价，
+    #   级联回退保零漂移）。term_idx 用最终 terms（含学习注入/retired 闸门/片源自适应）。
+    term_idx = ModeIndex(mode, terms)
     hits, rows = {}, []
     i, n = 0, len(lines)
     while i < n:
@@ -332,7 +334,7 @@ def process(path, out_path=None, report_path=None, mode="bi",
                             out[zh_idx] = new
                     elif mode in _FIRST_ZH_MODES:
                         # 规则「首中文行」版式统一路径（ctx/exclude/override 由注册表+旗标集驱动）
-                        _calib_first_zh(old, ref_m, _first_zh_ctx(mode), term_pairs, term_chars,
+                        _calib_first_zh(old, ref_m, _first_zh_ctx(mode), term_idx,
                                         hits, num, ref, out, zh_idx, rows,
                                         exclude=mode in _FIRST_ZH_EXCLUDE,
                                         bi_override=bi_override if mode in _FIRST_ZH_OVERRIDE else None,
@@ -397,7 +399,7 @@ def process(path, out_path=None, report_path=None, mode="bi",
                                 if ko_override_preserve:
                                     new = _restore_override_prefix(lold, new)
                             else:
-                                new = _replace_report(lold, term_pairs, term_chars, hits)
+                                new = replace_serial_ac(lold, term_idx, hits)
                                 for crx, wrong, right in ctx_compiled:
                                     if wrong in new and crx.search(anchor):
                                         new = _ctx_replace(new, wrong, right)
@@ -429,7 +431,7 @@ def process(path, out_path=None, report_path=None, mode="bi",
                                                _ref_for_match(" ".join(lines[_ti] for _ti in ak_en)))
                             for _ti in ak_zh:
                                 lold = lines[_ti]
-                                new = _replace_report(lold, term_pairs, term_chars, hits)
+                                new = replace_serial_ac(lold, term_idx, hits)
                                 for crx, wrong, right in _AK_CONTEXT_COMPILED:
                                     if wrong in new and crx.search(ak_anchor):
                                         new = _ctx_replace(new, wrong, right)
@@ -445,7 +447,7 @@ def process(path, out_path=None, report_path=None, mode="bi",
                                     rows.append((num, lold, new, ref))
                                     out[_ti] = new
                         elif ak_zh:             # 无参考行的纯中文 cue：退回首中文行口径
-                            new = _replace_report(old, term_pairs, term_chars, hits)
+                            new = replace_serial_ac(old, term_idx, hits)
                             if new != old:
                                 rows.append((num, old, new, ref))
                                 out[zh_idx] = new
@@ -468,7 +470,7 @@ def process(path, out_path=None, report_path=None, mode="bi",
                                     # 保证侧车与人工成品逐字节一致。
                                     new = bi_override[str(num)]
                                 else:
-                                    new = _replace_report(lold, term_pairs, term_chars, hits)
+                                    new = replace_serial_ac(lold, term_idx, hits)
                                     for crx, wrong, right in _ARCAK_CONTEXT_COMPILED:
                                         if wrong in new and crx.search(arcak_anchor):
                                             new = _ctx_replace(new, wrong, right)
@@ -481,7 +483,7 @@ def process(path, out_path=None, report_path=None, mode="bi",
                                     rows.append((num, lold, new, ref))
                                     out[_ti] = new
                         elif arcak_zh:          # 无参考行的纯中文 cue：退回首中文行口径
-                            new = _replace_report(old, term_pairs, term_chars, hits)
+                            new = replace_serial_ac(old, term_idx, hits)
                             if new != old:
                                 rows.append((num, old, new, ref))
                                 out[zh_idx] = new
@@ -490,7 +492,7 @@ def process(path, out_path=None, report_path=None, mode="bi",
                         # 双语片源不会再误改英文参考行（应改用 --endobi）。
                         for ti in [text_tis[p] for p in zh_pos]:
                             lold = lines[ti]
-                            new = _replace_report(lold, term_pairs, term_chars, hits)
+                            new = replace_serial_ac(lold, term_idx, hits)
                             if new != lold:
                                 rows.append((num, lold, new, ref))
                                 out[ti] = new
@@ -505,7 +507,7 @@ def process(path, out_path=None, report_path=None, mode="bi",
                                 rows.append((num, old, new, ref))
                                 out[zh_idx] = new
                         else:
-                            new = _replace_report(old, term_pairs, term_chars, hits)
+                            new = replace_serial_ac(old, term_idx, hits)
                             for crx, wrong, right in _CONTEXT_COMPILED:
                                 if wrong in new and crx.search(ref_m):
                                     new = _ctx_replace(new, wrong, right)

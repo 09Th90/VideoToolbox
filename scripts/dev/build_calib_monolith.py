@@ -35,7 +35,7 @@ DATA_FILES = [
     "bilingual", "ja", "ark", "ko", "endfield", "misc", "limbus", "pbz", "ssv", "arcak", "tga", "wwm", "gfl2", "modes",
 ]
 LOGIC_FILES = [
-    "text", "replace", "asr", "state", "engine", "modes", "srt",
+    "text", "replace", "acindex", "asr", "state", "engine", "modes", "srt",
     "format", "inspect", "kb", "learn", "sync", "cli",
 ]
 
