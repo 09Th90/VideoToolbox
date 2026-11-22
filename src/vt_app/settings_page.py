@@ -979,32 +979,37 @@ class SettingsPage(QWidget):
         jev_hint = getattr(self, "ai_jev_hint", None)
         if jev_hint is not None:
             switch = getattr(self, "ai_jev_switch", None)
-            if switch is not None and not switch.isChecked():
+            from core.shared.decision import decision_mod
+            # v3.2.5 WP6：决策区域端点优先于全局地址（decision_base_url
+            # 白名单选中北京/新加坡时按该端点判断激活）。
+            _probe_base = self._decision_base_url_effective()
+            # v3.1.4：Jev 客户端是可选组件（tools/decision_client.py 按
+            # TOOLS_DIR 动态加载）。曾因发布清单漏该文件，冻结态此处抛
+            # FileNotFoundError 拖垮整页构建＝设置页只剩背景。缺失只降级
+            # 提示，绝不阻断建页（与上方 ai_plan_risk 同口径）。
+            # v3.2.5 集成修复：组件缺失/加载失败是「故障态」，提示必须优先于
+            # 总闸关闭的「用户选择态」——即使总闸关着，客户端坏了仍须告知
+            # （缺件可观测性）；组件健康时才按总闸现值显示状态文案。
+            try:
+                token_plan = decision_mod().is_aliyun_token_plan(_probe_base)
+            except Exception:  # noqa: BLE001
+                token_plan = None
+            if token_plan is None:
+                text = ("Jev 客户端缺失或加载失败（tools/decision_client.py），"
+                        "不会调用；重装或在线更新可补齐。")
+            elif switch is not None and not switch.isChecked():
+                # WP6：Jev 开关 = decision_enabled 别名（出厂 False），关闭是
+                # 用户选择；该文案只在组件健康的前提下展示。
                 text = "Jev 已关闭，不会发起结构化决策请求。"
             else:
-                from core.shared.decision import decision_mod
                 current = engine.ai_load_config()
-                # v3.2.5 WP6：决策区域端点优先于全局地址（decision_base_url
-                # 白名单选中北京/新加坡时按该端点判断激活）。
-                _probe_base = self._decision_base_url_effective()
                 key_ready = bool(
                     # 决策独立凭据（凭据文件 / 输入框未保存新值）优先，回落全局
                     self._decision_key_has()
                     or self.decision_key.text().strip()
                     or self.ai_key.text().strip()
                     or str(current.get("api_key") or "").strip())
-                # v3.1.4：Jev 客户端是可选组件（tools/decision_client.py 按
-                # TOOLS_DIR 动态加载）。曾因发布清单漏该文件，冻结态此处抛
-                # FileNotFoundError 拖垮整页构建＝设置页只剩背景。缺失只降级
-                # 提示，绝不阻断建页（与上方 ai_plan_risk 同口径）。
-                try:
-                    token_plan = decision_mod().is_aliyun_token_plan(_probe_base)
-                except Exception:  # noqa: BLE001
-                    token_plan = None
-                if token_plan is None:
-                    text = ("Jev 客户端缺失或加载失败（tools/decision_client.py），"
-                            "不会调用；重装或在线更新可补齐。")
-                elif not token_plan:
+                if not token_plan:
                     text = "Jev 已开启，但当前不是百炼 Token Plan 专属端点，不会调用。"
                 elif not key_ready:
                     text = "Jev 地址符合，但决策独立凭据与全局 AI 密钥均未配置，不会调用。"
