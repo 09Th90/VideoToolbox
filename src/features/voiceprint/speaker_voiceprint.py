@@ -907,12 +907,23 @@ def save_template(name, embedding, **meta):
 
     落盘后排一条 upsert 进声纹同步待传队列（多用户共享）；同名重录时用旧副本
     的 `sync_id` 作 supersedes——其它客户端据此把旧条目判为「被取代」，而不是
-    同名不同向量的冲突。"""
+    同名不同向量的冲突。
+
+    WP2：meta 可带 `models` 命名空间（第二路 wespeaker 向量等，见
+    `_second_path_entry`）——**加键不换锁**：顶层 `embedding`（CAM++ 主向量）
+    永不被 models 覆盖或替换；models 只接受 {域: {embedding 非空的 dict}}，
+    坏结构整体剥掉，不让脏键进模板文件。"""
     os.makedirs(TEMPLATE_DIR, exist_ok=True)
     obj = {"name": str(name), "dim": int(len(embedding)),
            "created": time.strftime("%Y-%m-%d %H:%M:%S"),
            "embedding": [round(float(v), 6) for v in embedding]}
     obj.update({k: v for k, v in meta.items() if v is not None})
+    m = obj.get("models")
+    if m is not None and not isinstance(m, dict):
+        obj.pop("models", None)
+    elif isinstance(m, dict):
+        obj["models"] = {str(k): v for k, v in m.items()
+                         if isinstance(v, dict) and v.get("embedding")}
     p = template_path(name)
     prev_id, _prev_emb = _vp_prev_sync(p) if os.path.isfile(p) else (None, [])
     with open(p, "w", encoding="utf-8") as fh:
@@ -1252,11 +1263,20 @@ def _embedding_fp(v):
         [round(float(x), 6) for x in v]).encode("utf-8")).hexdigest()[:16]
 
 
-def _make_leaf(agg, weight, n, author=""):
-    """一次录入/追加动作 -> 一个折叠叶子（round(6) 与落盘口径一致）。"""
+def _make_leaf(agg, weight, n, author="", model_id=None):
+    """一次录入/追加动作 -> 一个折叠叶子（round(6) 与落盘口径一致）。
+
+    `model_id` 为 None = CAM++ 默认域（fp 沿用旧口径 `embedding_fp`，叶子不带
+    model_id 键，与历史模板/同步副本逐字节兼容）；指定其他域（第二路
+    wespeaker）时 fp 走域感知 `leaf_fp`（sha256(model_id+vec)），叶子带
+    model_id 键——不同编码器的同值向量不互认。"""
+    import features.voiceprint.voiceprint_sync as _vps
     v = [round(float(x), 6) for x in np.asarray(agg, dtype=np.float64).reshape(-1)]
-    return {"fp": _embedding_fp(v), "v": v, "w": float(weight),
+    leaf = {"fp": _vps.leaf_fp(model_id, v), "v": v, "w": float(weight),
             "n": int(n), "author": str(author or "")}
+    if model_id:
+        leaf["model_id"] = str(model_id)
+    return leaf
 
 
 def _plain_template(obj):
@@ -1270,7 +1290,54 @@ def _plain_template(obj):
     return out
 
 
-def enroll_pcm(clips, name="主播", encoder=None, source=None, base=None, **meta):
+def _second_path_entry(clips, base, second_encoder=None):
+    """enroll_pcm 顺手提第二路（wespeaker，256 维）-> models 命名空间条目。
+
+    纪律（WP2）：第二路是**附加数据**——模型缺失 / 片段太短 / 折叠拒绝 /
+    任何异常一律返回 None 静默跳过，**绝不阻塞 CAM++ 录入主流程**；顶层
+    embedding（192 维 CAM++ 主向量）与 mix 原样不动。追加模式（base 非空）
+    时旧模板的第二路叶子（`models[第二路].mix`）与新叶子走 `fold_leaves`
+    同一条数学路径（按 (model_id, fp) 去重、加权并集折叠、同人守卫）。
+    返回 {"model_id", "model_version", "dim", "preproc_version", "embedding",
+    "mix", "weight", "clips"[, "consistency"]} 或 None。
+    """
+    try:
+        from features.voiceprint.second_voiceprint import (
+            MODEL_ID as _MID, MODEL_VERSION as _MVER,
+            PREPROC_VERSION as _PPV, SecondVoiceEncoder, model_present)
+        import features.voiceprint.voiceprint_sync as _vps
+        enc2 = second_encoder
+        if enc2 is None:
+            if not model_present():
+                return None
+            enc2 = SecondVoiceEncoder()
+        embs2 = [enc2.embed(c) for c in clips]
+        agg2 = embs2[0] if len(embs2) == 1 else _mean_unit(embs2)
+        s2 = np.sum(np.stack(embs2, axis=0), axis=0)
+        r2 = float(np.linalg.norm(s2))
+        leaf2 = _make_leaf(agg2, max(r2, 1e-9), len(embs2), _local_author(),
+                           model_id=_MID)
+        old2 = []
+        if base is not None:
+            old2 = _vps.template_leaves(_plain_template(base), model_id=_MID)
+        obj2, _rej = _vps.fold_leaves(old2 + [leaf2],
+                                      trusted={l["fp"] for l in old2})
+        if obj2 is None:
+            return None
+        entry = {"model_id": _MID, "model_version": _MVER,
+                 "dim": int(len(obj2["embedding"])),
+                 "preproc_version": _PPV, "embedding": obj2["embedding"],
+                 "mix": obj2["mix"], "weight": obj2["weight"],
+                 "clips": obj2["clips"]}
+        if obj2.get("consistency") is not None:
+            entry["consistency"] = obj2["consistency"]
+        return entry
+    except Exception:  # noqa: BLE001  第二路缺席不阻塞录入
+        return None
+
+
+def enroll_pcm(clips, name="主播", encoder=None, source=None, base=None,
+               second_encoder=None, **meta):
     """录入/追加声纹核心：逐片段提向量 →（追加时与旧模板折叠）→ 落盘。
 
     `clips` 为 16k 单声道 PCM 列表。多片段录入比单片段稳得多（基准
@@ -1287,6 +1354,8 @@ def enroll_pcm(clips, name="主播", encoder=None, source=None, base=None, **met
 
     模板除 embedding 外记录迭代字段：weight（合成长度，折叠权重）、
     clips、mix（叶子列表）、sources（贡献者），供同步折叠与界面展示。
+    WP2：第二路模型（wespeaker 256 维）就位时还会顺手在 `models` 命名空间
+    写入第二路向量（`_second_path_entry`，缺席/失败静默跳过不阻塞录入）。
 
     返回模板 dict（含 `clips` 片段总数与 `consistency` 最低两两相似度）。
     """
@@ -1351,6 +1420,12 @@ def enroll_pcm(clips, name="主播", encoder=None, source=None, base=None, **met
     meta["weight"] = obj["weight"]
     meta["mix"] = obj["mix"]
     meta["sources"] = obj.get("sources") or []
+    # WP2 第二路顺手录入：第二路模型就位时对同一批片段补提 wespeaker 向量，
+    # 写进模板 models 命名空间（加键不换锁——顶层 CAM++ 主向量原样不动）；
+    # 缺席/失败静默跳过，绝不阻塞录入。
+    second_entry = _second_path_entry(clips, base, second_encoder)
+    if second_entry:
+        meta["models"] = {second_entry["model_id"]: second_entry}
     path = save_template(name, obj["embedding"], source=source,
                          seconds=round(seconds, 2), **meta)
     return {"name": name, "path": path,
@@ -2728,6 +2803,29 @@ def filter_srt(src, srt_path, template, threshold=None,
            "review_reasons": reason_counts,
            "keep_ratio": ratio, "min_keep_ratio": floor,
            "aborted": aborted, "kept_path": None}
+
+    # WP2 第二音色影子接入（默认 off，出厂不启用）：off 时这里什么都不发生
+    # ——res 不加键、报告不加行、不多跑一步，行为与 WP1 逐字节一致。
+    # 两段式容错：开关读取/影子模块导入失败一律当作 off（连 degraded 键都不
+    # 加，保住 off 的零漂移承诺）；只有开关明确为 on 时才允许影子本体把
+    # degraded 摘要写进 res["second_voice"]——影子绝不参与 decide、不改
+    # verdict、不增删产物。
+    _sv_on = False
+    try:
+        from features.voiceprint.second_voiceprint import (
+            second_voice_enabled, run_shadow)
+        _sv_on = bool(second_voice_enabled())
+    except Exception:  # noqa: BLE001  影子模块坏了 = 当作 off，主筛选照常
+        _sv_on = False
+    if _sv_on:
+        try:
+            res["second_voice"] = run_shadow(
+                src, pcm, cues, labels, None, decisions,
+                [n for n, _e in tpls], progress=_say)
+        except Exception as _sv_e:  # noqa: BLE001  影子永不影响主流程
+            res["second_voice"] = {"mode": "shadow", "status": "degraded",
+                                   "reason": "%s: %s"
+                                   % (type(_sv_e).__name__, str(_sv_e)[:200])}
 
     if out_path:
         # 熔断时 out_path（通常就是原字幕本身）一个字节都不碰，候选另存。

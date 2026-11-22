@@ -101,6 +101,11 @@ PENDING_NAME = "voiceprint_pending.jsonl"
 #: （0.55）刻意同源**——低于判定边界的两份数据不该被合并成一份模板；
 #: 这里不跨模块 import，保持本模块纯标准库、可独立跑。
 FOLD_MIN_COS = 0.55
+#: 默认（CAM++ 主）域标识（WP2 域感知叶子）。**顶层 mix/embedding 永远是
+#: 这个域**——它的叶子 fp 沿用旧口径 `embedding_fp`，绝对不改：已同步副本
+#: 的幂等判断、tombstone 删除指纹、own_entry_id 重建全部依赖旧口径稳定。
+#: 第二路等其他编码器域的叶子带 model_id 键、fp 用域感知 `leaf_fp`。
+DEFAULT_MODEL_ID = "camplus-3dspeaker-zhcn16k"
 #: 本地模板文件上的同步标记键（入队 value 前剥掉，保证「文件内容 == 条目
 #: value」恒成立——自录模板的条目 id 才能由文件内容确定性重建）。
 SYNC_MARK_KEYS = ("sync", "sync_id", "sync_author", "sync_ts", "fold_key")
@@ -231,6 +236,22 @@ def embedding_fp(embedding):
     ).hexdigest()[:16]
 
 
+def leaf_fp(model_id, embedding):
+    """域感知叶子指纹（WP2）：默认域沿用旧口径，其他域 sha256(model_id+vec)。
+
+    · model_id 为空 / 等于 `DEFAULT_MODEL_ID` -> `embedding_fp(v)`（旧口径，
+      绝对不改——同步幂等全押在它上面）；
+    · 其他域（如第二路 wespeaker）-> sha256("<model_id>|<向量JSON>") 前 16 位，
+      域前缀保证「不同编码器的同值向量不会互认」。
+    """
+    mid = str(model_id or "").strip()
+    if not mid or mid == DEFAULT_MODEL_ID:
+        return embedding_fp(embedding)
+    payload = mid + "|" + _dumps(
+        [round(float(x), 6) for x in (embedding or [])])
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()[:16]
+
+
 # ---------------------------------------------------------------- 叶子与折叠
 # 「同一主播多人贡献 → 数据迭代」的数学载体。每个叶子 = 一次录入/追加动作
 # 产生的 (聚合向量 v, 合成长度 w, 片段数 n, 指纹 fp, 来源 author)；
@@ -273,11 +294,30 @@ def _vec_cos(a, b):
     return dot / math.sqrt(ssa * ssb)
 
 
-def template_leaves(obj, author=""):
-    """模板 dict -> 叶子列表。无 mix 的旧模板合成单叶（向后兼容）。"""
+def template_leaves(obj, author="", model_id=None):
+    """模板 dict -> 叶子列表。无 mix 的旧模板合成单叶（向后兼容）。
+
+    `model_id=None`（缺省）：读顶层 mix/embedding——CAM++ 主域，叶子 fp 沿用
+    旧口径 `embedding_fp`（绝对不动，同步幂等全押在它上面）；顶层叶子自带
+    model_id 键时按其域取 fp（域感知，未来混合数据不串域）。
+    `model_id=X`：读 `models[X]` 命名空间（第二路等），叶子统一带
+    model_id=X、fp 用域感知 `leaf_fp`。
+    """
     if not isinstance(obj, dict):
         return []
-    mix = obj.get("mix")
+    if model_id:
+        models = obj.get("models")
+        entry = models.get(model_id) if isinstance(models, dict) else None
+        if not isinstance(entry, dict):
+            return []
+        mix = entry.get("mix")
+        emb = entry.get("embedding")
+        weight, clips, domain = entry.get("weight"), entry.get("clips"), \
+            str(model_id)
+    else:
+        mix = obj.get("mix")
+        emb = obj.get("embedding")
+        weight, clips, domain = obj.get("weight"), obj.get("clips"), None
     if isinstance(mix, list) and mix:
         out = []
         for m in mix:
@@ -290,35 +330,56 @@ def template_leaves(obj, author=""):
                 n = int(m.get("n") or 1)
             except (TypeError, ValueError):
                 w, n = 1.0, 1
-            out.append({"fp": str(m.get("fp") or embedding_fp(v)), "v": v,
-                        "w": w, "n": max(1, n),
-                        "author": str(m.get("author") or author or "")})
+            mid = domain
+            if mid is None and m.get("model_id"):
+                mid = str(m["model_id"])
+            leaf = {"fp": str(m.get("fp") or leaf_fp(mid, v)), "v": v,
+                    "w": w, "n": max(1, n),
+                    "author": str(m.get("author") or author or "")}
+            if mid:
+                leaf["model_id"] = mid
+            out.append(leaf)
         if out:
             return out
-    emb = obj.get("embedding") or []
     if not emb:
         return []
     v = [round(float(x), 6) for x in emb]
     try:
-        w = float(obj.get("weight") or 1.0)
-        n = int(obj.get("clips") or 1)
+        w = float(weight or 1.0)
+        n = int(clips or 1)
     except (TypeError, ValueError):
         w, n = 1.0, 1
-    return [{"fp": embedding_fp(v), "v": v, "w": w, "n": max(1, n),
-             "author": str(author or "")}]
+    leaf = {"fp": leaf_fp(domain, v), "v": v, "w": w, "n": max(1, n),
+            "author": str(author or "")}
+    if domain:
+        leaf["model_id"] = domain
+    return [leaf]
 
 
 def fold_leaves(leaves, min_cos=FOLD_MIN_COS, trusted=frozenset()):
-    """加权并集折叠（确定性：fp 去重 -> fp 字典序累积 -> 同人守卫）。
+    """加权并集折叠（确定性：按 (model_id, fp) 去重 -> 域内 fp 字典序累积
+    -> 同人守卫）。
 
-    `trusted` 里的 fp 跳过守卫（调用方已校验过的本地历史叶子，如追加录入
-    时旧 mix 里的叶子——新旧之间可能因同人抖动落在阈值两侧，不该因此翻旧账）。
+    WP2 域感知：叶子可带 `model_id` 键，缺省归 camplus 默认域
+    （`DEFAULT_MODEL_ID`）。去重键 = **(model_id, fp)**——同 fp 不同域不互斥。
+    折叠按域独立进行（不同域向量维度不同，绝不混叠）：
+      · 默认域     -> 返回值 obj 本体，与旧版**逐字节一致**（embedding /
+                     weight / clips / mix / sources；mix 叶子不带 model_id 键，
+                     旧输入绝不多出新键——WP1 幂等零回归）；
+      · 其他域     -> obj["models"][域] = 该域聚合（叶子带 model_id 键）；
+                     仅当存在非默认域叶子时才有 models 键；
+      · 全部叶子都是非默认域时，obj 本体 = 字典序最前的有叶域聚合（obj 带
+        model_id 标记），供第二路命名空间折叠（enroll 追加）复用同一函数。
+
+    `trusted` 兼容两种口径：旧 fp 字符串集合（全域生效，WP1 调用方原样兼容）
+    或 (model_id, fp) 元组。trusted 叶子跳过守卫（调用方已校验过的本地历史
+    叶子——新旧之间可能因同人抖动落在阈值两侧，不该因此翻旧账）。
 
     返回 (obj, rejected)：
       obj      {"embedding", "weight", "clips", "mix", "sources"}；
                **单叶时原样透传**（不重归一化，保证 embedding 指纹与旧版
                逐字节一致，已同步副本的幂等判断不受影响）；无存活叶 -> None。
-      rejected 被守卫拒绝的叶子列表。
+      rejected 被守卫拒绝的叶子列表（域内顺序确定：默认域在前、其余按域序）。
     """
     uniq = {}
     authors = {}
@@ -326,61 +387,102 @@ def fold_leaves(leaves, min_cos=FOLD_MIN_COS, trusted=frozenset()):
         fp = l.get("fp")
         if not fp or not l.get("v"):
             continue
-        uniq.setdefault(fp, l)
-        authors.setdefault(fp, set())
+        key = (str(l.get("model_id") or DEFAULT_MODEL_ID), fp)
+        uniq.setdefault(key, l)
+        authors.setdefault(key, set())
         if l.get("author"):
-            authors[fp].add(str(l["author"]))
-    # 接纳顺序：**trusted（本地在野叶子）一律先入场**（跳过守卫），
-    # 其余按 fp 字典序、逐个对已在场叶子过同人守卫。trusted 优先让
-    # 「本地自录不被异人远端冲掉」是确定的（不受 fp 排序摇奖影响），
-    # 同时合成本身是向量加法、与入场顺序无关——只影响「谁被拒」。
-    ordered = sorted(uniq)
-    ordered = [x for x in ordered if x in trusted] + \
-              [x for x in ordered if x not in trusted]
-    acc, rej = [], []
-    for fp in ordered:
-        l = uniq[fp]
-        if fp in trusted or all(
-                _vec_cos(l["v"], a["v"]) >= min_cos for a in acc):
-            acc.append(l)
-        else:
-            rej.append(l)
-    if not acc:
-        return None, rej
-    if len(acc) == 1:
-        l = acc[0]
-        obj = {"embedding": list(l["v"]),
-               "weight": round(float(l["w"]), 6),
-               "clips": int(l["n"]),
-               "mix": [{"fp": l["fp"], "v": list(l["v"]),
-                        "w": round(float(l["w"]), 6), "n": int(l["n"]),
-                        "author": l.get("author") or ""}],
-               "sources": sorted(authors.get(l["fp"], set()))}
-        return obj, rej
-    dim = len(acc[0]["v"])
-    s = [0.0] * dim
-    for l in acc:
-        w = float(l["w"])
-        v = l["v"]
-        for i in range(dim):
-            s[i] += w * float(v[i])
-    r = math.sqrt(sum(x * x for x in s))
-    if r <= 0.0:
-        return None, rej
-    emb = [round(x / r, 6) for x in s]
-    cross = [round(_vec_cos(a["v"], b["v"]), 6)
-             for i, a in enumerate(acc) for b in acc[:i]]
-    obj = {"embedding": emb,
-           "weight": round(r, 6),
-           "clips": sum(int(l["n"]) for l in acc),
-           "mix": [{"fp": l["fp"], "v": list(l["v"]),
+            authors[key].add(str(l["author"]))
+
+    def _trusted_hit(key):
+        return key in trusted or key[1] in trusted
+
+    def _fold(keys, mark_domain=False):
+        """单域折叠：trusted 先入场（跳过守卫），其余按 fp 字典序过守卫。"""
+        acc, rej = [], []
+        for key in keys:
+            l = uniq[key]
+            if _trusted_hit(key) or all(
+                    _vec_cos(l["v"], a["v"]) >= min_cos for a in acc):
+                acc.append(l)
+            else:
+                rej.append(l)
+        if not acc:
+            return None, rej
+        dim = len(acc[0]["v"])
+        use = [l for l in acc if len(l["v"]) == dim]
+        rej = rej + [l for l in acc if len(l["v"]) != dim]   # 脏维度不混叠
+        acc = use
+        if not acc:
+            return None, rej
+        mid = str(acc[0].get("model_id") or DEFAULT_MODEL_ID)
+
+        def _leaf(l):
+            leaf = {"fp": l["fp"], "v": list(l["v"]),
                     "w": round(float(l["w"]), 6), "n": int(l["n"]),
-                    "author": l.get("author") or ""} for l in acc],
-           "sources": sorted({a for fp in (l["fp"] for l in acc)
-                              for a in authors.get(fp, set())})}
-    if cross:
-        obj["consistency"] = min(cross)
-    return obj, rej
+                    "author": l.get("author") or ""}
+            if mark_domain and mid != DEFAULT_MODEL_ID:
+                leaf["model_id"] = mid
+            return leaf
+
+        if len(acc) == 1:
+            l = acc[0]
+            obj = {"embedding": list(l["v"]),
+                   "weight": round(float(l["w"]), 6),
+                   "clips": int(l["n"]), "mix": [_leaf(l)],
+                   "sources": sorted(authors.get((mid, l["fp"]), set()))}
+            if mark_domain and mid != DEFAULT_MODEL_ID:
+                obj["model_id"] = mid
+            return obj, rej
+        s = [0.0] * dim
+        for l in acc:
+            w = float(l["w"])
+            v = l["v"]
+            for i in range(dim):
+                s[i] += w * float(v[i])
+        r = math.sqrt(sum(x * x for x in s))
+        if r <= 0.0:
+            return None, rej
+        emb = [round(x / r, 6) for x in s]
+        cross = [round(_vec_cos(a["v"], b["v"]), 6)
+                 for i, a in enumerate(acc) for b in acc[:i]]
+        obj = {"embedding": emb,
+               "weight": round(r, 6),
+               "clips": sum(int(l["n"]) for l in acc),
+               "mix": [_leaf(l) for l in acc],
+               "sources": sorted({a for (m, fp) in ((mid, l["fp"])
+                                                    for l in acc)
+                                  for a in authors.get((m, fp), set())})}
+        if cross:
+            obj["consistency"] = min(cross)
+        if mark_domain and mid != DEFAULT_MODEL_ID:
+            obj["model_id"] = mid
+        return obj, rej
+
+    # 接纳顺序：trusted（本地在野叶子）一律先入场（跳过守卫），其余按
+    # (域, fp) 字典序逐个过同人守卫。trusted 优先让「本地自录不被异人远端
+    # 冲掉」是确定的（不受 fp 排序摇奖影响），同时合成本身是向量加法、与
+    # 入场顺序无关——只影响「谁被拒」。
+    ordered = sorted(uniq)
+    ordered = [x for x in ordered if _trusted_hit(x)] + \
+              [x for x in ordered if not _trusted_hit(x)]
+    domain_keys = {}
+    for key in ordered:
+        domain_keys.setdefault(key[0], []).append(key)
+    obj, rejected = _fold(domain_keys.get(DEFAULT_MODEL_ID, []))
+    models_out = {}
+    foreign_mids = sorted(m for m in domain_keys if m != DEFAULT_MODEL_ID)
+    for mid in foreign_mids:
+        mobj, rej_m = _fold(domain_keys[mid], mark_domain=True)
+        rejected.extend(rej_m)
+        if mobj is None:
+            continue
+        if obj is None and not models_out:
+            obj = mobj                    # 全非默认域：主对象归字典序最前域
+        else:
+            models_out[mid] = mobj
+    if obj is not None and models_out:
+        obj["models"] = models_out
+    return obj, rejected
 
 
 def fold_key_of(leaves):
@@ -868,17 +970,29 @@ def apply_upserts(name, entries):
     p = template_path(name)
     remote_leaves = []
     seconds = 0.0
+    vals = []
     for e in entries:
         try:
             obj = _loads(e["value"])
         except ValueError:
             continue
+        vals.append(obj)
         remote_leaves += template_leaves(
             obj, author=str(e.get("author"))[:8])
         try:
             seconds += float((e.get("evidence") or {}).get("seconds") or 0.0)
         except (TypeError, ValueError):
             pass
+    # WP2：模板 value 里的第二路命名空间（models）原样透传——fold 主向量
+    # 语义不认识它，落地时不能静默丢掉其他客户端的第二路数据。多条目按
+    # (ts, id) 序合并（本函数入口已排序），同键后者胜出，确定性。
+    remote_models = {}
+    for obj in vals:
+        m = obj.get("models") if isinstance(obj, dict) else None
+        if isinstance(m, dict):
+            for mk, mv in m.items():
+                if isinstance(mv, dict) and mv.get("embedding"):
+                    remote_models[str(mk)] = mv
     if not remote_leaves:
         return 0, None
     cur = _read_template(p) if os.path.isfile(p) else None
@@ -937,6 +1051,8 @@ def apply_upserts(name, entries):
                 v = first.get(k)
             if v is not None:
                 out[k] = v
+        if remote_models:
+            out["models"] = dict(remote_models)
         os.makedirs(template_dir(), exist_ok=True)
         file_obj = dict(out)
         file_obj["sync"] = True
