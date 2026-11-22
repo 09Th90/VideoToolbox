@@ -102,7 +102,7 @@ def _resolve_terms(mode):
 _SPECIAL_MODES = {"bi", "pgr", "ko", "wuwa40ko", "wuwa40ign", "ak", "arcak", "endo", "fix-en"}
 _FIRST_ZH_MODES = {m for m in MODE_REGISTRY if m not in _SPECIAL_MODES}
 _FIRST_ZH_EXCLUDE = {"pgren"}        # 首中文行模式里消费 EXCLUDE 回滚层的
-_FIRST_ZH_OVERRIDE = {"wwm"}         # 首中文行模式里支持侧车整行覆盖的
+_FIRST_ZH_OVERRIDE = {"wwm", "ja"}   # 首中文行模式里支持侧车整行覆盖的（ja：4.0 先行映像全片侧车）
 
 # 语境表名 → 预编译缓存（与 state._CTX_COMPILE_SPEC 同源；供注册表 ctx 字段查缓存）
 _COMPILED_BY_CTX = {
@@ -293,11 +293,12 @@ def process(path, out_path=None, report_path=None, mode="bi",
                         continue
                     if not zh_pos:
                         # 多文本行且无法识别中文行（全拉丁/全参考行）：绝不写参考行。
-                        # 例外：bi/--wuwa40ko 侧车显式指定的 cue 允许整行覆盖——
+                        # 例外：bi/--wuwa40ko/--wuwa40ja 侧车显式指定的 cue 允许整行覆盖——
                         #   4.0 韩语片 #8/#241 原行是拉丁残片（Subde / Dream），
-                        #   人工终稿已改成中文，若不特判会被这里整块跳过，复跑永远对不上。
-                        if mode in ("bi", "wuwa40ko", "wuwa40ign"):
-                            ov = bi_override if mode == "bi" else ko_override
+                        #   4.0 日语片 #487/#1012/#1065/#1074 原行是纯拉丁/纯数字（无 CJK，
+                        #   识别不出中文行），人工终稿已改成中文，若不特判会被这里整块跳过。
+                        if mode in ("bi", "ja", "wuwa40ko", "wuwa40ign"):
+                            ov = bi_override if mode in ("bi", "ja") else ko_override
                             preserve = (bi_override_preserve if mode == "bi"
                                         else ko_override_preserve)
                             if ov and str(num) in ov:
