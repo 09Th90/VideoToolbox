@@ -1510,6 +1510,52 @@ def _mention_shadow_review(result, decision_client, out, mode_key, report,
         _log_do(log, f"  ⚠ Jev mention 影子审核异常（不影响校准结果）：{e}", "err")
 
 
+def _triage_shadow_preview(result, decision_client, pending, rules, base,
+                           mode_key, round_no, log=None) -> None:
+    """Jev 生成前分诊影子挂载（WP4 shadow-only；off/未激活时零开销零行为变化）。
+
+    分诊只在 client 激活（decision_mode=shadow 且端点可用）时执行：对 pending
+    块离线收集 triage 记录（复用 mention 决策的 _classify_cue 预分类）→
+    apply_triage_shadow（本地确定性闸门 + Jev 四问）→ result["triage"]。
+
+    铁律（用户裁决：默认全影子）：绝不改动 pending / 绝不跳过任何生成式调用；
+    只记 would_skip / would_save 供评估。机械基线 / 参考行保护 / verify 与
+    本函数无关，始终全量执行。任何异常整链降级（stub 记 reason）。
+    """
+    log = log or (lambda m, level="dim": None)   # 与 calibrate 主流程同款兜底
+    stub = {"schema_version": "vt.calibrate.triage.v1", "active": False,
+            "mode": "off", "reason": "not_configured", "business":
+            "pre_calibration_triage", "blocks_total": 0, "selected": 0,
+            "evaluated": 0, "jev_evaluated": 0, "requests": 0, "truncated": 0,
+            "gated": 0, "gate_reasons": {}, "issue_kinds": {},
+            "would_skip": 0, "would_skip_cues": 0, "would_save": 0,
+            "needs_web": 0, "routes": {}, "items": [], "errors": []}
+    result["triage"] = stub
+    if decision_client is None or not getattr(decision_client, "active", False):
+        return
+    try:
+        from features.calibrate.calib_triage_decision import (
+            apply_triage_shadow, collect_triage_records)
+        # 机械基线在本块的改动数：从基线产物（或起点文件）离线 parse 而来
+        script_map = {}
+        try:
+            _lines, base_cues, _crlf, _bom = parse_srt(base)
+            script_map = {c.num: "\n".join(c.zh_lines or []) for c in base_cues}
+        except Exception:                        # noqa: BLE001 缺基线按 0 计
+            script_map = {}
+        pending_chunks = [(idx, chunk) for idx, chunk in pending]
+        records = collect_triage_records(pending_chunks, rules, mode=mode_key,
+                                         round_no=round_no,
+                                         script_changes_map=script_map)
+        summary = apply_triage_shadow(decision_client, records,
+                                      round_no=round_no, log=log)
+        result["triage"] = summary
+    except Exception as e:                       # noqa: BLE001
+        stub["reason"] = ("triage_shadow_failed: %s: %s"
+                          % (type(e).__name__, str(e)[:160]))
+        _log_do(log, f"  ⚠ Jev 分诊影子异常（不影响校准链路）：{e}", "err")
+
+
 def calibrate(src: str, out: str = None, report: str = None, mode_flag: str = "",
               fix_en: bool = False, script: str = None, python: str = None,
               log=None, chat=None, chunk_cues: int = 120, max_chars: int = 6000,
@@ -1838,6 +1884,56 @@ def calibrate(src: str, out: str = None, report: str = None, mode_flag: str = ""
         all_ref = {num: en for num, _zh, en in cues}    # 旧版只按当前块回填
         # zh/ref 列，断点续跑载入的旧条目会被写成空列，二次续跑后对不上。
 
+        # ---------- 5a. Jev 生成前分诊影子（WP4；decision_mode off/shadow 下
+        # 零行为变化：只记 would_skip/would_save，绝不改动 pending、绝不跳过
+        # 生成式；pending 全量送下方生成式循环）----------
+        _triage_shadow_preview(result, decision_client, pending, rules, base,
+                               mode_key, round_no, log)
+
+        # ---------- 5b. R0 采纳项影子复核状态（WP4；只记录，绝不拦截 accepted）。
+        # decision_mode off / client 未激活时 _r0_state["on"]=False，纯零开销。
+        result["decision_review"] = {"active": False, "mode": "off",
+                                     "reason": "not_configured",
+                                     "reviewed": 0, "routes": {},
+                                     "gate_reasons": {}, "items": [],
+                                     "errors": []}
+        _r0_state = {"on": bool(decision_client is not None
+                                and getattr(decision_client, "active", False)),
+                     "registry": None}
+
+        def _r0_shadow_review(num, old, new, why, soft):
+            """插入点 B：R0 影子复核（validate 通过后、accepted 写入前调用）。
+
+            只记录 review_change 的本地闸门复核结果到 report；questionable/
+            manual_review 仅提示，绝不撤销/拦截 accepted（R1/R2 才拦截）。
+            任何异常停用影子并记错误，采纳流程不受影响。
+            """
+            if not _r0_state["on"]:
+                return
+            rev = result["decision_review"]
+            try:
+                from features.calibrate.calib_decision import review_change
+                if _r0_state["registry"] is None:
+                    from features.calibrate.calib_evidence import _load_registry
+                    _r0_state["registry"], _src = _load_registry()
+                rec = review_change(old, new, why, soft, _r0_state["registry"])
+                rec["num"] = num
+                rev["active"] = True
+                rev["mode"] = "shadow"
+                rev["reviewed"] += 1
+                r = str(rec.get("route") or "")
+                rev["routes"][r] = rev["routes"].get(r, 0) + 1
+                if rec.get("gate"):
+                    g = str(rec["gate"])
+                    rev["gate_reasons"][g] = rev["gate_reasons"].get(g, 0) + 1
+                if len(rev["items"]) < 32:
+                    rev["items"].append(rec)
+            except Exception as e:               # noqa: BLE001 — 影子失败不影响采纳
+                _r0_state["on"] = False          # 一次异常即停用（报告注明）
+                rev["reason"] = "r0_disabled_after_error"
+                rev["errors"].append({"num": num, "error": "%s: %s"
+                                      % (type(e).__name__, str(e)[:120])})
+
         def _merge_changes(chunk, changes):
             """证据校验 + 合并（主线程串行执行，顺序确定；v1.16.0 自逐块循环拆出）。"""
             old_map = {num: zh for num, zh, _e in chunk}
@@ -1863,6 +1959,8 @@ def calibrate(src: str, out: str = None, report: str = None, mode_flag: str = ""
                     ok, why, soft = validate_rewrite(old, new, rules, excludes,
                                                      canonicals, ref_map.get(num, ""))
                 if ok:
+                    # R0 影子复核（WP4 插入点 B）：只记录，绝不拦截 accepted
+                    _r0_shadow_review(num, old_map[num], new, why, soft)
                     accepted[num] = new
                     result["accepted"].append((num, old_map[num], new, why, soft))
                 else:
@@ -3240,6 +3338,16 @@ def _write_report(path, src, out, mode_flag, round_no, result, rules) -> None:
     try:
         from features.calibrate.calib_mention_decision import render_mention_section
         lines += [""] + render_mention_section(result.get("mention_decision"))
+    except Exception:                                # noqa: BLE001
+        pass                                         # 影子小节渲染失败不影响报告主体
+    try:
+        from features.calibrate.calib_triage_decision import render_triage_section
+        lines += [""] + render_triage_section(result.get("triage"))
+    except Exception:                                # noqa: BLE001
+        pass                                         # 影子小节渲染失败不影响报告主体
+    try:
+        from features.calibrate.calib_decision import render_r0_section
+        lines += [""] + render_r0_section(result.get("decision_review"))
     except Exception:                                # noqa: BLE001
         pass                                         # 影子小节渲染失败不影响报告主体
     _write_text(path, "\n".join(lines) + "\n")

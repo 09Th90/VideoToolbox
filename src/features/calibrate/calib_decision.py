@@ -291,5 +291,110 @@ def apply_shadow(result, client, *, max_items=None, batch_size=None, log=None,
     return summary
 
 
-__all__ = ["apply_shadow", "build_request", "SCHEMA_VERSION", "EVIDENCE_SCHEMA",
-           "ROUTES", "EVIDENCE_ROUTES", "FEWSHOT_EXAMPLES"]
+# ---------------------------------------------------------------- R0 纯函数复核
+
+
+REVIEW_FIELDS_KEYS = ("meaning_preserved", "evidence_supported",
+                      "introduced_new_error", "change_risk")
+
+
+def review_change(old, new, why, soft, registry=None):
+    """R0 纯函数复核：单条 accepted 改动的本地闸门复核（不调 Jev、零网络）。
+
+    WP4 插入点 B 用（R0 影子只记录，绝不拦截 accepted；R1/R2 才拦截）。
+    本地证据闸门（_gate_route）先行：
+      * conflict  → questionable（目标冲突：meaning_preserved=False，
+                    introduced_new_error=True，change_risk=high）；
+      * missing / 非 clean_replacement → manual_review（证据不足或非最小
+                    替换：meaning_preserved 不可断言=None，change_risk=medium）；
+      * 闸门未命中 → pending_jev（本地无法闭环，交给 Jev 复核；
+                    change_risk=pending）。
+    fields 对齐附录 A.2 四字段；evidence 构造失败时按缺证据保守降级。
+    返回 {route, confidence, gate, evidence_status, official, fields}。
+    """
+    try:
+        from .calib_evidence import build_evidence
+        evidence = build_evidence(str(old), str(new), str(why), registry)
+    except Exception:  # noqa: BLE001 — 证据层不可用按 missing 保守降级
+        evidence = {"status": "missing"}
+    status = (evidence or {}).get("status")
+    gate, why_gate = _gate_route(evidence)
+    supported = status == "ok"
+    if gate:
+        fields = {
+            "meaning_preserved": False if gate == "questionable" else None,
+            "evidence_supported": supported,
+            "introduced_new_error": why_gate == "target_conflict",
+            "change_risk": "high" if gate == "questionable" else "medium",
+        }
+        return {"route": gate, "confidence": 1.0, "gate": why_gate,
+                "evidence_status": status or "missing",
+                "official": str((evidence or {}).get("official") or ""),
+                "fields": fields}
+    return {"route": "pending_jev", "confidence": None, "gate": "",
+            "evidence_status": status or "missing",
+            "official": str((evidence or {}).get("official") or ""),
+            "fields": {
+                "meaning_preserved": None,
+                "evidence_supported": supported,
+                "introduced_new_error": None,
+                "change_risk": "pending",
+            }}
+
+
+def render_r0_section(summary):
+    """渲染「附：R0 采纳项影子复核」小节（纯函数、幂等）。
+
+    R0 只记录 review_change 的本地闸门复核结果（routes / gate_reasons 分布
+    + 明细截断表），不拦截 accepted。未激活/无记录时也完整可渲染。
+    返回 list[str]，调用方自行以空行拼进报告。
+    """
+    s = dict(summary or {})
+    items = list(s.get("items") or [])
+    errors = list(s.get("errors") or [])
+    lines = ["## 附：R0 采纳项影子复核（不拦截本轮采纳项）", ""]
+    lines.append("- 激活：%s；模式：%s；采纳项复核：%d（明细截断展示 %d 条）"
+                 % ("是" if s.get("active") else "否",
+                    str(s.get("mode") or "off"),
+                    int(s.get("reviewed") or 0), len(items)))
+    if not s.get("active") and not s.get("reviewed"):
+        lines.append("- 未激活原因：%s"
+                     % str(s.get("reason") or "not_configured").replace("|", "/"))
+    routes = dict(s.get("routes") or {})
+    if routes:
+        lines.append("- 复核路线分布：" + "、".join(
+            "%s=%d" % (k, routes[k]) for k in sorted(routes)))
+    gate_reasons = dict(s.get("gate_reasons") or {})
+    if gate_reasons:
+        lines.append("- 本地闸门原因：" + "、".join(
+            "%s=%d" % (k, gate_reasons[k]) for k in sorted(gate_reasons)))
+    if errors:
+        lines.append("- 复核异常（已停用影子，不影响采纳）：" + "；".join(
+            str(e.get("error") or "").replace("|", "/") for e in errors[:3]))
+    if not items:
+        lines.append("- （无复核记录）")
+        lines.append("> R0 为影子记录：questionable/manual_review 仅提示，"
+                     "不会撤销任何 accepted 条目。")
+        return lines
+    lines += ["", "| 序号 | 路线 | 闸门 | 证据 | 目标 | 语义保留 | 风险 |",
+              "| --- | --- | --- | --- | --- | --- | --- |"]
+    for it in items:
+        f = dict(it.get("fields") or {})
+        mp = f.get("meaning_preserved")
+        lines.append("| %s | %s | %s | %s | %s | %s | %s |" % (
+            str(it.get("num") or ""),
+            str(it.get("route") or "—"),
+            str(it.get("gate") or "—").replace("|", "/"),
+            str(it.get("evidence_status") or "—"),
+            str(it.get("official") or "—").replace("|", "/") or "—",
+            {True: "是", False: "否"}.get(mp, "—"),
+            str(f.get("change_risk") or "—")))
+    lines += ["", "> R0 为影子记录：questionable/manual_review 仅提示，"
+              "不会撤销任何 accepted 条目；R1/R2 才启用拦截。"]
+    return lines
+
+
+__all__ = ["apply_shadow", "build_request", "review_change",
+           "render_r0_section", "SCHEMA_VERSION", "EVIDENCE_SCHEMA",
+           "ROUTES", "EVIDENCE_ROUTES", "FEWSHOT_EXAMPLES",
+           "REVIEW_FIELDS_KEYS"]
