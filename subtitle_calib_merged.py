@@ -13577,7 +13577,117 @@ ZHO_INFO = {
 #                                        ENTITIES 元数据完整性
 # =============================================================
 
+# =============================================================
+# 模式注册表（单一真源，2026-11-21 工程重构）
+#   新增一个片源模式 = 新建 data/<mode>.py 词表 + 本表加一条注册。
+#   字段：
+#     terms         引擎术语表名（__AKJA_MERGE__=AK_TERMS∪AK_JA_TERMS，__EMPTY__={}）
+#     ctx           引擎语境表名（None=无语境槽）
+#     project_terms 实体投影术语槽（_MODE_TERM_TABLE 值；None=不投影，如 zel/hsr/pgr）
+#     project_ctx   实体投影语境槽（_MODE_CTX_TABLE 值；None=不投影，如 endo/zho/react）
+#     name          显示名（_MODE_NAMES 值；None=不进显示名表，如 zel/hsr/pgr）
+#   三张投影视图（_MODE_TERM_TABLE/_MODE_CTX_TABLE/_MODE_NAMES）由本表推导；
+#   monolith 生成时由 build_calib_monolith 序列化为字面量（兼容旧 merge core / ast_compat）。
+#   ⚠ project_terms/project_ctx 决定 ENTITIES 投影目标，与引擎 terms/ctx 是两回事：
+#     akja 引擎用合并表但投影只登记增量 AK_JA_TERMS；zel/hsr 引擎有表但无投影槽。
+# =============================================================
+MODE_REGISTRY = {
+    "ak": {"terms": "AK_TERMS", "ctx": "AK_CONTEXT", "project_terms": "AK_TERMS", "project_ctx": "AK_CONTEXT", "name": "明日方舟"},
+    # 2026-11-03 明日方舟日语原声（奈渡ナオト 首播）：引擎 AK_TERMS∪AK_JA_TERMS，投影只登记增量表
+    "akja": {"terms": "__AKJA_MERGE__", "ctx": "AK_JA_CONTEXT", "project_terms": "AK_JA_TERMS", "project_ctx": "AK_JA_CONTEXT", "name": "日语原声·明日方舟"},
+    "akko": {"terms": "AK_KO_TERMS", "ctx": "AK_KO_CONTEXT", "project_terms": "AK_KO_TERMS", "project_ctx": "AK_KO_CONTEXT", "name": "明日方舟韩语"},
+    # 2026-11-18 Arcaea×明日方舟联动直播（英语 ASR + 微软翻译）
+    "arcak": {"terms": "ARCAK_TERMS", "ctx": "ARCAK_CONTEXT", "project_terms": "ARCAK_TERMS", "project_ctx": "ARCAK_CONTEXT", "name": "Arcaea×明日方舟"},
+    "bi": {"terms": "BILINGUAL_TERMS", "ctx": "CONTEXT_MAP", "project_terms": "BILINGUAL_TERMS", "project_ctx": "CONTEXT_MAP", "name": "中英双语"},
+    # endo 单语片每 cue 仅一行，ref 即中文行本身，英文锚定永不命中 → 不建语境槽
+    "endo": {"terms": "ENDFIELD_TERMS", "ctx": None, "project_terms": "ENDFIELD_TERMS", "project_ctx": None, "name": "终末地"},
+    # 2026-10-20 endobi 补语境槽（通用中文词类官方名靠英文参考行锚定）
+    "endobi": {"terms": "ENDFIELD_BI_TERMS", "ctx": "ENDFIELD_BI_CONTEXT", "project_terms": "ENDFIELD_BI_TERMS", "project_ctx": "ENDFIELD_BI_CONTEXT", "name": "终末地·中英双语"},
+    "endoko": {"terms": "ENDFIELD_KO_TERMS", "ctx": "ENDFIELD_KO_CONTEXT", "project_terms": "ENDFIELD_KO_TERMS", "project_ctx": "ENDFIELD_KO_CONTEXT", "name": "终末地·韩语原声"},
+    # 2026-11-01 最终幻想14（FFXIV）英语原声+谷翻 reaction
+    "ff14": {"terms": "FF14_TERMS", "ctx": "FF14_CONTEXT", "project_terms": "FF14_TERMS", "project_ctx": "FF14_CONTEXT", "name": "最终幻想14"},
+    # 2026-10-28 最终幻想：共鸣（FFRS）HD-2D 实况
+    "ffrs": {"terms": "FFRS_TERMS", "ctx": "FFRS_CONTEXT", "project_terms": "FFRS_TERMS", "project_ctx": "FFRS_CONTEXT", "name": "最终幻想：共鸣"},
+    "fix-en": {"terms": None, "ctx": None, "project_terms": None, "project_ctx": None, "name": "英文参考行修正"},
+    # 2026-11-21 少女前线2：追放（GFL2 Exilium）二周年反应片
+    "gfl2": {"terms": "GFL2_TERMS", "ctx": "GFL2_CONTEXT", "project_terms": "GFL2_TERMS", "project_ctx": "GFL2_CONTEXT", "name": "少女前线2：追放"},
+    # 2026-10-20 崩坏：星穹铁道（引擎用 HSR_CONTEXT，但无实体投影槽）
+    "hsr": {"terms": "HSR_TERMS", "ctx": "HSR_CONTEXT", "project_terms": None, "project_ctx": None, "name": None},
+    "ja": {"terms": "JA_TERMS", "ctx": "JA_CONTEXT", "project_terms": "JA_TERMS", "project_ctx": "JA_CONTEXT", "name": "日语原声·鸣潮"},
+    "jpe": {"terms": "JA_ENDFIELD_TERMS", "ctx": "JA_ENDFIELD_CONTEXT", "project_terms": "JA_ENDFIELD_TERMS", "project_ctx": "JA_ENDFIELD_CONTEXT", "name": "日语原声·终末地"},
+    "ko": {"terms": "KO_TERMS", "ctx": "KO_CONTEXT", "project_terms": "KO_TERMS", "project_ctx": "KO_CONTEXT", "name": "韩语原声·鸣潮"},
+    # 2026-10-26 边狱巴士（Limbus Company）音乐 reaction
+    "limbus": {"terms": "LIMBUS_TERMS", "ctx": "LIMBUS_CONTEXT", "project_terms": "LIMBUS_TERMS", "project_ctx": "LIMBUS_CONTEXT", "name": "边狱巴士"},
+    # 2026-10-30 影之刃零（Phantom Blade Zero）英语原声+谷翻实况
+    "pbz": {"terms": "PBZ_TERMS", "ctx": "PBZ_CONTEXT", "project_terms": "PBZ_TERMS", "project_ctx": "PBZ_CONTEXT", "name": "影之刃零"},
+    # pgr 侧车整行覆盖模式：无术语表（引擎 __EMPTY__），无投影槽
+    "pgr": {"terms": "__EMPTY__", "ctx": None, "project_terms": None, "project_ctx": None, "name": None},
+    # 2026-11-04 战双英文原声（余辉/光伏/丝带/克洛伊 全是正常中文词，禁裸键）
+    "pgren": {"terms": "PGR_EN_TERMS", "ctx": "PGR_EN_CONTEXT", "project_terms": "PGR_EN_TERMS", "project_ctx": "PGR_EN_CONTEXT", "name": "战双英文原声"},
+    # 2026-11-03 战双日语原声（联动朗读直播）：参考行日语，与 pgren 互斥
+    "pgrja": {"terms": "JA_PGR_TERMS", "ctx": "JA_PGR_CONTEXT", "project_terms": "JA_PGR_TERMS", "project_ctx": "JA_PGR_CONTEXT", "name": "日语原声·战双"},
+    # 2026-10-21 宝可梦城镇主题
+    "pkm": {"terms": "POKEMON_TERMS", "ctx": "POKEMON_CONTEXT", "project_terms": "POKEMON_TERMS", "project_ctx": "POKEMON_CONTEXT", "name": "宝可梦城镇主题"},
+    # react 引擎用 REACT_CONTEXT，但无实体投影语境槽
+    "react": {"terms": "REACT_TERMS", "ctx": "REACT_CONTEXT", "project_terms": "REACT_TERMS", "project_ctx": None, "name": "音乐点评"},
+    # 2026-11-15 星之救援者（Star Savior）英语原声+谷翻评测
+    "ssv": {"terms": "SSV_TERMS", "ctx": "SSV_CONTEXT", "project_terms": "SSV_TERMS", "project_ctx": "SSV_CONTEXT", "name": "星之救援者"},
+    # 2026-11-18 TGA 2026 游戏大奖直播（英语原声 + 微软翻译）
+    "tga26": {"terms": "TGA_TERMS", "ctx": "TGA_CONTEXT", "project_terms": "TGA_TERMS", "project_ctx": "TGA_CONTEXT", "name": "TGA 2026 游戏大奖"},
+    # 2026-11-21 鸣潮 4.0 IGN 实机演示韩语反应片
+    "wuwa40ign": {"terms": "KO_TERMS", "ctx": "WW40IGN_CONTEXT", "project_terms": "KO_TERMS", "project_ctx": "WW40IGN_CONTEXT", "name": "韩语原声·鸣潮 4.0 IGN 实机"},
+    # 2026-11-19 鸣潮 4.0 新联邦 PV 韩语反应片
+    "wuwa40ko": {"terms": "KO_TERMS", "ctx": "WW40KO_CONTEXT", "project_terms": "KO_TERMS", "project_ctx": "WW40KO_CONTEXT", "name": "韩语原声·鸣潮 4.0 新联邦 PV"},
+    # 2026-11-21 燕云十六声（Where Winds Meet）滹沱实机片
+    "wwm": {"terms": "WWM_TERMS", "ctx": "WWM_CONTEXT", "project_terms": "WWM_TERMS", "project_ctx": "WWM_CONTEXT", "name": "燕云十六声"},
+    # 2026-10-25 wwoc 补语境槽（多游戏韩语片歧义错形）
+    "wwoc": {"terms": "WWOC_TERMS", "ctx": "WWOC_CONTEXT", "project_terms": "WWOC_TERMS", "project_ctx": "WWOC_CONTEXT", "name": "综合手游OST"},
+    # 2026-09-14 塞尔达传说（引擎用 ZELDA_TERMS，无语境槽、无投影槽）
+    "zel": {"terms": "ZELDA_TERMS", "ctx": None, "project_terms": None, "project_ctx": None, "name": None},
+    "zho": {"terms": "ZH_ONLY_TERMS", "ctx": None, "project_terms": "ZH_ONLY_TERMS", "project_ctx": None, "name": "中文行专属"},
+}
+
+# 简单模式旗标（--<mode> 直接设 mode）。排除：bi（默认无旗标）、fix-en（--fix-en 布尔）、
+#   wuwa40ko/wuwa40ign（走一键重跑链，需 info+侧车装配）、wwm（原 cli 无 --wwm 简单旗标，
+#   仅经 --mode wwm 别名进入；擅自补旗标会让 --wwm 从「忽略落 bi」漂移成 wwm）。
+_NO_SIMPLE_FLAG = {"bi", "fix-en", "wuwa40ko", "wuwa40ign", "wwm"}
+_MODE_FLAGS = {"--" + m: m for m in MODE_REGISTRY if m not in _NO_SIMPLE_FLAG}
+
+# --mode 别名 → 模式（精确沿用原 elif 链 + 三元兜底的全部别名；未列出的 --mode 值落 bi）。
+#   ⚠ 别名集必须与原链逐字一致：jpe/pgrja/akko/endobi/endoko/pgren/react/wwoc 等
+#     原本就没有 --mode 别名（--mode jpe 会落 bi），不可擅自补全，否则行为漂移。
+_MODE_ALIASES = {
+    # 三元兜底组
+    "ja": "ja", "japanese": "ja",
+    "ko": "ko", "korean": "ko",
+    "ak": "ak", "arknights": "ak",
+    "zho": "zho", "zhonly": "zho", "zh_only": "zho",
+    "endo": "endo", "endfield": "endo",
+    "zel": "zel", "zelda": "zel", "legend of zelda": "zel", "zelda_direct": "zel",
+    # 显式 elif 组
+    "limbus": "limbus", "limbuscompany": "limbus", "边狱巴士": "limbus",
+    "ffrs": "ffrs", "ffresonance": "ffrs", "finalfantasyresonance": "ffrs", "共鸣": "ffrs",
+    "pkm": "pkm", "pokemon": "pkm", "pokémon": "pkm", "pocket_monsters": "pkm",
+    "hsr": "hsr", "starrail": "hsr", "star_rail": "hsr", "honkai_starrail": "hsr", "honkaistarrail": "hsr",
+    "pbz": "pbz", "phantomblade": "pbz", "phantombladezero": "pbz", "影之刃零": "pbz", "影之刃": "pbz",
+    "ff14": "ff14", "ffxiv": "ff14", "finalfantasy14": "ff14", "finalfantasixiv": "ff14",
+    "最终幻想14": "ff14", "最终幻想xiv": "ff14", "银海之天舟": "ff14",
+    "ssv": "ssv", "starsavior": "ssv", "star_savior": "ssv", "星之救援者": "ssv",
+    "arcak": "arcak", "arcakn": "arcak", "arcaea_arknights": "arcak", "arcaea×arknights": "arcak",
+    "arcaea明日方舟": "arcak", "arcaea方舟": "arcak", "arcaea联动": "arcak",
+    "tga26": "tga26", "tga2026": "tga26", "tga": "tga26", "thegameawards": "tga26",
+    "gameawards": "tga26", "游戏大奖": "tga26", "tga直播": "tga26",
+    "wwm": "wwm", "wherewindsmeet": "wwm", "where_winds_meet": "wwm",
+    "燕云十六声": "wwm", "燕云": "wwm", "yanyun": "wwm",
+    "gfl2": "gfl2", "gf2": "gfl2", "exilium": "gfl2", "gfl2exilium": "gfl2",
+    "少女前线2": "gfl2", "少女前线2：追放": "gfl2", "追放": "gfl2", "少前2": "gfl2",
+    "akja": "akja", "ak_ja": "akja", "arknights_ja": "akja", "arknightsja": "akja",
+    "明日方舟日语": "akja", "日语原声明日方舟": "akja",
+}
+
 # 模式 -> 无条件变体表 / 条件变体表（实体注册时的投影目标）
+# ⚠ 字面量顺序被 kb._kb_view 的实体 modes 累积依赖（kb-export/lookup/lint 输出顺序），
+#   不可改为字母序推导；与 MODE_REGISTRY 的 project_terms 由文件末守卫强制一致。
 _MODE_TERM_TABLE = {
     "bi": "BILINGUAL_TERMS", "ja": "JA_TERMS", "jpe": "JA_ENDFIELD_TERMS",
     "ko": "KO_TERMS", "wuwa40ko": "KO_TERMS", "wuwa40ign": "KO_TERMS", "wwoc": "WWOC_TERMS", "endo": "ENDFIELD_TERMS",
@@ -13585,30 +13695,17 @@ _MODE_TERM_TABLE = {
     "pgren": "PGR_EN_TERMS", "react": "REACT_TERMS",
     "endobi": "ENDFIELD_BI_TERMS", "endoko": "ENDFIELD_KO_TERMS",
     "pkm": "POKEMON_TERMS",
-    # 2026-10-26 新增：边狱巴士（Limbus Company）音乐 reaction 片源
     "limbus": "LIMBUS_TERMS",
-    # 2026-10-28 新增：最终幻想：共鸣（FFRS）HD-2D 实况片源
     "ffrs": "FFRS_TERMS",
-    # 2026-10-30 新增：影之刃零（Phantom Blade Zero）英语原声+谷翻实况片源
     "pbz": "PBZ_TERMS",
-    # 2026-11-01 新增：最终幻想14（FFXIV）英语原声+谷翻 reaction 片源
     "ff14": "FF14_TERMS",
-    # 2026-11-15 新增：星之救援者（Star Savior）英语原声+谷翻评测片源
     "ssv": "SSV_TERMS",
-    # 2026-11-18 新增：Arcaea × 明日方舟联动直播（英语 ASR + 微软翻译）
     "arcak": "ARCAK_TERMS",
-    # 2026-11-21 新增：燕云十六声（Where Winds Meet）实机片源
     "wwm": "WWM_TERMS",
-    # 2026-11-21 新增：少女前线2：追放（GFL2 Exilium）二周年反应片源
     "gfl2": "GFL2_TERMS",
-    # 2026-11-18 新增：TGA 2026 游戏大奖直播（英语原声 + 微软翻译）
     "tga26": "TGA_TERMS",
-    # 2026-11-03 新增：战双帕弥什**日语原声**片源（联动朗读直播）。
-    #   与既有 `pgren`（战双**英文**原声）互斥：那条通道的参考行是英语，本条是日语。
     "pgrja": "JA_PGR_TERMS",
-    # 2026-11-03 新增：明日方舟**日语原声**片源（奈渡ナオト 首播 reaction）。
-    #   与既有 `ak`（英语原声/中文行通道）互斥：那条参考行是英语，本条是日语。
-    #   运行期 engine 用 AK_TERMS ∪ AK_JA_TERMS 合并表，本表只登记**增量**那张。
+    # akja 引擎用 AK_TERMS∪AK_JA_TERMS 合并表，投影只登记增量那张
     "akja": "AK_JA_TERMS",
 }
 
@@ -13616,47 +13713,20 @@ _MODE_CTX_TABLE = {
     "bi": "CONTEXT_MAP", "ja": "JA_CONTEXT", "jpe": "JA_ENDFIELD_CONTEXT",
     "akko": "AK_KO_CONTEXT", "ko": "KO_CONTEXT", "wuwa40ko": "WW40KO_CONTEXT", "wuwa40ign": "WW40IGN_CONTEXT", "ak": "AK_CONTEXT",
     "endoko": "ENDFIELD_KO_CONTEXT", "pkm": "POKEMON_CONTEXT",
-    # 2026-10-25 新增：--wwoc 此前无语境槽，多游戏韩语片的歧义错形
-    #   （十字军/家具/反向/德州/Star Seed 等）只能逐 cue；现补 WWOC_CONTEXT。
     "wwoc": "WWOC_CONTEXT",
-    # 2026-10-20 新增：--endobi 此前无语境槽，通用中文词类官方名（枯萎/主管/以太/觉醒/
-    #   蚁人/前哨基地…）无处锚定，只能逐 cue；现补 ENDFIELD_BI_CONTEXT 与 endoko 同构。
-    #   --endo **不建槽**：单语片源每 cue 仅一行，ref 即该中文行本身，英文锚定永不命中。
+    # endo 不建槽：单语片源每 cue 仅一行，ref 即该中文行本身，英文锚定永不命中
     "endobi": "ENDFIELD_BI_CONTEXT",
-    # 2026-10-26 新增：边狱巴士音乐 reaction；Boss/Canto/乐理术语靠英文参考行锚定
     "limbus": "LIMBUS_CONTEXT",
-    # 2026-10-28 新增：最终幻想：共鸣；Visions/Stagger/Rain/Terra 等歧义词靠英文参考行锚定
     "ffrs": "FFRS_CONTEXT",
-    # 2026-10-30 新增：影之刃零；Wooa=武侠/Withering Waves=鸣潮/姿势=架势 等靠英文参考行锚定
     "pbz": "PBZ_CONTEXT",
-    # 2026-11-01 新增：最终幻想14；至冷/黎明/飞艇/地牢/收割者/旅行者/福音派 等
-    #   正常中文词的官方名（银海之天舟/金曦之遗辉/飞空艇/迷宫/钐镰客/巡天者/福音战士）
-    #   全靠英文参考行锚定，禁走裸键。
     "ff14": "FF14_CONTEXT",
-    # 2026-11-03 新增：--pgrja 的语境槽。图层/赤潮/皮肤/空中庭园/瓦妮莎 这类**正常中文词**
-    #   的官方名只能靠日语参考行锚定（裸键会把别的片源改花），故必须建槽。
     "pgrja": "JA_PGR_CONTEXT",
-    # 2026-11-03 新增：--akja 的语境槽。天灾/标志/徽标/喇叭/团聚/医生/模块/小苏打/流星/坐标/
-    #   成本/冰霜新星/深渊猎人 这类**正常中文词**的官方名（斯卡蒂/逻各斯/号角/整合运动/博士/
-    #   模组/重装/陨星/搭配/费用/霜星/深海猎人）只能靠日语参考行锚定，禁走裸键。
     "akja": "AK_JA_CONTEXT",
-    # 2026-11-04 新增：--pgren 的语境槽。余辉/光伏/丝带/克洛伊 这类**正常中文词**的官方名
-    #   （「流光抛诸寰宇」/PV/缎带/库洛）只能靠英文参考行锚定，禁走裸键。
     "pgren": "PGR_EN_CONTEXT",
-    # 2026-11-15 新增：--ssv 的语境槽。尼克/脉搏/烧灼/天井 这类**通用人名词/通用中文词**
-    #   的官方名（妮姬/星光石/烧伤/保底）只能靠英文参考行锚定，禁走裸键。
     "ssv": "SSV_CONTEXT",
-    # 2026-11-18 新增：--arcak 的语境槽。医生/操作员/老板/光谱/叛徒/光辉/奇点/活着/弧线
-    #   这类**普通中文词**的官方名（博士/干员/Boss/Spectrum/Renegade/Radiant/Singularity/
-    #   Alive/音弧）只能靠英文参考行锚定，禁走裸键。
     "arcak": "ARCAK_CONTEXT",
-    # 2026-11-21 新增：--wwm 语境槽（老板/头目/副本/地下城/军械库 等通用词只能靠英文参考行锚定）
     "wwm": "WWM_CONTEXT",
-    # 2026-11-21 新增：--gfl2 语境槽（全速前进/改装间 等正常中文词只能靠英文参考行锚定）
     "gfl2": "GFL2_CONTEXT",
-    # 2026-11-18 新增：--tga26 的语境槽。Karen/武者/轨道站/我的学术/伊代/莱/居所/
-    #   马拉松/共振/安魂曲/王牌/优生学 这类**普通中文词/人名**的官方名只能靠英文
-    #   参考行锚定，禁走裸键。
     "tga26": "TGA_CONTEXT",
 }
 
@@ -13678,6 +13748,31 @@ _MODE_NAMES = {
     "wwm": "燕云十六声",
     "gfl2": "少女前线2：追放",
 }
+
+
+# =============================================================
+# 一致性守卫：MODE_REGISTRY 是声明真源，三视图是保序字面量镜像。
+#   新增/修改模式时两处必须同步（值相等，顺序无关）；不一致即导入失败，
+#   防止注册表与投影表静默打架。引擎 terms/ctx 与投影 project_* 故意不同
+#   （akja 合并表 vs 增量投影、zel/hsr 有引擎表无投影槽），守卫只校验投影字段。
+# =============================================================
+def _check_registry_consistency():
+    proj_t = {m: e["project_terms"] for m, e in MODE_REGISTRY.items() if e["project_terms"]}
+    proj_c = {m: e["project_ctx"] for m, e in MODE_REGISTRY.items() if e["project_ctx"]}
+    proj_n = {m: e["name"] for m, e in MODE_REGISTRY.items() if e["name"]}
+    for label, proj, view in (("project_terms/_MODE_TERM_TABLE", proj_t, _MODE_TERM_TABLE),
+                              ("project_ctx/_MODE_CTX_TABLE", proj_c, _MODE_CTX_TABLE),
+                              ("name/_MODE_NAMES", proj_n, _MODE_NAMES)):
+        if proj != view:
+            only_reg = sorted(set(proj) - set(view))
+            only_view = sorted(set(view) - set(proj))
+            diff = sorted(k for k in set(proj) & set(view) if proj[k] != view[k])
+            raise SystemExit(
+                f"MODE_REGISTRY 与视图不一致 [{label}]：仅注册表 {only_reg} / "
+                f"仅视图 {only_view} / 值不同 {diff}")
+
+
+_check_registry_consistency()
 
 # ===== data/entities_base.py =====
 import io
@@ -15309,83 +15404,62 @@ CTX_TABLES = {
 
 # 预编译上下文规则：正则只编译一次，占位规则(wrong/right 为 None)剔除；
 # 应用时先查 wrong 是否出现在中文行，再跑正则，避免无谓匹配。
-_CONTEXT_COMPILED = [(re.compile(rx, re.I), wrong, right)
-                     for rx, wrong, right in CONTEXT_MAP if wrong and right]
+#
+# 2026-11-21 工程重构：各缓存由 _CTX_COMPILE_SPEC 规格表统一驱动（构建+原地重建），
+#   消除逐表复制单行与「漏重建静默失效」事故类。规格 = (缓存名, 源表, re flags, 剔除占位)。
+#   ⚠ 日语/韩语锚点（片假名/旧字体汉字/谚文）**不带 re.I**：加 re.I 无意义且放宽匹配面；
+#     拉丁/英文 ASR 锚点带 re.I（大小写不稳）。_filter=True 剔除 wrong/right 为 None 的占位规则。
+#   ⚠ 缓存名必须保持模块级可见：engine 在 import 时绑定这些 list 的引用，
+#     重建必须原地 [:] 更新（重新绑定会让 kb 运行期注入静默失效）。
+def _compile_ctx(table, flags, drop_placeholder):
+    if drop_placeholder:
+        return [(re.compile(rx, flags), wrong, right)
+                for rx, wrong, right in table if wrong and right]
+    return [(re.compile(rx, flags), wrong, right) for rx, wrong, right in table]
+
+
+_CTX_COMPILE_SPEC = [
+    ("_CONTEXT_COMPILED", CONTEXT_MAP, re.I, True),
+    ("_JA_CONTEXT_COMPILED", JA_CONTEXT, 0, False),
+    ("_JA_ENDFIELD_CONTEXT_COMPILED", JA_ENDFIELD_CONTEXT, 0, False),
+    # --pgrja 锚点是日语原文（片假名/旧字体），不带 re.I
+    ("_JA_PGR_CONTEXT_COMPILED", JA_PGR_CONTEXT, 0, False),
+    ("_AK_CONTEXT_COMPILED", AK_CONTEXT, re.I, False),
+    # --akja 锚点是日语原文（片假名/日服旧字体汉字），不带 re.I
+    ("_AK_JA_CONTEXT_COMPILED", AK_JA_CONTEXT, 0, False),
+    ("_AK_KO_CONTEXT_COMPILED", AK_KO_CONTEXT, 0, False),
+    ("_KO_CONTEXT_COMPILED", KO_CONTEXT, 0, False),
+    ("_WW40KO_CONTEXT_COMPILED", WW40KO_CONTEXT, 0, False),
+    ("_WW40IGN_CONTEXT_COMPILED", WW40IGN_CONTEXT, 0, False),
+    ("_KO_ASR_CONTEXT_COMPILED", KO_ASR_CONTEXT, 0, False),
+    ("_REACT_CONTEXT_COMPILED", REACT_CONTEXT, re.I, True),
+    ("_LIMBUS_CONTEXT_COMPILED", LIMBUS_CONTEXT, re.I, True),
+    ("_FFRS_CONTEXT_COMPILED", FFRS_CONTEXT, re.I, True),
+    ("_HSR_CONTEXT_COMPILED", HSR_CONTEXT, re.I, True),
+    ("_POKEMON_CONTEXT_COMPILED", POKEMON_CONTEXT, re.I, True),
+    ("_WWOC_CONTEXT_COMPILED", WWOC_CONTEXT, re.I, True),
+    ("_PBZ_CONTEXT_COMPILED", PBZ_CONTEXT, re.I, True),
+    ("_FF14_CONTEXT_COMPILED", FF14_CONTEXT, re.I, True),
+    # --pgren 锚点是拉丁（after glow / PV / ribbon / Chloe），带 re.I
+    ("_PGR_EN_CONTEXT_COMPILED", PGR_EN_CONTEXT, re.I, True),
+    # --ssv 锚点是拉丁（Nikke / pulse / burn / limit break），带 re.I
+    ("_SSV_CONTEXT_COMPILED", SSV_CONTEXT, re.I, True),
+    # --tga26 锚点是英文 ASR（Cairn/Onimusha/Marathon/Saros），带 re.I
+    ("_TGA_CONTEXT_COMPILED", TGA_CONTEXT, re.I, True),
+    # --arcak 锚点是英文 ASR（doctor/Originium/chart/Renegade），带 re.I
+    ("_ARCAK_CONTEXT_COMPILED", ARCAK_CONTEXT, re.I, True),
+    ("_WWM_CONTEXT_COMPILED", WWM_CONTEXT, re.I, True),
+    ("_GFL2_CONTEXT_COMPILED", GFL2_CONTEXT, re.I, True),
+    ("_ENDFIELD_KO_CONTEXT_COMPILED", ENDFIELD_KO_CONTEXT, 0, False),
+    ("_ENDFIELD_BI_CONTEXT_COMPILED", ENDFIELD_BI_CONTEXT, re.I, False),
+]
+
+# 初始构建（import 时一次；_register_entities 后再由 _rebuild_context_caches 原地重建）
+for _name, _tbl, _flags, _filt in _CTX_COMPILE_SPEC:
+    globals()[_name] = _compile_ctx(_tbl, _flags, _filt)
 
 _EXCLUDE_COMPILED = {w: (right, [re.compile(rx, re.I) for rx in rxs])
                      for w, (right, rxs) in EXCLUDE_CONTEXT.items()}
-
-_JA_CONTEXT_COMPILED = [(re.compile(rx), wrong, right) for rx, wrong, right in JA_CONTEXT]
-
-_JA_ENDFIELD_CONTEXT_COMPILED = [(re.compile(rx), wrong, right) for rx, wrong, right in JA_ENDFIELD_CONTEXT]
-
-# --pgrja 语境预编译：锚点是日语原文（片假名/旧字体），加 re.I 无意义且会放宽匹配面，
-#   与 _JA_CONTEXT_COMPILED / _JA_ENDFIELD_CONTEXT_COMPILED 同规（都不带 re.I）。
-_JA_PGR_CONTEXT_COMPILED = [(re.compile(rx), wrong, right) for rx, wrong, right in JA_PGR_CONTEXT]
-
-_AK_CONTEXT_COMPILED = [(re.compile(rx, re.I), wrong, right) for rx, wrong, right in AK_CONTEXT]
-
-# --akja 语境预编译：锚点是日语原文（片假名或日服旧字体汉字），与 _JA_CONTEXT_COMPILED /
-#   _JA_PGR_CONTEXT_COMPILED 同规**不带 re.I**（加 re.I 无意义，且会放宽汉字锚点的匹配面）。
-_AK_JA_CONTEXT_COMPILED = [(re.compile(rx), wrong, right) for rx, wrong, right in AK_JA_CONTEXT]
-
-_AK_KO_CONTEXT_COMPILED = [(re.compile(rx), wrong, right) for rx, wrong, right in AK_KO_CONTEXT]
-
-_KO_CONTEXT_COMPILED = [(re.compile(rx), wrong, right) for rx, wrong, right in KO_CONTEXT]
-_WW40KO_CONTEXT_COMPILED = [(re.compile(rx), wrong, right) for rx, wrong, right in WW40KO_CONTEXT]
-_WW40IGN_CONTEXT_COMPILED = [(re.compile(rx), wrong, right) for rx, wrong, right in WW40IGN_CONTEXT]
-
-_KO_ASR_CONTEXT_COMPILED = [(re.compile(rx), wrong, right) for rx, wrong, right in KO_ASR_CONTEXT]
-
-_REACT_CONTEXT_COMPILED = [(re.compile(rx, re.I), wrong, right)
-                           for rx, wrong, right in REACT_CONTEXT if wrong and right]
-
-_LIMBUS_CONTEXT_COMPILED = [(re.compile(rx, re.I), wrong, right)
-                             for rx, wrong, right in LIMBUS_CONTEXT if wrong and right]
-
-_FFRS_CONTEXT_COMPILED = [(re.compile(rx, re.I), wrong, right)
-                          for rx, wrong, right in FFRS_CONTEXT if wrong and right]
-
-_HSR_CONTEXT_COMPILED = [(re.compile(rx, re.I), wrong, right)
-                         for rx, wrong, right in HSR_CONTEXT if wrong and right]
-
-_POKEMON_CONTEXT_COMPILED = [(re.compile(rx, re.I), wrong, right)
-                             for rx, wrong, right in POKEMON_CONTEXT if wrong and right]
-
-_WWOC_CONTEXT_COMPILED = [(re.compile(rx, re.I), wrong, right)
-                          for rx, wrong, right in WWOC_CONTEXT if wrong and right]
-
-_PBZ_CONTEXT_COMPILED = [(re.compile(rx, re.I), wrong, right)
-                         for rx, wrong, right in PBZ_CONTEXT if wrong and right]
-
-_FF14_CONTEXT_COMPILED = [(re.compile(rx, re.I), wrong, right)
-                          for rx, wrong, right in FF14_CONTEXT if wrong and right]
-
-# 2026-11-04 --pgren 语境预编译：锚点是拉丁（after glow / PV / ribbon / Chloe），
-#   与 _WWOC/_PBZ/_FF14 同规**带 re.I**（ASR 大小写不稳）。
-_PGR_EN_CONTEXT_COMPILED = [(re.compile(rx, re.I), wrong, right)
-                             for rx, wrong, right in PGR_EN_CONTEXT if wrong and right]
-
-# 2026-11-15 --ssv 语境预编译：锚点是拉丁（Nikke / pulse / burn / limit break），
-#   与 _PGR_EN 同规带 re.I。
-_SSV_CONTEXT_COMPILED = [(re.compile(rx, re.I), wrong, right)
-                         for rx, wrong, right in SSV_CONTEXT if wrong and right]
-
-# 2026-11-18 --tga26 语境预编译：锚点是英文 ASR（Cairn/Onimusha/Marathon/Saros），
-#   与 _SSV 同规带 re.I。
-_TGA_CONTEXT_COMPILED = [(re.compile(rx, re.I), wrong, right)
-                         for rx, wrong, right in TGA_CONTEXT if wrong and right]
-
-# 2026-11-18 --arcak 语境预编译：锚点是英文 ASR（doctor/Originium/chart/Renegade），
-#   与 _SSV/_PGR_EN 同规带 re.I（ASR 大小写不稳）。
-_ARCAK_CONTEXT_COMPILED = [(re.compile(rx, re.I), wrong, right)
-                           for rx, wrong, right in ARCAK_CONTEXT if wrong and right]
-
-_WWM_CONTEXT_COMPILED = [(re.compile(rx, re.I), wrong, right)
-                         for rx, wrong, right in WWM_CONTEXT if wrong and right]
-
-_GFL2_CONTEXT_COMPILED = [(re.compile(rx, re.I), wrong, right)
-                          for rx, wrong, right in GFL2_CONTEXT if wrong and right]
 
 
 
@@ -15424,77 +15498,19 @@ def _register_entities(entities=ENTITIES):
 
 
 
-_ENDFIELD_KO_CONTEXT_COMPILED = [
-    (re.compile(rx), wrong, right) for rx, wrong, right in ENDFIELD_KO_CONTEXT
-]
-
-
-_ENDFIELD_BI_CONTEXT_COMPILED = [
-    (re.compile(rx, re.I), wrong, right) for rx, wrong, right in ENDFIELD_BI_CONTEXT
-]
-
-
-
 def _rebuild_context_caches():
     """实体注册可能追加 CONTEXT/EXCLUDE 条目，重建各预编译缓存。
 
     缓存必须原地更新：engine/其他模块在 import 时已持有这些 list/dict 的引用，
-    重新绑定会让 kb-sync 运行期注入静默失效。
+    重新绑定会让 kb-sync 运行期注入静默失效。规格表驱动：新增缓存只要进
+    _CTX_COMPILE_SPEC 即自动纳入构建与重建（消除「漏重建静默失效」事故类）。
     """
-    _CONTEXT_COMPILED[:] = [(re.compile(rx, re.I), wrong, right)
-                            for rx, wrong, right in CONTEXT_MAP if wrong and right]
+    for _name, _tbl, _flags, _filt in _CTX_COMPILE_SPEC:
+        globals()[_name][:] = _compile_ctx(_tbl, _flags, _filt)
     _EXCLUDE_COMPILED.clear()
     _EXCLUDE_COMPILED.update(
         {w: (right, [re.compile(rx, re.I) for rx in rxs])
          for w, (right, rxs) in EXCLUDE_CONTEXT.items()})
-    _JA_CONTEXT_COMPILED[:] = [(re.compile(rx), wrong, right) for rx, wrong, right in JA_CONTEXT]
-    _JA_ENDFIELD_CONTEXT_COMPILED[:] = [(re.compile(rx), wrong, right)
-                                        for rx, wrong, right in JA_ENDFIELD_CONTEXT]
-    _JA_PGR_CONTEXT_COMPILED[:] = [(re.compile(rx), wrong, right)
-                                   for rx, wrong, right in JA_PGR_CONTEXT]
-    _AK_KO_CONTEXT_COMPILED[:] = [(re.compile(rx), wrong, right) for rx, wrong, right in AK_KO_CONTEXT]
-    _KO_CONTEXT_COMPILED[:] = [(re.compile(rx), wrong, right) for rx, wrong, right in KO_CONTEXT]
-    _WW40KO_CONTEXT_COMPILED[:] = [(re.compile(rx), wrong, right) for rx, wrong, right in WW40KO_CONTEXT]
-    _WW40IGN_CONTEXT_COMPILED[:] = [(re.compile(rx), wrong, right) for rx, wrong, right in WW40IGN_CONTEXT]
-    _AK_CONTEXT_COMPILED[:] = [(re.compile(rx, re.I), wrong, right) for rx, wrong, right in AK_CONTEXT]
-    # 2026-11-03：缺这行时 --akja 的 ctx 只在首启生效，kb 运行期注入的新锚定条目会静默失效
-    #   （engine 在 import 时已持有该 list 的引用，必须原地重建而非重新绑定）。
-    _AK_JA_CONTEXT_COMPILED[:] = [(re.compile(rx), wrong, right)
-                                  for rx, wrong, right in AK_JA_CONTEXT]
-    _ENDFIELD_KO_CONTEXT_COMPILED[:] = [(re.compile(rx), wrong, right)
-                                        for rx, wrong, right in ENDFIELD_KO_CONTEXT]
-    _ENDFIELD_BI_CONTEXT_COMPILED[:] = [(re.compile(rx, re.I), wrong, right)
-                                        for rx, wrong, right in ENDFIELD_BI_CONTEXT]
-    _HSR_CONTEXT_COMPILED[:] = [(re.compile(rx, re.I), wrong, right)
-                                for rx, wrong, right in HSR_CONTEXT if wrong and right]
-    _LIMBUS_CONTEXT_COMPILED[:] = [(re.compile(rx, re.I), wrong, right)
-                                   for rx, wrong, right in LIMBUS_CONTEXT if wrong and right]
-    _FFRS_CONTEXT_COMPILED[:] = [(re.compile(rx, re.I), wrong, right)
-                                 for rx, wrong, right in FFRS_CONTEXT if wrong and right]
-    _POKEMON_CONTEXT_COMPILED[:] = [(re.compile(rx, re.I), wrong, right)
-                                    for rx, wrong, right in POKEMON_CONTEXT if wrong and right]
-    _WWOC_CONTEXT_COMPILED[:] = [(re.compile(rx, re.I), wrong, right)
-                                 for rx, wrong, right in WWOC_CONTEXT if wrong and right]
-    _PBZ_CONTEXT_COMPILED[:] = [(re.compile(rx, re.I), wrong, right)
-                                for rx, wrong, right in PBZ_CONTEXT if wrong and right]
-    _FF14_CONTEXT_COMPILED[:] = [(re.compile(rx, re.I), wrong, right)
-                                 for rx, wrong, right in FF14_CONTEXT if wrong and right]
-    # 2026-11-04：同 _AK_JA_CONTEXT_COMPILED 的教训——不原地重建，kb 运行期注入的新锚条目会静默失效
-    _PGR_EN_CONTEXT_COMPILED[:] = [(re.compile(rx, re.I), wrong, right)
-                                   for rx, wrong, right in PGR_EN_CONTEXT if wrong and right]
-    _SSV_CONTEXT_COMPILED[:] = [(re.compile(rx, re.I), wrong, right)
-                                for rx, wrong, right in SSV_CONTEXT if wrong and right]
-    # 2026-11-18：同 _SSV 的教训——不原地重建，kb 运行期注入的 tga26 锚条目会静默失效
-    _TGA_CONTEXT_COMPILED[:] = [(re.compile(rx, re.I), wrong, right)
-                                for rx, wrong, right in TGA_CONTEXT if wrong and right]
-    # 2026-11-18：同 _SSV 的教训——不原地重建，kb 运行期注入的 arcak 锚条目会静默失效
-    _ARCAK_CONTEXT_COMPILED[:] = [(re.compile(rx, re.I), wrong, right)
-                                  for rx, wrong, right in ARCAK_CONTEXT if wrong and right]
-    # 2026-11-21：同 _ARCAK 的教训——不原地重建，wwm 运行期注入会静默失效
-    _WWM_CONTEXT_COMPILED[:] = [(re.compile(rx, re.I), wrong, right)
-                                for rx, wrong, right in WWM_CONTEXT if wrong and right]
-    _GFL2_CONTEXT_COMPILED[:] = [(re.compile(rx, re.I), wrong, right)
-                                 for rx, wrong, right in GFL2_CONTEXT if wrong and right]
 
 
 
@@ -15546,6 +15562,96 @@ def _restore_override_prefix(old, new):
     return new
 
 
+def _resolve_terms(mode):
+    """按注册表解析模式术语表。akja=AK_TERMS∪AK_JA_TERMS 合并表、pgr=空表为特例；
+    未知模式落 BILINGUAL_TERMS（与原 else 分支一致）。表对象取自 state.TABLES。"""
+    spec = MODE_REGISTRY.get(mode)
+    tname = spec["terms"] if spec else "BILINGUAL_TERMS"
+    if tname == "__AKJA_MERGE__":
+        # 合并而非链式跑两遍：两遍会让第一遍产出被第二遍短键二次命中；
+        # 合并成一张表后由 _compile_map 键长降序单遍扫描兜住（同名键以 AK_JA_TERMS 为准）。
+        merged = dict(AK_TERMS)
+        merged.update(AK_JA_TERMS)
+        return merged
+    if tname == "__EMPTY__":
+        return {}
+    if not tname:
+        return BILINGUAL_TERMS
+    return TABLES[tname]
+
+
+# 版式分发：首中文行模式（规则版式）由注册表自动归类，特例模式单独分支处理。
+#   新增一个「首中文行 + 语境锚定」片源模式 = 注册表加一条（terms/ctx），引擎自动走通用路径。
+_SPECIAL_MODES = {"bi", "pgr", "ko", "wuwa40ko", "wuwa40ign", "ak", "arcak", "endo", "fix-en"}
+_FIRST_ZH_MODES = {m for m in MODE_REGISTRY if m not in _SPECIAL_MODES}
+_FIRST_ZH_EXCLUDE = {"pgren"}        # 首中文行模式里消费 EXCLUDE 回滚层的
+_FIRST_ZH_OVERRIDE = {"wwm"}         # 首中文行模式里支持侧车整行覆盖的
+
+# 语境表名 → 预编译缓存（与 state._CTX_COMPILE_SPEC 同源；供注册表 ctx 字段查缓存）
+_COMPILED_BY_CTX = {
+    "CONTEXT_MAP": _CONTEXT_COMPILED,
+    "JA_CONTEXT": _JA_CONTEXT_COMPILED,
+    "JA_ENDFIELD_CONTEXT": _JA_ENDFIELD_CONTEXT_COMPILED,
+    "JA_PGR_CONTEXT": _JA_PGR_CONTEXT_COMPILED,
+    "AK_CONTEXT": _AK_CONTEXT_COMPILED,
+    "AK_JA_CONTEXT": _AK_JA_CONTEXT_COMPILED,
+    "AK_KO_CONTEXT": _AK_KO_CONTEXT_COMPILED,
+    "KO_CONTEXT": _KO_CONTEXT_COMPILED,
+    "WW40KO_CONTEXT": _WW40KO_CONTEXT_COMPILED,
+    "WW40IGN_CONTEXT": _WW40IGN_CONTEXT_COMPILED,
+    "KO_ASR_CONTEXT": _KO_ASR_CONTEXT_COMPILED,
+    "REACT_CONTEXT": _REACT_CONTEXT_COMPILED,
+    "LIMBUS_CONTEXT": _LIMBUS_CONTEXT_COMPILED,
+    "FFRS_CONTEXT": _FFRS_CONTEXT_COMPILED,
+    "HSR_CONTEXT": _HSR_CONTEXT_COMPILED,
+    "POKEMON_CONTEXT": _POKEMON_CONTEXT_COMPILED,
+    "WWOC_CONTEXT": _WWOC_CONTEXT_COMPILED,
+    "PBZ_CONTEXT": _PBZ_CONTEXT_COMPILED,
+    "FF14_CONTEXT": _FF14_CONTEXT_COMPILED,
+    "PGR_EN_CONTEXT": _PGR_EN_CONTEXT_COMPILED,
+    "SSV_CONTEXT": _SSV_CONTEXT_COMPILED,
+    "TGA_CONTEXT": _TGA_CONTEXT_COMPILED,
+    "ARCAK_CONTEXT": _ARCAK_CONTEXT_COMPILED,
+    "WWM_CONTEXT": _WWM_CONTEXT_COMPILED,
+    "GFL2_CONTEXT": _GFL2_CONTEXT_COMPILED,
+    "ENDFIELD_KO_CONTEXT": _ENDFIELD_KO_CONTEXT_COMPILED,
+    "ENDFIELD_BI_CONTEXT": _ENDFIELD_BI_CONTEXT_COMPILED,
+}
+
+
+def _first_zh_ctx(mode):
+    """首中文行模式的语境缓存（注册表 ctx 字段查表；None/无槽 → 空表，即纯术语替换）。"""
+    return _COMPILED_BY_CTX.get(MODE_REGISTRY[mode]["ctx"]) or []
+
+
+def _calib_first_zh(old, ref_m, ctx_compiled, term_pairs, term_chars, hits,
+                    num, ref, out, zh_idx, rows,
+                    exclude=False, bi_override=None, bi_override_preserve=False):
+    """规则「首中文行」版式：术语替换 + 语境锚定（ref_m）+ 可选 EXCLUDE 回滚 + 可选侧车覆盖。
+
+    统一 react/hsr/ff14/pkm/limbus/ffrs/pbz/ssv/tga26/wwoc/pgren/zel/ja/jpe/pgrja/
+    akja/akko/wwm/gfl2/zho/endobi/endoko 等模式（仅 ctx 缓存与 exclude/override 旗标不同）。
+    侧车命中即整行覆盖（不叠加术语表）；否则术语+ctx，exclude 模式再按参考行回滚高歧义词。
+    """
+    if bi_override and str(num) in bi_override:
+        new = bi_override[str(num)]
+        if bi_override_preserve:
+            new = _restore_override_prefix(old, new)
+    else:
+        new = _replace_report(old, term_pairs, term_chars, hits)
+        for crx, wrong, right in ctx_compiled:
+            if wrong in new and crx.search(ref_m):
+                new = _ctx_replace(new, wrong, right)
+        if exclude:
+            for wrong, (right, rxs) in _EXCLUDE_COMPILED.items():
+                if wrong in old and wrong not in new and any(rx.search(ref_m) for rx in rxs):
+                    new = new.replace(right, wrong)
+                    hits.pop(wrong, None)
+    if new != old:
+        rows.append((num, old, new, ref))
+        out[zh_idx] = new
+
+
 def process(path, out_path=None, report_path=None, mode="bi",
             fix_en=False, pgr_override=None, learned_kb=None, bi_override=None,
             bi_override_preserve=False, ko_override=None, ko_override_preserve=False,
@@ -15581,64 +15687,7 @@ def process(path, out_path=None, report_path=None, mode="bi",
     参考行锚定（CONTEXT/EXCLUDE）一律先经 _ref_for_match 规整（ASR 断词容错），
     但默认输出的参考行保持原样，只有 fix_en=True 才写回。
     """
-    if mode in ("ko", "wuwa40ko", "wuwa40ign"):
-        terms = KO_TERMS
-    elif mode == "ja":
-        terms = JA_TERMS
-    elif mode == "jpe":                 # 日语原声·终末地：JA_ENDFIELD_TERMS + 上下文佐证
-        terms = JA_ENDFIELD_TERMS
-    elif mode == "pgrja":               # 日语原声·战双：JA_PGR_TERMS + 上下文佐证
-        terms = JA_PGR_TERMS
-    elif mode == "akja":               # 日语原声·明日方舟：AK_TERMS ∪ AK_JA_TERMS + 日语行佐证
-        # 合并而非链式跑两遍：两遍会让第一遍的产出被第二遍的短键二次命中（terms-check 只查
-        # 单表内，查不到跨表咬键）；合并成一张表后由 _compile_map 的**键长降序**单遍扫描兜住。
-        # 同名键以 AK_JA_TERMS 为准（实测两表同名键 0 条，此处仅为将来的覆盖语义明确）。
-        terms = dict(AK_TERMS)
-        terms.update(AK_JA_TERMS)
-    elif mode == "wwoc":
-        terms = WWOC_TERMS
-    elif mode == "endo":
-        terms = ENDFIELD_TERMS
-    elif mode == "endobi":     # 终末地·中英双语片源：只改首中文行（英文参考行不动）
-        terms = ENDFIELD_BI_TERMS
-    elif mode == "endoko":     # 终末地·韩语原声片源：只改首中文行（韩语参考行不动）
-        terms = ENDFIELD_KO_TERMS
-    elif mode in ("ak", "zho"):
-        terms = AK_TERMS if mode == "ak" else ZH_ONLY_TERMS
-    elif mode == "pgren":       # 战双帕弥什·英文原声（中英双语片源）：PGR_EN_TERMS 统一首中文行
-        terms = PGR_EN_TERMS
-    elif mode == "akko":        # 明日方舟韩语原声：AK_KO_TERMS + AK_KO_CONTEXT(韩语佐证)
-        terms = AK_KO_TERMS
-    elif mode == "react":
-        terms = REACT_TERMS
-    elif mode == "zel":         # 塞尔达传说片源（2026-09-14 新增）：ZELDA_TERMS 统一首中文行，独立于其它片源表
-        terms = ZELDA_TERMS
-    elif mode == "hsr":         # 崩坏：星穹铁道片源（2026-10-20 新增）：HSR_TERMS + HSR_CONTEXT，独立于其它片源表
-        terms = HSR_TERMS
-    elif mode == "pkm":         # 宝可梦片源（2026-10-21 新增）：POKEMON_TERMS + POKEMON_CONTEXT，独立于其它片源表
-        terms = POKEMON_TERMS
-    elif mode == "limbus":      # 边狱巴士片源（2026-10-26 新增）：LIMBUS_TERMS + LIMBUS_CONTEXT，独立于其它片源表
-        terms = LIMBUS_TERMS
-    elif mode == "ffrs":        # 最终幻想：共鸣（2026-10-28 新增）：FFRS_TERMS + FFRS_CONTEXT
-        terms = FFRS_TERMS
-    elif mode == "pbz":         # 影之刃零（2026-10-30 新增）：PBZ_TERMS + PBZ_CONTEXT
-        terms = PBZ_TERMS
-    elif mode == "ff14":        # 最终幻想14（2026-11-01 新增）：FF14_TERMS + FF14_CONTEXT，
-        terms = FF14_TERMS      #   与 --bi 严格隔离（bi 键会把「残酷天使/使徒/噩梦」改坏）
-    elif mode == "ssv":         # 星之救援者（2026-11-15 新增）：SSV_TERMS + SSV_CONTEXT
-        terms = SSV_TERMS
-    elif mode == "tga26":       # TGA 2026 游戏大奖直播（2026-11-18 新增）：TGA_TERMS + TGA_CONTEXT
-        terms = TGA_TERMS
-    elif mode == "arcak":       # Arcaea×明日方舟联动直播（2026-11-18 新增）：ARCAK_TERMS + ARCAK_CONTEXT
-        terms = ARCAK_TERMS
-    elif mode == "wwm":         # 燕云十六声（2026-11-21 新增）：WWM_TERMS + WWM_CONTEXT
-        terms = WWM_TERMS
-    elif mode == "gfl2":        # 少女前线2：追放（2026-11-21 新增）：GFL2_TERMS + GFL2_CONTEXT
-        terms = GFL2_TERMS
-    elif mode == "pgr":
-        terms = {}
-    else:
-        terms = BILINGUAL_TERMS
+    terms = _resolve_terms(mode)
     # 学习系统注入：confirmed 规则并入本模式术语表（与既有键冲突时跳过并告警）
     if learned_kb:
         lt = _learned_terms_for_mode(learned_kb, mode)
@@ -15763,78 +15812,13 @@ def process(path, out_path=None, report_path=None, mode="bi",
                         if new != old:
                             rows.append((num, old, new, ref))
                             out[zh_idx] = new
-                    elif mode == "react":     # 音乐/演唱点评：REACT_TERMS 统一首中文行 + REACT_CONTEXT 参考行佐证歧义词
-                        new = _replace_report(old, term_pairs, term_chars, hits)
-                        for crx, wrong, right in _REACT_CONTEXT_COMPILED:
-                            if wrong in new and crx.search(ref_m):
-                                new = _ctx_replace(new, wrong, right)
-                        if new != old:
-                            rows.append((num, old, new, ref))
-                            out[zh_idx] = new
-                    elif mode == "hsr":       # 崩坏：星穹铁道：HSR_TERMS 统一首中文行 + HSR_CONTEXT 英文参考行佐证
-                        new = _replace_report(old, term_pairs, term_chars, hits)
-                        for crx, wrong, right in _HSR_CONTEXT_COMPILED:
-                            if wrong in new and crx.search(ref_m):
-                                new = _ctx_replace(new, wrong, right)
-                        if new != old:
-                            rows.append((num, old, new, ref))
-                            out[zh_idx] = new
-                    elif mode == "ff14":      # 最终幻想14：FF14_TERMS 统一首中文行 + FF14_CONTEXT 英文参考行佐证
-                        new = _replace_report(old, term_pairs, term_chars, hits)
-                        for crx, wrong, right in _FF14_CONTEXT_COMPILED:
-                            if wrong in new and crx.search(ref_m):
-                                new = _ctx_replace(new, wrong, right)
-                        if new != old:
-                            rows.append((num, old, new, ref))
-                            out[zh_idx] = new
-                    elif mode == "pkm":       # 宝可梦：POKEMON_TERMS 统一首中文行 + POKEMON_CONTEXT 英文参考行佐证
-                        new = _replace_report(old, term_pairs, term_chars, hits)
-                        for crx, wrong, right in _POKEMON_CONTEXT_COMPILED:
-                            if wrong in new and crx.search(ref_m):
-                                new = _ctx_replace(new, wrong, right)
-                        if new != old:
-                            rows.append((num, old, new, ref))
-                            out[zh_idx] = new
-                    elif mode == "limbus":    # 边狱巴士：LIMBUS_TERMS 统一首中文行 + LIMBUS_CONTEXT 英文参考行佐证
-                        new = _replace_report(old, term_pairs, term_chars, hits)
-                        for crx, wrong, right in _LIMBUS_CONTEXT_COMPILED:
-                            if wrong in new and crx.search(ref_m):
-                                new = _ctx_replace(new, wrong, right)
-                        if new != old:
-                            rows.append((num, old, new, ref))
-                            out[zh_idx] = new
-                    elif mode == "ffrs":      # 最终幻想：共鸣：FFRS_TERMS + FFRS_CONTEXT 英文参考行佐证
-                        new = _replace_report(old, term_pairs, term_chars, hits)
-                        for crx, wrong, right in _FFRS_CONTEXT_COMPILED:
-                            if wrong in new and crx.search(ref_m):
-                                new = _ctx_replace(new, wrong, right)
-                        if new != old:
-                            rows.append((num, old, new, ref))
-                            out[zh_idx] = new
-                    elif mode == "pbz":       # 影之刃零：PBZ_TERMS + PBZ_CONTEXT 英文参考行佐证
-                        new = _replace_report(old, term_pairs, term_chars, hits)
-                        for crx, wrong, right in _PBZ_CONTEXT_COMPILED:
-                            if wrong in new and crx.search(ref_m):
-                                new = _ctx_replace(new, wrong, right)
-                        if new != old:
-                            rows.append((num, old, new, ref))
-                            out[zh_idx] = new
-                    elif mode == "ssv":       # 星之救援者：SSV_TERMS + SSV_CONTEXT 英文参考行佐证
-                        new = _replace_report(old, term_pairs, term_chars, hits)
-                        for crx, wrong, right in _SSV_CONTEXT_COMPILED:
-                            if wrong in new and crx.search(ref_m):
-                                new = _ctx_replace(new, wrong, right)
-                        if new != old:
-                            rows.append((num, old, new, ref))
-                            out[zh_idx] = new
-                    elif mode == "tga26":     # TGA 2026 游戏大奖直播：TGA_TERMS + TGA_CONTEXT 英文参考行佐证
-                        new = _replace_report(old, term_pairs, term_chars, hits)
-                        for crx, wrong, right in _TGA_CONTEXT_COMPILED:
-                            if wrong in new and crx.search(ref_m):
-                                new = _ctx_replace(new, wrong, right)
-                        if new != old:
-                            rows.append((num, old, new, ref))
-                            out[zh_idx] = new
+                    elif mode in _FIRST_ZH_MODES:
+                        # 规则「首中文行」版式统一路径（ctx/exclude/override 由注册表+旗标集驱动）
+                        _calib_first_zh(old, ref_m, _first_zh_ctx(mode), term_pairs, term_chars,
+                                        hits, num, ref, out, zh_idx, rows,
+                                        exclude=mode in _FIRST_ZH_EXCLUDE,
+                                        bi_override=bi_override if mode in _FIRST_ZH_OVERRIDE else None,
+                                        bi_override_preserve=bi_override_preserve)
                     elif mode in ("ko", "wuwa40ko", "wuwa40ign"):       # 韩语原声·鸣潮：KO_TERMS + KO_CONTEXT/WW40KO_CONTEXT 校准**全部中文行**
                         # 2026-10-06 修复（梦州 4장4막 二次校准定位的根因）：谷翻反应片每 cue
                         #   常见「中文 2 行 + 谚文 2 行」结构。旧实现只改首文本行、锚点只取末行
@@ -15910,81 +15894,6 @@ def process(path, out_path=None, report_path=None, mode="bi",
                             if new != lold:
                                 rows.append((num, lold, new, ref))
                                 out[ti] = new
-                    elif mode == "wwoc":      # 综合手游 OST 世界杯：术语表 + 参考行佐证的歧义错形
-                        new = _replace_report(old, term_pairs, term_chars, hits)
-                        for crx, wrong, right in _WWOC_CONTEXT_COMPILED:
-                            if wrong in new and crx.search(ref_m):
-                                new = _ctx_replace(new, wrong, right)
-                        if new != old:
-                            rows.append((num, old, new, ref))
-                            out[zh_idx] = new
-                    elif mode == "pgren":   # 战双英文原声：PGR_EN_TERMS + PGR_EN_CONTEXT(英文行佐证)
-                        # 2026-11-04 从 ("pgren","zel") 合并分支拆出：zel 没有语境槽，
-                        #   合并会让塞尔达片吃到战双锚点（丝带/克洛伊 都是正常中文词）。
-                        new = _replace_report(old, term_pairs, term_chars, hits)
-                        for crx, wrong, right in _PGR_EN_CONTEXT_COMPILED:
-                            if wrong in new and crx.search(ref_m):
-                                new = _ctx_replace(new, wrong, right)
-                        # 2026-11-09：pgren 补「负向排除回滚」，与 bi/ak 分支同构。
-                        #   动机：既有裸键「皮肤→涂装」把 EN 'Dark skin'(肤色) 改成「黑涂装」；
-                        #   EXCLUDE_CONTEXT 此前只在 bi/ak 生效，pgren 片无从回滚。
-                        for wrong, (right, rxs) in _EXCLUDE_COMPILED.items():
-                            if wrong in old and wrong not in new and any(rx.search(ref_m) for rx in rxs):
-                                new = new.replace(right, wrong)
-                                hits.pop(wrong, None)
-                        if new != old:
-                            rows.append((num, old, new, ref))
-                            out[zh_idx] = new
-                    elif mode == "zel":     # 塞尔达：统一首中文行术语（不动参考行，无语境槽）
-                        new = _replace_report(old, term_pairs, term_chars, hits)
-                        if new != old:
-                            rows.append((num, old, new, ref))
-                            out[zh_idx] = new
-                    elif mode == "ja":          # 日语原声：JA_TERMS + JA_CONTEXT(日语行佐证) 统一首中文行
-                        new = _replace_report(old, term_pairs, term_chars, hits)
-                        for crx, wrong, right in _JA_CONTEXT_COMPILED:
-                            if wrong in new and crx.search(ref_m):
-                                new = _ctx_replace(new, wrong, right)
-                        if new != old:
-                            rows.append((num, old, new, ref))
-                            out[zh_idx] = new
-                    elif mode == "jpe":         # 日语原声·终末地：JA_ENDFIELD_TERMS + 上下文佐证
-                        new = _replace_report(old, term_pairs, term_chars, hits)
-                        for crx, wrong, right in _JA_ENDFIELD_CONTEXT_COMPILED:
-                            if wrong in new and crx.search(ref_m):
-                                new = _ctx_replace(new, wrong, right)
-                        if new != old:
-                            rows.append((num, old, new, ref))
-                            out[zh_idx] = new
-                    elif mode == "pgrja":       # 日语原声·战双：JA_PGR_TERMS + JA_PGR_CONTEXT(日语行佐证)
-                        new = _replace_report(old, term_pairs, term_chars, hits)
-                        for crx, wrong, right in _JA_PGR_CONTEXT_COMPILED:
-                            if wrong in new and crx.search(ref_m):
-                                new = _ctx_replace(new, wrong, right)
-                        if new != old:
-                            rows.append((num, old, new, ref))
-                            out[zh_idx] = new
-                    elif mode == "akja":        # 日语原声·明日方舟：AK_TERMS∪AK_JA_TERMS + AK_JA_CONTEXT(日语行佐证)
-                        # 分支形状照 jpe/pgrja（只写首中文行、锚点 ref_m），**不照 ak**：
-                        # ak 分支要求 ak_en(ref_pos) 非空，而本片有 61 条**纯汉字日语参考行**
-                        # （#78 四四章、#859 陽光騎士…）被 _split_cue_text 判成中文行 ⇒ ref_pos 为空
-                        # ⇒ 走 ak 分支时那些行上的语境锚定永不命中。jpe 形状在 ref 缺失时把锚点
-                        # 回落到末文本行（本条 cue 即那条日语汉字行），既能命中又不写参考行。
-                        new = _replace_report(old, term_pairs, term_chars, hits)
-                        for crx, wrong, right in _AK_JA_CONTEXT_COMPILED:
-                            if wrong in new and crx.search(ref_m):
-                                new = _ctx_replace(new, wrong, right)
-                        if new != old:
-                            rows.append((num, old, new, ref))
-                            out[zh_idx] = new
-                    elif mode == "akko":        # 明日方舟韩语原声：AK_KO_TERMS + AK_KO_CONTEXT(韩语行佐证) 统一首中文行
-                        new = _replace_report(old, term_pairs, term_chars, hits)
-                        for crx, wrong, right in _AK_KO_CONTEXT_COMPILED:
-                            if wrong in new and crx.search(ref_m):
-                                new = _ctx_replace(new, wrong, right)
-                        if new != old:
-                            rows.append((num, old, new, ref))
-                            out[zh_idx] = new
                     elif mode == "ak":          # 明日方舟本体：AK_TERMS + AK_CONTEXT(英文参考行佐证)
                         # 2026-10-14 改造（《All You Should Know in Arknights Next Update!》逐句复查定位根因）：
                         #   谷翻片每 cue 常见「中文 2 行 + 英文 2 行」。旧实现只改首中文行、锚点只取末行英文 →
@@ -16058,59 +15967,6 @@ def process(path, out_path=None, report_path=None, mode="bi",
                             if new != old:
                                 rows.append((num, old, new, ref))
                                 out[zh_idx] = new
-                    elif mode == "wwm":         # 燕云十六声：WWM_TERMS + WWM_CONTEXT 英文参考行佐证
-                        # 2026-11-21：滹沱实机片。侧车命中即整行覆盖（终稿已含 >> 前缀），
-                        #   不叠加术语表；与 bi 严格隔离，避免「小莫→霞末」等专名污染方舟片。
-                        if bi_override and str(num) in bi_override:
-                            new = bi_override[str(num)]
-                            if bi_override_preserve:
-                                new = _restore_override_prefix(old, new)
-                        else:
-                            new = _replace_report(old, term_pairs, term_chars, hits)
-                            for crx, wrong, right in _WWM_CONTEXT_COMPILED:
-                                if wrong in new and crx.search(ref_m):
-                                    new = _ctx_replace(new, wrong, right)
-                        if new != old:
-                            rows.append((num, old, new, ref))
-                            out[zh_idx] = new
-                    elif mode == "gfl2":        # 少女前线2：追放：GFL2_TERMS + GFL2_CONTEXT 英文参考行佐证
-                        # 2026-11-21：二周年反应片。与 bi 严格隔离，避免「切尔诺贝利→切尔诺伯格」
-                        #   等仅在 gfl2 模式成立的替换污染其它片源。
-                        new = _replace_report(old, term_pairs, term_chars, hits)
-                        for crx, wrong, right in _GFL2_CONTEXT_COMPILED:
-                            if wrong in new and crx.search(ref_m):
-                                new = _ctx_replace(new, wrong, right)
-                        if new != old:
-                            rows.append((num, old, new, ref))
-                            out[zh_idx] = new
-                    elif mode == "zho":         # 中文行专属：统一首中文行
-                        new = _replace_report(old, term_pairs, term_chars, hits)
-                        if new != old:
-                            rows.append((num, old, new, ref))
-                            out[zh_idx] = new
-                    elif mode == "endobi":     # 终末地·中英双语：只改首中文行
-                        new = _replace_report(old, term_pairs, term_chars, hits)
-                        # 2026-10-20 补：ENDFIELD_BI_CONTEXT 用英文参考行佐证「错形本身是通用
-                        #   中文词」的官方名（枯萎→侵蚀 / 主管→监督 / 以太→超域 / 觉醒→苏醒 /
-                        #   蚁人→管理员 / 前哨基地→据点 / 崩溃→猛击…）。此前 endobi 无语境槽，
-                        #   这类错形只能逐 cue 手改；锚点匹配的是文件里实际存在的 ASR 英文。
-                        for crx, wrong, right in _ENDFIELD_BI_CONTEXT_COMPILED:
-                            if wrong in new and crx.search(ref_m):
-                                new = _ctx_replace(new, wrong, right)
-                        if new != old:
-                            rows.append((num, old, new, ref))
-                            out[zh_idx] = new
-                    elif mode == "endoko":     # 终末地·韩语原声：ENDFIELD_KO_TERMS 只改首中文行，
-                        #   并用 ENDFIELD_KO_CONTEXT（韩语参考行正则佐证）修「普通中文词」误译
-                        #   —— 2026-10-13 新增：恶魔→邪魔 / 按摩→安玛 / 排名第三→萨米
-                        #   （这三条都是通用中文词，裸键会误伤，必须韩语行锚定）。
-                        new = _replace_report(old, term_pairs, term_chars, hits)
-                        for crx, wrong, right in _ENDFIELD_KO_CONTEXT_COMPILED:
-                            if wrong in new and crx.search(ref_m):
-                                new = _ctx_replace(new, wrong, right)
-                        if new != old:
-                            rows.append((num, old, new, ref))
-                            out[zh_idx] = new
                     elif mode == "endo":       # 终末地模式：ENDFIELD_TERMS 统一全部中文行
                         # 2026-10-23：改为只改中文行；单语终末地片源等价于原“全部文本行”，
                         # 双语片源不会再误改英文参考行（应改用 --endobi）。
@@ -17114,15 +16970,6 @@ def _cmd_align_audit(src, out, window=5, ratio=1.45, min_ratio=0.45, quiet=False
 
 
 
-_MARKER_PRE = re.compile(r"^>>[ 	]*")
-
-
-def _MARKER_PREFIX(s):
-    """取行首说话人标记（含 `>>` 后的空格/制表符原样），无标记返回空串。"""
-    m = _MARKER_PRE.match(s)
-    return m.group(0) if m else ""
-
-
 def _cmd_verify(src, out, allow_marker_drop=False):
     """verify：校验两个 SRT cue数/序号/时间轴/参考行/换行/BOM 全一致，仅内容文本行变化。
 
@@ -17256,6 +17103,29 @@ def _cmd_compare(src, out, tsv):
 
 
 
+# 漏译体检规则表分发（mode → 规则表元组；数据驱动，替代原 if 链）。
+#   jpe 双表（日语表 + 英文兜底，英文表对日文行不命中仅多一轮空锚）；
+#   wuwa/wuwa-bi/ww 是 missing 命令专用别名（非校准模式）。各 mode 条件互斥，元组保序。
+_MISSING_RULES_BY_MODE = {
+    "endo": (ENDFIELD_MISSING_CHECK,),
+    "endobi": (ENDFIELD_MISSING_CHECK,),
+    "endoko": (ENDFIELD_MISSING_CHECK,),
+    "jpe": (JA_ENDFIELD_MISSING_CHECK, ENDFIELD_MISSING_CHECK),
+    "wuwa": (WUWA_MISSING_CHECK,),
+    "wuwa-bi": (WUWA_MISSING_CHECK,),
+    "ww": (WUWA_MISSING_CHECK,),
+    "ak": (AK_MISSING_CHECK,),
+    "pbz": (PBZ_MISSING_CHECK,),
+    "ssv": (SSV_MISSING_CHECK,),
+    "tga26": (TGA_MISSING_CHECK,),
+    "arcak": (ARCAK_MISSING_CHECK,),
+    "wwm": (WWM_MISSING_CHECK,),
+    "gfl2": (GFL2_MISSING_CHECK,),
+    "pgren": (PGR_MISSING_CHECK,),
+    "ko": (KO_MISSING_CHECK,),
+}
+
+
 def _load_missing_rules(mode=None, file=None):
     """漏译体检规则：--mode endo 取内置 ENDFIELD_MISSING_CHECK；--mode jpe 取
     JA_ENDFIELD_MISSING_CHECK（日语正则锚日文参考行）并保留英文表兜底；
@@ -17265,32 +17135,8 @@ def _load_missing_rules(mode=None, file=None):
     原声表 PGR_MISSING_CHECK（正则写拉丁，锚英文参考行）；--file 追加 TSV
     （每行：参考行正则<TAB>中文必现词1|词2[<TAB>说明]，# 开头注释）。"""
     rules = []
-    if mode in ("endo", "endobi", "endoko"):
-        rules.extend(ENDFIELD_MISSING_CHECK)
-    if mode == "jpe":
-        rules.extend(JA_ENDFIELD_MISSING_CHECK)
-        # 兼容旧 jpe 调用：英文表对日文行不会命中，仅多一轮空锚，不产生误报。
-        rules.extend(ENDFIELD_MISSING_CHECK)
-    if mode in ("wuwa", "wuwa-bi", "ww"):
-        rules.extend(WUWA_MISSING_CHECK)
-    if mode == "ak":
-        rules.extend(AK_MISSING_CHECK)
-    if mode == "pbz":
-        rules.extend(PBZ_MISSING_CHECK)
-    if mode == "ssv":
-        rules.extend(SSV_MISSING_CHECK)
-    if mode == "tga26":
-        rules.extend(TGA_MISSING_CHECK)
-    if mode == "arcak":
-        rules.extend(ARCAK_MISSING_CHECK)
-    if mode == "wwm":
-        rules.extend(WWM_MISSING_CHECK)
-    if mode == "gfl2":
-        rules.extend(GFL2_MISSING_CHECK)
-    if mode == "pgren":
-        rules.extend(PGR_MISSING_CHECK)
-    if mode == "ko":
-        rules.extend(KO_MISSING_CHECK)
+    for tbl in _MISSING_RULES_BY_MODE.get(mode, ()):
+        rules.extend(tbl)
     if file:
         raw = open(file, "rb").read()
         for ln in _decode_any(raw).splitlines():
@@ -19700,62 +19546,11 @@ def main_argv(argv=None):
             out_path = args[i + 1]; i += 2
         elif a == "--report" and i + 1 < len(args):
             report_path = args[i + 1]; i += 2
-        elif a == "--ko":
-            mode = "ko"; i += 1
-        elif a == "--ja":
-            mode = "ja"; i += 1
-        elif a == "--jpe":
-            mode = "jpe"; i += 1
-        elif a == "--pgrja":
-            mode = "pgrja"; i += 1
-        elif a == "--akja":
-            mode = "akja"; i += 1
-        elif a == "--wwoc":
-            mode = "wwoc"; i += 1
-        elif a == "--ak":
-            mode = "ak"; i += 1
-        elif a == "--akko":
-            mode = "akko"; i += 1
-        elif a == "--zho":
-            mode = "zho"; i += 1
-        elif a == "--endo":
-            mode = "endo"; i += 1
-        elif a == "--endobi":
-            mode = "endobi"; i += 1
-        elif a == "--endoko":
-            mode = "endoko"; i += 1
-        elif a == "--pgr":
-            mode = "pgr"; i += 1
-        elif a == "--pgren":
-            mode = "pgren"; i += 1
-        elif a == "--react":
-            mode = "react"; i += 1
-        elif a == "--limbus":
-            mode = "limbus"; i += 1
-        elif a == "--ffrs":
-            mode = "ffrs"; i += 1
-        elif a == "--pbz":
-            mode = "pbz"; i += 1
-        elif a == "--ff14":
-            mode = "ff14"; i += 1
-        elif a == "--ssv":
-            mode = "ssv"; i += 1
-        elif a == "--arcak":
-            mode = "arcak"; i += 1
+        elif a in _MODE_FLAGS:
+            mode = _MODE_FLAGS[a]; i += 1
         elif a == "--arcakamiya":
             # 2026-11-19 歌词向全曲纯享：arcak 术语表 + 271 条逐 cue 侧车整行覆盖
             arcakamiya = True; mode = "arcak"; i += 1
-        elif a == "--tga26":
-            mode = "tga26"; i += 1
-        elif a == "--gfl2":
-            # 2026-11-21 少前2二周年反应片：GFL2_TERMS + GFL2_CONTEXT
-            mode = "gfl2"; i += 1
-        elif a == "--zel":
-            mode = "zel"; i += 1
-        elif a == "--hsr":
-            mode = "hsr"; i += 1
-        elif a == "--pkm":
-            mode = "pkm"; i += 1
         elif a == "--fix-en":
             fix_en = True; i += 1
         elif a == "--kb" and i + 1 < len(args):
@@ -19790,44 +19585,9 @@ def main_argv(argv=None):
             # 鸣潮全短片 Reaction《ALL Wuthering Waves Cinematic Shorts》一键重跑：bi 规则 + 636 条侧车整行覆盖
             wuwaall = True; mode = "bi"; i += 1
         elif a == "--mode" and i + 1 < len(args):
-            m = args[i + 1].lower()
-            if m in ("limbus", "limbuscompany", "边狱巴士"):
-                mode = "limbus"
-            elif m in ("ffrs", "ffresonance", "finalfantasyresonance", "共鸣"):
-                mode = "ffrs"
-            elif m in ("pkm", "pokemon", "pokémon", "pocket_monsters"):
-                mode = "pkm"
-            elif m in ("hsr", "starrail", "star_rail", "honkai_starrail", "honkaistarrail"):
-                mode = "hsr"
-            elif m in ("pbz", "phantomblade", "phantombladezero", "影之刃零", "影之刃"):
-                mode = "pbz"
-            elif m in ("ff14", "ffxiv", "finalfantasy14", "finalfantasixiv",
-                       "最终幻想14", "最终幻想xiv", "银海之天舟"):
-                mode = "ff14"
-            elif m in ("ssv", "starsavior", "star_savior", "星之救援者"):
-                mode = "ssv"
-            elif m in ("arcak", "arcakn", "arcaea_arknights", "arcaea×arknights",
-                       "arcaea明日方舟", "arcaea方舟", "arcaea联动"):
-                # ⚠ 与 akja 同理必须排在下面的三元链之前：三元链里是
-                #   `m in ("ak","arknights")` 精确成员判断，"arcak" 不命中会直接掉回 bi。
-                mode = "arcak"
-            elif m in ("tga26", "tga2026", "tga", "thegameawards",
-                       "gameawards", "游戏大奖", "tga直播"):
-                mode = "tga26"
-            elif m in ("wwm", "wherewindsmeet", "where_winds_meet",
-                       "燕云十六声", "燕云", "yanyun"):
-                mode = "wwm"
-            elif m in ("gfl2", "gf2", "exilium", "gfl2exilium",
-                       "少女前线2", "少女前线2：追放", "追放", "少前2"):
-                mode = "gfl2"
-            elif m in ("akja", "ak_ja", "arknights_ja", "arknightsja",
-                       "明日方舟日语", "日语原声明日方舟"):
-                # ⚠ 必须排在下面那条三元链**之前**：三元链里是 `m in ("ak","arknights")`
-                #   的精确成员判断，"akja" 不会命中它，而是直接掉到默认 "bi"（英语双语通道），
-                #   表现为"旗标传了但规则完全不对"。
-                mode = "akja"
-            else:
-                mode = "ja" if m in ("ja", "japanese") else ("ko" if m in ("ko", "korean") else ("ak" if m in ("ak", "arknights") else ("zho" if m in ("zho", "zhonly", "zh_only") else ("endo" if m in ("endo", "endfield") else ("zel" if m in ("zel", "zelda", "legend of zelda", "zelda_direct") else "bi")))))
+            # 别名→模式查表（_MODE_ALIASES 精确沿用原 elif 链+三元兜底；未列出落 bi）。
+            #   扁平 dict 无 elif 顺序问题：arcak/akja 与 ak 别名集互斥，不会掉回 bi。
+            mode = _MODE_ALIASES.get(args[i + 1].lower(), "bi")
             i += 2
         else:
             i += 1
