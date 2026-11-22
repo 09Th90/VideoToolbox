@@ -94,15 +94,6 @@ def _cmd_align_audit(src, out, window=5, ratio=1.45, min_ratio=0.45, quiet=False
 
 
 
-_MARKER_PRE = re.compile(r"^>>[ 	]*")
-
-
-def _MARKER_PREFIX(s):
-    """取行首说话人标记（含 `>>` 后的空格/制表符原样），无标记返回空串。"""
-    m = _MARKER_PRE.match(s)
-    return m.group(0) if m else ""
-
-
 def _cmd_verify(src, out, allow_marker_drop=False):
     """verify：校验两个 SRT cue数/序号/时间轴/参考行/换行/BOM 全一致，仅内容文本行变化。
 
@@ -236,6 +227,29 @@ def _cmd_compare(src, out, tsv):
 
 
 
+# 漏译体检规则表分发（mode → 规则表元组；数据驱动，替代原 if 链）。
+#   jpe 双表（日语表 + 英文兜底，英文表对日文行不命中仅多一轮空锚）；
+#   wuwa/wuwa-bi/ww 是 missing 命令专用别名（非校准模式）。各 mode 条件互斥，元组保序。
+_MISSING_RULES_BY_MODE = {
+    "endo": (ENDFIELD_MISSING_CHECK,),
+    "endobi": (ENDFIELD_MISSING_CHECK,),
+    "endoko": (ENDFIELD_MISSING_CHECK,),
+    "jpe": (JA_ENDFIELD_MISSING_CHECK, ENDFIELD_MISSING_CHECK),
+    "wuwa": (WUWA_MISSING_CHECK,),
+    "wuwa-bi": (WUWA_MISSING_CHECK,),
+    "ww": (WUWA_MISSING_CHECK,),
+    "ak": (AK_MISSING_CHECK,),
+    "pbz": (PBZ_MISSING_CHECK,),
+    "ssv": (SSV_MISSING_CHECK,),
+    "tga26": (TGA_MISSING_CHECK,),
+    "arcak": (ARCAK_MISSING_CHECK,),
+    "wwm": (WWM_MISSING_CHECK,),
+    "gfl2": (GFL2_MISSING_CHECK,),
+    "pgren": (PGR_MISSING_CHECK,),
+    "ko": (KO_MISSING_CHECK,),
+}
+
+
 def _load_missing_rules(mode=None, file=None):
     """漏译体检规则：--mode endo 取内置 ENDFIELD_MISSING_CHECK；--mode jpe 取
     JA_ENDFIELD_MISSING_CHECK（日语正则锚日文参考行）并保留英文表兜底；
@@ -245,32 +259,8 @@ def _load_missing_rules(mode=None, file=None):
     原声表 PGR_MISSING_CHECK（正则写拉丁，锚英文参考行）；--file 追加 TSV
     （每行：参考行正则<TAB>中文必现词1|词2[<TAB>说明]，# 开头注释）。"""
     rules = []
-    if mode in ("endo", "endobi", "endoko"):
-        rules.extend(ENDFIELD_MISSING_CHECK)
-    if mode == "jpe":
-        rules.extend(JA_ENDFIELD_MISSING_CHECK)
-        # 兼容旧 jpe 调用：英文表对日文行不会命中，仅多一轮空锚，不产生误报。
-        rules.extend(ENDFIELD_MISSING_CHECK)
-    if mode in ("wuwa", "wuwa-bi", "ww"):
-        rules.extend(WUWA_MISSING_CHECK)
-    if mode == "ak":
-        rules.extend(AK_MISSING_CHECK)
-    if mode == "pbz":
-        rules.extend(PBZ_MISSING_CHECK)
-    if mode == "ssv":
-        rules.extend(SSV_MISSING_CHECK)
-    if mode == "tga26":
-        rules.extend(TGA_MISSING_CHECK)
-    if mode == "arcak":
-        rules.extend(ARCAK_MISSING_CHECK)
-    if mode == "wwm":
-        rules.extend(WWM_MISSING_CHECK)
-    if mode == "gfl2":
-        rules.extend(GFL2_MISSING_CHECK)
-    if mode == "pgren":
-        rules.extend(PGR_MISSING_CHECK)
-    if mode == "ko":
-        rules.extend(KO_MISSING_CHECK)
+    for tbl in _MISSING_RULES_BY_MODE.get(mode, ()):
+        rules.extend(tbl)
     if file:
         raw = open(file, "rb").read()
         for ln in _decode_any(raw).splitlines():
