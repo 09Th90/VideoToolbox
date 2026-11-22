@@ -13,7 +13,7 @@ import shutil
 import sys
 import unicodedata
 from .data.modes import _MODE_TERM_TABLE
-from .inspect import _check_term_hazards
+from .replace import _check_term_hazards
 from .learn import LEARNED_KB_DEFAULT, _learn_extended, _load_learned_kb, _save_learned_kb
 from .state import (CTX_TABLES, EXCLUDE_CONTEXT, TABLES,
                     _rebuild_context_caches)

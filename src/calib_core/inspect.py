@@ -11,6 +11,7 @@ import shutil
 import sys
 import unicodedata
 from .asr import _scan_split_line
+from .replace import _check_term_hazards
 from .data.arcak import ARCAK_MISSING_CHECK
 from .data.ark import AK_MISSING_CHECK, PGR_MISSING_CHECK
 from .data.bilingual import WUWA_MISSING_CHECK
@@ -530,28 +531,6 @@ def _cmd_subfix(src, fixtsv, out, compare=None, side=None, single=False, strict=
         print("STRICT FAIL：存在 MISS/无效规则/缺失 cue/无中文行规则，未通过门禁")
         return 1
     return 0
-
-
-
-def _check_term_hazards(mapping):
-    """检测术语表的“二次命中”隐患（2026-09-10 沉淀自终末地 ja_auto 项目）。
-
-    `_replace_report` 是**按键长降序逐条 str.replace**，不是单遍扫描。因此若短键 k
-    出现在另一条目 k2 的替换结果 value2 里，k2 先替换后，k 会再次命中刚生成的文本：
-      {"阿尔达西尔":"阿达希尔", "达希尔":"阿达希尔"} -> 阿达希尔 再被 达希尔 命中 -> 阿阿达希尔
-      {"明日方舟末地":"明日方舟：终末地", "末地":"终末地"}   -> 终末地 再被 末地 命中 -> 终终末地
-    有意为之的级联（如 金阁->金戈 再 金戈->今州）也会被列出，需人工确认。
-    返回 [(短键, 长键, 长键的替换结果, 短键的替换结果), ...]。"""
-    bad, seen = [], set()
-    pairs = sorted(mapping.items(), key=lambda kv: len(kv[0]), reverse=True)
-    for i, (k, vk) in enumerate(pairs):
-        if vk == k:                    # 恒等键不参与
-            continue
-        for k2, v2 in pairs[:i]:       # 只有“先处理”的条目才会留下可被二次命中的结果
-            if v2 != k2 and k in v2 and (k, k2) not in seen:
-                seen.add((k, k2))
-                bad.append((k, k2, v2, vk))
-    return bad
 
 
 

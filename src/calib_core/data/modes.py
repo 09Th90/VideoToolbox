@@ -126,6 +126,18 @@ WW40IGN_INFO = {
 }
 WW40IGN_OVERRIDES_SRC = r"D:\Agent Work\软件开发\视频工具箱\data\calib_sidecars\ww40ign_ign_preview_zh.tsv"
 
+# 2026-11-22 鸣潮 4.0「永明的烬焰」先行映像 日文实况（1194 cue，2h03m）—— 二次校准 + 逐 cue 侧车整行覆盖
+# 用法：python subtitle_calib_merged.py --wuwa40ja
+#   片源为日语 ASR + 微软翻译双语（中文在上/日语参考行在下），CRLF 无 BOM。
+#   模式走 ja（JA_TERMS + JA_CONTEXT）；侧车 1194 条收全片终稿，命中即整行覆盖、不叠加术语表。
+#   官方依据：4.0 年度篇章「永明的烬焰」、新联邦/布法罗山脉、隧铠、安娜/露希尔/莉莉/格尔黛、
+#     星炬学院/黑海岸/莫宁/莫特斐/千咲/嘉贝莉娜/秋水/砂；谐度破坏/协奏能量/共鸣解放。
+WW40JA_INFO = {
+    "src": r"D:\原片\【鳴潮】Ver4.0先行映像がぶっ飛んでる【Wuthering Waves】 (2)\【字幕】【鳴潮】Ver4.0先行映像がぶっ飛んでる【Wuthering Waves】.ja-微软翻译.srt",
+    "dst": r"D:\原片\【鳴潮】Ver4.0先行映像がぶっ飛んでる【Wuthering Waves】 (2)\【字幕】【鳴潮】Ver4.0先行映像がぶっ飛んでる【Wuthering Waves】.ja-微软翻译_calibrated_v2.srt",
+}
+WW40JA_OVERRIDES_SRC = r"D:\Agent Work\软件开发\视频工具箱\data\calib_sidecars\ww40ja_preview_bi_override.tsv"
+
 # 3.8 鸣潮「第二索拉：未名之梦」Reaction 片 —— 双语逐 cue 侧车整行覆盖
 # 用法：python subtitle_calib_merged.py --wuwasol
 #   二校 1407 cue；侧车为六段人工复核合并后的终稿，供一键重跑与后续增量校准时对位。
@@ -349,6 +361,29 @@ _MODE_ALIASES = {
     "少女前线2": "gfl2", "少女前线2：追放": "gfl2", "追放": "gfl2", "少前2": "gfl2",
     "akja": "akja", "ak_ja": "akja", "arknights_ja": "akja", "arknightsja": "akja",
     "明日方舟日语": "akja", "日语原声明日方舟": "akja",
+}
+
+# 一键重跑注册表（2026-11-22 M1-A1 数据驱动）。键=旗标名（去 --），**声明序=装配序**。
+#   字段：mode（设的模式）/ info（内置片源 dict）/ overrides（缺省侧车路径）/
+#         preserve（bi_override_preserve，仅 wuwa38h）/ ko（ko_override 复用 bi_override，仅 wuwa40ko/ign）/
+#         zh_first（仅 wuwaall）。
+#   ⚠ 三套优先级语义（cli 装配/渲染须保真）：
+#     mode = argv 中最后出现的旗标赢；info = 本表声明序最后命中赢；
+#     缺省侧车 bi_override_path = 声明序第一命中赢（is None 守卫，显式 --bi-override 优先于一切）；
+#     names["bi"] 后缀 = 另一序（wuwa38b→38/38j→38h→40→wuwasol→wuwaall）第一命中赢（见 cli names）。
+#   新增一键重跑 = 本表加一条 + cli names 后缀（若 bi）；解析/装配/process 旗标自动表驱动。
+_RERUN = {
+    "wuwa38": {"mode": "bi", "info": WW38_INFO, "overrides": WW38_OVERRIDES_SRC},
+    "wuwa38h": {"mode": "bi", "info": WW38H_INFO, "overrides": WW38H_OVERRIDES_SRC, "preserve": True},
+    "wuwa38b": {"mode": "bi", "info": WW38B_INFO, "overrides": WW38B_OVERRIDES_SRC},
+    "wuwa38j": {"mode": "bi", "info": WW38_J_INFO, "overrides": WW38_J_OVERRIDES_SRC},
+    "wuwa40": {"mode": "bi", "info": WW40_INFO, "overrides": WW40_OVERRIDES_SRC},
+    "wuwa40ko": {"mode": "wuwa40ko", "info": WW40KO_INFO, "overrides": WW40KO_OVERRIDES_SRC, "ko": True},
+    "wuwa40ign": {"mode": "wuwa40ign", "info": WW40IGN_INFO, "overrides": WW40IGN_OVERRIDES_SRC, "ko": True},
+    "wuwa40ja": {"mode": "ja", "info": WW40JA_INFO, "overrides": WW40JA_OVERRIDES_SRC},
+    "wuwasol": {"mode": "bi", "info": WUSOL_INFO, "overrides": WUSOL_OVERRIDES_SRC},
+    "wuwaall": {"mode": "bi", "info": WUWAALL_INFO, "overrides": WUWAALL_OVERRIDES_SRC, "zh_first": True},
+    "arcakamiya": {"mode": "arcak", "info": ARCAK_AMIYA_INFO, "overrides": ARCAK_AMIYA_OVERRIDES_SRC},
 }
 
 # 模式 -> 无条件变体表 / 条件变体表（实体注册时的投影目标）

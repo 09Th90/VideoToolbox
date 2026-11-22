@@ -802,6 +802,26 @@ CLI_CASES = [
     ("kb-push", ["kb-push", "--learned", "learned.json"], (), ("sync/", "remote/")),
     # 2026-11-18：--arcak 旗标解析与 --mode 别名一致性（ref/pkg 双跑比对）
     ("calib-arcak", ["base.srt", "--arcak"], ()),
+    # 2026-11-22 M1-A1：一键重跑旗标 stdout 全覆盖。positional src=base.srt 覆盖内置片源
+    #   （out_path=None 不写盘、不碰 D:\原片），sidecar 仓库内绝对路径确定性；
+    #   冻结「模式:」行含侧车条数与动态后缀。数据驱动归一后必须逐字节不变。
+    ("rerun-wuwa38", ["base.srt", "--wuwa38"], ()),
+    ("rerun-wuwa38h", ["base.srt", "--wuwa38h"], ()),
+    ("rerun-wuwa38b", ["base.srt", "--wuwa38b"], ()),
+    ("rerun-wuwa38j", ["base.srt", "--wuwa38j"], ()),
+    ("rerun-wuwa40", ["base.srt", "--wuwa40"], ()),
+    ("rerun-wuwa40ko", ["base.srt", "--wuwa40ko"], ()),
+    ("rerun-wuwa40ign", ["base.srt", "--wuwa40ign"], ()),
+    ("rerun-wuwasol", ["base.srt", "--wuwasol"], ()),
+    ("rerun-wuwaall", ["base.srt", "--wuwaall"], ()),
+    ("rerun-arcakamiya", ["base.srt", "--arcakamiya"], ()),
+    # 多旗标组合：钉死三套优先级（mode 最后旗标赢 / info 最后装配赢但 sidecar 第一赢 /
+    #   names 后缀另一序第一赢）。两个顺序各一条，防归一时顺手「修好」。
+    ("rerun-combo-38h-38b", ["base.srt", "--wuwa38h", "--wuwa38b"], ()),
+    ("rerun-combo-38b-38h", ["base.srt", "--wuwa38b", "--wuwa38h"], ()),
+    # 无 info 的模式旗标 + 无 positional src → 仅打印 USAGE_DOC 后 return（rc 0）。
+    #   ⚠ 一键旗标无 src 时会用 info["src"] 跑 D:\原片 真实片源，故 nosrc 负例用无 info 的 --gfl2。
+    ("rerun-gfl2-nosrc", ["--gfl2"], ()),
 ]
 
 

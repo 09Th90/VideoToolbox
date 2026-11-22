@@ -11,7 +11,7 @@ import shutil
 import sys
 import unicodedata
 from ._doc import USAGE_DOC
-from .data.modes import AK_INFO, AK_KO_INFO, ARCAK_AMIYA_INFO, ARCAK_AMIYA_OVERRIDES_SRC, ENDO_INFO, KO_INFO, PGR_INFO, PGR_OVERRIDES_SRC, WWOC_INFO, WW38_INFO, WW38_OVERRIDES_SRC, WW38B_INFO, WW38B_OVERRIDES_SRC, WW38H_INFO, WW38H_OVERRIDES_SRC, WW38_J_INFO, WW38_J_OVERRIDES_SRC, WW40_INFO, WW40_OVERRIDES_SRC, WW40IGN_INFO, WW40IGN_OVERRIDES_SRC, WW40KO_INFO, WW40KO_OVERRIDES_SRC, WUSOL_INFO, WUSOL_OVERRIDES_SRC, WUWAALL_INFO, WUWAALL_OVERRIDES_SRC, ZHO_INFO, _MODE_ALIASES, _MODE_FLAGS
+from .data.modes import AK_INFO, AK_KO_INFO, ARCAK_AMIYA_INFO, ARCAK_AMIYA_OVERRIDES_SRC, ENDO_INFO, KO_INFO, PGR_INFO, PGR_OVERRIDES_SRC, WWOC_INFO, WW38_INFO, WW38_OVERRIDES_SRC, WW38B_INFO, WW38B_OVERRIDES_SRC, WW38H_INFO, WW38H_OVERRIDES_SRC, WW38_J_INFO, WW38_J_OVERRIDES_SRC, WW40_INFO, WW40_OVERRIDES_SRC, WW40IGN_INFO, WW40IGN_OVERRIDES_SRC, WW40JA_INFO, WW40JA_OVERRIDES_SRC, WW40KO_INFO, WW40KO_OVERRIDES_SRC, WUSOL_INFO, WUSOL_OVERRIDES_SRC, WUWAALL_INFO, WUWAALL_OVERRIDES_SRC, ZHO_INFO, _MODE_ALIASES, _MODE_FLAGS, _RERUN
 from .engine import _load_override_tsv, process
 from .format import _cmd_flow, _cmd_length, _cmd_rewrap, _cmd_stabilize
 from .inspect import _cmd_align_audit, _cmd_compare, _cmd_lint, _cmd_missing, _cmd_scan, _cmd_scan_split, _cmd_subfix, _cmd_terms_check, _cmd_verify
@@ -70,16 +70,7 @@ def main_argv(argv=None):
     fix_en = False
     learned_kb = None
     bi_override_path = None
-    wuwa38 = False
-    wuwa38h = False
-    wuwa38b = False
-    wuwa38j = False
-    wuwa40 = False
-    wuwa40ko = False
-    wuwa40ign = False
-    wuwasol = False
-    arcakamiya = False
-    wuwaall = False
+    rerun_active = set()    # 命中的一键重跑旗标键（_RERUN）；多旗标可同时命中
 
     if argv and not argv[0].startswith("-"):
         src = argv[0]
@@ -93,42 +84,15 @@ def main_argv(argv=None):
             report_path = args[i + 1]; i += 2
         elif a in _MODE_FLAGS:
             mode = _MODE_FLAGS[a]; i += 1
-        elif a == "--arcakamiya":
-            # 2026-11-19 歌词向全曲纯享：arcak 术语表 + 271 条逐 cue 侧车整行覆盖
-            arcakamiya = True; mode = "arcak"; i += 1
+        elif a.startswith("--") and a[2:] in _RERUN:
+            # 一键重跑旗标（_RERUN 表驱动）：收集命中键 + 设 mode（argv 最后旗标赢）
+            rerun_active.add(a[2:]); mode = _RERUN[a[2:]]["mode"]; i += 1
         elif a == "--fix-en":
             fix_en = True; i += 1
         elif a == "--kb" and i + 1 < len(args):
             learned_kb = args[i + 1]; i += 2
         elif a == "--bi-override" and i + 1 < len(args):
             bi_override_path = args[i + 1]; i += 2
-        elif a == "--wuwa38":
-            # 鸣潮 3.8 主线「予以明日的花束」一键重跑：bi 规则 + 逐 cue 侧车整行覆盖
-            wuwa38 = True; mode = "bi"; i += 1
-        elif a == "--wuwa38h":
-            # 鸣潮 3.8 终章 EmiMatcha Reaction 片一键重跑：bi 规则 + 侧车整行覆盖（保留 >> 前缀）
-            wuwa38h = True; mode = "bi"; i += 1
-        elif a == "--wuwa38b":
-            # 鸣潮 3.8「literally broke me」完整片一键重跑：bi 规则 + 侧车逐 cue 整行覆盖
-            wuwa38b = True; mode = "bi"; i += 1
-        elif a == "--wuwa38j":
-            # 鸣潮 3.8 主线 Jadealy 反应片一键重跑：bi 规则 + 逐 cue 侧车整行覆盖
-            wuwa38j = True; mode = "bi"; i += 1
-        elif a == "--wuwa40":
-            # 鸣潮 4.0 前瞻 Drip Marketing reaction 片一键重跑：bi 规则 + 逐 cue 侧车整行覆盖
-            wuwa40 = True; mode = "bi"; i += 1
-        elif a == "--wuwa40ko":
-            # 鸣潮 4.0 新联邦 PV 韩语反应片一键重跑：KO_TERMS + WW40KO_CONTEXT + 侧车整行覆盖
-            wuwa40ko = True; mode = "wuwa40ko"; i += 1
-        elif a == "--wuwa40ign":
-            # 鸣潮 4.0「永明的烬焰」IGN 实机演示 韩语反应片一键重跑：KO_TERMS + WW40IGN_CONTEXT + 侧车整行覆盖
-            wuwa40ign = True; mode = "wuwa40ign"; i += 1
-        elif a == "--wuwasol":
-            # 鸣潮 3.8「第二索拉：未名之梦」Reaction 片一键重跑：bi 规则 + 逐 cue 侧车整行覆盖
-            wuwasol = True; mode = "bi"; i += 1
-        elif a == "--wuwaall":
-            # 鸣潮全短片 Reaction《ALL Wuthering Waves Cinematic Shorts》一键重跑：bi 规则 + 636 条侧车整行覆盖
-            wuwaall = True; mode = "bi"; i += 1
         elif a == "--mode" and i + 1 < len(args):
             # 别名→模式查表（_MODE_ALIASES 精确沿用原 elif 链+三元兜底；未列出落 bi）。
             #   扁平 dict 无 elif 顺序问题：arcak/akja 与 ak 别名集互斥，不会掉回 bi。
@@ -138,46 +102,11 @@ def main_argv(argv=None):
             i += 1
 
     info = {"ko": KO_INFO, "ak": AK_INFO, "endo": ENDO_INFO, "pgr": PGR_INFO, "zho": ZHO_INFO, "wwoc": WWOC_INFO, "akko": AK_KO_INFO}.get(mode)
-    if wuwa38:
-        info = WW38_INFO
-        if bi_override_path is None:
-            bi_override_path = WW38_OVERRIDES_SRC
-    if wuwa38h:
-        info = WW38H_INFO
-        if bi_override_path is None:
-            bi_override_path = WW38H_OVERRIDES_SRC
-    if wuwa38b:
-        info = WW38B_INFO
-        if bi_override_path is None:
-            bi_override_path = WW38B_OVERRIDES_SRC
-    if wuwa38j:
-        info = WW38_J_INFO
-        if bi_override_path is None:
-            bi_override_path = WW38_J_OVERRIDES_SRC
-    if wuwa40:
-        info = WW40_INFO
-        if bi_override_path is None:
-            bi_override_path = WW40_OVERRIDES_SRC
-    if wuwa40ko:
-        info = WW40KO_INFO
-        if bi_override_path is None:
-            bi_override_path = WW40KO_OVERRIDES_SRC
-    if wuwa40ign:
-        info = WW40IGN_INFO
-        if bi_override_path is None:
-            bi_override_path = WW40IGN_OVERRIDES_SRC
-    if wuwasol:
-        info = WUSOL_INFO
-        if bi_override_path is None:
-            bi_override_path = WUSOL_OVERRIDES_SRC
-    if wuwaall:
-        info = WUWAALL_INFO
-        if bi_override_path is None:
-            bi_override_path = WUWAALL_OVERRIDES_SRC
-    if arcakamiya:
-        info = ARCAK_AMIYA_INFO
-        if bi_override_path is None:
-            bi_override_path = ARCAK_AMIYA_OVERRIDES_SRC
+    for _rk, _re in _RERUN.items():        # 声明序=装配序
+        if _rk in rerun_active:
+            info = _re["info"]             # info 最后命中赢
+            if bi_override_path is None:
+                bi_override_path = _re["overrides"]   # 缺省侧车第一命中赢（显式 --bi-override 已优先）
     if src is None and info:
         src = info["src"]                       # 一键重跑内置片源
         if out_path is None:
@@ -200,22 +129,25 @@ def main_argv(argv=None):
     rows, hits = process(src, out_path, report_path, mode=mode,
                          fix_en=fix_en, pgr_override=pgr_override,
                          learned_kb=learned_kb, bi_override=bi_override,
-                         bi_override_preserve=wuwa38h,
-                         ko_override=bi_override if (wuwa40ko or wuwa40ign) else None,
-                         ko_override_preserve=False, zh_first=wuwaall)
+                         bi_override_preserve=any(_RERUN[k].get("preserve") for k in rerun_active),
+                         ko_override=bi_override if any(_RERUN[k].get("ko") for k in rerun_active) else None,
+                         ko_override_preserve=False,
+                         zh_first=any(_RERUN[k].get("zh_first") for k in rerun_active))
     names = {"bi": "中英双语 (BILINGUAL_TERMS + CONTEXT_MAP + WORD_MAP)" + (
-                 " + 3.8 完整片侧车 {} 条（整行覆盖）".format(len(bi_override) if bi_override else 0) if wuwa38b else
-                 " + 3.8 侧车 {} 条".format(len(bi_override) if bi_override else 0) if (wuwa38 or wuwa38j) else
-                 " + 3.8 终章侧车 {} 条（保留 >>）".format(len(bi_override) if bi_override else 0) if wuwa38h else
-                 " + 4.0 侧车 {} 条".format(len(bi_override) if bi_override else 0) if wuwa40 else
-                 " + 第二索拉侧车 {} 条".format(len(bi_override) if bi_override else 0) if wuwasol else
-                 " + 全短片侧车 {} 条（整行覆盖）".format(len(bi_override) if bi_override else 0) if wuwaall else ""),
+                 " + 3.8 完整片侧车 {} 条（整行覆盖）".format(len(bi_override) if bi_override else 0) if "wuwa38b" in rerun_active else
+                 " + 3.8 侧车 {} 条".format(len(bi_override) if bi_override else 0) if ("wuwa38" in rerun_active or "wuwa38j" in rerun_active) else
+                 " + 3.8 终章侧车 {} 条（保留 >>）".format(len(bi_override) if bi_override else 0) if "wuwa38h" in rerun_active else
+                 " + 4.0 侧车 {} 条".format(len(bi_override) if bi_override else 0) if "wuwa40" in rerun_active else
+                 " + 第二索拉侧车 {} 条".format(len(bi_override) if bi_override else 0) if "wuwasol" in rerun_active else
+                 " + 全短片侧车 {} 条（整行覆盖）".format(len(bi_override) if bi_override else 0) if "wuwaall" in rerun_active else ""),
              "ko": "韩语原声 (KO_TERMS)",
              "wuwa40ko": "韩语原声·鸣潮 4.0 新联邦 PV (KO_TERMS + WW40KO_CONTEXT + 侧车 {} 条)".format(
                  len(bi_override) if bi_override else 0),
              "wuwa40ign": "韩语原声·鸣潮 4.0 IGN 实机 (KO_TERMS + WW40IGN_CONTEXT + 侧车 {} 条)".format(
                  len(bi_override) if bi_override else 0),
-             "ja": "日语原声 (JA_TERMS + JA_CONTEXT)",
+             "ja": "日语原声 (JA_TERMS + JA_CONTEXT)" + (
+                 " + 4.0 先行映像侧车 {} 条（整行覆盖）".format(len(bi_override) if bi_override else 0)
+                 if "wuwa40ja" in rerun_active else ""),
              "jpe": "日语原声·终末地 (JA_ENDFIELD_TERMS + JA_ENDFIELD_CONTEXT)",
              # 2026-11-03 新增。故意**不进 info 字典**：本模式没有内置片源，
              #   进了 info 会出现「无片源文件也能一键重跑」的假入口。
@@ -251,7 +183,7 @@ def main_argv(argv=None):
              # 2026-11-21 新增：少前2二周年反应片。与 pgrja 同规：**不进 info 字典**（无内置片源）。
              "gfl2": "少女前线2：追放 (GFL2_TERMS + GFL2_CONTEXT)"}
     extra = (" + 英文行修正(--fix-en)" if fix_en else "")
-    if arcakamiya:
+    if "arcakamiya" in rerun_active:
         names["arcak"] += " + 阿米娅 Partner Play 侧车 {} 条".format(
             len(bi_override) if bi_override else 0)
     print("模式:", names[mode] + extra)

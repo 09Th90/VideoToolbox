@@ -4445,6 +4445,11 @@ JA_TERMS = {
     "霞空": "夏空",                                  # シャコンヌ，官中作"夏空"
     "弗洛娃": "弗洛洛", "弗拉瓦": "弗洛洛", "弗卢拉": "弗洛洛",
     "弗洛巴": "弗洛洛", "弗罗瓦": "弗洛洛",          # フローヴァ = Phrolova 谷翻音译变体
+    # 2026-11-22 4.0 先行映像日文实况二校（官方简中口径回灌）
+    "莫妮耶": "莫宁",                                # モーニエ = Mornye
+    "莫特菲": "莫特斐",                              # モルト = Mortefi（官方作「莫特斐」）
+    "加布蕾娜": "嘉贝莉娜",                          # ガルブレーナ = Galbrena
+    "千纱": "千咲",                                  # ちさ = Chisa（官方作「千咲」）
     "丹妮娜": "达妮娅", "丹娅": "达妮娅",            # ダーニャ = Dania（"丹娅"⊂"丹妮娅"，长键优先单遍无碍）
     "大古斯塔": "奥古斯塔", "乌加斯塔": "奥古斯塔", "加斯塔": "奥古斯塔",  # オーガスタ = Augusta
     "卡德西亚": "卡提希娅", "卡迪西亚": "卡提希娅",  # カルテジア = Cartethyia（英文 Cartesia/Carticia 同批）
@@ -4775,6 +4780,10 @@ JA_CONTEXT = [
     (r"漂白者", "看台", "漂泊者"),                    # 漂白者さん 被谷翻成「看台」（看台是普通词，禁裸键）
     (r"共鳴者", "共振器", "共鸣者"),                  # 共鳴者 被译成「共振器」（普通词，锚定）
     (r"裏学園", "里学园", "学院暗面"),                # 裏学園 官方中文=学院暗面（3.2 成就佐证）
+    # 2026-11-22 4.0 先行映像：学園 具体校名必须排在通用「(?<!裏)学園→星炬学院」之前，
+    #   否则「ソラリス学園」会先被改成「索拉里斯星炬学院」，留下残尾。
+    (r"ソラリス学園", "索拉里斯学园", "星炬学院"),     # ソラリス学園 = 星炬学院（4.0 拉海洛校区）
+    (r"スタート学園|スタートーチ学園", "初始学园", "星炬学院"),
     (r"(?<!裏)学園", "学园", "星炬学院"),              # 学園=星炬学院（普通词，锚定；排除「裏学園」）
     (r"学園", "学校", "学院"),                        # 学園デート/学園イベント 统一为「学院」
     (r"組織長", "组织负责人", "会长"),                # 残星会会长（官方中文）
@@ -4976,6 +4985,51 @@ JA_CONTEXT = [
     # ⚠ 拒绝登记：「果苷/苷/残星会苷/残星会oshi/残星会des」短键级联坏串、
     #   「光伏发电→PV」纯拉丁化（破坏 verify 版式）、K01-K07 低置信、K08 观众昵称、
     #   以及只在 fix.tsv 落地的整句精修，详见 回灌清单_r2.md。
+
+    # ══ 2026-11-22 二校回灌：《【鳴潮】Ver4.0の先行映像がやばすぎる！！！》ノタルch 日语反应片
+    #   （120 cue，日语 ASR + 微软翻译；--ja）。官方简中依据：4.0 年度篇章「永明的烬焰」
+    #   官网/官微——隧铠（ストライダーメカスーツ）/ 安娜 / 露希尔（ルシェル）/
+    #   布法罗山脉（バッファロー山脈）/ 新联邦（ネオユニオン）/ 谐度破坏（協和破壊）/
+    #   延奏·变奏（終奏·変奏）/ 声骸（音骸）/ 翱翔（ソアー）/ 科考摩托（エクスペディションバイク）/
+    #   清宵（聖唱，3.6 共鸣者）。
+    #   片源机翻把专名大量落成**通用词/拉丁残留**（蓝色/机甲/伪装/进入比赛/忘恩负义…），
+    #   一律日语参考行锚定、禁裸键；同锚长错形在前（机甲战士→机甲、伪装袭击→伪装）。
+    # ══════════════════════════════════════════════════════════════════════
+    (r"Station公式|Station 公式", "官方车站", "PlayStation官方"),
+    (r"名朝|鳴潮|名長", "Meicho", "鸣潮"),
+    # カ(鎌) 被机翻留成拉丁 Ka：先长形 Ka-Ka，再裸 Ka
+    (r"カ、カ使ってる|カ使ってる", "Ka-Ka", "镰刀"),
+    (r"カ、カ使ってる|カ使ってる", "Ka", "镰刀"),
+    # —— 露希尔（4.0 共鸣者；日语 ルシェル / ASR ルシエル）——
+    (r"ルシ[ェエ]ル", "卢西尔", "露希尔"),
+    (r"ルシ[ェエ]ル", "露塞尔", "露希尔"),
+    (r"ルシ[ェエ]ル", "卢切尔", "露希尔"),
+    (r"ルシ[ェエ]ル", "卢谢尔", "露希尔"),
+    (r"ルシ[ェエ]ル", "Lucelle", "露希尔"),
+    # —— 隧铠（穿戴式机甲；ストライダーメカスーツ）——
+    (r"メカスーツ|ストライダーメカスーツ", "Strider Mechasuit", "隧铠"),
+    (r"メカスーツ|ストライダーメカスーツ", "Strider Mecha Suit", "隧铠"),
+    (r"メカスーツ|ストライダーメカスーツ", "机甲套装", "隧铠"),
+    (r"メカスーツ|ストライダーメカスーツ", "机甲战士", "隧铠"),
+    (r"メカスーツ|ストライダーメカスーツ", "机甲", "隧铠"),
+    # —— 翱翔(ソアー) / 科考摩托(バイク) ——
+    (r"ソワ|ソアー", "Sowa", "翱翔"),
+    (r"ソワ|ソアー", "Soar", "翱翔"),
+    (r"バイク", "这辆车", "科考摩托"),
+    # —— 清宵（3.6 共鸣者；本片 ASR「聖唱」「青」）——
+    (r"聖唱", "圣唱", "清宵"),
+    (r"青の操作感", "蓝色", "清宵"),
+    # —— 延奏 / 变奏（終奏 / 変奏）——
+    (r"終奏|収走", "进入比赛", "延奏"),
+    (r"変装", "伪装袭击", "变奏技能"),
+    (r"変装", "伪装", "变奏"),
+    # —— 声骸（音骸；ASR「恩外」）——
+    (r"音骸|恩外", "令人忘恩负义的伤害", "声骸伤害"),
+    (r"音骸|恩外", "忘恩负义的伤害", "声骸伤害"),
+    (r"音骸|恩外", "忘恩负义", "声骸"),
+    # —— 谐度破坏（協和破壊；ASR「共和破壊」「強和」）——
+    (r"共和破壊|協和破壊", "共和国的毁灭", "谐度破坏"),
+    (r"強和|協和破壊", "强烈的吸引力", "谐度破坏"),
 ]
 
 
@@ -5290,6 +5344,21 @@ JA_PGR_CONTEXT = [
     (r"^え、$", "图片", "诶，"),
     # ── 2026-11-17 r3 三校回灌（同片）──
     (r"現れがち", "容易出现幻觉", "这种事倒是经常有"),               # 洛瑟菈段 ASR 碎片机翻病句
+    # ══ 2026-11-22 鸣潮 4.0 先行映像日文实况（1194 cue）二校回灌 ══
+    # 官方依据：4.0 年度篇章「永明的烬焰」官网/官微、库街区角色档案（安娜/露希尔/格尔黛/砂）、
+    #   3.7 千咲、2.7 嘉贝莉娜、黑海岸、星炬学院、隧铠、谐度破坏/协奏能量。
+    # 规则：长错形在前；专名一律日语行窄锚，禁裸键（凯恩/阿尔托/黑秀 等跨作品重名）。
+    (r"メカスーツ|ストライダー|ストライナー", "隧铠机甲套装", "隧铠"),
+    (r"メカスーツ|ストライダー|ストライナー", "机甲套装", "隧铠"),
+    (r"真とサメ", "真和鲨鱼", "心和锁暝"),            # シン(心) と サメ(锁暝) 的 ASR 合写
+    (r"ケアン", "凯恩", "砂"),                        # 4.0 Cairn 官中作「砂」
+    (r"ブラックショ", "黑秀", "黑海岸"),              # ブラックショア = Black Shores
+    (r"モーニエ", "莫妮耶", "莫宁"),
+    (r"モルト", "莫特菲", "莫特斐"),
+    (r"フローバ", "弗洛巴", "弗洛洛"),
+    (r"ちさ|千さ", "千纱", "千咲"),
+    (r"ガルブレーナ|ガルグレーナ", "加布蕾娜", "嘉贝莉娜"),
+    (r"槍", "那把枪", "那把长枪"),                    # 武器种别「長槍」，非火器
 ]
 
 # ===== data/ark.py =====
@@ -13460,6 +13529,18 @@ WW40IGN_INFO = {
 }
 WW40IGN_OVERRIDES_SRC = r"D:\Agent Work\软件开发\视频工具箱\data\calib_sidecars\ww40ign_ign_preview_zh.tsv"
 
+# 2026-11-22 鸣潮 4.0「永明的烬焰」先行映像 日文实况（1194 cue，2h03m）—— 二次校准 + 逐 cue 侧车整行覆盖
+# 用法：python subtitle_calib_merged.py --wuwa40ja
+#   片源为日语 ASR + 微软翻译双语（中文在上/日语参考行在下），CRLF 无 BOM。
+#   模式走 ja（JA_TERMS + JA_CONTEXT）；侧车 1194 条收全片终稿，命中即整行覆盖、不叠加术语表。
+#   官方依据：4.0 年度篇章「永明的烬焰」、新联邦/布法罗山脉、隧铠、安娜/露希尔/莉莉/格尔黛、
+#     星炬学院/黑海岸/莫宁/莫特斐/千咲/嘉贝莉娜/秋水/砂；谐度破坏/协奏能量/共鸣解放。
+WW40JA_INFO = {
+    "src": r"D:\原片\【鳴潮】Ver4.0先行映像がぶっ飛んでる【Wuthering Waves】 (2)\【字幕】【鳴潮】Ver4.0先行映像がぶっ飛んでる【Wuthering Waves】.ja-微软翻译.srt",
+    "dst": r"D:\原片\【鳴潮】Ver4.0先行映像がぶっ飛んでる【Wuthering Waves】 (2)\【字幕】【鳴潮】Ver4.0先行映像がぶっ飛んでる【Wuthering Waves】.ja-微软翻译_calibrated_v2.srt",
+}
+WW40JA_OVERRIDES_SRC = r"D:\Agent Work\软件开发\视频工具箱\data\calib_sidecars\ww40ja_preview_bi_override.tsv"
+
 # 3.8 鸣潮「第二索拉：未名之梦」Reaction 片 —— 双语逐 cue 侧车整行覆盖
 # 用法：python subtitle_calib_merged.py --wuwasol
 #   二校 1407 cue；侧车为六段人工复核合并后的终稿，供一键重跑与后续增量校准时对位。
@@ -13683,6 +13764,29 @@ _MODE_ALIASES = {
     "少女前线2": "gfl2", "少女前线2：追放": "gfl2", "追放": "gfl2", "少前2": "gfl2",
     "akja": "akja", "ak_ja": "akja", "arknights_ja": "akja", "arknightsja": "akja",
     "明日方舟日语": "akja", "日语原声明日方舟": "akja",
+}
+
+# 一键重跑注册表（2026-11-22 M1-A1 数据驱动）。键=旗标名（去 --），**声明序=装配序**。
+#   字段：mode（设的模式）/ info（内置片源 dict）/ overrides（缺省侧车路径）/
+#         preserve（bi_override_preserve，仅 wuwa38h）/ ko（ko_override 复用 bi_override，仅 wuwa40ko/ign）/
+#         zh_first（仅 wuwaall）。
+#   ⚠ 三套优先级语义（cli 装配/渲染须保真）：
+#     mode = argv 中最后出现的旗标赢；info = 本表声明序最后命中赢；
+#     缺省侧车 bi_override_path = 声明序第一命中赢（is None 守卫，显式 --bi-override 优先于一切）；
+#     names["bi"] 后缀 = 另一序（wuwa38b→38/38j→38h→40→wuwasol→wuwaall）第一命中赢（见 cli names）。
+#   新增一键重跑 = 本表加一条 + cli names 后缀（若 bi）；解析/装配/process 旗标自动表驱动。
+_RERUN = {
+    "wuwa38": {"mode": "bi", "info": WW38_INFO, "overrides": WW38_OVERRIDES_SRC},
+    "wuwa38h": {"mode": "bi", "info": WW38H_INFO, "overrides": WW38H_OVERRIDES_SRC, "preserve": True},
+    "wuwa38b": {"mode": "bi", "info": WW38B_INFO, "overrides": WW38B_OVERRIDES_SRC},
+    "wuwa38j": {"mode": "bi", "info": WW38_J_INFO, "overrides": WW38_J_OVERRIDES_SRC},
+    "wuwa40": {"mode": "bi", "info": WW40_INFO, "overrides": WW40_OVERRIDES_SRC},
+    "wuwa40ko": {"mode": "wuwa40ko", "info": WW40KO_INFO, "overrides": WW40KO_OVERRIDES_SRC, "ko": True},
+    "wuwa40ign": {"mode": "wuwa40ign", "info": WW40IGN_INFO, "overrides": WW40IGN_OVERRIDES_SRC, "ko": True},
+    "wuwa40ja": {"mode": "ja", "info": WW40JA_INFO, "overrides": WW40JA_OVERRIDES_SRC},
+    "wuwasol": {"mode": "bi", "info": WUSOL_INFO, "overrides": WUSOL_OVERRIDES_SRC},
+    "wuwaall": {"mode": "bi", "info": WUWAALL_INFO, "overrides": WUWAALL_OVERRIDES_SRC, "zh_first": True},
+    "arcakamiya": {"mode": "arcak", "info": ARCAK_AMIYA_INFO, "overrides": ARCAK_AMIYA_OVERRIDES_SRC},
 }
 
 # 模式 -> 无条件变体表 / 条件变体表（实体注册时的投影目标）
@@ -15140,6 +15244,31 @@ def apply_map(text, mapping):
     pairs, charset = _compile_map(mapping)
     return _replace_report(text, pairs, charset, {})
 
+
+
+def _check_term_hazards(mapping):
+    """检测术语表的“二次命中”隐患（2026-09-10 沉淀自终末地 ja_auto 项目）。
+
+    `_replace_report` 是**按键长降序逐条 str.replace**，不是单遍扫描。因此若短键 k
+    出现在另一条目 k2 的替换结果 value2 里，k2 先替换后，k 会再次命中刚生成的文本：
+      {"阿尔达西尔":"阿达希尔", "达希尔":"阿达希尔"} -> 阿达希尔 再被 达希尔 命中 -> 阿阿达希尔
+      {"明日方舟末地":"明日方舟：终末地", "末地":"终末地"}   -> 终末地 再被 末地 命中 -> 终终末地
+    有意为之的级联（如 金阁->金戈 再 金戈->今州）也会被列出，需人工确认。
+    返回 [(短键, 长键, 长键的替换结果, 短键的替换结果), ...]。
+
+    2026-11-22 从 inspect.py 搬入本替换原语模块（零依赖纯函数），消除 sync→inspect 反向边。
+    """
+    bad, seen = [], set()
+    pairs = sorted(mapping.items(), key=lambda kv: len(kv[0]), reverse=True)
+    for i, (k, vk) in enumerate(pairs):
+        if vk == k:                    # 恒等键不参与
+            continue
+        for k2, v2 in pairs[:i]:       # 只有“先处理”的条目才会留下可被二次命中的结果
+            if v2 != k2 and k in v2 and (k, k2) not in seen:
+                seen.add((k, k2))
+                bad.append((k, k2, v2, vk))
+    return bad
+
 # ===== asr.py =====
 import io
 import os
@@ -15585,7 +15714,7 @@ def _resolve_terms(mode):
 _SPECIAL_MODES = {"bi", "pgr", "ko", "wuwa40ko", "wuwa40ign", "ak", "arcak", "endo", "fix-en"}
 _FIRST_ZH_MODES = {m for m in MODE_REGISTRY if m not in _SPECIAL_MODES}
 _FIRST_ZH_EXCLUDE = {"pgren"}        # 首中文行模式里消费 EXCLUDE 回滚层的
-_FIRST_ZH_OVERRIDE = {"wwm"}         # 首中文行模式里支持侧车整行覆盖的
+_FIRST_ZH_OVERRIDE = {"wwm", "ja"}   # 首中文行模式里支持侧车整行覆盖的（ja：4.0 先行映像全片侧车）
 
 # 语境表名 → 预编译缓存（与 state._CTX_COMPILE_SPEC 同源；供注册表 ctx 字段查缓存）
 _COMPILED_BY_CTX = {
@@ -15776,11 +15905,12 @@ def process(path, out_path=None, report_path=None, mode="bi",
                         continue
                     if not zh_pos:
                         # 多文本行且无法识别中文行（全拉丁/全参考行）：绝不写参考行。
-                        # 例外：bi/--wuwa40ko 侧车显式指定的 cue 允许整行覆盖——
+                        # 例外：bi/--wuwa40ko/--wuwa40ja 侧车显式指定的 cue 允许整行覆盖——
                         #   4.0 韩语片 #8/#241 原行是拉丁残片（Subde / Dream），
-                        #   人工终稿已改成中文，若不特判会被这里整块跳过，复跑永远对不上。
-                        if mode in ("bi", "wuwa40ko", "wuwa40ign"):
-                            ov = bi_override if mode == "bi" else ko_override
+                        #   4.0 日语片 #487/#1012/#1065/#1074 原行是纯拉丁/纯数字（无 CJK，
+                        #   识别不出中文行），人工终稿已改成中文，若不特判会被这里整块跳过。
+                        if mode in ("bi", "ja", "wuwa40ko", "wuwa40ign"):
+                            ov = bi_override if mode in ("bi", "ja") else ko_override
                             preserve = (bi_override_preserve if mode == "bi"
                                         else ko_override_preserve)
                             if ov and str(num) in ov:
@@ -17406,28 +17536,6 @@ def _cmd_subfix(src, fixtsv, out, compare=None, side=None, single=False, strict=
         print("STRICT FAIL：存在 MISS/无效规则/缺失 cue/无中文行规则，未通过门禁")
         return 1
     return 0
-
-
-
-def _check_term_hazards(mapping):
-    """检测术语表的“二次命中”隐患（2026-09-10 沉淀自终末地 ja_auto 项目）。
-
-    `_replace_report` 是**按键长降序逐条 str.replace**，不是单遍扫描。因此若短键 k
-    出现在另一条目 k2 的替换结果 value2 里，k2 先替换后，k 会再次命中刚生成的文本：
-      {"阿尔达西尔":"阿达希尔", "达希尔":"阿达希尔"} -> 阿达希尔 再被 达希尔 命中 -> 阿阿达希尔
-      {"明日方舟末地":"明日方舟：终末地", "末地":"终末地"}   -> 终末地 再被 末地 命中 -> 终终末地
-    有意为之的级联（如 金阁->金戈 再 金戈->今州）也会被列出，需人工确认。
-    返回 [(短键, 长键, 长键的替换结果, 短键的替换结果), ...]。"""
-    bad, seen = [], set()
-    pairs = sorted(mapping.items(), key=lambda kv: len(kv[0]), reverse=True)
-    for i, (k, vk) in enumerate(pairs):
-        if vk == k:                    # 恒等键不参与
-            continue
-        for k2, v2 in pairs[:i]:       # 只有“先处理”的条目才会留下可被二次命中的结果
-            if v2 != k2 and k in v2 and (k, k2) not in seen:
-                seen.add((k, k2))
-                bad.append((k, k2, v2, vk))
-    return bad
 
 
 
@@ -19525,16 +19633,7 @@ def main_argv(argv=None):
     fix_en = False
     learned_kb = None
     bi_override_path = None
-    wuwa38 = False
-    wuwa38h = False
-    wuwa38b = False
-    wuwa38j = False
-    wuwa40 = False
-    wuwa40ko = False
-    wuwa40ign = False
-    wuwasol = False
-    arcakamiya = False
-    wuwaall = False
+    rerun_active = set()    # 命中的一键重跑旗标键（_RERUN）；多旗标可同时命中
 
     if argv and not argv[0].startswith("-"):
         src = argv[0]
@@ -19548,42 +19647,15 @@ def main_argv(argv=None):
             report_path = args[i + 1]; i += 2
         elif a in _MODE_FLAGS:
             mode = _MODE_FLAGS[a]; i += 1
-        elif a == "--arcakamiya":
-            # 2026-11-19 歌词向全曲纯享：arcak 术语表 + 271 条逐 cue 侧车整行覆盖
-            arcakamiya = True; mode = "arcak"; i += 1
+        elif a.startswith("--") and a[2:] in _RERUN:
+            # 一键重跑旗标（_RERUN 表驱动）：收集命中键 + 设 mode（argv 最后旗标赢）
+            rerun_active.add(a[2:]); mode = _RERUN[a[2:]]["mode"]; i += 1
         elif a == "--fix-en":
             fix_en = True; i += 1
         elif a == "--kb" and i + 1 < len(args):
             learned_kb = args[i + 1]; i += 2
         elif a == "--bi-override" and i + 1 < len(args):
             bi_override_path = args[i + 1]; i += 2
-        elif a == "--wuwa38":
-            # 鸣潮 3.8 主线「予以明日的花束」一键重跑：bi 规则 + 逐 cue 侧车整行覆盖
-            wuwa38 = True; mode = "bi"; i += 1
-        elif a == "--wuwa38h":
-            # 鸣潮 3.8 终章 EmiMatcha Reaction 片一键重跑：bi 规则 + 侧车整行覆盖（保留 >> 前缀）
-            wuwa38h = True; mode = "bi"; i += 1
-        elif a == "--wuwa38b":
-            # 鸣潮 3.8「literally broke me」完整片一键重跑：bi 规则 + 侧车逐 cue 整行覆盖
-            wuwa38b = True; mode = "bi"; i += 1
-        elif a == "--wuwa38j":
-            # 鸣潮 3.8 主线 Jadealy 反应片一键重跑：bi 规则 + 逐 cue 侧车整行覆盖
-            wuwa38j = True; mode = "bi"; i += 1
-        elif a == "--wuwa40":
-            # 鸣潮 4.0 前瞻 Drip Marketing reaction 片一键重跑：bi 规则 + 逐 cue 侧车整行覆盖
-            wuwa40 = True; mode = "bi"; i += 1
-        elif a == "--wuwa40ko":
-            # 鸣潮 4.0 新联邦 PV 韩语反应片一键重跑：KO_TERMS + WW40KO_CONTEXT + 侧车整行覆盖
-            wuwa40ko = True; mode = "wuwa40ko"; i += 1
-        elif a == "--wuwa40ign":
-            # 鸣潮 4.0「永明的烬焰」IGN 实机演示 韩语反应片一键重跑：KO_TERMS + WW40IGN_CONTEXT + 侧车整行覆盖
-            wuwa40ign = True; mode = "wuwa40ign"; i += 1
-        elif a == "--wuwasol":
-            # 鸣潮 3.8「第二索拉：未名之梦」Reaction 片一键重跑：bi 规则 + 逐 cue 侧车整行覆盖
-            wuwasol = True; mode = "bi"; i += 1
-        elif a == "--wuwaall":
-            # 鸣潮全短片 Reaction《ALL Wuthering Waves Cinematic Shorts》一键重跑：bi 规则 + 636 条侧车整行覆盖
-            wuwaall = True; mode = "bi"; i += 1
         elif a == "--mode" and i + 1 < len(args):
             # 别名→模式查表（_MODE_ALIASES 精确沿用原 elif 链+三元兜底；未列出落 bi）。
             #   扁平 dict 无 elif 顺序问题：arcak/akja 与 ak 别名集互斥，不会掉回 bi。
@@ -19593,46 +19665,11 @@ def main_argv(argv=None):
             i += 1
 
     info = {"ko": KO_INFO, "ak": AK_INFO, "endo": ENDO_INFO, "pgr": PGR_INFO, "zho": ZHO_INFO, "wwoc": WWOC_INFO, "akko": AK_KO_INFO}.get(mode)
-    if wuwa38:
-        info = WW38_INFO
-        if bi_override_path is None:
-            bi_override_path = WW38_OVERRIDES_SRC
-    if wuwa38h:
-        info = WW38H_INFO
-        if bi_override_path is None:
-            bi_override_path = WW38H_OVERRIDES_SRC
-    if wuwa38b:
-        info = WW38B_INFO
-        if bi_override_path is None:
-            bi_override_path = WW38B_OVERRIDES_SRC
-    if wuwa38j:
-        info = WW38_J_INFO
-        if bi_override_path is None:
-            bi_override_path = WW38_J_OVERRIDES_SRC
-    if wuwa40:
-        info = WW40_INFO
-        if bi_override_path is None:
-            bi_override_path = WW40_OVERRIDES_SRC
-    if wuwa40ko:
-        info = WW40KO_INFO
-        if bi_override_path is None:
-            bi_override_path = WW40KO_OVERRIDES_SRC
-    if wuwa40ign:
-        info = WW40IGN_INFO
-        if bi_override_path is None:
-            bi_override_path = WW40IGN_OVERRIDES_SRC
-    if wuwasol:
-        info = WUSOL_INFO
-        if bi_override_path is None:
-            bi_override_path = WUSOL_OVERRIDES_SRC
-    if wuwaall:
-        info = WUWAALL_INFO
-        if bi_override_path is None:
-            bi_override_path = WUWAALL_OVERRIDES_SRC
-    if arcakamiya:
-        info = ARCAK_AMIYA_INFO
-        if bi_override_path is None:
-            bi_override_path = ARCAK_AMIYA_OVERRIDES_SRC
+    for _rk, _re in _RERUN.items():        # 声明序=装配序
+        if _rk in rerun_active:
+            info = _re["info"]             # info 最后命中赢
+            if bi_override_path is None:
+                bi_override_path = _re["overrides"]   # 缺省侧车第一命中赢（显式 --bi-override 已优先）
     if src is None and info:
         src = info["src"]                       # 一键重跑内置片源
         if out_path is None:
@@ -19655,22 +19692,25 @@ def main_argv(argv=None):
     rows, hits = process(src, out_path, report_path, mode=mode,
                          fix_en=fix_en, pgr_override=pgr_override,
                          learned_kb=learned_kb, bi_override=bi_override,
-                         bi_override_preserve=wuwa38h,
-                         ko_override=bi_override if (wuwa40ko or wuwa40ign) else None,
-                         ko_override_preserve=False, zh_first=wuwaall)
+                         bi_override_preserve=any(_RERUN[k].get("preserve") for k in rerun_active),
+                         ko_override=bi_override if any(_RERUN[k].get("ko") for k in rerun_active) else None,
+                         ko_override_preserve=False,
+                         zh_first=any(_RERUN[k].get("zh_first") for k in rerun_active))
     names = {"bi": "中英双语 (BILINGUAL_TERMS + CONTEXT_MAP + WORD_MAP)" + (
-                 " + 3.8 完整片侧车 {} 条（整行覆盖）".format(len(bi_override) if bi_override else 0) if wuwa38b else
-                 " + 3.8 侧车 {} 条".format(len(bi_override) if bi_override else 0) if (wuwa38 or wuwa38j) else
-                 " + 3.8 终章侧车 {} 条（保留 >>）".format(len(bi_override) if bi_override else 0) if wuwa38h else
-                 " + 4.0 侧车 {} 条".format(len(bi_override) if bi_override else 0) if wuwa40 else
-                 " + 第二索拉侧车 {} 条".format(len(bi_override) if bi_override else 0) if wuwasol else
-                 " + 全短片侧车 {} 条（整行覆盖）".format(len(bi_override) if bi_override else 0) if wuwaall else ""),
+                 " + 3.8 完整片侧车 {} 条（整行覆盖）".format(len(bi_override) if bi_override else 0) if "wuwa38b" in rerun_active else
+                 " + 3.8 侧车 {} 条".format(len(bi_override) if bi_override else 0) if ("wuwa38" in rerun_active or "wuwa38j" in rerun_active) else
+                 " + 3.8 终章侧车 {} 条（保留 >>）".format(len(bi_override) if bi_override else 0) if "wuwa38h" in rerun_active else
+                 " + 4.0 侧车 {} 条".format(len(bi_override) if bi_override else 0) if "wuwa40" in rerun_active else
+                 " + 第二索拉侧车 {} 条".format(len(bi_override) if bi_override else 0) if "wuwasol" in rerun_active else
+                 " + 全短片侧车 {} 条（整行覆盖）".format(len(bi_override) if bi_override else 0) if "wuwaall" in rerun_active else ""),
              "ko": "韩语原声 (KO_TERMS)",
              "wuwa40ko": "韩语原声·鸣潮 4.0 新联邦 PV (KO_TERMS + WW40KO_CONTEXT + 侧车 {} 条)".format(
                  len(bi_override) if bi_override else 0),
              "wuwa40ign": "韩语原声·鸣潮 4.0 IGN 实机 (KO_TERMS + WW40IGN_CONTEXT + 侧车 {} 条)".format(
                  len(bi_override) if bi_override else 0),
-             "ja": "日语原声 (JA_TERMS + JA_CONTEXT)",
+             "ja": "日语原声 (JA_TERMS + JA_CONTEXT)" + (
+                 " + 4.0 先行映像侧车 {} 条（整行覆盖）".format(len(bi_override) if bi_override else 0)
+                 if "wuwa40ja" in rerun_active else ""),
              "jpe": "日语原声·终末地 (JA_ENDFIELD_TERMS + JA_ENDFIELD_CONTEXT)",
              # 2026-11-03 新增。故意**不进 info 字典**：本模式没有内置片源，
              #   进了 info 会出现「无片源文件也能一键重跑」的假入口。
@@ -19706,7 +19746,7 @@ def main_argv(argv=None):
              # 2026-11-21 新增：少前2二周年反应片。与 pgrja 同规：**不进 info 字典**（无内置片源）。
              "gfl2": "少女前线2：追放 (GFL2_TERMS + GFL2_CONTEXT)"}
     extra = (" + 英文行修正(--fix-en)" if fix_en else "")
-    if arcakamiya:
+    if "arcakamiya" in rerun_active:
         names["arcak"] += " + 阿米娅 Partner Play 侧车 {} 条".format(
             len(bi_override) if bi_override else 0)
     print("模式:", names[mode] + extra)
