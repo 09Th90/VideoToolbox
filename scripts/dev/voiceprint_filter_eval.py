@@ -3,15 +3,20 @@
 # @version 3.2.0
 """真实标注集上的声纹筛选评估（不改媒体、模板或原 SRT）。
 
-Manifest（version=1）：
+Manifest（version=1，v1.1 扩展字段全部可选、出现时做温和类型校验，未知字段不拒绝）：
 {
   "version": 1,
+  "dataset_id": "g0-pilot-01",              // v1.1 可选
+  "labeling_guide_version": "lg-3",         // v1.1 可选
+  "provenance": {"asr": "...", "date": "..."},  // v1.1 可选
   "items": [{
     "id": "video-001",
     "media": "D:/media/a.mp4",
     "srt": "D:/media/a.srt",
     "language": "ja",
     "templates": ["主播A"],
+    "split": "train",                        // v1.1 可选：train/val/test 等字符串
+    "annotator": "r1",                       // v1.1 可选
     "cues": [
       {"num": 1, "label": "target"},
       {"num": 2, "label": "non_target"},
@@ -23,6 +28,8 @@ Manifest（version=1）：
 
 cue 可另带非负 `duration_ms`，或成对的毫秒 `start/end` 作为人工时间标签；
 未提供时使用决策明细中的原 SRT 时长。item/cue 均可带 language，cue 优先。
+v1.1 cue 可选字段：`hard_flags`（字符串数组，多标签切片）、`selection_reason`
+（标注者的选择理由）、`annotator`、`confidence`（0~1 数字）。
 
 用法：
   # 直接跑现有本地模型；out_path=None，不写筛选 SRT / 报告 / 备份
@@ -40,15 +47,20 @@ cue 可另带非负 `duration_ms`，或成对的毫秒 `start/end` 作为人工�
   * 主指标只用 target / non_target；overlap / unknown 单列，不混入分母。
   * precision = target keep / 全部 keep；recall = target keep / 全部 target。
     因此 target review 会降低自动保留 recall，但不计入硬误删 false_drop。
+  * f1 = 2*P*R/(P+R)（P 或 R 未定义时同为 None）；顶层与 output 双口径同算。
   * false_keep = non_target keep；false_drop = target drop；review_rate 为存疑占比。
   * output 是按模式折算正式 SRT 的指标：recall 模式把 review 当保留，precision
     模式把 review 当未进入正式成品。cue 与 duration（秒）两种口径同时输出。
+  * --run 会附 efficiency（wall_seconds / peak_rss_mb / api_calls=0）。tracemalloc
+    会拖慢执行，只用于相对比较，不代表绝对性能。
 """
 import argparse
 import copy
 import json
 import os
 import sys
+import time
+import tracemalloc
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(os.path.dirname(HERE))
@@ -68,10 +80,25 @@ def _err(message):
     raise ValueError(message)
 
 
+def _opt_str(obj, key, where):
+    """v1.1 可选字符串字段：出现即校验，缺省放过（未知字段本就不拒绝）。"""
+    if key in obj and not isinstance(obj[key], str):
+        _err("%s.%s 必须是字符串" % (where, key))
+
+
 def validate_manifest(obj):
-    """校验并返回 manifest；失败时给出可定位的字段错误。"""
+    """校验并返回 manifest；失败时给出可定位的字段错误。
+
+    v1.1（2026-11-22）：dataset_id / labeling_guide_version / provenance /
+    split / selection_reason / hard_flags / annotator / confidence 为可选扩展
+    字段，出现时做温和类型校验；其余未知字段一律不拒绝（向后兼容）。
+    """
     if not isinstance(obj, dict) or obj.get("version") != 1:
         _err("manifest 必须是对象且 version=1")
+    for top_key in ("dataset_id", "labeling_guide_version"):
+        _opt_str(obj, top_key, "manifest")
+    if "provenance" in obj and not isinstance(obj["provenance"], dict):
+        _err("manifest.provenance 必须是对象")
     items = obj.get("items")
     if not isinstance(items, list) or not items:
         _err("manifest.items 必须是非空数组")
@@ -89,6 +116,8 @@ def validate_manifest(obj):
         for key in ("media", "srt"):
             if not isinstance(item.get(key), str) or not item[key].strip():
                 _err("%s.%s 必须是路径字符串" % (where, key))
+        _opt_str(item, "split", where)
+        _opt_str(item, "annotator", where)
         templates = item.get("templates")
         if (not isinstance(templates, list) or not templates
                 or any(not isinstance(x, str) or not x.strip() for x in templates)):
@@ -114,6 +143,18 @@ def validate_manifest(obj):
                 if (not isinstance(value, (int, float)) or isinstance(value, bool)
                         or value < 0):
                     _err(cw + ".duration_ms 必须是非负数字")
+            if "hard_flags" in cue:
+                flags = cue["hard_flags"]
+                if (not isinstance(flags, list)
+                        or any(not isinstance(x, str) for x in flags)):
+                    _err(cw + ".hard_flags 必须是字符串数组")
+            if "confidence" in cue:
+                conf = cue["confidence"]
+                if (not isinstance(conf, (int, float)) or isinstance(conf, bool)
+                        or not 0 <= conf <= 1):
+                    _err(cw + ".confidence 必须是 0~1 的数字")
+            _opt_str(cue, "selection_reason", cw)
+            _opt_str(cue, "annotator", cw)
             has_start, has_end = "start" in cue, "end" in cue
             if has_start or has_end:
                 start, end = cue.get("start"), cue.get("end")
@@ -148,7 +189,12 @@ def load_saved_results(path):
 
 
 def run_manifest(manifest, mode, threshold=None, low=None):
-    """只读执行：filter_srt 的 out_path=None，因此不产生任何字幕产物。"""
+    """只读执行：filter_srt 的 out_path=None，因此不产生任何字幕产物。
+
+    每条结果附 `efficiency`（wall_seconds / peak_rss_mb / api_calls=0）。
+    tracemalloc 有可观开销（拖慢执行、只增相对参考价值），峰值内存口径是
+    Python 层分配，不是进程 RSS；api_calls 恒为 0——本地筛选不联网。
+    """
     results = []
     for item in manifest["items"]:
         for key in ("media", "srt"):
@@ -157,10 +203,20 @@ def run_manifest(manifest, mode, threshold=None, low=None):
         templates = [SV.load_template(name) for name in item["templates"]]
         kw = {"threshold": SV.DEFAULT_THRESHOLD if threshold is None else threshold,
               "low": SV.DEFAULT_LOW if low is None else low}
-        result = SV.filter_srt(item["media"], item["srt"], templates,
-                               out_path=None, report=False, mode=mode,
-                               min_keep_ratio=0, **kw)
+        tracemalloc.start()
+        t0 = time.perf_counter()
+        try:
+            result = SV.filter_srt(item["media"], item["srt"], templates,
+                                   out_path=None, report=False, mode=mode,
+                                   min_keep_ratio=0, **kw)
+            wall = time.perf_counter() - t0
+            _cur, peak = tracemalloc.get_traced_memory()
+        finally:
+            tracemalloc.stop()
         result["id"] = item["id"]
+        result["efficiency"] = {"wall_seconds": wall,
+                                "peak_rss_mb": peak / (1024.0 * 1024.0),
+                                "api_calls": 0}
         results.append(result)
     return results
 
@@ -215,6 +271,13 @@ def _div(a, b):
     return (a / b) if b else None
 
 
+def _f1(p, r):
+    """2*P*R/(P+R)；P/R 任一未定义（分母 0）时同为 None。"""
+    if p is None or r is None:
+        return None
+    return _div(2.0 * p * r, p + r)
+
+
 def _metrics(rows, mode, duration=False):
     def weight(row):
         return row["duration_ms"] / 1000.0 if duration else 1
@@ -248,6 +311,7 @@ def _metrics(rows, mode, duration=False):
     return {
         "precision": _div(tp, tp + fp),
         "recall": _div(tp, target_total),
+        "f1": _f1(_div(tp, tp + fp), _div(tp, target_total)),
         "false_keep": fp,
         "false_drop": fn,
         "target_review": target_review,
@@ -255,6 +319,8 @@ def _metrics(rows, mode, duration=False):
         "output": {
             "precision": _div(out_tp, out_tp + out_fp),
             "recall": _div(out_tp, target_total),
+            "f1": _f1(_div(out_tp, out_tp + out_fp),
+                      _div(out_tp, target_total)),
             "false_keep": out_fp,
             "false_drop": out_fn,
         },
@@ -294,18 +360,27 @@ def evaluate(manifest, results, mode="precision"):
                 "source": str(d.get("source") or "unknown"),
                 "state": d["state"], "score": d.get("score"),
                 "duration_ms": _duration_ms(d, cue),
+                "split": str(item.get("split") or "(unspecified)"),
+                "hard_flags": [str(x) for x in (cue.get("hard_flags") or [])],
             }
             item_rows.append(row)
         rows.extend(item_rows)
         item_reports.append({"id": item["id"], **_metric_bundle(item_rows, mode)})
 
     groups = {}
-    for field in ("reason", "language", "asr_presence", "asr_label"):
+    for field in ("reason", "language", "asr_presence", "asr_label", "split"):
         groups[field] = {}
         for value in sorted({str(r[field]) for r in rows}):
             selected = [r for r in rows if str(r[field]) == value]
             groups[field][value] = _metric_bundle(selected, mode)
-    return {
+    # hard_flags 是多标签：一条 cue 可挂多个 flag，进多个切片，不互斥。
+    flag_groups = {}
+    for r in rows:
+        for flag in r["hard_flags"]:
+            flag_groups.setdefault(flag, []).append(r)
+    groups["hard_flags"] = {flag: _metric_bundle(flag_groups[flag], mode)
+                            for flag in sorted(flag_groups)}
+    report = {
         "schema_version": 1,
         "mode": mode,
         "metric_scope": "target/non_target 主指标；overlap/unknown 仅在 labels 中单列",
@@ -313,24 +388,48 @@ def evaluate(manifest, results, mode="precision"):
         "overall": _metric_bundle(rows, mode),
         "groups": groups,
     }
+    if "dataset_id" in manifest:
+        report["dataset_id"] = manifest["dataset_id"]
+    if "labeling_guide_version" in manifest:
+        report["labeling_guide_version"] = manifest["labeling_guide_version"]
+    if "provenance" in manifest:
+        report["provenance"] = manifest["provenance"]
+    # --run 采到的效率数据聚合到顶层；--decisions 模式没有 efficiency 键。
+    effs = [r["efficiency"] for r in results
+            if isinstance(r, dict) and isinstance(r.get("efficiency"), dict)]
+    if effs:
+        report["efficiency"] = {
+            "wall_seconds": sum(float(e.get("wall_seconds") or 0.0) for e in effs),
+            "peak_rss_mb": max(float(e.get("peak_rss_mb") or 0.0) for e in effs),
+            "api_calls": sum(int(e.get("api_calls") or 0) for e in effs),
+            "count": len(effs),
+        }
+    return report
 
 
 def _synthetic_case():
     manifest = {
         "version": 1,
+        "dataset_id": "synthetic-01",
+        "labeling_guide_version": "lg-0",
+        "provenance": {"asr": "synthetic", "date": "2026-11-22"},
         "items": [
             {"id": "a", "media": "C:/synthetic/a.mp4", "srt": "C:/synthetic/a.srt",
-             "language": "zh", "templates": ["合成主播"],
+             "language": "zh", "templates": ["合成主播"], "split": "train",
+             "annotator": "r1",
              "cues": [
                  {"num": 1, "label": "target"},
-                 {"num": 2, "label": "non_target"},
+                 {"num": 2, "label": "non_target", "hard_flags": ["bgm"]},
                  {"num": 3, "label": "target"},
-                 {"num": 4, "label": "non_target"},
+                 {"num": 4, "label": "non_target",
+                  "hard_flags": ["bgm", "fast_speech"],
+                  "selection_reason": "bgm 盖过人声", "confidence": 0.8},
                  {"num": 5, "label": "overlap"},
                  {"num": 6, "label": "unknown"}]},
             {"id": "b", "media": "C:/synthetic/b.mp4", "srt": "C:/synthetic/b.srt",
-             "language": "ja", "templates": ["合成主播"],
-             "cues": [{"num": 1, "label": "target"},
+             "language": "ja", "templates": ["合成主播"], "split": "val",
+             "cues": [{"num": 1, "label": "target",
+                       "hard_flags": ["fast_speech"]},
                       {"num": 2, "label": "non_target"}]},
         ],
     }
@@ -390,6 +489,34 @@ def run_self_test():
     assert abs(recall["output"]["recall"] - 2.0 / 3.0) < 1e-9
     assert recall["output"]["false_drop"] == 1  # 明确的 target drop 仍是硬误删
 
+    # F1（2026-11-22 增量）：P=0.5, R=1/3 → cue F1=0.4；duration P=1/3, R=0.2 → 0.25。
+    # recall 折算后 output：out_tp=2, out_fp=2 → P=0.5, R=2/3 → F1=4/7。
+    assert abs(cue["f1"] - 0.4) < 1e-9, cue["f1"]
+    assert abs(duration["f1"] - 0.25) < 1e-9, duration["f1"]
+    assert abs(cue["output"]["f1"] - 0.4) < 1e-9
+    assert abs(duration["output"]["f1"] - 0.25) < 1e-9
+    recall_out_f1 = evaluate(manifest, results, mode="recall")[
+        "overall"]["cue"]["output"]["f1"]
+    assert abs(recall_out_f1 - 4.0 / 7.0) < 1e-9, recall_out_f1
+
+    # hard_flags 多标签切片：cue2(cue keep) + cue4(review) 共享 bgm；不互斥。
+    hf = report["groups"]["hard_flags"]
+    assert set(hf) == {"bgm", "fast_speech"}, sorted(hf)
+    assert hf["bgm"]["cue"]["support"]["total"] == 2
+    assert hf["bgm"]["cue"]["support"]["keep"] == 1
+    assert hf["bgm"]["cue"]["support"]["review"] == 1
+    assert hf["bgm"]["duration"]["support"]["total"] == 6.0
+    assert hf["fast_speech"]["cue"]["support"]["total"] == 2
+    assert hf["fast_speech"]["cue"]["support"]["review"] == 2
+
+    # split 分列（item.split -> row.split）。support 只统计 labelled：
+    # train = item a 的 4 条 target/non_target；val = item b 的 2 条。
+    sp = report["groups"]["split"]
+    assert sp["train"]["cue"]["support"]["total"] == 4
+    assert sp["val"]["cue"]["support"]["total"] == 2
+    assert report["dataset_id"] == "synthetic-01"
+    assert report["labeling_guide_version"] == "lg-0"
+
     bad = copy.deepcopy(manifest)
     bad["items"][0]["cues"][0]["label"] = "invented"
     try:
@@ -406,6 +533,37 @@ def run_self_test():
         pass
     else:
         raise AssertionError("不成对的人工时间标签未被 Schema 拒绝")
+    bad_flags = copy.deepcopy(manifest)
+    bad_flags["items"][0]["cues"][1]["hard_flags"] = "bgm"  # 应为数组
+    try:
+        evaluate(bad_flags, results)
+    except ValueError:
+        pass
+    else:
+        raise AssertionError("非数组 hard_flags 未被 Schema 拒绝")
+    bad_conf = copy.deepcopy(manifest)
+    bad_conf["items"][0]["cues"][1]["confidence"] = 1.5
+    try:
+        evaluate(bad_conf, results)
+    except ValueError:
+        pass
+    else:
+        raise AssertionError("越界 confidence 未被 Schema 拒绝")
+    # v1.1 字段全缺省也应通过（向后兼容 v1 旧 manifest）。
+    legacy = copy.deepcopy(manifest)
+    for key in ("dataset_id", "labeling_guide_version", "provenance"):
+        legacy.pop(key, None)
+    for legacy_item in legacy["items"]:
+        legacy_item.pop("split", None)
+        legacy_item.pop("annotator", None)
+        for c in legacy_item["cues"]:
+            for k in ("hard_flags", "selection_reason", "annotator",
+                      "confidence"):
+                c.pop(k, None)
+    legacy_report = evaluate(legacy, results)
+    assert "train" not in legacy_report["groups"]["split"]
+    assert "(unspecified)" in legacy_report["groups"]["split"]
+    assert legacy_report["groups"]["hard_flags"] == {}
     mismatch = copy.deepcopy(results)
     mismatch[0]["decisions"] = mismatch[0]["decisions"][:-1]
     try:

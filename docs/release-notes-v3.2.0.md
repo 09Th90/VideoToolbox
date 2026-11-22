@@ -40,7 +40,7 @@ Jev 结构化决策以影子形态接入校准与声纹筛选；新增 ASR 转�
 
 - calib_core 零漂移：selftest `--ref` 冻结基线 **603 PASS / 0 FAIL**；`build_calib_monolith --check` **OK**（1112 Entity，AST 兼容）；7 片 onepass `--gate --max-differ 0` + verify EQUIVALENT。
 - 声纹自测 `_selftest_speaker_voiceprint.py` **280/0**；决策客户端 `_selftest_decision.py` **36/0**；Jev mention 探针 `--self-test` **13/0**（金标零 .calib 污染 + mock 零网络）。
-- 引擎纯度：`src/calib_core/` 对 decision_client / network / http **0 引用**；凭据隔离（decision_api_key 独立存储，不进配置/日志/报告/发布包）。
+- 引擎纯度：`src/calib_core/` 对 decision_client / network / http **0 引用**；凭据隔离机制就位（`credential_store.py` 将 api_key/asr_api_key 存入 ignore 的 `data/credentials.json`，不进配置树/日志/报告/发布包）。独立 `decision_api_key` 属 WP3 计划项，v3.2.0 尚未实现（现决策客户端复用全局 AI 凭据槽）。
 
 ## 发布形态
 

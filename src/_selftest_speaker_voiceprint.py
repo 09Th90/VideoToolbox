@@ -386,7 +386,11 @@ def main():
         check("名单与开关两个键同时存活",
               SV.load_selection() == ["主播甲", "主播乙"]
               and SV.load_auto_filter() is True)
-        check("筛选模式缺省为 recall", SV.load_filter_mode() == "recall")
+        check("筛选模式缺省为 precision（WP1 2026-11-22 翻转：缺省/脏值不再召回）",
+              SV.load_filter_mode() == "precision")
+        SV.save_filter_mode("recall")
+        check("显式 save_filter_mode('recall') 被尊重（翻转不吞用户选择）",
+              SV.load_filter_mode() == "recall")
         SV.save_filter_mode("precision")
         SV.save_selection(["主播甲"])
         SV.save_auto_filter(True)
@@ -394,7 +398,6 @@ def main():
               SV.load_filter_mode() == "precision"
               and SV.load_selection() == ["主播甲"]
               and SV.load_auto_filter() is True)
-        SV.save_filter_mode("recall")
         SV.save_selection(["主播甲", "主播乙"])
 
         SV.save_auto_filter(False)
@@ -404,10 +407,13 @@ def main():
             fh.write('{"enabled": ["主播甲"], "auto_filter": "yes"}')
         check("auto_filter 是非法类型时按 False 处理",
               SV.load_auto_filter() is False)
+        check("filter_mode 键缺失时按 precision 处理（翻转后的安全缺省）",
+              SV.load_filter_mode() == "precision")
         with open(SV.SELECTION_PATH, "w", encoding="utf-8") as fh:
             fh.write("{ 这不是 JSON")
-        check("selection.json 坏了 → 名单空 + 不自动筛",
-              SV.load_selection() == [] and SV.load_auto_filter() is False)
+        check("selection.json 坏了 → 名单空 + 不自动筛 + 精准优先",
+              SV.load_selection() == [] and SV.load_auto_filter() is False
+              and SV.load_filter_mode() == "precision")
 
         # 门禁：开关 ∧ 名单，两者缺一不可
         import core.asr.voiceprint as VPI
@@ -1174,11 +1180,108 @@ def main():
           vn[1][1] == "review" and dn[1]["reason"] == "too_short"
           and dn[1]["score"] is None, dn[1])
 
+    # ---------------- 6b) P0③ 阈值三级解析 + calibrate_threshold 草案 ----------------
+    # resolve_thresholds：显式参数 > selection.json threshold_override > 模板
+    # calib（save_template(**meta) 落盘）> 出厂常量；多模板保守取窄。
+    say("\n== 6b) resolve_thresholds / calibrate_threshold（P0③）==")
+    tmpdir_c = tempfile.mkdtemp(prefix="vt_vp_thr_")
+    old_tpl_c, old_sel_c = SV.TEMPLATE_DIR, SV.SELECTION_PATH
+    SV.TEMPLATE_DIR = tmpdir_c
+    SV.SELECTION_PATH = os.path.join(tmpdir_c, "selection.json")
+    try:
+        vec_c = np.zeros(SV.EMB_DIM, dtype=np.float32)
+        vec_c[0] = 1.0
+        bare = {"embedding": vec_c}                     # 无 calib 的裸模板
+        check("C1 无任何覆盖 -> 出厂常量 (0.55, 0.45, factory)",
+              SV.resolve_thresholds(bare) == (0.55, 0.45, "factory"),
+              SV.resolve_thresholds(bare))
+        t_cal = {"embedding": vec_c, "name": "甲",
+                 "calib": {"threshold": 0.62, "low": 0.50}}
+        check("C2 模板 calib 生效 -> template_calib",
+              SV.resolve_thresholds(t_cal) == (0.62, 0.50, "template_calib"),
+              SV.resolve_thresholds(t_cal))
+        t_cal_b = {"embedding": vec_c, "name": "乙",
+                   "calib": {"threshold": 0.58, "low": 0.46}}
+        check("C3 双模板 calib 保守取窄 (0.58, 0.50)",
+              SV.resolve_thresholds([t_cal, t_cal_b]) == (0.58, 0.50,
+                                                          "template_calib"),
+              SV.resolve_thresholds([t_cal, t_cal_b]))
+        with open(SV.SELECTION_PATH, "w", encoding="utf-8") as fh:
+            fh.write('{"enabled": [], "threshold_override": '
+                     '{"threshold": 0.60, "low": 0.52}}')
+        check("C4a selection.json 全局覆盖 -> global_override",
+              SV.resolve_thresholds(bare) == (0.60, 0.52, "global_override"),
+              SV.resolve_thresholds(bare))
+        check("C4b 全局覆盖也压过模板 calib",
+              SV.resolve_thresholds(t_cal)[2] == "global_override",
+              SV.resolve_thresholds(t_cal))
+        check("C4c 显式二元组参数最高（压过全局覆盖）",
+              SV.resolve_thresholds(bare, override=(0.70, 0.55))
+              == (0.70, 0.55, "explicit"),
+              SV.resolve_thresholds(bare, override=(0.70, 0.55)))
+        check("C4d dict 形态部分指定：显式键生效，缺键回出厂",
+              SV.resolve_thresholds(bare, override={"threshold": 0.66})
+              == (0.66, 0.45, "explicit"),
+              SV.resolve_thresholds(bare, override={"threshold": 0.66}))
+        with open(SV.SELECTION_PATH, "w", encoding="utf-8") as fh:
+            fh.write('{"enabled": [], "threshold_override": '
+                     '{"threshold": 0.40, "low": 0.45}}')
+        check("C4e low>threshold 的覆盖配置报 VoiceprintError（fail-fast）",
+              _raises(SV.VoiceprintError, SV.resolve_thresholds, bare))
+        with open(SV.SELECTION_PATH, "w", encoding="utf-8") as fh:
+            fh.write("{}")
+        check("C4f 非法显式参数（low>threshold）同样报 VoiceprintError",
+              _raises(SV.VoiceprintError, SV.resolve_thresholds, bare,
+                      {"threshold": 0.4, "low": 0.9}))
+
+        # calibrate_threshold（草案）：同人 [0.68,0.90] / 异人 [0.20,0.45] 各 200 点
+        cal_same = [0.68 + i * (0.90 - 0.68) / 199.0 for i in range(200)]
+        cal_diff = [0.20 + i * (0.45 - 0.20) / 199.0 for i in range(200)]
+        pairs = [(s, True, "zh") for s in cal_same] \
+            + [(s, False, "zh") for s in cal_diff]
+        rep = SV.calibrate_threshold(pairs, margin=0.03)
+        check("C5a 校准建议落在异人上限与同人下限之间 (0.45, 0.68)",
+              rep.get("ok") is True and 0.45 < rep["threshold"] < 0.68,
+              (rep.get("threshold"), rep.get("low")))
+        check("C5b 语言分组建议齐全且保守建议取窄",
+              "zh" in rep.get("by_language", {})
+              and rep["conservative"]["threshold"] <= rep["threshold"]
+              and rep["conservative"]["low"] >= rep["low"],
+              rep.get("conservative"))
+        pairs_bad = [(0.2, True, "zh"), (0.3, True, "zh"), (0.4, True, "zh"),
+                     (0.2, False, "zh"), (0.3, False, "zh"), (0.45, False, "zh")]
+        rep_bad = SV.calibrate_threshold(pairs_bad, margin=0.03)
+        check("C5c 分布重叠 -> 建议为 None 且给出重叠报告",
+              rep_bad.get("ok") is False and rep_bad.get("threshold") is None
+              and rep_bad.get("low") is None and bool(rep_bad.get("report")),
+              rep_bad.get("report"))
+        check("C5d 缺同人或异人分数明确报错",
+              _raises(SV.VoiceprintError, SV.calibrate_threshold,
+                      [(0.5, True, "zh")])
+              and _raises(SV.VoiceprintError, SV.calibrate_threshold, []))
+
+        # C6：校准阈值喂给 decide，三分支路由应与出厂阈值语义一致
+        # （键必须用 cues 的说话人标签：说话人1 占 cues[0]/[2]，2->[1]，3->[3]）
+        sc_cal = {"说话人1": {"score": 0.90, "n": 2, "seconds": 2.0},
+                  "说话人2": {"score": 0.55, "n": 1, "seconds": 1.0},
+                  "说话人3": {"score": 0.30, "n": 1, "seconds": 1.0}}
+        v_cal = SV.decide(cues, sc_cal, rep["threshold"], rep["low"])
+        check("C6 校准阈值下 decide 三分支路由 keep/review/drop",
+              [st for _c, st, _s in v_cal] == ["keep", "review", "keep", "drop"],
+              [st for _c, st, _s in v_cal])
+    finally:
+        SV.TEMPLATE_DIR, SV.SELECTION_PATH = old_tpl_c, old_sel_c
+        shutil.rmtree(tmpdir_c, ignore_errors=True)
+
     # ---------------- 7) filter_srt 端到端 ----------------
     say("\n== 7) filter_srt 端到端（注入假 PCM / 假编码器）==")
     tmpdir = tempfile.mkdtemp(prefix="vt_vp_e2e_")
     old_read_pcm = SV.read_pcm
+    old_sel_e2e = SV.SELECTION_PATH
     SV.read_pcm = lambda src, **kw: pcm
+    # 筛选策略 / 阈值覆盖都读 selection.json：指到 tmpdir，让端到端不依赖
+    # 本机真实配置（否则用户残留的 filter_mode=recall 会让断言时绿时红）。
+    SV.SELECTION_PATH = os.path.join(tmpdir, "selection.json")
     try:
         srt_path = os.path.join(tmpdir, "in.srt")
         with open(srt_path, "w", encoding="utf-8") as fh:
@@ -1189,8 +1292,10 @@ def main():
                             encoder=enc)
         check("保留 2 条（说话人1 的两句）", res["kept_total"] == 2, res)
         check("丢弃 2 条", res["drop"] == 2, res)
-        check("默认召回模式且不产生待复核文件",
-              res["mode"] == "recall" and res["review_path"] is None)
+        check("默认（不传 mode）端到端 = 精准优先（WP1 翻转）；本场景无存疑条目，"
+              "不产生待复核文件",
+              res["mode"] == "precision" and res["review_path"] is None,
+              (res["mode"], res["review_path"]))
         out = open(out_path, encoding="utf-8-sig").read()
         check("产物含主播台词", "大家好我是主播" in out and "今天我们聊点别的" in out)
         check("产物不含嘉宾台词", "我是嘉宾" not in out and "我也来说两句" not in out)
@@ -1452,8 +1557,221 @@ def main():
         finally:
             SV.model_present, SV.filter_srt = old_mp, old_fs
             SV.load_selection = old_ls
+
+        # ---------- 7a4) P0② precision 默认翻转（WP1，2026-11-22） ----------
+        # 翻转后的语义链：缺省/脏值 -> precision；显式 recall 仍被尊重；
+        # precision 下存疑另存 _待复核.srt；keep_review=False 旧 API 仍映射 precision。
+        say("\n== 7a4) 默认 precision（P0② 翻转）：策略解析 + 端到端分离 ==")
+        old_sel_b = SV.SELECTION_PATH
+        sel_b = os.path.join(tmpdir, "selection_b.json")
+        SV.SELECTION_PATH = sel_b
+        try:
+            if os.path.isfile(sel_b):
+                os.remove(sel_b)
+            check("B1a selection.json 不存在 -> precision",
+                  SV.load_filter_mode() == "precision")
+            with open(sel_b, "w", encoding="utf-8") as fh:
+                fh.write("{ 这不是 JSON")
+            check("B1b 脏 JSON -> precision", SV.load_filter_mode() == "precision")
+            with open(sel_b, "w", encoding="utf-8") as fh:
+                fh.write('{"filter_mode": "garbage"}')
+            check("B1c 未知值 -> precision", SV.load_filter_mode() == "precision")
+            SV.save_filter_mode("recall")
+            check("B2 显式 save_filter_mode('recall') 被尊重",
+                  SV.load_filter_mode() == "recall")
+            SV.save_filter_mode("precision")
+            check("B2b 写回 precision 读回一致",
+                  SV.load_filter_mode() == "precision")
+
+            # B3/B4：注入分数，0.50 落出厂存疑区 [0.45, 0.55)（不传 threshold/low，
+            # 同时钉住 P0③ 的出厂解析）
+            b_path = os.path.join(tmpdir, "b3.srt")
+            with open(b_path, "w", encoding="utf-8") as fh:
+                fh.write(SRT)
+            sc_b = {"说话人1": {"score": 1.0, "n": 2, "seconds": 2.0},
+                    "说话人2": {"score": 0.50, "n": 1, "seconds": 1.0},
+                    "说话人3": {"score": 0.05, "n": 1, "seconds": 1.0}}
+            old_sbs_b, old_sbc_b = SV.score_by_speaker, SV.score_by_cue
+            SV.score_by_speaker = lambda *a, **k: sc_b
+            # 钉住待复核写出语义：不让二次逐 cue 打分把存疑改判
+            SV.score_by_cue = lambda *a, **k: [float("nan") for _ in a[1]]
+            try:
+                out_b3 = os.path.join(tmpdir, "b3_out.srt")
+                r_b3 = SV.filter_srt("fake.mp4", b_path, {"embedding": tpl},
+                                     out_path=out_b3, encoder=enc)
+                check("B3 不传 mode -> precision（缺省翻转生效）",
+                      r_b3["mode"] == "precision", r_b3["mode"])
+                check("B3 阈值缺省走三级解析：出厂 0.55/0.45，来源 factory",
+                      (r_b3["threshold"], r_b3["low"], r_b3["threshold_source"])
+                      == (0.55, 0.45, "factory"),
+                      (r_b3["threshold"], r_b3["low"], r_b3["threshold_source"]))
+                check("B3 存疑不混入成品：keep 2 / review 1 / drop 1",
+                      r_b3["kept_total"] == 2 and r_b3["review"] == 1
+                      and r_b3["drop"] == 1,
+                      (r_b3["kept_total"], r_b3["review"], r_b3["drop"]))
+                check("B3 待复核文件生成且含存疑台词",
+                      r_b3["review_path"]
+                      and os.path.isfile(r_b3["review_path"])
+                      and "我是嘉宾" in open(r_b3["review_path"],
+                                             encoding="utf-8-sig").read(),
+                      r_b3["review_path"])
+                b3_text = open(out_b3, encoding="utf-8-sig").read()
+                check("B3 成品不含存疑台词、保留主播台词",
+                      "我是嘉宾" not in b3_text and "大家好我是主播" in b3_text)
+
+                out_b4 = os.path.join(tmpdir, "b4_out.srt")
+                r_b4 = SV.filter_srt("fake.mp4", b_path, {"embedding": tpl},
+                                     out_path=out_b4, encoder=enc, mode="recall")
+                check("B4 显式 recall = 旧行为：存疑进成品、无待复核文件",
+                      r_b4["mode"] == "recall" and r_b4["kept_total"] == 3
+                      and r_b4["review_path"] is None
+                      and "我是嘉宾" in open(out_b4,
+                                             encoding="utf-8-sig").read(),
+                      (r_b4["mode"], r_b4["kept_total"], r_b4["review_path"]))
+
+                out_b5 = os.path.join(tmpdir, "b5_out.srt")
+                r_b5 = SV.filter_srt("fake.mp4", b_path, {"embedding": tpl},
+                                     out_path=out_b5, encoder=enc,
+                                     keep_review=False)
+                check("B5 keep_review=False 旧 API 仍映射 precision",
+                      r_b5["mode"] == "precision" and r_b5["kept_total"] == 2,
+                      (r_b5["mode"], r_b5["kept_total"]))
+
+                # B7：NaN 密集（判不了的组）——precision 下不进成品、进待复核
+                sc_nan = {"说话人1": {"score": 1.0, "n": 2, "seconds": 2.0},
+                          "说话人2": {"score": float("nan"), "n": 1,
+                                      "seconds": 1.0},
+                          "说话人3": {"score": float("nan"), "n": 1,
+                                      "seconds": 1.0}}
+                SV.score_by_speaker = lambda *a, **k: sc_nan
+                out_b7 = os.path.join(tmpdir, "b7_out.srt")
+                r_b7 = SV.filter_srt("fake.mp4", b_path, {"embedding": tpl},
+                                     out_path=out_b7, encoder=enc)
+                check("B7 NaN 组判存疑且不进成品（precision）",
+                      r_b7["kept_total"] == 2 and r_b7["review"] == 2,
+                      (r_b7["kept_total"], r_b7["review"]))
+                check("B7 NaN 组两条都另存待复核",
+                      r_b7["review_path"] and os.path.isfile(r_b7["review_path"])
+                      and "我是嘉宾" in open(r_b7["review_path"],
+                                             encoding="utf-8-sig").read()
+                      and "我也来说两句" in open(r_b7["review_path"],
+                                                 encoding="utf-8-sig").read(),
+                      r_b7["review_path"])
+            finally:
+                SV.score_by_speaker, SV.score_by_cue = old_sbs_b, old_sbc_b
+
+            # B8：熔断 × precision——存疑不进成品只会让保留率更低，熔断线照常兜底
+            b8_path = os.path.join(tmpdir, "b8_big.srt")
+            with open(b8_path, "w", encoding="utf-8-sig", newline="\r\n") as fh:
+                fh.write(_mk_srt(1, 39))
+            out_b8 = os.path.join(tmpdir, "b8_out.srt")
+            old_sbs_b8 = SV.score_by_speaker
+            SV.score_by_speaker = lambda *a, **k: sc_kill
+            try:
+                import hashlib as _hl
+                b8_before = _hl.sha1(open(b8_path, "rb").read()).hexdigest()
+                r_b8 = SV.filter_srt("fake.mp4", b8_path, {"embedding": tpl},
+                                     out_path=out_b8, encoder=enc,
+                                     mode="precision")
+                check("B8 precision 下保留 1/40=2.5% < 5% 触发熔断",
+                      r_b8["aborted"] is True, r_b8["keep_ratio"])
+                check("B8 原字幕字节不变（sha1 一致）",
+                      _hl.sha1(open(b8_path, "rb").read()).hexdigest()
+                      == b8_before)
+                check("B8 候选另存 _疑似误杀.srt",
+                      r_b8["kept_path"] and os.path.isfile(r_b8["kept_path"])
+                      and "_疑似误杀" in os.path.basename(r_b8["kept_path"]),
+                      r_b8["kept_path"])
+            finally:
+                SV.score_by_speaker = old_sbs_b8
+
+            # B9：结构不变量——成品/待复核与源逐字节风格一致（BOM/CRLF）、
+            # 时间轴逐条相等、序号重排连续、重复调用序号递增不覆盖。
+            # （cue 无 num 属性，序号从产物文本块自行解析。）
+            def _b9_blocks(p):
+                raw = open(p, "rb").read()
+                text = raw.decode("utf-8-sig")
+                blocks = [b for b in text.replace("\r\n", "\n").split("\n\n")
+                          if b.strip()]
+                nums = []
+                for b in blocks:
+                    first = b.strip().split("\n", 1)[0].strip()
+                    nums.append(int(first))
+                return raw, nums, blocks
+
+            def _b9_cues(p):
+                d9 = SV.secore.SubtitleDoc()
+                d9.load_bytes(open(p, "rb").read())
+                return list(d9.cues)
+
+            def _b9_ok(p):
+                raw, nums, _blocks = _b9_blocks(p)
+                return (raw.startswith(b"\xef\xbb\xbf")
+                        and raw.count(b"\n") == raw.count(b"\r\n")
+                        and nums == list(range(1, len(nums) + 1)))
+            # B9 源：30 条挤进 7 秒假 PCM 之内（_cue_chunks 对越界 cue 给 None，
+            # None 经 np.asarray 会变 NaN 打穿 FakeEncoder.embed——那是假编码器的
+            # 已知边界，不是本次改动引入的回归，用例自己的时间轴要老实待在 pcm 里）。
+            b9_lines = []
+            for _i in range(30):
+                _st = _i * 200
+                b9_lines.append(
+                    "%d\n00:00:%02d,%03d --> 00:00:%02d,%03d\n[%s] 第%d句"
+                    % (_i + 1, _st // 1000, _st % 1000,
+                       (_st + 150) // 1000, (_st + 150) % 1000,
+                       "说话人1" if _i < 10 else "说话人2", _i + 1))
+            b9_path = os.path.join(tmpdir, "b9_src.srt")
+            with open(b9_path, "w", encoding="utf-8-sig", newline="\r\n") as fh:
+                fh.write("\n\n".join(b9_lines) + "\n")
+            sc_b9 = {"说话人1": {"score": 1.0, "n": 10, "seconds": 1.5},
+                     "说话人2": {"score": 0.50, "n": 20, "seconds": 3.0}}
+            old_sbs_b9, old_sbc_b9 = SV.score_by_speaker, SV.score_by_cue
+            SV.score_by_speaker = lambda *a, **k: sc_b9
+            # 钉住待复核写出语义：不让二次逐 cue 打分把存疑改判
+            SV.score_by_cue = lambda *a, **k: [float("nan") for _ in a[1]]
+            try:
+                out_b9 = os.path.join(tmpdir, "b9_out.srt")
+                r_b9 = SV.filter_srt("fake.mp4", b9_path, {"embedding": tpl},
+                                     out_path=out_b9, encoder=enc)
+                r_b9b = SV.filter_srt("fake.mp4", b9_path, {"embedding": tpl},
+                                      out_path=out_b9, encoder=enc)
+                src9 = _b9_cues(b9_path)
+                kept9 = _b9_cues(out_b9)
+                rev9 = _b9_cues(r_b9["review_path"])
+                rev9b = _b9_cues(r_b9b["review_path"])
+                check("B9 成品与两份待复核均为 BOM+CRLF 且序号从 1 连续",
+                      _b9_ok(out_b9) and _b9_ok(r_b9["review_path"])
+                      and _b9_ok(r_b9b["review_path"]))
+                check("B9 成品 cue 时间轴与源逐条相等（顺序一致）",
+                      [(c.start, c.end) for c in kept9]
+                      == [(c.start, c.end) for c in src9[:10]],
+                      [(c.start, c.end) for c in kept9[:3]])
+                check("B9 待复核 cue 时间轴与源逐条相等（后 20 条）",
+                      [(c.start, c.end) for c in rev9]
+                      == [(c.start, c.end) for c in src9[10:]],
+                      len(rev9))
+                _raw9, _n9, blk9 = _b9_blocks(out_b9)
+                _raw9b, _n9b, blk9b = _b9_blocks(r_b9b["review_path"])
+                check("B9 成品正文行数与源逐条对应（10 条 cue × 3 行 + 1 空行尾）",
+                      len(blk9) == 10
+                      and all(len(b.split("\n")) >= 3 for b in blk9),
+                      len(blk9))
+                check("B9 第二份待复核内容完整（20 条、BOM/CRLF 同源）",
+                      len(rev9b) == 20 and _b9_ok(r_b9b["review_path"]),
+                      len(rev9b))
+                check("B9 重复调用 _待复核 序号递增且不覆盖上一份",
+                      r_b9b["review_path"] != r_b9["review_path"]
+                      and r_b9b["review_path"].endswith("_待复核_1.srt")
+                      and os.path.isfile(r_b9["review_path"]),
+                      (os.path.basename(r_b9["review_path"]),
+                       os.path.basename(r_b9b["review_path"])))
+            finally:
+                SV.score_by_speaker, SV.score_by_cue = old_sbs_b9, old_sbc_b9
+        finally:
+            SV.SELECTION_PATH = old_sel_b
     finally:
         SV.read_pcm = old_read_pcm
+        SV.SELECTION_PATH = old_sel_e2e
         shutil.rmtree(tmpdir, ignore_errors=True)
 
     # ---------------- 7b) 长音频分块推理（假会话） ----------------

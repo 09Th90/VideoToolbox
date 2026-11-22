@@ -1031,9 +1031,13 @@ def save_auto_filter(enabled):
 
 
 def load_filter_mode():
-    """声纹筛选策略：缺省/脏值一律 recall，只有显式 precision 才精准优先。"""
+    """声纹筛选策略：缺省/脏值一律 precision（WP1 翻转，2026-11-22）。
+
+    精准优先下存疑与判不了的条目另存 `_待复核.srt`，不混进正式成品；误杀熔断
+    线照常兜底。用户显式选过 recall 时 selection.json 存有 `"recall"`，原样尊重。
+    """
     obj = _load_selection_obj() or {}
-    return "precision" if obj.get("filter_mode") == "precision" else "recall"
+    return "recall" if obj.get("filter_mode") == "recall" else "precision"
 
 
 def save_filter_mode(mode):
@@ -1048,6 +1052,155 @@ def save_filter_mode(mode):
     with open(SELECTION_PATH, "w", encoding="utf-8") as fh:
         json.dump(obj, fh, ensure_ascii=False, indent=1)
     return mode
+
+
+def _template_calibs(tpls):
+    """从模板参数（dict / 模板名 / (名,向量) / 混合列表）收集已落盘的 calib。
+
+    calib 读模板 JSON 的 `calib` 键（`save_template(**meta)` 已支持落盘），
+    形如 {"threshold": 0.62, "low": 0.50}。字符串模板名会 `load_template`
+    读回完整 JSON——代价是一次本地文件读，只在阈值未显式指定时发生。
+    `(名, 向量)` 二元组与裸向量带不出元数据，直接跳过。
+    """
+    items = tpls if isinstance(tpls, (list, tuple)) else [tpls]
+    out = []
+    for it in items:
+        if isinstance(it, (tuple, list)) and len(it) == 2 and isinstance(it[0], str):
+            continue                                  # (名, 向量)：无 calib 元数据
+        if isinstance(it, dict):
+            cal = it.get("calib")
+        elif isinstance(it, str):
+            cal = load_template(it).get("calib")
+        else:
+            cal = None                                # 裸向量等：无从取 calib
+        if isinstance(cal, dict):
+            try:
+                t, l = float(cal["threshold"]), float(cal["low"])
+            except (KeyError, TypeError, ValueError):
+                continue                              # calib 不完整：忽略该模板
+            if 0.0 < l <= t <= 1.0:
+                out.append((t, l))
+    return out
+
+
+def resolve_thresholds(tpls, override=None):
+    """P0③ 三级阈值解析（2026-11-22）：显式参数 > selection.json 全局覆盖 >
+    模板 calib > 出厂常量。返回 (threshold, low, source)。
+
+    source ∈ {"explicit", "global_override", "template_calib", "factory"}；
+    多模板 calib **保守取窄**（threshold 取最小、low 取最大——存疑区只会更宽，
+    不会把边界分数悄悄推向「判死」）。最终值必须满足 0 < low <= threshold <= 1，
+    否则 VoiceprintError：写坏的配置宁可当场报错，也不要静默筛错人。
+
+    `override`：调用方显式指定的 {"threshold": x, "low": y} 字典或二元组；
+    允许只指定其中一个键，缺的键回落到模板 calib（保守取窄）再回出厂常量。
+    selection.json 的全局覆盖读 `threshold_override` 键（同 dict 形态）。
+    """
+    calibs = _template_calibs(tpls)
+    thr = low = None
+    source = "factory"
+    if override is not None:
+        if isinstance(override, dict):
+            ot, ol = override.get("threshold"), override.get("low")
+        else:
+            try:
+                ot, ol = override
+            except (TypeError, ValueError):
+                raise VoiceprintError(
+                    "阈值 override 应为 (threshold, low) 二元组或 dict")
+        ot = None if ot is None else float(ot)
+        ol = None if ol is None else float(ol)
+        if ot is not None or ol is not None:
+            thr, low, source = ot, ol, "explicit"
+    if source == "factory":
+        obj = _load_selection_obj() or {}
+        ov = obj.get("threshold_override")
+        if isinstance(ov, dict):
+            ot = ov.get("threshold")
+            ol = ov.get("low")
+            ot = None if ot is None else float(ot)
+            ol = None if ol is None else float(ol)
+            if ot is not None or ol is not None:
+                thr, low, source = ot, ol, "global_override"
+    if source == "factory" and calibs:
+        thr = min(t for t, _l in calibs)
+        low = max(l for _t, l in calibs)
+        source = "template_calib"
+    if source == "factory":
+        thr, low = DEFAULT_THRESHOLD, DEFAULT_LOW
+    if thr is None or low is None:                    # 显式/覆盖只给了一个键
+        f_thr = min(t for t, _l in calibs) if calibs else DEFAULT_THRESHOLD
+        f_low = max(l for _t, l in calibs) if calibs else DEFAULT_LOW
+        if thr is None:
+            thr = f_thr
+        if low is None:
+            low = f_low
+    if not (0.0 < low <= thr <= 1.0):
+        raise VoiceprintError(
+            "阈值非法（应满足 0 < low <= threshold <= 1）：threshold=%s low=%s"
+            "（来源 %s）" % (thr, low, source))
+    return float(thr), float(low), source
+
+
+def calibrate_threshold(scored_pairs, margin=0.03):
+    """tier2 入口（**草案，不自动生效**）：从人工标注分数估 (threshold, low)。
+
+    输入 `[(score, is_host)]`（可扩为 `(score, is_host, language)` 三元组）；
+    low = 异人分数 P99.5 + margin，threshold = 同人分数 P0.5 - margin——两端各
+    留 0.5% 的余量，让存疑区兜住分布尾巴。
+
+    返回 dict；**分布重叠**（估出的 low >= threshold）时返回
+    {"ok": False, "threshold": None, "low": None, "report": 重叠描述}——调用方
+    必须检查 ok，不得盲目写回模板。带 language 时额外给按语言分组的建议与
+    全局保守建议（各组取窄：threshold 取最小、low 取最大）。
+
+    本函数只算建议，不写模板、不进 filter_srt 默认链路：真实校准要等 G0
+    数据集（真实媒体 + 人工标注）就绪后由人确认再落盘（写回模板 `calib` 键）。
+    """
+    same, diff, langs = [], [], {}
+    for it in scored_pairs or []:
+        if not isinstance(it, (tuple, list)) or len(it) not in (2, 3):
+            raise VoiceprintError(
+                "calibrate_threshold 元素应为 (score, is_host[, language])")
+        sc = float(it[0])
+        if sc != sc:                                  # NaN：跳过无效标注
+            continue
+        host = bool(it[1])
+        lang = str(it[2]) if len(it) == 3 else ""
+        (same if host else diff).append(sc)
+        if lang:
+            g = langs.setdefault(lang, {"same": [], "diff": []})
+            (g["same"] if host else g["diff"]).append(sc)
+    if not same or not diff:
+        raise VoiceprintError("calibrate_threshold 需要同人与异人分数都非空")
+
+    def _est(same_list, diff_list):
+        low = float(np.percentile(diff_list, 99.5)) + margin
+        thr = float(np.percentile(same_list, 0.5)) - margin
+        return thr, low
+
+    thr, low = _est(same, diff)
+    if low >= thr:
+        return {"ok": False, "threshold": None, "low": None,
+                "report": "同人/异人分布重叠：异人 P99.5+margin(%.3f) >= 同人 "
+                          "P0.5-margin(%.3f)，单一阈值对无法分开（n_same=%d "
+                          "n_diff=%d）——先改善模板素材再校准"
+                          % (low, thr, len(same), len(diff))}
+    by_language = {}
+    for lang, g in sorted(langs.items()):
+        if g["same"] and g["diff"]:
+            t2, l2 = _est(g["same"], g["diff"])
+            by_language[lang] = {"threshold": t2, "low": l2,
+                                 "n_same": len(g["same"]),
+                                 "n_diff": len(g["diff"])}
+    conservative = {"threshold": thr, "low": low}
+    if by_language:
+        conservative = {"threshold": min(v["threshold"] for v in
+                                         by_language.values()),
+                        "low": max(v["low"] for v in by_language.values())}
+    return {"ok": True, "threshold": thr, "low": low,
+            "n_same": len(same), "n_diff": len(diff), "margin": float(margin),
+            "by_language": by_language, "conservative": conservative}
 
 
 def delete_template(name):
@@ -2452,15 +2605,24 @@ def _review_path(out_path):
     return p
 
 
-def filter_srt(src, srt_path, template, threshold=DEFAULT_THRESHOLD,
-               low=DEFAULT_LOW, out_path=None, encoder=None,
+def filter_srt(src, srt_path, template, threshold=None,
+               low=None, out_path=None, encoder=None,
                keep_review=True, report=True, progress=None, *,
                min_keep_ratio=DEFAULT_MIN_KEEP_RATIO, in_place_backup=None,
-               mode="recall", decision_client=None):
+               mode=None, decision_client=None):
     """端到端：音频 + SRT -> 只保留主播的 SRT。
 
     `template` 支持单个模板 dict / 模板名，或**模板名列表**（多声纹取并集：
     与其中任意一个够像即保留）。返回 dict（含产物路径与统计）。
+
+    `threshold` / `low` 缺省 None：走 `resolve_thresholds` 三级解析——显式参数
+    > selection.json 的 `threshold_override` 全局覆盖 > 模板 `calib` 校准值
+    （多模板保守取窄）> 出厂常量 0.55/0.45；解析来源记在返回 dict 的
+    `threshold_source`（explicit / global_override / template_calib / factory）。
+
+    `mode` 缺省 None：跟随持久化策略 `load_filter_mode()`（出厂 precision，
+    WP1 2026-11-22 翻转；显式选过 recall 则尊重）。precision 下存疑与判不了
+    的条目另存 `<stem>_待复核.srt`，不混进正式成品。
 
     `progress(text)` 可选：在阶段边界回调一句人话（解码 / 提取 / 写盘），
     供界面显示状态——18 分钟的片子要跑一两分钟，没反馈用户会以为卡死。
@@ -2484,12 +2646,17 @@ def filter_srt(src, srt_path, template, threshold=DEFAULT_THRESHOLD,
     tpls = _as_template_list(template)
     if not tpls:
         raise VoiceprintError("没有可用的声纹模板（先 enroll 录入）")
-    mode = str(mode or "recall").strip().lower()
+    mode = str(mode or load_filter_mode()).strip().lower()
     if mode not in ("recall", "precision"):
         raise VoiceprintError("未知筛选模式：%s（应为 recall / precision）" % mode)
     # keep_review=False 是旧 API；映射为精准模式以保持调用方语义。
     effective_mode = "precision" if mode == "precision" or not keep_review else "recall"
     keep_review = effective_mode == "recall"
+    # P0③：threshold/low 缺省走三级解析（显式参数 > selection.json 全局覆盖 >
+    # 模板 calib > 出厂常量）。tpls 只有 (名,向量)，calib 元数据得从原始
+    # template 参数取——字符串名单会当场 load_template 读回完整 JSON。
+    threshold, low, thr_src = resolve_thresholds(
+        template, override={"threshold": threshold, "low": low})
     # ⚠ 走 `load_file` 而非「open 后 encode」：前者直接吃字节，能如实判定
     #   BOM 与源换行（CRLF/LF）；后者先被 utf-8-sig 吃掉 BOM，写出来就没了。
     #   项目一贯要求「BOM / 换行一字不动」，产物风格应当与源字幕一致。
@@ -2553,7 +2720,7 @@ def filter_srt(src, srt_path, template, threshold=DEFAULT_THRESHOLD,
     res = {"out": out_path, "total": total, "keep": n_keep,
            "review": n_review, "drop": n_drop,
            "kept_total": len(kept), "speakers": spk_scores,
-           "threshold": threshold, "low": low,
+           "threshold": threshold, "low": low, "threshold_source": thr_src,
            "local_clusters": local_clusters,
            "templates": [n for n, _e in tpls],
            "mode": effective_mode, "review_path": None,
@@ -2600,13 +2767,17 @@ def _write_report(out_path, res, verdict, in_place_backup=None):
     mode = res.get("mode") or "recall"
     mode_text = ("召回优先（存疑进入正式 SRT）" if mode == "recall"
                  else "精准优先（正式 SRT 仅 keep，存疑另存）")
+    thr_src_cn = {"factory": "出厂默认", "template_calib": "模板校准",
+                  "global_override": "全局覆盖", "explicit": "显式指定"}.get(
+                      res.get("threshold_source") or "explicit", "显式指定")
     lines = ["主播声纹筛选报告",
              "  来源字幕 : %s" % os.path.basename(out_path),
              "  声纹模板 : %s（%d 个，并集）"
              % ("、".join(res.get("templates") or []) or "-",
                 len(res.get("templates") or [])),
              "  筛选模式 : %s" % mode_text,
-             "  阈值     : keep>=%.2f / drop<%.2f" % (res["threshold"], res["low"]),
+             "  阈值     : keep>=%.2f / drop<%.2f（%s）"
+             % (res["threshold"], res["low"], thr_src_cn),
              "  cue 总数 : %d -> 保留 %d（其中存疑 %d）/ 丢弃 %d"
              % (res["total"], res["kept_total"], res["review"], res["drop"]),
              "  分组依据 : %s"
@@ -2851,12 +3022,17 @@ def _main(argv=None):
     p3.add_argument("--src", required=True)
     p3.add_argument("--srt", required=True)
     p3.add_argument("--name", default="主播")
-    p3.add_argument("--threshold", type=float, default=DEFAULT_THRESHOLD)
-    p3.add_argument("--low", type=float, default=DEFAULT_LOW)
+    p3.add_argument("--threshold", type=float, default=None,
+                    help="keep 线（缺省三级解析：selection.json 全局覆盖 > "
+                         "模板 calib > 出厂 %.2f）" % DEFAULT_THRESHOLD)
+    p3.add_argument("--low", type=float, default=None,
+                    help="drop 线（缺省随 --threshold 同源解析，出厂 %.2f）"
+                         % DEFAULT_LOW)
     p3.add_argument("--out", default=None)
-    p3.add_argument("--mode", choices=("recall", "precision"), default="recall",
-                    help="recall=存疑保留（默认）；precision=正式 SRT 仅 keep，"
-                         "存疑另存 _待复核.srt")
+    p3.add_argument("--mode", choices=("recall", "precision"), default=None,
+                    help="recall=存疑保留；precision=正式 SRT 仅 keep，存疑另存 "
+                         "_待复核.srt；缺省跟随持久化策略（出厂 precision，"
+                         "WP1 2026-11-22 翻转）")
     p3.add_argument("--strict", action="store_true",
                     help="旧参数：等价 --mode precision，存疑另存待复核")
     p3.add_argument("--min-keep-ratio", type=float, default=DEFAULT_MIN_KEEP_RATIO,
