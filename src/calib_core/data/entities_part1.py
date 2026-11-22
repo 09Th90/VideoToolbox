@@ -279,6 +279,7 @@ ENTITIES_PART1 = [
                 "错形「林内/林奈」只在该锚命中时归琳奈。"),
     Entity("拉贝尔学部", modes=("bi",), en="Labell College",
            category="地点/星炬学院学部",
+           parent="星炬学院",
            variants=("Rebel Collegeg", "Rebel College", "拉贝尔学院"),
            note="星炬学院学部（官方知识库：'经拉贝尔学部判断其频率……'；官方角色档案："
                 "'爱弥斯，星炬学院拉贝尔学部的隧者适格者'）。Rebel College 为 Labell College "
@@ -305,6 +306,7 @@ ENTITIES_PART1 = [
                 "与 CONTEXT '外婆->老婆'(waifu) 同源，非角色名。"),
     Entity("残星会会长", modes=("bi",), en="Grand Architect",
            category="势力/角色",
+           parent="残星会",
            note="残星会(Fractsidus)首领。'伟大建筑师/伟大的建筑师/盛大建筑师'必须"
                 "长键先行，否则被'大建筑师'(4字)键咬成'伟残星会会长'。"),
     # --- 2026-09-14 《The Masses Reacts to Arknights Music - Laterano》沉淀
@@ -451,6 +453,7 @@ ENTITIES_PART1 = [
                 "戒律：'心影映花'字面为通用词组，只走参考行 Hsin/gameplay 锚定，"
                 "机翻'心影印花/心影映华/心影应花'等错形归此，绝不作裸键入全局表。"),
     Entity("玉阙玄华", modes=("bi",), category="武器/心月狐专武",
+           parent="心月狐",
            variants=("玉缺玄华", "玉雀玄华", "玉阙宣华", "玉阙玄化",
                      "雨阙玄华", "玉阙悬华", "玉阙玄画", "玉阙玄花",
                      "玉阙玄桦", "玉缺悬华", "御阙玄华", "玉阙旋华"),
@@ -460,6 +463,7 @@ ENTITIES_PART1 = [
                 "ASR 音近错形：'玉阙'易咬成'玉缺/玉雀/雨阙/御阙'；"
                 "'玄华'易咬成'宣华/玄化/悬华/玄画/玄花/玄桦/旋华'。"),
     Entity("沉冥", modes=("bi",), category="武器/锁暝专武",
+           parent="锁暝",
            variants=(),
            ctx=((r"\bSuoming\b", "沉溟"), (r"\bSuoming\b", "沈冥"),
                 (r"\bSuoming\b", "深冥"), (r"\bSuoming\b", "沉名"),
@@ -509,14 +513,17 @@ ENTITIES_PART1 = [
            note="鸣潮 3.7 新五星音感仪官方名（与心月狐专武『玉阙玄华』同批上线，"
                 "非角色绑定专武）。ASR 音近错形：'荧辉'易咬成'荧晖/萤辉/银辉/迎辉'。"),
     Entity("心之井", modes=("bi",), category="玩法/心域",
+           parent="梦枢天罗",
            ctx=((r"\bwell\b", "心之井"), (r"\bHsin\b", "心之井"),
                 (r"\bheart domain\b", "心之井")),
            note="鸣潮 3.7 新玩法：稳定『心域』并解谜的机制（前瞻直播官方名，"
                 "梦枢天罗深层区域）。戒律：'心之井'字面通用，只走 well/Hsin/heart domain 锚定。"),
     Entity("万相分形", modes=("bi",), category="异能/心月狐",
+           parent="心月狐",
            variants=("万相分型", "万象分形", "万相份形", "万像分形"),
            note="心月狐（心）3.7 官方异能名（前瞻直播/角色演示）。"),
     Entity("十重契", modes=("bi",), category="异能/锁暝",
+           parent="锁暝",
            variants=("十重器", "十重起", "十重气", "石重契", "十封印"),
            ctx=((r"\bSuoming\b", "十重契"), (r"\bResonance\b", "十重契")),
            note="锁暝 3.7 官方异能名（前瞻直播/角色演示）。"
@@ -882,6 +889,7 @@ ENTITIES_PART1 = [
                 "ASR 音近错形：'尤诺'易咬成'由诺/犹诺/油诺/尤那/尤娜/尤糯/尤洛/尤珞/游诺/柚诺/佑诺'；"
                 "英文侧 Iuno 易咬成 Juno/Junno/Jueno/Juneau/Junoe/Junoo/Yuno。"),
     Entity("清宵", modes=("bi",), en="Qingxiao", ja="セイショウ",
+           aliases=("清宵司骑",),
            category="角色/鸣潮3.6",
            variants=(
                # --- 既有机翻/ASR 错形 ---
@@ -1362,6 +1370,7 @@ ENTITIES_PART1 = [
                 "수신=受信是正常词（3.8 cue 5917「新玄方是接收方」），误配会把正确译文改回「守护神」；"
                 "确属 수호신 ASR 的语境改由 KO_CONTEXT 长锚点（수신이 함정으로/수신의 재림 等）承接。"),
     Entity("心", modes=("ko",), ko="여우의 별자리", category="角色/鸣潮",
+           parent="心月狐",
            ctx=((r"여우의 별자리", "Fox Constellation"),
                 (r"여우의 별리", "心月狐啊"),
                 (r"여호의 별리", "心月狐"),

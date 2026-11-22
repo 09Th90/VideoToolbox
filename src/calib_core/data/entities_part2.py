@@ -638,6 +638,7 @@ ENTITIES_PART2 = [
                 "Simulator/Simulacrim/Simulacum/Acrim，谷翻把 Nexus 直译'枢纽'。"),
     Entity("天罗狐影", modes=("bi",), en="Nexus Fox Shadow",
            category="地点/鸣潮3.7",
+           parent="梦枢天罗",
            variants=("Nexus Fox Shadow", "Fox Shadow"),
            note="英文残留补录：官方中文=天罗狐影（梦枢天罗的巨大狐影）。"),
     Entity("七丘", modes=("bi",), en="Septimont",
@@ -1824,6 +1825,7 @@ ENTITIES_PART2 = [
                 "2026-10-30 #628/#629。"),
     Entity("会监", modes=("bi",), en="Overseer",
            category="组织/残星会",
+           parent="残星会",
            note="残星会五会监；英文 Overseer；谷翻作监工/监督者/监督员，走参考行锚定；"
                 "2026-10-30 #424/#425/#431/#434/#664。"),
     # ============================================================
@@ -2381,6 +2383,7 @@ ENTITIES_PART2 = [
                 "印证'三条产出路径'教训：子词直译(Exo=外骨骼 + strider=行者)最常见却最易漏。"
                 "r2 cue 587/672/1455/1484/1999。"),
     Entity("伤痕", modes=("ja",), en="Scar", ja="スカー", category="角色/鸣潮残星会",
+           parent="残星会",
            ctx=((r"スカー", "疤痕"),),
            note="残星会会监 Scar 官方中文=伤痕（2026-10-30 已定）。ASR スカー⇒谷翻按字面'疤痕'。"
                 "r2 cue 1568。"),

@@ -15934,6 +15934,9 @@ def build_maps(mode):
     zh_auto = Automaton({k: frozenset(v) for k, v in zh_map.items()})
     for e in ENTITIES:
         _CANON_CATEGORY.setdefault(e.canonical, (e.category or "").split("/")[0])
+        par = getattr(e, "parent", "") or ""
+        if par and e.canonical not in _PARENT_MAP:
+            _PARENT_MAP[e.canonical] = par
     _CACHE[mode] = dict(
         ref_map=dict(ref_map), zh_map=dict(zh_map), ref_auto=ref_auto,
         zh_auto=zh_auto, wrong_keys=wrong_keys,
@@ -16014,15 +16017,17 @@ class MentionPairer:
 
 
 # ---------------------------------------------------------------- M3-4 对象级 ctx scoping
-# 最小触发门：仅当本 cue ref 存在多目标 mention 才启用对象 scoping；单目标 ref 走与现状
-# 完全相同的代码路径（结构化零漂移）。多目标 tie-break：zh 序次交集恰1→裁决；parent 链
-# （接口预留，生产 parent 数据当前为空）；失败保守回退全 T（只可能少改不可能改错）。
+# 最小触发门：仅当本 cue ref 存在多目标 ref mention 才启用对象 scoping；单目标 ref 走与现状
+# 完全相同的代码路径（结构化零漂移）。多目标 tie-break（M3-5 起三级）：zh 序次交集恰1→裁决；
+# category 首段证据恰一命中→裁决（fail-closed）；parent 链（ENTITIES.parent 实锤数据）→裁决；
+# 失败保守回退全 T（只可能少改不可能改错）。
 
 #: 对象 canonical 集合（ctx 规则 right 归属判定；right∈OBJ_CANONS 为对象规则，否则语境规则豁免）
 OBJ_CANONS = frozenset(e.canonical for e in ENTITIES)
 
-#: canonical -> 直接 parent（M3-5 填数；当前生产全空，_parent_tiebreak 永不触发）
-_PARENT_MAP = {}
+#: canonical -> 直接 parent（M3-5 装载：build_maps 从 ENTITIES e.parent 扫描填充，
+#: 重复登记 canonical 以首条非空为准；数据侧宁缺毋滥，只登记 note 实锤的父子关系）
+_PARENT_MAP: dict = {}
 
 
 def _parent_tiebreak(T, parent_map=None):
@@ -16044,13 +16049,44 @@ def _parent_tiebreak(T, parent_map=None):
     return cands[0] if len(cands) == 1 else None
 
 
+def _category_tiebreak(T, zh_ms, i):
+    """M3-5 规则3：category 首段证据 tie-break（fail-closed，只可能少改不可能改错）。
+
+    ① T 内任一候选缺 category 首段 → None；
+    ② 首段集合 < len(T)（存在同类目候选，category 不可区分）→ None（交 parent 规则）；
+    ③ 证据 = 本 cue zh 行其余 mention 的对象 category 首段集合（排除本位 i）：
+       恰一候选的首段落入证据集 → 裁决该候选；否则 None（保守回退全 T）。
+    """
+    if len(T) < 2:
+        return None
+    cats = {}
+    for c in T:
+        cat = _CANON_CATEGORY.get(c, "")
+        if not cat:                              # ① 缺 category → 放弃
+            return None
+        cats[c] = cat
+    if len(set(cats.values())) < len(T):         # ② 同类目不可区分 → 交 parent
+        return None
+    evidence = set()
+    for j in range(len(zh_ms)):
+        if j == i:                               # 排除本位
+            continue
+        for c in zh_ms[j][3]:
+            cc = _CANON_CATEGORY.get(c, "")
+            if cc:
+                evidence.add(cc)
+    hits = [c for c, cat in cats.items() if cat in evidence]
+    return hits[0] if len(hits) == 1 else None
+
+
 def scope_state(M, zh, anchor):
     """对象级 scoping 触发门 + R 计算。返回 (enabled, R, stats)。
 
     enabled = anchor 存在多目标 ref mention；enabled=False 时 R=None（完全现状）。
     R = tie-break 后本 cue 对象集（frozenset）。
     """
-    st = dict(ref_ms=0, multi=0, resolved_tb1=0, resolved_tb2=0, tb_fail=0)
+    st = dict(ref_ms=0, multi=0, resolved_tb1=0, resolved_tb2=0,
+              resolved_tb3=0, tb_fail=0)
     ref_ms = longest_bounded(M["ref_auto"], anchor.lower()) if anchor else []
     st["ref_ms"] = len(ref_ms)
     if not any(len(t) > 1 for _, _, _, t in ref_ms):
@@ -16069,7 +16105,12 @@ def scope_state(M, zh, anchor):
             R |= inter
             st["resolved_tb1"] += 1
             continue
-        par = _parent_tiebreak(T)                # 规则2：parent 链（当前数据为空）
+        cand = _category_tiebreak(T, zh_ms, i)   # 规则3（M3-5）：category 首段证据裁决
+        if cand:
+            R.add(cand)
+            st["resolved_tb3"] += 1
+            continue
+        par = _parent_tiebreak(T)                # 规则2：parent 链（M3-5 起有数据）
         if par:
             R.add(par)
             st["resolved_tb2"] += 1

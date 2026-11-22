@@ -5,10 +5,12 @@
 
 error（阻断，应立刻修）
   dup_canonical    同一 canonical 在 ENTITIES 里重复登记（身份不唯一）
-  multi_target     同一模式内，同一错形被指向多个官方名（字符串层无法表达歧义）
+  multi_target     同一模式内，同 (锚正则, 错形) 被指向多个官方名（字符串层真实歧义；
+                   M3-5 起错形相同但锚正则不同的组合降 warn——锚已区分，结构性误报）
   longkey_order    ctx 里短键排在长键之前（会被短键抢跑，产出残串）
 
 warn（需人工裁决）
+  multi_target     同错形异锚正则异目标（锚正则已区分，按语境切换 right，人工抽查）
   alias_candidate  疑似官方缩写/别译混在 variants 里（会制造 audit 假阳性）
   self_substring   变体是自身官方名的真子串（替换后可能自吞）
   cascade_substring 变体是其它对象官方名的子串（替换后可能二次命中）
@@ -47,22 +49,33 @@ def check_dup_canonical(registry: Dict[str, EntitySpec], engine) -> List[dict]:
 
 
 def check_multi_target(engine, limit: int = 200) -> List[dict]:
-    """同模式内同一错形 -> 多个官方名。"""
+    """同模式内同一错形 -> 多个官方名（M3-5 降噪：按 (rx, wrong) 分组判定）。
+
+    同一锚正则下同一错形指向多个 right = 字符串层真实歧义（靠规则顺序模拟优先级），
+    保持 error；错形相同但锚正则不同 = 语境按参考行切换目标，结构上已区分，
+    属结构性误报，降 warn。"""
     out: List[dict] = []
     for mode, cname in getattr(engine, "_MODE_CTX_TABLE", {}).items():
-        seen: Dict[str, set] = {}
+        by_wrong: Dict[str, Dict[str, set]] = {}
         for item in (getattr(engine, cname, None) or []):
             rx, wrong, right = (list(item) + [None, None, None])[:3]
             if wrong and right:
-                seen.setdefault(wrong, set()).add(right)
-        for wrong, rights in seen.items():
-            if len(rights) > 1:
+                by_wrong.setdefault(wrong, {}).setdefault(str(rx), set()).add(right)
+        for wrong, rx_map in by_wrong.items():
+            amb = {rx: rights for rx, rights in rx_map.items() if len(rights) > 1}
+            rights_all = sorted({r for rs in rx_map.values() for r in rs})
+            if amb:                      # 真歧义：同 (rx, wrong) 多 right
                 out.append(_rec(
                     "multi_target", "error", wrong,
-                    f"[{mode}] 「{wrong}」→ " + " / ".join(sorted(rights))
-                    + "（靠规则顺序模拟优先级）"))
-                if len(out) >= limit:
-                    return out
+                    f"[{mode}] 「{wrong}」→ " + " / ".join(rights_all)
+                    + "（同锚正则多目标，靠规则顺序模拟优先级）"))
+            elif len(rights_all) > 1:    # 异 rx 异 right：锚正则已区分（结构性误报）
+                out.append(_rec(
+                    "multi_target", "warn", wrong,
+                    f"[{mode}] 「{wrong}」→ " + " / ".join(rights_all)
+                    + "（锚正则已区分，结构性误报）"))
+            if len(out) >= limit:
+                return out
     return out
 
 
