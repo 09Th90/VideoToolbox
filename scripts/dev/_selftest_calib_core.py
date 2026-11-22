@@ -9,7 +9,12 @@
      3b. 英文在上版式的取行与 merge/length/flow/align-audit/audit 五条通路；
      3c. EP17 相变临界术语沉淀 + ak 分支 EXCLUDE 回滚层（含凯尔特/Cow·Calcite 负例）；
   4. 28 个子命令：rc/stdout/stderr/产物一致；
-  5. 导入无写盘、无参用法文档、缓存原地重建、性能记录。
+  5. 导入无写盘、无参用法文档、缓存原地重建、性能记录；
+  6. 鸣潮 3.8 二校回灌期望值回归；
+     6a. M3 对象级负向护栏（T8：ctx gate / 删 ctx family_gap / 白名单污染 /
+         parent 环·双父·无关第三者 / 单目标零漂移——全内存构造，try/finally 还原）；
+     6b. M3 多目标消歧 L2 回归（T9：#235 Sentinel、#207/A1cue101 元-Meta、
+         D3 parent 三向、category tie-break，pkg/ref 双跑 + 内存注入）。
 
 用法（在程序根执行）：
     PYTHONPATH=src tools\\python\\python.exe scripts\\dev\\_selftest_calib_core.py
@@ -945,6 +950,225 @@ def test_wuwa38_regressions(ref, pkg):
                 check(f"{label} #{i} {zh}", actual == want, f"got={actual!r} want={want!r}")
 
 
+# ------------------------------------------ 6a. M3 对象级负向护栏（T8，内存构造）
+
+def test_m3_negative_guards(pkg):
+    """T8 负向测试固化：每个「检查能力」配一条故意弄坏的负例，全部内存构造。
+
+    铁律：不改生产源码/知识库——ctx 删除、白名单污染、parent 映射全部在内存副本上
+    动手并 try/finally 还原；防恒过：每组负例都同时给出「未损伤时应该怎样」的对照。
+    """
+    section("6a. M3 对象级负向护栏（内存构造）")
+    from calib_core import mention as mn
+
+    # --- ① 注入错误对象映射：ctx_apply 的对象 gate 必须拦下 R 之外的官方名规则 ---
+    canons = sorted(mn.OBJ_CANONS)
+    tgt_in, tgt_out = canons[0], canons[-1]      # 一内一外两个真实 canonical
+    tb = [(re.compile(r"gate锚"), "负向错形Z9", tgt_out),
+          (re.compile(r"gate锚"), "负向错形Z9", tgt_in)]
+    new, used, blocked = mn.ctx_apply("前缀负向错形Z9后缀", tb, "这里gate锚在",
+                                      R=frozenset({tgt_in}))
+    check("T8① gate 拦 R 外对象、放 R 内对象",
+          blocked == 1 and used == 1 and tgt_in in new and tgt_out not in new,
+          f"new={new!r} used={used} blocked={blocked}")
+    new2, used2, blocked2 = mn.ctx_apply("前缀负向错形Z9后缀", tb, "这里gate锚在", R=None)
+    check("T8① R=None 完全现状（gate OFF：R 外对象照旧替换）",
+          blocked2 == 0 and used2 == 1 and tgt_out in new2,
+          f"new={new2!r} used={used2} blocked={blocked2}")
+    new3, used3, blocked3 = mn.ctx_apply("前缀负向错形Z9后缀", tb, "没有锚点",
+                                         R=frozenset({tgt_in}))
+    check("T8① 锚不命中零副作用", used3 == 0 and blocked3 == 0 and new3 == "前缀负向错形Z9后缀",
+          f"new={new3!r} used={used3} blocked={blocked3}")
+
+    # --- ② 删 ctx（内存复制子集删 closure 类规则）→ mini fixture audit family_gap≥1 ---
+    from calib_core import state as st, kb as kb_mod
+    with tempfile.TemporaryDirectory(prefix="t8_gap_") as d:
+        src = os.path.join(d, "fixture.srt")
+        open(src, "wb").write(("1\r\n00:00:01,000 --> 00:00:03,000\r\n"
+                               "wait is playable Closure finally\r\n"
+                               "等等，关闭是不是可以实装了\r\n").encode("utf-8"))
+
+        def gap_of(path, mode="ak"):
+            buf = io.StringIO()
+            with contextlib.redirect_stdout(buf):
+                kb_mod._cmd_audit(path, mode=mode, as_json=True)
+            return json.loads(buf.getvalue())["family_gap"]
+
+        out1 = os.path.join(d, "with_rule.srt")
+        pkg.process(src, out1, None, mode="ak")
+        g1 = gap_of(out1)
+        check("T8② 对照：规则在位时「关闭→可露希尔」已修、family_gap=0",
+              "可露希尔" in open(out1, encoding="utf-8").read() and not g1, str(g1))
+        tbl = st.CTX_TABLES["AK_CONTEXT"]
+        saved = list(tbl)
+        tbl[:] = [r for r in tbl if not (r[1] == "关闭" and r[2] == "可露希尔")]
+        st._rebuild_context_caches()
+        try:
+            out2 = os.path.join(d, "without_rule.srt")
+            pkg.process(src, out2, None, mode="ak")
+            g2 = gap_of(out2)
+            check("负向：ctx 删除后 audit 必须报 family_gap（Closure→可露希尔）",
+                  "可露希尔" not in open(out2, encoding="utf-8").read()
+                  and any(g["official"] == "可露希尔" for g in g2), str(g2))
+        finally:
+            tbl[:] = saved
+            st._rebuild_context_caches()
+        out3 = os.path.join(d, "restored.srt")
+        pkg.process(src, out3, None, mode="ak")
+        g3 = gap_of(out3)
+        check("T8② 还原：ctx 恢复后回到对照状态",
+              "可露希尔" in open(out3, encoding="utf-8").read() and not g3, str(g3))
+
+    # --- ③ 白名单污染（monkeypatch _AUDIT_LATIN_OK 塞应译词）→ latin_residue 虚减被抓 ---
+    with tempfile.TemporaryDirectory(prefix="t8_wl_") as d:
+        src = os.path.join(d, "wl.srt")
+        open(src, "wb").write(("1\r\n00:00:01,000 --> 00:00:03,000\r\n"
+                               "Lili is so cute\r\n她真可爱 Lili\r\n").encode("utf-8"))
+
+        def latin_of(path, mode="bi"):
+            buf = io.StringIO()
+            with contextlib.redirect_stdout(buf):
+                kb_mod._cmd_audit(path, mode=mode, as_json=True)
+            return json.loads(buf.getvalue())["latin_residue"]
+
+        n0 = len(latin_of(src))
+        check("T8③ 对照：应译拉丁词 Lili 正常进扫 1", n0 == 1, f"n={n0}")
+        saved_ok = kb_mod._AUDIT_LATIN_OK
+        kb_mod._AUDIT_LATIN_OK = re.compile(r"^(?:Lili)$", re.I)   # 污染：塞应译词
+        try:
+            n1 = len(latin_of(src))
+            check("负向：白名单污染后 latin_residue 虚减（差值≥1 被对拍抓住）",
+                  n1 == 0 and n0 - n1 >= 1, f"n0={n0} n1={n1}")
+        finally:
+            kb_mod._AUDIT_LATIN_OK = saved_ok
+        n2 = len(latin_of(src))
+        check("T8③ 还原：白名单恢复后扫 1 复原", n2 == 1, f"n={n2}")
+
+    # --- ④ parent 环 / 双父 / 无关第三者 → _parent_tiebreak 一律 None（不盲裁）---
+    tbk = mn._parent_tiebreak
+    check("T8④ 对照：链式 A→B→C 恰一根 → 裁出 A",
+          tbk({"A", "B", "C"}, {"B": "A", "C": "B"}) == "A")
+    check("负向：parent 环 A↔B 双候选 → None", tbk({"A", "B"}, {"A": "B", "B": "A"}) is None)
+    check("负向：双父分裂（共同父在 T 外）→ None",
+          tbk({"C1", "C2"}, {"C1": "P", "C2": "P"}) is None)
+    check("负向：无关第三者阻断全达 → None",
+          tbk({"A", "B", "X"}, {"B": "A"}) is None)
+    check("负向：单元素 / 空 parent_map → None",
+          tbk({"A"}, {"A": "B"}) is None and tbk({"A", "B"}, {}) is None)
+
+    # --- ⑤ 单目标 ref → scope_state 恒 disabled（零漂移结构保证）---
+    M = mn.build_maps("bi")
+    en, R, stats = mn.scope_state(M, "莉莉真好看", "Lily sings beautifully")
+    check("T8⑤ 单目标 ref 不触发 scoping（enabled=False / R=None / multi=0）",
+          en is False and R is None and stats["multi"] == 0, str((en, R, stats)))
+    en2, R2, stats2 = mn.scope_state(M, "随便一句中文", "Lily sings beautifully")
+    check("T8⑤ 无 zh mention 同样恒 disabled",
+          en2 is False and R2 is None and stats2["multi"] == 0, str((en2, R2, stats2)))
+
+
+# ------------------------------------------ 6b. M3 多目标消歧 L2 回归（T9）
+
+def test_m3_multitarget_regressions(ref, pkg):
+    """T9 L2 期望值回归：M3 对象级消歧的多目标锚定行为冻结（pkg/ref 双跑 + 单元注入）。
+
+    覆盖四类判例：
+      #235 型   Sentinel 锚与「岁主/锁暝」多官方名——数据层已戒律化（entities_part1:66-68
+                移除 \\bSentinel\\b→岁主），断言不误改；audit 侧同锚多官方名「任一在场即
+                放行」语义（kb.py ref_targets 交集放行）。
+      #207/A1   ref=Meta. 与 zh=元——锚命中才改（A1cue101 修正在位）、无锚挂起不盲改。
+      D3 parent 三向——内存 parent_map 注入：链式裁决 / 环 / 无关第三者。
+      category tie-break——跨类目按证据裁出、同类目 fail-closed 放弃。
+    """
+    section("6b. M3 多目标消歧 L2 回归")
+    cases = [
+        ("岁主的力量真强", "the Sentinel is so strong", "岁主的力量真强",
+         "#235 戒律：Sentinel 锚不得咬「岁主」"),
+        ("今天是岁主的祭日", "Sentinel festival today", "今天是岁主的祭日",
+         "#235 反向负例：无替换时原行逐字节保留"),
+        ("游泳爱好者很多", "so many swimmers here", "游泳爱好者很多",
+         "锁暝 ctx 不越界：无 Suoming/swimming 锚的「游泳」保留"),
+        ("游泳爱好者很多", "Suoming looks elegant", "锁暝爱好者很多",
+         "锁暝 ctx 正例：Suoming 锚在才把「游泳」裁给锁暝"),
+        ("元", "Meta.", "梅塔",
+         "A1cue101：ref=Meta. 锚命中 → 元→梅塔（锚定修正，非裸键）"),
+        ("元这个东西", "what about it", "元这个东西",
+         "#207 挂起不盲改：无 Meta 锚时「元」原样交人工"),
+        ("元数据", ">> Meta", "梅塔",
+         "梅塔旁白锚形：>> Meta 命中 → 元数据→梅塔"),
+        ("我叫元", "call me Meta", "我叫梅塔", "梅塔短语锚：call me Meta"),
+        ("元回来了", "Meta's back", "梅塔回来了", "梅塔短语锚：Meta's back"),
+    ]
+    with tempfile.TemporaryDirectory(prefix="calib_m3_mt_") as d:
+        src = os.path.join(d, "in.srt")
+        blocks = []
+        for i, (zh, en, _want, _note) in enumerate(cases, 1):
+            blocks.append(f"{i}\r\n00:00:{i:02d},000 --> 00:00:{i + 1:02d},000\r\n{zh}\r\n{en}")
+        open(src, "wb").write("\r\n\r\n".join(blocks).encode("utf-8") + b"\r\n")
+        for label, mod in (("pkg", pkg), ("ref", ref)):
+            out = os.path.join(d, f"{label}.srt")
+            mod.process(src, out, None, mode="bi")
+            text = open(out, encoding="utf-8").read().replace("\r\n", "\n")
+            got = []
+            for block in text.split("\n\n"):
+                parts = [x for x in block.split("\n") if x.strip()]
+                if len(parts) >= 4:
+                    got.append(parts[2])
+            check(f"{label} M3 消歧条数", len(got) == len(cases),
+                  f"{len(got)}/{len(cases)}")
+            for i, ((zh, en, want, note), actual) in enumerate(zip(cases, got), 1):
+                check(f"{label} M3 #{i} {note}", actual == want,
+                      f"got={actual!r} want={want!r}")
+
+    # --- audit 侧：同锚多官方名「任一在场即整组放行」语义（kb ref_targets） ---
+    from calib_core import kb as kb_mod
+    with tempfile.TemporaryDirectory(prefix="calib_m3_kb_") as d:
+        def mk(name, zh, ref_line):
+            p = os.path.join(d, name + ".srt")
+            open(p, "wb").write(("1\r\n00:00:01,000 --> 00:00:03,000\r\n"
+                                 + ref_line + "\r\n" + zh + "\r\n").encode("utf-8"))
+            return p
+
+        def sentinel_gaps(path):
+            buf = io.StringIO()
+            with contextlib.redirect_stdout(buf):
+                kb_mod._cmd_audit(path, mode="bi", as_json=True)
+            return [g for g in json.loads(buf.getvalue())["family_gap"]
+                    if g["anchor"] == "Sentinel"]
+
+        g = sentinel_gaps(mk("s1", "岁主在此", "the Sentinel speaks"))
+        check("M3 audit 放行：Sentinel 组内「岁主」在场 → 整组不报", not g, str(g))
+        g = sentinel_gaps(mk("s2", "锁暝在此", "the Sentinel speaks"))
+        check("M3 audit 放行：Sentinel 组内「锁暝」在场 → 整组不报", not g, str(g))
+        g = sentinel_gaps(mk("s3", "今天天气不错", "the Sentinel speaks"))
+        check("负向：Sentinel 组全不在场 → 必报（防放行写成恒过）",
+              any(x["official"] == "岁主" for x in g) and len(g) >= 2, str(g))
+
+    # --- D3 parent 三向（内存 parent_map 注入）：裁决正例（环/None 见 6a T8④） ---
+    from calib_core import mention as mn
+    check("T9 D3 链式注入裁决：T={A,B,C} 链 A→B→C → 根 A",
+          mn._parent_tiebreak({"A", "B", "C"}, {"B": "A", "C": "B"}) == "A")
+    check("T9 D3 注入与全局 _PARENT_MAP 解耦（默认入参不受污染）",
+          mn._parent_tiebreak({"X1", "X2"}, {"X1": "P", "X2": "P"}) is None)
+
+    # --- category tie-break：跨类目按证据裁出 / 同类目 fail-closed 放弃 ---
+    cat = mn._CANON_CATEGORY
+    roles = [c for c, k in cat.items() if k == "角色"]
+    terms = [c for c, k in cat.items() if k == "术语"]
+    check("T9 category 选材可用（角色/术语各有候选）", len(roles) >= 2 and terms,
+          f"roles={len(roles)} terms={len(terms)}")
+    if len(roles) >= 2 and terms:
+        a, b = roles[0], terms[0]
+        zh_ms = [(0, 2, "证据位", frozenset({a})), (2, 4, "本位", frozenset({a, b}))]
+        got = mn._category_tiebreak([a, b], zh_ms, 1)
+        check("T9 category 跨类目：证据=角色 → 恰裁角色候选", got == a,
+              f"got={got!r} want={a!r}")
+        a1, a2 = roles[0], roles[1]
+        zh_ms2 = [(0, 2, "证据位", frozenset({a1})), (2, 4, "本位", frozenset({a1, a2}))]
+        check("负向：同类目不可区分 → fail-closed None",
+              mn._category_tiebreak([a1, a2], zh_ms2, 1) is None)
+        check("负向：单元素 T → None", mn._category_tiebreak([a], zh_ms, 0) is None)
+
+
 # ---------------------------------------------------------------- main
 
 def main():
@@ -972,6 +1196,8 @@ def main():
     test_en_first_layout(ref, pkg)
     test_ak_ep17_terms(ref, pkg)
     test_wuwa38_regressions(ref, pkg)
+    test_m3_negative_guards(pkg)
+    test_m3_multitarget_regressions(ref, pkg)
     test_cli(ref, pkg)
     test_import_and_docs(ref, pkg)
     print(f"\nPASS {_passed} / FAIL {len(_failed)}")

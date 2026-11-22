@@ -11,7 +11,9 @@
   B 等价性    索引预筛 vs 全表串行（真实片源抽样）+ 自吞用例的负向检出
   C 对象库    对象数 / 唯一性 / 重复登记计数
   D 体检      长键序违例、一词多目标的负向检出（假 engine）
-  E 汇总      PASS/FAIL 计数与退出码
+  E 优化补丁  片源识别 / 作品隔离 / 注入安全化 / 采纳报告
+  G 上限门禁  check_metric_le 上限型语义 + family_gap 双轨/缺片 skip 单测（T7）
+  F 汇总      PASS/FAIL 计数与退出码
 """
 from __future__ import annotations
 
@@ -63,6 +65,13 @@ def check_metric(name: str, key: str, actual, invariant) -> None:
     else:
         check(f"{name} >= {invariant}（无基线，实际 {actual}）", actual >= invariant,
               f"实际 {actual}")
+
+
+def check_metric_le(name: str, key: str, actual, cap) -> None:
+    """上限型（T7，与 check_metric 对称）：有基线键则与基线精确比对（≤），
+    无基线则回落 cap 不变式。family_gap 这类「越少越好」的指标用它。"""
+    exp = BASELINE.get(key, cap)
+    check(f"{name} ≤ {exp}", actual <= exp, f"实际 {actual}")
 
 
 def skip(name: str, why: str = "") -> None:
@@ -288,6 +297,67 @@ def test_opt() -> None:
         check("应用：英文行未动", b"operator file." in got)
 
 
+# ---------------------------------------------------------------- G 上限型门禁（T7）
+
+
+def test_metric_gate() -> None:
+    """T7：check_metric_le 上限型语义单测 + family_gap 双轨/缺片 skip 单测。
+
+    全部内存构造：单测期间临时替换模块级 check 为捕获版（不污染 PASS/FAIL 计数）、
+    临时改写 BASELINE（finally 还原）；缺片 skip 复用 scripts/dev/_gate_family_gap.py
+    的纯函数（文件缺失时整体 skip，安装版不炸）。
+    """
+    print("\n[G] 上限型门禁（单测）")
+    # --- 上限型：有基线用基线，无基线回落 cap；超限必须被抓（防恒过） ---
+    captured = []
+    saved_check = globals()["check"]
+    globals()["check"] = lambda name, cond, detail="": captured.append((name, cond))
+    saved_baseline = dict(BASELINE)
+    try:
+        BASELINE.clear()
+        BASELINE.update({"family_gap_target": 5})
+        check_metric_le("g1", "family_gap_target", 4, 10)      # 基线 5：4≤5 过
+        check_metric_le("g2", "family_gap_target", 6, 10)      # 基线 5：6>5 抓
+        check_metric_le("g3", "no_such_key", 11, 10)           # 无基线：cap=10，11>10 抓
+        check_metric_le("g4", "no_such_key", 9, 10)            # 无基线：cap=10，9≤10 过
+    finally:
+        globals()["check"] = saved_check
+        BASELINE.clear()
+        BASELINE.update(saved_baseline)
+    got = dict(captured)
+    check("上限型单测：基线键生效（4≤5）", got.get("g1 ≤ 5") is True, str(got))
+    check("负向：超基线必抓（6>5）", got.get("g2 ≤ 5") is False, str(got))
+    check("上限型单测：无基线回落 cap（11>10 抓）", got.get("g3 ≤ 10") is False, str(got))
+    check("上限型单测：无基线 cap 放行（9≤10）", got.get("g4 ≤ 10") is True, str(got))
+
+    # --- family_gap 双轨判定 + 缺片 skip（纯函数，内存构造） ---
+    gate_path = os.path.join(os.path.dirname(_PARENT), "scripts", "dev",
+                             "_gate_family_gap.py")
+    if not os.path.isfile(gate_path):
+        skip("family_gap 双轨单测（缺 scripts/dev/_gate_family_gap.py）", gate_path)
+        return
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("_gate_family_gap_unit", gate_path)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    d = mod.dual_track(5, 49, 5)
+    check("双轨单测：收口轨 ≤5 达成", d["track_close"] and d["verdict"] == "PASS", str(d))
+    d = mod.dual_track(34, 49, 5)
+    check("双轨单测：改善轨 ≤round(49*0.7)=34 达成",
+          d["cap_rel"] == 34 and d["track_improve"] and d["verdict"] == "PASS", str(d))
+    d = mod.dual_track(35, 49, 5)
+    check("负向：35 双轨皆未达 → FAIL",
+          not d["track_close"] and not d["track_improve"] and d["verdict"] == "FAIL", str(d))
+    ev = mod.evaluate([("甲", "ok", 3), ("乙", "missing", 0)], 49, 5)
+    check("缺片单测：任一缺片 → SKIP（双轨不评估）",
+          ev["verdict"] == "SKIP" and ev["missing"] == ["乙"], str(ev))
+    ev = mod.evaluate([("甲", "ok", 10), ("乙", "ok", 24)], 49, 5)
+    check("缺片单测：7 片齐全 → 双轨评估（34 上限）",
+          ev["verdict"] == "PASS" and ev["total"] == 34, str(ev))
+    ev = mod.evaluate([("甲", "ok", 40), ("乙", "ok", 9)], 49, 5)
+    check("负向：49 原值复现 → 双轨皆未达 FAIL", ev["verdict"] == "FAIL", str(ev))
+
+
 # ---------------------------------------------------------------- F 汇总
 
 
@@ -300,6 +370,7 @@ def main() -> int:
     test_registry()
     test_lint_negative()
     test_opt()
+    test_metric_gate()
     print("\n" + "=" * 60)
     print(f"PASS {PASS} / SKIP {SKIP} / FAIL {FAIL}")
     if BASELINE:

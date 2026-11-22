@@ -15894,7 +15894,9 @@ def longest_bounded(auto, text):
 
 def mode_terms(mode):
     tname = _MODE_TERM_TABLE.get(mode)
-    return dict(state.TABLES[tname]) if tname else dict(BILINGUAL_TERMS)
+    # monolith 拍平后 TABLES 为顶层名（state 模块名不存在）；包模式走 state.TABLES。
+    tables = globals()["TABLES"] if "TABLES" in globals() else state.TABLES
+    return dict(tables[tname]) if tname else dict(BILINGUAL_TERMS)
 
 
 def build_maps(mode):

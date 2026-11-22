@@ -1,8 +1,10 @@
 {
-  "note": "工作树实测基线（2026-11-18 更新；对象库由 1773 增至 3490，旧基线 47/109/38/17 已失效）。安装版/其它环境无此文件时，自检改跑结构不变式并打印实际值。",
+  "note": "工作树实测基线（2026-11-22 更新：4.0 片 ctx 回灌后 longkey_order 107→111；M3-5 lint 降噪后 multi_target 口径=error+warn 合计 40→46；新增 family_gap 双轨门键——before=49 为冻结值勿重算，target=5 为收口目标）。",
   "objects": 3490,
   "dup_canonical": 89,
   "dup_extra_entries": 180,
-  "longkey_order": 107,
-  "multi_target": 40
+  "longkey_order": 111,
+  "multi_target": 46,
+  "family_gap_before_7films": 49,
+  "family_gap_target": 5
 }
