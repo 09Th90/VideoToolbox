@@ -2775,8 +2775,13 @@ def filter_srt(src, srt_path, template, threshold=None,
         pcm, cues, tpls, verdict, labels, local_scores, enc,
         threshold=threshold, low=low, sample_rate=SAMPLE_RATE)
     from features.voiceprint.voiceprint_decision import apply_shadow
+    # WP3 part 2（Schema v2）：spk_scores 原样传给影子路由——state 里的
+    # best_competitor_score / score_margin / cluster_score / cluster_size /
+    # cluster_consistency / cluster_has_target_prior 全部由它 + details 的
+    # 簇信息在 voiceprint_decision 侧计算，本地 verdict/decisions 结构不动。
     decision = apply_shadow(verdict, decisions, decision_client,
-                            threshold=threshold, low=low, progress=_say)
+                            threshold=threshold, low=low, progress=_say,
+                            group_scores=spk_scores)
     kept = [c for c, st, _ in verdict if st == "keep" or (keep_review and st == "review")]
     n_keep = sum(1 for _, st, _ in verdict if st == "keep")
     n_review = sum(1 for _, st, _ in verdict if st == "review")
