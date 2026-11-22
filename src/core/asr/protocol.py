@@ -426,6 +426,54 @@ def _asr_separate_on(asr_obj):
     return _asr_diarize_flag(v)
 
 
+#: 语音分离默认后端模型（ModelScope MossFormer2 8k 时域盲分离）。
+#: 小写常量：core 树顶层 UPPERCASE 常量会被 core_api 基线收编（须挂 facade）。
+_sep_default_model = "damo/speech_mossformer2_separation_temporal_8k"
+
+
+def _asr_separation_cfg(ai_cfg=None):
+    """读语音分离子配置（``asr_separation_*`` 键，默认全影子）。
+
+    这些键不在 ``ai_mod().asr_config`` 的白名单里（设置页整份重写
+    ai_config 时未进 schema 的键会被丢弃），所以**直读原始配置**——
+    与 ``asr_separate_of`` 的回落路径同一套读法。返回 dict 键见
+    ``core/asr/separation_backend`` 模块 docstring。
+    """
+    try:
+        raw = ai_cfg if ai_cfg else ai_load_config()
+    except Exception:  # noqa: BLE001
+        raw = {}
+    raw = raw or {}
+
+    def _flag(key, default):
+        v = raw.get(key)
+        return default if v is None else _asr_diarize_flag(v)
+
+    def _num(key, default):
+        try:
+            v = raw.get(key)
+            return default if v is None or str(v).strip() == "" \
+                else float(v)
+        except Exception:  # noqa: BLE001
+            return default
+
+    model = str(raw.get("asr_separation_model") or "").strip()
+    return {
+        # PoC 影子模式（默认开）：分离照跑、产物落缓存，转录仍用原轨。
+        "shadow": _flag("asr_separation_shadow", True),
+        "model": model or _sep_default_model,
+        "num_speakers": int(_num("asr_separation_num_speakers", 0)),
+        "vocals": _flag("asr_separation_vocals", False),
+        # enrollment 声纹模板名（逗号分隔；空 = 不选轨）。只在本地比对。
+        "target": str(raw.get("asr_separation_target") or "").strip(),
+        "min_sim": _num("asr_separation_min_sim", 0.45),
+        "margin": _num("asr_separation_margin", 0.03),
+        "cache": _flag("asr_separation_cache", True),
+        "timeout": int(_num("asr_separation_timeout", 3600)),
+        "device": str(raw.get("asr_separation_device") or "auto").strip(),
+    }
+
+
 def _ensure_ffmpeg():
     """ffmpeg 引导（v2.3.1：asr 域→download 域的运行时耦合，按域间规则
     走函数内延迟 import；A4 收口时评估是否上移 shared）。"""
@@ -434,25 +482,52 @@ def _ensure_ffmpeg():
 
 
 def _asr_separate_audio(audio_path, asr_obj=None):
-    """语音分离的**接口占位**：把音频里的重叠人声拆成单人轨。
+    """语音分离：把音频里的重叠人声拆成单人轨（v3.2.0 接入后端实现）。
 
-    约定（后续接入声源分离模型时按此实现即可，调用方无需改动）：
-      · 入参：`audio_path` 原始音频；`asr_obj` 当前转录对象（可读配置）；
+    约定（调用方无需改动，签名与返回与占位版完全一致）：
+      · 入参：`audio_path` 原始音频路径（分块字节流场景为空串，音频字节
+        从 `asr_obj.file_binary` 取）；`asr_obj` 当前转录对象（读开关）；
       · 返回：`[(标签, 音频路径), ...]` 列表——每个元素是一条**单人轨**，
         标签形如 `说话人1`（与 diarization 的编号口径一致），路径为分离后
-        落盘的音频；无重叠 / 未启用时返回 `[(None, audio_path)]`（原轨）。
+        落盘的 16k 单声道 wav；无重叠 / 未启用 / 影子模式 / 分离失败时
+        返回 `[(None, audio_path)]`（原轨）。
       · 音乐 reaction 场景：把"歌声"当作独立的一路返回（标签 `歌声`），
         调用方按标签决定是否剔除——这正是"把歌声给剔除出去"的落点。
 
-    当前实现是**直通**（不分离，原样返回单轨），只做日志记录，便于确认
-    开关已经贯通到引擎。真正的分离模型接入点见 docs/程序说明书(开发版).md。
+    行为（后端实现见 core/asr/separation_backend.py）：
+      · 开关 off → 原轨直通（零开销，与占位版逐字节一致）；
+      · on + 影子（`asr_separation_shadow`，**默认 True**）→ 分离照跑、
+        产物落缓存 + 日志计数，但**仍返回原轨**（PoC 影子验证，不影响
+        成品转录）；
+      · on + 非影子 → 返回真实分离轨，patches 消费侧逐轨提交识别；
+      · 后端依赖缺失 / 任何异常 → degraded 回退原轨 + 日志计数，
+        **绝不阻断转录**。
     """
+    if not _asr_separate_on(asr_obj):
+        return [(None, audio_path)]
+    cfg = _asr_separation_cfg()
     try:
-        _vc_log("[ASR] 语音分离已开启（接口占位，未内置分离模型），待处理音频：%s"
-                % (audio_path,))
-    except Exception:  # noqa: BLE001
-        pass
-    return [(None, audio_path)]
+        from core.asr.separation_backend import separate as _sep_backend
+        tracks = _sep_backend(audio_path, cfg, asr_obj=asr_obj)
+    except Exception as e:  # noqa: BLE001
+        try:
+            _vc_log("[ASR] 语音分离失败（degraded 回退原轨，不阻断转录）：%s"
+                    % (e,))
+        except Exception:  # noqa: BLE001
+            pass
+        return [(None, audio_path)]
+    if cfg.get("shadow", True):
+        try:
+            _labels = "、".join(str(t[0]) for t in (tracks or [])) or "无"
+            _vc_log("[ASR] 语音分离（影子模式）产出 %d 轨 [%s]，"
+                    "本轮仍用原轨提交：%s"
+                    % (len(tracks or []), _labels, audio_path or "(字节流)"))
+        except Exception:  # noqa: BLE001
+            pass
+        return [(None, audio_path)]
+    if not tracks or len(tracks) <= 1:
+        return [(None, audio_path)]
+    return [(str(label), str(path)) for label, path in tracks]
 
 
 def asr_examples(cfg=None):

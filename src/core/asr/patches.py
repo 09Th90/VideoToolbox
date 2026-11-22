@@ -4,6 +4,8 @@
 
 core/asr 域：ASR 全协议适配 + vc 转录补丁；依赖规则见 core/__init__.py。
 """
+import os
+import re
 import time
 
 from core.shared.log import _vc_log
@@ -18,6 +20,71 @@ from core.asr.protocol import (
     _asr_separate_audio, _asr_volcengine_submit, asr_base_guard,
     asr_diarize_of, asr_model_guard, asr_model_hard_guard, asr_protocol_fix,
     asr_protocol_of, asr_separate_of, asr_strip_endpoint_tail)
+
+#: 语音分离逐轨合并统计（进程内累计；弃轨/跳轨均有日志，不静默删）。
+#: 小写命名：core 树顶层 UPPERCASE 常量会被 core_api 基线收编（须挂 facade）。
+_sep_stats = {"merges": 0, "tracks_submitted": 0, "tracks_skipped": 0,
+              "merge_fallback": 0}
+
+#: 轨内 diarization 前缀（「[说话人N] 」）：合并前剥掉，统一按轨标签重挂。
+_sep_spk_prefix_re = re.compile(r"^\[说话人\d+\]\s*")
+
+
+def _sep_merge_submit(asr_obj, tracks, dispatch_one):
+    """分离多轨消费：逐轨提交识别 → 归一 → 按说话人标签合并成单份响应。
+
+    合并口径（与 diarization 的「[说话人N] 」文本前缀一致）：
+      · 每条轨临时换 ``audio_input`` / ``file_binary``，走与原轨**完全相同**
+        的协议分发（``dispatch_one`` 闭包），结束后恢复现场；
+      · 各轨归一出的 segments 按 start 排序汇总，段文本前置**轨标签本身**
+        （``[说话人1] `` / ``[歌声] ``——后端标签已是权威编号，直接前置
+        才不会把「歌声」重编号成「说话人N」）；
+      · 轨内若开了 diarize 已带前缀，先剥掉再挂轨标签，避免双重前缀；
+      · 词级 words 在合并口径下丢弃（多轨词级会重复糊前缀，轨级话轮语义）；
+      · 任一环节失败 raise 给调用方（``_submit`` 回退原轨单份提交），
+        缺轨跳过有日志计数（不静默删）。
+
+    返回合并后的归一响应 dict；轨全部缺失时返回 None（调用方回退原轨）。
+    """
+    if not tracks or len(tracks) <= 1:
+        return None
+    old_input = asr_obj.audio_input
+    old_bin = asr_obj.file_binary
+    merged = []
+    try:
+        for label, path in tracks:
+            if not path or not os.path.isfile(str(path)):
+                _sep_stats["tracks_skipped"] += 1
+                _vc_log("语音分离轨缺失/不可读，跳过该轨（标签=%s 路径=%s）"
+                        % (label, path))
+                continue
+            with open(str(path), "rb") as f:
+                asr_obj.file_binary = f.read()
+            asr_obj.audio_input = str(path)
+            _sep_stats["tracks_submitted"] += 1
+            resp = _asr_normalize_resp(dispatch_one(), asr_obj)
+            segs = resp.get("segments") if isinstance(resp, dict) else None
+            for seg in (segs if isinstance(segs, list) else []):
+                if not isinstance(seg, dict):
+                    continue
+                try:
+                    start = float(seg.get("start") or 0)
+                    end = float(seg.get("end") or 0)
+                except (TypeError, ValueError):
+                    start, end = 0.0, 0.0
+                # 轨内 diarize 前缀剥掉（轨标签本身就是说话人身份）
+                txt = _sep_spk_prefix_re.sub("", str(seg.get("text") or ""))
+                merged.append({"start": start, "end": end,
+                               "text": "[%s] %s" % (label or "说话人", txt)})
+        if not merged:
+            return None
+        merged.sort(key=lambda s: (s["start"], s["end"]))
+        return {"text": "".join(s["text"] for s in merged),
+                "segments": merged}
+    finally:
+        asr_obj.audio_input = old_input
+        asr_obj.file_binary = old_bin
+
 
 def vc_asr_protocol_patch():
     """ASR 服务模式全协议适配（幂等运行期补丁，引擎 WhisperAPI 不改本体）。
@@ -51,17 +118,21 @@ def vc_asr_protocol_patch():
         # 都沿用同一个值，避免同一段音频前后半截口径不一致。
         if getattr(self, "diarize", None) is None:
             self.diarize = asr_diarize_of()
-        # 语音分离（separation）：同口径取一次挂到实例上。当前是**接口占位**
-        # ——真正接入声源分离模型时，这里改成"先分离出单人轨、再逐轨提交
-        # 识别"，音乐 reaction 的"剔除歌声"也在这一层按轨道标签筛掉。
+        # 语音分离（separation）：同口径取一次挂到实例上。分离 / 影子 /
+        # degraded 回退都在 _asr_separate_audio 内裁决，这里只消费返回的
+        # 轨列表：多轨（非影子）→ 逐轨提交识别、按说话人标签合并；单轨 /
+        # 影子 / 失败 → 走下方原轨单份提交（off 路径与旧版逐字节一致）。
+        _sep_tracks = None
         if getattr(self, "separate", None) is None:
             self.separate = asr_separate_of()
-            if self.separate:
-                try:
-                    _src = getattr(self, "audio_input", "")
-                    _asr_separate_audio(_src if isinstance(_src, str) else "", self)
-                except Exception as e:  # noqa: BLE001
-                    _vc_log("语音分离接口调用失败：%s" % (e,))
+        if self.separate:
+            try:
+                _src = getattr(self, "audio_input", "")
+                _sep_tracks = _asr_separate_audio(
+                    _src if isinstance(_src, str) else "", self)
+            except Exception as e:  # noqa: BLE001
+                _vc_log("语音分离接口调用失败：%s" % (e,))
+                _sep_tracks = None
         proto = asr_protocol_of()
         # 协议纠偏统一收在 asr_protocol_fix（v1.14.2 起，v1.15.3 补反向守卫）：
         # ① 显式/旧配置判成 openai，但端点与模型特征指向别族时按推断改走——
@@ -90,62 +161,82 @@ def vc_asr_protocol_patch():
                 self.prompt = "你好，我们需要使用简体中文，以下是普通话的句子"
         if guard:
             raise RuntimeError(guard)
-        if proto == "dashscope_realtime" and not _proto._ASR_WS_DEGRADED:
-            try:
-                resp = _asr_dashscope_realtime_submit(self)
-            except RuntimeError as e:
-                # 实时 WebSocket 被服务端中途掐断（握手/task-started 正常、音频
-                # 发送中或完成后无 Close 码断连；官方 dashscope SDK 同样无法
-                # 使用——2026-09-17 实测，与客户端实现/网络路径无关）。
-                _e = str(e)
-                if "连接" not in _e and "超时" not in _e:
-                    raise              # task-failed 等确定性错误，降级无意义
-                _proto._ASR_WS_DEGRADED = True
-                resp = _asr_fallback_chat_audio(self, _e)
-        elif proto == "dashscope_realtime":
-            # 本进程已确认实时通道被服务端掐断 → 直接走文件识别，不再试 WS
-            resp = _asr_fallback_chat_audio(self)
-        elif proto == "azure":
-            resp = _asr_azure_submit(self)
-        elif proto in ("chat_audio", "dashscope"):
-            try:
-                resp = _asr_chat_audio_submit(self)
-            except RuntimeError as e:
-                # v1.15.6：百炼原生专用模型（Qwen-Audio-3.0-ASR-Flash /
-                # Fun-ASR-Flash）被兼容模式打回空体 400/500 —— 同一模型、同一
-                # 音频换原生端点即通，这里兜一次（每个任务只兜一次）。
-                if not _asr_empty_body_err(e):
-                    raise
-                resp = _asr_retry_native(self, e)
-        elif proto == "dashscope_native":
-            resp = _asr_dashscope_native_submit(self)
-        elif proto == "dashscope_filetrans":
-            resp = _asr_dashscope_filetrans_submit(self)
-        elif proto == "deepgram":
-            resp = _asr_deepgram_submit(self)
-        elif proto == "elevenlabs":
-            resp = _asr_elevenlabs_submit(self)
-        elif proto == "gemini":
-            resp = _asr_gemini_submit(self)
-        elif proto == "volcengine":
-            resp = _asr_volcengine_submit(self)
-        elif proto == "assemblyai":
-            resp = _asr_assemblyai_submit(self)
-        else:
-            # openai 协议走引擎原实现（OpenAI SDK）。SDK 会在 base_url 后面再
-            # 拼一次 /audio/transcriptions，所以先把"完整端点"的尾巴削掉并
-            # 重建 client —— 内存里改 base_url 不会影响已经建好的 client。
-            clean = asr_strip_endpoint_tail(self.base_url, "/audio/transcriptions",
-                                            "/audio/translations")
-            if clean and clean != self.base_url:
-                self.base_url = clean
-                _vc_log(f"ASR 地址含完整端点，已规范化为 {clean}")
+
+        def _dispatch_one():
+            """单份音频（原轨或某条分离轨）按协议分发一次（未归一 resp）。
+
+            与旧版分发链逐分支一致；off / 影子路径只调用这一份，行为与
+            旧版逐字节相同。"""
+            if proto == "dashscope_realtime" and not _proto._ASR_WS_DEGRADED:
                 try:
-                    from openai import OpenAI
-                    self.client = OpenAI(base_url=clean, api_key=self.api_key)
-                except Exception as e:  # noqa: BLE001
-                    _vc_log(f"规范化后重建 ASR 客户端失败：{e}")
-            resp = orig_submit(self)
+                    resp = _asr_dashscope_realtime_submit(self)
+                except RuntimeError as e:
+                    # 实时 WebSocket 被服务端中途掐断（握手/task-started 正常、音频
+                    # 发送中或完成后无 Close 码断连；官方 dashscope SDK 同样无法
+                    # 使用——2026-09-17 实测，与客户端实现/网络路径无关）。
+                    _e = str(e)
+                    if "连接" not in _e and "超时" not in _e:
+                        raise              # task-failed 等确定性错误，降级无意义
+                    _proto._ASR_WS_DEGRADED = True
+                    resp = _asr_fallback_chat_audio(self, _e)
+            elif proto == "dashscope_realtime":
+                # 本进程已确认实时通道被服务端掐断 → 直接走文件识别，不再试 WS
+                resp = _asr_fallback_chat_audio(self)
+            elif proto == "azure":
+                resp = _asr_azure_submit(self)
+            elif proto in ("chat_audio", "dashscope"):
+                try:
+                    resp = _asr_chat_audio_submit(self)
+                except RuntimeError as e:
+                    # v1.15.6：百炼原生专用模型（Qwen-Audio-3.0-ASR-Flash /
+                    # Fun-ASR-Flash）被兼容模式打回空体 400/500 —— 同一模型、同一
+                    # 音频换原生端点即通，这里兜一次（每个任务只兜一次）。
+                    if not _asr_empty_body_err(e):
+                        raise
+                    resp = _asr_retry_native(self, e)
+            elif proto == "dashscope_native":
+                resp = _asr_dashscope_native_submit(self)
+            elif proto == "dashscope_filetrans":
+                resp = _asr_dashscope_filetrans_submit(self)
+            elif proto == "deepgram":
+                resp = _asr_deepgram_submit(self)
+            elif proto == "elevenlabs":
+                resp = _asr_elevenlabs_submit(self)
+            elif proto == "gemini":
+                resp = _asr_gemini_submit(self)
+            elif proto == "volcengine":
+                resp = _asr_volcengine_submit(self)
+            elif proto == "assemblyai":
+                resp = _asr_assemblyai_submit(self)
+            else:
+                # openai 协议走引擎原实现（OpenAI SDK）。SDK 会在 base_url 后面再
+                # 拼一次 /audio/transcriptions，所以先把"完整端点"的尾巴削掉并
+                # 重建 client —— 内存里改 base_url 不会影响已经建好的 client。
+                clean = asr_strip_endpoint_tail(self.base_url, "/audio/transcriptions",
+                                                "/audio/translations")
+                if clean and clean != self.base_url:
+                    self.base_url = clean
+                    _vc_log(f"ASR 地址含完整端点，已规范化为 {clean}")
+                    try:
+                        from openai import OpenAI
+                        self.client = OpenAI(base_url=clean, api_key=self.api_key)
+                    except Exception as e:  # noqa: BLE001
+                        _vc_log(f"规范化后重建 ASR 客户端失败：{e}")
+                resp = orig_submit(self)
+            return resp
+
+        # 分离多轨（非影子）：逐轨提交识别 → 按说话人标签合并；任何异常
+        # 回退原轨单份提交，绝不阻断转录。
+        if _sep_tracks and len(_sep_tracks) > 1:
+            try:
+                _merged = _sep_merge_submit(self, _sep_tracks, _dispatch_one)
+                if _merged is not None:
+                    _sep_stats["merges"] += 1
+                    return _merged
+            except Exception as e:  # noqa: BLE001
+                _sep_stats["merge_fallback"] += 1
+                _vc_log("语音分离逐轨提交失败，回退原轨识别：%s" % (e,))
+        resp = _dispatch_one()
         return _asr_normalize_resp(resp, self)
 
     def _get_key(self):
