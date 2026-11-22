@@ -1414,6 +1414,102 @@ def _append_adopt_section(report: str, adopted: list) -> None:
         pass
 
 
+def _mention_rows_from_out(out: str):
+    """从最终校准产物离线重建 mention 审核的 rows（AI 链没有引擎式改动行流）。
+
+    rows 元素 = (num, 最终中文行, 最终中文行, 参考行)：collect_records 只用
+    old(zh)/ref 做配对分类，new 仅入档。这里按「残留问题视角」取最终产物逐 cue
+    重建——报告的是校准后仍存在的问题（漏译/残留错形），不被基线已修项干扰。
+    单文本行 cue 与纯参考行 cue（zh_lines 为空）按管线既有约定视为无中文行，
+    跳过（避免对英文行逐词报 unresolved）。参考行取自 out，基线参考行保护已
+    机械保证其与 src 一致。
+    """
+    rows = []
+    try:
+        _lines, out_cues, _crlf, _bom = parse_srt(out)
+    except Exception:                                # noqa: BLE001
+        return rows
+    for c in out_cues:
+        zh = "\n".join(c.zh_lines or [])
+        if not zh.strip():
+            continue
+        rows.append((c.num, zh, zh, c.ref_line or ""))
+    return rows
+
+
+def _annotate_mention_candidates(summary, records) -> None:
+    """把记录的候选对象（T）按 cue 号并入 summary.items（报告表格/侧车需要）。"""
+    by_num = {}
+    for r in records or []:
+        by_num.setdefault(str(r.get("num")), r)
+    for it in summary.get("items") or []:
+        r = by_num.get(str(it.get("num")))
+        if r is not None:
+            it["candidates"] = list(r.get("T") or [])
+
+
+def _write_mention_sidecar(out: str, report: str, summary: dict,
+                           mode_key: str) -> str:
+    """写独立侧车 *.mention_review.json（与 report 同目录，summary+items）。
+
+    供 calib_entity cli 的 review 子命令离线消费；写盘失败只放弃侧车，
+    不影响校准结果与报告。返回侧车路径（失败返回 ""）。
+    """
+    try:
+        sidecar = os.path.splitext(out)[0] + ".mention_review.json"
+        payload = {"schema_version": summary.get("schema_version") or "",
+                   "evidence_schema": summary.get("evidence_schema") or "",
+                   "mode": mode_key, "out": out, "report": report,
+                   "summary": summary, "items": summary.get("items") or []}
+        with open(sidecar, "w", encoding="utf-8", newline="\n") as f:
+            json.dump(payload, f, ensure_ascii=False, indent=2)
+            f.write("\n")
+        return sidecar
+    except OSError:
+        return ""
+
+
+def _mention_shadow_review(result, decision_client, out, mode_key, report,
+                           log=None) -> None:
+    """Jev 对象级 mention 影子审核挂载（shadow-only，绝不回写校准产物）。
+
+    与 apply_shadow 同款纪律：client 为 None/未激活时零请求零开销——连离线
+    重建都不做，只落一份未激活 summary，也不写侧车。激活时：
+    rows = _mention_rows_from_out(out) → collect_records(rows, mode_key) →
+    apply_mention_shadow(records, decision_client, log=log) →
+    result["mention_decision"] = summary；候选并入 items 后写侧车
+    <out去扩展名>.mention_review.json。任何异常整链降级（summary 记 reason），
+    绝不让影子审核影响校准结果。
+    """
+    try:
+        from features.calibrate.calib_mention_decision import SCHEMA_VERSION as _MSV
+    except Exception:                                # noqa: BLE001
+        _MSV = ""
+    stub = {"schema_version": _MSV, "active": False, "mode": "off",
+            "reason": "not_configured", "records_total": 0, "selected": 0,
+            "evaluated": 0, "jev_evaluated": 0, "requests": 0, "truncated": 0,
+            "gated": 0, "gate_reasons": {}, "kinds": {}, "routes": {},
+            "items": [], "errors": []}
+    result["mention_decision"] = stub
+    if decision_client is None or not getattr(decision_client, "active", False):
+        return
+    try:
+        from features.calibrate.calib_mention_decision import (
+            collect_records, apply_mention_shadow)
+        rows = _mention_rows_from_out(out)
+        records = collect_records(rows, mode_key)
+        summary = apply_mention_shadow(records, decision_client, log=log)
+        _annotate_mention_candidates(summary, records)
+        result["mention_decision"] = summary
+        sidecar = _write_mention_sidecar(out, report, summary, mode_key)
+        if sidecar:
+            summary["sidecar"] = sidecar
+    except Exception as e:                           # noqa: BLE001
+        stub["reason"] = ("mention_shadow_failed: %s: %s"
+                          % (type(e).__name__, str(e)[:160]))
+        _log_do(log, f"  ⚠ Jev mention 影子审核异常（不影响校准结果）：{e}", "err")
+
+
 def calibrate(src: str, out: str = None, report: str = None, mode_flag: str = "",
               fix_en: bool = False, script: str = None, python: str = None,
               log=None, chat=None, chunk_cues: int = 120, max_chars: int = 6000,
@@ -2108,6 +2204,10 @@ def calibrate(src: str, out: str = None, report: str = None, mode_flag: str = ""
         # Jev 只复核已通过机械校验的 accepted；绝不回写 accepted 或字幕产物。
         from features.calibrate.calib_decision import apply_shadow
         apply_shadow(result, decision_client, log=log)
+
+        # Jev 对象级 mention 影子审核（第二条影子链，纪律同上：绝不回写产物）。
+        _mention_shadow_review(result, decision_client, out, mode_key,
+                               report, log)
 
         # 报告
         _write_report(report, src, out, mode_flag, round_no, result, rules)
@@ -3137,4 +3237,9 @@ def _write_report(path, src, out, mode_flag, round_no, result, rules) -> None:
                     item.get("num"), str(item.get("reason") or "-").replace("|", "/")))
     lines.append("> Jev 不生成替换文本；questionable 仅为复核建议，不会撤销本轮采纳项。")
     lines.append("> 本地证据闸门在 Jev 之前拦截目标冲突/非最小替换；Jev 只复核干净替换。")
+    try:
+        from features.calibrate.calib_mention_decision import render_mention_section
+        lines += [""] + render_mention_section(result.get("mention_decision"))
+    except Exception:                                # noqa: BLE001
+        pass                                         # 影子小节渲染失败不影响报告主体
     _write_text(path, "\n".join(lines) + "\n")

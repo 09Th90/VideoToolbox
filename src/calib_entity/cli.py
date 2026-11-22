@@ -9,6 +9,7 @@
     python calib_entity/cli.py index --mode bi
     python calib_entity/cli.py verify  --mode bi <片源.srt> [--limit 500] [--json]
     python calib_entity/cli.py onepass --mode bi <片源.srt> [--limit 500] [--json]
+    python calib_entity/cli.py review <产物.mention_review.json> [--json] [--gate]
 
 也可用 ``python -m calib_entity.cli ...``。
 """
@@ -165,6 +166,80 @@ def cmd_onepass(args) -> int:
         max_differ = getattr(args, "max_differ", 0)
         ok = rep["differ"] <= max_differ
         print(f"[onepass --gate] {'PASS' if ok else 'BLOCK'}：分叉 {rep['differ']} / 阈值 {max_differ}")
+        return 0 if ok else 1
+    return 0
+
+
+# ---------------------------------------------------------------- mention 影子侧车复核
+
+#: Jev 结论里需要人工关注的 choice（gated=本地已裁决不算；官方名/noul 低风险只提示）
+_REVIEW_ATTENTION_CHOICES = {"cannot_determine", "not_missing",
+                             "manual_review", "questionable"}
+
+
+def _review_attention(items):
+    """从侧车 items 挑需要人工关注的条目（降级批 / Jev 说不确定或高风险）。"""
+    attention = []
+    for it in items or []:
+        st = it.get("status")
+        if st == "degraded":
+            attention.append(it)
+            continue
+        if st != "ok":
+            continue                              # gated：本地已确定性裁决
+        choice = str(it.get("choice") or "")
+        if choice in _REVIEW_ATTENTION_CHOICES:
+            attention.append(it)
+            continue
+        if choice.startswith("noul:"):
+            try:
+                if float(choice.split(":", 1)[1]) >= 0.5:
+                    attention.append(it)
+            except (IndexError, ValueError):
+                attention.append(it)              # 解析不了按需关注处理
+    return attention
+
+
+def cmd_review(args) -> int:
+    """离线复核 AI 校准的 mention 影子侧车（*.mention_review.json）。"""
+    try:
+        with open(args.sidecar, "r", encoding="utf-8-sig") as f:
+            rep = json.load(f)
+    except (OSError, ValueError) as exc:
+        print(f"[review] 无法读取侧车：{exc}")
+        return 2
+    if not isinstance(rep, dict) or "summary" not in rep:
+        print("[review] 侧车 schema 不符（缺 summary 字段）")
+        return 2
+    summary = rep.get("summary") or {}
+    items = list(summary.get("items") or []) or list(rep.get("items") or [])
+    attention = _review_attention(items)
+    count = len(attention)
+    if args.json:
+        print(json.dumps({
+            "schema_version": rep.get("schema_version") or "",
+            "active": bool(summary.get("active")),
+            "mode": summary.get("mode") or "off",
+            "records_total": int(summary.get("records_total") or 0),
+            "selected": int(summary.get("selected") or 0),
+            "attention_count": count,
+            "attention": attention,
+            "summary": summary,
+        }, ensure_ascii=False, indent=2))
+    else:
+        print(f"[review] 激活 {bool(summary.get('active'))} / 记录 "
+              f"{int(summary.get('records_total') or 0)} / 选中 "
+              f"{int(summary.get('selected') or 0)} / 需人工关注 {count}")
+        for it in attention[:max(0, args.limit)]:
+            extra = (" 降级:" + str(it.get("reason") or "")
+                     if it.get("status") == "degraded" else "")
+            print(f"  cue {it.get('num')} {it.get('kind')} "
+                  f"choice={it.get('choice')}{extra}")
+    if getattr(args, "gate", False):
+        max_flag = max(0, int(getattr(args, "max_flagged", 0)))
+        ok = count <= max_flag
+        print(f"[review --gate] {'PASS' if ok else 'BLOCK'}："
+              f"需人工关注 {count} / 阈值 {max_flag}")
         return 0 if ok else 1
     return 0
 
@@ -411,6 +486,17 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--emit", default="", help="生成术语表片段，参数为表名")
     s.add_argument("--json", action="store_true")
     s.set_defaults(fn=cmd_adopt)
+
+    s = sub.add_parser("review",
+                       help="离线复核 AI 校准的 mention 影子侧车（*.mention_review.json）")
+    s.add_argument("sidecar")
+    s.add_argument("--json", action="store_true")
+    s.add_argument("--limit", type=int, default=20, help="非 JSON 输出的明细条数上限")
+    s.add_argument("--gate", action="store_true",
+                   help="动态门禁：需人工关注条数>阈值即退出码 1")
+    s.add_argument("--max-flagged", type=int, default=0,
+                   help="--gate 允许的最大需人工关注条数（默认 0=白名单空集起步）")
+    s.set_defaults(fn=cmd_review)
 
     return p
 
