@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.1.6
+# @version 3.2.0
 """《少女前线2：追放》（Girls' Frontline 2: Exilium）片源术语/语境表（--mode gfl2，2026-11-21 新增）
 
 片源：《I Finally Played Girls' Frontline 2 Exilium… and It's Wild》（SmugSlav，

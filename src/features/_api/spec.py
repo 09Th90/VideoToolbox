@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.1.6
+# @version 3.2.0
 """_api.spec —— 11 命令参数的**唯一真源**（纯数据，2026-11-20 三层独立）。
 
 MCP inputSchema 从本模块生成；CLI argparse 是受 check_schema_parity.py

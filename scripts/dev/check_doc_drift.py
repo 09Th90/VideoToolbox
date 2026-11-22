@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# @version 3.1.6
+# @version 3.2.0
 """文档漂移门禁：README / LICENSE 与代码事实不一致时，让检查直接失败。
 
 为什么需要这个脚本

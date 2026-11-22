@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.1.6
+# @version 3.2.0
 """status 命令编排（原 features/status/cli.py cmd_status，行为不变）。"""
 from __future__ import annotations
 

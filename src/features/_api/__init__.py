@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.1.6
+# @version 3.2.0
 """features._api —— 命令级 API 层（L1 共享接缝，2026-11-20 三层独立改造）。
 
 CLI（agent_cli + features/<id>/cli.py）与 MCP（mcp_server + features/mcp）

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# @version 3.1.6
+# @version 3.2.0
 """自更新「被锁文件延迟交换」自检（2026-11-20 用户报障修复）。
 
 报障：主程序进程内自更新时 apply_staging 第一遍 rename

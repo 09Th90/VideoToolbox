@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.1.6
+# @version 3.2.0
 """runner —— MCP 执行通道：子进程 api_worker（stdout 隔离，崩溃/取消在子进程内）。
 
 每次调用独立进程（--data-root / 引擎状态不串味）；argv 数组 shell=False；

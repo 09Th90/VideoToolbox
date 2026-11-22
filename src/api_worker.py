@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.1.6
+# @version 3.2.0
 """api_worker —— API 层进程入口（L1，2026-11-20 三层独立改造）。
 
 MCP runner 的执行通道：stdin 读 {"cmd", "params"[, "data_root"]} → 调

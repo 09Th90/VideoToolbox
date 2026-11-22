@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.1.6
+# @version 3.2.0
 """阿里云百炼 System One / Jev 结构化决策客户端。
 
 官方协议：POST /compatible-mode/v1/systemone，模型 decision-model-preview。

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.1.6
+# @version 3.2.0
 """T7 family_gap 双轨独立验收（缺片 skip）。
 
 对 7 片校准产物各跑一次名词漏校三扫（audit，calib_core.kb._cmd_audit），

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.1.6
+# @version 3.2.0
 """启动诊断 / 崩溃守卫 / 启动期设施（原 video_toolbox_qt.py 同名代码，逐字下沉）。
 
 ⚠ 模块级只 import 标准库 + engine 门面；Qt / vt_fluent 一律函数体内导入——

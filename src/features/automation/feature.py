@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.1.6
+# @version 3.2.0
 """automation 功能清单。GUI 侧 auto_vision_page 已在外部模块（阶段③注册挂载）。"""
 from features._registry import CliCommand, FeatureSpec, GuiSpec
 

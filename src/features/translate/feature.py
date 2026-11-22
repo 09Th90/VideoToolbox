@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.1.6
+# @version 3.2.0
 """translate 功能清单。GUI 侧由 workbench（字幕工作台）承载。"""
 from features._registry import CliCommand, FeatureSpec
 

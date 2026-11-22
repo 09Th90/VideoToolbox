@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.1.6
+# @version 3.2.0
 """流水线页（2026-11-15 功能解耦阶段③：从 video_toolbox_qt.py 拆出，逐字同源）。
 
 * 后端：引擎侧 pipeline 模块（目录感知 + 阶段状态机，STAGES 自带 optional 降级）；

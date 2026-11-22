@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.1.6
+# @version 3.2.0
 """TGA 2026 游戏大奖直播术语/语境表（--tga26，2026-11-18 新增）
 
 片源：《Big Day... TGA Announcements & Patreon Music Livestream!》

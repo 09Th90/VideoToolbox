@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.1.6
+# @version 3.2.0
 """calibrate / stabilize / audit 子命令参数壳（L2 CLI，透传段）。
 
 编排在 features/_api/commands/{calibrate,stabilize,audit}.py。

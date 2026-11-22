@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.1.6
+# @version 3.2.0
 """Arcaea × 明日方舟 联动直播片源术语/语境表（--arcak，2026-11-18 新增）
 
 片源：《ARCAEA X ARKNIGHTS IS LIVE NOW!》（kukkikaze，英语直播 ASR + 微软翻译，

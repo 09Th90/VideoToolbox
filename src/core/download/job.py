@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.1.6
+# @version 3.2.0
 """统一下载编排（core/download 内部模块）。
 
 core 负责阶段顺序、重试/换源/EOF/NPE/字幕/打包/清理；
