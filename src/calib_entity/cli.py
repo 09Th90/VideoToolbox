@@ -10,6 +10,8 @@
     python calib_entity/cli.py verify  --mode bi <片源.srt> [--limit 500] [--json]
     python calib_entity/cli.py onepass --mode bi <片源.srt> [--limit 500] [--json]
     python calib_entity/cli.py review <产物.mention_review.json> [--json] [--gate]
+    python calib_entity/cli.py candidates <片源.srt> --mode bi [--json] [--out 侧车.json]
+                                          [--md 裁决.md] [--stubs]   # 只读，绝不改写 srt
 
 也可用 ``python -m calib_entity.cli ...``。
 """
@@ -29,6 +31,7 @@ if __package__ in (None, ""):                      # 允许 `python calib_entity
     from calib_entity import shadow as shadow_mod
     from calib_entity import spec as spec_mod
     from calib_entity.opt import adopt as adopt_mod
+    from calib_entity.opt import candidates as cand_mod
     from calib_entity.opt import kb_inject as inject_mod
     from calib_entity.opt import kb_scope as scope_mod
     from calib_entity.opt import source_guard as guard_mod
@@ -39,6 +42,7 @@ else:
     from . import shadow as shadow_mod
     from . import spec as spec_mod
     from .opt import adopt as adopt_mod
+    from .opt import candidates as cand_mod
     from .opt import kb_inject as inject_mod
     from .opt import kb_scope as scope_mod
     from .opt import source_guard as guard_mod
@@ -397,6 +401,37 @@ def cmd_wiki(args) -> int:
     return 0
 
 
+# ---------------------------------------------------------------- 未登录对象候选（M3-6）
+
+
+def cmd_candidates(args) -> int:
+    """未登录对象候选闭环：unresolved_proper + family_gap 合流，产出人工复核侧车。
+
+    铁律：候选只进人工复核清单/学习库候选，**绝不自动改写字幕**——本命令对 srt 只读，
+    固化必须经人工裁决后走 adopt / learned-promote 回路。
+    """
+    rep = cand_mod.collect(args.mode, args.src, window=args.window)
+    if args.out:
+        with open(args.out, "w", encoding="utf-8", newline="\n") as f:
+            json.dump(rep, f, ensure_ascii=False, indent=2)
+            f.write("\n")
+    if args.json:
+        print(json.dumps(rep, ensure_ascii=False, indent=2))
+        return 0
+    print(cand_mod.render_summary(rep))
+    if args.stubs:
+        print()
+        print(cand_mod.render_stubs(rep))
+    if args.md:
+        with open(args.md, "w", encoding="utf-8", newline="\n") as f:
+            f.write(cand_mod.render_adjudication(rep) + "\n")
+        print(f"\n裁决表已写入：{args.md}（adopt.parse_report 零改动可消费；"
+              "把握=高 且 official 非空才会被采纳执行）")
+    if args.out:
+        print(f"侧车已写入：{args.out}（schema {cand_mod.SCHEMA}）")
+    return 0
+
+
 # ---------------------------------------------------------------- 入口
 
 
@@ -497,6 +532,20 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--max-flagged", type=int, default=0,
                    help="--gate 允许的最大需人工关注条数（默认 0=白名单空集起步）")
     s.set_defaults(fn=cmd_review)
+
+    s = sub.add_parser("candidates",
+                       help="未登录对象候选闭环：unresolved_proper+family_gap 合流"
+                            "（只读 srt，绝不自动改写；M3-6）")
+    s.add_argument("src")
+    s.add_argument("--mode", default="bi")
+    s.add_argument("--json", action="store_true", help="打印完整侧车 JSON")
+    s.add_argument("--out", default="", help="侧车 JSON 输出路径")
+    s.add_argument("--window", type=int, default=1,
+                   help="扫 3 判「已译」时前后各看 N 条中文行（与 audit --window 同规）")
+    s.add_argument("--md", default="", help="adopt 兼容裁决表输出路径（第四节格式）")
+    s.add_argument("--stubs", action="store_true",
+                   help="额外打印 Entity 固化桩 + 保留英文待办（人工审阅后并入 ENTITIES）")
+    s.set_defaults(fn=cmd_candidates)
 
     return p
 
