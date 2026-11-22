@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.1.6
+# @version 3.2.0
 """vc 引擎运行期补丁（lazy-cache 宿主缓存接驳 / settings 预备 / 运行时强制 / 历史数据迁移与残留检测）（v2.3.1 拆分工程 · 自 video_toolbox.py 原样搬入）。
 
 v2.3.1 拆分工程；域间依赖规则见 core/__init__.py。
@@ -90,9 +90,18 @@ def vc_lazy_openai_patch():
     访问）时才导入真包。
 
     安全性：引擎侧全部是 ``from openai import OpenAI`` 与裸 ``import
-    openai``（异常类等属性都在运行期访问），**无子模块导入**
-    （无 ``import openai.xxx``）⇒ 桩可透明替换。真包首次导入后桩仍留在
-    sys.modules，属性访问一律转发给真模块。
+    openai``（异常类等属性都在运行期访问）⇒ 桩可透明替换。真包首次导入后桩
+    仍留在 sys.modules，属性访问一律转发给真模块。
+
+    2026-11-22 补 ``__path__``：openai ≥2.x 的客户端在**运行期**才
+    ``from openai.resources.audio.transcriptions import …``（不是顶层导入）。
+    原来的桩只是普通 ModuleType、没有 ``__path__``，子模块导入会命中
+    ``ModuleNotFoundError: 'openai' is not a package``——实测就是云端 ASR
+    在 10:02 那次 ``whisper_api.py → _client.py`` 崩溃的根因（本机
+    video_toolbox 直接把闭包桩塞进 sys.modules，import 器认不出它是包）。
+    现在 ``__path__`` 一被访问就加载真包并**把 sys.modules 换回真模块**，
+    后续 ``import openai.xxx`` 走原生导入链；已持有旧桩引用的代码照旧能
+    通过 ``__getattr__`` 转发，不会断。
     """
     import sys as _sys
     import types as _types
@@ -102,9 +111,7 @@ def vc_lazy_openai_patch():
     state = {}
 
     class _LazyOpenAI(_types.ModuleType):
-        def __getattr__(self, name):
-            if name.startswith("__") and name.endswith("__"):
-                raise AttributeError(name)
+        def _load_real(self):
             real = state.get("real")
             if real is None:
                 _sys.modules.pop("openai", None)
@@ -113,6 +120,19 @@ def vc_lazy_openai_patch():
                 finally:
                     _sys.modules["openai"] = self
                 state["real"] = real
+            return real
+
+        @property
+        def __path__(self):
+            """暴露真包搜索路径并换回真模块，支持 ``import openai.xxx``。"""
+            real = self._load_real()
+            _sys.modules["openai"] = real
+            return real.__path__
+
+        def __getattr__(self, name):
+            if name.startswith("__") and name.endswith("__"):
+                raise AttributeError(name)
+            real = self._load_real()
             if name == "OpenAI":
                 def _factory(*a, **k):
                     return real.OpenAI(*a, **k)

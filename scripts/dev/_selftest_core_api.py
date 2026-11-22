@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.1.6
+# @version 3.2.0
 """核心单体拆分 · 接口契约测试（**先立测试，再动刀**）。
 
 为什么需要（v2.3.1 → 拆分工程）：
@@ -112,6 +112,7 @@ DOMAIN_MAP = {
     ],
     "asr": [
         "asr_local_override", "apply_asr_to_engine", "vc_asr_patch_apply",
+        "asr_mode_of", "set_asr_mode", "asr_mode_status",
         "vc_pydub_nowindow_patch", "voiceprint_enabled_names",
         "voiceprint_auto_names", "voiceprint_auto_filter_enabled",
         "voiceprint_set_auto_filter", "voiceprint_auto_tooltip",

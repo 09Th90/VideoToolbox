@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.1.6
+# @version 3.2.0
 """转录体验补丁（黑窗抑制）+ 主播声纹筛选（转录完成后处理）（v2.3.1 拆分工程 · 自 video_toolbox.py 原样搬入）。
 
 v2.3.1 拆分工程；域间依赖规则见 core/__init__.py。
@@ -83,11 +83,16 @@ def vc_pydub_nowindow_patch():
         return False
 
 
-#: 转录下拉显示名：「默认」= 引擎免费接口（B 接口，2026-11 起已被平台风控，
-#: 任务必失败——文案直接点明，避免用户以为「默认」是稳妥选项）；
-#: 「ASR」= 全局 ASR 配置（自有服务 / 本地模型）。
+#: 转录下拉显示名（2026-11-22 起拆成「本地 / 云端」两档，点哪项就真正切到
+#: 哪套后端，不再只是「按设置页当前模式应用一次」）：
+#:   · 本地 = 电脑里的 faster-whisper 模型（tools\asr_model\faster-whisper，离线）
+#:   · 云端 = 设置页「ASR 语音识别」填的服务商接口（OpenAI 兼容 / 百炼 / 火山 …）
+TM_DISPLAY_LOCAL = "本地"
+TM_DISPLAY_CLOUD = "云端"
+#: 旧名（改造前的单一「ASR」项）：语义等同「云端」，保留导出防旧调用点漂移。
+TM_DISPLAY_ASR = TM_DISPLAY_CLOUD
+#: 旧「默认（必剪已失效）」项：已从下拉移除（B 接口被平台风控，任务必失败）。
 TM_DISPLAY_DEFAULT = "默认（必剪已失效）"
-TM_DISPLAY_ASR = "ASR"
 
 
 # ---------- v1.18.0：转录完成后的「主播声纹筛选」 ----------
@@ -327,4 +332,6 @@ __all__ = [
     "voiceprint_filter_subtitle",
     "TM_DISPLAY_DEFAULT",
     "TM_DISPLAY_ASR",
+    "TM_DISPLAY_LOCAL",
+    "TM_DISPLAY_CLOUD",
 ]

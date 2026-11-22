@@ -1,4 +1,4 @@
-# @version 3.1.6
+# @version 3.2.0
 """本地 ASR（内置 faster-whisper 直连，替代外部 CLI 版）。
 
 v2.8.1 BugFix（本轮）
@@ -182,6 +182,53 @@ def clear_model_cache() -> None:
         _MODEL_CACHE.clear()
 
 
+_CUDA_DLL_PREPARED = False
+
+
+def _prepare_cuda_dll_paths() -> None:
+    """把 pip 安装的 NVIDIA 运行库目录补进 Windows DLL 搜索路径（幂等）。
+
+    2026-11-22 实测：本机 ``nvidia-cublas-cu12`` 的 ``cublas64_12.dll``
+    就在 ``site-packages\\nvidia\\cublas\\bin``，但 pip 不会把它注册进
+    Windows 的 DLL 搜索路径，``WhisperModel(device='cuda')`` 一加载就报
+    ``cublas64_12.dll is not found``，被迫降级 CPU/int8。CPU 跑 large-v3
+    要 ~3GB 提交内存，本机多开（Edge/豆包/代码编辑器）时常因
+    ``mkl_malloc: failed to allocate memory`` 直接加载失败。
+    补上 cublas / nvrtc / ctranslate2 自带 cudnn 三个目录后，RTX 4060
+    Laptop 8GB 可正常 ``cuda/float16`` 推理（已实测 4s 音频跑通）。
+
+    只加搜索路径，不下载、不改系统环境；目录不存在就跳过。
+    """
+    global _CUDA_DLL_PREPARED
+    if _CUDA_DLL_PREPARED:
+        return
+    _CUDA_DLL_PREPARED = True
+    if os.name != "nt":
+        return
+    try:
+        import importlib.util
+        spec = importlib.util.find_spec("ctranslate2")
+        if spec is None or not spec.origin:
+            return
+        ct_dir = os.path.abspath(os.path.dirname(spec.origin))
+        site = os.path.dirname(ct_dir)
+        for d in (ct_dir,
+                  os.path.join(site, "nvidia", "cublas", "bin"),
+                  os.path.join(site, "nvidia", "cuda_nvrtc", "bin")):
+            if not os.path.isdir(d):
+                continue
+            # 双保险：PATH 给 LoadLibrary 的旧式查找；add_dll_directory
+            # 给 Python 3.8+ 的受限搜索（两者都必须是绝对路径）。
+            os.environ["PATH"] = d + os.pathsep + os.environ.get("PATH", "")
+            if hasattr(os, "add_dll_directory"):
+                try:
+                    os.add_dll_directory(d)
+                except OSError as e:  # noqa: BLE001
+                    _log("CUDA DLL 目录注册失败（%s）：%s" % (d, e))
+    except Exception as e:  # noqa: BLE001 - 补路径失败只影响 GPU，CPU 兜底仍在
+        _log("CUDA 运行库路径补齐失败（GPU 将按缺失处理）：%s" % e)
+
+
 def load_local_model(model_dir: str, device: str = "cuda") -> Tuple[object, str, str]:
     """加载内置 faster-whisper 模型；GPU 失败自动降级 CPU int8。
 
@@ -197,7 +244,9 @@ def load_local_model(model_dir: str, device: str = "cuda") -> Tuple[object, str,
     时抛 :class:`RuntimeError`（中文，含全部尝试的异常摘要），不静默返回。
     """
     # ⚠ 延迟 import：PyInstaller spec 的 hiddenimports 需登记 faster_whisper
-    # 及其子模块（见交付说明）。
+    # 及其子模块（见交付说明）。导入 ctranslate2 之前先补 CUDA DLL 路径，
+    # 否则 GPU 加载阶段就报 cublas64_12.dll 缺失（见上方 helper 注释）。
+    _prepare_cuda_dll_paths()
     from faster_whisper import WhisperModel
 
     os.environ.setdefault("HF_HUB_OFFLINE", "1")

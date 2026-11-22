@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.1.6
+# @version 3.2.0
 """视频下载页（2026-11-15 功能解耦阶段③：从 video_toolbox_qt.py 拆出，逐字同源）。
 
 * 容器页：「视频下载 / 音画合并 / 视频切片」三个子板块，merge/split 经注册表
@@ -293,6 +293,18 @@ class DownloadPage(QWidget):
             self.on_queue_event(args[0])
 
     # ---------- 交互 ----------
+    def _read_url(self):
+        """读取并归一化输入框链接。
+
+        复用 ``extract_web_url``：覆盖漏协议头（bilibili.com/...）、分享文案
+        整段、包裹引号/尖括号、尾部标点；纯文本/本地路径时返回 ``""``。
+        """
+        raw = self.url_edit.text()
+        url = engine.extract_web_url(raw)
+        if url and url != raw:
+            self.url_edit.setText(url)
+        return url
+
     def paste_url(self):
         cb = QApplication.clipboard()
         self.url_edit.setText((cb.text() or "").strip())
@@ -323,7 +335,7 @@ class DownloadPage(QWidget):
         self.detect_btn.setEnabled(not busy)
 
     def detect(self):
-        url = engine.clean_path(self.url_edit.text())
+        url = self._read_url()
         if not url.lower().startswith("http"):
             self._warn("请先填入有效的 http 链接")
             return
@@ -411,7 +423,7 @@ class DownloadPage(QWidget):
         self.log.line(f"[队列] 并发上限已改为 {n}（调低不会打断正在下载的任务）", "dim")
 
     def start_download(self):
-        url = engine.clean_path(self.url_edit.text())
+        url = self._read_url()
         if not url.lower().startswith("http"):
             self._warn("请先填入有效的 http 链接")
             return

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.1.6
+# @version 3.2.0
 """
 全局 AI 客户端（OpenAI 兼容 · 单通道）。
 
@@ -2285,6 +2285,42 @@ def _fw_dir_problems(path: str) -> list:
         return ["模型目录检查失败：%s" % e]
 
 
+def _fw_model_dir_candidates(model: str, explicit_dir: str) -> list:
+    """把「显式模型目录」展开成候选（与运行期 ``asr_local_paths`` 同口径）。
+
+    用户填的目录有三种常见形态：
+      · 具体模型目录（直接含 config.json / model.bin / tokenizer.json）；
+      · 模型根 ``…\\tools\\asr_model\\faster-whisper``（下面按模型名分子目录）；
+      · 数据根或 ``tools`` 根（再补 ``faster-whisper\\<模型名>``）。
+
+    运行期 :func:`resolve_model_dir` 本来就按这三层展开；设置页「测试 ASR
+    配置」若只认第一层，就会出现「测试报目录缺权重、点转录却能跑」的假
+    阴性（2026-11-22 用户反馈：目录填到 faster-whisper 根，测试弹缺文件）。
+    """
+    raw = str(explicit_dir or "").strip().strip('"')
+    if not raw:
+        return []
+    if os.path.isabs(raw):
+        bases = [os.path.abspath(raw)]
+    else:
+        # 相对路径按程序根解析（允许写 tools/asr_model/faster-whisper）
+        root = _local_asr_model_root()
+        parents = list(root.parents)
+        app = str(parents[2]) if len(parents) > 2 else str(root)
+        tools = str(parents[1]) if len(parents) > 1 else str(root)
+        bases = [os.path.abspath(os.path.join(app, raw)),
+                 os.path.abspath(os.path.join(tools, raw))]
+    out: list = []
+    for base in bases:
+        for cand in (base,
+                     os.path.join(base, model),
+                     os.path.join(base, "faster-whisper", model)):
+            cand = os.path.abspath(cand)
+            if cand not in out:
+                out.append(cand)
+    return out
+
+
 def _hf_snapshot_dir(model: str) -> str:
     """可选的 HF 缓存快照目录（与 asr_local_paths 的回退口径一致）。
 
@@ -2328,14 +2364,28 @@ def asr_test_connection(cfg: dict | None = None) -> tuple[bool, str]:
         model = ac["local_model"]
         d = str(ac["local_model_dir"] or "").strip().strip('"')
         if d:
+            # 先按「具体目录 → 该目录/<模型名> → 该目录/faster-whisper/<模型名>」
+            # 依次尝试，与运行期解析同口径（避免测试与转录两套判据）。
+            for cand in _fw_model_dir_candidates(model, d):
+                if not _fw_dir_problems(cand):
+                    note = ("" if os.path.abspath(cand) == os.path.abspath(d)
+                            else "（已自动定位到该目录下的模型子目录）")
+                    return True, f"本地模型 {model}，目录 {cand}{note}（权重文件齐全）"
             problems = _fw_dir_problems(d)
-            if problems:
-                return False, ("本地模型目录不可用（%s）：\n- %s\n"
-                               "请补齐后重试；faster-whisper 权重目录需含 "
-                               "config.json / model.bin / tokenizer.json 与 "
-                               "vocabulary.json（或 vocabulary.txt）。"
-                               % (d, "\n- ".join(problems)))
-            return True, f"本地模型 {model}，目录 {d}（权重文件齐全）"
+            extra = []
+            for cand in _fw_model_dir_candidates(model, d)[1:]:
+                if os.path.isdir(cand):
+                    sub_problems = _fw_dir_problems(cand)
+                    if sub_problems:
+                        extra.append("  · %s：%s"
+                                     % (cand, "；".join(sub_problems)))
+            hints = (("\n已尝试的下级目录：\n" + "\n".join(extra)) if extra
+                     else "\n该目录下未找到名为「%s」的模型子目录。" % model)
+            return False, ("本地模型目录不可用（%s）：\n- %s%s\n"
+                           "请补齐后重试；faster-whisper 权重目录需含 "
+                           "config.json / model.bin / tokenizer.json 与 "
+                           "vocabulary.json（或 vocabulary.txt）。"
+                           % (d, "\n- ".join(problems), hints))
         # 目录留空：按工具箱约定定位 <程序根>/tools/asr_model/faster-whisper/<model>
         root = _local_asr_model_root()
         cand = str(root / model)

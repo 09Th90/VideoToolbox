@@ -621,10 +621,10 @@
     ]
    ],
    "ref_tokens": {
-    "God": 234,
-    "showcase": 234,
-    "hope": 234,
-    "resonator": 234
+    "God": 1872,
+    "showcase": 1872,
+    "hope": 1872,
+    "resonator": 1872
    },
    "unc_ref_tokens": {},
    "first": "2026-10-02",
@@ -5442,8 +5442,8 @@
    "samples": [],
    "ref_tokens": {},
    "unc_ref_tokens": {
-    "Aka": 165,
-    "Arth": 165
+    "Aka": 1320,
+    "Arth": 1320
    },
    "first": "2026-10-05",
    "last": "2026-11-21",
@@ -7751,11 +7751,11 @@
     ]
    ],
    "ref_tokens": {
-    "Watcher": 78739549550298,
-    "Blind": 78739549550298,
-    "known": 78739549550298,
-    "formerly": 78739549550298,
-    "the": 78739549550298
+    "Watcher": 629916396402384,
+    "Blind": 629916396402384,
+    "known": 629916396402384,
+    "formerly": 629916396402384,
+    "the": 629916396402384
    },
    "unc_ref_tokens": {},
    "first": "2026-10-05",
@@ -14859,7 +14859,7 @@
    "samples": [],
    "ref_tokens": {},
    "unc_ref_tokens": {},
-   "first": "2026-11-21",
+   "first": "2026-11-15",
    "last": "2026-11-21",
    "alts": {},
    "sync": true
@@ -14878,7 +14878,7 @@
    "samples": [],
    "ref_tokens": {},
    "unc_ref_tokens": {},
-   "first": "2026-11-21",
+   "first": "2026-11-15",
    "last": "2026-11-21",
    "alts": {},
    "sync": true
@@ -14897,7 +14897,7 @@
    "samples": [],
    "ref_tokens": {},
    "unc_ref_tokens": {},
-   "first": "2026-11-21",
+   "first": "2026-10-02",
    "last": "2026-11-21",
    "alts": {},
    "sync": true
@@ -14917,7 +14917,7 @@
    "samples": [],
    "ref_tokens": {},
    "unc_ref_tokens": {},
-   "first": "2026-11-21",
+   "first": "2026-10-02",
    "last": "2026-11-21",
    "alts": {},
    "sync": true
@@ -14937,7 +14937,7 @@
    "samples": [],
    "ref_tokens": {},
    "unc_ref_tokens": {},
-   "first": "2026-11-21",
+   "first": "2026-10-02",
    "last": "2026-11-21",
    "alts": {},
    "sync": true
@@ -14956,7 +14956,7 @@
    "samples": [],
    "ref_tokens": {},
    "unc_ref_tokens": {},
-   "first": "2026-11-21",
+   "first": "2026-10-02",
    "last": "2026-11-21",
    "alts": {},
    "sync": true
@@ -14975,7 +14975,7 @@
    "samples": [],
    "ref_tokens": {},
    "unc_ref_tokens": {},
-   "first": "2026-11-21",
+   "first": "2026-10-02",
    "last": "2026-11-21",
    "alts": {},
    "sync": true
@@ -14994,7 +14994,7 @@
    "samples": [],
    "ref_tokens": {},
    "unc_ref_tokens": {},
-   "first": "2026-11-21",
+   "first": "2026-10-02",
    "last": "2026-11-21",
    "alts": {},
    "sync": true
@@ -15015,7 +15015,7 @@
    "samples": [],
    "ref_tokens": {},
    "unc_ref_tokens": {},
-   "first": "2026-11-21",
+   "first": "2026-10-02",
    "last": "2026-11-21",
    "alts": {},
    "sync": true
@@ -15034,7 +15034,7 @@
    "samples": [],
    "ref_tokens": {},
    "unc_ref_tokens": {},
-   "first": "2026-11-21",
+   "first": "2026-10-02",
    "last": "2026-11-21",
    "alts": {},
    "sync": true
@@ -15055,7 +15055,7 @@
    "samples": [],
    "ref_tokens": {},
    "unc_ref_tokens": {},
-   "first": "2026-11-21",
+   "first": "2026-10-02",
    "last": "2026-11-21",
    "alts": {},
    "sync": true
@@ -15081,7 +15081,7 @@
    "samples": [],
    "ref_tokens": {},
    "unc_ref_tokens": {},
-   "first": "2026-11-21",
+   "first": "2026-10-02",
    "last": "2026-11-21",
    "alts": {},
    "sync": true
@@ -15104,7 +15104,7 @@
    "samples": [],
    "ref_tokens": {},
    "unc_ref_tokens": {},
-   "first": "2026-11-21",
+   "first": "2026-10-02",
    "last": "2026-11-21",
    "alts": {},
    "sync": true
@@ -15123,7 +15123,7 @@
    "samples": [],
    "ref_tokens": {},
    "unc_ref_tokens": {},
-   "first": "2026-11-21",
+   "first": "2026-10-02",
    "last": "2026-11-21",
    "alts": {},
    "sync": true
@@ -15146,7 +15146,7 @@
    "samples": [],
    "ref_tokens": {},
    "unc_ref_tokens": {},
-   "first": "2026-11-21",
+   "first": "2026-10-02",
    "last": "2026-11-21",
    "alts": {},
    "sync": true
@@ -15167,7 +15167,7 @@
    "samples": [],
    "ref_tokens": {},
    "unc_ref_tokens": {},
-   "first": "2026-11-21",
+   "first": "2026-10-02",
    "last": "2026-11-21",
    "alts": {},
    "sync": true
@@ -15204,7 +15204,7 @@
    "samples": [],
    "ref_tokens": {},
    "unc_ref_tokens": {},
-   "first": "2026-11-21",
+   "first": "2026-10-02",
    "last": "2026-11-21",
    "alts": {},
    "sync": true
@@ -15226,7 +15226,7 @@
    "samples": [],
    "ref_tokens": {},
    "unc_ref_tokens": {},
-   "first": "2026-11-21",
+   "first": "2026-10-02",
    "last": "2026-11-21",
    "alts": {},
    "sync": true
@@ -15248,7 +15248,7 @@
    "samples": [],
    "ref_tokens": {},
    "unc_ref_tokens": {},
-   "first": "2026-11-21",
+   "first": "2026-10-02",
    "last": "2026-11-21",
    "alts": {},
    "sync": true
@@ -15267,7 +15267,7 @@
    "samples": [],
    "ref_tokens": {},
    "unc_ref_tokens": {},
-   "first": "2026-11-21",
+   "first": "2026-10-02",
    "last": "2026-11-21",
    "alts": {},
    "sync": true
@@ -15291,7 +15291,7 @@
    "samples": [],
    "ref_tokens": {},
    "unc_ref_tokens": {},
-   "first": "2026-11-21",
+   "first": "2026-10-02",
    "last": "2026-11-21",
    "alts": {},
    "sync": true
@@ -15311,7 +15311,7 @@
    "samples": [],
    "ref_tokens": {},
    "unc_ref_tokens": {},
-   "first": "2026-11-21",
+   "first": "2026-10-02",
    "last": "2026-11-21",
    "alts": {},
    "sync": true
@@ -15330,7 +15330,7 @@
    "samples": [],
    "ref_tokens": {},
    "unc_ref_tokens": {},
-   "first": "2026-11-21",
+   "first": "2026-10-02",
    "last": "2026-11-21",
    "alts": {},
    "sync": true
@@ -15349,7 +15349,7 @@
    "samples": [],
    "ref_tokens": {},
    "unc_ref_tokens": {},
-   "first": "2026-11-21",
+   "first": "2026-10-02",
    "last": "2026-11-21",
    "alts": {},
    "sync": true
@@ -15370,7 +15370,7 @@
    "samples": [],
    "ref_tokens": {},
    "unc_ref_tokens": {},
-   "first": "2026-11-21",
+   "first": "2026-10-02",
    "last": "2026-11-21",
    "alts": {},
    "sync": true
@@ -15389,7 +15389,7 @@
    "samples": [],
    "ref_tokens": {},
    "unc_ref_tokens": {},
-   "first": "2026-11-21",
+   "first": "2026-10-02",
    "last": "2026-11-21",
    "alts": {},
    "sync": true
@@ -15408,7 +15408,7 @@
    "samples": [],
    "ref_tokens": {},
    "unc_ref_tokens": {},
-   "first": "2026-11-21",
+   "first": "2026-10-02",
    "last": "2026-11-21",
    "alts": {},
    "sync": true
@@ -15427,7 +15427,7 @@
    "samples": [],
    "ref_tokens": {},
    "unc_ref_tokens": {},
-   "first": "2026-11-21",
+   "first": "2026-10-02",
    "last": "2026-11-21",
    "alts": {},
    "sync": true
@@ -15446,7 +15446,7 @@
    "samples": [],
    "ref_tokens": {},
    "unc_ref_tokens": {},
-   "first": "2026-11-21",
+   "first": "2026-10-02",
    "last": "2026-11-21",
    "alts": {},
    "sync": true
@@ -15466,7 +15466,7 @@
    "samples": [],
    "ref_tokens": {},
    "unc_ref_tokens": {},
-   "first": "2026-11-21",
+   "first": "2026-10-02",
    "last": "2026-11-21",
    "alts": {},
    "sync": true
@@ -15495,7 +15495,7 @@
    "samples": [],
    "ref_tokens": {},
    "unc_ref_tokens": {},
-   "first": "2026-11-21",
+   "first": "2026-10-02",
    "last": "2026-11-21",
    "alts": {},
    "sync": true
@@ -15514,7 +15514,7 @@
    "samples": [],
    "ref_tokens": {},
    "unc_ref_tokens": {},
-   "first": "2026-11-21",
+   "first": "2026-10-02",
    "last": "2026-11-21",
    "alts": {},
    "sync": true
@@ -15551,7 +15551,7 @@
    "samples": [],
    "ref_tokens": {},
    "unc_ref_tokens": {},
-   "first": "2026-11-21",
+   "first": "2026-10-02",
    "last": "2026-11-21",
    "alts": {},
    "sync": true
@@ -15571,7 +15571,7 @@
    "samples": [],
    "ref_tokens": {},
    "unc_ref_tokens": {},
-   "first": "2026-11-21",
+   "first": "2026-10-02",
    "last": "2026-11-21",
    "alts": {},
    "sync": true
@@ -15590,7 +15590,7 @@
    "samples": [],
    "ref_tokens": {},
    "unc_ref_tokens": {},
-   "first": "2026-11-21",
+   "first": "2026-10-02",
    "last": "2026-11-21",
    "alts": {},
    "sync": true
@@ -15610,7 +15610,7 @@
    "samples": [],
    "ref_tokens": {},
    "unc_ref_tokens": {},
-   "first": "2026-11-21",
+   "first": "2026-10-02",
    "last": "2026-11-21",
    "alts": {},
    "sync": true
@@ -15629,7 +15629,7 @@
    "samples": [],
    "ref_tokens": {},
    "unc_ref_tokens": {},
-   "first": "2026-11-21",
+   "first": "2026-10-02",
    "last": "2026-11-21",
    "alts": {},
    "sync": true
@@ -15648,7 +15648,7 @@
    "samples": [],
    "ref_tokens": {},
    "unc_ref_tokens": {},
-   "first": "2026-11-21",
+   "first": "2026-10-02",
    "last": "2026-11-21",
    "alts": {},
    "sync": true
@@ -15667,7 +15667,7 @@
    "samples": [],
    "ref_tokens": {},
    "unc_ref_tokens": {},
-   "first": "2026-11-21",
+   "first": "2026-10-02",
    "last": "2026-11-21",
    "alts": {},
    "sync": true
@@ -15686,7 +15686,7 @@
    "samples": [],
    "ref_tokens": {},
    "unc_ref_tokens": {},
-   "first": "2026-11-21",
+   "first": "2026-10-02",
    "last": "2026-11-21",
    "alts": {},
    "sync": true
@@ -15705,7 +15705,7 @@
    "samples": [],
    "ref_tokens": {},
    "unc_ref_tokens": {},
-   "first": "2026-11-21",
+   "first": "2026-10-02",
    "last": "2026-11-21",
    "alts": {},
    "sync": true
@@ -15724,7 +15724,7 @@
    "samples": [],
    "ref_tokens": {},
    "unc_ref_tokens": {},
-   "first": "2026-11-21",
+   "first": "2026-10-02",
    "last": "2026-11-21",
    "alts": {},
    "sync": true
@@ -15747,7 +15747,7 @@
    "samples": [],
    "ref_tokens": {},
    "unc_ref_tokens": {},
-   "first": "2026-11-21",
+   "first": "2026-10-05",
    "last": "2026-11-21",
    "alts": {},
    "sync": true
@@ -15766,7 +15766,7 @@
    "samples": [],
    "ref_tokens": {},
    "unc_ref_tokens": {},
-   "first": "2026-11-21",
+   "first": "2026-10-02",
    "last": "2026-11-21",
    "alts": {},
    "sync": true
@@ -15781,10 +15781,28 @@
    "cues": [
     4133
    ],
-   "samples": [],
-   "ref_tokens": {},
+   "samples": [
+    [
+     "被",
+     "所蹂躏，但没有",
+     "被",
+     "所蹂躏，但没有"
+    ],
+    [
+     "被",
+     "所蹂躏，但没有",
+     "被",
+     "所蹂躏，但没有"
+    ]
+   ],
+   "ref_tokens": {
+    "tacet": 6,
+    "but": 6,
+    "discords": 6,
+    "ravaged": 6
+   },
    "unc_ref_tokens": {},
-   "first": "2026-11-21",
+   "first": "2026-10-05",
    "last": "2026-11-21",
    "alts": {},
    "sync": true
@@ -15800,10 +15818,36 @@
     3605,
     3386
    ],
-   "samples": [],
-   "ref_tokens": {},
+   "samples": [
+    [
+     "Mongjo 和未来的 ",
+     "。它",
+     "梦州 和未来的 ",
+     "。它"
+    ],
+    [
+     "Mongjo 和未来的 ",
+     "。它",
+     "梦州 和未来的 ",
+     "。它"
+    ],
+    [
+     ">> Mongjo和",
+     "的未来取决于",
+     ">> 梦州和",
+     "的未来取决于"
+    ]
+   ],
+   "ref_tokens": {
+    "Gingjo": 121710559246520025600,
+    "and": 121710559246520025600,
+    "the": 121710559246520025600,
+    "future": 121710559246520025600,
+    "Mongjo": 121710559246520025600,
+    "rests": 24342111849304005120
+   },
    "unc_ref_tokens": {},
-   "first": "2026-11-21",
+   "first": "2026-10-05",
    "last": "2026-11-21",
    "alts": {},
    "sync": true
@@ -15823,7 +15867,7 @@
    "samples": [],
    "ref_tokens": {},
    "unc_ref_tokens": {},
-   "first": "2026-11-21",
+   "first": "2026-10-05",
    "last": "2026-11-21",
    "alts": {},
    "sync": true
@@ -15839,13 +15883,369 @@
     2822,
     6286
    ],
-   "samples": [],
-   "ref_tokens": {},
+   "samples": [
+    [
+     "它不可能是 ",
+     " 因为",
+     "它不可能是 ",
+     " 因为"
+    ],
+    [
+     ">> 我以为是 ",
+     " 监工",
+     ">> 我以为是 ",
+     " 监工"
+    ]
+   ],
+   "ref_tokens": {
+    "Fraidus": 6,
+    "cuz": 3,
+    "can't": 3,
+    "the": 6,
+    "possibly": 3,
+    "was": 3,
+    "overseer": 3,
+    "thought": 3
+   },
    "unc_ref_tokens": {},
-   "first": "2026-11-21",
+   "first": "2026-10-05",
    "last": "2026-11-21",
    "alts": {},
    "sync": true
+  },
+  "bi|元要塞": {
+   "wrong": "元要塞",
+   "right": "渊城",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 1,
+   "status": "candidate",
+   "cues": [
+    4506
+   ],
+   "samples": [
+    [
+     "",
+     "的",
+     "",
+     "的"
+    ]
+   ],
+   "ref_tokens": {
+    "that": 1,
+    "Yuan": 1,
+    "Fortress": 1
+   },
+   "unc_ref_tokens": {
+    "Yuan": 1,
+    "Outr": 1,
+    "nearing": 1,
+    "the": 1,
+    "Fortress": 1,
+    "Based": 1
+   },
+   "first": "2026-10-05",
+   "last": "2026-10-05",
+   "alts": {},
+   "ctx_regex": "\\bthat\\b"
+  },
+  "bi|斯沃明": {
+   "wrong": "斯沃明",
+   "right": "锁暝",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    6079
+   ],
+   "samples": [
+    [
+     "我们去找",
+     "吧，好吗？",
+     "我们去找",
+     "吧，好吗？"
+    ]
+   ],
+   "ref_tokens": {
+    "Swaming": 21,
+    "let's": 21,
+    "find": 21,
+    "shall": 21
+   },
+   "unc_ref_tokens": {},
+   "first": "2026-10-05",
+   "last": "2026-10-05",
+   "alts": {},
+   "ctx_regex": "\\bSwaming\\b|\\blet's\\b|\\bfind\\b"
+  },
+  "bi|凋零波": {
+   "wrong": "凋零波",
+   "right": "鸣潮",
+   "mode": "bi",
+   "count": 1,
+   "uncorrected": 0,
+   "status": "candidate",
+   "cues": [
+    7013
+   ],
+   "samples": [
+    [
+     "此时，",
+     "只是",
+     "此时，",
+     "只是"
+    ]
+   ],
+   "ref_tokens": {
+    "just": 21,
+    "Withering": 21,
+    "Waves": 21,
+    "this": 21,
+    "point": 21
+   },
+   "unc_ref_tokens": {},
+   "first": "2026-10-05",
+   "last": "2026-10-05",
+   "alts": {},
+   "ctx_regex": "\\bjust\\b|\\bWithering\\b|\\bWaves\\b"
+  },
+  "bi|蜂拥而至": {
+   "wrong": "蜂拥而至",
+   "right": "锁暝",
+   "mode": "bi",
+   "count": 16,
+   "uncorrected": 16,
+   "status": "candidate",
+   "cues": [
+    201,
+    224,
+    2733,
+    2767,
+    3966,
+    4738,
+    4739,
+    5370
+   ],
+   "samples": [
+    [
+     "",
+     "，期待您的光临",
+     "",
+     "，期待您的光临"
+    ],
+    [
+     "与有意",
+     "的自己交谈",
+     "与有意",
+     "的自己交谈"
+    ],
+    [
+     ">> 姐妹",
+     "。这些自动木偶",
+     ">> 姐妹",
+     "。这些自动木偶"
+    ],
+    [
+     "有意",
+     "",
+     "有意",
+     ""
+    ],
+    [
+     "导致",
+     "的阈值",
+     "导致",
+     "的阈值"
+    ],
+    [
+     ">> 放心",
+     "",
+     ">> 放心",
+     ""
+    ],
+    [
+     ">> ",
+     "。你有没有休息过",
+     ">> ",
+     "。你有没有休息过"
+    ],
+    [
+     ">> ",
+     "",
+     ">> ",
+     ""
+    ],
+    [
+     "",
+     "，期待您的光临",
+     "",
+     "，期待您的光临"
+    ],
+    [
+     "与有意",
+     "的自己交谈",
+     "与有意",
+     "的自己交谈"
+    ]
+   ],
+   "ref_tokens": {
+    "you": 4,
+    "expecting": 2,
+    "Swarming": 10,
+    "intended": 6,
+    "Speak": 2,
+    "swarming": 6,
+    "with": 4,
+    "yourself": 2,
+    "These": 2,
+    "auto": 2,
+    "puppets": 2,
+    "Sister": 2,
+    "leads": 2,
+    "that": 2,
+    "the": 2,
+    "threshold": 2,
+    "Rest": 2,
+    "assured": 2,
+    "break": 2,
+    "take": 2,
+    "ever": 2
+   },
+   "unc_ref_tokens": {
+    "swarming": 12,
+    "intendance": 2,
+    "was": 2,
+    "storming": 2,
+    "like": 2,
+    "know": 4,
+    "where": 2,
+    "took": 2,
+    "too": 2,
+    "you": 4,
+    "Swarming": 4,
+    "that": 2,
+    "enjoy": 2,
+    "Did": 2,
+    "the": 2,
+    "journey": 2,
+    "Sister": 2,
+    "bro": 2,
+    "Dang": 2,
+    "Her": 2
+   },
+   "first": "2026-10-05",
+   "last": "2026-10-05",
+   "alts": {},
+   "ctx_regex": "\\bintended\\b|\\bwith\\b|\\bexpecting\\b"
+  },
+  "bi|姆乔": {
+   "wrong": "姆乔",
+   "right": "梦州",
+   "mode": "bi",
+   "count": 2,
+   "uncorrected": 1,
+   "status": "candidate",
+   "cues": [
+    298
+   ],
+   "samples": [
+    [
+     "但",
+     "的危机并没有让我放弃。你",
+     "但",
+     "的危机并没有让我放弃。你"
+    ],
+    [
+     "但",
+     "的危机并没有让我放弃。你",
+     "但",
+     "的危机并没有让我放弃。你"
+    ]
+   ],
+   "ref_tokens": {
+    "let": 2,
+    "But": 2,
+    "You": 2,
+    "didn't": 2,
+    "crisis": 2,
+    "Mhjo's": 2
+   },
+   "unc_ref_tokens": {
+    "Mhjo": 1,
+    "our": 1,
+    "lives": 1,
+    "for": 1
+   },
+   "first": "2026-10-05",
+   "last": "2026-10-05",
+   "alts": {},
+   "ctx_regex": "\\blet\\b|\\bBut\\b|\\bYou\\b"
+  },
+  "bi|孟乔": {
+   "wrong": "孟乔",
+   "right": "梦州",
+   "mode": "bi",
+   "count": 4,
+   "uncorrected": 4,
+   "status": "candidate",
+   "cues": [
+    5007,
+    5184
+   ],
+   "samples": [
+    [
+     "她带着",
+     "穿越了几个世纪",
+     "她带着",
+     "穿越了几个世纪"
+    ],
+    [
+     "我不能辜负",
+     "的希望",
+     "我不能辜负",
+     "的希望"
+    ],
+    [
+     "她带着",
+     "穿越了几个世纪",
+     "她带着",
+     "穿越了几个世纪"
+    ],
+    [
+     "我不能辜负",
+     "的希望",
+     "我不能辜负",
+     "的希望"
+    ]
+   ],
+   "ref_tokens": {
+    "centuries": 2,
+    "carried": 2,
+    "Joe": 4,
+    "Mong": 4,
+    "through": 2,
+    "She": 2,
+    "betray": 2,
+    "hopes": 2,
+    "could": 2,
+    "the": 2,
+    "not": 2
+   },
+   "unc_ref_tokens": {
+    "Firmament": 2,
+    "Joe": 4,
+    "Mount": 2,
+    "Just": 2,
+    "Mong": 4,
+    "relies": 2,
+    "fairing": 2,
+    "how": 2
+   },
+   "first": "2026-10-05",
+   "last": "2026-10-05",
+   "alts": {},
+   "ctx_regex": "\\bcenturies\\b|\\bcarried\\b|\\bthrough\\b"
   }
  }
 }

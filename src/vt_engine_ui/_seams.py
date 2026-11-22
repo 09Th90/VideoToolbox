@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.1.6
+# @version 3.2.0
 """自研字幕工作台 UI 的**后端接缝层**（single adapter）。
 
 本包（``vt_engine_ui``）只负责「UI 视觉层」——即规格文档 P3 / 档 C 的自研化。
@@ -31,15 +31,20 @@ __all__ = [
     "voiceprint_filter_subtitle",
     "ai_mod", "ai_load_config", "vc_log", "extract_web_url",
     "TM_DISPLAY_DEFAULT", "TM_DISPLAY_ASR",
+    "TM_DISPLAY_LOCAL", "TM_DISPLAY_CLOUD",
+    "asr_mode_of", "set_asr_mode", "asr_mode_status",
     "VoiceprintEnrollCard", "VoiceprintPicker",
     "backend_available", "backend_error",
 ]
 
 # 转录下拉的两个显示名（本 UI 自有文案；与 video_toolbox.TM_DISPLAY_* 一致）。
-# 「默认」直接点明必剪已失效——2026-11 起 B 接口 task/result 被平台风控，
-# 停在该项建任务必失败（voiceprint.py 的权威常量同步维护，改动需两边一致）。
+# 2026-11-22 起下拉只有「本地 / 云端」两档：点哪项就真正切到哪套后端
+# （本地 = 电脑里的 faster-whisper 模型；云端 = 设置页填的服务商接口）。
+# 旧「默认（必剪已失效）」项已移除（B 接口被平台风控，建任务必失败）。
+TM_DISPLAY_LOCAL = "本地"
+TM_DISPLAY_CLOUD = "云端"
+TM_DISPLAY_ASR = TM_DISPLAY_CLOUD      # 旧名兼容：语义等同「云端」
 TM_DISPLAY_DEFAULT = "默认（必剪已失效）"
-TM_DISPLAY_ASR = "ASR"
 
 
 def _mod(name: str):
@@ -183,6 +188,21 @@ def __getattr__(name: str):
 # --------------------------------------------------------------------------
 def apply_asr_to_engine(ai_cfg=None):
     return _bk.engine_mod.apply_asr_to_engine(ai_cfg)
+
+
+def asr_mode_of(ai_cfg=None):
+    """当前已保存的 ASR 模式（"local" / "service"）。"""
+    return _bk.engine_mod.asr_mode_of(ai_cfg)
+
+
+def set_asr_mode(mode, ai_cfg=None):
+    """切换 ASR 模式并真正落到引擎转录配置；返回 (ok, detail)。"""
+    return _bk.engine_mod.set_asr_mode(mode, ai_cfg)
+
+
+def asr_mode_status(mode=None, ai_cfg=None):
+    """模式体检：{mode, ready, detail, hint}（界面提示/ tooltip 用）。"""
+    return _bk.engine_mod.asr_mode_status(mode, ai_cfg)
 
 
 def voiceprint_enabled_names():

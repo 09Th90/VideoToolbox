@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.1.6
+# @version 3.2.0
 """自研 UI 组件（设置卡片 / 转录设置卡与弹窗）。
 
 包含：
@@ -142,8 +142,9 @@ class TranscriptionSettingCard(QWidget):
             lay = QVBoxLayout(self.empty_widget)
             lay.setContentsMargins(24, 4, 24, 4)
             tip = BodyLabel(
-                "默认：内置免费语音识别；ASR：使用设置页「ASR 语音识别」的模型"
-                "（自有服务 / 本地模型），统一在全局设置中维护",
+                "本地：电脑里的 faster-whisper 模型（离线，tools\\asr_model 下）；"
+                "云端：设置页「ASR 语音识别」填的服务商接口。点下拉即切换并"
+                "写入引擎转录配置，失败原因请看旁边的提示条。",
                 self.empty_widget)
             tip.setStyleSheet("color: #8a8a8a;")
             tip.setWordWrap(True)

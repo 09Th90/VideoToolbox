@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.1.6
+# @version 3.2.0
 """全局 AI / LLM 配置与通道（tools/ai_client.py 加载器 + 配置读写/测试）（v2.3.1 拆分工程 · 自 video_toolbox.py 原样搬入）。
 
 本模块是 src/core/shared/ 的组成部分；域间依赖规则见 core/__init__.py。
@@ -232,7 +232,22 @@ def _asr_local_dry_run(ac):
     # 若真缺文件，必须说清楚「实际用的是哪个」，否则又是一次「测试过了
     # 却没按我填的跑」的困惑。
     warnings = []
-    if explicit and os.path.isdir(explicit) \
+    # 只有「填的目录确实不含权重、且解析结果也不在该目录之下」才算回退。
+    # 用户把目录填到模型根（…\faster-whisper）时，解析会按模型名自动下钻到
+    # …\faster-whisper\large-v3 —— 这属于正常定位，不该再提示「你填的目录
+    # 不完整，已回退」（2026-11-22 反馈：测试通过了却仍挂着一条失败口吻的
+    # 警告，用户以为还是坏的）。
+    explicit_abs = model_abs = ""
+    if explicit:
+        try:
+            explicit_abs = os.path.normcase(os.path.abspath(explicit)).rstrip("\\/")
+            model_abs = os.path.normcase(os.path.abspath(model_dir))
+        except Exception:  # noqa: BLE001
+            explicit_abs = model_abs = ""
+    under_explicit = bool(explicit_abs) and (
+        model_abs == explicit_abs
+        or model_abs.startswith(explicit_abs + os.sep))
+    if explicit and not under_explicit and os.path.isdir(explicit) \
             and not paths.is_complete_model_dir(explicit):
         exp_problems, _ = paths.diagnose_model_dir(explicit)
         if exp_problems:

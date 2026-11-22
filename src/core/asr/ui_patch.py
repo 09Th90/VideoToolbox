@@ -1,32 +1,34 @@
 # -*- coding: utf-8 -*-
-# @version 3.1.6
-"""转录 UI 补丁（下拉收敛「默认/ASR」+ 独立转录完成回填「字幕翻译」）（v2.3.1 拆分工程 · 自 video_toolbox.py 原样搬入）。
+# @version 3.2.0
+"""转录 UI 补丁（下拉拆「本地/云端」+ 独立转录完成回填「字幕翻译」）（v2.3.1 拆分工程 · 自 video_toolbox.py 原样搬入）。
 
 v2.3.1 拆分工程；域间依赖规则见 core/__init__.py。
 """
 
-from core.asr.engine_config import apply_asr_to_engine
+from core.asr.mode_switch import asr_mode_of, asr_mode_status, set_asr_mode
 from core.asr.patches import vc_asr_protocol_patch
 from core.asr.voiceprint import (
-    TM_DISPLAY_ASR, TM_DISPLAY_DEFAULT, voiceprint_enabled_names,
+    TM_DISPLAY_LOCAL, TM_DISPLAY_CLOUD,
+    voiceprint_enabled_names,
     voiceprint_auto_names, voiceprint_auto_tooltip,
     voiceprint_auto_filter_enabled, voiceprint_set_auto_filter,
     voiceprint_result_notice, voiceprint_filter_subtitle,
 )
-from core.shared.ai import ai_load_config, ai_mod
 from core.shared.log import _vc_log
 
 import os
 
 def vc_transcribe_ui_patch():
-    """工作台转录下拉收敛为「默认 / ASR」+ 独立转录完成回填「字幕翻译」。
+    """工作台转录下拉拆成「本地 / 云端」+ 独立转录完成回填「字幕翻译」。
 
-    v1.14.1 用户需求，全部运行期补丁（引擎 site-packages 保持原版）：
-      ① 命令栏转录模型菜单只建「默认 / ASR」两项——J 接口 / FasterWhisper /
+    v1.14.1 用户需求 + 2026-11-22 模式切换，全部运行期补丁（引擎 site-packages
+    保持原版）：
+      ① 命令栏转录模型菜单只建「本地 / 云端」两项——J 接口 / FasterWhisper /
          WhisperCpp / Whisper [API] 不再出现；
-      ② 选「ASR」时实时调 apply_asr_to_engine()（以全局设置「ASR 语音识别」
-         卡片为准，按 asr_mode 落到 Whisper [API] / FasterWhisper）；
-         选「默认」时落回 B 接口；历史残留取值一并收敛；
+      ② 选「本地」→ ``asr_mode=local`` + 引擎切 FasterWhisper（模型名/目录一并
+         写入）；选「云端」→ ``asr_mode=service`` + 引擎切 Whisper [API]
+         （地址/密钥/模型/提示词一并写入）——**点哪项就真正切到哪套后端**，
+         并当场体检（缺权重 / 缺密钥直接提示，不等转码完才炸）；
       ③ 引擎转录页自带的 Whisper API / FasterWhisper 配置块随下拉收敛
          不再可达（重复入口，从根上消除「与全局设置不一致」的两张页面），
          空位留一行提示；
@@ -41,7 +43,6 @@ def vc_transcribe_ui_patch():
         # 必须用引擎枚举类：cfg 的 OptionsValidator 按类校验，项目自建的同名
         # 枚举 set() 会被静默拒绝（2026-10-28 实测，见 engine_config 同款注释）。
         from videocaptioner.core.entities import TranscribeModelEnum
-        from videocaptioner.ui.common.config import cfg as _cfg
         from vt_fluent import (Action, BodyLabel, FluentIcon, InfoBar,
                                InfoBarPosition, PushButton, RoundMenu,
                                SwitchButton)
@@ -52,38 +53,7 @@ def vc_transcribe_ui_patch():
     if getattr(ti, "_vt_transcribe_ui_patched", False):
         return True
 
-    def _asr_not_ready():
-        """全局 ASR 是否还没配好（用于给出设置指引提示）。"""
-        try:
-            ac = ai_mod().asr_config(ai_load_config())
-            if ac.get("mode") == "local":
-                return not (ac.get("local_model") or ac.get("local_model_dir"))
-            return not (ac.get("base_url") and ac.get("api_key"))
-        except Exception:  # noqa: BLE001
-            return False
-
-    def _asr_missing_hint():
-        """**已保存的**配置里缺什么 —— 说清楚，用户才知道该改哪一格。
-
-        ⚠️ 读的是磁盘配置（不是界面输入框）：实测最常踩的坑是"设置页填好了
-        但没点「保存并应用」"，这时磁盘上还是旧值/空值，转录页就说未配置。
-        """
-        try:
-            ac = ai_mod().asr_config(ai_load_config())
-            if ac.get("mode") == "local":
-                if not (ac.get("local_model") or ac.get("local_model_dir")):
-                    return "本地模式还没填模型名或目录"
-                return ""
-            miss = []
-            if not ac.get("base_url"):
-                miss.append("接口地址")
-            if not ac.get("api_key"):
-                miss.append("密钥")
-            return ("已保存的配置里缺：" + "、".join(miss)) if miss else ""
-        except Exception:  # noqa: BLE001
-            return ""
-
-    # ① 命令栏菜单：只留「默认 / ASR」
+    # ① 命令栏菜单：只留「本地 / 云端」两档
     orig_setup_bar = ti.TranscriptionInterface._setup_command_bar
 
     def _mount_vp_auto_switch(self):
@@ -122,8 +92,8 @@ def vc_transcribe_ui_patch():
         try:
             menu = RoundMenu(parent=self)
             menu.addActions([
-                Action(FluentIcon.GLOBE, TM_DISPLAY_DEFAULT),
-                Action(FluentIcon.MICROPHONE, TM_DISPLAY_ASR),
+                Action(FluentIcon.IOT, TM_DISPLAY_LOCAL),
+                Action(FluentIcon.GLOBE, TM_DISPLAY_CLOUD),
             ])
             self.model_menu = menu          # _setup_signals 遍历的是这个菜单
             self.model_button.setMenu(menu)
@@ -132,67 +102,89 @@ def vc_transcribe_ui_patch():
 
     ti.TranscriptionInterface._setup_command_bar = _setup_command_bar
 
-    # ② 模型切换：显示名 ↔ 引擎枚举映射
+    # ② 模型切换：本地 / 云端 ↔ asr_mode（点哪项就真正切到哪套后端）
+    def _current_mode(self):
+        try:
+            return ("local" if self.model_button.text() == TM_DISPLAY_LOCAL
+                    else "service")
+        except Exception:  # noqa: BLE001
+            return asr_mode_of()
+
+    def _refresh_model_tooltip(self):
+        try:
+            st = asr_mode_status(_current_mode())
+            tip = "转录模型：%s\n%s" % (
+                self.model_button.text(), st.get("detail") or "")
+            if not st.get("ready") and st.get("hint"):
+                tip += "\n⚠ " + st["hint"]
+            self.model_button.setToolTip(tip)
+        except Exception:  # noqa: BLE001
+            pass
+
     def _on_model_changed(self, model_name: str):
         # 防重入：cfg 信号 → 本槽 → cfg 信号 的环路在此截断
         if getattr(self, "_vt_model_busy", False):
             return
         try:
-            asr_values = (TranscribeModelEnum.WHISPER_API.value,
-                          TranscribeModelEnum.FASTER_WHISPER.value)
-            if model_name == TM_DISPLAY_ASR:
-                # 用户点了「ASR」：以全局「ASR 语音识别」设置为准实时同步
+            model_name = getattr(model_name, "value", model_name)
+            if model_name in (TM_DISPLAY_LOCAL, TM_DISPLAY_CLOUD):
+                mode = "local" if model_name == TM_DISPLAY_LOCAL else "service"
                 self._vt_model_busy = True
                 try:
-                    self.model_button.setText(TM_DISPLAY_ASR)
-                    self.transcription_setting_card.on_model_changed(
-                        TM_DISPLAY_ASR)
-                    ok, detail = apply_asr_to_engine()
+                    self.model_button.setText(model_name)
+                    self.transcription_setting_card.on_model_changed(model_name)
+                    ok, detail = set_asr_mode(mode)
+                    _refresh_model_tooltip(self)
+                    st = asr_mode_status(mode)
                     if not ok:
-                        _vc_log(f"ASR 应用失败：{detail}")
-                    if _asr_not_ready():
-                        InfoBar.warning(
-                            "ASR 未配置",
-                            ("%s；" % _asr_missing_hint() if _asr_missing_hint()
-                             else "")
-                            + "请到 设置 → ASR 语音识别 填好后点「保存并应用」"
-                              "（只填不保存不生效）",
+                        InfoBar.error(
+                            "转录模型切换失败",
+                            ("%s；" % detail if detail else "")
+                            + "引擎「转录配置」可能仍是旧模型，"
+                              "请到 设置 → ASR 语音识别 点「保存并应用」",
                             duration=8000, parent=self.window())
+                    elif not st.get("ready"):
+                        InfoBar.warning(
+                            "「%s」还没配置完整" % model_name,
+                            st.get("hint")
+                            or "请到 设置 → ASR 语音识别 配置后点「保存并应用」",
+                            duration=8000, parent=self.window())
+                    else:
+                        InfoBar.success(
+                            "已切换到「%s」" % model_name,
+                            st.get("detail") or detail or "",
+                            duration=2000, parent=self.window())
                 finally:
                     self._vt_model_busy = False
                 return
-            if model_name == TM_DISPLAY_DEFAULT:
-                # 用户点了「默认」：落回 B 接口
+            # 启动恢复 / signalBus 广播（传引擎枚举值）：以已保存模式为准，
+            # 同时把 ai_config 与引擎配置对齐（一致时不写盘）。
+            if model_name == TranscribeModelEnum.FASTER_WHISPER.value:
+                mode = "local"
+            elif model_name == TranscribeModelEnum.WHISPER_API.value:
+                mode = "service"
+            else:
+                mode = asr_mode_of()
+            label = TM_DISPLAY_LOCAL if mode == "local" else TM_DISPLAY_CLOUD
+            self.model_button.setText(label)
+            self.transcription_setting_card.on_model_changed(label)
+            try:
                 self._vt_model_busy = True
                 try:
-                    self.model_button.setText(TM_DISPLAY_DEFAULT)
-                    self.transcription_setting_card.on_model_changed(
-                        TM_DISPLAY_DEFAULT)
-                    _cfg.set(_cfg.transcribe_model, TranscribeModelEnum.BIJIAN)
+                    ok, detail = set_asr_mode(mode)
+                    if not ok:
+                        _vc_log(f"启动期对齐 ASR 转录配置失败：{detail}")
                 finally:
                     self._vt_model_busy = False
-                return
-            # 其余为启动恢复/signalBus 广播（传引擎枚举值）：只做显示映射，
-            # 不回写配置，避免构造期触发配置环路
-            if model_name in asr_values:
-                self.model_button.setText(TM_DISPLAY_ASR)
-                self.transcription_setting_card.on_model_changed(TM_DISPLAY_ASR)
-            else:
-                # 「B 接口」及被移除的历史取值（J 接口/WhisperCpp）→ 显示「默认」
-                self.model_button.setText(TM_DISPLAY_DEFAULT)
-                self.transcription_setting_card.on_model_changed(
-                    TM_DISPLAY_DEFAULT)
-                if model_name != TranscribeModelEnum.BIJIAN.value:
-                    self._vt_model_busy = True
-                    try:
-                        _cfg.set(_cfg.transcribe_model,
-                                 TranscribeModelEnum.BIJIAN)
-                    finally:
-                        self._vt_model_busy = False
+            except Exception as e:  # noqa: BLE001
+                _vc_log(f"启动期对齐 ASR 转录配置异常：{e}")
+            _refresh_model_tooltip(self)
         except Exception as e:  # noqa: BLE001
             self._vt_model_busy = False
             _vc_log(f"转录模型切换异常：{e}")
 
+    ti.TranscriptionInterface.current_asr_mode = _current_mode
+    ti.TranscriptionInterface._refresh_model_tooltip = _refresh_model_tooltip
     ti.TranscriptionInterface.on_transcription_model_changed = _on_model_changed
 
     # ③ 独立转录完成 → 回填「字幕翻译」
@@ -478,7 +470,7 @@ def vc_transcribe_ui_patch():
     ti.TranscriptionInterface._on_file_select = _heal_guard(
         ti.TranscriptionInterface._on_file_select)
 
-    # ④ 转录设置卡片空位提示（默认/ASR 都不再展示引擎内置 ASR 配置块）
+    # ④ 转录设置卡片空位提示（本地/云端都不再展示引擎内置 ASR 配置块）
     #    + ⑥ 主播声纹录入卡（v1.18.0）：本页 `empty_widget` 是默认显示的空白
     #    区，正好用来放声纹录入——不新增页面，用户也不用另找入口。
     orig_card_init = tsc.TranscriptionSettingCard.__init__
@@ -489,8 +481,9 @@ def vc_transcribe_ui_patch():
             lay = _QVBox(self.empty_widget)
             lay.setContentsMargins(24, 4, 24, 4)
             tip = BodyLabel(
-                "默认：内置免费语音识别；ASR：使用设置页「ASR 语音识别」的模型"
-                "（自有服务 / 本地模型），统一在全局设置中维护",
+                "本地：电脑里的 faster-whisper 模型（离线，tools\\asr_model 下）；"
+                "云端：设置页「ASR 语音识别」填的服务商接口。点下拉即切换并"
+                "写入引擎转录配置，失败原因请看旁边的提示条。",
                 self.empty_widget)
             tip.setStyleSheet("color: #8a8a8a;")
             tip.setWordWrap(True)   # 窄窗口下不换行会被裁掉右半句
@@ -585,7 +578,8 @@ def vc_transcribe_ui_patch():
         pass
 
     ti._vt_transcribe_ui_patched = True
-    _vc_log("转录 UI 补丁已挂：下拉=默认/ASR，独立转录完成回填「字幕翻译」")
+    _vc_log("转录 UI 补丁已挂：下拉=本地/云端（切换即写入引擎转录配置），"
+            "独立转录完成回填「字幕翻译」")
     return True
 
 

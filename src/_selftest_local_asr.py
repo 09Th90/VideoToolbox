@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.1.6
+# @version 3.2.0
 """本地 ASR 全链自检（可复跑；正向 + **负向**验证）。
 
 覆盖：目录解析优先级、完全离线加载、GPU→CPU 自动降级、缺模型/坏文件报错、
@@ -494,15 +494,17 @@ def main() -> int:
               patched and "large-v3" in text and "silero_v4" in text,
               text.splitlines()[0] if text else "")
         chunked = _tr._create_asr_instance(silence, cfg_obj)
-        check("T11c 引擎路径：str 模型名不再抛 .value",
+        check("T11c 引擎路径：str 模型名兼容，且本地分支已接内置 ASR",
               patched
               and getattr(cfg_obj.faster_whisper_model, "value", None)
               == "large-v3"
-              and type(chunked).__name__ == "ChunkedASR",
-              "patched=%s model=%r class=%s"
+              and type(chunked).__name__ == "ChunkedASR"
+              and getattr(chunked, "asr_class", None) is local.FasterWhisperASR,
+              "patched=%s model=%r class=%s asr_class=%s"
               % (patched,
                  getattr(cfg_obj.faster_whisper_model, "value", None),
-                 type(chunked).__name__))
+                 type(chunked).__name__,
+                 getattr(getattr(chunked, "asr_class", None), "__name__", None)))
     except Exception as exc:  # noqa: BLE001
         check("T11b/T11c 引擎路径：str 模型名全链兼容", False, repr(exc))
 
@@ -518,7 +520,7 @@ def main() -> int:
     except Exception as exc:  # noqa: BLE001
         check("T12 幻觉文本 / 音乐标记过滤保留", False, repr(exc))
 
-    # ---------- T13 云端配置未被改动 ----------
+    # ---------- T13 云端/本地模式与引擎设置不串味 ----------
     try:
         with open(os.path.join(ROOT, "data", "ai_config.json"),
                   encoding="utf-8-sig") as f:
@@ -526,17 +528,20 @@ def main() -> int:
         with open(os.path.join(ROOT, "data", "videocaptioner", "settings.json"),
                   encoding="utf-8-sig") as f:
             st = json.load(f)
-        check("T13 asr_mode 保持 service（云端回归不受影响）",
-              ai.get("asr_mode") == "service", str(ai.get("asr_mode")))
-        check("T13b settings.json TranscribeModel 保持 Whisper [API]",
-              st.get("Transcribe", {}).get("TranscribeModel")
-              == "Whisper [API] ✨",
-              str(st.get("Transcribe", {}).get("TranscribeModel")))
-        check("T13c FasterWhisper.Program 不再是必需项",
+        mode = ai.get("asr_mode")
+        tm = st.get("Transcribe", {}).get("TranscribeModel")
+        want_tm = ("FasterWhisper ✨" if mode == "local"
+                   else "Whisper [API] ✨")
+        # 2026-11-22：产品已支持「本地/云端」任选并持久化，断言写死 service
+        # 会在用户切到本地后误报。这里只校验两边一致（切哪档都成立）。
+        check("T13 asr_mode 与引擎 TranscribeModel 一致（%s）" % mode,
+              mode in ("local", "service") and tm == want_tm,
+              "mode=%s tm=%s" % (mode, tm))
+        check("T13b FasterWhisper.Program 不再作为必需项（空）",
               st.get("FasterWhisper", {}).get("Program", None) == "",
               str(st.get("FasterWhisper", {}).get("Program")))
     except Exception as exc:  # noqa: BLE001
-        check("T13 云端配置未被改动", False, repr(exc))
+        check("T13 云端/本地模式与引擎设置一致", False, repr(exc))
 
     # ---------- T14 声纹模型不受影响 ----------
     try:
@@ -665,7 +670,28 @@ def main() -> int:
     except Exception as exc:  # noqa: BLE001
         check("T19 测试 ASR 配置逐项校验", False, repr(exc))
 
-    # ---------- T16 降级日志确实落盘 ----------
+    # ---------- T19c 目录填「模型根」→ 自动下钻到 <模型名> 子目录 ----------
+    # 2026-11-22 用户反馈：设置页目录填到 tools\asr_model\faster-whisper 根，
+    # 「测试 ASR 配置」只按该目录本身找权重，误报缺文件；运行期解析却会
+    # 自动补 <模型名>。测试与运行必须同一判据。
+    try:
+        from core.shared.ai import ai_mod as _ai_mod
+
+        fw_root = os.path.dirname(p_large.rstrip("\\/"))
+        cfg_root = {"asr_mode": "local", "asr_local_model": "large-v3",
+                    "asr_local_model_dir": fw_root, "asr_protocol": "auto"}
+        ok, msg = _ai_mod().asr_test_connection(cfg_root)
+        check("T19c 目录填模型根时自动定位到具体模型子目录",
+              ok is True and p_large in msg, msg.replace("\n", " / "))
+        cfg_bogus = dict(cfg_root, asr_local_model="vt-不存在的模型-xyz")
+        ok_b, msg_b = _ai_mod().asr_test_connection(cfg_bogus)
+        check("T19d [负向] 模型根下无该模型时仍失败且给出子目录提示",
+              ok_b is False and "子目录" in msg_b,
+              msg_b.replace("\n", " / "))
+    except Exception as exc:  # noqa: BLE001
+        check("T19c 模型根自动下钻", False, repr(exc))
+
+
     try:
         log_path = os.path.join(ROOT, "logs", "vc_fallback_selftest.log")
         text = ""

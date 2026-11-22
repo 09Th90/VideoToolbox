@@ -1,13 +1,15 @@
 # -*- coding: utf-8 -*-
-# @version 3.1.6
+# @version 3.2.0
 """自研「语音转录」页（含 ``VideoInfoCard``）。
 
 视觉与引擎转录页对齐；把原本运行期打在引擎类上的转录补丁**内建为显式逻辑**：
 
-  ① 命令栏转录模型下拉只建「默认 / ASR」两项；
-  ② 选「ASR」实时 ``apply_asr_to_engine()``（以全局「ASR 语音识别」为准），未配
-     好给设置指引；选「默认」落回 B 接口；启动恢复/广播只做显示映射并按需回写；
-     ``_vt_model_busy`` 截断 cfg 信号环路；
+  ① 命令栏转录模型下拉只建「本地 / 云端」两项（2026-11-22 起不再有「默认」）；
+  ② 选「本地」→ ``asr_mode=local`` + 引擎切 FasterWhisper（模型名/目录一并写入），
+     选「云端」→ ``asr_mode=service`` + 引擎切 Whisper [API]（地址/密钥/模型一并
+     写入）——**点哪项就真正切到哪套后端**；切换后当场体检（缺权重 / 缺密钥直接
+     提示），启动恢复/广播按已保存模式对齐并回写；``_vt_model_busy`` 截断 cfg
+     信号环路；
   ③ 独立转录（``need_next_task=False``）完成后把产物字幕装载进「字幕翻译」并切
      过去；入口先无条件复位 ``is_processing``；``_home_of`` 沿 parent 链上溯（Qt
      会把子界面重挂到 QStackedWidget，故不能只用 ``parent()``）；``_produced_subtitle``
@@ -251,32 +253,31 @@ class VideoInfoCard(CardWidget):
                 duration=_seams.constants.INFOBAR_DURATION_WARNING, parent=self)
 
     def _ensure_asr_selected(self) -> bool:
-        """已配置 ASR 时不要停在「默认」——B 接口（bcut）已不可用。
+        """建任务前把「本地 / 云端」选定模式真正落到引擎，并确认它可用。
 
-        转录页的「默认」会把模型写成 B 接口，任务随后走必剪 API 必失败
-        （2026-10-28 实测 ``task/result`` 固定 412）。这里在建任务前把界面
-        与配置一起切到 ASR，保持按钮显示与实际使用的模型一致。
+        以前这里负责「停在默认就自动切 ASR」；下拉拆成本地/云端后不再需要自动
+        切换，但**必须**在转码前两道闸一起过：
+          ① 按当前选择重新注入引擎转录配置（防止引擎里残留另一套模型——
+             例如刚从设置页改过、或被历史任务带偏）；
+          ② 模式未配置完整就中止并引导（本地缺权重 / 云端缺地址密钥）。
+        否则要等整条音频转完才炸（2026-11-19 第三方反馈的 412 长跑问题同源）。
 
-        返回 ``False`` 表示「停在默认且 ASR 未配置」——此时建任务必失败，
-        调用方应中止并引导去配置（2026-11-19 第三方反馈：等整条音频转码完
-        才看到 412，等于白跑）。
+        返回 ``False`` 表示当前模式不可用——调用方应中止并引导去配置。
         """
         try:
             ui = self.transcription_interface
-            if ui.model_button.text() != _seams.TM_DISPLAY_DEFAULT:
-                return True
-            ac = _seams.ai_mod().asr_config(_seams.ai_load_config())
-            ready = (bool(ac.get("local_model") or ac.get("local_model_dir"))
-                     if ac.get("mode") == "local"
-                     else bool(ac.get("base_url") and ac.get("api_key")))
-            if ready:
-                ui.on_transcription_model_changed(_seams.TM_DISPLAY_ASR)
+            mode = ui.current_asr_mode()
+            ok, _detail = _seams.set_asr_mode(mode)
+            try:
+                ui._refresh_model_tooltip()
+            except Exception:  # noqa: BLE001
+                pass
+            st = _seams.asr_mode_status(mode)
+            if st.get("ready"):
                 return True
             bar = InfoBar.warning(
-                self.tr("ASR 未配置"),
-                self.tr("转录模型「默认」走必剪接口，而该接口已被平台风控"
-                        "（任务必失败）。请先到 设置 → ASR 语音识别 配置"
-                        "自有服务或本地模型，再回来开始转录。"),
+                self.tr("「%s」还没配置完整") % ui.model_button.text(),
+                str(st.get("hint") or "请到 设置 → ASR 语音识别 配置后点「保存并应用」"),
                 duration=-1,
                 parent=self.parent().parent())
             try:
@@ -287,7 +288,7 @@ class VideoInfoCard(CardWidget):
                 pass
             return False
         except Exception as e:  # noqa: BLE001
-            _seams.vc_log(f"自动切换 ASR 失败：{e}")
+            _seams.vc_log(f"ASR 模式校验失败：{e}")
             return True
 
     def start_transcription(self, need_create_task=True):
@@ -445,11 +446,13 @@ class TranscriptionInterface(QWidget):
         self.model_button.setFixedHeight(34)
         self.model_button.setMinimumWidth(180)
 
-        # 补丁 ①（内建）：下拉只留「默认 / ASR」
+        # 下拉只有「本地 / 云端」两档（2026-11-22）：本地 = 电脑里的
+        # faster-whisper 模型（离线），云端 = 设置页填的服务商接口。
+        # 点哪项就写 asr_mode 并注入引擎转录配置，不是只改文字。
         self.model_menu = RoundMenu(parent=self)
         self.model_menu.addActions([
-            Action(FluentIcon.GLOBE, _seams.TM_DISPLAY_DEFAULT),
-            Action(FluentIcon.MICROPHONE, _seams.TM_DISPLAY_ASR),
+            Action(FluentIcon.IOT, _seams.TM_DISPLAY_LOCAL),
+            Action(FluentIcon.GLOBE, _seams.TM_DISPLAY_CLOUD),
         ])
         self.model_button.setMenu(self.model_menu)
         self.command_bar.addWidget(self.model_button)
@@ -661,84 +664,108 @@ class TranscriptionInterface(QWidget):
         self.output_format_button.setText(
             self.tr("格式：") + getattr(fmt, "value", str(fmt)))
 
-    # ---------------- 补丁 ②：显示名 ↔ 引擎枚举 ----------------
+    # ---------------- 显示名 ↔ ASR 模式（本地 / 云端） ----------------
+    def current_asr_mode(self) -> str:
+        """当前下拉代表的模式：``local`` / ``service``。"""
+        try:
+            return ("local" if self.model_button.text()
+                    == _seams.TM_DISPLAY_LOCAL else "service")
+        except Exception:  # noqa: BLE001
+            return _seams.asr_mode_of()
+
+    def _refresh_model_tooltip(self):
+        """按钮 tooltip 显示**真正**在用的模型/端点 + 未配置时的缺项。"""
+        try:
+            st = _seams.asr_mode_status(self.current_asr_mode())
+            tip = "转录模型：%s\n%s" % (
+                self.model_button.text(), st.get("detail") or "")
+            if not st.get("ready") and st.get("hint"):
+                tip += "\n⚠ " + st["hint"]
+            self.model_button.setToolTip(tip)
+        except Exception:  # noqa: BLE001
+            pass
+
     def on_transcription_model_changed(self, model_name: str):
         if self._vt_model_busy:
             return
-        cfg = _seams.cfg
         ent = _seams.entities
-        TM_DEFAULT = _seams.TM_DISPLAY_DEFAULT
-        TM_ASR = _seams.TM_DISPLAY_ASR
+        TM_LOCAL = _seams.TM_DISPLAY_LOCAL
+        TM_CLOUD = _seams.TM_DISPLAY_CLOUD
         try:
-            asr_values = (ent.TranscribeModelEnum.WHISPER_API.value,
-                          ent.TranscribeModelEnum.FASTER_WHISPER.value)
-            if model_name == TM_ASR:
+            model_name = getattr(model_name, "value", model_name)
+            # ① 用户点了「本地 / 云端」：写 asr_mode + 注入引擎转录配置（真正生效）
+            if model_name in (TM_LOCAL, TM_CLOUD):
+                mode = "local" if model_name == TM_LOCAL else "service"
                 self._vt_model_busy = True
                 try:
-                    self.model_button.setText(TM_ASR)
-                    self.transcription_setting_card.on_model_changed(TM_ASR)
-                    ok, detail = _seams.apply_asr_to_engine()
+                    self.model_button.setText(model_name)
+                    self.transcription_setting_card.on_model_changed(model_name)
+                    ok, detail = _seams.set_asr_mode(mode)
+                    self._refresh_model_tooltip()
+                    st = _seams.asr_mode_status(mode)
                     if not ok:
-                        _seams.vc_log(f"ASR 应用失败：{detail}")
-                    if self._asr_not_ready():
+                        InfoBar.error(
+                            "转录模型切换失败",
+                            ("%s；" % detail if detail else "")
+                            + "引擎「转录配置」可能仍是旧模型，"
+                              "请到 设置 → ASR 语音识别 点「保存并应用」",
+                            duration=_seams.constants.INFOBAR_DURATION_ERROR,
+                            parent=self.window())
+                    elif not st.get("ready"):
                         InfoBar.warning(
-                            "ASR 未配置",
-                            ("%s；" % self._asr_missing_hint()
-                             if self._asr_missing_hint() else "")
-                            + "请到 设置 → ASR 语音识别 填好后点「保存并应用」"
-                              "（只填不保存不生效）",
+                            "「%s」还没配置完整" % model_name,
+                            st.get("hint")
+                            or "请到 设置 → ASR 语音识别 配置后点「保存并应用」",
                             duration=8000, parent=self.window())
+                    else:
+                        InfoBar.success(
+                            "已切换到「%s」" % model_name,
+                            st.get("detail") or detail or "",
+                            duration=_seams.constants.INFOBAR_DURATION_SUCCESS,
+                            parent=self.window())
                 finally:
                     self._vt_model_busy = False
                 return
-            if model_name == TM_DEFAULT:
+
+            # ② 启动恢复 / signalBus 广播（传引擎枚举值）：以**已保存的模式**为准，
+            #    并顺手把引擎配置对齐（有差异才写盘），保证按钮显示=实际使用。
+            mode = (_seams.asr_mode_of()
+                    if model_name not in (ent.TranscribeModelEnum.WHISPER_API.value,
+                                          ent.TranscribeModelEnum.FASTER_WHISPER.value)
+                    else ("local" if model_name
+                          == ent.TranscribeModelEnum.FASTER_WHISPER.value
+                          else "service"))
+            label = TM_LOCAL if mode == "local" else TM_CLOUD
+            self.model_button.setText(label)
+            self.transcription_setting_card.on_model_changed(label)
+            # 顺手把 ai_config 的 asr_mode 与引擎现状对齐（一致时不写盘）。
+            # 设置页「转录模型」下拉变动也会广播到这里，等于第二控制面同样
+            # 真正生效，不会出现「界面云端、配置本地」的隐形分叉。
+            try:
                 self._vt_model_busy = True
                 try:
-                    self.model_button.setText(TM_DEFAULT)
-                    self.transcription_setting_card.on_model_changed(TM_DEFAULT)
-                    cfg.set(cfg.transcribe_model, ent.TranscribeModelEnum.BIJIAN)
+                    ok, detail = _seams.set_asr_mode(mode)
+                    if not ok:
+                        _seams.vc_log(f"启动期对齐 ASR 转录配置失败：{detail}")
                 finally:
                     self._vt_model_busy = False
-                return
-            # 启动恢复 / signalBus 广播（传引擎枚举值）：只做显示映射
-            if model_name in asr_values:
-                self.model_button.setText(TM_ASR)
-                self.transcription_setting_card.on_model_changed(TM_ASR)
-            else:
-                self.model_button.setText(TM_DEFAULT)
-                self.transcription_setting_card.on_model_changed(TM_DEFAULT)
-                if model_name != ent.TranscribeModelEnum.BIJIAN.value:
-                    self._vt_model_busy = True
-                    try:
-                        cfg.set(cfg.transcribe_model, ent.TranscribeModelEnum.BIJIAN)
-                    finally:
-                        self._vt_model_busy = False
+            except Exception as e:  # noqa: BLE001
+                _seams.vc_log(f"启动期对齐 ASR 转录配置异常：{e}")
+            self._refresh_model_tooltip()
         except Exception as e:  # noqa: BLE001
             self._vt_model_busy = False
             _seams.vc_log(f"转录模型切换异常：{e}")
 
     def _asr_not_ready(self) -> bool:
         try:
-            ac = _seams.ai_mod().asr_config(_seams.ai_load_config())
-            if ac.get("mode") == "local":
-                return not (ac.get("local_model") or ac.get("local_model_dir"))
-            return not (ac.get("base_url") and ac.get("api_key"))
+            return not _seams.asr_mode_status(self.current_asr_mode()).get("ready")
         except Exception:  # noqa: BLE001
             return False
 
     def _asr_missing_hint(self) -> str:
         try:
-            ac = _seams.ai_mod().asr_config(_seams.ai_load_config())
-            if ac.get("mode") == "local":
-                if not (ac.get("local_model") or ac.get("local_model_dir")):
-                    return "本地模式还没填模型名或目录"
-                return ""
-            miss = []
-            if not ac.get("base_url"):
-                miss.append("接口地址")
-            if not ac.get("api_key"):
-                miss.append("密钥")
-            return ("已保存的配置里缺：" + "、".join(miss)) if miss else ""
+            return _seams.asr_mode_status(
+                self.current_asr_mode()).get("hint") or ""
         except Exception:  # noqa: BLE001
             return ""
 
@@ -990,26 +1017,32 @@ class TranscriptionInterface(QWidget):
             _seams.vc_log(f"声纹筛选事前提示未发：{e}")
         self.is_processing = True
         # 与「开始转录」同一道前置闸：本入口的 task 是上游（首页/拖入）创建的，
-        # 界面切换 ASR **不会**改它。所以：
-        #   · 停在「默认」且 ASR 未配置 → 中止并引导（必剪必失败）；
-        #   · 已配置 → 切到 ASR 后重建 task，保证真正跑的模型与按钮一致。
-        if self.model_button.text() == _seams.TM_DISPLAY_DEFAULT:
-            if not self.video_info_card._ensure_asr_selected():
-                self.is_processing = False
-                self.video_info_card.reset_ui()
-                return
-            try:
-                if self.task is not None:
-                    old = self.task
-                    new = _seams.TaskFactory.create_transcribe_task(
-                        old.file_path,
-                        need_next_task=bool(getattr(old, "need_next_task", False)),
-                        task_id=getattr(old, "task_id", None))
-                    new.selected_audio_track_index = getattr(
-                        old, "selected_audio_track_index", 0)
-                    self.set_task(new)
-            except Exception as e:  # noqa: BLE001 - 重建失败不阻断（旧 task 仍可跑）
-                _seams.vc_log(f"切换 ASR 后重建转录任务失败：{e}")
+        # 界面切换「本地 / 云端」**不会**改它。所以：
+        #   · 当前模式未配置完整 → 中止并引导（本地缺权重 / 云端缺密钥）；
+        #   · 模式可用但 task 里带的还是另一套模型（上游建任务后用户在转录页
+        #     改过选择）→ 重建 task，保证真正跑的模型与按钮一致。
+        if not self.video_info_card._ensure_asr_selected():
+            self.is_processing = False
+            self.video_info_card.reset_ui()
+            return
+        try:
+            ent = _seams.entities
+            want = (ent.TranscribeModelEnum.FASTER_WHISPER
+                    if self.current_asr_mode() == "local"
+                    else ent.TranscribeModelEnum.WHISPER_API)
+            cur = getattr(getattr(self.task, "transcribe_config", None),
+                          "transcribe_model", None)
+            if self.task is not None and getattr(cur, "value", cur) != want.value:
+                old = self.task
+                new = _seams.TaskFactory.create_transcribe_task(
+                    old.file_path,
+                    need_next_task=bool(getattr(old, "need_next_task", False)),
+                    task_id=getattr(old, "task_id", None))
+                new.selected_audio_track_index = getattr(
+                    old, "selected_audio_track_index", 0)
+                self.set_task(new)
+        except Exception as e:  # noqa: BLE001 - 重建失败不阻断（旧 task 仍可跑）
+            _seams.vc_log(f"按当前 ASR 模式重建转录任务失败：{e}")
         self.video_info_card.start_transcription(need_create_task=False)
 
     def dragEnterEvent(self, event):

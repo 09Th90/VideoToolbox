@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.1.6
+# @version 3.2.0
 """vc ASR 补丁（协议注入 / 分块几何 / 非中英占比守卫）（v2.3.1 拆分工程 · 自 video_toolbox.py 原样搬入）。
 
 core/asr 域：ASR 全协议适配 + vc 转录补丁；依赖规则见 core/__init__.py。
@@ -410,9 +410,39 @@ def vc_asr_local_model_patch():
         _vc_log("本地 ASR 模型名补丁未挂：引擎 transcribe 缺少 _create_asr_instance")
         return False
 
+    # 本地分支真正换成自研内置实现所需的枚举值：必须取**引擎自己的**
+    # TranscribeModelEnum，跨模块同名枚举的 value 虽然相同，但这里只做
+    # 字符串比较，取哪个都行；用引擎值是为了跟着引擎版本走。
+    try:
+        from videocaptioner.core.entities import (
+            TranscribeModelEnum as _EngineTM)
+        local_value = _EngineTM.FASTER_WHISPER.value
+    except Exception:  # noqa: BLE001
+        local_value = "FasterWhisper ✨"
+
     def _create(*args, **kwargs):
         config = args[1] if len(args) > 1 else kwargs.get("config")
         _normalize_local_asr_config(config)
+        # 2026-11-22：本地分支必须接自研内置 faster_whisper.WhisperModel。
+        # 引擎自带的 FasterWhisperASR 只会拼命令行去调外部 faster-whisper-xxl，
+        # 本机没有这个程序 ⇒ 构造即抛「程序未找到」。GUI 的转录线程走的是
+        # videocaptioner.core.asr.transcribe，而不是自研 engine_asr.transcribe，
+        # 所以内置直连一直没接到界面上（CLI 能跑、界面必炸）。
+        try:
+            _m = getattr(getattr(config, "transcribe_model", None), "value",
+                         getattr(config, "transcribe_model", None))
+            if _m == local_value:
+                from features.transcribe import engine_asr as _builtin
+                audio_path = args[0] if args else kwargs.get("audio_path")
+                chunked = _builtin._create_asr_instance(audio_path, config)
+                if not getattr(_tr, "_vt_local_backend_logged", False):
+                    _vc_log("本地 ASR 已接内置直连：引擎转录分支改用 "
+                            "faster_whisper.WhisperModel，不再要求外部 "
+                            "faster-whisper-xxl 程序")
+                    _tr._vt_local_backend_logged = True
+                return chunked
+        except Exception as e:  # noqa: BLE001
+            _vc_log(f"内置本地 ASR 接管失败，回退引擎实现：{e}")
         return orig(*args, **kwargs)
 
     _tr._create_asr_instance = _create

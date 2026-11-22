@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.1.6
+# @version 3.2.0
 """全局设置页（2026-11-15 功能解耦阶段③：从 video_toolbox_qt.py 拆出，逐字同源）。
 
 壳层页面（非可选功能）：全程序唯一全局设置——目录 / 下载 Cookie / 全局 AI /
@@ -16,7 +16,7 @@ import threading
 
 from PySide6.QtCore import QEvent, QObject, Qt, QTimer, QUrl, Signal
 from PySide6.QtWidgets import (QApplication, QDialog, QFileDialog, QFrame,
-                               QHBoxLayout, QLabel, QMessageBox,
+                               QGridLayout, QHBoxLayout, QLabel, QMessageBox,
                                QPlainTextEdit, QSizePolicy, QTabWidget,
                                QVBoxLayout, QWidget)
 
@@ -97,6 +97,76 @@ class _BgPathEdit(LineEdit):
                 e.acceptProposedAction()
                 return
         e.ignore()
+
+
+class _CalibParamStrip(QWidget):
+    """AI 校准四格参数条：宽窗一行四个，窄窗自动两行两列。
+
+    宽窗用弹性间隔把「思考模式 / Agent 集群 / 思考强度 / 思考轮次上限」
+    铺开（贴合草稿图 1 的一行分组）；窗口收窄到 830px 以下时改排 2×2，
+    避免 300px 预算列之外的横向溢出（滚动区已禁用横向滚动）。
+
+    只搬控件位置、不重建控件：信号、tooltip、配置读写全部保持原对象。
+    """
+
+    #: 实测四格最小宽 761px（含三个 8px 间隔）；取 830px 切换，
+    #: 多留约 70px 给弹性间隔，避免刚过最小宽就挤成一团。
+    WIDE_MIN = 830
+
+    def __init__(self, cells, parent=None):
+        super().__init__(parent)
+        self._cells = list(cells)
+        self._mode = None
+
+        self._wide_box = QWidget(self)
+        self._wide_lay = QHBoxLayout(self._wide_box)
+        self._wide_lay.setContentsMargins(0, 0, 0, 0)
+        self._wide_lay.setSpacing(8)
+
+        self._narrow_box = QWidget(self)
+        self._narrow_lay = QGridLayout(self._narrow_box)
+        self._narrow_lay.setContentsMargins(0, 0, 0, 0)
+        self._narrow_lay.setHorizontalSpacing(12)
+        self._narrow_lay.setVerticalSpacing(8)
+
+        outer = QVBoxLayout(self)
+        outer.setContentsMargins(0, 0, 0, 0)
+        outer.setSpacing(0)
+        outer.addWidget(self._wide_box)
+        outer.addWidget(self._narrow_box)
+        self._reflow(False)
+
+    @staticmethod
+    def _clear(lay):
+        """只取走布局项，不删控件——控件随后被 reparent 到另一个容器。"""
+        while lay.count():
+            lay.takeAt(0)
+
+    def _reflow(self, wide):
+        if wide == self._mode:
+            return
+        self._mode = wide
+        self._clear(self._wide_lay)
+        self._clear(self._narrow_lay)
+        target = self._wide_box if wide else self._narrow_box
+        for w in self._cells:
+            w.setParent(target)
+        if wide:
+            for w in self._cells:
+                self._wide_lay.addWidget(w)
+                self._wide_lay.addStretch(1)
+        else:
+            for i, w in enumerate(self._cells):
+                self._narrow_lay.addWidget(w, i // 2, i % 2)
+            self._narrow_lay.setColumnStretch(0, 1)
+            self._narrow_lay.setColumnStretch(1, 1)
+        self._wide_box.setVisible(wide)
+        self._narrow_box.setVisible(not wide)
+        self.updateGeometry()
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        self._reflow(self.width() >= self.WIDE_MIN)
 
 
 class SettingsPage(QWidget):
@@ -688,7 +758,11 @@ class SettingsPage(QWidget):
         self.asr_local_dir = LineEdit(self.asr_local_widget)
         self.asr_local_dir.setText(str(ai.get("asr_local_model_dir", "")))
         self.asr_local_dir.setPlaceholderText(
-            "留空 = 自动定位 tools\\asr_model\\faster-whisper\\<模型名>")
+            "留空 = 自动定位；也可填 faster-whisper 模型根或具体模型目录")
+        self.asr_local_dir.setToolTip(
+            "三种填法都认：① 具体模型目录（含 config.json / model.bin / tokenizer.json）；\n"
+            "② 模型根 tools\\asr_model\\faster-whisper（自动取 <模型名> 子目录）；\n"
+            "③ 留空自动定位。填到上一层不会再误报「缺少必需文件」。")
         self.asr_local_browse = PushButton(FIF.FOLDER, "浏览…", self.asr_local_widget)
         self.asr_local_browse.clicked.connect(
             lambda: self._browse_into(self.asr_local_dir, "选择 ASR 模型目录"))
@@ -702,7 +776,7 @@ class SettingsPage(QWidget):
         self.asr_dirty_lbl = fit_caption(CaptionLabel("● 有未保存的改动", box))
         self.asr_dirty_lbl.setTextColor("#c07a1a", "#c07a1a")
         self.asr_dirty_lbl.setToolTip("改完要点「保存并应用」才会写进引擎的转录配置；"
-                                      "只填不保存的话，转录页会提示「ASR 未配置」")
+                                      "只填不保存的话，转录页切换「本地 / 云端」时会提示配置不全")
         self.asr_dirty_lbl.hide()
         self.asr_example_btn = PushButton(FIF.CODE, "调用示例（curl / Python）", box)
         self.asr_example_btn.setToolTip(
@@ -713,10 +787,10 @@ class SettingsPage(QWidget):
         blay.addWidget(row(self.asr_example_btn, None))
 
         self.asr_hint = fit_caption(CaptionLabel(
-            "服务模式：转录下拉选「ASR」即由自有服务识别；协议全适配"
-            "（OpenAI 兼容 / Azure / 阿里云百炼 / Deepgram / ElevenLabs / "
-            "Gemini，默认自动识别）；本地模式：内置 faster-whisper 直连，"
-            "无需外部 exe，GPU 不可用时自动降级 CPU", box))
+            "云端：转录页下拉选「云端」即由这里填的服务商接口识别；本地："
+            "下拉选「本地」即用电脑里的 faster-whisper 模型（无需外部 exe，"
+            "GPU 不可用时自动降级 CPU）。下拉切换会直接写进引擎转录配置，"
+            "无需再回来保存", box))
         self.asr_hint.setTextColor("#8a8a8a", "#9a9a9a")
         blay.addWidget(self.asr_hint)
         # ASR 侧的套餐端点风险提示（同「全局 AI」卡片口径：允许接入、只提示）
@@ -727,7 +801,7 @@ class SettingsPage(QWidget):
         for w in (self.asr_base, self.asr_key, self.asr_model, self.asr_prompt,
                   self.asr_local_model, self.asr_local_dir):
             expand_h(w)
-        # 编辑即亮「未保存」：只填不保存的话，转录页会提示「ASR 未配置」
+        # 编辑即亮「未保存」：只填不保存的话，转录页切换模式时会提示配置不全
         for w in (self.asr_base, self.asr_key, self.asr_model, self.asr_prompt,
                   self.asr_local_model, self.asr_local_dir):
             w.textChanged.connect(self._mark_ai_dirty)
@@ -746,12 +820,12 @@ class SettingsPage(QWidget):
         self.asr_service_widget.setVisible(not local)
         self.asr_local_widget.setVisible(local)
         self.asr_hint.setText(
-            "本地模式：转录下拉选「ASR」即用内置 faster-whisper 直连（无需外部 exe）；"
-            "优先用上面填写的模型名与目录，目录留空自动定位工具箱内 "
-            "large-v3 / small.en；GPU 缺 cuBLAS 时自动降级 CPU int8"
+            "本地模式：转录页下拉选「本地」即用电脑里的 faster-whisper 模型"
+            "（优先用上面填写的模型名与目录，目录留空自动定位工具箱内 "
+            "large-v3 / small.en）；GPU 缺 cuBLAS 时自动降级 CPU int8"
             if local else
-            "服务模式：转录下拉选「ASR」即由自有 ASR 服务识别；协议可选"
-            "自动识别 / OpenAI 兼容 / Azure / 阿里百炼，无时间戳响应自动"
+            "云端模式（服务商接口）：转录页下拉选「云端」即由下面这套接口识别；"
+            "协议可选自动识别 / OpenAI 兼容 / Azure / 阿里百炼，无时间戳响应自动"
             "按句切分兜底")
 
     def _sync_plan_warn(self, *_a):
@@ -844,12 +918,17 @@ class SettingsPage(QWidget):
             fit_spin(s, width)
             return s
 
-        self.calib_cues = _spin(ai.get("calib_chunk_cues") or 400, 20, 1000, 10)
-        blay.addWidget(label_row("每块最多条数", row(self.calib_cues, None)))
+        self.calib_cues = _spin(ai.get("calib_chunk_cues") or 400, 20, 1000, 10,
+                                width=150)
         # ⚠️ 上限必须 ≥ 引擎默认 60000：旧版上限 40000 会把默认值静默夹小
         self.calib_chars = _spin(ai.get("calib_max_chars") or 60000,
-                                 1000, 200000, 500)
-        blay.addWidget(label_row("每块字符预算", row(self.calib_chars, None)))
+                                 1000, 200000, 500, width=170)
+        # 顶两项与下方「输入 / 输出」共用 300px 双列网格（草稿图 1 的分组）
+        cues_cell = label_row("每块最多条数", self.calib_cues)
+        cues_cell.setFixedWidth(300)
+        chars_cell = label_row("每块字符预算", self.calib_chars)
+        chars_cell.setFixedWidth(300)
+        blay.addWidget(row(cues_cell, chars_cell, None, spacing=16))
 
         # —— 思考模式 / 思考强度（2026-09-20）：随请求体 thinking + reasoning_effort 下发 ——
         self.calib_thinking_switch = SwitchButton(box)
@@ -857,7 +936,6 @@ class SettingsPage(QWidget):
             bool(ai.get("calib_thinking", True)))
         self.calib_thinking_switch.checkedChanged.connect(
             self._sync_calib_thinking_visible)
-        blay.addWidget(label_row("思考模式", self.calib_thinking_switch))
 
         self.calib_effort_combo = ComboBox(box)
         self.calib_effort_combo.addItems(list(self.CALIB_EFFORT_LABELS))
@@ -865,13 +943,13 @@ class SettingsPage(QWidget):
         self.calib_effort_combo.setCurrentIndex(
             self.CALIB_EFFORT_KEYS.index(_eff) if _eff in self.CALIB_EFFORT_KEYS
             else 2)
+        self.calib_effort_combo.setFixedWidth(88)
         self.calib_effort_combo.setToolTip(
             "下发到请求体 reasoning_effort：\n"
             "· DeepSeek 认 none/low/high/max，中/极高会被服务端归到 high；\n"
             "· 端点不认识该参数时程序自动去掉重试，不会因此报错；\n"
             "· ⚠️ 强度越高思考链越长，会先吃掉「输出」预算——额度太小时正文\n"
             "  会是空的（程序会明确报「只输出了思考链」而不是静默失败）。")
-        blay.addWidget(label_row("思考强度", self.calib_effort_combo))
 
         # —— 输入 / 输出预算（参考图二的「输入 / 输出」双列 + 快捷档位）——
         self.calib_context = _spin(ai.get("calib_context_tokens") or 1000000,
@@ -922,12 +1000,11 @@ class SettingsPage(QWidget):
                                          "整句重写（理顺机翻，双语长片推荐）"])
         self.calib_style_combo.setCurrentIndex(
             1 if str(ai.get("calib_style") or "term") == "rewrite" else 0)
-        blay.addWidget(label_row("校准风格", self.calib_style_combo))
+        self.calib_style_combo.setFixedWidth(300)
 
         # 联网查证（2026-09-20）：Agent 遇到知识库没有的疑似错形时可自主搜索
         self.calib_web_switch = SwitchButton(box)
         self.calib_web_switch.setChecked(bool(ai.get("calib_web_enabled", False)))
-        blay.addWidget(label_row("联网查证", row(self.calib_web_switch, None)))
 
         # 音画证据（2026-10-12）：Agent 可请求源媒体的音频重转写/抽帧描述，
         # 佐证疑似误听与丢弃候选（对标 FineSub 多模态纠错 harness）。
@@ -941,7 +1018,6 @@ class SettingsPage(QWidget):
             "用于疑似误听（专名/同音词/口误）与丢弃候选的最终确认。\n"
             "要求：① 字幕页已打开源视频；② 音频腿需 ASR 配 OpenAI 兼容端点；\n"
             "③ 画面腿走全局视觉通道。任一缺失自动降级，不打断校准。")
-        blay.addWidget(label_row("音画证据", row(self.calib_media_switch, None)))
 
         # 思考轮次上限（v1.16.1）：每块「思考 → 联网查证 → 再思考」的往返轮数。
         # 0 = 关闭（不限，内部另有 32 轮安全上限兜底防死循环）。
@@ -953,7 +1029,6 @@ class SettingsPage(QWidget):
             "· 0＝关闭（不限；内部仍有 32 轮安全上限防死循环）；\n"
             "· 仅「联网查证」开启时才有意义（没有工具可调就没有往返）；\n"
             "· 日志里的 [x/8] 是校准流水线的 8 个步骤进度，与本项无关。")
-        blay.addWidget(label_row("思考轮次上限", self.calib_think_rounds))
 
         # Agent 集群（v1.16.1，多智能体协作，**默认关闭**）
         self.calib_cluster_switch = SwitchButton(box)
@@ -965,8 +1040,16 @@ class SettingsPage(QWidget):
             "多智能体协作（Agent Cluster）：把校准拆成「提议 Agent + 评审 Agent」，\n"
             "各角色可走不同端点/密钥/模型；评审不通过不采纳，并可回喂整改。\n"
             "默认关闭——关闭时行为与单智能体完全一致。")
-        blay.addWidget(label_row("Agent 集群",
-                                 row(self.calib_cluster_switch, None)))
+
+        # 四格参数条（草稿图 1 的一行分组）：宽窗一行四个，窄窗自动 2×2。
+        # 控件只换位置不重建，信号/tooltip/配置读写保持原对象。
+        self.calib_param_strip = _CalibParamStrip([
+            label_row("思考模式", self.calib_thinking_switch),
+            label_row("Agent 集群", self.calib_cluster_switch),
+            label_row("思考强度", self.calib_effort_combo),
+            label_row("思考轮次上限", self.calib_think_rounds),
+        ], box)
+        blay.addWidget(self.calib_param_strip)
 
         self.calib_cluster_widget = QWidget(box)
         ccl = QVBoxLayout(self.calib_cluster_widget)
@@ -990,6 +1073,12 @@ class SettingsPage(QWidget):
             "最多往返这么多轮；用尽后仍被驳回的改动直接丢弃（写进报告）。")
         ccl.addWidget(label_row("协作轮数", self.calib_cluster_rounds))
         blay.addWidget(self.calib_cluster_widget)
+
+        # 联网查证 / 音画证据并排；校准风格单独一行（与草稿图 1 一致）
+        blay.addWidget(row(label_row("联网查证", self.calib_web_switch),
+                           label_row("音画证据", self.calib_media_switch),
+                           None, spacing=24))
+        blay.addWidget(label_row("校准风格", self.calib_style_combo))
 
         calib_save = PrimaryPushButton(FIF.SAVE, "保存并应用", box)
         calib_save.clicked.connect(self._ai_save)
