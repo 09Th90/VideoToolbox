@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# @version 3.2.0
+# @version 3.2.5
 """G0/G1 门禁判定：数据可用性 + 冻结 + 可重复 + 回归 + 结构不变量。
 
 定位：eval 设计落地序 step3 之二。WP1 `voiceprint_filter_eval.py`（指标口径

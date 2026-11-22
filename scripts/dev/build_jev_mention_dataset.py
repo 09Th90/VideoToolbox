@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.2.0
+# @version 3.2.5
 """包C-1：Jev mention 消歧评测集构建（真实双语字幕 + 合成补足）。
 
 三层金标来源：

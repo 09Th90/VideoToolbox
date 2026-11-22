@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.2.0
+# @version 3.2.5
 """T7 lint 差分门：改动前（HEAD 单文件）vs 改动后（工作树单文件）的 error 对拍。
 
 门语义是「**新增 error 数 = 0**」而非绝对门：存量 89 dup_canonical / 111

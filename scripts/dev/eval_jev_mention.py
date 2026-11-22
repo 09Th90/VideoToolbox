@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.2.0
+# @version 3.2.5
 """包C-2：Jev mention 消歧真实请求探针（decision-model-preview）。
 
 复用包A（calib_mention_decision）的 build_mention_request / build_mention_evidence

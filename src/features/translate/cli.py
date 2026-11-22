@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.2.0
+# @version 3.2.5
 """translate 子命令参数壳（L2 CLI）。编排在 features/_api/commands/translate.py。"""
 from __future__ import annotations
 

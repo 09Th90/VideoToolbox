@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.2.0
+# @version 3.2.5
 """对象索引原语（M2 执行层对象化基础，自包含于 calib_core / monolith）。
 
 字符级 Aho-Corasick + 按模式术语表组装的 ModeIndex。搬自 calib_entity.index（2026-11-22），

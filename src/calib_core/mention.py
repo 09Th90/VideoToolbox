@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.2.0
+# @version 3.2.5
 """对象级 mention 提取与序次配对（M3-1，对象级锚定框架基础）。
 
 用字符级 AC 自动机分别扫参考行（ENTITIES en/ja/ko + aliases）与中文行（合法形 ∪ 错形键），

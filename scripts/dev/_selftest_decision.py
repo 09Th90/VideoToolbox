@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.3.0
+# @version 3.2.5
 """Jev / System One 门控、协议与影子不改写自检（全部使用模拟响应，不联网）。
 
 WP3 part 1（2026-11-22）扩展：凭据隔离 / 端点白名单 / region 绑定 /

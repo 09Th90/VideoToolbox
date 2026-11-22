@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.2.0
+# @version 3.2.5
 """check_schema_parity —— 参数三方 parity 门禁（计划书 §4.1 / §10）。
 
   A  _api/spec.py ↔ agent_cli argparse 反射（8 个可反射命令，逐项：

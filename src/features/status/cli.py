@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.2.0
+# @version 3.2.5
 """status 子命令参数壳（L2 CLI）。业务编排在 features/_api/commands/status.py。
 
 2026-11-20 三层独立：CLI 只做参数解析与输出，经 _api 取能力（不复制业务）。

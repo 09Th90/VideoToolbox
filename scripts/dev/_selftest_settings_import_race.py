@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.2.0
+# @version 3.2.5
 """启动预热期间保存设置：不得二次 import 引擎配置而等待导入锁。"""
 import builtins
 import copy

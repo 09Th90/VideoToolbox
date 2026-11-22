@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.3.0
+# @version 3.2.5
 """第二音色影子链路（WP2）：第二路声纹编码器 + 影子打分 + 缓存 + 校准建档。
 
 「第二音色」= 第二个声纹编码器模型：wespeaker ResNet34（中文 cnceleb，256 维，

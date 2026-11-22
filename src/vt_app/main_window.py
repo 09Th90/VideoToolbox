@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.2.0
+# @version 3.2.5
 """主窗口（2026-11-15 功能解耦阶段③：从 video_toolbox_qt.py 拆出，逐字同源）。
 
 壳层编排：FluentWindow + 注册表驱动的功能页挂载 + 消息总线 + 跨屏收敛 +

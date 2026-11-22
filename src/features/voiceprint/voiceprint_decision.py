@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.3.0
+# @version 3.2.5
 """声纹存疑 cue 的 Jev 结构化路由（Schema v2 三态：shadow / assist / auto）。
 
 Jev 看不到音频，不能也不应凭台词猜说话人身份。这里只让它根据本地声纹分数、

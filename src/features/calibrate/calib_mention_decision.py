@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.2.0
+# @version 3.2.5
 """L3 对象级 mention 的 Jev 结构化影子审核（shadow-only，不产生任何硬裁决）。
 
 定位：calib_decision（accepted 采纳项复核）之外的第二条影子链——对象级 mention

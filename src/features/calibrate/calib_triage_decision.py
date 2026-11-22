@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.2.0
+# @version 3.2.5
 """L2 生成式校准前的 Jev 结构化分诊（pre_calibration_triage，shadow-only）。
 
 定位：在逐块生成式校准**之前**对 pending 块做一次「要不要校准 / 需要什么

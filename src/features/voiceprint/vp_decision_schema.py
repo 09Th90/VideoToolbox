@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.3.0
+# @version 3.2.5
 """声纹筛选结构化决策 Schema v2（业务层，WP3 part 2）。
 
 三层 Schema 版本**并存、互不混用**（谁的数据谁声明版本）：

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# @version 3.3.0
+# @version 3.2.5
 """声纹决策 Schema v2 自检（WP3 part 2，离线：mock client 零网络、零模型、零 ffmpeg）。
 
 覆盖：

@@ -1,4 +1,4 @@
-# @version 3.2.0
+# @version 3.2.5
 """MediaWiki API 客户端（极简，只用标准库）。
 
 只用三类查询：

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.2.0
+# @version 3.2.5
 """声源分离后端（MossFormer2 盲分离 + CAM++ 声纹选轨 + Demucs 歌声辅线）。
 
 WP5 PoC（2026-11-22）。调用方只有一个：``protocol._asr_separate_audio``。

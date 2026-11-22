@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.2.0
+# @version 3.2.5
 """设置页韧性自检（v3.1.4：缺可选组件不再拖垮整页 / 不再静默空白）。
 
 背景：v3.1.3 冻结安装版漏发 tools/decision_client.py，SettingsPage 构造在

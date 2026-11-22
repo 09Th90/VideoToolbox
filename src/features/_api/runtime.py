@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.2.0
+# @version 3.2.5
 """_api.runtime —— API 层运行时纯工具（L1 共享接缝，2026-11-20 三层独立）。
 
 从 features/_cli.py 下沉的**纯工具**副本（_cli 属 L2 CLI 入口层，_api 禁 import）。

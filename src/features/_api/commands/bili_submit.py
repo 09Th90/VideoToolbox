@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.2.0
+# @version 3.2.5
 """bili-submit 命令编排（原 features/automation/cli.py argv 映射，行为不变）。
 
 内层 bili_auto_submit.main 自建 argparse 并直接 print（非统一信封）：

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.2.0
+# @version 3.2.5
 """download 命令编排（原 features/download/cli.py job/legacy 双路径，行为不变）。"""
 from __future__ import annotations
 

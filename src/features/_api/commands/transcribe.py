@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.2.0
+# @version 3.2.5
 """transcribe 命令编排（原 features/transcribe/cli.py cmd_transcribe，行为不变）。
 
 调用顺序冻结：prepare_runtime_env → ASR 协议补丁 → apply_asr_to_engine →

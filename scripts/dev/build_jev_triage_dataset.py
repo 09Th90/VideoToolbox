@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.2.0
+# @version 3.2.5
 """WP4-G0：Jev 生成前分诊数据集构建（架构骨架；真实数据后期投喂）。
 
 从留出片源跑 R0 影子分诊收集 (chunk 状态, ground truth)，产出
