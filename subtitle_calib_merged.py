@@ -7476,18 +7476,6 @@ KO_TERMS = {
     #   官方依据：4.0 年度篇章/IGN 实机、3.1 共鸣者爱弥斯（隧者兵装）。
     #   裸键只收**非词专名错形**；放大器/水下模式/满破 等普通词走 WW40IGN_CONTEXT。
     '艾梅斯': '爱弥斯', '艾姆斯': '爱弥斯', '爱梅斯': '爱弥斯',
-    '成恩怡': '声痕', '新联盟': '新联邦', '第九联邦': '旧联邦', '柑橘类食物': '旧联邦',
-    '成恩怡': '声痕', '新联盟': '新联邦', '第九联邦': '旧联邦', '柑橘类食物': '旧联邦',
-    '成恩怡': '声痕', '新联盟': '新联邦', '第九联邦': '旧联邦', '柑橘类食物': '旧联邦',
-    '成恩怡': '声痕', '新联盟': '新联邦', '第九联邦': '旧联邦', '柑橘类食物': '旧联邦',
-    '帕巴戈': '守岸人', '帕苏印度': '守岸人', 'K-Tex': 'KTX', 'K-TEX': 'KTX',
-    '帕巴戈': '守岸人', '帕苏印度': '守岸人', 'K-Tex': 'KTX', 'K-TEX': 'KTX',
-    '帕巴戈': '守岸人', '帕苏印度': '守岸人', 'K-Tex': 'KTX', 'K-TEX': 'KTX',
-    '帕巴戈': '守岸人', '帕苏印度': '守岸人', 'K-Tex': 'KTX', 'K-TEX': 'KTX',
-    '埃波利尔': '爱普利',
-    '勒谢勒': '露希尔',
-    '清由酱': '塞谬塞',
-    '卡利古雷': '卡利古拉',
 }
 
 
@@ -13783,8 +13771,8 @@ _MODE_FLAGS = {"--" + m: m for m in MODE_REGISTRY if m not in _NO_SIMPLE_FLAG}
 #     原本就没有 --mode 别名（--mode jpe 会落 bi），不可擅自补全，否则行为漂移。
 _MODE_ALIASES = {
     # 三元兜底组
-    "ja": "wuwa-ja", "japanese": "wuwa-ja",
-    "ko": "wuwa-ko", "korean": "wuwa-ko",
+    "ja": "ja", "japanese": "ja",
+    "ko": "ko", "korean": "ko",
     "ak": "ak", "arknights": "ak",
     "zho": "zho", "zhonly": "zho", "zh_only": "zho",
     "endo": "endo", "endfield": "endo",
@@ -13798,26 +13786,16 @@ _MODE_ALIASES = {
     "ff14": "ff14", "ffxiv": "ff14", "finalfantasy14": "ff14", "finalfantasixiv": "ff14",
     "最终幻想14": "ff14", "最终幻想xiv": "ff14", "银海之天舟": "ff14",
     "ssv": "ssv", "starsavior": "ssv", "star_savior": "ssv", "星之救援者": "ssv",
-    "arcak": "ak-arcaea", "arcakn": "ak-arcaea", "arcaea_arknights": "ak-arcaea", "arcaea×arknights": "ak-arcaea",
-    "arcaea明日方舟": "ak-arcaea", "arcaea方舟": "ak-arcaea", "arcaea联动": "ak-arcaea",
+    "arcak": "arcak", "arcakn": "arcak", "arcaea_arknights": "arcak", "arcaea×arknights": "arcak",
+    "arcaea明日方舟": "arcak", "arcaea方舟": "arcak", "arcaea联动": "arcak",
     "tga26": "tga26", "tga2026": "tga26", "tga": "tga26", "thegameawards": "tga26",
     "gameawards": "tga26", "游戏大奖": "tga26", "tga直播": "tga26",
     "wwm": "wwm", "wherewindsmeet": "wwm", "where_winds_meet": "wwm",
     "燕云十六声": "wwm", "燕云": "wwm", "yanyun": "wwm",
     "gfl2": "gfl2", "gf2": "gfl2", "exilium": "gfl2", "gfl2exilium": "gfl2",
     "少女前线2": "gfl2", "少女前线2：追放": "gfl2", "追放": "gfl2", "少前2": "gfl2",
-    "akja": "ak-ja", "ak_ja": "ak-ja", "arknights_ja": "ak-ja", "arknightsja": "ak-ja",
-    "明日方舟日语": "ak-ja", "日语原声明日方舟": "ak-ja",
-    "jpe": "endo-ja", "endobi": "endo-bi", "endoko": "endo-ko",
-    "jpe": "endo-ja", "endobi": "endo-bi", "endoko": "endo-ko",
-    "jpe": "endo-ja", "endobi": "endo-bi", "endoko": "endo-ko",
-    "akko": "ak-ko", "pgren": "pgr-en", "pgrja": "pgr-ja",
-    "akko": "ak-ko", "pgren": "pgr-en", "pgrja": "pgr-ja",
-    "akko": "ak-ko", "pgren": "pgr-en", "pgrja": "pgr-ja",
-    "wuwa40ko": "wuwa-40ko", "wuwa40ign": "wuwa-40ign", "wuwa40pv": "wuwa-40pv",
-    "wuwa40ko": "wuwa-40ko", "wuwa40ign": "wuwa-40ign", "wuwa40pv": "wuwa-40pv",
-    "wuwa40ko": "wuwa-40ko", "wuwa40ign": "wuwa-40ign", "wuwa40pv": "wuwa-40pv",
-    "wuwa40reveal": "wuwa-40reveal",
+    "akja": "akja", "ak_ja": "akja", "arknights_ja": "akja", "arknightsja": "akja",
+    "明日方舟日语": "akja", "日语原声明日方舟": "akja",
 }
 
 # 一键重跑注册表（2026-11-22 M1-A1 数据驱动）。键=旗标名（去 --），**声明序=装配序**。
@@ -13907,20 +13885,6 @@ _MODE_NAMES = {
     "tga26": "TGA 2026 游戏大奖",
     "wwm": "燕云十六声",
     "gfl2": "少女前线2：追放",
-    "bi": "中英双语", "wuwa-ja": "鸣潮-日语", "endo-ja": "终末地-日语",
-    "bi": "中英双语", "wuwa-ja": "鸣潮-日语", "endo-ja": "终末地-日语",
-    "wuwa-ko": "鸣潮-韩语", "wuwa-40ko": "鸣潮-4.0韩语", "wuwa-40ign": "鸣潮-4.0IGN", "wuwa-40pv": "鸣潮-4.0新地区PV", "wwoc": "综合手游OST", "endo": "终末地",
-    "wuwa-ko": "鸣潮-韩语", "wuwa-40ko": "鸣潮-4.0韩语", "wuwa-40ign": "鸣潮-4.0IGN", "wuwa-40pv": "鸣潮-4.0新地区PV", "wwoc": "综合手游OST", "endo": "终末地",
-    "wuwa-ko": "鸣潮-韩语", "wuwa-40ko": "鸣潮-4.0韩语", "wuwa-40ign": "鸣潮-4.0IGN", "wuwa-40pv": "鸣潮-4.0新地区PV", "wwoc": "综合手游OST", "endo": "终末地",
-    "wuwa-ko": "鸣潮-韩语", "wuwa-40ko": "鸣潮-4.0韩语", "wuwa-40ign": "鸣潮-4.0IGN", "wuwa-40pv": "鸣潮-4.0新地区PV", "wwoc": "综合手游OST", "endo": "终末地",
-    "wuwa-40reveal": "鸣潮-4.0新联邦实机",
-    "ak": "明日方舟", "ak-ko": "明日方舟-韩语", "zho": "中文行专属",
-    "pgr-en": "战双-英文", "react": "音乐点评", "endo-bi": "终末地-双语", "fix-en": "英文参考行修正",
-    "pgr-en": "战双-英文", "react": "音乐点评", "endo-bi": "终末地-双语", "fix-en": "英文参考行修正",
-    "endo-ko": "终末地-韩语", "pkm": "宝可梦城镇主题",
-    "pgr-ja": "战双-日语",
-    "ak-ja": "明日方舟-日语",
-    "ak-arcaea": "明日方舟-Arcaea",
 }
 
 

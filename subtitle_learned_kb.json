@@ -820,10 +820,10 @@
     ]
    ],
    "ref_tokens": {
-    "God": 12168,
-    "showcase": 12168,
-    "hope": 12168,
-    "resonator": 12168
+    "God": 15210,
+    "showcase": 15210,
+    "hope": 15210,
+    "resonator": 15210
    },
    "unc_ref_tokens": {},
    "first": "2026-10-02",
@@ -4788,18 +4788,17 @@
     ]
    ],
    "ref_tokens": {
-    "Gingjo": 243421118493040051200,
-    "and": 243421118493040051200,
-    "the": 243421118493040051200,
-    "future": 243421118493040051200,
-    "Mongjo": 243421118493040051200,
-    "rests": 48684223698608010240
+    "Gingjo": 446272050570573427200,
+    "and": 446272050570573427200,
+    "the": 446272050570573427200,
+    "future": 446272050570573427200,
+    "Mongjo": 446272050570573427200,
+    "rests": 89254410114114685440
    },
    "unc_ref_tokens": {},
    "first": "2026-10-05",
    "last": "2026-11-24",
-   "alts": {},
-   "sync": true
+   "alts": {}
   },
   "bi|山房": {
    "wrong": "山房",
@@ -6361,8 +6360,8 @@
    "samples": [],
    "ref_tokens": {},
    "unc_ref_tokens": {
-    "Aka": 8580,
-    "Arth": 8580
+    "Aka": 10725,
+    "Arth": 10725
    },
    "first": "2026-10-05",
    "last": "2026-11-24",
@@ -7824,20 +7823,19 @@
     ]
    ],
    "ref_tokens": {
-    "Fraidus": 12,
-    "cuz": 6,
-    "can't": 6,
-    "the": 12,
-    "possibly": 6,
-    "was": 6,
-    "overseer": 6,
-    "thought": 6
+    "Fraidus": 22,
+    "cuz": 11,
+    "can't": 11,
+    "the": 22,
+    "possibly": 11,
+    "was": 11,
+    "overseer": 11,
+    "thought": 11
    },
    "unc_ref_tokens": {},
    "first": "2026-10-05",
    "last": "2026-11-24",
-   "alts": {},
-   "sync": true
+   "alts": {}
   },
   "bi|盛宴": {
    "wrong": "盛宴",
@@ -8341,10 +8339,10 @@
     ]
    ],
    "ref_tokens": {
-    "that": 441,
-    "Seems": 441,
-    "thingabob": 441,
-    "like": 441
+    "that": 588,
+    "Seems": 588,
+    "thingabob": 588,
+    "like": 588
    },
    "unc_ref_tokens": {
     "that": 1,
@@ -8802,11 +8800,11 @@
     ]
    ],
    "ref_tokens": {
-    "Watcher": 4094456576615496,
-    "Blind": 4094456576615496,
-    "known": 4094456576615496,
-    "formerly": 4094456576615496,
-    "the": 4094456576615496
+    "Watcher": 5118070720769370,
+    "Blind": 5118070720769370,
+    "known": 5118070720769370,
+    "formerly": 5118070720769370,
+    "the": 5118070720769370
    },
    "unc_ref_tokens": {},
    "first": "2026-10-05",
@@ -9466,16 +9464,15 @@
     ]
    ],
    "ref_tokens": {
-    "tacet": 12,
-    "but": 12,
-    "discords": 12,
-    "ravaged": 12
+    "tacet": 22,
+    "but": 22,
+    "discords": 22,
+    "ravaged": 22
    },
    "unc_ref_tokens": {},
    "first": "2026-10-05",
    "last": "2026-11-24",
-   "alts": {},
-   "sync": true
+   "alts": {}
   },
   "bi|孟乔": {
    "wrong": "孟乔",
