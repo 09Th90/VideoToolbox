@@ -9784,9 +9784,6 @@ WW40IGN_CONTEXT = [
     # —— 龙浪子：용랑자 是主播昵称（非官方），机翻出 永浪子/龙郎子 ——
     (r"용랑자", "永浪子", "龙浪子"),
     (r"용랑자", "龙郎子", "龙浪子"),
-    (r"용랑자|용육\s?랑자|용융\s?랑자", "永浪子", "热熔漂泊者"),
-    (r"용랑자|용육\s?랑자|용융\s?랑자", "龙郎子", "热熔漂泊者"),
-    (r"용랑자|용육\s?랑자|용융\s?랑자", "龙浪子", "热熔漂泊者"),
 ]
 
 
@@ -14374,8 +14371,8 @@ _MODE_FLAGS = {"--" + m: m for m in MODE_REGISTRY if m not in _NO_SIMPLE_FLAG}
 #     normalize_mode 同源），除此之外不新增任何别名。
 _MODE_ALIASES = {
     # 三元兜底组（值随 2026-11-22 重命名同步改新子键）
-    "ja": "ja", "japanese": "ja",
-    "ko": "ko", "korean": "ko",
+    "ja": "wuwa-ja", "japanese": "wuwa-ja",
+    "ko": "wuwa-ko", "korean": "wuwa-ko",
     "ak": "ak", "arknights": "ak",
     "zho": "zho", "zhonly": "zho", "zh_only": "zho",
     "endo": "endo", "endfield": "endo",
@@ -14389,16 +14386,16 @@ _MODE_ALIASES = {
     "ff14": "ff14", "ffxiv": "ff14", "finalfantasy14": "ff14", "finalfantasixiv": "ff14",
     "最终幻想14": "ff14", "最终幻想xiv": "ff14", "银海之天舟": "ff14",
     "ssv": "ssv", "starsavior": "ssv", "star_savior": "ssv", "星之救援者": "ssv",
-    "arcak": "arcak", "arcakn": "arcak", "arcaea_arknights": "arcak", "arcaea×arknights": "arcak",
-    "arcaea明日方舟": "arcak", "arcaea方舟": "arcak", "arcaea联动": "arcak",
+    "arcak": "ak-arcaea", "arcakn": "ak-arcaea", "arcaea_arknights": "ak-arcaea", "arcaea×arknights": "ak-arcaea",
+    "arcaea明日方舟": "ak-arcaea", "arcaea方舟": "ak-arcaea", "arcaea联动": "ak-arcaea",
     "tga26": "tga26", "tga2026": "tga26", "tga": "tga26", "thegameawards": "tga26",
     "gameawards": "tga26", "游戏大奖": "tga26", "tga直播": "tga26",
     "wwm": "wwm", "wherewindsmeet": "wwm", "where_winds_meet": "wwm",
     "燕云十六声": "wwm", "燕云": "wwm", "yanyun": "wwm",
     "gfl2": "gfl2", "gf2": "gfl2", "exilium": "gfl2", "gfl2exilium": "gfl2",
     "少女前线2": "gfl2", "少女前线2：追放": "gfl2", "追放": "gfl2", "少前2": "gfl2",
-    "akja": "akja", "ak_ja": "akja", "arknights_ja": "akja", "arknightsja": "akja",
-    "明日方舟日语": "akja", "日语原声明日方舟": "akja",
+    "akja": "ak-ja", "ak_ja": "ak-ja", "arknights_ja": "ak-ja", "arknightsja": "ak-ja",
+    "明日方舟日语": "ak-ja", "日语原声明日方舟": "ak-ja",
     # 2026-11-22 旧顶层变体键 → 新「游戏-细类」子键（兼容归一映射，供 --mode 旧键与
     #   normalize_mode / learned 库 / KB 旧键解析；jpe/endobi/endoko/akko/pgren/pgrja/
     #   wuwa40ko/wuwa40ign 原本无 --mode 别名，此处属旧→新兼容而非补全模式别名）
@@ -14509,18 +14506,6 @@ _MODE_NAMES = {
     "tga26": "TGA 2026 游戏大奖",
     "wwm": "燕云十六声",
     "gfl2": "少女前线2：追放",
-    "bi": "中英双语", "ja": "日语原声·鸣潮", "jpe": "日语原声·终末地",
-    "bi": "中英双语", "ja": "日语原声·鸣潮", "jpe": "日语原声·终末地",
-    "ko": "韩语原声·鸣潮", "wuwa40ko": "韩语原声·鸣潮 4.0 新联邦 PV", "wuwa40ign": "韩语原声·鸣潮 4.0 IGN 实机", "wwoc": "综合手游OST", "endo": "终末地",
-    "ko": "韩语原声·鸣潮", "wuwa40ko": "韩语原声·鸣潮 4.0 新联邦 PV", "wuwa40ign": "韩语原声·鸣潮 4.0 IGN 实机", "wwoc": "综合手游OST", "endo": "终末地",
-    "ko": "韩语原声·鸣潮", "wuwa40ko": "韩语原声·鸣潮 4.0 新联邦 PV", "wuwa40ign": "韩语原声·鸣潮 4.0 IGN 实机", "wwoc": "综合手游OST", "endo": "终末地",
-    "ak": "明日方舟", "akko": "明日方舟韩语", "zho": "中文行专属",
-    "pgren": "战双英文原声", "react": "音乐点评", "endobi": "终末地·中英双语", "fix-en": "英文参考行修正",
-    "pgren": "战双英文原声", "react": "音乐点评", "endobi": "终末地·中英双语", "fix-en": "英文参考行修正",
-    "endoko": "终末地·韩语原声", "pkm": "宝可梦城镇主题",
-    "pgrja": "日语原声·战双",
-    "akja": "日语原声·明日方舟",
-    "arcak": "Arcaea×明日方舟",
 }
 
 
