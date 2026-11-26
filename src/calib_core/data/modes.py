@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.3.2
+# @version 3.3.1
 """术语/实体数据表
 
 源：subtitle_calib_merged.py L2797-L7340 @ 97d7d463（2026-10-24 冻结快照）
@@ -91,19 +91,6 @@ WW38LILY_KO_INFO = {
     "dst": r"D:\原片\[2026.11.20] 역대급 또대급 고점 명조 3.8 4장 5막 릴리 스토리 + 가챠\[2026.11.20] 역대급 또대급 고점 ｜ 명조 3.8 4장 5막 릴리 스토리 + 가챠.ko-orig.zh.calibrated.srt",
 }
 WW38LILY_KO_OVERRIDES_SRC = r"D:\Agent Work\软件开发\视频工具箱\data\calib_sidecars\ww38lily_ko_zh.tsv"
-
-# 2026-11-26 鸣潮 3.8 第四章第五幕「予以明日的花束」Streamers Reaction 英中双语片（628 cue）
-# 用法：python subtitle_calib_merged.py --wuwa38s
-#   与 --wuwa38 同构（bi 规则 + 逐 cue 侧车整行覆盖）；侧车收全片 628 条人工终稿。
-#   二校口径（库街区该幕剧情全文）：Rover=漂泊者、Resonator Forces=共鸣者军队、
-#     Federated Cities=联邦城、Somnoire/Somnium=心之集域、Mr. Grimm=格姆先生、
-#     Cassandra=卡瓦莎、Herman=赫利曼、Meta/Meto=梅塔、Blin=卜灵、Siggy=西格莉卡、
-#     Miss Dora=这扇门、Madam Servant=乘务员哥哥、Federica girl=联邦人、Day 728=第727天。
-WW38S_INFO = {
-    "src": r"D:\原片\Streamers Reaction To The Lily Arc\【字幕】Streamers Reaction To The Lily Arc.en-谷歌翻译.srt",
-    "dst": r"D:\原片\Streamers Reaction To The Lily Arc\【字幕】Streamers Reaction To The Lily Arc.zh-CN校准_v2.srt",
-}
-WW38S_OVERRIDES_SRC = r"D:\Agent Work\软件开发\视频工具箱\data\calib_sidecars\ww38s_streamers_lily_arc_bi_override.tsv"
 
 # 2026-11-19 鸣潮 3.8「literally broke me」Reaction 完整片（7045 cue）二次校准
 # 用法：python subtitle_calib_merged.py --wuwa38b
@@ -684,7 +671,6 @@ _RERUN = {
     "wuwa38": {"mode": "bi", "info": WW38_INFO, "overrides": WW38_OVERRIDES_SRC},
     "wuwa38h": {"mode": "bi", "info": WW38H_INFO, "overrides": WW38H_OVERRIDES_SRC, "preserve": True},
     "wuwa38lilyko": {"mode": "wuwa-ko", "info": WW38LILY_KO_INFO, "overrides": WW38LILY_KO_OVERRIDES_SRC, "ko": True},
-    "wuwa38s": {"mode": "bi", "info": WW38S_INFO, "overrides": WW38S_OVERRIDES_SRC},
     "wuwa38b": {"mode": "bi", "info": WW38B_INFO, "overrides": WW38B_OVERRIDES_SRC},
     "wuwa38j": {"mode": "bi", "info": WW38_J_INFO, "overrides": WW38_J_OVERRIDES_SRC},
     "wuwa38g": {"mode": "bi", "info": WW38G_INFO, "overrides": WW38G_OVERRIDES_SRC},

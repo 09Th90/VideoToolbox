@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.3.2
+# @version 3.3.1
 """CLI 参数解析与子命令分发
 
 源：subtitle_calib_merged.py L13295-L13650 @ 97d7d463（2026-10-24 冻结快照）
@@ -142,7 +142,6 @@ def main_argv(argv=None):
     names = {"bi": "中英双语 (BILINGUAL_TERMS + CONTEXT_MAP + WORD_MAP)" + (
                  " + 3.8 完整片侧车 {} 条（整行覆盖）".format(len(bi_override) if bi_override else 0) if "wuwa38b" in rerun_active else
                  " + 3.8 Gigguk 全片侧车 {} 条（整行覆盖）".format(len(bi_override) if bi_override else 0) if "wuwa38g" in rerun_active else
-                 " + 3.8 Streamers 侧车 {} 条（整行覆盖）".format(len(bi_override) if bi_override else 0) if "wuwa38s" in rerun_active else
                  " + 3.8 侧车 {} 条".format(len(bi_override) if bi_override else 0) if ("wuwa38" in rerun_active or "wuwa38j" in rerun_active) else
                  " + 3.8 终章侧车 {} 条（保留 >>）".format(len(bi_override) if bi_override else 0) if "wuwa38h" in rerun_active else
                  " + 4.0 侧车 {} 条".format(len(bi_override) if bi_override else 0) if "wuwa40" in rerun_active else

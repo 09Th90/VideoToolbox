@@ -20,9 +20,9 @@
 - 修正 PyInstaller 瘦身名单：FFmpeg 五前缀从 `_DROP_BINARIES` 移出，改由 `_QT_FFMPEG_PREFIXES` 单独过滤，并跳过 `av.libs`。
 - 构建期新增硬校验：`av.libs` 缺 `avcodec / avformat / avutil / swscale / swresample` 时直接中止，避免打包成功但本地 ASR 在 `import av` 时报 `_core` DLL 加载失败。
 
-## 三、校准知识同步
+## 三、校准文件
 
-- 同步战双、鸣潮、明日方舟、终末地的最新术语与漏译体检规则；单文件校准脚本由 `src/calib_core` 重新生成，学习库由后台同步通道维护。
+- 校准单文件、`src/calib_core` 与学习库保持远端 2026-11-26 最新同步，本次 UI 发布不改动，避免与远端校准同步冲突。
 
 ## 四、验证
 

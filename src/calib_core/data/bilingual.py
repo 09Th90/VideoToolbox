@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.3.2
+# @version 3.3.1
 """术语/实体数据表
 
 源：subtitle_calib_merged.py L493-L2378 @ 97d7d463（2026-10-24 冻结快照）
@@ -3618,29 +3618,6 @@ CONTEXT_MAP = [
     (r"\bChaos\s+Zero\s+Nightmare\b", "混沌零梦魇", "《卡厄思梦境》"),
     (r"\bChaos\s+Zero\s+Nightmare\b", "混沌零噩梦", "《卡厄思梦境》"),
     (r"\bChaos\s+Zero\s+Nightmare\b", "混沌零Nightmare", "《卡厄思梦境》"),
-    # --- 2026-11-26 鸣潮 3.8「予以明日的花束」Streamers Reaction 英中片二校沉淀 ---
-    # 依据库街区该幕剧情全文（wiki.kurobbs.com/mc/item/1568615037664010240）。
-    # 英文 ASR 专名/误听形只在对应英文参考行出现时才改中文，避免污染其他片源。
-    # 已在既有表中的不重复：Mr. Grimm/Cassandra/Siggy/Abby/Federated Cities/Resonator Forces。
-    (r"\bHerman\b", "赫尔曼", "赫利曼"),
-    (r"\b(?:Meta|Meto)\b", "梅托", "梅塔"),
-    (r"\bBlin\b", "布林", "卜灵"),
-    (r"\bFederica\s+girl\b", "费德丽卡", "联邦人"),
-    (r"\bFederica\s+girl\b", "费德里卡", "联邦人"),
-    (r"\bMadam\s+Servant\b", "仆人夫人", "乘务员哥哥"),
-    (r"\bMadam\s+Servant\b", "女仆夫人", "乘务员哥哥"),
-    (r"\bMiss\s+Dora\b", "多拉小姐", "这扇门"),
-    (r"\bDay\s+728\b", "第728天", "第727天"),
-    (r"\bMay\s+your\s+soul\s+wander\s+no\s+more\b", "愿你的灵魂不再游荡", "愿您的灵魂不再迷惘"),
-    (r"\bMay\s+your\s+soul\s+wander\s+no\s+more\b", "愿你的灵魂不再徘徊", "愿您的灵魂不再迷惘"),
-    (r"\bMay\s+your\s+soul\s+wander\s+no\s+more\b", "愿您的灵魂不再迷茫", "愿您的灵魂不再迷惘"),
-    (r"\bRun,\s+Lily\.?\s+Run\s+to\s+your\s+own\s+tomorrow\b", "跑向属于你的明天", "去跑向属于你的明天"),
-    (r"\ba\s+dream\s+that\s+I\s+woke\s+up\s+from\b", "一场醒来的梦", "我编织的一场梦"),
-    (r"\ba\s+dream\s+that\s+I\s+woke\s+up\s+from\b", "我醒来的梦", "我编织的一场梦"),
-    (r"\bwrote\s+for\s+my\s+girlfriend\b", "女朋友", "友人"),
-    (r"\bwrote\s+for\s+my\s+girlfriend\b", "女友", "友人"),
-    (r"\ba\s+handful\s+of\s+unfortunate\s+people\b", "少数不幸的人", "少数卑劣者"),
-    (r"\ba\s+handful\s+of\s+unfortunate\s+people\b", "一小撮不幸的人", "少数卑劣者"),
 ]
 
 
@@ -4418,21 +4395,6 @@ WUWA_MISSING_CHECK = [
      "3.8 休闲活动「第二索拉：未名之梦」官中=第二索拉；直译「索拉里斯再临」是漏校（本片 #154）"),
     (r"(?-i:\bRyuk(?:u|usensei|ou|ahr|har|ugu|uh|yu|or)\b)", ("Ryuku",),
      "创作者名 Ryuku，无官方中文，全文沿用拉丁；谷翻拆成龙老师/龙久/琉球等中文形时即为漏校"),
-    # --- 2026-11-26 鸣潮 3.8「予以明日的花束」Streamers Reaction 英中片二校体检 ---
-    (r"\bRover\b", ("漂泊者",), "Rover 官中=漂泊者"),
-    (r"\bResonator\s+Forces?\b", ("共鸣者军队",), "Resonator Forces 官中=共鸣者军队"),
-    (r"\b(?:Federated|Confederated)\s+Cities?\b", ("联邦城",), "Federated Cities 官中=联邦城"),
-    (r"\b(?:Somnoire|Somnium)\b", ("心之集域",), "Somnoire 官中=心之集域"),
-    (r"\bMr\.?\s+Grimm\b", ("格姆先生",), "Mr. Grimm 官中=格姆先生"),
-    (r"\bCassandra\b", ("卡瓦莎",), "Cassandra 官中=卡瓦莎"),
-    (r"\bHerman\b", ("赫利曼",), "Herman 官中=赫利曼"),
-    (r"\b(?:Meta|Meto)\b", ("梅塔",), "Meta 官中=梅塔"),
-    (r"\bBlin\b", ("卜灵",), "Blin 官中=卜灵"),
-    (r"\bSiggy\b", ("西格莉卡",), "Siggy 官中=西格莉卡"),
-    (r"\bDay\s+728\b", ("第727天",), "官方日记=第727天（英文字幕 ASR 作 Day 728）"),
-    (r"\bMiss\s+Dora\b", ("这扇门",), "Miss Dora 为 ASR 误听，官中=这扇门"),
-    (r"\bMadam\s+Servant\b", ("乘务员哥哥",), "Madam Servant 为 ASR 误听，官中=乘务员哥哥"),
-    (r"\bFederica\s+girl\b", ("联邦人",), "Federica girl 为 ASR 误听，官中=联邦人"),
 ]
 
 
