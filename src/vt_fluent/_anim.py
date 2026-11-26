@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.3.1
+# @version 3.3.2
 """vt_fluent 动画辅助（自研，替代 qfluentwidgets.common.animation + smooth_scroll）。
 
 服务 B1 控件族：卡片背景色过渡（BackgroundAnimationWidget）、凸起阴影
@@ -567,6 +567,11 @@ class SmoothScrollDelegate(QObject):
         self.useAni = useAni
         self.vScrollBar = SmoothScrollBar(Qt.Vertical, parent)
         self.hScrollBar = SmoothScrollBar(Qt.Horizontal, parent)
+        # 这两个只是历史遗留的动画代理，真正的滚动由 parent 原生滚动条承担；
+        # 它们若保持可见，会在滚动区左上角露出白色原生滚动条块（深色主题尤其
+        # 突兀）。构造后就隐藏，禁止再被 parent.show() 带出来。
+        self.vScrollBar.hide()
+        self.hScrollBar.hide()
 
         if isinstance(parent, QAbstractItemView):
             parent.setVerticalScrollMode(QAbstractItemView.ScrollPerPixel)

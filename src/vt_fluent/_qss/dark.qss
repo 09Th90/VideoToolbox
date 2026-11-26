@@ -648,9 +648,7 @@ FluentWindow {
 }
 
 StackedWidget {
-    border: 1px solid rgba(0, 0, 0, 0.18);
-    border-right: none;
-    border-bottom: none;
+    border: none;
     background-color: #14171A;
 }
 

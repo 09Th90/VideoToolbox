@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.3.1
+# @version 3.3.2
 """vt_fluent 主题引擎（自研，替代 qfluentwidgets.common.config / style_sheet / font）。
 
 定位：Fluent 风格主题层的单一权威。上层控件（_buttons/_inputs/_display/...）
@@ -669,7 +669,7 @@ _RENDER_CACHE: "OrderedDict[tuple, str]" = OrderedDict()
 #: QAbstractItemView`），保持这些原生子控件的观感与全量时代一致。
 _NATIVE_CHILD_CLASSES = frozenset({
     "QScrollBar", "QHeaderView", "QAbstractItemView", "QWidget",
-    "QSlider", "QGraphicsView", "QGraphicsScene",
+    "QSlider", "QGraphicsView", "QGraphicsScene", "QTableCornerButton",
 })
 #: 可能承载上述原生子控件的「容器」类——只有它们需要这份补充规则；
 #: 按钮/标签/卡片等叶子控件不需要（缩小切片、降低 polish 成本）。

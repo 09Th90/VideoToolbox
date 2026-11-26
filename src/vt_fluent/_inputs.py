@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.3.1
+# @version 3.3.2
 """vt_fluent 输入族（自研，替代 qfluentwidgets 输入类控件）。
 
 行为契约（对齐上游 1.11.3）：
@@ -988,6 +988,16 @@ class SpinBoxBase:
         self.setButtonSymbols(QSpinBox.NoButtons)
         self.setFixedHeight(33)
         setFont(self)
+
+        # 数字基线视觉校正：行编辑默认垂直居中，但数字无下伸部，深色下会
+        # 看起来贴着框底。保留 VCenter，底部留 4px 文本边距把数字整体上提。
+        try:
+            le = self.lineEdit()
+            if le is not None:
+                le.setAlignment(le.alignment() | Qt.AlignVCenter)
+                le.setTextMargins(0, 0, 0, 4)
+        except Exception:  # noqa: BLE001
+            pass
 
         self.setAttribute(Qt.WA_MacShowFocusRect, False)
         self.setContextMenuPolicy(Qt.CustomContextMenu)

@@ -1,6 +1,6 @@
 # -*- mode: python ; coding: utf-8 -*-
-# @version 3.3.1
-"""视频工具箱 v3.3.1 —— PyInstaller 打包配置
+# @version 3.3.2
+"""视频工具箱 v3.3.2 —— PyInstaller 打包配置
 v3.0.0（2026-11-15）：功能解耦 + 模块独立文件夹（28 个实现模块归位 features/<id>/），
         重新打包；见 docs/release-notes-v3.0.0.md。
 v2.1.0（2026-10-14）：PyQt5 → PySide6 迁移（docs/PySide6迁移方案书）。本 spec 的
@@ -476,8 +476,14 @@ _DROP_BINARIES = ('opengl32sw.dll', 'hf_xet', '_avif',
                   #   合计 ≈28M / 16 个文件，解包与 AV 扫描同步受益。
                   'qt6multimedia.dll', 'qt6multimediawidgets.dll',
                   'qt6virtualkeyboard.dll', 'qt6pdf.dll',
-                  'avcodec-', 'avformat-', 'avutil-', 'swscale-',
-                  'swresample-',
+                  # ⚠⚠ 2026-11-26：FFmpeg 五个前缀**从这份通杀名单移出**，
+                  #   改由下面的 _QT_FFMPEG_PREFIXES 单独过滤，且必须跳过
+                  #   `av.libs`。事故：名单按文件名前缀匹配，把 PyAV 自己的
+                  #   `av.libs\avcodec-62-…dll / avformat / avutil / swscale /
+                  #   swresample` 一并删了 ⇒ `av\_core.pyd` 静态依赖全缺 ⇒
+                  #   faster_whisper.audio `import av` 报
+                  #   「DLL load failed while importing _core」⇒ 本地 ASR 必挂
+                  #   （设置页「干跑」只校验路径不加载，故仍显示通过）。
                   'ffmpegmediaplugin', 'windowsmediaplugin',
                   'qtiff', 'qdirect2d')
 # ⚠⚠ v1.18.0 追加 QML 三件套的原因（**不是为了省体积，是被硬限逼的**）：
@@ -502,6 +508,40 @@ _DROP_BINARIES = ('opengl32sw.dll', 'hf_xet', '_avif',
 a.binaries = [b for b in a.binaries
               if not any(d in os.path.basename(b[0]).lower() or d in b[0].lower()
                          for d in _DROP_BINARIES)]
+
+# QtMultimedia 自带的那套 FFmpeg（PySide6 hook 按发行版整体带入）继续瘦身，
+# 但**只对 av.libs 之外的路径生效**：av.libs 是 PyAV 的运行库，PyAV 的
+# `_core.pyd` 静态链接 avcodec/avformat/avutil/swscale/swresample，删掉后
+# `import av` 直接失败（faster_whisper.audio 在模块顶层就 import av），
+# 本地 ASR 连模型都加载不到。上面 _DROP_BINARIES 里那些 `avcodec-` 前缀
+# 之所以被移出，就是 2026-11-26 这次事故的直接原因。
+_QT_FFMPEG_PREFIXES = ('avcodec-', 'avformat-', 'avutil-', 'swscale-',
+                       'swresample-')
+
+
+def _is_qt_ffmpeg(dest):
+    """是否 QtMultimedia 的 FFmpeg 死重（av.libs 内的同名文件不算）。"""
+    low = str(dest).lower().replace('/', '\\')
+    if 'av.libs' in low:
+        return False
+    return any(os.path.basename(low).startswith(p) for p in _QT_FFMPEG_PREFIXES)
+
+
+a.binaries = [b for b in a.binaries if not _is_qt_ffmpeg(b[0])]
+
+# 构建期硬校验：PyAV 的 5 个核心 FFmpeg 库必须真的在 av.libs 里。
+# 症状极具迷惑性——打包成功、启动正常、只有点「开始转录」才弹
+# 「DLL load failed while importing _core」，且设置页的配置干跑照样通过。
+_avlibs_have = {os.path.basename(str(b[0])).lower()
+                for b in a.binaries
+                if 'av.libs' in str(b[0]).lower().replace('/', '\\')}
+_avlibs_missing = [p for p in _QT_FFMPEG_PREFIXES
+                   if not any(n.startswith(p) for n in _avlibs_have)]
+if _avlibs_missing:
+    raise SystemExit(
+        'PyAV 运行库缺失 %s：av.libs 被瘦身规则误删，打包后本地 ASR 会报 '
+        '「DLL load failed while importing _core」。请检查 _DROP_BINARIES / '
+        '_is_qt_ffmpeg 的过滤范围。' % (_avlibs_missing,))
 
 # ⚠⚠ 2026-10-20 教训（先记后改）：曾在此过滤全部 *.dist-info + setuptools
 #   （想省 ~77 个文件的解包与杀毒耗时 ≈0.4s），结果 **v2.4.1 构建③的引擎

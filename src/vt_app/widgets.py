@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.3.1
+# @version 3.3.2
 """通用控件基建（原 video_toolbox_qt.py 同名代码，逐字下沉）。
 
 卡片工厂 / 日志视图 / 行布局 / 页面壳 / 导航宽度——所有页面共用，
@@ -120,14 +120,63 @@ class LogView(CardWidget):
         self.text.clear()
 
 
-def card(title=None, caption=None):
-    """新建一张卡片，返回 (卡片, 其内部竖向布局)。
+class FlatBody(QWidget):
+    """页面内容平面：无圆角、无描边，只铺一层可调透明度的底色。
 
-    卡片会被放进滚动区，说明文字不自动换行（避免 heightForWidth 与滚动区
-    互相触发重排）；文案一律保持一行能放下的长度。
-    v1.13.x 界面美化：换用 ui_theme.UICard 统一皮肤（圆角 10、1px 描边、
-    hover 提亮），所有页面共用一套卡片观感。
+    「去分层」后的唯一内容层。它不再是一张卡片，不产生第二圈圆角；
+    底色仍走 section_dim_card_fill，所以「卡片不透明度」滑杆继续有效。
     """
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setObjectName("FlatPageBody")
+        ui_theme.connect_theme(self, lambda w: w.update())
+
+    def paintEvent(self, e):
+        p = QPainter(self)
+        p.fillRect(self.rect(), ui_theme.section_dim_card_fill("card"))
+
+
+class UiDivider(QWidget):
+    """1px 分区线：颜色跟主题 token 走，不额外套卡片。"""
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setObjectName("UiDivider")
+        self.setFixedHeight(1)
+        self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        ui_theme.connect_theme(self, lambda w: w.update())
+
+    def paintEvent(self, e):
+        p = QPainter(self)
+        p.fillRect(self.rect(), QColor(ui_theme.tokens()["card_border"]).darker(108))
+
+
+def card(title=None, caption=None):
+    """新建一个扁平分区，返回 (分区, 其内部竖向布局)。
+
+    2026-11-26「去分层」：页面 → 大卡片 → 内层卡片的三层结构改为单层。
+    分组不再画 UICard 底板，只用标题、说明和 1px 分区线；输入框/表格等
+    控件保留自己的一层边界。需要真正卡片的场景（首页入口、视频库缩略图）
+    改用 :func:`surface_card`。
+    """
+    box = QWidget()
+    box.setObjectName("FlatSection")
+    lay = QVBoxLayout(box)
+    lay.setContentsMargins(0, 0, 0, 6)
+    lay.setSpacing(8)
+    has_header = bool(title or caption)
+    if title:
+        lay.addWidget(StrongBodyLabel(title, box))
+    if caption:
+        lay.addWidget(fit_caption(CaptionLabel(caption, box)))
+    if has_header:
+        lay.addWidget(UiDivider(box))
+    return box, lay
+
+
+def surface_card(title=None, caption=None):
+    """单层卡片（仅首页入口、视频库缩略图等需要“一张卡”的位置使用）。"""
     box = ui_theme.UICard()
     lay = QVBoxLayout(box)
     lay.setContentsMargins(14, 12, 14, 14)
@@ -345,7 +394,10 @@ class PageHeader(QWidget):
 
 
 class ScrollPage(QWidget):
-    """页面壳：标题区固定 + 内容区。
+    """页面壳：可选标题区 + 内容区。
+
+    show_header=False 时不创建标题/说明，内容顶部留 12px，供顶栏面包屑
+    已经标明页名的功能页使用。
 
     scrollable=True 时内容放进滚动区（水平滚动禁用）：
       · 窗口最小尺寸不再被页面内容撑爆——此前四个重页面的布局最小高度
@@ -357,31 +409,34 @@ class ScrollPage(QWidget):
     scrollable=False 时内容直接铺满（供内嵌引擎界面等自带滚动的页面）。
     """
 
-    def __init__(self, title, subtitle, parent=None, scrollable=True):
+    def __init__(self, title, subtitle, parent=None, scrollable=True,
+                 show_header=True):
         super().__init__(parent)
         self.view = self
         outer = QVBoxLayout(self)
-        outer.setContentsMargins(22, 16, 22, 14)
+        outer.setContentsMargins(22, 16 if show_header else 12, 22, 14)
         outer.setSpacing(8)
-        self.title_label = SubtitleLabel(title, self)
-        self.title_label.setObjectName("PageTitle")
-        outer.addWidget(self.title_label)
+        self.title_label = None
         self.cap = None
-        if subtitle:
-            cap = CaptionLabel(subtitle, self)
-            cap.setWordWrap(True)
-            outer.addWidget(cap)
-            # v1.13.x：暴露给子类。自动换行标签的 heightForWidth 会在首次布局时
-            # 再算一遍高度（1 行 → 2 行），下方内容整体下移，表现就是「进页面
-            # 上下闪一下」。子类可 `fit_caption(self.cap)` 把它压成不参与重排。
-            self.cap = cap
+        if show_header:
+            self.title_label = SubtitleLabel(title, self)
+            self.title_label.setObjectName("PageTitle")
+            outer.addWidget(self.title_label)
+            if subtitle:
+                cap = CaptionLabel(subtitle, self)
+                cap.setWordWrap(True)
+                outer.addWidget(cap)
+                # v1.13.x：暴露给子类。自动换行标签的 heightForWidth 会在首次布局时
+                # 再算一遍高度（1 行 → 2 行），下方内容整体下移，表现就是「进页面
+                # 上下闪一下」。子类可 `fit_caption(self.cap)` 把它压成不参与重排。
+                self.cap = cap
 
         if scrollable:
             self.area = ScrollArea(self)
             self.area.setWidgetResizable(True)
             self.area.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
             self.area.setStyleSheet("QScrollArea{background:transparent;border:none;}")
-            self.holder = QWidget(self.area)
+            self.holder = FlatBody(self.area)
             self.holder.setStyleSheet("QWidget{background:transparent;}")
             self.content_lay = QVBoxLayout(self.holder)
             self.content_lay.setContentsMargins(4, 2, 12, 16)
@@ -391,7 +446,7 @@ class ScrollPage(QWidget):
             self.vbox = self.content_lay
         else:
             self.area = None
-            self.holder = QWidget(self)
+            self.holder = FlatBody(self)
             self.holder.setStyleSheet("QWidget{background:transparent;}")
             self.content_lay = QVBoxLayout(self.holder)
             self.content_lay.setContentsMargins(0, 0, 0, 0)
@@ -421,7 +476,7 @@ class TabPage(QWidget):
         self.area.setWidgetResizable(True)
         self.area.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self.area.setStyleSheet("QScrollArea{background:transparent;border:none;}")
-        self.holder = QWidget(self.area)
+        self.holder = FlatBody(self.area)
         self.holder.setStyleSheet("QWidget{background:transparent;}")
         self.content_lay = QVBoxLayout(self.holder)
         self.content_lay.setContentsMargins(22, 12, 22, 14)

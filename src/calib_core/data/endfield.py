@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.3.1
+# @version 3.3.2
 """术语/实体数据表
 
 源：subtitle_calib_merged.py L3380-L4908 @ 97d7d463（2026-10-24 冻结快照）
@@ -461,6 +461,20 @@ ENDFIELD_MISSING_CHECK = [
      "Arknights 社区站 Arkpedia.net；arcpedia.net 是 Arc Raiders 站点"),
     (r"\bThe\s+Game\s+Awards?\b|\bGame\s+Awards?\b", ("TGA", "游戏大奖"),
      "The Game Awards 中文通称 TGA"),
+    # --- 2026-11-26 终末地评测片（226 cue，--mode endo-bi）二校：专名漏译体检 ---
+    #   只体检不改写；英文参考行命中而中文行全无对应词 → 报疑似漏译。
+    (r"\bEnmin\b|\bEndministrator\b", ("管理员",),
+     "主角 Endministrator 官方中文=管理员；Enmin 为社区简称"),
+    (r"\bNefarith\b|\bNefaris\b", ("聂菲斯",),
+     "1.2 主线第二章 BOSS 聂菲斯（官方微博 / OSLink 攻略）"),
+    (r"\bMi Fu\b|\bMifu\b", ("弭弗",),
+     "武陵城巡卫队队长弭弗（Mi Fu，萌娘百科/官方微博）"),
+    (r"\bLimbus Company\b", ("边狱公司",),
+     "Limbus Company 官方简中《边狱公司》"),
+    (r"\bExpedition 33\b", ("光与影：33号远征队", "33号远征队"),
+     "Clair Obscur: Expedition 33 官方简中《光与影：33号远征队》"),
+    (r"\bgacha\b|\bgotcha\b", ("抽卡",),
+     "gacha/gotcha 统一译「抽卡」"),
 ]
 
 
@@ -1088,6 +1102,7 @@ ENDFIELD_BI_TERMS = {
     #   戒律第 4 条：错形本身是通用中文词的（潜力/超图/乙醚/政治行动委员会/陈/苏…）
     #   一律走 ENDFIELD_BI_CONTEXT 英文行佐证，不进本表。这里只收不可能误伤的音译残形。
     "端德曼": "管理员", "恩德曼": "管理员", "恩德雷托": "管理员",
+    "《Endman》": "管理员", "《恩德曼》": "管理员",   # 机翻把 ASR 名加书名号，替换后会留成《管理员》
     "沃尔加德": "狼卫",
     "瓦瑞林": "华法琳",
     "珀莉卡": "佩丽卡", "阿德拉斯": "艾尔黛拉", "阿德莉亚": "艾尔黛拉",
@@ -1263,6 +1278,89 @@ ENDFIELD_BI_TERMS = {
     "孟山都《Outlanders》《Wuthering》": "《怪物猎人：旅人》、",
     "波浪相遇，永无至永恒": "《燕云十六声》、《异环》",
     "GTA 6获胜": "《侠盗猎车手 VI》赢了",
+    # ═══════════════════════════════════════════════════════════════
+    # 2026-11-26 沉淀：《I Analyzed Arknights Endfield’s New Design Controversy》
+    #   英文原声 + 微软翻译双语（385 cue，中文上/英文下，--mode endo-bi，二次人工校准）。
+    #   官方依据：终末地官网 operator 页（Yvonne=伊冯 / Last Rite=别礼 / Warfarin=华法琳）、
+    #   wiki.biligame.com/zmd 种族表（Liberi=黎博利）、HSR 3.x 翁法罗斯（Amphoreus）。
+    #   本片机翻的主要病灶是「网络造词留英文」与「其他游戏名 ASR 变体」，只收实证形。
+    "Anfield": "终末地",                     # ASR；ENDFIELD_TERMS 有同键，BI 表补登
+    "Stormy Enfield": "终末地",              # "Storm Waves" 与 Enfield 连读形
+    "Storm Waves": "鸣潮", "Rushing Waves": "鸣潮",   # Wuthering Waves 的 ASR 变体
+    "Liberi": "黎博利", "Liberia": "黎博利",  # 种族名；Liberia 亦为国名，仅 endo-bi 片源收
+    "Karanta": "卡兰塔",                     # ⚠ 中置信音译：官方中文名未检索到，留待后续替换
+    "Empyrius": "翁法罗斯",                  # HSR 3.x 地区；Entity 仅 bi 模式，endo-bi 需显式键
+    # —— 社区造词（机翻把拉丁原词直接留在中文行）——
+    "Hoyo Games": "米哈游游戏", "Hoyoverse": "米哈游", "Horyo": "米哈游",
+    "Hoyo": "米哈游",                        # 长键先行，避免咬坏 Hoyoverse/Hoyo-slop
+    "hoyofide": "米哈游化", "hoyoficed": "米哈游化", "hoyofi": "米哈游化",
+    "Hoyofide": "米哈游化", "Hoyoficed": "米哈游化", "Hoyofi": "米哈游化",
+    "hoyofied": "米哈游化", "Hoyofied": "米哈游化",
+    "Hoyofid": "米哈游化", "Hoyofeed": "米哈游化",
+    "woofied": "鸣潮化", "Woofied": "鸣潮化", "woofi": "鸣潮化", "Woofi": "鸣潮化",
+    "Vuvafid": "鸣潮化",
+    "Hoyoslop": "米哈游垃圾", "Hoyo-slop": "米哈游垃圾", "Hoyo scum": "米哈游垃圾",
+    "Nike scum": "妮姬垃圾",                 # Nikke 的 ASR 形；Nike 是运动品牌，只收整串
+    "Snowbreak slops": "尘白垃圾", "Snowbreak": "尘白禁区",
+    "Gach community": "抽卡游戏社区",        # gacha 截断形
+    # ═══════════════════════════════════════════════════════════════
+    # 2026-11-26 沉淀：《Arknights Endfield Is Starting to Put EVERY Gacha Game
+    #   to Shame》英文原声 + 微软翻译双语（226 cue，--mode endo-bi，二次人工校准）。
+    #   官方依据：终末地官网 operator 页（管理员/佩丽卡/陈千语/庄方宜/弭弗/汤汤/诀）、
+    #   官方微博（聂菲斯＝1.2 主线第二章 BOSS；诀＝Arcane）、萌娘百科（弭弗 Mi Fu）。
+    #   本片病灶：微软机翻把角色名全部按字面/音译成常用词，gacha 系列整串音译成「抓钩/抓抓」。
+    #   只收实证形；「陈→陈千语」「奥术→诀」「老板→Boss」本表已有规则，不重复登记。
+    "恩敏": "管理员",                        # Enmin = Endministrator 的社区简称
+    "Enmin": "管理员",                       # 中文行残留英文
+    "美福": "弭弗", "米夫": "弭弗",           # Mi Fu（ENDFIELD_TERMS 同键，BI 表补登）
+    "Mifu": "弭弗", "Mi Fu": "弭弗",
+    "Perlika": "佩丽卡",                     # Perlica 的微软拼形
+    "Chen": "陈千语",                       # 中文行残留英文（「陈」单独出现走 CONTEXT chen 锚定）
+    "Tang Tang": "汤汤",                     # 中文行残留英文（既有「唐唐→汤汤」在 637 行）
+    "奈法利斯": "聂菲斯", "涅法里斯": "聂菲斯", "涅法利斯": "聂菲斯",
+    "Nefaris": "聂菲斯", "Nefarith": "聂菲斯",
+    "庄凤一": "庄方宜",                      # Zhuang Fangyi 的 ASR/音译错形
+    "冯一、庄凤一": "庄方宜", "冯一，庄凤一": "庄方宜",   # 长键先行，防「冯一→庄方宜」「庄凤一→庄方宜」双改出「庄方宜、庄方宜」
+    "Zhuang Feng Yi": "庄方宜", "Zhuang Fangyi": "庄方宜",
+    # 作品名（机翻自造译名；长键先行，防短键咬坏）
+    "林布斯连队": "边狱公司", "林布斯连": "边狱公司",   # 长键先于既有「林布斯→边狱公司」
+    "咆哮之波": "鸣潮", "咆哮之浪": "鸣潮", "呼啸之波": "鸣潮",
+    "远征33号": "光与影：33号远征队",          # Clair Obscur: Expedition 33 官方简中
+    "ZZZ": "绝区零",
+    # 抽卡语境（微软把 gacha/gotcha 音译成抓钩/抓抓；整串非词，可裸键）
+    "抓钩游戏": "抽卡游戏", "抓抓包": "抽卡",
+    "抓抓你": "抽卡", "抓到你的东西": "抽卡",
+    "像诺斯族一样": "那种",              # ASR「the Nós」被机翻生造成族名；原句 I don't like the Nós=我不喜欢那种
+    "神的游戏": "抽卡游戏", "对抗上帝的游戏": "抽卡游戏",
+    # 系统/术语
+    "基地建设": "基建", "基地建筑": "基建",   # base building（终末地官方系统名「基建」）
+    "卡内角色": "当期卡池角色", "横幅内角色": "当期卡池角色",
+    "抛光效果": "打磨效果",                  # polish（裸「抛光」是工艺词，另走英文锚定）
+    # ═══════════════════════════════════════════════════════════════
+    # 2026-11-27 沉淀：《JP VTubers LOCKED IN As Endfield Shows PEAK!!!｜
+    #   Arknights: Endfield Dev Log 2.0》日语反应片二次人工校准（248 cue，
+    #   EN 谷翻双语，中文在上/英文参考行在下，--mode endo-bi）。
+    #   官方依据：终末地 2.0「穿越甚大蘑境与你相逢」前瞻（小刻＝刻俄柏、蜜饼、旧水坝、
+    #   米米诺、「战争回响」「方兴！竞技大会！」「秘境行者」特别篇「蘑菇秘话」、
+    #   「幸运胡萝卜」的妙趣游乐）＋2.0「基石」PV（阿达希尔/阿莱克琉斯/造主/万灵/
+    #   文明地带/塔卫二与泰拉）。
+    #   ⚠ 只收本片实证的非词错形；高坝/常佛/文明区/圣达/新月/伽玛车/经理/小凯属通用词，
+    #     按硬契约第 4 条走 ENDFIELD_BI_CONTEXT 英文锚定，禁裸键。
+    "瓦鲁巴林": "华法琳", "瓦鲁巴琳": "华法琳",            # Warubarin 音译（既有瓦勒林/沃拉林之外的新形）
+    "蜂蜜华夫饼": "蜜饼", "蜂蜜华夫": "蜜饼",               # honey waffles → 官方道具「蜜饼」
+    "加特林机枪": "转管铳", "双加特林机枪": "双管转管铳",      # Gatling gun → 米米诺的「转管铳」
+    "迷人的探险家": "秘境行者", "密境行者": "秘境行者",       # Enchanting Explorer（官方玩法名）
+    "蘑菇金翅雀": "蘑菇秘话",                             # Mushroom Goldfinch → 新空间群「蘑菇秘话」
+    "购物竞技场": "方兴！竞技大会！",                       # Hoko Arena（RISE! MEGA ARENA! 官方活动名）
+    "伽玛车": "玩具车",                                  # Gamma car → 基石台词「嵌着中子星的玩具车」
+    "伊克洛斯": "阿莱克琉斯",                             # Icleus ＝ アレイクレウス（2.0 基石 PV）
+    "Kei-chan": "小刻", "Keobe": "刻俄柏",                 # 中文行残留罗马音（ケーちゃん/ケオベ）
+    "Warubarin": "华法琳", "Sancta": "萨科塔", "Icleus": "阿莱克琉斯",
+    "Ryo 新闻": "武陵新闻", "Ryo News": "武陵新闻",         # 武陵新闻早知道（Ryo＝Wuling）
+    "新食町": "侵蚀潮",                                  # 侵食潮 Shinshokumachi 误听成「町」
+    "传递无人新闻": "足不出户，全知晓",                     # 武陵新闻收尾标语
+    "光伏发电": "PV", "光伏": "PV",                       # PV→光伏（谷翻惯犯）
+    "支持男性的基金会": "支撑万灵的基石",                    # 基石台词「万灵存在之基石」
 }
 
 
@@ -1734,6 +1832,49 @@ ENDFIELD_BI_CONTEXT = [
      "侠盗猎车手VI", "《侠盗猎车手 VI》"),
     (r"\bGrand\s+Theft\s+Auto\b|\bGTA\s*(?:VI|6)\b",
      "《侠盗猎车手》", "《侠盗猎车手 VI》"),
+    # —— 2026-11-26《I Analyzed Arknights Endfield’s New Design Controversy》二校 ——
+    #   ASR 把 Yvonne 听成 Ivan；Ivan 是通用俄语人名，绝不裸键，只在 endo-bi 片源按英文锚定收回。
+    (r"\bivan\b", "伊万", "伊冯"),
+    # —— 同片：Liberia 被机翻成国名「利比里亚」（英文行有 Liberia 才收，防真实国名误伤）——
+    (r"\bLiberia\b", "利比里亚", "黎博利"),
+    # —— 同片：Nike scum 的 Nike 被当运动品牌译「耐克渣滓」——
+    (r"\bNike\s+scum\b", "耐克渣滓", "妮姬垃圾"),
+    # —— 同片：Rushing Waves 被意译成「奔波」；连书名号一起换，防《《鸣潮》》——
+    (r"\bRushing\s+Waves\b", "《奔波》", "《鸣潮》"),
+    # ═══════════════════════════════════════════════════════════════
+    # 2026-11-26 沉淀：《Arknights Endfield Is Starting to Put EVERY Gacha Game
+    #   to Shame》二校（226 cue，--mode endo-bi）。
+    #   以下错形本身是通用中文词/宗教或数学词，按硬契约第 4 条禁裸键，只按英文参考行锚定。
+    #   本表既有的「陈→陈千语」(1381)「奥术→诀」(1364) 本片再次实证，不重复登记。
+    (r"\bfarth\b|\bnefarith\b|\bnefaris\b", "远方", "聂菲斯"),        # #62 微软把 Nefarith 意译成「远方」
+    (r"\bgotcha\b|\bgacha\b", "抓钩", "抽卡"),                        # #89 story games from other gotcha games
+    (r"\bgotcha\b|\bgacha\b", "抓抓包", "抽卡"),                      # #198 watered down "gotcha" game
+    (r"\bgotcha\b|\bgacha\b", "抓抓你", "抽卡"),                      # #204 新一代「抓抓你」游戏
+    (r"\bgotcha\b|\bgacha\b", "抓到你的", "抽卡"),                    # #203 其他抓到你的东西游戏
+    (r"\bGod'?s games?\b|\bgotcha\b|\bgacha\b", "神的游戏", "抽卡游戏"),   # #58 any other God's game
+    (r"\bGod'?s games?\b", "对抗上帝的游戏", "抽卡游戏"),              # #51 whatever God's game
+    (r"\bgods? of mechanics\b", "机械之神", "抽卡机制"),               # #178 gods of mechanics＝gacha mechanics
+    (r"\bagainst an impact\b|\bgenshin impact\b", "反击", "原神"),      # #51 ASR 把 Genshin Impact 听成 Against an Impact
+    (r"\bpolish(?:ed|es|ing)?\b", "抛光", "打磨"),                    # #21 polish the visuals
+    (r"\bpatch(?:es)?\b", "补丁", "版本"),                            # #31 story patch＝剧情版本
+    (r"\bNTE\b|\bneverness to everness\b", "无限大", "异环"),          # NTE 官方简中＝《异环》，勿作《无限大》
+    (r"\bFeng\s?Yi\b", "冯一", "庄方宜"),                             # #154 ASR 把 Fangyi 听成 Feng Yi
+    (r"\bZhuang\s+Feng\s?Yi\b", "庄凤一", "庄方宜"),
+    # ═══════════════════════════════════════════════════════════════
+    # 2026-11-27 沉淀：同片（《JP VTubers LOCKED IN As Endfield Shows PEAK!!!｜
+    #   Arknights: Endfield Dev Log 2.0》248 cue，--mode endo-bi）。
+    #   以下错形本身是通用中文词（高坝/常佛/文明区/圣达/新月/经理/小凯/无人新闻），
+    #   按硬契约第 4 条禁裸键，只按英文参考行锚定。
+    (r"\bHigh\s+Dam\b", "高坝", "旧水坝"),                 # 地图「旧水坝」（武陵南部废弃大坝）
+    (r"\bSancta\b", "圣达", "萨科塔"),                     # Sancta ＝ Sankta（种族）
+    (r"\bHoko\s+Arena\b", "购物竞技场", "方兴！竞技大会！"),   # 双人竞技玩法
+    (r"\bJ(?:ō|o|ou)butsu\b", "常佛", "造主"),              # 造主（Jōbutsu）
+    (r"\bCrescent\s+Moon\b", "新月", "暴虐者"),             # 基石台词「暴虐者」
+    (r"\bGamma\s+car\b", "伽玛车", "玩具车"),
+    (r"\bCivilized\s+area\b", "文明区", "文明地带"),          # 官方地图名「文明地带」
+    (r"\bManager\b", "经理", "管理员"),                     # Endministrator＝管理员
+    (r"\bKei-?chan\b", "小凯", "小刻"),
+    (r"\bunmanned\s+news\b", "传递无人新闻", "足不出户，全知晓"),
 ]
 
 

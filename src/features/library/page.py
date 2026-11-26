@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.3.1
+# @version 3.3.2
 """视频库页（2026-11-15 功能解耦阶段③：从 video_toolbox_qt.py 拆出，逐字同源）。
 
 * 缩略图缓存常量/助手（LIB_EXTS/THUMB_DIR/CARD_W…/thumb_cache_name/fmt_hms）
@@ -72,7 +72,8 @@ class LibraryPage(QWidget):
         outer.setContentsMargins(0, 0, 0, 0)
         self.shell = ScrollPage("视频库",
                                 "打开软件自动加载；缩略图自动生成并缓存；"
-                                "单击卡片播放，右键打开所在文件夹", self, scrollable=False)
+                                "单击卡片播放，右键打开所在文件夹", self,
+                                scrollable=False, show_header=False)
         outer.addWidget(self.shell)
         self.vbox = self.shell.content_lay
         self.vbox.setSpacing(12)

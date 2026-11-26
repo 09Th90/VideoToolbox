@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.3.1
+# @version 3.3.2
 """字幕编辑页（2026-11-15 功能解耦阶段③：从 video_toolbox_qt.py 拆出，逐字同源）。
 
 * 三件套后端：subtitle_editor_core（数据）/ subtitle_editor（控件）/
@@ -227,8 +227,9 @@ class SubtitleEditPage(ScrollPage):
         # heightForWidth 会把 1 行算成 2 行 → 整页内容下移，就是「进页面上下闪一下」。
         super().__init__("字幕编辑",
                          "拖波形改起止时间，双击切分，[ ] 取起止点，空格播放暂停",
-                         parent, scrollable=False)
-        fit_caption(self.cap)
+                         parent, scrollable=False, show_header=False)
+        if self.cap is not None:
+            fit_caption(self.cap)
         self.app = app
         self.setObjectName("SubtitleEditPage")
 

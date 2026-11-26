@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.3.1
+# @version 3.3.2
 """术语/实体数据表
 
 源：subtitle_calib_merged.py L2818-L5275 @ 97d7d463（2026-10-24 冻结快照）
@@ -270,8 +270,14 @@ PGR_EN_TERMS = {
     "克鲁米": "狂三", "库米": "狂三", "久美": "狂三",
     "Adelide": "阿德莱德", "Adelite": "阿德莱德", "Edelite": "阿德莱德", "Adelai": "阿德莱德",
     "Adeline": "阿德莱德", "Edaly": "阿德莱德", "阿德利德": "阿德莱德", "艾德琳": "阿德莱德",
-    "Karanina Eulgan": "卡列尼娜·烬燃", "Karanina": "卡列尼娜", "卡维尼娜": "卡列尼娜",
-    "Helentine": "海伦汀", "Helenine": "海伦汀", "Heline": "海伦汀", "Helen": "海伦汀",
+    # 2026-11-26 PT2 二校修正：Karenina: Effulgence 官方中文「卡列尼娜·烬航」；
+    #   旧沉淀把 ASR 形 Karanina Eulgan 误挂到「烬燃」（那是 Karenina: Ember 的机体名，二者不可混）。
+    "Karanina Eulgan": "卡列尼娜·烬航", "Karina Efaljens": "卡列尼娜·烬航",
+    "Effalgence": "卡列尼娜·烬航", "Efalgens": "卡列尼娜·烬航",
+    "卡列尼娜·埃法尔延斯": "卡列尼娜·烬航", "埃法尔延斯": "卡列尼娜·烬航", "埃法尔根斯": "烬航",
+    "Karanina": "卡列尼娜", "卡维尼娜": "卡列尼娜",
+    "Helentine": "海伦汀", "Galentine": "海伦汀", "加伦汀": "海伦汀",
+    "Helenine": "海伦汀", "Heline": "海伦汀", "Helen": "海伦汀",
     # 裸"海伦"不进表：#969 原文已是正确的「海伦汀」，裸键会把"海伦汀"二次替换成"海伦汀汀"，
     # 故 #136/771/1025/1044 的"海伦"逐 cue 侧车处理（长键结果不得被短键命中，见 3.1b2 戒律）
     "海伦娜": "海伦汀", "帕伦汀": "海伦汀", "情人节": "海伦汀",
@@ -302,6 +308,21 @@ PGR_EN_TERMS = {
     "皮肤": "涂装",                  # skins = 涂装（与 coding->涂装 统一）
     "模拟": "回路演算",              # simulation = 回路演算（新玩法）
     "超频": "超频演算",              # overclock = 超频演算（新挑战模式）
+    # 2026-11-26 PT2 二校新增（官方中文依据见 _doc.py 2026-11-26 条目）
+    "逆转之冠": "逆冕",               # Lucia: Inverse Crown 官方「露西亚·逆冕」（既有「逆冠」短形之外补全形）
+    "诺克萨斯之刃": "Noxius Blaze",    # 原视频作者 Noxius Blaze；ASR 误作 Noxus Blade
+    "诺克萨斯火焰": "Noxius Blaze",    # 同上，ASR 误作 Noxus Blaze
+    "斯普林菲尔德": "春田步枪",        # Springfield 步枪，谷翻音译（本片 #169）
+    "Cinnadoll": "收官",             # 口播 sendoff 被 ASR 听成 Cinnadoll（本片 #210 末位角色收尾）
+    # 机体名（官方全名核对见 _doc.py 2026-11-26）：英文原名 -> 官方中文机体名
+    "Arete": "极锋",                 # Rosetta: Arete 罗塞塔·极锋
+    "Aeternion": "不落日",            # Kamui: Aeternion 神威·不落日
+    "Lacrimosa": "安魂",             # Helentine: Lacrimosa 海伦汀·安魂
+    "Effulgence": "烬航",            # Karenina: Effulgence 卡列尼娜·烬航
+    "Anabasis": "破渊",              # Adelyde: Anabasis 阿德莱德·破渊
+    "Dirge": "亡歌",                 # Nirvatia: Dirge 涅缇娅·亡歌
+    "Fortunaster": "祈星",           # Leia: Fortunaster 莱亚·祈星
+    "Inverse Crown": "逆冕",         # Lucia: Inverse Crown 露西亚·逆冕
     # 2026-11-04《Jadealy Reacts to A Comet's Afterglow Trailers》（4.9「流光抛诸寰宇」）新增的
     #   莱娅->莱亚、灰乌鸦->战双帕弥什、以实玛利->伊什梅尔、九郎->库洛 **不写在这里**：
     #   按第 6 节约定，新沉淀一律追加为 ENTITIES 里的 Entity(modes=("pgren",))，由
@@ -328,6 +349,14 @@ PGR_EN_CONTEXT = [
     #   soundtrack" 与 #205 "Kuro cooked. Again." 同一说话人 + 同一动词 cook。
     #   ⚠ 判据假设"战双片里没有真名叫 Chloe 的角色/主播"，若日后出现需收窄锚定。
     (r"\bChloe\b", "克洛伊", "库洛"),
+    # 2026-11-26 PT2 二校：Leia: Fortunaster 被 ASR 读成 "Alley, Master of Fortune"（谷翻「财富大师」）；
+    #   海伦汀「飞轮大」被 ASR 读成 "flower-eye"（谷翻「花眼」）。
+    #   ⚠ 两者错形都是正常中文词，禁裸键，只走英文参考行锚定。
+    (r"\bMaster of Fortune\b|\bFortunaster\b", "财富大师", "莱亚·祈星"),
+    (r"\bflower-?eye\b|\bflywheel\b", "花眼", "飞轮"),
+    # 本片 #170 "is it a Locksmith in the other?"：与 #171 revolutionary war 同段，
+    #   判为 flintlock 的 ASR 误听；「锁匠」是正常中文词，故只走英文锚定，译上位词「火枪」。
+    (r"\bLocksmith\b", "锁匠", "火枪"),
 ]
 
 
@@ -385,6 +414,17 @@ PGR_MISSING_CHECK = [
     (r"\bheterero\b|\bhetero\b|\bheader creatures\b", ("异种生物",), "heterero creatures 二校统一作异种生物"),
     (r"\bephemer", ("蜉蝣族",), "ephemeran/effirmer(ASR) 统一作蜉蝣族，不是肯定者"),
     (r"\bLimbus\b|\bLimba's company\b|\blimbbus\b", ("边狱巴士", "边狱公司"), "Limbus Company 通行中文边狱巴士"),
+    # --- 2026-11-26 PT2 二校：角色名漏译锚（与 PGR_EN_TERMS 新增条目手工同步）---
+    (r"\bKarenina\b|\bKarina\b", ("卡列尼娜",),
+     "Karenina 官方中文=卡列尼娜；Effulgence=烬航、Ember=烬燃，机体名勿混"),
+    (r"\bHelentine\b|\bGalentine\b|\bHelenine\b", ("海伦汀",),
+     "Helentine 官方中文=海伦汀；Lacrimosa=安魂"),
+    (r"\bLucia\b", ("露西亚",), "Lucia 官方中文=露西亚；Inverse Crown=逆冕"),
+    (r"\bKamui\b", ("神威",), "Kamui 官方中文=神威；Aeternion=不落日"),
+    (r"\bRosetta\b", ("罗塞塔",), "Rosetta 官方中文=罗塞塔；Arete=极锋"),
+    (r"\bAdelyde\b|\bAdelide\b|\bAnabasis\b", ("阿德莱德",),
+     "Adelyde 官方中文=阿德莱德；Anabasis=破渊"),
+    (r"\bKurumi\b", ("狂三",), "Kurumi Tokisaki 官方中文=时崎狂三"),
 ]
 
 AK_TERMS = {
@@ -712,6 +752,18 @@ AK_TERMS = {
     "Breakthrough the Dome": "《冲破穹顶》",
     "Honkai Impacted": "《崩坏3》", "Star Ocean": "《星之海洋》", "Destiny 2": "《命运2》",
     "Ideal City": "《理想城》",
+    # --- 2026-11-26 《WHO LET ARKNIGHTS MUSIC COOK THIS HARD》音乐 reaction 二校沉淀 ---
+    #   官方依据：明日方舟/终末地国服与 PRTS、塞壬唱片、危机合约赛季名、音律联觉 2026「昔时我见」。
+    #   曲名保留官方英文（Operation Dawnseeker / Basepoint / Blade、Tower Fierce、Battleplan Extinguished Sins）。
+    "Laevatain": "莱万汀", "Levatain": "莱万汀", "Levitane": "莱万汀", "Levatane": "莱万汀",  # 终末地角色（本片口播提及）
+    "Monster Siren": "塞壬唱片", "Monster Siren Records": "塞壬唱片",
+    "Studio Montagne": "蒙塔山工作室", "Yostar": "悠星", "Project Moon": "月亮计划",
+    "Ambience Synesthesia": "音律联觉",
+    "Tower of Fears": "Tower Fierce", "Tower of the Prince": "Tower Fierce",
+    # 本片实测的其余错形（长键/独特串，确保 --ak 模式能兜住）
+    "Arc Knight": "明日方舟", "Artzknights": "明日方舟", "Artzknight": "明日方舟",
+    "林布公司": "边狱公司", "Limbo Company": "边狱公司", "Limbs Company": "边狱公司",
+    "怪物海妖": "塞壬唱片", "怪物海妖唱片": "塞壬唱片", "Exia": "能天使",
     # --- 2026-11-08 明日方舟 × 韵律源点 联动歌单 reaction（kukkikaze，204 cue，英声+谷翻）---
     #   官方依据：TapTap 韵律源点官方公告（2026-11-03）+ Arcaea 中文维基 + PRTS。
     #   谷翻固定误译：trailer→「拖车/拖车光伏」（通用性强）；IS5 现有表只有 IS-5/IS6 等，缺无连字符形。
@@ -1068,6 +1120,15 @@ AK_MISSING_CHECK = [
     (r"(?i)\bClementia\b", ("克莱门莎",), "Clementia 官方中文=克莱门莎"),
     (r"(?i)\bChen\s+Xuening\b", ("陈雪凝",), "《绿色》演唱者陈雪凝"),
     (r"(?i)\bUncle\s+Croc\b", ("鳄鱼叔叔",), "Uncle Croc=鳄鱼叔叔（地球Online 梗）"),
+    # 2026-11-26 音乐 reaction 二校补：官方专名漏校体检（只报不改）
+    (r"(?i)\bMonster Siren\b", ("塞壬唱片",), "Monster Siren 官方中文=塞壬唱片"),
+    (r"(?i)\b(?:Laevatain|Levatain|Levitane|Levatane)\b", ("莱万汀",), "终末地 Laevatain 官方中文=莱万汀"),
+    (r"(?i)\bStudio Montagne\b", ("蒙塔山工作室",), "Studio Montagne 官方中文=蒙塔山工作室"),
+    (r"(?i)\bYostar\b", ("悠星",), "Yostar 官方中文=悠星"),
+    (r"(?i)\bAmbience Synesthesia\b", ("音律联觉",), "Ambience Synesthesia 官方中文=音律联觉"),
+    (r"(?i)\bTower of (?:Fears|the Prince)\b", ("Tower Fierce",), "曲名误听，官方曲名=Tower Fierce"),
+    (r"(?i)\bExia\b", ("能天使",), "Exusiai 简称 Exia 官方中文=能天使"),
+    (r"(?i)\bSuter\b", ("史尔特尔",), "Surtr 的 ASR 形 Suter，官方中文=史尔特尔"),
 ]
 
 AK_KO_TERMS = {

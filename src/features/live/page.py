@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.3.1
+# @version 3.3.2
 """实时字幕控制页：音源/设备、开始停止、状态、字幕流、日志、悬浮层开关。
 
 约束：只经 ``vt_app`` 基建 + 本功能包；不反向 import GUI 入口。
@@ -57,7 +57,7 @@ class LivePage(QWidget):
             "实时字幕",
             "系统内录/麦克风实时双语字幕；ASR 端点与密钥复用「设置 → ASR 语音识别」；"
             "同步增量输出 SRT，另写 sub_en.txt / sub_zh.txt 供 OBS 文本源读取。",
-            self, scrollable=True)
+            self, scrollable=True, show_header=False)
         outer.addWidget(self.shell)
         vbox = self.shell.content_lay
         vbox.setSpacing(12)

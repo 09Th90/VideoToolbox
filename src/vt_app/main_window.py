@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.3.1
+# @version 3.3.2
 """主窗口（2026-11-15 功能解耦阶段③：从 video_toolbox_qt.py 拆出，逐字同源）。
 
 壳层编排：FluentWindow + 注册表驱动的功能页挂载 + 消息总线 + 跨屏收敛 +
@@ -852,8 +852,8 @@ class MainWindow(FluentWindow):
         try:
             w = max(0, self.width() - nav_w - 138)
             self.shell_topbar.setGeometry(nav_w, 0, w, 48)
-            self.shell_statusbar.setGeometry(0, max(48, self.height() - 26),
-                                             self.width(), 26)
+            self.shell_statusbar.setGeometry(nav_w, max(48, self.height() - 26),
+                                             max(0, self.width() - nav_w), 26)
             self.shell_topbar.raise_()
             self.shell_statusbar.raise_()
         except Exception:  # noqa: BLE001

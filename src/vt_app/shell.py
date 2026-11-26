@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.3.1
+# @version 3.3.2
 """v3 壳层辅助条：内容区顶栏与底部状态栏。
 
 只负责视觉与页面标题同步，不接管导航/堆叠/业务状态。由 MainWindow 在
@@ -118,9 +118,9 @@ class ShellStatusBar(QFrame):
     def _apply_theme(self):
         t = ui_theme.tokens()
         self.setStyleSheet(
-            "QFrame#ShellStatusBar{background:%s;border-top:1px solid %s;}"
+            "QFrame#ShellStatusBar{background:%s;border:none;}"
             "QLabel#ShellStatusText{color:%s;font-size:9.5px;background:transparent;}"
-            % (t["nav"], t["card_border"], t["text_dim"]))
+            % (t["bg"], t["text_dim"]))
         self.mode.setText("主题 " + ("深色" if ui_theme.is_dark() else "浅色"))
 
     def set_version(self, version):

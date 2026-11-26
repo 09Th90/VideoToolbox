@@ -1,4 +1,4 @@
-# @version 3.3.1
+# @version 3.3.2
 """「AI 托管」页 —— 首页任务框输入**纯文本**时的落点（harness 接入的界面壳）。
 
 边界（与 harness_bridge 的分工）
@@ -32,7 +32,6 @@ from vt_fluent import (BodyLabel, CaptionLabel, CardWidget,
                             ScrollArea, StrongBodyLabel, TextEdit, TitleLabel)
 
 import features.harness.harness_bridge as hb
-from vt_app.widgets import PageHeader
 
 #: 等宽字体（输出区）；取不到 Courier New 时 Qt 自动回退
 _MONO = QFont("Courier New", 10)
@@ -120,10 +119,6 @@ class HarnessPage(ScrollArea):
         outer = QVBoxLayout(view)
         outer.setContentsMargins(22, 14, 22, 14)
         outer.setSpacing(10)
-        outer.addWidget(PageHeader(
-            "AI 托管",
-            "任务与首页同一个入口；模型、密钥与接口地址取自「设置 → 全局 AI」",
-            view))
 
         # ---------- ① 状态 ----------
         card, lay = _card(view, "AI 托管 · 状态")

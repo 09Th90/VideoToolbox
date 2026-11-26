@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# @version 3.3.1
+# @version 3.3.2
 """「自动化」页 —— B 站自动投稿（v1.17.x 起精简为投稿专用）
 ====================================================================
 页面只做一件事：用内置视觉引擎（`auto_vision_core`）驱动用户自己已登录
@@ -44,7 +44,6 @@ from vt_fluent import (CaptionLabel, ComboBox, FluentIcon as FIF,
 
 import features.automation.auto_vision_core as av
 import features.automation.bili_upload as bu
-from vt_app.widgets import PageHeader
 import ui_theme
 
 #: 程序数据目录（模板 / 失败截图都落在这里）；取不到就退到临时目录
@@ -271,10 +270,6 @@ class AutoVisionPage(QWidget):
         outer = QVBoxLayout(self)
         outer.setContentsMargins(22, 14, 22, 14)
         outer.setSpacing(8)
-        outer.addWidget(PageHeader(
-            "自动化",
-            "B 站投稿：选窗口 → 抓帧 → 采集模板 → 演练确认 → 真跑；默认演练，不移动真实鼠标键盘",
-            self))
 
         self.area = ScrollArea(self)
         self.area.setWidgetResizable(True)

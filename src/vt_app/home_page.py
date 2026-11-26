@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.3.1
+# @version 3.3.2
 """首页（2026-11-15 功能解耦阶段③：从 video_toolbox_qt.py 拆出，逐字同源）。
 
 壳层页面：程序入口（原「字幕处理」工作台里的「任务创建」分段）。
@@ -17,7 +17,7 @@ from vt_fluent import (BodyLabel, CaptionLabel, FluentIcon as FIF, PushButton,
 
 from vt_app.boot import _perf_note, _process_age_seconds
 from vt_app.scheduler import _SCHED, _defer
-from vt_app.widgets import card, fit_caption
+from vt_app.widgets import surface_card, fit_caption
 import ui_theme
 
 
@@ -80,7 +80,7 @@ class HomePage(QWidget):
         self.vbox.addLayout(body, 0)
 
         # 左：任务创建卡（里面仍是 TaskCreationInterface 本体）
-        left_box, left_lay = card()
+        left_box, left_lay = surface_card()
         self.task_card = left_box
         left_box.setMaximumHeight(360)
         left_box.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Maximum)
@@ -105,7 +105,7 @@ class HomePage(QWidget):
         body.addWidget(left_box, 1, Qt.AlignTop)
 
         # 右：输入后会发生什么（只描述真实分派，不伪造统计）
-        right_box, rlay = card()
+        right_box, rlay = surface_card()
         self.route_card = right_box
         right_box.setFixedWidth(292)
         right_box.setMaximumHeight(360)
@@ -133,7 +133,7 @@ class HomePage(QWidget):
         body.addWidget(right_box, 0, Qt.AlignTop)
 
         # 底部：真实导航快捷入口，不伪造任务/统计，只把「下一步去哪」摆出来。
-        quick, qlay = card()
+        quick, qlay = surface_card()
         quick.setMaximumHeight(104)
         qlay.setContentsMargins(16, 10, 16, 10)
         qlay.setSpacing(8)

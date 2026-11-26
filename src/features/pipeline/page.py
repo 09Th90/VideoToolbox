@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.3.1
+# @version 3.3.2
 """流水线页（2026-11-15 功能解耦阶段③：从 video_toolbox_qt.py 拆出，逐字同源）。
 
 * 后端：引擎侧 pipeline 模块（目录感知 + 阶段状态机，STAGES 自带 optional 降级）；
@@ -20,7 +20,7 @@ from vt_fluent import (BodyLabel, CaptionLabel, FluentIcon as FIF, InfoBar,
 import video_toolbox as engine
 import features.pipeline.pipeline as pl
 
-from vt_app.widgets import (LogView, PageHeader, TabPage, card, expand_h,
+from vt_app.widgets import (LogView, TabPage, card, expand_h,
                             fit_caption, fit_spin, row)
 
 
@@ -173,10 +173,6 @@ class PipelinePage(QWidget):
         self.shell = TabPage(self)
         outer.addWidget(self.shell)
         vbox = self.shell.content_lay
-        vbox.addWidget(PageHeader(
-            "流水线",
-            "链接自动下载 → 翻译 → 校准 → 输出；下载目录里新出现的视频自动接管",
-            self))
 
         # ---- 新建任务（链接驱动） ----
         self.link_edit = LineEdit(self)

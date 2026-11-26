@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.3.1
+# @version 3.3.2
 """视频下载页（2026-11-15 功能解耦阶段③：从 video_toolbox_qt.py 拆出，逐字同源）。
 
 * 容器页：「视频下载 / 音画合并 / 视频切片」三个子板块，merge/split 经注册表
@@ -39,7 +39,7 @@ from core.download.ytdlp_util import (
 )
 
 from vt_app.boot import _perf_note
-from vt_app.widgets import LogView, PageHeader, TabPage, card, row, srow
+from vt_app.widgets import LogView, TabPage, card, row, srow
 
 
 class _CancelledEarly(Exception):
@@ -129,15 +129,7 @@ class DownloadPage(QWidget):
         outer = QVBoxLayout(self)
         outer.setContentsMargins(0, 0, 0, 0)
         outer.setSpacing(0)
-
-        head_wrap = QWidget(self)
-        hw = QHBoxLayout(head_wrap)
-        hw.setContentsMargins(22, 12, 22, 0)
-        self.header = PageHeader(
-            "视频下载",
-            "粘贴链接后检测画质；下载自动打包封面、视频信息与字幕", head_wrap)
-        hw.addWidget(self.header)
-        outer.addWidget(head_wrap)
+        self.header = None  # 功能页不再显示页头标题/说明，由顶栏面包屑承担
 
         # —— 页内分段：视频下载 / 音画合并 ——
         # v1.13.x：改为**铺满整行**（与「字幕处理」页观感对齐）。SegmentedWidget 对
@@ -154,7 +146,7 @@ class DownloadPage(QWidget):
         self.seg.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
         seg_wrap = QWidget(self)
         seg_lay = QHBoxLayout(seg_wrap)
-        seg_lay.setContentsMargins(22, 4, 22, 0)
+        seg_lay.setContentsMargins(22, 10, 22, 0)
         seg_lay.setSpacing(0)
         seg_lay.addWidget(self.seg)
         outer.addWidget(seg_wrap)
@@ -240,8 +232,13 @@ class DownloadPage(QWidget):
         self.max_spin = SpinBox(self)
         self.max_spin.setRange(1, 6)
         self.max_spin.setValue(self._load_max_concurrent())
+        self.max_spin.setFixedWidth(150)
+        self.max_spin.setMinimumHeight(33)
         self.max_spin.valueChanged.connect(self._on_max_concurrent_changed)
-        lay.addWidget(row(None, CaptionLabel("下载并发上限", self), self.max_spin))
+        max_lab = BodyLabel("下载并发上限", self)
+        max_lab.setMinimumHeight(24)
+        max_lab.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        lay.addWidget(row(None, max_lab, self.max_spin))
         lay.addWidget(self.task_table)
         self.vbox.addWidget(box)
 
@@ -298,9 +295,7 @@ class DownloadPage(QWidget):
 
     def _select_sub(self, idx, title, caption):
         self.stack.setCurrentIndex(idx)
-        if getattr(self, "header", None) is not None:
-            self.header.title.setText(title)
-            self.header.cap.setText(caption)
+        # 页头已移除：title/caption 仅保留在分段回调签名里，不再写标签。
 
     def _paint_quality_list(self):
         t = ui_theme.tokens()

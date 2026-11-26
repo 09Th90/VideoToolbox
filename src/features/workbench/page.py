@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.3.1
+# @version 3.3.2
 """字幕工作台页（2026-11-15 功能解耦阶段③：从 video_toolbox_qt.py 拆出，逐字同源）。
 
 * 内嵌字幕引擎工作台（vt_engine_ui 自研优先，videocaptioner 回退），预热三段
@@ -27,7 +27,7 @@ from vt_app.scheduler import _SCHED, _defer
 from vt_app.engine_ui import (_ENGINE_PREWARM, _engine_prewarm_probe,
                               _resolve_engine_ui, _start_engine_prewarm)
 from vt_app.lazy_shell import _install_spinbox_fix_once
-from vt_app.widgets import PageHeader, card, fit_caption
+from vt_app.widgets import card, fit_caption
 from features._media import SUBTITLE_EXTS
 
 #: 「双语字幕」判定：cue 内同时出现中文行与非中文行。用于「任务创建」的跳转
@@ -181,11 +181,7 @@ class SubtitlePage(QWidget):
         outer.addWidget(self.work_tab, 1)
         self.vbox = wlay
 
-        self.header = PageHeader(
-            "字幕处理",
-            "语音转录 / 字幕翻译 / 字幕校准；引擎工作台保持原有输入与流程",
-            self.work_tab)
-        wlay.addWidget(self.header)
+        # 功能页不再显示页头标题/说明；顶栏面包屑已标明「视频工具箱 / 字幕处理」。
 
         # 中部：引擎界面宿主；底部一行：引擎状态 + 设置/许可入口
         # （第三方组件的许可与来源见 docs\ 声明文件）

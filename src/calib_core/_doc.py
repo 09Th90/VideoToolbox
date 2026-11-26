@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.3.1
+# @version 3.3.2
 """无参运行时打印的用法文档（源文件模块 docstring 快照）。"""
 
 # 2026-10-25 《How Did You Join Arknights or Endfield?》校准沉淀：
@@ -9,6 +9,40 @@
 # audit 跨游戏误伤不采纳。
 
 USAGE_DOC = '''字幕校准统一脚本（唯一入口，可复用，每次校准任务优先调用本脚本）
+# 2026-11-27 《JP VTubers LOCKED IN As Endfield Shows PEAK!!!｜Arknights: Endfield Dev Log 2.0》
+#   日语反应片二次人工校准（248 cue，EN 谷翻双语，中文在上/英文参考行在下，CRLF 无 BOM，--mode endo-bi）：
+#   官方依据：终末地 2.0「穿越甚大蘑境与你相逢」前瞻特别节目（小刻＝刻俄柏、蜜饼、旧水坝、米米诺、
+#     武陵新闻早知道、战争回响、方兴！竞技大会！、秘境行者特别篇「蘑菇秘话」、「幸运胡萝卜」的妙趣游乐）
+#     ＋2.0 篇章「基石」PV（阿达希尔、阿莱克琉斯、造主/万灵存在之基石、文明地带、塔卫二与泰拉）。
+#   二校净改 28 条中文行（#10-11/#14/#17/#42-43/#75-76/#102-103/#111-112/#132-133/#153-154/
+#     #193-196/#206-207/#228/#233/#241-244）：11 条只有「。」的 cue 填成承接前句的实词，
+#     另有 2 处按官方引文校正（「新生的文明迟早会」「万灵存在之基石」）；
+#     结构 248 cue / 1229 行 / 时间轴·序号·英文行·空行 0 差异。
+#   回灌：ENDFIELD_BI_TERMS +瓦鲁巴林/瓦鲁巴琳/蜂蜜华夫饼/加特林机枪/迷人的探险家/蘑菇金翅雀/
+#     购物竞技场/伽玛车/伊克洛斯/Kei-chan/Keobe/Warubarin/Sancta/Icleus/Ryo News/新食町/
+#     传递无人新闻/光伏发电/支持男性的基金会；ENDFIELD_BI_CONTEXT +High Dam→旧水坝、Sancta→萨科塔、
+#     Hoko Arena→方兴！竞技大会！、Jōbutsu→造主、Crescent Moon→暴虐者、Gamma car→玩具车、
+#     civilized area→文明地带、Manager→管理员、Kei-chan→小刻（英文锚定，禁裸键）。
+# 2026-11-26 《I Analyzed Arknights Endfield’s New Design Controversy》二次人工校准
+#   （385 cue，EN 原声+微软翻译双语，中文在上/英文参考行在下，CRLF 无 BOM，--mode endo-bi）：
+#   官方依据：终末地官网 operator（Yvonne/伊冯、Last Rite/别礼、Warfarin/华法琳）、
+#     wiki.biligame/zmd（Liberi/黎博利）、HSR 3.x（Amphoreus/翁法罗斯）。
+#   二校净改 13 条中文行（#30-31/#99/#122-123/#130/#188/#238-240/#303/#372-373）；
+#     时间轴·序号·英文行·空行 0 差异。
+#   回灌：ENDFIELD_BI_TERMS +Anfield/Stormy Enfield/Storm Waves/Rushing Waves/Liberi/Liberia/
+#     Karanta/Empyrius/hoyofide 系/woofied 系/Hoyoslop/Nike scum/Snowbreak/Gach community；
+#     ENDFIELD_BI_CONTEXT +Ivan→伊冯、利比里亚→黎博利、耐克渣滓→妮姬垃圾、《奔波》→《鸣潮》（英文锚定，禁裸键）。
+# 2026-11-26 《WHO LET ARKNIGHTS MUSIC COOK THIS HARD？？？｜Arknights Music React》音乐 reaction 二次校准
+#   （1269 cue，英声+微软翻译双语，中文在上/英文参考行在下，CRLF 无 BOM，--ak 通路）：
+#   官方依据：明日方舟/终末地国服与 PRTS、塞壬唱片、危机合约赛季名（寻昼行动/起源行动/净罪作战/利刃行动）、
+#     音律联觉 2026「昔时我见」、能天使/史尔特尔/莱万汀、蒙塔山工作室/悠星/鹰角网络、边狱公司/月亮计划。
+#   本轮二校净改 8 条中文行（#72/#462/#540/#561/#774/#837-838/#849）；结构 1269 cue / 6344 行 /
+#     时间轴·序号·英文行·空行 0 差异。
+#   回灌：AK_TERMS +Laevatain/Levatain/Levitane/Levatane→莱万汀、Monster Siren→塞壬唱片、
+#     Studio Montagne→蒙塔山工作室、Yostar→悠星、Project Moon→月亮计划、Ambience Synesthesia→音律联觉、
+#     Tower of Fears/the Prince→Tower Fierce、Arc Knight/Artzknights→明日方舟、
+#     林布公司/Limbo Company/Limbs Company→边狱公司、怪物海妖→塞壬唱片、Exia→能天使；
+#     AK_MISSING_CHECK +8 条漏校体检（只报不改）。
 # 2026-11-24 《How NOT to Respond to Criticism as a Content Creator》3.8 争议复盘二次校准
 #   （1001 cue，英声+微软翻译双语，中文在上/英文参考行在下，CRLF 无 BOM，bi 通路）：
 #   官方依据：3.8「旧梦凋零的百合」、休闲活动「第二索拉：未名之梦」/第二索拉学院、莉莉/格姆/
@@ -521,3 +555,11 @@ USAGE_DOC = '''字幕校准统一脚本（唯一入口，可复用，每次校�
 #   features/calibrate CALIB_MODE_FLAGS 同步；侧车 data/calib_sidecars/arcak_amiya_motion_zh.tsv。
 #   门禁：--arcakamiya 对源复跑与 v2 逐字节一致（SHA256 BD97EA01A5FFA3C7EB2332AD15CEB0E6B4398DC473235216B177E03B073D2FEC，221 处改动）。
 #   边界：58 处 ASR「Heat」碎片仍按原行直译「热」，不臆造歌词；本片专用模式不改 --arcak 既有行为。
+# 2026-11-26 《🏆 Rating Every Punishing Gray Raven Ultimate PT 2｜PGR Reaction》二次校准 + PGR 英配通路补丁
+#   （249 cue，英语原声 + 谷翻中文，CRLF 无 BOM，--pgr-en）：
+#   ① 修正旧沉淀错挂：Karanina Eulgan 原→卡列尼娜·烬燃，实为 Karenina: Effulgence=卡列尼娜·烬航（烬燃是 Ember 的机体名）。
+#   ② 新增角色变体：Galentine/加伦汀→海伦汀；Karina Efaljens/Effalgence/Efalgens/卡列尼娜·埃法尔延斯/埃法尔根斯→卡列尼娜·烬航。
+#   ③ 新增机体名：Arete→极锋、Aeternion→不落日、Lacrimosa→安魂、Effulgence→烬航、Anabasis→破渊、Dirge→亡歌、Fortunaster→祈星、Inverse Crown→逆冕。
+#   ④ 语境锚定：flower-eye/花眼→飞轮（海伦汀飞轮大）、Master of Fortune/财富大师→莱亚·祈星、Locksmith/锁匠→火枪（#170 与 #171 revolutionary war 同段，判 flintlock 误听）。
+#   ⑤ 中文变体：诺克萨斯之刃/诺克萨斯火焰→Noxius Blaze（原视频作者，ASR 误作 Noxus Blade/Blaze）、斯普林菲尔德→春田步枪、逆转之冠→逆冕、Cinnadoll→收官（口播 sendoff）。
+#   门禁：与 src 重建 CHECK OK（1112 Entity / hard 0）；r2 复跑 12 处名词自动命中；r4 成品复跑幂等 0 改动；249 cue 时间轴/英文行/空行 0 差异。成品 …en-谷歌翻译.calib.r4.srt。

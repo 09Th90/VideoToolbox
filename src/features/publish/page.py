@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.3.1
+# @version 3.3.2
 """发布素材页：选字幕 + 游戏名/主播名 → 生成 10 段时间轴/10 tag/标题。"""
 import os
 import threading
@@ -20,7 +20,7 @@ class PublishPage(TabPage):
         super().__init__(parent)
         self.app = app
         lay = self.view_layout() if hasattr(self, "view_layout") else self.layout()
-        box = card(self)
+        box = card()
         self.srt_edit = LineEdit(box)
         self.srt_edit.setPlaceholderText("字幕文件路径（校准产物优先）")
         browse = PushButton("浏览", box)

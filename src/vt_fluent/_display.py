@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.3.1
+# @version 3.3.2
 """vt_fluent 展示族（自研，替代 qfluentwidgets 展示类控件）。
 
 行为契约（对齐上游 1.11.3）：
@@ -991,6 +991,9 @@ class TableBase:
         self.setShowGrid(False)
         self.setMouseTracking(True)
         self.setAlternatingRowColors(True)
+        # 深色下表头左上角的角按钮会留下一个方形的默认底色，与卡片背景
+        # 形成突兀的色块；这里直接关掉角按钮，把该格留给表格背景。
+        self.setCornerButtonEnabled(False)
         self.setItemDelegate(self.delegate)
         self.setSelectionBehavior(QTableWidget.SelectRows)
         self.horizontalHeader().setHighlightSections(False)
