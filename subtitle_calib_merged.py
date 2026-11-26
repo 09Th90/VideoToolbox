@@ -5846,8 +5846,14 @@ PGR_EN_TERMS = {
     "克鲁米": "狂三", "库米": "狂三", "久美": "狂三",
     "Adelide": "阿德莱德", "Adelite": "阿德莱德", "Edelite": "阿德莱德", "Adelai": "阿德莱德",
     "Adeline": "阿德莱德", "Edaly": "阿德莱德", "阿德利德": "阿德莱德", "艾德琳": "阿德莱德",
-    "Karanina Eulgan": "卡列尼娜·烬燃", "Karanina": "卡列尼娜", "卡维尼娜": "卡列尼娜",
-    "Helentine": "海伦汀", "Helenine": "海伦汀", "Heline": "海伦汀", "Helen": "海伦汀",
+    # 2026-11-26 PT2 二校修正：Karenina: Effulgence 官方中文「卡列尼娜·烬航」；
+    #   旧沉淀把 ASR 形 Karanina Eulgan 误挂到「烬燃」（那是 Karenina: Ember 的机体名，二者不可混）。
+    "Karanina Eulgan": "卡列尼娜·烬航", "Karina Efaljens": "卡列尼娜·烬航",
+    "Effalgence": "卡列尼娜·烬航", "Efalgens": "卡列尼娜·烬航",
+    "卡列尼娜·埃法尔延斯": "卡列尼娜·烬航", "埃法尔延斯": "卡列尼娜·烬航", "埃法尔根斯": "烬航",
+    "Karanina": "卡列尼娜", "卡维尼娜": "卡列尼娜",
+    "Helentine": "海伦汀", "Galentine": "海伦汀", "加伦汀": "海伦汀",
+    "Helenine": "海伦汀", "Heline": "海伦汀", "Helen": "海伦汀",
     # 裸"海伦"不进表：#969 原文已是正确的「海伦汀」，裸键会把"海伦汀"二次替换成"海伦汀汀"，
     # 故 #136/771/1025/1044 的"海伦"逐 cue 侧车处理（长键结果不得被短键命中，见 3.1b2 戒律）
     "海伦娜": "海伦汀", "帕伦汀": "海伦汀", "情人节": "海伦汀",
@@ -5878,6 +5884,21 @@ PGR_EN_TERMS = {
     "皮肤": "涂装",                  # skins = 涂装（与 coding->涂装 统一）
     "模拟": "回路演算",              # simulation = 回路演算（新玩法）
     "超频": "超频演算",              # overclock = 超频演算（新挑战模式）
+    # 2026-11-26 PT2 二校新增（官方中文依据见 _doc.py 2026-11-26 条目）
+    "逆转之冠": "逆冕",               # Lucia: Inverse Crown 官方「露西亚·逆冕」（既有「逆冠」短形之外补全形）
+    "诺克萨斯之刃": "Noxius Blaze",    # 原视频作者 Noxius Blaze；ASR 误作 Noxus Blade
+    "诺克萨斯火焰": "Noxius Blaze",    # 同上，ASR 误作 Noxus Blaze
+    "斯普林菲尔德": "春田步枪",        # Springfield 步枪，谷翻音译（本片 #169）
+    "Cinnadoll": "收官",             # 口播 sendoff 被 ASR 听成 Cinnadoll（本片 #210 末位角色收尾）
+    # 机体名（官方全名核对见 _doc.py 2026-11-26）：英文原名 -> 官方中文机体名
+    "Arete": "极锋",                 # Rosetta: Arete 罗塞塔·极锋
+    "Aeternion": "不落日",            # Kamui: Aeternion 神威·不落日
+    "Lacrimosa": "安魂",             # Helentine: Lacrimosa 海伦汀·安魂
+    "Effulgence": "烬航",            # Karenina: Effulgence 卡列尼娜·烬航
+    "Anabasis": "破渊",              # Adelyde: Anabasis 阿德莱德·破渊
+    "Dirge": "亡歌",                 # Nirvatia: Dirge 涅缇娅·亡歌
+    "Fortunaster": "祈星",           # Leia: Fortunaster 莱亚·祈星
+    "Inverse Crown": "逆冕",         # Lucia: Inverse Crown 露西亚·逆冕
     # 2026-11-04《Jadealy Reacts to A Comet's Afterglow Trailers》（4.9「流光抛诸寰宇」）新增的
     #   莱娅->莱亚、灰乌鸦->战双帕弥什、以实玛利->伊什梅尔、九郎->库洛 **不写在这里**：
     #   按第 6 节约定，新沉淀一律追加为 ENTITIES 里的 Entity(modes=("pgren",))，由
@@ -5904,6 +5925,14 @@ PGR_EN_CONTEXT = [
     #   soundtrack" 与 #205 "Kuro cooked. Again." 同一说话人 + 同一动词 cook。
     #   ⚠ 判据假设"战双片里没有真名叫 Chloe 的角色/主播"，若日后出现需收窄锚定。
     (r"\bChloe\b", "克洛伊", "库洛"),
+    # 2026-11-26 PT2 二校：Leia: Fortunaster 被 ASR 读成 "Alley, Master of Fortune"（谷翻「财富大师」）；
+    #   海伦汀「飞轮大」被 ASR 读成 "flower-eye"（谷翻「花眼」）。
+    #   ⚠ 两者错形都是正常中文词，禁裸键，只走英文参考行锚定。
+    (r"\bMaster of Fortune\b|\bFortunaster\b", "财富大师", "莱亚·祈星"),
+    (r"\bflower-?eye\b|\bflywheel\b", "花眼", "飞轮"),
+    # 本片 #170 "is it a Locksmith in the other?"：与 #171 revolutionary war 同段，
+    #   判为 flintlock 的 ASR 误听；「锁匠」是正常中文词，故只走英文锚定，译上位词「火枪」。
+    (r"\bLocksmith\b", "锁匠", "火枪"),
 ]
 
 
@@ -5961,6 +5990,17 @@ PGR_MISSING_CHECK = [
     (r"\bheterero\b|\bhetero\b|\bheader creatures\b", ("异种生物",), "heterero creatures 二校统一作异种生物"),
     (r"\bephemer", ("蜉蝣族",), "ephemeran/effirmer(ASR) 统一作蜉蝣族，不是肯定者"),
     (r"\bLimbus\b|\bLimba's company\b|\blimbbus\b", ("边狱巴士", "边狱公司"), "Limbus Company 通行中文边狱巴士"),
+    # --- 2026-11-26 PT2 二校：角色名漏译锚（与 PGR_EN_TERMS 新增条目手工同步）---
+    (r"\bKarenina\b|\bKarina\b", ("卡列尼娜",),
+     "Karenina 官方中文=卡列尼娜；Effulgence=烬航、Ember=烬燃，机体名勿混"),
+    (r"\bHelentine\b|\bGalentine\b|\bHelenine\b", ("海伦汀",),
+     "Helentine 官方中文=海伦汀；Lacrimosa=安魂"),
+    (r"\bLucia\b", ("露西亚",), "Lucia 官方中文=露西亚；Inverse Crown=逆冕"),
+    (r"\bKamui\b", ("神威",), "Kamui 官方中文=神威；Aeternion=不落日"),
+    (r"\bRosetta\b", ("罗塞塔",), "Rosetta 官方中文=罗塞塔；Arete=极锋"),
+    (r"\bAdelyde\b|\bAdelide\b|\bAnabasis\b", ("阿德莱德",),
+     "Adelyde 官方中文=阿德莱德；Anabasis=破渊"),
+    (r"\bKurumi\b", ("狂三",), "Kurumi Tokisaki 官方中文=时崎狂三"),
 ]
 
 AK_TERMS = {
@@ -10589,6 +10629,20 @@ ENDFIELD_MISSING_CHECK = [
      "Arknights 社区站 Arkpedia.net；arcpedia.net 是 Arc Raiders 站点"),
     (r"\bThe\s+Game\s+Awards?\b|\bGame\s+Awards?\b", ("TGA", "游戏大奖"),
      "The Game Awards 中文通称 TGA"),
+    # --- 2026-11-26 终末地评测片（226 cue，--mode endo-bi）二校：专名漏译体检 ---
+    #   只体检不改写；英文参考行命中而中文行全无对应词 → 报疑似漏译。
+    (r"\bEnmin\b|\bEndministrator\b", ("管理员",),
+     "主角 Endministrator 官方中文=管理员；Enmin 为社区简称"),
+    (r"\bNefarith\b|\bNefaris\b", ("聂菲斯",),
+     "1.2 主线第二章 BOSS 聂菲斯（官方微博 / OSLink 攻略）"),
+    (r"\bMi Fu\b|\bMifu\b", ("弭弗",),
+     "武陵城巡卫队队长弭弗（Mi Fu，萌娘百科/官方微博）"),
+    (r"\bLimbus Company\b", ("边狱公司",),
+     "Limbus Company 官方简中《边狱公司》"),
+    (r"\bExpedition 33\b", ("光与影：33号远征队", "33号远征队"),
+     "Clair Obscur: Expedition 33 官方简中《光与影：33号远征队》"),
+    (r"\bgacha\b|\bgotcha\b", ("抽卡",),
+     "gacha/gotcha 统一译「抽卡」"),
 ]
 
 
@@ -11216,6 +11270,7 @@ ENDFIELD_BI_TERMS = {
     #   戒律第 4 条：错形本身是通用中文词的（潜力/超图/乙醚/政治行动委员会/陈/苏…）
     #   一律走 ENDFIELD_BI_CONTEXT 英文行佐证，不进本表。这里只收不可能误伤的音译残形。
     "端德曼": "管理员", "恩德曼": "管理员", "恩德雷托": "管理员",
+    "《Endman》": "管理员", "《恩德曼》": "管理员",   # 机翻把 ASR 名加书名号，替换后会留成《管理员》
     "沃尔加德": "狼卫",
     "瓦瑞林": "华法琳",
     "珀莉卡": "佩丽卡", "阿德拉斯": "艾尔黛拉", "阿德莉亚": "艾尔黛拉",
@@ -11416,6 +11471,39 @@ ENDFIELD_BI_TERMS = {
     "Nike scum": "妮姬垃圾",                 # Nikke 的 ASR 形；Nike 是运动品牌，只收整串
     "Snowbreak slops": "尘白垃圾", "Snowbreak": "尘白禁区",
     "Gach community": "抽卡游戏社区",        # gacha 截断形
+    # ═══════════════════════════════════════════════════════════════
+    # 2026-11-26 沉淀：《Arknights Endfield Is Starting to Put EVERY Gacha Game
+    #   to Shame》英文原声 + 微软翻译双语（226 cue，--mode endo-bi，二次人工校准）。
+    #   官方依据：终末地官网 operator 页（管理员/佩丽卡/陈千语/庄方宜/弭弗/汤汤/诀）、
+    #   官方微博（聂菲斯＝1.2 主线第二章 BOSS；诀＝Arcane）、萌娘百科（弭弗 Mi Fu）。
+    #   本片病灶：微软机翻把角色名全部按字面/音译成常用词，gacha 系列整串音译成「抓钩/抓抓」。
+    #   只收实证形；「陈→陈千语」「奥术→诀」「老板→Boss」本表已有规则，不重复登记。
+    "恩敏": "管理员",                        # Enmin = Endministrator 的社区简称
+    "Enmin": "管理员",                       # 中文行残留英文
+    "美福": "弭弗", "米夫": "弭弗",           # Mi Fu（ENDFIELD_TERMS 同键，BI 表补登）
+    "Mifu": "弭弗", "Mi Fu": "弭弗",
+    "Perlika": "佩丽卡",                     # Perlica 的微软拼形
+    "Chen": "陈千语",                       # 中文行残留英文（「陈」单独出现走 CONTEXT chen 锚定）
+    "Tang Tang": "汤汤",                     # 中文行残留英文（既有「唐唐→汤汤」在 637 行）
+    "奈法利斯": "聂菲斯", "涅法里斯": "聂菲斯", "涅法利斯": "聂菲斯",
+    "Nefaris": "聂菲斯", "Nefarith": "聂菲斯",
+    "庄凤一": "庄方宜",                      # Zhuang Fangyi 的 ASR/音译错形
+    "冯一、庄凤一": "庄方宜", "冯一，庄凤一": "庄方宜",   # 长键先行，防「冯一→庄方宜」「庄凤一→庄方宜」双改出「庄方宜、庄方宜」
+    "Zhuang Feng Yi": "庄方宜", "Zhuang Fangyi": "庄方宜",
+    # 作品名（机翻自造译名；长键先行，防短键咬坏）
+    "林布斯连队": "边狱公司", "林布斯连": "边狱公司",   # 长键先于既有「林布斯→边狱公司」
+    "咆哮之波": "鸣潮", "咆哮之浪": "鸣潮", "呼啸之波": "鸣潮",
+    "远征33号": "光与影：33号远征队",          # Clair Obscur: Expedition 33 官方简中
+    "ZZZ": "绝区零",
+    # 抽卡语境（微软把 gacha/gotcha 音译成抓钩/抓抓；整串非词，可裸键）
+    "抓钩游戏": "抽卡游戏", "抓抓包": "抽卡",
+    "抓抓你": "抽卡", "抓到你的东西": "抽卡",
+    "像诺斯族一样": "那种",              # ASR「the Nós」被机翻生造成族名；原句 I don't like the Nós=我不喜欢那种
+    "神的游戏": "抽卡游戏", "对抗上帝的游戏": "抽卡游戏",
+    # 系统/术语
+    "基地建设": "基建", "基地建筑": "基建",   # base building（终末地官方系统名「基建」）
+    "卡内角色": "当期卡池角色", "横幅内角色": "当期卡池角色",
+    "抛光效果": "打磨效果",                  # polish（裸「抛光」是工艺词，另走英文锚定）
 }
 
 
@@ -11896,6 +11984,25 @@ ENDFIELD_BI_CONTEXT = [
     (r"\bNike\s+scum\b", "耐克渣滓", "妮姬垃圾"),
     # —— 同片：Rushing Waves 被意译成「奔波」；连书名号一起换，防《《鸣潮》》——
     (r"\bRushing\s+Waves\b", "《奔波》", "《鸣潮》"),
+    # ═══════════════════════════════════════════════════════════════
+    # 2026-11-26 沉淀：《Arknights Endfield Is Starting to Put EVERY Gacha Game
+    #   to Shame》二校（226 cue，--mode endo-bi）。
+    #   以下错形本身是通用中文词/宗教或数学词，按硬契约第 4 条禁裸键，只按英文参考行锚定。
+    #   本表既有的「陈→陈千语」(1381)「奥术→诀」(1364) 本片再次实证，不重复登记。
+    (r"\bfarth\b|\bnefarith\b|\bnefaris\b", "远方", "聂菲斯"),        # #62 微软把 Nefarith 意译成「远方」
+    (r"\bgotcha\b|\bgacha\b", "抓钩", "抽卡"),                        # #89 story games from other gotcha games
+    (r"\bgotcha\b|\bgacha\b", "抓抓包", "抽卡"),                      # #198 watered down "gotcha" game
+    (r"\bgotcha\b|\bgacha\b", "抓抓你", "抽卡"),                      # #204 新一代「抓抓你」游戏
+    (r"\bgotcha\b|\bgacha\b", "抓到你的", "抽卡"),                    # #203 其他抓到你的东西游戏
+    (r"\bGod'?s games?\b|\bgotcha\b|\bgacha\b", "神的游戏", "抽卡游戏"),   # #58 any other God's game
+    (r"\bGod'?s games?\b", "对抗上帝的游戏", "抽卡游戏"),              # #51 whatever God's game
+    (r"\bgods? of mechanics\b", "机械之神", "抽卡机制"),               # #178 gods of mechanics＝gacha mechanics
+    (r"\bagainst an impact\b|\bgenshin impact\b", "反击", "原神"),      # #51 ASR 把 Genshin Impact 听成 Against an Impact
+    (r"\bpolish(?:ed|es|ing)?\b", "抛光", "打磨"),                    # #21 polish the visuals
+    (r"\bpatch(?:es)?\b", "补丁", "版本"),                            # #31 story patch＝剧情版本
+    (r"\bNTE\b|\bneverness to everness\b", "无限大", "异环"),          # NTE 官方简中＝《异环》，勿作《无限大》
+    (r"\bFeng\s?Yi\b", "冯一", "庄方宜"),                             # #154 ASR 把 Fangyi 听成 Feng Yi
+    (r"\bZhuang\s+Feng\s?Yi\b", "庄凤一", "庄方宜"),
 ]
 
 
