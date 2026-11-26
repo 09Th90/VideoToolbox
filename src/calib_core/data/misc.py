@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.2.5
+# @version 3.3.1
 """术语/实体数据表
 
 源：subtitle_calib_merged.py L6542-L7171 @ 97d7d463（2026-10-24 冻结快照）
@@ -189,6 +189,8 @@ REACT_TERMS = {
     "Soulframe": "祖灵战甲",
     "Mick Gordon": "米克·戈登",
     "soundscape": "声景",
+    # 2026-11-24 前缀冲突闸门：实体变体 Roya（罗伊族）倒序切碎 Royanes，补长键收口
+    "Royanes": "罗伊族",
 }
 
 # 用法：python subtitle_calib_merged.py --react <input.srt> --out out.srt
@@ -395,6 +397,8 @@ EN_LINE_TERM_FIXES = {
     # --- 2026-10-05 第二部 3.7 英文 reaction 片（I Wasn't Ready...）逐 cue 核实补录 ---
     "Hong Lang": "Huanglong",                                   # 瑝珑（与 Hang Long 同组）
     "Shrungfang hold": "Schwanfong Hold", "Shrung fun hold": "Schwanfong Hold",
+    # 2026-11-24 前缀冲突闸门：Shrung 会切碎 Shrungfang（→Schwanfang），补长键收口
+    "Shrungfang": "Schwanfong",
     "Schwan Funk": "Schwanfong", "Schwanf.": "Schwanfong.",     # 玄方碎形（land of Schwanf.）
     "moving to MJ": "moving to Mengzhou",                       # MJ=Mengzhou 梦州（短键防误伤）
     "Mojo and the": "Mengzhou and the", "to Mango": "to Mengzhou",
@@ -443,6 +447,8 @@ EN_LINE_TERM_FIXES = {
     "Suming": "Suoming",                                # 锁暝 ASR 形（#1015 Suming and Ching）
     "Chingan": "Jingran",                               # 景燃 ASR 形（#6776，下句自我纠正为 Jingron）
     "Jingron": "Jingran",                               # 景燃 ASR 形（#6779 等）
+    # 2026-11-24 前缀冲突闸门：Jingron 切碎 Jingrong（→Jingrang），补长键收口
+    "Jingrong": "Jingran",
     "Abiter": "Arbiter",                                # 御者 Arbiter 漏音节（#2088）
     "Aby": "Abby",                                      # 阿布 Abby ASR 形（#5846/#5990 Aby's）
     "Shranong": "Schwanfong",                           # 玄方城 ASR 形（#5677 land of Shranong）

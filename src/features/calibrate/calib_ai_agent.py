@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.2.5
+# @version 3.3.1
 """AI 校准 Agent —— Agent 级字幕术语校准（v1.11.0；v1.16.0 并发与提示词优化）。
 
 定位
@@ -88,10 +88,25 @@ v1.20.0 新增（音画证据）
                       证据规则见 MEDIA_TOOL_NOTE（只读、可推翻「听成了什么」
                       但不动知识库译名、画面文字不是字幕、冲突不静默取舍）。
                        None=无音画证据，行为与旧版完全一致。
+
+v1.21.0 新增（结构化检索 + 查证证据入采纳闸门，2026-11-24）
+============================================================
+  · search_structured  calib_web_agent.make_tools() 新增结构化检索键：
+                      list[{title,url,tier,snippet,exact}]，tier 为统一英文键
+                      official/wiki/encyclopedia/community/other；原 search/fetch
+                      的签名与输出逐字不变。
+  · verified_evidence  会话级「A 级来源证据」：run_tools 执行 web_search 后，
+                      只把 tier∈{official,wiki} 命中的标题+摘要并入
+                      result["verified_evidence"]（community/other 不入）。
+                      validate_change / validate_rewrite 增同名关键字参：
+                      新写片段（≥2 字、原文没有、覆盖 diff 新写区间）literally
+                      出现在证据里 ⇒ 与 canonicals 同一放行口（跨度/行宽/拉丁等
+                      硬约束不变）。默认空串 ⇒ 与旧版逐字等价。
 """
 
 from __future__ import annotations
 
+import hashlib
 import io
 import json
 import os
@@ -100,6 +115,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import threading
 import time
 import unicodedata
 from concurrent.futures import ThreadPoolExecutor
@@ -122,6 +138,8 @@ MODE_KEY = {
     # 一键重跑旗标（_RERUN 表驱动，flag 名不变、mode 值随 P1 子键化同步）：
     #   走一键链才装配内置片源+侧车，GUI 不以「--mode wuwa-40ko」裸设这两个模式。
     "--wuwa40ko": "wuwa-40ko", "--wuwa40ign": "wuwa-40ign",
+    "--wuwa40pv": "wuwa-40pv",                           # 2026-11-23 新增：4.0 新地区PV/新角色实机
+    "--wuwa40reveal": "wuwa-40reveal",                    # 2026-11-24 新增：4.0 新联邦实机 reaction
 }
 MODE_NAME = {
     "": "中英双语", "--mode wuwa-ja": "鸣潮-日语", "--mode endo-ja": "终末地-日语",
@@ -132,6 +150,8 @@ MODE_NAME = {
     "--limbus": "边狱巴士", "--pbz": "影之刃零", "--mode pgr-ja": "战双-日语",
     "--mode ak-ja": "明日方舟-日语", "--mode ak-arcaea": "明日方舟-Arcaea",
     "--wuwa40ko": "鸣潮-4.0韩语", "--wuwa40ign": "鸣潮-4.0IGN",
+    "--wuwa40pv": "鸣潮-4.0新地区PV",
+    "--wuwa40reveal": "鸣潮-4.0新联邦实机",
 }
 
 
@@ -141,6 +161,12 @@ try:
     from calib_core.data.modes import normalize_mode as _normalize_mode
 except Exception:                                    # noqa: BLE001
     _normalize_mode = None
+
+#: 版式判定唯一实现（P2-6：与 extract/引擎同一函数）。导入失败降级为本地判据。
+try:
+    from calib_core.text import split_cue_layout as _core_split_cue_layout
+except Exception:                                    # noqa: BLE001
+    _core_split_cue_layout = None
 
 
 def _mode_key_of(mode_flag: str) -> str:
@@ -277,7 +303,13 @@ INCLUDE_REF_MODES = ("", "--mode wuwa-ja", "--mode endo-ja", "--mode pgr-ja",
                      "--mode endo-ko", "--limbus", "--pbz",
                      # 2026-11-03 新增：漏这一项时 ak-ja 走 AI 校准**不会把日语参考行喂给模型**，
                      #   有据改写退化成盲替换（本片最强判据直接丢掉），且不会报任何错。
-                     "--mode ak-ja")
+                     "--mode ak-ja",
+                     # 2026-11-24 补全：以下 5 个模式同样是「有参考行」的双语片源，
+                     #   旧表漏项 ⇒ AI 校准全程盲替换（参考行列被 with_ref=False 丢弃），
+                     #   且没有任何报错。旗标形态与 MODE_KEY 的键一致（4.0 系走一键旗标，
+                     #   ak-arcaea 走子键通道）。
+                     "--wuwa40ko", "--wuwa40ign", "--wuwa40pv", "--wuwa40reveal",
+                     "--mode ak-arcaea")
 
 #: 参考行互斥语义保持（P3b）：上表的旗标形态换算成模式键集合，供 detect-mode
 #: 归一路径按键判成员（顶层/子键旗标形态不同，键集合才是稳定判据）。
@@ -289,6 +321,11 @@ MAX_LINE_WIDTH = 32.0
 #: 重写允许的最大膨胀比与最短保护（防止模型把一行写成三段）
 REWRITE_GROWTH = 1.8
 REWRITE_MIN_LEN = 24
+#: rewrite 风格分块收紧（2026-11-25 修复整片单块超时回归）：整句重写输出量约为
+#: 输入 2 倍，term 的 400 条/60000 字预算会让 249 条双语片塞进 1 块 → 模型 300s
+#: 无响应超时空转。rewrite 单独用更小预算，保证每块输出可在超时窗内吐完。
+REWRITE_CHUNK_CUES = 60
+REWRITE_CHUNK_CHARS = 16000
 #: 句末标点（用于句子边界切块：参考行以它结尾 ⇒ 这里是天然断点）
 _SENT_TAIL = ".!?…。！？：；"
 _SENT_TAIL_SOFT = "\"')）】」’”"
@@ -381,7 +418,12 @@ def _split_text_lines(texts):
     2026-10-23：AI 校准原先把「末行=参考、其余=中文」，英文在上的双语片源
     会把英文当中文送去改写、把中文当参考行保护。这里按字符集识别，兼容
     中文在上/英文在上两种版式；纯拉丁中文行用中文标点兜底。
+
+    P2-6（2026-11-24）：判据统一委托 calib_core.text.split_cue_layout（与 extract /
+    引擎同一实现）；不可导入时用下方本地等价判据兜底。
     """
+    if _core_split_cue_layout is not None:
+        return _core_split_cue_layout(texts)
     zh, ref = [], []
     for i, text in enumerate(texts):
         if _HANGUL.search(text) or _KANA.search(text):
@@ -523,11 +565,79 @@ def _protect_ref_lines(src_path: str, base_path: str) -> int:
     return restored
 
 
+# ============================ 跨 cue 一致性（2026-11-24 P1）============================
+#: 跨 cue 检查只报告不自动改内容（自动挪内容易损伤，第三方亦人工裁决）。
+_CROSS_BOOK_OPEN = "《「『（"
+_CROSS_BOOK_CLOSE = "》」』）"
+
+
+def _cross_cue_consistency(srt_cues, mapping):
+    """全片跨 cue 一致性扫描（纯字符串、零 LLM、报告-only）。
+
+    逐 cue 校验只看单条，跨 cue 问题（书名号断裂/相邻重复/同源异译）结构性漏掉。
+    本 pass 用合并后的最终中文行 + 参考行做三检，返回 findings 列表供报告呈现：
+      1. book_split  书名号/引号跨 cue 断裂（前条未闭合《、后条多出》）；
+      2. boundary_dup 相邻 cue 边界词重复（前条尾 == 后条头，2-4 字）；
+      3. same_src_diff 同一参考行（归一后）对应不同中文译法（同源异译）。
+    不修改任何产物；高精度优先，宁缺毋滥。
+    """
+    finals = []
+    for c in srt_cues:
+        zh = mapping.get(c.num)
+        if zh is None:
+            zh = "\n".join(c.zh_lines or [])
+        finals.append((c.num, zh.replace("\n", ""), (c.ref_line or "")))
+    findings = []
+    # 1. 书名号跨 cue 断裂
+    for i in range(len(finals) - 1):
+        n1, z1, _ = finals[i]
+        n2, z2, _ = finals[i + 1]
+        if not z1 or not z2:
+            continue
+        if (z1.count("《") > z1.count("》") and z2.count("》") > z2.count("《")):
+            findings.append({"kind": "book_split", "nums": [n1, n2],
+                             "detail": f"#{n1} 未闭合《 与 #{n2} 多出》 疑跨 cue 断裂"})
+    # 2. 相邻边界重复（前条尾 2-4 字 == 后条头）
+    for i in range(len(finals) - 1):
+        n1, z1, _ = finals[i]
+        n2, z2, _ = finals[i + 1]
+        if len(z1) < 2 or len(z2) < 2:
+            continue
+        for k in (4, 3, 2):
+            if len(z1) >= k and len(z2) >= k and z1[-k:] == z2[:k]:
+                seg = z1[-k:]
+                if re.search(r"[一-鿿]", seg):
+                    findings.append({"kind": "boundary_dup", "nums": [n1, n2],
+                                     "detail": f"#{n1}/#{n2} 边界重复「{seg}」"})
+                break
+    # 3. 同源异译（参考行归一后相同、中文不同）
+    def _norm_ref(r):
+        r = re.sub(r"\[[^\]]*\]|>>", "", r.lower())
+        return re.sub(r"[^a-z0-9一-鿿]+", "", r)
+    by_ref = {}
+    for n, z, r in finals:
+        key = _norm_ref(r)
+        if len(key) < 6 or not z:
+            continue
+        by_ref.setdefault(key, []).append((n, z))
+    for key, items in by_ref.items():
+        zhs = {z for _n, z in items}
+        if len(items) >= 2 and len(zhs) >= 2:
+            findings.append({"kind": "same_src_diff",
+                             "nums": [n for n, _z in items][:6],
+                             "detail": "同参考行异译：" + " / ".join(list(zhs)[:3])})
+    return findings
+
+
 # ============================ 知识库 → 规则 ============================
 def build_rules(entities, mode_key: str, work: str = "",
-                include_names: bool = False):
+                include_names: bool = False, extra_entities=None):
     """把对象级实体展开为 (错形 → 官方名) 规则与负向排除规则。
 
+    extra_entities（P2-4 2026-11-24）：会话级回灌的实体（`session_canonicals.jsonl`
+    里查证确认的新词，按 kb-export 实体同构构造），与知识库实体**并集**参与规则
+    与官方名集合——单片新词不必等 count≥2 慢渗，当轮即可在提示词/闸门里生效。
+    
     返回 (rules, excludes, canonicals, stats)：
       rules      [(wrong, canonical)]，按 wrong 长度降序（长优先，避免短错形
                  先替换把长错形切碎）；
@@ -544,12 +654,18 @@ def build_rules(entities, mode_key: str, work: str = "",
         （实测：``Mizuki -> 水月`` 导致「水木茂」被改成「水月茂」）。
     """
     picked = [e for e in entities if mode_key in (e.get("modes") or [])]
+    picked_n = len(picked)
     # 模式键在知识库里没有对应实体（如战双走侧车表）时退化为全量，
     # 保证规则不为空；变体本身多为跨模式通用的机翻错形。
-    if len(picked) < 10:
+    # 2026-11-24：这是**降级**不是正常路径——调用方必须显式告警（注明 mode 与
+    # 实体数）。旧版静默退全量，用户完全看不出「本模式知识库为空、规则是别家的」。
+    fallback_all = picked_n < 10
+    if fallback_all:
         picked = list(entities)
 
-    stats = {"dropped_work": 0, "names_dropped": 0}
+    stats = {"dropped_work": 0, "names_dropped": 0,
+             "mode_key": mode_key, "picked": picked_n,
+             "fallback_all": fallback_all, "work_fallback": False}
     if work and _opt_scope is not None:
         kept = []
         for e in picked:
@@ -563,8 +679,14 @@ def build_rules(entities, mode_key: str, work: str = "",
             picked = kept
         else:
             stats["dropped_work"] = 0
+            stats["work_fallback"] = True
 
     rules, excludes, canonicals = {}, {}, set()
+    _extra = [e for e in (extra_entities or []) if e and e.get("canonical")]
+    if _extra:
+        # 会话级新词只对本片当前模式生效；与知识库实体同一展开路径（变体→规则）。
+        picked = list(picked) + _extra
+        stats["session_extra"] = len(_extra)
     for e in picked:
         canon = str(e.get("canonical") or "").strip()
         if not canon:
@@ -663,6 +785,36 @@ def select_rules_for_chunk(rules, chunk, budget: int = RULE_TEXT_BUDGET):
 def rule_text(rules, cues_text: str, budget: int = RULE_TEXT_BUDGET) -> str:
     """（兼容旧接口）按文本命中挑选规则片段。新代码请用 `select_rules`。"""
     return select_rules(rules, [("0", cues_text, "")], budget)[0]
+
+
+def fallback_rules_text(canonicals, verified_evidence: str = "",
+                        budget: int = RULE_TEXT_BUDGET) -> str:
+    """本块没有任何规则命中时的兜底规则文本（2026-11-24）。
+
+    缺陷场景（断点续跑 / 再次校准）：上一轮已把错形改干净 ⇒ 本片 hot=0，
+    `select_rules_for_chunk` 对每块返回空串，term 模型收到「术语知识库（空）」，
+    除了「不动」无事可做——resume 之后整轮空转，还看不出原因。
+
+    修复：注入**合法目标名清单**（canonicals 全集，按预算截断），告诉模型
+    「哪些名字是知识库认可的」，并简单提示会话 A 级证据的存在。这不放水——
+    证据校验仍用全量规则与 canonicals，提示词只影响模型想不想得起来该改什么。
+    """
+    names = sorted({str(c).strip() for c in (canonicals or []) if str(c).strip()},
+                   key=lambda s: (-len(s), s))
+    out = ["（本块未命中任何错形。以下为知识库官方名清单，仅作合法目标名参考；"
+           "错形未知，不得为凑改动硬套。）"]
+    buf, used = [], 0
+    for n in names:
+        if used + len(n) + 1 > budget:
+            break
+        buf.append(n)
+        used += len(n) + 1
+    if buf:
+        out.append("、".join(buf))
+    if verified_evidence:
+        out.append(f"（本会话已收集官方/维基来源证据 {len(verified_evidence)} 字："
+                   "查证到的新官方名同样可作为有据目标名。）")
+    return "\n".join(out)
 
 
 # ============================ 长片源特化：行宽 / 句子边界 ============================
@@ -884,13 +1036,61 @@ def parse_tool_requests(raw: str):
 #: 音画证据工具名（run_tools 分发用）
 MEDIA_TOOLS = ("audio_evidence", "frame_evidence")
 
+#: 会话级「A 级来源证据」累积上限（字符）。只收 official/wiki 命中的
+#: 标题+摘要——A 级来源里 literally 出现的名字，才允许作为名词级改动的依据。
+MAX_VERIFIED_EVIDENCE_CHARS = 20000
+VERIFIED_TIERS = ("official", "wiki")
+_VERIFIED_LOCK = threading.Lock()
 
-def run_tools(reqs, web, media=None):
+
+def _absorb_verified(web, query, stats):
+    """把一次联网检索的 A 级命中并入会话证据（stats["verified_evidence"]）。
+
+    仅 tier ∈ {official, wiki} 的标题+摘要入证据；community/other 一律丢弃
+    （社区帖与聚合页不能作为官方名的采纳依据）。要求 web 提供
+    `search_structured`；旧版 make_tools（只有 search/fetch）时静默跳过，
+    行为与旧版完全一致。幂等：已在证据里的片段不重复追加。
+    """
+    if not isinstance(stats, dict) or not isinstance(web, dict):
+        return
+    fn = web.get("search_structured")
+    if not callable(fn):
+        return
+    try:
+        hits = fn(query) or []
+    except Exception:  # noqa: BLE001 — 收集失败不影响工具回填主链路
+        return
+    bits = []
+    for h in hits:
+        if not isinstance(h, dict):
+            continue
+        if str(h.get("tier") or "") not in VERIFIED_TIERS:
+            continue
+        title = str(h.get("title") or "").strip()
+        snippet = str(h.get("snippet") or "").strip()
+        piece = "\n".join(x for x in (title, snippet) if x).strip()
+        if piece:
+            bits.append(piece)
+    if not bits:
+        return
+    with _VERIFIED_LOCK:
+        cur = str(stats.get("verified_evidence") or "")
+        add = "\n".join(b for b in bits if b not in cur)
+        if not add:
+            return
+        merged = (cur + "\n" + add).strip() if cur else add
+        stats["verified_evidence"] = merged[-MAX_VERIFIED_EVIDENCE_CHARS:]
+
+
+def run_tools(reqs, web, media=None, stats=None):
     """执行工具请求列表，返回回填文本（每条结果一节）。
 
-    web 为 make_tools() 产物（search/fetch）；media 为
+    web 为 make_tools() 产物（search/fetch/search_structured）；media 为
     calib_media_agent.make_tools() 产物（audio_evidence/frame_evidence）。
     两类工具可混合出现在同一轮（每次总计仍限 2 个请求）。
+    stats（可选，通常是 result）：web_search 执行后把 A 级来源命中并入
+    stats["verified_evidence"]，供后续 validate_change/validate_rewrite
+    作为「官方名 literally 见于官方/维基来源」的采纳依据；不传则纯回填。
     """
     parts = []
     for r in reqs:
@@ -898,6 +1098,7 @@ def run_tools(reqs, web, media=None):
         try:
             if tool in ("web_search", "search") and web and web.get("search"):
                 out = web["search"](r.get("query"))
+                _absorb_verified(web, r.get("query"), stats)
             elif tool in ("web_fetch", "fetch") and web and web.get("fetch"):
                 out = web["fetch"](r.get("url"))
             elif tool in MEDIA_TOOLS and media and media.get(tool):
@@ -910,6 +1111,11 @@ def run_tools(reqs, web, media=None):
                        % (tool, "、".join(avail) or "（无）"))
         except Exception as e:  # noqa: BLE001
             out = f"工具执行异常：{type(e).__name__}: {e}"
+        try:
+            from features.calibrate import telemetry as _tel
+            _tel.emit("ai", "tool_call", tool=tool, request=r, result=str(out))
+        except Exception:
+            pass
         parts.append(str(out))
     return "\n\n".join(parts)
 
@@ -944,11 +1150,56 @@ def _unesc(text: str) -> str:
     return "".join(out)
 
 
+def _baseline_evidence_diff(src_path: str, base_path: str):
+    """src→base 的逐 cue 差异 = 「基线/上轮已改项」证据（P2-6 resume 场景兜底）。
+
+    引擎证据文件（--evidence）只在跑脚本基线时产生；resume_from / 二轮场景没有
+    该文件，用这份 diff 顶上——模型照样能看到「这些行已经被机械层改过」，
+    不再因 hot==0 把整块当漏校重提或无从下手。
+    """
+    try:
+        _l1, scues, _a, _b = parse_srt(src_path)
+        _l2, bcues, _c, _d = parse_srt(base_path)
+    except Exception:                    # noqa: BLE001 解析失败不影响主流程
+        return []
+    bmap = {c.num: c for c in bcues}
+    out = []
+    for c in scues:
+        d = bmap.get(c.num)
+        if d is None:
+            continue
+        old = "\n".join(c.zh_lines)
+        new = "\n".join(d.zh_lines)
+        if old == new or not (old and new):
+            continue
+        olds, news = _diff_segments(old, new)
+        out.append({"num": str(c.num), "wrong": "".join(olds), "right": "".join(news),
+                    "src": "baseline", "ctx": False, "ref": c.ref_line})
+    return out
+
+
+def evidence_text_for_chunk(base_evidence, chunk, limit: int = 80) -> str:
+    """把引擎证据包里属于本块的条目渲染成提示词片段（P2-6）。
+
+    形如 `#12 恩德菲尔德→Endfield（term）`；ctx 命中的标 `[ctx]`。超长截断，
+    避免长片源把提示词撑爆——证据是佐证，不是逐条对齐的全文。
+    """
+    nums = {str(c[0]) for c in chunk}
+    rows = [e for e in (base_evidence or []) if str(e.get("num")) in nums]
+    out = []
+    for e in rows[:limit]:
+        tag = str(e.get("src") or "term") + ("/ctx" if e.get("ctx") else "")
+        out.append(f"#{e.get('num')} {e.get('wrong')}→{e.get('right')}（{tag}）")
+    if len(rows) > limit:
+        out.append(f"…… 本块另有 {len(rows) - limit} 条基线改动（略）")
+    return "\n".join(out)
+
+
 def build_user_prompt(mode_flag: str, rules_text: str, chunk, round_no: int,
                       style: str = "term", with_ref: bool = True,
                       prev_text: str = "", scope_text: str = "",
                       feedback: str = "", evidence: str = "",
-                      media_evidence: str = "") -> str:
+                      media_evidence: str = "", base_evidence: str = "") -> str:
     """组装单块请求：知识库片段 + 待校准条目 + 本轮约束。
 
     条目固定三列 `序号<TAB>中文行<TAB>参考行`（参考行可为空）：双语片源的参考行是
@@ -973,6 +1224,11 @@ def build_user_prompt(mode_flag: str, rules_text: str, chunk, round_no: int,
                   "下面列出上一轮已确认的改动，**不得回退**。\n" % round_no)
     if prev_text:
         extra += "【上一轮已确认改动（只读，不得回退）】\n" + prev_text + "\n\n"
+    if base_evidence:
+        # P2-6：引擎逐条证据（基线到底按哪条规则改的）。模型据此知道「这些错形
+        # 已经被机械层修好」，不必再提同一改动、也不会把这些行当成漏校。
+        extra += ("【基线已改动证据（引擎逐条记录，只读；这些错形已修好，禁止回退，"
+                  "也无需重复提出）】\n" + base_evidence + "\n\n")
     guide = ("请输出需要修改的条目 JSON 数组（保持 \\n 转义与原文一致；"
              "new_zh 必须是完整的整条中文行）。" if style == "term" else
              "请输出需要改写的条目 JSON 数组（new_zh 是改写后的完整整条中文行，"
@@ -1157,19 +1413,57 @@ def _repair_json(bad: str):
 
 
 # ============================ 改动校验（证据链） ============================
+def _longest_match_replace(text: str, hits):
+    """按键长降序、互不重叠的单遍最长匹配替换（ModeIndex.replace_longest 语义）。
+
+    与 `calib_core.acindex.Automaton.replace_longest` / `ModeIndex.replace_longest`
+    同判据：从左到右扫描，每个位置取**最长**命中键，替换后跳过该区间，插入的
+    目标名不再参与后续匹配。`calib_core.replace.apply_map` 的按键长降序串行
+    `str.replace` 在「目标名里含有另一个键」时会产生二次替换（`_check_term_hazards`
+    记录的叠字隐患），本函数按单遍语义天然规避。
+
+    返回 (新文本, 采纳的 (wrong, canon) 列表)。
+    """
+    pairs = sorted({(str(w), str(c)) for w, c in (hits or [])
+                    if w and c and w != c},
+                   key=lambda kv: (-len(kv[0]), kv[0]))
+    if not pairs:
+        return text, []
+    out, used, i, n = [], [], 0, len(text)
+    while i < n:
+        hit = None
+        for w, c in pairs:          # 已按键长降序：首个 startswith 命中即最长
+            if text.startswith(w, i):
+                hit = (w, c)
+                break
+        if hit:
+            out.append(hit[1])
+            used.append(hit)
+            i += len(hit[0])
+        else:
+            out.append(text[i])
+            i += 1
+    return "".join(out), used
+
+
 def _candidates(old: str, hits, limit: int = 60):
-    """用命中的规则穷举「把错形换成官方名」的结果集合（限定规模）。"""
-    results = {old}
-    stack = [old]
-    while stack and len(results) < limit:
-        cur = stack.pop()
-        for wrong, canon in hits:
-            if wrong in cur and wrong != canon:
-                nxt = cur.replace(wrong, canon)
-                if nxt not in results:
-                    results.add(nxt)
-                    stack.append(nxt)
-    return results
+    """「把错形换成官方名」的**唯一确定性**结果集合（2026-11-24 重写）。
+
+    旧版用栈穷举替换顺序（短键先行 / 长键先行都试），候选集里混进了
+    「短错形先替换、剩下的字再拼回去」的伪结果——实测
+    `validate_change("西吉兰机甲", "西格莉卡兰机甲")` 被判 True（污染入口：
+    模型把「西吉兰」换成「西格莉卡」后残留「兰机甲」，拼出知识库里不存在的名字）。
+
+    修复：只接受**最长匹配、互不重叠**的单遍结果（与 apply_map/ModeIndex 一致），
+    候选集恒为 {old, 唯一结果}；短键先行 / 级联结果一律不进候选，由调用方的
+    diff 分支按「名词级 + 官方名」重新裁决。
+
+    `limit` 仅为兼容旧调用签名保留（唯一候选天然 ≤2 个）。
+    """
+    new, _used = _longest_match_replace(old, hits)
+    if new == old:
+        return {old}
+    return {old, new}
 
 
 def _diff_segments(old: str, new: str):
@@ -1186,16 +1480,24 @@ def _diff_segments(old: str, new: str):
 
 
 def validate_change(old: str, new: str, rules, excludes, canonicals,
-                    ref_line: str = "") -> tuple:
+                    ref_line: str = "", verified_evidence: str = "",
+                    evidence=None) -> tuple:
     """校验一处改动是否合法，返回 (是否接受, 依据说明, 是否疑似新错形)。
 
     判定顺序：
       1) 结构：空文本、行数变化 → 直接拒绝（保证「格式一字不动」）；
       2) 命中负向排除（替换后参考行命中正则）→ 拒绝；
       3) 知识库规则可完全解释 → 接受（依据：xx → 官方名）；
-      4) 否则看差异片段：新写片段必须落在官方名上、且被替换片段足够短
-         （名词级）→ 接受并标记「疑似新错形，建议 learn 沉淀」；
+      4) 否则看差异片段：新写片段必须落在官方名上（知识库 canonicals **或**
+         本会话 A 级来源证据 verified_evidence 里 literally 出现）、且被替换
+         片段足够短（名词级）→ 接受并标记「疑似新错形，建议 learn 沉淀」；
       5) 其余一律拒绝。
+
+    verified_evidence（2026-11-24）：本会话联网查证中 official/wiki 级来源
+    命中的「标题+摘要」拼接文本。默认空串 ⇒ 判定与旧版逐字等价。
+    evidence（2026-11-24 P2-6）：本 cue 的引擎基线证据（[{wrong,right,src,ctx}]）。
+    基线已把某错形换成某官方形时，模型在改写/润色中沿用该对替换属于**已知证据**，
+    不再按「无知识库依据」挡回（resume 后 hot==0 的死锁即由此打破）。
     """
     if not new.strip():
         return False, "校准后为空", False
@@ -1227,9 +1529,99 @@ def validate_change(old: str, new: str, rules, excludes, canonicals,
     if len(joined) > 40:
         return False, "新增文本过多（疑似改写）", False
     hit_canon = [c for c in canonicals if len(c) >= 2 and c in joined]
-    if hit_canon and all(len(x) <= 12 for x in olds):
-        return True, "疑似新错形 → " + "、".join(hit_canon[:3]) + "（建议 learn 沉淀）", True
+    # A 级证据佐证：新写文本里「新引入且 ≥2 字」的片段 literally 出现在
+    # 官方/维基来源文本里（与 canonicals 同一放行口、同一跨度约束）。
+    ev_hit = _verified_hit(old, new, verified_evidence)
+    if (hit_canon or ev_hit) and all(len(x) <= 12 for x in olds):
+        if hit_canon:
+            why = "疑似新错形 → " + "、".join(hit_canon[:3])
+            if ev_hit:
+                why += f"；官方来源佐证「{ev_hit[:30]}」"
+        else:
+            why = f"官方来源佐证「{ev_hit[:40]}」"
+        return True, why + "（建议 learn 沉淀）", True
+    if evidence and news:
+        # 基线证据放行：新文本里含基线已确认的官方形，且被替换片段仍在原文里
+        # （模型是在基线之上做句子级整合，不是在无依据地造新名）。
+        for e in evidence:
+            w, r = str(e.get("wrong") or ""), str(e.get("right") or "")
+            if r and w and r in new and w in old and w not in new:
+                why = f"基线已改项佐证（{w}→{r}，来源 {e.get('src') or 'baseline'}）"
+                return True, why, False
     return False, "无知识库依据且未落在官方名上", False
+
+
+#: A 级证据 2-gram 索引缓存（会话证据只在工具轮更新，逐条改动复用）
+_VERIFIED_GRAMS_CACHE = {"ev": None, "grams": frozenset()}
+
+
+def _verified_grams(ev: str):
+    """证据文本的 2-gram 集合（≤20KB，逐条校验时复用，避免重复扫描）。"""
+    if _VERIFIED_GRAMS_CACHE["ev"] == ev:
+        return _VERIFIED_GRAMS_CACHE["grams"]
+    grams = frozenset(ev[k:k + 2] for k in range(len(ev) - 1))
+    _VERIFIED_GRAMS_CACHE.update({"ev": ev, "grams": grams})
+    return grams
+
+
+#: 佐证覆盖率下限（2026-11-24 收尾硬化 B）：所有佐证片段合计须覆盖 diff 新写区间
+#: 的**严格大于**此比例。取 0.6 的含义：「余烬燃起→永明的烈焰燃起」里只有公共
+#: 前缀「永明的」被佐证（3/5）正好挡下（半佐证前缀放行未佐证全名），而
+#: 「卡提希娅很强！」这种名字全佐证 + 1 个标点（2/3）、或一行两个官方名各自被
+#: 佐证（并集 3/3）照常放行。过严会退回 0 采纳，故只卡「主体未被佐证」。
+_VERIFIED_COVER_MIN = 0.6
+
+
+def _verified_hit(old: str, new: str, verified_evidence: str) -> str:
+    """new 中「新引入且 literally 见于 A 级证据」的最长片段（无则返回 ""）。
+
+    四条同时成立才算命中：
+      1) 片段 ≥2 字（单字在证据里出现概率太高，不能当专名依据）；
+      2) 片段**不在原文里**（只重复原文的片段不是「查证到的新名」）；
+      3) 片段与 diff 的新写区间有交集（防止证据里的公共前缀「永明的」被
+         拿来放行「永明的烈焰」这类未佐证改写）；
+      4) 覆盖率守卫（2026-11-24 B）：所有命中片段的并集须覆盖新写区间
+         **严格大于** `_VERIFIED_COVER_MIN` 的字符——只佐证到一个公共前缀、
+         新写的名字主体没被佐证时，不算「查证到的官方名」。
+    为什么不用 diff 的新写片段直接查证据：模型输出的是整行新文本，diff 会把
+    官方名切成「焰」这类 1 字碎片（与「烬」同位置匹配），按碎片判证据会导致
+    「查到了官方名却永远放不过闸门」——正是本次要修的缺陷。
+    命中区间一定以某个 2-gram 开头，先按 2-gram 快速筛起点，再向后扩到最长
+    （上限 40 字，官方名长度量级），复杂度对字幕行可忽略。
+    """
+    ev = verified_evidence or ""
+    if not ev or not new:
+        return ""
+    import difflib
+    sm = difflib.SequenceMatcher(None, old, new, autojunk=False)
+    changed = set()
+    for tag, _i1, _i2, j1, j2 in sm.get_opcodes():
+        if tag in ("replace", "insert"):
+            changed.update(range(j1, j2))
+    if not changed:
+        return ""
+    grams = _verified_grams(ev)
+    best = ""
+    covered = set()                # 被佐证片段覆盖到的新写字符（可多段并集）
+    n = len(new)
+    for i in range(n - 1):
+        if new[i:i + 2] not in grams:
+            continue
+        j = i + 2
+        while j < n and j - i < 40 and new[i:j + 1] in ev:
+            j += 1
+        sub = new[i:j]
+        if sub in old:
+            continue
+        hit = changed.intersection(range(i, j))
+        if not hit:
+            continue
+        covered |= hit
+        if len(sub) > len(best):
+            best = sub
+    if not best or len(covered) <= _VERIFIED_COVER_MIN * len(changed):
+        return ""
+    return best
 
 
 # ---- 整句重写模式的证据校验（2026-09-14 新增）----
@@ -1239,7 +1631,8 @@ _RE_LEAD_GT = re.compile(r"^\s*>>+\s*")
 
 
 def validate_rewrite(old: str, new: str, rules, excludes, canonicals,
-                     ref_line: str = "", width_limit: float = MAX_LINE_WIDTH):
+                     ref_line: str = "", width_limit: float = MAX_LINE_WIDTH,
+                     verified_evidence: str = "", evidence=None):
     """整句重写（rewrite）模式的证据校验：允许改写，但硬契约一条都不能破。
 
     与 `validate_change`（名词级）的区别：不再要求「改动能被知识库完全解释」
@@ -1251,7 +1644,10 @@ def validate_rewrite(old: str, new: str, rules, excludes, canonicals,
       5) 行宽 ≤ `width_limit` 汉字当量（超了就是写太长，直接拒）；
       6) 长度膨胀 ≤ REWRITE_GROWTH 且受 REWRITE_MIN_LEN 保护（防注水）；
       7) 新增的拉丁串只允许是知识库里的官方英文名（防塞英文 / 私自音译）；
+         2026-11-24 起，本会话 A 级来源证据里出现过的英文串同样放行
+         （官方英文名 literally 见于官方/维基来源）；
       8) 命中负向排除 → 回滚。
+    verified_evidence 默认空串 ⇒ 判定与旧版逐字等价。
     返回 (是否接受, 依据说明, 是否提示人工复核)。
     """
     if not new.strip():
@@ -1284,6 +1680,14 @@ def validate_rewrite(old: str, new: str, rules, excludes, canonicals,
         return False, f"改写后长度 {len(new)} 相对原文 {len(old)} 膨胀过大", False
 
     allow = set(LATIN_ALLOW) | {c for c in canonicals if _RE_LATIN_WORD.fullmatch(c or "")}
+    if verified_evidence:
+        # 官方/维基来源里出现过的英文串＝有据可查的官方英文名，放行
+        allow |= set(_RE_LATIN_WORD.findall(verified_evidence))
+    if evidence:
+        # P2-6：基线已把某错形改成含拉丁的官方名（如 Endfield）→ 该拉丁串有据可查，
+        # 模型在改写中沿用它不是「私自塞英文」。
+        for e in evidence:
+            allow |= set(_RE_LATIN_WORD.findall(str(e.get("right") or "")))
     known = set(_RE_LATIN_WORD.findall(old)) | {c for c in canonicals if c in old}
     for tok in dict.fromkeys(_RE_LATIN_WORD.findall(new)):   # 7) 不得新增拉丁
         if tok in known or tok in allow:
@@ -1303,6 +1707,74 @@ def validate_rewrite(old: str, new: str, rules, excludes, canonicals,
     if used:
         why += "（" + "；".join(list(dict.fromkeys(used))[:3]) + "）"
     return True, f"{why}｜行宽 {w:.1f}", False
+
+
+def build_reject_feedback(items, style: str = "term") -> str:
+    """把「本块被拒改动」组装成整改反馈（2026-11-24 拒绝整改回路）。
+
+    items = [(num, old, new, why), ...]。反馈必须给出三样东西，模型才有机会
+    改对：具体条目（序号 + 原文/提议对照）、具体原因、可执行的整改要求。
+    与 invalid/truncated 重问的 feedback 走同一条 build_user_prompt 通道，
+    不会与轮次/证据块冲突。
+    """
+    lines = ["以下改动未通过证据校验，被拒绝："]
+    for num, old, new, why in list(items)[:20]:
+        lines.append(f"- 序号 {num}：{why}")
+        if old or new:
+            lines.append(f"  原中文：{old[:80]}｜你的提议：{new[:80]}")
+    if style == "term":
+        lines.append("整改要求：只保留能被知识库官方名**完整形式**解释的名词级替换；"
+                     "错形未命中知识库时，改用知识库里的官方名（可对照术语库/官方名清单），"
+                     "或该条不要改动；禁止整句改写、禁止增删内容与标点。")
+    else:
+        lines.append("整改要求：术语一律使用知识库官方名（完整形式）；"
+                     "没有据可查的条目不要输出；不得丢失 [标记] 与 >> 说话人标记，"
+                     "不得超出行宽，不得新增原文没有的信息。")
+    return "\n".join(lines)
+
+
+# ---- 开发版观测旁路（2026-11-24）：裁决/影子/轮末事件 ----
+# 纪律：返回值逐字不变、emit 永不抛异常、telemetry 未启用时 no-op（零漂移）。
+
+def _tel_round_end(result):
+    try:
+        from features.calibrate import telemetry as _tel
+        _tel.emit("ai", "round_end",
+                  **{k: result.get(k) for k in
+                     ("ok", "error", "script_changes", "ai_changes", "rejected",
+                      "round", "seconds", "chunks", "rules_injected", "tool_calls",
+                      "adopt_changes", "width_over")})
+    except Exception:
+        pass
+
+
+def _tel_emit_shadow(kind, summary):
+    try:
+        from features.calibrate import telemetry as _tel
+        _tel.emit("ai", "shadow_review", shadow=kind,
+                  **{k: v for k, v in (summary or {}).items() if k != "items"})
+    except Exception:
+        pass
+
+
+def _traced_validator(fn):
+    """包装证据校验器：旁路发射逐条裁决（accepted/rejected + 依据）。"""
+    def _wrap(old, new, rules, excludes, canonicals, ref_line="", *args, **kw):
+        ok, why, flag = fn(old, new, rules, excludes, canonicals, ref_line, *args, **kw)
+        try:
+            from features.calibrate import telemetry as _tel
+            _tel.emit("ai", "verdict", validator=fn.__name__, old=old, new=new,
+                      accepted=ok, reason=why, flag=flag)
+        except Exception:
+            pass
+        return ok, why, flag
+    _wrap.__name__ = fn.__name__
+    _wrap.__doc__ = fn.__doc__
+    return _wrap
+
+
+validate_change = _traced_validator(validate_change)
+validate_rewrite = _traced_validator(validate_rewrite)
 
 
 # ============================ 主流程 ============================
@@ -1529,6 +2001,7 @@ def _mention_shadow_review(result, decision_client, out, mode_key, report,
             "items": [], "errors": []}
     result["mention_decision"] = stub
     if decision_client is None or not getattr(decision_client, "active", False):
+        _tel_emit_shadow("mention", stub)
         return
     try:
         from features.calibrate.calib_mention_decision import (
@@ -1541,10 +2014,12 @@ def _mention_shadow_review(result, decision_client, out, mode_key, report,
         sidecar = _write_mention_sidecar(out, report, summary, mode_key)
         if sidecar:
             summary["sidecar"] = sidecar
+        _tel_emit_shadow("mention", summary)
     except Exception as e:                           # noqa: BLE001
         stub["reason"] = ("mention_shadow_failed: %s: %s"
                           % (type(e).__name__, str(e)[:160]))
         _log_do(log, f"  ⚠ Jev mention 影子审核异常（不影响校准结果）：{e}", "err")
+        _tel_emit_shadow("mention", stub)
 
 
 def _triage_shadow_preview(result, decision_client, pending, rules, base,
@@ -1569,6 +2044,7 @@ def _triage_shadow_preview(result, decision_client, pending, rules, base,
             "needs_web": 0, "routes": {}, "items": [], "errors": []}
     result["triage"] = stub
     if decision_client is None or not getattr(decision_client, "active", False):
+        _tel_emit_shadow("triage", stub)
         return
     try:
         from features.calibrate.calib_triage_decision import (
@@ -1587,17 +2063,118 @@ def _triage_shadow_preview(result, decision_client, pending, rules, base,
         summary = apply_triage_shadow(decision_client, records,
                                       round_no=round_no, log=log)
         result["triage"] = summary
+        _tel_emit_shadow("triage", summary)
     except Exception as e:                       # noqa: BLE001
         stub["reason"] = ("triage_shadow_failed: %s: %s"
                           % (type(e).__name__, str(e)[:160]))
         _log_do(log, f"  ⚠ Jev 分诊影子异常（不影响校准链路）：{e}", "err")
+        _tel_emit_shadow("triage", stub)
+
+
+def _hash_file(path: str) -> str:
+    """SHA256（不动点门禁用，读原始字节避免编码差异）。"""
+    try:
+        with open(path, "rb") as f:
+            return hashlib.sha256(f.read()).hexdigest().upper()
+    except OSError:
+        return ""
+
+
+def _srt_changed_cues(a: str, b: str) -> int:
+    """两份 SRT 之间中文行不同的 cue 数（不动点门禁差异量）。"""
+    try:
+        ca, cb = parse_srt(a)[1], parse_srt(b)[1]
+    except Exception:                            # noqa: BLE001
+        return 0
+    da = {c.num: "\n".join(c.zh_lines) for c in ca}
+    db = {c.num: "\n".join(c.zh_lines) for c in cb}
+    return sum(1 for k in da if da.get(k) != db.get(k))
+
+
+def _promote_session_canonicals(entries, python: str, script: str, log, cancel=None):
+    """P2-4b：把当轮查证确认的高置信新词固化进真源（可选、可回滚）。
+
+    设计取舍：自动改写真源 ENTITIES 风险高，故默认关闭（VT_SESSION_PROMOTE=1 才跑），
+    但「识别 → 执行 → 固化」必须有一条当轮能跑通的路径，因此做成原子流程：
+    真源写入 → py_compile → 重建 monolith → CHECK OK；任一步失败立即回滚真源
+    并把 monolith 重建回旧版（旧版仍可用，字幕结果不受影响）。
+    """
+    if os.environ.get("VT_SESSION_PROMOTE") != "1":
+        return {"state": "disabled"}
+    root = os.getcwd()
+    src_path = os.path.join(root, "src", "calib_core", "data", "entities_part2.py")
+    build_py = os.path.join(root, "scripts", "dev", "build_calib_monolith.py")
+    mono_path = os.path.join(root, "subtitle_calib_merged.py")
+    if not (os.path.isfile(src_path) and os.path.isfile(build_py)):
+        return {"state": "skip", "reason": "真源或构建脚本缺失"}
+    keep = [e for e in entries if float(e.get("confidence") or 0) >= 0.85]
+    if not keep:
+        return {"state": "skip", "reason": "无 A 级高置信条目"}
+    try:
+        old_text = io.open(src_path, encoding="utf-8").read()
+    except OSError as e:
+        return {"state": "skip", "reason": f"真源不可读：{e}"}
+    known = set(re.findall(r'Entity\(\s*"([^"]+)"', old_text))
+    rows, seen = [], []
+    for e in keep:
+        official = (e.get("official") or "").strip()
+        term = (e.get("term") or "").strip()
+        if not official or not term or official in known or official in seen:
+            continue
+        seen.append(official)
+        _mode = (e.get("mode") or "").strip() or "bi"
+        rows.append('    Entity("%s", modes=("%s",), variants=("%s",),\n'
+                    '           category="会话级回灌",\n'
+                    '           note="A 级来源查证确认（%s，cue %s）；'
+                    '当轮会话回灌固化。"),'
+                    % (official.replace('"', "'"), _mode.replace('"', "'"),
+                       term.replace('"', "'"), e.get("source") or "",
+                       e.get("cue") or ""))
+    if not rows:
+        return {"state": "skip", "reason": "条目已存在于真源"}
+    idx = old_text.rstrip().rfind("]")
+    if idx < 0:
+        return {"state": "skip", "reason": "真源尾部结构异常"}
+    new_text = old_text[:idx] + "\n".join(rows) + "\n" + old_text[idx:]
+    try:
+        io.open(src_path, "w", encoding="utf-8").write(new_text)
+    except OSError as e:
+        return {"state": "skip", "reason": f"真源不可写：{e}"}
+
+    def _rollback(reason):
+        try:
+            io.open(src_path, "w", encoding="utf-8").write(old_text)
+        except OSError:
+            pass
+        run_script(python, build_py, ["--out", mono_path, "--check"], log, cancel)
+        return {"state": "reverted", "reason": reason}
+
+    rc, text = _run_pyfile(python, ["-m", "py_compile", src_path], log, cancel)
+    if rc != 0:
+        return _rollback("真源 py_compile 失败：" + (text or "").strip()[:200])
+    rc, text = run_script(python, build_py, ["--out", mono_path, "--check"], log, cancel)
+    if rc != 0 or "CHECK OK" not in (text or ""):
+        _tail = ((text or "").strip().splitlines() or ["（无输出）"])[-1]
+        return _rollback("重建/CHECK 未通过：" + _tail)
+    _log_do(log, f"  · 已固化 {len(seen)} 条进 entities_part2：{'、'.join(seen)}", "dim")
+    return {"state": "promoted", "n": len(seen), "officials": seen}
+
+
+def _run_pyfile(python: str, args, log=None, cancel=None):
+    """跑一次 python（不注入字幕脚本），返回 (rc, out)。"""
+    try:
+        cp = subprocess.run([python] + list(args), capture_output=True, text=True,
+                            encoding="utf-8", errors="replace", timeout=300)
+        return cp.returncode, (cp.stdout or "") + (cp.stderr or "")
+    except Exception as e:                       # noqa: BLE001
+        return 1, str(e)
 
 
 def calibrate(src: str, out: str = None, report: str = None, mode_flag: str = "",
               fix_en: bool = False, script: str = None, python: str = None,
               log=None, chat=None, chunk_cues: int = 120, max_chars: int = 6000,
               max_tokens: int = 8192, baseline: bool = True, round_no: int = 1,
-              workdir: str = None, cancel=None, style: str = "term",
+              workdir: str = None, cancel=None, style: str = None,
               resume_from: str = None, prev_changes=None, include_ref=None,
               sentence_aware: bool = True, strict_width: bool = False,
               checkpoint: bool = True,
@@ -1612,7 +2189,8 @@ def calibrate(src: str, out: str = None, report: str = None, mode_flag: str = ""
               chat_for_member=None,
               cluster=None,
               orig_title: str = None,
-              decision_client=None) -> dict:
+              decision_client=None,
+              task_instruction: str = None) -> dict:
     """Agent 级 AI 校准主流程（详见模块 docstring）。
 
     baseline=True 时先跑术语脚本得到基线（推荐：机械部分零成本且必定正确）；
@@ -1622,6 +2200,11 @@ def calibrate(src: str, out: str = None, report: str = None, mode_flag: str = ""
 
     style="term"      只做名词级术语替换（旧行为，默认）
     style="rewrite"   允许整句重写中文行（机翻腔 / 跨 cue 断句片源专用）
+    style=None（默认）智能风格：从 term 起步；若规则筛选后 rules_hot==0 且片源
+                      为双语带参考行（include_ref），自动改派 rewrite 并写日志
+                      （term 下模型确实无事可做）。**显式传 style="term" 即锁定
+                      术语级**：不强制覆盖，但 hot==0 时给出强提示并置
+                      result["suggest_rewrite"]=True。
     resume_from       起点文件（优先于脚本基线）
     prev_changes      [(num, old, new), ...] 上轮已确认改动，注入提示词禁止回退
     include_ref       None=按片源模式自动决定；是否把参考行一并喂给模型
@@ -1674,6 +2257,12 @@ def calibrate(src: str, out: str = None, report: str = None, mode_flag: str = ""
     _LAST_ENDPOINT_ERROR[0] = ""
     if chat is None:
         raise ValueError("calibrate 需要注入 chat(prompt, system, max_tokens) 回调")
+    # 2026-11-24：style=None 是「智能风格」哨兵（默认），显式传字符串＝用户
+    # 锁定配置——自动改派 rewrite 只作用于前者（见「规则筛选」之后的路由）。
+    # "term-locked"（设置页三档「锁定术语级」）= 显式 term 的别名：绝不自动改派。
+    _style_explicit = style is not None
+    if style == "term-locked":
+        style = "term"
     if style not in CALIB_STYLES:
         style = "term"
     script = script or os.path.join(_app_dir(), SCRIPT_NAME)
@@ -1704,15 +2293,29 @@ def calibrate(src: str, out: str = None, report: str = None, mode_flag: str = ""
               "ai_changes": 0, "rejected": 0, "round": round_no, "error": "",
               "accepted": [], "rejected_items": [], "seconds": 0.0,
               "style": style, "width_over": 0, "width_widest": ("", ""),
+              "cross_cue": [],
+              "style_auto_rewrite": False, "style_hint": "",
+              "style_explicit": _style_explicit,
               "manual_check": [], "resumed_from": "", "chunks": 0,
               "rules_injected": 0, "rules_hot": 0, "suggest_rewrite": False,
+              "rules_fallback_all": False,
               "meta": {}, "learn": {},
               "tool_calls": 0, "web_enabled": bool(web),
+              "verified_evidence": "", "verified_evidence_chars": 0,
               "media_enabled": bool(media),
               "concurrency": max(1, int(concurrency or 1)),
               "think_rounds": int(think_rounds or 0),
               "cluster": {},
               "orig_title": ""}
+    try:
+        from features.calibrate import telemetry as _tel
+        _tel.emit("ai", "round_start", src=src, out=out, mode_flag=mode_flag,
+                  round=round_no, style=style, resume_from=resume_from,
+                  chunk_cues=chunk_cues, concurrency=concurrency,
+                  web=bool(web), media=bool(media), cluster=bool(cluster),
+                  think_rounds=think_rounds)
+    except Exception:
+        pass
     # ---------- 0. 端点预检（v1.16.2）----------
     # 只查「限流/额度」这一类：跑起来才知道的问题，跑之前用一个小请求先探一下，
     # 省掉「每块都 429、跑 30 分钟后整轮白费」。其它失败（思考链耗尽、偶发抽风）
@@ -1759,6 +2362,7 @@ def calibrate(src: str, out: str = None, report: str = None, mode_flag: str = ""
                 _log_do(log, f"片源自适应：检测到片源模式 {_nd} → 自动启用 {mode_flag}", "ok")
         # ---------- 1. 起点：上一轮结果（可选）或术语脚本基线 ----------
         base = src
+        base_ev = ""          # P2-6：引擎证据包路径（仅脚本基线分支产出）
         if resume_from and os.path.isfile(resume_from):
             base = resume_from
             result["resumed_from"] = resume_from
@@ -1769,7 +2373,8 @@ def calibrate(src: str, out: str = None, report: str = None, mode_flag: str = ""
             _log_do(log, f"[1/8] 术语脚本基线（{'第 %d 轮' % round_no if round_no > 1 else '机械校准'}）…")
             base = os.path.join(tmp, "base.srt")
             base_md = os.path.join(tmp, "base.md")
-            args = [src, "--out", base, "--report", base_md]
+            base_ev = os.path.join(tmp, "base.evidence.json")   # P2-6 证据包
+            args = [src, "--out", base, "--report", base_md, "--evidence", base_ev]
             if mode_flag:
                 # P3b：子键旗标是「--mode <子键>」两 token，按空白拆开透传。
                 args.extend(mode_flag.split())
@@ -1791,6 +2396,26 @@ def calibrate(src: str, out: str = None, report: str = None, mode_flag: str = ""
         _protect = _protect_ref_lines(src, base)
         if _protect:
             _log_do(log, f"  → 参考行保护：还原 {_protect} 条被基线误改的参考行", "ok")
+
+        # ---------- 1b. 基线逐条证据（P2-6 2026-11-24）----------
+        # 引擎写 evidence JSON（每条改动带 wrong/right/来源/ctx 命中）；resume 或
+        # 引擎未产出时用 src→base diff 兜底。这份证据让 AI 看到「基线到底改了
+        # 哪条规则」，同时给 validate_change 提供「已改项」放行依据。
+        base_evidence = []
+        if base_ev and os.path.isfile(base_ev):
+            try:
+                base_evidence = (json.loads(_read_text(base_ev)) or {}).get("applied") or []
+            except Exception:              # noqa: BLE001 证据坏了不阻塞校准
+                base_evidence = []
+        if not base_evidence and os.path.normpath(base) != os.path.normpath(src):
+            base_evidence = _baseline_evidence_diff(src, base)
+        result["base_evidence"] = base_evidence
+        if base_evidence:
+            _srcs = {}
+            for _e in base_evidence:
+                _srcs[str(_e.get("src") or "?")] = _srcs.get(str(_e.get("src") or "?"), 0) + 1
+            _log_do(log, f"  → 基线逐条证据 {len(base_evidence)} 条（来源 "
+                         f"{'、'.join(f'{k}×{v}' for k, v in sorted(_srcs.items()))}）", "ok")
 
         # ---------- 2. 抽取 cue 表 ----------
         _tick()
@@ -1816,13 +2441,71 @@ def calibrate(src: str, out: str = None, report: str = None, mode_flag: str = ""
             return result
         _log_do(log, f"  → 共 {len(cues)} 条 cue", "ok")
 
+        # ---------- 3b. 会话级回灌（P2-4 2026-11-24）----------
+        # 缺陷：单片查证确认的新词原先要等 learn 的 count>=2 慢渗，当轮完全不生效，
+        #   识别（AI 查证）→执行（引擎注入）→固化（真源）三层断链。
+        # 现在：本片被闸门采纳且带证据（疑似新错形/A 级来源/基线已改项）的改动，
+        #   当轮写入 session_canonicals.jsonl（term/official/mode/source/confidence），
+        #   并就地并入 rules 与 canonicals（提示词与闸门立即取并集，不重跑 build_rules）。
+        _session_canonicals = []          # [(term, official, source, confidence, cue)]
+        _session_path = os.path.join(tmp, "session_canonicals.jsonl")
+
+        def _session_entities():
+            """会话级新词 → 与 kb-export 实体同构的条目（供 build_rules 并集）。"""
+            return [{"canonical": o, "variants": [t], "modes": [mode_key],
+                     "en": "", "ja": "", "ko": "", "category": "", "ctx": [],
+                     "exclude": [], "note": "会话级回灌（本片查证确认）"}
+                    for (t, o, _s, _c, _n) in _session_canonicals]
+
+        def _session_absorb(num, old, new, why):
+            """把一条「有证据的新词改动」写进会话回灌流并按需并入规则。
+
+            两类来源：
+              · term 风格：闸门给的依据里直接带「疑似新错形 / 官方来源佐证 / 基线已改项」；
+              · rewrite 风格（整句重写）：依据只有「整句重写｜…」，此时要求新写片段
+                本身落在官方名集合上（canonical 佐证）才回灌，避免把自由改写当词表。
+            """
+            olds, news = _diff_segments(old, new)
+            term, official = "".join(olds).strip(), "".join(news).strip()
+            _could_be_term = (term and official and term != official
+                              and len(term) <= 16 and len(official) <= 40)
+            _ev = any(k in why for k in ("疑似新错形", "官方来源佐证", "基线已改项"))
+            _canon_in = next((c for c in canonicals if len(c) >= 2 and c in official), "")
+            _rw = ("整句重写" in why and _could_be_term and _canon_in)
+            if not (_ev or _rw):
+                return
+            if not _could_be_term:
+                return
+            src_tag = ("A-verified" if "官方来源佐证" in why
+                       else "baseline" if "基线已改项" in why else "canonical")
+            conf = 0.9 if src_tag == "A-verified" else 0.75
+            if any((t, o) == (term, official) for (t, o, _s, _c, _n) in _session_canonicals):
+                return
+            _session_canonicals.append((term, official, src_tag, conf, str(num)))
+            try:
+                with io.open(_session_path, "a", encoding="utf-8") as f:
+                    f.write(json.dumps({"term": term, "official": official,
+                                        "mode": mode_key, "source": src_tag,
+                                        "confidence": conf, "cue": str(num)},
+                                       ensure_ascii=False) + "\n")
+            except OSError:
+                pass
+            # 就地并集：后续块的提示词与闸门立刻看到这条新词（不必重跑 build_rules）
+            if (term, official) not in rules:
+                rules.append((term, official))
+                rules.sort(key=lambda kv: (-len(kv[0]), kv[0]))
+            canonicals.add(official)
+            _log_do(log, f"  → 会话回灌 +{term}→{official}（{src_tag}"
+                         f"，cue {num}，当轮生效）", "ok")
+
         # ---------- 3. 载入知识库 ----------
         _tick()
         mode_key = _mode_key_of(mode_flag)
         _log_do(log, f"[3/8] 载入对象级术语知识库（模式 {mode_key}）…")
         kb_json = os.path.join(tmp, "kb.json")
         rc, text = run_script(python, script,
-                              ["kb-export", "--json", "--out", kb_json], log, cancel)
+                              ["kb-export", "--json", "--mode", mode_key, "--out", kb_json],
+                              log, cancel)
         entities = []
         if rc == 0 and os.path.isfile(kb_json):
             try:
@@ -1832,9 +2515,21 @@ def calibrate(src: str, out: str = None, report: str = None, mode_flag: str = ""
         rules, excludes, canonicals, _rstats = build_rules(
             entities, mode_key,
             work=_opt_infer_work(src),
-            include_names=not OPT_ENABLED)
+            include_names=not OPT_ENABLED,
+            extra_entities=_session_entities())
         _log_do(log, f"  → 实体 {len(entities)} 个 → 规则 {len(rules)} 条，"
                      f"官方名 {len(canonicals)} 个，排除 {len(excludes)} 条", "ok")
+        # 2026-11-24：退全量不再静默——这是「本模式没有专属实体、规则来自别家」
+        # 的降级信号，不告警时用户会把跨模式误替换当成 AI 校准的正常表现。
+        result["rules_fallback_all"] = bool(_rstats.get("fallback_all"))
+        if result["rules_fallback_all"]:
+            _log_do(log, f"  ⚠ 模式 {mode_key} 在知识库仅 {_rstats.get('picked', 0)} 个实体"
+                         f"（<10），已退化为全量 {len(entities)} 个实体的规则："
+                         f"可能混入其它模式的错形，本片命中率不可靠，请核对知识库 modes",
+                    "err")
+        elif _rstats.get("work_fallback"):
+            _log_do(log, f"  ⚠ 作品隔离后规则不足 10 条，已放弃 isolation（mode {mode_key}）",
+                    "err")
         if OPT_ENABLED and (_rstats.get("dropped_work") or _rstats.get("names_dropped")):
             _log_do(log, f"  · 对象级优化：作品隔离拦下 {_rstats['dropped_work']} 个跨作品专名实体；"
                          f"{_rstats['names_dropped']} 条外文名降级为锚点（不进错形表）", "ok")
@@ -1865,10 +2560,52 @@ def calibrate(src: str, out: str = None, report: str = None, mode_flag: str = ""
             # 路径产出的旗标形态可能与 INCLUDE_REF_MODES 书写形态不一致。
             include_ref = (mode_flag in INCLUDE_REF_MODES
                            or _mode_key_of(mode_flag) in _REF_MODE_KEYS)
+        # ---------- 4b. 机翻腔自动改派 rewrite（2026-11-24）----------
+        # 缺陷：term 的系统提示词明令「禁止改写句子」，而机翻腔双语片（尤其
+        # resume/再次校准后 hot==0）在 term 下模型根本提不出可采纳的改动；
+        # 旧版要等整轮跑完、凑够 ≥6 条被挡回的重写提议才「建议改派」，逃生门
+        # 自锁成了默认结果。修复：规则筛选后立刻按片源特征路由——
+        #   style=None（智能默认）+ hot==0 + 双语带参考行 ⇒ 本轮直接用 rewrite；
+        #   显式 style="term"（用户锁定配置）不强制覆盖，但给出强提示。
+        if style == "term" and include_ref and result["rules_hot"] == 0:
+            if not _style_explicit:
+                style = "rewrite"
+                result["style"] = style
+                result["style_auto_rewrite"] = True
+                _log_do(log, "  → 规则命中 0 条且片源为双语带参考行：term 风格无事可做，"
+                             "自动改派 rewrite（整句重写，仍受标记/行宽/术语硬契约约束）",
+                        "ok")
+            else:
+                result["style_hint"] = "term_locked_hot0"
+                result["suggest_rewrite"] = True
+                _log_do(log, "  ⚠ 规则命中 0 条且片源为双语带参考行，但 style=term 是显式配置："
+                             "不强制改派；term 下模型几乎无法产出可采纳改动，"
+                             "强烈建议改用 rewrite 风格重跑", "err")
+        # rewrite 分块收紧（2026-11-25）：分块在路由之前按 term 预算（400/60000）已成型，
+        # 改派 rewrite 后整片可能仍是 1 巨块 → 输出超时。这里按最终 style 重切。
+        if style == "rewrite":
+            _rw_cues = min(chunk_cues, REWRITE_CHUNK_CUES)
+            _rw_chars = min(max_chars, REWRITE_CHUNK_CHARS)
+            if _rw_cues < chunk_cues or _rw_chars < max_chars:
+                chunks = plan_chunks(cues, _rw_cues, _rw_chars,
+                                     sentence_aware=sentence_aware, spans=spans or None)
+                result["chunks"] = len(chunks)
+                _log_do(log, f"  → rewrite 收紧分块：{len(chunks)} 块"
+                             f"（每块 ≤{_rw_cues} 条 / ≤{_rw_chars} 字符，防整片单块输出超时）",
+                        "ok")
         _log_do(log, f"  → 携带参考行：{'是' if include_ref else '否'}"
                      f"；风格 {STYLE_NAME.get(style, style)}"
                      + (f"；注入上轮已确认改动 {len(prev_changes)} 条（禁止回退）"
                         if prev_changes else ""))
+
+        # 块级规则文本（2026-11-24）：本块 hot/warm 全空时注入官方名全集——
+        # resume 后 hot==0 的片源否则每块都是「术语知识库（空）」，模型无事可做。
+        def _chunk_rules_text(chunk):
+            txt, _hot = select_rules_for_chunk(rules, chunk)
+            if txt:
+                return txt
+            return fallback_rules_text(canonicals,
+                                       result.get("verified_evidence") or "")
 
         # ---------- 5~6. 逐块调用 + 证据校验（长片源带断点续跑）----------
         accepted, rejected = {}, []
@@ -1980,12 +2717,25 @@ def calibrate(src: str, out: str = None, report: str = None, mode_flag: str = ""
                                       % (type(e).__name__, str(e)[:120])})
 
         def _merge_changes(chunk, changes):
-            """证据校验 + 合并（主线程串行执行，顺序确定；v1.16.0 自逐块循环拆出）。"""
+            """证据校验 + 合并（主线程串行执行，顺序确定；v1.16.0 自逐块循环拆出）。
+
+            2026-11-24：返回**本块被拒明细** [(num, old, new, why), ...]，供调用方
+            发起「拒绝整改回路」（普通 validate 拒绝回喂模型整改一次）。全局
+            rejected 仍照旧累计，报告与计数口径不变。
+            """
             old_map = {num: zh for num, zh, _e in chunk}
             ref_map = {num: en for num, _zh, en in chunk}
+            local_rej = []
+            # 会话级 A 级证据快照：本轮已查证的官方/维基来源文本（可空）
+            _ve = str(result.get("verified_evidence") or "")
+            # P2-6：按序号索引基线证据（本块相关的那几条），给校验闸门当放行依据
+            _ev_by_num = {}
+            for _e in (result.get("base_evidence") or []):
+                _ev_by_num.setdefault(str(_e.get("num")), []).append(_e)
             for item in changes:
                 if not isinstance(item, dict):
                     rejected.append(("?", str(item)[:40], "返回元素不是对象"))
+                    local_rej.append(("?", "", str(item)[:40], "返回元素不是对象"))
                     continue
                 num = str(item.get("num") or item.get("index") or "").strip()
                 # 模型按约定用字面 \n 表示条内换行，这里还原为真实换行
@@ -1993,23 +2743,32 @@ def calibrate(src: str, out: str = None, report: str = None, mode_flag: str = ""
                 new = new.replace(chr(92) + "n", "\n")
                 if num not in old_map:
                     rejected.append((num or "?", new, "序号不在本块内"))
+                    local_rej.append((num or "?", "", new, "序号不在本块内"))
                     continue
                 old = old_map[num]
                 if num in accepted:            # 同一 cue 已收过，后到覆盖
                     old = accepted[num]
                 if style == "term":
                     ok, why, soft = validate_change(old, new, rules, excludes,
-                                                    canonicals, ref_map.get(num, ""))
+                                                    canonicals, ref_map.get(num, ""),
+                                                    verified_evidence=_ve,
+                                                    evidence=_ev_by_num.get(num))
                 else:
                     ok, why, soft = validate_rewrite(old, new, rules, excludes,
-                                                     canonicals, ref_map.get(num, ""))
+                                                     canonicals, ref_map.get(num, ""),
+                                                     verified_evidence=_ve,
+                                                     evidence=_ev_by_num.get(num))
                 if ok:
                     # R0 影子复核（WP4 插入点 B）：只记录，绝不拦截 accepted
                     _r0_shadow_review(num, old_map[num], new, why, soft)
                     accepted[num] = new
                     result["accepted"].append((num, old_map[num], new, why, soft))
+                    # P2-4：带证据的新词当轮回灌（term/official/mode/source/confidence）
+                    _session_absorb(num, old_map[num], new, why)
                 else:
                     rejected.append((num, new, why))
+                    local_rej.append((num, old, new, why))
+            return local_rej
 
         def _save_ckpt(idx):
             """断点落盘（主线程）：zh/ref 用全量映射，避免续跑旧条目写空列。"""
@@ -2133,16 +2892,22 @@ def calibrate(src: str, out: str = None, report: str = None, mode_flag: str = ""
             chat_fn = _chat_of(member)
             if member is not None:
                 _log_do(log, f"  · 第 {idx} 块由提议智能体「{member.get('name')}」处理")
-            rules_txt_i, _hot_i = select_rules_for_chunk(rules, chunk)
+            rules_txt_i = _chunk_rules_text(chunk)
             scope = (f"【本块范围】全长 {len(cues)} 条中的第 {idx}/{n_chunks} 块"
                      f"（序号 {first}–{last}）；只处理本块条目。")
+            # 自定义校准指令（2026-11-25）：整轮恒定，前置进 scope_text 通道
+            # （已全链透传至 build_user_prompt 的 extra），无需改 _ask_block 签名。
+            if task_instruction:
+                scope = "【本轮校准任务指令】\n" + str(task_instruction).strip() + "\n\n" + scope
             changes, block_fail = _ask_block(chat_fn, mode_flag, rules_txt_i, chunk,
                                              round_no, max_tokens, log, _tick,
                                              style=style, with_ref=include_ref,
                                              prev_text=prev_text, scope_text=scope,
                                              think=(_think if thinking else None),
                                              web=web, media=media, stats=result,
-                                             think_rounds=think_rounds)
+                                             think_rounds=think_rounds,
+                                             base_evidence=evidence_text_for_chunk(
+                                                 result.get("base_evidence"), chunk))
             rej_log = []
             if cl_rev and changes:
                 changes, rej_log = _cluster_review(idx, chunk, changes, chat_fn,
@@ -2174,7 +2939,31 @@ def calibrate(src: str, out: str = None, report: str = None, mode_flag: str = ""
                     failed_blocks += 1
                 _traj(f"block {idx}/{n_chunks} cues={first}-{last} done "
                       f"changes={len(changes)}{' FAILED' if block_fail else ''}")
-                _merge_changes(chunk, changes)
+                block_rej = _merge_changes(chunk, changes)
+                # ---------- 拒绝整改回路（2026-11-24，限 1 次/块）----------
+                # 普通 validate 拒绝旧版只 append 到 rejected 就丢弃；对比
+                # invalid/truncated 有 feedback 重问、集群评审有驳回整改，这里
+                # 同样把「被拒条目 + 原因 + 整改要求」回喂模型一次，让「改了但
+                # 依据不对」有第二次改对的机会。证据快照（verified_evidence）与
+                # ckpt 均不受影响：整改结果在 _save_ckpt 之前按同一通道合并。
+                if block_rej:
+                    member_r = cl_cal[(idx - 1) % len(cl_cal)] if cl_cal else None
+                    _tick()
+                    _log_do(log, f"  ↻ 第 {idx} 块 {len(block_rej)} 处改动未通过校验，"
+                                 f"回喂模型整改一次（附被拒条目与原因）", "err")
+                    _r_changes, _r_fail = _ask_block(
+                        _chat_of(member_r), mode_flag, _chunk_rules_text(chunk),
+                        chunk, round_no, max_tokens, log, _tick,
+                        style=style, with_ref=include_ref, prev_text=prev_text,
+                        scope_text=(f"【本块范围】全长 {len(cues)} 条中的第 "
+                                    f"{idx}/{n_chunks} 块（序号 {first}–{last}）；"
+                                    "只处理本块条目。"),
+                        think=(_think if thinking else None),
+                        feedback=build_reject_feedback(block_rej, style),
+                        web=web, media=media, stats=result,
+                        think_rounds=think_rounds)
+                    if _r_changes:
+                        _merge_changes(chunk, _r_changes)
                 for num, why in (cl_rej or ()):     # 集群评审驳回（写进同一份报告）
                     rejected.append((num, "", why))
                 _save_ckpt(idx)        # 每块落盘：长片源中断后可续跑
@@ -2229,7 +3018,10 @@ def calibrate(src: str, out: str = None, report: str = None, mode_flag: str = ""
         # 整句重写却被名词级校验大面积挡回（跨度过大/新增文本），说明本片是机翻腔
         # （如谷翻反应片），术语级校准改不动。当轮就提醒改用 rewrite 风格再跑一轮，
         # 而不是让用户翻报告才发现 ai_changes ≈ 0。
-        result["suggest_rewrite"] = False
+        # 2026-11-24：保留 4b 阶段「显式 term + hot==0」提前给出的强提示，
+        # 不要把 suggest_rewrite 无条件打回 False。
+        _early_suggest = bool(result.get("suggest_rewrite"))
+        result["suggest_rewrite"] = _early_suggest
         if style == "term" and rejected:
             _rw_keys = ("跨度", "新增文本", "无知识库依据")
             _rw_n = sum(1 for r in rejected if any(k in r[2] for k in _rw_keys))
@@ -2296,6 +3088,61 @@ def calibrate(src: str, out: str = None, report: str = None, mode_flag: str = ""
             _log_do(log, f"  ✓ 行宽体检通过（最宽 {result['width_widest'][0] or '—'} / "
                          f"{MAX_LINE_WIDTH:.0f} 汉字当量）", "ok")
 
+        # ---------- 8c. 跨 cue 一致性扫描（2026-11-24 P1，报告-only）----------
+        # 逐 cue 闸门看不到跨 cue 问题；这里纯字符串全片扫书名号断裂/相邻重复/
+        # 同源异译，只记入报告供人工/下轮 rewrite 处理，不自动改产物。
+        try:
+            result["cross_cue"] = _cross_cue_consistency(srt_cues, mapping)
+            if result["cross_cue"]:
+                _log_do(log, f"  ⚠ 跨 cue 一致性候选 {len(result['cross_cue'])} 处"
+                             "（书名号断裂/相邻重复/同源异译，已记入报告，未自动改）", "err")
+        except Exception as e:                           # noqa: BLE001
+            result["cross_cue"] = []
+            _log_do(log, f"  ⚠ 跨 cue 扫描异常（不影响校准）：{e}", "err")
+
+        # ---------- 8d. audit 交付门禁（2026-11-24 P1）----------
+        # 逐 cue 闸门 + 跨 cue 扫描之后，再用 audit 三扫收口：高置信错形残留
+        # （参考行已佐证）机械补校 wrong→official 并重验；无锚点判 inconclusive。
+        try:
+            _rc_a, _txt_a = run_script(python, script,
+                                       ["audit", out, "--mode", mode_key, "--json"],
+                                       log, cancel)
+            _aud = json.loads(_txt_a) if _txt_a.strip().startswith("{") else {}
+            _s2hi = _aud.get("variant_residue_high") or []
+            _anchors = int(_aud.get("anchors") or 0)
+            result["audit_gate"] = {
+                "anchors": _anchors, "s2_hi": len(_s2hi),
+                "s1": len(_aud.get("latin_residue") or []),
+                "s3": len(_aud.get("family_gap") or [])}
+            if _anchors == 0:
+                _log_do(log, "  ⚠ audit 无参考行锚点，三扫仅供参考（inconclusive）", "err")
+            if _s2hi:
+                _al, _ac, _acrlf, _abom = parse_srt(out)
+                _amap = {}
+                for _rec in _s2hi:
+                    _n = str(_rec.get("num"))
+                    _w, _c = _rec.get("wrong"), _rec.get("official")
+                    if not _w or not _c:
+                        continue
+                    _cur = _amap.get(_n)
+                    if _cur is None:
+                        _cue = next((c for c in _ac if c.num == _n), None)
+                        _cur = "\n".join(_cue.zh_lines) if _cue and _cue.zh_lines else ""
+                    if _w in _cur:
+                        _amap[_n] = _cur.replace(_w, _c)
+                if _amap:
+                    _abody = rebuild_srt(_al, _ac, _amap, _acrlf, _abom)
+                    _write_text(out, _abody)
+                    _rc_v, _txt_v = run_script(python, script, ["verify", src, out], log, cancel)
+                    if _rc_v == 0 and "VERIFY OK" in _txt_v:
+                        result["audit_fixes"] = len(_amap)
+                        _log_do(log, f"  ✓ audit 门禁机械补校 {len(_amap)} 处高置信残留（重验通过）", "ok")
+                    else:
+                        _write_text(out, body)        # 回滚到补校前
+                        _log_do(log, "  ✗ audit 补校后重验未过，已回滚", "err")
+        except Exception as e:                           # noqa: BLE001
+            _log_do(log, f"  ⚠ audit 门禁异常（不影响校准）：{e}", "err")
+
         # ---------- 9. 片源档案与学习沉淀（v1.15.1）----------
         # 「再次校准」除校准字幕外还要给出：官方中文核对 / 脚本沉淀建议 /
         # 10 个 tag / 中文标题。这些都是**附加产出**：取消或失败都不能让
@@ -2313,7 +3160,8 @@ def calibrate(src: str, out: str = None, report: str = None, mode_flag: str = ""
                                         max_tokens=max_tokens,
                                         think=_think if thinking else None,
                                         context_tokens=context_tokens,
-                                        orig_title=result.get("orig_title") or "")
+                                        orig_title=result.get("orig_title") or "",
+                                        web=web)
         except CalibCancelled:
             _log_do(log, "  片源档案已取消（字幕结果不受影响）", "err")
         except Exception as e:  # noqa: BLE001
@@ -2334,6 +3182,88 @@ def calibrate(src: str, out: str = None, report: str = None, mode_flag: str = ""
             except Exception as e:                   # noqa: BLE001
                 _log_do(log, f"  ⚠ 官方核对采纳异常（不影响校准结果）：{e}", "err")
 
+        # ---------- 8c. 不动点门禁（P2-4c 2026-11-24；收尾硬化 A 修订判据）----------
+        # 判据：机械层 = 「引擎 + 参考行保护」这个投影 P 在 base 上是否已收敛，即
+        # P(base) == base（交付物再过一次引擎必须一字不改）。三点口径（2026-11-24）：
+        #   ① 只在 base 真的经过机械层（脚本基线 / resume 产物）时才有意义；baseline=False
+        #      且无 resume 时 base 就是原始源，没有机械层可验 → 跳过（None）。旧版对这种
+        #      情况也复跑并比对，原始源当然会被引擎改 ⇒ 必然误报 fixed_point=False。
+        #   ② 复跑输出同样过一遍参考行保护（与 base 的处理口径一致），否则 --endo 类
+        #      「统一全部文本行」的模式会把保护性还原的参考行再改回去，也是误报。
+        #   ③ 单跑不相等时最多再补 2 跑看是否收敛到稳定态，用于区分「渐进精修」与
+        #      「振荡」——只做诊断，门禁结论仍以单跑幂等为准。
+        # 根因侧（收尾硬化 A）：引擎此前对自身产物不幂等的唯一已知源是「错形 ⊂ 官方名」
+        # 的规则（超频→超频演算→超频演算演算…），已在 replace._apply_pair 修掉，
+        # 353 例幂等矩阵 0 非幂等。本门禁从此只负责兜底告警。
+        _tick()
+        _has_mech = (os.path.normpath(base) != os.path.normpath(src))
+        result["fixed_point"] = None
+        if _has_mech:
+            _fp_out = os.path.join(tmp, "fixedpoint.srt")
+            _tail = (mode_flag.split() if mode_flag else []) + (["--fix-en"] if fix_en else [])
+            rc, text = run_script(python, script, [base, "--out", _fp_out] + _tail, log, cancel)
+            if rc == 0 and os.path.isfile(_fp_out):
+                _protect_ref_lines(src, _fp_out)
+                _h1 = _hash_file(base)
+                _h2 = _hash_file(_fp_out)
+                result["fixed_point_sha"] = _h1
+                if _h1 == _h2:
+                    result["fixed_point"] = True
+                    result["fixed_point_passes"] = 1
+                    _log_do(log, f"  ✓ 不动点成立：引擎在 base 上零改动（SHA256 {_h1[:16]}…）", "ok")
+                else:
+                    _n1 = _srt_changed_cues(base, _fp_out)
+                    result["fixed_point"] = False
+                    _cur, _prev, _passes, _conv = _fp_out, _h2, 1, False
+                    for _i in range(2):
+                        _nxt = os.path.join(tmp, "fixedpoint%d.srt" % (_i + 2))
+                        rc2, _t2 = run_script(python, script, [_cur, "--out", _nxt] + _tail,
+                                              log, cancel)
+                        if rc2 != 0 or not os.path.isfile(_nxt):
+                            break
+                        _protect_ref_lines(src, _nxt)
+                        _hn = _hash_file(_nxt)
+                        _passes += 1
+                        if _hn == _prev:
+                            _conv = True
+                            break
+                        _cur, _prev = _nxt, _hn
+                    result["fixed_point_passes"] = _passes
+                    result["fixed_point_converges"] = _conv
+                    result["fixed_point_break"] = _n1
+                    if _conv:
+                        _log_do(log, f"  ⚠ 不动点未成立：引擎在 base 上仍会改 {_n1} 处，但 "
+                                     f"{_passes} 跑后收敛到稳定态（渐进精修，非振荡）——"
+                                     "交付物再过引擎会变化，建议以稳定态复跑后交付", "err")
+                    else:
+                        _log_do(log, f"  ✗ 不动点未成立且 {_passes} 跑仍不收敛：引擎在 base 上改 "
+                                     f"{_n1} 处且持续变化（振荡规则），交付前必须排查", "err")
+            else:
+                _log_do(log, "  ⚠ 不动点门禁跳过（引擎复跑失败）", "err")
+        else:
+            result["fixed_point_skipped"] = "no-mechanical-layer"
+            _log_do(log, "  · 不动点门禁跳过：base 为原始源（未跑脚本基线），无机械层可验", "dim")
+
+        # ---------- 8e. 会话级回灌固化（P2-4b）----------
+        result["session_canonicals"] = [
+            {"term": t, "official": o, "mode": mode_key,
+             "source": s, "confidence": c, "cue": n}
+            for (t, o, s, c, n) in _session_canonicals]
+        if result["session_canonicals"]:
+            _log_do(log, f"  → 会话回灌 {len(result['session_canonicals'])} 条已落 "
+                         f"{os.path.basename(_session_path)}（当轮已生效）", "ok")
+            _promote = _promote_session_canonicals(
+                result["session_canonicals"], python, script, log, cancel)
+            result["session_promote"] = _promote
+            if _promote.get("state") == "promoted":
+                _log_do(log, f"  ✓ 高置信条目已固化进真源并重建 CHECK OK"
+                             f"（{_promote.get('n')} 条）", "ok")
+            elif _promote.get("state") == "reverted":
+                _log_do(log, "  ⚠ 固化失败已自动回滚真源（字幕结果不受影响）", "err")
+            elif _promote.get("state") == "disabled":
+                _log_do(log, "  · 固化未启用（设 VT_SESSION_PROMOTE=1 可当轮写入真源+重建）",
+                        "dim")
+
         if result["accepted"] or result["script_changes"]:
             try:
                 _tick()
@@ -2347,6 +3277,7 @@ def calibrate(src: str, out: str = None, report: str = None, mode_flag: str = ""
         # Jev 只复核已通过机械校验的 accepted；绝不回写 accepted 或字幕产物。
         from features.calibrate.calib_decision import apply_shadow
         apply_shadow(result, decision_client, log=log)
+        _tel_emit_shadow("decision", result.get("decision") or {})
 
         # Jev 对象级 mention 影子审核（第二条影子链，纪律同上：绝不回写产物）。
         _mention_shadow_review(result, decision_client, out, mode_key,
@@ -2355,20 +3286,27 @@ def calibrate(src: str, out: str = None, report: str = None, mode_flag: str = ""
         # 报告
         _write_report(report, src, out, mode_flag, round_no, result, rules)
         _append_adopt_section(report, (result.get("meta") or {}).get("_adopted") or [])
+        result["verified_evidence_chars"] = len(result.get("verified_evidence") or "")
+        if result["verified_evidence_chars"]:
+            _log_do(log, f"  · 本轮 A 级来源证据 {result['verified_evidence_chars']} 字"
+                         "（official/wiki 命中，可用于放行查证到的官方名）", "dim")
         result["ok"] = True
         result["seconds"] = round(time.time() - t0, 1)
         _log_do(log, f"AI 校准完成（第 {round_no} 轮）：脚本 {result['script_changes']} 处"
                      f" + AI {result['ai_changes']} 处，拒绝 {result['rejected']} 处，"
                      f"耗时 {result['seconds']}s", "ok")
         _log_do(log, f"报告：{report}")
+        _tel_round_end(result)
         return result
     except CalibCancelled:
         result["error"] = "已取消"
         _log_do(log, "已取消 AI 校准", "err")
+        _tel_round_end(result)
         return result
     except Exception as e:  # noqa: BLE001
         result["error"] = f"{type(e).__name__}: {e}"
         _log_do(log, f"AI 校准异常：{result['error']}", "err")
+        _tel_round_end(result)
         return result
     finally:
         if workdir is None:
@@ -2394,11 +3332,27 @@ def _split_chunks(cues, max_cues: int, max_chars: int):
     return chunks
 
 
+def _is_content_inspection(msg) -> bool:
+    """端点内容审核拦截（2026-11-25）：百炼 data_inspection_failed / inappropriate
+    content 等。这是**永久性内容拒绝**，不是瞬时抽风——盲目重问同一内容只会再被拒、
+    再撞 300s 超时空转。命中后应二分隔离（小块更易过审）或跳过，绝不原块重问。"""
+    m = (msg or "").lower()
+    return ("data_inspection_failed" in m or "inappropriate content" in m
+            or "content inspection" in m or "内容审核" in m or "data_inspection" in m)
+
+
+def _is_timeout(msg) -> bool:
+    """请求超时（2026-11-25）：300s 无响应。多条块超时多半是块太大/输出太多，
+    重问同块只会再超时；二分隔离比原地重问更省时间。"""
+    m = (msg or "").lower()
+    return ("超时" in m or "timeout" in m or "timed out" in m or "没收到任何数据" in m)
+
+
 def _ask_block(chat, mode_flag, rules_txt, chunk, round_no, max_tokens, log, tick,
                style="term", with_ref=True, prev_text="", scope_text="",
                attempt=0, think=None, feedback="", web=None, media=None,
                tool_round=0, evidence="", media_evidence="", stats=None,
-               think_rounds=0):
+               think_rounds=0, base_evidence=""):
     """请模型判定一个块的改动，返回 (changes, hard_fail)。
 
     联网查证（2026-09-20）：web 传入 calib_web_agent.make_tools() 产物后，
@@ -2431,7 +3385,8 @@ def _ask_block(chat, mode_flag, rules_txt, chunk, round_no, max_tokens, log, tic
                                style=style, with_ref=with_ref,
                                prev_text=prev_text, scope_text=scope_text,
                                feedback=feedback, evidence=evidence,
-                               media_evidence=media_evidence)
+                               media_evidence=media_evidence,
+                               base_evidence=base_evidence)
     # 心跳：非流式请求在模型吐完之前**没有任何输出**，一块 400 条正常也要
     # 一分多钟。以前这里一声不响，用户只能判断成"卡死"（2026-10-05 实测：
     # 一块因超时重试拖到 7 分 39 秒）。这里先说明"已发出、在等"，超时重试
@@ -2455,6 +3410,30 @@ def _ask_block(chat, mode_flag, rules_txt, chunk, round_no, max_tokens, log, tic
         err = str(e)[:120]
         _LAST_ENDPOINT_ERROR[0] = str(e)[:300]
         _log_do(log, f"  ! 该块调用失败：{err}", "err")
+    # ---- 内容审核拦截：永久拒绝，二分隔离而非盲目重问（2026-11-25 修复超时空转）----
+    # 旧版把 400 data_inspection_failed 当「无效 JSON」原块重问 → 再被拒 → 撞 300s
+    # 超时 ×3 重试空转。内容审核是永久拒绝，重问同内容徒劳；拆小块隔离更易过审。
+    if not raw and _is_content_inspection(err):
+        if len(chunk) > 1:
+            tick()
+            half = max(1, len(chunk) // 2)
+            _log_do(log, f"  ! 内容审核拦截，拆为 {half}+{len(chunk) - half} 隔离重试"
+                         "（小块更易过审，不盲目重问同内容）", "err")
+            a, fa = _ask_block(chat, mode_flag, rules_txt, chunk[:half], round_no,
+                               max_tokens, log, tick, style, with_ref, prev_text,
+                               scope_text, 0, think, web=web, media=media,
+                               evidence=evidence, media_evidence=media_evidence,
+                               stats=stats, think_rounds=think_rounds,
+                               base_evidence=base_evidence)
+            b, fb = _ask_block(chat, mode_flag, rules_txt, chunk[half:], round_no,
+                               max_tokens, log, tick, style, with_ref, prev_text,
+                               scope_text, 0, think, web=web, media=media,
+                               evidence=evidence, media_evidence=media_evidence,
+                               stats=stats, think_rounds=think_rounds,
+                               base_evidence=base_evidence)
+            return a + b, (fa and fb)
+        _log_do(log, "  ✗ 单条内容审核拦截，无法再拆，跳过该条", "err")
+        return [], True
     # ---- 工具环：模型请求工具 → 执行 → 证据回填再问 ----
     # 两类工具（联网查证 / 音画证据）可混合出现在同一轮；web 与 media 各自
     # 处理自己名下的请求，证据合并回填。轮数上限（v1.16.1）：think_rounds>0
@@ -2483,7 +3462,9 @@ def _ask_block(chat, mode_flag, rules_txt, chunk, round_no, max_tokens, log, tic
             if web:
                 sub = [r for r in reqs if (r.get("tool") or "") in web_kinds]
                 if sub:
-                    web_part = run_tools(sub, web)
+                    # stats 透传：web_search 的 A 级命中同时并入会话证据
+                    # （stats["verified_evidence"]），供后续证据校验放行官方名。
+                    web_part = run_tools(sub, web, stats=stats)
             if media:
                 sub = [r for r in reqs if (r.get("tool") or "") not in web_kinds]
                 if sub:
@@ -2504,12 +3485,33 @@ def _ask_block(chat, mode_flag, rules_txt, chunk, round_no, max_tokens, log, tic
                                   media_evidence + "\n\n" + media_part,
                                   MAX_MEDIA_EVIDENCE_CHARS)
                                   if media_part else media_evidence),
-                              stats=stats, think_rounds=think_rounds)
+                              stats=stats, think_rounds=think_rounds,
+                              base_evidence=base_evidence)
     changes, status = parse_changes(raw)
     if status == "ok":
         return changes, False
 
     if attempt == 0:
+        # 超时多条块：二分隔离而非原地重问（2026-11-25）。重问同一超时块只会再撞
+        # 300s×3 重试空转；拆小块降低单块输出量，更可能在超时窗内吐完。
+        if status == "invalid" and _is_timeout(err) and len(chunk) > 1:
+            tick()
+            half = max(1, len(chunk) // 2)
+            _log_do(log, f"  ! 请求超时，拆为 {half}+{len(chunk) - half} 隔离重试"
+                         "（不重问同一超时块）", "err")
+            a, fa = _ask_block(chat, mode_flag, rules_txt, chunk[:half], round_no,
+                               max_tokens, log, tick, style, with_ref, prev_text,
+                               scope_text, 0, think, web=web, media=media,
+                               evidence=evidence, media_evidence=media_evidence,
+                               stats=stats, think_rounds=think_rounds,
+                               base_evidence=base_evidence)
+            b, fb = _ask_block(chat, mode_flag, rules_txt, chunk[half:], round_no,
+                               max_tokens, log, tick, style, with_ref, prev_text,
+                               scope_text, 0, think, web=web, media=media,
+                               evidence=evidence, media_evidence=media_evidence,
+                               stats=stats, think_rounds=think_rounds,
+                               base_evidence=base_evidence)
+            return a + b, (fa and fb)
         # 第一次失败先原地重问（truncated 时已自动加倍输出预算；invalid 用原预算）；
         # v1.16.0：附上失败原因与整改要求——反馈也是接口的一部分。
         tick()
@@ -2537,7 +3539,8 @@ def _ask_block(chat, mode_flag, rules_txt, chunk, round_no, max_tokens, log, tic
                           log, tick, style, with_ref, prev_text, scope_text, 1,
                           think, feedback, web=web, media=media,
                           evidence=evidence, media_evidence=media_evidence,
-                          stats=stats, think_rounds=think_rounds)
+                          stats=stats, think_rounds=think_rounds,
+                              base_evidence=base_evidence)
 
     if status == "invalid":
         _log_do(log, "  ✗ 重问后仍未取得有效结果，该块按无改动跳过"
@@ -2553,12 +3556,14 @@ def _ask_block(chat, mode_flag, rules_txt, chunk, round_no, max_tokens, log, tic
                        max_tokens, log, tick, style, with_ref, prev_text,
                        scope_text, 0, think, web=web, media=media,
                        evidence=evidence, media_evidence=media_evidence,
-                       stats=stats, think_rounds=think_rounds)
+                       stats=stats, think_rounds=think_rounds,
+                              base_evidence=base_evidence)
     b, fb = _ask_block(chat, mode_flag, rules_txt, chunk[half:], round_no,
                        max_tokens, log, tick, style, with_ref, prev_text,
                        scope_text, 0, think, web=web, media=media,
                        evidence=evidence, media_evidence=media_evidence,
-                       stats=stats, think_rounds=think_rounds)
+                       stats=stats, think_rounds=think_rounds,
+                              base_evidence=base_evidence)
     return a + b, (fa and fb)
 
 
@@ -3085,13 +4090,67 @@ def _build_tags(model_tags, hay_zh, hay_en, count, log=None):
     return order[:count]
 
 
+def _verify_official_terms_web(terms, web, log, max_queries=8):
+    """对低把握官方核对条目做联网佐证（2026-11-24 W1-③）。
+
+    旧 build_meta 是裸 chat，official_terms 的「把握」全凭模型自评，新名一律 low
+    → _adopt_official_terms 只认 high 全部跳过（识别与执行断链）。这里给低把握条目
+    一次联网查证：A 级来源（official/wiki）的标题/摘要 literally 含该官方名 → 升 high
+    并附 source/note，使其可被采纳。仅处理「干净中文官方名」（2-12 字、纯汉字/间隔号），
+    含括注/英文/超长的含混字段跳过；预算 max_queries 条，失败维持原把握，绝不阻断。
+    """
+    if not web or not callable(web.get("search_structured")):
+        return terms
+    queried = 0
+    for it in terms:
+        if queried >= max_queries:
+            break
+        if not isinstance(it, dict):
+            continue
+        if str(it.get("confidence") or "").strip().lower() in ("高", "high"):
+            continue
+        official = str(it.get("official") or "").strip()
+        term = str(it.get("term") or "").strip()
+        if not (2 <= len(official) <= 12
+                and re.fullmatch(r"[一-鿿·]+", official)):
+            continue
+        if not term or term == official:
+            continue
+        queried += 1
+        try:
+            hits = web["search_structured"](f"{official} 官方中文名称")
+        except Exception:                            # noqa: BLE001
+            continue
+        attested = None
+        for h in hits or []:
+            if str(h.get("tier") or "") not in VERIFIED_TIERS:
+                continue
+            blob = f"{h.get('title', '')} {h.get('snippet', '')}"
+            if official in blob:
+                attested = h
+                break
+        if attested:
+            it["confidence"] = "high"
+            it["verified"] = True
+            it["source"] = str(attested.get("url") or "")
+            it["note"] = (str(it.get("note") or "")
+                          + f"（联网佐证：{attested.get('tier')} {attested.get('url', '')}）").strip()
+            _log_do(log, f"  ✓ 官方核对联网佐证：{term} → {official}"
+                         f"（{attested.get('tier')}）", "ok")
+    return terms
+
+
 def build_meta(chat, mode_flag, src, cues, accepted, log, round_no=1,
                max_tokens=65536, think=None, context_tokens=1000000,
-               orig_title="") -> dict:
+               orig_title="", web=None) -> dict:
     """第 9 步：产出片源档案（中文标题 / 10 个 tag / 官方中文核对 / 脚本沉淀建议）。
 
     orig_title（v1.16.1）：原始视频标题——新标题的**参考基准**（提示词里要求
     「参考它改写、不要照抄」）；取不到时传 ""，模型完全依据字幕内容起标题。
+
+    web（2026-11-24 W1-③）：calib_web_agent.make_tools() 产物。传入后对低把握
+    官方核对条目做联网佐证（_verify_official_terms_web），A 级来源命中升 high 可采纳。
+    None=纯自评（旧行为）。
 
     这是**附加产出**：任何失败都只记日志、不阻断校准（不能让整轮白跑）。
     """
@@ -3170,6 +4229,9 @@ def build_meta(chat, mode_flag, src, cues, accepted, log, round_no=1,
             "script_suggestions": [x for x in (obj.get("script_suggestions") or [])
                                    if isinstance(x, dict)][:60],
         }
+        if web:
+            meta["official_terms"] = _verify_official_terms_web(
+                meta["official_terms"], web, log)
         if not meta["title"] and meta["orig_title"]:
             # 模型没给标题（偶发）→ 退回原始标题，报告里至少有一行可用标题
             meta["title"] = meta["orig_title"]
@@ -3234,6 +4296,11 @@ def _write_report(path, src, out, mode_flag, round_no, result, rules) -> None:
     if result.get("suggest_rewrite"):
         lines += ["", "> ⚠ **本片疑为机翻腔**：多条整句重写提议被名词级校验挡回。"
                   "建议改用 `rewrite` 风格（整句重写）重跑一轮。"]
+    if result.get("style_auto_rewrite"):
+        lines.append("- 风格自动改派：term → rewrite（本轮规则命中 0 条且为双语带参考行片源）")
+    if result.get("rules_fallback_all"):
+        lines.append("- ⚠ 知识库规则来源：本模式实体不足 10 个，已退化为全量规则"
+                     "（可能混入跨模式错形）")
     if result.get("resumed_from"):
         lines.append(f"- 起点：以上轮结果 `{result['resumed_from']}` 为输入（未重跑脚本基线）")
     if result.get("web_enabled") or result.get("tool_calls"):
@@ -3292,6 +4359,56 @@ def _write_report(path, src, out, mode_flag, round_no, result, rules) -> None:
                       "改用 `rewrite` 风格（整句重写）再跑一轮，或人工确认后逐条覆盖。"]
     else:
         lines.append("（无）")
+
+    # 三b、跨 cue 一致性候选（2026-11-24 P1，报告-only，未自动改产物）
+    cross = result.get("cross_cue") or []
+    lines += ["", "## 三b、跨 cue 一致性候选（仅提示，未自动改）", ""]
+    if cross:
+        lines += ["| 类型 | 涉及序号 | 说明 |", "| --- | --- | --- |"]
+        _kind_name = {"book_split": "书名号断裂", "boundary_dup": "相邻重复",
+                      "same_src_diff": "同源异译"}
+        for it in cross[:60]:
+            lines.append(f"| {_kind_name.get(it.get('kind'), it.get('kind'))} "
+                         f"| {'/'.join(str(n) for n in it.get('nums', []))} "
+                         f"| {str(it.get('detail', '')).replace('|', '/')} |")
+        lines += ["", "> 逐 cue 校验看不到跨 cue 问题；本表由全片字符串扫描得出，"
+                      "供人工裁决或下轮 rewrite 处理，**不自动改动产物**。"]
+    else:
+        lines.append("（无）")
+
+    # 三c、交付门禁（2026-11-24）：audit 三扫 / 不动点 / 会话回灌——日志里有、报告里也要能复盘
+    _ag = result.get("audit_gate")
+    _fp = result.get("fixed_point")
+    _sc = result.get("session_canonicals") or []
+    if _ag is not None or _fp is not None or _sc:
+        lines += ["", "## 三c、交付门禁（audit 三扫 / 不动点 / 会话回灌）", ""]
+        if _ag is not None:
+            _inc = "；⚠ 无参考行锚点，三扫 inconclusive" if not _ag.get("anchors") else ""
+            lines.append(f"- audit 三扫：锚点 {_ag.get('anchors', 0)}；高置信残留 {_ag.get('s2_hi', 0)}"
+                         f"（机械补校 {result.get('audit_fixes') or 0} 处）；拉丁残留 {_ag.get('s1', 0)}；"
+                         f"同族缺口 {_ag.get('s3', 0)}{_inc}")
+        if _fp is True:
+            lines.append(f"- 不动点：✓ 成立——引擎在机械基线上复跑零改动（SHA256 "
+                         f"{(result.get('fixed_point_sha') or '')[:16]}…）")
+        elif _fp is False:
+            _cv = result.get("fixed_point_converges")
+            lines.append(f"- 不动点：{'⚠' if _cv else '✗'} 未成立——引擎在机械基线上仍会改 "
+                         f"{result.get('fixed_point_break') or '?'} 处；"
+                         + (f"{result.get('fixed_point_passes')} 跑后收敛到稳定态（渐进精修）"
+                            if _cv else
+                            f"{result.get('fixed_point_passes')} 跑仍不收敛（振荡规则，需排查）"))
+        else:
+            lines.append("- 不动点：— 跳过（未跑脚本基线，无机械层可验）")
+        if _sc:
+            _pm = result.get("session_promote") or {}
+            lines.append(f"- 会话回灌：{len(_sc)} 条当轮生效（`session_canonicals.jsonl`）；高置信条目"
+                         + ("已固化进真源" if _pm.get("state") == "promoted"
+                            else "未固化（设 VT_SESSION_PROMOTE=1 开启当轮固化）"))
+            lines += ["", "| 错形 | 官方名 | 来源 | 置信 | cue |", "| --- | --- | --- | --- | --- |"]
+            for e in _sc[:40]:
+                lines.append(f"| {str(e.get('term')).replace('|', '/')} "
+                             f"| {str(e.get('official')).replace('|', '/')} "
+                             f"| {e.get('source')} | {e.get('confidence')} | {e.get('cue')} |")
 
     # 四、官方中文核对（v1.15.1）
     terms = meta.get("official_terms") or []

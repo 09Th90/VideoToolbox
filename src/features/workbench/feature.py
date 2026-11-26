@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.2.5
+# @version 3.3.1
 """workbench 功能清单。GUI「字幕处理」页；依赖 transcribe/translate 服务。"""
 from features._registry import FeatureSpec, GuiSpec
 

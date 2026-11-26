@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.2.5
+# @version 3.3.1
 """术语表注册表、实体投影与上下文缓存
 
 源：subtitle_calib_merged.py L2198-L10667 @ 97d7d463（2026-10-24 冻结快照）
@@ -23,7 +23,7 @@ from .data.entities import ENTITIES
 from .data.ja import (JA_CONTEXT, JA_ENDFIELD_CONTEXT, JA_ENDFIELD_TERMS,
                       JA_PGR_CONTEXT, JA_PGR_TERMS, JA_TERMS)
 from .data.ko import (KO_ASR_CONTEXT, KO_ASR_TERMS, KO_CONTEXT, KO_TERMS,
-                      WW40IGN_CONTEXT, WW40KO_CONTEXT)
+                      WW40IGN_CONTEXT, WW40KO_CONTEXT, WW40PV_CONTEXT)
 from .data.limbus import LIMBUS_CONTEXT, LIMBUS_TERMS
 from .data.misc import (EN_LINE_TERM_FIXES, FF14_CONTEXT, FF14_TERMS,
                         HSR_CONTEXT, HSR_TERMS,
@@ -34,7 +34,7 @@ from .data.ssv import SSV_CONTEXT, SSV_TERMS
 from .data.tga import TGA_CONTEXT, TGA_TERMS
 from .data.wwm import WWM_CONTEXT, WWM_TERMS
 from .data.gfl2 import GFL2_CONTEXT, GFL2_TERMS
-from .data.modes import _MODE_CTX_TABLE, _MODE_TERM_TABLE
+from .data.modes import _MODE_CTX_TABLE, _MODE_TERM_TABLE, MODE_REGISTRY
 
 
 # 扁平术语表注册表：顺序沿用原文件定义顺序，供 terms-check / kb-sync 扫描。
@@ -48,6 +48,7 @@ TABLES = {
     "KO_TERMS": KO_TERMS,
     "WW40KO_CONTEXT": WW40KO_CONTEXT,
     "WW40IGN_CONTEXT": WW40IGN_CONTEXT,
+    "WW40PV_CONTEXT": WW40PV_CONTEXT,
     "PGR_EN_TERMS": PGR_EN_TERMS,
     "ENDFIELD_TERMS": ENDFIELD_TERMS,
     "ENDFIELD_BI_TERMS": ENDFIELD_BI_TERMS,
@@ -92,6 +93,7 @@ CTX_TABLES = {
     "KO_CONTEXT": KO_CONTEXT,
     "WW40KO_CONTEXT": WW40KO_CONTEXT,
     "WW40IGN_CONTEXT": WW40IGN_CONTEXT,
+    "WW40PV_CONTEXT": WW40PV_CONTEXT,
     "KO_ASR_CONTEXT": KO_ASR_CONTEXT,
     "REACT_CONTEXT": REACT_CONTEXT,
     "HSR_CONTEXT": HSR_CONTEXT,
@@ -203,6 +205,7 @@ _CTX_COMPILE_SPEC = [
     ("_KO_CONTEXT_COMPILED", KO_CONTEXT, 0, False),
     ("_WW40KO_CONTEXT_COMPILED", WW40KO_CONTEXT, 0, False),
     ("_WW40IGN_CONTEXT_COMPILED", WW40IGN_CONTEXT, 0, False),
+    ("_WW40PV_CONTEXT_COMPILED", WW40PV_CONTEXT, 0, False),
     ("_KO_ASR_CONTEXT_COMPILED", KO_ASR_CONTEXT, 0, False),
     ("_REACT_CONTEXT_COMPILED", REACT_CONTEXT, re.I, True),
     ("_LIMBUS_CONTEXT_COMPILED", LIMBUS_CONTEXT, re.I, True),
@@ -232,6 +235,40 @@ for _name, _tbl, _flags, _filt in _CTX_COMPILE_SPEC:
 
 _EXCLUDE_COMPILED = {w: (right, [re.compile(rx, re.I) for rx in rxs])
                      for w, (right, rxs) in EXCLUDE_CONTEXT.items()}
+
+# P2-2 派生缓存代次：ctx 表被原地重建（kb-sync 注入）时自增，mention._CTX_INDEX_CACHE
+#   等派生索引据此判失效。拍平后为顶层全局，包模式由 mention 读 state._CACHE_GEN。
+_CACHE_GEN = 0
+
+
+def _ctx_compiled_by_table():
+    """语境表名 → 预编译缓存（P2-1）。
+
+    engine 原先手写了一张 28 项字典来把注册表 ctx 名映射到缓存对象：漏登记一个表名
+    就静默 `.get() or []`，整片语境层无声失效（无告警、无回归）。改为从
+    _CTX_COMPILE_SPEC 派生（规格表是唯一真源），并由 _check_ctx_slots 在 import 期
+    校验「注册表声明的每个 ctx 槽都有缓存」。
+    """
+    by_obj = {id(t): n for n, t in CTX_TABLES.items()}
+    return {by_obj[id(_tbl)]: globals()[_cache]
+            for _cache, _tbl, _flags, _filt in _CTX_COMPILE_SPEC
+            if id(_tbl) in by_obj}
+
+
+_CTX_COMPILED_BY_TABLE = _ctx_compiled_by_table()
+
+
+def _check_ctx_slots():
+    """P2-1 守卫：注册表每条声明的 ctx 槽必须有预编译缓存（否则语境层静默失效）。"""
+    for _m, _e in MODE_REGISTRY.items():
+        _c = _e.get("ctx")
+        if _c and _c not in _CTX_COMPILED_BY_TABLE:
+            raise SystemExit(
+                f"MODE_REGISTRY[{_m!r}].ctx={_c!r} 无预编译缓存"
+                f"（_CTX_COMPILE_SPEC 漏登记，语境层会静默返回空表）")
+
+
+_check_ctx_slots()
 
 
 
@@ -276,9 +313,15 @@ def _rebuild_context_caches():
     缓存必须原地更新：engine/其他模块在 import 时已持有这些 list/dict 的引用，
     重新绑定会让 kb-sync 运行期注入静默失效。规格表驱动：新增缓存只要进
     _CTX_COMPILE_SPEC 即自动纳入构建与重建（消除「漏重建静默失效」事故类）。
+
+    每次重建自增 _CACHE_GEN：mention 的 ctx AC 索引等派生缓存据此判失效（P2-2）。
     """
+    global _CACHE_GEN
+    _CACHE_GEN += 1
     for _name, _tbl, _flags, _filt in _CTX_COMPILE_SPEC:
         globals()[_name][:] = _compile_ctx(_tbl, _flags, _filt)
+    _CTX_COMPILED_BY_TABLE.clear()
+    _CTX_COMPILED_BY_TABLE.update(_ctx_compiled_by_table())
     _EXCLUDE_COMPILED.clear()
     _EXCLUDE_COMPILED.update(
         {w: (right, [re.compile(rx, re.I) for rx in rxs])

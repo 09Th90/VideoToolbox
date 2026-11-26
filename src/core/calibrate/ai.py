@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.2.5
+# @version 3.3.1
 """AI 校准入口（calib_ai_chat / calib_web_proxy / calib_ai_run）+ 同步开关。
 
 v2.3.1 拆分工程 · 自 video_toolbox.py 原样搬入。
@@ -12,6 +12,7 @@ from core.shared.runtime import system_python
 from core.shared.ai import ai_plan_risks
 
 import os
+import time
 
 from core.shared.ai import ai_load_config, ai_mod
 from core.shared.decision import decision_client
@@ -43,11 +44,37 @@ def calib_ai_chat(prompt, system=None, max_tokens=None, on_reasoning=None,
         client.on_event = _CALIB_EVENT_SINK[0] if _CALIB_EVENT_SINK else None
     except Exception:  # noqa: BLE001
         pass
-    return client.chat_text(prompt, system=system,
-                            max_tokens=int(max_tokens or 8192),
-                            on_reasoning=on_reasoning,
-                            thinking=thinking,
-                            reasoning_effort=effort if thinking else None)
+    # 开发版观测（2026-11-24）：请求/思考链/响应成对事件；telemetry 未启用时
+    # no-op。思考流仅在调用方本就传了 on_reasoning 时包装累积（不改变流式行为），
+    # 收尾一次性发射，避免逐 chunk 事件泛滥。
+    from features.calibrate import telemetry as _tel  # noqa: PLC0415
+    _t0 = time.time()
+    _reason_parts = []
+    _sink = on_reasoning
+    if on_reasoning is not None:
+        def _sink(txt):
+            _reason_parts.append(str(txt))
+            on_reasoning(txt)
+    _tel.emit("ai", "llm_request", prompt=prompt, system=system,
+              max_tokens=int(max_tokens or 8192), thinking=thinking,
+              effort=effort if thinking else None,
+              member=(member or {}).get("name") if isinstance(member, dict) else None,
+              model=(member or {}).get("model") if isinstance(member, dict) else None)
+    try:
+        reply = client.chat_text(prompt, system=system,
+                                 max_tokens=int(max_tokens or 8192),
+                                 on_reasoning=_sink,
+                                 thinking=thinking,
+                                 reasoning_effort=effort if thinking else None)
+    except Exception as _e:
+        _tel.emit("ai", "llm_error", error=str(_e)[:2000],
+                  elapsed_ms=int((time.time() - _t0) * 1000))
+        raise
+    if _reason_parts:
+        _tel.emit("ai", "reasoning", text="".join(_reason_parts))
+    _tel.emit("ai", "llm_response", text=reply,
+              elapsed_ms=int((time.time() - _t0) * 1000))
+    return reply
 
 
 #: 当前校准运行的「过程事件」上报槽（0/1 元素）：calib_ai_run 起止时设置/清空，
@@ -85,11 +112,12 @@ def calib_web_proxy():
 def calib_ai_run(src, out=None, report=None, mode_flag="", fix_en=False,
                  log=None, round_no=1, cancel=None, workdir=None,
                  style=None, resume_from=None, prev_changes=None, title=None,
-                 media_path=None):
+                 media_path=None, task_instruction=None):
     """跑一轮 Agent 级 AI 校准，返回结果 dict（见 calib_ai_agent.calibrate）。
 
-    style：None=读配置 `calib_style`——`term` 术语级（只替换名词，默认）/
-           `rewrite` 整句重写（针对机翻腔、跨 cue 断句的片源，长双语片常用）。
+    style：None=读配置 `calib_style` 三档——`""`/`term`/`auto` 自动（默认：机翻腔
+           hot==0 双语片自动改派整句重写，否则术语级）/ `term-locked` 锁定术语级
+           （只替换名词，绝不改派）/ `rewrite` 整句重写（针对机翻腔、跨 cue 断句的片源）。
     resume_from：起点文件。长片源「再次校准」应传上一轮产物：这样会**跳过脚本基线**
            直接在上轮成果上继续；否则从原始源重跑会把上轮已采纳的改动丢掉。
     prev_changes：上轮采纳明细 [(num, old, new), ...]，注入提示词禁止回退。
@@ -139,7 +167,14 @@ def calib_ai_run(src, out=None, report=None, mode_flag="", fix_en=False,
             log("· " + _r, "err")
         except TypeError:
             log("· " + _r)
-    style = style or str(ai.get("calib_style") or "term")
+    # 2026-11-24 自动路由接线：calibrate 的 style=None 哨兵＝「未锁定，允许按片源
+    # 特征自动改派 rewrite」（见 calib_ai_agent.calibrate）。配置三档（设置页下拉）：
+    #   "" / "auto" / 旧值 "term" → 未锁定 → 传 None（hot==0 双语片自动切 rewrite）；
+    #   "term-locked" → 显式锁定 term（calib_ai_agent 内归一为 term，绝不改派）；
+    #   "rewrite"       → 显式锁定 rewrite。调用方显式传入 style 时优先尊重。
+    if style is None:
+        _cfg_style = str(ai.get("calib_style") or "").strip().lower()
+        style = None if _cfg_style in ("", "term", "auto") else _cfg_style
     # 片源模式 -> 作品名：联网查证据此做「站内优先检索」
     # （PRTS / BWIKI / 终末地 Wiki / 库街区 / 森空岛，见 calib_web_agent.WORK_SITES）。
     # 识别不出时为空，Agent 会退回通用 Bing 检索。
@@ -220,8 +255,18 @@ def calib_ai_run(src, out=None, report=None, mode_flag="", fix_en=False,
                    "rounds": max(1, int(ai.get("calib_cluster_rounds") or 1))}
 
     _CALIB_EVENT_SINK[:] = [_calib_event_sink(log)] if log else []
+    # 开发版观测（2026-11-24）：AI 校准会话包裹 + 配置快照；未启用时 no-op。
+    from features.calibrate import telemetry as _tel  # noqa: PLC0415
+    _tel.start_session("ai-calibrate", input=src, out=out, mode=mode_flag,
+                       round=round_no, style=style, resume_from=resume_from)
+    _tel.emit("workflow", "stage", stage="ai_config",
+              model=ai.get("model"), base_url=ai.get("base_url"),
+              web=bool(web), media=bool(media), cluster=bool(cluster),
+              think_rounds=int(ai.get("calib_think_rounds") or 0),
+              concurrency=int(ai.get("calib_concurrency") or 1))
+    _t0 = time.time()
     try:
-        return _agent.calibrate(
+        result = _agent.calibrate(
             src, out=out, report=report, mode_flag=mode_flag, fix_en=fix_en,
             script=os.path.join(APP_DIR, "subtitle_calib_merged.py"),
             python=system_python(), log=log, chat=calib_ai_chat,
@@ -237,7 +282,17 @@ def calib_ai_run(src, out=None, report=None, mode_flag="", fix_en=False,
             style=style, resume_from=resume_from, prev_changes=prev_changes,
             sentence_aware=bool(ai.get("calib_sentence_aware", True)),
             strict_width=bool(ai.get("calib_strict_width", False)),
-            web=web, media=media, preflight=True)
+            web=web, media=media, preflight=True,
+            task_instruction=task_instruction)
+        _tel.end_session(ok=result.get("ok"), error=result.get("error") or None,
+                         script_changes=result.get("script_changes"),
+                         ai_changes=result.get("ai_changes"),
+                         rejected=result.get("rejected"),
+                         elapsed_ms=int((time.time() - _t0) * 1000))
+        return result
+    except Exception as _e:
+        _tel.end_session(ok=False, error=str(_e)[:2000])
+        raise
     finally:
         # 事件槽用完即清：否则跑完的校准日志回调会挂在全局客户端上，
         # 之后别的调用（视觉识别、接口测试）出的重试消息会写进一份已经结束的日志。

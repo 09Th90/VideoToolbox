@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.2.5
+# @version 3.3.1
 """流水线页（2026-11-15 功能解耦阶段③：从 video_toolbox_qt.py 拆出，逐字同源）。
 
 * 后端：引擎侧 pipeline 模块（目录感知 + 阶段状态机，STAGES 自带 optional 降级）；
@@ -8,7 +8,7 @@
 """
 import os
 
-from PySide6.QtCore import Qt, QRectF
+from PySide6.QtCore import Qt, QRectF, QTimer
 from PySide6.QtGui import QColor, QPainter, QPen
 from PySide6.QtWidgets import QHBoxLayout, QVBoxLayout, QWidget
 
@@ -20,8 +20,8 @@ from vt_fluent import (BodyLabel, CaptionLabel, FluentIcon as FIF, InfoBar,
 import video_toolbox as engine
 import features.pipeline.pipeline as pl
 
-from vt_app.widgets import (LogView, TabPage, card, expand_h, fit_caption,
-                            fit_spin, row, tab_caption)
+from vt_app.widgets import (LogView, PageHeader, TabPage, card, expand_h,
+                            fit_caption, fit_spin, row)
 
 
 class _StageDot(ToolButton):
@@ -173,10 +173,10 @@ class PipelinePage(QWidget):
         self.shell = TabPage(self)
         outer.addWidget(self.shell)
         vbox = self.shell.content_lay
-        vbox.addWidget(tab_caption(
-            "填入链接即可自动完成：下载（原片/字幕/封面/信息）→ 谷歌翻译 → "
-            "字幕校准 → 二次校准 → 成品输出；下载目录里新出现的视频也会自动接管。"
-            "成品不另建目录，直接增量写回视频所在的原文件夹", self))
+        vbox.addWidget(PageHeader(
+            "流水线",
+            "链接自动下载 → 翻译 → 校准 → 输出；下载目录里新出现的视频自动接管",
+            self))
 
         # ---- 新建任务（链接驱动） ----
         self.link_edit = LineEdit(self)
@@ -217,6 +217,15 @@ class PipelinePage(QWidget):
         lay.addWidget(row(self.scan_btn, self.retry_btn, self.open_btn, None))
         vbox.addWidget(box)
 
+        # v3：无任务时也把真实阶段顺序摆出来，避免页面只剩空任务表。
+        stage_card, stage_lay = card(
+            "阶段顺序", "单个任务按下列顺序推进；跳过项会标灰显示")
+        keys = [getattr(s, "key", "") for s in getattr(pl, "STAGES", ())]
+        seq = "  →  ".join(pl.STAGE_LABELS.get(k, k) for k in keys)
+        stage_lay.addWidget(fit_caption(CaptionLabel(seq or "下载 → 合并 → 转录 → 翻译 → 校准 → 发布 → 输出",
+                                                     stage_card)))
+        vbox.addWidget(stage_card)
+
         self.list_box, self.list_lay = card("任务进度")
         # 清空按钮跟着「任务进度」走：清掉的是这一块里的历史任务卡片
         self.list_lay.insertWidget(1, row(None, self.clear_btn))
@@ -248,7 +257,10 @@ class PipelinePage(QWidget):
                                             pl.DEFAULT_WORKERS))
         except Exception:  # noqa: BLE001
             pass
-        self._refresh()
+        # 2026-11-25 修复启动挂起：attach 由 _settle_after_screen_switch→_relayout_pages
+        # 在启动期同步调用，_refresh→_rebuild 逐 job 建卡阻塞主线程消息泵 → Windows
+        # 「Python 未响应」甚至进程终止。延迟一拍重建，先让启动消息泵跑通、窗口确立。
+        QTimer.singleShot(0, self._refresh)
 
     # ---------- 状态更新（主线程） ----------
     def on_state(self, payload):

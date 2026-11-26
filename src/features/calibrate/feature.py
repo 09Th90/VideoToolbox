@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.2.5
+# @version 3.3.1
 """calibrate 功能清单。三个透传子命令（calibrate/stabilize/audit）同属本功能。
 
 双轨（2026-11-08）：运行时直连 calib_core 包；根目录 subtitle_calib_merged.py
@@ -29,6 +29,9 @@ FEATURE = FeatureSpec(
                         "拉丁残留 / 错形残留 / 同词族一致性，退出码 1＝有候选）",
                    setup="features.calibrate.cli:setup_audit",
                    passthrough=True),
+        CliCommand(name="trace",
+                   help="开发版校准观测事件查询（list/tail/show；--follow 实时跟踪）",
+                   setup="features.calibrate.cli:setup_trace"),
     ),
     order=60,
 )

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# @version 3.2.5
+# @version 3.3.1
 """校准知识条目级合并核心（纯函数，零副作用）。
 
 ============================================================
@@ -146,25 +146,275 @@ def _entity_fields(call):
     return canonical, modes, variants
 
 
-def _registry_conflicts(src):
-    """静态复算脚本 _register_entities 的注册冲突检查（同变体不同目标）。
+#: 角色名共存短键：这些短键（同一表内）与「辛吉勒姆/洛瑟菈/露希尔」等官方长键
+#: 共用前缀/后缀，长键优先替换本身安全（输出等价），但**禁止单边删除或拆表**，
+#: 一律降级为 warning 交人工复核（2026-11-24 前缀冲突闸门）。
+_NAME_COEXIST_SHORT = frozenset({
+    "Sigi", "西吉",          # vs Sigilum/Sigillum/Sigila mech/西吉兰机甲（辛吉勒姆/隧铠机甲）
+    "露西拉", "卢西拉",       # vs 露西拉总统/卢西拉总统（洛瑟菈校长）
+    "Luciel", "Luciela",     # vs Lucielle/Luciella（露希尔）
+})
 
-    合并器绝不制造这种冲突——它会 raise SystemExit 让整个校准脚本起不来。
-    返回冲突描述列表（空列表 = 通过）。
+#: 术语键只收「词形」：含空白或标点的长键多半是整句 ASR 变体，不作为孤儿长键来源。
+_PHRASE_CHARS = frozenset(" \t:：/、，,。·'’\"()（）<>《》[]【】-—–~!！?？\n\r")
+
+#: 运行期合并表（engine._resolve_terms 口径）：ak-ja 先 AK_TERMS 再 AK_JA_TERMS 覆盖。
+#: 闸门必须按合并视图扫描，否则 AK_JA 单表会把「AK_TERMS 已登记的长键」误判成孤儿。
+_UNION_TERM_TABLES = {"AK_JA_TERMS": ("AK_TERMS",)}
+
+
+def _script_of(ch):
+    """字符脚本类：拉丁字母数字 / 汉字 / 谚文 / 假名 / 其他（空串）。"""
+    if not ch:
+        return ""
+    if ch.isascii() and (ch.isalnum() or ch == "_"):
+        return "latin"
+    o = ord(ch)
+    if 0x3400 <= o <= 0x9FFF or 0xF900 <= o <= 0xFAFF:
+        return "cjk"
+    if 0xAC00 <= o <= 0xD7AF:
+        return "hangul"
+    if 0x3040 <= o <= 0x30FF:
+        return "kana"
+    return ""
+
+
+def _same_script(a, b):
+    sa = _script_of(a)
+    return bool(sa) and sa == _script_of(b)
+
+
+def _term_like(key):
+    return (len(key) >= 2 and len(key) <= 24
+            and not any(c in _PHRASE_CHARS for c in key))
+
+
+def _entity_official_keys(entities):
+    """实体官方键（canonical/en/ja/ko/variants）与 键->canonical 映射。"""
+    official, owner = set(), {}
+    for e in entities:
+        canon = e[0]
+        extras = e[3] if len(e) > 3 else ()
+        for k in (canon,) + tuple(extras) + tuple(e[2]):
+            if not k:
+                continue
+            official.add(k)
+            owner.setdefault(k, canon)
+    return official, owner
+
+
+def term_registry_conflicts(tables, entities, mode_table=None, project=False):
+    """术语表前缀/后缀冲突闸门（2026-11-24）。
+
+    背景：机械替换器按键长降序 str.replace，同表长键优先是安全的；真正的污染
+    来自「孤儿短键」——短键在表、对应官方长键不在该表时，短键会把长键切碎
+    （西吉兰机甲→西格莉卡兰机甲、Royanes→罗伊族nes）。
+
+    三组检查：
+      A 同表长键二次命中（hard）：apply_map(长键) 必须等于该长键自己的目标；
+      B 孤儿短键（hard/warn）：短键 s 在表 T、实体官方长键 l 不在 T，且 T 对 l 的
+        替换结果不属于 l 的已知正确形（即 l 被切碎）→ hard；若短键本身出现在
+        canonical 里（顺序替换必然二次命中，加长键救不了）→ warning 交人工收窄；
+      C 角色名共存（warn）：_NAME_COEXIST_SHORT 的短键与长键同表共存，
+        只提示人工复核，不拦、不删。
+
+    tables 为 {表名: {错形: 正确形}}；entities 元素为
+    (canonical, modes, variants[, 额外官方键])（兼容 Entity 对象）。
+    project=True 时先按 mode_table 把 variants 投影进表（与
+    state._register_entities 同构）；AK_JA_TERMS 等运行期并表按合并视图扫描。
+    返回 {"hard": [...], "warn": [...]}。
+    """
+    def _norm(e):
+        if isinstance(e, (tuple, list)):
+            canon = e[0]
+            modes = e[1] if len(e) > 1 else ()
+            variants = e[2] if len(e) > 2 else ()
+            extras = e[3] if len(e) > 3 else ()
+        else:
+            canon = getattr(e, "canonical", None)
+            modes = getattr(e, "modes", ()) or ()
+            variants = getattr(e, "variants", ()) or ()
+            extras = tuple(k for k in (getattr(e, "en", None), getattr(e, "ja", None),
+                                       getattr(e, "ko", None)) if k)
+        return (canon, tuple(modes), tuple(variants), tuple(extras))
+
+    ents = [_norm(e) for e in entities]
+    ents = [e for e in ents if e[0]]
+    tbls = {n: dict(t) for n, t in tables.items() if isinstance(t, dict)}
+    # 合并视图：AK_JA_TERMS 等运行期并表的模式按合并后单表扫描。
+    # 只把「并表独有键」当短键扫描（基表问题已在基表扫描过，避免重复报告）。
+    union_short = {}
+    for name, extra in _UNION_TERM_TABLES.items():
+        if name in tbls:
+            merged = {}
+            for src in extra:
+                if isinstance(tbls.get(src), dict):
+                    merged.update(tbls[src])
+            base_keys = set(merged)
+            merged.update(tbls[name])
+            union_short[name] = set(tbls[name]) - base_keys
+            tbls[name] = merged
+
+    if project:
+        for canon, modes, variants, _extra in ents:
+            for m in modes:
+                tname = (mode_table or {}).get(m)
+                tbl = tbls.get(tname) if tname else None
+                if not isinstance(tbl, dict):
+                    continue
+                for v in variants:
+                    tbl.setdefault(v, canon)
+
+    hard, warn = [], []
+    official, owner = _entity_official_keys(ents)
+
+    # 长键池 + 前缀/后缀索引：对每个长键枚举 2..len-1 的前缀/后缀
+    pool = set()
+    for t in tbls.values():
+        pool.update(t)
+    pool |= official
+    pre_index, suf_index = {}, {}
+    for l in pool:
+        if not _term_like(l):
+            continue
+        for i in range(2, len(l)):
+            pre_index.setdefault(l[:i], set()).add(l)
+            suf_index.setdefault(l[-i:], set()).add(l)
+
+    # 每张表的替换器（懒编译：按键长降序，仅供命中的键算输出）
+    sorted_pairs = {}
+
+    def _apply_map(name, text):
+        pairs = sorted_pairs.get(name)
+        if pairs is None:
+            pairs = sorted(tbls[name].items(), key=lambda kv: len(kv[0]), reverse=True)
+            sorted_pairs[name] = pairs
+        if not pairs or not any(k in text for k, _ in pairs):
+            return text
+        for k, v in pairs:
+            if k in text:
+                text = text.replace(k, v)
+        return text
+
+    for name, tbl in tbls.items():
+        keys = set(tbl)
+        short_keys = union_short.get(name, keys)
+        for s in tbl:
+            if s not in short_keys or not s or len(s) < 2:
+                continue
+            cands = pre_index.get(s, set()) | suf_index.get(s, set())
+            for l in sorted(cands):
+                if l == s:
+                    continue
+                if l.startswith(s):
+                    if not _same_script(s[-1], l[len(s)]):
+                        continue
+                elif l.endswith(s):
+                    if not _same_script(s[0], l[-len(s) - 1]):
+                        continue
+                else:
+                    continue
+                if l in keys:
+                    # A 同表长键输出等价：长键替换结果不得再被其它键二次命中
+                    out = _apply_map(name, l)
+                    if out != tbl[l]:
+                        item = (f"{name}[{s!r}->{tbl[s]!r}] 长键 {l!r} 二次命中"
+                                f"（应得 {tbl[l]!r}，实得 {out!r}）")
+                        if s in _NAME_COEXIST_SHORT:
+                            warn.append("角色名共存，勿删：" + item)
+                        elif s in tbl[l]:
+                            # 短键落在长键的值里：加长键也救不了，只能人工收窄
+                            warn.append("短键过泛（值内含键），需人工收窄：" + item)
+                        else:
+                            hard.append(item)
+                    continue
+                # B 孤儿短键：只以「实体官方键」为长键来源（正确形被切碎才是污染；
+                #   ASR 整句变体被短键部分修正属预期，不进闸门）
+                if l not in official:
+                    continue
+                # l 的 canonical/已知正确形：各表目标、实体 canonical、或 l 本身
+                targets = {t[l] for t in tbls.values() if l in t}
+                canon_set = set(targets)
+                if l in owner:
+                    canon_set.add(owner[l])
+                good = canon_set | {l}
+                out = _apply_map(name, l)
+                if out in good:
+                    continue
+                canon = next(iter(targets)) if len(targets) == 1 else owner.get(l, l)
+                item = (f"{name}[{s!r}->{tbl[s]!r}] 切碎长键 {l!r}"
+                        f"（应得 {canon!r}，实得 {out!r}）")
+                if any(s in g for g in canon_set):
+                    # 短键出现在 canonical 内：补长键也救不了（顺序替换会二次命中），
+                    # 只能由人工收窄短键或改 ctx 锚定 —— 列 warning，不硬拦。
+                    warn.append("短键过泛，需人工收窄：" + item)
+                else:
+                    # 包括角色名共存短键：长键缺失时就是实污染，必须先补长键
+                    hard.append(item)
+
+        # C 同表共存对（长键已在同一表，长键优先安全）：只 warning
+        for s in sorted(keys & _NAME_COEXIST_SHORT):
+            for l in sorted(pre_index.get(s, set()) | suf_index.get(s, set())):
+                if l in keys and l != s:
+                    warn.append(f"{name}[{s!r}/{l!r}] 角色名共存对，禁单边删除/拆表")
+    return {"hard": list(dict.fromkeys(hard)),
+            "warn": list(dict.fromkeys(warn))}
+
+
+def term_conflicts_from_pkg(pkg):
+    """对运行时包（calib_core）扫描术语前后缀冲突。
+
+    包内 TABLES 已由 state._register_entities 投影过，故不再二次投影。
+    返回 {"hard": [...], "warn": [...]}。
+    """
+    tables = {}
+    for name, tbl in getattr(pkg, "TABLES", {}).items():
+        if (isinstance(tbl, dict) and tbl
+                and all(isinstance(k, str) and isinstance(v, str)
+                        for k, v in tbl.items())):
+            tables[name] = tbl
+    return term_registry_conflicts(tables, getattr(pkg, "ENTITIES", ()))
+
+
+def _entity_extra_keys(call):
+    """Entity(...) 的 en/ja/ko 常量键（AST 路径用）。"""
+    out = []
+    for kw in call.keywords:
+        if kw.arg in ("en", "ja", "ko") and isinstance(kw.value, _ast.Constant):
+            if isinstance(kw.value.value, str) and kw.value.value:
+                out.append(kw.value.value)
+    return tuple(out)
+
+
+def _registry_conflicts(src, structured=False):
+    """静态复算脚本 _register_entities 的注册冲突 + 术语前后缀冲突。
+
+    合并器绝不制造注册冲突——它会 raise SystemExit 让整个校准脚本起不来。
+    返回冲突描述列表（空列表 = 通过）；structured=True 时返回
+    {"hard": [...], "warn": [...]}，硬拦项非空即不可用。
 
     2026-11-10：从「只比对静态表」升级为复算运行期投影（先注册实体的 variants
     也会写入表），修实体间同变体不同目标漏检——合并器曾因此写出起不来的脚本。
+    2026-11-24：增补术语表前缀/后缀冲突闸门（同表输出等价 + 孤儿短键）。
     """
     try:
         tree = _ast.parse(src)
     except SyntaxError:
-        return ["语法解析失败"]
-    tables, entities = {}, []
+        bad = ["语法解析失败"]
+        return {"hard": bad, "warn": []} if structured else bad
+    tables, entities, mode_table = {}, [], {}
+    reg_names = []
     for node in tree.body:
         if (isinstance(node, _ast.Assign) and len(node.targets) == 1
                 and isinstance(node.targets[0], _ast.Name)):
             name = node.targets[0].id
             if isinstance(node.value, _ast.Dict):
+                if name == "TABLES":
+                    # TABLES 的值是 Name 节点（非字面量），只取字符串键名作注册表
+                    reg_names = [k.value for k in node.value.keys
+                                 if isinstance(k, _ast.Constant)
+                                 and isinstance(k.value, str)]
+                    continue
                 try:
                     tables[name] = _ast.literal_eval(node.value)
                 except ValueError:
@@ -174,9 +424,10 @@ def _registry_conflicts(src):
                     if isinstance(elt, _ast.Call):
                         c, modes, variants = _entity_fields(elt)
                         if c is not None:
-                            entities.append((c, modes, variants))
+                            entities.append((c, modes, variants,
+                                             _entity_extra_keys(elt)))
     mode_table = tables.get("_MODE_TERM_TABLE") or {}
-    # 与 state._register_entities（state.py:207-238）同构：先复制静态表，
+    # 与 state._register_entities（state.py:241-272）同构：先复制静态表，
     # 再按 ENTITIES 顺序把 variants 投影进去，先查后 setdefault。
     projected = {}
 
@@ -187,7 +438,7 @@ def _registry_conflicts(src):
         return projected[tname]
 
     bad = []
-    for canonical, modes, variants in entities:
+    for canonical, modes, variants, _extra in entities:
         for m in modes:
             tname = mode_table.get(m)
             tbl = _projected(tname) if tname else None
@@ -198,7 +449,20 @@ def _registry_conflicts(src):
                     bad.append(f"{v!r}->{tbl[v]!r} 与实体 {canonical!r} 冲突")
                 else:
                     tbl.setdefault(v, canonical)
-    return bad
+
+    # 术语表范围：TABLES 注册表里的纯 str->str 表（运行期口径）
+    term_tables = {}
+    for tname in reg_names:
+        tbl = _projected(tname)
+        if (isinstance(tbl, dict) and tbl
+                and all(isinstance(k, str) and isinstance(v, str)
+                        for k, v in tbl.items())):
+            term_tables[tname] = tbl
+    term = term_registry_conflicts(term_tables, entities)
+    hard = bad + term["hard"]
+    if structured:
+        return {"hard": hard, "warn": term["warn"]}
+    return hard
 
 
 # ---------------------------------------------------------------------------

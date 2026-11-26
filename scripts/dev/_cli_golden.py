@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.2.5
+# @version 3.3.1
 """CLI 输出 golden 基线（2026-11-20 三层独立改造 P0.5 验收底座）。
 
 改造前捕获 11 命令的 --json 信封 / --help 文本，改造后重采对比，
@@ -107,6 +107,7 @@ def _cases(srt, kb, mp4, dirty):
         ("audit", "full",
          j("audit", srt, "--mode", "bi", "--out", os.path.join(FIX, "audit.md"),
            "--kb", kb), []),
+        ("trace", "structure", j("trace", "list"), []),
         ("compose", "structure",
          j("compose", mp4, srt, "--mode", "soft", "--out", os.path.join(FIX, "comp.mp4")), []),
         ("split", "structure",
@@ -119,7 +120,8 @@ def _cases(srt, kb, mp4, dirty):
 
 
 def _capture(argv):
-    env = dict(os.environ, PYTHONUTF8="1", PYTHONIOENCODING="utf-8")
+    env = dict(os.environ, PYTHONUTF8="1", PYTHONIOENCODING="utf-8",
+               VT_TRACE="0")  # 基线采集不开观测会话，避免测试会话污染 logs/trace
     r = subprocess.run([PY, CLI] + argv, capture_output=True, text=True,
                        encoding="utf-8", errors="replace", cwd=ROOT, env=env,
                        timeout=300)

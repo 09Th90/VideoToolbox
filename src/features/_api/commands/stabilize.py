@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.2.5
+# @version 3.3.1
 """stabilize 命令编排（透传 calib_core stabilize 子命令，行为不变）。"""
 from __future__ import annotations
 

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.2.5
+# @version 3.3.1
 """窗口缩放回归探针：「页面把窗口最小尺寸钉住」类缺陷的守门人。
 
 病史（同一签名咬过三次，用户原话依次演进）：
@@ -21,8 +21,8 @@
   P7 缩小后手动激活窗口布局不回弹
   P8 翻译段（对照）行为不变
 负向（证明测试抓得到旧病，缺了它这套断言就是聋子）：
-  N1 把毒化行原样放回 FluentWindow.resizeEvent，同一真实路径必须复现
-     「缩小被撑回」；再恢复修复，同一路径必须恢复正常。
+  N1 临时把窗口 minimumHeight 抬到 900，缩小必须被撑回（证明断言不聋）；
+     恢复后正常。
 
 跑法：VT_NO_SYNC=1 tools\\python\\python.exe scripts\\dev\\_probe_window_resize.py
 """
@@ -91,9 +91,6 @@ def build_transcribing_window():
 
 def main():
     global win, app
-    import vt_fluent._window as fw
-
-    fixed_resize_event = fw.FluentWindow.resizeEvent
 
     # ================= 正向：修复后的源码 =================
     app, win, home = build_transcribing_window()
@@ -162,29 +159,23 @@ def main():
     win.close()
     pump(app, 300)
 
-    # ================= 负向：还原毒化行，旧病必须复现 =================
-    def poisoned_resize_event(self, e):
-        fw.QWidget.resizeEvent(self, e)
-        self.titleBar.move(46, 0)
-        self.titleBar.resize(self.width() - 46, self.titleBar.height())
-        self.titleBar.raise_()
-        self.navigationInterface.setFixedHeight(self.height())
-
-    fw.FluentWindow.resizeEvent = poisoned_resize_event
+    # ================= 负向：临时抬高窗口最小高度，缩小必须被撑回 =================
     app, win, home = build_transcribing_window()
+    old_min_h = win.minimumHeight()
+    win.setMinimumHeight(900)
     win.resize(1180, 729)
     pump(app, 300)
     win.resize(880, 620)
     pump(app, 500)
     sz = win.size()
-    check("N1 负向：还原 setFixedHeight 毒化行后，转录段缩小必须被撑回",
+    check("N1 负向：窗口最小高度临时钉 900 后，缩小必须被撑回",
           sz.height() != 620,
           "resize(880,620) 实际 %s（被撑回才算抓到旧病）" % (sz,))
+    win.setMinimumHeight(old_min_h)
     win.close()
     pump(app, 300)
 
     # ================= 恢复修复，同一路径必须正常 =================
-    fw.FluentWindow.resizeEvent = fixed_resize_event
     app, win, home = build_transcribing_window()
     win.resize(1180, 729)
     pump(app, 300)

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.2.5
+# @version 3.3.1
 """
 全局 AI 客户端（OpenAI 兼容 · 单通道）。
 
@@ -222,11 +222,17 @@ DEFAULT_CONFIG: dict = {
     "calib_cluster_enabled": False,
     "calib_cluster_members": [],
     "calib_cluster_rounds": 1,
-    # calib_style: "term"=术语级（只替换名词）；"rewrite"=整句重写（理顺机翻）
+    # calib_style 三档（2026-11-24 对齐设置页下拉，见 vt_app/settings_page.CALIB_STYLE_VALUES）：
+    #   ""            = 自动（推荐，出厂默认）：core/calibrate/ai.py 视为未锁定 →
+    #                   style=None，机翻腔 hot==0 双语片自动改派整句重写；
+    #   "term-locked" = 锁定术语级（只替换名词，绝不改派）；
+    #   "rewrite"     = 整句重写（理顺机翻）。旧值 "term"/"auto" 兼容归入自动档。
     # 2026-09-20 修复：此前不在白名单里，界面保存后会被静默丢弃
-    "calib_style": "term",
+    "calib_style": "",
     # calib_web_enabled: AI 校准 Agent 联网查证（web_search/web_fetch 工具环）
-    "calib_web_enabled": False,
+    # 2026-11-24 默认改 True：查证证据是采纳闸门的一等依据（W1-①），开箱即启用
+    # 才能破「新名无 KB 依据→0 采纳」。出网走内置代理，失败降级离线，不打断主流程。
+    "calib_web_enabled": True,
     # calib_media_enabled: AI 校准 Agent 音画证据（2026-10-12）——
     #   开启后 Agent 可请求源媒体的 audio_evidence / frame_evidence（裁音频
     #   重转写 / 抽帧视觉描述），佐证疑似误听与丢弃候选。要求：字幕同目录
@@ -255,6 +261,9 @@ DEFAULT_CONFIG: dict = {
     "max_tokens": 2048,
     "timeout": 90,
     "retries": 3,
+    # 发布素材（2026-11-25）：标题【游戏名】…【主播名】的默认名号，调用参数可覆盖。
+    "publish_default_game": "",
+    "publish_default_streamer": "",
 }
 
 #: v1.15.4：这些键若**低于**下表值（早期版本落盘的小值，会让推理模型的思考链

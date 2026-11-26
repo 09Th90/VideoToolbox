@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.2.5
+# @version 3.3.1
 """视频库页（2026-11-15 功能解耦阶段③：从 video_toolbox_qt.py 拆出，逐字同源）。
 
 * 缩略图缓存常量/助手（LIB_EXTS/THUMB_DIR/CARD_W…/thumb_cache_name/fmt_hms）
@@ -13,7 +13,8 @@ import threading
 
 from PySide6.QtCore import QEvent, Qt, QTimer
 from PySide6.QtGui import QPixmap
-from PySide6.QtWidgets import (QFileDialog, QGridLayout, QVBoxLayout, QWidget)
+from PySide6.QtWidgets import (QFileDialog, QGridLayout, QSizePolicy,
+                               QVBoxLayout, QWidget)
 
 from vt_fluent import (BodyLabel, CaptionLabel, FluentIcon as FIF, LineEdit,
                        PushButton, ScrollArea)
@@ -26,7 +27,7 @@ from features._media import VIDEO_EXTS
 
 LIB_EXTS = set(VIDEO_EXTS)
 THUMB_DIR = engine.THUMB_CACHE_DIR
-CARD_W, THUMB_W, THUMB_H = 232, 200, 118
+CARD_W, THUMB_W, THUMB_H = 286, 260, 146
 
 
 def thumb_cache_name(path):
@@ -297,7 +298,10 @@ class LibraryPage(QWidget):
         img.setAlignment(Qt.AlignCenter)
         img.setFixedSize(THUMB_W, THUMB_H)
         img.setStyleSheet("border-radius:6px;")
-        name = BodyLabel(self._elide(v["name"], 26), box)
+        name = BodyLabel(v["name"], box)
+        name.setWordWrap(True)
+        name.setFixedHeight(34)
+        name.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
         name.setToolTip(v["path"])
         meta = CaptionLabel(f"{engine.format_size(v['size'])} · {fmt_hms(v['dur'])}", box)
         lay.addWidget(img)

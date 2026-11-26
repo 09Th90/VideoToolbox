@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# @version 3.2.5
+# @version 3.3.1
 """「自动化」页 —— B 站自动投稿（v1.17.x 起精简为投稿专用）
 ====================================================================
 页面只做一件事：用内置视觉引擎（`auto_vision_core`）驱动用户自己已登录
@@ -39,11 +39,12 @@ from PySide6.QtWidgets import (QApplication, QFileDialog, QHBoxLayout, QLabel,
 from vt_fluent import (CaptionLabel, ComboBox, FluentIcon as FIF,
                             InfoBar, InfoBarPosition, LineEdit,
                             PrimaryPushButton, ProgressBar, PushButton,
-                            ScrollArea, StrongBodyLabel, SubtitleLabel,
+                            ScrollArea, StrongBodyLabel,
                             SwitchButton, TextEdit)
 
 import features.automation.auto_vision_core as av
 import features.automation.bili_upload as bu
+from vt_app.widgets import PageHeader
 import ui_theme
 
 #: 程序数据目录（模板 / 失败截图都落在这里）；取不到就退到临时目录
@@ -268,16 +269,12 @@ class AutoVisionPage(QWidget):
     # ---------------- 布局 ---------------- #
     def _build(self):
         outer = QVBoxLayout(self)
-        outer.setContentsMargins(24, 16, 24, 18)
-        outer.setSpacing(10)
-        outer.addWidget(SubtitleLabel("自动化 · B 站投稿", self))
-        cap = CaptionLabel(
-            "用内置视觉引擎驱动你自己已登录的浏览器窗口投稿 B 站："
-            "先在下面选窗口、抓帧、采集模板，再填任务、演练确认后真跑。"
-            "全程只看屏幕、模拟键鼠，不碰浏览器进程；默认演练模式，"
-            "不会真的动你的鼠标键盘。", self)
-        cap.setWordWrap(True)
-        outer.addWidget(cap)
+        outer.setContentsMargins(22, 14, 22, 14)
+        outer.setSpacing(8)
+        outer.addWidget(PageHeader(
+            "自动化",
+            "B 站投稿：选窗口 → 抓帧 → 采集模板 → 演练确认 → 真跑；默认演练，不移动真实鼠标键盘",
+            self))
 
         self.area = ScrollArea(self)
         self.area.setWidgetResizable(True)
@@ -314,14 +311,19 @@ class AutoVisionPage(QWidget):
         self.pw_switch.setChecked(False)
         lay.addWidget(_row(self.win_combo, btn_refresh, self.btn_shot,
                            CaptionLabel("屏幕抓取"), self.pw_switch))
-        lay.addWidget(_row(CaptionLabel(
-            "提示：抓帧默认走 PrintWindow，无视遮挡——窗口被别的窗口盖住也能"
-            "抓到完整画面；仅当抓到的画面全黑（个别 GPU 渲染窗口）时，"
-            "才需要打开「屏幕抓取」改用屏幕拷贝（被遮挡会缺内容）。")))
+        tip = CaptionLabel(
+            "提示：抓帧默认走 PrintWindow，窗口被遮挡也能抓完整画面；"
+            "仅当画面全黑时，再打开「屏幕抓取」。")
+        tip.setWordWrap(True)
+        tip.setToolTip(
+            "PrintWindow 无视遮挡；个别 GPU 渲染窗口可能全黑，"
+            "此时改用屏幕拷贝，被遮挡会缺内容。")
+        lay.addWidget(tip)
         self.shot_view = ShotView()
         self.shot_view.selectionChanged.connect(self._on_selection)
         lay.addWidget(self.shot_view)
         self.capture_status = CaptionLabel("尚未抓帧")
+        self.capture_status.setWordWrap(True)
         lay.addWidget(self.capture_status)
 
         # —— 模板采集 ——
@@ -411,13 +413,13 @@ class AutoVisionPage(QWidget):
         miss = bu.missing_templates(DATA_DIR)                    # 只算必需
         miss_all = bu.missing_templates(DATA_DIR, include_optional=True)
         total = len(bu.TEMPLATE_MANIFEST)
+        miss_text = "、".join(m["label"] for m in miss) if miss else "（已齐）"
         self.bili_tpl_status.setText(
             f"模板目录：{tdir}\n"
-            f"已采集 {total - len(miss_all)}/{total} 张；必需还差 {len(miss)} 张"
-            + (f"：{'、'.join(m['label'] for m in miss)}" if miss
-               else "（已齐）✅ 必需模板已齐，可去下方「B 站投稿任务」开始投稿")
-            + "。采集方法：在上面选中投稿页窗口 → 抓帧 → 在预览上框出该元素 → "
-              "点「把框选存为该模板」。")
+            f"已采集 {total - len(miss_all)}/{total} 张；必需还差 {len(miss)} 张。"
+            "采集：选中窗口 → 抓帧 → 框选 → 存为该模板。")
+        self.bili_tpl_status.setToolTip(
+            "模板目录：%s\n缺失必需模板：%s" % (tdir, miss_text))
 
     def _bili_tpl_hint(self):
         """采集下拉选中项时，在帧状态行展示该项的采集要点（hint）。"""

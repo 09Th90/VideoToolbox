@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# @version 3.2.5
+# @version 3.3.1
 """G0 基线报告器：冻结校验 + 只读评估 + 可重复哈希（eval 设计落地序 step3）。
 
 定位：WP1 `voiceprint_filter_eval.py` 提供指标口径（precision/recall/F1、

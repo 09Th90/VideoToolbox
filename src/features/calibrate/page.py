@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.2.5
+# @version 3.3.1
 """字幕校准页（2026-11-15 功能解耦阶段③：从 video_toolbox_qt.py 拆出，逐字同源）。
 
 * 宿主：字幕工作台（SubtitlePage）经注册表服务 ``calibrate.build_page`` 惰性
@@ -43,6 +43,8 @@ class CalibPage(QWidget):
         ("鸣潮-韩语（--mode wuwa-ko）", "--mode wuwa-ko"),
         ("鸣潮-4.0韩语（--wuwa40ko 一键）", "--wuwa40ko"),
         ("鸣潮-4.0IGN（--wuwa40ign 一键）", "--wuwa40ign"),
+        ("鸣潮-4.0新地区PV（--wuwa40pv 一键）", "--wuwa40pv"),
+        ("鸣潮-4.0新联邦实机（--wuwa40reveal 一键）", "--wuwa40reveal"),
         ("── 明日方舟 ──", None),
         ("明日方舟（--ak）", "--ak"),
         ("明日方舟-日语（--mode ak-ja）", "--mode ak-ja"),
@@ -62,7 +64,29 @@ class CalibPage(QWidget):
         ("综合手游OST（--wwoc）", "--wwoc"),
         ("音乐点评（--react）", "--react"),
         ("边狱巴士（--limbus）", "--limbus"),
+        # 2026-11-24：补齐后端 MODE_REGISTRY 已注册但界面缺失的 8 个模式
+        # （hsr/zel 注册表 name=None、无实体投影槽，暂不暴露；fix-en 是旗标非模式）。
+        ("最终幻想14（--mode ff14）", "--mode ff14"),
+        ("最终幻想：共鸣（--mode ffrs）", "--mode ffrs"),
+        ("少女前线2：追放（--mode gfl2）", "--mode gfl2"),
+        ("影之刃零（--mode pbz）", "--mode pbz"),
+        ("宝可梦城镇主题（--mode pkm）", "--mode pkm"),
+        ("星之救援者（--mode ssv）", "--mode ssv"),
+        ("TGA 2026 游戏大奖（--mode tga26）", "--mode tga26"),
+        ("燕云十六声（--mode wwm）", "--mode wwm"),
     ]
+
+    @staticmethod
+    def style_label(cfg_value):
+        """配置值 → 界面文案（与 settings_page 三档下拉、core/calibrate/ai.py 路由同口径）：
+        ""/None/term/auto → 自动（后端 style=None：机翻腔 hot==0 自动整句重写）；
+        term-locked → 锁定术语级；rewrite → 整句重写。"""
+        v = str(cfg_value or "").strip().lower()
+        if v == "rewrite":
+            return "整句重写（理顺机翻）"
+        if v == "term-locked":
+            return "锁定术语级（只换名词，绝不改写）"
+        return "自动（机翻腔 hot==0 自动整句重写）"
 
     def __init__(self, app, parent=None):
         super().__init__(parent)
@@ -161,6 +185,14 @@ class CalibPage(QWidget):
         lay.addWidget(self.ai_hint)
         lay.addWidget(row(self.stage_label, None,
                           self.refresh_btn, self.again_btn, self.run_btn))
+        # 2026-11-24 状态透传：只读标签显示上一轮 AI 校准的「本轮风格」与「不动点」结论
+        #   （脚本模式保持「—」）。后端 res 的 style_auto_rewrite / fixed_point 经
+        #   on_cal_done 写入；详细数字仍在日志与报告三c 节。
+        self.style_tag = fit_caption(CaptionLabel("本轮风格：—", self.view))
+        self.style_tag.setTextColor("#8a8a8a", "#9a9a9a")
+        self.fp_tag = fit_caption(CaptionLabel("不动点：—", self.view))
+        self.fp_tag.setTextColor("#8a8a8a", "#9a9a9a")
+        lay.addWidget(row(self.style_tag, None, self.fp_tag))
         self.add_card(box)
 
         self.log = LogView("校准日志", 170, self.view)
@@ -460,19 +492,16 @@ class CalibPage(QWidget):
             self.stage_label.setText(f"AI 校准中（第 {round_no} 轮）…")
             self.log.line(f"===== AI 校准 · 第 {round_no} 轮 =====", "info")
             self.log.line(f"[AI] 模式: {self.mode_combo.currentText()}", "dim")
-            # 校准风格属于全局设置（设置页「AI 校准」卡片），本页无对应控件；
+            # 校准风格属于全局设置（设置页「AI 校准」卡片三档下拉），本页无对应控件；
             # 与 engine.calib_ai_run 内部 style=None 时的取值口径保持一致，仅用于日志。
-            _style = str((engine.ai_load_config() or {}).get("calib_style") or "term")
-            self.log.line(f"[AI] 风格: "
-                          + ("整句重写（可理顺机翻语序）"
-                             if _style == "rewrite" else "术语级")
+            _ai_cfg = engine.ai_load_config() or {}
+            self.log.line(f"[AI] 风格: {self.style_label(_ai_cfg.get('calib_style'))}"
                           + ("；以上轮结果为起点续跑（跳过脚本基线、禁止回退）"
                              if again else ""), "dim")
             self.log.line("[AI] 联网查证: "
                           + ("开启（Agent 可搜索/抓取官方名作证据）"
-                             if (engine.ai_load_config() or {}).get(
-                                 "calib_web_enabled") else "关闭"), "dim")
-            _media_cfg = (engine.ai_load_config() or {}).get("calib_media_enabled")
+                             if _ai_cfg.get("calib_web_enabled") else "关闭"), "dim")
+            _media_cfg = _ai_cfg.get("calib_media_enabled")
             _media_src = engine.calib_media_for_srt(src) if _media_cfg else ""
             self.log.line("[AI] 音画证据: "
                           + ("开启（Agent 可请求源媒体音频重转写/抽帧作证据）"
@@ -485,6 +514,9 @@ class CalibPage(QWidget):
             self.log.line(f"[AI] 输出: {out}", "dim")
             if report:
                 self.log.line(f"[AI] 报告: {report}", "dim")
+            # 状态标签复位：新一轮开始，上一轮的结论不再有效
+            self.style_tag.setText("本轮风格：运行中…")
+            self.fp_tag.setText("不动点：运行中…")
             t = threading.Thread(target=self._ai_worker,
                                  args=(gen, src, out, report, mode_flag,
                                        round_no, again,
@@ -598,6 +630,10 @@ class CalibPage(QWidget):
                 elif (res.get("width_widest") or ("", ""))[0]:
                     self.log.line(f"[行宽] 体检通过（最宽 {res['width_widest'][0]} / 32）",
                                   "dim")
+                # 2026-11-24 状态透传：风格路由 / 8d audit 门禁 / 8c 不动点 / 8e 会话回灌
+                #   后端 _log_do 的逐条日志已经 bus 无过滤进本日志；这里补「结论级」摘要
+                #   + 只读标签，数字细节见报告三c 节。
+                self._log_gate_summary(res)
                 self.log.line("可点「再次校准」再跑一轮：以上轮结果为起点，"
                               "已确认的改动不会被改回去", "info")
             else:
@@ -610,6 +646,67 @@ class CalibPage(QWidget):
             self.log.line(f"[错误] 校准失败：{msg}", "err")
             if res:
                 self.log.line("[提示] 已拒绝的模型提议会写进报告，便于人工复核", "dim")
+
+    def _log_gate_summary(self, res):
+        """AI 校准收尾：把 res 里的门禁结论写进日志并更新只读标签（2026-11-24）。
+
+        只读 res 的既有键，不重算：style / style_explicit / style_auto_rewrite /
+        audit_gate / audit_fixes / fixed_point* / session_canonicals / session_promote。
+        """
+        try:
+            # —— 风格：配置档位 → 本轮实际生效档位（自动改派只在未锁定时发生）
+            if res.get("style_auto_rewrite"):
+                _txt = "自动 → 整句重写"
+                _why = "（规则命中 0 条且双语带参考行，自动改派）"
+            elif res.get("style") == "rewrite":
+                _txt = "整句重写"
+                _why = "（配置锁定）"
+            elif res.get("style_explicit"):
+                _txt = "术语级"
+                _why = "（配置锁定，未自动改派）"
+            else:
+                _txt = "自动 → 术语级"
+                _why = "（规则命中非零或非双语片，保持术语级）"
+            self.style_tag.setText(f"本轮风格：{_txt}")
+            self.log.line(f"[风格] 本轮：{_txt}{_why}", "dim")
+            # —— 8d audit 门禁
+            _ag = res.get("audit_gate")
+            if isinstance(_ag, dict):
+                if not _ag.get("anchors"):
+                    self.log.line("[门禁] audit：无参考行锚点，三扫仅供参考（inconclusive）", "dim")
+                elif res.get("audit_fixes"):
+                    self.log.line(f"[门禁] audit：机械补校 {res['audit_fixes']} 处高置信残留"
+                                  f"（拉丁残留 {_ag.get('s1', 0)} / 同族 {_ag.get('s3', 0)} 处待人工，见报告）", "ok")
+                else:
+                    self.log.line(f"[门禁] audit：高置信残留 0 处，无需补校"
+                                  f"（拉丁残留 {_ag.get('s1', 0)} / 同族 {_ag.get('s3', 0)} 处待人工，见报告）", "dim")
+            # —— 8c 不动点
+            _fp = res.get("fixed_point")
+            if _fp is True:
+                self.fp_tag.setText("不动点：✓")
+                self.log.line(f"[门禁] 不动点：✓ 成立（机械基线上引擎复跑零改动，"
+                              f"SHA {str(res.get('fixed_point_sha') or '')[:12]}…）", "ok")
+            elif _fp is False:
+                self.fp_tag.setText("不动点：⚠")
+                _cv = bool(res.get("fixed_point_converges"))
+                self.log.line(f"[门禁] 不动点：⚠ 未成立——机械基线上引擎仍会改 "
+                              f"{res.get('fixed_point_break', '?')} 处；"
+                              + (f"补跑 {res.get('fixed_point_passes')} 跑后收敛（渐进精修，良性）"
+                                 if _cv else
+                                 f"补跑 {res.get('fixed_point_passes')} 跑仍不收敛（振荡，需排查）"),
+                              "err")
+            else:
+                self.fp_tag.setText("不动点：—（无机械层）")
+                self.log.line("[门禁] 不动点：跳过（未跑脚本基线，无机械层可验）", "dim")
+            # —— 8e 会话回灌
+            _sc = res.get("session_canonicals") or []
+            if _sc:
+                _pm = res.get("session_promote") or {}
+                self.log.line(f"[回灌] 会话回灌 {len(_sc)} 条 A 级条目当轮生效（"
+                              + ("已固化进真源" if _pm.get("state") == "promoted"
+                                 else "未固化（VT_SESSION_PROMOTE 未开启）") + "）", "ok")
+        except Exception as e:  # noqa: BLE001
+            self.log.line(f"[门禁] 状态摘要生成失败（不影响校准结果）：{e}", "dim")
 
 
 def build_page(app, parent=None):

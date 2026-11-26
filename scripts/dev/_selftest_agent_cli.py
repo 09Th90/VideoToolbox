@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.2.5
+# @version 3.3.1
 """第三方 Agent 接入（agent_cli + 技能包）回归自检（2026-10-15）。
 
 背景：用户要求「harness 必须非常清楚工具箱能干什么、直接调用」，且第三方
@@ -47,7 +47,7 @@ def check(name: str, ok: bool, detail: str = "") -> None:
 def run_cli(argv, timeout=300):
     return subprocess.run([PY, CLI] + argv, capture_output=True, text=True,
                           encoding="utf-8", errors="replace", timeout=timeout,
-                          cwd=ROOT)
+                          cwd=ROOT, env=dict(os.environ, VT_TRACE="0"))
 
 
 def main() -> int:

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.2.5
+# @version 3.3.1
 """术语替换与上下文替换原语
 
 源：subtitle_calib_merged.py L11565-L11609 @ 97d7d463（2026-10-24 冻结快照）
@@ -22,15 +22,37 @@ def _compile_map(mapping):
 
 
 
+def _apply_pair(text, k, v):
+    """单条规则 k→v 的串行替换原语（2026-11-24 收尾硬化 A：引擎幂等）。
+
+    错形是官方名子串（k ⊂ v）时走 _ctx_replace 的哨兵保护——否则裸 str.replace
+    会命中**上一次运行已生成的官方名**：超频→超频演算→超频演算演算…，引擎对
+    自身产物不幂等（p3_idem 矩阵 353 例唯一非幂等源；按模式并表可达规则 5 条：
+    超频→超频演算 / 先约电台→鸣潮先约电台 / 血与净雨→罪血与净雨 /
+    热队→灼热队 / 在前作，罗德岛→华法琳在前作，罗德岛）。
+    k ⊄ v 时与 str.replace 逐字节一致（有意的级联如 金阁→金戈→今州 不受影响）。
+    **所有串行替换路径（_replace_report / replace_serial_ac / replay_serial）必须
+    共用本原语**，否则 calib_entity.shadow 的等价性证明失效。
+    """
+    if k != v and k in v:
+        return _ctx_replace(text, k, v)
+    return text.replace(k, v)
+
+
 def _replace_report(text, pairs, charset, hits):
     """单遍完成 长键优先替换 + 命中统计。
-    行内不包含任何键字符时不可能命中，直接原样返回（整行预筛）。"""
+    行内不包含任何键字符时不可能命中，直接原样返回（整行预筛）。
+    2026-11-24：自子串规则（k ⊂ v）经 _apply_pair 保护后，行内只有已完整的官方名
+    时不再叠字、也不再计为命中（原先既叠字又虚报命中）。"""
     if not charset or charset.isdisjoint(text):
         return text
     for k, v in pairs:
         if k in text:
+            new = _apply_pair(text, k, v)
+            if new == text and k != v:
+                continue            # 自子串键：行内只有已完整的官方名 → 无改动不计命中
+            text = new
             hits[k] = hits.get(k, 0) + 1
-            text = text.replace(k, v)
     return text
 
 

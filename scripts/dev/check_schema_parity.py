@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.2.5
+# @version 3.3.1
 """check_schema_parity —— 参数三方 parity 门禁（计划书 §4.1 / §10）。
 
   A  _api/spec.py ↔ agent_cli argparse 反射（8 个可反射命令，逐项：
@@ -96,9 +96,18 @@ def part_b():
     cal = spec.get_command("calibrate")
     flags = {m.flag for m in cal.mode_flags}
     opts = {p.name for p in cal.params if p.kind == "option"}
-    for fl in sorted(flags | opts):
-        if '"%s"' % fl not in src:
-            fail("B calibrate: %s 在 calib_core/cli.py 源码不存在" % fl)
+    # 2026-11-25：calib_core 的旗标是**表驱动**的（_MODE_FLAGS / _RERUN），
+    #   cli.py 里没有逐条 `--xxx` 字面量。旧检查拿源码字面量比对，把 16 个
+    #   顶层旗标 + 13 个一键重跑旗标全判成「不存在」，属于检查器自身过期。
+    #   真源直接取 calib_core.data.modes，既覆盖顶层也覆盖 _RERUN 动态键。
+    from calib_core.data import modes as _modes
+    known_flags = set(_modes._MODE_FLAGS) | {"--" + k for k in _modes._RERUN}
+    for fl in sorted(flags):
+        if fl not in known_flags:
+            fail("B calibrate: %s 不在 calib_core/data/modes.py 的 _MODE_FLAGS/_RERUN" % fl)
+    for opt in sorted(opts):
+        if '"%s"' % opt not in src:
+            fail("B calibrate: %s 在 calib_core/cli.py 源码不存在" % opt)
     # 反向：calibrate 主循环（process 调用前）识别的旗标必须全登记
     main_loop = src.split("内置片源")[0] if "内置片源" in src else src[:12000]
     found = set(re.findall(r'a == "(--[a-z0-9-]+)"', main_loop))
@@ -111,7 +120,8 @@ def part_b():
         for p in cs.params:
             if p.kind == "option" and '"%s"' % p.name not in src:
                 fail("B %s: %s 在源码不存在" % (cmd, p.name))
-    ok("B spec ↔ calib_core 源码：33 模式旗标 + 选项正向/反向覆盖")
+    ok("B spec ↔ calib_core 源码：%d 模式旗标 + 选项正向/反向覆盖"
+       % len(flags))
 
 
 def part_c():

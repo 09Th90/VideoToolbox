@@ -20,10 +20,11 @@
 | `download <url> [--height 1080]` | 下载（yt-dlp 全链） |
 | `transcribe <file> [--lang ja] [--out x.srt]` | 音视频 → SRT（引擎 ASR） |
 | `translate <srt> [--engine bing]` | → 中文双语 SRT（原文在上译文在下） |
-| `calibrate <srt> [--endo\|--endobi\|--ak\|--ja\|--ko\|--layout…]` | 术语校准（只改文字不动时间轴） |
+| `calibrate <srt> [--endo\|--ak\|--mode endo-bi\|--mode wuwa-ja\|--layout…]` | 术语校准（只改文字不动时间轴；12 个子键无顶层简单旗标，走 `--mode <子键>`） |
 | `stabilize <srt>` | cue 稳定化 |
 | `compose <video> <sub> [--mode soft\|burn\|mkv]` | 字幕合成 |
 | `audit <srt>` | 校准后漏校三扫（退出码 1＝有候选） |
+| `trace [list\|tail\|show] [--follow]` | 开发版校准观测（工作流/AI 思考链/方向/数据访问事件，只读） |
 | `split <video> --points "…" \| --durations "…"` | 视频切片（逐段校验可播放） |
 | `bili-submit [素材目录] [--dry-run]` | B 站后台自动投稿（UIA 后台输入） |
 
@@ -31,7 +32,7 @@
 
 ## 「翻译然后校准」标准流程
 
-`info` → `translate --engine bing`（谷歌端点本机不可用，别试）→ `calibrate` 按游戏选旗标（终末地双语 `--endobi`、方舟 `--ak`、日语 `--ja`、韩语 `--ko`、鸣潮默认）→ 汇报产物路径与校准改动数。
+`info` → `translate --engine bing`（谷歌端点本机不可用，别试）→ `calibrate` 按游戏选旗标（终末地双语 `--mode endo-bi`、方舟 `--ak`、鸣潮日语 `--mode wuwa-ja`、鸣潮韩语 `--mode wuwa-ko`、鸣潮默认）→ 汇报产物路径与校准改动数。
 
 ## 禁忌
 

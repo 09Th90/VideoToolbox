@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.2.5
+# @version 3.3.1
 """split 命令编排（原 features/split/cli.py cmd_split，行为不变）。
 
 与 GUI「视频处理 → 视频切片」共用 features/split/video_split.py（L0 纯标准库）；

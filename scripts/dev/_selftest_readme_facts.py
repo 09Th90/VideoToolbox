@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.2.5
+# @version 3.3.1
 """自检：README 里的术语底表条数与导航页清单是否与代码一致。
 
 为什么需要
@@ -44,9 +44,9 @@ GROUPS = {
     "最终幻想：共鸣": ["FFRS_TERMS"],
 }
 
-#: 期望 README 里出现的导航页（顺序取自 video_toolbox_qt.addSubInterface；
+#: 期望 README 里出现的导航页（顺序＝首页 + 注册表 top + 注册表 bottom + 设置；
 #: 校验时会把「设置」单独剔除，故这里把它放末尾）
-EXPECT_PAGES = ["首页", "视频处理", "视频库", "字幕处理", "字幕编辑",
+EXPECT_PAGES = ["首页", "视频处理", "视频库", "实时字幕", "字幕处理", "字幕编辑",
                 "流水线", "AI 托管", "自动化", "设置"]
 
 fails = []
@@ -74,12 +74,22 @@ def main():
         return 1
 
     # ── 1. 导航页清单 ──
-    src = _read(os.path.join(ROOT, "src", "video_toolbox_qt.py"))
-    actual = re.findall(r'addSubInterface\([^,]+,[^,]+,\s*"([^"]+)"', src)
-    chk("导航页数量（README 称「九个功能页」）",
-        len(actual) == 9, "实际 %d 项：%s" % (len(actual), "、".join(actual)))
-    chk("导航页清单与README 期望一致",
-        [p for p in actual if p != "设置"] == EXPECT_PAGES[:-1],
+    # 2026-11-25：页面挂载已迁到 vt_app/main_window.py 的注册表驱动循环，
+    #   源码里不再有逐页 `addSubInterface(..., "导航名")` 字面量；旧检查在
+    #   video_toolbox_qt.py 里正则扫描只会得到 0 项。改为按注册表实际顺序生成，
+    #   与 MainWindow 的挂载逻辑同源（top → bottom → 设置）。
+    _src = os.path.join(ROOT, "src")
+    if _src not in sys.path:
+        sys.path.insert(0, _src)
+    from features import registry as _registry
+    _specs = _registry().gui_specs()
+    actual = (["首页"]
+              + [g.nav for _, g in _specs if g.position == "top"]
+              + [g.nav for _, g in _specs if g.position != "top"]
+              + ["设置"])
+    chk("导航页数量（README 称「九个常驻功能页 + AI 托管」）",
+        len(actual) == 10, "实际 %d 项：%s" % (len(actual), "、".join(actual)))
+    chk("导航页清单与README 期望一致", actual == EXPECT_PAGES,
         "实际 %s" % "、".join(actual))
 
     readme = _read(README)

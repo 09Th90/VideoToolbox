@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.2.5
+# @version 3.3.1
 """_selftest_mcp —— MCP Server 端到端自检（SDK client 起 stdio 子进程）。
 
   1  initialize 握手：serverInfo.name = video-toolbox
@@ -96,12 +96,12 @@ async def _run():
             out = os.path.join(FIX, "mcp_cal.srt")
             rep = os.path.join(FIX, "mcp_cal.tsv")
             r = await session.call_tool("vt_calibrate", {
-                "input": srt, "mode_flag": "--endobi",
+                "input": srt, "mode": "endo-bi",
                 "out": out, "report": rep, "kb": kb})
             sc = r.structured_content or {}
             check("vt_calibrate 实跑 + 只增字段",
                   sc.get("exit_code") == 0 and os.path.isfile(out)
-                  and sc.get("mode_name") == "endobi"
+                  and sc.get("mode_name") == "endo-bi"
                   and isinstance(sc.get("changes"), int),
                   str(sc)[:160])
 

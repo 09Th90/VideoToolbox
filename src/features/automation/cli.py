@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.2.5
+# @version 3.3.1
 """bili-submit 子命令参数壳（L2 CLI）。编排在 features/_api/commands/bili_submit.py。
 
 内层非统一信封：_api 以 stream=True Tee 直写 stdout（内容与流式时序不变），

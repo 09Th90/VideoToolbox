@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.2.5
+# @version 3.3.1
 """WP4：Jev 生成前分诊门禁离线回放（不联网；架构骨架，G0 数据后期投喂）。
 
 对照（与 eval_jev_mention_gate.py 同范式，决策对象从 R 收缩换成 skip/consult）：

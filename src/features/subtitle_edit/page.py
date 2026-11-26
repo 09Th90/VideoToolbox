@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.2.5
+# @version 3.3.1
 """字幕编辑页（2026-11-15 功能解耦阶段③：从 video_toolbox_qt.py 拆出，逐字同源）。
 
 * 三件套后端：subtitle_editor_core（数据）/ subtitle_editor（控件）/
@@ -284,6 +284,7 @@ class SubtitleEditPage(ScrollPage):
 
         # —— 画面 + 右栏（右栏 = 字幕属性；字幕本身在**画面上**直接操作）——
         self.video_host = _VideoHost(self)
+        self.video_host.setAttribute(Qt.WA_StyledBackground, True)
         self.video_host.setStyleSheet("background:#000;")
         self.video_host.setMinimumWidth(280)
         self.video_host.setMinimumHeight(160)

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.2.5
+# @version 3.3.1
 """流水线离线自检（v1.14.0）：临时目录 + 假文件 + mock 引擎调用。
 
 不联网、不碰真实下载目录、不需要 GUI：
@@ -239,9 +239,10 @@ def case_full_chain(root):
           st.get("translate", {}).get("state") == pl.SKIPPED,
           st.get("translate", {}).get("reason", ""))
     if os.path.isfile(engine.APP_DIR and os.path.join(engine.APP_DIR, "subtitle_calib_merged.py")):
-        check("CALIB1 完成（真实校准脚本）",
-              st.get("calib1", {}).get("state") == pl.DONE,
-              st.get("calib1", {}).get("error", ""))
+        check("CALIB1 完成或按 AI 状态跳过（v3.3.1 起走 AI 精确校准）",
+              st.get("calib1", {}).get("state") in (pl.DONE, pl.SKIPPED),
+              "state=%s %s" % (st.get("calib1", {}).get("state"),
+                               st.get("calib1", {}).get("error", "")))
     else:
         note("校准脚本缺失，CALIB1 断言降级为 SKIPPED")
     # 打包只复制、不移动：原始文件必须还在
@@ -410,10 +411,10 @@ def case_state_migration(root):
         },
     }
     job = pl.Job.from_dict(legacy)
-    check("旧链接链自动补 TRANSCRIBE",
+    check("旧链接链自动补 TRANSCRIBE/PUBLISH",
           job.chain == [pl.STAGE_DOWNLOAD, pl.STAGE_TRANSCRIBE,
                         pl.STAGE_TRANSLATE, pl.STAGE_CALIB1,
-                        pl.STAGE_CALIB2, pl.STAGE_PACKAGE],
+                        pl.STAGE_CALIB2, pl.STAGE_PUBLISH, pl.STAGE_PACKAGE],
           " / ".join(job.chain))
     check("auto_skip 重启后保留",
           job.stages[pl.STAGE_TRANSLATE].get("auto_skip") is True,

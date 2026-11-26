@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.2.5
+# @version 3.3.1
 """无边框窗口边缘拖拽热区（原 video_toolbox_qt.py 同名代码，逐字下沉）。"""
 from PySide6.QtCore import QAbstractNativeEventFilter
 
@@ -8,6 +8,10 @@ from PySide6.QtCore import QAbstractNativeEventFilter
 #: 逻辑像素，鼠标几乎点不中——用户反馈的「无法用鼠标调整窗口大小」即此。
 #: 这里按设备像素比换算出一个宽容热区，四边/四角都能拖。
 RESIZE_MARGIN = 8
+#: v3 底栏 26px：整条状态栏都属于底边缩放热区。
+#: 旧 8px 热区只覆盖到状态栏中间，用户抓住“底栏”拖动时经常差几像素
+#: 落在 HTCLIENT，表现就是“底部无法拖动”。底栏没有可点控件，放宽不误伤。
+BOTTOM_RESIZE_MARGIN = 26
 
 
 class _ResizeHitFilter(QAbstractNativeEventFilter):
@@ -80,6 +84,8 @@ class _ResizeHitFilter(QAbstractNativeEventFilter):
             w, h = rect[2] - rect[0], rect[3] - rect[1]
             dpr = float(win.devicePixelRatioF() or 1.0)
             bw = max(5, int(round(RESIZE_MARGIN * dpr)))
+            # 底栏 26px 整条可拖；用物理像素换算，避免高 DPI 下又缩成几像素
+            bh = max(bw, int(round(BOTTOM_RESIZE_MARGIN * dpr)))
             # 窗口本身就比热区大不了多少时不做命中，免得整窗都成了"边缘"
             if w <= bw * 4 or h <= bw * 4:
                 return False, 0
@@ -105,7 +111,7 @@ class _ResizeHitFilter(QAbstractNativeEventFilter):
             left = sx < rect[0] + bw
             right = sx > rect[2] - bw
             top = sy < rect[1] + bw
-            bottom = sy > rect[3] - bw
+            bottom = sy > rect[3] - bh
             hit = None
             if left and top:
                 hit = win32con.HTTOPLEFT
@@ -124,6 +130,19 @@ class _ResizeHitFilter(QAbstractNativeEventFilter):
             elif bottom:
                 hit = win32con.HTBOTTOM
             if hit is None:
+                # v3 顶栏覆盖了旧标题栏，且 titleLabel 已隐藏：这里补一个
+                # HTCAPTION 热区，保证窗口仍能靠拖动顶栏移动 / 双击最大化。
+                topbar = getattr(win, "shell_topbar", None)
+                if topbar is not None and topbar.isVisible():
+                    from PySide6.QtCore import QPoint
+                    tl = topbar.mapToGlobal(QPoint(0, 0))
+                    br = topbar.mapToGlobal(QPoint(topbar.width(), topbar.height()))
+                    tlx, tly = int(tl.x() * dpr), int(tl.y() * dpr)
+                    brx, bry = int(br.x() * dpr), int(br.y() * dpr)
+                    if tlx <= sx <= brx and tly <= sy <= bry:
+                        if msg.hWnd != hwnd:
+                            return True, win32con.HTTRANSPARENT
+                        return True, win32con.HTCAPTION
                 return False, 0
             # ⚠️ 关键中的关键：这条消息可能是发给**子窗口**的（载入视频后 Qt 把
             #    导航条 / 标题栏 / 页面提升成了原生子窗口）。把 NCHITTEST 改成

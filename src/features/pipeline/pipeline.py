@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.2.5
+# @version 3.3.1
 """视频全流程流水线（引擎侧，v1.14.0 新增）：事件驱动的阶段状态机。
 
 链接任务：填入链接 → 下载(原片+字幕+封面+信息) → 无字幕时语音转录 →
@@ -69,24 +69,25 @@ CALIB_SCRIPT = os.path.join(engine.APP_DIR, "subtitle_calib_merged.py")
 
 STAGE_DOWNLOAD, STAGE_MERGE, STAGE_TRANSCRIBE = "download", "merge", "transcribe"
 STAGE_TRANSLATE, STAGE_CALIB1, STAGE_CALIB2 = "translate", "calib1", "calib2"
+STAGE_PUBLISH = "publish"
 STAGE_PACKAGE = "package"
 STAGE_ORDER = [STAGE_DOWNLOAD, STAGE_MERGE, STAGE_TRANSCRIBE, STAGE_TRANSLATE,
-               STAGE_CALIB1, STAGE_CALIB2, STAGE_PACKAGE]
+               STAGE_CALIB1, STAGE_CALIB2, STAGE_PUBLISH, STAGE_PACKAGE]
 STAGE_LABELS = {STAGE_DOWNLOAD: "下载完成", STAGE_MERGE: "智能合并",
                 STAGE_TRANSCRIBE: "语音转录", STAGE_TRANSLATE: "字幕翻译",
                 STAGE_CALIB1: "字幕校准", STAGE_CALIB2: "二次校准",
-                STAGE_PACKAGE: "成品输出"}
+                STAGE_PUBLISH: "发布素材", STAGE_PACKAGE: "成品输出"}
 #: 点击圆点跳转的功能页（MainWindow.page_by_key 的 key）
 STAGE_JUMP = {STAGE_DOWNLOAD: "download", STAGE_MERGE: "merge",
               STAGE_TRANSCRIBE: "subtitle", STAGE_TRANSLATE: "subtitle",
               STAGE_CALIB1: "calib", STAGE_CALIB2: "calib",
-              STAGE_PACKAGE: "library"}
+              STAGE_PUBLISH: "publish", STAGE_PACKAGE: "library"}
 
 #: 两条任务链：链接任务（用户填链接 → 全自动）与目录任务（下载目录里出现的文件）
 CHAIN_LINK = [STAGE_DOWNLOAD, STAGE_TRANSCRIBE, STAGE_TRANSLATE,
-              STAGE_CALIB1, STAGE_CALIB2, STAGE_PACKAGE]
+              STAGE_CALIB1, STAGE_CALIB2, STAGE_PUBLISH, STAGE_PACKAGE]
 CHAIN_WATCH = [STAGE_DOWNLOAD, STAGE_MERGE, STAGE_TRANSLATE,
-               STAGE_CALIB1, STAGE_CALIB2, STAGE_PACKAGE]
+               STAGE_CALIB1, STAGE_CALIB2, STAGE_PUBLISH, STAGE_PACKAGE]
 
 #: config.json 里的键
 CFG_AUTO = "pipeline_auto"
@@ -117,8 +118,13 @@ def _safe_name(text, fallback="job"):
     return s[:80]
 
 
-def _fingerprint(paths):
-    """输入文件指纹：文件名 → [大小, mtime]（用于判断旧产物还能不能用）。"""
+def _fingerprint(paths, method=None):
+    """输入文件指纹：文件名 → [大小, mtime]（用于判断旧产物还能不能用）。
+
+    method（2026-11-25）：方法版本标记（如 "ai1"/"ai2"）。注入 "__method__" 键，
+    使「同输入但换了校准方法」的旧产物指纹不匹配 → 强制重跑（一校由机械脚本改
+    AI 后，旧 .calib.srt 不会被误复用）。None＝旧行为，其它阶段不受影响。
+    """
     out = {}
     for p in paths or ():
         if not p or not isinstance(p, str):      # 无字幕时 sub 为 None
@@ -128,10 +134,12 @@ def _fingerprint(paths):
             out[os.path.basename(p)] = [int(st.st_size), int(st.st_mtime)]
         except (OSError, TypeError, ValueError):
             out[str(p)] = None
+    if method:
+        out["__method__"] = method
     return out
 
 
-def _reusable(out_path, srcs):
+def _reusable(out_path, srcs, method=None):
     """产物可复用：产物在 + 输入指纹与产出时一致。
 
     只判"文件在"会把换了源文件的旧产物当成现成结果（实测：换片重跑仍直接
@@ -143,15 +151,15 @@ def _reusable(out_path, srcs):
     if not os.path.isfile(meta):
         return False
     try:
-        return json.loads(engine.read_text_any(meta)) == _fingerprint(srcs)
+        return json.loads(engine.read_text_any(meta)) == _fingerprint(srcs, method)
     except Exception:  # noqa: BLE001
         return False
 
 
-def _mark_reusable(out_path, srcs):
+def _mark_reusable(out_path, srcs, method=None):
     try:
         engine.write_text_utf8(out_path + ".src.json",
-                               json.dumps(_fingerprint(srcs), ensure_ascii=False))
+                               json.dumps(_fingerprint(srcs, method), ensure_ascii=False))
     except OSError:
         pass
 
@@ -507,40 +515,47 @@ def _stage_calib1_ready(job, registry):
     return bool(_pick_source_srt(job) or job.srt())
 
 
+# 一校/二校自定义校准指令（2026-11-25，用户指定，经 task_instruction 注入 AI）
+CALIB1_INSTRUCTION = (
+    "对字幕内容进行精确人工校准，不需要管脚本，直接检索游戏wiki或官方内容，"
+    "对中文名词进行精确翻译，然后优化中文的上下文，不允许对时间轴进行任何改变，"
+    "以官方中文版本为依据，结合上下文逐句核查是否存在名词漏校或漏译的情况"
+)
+CALIB2_INSTRUCTION = (
+    "对已有翻译内容进行二次校准：以官方中文版本为依据，结合上下文逐句核查是否存在"
+    "名词漏校或漏译的情况，并基于已识别的改动同步优化校准脚本subtitle_calib_merged.py。"
+    "仅调整文字内容，严格保持时间轴和原有格式不变。若单次无法完整读取，则自动拆分为"
+    "多段分别处理，最终合并为完整的校准结果，确保整体一致且不遗漏任何片段。"
+)
+
+
 def _stage_calib1_run(job, ctx):
+    """一校（2026-11-25 改 AI 精确校准）：检索官方/wiki + 名词精译 + 上下文优化，
+    自动选游戏模式（mode_flag 空→detect），不再仅跑机械脚本。"""
     src = _pick_source_srt(job) or job.srt()
     if not src or not os.path.isfile(src):
         raise RuntimeError("找不到待校准的 srt")
-    # 空字幕（纯音乐 / 无人声片子的转录产物）没有可校准的正文：跳过而不是
-    # 跑一遍脚本再产出一个空文件标 done（与 _translate_srt_file 同款判空）。
+    # 空字幕（纯音乐 / 无人声片子的转录产物）没有可校准的正文：跳过。
     if not _parse_srt_cues(engine.read_text_any(src)):
         raise SkipStage("字幕为空，无内容可校准", no_content=True)
+    if not ctx.ai_enabled():
+        raise SkipStage("AI 校准未启用（全局 AI 未配置或已关闭）")
     work = ctx.work_dir(job)
     out = os.path.join(work, f"{_safe_name(job.name)}.calib.srt")
-    if not os.path.isfile(CALIB_SCRIPT):
-        raise SkipStage("校准脚本缺失：" + CALIB_SCRIPT)
-    if _reusable(out, [src]):        # 同一份 srt 不重复校准
+    # 方法版本指纹 ai1：一校由机械脚本改 AI，旧 .calib.srt（无 __method__）不复用
+    if _reusable(out, [src], method="ai1"):
         return out
-    py = engine.system_python()
-    if not py or not os.path.isfile(py):
-        raise SkipStage("找不到可用的 Python 运行时")
-    args = [py, CALIB_SCRIPT, src, "--out", out]
-    env = dict(os.environ, PYTHONIOENCODING="utf-8")
-    ctx.log("[字幕校准] " + " ".join(f'"{a}"' if " " in a else a for a in args))
-    proc = engine.popen_process(args, cwd=os.path.dirname(CALIB_SCRIPT),
-                                stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-                                text=True, encoding="utf-8", errors="replace",
-                                bufsize=1, env=env)
-    for line in proc.stdout:
-        line = line.rstrip()
-        if line:
-            ctx.log("  " + line)
-    rc = proc.wait()
-    if rc != 0 or not os.path.isfile(out):
-        raise RuntimeError(f"校准脚本退出码 {rc}")
-    _mark_reusable(out, [src])
-    # 统一编码写出（读/写全部走 engine 的统一编解码入口；\r\n 先归一成 \n，
-    # 否则文本模式写出的二次翻译会把换行变 \r\r\n —— 每行间多一个空行）
+    ctx.log("[一校·AI精确校准] 检索官方/wiki + 名词精译 + 上下文优化（自动选游戏模式）")
+    res = engine.calib_ai_run(src, out=out, log=ctx.log, round_no=1,
+                              style="rewrite", mode_flag="",
+                              task_instruction=CALIB1_INSTRUCTION)
+    if not (res and res.get("ok")) and not os.path.isfile(out):
+        err = str((res or {}).get("error") or "")
+        if "cue 表为空" in err:
+            raise SkipStage(f"无需一校：{err}", no_content=True)
+        raise RuntimeError(f"AI 一校失败：{err[:160]}")
+    _mark_reusable(out, [src], method="ai1")
+    # 统一编码写出（\r\n 归一 \n，避免二次翻译换行变 \r\r\n）
     try:
         engine.write_text_utf8(out, _normalize_nl(engine.read_text_any(out)))
     except OSError:
@@ -560,11 +575,22 @@ def _stage_calib2_run(job, ctx):
     if not ctx.ai_enabled():
         raise SkipStage("AI 校准未启用（全局 AI 未配置或已关闭）")
     out = os.path.join(ctx.work_dir(job), f"{_safe_name(job.name)}.calib2.srt")
-    if _reusable(out, [src]):
+    if _reusable(out, [src], method="ai2"):
         return out
-    ctx.log(f"[二次校准] AI 在第一轮产物上继续（resume）")
-    res = engine.calib_ai_run(src, out=out, log=ctx.log, round_no=2,
-                              resume_from=src)
+    ctx.log("[二校·AI续跑+脚本同步] 逐句查漏 + 确认改动固化进校准脚本")
+    # 流水线二校默认开启会话固化（VT_SESSION_PROMOTE）：把本轮确认的官方名/高置信
+    # 改动同步进真源 ENTITIES 并重建 monolith（_promote_session_canonicals 带撞名
+    # 审查/py_compile/重建/回滚守卫，失败不阻断字幕交付）。临时置位、用完还原。
+    _old_promote = os.environ.get("VT_SESSION_PROMOTE")
+    os.environ["VT_SESSION_PROMOTE"] = "1"
+    try:
+        res = engine.calib_ai_run(src, out=out, log=ctx.log, round_no=2,
+                                  resume_from=src, task_instruction=CALIB2_INSTRUCTION)
+    finally:
+        if _old_promote is None:
+            os.environ.pop("VT_SESSION_PROMOTE", None)
+        else:
+            os.environ["VT_SESSION_PROMOTE"] = _old_promote
     if not (res and res.get("ok")) and not os.path.isfile(out):
         err = str((res or {}).get("error") or "")
         # 「cue 表为空」= 这份字幕没有可校准的中文行（纯韩文/英文轨等），
@@ -572,7 +598,40 @@ def _stage_calib2_run(job, ctx):
         if "cue 表为空" in err:
             raise SkipStage(f"无需二次校准：{err}", no_content=True)
         raise RuntimeError(f"AI 二次校准失败：{err[:160]}")
-    _mark_reusable(out, [src])
+    _mark_reusable(out, [src], method="ai2")
+    return out
+
+
+def _stage_publish_ready(job, registry):
+    """发布素材（2026-11-25）：校准链走到终态即可（需字幕，不强制成品视频）。"""
+    if job.state(STAGE_CALIB1) not in (DONE, SKIPPED):
+        return False
+    if job.chain_contains(STAGE_CALIB2) and job.state(STAGE_CALIB2) not in (DONE, SKIPPED):
+        return False
+    return True
+
+
+def _stage_publish_run(job, ctx):
+    """发布素材：从校准字幕生成 10 段时间轴 + 10 tag + 中文标题（投稿信息.txt）。"""
+    if not ctx.ai_enabled():
+        raise SkipStage("AI 未启用，跳过发布素材", no_content=True)
+    src = job.stage_out(STAGE_CALIB2) or job.stage_out(STAGE_CALIB1)
+    if not src or not os.path.isfile(src):
+        raise SkipStage("无校准字幕，跳过发布素材", no_content=True)
+    import features.publish.publish_material as pm  # noqa: PLC0415
+    out = os.path.join(ctx.work_dir(job), _safe_name(job.name) + "_素材")
+    info = os.path.join(out, "投稿信息.txt")
+    if _reusable(info, [src], method="pub1"):
+        return out
+    video = job.final_video() if hasattr(job, "final_video") else None
+    ctx.log("[发布素材] 生成 10 段时间轴 + 10 tag + 中文标题")
+    res = pm.generate_material(src, video=video, out=out, log=ctx.log)
+    if not res.get("ok"):
+        err = str(res.get("error") or "")
+        if "字幕为空" in err:
+            raise SkipStage(f"无需发布素材：{err}", no_content=True)
+        raise RuntimeError(f"发布素材失败：{err[:160]}")
+    _mark_reusable(info, [src], method="pub1")
     return out
 
 
@@ -701,6 +760,9 @@ STAGES = [
     StageDef(STAGE_CALIB2, STAGE_LABELS[STAGE_CALIB2],
              _stage_calib2_ready, _stage_calib2_run, STAGE_JUMP[STAGE_CALIB2],
              optional=True),
+    StageDef(STAGE_PUBLISH, STAGE_LABELS[STAGE_PUBLISH],
+             _stage_publish_ready, _stage_publish_run, STAGE_JUMP[STAGE_PUBLISH],
+             optional=True),
     StageDef(STAGE_PACKAGE, STAGE_LABELS[STAGE_PACKAGE],
              _stage_package_ready, _stage_package_run, STAGE_JUMP[STAGE_PACKAGE]),
 ]
@@ -826,6 +888,12 @@ class Job:
         if kind == "link" and STAGE_TRANSCRIBE not in migrated:
             pos = migrated.index(STAGE_DOWNLOAD) + 1 if STAGE_DOWNLOAD in migrated else 0
             migrated.insert(pos, STAGE_TRANSCRIBE)
+        # 旧链补齐 publish（2026-11-25）：有校准链的任务在 package 前插发布素材阶段
+        if STAGE_PUBLISH not in migrated and STAGE_CALIB1 in migrated:
+            if STAGE_PACKAGE in migrated:
+                migrated.insert(migrated.index(STAGE_PACKAGE), STAGE_PUBLISH)
+            else:
+                migrated.append(STAGE_PUBLISH)
         job.chain = migrated or list(
             CHAIN_LINK if kind == "link" else CHAIN_WATCH)
         job.stages = {k: {"state": WAITING, "error": "", "reason": "",

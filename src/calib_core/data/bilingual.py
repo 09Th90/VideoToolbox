@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.2.5
+# @version 3.3.1
 """术语/实体数据表
 
 源：subtitle_calib_merged.py L493-L2378 @ 97d7d463（2026-10-24 冻结快照）
@@ -439,10 +439,17 @@ BILINGUAL_TERMS = {
     "调制大厅": "调律大厅", "modulation hall": "调律大厅",
     # --- 2026-09-10 ARC WuWa Ep.7（she just want to live）二次校准新增：星炬学院角色官方中文 ---
     # 西格莉卡（Sigrika，星炬学院新生/返归者；官方中文依库街区，英文 Sigrika/西格莉卡已有名词表）
+    # ⚠ 2026-11-24 角色名共存对（构建闸门 warning）：Sigi/西吉 与同表辛吉勒姆长键
+    #   （Sigilum/Sigillum/西吉鲁姆）及隧铠机甲长键（Sigila mech/西吉兰机甲）共用
+    #   前缀/后缀；长键降序替换保证输出等价，**禁单边删除、禁拆表**，改动前跑
+    #   build_calib_monolith.py --check 看闸门。
     "Sigi": "西格莉卡", "Sigy": "西格莉卡", "Siga": "西格莉卡", "Sigria": "西格莉卡",
     "西吉": "西格莉卡", "锡格利亚": "西格莉卡", "西格利亚": "西格莉卡", "西格琳卡": "西格莉卡",
     "西格莉亚": "西格莉卡",                                      # 2026-11-19 3.8 完整片实测错形
     # 洛瑟菈（Lucilla，星炬学院校长；官方中文依库街区 wiki/3DM/sina 确认）
+    # ⚠ 2026-11-24 角色名共存对：露西拉/卢西拉（洛瑟菈）与同表「露西拉总统→洛瑟菈校长」
+    #   共用前缀，Luciel 与 Lucielle/Luciella（露希尔）共用前缀；长键降序替换保证
+    #   输出等价，禁单边删除/拆表。
     "Lucilla": "洛瑟菈", "露西拉": "洛瑟菈", "卢西拉": "洛瑟菈",
     # --- 2026-10-30 鸣潮 3.5 主线 reaction（8126 cue，英语原声+谷翻）校准沉淀 ---
     # 华胥院(Huashu Academy，3.5 玄方地界官方区域名)：裸键「学院→星炬学院」会把
@@ -473,6 +480,8 @@ BILINGUAL_TERMS = {
     "索罗尼亚": "鸣式", "索罗诺迪安": "鸣式", "弗雷诺迪安": "鸣式", "弗洛迪安": "鸣式",
     # 隧者(Exostrider) 小写/连写变体（exus/Exos/exo strider/Exost/Exoswarm）
     "exus": "隧者", "Exos": "隧者", "exos": "隧者", "Exost": "隧者", "Exoswarm": "隧者",
+    # 2026-11-24 前缀冲突闸门：Exos/Exost 会切碎官方键 Exostrider（隧者rider），补长键收口
+    "Exostrider": "隧者",
     "exo strider": "隧者", "Exos 骑手": "隧者", "exos 骑手": "隧者",
     "exor": "隧者", "exo 跨步者": "隧者", "Therenodian": "鸣式", "Hyroy": "拉海洛",
     "Imth": "爱弥斯", "Christophoro": "克里斯托弗",
@@ -1517,6 +1526,69 @@ BILINGUAL_TERMS = {
     "柯莱塔": "珂莱塔",
     "声骇": "声骸",
     "今洲": "今州",
+    # --- 2026-11-24 鸣潮 4.0《What is Kuro Games Even DOING!?》二次校准回灌 ---
+    #   官方依据：4.0 年度篇章「永明的烬焰」、PV《在普罗米厄的怀抱下》、
+    #   共鸣者「砂」（EN Cairn，标语「罪血与净雨」）、「格尔黛」（EN Gordia）、
+    #   穿戴式机甲「隧铠」（EN Mecha Suit）、EA《圣歌》（EN Anthem）。
+    #   只收整串唯一的错形/书名号残形；凯伦、国歌 属常用词，禁裸键，走 CONTEXT_MAP。
+    "戈迪娅": "格尔黛",
+    "共振解放": "共鸣解放",
+    "新联邦调查员": "新联邦",
+    "《Anthem》": "《圣歌》",
+    "《anthem》": "《圣歌》",
+    # --- 2026-11-24 鸣潮 4.0《They REVEALED New Federation Gameplay For Wuthering Waves!》二校回灌 ---
+    #   官方依据：4.0 年度篇章「永明的烬焰」、新联邦/旧联邦城市、穿戴式机甲「隧铠」、
+    #     深海模式、共鸣解放、漂泊者、露希尔/小沧龙、PV《在普罗米厄的怀抱下》；
+    #     《星球大战》塔图因/莫斯艾斯利、EA《圣歌》、亚瑟·摩根。
+    #   只收整串唯一错形；「龙」「解放」等短词只走 CONTEXT_MAP（_ctx_replace 防叠字）。
+    "Underwater mode": "深海模式",
+    "underwater mode": "深海模式",
+    "Underwater Mode": "深海模式",
+    "水下模式": "深海模式",
+    "Sigila mech": "隧铠机甲",
+    "sigila mech": "隧铠机甲",
+    "Sigilan mech": "隧铠机甲",
+    "sigilan mech": "隧铠机甲",
+    "Sigil mech": "隧铠机甲",
+    "sigil mech": "隧铠机甲",
+    "Sigil robot": "隧铠机甲",
+    "sigil robot": "隧铠机甲",
+    "Sigil flight mechanic": "隧铠飞行机制",
+    "sigil flight mechanic": "隧铠飞行机制",
+    "西吉兰机甲": "隧铠机甲",
+    "Sigila机甲": "隧铠机甲",
+    "符文机器人": "隧铠机甲",
+    "符文飞行机械师": "隧铠飞行机制",
+    "Little Grauroth": "小沧龙",
+    "little Grauroth": "小沧龙",
+    "Grauroth": "小沧龙",
+    "Tatooine": "塔图因",
+    "Tatwine": "塔图因",
+    "Tatawine": "塔图因",
+    "塔特温街的T字楼": "塔图因上",
+    "塔特温": "塔图因",
+    "Moss Eisley": "莫斯艾斯利",
+    "Moss Eisly": "莫斯艾斯利",
+    "Mos Eisley": "莫斯艾斯利",
+    "莫斯·艾斯利": "莫斯艾斯利",
+    "莫斯 艾斯利": "莫斯艾斯利",
+    "《星报》": "《星球大战》",
+    "Star Wars": "《星球大战》",
+    "Star War": "《星球大战》",
+    "Arthur Morgan": "亚瑟·摩根",
+    "Anthem 2.0": "《圣歌 2.0》",
+    "Kurame": "库洛",
+    # --- 2026-11-24 《How NOT to Respond to Criticism as a Content Creator》二校沉淀 ---
+    # 依据：3.8 官中公告「旧梦凋零的百合」/「第二索拉：未名之梦」；本片把 Wuthering Waves
+    #   的 ASR 变体谷翻成「风化之浪/水浪/枯萎之浪」等十余种中文形。既有 1018 行只覆盖
+    #   Weathering / Wither 两族，此处补齐 Watery / Wering / Withered 三族。
+    #   英文键均为 ASR 专属长形、无普通语义，可安全做扁平键（中文裸「水浪/枯萎」是普通词，禁入）。
+    "Watery Waves": "鸣潮", "Watery Wave": "鸣潮",
+    "Wering Waves": "鸣潮", "Wering Wave": "鸣潮",
+    "Withered Waves": "鸣潮", "Withered Wave": "鸣潮",
+    "Withering Waves": "鸣潮",
+    # JPDUB＝JP dub 的 ASR 连写（日语语音包）；谷翻整段未译，本片 #709/#719/#720 实测。
+    "JPDUB": "日语语音包", "JpDub": "日语语音包",
 }
 
 
@@ -1864,6 +1936,8 @@ CONTEXT_MAP = [
     (r"\bshort\b", "简而言之", "这个短片里"),           # short=短片 被误译成语"简而言之"
     (r"\bframe\b", "框架", "画面"),                    # frame=画面/镜头
     (r"\btrailer\b", "拖车", "宣传片"),                # Resonator trailer 共鸣者宣传片
+    (r"\bgilded\s+ball\b", "鎏金球", "玲珑球"),        # 3.7《寻心》信物官中=玲珑球（本片 #322）
+    (r"\bValinafura\b", "瓦利纳弗拉", "巴利诺拉"),     # Balinaphora 的 ASR 形，官中=巴利诺拉（本片 #401）
     (r"\bNier\b", "提醒我的尼尔", "让我想起尼尔"),     # reminds me of Nier
     (r"set off", "没想到会出发", "没想到会引爆"),       # set off a volcano 引爆火山
     (r"dial back", "拨回设置", "调低设置"),             # Dial back settings 调低设置
@@ -3485,6 +3559,65 @@ CONTEXT_MAP = [
     ("\\bMontelli\\b", "蒙泰利", "莫塔里"),
     ("\\bMontelli\\b", "蒙特利", "莫塔里"),
     ("(?=.*\\bRescue\\b)(?=.*\\b(?:short\\s+film|cinematic|trailer)\\b)", "救援", "《拯救》"),
+    # --- 2026-11-24 鸣潮 4.0《What is Kuro Games Even DOING!?》二次校准回灌 ---
+    #   Cairn 官方中文=砂（4.0，标语「罪血与净雨」）；ASR 常作 Kairen，谷翻作「凯伦」。
+    #   只锚本片 "There's Kairen." 句式，避免误伤 TGA 语境 Cairn=孤山独影；
+    #   官方 Cairn 形继续只在 WUWA_MISSING_CHECK 体检。
+    (r"\bThere(?:'s|\s+is)\s+Kairen\b", "凯伦", "砂"),
+    #   Embers of the Everbrite 官方篇章名=永明的烬焰；谷翻意译成「永恒之火」。
+    (r"\bEmbers\s+of\s+(?:the\s+)?Everb(?:rite|right)\b", "永恒之火", "永明的烬焰"),
+    #   Anthem=《圣歌》；只锚本片 "into this anthem like figure" 明喻句，避免误伤国歌字面义。
+    (r"\binto\s+this\s+anthem\s+like\s+figure\b", "国歌", "《圣歌》"),
+    #   4.0 穿戴式机甲=隧铠；只锚本片 "we still have this mech here" 实指句。
+    (r"\bwe\s+still\s+have\s+this\s+mech\s+here\b", "这台机甲", "这台隧铠"),
+    # --- 2026-11-24 鸣潮 4.0《They REVEALED New Federation Gameplay For Wuthering Waves!》二校回灌 ---
+    #   PV 标题 ASR "in the arms of the wing/wind" → 官方《在普罗米厄的怀抱下》。
+    (r"\bin\s+the\s+arms\s+of\s+the\s+(?:wing|wind)\b", "在翼的怀抱中", "在普罗米厄的怀抱下"),
+    (r"\bin\s+the\s+arms\s+of\s+the\s+(?:wing|wind)\b", "在风的怀抱中", "在普罗米厄的怀抱下"),
+    #   dragon=露希尔搭档小沧龙；只锚英文参考行，防「一条龙服务」等正常语义。
+    (r"\bdragons?\b", "龙", "小沧龙"),
+    #   Liberation 单独出现=共鸣解放；_ctx_replace 保护既有「共鸣解放」不叠字。
+    (r"\bLiberation\b", "解放", "共鸣解放"),
+    # --- 2026-11-24 《How NOT to Respond to Criticism as a Content Creator》二校回灌 ---
+    # ① 第二索拉（Second Solaris）：3.8 休闲活动「第二索拉：未名之梦」官中口径。
+    #   学院版由上方 Second Solaris Academy 条单独处理，此处负向环视排除 Academy，
+    #   避免把「第二索拉学院」咬成裸活动名（本片 #154 实测「索拉里斯再临」为直译漏校）。
+    (r"\bSecond\s+Coming\s+of\s+Solaris\b(?!\s+Academy)", "索拉里斯再临", "第二索拉"),
+    (r"\bSecond\s+Coming\s+of\s+Solaris\b(?!\s+Academy)", "索拉里斯的第二次降临", "第二索拉"),
+    (r"\bSecond\s+Coming\s+of\s+Solaris\b(?!\s+Academy)", "索拉里斯的再临", "第二索拉"),
+    (r"\bSecond\s+Coming\s+of\s+Solaris\b(?!\s+Academy)", "索拉里斯二次降临", "第二索拉"),
+    (r"\bSecond\s+Coming\s+of\s+Solaris\b(?!\s+Academy)", "索拉利斯再临", "第二索拉"),
+    (r"\bSecond\s+Coming\s+of\s+Solaris\b(?!\s+Academy)", "第二次降临", "第二索拉"),
+    # ② Ryuku：创作者名，未查到官方中文，全文沿用拉丁形。ASR 十余种写法被谷翻拆成
+    #   龙老师/龙久/龙鹤/龙卡尔/龙光/龙宫（「龙」来自 dragons?→龙 的联想），
+    #   另有把 Ryukyu 当冲绳「琉球」的硬伤。中文形一律英文锚定、禁裸键
+    #   （「龙老师」是通用称谓，「龙宫/龙光」是地名；本片 #20/#554/#893 实测）。
+    (r"(?-i:\bRyuk(?:u|usensei|ou|ahr|har|ugu|uh|yu|or)\b)", "龙老师", "Ryuku"),
+    (r"(?-i:\bRyuk(?:u|usensei|ou|ahr|har|ugu|uh|yu|or)\b)", "龙久", "Ryuku"),
+    (r"(?-i:\bRyuk(?:u|usensei|ou|ahr|har|ugu|uh|yu|or)\b)", "龙鹤", "Ryuku"),
+    (r"(?-i:\bRyuk(?:u|usensei|ou|ahr|har|ugu|uh|yu|or)\b)", "龙卡尔", "Ryuku"),
+    (r"(?-i:\bRyuk(?:u|usensei|ou|ahr|har|ugu|uh|yu|or)\b)", "龙光", "Ryuku"),
+    (r"(?-i:\bRyuk(?:u|usensei|ou|ahr|har|ugu|uh|yu|or)\b)", "龙宫", "Ryuku"),
+    (r"(?-i:\bRyuk(?:u|usensei|ou|ahr|har|ugu|uh|yu|or)\b)", "琉球", "Ryuku"),
+    # ③ PNG＝帧/静态图片：本片「PNG form」被谷翻成国家名「巴布亚新几内亚」。
+    #   只锚该错形，正常 PNG 图片格式语境不动。
+    (r"\bPNG\s+form\b|\bPNG\b", "巴布亚新几内亚", "静态图片"),
+    # ④ the Glaciers＝glazers（吹捧者）的 ASR 同音；谷翻按字面作「冰川」。
+    #   裸 Glaciers 也可能是真实冰川/冰河地名，故要求同行另有 hate/glazers 佐证。
+    (r"\bglazers?\b", "冰川", "吹捧者"),
+    (r"(?=.*\bGlaciers\b)(?=.*\b(?:hate|glazers?)\b)", "冰川", "吹捧者"),
+    # ⑤ Chaos Zero Nightmare 官方简中=《卡厄思梦境》（WeGame 商店页「卡厄思梦境」+
+    #   国服官方账号 2026-05-27 公测答疑）；谷翻/社区直译作「混沌零噩梦/混沌零梦魇」。
+    #   书名号形必须先于裸形替换，否则会叠成「《《卡厄思梦境》》」（本片 #836）。
+    (r"\bChaos\s+Zero\s+Nightmare\b", "Zero，混沌零噩梦", "《卡厄思梦境》"),
+    (r"\bChaos\s+Zero\s+Nightmare\b", "Zero，混沌零梦魇", "《卡厄思梦境》"),
+    (r"\bChaos\s+Zero\s+Nightmare\b", "Zero, 混沌零噩梦", "《卡厄思梦境》"),
+    (r"\bChaos\s+Zero\s+Nightmare\b", "Zero, 混沌零梦魇", "《卡厄思梦境》"),
+    (r"\bChaos\s+Zero\s+Nightmare\b", "《混沌零梦魇》", "《卡厄思梦境》"),
+    (r"\bChaos\s+Zero\s+Nightmare\b", "《混沌零噩梦》", "《卡厄思梦境》"),
+    (r"\bChaos\s+Zero\s+Nightmare\b", "混沌零梦魇", "《卡厄思梦境》"),
+    (r"\bChaos\s+Zero\s+Nightmare\b", "混沌零噩梦", "《卡厄思梦境》"),
+    (r"\bChaos\s+Zero\s+Nightmare\b", "混沌零Nightmare", "《卡厄思梦境》"),
 ]
 
 
@@ -3835,6 +3968,20 @@ EXCLUDE_CONTEXT = {
     # --- 2026-11-18 4.0 reaction：Coast Guard 是守岸人早期英文命名 ---
     # 本片 #276/#277 中文保留史实表述「海岸警卫队」，不能被裸键「海岸警卫队→守岸人」抹掉。
     "海岸警卫队": ("守岸人", (r"\bCoast\s+Guard\b",)),
+    # --- 2026-11-24 Ryuku 片二校：琉球只在 ASR 同音时才归创作者名 ---
+    #   CONTEXT_MAP 的 Ryuku 条会把 Ryukyu 的「琉球」统一成 Ryuku；参考行明确是
+    #   冲绳/琉球群岛时必须回滚（right 须与 CONTEXT_MAP 目标值一致）。
+    "琉球": ("Ryuku", (r"\bOkinawa\b|\bRyukyu\s+Islands?\b|冲绳",)),
+    # --- 2026-11-24 本片二校：两处跨片误伤防护（均为「实体锚点过宽」的既有规则）---
+    #   Nvidia 实体在 3.3 语境指娜波摩，但本片是字面的英伟达股价（#264/#488）；
+    #   参考行是 stock/stocks 时回滚「英伟达→娜波摩」。
+    "英伟达": ("娜波摩", (r"\bstocks?\b|stock\s+price",)),
+    #   gacha 的「抽卡→唤取」是鸣潮专属口径；本片讲的是泛抽卡圈（#772 "other gacha"），
+    #   参考行含 gacha 且中文是「抽卡游戏」固定搭配时回滚（既有 3891 条只锚 gacha game，
+    #   "other gacha" 漏网，故此处单独收「抽卡游戏」长键）。
+    "抽卡游戏": ("唤取游戏", (r"\bgacha\b",)),
+    #   PNG 同时是巴布亚新几内亚的国家缩写；参考行出现 Papua/New Guinea 时回滚「静态图片」。
+    "巴布亚新几内亚": ("静态图片", (r"\bPapua\b|\bNew\s+Guinea\b",)),
 }
 
 
@@ -4169,6 +4316,31 @@ WUWA_MISSING_CHECK = [
     (r"\bKaren\b", ("砂",),
      "Karen 官方中文=砂（4.0，标语「罪血与净雨」）；常用人名，仅角色名单语境可改，"
      "本片 #427-429/#441/#627/#689-691 均指该角色"),
+    # --- 2026-11-24 《What is Kuro Games Even DOING!?》二次校准补项（只报不改）---
+    (r"\b(?:Cairn|Kairen)\b", ("砂",),
+     "Cairn 官方中文=砂（4.0，标语「罪血与净雨」）；Kairen 为 ASR 形，本片 #24 谷翻「凯伦」"),
+    (r"\bResonance\s+Liberation\b", ("共鸣解放",),
+     "Resonance Liberation 官方中文=共鸣解放；谷翻常作「共振解放」"),
+    (r"\bAnthem\b", ("《圣歌》", "圣歌"),
+     "Anthem 在 4.0 reaction 片中指 EA《圣歌》（Javelin 机甲）；国歌义须人工排除"),
+    (r"\bShe\s+rides\s+a\s+dragon\b", ("沧龙",),
+     "4.0 露希尔搭档官方档案=小沧龙；本片 #133 谷翻「一条龙」，人工改「一条沧龙」"),
+    # --- 2026-11-24 《They REVEALED New Federation Gameplay...》二校补项（只报不改）---
+    (r"\bUnderwater\s+mode\b", ("深海模式",),
+     "Underwater mode 官中=深海模式（4.0 隧铠水下玩法）；机翻常作「水下模式」"),
+    (r"\b(?:Little\s+)?Grauroth\b", ("小沧龙",),
+     "Grauroth 官中=小沧龙（露希尔搭档）；机翻常泛作「龙」"),
+    (r"\bSigila(?:n)?\b|\bSigil\s+(?:mech|robot|flight\s+mechanic)\b",
+     ("隧铠", "隧铠机甲", "隧铠飞行机制"),
+     "4.0 穿戴式机甲=隧铠（EN Strider Mechsuit）；Sigila/Sigil 为 ASR/机翻形"),
+    (r"\bPromeus\b", ("普罗米厄",),
+     "Promeus 官中=普罗米厄（PV《在普罗米厄的怀抱下》）"),
+    (r"\bTatooine\b|\bTatwine\b|\bTatawine\b", ("塔图因",),
+     "《星球大战》塔图因；ASR Tatwine/Tatawine"),
+    (r"\bMoss\s+Eisley\b|\bMos\s+Eisley\b", ("莫斯艾斯利",),
+     "《星球大战》莫斯艾斯利"),
+    (r"\bArthur\s+Morgan\b", ("亚瑟·摩根",),
+     "《荒野大镖客：救赎2》主角官中=亚瑟·摩根"),
     # 七条官方标语（英文参考行 → 中文须含官中标语原文）
     (r"\broses?\s+and\s+desires?\b", ("玫瑰与妄欲",), "Anna 标语官方中文=「玫瑰与妄欲」"),
     (r"\btruth\s+and\s+illusions?\b", ("真实与假象",), "April 标语官方中文=「真实与假象」"),
@@ -4218,6 +4390,11 @@ WUWA_MISSING_CHECK = [
      "《寻心》信物官中=玲珑球"),
     (r"\bExostrider\b", ("隧者",),
      "Exostrider 官中=隧者（3.1《拯救》）"),
+    # --- 2026-11-24 《How NOT to Respond to Criticism as a Content Creator》二校补项 ---
+    (r"\bSecond\s+Coming\s+of\s+Solaris\b(?!\s+Academy)", ("第二索拉",),
+     "3.8 休闲活动「第二索拉：未名之梦」官中=第二索拉；直译「索拉里斯再临」是漏校（本片 #154）"),
+    (r"(?-i:\bRyuk(?:u|usensei|ou|ahr|har|ugu|uh|yu|or)\b)", ("Ryuku",),
+     "创作者名 Ryuku，无官方中文，全文沿用拉丁；谷翻拆成龙老师/龙久/琉球等中文形时即为漏校"),
 ]
 
 

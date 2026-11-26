@@ -1,0 +1,12 @@
+{
+  "cmd": "trace",
+  "policy": "structure",
+  "ignore_keys": [],
+  "payload": {
+    "ok": true,
+    "root": "<ROOT>\\logs\\trace",
+    "sessions": []
+  },
+  "rc": 0,
+  "artifacts": {}
+}

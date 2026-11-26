@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.2.5
+# @version 3.3.1
 """_api.spec —— 11 命令参数的**唯一真源**（纯数据，2026-11-20 三层独立）。
 
 MCP inputSchema 从本模块生成；CLI argparse 是受 check_schema_parity.py
@@ -40,6 +40,7 @@ class ModeFlagSpec:
     preserve: bool = False         # --wuwa38h 保留 >> 前缀
     ko_override: bool = False      # --wuwa40ko
     amiya: bool = False            # --arcakamiya 阿米娅侧车
+    zh_first: bool = False         # --wuwaall 中文优先（names 排序 flag）
     source: str = ""
 
 
@@ -115,6 +116,8 @@ CALIBRATE_MODE_FLAGS = (
        override_const="WW38B_OVERRIDES_SRC", source="calib_core/data/modes.py:_RERUN"),
     _M("--wuwa38j", "bi", one_click=True, info_const="WW38_J_INFO",
        override_const="WW38_J_OVERRIDES_SRC", source="calib_core/data/modes.py:_RERUN"),
+    _M("--wuwa38g", "bi", one_click=True, info_const="WW38G_INFO",
+       override_const="WW38G_OVERRIDES_SRC", source="calib_core/data/modes.py:_RERUN"),
     _M("--wuwa40", "bi", one_click=True, info_const="WW40_INFO",
        override_const="WW40_OVERRIDES_SRC", source="calib_core/data/modes.py:_RERUN"),
     _M("--wuwa40ko", "wuwa-40ko", one_click=True, info_const="WW40KO_INFO",
@@ -126,12 +129,19 @@ CALIBRATE_MODE_FLAGS = (
     _M("--wuwa40ja", "wuwa-ja", one_click=True, info_const="WW40JA_INFO",
        override_const="WW40JA_OVERRIDES_SRC",
        source="calib_core/data/modes.py:_RERUN"),
+    _M("--wuwa40pv", "wuwa-40pv", one_click=True, info_const="WW40PV_INFO",
+       override_const="WW40PV_OVERRIDES_SRC", ko_override=True,
+       source="calib_core/data/modes.py:_RERUN"),
+    _M("--wuwa40reveal", "wuwa-40reveal", one_click=True, info_const="WW40REVEAL_INFO",
+       override_const="WW40REVEAL_OVERRIDES_SRC",
+       source="calib_core/data/modes.py:_RERUN"),
     _M("--wuwasol", "bi", one_click=True, info_const="WUSOL_INFO",
        override_const="WUSOL_OVERRIDES_SRC", source="calib_core/data/modes.py:_RERUN"),
+    _M("--wuwaall", "bi", one_click=True, info_const="WUWAALL_INFO",
+       override_const="WUWAALL_OVERRIDES_SRC", zh_first=True,
+       source="calib_core/data/modes.py:_RERUN"),
     _M("--arcakamiya", "ak-arcaea", amiya=True,
        source="calib_core/data/modes.py:_RERUN"),
-    # ⚠ _RERUN 另有 --wuwaall（mode=bi + zh_first=True）：ModeFlagSpec 暂无
-    #   zh_first 字段，语义表达不了，留待补字段后再登记（不属本次重命名范围）。
 )
 
 COMMANDS = (
@@ -229,6 +239,9 @@ COMMANDS = (
             _P("--fix-en", "fix_en", "option", "boolean", default=False,
                action="store_true", help="修正英文参考行 ASR 错词",
                source="calib_core/cli.py:145"),
+            _P("--evidence", "evidence", "option", "path", default=None,
+               help="逐条证据 JSON 侧车（AI 校准代理读基线改动词来源）",
+               source="calib_core/cli.py:85"),
             _P("--mode", "mode", "option", "string", default="bi",
                help="模式别名通道（12 个子键 ak-ja/ak-ko/ak-arcaea/endo-bi/endo-ko/"
                     "endo-ja/wuwa-ja/wuwa-ko/wuwa-40ko/wuwa-40ign/pgr-en/pgr-ja "
@@ -282,6 +295,31 @@ COMMANDS = (
         passthrough=True, timeout="medium", read_only=True,
         source="features/calibrate/cli.py + calib_core/cli.py:456-466"),
     CommandSpec(
+        name="trace",
+        help="开发版校准观测事件查询（工作流/AI 思考链/校准方向/数据访问；list/tail/show）",
+        params=(
+            _P("action", "action", "positional", "string", default="list",
+               choices=("list", "tail", "show"),
+               help="list=会话清单 / tail=事件流 / show=单会话摘要",
+               source="features/calibrate/cli.py:setup_trace"),
+            _P("--session", "session", "option", "string", default="",
+               help="会话 ID（默认最新）",
+               source="features/calibrate/cli.py:setup_trace"),
+            _P("--kind", "kind", "option", "string", default="",
+               choices=("workflow", "ai", "direction", "data"),
+               help="事件类别过滤：workflow/ai/direction/data",
+               source="features/calibrate/cli.py:setup_trace"),
+            _P("--limit", "limit", "option", "integer", default=50,
+               help="tail 取末尾 N 条事件（0=全部；list 时为会话数上限）",
+               source="features/calibrate/cli.py:setup_trace"),
+            _P("--follow", "follow", "option", "boolean", default=False,
+               action="store_true",
+               help="实时跟踪（0.5s 轮询；--json 模式输出 NDJSON 事件流）",
+               source="features/calibrate/cli.py:setup_trace"),
+        ),
+        timeout="fast", read_only=True,
+        source="features/calibrate/cli.py + features/_api/commands/trace.py"),
+    CommandSpec(
         name="compose",
         help="字幕合成：软封装（copy）/ 硬烧录 / 带独立音轨合并",
         params=(
@@ -328,6 +366,30 @@ COMMANDS = (
                         note="恰好给一个；都空或都给都报错（运行时校验）"),),
         timeout="async",
         source="features/split/cli.py"),
+    CommandSpec(
+        name="publish",
+        help="发布素材：从字幕生成 10 段时间轴 + 10 tag + 中文标题（投稿信息.txt）",
+        params=(
+            _P("srt", "srt", "positional", "path", required=True,
+               help="字幕文件（校准产物优先）",
+               source="features/publish/cli.py:18"),
+            _P("--video", "video", "option", "path", default="",
+               help="源视频（取时长；缺省用字幕末条时间）",
+               source="features/publish/cli.py:19"),
+            _P("--game", "game", "option", "string", default="",
+               help="游戏名（标题【游戏名】，缺省读配置默认）",
+               source="features/publish/cli.py:20"),
+            _P("--streamer", "streamer", "option", "string", default="",
+               help="主播名（标题【主播名】，缺省读配置默认）",
+               source="features/publish/cli.py:21"),
+            _P("--title-en", "title_en", "option", "string", default="",
+               help="英文原始标题（缺省从视频信息.txt/文件名推断）",
+               source="features/publish/cli.py:22"),
+            _P("--out", "out", "option", "path", default="",
+               help="素材输出目录（缺省字幕同目录 <名>_素材）",
+               source="features/publish/cli.py:23"),),
+        timeout="medium",
+        source="features/publish/cli.py"),
     CommandSpec(
         name="bili-submit",
         help="B 站后台自动投稿（UI Automation 定位 + 后台输入；素材目录内含投稿信息.txt）",

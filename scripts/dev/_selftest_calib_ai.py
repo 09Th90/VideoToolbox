@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.2.5
+# @version 3.3.1
 """AI 校准 Agent 自检（离线，不联网、不调用真实 LLM）。
 
 覆盖：
@@ -16,7 +16,11 @@
   9. v1.16.0 断点续跑：ckpt 全量列不写空，已完成块不再重问；
   10. tag 分层优先级：① 游戏专名 ＞ ①b 版本/角色 ＞ ② 内容/类型 ＞ ③ 公司/作者
       ——配额 5:2:2:1（v1.17.1 起）、
-      幻觉词剔除、书面短语归一、非游戏 IP 不占作品名额、Warframe→星际战甲。
+      幻觉词剔除、书面短语归一、非游戏 IP 不占作品名额、Warframe→星际战甲；
+  11. 2026-11-24 五缺陷修复：_candidates 确定性最长匹配（拦短键先行污染）、
+      hot==0 双语片自动改派 rewrite（显式 term 只强提示）、INCLUDE_REF_MODES
+      补全（wuwa-40* / ak-arcaea 携带参考行）、拒绝整改回路（每块限 1 次）、
+      build_rules 退全量显式告警。
 
 用法：tools\\python\\python.exe scripts\\dev\\_selftest_calib_ai.py
 """
@@ -204,6 +208,117 @@ def test_rules_and_validate():
         ok, why, _ = ag.validate_change("今天天气不错", "",
                                         rules, excludes, canonicals)
         check("空文本被拒绝", not ok, why)
+
+
+def test_verified_evidence_gate():
+    """2026-11-24：A 级来源证据入采纳闸门（查证到的官方名不该被 0 采纳挡回）。
+
+    缺陷场景：模型联网查到官方名，但知识库尚未沉淀该名 ⇒ validate_change
+    以「无知识库依据且未落在官方名上」拒绝。修复后：official/wiki 来源里
+    literally 出现的名字，与 canonicals 同一放行口（跨度等硬约束不变）。
+    """
+    print("\n== 2b. 查证证据入采纳闸门 ==")
+    ev_official = ("永明的烬焰｜鸣潮WIKI\n"
+                   "「永明的烬焰」是该角色的官方技能名，效果为……")
+    rules, excludes = [], []
+
+    ok, why, soft = ag.validate_change(
+        "永明官员的余烬", "永明的烬焰", rules, excludes, set(),
+        verified_evidence=ev_official)
+    check("证据佐证的官方名被接受（canonicals 为空）", ok and soft, why)
+    check("依据写明官方来源佐证", "官方来源佐证" in why, why)
+
+    ok2, why2, _ = ag.validate_change(
+        "永明官员的余烬", "永明的烬焰", rules, excludes, set())
+    check("无证据时同一条改动仍被拒（默认空串 → 旧逻辑等价）", not ok2, why2)
+
+    ok3, why3, _ = ag.validate_change(
+        "永明官员的余烬", "永明的烈焰", rules, excludes, set(),
+        verified_evidence=ev_official)
+    check("证据里没有的名字仍被拒绝", not ok3, why3)
+
+    # 2026-11-24 收尾硬化 B：覆盖率守卫——半佐证前缀不得放行未佐证全名
+    ev_prefix = "永明的护心｜鸣潮WIKI\n「永明的护心」是另一技能的官方名，效果为……"
+    ok_h, why_h, _ = ag.validate_change(
+        "余烬燃起", "永明的烈焰燃起", rules, excludes, set(),
+        verified_evidence=ev_prefix)
+    check("半佐证拒：只佐证到公共前缀「永明的」、未佐证「烈焰」",
+          not ok_h and ag._verified_hit("余烬燃起", "永明的烈焰燃起", ev_prefix) == "",
+          why_h)
+    ok_f, why_f, soft_f = ag.validate_change(
+        "余烬燃起", "永明的护心燃起", rules, excludes, set(),
+        verified_evidence=ev_prefix)
+    check("完整佐证放行：新名整体见于证据",
+          ok_f and soft_f
+          and ag._verified_hit("余烬燃起", "永明的护心燃起", ev_prefix) == "永明的护心",
+          why_f)
+    two = "卡提希娅、洛瑟菈均为官方角色名｜库街区WIKI"
+    check("一行两个官方名各自被佐证（并集覆盖）放行",
+          ag._verified_hit("卡提西亚和洛瑟拉", "卡提希娅和洛瑟菈", two) == "卡提希娅",
+          ag._verified_hit("卡提西亚和洛瑟拉", "卡提希娅和洛瑟菈", two))
+    check("名字全佐证 + 1 个标点（2/3）仍放行",
+          ag._verified_hit("卡提西亚很强", "卡提希娅很强！", "卡提希娅") == "卡提希娅")
+    check("覆盖率阈值常量=0.6（严格大于）", ag._VERIFIED_COVER_MIN == 0.6)
+
+    # 会话级收集：只收 official/wiki，community 不入证据；原回填文本不变
+    stats = {}
+    web = {
+        "search": lambda q: "（回填文本）",
+        "search_structured": lambda q: [
+            {"title": "永明的烬焰", "url": "https://wiki.kurobbs.com/mc/item/1",
+             "tier": "official", "snippet": "官方技能名", "exact": True},
+            {"title": "永明的烬焰讨论", "url": "https://tieba.baidu.com/p/1",
+             "tier": "community", "snippet": "玩家猜测", "exact": False},
+        ],
+    }
+    out = ag.run_tools([{"tool": "web_search", "query": "鸣潮 永明"}], web,
+                       stats=stats)
+    ve = stats.get("verified_evidence") or ""
+    check("run_tools 只把 official/wiki 命中并入会话证据",
+          "永明的烬焰" in ve and "官方技能名" in ve and "玩家猜测" not in ve, ve)
+    check("原有回填文本不变（web_search 仍走 search）", out == "（回填文本）", out)
+    ok4, why4, _ = ag.validate_change(
+        "永明官员的余烬", "永明的烬焰", rules, excludes, set(),
+        verified_evidence=ve)
+    check("会话证据闭环：查证 → 放行同一官方名", ok4, why4)
+
+    # rewrite：官方来源里的英文名放行；无证据时新增拉丁仍被拒
+    ok5, why5, _ = ag.validate_rewrite(
+        "永明官员的余烬燃起", "永明的烬焰 Ember 燃起", [], [], set(), "",
+        verified_evidence="Official: Ember")
+    check("rewrite：官方来源里的英文名放行", ok5, why5)
+    ok6, why6, _ = ag.validate_rewrite(
+        "永明官员的余烬燃起", "永明的烬焰 Ember 燃起", [], [], set(), "")
+    check("rewrite：无证据时新增拉丁仍被拒（旧逻辑）", not ok6, why6)
+
+    # 统一分级：库街区站内命中与 Bing 收录的同一页必须同级别
+    import features.calibrate.calib_web_agent as web_ag
+    check("wiki.kurobbs.com 站内/Bing 同级别（官网↔official）",
+          web_ag._tier_of("https://wiki.kurobbs.com/mc/item/123") == "官网"
+          and web_ag.tier_key_of("https://wiki.kurobbs.com/mc/item/123") == "official",
+          web_ag._tier_of("https://wiki.kurobbs.com/mc/item/123"))
+    check("库街区论坛帖仍归社区（不被整域提升为官网）",
+          web_ag.tier_key_of("https://www.kurobbs.com/post/1") == "community",
+          web_ag.tier_key_of("https://www.kurobbs.com/post/1"))
+
+    # search_structured：结构化字段 + 与 search 共享检索缓存（不二次出网）
+    from unittest import mock as _mock
+    fake_site = [("永明的烬焰", "https://wiki.kurobbs.com/mc/item/1",
+                  "官方技能名", "官网", "库街区WIKI")]
+    with _mock.patch.object(web_ag, "_site_hits", return_value=fake_site) as m1, \
+            _mock.patch.object(web_ag, "_bing_hits", return_value=[]):
+        t2 = web_ag.make_tools(proxy={}, timeout=1, work="鸣潮")
+        txt = t2["search"]("鸣潮 永明的烬焰 官方名称")
+        rows = t2["search_structured"]("鸣潮 永明的烬焰 官方名称")
+    check("search 文本格式不变（编号/级别·站点）",
+          "1. [官网·库街区WIKI] 永明的烬焰" in txt, txt)
+    check("search_structured 字段齐全且 tier 统一英文键",
+          bool(rows) and set(rows[0]) == {"title", "url", "tier", "snippet", "exact"}
+          and rows[0]["tier"] == "official" and rows[0]["exact"] is True, str(rows))
+    check("search 与 search_structured 共享检索缓存（只出网一次）",
+          m1.call_count == 1, f"站点检索调用 {m1.call_count} 次")
+    printed = t2["search_structured"]("")
+    check("空查询/异常降级为空列表", printed == [], str(printed))
 
 
 def test_split():
@@ -1119,10 +1234,216 @@ def test_orig_title():
     check("无原始标题时提示词降级（完全依据字幕）", "未取到" in p2)
 
 
+def test_candidates_deterministic():
+    """2026-11-24：_candidates 只给最长匹配唯一结果，拦短键先行污染。
+
+    缺陷复现：rules 里同时有长键「西吉兰机甲→隧铠机甲」与短键「西吉→西格莉卡」，
+    旧版穷举替换顺序会生成「西吉兰机甲 → 西格莉卡兰机甲」（短键先替换后残留
+    「兰机甲」），validate_change 误判 True。修复后短键拼接结果不在候选集。
+    """
+    print("\n== 16. 确定性候选（拦短键先行污染） ==")
+    rules = [("西吉兰机甲", "隧铠机甲"), ("西吉兰", "西格莉卡"), ("西吉", "西格莉卡")]
+    ok, why, _ = ag.validate_change("西吉兰机甲", "西格莉卡兰机甲", rules, [], set())
+    check("短键先行拼接的伪官方名被拒绝", not ok, why)
+    ok, why, _ = ag.validate_change("西吉兰机甲", "隧铠机甲", rules, [], set())
+    check("最长匹配的唯一官方名仍被接受", ok, why)
+    cands = ag._candidates("西吉兰机甲", rules)
+    check("_candidates 恒为 {原文, 唯一最长匹配结果}",
+          cands == {"西吉兰机甲", "隧铠机甲"}, str(sorted(cands)))
+    # 无任何命中 → 候选集只有原文（旧版同样如此）
+    check("无命中时只含原文", ag._candidates("今天天气不错", rules) == {"今天天气不错"})
+
+
+def test_auto_style_route():
+    """2026-11-24：规则命中 0 条的双语片自动改派 rewrite；显式 term 只强提示。"""
+    print("\n== 17. hot==0 双语片自动改派 rewrite ==")
+    with tempfile.TemporaryDirectory() as d:
+        rows = "".join(
+            f"{i}\r\n00:00:0{i},000 --> 00:00:0{i},900\r\n"
+            "这是一句机翻腔很重的中文\r\nthis is a badly translated line\r\n\r\n"
+            for i in range(1, 4))
+        src = os.path.join(d, "auto.srt")
+        with open(src, "w", encoding="utf-8", newline="") as f:
+            f.write(rows)
+        logs, prompts = [], []
+
+        def chat(prompt, system=None, max_tokens=8192, **kw):
+            if "【待校准条目" in prompt:
+                prompts.append((system or "", prompt))
+            return "[]"
+
+        def log(m, level="dim"):
+            logs.append(f"[{level}] {m}")
+
+        res = ag.calibrate(src, out=os.path.join(d, "auto1.srt"),
+                           report=os.path.join(d, "auto1.md"),
+                           script=SCRIPT, python=PYTHON, log=log, chat=chat,
+                           baseline=False)
+        check("规则命中 0 条（前提成立）", res.get("rules_hot") == 0,
+              str(res.get("rules_hot")))
+        check("style=None 智能默认 → 自动改派 rewrite",
+              res.get("style") == "rewrite" and res.get("style_auto_rewrite") is True,
+              f"style={res.get('style')}")
+        check("自动改派写入日志（说明原因）",
+              any("自动改派 rewrite" in x for x in logs))
+        check("系统提示词切换到 rewrite 版",
+              bool(prompts) and "改写" in prompts[0][0], prompts[0][0][:30])
+        check("报告记录风格自动改派", "风格自动改派" in ag._read_text(res["report"]))
+
+        # 显式 term：不强制覆盖，但给强提示（result 与日志都要有）；
+        # 同时验证 hot==0 的块级兜底：规则文本注入官方名全集（resume 空 KB 破解）。
+        logs2, prompts2 = [], []
+
+        def chat2(prompt, system=None, max_tokens=8192, **kw):
+            if "【待校准条目" in prompt:
+                prompts2.append(prompt)
+            return "[]"
+
+        res2 = ag.calibrate(src, out=os.path.join(d, "auto2.srt"),
+                            report=os.path.join(d, "auto2.md"),
+                            script=SCRIPT, python=PYTHON,
+                            log=lambda m, level="dim": logs2.append(f"[{level}] {m}"),
+                            chat=chat2, baseline=False, style="term")
+        check("显式 term 不被自动覆盖", res2.get("style") == "term",
+              str(res2.get("style")))
+        check("显式 term + hot==0 → suggest_rewrite 强提示",
+              res2.get("suggest_rewrite") is True
+              and any("显式配置" in x for x in logs2),
+              f"suggest={res2.get('suggest_rewrite')}")
+        check("hot==0 块级注入官方名清单（resume 空 KB 不再空转）",
+              bool(prompts2) and "知识库官方名清单" in prompts2[0],
+              prompts2[0][prompts2[0].find("【术语知识库"):][:80]
+              if prompts2 else "（无提示词）")
+        fb_txt = ag.fallback_rules_text({"卡提希娅", "西格莉卡"}, "官方证据：卡提希娅")
+        check("兜底规则含官方名与会话证据提示",
+              "卡提希娅" in fb_txt and "已收集官方/维基来源证据" in fb_txt, fb_txt[:80])
+
+
+def test_ref_modes_complete():
+    """2026-11-24：wuwa-40ko/ign/pv/reveal 与 ak-arcaea 有参考行却不喂 = 盲替换。"""
+    print("\n== 18. 参考行模式补全（wuwa-40* / ak-arcaea） ==")
+    want = {"wuwa-40ko", "wuwa-40ign", "wuwa-40pv", "wuwa-40reveal", "ak-arcaea"}
+    check("_REF_MODE_KEYS 覆盖补全的 5 个模式键",
+          want <= set(ag._REF_MODE_KEYS), str(sorted(ag._REF_MODE_KEYS)))
+    for f in ("--wuwa40ko", "--wuwa40ign", "--wuwa40pv", "--wuwa40reveal",
+              "--mode ak-arcaea"):
+        check(f"INCLUDE_REF_MODES 含 {f}", f in ag.INCLUDE_REF_MODES)
+    with tempfile.TemporaryDirectory() as d:
+        rows = ("1\r\n00:00:01,000 --> 00:00:02,000\r\n"
+                "这是一句机翻腔很重的中文\r\nthis is a reference line\r\n\r\n")
+        src = os.path.join(d, "refmode.srt")
+        with open(src, "w", encoding="utf-8", newline="") as f:
+            f.write(rows)
+        prompts = []
+
+        def chat(prompt, system=None, max_tokens=8192, **kw):
+            if "【待校准条目" in prompt:
+                prompts.append(prompt)
+            return "[]"
+
+        res = ag.calibrate(src, out=os.path.join(d, "refmode.out.srt"),
+                           report=os.path.join(d, "refmode.md"),
+                           mode_flag="--wuwa40reveal", script=SCRIPT,
+                           python=PYTHON, log=lambda m, level="dim": None,
+                           chat=chat, baseline=False, style="term")
+        check("wuwa-40reveal 跑通", res.get("ok"), res.get("error", ""))
+        check("wuwa-40reveal 提示词携带参考行（不再盲替换）",
+              bool(prompts) and "this is a reference line" in prompts[0],
+              (prompts[0][-160:] if prompts else "（无提示词）"))
+
+
+def test_reject_remediation():
+    """2026-11-24：普通 validate 拒绝回喂模型整改一次（每块限 1 次）。"""
+    print("\n== 19. 拒绝整改回路（每块限 1 次） ==")
+    with tempfile.TemporaryDirectory() as d:
+        rows = ("1\r\n00:00:01,000 --> 00:00:02,000\r\n"
+                "卡西亚登场\r\nCarty appears\r\n\r\n"
+                "2\r\n00:00:03,000 --> 00:00:04,000\r\n"
+                "少女与卡西亚同行\r\nCarty and the girl\r\n")
+        src = os.path.join(d, "rej.srt")
+        with open(src, "w", encoding="utf-8", newline="") as f:
+            f.write(rows)
+        calls = []
+
+        def chat(prompt, system=None, max_tokens=8192, **kw):
+            if "【待校准条目" not in prompt:
+                return "[]"
+            calls.append(prompt)
+            if len(calls) == 1:       # 首答：无依据的乱改 → 被 validate 拒绝
+                return ag.json.dumps(
+                    [{"num": "1", "new_zh": "我随便改了一句", "reason": "x"},
+                     {"num": "2", "new_zh": "少女和那个女孩一起", "reason": "x"}],
+                    ensure_ascii=False)
+            # 整改答：按知识库给官方名
+            return ag.json.dumps(
+                [{"num": "1", "new_zh": "卡提希娅登场", "reason": "错形→官方名"},
+                 {"num": "2", "new_zh": "少女与卡提希娅同行", "reason": "错形→官方名"}],
+                ensure_ascii=False)
+
+        res = ag.calibrate(src, out=os.path.join(d, "rej.out.srt"),
+                           report=os.path.join(d, "rej.md"),
+                           script=SCRIPT, python=PYTHON,
+                           log=lambda m, level="dim": None, chat=chat,
+                           baseline=False, style="term")
+        check("整改后改动被采纳", res.get("ai_changes") == 2,
+              f"ai_changes={res.get('ai_changes')}")
+        check("待校准请求恰好 2 次（原答 + 整改，不循环）", len(calls) == 2,
+              str(len(calls)))
+        fb = calls[1] if len(calls) > 1 else ""
+        check("整改请求列出被拒条目与原因",
+              "未通过证据校验" in fb and "序号 1" in fb and "序号 2" in fb)
+        check("整改请求带可执行整改要求（官方名完整形式）",
+              "整改要求" in fb and "官方名" in fb)
+        rc, out = ag.run_script(PYTHON, SCRIPT, ["verify", src, res["out"]], print)
+        check("整改产物 verify 通过", rc == 0 and "VERIFY OK" in out, out[-160:])
+
+
+def test_rules_fallback_warning():
+    """2026-11-24：build_rules 退全量必须带 stats 标记，calibrate 显式告警。"""
+    print("\n== 20. 规则退全量告警 ==")
+    ents = [{"canonical": "甲", "variants": ["错甲"], "modes": ["bi"]}]
+    _rules, _ex, _can, st = ag.build_rules(ents, "不存在的模式")
+    check("退全量标记（fallback_all / 命中实体数）",
+          st.get("fallback_all") is True and st.get("picked") == 0, str(st))
+    ents10 = [{"canonical": f"官名{i}", "variants": [f"错形{i}"], "modes": ["bi"]}
+              for i in range(10)]
+    _r2, _e2, _c2, st2 = ag.build_rules(ents10, "bi")
+    check("正常模式不误报", st2.get("fallback_all") is False
+          and st2.get("picked") == 10, str(st2))
+
+    with tempfile.TemporaryDirectory() as d:
+        src = os.path.join(d, "fb.srt")
+        with open(src, "w", encoding="utf-8", newline="") as f:
+            f.write(SRT)
+        _orig = ag.build_rules
+        logs = []
+
+        def patched(entities, mode_key, **kw):
+            r, e, c, s = _orig(entities, mode_key, **kw)
+            s["fallback_all"] = True
+            s["picked"] = 3
+            return r, e, c, s
+
+        ag.build_rules = patched
+        try:
+            ag.calibrate(src, out=os.path.join(d, "fb.out.srt"),
+                         report=os.path.join(d, "fb.md"),
+                         script=SCRIPT, python=PYTHON,
+                         log=lambda m, level="dim": logs.append(f"[{level}] {m}"),
+                         chat=lambda *a, **k: "[]", baseline=False, style="term")
+        finally:
+            ag.build_rules = _orig
+        hit = [x for x in logs if "退化为全量" in x]
+        check("calibrate 显式告警（含模式与实体数）",
+              bool(hit) and "模式 bi" in hit[0] and "3 个实体" in hit[0],
+              hit[0] if hit else "（无告警）")
+
+
 if __name__ == "__main__":
     print(f"脚本：{SCRIPT}\n解释器：{PYTHON}")
     test_parse_rebuild()
     test_rules_and_validate()
+    test_verified_evidence_gate()
     test_split()
     test_end_to_end(use_baseline=True)
     test_end_to_end(use_baseline=False)
@@ -1138,5 +1459,10 @@ if __name__ == "__main__":
     test_web_tool_loop()
     test_cluster()
     test_orig_title()
+    test_candidates_deterministic()
+    test_auto_style_route()
+    test_ref_modes_complete()
+    test_reject_remediation()
+    test_rules_fallback_warning()
     print("\n" + ("全部通过 ✅" if not FAILED else f"失败 {len(FAILED)} 项 ❌：{FAILED}"))
     sys.exit(1 if FAILED else 0)

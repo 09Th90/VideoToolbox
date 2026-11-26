@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.2.5
+# @version 3.3.1
 """merge 功能清单。无独立 CLI 子命令；GUI 为「视频处理」容器页的子板块。"""
 from features._registry import FeatureSpec
 

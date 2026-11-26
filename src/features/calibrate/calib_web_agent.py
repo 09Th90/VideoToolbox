@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.2.5
+# @version 3.3.1
 """校准 Agent 的联网查证工具（2026-09-20 新增；2026-11-18 重构 v2）。
 
 定位
@@ -166,16 +166,22 @@ WORK_ALIASES = {
 }
 
 #: 来源分级（域名后缀 -> 级别）；用于排序与标注
+#: 库街区（kurobbs）2026-11-24 补入：`wiki.kurobbs.com` 与 `kurogames.com` 同为
+#: 官方站口径（站内免密检索命中的就是它），论坛帖（其余 kurobbs.com）仍归社区。
+#: 此前站内命中硬编码「官网」、同一页经 Bing 却落到「其他」，分级自相矛盾。
 _TIER_RULES = (
     ("官网", ("kurogames.com", "hypergryph.com", "gryphline.com", "skland.com",
-              "mihoyo.com", "hoyoverse.com")),
+              "mihoyo.com", "hoyoverse.com", "wiki.kurobbs.com")),
     ("维基", ("biligame.com", "prts.wiki", "fz.wiki", "huijiwiki.com",
               "fandom.com", "moegirl", "wiki.gg", "wikipedia.org")),
     ("百科", ("baike.baidu.com", "baike.sogou.com")),
     ("社区", ("taptap", "zhihu", "bilibili", "tieba", "weibo", "xiaohongshu",
-              "nga", "reddit", "youtube", "douyin")),
+              "nga", "reddit", "youtube", "douyin", "kurobbs.com")),
 )
 _TIER_ORDER = {"官网": 0, "维基": 1, "百科": 2, "社区": 3, "其他": 4}
+#: 中文级别 → 英文键（结构化检索 / A 级证据判定用；单一分级源的两种视图）
+_TIER_KEYS = {"官网": "official", "维基": "wiki", "百科": "encyclopedia",
+              "社区": "community", "其他": "other"}
 
 #: query 里的噪声词（检索前剥掉，否则 Bing/站内搜索会被稀释成单字）
 _NOISE_RE = re.compile(
@@ -503,6 +509,19 @@ def _tier_of(url: str) -> str:
     return "其他"
 
 
+def tier_key_of(value: str) -> str:
+    """统一来源分级（英文键）：official / wiki / encyclopedia / community / other。
+
+    与 `_tier_of()` 同源（都走 `_TIER_RULES`），只是给结构化检索与「A 级证据
+    才可入采纳闸门」用英文键表达。入参可以是 URL，也可以是站内检索已经算好的
+    中文级别名（避免二次按域名推断导致同一页两个级别）。
+    """
+    s = str(value or "").strip()
+    if s in _TIER_KEYS:
+        return _TIER_KEYS[s]
+    return _TIER_KEYS.get(_tier_of(s), "other")
+
+
 # ============================ MediaWiki ============================
 def _mw_target(spec, url):
     """从 URL 推导 (api, title)。支持 /w/<title>、/wiki/<title>、/<site>/<title>。"""
@@ -718,7 +737,7 @@ def _kuro_search(site, term, proxy, timeout, limit=MAX_RESULTS):
             bits.append(f"{star}星")
         if ctype:
             bits.append(ctype)
-        item = (name, url, "｜".join(bits), "官网",
+        item = (name, url, "｜".join(bits), _tier_of(url),
                 site.get("name") or "库街区WIKI")
         (main if fid == 1099 else other).append(item)
     main.sort(key=lambda h: _title_rank(h[0], term))
@@ -823,7 +842,7 @@ def _skland_search(site, term, proxy, timeout, limit=MAX_RESULTS):
             bits.append(desc[:100])
         url = (f"https://wiki.skland.com/{game}/item/{item_id}"
                if item_id is not None else (site.get("page") or "https://wiki.skland.com/"))
-        out.append((name, url, "｜".join(bits), "官网",
+        out.append((name, url, "｜".join(bits), _tier_of(url),
                     site.get("name") or "森空岛WIKI"))
     out.sort(key=lambda h: _title_rank(h[0], term))
     exact = [h for h in out if h[0] == term]
@@ -1051,7 +1070,8 @@ def _site_of(url):
 
 # ============================ 对外工具工厂 ============================
 def make_tools(proxy=None, log=None, timeout=12, work=""):
-    """返回 {"search": fn(query)->str, "fetch": fn(url)->str}。
+    """返回 {"search": fn(query)->str, "fetch": fn(url)->str,
+             "search_structured": fn(query)->list[dict]}。
 
     proxy: None 或 callable→(None|dict)（engine.ai_proxy_for_requests）。
     每次调用现取代理快照：内置代理可能在长跑中途才拉起。
@@ -1059,8 +1079,15 @@ def make_tools(proxy=None, log=None, timeout=12, work=""):
            为空时从 query 里自动识别。
     所有异常都吞成「失败：…」文本——查证失败时模型应当选择不改，
     主流程绝不能被网络抖动打断。
+
+    search_structured（2026-11-24 新增）：同一检索链路的**结构化视图**，
+    每项 {title, url, tier, snippet, exact}；tier 为统一英文键
+    （official/wiki/encyclopedia/community/other），exact 表示标题与核心词
+    完全一致。与 `search` 共享检索缓存，不会二次出网；原有 search/fetch
+    的签名与输出逐字不变。
     """
     cache = {}
+    hits_cache = {}
     lock = threading.Lock()
     _log = log or (lambda m, level="dim": None)
 
@@ -1076,15 +1103,13 @@ def make_tools(proxy=None, log=None, timeout=12, work=""):
         except TypeError:
             _log(msg)
 
-    def search(query):
-        query = str(query or "").strip()[:160]
-        if not query:
-            return "查询失败：query 为空"
+    def _hits_for(query):
+        """检索并按来源可信度排序（hits 缓存：search / search_structured 共用）。"""
         cur_work, term = _clean_query(query, work)
         key = ("s", cur_work, term)
         with lock:
-            if key in cache:
-                return cache[key]
+            if key in hits_cache:
+                return hits_cache[key]
         hits = []
         try:
             hits = _site_hits(cur_work, term, _proxy(), timeout)
@@ -1104,12 +1129,49 @@ def make_tools(proxy=None, log=None, timeout=12, work=""):
         hits.sort(key=lambda h: (_TIER_ORDER.get(h[3], 4),
                                  _title_rank(h[0], term)))
         hits = hits[:MAX_TOTAL_HITS]
+        with lock:
+            hits_cache[key] = hits
+        return hits
+
+    def search(query):
+        query = str(query or "").strip()[:160]
+        if not query:
+            return "查询失败：query 为空"
+        cur_work, term = _clean_query(query, work)
+        key = ("t", cur_work, term)
+        with lock:
+            if key in cache:
+                return cache[key]
+        hits = _hits_for(query)
         text = (_format_results(query, cur_work, term, hits) if hits else
                 f"搜索「{query}」（核心词：{term}）失败"
                 "（网络不通或全部引擎无结果），请勿臆改。")
         with lock:
             cache[key] = text
         return text
+
+    def search_structured(query):
+        """结构化检索：list[dict]；无结果/失败一律返回 []（绝不抛异常）。"""
+        query = str(query or "").strip()[:160]
+        if not query:
+            return []
+        try:
+            hits = _hits_for(query)
+        except Exception:  # noqa: BLE001
+            return []
+        _work, term = _clean_query(query, work)
+        _key = re.sub(r"\s+", "", term).lower()
+        out = []
+        for t, u, s, _tier_cn, _src in hits:
+            title = str(t or "")
+            out.append({
+                "title": title,
+                "url": str(u or ""),
+                "tier": tier_key_of(u),
+                "snippet": str(s or ""),
+                "exact": bool(_key) and re.sub(r"\s+", "", title).lower() == _key,
+            })
+        return out
 
     def fetch(url):
         url = str(url or "").strip()
@@ -1148,9 +1210,11 @@ def make_tools(proxy=None, log=None, timeout=12, work=""):
             cache[key] = text
         return text
 
-    return {"search": search, "fetch": fetch}
+    return {"search": search, "fetch": fetch,
+            "search_structured": search_structured}
 
 
 if __name__ == "__main__":  # 手工连通性小样（不走缓存，仅调试用）
     tools = make_tools(work="鸣潮")
     print(tools["search"]("鸣潮 卡提希娅 官方名称"))
+    print(tools["search_structured"]("鸣潮 卡提希娅 官方名称"))

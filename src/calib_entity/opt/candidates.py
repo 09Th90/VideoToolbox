@@ -1,4 +1,4 @@
-# @version 3.2.5
+# @version 3.3.1
 """未登录对象候选闭环（M3-6）：``candidates`` 子命令实现。
 
 定位 = audit 扫 3 family_gap 的**对象级解释层**：给每条 gap 产出 ref 单目标候选，

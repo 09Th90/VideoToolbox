@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.2.5
+# @version 3.3.1
 """System One / Jev 客户端加载缝（实现位于 tools/decision_client.py）。
 
 WP3 part 1（2026-11-22）：决策通道**独立凭据注入**——

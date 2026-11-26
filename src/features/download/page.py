@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.2.5
+# @version 3.3.1
 """视频下载页（2026-11-15 功能解耦阶段③：从 video_toolbox_qt.py 拆出，逐字同源）。
 
 * 容器页：「视频下载 / 音画合并 / 视频切片」三个子板块，merge/split 经注册表
@@ -26,9 +26,11 @@ from PySide6.QtWidgets import (QAbstractItemView, QApplication, QFileDialog,
 from vt_fluent import (BodyLabel, CaptionLabel, FluentIcon as FIF, InfoBar,
                        InfoBarPosition, LineEdit, ListWidget, MessageBox,
                        PrimaryPushButton, ProgressBar, PushButton,
-                       SegmentedWidget, SpinBox, SwitchButton, TableWidget)
+                       SegmentedWidget, SpinBox, StrongBodyLabel, SwitchButton,
+                       TableWidget)
 
 import video_toolbox as engine
+import ui_theme
 from core.download.util import note_download_dir_owner
 from core.download.ytdlp_util import (
     _finished_video as _dl_finished_video,
@@ -37,7 +39,7 @@ from core.download.ytdlp_util import (
 )
 
 from vt_app.boot import _perf_note
-from vt_app.widgets import LogView, TabPage, card, row, tab_caption
+from vt_app.widgets import LogView, PageHeader, TabPage, card, row, srow
 
 
 class _CancelledEarly(Exception):
@@ -103,9 +105,12 @@ class DownloadPage(QWidget):
         self._cleaned_cancelled = set()
 
         # 功能解耦阶段③：消息自订阅（原入口 _dispatch 的 detect_done/sys_log/dl_* 分支）。
-        app.bus.subscribe("detect_done", self._on_bus_message)
-        app.bus.subscribe("sys_log", self._on_bus_message)
-        app.bus.subscribe("dl_", self._on_bus_message)
+        # 自检桩没有 bus，允许跳过（真实 App 一定有）。
+        _bus = getattr(app, "bus", None)
+        if _bus is not None:
+            _bus.subscribe("detect_done", self._on_bus_message)
+            _bus.subscribe("sys_log", self._on_bus_message)
+            _bus.subscribe("dl_", self._on_bus_message)
 
         try:
             from core.download.job import download_orchestrator
@@ -125,6 +130,15 @@ class DownloadPage(QWidget):
         outer.setContentsMargins(0, 0, 0, 0)
         outer.setSpacing(0)
 
+        head_wrap = QWidget(self)
+        hw = QHBoxLayout(head_wrap)
+        hw.setContentsMargins(22, 12, 22, 0)
+        self.header = PageHeader(
+            "视频下载",
+            "粘贴链接后检测画质；下载自动打包封面、视频信息与字幕", head_wrap)
+        hw.addWidget(self.header)
+        outer.addWidget(head_wrap)
+
         # —— 页内分段：视频下载 / 音画合并 ——
         # v1.13.x：改为**铺满整行**（与「字幕处理」页观感对齐）。SegmentedWidget 对
         # 每项固定 stretch=1 等分：铺满后两个标签各占半行、文字居中、下划线跟文字走，
@@ -140,7 +154,7 @@ class DownloadPage(QWidget):
         self.seg.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
         seg_wrap = QWidget(self)
         seg_lay = QHBoxLayout(seg_wrap)
-        seg_lay.setContentsMargins(24, 12, 24, 0)
+        seg_lay.setContentsMargins(22, 4, 22, 0)
         seg_lay.setSpacing(0)
         seg_lay.addWidget(self.seg)
         outer.addWidget(seg_wrap)
@@ -152,49 +166,44 @@ class DownloadPage(QWidget):
         self.dl_tab = TabPage(self)
         self.stack.addWidget(self.dl_tab)
         self.vbox = self.dl_tab.content_lay
-        self.vbox.setSpacing(12)
-        self.vbox.addWidget(tab_caption(
-            "检测一个链接后即可加入并行下载；每个视频自动打包成独立文件夹"
-            "（视频 + 封面.jpg + 视频信息.txt）", self))
+        self.vbox.setSpacing(10)
 
-        # —— 链接 ——
+        # —— 输入区（v3：合并为一张任务输入卡，链接/目录/画质/字幕同屏） ——
         self.url_edit = LineEdit(self)
         self.url_edit.setPlaceholderText("粘贴视频链接（支持 B 站 / YouTube 等）")
-        box, lay = card("视频链接")
         paste_btn = PushButton(FIF.PASTE, "粘贴", self)
         paste_btn.clicked.connect(self.paste_url)
-        lay.addWidget(row(self.url_edit, paste_btn))
-        self.vbox.addWidget(box)
 
-        # —— 保存位置 ——
         self.dest_edit = LineEdit(self)
         self.dest_edit.setText(engine.get_saved_download_dir())
         self.dest_edit.textChanged.connect(self._on_dest_change)
         browse_btn = PushButton(FIF.FOLDER, "浏览…", self)
         browse_btn.clicked.connect(self.browse_dest)
-        box, lay = card("保存位置", "改动会立即记住，下次启动自动沿用")
-        lay.addWidget(row(self.dest_edit, browse_btn))
-        self.vbox.addWidget(box)
 
-        # —— 画质 ——
         self.qlist = ListWidget(self)
+        self.qlist.setObjectName("QualityList")
         self.qlist.setMinimumHeight(84)
-        self.qlist.setMaximumHeight(110)
+        self.qlist.setMaximumHeight(102)
+        self._paint_quality_list()
+        self._quality_placeholder()
+        ui_theme.connect_theme(
+            self.qlist, lambda w: self._paint_quality_list())
         self.detect_btn = PrimaryPushButton(FIF.SEARCH, "检测画质", self)
         self.detect_btn.clicked.connect(self.detect)
-        box, lay = card("画质", "仅列出 ≥720p；同分辨率取最大文件，优先 60fps")
-        lay.addWidget(row(CaptionLabel("可用画质", self), None, self.detect_btn))
-        lay.addWidget(self.qlist)
-        self.vbox.addWidget(box)
 
-        # —— 下载 ——
         self.sub_switch = SwitchButton(self)
         self.sub_switch.setChecked(True)
         self.prog = ProgressBar(self)
         self.pct_label = CaptionLabel("等待检测", self)
         self.dl_btn = PrimaryPushButton(FIF.DOWNLOAD, "加入并行下载", self)
         self.dl_btn.clicked.connect(self.start_download)
-        box, lay = card("下载")
+
+        box, lay = card(
+            "任务输入", "链接 → 检测画质 → 加入并行队列；下载自动打包独立文件夹")
+        lay.addWidget(srow("视频链接", self.url_edit, paste_btn))
+        lay.addWidget(srow("保存位置", self.dest_edit, browse_btn))
+        lay.addWidget(row(CaptionLabel("可用画质", self), None, self.detect_btn))
+        lay.addWidget(self.qlist)
         lay.addWidget(row(BodyLabel("同时下载字幕（博主上传 + 自动生成，自动转 SRT）", self),
                           self.sub_switch, None))
         lay.addWidget(row(self.prog, self.pct_label, self.dl_btn))
@@ -209,14 +218,15 @@ class DownloadPage(QWidget):
         self.task_table.setHorizontalHeaderLabels(
             ["任务", "链接", "画质", "进度", "速度", "剩余", "状态", "保存位置"])
         self.task_table.verticalHeader().hide()
-        self.task_table.setMinimumHeight(130)
+        self.task_table.setMinimumHeight(190)
+        self.task_table.setMaximumHeight(300)
         self.task_table.setEditTriggers(QAbstractItemView.NoEditTriggers)
         self.task_table.setSelectionBehavior(QAbstractItemView.SelectRows)
         for i, w in enumerate((56, 220, 66, 66, 78, 70, 70, 240)):
             self.task_table.setColumnWidth(i, w)
         self.task_table.horizontalHeader().setSectionResizeMode(7, QHeaderView.Stretch)
         self.task_table.itemSelectionChanged.connect(self.on_task_select)
-        box, lay = card("并行下载任务", "点击任务行可查看对应进度")
+        box, lay = card()
         # v1.19.0：选中一行后点「取消选中任务」即可中止该下载。
         self.pause_btn = PushButton(FIF.PAUSE, "暂停", self)
         self.pause_btn.setEnabled(False)
@@ -224,16 +234,18 @@ class DownloadPage(QWidget):
         self.cancel_btn = PushButton(FIF.CANCEL, "取消选中任务", self)
         self.cancel_btn.setEnabled(False)
         self.cancel_btn.clicked.connect(self.cancel_selected_task)
-        lay.addWidget(row(None, self.pause_btn, self.cancel_btn))
+        lay.addWidget(row(StrongBodyLabel("并行下载任务", self),
+                          CaptionLabel("点击任务行可查看对应进度", self),
+                          None, self.pause_btn, self.cancel_btn))
         self.max_spin = SpinBox(self)
         self.max_spin.setRange(1, 6)
         self.max_spin.setValue(self._load_max_concurrent())
         self.max_spin.valueChanged.connect(self._on_max_concurrent_changed)
-        lay.addWidget(row(CaptionLabel("下载并发上限", self), self.max_spin))
+        lay.addWidget(row(None, CaptionLabel("下载并发上限", self), self.max_spin))
         lay.addWidget(self.task_table)
         self.vbox.addWidget(box)
 
-        self.log = LogView("下载日志", 130, self)
+        self.log = LogView("下载日志", 110, self)
         self.vbox.addWidget(self.log)
         self.vbox.addStretch(1)
 
@@ -262,18 +274,51 @@ class DownloadPage(QWidget):
         # 固定 stretch=1，铺满整行后正好三等分（见上方长注释）。
         # 阶段③：merge/split 分段按可用性挂载，索引取实际堆叠位置（功能缺席
         # 时剩余分段仍正确切换）。
-        self.seg.addItem("download", "视频下载",
-                         onClick=lambda: self.stack.setCurrentIndex(0))
+        self.seg.addItem(
+            "download", "视频下载",
+            onClick=lambda: self._select_sub(
+                0, "视频下载",
+                "粘贴链接后检测画质；下载自动打包封面、视频信息与字幕"))
         if self.merge_page is not None:
             _mi = self.stack.count() - 1
-            self.seg.addItem("merge", "音画合并",
-                             onClick=lambda i=_mi: self.stack.setCurrentIndex(i))
+            self.seg.addItem(
+                "merge", "音画合并",
+                onClick=lambda i=_mi: self._select_sub(
+                    i, "音画合并",
+                    "自动配对或手动双轨；输出写入「合成结果」"))
         if self.split_page is not None:
             _si = self.stack.count() - 1
-            self.seg.addItem("split", "视频切片",
-                             onClick=lambda i=_si: self.stack.setCurrentIndex(i))
+            self.seg.addItem(
+                "split", "视频切片",
+                onClick=lambda i=_si: self._select_sub(
+                    i, "视频切片",
+                    "按时间点或时长拆段；默认无损快切，逐段校验可播"))
         self.seg.setCurrentItem("download")
         self.switch_tab = lambda i: self.stack.setCurrentIndex(i)
+
+    def _select_sub(self, idx, title, caption):
+        self.stack.setCurrentIndex(idx)
+        if getattr(self, "header", None) is not None:
+            self.header.title.setText(title)
+            self.header.cap.setText(caption)
+
+    def _paint_quality_list(self):
+        t = ui_theme.tokens()
+        self.qlist.setStyleSheet(
+            "QListWidget#QualityList{background:%s;border:1px solid %s;"
+            "border-radius:8px;padding:4px;}"
+            "QListWidget#QualityList::item{padding:4px 8px;border-radius:5px;}"
+            "QListWidget#QualityList::item:selected{background:%s;color:%s;}"
+            % (t["input_bg"], t["card_border"], t["card_hover"], t["text"]))
+
+    def _quality_placeholder(self):
+        """空态占位：避免画质列表是一个没有说明的大空框。"""
+        self.qlist.clear()
+        self.qlist.addItem("粘贴链接并点「检测画质」，这里会列出可用格式")
+        item = self.qlist.item(0)
+        if item is not None:
+            item.setFlags(Qt.NoItemFlags)
+        self.qlist.setCurrentRow(-1)
 
     # ---------- 消息 ----------
     def _on_bus_message(self, msg):
@@ -364,6 +409,7 @@ class DownloadPage(QWidget):
     def on_detect_done(self, url, best, info_path, err):
         self.set_detecting(False)
         if err or not best:
+            self._quality_placeholder()
             self.log.line(f"[错误] 画质检测失败{': ' + err if err else '，未找到 ≥720p 格式'}", "err")
             return
         self.detected_url = url

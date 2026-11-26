@@ -1,4 +1,4 @@
-<!-- @version 3.2.5 -->
+<!-- @version 3.3.1 -->
 # mcp 功能包（对外 MCP Server）
 
 与 CLI 并列的一等入口：外部 MCP host（Claude Desktop / Code / Cursor / Codex /

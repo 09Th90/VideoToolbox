@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.2.5
+# @version 3.3.1
 """features._api —— 命令级 API 层（L1 共享接缝，2026-11-20 三层独立改造）。
 
 CLI（agent_cli + features/<id>/cli.py）与 MCP（mcp_server + features/mcp）
@@ -17,7 +17,7 @@ from __future__ import annotations
 
 import importlib
 
-#: 命令名 → commands/<模块>.py（11 命令；bili-submit 模块名下划线化）
+#: 命令名 → commands/<模块>.py（12 命令；bili-submit 模块名下划线化）
 _COMMAND_MODULES = {
     "status": "status",
     "info": "info",
@@ -30,6 +30,8 @@ _COMMAND_MODULES = {
     "compose": "compose",
     "split": "split",
     "bili-submit": "bili_submit",
+    "trace": "trace",
+    "publish": "publish",
 }
 
 

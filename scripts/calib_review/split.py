@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# @version 3.2.5
+# @version 3.3.1
 """把 all.tsv 切成等量批次，供并行精校。"""
 import os
 

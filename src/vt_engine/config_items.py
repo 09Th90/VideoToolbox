@@ -1,4 +1,4 @@
-# @version 3.2.5
+# @version 3.3.1
 """设置项机制（自研，替代 qfluentwidgets 的 ConfigItem/ConfigSerializer/Validator）。
 
 只实现本引擎用得到的兼容面：

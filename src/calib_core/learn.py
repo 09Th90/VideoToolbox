@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.2.5
+# @version 3.3.1
 """学习库与 learn/learned-*
 
 源：subtitle_calib_merged.py L11185-L11554 @ 97d7d463（2026-10-24 冻结快照）
@@ -37,6 +37,17 @@ from .text import _decode_any
 #      · 固化路径：confirmed 积累到一定量后 learned-promote --entities
 #        导出 Entity 桩代码，人工审阅后粘贴进第 6 节 ENTITIES，
 #        学习成果即沉淀为对象级知识。
+#    2026-11-24 状态机加固（版式/证据/审查）：
+#      · 版式：cue 的中文行/参考行由 srt._cue_zh_ref 按字符集判定，
+#        英文在上片源不再把英文当中文行学成「英文->英文」；
+#      · count = 不同源文件数（candidate.files: 文件名 -> {n,alt,first,last}），
+#        同一片源重复投喂不累加；旧库 count 作为 __legacy__ 伪文件基数迁移；
+#      · uncorrected 分文件记录（unc_files），重投该片源即以本次重扫结果替换，
+#        不再只增不减导致假反例永久锁死；
+#      · 自动 confirmed 前两道审查：right 撞既有 canonical（互为子串/编辑距<=1，
+#        置 conflict=target-collides-canonical:xxx）与命中内建表（置
+#        conflict=already-in-builtin-table，不再静默删候选）；
+#      · 单片快路径：应用形态属 canonicals 或显式 --force 时 count>=1 即确认。
 # =============================================================
 
 LEARNED_KB_DEFAULT = "subtitle_learned_kb.json"
@@ -66,7 +77,15 @@ def _save_learned_kb(kb, path):
 
 
 def _parse_cue_pairs(path):
-    """解析 SRT -> [(num, 中文行(多行\\n连接), 参考行)]。结构容错同主引擎。"""
+    """解析 SRT -> [(num, 中文行(多行\\n连接), 参考行(多行\\n连接))]。结构容错同主引擎。
+
+    2026-11-24 版式修复：旧实现写死「末行=参考行」（texts[:-1] / texts[-1]），
+    遇到英文 ASR 在上、谷翻中文在下的双语片源整列错位——中文行被当成英文行、
+    英文行被当成参考行，learn 于是学出「英文→英文」。这里改调 srt._cue_zh_ref
+    按字符集判版式（中文在上/英文在上都兼容）；其余版式仍走位置约定，
+    与旧行为逐字节一致。
+    """
+    from .srt import _cue_zh_ref
     raw = open(path, "rb").read()
     lines = _decode_any(raw).replace("\r\n", "\n").replace("\r", "\n").split("\n")
     cues, i, n = [], 0, len(lines)
@@ -80,7 +99,10 @@ def _parse_cue_pairs(path):
                     kk += 1
                 if kk - 1 >= j + 1:
                     texts = lines[j + 1:kk]
-                    cues.append((int(s), "\n".join(texts[:-1]), texts[-1]))
+                    zh_idx, ref_idx = _cue_zh_ref(texts)
+                    cues.append((int(s),
+                                 "\n".join(texts[x] for x in zh_idx),
+                                 "\n".join(texts[x] for x in ref_idx)))
                 i = kk
                 continue
         i += 1
@@ -186,16 +208,140 @@ LEARN_AUTOCONFIRM_DENY = frozenset({
 
 
 
-def _learn_update_status(c):
+def _learn_src_key(path):
+    """源文件身份键：只用 basename（跨目录/换盘重投同一片源时仍算同一文件）。
+    空名兜底为绝对路径，避免候选的 files 字典出现空键。"""
+    base = os.path.basename(path or "")
+    return base or os.path.abspath(path or "")
+
+
+def _learn_migrate_candidate(c):
+    """旧库候选（无 files/unc_files）就地迁移，保证向后兼容。
+
+    2026-11-24 count 改为「不同源文件数」：旧库的 count 是**出现次数**聚合，
+    无法还原文件归属，故整体记为 __legacy__ 伪文件（n=旧 count），后续只有
+    新出现的源文件才 +1——旧 confirmed 仍满足 count>=2，状态不因迁移抖动。
+    同理旧 uncorrected 聚合值挂 __legacy__，待该候选首次被真实文件命中时，
+    以那次文件级重扫结果取代（不可复核的历史反例不再永久锁死规则）。
+    """
+    if not isinstance(c.get("files"), dict):
+        c["files"] = {}
+        if int(c.get("count") or 0) > 0:
+            c["files"]["__legacy__"] = {"n": int(c.get("count") or 0), "alt": 0,
+                                        "first": c.get("first", ""), "last": c.get("last", "")}
+    if not isinstance(c.get("unc_files"), dict):
+        c["unc_files"] = {}
+        if int(c.get("uncorrected") or 0) > 0:
+            c["unc_files"]["__legacy__"] = int(c.get("uncorrected") or 0)
+
+
+def _learn_canonicals():
+    """既有官方名集合（kb._kb_view 的 canonical 键）。导入/构建异常时返回空集，
+    审查自动降级为不启用，不影响 learn 主流程。"""
+    try:
+        from .kb import _kb_view
+        return set(_kb_view().keys())
+    except Exception:
+        return set()
+
+
+def _edit_within_one(a, b):
+    """编辑距离是否 <=1 且**至少 2 个字符相同**（纯 2 字目标与无关 2 字官名撞车不算）。
+
+    2026-11-24：只判距离会把「甲甲」这类二字目标与「机甲/明庭」等表内二字词条
+    一并判撞（共有字符仅 1），误伤面过大；要求共享 >=2 字后，
+    「西格莉卡兰 vs 西格莉卡」「鸣潮亚 vs 鸣潮」这类真污染仍能拦下。
+    """
+    if a == b:
+        return True
+    if abs(len(a) - len(b)) > 1:
+        return False
+    if len(a) == len(b):
+        same = sum(1 for x, y in zip(a, b) if x == y)
+        return (len(a) - same) <= 1 and same >= 2
+    if len(a) > len(b):
+        a, b = b, a
+    # b 比 a 长 1：能删掉 b 的某个字符得到 a 才算距离 1（共有字符 = len(a)）
+    return len(a) >= 2 and any(b[:k] + b[k + 1:] == a for k in range(len(b)))
+
+
+_LEARN_TERM_PUNCT = re.compile(r"[\s。，、！？；：…—\-·,.!?;:'\"()（）\[\]【】《》「」『』]")
+
+
+def _learn_is_term_like(s):
+    """目标形是否「名词级」：2-12 字、无空白/标点。
+
+    learn 的候选里混有整句片段重写（「，至少当时的山城会是这样」）；
+    它们不是专名目标，不参与子串撞名审查（编辑距<=1 的近似名仍审查）。
+    """
+    return bool(s) and 2 <= len(s) <= 12 and not _LEARN_TERM_PUNCT.search(s)
+
+
+def _canonical_collision(right, canonicals):
+    """right 是否"撞"既有官方名：编辑距 <=1，或（名词级目标）互为子串。
+
+    2026-11-24 新增审查：learn 自动 confirmed 前必须过这一关，拦「机甲名→西格莉卡兰」
+    这类把官名当子串/近似形的污染（right 含『西格莉卡』→ 判撞）。完全相等不算撞
+    （那是官方名本身，属单片高置信快路径）。命中返回该 canonical，未命中返回 None；
+    单字名噪音过大，不参与子串判定。
+    """
+    if not right or not canonicals or right in canonicals:
+        return None
+    term = _learn_is_term_like(right)
+    for c in canonicals:
+        if not c or c == right:
+            continue
+        if term and len(c) >= 3 and (right in c or c in right):
+            # 只用 >=3 字的官方名做子串判定：二字表内词条（测试/机甲/装置…）泛用性
+            # 太强，任何含它的短语目标都会被误判（实测「测试乙乙」撞「测试」）；
+            # 二字官名的近似形（鸣潮亚 vs 鸣潮）由下方编辑距分支兜住。
+            return c
+        if _edit_within_one(right, c):
+            return c
+    return None
+
+
+
+def _learn_update_status(c, canonicals=None, force=False):
     """候选状态机：count/uncorrected 驱动 确认/降级，并生成上下文建议。
-    返回 True 表示本次发生了 confirmed->candidate 反例降级。"""
+    返回 True 表示本次发生了 confirmed->candidate 反例降级。
+
+    2026-11-24 补审：
+      · 自动 confirmed 前查**应用形态**（_learn_extended 的结果，即真正注入校准的键，
+        非最小片段）是否撞既有 canonical，撞则拒确认并置 conflict
+        （conflict_reason=target-collides-canonical:xxx）。
+        审查只在 candidate->confirmed 跃迁时做（存量 confirmed 祖父条款，避免历史规则
+        被一次性打成 conflict 造成注入面骤减）；目标事后进表/撞名解除时自动撤销该标记。
+      · 单片快路径：right 属 canonicals 或显式 force 时，count>=1 即可确认；
+        否则维持 count>=2。
+      · DENY 检查同时看最小片段与应用形态（扩展后可能带前后缀，旧实现只比最小片段易绕过），
+        名单本身不动，命中仍只保留候选 + needs_review。
+    """
     if c["status"] == "rejected":
         return False
+    ew, er = _learn_extended(c)
+    cons = canonicals or ()
+    if cons and c["status"] != "confirmed":
+        # 只审**应用形态** er（= _learn_extended 结果，真正注入校准的键）。
+        # 再拿最小片段 right 复判会误伤「right=官名片段、er=完整官名」的良性候选
+        # （实测「盒子→之匣」应用形态是官方名『文明之匣』，却被最小片段判撞）。
+        hit = None if er in cons else _canonical_collision(er, cons)
+        if hit:
+            c["conflict"] = True
+            c["conflict_reason"] = "target-collides-canonical:" + hit
+        elif str(c.get("conflict_reason") or "").startswith("target-collides-canonical:"):
+            c.pop("conflict", None)
+            c.pop("conflict_reason", None)
     if c.get("conflict"):
         c["status"] = "candidate"
         return False
-    if c["count"] >= 2 and c["uncorrected"] == 0:
-        if c["wrong"] in LEARN_AUTOCONFIRM_DENY:
+    deny_hit = c["wrong"] in LEARN_AUTOCONFIRM_DENY or ew in LEARN_AUTOCONFIRM_DENY
+    # 快路径认**应用形态**（_learn_extended 结果，即真正注入校准的键）是否官方名；
+    # 只看最小片段 right 会放过「right=官名、扩展后=官名+后缀」的情形。
+    # count>=1：只出现过 alts（无本目标证据）的候选即便 --force 也不确认。
+    fast = c["count"] >= 1 and (bool(force) or er in cons)
+    if c["uncorrected"] == 0 and (c["count"] >= 2 or fast):
+        if deny_hit:
             # 常用词裸键：绝不允许自动 confirmed（戒律：常用词义错位只走 ctx/subfix）。
             # 候选保留，须人工 learned-promote 才会生效（2026-10-04 3.7 反应片实测沉淀）。
             c["needs_review"] = True
@@ -217,14 +363,18 @@ def _learn_update_status(c):
 
 
 
-def _cmd_learn(src, calib, kb_path=LEARNED_KB_DEFAULT, mode="bi"):
+def _cmd_learn(src, calib, kb_path=LEARNED_KB_DEFAULT, mode="bi", force=False):
     """learn：投喂 [原始srt + 人工校准srt] 配对，挖掘候选规则并更新学习库。
     v1.11.0：收尾自动导出本次新增 confirmed 条目为增量并上传（FR-2）。
     2026-11-22 变体键降级：入口 normalize_mode——新沉淀落「游戏-细类」新键；
-    库内旧键匹配时经 normalize 归一，无需数据迁移。"""
+    库内旧键匹配时经 normalize 归一，无需数据迁移。
+    2026-11-24 状态机加固：count 按源文件去重（同片重复投喂不累加）、uncorrected
+    分文件记录可随重投重置、自动 confirmed 前过 canonical 撞名审查、
+    单片快路径受 canonicals/--force 约束。"""
     import datetime
     import copy
     mode = normalize_mode(mode)
+    src_key = _learn_src_key(src)
     sc, oc = _parse_cue_pairs(src), _parse_cue_pairs(calib)
     if len(sc) != len(oc):
         print(f"⚠ cue 数不一致（原 {len(sc)} / 校准 {len(oc)}），按序号交集学习")
@@ -239,6 +389,8 @@ def _cmd_learn(src, calib, kb_path=LEARNED_KB_DEFAULT, mode="bi"):
         return f"{mode_}|{wrong}"
 
     # 第一遍：挖替换片段（纠正实例）
+    #   count 语义（2026-11-24）：不同源文件数——同一文件重复投喂不累加；
+    #   旧库 count 迁移为 __legacy__ 基数（见 _learn_migrate_candidate）。
     touched = set()
     for num in sorted(smap.keys() & omap.keys()):
         oz, ref = smap[num]
@@ -256,18 +408,33 @@ def _cmd_learn(src, calib, kb_path=LEARNED_KB_DEFAULT, mode="bi"):
                      "count": 0, "uncorrected": 0, "status": "candidate",
                      "cues": [], "samples": [], "ref_tokens": {},
                      "unc_ref_tokens": {},
-                     "first": today, "last": today, "alts": {}}
+                     "first": today, "last": today, "alts": {},
+                     "files": {}, "unc_files": {}}
                 cands[k] = c
                 new_cnt += 1
             else:
                 upd_cnt += 1
+            _learn_migrate_candidate(c)
+            fe = c["files"].get(src_key)
+            if fe is None:
+                # 旧库 count<=1（单次出现、无文件归属）：本文件首次投喂按「同一文件重投」
+                # 保守处理，先撤 __legacy__ 再计本文件，避免旧库候选一投喂就凑到 count=2。
+                if "__legacy__" in c["files"] and c["count"] <= 1 and len(c["files"]) == 1:
+                    c["files"].pop("__legacy__", None)
+                    c["count"] = 0
+                fe = c["files"][src_key] = {"n": 0, "alt": 0,
+                                            "first": today, "last": today}
             if c["right"] != right:
                 c["alts"][right] = c["alts"].get(right, 0) + 1
                 c["conflict"] = True          # 同一错形被改成不同目标：人工裁决
+                fe["alt"] = int(fe.get("alt") or 0) + 1
             else:
-                c["count"] += 1
+                if not int(fe.get("n") or 0):
+                    c["count"] += 1           # 只有新源文件才计数：同片重复投喂不累加
+                fe["n"] = int(fe.get("n") or 0) + 1
                 if len(c["samples"]) < 10:
                     c["samples"].append((lo[-12:], ro[:12], ln[-12:], rn[:12]))
+            fe["last"] = today
             if num not in c["cues"] and len(c["cues"]) < 20:
                 c["cues"].append(num)
             for t in _ref_tokens(ref):
@@ -276,21 +443,36 @@ def _cmd_learn(src, calib, kb_path=LEARNED_KB_DEFAULT, mode="bi"):
             touched.add(k)
     # 第二遍：反例扫描——本模式所有候选（按扩展形态）在原文出现但校准后仍保留 = 未纠正反例
     # （存量旧键候选经 normalize_mode 归一后同属本模式，一并参与扫描）
+    # 2026-11-24：反例按源文件记账（unc_files），本次投喂文件的反例以重扫结果替换而非累加；
+    #   旧实现的 uncorrected 只增不减，一片源的历史反例会把规则永久锁死在 candidate。
     for k, c in cands.items():
         if normalize_mode(c["mode"]) != mode or c["status"] == "rejected":
             continue
+        _learn_migrate_candidate(c)
         w, _r = _learn_extended(c)
+        seen = 0
+        observed = False
         for num, (oz, ref) in smap.items():
             if w not in oz:
                 continue
+            observed = True
             nz = omap.get(num, (oz,))[0]
             if w in nz:                       # 原文有、校准后仍在 -> 反例
-                c["uncorrected"] += 1
+                seen += 1
                 for t in _ref_tokens(ref):
                     c["unc_ref_tokens"][t] = c["unc_ref_tokens"].get(t, 0) + 1
-    # 状态机更新 + 既有术语表查重（已沉淀的不再作为候选）
+        if observed:
+            c["unc_files"].pop("__legacy__", None)   # 不可复核的旧聚合值：首次文件级重扫即取代
+            if seen:
+                c["unc_files"][src_key] = seen
+            else:
+                c["unc_files"].pop(src_key, None)
+        c["uncorrected"] = sum(int(v) for v in c["unc_files"].values()
+                               if isinstance(v, int) and v > 0)
+    # 状态机更新 + 既有术语表查重（已沉淀的标冲突而非静默删除）
     tname = _MODE_TERM_TABLE.get(mode)
     builtin = TABLES.get(tname) or {}
+    canonicals = _learn_canonicals()
     confirmed = demoted = conflicts = dup_builtin = 0
     for k in list(cands.keys()):
         c = cands[k]
@@ -298,12 +480,15 @@ def _cmd_learn(src, calib, kb_path=LEARNED_KB_DEFAULT, mode="bi"):
         if c_mode == mode:
             ew, er = _learn_extended(c)
             if builtin.get(ew) == er or builtin.get(c["wrong"]) == c["right"]:
-                del cands[k]                  # 已进扁平表/实体层，无需学习
+                # 2026-11-24：命中内建表不再 del 候选（旧实现静默删除，重复投喂看不出来、
+                # 也无法纠错），改为 conflict 标记保留证据，人工 learned-show 可见。
+                c["conflict"] = True
+                c["conflict_reason"] = "already-in-builtin-table"
+                c["needs_review"] = True
                 dup_builtin += 1
-                continue
         if c_mode != mode:
             continue
-        if _learn_update_status(c):
+        if _learn_update_status(c, canonicals=canonicals, force=force):
             demoted += 1
         confirmed += c["status"] == "confirmed"
         conflicts += bool(c.get("conflict"))
@@ -367,7 +552,11 @@ def _cmd_learned_show(kb_path=LEARNED_KB_DEFAULT, mode=None):
         line = (f"{flag} [{c['mode']}] {c['wrong']!r} -> {c['right']!r}{ext} "
                 f"命中{c['count']} 反例{c['uncorrected']} cues{c['cues'][:6]}")
         if c.get("conflict"):
-            line += f" ⚠冲突:亦被改为 {list(c['alts'])}"
+            if c.get("alts"):
+                line += f" ⚠冲突:亦被改为 {list(c['alts'])}"
+            elif c.get("conflict_reason"):
+                # 2026-11-24 审查类冲突（撞官名/命中内建表）无 alts，直接给原因
+                line += f" ⚠冲突:{c['conflict_reason']}"
         if c.get("ctx_regex"):
             line += f" | 建议佐证: /{c['ctx_regex']}/"
         if c.get("demoted"):

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.2.5
+# @version 3.3.1
 """SRT 解析、抽段、切分、配对与合并
 
 源：subtitle_calib_merged.py L12061-L13070 @ 97d7d463（2026-10-24 冻结快照）
@@ -11,7 +11,8 @@ import shutil
 import sys
 import unicodedata
 from .data.misc import MERGE_FIXES
-from .text import _CJK, _decode_any, _is_chinese_line, _iter_cue_text_blocks, _split_cue_text
+from .text import (_CJK, _decode_any, _is_chinese_line, _iter_cue_text_blocks,
+                   _split_cue_text, split_cue_layout)
 
 
 
@@ -42,13 +43,13 @@ def _cue_zh_ref(texts):
     谷翻中文在下的片源会把中文当参考行、把英文当内容行——merge 会把新中文写进英文行，
     align-audit 则恒比未改动的英文行（串位查不出来）。
 
-    这里**不无条件**改用字符集判定：`_is_chinese_line` 认汉字，而日语片源里的
-    「[音楽]」这类全汉字假名标记行会被判成中文行，位置约定反而是对的。故只在
-    「首行一个汉字都没有、末行却有汉字」这一英文在上版式的充分特征下才改按字符集判定，
-    其余一律沿用位置约定，保证既有片源逐字节零漂移。
+    2026-11-24（P2-6）：字符集判定统一由 text.split_cue_layout 提供（与 extract/引擎
+    同一实现）；本函数只保留**版式策略**：英文在上特征命中才按字符集，
+    其余沿用位置约定（日语「[音楽]」等全汉字标记行放中间时位置约定反而对）。
+    实测把位置约定搬进引擎会让纯拉丁 cue 被当中文改（A/B 7 例漂移），故策略分层。
     """
     if len(texts) >= 2 and not _CJK.search(texts[0]) and _CJK.search(texts[-1]):
-        return _split_cue_text(texts)
+        return split_cue_layout(texts)
     return list(range(len(texts) - 1)), [len(texts) - 1]
 
 
@@ -76,7 +77,7 @@ def _cmd_extract(src, out):
                 if not texts:
                     i = kk; continue
                 esc = lambda x: x.replace("\\", "\\\\").replace("\u0009", " ").replace("\n", "\\n")
-                zh_pos, ref_pos = _split_cue_text(texts)
+                zh_pos, ref_pos = split_cue_layout(texts, mono=(layout == "mono"))
                 if layout == "mono" or (zh_pos and not ref_pos):
                     zh = "\\n".join(esc(texts[i]) for i in (zh_pos or range(len(texts))))
                     en = ""

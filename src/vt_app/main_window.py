@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.2.5
+# @version 3.3.1
 """主窗口（2026-11-15 功能解耦阶段③：从 video_toolbox_qt.py 拆出，逐字同源）。
 
 壳层编排：FluentWindow + 注册表驱动的功能页挂载 + 消息总线 + 跨屏收敛 +
@@ -41,6 +41,7 @@ from vt_app.bus import MessageBus
 from vt_app.widgets import nav_width_for
 from vt_app.home_page import HomePage
 from vt_app.settings_page import SettingsPage
+from vt_app.shell import ShellStatusBar, ShellTopBar
 
 # AI 托管（v2.1.0）：harness 适配层 + 托管页。两者都设计成「harness 不在场
 # 也零影响」——bridge 只依赖标准库、探测失败只返回状态；页面也只在
@@ -79,7 +80,8 @@ def _version():
 PAGE_TITLES = {"HomePage": "首页", "DownloadPage": "视频处理", "LibraryPage": "视频库",
                "SubtitlePage": "字幕处理", "SubtitleEditPage": "字幕编辑",
                "AutoVisionPage": "自动化", "HarnessPage": "AI 托管",
-               "SettingsPage": "设置",
+               "SettingsPage": "设置", "LivePage": "实时字幕",
+               "PipelinePage": "流水线",
                "MergePage": "音画合并", "CalibPage": "字幕校准"}
 
 #: 黄金比例（宽 : 高）。窗口默认尺寸与「按屏幕收敛」后的尺寸都按它算——
@@ -111,7 +113,7 @@ class MainWindow(FluentWindow):
     #: 导航项文案（宽度按其中最长的一项计算）
     #: v1.13.x：原「视频下载」更名「视频处理」——该页已同时承载「视频下载」与
     #: 「音画合并」两个板块，只叫"下载"名不副实。页内子板块名保持不变。
-    NAV_TEXTS = ["首页", "视频处理", "视频库", "字幕处理", "字幕编辑", "流水线",
+    NAV_TEXTS = ["首页", "视频处理", "视频库", "实时字幕", "字幕处理", "字幕编辑", "流水线",
              "自动化", "设置"]
 
     #: 默认窗口宽度（高度由黄金比例推）。 以它为上界，
@@ -131,6 +133,13 @@ class MainWindow(FluentWindow):
         self._settle_pending = False  # 跨屏收敛是否已排队（防抖，只跑一轮）
         self._settle_tries = 0        # 拖拽中延后收敛的重试次数（有上限）
         super().__init__()
+        try:
+            # v3：窗口实底与左侧导航同色，标题栏/导航上部/右侧窗口按钮
+            # 共用一整条底色；内容页由 StackedWidget 单独铺 bg，避免整窗发白。
+            self.setCustomBackgroundColor(
+                ui_theme.TOKENS_LIGHT["nav"], ui_theme.TOKENS_DARK["nav"])
+        except Exception:  # noqa: BLE001
+            pass
         _perf_note("mw[super] %.2fs" % (time.perf_counter() - _mt))
         # 切断"页面 → 堆叠 → 窗口"的最小尺寸传导链（2026-10-21 前移）。
         # ⚠ 必须在**第一次 addSubInterface 之前**设置：QStackedWidget.addWidget
@@ -247,6 +256,19 @@ class MainWindow(FluentWindow):
                                  position=_pos)
         self.addSubInterface(self.settings_page, FIF.SETTING, "设置",
                              position=NavigationItemPosition.BOTTOM)
+        # v3 壳层：内容区顶栏 42px + 底栏 26px；导航仍由 FluentWindow 管理。
+        self.shell_topbar = ShellTopBar(self)
+        self.shell_statusbar = ShellStatusBar(self)
+        try:
+            self.shell_statusbar.set_version(_version())
+            self.widgetLayout.setContentsMargins(0, 48, 0, 26)
+            # v3 顶栏放在标题栏同一行，避免标题栏 48 + 顶栏 42 的重复占高
+            self.navigationInterface.vBoxLayout.setContentsMargins(0, 48, 0, 26)
+            tb = getattr(self, "titleBar", None)
+            if tb is not None and getattr(tb, "titleLabel", None) is not None:
+                tb.titleLabel.hide()
+        except Exception:  # noqa: BLE001
+            pass
         _perf_note("mw[addSubInterface] %.2fs" % (time.perf_counter() - _mt))
         # v2.1.0：导航面板顶部的返回箭头 → 固定跳首页（见 _setup_home_button）
         self._setup_home_button()
@@ -816,7 +838,25 @@ class MainWindow(FluentWindow):
             self.navigationInterface.setExpandWidth(width)
             _perf_note(f"导航宽度 = {width}px"
                        f"（{font.family()} {font.pointSize()}pt）")
+            if getattr(self, "shell_topbar", None) is not None:
+                self._layout_shell_chrome()
         except Exception:
+            pass
+
+    def _layout_shell_chrome(self):
+        """把 v3 顶栏/底栏贴到窗口内容区（不改 FluentWindow 布局树）。"""
+        try:
+            nav_w = int(self.navigationInterface.width())
+        except Exception:  # noqa: BLE001
+            nav_w = 200
+        try:
+            w = max(0, self.width() - nav_w - 138)
+            self.shell_topbar.setGeometry(nav_w, 0, w, 48)
+            self.shell_statusbar.setGeometry(0, max(48, self.height() - 26),
+                                             self.width(), 26)
+            self.shell_topbar.raise_()
+            self.shell_statusbar.raise_()
+        except Exception:  # noqa: BLE001
             pass
 
     # ---------- 页面/状态 ----------
@@ -990,13 +1030,17 @@ class MainWindow(FluentWindow):
         布局重排，兜住它。
         """
         super().showEvent(event)
-        # 首帧之后 windowHandle 才存在，此时才能接住"窗口换显示器"的信号
         QTimer.singleShot(0, self._watch_window_screen)
+        QTimer.singleShot(0, self._layout_shell_chrome)
         if getattr(self, "_first_sized", False):
             return
         self._first_sized = True
         for delay in (0, 200, 600):
             QTimer.singleShot(delay, self.fit_to_screen)
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        self._layout_shell_chrome()
 
     def moveEvent(self, event):
         """跨屏拖拽时保持窗口在两屏上的相对位置。
@@ -1073,6 +1117,9 @@ class MainWindow(FluentWindow):
             suffix = self._page_title(page)
             self.setWindowTitle(
                 f"视频工具箱 v{_version()}" + (f" — {suffix}" if suffix else ""))
+            if getattr(self, "shell_topbar", None) is not None:
+                self.shell_topbar.set_page(suffix or "首页")
+                self._layout_shell_chrome()
         except Exception:  # noqa: BLE001
             pass
 
@@ -1214,6 +1261,7 @@ class MainWindow(FluentWindow):
                 "pipeline": self.pipeline_page,
                 "auto": self.auto_page,
                 "harness": getattr(self, "harness_page", None),
+                "live": getattr(self, "live_page", None),
                 "settings": self.settings_page}.get(key)
 
     # ---------- 流水线（v1.14.0） ----------

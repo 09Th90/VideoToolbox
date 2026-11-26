@@ -1,4 +1,4 @@
-# @version 3.2.5
+# @version 3.3.1
 # 本地安全扫描产物（mimosa 插件）
 .mimosa/
 
@@ -267,3 +267,15 @@ data/credentials.json.tmp
 
 # 图标草稿：仅本机留存，不入库（2026-10-24 工作区清理）
 docs/icon_draft*.png
+
+# 本机运行期缓存（决策模型请求缓存等），不入库
+/cache/
+
+# Windows 保留设备名误创建的文件（不可正常读写），忽略
+/nul
+
+# UI 设计过程素材（约 31MB 截图/压缩包）：只入库文本报告与样式规范
+docs/ui-redesign/preview-v3/
+docs/ui-redesign/screenshots-v3/
+docs/ui-redesign/*.png
+docs/ui-redesign/*.zip

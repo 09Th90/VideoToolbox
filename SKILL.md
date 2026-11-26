@@ -35,10 +35,11 @@ tools\python\python.exe src\agent_cli.py <子命令> [参数] --json
 | `download <url> [--height 1080] [--dir D]` | 下载（yt-dlp 全链：自动代理+游客 cookie+风控重试，合并 mp4） | `download "https://…" --height 1080` |
 | `transcribe <file> [--lang ja] [--out x.srt]` | 音视频 → SRT（引擎 ASR 全链；模型/密钥读设置页 ASR 槽） | `transcribe ep01.mp4 --lang ja` |
 | `translate <srt> [--to zh-Hans] [--engine bing]` | → 中文双语 SRT（原文在上、译文在下，时间轴不动） | `translate ep01.en.srt --engine bing` |
-| `calibrate <srt> [旗标] [--out F] [--report R]` | 术语校准（只改文字，不动时间轴/序号/空行/换行/BOM） | `calibrate ep01.zh.srt --endobi` |
+| `calibrate <srt> [旗标] [--out F] [--report R]` | 术语校准（只改文字，不动时间轴/序号/空行/换行/BOM） | `calibrate ep01.zh.srt --mode endo-bi` |
 | `stabilize <srt> [--out F]` | cue 稳定化（同进程直连 calib_core；`VT_CALIB_SUBPROCESS=1` 回退根脚本透传） | `stabilize ep01.srt` |
 | `compose <video> <sub> [--mode soft\|burn\|mkv] [--audio x.m4a] [--out F]` | 字幕合成（soft=软封装不重编码；burn=ASS 硬烧；mkv=封装） | `compose ep01.mp4 ep01.srt --mode burn` |
 | `audit <srt> [--out R]` | 校准后漏校三扫（拉丁残留/知识库错形残留/同词族一致性；退出码 1＝有候选，可当门禁） | `audit ep01.zh.srt` |
+| `trace [list\|tail\|show] [--session ID] [--kind K] [--limit N] [--follow]` | 开发版校准观测：实时读校准工作流/AI 思考链/校准方向/数据访问事件（只读，详见下节） | `trace tail --follow` |
 | `split <video> --points "…" \| --durations "…" [--mode copy\|auto\|encode] [--verify quick\|full] [--out D]` | 视频切片：按时间点（HH:MM:SS）或时长（xHyMzS）拆多段，逐段校验可播放 | `split ep01.mp4 --durations "1h,1h"` |
 | `bili-submit [素材目录] [--probe\|--dry-run\|--edit] [--only basic,chapters,…] [--visibility self\|public]` | B 站后台自动投稿（UIA 定位 + PostMessage 后台输入；素材目录含投稿信息.txt） | `bili-submit data\素材 --dry-run` |
 
@@ -61,18 +62,60 @@ tools\python\python.exe src\agent_cli.py <子命令> [参数] --json
 
 | 片源 | 旗标 |
 |---|---|
-| 终末地·中英双语（英文参考行不动） | `--endobi` |
-| 终末地·单语 | `--endo` |
-| 明日方舟本体（英语原声+中文） | `--ak` |
-| 日语原声 | `--ja`（含英文参考行用 `--jpe`） |
-| 韩语原声 | `--ko` |
 | 鸣潮（中英/双语，默认模式） | 不加旗标 |
+| 鸣潮-日语 | `--mode wuwa-ja` |
+| 鸣潮-韩语 | `--mode wuwa-ko` |
+| 鸣潮-4.0韩语 / 鸣潮-4.0IGN / 鸣潮-4.0新地区PV / 鸣潮-4.0新联邦实机 | `--wuwa40ko` / `--wuwa40ign` / `--wuwa40pv` / `--wuwa40reveal`（一键旗标，内置侧车） |
+| 终末地（单语） | `--endo` |
+| 终末地-双语（英文参考行不动） | `--mode endo-bi` |
+| 终末地-韩语 | `--mode endo-ko` |
+| 终末地-日语 | `--mode endo-ja` |
+| 明日方舟本体（英语原声+中文） | `--ak` |
+| 明日方舟-日语 | `--mode ak-ja` |
+| 明日方舟-韩语 | `--mode ak-ko` |
+| 明日方舟-Arcaea | `--mode ak-arcaea` |
 | 战双帕弥什 | `--pgr` |
+| 战双-英文 | `--mode pgr-en` |
+| 战双-日语 | `--mode pgr-ja` |
 | 其他 | `--zho` / `--zel` |
 | 长句断行（≥14 字在标点处拆两行） | `--layout` |
 | 修正英文参考行的 ASR 错词 | `--fix-en` |
 
+> 子键化（2026-11-22）：12 个变体校准键降级为「游戏-细类」ASCII 子键，无顶层简单旗标，统一走 `--mode <子键>`；cli 端 `normalize_mode` 兼容归一旧键与别名。
+
 不带 `--out` 时校准只做「术语命中统计」不改文件；带 `--out` 才落盘。`--report` 出 TSV 差异报告。
+
+## 校准观测（开发版只读通道，2026-11-24）
+
+第三方 AgentWork 实时监控校准过程：校准运行时把结构化事件追加写入
+`logs\trace\<session>\*.jsonl`（每进程一个文件，读取端按 ts 归并），
+`trace` 子命令或直接读文件均可消费。**只读旁路：不改校准产物、不写 stdout 信封、
+emit 永不抛异常；校准输出零漂移。**
+
+门控：源码态（非 frozen）且非自检进程默认开；`VT_TRACE=1` 强开 / `VT_TRACE=0` 强关；
+安装版默认关。会话目录保留最近 30 个；api_key/token 类字段统一脱敏；单字符串 64KB 截断。
+
+```bash
+tools\python\python.exe src\agent_cli.py trace list --json            # 会话清单（新→旧）
+tools\python\python.exe src\agent_cli.py trace tail --json            # 最新会话末尾 50 条事件
+tools\python\python.exe src\agent_cli.py trace tail --kind ai --limit 0 --json   # 全部 AI 思考链
+tools\python\python.exe src\agent_cli.py trace tail --follow          # 实时跟踪（0.5s 轮询；--json 时输出 NDJSON 流，每行一个事件）
+tools\python\python.exe src\agent_cli.py trace show --session <ID> --json        # 单会话摘要（时间线+AI统计+方向+数据访问）
+```
+
+事件 schema（每行一个 JSON）：`{ts, session, seq, pid, kind, event, payload}`，kind 四类：
+
+| kind | 覆盖 | 主要 event |
+|---|---|---|
+| `workflow` | 工作流阶段 | session_start / stage / process_end / session_end |
+| `ai` | AI 思考链 | round_start / llm_request / reasoning / llm_response / verdict（逐条采纳/拒绝+依据）/ tool_call（联网查证）/ shadow_review（Jev 影子）/ round_end |
+| `direction` | 校准方向 | mode_resolved（旧键→子键归一）/ learned_injected / retired_gate / auto_terms / index_built |
+| `data` | 数据访问 | srt_read / srt_write / report_write（路径/字节/改动数） |
+
+边界：机械校准（CLI/GUI）与 AI 校准（calib_ai_run）全链覆盖；
+`VT_CALIB_SUBPROCESS=1` 回退通路只有父进程会话级事件（子进程 monolith 不装钩子）；
+外部 `D:/原片/` monolith 工作流不设钩子，天然关闭。引擎接缝＝`calib_core.engine.TRACE_HOOK`
+（默认 None＝零行为改动），总线实现＝`src\features\calibrate\telemetry.py`。
 
 ## 已知坑（2026-10-15 实测）
 

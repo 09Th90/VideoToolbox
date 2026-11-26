@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
-# @version 3.2.5
+# @version 3.3.1
 """_selftest_api —— L1 API 层自检（2026-11-20 三层独立改造）。
 
-  1  spec  sanity：11 命令 / 8 可反射命令 35 参数 / calibrate 33 模式旗标
-  2  dispatch 11 命令信封结构（轻命令实跑 + 重命令错误信封，无副作用）
+  1  spec  sanity：12 命令 / 9 可反射命令 40 参数 / calibrate 33 模式旗标
+  2  dispatch 12 命令信封结构（轻命令实跑 + 重命令错误信封，无副作用）
   3  透传三件 exit_code 语义 + 只增字段（calibrate changes/mode_name、audit candidates）
   4  api_worker 子进程往返 + stdout 零字节（OS 级隔离）
   5  依赖 purity：dispatch 后 sys.modules 无 agent_cli / features._cli / features.mcp
@@ -57,11 +57,14 @@ def main():
     from features._api import spec
 
     # 1 —— spec sanity
-    check("spec 11 命令", len(spec.COMMANDS) == 11, str(len(spec.COMMANDS)))
+    check("spec 12 命令", len(spec.COMMANDS) == 12, str(len(spec.COMMANDS)))
     n_params = sum(len(c.params) for c in spec.COMMANDS if not c.passthrough)
-    check("8 可反射命令 35 参数", n_params == 35, str(n_params))
-    check("calibrate 33 模式旗标",
-          len(spec.get_command("calibrate").mode_flags) == 33)
+    check("9 可反射命令 40 参数", n_params == 40, str(n_params))
+    from calib_core.data import modes as _modes
+    _expected_flags = len(_modes._MODE_FLAGS) + len(_modes._RERUN)
+    check("calibrate %d 模式旗标（_MODE_FLAGS + _RERUN）" % _expected_flags,
+          len(spec.get_command("calibrate").mode_flags) == _expected_flags,
+          "spec=%d" % len(spec.get_command("calibrate").mode_flags))
     check("command_names 与 spec 同源",
           set(command_names()) == {c.name for c in spec.COMMANDS})
 
@@ -82,11 +85,11 @@ def main():
     out = os.path.join(FIX, "cal.srt")
     rep = os.path.join(FIX, "cal.tsv")
     r = dispatch("calibrate", {"input": [srt],
-                               "extra": ["--endobi", "--out", out,
+                               "extra": ["--mode", "endo-bi", "--out", out,
                                          "--report", rep, "--kb", kb]}, log)
     check("calibrate exit_code 语义", "exit_code" in r and r["exit_code"] == 0
           and os.path.isfile(out), str(r)[:120])
-    check("calibrate 只增字段", r.get("mode_name") == "endobi"
+    check("calibrate 只增字段", r.get("mode_name") == "endo-bi"
           and isinstance(r.get("changes"), int), str(r)[:160])
     out2 = os.path.join(FIX, "st.srt")
     dirty = os.path.join(FIX, "dirty.srt")

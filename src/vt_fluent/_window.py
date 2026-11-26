@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.2.5
+# @version 3.3.1
 """vt_fluent 窗口与导航（自研，替代 qfluentwidgets.window + navigation）。
 
 行为契约（对齐上游 1.11.3）：

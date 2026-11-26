@@ -1,7 +1,7 @@
-<!-- @version 3.2.5 -->
+<!-- @version 3.3.1 -->
 # Video Toolbox — User Manual
 
-Applies to: v3.2.5
+Applies to: v3.3.1
 
 > For end users. No Python setup is required for the installed build.
 > Developer-facing details are in `docs/程序说明书(开发版).md`.
@@ -65,8 +65,8 @@ the first frame (AI Harness only appears when its runtime is available).
 
 - Windows 10/11, 64-bit.
 - No administrator rights needed. Default install path is `D:\VideoToolbox`.
-- Reserve at least 6GB of disk space (the offline installer is about 1.0GB,
-  and FFmpeg/yt-dlp/ASR models/player components are downloaded on demand).
+- Reserve at least 6GB of disk space (installer size depends on the release
+  page; FFmpeg/yt-dlp/ASR models/player components are downloaded on demand).
 - AI features require your own OpenAI-compatible endpoint and key.
 
 ---
@@ -77,8 +77,8 @@ the first frame (AI Harness only appears when its runtime is available).
 
 | Package | Best for | Notes |
 | --- | --- | --- |
-| `VideoToolbox_Setup_v2.9.0.exe` | New users, offline deployment | About 1.0GB |
-| `VideoToolbox_OnlineSetup_v2.9.0.exe` | Existing users with good network | Downloads only missing files |
+| `VideoToolbox_OnlineSetup_v3.3.1.exe` | New users with a working network (first choice) | Small download (about 12MB level); components are fetched on demand at first launch |
+| `视频工具箱_Setup_v3.3.1.exe` | Fully offline / weak-network deployment | Size depends on the release page; runs without downloading the main program afterwards |
 | Source mode | Running the latest code | Python 3.12 required, see section 15 |
 
 Already installed? Open **设置 → 程序更新 → 检查更新**. The updater downloads only
@@ -217,11 +217,21 @@ The page has three sections: transcription, translation and calibration.
 ### Transcription
 
 1. Choose an audio/video file.
-2. Choose the model source (Settings ASR config or a temporary ASR choice).
+2. Choose the **model source** in the command bar: **Local** or **Cloud**
+   (the "Default" entry was removed on 2026-11-22). Selecting one really
+   switches the backend (local = faster-whisper, cloud = the Whisper
+   endpoint in Settings) and runs an immediate health check — missing model
+   weights or missing keys are reported right away, not halfway through.
 3. Choose the recognition language and output format in the command bar;
    language defaults to auto-detect, and specifying it is usually more reliable.
 4. Enable speaker diarization if needed.
 5. Start and get an SRT.
+
+**Voiceprint filtering** (optional, off by default) happens at the
+transcription stage: toggle it on the transcription page and enroll the
+streamer's voiceprint first. Under the precision-first default, uncertain
+lines go to a separate `xxx_待复核.srt` (pending-review) file instead of
+being mixed into the final SRT.
 
 “语音分离” is a placeholder; speaker splitting is selected when exporting from
 the Editor (“按说话人拆分”).
@@ -234,7 +244,6 @@ the Editor (“按说话人拆分”).
   original only.
 - The calibration step detects Chinese lines by character set, so the order of
   Chinese/English does not matter.
-- Voiceprint filtering is available after translation.
 
 ### Composition
 

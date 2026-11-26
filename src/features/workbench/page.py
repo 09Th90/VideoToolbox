@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.2.5
+# @version 3.3.1
 """字幕工作台页（2026-11-15 功能解耦阶段③：从 video_toolbox_qt.py 拆出，逐字同源）。
 
 * 内嵌字幕引擎工作台（vt_engine_ui 自研优先，videocaptioner 回退），预热三段
@@ -12,20 +12,22 @@ import re
 import time
 import unicodedata
 
-from PySide6.QtCore import QTimer
-from PySide6.QtWidgets import (QApplication, QHBoxLayout, QVBoxLayout, QWidget)
+from PySide6.QtCore import Qt, QTimer
+from PySide6.QtWidgets import (QApplication, QFrame, QHBoxLayout, QScrollArea,
+                               QVBoxLayout, QWidget)
 
 from vt_fluent import (CaptionLabel, FluentIcon as FIF, InfoBar,
                        InfoBarPosition, MessageBox, PushButton)
 
 import video_toolbox as engine
+import ui_theme
 
 from vt_app.boot import _perf_note
 from vt_app.scheduler import _SCHED, _defer
 from vt_app.engine_ui import (_ENGINE_PREWARM, _engine_prewarm_probe,
                               _resolve_engine_ui, _start_engine_prewarm)
 from vt_app.lazy_shell import _install_spinbox_fix_once
-from vt_app.widgets import fit_caption
+from vt_app.widgets import PageHeader, card, fit_caption
 from features._media import SUBTITLE_EXTS
 
 #: 「双语字幕」判定：cue 内同时出现中文行与非中文行。用于「任务创建」的跳转
@@ -174,17 +176,27 @@ class SubtitlePage(QWidget):
         # 分段，排在「字幕翻译」之后（见 _build_engine 中的挂载）。
         self.work_tab = QWidget(self)
         wlay = QVBoxLayout(self.work_tab)
-        wlay.setContentsMargins(20, 10, 20, 12)
+        wlay.setContentsMargins(22, 14, 22, 14)
         wlay.setSpacing(8)
         outer.addWidget(self.work_tab, 1)
         self.vbox = wlay
 
+        self.header = PageHeader(
+            "字幕处理",
+            "语音转录 / 字幕翻译 / 字幕校准；引擎工作台保持原有输入与流程",
+            self.work_tab)
+        wlay.addWidget(self.header)
+
         # 中部：引擎界面宿主；底部一行：引擎状态 + 设置/许可入口
         # （第三方组件的许可与来源见 docs\ 声明文件）
         self.host = QWidget(self.work_tab)
+        self.host.setObjectName("EngineHost")
+        self.host.setAttribute(Qt.WA_StyledBackground, True)
         self.host_lay = QVBoxLayout(self.host)
         self.host_lay.setContentsMargins(0, 0, 0, 0)
-        self.vbox.addWidget(self.host, 1)
+        self.host.setStyleSheet("background:transparent;")
+        self._paint_engine_host()
+        ui_theme.connect_theme(self.host, lambda w: self._paint_engine_host())
 
         foot = QWidget(self.work_tab)
         flay = QHBoxLayout(foot)
@@ -201,7 +213,27 @@ class SubtitlePage(QWidget):
         flay.addWidget(self.state_label, 1)
         flay.addWidget(self.set_btn)
         flay.addWidget(self.lic_btn)
-        self.vbox.addWidget(foot)
+
+        # v3：给第三方引擎一层宿主卡片，避免它的透明控件直接压在全页背景图上。
+        self.engine_box, elay = card()
+        elay.setContentsMargins(12, 10, 12, 10)
+        elay.setSpacing(8)
+        elay.addWidget(self.host, 1)
+        elay.addWidget(foot)
+
+        # 引擎自带最小高度（约 626px）会把窗口钉在 880×700；套一层滚动区，
+        # 小窗口时出现滚动条而不是拒绝缩小（回归病史见 _probe_window_resize.py）。
+        self.engine_scroll = QScrollArea(self.work_tab)
+        self.engine_scroll.setObjectName("EngineScroll")
+        self.engine_scroll.setWidgetResizable(True)
+        self.engine_scroll.setFrameShape(QFrame.NoFrame)
+        self.engine_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self.engine_scroll.setWidget(self.engine_box)
+        self.engine_scroll.setStyleSheet(
+            "QScrollArea#EngineScroll{background:transparent;border:none;}"
+            "QScrollArea#EngineScroll > QWidget > QWidget{background:transparent;}")
+        wlay.addWidget(self.engine_scroll, 1)
+        self.vbox = elay
 
         # ——「字幕校准」独立内容页：不进入任何宿主导航，待引擎工作台
         #    构建完成后并入其分段（见 _build_engine） ——
@@ -210,6 +242,12 @@ class SubtitlePage(QWidget):
         # app 必须传主窗口（消息队列 q 挂在主窗口上；此前传 SubtitlePage
         # 导致 AI 校准线程投递日志即抛 AttributeError 而死，校准等于没跑）。
         self._calib_page = None
+
+    def _paint_engine_host(self):
+        t = ui_theme.tokens()
+        self.host.setStyleSheet(
+            "QWidget#EngineHost{background:%s;border-radius:8px;}"
+            % t["card"])
 
     @property
     def calib_page(self):

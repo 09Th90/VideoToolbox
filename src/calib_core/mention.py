@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.2.5
+# @version 3.3.1
 """对象级 mention 提取与序次配对（M3-1，对象级锚定框架基础）。
 
 用字符级 AC 自动机分别扫参考行（ENTITIES en/ja/ko + aliases）与中文行（合法形 ∪ 错形键），
@@ -304,25 +304,82 @@ def scope_state(M, zh, anchor):
     return True, frozenset(R), st
 
 
+# P2-2（2026-11-24）：ctx 表索引缓存 —— id(table) → (代次, table, automaton, order, charset)。
+#   表内容由 state._rebuild_context_caches 原地重建（kb-sync 注入），所以必须靠
+#   state._CACHE_GEN 代次判失效；缓存持有 table 强引用，杜绝 id 复用误命中。
+_CTX_INDEX_CACHE = {}
+
+
+def _cache_gen():
+    """缓存代次：包模式读 state._CACHE_GEN，monolith 拍平后读顶层同名全局。"""
+    if "_CACHE_GEN" in globals():
+        return globals()["_CACHE_GEN"]
+    return state._CACHE_GEN
+
+
+def _ctx_table_index(table):
+    """(automaton, order, charset)：wrong 键的 AC 自动机 + 表内下标（同键多条目）。"""
+    key = id(table)
+    gen = _cache_gen()
+    ent = _CTX_INDEX_CACHE.get(key)
+    if ent is not None and ent[0] == gen and ent[1] is table:
+        return ent[2], ent[3], ent[4]
+    order, patterns = {}, {}
+    for i, (_crx, wrong, right) in enumerate(table):
+        if not wrong:
+            continue
+        order.setdefault(wrong, []).append(i)
+        patterns.setdefault(wrong, right or "")
+    autom = Automaton(patterns) if patterns else None
+    charset = frozenset("".join(patterns)) if patterns else frozenset()
+    _CTX_INDEX_CACHE[key] = (gen, table, autom, order, charset)
+    return autom, order, charset
+
+
 def ctx_apply(new, table, anchor, R=None, skip_wrongs=frozenset()):
     """ctx 循环（现状/scoped 双模）。返回 (new, 应用数, gate 排除数)。
 
     R=None → 完全现状（gate OFF，逐字节同原循环）。
     R=frozenset → 对象规则 gate：right∈OBJ_CANONS 且 right∉R → 跳过；语境规则不受限。
     skip_wrongs → EXCLUDE 预跳过：这些 wrong 键的 ctx 规则跳过。
+
+    P2-2：把「1669 条逐条 `wrong in new` 线性判断」改成「AC 一次扫出候选键，再按
+    表内下标升序逐个判定」。与原循环**严格等价**的三条依据：
+      1. 原循环只对「wrong 在当前 new 里」的条目做实质判定 → 候选集=这些条目；
+      2. 原循环按表下标升序、每条目至多访问一次 → 用 `i >= start` 单调推进复现；
+      3. 每次成功替换后重扫 new：替换可能引入目标名里的新错形键，其下标 > i 的
+         条目在原循环里**会**被后续访问（下标 ≤ i 的已过站，不会被回访）→ 重扫后
+         重新取 `i >= start` 的最小下标即等价。
     """
     used = blocked = 0
-    for crx, wrong, right in table:
-        if wrong in skip_wrongs:
+    if not table:
+        return new, used, blocked
+    autom, order, charset = _ctx_table_index(table)
+    if autom is None or not new or charset.isdisjoint(new):
+        return new, used, blocked
+    n = len(table)
+    start = 0
+    cand = autom.candidates(new) - skip_wrongs
+    while cand:
+        best = n
+        for k in cand:
+            for i in order.get(k, ()):
+                if start <= i < best:
+                    best = i
+        if best == n:
+            break
+        start = best + 1
+        crx, wrong, right = table[best]
+        if wrong not in new:      # 已被更早的替换吃掉（原循环此处同样空转）
             continue
-        if wrong in new:
-            if R is not None and right in OBJ_CANONS and right not in R:
-                if crx.search(anchor):
-                    blocked += 1
-                continue
+        if R is not None and right in OBJ_CANONS and right not in R:
             if crx.search(anchor):
-                new = _ctx_replace(new, wrong, right)
-                used += 1
+                blocked += 1
+            continue
+        if crx.search(anchor):
+            new = _ctx_replace(new, wrong, right)
+            used += 1
+            cand = autom.candidates(new) - skip_wrongs   # 每次成功替换后重扫
     return new, used, blocked
 
 

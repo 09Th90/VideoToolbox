@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.2.5
+# @version 3.3.1
 """全局 AI / LLM 配置与通道（tools/ai_client.py 加载器 + 配置读写/测试）（v2.3.1 拆分工程 · 自 video_toolbox.py 原样搬入）。
 
 本模块是 src/core/shared/ 的组成部分；域间依赖规则见 core/__init__.py。
@@ -124,10 +124,20 @@ def ai_save_config(cfg):
     这样「设置里写错的组合」在落盘那一刻就被纠正，校准不会再撞
     404 UnsupportedModel → 换端点 → 401 这条死路。修正说明不混进配置，
     单独经 `ai_last_auto_notes()` 回传界面（保存后取用）。
+    v3.x（2026-11-24）PUT → **PATCH**：此前以 DEFAULT_CONFIG 为底，界面未收集的
+    键（calib_concurrency / decision_timeout / decision_max_items /
+    decision_batch_size / decision_concurrency / vision_fallback_model /
+    max_tokens / timeout / retries）每次「保存并应用」都被静默重置为默认——
+    用户手改 json 后点一次保存就丢。现以磁盘现值 load_config() 为底，只覆盖
+    cfg 里**非 None 且在 schema 内**的键；要清空某键请显式传 "" / 0。
     """
     mod = ai_mod()
-    clean = dict(getattr(mod, "DEFAULT_CONFIG", {}))
-    for k in list(clean.keys()):
+    schema = getattr(mod, "DEFAULT_CONFIG", {})
+    try:
+        clean = dict(mod.load_config())        # 磁盘现值（缺省键由 DEFAULT 兜底）
+    except Exception:  # noqa: BLE001
+        clean = dict(schema)
+    for k in schema:
         if k in cfg and cfg[k] is not None:
             clean[k] = cfg[k]
     # —— 设置自动匹配：把错配的「端点 ↔ 模型 / 预算」纠正后再落盘 ——

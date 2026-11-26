@@ -1,6 +1,6 @@
 # -*- mode: python ; coding: utf-8 -*-
-# @version 3.2.5
-"""视频工具箱 v3.2.5 —— PyInstaller 打包配置
+# @version 3.3.1
+"""视频工具箱 v3.3.1 —— PyInstaller 打包配置
 v3.0.0（2026-11-15）：功能解耦 + 模块独立文件夹（28 个实现模块归位 features/<id>/），
         重新打包；见 docs/release-notes-v3.0.0.md。
 v2.1.0（2026-10-14）：PyQt5 → PySide6 迁移（docs/PySide6迁移方案书）。本 spec 的
@@ -169,6 +169,12 @@ hiddenimports += [
     'faster_whisper.tokenizer', 'faster_whisper.utils',
     'ctranslate2', 'huggingface_hub', 'tokenizers', 'av', 'numpy',
 ]
+
+# 2026-11-25（实时字幕并入）：features/live 的 WASAPI 采集在函数体里
+#   `import soundcard`，静态分析跟踪不到；且 soundcard 在 Windows 上按平台
+#   再 import mediafoundation。不 collect 的话打包版点「开始」只会报
+#   ImportError，源码态却正常（典型装包漏依赖）。
+hiddenimports += collect_submodules('soundcard')
 
 # 2026-10-13（P2 尾部 / 档 B）：自研任务工厂 engine_task_factory —— 接管
 #   videocaptioner.ui.task_factory 的构造逻辑，内建 vc_asr_patch_apply 的本地模型/

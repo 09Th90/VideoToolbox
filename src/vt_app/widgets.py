@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.2.5
+# @version 3.3.1
 """通用控件基建（原 video_toolbox_qt.py 同名代码，逐字下沉）。
 
 卡片工厂 / 日志视图 / 行布局 / 页面壳 / 导航宽度——所有页面共用，
@@ -12,7 +12,7 @@ from PySide6.QtCore import Qt
 from PySide6.QtGui import (QColor, QFont, QFontMetrics, QPainter, QPen,
                            QTextCursor)
 from PySide6.QtWidgets import (QAbstractButton, QApplication, QHBoxLayout,
-                               QSizePolicy, QVBoxLayout, QWidget)
+                               QLabel, QSizePolicy, QVBoxLayout, QWidget)
 
 from vt_fluent import (BodyLabel, CardWidget, CaptionLabel, ScrollArea,
                        SimpleCardWidget, StrongBodyLabel, SubtitleLabel,
@@ -52,8 +52,8 @@ def nav_width_for(texts, font=None):
     fm = QFontMetrics(font or QFont("Microsoft YaHei UI", 9))
     longest = max((fm.horizontalAdvance(t or "") for t in texts), default=0)
     two_chars = fm.horizontalAdvance("字字")
-    return (NAV_SIDE_PADDING * 2 + NAV_BUTTON_W + NAV_ICON_TEXT_GAP
-            + longest + two_chars + NAV_TEXT_TAIL)
+    return max(200, (NAV_SIDE_PADDING * 2 + NAV_BUTTON_W + NAV_ICON_TEXT_GAP
+            + longest + two_chars + NAV_TEXT_TAIL))
 
 
 # ========== 通用控件 ==========
@@ -305,6 +305,45 @@ class PageBase(QWidget):
         self.vbox.addWidget(widget, stretch)
 
 
+class PageHeader(QWidget):
+    """v3 页头：20px 标题 + 11px 说明 + 右侧操作区。"""
+
+    def __init__(self, title, subtitle="", parent=None):
+        super().__init__(parent)
+        self.setObjectName("PageHeader")
+        self.setFixedHeight(54)
+        lay = QHBoxLayout(self)
+        lay.setContentsMargins(0, 0, 0, 0)
+        lay.setSpacing(10)
+        col = QVBoxLayout()
+        col.setContentsMargins(0, 0, 0, 0)
+        col.setSpacing(2)
+        self.title = QLabel(title, self)
+        self.title.setObjectName("PageHeaderTitle")
+        self.cap = QLabel(subtitle, self)
+        self.cap.setObjectName("PageHeaderCaption")
+        col.addWidget(self.title)
+        col.addWidget(self.cap)
+        lay.addLayout(col, 1)
+        self.right = QHBoxLayout()
+        self.right.setContentsMargins(0, 0, 0, 0)
+        self.right.setSpacing(6)
+        lay.addLayout(self.right)
+        self._apply_theme()
+        ui_theme.connect_theme(self, lambda w: w._apply_theme())
+
+    def _apply_theme(self):
+        t = ui_theme.tokens()
+        self.setStyleSheet(
+            "QLabel#PageHeaderTitle{font-size:20px;font-weight:600;color:%s;"
+            "background:transparent;}"
+            "QLabel#PageHeaderCaption{font-size:10.5px;color:%s;"
+            "background:transparent;}" % (t["text"], t["text_dim"]))
+
+    def add_action(self, widget):
+        self.right.addWidget(widget)
+
+
 class ScrollPage(QWidget):
     """页面壳：标题区固定 + 内容区。
 
@@ -322,9 +361,11 @@ class ScrollPage(QWidget):
         super().__init__(parent)
         self.view = self
         outer = QVBoxLayout(self)
-        outer.setContentsMargins(24, 16, 24, 18)
-        outer.setSpacing(10)
-        outer.addWidget(SubtitleLabel(title, self))
+        outer.setContentsMargins(22, 16, 22, 14)
+        outer.setSpacing(8)
+        self.title_label = SubtitleLabel(title, self)
+        self.title_label.setObjectName("PageTitle")
+        outer.addWidget(self.title_label)
         self.cap = None
         if subtitle:
             cap = CaptionLabel(subtitle, self)
@@ -383,8 +424,8 @@ class TabPage(QWidget):
         self.holder = QWidget(self.area)
         self.holder.setStyleSheet("QWidget{background:transparent;}")
         self.content_lay = QVBoxLayout(self.holder)
-        self.content_lay.setContentsMargins(24, 10, 24, 16)
-        self.content_lay.setSpacing(12)
+        self.content_lay.setContentsMargins(22, 12, 22, 14)
+        self.content_lay.setSpacing(10)
         self.area.setWidget(self.holder)
         outer.addWidget(self.area, 1)
         self.vbox = self.content_lay

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.2.5
+# @version 3.3.1
 """本地 faster-whisper 模型目录解析（纯计算、零第三方依赖）。
 
 背景

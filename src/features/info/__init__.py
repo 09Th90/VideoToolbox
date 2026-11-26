@@ -1,3 +1,3 @@
 # -*- coding: utf-8 -*-
-# @version 3.2.5
+# @version 3.3.1
 """info 功能：媒体 / 字幕元信息（CLI-only）。"""

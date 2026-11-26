@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.2.5
+# @version 3.3.1
 """视频切片页（2026-11-15 功能解耦阶段③：从 video_toolbox_qt.py 拆出，逐字同源）。
 
 解耦样板页：
@@ -23,7 +23,7 @@ import video_toolbox as engine
 import features.split.video_split as vsplit
 
 from vt_app.widgets import (LogView, TabPage, _MergeDropSlot, card,
-                            label_row, row, srow, tab_caption)
+                            label_row, row, srow)
 from features._media import VIDEO_EXTS, VIDEO_FILE_FILTER
 
 
@@ -61,9 +61,7 @@ class SplitPage(TabPage):
         app.bus.subscribe("sp_", self._on_bus_message)
 
         v = self.content_lay
-        v.setSpacing(12)
-        v.addWidget(tab_caption(
-            "按时间点（HH:MM:SS）或时长（xHyMzS）拆成多段；默认无损快切，逐段校验可播", self))
+        v.setSpacing(10)
 
         # —— 源视频 ——
         self.src_slot = _MergeDropSlot(

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.2.5
+# @version 3.3.1
 """calibrate 命令编排（原 features/calibrate/cli.py 透传核心，行为不变）。
 
 优先同进程直连 calib_core.cli.main_argv；VT_CALIB_SUBPROCESS=1 或导入失败
@@ -83,10 +83,30 @@ def run(params: dict, log) -> dict:
     if not input_list:
         return fail("缺少输入字幕（用法：calibrate <input.srt> [--out F] "
                     "[--report F] [--mode <子键>|--ak|--endo|…]）")
-    payload = passthrough_run(None, input_list, params.get("extra") or [], log)
-    if "exit_code" in payload:
-        _enrich(params.get("extra") or [], payload)
-    return payload
+    extra = params.get("extra") or []
+    # 开发版观测（2026-11-24）：机械校准会话包裹；未启用时 no-op，信封不变。
+    from features.calibrate import telemetry as _tel  # noqa: PLC0415
+    _mode_hint = None
+    _it = iter(extra)
+    for _a in _it:
+        if _a == "--mode":
+            _mode_hint = next(_it, None)
+    _tel.start_session("calibrate", input=input_list[0], extra=extra,
+                       mode=_mode_hint,
+                       transport="subprocess"
+                       if os.environ.get("VT_CALIB_SUBPROCESS") == "1"
+                       else "inprocess")
+    try:
+        payload = passthrough_run(None, input_list, extra, log)
+        if "exit_code" in payload:
+            _enrich(extra, payload)
+        _tel.end_session(ok=payload.get("ok"), exit_code=payload.get("exit_code"),
+                         changes=payload.get("changes"),
+                         mode_name=payload.get("mode_name"))
+        return payload
+    except Exception as e:
+        _tel.end_session(ok=False, error=str(e)[:2000])
+        raise
 
 
 def _enrich(extra: list, payload: dict) -> None:

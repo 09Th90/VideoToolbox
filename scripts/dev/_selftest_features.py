@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
-# @version 3.2.5
+# @version 3.3.1
 """功能注册表 / 插件化护栏自检（2026-11-15 功能解耦）。
 
 逐条验证「每个功能独立、互相调用、缺失不影响启动、可扩展」的架构契约：
 
-  1  注册表发现：16 个功能全在位、零发现错误、_template 被跳过
+  1  注册表发现：19 个功能全在位、零发现错误、_template 被跳过
   2  适配器纯净：feature.py / cli.py 模块级禁 Qt（AST 断言）
   3  错误隔离：损坏功能包只记录 reason，不传染、不外抛
   4  缺失降级：功能缺席时 build_parser 仍可用（只少对应子命令）
@@ -40,7 +40,7 @@ PASS, FAIL = [], []
 EXPECTED = {"status", "info", "download", "transcribe", "translate",
             "calibrate", "compose", "split", "automation", "merge",
             "workbench", "pipeline", "library", "subtitle_edit",
-            "voiceprint", "harness", "mcp"}
+            "voiceprint", "harness", "mcp", "live", "publish"}
 
 
 def check(name: str, ok: bool, detail: str = "") -> None:
@@ -64,7 +64,7 @@ def main() -> int:
     reg = registry()
     specs = reg.specs()
     errs = reg.errors()
-    check("注册表发现 17 功能", set(specs) == EXPECTED and not errs,
+    check("注册表发现 19 功能", set(specs) == EXPECTED and not errs,
           "缺=%s 多=%s 错=%s" % (sorted(EXPECTED - set(specs)),
                                 sorted(set(specs) - EXPECTED), errs))
     check("_template 被跳过", "_template" not in specs)

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# @version 3.2.5
+# @version 3.3.1
 """界面自检（v1.10.4 Fluent 界面）：验证窗口与各页面可构建、导航宽度自适应、
 设置页统一入口、字幕处理环境就绪。
 
@@ -805,8 +805,22 @@ def _sync_env_injection_ok():
 
 
 def _asr_inject_ok(mode):
-    """ASR 全局配置 → 引擎「转录配置」注入正确（service / local 两种模式）。"""
+    """ASR 全局配置 → 引擎「转录配置」注入正确（service / local 两种模式）。
+
+    2026-11-24 修既有偶发 FAIL：本组断言之前设置页刚被惰性构建（data_edit 断言
+    触发），设置页会把**真实配置**延迟重新注入引擎（QTimer 单发）。若不先让
+    事件循环把它跑完，本函数刚写入的探针值会被真实 ASR 配置覆盖，读回不等 →
+    误报 FAIL（首轮 False、紧接着复跑 True 的根因）。先排空事件再快照；
+    仍不等则 0.3s 后重试一次（有界），不改任何产品代码。
+    """
     import json as _json
+    import time as _time
+    from PySide6.QtWidgets import QApplication as _QA
+    for _ in range(2):                 # 排空延迟注入（单发 QTimer）再取基线
+        _qa = _QA.instance()
+        if _qa is not None:
+            _qa.processEvents()
+        _time.sleep(0.15)
     saved = _json.dumps(engine._vc_read_settings(), ensure_ascii=False)
     try:
         probe = dict(engine.ai_load_config())
@@ -817,19 +831,26 @@ def _asr_inject_ok(mode):
         else:
             probe.update(asr_mode="local", asr_local_model="large-v3-turbo",
                          asr_local_model_dir=os.path.join(engine.TMP_DIR, "asr_model"))
-        ok, _msg = engine.apply_asr_to_engine(probe)
-        s = engine._vc_read_settings()
-        tr = s.get("Transcribe", {}).get("TranscribeModel", "")
-        if mode == "service":
-            wa = s.get("WhisperAPI", {})
-            return (ok and tr == engine.TM_WHISPER_API
-                    and wa.get("WhisperApiBase") == "https://asr.example.com/v1"
-                    and wa.get("WhisperApiKey") == "k-123"
-                    and wa.get("WhisperApiModel") == "sensevoice-small")
-        fw = s.get("FasterWhisper", {})
-        return (ok and tr == engine.TM_FASTER_WHISPER
-                and fw.get("Model") == "large-v3-turbo"
-                and str(fw.get("ModelDir", "")).endswith("asr_model"))
+        for _attempt in range(2):
+            ok, _msg = engine.apply_asr_to_engine(probe)
+            s = engine._vc_read_settings()
+            tr = s.get("Transcribe", {}).get("TranscribeModel", "")
+            if mode == "service":
+                wa = s.get("WhisperAPI", {})
+                good = (ok and tr == engine.TM_WHISPER_API
+                        and wa.get("WhisperApiBase") == "https://asr.example.com/v1"
+                        and wa.get("WhisperApiKey") == "k-123"
+                        and wa.get("WhisperApiModel") == "sensevoice-small")
+            else:
+                fw = s.get("FasterWhisper", {})
+                good = (ok and tr == engine.TM_FASTER_WHISPER
+                        and fw.get("Model") == "large-v3-turbo"
+                        and str(fw.get("ModelDir", "")).endswith("asr_model"))
+            if good:
+                return True
+            if _attempt == 0:           # 首轮被延迟注入覆盖：等它落定再验一次
+                _time.sleep(0.3)
+        return False
     finally:
         engine._vc_write_settings(_json.loads(saved))
         # 内存 QConfig 也还原成真实配置（否则会影响后续断言与运行态）
@@ -939,8 +960,13 @@ def main():
     # 挂（v2.4.x 起不再要求 harness 本体就绪，缺 harness 时页面展示「部署引导」
     # 卡），所以 8/9 都对——写死 8 会在导入了适配层的环境上误报。
     _stacked = win.stackedWidget.count()
-    check("堆叠页数量为 8（AI 托管页可用时 9）", _stacked in (8, 9),
-          f"count={_stacked}")
+    check("堆叠页数量为 9（AI 托管页可用时 10；含实时字幕）",
+          _stacked in (9, 10), f"count={_stacked}")
+    check("实时字幕页已挂进导航且可按键定位",
+          getattr(win, "live_page", None) is not None
+          and win.page_by_key("live") is win.live_page
+          and "实时字幕" in getattr(win, "NAV_TEXTS", [])
+          and gui.PAGE_TITLES.get(win.live_page.objectName()) == "实时字幕")
     check("流水线页已挂进导航且可按键定位",
           win.page_by_key("pipeline") is win.pipeline_page
           and "流水线" in getattr(win, "NAV_TEXTS", []))
@@ -1063,7 +1089,7 @@ def main():
     check("下载页含任务表/画质列表/日志",
           win.download_page.task_table.columnCount() == 8
           and win.download_page.task_table.horizontalHeaderItem(4).text() == "速度"
-          and win.download_page.qlist.count() == 0
+          and win.download_page.qlist.count() in (0, 1)  # v3：空态占位一条
           and bool(win.download_page.log.text))
     check("音画合并页含配对表", win.merge_page.table.columnCount() == 5)
     check("音画合并页二级分段「自动配对 / 手动合并」+ 三个拖放槽",
@@ -1595,14 +1621,37 @@ def main():
           _about_to_quit_hooked())
 
     # ---- v1.10.5：校准模式列表与脚本实际支持的开关一致 ----
+    #   2026-11-22 P3b 子键化后 --ja/--jpe/--ko/--akko/--pgren 已降级为
+    #   「--mode <子键>」（无顶层简单旗标），期望集随之更新。
     calib_modes = {flag for _, flag in win.calib_page.MODES if flag}
-    expect_modes = {"--ja", "--jpe", "--ko", "--ak", "--akko", "--endo",
-                    "--zho", "--pgr", "--pgren", "--wwoc", "--react"}
+    expect_modes = {"--ak", "--endo", "--pgr", "--zho", "--wwoc", "--react",
+                    "--mode wuwa-ja", "--mode wuwa-ko", "--mode ak-ja", "--mode ak-ko",
+                    "--mode endo-bi", "--mode endo-ko", "--mode endo-ja",
+                    "--mode pgr-en", "--mode pgr-ja",
+                    "--wuwa40ko", "--wuwa40ign", "--wuwa40pv", "--wuwa40reveal"}
     check("校准模式覆盖脚本全部模式开关",
           expect_modes <= calib_modes,
           f"缺 {sorted(expect_modes - calib_modes)}")
     check("已移除脚本不再支持的 --layout 选项",
           not hasattr(win.calib_page, "layout_switch"))
+    # ---- 2026-11-24 D：MODES 补齐后端已注册的 8 个「--mode <键>」入口 ----
+    _new_modes = {"--mode ff14", "--mode ffrs", "--mode gfl2", "--mode pbz",
+                  "--mode pkm", "--mode ssv", "--mode tga26", "--mode wwm"}
+    check("校准模式下拉含后端新注册 8 模式（ff14/ffrs/gfl2/pbz/pkm/ssv/tga26/wwm）",
+          _new_modes <= calib_modes, f"缺 {sorted(_new_modes - calib_modes)}")
+    _flags = [f for _, f in win.calib_page.MODES if f]
+    check("校准模式下拉无重复旗标（分组行 None 除外）",
+          len(_flags) == len(set(_flags)) and len(_flags) >= 28, len(_flags))
+    check("校准页含只读状态标签 style_tag / fp_tag（本轮风格 / 不动点）",
+          hasattr(win.calib_page, "style_tag") and hasattr(win.calib_page, "fp_tag")
+          and callable(getattr(win.calib_page, "_log_gate_summary", None))
+          and "不动点" in win.calib_page.fp_tag.text())
+    check("校准页 style_label 三档文案与配置值映射一致",
+          win.calib_page.style_label("").startswith("自动")
+          and win.calib_page.style_label("term").startswith("自动")
+          and win.calib_page.style_label("term-locked").startswith("锁定术语级")
+          and win.calib_page.style_label("rewrite").startswith("整句重写"))
+
 
     # ---- v1.10.6：运行期文件不落系统盘（数据目录可配置）----
     check("引擎暴露数据根目录 API（data_root_info）",
@@ -1737,6 +1786,104 @@ def main():
     check("语音分离开关进配置字典（asr_separate）",
           "asr_separate" in sp._collect_ai(),
           sorted(k for k in sp._collect_ai() if k.startswith("asr_")))
+    from vt_app import settings_page as _spm
+    # ---- 2026-11-24 D：校准风格三档 + web 默认态（设置页 ↔ 配置 ↔ 后端口径）----
+    check("校准风格三档：DEFAULT_CONFIG 出厂 \"\"（自动）= 下拉第 0 档，下拉 3 项",
+          _dc.get("calib_style") == ""
+          and _spm.CALIB_STYLE_VALUES[0] == ""
+          and sp.calib_style_combo.count() == 3
+          and _spm.CALIB_STYLE_INDEX.get(str(_dc.get("calib_style"))) == 0,
+          f"出厂默认={_dc.get('calib_style')!r} / 下拉项数={sp.calib_style_combo.count()}")
+    _cfg_style = str(engine.ai_load_config().get("calib_style") or "").strip().lower()
+    check("校准风格：UI 下标 == 当前配置反查，且收集值 == 下拉档位值",
+          sp.calib_style_combo.currentIndex() == _spm.CALIB_STYLE_INDEX.get(_cfg_style, 0)
+          and sp._collect_ai().get("calib_style")
+          == _spm.CALIB_STYLE_VALUES[sp.calib_style_combo.currentIndex()],
+          f"配置={_cfg_style!r} / UI={sp.calib_style_combo.currentIndex()} / "
+          f"收集={sp._collect_ai().get('calib_style')!r}")
+    check("校准风格三档映射：1→term-locked / 2→rewrite；旧值 term/auto 归自动档",
+          _spm.CALIB_STYLE_VALUES == ("", "term-locked", "rewrite")
+          and _spm.CALIB_STYLE_INDEX["term"] == 0 and _spm.CALIB_STYLE_INDEX["auto"] == 0
+          and _spm.CALIB_STYLE_INDEX["term-locked"] == 1
+          and _spm.CALIB_STYLE_INDEX["rewrite"] == 2)
+    check("联网查证开关：出厂默认 True + UI 与收集值一致",
+          _dc.get("calib_web_enabled") is True
+          and _sw_ui(sp, "calib_web_switch") == bool(sp._collect_ai().get("calib_web_enabled")),
+          f"出厂默认={_dc.get('calib_web_enabled')} / "
+          f"UI={_sw_ui(sp, 'calib_web_switch')} / 配置={sp._collect_ai().get('calib_web_enabled')}")
+
+    # ---- 2026-11-24 E：ai_save_config PATCH 语义（全内存桩：不落盘、不碰引擎/harness）----
+    #   场景：用户手改 json 把 calib_concurrency/decision_timeout 调高，之后在设置页
+    #   点「保存并应用」（_collect_ai 不收集这些键）——旧 PUT 语义会把它们重置为默认。
+    def _patch_roundtrip():
+        import core.shared.ai as _ai
+        import core.shared.vcsettings as _vcs
+        _mod = engine.ai_mod()
+        _mem = dict(_dc)
+        _mem.update({"calib_concurrency": 4, "decision_timeout": 33,
+                     "decision_max_items": 7, "decision_batch_size": 3,
+                     "calib_style": "rewrite", "calib_web_enabled": False,
+                     "api_key": "", "asr_api_key": ""})
+        _hb = None
+        try:
+            import features.harness.harness_bridge as _hb  # noqa: F401
+        except Exception:  # noqa: BLE001
+            _hb = None
+        _orig = {"load_config": _mod.load_config, "save_config": _mod.save_config,
+                 "reset_clients": _mod.reset_clients, "match_settings": _mod.match_settings,
+                 "vc": _vcs.apply_global_llm_to_engine,
+                 "asr": getattr(engine, "apply_asr_to_engine", None),
+                 "hb": getattr(_hb, "sync_provider_config", None) if _hb else None}
+
+        def _save(c):
+            _mem.clear()
+            _mem.update(dict(c))
+        _mod.load_config = lambda: dict(_mem)
+        _mod.save_config = _save
+        _mod.reset_clients = lambda *a, **k: None
+        _mod.match_settings = lambda c: (c, [])
+        _vcs.apply_global_llm_to_engine = lambda *a, **k: None
+        engine.apply_asr_to_engine = lambda *a, **k: None
+        if _hb:
+            _hb.sync_provider_config = lambda *a, **k: None
+        try:
+            # ① 设置页只传它收集的键：未收集键必须保留磁盘现值
+            _ai.ai_save_config({"calib_style": "term-locked", "calib_web_enabled": True,
+                                "calib_chunk_cues": 500})
+            r1 = dict(_mem)
+            # ② 显式 None = 「没改」，不得覆盖
+            _ai.ai_save_config({"calib_style": None, "calib_concurrency": None})
+            r2 = dict(_mem)
+            # ③ 杂键不落盘
+            _ai.ai_save_config({"zz_junk_key": 1})
+            r3 = dict(_mem)
+            return r1, r2, r3
+        finally:
+            _mod.load_config = _orig["load_config"]
+            _mod.save_config = _orig["save_config"]
+            _mod.reset_clients = _orig["reset_clients"]
+            _mod.match_settings = _orig["match_settings"]
+            _vcs.apply_global_llm_to_engine = _orig["vc"]
+            engine.apply_asr_to_engine = _orig["asr"]
+            if _hb:
+                _hb.sync_provider_config = _orig["hb"]
+    try:
+        _r1, _r2, _r3 = _patch_roundtrip()
+    except Exception as _e:  # noqa: BLE001
+        _r1 = _r2 = _r3 = {"error": f"{type(_e).__name__}: {_e}"}
+    check("ai_save_config PATCH：未收集键保留磁盘现值（concurrency=4 / timeout=33 / "
+          "max_items=7 / batch=3），传入键已更新",
+          _r1.get("calib_concurrency") == 4 and _r1.get("decision_timeout") == 33
+          and _r1.get("decision_max_items") == 7 and _r1.get("decision_batch_size") == 3
+          and _r1.get("calib_style") == "term-locked"
+          and _r1.get("calib_web_enabled") is True and _r1.get("calib_chunk_cues") == 500,
+          {k: _r1.get(k) for k in ("calib_concurrency", "decision_timeout",
+                                  "decision_max_items", "calib_style", "calib_web_enabled")})
+    check("ai_save_config PATCH：显式 None 的键不覆盖现值（calib_style 仍 term-locked）",
+          _r2.get("calib_style") == "term-locked" and _r2.get("calib_concurrency") == 4,
+          {k: _r2.get(k) for k in ("calib_style", "calib_concurrency")})
+    check("ai_save_config PATCH：schema 外的杂键仍被白名单丢弃",
+          "zz_junk_key" not in _r3, sorted(set(_r3) - set(_dc)))
     check("字幕编辑页支持按说话人拆分导出（_export_speaker_tracks 已接线）",
           hasattr(gui.SubtitleEditPage, "_export_speaker_tracks")
           and hasattr(gui.SubtitleEditPage, "_ask_speaker_export"))
@@ -1891,9 +2038,11 @@ def main():
           and sp.calib_think_rounds.maximum() >= 8,
           f"{sp.calib_think_rounds.value()}/{sp.calib_think_rounds.maximum()}")
     # 2026-10-23：数值框文字位置——统一宽度 + 右对齐；思考轮次特值不能被裁
+    #   2026-11-24：顶两项已改为 300px 双列网格（cues 150 / chars 170，见
+    #   settings_page._build_calib_ai_card），期望宽度随之更新（此前断言停留在 200）。
     _want_align = int(Qt.AlignRight | Qt.AlignVCenter)
     _spin_specs = (
-        ("calib_cues", 200), ("calib_chars", 200),
+        ("calib_cues", 150), ("calib_chars", 170),
         ("calib_think_rounds", 200), ("calib_cluster_rounds", 200),
         ("calib_context", 300), ("calib_tokens", 300))
     _spin_bad = []

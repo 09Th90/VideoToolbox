@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# @version 3.2.5
+# @version 3.3.1
 """第二音色影子链路自检（WP2，离线：零真实模型、零网络、零 ffmpeg）。
 
 覆盖：

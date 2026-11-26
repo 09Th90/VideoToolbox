@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.2.5
+# @version 3.3.1
 """CLI 参数解析与子命令分发
 
 源：subtitle_calib_merged.py L13295-L13650 @ 97d7d463（2026-10-24 冻结快照）
@@ -11,7 +11,7 @@ import shutil
 import sys
 import unicodedata
 from ._doc import USAGE_DOC
-from .data.modes import AK_INFO, AK_KO_INFO, ARCAK_AMIYA_INFO, ARCAK_AMIYA_OVERRIDES_SRC, ENDO_INFO, KO_INFO, MODE_REGISTRY, PGR_INFO, PGR_OVERRIDES_SRC, WWOC_INFO, WW38_INFO, WW38_OVERRIDES_SRC, WW38B_INFO, WW38B_OVERRIDES_SRC, WW38H_INFO, WW38H_OVERRIDES_SRC, WW38_J_INFO, WW38_J_OVERRIDES_SRC, WW40_INFO, WW40_OVERRIDES_SRC, WW40IGN_INFO, WW40IGN_OVERRIDES_SRC, WW40JA_INFO, WW40JA_OVERRIDES_SRC, WW40KO_INFO, WW40KO_OVERRIDES_SRC, WUSOL_INFO, WUSOL_OVERRIDES_SRC, WUWAALL_INFO, WUWAALL_OVERRIDES_SRC, ZHO_INFO, _MODE_FLAGS, _RERUN, normalize_mode
+from .data.modes import AK_INFO, AK_KO_INFO, ARCAK_AMIYA_INFO, ARCAK_AMIYA_OVERRIDES_SRC, ENDO_INFO, KO_INFO, MODE_REGISTRY, PGR_INFO, PGR_OVERRIDES_SRC, WWOC_INFO, WW38_INFO, WW38_OVERRIDES_SRC, WW38B_INFO, WW38B_OVERRIDES_SRC, WW38H_INFO, WW38H_OVERRIDES_SRC, WW38_J_INFO, WW38_J_OVERRIDES_SRC, WW40_INFO, WW40_OVERRIDES_SRC, WW40IGN_INFO, WW40IGN_OVERRIDES_SRC, WW40JA_INFO, WW40JA_OVERRIDES_SRC, WW40KO_INFO, WW40KO_OVERRIDES_SRC, WW40REVEAL_INFO, WW40REVEAL_OVERRIDES_SRC, WUSOL_INFO, WUSOL_OVERRIDES_SRC, WUWAALL_INFO, WUWAALL_OVERRIDES_SRC, ZHO_INFO, _MODE_FLAGS, _RERUN, normalize_mode
 from .engine import _load_override_tsv, process
 from .format import _cmd_flow, _cmd_length, _cmd_rewrap, _cmd_stabilize
 from .inspect import _cmd_align_audit, _cmd_compare, _cmd_lint, _cmd_missing, _cmd_scan, _cmd_scan_split, _cmd_subfix, _cmd_terms_check, _cmd_verify
@@ -65,7 +65,7 @@ def main_argv(argv=None):
             sys.exit(_dispatch_subcommand(sub, argv[1:]) or 0)
 
     src = None
-    out_path = report_path = None
+    out_path = report_path = evidence_path = None
     mode = "bi"
     fix_en = False
     learned_kb = None
@@ -82,6 +82,9 @@ def main_argv(argv=None):
             out_path = args[i + 1]; i += 2
         elif a == "--report" and i + 1 < len(args):
             report_path = args[i + 1]; i += 2
+        elif a == "--evidence" and i + 1 < len(args):
+            # P2-6：逐条应用证据 JSON 侧车（供 AI 校准代理读基线改动词来源）
+            evidence_path = args[i + 1]; i += 2
         elif a in _MODE_FLAGS:
             mode = _MODE_FLAGS[a]; i += 1
         elif a.startswith("--") and a[2:] in _RERUN:
@@ -134,9 +137,11 @@ def main_argv(argv=None):
                          bi_override_preserve=any(_RERUN[k].get("preserve") for k in rerun_active),
                          ko_override=bi_override if any(_RERUN[k].get("ko") for k in rerun_active) else None,
                          ko_override_preserve=False,
-                         zh_first=any(_RERUN[k].get("zh_first") for k in rerun_active))
+                         zh_first=any(_RERUN[k].get("zh_first") for k in rerun_active),
+                         evidence_path=evidence_path)
     names = {"bi": "中英双语 (BILINGUAL_TERMS + CONTEXT_MAP + WORD_MAP)" + (
                  " + 3.8 完整片侧车 {} 条（整行覆盖）".format(len(bi_override) if bi_override else 0) if "wuwa38b" in rerun_active else
+                 " + 3.8 Gigguk 全片侧车 {} 条（整行覆盖）".format(len(bi_override) if bi_override else 0) if "wuwa38g" in rerun_active else
                  " + 3.8 侧车 {} 条".format(len(bi_override) if bi_override else 0) if ("wuwa38" in rerun_active or "wuwa38j" in rerun_active) else
                  " + 3.8 终章侧车 {} 条（保留 >>）".format(len(bi_override) if bi_override else 0) if "wuwa38h" in rerun_active else
                  " + 4.0 侧车 {} 条".format(len(bi_override) if bi_override else 0) if "wuwa40" in rerun_active else
@@ -146,6 +151,10 @@ def main_argv(argv=None):
              "wuwa-40ko": "鸣潮-4.0韩语 (KO_TERMS + WW40KO_CONTEXT + 侧车 {} 条)".format(
                  len(bi_override) if bi_override else 0),
              "wuwa-40ign": "鸣潮-4.0IGN (KO_TERMS + WW40IGN_CONTEXT + 侧车 {} 条)".format(
+                 len(bi_override) if bi_override else 0),
+             "wuwa-40pv": "鸣潮-4.0新地区PV (KO_TERMS + WW40PV_CONTEXT + 侧车 {} 条)".format(
+                 len(bi_override) if bi_override else 0),
+             "wuwa-40reveal": "鸣潮-4.0新联邦实机 (BILINGUAL_TERMS + CONTEXT_MAP + 侧车 {} 条)".format(
                  len(bi_override) if bi_override else 0),
              "wuwa-ja": "鸣潮-日语 (JA_TERMS + JA_CONTEXT)" + (
                  " + 4.0 先行映像侧车 {} 条（整行覆盖）".format(len(bi_override) if bi_override else 0)
@@ -244,6 +253,9 @@ def _dispatch_subcommand(sub, args):
             opts["loose"] = True; i += 1
         elif a == "--entities":
             opts["entities"] = True; i += 1
+        elif a == "--force":
+            # 2026-11-24 learn 单片高置信确认的显式豁免（默认仍要求 count>=2）
+            opts["force"] = True; i += 1
         elif a in ("--kb", "--mode", "--learned") and i + 1 < len(args):
             opts[a[2:]] = args[i + 1]; i += 2
         else:
@@ -346,7 +358,9 @@ def _dispatch_subcommand(sub, args):
                           window=int(opts.get("window", 0)))
 
     elif sub == "kb-export":
-        _cmd_kb_export(opts.get("out"), as_json=bool(opts.get("json")))
+        # --mode：导出该模式的执行口径对象视图（P2-3；AI 校准走这一路）
+        _cmd_kb_export(opts.get("out"), as_json=bool(opts.get("json")),
+                       mode=opts.get("mode", "") or "")
     elif sub == "kb-lookup":
         if not pos:
             print("用法: kb-lookup <词>"); return
@@ -355,12 +369,13 @@ def _dispatch_subcommand(sub, args):
         _cmd_kb_lint()
     elif sub == "learn":
         if len(pos) < 2:
-            print("用法: learn <原始.srt> <人工校准.srt> [--mode bi] [--kb 学习库.json]"); return
+            print("用法: learn <原始.srt> <人工校准.srt> [--mode bi] [--kb 学习库.json] [--force]"); return
         # 2026-11-22 子键化：--mode 经 normalize_mode 归一（旧键 akja/ja/… 仍可解析，
         #   落新键入库；normalize_mode 对 None 安全，learned-* 未传 --mode 时保持 None）。
+        # 2026-11-24 --force：单片也允许 confirmed（right 属既有 canonical 时无需 --force）。
         _lm = normalize_mode(opts.get("mode", "bi"))
         _cmd_learn(pos[0], pos[1], opts.get("kb", LEARNED_KB_DEFAULT),
-                   mode=_lm)
+                   mode=_lm, force=bool(opts.get("force")))
     elif sub == "learned-show":
         _cmd_learned_show(opts.get("kb", LEARNED_KB_DEFAULT),
                           mode=normalize_mode(opts.get("mode")))

@@ -1,3 +1,3 @@
 # -*- coding: utf-8 -*-
-# @version 3.2.5
+# @version 3.3.1
 """harness 功能：AI 托管（DeepSeek harness 适配层；harness/ 只读第三方部署）。"""

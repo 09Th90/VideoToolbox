@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.2.5
+# @version 3.3.1
 """对象级知识库 audit/export/lookup/lint
 
 源：subtitle_calib_merged.py L10668-L11184 @ 97d7d463（2026-10-24 冻结快照）
@@ -10,12 +10,87 @@ import re
 import shutil
 import sys
 import unicodedata
-from .data.bilingual import EXCLUDE_CONTEXT
+from .data.bilingual import BILINGUAL_TERMS, EXCLUDE_CONTEXT
 from .data.entities import ENTITIES
-from .data.modes import _MODE_CTX_TABLE, _MODE_NAMES, _MODE_TERM_TABLE, normalize_mode
+from .data.modes import (MODE_REGISTRY, _MODE_CTX_TABLE, _MODE_NAMES,
+                         _MODE_TERM_TABLE, normalize_mode)
+from .engine import _resolve_terms
 from .state import CTX_TABLES, TABLES
 from .srt import _cue_zh_ref, _detect_layout
 from .text import _decode_any
+
+
+
+def _terms_tables_of(mode):
+    """本模式执行集合覆盖的术语表名（P2-3 单源）。
+
+    ``__AKJA_MERGE__`` 展开为并表两源（ak-ja 执行 AK_TERMS∪AK_JA_TERMS）；
+    ``terms=None``（fix-en）按引擎口径落 BILINGUAL_TERMS；``__EMPTY__``（pgr）无表。
+    """
+    spec = MODE_REGISTRY.get(mode) or {}
+    t = spec.get("terms")
+    if t == "__AKJA_MERGE__":
+        return ("AK_TERMS", "AK_JA_TERMS")
+    if t == "__EMPTY__":
+        return ()
+    if not t:
+        return ("BILINGUAL_TERMS",)
+    return (t,)
+
+
+def _table_exec_modes():
+    """术语表名 → 会执行它的注册表模式（注册表顺序，确定性）。"""
+    out = {}
+    for m in MODE_REGISTRY:
+        for t in _terms_tables_of(m):
+            out.setdefault(t, []).append(m)
+    return out
+
+
+_TABLE_EXEC_MODES = _table_exec_modes()
+
+
+def kb_scope_modes(mode):
+    """执行口径的模式闭包：与本模式共享任一术语表的注册表模式 ∪ {本模式}。
+
+    ak-ja 与 ak 共用 AK_TERMS（ak-ja 是增量表并表执行）→ 两者互在闭包内；
+    这正是 audit / AI 必须与引擎（_resolve_terms）对齐的口径。
+    """
+    mode = normalize_mode(mode)
+    mine = set(_terms_tables_of(mode))
+    out = {mode}
+    if mine:
+        for m in MODE_REGISTRY:
+            if mine & set(_terms_tables_of(m)):
+                out.add(m)
+    return out
+
+
+def kb_mode_scope(mode):
+    """单一对象级真源（P2-3）：引擎 / audit / AI 三面共用同一 mode 视图。
+
+    返回 dict：
+      mode          归一后的模式键；
+      scope_modes   执行口径闭包（o. 共享术语表的模式）；
+      layout/layers 注册表版式与图层（P2-1 字段，供 audit/报告解释实际启用了哪些层）；
+      terms         引擎真正用于替换的术语表对象（_resolve_terms，含 ak-ja 并表）；
+      ctx           注册表 ctx 槽对应的原始语境表（未编译，供抠锚点字面量）；
+      exclude       本模式是否消费 EXCLUDE 回滚（layers 有 exclude 才给表）；
+      objects       _kb_view() 中 tagged 了本模式的对象（字面量顺序不变）。
+    """
+    mode = normalize_mode(mode)
+    spec = MODE_REGISTRY.get(mode) or {}
+    layers = tuple(spec.get("layers") or ())
+    return {
+        "mode": mode,
+        "scope_modes": kb_scope_modes(mode),
+        "layout": spec.get("layout"),
+        "layers": layers,
+        "terms": _resolve_terms(mode),
+        "ctx": CTX_TABLES.get(spec.get("ctx") or "") or [],
+        "exclude": EXCLUDE_CONTEXT if "exclude" in layers else {},
+        "objects": [e for e in _kb_view().values() if mode in e["modes"]],
+    }
 
 
 
@@ -23,27 +98,42 @@ def _kb_view():
     """把 扁平表 + ENTITIES 折叠成对象级视图：{canonical: dict}。
 
     同一 canonical 跨表/跨模式的全部变体、条件规则、负向排除聚合为一个对象；
-    ENTITIES 的 en/ja/ko/category/note 元数据覆盖进对应对象。"""
+    ENTITIES 的 en/ja/ko/category/note/aliases/parent 元数据覆盖进对应对象。
+
+    ⚠ 字面量顺序 = kb-export / kb-lookup / kb-lint 的输出序，**不可改成字母序推导**
+      （2026-11-24 注释见 data/modes.py）。P2-3 只做「补字段 + modes 聚合」，
+      既有的四段折叠顺序（变体表→英文行修正表→ctx→exclude→ENTITIES）保持不变。
+
+    P2-3 语义：
+      · modes  = 扁平表命中模式 ∪ 会执行该表的模式（ak-ja 并表闭包）∪ ENTITIES.modes；
+        旧版只从扁平表折叠，纯元数据对象（ENTITY 声明但无变体）恒为 modes=[]，
+        228 个对象对 audit/AI 完全不可见。
+      · aliases/parent 从 ENTITIES 折叠（无声明则空），与 calib_entity.spec 同口径。
+    """
     kb = {}
 
     def ent(c):
         return kb.setdefault(c, {
             "canonical": c, "en": "", "ja": "", "ko": "",
             "category": "", "modes": [], "variants": [],
-            "ctx": [], "exclude": [], "note": ""})
+            "ctx": [], "exclude": [], "note": "",
+            "aliases": [], "parent": ""})
+
+    def _add_mode(e, mode):
+        if mode not in e["modes"]:
+            e["modes"].append(mode)
 
     for mode, tname in _MODE_TERM_TABLE.items():
         for wrong, right in (TABLES.get(tname) or {}).items():
             e = ent(right)
-            if mode not in e["modes"]:
-                e["modes"].append(mode)
+            for m in _TABLE_EXEC_MODES.get(tname, (mode,)):
+                _add_mode(e, m)
             if wrong not in e["variants"]:
                 e["variants"].append(wrong)
     # EN_LINE_TERM_FIXES 修正的是外文行（目标非中文官方名），单独挂 fix-en 模式
     for wrong, right in (TABLES.get("EN_LINE_TERM_FIXES") or {}).items():
         e = ent(right)
-        if "fix-en" not in e["modes"]:
-            e["modes"].append("fix-en")
+        _add_mode(e, "fix-en")
         if wrong not in e["variants"]:
             e["variants"].append(wrong)
     for mode, cname in _MODE_CTX_TABLE.items():
@@ -51,14 +141,12 @@ def _kb_view():
             if not wrong or not right:
                 continue
             e = ent(right)
-            if mode not in e["modes"]:
-                e["modes"].append(mode)
+            _add_mode(e, mode)
             if (rx, wrong) not in e["ctx"]:
                 e["ctx"].append((rx, wrong))
     for wrong, (right, rxs) in (EXCLUDE_CONTEXT or {}).items():
         e = ent(right)
-        if "bi" not in e["modes"]:
-            e["modes"].append("bi")
+        _add_mode(e, "bi")
         for rx in rxs:
             if (wrong, rx) not in e["exclude"]:
                 e["exclude"].append((wrong, rx))
@@ -68,6 +156,16 @@ def _kb_view():
         e["category"] = e0.category
         if e0.note:
             e["note"] = (e["note"] + "；" + e0.note) if e["note"] else e0.note
+        # P2-3：ENTITY 声明的模式并入对象（无变体/ctx 的纯元数据对象也能被 mode 作用域看见）
+        for m in (e0.modes or ()):
+            _add_mode(e, m)
+        # P2-3：aliases（官方简称/别译）与 parent（复合对象父级）——与 spec.EntitySpec 同口径
+        for a in (getattr(e0, "aliases", ()) or ()):
+            if a and a not in e["aliases"]:
+                e["aliases"].append(a)
+        par = getattr(e0, "parent", "") or ""
+        if par and not e["parent"]:
+            e["parent"] = par
     return kb
 
 
@@ -77,7 +175,9 @@ def _kb_view():
 _AUDIT_LATIN_OK = re.compile(
     r"^(?:"
     r"[A-FS]\+?|S\d+(?:\s*R\d+)?|SR\d+(?:\s*R\d+)?|SSS|SSR|EX|UR|"
-    r"YouTube|YouTuber|VOD|Xbox|NPC|MVP|PNG|JPG|DNA|OK|PC|PS5|HP|DPS|UI|AI|"
+    # 2026-11-24《What is Kuro Games Even DOING!?》：EA=Electronic Arts（《圣歌》发行方），
+    #   与 NPC/PC 同属合法保留英文缩写，不按未译残留报警。
+    r"YouTube|YouTuber|VOD|Xbox|NPC|MVP|PNG|JPG|DNA|OK|PC|PS5|HP|DPS|UI|AI|EA|"
     r"bug|Boss|Incel|Discord|Gacha|gacha|NTE|"
     # 2026-11-01《How Did You Join Arknights or Endfield?》：已裁决「保留英文原形」的
     #   主播/频道/平台名，与无第二佐证、按戒律不强判的 ASR 连读专名（见该片 gloss.md 待裁决表）。
@@ -210,15 +310,21 @@ def _audit_ctx_literals(rx, variants_lc=()):
 
 
 def _audit_mode_scope(mode):
-    """按模式取「生效的」错形表与参考行锚点。
+    """按模式取「生效的」错形表与参考行锚点（P2-3：单一视图 kb_mode_scope）。
 
-    ⚠ 必须**按模式**取：`_kb_view()` 会把各模式的 ctx/变体合并成一个对象，
-    直接拿来扫会把别的片源的规则（如某模式的 space→虚质空间）当成漏校。
+    ⚠ 必须**按模式**取：直接拿 `_kb_view()` 全量扫会把别的片源的规则（如某模式的
+    space→虚质空间）当成漏校。但「本模式口径」一律以 kb_mode_scope 为准：
+      · 错形表 = 引擎执行表（_resolve_terms）——ak-ja 因此自动带上 AK_TERMS，
+        不再出现「审计口径 < 执行口径」的漏报（旧版只读增量表 AK_JA_TERMS）；
+      · 语境表 = 注册表 ctx 槽（不是 _MODE_CTX_TABLE 的反推）；
+      · 对象级元数据按 scope_modes 闭包过滤（共享术语表的模式互见，如 ak↔ak-ja）。
     2026-11-22 变体键降级：入口 normalize_mode——旧顶层变体键与既有别名
-    归一到「游戏-细类」新键后查三视图。
+    归一到「游戏-细类」新键后查视图。
     返回 (错形→官方名 字典, [(锚点字面量, 官方名)])。
     """
     mode = normalize_mode(mode)
+    scope = kb_mode_scope(mode)
+    scope_modes = scope["scope_modes"]
     wrong2right = {}
     anchors = []
     variants_lc = {}          # canonical -> {小写变体}，用于判定 ctx 字面量像不像专名
@@ -228,33 +334,33 @@ def _audit_mode_scope(mode):
         if w:
             variants_lc.setdefault(canon, set()).add(str(w).lower())
 
-    # ---- 第一遍：错形表 + 变体 + 外文名锚点 ----
-    tname = _MODE_TERM_TABLE.get(mode)
-    for wrong, right in (TABLES.get(tname) or {}).items():
+    # ---- 第一遍：错形表（执行口径）+ 变体 + 外文名锚点 ----
+    for wrong, right in scope["terms"].items():
         if wrong and right and wrong != right:
             wrong2right.setdefault(wrong, right)
             _reg_variant(right, wrong)
     for e in ENTITIES:
-        if mode and mode not in e.modes:
+        if mode and not (set(e.modes or ()) & scope_modes):
             continue
         for w in e.variants:
             if w and w != e.canonical:
                 wrong2right.setdefault(w, e.canonical)
                 _reg_variant(e.canonical, w)
-        for rx, w in e.ctx:
-            if w:
-                wrong2right.setdefault(w, e.canonical)
-            ctx_by_canon.setdefault(e.canonical, []).append(rx)
         for nm in _audit_names(e.en, e.ja, e.ko):
             anchors.append((nm, e.canonical))
 
-    # ---- 第二遍：ctx 参考行锚点（需先知道该实体的变体集合）----
-    cname = _MODE_CTX_TABLE.get(mode)
-    for item in (CTX_TABLES.get(cname) or []):
+    # ---- 第二遍：ctx 参考行锚点（单一来源＝本模式注册表 ctx 表）----
+    #   ENTITY 上的 ctx 已由 state._register_entities 投影进该模式 ctx 表（无 ctx 槽的
+    #   模式根本不会执行它），因此这里只读表：既避免「审计看得到、引擎改不了」的假漏校
+    #   （endo 曾因此多报 12 条），也避免把 AK_CONTEXT（ak 的语境表）串进 ak-ja 作用域
+    #   （ak-ja 只执行 AK_JA_CONTEXT）。2026-11-24 P2-3 口径对齐。
+    for item in scope["ctx"]:
         rx, wrong, right = (list(item) + [None, None])[:3]
         if not right:
             continue
-        if wrong:
+        # wrong == right 的「保护型」no-op 规则对审计无信息量（它不产生任何改动），
+        # 若让它先占用 setdefault，会把真正改写的同键规则挡掉（洛瑟菈 例）。
+        if wrong and wrong != right:
             wrong2right.setdefault(wrong, right)
             _reg_variant(right, wrong)
         ctx_by_canon.setdefault(right, []).append(rx)
@@ -428,17 +534,145 @@ def _cmd_audit(src, mode="bi", out=None, as_json=False, limit=300, loose=False, 
     return 1 if dirty else 0
 
 
+def audit_gate_findings(src, mode="bi", window=0):
+    """audit 交付门禁的结构化入口（2026-11-24 P1，附加函数，不改 _cmd_audit）。
 
-def _cmd_kb_export(out=None, as_json=False):
-    """kb-export：导出完整对象级知识库（MD 或 JSON），供审阅/投喂 AI 校准。"""
-    kb = _kb_view()
-    ents = sorted(kb.values(), key=lambda e: (-len(e["variants"]), e["canonical"]))
+    返回 dict：
+      anchors  本模式参考行锚点数（0＝无锚点，三扫会「假绿」，门禁应判 inconclusive）；
+      s2_hi    高置信错形残留 [(num, wrong, official)]——参考行已佐证、可直接机械补校；
+      s1_n / s3_n  拉丁残留 / 同词族缺口计数（仅报告，不自动改）。
+    复用 _iter_cue_triples / _audit_mode_scope / _audit_build_alt，与 _cmd_audit 同判据。
+    文件不存在或异常返回 {"anchors": 0, "s2_hi": [], "s1_n": 0, "s3_n": 0, "error": ...}。
+    """
+    res = {"anchors": 0, "s2_hi": [], "s1_n": 0, "s3_n": 0}
+    try:
+        mode = normalize_mode(mode)
+        if not os.path.isfile(src):
+            res["error"] = "文件不存在"
+            return res
+        _layout, cues = _iter_cue_triples(src)
+        wrong2right, anchor_pairs = _audit_mode_scope(mode)
+        res["anchors"] = len(set(anchor_pairs))
+        order = sorted(n for n, _z, _r in cues)
+        pos = {n: k for k, n in enumerate(order)}
+        zmap = {n: z for n, z, _r in cues}
+
+        def zh_around(n, zh):
+            if window <= 0:
+                return zh
+            k = pos[n]
+            return " ".join(zmap[m] for m in order[max(0, k - window):k + window + 1])
+
+        for num, zh, _ref in cues:
+            if [t for t in re.findall(r"[A-Za-z][A-Za-z'\-\.]*", zh)
+                    if not _AUDIT_LATIN_OK.match(t)]:
+                res["s1_n"] += 1
+        arx, aidx = _audit_build_alt(anchor_pairs)
+        wrx, widx = _audit_build_alt(
+            [(w, c) for w, c in wrong2right.items() if len(w) >= 2 and w not in c],
+            boundary=False)
+        for num, zh, ref in cues:
+            zhw = zh_around(num, zh)
+            ref_targets = {}
+            if ref and arx is not None:
+                for m in arx.finditer(ref):
+                    grp = aidx[m.group(0)]
+                    if any(c in zhw for c in grp):
+                        continue
+                    for canon in grp:
+                        ref_targets.setdefault(canon, m.group(0))
+            if wrx is not None:
+                for m in wrx.finditer(zh):
+                    for canon in widx[m.group(0)]:
+                        if canon in zh:
+                            continue
+                        if canon in ref_targets:
+                            res["s2_hi"].append((num, m.group(0), canon))
+            for canon, _lit in ref_targets.items():
+                if canon and canon not in zhw:
+                    res["s3_n"] += 1
+    except Exception as e:                               # noqa: BLE001
+        res["error"] = f"{type(e).__name__}: {e}"
+    return res
+
+
+def _mode_export_entities(mode):
+    """模式作用域导出（P2-3）：把 kb_mode_scope 的执行口径投影成对象列表。
+
+    与全量 `_kb_view` 导出的差别：每个对象的 variants/ctx **只保留本模式真正会执行**
+    的错形（ak-ja 因此包含 AK_TERMS 那批，而不是只给增量表），modes 字段只写本模式。
+    这样 AI build_rules 的 `mode_key in e["modes"]` 过滤拿到的就是执行口径，
+    与引擎、audit 三面同源；对象级元数据（en/ja/ko/category/aliases/parent/note）
+    仍从 _kb_view 取（不按模式裁剪）。
+    """
+    scope = kb_mode_scope(mode)
+    view = _kb_view()
+    per = {}
+
+    def slot(c):
+        return per.setdefault(c, {"variants": [], "ctx": []})
+
+    for wrong, right in scope["terms"].items():
+        if not wrong or not right or wrong == right:
+            continue
+        s = slot(right)
+        if wrong not in s["variants"]:
+            s["variants"].append(wrong)
+    for item in scope["ctx"]:
+        rx, wrong, right = (list(item) + [None, None, None])[:3]
+        if not right or not wrong:
+            continue
+        s = slot(right)
+        rec = (str(rx), wrong)
+        if rec not in s["ctx"]:
+            s["ctx"].append(rec)
+    has_exclude = "exclude" in scope["layers"]
+    out = []
+    for canon, s in per.items():
+        meta = view.get(canon, {})
+        out.append({
+            "canonical": canon,
+            "en": meta.get("en", ""), "ja": meta.get("ja", ""), "ko": meta.get("ko", ""),
+            "category": meta.get("category", ""),
+            "modes": [scope["mode"]],
+            "variants": s["variants"],
+            "aliases": list(meta.get("aliases", [])),
+            "parent": meta.get("parent", ""),
+            "ctx": s["ctx"],
+            "exclude": (list(meta.get("exclude", [])) if has_exclude else []),
+            "note": meta.get("note", ""),
+        })
+    return out
+
+
+def _cmd_kb_export(out=None, as_json=False, mode=""):
+    """kb-export：导出完整对象级知识库（MD 或 JSON），供审阅/投喂 AI 校准。
+
+    mode 非空时导出「该模式执行口径」的对象视图（见 _mode_export_entities）：
+    AI 校准用它喂 build_rules，保证与引擎/audit 同一错形集；为空保持全量对象视图。
+    """
+    ents = None
+    scoped_empty = False
+    if mode:
+        ents = sorted(_mode_export_entities(mode),
+                      key=lambda e: (-len(e["variants"]), e["canonical"]))
+        if not ents:
+            # pgr 这类纯侧车模式（terms=__EMPTY__、ctx=None）没有可执行知识：
+            # 退回全量对象视图，保留 AI 侧的「降级为全量」告警通路，不至于规则全空。
+            scoped_empty = True
+            ents = sorted(_kb_view().values(),
+                          key=lambda e: (-len(e["variants"]), e["canonical"]))
+    else:
+        ents = sorted(_kb_view().values(), key=lambda e: (-len(e["variants"]), e["canonical"]))
+    if scoped_empty:
+        print(f"kb-export：模式 {normalize_mode(mode)} 无执行口径知识，已退回全量对象视图")
     if as_json:
         import json
         data = [{
             "canonical": e["canonical"], "en": e["en"], "ja": e["ja"],
             "ko": e["ko"], "category": e["category"],
             "modes": e["modes"], "variants": e["variants"],
+            "aliases": e["aliases"], "parent": e["parent"],
             "ctx": [{"ref_regex": rx, "wrong": w} for rx, w in e["ctx"]],
             "exclude": [{"variant": w, "ref_regex": rx} for w, rx in e["exclude"]],
             "note": e["note"],
@@ -465,6 +699,10 @@ def _cmd_kb_export(out=None, as_json=False):
             L.append("- " + " | ".join(meta))
             if e["variants"]:
                 L.append(f"- 变体({len(e['variants'])}): " + "、".join(e["variants"]))
+            if e["aliases"]:
+                L.append("- 官方别名: " + "、".join(e["aliases"]))
+            if e["parent"]:
+                L.append("- 父级对象: " + e["parent"])
             for rx, w in e["ctx"]:
                 L.append(f"- 条件变体: [参考行 /{rx}/] {w} → {e['canonical']}")
             for w, rx in e["exclude"]:
@@ -489,7 +727,8 @@ def _cmd_kb_lookup(word):
     hits = []
     for e in kb.values():
         pool = [e["canonical"], e["en"], e["ja"], e["ko"],
-                *e["variants"], *(w for _, w in e["ctx"]),
+                *e["variants"], *e.get("aliases", ()),
+                *(w for _, w in e["ctx"]),
                 *(w for w, _ in e["exclude"])]
         if any(q in str(p).lower() for p in pool if p):
             hits.append(e)

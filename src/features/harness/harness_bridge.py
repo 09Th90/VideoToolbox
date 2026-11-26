@@ -1,4 +1,4 @@
-# @version 3.2.5
+# @version 3.3.1
 """deepseek-harness 适配层——工具箱**单向适配** harness 的唯一入口。
 
 设计契约（用户 2026-10-14 拍板）
@@ -806,6 +806,7 @@ _AGENTS_MD_TEXT = r"""# 视频工具箱 · Agent 常驻指令
 | `stabilize <srt>` | cue 稳定化 |
 | `compose <video> <sub> [--mode soft\|burn\|mkv]` | 字幕合成 |
 | `audit <srt>` | 校准后漏校三扫（退出码 1＝有候选） |
+| `trace [list\|tail\|show] [--follow]` | 开发版校准观测（工作流/AI 思考链/方向/数据访问事件，只读） |
 | `split <video> --points "…" \| --durations "…"` | 视频切片（逐段校验可播放） |
 | `bili-submit [素材目录] [--dry-run]` | B 站后台自动投稿（UIA 后台输入） |
 
@@ -863,6 +864,7 @@ tools\python\python.exe src\agent_cli.py <子命令> [参数] --json
 | `stabilize <srt> [--out F]` | cue 稳定化（同进程直连 calib_core；`VT_CALIB_SUBPROCESS=1` 回退根脚本透传） | `stabilize ep01.srt` |
 | `compose <video> <sub> [--mode soft\|burn\|mkv] [--audio x.m4a] [--out F]` | 字幕合成（soft=软封装不重编码；burn=ASS 硬烧；mkv=封装） | `compose ep01.mp4 ep01.srt --mode burn` |
 | `audit <srt> [--out R]` | 校准后漏校三扫（拉丁残留/知识库错形残留/同词族一致性；退出码 1＝有候选，可当门禁） | `audit ep01.zh.srt` |
+| `trace [list\|tail\|show] [--session ID] [--kind K] [--limit N] [--follow]` | 开发版校准观测：实时读校准工作流/AI 思考链/校准方向/数据访问事件（只读，详见下节） | `trace tail --follow` |
 | `split <video> --points "…" \| --durations "…" [--mode copy\|auto\|encode] [--verify quick\|full] [--out D]` | 视频切片：按时间点（HH:MM:SS）或时长（xHyMzS）拆多段，逐段校验可播放 | `split ep01.mp4 --durations "1h,1h"` |
 | `bili-submit [素材目录] [--probe\|--dry-run\|--edit] [--only basic,chapters,…] [--visibility self\|public]` | B 站后台自动投稿（UIA 定位 + PostMessage 后台输入；素材目录含投稿信息.txt） | `bili-submit data\素材 --dry-run` |
 
@@ -888,7 +890,7 @@ tools\python\python.exe src\agent_cli.py <子命令> [参数] --json
 | 鸣潮（中英/双语，默认模式） | 不加旗标 |
 | 鸣潮-日语 | `--mode wuwa-ja` |
 | 鸣潮-韩语 | `--mode wuwa-ko` |
-| 鸣潮-4.0韩语 / 鸣潮-4.0IGN | `--wuwa40ko` / `--wuwa40ign`（一键旗标，内置侧车） |
+| 鸣潮-4.0韩语 / 鸣潮-4.0IGN / 鸣潮-4.0新地区PV / 鸣潮-4.0新联邦实机 | `--wuwa40ko` / `--wuwa40ign` / `--wuwa40pv` / `--wuwa40reveal`（一键旗标，内置侧车） |
 | 终末地（单语） | `--endo` |
 | 终末地-双语（英文参考行不动） | `--mode endo-bi` |
 | 终末地-韩语 | `--mode endo-ko` |
@@ -907,6 +909,38 @@ tools\python\python.exe src\agent_cli.py <子命令> [参数] --json
 > 子键化（2026-11-22）：12 个变体校准键降级为「游戏-细类」ASCII 子键，无顶层简单旗标，统一走 `--mode <子键>`；cli 端 `normalize_mode` 兼容归一旧键与别名。
 
 不带 `--out` 时校准只做「术语命中统计」不改文件；带 `--out` 才落盘。`--report` 出 TSV 差异报告。
+
+## 校准观测（开发版只读通道，2026-11-24）
+
+第三方 AgentWork 实时监控校准过程：校准运行时把结构化事件追加写入
+`logs\trace\<session>\*.jsonl`（每进程一个文件，读取端按 ts 归并），
+`trace` 子命令或直接读文件均可消费。**只读旁路：不改校准产物、不写 stdout 信封、
+emit 永不抛异常；校准输出零漂移。**
+
+门控：源码态（非 frozen）且非自检进程默认开；`VT_TRACE=1` 强开 / `VT_TRACE=0` 强关；
+安装版默认关。会话目录保留最近 30 个；api_key/token 类字段统一脱敏；单字符串 64KB 截断。
+
+```bash
+tools\python\python.exe src\agent_cli.py trace list --json            # 会话清单（新→旧）
+tools\python\python.exe src\agent_cli.py trace tail --json            # 最新会话末尾 50 条事件
+tools\python\python.exe src\agent_cli.py trace tail --kind ai --limit 0 --json   # 全部 AI 思考链
+tools\python\python.exe src\agent_cli.py trace tail --follow          # 实时跟踪（0.5s 轮询；--json 时输出 NDJSON 流，每行一个事件）
+tools\python\python.exe src\agent_cli.py trace show --session <ID> --json        # 单会话摘要（时间线+AI统计+方向+数据访问）
+```
+
+事件 schema（每行一个 JSON）：`{ts, session, seq, pid, kind, event, payload}`，kind 四类：
+
+| kind | 覆盖 | 主要 event |
+|---|---|---|
+| `workflow` | 工作流阶段 | session_start / stage / process_end / session_end |
+| `ai` | AI 思考链 | round_start / llm_request / reasoning / llm_response / verdict（逐条采纳/拒绝+依据）/ tool_call（联网查证）/ shadow_review（Jev 影子）/ round_end |
+| `direction` | 校准方向 | mode_resolved（旧键→子键归一）/ learned_injected / retired_gate / auto_terms / index_built |
+| `data` | 数据访问 | srt_read / srt_write / report_write（路径/字节/改动数） |
+
+边界：机械校准（CLI/GUI）与 AI 校准（calib_ai_run）全链覆盖；
+`VT_CALIB_SUBPROCESS=1` 回退通路只有父进程会话级事件（子进程 monolith 不装钩子）；
+外部 `D:/原片/` monolith 工作流不设钩子，天然关闭。引擎接缝＝`calib_core.engine.TRACE_HOOK`
+（默认 None＝零行为改动），总线实现＝`src\features\calibrate\telemetry.py`。
 
 ## 已知坑（2026-10-15 实测）
 

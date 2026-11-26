@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.2.5
+# @version 3.3.1
 """对象索引原语（M2 执行层对象化基础，自包含于 calib_core / monolith）。
 
 字符级 Aho-Corasick + 按模式术语表组装的 ModeIndex。搬自 calib_entity.index（2026-11-22），
@@ -15,6 +15,8 @@
 非空时回退全表串行（影子验证 EQUIVALENT_WITH_FALLBACK 的充要条件）。
 """
 from collections import deque
+
+from .replace import _apply_pair
 
 # Match = (start, end, surface, target_canonical)
 
@@ -158,6 +160,8 @@ class ModeIndex:
 
         返回 (新文本, 实际命中的键序列)。与 _replace_report 的文本输出等价
         （hits 计数由调用方按命中序列累加）。
+        2026-11-24：逐键替换走 replace._apply_pair（自子串规则哨兵保护，引擎幂等），
+        无实际改动不计命中——与 _replace_report 同口径。
         """
         if not self.charset or self.charset.isdisjoint(text):
             return text, []
@@ -166,8 +170,11 @@ class ModeIndex:
             if only is not None and k not in only:
                 continue
             if k in text:
+                new = _apply_pair(text, k, v)
+                if new == text and k != v:
+                    continue
                 hit.append(k)
-                text = text.replace(k, v)
+                text = new
         return text, hit
 
 
@@ -176,7 +183,8 @@ def replace_serial_ac(text, idx, hits):
 
     与 replace._replace_report(text, idx.pairs, idx.charset, hits) 逐字节等价且 hits 计数一致：
       1. AC 一次扫描得原文候选键 cand；无候选直接返回（整行预筛）。
-      2. 按 pairs 序仅对 cand 内键串行 replace，局部计 hit。
+      2. 按 pairs 序仅对 cand 内键串行 replace（replace._apply_pair，自子串规则受保护），
+         局部计 hit；无实际改动不计。
       3. 级联检测：替换结果出现 cand 之外的新键（目标名含另一错形键）→ 回退全表串行重算，
          保证与 _replace_report 完全一致（影子验证 EQUIVALENT_WITH_FALLBACK 的充要条件）。
       4. 局部 hit 合并进全局 hits（每键每行计 1，与 _replace_report 同口径）。
@@ -186,19 +194,23 @@ def replace_serial_ac(text, idx, hits):
     cand = idx.automaton.candidates(text)
     if not cand:
         return text
-    new = text
-    local = {}
-    for k, v in idx.pairs:
-        if k in cand and k in new:
-            local[k] = local.get(k, 0) + 1
-            new = new.replace(k, v)
-    if idx.automaton.candidates(new) - cand:
-        new = text
-        local = {}
+
+    def _run(t, restrict):
+        out, local = t, {}
         for k, v in idx.pairs:
-            if k in new:
+            if restrict and k not in cand:
+                continue
+            if k in out:
+                n2 = _apply_pair(out, k, v)
+                if n2 == out and k != v:
+                    continue            # 自子串键：已完整的官方名，无改动不计命中
                 local[k] = local.get(k, 0) + 1
-                new = new.replace(k, v)
+                out = n2
+        return out, local
+
+    new, local = _run(text, True)
+    if idx.automaton.candidates(new) - cand:
+        new, local = _run(text, False)
     for k, c in local.items():
         hits[k] = hits.get(k, 0) + c
     return new

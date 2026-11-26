@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.2.5
+# @version 3.3.1
 """增量同步通道
 
 源：subtitle_calib_merged.py L13651-L14529 @ 97d7d463（2026-10-24 冻结快照）
@@ -183,11 +183,25 @@ def _sync_save_cfg(cfg):
 
 def _sync_log(msg):
     """追加一行同步日志（best-effort，绝不因日志失败影响主流程）。"""
+    _sync_log_batch([msg])
+
+
+def _sync_log_batch(msgs):
+    """批量追加同步日志：一次打开文件写多行，行格式与逐条 _sync_log 完全一致。
+
+    2026-11-24 收尾硬化：_sync_apply 的「内建表保护」按条目逐行留痕，applied.json
+    上千条时每次校准 CLI 入口要 open/append/close 上千次（实测 ~6s，占自动同步
+    剩余开销的大头）。收集后一次落盘；同一批共用一个时间戳（秒级，差异可忽略）。
+    """
+    msgs = [m for m in msgs if m]
+    if not msgs:
+        return
     try:
         os.makedirs(_sync_local_dir(), exist_ok=True)
         p = os.path.join(_sync_local_dir(), "calib_sync.log")
         with open(p, "a", encoding="utf-8") as f:
-            f.write(f"[{_dt.datetime.now():%Y-%m-%d %H:%M:%S}] {msg}\n")
+            ts = f"{_dt.datetime.now():%Y-%m-%d %H:%M:%S}"
+            f.write("".join(f"[{ts}] {m}\n" for m in msgs))
     except OSError:
         pass
 
@@ -616,20 +630,34 @@ def _sync_apply(applied):
     with open(p, "w", encoding="utf-8") as f:
         f.write(json_dumps({"schema": 1, "entries": keyed}) + "\n")
     n_terms = n_ctx = n_kb = 0
+    n_protect = 0            # P2-4d：与内建表冲突而被挡下的条数
+    _protect_logs = []       # 2026-11-24：保护告警收集后一次落盘（见 _sync_log_batch）
     _kb_pending.clear()
     for key, e in applied.items():
         table, mode, k, v = key[0], key[1], e["key"], e["value"]
         if table == "ENTITIES_VARIANT":
             tname = _MODE_TERM_TABLE.get(mode)
             if tname and isinstance(TABLES.get(tname), dict):
-                if TABLES[tname].get(k) != v:
+                cur = TABLES[tname].get(k)
+                # P2-4d：内建表已有同键且值不同 → 不覆盖（远端增量不得改写官方表），
+                #   只记一条告警留痕；键缺失或值相同才注入。
+                if cur is not None and cur != v:
+                    n_protect += 1
+                    _protect_logs.append(
+                        f"内建表保护：{tname}[{k!r}] 已有 {cur!r}，拒绝远端 {v!r}（{mode}）")
+                elif cur != v:
                     TABLES[tname][k] = v
                     n_terms += 1
         elif table == "BILINGUAL_TERMS":
-            if isinstance(TABLES.get("BILINGUAL_TERMS"), dict) \
-                    and TABLES["BILINGUAL_TERMS"].get(k) != v:
-                TABLES["BILINGUAL_TERMS"][k] = v
-                n_terms += 1
+            if isinstance(TABLES.get("BILINGUAL_TERMS"), dict):
+                cur = TABLES["BILINGUAL_TERMS"].get(k)
+                if cur is not None and cur != v:
+                    n_protect += 1
+                    _protect_logs.append(
+                        f"内建表保护：BILINGUAL_TERMS[{k!r}] 已有 {cur!r}，拒绝远端 {v!r}")
+                elif cur != v:
+                    TABLES["BILINGUAL_TERMS"][k] = v
+                    n_terms += 1
         elif table == "CONTEXT_MAP":
             cname = _SYNC_MODE_CTX_TABLE.get(mode) or "CONTEXT_MAP"
             lst = CTX_TABLES.get(cname)
@@ -657,7 +685,9 @@ def _sync_apply(applied):
         n_kb = _sync_apply_learned_batch(_kb_pending)
     if n_terms or n_ctx:
         _rebuild_context_caches()
-    _sync_log(f"应用 {len(applied)} 条（terms {n_terms} / ctx {n_ctx} / 学习库 {n_kb}）")
+    _sync_log_batch(_protect_logs)
+    _sync_log(f"应用 {len(applied)} 条（terms {n_terms} / ctx {n_ctx} / 学习库 {n_kb}）"
+              + (f"；内建表保护挡下 {n_protect} 条" if n_protect else ""))
     return n_terms + n_ctx + n_kb
 
 
@@ -720,6 +750,16 @@ def _sync_apply_learned_batch(pending):
     today = _dt.date.today().isoformat()
     changed = []
     skipped = 0
+    # P2-4d（2026-11-24）：增量不再「强制 confirmed」硬写——状态由 learn 状态机
+    #   （count 去重/常用词黑名单/canonical 撞名审查）判定，与本地 learn 同口径。
+    #   旧版 delta 绕过状态机，远端一条 count=1 的裸词就能全域生效（污染入口）。
+    # 2026-11-24 收尾硬化（性能回归修复）：既有官方名集合只取决于静态表 + ENTITIES，
+    #   批内不变——此前在循环内逐条调用 _learn_canonicals()（每次重建整张 _kb_view，
+    #   ~0.1s），applied.json 762 条 ⇒ 每次校准 CLI 入口的自动同步多耗 50~90s
+    #   （GUI 脚本模式/AI 基线/audit/verify 每个子进程都付一次）。提到循环外算一次，
+    #   语义不变（learn.py 的本地 learn 同样是批内算一次再传 canonicals=）。
+    from .learn import _learn_update_status, _learn_canonicals
+    _cons = _learn_canonicals()
     for mode, wrong, right, e in pending:
         ev = (e or {}).get("evidence") or {}
         k = f"{mode}|{wrong}"
@@ -741,20 +781,25 @@ def _sync_apply_learned_batch(pending):
                 "right": right,
                 "count": max(int(old.get("count") or 0), new_count),
                 "cues": merged_cues[:20],
-                "status": "confirmed",
+                "status": "candidate",          # 交给状态机重新判定（不直接 confirmed）
                 "last": today,
                 "sync": True,
             })
+            _learn_update_status(old, _cons)
             changed.append(k)
             continue
-        kb["candidates"][k] = {
-            "wrong": wrong, "right": right, "mode": mode,
+        _cand = {
+            "wrong": wrong, "right": right, "mode": normalize_mode(mode),
             "count": new_count, "uncorrected": 0,
-            "status": "confirmed", "cues": new_cues,
+            "status": "candidate", "cues": new_cues,
             "samples": [], "ref_tokens": {}, "unc_ref_tokens": {},
             "first": today, "last": today, "alts": {},
             "sync": True,
+            "files": {"sync:" + str(ev.get("author") or "remote"):
+                      {"n": new_count, "alt": 0, "first": today, "last": today}},
         }
+        _learn_update_status(_cand, _cons)
+        kb["candidates"][k] = _cand
         changed.append(k)
     if changed:
         bak = _learned_kb_backup(kb_path)
@@ -865,6 +910,19 @@ def _cmd_kb_push(learned=None, file=None):
     except (OSError, ValueError):
         ledger = set()
     n_skipped = 0
+    # P2-4d：再次上传同键新值时带 supersedes（指向 baseline 里的旧条目），
+    #   否则旧值在远端仍然有效，两个值并存 →「修正旧错误不留痕」语义缺失。
+    _base_meta, _base_entries = _sync_read_baseline(_sync_root(cfg))
+
+    def _supersedes_for(table, mode, key, value):
+        for _e in _base_entries.values():
+            if (_e.get("op") != "tombstone"
+                    and _e.get("table") == table and _e.get("mode") == mode
+                    and _e.get("key") == key and _e.get("value") != value
+                    and _e.get("author") == cfg["client_id"]):
+                return _e.get("id")
+        return None
+
     if learned:
         kb = _load_learned_kb(learned)
         for c in kb.get("candidates", {}).values():
@@ -877,13 +935,19 @@ def _cmd_kb_push(learned=None, file=None):
                     w, r,
                     evidence={"count": c.get("count", 1),
                               "cues": list(c.get("cues") or [])[:20],
-                              "kb_status": c.get("status", "confirmed")})
+                              "kb_status": c.get("status", "confirmed")},
+                    supersedes=_supersedes_for(
+                        "LEARNED_CANDIDATE", normalize_mode(c.get("mode", "bi")), w, r))
                 if e["id"] in ledger:
                     n_skipped += 1
                     continue
                 entries.append(e)
     if file:
         es, bad = _sync_read_jsonl(file, "kb-push")
+        for _e in es:
+            if not _e.get("supersedes"):
+                _e["supersedes"] = _supersedes_for(
+                    _e.get("table"), _e.get("mode"), _e.get("key"), _e.get("value"))
         entries.extend(es)
     if not entries:
         print(f"没有需要上传的增量"

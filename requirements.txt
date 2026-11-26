@@ -1,4 +1,4 @@
-@version 3.2.5
+@version 3.3.1
 # 视频工具箱 · 运行依赖
 # 版本号取自 v2.3.1 实测环境（Python 3.12 / tools/python）。
 # 仅用于「源码方式」运行；安装包用户不需要这个文件。
@@ -32,6 +32,9 @@ GPUtil==1.4.0
 
 # --- Windows 集成 ---
 pywin32==312
+
+# --- 实时字幕采集（WASAPI loopback / 麦克风）---
+soundcard==0.4.6
 
 # --- 浏览器自动化（Cookie 导出、B 站投稿）---
 # 装完还需执行：python -m playwright install chromium

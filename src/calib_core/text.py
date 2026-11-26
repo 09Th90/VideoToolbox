@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.2.5
+# @version 3.3.1
 """文本解码与语言/行类型判定
 
 源：subtitle_calib_merged.py L1-L12060 @ 97d7d463（2026-10-24 冻结快照）
@@ -113,6 +113,24 @@ def _is_chinese_line(s):
     为参考行，进而把英文行当成中文行改写。
     """
     return bool(_CJK.search(s)) and not _KANA.search(s) and not _KO_HANGUL.search(s)
+
+
+
+def split_cue_layout(texts, mono=False):
+    """版式判定唯一实现（P2-6 2026-11-24）：cue 文本行 → (中文行下标, 参考行下标)。
+
+    extract / 引擎 / merge / learn / kb / format 全部经此，杜绝「同一个 cue 在两处
+    判出不同中文行」导致的 base 与 extract 错位。
+
+    判据 = 字符集判定（_split_cue_text：含汉字且无假名/谚文 = 中文行；纯拉丁中文行
+    用中文标点兜底）+ mono 短路。**必须与重构前逐字节一致**：2026-11-24 实测把
+    「位置约定优先」搬到引擎后，纯拉丁/全参考行 cue 会被当成中文行改写，
+    354 例 A/B 里 7 例漂移、1 例崩（clip_allshorts）——故位置约定只保留给
+    srt._cue_zh_ref（learn/kb/format 的既有语义），不进入引擎/抽取口径。
+    """
+    if mono:
+        return list(range(len(texts))), []
+    return _split_cue_text(texts)
 
 
 

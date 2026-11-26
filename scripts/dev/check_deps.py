@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.2.5
+# @version 3.3.1
 """依赖闭合自检：把「自研 src + 内嵌字幕引擎」用到的顶层模块在当前解释器里
 逐个解析，列出**解析不到的第三方模块**。
 
@@ -40,6 +40,8 @@ SOFT_OK = {
     "calib_stabilize",  # calib_core/format.py 的 monolith/data/tmp 布局裸名回退
                   # （try/except 第二分支）；主路径 features.calibrate.calib_stabilize
                   # 由 collect_submodules('features') 收进 PYZ，2026-11-15 模块独立文件夹
+    "demucs",     # 语音分离可选后端：spec 显式 excludes torch 系列，代码 try/except 降级
+    "torch",      # 同上；WP5 分离影子后端为占位，模型不随包，缺库属预期
 }
 
 
@@ -78,6 +80,8 @@ def own_modules(src):
       拆点前的顶层名 ``core``，递归把每层目录名都收进 own 集合才闭合；
     * ``packaging/online_release/*.py``（vt_dl / vt_update_core /
       vt_version_index）——由 pathex + hiddenimports 收进 PYZ。
+    * ``tools/*.py`` 顶层脚本（如 ``credential_store``）——随 iss 与在线
+      tools 包分发，运行时按 ``TOOLS_DIR`` 动态加入 sys.path。
     """
     names = {p.stem for p in src.glob("*.py")}
     for pkg in src.iterdir():
@@ -97,6 +101,11 @@ def own_modules(src):
     orel = ROOT / "packaging" / "online_release"
     if orel.is_dir():
         names |= {p.stem for p in orel.glob("*.py")}
+    # tools/ 顶层脚本随 iss 与在线 tools 包分发，运行时按 TOOLS_DIR 加 sys.path；
+    # 静态扫描看不到这条动态路径，按自研模块处理（如 credential_store）。
+    tools_dir = ROOT / "tools"
+    if tools_dir.is_dir():
+        names |= {p.stem for p in tools_dir.glob("*.py")}
     return names
 
 

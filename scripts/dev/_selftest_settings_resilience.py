@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.2.5
+# @version 3.3.1
 """设置页韧性自检（v3.1.4：缺可选组件不再拖垮整页 / 不再静默空白）。
 
 背景：v3.1.3 冻结安装版漏发 tools/decision_client.py，SettingsPage 构造在
@@ -89,8 +89,12 @@ def main():
             check("Jev 提示为缺失降级文案",
                   hint is not None and "缺失" in hint.text(),
                   hint.text()[:60] if hint else None)
-            check("后续卡片照常构建（10 卡 + stretch 全在）",
-                  page.vbox.count() >= 11, page.vbox.count())
+            # v3：设置首页改为 6 块入口（3×2），不再是 10 张长卡平铺。
+            from vt_app.settings_page import SettingsEntryCard
+            cards = page.findChildren(SettingsEntryCard)
+            check("设置首页 6 块入口 + 标题/网格/脚注/弹性全在",
+                  len(cards) == 6 and page.vbox.count() >= 4,
+                  "%s 卡 / vbox=%s" % (len(cards), page.vbox.count()))
         try:
             win.close()
         except Exception:  # noqa: BLE001

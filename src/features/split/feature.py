@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.2.5
+# @version 3.3.1
 """split 功能清单。video_split 是解耦样板：纯标准库、不 import Qt。"""
 from features._registry import CliCommand, FeatureSpec
 

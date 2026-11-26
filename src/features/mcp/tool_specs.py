@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.2.5
+# @version 3.3.1
 """tool_specs —— 从 features._api.spec（参数唯一真源）生成 MCP 工具定义。
 
 **纯数据，不 import mcp SDK / agent_cli / features.*.cli**（SDK 类型转换在
@@ -11,7 +11,7 @@ from __future__ import annotations
 from features._api import spec
 
 TOOL_PREFIX = "vt_"
-EXCLUDED = {"bili-submit"}
+EXCLUDED = {"bili-submit", "trace"}  # trace：开发版观测只读 CLI，不上 MCP（P2 再议）
 
 TITLES = {
     "status": "环境自检", "info": "媒体元信息", "download": "视频下载",

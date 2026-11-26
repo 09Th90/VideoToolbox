@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.2.5
+# @version 3.3.1
 """从 src/calib_core 生成单文件 subtitle_calib_merged.py。
 
 生成物必须兼容：
@@ -74,11 +74,15 @@ def strip_module(path):
 
 
 def entity_line(e):
+    # P2-3（2026-11-24）：aliases/parent 必须一并序列化——旧版只写 9 个字段，
+    #   单体（REF）里对象永远没有 aliases，kb-export 与 src 包输出不一致
+    #   （selftest「子命令 kb-export」FAIL 的根因）。
     return (
         f"    Entity({e.canonical!r}, modes={e.modes!r}, en={e.en!r}, "
         f"ja={e.ja!r}, ko={e.ko!r}, category={e.category!r}, "
         f"variants={e.variants!r}, ctx={e.ctx!r}, exclude={e.exclude!r}, "
-        f"note={e.note!r}),"
+        f"note={e.note!r}, aliases={tuple(getattr(e, 'aliases', ()) or ())!r}, "
+        f"parent={getattr(e, 'parent', '')!r}),"
     )
 
 
@@ -209,6 +213,10 @@ def main():
                     help="与当前根文件比较；不一致退出 1")
     ap.add_argument("--baseline", default="", help="旧 monolith 路径，做旧合并器兼容检查")
     ap.add_argument("--version", default="", help="覆盖版本号（默认读 video_toolbox_qt.py）")
+    ap.add_argument("--gate-warn-only", action="store_true",
+                    help="术语前后缀闸门只报不拦（回归期用；默认硬拦）")
+    ap.add_argument("--gate-warn-limit", type=int, default=8,
+                    help="闸门打印 warning 条数上限（默认 8）")
     args = ap.parse_args()
 
     pkg = importlib.import_module("calib_core")
@@ -226,6 +234,26 @@ def main():
     if n_ent != len(pkg.ENTITIES):
         raise SystemExit(f"ENTITIES 数量不一致: {n_ent}/{len(pkg.ENTITIES)}")
     print(f"AST 兼容：{n_ent} 个 Entity，字面量表齐全")
+
+    # 术语表前缀/后缀冲突闸门（2026-11-24）：扫描生成物（= src 真值，不依赖已落盘
+    # monolith 是否最新）。硬拦项 = 孤儿短键切碎官方长键，使 --check/构建失败；
+    # 角色名共存、短键过泛等只列 warning 供人工复核。
+    from features.calibrate import calib_merge_core as _mc
+    gate = _mc._registry_conflicts(text, structured=True)
+    print(f"术语前后缀闸门：hard {len(gate['hard'])} / warn {len(gate['warn'])}")
+    for _w in gate["warn"][:max(args.gate_warn_limit, 0)]:
+        print("  WARN", _w)
+    if len(gate["warn"]) > args.gate_warn_limit:
+        print(f"  …… 其余 {len(gate['warn']) - args.gate_warn_limit} 条 warning 略")
+    if gate["hard"]:
+        for _h in gate["hard"][:20]:
+            print("  HARD", _h)
+        if len(gate["hard"]) > 20:
+            print(f"  …… 其余 {len(gate['hard']) - 20} 条 HARD 略")
+        if not args.gate_warn_only:
+            raise SystemExit(
+                f"术语前后缀冲突 {len(gate['hard'])} 条（孤儿短键切碎官方长键），构建中止")
+        print("  --gate-warn-only：仅告警不拦")
 
     if args.out:
         tmp = args.out

@@ -1,4 +1,4 @@
-# @version 3.2.5
+# @version 3.3.1
 """对象索引层：按模式构建 Aho-Corasick 自动机。
 
 解决两个执行层问题：
@@ -26,6 +26,7 @@ from collections import deque
 from typing import Dict, Iterable, List, Mapping, Optional, Sequence, Set, Tuple
 
 from calib_core.data.modes import normalize_mode
+from calib_core.replace import _apply_pair
 
 Match = Tuple[int, int, str, str]      # (start, end, surface, target_canonical)
 
@@ -228,8 +229,13 @@ class ModeIndex:
             if only is not None and k not in only:
                 continue
             if k in text:
+                # 2026-11-24：与 calib_core.replace._replace_report 同一原语（自子串规则
+                # 哨兵保护 + 无改动不计命中），否则 shadow 等价性证明会在此类行分叉。
+                new = _apply_pair(text, k, v)
+                if new == text and k != v:
+                    continue
                 hit.append(k)
-                text = text.replace(k, v)
+                text = new
         return text, hit
 
 

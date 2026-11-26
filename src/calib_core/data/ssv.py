@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.2.5
+# @version 3.3.1
 """星之救援者（Star Savior）评测片源术语/语境表（--ssv，2026-11-15 新增）
 
 片源：《The Over-complicated Gacha Review | Star Savior》（Pseychie，英语原声 +

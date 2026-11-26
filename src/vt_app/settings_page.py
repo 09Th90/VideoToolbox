@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.2.5
+# @version 3.3.1
 """全局设置页（2026-11-15 功能解耦阶段③：从 video_toolbox_qt.py 拆出，逐字同源）。
 
 壳层页面（非可选功能）：全程序唯一全局设置——目录 / 下载 Cookie / 全局 AI /
@@ -18,8 +18,8 @@ import threading
 from PySide6.QtCore import QEvent, QObject, Qt, QTimer, QUrl, Signal
 from PySide6.QtWidgets import (QApplication, QDialog, QFileDialog, QFrame,
                                QGridLayout, QHBoxLayout, QLabel, QMessageBox,
-                               QPlainTextEdit, QSizePolicy, QTabWidget,
-                               QVBoxLayout, QWidget)
+                               QPlainTextEdit, QSizePolicy, QStackedWidget,
+                               QTabWidget, QVBoxLayout, QWidget)
 
 from vt_fluent import (BodyLabel, CaptionLabel, ComboBox, FluentIcon as FIF,
                        InfoBar, InfoBarPosition, LineEdit, MessageBox,
@@ -71,6 +71,14 @@ DECISION_ENDPOINT_KEYS = (
 #: 加进 tools/credential_store.SECRET_FIELDS 白名单；加键之前 get/has 恒空，
 #: 界面 graceful 显示「未配置」，写入被拒时给出等待版本更新的提示）。
 DECISION_SECRET_FIELD = "decision_api_key"
+
+#: 校准风格下拉三档 → 配置值（2026-11-24）。下标即 ComboBox 顺序：
+#:   0 自动 → ""（core/calibrate/ai.py 视为未锁定，传 style=None 自动路由）
+#:   1 锁定术语级 → "term-locked"（calib_ai_agent.calibrate 归一为显式 term）
+#:   2 整句重写 → "rewrite"
+#: 反查（配置值 → 下标）在 _build_ai_card / _selftest_gui 往返测试里都按本表。
+CALIB_STYLE_VALUES = ("", "term-locked", "rewrite")
+CALIB_STYLE_INDEX = {"": 0, "auto": 0, "term": 0, "term-locked": 1, "rewrite": 2}
 
 
 _CRED_MOD = None
@@ -286,6 +294,84 @@ class _CalibParamStrip(QWidget):
         self._reflow(self.width() >= self.WIDE_MIN)
 
 
+class SettingsEntryCard(QFrame):
+    """设置首页的入口卡（图标 + 标题 + 一行说明 + 箭头）。"""
+
+    clicked = Signal()
+
+    def __init__(self, icon, title, desc, parent=None):
+        super().__init__(parent)
+        self.setObjectName("SettingsEntryCard")
+        self.setAttribute(Qt.WA_StyledBackground, True)
+        self.setCursor(Qt.PointingHandCursor)
+        self.setFixedHeight(112)
+        self._icon = icon
+        lay = QHBoxLayout(self)
+        lay.setContentsMargins(16, 12, 14, 12)
+        lay.setSpacing(12)
+
+        self.icon_box = QLabel(self)
+        self.icon_box.setObjectName("SettingsEntryIcon")
+        self.icon_box.setFixedSize(38, 38)
+        self.icon_box.setAlignment(Qt.AlignCenter)
+        lay.addWidget(self.icon_box, 0, Qt.AlignTop)
+
+        col = QVBoxLayout()
+        col.setContentsMargins(0, 0, 0, 0)
+        col.setSpacing(3)
+        self.title = QLabel(title, self)
+        self.title.setObjectName("SettingsEntryTitle")
+        self.desc = QLabel(desc, self)
+        self.desc.setObjectName("SettingsEntryDesc")
+        self.desc.setWordWrap(True)
+        self.desc.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
+        col.addWidget(self.title)
+        col.addWidget(self.desc)
+        col.addStretch(1)
+        lay.addLayout(col, 1)
+        self.arrow = QLabel("›", self)
+        self.arrow.setObjectName("SettingsEntryArrow")
+        lay.addWidget(self.arrow, 0, Qt.AlignVCenter)
+        self._apply_theme()
+        ui_theme.connect_theme(self, lambda w: w._apply_theme())
+
+    def _apply_theme(self):
+        t = ui_theme.tokens()
+        accent = ui_theme.get_accent()
+        rgb = _hex_rgb(accent)
+        soft = "rgba(%d,%d,%d,0.13)" % rgb if rgb else t["card_hover"]
+        self.setStyleSheet(
+            "QFrame#SettingsEntryCard{background:%s;border:1px solid %s;"
+            "border-radius:12px;}"
+            "QFrame#SettingsEntryCard:hover{background:%s;border-color:%s;}"
+            "QLabel#SettingsEntryTitle{color:%s;font-size:13.5px;font-weight:600;"
+            "background:transparent;}"
+            "QLabel#SettingsEntryDesc{color:%s;font-size:10.5px;background:transparent;}"
+            "QLabel#SettingsEntryArrow{color:%s;font-size:18px;background:transparent;}"
+            "QLabel#SettingsEntryIcon{background:%s;border-radius:9px;}"
+            % (t["card"], t["card_border"], t["card_hover"], t["border_hover"],
+               t["text"], t["text_dim"], t["text_dim"], soft))
+        try:
+            self.icon_box.setPixmap(self._icon.icon().pixmap(20, 20))
+        except Exception:  # noqa: BLE001
+            pass
+
+    def mouseReleaseEvent(self, event):
+        if event.button() == Qt.LeftButton and self.rect().contains(event.position().toPoint()):
+            self.clicked.emit()
+        super().mouseReleaseEvent(event)
+
+
+def _hex_rgb(hexc):
+    try:
+        h = str(hexc or "").strip().lstrip("#")
+        if len(h) == 3:
+            h = "".join(c * 2 for c in h)
+        return int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16)
+    except Exception:  # noqa: BLE001
+        return None
+
+
 class SettingsPage(QWidget):
     """全程序唯一的全局设置页（v1.10.8）。
 
@@ -306,6 +392,7 @@ class SettingsPage(QWidget):
         self.setObjectName("SettingsPage")
         self._engine_setting = None
         self._engine_built = False
+        self._detail_pending = False
         self._bg_warned = False
 
         # 功能解耦阶段③：消息自订阅（原入口 _dispatch 的 cookie_import_done 分支）。
@@ -313,27 +400,186 @@ class SettingsPage(QWidget):
 
         outer = QVBoxLayout(self)
         outer.setContentsMargins(0, 0, 0, 0)
-        self.shell = ScrollPage("设置", "全局设置对下载、字幕引擎等所有功能统一生效",
-                                self, scrollable=True)
-        outer.addWidget(self.shell)
-        self.shell.layout().setContentsMargins(24, 12, 24, 12)
+        outer.setSpacing(0)
+        self.stack = QStackedWidget(self)
+        self._detail_pages = {}
+        self._detail_shells = {}
+        outer.addWidget(self.stack)
+
+        self.shell = ScrollPage(
+            "设置", "全局设置对下载、字幕引擎等所有功能统一生效",
+            self, scrollable=True)
+        self.shell.layout().setContentsMargins(22, 14, 22, 12)
         self.shell.layout().setSpacing(8)
         self.vbox = self.shell.content_lay
+        self.stack.addWidget(self.shell)
 
-        self._build_dirs_card()
-        self._build_cookie_card()
-        # v1.14.1 安全整改：「网络代理」卡片已移除——内置代理降级为纯后台
-        # 下载兜底，不再有界面入口与文字说明（节点凭据严禁随包分发）。
-        self._build_ai_card()
-        self._build_asr_card()
-        self._build_calib_ai_card()
-        self._build_engine_section()
-        self._build_sync_card()
-        self._build_update_card()
-        self._build_uicustom_card()
-        self._build_appearance_card()
-        self._build_about_card()
+        self._build_settings_home()
+        self._build_detail_pages()
+        self.shell = self._detail_shells["home"]
+        self.stack.setCurrentWidget(self._detail_pages["home"])
+
+    # ---------- v3 设置首页：6 个分区入口 ----------
+    def _build_settings_home(self):
+        """设置首页只放 6 个分区入口，具体字段进入各自二级页。"""
+        intro = QWidget(self.shell)
+        intro.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        intro.setFixedHeight(28)
+        il = QHBoxLayout(intro)
+        il.setContentsMargins(0, 0, 0, 2)
+        il.setSpacing(10)
+        title = StrongBodyLabel("配置分区", intro)
+        title.setStyleSheet("font-size:13px;font-weight:600;background:transparent;")
+        cap = CaptionLabel("6 个分区；每块进入独立二级页，返回即可继续切换", intro)
+        cap.setStyleSheet("font-size:11px;background:transparent;")
+        il.addWidget(title)
+        il.addWidget(cap, 0, Qt.AlignVCenter)
+        il.addStretch(1)
+        self.vbox.addWidget(intro)
+
+        grid_host = QWidget(self.shell)
+        grid_host.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Maximum)
+        grid_host.setFixedHeight(234)
+        self.entry_grid = QGridLayout(grid_host)
+        self.entry_grid.setContentsMargins(0, 0, 0, 0)
+        self.entry_grid.setHorizontalSpacing(10)
+        self.entry_grid.setVerticalSpacing(10)
+        entries = [
+            ("ai", FIF.ROBOT, "全局 AI",
+             "接口 A / B、决策模型、密钥与连通测试"),
+            ("asr", FIF.MICROPHONE, "ASR 语音识别",
+             "自有服务或本地模型、12 种协议与语言"),
+            ("subtitle", FIF.FONT, "字幕引擎与校准",
+             "引擎运行参数、AI 校准、知识同步"),
+            ("download", FIF.DOWNLOAD, "下载与存储",
+             "下载目录、Cookie、并发与数据根目录"),
+            ("appearance", FIF.PALETTE, "界面与外观",
+             "主题、缩放、主题色、6 页背景与遮罩"),
+            ("maintenance", FIF.UPDATE, "更新与关于",
+             "版本检查、更新日志与项目信息"),
+        ]
+        self._entry_cards = {}
+        for idx, (key, icon, card_title, card_desc) in enumerate(entries):
+            c = SettingsEntryCard(icon, card_title, card_desc, grid_host)
+            c.clicked.connect(lambda k=key: self.show_detail(k))
+            self._entry_cards[key] = c
+            self.entry_grid.addWidget(c, idx // 3, idx % 3)
+        for col in range(3):
+            self.entry_grid.setColumnStretch(col, 1)
+        self.vbox.addWidget(grid_host, 0, Qt.AlignTop)
+
+        foot = CaptionLabel(
+            "配置文件位于本机 data 目录；修改在对应二级页内保存后立即写入，"
+            "不经过云端。", self.shell)
+        foot.setWordWrap(True)
+        foot.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        foot.setFixedHeight(38)
+        foot.setStyleSheet("font-size:10.5px;background:transparent;")
+
+        def _paint_home_text():
+            t = ui_theme.tokens()
+            title.setStyleSheet(
+                "font-size:13px;font-weight:600;color:%s;background:transparent;"
+                % t["text"])
+            cap.setStyleSheet(
+                "font-size:11px;color:%s;background:transparent;"
+                % t["text_dim"])
+            foot.setStyleSheet(
+                "font-size:10.5px;color:%s;background:transparent;"
+                % t["text_dim"])
+        _paint_home_text()
+        ui_theme.connect_theme(intro, lambda w: _paint_home_text())
+        self.vbox.addWidget(foot)
         self.vbox.addStretch(1)
+        self._detail_pages["home"] = self.shell
+        self._detail_shells["home"] = self.shell
+
+    def _build_detail_pages(self):
+        self._make_detail(
+            "ai", "全局 AI",
+            "接口 A（工具箱自身）/ 接口 B（字幕引擎与校准）；密钥独立存放",
+            [self._build_ai_card])
+        self._make_detail(
+            "asr", "ASR 语音识别",
+            "语音转文字的来源、协议与语言；保存后写入引擎转录配置",
+            [self._build_asr_card])
+        self._make_detail(
+            "subtitle", "字幕引擎与校准",
+            "引擎运行参数、AI 校准与校准知识同步；只改文字，不动时间轴",
+            [self._build_calib_ai_card, self._build_engine_section,
+             self._build_sync_card])
+        self._make_detail(
+            "download", "下载与存储",
+            "默认目录、数据根目录、下载 Cookie 与并发；不写系统盘",
+            [self._build_dirs_card, self._build_cookie_card])
+        self._make_detail(
+            "appearance", "界面与外观",
+            "主题、缩放、主题色、6 页背景与遮罩；遮罩使用拉条即时生效",
+            [self._build_uicustom_card, self._build_appearance_card])
+        self._make_detail(
+            "maintenance", "更新与关于",
+            "版本检查、更新日志与项目信息；不改变当前配置",
+            [self._build_update_card, self._build_about_card])
+
+    def _make_detail(self, key, title, caption, builders):
+        page = ScrollPage(title, caption, self, scrollable=True)
+        page.layout().setContentsMargins(22, 14, 22, 12)
+        page.layout().setSpacing(8)
+        page.content_lay.setSpacing(10)
+        back_row = QWidget(page)
+        bl = QHBoxLayout(back_row)
+        bl.setContentsMargins(0, 0, 0, 4)
+        back = PushButton("←  返回设置", back_row)
+        back.setFixedHeight(30)
+        back.clicked.connect(self.show_home)
+        bl.addWidget(back)
+        bl.addStretch(1)
+        page.content_lay.addWidget(back_row)
+        self._detail_pages[key] = page
+        self._detail_shells[key] = page
+        self._detail_titles = getattr(self, "_detail_titles", {})
+        self._detail_titles[key] = title
+        self.vbox = page.content_lay
+        for build in builders:
+            build()
+        self.vbox.addStretch(1)
+        self.vbox = self.shell.content_lay
+        self.stack.addWidget(page)
+
+    def show_detail(self, key):
+        page = self._detail_pages.get(key)
+        if page is None:
+            return
+        self._detail_pending = True
+        QTimer.singleShot(30, self._clear_detail_pending)
+        self.stack.setCurrentWidget(page)
+        self.shell = self._detail_shells.get(key, self.shell)
+        self.vbox = self.shell.content_lay
+        self._active_detail = key
+        sb = getattr(self.app, "shell_topbar", None)
+        if sb is not None:
+            sb.set_page("设置 / " + self._detail_titles.get(key, ""))
+        if key == "subtitle":
+            QTimer.singleShot(0, self._ensure_engine_setting)
+            f = getattr(self, "_engine_fit", None)
+            if f is not None:
+                QTimer.singleShot(120, f.sync_height)
+        elif key == "asr":
+            QTimer.singleShot(0, self._sync_asr_visible)
+
+    def _clear_detail_pending(self):
+        self._detail_pending = False
+
+    def show_home(self):
+        page = self._detail_pages.get("home")
+        if page is None:
+            return
+        self.stack.setCurrentWidget(page)
+        self.shell = self._detail_shells["home"]
+        self._active_detail = None
+        sb = getattr(self.app, "shell_topbar", None)
+        if sb is not None:
+            sb.set_page("设置")
 
     # ---------- 消息 ----------
     def _on_bus_message(self, msg):
@@ -344,6 +590,11 @@ class SettingsPage(QWidget):
 
     def showEvent(self, event):
         super().showEvent(event)
+        # 从导航重新进入「设置」时回到 6 块入口，而不是上次停留的二级页；
+        # 二级页内部切换不触发本页 showEvent，所以不会被误 reset。
+        if (getattr(self, "_active_detail", None) is not None
+                and not getattr(self, "_detail_pending", False)):
+            self.show_home()
         # 首次显示时再懒加载引擎设置（此时后台预热通常已完成）
         QTimer.singleShot(0, self._ensure_engine_setting)
         # 已构建则每次显示重新贴合内层高度（宽度可能变化）
@@ -471,8 +722,10 @@ class SettingsPage(QWidget):
         self.cookie_file_edit = LineEdit(box)
         self.cookie_file_edit.setText(engine.cookie_file() or "")
         self.cookie_file_edit.setPlaceholderText(
-            r"留空则用 data\user_cookies.txt"
-            r"（推荐用浏览器扩展「Get cookies.txt LOCALLY」在 youtube.com 导出）")
+            r"留空 = data\user_cookies.txt（浏览器扩展导出）")
+        self.cookie_file_edit.setToolTip(
+            "推荐用浏览器扩展「Get cookies.txt LOCALLY」在 youtube.com 导出，"
+            "再选择该文件。")
         self.cookie_file_edit.editingFinished.connect(self._save_cookie)
         _pick = PushButton(FIF.FOLDER, "选择…", box)
         _pick.clicked.connect(self._browse_cookie_file)
@@ -718,10 +971,11 @@ class SettingsPage(QWidget):
         blay.addWidget(row(test_btn, match_btn, save_btn, self.ai_dirty_lbl))
 
         self.ai_hint = fit_caption(CaptionLabel(
-            "保存后立即生效；地址填到域名或版本段均可自动补全（含 Azure）。"
-            "订阅套餐须填专属端点：百炼 Token Plan token-plan.…/compatible-mode/v1、"
-            "火山 Coding Plan …/api/coding/v3、智谱 Coding Plan …/api/coding/paas/v4",
+            "保存后立即生效；地址可自动补全（含 Azure）；订阅套餐须填专属端点",
             box))
+        self.ai_hint.setToolTip(
+            "订阅套餐端点示例：百炼 Token Plan token-plan.…/compatible-mode/v1、"
+            "火山 Coding Plan …/api/coding/v3、智谱 Coding Plan …/api/coding/paas/v4")
         self.ai_hint.setTextColor("#8a8a8a", "#9a9a9a")
         blay.addWidget(self.ai_hint)
         self.ai_jev_switch = SwitchButton(box)
@@ -1079,9 +1333,11 @@ class SettingsPage(QWidget):
         """在「全局 AI」卡内构建决策模型子区域（默认安全态，见区域注释）。"""
         blay.addWidget(StrongBodyLabel("决策模型（Jev · 预览）", box))
         cap = fit_caption(CaptionLabel(
-            "百炼 System One 结构化决策（decision-model-preview）。总闸默认关闭；"
-            "影子模式只追加复核证据不改字幕；独立凭据与区域端点留空即回落全局 AI。",
-            box))
+            "百炼 System One 结构化决策；总闸默认关闭，影子模式只追加证据，"
+            "不改字幕", box))
+        cap.setToolTip(
+            "decision-model-preview：影子模式只追加复核证据，不改写字幕；"
+            "独立凭据与区域端点留空即回落全局 AI。")
         cap.setTextColor("#8a8a8a", "#9a9a9a")
         blay.addWidget(cap)
 
@@ -1487,17 +1743,28 @@ class SettingsPage(QWidget):
         self.calib_preset_chips = dict(chips_all)
         blay.addWidget(row(in_col, out_col, None, spacing=16))
 
-        # 校准风格（2026-09-14）：术语级＝只替换名词；整句重写＝理顺机翻腔与断句
+        # 校准风格三档（2026-11-24，对齐 core/calibrate/ai.py 自动路由）：
+        #   0 自动（推荐）→ "" ：后端 style=None，机翻腔 hot==0 双语片自动整句重写；
+        #   1 锁定术语级 → "term-locked"：显式锁定 term，绝不改派；
+        #   2 整句重写 → "rewrite"：显式锁定 rewrite。旧值 "term"/"auto" 归入自动档。
+        # 反查规则与 features/calibrate/page.py style_label 同口径。
         self.calib_style_combo = ComboBox(box)
-        self.calib_style_combo.addItems(["术语级（只替换名词，稳妥）",
+        self.calib_style_combo.addItems(["自动（推荐：机翻腔 hot==0 自动整句重写）",
+                                         "锁定术语级（只换名词，绝不改写）",
                                          "整句重写（理顺机翻，双语长片推荐）"])
-        self.calib_style_combo.setCurrentIndex(
-            1 if str(ai.get("calib_style") or "term") == "rewrite" else 0)
+        _style_v = str(ai.get("calib_style") or "").strip().lower()
+        self.calib_style_combo.setCurrentIndex(CALIB_STYLE_INDEX.get(_style_v, 0))
         self.calib_style_combo.setFixedWidth(300)
+        self.calib_style_combo.setToolTip(
+            "自动：术语级为主；规则命中 0 条且是带参考行的双语片时，自动改派整句重写\n"
+            "锁定术语级：只替换名词，任何情况下不改写句子\n"
+            "整句重写：始终允许理顺机翻语序与断句")
 
         # 联网查证（2026-09-20）：Agent 遇到知识库没有的疑似错形时可自主搜索
+        #   默认 True 与 tools/ai_client.py DEFAULT_CONFIG 对齐（2026-11-24；
+        #   旧回退值 False 会让「未配置」用户在界面上看到与实际生效值相反的状态）。
         self.calib_web_switch = SwitchButton(box)
-        self.calib_web_switch.setChecked(bool(ai.get("calib_web_enabled", False)))
+        self.calib_web_switch.setChecked(bool(ai.get("calib_web_enabled", True)))
 
         # 音画证据（2026-10-12）：Agent 可请求源媒体的音频重转写/抽帧描述，
         # 佐证疑似误听与丢弃候选（对标 FineSub 多模态纠错 harness）。
@@ -1578,10 +1845,12 @@ class SettingsPage(QWidget):
         blay.addWidget(row(calib_save, None))
 
         self.calib_hint = fit_caption(CaptionLabel(
-            "块越小越稳（读不完自动折半重试）；思考关闭更省更快，长片整句重写建议"
-            "开「高/极致」；无法用术语知识库解释的改动会被拒绝并写入报告。开启"
-            "「联网查证」后，Agent 可对库中没有的疑似错形自主搜索官方名再下结论"
-            "（出网走内置代理）", box))
+            "块越小越稳；长片整句重写建议「高/极致」；无法用术语库解释的改动"
+            "会被拒绝并写入报告。", box))
+        self.calib_hint.setToolTip(
+            "块越小越稳（读不完会自动折半重试）；思考关闭更省更快。"
+            "开启「联网查证」后，Agent 可对库中没有的疑似错形自主搜索官方名"
+            "再下结论（出网走内置代理）。")
         self.calib_hint.setTextColor("#8a8a8a", "#9a9a9a")
         blay.addWidget(self.calib_hint)
         self.vbox.addWidget(box)
@@ -1660,9 +1929,13 @@ class SettingsPage(QWidget):
             "calib_max_tokens": self.calib_tokens.value(),
             # 输入（上下文预算）——2026-09-20 起在设置页可调（此前只能手改文件）
             "calib_context_tokens": self.calib_context.value(),
-            # 校准风格（2026-09-14）：term=只替换名词；rewrite=整句重写
-            "calib_style": ("rewrite"
-                            if self.calib_style_combo.currentIndex() == 1 else "term"),
+            # 校准风格三档（2026-11-24）：0 自动→""（后端 style=None 自动路由）；
+            #   1 锁定术语级→"term-locked"（显式 term，绝不改派）；2 整句重写→"rewrite"。
+            #   与 tools/ai_client.py DEFAULT_CONFIG / core/shared/ai.py 白名单 /
+            #   core/calibrate/ai.py 路由三处同口径（"" 必须非 None 才能过白名单过滤）。
+            "calib_style": CALIB_STYLE_VALUES[min(
+                max(self.calib_style_combo.currentIndex(), 0),
+                len(CALIB_STYLE_VALUES) - 1)],
             # 联网查证（2026-09-20）：AI 校准 Agent 可发起 web_search/web_fetch
             "calib_web_enabled": self.calib_web_switch.isChecked(),
             # 音画证据（2026-10-12）：AI 校准 Agent 可请求源媒体音频重转写/抽帧描述
@@ -2139,26 +2412,30 @@ class SettingsPage(QWidget):
         return self._engine_setting
 
     def scroll_to_engine(self):
-        """外部调用：定位到字幕引擎参数区（并确保其已构建）。"""
+        """外部调用：定位到字幕引擎参数区（先切到字幕引擎二级页）。"""
+        self.show_detail("subtitle")
         self._ensure_engine_setting()
         QTimer.singleShot(0, self._scroll_to_engine_card)
 
     def _scroll_to_engine_card(self):
         try:
-            if self.shell.area is not None:
-                self.shell.area.ensureWidgetVisible(self.engine_card, 0, 80)
+            shell = self._detail_shells.get("subtitle", self.shell)
+            if shell.area is not None:
+                shell.area.ensureWidgetVisible(self.engine_card, 0, 80)
         except Exception:
             pass
 
     def scroll_to_asr(self):
         """外部调用：定位到「ASR 语音识别」卡片（转录失败提示条用）。"""
+        self.show_detail("asr")
         QTimer.singleShot(0, self._scroll_to_asr_card)
 
     def _scroll_to_asr_card(self):
         try:
+            shell = self._detail_shells.get("asr", self.shell)
             card_w = getattr(self, "asr_card", None)
-            if self.shell.area is not None and card_w is not None:
-                self.shell.area.ensureWidgetVisible(card_w, 0, 80)
+            if shell.area is not None and card_w is not None:
+                shell.area.ensureWidgetVisible(card_w, 0, 80)
         except Exception:
             pass
 
@@ -2229,10 +2506,11 @@ class SettingsPage(QWidget):
     def _build_update_card(self):
         box, blay = card(
             "程序更新",
-            "检查视频工具箱是否有新版本并在本机直接更新（任意版本之间"
-            "可升可降；升/降以当前运行版本为基准判断）；源码运行模式下"
-            "以本地开发版为准，不自动安装。启动时也会自动检查一次，"
-            "仅在有真正的新版本时提示，全程不打扰日常使用")
+            "检查并安装新版本；任意版本可升可降，源码模式不自动安装，"
+            "启动时仅在有新版本时提示")
+        box.setToolTip(
+            "任意版本之间可升可降，升/降以当前运行版本为基准判断；"
+            "源码运行模式下以本地开发版为准，不自动安装。")
         self.upd_ver_label = BodyLabel("当前版本 v%s" % _version(), box)
         blay.addWidget(row(self.upd_ver_label, None))
 
@@ -2547,11 +2825,8 @@ class SettingsPage(QWidget):
     def _build_uicustom_card(self):
         box, blay = card(
             "界面美化",
-            "每个板块可单独设置背景图；未单独设置的板块使用全局背景，"
-            "全局也未设置时保持纯色（即现状）。背景遮罩跟随主题：深色"
-            "主题压暗、浅色主题雾白，配合可选模糊保证前景文字可读。"
-            "「板块遮罩」对每个板块（卡片）统一生效：底色按同一透明度"
-            "绘制、透出背景，六页风格一致。支持把图片直接拖进输入框")
+            "每个板块可单独设置背景图，未设置则用全局；遮罩按主题雾化，"
+            "保证前景可读；图片可直接拖入输入框")
 
         def _make_row(key, name, placeholder):
             edit = _BgPathEdit(lambda p, k=key: self._drop_apply_bg(k, p), box)
@@ -2583,20 +2858,21 @@ class SettingsPage(QWidget):
         self.bg_dim_slider.setRange(0, ui_theme.DIM_MAX)
         self.bg_dim_slider.setValue(ui_theme.get_dim())
         self.bg_dim_slider.setMinimumWidth(200)
+        self.bg_dim_slider.setToolTip("0% 不压暗，背景图完全可见；100% 完全盖住背景图")
         self.bg_dim_lbl = BodyLabel(f"{ui_theme.get_dim()}%", box)
         self.bg_dim_slider.valueChanged.connect(self._on_bg_dim_changed)
         blay.addWidget(srow("背景遮罩", self.bg_dim_slider, self.bg_dim_lbl))
 
-        # 板块遮罩（v1.14.x）：与背景图无关，画在每个卡片（UICard）底色的
-        # alpha 上——卡片统一半透明、透出背景，六个板块风格一致。
-        # （深色压暗、浅色雾白由卡片 token 色本身决定）
+        # 卡片底色不透明度（v1.14.x）：与背景图无关，画在每个卡片（UICard）
+        # 底色的 alpha 上——0 = 全透明，100 = 实色，六页统一。
         self.sec_dim_slider = Slider(Qt.Horizontal, box)
         self.sec_dim_slider.setRange(0, ui_theme.SECTION_DIM_MAX)
         self.sec_dim_slider.setValue(ui_theme.get_section_dim())
         self.sec_dim_slider.setMinimumWidth(200)
+        self.sec_dim_slider.setToolTip("0% 卡片完全透明；100% 卡片完全不透明")
         self.sec_dim_lbl = BodyLabel(f"{ui_theme.get_section_dim()}%", box)
         self.sec_dim_slider.valueChanged.connect(self._on_sec_dim_changed)
-        blay.addWidget(srow("板块遮罩", self.sec_dim_slider, self.sec_dim_lbl))
+        blay.addWidget(srow("卡片不透明度", self.sec_dim_slider, self.sec_dim_lbl))
 
         # 背景模糊（v1.13.x）：预模糊一次并缓存，开关切换不拖累重绘；
         # 大图/亮图模糊后更衬前景文字
@@ -2606,8 +2882,8 @@ class SettingsPage(QWidget):
         blay.addWidget(label_row("背景模糊", row(self.bg_blur_switch, None)))
 
         blay.addWidget(fit_caption(CaptionLabel(
-            "提示：背景只铺内容区，导航条与标题栏保持原样；"
-            "字幕编辑页的视频画面不受影响", box)))
+            "提示：背景只铺内容区，导航与标题栏保持原样；两滑杆 0% 均为全透明，"
+            "百分比越大越实；字幕编辑页的视频画面不受影响", box)))
         self.vbox.addWidget(box)
 
     def _refresh_bg_edits(self):
@@ -2636,7 +2912,7 @@ class SettingsPage(QWidget):
         ui_theme.set_dim(value)
 
     def _on_sec_dim_changed(self, value):
-        """板块遮罩滑杆：每个卡片底色统一半透明——立即重绘 + 持久化。"""
+        """卡片不透明度滑杆：0 = 全透明，100 = 实色；立即重绘 + 持久化。"""
         self.sec_dim_lbl.setText(f"{value}%")
         ui_theme.set_section_dim(value)
 
@@ -2825,8 +3101,8 @@ class SettingsPage(QWidget):
             left = []
         if left:
             self.data_leftover.setText(
-                "检测到系统盘仍有旧版字幕引擎数据：" + "；".join(left) +
-                "　（下次启动会自动迁移到数据目录）")
+                "检测到系统盘有旧版字幕引擎数据，下次启动自动迁移到数据目录")
+            self.data_leftover.setToolTip("旧数据位置：\n" + "\n".join(left))
             self.data_leftover.show()
         else:
             self.data_leftover.hide()

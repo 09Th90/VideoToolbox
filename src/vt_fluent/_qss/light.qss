@@ -658,7 +658,7 @@ StackedWidget {
     border: 1px solid rgba(0, 0, 0, 0.068);
     border-right: none;
     border-bottom: none;
-    background-color: rgba(255, 255, 255, 0.5);
+    background-color: #F2F4F6;
 }
 
 StackedWidget[isTransparent=true] {

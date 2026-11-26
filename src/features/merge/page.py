@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @version 3.2.5
+# @version 3.3.1
 """音画合并页（2026-11-15 功能解耦阶段③：从 video_toolbox_qt.py 拆出，逐字同源）。
 
 * 只经 vt_app 基建 + engine 门面（merge_pair/scan_media/smart_pair 等）；
@@ -25,7 +25,7 @@ import video_toolbox as engine
 import ui_theme
 
 from vt_app.widgets import (LogView, TabPage, _MergeDropSlot, card,
-                            label_row, row, srow, tab_caption)
+                            label_row, row, srow)
 from features._media import (AUDIO_EXTS, AUDIO_FILE_FILTER, SUB_FILE_FILTER,
                              SUBTITLE_EXTS, VIDEO_EXTS, VIDEO_FILE_FILTER)
 
@@ -70,12 +70,14 @@ class MergePage(QWidget):
         # 必须铺满整行，否则两个标签会被拉开大片空隙；边距只能加在外层容器上
         # （原因见 DownloadPage.__init__ 的长注释）。
         self.mode_seg = SegmentedWidget(self)
-        self.mode_seg.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        self.mode_seg.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+        self.mode_seg.setFixedWidth(360)
         seg_wrap = QWidget(self)
         seg_lay = QHBoxLayout(seg_wrap)
-        seg_lay.setContentsMargins(24, 10, 24, 0)
+        seg_lay.setContentsMargins(22, 2, 22, 0)
         seg_lay.setSpacing(0)
         seg_lay.addWidget(self.mode_seg)
+        seg_lay.addStretch(1)
         outer.addWidget(seg_wrap)
 
         self.stack = QStackedWidget(self)
@@ -85,10 +87,7 @@ class MergePage(QWidget):
         self.shell = TabPage(self)
         self.stack.addWidget(self.shell)
         self.vbox = self.shell.content_lay
-        self.vbox.setSpacing(12)
-        self.vbox.addWidget(tab_caption(
-            "自动配对 视频（mp4/mkv/webm/mov…）+ m4a/weba + srt/ass；"
-            "m4a 直封，weba 转 AAC", self))
+        self.vbox.setSpacing(10)
 
         self.in_edit = LineEdit(self)
         self.in_edit.setText(engine.DEFAULT_INPUT_DIR)
@@ -98,10 +97,8 @@ class MergePage(QWidget):
         out_browse = PushButton(FIF.FOLDER, "浏览…", self)
         out_browse.clicked.connect(lambda: self._browse(self.out_edit))
         box, lay = card("输入 / 输出文件夹", "输出留空则默认写入「输入文件夹\合成结果」")
-        lay.addWidget(label_row("输入文件夹", self.in_edit))
-        lay.addWidget(in_browse, 0, Qt.AlignLeft)
-        lay.addWidget(label_row("输出文件夹", self.out_edit))
-        lay.addWidget(out_browse, 0, Qt.AlignLeft)
+        lay.addWidget(srow("输入文件夹", self.in_edit, in_browse))
+        lay.addWidget(srow("输出文件夹", self.out_edit, out_browse))
         self.vbox.addWidget(box)
 
         self.ass_combo = ComboBox(self)
@@ -165,9 +162,7 @@ class MergePage(QWidget):
         self.manual = TabPage(self)
         self.stack.addWidget(self.manual)
         mv = self.manual.content_lay
-        mv.setSpacing(12)
-        mv.addWidget(tab_caption(
-            "把视频和音频拖进来（也可点击槽位选择），选好输出位置后点「开始合并」", self))
+        mv.setSpacing(10)
 
         self.mv_video = _MergeDropSlot(
             "视频（必填）", "拖入视频文件，或点击这里选择", VIDEO_EXTS,
