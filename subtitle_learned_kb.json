@@ -481,7 +481,7 @@
     ]
    ],
    "ref_tokens": {
-    "Abby": 2
+    "Abby": 3
    },
    "unc_ref_tokens": {},
    "first": "2026-10-02",
@@ -494,12 +494,6 @@
      "alt": 0,
      "first": "2026-10-02",
      "last": "2026-10-19"
-    },
-    "Streamers Reaction To The Lily Arc.zh.srt": {
-     "n": 1,
-     "alt": 0,
-     "first": "2026-11-26",
-     "last": "2026-11-26"
     }
    },
    "unc_files": {}
@@ -790,10 +784,10 @@
     ]
    ],
    "ref_tokens": {
-    "God": 1539252,
-    "showcase": 1539252,
-    "hope": 1539252,
-    "resonator": 1539252
+    "God": 2756052,
+    "showcase": 2756052,
+    "hope": 2756052,
+    "resonator": 2756052
    },
    "unc_ref_tokens": {},
    "first": "2026-10-02",
@@ -1488,19 +1482,19 @@
     ]
    ],
    "ref_tokens": {
-    "This": 28665,
-    "alt": 28665,
-    "her": 28665,
-    "even": 28665,
-    "form": 28665,
-    "yet": 28665,
-    "isn": 28665
+    "This": 52185,
+    "alt": 52185,
+    "her": 52185,
+    "even": 52185,
+    "form": 52185,
+    "yet": 52185,
+    "isn": 52185
    },
    "unc_ref_tokens": {
-    "time": 22932,
-    "substitute": 22932,
-    "for": 22932,
-    "kill": 22932
+    "time": 41748,
+    "substitute": 41748,
+    "for": 41748,
+    "kill": 41748
    },
    "first": "2026-10-01",
    "last": "2026-10-01",
@@ -1537,12 +1531,12 @@
     ]
    ],
    "ref_tokens": {
-    "with": 819,
-    "whatever": 819,
-    "the": 819,
-    "els": 819,
-    "happened": 819,
-    "Sentin": 819
+    "with": 1491,
+    "whatever": 1491,
+    "the": 1491,
+    "els": 1491,
+    "happened": 1491,
+    "Sentin": 1491
    },
    "unc_ref_tokens": {},
    "first": "2026-10-02",
@@ -1608,26 +1602,26 @@
     ]
    ],
    "ref_tokens": {
-    "side": 819,
-    "was": 819,
-    "this": 819,
-    "game": 819,
-    "Ian": 819,
-    "the": 819,
-    "trashed": 819
+    "side": 1491,
+    "was": 1491,
+    "this": 1491,
+    "game": 1491,
+    "Ian": 1491,
+    "the": 1491,
+    "trashed": 1491
    },
    "unc_ref_tokens": {
-    "contract": 819,
-    "cup": 819,
-    "had": 819,
-    "Ian": 819,
-    "contingency": 819,
-    "the": 819,
-    "side": 819,
-    "for": 819,
-    "Ian's": 819,
-    "things": 819,
-    "tournament": 819
+    "contract": 1491,
+    "cup": 1491,
+    "had": 1491,
+    "Ian": 1491,
+    "contingency": 1491,
+    "the": 1491,
+    "side": 1491,
+    "for": 1491,
+    "Ian's": 1491,
+    "things": 1491,
+    "tournament": 1491
    },
    "first": "2026-10-05",
    "last": "2026-10-05",
@@ -1791,38 +1785,38 @@
     ]
    ],
    "ref_tokens": {
-    "really": 106,
-    "some": 106,
-    "things": 106,
-    "cool": 106,
-    "Rover": 542,
-    "male": 424,
-    "Hey": 212,
-    "this": 424,
-    "looks": 212,
-    "like": 477,
-    "rover": 954,
-    "was": 212,
-    "when": 212,
-    "saw": 212,
-    "female": 424,
-    "animation": 212,
-    "see": 212,
-    "too": 212,
-    "but": 212,
-    "yeah": 212,
-    "have": 212,
-    "the": 106,
-    "now": 53,
-    "I'm": 53,
-    "solve": 53,
-    "and": 53,
-    "step": 53,
-    "He's": 53,
-    "sees": 53,
-    "her": 53,
-    "lore": 106,
-    "Are": 2
+    "really": 184,
+    "some": 184,
+    "things": 184,
+    "cool": 184,
+    "Rover": 938,
+    "male": 736,
+    "Hey": 368,
+    "this": 736,
+    "looks": 368,
+    "like": 828,
+    "rover": 1656,
+    "was": 368,
+    "when": 368,
+    "saw": 368,
+    "female": 736,
+    "animation": 368,
+    "see": 368,
+    "too": 368,
+    "but": 368,
+    "yeah": 368,
+    "have": 368,
+    "the": 184,
+    "now": 92,
+    "I'm": 92,
+    "solve": 92,
+    "and": 92,
+    "step": 92,
+    "He's": 92,
+    "sees": 92,
+    "her": 92,
+    "lore": 184,
+    "Are": 3
    },
    "unc_ref_tokens": {},
    "first": "2026-10-05",
@@ -1834,12 +1828,6 @@
      "alt": 0,
      "first": "2026-10-05",
      "last": "2026-10-05"
-    },
-    "Streamers Reaction To The Lily Arc.zh.srt": {
-     "n": 6,
-     "alt": 0,
-     "first": "2026-11-26",
-     "last": "2026-11-26"
     }
    },
    "unc_files": {}
@@ -1882,12 +1870,12 @@
     ]
    ],
    "ref_tokens": {
-    "because": 819,
-    "Qing": 819,
-    "lost": 819,
-    "the": 819,
-    "after": 819,
-    "Shaw": 819
+    "because": 1491,
+    "Qing": 1491,
+    "lost": 1491,
+    "the": 1491,
+    "after": 1491,
+    "Shaw": 1491
    },
    "unc_ref_tokens": {},
    "first": "2026-10-05",
@@ -1968,24 +1956,24 @@
     ]
    ],
    "ref_tokens": {
-    "would": 4095,
-    "The": 4914,
-    "notice": 4095,
-    "War": 4095,
-    "Ministry": 4914,
-    "give": 4095,
-    "say": 819,
-    "offense": 819,
-    "rules": 819,
-    "Wars": 819
+    "would": 7455,
+    "The": 8946,
+    "notice": 7455,
+    "War": 7455,
+    "Ministry": 8946,
+    "give": 7455,
+    "say": 1491,
+    "offense": 1491,
+    "rules": 1491,
+    "Wars": 1491
    },
    "unc_ref_tokens": {
-    "you": 819,
-    "Have": 819,
-    "War": 819,
-    "Ministry": 819,
-    "the": 819,
-    "visited": 819
+    "you": 1491,
+    "Have": 1491,
+    "War": 1491,
+    "Ministry": 1491,
+    "the": 1491,
+    "visited": 1491
    },
    "first": "2026-10-05",
    "last": "2026-10-05",
@@ -2075,11 +2063,11 @@
     ]
    ],
    "ref_tokens": {
-    "better": 78,
-    "Intendant": 78,
-    "see": 78,
-    "swimming": 78,
-    "first": 78
+    "better": 142,
+    "Intendant": 142,
+    "see": 142,
+    "swimming": 142,
+    "first": 142
    },
    "unc_ref_tokens": {},
    "first": "2026-10-05",
@@ -2178,37 +2166,37 @@
     ]
    ],
    "ref_tokens": {
-    "Remember": 195,
-    "auto": 1131,
-    "that": 195,
-    "rogue": 234,
-    "puppet": 234,
-    "First": 156,
-    "going": 195,
-    "the": 234,
-    "puppet's": 156,
-    "colonels": 156,
-    "These": 156,
-    "puppets": 741,
-    "are": 156,
-    "missing": 156,
-    "must": 195,
-    "new": 156,
-    "find": 195,
-    "handle": 195,
-    "can": 195,
-    "those": 156,
-    "celestial": 156,
-    "heard": 156,
-    "and": 156,
-    "battle": 156,
-    "deploy": 156,
-    "Not": 39,
-    "discords": 39,
-    "not": 39,
-    "tacid": 39,
-    "with": 39,
-    "colonel": 39
+    "Remember": 355,
+    "auto": 2059,
+    "that": 355,
+    "rogue": 426,
+    "puppet": 426,
+    "First": 284,
+    "going": 355,
+    "the": 426,
+    "puppet's": 284,
+    "colonels": 284,
+    "These": 284,
+    "puppets": 1349,
+    "are": 284,
+    "missing": 284,
+    "must": 355,
+    "new": 284,
+    "find": 355,
+    "handle": 355,
+    "can": 355,
+    "those": 284,
+    "celestial": 284,
+    "heard": 284,
+    "and": 284,
+    "battle": 284,
+    "deploy": 284,
+    "Not": 71,
+    "discords": 71,
+    "not": 71,
+    "tacid": 71,
+    "with": 71,
+    "colonel": 71
    },
    "unc_ref_tokens": {},
    "first": "2026-10-05",
@@ -2249,10 +2237,10 @@
     ]
    ],
    "ref_tokens": {
-    "Intendant": 78,
-    "music": 78,
-    "heard": 78,
-    "Swarming": 78
+    "Intendant": 142,
+    "music": 142,
+    "heard": 142,
+    "Swarming": 142
    },
    "unc_ref_tokens": {},
    "first": "2026-10-05",
@@ -2293,12 +2281,12 @@
     ]
    ],
    "ref_tokens": {
-    "hold": 78,
-    "happens": 78,
-    "Shan": 78,
-    "will": 78,
-    "What": 78,
-    "Fang": 78
+    "hold": 142,
+    "happens": 142,
+    "Shan": 142,
+    "will": 142,
+    "What": 142,
+    "Fang": 142
    },
    "unc_ref_tokens": {},
    "first": "2026-10-05",
@@ -2339,14 +2327,14 @@
     ]
    ],
    "ref_tokens": {
-    "feel": 78,
-    "she": 78,
-    "hold": 78,
-    "Fang": 78,
-    "the": 78,
-    "doesn't": 78,
-    "Shan": 78,
-    "for": 78
+    "feel": 142,
+    "she": 142,
+    "hold": 142,
+    "Fang": 142,
+    "the": 142,
+    "doesn't": 142,
+    "Shan": 142,
+    "for": 142
    },
    "unc_ref_tokens": {},
    "first": "2026-10-05",
@@ -2472,67 +2460,67 @@
     ]
    ],
    "ref_tokens": {
-    "sheen": 195,
-    "The": 663,
-    "moon": 195,
-    "sanctum": 1599,
-    "and": 234,
-    "the": 1755,
-    "manifold": 390,
-    "was": 195,
-    "built": 195,
-    "start": 195,
-    "Someone": 195,
-    "break": 195,
-    "tried": 195,
-    "into": 234,
-    "speak": 156,
-    "fall": 351,
-    "omen": 195,
-    "aren't": 195,
-    "sanctum's": 819,
-    "two": 156,
-    "are": 156,
-    "What": 156,
-    "you": 156,
-    "Sanctum's": 156,
-    "Manifold": 156,
-    "drops": 156,
-    "Infinity": 156,
-    "Arbiter": 195,
-    "collapse": 195,
-    "when": 195,
-    "were": 195,
-    "trapped": 195,
-    "during": 195,
-    "from": 117,
-    "separate": 78,
-    "time": 39,
-    "all": 39,
-    "that": 39,
-    "your": 39,
-    "this": 39,
-    "have": 39,
-    "gone": 39,
-    "could": 39,
-    "any": 39,
-    "they": 39,
-    "Part": 39,
-    "computational": 39,
-    "beyond": 39,
-    "alone": 39,
-    "world": 39,
-    "with": 39,
-    "celestial": 39,
-    "said": 39,
-    "shifts": 39
+    "sheen": 355,
+    "The": 1207,
+    "moon": 355,
+    "sanctum": 2911,
+    "and": 426,
+    "the": 3195,
+    "manifold": 710,
+    "was": 355,
+    "built": 355,
+    "start": 355,
+    "Someone": 355,
+    "break": 355,
+    "tried": 355,
+    "into": 426,
+    "speak": 284,
+    "fall": 639,
+    "omen": 355,
+    "aren't": 355,
+    "sanctum's": 1491,
+    "two": 284,
+    "are": 284,
+    "What": 284,
+    "you": 284,
+    "Sanctum's": 284,
+    "Manifold": 284,
+    "drops": 284,
+    "Infinity": 284,
+    "Arbiter": 355,
+    "collapse": 355,
+    "when": 355,
+    "were": 355,
+    "trapped": 355,
+    "during": 355,
+    "from": 213,
+    "separate": 142,
+    "time": 71,
+    "all": 71,
+    "that": 71,
+    "your": 71,
+    "this": 71,
+    "have": 71,
+    "gone": 71,
+    "could": 71,
+    "any": 71,
+    "they": 71,
+    "Part": 71,
+    "computational": 71,
+    "beyond": 71,
+    "alone": 71,
+    "world": 71,
+    "with": 71,
+    "celestial": 71,
+    "said": 71,
+    "shifts": 71
    },
    "unc_ref_tokens": {
-    "heart": 156,
-    "sanctums": 156,
-    "the": 156,
-    "its": 156,
-    "miniature": 156
+    "heart": 284,
+    "sanctums": 284,
+    "the": 284,
+    "its": 284,
+    "miniature": 284
    },
    "first": "2026-10-05",
    "last": "2026-10-05",
@@ -2636,62 +2624,62 @@
     ]
    ],
    "ref_tokens": {
-    "Swami": 4095,
-    "intendant": 15561,
-    "well": 4095,
-    "May": 4095,
-    "all": 4095,
-    "Yes": 4095,
-    "the": 8190,
-    "from": 3276,
-    "Ministry": 4095,
-    "lock": 819,
-    "now": 1638,
-    "coming": 819,
-    "and": 1638,
-    "doubt": 819,
-    "intendant's": 819,
-    "don't": 819,
-    "yourself": 819,
-    "Speak": 819,
-    "with": 819,
-    "swarming": 819,
-    "leave": 819,
-    "means": 819,
-    "truly": 1638,
-    "she's": 819,
-    "She": 819,
-    "said": 819,
-    "Mongo's": 819,
-    "came": 1638,
-    "she": 819,
-    "safeguard": 819,
-    "decree": 819,
-    "risen": 819,
-    "capsule": 819,
-    "The": 819,
-    "Sentinel": 819,
-    "You": 819,
-    "are": 819,
-    "serve": 819,
-    "sworn": 819
+    "Swami": 7455,
+    "intendant": 28329,
+    "well": 7455,
+    "May": 7455,
+    "all": 7455,
+    "Yes": 7455,
+    "the": 14910,
+    "from": 5964,
+    "Ministry": 7455,
+    "lock": 1491,
+    "now": 2982,
+    "coming": 1491,
+    "and": 2982,
+    "doubt": 1491,
+    "intendant's": 1491,
+    "don't": 1491,
+    "yourself": 1491,
+    "Speak": 1491,
+    "with": 1491,
+    "swarming": 1491,
+    "leave": 1491,
+    "means": 1491,
+    "truly": 2982,
+    "she's": 1491,
+    "She": 1491,
+    "said": 1491,
+    "Mongo's": 1491,
+    "came": 2982,
+    "she": 1491,
+    "safeguard": 1491,
+    "decree": 1491,
+    "risen": 1491,
+    "capsule": 1491,
+    "The": 1491,
+    "Sentinel": 1491,
+    "You": 1491,
+    "are": 1491,
+    "serve": 1491,
+    "sworn": 1491
    },
    "unc_ref_tokens": {
-    "intendant": 16380,
-    "the": 6552,
-    "Ministry": 3276,
-    "call": 3276,
-    "you": 3276,
-    "capsule": 3276,
-    "and": 3276,
-    "risen": 3276,
-    "now": 3276,
-    "The": 3276,
-    "You": 3276,
-    "Sentinel": 3276,
-    "are": 3276,
-    "serve": 3276,
-    "sworn": 3276
+    "intendant": 29820,
+    "the": 11928,
+    "Ministry": 5964,
+    "call": 5964,
+    "you": 5964,
+    "capsule": 5964,
+    "and": 5964,
+    "risen": 5964,
+    "now": 5964,
+    "The": 5964,
+    "You": 5964,
+    "Sentinel": 5964,
+    "are": 5964,
+    "serve": 5964,
+    "sworn": 5964
    },
    "first": "2026-10-05",
    "last": "2026-10-05",
@@ -2791,30 +2779,30 @@
     ]
    ],
    "ref_tokens": {
-    "almost": 195,
-    "The": 234,
-    "Moon": 819,
-    "last": 195,
-    "here": 195,
-    "Festival": 819,
-    "again": 156,
-    "Waking": 351,
-    "this": 195,
-    "all": 234,
-    "with": 195,
-    "Shrine": 39,
-    "Wiki": 39,
-    "Hall": 39,
-    "This": 39,
-    "and": 39,
-    "the": 39,
-    "festival": 39,
-    "moon": 39,
-    "waking": 39
+    "almost": 355,
+    "The": 426,
+    "Moon": 1491,
+    "last": 355,
+    "here": 355,
+    "Festival": 1491,
+    "again": 284,
+    "Waking": 639,
+    "this": 355,
+    "all": 426,
+    "with": 355,
+    "Shrine": 71,
+    "Wiki": 71,
+    "Hall": 71,
+    "This": 71,
+    "and": 71,
+    "the": 71,
+    "festival": 71,
+    "moon": 71,
+    "waking": 71
    },
    "unc_ref_tokens": {
-    "Moon": 156,
-    "Festival": 156
+    "Moon": 284,
+    "Festival": 284
    },
    "first": "2026-10-05",
    "last": "2026-10-05",
@@ -2949,23 +2937,23 @@
     ]
    ],
    "ref_tokens": {
-    "Moon": 1092,
-    "The": 585,
-    "Waking": 1092,
-    "Festival": 1092,
-    "moon": 156,
-    "waking": 156,
-    "Get": 156,
-    "the": 468,
-    "ready": 156,
-    "festival": 156,
-    "for": 156,
-    "This": 195,
-    "year's": 195,
-    "age-old": 195,
-    "happen": 156,
-    "doesn't": 156,
-    "Arrive": 156
+    "Moon": 1988,
+    "The": 1065,
+    "Waking": 1988,
+    "Festival": 1988,
+    "moon": 284,
+    "waking": 284,
+    "Get": 284,
+    "the": 852,
+    "ready": 284,
+    "festival": 284,
+    "for": 284,
+    "This": 355,
+    "year's": 355,
+    "age-old": 355,
+    "happen": 284,
+    "doesn't": 284,
+    "Arrive": 284
    },
    "unc_ref_tokens": {},
    "first": "2026-10-05",
@@ -3006,22 +2994,22 @@
     ]
    ],
    "ref_tokens": {
-    "care": 1638,
-    "right": 1638,
-    "Jindo": 1638,
-    "take": 1638
+    "care": 2982,
+    "right": 2982,
+    "Jindo": 2982,
+    "take": 2982
    },
    "unc_ref_tokens": {
-    "Yep": 819,
-    "right": 819,
-    "you": 819,
-    "are": 819,
-    "all": 819,
-    "street": 819,
-    "the": 819,
-    "Something's": 819,
-    "down": 819,
-    "Right": 819
+    "Yep": 1491,
+    "right": 1491,
+    "you": 1491,
+    "are": 1491,
+    "all": 1491,
+    "street": 1491,
+    "the": 1491,
+    "Something's": 1491,
+    "down": 1491,
+    "Right": 1491
    },
    "first": "2026-10-05",
    "last": "2026-10-05",
@@ -3064,10 +3052,10 @@
     ]
    ],
    "ref_tokens": {
-    "care": 78,
-    "right": 78,
-    "Jindo": 78,
-    "take": 78
+    "care": 142,
+    "right": 142,
+    "Jindo": 142,
+    "take": 142
    },
    "unc_ref_tokens": {},
    "first": "2026-10-05",
@@ -3175,172 +3163,172 @@
     ]
    ],
    "ref_tokens": {
-    "arbiter": 1326,
-    "your": 195,
-    "rely": 195,
-    "power": 195,
-    "Sha": 156,
-    "already": 156,
-    "I'm": 195,
-    "the": 2262,
-    "Ching": 156,
-    "knows": 156,
-    "Arbiter": 8034,
-    "meant": 195,
-    "The": 702,
-    "disrespect": 195,
-    "have": 390,
-    "You": 234,
-    "word": 195,
-    "mine": 195,
-    "disclose": 195,
-    "sanctum's": 195,
-    "collapse": 195,
-    "You're": 195,
-    "must": 195,
-    "Lady": 195,
-    "that": 468,
-    "Sheen": 195,
-    "you": 1872,
-    "and": 234,
-    "you're": 351,
-    "Wait": 156,
-    "aren't": 195,
-    "with": 273,
-    "come": 351,
-    "quickly": 195,
-    "Who": 156,
-    "maybe": 234,
-    "Maybe": 195,
-    "only": 195,
-    "know": 234,
-    "harbor": 195,
-    "Come": 195,
-    "still": 195,
-    "Yes": 390,
-    "can": 195,
-    "thanks": 195,
-    "Stay": 195,
-    "close": 195,
-    "lies": 156,
-    "this": 390,
-    "bridge": 156,
-    "end": 156,
-    "heartscape": 156,
-    "Then": 156,
-    "through": 195,
-    "try": 195,
-    "don't": 195,
-    "anything": 195,
-    "than": 195,
-    "more": 195,
-    "else": 195,
-    "responsibility": 195,
-    "will": 507,
-    "now": 195,
-    "you've": 195,
-    "arrived": 195,
-    "intervene": 156,
-    "right": 156,
-    "sushi": 156,
-    "lead": 156,
-    "stay": 195,
-    "within": 195,
-    "field": 195,
-    "I'll": 195,
-    "look": 351,
-    "forward": 156,
-    "first": 195,
-    "festival": 195,
-    "head": 195,
-    "music": 156,
-    "write": 195,
-    "What": 195,
-    "has": 156,
-    "night": 156,
-    "needn't": 195,
-    "worry": 195,
-    "are": 156,
-    "celebrations": 156,
-    "someone": 156,
-    "saw": 156,
-    "Sentinel": 195,
-    "was": 156,
-    "eyes": 156,
-    "opened": 156,
-    "who": 156,
-    "sorrowful": 195,
-    "console": 195,
-    "how": 195,
-    "dance": 39,
-    "around": 39,
-    "need": 39,
-    "absolutely": 39,
-    "history": 39,
-    "Sentinels": 117,
-    "for": 39,
-    "being": 78,
-    "But": 78,
-    "Soying": 39,
-    "meet": 39,
-    "last": 39,
-    "That's": 39,
-    "not": 39,
-    "trusts": 39,
-    "very": 39,
-    "Also": 39,
-    "should": 39,
-    "interesting": 39,
-    "known": 39,
-    "I've": 39,
-    "She": 39,
-    "bit": 39,
-    "little": 39,
-    "had": 78,
-    "listen": 39,
-    "sort": 39,
-    "incredulous": 39,
-    "towards": 39,
-    "Enough": 39,
-    "Luru": 39,
-    "one": 39,
-    "inner": 39,
-    "threshold": 39,
-    "rest": 39,
-    "Have": 39,
-    "like": 78,
-    "Would": 39,
-    "please": 39,
-    "continue": 39,
-    "hot": 39,
-    "life": 39,
-    "often": 39,
-    "And": 39,
-    "seized": 39,
-    "sometimes": 39,
-    "wonder": 39,
-    "shoulders": 39,
-    "Arbiter's": 39,
-    "authority": 39,
-    "keep": 39,
-    "waiting": 39,
-    "Sorry": 39,
-    "think": 78,
-    "all": 39,
-    "plan": 39,
-    "yours": 39,
-    "tell": 39,
-    "mind": 39,
-    "what": 39,
-    "exactly": 39,
-    "sounds": 39,
-    "Thank": 78,
-    "lock": 39,
-    "vermilion": 39,
-    "inside": 39,
-    "which": 39,
-    "gotten": 39,
-    "we've": 39
+    "arbiter": 2414,
+    "your": 355,
+    "rely": 355,
+    "power": 355,
+    "Sha": 284,
+    "already": 284,
+    "I'm": 355,
+    "the": 4118,
+    "Ching": 284,
+    "knows": 284,
+    "Arbiter": 14626,
+    "meant": 355,
+    "The": 1278,
+    "disrespect": 355,
+    "have": 710,
+    "You": 426,
+    "word": 355,
+    "mine": 355,
+    "disclose": 355,
+    "sanctum's": 355,
+    "collapse": 355,
+    "You're": 355,
+    "must": 355,
+    "Lady": 355,
+    "that": 852,
+    "Sheen": 355,
+    "you": 3408,
+    "and": 426,
+    "you're": 639,
+    "Wait": 284,
+    "aren't": 355,
+    "with": 497,
+    "come": 639,
+    "quickly": 355,
+    "Who": 284,
+    "maybe": 426,
+    "Maybe": 355,
+    "only": 355,
+    "know": 426,
+    "harbor": 355,
+    "Come": 355,
+    "still": 355,
+    "Yes": 710,
+    "can": 355,
+    "thanks": 355,
+    "Stay": 355,
+    "close": 355,
+    "lies": 284,
+    "this": 710,
+    "bridge": 284,
+    "end": 284,
+    "heartscape": 284,
+    "Then": 284,
+    "through": 355,
+    "try": 355,
+    "don't": 355,
+    "anything": 355,
+    "than": 355,
+    "more": 355,
+    "else": 355,
+    "responsibility": 355,
+    "will": 923,
+    "now": 355,
+    "you've": 355,
+    "arrived": 355,
+    "intervene": 284,
+    "right": 284,
+    "sushi": 284,
+    "lead": 284,
+    "stay": 355,
+    "within": 355,
+    "field": 355,
+    "I'll": 355,
+    "look": 639,
+    "forward": 284,
+    "first": 355,
+    "festival": 355,
+    "head": 355,
+    "music": 284,
+    "write": 355,
+    "What": 355,
+    "has": 284,
+    "night": 284,
+    "needn't": 355,
+    "worry": 355,
+    "are": 284,
+    "celebrations": 284,
+    "someone": 284,
+    "saw": 284,
+    "Sentinel": 355,
+    "was": 284,
+    "eyes": 284,
+    "opened": 284,
+    "who": 284,
+    "sorrowful": 355,
+    "console": 355,
+    "how": 355,
+    "dance": 71,
+    "around": 71,
+    "need": 71,
+    "absolutely": 71,
+    "history": 71,
+    "Sentinels": 213,
+    "for": 71,
+    "being": 142,
+    "But": 142,
+    "Soying": 71,
+    "meet": 71,
+    "last": 71,
+    "That's": 71,
+    "not": 71,
+    "trusts": 71,
+    "very": 71,
+    "Also": 71,
+    "should": 71,
+    "interesting": 71,
+    "known": 71,
+    "I've": 71,
+    "She": 71,
+    "bit": 71,
+    "little": 71,
+    "had": 142,
+    "listen": 71,
+    "sort": 71,
+    "incredulous": 71,
+    "towards": 71,
+    "Enough": 71,
+    "Luru": 71,
+    "one": 71,
+    "inner": 71,
+    "threshold": 71,
+    "rest": 71,
+    "Have": 71,
+    "like": 142,
+    "Would": 71,
+    "please": 71,
+    "continue": 71,
+    "hot": 71,
+    "life": 71,
+    "often": 71,
+    "And": 71,
+    "seized": 71,
+    "sometimes": 71,
+    "wonder": 71,
+    "shoulders": 71,
+    "Arbiter's": 71,
+    "authority": 71,
+    "keep": 71,
+    "waiting": 71,
+    "Sorry": 71,
+    "think": 142,
+    "all": 71,
+    "plan": 71,
+    "yours": 71,
+    "tell": 71,
+    "mind": 71,
+    "what": 71,
+    "exactly": 71,
+    "sounds": 71,
+    "Thank": 142,
+    "lock": 71,
+    "vermilion": 71,
+    "inside": 71,
+    "which": 71,
+    "gotten": 71,
+    "we've": 71
    },
    "unc_ref_tokens": {},
    "first": "2026-10-05",
@@ -3412,12 +3400,12 @@
     ]
    ],
    "ref_tokens": {
-    "Sha": 78,
-    "thank": 78,
-    "Paragon": 78,
-    "goodness": 78,
-    "Ching": 78,
-    "Rover": 78
+    "Sha": 142,
+    "thank": 142,
+    "Paragon": 142,
+    "goodness": 142,
+    "Ching": 142,
+    "Rover": 142
    },
    "unc_ref_tokens": {},
    "first": "2026-10-05",
@@ -3458,11 +3446,11 @@
     ]
    ],
    "ref_tokens": {
-    "Mongjjo's": 78,
-    "intendant": 78,
-    "said": 78,
-    "she's": 78,
-    "She": 78
+    "Mongjjo's": 142,
+    "intendant": 142,
+    "said": 142,
+    "she's": 142,
+    "She": 142
    },
    "unc_ref_tokens": {},
    "first": "2026-10-05",
@@ -3503,16 +3491,16 @@
     ]
    ],
    "ref_tokens": {
-    "Mongjjo's": 1638,
-    "intendant": 1638,
-    "said": 1638,
-    "she's": 1638,
-    "She": 1638
+    "Mongjjo's": 2982,
+    "intendant": 2982,
+    "said": 2982,
+    "she's": 2982,
+    "She": 2982
    },
    "unc_ref_tokens": {
-    "intendant": 819,
-    "Affairs": 819,
-    "Sentinel": 819
+    "intendant": 1491,
+    "Affairs": 1491,
+    "Sentinel": 1491
    },
    "first": "2026-10-05",
    "last": "2026-10-05",
@@ -3555,18 +3543,18 @@
     ]
    ],
    "ref_tokens": {
-    "must": 1638,
-    "paragon": 1638,
-    "Shwang": 1638,
-    "You": 1638,
-    "the": 1638
+    "must": 2982,
+    "paragon": 2982,
+    "Shwang": 2982,
+    "You": 2982,
+    "the": 2982
    },
    "unc_ref_tokens": {
-    "Shwangf": 819,
-    "people": 819,
-    "the": 819,
-    "wanted": 819,
-    "with": 819
+    "Shwangf": 1491,
+    "people": 1491,
+    "the": 1491,
+    "wanted": 1491,
+    "with": 1491
    },
    "first": "2026-10-05",
    "last": "2026-10-05",
@@ -3609,11 +3597,11 @@
     ]
    ],
    "ref_tokens": {
-    "lady": 78,
-    "hold": 78,
-    "this": 78,
-    "and": 78,
-    "Shwungfang": 78
+    "lady": 142,
+    "hold": 142,
+    "this": 142,
+    "and": 142,
+    "Shwungfang": 142
    },
    "unc_ref_tokens": {},
    "first": "2026-10-05",
@@ -3661,12 +3649,12 @@
     ]
    ],
    "ref_tokens": {
-    "this": 195,
-    "know": 195,
-    "You": 195,
-    "Sanctum": 195,
-    "Sentinel": 195,
-    "the": 195
+    "this": 355,
+    "know": 355,
+    "You": 355,
+    "Sanctum": 355,
+    "Sentinel": 355,
+    "the": 355
    },
    "unc_ref_tokens": {},
    "first": "2026-10-05",
@@ -3707,9 +3695,9 @@
     ]
    ],
    "ref_tokens": {
-    "Sha": 78,
-    "Ching": 78,
-    "Paragon": 78
+    "Sha": 142,
+    "Ching": 142,
+    "Paragon": 142
    },
    "unc_ref_tokens": {},
    "first": "2026-10-05",
@@ -3768,13 +3756,13 @@
     ]
    ],
    "ref_tokens": {
-    "rules": 78,
-    "The": 78,
-    "you": 78,
-    "Ministry": 78,
-    "Wars": 78,
-    "say": 78,
-    "still": 78
+    "rules": 142,
+    "The": 142,
+    "you": 142,
+    "Ministry": 142,
+    "Wars": 142,
+    "say": 142,
+    "still": 142
    },
    "unc_ref_tokens": {},
    "first": "2026-10-05",
@@ -3843,11 +3831,11 @@
     ]
    ],
    "ref_tokens": {
-    "trip": 78,
-    "Next": 78,
-    "climbing": 78,
-    "Sheen": 78,
-    "Mountain": 78
+    "trip": 142,
+    "Next": 142,
+    "climbing": 142,
+    "Sheen": 142,
+    "Mountain": 142
    },
    "unc_ref_tokens": {},
    "first": "2026-10-05",
@@ -3929,33 +3917,33 @@
     ]
    ],
    "ref_tokens": {
-    "Sante": 9828,
-    "Artisans": 3276,
-    "the": 9009,
-    "court": 6552,
-    "agreed": 3276,
-    "that": 3276,
-    "Court": 3276,
-    "and": 3276,
-    "Sheen": 3276,
-    "built": 819,
-    "The": 819,
-    "pact": 819,
-    "with": 819,
-    "True": 819,
-    "those": 819,
-    "satellites": 819
+    "Sante": 17892,
+    "Artisans": 5964,
+    "the": 16401,
+    "court": 11928,
+    "agreed": 5964,
+    "that": 5964,
+    "Court": 5964,
+    "and": 5964,
+    "Sheen": 5964,
+    "built": 1491,
+    "The": 1491,
+    "pact": 1491,
+    "with": 1491,
+    "True": 1491,
+    "those": 1491,
+    "satellites": 1491
    },
    "unc_ref_tokens": {
-    "Sante": 13104,
-    "more": 3276,
-    "the": 9828,
-    "court": 13104,
-    "The": 3276,
-    "pact": 3276,
-    "True": 3276,
-    "with": 3276,
-    "satellites": 3276
+    "Sante": 23856,
+    "more": 5964,
+    "the": 17892,
+    "court": 23856,
+    "The": 5964,
+    "pact": 5964,
+    "True": 5964,
+    "with": 5964,
+    "satellites": 5964
    },
    "first": "2026-10-05",
    "last": "2026-10-05",
@@ -3998,10 +3986,10 @@
     ]
    ],
    "ref_tokens": {
-    "nexus": 78,
-    "simulator": 78,
-    "the": 78,
-    "handle": 78
+    "nexus": 142,
+    "simulator": 142,
+    "the": 142,
+    "handle": 142
    },
    "unc_ref_tokens": {},
    "first": "2026-10-05",
@@ -4062,20 +4050,20 @@
     ]
    ],
    "ref_tokens": {
-    "answer": 1265789816163808266240,
-    "know": 1265789816163808266240,
-    "best": 1265789816163808266240,
-    "Arbita": 1265789816163808266240,
-    "I'll": 1265789816163808266240,
-    "tell": 1265789816163808266240,
-    "Abiter": 1582237270204760332800,
-    "yours": 1265789816163808266240,
-    "that": 1265789816163808266240,
-    "plan": 1265789816163808266240,
-    "The": 316447454040952066560,
-    "look": 316447454040952066560,
-    "celebrations": 316447454040952066560,
-    "are": 316447454040952066560
+    "answer": 2304386588400779151360,
+    "know": 2304386588400779151360,
+    "best": 2304386588400779151360,
+    "Arbita": 2304386588400779151360,
+    "I'll": 2304386588400779151360,
+    "tell": 2304386588400779151360,
+    "Abiter": 2880483235500973939200,
+    "yours": 2304386588400779151360,
+    "that": 2304386588400779151360,
+    "plan": 2304386588400779151360,
+    "The": 576096647100194787840,
+    "look": 576096647100194787840,
+    "celebrations": 576096647100194787840,
+    "are": 576096647100194787840
    },
    "unc_ref_tokens": {},
    "first": "2026-10-05",
@@ -4123,13 +4111,13 @@
     ]
    ],
    "ref_tokens": {
-    "Even": 195,
-    "Shin's": 195,
-    "Lady": 195,
-    "have": 195,
-    "seen": 195,
-    "not": 195,
-    "true": 195
+    "Even": 355,
+    "Shin's": 355,
+    "Lady": 355,
+    "have": 355,
+    "seen": 355,
+    "not": 355,
+    "true": 355
    },
    "unc_ref_tokens": {},
    "first": "2026-10-05",
@@ -4206,16 +4194,16 @@
     ]
    ],
    "ref_tokens": {
-    "land": 156,
-    "Schwanfang": 156,
-    "the": 156,
-    "safe": 156,
-    "still": 156,
-    "but": 39,
-    "Schwanfang's": 39,
-    "culture": 39,
-    "history": 39,
-    "and": 39
+    "land": 284,
+    "Schwanfang": 284,
+    "the": 284,
+    "safe": 284,
+    "still": 284,
+    "but": 71,
+    "Schwanfang's": 71,
+    "culture": 71,
+    "history": 71,
+    "and": 71
    },
    "unc_ref_tokens": {},
    "first": "2026-10-05",
@@ -4292,10 +4280,10 @@
     ]
    ],
    "ref_tokens": {
-    "Lady": 195,
-    "Shin's": 195,
-    "held": 195,
-    "Everything": 195
+    "Lady": 355,
+    "Shin's": 355,
+    "held": 355,
+    "Everything": 355
    },
    "unc_ref_tokens": {},
    "first": "2026-10-05",
@@ -4336,13 +4324,13 @@
     ]
    ],
    "ref_tokens": {
-    "Aby's": 78,
-    "Why": 78,
-    "giving": 78,
-    "nasty": 78,
-    "side": 78,
-    "Abby": 78,
-    "does": 78
+    "Aby's": 142,
+    "Why": 142,
+    "giving": 142,
+    "nasty": 142,
+    "side": 142,
+    "Abby": 142,
+    "does": 142
    },
    "unc_ref_tokens": {},
    "first": "2026-10-05",
@@ -4383,11 +4371,11 @@
     ]
    ],
    "ref_tokens": {
-    "warden": 78,
-    "He's": 78,
-    "guarding": 78,
-    "the": 78,
-    "schwan": 78
+    "warden": 142,
+    "He's": 142,
+    "guarding": 142,
+    "the": 142,
+    "schwan": 142
    },
    "unc_ref_tokens": {},
    "first": "2026-10-05",
@@ -4484,46 +4472,46 @@
     ]
    ],
    "ref_tokens": {
-    "one": 4095,
-    "seal": 4095,
-    "just": 3276,
-    "that": 3276,
-    "will": 3276,
-    "call": 3276,
-    "you": 3276,
-    "ever": 3276,
-    "were": 819,
-    "And": 819,
-    "called": 819,
-    "proud": 819,
-    "the": 2457,
-    "fallen": 819,
-    "for": 819,
-    "Nine": 819,
-    "seals": 1638,
-    "and": 819,
-    "boss": 819,
-    "Seal": 819,
-    "sister": 819,
-    "swaming": 819,
-    "master": 819,
-    "was": 819,
-    "obsession": 819,
-    "your": 819,
-    "with": 819
+    "one": 7455,
+    "seal": 7455,
+    "just": 5964,
+    "that": 5964,
+    "will": 5964,
+    "call": 5964,
+    "you": 5964,
+    "ever": 5964,
+    "were": 1491,
+    "And": 1491,
+    "called": 1491,
+    "proud": 1491,
+    "the": 4473,
+    "fallen": 1491,
+    "for": 1491,
+    "Nine": 1491,
+    "seals": 2982,
+    "and": 1491,
+    "boss": 1491,
+    "Seal": 1491,
+    "sister": 1491,
+    "swaming": 1491,
+    "master": 1491,
+    "was": 1491,
+    "obsession": 1491,
+    "your": 1491,
+    "with": 1491
    },
    "unc_ref_tokens": {
-    "fallen": 1638,
-    "Nine": 1638,
-    "seals": 3276,
-    "one": 1638,
-    "and": 1638,
-    "the": 3276,
-    "for": 1638,
-    "was": 1638,
-    "with": 1638,
-    "obsession": 1638,
-    "your": 1638
+    "fallen": 2982,
+    "Nine": 2982,
+    "seals": 5964,
+    "one": 2982,
+    "and": 2982,
+    "the": 5964,
+    "for": 2982,
+    "was": 2982,
+    "with": 2982,
+    "obsession": 2982,
+    "your": 2982
    },
    "first": "2026-10-05",
    "last": "2026-10-05",
@@ -4566,11 +4554,11 @@
     ]
    ],
    "ref_tokens": {
-    "Even": 78,
-    "when": 78,
-    "discords": 78,
-    "cornered": 78,
-    "tacit": 78
+    "Even": 142,
+    "when": 142,
+    "discords": 142,
+    "cornered": 142,
+    "tacit": 142
    },
    "unc_ref_tokens": {},
    "first": "2026-10-05",
@@ -4611,13 +4599,13 @@
     ]
    ],
    "ref_tokens": {
-    "from": 78,
-    "discord": 78,
-    "away": 78,
-    "move": 78,
-    "tacet": 78,
-    "and": 78,
-    "the": 78
+    "from": 142,
+    "discord": 142,
+    "away": 142,
+    "move": 142,
+    "tacet": 142,
+    "and": 142,
+    "the": 142
    },
    "unc_ref_tokens": {},
    "first": "2026-10-05",
@@ -4658,11 +4646,11 @@
     ]
    ],
    "ref_tokens": {
-    "tell": 78,
-    "civilian": 78,
-    "Shenling": 78,
-    "everyone": 78,
-    "the": 78
+    "tell": 142,
+    "civilian": 142,
+    "Shenling": 142,
+    "everyone": 142,
+    "the": 142
    },
    "unc_ref_tokens": {},
    "first": "2026-10-05",
@@ -4717,28 +4705,28 @@
     ]
    ],
    "ref_tokens": {
-    "Once": 3276,
-    "Shanfang": 4914,
-    "falls": 3276,
-    "becomes": 3276,
-    "all": 3276,
-    "Hold": 1638,
-    "Build": 819,
-    "but": 819,
-    "have": 819,
-    "peace": 819,
-    "forever": 819
+    "Once": 5964,
+    "Shanfang": 8946,
+    "falls": 5964,
+    "becomes": 5964,
+    "all": 5964,
+    "Hold": 2982,
+    "Build": 1491,
+    "but": 1491,
+    "have": 1491,
+    "peace": 1491,
+    "forever": 1491
    },
    "unc_ref_tokens": {
-    "struggle": 1638,
-    "hold": 3276,
-    "Shanfang": 5733,
-    "took": 1638,
-    "our": 1638,
-    "Build": 1638,
-    "future": 2457,
-    "Please": 2457,
-    "for": 2457
+    "struggle": 2982,
+    "hold": 5964,
+    "Shanfang": 10437,
+    "took": 2982,
+    "our": 2982,
+    "Build": 2982,
+    "future": 4473,
+    "Please": 4473,
+    "for": 4473
    },
    "first": "2026-10-05",
    "last": "2026-10-05",
@@ -4788,11 +4776,11 @@
     ]
    ],
    "ref_tokens": {
-    "Hold": 195,
-    "matters": 195,
-    "Shrenfong": 195,
-    "more": 195,
-    "what": 195
+    "Hold": 355,
+    "matters": 355,
+    "Shrenfong": 355,
+    "more": 355,
+    "what": 355
    },
    "unc_ref_tokens": {},
    "first": "2026-10-05",
@@ -4840,15 +4828,15 @@
     ]
    ],
    "ref_tokens": {
-    "want": 1265789816163808266240,
-    "Mongjo": 1265789816163808266240,
-    "have": 316447454040952066560,
-    "dark": 316447454040952066560,
-    "The": 316447454040952066560,
-    "yet": 316447454040952066560,
-    "currents": 316447454040952066560,
-    "Mong": 316447454040952066560,
-    "Joe": 316447454040952066560
+    "want": 2304386588400779151360,
+    "Mongjo": 2304386588400779151360,
+    "have": 576096647100194787840,
+    "dark": 576096647100194787840,
+    "The": 576096647100194787840,
+    "yet": 576096647100194787840,
+    "currents": 576096647100194787840,
+    "Mong": 576096647100194787840,
+    "Joe": 576096647100194787840
    },
    "unc_ref_tokens": {},
    "first": "2026-10-05",
@@ -4902,13 +4890,13 @@
     ]
    ],
    "ref_tokens": {
-    "Fox": 156,
-    "Moon": 156,
-    "the": 156,
-    "Sentinel": 156,
-    "Sheen": 156,
-    "has": 78,
-    "come": 78
+    "Fox": 284,
+    "Moon": 284,
+    "the": 284,
+    "Sentinel": 284,
+    "Sheen": 284,
+    "has": 142,
+    "come": 142
    },
    "unc_ref_tokens": {},
    "first": "2026-10-05",
@@ -4975,122 +4963,122 @@
     ]
    ],
    "ref_tokens": {
-    "nexus": 68796,
-    "Sun": 22932,
-    "within": 22932,
-    "simulacum": 22932,
-    "turmoil": 22932,
-    "the": 45864,
-    "entrance": 22932,
-    "simulacrim": 22932
+    "nexus": 125244,
+    "Sun": 41748,
+    "within": 41748,
+    "simulacum": 41748,
+    "turmoil": 41748,
+    "the": 83496,
+    "entrance": 41748,
+    "simulacrim": 41748
    },
    "unc_ref_tokens": {
-    "Never": 108927,
-    "mind": 166257,
-    "music": 22932,
-    "never": 57330,
-    "Just": 22932,
-    "nexus": 108927,
-    "outside": 28665,
-    "simulacrim": 85995,
-    "the": 171990,
-    "far": 22932,
-    "It's": 74529,
-    "We're": 28665,
-    "right": 85995,
-    "used": 28665,
-    "all": 85995,
-    "Sorry": 28665,
-    "remolding": 22932,
-    "lush": 22932,
-    "into": 22932,
-    "fate": 22932,
-    "Foresee": 22932,
-    "Face": 22932,
-    "abyss": 22932,
-    "back": 22932,
-    "way": 22932,
-    "matter": 34398,
-    "there's": 22932,
-    "wonders": 22932,
-    "holds": 22932,
-    "truly": 22932,
-    "Evacuate": 28665,
-    "front": 28665,
-    "horse": 22932,
-    "This": 22932,
-    "stuck": 22932,
-    "was": 22932,
-    "it's": 51597,
-    "okay": 53235,
-    "honestly": 22932,
-    "dying": 22932,
-    "That's": 45864,
-    "and": 11466,
-    "relationship": 57330,
-    "budding": 11466,
-    "loving": 11466,
-    "with": 22932,
-    "him": 11466,
-    "can": 11466,
-    "where": 11466,
-    "down": 11466,
-    "first": 11466,
-    "cools": 11466,
-    "grows": 11466,
-    "has": 11466,
-    "Shouhus": 11466,
-    "Look": 11466,
-    "Building": 11466,
-    "normal": 11466,
-    "will": 11466,
-    "already": 11466,
-    "can't": 11466,
-    "who's": 11466,
-    "guy": 11466,
-    "for": 5733,
-    "stream": 5733,
-    "stay": 5733,
-    "Can't": 5733,
-    "day": 5733,
-    "have": 5733,
-    "From": 5733,
-    "met": 5733,
-    "fine": 34398,
-    "between": 5733,
-    "dynamic": 5733,
-    "play": 5733,
-    "obviously": 5733,
-    "that": 11466,
-    "She": 5733,
-    "she": 5733,
-    "does": 5733,
-    "doesn't": 5733,
-    "maybe": 5733,
-    "this": 5733,
-    "that's": 5733,
-    "Okay": 11466,
-    "like": 11466,
-    "fix": 5733,
-    "Let": 5733,
-    "portals": 5733,
-    "heart": 5733,
-    "think": 5733,
-    "miss": 5733,
-    "Guys": 5733,
-    "pops": 5733,
-    "something": 5733,
-    "sec": 5733,
-    "One": 5733,
-    "Wind": 5733,
-    "Guide": 5733,
-    "accept": 5733,
-    "scene": 5733,
-    "I'll": 5733,
-    "cut": 5733,
-    "entrance": 5733,
-    "always": 5733,
-    "comfort": 5733
+    "Never": 198303,
+    "mind": 302673,
+    "music": 41748,
+    "never": 104370,
+    "Just": 41748,
+    "nexus": 198303,
+    "outside": 52185,
+    "simulacrim": 156555,
+    "the": 313110,
+    "far": 41748,
+    "It's": 135681,
+    "We're": 52185,
+    "right": 156555,
+    "used": 52185,
+    "all": 156555,
+    "Sorry": 52185,
+    "remolding": 41748,
+    "lush": 41748,
+    "into": 41748,
+    "fate": 41748,
+    "Foresee": 41748,
+    "Face": 41748,
+    "abyss": 41748,
+    "back": 41748,
+    "way": 41748,
+    "matter": 62622,
+    "there's": 41748,
+    "wonders": 41748,
+    "holds": 41748,
+    "truly": 41748,
+    "Evacuate": 52185,
+    "front": 52185,
+    "horse": 41748,
+    "This": 41748,
+    "stuck": 41748,
+    "was": 41748,
+    "it's": 93933,
+    "okay": 96915,
+    "honestly": 41748,
+    "dying": 41748,
+    "That's": 83496,
+    "and": 20874,
+    "relationship": 104370,
+    "budding": 20874,
+    "loving": 20874,
+    "with": 41748,
+    "him": 20874,
+    "can": 20874,
+    "where": 20874,
+    "down": 20874,
+    "first": 20874,
+    "cools": 20874,
+    "grows": 20874,
+    "has": 20874,
+    "Shouhus": 20874,
+    "Look": 20874,
+    "Building": 20874,
+    "normal": 20874,
+    "will": 20874,
+    "already": 20874,
+    "can't": 20874,
+    "who's": 20874,
+    "guy": 20874,
+    "for": 10437,
+    "stream": 10437,
+    "stay": 10437,
+    "Can't": 10437,
+    "day": 10437,
+    "have": 10437,
+    "From": 10437,
+    "met": 10437,
+    "fine": 62622,
+    "between": 10437,
+    "dynamic": 10437,
+    "play": 10437,
+    "obviously": 10437,
+    "that": 20874,
+    "She": 10437,
+    "she": 10437,
+    "does": 10437,
+    "doesn't": 10437,
+    "maybe": 10437,
+    "this": 10437,
+    "that's": 10437,
+    "Okay": 20874,
+    "like": 20874,
+    "fix": 10437,
+    "Let": 10437,
+    "portals": 10437,
+    "heart": 10437,
+    "think": 10437,
+    "miss": 10437,
+    "Guys": 10437,
+    "pops": 10437,
+    "something": 10437,
+    "sec": 10437,
+    "One": 10437,
+    "Wind": 10437,
+    "Guide": 10437,
+    "accept": 10437,
+    "scene": 10437,
+    "I'll": 10437,
+    "cut": 10437,
+    "entrance": 10437,
+    "always": 10437,
+    "comfort": 10437
    },
    "first": "2026-10-05",
    "last": "2026-10-05",
@@ -5133,12 +5121,12 @@
     ]
    ],
    "ref_tokens": {
-    "Sha": 78,
-    "countless": 78,
-    "summon": 78,
-    "Paragon": 78,
-    "Ching": 78,
-    "can": 78
+    "Sha": 142,
+    "countless": 142,
+    "summon": 142,
+    "Paragon": 142,
+    "Ching": 142,
+    "can": 142
    },
    "unc_ref_tokens": {},
    "first": "2026-10-05",
@@ -5181,13 +5169,13 @@
     ]
    ],
    "ref_tokens": {
-    "this": 134,
-    "sick": 134,
-    "This": 38,
-    "glasses": 38,
-    "sickest": 38,
-    "the": 38,
-    "world": 38
+    "this": 240,
+    "sick": 240,
+    "This": 68,
+    "glasses": 68,
+    "sickest": 68,
+    "the": 68,
+    "world": 68
    },
    "unc_ref_tokens": {},
    "first": "2026-10-05",
@@ -5281,23 +5269,23 @@
     ]
    ],
    "ref_tokens": {
-    "across": 1582237270204760332800,
-    "began": 1582237270204760332800,
-    "Mango": 2848027086368568599040,
-    "spreading": 1582237270204760332800,
-    "miasma": 1582237270204760332800,
-    "over": 316447454040952066560,
-    "excuse": 316447454040952066560,
-    "And": 316447454040952066560,
-    "then": 316447454040952066560,
-    "Joe": 316447454040952066560,
-    "Act": 316447454040952066560,
-    "Chapter": 316447454040952066560,
-    "corruption": 316447454040952066560,
-    "Shao": 316447454040952066560,
-    "young": 316447454040952066560,
-    "Chin": 316447454040952066560,
-    "mean": 316447454040952066560
+    "across": 2880483235500973939200,
+    "began": 2880483235500973939200,
+    "Mango": 5184869823901753090560,
+    "spreading": 2880483235500973939200,
+    "miasma": 2880483235500973939200,
+    "over": 576096647100194787840,
+    "excuse": 576096647100194787840,
+    "And": 576096647100194787840,
+    "then": 576096647100194787840,
+    "Joe": 576096647100194787840,
+    "Act": 576096647100194787840,
+    "Chapter": 576096647100194787840,
+    "corruption": 576096647100194787840,
+    "Shao": 576096647100194787840,
+    "young": 576096647100194787840,
+    "Chin": 576096647100194787840,
+    "mean": 576096647100194787840
    },
    "unc_ref_tokens": {},
    "first": "2026-10-05",
@@ -5372,14 +5360,14 @@
     ]
    ],
    "ref_tokens": {
-    "Swaming": 1265789816163808266240,
-    "sharing": 1265789816163808266240,
-    "you": 1265789816163808266240,
-    "Thank": 1265789816163808266240,
-    "for": 1265789816163808266240,
-    "that's": 316447454040952066560,
-    "Swaming's": 316447454040952066560,
-    "Wait": 316447454040952066560
+    "Swaming": 2304386588400779151360,
+    "sharing": 2304386588400779151360,
+    "you": 2304386588400779151360,
+    "Thank": 2304386588400779151360,
+    "for": 2304386588400779151360,
+    "that's": 576096647100194787840,
+    "Swaming's": 576096647100194787840,
+    "Wait": 576096647100194787840
    },
    "unc_ref_tokens": {},
    "first": "2026-10-05",
@@ -5420,13 +5408,13 @@
     ]
    ],
    "ref_tokens": {
-    "Shenfong": 78,
-    "Hold": 78,
-    "able": 78,
-    "And": 78,
-    "and": 78,
-    "were": 78,
-    "Mongjo": 78
+    "Shenfong": 142,
+    "Hold": 142,
+    "able": 142,
+    "And": 142,
+    "and": 142,
+    "were": 142,
+    "Mongjo": 142
    },
    "unc_ref_tokens": {},
    "first": "2026-10-05",
@@ -5489,46 +5477,46 @@
     ]
    ],
    "ref_tokens": {
-    "Shanfong": 234,
-    "arrived": 195,
-    "somewhere": 156,
-    "land": 156,
-    "Fong": 195,
-    "the": 195,
-    "Shan": 195,
-    "later": 156,
-    "celestial": 39,
-    "tow": 39,
-    "with": 39,
-    "city": 39,
-    "that": 39,
-    "realize": 39,
-    "You": 39,
-    "faster": 39
+    "Shanfong": 426,
+    "arrived": 355,
+    "somewhere": 284,
+    "land": 284,
+    "Fong": 355,
+    "the": 355,
+    "Shan": 355,
+    "later": 284,
+    "celestial": 71,
+    "tow": 71,
+    "with": 71,
+    "city": 71,
+    "that": 71,
+    "realize": 71,
+    "You": 71,
+    "faster": 71
    },
    "unc_ref_tokens": {
-    "Hold": 78,
-    "fulfills": 78,
-    "Shanfong": 234,
-    "mission": 78,
-    "its": 78,
-    "You": 78,
-    "realize": 78,
-    "that": 78,
-    "faster": 78,
-    "the": 78,
-    "fate": 78,
-    "This": 78,
-    "determines": 78,
-    "Shanfong's": 78,
-    "battle": 78,
-    "completion": 78,
-    "Hold's": 78,
-    "thundering": 39,
-    "rain": 39,
-    "Seal": 39,
-    "evil": 39,
-    "peaks": 39
+    "Hold": 142,
+    "fulfills": 142,
+    "Shanfong": 426,
+    "mission": 142,
+    "its": 142,
+    "You": 142,
+    "realize": 142,
+    "that": 142,
+    "faster": 142,
+    "the": 142,
+    "fate": 142,
+    "This": 142,
+    "determines": 142,
+    "Shanfong's": 142,
+    "battle": 142,
+    "completion": 142,
+    "Hold's": 142,
+    "thundering": 71,
+    "rain": 71,
+    "Seal": 71,
+    "evil": 71,
+    "peaks": 71
    },
    "first": "2026-10-05",
    "last": "2026-10-05",
@@ -5573,70 +5561,70 @@
     ]
    ],
    "ref_tokens": {
-    "Shwang": 7644
+    "Shwang": 13916
    },
    "unc_ref_tokens": {
-    "death": 129948,
-    "separated": 9555,
-    "had": 19110,
-    "thought": 9555,
-    "and": 21021,
-    "the": 9555,
-    "life": 11466,
-    "cost": 9555,
-    "since": 9555,
-    "ever": 9555,
-    "acceptable": 9555,
-    "merely": 9555,
-    "them": 9555,
-    "now": 7644,
-    "even": 17199,
-    "Not": 7644,
-    "your": 19110,
-    "Accept": 7644,
-    "have": 9555,
-    "Fighting": 9555,
-    "start": 9555,
-    "Waiting": 9555,
-    "Even": 19110,
-    "must": 9555,
-    "innocence": 9555,
-    "you": 19110,
-    "awaits": 9555,
-    "way": 9555,
-    "either": 9555,
-    "its": 9555,
-    "caused": 9555,
-    "afraid": 9555,
-    "yet": 9555,
-    "You": 9555,
-    "aren't": 9555,
-    "fear": 9555,
-    "was": 7644,
-    "The": 9555,
-    "cool": 7644,
-    "that": 11466,
-    "She": 7644,
-    "very": 7644,
-    "for": 7644,
-    "games": 1911,
-    "let's": 1911,
-    "deaths": 1911,
-    "enjoy": 1911,
-    "video": 1911,
-    "resonator's": 1911,
-    "accept": 1911,
-    "concepts": 1911,
-    "lived": 1911,
-    "typically": 1911,
-    "doesn't": 1911,
-    "around": 1911,
-    "massive": 1911,
-    "Sentinel": 1911,
-    "sadness": 1911,
-    "spite": 1911,
-    "kind": 1092,
-    "related": 1092
+    "death": 236572,
+    "separated": 17395,
+    "had": 34790,
+    "thought": 17395,
+    "and": 38269,
+    "the": 17395,
+    "life": 20874,
+    "cost": 17395,
+    "since": 17395,
+    "ever": 17395,
+    "acceptable": 17395,
+    "merely": 17395,
+    "them": 17395,
+    "now": 13916,
+    "even": 31311,
+    "Not": 13916,
+    "your": 34790,
+    "Accept": 13916,
+    "have": 17395,
+    "Fighting": 17395,
+    "start": 17395,
+    "Waiting": 17395,
+    "Even": 34790,
+    "must": 17395,
+    "innocence": 17395,
+    "you": 34790,
+    "awaits": 17395,
+    "way": 17395,
+    "either": 17395,
+    "its": 17395,
+    "caused": 17395,
+    "afraid": 17395,
+    "yet": 17395,
+    "You": 17395,
+    "aren't": 17395,
+    "fear": 17395,
+    "was": 13916,
+    "The": 17395,
+    "cool": 13916,
+    "that": 20874,
+    "She": 13916,
+    "very": 13916,
+    "for": 13916,
+    "games": 3479,
+    "let's": 3479,
+    "deaths": 3479,
+    "enjoy": 3479,
+    "video": 3479,
+    "resonator's": 3479,
+    "accept": 3479,
+    "concepts": 3479,
+    "lived": 3479,
+    "typically": 3479,
+    "doesn't": 3479,
+    "around": 3479,
+    "massive": 3479,
+    "Sentinel": 3479,
+    "sadness": 3479,
+    "spite": 3479,
+    "kind": 1988,
+    "related": 1988
    },
    "first": "2026-10-05",
    "last": "2026-10-05",
@@ -5679,12 +5667,12 @@
     ]
    ],
    "ref_tokens": {
-    "Swarming": 78,
-    "Little": 78,
-    "were": 78,
-    "quite": 78,
-    "party": 78,
-    "for": 78
+    "Swarming": 142,
+    "Little": 142,
+    "were": 142,
+    "quite": 142,
+    "party": 142,
+    "for": 142
    },
    "unc_ref_tokens": {},
    "first": "2026-10-05",
@@ -6721,8 +6709,8 @@
    "samples": [],
    "ref_tokens": {},
    "unc_ref_tokens": {
-    "Aka": 1085370,
-    "Arth": 1085370
+    "Aka": 1943370,
+    "Arth": 1943370
    },
    "first": "2026-10-05",
    "last": "2026-11-27",
@@ -6761,11 +6749,11 @@
     ]
    ],
    "ref_tokens": {
-    "allow": 819,
-    "ships": 819,
-    "Cardigan": 819,
-    "person": 819,
-    "this": 819
+    "allow": 1491,
+    "ships": 1491,
+    "Cardigan": 1491,
+    "person": 1491,
+    "this": 1491
    },
    "unc_ref_tokens": {},
    "first": "2026-10-05",
@@ -6800,12 +6788,12 @@
     ]
    ],
    "ref_tokens": {
-    "they": 819,
-    "and": 819,
-    "Cardigan": 819,
-    "Steward": 819,
-    "not": 819,
-    "I've": 819
+    "they": 1491,
+    "and": 1491,
+    "Cardigan": 1491,
+    "Steward": 1491,
+    "not": 1491,
+    "I've": 1491
    },
    "unc_ref_tokens": {},
    "first": "2026-10-05",
@@ -6840,10 +6828,10 @@
     ]
    ],
    "ref_tokens": {
-    "Bison": 819,
-    "will": 819,
-    "Alter": 819,
-    "very": 819
+    "Bison": 1491,
+    "will": 1491,
+    "Alter": 1491,
+    "very": 1491
    },
    "unc_ref_tokens": {},
    "first": "2026-10-05",
@@ -6878,10 +6866,10 @@
     ]
    ],
    "ref_tokens": {
-    "Bison": 819,
-    "will": 819,
-    "Alter": 819,
-    "very": 819
+    "Bison": 1491,
+    "will": 1491,
+    "Alter": 1491,
+    "very": 1491
    },
    "unc_ref_tokens": {},
    "first": "2026-10-05",
@@ -6916,11 +6904,11 @@
     ]
    ],
    "ref_tokens": {
-    "have": 819,
-    "teased": 819,
-    "and": 819,
-    "alter": 819,
-    "been": 819
+    "have": 1491,
+    "teased": 1491,
+    "and": 1491,
+    "alter": 1491,
+    "been": 1491
    },
    "unc_ref_tokens": {},
    "first": "2026-10-05",
@@ -6955,10 +6943,10 @@
     ]
    ],
    "ref_tokens": {
-    "Metahorn's": 819,
-    "because": 819,
-    "Metal": 819,
-    "cook": 819
+    "Metahorn's": 1491,
+    "because": 1491,
+    "Metal": 1491,
+    "cook": 1491
    },
    "unc_ref_tokens": {},
    "first": "2026-10-05",
@@ -7051,12 +7039,12 @@
     ]
    ],
    "ref_tokens": {
-    "now": 819,
-    "the": 819,
-    "what": 819,
-    "Siesta": 819,
-    "mayor": 819,
-    "from": 819
+    "now": 1491,
+    "the": 1491,
+    "what": 1491,
+    "Siesta": 1491,
+    "mayor": 1491,
+    "from": 1491
    },
    "unc_ref_tokens": {},
    "first": "2026-10-05",
@@ -7092,10 +7080,10 @@
     ]
    ],
    "ref_tokens": {
-    "Siesta": 39,
-    "That's": 39,
-    "one": 39,
-    "understand": 39
+    "Siesta": 71,
+    "That's": 71,
+    "one": 71,
+    "understand": 71
    },
    "unc_ref_tokens": {},
    "first": "2026-10-05",
@@ -7130,12 +7118,12 @@
     ]
    ],
    "ref_tokens": {
-    "they": 5733,
-    "Are": 5733,
-    "crime": 5733,
-    "say": 5733,
-    "going": 5733,
-    "Mizuki": 5733
+    "they": 10437,
+    "Are": 10437,
+    "crime": 10437,
+    "say": 10437,
+    "going": 10437,
+    "Mizuki": 10437
    },
    "unc_ref_tokens": {},
    "first": "2026-10-05",
@@ -7173,11 +7161,11 @@
     ]
    ],
    "ref_tokens": {
-    "years": 819,
-    "can't": 819,
-    "beat": 819,
-    "Vigil": 819,
-    "several": 819
+    "years": 1491,
+    "can't": 1491,
+    "beat": 1491,
+    "Vigil": 1491,
+    "several": 1491
    },
    "unc_ref_tokens": {},
    "first": "2026-10-05",
@@ -7212,12 +7200,12 @@
     ]
    ],
    "ref_tokens": {
-    "big": 819,
-    "Keltz": 819,
-    "don't": 819,
-    "fan": 819,
-    "It's": 819,
-    "clingy": 819
+    "big": 1491,
+    "Keltz": 1491,
+    "don't": 1491,
+    "fan": 1491,
+    "It's": 1491,
+    "clingy": 1491
    },
    "unc_ref_tokens": {},
    "first": "2026-10-05",
@@ -7252,12 +7240,12 @@
     ]
    ],
    "ref_tokens": {
-    "with": 819,
-    "insider": 819,
-    "why": 819,
-    "votes": 819,
-    "Why": 819,
-    "many": 819
+    "with": 1491,
+    "insider": 1491,
+    "why": 1491,
+    "votes": 1491,
+    "Why": 1491,
+    "many": 1491
    },
    "unc_ref_tokens": {},
    "first": "2026-10-05",
@@ -7292,11 +7280,11 @@
     ]
    ],
    "ref_tokens": {
-    "way": 819,
-    "the": 819,
-    "same": 819,
-    "Insider's": 819,
-    "thing": 819
+    "way": 1491,
+    "the": 1491,
+    "same": 1491,
+    "Insider's": 1491,
+    "thing": 1491
    },
    "unc_ref_tokens": {},
    "first": "2026-10-05",
@@ -7331,21 +7319,21 @@
     ]
    ],
    "ref_tokens": {
-    "His": 91862807808681,
-    "with": 91862807808681,
-    "mom": 91862807808681,
-    "him": 91862807808681,
-    "diabetic": 91862807808681,
-    "Logos": 91862807808681
+    "His": 167237419344009,
+    "with": 167237419344009,
+    "mom": 167237419344009,
+    "him": 167237419344009,
+    "diabetic": 167237419344009,
+    "Logos": 167237419344009
    },
    "unc_ref_tokens": {
-    "the": 92043274910886,
-    "sign": 91862807808681,
-    "that's": 91862807808681,
-    "for": 91862807808681,
-    "like": 180467102205,
-    "logo": 180467102205,
-    "Fractious": 180467102205
+    "the": 167565962017254,
+    "sign": 167237419344009,
+    "that's": 167237419344009,
+    "for": 167237419344009,
+    "like": 328542673245,
+    "logo": 328542673245,
+    "Fractious": 328542673245
    },
    "first": "2026-10-05",
    "last": "2026-10-05",
@@ -7382,12 +7370,12 @@
     ]
    ],
    "ref_tokens": {
-    "don't": 819,
-    "know": 819,
-    "Tones": 819,
-    "out": 819,
-    "still": 819,
-    "sea": 819
+    "don't": 1491,
+    "know": 1491,
+    "Tones": 1491,
+    "out": 1491,
+    "still": 1491,
+    "sea": 1491
    },
    "unc_ref_tokens": {},
    "first": "2026-10-05",
@@ -7422,11 +7410,11 @@
     ]
    ],
    "ref_tokens": {
-    "the": 819,
-    "well": 819,
-    "Executor": 819,
-    "story": 819,
-    "please": 819
+    "the": 1491,
+    "well": 1491,
+    "Executor": 1491,
+    "story": 1491,
+    "please": 1491
    },
    "unc_ref_tokens": {},
    "first": "2026-10-05",
@@ -7464,19 +7452,19 @@
     ]
    ],
    "ref_tokens": {
-    "reckless": 819,
-    "and": 819,
-    "Wow": 819,
-    "Blaze": 819,
-    "screwed": 819
+    "reckless": 1491,
+    "and": 1491,
+    "Wow": 1491,
+    "Blaze": 1491,
+    "screwed": 1491
    },
    "unc_ref_tokens": {
-    "That": 22,
-    "Again": 22,
-    "dude": 22,
-    "Blaze": 22,
-    "respect": 22,
-    "bro": 22
+    "That": 40,
+    "Again": 40,
+    "dude": 40,
+    "Blaze": 40,
+    "respect": 40,
+    "bro": 40
    },
    "first": "2026-10-05",
    "last": "2026-10-05",
@@ -7515,11 +7503,11 @@
     ]
    ],
    "ref_tokens": {
-    "dog": 819,
-    "Way": 819,
-    "was": 819,
-    "Flamebringer": 819,
-    "done": 819
+    "dog": 1491,
+    "Way": 1491,
+    "was": 1491,
+    "Flamebringer": 1491,
+    "done": 1491
    },
    "unc_ref_tokens": {},
    "first": "2026-10-05",
@@ -7554,16 +7542,16 @@
     ]
    ],
    "ref_tokens": {
-    "Cardi": 108927,
-    "shipper": 108927,
-    "won't": 108927,
-    "him": 108927,
-    "inner": 108927,
-    "but": 108927
+    "Cardi": 198303,
+    "shipper": 198303,
+    "won't": 198303,
+    "him": 198303,
+    "inner": 198303,
+    "but": 198303
    },
    "unc_ref_tokens": {
-    "Cheer": 2145,
-    "Cardia": 2145
+    "Cheer": 3905,
+    "Cardia": 3905
    },
    "first": "2026-10-05",
    "last": "2026-10-05",
@@ -7600,11 +7588,11 @@
     ]
    ],
    "ref_tokens": {
-    "Froolova": 819,
-    "love": 819,
-    "does": 819,
-    "and": 819,
-    "Flova": 819
+    "Froolova": 1491,
+    "love": 1491,
+    "does": 1491,
+    "and": 1491,
+    "Flova": 1491
    },
    "unc_ref_tokens": {},
    "first": "2026-10-05",
@@ -7640,11 +7628,11 @@
     ]
    ],
    "ref_tokens": {
-    "have": 819,
-    "seem": 819,
-    "type": 819,
-    "alter": 819,
-    "Chameleia": 819
+    "have": 1491,
+    "seem": 1491,
+    "type": 1491,
+    "alter": 1491,
+    "Chameleia": 1491
    },
    "unc_ref_tokens": {},
    "first": "2026-10-05",
@@ -7679,11 +7667,11 @@
     ]
    ],
    "ref_tokens": {
-    "better": 819,
-    "Swarming": 819,
-    "first": 819,
-    "Intendant": 819,
-    "see": 819
+    "better": 1491,
+    "Swarming": 1491,
+    "first": 1491,
+    "Intendant": 1491,
+    "see": 1491
    },
    "unc_ref_tokens": {},
    "first": "2026-10-05",
@@ -7718,19 +7706,19 @@
     ]
    ],
    "ref_tokens": {
-    "Not": 7791,
-    "freeze": 7791,
-    "even": 7791,
-    "intended": 7791,
-    "front": 7791
+    "Not": 13524,
+    "freeze": 13524,
+    "even": 13524,
+    "intended": 13524,
+    "front": 13524
    },
    "unc_ref_tokens": {
-    "expected": 7791,
-    "what": 7791,
-    "exactly": 7791,
-    "not": 7791,
-    "exceeded": 4,
-    "expectations": 4
+    "expected": 13524,
+    "what": 13524,
+    "exactly": 13524,
+    "not": 13524,
+    "exceeded": 6,
+    "expectations": 6
    },
    "first": "2026-10-05",
    "last": "2026-10-05",
@@ -7745,8 +7733,7 @@
     }
    },
    "unc_files": {
-    "Streamers Reaction To The Lily Arc.zh.srt": 1,
-    "Streamers Reaction To The Lily Arc.calib.srt": 1
+    "__legacy__": 13
    }
   },
   "bi|圣殿": {
@@ -7811,18 +7798,18 @@
     ]
    ],
    "ref_tokens": {
-    "won't": 39,
-    "stealing": 39,
-    "kids": 39,
-    "puppets": 78,
-    "Auto": 39,
-    "who": 39,
-    "but": 39,
-    "far": 39,
-    "more": 39,
-    "auto": 39,
-    "They": 39,
-    "are": 39
+    "won't": 71,
+    "stealing": 71,
+    "kids": 71,
+    "puppets": 142,
+    "Auto": 71,
+    "who": 71,
+    "but": 71,
+    "far": 71,
+    "more": 71,
+    "auto": 71,
+    "They": 71,
+    "are": 71
    },
    "unc_ref_tokens": {},
    "first": "2026-10-05",
@@ -7857,11 +7844,11 @@
     ]
    ],
    "ref_tokens": {
-    "Schwanfunhold": 819,
-    "trail": 819,
-    "for": 819,
-    "her": 819,
-    "search": 819
+    "Schwanfunhold": 1491,
+    "trail": 1491,
+    "for": 1491,
+    "her": 1491,
+    "search": 1491
    },
    "unc_ref_tokens": {},
    "first": "2026-10-05",
@@ -7919,12 +7906,12 @@
     ]
    ],
    "ref_tokens": {
-    "Damn": 1113,
-    "bro": 1113,
-    "Paragon": 1113,
-    "Rover": 1113,
-    "Ching": 1113,
-    "Sha": 1113
+    "Damn": 1932,
+    "bro": 1932,
+    "Paragon": 1932,
+    "Rover": 1932,
+    "Ching": 1932,
+    "Sha": 1932
    },
    "unc_ref_tokens": {},
    "first": "2026-10-05",
@@ -7941,7 +7928,7 @@
    },
    "unc_files": {},
    "conflict": true,
-   "conflict_reason": "target-collides-canonical:Paragon"
+   "conflict_reason": "target-collides-canonical:漂泊者"
   },
   "bi|青沙百丽宫": {
    "wrong": "青沙百丽宫",
@@ -7962,9 +7949,9 @@
     ]
    ],
    "ref_tokens": {
-    "Ching": 819,
-    "Sha": 819,
-    "Paragon": 819
+    "Ching": 1491,
+    "Sha": 1491,
+    "Paragon": 1491
    },
    "unc_ref_tokens": {},
    "first": "2026-10-05",
@@ -7999,11 +7986,11 @@
     ]
    ],
    "ref_tokens": {
-    "apologies": 819,
-    "for": 819,
-    "earlier": 819,
-    "the": 819,
-    "Intendant": 819
+    "apologies": 1491,
+    "for": 1491,
+    "earlier": 1491,
+    "the": 1491,
+    "Intendant": 1491
    },
    "unc_ref_tokens": {},
    "first": "2026-10-05",
@@ -8038,17 +8025,17 @@
     ]
    ],
    "ref_tokens": {
-    "automa": 819,
-    "mechanics": 819,
-    "Monga's": 819
+    "automa": 1491,
+    "mechanics": 1491,
+    "Monga's": 1491
    },
    "unc_ref_tokens": {
-    "leading": 819,
-    "you": 819,
-    "people": 819,
-    "the": 819,
-    "Monga": 819,
-    "been": 819
+    "leading": 1491,
+    "you": 1491,
+    "people": 1491,
+    "the": 1491,
+    "Monga": 1491,
+    "been": 1491
    },
    "first": "2026-10-05",
    "last": "2026-10-05",
@@ -8092,18 +8079,18 @@
     ]
    ],
    "ref_tokens": {
-    "sky": 39,
-    "whole": 39,
-    "moon": 39,
-    "glorious": 39,
-    "waking": 39,
-    "would": 39,
-    "And": 39,
-    "Waking": 39,
-    "Moon": 39,
-    "then": 39,
-    "the": 39,
-    "see": 39
+    "sky": 71,
+    "whole": 71,
+    "moon": 71,
+    "glorious": 71,
+    "waking": 71,
+    "would": 71,
+    "And": 71,
+    "Waking": 71,
+    "Moon": 71,
+    "then": 71,
+    "the": 71,
+    "see": 71
    },
    "unc_ref_tokens": {},
    "first": "2026-10-05",
@@ -8138,10 +8125,10 @@
     ]
    ],
    "ref_tokens": {
-    "the": 819,
-    "concerning": 819,
-    "Sentinel": 819,
-    "Sanctum": 819
+    "the": 1491,
+    "concerning": 1491,
+    "Sentinel": 1491,
+    "Sanctum": 1491
    },
    "unc_ref_tokens": {},
    "first": "2026-10-05",
@@ -8252,67 +8239,67 @@
     ]
    ],
    "ref_tokens": {
-    "well": 39,
-    "capsule": 1053,
-    "reclaimed": 39,
-    "civilization": 390,
-    "the": 507,
-    "long": 39,
-    "Grab": 39,
-    "lives": 39,
-    "that": 117,
-    "base": 39,
-    "code": 39,
-    "capsule's": 39,
-    "all": 39,
-    "contains": 39,
-    "data": 39,
-    "won't": 39,
-    "dare": 39,
-    "and": 117,
-    "holds": 39,
-    "they": 39,
-    "repaired": 39,
-    "fully": 39,
-    "trusted": 39,
-    "repair": 39,
-    "was": 39,
-    "said": 78,
-    "But": 78,
-    "she": 39,
-    "had": 39,
-    "risen": 39,
-    "intendant": 39,
-    "mind": 39,
-    "Maybe": 39,
-    "I'll": 39,
-    "change": 39,
-    "using": 39,
-    "hasten": 39,
-    "ran": 39,
-    "took": 39,
-    "Restoring": 39,
-    "draining": 39,
-    "capsules": 39,
-    "stopped": 39,
-    "Its": 39,
-    "true": 39,
-    "will": 39,
-    "How": 39,
-    "such": 39,
-    "seal": 39,
-    "can": 39,
-    "with": 39,
-    "interfere": 39,
-    "none": 39,
-    "cultures": 39,
-    "within": 39,
-    "what": 39,
-    "people": 39,
-    "became": 39,
-    "never": 39,
-    "done": 39,
-    "way": 39
+    "well": 71,
+    "capsule": 1917,
+    "reclaimed": 71,
+    "civilization": 710,
+    "the": 923,
+    "long": 71,
+    "Grab": 71,
+    "lives": 71,
+    "that": 213,
+    "base": 71,
+    "code": 71,
+    "capsule's": 71,
+    "all": 71,
+    "contains": 71,
+    "data": 71,
+    "won't": 71,
+    "dare": 71,
+    "and": 213,
+    "holds": 71,
+    "they": 71,
+    "repaired": 71,
+    "fully": 71,
+    "trusted": 71,
+    "repair": 71,
+    "was": 71,
+    "said": 142,
+    "But": 142,
+    "she": 71,
+    "had": 71,
+    "risen": 71,
+    "intendant": 71,
+    "mind": 71,
+    "Maybe": 71,
+    "I'll": 71,
+    "change": 71,
+    "using": 71,
+    "hasten": 71,
+    "ran": 71,
+    "took": 71,
+    "Restoring": 71,
+    "draining": 71,
+    "capsules": 71,
+    "stopped": 71,
+    "Its": 71,
+    "true": 71,
+    "will": 71,
+    "How": 71,
+    "such": 71,
+    "seal": 71,
+    "can": 71,
+    "with": 71,
+    "interfere": 71,
+    "none": 71,
+    "cultures": 71,
+    "within": 71,
+    "what": 71,
+    "people": 71,
+    "became": 71,
+    "never": 71,
+    "done": 71,
+    "way": 71
    },
    "unc_ref_tokens": {},
    "first": "2026-10-05",
@@ -8350,11 +8337,11 @@
     ]
    ],
    "ref_tokens": {
-    "corrupted": 819,
-    "Sector": 819,
-    "three": 819,
-    "Bing": 819,
-    "has": 819
+    "corrupted": 1491,
+    "Sector": 1491,
+    "three": 1491,
+    "Bing": 1491,
+    "has": 1491
    },
    "unc_ref_tokens": {},
    "first": "2026-10-05",
@@ -8389,12 +8376,12 @@
     ]
    ],
    "ref_tokens": {
-    "none": 5733,
-    "all": 5733,
-    "Huang": 5733,
-    "sentinels": 5733,
-    "Long": 5733,
-    "the": 5733
+    "none": 10437,
+    "all": 10437,
+    "Huang": 10437,
+    "sentinels": 10437,
+    "Long": 10437,
+    "the": 10437
    },
    "unc_ref_tokens": {},
    "first": "2026-10-05",
@@ -8432,11 +8419,11 @@
     ]
    ],
    "ref_tokens": {
-    "calls": 2287467,
-    "management": 2287467,
-    "modular": 2287467,
-    "Lady": 2287467,
-    "Sheen": 2287467
+    "calls": 4164363,
+    "management": 4164363,
+    "modular": 4164363,
+    "Lady": 4164363,
+    "Sheen": 4164363
    },
    "unc_ref_tokens": {},
    "first": "2026-10-05",
@@ -8532,12 +8519,12 @@
     ]
    ],
    "ref_tokens": {
-    "It's": 819,
-    "nothing": 819,
-    "like": 819,
-    "real": 819,
-    "schwamfang": 819,
-    "the": 819
+    "It's": 1491,
+    "nothing": 1491,
+    "like": 1491,
+    "real": 1491,
+    "schwamfang": 1491,
+    "the": 1491
    },
    "unc_ref_tokens": {},
    "first": "2026-10-05",
@@ -8586,21 +8573,21 @@
     ]
    ],
    "ref_tokens": {
-    "feast": 117,
-    "moon": 78,
-    "the": 39,
-    "prepping": 39,
-    "Yeah": 39,
-    "waking": 78,
-    "year's": 39,
-    "this": 39,
-    "make": 39,
-    "you": 39,
-    "don't": 39,
-    "Why": 39,
-    "stay": 39,
-    "Waking": 39,
-    "Moon": 39
+    "feast": 213,
+    "moon": 142,
+    "the": 71,
+    "prepping": 71,
+    "Yeah": 71,
+    "waking": 142,
+    "year's": 71,
+    "this": 71,
+    "make": 71,
+    "you": 71,
+    "don't": 71,
+    "Why": 71,
+    "stay": 71,
+    "Waking": 71,
+    "Moon": 71
    },
    "unc_ref_tokens": {},
    "first": "2026-10-05",
@@ -8635,12 +8622,12 @@
     ]
    ],
    "ref_tokens": {
-    "Lang": 819,
-    "feast": 819,
-    "The": 819,
-    "the": 819,
-    "Hong": 819,
-    "grander": 819
+    "Lang": 1491,
+    "feast": 1491,
+    "The": 1491,
+    "the": 1491,
+    "Hong": 1491,
+    "grander": 1491
    },
    "unc_ref_tokens": {},
    "first": "2026-10-05",
@@ -8676,11 +8663,11 @@
     ]
    ],
    "ref_tokens": {
-    "struggle": 819,
-    "Hold": 819,
-    "took": 819,
-    "Shranong": 819,
-    "our": 819
+    "struggle": 1491,
+    "Hold": 1491,
+    "took": 1491,
+    "Shranong": 1491,
+    "our": 1491
    },
    "unc_ref_tokens": {},
    "first": "2026-10-05",
@@ -8715,7 +8702,7 @@
     ]
    ],
    "ref_tokens": {
-    "Suing": 273
+    "Suing": 497
    },
    "unc_ref_tokens": {},
    "first": "2026-10-05",
@@ -8753,9 +8740,9 @@
     ]
    ],
    "ref_tokens": {
-    "Affairs": 39,
-    "Sentinel": 39,
-    "intendant": 39
+    "Affairs": 71,
+    "Sentinel": 71,
+    "intendant": 71
    },
    "unc_ref_tokens": {},
    "first": "2026-10-05",
@@ -8790,11 +8777,11 @@
     ]
    ],
    "ref_tokens": {
-    "doing": 819,
-    "Right": 819,
-    "this": 819,
-    "Could": 819,
-    "Ming's": 819
+    "doing": 1491,
+    "Right": 1491,
+    "this": 1491,
+    "Could": 1491,
+    "Ming's": 1491
    },
    "unc_ref_tokens": {},
    "first": "2026-10-05",
@@ -8829,10 +8816,10 @@
     ]
    ],
    "ref_tokens": {
-    "Shrenling": 819,
-    "true": 819,
-    "bird": 819,
-    "recognized": 819
+    "Shrenling": 1491,
+    "true": 1491,
+    "bird": 1491,
+    "recognized": 1491
    },
    "unc_ref_tokens": {},
    "first": "2026-10-05",
@@ -8867,12 +8854,12 @@
     ]
    ],
    "ref_tokens": {
-    "Lexicon": 819,
-    "first": 819,
-    "Axis": 819,
-    "prototype": 819,
-    "and": 819,
-    "the": 819
+    "Lexicon": 1491,
+    "first": 1491,
+    "Axis": 1491,
+    "prototype": 1491,
+    "and": 1491,
+    "the": 1491
    },
    "unc_ref_tokens": {},
    "first": "2026-10-05",
@@ -8983,12 +8970,12 @@
     ]
    ],
    "ref_tokens": {
-    "discords": 819,
-    "The": 819,
-    "Tacit": 819,
-    "also": 819,
-    "opening": 819,
-    "our": 819
+    "discords": 1491,
+    "The": 1491,
+    "Tacit": 1491,
+    "also": 1491,
+    "opening": 1491,
+    "our": 1491
    },
    "unc_ref_tokens": {},
    "first": "2026-10-05",
@@ -9023,11 +9010,11 @@
     ]
    ],
    "ref_tokens": {
-    "authority": 819,
-    "more": 819,
-    "Sushin": 819,
-    "and": 819,
-    "from": 819
+    "authority": 1491,
+    "more": 1491,
+    "Sushin": 1491,
+    "and": 1491,
+    "from": 1491
    },
    "unc_ref_tokens": {},
    "first": "2026-10-05",
@@ -9069,16 +9056,16 @@
     ]
    ],
    "ref_tokens": {
-    "That's": 39,
-    "set": 39,
-    "Susheen": 39,
-    "pretty": 39,
-    "Did": 39,
-    "life": 39,
-    "And": 39,
-    "Sushin": 39,
-    "also": 39,
-    "yet": 39
+    "That's": 71,
+    "set": 71,
+    "Susheen": 71,
+    "pretty": 71,
+    "Did": 71,
+    "life": 71,
+    "And": 71,
+    "Sushin": 71,
+    "also": 71,
+    "yet": 71
    },
    "unc_ref_tokens": {},
    "first": "2026-10-05",
@@ -9113,17 +9100,17 @@
     ]
    ],
    "ref_tokens": {
-    "that": 32634,
-    "Seems": 32634,
-    "thingabob": 32634,
-    "like": 32634
+    "that": 59388,
+    "Seems": 59388,
+    "thingabob": 59388,
+    "like": 59388
    },
    "unc_ref_tokens": {
-    "that": 72,
-    "That": 72,
-    "cooked": 72,
-    "got": 72,
-    "thing": 72
+    "that": 131,
+    "That": 131,
+    "cooked": 131,
+    "got": 131,
+    "thing": 131
    },
    "first": "2026-10-05",
    "last": "2026-10-05",
@@ -9167,7 +9154,7 @@
     ]
    ],
    "ref_tokens": {
-    "Mongol": 5733
+    "Mongol": 10437
    },
    "unc_ref_tokens": {},
    "first": "2026-10-05",
@@ -9207,18 +9194,18 @@
     ]
    ],
    "ref_tokens": {
-    "Shenfong": 819,
-    "for": 819,
-    "What": 819,
-    "seek": 819,
-    "know": 819
+    "Shenfong": 1491,
+    "for": 1491,
+    "What": 1491,
+    "seek": 1491,
+    "know": 1491
    },
    "unc_ref_tokens": {
-    "neared": 819,
-    "Shenfong": 1638,
-    "completion": 1638,
-    "brighter": 819,
-    "Hold's": 819
+    "neared": 1491,
+    "Shenfong": 2982,
+    "completion": 2982,
+    "brighter": 1491,
+    "Hold's": 1491
    },
    "first": "2026-10-05",
    "last": "2026-10-05",
@@ -9255,9 +9242,9 @@
     ]
    ],
    "ref_tokens": {
-    "founding": 819,
-    "Shwrenfong": 819,
-    "The": 819
+    "founding": 1491,
+    "Shwrenfong": 1491,
+    "The": 1491
    },
    "unc_ref_tokens": {},
    "first": "2026-10-05",
@@ -9320,13 +9307,13 @@
     ]
    ],
    "ref_tokens": {
-    "Fox": 819,
-    "death": 819,
-    "Sentinel": 819,
-    "The": 819,
-    "Moon": 819,
-    "the": 819,
-    "Sheen": 819
+    "Fox": 1491,
+    "death": 1491,
+    "Sentinel": 1491,
+    "The": 1491,
+    "Moon": 1491,
+    "the": 1491,
+    "Sheen": 1491
    },
    "unc_ref_tokens": {},
    "first": "2026-10-05",
@@ -9361,11 +9348,11 @@
     ]
    ],
    "ref_tokens": {
-    "all": 273,
-    "here": 273,
-    "right": 273,
-    "this": 273,
-    "sushin": 273
+    "all": 497,
+    "here": 497,
+    "right": 497,
+    "this": 497,
+    "sushin": 497
    },
    "unc_ref_tokens": {},
    "first": "2026-10-05",
@@ -9403,12 +9390,12 @@
     ]
    ],
    "ref_tokens": {
-    "stop": 819,
-    "Shenfong": 819,
-    "will": 819,
-    "and": 819,
-    "Hold's": 819,
-    "collapse": 819
+    "stop": 1491,
+    "Shenfong": 1491,
+    "will": 1491,
+    "and": 1491,
+    "Hold's": 1491,
+    "collapse": 1491
    },
    "unc_ref_tokens": {},
    "first": "2026-10-05",
@@ -9443,10 +9430,10 @@
     ]
    ],
    "ref_tokens": {
-    "Rest": 819,
-    "Intendant": 819,
-    "swarming": 819,
-    "assured": 819
+    "Rest": 1491,
+    "Intendant": 1491,
+    "swarming": 1491,
+    "assured": 1491
    },
    "unc_ref_tokens": {},
    "first": "2026-10-05",
@@ -9481,10 +9468,10 @@
     ]
    ],
    "ref_tokens": {
-    "loved": 819,
-    "deeply": 819,
-    "Mojo": 819,
-    "that": 819
+    "loved": 1491,
+    "deeply": 1491,
+    "Mojo": 1491,
+    "that": 1491
    },
    "unc_ref_tokens": {},
    "first": "2026-10-05",
@@ -9519,11 +9506,11 @@
     ]
    ],
    "ref_tokens": {
-    "what": 819,
-    "should": 819,
-    "you": 819,
-    "weren't": 819,
-    "albat": 819
+    "what": 1491,
+    "should": 1491,
+    "you": 1491,
+    "weren't": 1491,
+    "albat": 1491
    },
    "unc_ref_tokens": {},
    "first": "2026-10-05",
@@ -9558,11 +9545,11 @@
     ]
    ],
    "ref_tokens": {
-    "geared": 819,
-    "retains": 819,
-    "defense": 819,
-    "toward": 819,
-    "Joe": 819
+    "geared": 1491,
+    "retains": 1491,
+    "defense": 1491,
+    "toward": 1491,
+    "Joe": 1491
    },
    "unc_ref_tokens": {},
    "first": "2026-10-05",
@@ -9597,11 +9584,11 @@
     ]
    ],
    "ref_tokens": {
-    "everywhere": 819,
-    "guess": 819,
-    "can't": 819,
-    "rower": 819,
-    "Yeah": 819
+    "everywhere": 1491,
+    "guess": 1491,
+    "can't": 1491,
+    "rower": 1491,
+    "Yeah": 1491
    },
    "unc_ref_tokens": {},
    "first": "2026-10-05",
@@ -9643,11 +9630,11 @@
     ]
    ],
    "ref_tokens": {
-    "Watcher": 300942558381238956,
-    "Blind": 300942558381238956,
-    "known": 300942558381238956,
-    "formerly": 300942558381238956,
-    "the": 300942558381238956
+    "Watcher": 547633567122322590,
+    "Blind": 547633567122322590,
+    "known": 547633567122322590,
+    "formerly": 547633567122322590,
+    "the": 547633567122322590
    },
    "unc_ref_tokens": {},
    "first": "2026-10-05",
@@ -9682,10 +9669,10 @@
     ]
    ],
    "ref_tokens": {
-    "Yin": 819,
-    "course": 819,
-    "That": 819,
-    "Llin": 819
+    "Yin": 1491,
+    "course": 1491,
+    "That": 1491,
+    "Llin": 1491
    },
    "unc_ref_tokens": {},
    "first": "2026-10-05",
@@ -9720,10 +9707,10 @@
     ]
    ],
    "ref_tokens": {
-    "You're": 819,
-    "Yan": 819,
-    "right": 819,
-    "Lynn": 819
+    "You're": 1491,
+    "Yan": 1491,
+    "right": 1491,
+    "Lynn": 1491
    },
    "unc_ref_tokens": {},
    "first": "2026-10-05",
@@ -9758,8 +9745,8 @@
     ]
    ],
    "ref_tokens": {
-    "Manifold": 273,
-    "sanctum": 273
+    "Manifold": 497,
+    "sanctum": 497
    },
    "unc_ref_tokens": {},
    "first": "2026-10-05",
@@ -9818,10 +9805,10 @@
     ]
    ],
    "ref_tokens": {
-    "Hyroy": 7791
+    "Hyroy": 13524
    },
    "unc_ref_tokens": {
-    "Laairoy": 7791
+    "Laairoy": 13524
    },
    "first": "2026-10-05",
    "last": "2026-10-08",
@@ -9839,7 +9826,7 @@
     "__legacy__": 1
    },
    "conflict": true,
-   "conflict_reason": "target-collides-canonical:拉海洛方块·逆转"
+   "conflict_reason": "target-collides-canonical:海特洛"
   },
   "bi|毛罗伊": {
    "wrong": "毛罗伊",
@@ -9860,10 +9847,10 @@
     ]
    ],
    "ref_tokens": {
-    "the": 819,
-    "think": 819,
-    "stakes": 819,
-    "Hairoy": 819
+    "the": 1491,
+    "think": 1491,
+    "stakes": 1491,
+    "Hairoy": 1491
    },
    "unc_ref_tokens": {},
    "first": "2026-10-05",
@@ -9898,11 +9885,11 @@
     ]
    ],
    "ref_tokens": {
-    "was": 819,
-    "were": 819,
-    "great": 819,
-    "Hairoy": 819,
-    "thought": 819
+    "was": 1491,
+    "were": 1491,
+    "great": 1491,
+    "Hairoy": 1491,
+    "thought": 1491
    },
    "unc_ref_tokens": {},
    "first": "2026-10-05",
@@ -9937,19 +9924,19 @@
     ]
    ],
    "ref_tokens": {
-    "think": 819,
-    "Swaming": 819,
-    "Jingren": 819,
-    "could": 819,
-    "and": 819
+    "think": 1491,
+    "Swaming": 1491,
+    "Jingren": 1491,
+    "could": 1491,
+    "and": 1491
    },
    "unc_ref_tokens": {
-    "you": 819,
-    "Swaming": 819,
-    "take": 819,
-    "can": 819,
-    "her": 819,
-    "see": 819
+    "you": 1491,
+    "Swaming": 1491,
+    "take": 1491,
+    "can": 1491,
+    "her": 1491,
+    "see": 1491
    },
    "first": "2026-10-05",
    "last": "2026-10-05",
@@ -9986,11 +9973,11 @@
     ]
    ],
    "ref_tokens": {
-    "think": 819,
-    "Swaming": 819,
-    "Jingren": 819,
-    "could": 819,
-    "and": 819
+    "think": 1491,
+    "Swaming": 1491,
+    "Jingren": 1491,
+    "could": 1491,
+    "and": 1491
    },
    "unc_ref_tokens": {},
    "first": "2026-10-05",
@@ -10025,12 +10012,12 @@
     ]
    ],
    "ref_tokens": {
-    "there's": 819,
-    "weather": 819,
-    "wave": 819,
-    "with": 819,
-    "Yeah": 819,
-    "story": 819
+    "there's": 1491,
+    "weather": 1491,
+    "wave": 1491,
+    "with": 1491,
+    "Yeah": 1491,
+    "story": 1491
    },
    "unc_ref_tokens": {},
    "first": "2026-10-05",
@@ -10065,8 +10052,8 @@
     ]
    ],
    "ref_tokens": {
-    "stuff": 819,
-    "Schwanfong": 819
+    "stuff": 1491,
+    "Schwanfong": 1491
    },
    "unc_ref_tokens": {},
    "first": "2026-10-05",
@@ -10876,8 +10863,8 @@
    ],
    "ref_tokens": {},
    "unc_ref_tokens": {
-    "Hiwook": 124,
-    "AMS": 124
+    "Hiwook": 222,
+    "AMS": 222
    },
    "first": "2026-10-07",
    "last": "2026-11-27",
@@ -11057,7 +11044,7 @@
    ],
    "ref_tokens": {},
    "unc_ref_tokens": {
-    "Luparang": 39
+    "Luparang": 71
    },
    "first": "2026-10-07",
    "last": "2026-10-07",
@@ -11735,7 +11722,7 @@
     "__legacy__": 8
    },
    "conflict": true,
-   "conflict_reason": "target-collides-canonical:天工部"
+   "conflict_reason": "target-collides-canonical:天工寻物"
   },
   "bi|신공": {
    "wrong": "신공",
@@ -11915,9 +11902,9 @@
    ],
    "ref_tokens": {},
    "unc_ref_tokens": {
-    "Soho": 39,
-    "Gate": 39,
-    "The": 39
+    "Soho": 71,
+    "Gate": 71,
+    "The": 71
    },
    "first": "2026-10-07",
    "last": "2026-10-07",
@@ -12097,11 +12084,11 @@
     ]
    ],
    "ref_tokens": {
-    "character": 819,
-    "Leuk's": 819,
-    "Yes": 819,
-    "from": 819,
-    "which": 819
+    "character": 1491,
+    "Leuk's": 1491,
+    "Yes": 1491,
+    "from": 1491,
+    "which": 1491
    },
    "unc_ref_tokens": {},
    "first": "2026-10-07",
@@ -12355,7 +12342,7 @@
     "__legacy__": 1
    },
    "conflict": true,
-   "conflict_reason": "target-collides-canonical:玄方城的朝晖"
+   "conflict_reason": "target-collides-canonical:玄方城"
   },
   "bi|Galbrena": {
    "wrong": "Galbrena",
@@ -12508,7 +12495,7 @@
    ],
    "ref_tokens": {},
    "unc_ref_tokens": {
-    "EDM": 3339
+    "EDM": 5796
    },
    "first": "2026-10-07",
    "last": "2026-10-07",
@@ -13218,11 +13205,11 @@
    ],
    "ref_tokens": {},
    "unc_ref_tokens": {
-    "Efaljens": 11,
-    "Karina": 33,
-    "just": 22,
-    "Bro": 22,
-    "fire": 22
+    "Efaljens": 20,
+    "Karina": 60,
+    "just": 40,
+    "Bro": 40,
+    "fire": 40
    },
    "first": "2026-10-07",
    "last": "2026-10-07",
@@ -13608,7 +13595,7 @@
     "__legacy__": 1
    },
    "conflict": true,
-   "conflict_reason": "target-collides-canonical:玄方城的朝晖"
+   "conflict_reason": "target-collides-canonical:建立玄方城之事"
   },
   "bi|新熙厚": {
    "wrong": "新熙厚",
@@ -13860,12 +13847,12 @@
    ],
    "ref_tokens": {},
    "unc_ref_tokens": {
-    "her": 39,
-    "music": 39,
-    "about": 39,
-    "far": 39,
-    "know": 39,
-    "kind": 39
+    "her": 71,
+    "music": 71,
+    "about": 71,
+    "far": 71,
+    "know": 71,
+    "kind": 71
    },
    "first": "2026-10-08",
    "last": "2026-10-08",
@@ -13917,7 +13904,7 @@
    },
    "unc_files": {},
    "conflict": true,
-   "conflict_reason": "target-collides-canonical:万相神宫朴根亨"
+   "conflict_reason": "target-collides-canonical:万相神宫深处"
   },
   "bi|官员": {
    "wrong": "官员",
@@ -13939,10 +13926,10 @@
    ],
    "ref_tokens": {},
    "unc_ref_tokens": {
-    "official": 39,
-    "the": 39,
-    "Everbrite": 39,
-    "Embers": 39
+    "official": 71,
+    "the": 71,
+    "Everbrite": 71,
+    "Embers": 71
    },
    "first": "2026-10-08",
    "last": "2026-10-08",
@@ -14296,7 +14283,7 @@
    },
    "unc_files": {},
    "conflict": true,
-   "conflict_reason": "target-collides-canonical:残星会的计谋"
+   "conflict_reason": "target-collides-canonical:残星会"
   },
   "bi|文珠": {
    "wrong": "文珠",
@@ -15477,32 +15464,14 @@
    ],
    "samples": [],
    "ref_tokens": {
-    "cute": 2,
-    "Does": 2
+    "cute": 3,
+    "Does": 3
    },
    "unc_ref_tokens": {},
    "first": "2026-10-10",
    "last": "2026-11-26",
-   "alts": {
-    "在大自然里": 1
-   },
-   "sync": true,
-   "files": {
-    "__legacy__": {
-     "n": 2,
-     "alt": 0,
-     "first": "2026-10-10",
-     "last": "2026-10-11"
-    },
-    "JP VTubers LOCKED IN As Endfield Shows PEAK!!! ｜ Arknights： Endfield Dev Log 2.0.zh.srt": {
-     "n": 0,
-     "alt": 1,
-     "first": "2026-11-26",
-     "last": "2026-11-26"
-    }
-   },
-   "unc_files": {},
-   "conflict": true
+   "alts": {},
+   "sync": true
   },
   "bi|制造新": {
    "wrong": "制造新",
@@ -18071,23 +18040,23 @@
     ]
    ],
    "ref_tokens": {
-    "going": 78,
-    "This": 39,
-    "Yinlin's": 78,
-    "come": 39,
-    "when": 78,
-    "definitely": 39,
-    "Yeah": 39,
-    "What": 39,
-    "appears": 39,
-    "Yinlin": 117,
-    "limited": 39,
-    "She's": 39,
-    "love": 39,
-    "first": 78,
-    "was": 39,
-    "sure": 39,
-    "Pretty": 39
+    "going": 142,
+    "This": 71,
+    "Yinlin's": 142,
+    "come": 71,
+    "when": 142,
+    "definitely": 71,
+    "Yeah": 71,
+    "What": 71,
+    "appears": 71,
+    "Yinlin": 213,
+    "limited": 71,
+    "She's": 71,
+    "love": 71,
+    "first": 142,
+    "was": 71,
+    "sure": 71,
+    "Pretty": 71
    },
    "unc_ref_tokens": {},
    "first": "2026-10-19",
@@ -18777,7 +18746,7 @@
     "__legacy__": 1
    },
    "conflict": true,
-   "conflict_reason": "target-collides-canonical:卡提希娅"
+   "conflict_reason": "target-collides-canonical:圣女卡提希娅"
   },
   "bi|你不过是海浪上的泡沫": {
    "wrong": "你不过是海浪上的泡沫",
@@ -19551,14 +19520,14 @@
     ]
    ],
    "ref_tokens": {
-    "Waves": 78,
-    "are": 39,
-    "the": 39,
-    "gift": 39,
-    "Wthering": 78,
-    "that": 39,
-    "truly": 39,
-    "Here": 39
+    "Waves": 142,
+    "are": 71,
+    "the": 71,
+    "gift": 71,
+    "Wthering": 142,
+    "that": 71,
+    "truly": 71,
+    "Here": 71
    },
    "unc_ref_tokens": {},
    "first": "2026-11-24",
@@ -19593,12 +19562,12 @@
     ]
    ],
    "ref_tokens": {
-    "Kurame": 39,
-    "Thank": 39,
-    "You've": 39,
-    "again": 39,
-    "you": 39,
-    "done": 39
+    "Kurame": 71,
+    "Thank": 71,
+    "You've": 71,
+    "again": 71,
+    "you": 71,
+    "done": 71
    },
    "unc_ref_tokens": {},
    "first": "2026-11-24",
@@ -19633,12 +19602,12 @@
     ]
    ],
    "ref_tokens": {
-    "skins": 39,
-    "able": 39,
-    "and": 39,
-    "we're": 39,
-    "going": 39,
-    "get": 39
+    "skins": 71,
+    "able": 71,
+    "and": 71,
+    "we're": 71,
+    "going": 71,
+    "get": 71
    },
    "unc_ref_tokens": {},
    "first": "2026-11-24",
@@ -21134,10 +21103,10 @@
     ]
    ],
    "ref_tokens": {
-    "tacet": 1816,
-    "but": 1816,
-    "discords": 1816,
-    "ravaged": 1816
+    "tacet": 3252,
+    "but": 3252,
+    "discords": 3252,
+    "ravaged": 3252
    },
    "unc_ref_tokens": {},
    "first": "2026-10-05",
@@ -21189,12 +21158,12 @@
     ]
    ],
    "ref_tokens": {
-    "Gingjo": 36837729265280061081600,
-    "and": 36837729265280061081600,
-    "the": 36837729265280061081600,
-    "future": 36837729265280061081600,
-    "Mongjo": 36837729265280061081600,
-    "rests": 7367545853056012216320
+    "Gingjo": 65967123111613853875200,
+    "and": 65967123111613853875200,
+    "the": 65967123111613853875200,
+    "future": 65967123111613853875200,
+    "Mongjo": 65967123111613853875200,
+    "rests": 13193424622322770775040
    },
    "unc_ref_tokens": {},
    "first": "2026-10-05",
@@ -21272,14 +21241,14 @@
     ]
    ],
    "ref_tokens": {
-    "Fraidus": 1816,
-    "cuz": 908,
-    "can't": 908,
-    "the": 1816,
-    "possibly": 908,
-    "was": 908,
-    "overseer": 908,
-    "thought": 908
+    "Fraidus": 3252,
+    "cuz": 1626,
+    "can't": 1626,
+    "the": 3252,
+    "possibly": 1626,
+    "was": 1626,
+    "overseer": 1626,
+    "thought": 1626
    },
    "unc_ref_tokens": {},
    "first": "2026-10-05",
@@ -21318,17 +21287,17 @@
     ]
    ],
    "ref_tokens": {
-    "that": 39,
-    "Yuan": 39,
-    "Fortress": 39
+    "that": 71,
+    "Yuan": 71,
+    "Fortress": 71
    },
    "unc_ref_tokens": {
-    "Yuan": 39,
-    "Outr": 39,
-    "nearing": 39,
-    "the": 39,
-    "Fortress": 39,
-    "Based": 39
+    "Yuan": 71,
+    "Outr": 71,
+    "nearing": 71,
+    "the": 71,
+    "Fortress": 71,
+    "Based": 71
    },
    "first": "2026-10-05",
    "last": "2026-10-05",
@@ -21368,10 +21337,10 @@
     ]
    ],
    "ref_tokens": {
-    "Swaming": 819,
-    "let's": 819,
-    "find": 819,
-    "shall": 819
+    "Swaming": 1491,
+    "let's": 1491,
+    "find": 1491,
+    "shall": 1491
    },
    "unc_ref_tokens": {},
    "first": "2026-10-05",
@@ -21410,11 +21379,11 @@
     ]
    ],
    "ref_tokens": {
-    "just": 819,
-    "Withering": 819,
-    "Waves": 819,
-    "this": 819,
-    "point": 819
+    "just": 1491,
+    "Withering": 1491,
+    "Waves": 1491,
+    "this": 1491,
+    "point": 1491
    },
    "unc_ref_tokens": {},
    "first": "2026-10-05",
@@ -21514,49 +21483,49 @@
     ]
    ],
    "ref_tokens": {
-    "you": 156,
-    "expecting": 78,
-    "Swarming": 390,
-    "intended": 234,
-    "Speak": 78,
-    "swarming": 234,
-    "with": 156,
-    "yourself": 78,
-    "These": 78,
-    "auto": 78,
-    "puppets": 78,
-    "Sister": 78,
-    "leads": 78,
-    "that": 78,
-    "the": 78,
-    "threshold": 78,
-    "Rest": 78,
-    "assured": 78,
-    "break": 78,
-    "take": 78,
-    "ever": 78
+    "you": 284,
+    "expecting": 142,
+    "Swarming": 710,
+    "intended": 426,
+    "Speak": 142,
+    "swarming": 426,
+    "with": 284,
+    "yourself": 142,
+    "These": 142,
+    "auto": 142,
+    "puppets": 142,
+    "Sister": 142,
+    "leads": 142,
+    "that": 142,
+    "the": 142,
+    "threshold": 142,
+    "Rest": 142,
+    "assured": 142,
+    "break": 142,
+    "take": 142,
+    "ever": 142
    },
    "unc_ref_tokens": {
-    "swarming": 468,
-    "intendance": 78,
-    "was": 78,
-    "storming": 78,
-    "like": 78,
-    "know": 156,
-    "where": 78,
-    "took": 78,
-    "too": 78,
-    "you": 156,
-    "Swarming": 156,
-    "that": 78,
-    "enjoy": 78,
-    "Did": 78,
-    "the": 78,
-    "journey": 78,
-    "Sister": 78,
-    "bro": 78,
-    "Dang": 78,
-    "Her": 78
+    "swarming": 852,
+    "intendance": 142,
+    "was": 142,
+    "storming": 142,
+    "like": 142,
+    "know": 284,
+    "where": 142,
+    "took": 142,
+    "too": 142,
+    "you": 284,
+    "Swarming": 284,
+    "that": 142,
+    "enjoy": 142,
+    "Did": 142,
+    "the": 142,
+    "journey": 142,
+    "Sister": 142,
+    "bro": 142,
+    "Dang": 142,
+    "Her": 142
    },
    "first": "2026-10-05",
    "last": "2026-10-05",
@@ -21602,18 +21571,18 @@
     ]
    ],
    "ref_tokens": {
-    "let": 78,
-    "But": 78,
-    "You": 78,
-    "didn't": 78,
-    "crisis": 78,
-    "Mhjo's": 78
+    "let": 142,
+    "But": 142,
+    "You": 142,
+    "didn't": 142,
+    "crisis": 142,
+    "Mhjo's": 142
    },
    "unc_ref_tokens": {
-    "Mhjo": 39,
-    "our": 39,
-    "lives": 39,
-    "for": 39
+    "Mhjo": 71,
+    "our": 71,
+    "lives": 71,
+    "for": 71
    },
    "first": "2026-10-05",
    "last": "2026-10-05",
@@ -21672,27 +21641,27 @@
     ]
    ],
    "ref_tokens": {
-    "centuries": 78,
-    "carried": 78,
-    "Joe": 156,
-    "Mong": 156,
-    "through": 78,
-    "She": 78,
-    "betray": 78,
-    "hopes": 78,
-    "could": 78,
-    "the": 78,
-    "not": 78
+    "centuries": 142,
+    "carried": 142,
+    "Joe": 284,
+    "Mong": 284,
+    "through": 142,
+    "She": 142,
+    "betray": 142,
+    "hopes": 142,
+    "could": 142,
+    "the": 142,
+    "not": 142
    },
    "unc_ref_tokens": {
-    "Firmament": 78,
-    "Joe": 156,
-    "Mount": 78,
-    "Just": 78,
-    "Mong": 156,
-    "relies": 78,
-    "fairing": 78,
-    "how": 78
+    "Firmament": 142,
+    "Joe": 284,
+    "Mount": 142,
+    "Just": 142,
+    "Mong": 284,
+    "relies": 142,
+    "fairing": 142,
+    "how": 142
    },
    "first": "2026-10-05",
    "last": "2026-10-05",
@@ -21808,7 +21777,7 @@
    "mode": "bi",
    "count": 2,
    "uncorrected": 0,
-   "status": "candidate",
+   "status": "confirmed",
    "cues": [
     5,
     555,
@@ -21829,20 +21798,18 @@
     ]
    ],
    "ref_tokens": {
-    "Greetings": 16,
-    "Noxus": 12,
-    "Let's": 12,
-    "Blade": 12,
-    "heart": 2,
-    "think": 2,
-    "her": 2
+    "Greetings": 26,
+    "Noxus": 20,
+    "Let's": 20,
+    "Blade": 20,
+    "heart": 3,
+    "think": 3,
+    "her": 3
    },
    "unc_ref_tokens": {},
    "first": "2026-11-25",
    "last": "2026-11-26",
-   "alts": {
-    "你们好": 2
-   },
+   "alts": {},
    "files": {
     "🏆 Rating Every Punishing Gray Raven Ultimate PT 2 ｜ PGR Reaction.calib.srt": {
      "n": 1,
@@ -21855,16 +21822,9 @@
      "alt": 0,
      "first": "2026-11-25",
      "last": "2026-11-25"
-    },
-    "Streamers Reaction To The Lily Arc.zh.srt": {
-     "n": 0,
-     "alt": 2,
-     "first": "2026-11-26",
-     "last": "2026-11-26"
     }
    },
-   "unc_files": {},
-   "conflict": true
+   "unc_files": {}
   },
   "bi|我们上次停下来的地方": {
    "wrong": "我们上次停下来的地方",
@@ -21978,28 +21938,28 @@
     ]
    ],
    "ref_tokens": {
-    "Okay": 12,
-    "her": 6,
-    "give": 6,
-    "we'll": 6,
-    "unless": 6,
-    "Damn": 6,
-    "that": 6,
-    "saw": 6,
-    "bro": 6,
-    "Three": 6
+    "Okay": 20,
+    "her": 10,
+    "give": 10,
+    "we'll": 10,
+    "unless": 10,
+    "Damn": 10,
+    "that": 10,
+    "saw": 10,
+    "bro": 10,
+    "Three": 10
    },
    "unc_ref_tokens": {
-    "Okay": 40,
-    "okay": 18,
-    "what": 18,
-    "kind": 18,
-    "wow": 18,
-    "that": 18,
-    "her": 4,
-    "found": 4,
-    "Siggy": 4,
-    "before": 4
+    "Okay": 66,
+    "okay": 30,
+    "what": 30,
+    "kind": 30,
+    "wow": 30,
+    "that": 30,
+    "her": 6,
+    "found": 6,
+    "Siggy": 6,
+    "before": 6
    },
    "first": "2026-11-25",
    "last": "2026-11-25",
@@ -22021,11 +21981,9 @@
    "unc_files": {
     "🏆 Rating Every Punishing Gray Raven Ultimate PT 2 ｜ PGR Reaction.calib.srt": 2,
     "【字幕】🏆 Rating Every Punishing Gray Raven Ultimate PT 2 ｜ PGR Reaction.en-谷歌翻译.srt": 2,
-    "【字幕】🏆 Rating Every Punishing Gray Raven Ultimate PT 2 ｜ PGR Reaction.en-谷歌翻译.calib.srt": 2,
-    "Streamers Reaction To The Lily Arc.zh.srt": 1,
-    "Streamers Reaction To The Lily Arc.calib.srt": 1
+    "【字幕】🏆 Rating Every Punishing Gray Raven Ultimate PT 2 ｜ PGR Reaction.en-谷歌翻译.calib.srt": 2
    },
-   "ctx_regex": "\\bgive\\b|\\bwe'll\\b|\\bunless\\b"
+   "ctx_regex": "\\bher\\b|\\bgive\\b|\\bwe'll\\b"
   },
   "bi|一些": {
    "wrong": "一些",
@@ -22113,35 +22071,35 @@
     ]
    ],
    "ref_tokens": {
-    "Let": 12,
-    "look": 12,
-    "Yes": 18,
-    "take": 12,
-    "there": 12,
-    "make": 6,
-    "top": 6,
-    "should": 6,
-    "think": 6
+    "Let": 20,
+    "look": 20,
+    "Yes": 30,
+    "take": 20,
+    "there": 20,
+    "make": 10,
+    "top": 10,
+    "should": 10,
+    "think": 10
    },
    "unc_ref_tokens": {
-    "We'll": 12,
-    "beautiful": 12,
-    "Yes": 34,
-    "and": 12,
-    "effective": 12,
-    "was": 24,
-    "make": 12,
-    "should": 12,
-    "think": 12,
-    "top": 12,
-    "yeah": 12,
-    "cool": 12,
-    "But": 12,
-    "that's": 2,
-    "great": 2,
-    "cute": 4,
-    "it's": 4,
-    "yes": 2
+    "We'll": 20,
+    "beautiful": 20,
+    "Yes": 55,
+    "and": 20,
+    "effective": 20,
+    "was": 40,
+    "make": 20,
+    "should": 20,
+    "think": 20,
+    "top": 20,
+    "yeah": 20,
+    "cool": 20,
+    "But": 20,
+    "that's": 3,
+    "great": 3,
+    "cute": 6,
+    "it's": 6,
+    "yes": 3
    },
    "first": "2026-11-25",
    "last": "2026-11-25",
@@ -22162,10 +22120,7 @@
    },
    "unc_files": {
     "【字幕】🏆 Rating Every Punishing Gray Raven Ultimate PT 2 ｜ PGR Reaction.en-谷歌翻译.srt": 3,
-    "【字幕】🏆 Rating Every Punishing Gray Raven Ultimate PT 2 ｜ PGR Reaction.en-谷歌翻译.calib.srt": 3,
-    "Streamers Reaction To The Lily Arc.zh.srt": 1,
-    "Streamers Reaction To The Lily Arc.calib.srt": 1,
-    "JP VTubers LOCKED IN As Endfield Shows PEAK!!! ｜ Arknights： Endfield Dev Log 2.0.zh.srt": 3
+    "【字幕】🏆 Rating Every Punishing Gray Raven Ultimate PT 2 ｜ PGR Reaction.en-谷歌翻译.calib.srt": 3
    },
    "ctx_regex": "\\bLet\\b|\\blook\\b|\\btake\\b"
   },
@@ -22188,15 +22143,15 @@
     ]
    ],
    "ref_tokens": {
-    "Let": 6,
-    "look": 6,
-    "Yes": 6,
-    "take": 6,
-    "there": 6
+    "Let": 10,
+    "look": 10,
+    "Yes": 10,
+    "take": 10,
+    "there": 10
    },
    "unc_ref_tokens": {
-    "Miku": 2,
-    "There": 2
+    "Miku": 3,
+    "There": 3
    },
    "first": "2026-11-25",
    "last": "2026-11-25",
@@ -22209,9 +22164,7 @@
      "last": "2026-11-25"
     }
    },
-   "unc_files": {
-    "JP VTubers LOCKED IN As Endfield Shows PEAK!!! ｜ Arknights： Endfield Dev Log 2.0.zh.srt": 1
-   },
+   "unc_files": {},
    "ctx_regex": "\\bLet\\b|\\blook\\b|\\bYes\\b"
   },
   "bi|一下": {
@@ -22220,7 +22173,7 @@
    "mode": "bi",
    "count": 2,
    "uncorrected": 0,
-   "status": "candidate",
+   "status": "confirmed",
    "cues": [
     24,
     23,
@@ -22241,21 +22194,19 @@
     ]
    ],
    "ref_tokens": {
-    "Let": 12,
-    "look": 12,
-    "Yes": 12,
-    "take": 12,
-    "there": 12,
-    "cute": 8,
-    "wait": 8,
-    "Wait": 8
+    "Let": 20,
+    "look": 20,
+    "Yes": 20,
+    "take": 20,
+    "there": 20,
+    "cute": 12,
+    "wait": 12,
+    "Wait": 12
    },
    "unc_ref_tokens": {},
    "first": "2026-11-25",
    "last": "2026-11-26",
-   "alts": {
-    "等": 4
-   },
+   "alts": {},
    "files": {
     "🏆 Rating Every Punishing Gray Raven Ultimate PT 2 ｜ PGR Reaction.calib.srt": {
      "n": 1,
@@ -22268,16 +22219,9 @@
      "alt": 0,
      "first": "2026-11-25",
      "last": "2026-11-25"
-    },
-    "JP VTubers LOCKED IN As Endfield Shows PEAK!!! ｜ Arknights： Endfield Dev Log 2.0.zh.srt": {
-     "n": 0,
-     "alt": 4,
-     "first": "2026-11-26",
-     "last": "2026-11-26"
     }
    },
-   "unc_files": {},
-   "conflict": true
+   "unc_files": {}
   },
   "bi|拉森": {
    "wrong": "拉森",
@@ -22564,89 +22508,79 @@
     ]
    ],
    "ref_tokens": {
-    "girl": 20,
-    "Damn": 6,
-    "see": 12,
-    "that": 6,
-    "you": 12,
-    "Zero": 6,
-    "have": 6,
-    "something": 6,
-    "but": 6,
-    "your": 6,
-    "dress": 6,
-    "cute": 6,
-    "With": 6,
-    "Girl": 2,
-    "Christ": 2,
-    "Jesus": 2,
-    "Come": 2,
-    "rules": 2,
-    "She": 2,
-    "didn't": 2,
-    "the": 2,
-    "Break": 2
+    "girl": 33,
+    "Damn": 10,
+    "see": 20,
+    "that": 10,
+    "you": 20,
+    "Zero": 10,
+    "have": 10,
+    "something": 10,
+    "but": 10,
+    "your": 10,
+    "dress": 10,
+    "cute": 10,
+    "With": 10,
+    "Girl": 3,
+    "Christ": 3,
+    "Jesus": 3,
+    "Come": 3,
+    "rules": 3,
+    "She": 3,
+    "didn't": 3,
+    "the": 3,
+    "Break": 3
    },
    "unc_ref_tokens": {
-    "Zero": 12,
-    "Damn": 12,
-    "see": 24,
-    "that": 14,
-    "girl": 48,
-    "you": 24,
-    "something": 14,
-    "have": 12,
-    "but": 12,
-    "With": 12,
-    "dress": 12,
-    "your": 12,
-    "cute": 12,
-    "succeed": 12,
-    "You": 12,
-    "cool": 12,
-    "can": 12,
-    "will": 12,
-    "waffle": 2,
-    "patient": 2,
-    "the": 2,
-    "are": 2,
-    "after": 2,
-    "threw": 2,
-    "honey": 2,
-    "symptoms": 2,
-    "improved": 2,
-    "The": 2,
-    "girl's": 2,
-    "she": 2,
-    "reports": 2,
-    "resembling": 2
+    "Zero": 20,
+    "Damn": 20,
+    "see": 40,
+    "that": 23,
+    "girl": 80,
+    "you": 40,
+    "something": 23,
+    "have": 20,
+    "but": 20,
+    "With": 20,
+    "dress": 20,
+    "your": 20,
+    "cute": 20,
+    "succeed": 20,
+    "You": 20,
+    "cool": 20,
+    "can": 20,
+    "will": 20,
+    "waffle": 3,
+    "patient": 3,
+    "the": 3,
+    "are": 3,
+    "after": 3,
+    "threw": 3,
+    "honey": 3,
+    "symptoms": 3,
+    "improved": 3,
+    "The": 3,
+    "girl's": 3,
+    "she": 3,
+    "reports": 3,
+    "resembling": 3
    },
    "first": "2026-11-25",
    "last": "2026-11-26",
-   "alts": {
-    "姑娘": 2
-   },
+   "alts": {},
    "files": {
     "🏆 Rating Every Punishing Gray Raven Ultimate PT 2 ｜ PGR Reaction.calib.srt": {
      "n": 3,
      "alt": 0,
      "first": "2026-11-25",
      "last": "2026-11-25"
-    },
-    "Streamers Reaction To The Lily Arc.zh.srt": {
-     "n": 0,
-     "alt": 2,
-     "first": "2026-11-26",
-     "last": "2026-11-26"
     }
    },
    "unc_files": {
     "【字幕】🏆 Rating Every Punishing Gray Raven Ultimate PT 2 ｜ PGR Reaction.en-谷歌翻译.srt": 4,
-    "【字幕】🏆 Rating Every Punishing Gray Raven Ultimate PT 2 ｜ PGR Reaction.en-谷歌翻译.calib.srt": 4,
-    "JP VTubers LOCKED IN As Endfield Shows PEAK!!! ｜ Arknights： Endfield Dev Log 2.0.zh.srt": 1
+    "【字幕】🏆 Rating Every Punishing Gray Raven Ultimate PT 2 ｜ PGR Reaction.en-谷歌翻译.calib.srt": 4
    },
-   "ctx_regex": "",
-   "conflict": true
+   "ctx_regex": ""
   },
   "bi|该死": {
    "wrong": "该死",
@@ -22683,30 +22617,30 @@
     ]
    ],
    "ref_tokens": {
-    "girl": 6,
-    "Damn": 30,
-    "see": 12,
-    "that": 12,
-    "you": 12,
-    "Zero": 6,
-    "double": 6,
-    "uppercut": 6,
-    "and": 6,
-    "her": 12,
-    "Devil": 12,
-    "She": 12,
-    "with": 12,
-    "the": 12,
-    "ball": 12,
-    "hit": 12,
-    "something": 6,
-    "like": 6,
-    "ultimates": 6
+    "girl": 10,
+    "Damn": 50,
+    "see": 20,
+    "that": 20,
+    "you": 20,
+    "Zero": 10,
+    "double": 10,
+    "uppercut": 10,
+    "and": 10,
+    "her": 20,
+    "Devil": 20,
+    "She": 20,
+    "with": 20,
+    "the": 20,
+    "ball": 20,
+    "hit": 20,
+    "something": 10,
+    "like": 10,
+    "ultimates": 10
    },
    "unc_ref_tokens": {
-    "God": 4,
-    "damn": 4,
-    "dude": 4
+    "God": 6,
+    "damn": 6,
+    "dude": 6
    },
    "first": "2026-11-25",
    "last": "2026-11-25",
@@ -22728,10 +22662,7 @@
      "last": "2026-11-25"
     }
    },
-   "unc_files": {
-    "Streamers Reaction To The Lily Arc.zh.srt": 1,
-    "Streamers Reaction To The Lily Arc.calib.srt": 1
-   },
+   "unc_files": {},
    "conflict": true
   },
   "bi|非常": {
@@ -22757,33 +22688,33 @@
     ]
    ],
    "ref_tokens": {
-    "Okay": 12,
-    "was": 12,
-    "cool": 12,
-    "give": 12,
-    "pretty": 12,
-    "stylish": 12,
-    "for": 12,
-    "all": 12,
-    "sick": 12,
-    "you": 12,
-    "I'm": 12,
-    "know": 12,
-    "are": 6,
-    "Yeah": 6,
-    "combos": 6,
-    "These": 6,
-    "bro": 6,
-    "fun": 6
+    "Okay": 20,
+    "was": 20,
+    "cool": 20,
+    "give": 20,
+    "pretty": 20,
+    "stylish": 20,
+    "for": 20,
+    "all": 20,
+    "sick": 20,
+    "you": 20,
+    "I'm": 20,
+    "know": 20,
+    "are": 10,
+    "Yeah": 10,
+    "combos": 10,
+    "These": 10,
+    "bro": 10,
+    "fun": 10
    },
    "unc_ref_tokens": {
-    "very": 12,
-    "cool": 12,
-    "This": 12,
-    "video": 12,
-    "vibe": 2,
-    "strong": 2,
-    "really": 2
+    "very": 20,
+    "cool": 20,
+    "This": 20,
+    "video": 20,
+    "vibe": 3,
+    "strong": 3,
+    "really": 3
    },
    "first": "2026-11-25",
    "last": "2026-11-25",
@@ -22807,8 +22738,7 @@
    },
    "unc_files": {
     "【字幕】🏆 Rating Every Punishing Gray Raven Ultimate PT 2 ｜ PGR Reaction.en-谷歌翻译.srt": 1,
-    "【字幕】🏆 Rating Every Punishing Gray Raven Ultimate PT 2 ｜ PGR Reaction.en-谷歌翻译.calib.srt": 1,
-    "JP VTubers LOCKED IN As Endfield Shows PEAK!!! ｜ Arknights： Endfield Dev Log 2.0.zh.srt": 1
+    "【字幕】🏆 Rating Every Punishing Gray Raven Ultimate PT 2 ｜ PGR Reaction.en-谷歌翻译.calib.srt": 1
    },
    "conflict": true
   },
@@ -22926,7 +22856,7 @@
    "mode": "bi",
    "count": 2,
    "uncorrected": 0,
-   "status": "candidate",
+   "status": "confirmed",
    "cues": [
     49,
     47,
@@ -22947,21 +22877,19 @@
     ]
    ],
    "ref_tokens": {
-    "they": 12,
-    "into": 12,
-    "that": 12,
-    "ultimates": 12,
-    "turn": 12,
-    "show": 12,
-    "combos": 12,
-    "pieces": 2
+    "they": 20,
+    "into": 20,
+    "that": 20,
+    "ultimates": 20,
+    "turn": 20,
+    "show": 20,
+    "combos": 20,
+    "pieces": 3
    },
    "unc_ref_tokens": {},
    "first": "2026-11-25",
    "last": "2026-11-26",
-   "alts": {
-    "砸个粉": 1
-   },
+   "alts": {},
    "files": {
     "🏆 Rating Every Punishing Gray Raven Ultimate PT 2 ｜ PGR Reaction.calib.srt": {
      "n": 1,
@@ -22974,16 +22902,9 @@
      "alt": 0,
      "first": "2026-11-25",
      "last": "2026-11-25"
-    },
-    "Streamers Reaction To The Lily Arc.zh.srt": {
-     "n": 0,
-     "alt": 1,
-     "first": "2026-11-26",
-     "last": "2026-11-26"
     }
    },
-   "unc_files": {},
-   "conflict": true
+   "unc_files": {}
   },
   "bi|是相当": {
    "wrong": "是相当",
@@ -23251,7 +23172,7 @@
    "mode": "bi",
    "count": 2,
    "uncorrected": 0,
-   "status": "candidate",
+   "status": "confirmed",
    "cues": [
     58,
     56,
@@ -23272,26 +23193,24 @@
     ]
    ],
    "ref_tokens": {
-    "attack": 12,
-    "another": 12,
-    "special": 12,
-    "have": 12,
-    "should": 12,
-    "Another": 2,
-    "monster": 2,
-    "come": 2,
-    "out": 2,
-    "was": 2,
-    "about": 2,
-    "thought": 2,
-    "the": 2
+    "attack": 20,
+    "another": 20,
+    "special": 20,
+    "have": 20,
+    "should": 20,
+    "Another": 3,
+    "monster": 3,
+    "come": 3,
+    "out": 3,
+    "was": 3,
+    "about": 3,
+    "thought": 3,
+    "the": 3
    },
    "unc_ref_tokens": {},
    "first": "2026-11-25",
    "last": "2026-11-26",
-   "alts": {
-    "还有": 1
-   },
+   "alts": {},
    "files": {
     "🏆 Rating Every Punishing Gray Raven Ultimate PT 2 ｜ PGR Reaction.calib.srt": {
      "n": 1,
@@ -23304,16 +23223,9 @@
      "alt": 0,
      "first": "2026-11-25",
      "last": "2026-11-25"
-    },
-    "Streamers Reaction To The Lily Arc.zh.srt": {
-     "n": 0,
-     "alt": 1,
-     "first": "2026-11-26",
-     "last": "2026-11-26"
     }
    },
-   "unc_files": {},
-   "conflict": true
+   "unc_files": {}
   },
   "bi|毁了": {
    "wrong": "毁了",
@@ -23441,28 +23353,26 @@
     ]
    ],
    "ref_tokens": {
-    "what": 12,
-    "even": 14,
-    "don't": 12,
-    "now": 12,
-    "broke": 12,
-    "But": 12,
-    "know": 12,
-    "God": 2,
-    "Kuro": 2,
-    "did": 2
+    "what": 20,
+    "even": 23,
+    "don't": 20,
+    "now": 20,
+    "broke": 20,
+    "But": 20,
+    "know": 20,
+    "God": 3,
+    "Kuro": 3,
+    "did": 3
    },
    "unc_ref_tokens": {
-    "even": 6,
-    "lie": 6,
-    "won't": 6,
-    "can't": 6
+    "even": 10,
+    "lie": 10,
+    "won't": 10,
+    "can't": 10
    },
    "first": "2026-11-25",
    "last": "2026-11-26",
-   "alts": {
-    "是不是真": 1
-   },
+   "alts": {},
    "files": {
     "🏆 Rating Every Punishing Gray Raven Ultimate PT 2 ｜ PGR Reaction.calib.srt": {
      "n": 1,
@@ -23475,19 +23385,12 @@
      "alt": 0,
      "first": "2026-11-25",
      "last": "2026-11-25"
-    },
-    "Streamers Reaction To The Lily Arc.zh.srt": {
-     "n": 0,
-     "alt": 1,
-     "first": "2026-11-26",
-     "last": "2026-11-26"
     }
    },
    "unc_files": {
     "🏆 Rating Every Punishing Gray Raven Ultimate PT 2 ｜ PGR Reaction.calib.srt": 1
    },
-   "ctx_regex": "\\bwhat\\b|\\bdon't\\b|\\bnow\\b",
-   "conflict": true
+   "ctx_regex": "\\bwhat\\b|\\bdon't\\b|\\bnow\\b"
   },
   "bi|但是": {
    "wrong": "但是",
@@ -23515,24 +23418,24 @@
     ]
    ],
    "ref_tokens": {
-    "what": 6,
-    "even": 6,
-    "don't": 6,
-    "now": 6,
-    "broke": 6,
-    "But": 12,
-    "know": 6,
-    "yeah": 6,
-    "cool": 6,
-    "was": 6
+    "what": 10,
+    "even": 10,
+    "don't": 10,
+    "now": 10,
+    "broke": 10,
+    "But": 20,
+    "know": 10,
+    "yeah": 10,
+    "cool": 10,
+    "was": 10
    },
    "unc_ref_tokens": {
-    "But": 4,
-    "but": 8,
-    "sorry": 4,
-    "Lily": 4,
-    "Miss": 4,
-    "please": 4
+    "But": 6,
+    "but": 12,
+    "sorry": 6,
+    "Lily": 6,
+    "Miss": 6,
+    "please": 6
    },
    "first": "2026-11-25",
    "last": "2026-11-25",
@@ -23551,10 +23454,7 @@
      "last": "2026-11-25"
     }
    },
-   "unc_files": {
-    "Streamers Reaction To The Lily Arc.zh.srt": 2,
-    "Streamers Reaction To The Lily Arc.calib.srt": 2
-   },
+   "unc_files": {},
    "conflict": true,
    "conflict_reason": "target-collides-canonical:不过她是怎么和列车甚至亡魂扯上关系的呢"
   },
@@ -23618,41 +23518,41 @@
     ]
    ],
    "ref_tokens": {
-    "attack": 12,
-    "give": 12,
-    "out": 12
+    "attack": 20,
+    "give": 20,
+    "out": 20
    },
    "unc_ref_tokens": {
-    "attack": 48,
-    "her": 18,
-    "have": 36,
-    "blades": 18,
-    "You": 18,
-    "like": 18,
-    "Okay": 36,
-    "attacks": 36,
-    "another": 18,
-    "special": 24,
-    "should": 18,
-    "Does": 18,
-    "different": 18,
-    "charging": 18,
-    "while": 18,
-    "types": 18,
-    "flower-eye": 12,
-    "his": 6,
-    "broke": 6,
-    "because": 6,
-    "something": 6,
-    "testimonies": 2,
-    "also": 2,
-    "people": 2,
-    "being": 2,
-    "the": 2,
-    "are": 2,
-    "attacked": 2,
-    "Laughs": 2,
-    "mushrooms": 2
+    "attack": 80,
+    "her": 30,
+    "have": 60,
+    "blades": 30,
+    "You": 30,
+    "like": 30,
+    "Okay": 60,
+    "attacks": 60,
+    "another": 30,
+    "special": 40,
+    "should": 30,
+    "Does": 30,
+    "different": 30,
+    "charging": 30,
+    "while": 30,
+    "types": 30,
+    "flower-eye": 20,
+    "his": 10,
+    "broke": 10,
+    "because": 10,
+    "something": 10,
+    "testimonies": 3,
+    "also": 3,
+    "people": 3,
+    "being": 3,
+    "the": 3,
+    "are": 3,
+    "attacked": 3,
+    "Laughs": 3,
+    "mushrooms": 3
    },
    "first": "2026-11-25",
    "last": "2026-11-25",
@@ -23676,8 +23576,7 @@
    "unc_files": {
     "🏆 Rating Every Punishing Gray Raven Ultimate PT 2 ｜ PGR Reaction.calib.srt": 4,
     "【字幕】🏆 Rating Every Punishing Gray Raven Ultimate PT 2 ｜ PGR Reaction.en-谷歌翻译.srt": 5,
-    "【字幕】🏆 Rating Every Punishing Gray Raven Ultimate PT 2 ｜ PGR Reaction.en-谷歌翻译.calib.srt": 6,
-    "JP VTubers LOCKED IN As Endfield Shows PEAK!!! ｜ Arknights： Endfield Dev Log 2.0.zh.srt": 1
+    "【字幕】🏆 Rating Every Punishing Gray Raven Ultimate PT 2 ｜ PGR Reaction.en-谷歌翻译.calib.srt": 6
    },
    "ctx_regex": "\\bgive\\b|\\bout\\b",
    "conflict": true
@@ -23688,7 +23587,7 @@
    "mode": "bi",
    "count": 2,
    "uncorrected": 0,
-   "status": "candidate",
+   "status": "confirmed",
    "cues": [
     66,
     64,
@@ -23709,17 +23608,15 @@
     ]
    ],
    "ref_tokens": {
-    "crazy": 12,
-    "was": 12,
-    "where": 2,
-    "This": 2
+    "crazy": 20,
+    "was": 20,
+    "where": 3,
+    "This": 3
    },
    "unc_ref_tokens": {},
    "first": "2026-11-25",
    "last": "2026-11-26",
-   "alts": {
-    "我们": 1
-   },
+   "alts": {},
    "files": {
     "🏆 Rating Every Punishing Gray Raven Ultimate PT 2 ｜ PGR Reaction.calib.srt": {
      "n": 1,
@@ -23732,16 +23629,9 @@
      "alt": 0,
      "first": "2026-11-25",
      "last": "2026-11-25"
-    },
-    "JP VTubers LOCKED IN As Endfield Shows PEAK!!! ｜ Arknights： Endfield Dev Log 2.0.zh.srt": {
-     "n": 0,
-     "alt": 1,
-     "first": "2026-11-26",
-     "last": "2026-11-26"
     }
    },
-   "unc_files": {},
-   "conflict": true
+   "unc_files": {}
   },
   "bi|而已": {
    "wrong": "而已",
@@ -24607,30 +24497,28 @@
     ]
    ],
    "ref_tokens": {
-    "fight": 12,
-    "see": 12,
-    "you": 12,
-    "need": 30,
-    "Bro": 12,
-    "everything": 12,
-    "man": 12,
-    "down": 12,
-    "how": 12,
-    "slows": 12,
-    "You": 2,
-    "don't": 2,
-    "nervous": 2,
-    "Nice": 2,
-    "have": 4,
-    "can't": 4
+    "fight": 20,
+    "see": 20,
+    "you": 20,
+    "need": 49,
+    "Bro": 20,
+    "everything": 20,
+    "man": 20,
+    "down": 20,
+    "how": 20,
+    "slows": 20,
+    "You": 3,
+    "don't": 3,
+    "nervous": 3,
+    "Nice": 3,
+    "have": 6,
+    "can't": 6
    },
    "unc_ref_tokens": {},
    "first": "2026-11-25",
    "last": "2026-11-26",
    "alts": {
-    "想": 1,
-    "用": 1,
-    "用了": 2
+    "想": 1
    },
    "files": {
     "🏆 Rating Every Punishing Gray Raven Ultimate PT 2 ｜ PGR Reaction.calib.srt": {
@@ -24644,12 +24532,6 @@
      "alt": 1,
      "first": "2026-11-25",
      "last": "2026-11-25"
-    },
-    "Streamers Reaction To The Lily Arc.zh.srt": {
-     "n": 0,
-     "alt": 3,
-     "first": "2026-11-26",
-     "last": "2026-11-26"
     }
    },
    "unc_files": {},
@@ -24984,99 +24866,96 @@
     ]
    ],
    "ref_tokens": {
-    "man": 26,
-    "Dude": 20,
-    "into": 6,
-    "more": 6,
-    "weapons": 6,
-    "she's": 12,
-    "materializing": 6,
-    "over": 6,
-    "the": 16,
-    "all": 6,
-    "dancing": 6,
-    "place": 6,
-    "just": 6,
-    "animation": 6,
-    "great": 6,
-    "this": 6,
-    "everything": 6,
-    "down": 6,
-    "how": 6,
-    "need": 6,
-    "slows": 6,
-    "was": 6,
-    "cool": 8,
-    "when": 6,
-    "buddy": 2,
-    "Wait": 2,
-    "hell": 2,
-    "what": 2,
-    "good": 4,
-    "that's": 2,
-    "situation": 2,
-    "brother": 2,
-    "dude": 6,
-    "here": 2,
-    "What's": 2,
-    "Not": 2,
-    "back": 2,
-    "Don't": 2,
-    "someone's": 2,
-    "that": 2,
-    "pink": 2,
-    "show": 2,
-    "fate": 2
+    "man": 43,
+    "Dude": 33,
+    "into": 10,
+    "more": 10,
+    "weapons": 10,
+    "she's": 20,
+    "materializing": 10,
+    "over": 10,
+    "the": 26,
+    "all": 10,
+    "dancing": 10,
+    "place": 10,
+    "just": 10,
+    "animation": 10,
+    "great": 10,
+    "this": 10,
+    "everything": 10,
+    "down": 10,
+    "how": 10,
+    "need": 10,
+    "slows": 10,
+    "was": 10,
+    "cool": 13,
+    "when": 10,
+    "buddy": 3,
+    "Wait": 3,
+    "hell": 3,
+    "what": 3,
+    "good": 6,
+    "that's": 3,
+    "situation": 3,
+    "brother": 3,
+    "dude": 9,
+    "here": 3,
+    "What's": 3,
+    "Not": 3,
+    "back": 3,
+    "Don't": 3,
+    "someone's": 3,
+    "that": 3,
+    "pink": 3,
+    "show": 3,
+    "fate": 3
    },
    "unc_ref_tokens": {
-    "Dude": 72,
-    "weapons": 12,
-    "into": 12,
-    "materializing": 12,
-    "she's": 24,
-    "more": 12,
-    "place": 12,
-    "over": 12,
-    "all": 12,
-    "dancing": 12,
-    "the": 28,
-    "just": 12,
-    "animation": 12,
-    "this": 20,
-    "great": 12,
-    "man": 36,
-    "how": 12,
-    "down": 12,
-    "everything": 12,
-    "need": 12,
-    "slows": 12,
-    "cool": 12,
-    "when": 12,
-    "was": 12,
-    "you": 4,
-    "Why": 4,
-    "are": 4,
-    "doing": 4,
-    "dude": 12,
-    "God": 4,
-    "damn": 8,
-    "again": 4,
-    "can't": 4,
-    "with": 4,
-    "rover": 4,
-    "class": 4,
-    "The": 4,
-    "Cinema": 4,
-    "Peak": 4
+    "Dude": 120,
+    "weapons": 20,
+    "into": 20,
+    "materializing": 20,
+    "she's": 40,
+    "more": 20,
+    "place": 20,
+    "over": 20,
+    "all": 20,
+    "dancing": 20,
+    "the": 46,
+    "just": 20,
+    "animation": 20,
+    "this": 32,
+    "great": 20,
+    "man": 58,
+    "how": 20,
+    "down": 20,
+    "everything": 20,
+    "need": 20,
+    "slows": 20,
+    "cool": 20,
+    "when": 20,
+    "was": 20,
+    "you": 6,
+    "Why": 6,
+    "are": 6,
+    "doing": 6,
+    "dude": 18,
+    "God": 6,
+    "damn": 12,
+    "again": 6,
+    "can't": 6,
+    "with": 6,
+    "rover": 6,
+    "class": 6,
+    "The": 6,
+    "Cinema": 6,
+    "Peak": 6
    },
    "first": "2026-11-25",
    "last": "2026-11-26",
    "alts": {
-    "兄弟": 7,
-    "我的天": 1,
-    "天啊": 1,
-    "弹奏的那种": 1,
-    "老兄": 2
+    "兄弟": 5,
+    "我的天": 1
    },
    "files": {
     "🏆 Rating Every Punishing Gray Raven Ultimate PT 2 ｜ PGR Reaction.calib.srt": {
@@ -25090,20 +24969,12 @@
      "alt": 1,
      "first": "2026-11-25",
      "last": "2026-11-25"
-    },
-    "Streamers Reaction To The Lily Arc.zh.srt": {
-     "n": 0,
-     "alt": 6,
-     "first": "2026-11-26",
-     "last": "2026-11-26"
     }
    },
    "unc_files": {
     "🏆 Rating Every Punishing Gray Raven Ultimate PT 2 ｜ PGR Reaction.calib.srt": 2,
     "【字幕】🏆 Rating Every Punishing Gray Raven Ultimate PT 2 ｜ PGR Reaction.en-谷歌翻译.srt": 7,
-    "【字幕】🏆 Rating Every Punishing Gray Raven Ultimate PT 2 ｜ PGR Reaction.en-谷歌翻译.calib.srt": 7,
-    "Streamers Reaction To The Lily Arc.zh.srt": 6,
-    "Streamers Reaction To The Lily Arc.calib.srt": 6
+    "【字幕】🏆 Rating Every Punishing Gray Raven Ultimate PT 2 ｜ PGR Reaction.en-谷歌翻译.calib.srt": 7
    },
    "conflict": true
   },
@@ -25244,18 +25115,18 @@
     ]
    ],
    "ref_tokens": {
-    "ultimate": 12,
-    "bro": 12,
-    "overall": 12,
-    "think": 14,
-    "this": 12,
-    "interesting": 12,
-    "memory": 2,
-    "her": 2,
-    "there's": 2,
-    "but": 2,
-    "hazy": 2,
-    "maybe": 2
+    "ultimate": 20,
+    "bro": 20,
+    "overall": 20,
+    "think": 23,
+    "this": 20,
+    "interesting": 20,
+    "memory": 3,
+    "her": 3,
+    "there's": 3,
+    "but": 3,
+    "hazy": 3,
+    "maybe": 3
    },
    "unc_ref_tokens": {},
    "first": "2026-11-25",
@@ -25273,12 +25144,6 @@
      "alt": 0,
      "first": "2026-11-25",
      "last": "2026-11-25"
-    },
-    "Streamers Reaction To The Lily Arc.zh.srt": {
-     "n": 1,
-     "alt": 0,
-     "first": "2026-11-26",
-     "last": "2026-11-26"
     }
    },
    "unc_files": {}
@@ -25451,44 +25316,42 @@
     ]
    ],
    "ref_tokens": {
-    "going": 12,
-    "and": 12,
-    "domain": 12,
-    "expansion": 12,
-    "give": 12,
-    "now": 12,
-    "start": 12,
-    "them": 12,
-    "but": 2,
-    "Kei-chan": 2,
-    "Now": 2,
-    "not": 2
+    "going": 20,
+    "and": 20,
+    "domain": 20,
+    "expansion": 20,
+    "give": 20,
+    "now": 20,
+    "start": 20,
+    "them": 20,
+    "but": 3,
+    "Kei-chan": 3,
+    "Now": 3,
+    "not": 3
    },
    "unc_ref_tokens": {
-    "what": 12,
-    "even": 6,
-    "don't": 6,
-    "now": 12,
-    "broke": 6,
-    "But": 6,
-    "know": 12,
-    "have": 6,
-    "axe": 6,
-    "She": 6,
-    "has": 6,
-    "Galentine's": 6,
-    "Now": 6,
-    "because": 6,
-    "filming": 6,
-    "video": 6,
-    "right": 6,
-    "I'm": 6
+    "what": 20,
+    "even": 10,
+    "don't": 10,
+    "now": 20,
+    "broke": 10,
+    "But": 10,
+    "know": 20,
+    "have": 10,
+    "axe": 10,
+    "She": 10,
+    "has": 10,
+    "Galentine's": 10,
+    "Now": 10,
+    "because": 10,
+    "filming": 10,
+    "video": 10,
+    "right": 10,
+    "I'm": 10
    },
    "first": "2026-11-25",
    "last": "2026-11-26",
-   "alts": {
-    "那个": 1
-   },
+   "alts": {},
    "files": {
     "🏆 Rating Every Punishing Gray Raven Ultimate PT 2 ｜ PGR Reaction.calib.srt": {
      "n": 1,
@@ -25501,19 +25364,12 @@
      "alt": 0,
      "first": "2026-11-25",
      "last": "2026-11-25"
-    },
-    "JP VTubers LOCKED IN As Endfield Shows PEAK!!! ｜ Arknights： Endfield Dev Log 2.0.zh.srt": {
-     "n": 0,
-     "alt": 1,
-     "first": "2026-11-26",
-     "last": "2026-11-26"
     }
    },
    "unc_files": {
     "🏆 Rating Every Punishing Gray Raven Ultimate PT 2 ｜ PGR Reaction.calib.srt": 3
    },
-   "ctx_regex": "\\bgoing\\b|\\band\\b|\\bdomain\\b",
-   "conflict": true
+   "ctx_regex": "\\bgoing\\b|\\band\\b|\\bdomain\\b"
   },
   "bi|到底是": {
    "wrong": "到底是",
@@ -25548,31 +25404,31 @@
     ]
    ],
    "ref_tokens": {
-    "hell": 14,
-    "the": 14,
-    "heck": 12,
-    "was": 12,
-    "What": 12,
-    "that": 12,
-    "hey": 12,
-    "buddy": 2,
-    "Wait": 2,
-    "what": 2
+    "hell": 23,
+    "the": 23,
+    "heck": 20,
+    "was": 20,
+    "What": 20,
+    "that": 20,
+    "hey": 20,
+    "buddy": 3,
+    "Wait": 3,
+    "what": 3
    },
    "unc_ref_tokens": {
-    "hell": 6,
-    "the": 6,
-    "heck": 6,
-    "was": 6,
-    "What": 6,
-    "that": 6,
-    "hey": 6,
-    "what": 6,
-    "even": 6,
-    "Ribbon": 6,
-    "with": 6,
-    "bow": 6,
-    "this": 6
+    "hell": 10,
+    "the": 10,
+    "heck": 10,
+    "was": 10,
+    "What": 10,
+    "that": 10,
+    "hey": 10,
+    "what": 10,
+    "even": 10,
+    "Ribbon": 10,
+    "with": 10,
+    "bow": 10,
+    "this": 10
    },
    "first": "2026-11-25",
    "last": "2026-11-26",
@@ -25589,18 +25445,12 @@
      "alt": 0,
      "first": "2026-11-25",
      "last": "2026-11-25"
-    },
-    "Streamers Reaction To The Lily Arc.zh.srt": {
-     "n": 1,
-     "alt": 0,
-     "first": "2026-11-26",
-     "last": "2026-11-26"
     }
    },
    "unc_files": {
     "🏆 Rating Every Punishing Gray Raven Ultimate PT 2 ｜ PGR Reaction.calib.srt": 2
    },
-   "ctx_regex": "\\bbuddy\\b|\\bWait\\b"
+   "ctx_regex": ""
   },
   "bi|吹走": {
    "wrong": "吹走",
@@ -26250,19 +26100,19 @@
     ]
    ],
    "ref_tokens": {
-    "boy": 12,
-    "combo": 12,
-    "Nice": 12
+    "boy": 20,
+    "combo": 20,
+    "Nice": 20
    },
    "unc_ref_tokens": {
-    "Nice": 6,
-    "boy": 6,
-    "combo": 6,
-    "you": 4,
-    "boys": 4,
-    "shouldn't": 4,
-    "know": 4,
-    "cry": 4
+    "Nice": 10,
+    "boy": 10,
+    "combo": 10,
+    "you": 6,
+    "boys": 6,
+    "shouldn't": 6,
+    "know": 6,
+    "cry": 6
    },
    "first": "2026-11-25",
    "last": "2026-11-25",
@@ -26282,9 +26132,7 @@
     }
    },
    "unc_files": {
-    "【字幕】🏆 Rating Every Punishing Gray Raven Ultimate PT 2 ｜ PGR Reaction.en-谷歌翻译.srt": 1,
-    "Streamers Reaction To The Lily Arc.zh.srt": 1,
-    "Streamers Reaction To The Lily Arc.calib.srt": 1
+    "【字幕】🏆 Rating Every Punishing Gray Raven Ultimate PT 2 ｜ PGR Reaction.en-谷歌翻译.srt": 1
    },
    "ctx_regex": ""
   },
@@ -26347,10 +26195,10 @@
     ]
    ],
    "ref_tokens": {
-    "just": 6,
-    "Bro": 6,
-    "Karina": 6,
-    "fire": 6
+    "just": 10,
+    "Bro": 10,
+    "Karina": 10,
+    "fire": 10
    },
    "unc_ref_tokens": {},
    "first": "2026-11-25",
@@ -26366,7 +26214,7 @@
    },
    "unc_files": {},
    "conflict": true,
-   "conflict_reason": "target-collides-canonical:太好了"
+   "conflict_reason": "target-collides-canonical:太帅了"
   },
   "bi|这里做": {
    "wrong": "这里做",
@@ -26752,22 +26600,22 @@
     ]
    ],
    "ref_tokens": {
-    "Okay": 6,
-    "Does": 6,
-    "attacks": 6,
-    "different": 6,
-    "charging": 6,
-    "while": 6,
-    "types": 6
+    "Okay": 10,
+    "Does": 10,
+    "attacks": 10,
+    "different": 10,
+    "charging": 10,
+    "while": 10,
+    "types": 10
    },
    "unc_ref_tokens": {
-    "still": 4,
-    "there": 4,
-    "somewhere": 4,
-    "he's": 4,
-    "wonder": 4,
-    "out": 4,
-    "alive": 4
+    "still": 6,
+    "there": 6,
+    "somewhere": 6,
+    "he's": 6,
+    "wonder": 6,
+    "out": 6,
+    "alive": 6
    },
    "first": "2026-11-25",
    "last": "2026-11-25",
@@ -26780,10 +26628,7 @@
      "last": "2026-11-25"
     }
    },
-   "unc_files": {
-    "Streamers Reaction To The Lily Arc.zh.srt": 1,
-    "Streamers Reaction To The Lily Arc.calib.srt": 1
-   },
+   "unc_files": {},
    "ctx_regex": "\\bOkay\\b|\\bDoes\\b|\\battacks\\b"
   },
   "bi|它既美丽": {
@@ -27059,7 +26904,7 @@
    "mode": "bi",
    "count": 3,
    "uncorrected": 3,
-   "status": "candidate",
+   "status": "confirmed",
    "cues": [
     163,
     164,
@@ -27130,23 +26975,23 @@
     ]
    ],
    "ref_tokens": {
-    "Okay": 24,
-    "understand": 56,
-    "You": 56,
-    "bro": 24,
-    "don't": 2
+    "Okay": 40,
+    "understand": 93,
+    "You": 93,
+    "bro": 40,
+    "don't": 3
    },
    "unc_ref_tokens": {
-    "You": 4,
-    "understand": 4,
-    "don't": 4,
-    "just": 2,
-    "tells": 2,
-    "knows": 2,
-    "It's": 2,
-    "her": 2,
-    "that": 2,
-    "heart": 2
+    "You": 6,
+    "understand": 6,
+    "don't": 6,
+    "just": 3,
+    "tells": 3,
+    "knows": 3,
+    "It's": 3,
+    "her": 3,
+    "that": 3,
+    "heart": 3
    },
    "first": "2026-11-25",
    "last": "2026-11-26",
@@ -27163,20 +27008,10 @@
      "alt": 0,
      "first": "2026-11-25",
      "last": "2026-11-25"
-    },
-    "Streamers Reaction To The Lily Arc.zh.srt": {
-     "n": 1,
-     "alt": 0,
-     "first": "2026-11-26",
-     "last": "2026-11-26"
     }
    },
-   "unc_files": {
-    "Streamers Reaction To The Lily Arc.zh.srt": 1,
-    "Streamers Reaction To The Lily Arc.calib.srt": 2
-   },
-   "demoted": true,
-   "ctx_regex": "\\bOkay\\b|\\bbro\\b"
+   "unc_files": {},
+   "demoted": true
   },
   "bi|明白。  好": {
    "wrong": "明白。  好",
@@ -27329,17 +27164,17 @@
     ]
    ],
    "ref_tokens": {
-    "hand": 6,
-    "what": 6,
-    "and": 6,
-    "she": 6,
-    "has": 6,
-    "Springfield": 6,
-    "one": 6
+    "hand": 10,
+    "what": 10,
+    "and": 10,
+    "she": 10,
+    "has": 10,
+    "Springfield": 10,
+    "one": 10
    },
    "unc_ref_tokens": {
-    "wait": 2,
-    "what": 2
+    "wait": 3,
+    "what": 3
    },
    "first": "2026-11-25",
    "last": "2026-11-25",
@@ -27352,10 +27187,8 @@
      "last": "2026-11-25"
     }
    },
-   "unc_files": {
-    "JP VTubers LOCKED IN As Endfield Shows PEAK!!! ｜ Arknights： Endfield Dev Log 2.0.zh.srt": 1
-   },
-   "ctx_regex": "\\bhand\\b|\\band\\b|\\bshe\\b"
+   "unc_files": {},
+   "ctx_regex": "\\bhand\\b|\\bwhat\\b|\\band\\b"
   },
   "bi|发生": {
    "wrong": "发生",
@@ -27384,32 +27217,30 @@
     ]
    ],
    "ref_tokens": {
-    "going": 12,
-    "kind": 12,
-    "revolutionary": 12,
-    "What": 12,
-    "war": 12,
-    "here": 12,
-    "Look": 2,
-    "this": 2,
-    "how": 2,
-    "wonderful": 2,
-    "happen": 2
+    "going": 20,
+    "kind": 20,
+    "revolutionary": 20,
+    "What": 20,
+    "war": 20,
+    "here": 20,
+    "Look": 3,
+    "this": 3,
+    "how": 3,
+    "wonderful": 3,
+    "happen": 3
    },
    "unc_ref_tokens": {
-    "looks": 6,
-    "what": 6,
-    "happened": 6,
-    "The": 6,
-    "cool": 6,
-    "move": 6,
-    "But": 6
+    "looks": 10,
+    "what": 10,
+    "happened": 10,
+    "The": 10,
+    "cool": 10,
+    "move": 10,
+    "But": 10
    },
    "first": "2026-11-25",
    "last": "2026-11-26",
-   "alts": {
-    "展开": 1
-   },
+   "alts": {},
    "files": {
     "🏆 Rating Every Punishing Gray Raven Ultimate PT 2 ｜ PGR Reaction.calib.srt": {
      "n": 1,
@@ -27422,19 +27253,12 @@
      "alt": 0,
      "first": "2026-11-25",
      "last": "2026-11-25"
-    },
-    "Streamers Reaction To The Lily Arc.zh.srt": {
-     "n": 0,
-     "alt": 1,
-     "first": "2026-11-26",
-     "last": "2026-11-26"
     }
    },
    "unc_files": {
     "🏆 Rating Every Punishing Gray Raven Ultimate PT 2 ｜ PGR Reaction.calib.srt": 1
    },
-   "ctx_regex": "\\bgoing\\b|\\bkind\\b|\\brevolutionary\\b",
-   "conflict": true
+   "ctx_regex": "\\bgoing\\b|\\bkind\\b|\\brevolutionary\\b"
   },
   "bi|带着": {
    "wrong": "带着",
@@ -27456,22 +27280,22 @@
     ]
    ],
    "ref_tokens": {
-    "girl": 6,
-    "your": 6,
-    "dress": 6,
-    "cute": 6,
-    "With": 6,
-    "have": 6,
-    "like": 6,
-    "You": 6,
-    "her": 6,
-    "blades": 6,
-    "attack": 6
+    "girl": 10,
+    "your": 10,
+    "dress": 10,
+    "cute": 10,
+    "With": 10,
+    "have": 10,
+    "like": 10,
+    "You": 10,
+    "her": 10,
+    "blades": 10,
+    "attack": 10
    },
    "unc_ref_tokens": {
-    "flower": 4,
-    "with": 4,
-    "returned": 4
+    "flower": 6,
+    "with": 6,
+    "returned": 6
    },
    "first": "2026-11-25",
    "last": "2026-11-25",
@@ -27492,10 +27316,7 @@
      "last": "2026-11-25"
     }
    },
-   "unc_files": {
-    "Streamers Reaction To The Lily Arc.zh.srt": 1,
-    "Streamers Reaction To The Lily Arc.calib.srt": 1
-   },
+   "unc_files": {},
    "conflict": true,
    "conflict_reason": "target-collides-canonical:御者还有更多好奇的"
   },
@@ -27783,30 +27604,30 @@
     ]
    ],
    "ref_tokens": {
-    "the": 6,
-    "when": 6,
-    "one": 6,
-    "first": 6,
-    "Bro": 6
+    "the": 10,
+    "when": 10,
+    "one": 10,
+    "first": 10,
+    "Bro": 10
    },
    "unc_ref_tokens": {
-    "videos": 18,
-    "want": 18,
-    "all": 18,
-    "access": 18,
-    "you": 18,
-    "okay": 4,
-    "sleep": 4,
-    "damn": 4,
-    "Wow": 4,
-    "taser": 4,
-    "God": 4,
-    "Discord": 4,
-    "for": 4,
-    "run": 4,
-    "Lily": 4,
-    "please": 2,
-    "Grimm": 2
+    "videos": 30,
+    "want": 30,
+    "all": 30,
+    "access": 30,
+    "you": 30,
+    "okay": 6,
+    "sleep": 6,
+    "damn": 6,
+    "Wow": 6,
+    "taser": 6,
+    "God": 6,
+    "Discord": 6,
+    "for": 6,
+    "run": 6,
+    "Lily": 6,
+    "please": 3,
+    "Grimm": 3
    },
    "first": "2026-11-25",
    "last": "2026-11-25",
@@ -27822,9 +27643,7 @@
    "unc_files": {
     "🏆 Rating Every Punishing Gray Raven Ultimate PT 2 ｜ PGR Reaction.calib.srt": 1,
     "【字幕】🏆 Rating Every Punishing Gray Raven Ultimate PT 2 ｜ PGR Reaction.en-谷歌翻译.srt": 1,
-    "【字幕】🏆 Rating Every Punishing Gray Raven Ultimate PT 2 ｜ PGR Reaction.en-谷歌翻译.calib.srt": 1,
-    "Streamers Reaction To The Lily Arc.zh.srt": 3,
-    "Streamers Reaction To The Lily Arc.calib.srt": 4
+    "【字幕】🏆 Rating Every Punishing Gray Raven Ultimate PT 2 ｜ PGR Reaction.en-谷歌翻译.calib.srt": 1
    },
    "ctx_regex": "\\bthe\\b|\\bwhen\\b|\\bone\\b"
   },
@@ -27894,30 +27713,28 @@
     ]
    ],
    "ref_tokens": {
-    "but": 12,
-    "bro": 12,
-    "was": 12,
-    "Bro": 12,
-    "out": 12,
-    "this": 12,
-    "It's": 2,
-    "Laughs": 2
+    "but": 20,
+    "bro": 20,
+    "was": 20,
+    "Bro": 20,
+    "out": 20,
+    "this": 20,
+    "It's": 3,
+    "Laughs": 3
    },
    "unc_ref_tokens": {
-    "This": 6,
-    "glasses": 6,
-    "sickest": 6,
-    "the": 12,
-    "world": 6,
-    "Cinnadoll": 6,
-    "was": 6,
-    "perfect": 6
+    "This": 10,
+    "glasses": 10,
+    "sickest": 10,
+    "the": 20,
+    "world": 10,
+    "Cinnadoll": 10,
+    "was": 10,
+    "perfect": 10
    },
    "first": "2026-11-25",
    "last": "2026-11-26",
-   "alts": {
-    "可以": 1
-   },
+   "alts": {},
    "files": {
     "🏆 Rating Every Punishing Gray Raven Ultimate PT 2 ｜ PGR Reaction.calib.srt": {
      "n": 1,
@@ -27930,19 +27747,12 @@
      "alt": 0,
      "first": "2026-11-25",
      "last": "2026-11-25"
-    },
-    "JP VTubers LOCKED IN As Endfield Shows PEAK!!! ｜ Arknights： Endfield Dev Log 2.0.zh.srt": {
-     "n": 0,
-     "alt": 1,
-     "first": "2026-11-26",
-     "last": "2026-11-26"
     }
    },
    "unc_files": {
     "🏆 Rating Every Punishing Gray Raven Ultimate PT 2 ｜ PGR Reaction.calib.srt": 2
    },
-   "ctx_regex": "\\bbut\\b|\\bbro\\b|\\bBro\\b",
-   "conflict": true
+   "ctx_regex": "\\bbut\\b|\\bbro\\b|\\bBro\\b"
   },
   "bi|来自《Okay》的": {
    "wrong": "来自《Okay》的",
@@ -28147,21 +27957,21 @@
     ]
    ],
    "ref_tokens": {
-    "succeed": 6,
-    "girl": 6,
-    "will": 6,
-    "You": 6,
-    "cool": 6,
-    "can": 6
+    "succeed": 10,
+    "girl": 10,
+    "will": 10,
+    "You": 10,
+    "cool": 10,
+    "can": 10
    },
    "unc_ref_tokens": {
-    "even": 4,
-    "God": 4,
-    "Kuro": 4,
-    "did": 6,
-    "everything": 2,
-    "said": 2,
-    "you": 2
+    "even": 6,
+    "God": 6,
+    "Kuro": 6,
+    "did": 9,
+    "everything": 3,
+    "said": 3,
+    "you": 3
    },
    "first": "2026-11-25",
    "last": "2026-11-25",
@@ -28174,10 +27984,7 @@
      "last": "2026-11-25"
     }
    },
-   "unc_files": {
-    "Streamers Reaction To The Lily Arc.zh.srt": 1,
-    "Streamers Reaction To The Lily Arc.calib.srt": 2
-   },
+   "unc_files": {},
    "ctx_regex": "\\bsucceed\\b|\\bgirl\\b|\\bwill\\b"
   },
   "bi|哦天啊": {
@@ -28239,7 +28046,7 @@
    "mode": "bi",
    "count": 3,
    "uncorrected": 0,
-   "status": "candidate",
+   "status": "confirmed",
    "cues": [
     207,
     205,
@@ -28281,18 +28088,16 @@
     ]
    ],
    "ref_tokens": {
-    "God": 20,
-    "expression": 2,
-    "her": 2,
-    "Interesting": 2,
-    "war": 2
+    "God": 32,
+    "expression": 3,
+    "her": 3,
+    "Interesting": 3,
+    "war": 3
    },
    "unc_ref_tokens": {},
    "first": "2026-11-25",
    "last": "2026-11-26",
-   "alts": {
-    "天": 1
-   },
+   "alts": {},
    "files": {
     "🏆 Rating Every Punishing Gray Raven Ultimate PT 2 ｜ PGR Reaction.calib.srt": {
      "n": 1,
@@ -28305,16 +28110,9 @@
      "alt": 0,
      "first": "2026-11-25",
      "last": "2026-11-25"
-    },
-    "Streamers Reaction To The Lily Arc.zh.srt": {
-     "n": 3,
-     "alt": 1,
-     "first": "2026-11-26",
-     "last": "2026-11-26"
     }
    },
-   "unc_files": {},
-   "conflict": true
+   "unc_files": {}
   },
   "bi|我很高兴": {
    "wrong": "我很高兴",
@@ -28460,55 +28258,53 @@
     ]
    ],
    "ref_tokens": {
-    "video": 12,
-    "the": 12,
-    "because": 12,
-    "like": 12,
-    "when": 2,
-    "these": 2,
-    "cut": 2,
-    "love": 2,
-    "scenes": 2,
-    "they": 2
+    "video": 20,
+    "the": 20,
+    "because": 20,
+    "like": 20,
+    "when": 3,
+    "these": 3,
+    "cut": 3,
+    "love": 3,
+    "scenes": 3,
+    "they": 3
    },
    "unc_ref_tokens": {
-    "attack": 6,
-    "her": 12,
-    "have": 6,
-    "blades": 6,
-    "You": 6,
-    "like": 36,
-    "Okay": 6,
-    "the": 6,
-    "one": 6,
-    "devil": 6,
-    "this": 6,
-    "And": 6,
-    "sideways": 6,
-    "she": 6,
-    "how": 6,
-    "dances": 6,
-    "stylish": 6,
-    "for": 6,
-    "all": 6,
-    "sick": 6,
-    "you": 6,
-    "I'm": 6,
-    "know": 6,
-    "That's": 6,
-    "what": 6,
-    "see": 6,
-    "bro": 6,
-    "are": 6,
-    "simply": 6,
-    "combos": 6,
-    "These": 6
+    "attack": 10,
+    "her": 20,
+    "have": 10,
+    "blades": 10,
+    "You": 10,
+    "like": 60,
+    "Okay": 10,
+    "the": 10,
+    "one": 10,
+    "devil": 10,
+    "this": 10,
+    "And": 10,
+    "sideways": 10,
+    "she": 10,
+    "how": 10,
+    "dances": 10,
+    "stylish": 10,
+    "for": 10,
+    "all": 10,
+    "sick": 10,
+    "you": 10,
+    "I'm": 10,
+    "know": 10,
+    "That's": 10,
+    "what": 10,
+    "see": 10,
+    "bro": 10,
+    "are": 10,
+    "simply": 10,
+    "combos": 10,
+    "These": 10
    },
    "first": "2026-11-25",
    "last": "2026-11-26",
-   "alts": {
-    "就爱": 1
-   },
+   "alts": {},
    "files": {
     "🏆 Rating Every Punishing Gray Raven Ultimate PT 2 ｜ PGR Reaction.calib.srt": {
      "n": 1,
@@ -28521,19 +28317,12 @@
      "alt": 0,
      "first": "2026-11-25",
      "last": "2026-11-25"
-    },
-    "Streamers Reaction To The Lily Arc.zh.srt": {
-     "n": 0,
-     "alt": 1,
-     "first": "2026-11-26",
-     "last": "2026-11-26"
     }
    },
    "unc_files": {
     "🏆 Rating Every Punishing Gray Raven Ultimate PT 2 ｜ PGR Reaction.calib.srt": 7
    },
-   "ctx_regex": "\\bvideo\\b|\\bbecause\\b",
-   "conflict": true
+   "ctx_regex": "\\bvideo\\b|\\bbecause\\b"
   },
   "bi|15 名": {
    "wrong": "15 名",
@@ -28895,19 +28684,19 @@
     ]
    ],
    "ref_tokens": {
-    "your": 6,
-    "easier": 6,
-    "for": 6,
-    "bro": 6,
-    "that": 6,
-    "Thank": 6,
-    "you": 6,
-    "support": 6,
-    "way": 6
+    "your": 10,
+    "easier": 10,
+    "for": 10,
+    "bro": 10,
+    "that": 10,
+    "Thank": 10,
+    "you": 10,
+    "support": 10,
+    "way": 10
    },
    "unc_ref_tokens": {
-    "that": 4,
-    "forward": 4
+    "that": 6,
+    "forward": 6
    },
    "first": "2026-11-25",
    "last": "2026-11-25",
@@ -28920,10 +28709,7 @@
      "last": "2026-11-25"
     }
    },
-   "unc_files": {
-    "Streamers Reaction To The Lily Arc.zh.srt": 1,
-    "Streamers Reaction To The Lily Arc.calib.srt": 1
-   },
+   "unc_files": {},
    "ctx_regex": "\\byour\\b|\\beasier\\b|\\bfor\\b"
   },
   "bi|容易了": {
@@ -29251,115 +29037,103 @@
     ]
    ],
    "ref_tokens": {
-    "because": 6,
-    "comes": 6,
-    "part": 6,
-    "let": 6,
-    "out": 6,
-    "someone": 6,
-    "know": 6,
-    "third": 6,
-    "knows": 2,
-    "her": 2,
-    "just": 2,
-    "that": 2,
-    "It's": 2,
-    "heart": 2,
-    "tells": 2
+    "because": 10,
+    "comes": 10,
+    "part": 10,
+    "let": 10,
+    "out": 10,
+    "someone": 10,
+    "know": 10,
+    "third": 10,
+    "knows": 3,
+    "her": 3,
+    "just": 3,
+    "that": 3,
+    "It's": 3,
+    "heart": 3,
+    "tells": 3
    },
    "unc_ref_tokens": {
-    "what": 72,
-    "even": 18,
-    "don't": 44,
-    "now": 36,
-    "broke": 18,
-    "But": 36,
-    "know": 128,
-    "didn't": 18,
-    "just": 18,
-    "missed": 18,
-    "n't": 18,
-    "looked": 18,
-    "cool": 18,
-    "out": 22,
-    "because": 18,
-    "filming": 18,
-    "video": 18,
-    "right": 18,
-    "I'm": 18,
-    "comment": 18,
-    "Leave": 18,
-    "you": 46,
-    "everything": 18,
-    "sooner": 18,
-    "see": 18,
-    "boys": 4,
-    "shouldn't": 4,
-    "cry": 4,
-    "hate": 4,
-    "guess": 4,
-    "still": 4,
-    "there": 4,
-    "somewhere": 4,
-    "he's": 4,
-    "wonder": 6,
-    "alive": 4,
-    "time": 4,
-    "Wow": 4,
-    "jumping": 4,
-    "these": 6,
-    "that": 4,
-    "your": 4,
-    "hard": 4,
-    "how": 4,
-    "dislocations": 4,
-    "definitely": 4,
-    "knew": 4,
-    "would": 4,
-    "but": 4,
-    "good": 4,
-    "words": 2,
-    "with": 2,
-    "this": 2,
-    "What's": 2,
-    "Huh": 2,
-    "made": 2,
-    "they": 4,
-    "mushrooms": 2,
-    "the": 2,
-    "void": 2,
-    "won't": 2,
-    "it's": 2
+    "what": 120,
+    "even": 30,
+    "don't": 72,
+    "now": 60,
+    "broke": 30,
+    "But": 60,
+    "know": 210,
+    "didn't": 30,
+    "just": 30,
+    "missed": 30,
+    "n't": 30,
+    "looked": 30,
+    "cool": 30,
+    "out": 36,
+    "because": 30,
+    "filming": 30,
+    "video": 30,
+    "right": 30,
+    "I'm": 30,
+    "comment": 30,
+    "Leave": 30,
+    "you": 75,
+    "everything": 30,
+    "sooner": 30,
+    "see": 30,
+    "boys": 6,
+    "shouldn't": 6,
+    "cry": 6,
+    "hate": 6,
+    "guess": 6,
+    "still": 6,
+    "there": 6,
+    "somewhere": 6,
+    "he's": 6,
+    "wonder": 9,
+    "alive": 6,
+    "time": 6,
+    "Wow": 6,
+    "jumping": 6,
+    "these": 9,
+    "that": 6,
+    "your": 6,
+    "hard": 6,
+    "how": 6,
+    "dislocations": 6,
+    "definitely": 6,
+    "knew": 6,
+    "would": 6,
+    "but": 6,
+    "good": 6,
+    "words": 3,
+    "with": 3,
+    "this": 3,
+    "What's": 3,
+    "Huh": 3,
+    "made": 3,
+    "they": 6,
+    "mushrooms": 3,
+    "the": 3,
+    "void": 3,
+    "won't": 3,
+    "it's": 3
    },
    "first": "2026-11-25",
    "last": "2026-11-26",
-   "alts": {
-    "里明白": 1
-   },
+   "alts": {},
    "files": {
     "🏆 Rating Every Punishing Gray Raven Ultimate PT 2 ｜ PGR Reaction.calib.srt": {
      "n": 1,
      "alt": 0,
      "first": "2026-11-25",
      "last": "2026-11-25"
-    },
-    "Streamers Reaction To The Lily Arc.zh.srt": {
-     "n": 0,
-     "alt": 1,
-     "first": "2026-11-26",
-     "last": "2026-11-26"
     }
    },
    "unc_files": {
     "🏆 Rating Every Punishing Gray Raven Ultimate PT 2 ｜ PGR Reaction.calib.srt": 6,
     "【字幕】🏆 Rating Every Punishing Gray Raven Ultimate PT 2 ｜ PGR Reaction.en-谷歌翻译.srt": 6,
-    "【字幕】🏆 Rating Every Punishing Gray Raven Ultimate PT 2 ｜ PGR Reaction.en-谷歌翻译.calib.srt": 6,
-    "Streamers Reaction To The Lily Arc.zh.srt": 6,
-    "Streamers Reaction To The Lily Arc.calib.srt": 7,
-    "JP VTubers LOCKED IN As Endfield Shows PEAK!!! ｜ Arknights： Endfield Dev Log 2.0.zh.srt": 2
+    "【字幕】🏆 Rating Every Punishing Gray Raven Ultimate PT 2 ｜ PGR Reaction.en-谷歌翻译.calib.srt": 6
    },
-   "ctx_regex": "\\bcomes\\b|\\bpart\\b|\\blet\\b",
-   "conflict": true
+   "ctx_regex": "\\bcomes\\b|\\bpart\\b|\\blet\\b"
   },
   "bi|必须": {
    "wrong": "必须",
@@ -29788,20 +29562,20 @@
     ]
    ],
    "ref_tokens": {
-    "finale": 6,
-    "Like": 6,
-    "the": 6,
-    "with": 6,
-    "Okay": 6,
-    "Rasen": 6,
-    "this": 6
+    "finale": 10,
+    "Like": 10,
+    "the": 10,
+    "with": 10,
+    "Okay": 10,
+    "Rasen": 10,
+    "this": 10
    },
    "unc_ref_tokens": {
-    "everything": 2,
-    "ends": 2,
-    "differently": 2,
-    "This": 2,
-    "time": 2
+    "everything": 3,
+    "ends": 3,
+    "differently": 3,
+    "This": 3,
+    "time": 3
    },
    "first": "2026-11-25",
    "last": "2026-11-25",
@@ -29814,11 +29588,9 @@
      "last": "2026-11-25"
     }
    },
-   "unc_files": {
-    "Streamers Reaction To The Lily Arc.calib.srt": 1
-   },
+   "unc_files": {},
    "conflict": true,
-   "conflict_reason": "target-collides-canonical:收尾人"
+   "conflict_reason": "target-collides-canonical:色彩收尾人"
   },
   "bi|Zenless Zone": {
    "wrong": "Zenless Zone",
@@ -29904,27 +29676,27 @@
     ]
    ],
    "ref_tokens": {
-    "Zero": 6,
-    "Damn": 24,
-    "see": 12,
-    "that": 18,
-    "girl": 6,
-    "you": 12,
-    "and": 6,
-    "double": 6,
-    "uppercut": 6,
-    "saw": 6,
-    "bro": 6,
-    "Okay": 6,
-    "Three": 6,
-    "something": 6,
-    "like": 6,
-    "ultimates": 6
+    "Zero": 10,
+    "Damn": 40,
+    "see": 20,
+    "that": 30,
+    "girl": 10,
+    "you": 20,
+    "and": 10,
+    "double": 10,
+    "uppercut": 10,
+    "saw": 10,
+    "bro": 10,
+    "Okay": 10,
+    "Three": 10,
+    "something": 10,
+    "like": 10,
+    "ultimates": 10
    },
    "unc_ref_tokens": {
-    "God": 4,
-    "damn": 4,
-    "dude": 4
+    "God": 6,
+    "damn": 6,
+    "dude": 6
    },
    "first": "2026-11-25",
    "last": "2026-11-25",
@@ -29937,10 +29709,7 @@
      "last": "2026-11-25"
     }
    },
-   "unc_files": {
-    "Streamers Reaction To The Lily Arc.zh.srt": 1,
-    "Streamers Reaction To The Lily Arc.calib.srt": 1
-   },
+   "unc_files": {},
    "ctx_regex": "\\bDamn\\b|\\bthat\\b|\\bsee\\b"
   },
   "bi|姆伊": {
@@ -30257,20 +30026,20 @@
     ]
    ],
    "ref_tokens": {
-    "PGR": 6,
-    "just": 6
+    "PGR": 10,
+    "just": 10
    },
    "unc_ref_tokens": {
-    "what": 4,
-    "the": 4,
-    "Wait": 4,
-    "Rover": 8,
-    "you": 4,
-    "wanted": 4,
-    "just": 4,
-    "want": 4,
-    "your": 2,
-    "name": 2
+    "what": 6,
+    "the": 6,
+    "Wait": 6,
+    "Rover": 12,
+    "you": 6,
+    "wanted": 6,
+    "just": 6,
+    "want": 6,
+    "your": 3,
+    "name": 3
    },
    "first": "2026-11-25",
    "last": "2026-11-26",
@@ -30281,20 +30050,10 @@
      "alt": 0,
      "first": "2026-11-25",
      "last": "2026-11-25"
-    },
-    "Streamers Reaction To The Lily Arc.zh.srt": {
-     "n": 2,
-     "alt": 0,
-     "first": "2026-11-26",
-     "last": "2026-11-26"
     }
    },
-   "unc_files": {
-    "Streamers Reaction To The Lily Arc.zh.srt": 4,
-    "Streamers Reaction To The Lily Arc.calib.srt": 4,
-    "JP VTubers LOCKED IN As Endfield Shows PEAK!!! ｜ Arknights： Endfield Dev Log 2.0.zh.srt": 1
-   },
-   "ctx_regex": "\\bPGR\\b"
+   "unc_files": {},
+   "ctx_regex": "\\bPGR\\b|\\bjust\\b"
   },
   "bi|住了": {
    "wrong": "住了",
@@ -30315,20 +30074,20 @@
     ]
    ],
    "ref_tokens": {
-    "are": 6,
-    "can't": 6,
-    "way": 6,
-    "see": 6,
-    "the": 6,
-    "these": 6,
-    "anything": 6,
-    "plants": 6
+    "are": 10,
+    "can't": 10,
+    "way": 10,
+    "see": 10,
+    "the": 10,
+    "these": 10,
+    "anything": 10,
+    "plants": 10
    },
    "unc_ref_tokens": {
-    "already": 2,
-    "strange": 2,
-    "I'm": 2,
-    "broken": 2
+    "already": 3,
+    "strange": 3,
+    "I'm": 3,
+    "broken": 3
    },
    "first": "2026-11-25",
    "last": "2026-11-25",
@@ -30341,9 +30100,7 @@
      "last": "2026-11-25"
     }
    },
-   "unc_files": {
-    "Streamers Reaction To The Lily Arc.calib.srt": 1
-   },
+   "unc_files": {},
    "ctx_regex": "\\bare\\b|\\bcan't\\b|\\bway\\b"
   },
   "bi|我们会": {
@@ -30736,39 +30493,39 @@
     ]
    ],
    "ref_tokens": {
-    "God": 6,
-    "surfed": 6,
-    "then": 6,
-    "and": 6,
-    "comboed": 6
+    "God": 10,
+    "surfed": 10,
+    "then": 10,
+    "and": 10,
+    "comboed": 10
    },
    "unc_ref_tokens": {
-    "transforms": 12,
-    "have": 12,
-    "then": 28,
-    "and": 26,
-    "first": 12,
-    "you": 16,
-    "more": 12,
-    "God": 12,
-    "surfed": 12,
-    "comboed": 12,
-    "little": 4,
-    "closer": 4,
-    "come": 4,
-    "Then": 8,
-    "left": 4,
-    "eyes": 4,
-    "out": 4,
-    "cried": 4,
-    "Have": 2,
-    "And": 4,
-    "put": 2,
-    "will": 2,
-    "find": 2,
-    "end": 2,
-    "shoot": 2,
-    "wow": 2
+    "transforms": 20,
+    "have": 20,
+    "then": 46,
+    "and": 43,
+    "first": 20,
+    "you": 26,
+    "more": 20,
+    "God": 20,
+    "surfed": 20,
+    "comboed": 20,
+    "little": 6,
+    "closer": 6,
+    "come": 6,
+    "Then": 12,
+    "left": 6,
+    "eyes": 6,
+    "out": 6,
+    "cried": 6,
+    "Have": 3,
+    "And": 6,
+    "put": 3,
+    "will": 3,
+    "find": 3,
+    "end": 3,
+    "shoot": 3,
+    "wow": 3
    },
    "first": "2026-11-25",
    "last": "2026-11-25",
@@ -30783,10 +30540,7 @@
    },
    "unc_files": {
     "【字幕】🏆 Rating Every Punishing Gray Raven Ultimate PT 2 ｜ PGR Reaction.en-谷歌翻译.srt": 2,
-    "【字幕】🏆 Rating Every Punishing Gray Raven Ultimate PT 2 ｜ PGR Reaction.en-谷歌翻译.calib.srt": 2,
-    "Streamers Reaction To The Lily Arc.zh.srt": 2,
-    "Streamers Reaction To The Lily Arc.calib.srt": 5,
-    "JP VTubers LOCKED IN As Endfield Shows PEAK!!! ｜ Arknights： Endfield Dev Log 2.0.zh.srt": 1
+    "【字幕】🏆 Rating Every Punishing Gray Raven Ultimate PT 2 ｜ PGR Reaction.en-谷歌翻译.calib.srt": 2
    },
    "ctx_regex": ""
   },
@@ -30809,10 +30563,10 @@
     ]
    ],
    "ref_tokens": {
-    "Karina": 6,
-    "just": 6,
-    "fire": 6,
-    "Bro": 6
+    "Karina": 10,
+    "just": 10,
+    "fire": 10,
+    "Bro": 10
    },
    "unc_ref_tokens": {},
    "first": "2026-11-25",
@@ -30828,7 +30582,7 @@
    },
    "unc_files": {},
    "conflict": true,
-   "conflict_reason": "target-collides-canonical:太好了"
+   "conflict_reason": "target-collides-canonical:太帅了"
   },
   "bi|来了": {
    "wrong": "来了",
@@ -30849,58 +30603,58 @@
     ]
    ],
    "ref_tokens": {
-    "she": 6,
-    "her": 6,
-    "cross": 6,
-    "back": 6,
-    "came": 6,
-    "with": 6,
-    "Bro": 6
+    "she": 10,
+    "her": 10,
+    "cross": 10,
+    "back": 10,
+    "came": 10,
+    "with": 10,
+    "Bro": 10
    },
    "unc_ref_tokens": {
-    "serious": 6,
-    "This": 6,
-    "getting": 6,
-    "ballerina": 6,
-    "like": 6,
-    "she": 10,
-    "Bro": 6,
-    "gave": 6,
-    "she's": 10,
-    "left": 4,
-    "came": 6,
-    "back": 8,
-    "and": 8,
-    "again": 4,
-    "I'm": 4,
-    "here": 10,
-    "She": 4,
-    "Ladies": 4,
-    "gentlemen": 4,
-    "Another": 4,
-    "monster": 4,
-    "come": 6,
-    "out": 6,
-    "was": 4,
-    "about": 4,
-    "thought": 4,
-    "the": 6,
-    "flower": 4,
-    "with": 4,
-    "returned": 4,
-    "flowers": 2,
-    "just": 2,
-    "pink": 2,
-    "has": 2,
-    "cute": 2,
-    "The": 2,
-    "OMG": 2,
-    "man's": 2,
-    "comes": 2,
-    "Here": 2,
-    "Once": 2,
-    "light": 2,
-    "guided": 2
+    "serious": 10,
+    "This": 10,
+    "getting": 10,
+    "ballerina": 10,
+    "like": 10,
+    "she": 16,
+    "Bro": 10,
+    "gave": 10,
+    "she's": 16,
+    "left": 6,
+    "came": 9,
+    "back": 12,
+    "and": 12,
+    "again": 6,
+    "I'm": 6,
+    "here": 15,
+    "She": 6,
+    "Ladies": 6,
+    "gentlemen": 6,
+    "Another": 6,
+    "monster": 6,
+    "come": 9,
+    "out": 9,
+    "was": 6,
+    "about": 6,
+    "thought": 6,
+    "the": 9,
+    "flower": 6,
+    "with": 6,
+    "returned": 6,
+    "flowers": 3,
+    "just": 3,
+    "pink": 3,
+    "has": 3,
+    "cute": 3,
+    "The": 3,
+    "OMG": 3,
+    "man's": 3,
+    "comes": 3,
+    "Here": 3,
+    "Once": 3,
+    "light": 3,
+    "guided": 3
    },
    "first": "2026-11-25",
    "last": "2026-11-25",
@@ -30914,12 +30668,9 @@
     }
    },
    "unc_files": {
-    "【字幕】🏆 Rating Every Punishing Gray Raven Ultimate PT 2 ｜ PGR Reaction.en-谷歌翻译.calib.srt": 2,
-    "Streamers Reaction To The Lily Arc.zh.srt": 6,
-    "Streamers Reaction To The Lily Arc.calib.srt": 7,
-    "JP VTubers LOCKED IN As Endfield Shows PEAK!!! ｜ Arknights： Endfield Dev Log 2.0.zh.srt": 3
+    "【字幕】🏆 Rating Every Punishing Gray Raven Ultimate PT 2 ｜ PGR Reaction.en-谷歌翻译.calib.srt": 2
    },
-   "ctx_regex": "\\bher\\b|\\bcross\\b"
+   "ctx_regex": "\\bher\\b|\\bcross\\b|\\bback\\b"
   },
   "bi|出色地": {
    "wrong": "出色地",
@@ -31180,30 +30931,30 @@
     ]
    ],
    "ref_tokens": {
-    "does": 6,
-    "she": 6,
-    "What": 6,
-    "have": 6,
-    "bro": 6,
-    "Wait": 6,
-    "wait": 6
+    "does": 10,
+    "she": 10,
+    "What": 10,
+    "have": 10,
+    "bro": 10,
+    "Wait": 10,
+    "wait": 10
    },
    "unc_ref_tokens": {
-    "some": 6,
-    "she": 12,
-    "explosion": 6,
-    "super": 6,
-    "cool": 6,
-    "has": 12,
-    "Springfield": 6,
-    "one": 6,
-    "and": 6,
-    "hand": 6,
-    "what": 6,
-    "But": 4,
-    "what's": 4,
-    "the": 4,
-    "point": 4
+    "some": 10,
+    "she": 20,
+    "explosion": 10,
+    "super": 10,
+    "cool": 10,
+    "has": 20,
+    "Springfield": 10,
+    "one": 10,
+    "and": 10,
+    "hand": 10,
+    "what": 10,
+    "But": 6,
+    "what's": 6,
+    "the": 6,
+    "point": 6
    },
    "first": "2026-11-25",
    "last": "2026-11-25",
@@ -31217,9 +30968,7 @@
     }
    },
    "unc_files": {
-    "【字幕】🏆 Rating Every Punishing Gray Raven Ultimate PT 2 ｜ PGR Reaction.en-谷歌翻译.calib.srt": 2,
-    "Streamers Reaction To The Lily Arc.zh.srt": 1,
-    "Streamers Reaction To The Lily Arc.calib.srt": 1
+    "【字幕】🏆 Rating Every Punishing Gray Raven Ultimate PT 2 ｜ PGR Reaction.en-谷歌翻译.calib.srt": 2
    },
    "ctx_regex": "\\bdoes\\b|\\bWhat\\b|\\bhave\\b"
   },
@@ -31242,26 +30991,26 @@
     ]
    ],
    "ref_tokens": {
-    "has": 6,
-    "she": 6,
-    "hand": 6,
-    "one": 6,
-    "and": 6,
-    "what": 6,
-    "Springfield": 6
+    "has": 10,
+    "she": 10,
+    "hand": 10,
+    "one": 10,
+    "and": 10,
+    "what": 10,
+    "Springfield": 10
    },
    "unc_ref_tokens": {
-    "have": 6,
-    "bro": 6,
-    "Wait": 6,
-    "she": 6,
-    "What": 6,
-    "wait": 6,
-    "does": 6,
-    "really": 4,
-    "gun": 4,
-    "holding": 4,
-    "She": 4
+    "have": 10,
+    "bro": 10,
+    "Wait": 10,
+    "she": 10,
+    "What": 10,
+    "wait": 10,
+    "does": 10,
+    "really": 6,
+    "gun": 6,
+    "holding": 6,
+    "She": 6
    },
    "first": "2026-11-25",
    "last": "2026-11-25",
@@ -31275,9 +31024,7 @@
     }
    },
    "unc_files": {
-    "【字幕】🏆 Rating Every Punishing Gray Raven Ultimate PT 2 ｜ PGR Reaction.en-谷歌翻译.calib.srt": 1,
-    "Streamers Reaction To The Lily Arc.zh.srt": 1,
-    "Streamers Reaction To The Lily Arc.calib.srt": 1
+    "【字幕】🏆 Rating Every Punishing Gray Raven Ultimate PT 2 ｜ PGR Reaction.en-谷歌翻译.calib.srt": 1
    },
    "ctx_regex": "\\bhas\\b|\\bhand\\b|\\bone\\b"
   },
@@ -31337,96 +31084,96 @@
     ]
    ],
    "ref_tokens": {
-    "she": 6,
-    "literally": 6,
-    "shot": 6,
-    "started": 6,
-    "giggling": 6
+    "she": 10,
+    "literally": 10,
+    "shot": 10,
+    "started": 10,
+    "giggling": 10
    },
    "unc_ref_tokens": {
-    "this": 12,
-    "transformation": 12,
-    "Okay": 36,
-    "she": 150,
-    "got": 12,
-    "hollow": 12,
-    "the": 26,
-    "Bro": 90,
-    "mask": 12,
-    "from": 24,
-    "does": 18,
-    "have": 18,
-    "one": 12,
-    "just": 26,
-    "another": 12,
-    "blows": 12,
-    "away": 12,
-    "that's": 12,
-    "surfs": 12,
-    "her": 34,
-    "cross": 12,
-    "back": 12,
-    "came": 12,
-    "with": 24,
-    "has": 26,
-    "there": 12,
-    "everything": 12,
-    "guns": 12,
-    "put": 12,
-    "and": 20,
-    "down": 12,
-    "out": 12,
-    "pulled": 12,
-    "minigun": 12,
-    "arm": 12,
-    "weapons": 12,
-    "Dude": 16,
-    "into": 16,
-    "materializing": 12,
-    "she's": 58,
-    "more": 12,
-    "Alley": 12,
-    "Master": 12,
-    "Fortune": 12,
-    "ballerina": 36,
-    "Hell": 12,
-    "pirouette": 12,
-    "hit": 12,
-    "gave": 12,
-    "like": 12,
-    "Effalgence": 6,
-    "Efalgens": 6,
-    "bro": 6,
-    "Wait": 6,
-    "What": 6,
-    "wait": 6,
-    "God": 4,
-    "expression": 4,
-    "threw": 4,
-    "arms": 4,
-    "straight": 4,
-    "myself": 4,
-    "Ladies": 4,
-    "here": 4,
-    "gentlemen": 4,
-    "cold": 4,
-    "part": 2,
-    "same": 2,
-    "The": 2,
-    "that": 4,
-    "worst": 2,
-    "tells": 2,
-    "knows": 2,
-    "It's": 2,
-    "heart": 2,
-    "being": 2,
-    "really": 2,
-    "thank": 2,
-    "Wow": 2,
-    "cute": 2,
-    "it's": 2,
-    "you": 2,
-    "distributed": 2
+    "this": 20,
+    "transformation": 20,
+    "Okay": 60,
+    "she": 249,
+    "got": 20,
+    "hollow": 20,
+    "the": 43,
+    "Bro": 150,
+    "mask": 20,
+    "from": 40,
+    "does": 30,
+    "have": 30,
+    "one": 20,
+    "just": 43,
+    "another": 20,
+    "blows": 20,
+    "away": 20,
+    "that's": 20,
+    "surfs": 20,
+    "her": 55,
+    "cross": 20,
+    "back": 20,
+    "came": 20,
+    "with": 40,
+    "has": 43,
+    "there": 20,
+    "everything": 20,
+    "guns": 20,
+    "put": 20,
+    "and": 32,
+    "down": 20,
+    "out": 20,
+    "pulled": 20,
+    "minigun": 20,
+    "arm": 20,
+    "weapons": 20,
+    "Dude": 26,
+    "into": 26,
+    "materializing": 20,
+    "she's": 95,
+    "more": 20,
+    "Alley": 20,
+    "Master": 20,
+    "Fortune": 20,
+    "ballerina": 60,
+    "Hell": 20,
+    "pirouette": 20,
+    "hit": 20,
+    "gave": 20,
+    "like": 20,
+    "Effalgence": 10,
+    "Efalgens": 10,
+    "bro": 10,
+    "Wait": 10,
+    "What": 10,
+    "wait": 10,
+    "God": 6,
+    "expression": 6,
+    "threw": 6,
+    "arms": 6,
+    "straight": 6,
+    "myself": 6,
+    "Ladies": 6,
+    "here": 6,
+    "gentlemen": 6,
+    "cold": 6,
+    "part": 3,
+    "same": 3,
+    "The": 3,
+    "that": 6,
+    "worst": 3,
+    "tells": 3,
+    "knows": 3,
+    "It's": 3,
+    "heart": 3,
+    "being": 3,
+    "really": 3,
+    "thank": 3,
+    "Wow": 3,
+    "cute": 3,
+    "it's": 3,
+    "you": 3,
+    "distributed": 3
    },
    "first": "2026-11-25",
    "last": "2026-11-25",
@@ -31441,10 +31188,7 @@
    },
    "unc_files": {
     "【字幕】🏆 Rating Every Punishing Gray Raven Ultimate PT 2 ｜ PGR Reaction.en-谷歌翻译.srt": 14,
-    "【字幕】🏆 Rating Every Punishing Gray Raven Ultimate PT 2 ｜ PGR Reaction.en-谷歌翻译.calib.srt": 16,
-    "Streamers Reaction To The Lily Arc.zh.srt": 4,
-    "Streamers Reaction To The Lily Arc.calib.srt": 6,
-    "JP VTubers LOCKED IN As Endfield Shows PEAK!!! ｜ Arknights： Endfield Dev Log 2.0.zh.srt": 1
+    "【字幕】🏆 Rating Every Punishing Gray Raven Ultimate PT 2 ｜ PGR Reaction.en-谷歌翻译.calib.srt": 16
    },
    "ctx_regex": "\\bliterally\\b|\\bshot\\b|\\bstarted\\b"
   },
@@ -31467,37 +31211,37 @@
     ]
    ],
    "ref_tokens": {
-    "she": 6,
-    "literally": 6,
-    "shot": 6,
-    "started": 6,
-    "giggling": 6
+    "she": 10,
+    "literally": 10,
+    "shot": 10,
+    "started": 10,
+    "giggling": 10
    },
    "unc_ref_tokens": {
-    "give": 12,
-    "domain": 12,
-    "expansion": 12,
-    "them": 12,
-    "and": 12,
-    "now": 14,
-    "going": 24,
-    "start": 12,
-    "started": 12,
-    "activated": 12,
-    "crazy": 12,
-    "believe": 4,
-    "starting": 4,
-    "that": 4,
-    "wasn't": 4,
-    "maybe": 4,
-    "life": 4,
-    "Because": 4,
-    "begins": 4,
-    "today": 4,
-    "quiet": 4,
-    "won't": 2,
-    "alone": 2,
-    "you": 2
+    "give": 20,
+    "domain": 20,
+    "expansion": 20,
+    "them": 20,
+    "and": 20,
+    "now": 23,
+    "going": 40,
+    "start": 20,
+    "started": 20,
+    "activated": 20,
+    "crazy": 20,
+    "believe": 6,
+    "starting": 6,
+    "that": 6,
+    "wasn't": 6,
+    "maybe": 6,
+    "life": 6,
+    "Because": 6,
+    "begins": 6,
+    "today": 6,
+    "quiet": 6,
+    "won't": 3,
+    "alone": 3,
+    "you": 3
    },
    "first": "2026-11-25",
    "last": "2026-11-25",
@@ -31512,10 +31256,7 @@
    },
    "unc_files": {
     "【字幕】🏆 Rating Every Punishing Gray Raven Ultimate PT 2 ｜ PGR Reaction.en-谷歌翻译.srt": 2,
-    "【字幕】🏆 Rating Every Punishing Gray Raven Ultimate PT 2 ｜ PGR Reaction.en-谷歌翻译.calib.srt": 2,
-    "Streamers Reaction To The Lily Arc.zh.srt": 2,
-    "Streamers Reaction To The Lily Arc.calib.srt": 2,
-    "JP VTubers LOCKED IN As Endfield Shows PEAK!!! ｜ Arknights： Endfield Dev Log 2.0.zh.srt": 1
+    "【字幕】🏆 Rating Every Punishing Gray Raven Ultimate PT 2 ｜ PGR Reaction.en-谷歌翻译.calib.srt": 2
    },
    "ctx_regex": "\\bshe\\b|\\bliterally\\b|\\bshot\\b"
   },
@@ -31538,77 +31279,77 @@
     ]
    ],
    "ref_tokens": {
-    "going": 6,
-    "started": 6,
-    "activated": 6,
-    "crazy": 6
+    "going": 10,
+    "started": 10,
+    "activated": 10,
+    "crazy": 10
    },
    "unc_ref_tokens": {
-    "Zero": 12,
-    "Damn": 12,
-    "see": 24,
-    "that": 28,
-    "girl": 24,
-    "you": 44,
-    "something": 12,
-    "have": 14,
-    "but": 12,
-    "Thank": 12,
-    "support": 12,
-    "your": 12,
-    "easier": 12,
-    "way": 12,
-    "bro": 12,
-    "for": 12,
-    "hard": 4,
-    "you've": 4,
-    "Liam": 8,
-    "worked": 4,
-    "game": 4,
-    "came": 6,
-    "The": 4,
-    "because": 4,
-    "over": 4,
-    "found": 4,
-    "losing": 4,
-    "I'm": 4,
-    "Let": 4,
-    "Mom": 4,
-    "sleeping": 4,
-    "are": 4,
-    "not": 4,
-    "anymore": 4,
-    "We're": 4,
-    "wrong": 4,
-    "soldier": 4,
-    "What's": 4,
-    "move": 4,
-    "Lily": 4,
-    "Time": 4,
-    "forward": 4,
-    "damn": 2,
-    "want": 2,
-    "music": 2,
-    "smash": 2,
-    "much": 2,
-    "this": 2,
-    "piano": 2,
-    "cool": 2,
-    "dude": 2,
-    "Not": 2,
-    "Don't": 2,
-    "back": 2,
-    "good": 2,
-    "guy": 2,
-    "was": 2,
-    "brother": 2,
-    "around": 2,
-    "can't": 2,
-    "need": 2,
-    "the": 2,
-    "Once": 2,
-    "light": 2,
-    "guided": 2
+    "Zero": 20,
+    "Damn": 20,
+    "see": 40,
+    "that": 46,
+    "girl": 40,
+    "you": 72,
+    "something": 20,
+    "have": 23,
+    "but": 20,
+    "Thank": 20,
+    "support": 20,
+    "your": 20,
+    "easier": 20,
+    "way": 20,
+    "bro": 20,
+    "for": 20,
+    "hard": 6,
+    "you've": 6,
+    "Liam": 12,
+    "worked": 6,
+    "game": 6,
+    "came": 9,
+    "The": 6,
+    "because": 6,
+    "over": 6,
+    "found": 6,
+    "losing": 6,
+    "I'm": 6,
+    "Let": 6,
+    "Mom": 6,
+    "sleeping": 6,
+    "are": 6,
+    "not": 6,
+    "anymore": 6,
+    "We're": 6,
+    "wrong": 6,
+    "soldier": 6,
+    "What's": 6,
+    "move": 6,
+    "Lily": 6,
+    "Time": 6,
+    "forward": 6,
+    "damn": 3,
+    "want": 3,
+    "music": 3,
+    "smash": 3,
+    "much": 3,
+    "this": 3,
+    "piano": 3,
+    "cool": 3,
+    "dude": 3,
+    "Not": 3,
+    "Don't": 3,
+    "back": 3,
+    "good": 3,
+    "guy": 3,
+    "was": 3,
+    "brother": 3,
+    "around": 3,
+    "can't": 3,
+    "need": 3,
+    "the": 3,
+    "Once": 3,
+    "light": 3,
+    "guided": 3
    },
    "first": "2026-11-25",
    "last": "2026-11-25",
@@ -31623,10 +31364,7 @@
    },
    "unc_files": {
     "【字幕】🏆 Rating Every Punishing Gray Raven Ultimate PT 2 ｜ PGR Reaction.en-谷歌翻译.srt": 3,
-    "【字幕】🏆 Rating Every Punishing Gray Raven Ultimate PT 2 ｜ PGR Reaction.en-谷歌翻译.calib.srt": 3,
-    "Streamers Reaction To The Lily Arc.zh.srt": 7,
-    "Streamers Reaction To The Lily Arc.calib.srt": 11,
-    "JP VTubers LOCKED IN As Endfield Shows PEAK!!! ｜ Arknights： Endfield Dev Log 2.0.zh.srt": 1
+    "【字幕】🏆 Rating Every Punishing Gray Raven Ultimate PT 2 ｜ PGR Reaction.en-谷歌翻译.calib.srt": 3
    },
    "ctx_regex": "\\bgoing\\b|\\bstarted\\b|\\bactivated\\b"
   },
@@ -31649,37 +31387,37 @@
     ]
    ],
    "ref_tokens": {
-    "Okay": 6,
-    "Hell": 6,
-    "she's": 6,
-    "from": 6,
-    "ballerina": 6
+    "Okay": 10,
+    "Hell": 10,
+    "she's": 10,
+    "from": 10,
+    "ballerina": 10
    },
    "unc_ref_tokens": {
-    "god": 12,
-    "God": 92,
-    "get": 4,
-    "one": 4,
-    "rejecting": 4,
-    "his": 4,
-    "Hilda": 4,
-    "Brand": 4,
-    "name": 4,
-    "what's": 4,
-    "there": 4,
-    "Stupid": 4,
-    "someone": 4,
-    "Herman": 4,
-    "smile": 4,
-    "Call": 4,
-    "This": 4,
-    "Holy": 2,
-    "her": 2,
-    "expression": 2,
-    "man": 2,
-    "Discord": 2,
-    "Wow": 2,
-    "taser": 2
+    "god": 20,
+    "God": 143,
+    "get": 6,
+    "one": 6,
+    "rejecting": 6,
+    "his": 6,
+    "Hilda": 6,
+    "Brand": 6,
+    "name": 6,
+    "what's": 6,
+    "there": 6,
+    "Stupid": 6,
+    "someone": 6,
+    "Herman": 6,
+    "smile": 6,
+    "Call": 6,
+    "This": 6,
+    "Holy": 3,
+    "her": 3,
+    "expression": 3,
+    "man": 3,
+    "Discord": 3,
+    "Wow": 3,
+    "taser": 3
    },
    "first": "2026-11-25",
    "last": "2026-11-25",
@@ -31694,9 +31432,7 @@
    },
    "unc_files": {
     "【字幕】🏆 Rating Every Punishing Gray Raven Ultimate PT 2 ｜ PGR Reaction.en-谷歌翻译.srt": 3,
-    "【字幕】🏆 Rating Every Punishing Gray Raven Ultimate PT 2 ｜ PGR Reaction.en-谷歌翻译.calib.srt": 4,
-    "Streamers Reaction To The Lily Arc.zh.srt": 13,
-    "Streamers Reaction To The Lily Arc.calib.srt": 19
+    "【字幕】🏆 Rating Every Punishing Gray Raven Ultimate PT 2 ｜ PGR Reaction.en-谷歌翻译.calib.srt": 4
    },
    "ctx_regex": "\\bOkay\\b|\\bHell\\b|\\bshe's\\b"
   },
@@ -31812,115 +31548,103 @@
     ]
    ],
    "ref_tokens": {
-    "gave": 6,
-    "she": 6,
-    "like": 6,
-    "Bro": 6,
-    "she's": 6,
-    "ballerina": 6,
-    "terrible": 2,
-    "have": 2
+    "gave": 10,
+    "she": 10,
+    "like": 10,
+    "Bro": 10,
+    "she's": 10,
+    "ballerina": 10,
+    "terrible": 3,
+    "have": 3
    },
    "unc_ref_tokens": {
-    "after": 12,
-    "Right": 12,
-    "character": 24,
-    "next": 12,
-    "does": 12,
-    "she": 30,
-    "have": 12,
-    "one": 40,
-    "just": 12,
-    "Bro": 24,
-    "another": 16,
-    "wants": 12,
-    "question": 12,
-    "ask": 12,
-    "you": 16,
-    "when": 12,
-    "first": 16,
-    "the": 36,
-    "last": 18,
-    "was": 18,
-    "That": 6,
-    "Okay": 6,
-    "hit": 6,
-    "with": 6,
-    "pirouette": 6,
-    "pretty": 4,
-    "terrible": 4,
-    "This": 4,
-    "his": 4,
-    "listener": 4,
-    "good": 4,
-    "found": 4,
-    "said": 4,
-    "friend": 4,
-    "it's": 4,
-    "montage": 4,
-    "Almost": 4,
-    "Only": 4,
-    "month": 4,
-    "dream": 4,
-    "there": 4,
-    "But": 4,
-    "unusual": 4,
-    "Were": 4,
-    "God": 4,
-    "get": 4,
-    "her": 4,
-    "chance": 4,
-    "Give": 4,
-    "fair": 4,
-    "Month": 4,
-    "who": 2,
-    "has": 2,
-    "your": 2,
-    "emotion": 2,
-    "for": 2,
-    "lot": 2,
-    "someone": 2,
-    "voice": 2,
-    "also": 2,
-    "people": 2,
-    "fight": 2,
-    "where": 2,
-    "And": 2,
-    "there's": 2,
-    "two": 2,
-    "Which": 2,
-    "cute": 2,
-    "It's": 2,
-    "though": 2
+    "after": 20,
+    "Right": 20,
+    "character": 40,
+    "next": 20,
+    "does": 20,
+    "she": 50,
+    "have": 20,
+    "one": 65,
+    "just": 20,
+    "Bro": 40,
+    "another": 26,
+    "wants": 20,
+    "question": 20,
+    "ask": 20,
+    "you": 26,
+    "when": 20,
+    "first": 26,
+    "the": 59,
+    "last": 30,
+    "was": 30,
+    "That": 10,
+    "Okay": 10,
+    "hit": 10,
+    "with": 10,
+    "pirouette": 10,
+    "pretty": 6,
+    "terrible": 6,
+    "This": 6,
+    "his": 6,
+    "listener": 6,
+    "good": 6,
+    "found": 6,
+    "said": 6,
+    "friend": 6,
+    "it's": 6,
+    "montage": 6,
+    "Almost": 6,
+    "Only": 6,
+    "month": 6,
+    "dream": 6,
+    "there": 6,
+    "But": 6,
+    "unusual": 6,
+    "Were": 6,
+    "God": 6,
+    "get": 6,
+    "her": 6,
+    "chance": 6,
+    "Give": 6,
+    "fair": 6,
+    "Month": 6,
+    "who": 3,
+    "has": 3,
+    "your": 3,
+    "emotion": 3,
+    "for": 3,
+    "lot": 3,
+    "someone": 3,
+    "voice": 3,
+    "also": 3,
+    "people": 3,
+    "fight": 3,
+    "where": 3,
+    "And": 3,
+    "there's": 3,
+    "two": 3,
+    "Which": 3,
+    "cute": 3,
+    "It's": 3,
+    "though": 3
    },
    "first": "2026-11-25",
    "last": "2026-11-26",
-   "alts": {
-    "种": 1
-   },
+   "alts": {},
    "files": {
     "【字幕】🏆 Rating Every Punishing Gray Raven Ultimate PT 2 ｜ PGR Reaction.en-谷歌翻译.srt": {
      "n": 1,
      "alt": 0,
      "first": "2026-11-25",
      "last": "2026-11-25"
-    },
-    "JP VTubers LOCKED IN As Endfield Shows PEAK!!! ｜ Arknights： Endfield Dev Log 2.0.zh.srt": {
-     "n": 0,
-     "alt": 1,
-     "first": "2026-11-26",
-     "last": "2026-11-26"
     }
    },
    "unc_files": {
     "【字幕】🏆 Rating Every Punishing Gray Raven Ultimate PT 2 ｜ PGR Reaction.en-谷歌翻译.srt": 5,
-    "【字幕】🏆 Rating Every Punishing Gray Raven Ultimate PT 2 ｜ PGR Reaction.en-谷歌翻译.calib.srt": 7,
-    "Streamers Reaction To The Lily Arc.zh.srt": 8,
-    "Streamers Reaction To The Lily Arc.calib.srt": 12,
-    "JP VTubers LOCKED IN As Endfield Shows PEAK!!! ｜ Arknights： Endfield Dev Log 2.0.zh.srt": 3
+    "【字幕】🏆 Rating Every Punishing Gray Raven Ultimate PT 2 ｜ PGR Reaction.en-谷歌翻译.calib.srt": 7
    },
-   "ctx_regex": "\\bgave\\b|\\blike\\b|\\bshe's\\b",
-   "conflict": true
+   "ctx_regex": "\\bgave\\b|\\blike\\b|\\bshe's\\b"
   },
   "bi|凉爽的": {
    "wrong": "凉爽的",
@@ -31941,12 +31665,12 @@
     ]
    ],
    "ref_tokens": {
-    "succeed": 6,
-    "You": 6,
-    "cool": 6,
-    "girl": 6,
-    "can": 6,
-    "will": 6
+    "succeed": 10,
+    "You": 10,
+    "cool": 10,
+    "girl": 10,
+    "can": 10,
+    "will": 10
    },
    "unc_ref_tokens": {},
    "first": "2026-11-25",
@@ -31962,7 +31686,7 @@
    },
    "unc_files": {},
    "conflict": true,
-   "conflict_reason": "target-collides-canonical:太好了"
+   "conflict_reason": "target-collides-canonical:太帅了"
   },
   "bi|能做到": {
    "wrong": "能做到",
@@ -32069,79 +31793,58 @@
     ]
    ],
    "ref_tokens": {
-    "And": 6,
-    "where": 6,
-    "ends": 6,
-    "the": 6,
-    "this": 8,
-    "simply": 6,
-    "video": 6,
-    "game": 2,
-    "want": 2,
-    "just": 2,
-    "end": 4,
-    "fine": 2
+    "And": 10,
+    "where": 10,
+    "ends": 10,
+    "the": 10,
+    "this": 13,
+    "simply": 10,
+    "video": 10,
+    "game": 3,
+    "want": 3,
+    "just": 3,
+    "end": 6,
+    "fine": 3
    },
    "unc_ref_tokens": {
-    "hide-and-seek": 4,
-    "the": 4,
-    "end": 12,
-    "game": 8,
-    "want": 4,
-    "just": 4,
-    "this": 4,
-    "you": 4,
-    "came": 4,
-    "The": 4,
-    "because": 4,
-    "over": 10,
-    "finally": 4,
-    "Let": 4,
-    "done": 4,
-    "already": 4,
-    "You've": 4,
-    "here": 4,
-    "wait": 2,
-    "Wow": 2,
-    "that": 2,
-    "It's": 2,
-    "Aldasil": 2,
-    "costume": 2
+    "hide-and-seek": 6,
+    "the": 6,
+    "end": 18,
+    "game": 12,
+    "want": 6,
+    "just": 6,
+    "this": 6,
+    "you": 6,
+    "came": 6,
+    "The": 6,
+    "because": 6,
+    "over": 15,
+    "finally": 6,
+    "Let": 6,
+    "done": 6,
+    "already": 6,
+    "You've": 6,
+    "here": 6,
+    "wait": 3,
+    "Wow": 3,
+    "that": 3,
+    "It's": 3,
+    "Aldasil": 3,
+    "costume": 3
    },
    "first": "2026-11-25",
    "last": "2026-11-26",
-   "alts": {
-    "让": 1,
-    "数字": 1,
-    "行了": 1
-   },
+   "alts": {},
    "files": {
     "【字幕】🏆 Rating Every Punishing Gray Raven Ultimate PT 2 ｜ PGR Reaction.en-谷歌翻译.srt": {
      "n": 1,
      "alt": 0,
      "first": "2026-11-25",
      "last": "2026-11-25"
-    },
-    "Streamers Reaction To The Lily Arc.zh.srt": {
-     "n": 0,
-     "alt": 2,
-     "first": "2026-11-26",
-     "last": "2026-11-26"
-    },
-    "JP VTubers LOCKED IN As Endfield Shows PEAK!!! ｜ Arknights： Endfield Dev Log 2.0.zh.srt": {
-     "n": 0,
-     "alt": 1,
-     "first": "2026-11-26",
-     "last": "2026-11-26"
     }
    },
-   "unc_files": {
-    "Streamers Reaction To The Lily Arc.zh.srt": 5,
-    "Streamers Reaction To The Lily Arc.calib.srt": 5,
-    "JP VTubers LOCKED IN As Endfield Shows PEAK!!! ｜ Arknights： Endfield Dev Log 2.0.zh.srt": 1
-   },
-   "ctx_regex": "\\bAnd\\b|\\bwhere\\b|\\bends\\b",
-   "conflict": true
+   "unc_files": {},
+   "ctx_regex": "\\bAnd\\b|\\bwhere\\b|\\bends\\b"
   },
   "bi|PGR 的": {
    "wrong": "PGR 的",
@@ -32285,17 +31988,17 @@
     ]
    ],
    "ref_tokens": {
-    "very": 6,
-    "cool": 6,
-    "This": 6,
-    "video": 6
+    "very": 10,
+    "cool": 10,
+    "This": 10,
+    "video": 10
    },
    "unc_ref_tokens": {
-    "it's": 4,
-    "montage": 4,
-    "cute": 2,
-    "It's": 2,
-    "though": 2
+    "it's": 6,
+    "montage": 6,
+    "cute": 3,
+    "It's": 3,
+    "though": 3
    },
    "first": "2026-11-25",
    "last": "2026-11-25",
@@ -32308,11 +32011,7 @@
      "last": "2026-11-25"
     }
    },
-   "unc_files": {
-    "Streamers Reaction To The Lily Arc.zh.srt": 1,
-    "Streamers Reaction To The Lily Arc.calib.srt": 1,
-    "JP VTubers LOCKED IN As Endfield Shows PEAK!!! ｜ Arknights： Endfield Dev Log 2.0.zh.srt": 1
-   },
+   "unc_files": {},
    "ctx_regex": "\\bvery\\b|\\bcool\\b|\\bThis\\b"
   },
   "bi|虚幻": {
@@ -32541,13 +32240,13 @@
     ]
    ],
    "ref_tokens": {
-    "your": 6,
-    "Every": 6,
-    "baby": 6,
-    "Sean": 6,
-    "month": 6,
-    "because": 6,
-    "boyfriend": 6
+    "your": 10,
+    "Every": 10,
+    "baby": 10,
+    "Sean": 10,
+    "month": 10,
+    "because": 10,
+    "boyfriend": 10
    },
    "unc_ref_tokens": {},
    "first": "2026-11-25",
@@ -32563,7 +32262,7 @@
    },
    "unc_files": {},
    "conflict": true,
-   "conflict_reason": "target-collides-canonical:宝贝们"
+   "conflict_reason": "target-collides-canonical:数码宝贝"
   },
   "bi|我们见面时": {
    "wrong": "我们见面时",
@@ -32724,93 +32423,93 @@
     ]
    ],
    "ref_tokens": {
-    "that": 6,
-    "one": 6,
-    "like": 6,
-    "turns": 6,
-    "This": 6,
-    "into": 6,
-    "something": 6,
-    "the": 6
+    "that": 10,
+    "one": 10,
+    "like": 10,
+    "turns": 10,
+    "This": 10,
+    "into": 10,
+    "something": 10,
+    "the": 10
    },
    "unc_ref_tokens": {
-    "out": 12,
-    "give": 6,
-    "I'll": 6,
-    "Bro": 12,
-    "this": 88,
-    "one": 8,
-    "like": 6,
-    "devil": 6,
-    "Okay": 6,
-    "her": 6,
-    "the": 24,
-    "And": 6,
-    "back": 6,
-    "step": 6,
-    "vagina": 6,
-    "fight": 6,
-    "with": 6,
-    "boss": 6,
-    "character": 6,
-    "sickeningly": 6,
-    "that's": 6,
-    "cool": 6,
-    "Dude": 6,
-    "reversal": 6,
-    "pose": 6,
-    "bro": 6,
-    "but": 6,
-    "was": 6,
-    "Sonic": 6,
-    "What": 6,
-    "Hedgehog": 6,
-    "you": 16,
-    "hate": 4,
-    "just": 8,
-    "incredible": 4,
-    "game": 8,
-    "want": 8,
-    "end": 4,
-    "play": 4,
-    "don't": 4,
-    "anymore": 4,
-    "see": 4,
-    "song": 4,
-    "listener": 4,
-    "will": 4,
-    "and": 4,
-    "story": 4,
-    "soul": 8,
-    "once": 4,
-    "help": 4,
-    "living": 8,
-    "accepted": 4,
-    "This": 4,
-    "Oho": 4,
-    "look": 4,
-    "You're": 4,
-    "kidding": 4,
-    "piece": 4,
-    "dream": 4,
-    "making": 4,
-    "for": 4,
-    "reality": 4,
-    "Thank": 4,
-    "applaud": 4,
-    "quest": 4,
-    "live": 2,
-    "into": 2,
-    "Should": 2,
-    "turn": 2,
-    "Huh": 2,
-    "reaching": 2,
-    "universe": 2,
-    "from": 2,
-    "person": 2,
-    "leader": 2,
-    "terms": 2,
-    "music": 2
+    "out": 20,
+    "give": 10,
+    "I'll": 10,
+    "Bro": 20,
+    "this": 139,
+    "one": 13,
+    "like": 10,
+    "devil": 10,
+    "Okay": 10,
+    "her": 10,
+    "the": 39,
+    "And": 10,
+    "back": 10,
+    "step": 10,
+    "vagina": 10,
+    "fight": 10,
+    "with": 10,
+    "boss": 10,
+    "character": 10,
+    "sickeningly": 10,
+    "that's": 10,
+    "cool": 10,
+    "Dude": 10,
+    "reversal": 10,
+    "pose": 10,
+    "bro": 10,
+    "but": 10,
+    "was": 10,
+    "Sonic": 10,
+    "What": 10,
+    "Hedgehog": 10,
+    "you": 24,
+    "hate": 6,
+    "just": 12,
+    "incredible": 6,
+    "game": 12,
+    "want": 12,
+    "end": 6,
+    "play": 6,
+    "don't": 6,
+    "anymore": 6,
+    "see": 6,
+    "song": 6,
+    "listener": 6,
+    "will": 6,
+    "and": 6,
+    "story": 6,
+    "soul": 12,
+    "once": 6,
+    "help": 6,
+    "living": 12,
+    "accepted": 6,
+    "This": 6,
+    "Oho": 6,
+    "look": 6,
+    "You're": 6,
+    "kidding": 6,
+    "piece": 6,
+    "dream": 6,
+    "making": 6,
+    "for": 6,
+    "reality": 6,
+    "Thank": 6,
+    "applaud": 6,
+    "quest": 6,
+    "live": 3,
+    "into": 3,
+    "Should": 3,
+    "turn": 3,
+    "Huh": 3,
+    "reaching": 3,
+    "universe": 3,
+    "from": 3,
+    "person": 3,
+    "leader": 3,
+    "terms": 3,
+    "music": 3
    },
    "first": "2026-11-25",
    "last": "2026-11-25",
@@ -32824,12 +32523,9 @@
     }
    },
    "unc_files": {
-    "【字幕】🏆 Rating Every Punishing Gray Raven Ultimate PT 2 ｜ PGR Reaction.en-谷歌翻译.calib.srt": 8,
-    "Streamers Reaction To The Lily Arc.zh.srt": 11,
-    "Streamers Reaction To The Lily Arc.calib.srt": 13,
-    "JP VTubers LOCKED IN As Endfield Shows PEAK!!! ｜ Arknights： Endfield Dev Log 2.0.zh.srt": 4
+    "【字幕】🏆 Rating Every Punishing Gray Raven Ultimate PT 2 ｜ PGR Reaction.en-谷歌翻译.calib.srt": 8
    },
-   "ctx_regex": "\\bthat\\b|\\bturns\\b|\\bsomething\\b"
+   "ctx_regex": "\\bthat\\b|\\bturns\\b|\\bThis\\b"
   },
   "bi|类似": {
    "wrong": "类似",
@@ -32850,32 +32546,32 @@
     ]
    ],
    "ref_tokens": {
-    "that": 6,
-    "one": 6,
-    "like": 6,
-    "turns": 6,
-    "This": 6,
-    "into": 6,
-    "something": 6,
-    "the": 6
+    "that": 10,
+    "one": 10,
+    "like": 10,
+    "turns": 10,
+    "This": 10,
+    "into": 10,
+    "something": 10,
+    "the": 10
    },
    "unc_ref_tokens": {
-    "something": 2,
-    "waffle": 2,
-    "patient": 2,
-    "the": 2,
-    "are": 2,
-    "that": 2,
-    "after": 2,
-    "threw": 2,
-    "honey": 2,
-    "symptoms": 2,
-    "improved": 2,
-    "The": 2,
-    "girl's": 2,
-    "she": 2,
-    "reports": 2,
-    "resembling": 2
+    "something": 3,
+    "waffle": 3,
+    "patient": 3,
+    "the": 3,
+    "are": 3,
+    "that": 3,
+    "after": 3,
+    "threw": 3,
+    "honey": 3,
+    "symptoms": 3,
+    "improved": 3,
+    "The": 3,
+    "girl's": 3,
+    "she": 3,
+    "reports": 3,
+    "resembling": 3
    },
    "first": "2026-11-25",
    "last": "2026-11-25",
@@ -32888,10 +32584,8 @@
      "last": "2026-11-25"
     }
    },
-   "unc_files": {
-    "JP VTubers LOCKED IN As Endfield Shows PEAK!!! ｜ Arknights： Endfield Dev Log 2.0.zh.srt": 1
-   },
-   "ctx_regex": "\\bone\\b|\\blike\\b|\\bturns\\b"
+   "unc_files": {},
+   "ctx_regex": "\\bthat\\b|\\bone\\b|\\blike\\b"
   },
   "bi|卡穆": {
    "wrong": "卡穆",
@@ -32990,21 +32684,21 @@
     ]
    ],
    "ref_tokens": {
-    "hollow": 6,
-    "she": 6,
-    "Bro": 6,
-    "got": 6,
-    "mask": 6,
-    "from": 6,
-    "the": 6
+    "hollow": 10,
+    "she": 10,
+    "Bro": 10,
+    "got": 10,
+    "mask": 10,
+    "from": 10,
+    "the": 10
    },
    "unc_ref_tokens": {
-    "room": 2,
-    "from": 2,
-    "the": 2,
-    "Let": 2,
-    "comes": 2,
-    "living": 2
+    "room": 3,
+    "from": 3,
+    "the": 3,
+    "Let": 3,
+    "comes": 3,
+    "living": 3
    },
    "first": "2026-11-25",
    "last": "2026-11-25",
@@ -33017,9 +32711,7 @@
      "last": "2026-11-25"
     }
    },
-   "unc_files": {
-    "Streamers Reaction To The Lily Arc.calib.srt": 1
-   },
+   "unc_files": {},
    "ctx_regex": "\\bhollow\\b|\\bshe\\b|\\bBro\\b"
   },
   "bi|里来的": {
@@ -33076,16 +32768,16 @@
     ]
    ],
    "ref_tokens": {
-    "Come": 6,
-    "She's": 6,
-    "bro": 6,
-    "like": 6,
-    "here": 6,
-    "Scorpio": 6
+    "Come": 10,
+    "She's": 10,
+    "bro": 10,
+    "like": 10,
+    "here": 10,
+    "Scorpio": 10
    },
    "unc_ref_tokens": {
-    "are": 2,
-    "here": 2
+    "are": 3,
+    "here": 3
    },
    "first": "2026-11-25",
    "last": "2026-11-25",
@@ -33098,11 +32790,9 @@
      "last": "2026-11-25"
     }
    },
-   "unc_files": {
-    "Streamers Reaction To The Lily Arc.calib.srt": 1
-   },
+   "unc_files": {},
    "conflict": true,
-   "conflict_reason": "target-collides-canonical:锁暝我玩了一点，勉强活下来了。锁暝"
+   "conflict_reason": "target-collides-canonical:标题揭晓就来了"
   },
   "bi|的组合": {
    "wrong": "的组合",
@@ -33160,17 +32850,17 @@
     ]
    ],
    "ref_tokens": {
-    "minigun": 6,
-    "she": 6,
-    "her": 6,
-    "arm": 6,
-    "Bro": 6,
-    "has": 6
+    "minigun": 10,
+    "she": 10,
+    "her": 10,
+    "arm": 10,
+    "Bro": 10,
+    "has": 10
    },
    "unc_ref_tokens": {
-    "flower": 4,
-    "with": 4,
-    "returned": 4
+    "flower": 6,
+    "with": 6,
+    "returned": 6
    },
    "first": "2026-11-25",
    "last": "2026-11-25",
@@ -33183,10 +32873,7 @@
      "last": "2026-11-25"
     }
    },
-   "unc_files": {
-    "Streamers Reaction To The Lily Arc.zh.srt": 1,
-    "Streamers Reaction To The Lily Arc.calib.srt": 1
-   },
+   "unc_files": {},
    "ctx_regex": "\\bminigun\\b|\\bshe\\b|\\bher\\b"
   },
   "bi|机枪": {
@@ -33208,23 +32895,23 @@
     ]
    ],
    "ref_tokens": {
-    "minigun": 6,
-    "she": 6,
-    "her": 6,
-    "arm": 6,
-    "Bro": 6,
-    "has": 6
+    "minigun": 10,
+    "she": 10,
+    "her": 10,
+    "arm": 10,
+    "Bro": 10,
+    "has": 10
    },
    "unc_ref_tokens": {
-    "are": 2,
-    "guns": 2,
-    "picture": 4,
-    "awesome": 2,
-    "Gatling": 4,
-    "double": 2,
-    "that": 2,
-    "Wow": 2,
-    "gun": 2
+    "are": 3,
+    "guns": 3,
+    "picture": 6,
+    "awesome": 3,
+    "Gatling": 6,
+    "double": 3,
+    "that": 3,
+    "Wow": 3,
+    "gun": 3
    },
    "first": "2026-11-25",
    "last": "2026-11-25",
@@ -33237,9 +32924,7 @@
      "last": "2026-11-25"
     }
    },
-   "unc_files": {
-    "JP VTubers LOCKED IN As Endfield Shows PEAK!!! ｜ Arknights： Endfield Dev Log 2.0.zh.srt": 2
-   },
+   "unc_files": {},
    "ctx_regex": "\\bminigun\\b|\\bshe\\b|\\bher\\b"
   },
   "ak|觉得我在": {
