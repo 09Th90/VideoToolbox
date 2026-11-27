@@ -1,4 +1,4 @@
-<!-- @version 3.3.1 -->
+<!-- @version 3.3.2 -->
 <h1 align="center">视频工具箱 · VideoToolbox</h1>
 
 <p align="center">
@@ -85,9 +85,9 @@
 > （历史版本 v1.12.0 的 Setup 包在下载页显示成了 `_Setup_v1.12.0.exe`）。
 > 安装后程序名仍是中文。
 
-> 最新发布：[v3.3.1](https://github.com/09Th90/VideoToolbox/releases/tag/v3.3.1)。
-> 发布产物与源码版本严格对应，**README 不再预告尚未构建的产物**。
-> 本版安装形态为 onedir，安装目录会包含 `_internal\` 依赖目录。
+> 最新**已构建**安装包：[v3.3.1](https://github.com/09Th90/VideoToolbox/releases/tag/v3.3.1)。
+> 源码当前版本为 v3.3.2；3.3.2 安装包尚未构建，下载仍使用上方的 v3.3.1 在线安装包。
+> **README 不再预告尚未构建的产物**；本版安装形态为 onedir，安装目录会包含 `_internal\` 依赖目录。
 
 > **已经装了旧版本？** 不用重下整个安装包：打开程序 → 设置 → 检查更新，
 > 内置更新器会按文件差异增量下载（通常只有几十 MB）。
@@ -224,7 +224,7 @@ scripts/dev/                开发期自检脚本
 - [`docs/程序说明书(开发版).md`](docs/程序说明书(开发版).md) —— 面向开发者，讲源码结构、打包发布、自检脚本
 - [`docs/User_Manual_EN.md`](docs/User_Manual_EN.md) —— English user manual
 - [`docs/使用说明.txt`](docs/使用说明.txt) —— 安装包内随附的纯文本速查
-- [`docs/release-notes-v3.3.1.md`](docs/release-notes-v3.3.1.md) —— 本版发布说明
+- [`docs/release-notes-v3.3.2.md`](docs/release-notes-v3.3.2.md) —— 本版源码发布说明（安装包仍为 v3.3.1）
 - [`docs/引擎自研化替换规格.md`](docs/引擎自研化替换规格.md) —— 能力自研化路线与验收标准
 
 ---
